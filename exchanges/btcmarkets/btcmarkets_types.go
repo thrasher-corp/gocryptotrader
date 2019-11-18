@@ -282,23 +282,25 @@ type WithdrawRequestAUD struct {
 	BSBNumber     string `json:"bsbNumber"`
 }
 
-type cancelBatch struct {
+// CancelBatch stores data from batch cancel request
+type CancelBatch struct {
 	OrderID       string `json:"orderId"`
 	ClientOrderID string `json:"clientOrderId"`
 }
 
-type placeBatch struct {
-	MarketID      string `json:"marketId"`
-	Price         string `json:"price"`
-	Amount        string `json:"amount"`
-	OrderType     string `json:"type"`
-	Side          string `json:"side"`
-	TriggerPrice  string `json:"triggerPrice"`
-	TriggerAmount string `json:"triggerAmount"`
-	TimeInForce   string `json:"timeInForce"`
-	PostOnly      bool   `json:"postOnly"`
-	SelfTrade     string `json:"selfTrade"`
-	ClientOrderID string `json:"clientOrderId"`
+// PlaceBatch stores data from place batch request
+type PlaceBatch struct {
+	MarketID      string  `json:"marketId"`
+	Price         float64 `json:"price"`
+	Amount        float64 `json:"amount"`
+	OrderType     string  `json:"type"`
+	Side          string  `json:"side"`
+	TriggerPrice  float64 `json:"triggerPrice"`
+	TriggerAmount float64 `json:"triggerAmount"`
+	TimeInForce   string  `json:"timeInForce"`
+	PostOnly      bool    `json:"postOnly"`
+	SelfTrade     string  `json:"selfTrade"`
+	ClientOrderID string  `json:"clientOrderId"`
 }
 
 // TradingFeeData stores trading fee data
