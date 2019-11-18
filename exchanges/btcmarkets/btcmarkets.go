@@ -51,13 +51,13 @@ const (
 	btcmarketsAuthLimit   = 10
 	btcmarketsUnauthLimit = 25
 
-	failed             = "Failed"
-	partiallyCancelled = "Partially Cancelled"
-	cancelled          = "Cancelled"
-	fullyMatched       = "FullyMatched"
-	partiallyMatched   = "Partially Matched"
-	placed             = "Placed"
-	accepted           = "Accepted"
+	orderFailed             = "Failed"
+	orderPartiallyCancelled = "Partially Cancelled"
+	orderCancelled          = "Cancelled"
+	orderFullyMatched       = "FullyMatched"
+	orderPartiallyMatched   = "Partially Matched"
+	orderPlaced             = "Placed"
+	orderAccepted           = "Accepted"
 
 	limit      = "Limit"
 	market     = "Market"
@@ -294,7 +294,10 @@ func (b *BTCMarkets) GetTradeHistory(marketID string) ([]TradeHistoryData, error
 	var resp []TradeHistoryData
 	params := url.Values{}
 	params.Set("marketId", marketID)
-	return resp, b.SendAuthenticatedRequest(http.MethodGet, btcMarketsTradeHistory+"?"+params.Encode(), nil, &resp)
+	return resp, b.SendAuthenticatedRequest(http.MethodGet,
+		common.EncodeURLValues(btcMarketsTradeHistory, params),
+		nil,
+		&resp)
 }
 
 // NewOrder requests a new order and returns an ID
@@ -331,7 +334,8 @@ func (b *BTCMarkets) GetOrders(marketID string) ([]OrderData, error) {
 	var resp []OrderData
 	params := url.Values{}
 	params.Set("marketId", marketID)
-	return resp, b.SendAuthenticatedRequest(http.MethodGet, btcMarketsOrders+"?"+params.Encode(), nil, &resp)
+	return resp, b.SendAuthenticatedRequest(http.MethodGet,
+		common.EncodeURLValues(btcMarketsOrders, params), nil, &resp)
 }
 
 // CancelOpenOrders cancels all open orders unless pairs are specified
@@ -407,7 +411,7 @@ func (b *BTCMarkets) FetchDepositAddress(assetName string) (DepositAddress, erro
 	params := url.Values{}
 	params.Set("assetName", assetName)
 	return resp, b.SendAuthenticatedRequest(http.MethodGet,
-		btcMarketsAddresses+"?"+params.Encode(),
+		common.EncodeURLValues(btcMarketsAddresses, params),
 		nil,
 		&resp)
 }
