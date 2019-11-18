@@ -905,3 +905,36 @@ func (k *Kraken) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 	_, err := k.WebsocketConn.SendMessageReturnResponse(resp.RequestID, resp)
 	return err
 }
+
+func (k *Kraken) wsAddOrder(request *WsAddOrderRequest) (string, error) {
+	id := k.AuthenticatedWebsocketConn.GenerateMessageID(false)
+	request.UserReferenceID = strconv.FormatInt(id, 10)
+	request.Event = krakenWsAddOrder
+	request.Token = authToken
+	jsonResp, err := k.AuthenticatedWebsocketConn.SendMessageReturnResponse(id, request)
+	if err != nil {
+		return "", err
+	}
+	var resp WsAddOrderResponse
+	err = common.JSONDecode(jsonResp, &resp)
+	if err != nil {
+		return "", err
+	}
+	if resp.ErrorMessage != "" {
+		return "", fmt.Errorf(k.Name + " - " + resp.ErrorMessage)
+	}
+	return resp.TransactionID, nil
+}
+
+func (k *Kraken) wsCancelOrders(orderIDs []string) error {
+	request := WsCancelOrderRequest{
+		Event:          krakenWsCancelOrder,
+		Token:          authToken,
+		TransactionIDs: orderIDs,
+	}
+	err := k.AuthenticatedWebsocketConn.SendMessage(request)
+	if err != nil {
+		return err
+	}
+	return nil
+}

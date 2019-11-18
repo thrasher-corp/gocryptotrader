@@ -637,10 +637,18 @@ func setupWsTests(t *testing.T) {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
 	k.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	comms = make(chan wshandler.WebsocketResponse, 999)
 	k.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	k.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName:         k.Name,
 		URL:                  krakenWSURL,
+		Verbose:              k.Verbose,
+		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
+	}
+	k.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         k.Name,
+		URL:                  krakenAuthWSURL,
 		Verbose:              k.Verbose,
 		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
 		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
@@ -650,7 +658,21 @@ func setupWsTests(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	err = k.AuthenticatedWebsocketConn.Dial(&dialer, http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	token, err := k.GetWebsocketToken()
+	if err != nil {
+		t.Error(err)
+	}
+	authToken = token
+
+	go k.WsReadData(k.WebsocketConn)
+	go k.WsReadData(k.AuthenticatedWebsocketConn)
 	go k.WsHandleData()
+	go k.wsPingHandler()
 	wsSetupRan = true
 }
 
@@ -677,5 +699,27 @@ func TestGetWSToken(t *testing.T) {
 	}
 	if len(resp) == 0 {
 		t.Error("Token not returned")
+	}
+}
+
+func TestWsAddOrder(t *testing.T) {
+	setupWsTests(t)
+	orderID, err := k.wsAddOrder(&WsAddOrderRequest{
+		OrderType: "limit",
+		OrderSide: "buy",
+		Pair:      "XBT/USD",
+		Price:     90000,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log(orderID)
+}
+
+func TestWsCancelOrder(t *testing.T) {
+	setupWsTests(t)
+	err := k.wsCancelOrders([]string{"1337"})
+	if err != nil {
+		t.Error(err)
 	}
 }

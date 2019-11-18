@@ -525,3 +525,43 @@ type WsOpenOrderDescription struct {
 	Price2    float64 `json:"price2,string"`
 	Type      string  `json:"type"`
 }
+
+type WsAddOrderRequest struct {
+	Event           string  `json:"event"`
+	Token           string  `json:"token"`
+	OrderType       string  `json:"ordertype"`
+	OrderSide       string  `json:"type"`
+	Pair            string  `json:"pair"`
+	Price           float64 `json:"price,omitempty"`  // optional
+	Price2          float64 `json:"price2,omitempty"` // optional
+	Volume          float64 `json:"volume,omitempty"`
+	Leverage        float64 `json:"leverage,omitempty"`         // optional
+	OFlags          string  `json:"oflags,omitempty"`           // optional
+	StartTime       string  `json:"starttm,omitempty"`          // optional
+	ExpireTime      string  `json:"expiretm,omitempty"`         // optional
+	UserReferenceID string  `json:"userref,omitempty"`          // optional
+	Validate        string  `json:"validate,omitempty"`         // optional
+	CloseOrderType  string  `json:"close[ordertype],omitempty"` // optional
+	ClosePrice      float64 `json:"close[price],omitempty"`     // optional
+	ClosePrice2     float64 `json:"close[price2],omitempty"`    // optional
+}
+
+type WsAddOrderResponse struct {
+	Description   string `json:"descr,omitempty"`
+	Event         string `json:"event"`
+	Status        string `json:"status"`
+	TransactionID string `json:"txid,omitempty"`
+	ErrorMessage  string `json:"errorMessage,omitempty"`
+}
+
+type WsCancelOrderRequest struct {
+	Event          string   `json:"event"`
+	Token          string   `json:"token"`
+	TransactionIDs []string `json:"txid"`
+}
+
+type WsCancelOrderResponse struct {
+	Event        string `json:"event"`
+	Status       string `json:"status"`
+	ErrorMessage string `json:"errorMessage,omitempty"`
+}
