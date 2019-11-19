@@ -402,24 +402,24 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) {
 				if err != nil {
 					k.Websocket.DataHandler <- err
 				}
-				superButts2000 := tradeData["description"].(map[string]interface{})
-				descriptionPrice, err := strconv.ParseFloat(superButts2000["price"].(string), 64)
+				descriptionSubData := tradeData["description"].(map[string]interface{})
+				descriptionPrice, err := strconv.ParseFloat(descriptionSubData["price"].(string), 64)
 				if err != nil {
 					k.Websocket.DataHandler <- err
 				}
-				descriptionPrice2, err := strconv.ParseFloat(superButts2000["price2"].(string), 64)
+				descriptionPrice2, err := strconv.ParseFloat(descriptionSubData["price2"].(string), 64)
 				if err != nil {
 					k.Websocket.DataHandler <- err
 				}
 				description := WsOpenOrderDescription{
-					Close:     superButts2000["close"].(string),
-					Leverage:  superButts2000["leverage"].(string),
-					Order:     superButts2000["order"].(string),
-					OrderType: superButts2000["ordertype"].(string),
-					Pair:      superButts2000["pair"].(string),
+					Close:     descriptionSubData["close"].(string),
+					Leverage:  descriptionSubData["leverage"].(string),
+					Order:     descriptionSubData["order"].(string),
+					OrderType: descriptionSubData["ordertype"].(string),
+					Pair:      descriptionSubData["pair"].(string),
 					Price:     descriptionPrice,
 					Price2:    descriptionPrice2,
-					Type:      superButts2000["type"].(string),
+					Type:      descriptionSubData["type"].(string),
 				}
 
 				k.Websocket.DataHandler <- WsOpenOrders{

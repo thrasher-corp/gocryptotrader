@@ -143,19 +143,19 @@ func (b *Bitfinex) WsDataHandler() {
 					if _, ok := chanData[1].(string); ok {
 						switch chanData[1].(string) {
 						// Notifications channel provides updates from requests
-						case "n":
+						case notification:
 							notification := chanData[2].([]interface{})
 							if data, ok := notification[4].([]interface{}); ok {
 								channelName := notification[1].(string)
 								switch {
-								case strings.Contains(channelName, "ou"),
-									strings.Contains(channelName, "oc"),
-									strings.Contains(channelName, "foc"):
+								case strings.Contains(channelName, orderUpdate),
+									strings.Contains(channelName, orderCancel),
+									strings.Contains(channelName, fundingOrderCancel):
 									if data[0] != nil && data[0].(float64) > 0 {
 										b.AuthenticatedWebsocketConn.AddResponseWithID(int64(data[0].(float64)), stream.Raw)
 										continue
 									}
-								case strings.Contains(channelName, "on"):
+								case strings.Contains(channelName, orderNew):
 									if data[2] != nil && data[2].(float64) > 0 {
 										b.AuthenticatedWebsocketConn.AddResponseWithID(int64(data[2].(float64)), stream.Raw)
 										continue
@@ -251,7 +251,7 @@ func (b *Bitfinex) WsDataHandler() {
 									b.Websocket.DataHandler <- snapshot
 								}
 							}
-						case "fon", "fou", "foc":
+						case fundingOrderNew, fundingOrderUpdate, fundingOrderCancel:
 							if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
 								b.Websocket.DataHandler <- WsFundingOffer{
 									ID:         int64(data[0].(float64)),
@@ -272,7 +272,7 @@ func (b *Bitfinex) WsDataHandler() {
 									RateReal:   data[20].(float64),
 								}
 							}
-						case fcs:
+						case fundingCreditSnapshot:
 							var snapshot []WsCredit
 							if snapBundle, ok := chanData[2].([]interface{}); ok && len(snapBundle) > 0 {
 								if _, ok := snapBundle[0].([]interface{}); ok {
@@ -304,7 +304,7 @@ func (b *Bitfinex) WsDataHandler() {
 									b.Websocket.DataHandler <- snapshot
 								}
 							}
-						case "fcn", "fcu", "fcc":
+						case fundingCreditNew, fundingCreditUpdate, fundingCreditCancel:
 							if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
 								b.Websocket.DataHandler <- WsCredit{
 									ID:           int64(data[0].(float64)),

@@ -528,14 +528,20 @@ const (
 	websocketTradeExecutionUpdate          = "tu"
 	ts                                     = "ts"
 	fos                                    = "fos"
-	fcs                                    = "fcs"
+	fundingCreditSnapshot                  = "fcs"
+	fundingCreditNew                       = "fcn"
+	fundingCreditUpdate                    = "fcu"
+	fundingCreditCancel                    = "fcc"
 	fls                                    = "fls"
 	bu                                     = "bu"
-	// command endpoints
-	websocketOrderNew     = "on"
-	websocketOrderUpdate  = "ou"
-	websocketOrderCancel  = "oc"
-	websocketOrdersCancel = "oc_multi"
+	notification                           = "n"
+	orderUpdate                            = "ou"
+	orderCancel                            = "oc"
+	fundingOrderNew                        = "fon"
+	fundingOrderUpdate                     = "fou"
+	fundingOrderCancel                     = "foc"
+	orderNew                               = "on"
+	cancelMultipleOrders                   = "oc_multi"
 )
 
 // WsAuthRequest container for WS auth request
@@ -548,6 +554,7 @@ type WsAuthRequest struct {
 	DeadManSwitch int64  `json:"dms,omitempty"`
 }
 
+// WsFundingOffer funding offer received via websocket
 type WsFundingOffer struct {
 	ID         int64
 	Symbol     string
@@ -567,6 +574,7 @@ type WsFundingOffer struct {
 	RateReal   float64
 }
 
+// WsCredit credit details received via websocket
 type WsCredit struct {
 	ID           int64
 	Symbol       string
@@ -589,6 +597,7 @@ type WsCredit struct {
 	PositionPair string
 }
 
+// WsWallet wallet update details received via websocket
 type WsWallet struct {
 	Type              string
 	Currency          string
@@ -597,11 +606,13 @@ type WsWallet struct {
 	BalanceAvailable  float64
 }
 
+// WsBalanceInfo the total and net assets in your account received via websocket
 type WsBalanceInfo struct {
 	TotalAssetsUnderManagement float64
 	NetAssetsUnderManagement   float64
 }
 
+// WsFundingInfo account funding info received via websocket
 type WsFundingInfo struct {
 	Symbol       string
 	YieldLoan    float64
@@ -610,6 +621,7 @@ type WsFundingInfo struct {
 	DurationLend float64
 }
 
+// WsMarginInfoBase account margin info received via websocket
 type WsMarginInfoBase struct {
 	UserProfitLoss float64
 	UserSwaps      float64
@@ -617,6 +629,7 @@ type WsMarginInfoBase struct {
 	MarginNet      float64
 }
 
+// WsMarginInfoBase recent funding trades received via websocket
 type WsFundingTrade struct {
 	ID         int64
 	Symbol     string
@@ -627,17 +640,8 @@ type WsFundingTrade struct {
 	Period     int64
 	Maker      bool
 }
-type WsRequest struct {
-	Request []WsRequestBody
-}
 
-type WsRequestBody struct {
-	ChannelID                int64
-	ChannelName              string
-	SomethingThatsAlwaysNull interface{}
-	Data                     interface{}
-}
-
+// WsNewOrderRequest new order request...
 type WsNewOrderRequest struct {
 	GroupID             int64   `json:"gid,omitempty"`
 	CustomID            int64   `json:"cid,omitempty"`
@@ -653,6 +657,7 @@ type WsNewOrderRequest struct {
 	TimeInForce         string  `json:"tif,omitempty"`
 }
 
+// WsUpdateOrderRequest update order request...
 type WsUpdateOrderRequest struct {
 	OrderID             int64   `json:"id,omitempty"`
 	CustomID            int64   `json:"cid,omitempty"`
@@ -668,18 +673,21 @@ type WsUpdateOrderRequest struct {
 	TimeInForce         string  `json:"tif,omitempty"`
 }
 
+// WsCancelOrderRequest cancel order request...
 type WsCancelOrderRequest struct {
 	OrderID      int64  `json:"id,omitempty"`
 	CustomID     int64  `json:"cid,omitempty"`
 	CustomIDDate string `json:"cid_date,omitempty"`
 }
 
+// WsCancelGroupOrdersRequest cancel orders request...
 type WsCancelGroupOrdersRequest struct {
 	OrderID      []int64   `json:"id,omitempty"`
 	CustomID     [][]int64 `json:"cid,omitempty"`
 	GroupOrderID []int64   `json:"gid,omitempty"`
 }
 
+// WsNewOfferRequest new offer request
 type WsNewOfferRequest struct {
 	Type   string  `json:"type,omitempty"`
 	Symbol string  `json:"symbol,omitempty"`
@@ -689,9 +697,12 @@ type WsNewOfferRequest struct {
 	Flags  int64   `json:"flags,omitempty"`
 }
 
+// WsCancelOfferRequest cancel offer request
 type WsCancelOfferRequest struct {
 	OrderID int64 `json:"id"`
 }
+
+// WsCancelAllOrdersRequest cancel all orders request
 type WsCancelAllOrdersRequest struct {
 	All int64 `json:"all"`
 }
