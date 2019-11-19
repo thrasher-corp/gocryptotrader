@@ -262,6 +262,7 @@ var (
 	TimeIntervalFifteenMinutes = TimeInterval("15min")
 	TimeIntervalThirtyMinutes  = TimeInterval("30min")
 	TimeIntervalHour           = TimeInterval("60min")
+	TimeIntervalFourHours      = TimeInterval("4hour")
 	TimeIntervalDay            = TimeInterval("1day")
 	TimeIntervalWeek           = TimeInterval("1week")
 	TimeIntervalMohth          = TimeInterval("1mon")
