@@ -34,6 +34,7 @@ func (e Exchange) GetExchange(exch string) (exchange.IBotExchange, error) {
 	return ex, nil
 }
 
+// IsEnabled returns if requested exchange is enabled or disabled
 func (e Exchange) IsEnabled(exch string) (rtn bool) {
 	ex, err := e.GetExchange(exch)
 
@@ -44,6 +45,7 @@ func (e Exchange) IsEnabled(exch string) (rtn bool) {
 	return ex.IsEnabled()
 }
 
+// Orderbook returns current orderbook requested exchange, pair and asset
 func (e Exchange) Orderbook(exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
@@ -167,6 +169,7 @@ func (e Exchange) AccountInformation(exch string) (modules.AccountInfo, error) {
 	return accountInfo, nil
 }
 
+// DepositAddress gets the address required to deposit funds for currency type
 func (e Exchange) DepositAddress(exch string, currencyCode currency.Code, accountID string) (out string, err error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
@@ -179,6 +182,7 @@ func (e Exchange) DepositAddress(exch string, currencyCode currency.Code, accoun
 	return ex.GetDepositAddress(currencyCode, accountID)
 }
 
-func (e Exchange) WithdrawalAddress() error {
+// WithdrawalFunds withdraw funds from exchange to requested source
+func (e Exchange) WithdrawalFunds() error {
 	return nil
 }
