@@ -24,9 +24,9 @@ func ({{.Variable}} *{{.CapitalName}}) Start(wg *sync.WaitGroup) {
 // Run implements the {{.CapitalName}} wrapper
 func ({{.Variable}} *{{.CapitalName}}) Run() {
 	if {{.Variable}}.Verbose {
-{{if .WS}} log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", {{.Variable}}.GetName(), common.IsEnabled({{.Variable}}.Websocket.IsEnabled()), {{.Variable}}.Websocket.GetWebsocketURL()) {{end}}
-		log.Debugf(log.ExchangeSys, "%s polling delay: %ds.\n", {{.Variable}}.GetName(), {{.Variable}}.RESTPollingDelay)
-		log.Debugf(log.ExchangeSys, "%s %d currencies enabled: %s.\n", {{.Variable}}.GetName(), len({{.Variable}}.EnabledPairs), {{.Variable}}.EnabledPairs)
+{{if .WS}} log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", {{.Variable}}.Name, common.IsEnabled({{.Variable}}.Websocket.IsEnabled()), {{.Variable}}.Websocket.GetWebsocketURL()) {{end}}
+		log.Debugf(log.ExchangeSys, "%s polling delay: %ds.\n", {{.Variable}}.Name, {{.Variable}}.RESTPollingDelay)
+		log.Debugf(log.ExchangeSys, "%s %d currencies enabled: %s.\n", {{.Variable}}.Name, len({{.Variable}}.EnabledPairs), {{.Variable}}.EnabledPairs)
 	}
 }
 
@@ -60,7 +60,7 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(p currency.Pair, assetType a
 
 // FetchTicker returns the ticker for a currency pair
 func ({{.Variable}} *{{.CapitalName}}) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker({{.Variable}}.GetName(), p, assetType)
+	tickerNew, err := ticker.GetTicker({{.Variable}}.Name, p, assetType)
 	if err != nil {
 		return {{.Variable}}.UpdateTicker(p, assetType)
 	}
@@ -69,7 +69,7 @@ func ({{.Variable}} *{{.CapitalName}}) FetchTicker(p currency.Pair, assetType as
 
 // FetchOrderbook returns orderbook base on the currency pair
 func ({{.Variable}} *{{.CapitalName}}) FetchOrderbook(currency currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	ob, err := orderbook.Get({{.Variable}}.GetName(), currency, assetType)
+	ob, err := orderbook.Get({{.Variable}}.Name, currency, assetType)
 	if err != nil {
 		return {{.Variable}}.UpdateOrderbook(currency, assetType)
 	}
@@ -93,7 +93,7 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(p currency.Pair, assetTyp
 	//	orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: asks.Quantity, Price: asks.Price})
 	//}
 
-	//orderbook.ProcessOrderbook(b.GetName(), p, orderBook, assetType)
+	//orderbook.ProcessOrderbook(b.Name, p, orderBook, assetType)
 	//return orderbook.Get({{.Variable}}.Name, p, assetType)
   return orderBook, nil // NOTE DO NOT USE AS RETURN
 }

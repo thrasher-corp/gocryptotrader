@@ -140,7 +140,7 @@ func (z *ZB) WsHandleData() {
 				newOrderBook.Bids = bids
 				newOrderBook.AssetType = asset.Spot
 				newOrderBook.Pair = cPair
-				newOrderBook.ExchangeName = z.GetName()
+				newOrderBook.ExchangeName = z.Name
 
 				err = z.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 				if err != nil {
@@ -151,7 +151,7 @@ func (z *ZB) WsHandleData() {
 				z.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 					Pair:     cPair,
 					Asset:    asset.Spot,
-					Exchange: z.GetName(),
+					Exchange: z.Name,
 				}
 
 			case strings.Contains(result.Channel, "trades"):
@@ -173,7 +173,7 @@ func (z *ZB) WsHandleData() {
 					Timestamp:    time.Unix(0, t.Date*int64(time.Millisecond)),
 					CurrencyPair: cPair,
 					AssetType:    asset.Spot,
-					Exchange:     z.GetName(),
+					Exchange:     z.Name,
 					EventTime:    t.Date,
 					Price:        t.Price,
 					Amount:       t.Amount,

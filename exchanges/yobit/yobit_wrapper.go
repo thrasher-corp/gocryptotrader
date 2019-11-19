@@ -212,7 +212,7 @@ func (y *Yobit) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 
 // FetchTicker returns the ticker for a currency pair
 func (y *Yobit) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tick, err := ticker.GetTicker(y.GetName(), p, assetType)
+	tick, err := ticker.GetTicker(y.Name, p, assetType)
 	if err != nil {
 		return y.UpdateTicker(p, assetType)
 	}
@@ -221,7 +221,7 @@ func (y *Yobit) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 
 // FetchOrderbook returns the orderbook for a currency pair
 func (y *Yobit) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	ob, err := orderbook.Get(y.GetName(), p, assetType)
+	ob, err := orderbook.Get(y.Name, p, assetType)
 	if err != nil {
 		return y.UpdateOrderbook(p, assetType)
 	}
@@ -253,7 +253,7 @@ func (y *Yobit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderboo
 	}
 
 	orderBook.Pair = p
-	orderBook.ExchangeName = y.GetName()
+	orderBook.ExchangeName = y.Name
 	orderBook.AssetType = assetType
 
 	err = orderBook.Process()
@@ -268,7 +268,7 @@ func (y *Yobit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderboo
 // Yobit exchange
 func (y *Yobit) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.Exchange = y.GetName()
+	response.Exchange = y.Name
 	accountBalance, err := y.GetAccountInformation()
 	if err != nil {
 		return response, err

@@ -57,15 +57,15 @@ func (l *LakeBTC) listenToEndpoints() error {
 	var err error
 	l.WebsocketConn.Ticker, err = l.WebsocketConn.Client.Bind("tickers")
 	if err != nil {
-		return fmt.Errorf("%s Websocket Bind error: %s", l.GetName(), err)
+		return fmt.Errorf("%s Websocket Bind error: %s", l.Name, err)
 	}
 	l.WebsocketConn.Orderbook, err = l.WebsocketConn.Client.Bind("update")
 	if err != nil {
-		return fmt.Errorf("%s Websocket Bind error: %s", l.GetName(), err)
+		return fmt.Errorf("%s Websocket Bind error: %s", l.Name, err)
 	}
 	l.WebsocketConn.Trade, err = l.WebsocketConn.Client.Bind("trades")
 	if err != nil {
-		return fmt.Errorf("%s Websocket Bind error: %s", l.GetName(), err)
+		return fmt.Errorf("%s Websocket Bind error: %s", l.Name, err)
 	}
 	return nil
 }
@@ -152,7 +152,7 @@ func (l *LakeBTC) processTrades(data, channel string) error {
 			Timestamp:    time.Unix(tradeData.Trades[i].Date, 0),
 			CurrencyPair: curr,
 			AssetType:    asset.Spot,
-			Exchange:     l.GetName(),
+			Exchange:     l.Name,
 			EventType:    asset.Spot.String(),
 			EventTime:    tradeData.Trades[i].Date,
 			Price:        tradeData.Trades[i].Price,

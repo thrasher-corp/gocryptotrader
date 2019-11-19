@@ -183,7 +183,7 @@ func (p *Poloniex) Start(wg *sync.WaitGroup) {
 // Run implements the Poloniex wrapper
 func (p *Poloniex) Run() {
 	if p.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s (url: %s).\n", p.GetName(), common.IsEnabled(p.Websocket.IsEnabled()), poloniexWebsocketAddress)
+		log.Debugf(log.ExchangeSys, "%s Websocket: %s (url: %s).\n", p.Name, common.IsEnabled(p.Websocket.IsEnabled()), poloniexWebsocketAddress)
 		p.PrintEnabledPairs()
 	}
 
@@ -253,7 +253,7 @@ func (p *Poloniex) UpdateTicker(currencyPair currency.Pair, assetType asset.Item
 		tp.Volume = tick[curr].BaseVolume
 		tp.QuoteVolume = tick[curr].QuoteVolume
 
-		err = ticker.ProcessTicker(p.GetName(), &tp, assetType)
+		err = ticker.ProcessTicker(p.Name, &tp, assetType)
 		if err != nil {
 			log.Error(log.Ticker, err)
 		}
@@ -263,7 +263,7 @@ func (p *Poloniex) UpdateTicker(currencyPair currency.Pair, assetType asset.Item
 
 // FetchTicker returns the ticker for a currency pair
 func (p *Poloniex) FetchTicker(currencyPair currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(p.GetName(), currencyPair, assetType)
+	tickerNew, err := ticker.GetTicker(p.Name, currencyPair, assetType)
 	if err != nil {
 		return p.UpdateTicker(currencyPair, assetType)
 	}
@@ -272,7 +272,7 @@ func (p *Poloniex) FetchTicker(currencyPair currency.Pair, assetType asset.Item)
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (p *Poloniex) FetchOrderbook(currencyPair currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	ob, err := orderbook.Get(p.GetName(), currencyPair, assetType)
+	ob, err := orderbook.Get(p.Name, currencyPair, assetType)
 	if err != nil {
 		return p.UpdateOrderbook(currencyPair, assetType)
 	}
@@ -311,7 +311,7 @@ func (p *Poloniex) UpdateOrderbook(currencyPair currency.Pair, assetType asset.I
 
 		orderBook.Pair = x
 		orderBook.Asks = obItems
-		orderBook.ExchangeName = p.GetName()
+		orderBook.ExchangeName = p.Name
 		orderBook.AssetType = assetType
 
 		err = orderBook.Process()
@@ -326,7 +326,7 @@ func (p *Poloniex) UpdateOrderbook(currencyPair currency.Pair, assetType asset.I
 // Poloniex exchange
 func (p *Poloniex) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.Exchange = p.GetName()
+	response.Exchange = p.Name
 	accountBalance, err := p.GetBalances()
 	if err != nil {
 		return response, err

@@ -166,7 +166,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		}
 		currencyPair := wsInstrumentMap.LookupInstrument(orderbooksnapshot.InstID)
 		c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Exchange: c.GetName(),
+			Exchange: c.Name,
 			Asset:    asset.Spot,
 			Pair: currency.NewPairFromFormattedPairs(currencyPair,
 				c.GetEnabledPairs(asset.Spot),
@@ -186,7 +186,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		}
 		currencyPair := wsInstrumentMap.LookupInstrument(orderbookUpdate.InstID)
 		c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Exchange: c.GetName(),
+			Exchange: c.Name,
 			Asset:    asset.Spot,
 			Pair: currency.NewPairFromFormattedPairs(currencyPair,
 				c.GetEnabledPairs(asset.Spot),
@@ -214,7 +214,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 				c.GetEnabledPairs(asset.Spot),
 				c.GetPairFormat(asset.Spot, true)),
 			AssetType: asset.Spot,
-			Exchange:  c.GetName(),
+			Exchange:  c.Name,
 			Price:     tradeUpdate.Price,
 			Side:      tradeUpdate.Side,
 		}
@@ -290,7 +290,7 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 		c.GetPairFormat(asset.Spot, true),
 	)
 	newOrderBook.AssetType = asset.Spot
-	newOrderBook.ExchangeName = c.GetName()
+	newOrderBook.ExchangeName = c.Name
 
 	return c.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
