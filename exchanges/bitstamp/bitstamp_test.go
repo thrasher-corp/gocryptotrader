@@ -574,7 +574,11 @@ func TestGetDepositAddress(t *testing.T) {
 func TestParseTime(t *testing.T) {
 	t.Parallel()
 
-	tm := parseTime("2019-10-18 01:55:14")
+	tm, err := parseTime("2019-10-18 01:55:14")
+	if err != nil {
+		t.Error(err)
+	}
+
 	if tm.Year() != 2019 ||
 		tm.Month() != 10 ||
 		tm.Day() != 18 ||

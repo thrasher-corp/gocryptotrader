@@ -515,7 +515,7 @@ func (c *CoinbasePro) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Deta
 		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
 		orderDate, err := time.Parse(time.RFC3339, respOrders[i].CreatedAt)
 		if err != nil {
-			log.Warnf(log.ExchangeSys,
+			log.Errorf(log.ExchangeSys,
 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				c.Name,
 				"GetActiveOrders",
@@ -562,7 +562,7 @@ func (c *CoinbasePro) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Deta
 		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
 		orderDate, err := time.Parse(time.RFC3339, respOrders[i].CreatedAt)
 		if err != nil {
-			log.Warnf(log.ExchangeSys,
+			log.Errorf(log.ExchangeSys,
 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				c.Name,
 				"GetActiveOrders",

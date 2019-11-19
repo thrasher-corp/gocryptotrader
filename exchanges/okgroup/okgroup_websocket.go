@@ -472,7 +472,7 @@ func (o *OKGroup) wsProcessCandles(response *WebsocketDataResponse) {
 		timeData, err := time.Parse(time.RFC3339Nano,
 			response.Data[i].WebsocketCandleResponse.Candle[0])
 		if err != nil {
-			log.Warnf(log.ExchangeSys,
+			log.Errorf(log.ExchangeSys,
 				"%v Time data could not be parsed: %v",
 				o.Name,
 				response.Data[i].Candle[0])

@@ -42,6 +42,7 @@ const (
 	btsePendingOrders = "pending"
 	btseDeleteOrder   = "deleteOrder"
 	btseFills         = "fills"
+	btseTimeLayout    = "2006-01-02 15:04:04"
 )
 
 // GetMarketsSummary stores market summary data
@@ -320,7 +321,6 @@ func calculateTradingFee(isMaker bool) float64 {
 	return fee
 }
 
-func parseOrderTime(timeStr string) time.Time {
-	t, _ := time.Parse("2006-01-02 15:04:04", timeStr)
-	return t
+func parseOrderTime(timeStr string) (time.Time, error) {
+	return time.Parse(btseTimeLayout, timeStr)
 }

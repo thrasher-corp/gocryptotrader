@@ -56,6 +56,7 @@ const (
 
 	bitstampAuthRate   = 8000
 	bitstampUnauthRate = 8000
+	bitstampTimeLayout = "2006-1-2 15:04:05"
 )
 
 // Bitstamp is the overarching type across the bitstamp package
@@ -702,7 +703,6 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 	return common.JSONDecode(interim, result)
 }
 
-func parseTime(dateTime string) time.Time {
-	t, _ := time.Parse("2006-1-2 15:04:05", dateTime)
-	return t
+func parseTime(dateTime string) (time.Time, error) {
+	return time.Parse(bitstampTimeLayout, dateTime)
 }

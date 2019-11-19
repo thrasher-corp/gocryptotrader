@@ -526,13 +526,19 @@ func (b *Bitstamp) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 			orderSide = order.Sell
 		}
 
+		tm, err := parseTime(resp[i].DateTime)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s GetActiveOrders unable to parse time: %s\n", b.Name, err)
+		}
+
 		orders = append(orders, order.Detail{
 			Amount:       resp[i].Amount,
 			ID:           strconv.FormatInt(resp[i].ID, 10),
 			Price:        resp[i].Price,
 			OrderType:    order.Limit,
 			OrderSide:    orderSide,
-			OrderDate:    parseTime(resp[i].DateTime),
+			OrderDate:    tm,
 			CurrencyPair: currency.NewPairFromString(resp[i].Currency),
 			Exchange:     b.Name,
 		})
@@ -593,9 +599,15 @@ func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 				b.GetPairFormat(asset.Spot, false).Delimiter)
 		}
 
+		tm, err := parseTime(resp[i].Date)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s GetOrderHistory unable to parse time: %s\n", b.Name, err)
+		}
+
 		orders = append(orders, order.Detail{
 			ID:           strconv.FormatInt(resp[i].OrderID, 10),
-			OrderDate:    parseTime(resp[i].Date),
+			OrderDate:    tm,
 			Exchange:     b.Name,
 			CurrencyPair: currPair,
 		})

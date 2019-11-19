@@ -201,7 +201,7 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTradablePairs(forceUpdate bool) err
 func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
   	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
 	/*
-var tickerPrice ticker.Price
+	var tickerPrice ticker.Price
 	tick, err := {{.Variable}}.GetTicker(p.String())
 	if err != nil {
 		return tickerPrice, err

@@ -273,9 +273,12 @@ func TestGetFee(t *testing.T) {
 
 func TestParseOrderTime(t *testing.T) {
 	expected := int64(1534794360)
-	actual := parseOrderTime("2018-08-20 19:20:46").Unix()
-	if expected != actual {
-		t.Errorf("TestParseOrderTime expected: %d, got %d", expected, actual)
+	actual, err := parseOrderTime("2018-08-20 19:20:46")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if expected != actual.Unix() {
+		t.Errorf("TestParseOrderTime expected: %d, got %d", expected, actual.Unix())
 	}
 }
 

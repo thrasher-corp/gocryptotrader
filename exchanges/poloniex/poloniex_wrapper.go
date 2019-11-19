@@ -503,7 +503,7 @@ func (p *Poloniex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 			orderSide := order.Side(strings.ToUpper(resp.Data[key][i].Type))
 			orderDate, err := time.Parse(poloniexDateLayout, resp.Data[key][i].Date)
 			if err != nil {
-				log.Warnf(log.ExchangeSys,
+				log.Errorf(log.ExchangeSys,
 					"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 					p.Name,
 					"GetActiveOrders",
@@ -550,7 +550,7 @@ func (p *Poloniex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 			orderDate, err := time.Parse(poloniexDateLayout,
 				resp.Data[key][i].Date)
 			if err != nil {
-				log.Warnf(log.ExchangeSys,
+				log.Errorf(log.ExchangeSys,
 					"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 					p.Name,
 					"GetActiveOrders",

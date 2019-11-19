@@ -1,6 +1,6 @@
-# Description
+# PR Description
 
-Please include a summary of the change and which issue is fixed. Please also include relevant motivation and context. List any dependencies that are required for this change. 
+Please include a summary of the change, feature or issue which this pull request addresses. Please also include relevant motivation and context. List any dependencies that are required for this change.
 
 Fixes # (issue)
 
@@ -13,21 +13,21 @@ Please delete options that are not relevant and add an `x` in `[]` as item is co
 - [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
 - [ ] This change requires a documentation update
 
-# How Has This Been Tested?
+## How has this been tested
 
-Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce. Please also list any relevant details for your test configuration
+Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce. Please also list any relevant details for your test configuration and
+also consider improving test coverage whilst working on a certain feature or package.
 
-## Please also consider improving test coverage whilst working on a certain package
+- [ ] go test ./... -race
+- [ ] golangci-lint run
+- [ ] Test X
 
-- [ ] Test A
-- [ ] Test B
-
-# Checklist:
+## Checklist
 
 - [ ] My code follows the style guidelines of this project
 - [ ] I have performed a self-review of my own code
 - [ ] I have commented my code, particularly in hard-to-understand areas
-- [ ] I have made corresponding changes to the documentation and regenerated documentation via the documentation tool 
+- [ ] I have made corresponding changes to the documentation and regenerated documentation via the documentation tool
 - [ ] My changes generate no new warnings
 - [ ] I have added tests that prove my fix is effective or that my feature works
 - [ ] New and existing unit tests pass locally and on Travis with my changes
