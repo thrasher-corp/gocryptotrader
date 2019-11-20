@@ -186,7 +186,7 @@ func (h *HitBTC) Start(wg *sync.WaitGroup) {
 // Run implements the HitBTC wrapper
 func (h *HitBTC) Run() {
 	if h.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s (url: %s).\n", h.GetName(), common.IsEnabled(h.Websocket.IsEnabled()), hitbtcWebsocketAddress)
+		log.Debugf(log.ExchangeSys, "%s Websocket: %s (url: %s).\n", h.Name, common.IsEnabled(h.Websocket.IsEnabled()), hitbtcWebsocketAddress)
 		h.PrintEnabledPairs()
 	}
 
@@ -199,7 +199,7 @@ func (h *HitBTC) Run() {
 
 		err := h.UpdatePairs(currency.NewPairsFromStrings(enabledPairs), asset.Spot, true, true)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update enabled currencies.\n", h.GetName())
+			log.Errorf(log.ExchangeSys, "%s failed to update enabled currencies.\n", h.Name)
 		}
 	}
 
@@ -273,7 +273,7 @@ func (h *HitBTC) UpdateTicker(currencyPair currency.Pair, assetType asset.Item) 
 				Pair:        pairs[i],
 				LastUpdated: tick[j].Timestamp,
 			}
-			err = ticker.ProcessTicker(h.GetName(), &tickerPrice, assetType)
+			err = ticker.ProcessTicker(h.Name, &tickerPrice, assetType)
 			if err != nil {
 				log.Error(log.Ticker, err)
 			}
@@ -284,7 +284,7 @@ func (h *HitBTC) UpdateTicker(currencyPair currency.Pair, assetType asset.Item) 
 
 // FetchTicker returns the ticker for a currency pair
 func (h *HitBTC) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(h.GetName(), p, assetType)
+	tickerNew, err := ticker.GetTicker(h.Name, p, assetType)
 	if err != nil {
 		return h.UpdateTicker(p, assetType)
 	}
@@ -293,7 +293,7 @@ func (h *HitBTC) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (h *HitBTC) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	ob, err := orderbook.Get(h.GetName(), p, assetType)
+	ob, err := orderbook.Get(h.Name, p, assetType)
 	if err != nil {
 		return h.UpdateOrderbook(p, assetType)
 	}
@@ -319,7 +319,7 @@ func (h *HitBTC) UpdateOrderbook(currencyPair currency.Pair, assetType asset.Ite
 	}
 
 	orderBook.Pair = currencyPair
-	orderBook.ExchangeName = h.GetName()
+	orderBook.ExchangeName = h.Name
 	orderBook.AssetType = assetType
 
 	err = orderBook.Process()
@@ -334,7 +334,7 @@ func (h *HitBTC) UpdateOrderbook(currencyPair currency.Pair, assetType asset.Ite
 // HitBTC exchange
 func (h *HitBTC) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.Exchange = h.GetName()
+	response.Exchange = h.Name
 	accountBalance, err := h.GetBalances()
 	if err != nil {
 		return response, err

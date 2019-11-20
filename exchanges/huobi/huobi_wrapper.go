@@ -196,7 +196,7 @@ func (h *HUOBI) Run() {
 	if h.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s (url: %s).\n",
-			h.GetName(),
+			h.Name,
 			common.IsEnabled(h.Websocket.IsEnabled()),
 			wsMarketURL)
 		h.PrintEnabledPairs()
@@ -236,7 +236,7 @@ func (h *HUOBI) Run() {
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s Failed to update enabled currencies.\n",
-				h.GetName())
+				h.Name)
 		}
 	}
 
@@ -310,7 +310,7 @@ func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 				Close:  tickers.Data[j].Close,
 				Pair:   pairs[i],
 			}
-			err = ticker.ProcessTicker(h.GetName(), &tickerPrice, assetType)
+			err = ticker.ProcessTicker(h.Name, &tickerPrice, assetType)
 			if err != nil {
 				log.Error(log.Ticker, err)
 			}
@@ -322,7 +322,7 @@ func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 
 // FetchTicker returns the ticker for a currency pair
 func (h *HUOBI) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(h.GetName(), p, assetType)
+	tickerNew, err := ticker.GetTicker(h.Name, p, assetType)
 	if err != nil {
 		return h.UpdateTicker(p, assetType)
 	}
@@ -331,7 +331,7 @@ func (h *HUOBI) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (h *HUOBI) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	ob, err := orderbook.Get(h.GetName(), p, assetType)
+	ob, err := orderbook.Get(h.Name, p, assetType)
 	if err != nil {
 		return h.UpdateOrderbook(p, assetType)
 	}
@@ -360,7 +360,7 @@ func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderboo
 	}
 
 	orderBook.Pair = p
-	orderBook.ExchangeName = h.GetName()
+	orderBook.ExchangeName = h.Name
 	orderBook.AssetType = assetType
 
 	err = orderBook.Process()
@@ -389,7 +389,7 @@ func (h *HUOBI) GetAccountID() ([]Account, error) {
 // HUOBI exchange - to-do
 func (h *HUOBI) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
-	info.Exchange = h.GetName()
+	info.Exchange = h.Name
 
 	accounts, err := h.GetAccountID()
 	if err != nil {

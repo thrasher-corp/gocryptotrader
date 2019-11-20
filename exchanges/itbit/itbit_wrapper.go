@@ -158,7 +158,7 @@ func (i *ItBit) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 		Pair:        p,
 		LastUpdated: tick.ServertimeUTC,
 	}
-	err = ticker.ProcessTicker(i.GetName(), &tickerPrice, assetType)
+	err = ticker.ProcessTicker(i.Name, &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -168,7 +168,7 @@ func (i *ItBit) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 
 // FetchTicker returns the ticker for a currency pair
 func (i *ItBit) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(i.GetName(), p, assetType)
+	tickerNew, err := ticker.GetTicker(i.Name, p, assetType)
 	if err != nil {
 		return i.UpdateTicker(p, assetType)
 	}
@@ -177,7 +177,7 @@ func (i *ItBit) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (i *ItBit) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	ob, err := orderbook.Get(i.GetName(), p, assetType)
+	ob, err := orderbook.Get(i.Name, p, assetType)
 	if err != nil {
 		return i.UpdateOrderbook(p, assetType)
 	}
@@ -229,7 +229,7 @@ func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderboo
 	}
 
 	orderBook.Pair = p
-	orderBook.ExchangeName = i.GetName()
+	orderBook.ExchangeName = i.Name
 	orderBook.AssetType = assetType
 
 	err = orderBook.Process()
@@ -243,7 +243,7 @@ func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderboo
 // GetAccountInfo retrieves balances for all enabled currencies
 func (i *ItBit) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
-	info.Exchange = i.GetName()
+	info.Exchange = i.Name
 
 	wallets, err := i.GetWallets(url.Values{})
 	if err != nil {

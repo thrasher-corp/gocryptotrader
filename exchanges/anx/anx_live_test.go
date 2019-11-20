@@ -33,6 +33,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("ANX setup error", err)
 	}
-	log.Printf(sharedtestvalues.LiveTesting, a.GetName(), a.API.Endpoints.URL)
+	log.Printf(sharedtestvalues.LiveTesting, a.Name, a.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

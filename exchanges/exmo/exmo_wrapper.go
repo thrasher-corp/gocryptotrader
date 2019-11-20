@@ -209,7 +209,7 @@ func (e *EXMO) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 
 // FetchTicker returns the ticker for a currency pair
 func (e *EXMO) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tick, err := ticker.GetTicker(e.GetName(), p, assetType)
+	tick, err := ticker.GetTicker(e.Name, p, assetType)
 	if err != nil {
 		return e.UpdateTicker(p, assetType)
 	}
@@ -218,7 +218,7 @@ func (e *EXMO) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price,
 
 // FetchOrderbook returns the orderbook for a currency pair
 func (e *EXMO) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	ob, err := orderbook.Get(e.GetName(), p, assetType)
+	ob, err := orderbook.Get(e.Name, p, assetType)
 	if err != nil {
 		return e.UpdateOrderbook(p, assetType)
 	}
@@ -267,7 +267,7 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook
 
 		orderBook.Bids = obItems
 		orderBook.Pair = x
-		orderBook.ExchangeName = e.GetName()
+		orderBook.ExchangeName = e.Name
 		orderBook.AssetType = assetType
 
 		err = orderBook.Process()
@@ -282,7 +282,7 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook
 // Exmo exchange
 func (e *EXMO) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.Exchange = e.GetName()
+	response.Exchange = e.Name
 	result, err := e.GetUserInfo()
 	if err != nil {
 		return response, err

@@ -182,7 +182,7 @@ func (c *COINUT) Start(wg *sync.WaitGroup) {
 // Run implements the COINUT wrapper
 func (c *COINUT) Run() {
 	if c.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", c.GetName(), common.IsEnabled(c.Websocket.IsEnabled()), coinutWebsocketURL)
+		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", c.Name, common.IsEnabled(c.Websocket.IsEnabled()), coinutWebsocketURL)
 		c.PrintEnabledPairs()
 	}
 
@@ -311,7 +311,7 @@ func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 			TotalValue:   bal.ZEC,
 		},
 	}
-	info.Exchange = c.GetName()
+	info.Exchange = c.Name
 	info.Accounts = append(info.Accounts, exchange.Account{
 		Currencies: balances,
 	})
@@ -350,7 +350,7 @@ func (c *COINUT) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 		Pair:        p,
 		LastUpdated: time.Unix(0, tick.Timestamp),
 	}
-	err = ticker.ProcessTicker(c.GetName(), &tickerPrice, assetType)
+	err = ticker.ProcessTicker(c.Name, &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -360,7 +360,7 @@ func (c *COINUT) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 
 // FetchTicker returns the ticker for a currency pair
 func (c *COINUT) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(c.GetName(), p, assetType)
+	tickerNew, err := ticker.GetTicker(c.Name, p, assetType)
 	if err != nil {
 		return c.UpdateTicker(p, assetType)
 	}
@@ -369,7 +369,7 @@ func (c *COINUT) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (c *COINUT) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	ob, err := orderbook.Get(c.GetName(), p, assetType)
+	ob, err := orderbook.Get(c.Name, p, assetType)
 	if err != nil {
 		return c.UpdateOrderbook(p, assetType)
 	}
@@ -407,7 +407,7 @@ func (c *COINUT) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbo
 	}
 
 	orderBook.Pair = p
-	orderBook.ExchangeName = c.GetName()
+	orderBook.ExchangeName = c.Name
 	orderBook.AssetType = assetType
 
 	err = orderBook.Process()

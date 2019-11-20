@@ -243,7 +243,7 @@ func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker
 		LastUpdated: time.Unix(tick.Timestamp, 0),
 	}
 
-	err = ticker.ProcessTicker(b.GetName(), &tickerPrice, assetType)
+	err = ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -253,7 +253,7 @@ func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker
 
 // FetchTicker returns the ticker for a currency pair
 func (b *BTCMarkets) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(b.GetName(), p, assetType)
+	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
 	}
@@ -262,7 +262,7 @@ func (b *BTCMarkets) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (b *BTCMarkets) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	ob, err := orderbook.Get(b.GetName(), p, assetType)
+	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}
@@ -289,7 +289,7 @@ func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (ord
 	}
 
 	orderBook.Pair = p
-	orderBook.ExchangeName = b.GetName()
+	orderBook.ExchangeName = b.Name
 	orderBook.AssetType = assetType
 
 	err = orderBook.Process()
@@ -304,7 +304,7 @@ func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (ord
 // BTCMarkets exchange
 func (b *BTCMarkets) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.Exchange = b.GetName()
+	response.Exchange = b.Name
 
 	accountBalance, err := b.GetAccountBalance()
 	if err != nil {
@@ -443,28 +443,29 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
 		return OrderDetail, errors.New("no orders found")
 	}
 
-	// for i := range orders {
-	var side order.Side
-	if strings.EqualFold(orders[0].OrderSide, order.Ask.String()) {
-		side = order.Sell
-	} else if strings.EqualFold(orders[0].OrderSide, order.Bid.String()) {
-		side = order.Buy
-	}
-	orderDate := time.Unix(int64(orders[0].CreationTime), 0)
-	orderType := order.Type(strings.ToUpper(orders[0].OrderType))
+	for i := range orders {
+		var side order.Side
+		if strings.EqualFold(orders[i].OrderSide, order.Ask.String()) {
+			side = order.Sell
+		} else if strings.EqualFold(orders[i].OrderSide, order.Bid.String()) {
+			side = order.Buy
+		}
+		orderDate := time.Unix(int64(orders[i].CreationTime), 0)
+		orderType := order.Type(strings.ToUpper(orders[i].OrderType))
 
-	OrderDetail.Amount = orders[0].Volume
-	OrderDetail.OrderDate = orderDate
-	OrderDetail.Exchange = b.GetName()
-	OrderDetail.ID = strconv.FormatInt(orders[0].ID, 10)
-	OrderDetail.RemainingAmount = orders[0].OpenVolume
-	OrderDetail.OrderSide = side
-	OrderDetail.OrderType = orderType
-	OrderDetail.Price = orders[0].Price
-	OrderDetail.Status = order.Status(orders[0].Status)
-	OrderDetail.CurrencyPair = currency.NewPairWithDelimiter(orders[0].Instrument,
-		orders[0].Currency,
-		b.GetPairFormat(asset.Spot, false).Delimiter)
+		OrderDetail.Amount = orders[i].Volume
+		OrderDetail.OrderDate = orderDate
+		OrderDetail.Exchange = b.Name
+		OrderDetail.ID = strconv.FormatInt(orders[i].ID, 10)
+		OrderDetail.RemainingAmount = orders[i].OpenVolume
+		OrderDetail.OrderSide = side
+		OrderDetail.OrderType = orderType
+		OrderDetail.Price = orders[i].Price
+		OrderDetail.Status = order.Status(orders[i].Status)
+		OrderDetail.CurrencyPair = currency.NewPairWithDelimiter(orders[i].Instrument,
+			orders[i].Currency,
+			b.GetPairFormat(asset.Spot, false).Delimiter)
+	}
 
 	return OrderDetail, nil
 }

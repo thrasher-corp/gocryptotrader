@@ -244,7 +244,7 @@ func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 	tickerPrice.High = s.High
 	tickerPrice.LastUpdated = s.Time
 
-	err = ticker.ProcessTicker(b.GetName(), &tickerPrice, assetType)
+	err = ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -253,7 +253,7 @@ func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 
 // FetchTicker returns the ticker for a currency pair
 func (b *BTSE) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(b.GetName(), p, assetType)
+	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
 	}
@@ -262,7 +262,7 @@ func (b *BTSE) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price,
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (b *BTSE) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	ob, err := orderbook.Get(b.GetName(), p, assetType)
+	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}

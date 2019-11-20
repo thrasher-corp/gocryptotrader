@@ -155,7 +155,7 @@ func (a *ANX) Run() {
 		forceUpdate = true
 		err := a.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update currencies.\n", a.GetName())
+			log.Errorf(log.ExchangeSys, "%s failed to update currencies.\n", a.Name)
 			return
 		}
 	}
@@ -166,7 +166,7 @@ func (a *ANX) Run() {
 
 	err := a.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", a.GetName(), err)
+		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", a.Name, err)
 	}
 }
 
@@ -221,7 +221,7 @@ func (a *ANX) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price,
 		LastUpdated: time.Unix(0, tick.Data.UpdateTime),
 	}
 
-	err = ticker.ProcessTicker(a.GetName(), &tickerPrice, assetType)
+	err = ticker.ProcessTicker(a.Name, &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -231,7 +231,7 @@ func (a *ANX) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price,
 
 // FetchTicker returns the ticker for a currency pair
 func (a *ANX) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(a.GetName(), p, assetType)
+	tickerNew, err := ticker.GetTicker(a.Name, p, assetType)
 	if err != nil {
 		return a.UpdateTicker(p, assetType)
 	}
@@ -240,7 +240,7 @@ func (a *ANX) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, 
 
 // FetchOrderbook returns the orderbook for a currency pair
 func (a *ANX) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	ob, err := orderbook.Get(a.GetName(), p, assetType)
+	ob, err := orderbook.Get(a.Name, p, assetType)
 	if err != nil {
 		return a.UpdateOrderbook(p, assetType)
 	}
@@ -270,7 +270,7 @@ func (a *ANX) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.
 	}
 
 	orderBook.Pair = p
-	orderBook.ExchangeName = a.GetName()
+	orderBook.ExchangeName = a.Name
 	orderBook.AssetType = assetType
 	err = orderBook.Process()
 	if err != nil {
@@ -299,7 +299,7 @@ func (a *ANX) GetAccountInfo() (exchange.AccountInfo, error) {
 		})
 	}
 
-	info.Exchange = a.GetName()
+	info.Exchange = a.Name
 	info.Accounts = append(info.Accounts, exchange.Account{
 		Currencies: balance,
 	})

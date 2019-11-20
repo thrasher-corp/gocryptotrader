@@ -139,7 +139,7 @@ func (b *BTCMarkets) NewOrder(instrument, currency string, price, amount float64
 	}
 
 	if !resp.Success {
-		return 0, fmt.Errorf("%s Unable to place order. Error message: %s", b.GetName(), resp.ErrorMessage)
+		return 0, fmt.Errorf("%s Unable to place order. Error message: %s", b.Name, resp.ErrorMessage)
 	}
 	return int64(resp.ID), nil
 }
@@ -160,7 +160,7 @@ func (b *BTCMarkets) CancelExistingOrder(orderID []int64) ([]ResponseDetails, er
 	}
 
 	if !resp.Success {
-		return resp.Responses, fmt.Errorf("%s Unable to cancel order. Error message: %s", b.GetName(), resp.ErrorMessage)
+		return resp.Responses, fmt.Errorf("%s Unable to cancel order. Error message: %s", b.Name, resp.ErrorMessage)
 	}
 
 	return resp.Responses, nil

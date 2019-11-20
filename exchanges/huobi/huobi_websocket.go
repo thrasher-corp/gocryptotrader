@@ -251,7 +251,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 		data := strings.Split(kline.Channel, ".")
 		h.Websocket.DataHandler <- wshandler.KlineData{
 			Timestamp: time.Unix(0, kline.Timestamp),
-			Exchange:  h.GetName(),
+			Exchange:  h.Name,
 			AssetType: asset.Spot,
 			Pair: currency.NewPairFromFormattedPairs(data[1],
 				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
@@ -270,7 +270,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 		}
 		data := strings.Split(trade.Channel, ".")
 		h.Websocket.DataHandler <- wshandler.TradeData{
-			Exchange:  h.GetName(),
+			Exchange:  h.Name,
 			AssetType: asset.Spot,
 			CurrencyPair: currency.NewPairFromFormattedPairs(data[1],
 				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
@@ -335,7 +335,7 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 
 	h.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Pair:     p,
-		Exchange: h.GetName(),
+		Exchange: h.Name,
 		Asset:    asset.Spot,
 	}
 	return nil

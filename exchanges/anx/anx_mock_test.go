@@ -46,6 +46,6 @@ func TestMain(m *testing.M) {
 	a.HTTPClient = newClient
 	a.API.Endpoints.URL = serverDetails + "/"
 
-	log.Printf(sharedtestvalues.MockTesting, a.GetName(), a.API.Endpoints.URL)
+	log.Printf(sharedtestvalues.MockTesting, a.Name, a.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

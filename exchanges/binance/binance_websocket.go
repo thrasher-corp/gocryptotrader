@@ -133,7 +133,7 @@ func (b *Binance) WsHandleData() {
 					Timestamp: time.Unix(0, trade.TimeStamp),
 					Price:     price,
 					Amount:    amount,
-					Exchange:  b.GetName(),
+					Exchange:  b.Name,
 					AssetType: asset.Spot,
 					Side:      trade.EventType,
 				}
@@ -181,7 +181,7 @@ func (b *Binance) WsHandleData() {
 				wsKline.Pair = currency.NewPairFromFormattedPairs(kline.Symbol, b.GetEnabledPairs(asset.Spot),
 					b.GetPairFormat(asset.Spot, true))
 				wsKline.AssetType = asset.Spot
-				wsKline.Exchange = b.GetName()
+				wsKline.Exchange = b.Name
 				wsKline.StartTime = time.Unix(0, kline.Kline.StartTime)
 				wsKline.CloseTime = time.Unix(0, kline.Kline.CloseTime)
 				wsKline.Interval = kline.Kline.Interval
@@ -215,7 +215,7 @@ func (b *Binance) WsHandleData() {
 				b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 					Pair:     currencyPair,
 					Asset:    asset.Spot,
-					Exchange: b.GetName(),
+					Exchange: b.Name,
 				}
 				continue
 			}
@@ -251,7 +251,7 @@ func (b *Binance) SeedLocalCache(p currency.Pair) error {
 	newOrderBook.LastUpdated = time.Unix(orderbookNew.LastUpdateID, 0)
 	newOrderBook.Pair = p
 	newOrderBook.AssetType = asset.Spot
-	newOrderBook.ExchangeName = b.GetName()
+	newOrderBook.ExchangeName = b.Name
 
 	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
