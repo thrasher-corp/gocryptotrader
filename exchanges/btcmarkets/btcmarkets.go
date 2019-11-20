@@ -48,8 +48,8 @@ const (
 	btcMarketsReports        = "/reports"
 	btcMarketsBatchOrders    = "/batchorders"
 
-	btcmarketsAuthLimit   = 10
-	btcmarketsUnauthLimit = 25
+	btcmarketsAuthLimit   = 3
+	btcmarketsUnauthLimit = 50
 
 	orderFailed             = "Failed"
 	orderPartiallyCancelled = "Partially Cancelled"
