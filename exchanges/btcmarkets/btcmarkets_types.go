@@ -215,6 +215,11 @@ type TransactionData struct {
 	ReferrenceID string    `json:"referrenceId"`
 }
 
+// CreateReportResp stores data for created report
+type CreateReportResp struct {
+	ReportID string `json:"reportId"`
+}
+
 // ReportData gets data for a created report
 type ReportData struct {
 	ID           string    `json:"id"`
@@ -282,13 +287,13 @@ type WithdrawRequestAUD struct {
 	BSBNumber     string `json:"bsbNumber"`
 }
 
-// CancelBatch stores data from batch cancel request
+// CancelBatch stores data for batch cancel request
 type CancelBatch struct {
 	OrderID       string `json:"orderId"`
 	ClientOrderID string `json:"clientOrderId"`
 }
 
-// PlaceBatch stores data from place batch request
+// PlaceBatch stores data for place batch request
 type PlaceBatch struct {
 	MarketID      string  `json:"marketId"`
 	Price         float64 `json:"price"`
@@ -301,6 +306,12 @@ type PlaceBatch struct {
 	PostOnly      bool    `json:"postOnly"`
 	SelfTrade     string  `json:"selfTrade"`
 	ClientOrderID string  `json:"clientOrderId"`
+}
+
+// PlaceCancelBatch stores data for BatchPlaceCancel request
+type PlaceCancelBatch struct {
+	PlaceOrder  PlaceBatch  `json:"placeOrder"`
+	CancelOrder CancelBatch `json:"cancelOrder"`
 }
 
 // TradingFeeData stores trading fee data

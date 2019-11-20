@@ -238,7 +238,13 @@ func (b *BTCMarkets) generateAuthSubscriptions() error {
 		[]byte(strToSign),
 		[]byte(b.API.Credentials.Secret))
 	sign := crypto.Base64Encode(tempSign)
-	authSub.MarketIDs = []string{"BTC-AUD"}
+	markets, err := b.GetMarkets()
+	if err != nil {
+		return err
+	}
+	for x := range markets {
+		authSub.MarketIDs = append(authSub.MarketIDs, markets[x].MarketID)
+	}
 	authSub.Channels = []string{"fundChange", "heartbeat", "orderChange"}
 	authSub.Key = b.API.Credentials.Key
 	authSub.Signature = sign

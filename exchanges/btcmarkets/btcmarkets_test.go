@@ -166,7 +166,7 @@ func TestGetOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetOrders(LTCAUD)
+	_, err := b.GetOrders(LTCAUD, "", "open")
 	if err != nil {
 		t.Error(err)
 	}
