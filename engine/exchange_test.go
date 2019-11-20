@@ -151,13 +151,13 @@ func TestDryRunParamInteraction(t *testing.T) {
 
 	// Simulate overiding default settings and ensure that enabling exchange
 	// verbose mode will be set on Bitfinex
-	if err := UnloadExchange(testExchange); err != nil {
+	if err = UnloadExchange(testExchange); err != nil {
 		t.Error(err)
 	}
 
 	Bot.Settings.CheckParamInteraction = true
 	Bot.Settings.EnableExchangeVerbose = true
-	if err := LoadExchange(testExchange, false, nil); err != nil {
+	if err = LoadExchange(testExchange, false, nil); err != nil {
 		t.Error(err)
 	}
 
@@ -171,7 +171,7 @@ func TestDryRunParamInteraction(t *testing.T) {
 		t.Error("dryrun and verbose should have been enabled")
 	}
 
-	if err := UnloadExchange(testExchange); err != nil {
+	if err = UnloadExchange(testExchange); err != nil {
 		t.Error(err)
 	}
 
@@ -182,7 +182,7 @@ func TestDryRunParamInteraction(t *testing.T) {
 	Bot.Settings.CheckParamInteraction = true
 	Bot.Settings.EnableExchangeVerbose = true
 	flagSet["dryrun"] = true
-	if err := LoadExchange(testExchange, false, nil); err != nil {
+	if err = LoadExchange(testExchange, false, nil); err != nil {
 		t.Error(err)
 	}
 
