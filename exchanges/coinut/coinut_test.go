@@ -42,7 +42,6 @@ func TestMain(m *testing.M) {
 	bConfig.API.AuthenticatedWebsocketSupport = true
 	bConfig.API.Credentials.Key = apiKey
 	bConfig.API.Credentials.ClientID = clientID
-	bConfig.Verbose = true
 	err = c.Setup(bConfig)
 	if err != nil {
 		log.Fatal("Coinut setup error", err)

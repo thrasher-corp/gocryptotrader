@@ -1,6 +1,7 @@
 package gateio
 
 import (
+	"log"
 	"net/http"
 	"testing"
 
@@ -25,28 +26,25 @@ const (
 var g Gateio
 var wsSetupRan bool
 
-func TestSetDefaults(t *testing.T) {
+func TestMain(m *testing.M) {
 	g.SetDefaults()
-}
-
-func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		t.Fatal("GateIO load config error", err)
+		log.Fatal("GateIO load config error", err)
 	}
-	gateioConfig, err := cfg.GetExchangeConfig("GateIO")
+	gConf, err := cfg.GetExchangeConfig("GateIO")
 	if err != nil {
-		t.Error("GateIO Setup() init error")
+		log.Fatal("GateIO Setup() init error")
 	}
-	gateioConfig.API.AuthenticatedSupport = true
-	gateioConfig.API.AuthenticatedWebsocketSupport = true
-	gateioConfig.API.Credentials.Key = apiKey
-	gateioConfig.API.Credentials.Secret = apiSecret
+	gConf.API.AuthenticatedSupport = true
+	gConf.API.AuthenticatedWebsocketSupport = true
+	gConf.API.Credentials.Key = apiKey
+	gConf.API.Credentials.Secret = apiSecret
 
-	err = g.Setup(gateioConfig)
+	err = g.Setup(config)
 	if err != nil {
-		t.Fatal("GateIO setup error", err)
+		log.Fatal("GateIO setup error", err)
 	}
 }
 
@@ -185,9 +183,6 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	g.SetDefaults()
-	TestSetup(t)
-
 	var feeBuilder = setFeeBuilder()
 	if areTestAPIKeysSet() {
 		// CryptocurrencyTradeFee Basic
@@ -265,9 +260,7 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	g.SetDefaults()
 	expectedResult := exchange.AutoWithdrawCryptoText + " & " + exchange.NoFiatWithdrawalsText
-
 	withdrawPermissions := g.FormatWithdrawPermissions()
 
 	if withdrawPermissions != expectedResult {
@@ -276,9 +269,6 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	g.SetDefaults()
-	TestSetup(t)
-
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
 	}
@@ -292,9 +282,6 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
-	g.SetDefaults()
-	TestSetup(t)
-
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
 	}
@@ -318,9 +305,6 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestSubmitOrder(t *testing.T) {
-	g.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip()
 	}
@@ -346,9 +330,6 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	g.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip()
 	}
@@ -372,9 +353,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	g.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip()
 	}
@@ -424,8 +402,6 @@ func TestModifyOrder(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
-	g.SetDefaults()
-	TestSetup(t)
 	withdrawCryptoRequest := exchange.CryptoWithdrawRequest{
 		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
 			Amount:      -1,
@@ -449,9 +425,6 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestWithdrawFiat(t *testing.T) {
-	g.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -464,9 +437,6 @@ func TestWithdrawFiat(t *testing.T) {
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
-	g.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -492,9 +462,6 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 func TestGetOrderInfo(t *testing.T) {
-	g.SetDefaults()
-	TestSetup(t)
-
 	if !areTestAPIKeysSet() {
 		t.Skip("no API keys set skipping test")
 	}
@@ -509,10 +476,6 @@ func TestGetOrderInfo(t *testing.T) {
 
 // TestWsGetBalance dials websocket, sends balance request.
 func TestWsGetBalance(t *testing.T) {
-	g.SetDefaults()
-	TestSetup(t)
-	g.Verbose = true
-
 	if !g.Websocket.IsEnabled() && !g.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
@@ -551,8 +514,6 @@ func TestWsGetBalance(t *testing.T) {
 
 // TestWsGetOrderInfo dials websocket, sends order info request.
 func TestWsGetOrderInfo(t *testing.T) {
-	g.SetDefaults()
-	TestSetup(t)
 	if !g.Websocket.IsEnabled() && !g.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
@@ -589,8 +550,6 @@ func setupWSTestAuth(t *testing.T) {
 	if wsSetupRan {
 		return
 	}
-	g.SetDefaults()
-	TestSetup(t)
 	if !g.Websocket.IsEnabled() && !g.API.AuthenticatedWebsocketSupport {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}

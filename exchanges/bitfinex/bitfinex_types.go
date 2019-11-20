@@ -525,6 +525,7 @@ const (
 	websocketWalletSnapshot                = "ws"
 	websocketWalletUpdate                  = "wu"
 	websocketTradeExecutionUpdate          = "tu"
+	websocketTradeExecuted                 = "te"
 	fos                                    = "fos"
 	fundingCreditSnapshot                  = "fcs"
 	fundingCreditNew                       = "fcn"

@@ -106,6 +106,9 @@ func (k *Kraken) SetDefaults() {
 				Subscribe:          true,
 				Unsubscribe:        true,
 				MessageCorrelation: true,
+				SubmitOrder:        true,
+				CancelOrder:        true,
+				CancelOrders:       true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
 				exchange.WithdrawCryptoWith2FA |

@@ -1011,8 +1011,6 @@ func runAuth(t *testing.T) {
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
 	case resp := <-b.Websocket.DataHandler:
-		t.Log(resp)
-
 		if logResponse, ok := resp.(map[string]interface{}); ok {
 			if logResponse["event"] != "auth" && logResponse["status"] != "OK" {
 				t.Error("expected successful login")

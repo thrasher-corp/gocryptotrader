@@ -567,7 +567,7 @@ func (b *Bitfinex) WsDataHandler() {
 										Amount:    y[2].(float64)})
 							}
 						case 3:
-							if chanData[1].(string) == "te" {
+							if chanData[1].(string) == websocketTradeExecuted {
 								// the te update contains less data then the "tu"
 								continue
 							}
