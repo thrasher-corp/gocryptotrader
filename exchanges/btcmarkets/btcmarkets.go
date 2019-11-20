@@ -330,10 +330,12 @@ func (b *BTCMarkets) NewOrder(marketID string, price, amount float64, orderType,
 }
 
 // GetOrders returns current order information on the exchange
-func (b *BTCMarkets) GetOrders(marketID string) ([]OrderData, error) {
+func (b *BTCMarkets) GetOrders(marketID, limit, status string) ([]OrderData, error) {
 	var resp []OrderData
 	params := url.Values{}
 	params.Set("marketId", marketID)
+	params.Set("limit", limit)
+	params.Set("status", status)
 	return resp, b.SendAuthenticatedRequest(http.MethodGet,
 		common.EncodeURLValues(btcMarketsOrders, params), nil, &resp)
 }
@@ -438,8 +440,8 @@ func (b *BTCMarkets) GetTransactions(assetName string) ([]TransactionData, error
 }
 
 // CreateNewReport creates a new report
-func (b *BTCMarkets) CreateNewReport(reportType, format string) (ReportData, error) {
-	var resp ReportData
+func (b *BTCMarkets) CreateNewReport(reportType, format string) (CreateReportResp, error) {
+	var resp CreateReportResp
 	req := make(map[string]interface{})
 	req["type"] = reportType
 	req["format"] = format
@@ -483,11 +485,40 @@ func (b *BTCMarkets) RequestWithdraw(assetName string, amount float64,
 func (b *BTCMarkets) BatchPlaceCancelOrders(cancelOrders []CancelBatch, placeOrders []PlaceBatch) (BatchPlaceCancelResponse, error) {
 	var resp BatchPlaceCancelResponse
 	var orderRequests []interface{}
-	for x := range cancelOrders {
-		orderRequests = append(orderRequests, cancelOrders[x])
-	}
-	for y := range placeOrders {
-		orderRequests = append(orderRequests, placeOrders[y])
+	var tempOrderRequests PlaceCancelBatch
+	switch {
+	case len(cancelOrders)-len(placeOrders) > 0:
+		var y int
+		for x := range placeOrders {
+			tempOrderRequests.PlaceOrder = placeOrders[x]
+			tempOrderRequests.CancelOrder = cancelOrders[x]
+			y = x
+			orderRequests = append(orderRequests, tempOrderRequests)
+		}
+		for y < len(cancelOrders) {
+			tempOrderRequests.CancelOrder = cancelOrders[y]
+			orderRequests = append(orderRequests, tempOrderRequests)
+			y++
+		}
+	case len(cancelOrders)-len(placeOrders) < 0:
+		var y int
+		for x := range cancelOrders {
+			tempOrderRequests.CancelOrder = cancelOrders[x]
+			tempOrderRequests.PlaceOrder = placeOrders[x]
+			y = x
+			orderRequests = append(orderRequests, tempOrderRequests)
+		}
+		for y < len(placeOrders) {
+			tempOrderRequests.PlaceOrder = placeOrders[y]
+			orderRequests = append(orderRequests, tempOrderRequests)
+			y++
+		}
+	default:
+		for x := range cancelOrders {
+			tempOrderRequests.CancelOrder = cancelOrders[x]
+			tempOrderRequests.PlaceOrder = placeOrders[x]
+			orderRequests = append(orderRequests, tempOrderRequests)
+		}
 	}
 	return resp, b.SendAuthenticatedRequest(http.MethodPost, btcMarketsBatchOrders, orderRequests, &resp)
 }

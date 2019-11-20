@@ -2,6 +2,7 @@ package btcmarkets
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -215,7 +216,7 @@ func (b *BTCMarkets) Run() {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (b *BTCMarkets) FetchTradablePairs(a asset.Item) ([]string, error) {
 	if a != asset.Spot {
-		return []string{""}, errors.New("given asset type is not supported by this exchange")
+		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, b.Name)
 	}
 	markets, err := b.GetMarkets()
 	if err != nil {
@@ -364,8 +365,8 @@ func (b *BTCMarkets) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) 
 	}
 
 	tempResp, err := b.NewOrder(b.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
-		s.Amount,
 		s.Price,
+		s.Amount,
 		s.OrderSide.String(),
 		s.OrderType.String(),
 		s.TriggerPrice,
@@ -398,17 +399,23 @@ func (b *BTCMarkets) CancelOrder(o *order.Cancel) error {
 func (b *BTCMarkets) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
 	tempMap := make(map[string]string)
-	orders, err := b.GetOrders("")
+	var orderIDs []string
+	orders, err := b.GetOrders("", "", "open")
 	if err != nil {
 		return resp, err
 	}
 	for x := range orders {
-		_, err := b.RemoveOrder(orders[x].OrderID)
-		if err != nil {
-			tempMap[orders[x].OrderID] = "Failed"
-		} else {
-			tempMap[orders[x].OrderID] = "Success"
-		}
+		orderIDs = append(orderIDs, orders[x].OrderID)
+	}
+	tempResp, err := b.CancelBatchOrders(orderIDs)
+	if err != nil {
+		return resp, err
+	}
+	for y := range tempResp.CancelOrders {
+		tempMap[tempResp.CancelOrders[y].OrderID] = "Success"
+	}
+	for z := range tempResp.UnprocessedRequests {
+		tempMap[tempResp.UnprocessedRequests[z].RequestID] = "Cancellation Failed"
 	}
 	return resp, nil
 }
@@ -477,8 +484,10 @@ func (b *BTCMarkets) GetDepositAddress(cryptocurrency currency.Code, accountID s
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
 func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithdrawRequest) (string, error) {
-	a, err := b.RequestWithdraw(withdrawRequest.Currency.String(), withdrawRequest.Amount,
-		withdrawRequest.Address, "",
+	a, err := b.RequestWithdraw(withdrawRequest.Currency.String(),
+		withdrawRequest.Amount,
+		withdrawRequest.Address,
+		"",
 		"",
 		"",
 		"")
@@ -544,7 +553,7 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 	}
 	var err error
 	for x := range req.Currencies {
-		tempData, err = b.GetOrders(b.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String())
+		tempData, err = b.GetOrders(b.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String(), "", "")
 		if err != nil {
 			return resp, err
 		}
@@ -594,7 +603,7 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 	var tempResp order.Detail
 	var tempArray []string
 	if len(req.Currencies) == 0 {
-		orders, err := b.GetOrders("")
+		orders, err := b.GetOrders("", "", "")
 		if err != nil {
 			return resp, err
 		}
@@ -603,7 +612,7 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 		}
 	}
 	for y := range req.Currencies {
-		orders, err := b.GetOrders(b.FormatExchangeCurrency(req.Currencies[y], asset.Spot).String())
+		orders, err := b.GetOrders(b.FormatExchangeCurrency(req.Currencies[y], asset.Spot).String(), "", "")
 		if err != nil {
 			return resp, err
 		}
@@ -616,6 +625,9 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 		return resp, err
 	}
 	for c := range tempData.Orders {
+		if tempData.Orders[c].OpenAmount != 0 {
+			continue
+		}
 		tempResp.Exchange = b.Name
 		tempResp.CurrencyPair = currency.NewPairFromString(tempData.Orders[c].MarketID)
 		tempResp.OrderSide = order.Bid
