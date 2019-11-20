@@ -283,7 +283,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 		newOrderBook.Bids = bids
 		newOrderBook.AssetType = asset.Spot
 		newOrderBook.Pair = pair
-		newOrderBook.ExchangeName = g.GetName()
+		newOrderBook.ExchangeName = g.Name
 		err := g.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {
 			g.Websocket.DataHandler <- err
@@ -291,7 +291,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 		}
 		g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: pair,
 			Asset:    asset.Spot,
-			Exchange: g.GetName()}
+			Exchange: g.Name}
 	} else {
 		var asks, bids []orderbook.Item
 		for i := 0; i < len(result.Events); i++ {
@@ -330,6 +330,6 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 		}
 		g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: pair,
 			Asset:    asset.Spot,
-			Exchange: g.GetName()}
+			Exchange: g.Name}
 	}
 }

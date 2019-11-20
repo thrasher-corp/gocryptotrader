@@ -246,7 +246,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 							Price:        trades.Data[i].Price,
 							Amount:       float64(trades.Data[i].Size),
 							CurrencyPair: currency.NewPairFromString(trades.Data[i].Symbol),
-							Exchange:     b.GetName(),
+							Exchange:     b.Name,
 							AssetType:    "CONTRACT",
 							Side:         trades.Data[i].Side,
 						}
@@ -364,7 +364,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 		}
 		newOrderBook.AssetType = assetType
 		newOrderBook.Pair = currencyPair
-		newOrderBook.ExchangeName = b.GetName()
+		newOrderBook.ExchangeName = b.Name
 
 		err := b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {
@@ -374,7 +374,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 			Pair:     currencyPair,
 			Asset:    assetType,
-			Exchange: b.GetName(),
+			Exchange: b.Name,
 		}
 	default:
 		var asks, bids []orderbook.Item
@@ -406,7 +406,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 			Pair:     currencyPair,
 			Asset:    assetType,
-			Exchange: b.GetName(),
+			Exchange: b.Name,
 		}
 	}
 	return nil

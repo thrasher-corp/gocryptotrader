@@ -30,7 +30,7 @@ func (b *BTCMarkets) WsConnect() error {
 		return err
 	}
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.GetName())
+		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
 	}
 
 	b.generateDefaultSubscriptions()
@@ -66,7 +66,7 @@ func (b *BTCMarkets) WsHandleData() {
 			switch wsResponse.MessageType {
 			case "heartbeat":
 				if b.Verbose {
-					log.Debugf(log.ExchangeSys, "%v - Websocket heartbeat received %s", b.GetName(), resp.Raw)
+					log.Debugf(log.ExchangeSys, "%v - Websocket heartbeat received %s", b.Name, resp.Raw)
 				}
 			case "orderbook":
 				var ob WsOrderbook
@@ -127,7 +127,7 @@ func (b *BTCMarkets) WsHandleData() {
 				b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 					Pair:     p,
 					Asset:    asset.Spot,
-					Exchange: b.GetName(),
+					Exchange: b.Name,
 				}
 			case "trade":
 				var trade WsTrade
@@ -141,7 +141,7 @@ func (b *BTCMarkets) WsHandleData() {
 					Timestamp:    trade.Timestamp,
 					CurrencyPair: p,
 					AssetType:    asset.Spot,
-					Exchange:     b.GetName(),
+					Exchange:     b.Name,
 					Price:        trade.Price,
 					Amount:       trade.Volume,
 				}
@@ -155,7 +155,7 @@ func (b *BTCMarkets) WsHandleData() {
 
 				p := currency.NewPairFromString(tick.Currency)
 				b.Websocket.DataHandler <- wshandler.TickerData{
-					Exchange:  b.GetName(),
+					Exchange:  b.Name,
 					Volume:    tick.Volume,
 					High:      tick.High24,
 					Low:       tick.Low24h,

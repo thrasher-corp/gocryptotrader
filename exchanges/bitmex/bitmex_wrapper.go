@@ -208,7 +208,7 @@ func (b *Bitmex) Start(wg *sync.WaitGroup) {
 // Run implements the Bitmex wrapper
 func (b *Bitmex) Run() {
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", b.GetName(), common.IsEnabled(b.Websocket.IsEnabled()), b.API.Endpoints.WebsocketURL)
+		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", b.Name, common.IsEnabled(b.Websocket.IsEnabled()), b.API.Endpoints.WebsocketURL)
 		b.PrintEnabledPairs()
 	}
 
@@ -318,7 +318,7 @@ func (b *Bitmex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 
 // FetchTicker returns the ticker for a currency pair
 func (b *Bitmex) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(b.GetName(), p, assetType)
+	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
 	}
@@ -327,7 +327,7 @@ func (b *Bitmex) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (b *Bitmex) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	ob, err := orderbook.Get(b.GetName(), p, assetType)
+	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}
@@ -359,7 +359,7 @@ func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbo
 	}
 
 	orderBook.Pair = p
-	orderBook.ExchangeName = b.GetName()
+	orderBook.ExchangeName = b.Name
 	orderBook.AssetType = assetType
 
 	err = orderBook.Process()
@@ -389,7 +389,7 @@ func (b *Bitmex) GetAccountInfo() (exchange.AccountInfo, error) {
 		})
 	}
 
-	info.Exchange = b.GetName()
+	info.Exchange = b.Name
 	info.Accounts = append(info.Accounts, exchange.Account{
 		Currencies: balances,
 	})

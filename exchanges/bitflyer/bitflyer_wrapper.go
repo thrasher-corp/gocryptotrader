@@ -190,7 +190,7 @@ func (b *Bitflyer) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.P
 	tickerPrice.Bid = tickerNew.BestBid
 	tickerPrice.Last = tickerNew.Last
 	tickerPrice.Volume = tickerNew.Volume
-	err = ticker.ProcessTicker(b.GetName(), &tickerPrice, assetType)
+	err = ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -200,7 +200,7 @@ func (b *Bitflyer) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.P
 
 // FetchTicker returns the ticker for a currency pair
 func (b *Bitflyer) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tick, err := ticker.GetTicker(b.GetName(), p, assetType)
+	tick, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
 	}
@@ -218,7 +218,7 @@ func (b *Bitflyer) CheckFXString(p currency.Pair) currency.Pair {
 
 // FetchOrderbook returns the orderbook for a currency pair
 func (b *Bitflyer) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	ob, err := orderbook.Get(b.GetName(), p, assetType)
+	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}
@@ -245,7 +245,7 @@ func (b *Bitflyer) UpdateOrderbook(p currency.Pair, assetType asset.Item) (order
 	}
 
 	orderBook.Pair = p
-	orderBook.ExchangeName = b.GetName()
+	orderBook.ExchangeName = b.Name
 	orderBook.AssetType = assetType
 
 	err = orderBook.Process()

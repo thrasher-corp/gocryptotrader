@@ -162,7 +162,7 @@ func (p *Poloniex) WsHandleData() {
 								}
 
 								p.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-									Exchange: p.GetName(),
+									Exchange: p.Name,
 									Asset:    asset.Spot,
 									Pair:     currency.NewPairFromString(currencyPair),
 								}
@@ -177,7 +177,7 @@ func (p *Poloniex) WsHandleData() {
 								}
 
 								p.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-									Exchange: p.GetName(),
+									Exchange: p.Name,
 									Asset:    asset.Spot,
 									Pair:     currency.NewPairFromString(currencyPair),
 								}
@@ -436,7 +436,7 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) e
 	newOrderBook.Bids = bids
 	newOrderBook.AssetType = asset.Spot
 	newOrderBook.Pair = currency.NewPairFromString(symbol)
-	newOrderBook.ExchangeName = p.GetName()
+	newOrderBook.ExchangeName = p.Name
 
 	return p.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }

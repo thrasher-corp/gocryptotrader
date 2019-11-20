@@ -447,7 +447,7 @@ func (o *OKGroup) wsProcessTrades(response *WebsocketDataResponse) {
 			AssetType:    o.GetAssetTypeFromTableName(response.Table),
 			CurrencyPair: c,
 			EventTime:    time.Now().Unix(),
-			Exchange:     o.GetName(),
+			Exchange:     o.Name,
 			Price:        response.Data[i].WebsocketTradeResponse.Price,
 			Side:         response.Data[i].Side,
 			Timestamp:    response.Data[i].Timestamp,
@@ -488,7 +488,7 @@ func (o *OKGroup) wsProcessCandles(response *WebsocketDataResponse) {
 		klineData := wshandler.KlineData{
 			AssetType: o.GetAssetTypeFromTableName(response.Table),
 			Pair:      c,
-			Exchange:  o.GetName(),
+			Exchange:  o.Name,
 			Timestamp: timeData,
 			Interval:  candleInterval,
 		}
@@ -604,7 +604,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, i
 		AssetType:    a,
 		LastUpdated:  wsEventData.Timestamp,
 		Pair:         instrument,
-		ExchangeName: o.GetName(),
+		ExchangeName: o.Name,
 	}
 
 	err = o.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
@@ -613,7 +613,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, i
 	}
 
 	o.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Exchange: o.GetName(),
+		Exchange: o.Name,
 		Asset:    a,
 		Pair:     instrument,
 	}
@@ -656,7 +656,7 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 	}
 
 	o.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Exchange: o.GetName(),
+		Exchange: o.Name,
 		Asset:    a,
 		Pair:     instrument,
 	}

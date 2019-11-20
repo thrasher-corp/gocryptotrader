@@ -307,12 +307,12 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 			}
 		}
 	}
-	return ticker.GetTicker(k.GetName(), p, assetType)
+	return ticker.GetTicker(k.Name, p, assetType)
 }
 
 // FetchTicker returns the ticker for a currency pair
 func (k *Kraken) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(k.GetName(), p, assetType)
+	tickerNew, err := ticker.GetTicker(k.Name, p, assetType)
 	if err != nil {
 		return k.UpdateTicker(p, assetType)
 	}
@@ -321,7 +321,7 @@ func (k *Kraken) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (k *Kraken) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	ob, err := orderbook.Get(k.GetName(), p, assetType)
+	ob, err := orderbook.Get(k.Name, p, assetType)
 	if err != nil {
 		return k.UpdateOrderbook(p, assetType)
 	}
@@ -346,7 +346,7 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbo
 	}
 
 	orderBook.Pair = p
-	orderBook.ExchangeName = k.GetName()
+	orderBook.ExchangeName = k.Name
 	orderBook.AssetType = assetType
 
 	err = orderBook.Process()
@@ -361,7 +361,7 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbo
 // Kraken exchange - to-do
 func (k *Kraken) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
-	info.Exchange = k.GetName()
+	info.Exchange = k.Name
 
 	bal, err := k.GetBalance()
 	if err != nil {

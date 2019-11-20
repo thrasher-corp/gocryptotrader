@@ -250,7 +250,7 @@ func (g *Gateio) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 
 // FetchTicker returns the ticker for a currency pair
 func (g *Gateio) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(g.GetName(), p, assetType)
+	tickerNew, err := ticker.GetTicker(g.Name, p, assetType)
 	if err != nil {
 		return g.UpdateTicker(p, assetType)
 	}
@@ -259,7 +259,7 @@ func (g *Gateio) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (g *Gateio) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	ob, err := orderbook.Get(g.GetName(), p, assetType)
+	ob, err := orderbook.Get(g.Name, p, assetType)
 	if err != nil {
 		return g.UpdateOrderbook(p, assetType)
 	}
@@ -291,7 +291,7 @@ func (g *Gateio) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbo
 	}
 
 	orderBook.Pair = p
-	orderBook.ExchangeName = g.GetName()
+	orderBook.ExchangeName = g.Name
 	orderBook.AssetType = assetType
 
 	err = orderBook.Process()
@@ -362,7 +362,7 @@ func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
 		Currencies: balances,
 	})
 
-	info.Exchange = g.GetName()
+	info.Exchange = g.Name
 
 	return info, nil
 }
@@ -466,7 +466,7 @@ func (g *Gateio) GetOrderInfo(orderID string) (order.Detail, error) {
 		if orders.Orders[x].OrderNumber != orderID {
 			continue
 		}
-		orderDetail.Exchange = g.GetName()
+		orderDetail.Exchange = g.Name
 		orderDetail.ID = orders.Orders[x].OrderNumber
 		orderDetail.RemainingAmount = orders.Orders[x].InitialAmount - orders.Orders[x].FilledAmount
 		orderDetail.ExecutedAmount = orders.Orders[x].FilledAmount

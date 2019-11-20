@@ -192,7 +192,7 @@ func (b *Bittrex) UpdateTradablePairs(forceUpdate bool) error {
 // Bittrex exchange
 func (b *Bittrex) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.Exchange = b.GetName()
+	response.Exchange = b.Name
 	accountBalance, err := b.GetAccountBalances()
 	if err != nil {
 		return response, err
@@ -244,7 +244,7 @@ func (b *Bittrex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 				Pair:        pairs[i],
 				LastUpdated: tickerTime,
 			}
-			err = ticker.ProcessTicker(b.GetName(), &tickerPrice, assetType)
+			err = ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
 			if err != nil {
 				log.Error(log.Ticker, err)
 			}
@@ -256,7 +256,7 @@ func (b *Bittrex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 
 // FetchTicker returns the ticker for a currency pair
 func (b *Bittrex) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tick, err := ticker.GetTicker(b.GetName(), p, assetType)
+	tick, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
 	}
@@ -265,7 +265,7 @@ func (b *Bittrex) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 
 // FetchOrderbook returns the orderbook for a currency pair
 func (b *Bittrex) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	ob, err := orderbook.Get(b.GetName(), p, assetType)
+	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}
@@ -299,7 +299,7 @@ func (b *Bittrex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderb
 	}
 
 	orderBook.Pair = p
-	orderBook.ExchangeName = b.GetName()
+	orderBook.ExchangeName = b.Name
 	orderBook.AssetType = assetType
 
 	err = orderBook.Process()

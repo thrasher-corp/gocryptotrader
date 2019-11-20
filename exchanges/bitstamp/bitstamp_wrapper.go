@@ -176,7 +176,7 @@ func (b *Bitstamp) Run() {
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s.",
-			b.GetName(),
+			b.Name,
 			common.IsEnabled(b.Websocket.IsEnabled()))
 		b.PrintEnabledPairs()
 	}
@@ -245,7 +245,7 @@ func (b *Bitstamp) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.P
 		LastUpdated: time.Unix(tick.Timestamp, 0),
 	}
 
-	err = ticker.ProcessTicker(b.GetName(), &tickerPrice, assetType)
+	err = ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -255,7 +255,7 @@ func (b *Bitstamp) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.P
 
 // FetchTicker returns the ticker for a currency pair
 func (b *Bitstamp) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tick, err := ticker.GetTicker(b.GetName(), p, assetType)
+	tick, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
 	}
@@ -273,7 +273,7 @@ func (b *Bitstamp) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error
 
 // FetchOrderbook returns the orderbook for a currency pair
 func (b *Bitstamp) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	ob, err := orderbook.Get(b.GetName(), p, assetType)
+	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}
@@ -303,7 +303,7 @@ func (b *Bitstamp) UpdateOrderbook(p currency.Pair, assetType asset.Item) (order
 	}
 
 	orderBook.Pair = p
-	orderBook.ExchangeName = b.GetName()
+	orderBook.ExchangeName = b.Name
 	orderBook.AssetType = assetType
 
 	err = orderBook.Process()
@@ -318,7 +318,7 @@ func (b *Bitstamp) UpdateOrderbook(p currency.Pair, assetType asset.Item) (order
 // Bitstamp exchange
 func (b *Bitstamp) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.Exchange = b.GetName()
+	response.Exchange = b.Name
 	accountBalance, err := b.GetBalance()
 	if err != nil {
 		return response, err

@@ -191,7 +191,7 @@ func (b *Bitfinex) Run() {
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s.",
-			b.GetName(),
+			b.Name,
 			common.IsEnabled(b.Websocket.IsEnabled()))
 		b.PrintEnabledPairs()
 	}
@@ -260,7 +260,7 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.P
 // FetchTicker returns the ticker for a currency pair
 func (b *Bitfinex) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	b.appendOptionalDelimiter(&p)
-	tick, err := ticker.GetTicker(b.GetName(), p, asset.Spot)
+	tick, err := ticker.GetTicker(b.Name, p, asset.Spot)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
 	}
@@ -270,7 +270,7 @@ func (b *Bitfinex) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 // FetchOrderbook returns the orderbook for a currency pair
 func (b *Bitfinex) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	b.appendOptionalDelimiter(&p)
-	ob, err := orderbook.Get(b.GetName(), p, assetType)
+	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}
@@ -302,7 +302,7 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (order
 	}
 
 	orderBook.Pair = p
-	orderBook.ExchangeName = b.GetName()
+	orderBook.ExchangeName = b.Name
 	orderBook.AssetType = assetType
 
 	err = orderBook.Process()
@@ -317,7 +317,7 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (order
 // Bitfinex exchange
 func (b *Bitfinex) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.Exchange = b.GetName()
+	response.Exchange = b.Name
 	accountBalance, err := b.GetAccountBalance()
 	if err != nil {
 		return response, err

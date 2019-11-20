@@ -33,6 +33,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Poloniex setup error", err)
 	}
-	log.Printf(sharedtestvalues.LiveTesting, p.GetName(), p.API.Endpoints.URL)
+	log.Printf(sharedtestvalues.LiveTesting, p.Name, p.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

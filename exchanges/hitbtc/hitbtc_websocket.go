@@ -251,7 +251,7 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 		h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true))
 	newOrderBook.AssetType = asset.Spot
 	newOrderBook.Pair = p
-	newOrderBook.ExchangeName = h.GetName()
+	newOrderBook.ExchangeName = h.Name
 
 	err := h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 	if err != nil {
@@ -259,7 +259,7 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 	}
 
 	h.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Exchange: h.GetName(),
+		Exchange: h.Name,
 		Asset:    asset.Spot,
 		Pair:     p,
 	}
@@ -302,7 +302,7 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update WsOrderbook) error {
 	}
 
 	h.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Exchange: h.GetName(),
+		Exchange: h.Name,
 		Asset:    asset.Spot,
 		Pair:     p,
 	}

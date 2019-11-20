@@ -21,7 +21,7 @@ var b Bittrex
 
 func TestSetDefaults(t *testing.T) {
 	b.SetDefaults()
-	if b.GetName() != "Bittrex" {
+	if b.Name != "Bittrex" {
 		t.Error("Bittrex - SetDefaults() error")
 	}
 }

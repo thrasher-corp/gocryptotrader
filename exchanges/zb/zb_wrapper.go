@@ -249,7 +249,7 @@ func (z *ZB) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, 
 
 // FetchTicker returns the ticker for a currency pair
 func (z *ZB) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(z.GetName(), p, assetType)
+	tickerNew, err := ticker.GetTicker(z.Name, p, assetType)
 	if err != nil {
 		return z.UpdateTicker(p, assetType)
 	}
@@ -258,7 +258,7 @@ func (z *ZB) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, e
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (z *ZB) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	ob, err := orderbook.Get(z.GetName(), p, assetType)
+	ob, err := orderbook.Get(z.Name, p, assetType)
 	if err != nil {
 		return z.UpdateOrderbook(p, assetType)
 	}
@@ -290,7 +290,7 @@ func (z *ZB) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.B
 
 	orderBook.Pair = p
 	orderBook.AssetType = assetType
-	orderBook.ExchangeName = z.GetName()
+	orderBook.ExchangeName = z.Name
 
 	err = orderBook.Process()
 	if err != nil {
@@ -328,7 +328,7 @@ func (z *ZB) GetAccountInfo() (exchange.AccountInfo, error) {
 		})
 	}
 
-	info.Exchange = z.GetName()
+	info.Exchange = z.Name
 	info.Accounts = append(info.Accounts, exchange.Account{
 		Currencies: balances,
 	})

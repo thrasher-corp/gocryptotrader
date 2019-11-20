@@ -40,7 +40,7 @@ func TestSetDefaults(t *testing.T) {
 	if o.Name != OKGroupExchange {
 		o.SetDefaults()
 	}
-	if o.GetName() != OKGroupExchange {
+	if o.Name != OKGroupExchange {
 		t.Errorf("%v - SetDefaults() error", OKGroupExchange)
 	}
 	TestSetup(t)

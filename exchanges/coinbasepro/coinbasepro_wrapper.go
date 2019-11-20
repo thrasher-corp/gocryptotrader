@@ -189,7 +189,7 @@ func (c *CoinbasePro) Run() {
 	if c.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s. (url: %s).\n",
-			c.GetName(),
+			c.Name,
 			common.IsEnabled(c.Websocket.IsEnabled()),
 			coinbaseproWebsocketURL)
 		c.PrintEnabledPairs()
@@ -255,7 +255,7 @@ func (c *CoinbasePro) UpdateTradablePairs(forceUpdate bool) error {
 // coinbasepro exchange
 func (c *CoinbasePro) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.Exchange = c.GetName()
+	response.Exchange = c.Name
 	accountBalance, err := c.GetAccounts()
 	if err != nil {
 		return response, err
@@ -302,7 +302,7 @@ func (c *CoinbasePro) UpdateTicker(p currency.Pair, assetType asset.Item) (ticke
 		LastUpdated: tick.Time,
 	}
 
-	err = ticker.ProcessTicker(c.GetName(), &tickerPrice, assetType)
+	err = ticker.ProcessTicker(c.Name, &tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -312,7 +312,7 @@ func (c *CoinbasePro) UpdateTicker(p currency.Pair, assetType asset.Item) (ticke
 
 // FetchTicker returns the ticker for a currency pair
 func (c *CoinbasePro) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(c.GetName(), p, assetType)
+	tickerNew, err := ticker.GetTicker(c.Name, p, assetType)
 	if err != nil {
 		return c.UpdateTicker(p, assetType)
 	}
@@ -321,7 +321,7 @@ func (c *CoinbasePro) FetchTicker(p currency.Pair, assetType asset.Item) (ticker
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (c *CoinbasePro) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	ob, err := orderbook.Get(c.GetName(), p, assetType)
+	ob, err := orderbook.Get(c.Name, p, assetType)
 	if err != nil {
 		return c.UpdateOrderbook(p, assetType)
 	}
@@ -348,7 +348,7 @@ func (c *CoinbasePro) UpdateOrderbook(p currency.Pair, assetType asset.Item) (or
 	}
 
 	orderBook.Pair = p
-	orderBook.ExchangeName = c.GetName()
+	orderBook.ExchangeName = c.Name
 	orderBook.AssetType = assetType
 
 	err = orderBook.Process()

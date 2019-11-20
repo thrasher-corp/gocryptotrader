@@ -184,7 +184,7 @@ func (b *Binance) Run() {
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s. (url: %s).\n",
-			b.GetName(),
+			b.Name,
 			common.IsEnabled(b.Websocket.IsEnabled()),
 			b.Websocket.GetWebsocketURL())
 		b.PrintEnabledPairs()
@@ -291,7 +291,7 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 
 // FetchTicker returns the ticker for a currency pair
 func (b *Binance) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(b.GetName(), p, assetType)
+	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
 	}
@@ -300,7 +300,7 @@ func (b *Binance) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (b *Binance) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	ob, err := orderbook.Get(b.GetName(), p, assetType)
+	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}
@@ -333,7 +333,7 @@ func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderb
 	}
 
 	orderBook.Pair = p
-	orderBook.ExchangeName = b.GetName()
+	orderBook.ExchangeName = b.Name
 	orderBook.AssetType = assetType
 
 	err = orderBook.Process()
@@ -372,7 +372,7 @@ func (b *Binance) GetAccountInfo() (exchange.AccountInfo, error) {
 		})
 	}
 
-	info.Exchange = b.GetName()
+	info.Exchange = b.Name
 	info.Accounts = append(info.Accounts, exchange.Account{
 		Currencies: currencyBalance,
 	})
