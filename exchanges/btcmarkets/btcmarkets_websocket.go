@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -32,10 +35,14 @@ func (b *BTCMarkets) WsConnect() error {
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
 	}
-
-	b.generateDefaultSubscriptions()
 	go b.WsHandleData()
-
+	if b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		err = b.generateAuthSubscriptions()
+		if err != nil {
+			b.Websocket.DataHandler <- err
+			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		}
+	}
 	return nil
 }
 
@@ -166,6 +173,22 @@ func (b *BTCMarkets) WsHandleData() {
 					AssetType: asset.Spot,
 					Pair:      p,
 				}
+			case "fundChange":
+				var transferData WsFundTransfer
+				err := common.JSONDecode(resp.Raw, &transferData)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					continue
+				}
+				b.Websocket.DataHandler <- transferData
+			case "orderChange":
+				var orderData WsOrderChange
+				err := common.JSONDecode(resp.Raw, &orderData)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					continue
+				}
+				b.Websocket.DataHandler <- orderData
 			case "error":
 				var wsErr WsError
 				err := common.JSONDecode(resp.Raw, &wsErr)
@@ -204,4 +227,22 @@ func (b *BTCMarkets) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubs
 		MessageType: "subscribe",
 	}
 	return b.WebsocketConn.SendMessage(req)
+}
+
+// Login logs in allowing private ws events
+func (b *BTCMarkets) generateAuthSubscriptions() error {
+	var authSub WsAuthSubscribe
+	signTime := strconv.FormatInt(time.Now().UTC().UnixNano()/1000000, 10)
+	strToSign := "/users/self/subscribe" + "\n" + signTime
+	tempSign := crypto.GetHMAC(crypto.HashSHA512,
+		[]byte(strToSign),
+		[]byte(b.API.Credentials.Secret))
+	sign := crypto.Base64Encode(tempSign)
+	authSub.MarketIDs = []string{"BTC-AUD"}
+	authSub.Channels = []string{"fundChange", "heartbeat", "orderChange"}
+	authSub.Key = b.API.Credentials.Key
+	authSub.Signature = sign
+	authSub.Timestamp = signTime
+	authSub.MessageType = "subscribe"
+	return b.WebsocketConn.SendMessage(authSub)
 }

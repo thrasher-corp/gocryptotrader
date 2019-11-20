@@ -323,6 +323,16 @@ type WsSubscribe struct {
 	MessageType string   `json:"messageType"`
 }
 
+// WsAuthSubscribe message sent via login to subscribe
+type WsAuthSubscribe struct {
+	MarketIDs   []string `json:"marketIds,omitempty"`
+	Channels    []string `json:"channels"`
+	Key         string   `json:"key"`
+	Signature   string   `json:"signature"`
+	Timestamp   string   `json:"timestamp"`
+	MessageType string   `json:"messageType"`
+}
+
 // WsMessageType message sent via ws to determine type
 type WsMessageType struct {
 	MessageType string `json:"messageType"`
@@ -359,6 +369,41 @@ type WsOrderbook struct {
 	Bids        [][]string `json:"bids"`
 	Asks        [][]string `json:"asks"`
 	MessageType string     `json:"messageType"`
+}
+
+// WsFundTransfer stores fund transfer data for websocket
+type WsFundTransfer struct {
+	FundTransferID int64     `json:"fundtransferId"`
+	TransferType   string    `json:"type"`
+	Status         string    `json:"status"`
+	Timestamp      time.Time `json:"timestamp,string"`
+	Amount         float64   `json:"amount,string"`
+	Currency       string    `json:"currency"`
+	Fee            float64   `json:"fee,string"`
+	MessageType    string    `json:"messageType"`
+}
+
+// WsTradeData stores trade data for websocket
+type WsTradeData struct {
+	TradeID       int64   `json:"tradeId"`
+	Price         float64 `json:"price,string"`
+	Volume        float64 `json:"volume,string"`
+	Fee           float64 `json:"fee,string"`
+	LiquidityType string  `json:"liquidityType"`
+}
+
+// WsOrderChange stores order data
+type WsOrderChange struct {
+	OrderID       int64         `json:"orderId"`
+	MarketID      string        `json:"marketId"`
+	Side          string        `json:"side"`
+	OrderType     string        `json:"type"`
+	OpenVolume    float64       `json:"openVolume,string"`
+	Status        string        `json:"status"`
+	TriggerStatus string        `json:"triggerStatus"`
+	Trades        []WsTradeData `json:"trades"`
+	Timestamp     time.Time     `json:"timestamp"`
+	MessageType   string        `json:"messageType"`
 }
 
 // WsError stores websocket error data
