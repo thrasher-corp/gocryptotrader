@@ -2,6 +2,7 @@ package btcmarkets
 
 import (
 	"errors"
+	"strings"
 	"sync"
 	"time"
 
@@ -474,7 +475,11 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (b *BTCMarkets) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
-	return "", common.ErrFunctionNotSupported
+	temp, err := b.FetchDepositAddress(strings.ToUpper(cryptocurrency.String()))
+	if err != nil {
+		return "", err
+	}
+	return temp.Address, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
