@@ -306,25 +306,35 @@ func (z *ZB) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.B
 // ZB exchange
 func (z *ZB) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
-	bal, err := z.GetAccountInformation()
-	if err != nil {
-		return info, err
+	var balances []exchange.AccountCurrencyInfo
+	var coins []AccountsResponseCoin
+	if z.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+		resp, err := z.wsGetAccountInfoRequest()
+		if err != nil {
+			return info, err
+		}
+		coins = resp.Data.Coins
+	} else {
+		bal, err := z.GetAccountInformation()
+		if err != nil {
+			return info, err
+		}
+		coins = bal.Result.Coins
 	}
 
-	var balances []exchange.AccountCurrencyInfo
-	for _, data := range bal.Result.Coins {
-		hold, err := strconv.ParseFloat(data.Freez, 64)
+	for i := range coins {
+		hold, err := strconv.ParseFloat(coins[i].Freeze, 64)
 		if err != nil {
 			return info, err
 		}
 
-		avail, err := strconv.ParseFloat(data.Available, 64)
+		avail, err := strconv.ParseFloat(coins[i].Available, 64)
 		if err != nil {
 			return info, err
 		}
 
 		balances = append(balances, exchange.AccountCurrencyInfo{
-			CurrencyName: currency.NewCode(data.EnName),
+			CurrencyName: currency.NewCode(coins[i].EnName),
 			TotalValue:   hold + avail,
 			Hold:         hold,
 		})
@@ -574,49 +584,59 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 	if req.OrderSide == order.AnySide || req.OrderSide == "" {
 		return nil, errors.New("specific order side is required")
 	}
-
 	var allOrders []Order
-
+	var orders []order.Detail
 	var side int64
-	if req.OrderSide == order.Buy {
-		side = 1
-	}
 
-	for x := range req.Currencies {
-		for y := int64(1); ; y++ {
-			fPair := z.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String()
-			resp, err := z.GetOrders(fPair, y, side)
-			if err != nil {
-				return nil, err
-			}
-
-			if len(resp) == 0 {
-				break
-			}
-
-			allOrders = append(allOrders, resp...)
-
-			if len(resp) != 10 {
-				break
+	if z.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+		for x := range req.Currencies {
+			for y := int64(1); ; y++ {
+				resp, err := z.wsGetOrdersIgnoreTradeType(req.Currencies[x], y, 10)
+				if err != nil {
+					return nil, err
+				}
+				allOrders = append(allOrders, resp.Data...)
+				if len(resp.Data) != 10 {
+					break
+				}
 			}
 		}
-	}
+	} else {
+		if req.OrderSide == order.Buy {
+			side = 1
+		}
+		for x := range req.Currencies {
+			for y := int64(1); ; y++ {
+				fPair := z.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String()
+				resp, err := z.GetOrders(fPair, y, side)
+				if err != nil {
+					return nil, err
+				}
+				if len(resp) == 0 {
+					break
+				}
+				allOrders = append(allOrders, resp...)
+				if len(resp) != 10 {
+					break
+				}
+			}
+		}
 
-	var orders []order.Detail
-	for i := range allOrders {
-		symbol := currency.NewPairDelimiter(allOrders[i].Currency,
-			z.GetPairFormat(asset.Spot, false).Delimiter)
-		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
-		orderSide := orderSideMap[allOrders[i].Type]
-		orders = append(orders, order.Detail{
-			ID:           strconv.FormatInt(allOrders[i].ID, 10),
-			Amount:       allOrders[i].TotalAmount,
-			Exchange:     z.Name,
-			OrderDate:    orderDate,
-			Price:        allOrders[i].Price,
-			OrderSide:    orderSide,
-			CurrencyPair: symbol,
-		})
+		for i := range allOrders {
+			symbol := currency.NewPairDelimiter(allOrders[i].Currency,
+				z.GetPairFormat(asset.Spot, false).Delimiter)
+			orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
+			orderSide := orderSideMap[allOrders[i].Type]
+			orders = append(orders, order.Detail{
+				ID:           strconv.FormatInt(allOrders[i].ID, 10),
+				Amount:       allOrders[i].TotalAmount,
+				Exchange:     z.Name,
+				OrderDate:    orderDate,
+				Price:        allOrders[i].Price,
+				OrderSide:    orderSide,
+				CurrencyPair: symbol,
+			})
+		}
 	}
 
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)

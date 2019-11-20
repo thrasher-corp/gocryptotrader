@@ -16,7 +16,7 @@ type OrderbookResponse struct {
 
 // AccountsResponseCoin holds the accounts coin details
 type AccountsResponseCoin struct {
-	Freez       string `json:"freez"`       // 冻结资产
+	Freeze      string `json:"freez"`       // 冻结资产
 	EnName      string `json:"enName"`      // 币种英文名
 	UnitDecimal int    `json:"unitDecimal"` // 保留小数位
 	UnName      string `json:"cnName"`      // 币种中文名
@@ -44,6 +44,9 @@ type Order struct {
 	TradeDate   int     `json:"trade_date"`
 	TradeMoney  float64 `json:"trade_money"`
 	Type        int64   `json:"type"`
+	Fees        float64 `json:"fees,omitempty"`
+	TradePrice  float64 `json:"trade_price,omitempty"`
+	No          int64   `json:"no,string,omitempty"`
 }
 
 // AccountsResponse 用户基本信息

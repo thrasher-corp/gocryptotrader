@@ -187,40 +187,6 @@ func (z *ZB) WsHandleData() {
 	}
 }
 
-var wsErrCodes = map[int64]string{
-	1000: "Successful call",
-	1001: "General error message",
-	1002: "internal error",
-	1003: "Verification failed",
-	1004: "Financial security password lock",
-	1005: "The fund security password is incorrect. Please confirm and re-enter.",
-	1006: "Real-name certification is awaiting review or review",
-	1007: "Channel is empty",
-	1008: "Event is empty",
-	1009: "This interface is being maintained",
-	1011: "Not open yet",
-	1012: "Insufficient permissions",
-	1013: "Can not trade, if you have any questions, please contact online customer service",
-	1014: "Cannot be sold during the pre-sale period",
-	2002: "Insufficient balance in Bitcoin account",
-	2003: "Insufficient balance of Litecoin account",
-	2005: "Insufficient balance in Ethereum account",
-	2006: "Insufficient balance in ETC currency account",
-	2007: "Insufficient balance of BTS currency account",
-	2008: "Insufficient balance in EOS currency account",
-	2009: "Insufficient account balance",
-	3001: "Pending order not found",
-	3002: "Invalid amount",
-	3003: "Invalid quantity",
-	3004: "User does not exist",
-	3005: "Invalid parameter",
-	3006: "Invalid IP or inconsistent with the bound IP",
-	3007: "Request time has expired",
-	3008: "Transaction history not found",
-	4001: "API interface is locked",
-	4002: "Request too frequently",
-}
-
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (z *ZB) GenerateDefaultSubscriptions() {
 	var subscriptions []wshandler.WebsocketChannelSubscription
