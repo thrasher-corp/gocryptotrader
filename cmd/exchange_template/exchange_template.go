@@ -220,12 +220,13 @@ func main() {
 	}
 
 	fmt.Println("GoCryptoTrader: Exchange templating tool service complete")
-	fmt.Println("When wrapper is finished add exchange to exchange.go")
-	fmt.Println("Test exchange.go")
-	fmt.Println("Update the config_test.go file")
-	fmt.Println("Test config.go")
+	fmt.Println("When the exchange code implementation has been completed (REST/Websocket/wrappers and tests), please add the exchange to engine/exchange.go")
+	fmt.Println("Add the exchange config settings to config_example.json (it will automatically be added to testdata/configtest.json)")
+	fmt.Println("Increment the available exchanges counter in config/config_test.go")
+	fmt.Println("Add the exchange name to exchanges/support.go")
+	fmt.Println("Ensure go test ./... -race passes")
 	fmt.Println("Open a pull request")
-	fmt.Println("If help is needed please post a message on Slack.")
+	fmt.Println("If help is needed, please post a message in Slack.")
 }
 
 func newFile(path string) {

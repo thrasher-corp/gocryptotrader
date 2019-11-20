@@ -522,7 +522,7 @@ func (b *Bitstamp) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 	var orders []order.Detail
 	for i := range resp {
 		orderSide := order.Buy
-		if resp[i].Type == 1 {
+		if resp[i].Type == SellOrder {
 			orderSide = order.Sell
 		}
 

@@ -254,7 +254,7 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(p currency.Pair, assetTyp
 	for x := range orderbookNew.Bids {
 		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
 			Amount: orderbookNew.Bids[x].Quantity, 
-     		Price: orderbookNew.Bids[x].Price,
+			Price: orderbookNew.Bids[x].Price,
 		})
 	}
 

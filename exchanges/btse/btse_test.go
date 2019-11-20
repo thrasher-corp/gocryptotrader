@@ -38,7 +38,11 @@ func TestMain(m *testing.M) {
 	btseConfig.API.Credentials.Key = apiKey
 	btseConfig.API.Credentials.Secret = apiSecret
 
-	b.Setup(btseConfig)
+	err = b.Setup(btseConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	os.Exit(m.Run())
 }
 

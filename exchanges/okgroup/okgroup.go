@@ -200,7 +200,7 @@ func (o *OKGroup) GetSpotBillDetailsForCurrency(request GetSpotBillDetailsForCur
 // Once your order is placed, the amount will be put on hold.
 func (o *OKGroup) PlaceSpotOrder(request *PlaceOrderRequest) (resp PlaceOrderResponse, _ error) {
 	if request.OrderType == "" {
-		request.OrderType = "0" // Normal order (Unfilled and implies normal limit order)
+		request.OrderType = strconv.Itoa(NormalOrder)
 	}
 	return resp, o.SendHTTPRequest(http.MethodPost, okGroupTokenSubsection, OKGroupOrders, request, &resp, true)
 }
@@ -213,7 +213,7 @@ func (o *OKGroup) PlaceMultipleSpotOrders(request []PlaceOrderRequest) (map[stri
 
 	for i := range request {
 		if request[i].OrderType == "" {
-			request[i].OrderType = "0" // normal order
+			request[i].OrderType = strconv.Itoa(NormalOrder)
 		}
 		currencyPairOrders[request[i].InstrumentID]++
 	}

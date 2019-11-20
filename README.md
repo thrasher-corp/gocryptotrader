@@ -138,7 +138,7 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 548 |
+| [thrasher-](https://github.com/thrasher-) | 551 |
 | [shazbert](https://github.com/shazbert) | 176 |
 | [gloriousCode](https://github.com/gloriousCode) | 155 |
 | [xtda](https://github.com/xtda) | 18 |
@@ -146,8 +146,8 @@ Binaries will be published once the codebase reaches a stable condition.
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
+| [MadCozBadd](https://github.com/MadCozBadd) | 6 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
-| [MadCozBadd](https://github.com/MadCozBadd) | 3 |
 | [leilaes](https://github.com/leilaes) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
@@ -168,8 +168,9 @@ Binaries will be published once the codebase reaches a stable condition.
 | [starit](https://github.com/starit) | 1 |
 | [Jimexist](https://github.com/Jimexist) | 1 |
 | [lookfirst](https://github.com/lookfirst) | 1 |
+| [idoall](https://github.com/idoall) | 1 |
 | [mattkanwisher](https://github.com/mattkanwisher) | 1 |
 | [mKurrels](https://github.com/mKurrels) | 1 |
 | [m1kola](https://github.com/m1kola) | 1 |
 | [cavapoo2](https://github.com/cavapoo2) | 1 |
-| [zeldrinn](https://github.com/zeldrinn )| 1 |
+| [zeldrinn](https://github.com/zeldrinn) | 1 |

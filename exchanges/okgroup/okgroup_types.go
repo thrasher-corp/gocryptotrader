@@ -6,6 +6,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
+// Order types
+const (
+	NormalOrder = iota
+	PostOnlyOrder
+	FillOrKillOrder
+	ImmediateOrCancelOrder
+)
+
 // GetAccountCurrenciesResponse response data for GetAccountCurrencies
 type GetAccountCurrenciesResponse struct {
 	Name          string  `json:"name"`

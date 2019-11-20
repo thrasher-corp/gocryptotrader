@@ -8,6 +8,12 @@ const (
 	SubAccountTransfer = 14
 )
 
+// Order side type
+const (
+	BuyOrder = iota
+	SellOrder
+)
+
 // Ticker holds ticker information
 type Ticker struct {
 	Last      float64 `json:"last,string"`
