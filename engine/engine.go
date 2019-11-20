@@ -161,6 +161,7 @@ func ValidateSettings(b *Engine, s *Settings) {
 	b.Settings.EnableTradeSyncing = s.EnableTradeSyncing
 	b.Settings.SyncWorkers = s.SyncWorkers
 	b.Settings.SyncTimeout = s.SyncTimeout
+	b.Settings.SyncContinuously = s.SyncContinuously
 	b.Settings.EnableDepositAddressManager = s.EnableDepositAddressManager
 	b.Settings.EnableExchangeAutoPairUpdates = s.EnableExchangeAutoPairUpdates
 	b.Settings.EnableExchangeWebsocketSupport = s.EnableExchangeWebsocketSupport
