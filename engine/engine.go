@@ -243,6 +243,7 @@ func PrintSettings(s *Settings) {
 	log.Debugf(log.Global, "\t Dispatch package max worker amount: %d", s.DispatchMaxWorkerAmount)
 	log.Debugf(log.Global, "\t Dispatch package jobs limit: %d", s.DispatchJobsLimit)
 	log.Debugf(log.Global, "- EXCHANGE SYNCER SETTINGS:\n")
+	log.Debugf(log.Global, "\t Exchange sync continuously: %v\n", s.SyncContinuously)
 	log.Debugf(log.Global, "\t Exchange sync workers: %v\n", s.SyncWorkers)
 	log.Debugf(log.Global, "\t Enable ticker syncing: %v\n", s.EnableTickerSyncing)
 	log.Debugf(log.Global, "\t Enable orderbook syncing: %v\n", s.EnableOrderbookSyncing)
