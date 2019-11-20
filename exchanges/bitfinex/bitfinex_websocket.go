@@ -591,7 +591,7 @@ func (b *Bitfinex) WsDataHandler() {
 									Timestamp:    time.Unix(trades[i].Timestamp, 0),
 									Price:        trades[i].Price,
 									Amount:       newAmount,
-									Exchange:     b.GetName(),
+									Exchange:     b.Name,
 									AssetType:    asset.Spot,
 									Side:         side,
 								}
@@ -626,7 +626,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 	newOrderBook.AssetType = assetType
 	newOrderBook.Bids = bid
 	newOrderBook.Pair = p
-	newOrderBook.ExchangeName = b.GetName()
+	newOrderBook.ExchangeName = b.Name
 
 	err := b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 	if err != nil {
@@ -634,7 +634,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 	}
 	b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: p,
 		Asset:    assetType,
-		Exchange: b.GetName()}
+		Exchange: b.Name}
 	return nil
 }
 
@@ -675,7 +675,7 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 
 	b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: p,
 		Asset:    assetType,
-		Exchange: b.GetName()}
+		Exchange: b.Name}
 
 	return nil
 }
@@ -801,7 +801,7 @@ func (b *Bitfinex) WsAddSubscriptionChannel(chanID int, channel, pair string) {
 
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s Pair: %s ChannelID: %d\n",
-			b.GetName(),
+			b.Name,
 			channel,
 			pair,
 			chanID)
