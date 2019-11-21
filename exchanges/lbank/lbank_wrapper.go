@@ -491,7 +491,7 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]ord
 			}
 			resp.Exchange = l.Name
 			resp.CurrencyPair = currency.NewPairFromString(key)
-			if strings.EqualFold(tempResp.Orders[0].Type, order.Buy.Lower()) {
+			if strings.EqualFold(tempResp.Orders[0].Type, order.Buy.String()) {
 				resp.OrderSide = order.Buy
 			} else {
 				resp.OrderSide = order.Sell
@@ -567,7 +567,7 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]ord
 			for x := 0; x < len(tempResp.Orders); x++ {
 				resp.Exchange = l.Name
 				resp.CurrencyPair = currency.NewPairFromString(tempResp.Orders[x].Symbol)
-				if strings.EqualFold(tempResp.Orders[x].Type, order.Buy.Lower()) {
+				if strings.EqualFold(tempResp.Orders[x].Type, order.Buy.String()) {
 					resp.OrderSide = order.Buy
 				} else {
 					resp.OrderSide = order.Sell

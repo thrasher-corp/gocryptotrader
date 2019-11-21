@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -336,14 +335,15 @@ func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions,
 		if i == nil {
 			return 0
 		}
-		switch reflect.TypeOf(i).String() {
-		case "float64":
-			return i.(float64)
-		case "string":
+		switch t := i.(type) {
+		case float64:
+			return t
+		case string:
 			amt, _ := strconv.ParseFloat(i.(string), 64)
 			return amt
+		default:
+			return 0
 		}
-		return 0
 	}
 
 	var transactions []UserTransactions
