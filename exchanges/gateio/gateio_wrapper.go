@@ -311,7 +311,7 @@ func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
 	var balances []exchange.AccountCurrencyInfo
 
-	if g.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+	if g.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		resp, err := g.wsGetBalance([]string{})
 		if err != nil {
 			return info, err
@@ -559,7 +559,7 @@ func (g *Gateio) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 	if len(req.Currencies) == 1 {
 		currPair = req.Currencies[0].String()
 	}
-	if g.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+	if g.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for i := 0; ; i += 100 {
 			resp, err := g.wsGetOrderInfo(req.OrderType.String(), i, 100)
 			if err != nil {

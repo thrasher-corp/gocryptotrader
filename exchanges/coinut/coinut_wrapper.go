@@ -265,7 +265,7 @@ func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
 	var bal UserBalance
 	var err error
-	if c.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		resp, err := c.wsGetAccountBalance()
 		if err != nil {
 			return info, err
@@ -464,7 +464,7 @@ func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
-	if c.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var response *WsStandardOrderResponse
 		response, err = c.wsSubmitOrder(&WsSubmitOrderParameters{
 			Currency: o.Pair,
@@ -542,7 +542,7 @@ func (c *COINUT) CancelOrder(o *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	if c.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		_, err := c.wsCancelOrder(&WsCancelOrderParameters{
 			Currency: o.CurrencyPair,
 			OrderID:  orderIDInt,
@@ -572,7 +572,7 @@ func (c *COINUT) CancelAllOrders(details *order.Cancel) (order.CancelAllResponse
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
-	if c.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		openOrders, err := c.wsGetOpenOrders(details.CurrencyPair.String())
 		if err != nil {
 			return cancelAllOrdersResponse, err
@@ -693,7 +693,7 @@ func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 			currenciesToCheck = append(currenciesToCheck, k)
 		}
 	}
-	if c.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for x := range currenciesToCheck {
 			openOrders, err := c.wsGetOpenOrders(currenciesToCheck[x])
 			if err != nil {
@@ -769,7 +769,7 @@ func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 	if err != nil {
 		return nil, err
 	}
-	if c.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for i := range req.Currencies {
 			for j := int64(0); ; j += 100 {
 				trades, err := c.wsGetTradeHistory(req.Currencies[i], j, 100)

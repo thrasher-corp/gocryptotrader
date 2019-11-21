@@ -999,11 +999,11 @@ func TestWsAuth(t *testing.T) {
 	if !b.Websocket.IsEnabled() && !b.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping")
 	}
-	setupWs()
 	runAuth(t)
 }
 
 func runAuth(t *testing.T) {
+	setupWs()
 	err := b.WsSendAuth()
 	if err != nil {
 		t.Error(err)

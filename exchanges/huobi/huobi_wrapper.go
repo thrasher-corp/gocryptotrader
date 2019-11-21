@@ -395,7 +395,7 @@ func (h *HUOBI) GetAccountID() ([]Account, error) {
 func (h *HUOBI) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
 	info.Exchange = h.Name
-	if h.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+	if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		resp, err := h.wsGetAccountsList()
 		if err != nil {
 			return info, err
@@ -573,7 +573,7 @@ func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
 	var orderDetail order.Detail
 	var respData *OrderInfo
-	if h.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+	if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		resp, err := h.wsGetOrderDetails(orderID)
 		if err != nil {
 			return orderDetail, err
@@ -677,7 +677,7 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 
 	var orders []order.Detail
 
-	if h.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+	if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for i := range req.Currencies {
 			resp, err := h.wsGetOrdersList(-1, req.Currencies[i])
 			if err != nil {

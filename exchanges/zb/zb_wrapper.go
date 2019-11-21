@@ -308,7 +308,7 @@ func (z *ZB) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
 	var balances []exchange.AccountCurrencyInfo
 	var coins []AccountsResponseCoin
-	if z.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		resp, err := z.wsGetAccountInfoRequest()
 		if err != nil {
 			return info, err
@@ -370,7 +370,7 @@ func (z *ZB) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 	if err := o.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
-	if z.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var isBuyOrder int64
 		if o.OrderSide == order.Buy {
 			isBuyOrder = 1
@@ -422,7 +422,7 @@ func (z *ZB) CancelOrder(o *order.Cancel) error {
 		return err
 	}
 
-	if z.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var response *WsCancelOrderResponse
 		response, err = z.wsCancelOrder(o.CurrencyPair, orderIDInt)
 		if err != nil {
@@ -588,7 +588,7 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 	var orders []order.Detail
 	var side int64
 
-	if z.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for x := range req.Currencies {
 			for y := int64(1); ; y++ {
 				resp, err := z.wsGetOrdersIgnoreTradeType(req.Currencies[x], y, 10)

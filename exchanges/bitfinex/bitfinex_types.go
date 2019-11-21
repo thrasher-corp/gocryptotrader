@@ -485,25 +485,6 @@ type ErrorCapture struct {
 	Message string `json:"message"`
 }
 
-// TimeInterval represents interval enum.
-type TimeInterval string
-
-// TimeInvterval vars
-var (
-	TimeIntervalMinute         = TimeInterval("1m")
-	TimeIntervalFiveMinutes    = TimeInterval("5m")
-	TimeIntervalFifteenMinutes = TimeInterval("15m")
-	TimeIntervalThirtyMinutes  = TimeInterval("30m")
-	TimeIntervalHour           = TimeInterval("1h")
-	TimeIntervalThreeHours     = TimeInterval("3h")
-	TimeIntervalSixHours       = TimeInterval("6h")
-	TimeIntervalTwelveHours    = TimeInterval("12h")
-	TimeIntervalDay            = TimeInterval("1d")
-	TimeIntervalSevenDays      = TimeInterval("7d")
-	TimeIntervalFourteenDays   = TimeInterval("14d")
-	TimeIntervalMonth          = TimeInterval("1M")
-)
-
 // WebsocketHandshake defines the communication between the websocket API for
 // initial connection
 type WebsocketHandshake struct {
@@ -512,42 +493,45 @@ type WebsocketHandshake struct {
 	Version float64 `json:"version"`
 }
 
-var pongReceive chan struct{}
-
 const (
 	authenticatedBitfinexWebsocketEndpoint = "wss://api.bitfinex.com/ws/2"
 	publicBitfinexWebsocketEndpoint        = "wss://api-pub.bitfinex.com/ws/2"
-	websocketHeartbeat                     = "hb"
-	websocketPositionSnapshot              = "ps"
-	websocketPositionNew                   = "pn"
-	websocketPositionUpdate                = "pu"
-	websocketPositionClose                 = "pc"
-	websocketWalletSnapshot                = "ws"
-	websocketWalletUpdate                  = "wu"
-	websocketTradeExecutionUpdate          = "tu"
-	websocketTradeExecuted                 = "te"
-	fos                                    = "fos"
-	fundingCreditSnapshot                  = "fcs"
-	fundingCreditNew                       = "fcn"
-	fundingCreditUpdate                    = "fcu"
-	fundingCreditCancel                    = "fcc"
-	fundingLoanSnapshot                    = "fls"
-	fundingLoanNew                         = "fln"
-	fundingLoanUpdate                      = "flu"
-	fundingLoanCancel                      = "flc"
-	fundingTradeExecuted                   = "fte"
-	fundingTradeUpdate                     = "ftu"
-	fundingInfoUpdate                      = "fiu"
-	balanceUpdate                          = "bu"
-	marginInfoUpdate                       = "miu"
-	notification                           = "n"
-	orderNew                               = "on"
-	orderUpdate                            = "ou"
-	orderCancel                            = "oc"
-	fundingOrderNew                        = "fon"
-	fundingOrderUpdate                     = "fou"
-	fundingOrderCancel                     = "foc"
-	cancelMultipleOrders                   = "oc_multi"
+	pong                                   = "pong"
+	wsHeartbeat                            = "hb"
+	wsPositionSnapshot                     = "ps"
+	wsPositionNew                          = "pn"
+	wsPositionUpdate                       = "pu"
+	wsPositionClose                        = "pc"
+	wsWalletSnapshot                       = "ws"
+	wsWalletUpdate                         = "wu"
+	wsTradeExecutionUpdate                 = "tu"
+	wsTradeExecuted                        = "te"
+	wsFundingCreditSnapshot                = "fcs"
+	wsFundingCreditNew                     = "fcn"
+	wsFundingCreditUpdate                  = "fcu"
+	wsFundingCreditCancel                  = "fcc"
+	wsFundingLoanSnapshot                  = "fls"
+	wsFundingLoanNew                       = "fln"
+	wsFundingLoanUpdate                    = "flu"
+	wsFundingLoanCancel                    = "flc"
+	wsFundingTradeExecuted                 = "fte"
+	wsFundingTradeUpdate                   = "ftu"
+	wsFundingInfoUpdate                    = "fiu"
+	wsBalanceUpdate                        = "bu"
+	wsMarginInfoUpdate                     = "miu"
+	wsNotification                         = "n"
+	wsOrderNew                             = "on"
+	wsOrderUpdate                          = "ou"
+	wsOrderCancel                          = "oc"
+	wsFundingOrderSnapshot                 = "fos"
+	wsFundingOrderNew                      = "fon"
+	wsFundingOrderUpdate                   = "fou"
+	wsFundingOrderCancel                   = "foc"
+	wsCancelMultipleOrders                 = "oc_multi"
+	wsBook                                 = "book"
+	wsCandles                              = "candles"
+	wsTicker                               = "ticker"
+	wsTrades                               = "trades"
 )
 
 // WsAuthRequest container for WS auth request

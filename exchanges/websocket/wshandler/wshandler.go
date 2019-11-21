@@ -327,9 +327,9 @@ func (w *Websocket) IsConnectionMonitorRunning() bool {
 	return w.connectionMonitorRunning
 }
 
-// CanUseAuthenticatedWebsocketEndpoint Handles a common check to
+// CanUseAuthenticatedWebsocketForWrapper Handles a common check to
 // verify whether a wrapper can use an authenticated websocket endpoint
-func (w *Websocket) CanUseAuthenticatedWebsocketEndpoint() bool {
+func (w *Websocket) CanUseAuthenticatedWebsocketForWrapper() bool {
 	if w.IsConnected() && w.CanUseAuthenticatedEndpoints() {
 		return true
 	} else if w.IsConnected() && !w.CanUseAuthenticatedEndpoints() {

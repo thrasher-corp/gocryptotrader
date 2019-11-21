@@ -212,12 +212,12 @@ type WsGetOrdersRequest struct {
 
 // WsGetOrdersResponse contains orders data
 type WsGetOrdersResponse struct {
-	Message string                   `json:"message"`
-	No      int64                    `json:"no,string"`
-	Code    int64                    `json:"code"`
-	Channel string                   `json:"channel"`
-	Success bool                     `json:"success"`
-	Data    []WsGetOrderResponseData `json:"data"`
+	Message string  `json:"message"`
+	No      int64   `json:"no,string"`
+	Code    int64   `json:"code"`
+	Channel string  `json:"channel"`
+	Success bool    `json:"success"`
+	Data    []Order `json:"data"`
 }
 
 // WsGetOrdersIgnoreTradeTypeRequest ws request
@@ -233,12 +233,12 @@ type WsGetOrdersIgnoreTradeTypeRequest struct {
 
 // WsGetOrdersIgnoreTradeTypeResponse contains orders data
 type WsGetOrdersIgnoreTradeTypeResponse struct {
-	Message string                   `json:"message"`
-	No      int64                    `json:"no,string"`
-	Code    int64                    `json:"code"`
-	Channel string                   `json:"channel"`
-	Success bool                     `json:"success"`
-	Data    []WsGetOrderResponseData `json:"data"`
+	Message string  `json:"message"`
+	No      int64   `json:"no,string"`
+	Code    int64   `json:"code"`
+	Channel string  `json:"channel"`
+	Success bool    `json:"success"`
+	Data    []Order `json:"data"`
 }
 
 // WsGetAccountInfoResponse contains account data
@@ -253,7 +253,6 @@ type WsGetAccountInfoResponse struct {
 	Channel string `json:"channel"`
 	Success bool   `json:"success"`
 }
-
 
 var wsErrCodes = map[int64]string{
 	1000: "Successful call",

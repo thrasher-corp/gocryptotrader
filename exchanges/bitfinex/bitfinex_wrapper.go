@@ -384,7 +384,7 @@ func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 	if err = o.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
-	if b.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		submitOrderResponse.OrderID, err = b.WsNewOrder(&WsNewOrderRequest{
 			CustomID: b.AuthenticatedWebsocketConn.GenerateMessageID(false),
 			Type:     o.OrderType.String(),
@@ -426,7 +426,7 @@ func (b *Bitfinex) ModifyOrder(action *order.Modify) (string, error) {
 	if err != nil {
 		return action.OrderID, err
 	}
-	if b.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		if action.Side == order.Sell && action.Amount > 0 {
 			action.Amount = -1 * action.Amount
 		}
@@ -446,7 +446,7 @@ func (b *Bitfinex) CancelOrder(order *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	if b.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		err = b.WsCancelOrder(orderIDInt)
 	} else {
 		_, err = b.CancelExistingOrder(orderIDInt)
@@ -457,7 +457,7 @@ func (b *Bitfinex) CancelOrder(order *order.Cancel) error {
 // CancelAllOrders cancels all orders associated with a currency pair
 func (b *Bitfinex) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	var err error
-	if b.Websocket.CanUseAuthenticatedWebsocketEndpoint() {
+	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		err = b.WsCancelAllOrders()
 	} else {
 		_, err = b.CancelAllExistingOrders()

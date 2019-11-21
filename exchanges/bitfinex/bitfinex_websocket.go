@@ -41,13 +41,13 @@ func (b *Bitfinex) WsConnect() error {
 		err = b.AuthenticatedWebsocketConn.Dial(&dialer, http.Header{})
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%v unable to connect to authenticated Websocket. Error: %s", b.Name, err)
-			b.API.AuthenticatedWebsocketSupport = false
+			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 		go b.WsReadData(b.AuthenticatedWebsocketConn)
 		err = b.WsSendAuth()
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", b.Name, err)
-			b.API.AuthenticatedWebsocketSupport = false
+			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
 
@@ -131,31 +131,23 @@ func (b *Bitfinex) WsDataHandler() {
 							chanID)
 						continue
 					}
-					if len(chanData) == 2 {
-						if reflect.TypeOf(chanData[1]).String() == "string" {
-							if chanData[1].(string) == websocketHeartbeat {
-								continue
-							} else if chanData[1].(string) == "pong" {
-								continue
-							}
-						}
-					}
-					if _, ok := chanData[1].(string); ok {
-						switch chanData[1].(string) {
-						// Notifications channel provides updates from requests
-						case notification:
+					if authResp, ok := chanData[1].(string); ok {
+						switch authResp {
+						case wsHeartbeat, pong:
+							continue
+						case wsNotification:
 							notification := chanData[2].([]interface{})
 							if data, ok := notification[4].([]interface{}); ok {
 								channelName := notification[1].(string)
 								switch {
-								case strings.Contains(channelName, orderUpdate),
-									strings.Contains(channelName, orderCancel),
-									strings.Contains(channelName, fundingOrderCancel):
+								case strings.Contains(channelName, wsOrderUpdate),
+									strings.Contains(channelName, wsOrderCancel),
+									strings.Contains(channelName, wsFundingOrderCancel):
 									if data[0] != nil && data[0].(float64) > 0 {
 										b.AuthenticatedWebsocketConn.AddResponseWithID(int64(data[0].(float64)), stream.Raw)
 										continue
 									}
-								case strings.Contains(channelName, orderNew):
+								case strings.Contains(channelName, wsOrderNew):
 									if data[2] != nil && data[2].(float64) > 0 {
 										b.AuthenticatedWebsocketConn.AddResponseWithID(int64(data[2].(float64)), stream.Raw)
 										continue
@@ -167,7 +159,7 @@ func (b *Bitfinex) WsDataHandler() {
 							if notification[5] != nil && strings.EqualFold(notification[5].(string), "ERROR") {
 								b.Websocket.DataHandler <- fmt.Errorf("%s - Error %s", b.Name, notification[6].(string))
 							}
-						case websocketPositionSnapshot:
+						case wsPositionSnapshot:
 							var snapshot []WebsocketPosition
 							if snapBundle, ok := chanData[2].([]interface{}); ok && len(snapBundle) > 0 {
 								if _, ok := snapBundle[0].([]interface{}); ok {
@@ -190,7 +182,7 @@ func (b *Bitfinex) WsDataHandler() {
 									b.Websocket.DataHandler <- snapshot
 								}
 							}
-						case websocketPositionNew, websocketPositionUpdate, websocketPositionClose:
+						case wsPositionNew, wsPositionUpdate, wsPositionClose:
 							if positionData, ok := chanData[2].([]interface{}); ok && len(positionData) > 0 {
 								position := WebsocketPosition{
 									Pair:              positionData[0].(string),
@@ -206,7 +198,7 @@ func (b *Bitfinex) WsDataHandler() {
 								}
 								b.Websocket.DataHandler <- position
 							}
-						case websocketTradeExecutionUpdate:
+						case wsTradeExecutionUpdate:
 							if tradeData, ok := chanData[2].([]interface{}); ok && len(tradeData) > 4 {
 								b.Websocket.DataHandler <- WebsocketTradeData{
 									TradeID:        int64(tradeData[0].(float64)),
@@ -222,7 +214,7 @@ func (b *Bitfinex) WsDataHandler() {
 									FeeCurrency:    tradeData[10].(string),
 								}
 							}
-						case fos:
+						case wsFundingOrderSnapshot:
 							var snapshot []WsFundingOffer
 							if snapBundle, ok := chanData[2].([]interface{}); ok && len(snapBundle) > 0 {
 								if _, ok := snapBundle[0].([]interface{}); ok {
@@ -251,7 +243,7 @@ func (b *Bitfinex) WsDataHandler() {
 									b.Websocket.DataHandler <- snapshot
 								}
 							}
-						case fundingOrderNew, fundingOrderUpdate, fundingOrderCancel:
+						case wsFundingOrderNew, wsFundingOrderUpdate, wsFundingOrderCancel:
 							if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
 								b.Websocket.DataHandler <- WsFundingOffer{
 									ID:         int64(data[0].(float64)),
@@ -272,7 +264,7 @@ func (b *Bitfinex) WsDataHandler() {
 									RateReal:   data[20].(float64),
 								}
 							}
-						case fundingCreditSnapshot:
+						case wsFundingCreditSnapshot:
 							var snapshot []WsCredit
 							if snapBundle, ok := chanData[2].([]interface{}); ok && len(snapBundle) > 0 {
 								if _, ok := snapBundle[0].([]interface{}); ok {
@@ -304,7 +296,7 @@ func (b *Bitfinex) WsDataHandler() {
 									b.Websocket.DataHandler <- snapshot
 								}
 							}
-						case fundingCreditNew, fundingCreditUpdate, fundingCreditCancel:
+						case wsFundingCreditNew, wsFundingCreditUpdate, wsFundingCreditCancel:
 							if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
 								b.Websocket.DataHandler <- WsCredit{
 									ID:           int64(data[0].(float64)),
@@ -328,7 +320,7 @@ func (b *Bitfinex) WsDataHandler() {
 									PositionPair: data[21].(string),
 								}
 							}
-						case fundingLoanSnapshot:
+						case wsFundingLoanSnapshot:
 							var snapshot []WsCredit
 							if snapBundle, ok := chanData[2].([]interface{}); ok && len(snapBundle) > 0 {
 								if _, ok := snapBundle[0].([]interface{}); ok {
@@ -359,7 +351,7 @@ func (b *Bitfinex) WsDataHandler() {
 									b.Websocket.DataHandler <- snapshot
 								}
 							}
-						case fundingLoanNew, fundingLoanUpdate, fundingLoanCancel:
+						case wsFundingLoanNew, wsFundingLoanUpdate, wsFundingLoanCancel:
 							if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
 								b.Websocket.DataHandler <- WsCredit{
 									ID:         int64(data[0].(float64)),
@@ -382,7 +374,7 @@ func (b *Bitfinex) WsDataHandler() {
 									NoClose:    data[20].(float64) == 1,
 								}
 							}
-						case websocketWalletSnapshot:
+						case wsWalletSnapshot:
 							var snapshot []WsWallet
 							if snapBundle, ok := chanData[2].([]interface{}); ok && len(snapBundle) > 0 {
 								if _, ok := snapBundle[0].([]interface{}); ok {
@@ -404,7 +396,7 @@ func (b *Bitfinex) WsDataHandler() {
 									b.Websocket.DataHandler <- snapshot
 								}
 							}
-						case websocketWalletUpdate:
+						case wsWalletUpdate:
 							if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
 								var balanceAvailable float64
 								if _, ok := data[4].(float64); ok {
@@ -418,14 +410,14 @@ func (b *Bitfinex) WsDataHandler() {
 									BalanceAvailable:  balanceAvailable,
 								}
 							}
-						case balanceUpdate:
+						case wsBalanceUpdate:
 							if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
 								b.Websocket.DataHandler <- WsBalanceInfo{
 									TotalAssetsUnderManagement: data[0].(float64),
 									NetAssetsUnderManagement:   data[1].(float64),
 								}
 							}
-						case marginInfoUpdate:
+						case wsMarginInfoUpdate:
 							if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
 								if data[0].(string) == "base" {
 									if infoBase, ok := chanData[2].([]interface{}); ok && len(infoBase) > 0 {
@@ -439,7 +431,7 @@ func (b *Bitfinex) WsDataHandler() {
 									}
 								}
 							}
-						case fundingInfoUpdate:
+						case wsFundingInfoUpdate:
 							if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
 								if data[0].(string) == "sym" {
 									symbolData := data[1].([]interface{})
@@ -451,7 +443,7 @@ func (b *Bitfinex) WsDataHandler() {
 									}
 								}
 							}
-						case fundingTradeExecuted, fundingTradeUpdate:
+						case wsFundingTradeExecuted, wsFundingTradeUpdate:
 							if data, ok := chanData[2].([]interface{}); ok && len(data) > 0 {
 								b.Websocket.DataHandler <- WsFundingTrade{
 									ID:         int64(data[0].(float64)),
@@ -467,7 +459,7 @@ func (b *Bitfinex) WsDataHandler() {
 						}
 					}
 					switch chanInfo.Channel {
-					case "book":
+					case wsBook:
 						var newOrderbook []WebsocketBook
 						curr := currency.NewPairFromString(chanInfo.Pair)
 						if obSnapBundle, ok := chanData[1].([]interface{}); ok {
@@ -500,7 +492,7 @@ func (b *Bitfinex) WsDataHandler() {
 								}
 							}
 						}
-					case "candles":
+					case wsCandles:
 						curr := currency.NewPairFromString(chanInfo.Pair)
 						if candleBundle, ok := chanData[1].([]interface{}); ok {
 							if len(candleBundle) == 0 {
@@ -536,7 +528,7 @@ func (b *Bitfinex) WsDataHandler() {
 								}
 							}
 						}
-					case "ticker":
+					case wsTicker:
 						tickerData := chanData[1].([]interface{})
 						b.Websocket.DataHandler <- wshandler.TickerData{
 							Exchange:  b.Name,
@@ -549,7 +541,7 @@ func (b *Bitfinex) WsDataHandler() {
 							AssetType: asset.Spot,
 							Pair:      currency.NewPairFromString(chanInfo.Pair),
 						}
-					case "trades":
+					case wsTrades:
 						var trades []WebsocketTrade
 						switch len(chanData) {
 						case 2:
@@ -567,7 +559,7 @@ func (b *Bitfinex) WsDataHandler() {
 										Amount:    y[2].(float64)})
 							}
 						case 3:
-							if chanData[1].(string) == websocketTradeExecuted {
+							if chanData[1].(string) == wsTradeExecuted {
 								// the te update contains less data then the "tu"
 								continue
 							}
@@ -580,10 +572,10 @@ func (b *Bitfinex) WsDataHandler() {
 						}
 						if len(trades) > 0 {
 							for i := range trades {
-								side := "BUY"
+								side := order.Buy.String()
 								newAmount := trades[i].Amount
 								if newAmount < 0 {
-									side = "SELL"
+									side = order.Sell.String()
 									newAmount *= -1
 								}
 								b.Websocket.DataHandler <- wshandler.TradeData{
@@ -683,10 +675,10 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitfinex) GenerateDefaultSubscriptions() {
 	var channels = []string{
-		"book",
-		"trades",
-		"ticker",
-		"candles",
+		wsBook,
+		wsTrades,
+		wsTicker,
+		wsCandles,
 	}
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range channels {
@@ -700,7 +692,7 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() {
 			}
 			b.appendOptionalDelimiter(&enabledPairs[j])
 			params := make(map[string]interface{})
-			if channels[i] == "book" {
+			if channels[i] == wsBook {
 				params["prec"] = "R0"
 				params["len"] = "100"
 			}
@@ -721,7 +713,7 @@ func (b *Bitfinex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 	req["event"] = "subscribe"
 	req["channel"] = channelToSubscribe.Channel
 	if channelToSubscribe.Currency.String() != "" {
-		if channelToSubscribe.Channel == "candles" {
+		if channelToSubscribe.Channel == wsCandles {
 			req["key"] = fmt.Sprintf("trade:1D:%v",
 				b.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot).String())
 		} else {
@@ -748,13 +740,6 @@ func (b *Bitfinex) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubs
 			req[k] = v
 		}
 	}
-	return b.WebsocketConn.SendMessage(req)
-}
-
-// WsPingHandler sends a ping request to the websocket server
-func (b *Bitfinex) WsPingHandler() error {
-	req := make(map[string]string)
-	req["event"] = "ping"
 	return b.WebsocketConn.SendMessage(req)
 }
 
@@ -811,7 +796,7 @@ func (b *Bitfinex) WsAddSubscriptionChannel(chanID int, channel, pair string) {
 // WsNewOrder authenticated new order request
 func (b *Bitfinex) WsNewOrder(data *WsNewOrderRequest) (string, error) {
 	data.CustomID = b.AuthenticatedWebsocketConn.GenerateMessageID(false)
-	request := makeRequestInterface(orderNew, data)
+	request := makeRequestInterface(wsOrderNew, data)
 	resp, err := b.AuthenticatedWebsocketConn.SendMessageReturnResponse(data.CustomID, request)
 	if resp == nil {
 		return "", errors.New(b.Name + " - Order message not returned")
@@ -842,7 +827,7 @@ func (b *Bitfinex) WsNewOrder(data *WsNewOrderRequest) (string, error) {
 
 // WsModifyOrder authenticated modify order request
 func (b *Bitfinex) WsModifyOrder(data *WsUpdateOrderRequest) error {
-	request := makeRequestInterface(orderUpdate, data)
+	request := makeRequestInterface(wsOrderUpdate, data)
 	resp, err := b.AuthenticatedWebsocketConn.SendMessageReturnResponse(data.OrderID, request)
 	if resp == nil {
 		return errors.New(b.Name + " - Order message not returned")
@@ -870,7 +855,7 @@ func (b *Bitfinex) WsCancelMultiOrders(orderIDs []int64) error {
 	cancel := WsCancelGroupOrdersRequest{
 		OrderID: orderIDs,
 	}
-	request := makeRequestInterface(cancelMultipleOrders, cancel)
+	request := makeRequestInterface(wsCancelMultipleOrders, cancel)
 	return b.AuthenticatedWebsocketConn.SendMessage(request)
 }
 
@@ -879,7 +864,7 @@ func (b *Bitfinex) WsCancelOrder(orderID int64) error {
 	cancel := WsCancelOrderRequest{
 		OrderID: orderID,
 	}
-	request := makeRequestInterface(orderCancel, cancel)
+	request := makeRequestInterface(wsOrderCancel, cancel)
 	resp, err := b.AuthenticatedWebsocketConn.SendMessageReturnResponse(orderID, request)
 	if resp == nil {
 		return fmt.Errorf("%v - Order %v failed to cancel", b.Name, orderID)
@@ -905,13 +890,13 @@ func (b *Bitfinex) WsCancelOrder(orderID int64) error {
 // WsCancelAllOrders authenticated cancel all orders request
 func (b *Bitfinex) WsCancelAllOrders() error {
 	cancelAll := WsCancelAllOrdersRequest{All: 1}
-	request := makeRequestInterface(cancelMultipleOrders, cancelAll)
+	request := makeRequestInterface(wsCancelMultipleOrders, cancelAll)
 	return b.AuthenticatedWebsocketConn.SendMessage(request)
 }
 
 // WsNewOffer authenticated new offer request
 func (b *Bitfinex) WsNewOffer(data *WsNewOfferRequest) error {
-	request := makeRequestInterface(fundingOrderNew, data)
+	request := makeRequestInterface(wsFundingOrderNew, data)
 	return b.AuthenticatedWebsocketConn.SendMessage(request)
 }
 
@@ -920,7 +905,7 @@ func (b *Bitfinex) WsCancelOffer(orderID int64) error {
 	cancel := WsCancelOrderRequest{
 		OrderID: orderID,
 	}
-	request := makeRequestInterface(fundingOrderCancel, cancel)
+	request := makeRequestInterface(wsFundingOrderCancel, cancel)
 	resp, err := b.AuthenticatedWebsocketConn.SendMessageReturnResponse(orderID, request)
 	if resp == nil {
 		return fmt.Errorf("%v - Order %v failed to cancel", b.Name, orderID)
