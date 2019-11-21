@@ -407,7 +407,7 @@ func (l *Lbank) GetOrderInfo(orderID string) (order.Detail, error) {
 			}
 			resp.Exchange = l.Name
 			resp.CurrencyPair = currency.NewPairFromString(key)
-			if strings.EqualFold(tempResp.Orders[0].Type, order.Buy.Lower()) {
+			if strings.EqualFold(tempResp.Orders[0].Type, order.Buy.String()) {
 				resp.OrderSide = order.Buy
 			} else {
 				resp.OrderSide = order.Sell

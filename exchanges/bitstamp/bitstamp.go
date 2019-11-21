@@ -332,9 +332,6 @@ func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions,
 	}
 
 	processNumber := func(i interface{}) float64 {
-		if i == nil {
-			return 0
-		}
 		switch t := i.(type) {
 		case float64:
 			return t
