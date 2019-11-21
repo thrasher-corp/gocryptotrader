@@ -21,6 +21,7 @@ const (
 	BTCAUD                  = "BTC-AUD"
 	LTCAUD                  = "LTC-AUD"
 	ETHAUD                  = "ETH-AUD"
+	fakePair                = "Fake-USDT"
 	bid                     = "bid"
 )
 
@@ -148,6 +149,10 @@ func TestGetTradeHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	_, err = b.GetTradeHistory(fakePair)
+	if err == nil {
+		t.Error("expected an error due to invalid trading pair")
+	}
 }
 
 func TestNewOrder(t *testing.T) {
@@ -159,6 +164,14 @@ func TestNewOrder(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	_, err = b.NewOrder(BTCAUD, 100, 1, "invalid", bid, 0, 0, "", true, "", "")
+	if err == nil {
+		t.Error("expected an error due to invalid ordertype")
+	}
+	_, err = b.NewOrder(BTCAUD, 100, 1, limit, "invalid", 0, 0, "", true, "", "")
+	if err == nil {
+		t.Error("expected an error due to invalid orderside")
+	}
 }
 
 func TestGetOrders(t *testing.T) {
@@ -169,6 +182,14 @@ func TestGetOrders(t *testing.T) {
 	_, err := b.GetOrders(LTCAUD, "", "open")
 	if err != nil {
 		t.Error(err)
+	}
+	_, err = b.GetOrders(LTCAUD, "", "invalid")
+	if err == nil {
+		t.Error("expected an error due to invalid status")
+	}
+	_, err = b.GetOrders(fakePair, "", "open")
+	if err == nil {
+		t.Error("expected an error due to invalid pair")
 	}
 }
 
@@ -182,6 +203,11 @@ func TestCancelOpenOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	temp = []string{BTCAUD, fakePair}
+	_, err = b.CancelOpenOrders(temp)
+	if err == nil {
+		t.Error("expected an error due to invalid marketID")
+	}
 }
 
 func TestFetchOrder(t *testing.T) {
@@ -191,6 +217,10 @@ func TestFetchOrder(t *testing.T) {
 	}
 	_, err := b.FetchOrder("4477045999")
 	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.FetchOrder("696969")
+	if err == nil {
 		t.Error(err)
 	}
 }
@@ -270,6 +300,10 @@ func TestGetTransfer(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	_, err = b.GetTransfer("6969696")
+	if err == nil {
+		t.Error("expected an error due to invalid transferID")
+	}
 }
 
 func TestFetchDepositAddress(t *testing.T) {
@@ -280,6 +314,10 @@ func TestFetchDepositAddress(t *testing.T) {
 	_, err := b.FetchDepositAddress("LTC")
 	if err != nil {
 		t.Error(err)
+	}
+	_, err = b.FetchDepositAddress(fakePair)
+	if err != nil {
+		t.Error("expected an error due to invalid assetID")
 	}
 }
 
@@ -337,12 +375,12 @@ func TestGetReport(t *testing.T) {
 
 func TestRequestWithdaw(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API keys required but not set, skipping test")
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	_, err := b.RequestWithdraw("BTC", 1, "sdjflajdslfjld", "", "", "", "")
-	if err != nil {
-		t.Error(err)
+	if err == nil {
+		t.Error("expected an error due to invalid toAddress")
 	}
 }
 
