@@ -339,7 +339,7 @@ func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions,
 		case float64:
 			return t
 		case string:
-			amt, _ := strconv.ParseFloat(i.(string), 64)
+			amt, _ := strconv.ParseFloat(t, 64)
 			return amt
 		default:
 			return 0
