@@ -227,7 +227,7 @@ func (b *Bittrex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 			if !strings.EqualFold(ticks.Result[j].MarketName, pairs[i].String()) {
 				continue
 			}
-			tickerTime, err := time.Parse(time.RFC3339, ticks.Result[j].TimeStamp)
+			tickerTime, err := parseTime(ticks.Result[j].TimeStamp)
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
 					"%s UpdateTicker unable to parse time: %s\n", b.Name, err)
@@ -454,7 +454,7 @@ func (b *Bittrex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 
 	var orders []order.Detail
 	for i := range resp.Result {
-		orderDate, err := time.Parse(time.RFC3339, resp.Result[i].Opened)
+		orderDate, err := parseTime(resp.Result[i].Opened)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
@@ -501,7 +501,7 @@ func (b *Bittrex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 
 	var orders []order.Detail
 	for i := range resp.Result {
-		orderDate, err := time.Parse(time.RFC3339, resp.Result[i].TimeStamp)
+		orderDate, err := parseTime(resp.Result[i].TimeStamp)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
