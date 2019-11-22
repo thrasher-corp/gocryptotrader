@@ -47,11 +47,8 @@ func TestMain(m *testing.M) {
 		log.Fatal("Coinut setup error", err)
 	}
 
-	if !c.IsEnabled() || !c.Verbose ||
-		c.Websocket.IsEnabled() || len(c.BaseCurrencies) < 1 {
-		log.Fatal("Coinut Setup values not set correctly")
-	}
 	c.SeedInstruments()
+
 	os.Exit(m.Run())
 }
 
@@ -253,9 +250,7 @@ func TestGetFee(t *testing.T) {
 
 func TestFormatWithdrawPermissions(t *testing.T) {
 	expectedResult := exchange.WithdrawCryptoViaWebsiteOnlyText + " & " + exchange.WithdrawFiatViaWebsiteOnlyText
-
 	withdrawPermissions := c.FormatWithdrawPermissions()
-
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
 	}
@@ -378,6 +373,9 @@ func TestGetAccountInfo(t *testing.T) {
 }
 
 func TestModifyOrder(t *testing.T) {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := c.ModifyOrder(&order.Modify{})
 	if err == nil {
 		t.Error("ModifyOrder() Expected error")

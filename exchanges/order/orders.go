@@ -315,7 +315,7 @@ func StringToOrderSide(side string) (Side, error) {
 	case strings.EqualFold(side, AnySide.String()):
 		return AnySide, nil
 	default:
-		return Side(""), fmt.Errorf("%s not recognised as side type")
+		return Side(""), fmt.Errorf("%s not recognised as side type", side)
 	}
 }
 
@@ -332,7 +332,7 @@ func StringToOrderType(oType string) (Type, error) {
 	case strings.EqualFold(oType, TrailingStop.String()):
 		return TrailingStop, nil
 	default:
-		return Unknown, fmt.Errorf("%s not recognised as order type")
+		return Unknown, fmt.Errorf("%s not recognised as order type", oType)
 	}
 }
 
@@ -359,6 +359,6 @@ func StringToOrderStatus(status string) (Status, error) {
 	case strings.EqualFold(status, Hidden.String()):
 		return Hidden, nil
 	default:
-		return UnknownStatus, fmt.Errorf("%s not recognised as order STATUS")
+		return UnknownStatus, fmt.Errorf("%s not recognised as order STATUS", status)
 	}
 }

@@ -416,6 +416,9 @@ func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			submitOrderResponse.IsOrderPlaced = true
 		}
 	}
+	if !submitOrderResponse.IsOrderPlaced && err == nil {
+		err = errors.New(b.Name + " - Order failed to be placed without reason")
+	}
 	return submitOrderResponse, err
 }
 

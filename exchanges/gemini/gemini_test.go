@@ -336,9 +336,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 		exchange.AutoWithdrawCryptoWithSetupText +
 		" & " +
 		exchange.WithdrawFiatViaWebsiteOnlyText
-
 	withdrawPermissions := g.FormatWithdrawPermissions()
-
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s",
 			expectedResult,
@@ -425,7 +423,6 @@ func TestCancelExchangeOrder(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-
 	var orderCancellation = &order.Cancel{
 		OrderID: "266029865",
 	}
@@ -448,7 +445,6 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",

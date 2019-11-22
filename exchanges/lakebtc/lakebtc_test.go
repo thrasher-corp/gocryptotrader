@@ -3,6 +3,7 @@ package lakebtc
 import (
 	"fmt"
 	"log"
+	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -16,7 +17,6 @@ import (
 )
 
 var l LakeBTC
-var setupRan bool
 
 // Please add your own APIkeys to do correct due diligence testing.
 const (
@@ -25,34 +25,28 @@ const (
 	canManipulateRealOrders = false
 )
 
-func TestSetDefaults(t *testing.T) {
-	if !setupRan {
-		l.SetDefaults()
+func TestMain(m *testing.M) {
+	l.SetDefaults()
+	cfg := config.GetConfig()
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		log.Fatal("LakeBTC load config error", err)
 	}
-}
+	lakebtcConfig, err := cfg.GetExchangeConfig("LakeBTC")
+	if err != nil {
+		log.Fatal("LakeBTC Setup() init error")
+	}
+	lakebtcConfig.API.AuthenticatedSupport = true
+	lakebtcConfig.API.Credentials.Key = apiKey
+	lakebtcConfig.API.Credentials.Secret = apiSecret
+	lakebtcConfig.Features.Enabled.Websocket = true
+	err = l.Setup(lakebtcConfig)
+	if err != nil {
+		log.Fatal("LakeBTC setup error", err)
+	}
+	l.API.Endpoints.WebsocketURL = lakeBTCWSURL
 
-func TestSetup(t *testing.T) {
-	if !setupRan {
-		cfg := config.GetConfig()
-		err := cfg.LoadConfig("../../testdata/configtest.json", true)
-		if err != nil {
-			log.Fatal("LakeBTC load config error", err)
-		}
-		lakebtcConfig, err := cfg.GetExchangeConfig("LakeBTC")
-		if err != nil {
-			t.Error("LakeBTC Setup() init error")
-		}
-		lakebtcConfig.API.AuthenticatedSupport = true
-		lakebtcConfig.API.Credentials.Key = apiKey
-		lakebtcConfig.API.Credentials.Secret = apiSecret
-		lakebtcConfig.Features.Enabled.Websocket = true
-		err = l.Setup(lakebtcConfig)
-		if err != nil {
-			t.Fatal("LakeBTC setup error", err)
-		}
-		l.API.Endpoints.WebsocketURL = lakeBTCWSURL
-		setupRan = true
-	}
+	os.Exit(m.Run())
 }
 
 func TestFetchTradablePairs(t *testing.T) {
@@ -171,7 +165,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
 	l.GetFeeByType(feeBuilder)
-	if apiKey == "" || apiSecret == "" {
+	if !areTestAPIKeysSet() {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
 		}
@@ -259,20 +253,14 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	l.SetDefaults()
 	expectedResult := exchange.AutoWithdrawCryptoText + " & " + exchange.WithdrawFiatViaWebsiteOnlyText
-
 	withdrawPermissions := l.FormatWithdrawPermissions()
-
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
 	}
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	l.SetDefaults()
-	TestSetup(t)
-
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
 	}
@@ -286,9 +274,6 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
-	l.SetDefaults()
-	TestSetup(t)
-
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
 	}
@@ -308,9 +293,6 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestSubmitOrder(t *testing.T) {
-	l.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -335,15 +317,11 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	l.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -361,15 +339,11 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	l.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -392,6 +366,9 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestModifyOrder(t *testing.T) {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := l.ModifyOrder(&order.Modify{})
 	if err == nil {
 		t.Error("ModifyOrder() Expected error")
@@ -399,8 +376,6 @@ func TestModifyOrder(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
-	l.SetDefaults()
-	TestSetup(t)
 	withdrawCryptoRequest := exchange.CryptoWithdrawRequest{
 		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
 			Amount:      -1,
@@ -424,9 +399,6 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestWithdrawFiat(t *testing.T) {
-	l.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -439,9 +411,6 @@ func TestWithdrawFiat(t *testing.T) {
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
-	l.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -469,8 +438,6 @@ func TestGetDepositAddress(t *testing.T) {
 
 // TestWsConn websocket connection test
 func TestWsConn(t *testing.T) {
-	TestSetDefaults(t)
-	TestSetup(t)
 	if !l.Websocket.IsEnabled() {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
@@ -484,8 +451,6 @@ func TestWsConn(t *testing.T) {
 
 // TestWsTradeProcessing logic test
 func TestWsTradeProcessing(t *testing.T) {
-	TestSetDefaults(t)
-	TestSetup(t)
 	l.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	l.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	json := `{"trades":[{"type":"sell","date":1564985787,"price":"11913.02","amount":"0.49"}]}`
@@ -497,8 +462,6 @@ func TestWsTradeProcessing(t *testing.T) {
 
 // TestWsTickerProcessing logic test
 func TestWsTickerProcessing(t *testing.T) {
-	TestSetDefaults(t)
-	TestSetup(t)
 	const testChanSize = 26
 	l.Websocket.DataHandler = make(chan interface{}, testChanSize)
 	l.Websocket.TrafficAlert = make(chan struct{}, testChanSize)
@@ -519,8 +482,6 @@ func TestGetCurrencyFromChannel(t *testing.T) {
 
 // TestWsOrderbookProcessing logic test
 func TestWsOrderbookProcessing(t *testing.T) {
-	TestSetDefaults(t)
-	TestSetup(t)
 	l.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	l.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	json := `{"asks":[["11905.66","0.0019"],["11905.73","0.0015"],["11906.43","0.0013"],["11906.62","0.0019"],["11907.25","11.087"],["11907.66","0.0006"],["11907.73","0.3113"],["11907.84","0.0006"],["11908.37","0.0016"],["11908.86","10.3786"],["11909.54","4.2955"],["11910.15","0.0012"],["11910.56","13.5505"],["11911.06","0.0011"],["11911.37","0.0023"]],"bids":[["11905.55","0.0171"],["11904.43","0.0225"],["11903.31","0.0223"],["11902.2","0.0027"],["11901.92","1.002"],["11901.6","0.0015"],["11901.49","0.0012"],["11901.08","0.0227"],["11900.93","0.0009"],["11900.53","1.662"],["11900.08","0.001"],["11900.01","3.6745"],["11899.96","0.003"],["11899.91","0.0006"],["11899.44","0.0013"]]}`

@@ -1,7 +1,8 @@
 package alphapoint
 
 import (
-	"encoding/json"
+	"encoding/json"	"log"
+	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -17,45 +18,36 @@ const (
 	canManipulateRealOrders = false
 )
 
-func TestSetDefaults(t *testing.T) {
-	t.Parallel()
-	SetDefaults := Alphapoint{}
+var a Alphapoint
 
-	SetDefaults.SetDefaults()
-	if SetDefaults.API.Endpoints.URL != "https://sim3.alphapoint.com:8400" {
-		t.Error("SetDefaults: String Incorrect -", SetDefaults.API.Endpoints.URL)
-	}
-	if SetDefaults.API.Endpoints.WebsocketURL != "wss://sim3.alphapoint.com:8401/v1/GetTicker/" {
-		t.Error("SetDefaults: String Incorrect -", SetDefaults.API.Endpoints.WebsocketURL)
-	}
-}
-
-func testSetAPIKey(a *Alphapoint) {
+func TestMain(m *testing.M) {
+	a.SetDefaults()
 	a.API.Credentials.Key = apiKey
 	a.API.Credentials.Secret = apiSecret
 	a.API.AuthenticatedSupport = true
-}
-
-func testIsAPIKeysSet(a *Alphapoint) bool {
-	if apiKey != "" && apiSecret != "" && a.API.AuthenticatedSupport {
-		return true
+	if a.API.Endpoints.URL != "https://sim3.alphapoint.com:8400" {
+		log.Fatal("SetDefaults: String Incorrect -", a.API.Endpoints.URL)
 	}
-	return false
+	if a.API.Endpoints.WebsocketURL != "wss://sim3.alphapoint.com:8401/v1/GetTicker/" {
+		log.Fatal("SetDefaults: String Incorrect -", a.API.Endpoints.WebsocketURL)
+	}
+	os.Exit(m.Run())
 }
-func TestGetTicker(t *testing.T) {
-	alpha := Alphapoint{}
-	alpha.SetDefaults()
 
+func areTestAPIKeysSet() bool {
+	return a.ValidateAPICredentials()
+}
+
+func TestGetTicker(t *testing.T) {
 	var ticker Ticker
 	var err error
-
 	if onlineTest {
-		ticker, err = alpha.GetTicker("BTCUSD")
+		ticker, err = a.GetTicker("BTCUSD")
 		if err != nil {
 			t.Fatal("Alphapoint GetTicker init error: ", err)
 		}
 
-		_, err = alpha.GetTicker("wigwham")
+		_, err = a.GetTicker("wigwham")
 		if err == nil {
 			t.Error("Alphapoint GetTicker Expected error")
 		}
@@ -80,19 +72,15 @@ func TestGetTicker(t *testing.T) {
 }
 
 func TestGetTrades(t *testing.T) {
-	alpha := Alphapoint{}
-	alpha.SetDefaults()
-
 	var trades Trades
 	var err error
-
 	if onlineTest {
-		trades, err = alpha.GetTrades("BTCUSD", 0, 10)
+		trades, err = a.GetTrades("BTCUSD", 0, 10)
 		if err != nil {
 			t.Fatalf("Init error: %s", err)
 		}
 
-		_, err = alpha.GetTrades("wigwham", 0, 10)
+		_, err = a.GetTrades("wigwham", 0, 10)
 		if err == nil {
 			t.Fatal("GetTrades Expected error")
 		}
@@ -121,18 +109,14 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetTradesByDate(t *testing.T) {
-	alpha := Alphapoint{}
-	alpha.SetDefaults()
-
 	var trades Trades
 	var err error
-
 	if onlineTest {
-		trades, err = alpha.GetTradesByDate("BTCUSD", 1414799400, 1414800000)
+		trades, err = a.GetTradesByDate("BTCUSD", 1414799400, 1414800000)
 		if err != nil {
 			t.Errorf("Init error: %s", err)
 		}
-		_, err = alpha.GetTradesByDate("wigwham", 1414799400, 1414800000)
+		_, err = a.GetTradesByDate("wigwham", 1414799400, 1414800000)
 		if err == nil {
 			t.Error("GetTradesByDate Expected error")
 		}
@@ -168,19 +152,15 @@ func TestGetTradesByDate(t *testing.T) {
 }
 
 func TestGetOrderbook(t *testing.T) {
-	alpha := Alphapoint{}
-	alpha.SetDefaults()
-
 	var orderBook Orderbook
 	var err error
-
 	if onlineTest {
-		orderBook, err = alpha.GetOrderbook("BTCUSD")
+		orderBook, err = a.GetOrderbook("BTCUSD")
 		if err != nil {
 			t.Errorf("Init error: %s", err)
 		}
 
-		_, err = alpha.GetOrderbook("wigwham")
+		_, err = a.GetOrderbook("wigwham")
 		if err == nil {
 			t.Error("GetOrderbook() Expected error")
 		}
@@ -213,14 +193,11 @@ func TestGetOrderbook(t *testing.T) {
 }
 
 func TestGetProductPairs(t *testing.T) {
-	alpha := Alphapoint{}
-	alpha.SetDefaults()
-
 	var products ProductPairs
 	var err error
 
 	if onlineTest {
-		products, err = alpha.GetProductPairs()
+		products, err = a.GetProductPairs()
 		if err != nil {
 			t.Errorf("Init error: %s", err)
 		}
@@ -253,14 +230,11 @@ func TestGetProductPairs(t *testing.T) {
 }
 
 func TestGetProducts(t *testing.T) {
-	alpha := Alphapoint{}
-	alpha.SetDefaults()
-
 	var products Products
 	var err error
 
 	if onlineTest {
-		products, err = alpha.GetProducts()
+		products, err = a.GetProducts()
 		if err != nil {
 			t.Errorf("Init error: %s", err)
 		}
@@ -293,12 +267,8 @@ func TestGetProducts(t *testing.T) {
 }
 
 func TestCreateAccount(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	err := a.CreateAccount("test", "account", "something@something.com", "0292383745", "lolcat123")
@@ -316,12 +286,8 @@ func TestCreateAccount(t *testing.T) {
 }
 
 func TestGetUserInfo(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	_, err := a.GetUserInfo()
@@ -331,12 +297,8 @@ func TestGetUserInfo(t *testing.T) {
 }
 
 func TestSetUserInfo(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	_, err := a.SetUserInfo("bla", "bla", "1", "meh", true, true)
@@ -346,12 +308,8 @@ func TestSetUserInfo(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	_, err := a.GetAccountInfo()
@@ -361,12 +319,8 @@ func TestGetAccountInfo(t *testing.T) {
 }
 
 func TestGetAccountTrades(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	_, err := a.GetAccountTrades("", 1, 2)
@@ -376,12 +330,8 @@ func TestGetAccountTrades(t *testing.T) {
 }
 
 func TestGetDepositAddresses(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	_, err := a.GetDepositAddresses()
@@ -391,12 +341,8 @@ func TestGetDepositAddresses(t *testing.T) {
 }
 
 func TestWithdrawCoins(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	err := a.WithdrawCoins("", "", "", 0.01)
@@ -406,12 +352,8 @@ func TestWithdrawCoins(t *testing.T) {
 }
 
 func TestCreateOrder(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	_, err := a.CreateOrder("", "", order.Limit.String(), 0.01, 0)
@@ -421,12 +363,8 @@ func TestCreateOrder(t *testing.T) {
 }
 
 func TestModifyExistingOrder(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	_, err := a.ModifyExistingOrder("", 1, 1)
@@ -436,12 +374,8 @@ func TestModifyExistingOrder(t *testing.T) {
 }
 
 func TestCancelAllExistingOrders(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	err := a.CancelAllExistingOrders("")
@@ -451,12 +385,8 @@ func TestCancelAllExistingOrders(t *testing.T) {
 }
 
 func TestGetOrders(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	_, err := a.GetOrders()
@@ -466,12 +396,8 @@ func TestGetOrders(t *testing.T) {
 }
 
 func TestGetOrderFee(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	_, err := a.GetOrderFee("", "", 1, 1)
@@ -481,45 +407,35 @@ func TestGetOrderFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
 	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText + " & " + exchange.WithdrawCryptoWith2FAText + " & " + exchange.NoFiatWithdrawalsText
-
 	withdrawPermissions := a.FormatWithdrawPermissions()
-
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
 	}
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
 	}
 
 	_, err := a.GetActiveOrders(&getOrdersRequest)
-	if areTestAPIKeysSet(a) && err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get open orders: %s", err)
-	} else if !areTestAPIKeysSet(a) && err == nil {
+	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
 }
 
 func TestGetOrderHistory(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
 	}
 
 	_, err := a.GetOrderHistory(&getOrdersRequest)
-	if areTestAPIKeysSet(a) && err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get order history: %s", err)
-	} else if !areTestAPIKeysSet(a) && err == nil {
+	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
 }
@@ -527,15 +443,8 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 
-func areTestAPIKeysSet(a *Alphapoint) bool {
-	return a.ValidateAPICredentials()
-}
-
 func TestSubmitOrder(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-
-	if areTestAPIKeysSet(a) && !canManipulateRealOrders {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
@@ -553,10 +462,10 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	response, err := a.SubmitOrder(orderSubmission)
-	if !areTestAPIKeysSet(a) && err == nil {
+	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
-	if areTestAPIKeysSet(a) && err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 
 		if !response.IsOrderPlaced {
@@ -566,15 +475,11 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-
-	if areTestAPIKeysSet(a) && !canManipulateRealOrders {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	currencyPair := currency.NewPair(currency.BTC, currency.LTC)
-
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -583,24 +488,20 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 
 	err := a.CancelOrder(orderCancellation)
-	if !areTestAPIKeysSet(a) && err == nil {
+	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
-	if areTestAPIKeysSet(a) && err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 	}
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-
-	if areTestAPIKeysSet(a) && !canManipulateRealOrders {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	currencyPair := currency.NewPair(currency.BTC, currency.LTC)
-
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -609,11 +510,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 
 	resp, err := a.CancelAllOrders(orderCancellation)
-
-	if !areTestAPIKeysSet(a) && err == nil {
+	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
-	if areTestAPIKeysSet(a) && err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 	}
 
@@ -623,9 +523,9 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestModifyOrder(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := a.ModifyOrder(&order.Modify{})
 	if err == nil {
 		t.Error("ModifyOrder() Expected error")
@@ -633,10 +533,7 @@ func TestModifyOrder(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
 	var withdrawCryptoRequest = exchange.CryptoWithdrawRequest{}
-
 	_, err := a.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected 'Not implemented', received %v", err)
@@ -644,10 +541,7 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestWithdrawFiat(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-
-	if areTestAPIKeysSet(a) && !canManipulateRealOrders {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
@@ -659,10 +553,7 @@ func TestWithdrawFiat(t *testing.T) {
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-
-	if areTestAPIKeysSet(a) && !canManipulateRealOrders {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
