@@ -632,7 +632,7 @@ func (b *BTCMarkets) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		return 0, errors.New("international bank withdrawals are not supported")
 
 	case exchange.OfflineTradeFee:
-		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
+		fee = getOfflineTradeFee(feeBuilder)
 	}
 	if fee < 0 {
 		fee = 0
@@ -641,6 +641,11 @@ func (b *BTCMarkets) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 }
 
 // getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(price, amount float64) float64 {
-	return 0.0085 * price * amount
+func getOfflineTradeFee(feeBuilder *exchange.FeeBuilder) float64 {
+	switch {
+	case feeBuilder.Pair.IsCryptoPair():
+		return 0.002 * feeBuilder.PurchasePrice * feeBuilder.Amount
+	default:
+		return 0.0085 * feeBuilder.PurchasePrice * feeBuilder.Amount
+	}
 }
