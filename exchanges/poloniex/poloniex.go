@@ -129,25 +129,27 @@ func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (OrderbookAll, e
 			return oba, err
 		}
 		for currency, orderbook := range resp.Data {
-			ob := Orderbook{}
+			var ob Orderbook
 			for x := range orderbook.Asks {
-				data := orderbook.Asks[x]
-				price, err := strconv.ParseFloat(data[0].(string), 64)
+				price, err := strconv.ParseFloat(orderbook.Asks[x][0].(string), 64)
 				if err != nil {
 					return oba, err
 				}
-				amount := data[1].(float64)
-				ob.Asks = append(ob.Asks, OrderbookItem{Price: price, Amount: amount})
+				ob.Asks = append(ob.Asks, OrderbookItem{
+					Price:  price,
+					Amount: orderbook.Asks[x][1].(float64),
+				})
 			}
 
 			for x := range orderbook.Bids {
-				data := orderbook.Bids[x]
-				price, err := strconv.ParseFloat(data[0].(string), 64)
+				price, err := strconv.ParseFloat(orderbook.Bids[x][0].(string), 64)
 				if err != nil {
 					return oba, err
 				}
-				amount := data[1].(float64)
-				ob.Bids = append(ob.Bids, OrderbookItem{Price: price, Amount: amount})
+				ob.Asks = append(ob.Asks, OrderbookItem{
+					Price:  price,
+					Amount: orderbook.Bids[x][1].(float64),
+				})
 			}
 			oba.Data[currency] = Orderbook{Bids: ob.Bids, Asks: ob.Asks}
 		}

@@ -1,5 +1,19 @@
 package bitstamp
 
+// Transaction types
+const (
+	Deposit = iota
+	Withdrawal
+	MarketTrade
+	SubAccountTransfer = 14
+)
+
+// Order side type
+const (
+	BuyOrder = iota
+	SellOrder
+)
+
 // Ticker holds ticker information
 type Ticker struct {
 	Last      float64 `json:"last,string"`
@@ -52,55 +66,51 @@ type EURUSDConversionRate struct {
 	Sell float64 `json:"sell,string"`
 }
 
-// Balances holds full balance information with the supplied APIKEYS
-type Balances struct {
-	USDBalance   float64 `json:"usd_balance,string"`
-	BTCBalance   float64 `json:"btc_balance,string"`
-	EURBalance   float64 `json:"eur_balance,string"`
-	XRPBalance   float64 `json:"xrp_balance,string"`
-	USDReserved  float64 `json:"usd_reserved,string"`
-	BTCReserved  float64 `json:"btc_reserved,string"`
-	EURReserved  float64 `json:"eur_reserved,string"`
-	XRPReserved  float64 `json:"xrp_reserved,string"`
-	USDAvailable float64 `json:"usd_available,string"`
-	BTCAvailable float64 `json:"btc_available,string"`
-	EURAvailable float64 `json:"eur_available,string"`
-	XRPAvailable float64 `json:"xrp_available,string"`
-	BTCUSDFee    float64 `json:"btcusd_fee,string"`
-	BTCEURFee    float64 `json:"btceur_fee,string"`
-	EURUSDFee    float64 `json:"eurusd_fee,string"`
-	XRPUSDFee    float64 `json:"xrpusd_fee,string"`
-	XRPEURFee    float64 `json:"xrpeur_fee,string"`
-	XRPBTCFee    float64 `json:"xrpbtc_fee,string"`
-	Fee          float64 `json:"fee,string"`
+// Balance stores the balance info
+type Balance struct {
+	Available     float64
+	Balance       float64
+	Reserved      float64
+	WithdrawalFee float64
+	BTCFee        float64 // for cryptocurrency pairs
+	USDFee        float64
+	EURFee        float64
 }
+
+// Balances holds full balance information with the supplied APIKEYS
+type Balances map[string]Balance
 
 // UserTransactions holds user transaction information
 type UserTransactions struct {
-	Date    string  `json:"datetime"`
-	TransID int64   `json:"id"`
-	Type    int     `json:"type,string"`
-	USD     float64 `json:"usd"`
-	EUR     float64 `json:"eur"`
-	BTC     float64 `json:"btc"`
-	XRP     float64 `json:"xrp"`
-	BTCUSD  float64 `json:"btc_usd"`
-	Fee     float64 `json:"fee,string"`
-	OrderID int64   `json:"order_id"`
+	Date          string  `json:"datetime"`
+	TransactionID int64   `json:"id"`
+	Type          int     `json:"type,string"`
+	USD           float64 `json:"usd"`
+	EUR           float64 `json:"eur"`
+	BTC           float64 `json:"btc"`
+	XRP           float64 `json:"xrp"`
+	BTCUSD        float64 `json:"btc_usd"`
+	Fee           float64 `json:"fee,string"`
+	OrderID       int64   `json:"order_id"`
 }
 
 // Order holds current open order data
 type Order struct {
-	ID       int64   `json:"id"`
-	Date     int64   `json:"datetime"`
-	Type     int     `json:"type"`
-	Price    float64 `json:"price"`
-	Amount   float64 `json:"amount"`
+	ID       int64   `json:"id,string"`
+	DateTime string  `json:"datetime"`
+	Type     int     `json:"type,string"`
+	Price    float64 `json:"price,string"`
+	Amount   float64 `json:"amount,string"`
 	Currency string  `json:"currency_pair"`
 }
 
 // OrderStatus holds order status information
 type OrderStatus struct {
+	Price        float64 `json:"price,string"`
+	Amount       float64 `json:"amount,string"`
+	Type         int     `json:"type"`
+	ID           int64   `json:"id,string"`
+	DateTime     string  `json:"datetime"`
 	Status       string
 	Transactions []struct {
 		TradeID int64   `json:"tid"`
@@ -109,6 +119,14 @@ type OrderStatus struct {
 		Fee     float64 `json:"fee,string"`
 		BTC     float64 `json:"btc,string"`
 	}
+}
+
+// CancelOrder holds the order cancellation info
+type CancelOrder struct {
+	Price  float64 `json:"price"`
+	Amount float64 `json:"amount"`
+	Type   int     `json:"type"`
+	ID     int64   `json:"id"`
 }
 
 // WithdrawalRequests holds request information on withdrawals

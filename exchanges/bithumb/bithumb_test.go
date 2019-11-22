@@ -15,6 +15,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	canManipulateRealOrders = false
+	testCurrency            = "btc"
 )
 
 var b Bithumb
@@ -54,7 +55,7 @@ func TestGetTradablePairs(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTicker("btc")
+	_, err := b.GetTicker(testCurrency)
 	if err != nil {
 		t.Error("Bithumb GetTicker() error", err)
 	}
@@ -70,7 +71,7 @@ func TestGetAllTickers(t *testing.T) {
 
 func TestGetOrderBook(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOrderBook("btc")
+	_, err := b.GetOrderBook(testCurrency)
 	if err != nil {
 		t.Error("Bithumb GetOrderBook() error", err)
 	}
@@ -78,7 +79,7 @@ func TestGetOrderBook(t *testing.T) {
 
 func TestGetTransactionHistory(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTransactionHistory("btc")
+	_, err := b.GetTransactionHistory(testCurrency)
 	if err != nil {
 		t.Error("Bithumb GetTransactionHistory() error", err)
 	}
@@ -90,7 +91,7 @@ func TestGetAccountBalance(t *testing.T) {
 		t.Skip()
 	}
 
-	_, err := b.GetAccountBalance("BTC")
+	_, err := b.GetAccountBalance(testCurrency)
 	if err == nil {
 		t.Error("Bithumb GetAccountBalance() Expected error")
 	}
@@ -118,7 +119,7 @@ func TestGetLastTransaction(t *testing.T) {
 
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOrders("1337", "bid", "100", "", "BTC")
+	_, err := b.GetOrders("1337", order.Bid.Lower(), "100", "", testCurrency)
 	if err == nil {
 		t.Error("Bithumb GetOrders() Expected error")
 	}
@@ -134,7 +135,7 @@ func TestGetUserTransactions(t *testing.T) {
 
 func TestPlaceTrade(t *testing.T) {
 	t.Parallel()
-	_, err := b.PlaceTrade("btc", "bid", 0, 0)
+	_, err := b.PlaceTrade(testCurrency, order.Bid.Lower(), 0, 0)
 	if err == nil {
 		t.Error("Bithumb PlaceTrade() Expected error")
 	}
@@ -142,7 +143,7 @@ func TestPlaceTrade(t *testing.T) {
 
 func TestGetOrderDetails(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOrderDetails("1337", "bid", "btc")
+	_, err := b.GetOrderDetails("1337", order.Bid.Lower(), testCurrency)
 	if err == nil {
 		t.Error("Bithumb GetOrderDetails() Expected error")
 	}
@@ -185,7 +186,7 @@ func TestRequestKRWWithdraw(t *testing.T) {
 
 func TestMarketBuyOrder(t *testing.T) {
 	t.Parallel()
-	_, err := b.MarketBuyOrder("btc", 0)
+	_, err := b.MarketBuyOrder(testCurrency, 0)
 	if err == nil {
 		t.Error("Bithumb MarketBuyOrder() Expected error")
 	}
@@ -193,7 +194,7 @@ func TestMarketBuyOrder(t *testing.T) {
 
 func TestMarketSellOrder(t *testing.T) {
 	t.Parallel()
-	_, err := b.MarketSellOrder("btc", 0)
+	_, err := b.MarketSellOrder(testCurrency, 0)
 	if err == nil {
 		t.Error("Bithumb MarketSellOrder() Expected error")
 	}

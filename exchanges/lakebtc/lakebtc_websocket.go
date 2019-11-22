@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -21,11 +22,9 @@ const (
 	marketGlobalEndpoint = "market-global"
 	marketSubstring      = "market-"
 	globalSubstring      = "-global"
-	tickerBuyString      = "buy"
 	tickerHighString     = "high"
 	tickerLastString     = "last"
 	tickerLowString      = "low"
-	tickerSellString     = "sell"
 	tickerVolumeString   = "volume"
 	wssSchem             = "wss"
 )
@@ -270,11 +269,11 @@ func (l *LakeBTC) processTicker(ticker string) error {
 
 		l.Websocket.DataHandler <- wshandler.TickerData{
 			Exchange:  l.Name,
-			Bid:       processTickerItem(tickerData, tickerBuyString),
+			Bid:       processTickerItem(tickerData, order.Buy.Lower()),
 			High:      processTickerItem(tickerData, tickerHighString),
 			Last:      processTickerItem(tickerData, tickerLastString),
 			Low:       processTickerItem(tickerData, tickerLowString),
-			Ask:       processTickerItem(tickerData, tickerSellString),
+			Ask:       processTickerItem(tickerData, order.Sell.Lower()),
 			Volume:    processTickerItem(tickerData, tickerVolumeString),
 			AssetType: asset.Spot,
 			Pair:      returnCurrency,

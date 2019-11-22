@@ -534,3 +534,21 @@ func TestGetDepositAddress(t *testing.T) {
 		}
 	}
 }
+
+func TestParseTime(t *testing.T) {
+	t.Parallel()
+
+	tm, err := parseTime("2019-11-21T02:08:34.87")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if tm.Year() != 2019 ||
+		tm.Month() != 11 ||
+		tm.Day() != 21 ||
+		tm.Hour() != 2 ||
+		tm.Minute() != 8 ||
+		tm.Second() != 34 {
+		t.Error("invalid time values")
+	}
+}

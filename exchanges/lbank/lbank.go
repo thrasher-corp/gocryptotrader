@@ -17,6 +17,7 @@ import (
 
 	gctcrypto "github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
@@ -195,7 +196,8 @@ func (l *Lbank) GetUserInfo() (InfoFinalResponse, error) {
 // CreateOrder creates an order
 func (l *Lbank) CreateOrder(pair, side string, amount, price float64) (CreateOrderResponse, error) {
 	var resp CreateOrderResponse
-	if !strings.EqualFold(side, "buy") && !strings.EqualFold(side, "sell") {
+	if !strings.EqualFold(side, order.Buy.String()) &&
+		!strings.EqualFold(side, order.Sell.String()) {
 		return resp, errors.New("side type invalid can only be 'buy' or 'sell'")
 	}
 	if amount <= 0 {
@@ -546,6 +548,10 @@ func (l *Lbank) sign(data string) (string, error) {
 
 // SendAuthHTTPRequest sends an authenticated request
 func (l *Lbank) SendAuthHTTPRequest(method, endpoint string, vals url.Values, result interface{}) error {
+	if !l.AllowAuthenticatedRequest() {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, l.Name)
+	}
+
 	if vals == nil {
 		vals = url.Values{}
 	}

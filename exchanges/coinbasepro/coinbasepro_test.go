@@ -22,6 +22,7 @@ const (
 	apiSecret               = ""
 	clientID                = "" // passphrase you made at API CREATION
 	canManipulateRealOrders = false
+	testPair                = "BTC-USD"
 )
 
 func TestSetDefaults(t *testing.T) {
@@ -58,28 +59,28 @@ func TestGetProducts(t *testing.T) {
 }
 
 func TestGetTicker(t *testing.T) {
-	_, err := c.GetTicker("BTC-USD")
+	_, err := c.GetTicker(testPair)
 	if err != nil {
 		t.Error("GetTicker() error", err)
 	}
 }
 
 func TestGetTrades(t *testing.T) {
-	_, err := c.GetTrades("BTC-USD")
+	_, err := c.GetTrades(testPair)
 	if err != nil {
 		t.Error("GetTrades() error", err)
 	}
 }
 
 func TestGetHistoricRates(t *testing.T) {
-	_, err := c.GetHistoricRates("BTC-USD", 0, 0, 0)
+	_, err := c.GetHistoricRates(testPair, 0, 0, 0)
 	if err != nil {
 		t.Error("GetHistoricRates() error", err)
 	}
 }
 
 func TestGetStats(t *testing.T) {
-	_, err := c.GetStats("BTC-USD")
+	_, err := c.GetStats(testPair)
 	if err != nil {
 		t.Error("GetStats() error", err)
 	}
@@ -128,21 +129,23 @@ func TestAuthRequests(t *testing.T) {
 	if err == nil {
 		t.Error("Expecting error")
 	}
-	orderResponse, err := c.PlaceLimitOrder("", 0.001, 0.001, "buy", "", "", "BTC-USD", "", false)
+	orderResponse, err := c.PlaceLimitOrder("", 0.001, 0.001,
+		order.Buy.Lower(), "", "", testPair, "", false)
 	if orderResponse != "" {
 		t.Error("Expecting no data returned")
 	}
 	if err == nil {
 		t.Error("Expecting error")
 	}
-	marketOrderResponse, err := c.PlaceMarketOrder("", 1, 0, "buy", "BTC-USD", "")
+	marketOrderResponse, err := c.PlaceMarketOrder("", 1, 0,
+		order.Buy.Lower(), testPair, "")
 	if marketOrderResponse != "" {
 		t.Error("Expecting no data returned")
 	}
 	if err == nil {
 		t.Error("Expecting error")
 	}
-	fillsResponse, err := c.GetFills("1337", "BTC-USD")
+	fillsResponse, err := c.GetFills("1337", testPair)
 	if len(fillsResponse) > 0 {
 		t.Error("Expecting no data returned")
 	}
@@ -616,7 +619,7 @@ func TestWsAuth(t *testing.T) {
 	go c.WsHandleData()
 	err = c.Subscribe(wshandler.WebsocketChannelSubscription{
 		Channel:  "user",
-		Currency: currency.NewPairFromString("BTC-USD"),
+		Currency: currency.NewPairFromString(testPair),
 	})
 	if err != nil {
 		t.Error(err)

@@ -296,21 +296,18 @@ func (p *Poloniex) UpdateOrderbook(currencyPair currency.Pair, assetType asset.I
 
 		var obItems []orderbook.Item
 		for y := range data.Bids {
-			obData := data.Bids[y]
-			obItems = append(obItems,
-				orderbook.Item{Amount: obData.Amount, Price: obData.Price})
+			obItems = append(obItems, orderbook.Item{
+				Amount: data.Bids[y].Amount, Price: data.Bids[y].Price})
 		}
-
 		orderBook.Bids = obItems
+
 		obItems = []orderbook.Item{}
 		for y := range data.Asks {
-			obData := data.Asks[y]
-			obItems = append(obItems,
-				orderbook.Item{Amount: obData.Amount, Price: obData.Price})
+			obItems = append(obItems, orderbook.Item{
+				Amount: data.Asks[y].Amount, Price: data.Asks[y].Price})
 		}
-
-		orderBook.Pair = x
 		orderBook.Asks = obItems
+		orderBook.Pair = x
 		orderBook.ExchangeName = p.Name
 		orderBook.AssetType = assetType
 
@@ -350,8 +347,7 @@ func (p *Poloniex) GetAccountInfo() (exchange.AccountInfo, error) {
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (p *Poloniex) GetFundingHistory() ([]exchange.FundHistory, error) {
-	var fundHistory []exchange.FundHistory
-	return fundHistory, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
@@ -507,7 +503,7 @@ func (p *Poloniex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 			orderSide := order.Side(strings.ToUpper(resp.Data[key][i].Type))
 			orderDate, err := time.Parse(poloniexDateLayout, resp.Data[key][i].Date)
 			if err != nil {
-				log.Warnf(log.ExchangeSys,
+				log.Errorf(log.ExchangeSys,
 					"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 					p.Name,
 					"GetActiveOrders",
@@ -554,7 +550,7 @@ func (p *Poloniex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 			orderDate, err := time.Parse(poloniexDateLayout,
 				resp.Data[key][i].Date)
 			if err != nil {
-				log.Warnf(log.ExchangeSys,
+				log.Errorf(log.ExchangeSys,
 					"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 					p.Name,
 					"GetActiveOrders",

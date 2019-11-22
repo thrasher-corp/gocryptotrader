@@ -218,13 +218,17 @@ func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType asset.Item) (
 	}
 
 	for x := range orderbookNew.Bids {
-		data := orderbookNew.Bids[x]
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: data.Amount / data.Price, Price: data.Price})
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+			Amount: orderbookNew.Bids[x].Amount / orderbookNew.Bids[x].Price,
+			Price:  orderbookNew.Bids[x].Price,
+		})
 	}
 
 	for x := range orderbookNew.Asks {
-		data := orderbookNew.Asks[x]
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data.Amount / data.Price, Price: data.Price})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+			Amount: orderbookNew.Asks[x].Amount / orderbookNew.Asks[x].Price,
+			Price:  orderbookNew.Asks[x].Price,
+		})
 	}
 
 	orderBook.Pair = p
@@ -261,8 +265,7 @@ func (l *LocalBitcoins) GetAccountInfo() (exchange.AccountInfo, error) {
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (l *LocalBitcoins) GetFundingHistory() ([]exchange.FundHistory, error) {
-	var fundHistory []exchange.FundHistory
-	return fundHistory, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
@@ -434,7 +437,7 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest
 	for i := range resp {
 		orderDate, err := time.Parse(time.RFC3339, resp[i].Data.CreatedAt)
 		if err != nil {
-			log.Warnf(log.ExchangeSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
+			log.Errorf(log.ExchangeSys, "Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				l.Name,
 				"GetActiveOrders",
 				resp[i].Data.Advertisement.ID,
@@ -495,7 +498,7 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest
 	for i := range allTrades {
 		orderDate, err := time.Parse(time.RFC3339, allTrades[i].Data.CreatedAt)
 		if err != nil {
-			log.Warnf(log.ExchangeSys,
+			log.Errorf(log.ExchangeSys,
 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				l.Name,
 				"GetActiveOrders",

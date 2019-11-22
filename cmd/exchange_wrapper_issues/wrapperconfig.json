@@ -91,6 +91,11 @@
    "clientID": "ClientID",
    "otpSecret": "-"
   },
+  "coinbene": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
   "coinut": {
    "key": "Key",
    "clientID": "ClientID",
@@ -136,7 +141,11 @@
    "secret": "Secret",
    "otpSecret": "-"
   },
-  "lbank": {},
+  "lbank": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
   "localbitcoins": {
    "key": "Key",
    "secret": "Secret",

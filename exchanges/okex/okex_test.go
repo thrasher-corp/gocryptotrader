@@ -3,6 +3,7 @@ package okex
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -154,7 +155,7 @@ func TestTransferAccountFunds(t *testing.T) {
 		Amount:   10,
 		Currency: currency.BTC.String(),
 		From:     6,
-		To:       1,
+		To:       -1,
 	}
 
 	_, err := o.TransferAccountFunds(request)
@@ -166,7 +167,7 @@ func TestAccountWithdrawRequest(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
 	request := okgroup.AccountWithdrawRequest{
-		Amount:      10,
+		Amount:      -1,
 		Currency:    currency.BTC.String(),
 		TradePwd:    "1234",
 		Destination: 4,
@@ -306,13 +307,12 @@ func TestGetSpotBillDetailsForCurrencyBadLimit(t *testing.T) {
 func TestPlaceSpotOrderLimit(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	request := okgroup.PlaceSpotOrderRequest{
-		InstrumentID:  spotCurrency,
-		Type:          order.Limit.Lower(),
-		Side:          order.Buy.Lower(),
-		MarginTrading: "1",
-		Price:         "100",
-		Size:          "100",
+	request := okgroup.PlaceOrderRequest{
+		InstrumentID: spotCurrency,
+		Type:         order.Limit.Lower(),
+		Side:         order.Buy.Lower(),
+		Price:        "-1",
+		Size:         "0.001",
 	}
 
 	_, err := o.PlaceSpotOrder(&request)
@@ -323,13 +323,12 @@ func TestPlaceSpotOrderLimit(t *testing.T) {
 func TestPlaceSpotOrderMarket(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	request := okgroup.PlaceSpotOrderRequest{
-		InstrumentID:  spotCurrency,
-		Type:          order.Market.Lower(),
-		Side:          order.Buy.Lower(),
-		MarginTrading: "1",
-		Size:          "-100",
-		Notional:      "100",
+	request := okgroup.PlaceOrderRequest{
+		InstrumentID: spotCurrency,
+		Type:         order.Market.Lower(),
+		Side:         order.Buy.Lower(),
+		Size:         "-100",
+		Notional:     "100",
 	}
 
 	_, err := o.PlaceSpotOrder(&request)
@@ -340,16 +339,15 @@ func TestPlaceSpotOrderMarket(t *testing.T) {
 func TestPlaceMultipleSpotOrders(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	order := okgroup.PlaceSpotOrderRequest{
-		InstrumentID:  spotCurrency,
-		Type:          order.Limit.Lower(),
-		Side:          order.Buy.Lower(),
-		MarginTrading: "1",
-		Size:          "100",
-		Notional:      "100",
+	order := okgroup.PlaceOrderRequest{
+		InstrumentID: spotCurrency,
+		Type:         order.Limit.Lower(),
+		Side:         order.Buy.Lower(),
+		Size:         "-100",
+		Price:        "1",
 	}
 
-	request := []okgroup.PlaceSpotOrderRequest{
+	request := []okgroup.PlaceOrderRequest{
 		order,
 	}
 
@@ -363,16 +361,15 @@ func TestPlaceMultipleSpotOrders(t *testing.T) {
 func TestPlaceMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	order := okgroup.PlaceSpotOrderRequest{
-		InstrumentID:  spotCurrency,
-		Type:          order.Limit.Lower(),
-		Side:          order.Buy.Lower(),
-		MarginTrading: "1",
-		Size:          "100",
-		Notional:      "100",
+	order := okgroup.PlaceOrderRequest{
+		InstrumentID: spotCurrency,
+		Type:         order.Limit.Lower(),
+		Side:         order.Buy.Lower(),
+		Size:         "-100",
+		Price:        "1",
 	}
 
-	request := []okgroup.PlaceSpotOrderRequest{
+	request := []okgroup.PlaceOrderRequest{
 		order,
 		order,
 		order,
@@ -390,27 +387,29 @@ func TestPlaceMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
 func TestPlaceMultipleSpotOrdersOverPairLimits(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	order := okgroup.PlaceSpotOrderRequest{
-		InstrumentID:  spotCurrency,
-		Type:          order.Limit.Lower(),
-		Side:          order.Buy.Lower(),
-		MarginTrading: "1",
-		Size:          "100",
-		Notional:      "100",
+	order := okgroup.PlaceOrderRequest{
+		InstrumentID: spotCurrency,
+		Type:         order.Limit.Lower(),
+		Side:         order.Buy.Lower(),
+		Size:         "-1",
+		Price:        "1",
 	}
 
-	request := []okgroup.PlaceSpotOrderRequest{
+	request := []okgroup.PlaceOrderRequest{
 		order,
 	}
 
-	order.InstrumentID = currency.NewPairWithDelimiter(currency.LTC.String(), currency.USDT.String(), "-").Lower().String()
-	request = append(request, order)
-	order.InstrumentID = currency.NewPairWithDelimiter(currency.DOGE.String(), currency.USDT.String(), "-").Lower().String()
-	request = append(request, order)
-	order.InstrumentID = currency.NewPairWithDelimiter(currency.XMR.String(), currency.USDT.String(), "-").Lower().String()
-	request = append(request, order)
-	order.InstrumentID = currency.NewPairWithDelimiter(currency.BCH.String(), currency.USDT.String(), "-").Lower().String()
-	request = append(request, order)
+	pairs := currency.Pairs{
+		currency.NewPair(currency.LTC, currency.USDT),
+		currency.NewPair(currency.ETH, currency.USDT),
+		currency.NewPair(currency.BCH, currency.USDT),
+		currency.NewPair(currency.XMR, currency.USDT),
+	}
+
+	for x := range pairs {
+		order.InstrumentID = pairs[x].Format("-", false).String()
+		request = append(request, order)
+	}
 
 	_, errs := o.PlaceMultipleSpotOrders(request)
 	if errs[0].Error() != "up to 4 trading pairs" {
@@ -619,7 +618,7 @@ func TestOpenMarginLoan(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
 	request := okgroup.OpenMarginLoanRequest{
-		Amount:        100,
+		Amount:        -100,
 		InstrumentID:  spotCurrency,
 		QuoteCurrency: currency.USDT.String(),
 	}
@@ -633,7 +632,7 @@ func TestRepayMarginLoan(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
 	request := okgroup.RepayMarginLoanRequest{
-		Amount:        100,
+		Amount:        -100,
 		InstrumentID:  spotCurrency,
 		QuoteCurrency: currency.USDT.String(),
 		BorrowID:      1,
@@ -647,13 +646,13 @@ func TestRepayMarginLoan(t *testing.T) {
 func TestPlaceMarginOrderLimit(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	request := okgroup.PlaceSpotOrderRequest{
-		InstrumentID:  spotCurrency,
-		Type:          order.Limit.Lower(),
-		Side:          order.Buy.Lower(),
-		MarginTrading: "2",
-		Price:         "100",
-		Size:          "100",
+	request := okgroup.PlaceOrderRequest{
+		InstrumentID: spotCurrency,
+		Type:         order.Limit.Lower(),
+		Side:         order.Buy.Lower(),
+		OrderType:    strconv.Itoa(okgroup.NormalOrder),
+		Price:        "-100",
+		Size:         "100",
 	}
 
 	_, err := o.PlaceMarginOrder(&request)
@@ -664,7 +663,7 @@ func TestPlaceMarginOrderLimit(t *testing.T) {
 func TestPlaceMarginOrderMarket(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	request := okgroup.PlaceSpotOrderRequest{
+	request := okgroup.PlaceOrderRequest{
 		InstrumentID:  spotCurrency,
 		Type:          order.Market.Lower(),
 		Side:          order.Buy.Lower(),
@@ -681,16 +680,16 @@ func TestPlaceMarginOrderMarket(t *testing.T) {
 func TestPlaceMultipleMarginOrders(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	order := okgroup.PlaceSpotOrderRequest{
+	order := okgroup.PlaceOrderRequest{
 		InstrumentID:  spotCurrency,
 		Type:          order.Limit.Lower(),
 		Side:          order.Buy.Lower(),
 		MarginTrading: "1",
-		Size:          "100",
+		Size:          "-100",
 		Notional:      "100",
 	}
 
-	request := []okgroup.PlaceSpotOrderRequest{
+	request := []okgroup.PlaceOrderRequest{
 		order,
 	}
 
@@ -704,16 +703,16 @@ func TestPlaceMultipleMarginOrders(t *testing.T) {
 func TestPlaceMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	order := okgroup.PlaceSpotOrderRequest{
+	order := okgroup.PlaceOrderRequest{
 		InstrumentID:  spotCurrency,
 		Type:          order.Limit.Lower(),
 		Side:          order.Buy.Lower(),
 		MarginTrading: "1",
-		Size:          "100",
+		Size:          "-100",
 		Notional:      "100",
 	}
 
-	request := []okgroup.PlaceSpotOrderRequest{
+	request := []okgroup.PlaceOrderRequest{
 		order,
 		order,
 		order,
@@ -731,27 +730,30 @@ func TestPlaceMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
 func TestPlaceMultipleMarginOrdersOverPairLimits(t *testing.T) {
 	TestSetDefaults(t)
 	t.Parallel()
-	order := okgroup.PlaceSpotOrderRequest{
+	order := okgroup.PlaceOrderRequest{
 		InstrumentID:  spotCurrency,
 		Type:          order.Limit.Lower(),
 		Side:          order.Buy.Lower(),
 		MarginTrading: "1",
-		Size:          "100",
+		Size:          "-100",
 		Notional:      "100",
 	}
 
-	request := []okgroup.PlaceSpotOrderRequest{
+	request := []okgroup.PlaceOrderRequest{
 		order,
 	}
 
-	order.InstrumentID = currency.NewPairWithDelimiter(currency.LTC.String(), currency.USDT.String(), "-").Lower().String()
-	request = append(request, order)
-	order.InstrumentID = currency.NewPairWithDelimiter(currency.DOGE.String(), currency.USDT.String(), "-").Lower().String()
-	request = append(request, order)
-	order.InstrumentID = currency.NewPairWithDelimiter(currency.XMR.String(), currency.USDT.String(), "-").Lower().String()
-	request = append(request, order)
-	order.InstrumentID = currency.NewPairWithDelimiter(currency.BCH.String(), currency.USDT.String(), "-").Lower().String()
-	request = append(request, order)
+	pairs := currency.Pairs{
+		currency.NewPair(currency.LTC, currency.USDT),
+		currency.NewPair(currency.ETH, currency.USDT),
+		currency.NewPair(currency.BCH, currency.USDT),
+		currency.NewPair(currency.XMR, currency.USDT),
+	}
+
+	for x := range pairs {
+		order.InstrumentID = pairs[x].Format("-", false).String()
+		request = append(request, order)
+	}
 
 	_, errs := o.PlaceMultipleMarginOrders(request)
 	if errs[0].Error() != "up to 4 trading pairs" {
@@ -935,7 +937,7 @@ func TestPlaceFuturesOrder(t *testing.T) {
 		Leverage:     10,
 		Type:         1,
 		Size:         2,
-		Price:        432.11,
+		Price:        -432.11,
 		ClientOid:    "12233456",
 	})
 	testStandardErrorHandling(t, err)
@@ -951,7 +953,7 @@ func TestPlaceFuturesOrderBatch(t *testing.T) {
 			{
 				ClientOid:  "1",
 				MatchPrice: "0",
-				Price:      "100",
+				Price:      "-100",
 				Size:       "100",
 				Type:       "1",
 			},
@@ -1212,13 +1214,13 @@ func TestPlaceMultipleSwapOrders(t *testing.T) {
 				ClientOID:  "hello",
 				MatchPrice: "0",
 				Price:      "10",
-				Size:       "1",
+				Size:       "-1",
 				Type:       "1",
 			}, {
 				ClientOID:  "hello2",
 				MatchPrice: "0",
 				Price:      "10",
-				Size:       "1",
+				Size:       "-1",
 				Type:       "1",
 			}},
 	})
@@ -1463,7 +1465,7 @@ func TestPlaceETTOrder(t *testing.T) {
 		QuoteCurrency: spotCurrency,
 		Type:          0,
 		Size:          "100",
-		Amount:        1,
+		Amount:        -1,
 		ETT:           "OK06",
 	}
 

@@ -17,6 +17,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	canManipulateRealOrders = false
+	testPair                = "BTC-USD"
 )
 
 var b BTSE
@@ -37,7 +38,11 @@ func TestMain(m *testing.M) {
 	btseConfig.API.Credentials.Key = apiKey
 	btseConfig.API.Credentials.Secret = apiSecret
 
-	b.Setup(btseConfig)
+	err = b.Setup(btseConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	os.Exit(m.Run())
 }
 
@@ -63,7 +68,7 @@ func TestGetMarkets(t *testing.T) {
 
 func TestFetchOrderBook(t *testing.T) {
 	t.Parallel()
-	_, err := b.FetchOrderBook("BTC-USD")
+	_, err := b.FetchOrderBook(testPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -71,7 +76,7 @@ func TestFetchOrderBook(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTrades("BTC-USD")
+	_, err := b.GetTrades(testPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -79,7 +84,7 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTicker("BTC-USD")
+	_, err := b.GetTicker(testPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -87,7 +92,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetMarketStatistics(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetMarketStatistics("BTC-USD")
+	_, err := b.GetMarketStatistics(testPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -117,7 +122,7 @@ func TestGetFills(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping test")
 	}
-	_, err := b.GetFills("", "BTC-USD", "", "", "", "")
+	_, err := b.GetFills("", testPair, "", "", "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -128,7 +133,13 @@ func TestCreateOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := b.CreateOrder(0.1, 10000, "sell", "limit", "BTC-USD", "", "")
+	_, err := b.CreateOrder(0.1,
+		10000,
+		order.Sell.String(),
+		order.Limit.String(),
+		testPair,
+		"",
+		"")
 	if err != nil {
 		t.Error(err)
 	}
@@ -266,9 +277,12 @@ func TestGetFee(t *testing.T) {
 
 func TestParseOrderTime(t *testing.T) {
 	expected := int64(1534794360)
-	actual := parseOrderTime("2018-08-20 19:20:46").Unix()
-	if expected != actual {
-		t.Errorf("TestParseOrderTime expected: %d, got %d", expected, actual)
+	actual, err := parseOrderTime("2018-08-20 19:20:46")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if expected != actual.Unix() {
+		t.Errorf("TestParseOrderTime expected: %d, got %d", expected, actual.Unix())
 	}
 }
 

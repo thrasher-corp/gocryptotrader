@@ -15,28 +15,9 @@ const (
 var s Slack
 
 type group struct {
-	ID             string   `json:"id"`
-	Name           string   `json:"name"`
-	IsGroup        bool     `json:"is_group"`
-	Created        int64    `json:"created"`
-	Creator        string   `json:"creator"`
-	IsArchived     bool     `json:"is_archived"`
-	NameNormalised string   `json:"name_normalised"`
-	IsMPIM         bool     `json:"is_mpim"`
-	HasPins        bool     `json:"has_pins"`
-	IsOpen         bool     `json:"is_open"`
-	LastRead       string   `json:"last_read"`
-	Members        []string `json:"members"`
-	Topic          struct {
-		Value   string `json:"value"`
-		Creator string `json:"creator"`
-		LastSet int64  `json:"last_set"`
-	} `json:"topic"`
-	Purpose struct {
-		Value   string `json:"value"`
-		Creator string `json:"creator"`
-		LastSet int64  `json:"last_set"`
-	} `json:"purpose"`
+	ID      string   `json:"id"`
+	Name    string   `json:"name"`
+	Members []string `json:"members"`
 }
 
 func TestSetup(t *testing.T) {
@@ -76,16 +57,7 @@ func TestBuildURL(t *testing.T) {
 
 func TestGetChannelsString(t *testing.T) {
 	s.Details.Channels = append(s.Details.Channels, struct {
-		Created        int      `json:"created"`
-		Creator        string   `json:"creator"`
-		HasPins        bool     `json:"has_pins"`
 		ID             string   `json:"id"`
-		IsArchived     bool     `json:"is_archived"`
-		IsChannel      bool     `json:"is_channel"`
-		IsGeneral      bool     `json:"is_general"`
-		IsMember       bool     `json:"is_member"`
-		IsOrgShared    bool     `json:"is_org_shared"`
-		IsShared       bool     `json:"is_shared"`
 		Name           string   `json:"name"`
 		NameNormalized string   `json:"name_normalized"`
 		PreviousNames  []string `json:"previous_names"`
@@ -112,28 +84,9 @@ func TestGetUsernameByID(t *testing.T) {
 	}
 
 	s.Details.Users = append(s.Details.Users, struct {
-		Deleted  bool   `json:"deleted"`
-		ID       string `json:"id"`
-		IsBot    bool   `json:"is_bot"`
-		Name     string `json:"name"`
-		Presence string `json:"presence"`
-		Profile  struct {
-			AvatarHash         string      `json:"avatar_hash"`
-			Email              string      `json:"email"`
-			Fields             interface{} `json:"fields"`
-			FirstName          string      `json:"first_name"`
-			Image192           string      `json:"image_192"`
-			Image24            string      `json:"image_24"`
-			Image32            string      `json:"image_32"`
-			Image48            string      `json:"image_48"`
-			Image512           string      `json:"image_512"`
-			Image72            string      `json:"image_72"`
-			LastName           string      `json:"last_name"`
-			RealName           string      `json:"real_name"`
-			RealNameNormalized string      `json:"real_name_normalized"`
-		} `json:"profile"`
-		TeamID  string `json:"team_id"`
-		Updated int    `json:"updated"`
+		ID     string `json:"id"`
+		Name   string `json:"name"`
+		TeamID string `json:"team_id"`
 	}{
 		ID:   "1337",
 		Name: "cranktakular",
@@ -186,16 +139,7 @@ func TestGetChannelIDByName(t *testing.T) {
 	}
 
 	s.Details.Channels = append(s.Details.Channels, struct {
-		Created        int      `json:"created"`
-		Creator        string   `json:"creator"`
-		HasPins        bool     `json:"has_pins"`
 		ID             string   `json:"id"`
-		IsArchived     bool     `json:"is_archived"`
-		IsChannel      bool     `json:"is_channel"`
-		IsGeneral      bool     `json:"is_general"`
-		IsMember       bool     `json:"is_member"`
-		IsOrgShared    bool     `json:"is_org_shared"`
-		IsShared       bool     `json:"is_shared"`
 		Name           string   `json:"name"`
 		NameNormalized string   `json:"name_normalized"`
 		PreviousNames  []string `json:"previous_names"`

@@ -30,4 +30,4 @@ Please provide detailed steps for reproducing the issue.
 
 ### Failure Logs
 
-By default, GoCryptoTrader stores its `debug.log` file in `%APPDATA%\GoCryptoTrader` on Windows and `~/.gocryptotrader` on Linux/Unix/macOS. Raw text or a link to a pastebin type site is preferred.
+By default and if file logging is enabled, GoCryptoTrader stores its `log.txt` file in `%APPDATA%\GoCryptoTrader\logs` on Windows and `~/.gocryptotrader/logs` on Linux/Unix/macOS. Raw text or a link to a pastebin type site is preferred.

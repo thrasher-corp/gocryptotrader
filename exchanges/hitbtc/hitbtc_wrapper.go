@@ -309,13 +309,17 @@ func (h *HitBTC) UpdateOrderbook(currencyPair currency.Pair, assetType asset.Ite
 	}
 
 	for x := range orderbookNew.Bids {
-		data := orderbookNew.Bids[x]
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: data.Amount, Price: data.Price})
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+			Amount: orderbookNew.Bids[x].Amount,
+			Price:  orderbookNew.Bids[x].Price,
+		})
 	}
 
 	for x := range orderbookNew.Asks {
-		data := orderbookNew.Asks[x]
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: data.Amount, Price: data.Price})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+			Amount: orderbookNew.Asks[x].Amount,
+			Price:  orderbookNew.Asks[x].Price,
+		})
 	}
 
 	orderBook.Pair = currencyPair
@@ -360,8 +364,7 @@ func (h *HitBTC) GetAccountInfo() (exchange.AccountInfo, error) {
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (h *HitBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
-	var fundHistory []exchange.FundHistory
-	return fundHistory, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
@@ -379,8 +382,8 @@ func (h *HitBTC) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	response, err := h.PlaceOrder(s.Pair.String(),
 		s.Price,
 		s.Amount,
-		strings.ToLower(s.OrderType.String()),
-		strings.ToLower(s.OrderSide.String()))
+		s.OrderType.Lower(),
+		s.OrderSide.Lower())
 	if response.OrderNumber > 0 {
 		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderNumber, 10)
 	}

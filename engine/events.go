@@ -310,7 +310,6 @@ func EventManger() {
 
 // IsValidExchange validates the exchange
 func IsValidExchange(exchangeName string) bool {
-	exchangeName = strings.ToLower(exchangeName)
 	cfg := config.GetConfig()
 	for x := range cfg.Exchanges {
 		if strings.EqualFold(cfg.Exchanges[x].Name, exchangeName) && cfg.Exchanges[x].Enabled {

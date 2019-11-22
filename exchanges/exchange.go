@@ -755,10 +755,10 @@ func (e *Base) FormatWithdrawPermissions() string {
 	return NoAPIWithdrawalMethodsText
 }
 
-// IsAssetTypeSupported whether or not the supplied asset is supported
+// SupportsAsset whether or not the supplied asset is supported
 // by the exchange
-func (e *Base) IsAssetTypeSupported(asset asset.Item) bool {
-	return e.CurrencyPairs.AssetTypes.Contains(asset)
+func (e *Base) SupportsAsset(a asset.Item) bool {
+	return e.CurrencyPairs.AssetTypes.Contains(a)
 }
 
 // PrintEnabledPairs prints the exchanges enabled asset pairs

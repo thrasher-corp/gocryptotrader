@@ -14,9 +14,9 @@ type CurrencyPairSyncerConfig struct {
 	SyncOrderbook    bool
 	SyncTrades       bool
 	SyncContinuously bool
-
-	NumWorkers int
-	Verbose    bool
+	SyncTimeout      time.Duration
+	NumWorkers       int
+	Verbose          bool
 }
 
 // ExchangeSyncerConfig stores the exchange syncer config

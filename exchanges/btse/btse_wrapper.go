@@ -450,7 +450,11 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 		od.Exchange = b.Name
 		od.Amount = o[i].Amount
 		od.ID = o[i].ID
-		od.OrderDate = parseOrderTime(o[i].CreatedAt)
+		od.OrderDate, err = parseOrderTime(o[i].CreatedAt)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s GetOrderInfo unable to parse time: %s\n", b.Name, err)
+		}
 		od.OrderSide = side
 		od.OrderType = order.Type(strings.ToUpper(o[i].Type))
 		od.Price = o[i].Price
@@ -464,7 +468,11 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 		}
 
 		for i := range fills {
-			createdAt, _ := time.Parse(time.RFC3339, fills[i].CreatedAt)
+			createdAt, err := parseOrderTime(fills[i].CreatedAt)
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"%s GetOrderInfo unable to parse time: %s\n", b.Name, err)
+			}
 			od.Trades = append(od.Trades, order.TradeHistory{
 				Timestamp: createdAt,
 				TID:       fills[i].ID,
@@ -521,13 +529,21 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 			side = order.Sell
 		}
 
+		tm, err := parseOrderTime(resp[i].CreatedAt)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s GetActiveOrders unable to parse time: %s\n",
+				b.Name,
+				err)
+		}
+
 		openOrder := order.Detail{
 			CurrencyPair: currency.NewPairDelimiter(resp[i].Symbol,
 				b.GetPairFormat(asset.Spot, false).Delimiter),
 			Exchange:  b.Name,
 			Amount:    resp[i].Amount,
 			ID:        resp[i].ID,
-			OrderDate: parseOrderTime(resp[i].CreatedAt),
+			OrderDate: tm,
 			OrderSide: side,
 			OrderType: order.Type(strings.ToUpper(resp[i].Type)),
 			Price:     resp[i].Price,
@@ -544,7 +560,13 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 		}
 
 		for i := range fills {
-			createdAt, _ := time.Parse(time.RFC3339, fills[i].CreatedAt)
+			createdAt, err := parseOrderTime(fills[i].CreatedAt)
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"%s GetActiveOrders unable to parse time: %s\n",
+					b.Name,
+					err)
+			}
 			openOrder.Trades = append(openOrder.Trades, order.TradeHistory{
 				Timestamp: createdAt,
 				TID:       fills[i].ID,
