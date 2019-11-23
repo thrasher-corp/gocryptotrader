@@ -87,6 +87,7 @@ func TestGetOrderbook(t *testing.T) {
 func TestGetMarketCandles(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetMarketCandles(BTCAUD, "", "", "", 0, 0, 5)
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}

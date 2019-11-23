@@ -59,6 +59,7 @@ const (
 	orderPlaced             = "Placed"
 	orderAccepted           = "Accepted"
 
+	ask        = "ask"
 	limit      = "Limit"
 	market     = "Market"
 	stopLimit  = "Stop Limit"
@@ -152,7 +153,7 @@ func (b *BTCMarkets) GetOrderbook(marketID string, level int64) (Orderbook, erro
 // GetMarketCandles gets candles for specified currency pair
 func (b *BTCMarkets) GetMarketCandles(marketID, timeWindow, from, to string, before, after, limit int64) ([]MarketCandle, error) {
 	var marketCandles []MarketCandle
-	var temp [][]interface{}
+	var temp [][]string
 	params := url.Values{}
 	if timeWindow != "" {
 		params.Set("timeWindow", timeWindow)
@@ -178,27 +179,30 @@ func (b *BTCMarkets) GetMarketCandles(marketID, timeWindow, from, to string, bef
 		return marketCandles, err
 	}
 	var tempData MarketCandle
-	var tempTime int64
+	var tempTime time.Time
 	for x := range temp {
-		tempTime, err = strconv.ParseInt(temp[x][0].(string), 10, 64)
-		tempData.Time = time.Unix(tempTime, 0)
-		tempData.Open, err = strconv.ParseFloat(temp[x][1].(string), 64)
+		tempTime, err = time.Parse(time.RFC3339, temp[x][0])
 		if err != nil {
 			return marketCandles, err
 		}
-		tempData.High, err = strconv.ParseFloat(temp[x][2].(string), 64)
+		tempData.Time = tempTime
+		tempData.Open, err = strconv.ParseFloat(temp[x][1], 64)
 		if err != nil {
 			return marketCandles, err
 		}
-		tempData.Low, err = strconv.ParseFloat(temp[x][3].(string), 64)
+		tempData.High, err = strconv.ParseFloat(temp[x][2], 64)
 		if err != nil {
 			return marketCandles, err
 		}
-		tempData.Close, err = strconv.ParseFloat(temp[x][4].(string), 64)
+		tempData.Low, err = strconv.ParseFloat(temp[x][3], 64)
 		if err != nil {
 			return marketCandles, err
 		}
-		tempData.Volume, err = strconv.ParseFloat(temp[x][5].(string), 64)
+		tempData.Close, err = strconv.ParseFloat(temp[x][4], 64)
+		if err != nil {
+			return marketCandles, err
+		}
+		tempData.Volume, err = strconv.ParseFloat(temp[x][5], 64)
 		if err != nil {
 			return marketCandles, err
 		}
