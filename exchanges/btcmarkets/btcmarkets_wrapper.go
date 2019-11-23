@@ -441,7 +441,7 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
 	resp.OrderDate = o.CreationTime
 	resp.ExecutedAmount = o.Amount - o.OpenAmount
 	resp.OrderSide = order.Bid
-	if o.Side == "Ask" {
+	if o.Side == ask {
 		resp.OrderSide = order.Ask
 	}
 	switch o.Type {
@@ -568,7 +568,7 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 			tempResp.Exchange = b.Name
 			tempResp.CurrencyPair = req.Currencies[x]
 			tempResp.OrderSide = order.Bid
-			if tempData[y].Side == "Ask" {
+			if tempData[y].Side == ask {
 				tempResp.OrderSide = order.Ask
 			}
 			tempResp.OrderDate = tempData[y].CreationTime
@@ -638,7 +638,7 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 		tempResp.Exchange = b.Name
 		tempResp.CurrencyPair = currency.NewPairFromString(tempData.Orders[c].MarketID)
 		tempResp.OrderSide = order.Bid
-		if tempData.Orders[c].Side == "Ask" {
+		if tempData.Orders[c].Side == ask {
 			tempResp.OrderSide = order.Ask
 		}
 		tempResp.OrderDate = tempData.Orders[c].CreationTime
