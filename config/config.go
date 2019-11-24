@@ -1189,7 +1189,8 @@ func (c *Config) CheckLoggerConfig() error {
 	m.Lock()
 	defer m.Unlock()
 
-	if c.Logging.Enabled == nil || c.Logging.Output == "" {
+
+	if c.Logging.Enabled || c.Logging.Output == "" {
 		c.Logging = log.GenDefaultSettings()
 	}
 
@@ -1202,7 +1203,7 @@ func (c *Config) CheckLoggerConfig() error {
 		if c.Logging.LoggerFileConfig.Rotate == nil {
 			c.Logging.LoggerFileConfig.Rotate = f
 		}
-		if c.Logging.LoggerFileConfig.MaxSize < 0 {
+		if c.Logging.LoggerFileConfig.MaxSize <= 0 {
 			c.Logging.LoggerFileConfig.MaxSize = 100
 		}
 		log.FileLoggingConfiguredCorrectly = true

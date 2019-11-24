@@ -168,8 +168,5 @@ func displayError(err error) {
 }
 
 func disabled() bool {
-	if GlobalLogConfig.Enabled == nil {
-		return false
-	}
-	return !*GlobalLogConfig.Enabled
+	return !GlobalLogConfig.Enabled
 }

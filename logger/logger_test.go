@@ -8,13 +8,12 @@ import (
 )
 
 var (
-	trueptr  = func(b bool) *bool { return &b }(true)
 	falseptr = func(b bool) *bool { return &b }(false)
 )
 
 func SetupTest() {
 	logTest := Config{
-		Enabled: trueptr,
+		Enabled: true,
 		SubLoggerConfig: SubLoggerConfig{
 			Output: "console",
 			Level:  "INFO|WARN|DEBUG|ERROR",
@@ -44,7 +43,7 @@ func SetupTest() {
 
 func SetupDisabled() {
 	logTest := Config{
-		Enabled: falseptr,
+		Enabled: false,
 	}
 
 	GlobalLogConfig = &logTest

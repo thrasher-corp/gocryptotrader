@@ -1754,7 +1754,7 @@ func TestCheckLoggerConfig(t *testing.T) {
 		t.Errorf("Failed to create default logger. Error: %s", err)
 	}
 
-	if !*c.Logging.Enabled {
+	if !c.Logging.Enabled {
 		t.Error("unexpected result")
 	}
 
@@ -1771,12 +1771,6 @@ func TestCheckLoggerConfig(t *testing.T) {
 		c.Logging.LoggerFileConfig.Rotate == nil ||
 		c.Logging.LoggerFileConfig.MaxSize != 100 {
 		t.Error("unexpected result")
-	}
-
-	c.LoadConfig(TestFile, true)
-	err = c.CheckLoggerConfig()
-	if err != nil {
-		t.Errorf("Failed to create logger with user settings: reason: %v", err)
 	}
 }
 

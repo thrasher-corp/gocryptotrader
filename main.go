@@ -17,13 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
 
-func dostuff(err error) {
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-}
-
 func main() {
 	// Handle flags
 	var settings engine.Settings

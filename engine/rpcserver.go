@@ -1285,7 +1285,7 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 	if !gctscript.GCTScriptConfig.Enabled {
 		return &gctrpc.GCTScriptGenericResponse{Status: "error - scripting disabled"}, nil
 	}
-
+    // TODO: make this work :D
 	return nil, nil
 }
 
@@ -1313,41 +1313,3 @@ func (s *RPCServer) GCTScriptReadScript(ctx context.Context, r *gctrpc.GCTScript
 	}, nil
 }
 
-//
-// func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUploadRequest) (*gctrpc.GCTScriptResponse, error) {
-// 	if !gctscript.GCTScriptConfig.Enabled {
-// 		return &gctrpc.GCTScriptResponse{Status: "error", Data: gctscript.ErrScriptingDisabled.Error()}, nil
-// 	}
-//
-// 	filePath := filepath.Join(gctscript.ScriptPath, r.ScriptName)
-//
-// 	_, err := os.Stat(filePath)
-// 	if err != nil {
-// 		if !os.IsNotExist(err) {
-// 			return nil, err
-// 		}
-// 	} else if !r.Overwrite {
-// 		return nil, fmt.Errorf("%s script found and overwrite set to false", r.ScriptName)
-// 	}
-//
-// 	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-//
-// 	defer file.Close()
-//
-// 	n, err := file.WriteString(r.ScriptData)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	if n != len(r.ScriptData) {
-// 		return nil, fmt.Errorf("failed to write all lens expected: %v got %v", len(r.ScriptData), n)
-// 	}
-//
-// 	return &gctrpc.GCTScriptResponse{
-// 		Status: "ok",
-// 		Data:   fmt.Sprintf("script %s written", file.Name()),
-// 	}, nil
-// }
-//

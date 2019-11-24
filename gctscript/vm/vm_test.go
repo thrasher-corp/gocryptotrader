@@ -93,7 +93,7 @@ func TestVMRun(t *testing.T) {
 
 func TestVMRunTX(t *testing.T) {
 	testVM := New()
-	GCTScriptConfig = configHelper(true, true, 600000)
+	GCTScriptConfig = configHelper(true, true, 6000000)
 	err := testVM.Load(testScript)
 	if err != nil {
 		t.Fatal(err)

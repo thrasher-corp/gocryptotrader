@@ -11,11 +11,13 @@ const spacer = "|"
 
 // Config holds configuration settings loaded from bot config
 type Config struct {
-	Enabled *bool `json:"enabled"`
+	Enabled bool `json:"enabled"`
 	SubLoggerConfig
 	LoggerFileConfig *loggerFileConfig `json:"fileSettings,omitempty"`
 	AdvancedSettings advancedSettings  `json:"advancedSettings"`
 	SubLoggers       []SubLoggerConfig `json:"subloggers,omitempty"`
+
+	Mu sync.RWMutex
 }
 
 type advancedSettings struct {
