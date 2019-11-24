@@ -303,7 +303,6 @@ func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (ord
 		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
 			Amount: tempResp.Asks[y].Volume,
 			Price:  tempResp.Asks[y].Price})
-<<<<<<< HEAD
 		orderBook.Pair = p
 		orderBook.ExchangeName = b.Name
 		orderBook.AssetType = assetType
@@ -311,15 +310,6 @@ func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (ord
 		if err != nil {
 			return orderBook, err
 		}
-=======
-	}
-	orderBook.Pair = p
-	orderBook.ExchangeName = b.Name
-	orderBook.AssetType = assetType
-	err = orderBook.Process()
-	if err != nil {
-		return orderBook, err
->>>>>>> PR Changes
 	}
 	return orderbook.Get(b.Name, p, assetType)
 }
