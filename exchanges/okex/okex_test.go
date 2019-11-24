@@ -375,8 +375,8 @@ func TestPlaceMultipleSpotOrdersOverPairLimits(t *testing.T) {
 	}
 
 	for x := range pairs {
-		order.InstrumentID = pairs[x].Format("-", false).String()
-		request = append(request, order)
+		ord.InstrumentID = pairs[x].Format("-", false).String()
+		request = append(request, ord)
 	}
 
 	_, errs := o.PlaceMultipleSpotOrders(request)
@@ -656,7 +656,7 @@ func TestPlaceMultipleMarginOrders(t *testing.T) {
 // TestPlaceMultipleMarginOrdersOverCurrencyLimits API logic test
 func TestPlaceMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
 	t.Parallel()
-	ord
+	ord := okgroup.PlaceOrderRequest{
 		InstrumentID:  spotCurrency,
 		Type:          order.Limit.Lower(),
 		Side:          order.Buy.Lower(),
@@ -703,8 +703,8 @@ func TestPlaceMultipleMarginOrdersOverPairLimits(t *testing.T) {
 	}
 
 	for x := range pairs {
-		order.InstrumentID = pairs[x].Format("-", false).String()
-		request = append(request, order)
+		ord.InstrumentID = pairs[x].Format("-", false).String()
+		request = append(request, ord)
 	}
 
 	_, errs := o.PlaceMultipleMarginOrders(request)

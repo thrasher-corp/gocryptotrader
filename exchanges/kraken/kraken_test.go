@@ -411,7 +411,10 @@ func TestGetOrderInfo(t *testing.T) {
 	}
 
 	_, err := k.GetOrderInfo("ImACoolOrderID")
-	if !strings.Contains(err.Error(), "- Order ID not found:") {
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting error")
+	}
+	if areTestAPIKeysSet() && !strings.Contains(err.Error(), "- Order ID not found:") {
 		t.Error("Expected Order ID not found error")
 	}
 }
