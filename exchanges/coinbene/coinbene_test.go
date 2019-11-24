@@ -34,7 +34,11 @@ func TestMain(m *testing.M) {
 	coinbeneConfig.API.AuthenticatedSupport = true
 	coinbeneConfig.API.Credentials.Secret = testAPISecret
 	coinbeneConfig.API.Credentials.Key = testAPIKey
-	c.Setup(coinbeneConfig)
+
+	err = c.Setup(coinbeneConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	os.Exit(m.Run())
 }

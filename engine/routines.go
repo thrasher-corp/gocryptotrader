@@ -335,11 +335,18 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 				// TO-DO: printOrderbookSummary
 				//nolint:gocritic
 				if Bot.Settings.Verbose {
-					log.Infof(log.WebsocketMgr, "Websocket %s %s orderbook updated\n", ws.GetName(), result.Pair.String())
+					log.Infof(log.WebsocketMgr,
+						"Websocket %s %s orderbook updated\n",
+						ws.GetName(),
+						FormatCurrency(result.Pair),
+					)
 				}
 			default:
 				if Bot.Settings.Verbose {
-					log.Warnf(log.WebsocketMgr, "Websocket Unknown type:     %s\n", d)
+					log.Warnf(log.WebsocketMgr,
+						"Websocket %s Unknown type: %v\n",
+						ws.GetName(),
+						d)
 				}
 			}
 		}

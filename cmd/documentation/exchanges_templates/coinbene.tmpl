@@ -30,9 +30,9 @@ main.go
 ```go
 var c exchange.IBotExchange
 
-for i := range bot.exchanges {
-  if bot.exchanges[i].GetName() == "Coinbene" {
-    c = bot.exchanges[i]
+for i := range Bot.Exchanges {
+  if Bot.Exchanges[i].GetName() == "Coinbene" {
+    c = Bot.Exchanges[i]
   }
 }
 

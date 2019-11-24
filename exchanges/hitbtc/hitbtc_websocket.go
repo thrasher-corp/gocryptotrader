@@ -232,22 +232,23 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 		return errors.New("hitbtc.go error - no orderbooks to process")
 	}
 
-	var bids []orderbook.Item
+	var newOrderBook orderbook.Base
 	for i := range ob.Params.Bid {
-		bids = append(bids, orderbook.Item{Amount: ob.Params.Bid[i].Size, Price: ob.Params.Bid[i].Price})
+		newOrderBook.Bids = append(newOrderBook.Bids, orderbook.Item{
+			Amount: ob.Params.Bid[i].Size,
+			Price:  ob.Params.Bid[i].Price,
+		})
 	}
 
-	var asks []orderbook.Item
 	for i := range ob.Params.Ask {
-		asks = append(asks, orderbook.Item{Amount: ob.Params.Ask[i].Size, Price: ob.Params.Ask[i].Price})
+		newOrderBook.Asks = append(newOrderBook.Asks, orderbook.Item{
+			Amount: ob.Params.Ask[i].Size,
+			Price:  ob.Params.Ask[i].Price,
+		})
 	}
 
 	p := currency.NewPairFromFormattedPairs(ob.Params.Symbol,
 		h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true))
-
-	var newOrderBook orderbook.Base
-	newOrderBook.Asks = asks
-	newOrderBook.Bids = bids
 	newOrderBook.AssetType = asset.Spot
 	newOrderBook.Pair = p
 	newOrderBook.ExchangeName = h.Name
@@ -274,11 +275,17 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update WsOrderbook) error {
 
 	var bids, asks []orderbook.Item
 	for i := range update.Params.Bid {
-		bids = append(bids, orderbook.Item{Price: update.Params.Bid[i].Price, Amount: update.Params.Bid[i].Size})
+		bids = append(bids, orderbook.Item{
+			Price:  update.Params.Bid[i].Price,
+			Amount: update.Params.Bid[i].Size,
+		})
 	}
 
 	for i := range update.Params.Ask {
-		asks = append(asks, orderbook.Item{Price: update.Params.Ask[i].Price, Amount: update.Params.Ask[i].Size})
+		asks = append(asks, orderbook.Item{
+			Price:  update.Params.Ask[i].Price,
+			Amount: update.Params.Ask[i].Size,
+		})
 	}
 
 	p := currency.NewPairFromFormattedPairs(update.Params.Symbol,

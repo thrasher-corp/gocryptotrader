@@ -1903,7 +1903,7 @@
       "result": "error"
      },
      "queryString": "",
-     "bodyParams": "{\"amount\":\"1\",\"nonce\":\"1565757283294274961\",\"price\":\"9000\",\"request\":\"/v1/order/new\",\"side\":\"buy\",\"symbol\":\"btcusd\",\"type\":\"exchange limit\"}",
+     "bodyParams": "{\"amount\":\"1\",\"nonce\":\"1565757283294274961\",\"price\":\"9000000\",\"request\":\"/v1/order/new\",\"side\":\"sell\",\"symbol\":\"btcusd\",\"type\":\"exchange limit\"}",
      "headers": {
       "Cache-Control": [
        "no-cache"

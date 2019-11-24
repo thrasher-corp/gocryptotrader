@@ -193,13 +193,12 @@ func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderboo
 	}
 
 	for x := range orderbookNew.Bids {
-		data := orderbookNew.Bids[x]
 		var price, amount float64
-		price, err = strconv.ParseFloat(data[0], 64)
+		price, err = strconv.ParseFloat(orderbookNew.Bids[x][0], 64)
 		if err != nil {
 			return orderBook, err
 		}
-		amount, err = strconv.ParseFloat(data[1], 64)
+		amount, err = strconv.ParseFloat(orderbookNew.Bids[x][1], 64)
 		if err != nil {
 			return orderBook, err
 		}
@@ -211,13 +210,12 @@ func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderboo
 	}
 
 	for x := range orderbookNew.Asks {
-		data := orderbookNew.Asks[x]
 		var price, amount float64
-		price, err = strconv.ParseFloat(data[0], 64)
+		price, err = strconv.ParseFloat(orderbookNew.Asks[x][0], 64)
 		if err != nil {
 			return orderBook, err
 		}
-		amount, err = strconv.ParseFloat(data[1], 64)
+		amount, err = strconv.ParseFloat(orderbookNew.Asks[x][1], 64)
 		if err != nil {
 			return orderBook, err
 		}
@@ -287,8 +285,7 @@ func (i *ItBit) GetAccountInfo() (exchange.AccountInfo, error) {
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (i *ItBit) GetFundingHistory() ([]exchange.FundHistory, error) {
-	var fundHistory []exchange.FundHistory
-	return fundHistory, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
@@ -444,7 +441,7 @@ func (i *ItBit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 		side := order.Side(strings.ToUpper(allOrders[j].Side))
 		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
-			log.Warnf(log.ExchangeSys,
+			log.Errorf(log.ExchangeSys,
 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				i.Name,
 				"GetActiveOrders",
@@ -498,7 +495,7 @@ func (i *ItBit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 		side := order.Side(strings.ToUpper(allOrders[j].Side))
 		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
-			log.Warnf(log.ExchangeSys,
+			log.Errorf(log.ExchangeSys,
 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				i.Name,
 				"GetActiveOrders",

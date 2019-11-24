@@ -430,7 +430,6 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
 	}
 
 	orders, err := b.GetOrderDetail([]int64{o})
-
 	if err != nil {
 		return OrderDetail, err
 	}

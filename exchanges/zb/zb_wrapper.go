@@ -268,23 +268,24 @@ func (z *ZB) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Ba
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (z *ZB) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	currency := z.FormatExchangeCurrency(p, assetType).String()
-
-	orderbookNew, err := z.GetOrderbook(currency)
+	orderbookNew, err := z.GetOrderbook(z.FormatExchangeCurrency(p,
+		assetType).String())
 	if err != nil {
 		return orderBook, err
 	}
 
 	for x := range orderbookNew.Bids {
-		data := orderbookNew.Bids[x]
-		orderBook.Bids = append(orderBook.Bids,
-			orderbook.Item{Amount: data[1], Price: data[0]})
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+			Amount: orderbookNew.Bids[x][1],
+			Price:  orderbookNew.Bids[x][0],
+		})
 	}
 
 	for x := range orderbookNew.Asks {
-		data := orderbookNew.Asks[x]
-		orderBook.Asks = append(orderBook.Asks,
-			orderbook.Item{Amount: data[1], Price: data[0]})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+			Amount: orderbookNew.Asks[x][1],
+			Price:  orderbookNew.Asks[x][0],
+		})
 	}
 
 	orderBook.Pair = p
@@ -338,8 +339,7 @@ func (z *ZB) GetAccountInfo() (exchange.AccountInfo, error) {
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (z *ZB) GetFundingHistory() ([]exchange.FundHistory, error) {
-	var fundHistory []exchange.FundHistory
-	return fundHistory, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.

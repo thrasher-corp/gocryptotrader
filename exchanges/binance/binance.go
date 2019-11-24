@@ -87,8 +87,7 @@ func (b *Binance) GetExchangeInfo() (ExchangeInfo, error) {
 // symbol: string of currency pair
 // limit: returned limit amount
 func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error) {
-	orderbook, resp := OrderBook{}, OrderBookData{}
-
+	var orderbook OrderBook
 	if err := b.CheckLimit(obd.Limit); err != nil {
 		return orderbook, err
 	}
@@ -97,42 +96,44 @@ func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error
 	params.Set("symbol", strings.ToUpper(obd.Symbol))
 	params.Set("limit", fmt.Sprintf("%d", obd.Limit))
 
-	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, orderBookDepth, params.Encode())
-
+	var resp OrderBookData
+	path := common.EncodeURLValues(b.API.Endpoints.URL+orderBookDepth, params)
 	if err := b.SendHTTPRequest(path, &resp); err != nil {
 		return orderbook, err
 	}
 
-	for _, asks := range resp.Asks {
-		var ASK struct {
-			Price    float64
-			Quantity float64
+	for x := range resp.Bids {
+		price, err := strconv.ParseFloat(resp.Bids[x][0], 64)
+		if err != nil {
+			return orderbook, err
 		}
-		for i, ask := range asks.([]interface{}) {
-			switch i {
-			case 0:
-				ASK.Price, _ = strconv.ParseFloat(ask.(string), 64)
-			case 1:
-				ASK.Quantity, _ = strconv.ParseFloat(ask.(string), 64)
-				orderbook.Asks = append(orderbook.Asks, ASK)
-			}
+
+		amount, err := strconv.ParseFloat(resp.Bids[x][1], 64)
+		if err != nil {
+			return orderbook, err
 		}
+
+		orderbook.Bids = append(orderbook.Bids, OrderbookItem{
+			Price:    price,
+			Quantity: amount,
+		})
 	}
 
-	for _, bids := range resp.Bids {
-		var BID struct {
-			Price    float64
-			Quantity float64
+	for x := range resp.Asks {
+		price, err := strconv.ParseFloat(resp.Asks[x][0], 64)
+		if err != nil {
+			return orderbook, err
 		}
-		for i, bid := range bids.([]interface{}) {
-			switch i {
-			case 0:
-				BID.Price, _ = strconv.ParseFloat(bid.(string), 64)
-			case 1:
-				BID.Quantity, _ = strconv.ParseFloat(bid.(string), 64)
-				orderbook.Bids = append(orderbook.Bids, BID)
-			}
+
+		amount, err := strconv.ParseFloat(resp.Asks[x][1], 64)
+		if err != nil {
+			return orderbook, err
 		}
+
+		orderbook.Asks = append(orderbook.Asks, OrderbookItem{
+			Price:    price,
+			Quantity: amount,
+		})
 	}
 
 	orderbook.LastUpdateID = resp.LastUpdateID

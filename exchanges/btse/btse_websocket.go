@@ -103,8 +103,8 @@ func (b *BTSE) WsHandleData() {
 					b.Websocket.DataHandler <- err
 					continue
 				}
+				var newOB orderbook.Base
 				var price, amount float64
-				var asks, bids []orderbook.Item
 				for i := range t.Data.SellQuote {
 					p := strings.Replace(t.Data.SellQuote[i].Price, ",", "", -1)
 					price, err = strconv.ParseFloat(p, 64)
@@ -118,7 +118,10 @@ func (b *BTSE) WsHandleData() {
 						b.Websocket.DataHandler <- err
 						continue
 					}
-					asks = append(asks, orderbook.Item{Price: price, Amount: amount})
+					newOB.Asks = append(newOB.Asks, orderbook.Item{
+						Price:  price,
+						Amount: amount,
+					})
 				}
 				for j := range t.Data.BuyQuote {
 					p := strings.Replace(t.Data.BuyQuote[j].Price, ",", "", -1)
@@ -133,11 +136,11 @@ func (b *BTSE) WsHandleData() {
 						b.Websocket.DataHandler <- err
 						continue
 					}
-					bids = append(bids, orderbook.Item{Price: price, Amount: amount})
+					newOB.Bids = append(newOB.Bids, orderbook.Item{
+						Price:  price,
+						Amount: amount,
+					})
 				}
-				var newOB orderbook.Base
-				newOB.Asks = asks
-				newOB.Bids = bids
 				newOB.AssetType = asset.Spot
 				newOB.Pair = currency.NewPairFromString(t.Topic[strings.Index(t.Topic, ":")+1 : strings.Index(t.Topic, "_")])
 				newOB.ExchangeName = b.Name

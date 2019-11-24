@@ -25,5 +25,6 @@ func (e Error) Unwrap() error {
 }
 
 var (
+	// ErrNoVMFound error returned when no virtual machine is found
 	ErrNoVMFound = errors.New("no VM found")
 )

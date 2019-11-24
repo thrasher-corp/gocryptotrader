@@ -143,9 +143,11 @@ func TestGetFee(t *testing.T) {
 func TestCalculateTradingFee(t *testing.T) {
 	t.Parallel()
 
-	var newBalance = new(Balances)
-	newBalance.BTCUSDFee = 1
-	newBalance.BTCEURFee = 0
+	newBalance := make(Balances)
+	newBalance["BTC"] = Balance{
+		USDFee: 1,
+		EURFee: 0,
+	}
 
 	if resp := b.CalculateTradingFee(currency.BTC, currency.USD, 0, 0, newBalance); resp != 0 {
 		t.Error("GetFee() error")
@@ -401,15 +403,9 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-
-	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
-		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+	orderCancellation := &order.Cancel{
+		OrderID: "1234",
 	}
-
 	err := b.CancelOrder(orderCancellation)
 	switch {
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
@@ -428,16 +424,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-
-	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
-		AccountID:     "1",
-		CurrencyPair:  currencyPair,
-	}
-
-	resp, err := b.CancelAllOrders(orderCancellation)
+	resp, err := b.CancelAllOrders(&order.Cancel{})
 	switch {
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
 		t.Error("Expecting an error when no keys are set")
@@ -581,5 +568,23 @@ func TestGetDepositAddress(t *testing.T) {
 		t.Error("GetDepositAddress error cannot be nil")
 	case mockTests && err != nil:
 		t.Error("GetDepositAddress error", err)
+	}
+}
+
+func TestParseTime(t *testing.T) {
+	t.Parallel()
+
+	tm, err := parseTime("2019-10-18 01:55:14")
+	if err != nil {
+		t.Error(err)
+	}
+
+	if tm.Year() != 2019 ||
+		tm.Month() != 10 ||
+		tm.Day() != 18 ||
+		tm.Hour() != 1 ||
+		tm.Minute() != 55 ||
+		tm.Second() != 14 {
+		t.Error("invalid time values")
 	}
 }

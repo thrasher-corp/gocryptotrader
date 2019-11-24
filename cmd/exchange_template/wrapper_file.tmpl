@@ -3,14 +3,149 @@ package {{.Name}}
 
 import (
 	"sync"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/currency/pair"
-	"github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
+
+// GetDefaultConfig returns a default exchange config
+func ({{.Variable}} *{{.CapitalName}}) GetDefaultConfig() (*config.ExchangeConfig, error) {
+	{{.Variable}}.SetDefaults()
+	exchCfg := new(config.ExchangeConfig)
+	exchCfg.Name = {{.Variable}}.Name
+	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
+	exchCfg.BaseCurrencies = {{.Variable}}.BaseCurrencies
+
+	err := {{.Variable}}.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if {{.Variable}}.Features.Supports.RESTCapabilities.AutoPairUpdates {
+		err = {{.Variable}}.UpdateTradablePairs(true)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return exchCfg, nil
+}
+
+// SetDefaults sets the basic defaults for {{.CapitalName}}
+func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
+	{{.Variable}}.Name = "{{.CapitalName}}"
+	{{.Variable}}.Enabled = true
+	{{.Variable}}.Verbose = true
+	{{.Variable}}.API.CredentialsValidator.RequiresKey = true
+	{{.Variable}}.API.CredentialsValidator.RequiresSecret = true
+	{{.Variable}}.CurrencyPairs = currency.PairsManager{
+		AssetTypes: asset.Items{
+			asset.Spot,
+		},
+		UseGlobalFormat: true,
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: "-",
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: "-",
+		},
+	}
+	// Fill out the capabilities/features that the exchange supports
+	{{.Variable}}.Features = exchange.Features{
+		Supports: exchange.FeaturesSupported{
+			{{ if .REST }} REST: true, {{ end }}
+			{{ if .WS }} Websocket: true, {{ end }}
+			RESTCapabilities: protocol.Features{
+				TickerFetching: true,
+				OrderbookFetching: true,
+			},
+			WebsocketCapabilities: protocol.Features{
+				TickerFetching: true,
+				OrderbookFetching: true,
+			},
+			WithdrawPermissions: exchange.AutoWithdrawCrypto | 
+				exchange.AutoWithdrawFiat,
+		},
+		Enabled: exchange.FeaturesEnabled{
+			AutoPairUpdates: true,
+		},
+	}
+	{{.Variable}}.Requester = request.New({{.Variable}}.Name,
+		request.NewRateLimit(time.Second, 0),
+		request.NewRateLimit(time.Second, 0),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+	{{.Variable}}.API.Endpoints.URLDefault = {{.Name}}APIURL
+	{{.Variable}}.API.Endpoints.URL = {{.Variable}}.API.Endpoints.URLDefault
+	{{.Variable}}.Websocket = wshandler.New()
+	{{.Variable}}.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	{{.Variable}}.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	{{.Variable}}.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+}
+
+// Setup takes in the supplied exchange configuration details and sets params
+func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.ExchangeConfig) error {
+	if !exch.Enabled {
+		{{.Variable}}.SetEnabled(false)
+		return nil
+	}
+
+	err := {{.Variable}}.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
+
+	// If websocket is supported, please fill out the following
+	/*
+	err = {{.Variable}}.Websocket.Setup(
+		&wshandler.WebsocketSetup{
+			Enabled:                          exch.Features.Enabled.Websocket,
+			Verbose:                          exch.Verbose,
+			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+			DefaultURL:                       {{.Name}}WSURL,
+			ExchangeName:                     exch.Name,
+			RunningURL:                       exch.API.Endpoints.WebsocketURL,
+			Connector:                        {{.Variable}}.WsConnect,
+			Subscriber:                       {{.Variable}}.Subscribe,
+			UnSubscriber:                     {{.Variable}}.Unsubscribe,
+			Features:                         &{{.Variable}}.Features.Supports.WebsocketCapabilities,
+		})
+	if err != nil {
+		return err
+	}
+
+	{{.Variable}}.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         {{.Variable}}.Name,
+		URL:                  {{.Variable}}.Websocket.GetWebsocketURL(),
+		ProxyURL:             {{.Variable}}.Websocket.GetProxyAddress(),
+		Verbose:              {{.Variable}}.Verbose,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	}
+
+	// NOTE: PLEASE ENSURE YOU SET THE ORDERBOOK BUFFER SETTINGS CORRECTLY
+	{{.Variable}}.Websocket.Orderbook.Setup(
+		exch.WebsocketOrderbookBufferLimit,
+		true,
+		true,
+		false,
+		false,
+		exch.Name)
+	*/
+	return nil
+}
 
 // Start starts the {{.CapitalName}} go routine
 func ({{.Variable}} *{{.CapitalName}}) Start(wg *sync.WaitGroup) {
@@ -24,38 +159,68 @@ func ({{.Variable}} *{{.CapitalName}}) Start(wg *sync.WaitGroup) {
 // Run implements the {{.CapitalName}} wrapper
 func ({{.Variable}} *{{.CapitalName}}) Run() {
 	if {{.Variable}}.Verbose {
-{{if .WS}} log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", {{.Variable}}.Name, common.IsEnabled({{.Variable}}.Websocket.IsEnabled()), {{.Variable}}.Websocket.GetWebsocketURL()) {{end}}
-		log.Debugf(log.ExchangeSys, "%s polling delay: %ds.\n", {{.Variable}}.Name, {{.Variable}}.RESTPollingDelay)
-		log.Debugf(log.ExchangeSys, "%s %d currencies enabled: %s.\n", {{.Variable}}.Name, len({{.Variable}}.EnabledPairs), {{.Variable}}.EnabledPairs)
+	{{ if .WS }} log.Debugf(log.ExchangeSys,
+			"%s Websocket: %s.",
+			{{.Variable}}.Name,
+			common.IsEnabled({{.Variable}}.Websocket.IsEnabled())) {{ end }}
+		{{.Variable}}.PrintEnabledPairs()
+	}
+
+	if !{{.Variable}}.GetEnabledFeatures().AutoPairUpdates {
+		return
+	}
+
+	err := {{.Variable}}.UpdateTradablePairs(false)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			{{.Variable}}.Name,
+			err)
 	}
 }
 
+// FetchTradablePairs returns a list of the exchanges tradable pairs
+func ({{.Variable}} *{{.CapitalName}}) FetchTradablePairs(asset asset.Item) ([]string, error) {
+	// Implement fetching the exchange available pairs if supported
+	return nil, nil
+}
+
+// UpdateTradablePairs updates the exchanges available pairs and stores
+// them in the exchanges config
+func ({{.Variable}} *{{.CapitalName}}) UpdateTradablePairs(forceUpdate bool) error {
+	pairs, err := {{.Variable}}.FetchTradablePairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+	return {{.Variable}}.UpdatePairs(currency.NewPairsFromStrings(pairs), 
+		asset.Spot, false, forceUpdate)
+}
+
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+  	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
+	/*
 	var tickerPrice ticker.Price
-  // NOTE EXAMPLE FOR GETTING TICKER PRICE
-	//tick, err := {{.Variable}}.GetTickers()
-	//if err != nil {
-	//	return tickerPrice, err
-	//}
-
-	//for _, x := range {{.Variable}}.GetEnabledPairs(assetType) {
-		//curr := exchange.FormatExchangeCurrency({{.Variable}}.Name, x)
-		//for y := range tick {
-		//	if tick[y].Symbol == curr.String() {
-		//		tickerPrice.Pair = x
-		//		tickerPrice.Ask = tick[y].AskPrice
-		//		tickerPrice.Bid = tick[y].BidPrice
-		//		tickerPrice.High = tick[y].HighPrice
-		//		tickerPrice.Last = tick[y].LastPrice
-		//		tickerPrice.Low = tick[y].LowPrice
-		//		tickerPrice.Volume = tick[y].Volume
-		//		ticker.ProcessTicker({{.Variable}}.Name, x, &tickerPrice, assetType)
-		//	}
-	//	}
-	//}
-	//return ticker.GetTicker({{.Variable}}.Name, p, assetType)
-  return tickerPrice, nil // NOTE DO NOT USE AS RETURN
+	tick, err := {{.Variable}}.GetTicker(p.String())
+	if err != nil {
+		return tickerPrice, err
+	}
+	tickerPrice = ticker.Price{
+		High:  tick.High,
+		Low:   tick.Low,
+		Bid:   tick.Bid,
+		Ask:   tick.Ask,
+		Open:  tick.Open,
+		Close: tick.Close,
+		Pair:  p,
+	}
+	err = ticker.ProcessTicker({{.Variable}}.Name, &tickerPrice, assetType)
+	if err != nil {
+		return tickerPrice, err
+	}
+	*/
+	return ticker.GetTicker({{.Variable}}.Name, p, assetType)
 }
 
 // FetchTicker returns the ticker for a currency pair
@@ -79,23 +244,39 @@ func ({{.Variable}} *{{.CapitalName}}) FetchOrderbook(currency currency.Pair, as
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-  //NOTE UPDATE ORDERBOOK EXAMPLE
-	//orderbookNew, err := {{.Variable}}.GetOrderBook(exchange.FormatExchangeCurrency({{.Variable}}.Name, p).String(), 1000)
-	//if err != nil {
-	//	return orderBook, err
-	//}
+    // NOTE: UPDATE ORDERBOOK EXAMPLE
+	/* 
+	orderbookNew, err := {{.Variable}}.GetOrderBook(exchange.FormatExchangeCurrency({{.Variable}}.Name, p).String(), 1000)
+	if err != nil {
+		return orderBook, err
+	}
 
-	//for _, bids := range orderbookNew.Bids {
-	//	orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: bids.Quantity, Price: bids.Price})
-	//}
+	for x := range orderbookNew.Bids {
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+			Amount: orderbookNew.Bids[x].Quantity, 
+			Price: orderbookNew.Bids[x].Price,
+		})
+	}
 
-	//for _, asks := range orderbookNew.Asks {
-	//	orderBook.Asks = append(orderBook.Asks, orderbook.Item{Amount: asks.Quantity, Price: asks.Price})
-	//}
+	for x := range orderbookNew.Asks {
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+			Amount: orderBook.Asks[x].Quantity,
+			Price: orderBook.Asks[x].Price,
+		})
+	}
+	*/
 
-	//orderbook.ProcessOrderbook(b.Name, p, orderBook, assetType)
-	//return orderbook.Get({{.Variable}}.Name, p, assetType)
-  return orderBook, nil // NOTE DO NOT USE AS RETURN
+	
+	orderBook.Pair = p
+	orderBook.ExchangeName = {{.Variable}}.Name
+	orderBook.AssetType = assetType
+
+	err := orderBook.Process()
+	if err != nil {
+		return orderBook, err
+	}
+
+	return orderbook.Get({{.Variable}}.Name, p, assetType)
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
@@ -116,8 +297,12 @@ func ({{.Variable}} *{{.CapitalName}}) GetExchangeHistory(p currency.Pair, asset
 }
 
 // SubmitOrder submits a new order
-func ({{.Variable}} *{{.CapitalName}}) SubmitOrder(p currency.Pair, side order.Side, orderType order.Type, amount, price float64, clientID string) (order.SubmitResponse, error) {
-	return order.SubmitResponse{}, common.ErrNotYetImplemented
+func ({{.Variable}} *{{.CapitalName}}) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
+	if err := s.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+	return submitOrderResponse, common.ErrNotYetImplemented
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -142,30 +327,30 @@ func ({{.Variable}} *{{.CapitalName}}) GetOrderInfo(orderID string) (order.Detai
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func ({{.Variable}} *{{.CapitalName}}) GetDepositAddress(cryptocurrency pair.CurrencyItem, accountID string) (string, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func ({{.Variable}} *{{.CapitalName}}) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+func ({{.Variable}} *{{.CapitalName}}) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithdrawRequest) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func ({{.Variable}} *{{.CapitalName}}) GetWebsocket() (*exchange.Websocket, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetWebsocket() (*wshandler.Websocket, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -187,20 +372,20 @@ func ({{.Variable}} *{{.CapitalName}}) GetFeeByType(feeBuilder *exchange.FeeBuil
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func ({{.Variable}} *{{.CapitalName}}) SubscribeToWebsocketChannels(channels []monitor.WebsocketChannelSubscription) error {
+func ({{.Variable}} *{{.CapitalName}}) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	{{.Variable}}.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func ({{.Variable}} *{{.CapitalName}}) UnsubscribeToWebsocketChannels(channels []monitor.WebsocketChannelSubscription) error {
-	{{.Variable}}.Websocket.UnubscribeToChannels(channels)
+func ({{.Variable}} *{{.CapitalName}}) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+	{{.Variable}}.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func  ({{.Variable}} *{{.CapitalName}}) GetSubscriptions() ([]monitor.WebsocketChannelSubscription, error) {
+func  ({{.Variable}} *{{.CapitalName}}) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

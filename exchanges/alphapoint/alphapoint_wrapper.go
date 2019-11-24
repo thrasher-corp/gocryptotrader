@@ -153,15 +153,17 @@ func (a *Alphapoint) UpdateOrderbook(p currency.Pair, assetType asset.Item) (ord
 	}
 
 	for x := range orderbookNew.Bids {
-		data := orderbookNew.Bids[x]
-		orderBook.Bids = append(orderBook.Bids,
-			orderbook.Item{Amount: data.Quantity, Price: data.Price})
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+			Amount: orderbookNew.Bids[x].Quantity,
+			Price:  orderbookNew.Bids[x].Price,
+		})
 	}
 
 	for x := range orderbookNew.Asks {
-		data := orderbookNew.Asks[x]
-		orderBook.Asks = append(orderBook.Asks,
-			orderbook.Item{Amount: data.Quantity, Price: data.Price})
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+			Amount: orderbookNew.Asks[x].Quantity,
+			Price:  orderbookNew.Asks[x].Price,
+		})
 	}
 
 	orderBook.Pair = p
@@ -188,9 +190,8 @@ func (a *Alphapoint) FetchOrderbook(p currency.Pair, assetType asset.Item) (orde
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (a *Alphapoint) GetFundingHistory() ([]exchange.FundHistory, error) {
-	var fundHistory []exchange.FundHistory
 	// https://alphapoint.github.io/slate/#generatetreasuryactivityreport
-	return fundHistory, common.ErrNotYetImplemented
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.

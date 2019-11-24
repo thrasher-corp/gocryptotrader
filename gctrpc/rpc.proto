@@ -518,10 +518,10 @@ message GetAuditEventRequest {
 }
 
 message GetAuditEventResponse {
-    repeated audit_event events = 1;
+    repeated AuditEvent events = 1;
 }
 
-message audit_event {
+message AuditEvent {
     string type = 1 ;
     string identifier = 2;
     string message = 3;

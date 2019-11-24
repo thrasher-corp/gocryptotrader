@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
+// Exchange implements all required methods for Wrapper
 type Exchange struct{}
 
 // Exchanges returns slice of all current exchanges

@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -53,6 +54,7 @@ const (
 
 	bittrexAuthRate   = 0
 	bittrexUnauthRate = 0
+	bittrexTimeLayout = "2006-01-02T15:04:05"
 )
 
 // Bittrex is the overaching type across the bittrex methods
@@ -507,4 +509,8 @@ func (b *Bittrex) GetWithdrawalFee(c currency.Code) (float64, error) {
 // calculateTradingFee returns the fee for trading any currency on Bittrex
 func calculateTradingFee(price, amount float64) float64 {
 	return 0.0025 * price * amount
+}
+
+func parseTime(t string) (time.Time, error) {
+	return time.Parse(bittrexTimeLayout, t)
 }

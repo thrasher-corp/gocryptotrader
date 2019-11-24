@@ -1419,6 +1419,23 @@
     "gctrpcAddPortfolioAddressResponse": {
       "type": "object"
     },
+    "gctrpcAuditEvent": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "identifier": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcCancelAllOrdersRequest": {
       "type": "object",
       "properties": {
@@ -1694,7 +1711,7 @@
         "events": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/gctrpcaudit_event"
+            "$ref": "#/definitions/gctrpcAuditEvent"
           }
         }
       }
@@ -2573,23 +2590,6 @@
       "type": "object",
       "properties": {
         "result": {
-          "type": "string"
-        }
-      }
-    },
-    "gctrpcaudit_event": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string"
-        },
-        "identifier": {
-          "type": "string"
-        },
-        "message": {
-          "type": "string"
-        },
-        "timestamp": {
           "type": "string"
         }
       }

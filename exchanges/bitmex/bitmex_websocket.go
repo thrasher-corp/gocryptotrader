@@ -347,29 +347,21 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 	switch action {
 	case bitmexActionInitialData:
 		var newOrderBook orderbook.Base
-		var bids, asks []orderbook.Item
 		for i := range data {
 			if strings.EqualFold(data[i].Side, order.Sell.String()) {
-				asks = append(asks, orderbook.Item{
+				newOrderBook.Asks = append(newOrderBook.Asks, orderbook.Item{
 					Price:  data[i].Price,
 					Amount: float64(data[i].Size),
 					ID:     data[i].ID,
 				})
 				continue
 			}
-			bids = append(bids, orderbook.Item{
+			newOrderBook.Bids = append(newOrderBook.Bids, orderbook.Item{
 				Price:  data[i].Price,
 				Amount: float64(data[i].Size),
 				ID:     data[i].ID,
 			})
 		}
-
-		if len(bids) == 0 || len(asks) == 0 {
-			return errors.New("bitmex_websocket.go error - snapshot not initialised correctly")
-		}
-
-		newOrderBook.Asks = asks
-		newOrderBook.Bids = bids
 		newOrderBook.AssetType = assetType
 		newOrderBook.Pair = currencyPair
 		newOrderBook.ExchangeName = b.Name

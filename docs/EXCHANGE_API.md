@@ -57,14 +57,14 @@ supplied meet the requirements to make an authenticated request.
     b.API.Credentials.Secret = "your_secret"
     b.API.Credentials.ClientID = "your_clientid"
 
-    order := &exchange.OrderSubmission{
+    o := &order.Submit{
         Pair:      currency.NewPair(currency.BTC, currency.USD),
-        OrderSide: exchange.SellOrderSide,
-        OrderType: exchange.LimitOrderType,
+        OrderSide: order.Sell,
+        OrderType: order.Limit,
         Price:     1000000,
         Amount:    0.1,
     }
-    resp, err := b.SubmitOrder(order)
+    resp, err := b.SubmitOrder(o)
     if err != nil {
         // Handle error
     }

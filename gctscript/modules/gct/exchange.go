@@ -23,6 +23,7 @@ var exchangeModule = map[string]objects.Object{
 	"ordersubmit":    &objects.UserFunction{Name: "ordersubmit", Value: ExchangeOrderSubmit},
 }
 
+// ExchangeOrderbook returns orderbook for requested exchange & currencypair
 func ExchangeOrderbook(args ...objects.Object) (ret objects.Object, err error) {
 	if len(args) != 4 {
 		err = objects.ErrWrongNumArguments
@@ -70,6 +71,7 @@ func ExchangeOrderbook(args ...objects.Object) (ret objects.Object, err error) {
 	}, nil
 }
 
+// ExchangeTicker returns ticker data for requested exchange and currency pair
 func ExchangeTicker(args ...objects.Object) (ret objects.Object, err error) {
 	if len(args) != 4 {
 		err = objects.ErrWrongNumArguments
@@ -110,6 +112,7 @@ func ExchangeTicker(args ...objects.Object) (ret objects.Object, err error) {
 	}, nil
 }
 
+// ExchangeExchanges returns list of exchanges either enabled or all
 func ExchangeExchanges(args ...objects.Object) (ret objects.Object, err error) {
 	if len(args) != 1 {
 		err = objects.ErrWrongNumArguments
@@ -127,6 +130,7 @@ func ExchangeExchanges(args ...objects.Object) (ret objects.Object, err error) {
 	return &r, nil
 }
 
+// ExchangePairs returns currency pairs for requested exchange
 func ExchangePairs(args ...objects.Object) (ret objects.Object, err error) {
 	if len(args) != 3 {
 		err = objects.ErrWrongNumArguments
@@ -152,6 +156,7 @@ func ExchangePairs(args ...objects.Object) (ret objects.Object, err error) {
 	return &r, nil
 }
 
+// ExchangeAccountInfo returns account information for requested exchange
 func ExchangeAccountInfo(args ...objects.Object) (ret objects.Object, err error) {
 	if len(args) != 1 {
 		err = objects.ErrWrongNumArguments
@@ -184,6 +189,7 @@ func ExchangeAccountInfo(args ...objects.Object) (ret objects.Object, err error)
 	}, nil
 }
 
+// ExchangeOrderQuery query order on exchange
 func ExchangeOrderQuery(args ...objects.Object) (ret objects.Object, err error) {
 	if len(args) != 2 {
 		err = objects.ErrWrongNumArguments
@@ -232,6 +238,7 @@ func ExchangeOrderQuery(args ...objects.Object) (ret objects.Object, err error) 
 	}, nil
 }
 
+// ExchangeOrderCancel cancels order on requested exchange
 func ExchangeOrderCancel(args ...objects.Object) (ret objects.Object, err error) {
 	if len(args) != 2 {
 		err = objects.ErrWrongNumArguments
@@ -252,6 +259,7 @@ func ExchangeOrderCancel(args ...objects.Object) (ret objects.Object, err error)
 	return objects.FalseValue, nil
 }
 
+// ExchangeOrderSubmit submit order on exchange
 func ExchangeOrderSubmit(args ...objects.Object) (ret objects.Object, err error) {
 	if len(args) != 8 {
 		err = objects.ErrWrongNumArguments
@@ -302,6 +310,7 @@ func ExchangeOrderSubmit(args ...objects.Object) (ret objects.Object, err error)
 	}, nil
 }
 
+// ExchangeDepositAddress returns deposit address (if supported by exchange)
 func ExchangeDepositAddress(args ...objects.Object) (ret objects.Object, err error) {
 	if len(args) != 3 {
 		err = objects.ErrWrongNumArguments
