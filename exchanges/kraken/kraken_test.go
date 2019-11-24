@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/gorilla/websocket"
@@ -400,6 +401,18 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Errorf("Could not get order history: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
+	}
+}
+
+// TestGetOrderHistory wrapper test
+func TestGetOrderInfo(t *testing.T) {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	_, err := k.GetOrderInfo("ImACoolOrderID")
+	if !strings.Contains(err.Error(), "- Order ID not found:") {
+		t.Error("Expected Order ID not found error")
 	}
 }
 
