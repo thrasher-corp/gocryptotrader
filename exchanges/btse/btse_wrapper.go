@@ -3,6 +3,7 @@ package btse
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -475,7 +476,7 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 			}
 			od.Trades = append(od.Trades, order.TradeHistory{
 				Timestamp: createdAt,
-				TID:       fills[i].ID,
+				TID:       strconv.FormatInt(fills[i].ID, 10),
 				Price:     fills[i].Price,
 				Amount:    fills[i].Amount,
 				Exchange:  b.Name,
@@ -569,7 +570,7 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 			}
 			openOrder.Trades = append(openOrder.Trades, order.TradeHistory{
 				Timestamp: createdAt,
-				TID:       fills[i].ID,
+				TID:       strconv.FormatInt(fills[i].ID, 10),
 				Price:     fills[i].Price,
 				Amount:    fills[i].Amount,
 				Exchange:  b.Name,
