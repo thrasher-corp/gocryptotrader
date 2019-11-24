@@ -17,7 +17,6 @@ type Config struct {
 	AdvancedSettings advancedSettings  `json:"advancedSettings"`
 	SubLoggers       []SubLoggerConfig `json:"subloggers,omitempty"`
 
-	Mu sync.RWMutex
 }
 
 type advancedSettings struct {
