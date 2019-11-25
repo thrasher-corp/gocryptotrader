@@ -2981,7 +2981,7 @@ var gctScriptCommand = cli.Command{
 					Destination: &filename,
 				},
 				cli.BoolFlag{
-					Name: "overwrite",
+					Name:  "overwrite",
 					Usage: "<true/false>",
 				},
 			},
@@ -3166,7 +3166,7 @@ func gctScriptUpload(c *cli.Context) error {
 		&gctrpc.GCTScriptUploadRequest{
 			ScriptName: filepath.Base(file.Name()),
 			ScriptData: string(data),
-			Overwrite: overwrite,
+			Overwrite:  overwrite,
 		})
 
 	if err != nil {

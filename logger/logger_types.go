@@ -16,7 +16,6 @@ type Config struct {
 	LoggerFileConfig *loggerFileConfig `json:"fileSettings,omitempty"`
 	AdvancedSettings advancedSettings  `json:"advancedSettings"`
 	SubLoggers       []SubLoggerConfig `json:"subloggers,omitempty"`
-
 }
 
 type advancedSettings struct {

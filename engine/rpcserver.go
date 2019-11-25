@@ -1290,7 +1290,6 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 	if !gctscript.GCTScriptConfig.Enabled {
 		return &gctrpc.GCTScriptGenericResponse{Status: "error - scripting disabled"}, nil
 	}
-    // TODO: Add support for uploading archived collection of scripts
 
 	filePath := filepath.Join(gctscript.ScriptPath, r.ScriptName)
 
@@ -1303,28 +1302,26 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 		return nil, fmt.Errorf("%s script found and overwrite set to false", r.ScriptName)
 	}
 
+	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		return nil, err
+	}
 
-		file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
-		if err != nil {
-			return nil, err
-		}
+	defer file.Close()
 
-		defer file.Close()
+	n, err := file.WriteString(r.ScriptData)
+	if err != nil {
+		return nil, err
+	}
+	if n != len(r.ScriptData) {
+		return nil, fmt.Errorf("failed to write expected output length: %v got %v", len(r.ScriptData), n)
+	}
 
-		n, err := file.WriteString(r.ScriptData)
-		if err != nil {
-			return nil, err
-		}
-		if n != len(r.ScriptData) {
-			return nil, fmt.Errorf("failed to write expected output length: %v got %v", len(r.ScriptData), n)
-		}
-
-		return &gctrpc.GCTScriptGenericResponse{
-			Status: "ok",
-			Data:   fmt.Sprintf("script %s written", file.Name()),
-		}, nil
+	return &gctrpc.GCTScriptGenericResponse{
+		Status: "ok",
+		Data:   fmt.Sprintf("script %s written", file.Name()),
+	}, nil
 }
-
 
 // GCTScriptReadScript read a script and return contents
 func (s *RPCServer) GCTScriptReadScript(ctx context.Context, r *gctrpc.GCTScriptReadScriptRequest) (*gctrpc.GCTScriptGenericResponse, error) {
@@ -1350,4 +1347,3 @@ func (s *RPCServer) GCTScriptReadScript(ctx context.Context, r *gctrpc.GCTScript
 		Data:   string(data),
 	}, nil
 }
-

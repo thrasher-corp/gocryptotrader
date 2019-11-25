@@ -412,6 +412,6 @@ func (w Wrapper) DepositAddress(exch string, currencyCode currency.Code, account
 	return exch, nil
 }
 
-func (W Wrapper) WithdrawalFunds() error {
+func (w Wrapper) WithdrawalFunds() error {
 	return nil
 }

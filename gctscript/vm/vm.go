@@ -46,7 +46,6 @@ func (vm *VM) Load(file string) error {
 		}
 	}
 
-
 	if GCTScriptConfig.DebugMode {
 		log.Debugf(log.GCTScriptMgr, "Loading script: %v", file)
 	}
