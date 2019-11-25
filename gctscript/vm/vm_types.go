@@ -36,3 +36,5 @@ var (
 		},
 	}
 )
+
+const GCTScriptAuditEvent = "gctscript"

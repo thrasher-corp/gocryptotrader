@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -1211,6 +1212,7 @@ func (s *RPCServer) GetAuditEvent(ctx context.Context, r *gctrpc.GetAuditEventRe
 	return &resp, nil
 }
 
+// GCTScriptStatus returns a slice of current running scripts that includes next run time and uuid
 func (s *RPCServer) GCTScriptStatus(ctx context.Context, r *gctrpc.GCTScriptStatusRequest) (*gctrpc.GCTScriptStatusResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
 		return &gctrpc.GCTScriptStatusResponse{Status: "error - scripting disabled"}, nil
@@ -1237,6 +1239,7 @@ func (s *RPCServer) GCTScriptStatus(ctx context.Context, r *gctrpc.GCTScriptStat
 	return resp, nil
 }
 
+// GCTScriptExecute execute a script
 func (s *RPCServer) GCTScriptExecute(ctx context.Context, r *gctrpc.GCTScriptExecuteRequest) (*gctrpc.GCTScriptGenericResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
 		return &gctrpc.GCTScriptGenericResponse{Status: "error - scripting disabled"}, nil
@@ -1264,6 +1267,7 @@ func (s *RPCServer) GCTScriptExecute(ctx context.Context, r *gctrpc.GCTScriptExe
 	}, nil
 }
 
+// GCTScriptStop terminate a running script
 func (s *RPCServer) GCTScriptStop(ctx context.Context, r *gctrpc.GCTScriptStopRequest) (*gctrpc.GCTScriptGenericResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
 		return &gctrpc.GCTScriptGenericResponse{Status: "error - scripting disabled"}, nil
@@ -1281,14 +1285,48 @@ func (s *RPCServer) GCTScriptStop(ctx context.Context, r *gctrpc.GCTScriptStopRe
 	return &gctrpc.GCTScriptGenericResponse{Status: "error", Data: "no running script found"}, nil
 }
 
+// GCTScriptUpload upload a new script to ScriptPath
 func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUploadRequest) (*gctrpc.GCTScriptGenericResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
 		return &gctrpc.GCTScriptGenericResponse{Status: "error - scripting disabled"}, nil
 	}
-    // TODO: make this work :D
-	return nil, nil
+    // TODO: Add support for uploading archived collection of scripts
+
+	filePath := filepath.Join(gctscript.ScriptPath, r.ScriptName)
+
+	_, err := os.Stat(filePath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return nil, err
+		}
+	} else if !r.Overwrite {
+		return nil, fmt.Errorf("%s script found and overwrite set to false", r.ScriptName)
+	}
+
+
+		file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
+		if err != nil {
+			return nil, err
+		}
+
+		defer file.Close()
+
+		n, err := file.WriteString(r.ScriptData)
+		if err != nil {
+			return nil, err
+		}
+		if n != len(r.ScriptData) {
+			return nil, fmt.Errorf("failed to write expected output length: %v got %v", len(r.ScriptData), n)
+		}
+
+		return &gctrpc.GCTScriptGenericResponse{
+			Status: "ok",
+			Data:   fmt.Sprintf("script %s written", file.Name()),
+		}, nil
 }
 
+
+// GCTScriptReadScript read a script and return contents
 func (s *RPCServer) GCTScriptReadScript(ctx context.Context, r *gctrpc.GCTScriptReadScriptRequest) (*gctrpc.GCTScriptGenericResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
 		return &gctrpc.GCTScriptGenericResponse{Status: "error - scripting disabled"}, nil

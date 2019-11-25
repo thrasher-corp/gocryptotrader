@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -2969,6 +2971,22 @@ var gctScriptCommand = cli.Command{
 			},
 			Action: gctScriptStop,
 		},
+		{
+			Name:  "upload",
+			Usage: "upload a new script/archive",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:        "name",
+					Usage:       "<name>",
+					Destination: &filename,
+				},
+				cli.BoolFlag{
+					Name: "overwrite",
+					Usage: "<true/false>",
+				},
+			},
+			Action: gctScriptUpload,
+		},
 	},
 }
 
@@ -3097,5 +3115,64 @@ func gctScriptRead(c *cli.Context) error {
 
 	fmt.Printf("%s\n", executeCommand.Data)
 
+	return nil
+}
+
+func gctScriptUpload(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		_ = cli.ShowSubcommandHelp(c)
+		return nil
+	}
+
+	var overwrite bool
+	if !c.IsSet("script") {
+		if c.Args().Get(0) != "" {
+			filename = c.Args().Get(0)
+		}
+	}
+
+	if c.IsSet("overwrite") {
+		overwrite = c.Bool("overwrite")
+	} else {
+		ow, err := strconv.ParseBool(c.Args().Get(1))
+		if err == nil {
+			overwrite = ow
+		}
+	}
+	fmt.Println(filepath.Ext(filename))
+
+	if filepath.Ext(filename) != ".gct" && filepath.Ext(filename) != ".zip" {
+		return errors.New("file type must be gct or zip")
+	}
+
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	data, err := ioutil.ReadAll(file)
+	if err != nil {
+		return err
+	}
+
+	uploadCommand, err := client.GCTScriptUpload(context.Background(),
+		&gctrpc.GCTScriptUploadRequest{
+			ScriptName: filepath.Base(file.Name()),
+			ScriptData: string(data),
+			Overwrite: overwrite,
+		})
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(uploadCommand)
 	return nil
 }

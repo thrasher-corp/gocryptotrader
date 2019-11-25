@@ -11,6 +11,7 @@ import (
 	"github.com/d5/tengo/script"
 	"github.com/gofrs/uuid"
 
+	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/loader"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -29,6 +30,8 @@ func newVM() *VM {
 		log.Debugln(log.GCTScriptMgr, "New GCTScript VM created")
 	}
 
+	audit.Event(newUUID.String(), GCTScriptAuditEvent, "Virtual Machine created run")
+
 	return &VM{
 		ID:     newUUID,
 		Script: pool.Get().(*script.Script),
@@ -42,6 +45,7 @@ func (vm *VM) Load(file string) error {
 			Cause: ErrScriptingDisabled,
 		}
 	}
+
 
 	if GCTScriptConfig.DebugMode {
 		log.Debugf(log.GCTScriptMgr, "Loading script: %v", file)
@@ -76,7 +80,7 @@ func (vm *VM) Load(file string) error {
 		}
 		vm.Script.EnableFileImport(true)
 	}
-
+	audit.Event(vm.ID.String(), GCTScriptAuditEvent, "Script loaded")
 	return nil
 }
 
@@ -89,6 +93,7 @@ func (vm *VM) Compile() (err error) {
 
 // Run runs byte code
 func (vm *VM) Run() (err error) {
+	audit.Event(vm.ID.String(), GCTScriptAuditEvent, "Script run")
 	return vm.Compiled.Run()
 }
 
@@ -101,6 +106,7 @@ func (vm *VM) RunCtx() (err error) {
 	ct, cancel := context.WithTimeout(vm.ctx, GCTScriptConfig.ScriptTimeout)
 	defer cancel()
 
+	audit.Event(vm.ID.String(), GCTScriptAuditEvent, "Script run")
 	return vm.Compiled.RunContext(ct)
 }
 
@@ -152,6 +158,8 @@ func (vm *VM) Read() ([]byte, error) {
 	if GCTScriptConfig.DebugMode {
 		log.Debugf(log.GCTScriptMgr, "Read script: %v", vm.ID)
 	}
+
+	audit.Event(vm.ID.String(), GCTScriptAuditEvent, "Script contents read")
 	return ioutil.ReadFile(vm.file)
 }
 
