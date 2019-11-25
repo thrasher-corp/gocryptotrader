@@ -461,7 +461,8 @@ func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 	if _, err = strconv.Atoi(o.ClientID); err != nil {
 		return submitOrderResponse, fmt.Errorf("%s - ClientID must be a number, received: %s", c.Name, o.ClientID)
 	}
-	if err = o.Validate(); err != nil {
+	err = o.Validate()
+	if err != nil {
 		return submitOrderResponse, err
 	}
 
@@ -544,12 +545,16 @@ func (c *COINUT) CancelOrder(o *order.Cancel) error {
 		return err
 	}
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		_, err = c.wsCancelOrder(&WsCancelOrderParameters{
+		var resp *CancelOrdersResponse
+		resp, err = c.wsCancelOrder(&WsCancelOrderParameters{
 			Currency: o.CurrencyPair,
 			OrderID:  orderIDInt,
 		})
 		if err != nil {
 			return err
+		}
+		if len(resp.Status) >= 1 && resp.Status[0] != "OK" {
+			return errors.New(c.Name + " - Failed to cancel order " + o.OrderID)
 		}
 	} else {
 		if currencyID == 0 {

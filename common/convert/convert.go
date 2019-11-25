@@ -81,7 +81,7 @@ func RecvWindow(d time.Duration) int64 {
 
 // SplitFloatDecimals takes in a float64 and splits
 // the decimals into their own integers
-func SplitFloatDecimals(input float64) (baseNum int64, decimalNum int64, err error) {
+func SplitFloatDecimals(input float64) (baseNum, decimalNum int64, err error) {
 	decStr := strconv.FormatFloat(input, 'f', -1, 64)
 	splitNum := strings.Split(decStr, ".")
 	baseNum, err = strconv.ParseInt(splitNum[0], 10, 64)

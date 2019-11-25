@@ -411,8 +411,8 @@ func (k *Kraken) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]ex
 // SubmitOrder submits a new order
 func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
-	var err error
-	if err = s.Validate(); err != nil {
+	err := s.Validate()
+	if err != nil {
 		return submitOrderResponse, err
 	}
 

@@ -376,12 +376,12 @@ func (b *Bitfinex) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]
 // SubmitOrder submits a new order
 func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
-	var err error
 	if o == nil {
 		return submitOrderResponse, order.ErrSubmissionIsNil
 	}
 
-	if err = o.Validate(); err != nil {
+	err := o.Validate()
+	if err != nil {
 		return submitOrderResponse, err
 	}
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -397,11 +397,12 @@ func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 		}
 	} else {
 		var isBuying bool
+		var response Order
 		if o.OrderSide == order.Buy {
 			isBuying = true
 		}
 		b.appendOptionalDelimiter(&o.Pair)
-		response, err := b.NewOrder(o.Pair.String(),
+		response, err = b.NewOrder(o.Pair.String(),
 			o.Amount,
 			o.Price,
 			isBuying,

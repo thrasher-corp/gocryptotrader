@@ -502,9 +502,12 @@ func TestWsAuthCancelOrders(t *testing.T) {
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  2,
 	}
-	_, err := c.wsCancelOrders([]WsCancelOrderParameters{ord, order2})
+	resp, err := c.wsCancelOrders([]WsCancelOrderParameters{ord, order2})
 	if err != nil {
 		t.Error(err)
+	}
+	if resp.Status[0] != "OK" {
+		t.Error("Order failed to cancel")
 	}
 }
 
@@ -534,9 +537,12 @@ func TestWsAuthCancelOrder(t *testing.T) {
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  1,
 	}
-	_, err := c.wsCancelOrder(ord)
+	resp, err := c.wsCancelOrder(ord)
 	if err != nil {
 		t.Error(err)
+	}
+	if len(resp.Status) >= 1 && resp.Status[0] != "OK" {
+		t.Errorf("Failed to cancel order")
 	}
 }
 

@@ -362,12 +362,12 @@ func (z *ZB) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchan
 // SubmitOrder submits a new order
 func (z *ZB) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
-	var err error
 	if o == nil {
 		return submitOrderResponse, order.ErrSubmissionIsNil
 	}
 
-	if err = o.Validate(); err != nil {
+	err := o.Validate()
+	if err != nil {
 		return submitOrderResponse, err
 	}
 	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {

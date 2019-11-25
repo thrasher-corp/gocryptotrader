@@ -375,12 +375,12 @@ func (h *HitBTC) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]ex
 // SubmitOrder submits a new order
 func (h *HitBTC) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
-	var err error
 	if o == nil {
 		return submitOrderResponse, order.ErrSubmissionIsNil
 	}
 
-	if err = o.Validate(); err != nil {
+	err := o.Validate()
+	if err != nil {
 		return submitOrderResponse, err
 	}
 	if h.Websocket.IsConnected() && h.Websocket.CanUseAuthenticatedEndpoints() {
