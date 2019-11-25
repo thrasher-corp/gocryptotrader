@@ -637,12 +637,12 @@ type WsNewOrderRequest struct {
 	CustomID            int64   `json:"cid,omitempty"`
 	Type                string  `json:"type"`
 	Symbol              string  `json:"symbol"`
-	Amount              float64 `json:"amount"`
-	Price               float64 `json:"price"`
+	Amount              float64 `json:"amount,string"`
+	Price               float64 `json:"price,string"`
 	Leverage            int64   `json:"lev,omitempty"`
-	TrailingPrice       float64 `json:"price_trailing,omitempty"`
-	AuxiliaryLimitPrice float64 `json:"price_aux_limit,omitempty"`
-	StopPrice           float64 `json:"price_oco_stop,omitempty"`
+	TrailingPrice       float64 `json:"price_trailing,string,omitempty"`
+	AuxiliaryLimitPrice float64 `json:"price_aux_limit,string,omitempty"`
+	StopPrice           float64 `json:"price_oco_stop,string,omitempty"`
 	Flags               int64   `json:"flags,omitempty"`
 	TimeInForce         string  `json:"tif,omitempty"`
 }
@@ -653,12 +653,12 @@ type WsUpdateOrderRequest struct {
 	CustomID            int64   `json:"cid,omitempty"`
 	CustomIDDate        string  `json:"cid_date,omitempty"`
 	GroupID             int64   `json:"gid,omitempty"`
-	Price               float64 `json:"price,omitempty"`
-	Amount              float64 `json:"amount,omitempty"`
+	Price               float64 `json:"price,string,omitempty"`
+	Amount              float64 `json:"amount,string,omitempty"`
 	Leverage            int64   `json:"lev,omitempty"`
-	Delta               float64 `json:"amount,omitempty"`
-	AuxiliaryLimitPrice float64 `json:"price_aux_limit,omitempty"`
-	TrailingPrice       float64 `json:"price_trailing,omitempty"`
+	Delta               float64 `json:"delta,string,omitempty"`
+	AuxiliaryLimitPrice float64 `json:"price_aux_limit,string,omitempty"`
+	TrailingPrice       float64 `json:"price_trailing,string,omitempty"`
 	Flags               int64   `json:"flags,omitempty"`
 	TimeInForce         string  `json:"tif,omitempty"`
 }
@@ -681,8 +681,8 @@ type WsCancelGroupOrdersRequest struct {
 type WsNewOfferRequest struct {
 	Type   string  `json:"type,omitempty"`
 	Symbol string  `json:"symbol,omitempty"`
-	Amount float64 `json:"amount,omitempty"`
-	Rate   float64 `json:"rate,omitempty"`
+	Amount float64 `json:"amount,string,omitempty"`
+	Rate   float64 `json:"rate,string,omitempty"`
 	Period float64 `json:"period,omitempty"`
 	Flags  int64   `json:"flags,omitempty"`
 }

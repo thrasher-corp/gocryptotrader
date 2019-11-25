@@ -710,7 +710,7 @@ func TestGetWSToken(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if len(resp) == 0 {
+	if resp == "" {
 		t.Error("Token not returned")
 	}
 }

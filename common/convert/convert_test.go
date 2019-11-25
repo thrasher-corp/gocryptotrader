@@ -188,5 +188,4 @@ func TestSplitFloatDecimals(t *testing.T) {
 	if x != 1 && y != 0 {
 		t.Error("Conversion error")
 	}
-
 }

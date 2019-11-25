@@ -266,7 +266,8 @@ func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 	var bal UserBalance
 	var err error
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		resp, err := c.wsGetAccountBalance()
+		var resp *UserBalance
+		resp, err = c.wsGetAccountBalance()
 		if err != nil {
 			return info, err
 		}
@@ -457,10 +458,10 @@ func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 	if o == nil {
 		return submitOrderResponse, order.ErrSubmissionIsNil
 	}
-	if _, err := strconv.Atoi(o.ClientID); err != nil {
+	if _, err = strconv.Atoi(o.ClientID); err != nil {
 		return submitOrderResponse, fmt.Errorf("%s - ClientID must be a number, received: %s", c.Name, o.ClientID)
 	}
-	if err := o.Validate(); err != nil {
+	if err = o.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 
@@ -477,13 +478,13 @@ func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 		}
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderID)
 	} else {
-		var APIresponse interface{}
+		var APIResponse interface{}
+		var clientIDInt uint64
 		isBuyOrder := o.OrderSide == order.Buy
-		clientIDInt, err := strconv.ParseUint(o.ClientID, 0, 32)
+		clientIDInt, err = strconv.ParseUint(o.ClientID, 0, 32)
 		if err != nil {
 			return submitOrderResponse, err
 		}
-
 		clientIDUint := uint32(clientIDInt)
 
 		err = c.loadInstrumentsIfNotLoaded()
@@ -497,15 +498,15 @@ func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			return submitOrderResponse, errLookupInstrumentID
 		}
 
-		APIresponse, err = c.NewOrder(currencyID, o.Amount, o.Price,
+		APIResponse, err = c.NewOrder(currencyID, o.Amount, o.Price,
 			isBuyOrder, clientIDUint)
 		if err != nil {
 			return submitOrderResponse, err
 		}
-		responseMap := APIresponse.(map[string]interface{})
+		responseMap := APIResponse.(map[string]interface{})
 		switch responseMap["reply"].(string) {
 		case "order_rejected":
-			return submitOrderResponse, fmt.Errorf("ClientOrderID: %v was rejected: %v", o.ClientID, responseMap["reasons"])
+			return submitOrderResponse, fmt.Errorf("clientOrderID: %v was rejected: %v", o.ClientID, responseMap["reasons"])
 		case "order_filled":
 			orderID := responseMap["order_id"].(float64)
 			submitOrderResponse.OrderID = strconv.FormatFloat(orderID, 'f', -1, 64)
@@ -543,7 +544,7 @@ func (c *COINUT) CancelOrder(o *order.Cancel) error {
 		return err
 	}
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		_, err := c.wsCancelOrder(&WsCancelOrderParameters{
+		_, err = c.wsCancelOrder(&WsCancelOrderParameters{
 			Currency: o.CurrencyPair,
 			OrderID:  orderIDInt,
 		})

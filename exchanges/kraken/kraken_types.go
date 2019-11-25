@@ -499,7 +499,7 @@ type WsOpenOrders struct {
 	LimitPrice     float64                `json:"limitprice,string"`
 	Misc           string                 `json:"misc"`
 	OFlags         string                 `json:"oflags"`
-	OpenTime       time.Time              `json:"opentm,string"`
+	OpenTime       time.Time              `json:"opentm"`
 	Price          float64                `json:"price,string"`
 	RefID          string                 `json:"refid"`
 	StartTime      time.Time              `json:"starttm"`
@@ -572,9 +572,6 @@ const (
 	krakenAuthWSURL          = "wss://ws-auth.kraken.com"
 	krakenWSSandboxURL       = "wss://sandbox.kraken.com"
 	krakenWSSupportedVersion = "0.3.0"
-	// If a checksum fails, then resubscribing to the channel fails, fatal after these attempts
-	krakenWsResubscribeFailureLimit   = 3
-	krakenWsResubscribeDelayInSeconds = 3
 	// WS endpoints
 	krakenWsHeartbeat          = "heartbeat"
 	krakenWsPing               = "ping"
@@ -592,7 +589,5 @@ const (
 	krakenWsOpenOrders         = "openOrders"
 	krakenWsAddOrder           = "addOrder"
 	krakenWsCancelOrder        = "cancelOrder"
-
-	orderbookBufferLimit = 3
-	krakenWsRateLimit    = 50
+	krakenWsRateLimit          = 50
 )

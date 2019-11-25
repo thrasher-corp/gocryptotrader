@@ -380,7 +380,7 @@ func (h *HitBTC) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, order.ErrSubmissionIsNil
 	}
 
-	if err := o.Validate(); err != nil {
+	if err = o.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 	if h.Websocket.IsConnected() && h.Websocket.CanUseAuthenticatedEndpoints() {

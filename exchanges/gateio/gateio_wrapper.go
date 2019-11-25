@@ -327,7 +327,6 @@ func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
 		info.Accounts = append(info.Accounts, exchange.Account{
 			Currencies: currData,
 		})
-
 	} else {
 		balance, err := g.GetBalances()
 		if err != nil {

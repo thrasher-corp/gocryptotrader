@@ -481,7 +481,8 @@ func (b *Bitfinex) GetDepositAddress(cryptocurrency currency.Code, accountID str
 		return "", err
 	}
 
-	resp, err := b.NewDeposit(method, accountID, 0)
+	var resp DepositResponse
+	resp, err = b.NewDeposit(method, accountID, 0)
 	if err != nil {
 		return "", err
 	}

@@ -36,7 +36,6 @@ var wsSetupRan bool
 
 func TestMain(m *testing.M) {
 	h.SetDefaults()
-
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
@@ -194,7 +193,6 @@ func TestGetTimestamp(t *testing.T) {
 
 func TestGetAccounts(t *testing.T) {
 	t.Parallel()
-
 	if !h.ValidateAPICredentials() || !canManipulateRealOrders {
 		t.Skip()
 	}
@@ -207,7 +205,6 @@ func TestGetAccounts(t *testing.T) {
 
 func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
-
 	if !h.ValidateAPICredentials() || !canManipulateRealOrders {
 		t.Skip()
 	}
@@ -226,7 +223,6 @@ func TestGetAccountBalance(t *testing.T) {
 
 func TestGetAggregatedBalance(t *testing.T) {
 	t.Parallel()
-
 	if !h.ValidateAPICredentials() {
 		t.Skip()
 	}
@@ -239,7 +235,6 @@ func TestGetAggregatedBalance(t *testing.T) {
 
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
-
 	if !h.ValidateAPICredentials() || !canManipulateRealOrders {
 		t.Skip()
 	}
@@ -282,7 +277,6 @@ func TestGetOrder(t *testing.T) {
 
 func TestGetMarginLoanOrders(t *testing.T) {
 	t.Parallel()
-
 	if !h.ValidateAPICredentials() {
 		t.Skip()
 	}
@@ -295,7 +289,6 @@ func TestGetMarginLoanOrders(t *testing.T) {
 
 func TestGetMarginAccountBalance(t *testing.T) {
 	t.Parallel()
-
 	if !h.ValidateAPICredentials() {
 		t.Skip()
 	}
@@ -319,7 +312,6 @@ func TestCancelWithdraw(t *testing.T) {
 
 func TestPEMLoadAndSign(t *testing.T) {
 	t.Parallel()
-
 	pemKey := strings.NewReader(h.API.Credentials.PEMKey)
 	pemBytes, err := ioutil.ReadAll(pemKey)
 	if err != nil {
@@ -456,7 +448,6 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
-
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType:  order.AnyType,
 		Currencies: []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
@@ -471,7 +462,6 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
-
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType:  order.AnyType,
 		Currencies: []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
@@ -492,7 +482,6 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestSubmitOrder(t *testing.T) {
-
 	if !h.ValidateAPICredentials() {
 		t.Skip()
 	}
@@ -524,7 +513,6 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}

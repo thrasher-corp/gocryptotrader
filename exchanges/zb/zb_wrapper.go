@@ -367,7 +367,7 @@ func (z *ZB) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, order.ErrSubmissionIsNil
 	}
 
-	if err := o.Validate(); err != nil {
+	if err = o.Validate(); err != nil {
 		return submitOrderResponse, err
 	}
 	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -621,22 +621,22 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 				}
 			}
 		}
+	}
 
-		for i := range allOrders {
-			symbol := currency.NewPairDelimiter(allOrders[i].Currency,
-				z.GetPairFormat(asset.Spot, false).Delimiter)
-			orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
-			orderSide := orderSideMap[allOrders[i].Type]
-			orders = append(orders, order.Detail{
-				ID:           strconv.FormatInt(allOrders[i].ID, 10),
-				Amount:       allOrders[i].TotalAmount,
-				Exchange:     z.Name,
-				OrderDate:    orderDate,
-				Price:        allOrders[i].Price,
-				OrderSide:    orderSide,
-				CurrencyPair: symbol,
-			})
-		}
+	for i := range allOrders {
+		symbol := currency.NewPairDelimiter(allOrders[i].Currency,
+			z.GetPairFormat(asset.Spot, false).Delimiter)
+		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
+		orderSide := orderSideMap[allOrders[i].Type]
+		orders = append(orders, order.Detail{
+			ID:           strconv.FormatInt(allOrders[i].ID, 10),
+			Amount:       allOrders[i].TotalAmount,
+			Exchange:     z.Name,
+			OrderDate:    orderDate,
+			Price:        allOrders[i].Price,
+			OrderSide:    orderSide,
+			CurrencyPair: symbol,
+		})
 	}
 
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)

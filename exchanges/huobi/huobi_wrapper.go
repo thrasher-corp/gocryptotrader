@@ -688,7 +688,7 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 			}
 			for j := range resp.Data {
 				sideData := strings.Split(resp.Data[j].OrderState, "-")
-				side := sideData[0]
+				side = sideData[0]
 				orderSide, err := order.StringToOrderSide(side)
 				if err != nil {
 					return orders, err
@@ -717,7 +717,6 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 					Fee:             resp.Data[j].FilledFees,
 				})
 			}
-
 		}
 	} else {
 		for i := range req.Currencies {
@@ -731,7 +730,7 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 
 			for i := range resp {
 				orderDetail := order.Detail{
-					ID:             strconv.FormatInt(int64(resp[i].ID), 10),
+					ID:             strconv.FormatInt(resp[i].ID, 10),
 					Price:          resp[i].Price,
 					Amount:         resp[i].Amount,
 					CurrencyPair:   req.Currencies[i],
@@ -778,7 +777,7 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 
 		for i := range resp {
 			orderDetail := order.Detail{
-				ID:             strconv.FormatInt(int64(resp[i].ID), 10),
+				ID:             strconv.FormatInt(resp[i].ID, 10),
 				Price:          resp[i].Price,
 				Amount:         resp[i].Amount,
 				CurrencyPair:   req.Currencies[i],

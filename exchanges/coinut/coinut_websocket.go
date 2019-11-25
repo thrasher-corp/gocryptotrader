@@ -601,8 +601,8 @@ func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]WsStandardO
 	return ordersResponse, errors
 }
 
-func (c *COINUT) wsGetOpenOrders(curr string) (WsUserOpenOrdersResponse, error) {
-	var response WsUserOpenOrdersResponse
+func (c *COINUT) wsGetOpenOrders(curr string) (*WsUserOpenOrdersResponse, error) {
+	var response *WsUserOpenOrdersResponse
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return response, fmt.Errorf("%v not authorised to get open orders", c.Name)
 	}
@@ -627,8 +627,8 @@ func (c *COINUT) wsGetOpenOrders(curr string) (WsUserOpenOrdersResponse, error) 
 	return response, nil
 }
 
-func (c *COINUT) wsCancelOrder(cancellation *WsCancelOrderParameters) (CancelOrdersResponse, error) {
-	var response CancelOrdersResponse
+func (c *COINUT) wsCancelOrder(cancellation *WsCancelOrderParameters) (*CancelOrdersResponse, error) {
+	var response *CancelOrdersResponse
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return response, fmt.Errorf("%v not authorised to cancel order", c.Name)
 	}
@@ -659,6 +659,7 @@ func (c *COINUT) wsCancelOrder(cancellation *WsCancelOrderParameters) (CancelOrd
 
 func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) (*CancelOrdersResponse, error) {
 	var err error
+	var response *CancelOrdersResponse
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, err
 	}
@@ -675,18 +676,17 @@ func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) (*Cance
 	cancelOrderRequest.Nonce = c.WebsocketConn.GenerateMessageID(false)
 	resp, err := c.WebsocketConn.SendMessageReturnResponse(cancelOrderRequest.Nonce, cancelOrderRequest)
 	if err != nil {
-		return nil, err
+		return response, err
 	}
-	var response CancelOrdersResponse
 	err = json.Unmarshal(resp, &response)
 	if err != nil {
-		return nil, err
+		return response, err
 	}
-	return &response, err
+	return response, err
 }
 
-func (c *COINUT) wsGetTradeHistory(p currency.Pair, start, limit int64) (WsTradeHistoryResponse, error) {
-	var response WsTradeHistoryResponse
+func (c *COINUT) wsGetTradeHistory(p currency.Pair, start, limit int64) (*WsTradeHistoryResponse, error) {
+	var response *WsTradeHistoryResponse
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return response, fmt.Errorf("%v not authorised to get trade history", c.Name)
 	}
