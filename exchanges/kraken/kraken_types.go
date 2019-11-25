@@ -466,6 +466,7 @@ type WebsocketChannelData struct {
 	ChannelID    int64
 }
 
+// WsTokenResponse holds the WS auth token
 type WsTokenResponse struct {
 	Error  []string `json:"error"`
 	Result struct {
@@ -474,14 +475,7 @@ type WsTokenResponse struct {
 	} `json:"result"`
 }
 
-type WsAuthenticatedRequest struct {
-	Event        string `json:"event"`
-	Subscription struct {
-		Name  string `json:"name"`
-		Token string `json:"token"`
-	} `json:"subscription"`
-}
-
+// WsOwnTrade ws auth owntrade data
 type WsOwnTrade struct {
 	Cost               float64   `json:"cost,string"`
 	Fee                float64   `json:"fee,string"`
@@ -496,6 +490,7 @@ type WsOwnTrade struct {
 	Vol                float64   `json:"vol,string"`
 }
 
+// WsOpenOrders ws auth open order data
 type WsOpenOrders struct {
 	Cost           float64                `json:"cost,string"`
 	Description    WsOpenOrderDescription `json:"descr"`
@@ -515,6 +510,7 @@ type WsOpenOrders struct {
 	ExecutedVolume float64                `json:"vol_exec,string"`
 }
 
+// WsOpenOrderDescription additional data for WsOpenOrders
 type WsOpenOrderDescription struct {
 	Close     string  `json:"close"`
 	Leverage  string  `json:"leverage"`
@@ -526,6 +522,7 @@ type WsOpenOrderDescription struct {
 	Type      string  `json:"type"`
 }
 
+// WsAddOrderRequest request type for ws adding order
 type WsAddOrderRequest struct {
 	Event           string  `json:"event"`
 	Token           string  `json:"token"`
@@ -546,6 +543,7 @@ type WsAddOrderRequest struct {
 	ClosePrice2     float64 `json:"close[price2],omitempty"`    // optional
 }
 
+// WsAddOrderResponse response data for ws order
 type WsAddOrderResponse struct {
 	Description   string `json:"descr,omitempty"`
 	Event         string `json:"event"`
@@ -554,14 +552,47 @@ type WsAddOrderResponse struct {
 	ErrorMessage  string `json:"errorMessage,omitempty"`
 }
 
+// WsCancelOrderRequest request for ws cancel order
 type WsCancelOrderRequest struct {
 	Event          string   `json:"event"`
 	Token          string   `json:"token"`
 	TransactionIDs []string `json:"txid"`
 }
 
+// WsCancelOrderResponse response data for ws cancel order
 type WsCancelOrderResponse struct {
 	Event        string `json:"event"`
 	Status       string `json:"status"`
 	ErrorMessage string `json:"errorMessage,omitempty"`
 }
+
+// List of all websocket channels to subscribe to
+const (
+	krakenWSURL              = "wss://ws.kraken.com"
+	krakenAuthWSURL          = "wss://ws-auth.kraken.com"
+	krakenWSSandboxURL       = "wss://sandbox.kraken.com"
+	krakenWSSupportedVersion = "0.3.0"
+	// If a checksum fails, then resubscribing to the channel fails, fatal after these attempts
+	krakenWsResubscribeFailureLimit   = 3
+	krakenWsResubscribeDelayInSeconds = 3
+	// WS endpoints
+	krakenWsHeartbeat          = "heartbeat"
+	krakenWsPing               = "ping"
+	krakenWsPong               = "pong"
+	krakenWsSystemStatus       = "systemStatus"
+	krakenWsSubscribe          = "subscribe"
+	krakenWsSubscriptionStatus = "subscriptionStatus"
+	krakenWsUnsubscribe        = "unsubscribe"
+	krakenWsTicker             = "ticker"
+	krakenWsOHLC               = "ohlc"
+	krakenWsTrade              = "trade"
+	krakenWsSpread             = "spread"
+	krakenWsOrderbook          = "book"
+	krakenWsOwnTrades          = "ownTrades"
+	krakenWsOpenOrders         = "openOrders"
+	krakenWsAddOrder           = "addOrder"
+	krakenWsCancelOrder        = "cancelOrder"
+
+	orderbookBufferLimit = 3
+	krakenWsRateLimit    = 50
+)

@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const (
@@ -51,7 +52,11 @@ func (c *COINUT) WsConnect() error {
 			return err
 		}
 	}
-	c.wsAuthenticate()
+	err = c.wsAuthenticate()
+	if err != nil {
+		c.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		log.Error(log.WebsocketMgr, err)
+	}
 	c.GenerateDefaultSubscriptions()
 
 	// define bi-directional communication

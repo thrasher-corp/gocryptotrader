@@ -302,6 +302,8 @@ func SortOrdersBySide(orders *[]Detail, reverse bool) {
 	}
 }
 
+// StringToOrderSide for converting case insensitive order side
+// and returning a real Side
 func StringToOrderSide(side string) (Side, error) {
 	switch {
 	case strings.EqualFold(side, Buy.String()):
@@ -319,6 +321,8 @@ func StringToOrderSide(side string) (Side, error) {
 	}
 }
 
+// StringToOrderType for converting case insensitive order type
+// and returning a real Type
 func StringToOrderType(oType string) (Type, error) {
 	switch {
 	case strings.EqualFold(oType, Limit.String()):
@@ -336,6 +340,8 @@ func StringToOrderType(oType string) (Type, error) {
 	}
 }
 
+// StringToOrderStatus for converting case insensitive order status
+// and returning a real Status
 func StringToOrderStatus(status string) (Status, error) {
 	switch {
 	case strings.EqualFold(status, AnyStatus.String()):

@@ -403,14 +403,16 @@ func (h *HUOBI) GetAccountInfo() (exchange.AccountInfo, error) {
 		}
 		var currencyDetails []exchange.AccountCurrencyInfo
 		for i := range resp.Data {
-			currData := exchange.AccountCurrencyInfo{
-				CurrencyName: currency.NewCode(resp.Data[i].List[0].Currency),
-				TotalValue:   resp.Data[i].List[0].Balance,
+			if len(resp.Data[i].List) > 0 {
+				currData := exchange.AccountCurrencyInfo{
+					CurrencyName: currency.NewCode(resp.Data[i].List[0].Currency),
+					TotalValue:   resp.Data[i].List[0].Balance,
+				}
+				if len(resp.Data[i].List) > 1 && resp.Data[i].List[1].Type == "frozen" {
+					currData.Hold = resp.Data[i].List[1].Balance
+				}
+				currencyDetails = append(currencyDetails, currData)
 			}
-			if len(resp.Data[i].List) > 1 && resp.Data[i].List[1].Type == "frozen" {
-				currData.Hold = resp.Data[i].List[1].Balance
-			}
-			currencyDetails = append(currencyDetails, currData)
 		}
 		var acc exchange.Account
 		acc.Currencies = currencyDetails
@@ -598,15 +600,15 @@ func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
 	typeDetails := strings.Split(respData.Type, "-")
 	orderSide, err := order.StringToOrderSide(typeDetails[0])
 	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s - orderSide not recognised %s for orderid %v", h.Name, typeDetails[0], respData.ID)
+		return orderDetail, err
 	}
 	orderType, err := order.StringToOrderType(typeDetails[1])
 	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s - orderType not recognised %s for orderid %v", h.Name, typeDetails[1], respData.ID)
+		return orderDetail, err
 	}
 	orderStatus, err := order.StringToOrderStatus(respData.State)
 	if err != nil {
-		log.Warnf(log.ExchangeSys, "%s - order status not recognised %s for orderid %v", h.Name, respData.State, respData.ID)
+		return orderDetail, err
 	}
 	orderDetail = order.Detail{
 		Exchange:       h.Name,
@@ -689,15 +691,15 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 				side := sideData[0]
 				orderSide, err := order.StringToOrderSide(side)
 				if err != nil {
-					log.Warnf(log.ExchangeSys, "%s - orderSide not recognised %s for orderid %v", h.Name, side, resp.Data[j].OrderID)
+					return orders, err
 				}
 				orderType, err := order.StringToOrderType(sideData[1])
 				if err != nil {
-					log.Warnf(log.ExchangeSys, "%s - orderType not recognised %s for orderid %v", h.Name, sideData[1], resp.Data[j].OrderID)
+					return orders, err
 				}
 				orderStatus, err := order.StringToOrderStatus(resp.Data[j].OrderState)
 				if err != nil {
-					log.Warnf(log.ExchangeSys, "%s - order status not recognised %s for orderid %v", h.Name, resp.Data[j].OrderState, resp.Data[j].OrderID)
+					return orders, err
 				}
 				orders = append(orders, order.Detail{
 					Exchange:        h.Name,

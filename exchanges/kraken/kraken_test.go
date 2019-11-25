@@ -721,7 +721,7 @@ func TestWsAddOrder(t *testing.T) {
 		OrderType: "limit",
 		OrderSide: "buy",
 		Pair:      "XBT/USD",
-		Price:     90000,
+		Price:     -100,
 	})
 	if err != nil {
 		t.Error(err)

@@ -1102,7 +1102,6 @@ func TestGetOrderbook(t *testing.T) {
 		t.Error(err)
 	}
 
-	// futures expire and break test, will need to mock this in the future
 	_, err = o.GetOrderBook(okgroup.GetOrderBookRequest{InstrumentID: "Payload"},
 		asset.Futures)
 	if err == nil {

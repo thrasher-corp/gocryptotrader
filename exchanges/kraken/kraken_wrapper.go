@@ -507,13 +507,22 @@ func (k *Kraken) GetOrderInfo(orderID string) (order.Detail, error) {
 				TID: orderInfo.Trades[i],
 			})
 		}
-		side, err := order.StringToOrderSide(orderInfo.Description.Type)
-		log.Error(log.ExchangeSys, k.Name+" - Unrecognised order side: "+orderInfo.Description.Type, err)
 		firstNum, decNum, err := convert.SplitFloatDecimals(orderInfo.StartTime)
+		if err != nil {
+			return orderDetail, err
+		}
+		side, err := order.StringToOrderSide(orderInfo.Description.Type)
+		if err != nil {
+			return orderDetail, err
+		}
 		status, err := order.StringToOrderStatus(orderInfo.Status)
-		log.Error(log.ExchangeSys, k.Name+" - Unrecognised order status: "+orderInfo.Description.Type, err)
+		if err != nil {
+			return orderDetail, err
+		}
 		oType, err := order.StringToOrderType(orderInfo.Description.OrderType)
-		log.Error(log.ExchangeSys, k.Name+" - Unrecognised order type: "+orderInfo.Description.OrderType, err)
+		if err != nil {
+			return orderDetail, err
+		}
 
 		orderDetail = order.Detail{
 			Exchange:        k.Name,

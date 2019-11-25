@@ -40,6 +40,7 @@ func (g *Gateio) WsConnect() error {
 	_, err = g.wsServerSignIn()
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", g.Name, err)
+		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	g.GenerateAuthenticatedSubscriptions()
 	g.GenerateDefaultSubscriptions()

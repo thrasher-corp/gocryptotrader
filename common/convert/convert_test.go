@@ -149,3 +149,44 @@ func TestRecvWindow(t *testing.T) {
 			expectedOutput, actualOutput)
 	}
 }
+
+// TestSplitFloatDecimals ensures SplitFloatDecimals
+// accurately splits decimals into integers
+func TestSplitFloatDecimals(t *testing.T) {
+	x, y, err := SplitFloatDecimals(1.2)
+	if err != nil {
+		t.Error(err)
+	}
+	if x != 1 && y != 2 {
+		t.Error("Conversion error")
+	}
+	x, y, err = SplitFloatDecimals(123456.654321)
+	if err != nil {
+		t.Error(err)
+	}
+	if x != 123456 && y != 654321 {
+		t.Error("Conversion error")
+	}
+	x, y, err = SplitFloatDecimals(123.111000)
+	if err != nil {
+		t.Error(err)
+	}
+	if x != 123 && y != 111 {
+		t.Error("Conversion error")
+	}
+	x, y, err = SplitFloatDecimals(0123.111001)
+	if err != nil {
+		t.Error(err)
+	}
+	if x != 123 && y != 111001 {
+		t.Error("Conversion error")
+	}
+	x, y, err = SplitFloatDecimals(1)
+	if err != nil {
+		t.Error(err)
+	}
+	if x != 1 && y != 0 {
+		t.Error("Conversion error")
+	}
+
+}

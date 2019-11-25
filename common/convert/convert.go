@@ -3,6 +3,7 @@ package convert
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -81,9 +82,18 @@ func RecvWindow(d time.Duration) int64 {
 // SplitFloatDecimals takes in a float64 and splits
 // the decimals into their own integers
 func SplitFloatDecimals(input float64) (int64, int64, error) {
-	firstNum := int64(input)
-	decStr := fmt.Sprintf("%.8f", input)
-	decNum, err := strconv.ParseInt(decStr[2:], 10, 64)
+	var firstNum, decNum int64
+	var err error
+	decStr := strconv.FormatFloat(input, 'f', -1, 64)
+	splitNum := strings.Split(decStr, ".")
+	firstNum, err = strconv.ParseInt(splitNum[0], 10, 64)
+	if err != nil {
+		return 0, 0, err
+	}
+	if len(splitNum) == 1 {
+		return firstNum, 0, nil
+	}
+	decNum, err = strconv.ParseInt(splitNum[1], 10, 64)
 	if err != nil {
 		return 0, 0, err
 	}

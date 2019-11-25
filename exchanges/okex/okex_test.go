@@ -1799,12 +1799,11 @@ func TestGetOrderbook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	// futures expire and break test, will need to mock this in the future
-	_, err = o.GetOrderBook(okgroup.GetOrderBookRequest{InstrumentID: "Payload"},
+	contract := getFutureInstrumentID()
+	_, err = o.GetOrderBook(okgroup.GetOrderBookRequest{InstrumentID: contract},
 		asset.Futures)
-	if err == nil {
-		t.Error("error cannot be nil")
+	if err != nil {
+		t.Error(err)
 	}
 
 	_, err = o.GetOrderBook(okgroup.GetOrderBookRequest{InstrumentID: "BTC-USD-SWAP"},

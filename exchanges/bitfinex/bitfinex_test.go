@@ -1041,7 +1041,7 @@ func TestWsPlaceOrder(t *testing.T) {
 		Type:     "BUY",
 		Symbol:   "tBTCUSD",
 		Amount:   10,
-		Price:    10,
+		Price:    -10,
 	})
 	if err != nil {
 		t.Error(err)
@@ -1072,7 +1072,7 @@ func TestWsUpdateOrder(t *testing.T) {
 	}
 	err := b.WsModifyOrder(&WsUpdateOrderRequest{
 		OrderID: 1234,
-		Price:   111,
+		Price:   -111,
 		Amount:  111,
 	})
 	if err != nil {
@@ -1119,7 +1119,7 @@ func TestWsNewOffer(t *testing.T) {
 	err := b.WsNewOffer(&WsNewOfferRequest{
 		Type:   "LIMIT",
 		Symbol: "fBTC",
-		Amount: 10,
+		Amount: -10,
 		Rate:   10,
 		Period: 30,
 	})

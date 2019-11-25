@@ -20,37 +20,6 @@ import (
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
-// List of all websocket channels to subscribe to
-const (
-	krakenWSURL              = "wss://ws.kraken.com"
-	krakenAuthWSURL          = "wss://ws-auth.kraken.com"
-	krakenWSSandboxURL       = "wss://sandbox.kraken.com"
-	krakenWSSupportedVersion = "0.3.0"
-	// If a checksum fails, then resubscribing to the channel fails, fatal after these attempts
-	krakenWsResubscribeFailureLimit   = 3
-	krakenWsResubscribeDelayInSeconds = 3
-	// WS endpoints
-	krakenWsHeartbeat          = "heartbeat"
-	krakenWsPing               = "ping"
-	krakenWsPong               = "pong"
-	krakenWsSystemStatus       = "systemStatus"
-	krakenWsSubscribe          = "subscribe"
-	krakenWsSubscriptionStatus = "subscriptionStatus"
-	krakenWsUnsubscribe        = "unsubscribe"
-	krakenWsTicker             = "ticker"
-	krakenWsOHLC               = "ohlc"
-	krakenWsTrade              = "trade"
-	krakenWsSpread             = "spread"
-	krakenWsOrderbook          = "book"
-	krakenWsOwnTrades          = "ownTrades"
-	krakenWsOpenOrders         = "openOrders"
-	krakenWsAddOrder           = "addOrder"
-	krakenWsCancelOrder        = "cancelOrder"
-
-	orderbookBufferLimit = 3
-	krakenWsRateLimit    = 50
-)
-
 // orderbookMutex Ensures if two entries arrive at once, only one can be processed at a time
 var subscriptionChannelPair []WebsocketChannelData
 var comms = make(chan wshandler.WebsocketResponse, 1)
@@ -74,23 +43,22 @@ func (k *Kraken) WsConnect() error {
 	if k.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		authToken, err = k.GetWebsocketToken()
 		if err != nil {
-			return err
+			k.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", k.Name, err)
 		}
 		err = k.AuthenticatedWebsocketConn.Dial(&dialer, http.Header{})
 		if err != nil {
-			return err
+			k.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			log.Errorf(log.ExchangeSys, "%v - failed to connect to authenticated endpoint: %v\n", k.Name, err)
 		}
 		go k.WsReadData(k.AuthenticatedWebsocketConn)
-		if err != nil {
-			return err
-		}
 		k.GenerateAuthenticatedSubscriptions()
 	}
 
 	go k.WsReadData(k.WebsocketConn)
 	go k.WsHandleData()
 	go k.wsPingHandler()
-	//	k.GenerateDefaultSubscriptions()
+	k.GenerateDefaultSubscriptions()
 
 	return nil
 }
@@ -146,7 +114,7 @@ func (k *Kraken) WsHandleData() {
 				k.WsHandleDataResponse(dataResponse)
 			}
 			if _, ok := dataResponse[1].(string); ok {
-				k.WsHandleAuthDataResponse(dataResponse)
+				k.wsHandleAuthDataResponse(dataResponse)
 			}
 		}
 	}
@@ -261,7 +229,7 @@ func (k *Kraken) WsHandleEventResponse(response *WebsocketEventResponse, rawResp
 	}
 }
 
-func (k *Kraken) WsHandleAuthDataResponse(response WebsocketDataResponse) {
+func (k *Kraken) wsHandleAuthDataResponse(response WebsocketDataResponse) {
 	if chName, ok := response[1].(string); ok {
 		switch chName {
 		case krakenWsOwnTrades:

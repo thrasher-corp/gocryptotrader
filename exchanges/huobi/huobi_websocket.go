@@ -68,6 +68,7 @@ func (h *HUOBI) WsConnect() error {
 	err = h.wsLogin()
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", h.Name, err)
+		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 
 	go h.WsHandleData()

@@ -103,7 +103,7 @@ func TestPlaceOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := c.PlaceOrder(140, 1, btcusdt, "buy", "")
+	_, err := c.PlaceOrder(1, 1, btcusdt, "buy", "")
 	if err != nil {
 		t.Error(err)
 	}
