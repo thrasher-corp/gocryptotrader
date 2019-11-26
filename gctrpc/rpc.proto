@@ -528,19 +528,19 @@ message AuditEvent {
     string timestamp = 4;
 }
 
-message gct_script {
-    string uuid = 1;
+message GCTScript {
+    string UUID = 1;
     string name = 2;
     string path = 3;
     string next_run = 4;
 }
 
 message GCTScriptExecuteRequest {
-    gct_script script = 1;
+    GCTScript script = 1;
 }
 
 message GCTScriptStopRequest {
-    gct_script script = 1;
+    GCTScript script = 1;
 }
 
 message GCTScriptStatusRequest {}
@@ -548,17 +548,18 @@ message GCTScriptStatusRequest {}
 message GCTScriptUploadRequest {
     string script_name = 1;
     string script_data = 2;
-    bool archived = 3;
-    bool overwrite = 4;
+    bytes data = 3;
+    bool archived = 4;
+    bool overwrite = 5;
 }
 
 message GCTScriptReadScriptRequest{
-    gct_script script = 1;
+    GCTScript script = 1;
 }
 
 message GCTScriptStatusResponse{
     string status = 1;
-    repeated  gct_script scripts = 2;
+    repeated  GCTScript scripts = 2;
 }
 
 message GCTScriptGenericResponse {

@@ -183,7 +183,31 @@ func (e Exchange) DepositAddress(exch string, currencyCode currency.Code, accoun
 	return ex.GetDepositAddress(currencyCode, accountID)
 }
 
-// WithdrawalFunds withdraw funds from exchange to requested source
-func (e Exchange) WithdrawalFunds() error {
+// WithdrawalFiatFunds withdraw funds from exchange to requested fiat source
+func (e Exchange) WithdrawalFiatFunds(exch string, request bool) (err error) {
+	ex, err := e.GetExchange(exch)
+	if err != nil {
+		return
+	}
+	fmt.Println(ex)
+	tempWithdrawal := &exchange.FiatWithdrawRequest{}
+	_, err = ex.WithdrawFiatFunds(tempWithdrawal)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e Exchange) WithdrawalCryptoFunds(exch string, request bool) (err error) {
+	ex, err := e.GetExchange(exch)
+	if err != nil {
+		return
+	}
+	fmt.Println(ex)
+	tempWithdrawal := &exchange.CryptoWithdrawRequest{}
+	_, err = ex.WithdrawCryptocurrencyFunds(tempWithdrawal)
+	if err != nil {
+		return err
+	}
 	return nil
 }

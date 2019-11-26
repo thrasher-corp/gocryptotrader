@@ -2984,6 +2984,10 @@ var gctScriptCommand = cli.Command{
 					Name:  "overwrite",
 					Usage: "<true/false>",
 				},
+				cli.BoolFlag{
+					Name:  "archived",
+					Usage: "<true/false>",
+				},
 			},
 			Action: gctScriptUpload,
 		},
@@ -3017,7 +3021,7 @@ func gctScriptExecute(c *cli.Context) error {
 
 	executeCommand, err := client.GCTScriptExecute(context.Background(),
 		&gctrpc.GCTScriptExecuteRequest{
-			Script: &gctrpc.GctScript{
+			Script: &gctrpc.GCTScript{
 				Name: filename,
 				Path: path,
 			},
@@ -3072,7 +3076,7 @@ func gctScriptStop(c *cli.Context) error {
 
 	executeCommand, err := client.GCTScriptStop(context.Background(),
 		&gctrpc.GCTScriptStopRequest{
-			Script: &gctrpc.GctScript{Uuid: uuid},
+			Script: &gctrpc.GCTScript{UUID: uuid},
 		})
 
 	if err != nil {
@@ -3104,8 +3108,8 @@ func gctScriptRead(c *cli.Context) error {
 
 	executeCommand, err := client.GCTScriptReadScript(context.Background(),
 		&gctrpc.GCTScriptReadScriptRequest{
-			Script: &gctrpc.GctScript{
-				Uuid: uuid,
+			Script: &gctrpc.GCTScript{
+				UUID: uuid,
 			},
 		})
 
@@ -3125,6 +3129,7 @@ func gctScriptUpload(c *cli.Context) error {
 	}
 
 	var overwrite bool
+	var archived bool
 	if !c.IsSet("script") {
 		if c.Args().Get(0) != "" {
 			filename = c.Args().Get(0)
@@ -3139,6 +3144,16 @@ func gctScriptUpload(c *cli.Context) error {
 			overwrite = ow
 		}
 	}
+
+	if c.IsSet("archived") {
+		archived = c.Bool("archived")
+	} else {
+		ow, err := strconv.ParseBool(c.Args().Get(1))
+		if err == nil {
+			archived = ow
+		}
+	}
+
 	fmt.Println(filepath.Ext(filename))
 
 	if filepath.Ext(filename) != ".gct" && filepath.Ext(filename) != ".zip" {
@@ -3165,7 +3180,8 @@ func gctScriptUpload(c *cli.Context) error {
 	uploadCommand, err := client.GCTScriptUpload(context.Background(),
 		&gctrpc.GCTScriptUploadRequest{
 			ScriptName: filepath.Base(file.Name()),
-			ScriptData: string(data),
+			Data: data,
+			Archived: archived,
 			Overwrite:  overwrite,
 		})
 

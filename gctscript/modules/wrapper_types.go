@@ -31,7 +31,7 @@ type Exchange interface {
 
 	AccountInformation(exch string) (AccountInfo, error)
 	DepositAddress(exch string, currencyCode currency.Code, accountID string) (string, error)
-	WithdrawalFunds() error
+	WithdrawalFunds(exch string) error
 }
 
 // SetModuleWrapper link the wrapper and interface to use for modules

@@ -1,9 +1,11 @@
 package engine
 
 import (
+	"archive/zip"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -14,6 +16,10 @@ import (
 	"github.com/gofrs/uuid"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpcruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -30,9 +36,6 @@ import (
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/utils"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/metadata"
 )
 
 const (
@@ -1229,8 +1232,8 @@ func (s *RPCServer) GCTScriptStatus(ctx context.Context, r *gctrpc.GCTScriptStat
 	}
 
 	for x := range gctscript.AllVMs {
-		resp.Scripts = append(resp.Scripts, &gctrpc.GctScript{
-			Uuid:    gctscript.AllVMs[x].ID.String(),
+		resp.Scripts = append(resp.Scripts, &gctrpc.GCTScript{
+			UUID:    gctscript.AllVMs[x].ID.String(),
 			Name:    gctscript.AllVMs[x].Name,
 			NextRun: gctscript.AllVMs[x].NextRun.String(),
 		})
@@ -1273,7 +1276,7 @@ func (s *RPCServer) GCTScriptStop(ctx context.Context, r *gctrpc.GCTScriptStopRe
 		return &gctrpc.GCTScriptGenericResponse{Status: "error - scripting disabled"}, nil
 	}
 
-	UUID, err := uuid.FromString(r.Script.Uuid)
+	UUID, err := uuid.FromString(r.Script.UUID)
 	if err != nil {
 		return &gctrpc.GCTScriptGenericResponse{Status: "error", Data: err.Error()}, nil
 	}
@@ -1291,9 +1294,10 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 		return &gctrpc.GCTScriptGenericResponse{Status: "error - scripting disabled"}, nil
 	}
 
-	filePath := filepath.Join(gctscript.ScriptPath, r.ScriptName)
 
-	_, err := os.Stat(filePath)
+
+	fPath := filepath.Join(gctscript.ScriptPath, r.ScriptName)
+	_, err := os.Stat(fPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return nil, err
@@ -1302,19 +1306,72 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 		return nil, fmt.Errorf("%s script found and overwrite set to false", r.ScriptName)
 	}
 
-	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
+	file, err := os.OpenFile(fPath, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, err
 	}
 
 	defer file.Close()
 
-	n, err := file.WriteString(r.ScriptData)
+	n, err := file.Write(r.Data)
 	if err != nil {
 		return nil, err
 	}
-	if n != len(r.ScriptData) {
-		return nil, fmt.Errorf("failed to write expected output length: %v got %v", len(r.ScriptData), n)
+	if n != len(r.Data) {
+		return nil, fmt.Errorf("failed to write expected output length: %v got %v", len(r.Data), n)
+	}
+
+	if r.Archived {
+		z, err := zip.OpenReader(fPath)
+		if err != nil {
+			return nil, err
+		}
+
+		defer z.Close()
+		for f := range z.File {
+			fPath := filepath.Join(gctscript.ScriptPath, z.File[f].Name)
+
+			if !strings.HasPrefix(fPath, filepath.Clean(gctscript.ScriptPath)+string(os.PathSeparator)) {
+				return nil, fmt.Errorf("%s: illegal file path", fPath)
+			}
+
+			if z.File[f].FileInfo().IsDir() {
+				err = os.MkdirAll(fPath, os.ModePerm)
+				if err != nil {
+					return nil, err
+				}
+				continue
+			}
+
+			outFile, err := os.OpenFile(fPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, z.File[f].Mode())
+			if err != nil {
+				return nil, err
+			}
+
+			rc, err := z.File[f].Open()
+			if err != nil {
+				return nil, err
+			}
+
+			_, err = io.Copy(outFile, rc)
+			if err != nil {
+				return nil, err
+			}
+
+			err = outFile.Close()
+			if err != nil {
+				return nil, err
+			}
+
+			err = rc.Close()
+			if err != nil {
+				return nil, err
+			}
+		}
+		err = os.Remove(fPath)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &gctrpc.GCTScriptGenericResponse{
@@ -1330,7 +1387,7 @@ func (s *RPCServer) GCTScriptReadScript(ctx context.Context, r *gctrpc.GCTScript
 	}
 
 	var data []byte
-	UUID, err := uuid.FromString(r.Script.Uuid)
+	UUID, err := uuid.FromString(r.Script.UUID)
 	if err != nil {
 		return &gctrpc.GCTScriptGenericResponse{Status: "error", Data: err.Error()}, nil
 	}
