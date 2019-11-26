@@ -1218,7 +1218,7 @@ func (s *RPCServer) GetAuditEvent(ctx context.Context, r *gctrpc.GetAuditEventRe
 // GCTScriptStatus returns a slice of current running scripts that includes next run time and uuid
 func (s *RPCServer) GCTScriptStatus(ctx context.Context, r *gctrpc.GCTScriptStatusRequest) (*gctrpc.GCTScriptStatusResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
-		return &gctrpc.GCTScriptStatusResponse{Status: "error - scripting disabled"}, nil
+		return &gctrpc.GCTScriptStatusResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
 	total := len(gctscript.AllVMs)
@@ -1245,7 +1245,7 @@ func (s *RPCServer) GCTScriptStatus(ctx context.Context, r *gctrpc.GCTScriptStat
 // GCTScriptExecute execute a script
 func (s *RPCServer) GCTScriptExecute(ctx context.Context, r *gctrpc.GCTScriptExecuteRequest) (*gctrpc.GCTScriptGenericResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
-		return &gctrpc.GCTScriptGenericResponse{Status: "error - scripting disabled"}, nil
+		return &gctrpc.GCTScriptGenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
 	if r.Script.Path == "" {
@@ -1273,7 +1273,7 @@ func (s *RPCServer) GCTScriptExecute(ctx context.Context, r *gctrpc.GCTScriptExe
 // GCTScriptStop terminate a running script
 func (s *RPCServer) GCTScriptStop(ctx context.Context, r *gctrpc.GCTScriptStopRequest) (*gctrpc.GCTScriptGenericResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
-		return &gctrpc.GCTScriptGenericResponse{Status: "error - scripting disabled"}, nil
+		return &gctrpc.GCTScriptGenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
 	UUID, err := uuid.FromString(r.Script.UUID)
@@ -1291,10 +1291,8 @@ func (s *RPCServer) GCTScriptStop(ctx context.Context, r *gctrpc.GCTScriptStopRe
 // GCTScriptUpload upload a new script to ScriptPath
 func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUploadRequest) (*gctrpc.GCTScriptGenericResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
-		return &gctrpc.GCTScriptGenericResponse{Status: "error - scripting disabled"}, nil
+		return &gctrpc.GCTScriptGenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
-
-
 
 	fPath := filepath.Join(gctscript.ScriptPath, r.ScriptName)
 	_, err := os.Stat(fPath)
@@ -1329,7 +1327,7 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 
 		defer z.Close()
 		for f := range z.File {
-			fPath := filepath.Join(gctscript.ScriptPath, z.File[f].Name)
+			fPath = filepath.Join(gctscript.ScriptPath, filepath.Base(z.File[f].Name))
 
 			if !strings.HasPrefix(fPath, filepath.Clean(gctscript.ScriptPath)+string(os.PathSeparator)) {
 				return nil, fmt.Errorf("%s: illegal file path", fPath)
@@ -1342,13 +1340,14 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 				}
 				continue
 			}
-
-			outFile, err := os.OpenFile(fPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, z.File[f].Mode())
+			var outFile *os.File
+			outFile, err = os.OpenFile(fPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, z.File[f].Mode())
 			if err != nil {
 				return nil, err
 			}
 
-			rc, err := z.File[f].Open()
+			var rc io.ReadCloser
+			rc, err = z.File[f].Open()
 			if err != nil {
 				return nil, err
 			}
@@ -1383,7 +1382,7 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 // GCTScriptReadScript read a script and return contents
 func (s *RPCServer) GCTScriptReadScript(ctx context.Context, r *gctrpc.GCTScriptReadScriptRequest) (*gctrpc.GCTScriptGenericResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
-		return &gctrpc.GCTScriptGenericResponse{Status: "error - scripting disabled"}, nil
+		return &gctrpc.GCTScriptGenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
 	var data []byte

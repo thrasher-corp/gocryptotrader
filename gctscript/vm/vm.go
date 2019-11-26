@@ -2,7 +2,6 @@ package vm
 
 import (
 	"context"
-	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -110,9 +109,10 @@ func (vm *VM) RunCtx() (err error) {
 }
 
 // CompileAndRun Compile and Run script
-func (vm *VM) CompileAndRun() (err error) {
-	err = vm.Compile()
+func (vm *VM) CompileAndRun() {
+	err := vm.Compile()
 	if err != nil {
+		log.Error(log.GCTScriptMgr, err)
 		return
 	}
 
@@ -122,23 +122,28 @@ func (vm *VM) CompileAndRun() (err error) {
 
 	err = vm.RunCtx()
 	if err != nil {
-		return err
+		log.Error(log.GCTScriptMgr, err)
+		return
 	}
 
 	if vm.Compiled.Get("timer").String() != "" {
 		vm.T, err = time.ParseDuration(vm.Compiled.Get("timer").String())
 		if err != nil {
-			return err
+			log.Error(log.GCTScriptMgr, err)
+			return
 		}
 		if vm.T < time.Nanosecond {
-			return errors.New("repeat timer cannot be under 1 nano second")
+			log.Error(log.GCTScriptMgr, "repeat timer cannot be under 1 nano second")
+			return
 		}
 		vm.runner()
 	} else {
-		return vm.Shutdown()
+		err = vm.Shutdown()
+		if err != nil {
+			log.Error(log.GCTScriptMgr, err)
+		}
+		return
 	}
-
-	return err
 }
 
 // Shutdown shuts down current VM
@@ -153,6 +158,7 @@ func (vm *VM) Shutdown() error {
 	return RemoveVM(vm.ID)
 }
 
+// Read contents of script back
 func (vm *VM) Read() ([]byte, error) {
 	if GCTScriptConfig.DebugMode {
 		log.Debugf(log.GCTScriptMgr, "Read script: %v", vm.ID)

@@ -3180,8 +3180,8 @@ func gctScriptUpload(c *cli.Context) error {
 	uploadCommand, err := client.GCTScriptUpload(context.Background(),
 		&gctrpc.GCTScriptUploadRequest{
 			ScriptName: filepath.Base(file.Name()),
-			Data: data,
-			Archived: archived,
+			Data:       data,
+			Archived:   archived,
 			Overwrite:  overwrite,
 		})
 

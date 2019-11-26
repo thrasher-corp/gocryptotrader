@@ -6,7 +6,6 @@ import (
 	"sync/atomic"
 
 	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
-
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -30,7 +29,7 @@ func (g *gctScriptManager) Start() (err error) {
 	g.shutdown = make(chan struct{})
 
 	go g.run()
-	return nil
+	return
 }
 
 func (g *gctScriptManager) Stop() error {
@@ -42,7 +41,6 @@ func (g *gctScriptManager) Stop() error {
 	close(g.shutdown)
 	err := vm.ShutdownAll()
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 	return nil
@@ -53,7 +51,6 @@ func (g *gctScriptManager) run() {
 
 	Bot.ServicesWG.Add(1)
 	g.running.Store(true)
-
 	g.autoLoad()
 
 	defer func() {
@@ -62,9 +59,7 @@ func (g *gctScriptManager) run() {
 		log.Debugf(log.GCTScriptMgr, "%s %s", name, MsgSubSystemShutdown)
 	}()
 
-	for range g.shutdown {
-		return
-	}
+	<-g.shutdown
 }
 
 func (g *gctScriptManager) autoLoad() {
@@ -73,7 +68,7 @@ func (g *gctScriptManager) autoLoad() {
 		scriptPath := filepath.Join(vm.ScriptPath, Bot.Config.GCTScript.AutoLoad[x]+".gct")
 		err := temp.Load(scriptPath)
 		if err != nil {
-			fmt.Println(err)
+			log.Errorf(log.GCTScriptMgr, "%v failed to load: %v", filepath.Base(scriptPath), err)
 			continue
 		}
 		go temp.CompileAndRun()

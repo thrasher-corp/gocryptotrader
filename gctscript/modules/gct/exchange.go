@@ -1,6 +1,7 @@
 package gct
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/d5/tengo/objects"
@@ -150,6 +151,7 @@ func ExchangePairs(args ...objects.Object) (ret objects.Object, err error) {
 	r := objects.Array{}
 	for x := range *rtnValue {
 		v := *rtnValue
+		fmt.Println(v)
 		r.Value = append(r.Value, &objects.String{Value: v[x].String()})
 	}
 

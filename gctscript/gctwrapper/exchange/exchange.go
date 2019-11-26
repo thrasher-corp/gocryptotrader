@@ -184,7 +184,7 @@ func (e Exchange) DepositAddress(exch string, currencyCode currency.Code, accoun
 }
 
 // WithdrawalFiatFunds withdraw funds from exchange to requested fiat source
-func (e Exchange) WithdrawalFiatFunds(exch string, request bool) (err error) {
+func (e Exchange) WithdrawalFiatFunds(exch string) (err error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return
@@ -198,7 +198,7 @@ func (e Exchange) WithdrawalFiatFunds(exch string, request bool) (err error) {
 	return nil
 }
 
-func (e Exchange) WithdrawalCryptoFunds(exch string, request bool) (err error) {
+func (e Exchange) WithdrawalCryptoFunds(exch string) (err error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return

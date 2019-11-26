@@ -21,11 +21,14 @@ var (
 		EnableWebsocketRPC:  false,
 	}
 	exchangeTest = Exchange{}
-	exchName     = "BTC Markets" // change to test on another exchange
-	pairs        = "BTC-AUD"     // change to test another currency pair
-	delimiter    = "-"
-	assetType    = asset.Spot
-	orderID      = "1234"
+)
+
+const (
+	exchName  = "BTC Markets" // change to test on another exchange
+	pairs     = "BTC-AUD"     // change to test another currency pair
+	delimiter = "-"
+	assetType = asset.Spot
+	orderID   = "1234"
 )
 
 func TestMain(m *testing.M) {
@@ -34,9 +37,8 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		fmt.Println("Failed to configure exchange test cannot continue")
 		os.Exit(1)
-	} else {
-		t = m.Run()
 	}
+	t = m.Run()
 	err = cleanup()
 	if err != nil {
 		fmt.Printf("Clean up failed %v", err)
