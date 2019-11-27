@@ -14,7 +14,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 )
 
 func main() {
@@ -83,13 +83,13 @@ func main() {
 		log.Fatalf("key pem data is nil")
 	}
 
-	err = common.WriteFile("key.pem", keyData)
+	err = file.Write("key.pem", keyData)
 	if err != nil {
 		log.Fatalf("failed to write key.pem file %s", err)
 	}
 	log.Printf("wrote key.pem file")
 
-	err = common.WriteFile("cert.pem", certData)
+	err = file.Write("cert.pem", certData)
 	if err != nil {
 		log.Fatalf("failed to write cert.pem file %s", err)
 	}

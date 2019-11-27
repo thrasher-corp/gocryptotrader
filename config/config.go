@@ -17,6 +17,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	gctfile "github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/connchecker"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider"
@@ -1375,7 +1376,7 @@ func GetFilePath(file string) (string, error) {
 			return newDirs[x], nil
 		}
 		if filepath.Ext(oldDirs[x]) == ".json" {
-			err = os.Rename(oldDirs[x], newDirs[0])
+			err = gctfile.Move(oldDirs[x], newDirs[0])
 			if err != nil {
 				return "", err
 			}
@@ -1384,7 +1385,7 @@ func GetFilePath(file string) (string, error) {
 				oldDirs[x],
 				newDirs[0])
 		} else {
-			err = os.Rename(oldDirs[x], newDirs[1])
+			err = gctfile.Move(oldDirs[x], newDirs[1])
 			if err != nil {
 				return "", err
 			}
@@ -1412,7 +1413,7 @@ func GetFilePath(file string) (string, error) {
 				return newDirs[x], nil
 			}
 
-			err = os.Rename(newDirs[x], newDirs[1])
+			err = gctfile.Move(newDirs[x], newDirs[1])
 			if err != nil {
 				return "", err
 			}
@@ -1423,7 +1424,7 @@ func GetFilePath(file string) (string, error) {
 			return newDirs[x], nil
 		}
 
-		err = os.Rename(newDirs[x], newDirs[0])
+		err = gctfile.Move(newDirs[x], newDirs[0])
 		if err != nil {
 			return "", err
 		}
@@ -1535,7 +1536,7 @@ func (c *Config) SaveConfig(configPath string, dryrun bool) error {
 			return err
 		}
 	}
-	return common.WriteFile(defaultPath, payload)
+	return gctfile.Write(defaultPath, payload)
 }
 
 // CheckRemoteControlConfig checks to see if the old c.Webserver field is used

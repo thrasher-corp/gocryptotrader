@@ -279,7 +279,7 @@ func ExtractPort(host string) int {
 func OutputCSV(filePath string, data [][]string) error {
 	_, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		errTwo := WriteFile(filePath, nil)
+		errTwo := ioutil.WriteFile(filePath, nil, 0770)
 		if errTwo != nil {
 			return errTwo
 		}
@@ -293,11 +293,6 @@ func OutputCSV(filePath string, data [][]string) error {
 
 	writer := csv.NewWriter(file)
 	return writer.WriteAll(data)
-}
-
-// WriteFile writes selected data to a file and returns an error
-func WriteFile(file string, data []byte) error {
-	return ioutil.WriteFile(file, data, 0644)
 }
 
 // GetURIPath returns the path of a URL given a URI
@@ -353,8 +348,8 @@ func CreateDir(dir string) error {
 	return os.MkdirAll(dir, 0770)
 }
 
-// ChangePerm lists all the directories and files in an array
-func ChangePerm(directory string) error {
+// ChangePermission lists all the directories and files in an array
+func ChangePermission(directory string) error {
 	return filepath.Walk(directory, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err

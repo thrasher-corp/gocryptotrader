@@ -14,6 +14,7 @@ import (
 	"text/template"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -754,7 +755,7 @@ func saveConfig(config *Config) {
 	}
 
 	log.Printf("Outputting to: %v", filepath.Join(dir, "wrapperconfig.json"))
-	err = common.WriteFile(filepath.Join(dir, "wrapperconfig.json"), jsonOutput)
+	err = file.Write(filepath.Join(dir, "wrapperconfig.json"), jsonOutput)
 	if err != nil {
 		log.Printf("Encountered error writing to disk: %v", err)
 		return
@@ -775,7 +776,7 @@ func outputToJSON(exchangeResponses []ExchangeResponses) {
 	}
 
 	log.Printf("Outputting to: %v", filepath.Join(dir, fmt.Sprintf("%v.json", outputFileName)))
-	err = common.WriteFile(filepath.Join(dir, fmt.Sprintf("%v.json", outputFileName)), jsonOutput)
+	err = file.Write(filepath.Join(dir, fmt.Sprintf("%v.json", outputFileName)), jsonOutput)
 	if err != nil {
 		log.Printf("Encountered error writing to disk: %v", err)
 		return

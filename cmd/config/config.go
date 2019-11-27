@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 	"log"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	gctfile "github.com/thrasher-corp/gocryptotrader/common/file"
 )
 
 // EncryptOrDecrypt returns a string from a boolean
@@ -76,7 +76,7 @@ func main() {
 		}
 	}
 
-	err = common.WriteFile(outFile, data)
+	err = gctfile.Write(outFile, data)
 	if err != nil {
 		log.Fatalf("Unable to write output file %s. Error: %s", outFile, err)
 	}
