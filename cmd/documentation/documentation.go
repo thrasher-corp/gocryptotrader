@@ -19,7 +19,7 @@ import (
 
 const (
 	// DefaultRepo is the main example repository
-	DefaultRepo = "https://api.github.com/repos/[REPO ADDRESS HERE]"
+	DefaultRepo = "https://api.github.com/repos/thrasher-corp/gocryptotrader"
 
 	// GithubAPIEndpoint allows the program to query your repository
 	// contributor list
@@ -31,6 +31,12 @@ const (
 	// ContributorFile defines contributor file
 	ContributorFile = "CONTRIBUTORS"
 )
+
+// DefaultExcludedDirectories defines the basic directory exclusion list for GCT
+var DefaultExcludedDirectories = []string{".github",
+	".git",
+	"node_modules",
+	".vscode"}
 
 // Contributor defines an account associated with this code base by doing
 // contributions
@@ -197,7 +203,7 @@ func GetConfiguration() (Config, error) {
 	var c Config
 	file, err := os.OpenFile("config.json", os.O_RDWR, os.ModePerm)
 	if err != nil {
-		fmt.Println("Creating configuration file, please add github repository path and preferences")
+		fmt.Println("Creating configuration file, please check to add a different github repository path and change preferences")
 
 		file, err = os.Create("config.json")
 		if err != nil {
@@ -210,7 +216,7 @@ func GetConfiguration() (Config, error) {
 		c.LicenseFile = true
 		c.RootReadme = true
 		c.ReferencePathToRepo = "../../"
-		c.Exclusions.Directories = []string{".github"}
+		c.Exclusions.Directories = DefaultExcludedDirectories
 
 		data, mErr := json.MarshalIndent(c, "", " ")
 		if mErr != nil {
@@ -235,7 +241,7 @@ func GetConfiguration() (Config, error) {
 		return c, err
 	}
 
-	if c.GithubRepo == "" || c.GithubRepo == DefaultRepo {
+	if c.GithubRepo == "" {
 		return c, errors.New("repository not set in config.json file, please change")
 	}
 
@@ -248,8 +254,8 @@ func GetConfiguration() (Config, error) {
 
 // IsExcluded returns if the file path is included in the exclusion list
 func IsExcluded(path string, exclusion []string) bool {
-	for _, data := range exclusion {
-		if strings.Contains(path, data) {
+	for i := range exclusion {
+		if path == exclusion[i] {
 			return true
 		}
 	}
