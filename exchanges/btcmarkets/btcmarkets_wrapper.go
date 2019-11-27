@@ -505,7 +505,7 @@ func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawReq
 		"",
 		withdrawRequest.BankAccountName,
 		withdrawRequest.BankAccountNumber,
-		"",
+		withdrawRequest.BSB,
 		withdrawRequest.BankName)
 	if err != nil {
 		return "", err
@@ -622,7 +622,20 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 		return resp, err
 	}
 	for c := range tempData.Orders {
-		if tempData.Orders[c].OpenAmount != 0 {
+		switch tempData.Orders[c].Status {
+		case orderFailed:
+			tempResp.Status = order.Rejected
+		case orderPartiallyCancelled:
+			tempResp.Status = order.PartiallyFilled
+		case orderCancelled:
+			tempResp.Status = order.Cancelled
+		case orderFullyMatched:
+			tempResp.Status = order.Filled
+		case orderPartiallyMatched:
+			continue
+		case orderPlaced:
+			continue
+		case orderAccepted:
 			continue
 		}
 		tempResp.Exchange = b.Name
@@ -632,7 +645,6 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 			tempResp.OrderSide = order.Ask
 		}
 		tempResp.OrderDate = tempData.Orders[c].CreationTime
-		tempResp.Status = order.Filled
 		tempResp.Price = tempData.Orders[c].Price
 		tempResp.ExecutedAmount = tempData.Orders[c].Amount
 		resp = append(resp, tempResp)

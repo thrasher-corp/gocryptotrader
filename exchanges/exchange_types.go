@@ -199,6 +199,7 @@ type FiatWithdrawRequest struct {
 	BankCity          string
 	BankCountry       string
 	BankPostalCode    string
+	BSB               string
 	SwiftCode         string
 	IBAN              string
 	BankCode          float64
