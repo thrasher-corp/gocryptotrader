@@ -123,16 +123,15 @@ func main() {
 				err)
 		}
 
-		// idoall's contributors were forked and merged, so his contributions
-		// aren't automatically retrievable
-		contributors = append(contributors, Contributor{
-			Login:         "idoall",
-			URL:           "https://github.com/idoall",
-			Contributions: 1,
-		})
-
 		// Github API missing contributors
-		missingAPIContributors := []Contributor{
+		contributors = append(contributors, []Contributor{
+			// idoall's contributors were forked and merged, so his contributions
+			// aren't automatically retrievable
+			{
+				Login:         "idoall",
+				URL:           "https://github.com/idoall",
+				Contributions: 1,
+			},
 			{
 				Login:         "mattkanwisher",
 				URL:           "https://github.com/mattkanwisher",
@@ -158,8 +157,7 @@ func main() {
 				URL:           "https://github.com/zeldrinn",
 				Contributions: 1,
 			},
-		}
-		contributors = append(contributors, missingAPIContributors...)
+		}...)
 
 		if *verbose {
 			fmt.Println("Contributor List Fetched")
