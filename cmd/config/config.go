@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 
-	gctfile "github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
@@ -43,19 +43,19 @@ func main() {
 		key = string(result)
 	}
 
-	file, err := ioutil.ReadFile(inFile)
+	fileData, err := ioutil.ReadFile(inFile)
 	if err != nil {
 		log.Fatalf("Unable to read input file %s. Error: %s.", inFile, err)
 	}
 
-	if config.ConfirmECS(file) && encrypt {
+	if config.ConfirmECS(fileData) && encrypt {
 		log.Println("File is already encrypted. Decrypting..")
 		encrypt = false
 	}
 
-	if !config.ConfirmECS(file) && !encrypt {
+	if !config.ConfirmECS(fileData) && !encrypt {
 		var result interface{}
-		errf := config.ConfirmConfigJSON(file, result)
+		errf := config.ConfirmConfigJSON(fileData, result)
 		if errf != nil {
 			log.Fatal("File isn't in JSON format")
 		}
@@ -65,18 +65,18 @@ func main() {
 
 	var data []byte
 	if encrypt {
-		data, err = config.EncryptConfigFile(file, []byte(key))
+		data, err = config.EncryptConfigFile(fileData, []byte(key))
 		if err != nil {
 			log.Fatalf("Unable to encrypt config data. Error: %s.", err)
 		}
 	} else {
-		data, err = config.DecryptConfigFile(file, []byte(key))
+		data, err = config.DecryptConfigFile(fileData, []byte(key))
 		if err != nil {
 			log.Fatalf("Unable to decrypt config data. Error: %s.", err)
 		}
 	}
 
-	err = gctfile.Write(outFile, data)
+	err = file.Write(outFile, data)
 	if err != nil {
 		log.Fatalf("Unable to write output file %s. Error: %s", outFile, err)
 	}

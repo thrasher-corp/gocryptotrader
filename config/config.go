@@ -17,7 +17,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
-	gctfile "github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/connchecker"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider"
@@ -1332,9 +1332,9 @@ func (c *Config) CheckConnectionMonitorConfig() {
 
 // GetFilePath returns the desired config file or the default config file name
 // based on if the application is being run under test or normal mode.
-func GetFilePath(file string) (string, error) {
-	if file != "" {
-		return file, nil
+func GetFilePath(configfile string) (string, error) {
+	if configfile != "" {
+		return configfile, nil
 	}
 
 	if flag.Lookup("test.v") != nil && !testBypass {
@@ -1376,7 +1376,7 @@ func GetFilePath(file string) (string, error) {
 			return newDirs[x], nil
 		}
 		if filepath.Ext(oldDirs[x]) == ".json" {
-			err = gctfile.Move(oldDirs[x], newDirs[0])
+			err = file.Move(oldDirs[x], newDirs[0])
 			if err != nil {
 				return "", err
 			}
@@ -1385,7 +1385,7 @@ func GetFilePath(file string) (string, error) {
 				oldDirs[x],
 				newDirs[0])
 		} else {
-			err = gctfile.Move(oldDirs[x], newDirs[1])
+			err = file.Move(oldDirs[x], newDirs[1])
 			if err != nil {
 				return "", err
 			}
@@ -1413,7 +1413,7 @@ func GetFilePath(file string) (string, error) {
 				return newDirs[x], nil
 			}
 
-			err = gctfile.Move(newDirs[x], newDirs[1])
+			err = file.Move(newDirs[x], newDirs[1])
 			if err != nil {
 				return "", err
 			}
@@ -1424,7 +1424,7 @@ func GetFilePath(file string) (string, error) {
 			return newDirs[x], nil
 		}
 
-		err = gctfile.Move(newDirs[x], newDirs[0])
+		err = file.Move(newDirs[x], newDirs[0])
 		if err != nil {
 			return "", err
 		}
@@ -1444,13 +1444,13 @@ func (c *Config) ReadConfig(configPath string, dryrun bool) error {
 		return err
 	}
 
-	file, err := ioutil.ReadFile(defaultPath)
+	fileData, err := ioutil.ReadFile(defaultPath)
 	if err != nil {
 		return err
 	}
 
-	if !ConfirmECS(file) {
-		err = ConfirmConfigJSON(file, &c)
+	if !ConfirmECS(fileData) {
+		err = ConfirmConfigJSON(fileData, &c)
 		if err != nil {
 			return err
 		}
@@ -1482,7 +1482,7 @@ func (c *Config) ReadConfig(configPath string, dryrun bool) error {
 			}
 
 			var f []byte
-			f = append(f, file...)
+			f = append(f, fileData...)
 			data, err := DecryptConfigFile(f, key)
 			if err != nil {
 				log.Errorf(log.ConfigMgr, "DecryptConfigFile err: %s", err)
@@ -1536,7 +1536,7 @@ func (c *Config) SaveConfig(configPath string, dryrun bool) error {
 			return err
 		}
 	}
-	return gctfile.Write(defaultPath, payload)
+	return file.Write(defaultPath, payload)
 }
 
 // CheckRemoteControlConfig checks to see if the old c.Webserver field is used
