@@ -36,7 +36,8 @@ const (
 var DefaultExcludedDirectories = []string{".github",
 	".git",
 	"node_modules",
-	".vscode"}
+	".vscode",
+	".idea"}
 
 // Contributor defines an account associated with this code base by doing
 // contributions
