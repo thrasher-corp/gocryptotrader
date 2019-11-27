@@ -1,6 +1,8 @@
 package vm
 
 import (
+	"fmt"
+
 	"github.com/gofrs/uuid"
 
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -17,14 +19,24 @@ func New() *VM {
 }
 
 // ShutdownAll shutdown all
-func ShutdownAll() error {
+func ShutdownAll() (err error) {
 	if GCTScriptConfig.DebugMode {
 		log.Debugln(log.GCTScriptMgr, "Shutting down all Virtual Machines")
 	}
+
+	var errors []error
 	for x := range AllVMs {
-		_ = AllVMs[x].Shutdown()
+		err = AllVMs[x].Shutdown()
+		if err != nil {
+			errors = append(errors, err)
+		}
 	}
-	return nil
+
+	if len(errors) > 0 {
+		err = fmt.Errorf("failed to shutdown the follow Virtual Machines: %v", errors)
+	}
+
+	return
 }
 
 // RemoveVM remove VM from list

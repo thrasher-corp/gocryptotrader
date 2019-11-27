@@ -9,7 +9,6 @@ import (
 
 	"github.com/d5/tengo/script"
 	"github.com/gofrs/uuid"
-
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/loader"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -29,7 +28,7 @@ func newVM() *VM {
 		log.Debugln(log.GCTScriptMgr, "New GCTScript VM created")
 	}
 
-	audit.Event(newUUID.String(), GCTScriptAuditEvent, "Virtual Machine created run")
+	audit.Event(newUUID.String(), GCTScriptAuditEvent, "virtual machine created")
 
 	return &VM{
 		ID:     newUUID,
@@ -41,7 +40,8 @@ func newVM() *VM {
 func (vm *VM) Load(file string) error {
 	if !GCTScriptConfig.Enabled {
 		return &Error{
-			Cause: ErrScriptingDisabled,
+			Action: "Load",
+			Cause:  ErrScriptingDisabled,
 		}
 	}
 
@@ -91,7 +91,7 @@ func (vm *VM) Compile() (err error) {
 
 // Run runs byte code
 func (vm *VM) Run() (err error) {
-	audit.Event(vm.ID.String(), GCTScriptAuditEvent, "Script run")
+	audit.Event(vm.ID.String(), GCTScriptAuditEvent, "Script executed")
 	return vm.Compiled.Run()
 }
 
@@ -104,8 +104,16 @@ func (vm *VM) RunCtx() (err error) {
 	ct, cancel := context.WithTimeout(vm.ctx, GCTScriptConfig.ScriptTimeout)
 	defer cancel()
 
-	audit.Event(vm.ID.String(), GCTScriptAuditEvent, "Script run")
-	return vm.Compiled.RunContext(ct)
+	audit.Event(vm.ID.String(), GCTScriptAuditEvent, "Script executed")
+
+	err = vm.Compiled.RunContext(ct)
+	if err != nil {
+		return Error{
+			Action: "RunCtx()",
+			Cause:  err,
+		}
+	}
+	return
 }
 
 // CompileAndRun Compile and Run script
@@ -130,6 +138,10 @@ func (vm *VM) CompileAndRun() {
 		vm.T, err = time.ParseDuration(vm.Compiled.Get("timer").String())
 		if err != nil {
 			log.Error(log.GCTScriptMgr, err)
+			err = vm.Shutdown()
+			if err != nil {
+				log.Error(log.GCTScriptMgr, err)
+			}
 			return
 		}
 		if vm.T < time.Nanosecond {

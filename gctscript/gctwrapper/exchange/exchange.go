@@ -27,7 +27,6 @@ func (e Exchange) Exchanges(enabledOnly bool) []string {
 // GetExchange returns IBotExchange for exchange or error if exchange is not found
 func (e Exchange) GetExchange(exch string) (exchange.IBotExchange, error) {
 	ex := engine.GetExchangeByName(exch)
-
 	if ex == nil {
 		return nil, fmt.Errorf("%v exchange not found", exch)
 	}
@@ -38,7 +37,6 @@ func (e Exchange) GetExchange(exch string) (exchange.IBotExchange, error) {
 // IsEnabled returns if requested exchange is enabled or disabled
 func (e Exchange) IsEnabled(exch string) (rtn bool) {
 	ex, err := e.GetExchange(exch)
-
 	if err != nil {
 		return
 	}

@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/d5/tengo/objects"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -60,7 +59,7 @@ func ExchangeOrderbook(args ...objects.Object) (ret objects.Object, err error) {
 		bids.Value = append(bids.Value, &objects.Map{Value: temp})
 	}
 
-	data := make(map[string]objects.Object, 13)
+	data := make(map[string]objects.Object, 5)
 	data["exchange"] = &objects.String{Value: ob.ExchangeName}
 	data["pair"] = &objects.String{Value: ob.Pair.String()}
 	data["asks"] = &asks
@@ -92,7 +91,7 @@ func ExchangeTicker(args ...objects.Object) (ret objects.Object, err error) {
 		return
 	}
 
-	data := make(map[string]objects.Object, 13)
+	data := make(map[string]objects.Object, 14)
 	data["exchange"] = &objects.String{Value: tx.ExchangeName}
 	data["last"] = &objects.Float{Value: tx.Last}
 	data["High"] = &objects.Float{Value: tx.High}
@@ -208,7 +207,7 @@ func ExchangeOrderQuery(args ...objects.Object) (ret objects.Object, err error) 
 
 	var tradeHistory objects.Array
 	for x := range orderDetails.Trades {
-		temp := make(map[string]objects.Object, 3)
+		temp := make(map[string]objects.Object, 7)
 		temp["timestamp"] = &objects.Time{Value: orderDetails.Trades[x].Timestamp}
 		temp["price"] = &objects.Float{Value: orderDetails.Trades[x].Price}
 		temp["fee"] = &objects.Float{Value: orderDetails.Trades[x].Fee}
@@ -219,7 +218,7 @@ func ExchangeOrderQuery(args ...objects.Object) (ret objects.Object, err error) 
 		tradeHistory.Value = append(tradeHistory.Value, &objects.Map{Value: temp})
 	}
 
-	data := make(map[string]objects.Object, 13)
+	data := make(map[string]objects.Object, 14)
 	data["exchange"] = &objects.String{Value: orderDetails.Exchange}
 	data["id"] = &objects.String{Value: orderDetails.ID}
 	data["accountid"] = &objects.String{Value: orderDetails.AccountID}

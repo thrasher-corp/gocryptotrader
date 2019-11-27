@@ -2,14 +2,12 @@ package gct
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/d5/tengo/objects"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -360,7 +358,6 @@ func (w Wrapper) SubmitOrder(exch string, submit *order.Submit) (*order.SubmitRe
 		tempOrder.IsOrderPlaced = true
 	}
 
-	fmt.Println(tempOrder)
 	return tempOrder, nil
 }
 
