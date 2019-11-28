@@ -18,6 +18,7 @@ import (
 
 	"github.com/pquerna/otp/totp"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -867,12 +868,12 @@ func genCert(targetDir string) error {
 		return fmt.Errorf("key pem data is nil")
 	}
 
-	err = common.WriteFile(filepath.Join(targetDir, "key.pem"), keyData)
+	err = file.Write(filepath.Join(targetDir, "key.pem"), keyData)
 	if err != nil {
 		return fmt.Errorf("failed to write key.pem file %s", err)
 	}
 
-	err = common.WriteFile(filepath.Join(targetDir, "cert.pem"), certData)
+	err = file.Write(filepath.Join(targetDir, "cert.pem"), certData)
 	if err != nil {
 		return fmt.Errorf("failed to write cert.pem file %s", err)
 	}

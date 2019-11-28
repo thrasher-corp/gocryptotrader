@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 )
 
 // Write implementation to satisfy io.Writer handles length check and rotation
@@ -78,7 +80,7 @@ func (r *Rotate) openNew() error {
 		timestamp := time.Now().Format("2006-01-02T15-04-05")
 		newName := filepath.Join(LogPath, timestamp+"-"+r.FileName)
 
-		err = os.Rename(name, newName)
+		err = file.Move(name, newName)
 		if err != nil {
 			return fmt.Errorf("can't rename log file: %s", err)
 		}

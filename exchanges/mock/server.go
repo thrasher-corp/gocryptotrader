@@ -15,6 +15,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 )
 
 // DefaultDirectory defines the main mock directory
@@ -56,7 +57,7 @@ func NewVCRServer(path string) (string, *http.Client, error) {
 			return "", nil, jErr
 		}
 
-		err = common.WriteFile(path, data)
+		err = file.Write(path, data)
 		if err != nil {
 			return "", nil, err
 		}

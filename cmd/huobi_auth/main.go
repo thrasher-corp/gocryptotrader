@@ -13,7 +13,7 @@ import (
 	"io/ioutil"
 	"log"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 )
 
 func encodePEM(privKey *ecdsa.PrivateKey, pubKey bool) ([]byte, error) {
@@ -54,8 +54,8 @@ func decodePEM(pemPrivKey []byte) (*ecdsa.PrivateKey, error) {
 	return x509.ParseECPrivateKey(x509Enc)
 }
 
-func writeFile(file string, data []byte) error {
-	return common.WriteFile(file, data)
+func writeFile(fileName string, data []byte) error {
+	return file.Write(fileName, data)
 }
 
 func main() {
