@@ -1,6 +1,7 @@
 package file
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -27,11 +28,18 @@ func Move(sourcePath, destPath string) error {
 		inputFile.Close()
 		return err
 	}
-	defer outputFile.Close()
 
 	_, err = io.Copy(outputFile, inputFile)
 	inputFile.Close()
+	outputFile.Close()
 	if err != nil {
+		if errRem := os.Remove(destPath); errRem != nil {
+			return fmt.Errorf(
+				"unable to os.Remove error: %s after io.Copy error: %s",
+				errRem,
+				err,
+			)
+		}
 		return err
 	}
 
