@@ -32,12 +32,38 @@ const (
 	ContributorFile = "CONTRIBUTORS"
 )
 
-// DefaultExcludedDirectories defines the basic directory exclusion list for GCT
-var DefaultExcludedDirectories = []string{".github",
-	".git",
-	"node_modules",
-	".vscode",
-	".idea"}
+var (
+	// DefaultExcludedDirectories defines the basic directory exclusion list for GCT
+	DefaultExcludedDirectories = []string{".github",
+		".git",
+		"node_modules",
+		".vscode",
+		".idea",
+		"cmd_templates",
+		"common_templates",
+		"communications_templates",
+		"config_templates",
+		"currency_templates",
+		"events_templates",
+		"exchanges_templates",
+		"portfolio_templates",
+		"root_templates",
+		"sub_templates",
+		"testdata_templates",
+		"tools_templates",
+		"web_templates",
+	}
+
+	// global flag for verbosity
+	verbose bool
+	// current tool directory to specify working templates
+	toolDir string
+	// exposes root directory if outside of document tool directory
+	repoDir string
+	// is a broken down version of the documentation tool dir for cross platform
+	// checking
+	ref = []string{"gocryptotrader", "cmd", "documentation"}
+)
 
 // Contributor defines an account associated with this code base by doing
 // contributions
@@ -50,12 +76,11 @@ type Contributor struct {
 // Config defines the running config to deploy documentation across a github
 // repository including exclusion lists for files and directories
 type Config struct {
-	GithubRepo          string     `json:"githubRepo"`
-	Exclusions          Exclusions `json:"exclusionList"`
-	RootReadme          bool       `json:"rootReadmeActive"`
-	LicenseFile         bool       `json:"licenseFileActive"`
-	ContributorFile     bool       `json:"contributorFileActive"`
-	ReferencePathToRepo string     `json:"referencePathToRepo"`
+	GithubRepo      string     `json:"githubRepo"`
+	Exclusions      Exclusions `json:"exclusionList"`
+	RootReadme      bool       `json:"rootReadmeActive"`
+	LicenseFile     bool       `json:"licenseFileActive"`
+	ContributorFile bool       `json:"contributorFileActive"`
 }
 
 // Exclusions defines the exclusion list so documents are not generated
@@ -69,7 +94,6 @@ type DocumentationDetails struct {
 	Directories  []string
 	Tmpl         *template.Template
 	Contributors []Contributor
-	Verbose      bool
 	Config       *Config
 }
 
@@ -84,15 +108,33 @@ type Attributes struct {
 }
 
 func main() {
-	verbose := flag.Bool("v", false, "Verbose output")
-
+	flag.BoolVar(&verbose, "v", false, "Verbose output")
+	flag.StringVar(&toolDir, "tool", "", "pass in the documentation tool directory if outside tool folder")
 	flag.Parse()
+
+	wd, err := os.Getwd()
+	if err != nil {
+		fmt.Println("Documentation tool error cannot get working dir:", err)
+		os.Exit(1)
+	}
+
+	if strings.Contains(wd, filepath.Join(ref...)) {
+		rootdir := filepath.Dir(filepath.Dir(wd))
+		repoDir = rootdir
+		toolDir = wd
+	} else {
+		if toolDir == "" {
+			fmt.Println("Please set documentation tool directory via the tool flag if working outside of tool directory")
+			os.Exit(1)
+		}
+		repoDir = wd
+	}
 
 	fmt.Println(core.Banner)
 	fmt.Println("This will update and regenerate documentation for the different packages in your repo.")
 	fmt.Println()
 
-	if *verbose {
+	if verbose {
 		fmt.Println("Fetching configuration...")
 	}
 
@@ -102,11 +144,11 @@ func main() {
 			err)
 	}
 
-	if *verbose {
+	if verbose {
 		fmt.Println("Fetching project directory tree...")
 	}
 
-	dirList, err := GetProjectDirectoryTree(&config, *verbose)
+	dirList, err := GetProjectDirectoryTree(&config)
 	if err != nil {
 		log.Fatalf("Documentation Generation Tool - GetProjectDirectoryTree error %s",
 			err)
@@ -114,7 +156,7 @@ func main() {
 
 	var contributors []Contributor
 	if config.ContributorFile {
-		if *verbose {
+		if verbose {
 			fmt.Println("Fetching repository contributor list...")
 		}
 		contributors, err = GetContributorList(config.GithubRepo)
@@ -159,7 +201,7 @@ func main() {
 			},
 		}...)
 
-		if *verbose {
+		if verbose {
 			fmt.Println("Contributor List Fetched")
 			for i := range contributors {
 				fmt.Println(contributors[i].Login)
@@ -169,7 +211,7 @@ func main() {
 		fmt.Println("Contributor list file disabled skipping fetching details")
 	}
 
-	if *verbose {
+	if verbose {
 		fmt.Println("Fetching template files...")
 	}
 
@@ -179,7 +221,7 @@ func main() {
 			err)
 	}
 
-	if *verbose {
+	if verbose {
 		fmt.Println("All core systems fetched, updating documentation...")
 	}
 
@@ -187,7 +229,6 @@ func main() {
 		dirList,
 		tmpl,
 		contributors,
-		*verbose,
 		&config})
 	if err != nil {
 		log.Fatalf("Documentation Generation Tool - UpdateDocumentation error %s",
@@ -200,11 +241,12 @@ func main() {
 // GetConfiguration retrieves the documentation configuration
 func GetConfiguration() (Config, error) {
 	var c Config
-	file, err := os.OpenFile("config.json", os.O_RDWR, os.ModePerm)
+	configFilePath := filepath.Join([]string{toolDir, "config.json"}...)
+	file, err := os.OpenFile(configFilePath, os.O_RDWR, os.ModePerm)
 	if err != nil {
 		fmt.Println("Creating configuration file, please check to add a different github repository path and change preferences")
 
-		file, err = os.Create("config.json")
+		file, err = os.Create(configFilePath)
 		if err != nil {
 			return c, err
 		}
@@ -214,7 +256,6 @@ func GetConfiguration() (Config, error) {
 		c.ContributorFile = true
 		c.LicenseFile = true
 		c.RootReadme = true
-		c.ReferencePathToRepo = "../../"
 		c.Exclusions.Directories = DefaultExcludedDirectories
 
 		data, mErr := json.MarshalIndent(c, "", " ")
@@ -244,10 +285,6 @@ func GetConfiguration() (Config, error) {
 		return c, errors.New("repository not set in config.json file, please change")
 	}
 
-	if c.ReferencePathToRepo == "" {
-		return c, errors.New("reference path not set in the config.json file, please set")
-	}
-
 	return c, nil
 }
 
@@ -263,18 +300,18 @@ func IsExcluded(path string, exclusion []string) bool {
 
 // GetProjectDirectoryTree uses filepath walk functions to get each individual
 // directory name and path to match templates with
-func GetProjectDirectoryTree(c *Config, verbose bool) ([]string, error) {
+func GetProjectDirectoryTree(c *Config) ([]string, error) {
 	var directoryData []string
 	if c.RootReadme { // Projects root README.md
-		directoryData = append(directoryData, c.ReferencePathToRepo)
+		directoryData = append(directoryData, repoDir)
 	}
 
 	if c.LicenseFile { // Standard license file
-		directoryData = append(directoryData, c.ReferencePathToRepo+LicenseFile)
+		directoryData = append(directoryData, filepath.Join(repoDir, LicenseFile))
 	}
 
 	if c.ContributorFile { // Standard contributor file
-		directoryData = append(directoryData, c.ReferencePathToRepo+ContributorFile)
+		directoryData = append(directoryData, filepath.Join(repoDir, ContributorFile))
 	}
 
 	walkfn := func(path string, info os.FileInfo, err error) error {
@@ -298,7 +335,7 @@ func GetProjectDirectoryTree(c *Config, verbose bool) ([]string, error) {
 		return nil
 	}
 
-	return directoryData, filepath.Walk(c.ReferencePathToRepo, walkfn)
+	return directoryData, filepath.Walk(repoDir, walkfn)
 }
 
 // GetTemplateFiles parses and returns all template files in the documentation
@@ -318,6 +355,9 @@ func GetTemplateFiles() (*template.Template, error) {
 			var parseError error
 			tmpl, parseError = tmpl.ParseGlob(filepath.Join(path, "*.tmpl"))
 			if parseError != nil {
+				if strings.Contains(parseError.Error(), "pattern matches no files") {
+					return nil
+				}
 				return parseError
 			}
 			return filepath.SkipDir
@@ -325,7 +365,7 @@ func GetTemplateFiles() (*template.Template, error) {
 		return nil
 	}
 
-	return tmpl, filepath.Walk(".", walkfn)
+	return tmpl, filepath.Walk(toolDir, walkfn)
 }
 
 // GetContributorList fetches a list of contributors from the github api
@@ -376,18 +416,23 @@ func GetGoDocURL(name string) string {
 // UpdateDocumentation generates or updates readme/documentation files across
 // the codebase
 func UpdateDocumentation(details DocumentationDetails) error {
-	for _, path := range details.Directories {
-		data := strings.Split(path, "/")
+	for i := range details.Directories {
+		cutset := details.Directories[i][len(repoDir):]
+		if cutset != "" && cutset[0] == os.PathSeparator {
+			cutset = cutset[1:]
+		}
+
+		data := strings.Split(cutset, string(os.PathSeparator))
+
 		var temp []string
-		for _, d := range data {
-			if d == ".." {
+		for x := range data {
+			if data[x] == ".." {
 				continue
 			}
-			if d == "" {
+			if data[x] == "" {
 				break
 			}
-
-			temp = append(temp, d)
+			temp = append(temp, data[x])
 		}
 
 		var name string
@@ -398,7 +443,7 @@ func UpdateDocumentation(details DocumentationDetails) error {
 		}
 
 		if IsExcluded(name, details.Config.Exclusions.Files) {
-			if details.Verbose {
+			if verbose {
 				fmt.Println("Excluding file:", name)
 			}
 			continue
@@ -406,20 +451,21 @@ func UpdateDocumentation(details DocumentationDetails) error {
 
 		if details.Tmpl.Lookup(name) == nil {
 			fmt.Printf("Template not found for path %s create new template with {{define \"%s\" -}} TEMPLATE HERE {{end}}\n",
-				path,
+				details.Directories[i],
 				name)
 			continue
 		}
 
 		var mainPath string
 		if name == LicenseFile || name == ContributorFile {
-			mainPath = path
+			mainPath = details.Directories[i]
 		} else {
-			mainPath = filepath.Join(path, "README.md")
+			mainPath = filepath.Join(details.Directories[i], "README.md")
 		}
 
 		err := os.Remove(mainPath)
-		if err != nil && !strings.Contains(err.Error(), "no such file or directory") {
+		if err != nil && !(strings.Contains(err.Error(), "no such file or directory") ||
+			strings.Contains(err.Error(), "The system cannot find the file specified.")) {
 			return err
 		}
 
@@ -427,14 +473,15 @@ func UpdateDocumentation(details DocumentationDetails) error {
 		if err != nil {
 			return err
 		}
-		defer file.Close()
 
 		attr := GetDocumentationAttributes(name, details.Contributors)
 
 		err = details.Tmpl.ExecuteTemplate(file, name, attr)
 		if err != nil {
+			file.Close()
 			return err
 		}
+		file.Close()
 	}
 	return nil
 }
