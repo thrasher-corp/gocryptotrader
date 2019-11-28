@@ -2,22 +2,27 @@ package nonce
 
 import (
 	"strconv"
-	"sync/atomic"
+	"sync"
 )
 
 // Nonce struct holds the nonce value
 type Nonce struct {
 	n int64
+	m sync.Mutex
 }
 
 // Inc increments the nonce value
 func (n *Nonce) Inc() {
-	atomic.AddInt64(&n.n, 1)
+	n.m.Lock()
+	n.n++
+	n.m.Unlock()
 }
 
 // Get retrives the nonce value
 func (n *Nonce) Get() Value {
-	return Value(atomic.LoadInt64(&n.n))
+	n.m.Lock()
+	defer n.m.Unlock()
+	return Value(n.n)
 }
 
 // GetInc increments and returns the value of the nonce
@@ -28,7 +33,9 @@ func (n *Nonce) GetInc() Value {
 
 // Set sets the nonce value
 func (n *Nonce) Set(val int64) {
-	atomic.StoreInt64(&n.n, val)
+	n.m.Lock()
+	n.n = val
+	n.m.Unlock()
 }
 
 // String returns a string version of the nonce
