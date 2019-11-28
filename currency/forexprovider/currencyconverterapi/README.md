@@ -29,15 +29,15 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + Individual package example below:
 ```go
 import (
-"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
-"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/currencyconverter"
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/currencyconverter"
 )
 
 c := currencyconverter.CurrencyConverter{}
 
 // Define configuration
 newSettings := base.Settings{
-  Name: "CurrencyConverter",
+ 	Name: "CurrencyConverter",
 	Enabled: true,
 	Verbose: false,
 	RESTPollingDelay: time.Duration,

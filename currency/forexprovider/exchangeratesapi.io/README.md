@@ -29,15 +29,15 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + Individual package example below:
 ```go
 import (
-"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
-"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/exchangerates"
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/exchangerates"
 )
 
 c := exchangerates.ExchangeRates{}
 
 // Define configuration
 newSettings := base.Settings{
-  Name: "ExchangeRates",
+  	Name: "ExchangeRates",
 	Enabled: true,
 	Verbose: false,
 	RESTPollingDelay: time.Duration,

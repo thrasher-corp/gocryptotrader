@@ -29,15 +29,15 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + Individual package example below:
 ```go
 import (
-"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
-"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/fixer.io"
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/fixer.io"
 )
 
 c := fixer.Fixer{}
 
 // Define configuration
 newSettings := base.Settings{
-  Name: "Fixer",
+  	Name: "Fixer",
 	Enabled: true,
 	Verbose: false,
 	RESTPollingDelay: time.Duration,
