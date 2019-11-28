@@ -109,7 +109,7 @@ type Attributes struct {
 
 func main() {
 	flag.BoolVar(&verbose, "v", false, "Verbose output")
-	flag.StringVar(&toolDir, "tool", "", "pass in the documentation tool directory if outside tool folder")
+	flag.StringVar(&toolDir, "tooldir", "", "Pass in the documentation tool directory if outside tool folder")
 	flag.Parse()
 
 	wd, err := os.Getwd()
@@ -124,7 +124,7 @@ func main() {
 		toolDir = wd
 	} else {
 		if toolDir == "" {
-			fmt.Println("Please set documentation tool directory via the tool flag if working outside of tool directory")
+			fmt.Println("Please set documentation tool directory via the tooldir flag if working outside of tool directory")
 			os.Exit(1)
 		}
 		repoDir = wd
