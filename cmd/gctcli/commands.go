@@ -2976,8 +2976,8 @@ var gctScriptCommand = cli.Command{
 			Usage: "upload a new script/archive",
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:        "name",
-					Usage:       "<name>",
+					Name:        "path",
+					Usage:       "<path> to single script or zip collection",
 					Destination: &filename,
 				},
 				cli.BoolFlag{
@@ -3130,7 +3130,7 @@ func gctScriptUpload(c *cli.Context) error {
 
 	var overwrite bool
 	var archived bool
-	if !c.IsSet("script") {
+	if !c.IsSet("path") {
 		if c.Args().Get(0) != "" {
 			filename = c.Args().Get(0)
 		}

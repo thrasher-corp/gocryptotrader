@@ -16,22 +16,23 @@ type gctScriptManager struct {
 	shutdown chan struct{}
 }
 
+// Started returns if gctscript manager subsystem is started
 func (g *gctScriptManager) Started() bool {
 	return g.running.Load() == true
 }
 
-func (g *gctScriptManager) Start() (err error) {
+// Start starts gctscript subsystem and creates shutdown channel
+func (g *gctScriptManager) Start() error {
 	if g.Started() {
 		return fmt.Errorf("%s %s", name, ErrSubSystemAlreadyStarted)
 	}
 	log.Debugf(log.Global, "%s %s", name, MsgSubSystemStarting)
-
 	g.shutdown = make(chan struct{})
-
 	go g.run()
-	return
+	return nil
 }
 
+// Stop stops gctscript subsystem along with all running Virtual Machines
 func (g *gctScriptManager) Stop() error {
 	if !g.Started() {
 		return fmt.Errorf("%s %s", name, ErrSubSystemAlreadyStarted)

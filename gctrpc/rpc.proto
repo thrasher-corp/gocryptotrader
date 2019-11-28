@@ -543,7 +543,10 @@ message GCTScriptStopRequest {
     GCTScript script = 1;
 }
 
+message GCTScriptStopAllRequest{}
+
 message GCTScriptStatusRequest {}
+message GCTScriptListAllRequest{}
 
 message GCTScriptUploadRequest {
     string script_name = 1;
@@ -907,6 +910,20 @@ service GoCryptoTrader {
     }
 
     rpc GCTScriptStop(GCTScriptStopRequest) returns (GCTScriptGenericResponse) {
+        option (google.api.http) = {
+            post: "/v1/gctscript/stop",
+            body: "*"
+        };
+    }
+
+    rpc GCTScriptStopAll(GCTScriptStopAllRequest) returns (GCTScriptGenericResponse) {
+        option (google.api.http) = {
+            post: "/v1/gctscript/stop",
+            body: "*"
+        };
+    }
+
+    rpc GCTScriptListAll(GCTScriptListAllRequest) returns (GCTScriptStatusResponse) {
         option (google.api.http) = {
             post: "/v1/gctscript/stop",
             body: "*"

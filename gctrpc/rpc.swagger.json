@@ -357,12 +357,12 @@
     },
     "/v1/gctscript/stop": {
       "post": {
-        "operationId": "GCTScriptStop",
+        "operationId": "GCTScriptListAll",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptGenericResponse"
+              "$ref": "#/definitions/gctrpcGCTScriptStatusResponse"
             }
           }
         },
@@ -372,7 +372,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptStopRequest"
+              "$ref": "#/definitions/gctrpcGCTScriptListAllRequest"
             }
           }
         ],
@@ -1645,6 +1645,9 @@
         }
       }
     },
+    "gctrpcGCTScriptListAllRequest": {
+      "type": "object"
+    },
     "gctrpcGCTScriptReadScriptRequest": {
       "type": "object",
       "properties": {
@@ -1666,6 +1669,9 @@
           }
         }
       }
+    },
+    "gctrpcGCTScriptStopAllRequest": {
+      "type": "object"
     },
     "gctrpcGCTScriptStopRequest": {
       "type": "object",

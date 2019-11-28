@@ -1221,9 +1221,7 @@ func (s *RPCServer) GCTScriptStatus(ctx context.Context, r *gctrpc.GCTScriptStat
 		return &gctrpc.GCTScriptStatusResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
-	total := len(gctscript.AllVMs)
-
-	if total < 1 {
+	if len(gctscript.AllVMs) < 1 {
 		return &gctrpc.GCTScriptStatusResponse{Status: "no scripts running"}, nil
 	}
 
@@ -1282,8 +1280,12 @@ func (s *RPCServer) GCTScriptStop(ctx context.Context, r *gctrpc.GCTScriptStopRe
 	}
 
 	if v, f := gctscript.AllVMs[UUID]; f {
-		_ = v.Shutdown()
-		return &gctrpc.GCTScriptGenericResponse{Status: "ok", Data: v.ID.String() + " terminated"}, nil
+		err = v.Shutdown()
+		status := " terminated"
+		if err != nil {
+			status = err.Error()
+		}
+		return &gctrpc.GCTScriptGenericResponse{Status: "ok", Data: v.ID.String() + status}, nil
 	}
 	return &gctrpc.GCTScriptGenericResponse{Status: "error", Data: "no running script found"}, nil
 }
@@ -1402,4 +1404,14 @@ func (s *RPCServer) GCTScriptReadScript(ctx context.Context, r *gctrpc.GCTScript
 		Status: "ok",
 		Data:   string(data),
 	}, nil
+}
+
+// GCTScriptListAll lists all scripts inside the default script path
+func (s *RPCServer) GCTScriptListAll(context.Context, *gctrpc.GCTScriptListAllRequest) (*gctrpc.GCTScriptStatusResponse, error) {
+	return nil, nil
+}
+
+// GCTScriptStopAll stops all running scripts
+func (s *RPCServer) GCTScriptStopAll(context.Context, *gctrpc.GCTScriptStopAllRequest) (*gctrpc.GCTScriptGenericResponse, error) {
+	return nil, nil
 }
