@@ -69,6 +69,7 @@ func (o *orderManager) Start() error {
 	go o.run()
 	return nil
 }
+
 func (o *orderManager) Stop() error {
 	if atomic.LoadInt32(&o.started) == 0 {
 		return errors.New("order manager not started")

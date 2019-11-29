@@ -2972,6 +2972,11 @@ var gctScriptCommand = cli.Command{
 			Action: gctScriptStop,
 		},
 		{
+			Name:  "stopall",
+			Usage: "terminate running script",
+			Action: gctScriptStopAll,
+		},
+		{
 			Name:  "upload",
 			Usage: "upload a new script/archive",
 			Flags: []cli.Flag{
@@ -3078,6 +3083,26 @@ func gctScriptStop(c *cli.Context) error {
 		&gctrpc.GCTScriptStopRequest{
 			Script: &gctrpc.GCTScript{UUID: uuid},
 		})
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(executeCommand)
+	return nil
+}
+
+func gctScriptStopAll(c *cli.Context) error {
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	executeCommand, err := client.GCTScriptStopAll(context.Background(),
+		&gctrpc.GCTScriptStopAllRequest{})
 
 	if err != nil {
 		return err

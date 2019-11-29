@@ -20,7 +20,7 @@ func New() *VM {
 
 // ShutdownAll shutdown all
 func ShutdownAll() (err error) {
-	if GCTScriptConfig.DebugMode {
+	if GCTScriptConfig.Verbose {
 		log.Debugln(log.GCTScriptMgr, "Shutting down all Virtual Machines")
 	}
 
@@ -46,7 +46,7 @@ func RemoveVM(id uuid.UUID) error {
 	}
 
 	delete(AllVMs, id)
-	if GCTScriptConfig.DebugMode {
+	if GCTScriptConfig.Verbose {
 		log.Debugf(log.GCTScriptMgr, "VM %v removed from AllVMs", id)
 	}
 	return nil

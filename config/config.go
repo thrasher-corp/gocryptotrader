@@ -1225,7 +1225,7 @@ func (c *Config) checkGCTScriptConfig() error {
 	defer m.Unlock()
 
 	if c.GCTScript.ScriptTimeout <= 0 {
-		c.GCTScript.ScriptTimeout = 6000000
+		c.GCTScript.ScriptTimeout = gctscript.DefaultTimeoutValue
 	}
 
 	scriptPath := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "scripts")

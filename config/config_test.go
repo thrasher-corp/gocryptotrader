@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/ntpclient"
 )
@@ -1804,6 +1805,19 @@ func TestDisableNTPCheck(t *testing.T) {
 	_, err = c.DisableNTPCheck(strings.NewReader(" "))
 	if err.Error() != "EOF" {
 		t.Errorf("failed expected EOF got: %v", err)
+	}
+}
+
+func TestCheckGCTScriptConfig(t *testing.T) {
+	t.Parallel()
+
+	var c Config
+	if err := c.checkGCTScriptConfig(); err != nil {
+		t.Error(err)
+	}
+
+	if c.GCTScript.ScriptTimeout != gctscript.DefaultTimeoutValue {
+		t.Fatal("unexpected value return")
 	}
 }
 

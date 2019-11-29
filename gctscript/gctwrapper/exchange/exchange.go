@@ -101,26 +101,16 @@ func (e Exchange) QueryOrder(exch, orderID string) (*order.Detail, error) {
 
 // SubmitOrder submit new order on exchange
 func (e Exchange) SubmitOrder(exch string, submit *order.Submit) (*order.SubmitResponse, error) {
-	ex, err := e.GetExchange(exch)
+	r, err := engine.Bot.OrderManager.Submit(exch, submit)
 	if err != nil {
 		return nil, err
 	}
 
-	r, err := ex.SubmitOrder(submit)
-	if err != nil {
-		return nil, err
-	}
-
-	return &r, nil
+	return &r.SubmitResponse, nil
 }
 
 // CancelOrder wrapper to cancel order on exchange
 func (e Exchange) CancelOrder(exch, orderID string) (bool, error) {
-	ex, err := e.GetExchange(exch)
-	if err != nil {
-		return false, err
-	}
-
 	orderDetails, err := e.QueryOrder(exch, orderID)
 	if err != nil {
 		return false, err
@@ -133,7 +123,7 @@ func (e Exchange) CancelOrder(exch, orderID string) (bool, error) {
 		Side:         orderDetails.OrderSide,
 	}
 
-	err = ex.CancelOrder(cancel)
+	err = engine.Bot.OrderManager.Cancel(exch, cancel)
 	if err != nil {
 		return false, err
 	}

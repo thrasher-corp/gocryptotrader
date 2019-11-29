@@ -24,11 +24,11 @@ func newVM() *VM {
 		return nil
 	}
 
-	if GCTScriptConfig.DebugMode {
+	if GCTScriptConfig.Verbose {
 		log.Debugln(log.GCTScriptMgr, "New GCTScript VM created")
 	}
 
-	audit.Event(newUUID.String(), GCTScriptAuditEvent, "virtual machine created")
+	audit.Event(newUUID.String(), AuditEventName, "virtual machine created")
 
 	return &VM{
 		ID:     newUUID,
@@ -45,7 +45,7 @@ func (vm *VM) Load(file string) error {
 		}
 	}
 
-	if GCTScriptConfig.DebugMode {
+	if GCTScriptConfig.Verbose {
 		log.Debugf(log.GCTScriptMgr, "Loading script: %v", file)
 	}
 
@@ -73,12 +73,12 @@ func (vm *VM) Load(file string) error {
 	vm.Script.SetImports(loader.GetModuleMap())
 
 	if GCTScriptConfig.AllowImports {
-		if GCTScriptConfig.DebugMode {
+		if GCTScriptConfig.Verbose {
 			log.Debugf(log.GCTScriptMgr, "file imports enabled for vm: %v", vm.ID)
 		}
 		vm.Script.EnableFileImport(true)
 	}
-	audit.Event(vm.ID.String(), GCTScriptAuditEvent, "Script loaded")
+	audit.Event(vm.ID.String(), AuditEventName, "Script loaded")
 	return nil
 }
 
@@ -91,7 +91,7 @@ func (vm *VM) Compile() (err error) {
 
 // Run runs byte code
 func (vm *VM) Run() (err error) {
-	audit.Event(vm.ID.String(), GCTScriptAuditEvent, "Script executed")
+	audit.Event(vm.ID.String(), AuditEventName, "Script executed")
 	return vm.Compiled.Run()
 }
 
@@ -104,7 +104,7 @@ func (vm *VM) RunCtx() (err error) {
 	ct, cancel := context.WithTimeout(vm.ctx, GCTScriptConfig.ScriptTimeout)
 	defer cancel()
 
-	audit.Event(vm.ID.String(), GCTScriptAuditEvent, "Script executed")
+	audit.Event(vm.ID.String(), AuditEventName, "Script executed")
 
 	err = vm.Compiled.RunContext(ct)
 	if err != nil {
@@ -124,7 +124,7 @@ func (vm *VM) CompileAndRun() {
 		return
 	}
 
-	if GCTScriptConfig.DebugMode {
+	if GCTScriptConfig.Verbose {
 		log.Debugf(log.GCTScriptMgr, "Running script: %v", vm.ID)
 	}
 
@@ -164,7 +164,7 @@ func (vm *VM) Shutdown() error {
 		vm.S <- struct{}{}
 		close(vm.S)
 	}
-	if GCTScriptConfig.DebugMode {
+	if GCTScriptConfig.Verbose {
 		log.Debugf(log.GCTScriptMgr, "Shutting script: %v", vm.ID)
 	}
 	return RemoveVM(vm.ID)
@@ -172,11 +172,11 @@ func (vm *VM) Shutdown() error {
 
 // Read contents of script back
 func (vm *VM) Read() ([]byte, error) {
-	if GCTScriptConfig.DebugMode {
+	if GCTScriptConfig.Verbose {
 		log.Debugf(log.GCTScriptMgr, "Read script: %v", vm.ID)
 	}
 
-	audit.Event(vm.ID.String(), GCTScriptAuditEvent, "Script contents read")
+	audit.Event(vm.ID.String(), AuditEventName, "Script contents read")
 	return ioutil.ReadFile(vm.file)
 }
 

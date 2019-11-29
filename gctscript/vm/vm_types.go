@@ -37,4 +37,7 @@ var (
 	}
 )
 
-const GCTScriptAuditEvent = "gctscript"
+// AuditEventName name to use for audit event logging
+const AuditEventName = "gctscript"
+// DefaultTimeoutValue default timeout value for virtual machines
+const DefaultTimeoutValue = 1*time.Minute
