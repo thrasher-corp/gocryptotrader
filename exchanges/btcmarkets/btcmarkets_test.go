@@ -210,12 +210,12 @@ func TestCancelOpenOrders(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	temp := []string{BTCAUD, LTCAUD}
-	_, err := b.CancelOpenOrders(temp)
+	_, err := b.CancelAllOpenOrdersByPairs(temp)
 	if err != nil {
 		t.Error(err)
 	}
 	temp = []string{BTCAUD, fakePair}
-	_, err = b.CancelOpenOrders(temp)
+	_, err = b.CancelAllOpenOrdersByPairs(temp)
 	if err == nil {
 		t.Error("expected an error due to invalid marketID")
 	}

@@ -387,8 +387,8 @@ func (b *BTCMarkets) GetOrders(marketID string, before, after, limit int64, stat
 		common.EncodeURLValues(btcMarketsOrders, params), nil, &resp)
 }
 
-// CancelOpenOrders cancels all open orders unless pairs are specified
-func (b *BTCMarkets) CancelOpenOrders(marketIDs []string) ([]CancelOrderResp, error) {
+// CancelAllOpenOrdersByPairs cancels all open orders unless pairs are specified
+func (b *BTCMarkets) CancelAllOpenOrdersByPairs(marketIDs []string) ([]CancelOrderResp, error) {
 	var resp []CancelOrderResp
 	req := make(map[string]interface{})
 	if len(marketIDs) > 0 {
