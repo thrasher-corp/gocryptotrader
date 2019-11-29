@@ -421,15 +421,16 @@ func (g *Gateio) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 
 	response, err := g.SpotNewOrder(spotNewOrderRequestParams)
+	if err != nil {
+		return submitOrderResponse, err
+	}
 	if response.OrderNumber > 0 {
 		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderNumber, 10)
 	}
 
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
-	}
+	submitOrderResponse.IsOrderPlaced = true
 
-	return submitOrderResponse, err
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

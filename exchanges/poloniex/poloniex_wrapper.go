@@ -372,13 +372,15 @@ func (p *Poloniex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		false,
 		fillOrKill,
 		isBuyOrder)
+	if err != nil {
+		return submitOrderResponse, err
+	}
 	if response.OrderNumber > 0 {
 		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderNumber, 10)
 	}
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
-	}
-	return submitOrderResponse, err
+
+	submitOrderResponse.IsOrderPlaced = true
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

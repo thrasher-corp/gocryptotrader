@@ -386,8 +386,8 @@ func (h *HitBTC) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 	if h.Websocket.IsConnected() && h.Websocket.CanUseAuthenticatedEndpoints() {
 		var response *WsSubmitOrderSuccessResponse
 		response, err = h.wsPlaceOrder(o.Pair, o.OrderSide.String(), o.Amount, o.Price)
-		if err == nil {
-			submitOrderResponse.IsOrderPlaced = true
+		if err != nil {
+			return submitOrderResponse, err
 		}
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.ID)
 	} else {
@@ -397,14 +397,17 @@ func (h *HitBTC) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			o.Amount,
 			strings.ToLower(o.OrderType.String()),
 			strings.ToLower(o.OrderSide.String()))
+		if err != nil {
+			return submitOrderResponse, err
+		}
 		if response.OrderNumber > 0 {
 			submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderNumber)
 		}
-		if err == nil {
-			submitOrderResponse.IsOrderPlaced = true
-		}
+
 	}
-	return submitOrderResponse, err
+	submitOrderResponse.IsOrderPlaced = true
+
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

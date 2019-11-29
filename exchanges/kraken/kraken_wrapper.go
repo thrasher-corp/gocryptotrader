@@ -431,7 +431,7 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		submitOrderResponse.OrderID = resp
 		submitOrderResponse.IsOrderPlaced = true
 
-		return submitOrderResponse, err
+		return submitOrderResponse, nil
 	}
 	var response AddOrderResponse
 	response, err = k.AddOrder(s.Pair.String(),
@@ -442,13 +442,15 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		0,
 		0,
 		&AddOrderOptions{})
+	if err == nil {
+		return submitOrderResponse, err
+	}
 	if len(response.TransactionIds) > 0 {
 		submitOrderResponse.OrderID = strings.Join(response.TransactionIds, ", ")
 	}
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
-	}
-	return submitOrderResponse, err
+
+	submitOrderResponse.IsOrderPlaced = true
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

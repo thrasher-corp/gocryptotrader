@@ -392,8 +392,9 @@ func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			Amount:   o.Amount,
 			Price:    o.Price,
 		})
-		if err == nil {
-			submitOrderResponse.IsOrderPlaced = true
+		if err != nil {
+			submitOrderResponse.IsOrderPlaced = false
+			return submitOrderResponse, err
 		}
 	} else {
 		var isBuying bool
@@ -408,17 +409,14 @@ func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			isBuying,
 			o.OrderType.String(),
 			false)
-
+		if err != nil {
+			submitOrderResponse.IsOrderPlaced = false
+			return submitOrderResponse, err
+		}
 		if response.OrderID > 0 {
-			submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderID)
+			submitOrderResponse.OrderID = strconv.FormatInt(response.OrderID, 10)
 		}
-
-		if err == nil {
-			submitOrderResponse.IsOrderPlaced = true
-		}
-	}
-	if !submitOrderResponse.IsOrderPlaced && err == nil {
-		err = errors.New(b.Name + " - Order failed to be placed without reason")
+		submitOrderResponse.IsOrderPlaced = true
 	}
 	return submitOrderResponse, err
 }

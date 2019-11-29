@@ -324,13 +324,15 @@ func (y *Yobit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		s.OrderSide.String(),
 		s.Amount,
 		s.Price)
+	if err != nil {
+		return submitOrderResponse, err
+	}
 	if response > 0 {
 		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
 	}
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
-	}
-	return submitOrderResponse, err
+
+	submitOrderResponse.IsOrderPlaced = true
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

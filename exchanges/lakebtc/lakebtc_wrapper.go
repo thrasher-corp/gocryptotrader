@@ -334,13 +334,15 @@ func (l *LakeBTC) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	isBuyOrder := s.OrderSide == order.Buy
 	response, err := l.Trade(isBuyOrder, s.Amount, s.Price,
 		s.Pair.Lower().String())
+	if err != nil {
+		return submitOrderResponse, err
+	}
 	if response.ID > 0 {
 		submitOrderResponse.OrderID = strconv.FormatInt(response.ID, 10)
 	}
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
-	}
-	return submitOrderResponse, err
+
+	submitOrderResponse.IsOrderPlaced = true
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

@@ -346,16 +346,15 @@ func (a *ANX) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		false,
 		"",
 		false)
-
+	if err != nil {
+		return submitOrderResponse, err
+	}
 	if response != "" {
 		submitOrderResponse.OrderID = response
 	}
+	submitOrderResponse.IsOrderPlaced = true
 
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
-	}
-
-	return submitOrderResponse, err
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

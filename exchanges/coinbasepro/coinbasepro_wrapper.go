@@ -400,16 +400,16 @@ func (c *CoinbasePro) SubmitOrder(s *order.Submit) (order.SubmitResponse, error)
 	default:
 		err = errors.New("order type not supported")
 	}
-
+	if err != nil {
+		return submitOrderResponse, err
+	}
 	if response != "" {
 		submitOrderResponse.OrderID = response
 	}
 
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
-	}
+	submitOrderResponse.IsOrderPlaced = true
 
-	return submitOrderResponse, err
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

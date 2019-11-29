@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -64,6 +63,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestAppendOptionalDelimiter(t *testing.T) {
+	t.Parallel()
 	curr1 := currency.NewPairFromString("BTCUSD")
 	b.appendOptionalDelimiter(&curr1)
 	if curr1.Delimiter != "" {
@@ -79,7 +79,6 @@ func TestAppendOptionalDelimiter(t *testing.T) {
 
 func TestGetPlatformStatus(t *testing.T) {
 	t.Parallel()
-
 	result, err := b.GetPlatformStatus()
 	if err != nil {
 		t.Errorf("TestGetPlatformStatus error: %s", err)
@@ -674,6 +673,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
+	t.Parallel()
 
 	if areTestAPIKeysSet() {
 		// CryptocurrencyTradeFee Basic
@@ -744,6 +744,7 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
+	t.Parallel()
 	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText + " & " + exchange.AutoWithdrawFiatWithAPIPermissionText
 	withdrawPermissions := b.FormatWithdrawPermissions()
 	if withdrawPermissions != expectedResult {
@@ -752,6 +753,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
+	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
 	}
@@ -765,6 +767,7 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
+	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
 	}
@@ -784,6 +787,7 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestSubmitOrder(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -813,6 +817,7 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -835,6 +840,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrdera(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -862,6 +868,7 @@ func TestCancelAllExchangeOrdera(t *testing.T) {
 }
 
 func TestModifyOrder(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -872,6 +879,7 @@ func TestModifyOrder(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -895,6 +903,7 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestWithdrawFiat(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -927,6 +936,7 @@ func TestWithdrawFiat(t *testing.T) {
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -965,6 +975,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() {
 		_, err := b.GetDepositAddress(currency.BTC, "deposit")
 		if err != nil {

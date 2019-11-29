@@ -650,7 +650,7 @@ func setupWsTests(t *testing.T) {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
 	k.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	comms = make(chan wshandler.WebsocketResponse, 999)
+	comms = make(chan wshandler.WebsocketResponse, sharedtestvalues.WebsocketChannelOverrideCapacity)
 	k.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	k.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName:         k.Name,

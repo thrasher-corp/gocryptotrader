@@ -22,7 +22,7 @@ import (
 
 // orderbookMutex Ensures if two entries arrive at once, only one can be processed at a time
 var subscriptionChannelPair []WebsocketChannelData
-var comms = make(chan wshandler.WebsocketResponse, 1)
+var comms = make(chan wshandler.WebsocketResponse)
 var authToken string
 
 // Channels require a topic and a currency

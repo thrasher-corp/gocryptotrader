@@ -532,6 +532,7 @@ const (
 	wsCandles                              = "candles"
 	wsTicker                               = "ticker"
 	wsTrades                               = "trades"
+	wsError                                = "error"
 )
 
 // WsAuthRequest container for WS auth request

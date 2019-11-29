@@ -311,20 +311,25 @@ func (b *Bithumb) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	if s.OrderSide == order.Buy {
 		var result MarketBuy
 		result, err = b.MarketBuyOrder(s.Pair.Base.String(), s.Amount)
+		if err != nil {
+			return submitOrderResponse, err
+		}
 		orderID = result.OrderID
 	} else if s.OrderSide == order.Sell {
 		var result MarketSell
 		result, err = b.MarketSellOrder(s.Pair.Base.String(), s.Amount)
+		if err != nil {
+			return submitOrderResponse, err
+		}
 		orderID = result.OrderID
 	}
-
 	if orderID != "" {
 		submitOrderResponse.OrderID = orderID
 	}
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
-	}
-	return submitOrderResponse, err
+
+	submitOrderResponse.IsOrderPlaced = true
+
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

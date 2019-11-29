@@ -22,7 +22,7 @@ import (
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
-var comms = make(chan wshandler.WebsocketResponse, 1)
+var comms = make(chan wshandler.WebsocketResponse)
 
 // WsConnect starts a new websocket connection
 func (b *Bitfinex) WsConnect() error {
@@ -85,8 +85,7 @@ func (b *Bitfinex) WsDataHandler() {
 		select {
 		case <-b.Websocket.ShutdownC:
 			return
-		default:
-			stream := <-comms
+		case stream := <-comms:
 			if stream.Type == websocket.TextMessage {
 				var result interface{}
 				err = json.Unmarshal(stream.Raw, &result)
@@ -293,7 +292,7 @@ func (b *Bitfinex) WsDataHandler() {
 								b.Websocket.DataHandler <- fmt.Errorf("%s - Unexpected data returned %s", b.Name, stream.Raw)
 								continue
 							}
-							if notification[5] != nil && strings.EqualFold(notification[5].(string), "ERROR") {
+							if notification[5] != nil && strings.EqualFold(notification[5].(string), wsError) {
 								b.Websocket.DataHandler <- fmt.Errorf("%s - Error %s", b.Name, notification[6].(string))
 							}
 						case wsPositionSnapshot:
@@ -823,7 +822,7 @@ func (b *Bitfinex) WsNewOrder(data *WsNewOrderRequest) (string, error) {
 	errCode := responseDataDetail[6].(string)
 	errorMessage := responseDataDetail[7].(string)
 
-	if strings.EqualFold(errCode, "ERROR") {
+	if strings.EqualFold(errCode, wsError) {
 		return orderID, errors.New(b.Name + " - " + errCode + ": " + errorMessage)
 	}
 
@@ -848,7 +847,7 @@ func (b *Bitfinex) WsModifyOrder(data *WsUpdateOrderRequest) error {
 	responseOrderData := responseData[2].([]interface{})
 	errCode := responseOrderData[6].(string)
 	errorMessage := responseOrderData[7].(string)
-	if strings.EqualFold(errCode, "ERROR") {
+	if strings.EqualFold(errCode, wsError) {
 		return errors.New(b.Name + " - " + errCode + ": " + errorMessage)
 	}
 
@@ -871,11 +870,11 @@ func (b *Bitfinex) WsCancelOrder(orderID int64) error {
 	}
 	request := makeRequestInterface(wsOrderCancel, cancel)
 	resp, err := b.AuthenticatedWebsocketConn.SendMessageReturnResponse(orderID, request)
-	if resp == nil {
-		return fmt.Errorf("%v - Order %v failed to cancel", b.Name, orderID)
-	}
 	if err != nil {
 		return err
+	}
+	if resp == nil {
+		return fmt.Errorf("%v - Order %v failed to cancel", b.Name, orderID)
 	}
 	var responseData []interface{}
 	err = common.JSONDecode(resp, &responseData)
@@ -885,7 +884,7 @@ func (b *Bitfinex) WsCancelOrder(orderID int64) error {
 	responseOrderData := responseData[2].([]interface{})
 	errCode := responseOrderData[6].(string)
 	errorMessage := responseOrderData[7].(string)
-	if strings.EqualFold(errCode, "ERROR") {
+	if strings.EqualFold(errCode, wsError) {
 		return errors.New(b.Name + " - " + errCode + ": " + errorMessage)
 	}
 
@@ -912,11 +911,11 @@ func (b *Bitfinex) WsCancelOffer(orderID int64) error {
 	}
 	request := makeRequestInterface(wsFundingOrderCancel, cancel)
 	resp, err := b.AuthenticatedWebsocketConn.SendMessageReturnResponse(orderID, request)
-	if resp == nil {
-		return fmt.Errorf("%v - Order %v failed to cancel", b.Name, orderID)
-	}
 	if err != nil {
 		return err
+	}
+	if resp == nil {
+		return fmt.Errorf("%v - Order %v failed to cancel", b.Name, orderID)
 	}
 	var responseData []interface{}
 	err = common.JSONDecode(resp, &responseData)
@@ -929,7 +928,7 @@ func (b *Bitfinex) WsCancelOffer(orderID int64) error {
 	if responseOrderData[7] != nil {
 		errorMessage = responseOrderData[7].(string)
 	}
-	if strings.EqualFold(errCode, "ERROR") {
+	if strings.EqualFold(errCode, wsError) {
 		return errors.New(b.Name + " - " + errCode + ": " + errorMessage)
 	}
 

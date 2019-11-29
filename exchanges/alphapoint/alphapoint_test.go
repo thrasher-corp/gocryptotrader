@@ -39,6 +39,7 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestGetTicker(t *testing.T) {
+	t.Parallel()
 	var ticker Ticker
 	var err error
 	if onlineTest {
@@ -72,6 +73,7 @@ func TestGetTicker(t *testing.T) {
 }
 
 func TestGetTrades(t *testing.T) {
+	t.Parallel()
 	var trades Trades
 	var err error
 	if onlineTest {
@@ -109,6 +111,7 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetTradesByDate(t *testing.T) {
+	t.Parallel()
 	var trades Trades
 	var err error
 	if onlineTest {
@@ -152,6 +155,7 @@ func TestGetTradesByDate(t *testing.T) {
 }
 
 func TestGetOrderbook(t *testing.T) {
+	t.Parallel()
 	var orderBook Orderbook
 	var err error
 	if onlineTest {
@@ -193,6 +197,7 @@ func TestGetOrderbook(t *testing.T) {
 }
 
 func TestGetProductPairs(t *testing.T) {
+	t.Parallel()
 	var products ProductPairs
 	var err error
 
@@ -230,6 +235,7 @@ func TestGetProductPairs(t *testing.T) {
 }
 
 func TestGetProducts(t *testing.T) {
+	t.Parallel()
 	var products Products
 	var err error
 
@@ -267,6 +273,7 @@ func TestGetProducts(t *testing.T) {
 }
 
 func TestCreateAccount(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping")
 	}
@@ -286,6 +293,7 @@ func TestCreateAccount(t *testing.T) {
 }
 
 func TestGetUserInfo(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping")
 	}
@@ -297,6 +305,7 @@ func TestGetUserInfo(t *testing.T) {
 }
 
 func TestSetUserInfo(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping")
 	}
@@ -308,6 +317,7 @@ func TestSetUserInfo(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping")
 	}
@@ -319,6 +329,7 @@ func TestGetAccountInfo(t *testing.T) {
 }
 
 func TestGetAccountTrades(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping")
 	}
@@ -330,6 +341,7 @@ func TestGetAccountTrades(t *testing.T) {
 }
 
 func TestGetDepositAddresses(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping")
 	}
@@ -341,6 +353,7 @@ func TestGetDepositAddresses(t *testing.T) {
 }
 
 func TestWithdrawCoins(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping")
 	}
@@ -352,6 +365,7 @@ func TestWithdrawCoins(t *testing.T) {
 }
 
 func TestCreateOrder(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping")
 	}
@@ -363,6 +377,7 @@ func TestCreateOrder(t *testing.T) {
 }
 
 func TestModifyExistingOrder(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping")
 	}
@@ -374,6 +389,7 @@ func TestModifyExistingOrder(t *testing.T) {
 }
 
 func TestCancelAllExistingOrders(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping")
 	}
@@ -385,6 +401,7 @@ func TestCancelAllExistingOrders(t *testing.T) {
 }
 
 func TestGetOrders(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping")
 	}
@@ -396,6 +413,7 @@ func TestGetOrders(t *testing.T) {
 }
 
 func TestGetOrderFee(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys not set, skipping")
 	}
@@ -407,6 +425,7 @@ func TestGetOrderFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
+	t.Parallel()
 	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText + " & " + exchange.WithdrawCryptoWith2FAText + " & " + exchange.NoFiatWithdrawalsText
 	withdrawPermissions := a.FormatWithdrawPermissions()
 	if withdrawPermissions != expectedResult {
@@ -415,6 +434,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
+	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
 	}
@@ -428,6 +448,7 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
+	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
 	}
@@ -444,6 +465,7 @@ func TestGetOrderHistory(t *testing.T) {
 // ----------------------------------------------------------------------------------------------------------------------------
 
 func TestSubmitOrder(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -475,6 +497,7 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -497,6 +520,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -523,6 +547,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestModifyOrder(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -533,6 +558,7 @@ func TestModifyOrder(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
+	t.Parallel()
 	var withdrawCryptoRequest = exchange.CryptoWithdrawRequest{}
 	_, err := a.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
 	if err != common.ErrNotYetImplemented {
@@ -541,6 +567,7 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestWithdrawFiat(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -553,6 +580,7 @@ func TestWithdrawFiat(t *testing.T) {
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}

@@ -49,7 +49,7 @@ const (
 )
 
 // Instantiates a communications channel between websocket connections
-var comms = make(chan WsMessage, 1)
+var comms = make(chan WsMessage)
 
 // WsConnect initiates a new websocket connection
 func (h *HUOBI) WsConnect() error {

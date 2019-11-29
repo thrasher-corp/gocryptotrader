@@ -474,10 +474,11 @@ func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			Amount:   o.Amount,
 			Price:    o.Price,
 		})
-		if err == nil {
-			submitOrderResponse.IsOrderPlaced = true
+		if err != nil {
+			return submitOrderResponse, err
 		}
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderID)
+		submitOrderResponse.IsOrderPlaced = true
 	} else {
 		var APIResponse interface{}
 		var clientIDInt uint64
@@ -520,7 +521,7 @@ func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			return submitOrderResponse, nil
 		}
 	}
-	return submitOrderResponse, err
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

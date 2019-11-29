@@ -426,16 +426,16 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 
 	response, err := b.NewOrder(&orderRequest)
-
+	if err != nil {
+		return submitOrderResponse, err
+	}
 	if response.OrderID > 0 {
 		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderID, 10)
 	}
 
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
-	}
+	submitOrderResponse.IsOrderPlaced = true
 
-	return submitOrderResponse, err
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

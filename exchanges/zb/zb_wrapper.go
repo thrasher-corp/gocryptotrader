@@ -379,8 +379,8 @@ func (z *ZB) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 		}
 		var response *WsSubmitOrderResponse
 		response, err = z.wsSubmitOrder(o.Pair, o.Amount, o.Price, isBuyOrder)
-		if err == nil {
-			submitOrderResponse.IsOrderPlaced = true
+		if err != nil {
+			return submitOrderResponse, err
 		}
 		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.Data.EntrustID)
 	} else {
@@ -399,14 +399,16 @@ func (z *ZB) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 		}
 		var response int64
 		response, err = z.SpotNewOrder(params)
+		if err != nil {
+			return submitOrderResponse, err
+		}
 		if response > 0 {
 			submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
 		}
-		if err == nil {
-			submitOrderResponse.IsOrderPlaced = true
-		}
 	}
-	return submitOrderResponse, err
+	submitOrderResponse.IsOrderPlaced = true
+
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

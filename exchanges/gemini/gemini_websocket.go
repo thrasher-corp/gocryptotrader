@@ -32,7 +32,7 @@ const (
 )
 
 // Instantiates a communications channel between websocket connections
-var comms = make(chan ReadData, 1)
+var comms = make(chan ReadData)
 var responseMaxLimit time.Duration
 var responseCheckTimeout time.Duration
 
