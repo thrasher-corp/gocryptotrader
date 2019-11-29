@@ -1,8 +1,8 @@
-{{define "currency forexprovider openexchangerates" -}}
+{{define "currency forexprovider exchangeratesapi.io" -}}
 {{template "header" .}}
 ## Current Features for {{.Name}}
 
-+ Fetches up to date curency data from [Open Exchange Rates](https://openexchangerates.org/)
++ Fetches up to date curency data from [Exchange rates API]("http://exchangeratesapi.io")
 
 ### How to enable
 
@@ -12,14 +12,14 @@
 ```go
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
-	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/openexchangerates"
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/exchangerates"
 )
 
-c := openexchangerates.OXR{}
+c := exchangerates.ExchangeRates{}
 
 // Define configuration
 newSettings := base.Settings{
-  	Name: "openexchangerates",
+  	Name: "ExchangeRates",
 	Enabled: true,
 	Verbose: false,
 	RESTPollingDelay: time.Duration,
@@ -37,4 +37,4 @@ mapstringfloat, err := c.GetRates("USD", "EUR,CHY")
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 {{template "contributions"}}
 {{template "donations"}}
-{{end}}
+{{- end}}
