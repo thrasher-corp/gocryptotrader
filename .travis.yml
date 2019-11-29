@@ -59,6 +59,7 @@ matrix:
       script:
         - export GOARCH=386
         - export CGO_ENABLED=1
+        - apt-get install gcc-multilib
         - make check
       after_success:
         - bash <(curl -s https://codecov.io/bash)
