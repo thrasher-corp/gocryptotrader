@@ -244,16 +244,13 @@ func (b *BTCMarkets) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var resp ticker.Price
-	allPairs, err := b.GetMarkets()
-	if err != nil {
-		return resp, err
-	}
+	allPairs := b.GetEnabledPairs(asset.Spot)
 	for x := range allPairs {
-		tick, err := b.GetTicker(allPairs[x].MarketID)
+		tick, err := b.GetTicker(b.FormatExchangeCurrency(allPairs[x], asset.Spot).String())
 		if err != nil {
 			return resp, err
 		}
-		resp.Pair = currency.NewPairFromString(allPairs[x].MarketID)
+		resp.Pair = allPairs[x]
 		resp.Last = tick.LastPrice
 		resp.High = tick.High24h
 		resp.Low = tick.Low24h
@@ -539,13 +536,10 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 	var tempResp order.Detail
 	var tempData []OrderData
 	if len(req.Currencies) == 0 {
-		allPairs, err := b.GetMarkets()
-		if err != nil {
-			return resp, err
-		}
+		allPairs := b.GetEnabledPairs(asset.Spot)
 		for a := range allPairs {
 			req.Currencies = append(req.Currencies,
-				currency.NewPairFromString(allPairs[a].MarketID))
+				allPairs[a])
 		}
 	}
 	var err error
