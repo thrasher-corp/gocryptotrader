@@ -58,6 +58,7 @@ matrix:
         - psql -c 'create database gct_dev_ci;' -U postgres
       script:
         - export GOARCH=386
+        - export CGO_ENABLED=1
         - make check
       after_success:
         - bash <(curl -s https://codecov.io/bash)
