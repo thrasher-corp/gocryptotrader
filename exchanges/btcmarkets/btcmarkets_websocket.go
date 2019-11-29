@@ -37,13 +37,13 @@ func (b *BTCMarkets) WsConnect() error {
 	}
 	go b.WsHandleData()
 	if b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		err = b.createChannels()
+		b.createChannels()
 		if err != nil {
 			b.Websocket.DataHandler <- err
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	//b.generateDefaultSubscriptions()
+	b.generateDefaultSubscriptions()
 	return nil
 }
 
@@ -240,12 +240,12 @@ func (b *BTCMarkets) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubs
 		if !ok {
 			return errors.New("invalid params data")
 		}
-		tempAuthData, err := b.generateAuthSubscriptions()
+		tempAuthData := b.generateAuthSubscriptions()
 		message.Channels = append(message.Channels, channelToSubscribe.Channel, heartbeat)
 		message.Key = tempAuthData.Key
 		message.Signature = tempAuthData.Signature
 		message.Timestamp = tempAuthData.Timestamp
-		err = b.WebsocketConn.SendMessage(message)
+		err := b.WebsocketConn.SendMessage(message)
 		if err != nil {
 			return err
 		}
@@ -254,7 +254,7 @@ func (b *BTCMarkets) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubs
 }
 
 // Login logs in allowing private ws events
-func (b *BTCMarkets) generateAuthSubscriptions() (WsAuthSubscribe, error) {
+func (b *BTCMarkets) generateAuthSubscriptions() WsAuthSubscribe {
 	var authSubInfo WsAuthSubscribe
 	signTime := strconv.FormatInt(time.Now().UTC().UnixNano()/1000000, 10)
 	strToSign := "/users/self/subscribe" + "\n" + signTime
@@ -265,11 +265,11 @@ func (b *BTCMarkets) generateAuthSubscriptions() (WsAuthSubscribe, error) {
 	authSubInfo.Key = b.API.Credentials.Key
 	authSubInfo.Signature = sign
 	authSubInfo.Timestamp = signTime
-	return authSubInfo, nil
+	return authSubInfo
 }
 
 // createChannels creates channels that need to be
-func (b *BTCMarkets) createChannels() error {
+func (b *BTCMarkets) createChannels() {
 	tempChannels := []string{orderChange, fundChange}
 	var channels []wshandler.WebsocketChannelSubscription
 	pairArray := b.GetEnabledPairs(asset.Spot)
@@ -286,5 +286,4 @@ func (b *BTCMarkets) createChannels() error {
 		}
 	}
 	b.Websocket.SubscribeToChannels(channels)
-	return nil
 }

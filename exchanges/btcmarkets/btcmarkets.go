@@ -625,7 +625,7 @@ func (b *BTCMarkets) SendHTTPRequest(path string, result interface{}) error {
 }
 
 // SendAuthenticatedRequest sends an authenticated HTTP request
-func (b *BTCMarkets) SendAuthenticatedRequest(method, path string, data interface{}, result interface{}) (err error) {
+func (b *BTCMarkets) SendAuthenticatedRequest(method, path string, data, result interface{}) (err error) {
 	if !b.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			b.Name)

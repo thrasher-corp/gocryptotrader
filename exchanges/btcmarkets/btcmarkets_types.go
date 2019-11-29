@@ -391,7 +391,7 @@ type WsFundTransfer struct {
 	FundTransferID int64     `json:"fundtransferId"`
 	TransferType   string    `json:"type"`
 	Status         string    `json:"status"`
-	Timestamp      time.Time `json:"timestamp,string"`
+	Timestamp      time.Time `json:"timestamp"`
 	Amount         float64   `json:"amount,string"`
 	Currency       string    `json:"currency"`
 	Fee            float64   `json:"fee,string"`

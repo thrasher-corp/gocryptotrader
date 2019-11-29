@@ -584,9 +584,7 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 			tempResp.RemainingAmount = tempData[y].OpenAmount
 			resp = append(resp, tempResp)
 		}
-		return resp, nil
 	}
-
 	order.FilterOrdersByType(&resp, req.OrderType)
 	order.FilterOrdersByTickRange(&resp, req.StartTicks, req.EndTicks)
 	order.FilterOrdersBySide(&resp, req.OrderSide)
