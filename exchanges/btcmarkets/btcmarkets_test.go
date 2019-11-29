@@ -15,9 +15,9 @@ var b BTCMarkets
 
 // Please supply your own keys here to do better tests
 const (
-	apiKey                  = "6081b477-9d29-4394-9011-d8c8758b692c"
-	apiSecret               = "k5dP+38igOHqvWpCCa59Sm73qVAy4wHTPLSafrFKugSZkQFM0CJ0qmDKXu9gIZ+Z+3GtWSZwoaNP0JNdG6IrdA=="
-	canManipulateRealOrders = true
+	apiKey                  = ""
+	apiSecret               = ""
+	canManipulateRealOrders = false
 	BTCAUD                  = "BTC-AUD"
 	LTCAUD                  = "LTC-AUD"
 	ETHAUD                  = "ETH-AUD"
@@ -142,7 +142,6 @@ func TestGetTradingFees(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
@@ -192,7 +191,6 @@ func TestNewOrder(t *testing.T) {
 
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
@@ -200,10 +198,10 @@ func TestGetOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	// _, err = b.GetOrders(LTCAUD, -1, -1, -1, "open")
-	// if err != nil {
-	// 	t.Error(err)
-	// }
+	_, err = b.GetOrders(LTCAUD, -1, -1, -1, "open")
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestCancelOpenOrders(t *testing.T) {
@@ -240,7 +238,6 @@ func TestFetchOrder(t *testing.T) {
 
 func TestRemoveOrder(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
@@ -252,7 +249,6 @@ func TestRemoveOrder(t *testing.T) {
 
 func TestListWithdrawals(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
@@ -275,7 +271,6 @@ func TestGetWithdrawal(t *testing.T) {
 
 func TestListDeposits(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
@@ -361,7 +356,6 @@ func TestGetTransactions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	b.Verbose = true
 	_, err := b.GetTransactions("")
 	if err != nil {
 		t.Error(err)

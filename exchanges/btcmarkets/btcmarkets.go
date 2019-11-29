@@ -65,6 +65,14 @@ const (
 	stopLimit  = "Stop Limit"
 	stop       = "Stop"
 	takeProfit = "Take Profit"
+
+	subscribe   = "subscribe"
+	fundChange  = "fundChange"
+	orderChange = "orderChange"
+	heartbeat   = "heartbeat"
+	tick        = "tick"
+	wsOB        = "orderbook"
+	trade       = "trade"
 )
 
 // BTCMarkets is the overarching type across the BTCMarkets package

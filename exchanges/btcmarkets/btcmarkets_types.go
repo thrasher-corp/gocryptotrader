@@ -289,8 +289,8 @@ type WithdrawRequestAUD struct {
 
 // CancelBatch stores data for batch cancel request
 type CancelBatch struct {
-	OrderID       string `json:"orderId"`
-	ClientOrderID string `json:"clientOrderId"`
+	OrderID       string `json:"orderId,omitempty"`
+	ClientOrderID string `json:"clientOrderId,omitempty"`
 }
 
 // PlaceBatch stores data for place batch request
