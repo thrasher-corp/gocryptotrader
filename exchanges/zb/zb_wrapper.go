@@ -362,10 +362,6 @@ func (z *ZB) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchan
 // SubmitOrder submits a new order
 func (z *ZB) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
-	if o == nil {
-		return submitOrderResponse, order.ErrSubmissionIsNil
-	}
-
 	err := o.Validate()
 	if err != nil {
 		return submitOrderResponse, err

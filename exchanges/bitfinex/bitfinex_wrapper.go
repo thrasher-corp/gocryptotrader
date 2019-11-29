@@ -376,10 +376,6 @@ func (b *Bitfinex) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]
 // SubmitOrder submits a new order
 func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
-	if o == nil {
-		return submitOrderResponse, order.ErrSubmissionIsNil
-	}
-
 	err := o.Validate()
 	if err != nil {
 		return submitOrderResponse, err

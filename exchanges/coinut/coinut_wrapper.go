@@ -347,13 +347,12 @@ func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (c *COINUT) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	var tickerPrice ticker.Price
-
 	err := c.loadInstrumentsIfNotLoaded()
 	if err != nil {
 		return tickerPrice, err
 	}
 
+	var tickerPrice ticker.Price
 	instID := c.instrumentMap.LookupID(c.FormatExchangeCurrency(p,
 		assetType).String())
 	if instID == 0 {
@@ -455,9 +454,6 @@ func (c *COINUT) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]ex
 func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
 	var err error
-	if o == nil {
-		return submitOrderResponse, order.ErrSubmissionIsNil
-	}
 	if _, err = strconv.Atoi(o.ClientID); err != nil {
 		return submitOrderResponse, fmt.Errorf("%s - ClientID must be a number, received: %s", c.Name, o.ClientID)
 	}
