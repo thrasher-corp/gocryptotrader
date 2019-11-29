@@ -397,7 +397,7 @@ func (b *BTCMarkets) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, 
 	var resp order.CancelAllResponse
 	tempMap := make(map[string]string)
 	var orderIDs []string
-	orders, err := b.GetOrders("", "", "open")
+	orders, err := b.GetOrders("", -1, -1, -1, "open")
 	if err != nil {
 		return resp, err
 	}
@@ -461,7 +461,7 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
 	case orderCancelled:
 		resp.Status = order.Cancelled
 	case orderPartiallyCancelled:
-		resp.Status = order.PartiallyFilled
+		resp.Status = order.PartiallyCancelled
 	case orderFailed:
 		resp.Status = order.Rejected
 	default:
@@ -472,7 +472,7 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (b *BTCMarkets) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
-	temp, err := b.FetchDepositAddress(strings.ToUpper(cryptocurrency.String()))
+	temp, err := b.FetchDepositAddress(strings.ToUpper(cryptocurrency.String()), -1, -1, -1)
 	if err != nil {
 		return "", err
 	}
@@ -550,7 +550,7 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 	}
 	var err error
 	for x := range req.Currencies {
-		tempData, err = b.GetOrders(b.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String(), "", "")
+		tempData, err = b.GetOrders(b.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String(), -1, -1, -1, "")
 		if err != nil {
 			return resp, err
 		}
@@ -600,7 +600,7 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 	var tempResp order.Detail
 	var tempArray []string
 	if len(req.Currencies) == 0 {
-		orders, err := b.GetOrders("", "", "")
+		orders, err := b.GetOrders("", -1, -1, -1, "")
 		if err != nil {
 			return resp, err
 		}
@@ -609,7 +609,7 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 		}
 	}
 	for y := range req.Currencies {
-		orders, err := b.GetOrders(b.FormatExchangeCurrency(req.Currencies[y], asset.Spot).String(), "", "")
+		orders, err := b.GetOrders(b.FormatExchangeCurrency(req.Currencies[y], asset.Spot).String(), -1, -1, -1, "")
 		if err != nil {
 			return resp, err
 		}

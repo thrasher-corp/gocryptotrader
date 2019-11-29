@@ -163,17 +163,18 @@ type Status string
 
 // All order status types
 const (
-	AnyStatus       Status = "ANY"
-	New             Status = "NEW"
-	Active          Status = "ACTIVE"
-	PartiallyFilled Status = "PARTIALLY_FILLED"
-	Filled          Status = "FILLED"
-	Cancelled       Status = "CANCELED"
-	PendingCancel   Status = "PENDING_CANCEL"
-	Rejected        Status = "REJECTED"
-	Expired         Status = "EXPIRED"
-	Hidden          Status = "HIDDEN"
-	UnknownStatus   Status = "UNKNOWN"
+	AnyStatus          Status = "ANY"
+	New                Status = "NEW"
+	Active             Status = "ACTIVE"
+	PartiallyCancelled Status = "PARTIALLY_CANCELLED"
+	PartiallyFilled    Status = "PARTIALLY_FILLED"
+	Filled             Status = "FILLED"
+	Cancelled          Status = "CANCELED"
+	PendingCancel      Status = "PENDING_CANCEL"
+	Rejected           Status = "REJECTED"
+	Expired            Status = "EXPIRED"
+	Hidden             Status = "HIDDEN"
+	UnknownStatus      Status = "UNKNOWN"
 )
 
 // ByPrice used for sorting orders by price

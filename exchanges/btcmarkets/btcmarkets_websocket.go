@@ -221,12 +221,23 @@ func (b *BTCMarkets) generateDefaultSubscriptions() {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *BTCMarkets) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
-	req := WsSubscribe{
-		MarketIDs:   []string{channelToSubscribe.Currency.String()},
-		Channels:    []string{channelToSubscribe.Channel},
-		MessageType: "subscribe",
+	unauthChannels := []string{"tick", "trade", "orderbook"}
+	authChannels := []string{"fundChange", "heartbeat", "orderChange"}
+	switch {
+	case common.StringDataCompare(unauthChannels, channelToSubscribe.Channel):
+		req := WsSubscribe{
+			MarketIDs:   []string{channelToSubscribe.Currency.String()},
+			Channels:    []string{channelToSubscribe.Channel},
+			MessageType: "subscribe",
+		}
+		err := b.WebsocketConn.SendMessage(req)
+		if err != nil {
+			return err
+		}
+	case common.StringDataCompare(authChannels, channelToSubscribe.Channel):
 	}
-	return b.WebsocketConn.SendMessage(req)
+
+	return nil
 }
 
 // Login logs in allowing private ws events
@@ -238,6 +249,7 @@ func (b *BTCMarkets) generateAuthSubscriptions() error {
 		[]byte(strToSign),
 		[]byte(b.API.Credentials.Secret))
 	sign := crypto.Base64Encode(tempSign)
+	var channel wshandler.WebsocketChannelSubscription
 	markets, err := b.GetMarkets()
 	if err != nil {
 		return err
@@ -250,5 +262,9 @@ func (b *BTCMarkets) generateAuthSubscriptions() error {
 	authSub.Signature = sign
 	authSub.Timestamp = signTime
 	authSub.MessageType = "subscribe"
-	return b.WebsocketConn.SendMessage(authSub)
+	channel.Params["AuthSub"] = authSub
+	var channels []wshandler.WebsocketChannelSubscription
+	channels = append(channels, channel)
+	b.Websocket.SubscribeToChannels(channels)
+	return nil
 }

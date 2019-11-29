@@ -294,12 +294,35 @@ func (b *BTCMarkets) GetTradingFees() (TradingFeeResponse, error) {
 }
 
 // GetTradeHistory returns trade history
-func (b *BTCMarkets) GetTradeHistory(marketID string) ([]TradeHistoryData, error) {
+func (b *BTCMarkets) GetTradeHistory(marketID, orderID string, before, after, limit int64) ([]TradeHistoryData, error) {
 	var resp []TradeHistoryData
 	params := url.Values{}
-	params.Set("marketId", marketID)
+	if marketID != "" {
+		params.Set("marketId", marketID)
+	}
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if before >= 0 {
+		params.Set("before", strconv.FormatInt(before, 10))
+	}
+	if after >= 0 {
+		params.Set("after", strconv.FormatInt(after, 10))
+	}
+	if limit >= 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
 	return resp, b.SendAuthenticatedRequest(http.MethodGet,
 		common.EncodeURLValues(btcMarketsTradeHistory, params),
+		nil,
+		&resp)
+}
+
+// GetTradeByID returns the singular trade of the ID given
+func (b *BTCMarkets) GetTradeByID(id string) (TradeHistoryData, error) {
+	var resp TradeHistoryData
+	return resp, b.SendAuthenticatedRequest(http.MethodGet,
+		btcMarketsTradeHistory+"/"+id,
 		nil,
 		&resp)
 }
@@ -334,12 +357,24 @@ func (b *BTCMarkets) NewOrder(marketID string, price, amount float64, orderType,
 }
 
 // GetOrders returns current order information on the exchange
-func (b *BTCMarkets) GetOrders(marketID, limit, status string) ([]OrderData, error) {
+func (b *BTCMarkets) GetOrders(marketID string, before, after, limit int64, status string) ([]OrderData, error) {
 	var resp []OrderData
 	params := url.Values{}
-	params.Set("marketId", marketID)
-	params.Set("limit", limit)
-	params.Set("status", status)
+	if marketID != "" {
+		params.Set("marketId", marketID)
+	}
+	if before >= 0 {
+		params.Set("before", strconv.FormatInt(before, 10))
+	}
+	if after >= 0 {
+		params.Set("after", strconv.FormatInt(after, 10))
+	}
+	if limit >= 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if status != "" {
+		params.Set("status", status)
+	}
 	return resp, b.SendAuthenticatedRequest(http.MethodGet,
 		common.EncodeURLValues(btcMarketsOrders, params), nil, &resp)
 }
@@ -373,9 +408,22 @@ func (b *BTCMarkets) RemoveOrder(id string) (CancelOrderResp, error) {
 }
 
 // ListWithdrawals lists the withdrawal history
-func (b *BTCMarkets) ListWithdrawals() ([]TransferData, error) {
+func (b *BTCMarkets) ListWithdrawals(before, after, limit int64) ([]TransferData, error) {
 	var resp []TransferData
-	return resp, b.SendAuthenticatedRequest(http.MethodGet, btcMarketsWithdrawals, nil, &resp)
+	params := url.Values{}
+	if before >= 0 {
+		params.Set("before", strconv.FormatInt(before, 10))
+	}
+	if after >= 0 {
+		params.Set("after", strconv.FormatInt(after, 10))
+	}
+	if limit >= 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	return resp, b.SendAuthenticatedRequest(http.MethodGet,
+		common.EncodeURLValues(btcMarketsWithdrawals, params),
+		nil,
+		&resp)
 }
 
 // GetWithdrawal gets withdrawawl info for a given id
@@ -386,9 +434,22 @@ func (b *BTCMarkets) GetWithdrawal(id string) (TransferData, error) {
 }
 
 // ListDeposits lists the deposit history
-func (b *BTCMarkets) ListDeposits() ([]TransferData, error) {
+func (b *BTCMarkets) ListDeposits(before, after, limit int64) ([]TransferData, error) {
 	var resp []TransferData
-	return resp, b.SendAuthenticatedRequest(http.MethodGet, btcMarketsDeposits, nil, &resp)
+	params := url.Values{}
+	if before >= 0 {
+		params.Set("before", strconv.FormatInt(before, 10))
+	}
+	if after >= 0 {
+		params.Set("after", strconv.FormatInt(after, 10))
+	}
+	if limit >= 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	return resp, b.SendAuthenticatedRequest(http.MethodGet,
+		common.EncodeURLValues(btcMarketsDeposits, params),
+		nil,
+		&resp)
 }
 
 // GetDeposit gets deposit info for a given ID
@@ -399,9 +460,22 @@ func (b *BTCMarkets) GetDeposit(id string) (TransferData, error) {
 }
 
 // ListTransfers lists the past asset transfers
-func (b *BTCMarkets) ListTransfers() ([]TransferData, error) {
+func (b *BTCMarkets) ListTransfers(before, after, limit int64) ([]TransferData, error) {
 	var resp []TransferData
-	return resp, b.SendAuthenticatedRequest(http.MethodGet, btcMarketsTransfers, nil, &resp)
+	params := url.Values{}
+	if before >= 0 {
+		params.Set("before", strconv.FormatInt(before, 10))
+	}
+	if after >= 0 {
+		params.Set("after", strconv.FormatInt(after, 10))
+	}
+	if limit >= 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	return resp, b.SendAuthenticatedRequest(http.MethodGet,
+		common.EncodeURLValues(btcMarketsTransfers, params),
+		nil,
+		&resp)
 }
 
 // GetTransfer gets asset transfer info for a given ID
@@ -412,10 +486,21 @@ func (b *BTCMarkets) GetTransfer(id string) (TransferData, error) {
 }
 
 // FetchDepositAddress gets deposit address for the given asset
-func (b *BTCMarkets) FetchDepositAddress(assetName string) (DepositAddress, error) {
+func (b *BTCMarkets) FetchDepositAddress(assetName string, before, after, limit int64) (DepositAddress, error) {
 	var resp DepositAddress
 	params := url.Values{}
-	params.Set("assetName", assetName)
+	if assetName != "" {
+		params.Set("assetName", assetName)
+	}
+	if before >= 0 {
+		params.Set("before", strconv.FormatInt(before, 10))
+	}
+	if after >= 0 {
+		params.Set("after", strconv.FormatInt(after, 10))
+	}
+	if limit >= 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
 	return resp, b.SendAuthenticatedRequest(http.MethodGet,
 		common.EncodeURLValues(btcMarketsAddresses, params),
 		nil,
@@ -486,43 +571,17 @@ func (b *BTCMarkets) RequestWithdraw(assetName string, amount float64,
 }
 
 // BatchPlaceCancelOrders places and cancels batch orders
-func (b *BTCMarkets) BatchPlaceCancelOrders(cancelOrders []CancelBatch, placeOrders []PlaceBatch) (BatchPlaceCancelResponse, error) {
+func (b *BTCMarkets) BatchPlaceCancelOrders(cancelOrders []CancelOrderMethod, placeOrders []PlaceOrderMethod) (BatchPlaceCancelResponse, error) {
 	var resp BatchPlaceCancelResponse
 	var orderRequests []interface{}
-	var tempOrderRequests PlaceCancelBatch
-	switch {
-	case len(cancelOrders)-len(placeOrders) > 0:
-		var y int
-		for x := range placeOrders {
-			tempOrderRequests.PlaceOrder = placeOrders[x]
-			tempOrderRequests.CancelOrder = cancelOrders[x]
-			y = x
-			orderRequests = append(orderRequests, tempOrderRequests)
-		}
-		for y < len(cancelOrders) {
-			tempOrderRequests.CancelOrder = cancelOrders[y]
-			orderRequests = append(orderRequests, tempOrderRequests)
-			y++
-		}
-	case len(cancelOrders)-len(placeOrders) < 0:
-		var y int
-		for x := range cancelOrders {
-			tempOrderRequests.CancelOrder = cancelOrders[x]
-			tempOrderRequests.PlaceOrder = placeOrders[x]
-			y = x
-			orderRequests = append(orderRequests, tempOrderRequests)
-		}
-		for y < len(placeOrders) {
-			tempOrderRequests.PlaceOrder = placeOrders[y]
-			orderRequests = append(orderRequests, tempOrderRequests)
-			y++
-		}
-	default:
-		for x := range cancelOrders {
-			tempOrderRequests.CancelOrder = cancelOrders[x]
-			tempOrderRequests.PlaceOrder = placeOrders[x]
-			orderRequests = append(orderRequests, tempOrderRequests)
-		}
+	if len(cancelOrders)+len(placeOrders) > 4 {
+		return resp, errors.New("BTCMarkets can only handle 4 orders at a time")
+	}
+	for x := range cancelOrders {
+		orderRequests = append(orderRequests, cancelOrders[x])
+	}
+	for y := range placeOrders {
+		orderRequests = append(orderRequests, placeOrders[y])
 	}
 	return resp, b.SendAuthenticatedRequest(http.MethodPost, btcMarketsBatchOrders, orderRequests, &resp)
 }

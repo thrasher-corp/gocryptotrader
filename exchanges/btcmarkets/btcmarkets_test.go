@@ -15,9 +15,9 @@ var b BTCMarkets
 
 // Please supply your own keys here to do better tests
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
+	apiKey                  = "6081b477-9d29-4394-9011-d8c8758b692c"
+	apiSecret               = "k5dP+38igOHqvWpCCa59Sm73qVAy4wHTPLSafrFKugSZkQFM0CJ0qmDKXu9gIZ+Z+3GtWSZwoaNP0JNdG6IrdA=="
+	canManipulateRealOrders = true
 	BTCAUD                  = "BTC-AUD"
 	LTCAUD                  = "LTC-AUD"
 	ETHAUD                  = "ETH-AUD"
@@ -142,16 +142,32 @@ func TestGetTradingFees(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetTradeHistory(ETHAUD)
+	_, err := b.GetTradeHistory(ETHAUD, "", -1, -1, -1)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetTradeHistory(fakePair)
+	_, err = b.GetTradeHistory(BTCAUD, "", -1, -1, 1)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetTradeHistory(fakePair, "", -1, -1, -1)
 	if err == nil {
 		t.Error("expected an error due to invalid trading pair")
+	}
+}
+
+func TestGetTradeByID(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
+	_, err := b.GetTradeByID("4712043732")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -176,21 +192,18 @@ func TestNewOrder(t *testing.T) {
 
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetOrders(LTCAUD, "", "open")
+	_, err := b.GetOrders("", -1, -1, 2, "")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetOrders(LTCAUD, "", "invalid")
-	if err == nil {
-		t.Error("expected an error due to invalid status")
-	}
-	_, err = b.GetOrders(fakePair, "", "open")
-	if err == nil {
-		t.Error("expected an error due to invalid pair")
-	}
+	// _, err = b.GetOrders(LTCAUD, -1, -1, -1, "open")
+	// if err != nil {
+	// 	t.Error(err)
+	// }
 }
 
 func TestCancelOpenOrders(t *testing.T) {
@@ -227,10 +240,11 @@ func TestFetchOrder(t *testing.T) {
 
 func TestRemoveOrder(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := b.RemoveOrder("4477045999")
+	_, err := b.RemoveOrder("")
 	if err != nil {
 		t.Error(err)
 	}
@@ -238,10 +252,11 @@ func TestRemoveOrder(t *testing.T) {
 
 func TestListWithdrawals(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.ListWithdrawals()
+	_, err := b.ListWithdrawals(-1, -1, -1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -260,10 +275,11 @@ func TestGetWithdrawal(t *testing.T) {
 
 func TestListDeposits(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.ListDeposits()
+	_, err := b.ListDeposits(-1, -1, -1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -285,7 +301,7 @@ func TestListTransfers(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.ListTransfers()
+	_, err := b.ListTransfers(-1, -1, -1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -311,11 +327,11 @@ func TestFetchDepositAddress(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.FetchDepositAddress("LTC")
+	_, err := b.FetchDepositAddress("LTC", -1, -1, -1)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.FetchDepositAddress(fakePair)
+	_, err = b.FetchDepositAddress(fakePair, -1, -1, -1)
 	if err != nil {
 		t.Error("expected an error due to invalid assetID")
 	}
@@ -345,7 +361,8 @@ func TestGetTransactions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetTransactions(currency.BTC.String())
+	b.Verbose = true
+	_, err := b.GetTransactions("")
 	if err != nil {
 		t.Error(err)
 	}
@@ -389,13 +406,15 @@ func TestBatchPlaceCancelOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	var pOrders []PlaceBatch
+	var pOrders []PlaceOrderMethod
+	var pOrder PlaceOrderMethod
 	placeOrders := PlaceBatch{MarketID: BTCAUD,
 		Amount:    11000,
 		Price:     1,
 		OrderType: order.Limit.String(),
 		Side:      bid}
-	pOrders = append(pOrders, placeOrders)
+	pOrder.PlaceOrder = placeOrders
+	pOrders = append(pOrders, pOrder)
 	_, err := b.BatchPlaceCancelOrders(nil, pOrders)
 	if err != nil {
 		t.Error(err)

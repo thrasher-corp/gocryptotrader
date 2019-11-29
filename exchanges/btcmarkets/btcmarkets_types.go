@@ -295,23 +295,27 @@ type CancelBatch struct {
 
 // PlaceBatch stores data for place batch request
 type PlaceBatch struct {
-	MarketID      string  `json:"marketId"`
-	Price         float64 `json:"price"`
-	Amount        float64 `json:"amount"`
-	OrderType     string  `json:"type"`
-	Side          string  `json:"side"`
-	TriggerPrice  float64 `json:"triggerPrice"`
-	TriggerAmount float64 `json:"triggerAmount"`
-	TimeInForce   string  `json:"timeInForce"`
-	PostOnly      bool    `json:"postOnly"`
-	SelfTrade     string  `json:"selfTrade"`
-	ClientOrderID string  `json:"clientOrderId"`
+	MarketID      string  `json:"marketId,omitempty"`
+	Price         float64 `json:"price,omitempty"`
+	Amount        float64 `json:"amount,omitempty"`
+	OrderType     string  `json:"type,omitempty"`
+	Side          string  `json:"side,omitempty"`
+	TriggerPrice  float64 `json:"triggerPrice,omitempty"`
+	TriggerAmount float64 `json:"triggerAmount,omitempty"`
+	TimeInForce   string  `json:"timeInForce,omitempty"`
+	PostOnly      bool    `json:"postOnly,omitempty"`
+	SelfTrade     string  `json:"selfTrade,omitempty"`
+	ClientOrderID string  `json:"clientOrderId,omitempty"`
 }
 
-// PlaceCancelBatch stores data for BatchPlaceCancel request
-type PlaceCancelBatch struct {
-	PlaceOrder  PlaceBatch  `json:"placeOrder"`
-	CancelOrder CancelBatch `json:"cancelOrder"`
+// PlaceOrderMethod stores data for place request
+type PlaceOrderMethod struct {
+	PlaceOrder PlaceBatch `json:"placeOrder,omitempty"`
+}
+
+// CancelOrderMethod stores data for Cancel request
+type CancelOrderMethod struct {
+	CancelOrder CancelBatch `json:"cancelOrder,omitempty"`
 }
 
 // TradingFeeData stores trading fee data
