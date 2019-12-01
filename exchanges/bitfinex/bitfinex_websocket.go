@@ -753,7 +753,7 @@ func (b *Bitfinex) WsSendAuth() error {
 	if !b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", b.Name)
 	}
-	nonce := fmt.Sprintf("%v", time.Now().Unix())
+	nonce := strconv.FormatInt(time.Now().Unix(), 10)
 	payload := "AUTH" + nonce
 	request := WsAuthRequest{
 		Event:       "auth",
