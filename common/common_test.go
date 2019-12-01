@@ -504,11 +504,11 @@ func TestCreateDir(t *testing.T) {
 	}
 }
 
-func TestChangePerm(t *testing.T) {
-	testDir := filepath.Join(GetDefaultDataDir(runtime.GOOS), "TestFileASDFGHJ")
+func TestChangePermission(t *testing.T) {
+	testDir := filepath.Join(os.TempDir(), "TestFileASDFGHJ")
 	switch runtime.GOOS {
 	case "windows":
-		err := ChangePerm("*")
+		err := ChangePermission("*")
 		if err == nil {
 			t.Fatal("expected an error on non-existent path")
 		}
@@ -516,7 +516,7 @@ func TestChangePerm(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Mkdir failed. Err: %v", err)
 		}
-		err = ChangePerm(GetDefaultDataDir(runtime.GOOS))
+		err = ChangePermission(testDir)
 		if err != nil {
 			t.Fatalf("ChangePerm was unsuccessful. Err: %v", err)
 		}
@@ -529,7 +529,7 @@ func TestChangePerm(t *testing.T) {
 			t.Fatalf("os.Remove failed. Err: %v", err)
 		}
 	default:
-		err := ChangePerm("")
+		err := ChangePermission("")
 		if err == nil {
 			t.Fatal("expected an error on non-existent path")
 		}
@@ -537,7 +537,7 @@ func TestChangePerm(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Mkdir failed. Err: %v", err)
 		}
-		err = ChangePerm(GetDefaultDataDir(runtime.GOOS))
+		err = ChangePermission(testDir)
 		if err != nil {
 			t.Fatalf("ChangePerm was unsuccessful. Err: %v", err)
 		}

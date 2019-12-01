@@ -90,7 +90,7 @@ if err != nil {
 }
 
 // Fetches current orderbook information
-ob, err := c.GetOrderBook()
+ob, err := c.GetOrderbook()
 if err != nil {
   // Handle error
 }
@@ -105,7 +105,7 @@ if err != nil {
 }
 
 // Submits an order and the exchange and returns its tradeID
-tradeID, err := c.Trade(...)
+resp, err := c.SubmitOrder(...)
 if err != nil {
   // Handle error
 }
@@ -138,4 +138,3 @@ When submitting a PR, please abide by our coding guidelines:
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
 ***1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB***
-

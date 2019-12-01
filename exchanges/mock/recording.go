@@ -13,8 +13,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 )
 
 // HTTPResponse defines expected response from the end point including request
@@ -212,7 +212,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 		return err
 	}
 
-	return common.WriteFile(fileout, payload)
+	return file.Write(fileout, payload)
 }
 
 // GetFilteredHeader filters excluded http headers for insertion into a mock

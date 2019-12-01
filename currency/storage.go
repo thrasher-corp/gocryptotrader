@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/currency/coinmarketcap"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
@@ -318,7 +319,7 @@ func (s *Storage) WriteCurrencyDataToFile(path string, mainUpdate bool) error {
 		return err
 	}
 
-	return common.WriteFile(path, encoded)
+	return file.Write(path, encoded)
 }
 
 // LoadFileCurrencyData loads currencies into the currency codes

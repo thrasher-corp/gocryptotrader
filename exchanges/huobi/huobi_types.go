@@ -35,7 +35,7 @@ type CancelOpenOrdersBatch struct {
 // DetailMerged stores the ticker detail merged data
 type DetailMerged struct {
 	Detail
-	Version int       `json:"version"`
+	Version int64     `json:"version"`
 	Ask     []float64 `json:"ask"`
 	Bid     []float64 `json:"bid"`
 }
@@ -108,7 +108,7 @@ type Detail struct {
 	Close     float64 `json:"close"`
 	High      float64 `json:"high"`
 	Timestamp int64   `json:"timestamp"`
-	ID        int     `json:"id"`
+	ID        int64   `json:"id"`
 	Count     int     `json:"count"`
 	Low       float64 `json:"low"`
 	Volume    float64 `json:"vol"`
