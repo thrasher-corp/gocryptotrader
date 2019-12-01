@@ -23,21 +23,21 @@ const (
 	DownsideProfitContract = Item("downsideprofitcontract")
 )
 
+var supported = Items{
+	Spot,
+	Margin,
+	Index,
+	Binary,
+	PerpetualContract,
+	PerpetualSwap,
+	Futures,
+	UpsideProfitContract,
+	DownsideProfitContract,
+}
+
 // Supported returns a list of supported asset types
 func Supported() Items {
-	var a Items
-	a = append(a,
-		Spot,
-		Margin,
-		Index,
-		Binary,
-		PerpetualContract,
-		PerpetualSwap,
-		Futures,
-		UpsideProfitContract,
-		DownsideProfitContract,
-	)
-	return a
+	return supported
 }
 
 // returns an Item to string
