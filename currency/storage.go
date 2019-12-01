@@ -363,7 +363,7 @@ func (s *Storage) LoadFileCurrencyData(f *File) error {
 	return nil
 }
 
-// UpdateCurrencies updates currency roll and information using coin market cap
+// UpdateCurrencies updates currency role and information using coin market cap
 func (s *Storage) UpdateCurrencies() error {
 	m, err := s.currencyAnalysis.GetCryptocurrencyIDMap()
 	if err != nil {

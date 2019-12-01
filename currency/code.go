@@ -12,7 +12,7 @@ import (
 func (r Role) String() string {
 	switch r {
 	case Unset:
-		return UnsetRollString
+		return UnsetRoleString
 	case Fiat:
 		return FiatCurrencyString
 	case Cryptocurrency:
@@ -26,12 +26,12 @@ func (r Role) String() string {
 	}
 }
 
-// MarshalJSON conforms Roll to the marshaller interface
+// MarshalJSON conforms Role to the marshaller interface
 func (r Role) MarshalJSON() ([]byte, error) {
 	return json.Marshal(r.String())
 }
 
-// UnmarshalJSON conforms Roll to the unmarshaller interface
+// UnmarshalJSON conforms Role to the unmarshaller interface
 func (r *Role) UnmarshalJSON(d []byte) error {
 	var incoming string
 	err := json.Unmarshal(d, &incoming)
@@ -40,7 +40,7 @@ func (r *Role) UnmarshalJSON(d []byte) error {
 	}
 
 	switch incoming {
-	case UnsetRollString:
+	case UnsetRoleString:
 		*r = Unset
 	case FiatCurrencyString:
 		*r = Fiat
