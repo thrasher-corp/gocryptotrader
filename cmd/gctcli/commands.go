@@ -2972,8 +2972,8 @@ var gctScriptCommand = cli.Command{
 			Action: gctScriptStop,
 		},
 		{
-			Name:  "stopall",
-			Usage: "terminate running script",
+			Name:   "stopall",
+			Usage:  "terminate running script",
 			Action: gctScriptStopAll,
 		},
 		{
@@ -3093,7 +3093,6 @@ func gctScriptStop(c *cli.Context) error {
 }
 
 func gctScriptStopAll(c *cli.Context) error {
-
 	conn, err := setupClient()
 	if err != nil {
 		return err

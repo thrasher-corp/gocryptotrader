@@ -13,7 +13,7 @@ type Config struct {
 	ScriptTimeout time.Duration `json:"timeout"`
 	AllowImports  bool          `json:"allow_imports"`
 	AutoLoad      []string      `json:"auto_load"`
-	Verbose     bool          `json:"verbose"`
+	Verbose       bool          `json:"verbose"`
 }
 
 // Error error interface for VM

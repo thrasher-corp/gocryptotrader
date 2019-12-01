@@ -146,7 +146,6 @@ func ExchangePairs(args ...objects.Object) (ret objects.Object, err error) {
 		return
 	}
 
-
 	r := objects.Array{}
 	for x := range rtnValue.Slice() {
 		r.Value = append(r.Value, &objects.String{Value: rtnValue.Slice()[x].String()})
