@@ -6,9 +6,9 @@ import (
 )
 
 func TestRoleString(t *testing.T) {
-	if Unset.String() != UnsetRollString {
+	if Unset.String() != UnsetRoleString {
 		t.Errorf("Role String() error expected %s but received %s",
-			UnsetRollString,
+			UnsetRoleString,
 			Unset)
 	}
 
