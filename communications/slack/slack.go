@@ -82,7 +82,7 @@ func (s *Slack) PushEvent(event base.Event) error {
 		return s.WebsocketSend("message",
 			fmt.Sprintf("event: %s %s", event.Type, event.Message))
 	}
-	return nil
+	return errors.New("slack not connected")
 }
 
 // BuildURL returns an appended token string with the SlackURL
