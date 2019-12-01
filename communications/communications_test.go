@@ -10,7 +10,7 @@ func TestNewComm(t *testing.T) {
 	var cfg config.CommunicationsConfig
 	_, err := NewComm(&cfg)
 	if err == nil {
-		t.Error("NewComm should failed on no enabled communication mediums")
+		t.Error("NewComm should have failed on no enabled communication mediums")
 	}
 
 	cfg.TelegramConfig.Enabled = true
