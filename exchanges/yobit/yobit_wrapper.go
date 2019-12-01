@@ -193,15 +193,16 @@ func (y *Yobit) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 		if _, ok := result[curr]; !ok {
 			continue
 		}
+		resultCurr := result[curr]
 		var tickerPrice ticker.Price
 		tickerPrice.Pair = enabledPairs[i]
-		tickerPrice.Last = result[curr].Last
-		tickerPrice.Ask = result[curr].Sell
-		tickerPrice.Bid = result[curr].Buy
-		tickerPrice.Last = result[curr].Last
-		tickerPrice.Low = result[curr].Low
-		tickerPrice.QuoteVolume = result[curr].VolumeCurrent
-		tickerPrice.Volume = result[curr].Vol
+		tickerPrice.Last = resultCurr.Last
+		tickerPrice.Ask = resultCurr.Sell
+		tickerPrice.Bid = resultCurr.Buy
+		tickerPrice.Last = resultCurr.Last
+		tickerPrice.Low = resultCurr.Low
+		tickerPrice.QuoteVolume = resultCurr.VolumeCurrent
+		tickerPrice.Volume = resultCurr.Vol
 
 		err = ticker.ProcessTicker(y.Name, &tickerPrice, assetType)
 		if err != nil {

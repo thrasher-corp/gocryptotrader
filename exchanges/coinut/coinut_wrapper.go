@@ -263,7 +263,7 @@ func (c *COINUT) UpdateTradablePairs(forceUpdate bool) error {
 // COINUT exchange
 func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
-	var bal UserBalance
+	var bal *UserBalance
 	var err error
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var resp *UserBalance
@@ -271,7 +271,7 @@ func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 		if err != nil {
 			return info, err
 		}
-		bal = *resp
+		bal = resp
 	} else {
 		bal, err = c.GetUserBalance()
 		if err != nil {
@@ -347,12 +347,12 @@ func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (c *COINUT) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+	var tickerPrice ticker.Price
 	err := c.loadInstrumentsIfNotLoaded()
 	if err != nil {
 		return tickerPrice, err
 	}
 
-	var tickerPrice ticker.Price
 	instID := c.instrumentMap.LookupID(c.FormatExchangeCurrency(p,
 		assetType).String())
 	if instID == 0 {
@@ -402,7 +402,6 @@ func (c *COINUT) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderboo
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (c *COINUT) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-
 	err := c.loadInstrumentsIfNotLoaded()
 	if err != nil {
 		return orderBook, err
@@ -452,12 +451,12 @@ func (c *COINUT) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]ex
 
 // SubmitOrder submits a new order
 func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
 	var err error
 	if _, err = strconv.Atoi(o.ClientID); err != nil {
 		return submitOrderResponse, fmt.Errorf("%s - ClientID must be a number, received: %s", c.Name, o.ClientID)
 	}
 	err = o.Validate()
+	var submitOrderResponse order.SubmitResponse
 	if err != nil {
 		return submitOrderResponse, err
 	}
@@ -473,18 +472,9 @@ func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 		if err != nil {
 			return submitOrderResponse, err
 		}
-		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderID)
+		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderID, 10)
 		submitOrderResponse.IsOrderPlaced = true
 	} else {
-		var APIResponse interface{}
-		var clientIDInt uint64
-		isBuyOrder := o.OrderSide == order.Buy
-		clientIDInt, err = strconv.ParseUint(o.ClientID, 0, 32)
-		if err != nil {
-			return submitOrderResponse, err
-		}
-		clientIDUint := uint32(clientIDInt)
-
 		err = c.loadInstrumentsIfNotLoaded()
 		if err != nil {
 			return submitOrderResponse, err
@@ -496,6 +486,14 @@ func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			return submitOrderResponse, errLookupInstrumentID
 		}
 
+		var APIResponse interface{}
+		var clientIDInt uint64
+		isBuyOrder := o.OrderSide == order.Buy
+		clientIDInt, err = strconv.ParseUint(o.ClientID, 0, 32)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+		clientIDUint := uint32(clientIDInt)
 		APIResponse, err = c.NewOrder(currencyID, o.Amount, o.Price,
 			isBuyOrder, clientIDUint)
 		if err != nil {
@@ -528,6 +526,10 @@ func (c *COINUT) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (c *COINUT) CancelOrder(o *order.Cancel) error {
+	err := c.loadInstrumentsIfNotLoaded()
+	if err != nil {
+		return err
+	}
 	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
 	if err != nil {
 		return err
@@ -537,10 +539,6 @@ func (c *COINUT) CancelOrder(o *order.Cancel) error {
 		o.CurrencyPair,
 		asset.Spot).String(),
 	)
-	err = c.loadInstrumentsIfNotLoaded()
-	if err != nil {
-		return err
-	}
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var resp *CancelOrdersResponse
 		resp, err = c.wsCancelOrder(&WsCancelOrderParameters{
@@ -568,13 +566,12 @@ func (c *COINUT) CancelOrder(o *order.Cancel) error {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (c *COINUT) CancelAllOrders(details *order.Cancel) (order.CancelAllResponse, error) {
-	cancelAllOrdersResponse := order.CancelAllResponse{
-		Status: make(map[string]string),
-	}
+	var cancelAllOrdersResponse order.CancelAllResponse
 	err := c.loadInstrumentsIfNotLoaded()
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
+	cancelAllOrdersResponse.Status = make(map[string]string)
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		openOrders, err := c.wsGetOpenOrders(details.CurrencyPair.String())
 		if err != nil {
@@ -612,10 +609,10 @@ func (c *COINUT) CancelAllOrders(details *order.Cancel) (order.CancelAllResponse
 		}
 
 		var allTheOrdersToCancel []CancelOrders
-		for _, orderToCancel := range allTheOrders {
+		for i := range allTheOrders {
 			cancelOrder := CancelOrders{
-				InstrumentID: orderToCancel.InstrumentID,
-				OrderID:      orderToCancel.OrderID,
+				InstrumentID: allTheOrders[i].InstrumentID,
+				OrderID:      allTheOrders[i].OrderID,
 			}
 			allTheOrdersToCancel = append(allTheOrdersToCancel, cancelOrder)
 		}
@@ -681,12 +678,12 @@ func (c *COINUT) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 
 // GetActiveOrders retrieves any orders that are active/open
 func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
-	var orders []order.Detail
-	var currenciesToCheck []string
 	err := c.loadInstrumentsIfNotLoaded()
 	if err != nil {
-		return orders, err
+		return nil, err
 	}
+	var orders []order.Detail
+	var currenciesToCheck []string
 	if len(req.Currencies) == 0 {
 		for i := range req.Currencies {
 			currenciesToCheck = append(currenciesToCheck, c.FormatExchangeCurrency(req.Currencies[i], asset.Spot).String())
@@ -767,11 +764,11 @@ func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
-	var allOrders []order.Detail
 	err := c.loadInstrumentsIfNotLoaded()
 	if err != nil {
 		return nil, err
 	}
+	var allOrders []order.Detail
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for i := range req.Currencies {
 			for j := int64(0); ; j += 100 {

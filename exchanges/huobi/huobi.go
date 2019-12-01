@@ -856,7 +856,7 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 		values.Set("PrivateSignature", crypto.Base64Encode(privSig))
 	}
 
-	urlPath := fmt.Sprintf("%s%s", h.API.Endpoints.URL, common.EncodeURLValues(endpoint, values))
+	urlPath := h.API.Endpoints.URL + common.EncodeURLValues(endpoint, values)
 
 	var body []byte
 

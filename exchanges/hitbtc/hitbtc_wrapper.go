@@ -385,7 +385,7 @@ func (h *HitBTC) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 		if err != nil {
 			return submitOrderResponse, err
 		}
-		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.ID)
+		submitOrderResponse.OrderID = strconv.FormatInt(response.ID, 10)
 	} else {
 		var response OrderResponse
 		response, err = h.PlaceOrder(o.Pair.String(),
@@ -397,7 +397,7 @@ func (h *HitBTC) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			return submitOrderResponse, err
 		}
 		if response.OrderNumber > 0 {
-			submitOrderResponse.OrderID = fmt.Sprintf("%v", response.OrderNumber)
+			submitOrderResponse.OrderID = strconv.FormatInt(response.OrderNumber, 10)
 		}
 
 	}

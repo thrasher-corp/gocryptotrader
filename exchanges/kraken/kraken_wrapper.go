@@ -442,7 +442,7 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		0,
 		0,
 		&AddOrderOptions{})
-	if err == nil {
+	if err != nil {
 		return submitOrderResponse, err
 	}
 	if len(response.TransactionIds) > 0 {

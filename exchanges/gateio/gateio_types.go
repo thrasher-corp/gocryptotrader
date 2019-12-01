@@ -479,7 +479,7 @@ type wsGetBalanceRequest struct {
 // WsGetBalanceResponse stores WS GetBalance response
 type WsGetBalanceResponse struct {
 	Error  interface{}                         `json:"error"`
-	Result map[string]WsGetBalanceResponseData `json:"result,omitempty"`
+	Result map[string]WsGetBalanceResponseData `json:"result"`
 	ID     int64                               `json:"id"`
 }
 

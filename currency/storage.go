@@ -184,10 +184,8 @@ func (s *Storage) SetDefaultFiatCurrencies(c ...Code) {
 // SetDefaultCryptocurrencies assigns the default cryptocurrency list and adds
 // it to the running list
 func (s *Storage) SetDefaultCryptocurrencies(c ...Code) {
-	for i := range c {
-		s.defaultCryptoCurrencies = append(s.defaultCryptoCurrencies, c[i])
-		s.cryptocurrencies = append(s.cryptocurrencies, c[i])
-	}
+	s.defaultFiatCurrencies = append(s.defaultFiatCurrencies, c...)
+	s.fiatCurrencies = append(s.fiatCurrencies, c...)
 }
 
 // SetupForexProviders sets up a new instance of the forex providers

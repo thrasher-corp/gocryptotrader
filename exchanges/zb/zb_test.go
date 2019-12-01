@@ -89,11 +89,9 @@ func TestSpotNewOrder(t *testing.T) {
 		Amount: 0.01,
 		Price:  10246.1,
 	}
-	orderid, err := z.SpotNewOrder(arg)
+	_, err := z.SpotNewOrder(arg)
 	if err != nil {
 		t.Errorf("ZB SpotNewOrder: %s", err)
-	} else {
-		t.Log(orderid)
 	}
 }
 

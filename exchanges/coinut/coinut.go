@@ -105,9 +105,8 @@ func (c *COINUT) GetTrades(instrumentID int) (Trades, error) {
 }
 
 // GetUserBalance returns the full user balance
-func (c *COINUT) GetUserBalance() (UserBalance, error) {
-	result := UserBalance{}
-
+func (c *COINUT) GetUserBalance() (*UserBalance, error) {
+	var result *UserBalance
 	return result, c.SendHTTPRequest(coinutBalance, nil, true, &result)
 }
 
@@ -424,7 +423,7 @@ func (i *instrumentMap) IsLoaded() bool {
 }
 
 // Seed seeds the instrument map
-func (i *instrumentMap) Seed(currency string, id int64) {
+func (i *instrumentMap) Seed(curr string, id int64) {
 	i.m.Lock()
 	defer i.m.Unlock()
 
@@ -433,12 +432,12 @@ func (i *instrumentMap) Seed(currency string, id int64) {
 	}
 
 	// check to see if the instrument already exists
-	_, ok := i.Instruments[currency]
+	_, ok := i.Instruments[curr]
 	if ok {
 		return
 	}
 
-	i.Instruments[currency] = id
+	i.Instruments[curr] = id
 	i.Loaded = true
 }
 
@@ -460,7 +459,7 @@ func (i *instrumentMap) LookupInstrument(id int64) string {
 }
 
 // LookupID looks up an ID based on a string
-func (i *instrumentMap) LookupID(currency string) int64 {
+func (i *instrumentMap) LookupID(curr string) int64 {
 	i.m.Lock()
 	defer i.m.Unlock()
 
@@ -468,10 +467,8 @@ func (i *instrumentMap) LookupID(currency string) int64 {
 		return 0
 	}
 
-	for k, v := range i.Instruments {
-		if strings.EqualFold(currency, k) {
-			return v
-		}
+	if ic, ok := i.Instruments[curr]; ok {
+		return ic
 	}
 	return 0
 }

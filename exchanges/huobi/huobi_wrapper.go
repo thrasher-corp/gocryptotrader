@@ -403,16 +403,17 @@ func (h *HUOBI) GetAccountInfo() (exchange.AccountInfo, error) {
 		}
 		var currencyDetails []exchange.AccountCurrencyInfo
 		for i := range resp.Data {
-			if len(resp.Data[i].List) > 0 {
-				currData := exchange.AccountCurrencyInfo{
-					CurrencyName: currency.NewCode(resp.Data[i].List[0].Currency),
-					TotalValue:   resp.Data[i].List[0].Balance,
-				}
-				if len(resp.Data[i].List) > 1 && resp.Data[i].List[1].Type == "frozen" {
-					currData.Hold = resp.Data[i].List[1].Balance
-				}
-				currencyDetails = append(currencyDetails, currData)
+			if len(resp.Data[i].List) == 0 {
+				continue
 			}
+			currData := exchange.AccountCurrencyInfo{
+				CurrencyName: currency.NewCode(resp.Data[i].List[0].Currency),
+				TotalValue:   resp.Data[i].List[0].Balance,
+			}
+			if len(resp.Data[i].List) > 1 && resp.Data[i].List[1].Type == "frozen" {
+				currData.Hold = resp.Data[i].List[1].Balance
+			}
+			currencyDetails = append(currencyDetails, currData)
 		}
 		var acc exchange.Account
 		acc.Currencies = currencyDetails

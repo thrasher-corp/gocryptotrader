@@ -1111,6 +1111,6 @@ func TestGetOrderbook(t *testing.T) {
 	_, err = o.GetOrderBook(okgroup.GetOrderBookRequest{InstrumentID: "BTC-USD-SWAP"},
 		asset.PerpetualSwap)
 	if err == nil {
-		t.Error(err)
+		t.Error("error cannot be nil")
 	}
 }

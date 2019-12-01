@@ -718,6 +718,7 @@ func (b *Bitfinex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 	req["channel"] = channelToSubscribe.Channel
 	if channelToSubscribe.Currency.String() != "" {
 		if channelToSubscribe.Channel == wsCandles {
+			// TODO: Add ability to select timescale
 			req["key"] = fmt.Sprintf("trade:1D:%v",
 				b.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot).String())
 		} else {
@@ -802,11 +803,11 @@ func (b *Bitfinex) WsNewOrder(data *WsNewOrderRequest) (string, error) {
 	data.CustomID = b.AuthenticatedWebsocketConn.GenerateMessageID(false)
 	request := makeRequestInterface(wsOrderNew, data)
 	resp, err := b.AuthenticatedWebsocketConn.SendMessageReturnResponse(data.CustomID, request)
-	if resp == nil {
-		return "", errors.New(b.Name + " - Order message not returned")
-	}
 	if err != nil {
 		return "", err
+	}
+	if resp == nil {
+		return "", errors.New(b.Name + " - Order message not returned")
 	}
 	var respData []interface{}
 	err = common.JSONDecode(resp, &respData)
@@ -833,12 +834,13 @@ func (b *Bitfinex) WsNewOrder(data *WsNewOrderRequest) (string, error) {
 func (b *Bitfinex) WsModifyOrder(data *WsUpdateOrderRequest) error {
 	request := makeRequestInterface(wsOrderUpdate, data)
 	resp, err := b.AuthenticatedWebsocketConn.SendMessageReturnResponse(data.OrderID, request)
-	if resp == nil {
-		return errors.New(b.Name + " - Order message not returned")
-	}
 	if err != nil {
 		return err
 	}
+	if resp == nil {
+		return errors.New(b.Name + " - Order message not returned")
+	}
+
 	var responseData []interface{}
 	err = common.JSONDecode(resp, &responseData)
 	if err != nil {

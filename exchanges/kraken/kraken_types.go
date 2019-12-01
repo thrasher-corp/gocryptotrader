@@ -545,11 +545,11 @@ type WsAddOrderRequest struct {
 
 // WsAddOrderResponse response data for ws order
 type WsAddOrderResponse struct {
-	Description   string `json:"descr,omitempty"`
+	Description   string `json:"descr"`
 	Event         string `json:"event"`
 	Status        string `json:"status"`
-	TransactionID string `json:"txid,omitempty"`
-	ErrorMessage  string `json:"errorMessage,omitempty"`
+	TransactionID string `json:"txid"`
+	ErrorMessage  string `json:"errorMessage"`
 }
 
 // WsCancelOrderRequest request for ws cancel order
@@ -563,31 +563,5 @@ type WsCancelOrderRequest struct {
 type WsCancelOrderResponse struct {
 	Event        string `json:"event"`
 	Status       string `json:"status"`
-	ErrorMessage string `json:"errorMessage,omitempty"`
+	ErrorMessage string `json:"errorMessage"`
 }
-
-// List of all websocket channels to subscribe to
-const (
-	krakenWSURL              = "wss://ws.kraken.com"
-	krakenAuthWSURL          = "wss://ws-auth.kraken.com"
-	krakenWSSandboxURL       = "wss://sandbox.kraken.com"
-	krakenWSSupportedVersion = "0.3.0"
-	// WS endpoints
-	krakenWsHeartbeat          = "heartbeat"
-	krakenWsPing               = "ping"
-	krakenWsPong               = "pong"
-	krakenWsSystemStatus       = "systemStatus"
-	krakenWsSubscribe          = "subscribe"
-	krakenWsSubscriptionStatus = "subscriptionStatus"
-	krakenWsUnsubscribe        = "unsubscribe"
-	krakenWsTicker             = "ticker"
-	krakenWsOHLC               = "ohlc"
-	krakenWsTrade              = "trade"
-	krakenWsSpread             = "spread"
-	krakenWsOrderbook          = "book"
-	krakenWsOwnTrades          = "ownTrades"
-	krakenWsOpenOrders         = "openOrders"
-	krakenWsAddOrder           = "addOrder"
-	krakenWsCancelOrder        = "cancelOrder"
-	krakenWsRateLimit          = 50
-)

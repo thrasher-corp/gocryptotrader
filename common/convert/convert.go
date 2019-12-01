@@ -82,14 +82,14 @@ func RecvWindow(d time.Duration) int64 {
 // SplitFloatDecimals takes in a float64 and splits
 // the decimals into their own integers
 func SplitFloatDecimals(input float64) (baseNum, decimalNum int64, err error) {
+	if input == float64(int64(input)) {
+		return int64(input), 0, nil
+	}
 	decStr := strconv.FormatFloat(input, 'f', -1, 64)
 	splitNum := strings.Split(decStr, ".")
 	baseNum, err = strconv.ParseInt(splitNum[0], 10, 64)
 	if err != nil {
 		return 0, 0, err
-	}
-	if len(splitNum) == 1 {
-		return baseNum, 0, nil
 	}
 	decimalNum, err = strconv.ParseInt(splitNum[1], 10, 64)
 	if err != nil {

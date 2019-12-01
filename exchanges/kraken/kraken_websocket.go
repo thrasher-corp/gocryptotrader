@@ -20,6 +20,32 @@ import (
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
+// List of all websocket channels to subscribe to
+const (
+	krakenWSURL              = "wss://ws.kraken.com"
+	krakenAuthWSURL          = "wss://ws-auth.kraken.com"
+	krakenWSSandboxURL       = "wss://sandbox.kraken.com"
+	krakenWSSupportedVersion = "0.3.0"
+	// WS endpoints
+	krakenWsHeartbeat          = "heartbeat"
+	krakenWsPing               = "ping"
+	krakenWsPong               = "pong"
+	krakenWsSystemStatus       = "systemStatus"
+	krakenWsSubscribe          = "subscribe"
+	krakenWsSubscriptionStatus = "subscriptionStatus"
+	krakenWsUnsubscribe        = "unsubscribe"
+	krakenWsTicker             = "ticker"
+	krakenWsOHLC               = "ohlc"
+	krakenWsTrade              = "trade"
+	krakenWsSpread             = "spread"
+	krakenWsOrderbook          = "book"
+	krakenWsOwnTrades          = "ownTrades"
+	krakenWsOpenOrders         = "openOrders"
+	krakenWsAddOrder           = "addOrder"
+	krakenWsCancelOrder        = "cancelOrder"
+	krakenWsRateLimit          = 50
+)
+
 // orderbookMutex Ensures if two entries arrive at once, only one can be processed at a time
 var subscriptionChannelPair []WebsocketChannelData
 var comms = make(chan wshandler.WebsocketResponse)
@@ -181,7 +207,6 @@ func (k *Kraken) WsHandleDataResponse(response WebsocketDataResponse) {
 					k.Name)
 			}
 			k.wsProcessTrades(&channelData, response[1].([]interface{}))
-
 		default:
 			log.Errorf(log.ExchangeSys, "%v Unidentified websocket data received: %v",
 				k.Name,
@@ -900,9 +925,5 @@ func (k *Kraken) wsCancelOrders(orderIDs []string) error {
 		Token:          authToken,
 		TransactionIDs: orderIDs,
 	}
-	err := k.AuthenticatedWebsocketConn.SendMessage(request)
-	if err != nil {
-		return err
-	}
-	return nil
+	return k.AuthenticatedWebsocketConn.SendMessage(request)
 }
