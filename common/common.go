@@ -18,7 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofrs/uuid"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -42,11 +41,6 @@ const (
 	SatoshisPerLTC = 100000000
 	WeiPerEther    = 1000000000000000000
 )
-
-// GetV4UUID returns a RFC 4122 UUID based on random numbers
-func GetV4UUID() (uuid.UUID, error) {
-	return uuid.NewV4()
-}
 
 func initialiseHTTPClient() {
 	// If the HTTPClient isn't set, start a new client with a default timeout of 15 seconds
