@@ -1,6 +1,7 @@
 package coinbasepro
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -8,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -67,7 +67,7 @@ func (c *CoinbasePro) WsHandleData() {
 			}
 
 			msgType := MsgType{}
-			err = common.JSONDecode(resp.Raw, &msgType)
+			err = json.Unmarshal(resp.Raw, &msgType)
 			if err != nil {
 				c.Websocket.DataHandler <- err
 				continue
@@ -83,7 +83,7 @@ func (c *CoinbasePro) WsHandleData() {
 
 			case "ticker":
 				ticker := WebsocketTicker{}
-				err := common.JSONDecode(resp.Raw, &ticker)
+				err := json.Unmarshal(resp.Raw, &ticker)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
@@ -105,7 +105,7 @@ func (c *CoinbasePro) WsHandleData() {
 
 			case "snapshot":
 				snapshot := WebsocketOrderbookSnapshot{}
-				err := common.JSONDecode(resp.Raw, &snapshot)
+				err := json.Unmarshal(resp.Raw, &snapshot)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
@@ -119,7 +119,7 @@ func (c *CoinbasePro) WsHandleData() {
 
 			case "l2update":
 				update := WebsocketL2Update{}
-				err := common.JSONDecode(resp.Raw, &update)
+				err := json.Unmarshal(resp.Raw, &update)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
@@ -133,7 +133,7 @@ func (c *CoinbasePro) WsHandleData() {
 			case "received":
 				// We currently use l2update to calculate orderbook changes
 				received := WebsocketReceived{}
-				err := common.JSONDecode(resp.Raw, &received)
+				err := json.Unmarshal(resp.Raw, &received)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
@@ -142,7 +142,7 @@ func (c *CoinbasePro) WsHandleData() {
 			case "open":
 				// We currently use l2update to calculate orderbook changes
 				open := WebsocketOpen{}
-				err := common.JSONDecode(resp.Raw, &open)
+				err := json.Unmarshal(resp.Raw, &open)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
@@ -151,7 +151,7 @@ func (c *CoinbasePro) WsHandleData() {
 			case "done":
 				// We currently use l2update to calculate orderbook changes
 				done := WebsocketDone{}
-				err := common.JSONDecode(resp.Raw, &done)
+				err := json.Unmarshal(resp.Raw, &done)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
@@ -160,7 +160,7 @@ func (c *CoinbasePro) WsHandleData() {
 			case "change":
 				// We currently use l2update to calculate orderbook changes
 				change := WebsocketChange{}
-				err := common.JSONDecode(resp.Raw, &change)
+				err := json.Unmarshal(resp.Raw, &change)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
@@ -169,7 +169,7 @@ func (c *CoinbasePro) WsHandleData() {
 			case "activate":
 				// We currently use l2update to calculate orderbook changes
 				activate := WebsocketActivate{}
-				err := common.JSONDecode(resp.Raw, &activate)
+				err := json.Unmarshal(resp.Raw, &activate)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue

@@ -1,6 +1,7 @@
 package alphapoint
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -63,7 +64,7 @@ func TestGetTicker(t *testing.T) {
 			string(`{"high":253.101,"last":249.76,"bid":248.8901,"volume":5.813354,"low":231.21,"ask":248.9012,"Total24HrQtyTraded":52.654968,"Total24HrProduct2Traded":569.05762,"Total24HrNumTrades":4,"sellOrderCount":7,"buyOrderCount":11,"numOfCreateOrders":0,"isAccepted":true}`),
 		)
 
-		err = common.JSONDecode(mockResp, &ticker)
+		err = json.Unmarshal(mockResp, &ticker)
 		if err != nil {
 			t.Fatal("Alphapoint GetTicker unmarshalling error: ", err)
 		}
@@ -100,7 +101,7 @@ func TestGetTrades(t *testing.T) {
 			string(`{"isAccepted":true,"dateTimeUtc":635507981548085938,"ins":"BTCUSD","startIndex":0,"count":10,"trades":[{"tid":0,"px":231.8379,"qty":4.913,"unixtime":1399951989,"utcticks":635355487898355234,"incomingOrderSide":0,"incomingServerOrderId":2598,"bookServerOrderId":2588},{"tid":1,"px":7895.1487,"qty":0.25,"unixtime":1403143708,"utcticks":635387405087297421,"incomingOrderSide":0,"incomingServerOrderId":284241,"bookServerOrderId":284235},{"tid":2,"px":7935.058,"qty":0.25,"unixtime":1403195348,"utcticks":635387921488684140,"incomingOrderSide":0,"incomingServerOrderId":575845,"bookServerOrderId":574078},{"tid":3,"px":7935.0448,"qty":0.25,"unixtime":1403195378,"utcticks":635387921780090390,"incomingOrderSide":0,"incomingServerOrderId":576028,"bookServerOrderId":575946},{"tid":4,"px":7933.9566,"qty":0.1168,"unixtime":1403195510,"utcticks":635387923108371640,"incomingOrderSide":0,"incomingServerOrderId":576974,"bookServerOrderId":576947},{"tid":5,"px":7961.0856,"qty":0.25,"unixtime":1403202307,"utcticks":635387991073850156,"incomingOrderSide":0,"incomingServerOrderId":600547,"bookServerOrderId":600338},{"tid":6,"px":7961.1388,"qty":0.011,"unixtime":1403202307,"utcticks":635387991073850156,"incomingOrderSide":0,"incomingServerOrderId":600547,"bookServerOrderId":600418},{"tid":7,"px":7961.2451,"qty":0.02,"unixtime":1403202307,"utcticks":635387991073850156,"incomingOrderSide":0,"incomingServerOrderId":600547,"bookServerOrderId":600428},{"tid":8,"px":7947.1437,"qty":0.09,"unixtime":1403202749,"utcticks":635387995498225156,"incomingOrderSide":0,"incomingServerOrderId":602183,"bookServerOrderId":601745},{"tid":9,"px":7818.5073,"qty":0.25,"unixtime":1403219720,"utcticks":635388165206506406,"incomingOrderSide":0,"incomingServerOrderId":661909,"bookServerOrderId":661620}]}`),
 		)
 
-		err = common.JSONDecode(mockResp, &trades)
+		err = json.Unmarshal(mockResp, &trades)
 		if err != nil {
 			t.Fatal("GetTrades unmarshalling error: ", err)
 		}
@@ -140,7 +141,7 @@ func TestGetTradesByDate(t *testing.T) {
 			string(`{"isAccepted":true,"dateTimeUtc":635504540880633671,"ins":"BTCUSD","startDate":1414799400,"endDate":1414800000,"trades":[{"tid":11505,"px":334.669,"qty":0.1211,"unixtime":1414799403,"utcticks":635503962032459843,"incomingOrderSide":1,"incomingServerOrderId":5185651,"bookServerOrderId":5162440},{"tid":11506,"px":334.669,"qty":0.1211,"unixtime":1414799405,"utcticks":635503962058446171,"incomingOrderSide":1,"incomingServerOrderId":5186245,"bookServerOrderId":5162440},{"tid":11507,"px":336.498,"qty":0.011,"unixtime":1414799407,"utcticks":635503962072967656,"incomingOrderSide":0,"incomingServerOrderId":5186530,"bookServerOrderId":5178944},{"tid":11508,"px":335.948,"qty":0.011,"unixtime":1414799410,"utcticks":635503962108055546,"incomingOrderSide":0,"incomingServerOrderId":5187260,"bookServerOrderId":5186531}]}`),
 		)
 
-		err = common.JSONDecode(mockResp, &trades)
+		err = json.Unmarshal(mockResp, &trades)
 		if err != nil {
 			t.Fatal("GetTradesByDate unmarshalling error: ", err)
 		}
@@ -188,7 +189,7 @@ func TestGetOrderbook(t *testing.T) {
 			string(`{"bids":[{"qty":725,"px":66},{"qty":1289,"px":65},{"qty":1266,"px":64}],"asks":[{"qty":1,"px":67},{"qty":1,"px":69},{"qty":2,"px":70}],"isAccepted":true}`),
 		)
 
-		err = common.JSONDecode(mockResp, &orderBook)
+		err = json.Unmarshal(mockResp, &orderBook)
 		if err != nil {
 			t.Fatal("TestGetOrderbook unmarshalling error: ", err)
 		}
@@ -228,7 +229,7 @@ func TestGetProductPairs(t *testing.T) {
 			string(`{"productPairs":[{"name":"LTCUSD","productPairCode":100,"product1Label":"LTC","product1DecimalPlaces":8,"product2Label":"USD","product2DecimalPlaces":6}, {"name":"BTCUSD","productPairCode":99,"product1Label":"BTC","product1DecimalPlaces":8,"product2Label":"USD","product2DecimalPlaces":6}],"isAccepted":true}`),
 		)
 
-		err = common.JSONDecode(mockResp, &products)
+		err = json.Unmarshal(mockResp, &products)
 		if err != nil {
 			t.Fatal("TestGetProductPairs unmarshalling error: ", err)
 		}
@@ -268,7 +269,7 @@ func TestGetProducts(t *testing.T) {
 			string(`{"products": [{"name": "USD","isDigital": false,"productCode": 0,"decimalPlaces": 4,"fullName": "US Dollar"},{"name": "BTC","isDigital": true,"productCode": 1,"decimalPlaces": 6,"fullName": "Bitcoin"}],"isAccepted": true}`),
 		)
 
-		err = common.JSONDecode(mockResp, &products)
+		err = json.Unmarshal(mockResp, &products)
 		if err != nil {
 			t.Fatal("TestGetProducts unmarshalling error: ", err)
 		}

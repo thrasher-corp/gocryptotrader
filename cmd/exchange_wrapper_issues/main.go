@@ -737,7 +737,7 @@ func loadConfig() (Config, error) {
 		return config, err
 	}
 
-	err = common.JSONDecode(keys, &config)
+	err = json.Unmarshal(keys, &config)
 	return config, err
 }
 

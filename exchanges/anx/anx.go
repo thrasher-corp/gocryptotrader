@@ -2,13 +2,13 @@ package anx
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -357,7 +357,7 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 		req[key] = value
 	}
 
-	PayloadJSON, err := common.JSONEncode(req)
+	PayloadJSON, err := json.Marshal(req)
 	if err != nil {
 		return errors.New("unable to JSON request")
 	}

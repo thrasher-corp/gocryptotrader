@@ -1,10 +1,10 @@
 package currency
 
 import (
+	"encoding/json"
 	"math/rand"
 	"strings"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -68,7 +68,7 @@ func (p Pairs) Format(delimiter, index string, uppercase bool) Pairs {
 // UnmarshalJSON comforms type to the umarshaler interface
 func (p *Pairs) UnmarshalJSON(d []byte) error {
 	var pairs string
-	err := common.JSONDecode(d, &pairs)
+	err := json.Unmarshal(d, &pairs)
 	if err != nil {
 		return err
 	}
@@ -89,7 +89,7 @@ func (p *Pairs) UnmarshalJSON(d []byte) error {
 
 // MarshalJSON conforms type to the marshaler interface
 func (p Pairs) MarshalJSON() ([]byte, error) {
-	return common.JSONEncode(p.Join())
+	return json.Marshal(p.Join())
 }
 
 // Upper returns an upper formatted pair list

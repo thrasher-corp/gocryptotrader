@@ -212,7 +212,7 @@ func (s *Slack) WebsocketReader() {
 		}
 
 		var data WebsocketResponse
-		err = common.JSONDecode(resp, &data)
+		err = json.Unmarshal(resp, &data)
 		if err != nil {
 			log.Errorln(log.CommunicationMgr, err)
 			continue
@@ -253,7 +253,7 @@ func (s *Slack) WebsocketReader() {
 
 func (s *Slack) handlePresenceChange(resp []byte) error {
 	var pres PresenceChange
-	err := common.JSONDecode(resp, &pres)
+	err := json.Unmarshal(resp, &pres)
 	if err != nil {
 		return err
 	}
@@ -270,7 +270,7 @@ func (s *Slack) handleMessageResponse(resp []byte, data WebsocketResponse) error
 		return errors.New("reply to is != 0")
 	}
 	var msg Message
-	err := common.JSONDecode(resp, &msg)
+	err := json.Unmarshal(resp, &msg)
 	if err != nil {
 		return err
 	}
@@ -318,7 +318,7 @@ func (s *Slack) handleReconnectResponse(resp []byte) error {
 		URL string `json:"url"`
 	}
 	var recURL reconnectResponse
-	err := common.JSONDecode(resp, &recURL)
+	err := json.Unmarshal(resp, &recURL)
 	if err != nil {
 		return err
 	}

@@ -1,9 +1,9 @@
 package slack
 
 import (
+	"encoding/json"
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
@@ -198,7 +198,7 @@ func TestHandlePresenceChange(t *testing.T) {
 		t.Error("slack handlePresenceChange(), unmarshalled malformed json")
 	}
 
-	data, _ := common.JSONEncode(pres)
+	data, _ := json.Marshal(pres)
 	err = s.handlePresenceChange(data)
 	if err != nil {
 		t.Errorf("slack handlePresenceChange() Error: %s", err)
@@ -225,7 +225,7 @@ func TestHandleMessageResponse(t *testing.T) {
 	var msg Message
 	msg.User = "1337"
 	msg.Text = "Hello World!"
-	resp, _ := common.JSONEncode(msg)
+	resp, _ := json.Marshal(msg)
 
 	err = s.handleMessageResponse(resp, data)
 	if err != nil {
@@ -233,7 +233,7 @@ func TestHandleMessageResponse(t *testing.T) {
 	}
 
 	msg.Text = "!notacommand"
-	resp, _ = common.JSONEncode(msg)
+	resp, _ = json.Marshal(msg)
 
 	err = s.handleMessageResponse(resp, data)
 	if err == nil {
@@ -270,7 +270,7 @@ func TestHandleReconnectResponse(t *testing.T) {
 	}
 	testURL.URL = "https://www.thrasher.io"
 
-	data, _ := common.JSONEncode(testURL)
+	data, _ := json.Marshal(testURL)
 
 	err = s.handleReconnectResponse(data)
 	if err != nil || s.ReconnectURL != "https://www.thrasher.io" {

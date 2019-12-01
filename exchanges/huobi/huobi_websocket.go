@@ -1,6 +1,7 @@
 package huobi
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -10,9 +11,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -139,7 +138,7 @@ func (h *HUOBI) WsHandleData() {
 
 func (h *HUOBI) wsHandleAuthenticatedData(resp WsMessage) {
 	var init WsAuthenticatedDataResponse
-	err := common.JSONDecode(resp.Raw, &init)
+	err := json.Unmarshal(resp.Raw, &init)
 	if err != nil {
 		h.Websocket.DataHandler <- err
 		return
@@ -169,14 +168,14 @@ func (h *HUOBI) wsHandleAuthenticatedData(resp WsMessage) {
 	case strings.EqualFold(init.Op, authOp):
 		h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		var response WsAuthenticatedDataResponse
-		err := common.JSONDecode(resp.Raw, &response)
+		err := json.Unmarshal(resp.Raw, &response)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 		}
 		h.Websocket.DataHandler <- response
 	case strings.EqualFold(init.Topic, "accounts"):
 		var response WsAuthenticatedAccountsResponse
-		err := common.JSONDecode(resp.Raw, &response)
+		err := json.Unmarshal(resp.Raw, &response)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 		}
@@ -184,14 +183,14 @@ func (h *HUOBI) wsHandleAuthenticatedData(resp WsMessage) {
 	case strings.Contains(init.Topic, "orders") &&
 		strings.Contains(init.Topic, "update"):
 		var response WsAuthenticatedOrdersUpdateResponse
-		err := common.JSONDecode(resp.Raw, &response)
+		err := json.Unmarshal(resp.Raw, &response)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 		}
 		h.Websocket.DataHandler <- response
 	case strings.Contains(init.Topic, "orders"):
 		var response WsAuthenticatedOrdersResponse
-		err := common.JSONDecode(resp.Raw, &response)
+		err := json.Unmarshal(resp.Raw, &response)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 		}
@@ -201,7 +200,7 @@ func (h *HUOBI) wsHandleAuthenticatedData(resp WsMessage) {
 
 func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 	var init WsResponse
-	err := common.JSONDecode(resp.Raw, &init)
+	err := json.Unmarshal(resp.Raw, &init)
 	if err != nil {
 		h.Websocket.DataHandler <- err
 		return
@@ -228,7 +227,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 	switch {
 	case strings.Contains(init.Channel, "depth"):
 		var depth WsDepth
-		err := common.JSONDecode(resp.Raw, &depth)
+		err := json.Unmarshal(resp.Raw, &depth)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 			return
@@ -243,7 +242,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 
 	case strings.Contains(init.Channel, "kline"):
 		var kline WsKline
-		err := common.JSONDecode(resp.Raw, &kline)
+		err := json.Unmarshal(resp.Raw, &kline)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 			return
@@ -263,7 +262,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 		}
 	case strings.Contains(init.Channel, "trade.detail"):
 		var trade WsTrade
-		err := common.JSONDecode(resp.Raw, &trade)
+		err := json.Unmarshal(resp.Raw, &trade)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 			return
@@ -278,7 +277,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 		}
 	case strings.Contains(init.Channel, "detail"):
 		var ticker WsTick
-		err := common.JSONDecode(resp.Raw, &ticker)
+		err := json.Unmarshal(resp.Raw, &ticker)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 			return
@@ -457,7 +456,7 @@ func (h *HUOBI) wsGetAccountsList(pair currency.Pair) (*WsAuthenticatedAccountsL
 		return nil, err
 	}
 	var response WsAuthenticatedAccountsListResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	return &response, err
 }
 
@@ -485,7 +484,7 @@ func (h *HUOBI) wsGetOrdersList(accountID int64, pair currency.Pair) (*WsAuthent
 		return nil, err
 	}
 	var response WsAuthenticatedOrdersResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	return &response, err
 }
 
@@ -511,6 +510,6 @@ func (h *HUOBI) wsGetOrderDetails(orderID string) (*WsAuthenticatedOrderDetailRe
 		return nil, err
 	}
 	var response WsAuthenticatedOrderDetailResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	return &response, err
 }

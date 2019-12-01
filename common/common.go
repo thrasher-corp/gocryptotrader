@@ -12,7 +12,6 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -221,26 +220,13 @@ func SendHTTPGetRequest(urlPath string, jsonDecode, isVerbose bool, result inter
 	defer res.Body.Close()
 
 	if jsonDecode {
-		err := JSONDecode(contents, result)
+		err := json.Unmarshal(contents, result)
 		if err != nil {
 			return err
 		}
 	}
 
 	return nil
-}
-
-// JSONEncode encodes structure data into JSON
-func JSONEncode(v interface{}) ([]byte, error) {
-	return json.Marshal(v)
-}
-
-// JSONDecode decodes JSON data into a structure
-func JSONDecode(data []byte, to interface{}) error {
-	if !strings.Contains(reflect.ValueOf(to).Type().String(), "*") {
-		return errors.New("json decode error - memory address not supplied")
-	}
-	return json.Unmarshal(data, to)
 }
 
 // EncodeURLValues concatenates url values onto a url string and returns a

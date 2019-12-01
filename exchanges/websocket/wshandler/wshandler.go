@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/flate"
 	"compress/gzip"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -15,7 +16,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -653,7 +653,7 @@ func (w *WebsocketConnection) SendMessage(data interface{}) error {
 	if !w.IsConnected() {
 		return fmt.Errorf("%v cannot send message to a disconnected websocket", w.ExchangeName)
 	}
-	json, err := common.JSONEncode(data)
+	json, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}

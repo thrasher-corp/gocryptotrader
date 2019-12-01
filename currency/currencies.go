@@ -1,9 +1,8 @@
 package currency
 
 import (
+	"encoding/json"
 	"strings"
-
-	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 // NewCurrenciesFromStringArray returns a Currencies object from strings
@@ -48,7 +47,7 @@ func (c Currencies) Join() string {
 // UnmarshalJSON comforms type to the umarshaler interface
 func (c *Currencies) UnmarshalJSON(d []byte) error {
 	var configCurrencies string
-	err := common.JSONDecode(d, &configCurrencies)
+	err := json.Unmarshal(d, &configCurrencies)
 	if err != nil {
 		return err
 	}
@@ -64,7 +63,7 @@ func (c *Currencies) UnmarshalJSON(d []byte) error {
 
 // MarshalJSON conforms type to the marshaler interface
 func (c Currencies) MarshalJSON() ([]byte, error) {
-	return common.JSONEncode(c.Join())
+	return json.Marshal(c.Join())
 }
 
 // Match returns if the full list equals the supplied list

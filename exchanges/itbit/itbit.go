@@ -305,7 +305,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method, path string, params map[str
 	var err error
 
 	if params != nil {
-		PayloadJSON, err = common.JSONEncode(req)
+		PayloadJSON, err = json.Marshal(req)
 		if err != nil {
 			return err
 		}
@@ -317,7 +317,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method, path string, params map[str
 
 	n := i.Requester.GetNonce(true).String()
 	timestamp := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
-	message, err := common.JSONEncode([]string{method, urlPath, string(PayloadJSON), n, timestamp})
+	message, err := json.Marshal([]string{method, urlPath, string(PayloadJSON), n, timestamp})
 	if err != nil {
 		return err
 	}
@@ -354,7 +354,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method, path string, params map[str
 		return err
 	}
 
-	err = common.JSONDecode(intermediary, &errCheck)
+	err = json.Unmarshal(intermediary, &errCheck)
 	if err == nil {
 		if errCheck.Code != 0 || errCheck.Description != "" {
 			return fmt.Errorf("itbit.go SendAuthRequest error code: %d description: %s",
@@ -363,7 +363,7 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method, path string, params map[str
 		}
 	}
 
-	return common.JSONDecode(intermediary, result)
+	return json.Unmarshal(intermediary, result)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

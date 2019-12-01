@@ -1,6 +1,7 @@
 package zb
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"testing"
@@ -506,10 +507,10 @@ func TestGetDepositAddress(t *testing.T) {
 // TestZBInvalidJSON ZB sends poorly formed JSON. this tests the JSON fixer
 // Then JSON decode it to test if successful
 func TestZBInvalidJSON(t *testing.T) {
-	json := `{"success":true,"code":1000,"channel":"getSubUserList","message":"[{"isOpenApi":false,"memo":"Memo","userName":"hello@imgoodthanksandyou.com@good","userId":1337,"isFreez":false}]","no":"0"}`
-	fixedJSON := z.wsFixInvalidJSON([]byte(json))
+	data := `{"success":true,"code":1000,"channel":"getSubUserList","message":"[{"isOpenApi":false,"memo":"Memo","userName":"hello@imgoodthanksandyou.com@good","userId":1337,"isFreez":false}]","no":"0"}`
+	fixedJSON := z.wsFixInvalidJSON([]byte(data))
 	var response WsGetSubUserListResponse
-	err := common.JSONDecode(fixedJSON, &response)
+	err := json.Unmarshal(fixedJSON, &response)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -517,10 +518,10 @@ func TestZBInvalidJSON(t *testing.T) {
 		t.Fatal("Expected extracted JSON USERID to equal 1337")
 	}
 
-	json = `{"success":true,"code":1000,"channel":"createSubUserKey","message":"{"apiKey":"thisisnotareallykeyyousillybilly","apiSecret":"lol"}","no":"123"}`
-	fixedJSON = z.wsFixInvalidJSON([]byte(json))
+	data = `{"success":true,"code":1000,"channel":"createSubUserKey","message":"{"apiKey":"thisisnotareallykeyyousillybilly","apiSecret":"lol"}","no":"123"}`
+	fixedJSON = z.wsFixInvalidJSON([]byte(data))
 	var response2 WsRequestResponse
-	err = common.JSONDecode(fixedJSON, &response2)
+	err = json.Unmarshal(fixedJSON, &response2)
 	if err != nil {
 		t.Error(err)
 	}

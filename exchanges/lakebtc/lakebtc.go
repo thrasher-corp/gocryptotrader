@@ -1,13 +1,13 @@
 package lakebtc
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -302,7 +302,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 	postData["id"] = 1
 	postData["params"] = strings.Split(params, ",")
 
-	data, err := common.JSONEncode(postData)
+	data, err := json.Marshal(postData)
 	if err != nil {
 		return err
 	}

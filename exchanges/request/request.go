@@ -2,6 +2,7 @@ package request
 
 import (
 	"compress/gzip"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -329,7 +330,7 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 		}
 
 		if result != nil {
-			return common.JSONDecode(contents, result)
+			return json.Unmarshal(contents, result)
 		}
 
 		return nil

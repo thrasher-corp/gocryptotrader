@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -113,13 +114,13 @@ func main() {
 	}
 	log.Printf("Fetched config.")
 
-	dataJSON, err := common.JSONEncode(&wsResp.Data)
+	dataJSON, err := json.Marshal(&wsResp.Data)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	var resultCfg config.Config
-	err = common.JSONDecode(dataJSON, &resultCfg)
+	err = json.Unmarshal(dataJSON, &resultCfg)
 	if err != nil {
 		log.Fatal(err)
 	}

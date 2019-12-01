@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -116,14 +116,14 @@ func (k *Kraken) WsHandleData() {
 			k.Websocket.TrafficAlert <- struct{}{}
 			// event response handling
 			var eventResponse WebsocketEventResponse
-			err = common.JSONDecode(resp.Raw, &eventResponse)
+			err = json.Unmarshal(resp.Raw, &eventResponse)
 			if err == nil && eventResponse.Event != "" {
 				k.WsHandleEventResponse(&eventResponse, resp.Raw)
 				continue
 			}
 			// Data response handling
 			var dataResponse WebsocketDataResponse
-			err = common.JSONDecode(resp.Raw, &dataResponse)
+			err = json.Unmarshal(resp.Raw, &dataResponse)
 			if err == nil && dataResponse[0].(float64) >= 0 {
 				k.WsHandleDataResponse(dataResponse)
 				continue

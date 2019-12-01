@@ -1,6 +1,7 @@
 package gateio
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -64,7 +64,7 @@ func (g *Gateio) wsServerSignIn() (*WebsocketAuthenticationResponse, error) {
 		return nil, err
 	}
 	var response WebsocketAuthenticationResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return nil, err
@@ -97,7 +97,7 @@ func (g *Gateio) WsHandleData() {
 			}
 			g.Websocket.TrafficAlert <- struct{}{}
 			var result WebsocketResponse
-			err = common.JSONDecode(resp.Raw, &result)
+			err = json.Unmarshal(resp.Raw, &result)
 			if err != nil {
 				g.Websocket.DataHandler <- err
 				continue
@@ -123,13 +123,13 @@ func (g *Gateio) WsHandleData() {
 			case strings.Contains(result.Method, "ticker"):
 				var ticker WebsocketTicker
 				var c string
-				err = common.JSONDecode(result.Params[1], &ticker)
+				err = json.Unmarshal(result.Params[1], &ticker)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
 				}
 
-				err = common.JSONDecode(result.Params[0], &c)
+				err = json.Unmarshal(result.Params[0], &c)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
@@ -151,13 +151,13 @@ func (g *Gateio) WsHandleData() {
 			case strings.Contains(result.Method, "trades"):
 				var trades []WebsocketTrade
 				var c string
-				err = common.JSONDecode(result.Params[1], &trades)
+				err = json.Unmarshal(result.Params[1], &trades)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
 				}
 
-				err = common.JSONDecode(result.Params[0], &c)
+				err = json.Unmarshal(result.Params[0], &c)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
@@ -179,19 +179,19 @@ func (g *Gateio) WsHandleData() {
 				var IsSnapshot bool
 				var c string
 				var data = make(map[string][][]string)
-				err = common.JSONDecode(result.Params[0], &IsSnapshot)
+				err = json.Unmarshal(result.Params[0], &IsSnapshot)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
 				}
 
-				err = common.JSONDecode(result.Params[2], &c)
+				err = json.Unmarshal(result.Params[2], &c)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
 				}
 
-				err = common.JSONDecode(result.Params[1], &data)
+				err = json.Unmarshal(result.Params[1], &data)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
@@ -265,7 +265,7 @@ func (g *Gateio) WsHandleData() {
 
 			case strings.Contains(result.Method, "kline"):
 				var data []interface{}
-				err = common.JSONDecode(result.Params[0], &data)
+				err = json.Unmarshal(result.Params[0], &data)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
@@ -356,7 +356,7 @@ func (g *Gateio) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 		return err
 	}
 	var response WebsocketAuthenticationResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return err
 	}
@@ -380,7 +380,7 @@ func (g *Gateio) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 		return err
 	}
 	var response WebsocketAuthenticationResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return err
 	}
@@ -404,7 +404,7 @@ func (g *Gateio) wsGetBalance(currencies []string) (*WsGetBalanceResponse, error
 		return nil, err
 	}
 	var balance WsGetBalanceResponse
-	err = common.JSONDecode(resp, &balance)
+	err = json.Unmarshal(resp, &balance)
 	if err != nil {
 		return &balance, err
 	}
@@ -430,7 +430,7 @@ func (g *Gateio) wsGetOrderInfo(market string, offset, limit int) (*WebSocketOrd
 		return nil, err
 	}
 	var orderQuery WebSocketOrderQueryResult
-	err = common.JSONDecode(resp, &orderQuery)
+	err = json.Unmarshal(resp, &orderQuery)
 	if err != nil {
 		return &orderQuery, err
 	}
