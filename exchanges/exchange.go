@@ -460,7 +460,7 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	}
 
 	if e.Features.Supports.Websocket {
-		e.Websocket.Initialise()
+		return e.Websocket.Initialise()
 	}
 	return nil
 }
