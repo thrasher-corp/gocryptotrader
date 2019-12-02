@@ -1,13 +1,13 @@
 package lakebtc
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -141,7 +141,7 @@ func (l *LakeBTC) wsHandleIncomingData() {
 
 func (l *LakeBTC) processTrades(data, channel string) error {
 	var tradeData WsTrades
-	err := common.JSONDecode([]byte(data), &tradeData)
+	err := json.Unmarshal([]byte(data), &tradeData)
 	if err != nil {
 		return err
 	}
@@ -164,7 +164,7 @@ func (l *LakeBTC) processTrades(data, channel string) error {
 
 func (l *LakeBTC) processOrderbook(obUpdate, channel string) error {
 	var update WsOrderbookUpdate
-	err := common.JSONDecode([]byte(obUpdate), &update)
+	err := json.Unmarshal([]byte(obUpdate), &update)
 	if err != nil {
 		return err
 	}
@@ -236,7 +236,7 @@ func (l *LakeBTC) getCurrencyFromChannel(channel string) currency.Pair {
 
 func (l *LakeBTC) processTicker(ticker string) error {
 	var tUpdate map[string]interface{}
-	err := common.JSONDecode([]byte(ticker), &tUpdate)
+	err := json.Unmarshal([]byte(ticker), &tUpdate)
 	if err != nil {
 		l.Websocket.DataHandler <- err
 		return err

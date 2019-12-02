@@ -1,12 +1,12 @@
 package engine
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -79,7 +79,7 @@ func (h *WebsocketHub) run() {
 
 // SendWebsocketMessage sends a websocket event to the client
 func (c *WebsocketClient) SendWebsocketMessage(evt interface{}) error {
-	data, err := common.JSONEncode(evt)
+	data, err := json.Marshal(evt)
 	if err != nil {
 		log.Errorf(log.WebsocketMgr, "websocket: failed to send message: %s\n", err)
 		return err
@@ -106,7 +106,7 @@ func (c *WebsocketClient) read() {
 
 		if msgType == websocket.TextMessage {
 			var evt WebsocketEvent
-			err := common.JSONDecode(message, &evt)
+			err := json.Unmarshal(message, &evt)
 			if err != nil {
 				log.Errorf(log.WebsocketMgr, "websocket: failed to decode JSON sent from client %s\n", err)
 				continue
@@ -117,7 +117,7 @@ func (c *WebsocketClient) read() {
 				continue
 			}
 
-			dataJSON, err := common.JSONEncode(evt.Data)
+			dataJSON, err := json.Marshal(evt.Data)
 			if err != nil {
 				log.Errorln(log.WebsocketMgr, "websocket: client sent data we couldn't JSON decode")
 				break
@@ -197,7 +197,7 @@ func BroadcastWebsocketMessage(evt WebsocketEvent) error {
 		return errors.New("websocket service not started")
 	}
 
-	data, err := common.JSONEncode(evt)
+	data, err := json.Marshal(evt)
 	if err != nil {
 		return err
 	}
@@ -257,7 +257,7 @@ func wsAuth(client *WebsocketClient, data interface{}) error {
 	}
 
 	var auth WebsocketAuth
-	err := common.JSONDecode(data.([]byte), &auth)
+	err := json.Unmarshal(data.([]byte), &auth)
 	if err != nil {
 		wsResp.Error = err.Error()
 		client.SendWebsocketMessage(wsResp)
@@ -303,7 +303,7 @@ func wsSaveConfig(client *WebsocketClient, data interface{}) error {
 		Event: "SaveConfig",
 	}
 	var cfg config.Config
-	err := common.JSONDecode(data.([]byte), &cfg)
+	err := json.Unmarshal(data.([]byte), &cfg)
 	if err != nil {
 		wsResp.Error = err.Error()
 		client.SendWebsocketMessage(wsResp)
@@ -344,7 +344,7 @@ func wsGetTicker(client *WebsocketClient, data interface{}) error {
 		Event: "GetTicker",
 	}
 	var tickerReq WebsocketOrderbookTickerRequest
-	err := common.JSONDecode(data.([]byte), &tickerReq)
+	err := json.Unmarshal(data.([]byte), &tickerReq)
 	if err != nil {
 		wsResp.Error = err.Error()
 		client.SendWebsocketMessage(wsResp)
@@ -376,7 +376,7 @@ func wsGetOrderbook(client *WebsocketClient, data interface{}) error {
 		Event: "GetOrderbook",
 	}
 	var orderbookReq WebsocketOrderbookTickerRequest
-	err := common.JSONDecode(data.([]byte), &orderbookReq)
+	err := json.Unmarshal(data.([]byte), &orderbookReq)
 	if err != nil {
 		wsResp.Error = err.Error()
 		client.SendWebsocketMessage(wsResp)

@@ -13,7 +13,6 @@ import (
 	"sync"
 	"text/template"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -737,7 +736,7 @@ func loadConfig() (Config, error) {
 		return config, err
 	}
 
-	err = common.JSONDecode(keys, &config)
+	err = json.Unmarshal(keys, &config)
 	return config, err
 }
 

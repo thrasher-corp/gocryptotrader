@@ -526,13 +526,13 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 		return err
 	}
 
-	if err := common.JSONDecode(interim, &errCap); err == nil {
+	if err := json.Unmarshal(interim, &errCap); err == nil {
 		if !errCap.Success && errCap.Message != "" {
 			return errors.New(errCap.Message)
 		}
 	}
 
-	return common.JSONDecode(interim, result)
+	return json.Unmarshal(interim, result)
 }
 
 // CheckLimit checks value against a variable list

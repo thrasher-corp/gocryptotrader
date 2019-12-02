@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -110,7 +109,7 @@ func (b *Bithumb) GetAllTickers() (map[string]Ticker, error) {
 			continue
 		}
 		var newTicker Ticker
-		err := common.JSONDecode(v, &newTicker)
+		err := json.Unmarshal(v, &newTicker)
 		if err != nil {
 			return nil, err
 		}
@@ -518,7 +517,7 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(path string, params url.Values, r
 		return err
 	}
 
-	err = common.JSONDecode(intermediary, &errCapture)
+	err = json.Unmarshal(intermediary, &errCapture)
 	if err == nil {
 		if errCapture.Status != "" && errCapture.Status != noError {
 			return fmt.Errorf("sendAuthenticatedAPIRequest error code: %s message:%s",
@@ -527,7 +526,7 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(path string, params url.Values, r
 		}
 	}
 
-	return common.JSONDecode(intermediary, result)
+	return json.Unmarshal(intermediary, result)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

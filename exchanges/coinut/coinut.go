@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -284,7 +283,7 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 	params["nonce"] = n
 	params["request"] = apiRequest
 
-	payload, err := common.JSONEncode(params)
+	payload, err := json.Marshal(params)
 	if err != nil {
 		return errors.New("sendHTTPRequest: Unable to JSON request")
 	}
@@ -317,7 +316,7 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 	}
 
 	var genResp GenericResponse
-	err = common.JSONDecode(rawMsg, &genResp)
+	err = json.Unmarshal(rawMsg, &genResp)
 	if err != nil {
 		return err
 	}
@@ -327,7 +326,7 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 			genResp.Status[0])
 	}
 
-	return common.JSONDecode(rawMsg, result)
+	return json.Unmarshal(rawMsg, result)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

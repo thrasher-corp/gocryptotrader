@@ -1,6 +1,7 @@
 package bitfinex
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -139,7 +139,7 @@ func (b *Bitfinex) WsConnect() error {
 	}
 	b.Websocket.TrafficAlert <- struct{}{}
 	var hs WebsocketHandshake
-	err = common.JSONDecode(resp.Raw, &hs)
+	err = json.Unmarshal(resp.Raw, &hs)
 	if err != nil {
 		return err
 	}
@@ -184,7 +184,7 @@ func (b *Bitfinex) WsDataHandler() {
 
 			if stream.Type == websocket.TextMessage {
 				var result interface{}
-				err = common.JSONDecode(stream.Raw, &result)
+				err = json.Unmarshal(stream.Raw, &result)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					return

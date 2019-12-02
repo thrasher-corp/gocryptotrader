@@ -1,6 +1,7 @@
 package btse
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -63,7 +63,7 @@ func (b *BTSE) WsHandleData() {
 
 			type Result map[string]interface{}
 			result := Result{}
-			err = common.JSONDecode(resp.Raw, &result)
+			err = json.Unmarshal(resp.Raw, &result)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				continue
@@ -76,7 +76,7 @@ func (b *BTSE) WsHandleData() {
 						"sell side",
 					b.Name)
 				var tradeHistory wsTradeHistory
-				err = common.JSONDecode(resp.Raw, &tradeHistory)
+				err = json.Unmarshal(resp.Raw, &tradeHistory)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -98,7 +98,7 @@ func (b *BTSE) WsHandleData() {
 				}
 			case strings.Contains(result["topic"].(string), "orderBookApi"):
 				var t wsOrderBook
-				err = common.JSONDecode(resp.Raw, &t)
+				err = json.Unmarshal(resp.Raw, &t)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue

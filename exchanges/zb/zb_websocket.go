@@ -1,6 +1,7 @@
 package zb
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -64,7 +64,7 @@ func (z *ZB) WsHandleData() {
 			z.Websocket.TrafficAlert <- struct{}{}
 			fixedJSON := z.wsFixInvalidJSON(resp.Raw)
 			var result Generic
-			err = common.JSONDecode(fixedJSON, &result)
+			err = json.Unmarshal(fixedJSON, &result)
 			if err != nil {
 				z.Websocket.DataHandler <- err
 				continue
@@ -80,7 +80,7 @@ func (z *ZB) WsHandleData() {
 			switch {
 			case strings.Contains(result.Channel, "markets"):
 				var markets Markets
-				err := common.JSONDecode(result.Data, &markets)
+				err := json.Unmarshal(result.Data, &markets)
 				if err != nil {
 					z.Websocket.DataHandler <- err
 					continue
@@ -89,7 +89,7 @@ func (z *ZB) WsHandleData() {
 			case strings.Contains(result.Channel, "ticker"):
 				cPair := strings.Split(result.Channel, "_")
 				var ticker WsTicker
-				err := common.JSONDecode(fixedJSON, &ticker)
+				err := json.Unmarshal(fixedJSON, &ticker)
 				if err != nil {
 					z.Websocket.DataHandler <- err
 					continue
@@ -111,7 +111,7 @@ func (z *ZB) WsHandleData() {
 
 			case strings.Contains(result.Channel, "depth"):
 				var depth WsDepth
-				err := common.JSONDecode(fixedJSON, &depth)
+				err := json.Unmarshal(fixedJSON, &depth)
 				if err != nil {
 					z.Websocket.DataHandler <- err
 					continue
@@ -156,7 +156,7 @@ func (z *ZB) WsHandleData() {
 
 			case strings.Contains(result.Channel, "trades"):
 				var trades WsTrades
-				err := common.JSONDecode(fixedJSON, &trades)
+				err := json.Unmarshal(fixedJSON, &trades)
 				if err != nil {
 					z.Websocket.DataHandler <- err
 					continue
@@ -252,7 +252,7 @@ func (z *ZB) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription
 }
 
 func (z *ZB) wsGenerateSignature(request interface{}) string {
-	jsonResponse, err := common.JSONEncode(request)
+	jsonResponse, err := json.Marshal(request)
 	if err != nil {
 		log.Error(log.ExchangeSys, err)
 		return ""
@@ -296,7 +296,7 @@ func (z *ZB) wsAddSubUser(username, password string) (*WsGetSubUserListResponse,
 		return nil, err
 	}
 	var genericResponse Generic
-	err = common.JSONDecode(resp, &genericResponse)
+	err = json.Unmarshal(resp, &genericResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +304,7 @@ func (z *ZB) wsAddSubUser(username, password string) (*WsGetSubUserListResponse,
 		return nil, fmt.Errorf("%v request failed, message: %v, error code: %v", z.Name, genericResponse.Message, wsErrCodes[genericResponse.Code])
 	}
 	var response WsGetSubUserListResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -327,7 +327,7 @@ func (z *ZB) wsGetSubUserList() (*WsGetSubUserListResponse, error) {
 		return nil, err
 	}
 	var response WsGetSubUserListResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -358,7 +358,7 @@ func (z *ZB) wsDoTransferFunds(pair currency.Code, amount float64, fromUserName,
 		return nil, err
 	}
 	var response WsRequestResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -391,7 +391,7 @@ func (z *ZB) wsCreateSubUserKey(assetPerm, entrustPerm, leverPerm, moneyPerm boo
 		return nil, err
 	}
 	var response WsRequestResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -421,7 +421,7 @@ func (z *ZB) wsSubmitOrder(pair currency.Pair, amount, price float64, tradeType 
 		return nil, err
 	}
 	var response WsSubmitOrderResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -449,7 +449,7 @@ func (z *ZB) wsCancelOrder(pair currency.Pair, orderID int64) (*WsCancelOrderRes
 		return nil, err
 	}
 	var response WsCancelOrderResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -477,7 +477,7 @@ func (z *ZB) wsGetOrder(pair currency.Pair, orderID int64) (*WsGetOrderResponse,
 		return nil, err
 	}
 	var response WsGetOrderResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -505,7 +505,7 @@ func (z *ZB) wsGetOrders(pair currency.Pair, pageIndex, tradeType int64) (*WsGet
 		return nil, err
 	}
 	var response WsGetOrdersResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -534,7 +534,7 @@ func (z *ZB) wsGetOrdersIgnoreTradeType(pair currency.Pair, pageIndex, pageSize 
 		return nil, err
 	}
 	var response WsGetOrdersIgnoreTradeTypeResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -561,7 +561,7 @@ func (z *ZB) wsGetAccountInfoRequest() (*WsGetAccountInfoResponse, error) {
 		return nil, err
 	}
 	var response WsGetAccountInfoResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, err
 	}

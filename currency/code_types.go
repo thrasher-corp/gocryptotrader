@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// Bitmasks const for currency rolls
+// Bitmasks const for currency roles
 const (
 	Unset Role = 0
 	Fiat  Role = 1 << (iota - 1)
@@ -13,14 +13,14 @@ const (
 	Token
 	Contract
 
-	UnsetRollString      = "roleUnset"
+	UnsetRoleString      = "roleUnset"
 	FiatCurrencyString   = "fiatCurrency"
 	CryptocurrencyString = "cryptocurrency"
 	TokenString          = "token"
 	ContractString       = "contract"
 )
 
-// Role defines a bitmask for the full currency rolls either; fiat,
+// Role defines a bitmask for the full currency roles either; fiat,
 // cryptocurrency, token, or contract
 type Role uint8
 

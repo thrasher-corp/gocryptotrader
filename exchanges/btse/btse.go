@@ -2,6 +2,7 @@ package btse
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -9,7 +10,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -215,7 +215,7 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[str
 	var payload []byte
 	if len(req) != 0 {
 		var err error
-		payload, err = common.JSONEncode(req)
+		payload, err = json.Marshal(req)
 		if err != nil {
 			return err
 		}
