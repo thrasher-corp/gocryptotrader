@@ -2960,6 +2960,11 @@ var gctScriptCommand = cli.Command{
 			Action: gctScriptStatus,
 		},
 		{
+			Name:   "list",
+			Usage:  "lists all scripts in default scriptpath",
+			Action: gctScriptList,
+		},
+		{
 			Name:  "stop",
 			Usage: "terminate running script",
 			Flags: []cli.Flag{
@@ -3051,6 +3056,25 @@ func gctScriptStatus(c *cli.Context) error {
 
 	executeCommand, err := client.GCTScriptStatus(context.Background(),
 		&gctrpc.GCTScriptStatusRequest{})
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(executeCommand)
+	return nil
+}
+
+func gctScriptList(c *cli.Context) error {
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	executeCommand, err := client.GCTScriptListAll(context.Background(),
+		&gctrpc.GCTScriptListAllRequest{})
 
 	if err != nil {
 		return err

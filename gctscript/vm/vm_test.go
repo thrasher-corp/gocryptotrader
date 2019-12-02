@@ -15,12 +15,6 @@ const (
 	testScriptRunner = "../../testdata/gctscript/timer.gct"
 )
 
-func TestMain(m *testing.M) {
-	t := m.Run()
-
-	os.Exit(t)
-}
-
 func TestNewVM(t *testing.T) {
 	x := New()
 	xType := reflect.TypeOf(x).String()

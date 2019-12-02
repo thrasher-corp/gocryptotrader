@@ -1407,7 +1407,29 @@ func (s *RPCServer) GCTScriptReadScript(ctx context.Context, r *gctrpc.GCTScript
 
 // GCTScriptListAll lists all scripts inside the default script path
 func (s *RPCServer) GCTScriptListAll(context.Context, *gctrpc.GCTScriptListAllRequest) (*gctrpc.GCTScriptStatusResponse, error) {
-	return nil, nil
+	if !gctscript.GCTScriptConfig.Enabled {
+		return &gctrpc.GCTScriptStatusResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
+	}
+
+	resp := &gctrpc.GCTScriptStatusResponse{}
+	err := filepath.Walk(gctscript.ScriptPath,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if filepath.Ext(path) == ".gct" {
+				resp.Scripts = append(resp.Scripts, &gctrpc.GCTScript{
+					Name:                path,
+				})
+			}
+
+			return nil
+		})
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }
 
 // GCTScriptStopAll stops all running scripts
