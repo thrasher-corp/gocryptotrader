@@ -175,17 +175,15 @@ func (s *Storage) SetupConversionRates() {
 // SetDefaultFiatCurrencies assigns the default fiat currency list and adds it
 // to the running list
 func (s *Storage) SetDefaultFiatCurrencies(c ...Code) {
-	for i := range c {
-		s.defaultFiatCurrencies = append(s.defaultFiatCurrencies, c[i])
-		s.fiatCurrencies = append(s.fiatCurrencies, c[i])
-	}
+	s.defaultFiatCurrencies = append(s.defaultFiatCurrencies, c...)
+	s.fiatCurrencies = append(s.fiatCurrencies, c...)
 }
 
 // SetDefaultCryptocurrencies assigns the default cryptocurrency list and adds
 // it to the running list
 func (s *Storage) SetDefaultCryptocurrencies(c ...Code) {
-	s.defaultFiatCurrencies = append(s.defaultFiatCurrencies, c...)
-	s.fiatCurrencies = append(s.fiatCurrencies, c...)
+	s.defaultCryptoCurrencies = append(s.defaultCryptoCurrencies, c...)
+	s.cryptocurrencies = append(s.cryptocurrencies, c...)
 }
 
 // SetupForexProviders sets up a new instance of the forex providers
@@ -505,8 +503,8 @@ func (s *Storage) GetTotalMarketCryptocurrencies() (Currencies, error) {
 // IsDefaultCurrency returns if a currency is a default currency
 func (s *Storage) IsDefaultCurrency(c Code) bool {
 	t, _ := GetTranslation(c)
-	for _, d := range s.defaultFiatCurrencies {
-		if d.Match(c) || d.Match(t) {
+	for i := range s.defaultFiatCurrencies {
+		if s.defaultFiatCurrencies[i].Match(c) || s.defaultFiatCurrencies[i].Match(t) {
 			return true
 		}
 	}
