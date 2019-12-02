@@ -1,6 +1,7 @@
 package coinbene
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -102,7 +102,7 @@ func (c *Coinbene) WsDataHandler() {
 				continue
 			}
 			var result map[string]interface{}
-			err = common.JSONDecode(stream.Raw, &result)
+			err = json.Unmarshal(stream.Raw, &result)
 			if err != nil {
 				c.Websocket.DataHandler <- err
 			}
@@ -127,7 +127,7 @@ func (c *Coinbene) WsDataHandler() {
 			switch {
 			case strings.Contains(result[topic].(string), "ticker"):
 				var ticker WsTicker
-				err = common.JSONDecode(stream.Raw, &ticker)
+				err = json.Unmarshal(stream.Raw, &ticker)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
@@ -147,7 +147,7 @@ func (c *Coinbene) WsDataHandler() {
 				}
 			case strings.Contains(result[topic].(string), "tradeList"):
 				var tradeList WsTradeList
-				err = common.JSONDecode(stream.Raw, &tradeList)
+				err = json.Unmarshal(stream.Raw, &tradeList)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
@@ -183,7 +183,7 @@ func (c *Coinbene) WsDataHandler() {
 				}
 			case strings.Contains(result[topic].(string), "orderBook"):
 				var orderBook WsOrderbook
-				err = common.JSONDecode(stream.Raw, &orderBook)
+				err = json.Unmarshal(stream.Raw, &orderBook)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
@@ -264,7 +264,7 @@ func (c *Coinbene) WsDataHandler() {
 				var kline WsKline
 				var tempFloat float64
 				var tempKline []float64
-				err = common.JSONDecode(stream.Raw, &kline)
+				err = json.Unmarshal(stream.Raw, &kline)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
@@ -293,7 +293,7 @@ func (c *Coinbene) WsDataHandler() {
 				}
 			case strings.Contains(result[topic].(string), "user.account"):
 				var userinfo WsUserInfo
-				err = common.JSONDecode(stream.Raw, &userinfo)
+				err = json.Unmarshal(stream.Raw, &userinfo)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
@@ -301,7 +301,7 @@ func (c *Coinbene) WsDataHandler() {
 				c.Websocket.DataHandler <- userinfo
 			case strings.Contains(result[topic].(string), "user.position"):
 				var position WsPosition
-				err = common.JSONDecode(stream.Raw, &position)
+				err = json.Unmarshal(stream.Raw, &position)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
@@ -309,7 +309,7 @@ func (c *Coinbene) WsDataHandler() {
 				c.Websocket.DataHandler <- position
 			case strings.Contains(result[topic].(string), "user.order"):
 				var orders WsUserOrders
-				err = common.JSONDecode(stream.Raw, &orders)
+				err = json.Unmarshal(stream.Raw, &orders)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue

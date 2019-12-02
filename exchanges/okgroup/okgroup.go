@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/google/go-querystring/query"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -566,7 +565,7 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 	payload := []byte("")
 
 	if data != nil {
-		payload, err = common.JSONEncode(data)
+		payload, err = json.Marshal(data)
 		if err != nil {
 			return errors.New("sendHTTPRequest: Unable to JSON request")
 		}
@@ -617,7 +616,7 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 		return err
 	}
 
-	err = common.JSONDecode(intermediary, &errCap)
+	err = json.Unmarshal(intermediary, &errCap)
 	if err == nil {
 		if errCap.ErrorMessage != "" {
 			return fmt.Errorf("error: %v", errCap.ErrorMessage)
@@ -631,7 +630,7 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 		}
 	}
 
-	return common.JSONDecode(intermediary, result)
+	return json.Unmarshal(intermediary, result)
 }
 
 // SetCheckVarDefaults sets main variables that will be used in requests because

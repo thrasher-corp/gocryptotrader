@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -208,7 +209,7 @@ func (o *orderManager) Submit(exchName string, newOrder *order.Submit) (*orderSu
 		return nil, errors.New("unable to get exchange by name")
 	}
 
-	id, err := common.GetV4UUID()
+	id, err := uuid.NewV4()
 	if err != nil {
 		log.Warnf(log.OrderMgr,
 			"Order manager: Unable to generate UUID. Err: %s\n",

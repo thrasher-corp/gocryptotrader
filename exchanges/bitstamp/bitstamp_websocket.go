@@ -1,6 +1,7 @@
 package bitstamp
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -67,7 +67,7 @@ func (b *Bitstamp) WsHandleData() {
 			}
 			b.Websocket.TrafficAlert <- struct{}{}
 			wsResponse := websocketResponse{}
-			err = common.JSONDecode(resp.Raw, &wsResponse)
+			err = json.Unmarshal(resp.Raw, &wsResponse)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				continue
@@ -82,7 +82,7 @@ func (b *Bitstamp) WsHandleData() {
 
 			case "data":
 				wsOrderBookTemp := websocketOrderBookResponse{}
-				err := common.JSONDecode(resp.Raw, &wsOrderBookTemp)
+				err := json.Unmarshal(resp.Raw, &wsOrderBookTemp)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -100,7 +100,7 @@ func (b *Bitstamp) WsHandleData() {
 			case "trade":
 				wsTradeTemp := websocketTradeResponse{}
 
-				err := common.JSONDecode(resp.Raw, &wsTradeTemp)
+				err := json.Unmarshal(resp.Raw, &wsTradeTemp)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue

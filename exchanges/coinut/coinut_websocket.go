@@ -1,6 +1,7 @@
 package coinut
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -8,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -85,7 +85,7 @@ func (c *COINUT) WsHandleData() {
 
 			if strings.HasPrefix(string(resp.Raw), "[") {
 				var incoming []wsResponse
-				err = common.JSONDecode(resp.Raw, &incoming)
+				err = json.Unmarshal(resp.Raw, &incoming)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
@@ -96,7 +96,7 @@ func (c *COINUT) WsHandleData() {
 						break
 					}
 					var individualJSON []byte
-					individualJSON, err = common.JSONEncode(incoming[i])
+					individualJSON, err = json.Marshal(incoming[i])
 					if err != nil {
 						c.Websocket.DataHandler <- err
 						continue
@@ -105,7 +105,7 @@ func (c *COINUT) WsHandleData() {
 				}
 			} else {
 				var incoming wsResponse
-				err = common.JSONDecode(resp.Raw, &incoming)
+				err = json.Unmarshal(resp.Raw, &incoming)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
@@ -119,7 +119,7 @@ func (c *COINUT) WsHandleData() {
 
 func (c *COINUT) wsProcessResponse(resp []byte) {
 	var incoming wsResponse
-	err := common.JSONDecode(resp, &incoming)
+	err := json.Unmarshal(resp, &incoming)
 	if err != nil {
 		c.Websocket.DataHandler <- err
 		return
@@ -129,7 +129,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		channels["hb"] <- resp
 	case "inst_tick":
 		var ticker WsTicker
-		err := common.JSONDecode(resp, &ticker)
+		err := json.Unmarshal(resp, &ticker)
 		if err != nil {
 			c.Websocket.DataHandler <- err
 			return
@@ -154,7 +154,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 
 	case "inst_order_book":
 		var orderbooksnapshot WsOrderbookSnapshot
-		err := common.JSONDecode(resp, &orderbooksnapshot)
+		err := json.Unmarshal(resp, &orderbooksnapshot)
 		if err != nil {
 			c.Websocket.DataHandler <- err
 			return
@@ -174,7 +174,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		}
 	case "inst_order_book_update":
 		var orderbookUpdate WsOrderbookUpdate
-		err := common.JSONDecode(resp, &orderbookUpdate)
+		err := json.Unmarshal(resp, &orderbookUpdate)
 		if err != nil {
 			c.Websocket.DataHandler <- err
 			return
@@ -194,7 +194,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		}
 	case "inst_trade":
 		var tradeSnap WsTradeSnapshot
-		err := common.JSONDecode(resp, &tradeSnap)
+		err := json.Unmarshal(resp, &tradeSnap)
 		if err != nil {
 			c.Websocket.DataHandler <- err
 			return
@@ -202,7 +202,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 
 	case "inst_trade_update":
 		var tradeUpdate WsTradeUpdate
-		err := common.JSONDecode(resp, &tradeUpdate)
+		err := json.Unmarshal(resp, &tradeUpdate)
 		if err != nil {
 			c.Websocket.DataHandler <- err
 			return
@@ -250,7 +250,7 @@ func (c *COINUT) WsSetInstrumentList() error {
 		return err
 	}
 	var list WsInstrumentList
-	err = common.JSONDecode(resp, &list)
+	err = json.Unmarshal(resp, &list)
 	if err != nil {
 		return err
 	}
@@ -357,7 +357,7 @@ func (c *COINUT) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 		return err
 	}
 	var response map[string]interface{}
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return err
 	}
@@ -394,7 +394,7 @@ func (c *COINUT) wsAuthenticate() error {
 		return err
 	}
 	var response map[string]interface{}
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return err
 	}
@@ -419,7 +419,7 @@ func (c *COINUT) wsGetAccountBalance() (*WsGetAccountBalanceResponse, error) {
 		return nil, err
 	}
 	var response WsGetAccountBalanceResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -466,14 +466,14 @@ func (c *COINUT) wsSubmitOrder(order *WsSubmitOrderParameters) (*WsStandardOrder
 func (c *COINUT) wsStandardiseOrderResponse(resp []byte) (WsStandardOrderResponse, error) {
 	var response WsStandardOrderResponse
 	var incoming wsResponse
-	err := common.JSONDecode(resp, &incoming)
+	err := json.Unmarshal(resp, &incoming)
 	if err != nil {
 		return response, err
 	}
 	switch incoming.Reply {
 	case "order_accepted":
 		var orderAccepted WsOrderAcceptedResponse
-		err := common.JSONDecode(resp, &orderAccepted)
+		err := json.Unmarshal(resp, &orderAccepted)
 		if err != nil {
 			return response, err
 		}
@@ -492,7 +492,7 @@ func (c *COINUT) wsStandardiseOrderResponse(resp []byte) (WsStandardOrderRespons
 		}
 	case "order_filled":
 		var orderFilled WsOrderFilledResponse
-		err := common.JSONDecode(resp, &orderFilled)
+		err := json.Unmarshal(resp, &orderFilled)
 		if err != nil {
 			return response, err
 		}
@@ -511,7 +511,7 @@ func (c *COINUT) wsStandardiseOrderResponse(resp []byte) (WsStandardOrderRespons
 		}
 	case "order_rejected":
 		var orderRejected WsOrderRejectedResponse
-		err := common.JSONDecode(resp, &orderRejected)
+		err := json.Unmarshal(resp, &orderRejected)
 		if err != nil {
 			return response, err
 		}
@@ -561,14 +561,14 @@ func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]WsStandardO
 		return nil, errors
 	}
 	var incoming []interface{}
-	err = common.JSONDecode(resp, &incoming)
+	err = json.Unmarshal(resp, &incoming)
 	if err != nil {
 		errors = append(errors, err)
 		return nil, errors
 	}
 	for i := range incoming {
 		var individualJSON []byte
-		individualJSON, err = common.JSONEncode(incoming[i])
+		individualJSON, err = json.Marshal(incoming[i])
 		if err != nil {
 			errors = append(errors, err)
 			continue
@@ -612,7 +612,7 @@ func (c *COINUT) wsGetOpenOrders(p currency.Pair) error {
 		return err
 	}
 	var response map[string]interface{}
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return err
 	}
@@ -640,7 +640,7 @@ func (c *COINUT) wsCancelOrder(cancellation WsCancelOrderParameters) error {
 		return err
 	}
 	var response map[string]interface{}
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return err
 	}
@@ -675,7 +675,7 @@ func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) (*WsCan
 		return nil, []error{err}
 	}
 	var response WsCancelOrdersResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, []error{err}
 	}
@@ -711,7 +711,7 @@ func (c *COINUT) wsGetTradeHistory(p currency.Pair, start, limit int64) error {
 		return err
 	}
 	var response map[string]interface{}
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return err
 	}

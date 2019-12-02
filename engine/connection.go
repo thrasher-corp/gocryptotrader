@@ -15,10 +15,12 @@ type connectionManager struct {
 	conn    *connchecker.Checker
 }
 
+// Started returns if the connection manager has started
 func (c *connectionManager) Started() bool {
 	return atomic.LoadInt32(&c.started) == 1
 }
 
+// Start starts an instance of the connection manager
 func (c *connectionManager) Start() error {
 	if atomic.AddInt32(&c.started, 1) != 1 {
 		return errors.New("connection manager already started")
@@ -38,6 +40,7 @@ func (c *connectionManager) Start() error {
 	return nil
 }
 
+// Stop stops the connection manager
 func (c *connectionManager) Stop() error {
 	if atomic.LoadInt32(&c.started) == 0 {
 		return errors.New("connection manager not started")
@@ -55,6 +58,7 @@ func (c *connectionManager) Stop() error {
 	return nil
 }
 
+// IsOnline returns if the connection manager is online
 func (c *connectionManager) IsOnline() bool {
 	if c.conn == nil {
 		log.Warnln(log.ConnectionMgr, "Connection manager: IsOnline called but conn is nil")

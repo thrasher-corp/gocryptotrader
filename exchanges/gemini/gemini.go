@@ -1,6 +1,7 @@
 package gemini
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -371,7 +372,7 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 		req[key] = value
 	}
 
-	PayloadJSON, err := common.JSONEncode(req)
+	PayloadJSON, err := json.Marshal(req)
 	if err != nil {
 		return errors.New("sendAuthenticatedHTTPRequest: Unable to JSON request")
 	}

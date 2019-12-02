@@ -5,9 +5,31 @@ import (
 	"sync"
 )
 
-const timestampFormat = " 02/01/2006 15:04:05 "
+const (
+	timestampFormat = " 02/01/2006 15:04:05 "
+	spacer          = "|"
+)
 
-const spacer = "|"
+var (
+	logger = &Logger{}
+	// FileLoggingConfiguredCorrectly flag set during config check if file logging meets requirements
+	FileLoggingConfiguredCorrectly bool
+	// GlobalLogConfig holds global configuration options for logger
+	GlobalLogConfig = &Config{}
+	// GlobalLogFile hold global configuration options for file logger
+	GlobalLogFile = &Rotate{}
+
+	eventPool = &sync.Pool{
+		New: func() interface{} {
+			return &LogEvent{
+				data: make([]byte, 0, 80),
+			}
+		},
+	}
+
+	// LogPath system path to store log files in
+	LogPath string
+)
 
 // Config holds configuration settings loaded from bot config
 type Config struct {
@@ -72,24 +94,3 @@ type multiWriter struct {
 	writers []io.Writer
 	mu      sync.RWMutex
 }
-
-var (
-	logger = &Logger{}
-	// FileLoggingConfiguredCorrectly flag set during config check if file logging meets requirements
-	FileLoggingConfiguredCorrectly bool
-	// GlobalLogConfig holds global configuration options for logger
-	GlobalLogConfig = &Config{}
-	// GlobalLogFile hold global configuration options for file logger
-	GlobalLogFile = &Rotate{}
-
-	eventPool = &sync.Pool{
-		New: func() interface{} {
-			return &LogEvent{
-				data: make([]byte, 0, 80),
-			}
-		},
-	}
-
-	// LogPath system path to store log files in
-	LogPath string
-)

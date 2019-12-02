@@ -676,7 +676,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 		return err
 	}
 
-	if err := common.JSONDecode(interim, &errCap); err == nil {
+	if err := json.Unmarshal(interim, &errCap); err == nil {
 		if errCap.Error != "" {
 			return errors.New(errCap.Error)
 		}
@@ -697,7 +697,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 		}
 	}
 
-	return common.JSONDecode(interim, result)
+	return json.Unmarshal(interim, result)
 }
 
 func parseTime(dateTime string) (time.Time, error) {

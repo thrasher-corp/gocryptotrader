@@ -62,12 +62,11 @@ func (m *Mux) Publish(ids []uuid.UUID, data interface{}) error {
 	return nil
 }
 
-// GetID gets a lovely new ID
+// GetID a new unique ID to track routing information in the dispatch system
 func (m *Mux) GetID() (uuid.UUID, error) {
 	if m == nil {
 		return uuid.UUID{}, errors.New("mux is nil")
 	}
-
 	return m.d.getNewID()
 }
 

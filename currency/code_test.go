@@ -1,15 +1,14 @@
 package currency
 
 import (
+	"encoding/json"
 	"testing"
-
-	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 func TestRoleString(t *testing.T) {
-	if Unset.String() != UnsetRollString {
+	if Unset.String() != UnsetRoleString {
 		t.Errorf("Role String() error expected %s but received %s",
-			UnsetRollString,
+			UnsetRoleString,
 			Unset)
 	}
 
@@ -47,7 +46,7 @@ func TestRoleString(t *testing.T) {
 }
 
 func TestRoleMarshalJSON(t *testing.T) {
-	d, err := common.JSONEncode(Fiat)
+	d, err := json.Marshal(Fiat)
 	if err != nil {
 		t.Error("Role MarshalJSON() error", err)
 	}
@@ -79,23 +78,23 @@ func TestRoleUnmarshalJSON(t *testing.T) {
 		RoleFive:  Contract,
 	}
 
-	e, err := common.JSONEncode(1337)
+	e, err := json.Marshal(1337)
 	if err != nil {
 		t.Fatal("Role UnmarshalJSON() error", err)
 	}
 
 	var incoming AllTheRoles
-	err = common.JSONDecode(e, &incoming)
+	err = json.Unmarshal(e, &incoming)
 	if err == nil {
 		t.Fatal("Role UnmarshalJSON() Expected error")
 	}
 
-	e, err = common.JSONEncode(outgoing)
+	e, err = json.Marshal(outgoing)
 	if err != nil {
 		t.Fatal("Role UnmarshalJSON() error", err)
 	}
 
-	err = common.JSONDecode(e, &incoming)
+	err = json.Unmarshal(e, &incoming)
 	if err != nil {
 		t.Fatal("Role UnmarshalJSON() error", err)
 	}
@@ -365,17 +364,17 @@ func TestCodeUpper(t *testing.T) {
 func TestCodeUnmarshalJSON(t *testing.T) {
 	var unmarshalHere Code
 	expected := "BRO"
-	encoded, err := common.JSONEncode(expected)
+	encoded, err := json.Marshal(expected)
 	if err != nil {
 		t.Fatal("Currency Code UnmarshalJSON error", err)
 	}
 
-	err = common.JSONDecode(encoded, &unmarshalHere)
+	err = json.Unmarshal(encoded, &unmarshalHere)
 	if err != nil {
 		t.Fatal("Currency Code UnmarshalJSON error", err)
 	}
 
-	err = common.JSONDecode(encoded, &unmarshalHere)
+	err = json.Unmarshal(encoded, &unmarshalHere)
 	if err != nil {
 		t.Fatal("Currency Code UnmarshalJSON error", err)
 	}
@@ -396,7 +395,7 @@ func TestCodeMarshalJSON(t *testing.T) {
 
 	expectedJSON := `{"sweetCodes":"BRO"}`
 
-	encoded, err := common.JSONEncode(quickstruct)
+	encoded, err := json.Marshal(quickstruct)
 	if err != nil {
 		t.Fatal("Currency Code UnmarshalJSON error", err)
 	}
@@ -413,7 +412,7 @@ func TestCodeMarshalJSON(t *testing.T) {
 		Codey: Code{}, // nil code
 	}
 
-	encoded, err = common.JSONEncode(quickstruct)
+	encoded, err = json.Marshal(quickstruct)
 	if err != nil {
 		t.Fatal("Currency Code UnmarshalJSON error", err)
 	}

@@ -1,9 +1,8 @@
 package currency
 
 import (
+	"encoding/json"
 	"testing"
-
-	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 func TestPairsUpper(t *testing.T) {
@@ -69,33 +68,33 @@ func TestPairsFormat(t *testing.T) {
 func TestPairsUnmarshalJSON(t *testing.T) {
 	var unmarshalHere Pairs
 	configPairs := ""
-	encoded, err := common.JSONEncode(configPairs)
+	encoded, err := json.Marshal(configPairs)
 	if err != nil {
 		t.Fatal("Pairs UnmarshalJSON() error", err)
 	}
 
-	err = common.JSONDecode([]byte{1, 3, 3, 7}, &unmarshalHere)
+	err = json.Unmarshal([]byte{1, 3, 3, 7}, &unmarshalHere)
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
 
-	err = common.JSONDecode(encoded, &unmarshalHere)
+	err = json.Unmarshal(encoded, &unmarshalHere)
 	if err != nil {
 		t.Fatal("Pairs UnmarshalJSON() error", err)
 	}
 
 	configPairs = "btc_usd,btc_aud,btc_ltc"
-	encoded, err = common.JSONEncode(configPairs)
+	encoded, err = json.Marshal(configPairs)
 	if err != nil {
 		t.Fatal("Pairs UnmarshalJSON() error", err)
 	}
 
-	err = common.JSONDecode(encoded, &unmarshalHere)
+	err = json.Unmarshal(encoded, &unmarshalHere)
 	if err != nil {
 		t.Fatal("Pairs UnmarshalJSON() error", err)
 	}
 
-	err = common.JSONDecode(encoded, &unmarshalHere)
+	err = json.Unmarshal(encoded, &unmarshalHere)
 	if err != nil {
 		t.Fatal("Pairs UnmarshalJSON() error", err)
 	}
@@ -113,7 +112,7 @@ func TestPairsMarshalJSON(t *testing.T) {
 		Pairs: NewPairsFromStrings([]string{"btc_usd", "btc_aud", "btc_ltc"}),
 	}
 
-	encoded, err := common.JSONEncode(quickstruct)
+	encoded, err := json.Marshal(quickstruct)
 	if err != nil {
 		t.Fatal("Pairs MarshalJSON() error", err)
 	}

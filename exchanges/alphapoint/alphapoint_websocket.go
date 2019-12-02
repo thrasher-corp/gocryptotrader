@@ -1,10 +1,10 @@
 package alphapoint
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -49,7 +49,7 @@ func (a *Alphapoint) WebsocketClient() {
 				}
 
 				msgType := MsgType{}
-				err := common.JSONDecode(resp, &msgType)
+				err := json.Unmarshal(resp, &msgType)
 				if err != nil {
 					log.Error(log.ExchangeSys, err)
 					continue
@@ -57,7 +57,7 @@ func (a *Alphapoint) WebsocketClient() {
 
 				if msgType.MessageType == "Ticker" {
 					ticker := WebsocketTicker{}
-					err = common.JSONDecode(resp, &ticker)
+					err = json.Unmarshal(resp, &ticker)
 					if err != nil {
 						log.Error(log.ExchangeSys, err)
 						continue

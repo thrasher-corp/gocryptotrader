@@ -3,6 +3,7 @@
 package gemini
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -99,7 +99,7 @@ func (g *Gemini) WsSecureSubscribe(dialer *websocket.Dialer, url string) error {
 		Request: fmt.Sprintf("/v1/%v", url),
 		Nonce:   time.Now().UnixNano(),
 	}
-	PayloadJSON, err := common.JSONEncode(payload)
+	PayloadJSON, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("%v sendAuthenticatedHTTPRequest: Unable to JSON request", g.Name)
 	}
@@ -166,7 +166,7 @@ func (g *Gemini) WsHandleData() {
 				continue
 			}
 			var result map[string]interface{}
-			err := common.JSONDecode(resp.Raw, &result)
+			err := json.Unmarshal(resp.Raw, &result)
 			if err != nil {
 				g.Websocket.DataHandler <- fmt.Errorf("%v Error: %v, Raw: %v", g.Name, err, string(resp.Raw))
 				continue
@@ -174,7 +174,7 @@ func (g *Gemini) WsHandleData() {
 			switch result["type"] {
 			case "subscription_ack":
 				var result WsSubscriptionAcknowledgementResponse
-				err := common.JSONDecode(resp.Raw, &result)
+				err := json.Unmarshal(resp.Raw, &result)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
@@ -182,7 +182,7 @@ func (g *Gemini) WsHandleData() {
 				g.Websocket.DataHandler <- result
 			case "initial":
 				var result WsSubscriptionAcknowledgementResponse
-				err := common.JSONDecode(resp.Raw, &result)
+				err := json.Unmarshal(resp.Raw, &result)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
@@ -190,7 +190,7 @@ func (g *Gemini) WsHandleData() {
 				g.Websocket.DataHandler <- result
 			case "accepted":
 				var result WsActiveOrdersResponse
-				err := common.JSONDecode(resp.Raw, &result)
+				err := json.Unmarshal(resp.Raw, &result)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
@@ -198,7 +198,7 @@ func (g *Gemini) WsHandleData() {
 				g.Websocket.DataHandler <- result
 			case "booked":
 				var result WsOrderBookedResponse
-				err := common.JSONDecode(resp.Raw, &result)
+				err := json.Unmarshal(resp.Raw, &result)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
@@ -206,7 +206,7 @@ func (g *Gemini) WsHandleData() {
 				g.Websocket.DataHandler <- result
 			case "fill":
 				var result WsOrderFilledResponse
-				err := common.JSONDecode(resp.Raw, &result)
+				err := json.Unmarshal(resp.Raw, &result)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
@@ -214,7 +214,7 @@ func (g *Gemini) WsHandleData() {
 				g.Websocket.DataHandler <- result
 			case "cancelled":
 				var result WsOrderCancelledResponse
-				err := common.JSONDecode(resp.Raw, &result)
+				err := json.Unmarshal(resp.Raw, &result)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
@@ -222,7 +222,7 @@ func (g *Gemini) WsHandleData() {
 				g.Websocket.DataHandler <- result
 			case "closed":
 				var result WsOrderClosedResponse
-				err := common.JSONDecode(resp.Raw, &result)
+				err := json.Unmarshal(resp.Raw, &result)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
@@ -230,7 +230,7 @@ func (g *Gemini) WsHandleData() {
 				g.Websocket.DataHandler <- result
 			case "heartbeat":
 				var result WsHeartbeatResponse
-				err := common.JSONDecode(resp.Raw, &result)
+				err := json.Unmarshal(resp.Raw, &result)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
@@ -243,7 +243,7 @@ func (g *Gemini) WsHandleData() {
 					continue
 				}
 				var marketUpdate WsMarketUpdateResponse
-				err := common.JSONDecode(resp.Raw, &marketUpdate)
+				err := json.Unmarshal(resp.Raw, &marketUpdate)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue

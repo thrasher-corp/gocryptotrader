@@ -2,6 +2,7 @@ package btcmarkets
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -391,7 +392,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(reqType, path string, data, result
 	payload := []byte("")
 
 	if data != nil {
-		payload, err = common.JSONEncode(data)
+		payload, err = json.Marshal(data)
 		if err != nil {
 			return err
 		}

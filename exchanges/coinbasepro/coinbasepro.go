@@ -2,6 +2,7 @@ package coinbasepro
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -733,7 +734,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params m
 	payload := []byte("")
 
 	if params != nil {
-		payload, err = common.JSONEncode(params)
+		payload, err = json.Marshal(params)
 		if err != nil {
 			return errors.New("sendAuthenticatedHTTPRequest: Unable to JSON request")
 		}

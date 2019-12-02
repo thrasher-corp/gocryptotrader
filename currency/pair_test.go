@@ -1,9 +1,8 @@
 package currency
 
 import (
+	"encoding/json"
 	"testing"
-
-	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 const (
@@ -37,17 +36,17 @@ func TestPairUnmarshalJSON(t *testing.T) {
 	var unmarshalHere Pair
 	configPair := NewPairDelimiter("btc_usd", "_")
 
-	encoded, err := common.JSONEncode(configPair)
+	encoded, err := json.Marshal(configPair)
 	if err != nil {
 		t.Fatal("Pair UnmarshalJSON() error", err)
 	}
 
-	err = common.JSONDecode(encoded, &unmarshalHere)
+	err = json.Unmarshal(encoded, &unmarshalHere)
 	if err != nil {
 		t.Fatal("Pair UnmarshalJSON() error", err)
 	}
 
-	err = common.JSONDecode(encoded, &unmarshalHere)
+	err = json.Unmarshal(encoded, &unmarshalHere)
 	if err != nil {
 		t.Fatal("Pair UnmarshalJSON() error", err)
 	}
@@ -65,7 +64,7 @@ func TestPairMarshalJSON(t *testing.T) {
 		Pair{Base: BTC, Quote: USD, Delimiter: "-"},
 	}
 
-	encoded, err := common.JSONEncode(quickstruct)
+	encoded, err := json.Marshal(quickstruct)
 	if err != nil {
 		t.Fatal("Pair MarshalJSON() error", err)
 	}

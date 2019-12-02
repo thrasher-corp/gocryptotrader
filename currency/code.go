@@ -1,6 +1,7 @@
 package currency
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -11,7 +12,7 @@ import (
 func (r Role) String() string {
 	switch r {
 	case Unset:
-		return UnsetRollString
+		return UnsetRoleString
 	case Fiat:
 		return FiatCurrencyString
 	case Cryptocurrency:
@@ -25,21 +26,21 @@ func (r Role) String() string {
 	}
 }
 
-// MarshalJSON conforms Roll to the marshaller interface
+// MarshalJSON conforms Role to the marshaller interface
 func (r Role) MarshalJSON() ([]byte, error) {
-	return common.JSONEncode(r.String())
+	return json.Marshal(r.String())
 }
 
-// UnmarshalJSON conforms Roll to the unmarshaller interface
+// UnmarshalJSON conforms Role to the unmarshaller interface
 func (r *Role) UnmarshalJSON(d []byte) error {
 	var incoming string
-	err := common.JSONDecode(d, &incoming)
+	err := json.Unmarshal(d, &incoming)
 	if err != nil {
 		return err
 	}
 
 	switch incoming {
-	case UnsetRollString:
+	case UnsetRoleString:
 		*r = Unset
 	case FiatCurrencyString:
 		*r = Fiat
@@ -400,7 +401,7 @@ func (c Code) Upper() Code {
 // UnmarshalJSON comforms type to the umarshaler interface
 func (c *Code) UnmarshalJSON(d []byte) error {
 	var newcode string
-	err := common.JSONDecode(d, &newcode)
+	err := json.Unmarshal(d, &newcode)
 	if err != nil {
 		return err
 	}
@@ -411,9 +412,9 @@ func (c *Code) UnmarshalJSON(d []byte) error {
 // MarshalJSON conforms type to the marshaler interface
 func (c Code) MarshalJSON() ([]byte, error) {
 	if c.Item == nil {
-		return common.JSONEncode("")
+		return json.Marshal("")
 	}
-	return common.JSONEncode(c.String())
+	return json.Marshal(c.String())
 }
 
 // IsEmpty returns true if the code is empty

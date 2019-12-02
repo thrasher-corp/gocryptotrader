@@ -1,6 +1,7 @@
 package poloniex
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
@@ -425,7 +426,7 @@ func TestWsHandleAccountData(t *testing.T) {
 	}
 	for i := range jsons {
 		var result [][]interface{}
-		err := common.JSONDecode([]byte(jsons[i]), &result)
+		err := json.Unmarshal([]byte(jsons[i]), &result)
 		if err != nil {
 			t.Error(err)
 		}
