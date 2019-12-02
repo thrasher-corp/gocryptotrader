@@ -50,6 +50,7 @@ type Submit struct {
 // SubmitResponse is what is returned after submitting an order to an exchange
 type SubmitResponse struct {
 	IsOrderPlaced bool
+	FullyMatched  bool
 	OrderID       string
 }
 

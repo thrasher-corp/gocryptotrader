@@ -218,6 +218,9 @@ func (a *Alphapoint) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) 
 	if response > 0 {
 		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
 	}
+	if s.OrderType == order.Market {
+		submitOrderResponse.FullyMatched = true
+	}
 	submitOrderResponse.IsOrderPlaced = true
 
 	return submitOrderResponse, nil

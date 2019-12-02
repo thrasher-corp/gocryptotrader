@@ -403,7 +403,9 @@ func (z *ZB) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 		}
 	}
 	submitOrderResponse.IsOrderPlaced = true
-
+	if o.OrderType == order.Market {
+		submitOrderResponse.FullyMatched = true
+	}
 	return submitOrderResponse, nil
 }
 

@@ -325,8 +325,8 @@ func (b *Bithumb) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 	if orderID != "" {
 		submitOrderResponse.OrderID = orderID
+		submitOrderResponse.FullyMatched = true
 	}
-
 	submitOrderResponse.IsOrderPlaced = true
 
 	return submitOrderResponse, nil

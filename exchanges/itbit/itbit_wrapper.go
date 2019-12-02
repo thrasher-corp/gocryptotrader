@@ -338,6 +338,9 @@ func (i *ItBit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		submitOrderResponse.OrderID = response.ID
 	}
 
+	if response.AmountFilled == s.Amount {
+		submitOrderResponse.FullyMatched = true
+	}
 	submitOrderResponse.IsOrderPlaced = true
 	return submitOrderResponse, nil
 }

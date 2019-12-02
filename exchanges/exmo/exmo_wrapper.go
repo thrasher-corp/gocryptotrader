@@ -352,7 +352,9 @@ func (e *EXMO) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 
 	submitOrderResponse.IsOrderPlaced = true
-
+	if s.OrderType == order.Market {
+		submitOrderResponse.FullyMatched = true
+	}
 	return submitOrderResponse, nil
 }
 

@@ -315,6 +315,9 @@ func (l *Lbank) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 	resp.IsOrderPlaced = true
 	resp.OrderID = tempResp.OrderID
+	if s.OrderType == order.Market {
+		resp.FullyMatched = true
+	}
 	return resp, nil
 }
 

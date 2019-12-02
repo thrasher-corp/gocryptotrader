@@ -432,7 +432,9 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	if response.OrderID > 0 {
 		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderID, 10)
 	}
-
+	if response.ExecutedQty == response.OrigQty {
+		submitOrderResponse.FullyMatched = true
+	}
 	submitOrderResponse.IsOrderPlaced = true
 
 	return submitOrderResponse, nil

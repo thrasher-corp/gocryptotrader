@@ -427,7 +427,9 @@ func (g *Gateio) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	if response.OrderNumber > 0 {
 		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderNumber, 10)
 	}
-
+	if response.LeftAmount == 0 {
+		submitOrderResponse.FullyMatched = true
+	}
 	submitOrderResponse.IsOrderPlaced = true
 
 	return submitOrderResponse, nil

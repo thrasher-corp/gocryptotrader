@@ -112,6 +112,7 @@ func (b *Bitfinex) SetDefaults() {
 				Unsubscribe:            true,
 				AuthenticatedEndpoints: true,
 				MessageCorrelation:     true,
+				DeadMansSwitch:         true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.AutoWithdrawFiatWithAPIPermission,
@@ -412,6 +413,10 @@ func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 		if response.OrderID > 0 {
 			submitOrderResponse.OrderID = strconv.FormatInt(response.OrderID, 10)
 		}
+		if response.RemainingAmount == 0 {
+			submitOrderResponse.FullyMatched = true
+		}
+
 		submitOrderResponse.IsOrderPlaced = true
 	}
 	return submitOrderResponse, err

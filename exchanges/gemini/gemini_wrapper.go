@@ -333,7 +333,7 @@ func (g *Gemini) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		s.Price,
 		s.OrderSide.String(),
 		"exchange limit")
-	if err == nil {
+	if err != nil {
 		return submitOrderResponse, err
 	}
 	if response > 0 {

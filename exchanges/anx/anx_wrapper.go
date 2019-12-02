@@ -352,6 +352,9 @@ func (a *ANX) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	if response != "" {
 		submitOrderResponse.OrderID = response
 	}
+	if s.OrderType == order.Market {
+		submitOrderResponse.FullyMatched = true
+	}
 	submitOrderResponse.IsOrderPlaced = true
 
 	return submitOrderResponse, nil

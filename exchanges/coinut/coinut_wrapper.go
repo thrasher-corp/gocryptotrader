@@ -451,12 +451,13 @@ func (c *COINUT) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]ex
 
 // SubmitOrder submits a new order
 func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
 	var err error
 	if _, err = strconv.Atoi(o.ClientID); err != nil {
 		return submitOrderResponse, fmt.Errorf("%s - ClientID must be a number, received: %s", c.Name, o.ClientID)
 	}
 	err = o.Validate()
-	var submitOrderResponse order.SubmitResponse
+
 	if err != nil {
 		return submitOrderResponse, err
 	}
@@ -507,6 +508,7 @@ func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			orderID := responseMap["order_id"].(float64)
 			submitOrderResponse.OrderID = strconv.FormatFloat(orderID, 'f', -1, 64)
 			submitOrderResponse.IsOrderPlaced = true
+			submitOrderResponse.FullyMatched = true
 			return submitOrderResponse, nil
 		case "order_accepted":
 			orderID := responseMap["order_id"].(float64)

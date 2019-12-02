@@ -386,6 +386,9 @@ func (h *HitBTC) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			return submitOrderResponse, err
 		}
 		submitOrderResponse.OrderID = strconv.FormatInt(response.ID, 10)
+		if response.Result.CumQuantity == o.Amount {
+			submitOrderResponse.FullyMatched = true
+		}
 	} else {
 		var response OrderResponse
 		response, err = h.PlaceOrder(o.Pair.String(),
@@ -399,7 +402,9 @@ func (h *HitBTC) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 		if response.OrderNumber > 0 {
 			submitOrderResponse.OrderID = strconv.FormatInt(response.OrderNumber, 10)
 		}
-
+		if o.OrderType == order.Market {
+			submitOrderResponse.FullyMatched = true
+		}
 	}
 	submitOrderResponse.IsOrderPlaced = true
 

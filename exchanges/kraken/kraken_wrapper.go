@@ -430,25 +430,26 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		}
 		submitOrderResponse.OrderID = resp
 		submitOrderResponse.IsOrderPlaced = true
-
-		return submitOrderResponse, nil
+	} else {
+		var response AddOrderResponse
+		response, err = k.AddOrder(s.Pair.String(),
+			s.OrderSide.String(),
+			s.OrderType.String(),
+			s.Amount,
+			s.Price,
+			0,
+			0,
+			&AddOrderOptions{})
+		if err != nil {
+			return submitOrderResponse, err
+		}
+		if len(response.TransactionIds) > 0 {
+			submitOrderResponse.OrderID = strings.Join(response.TransactionIds, ", ")
+		}
 	}
-	var response AddOrderResponse
-	response, err = k.AddOrder(s.Pair.String(),
-		s.OrderSide.String(),
-		s.OrderType.String(),
-		s.Amount,
-		s.Price,
-		0,
-		0,
-		&AddOrderOptions{})
-	if err != nil {
-		return submitOrderResponse, err
+	if s.OrderType == order.Market {
+		submitOrderResponse.FullyMatched = true
 	}
-	if len(response.TransactionIds) > 0 {
-		submitOrderResponse.OrderID = strings.Join(response.TransactionIds, ", ")
-	}
-
 	submitOrderResponse.IsOrderPlaced = true
 	return submitOrderResponse, nil
 }

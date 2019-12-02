@@ -403,6 +403,9 @@ func (c *CoinbasePro) SubmitOrder(s *order.Submit) (order.SubmitResponse, error)
 	if err != nil {
 		return submitOrderResponse, err
 	}
+	if s.OrderType == order.Market {
+		submitOrderResponse.FullyMatched = true
+	}
 	if response != "" {
 		submitOrderResponse.OrderID = response
 	}

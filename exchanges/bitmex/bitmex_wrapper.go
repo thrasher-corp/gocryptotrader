@@ -438,7 +438,9 @@ func (b *Bitmex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	if response.OrderID != "" {
 		submitOrderResponse.OrderID = response.OrderID
 	}
-
+	if s.OrderType == order.Market {
+		submitOrderResponse.FullyMatched = true
+	}
 	submitOrderResponse.IsOrderPlaced = true
 
 	return submitOrderResponse, nil
