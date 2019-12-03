@@ -9,6 +9,25 @@ import (
 	"github.com/gofrs/uuid"
 )
 
+const (
+	// AuditEventName name to use for audit event logging
+	AuditEventName = "gctscript"
+
+	// DefaultTimeoutValue default timeout value for virtual machines
+	DefaultTimeoutValue = 1 * time.Minute
+)
+
+var (
+	// pool stuff
+	pool = &sync.Pool{
+		New: func() interface{} {
+			return new(script.Script)
+		},
+	}
+	// AllVMs stores all current Virtual Machine instances
+	AllVMs map[uuid.UUID]*VM
+)
+
 // VM contains a pointer to "script" (precompiled source) and "compiled" (compiled byte code) instances
 type VM struct {
 	ID       uuid.UUID
@@ -24,21 +43,3 @@ type VM struct {
 
 	S chan struct{}
 }
-
-// AllVMs stores all current Virtual Machine instances
-var AllVMs map[uuid.UUID]*VM
-
-var (
-	// pool stuff
-	pool = &sync.Pool{
-		New: func() interface{} {
-			return new(script.Script)
-		},
-	}
-)
-
-// AuditEventName name to use for audit event logging
-const AuditEventName = "gctscript"
-
-// DefaultTimeoutValue default timeout value for virtual machines
-const DefaultTimeoutValue = 1 * time.Minute

@@ -1305,7 +1305,7 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 		return nil, fmt.Errorf("%s script found and overwrite set to false", r.ScriptName)
 	}
 
-	file, err := os.OpenFile(fPath, os.O_WRONLY|os.O_CREATE, 0644)
+	file, err := os.Create(fPath)
 	if err != nil {
 		return nil, err
 	}
@@ -1327,45 +1327,38 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 		}
 
 		defer z.Close()
-		for f := range z.File {
-			fPath = filepath.Join(gctscript.ScriptPath, filepath.Base(z.File[f].Name))
 
-			if !strings.HasPrefix(fPath, filepath.Clean(gctscript.ScriptPath)+string(os.PathSeparator)) {
+		for x := range z.Reader.File {
+			var zFile io.ReadCloser
+			zFile, err = z.Reader.File[x].Open()
+			if err != nil {
+				return nil, err
+			}
+			defer zFile.Close()
+
+			zipPath := filepath.Join(gctscript.ScriptPath, z.Reader.File[x].Name) // nolint:gosec
+			// We ignore gosec linter above because the code below files the file traversal bug when extracting archives
+			if !strings.HasPrefix(zipPath, filepath.Clean(gctscript.ScriptPath)+string(os.PathSeparator)) {
 				return nil, fmt.Errorf("%s: illegal file path", fPath)
 			}
 
-			if z.File[f].FileInfo().IsDir() {
-				err = os.MkdirAll(fPath, os.ModePerm)
+			if z.Reader.File[x].FileInfo().IsDir() {
+				err = os.MkdirAll(zipPath, z.Reader.File[x].Mode())
 				if err != nil {
 					return nil, err
 				}
-				continue
-			}
-			var outFile *os.File
-			outFile, err = os.OpenFile(fPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, z.File[f].Mode())
-			if err != nil {
-				return nil, err
-			}
+			} else {
+				var outFile *os.File
+				outFile, err = os.OpenFile(zipPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, z.Reader.File[x].Mode())
+				if err != nil {
+					return nil, err
+				}
 
-			var rc io.ReadCloser
-			rc, err = z.File[f].Open()
-			if err != nil {
-				return nil, err
-			}
-
-			_, err = io.Copy(outFile, rc)
-			if err != nil {
-				return nil, err
-			}
-
-			err = outFile.Close()
-			if err != nil {
-				return nil, err
-			}
-
-			err = rc.Close()
-			if err != nil {
-				return nil, err
+				defer outFile.Close()
+				_, err = io.Copy(outFile, zFile)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 		err = os.Remove(fPath)
@@ -1419,7 +1412,7 @@ func (s *RPCServer) GCTScriptListAll(context.Context, *gctrpc.GCTScriptListAllRe
 			}
 			if filepath.Ext(path) == ".gct" {
 				resp.Scripts = append(resp.Scripts, &gctrpc.GCTScript{
-					Name:                path,
+					Name: path,
 				})
 			}
 

@@ -59,16 +59,3 @@ type AccountCurrencyInfo struct {
 	TotalValue   float64
 	Hold         float64
 }
-
-/*
-Orderbook - done
-Ticker - done
-Enabled pairs - done
-Enabled exchanges - done
-Submit order - done
-Cancel order - done
-Query Order - done
-Account information (balance etc) - done
-deposit address fetching - done
-withdrawal of crypto/fiat
-*/

@@ -33,10 +33,10 @@ func (e Exchange) GetExchange(exch string) (exchange.IBotExchange, error) {
 }
 
 // IsEnabled returns if requested exchange is enabled or disabled
-func (e Exchange) IsEnabled(exch string) (rtn bool) {
+func (e Exchange) IsEnabled(exch string) bool {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
-		return
+		return false
 	}
 
 	return ex.IsEnabled()
