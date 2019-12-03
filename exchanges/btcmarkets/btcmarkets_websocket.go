@@ -227,7 +227,7 @@ func (b *BTCMarkets) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubs
 	switch {
 	case common.StringDataCompare(unauthChannels, channelToSubscribe.Channel):
 		req := WsSubscribe{
-			MarketIDs:   []string{channelToSubscribe.Currency.String()},
+			MarketIDs:   []string{b.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot).String()},
 			Channels:    []string{channelToSubscribe.Channel},
 			MessageType: subscribe,
 		}

@@ -400,16 +400,15 @@ func TestBatchPlaceCancelOrders(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	var pOrders []PlaceOrderMethod
-	var pOrder PlaceOrderMethod
-	placeOrders := PlaceBatch{MarketID: BTCAUD,
+	var temp []PlaceBatch
+	o := PlaceBatch{
+		MarketID:  BTCAUD,
 		Amount:    11000,
 		Price:     1,
 		OrderType: order.Limit.String(),
-		Side:      bid}
-	pOrder.PlaceOrder = placeOrders
-	pOrders = append(pOrders, pOrder)
-	_, err := b.BatchPlaceCancelOrders(nil, pOrders)
+		Side:      bid,
+	}
+	_, err := b.BatchPlaceCancelOrders(nil, append(temp, o))
 	if err != nil {
 		t.Error(err)
 	}
