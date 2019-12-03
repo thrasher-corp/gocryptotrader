@@ -124,7 +124,7 @@ func (k *Kraken) WsHandleData() {
 			resp := <-comms
 			// event response handling
 			var eventResponse WebsocketEventResponse
-			err = json.Unmarshal(resp.Raw, &eventResponse)
+			err := json.Unmarshal(resp.Raw, &eventResponse)
 			if err == nil && eventResponse.Event != "" {
 				k.WsHandleEventResponse(&eventResponse, resp.Raw)
 				continue
@@ -909,7 +909,7 @@ func (k *Kraken) wsAddOrder(request *WsAddOrderRequest) (string, error) {
 		return "", err
 	}
 	var resp WsAddOrderResponse
-	err = common.JSONDecode(jsonResp, &resp)
+	err = json.Unmarshal(jsonResp, &resp)
 	if err != nil {
 		return "", err
 	}

@@ -1,7 +1,8 @@
 package alphapoint
 
 import (
-	"encoding/json"	"log"
+	"encoding/json"
+	"log"
 	"os"
 	"testing"
 

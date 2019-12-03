@@ -88,7 +88,7 @@ func (b *Bitfinex) WsDataHandler() {
 		case stream := <-comms:
 			if stream.Type == websocket.TextMessage {
 				var result interface{}
-				err = json.Unmarshal(stream.Raw, &result)
+				err := json.Unmarshal(stream.Raw, &result)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					return
@@ -810,7 +810,7 @@ func (b *Bitfinex) WsNewOrder(data *WsNewOrderRequest) (string, error) {
 		return "", errors.New(b.Name + " - Order message not returned")
 	}
 	var respData []interface{}
-	err = common.JSONDecode(resp, &respData)
+	err = json.Unmarshal(resp, &respData)
 	if err != nil {
 		return "", err
 	}
@@ -842,7 +842,7 @@ func (b *Bitfinex) WsModifyOrder(data *WsUpdateOrderRequest) error {
 	}
 
 	var responseData []interface{}
-	err = common.JSONDecode(resp, &responseData)
+	err = json.Unmarshal(resp, &responseData)
 	if err != nil {
 		return err
 	}
@@ -879,7 +879,7 @@ func (b *Bitfinex) WsCancelOrder(orderID int64) error {
 		return fmt.Errorf("%v - Order %v failed to cancel", b.Name, orderID)
 	}
 	var responseData []interface{}
-	err = common.JSONDecode(resp, &responseData)
+	err = json.Unmarshal(resp, &responseData)
 	if err != nil {
 		return err
 	}
@@ -920,7 +920,7 @@ func (b *Bitfinex) WsCancelOffer(orderID int64) error {
 		return fmt.Errorf("%v - Order %v failed to cancel", b.Name, orderID)
 	}
 	var responseData []interface{}
-	err = common.JSONDecode(resp, &responseData)
+	err = json.Unmarshal(resp, &responseData)
 	if err != nil {
 		return err
 	}
