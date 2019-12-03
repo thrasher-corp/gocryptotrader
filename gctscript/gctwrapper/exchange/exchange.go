@@ -131,29 +131,29 @@ func (e Exchange) CancelOrder(exch, orderID string) (bool, error) {
 }
 
 // AccountInformation returns account information (balance etc) for requested exchange
-func (e Exchange) AccountInformation(exch string) (modules.AccountInfo, error) {
+func (e Exchange) AccountInformation(exch string) (*modules.AccountInfo, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
-		return modules.AccountInfo{}, err
+		return nil, err
 	}
 
 	r, err := ex.GetAccountInfo()
 	if err != nil {
-		return modules.AccountInfo{}, err
+		return nil, err
 	}
 
 	temp, err := json.Marshal(r)
 	if err != nil {
-		return modules.AccountInfo{}, err
+		return nil, err
 	}
 
 	accountInfo := modules.AccountInfo{}
 	err = json.Unmarshal(temp, &accountInfo)
 	if err != nil {
-		return modules.AccountInfo{}, err
+		return nil, err
 	}
 
-	return accountInfo, nil
+	return &accountInfo, nil
 }
 
 // DepositAddress gets the address required to deposit funds for currency type
@@ -175,7 +175,6 @@ func (e Exchange) WithdrawalFiatFunds(exch string) (err error) {
 	if err != nil {
 		return
 	}
-	fmt.Println(ex)
 	tempWithdrawal := &exchange.FiatWithdrawRequest{}
 	_, err = ex.WithdrawFiatFunds(tempWithdrawal)
 	if err != nil {
@@ -189,7 +188,6 @@ func (e Exchange) WithdrawalCryptoFunds(exch string) (err error) {
 	if err != nil {
 		return
 	}
-	fmt.Println(ex)
 	tempWithdrawal := &exchange.CryptoWithdrawRequest{}
 	_, err = ex.WithdrawCryptocurrencyFunds(tempWithdrawal)
 	if err != nil {

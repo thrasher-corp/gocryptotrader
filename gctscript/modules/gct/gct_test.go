@@ -48,10 +48,12 @@ func TestMain(m *testing.M) {
 
 func TestExchangeOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := ExchangeOrderbook(exch, currencyPair, delimiter, assetType)
+	ret, err := ExchangeOrderbook(exch, currencyPair, delimiter, assetType)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	t.Log(ret.String())
 
 	_, err = ExchangeOrderbook(exchError, currencyPair, delimiter, assetType)
 	if err != nil && errors.Is(err, errTestFailed) {
@@ -264,6 +266,9 @@ func (w Wrapper) Orderbook(exch string, pair currency.Pair, item asset.Item) (*o
 	}
 
 	return &orderbook.Base{
+		ExchangeName: exch,
+		AssetType: item,
+		Pair: pair,
 		Bids: []orderbook.Item{
 			{
 				Amount: 1,

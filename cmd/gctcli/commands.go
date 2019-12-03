@@ -2943,12 +2943,24 @@ var gctScriptCommand = cli.Command{
 			Action: gctScriptExecute,
 		},
 		{
-			Name:  "read",
-			Usage: "read script",
+			Name:  "query",
+			Usage: "<uuid>",
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:        "uuid",
 					Usage:       "<uuid>",
+					Destination: &uuid,
+				},
+			},
+			Action: gctScriptQuery,
+		},
+		{
+			Name:  "read",
+			Usage: "read script",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:        "name",
+					Usage:       "<name>",
 					Destination: &uuid,
 				},
 			},
@@ -3141,7 +3153,7 @@ func gctScriptRead(c *cli.Context) error {
 		return nil
 	}
 
-	if !c.IsSet("uuid") {
+	if !c.IsSet("name") {
 		if c.Args().Get(0) != "" {
 			uuid = c.Args().Get(0)
 		}
@@ -3157,7 +3169,7 @@ func gctScriptRead(c *cli.Context) error {
 	executeCommand, err := client.GCTScriptReadScript(context.Background(),
 		&gctrpc.GCTScriptReadScriptRequest{
 			Script: &gctrpc.GCTScript{
-				UUID: uuid,
+				Name: uuid,
 			},
 		})
 
@@ -3166,6 +3178,43 @@ func gctScriptRead(c *cli.Context) error {
 	}
 
 	fmt.Printf("%s\n", executeCommand.Data)
+
+	return nil
+}
+
+
+func gctScriptQuery(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		_ = cli.ShowSubcommandHelp(c)
+		return nil
+	}
+
+	if !c.IsSet("uuid") {
+		if c.Args().Get(0) != "" {
+			uuid = c.Args().Get(0)
+		}
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	executeCommand, err := client.GCTScriptQuery(context.Background(),
+		&gctrpc.GCTScriptQueryRequest{
+			Script: &gctrpc.GCTScript{
+				UUID: uuid,
+			},
+		})
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s\n", executeCommand)
+	jsonOutput(executeCommand)
 
 	return nil
 }

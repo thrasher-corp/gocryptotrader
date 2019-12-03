@@ -560,9 +560,19 @@ message GCTScriptReadScriptRequest{
     GCTScript script = 1;
 }
 
+message GCTScriptQueryRequest{
+    GCTScript script = 1;
+}
+
 message GCTScriptStatusResponse{
     string status = 1;
     repeated  GCTScript scripts = 2;
+}
+
+message GCTScriptQueryResponse{
+    string status = 1;
+    GCTScript script = 2;
+    bytes data = 3;
 }
 
 message GCTScriptGenericResponse {
@@ -906,6 +916,12 @@ service GoCryptoTrader {
     rpc GCTScriptStatus(GCTScriptStatusRequest) returns (GCTScriptStatusResponse) {
         option (google.api.http) = {
             get: "/v1/gctscript/status",
+        };
+    }
+
+    rpc GCTScriptQuery(GCTScriptQueryRequest) returns (GCTScriptQueryResponse) {
+        option (google.api.http) = {
+            get: "/v1/gctscript/query",
         };
     }
 

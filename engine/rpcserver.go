@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -1239,6 +1240,27 @@ func (s *RPCServer) GCTScriptStatus(ctx context.Context, r *gctrpc.GCTScriptStat
 	return resp, nil
 }
 
+func (s *RPCServer) GCTScriptQuery(ctx context.Context, r *gctrpc.GCTScriptQueryRequest) (*gctrpc.GCTScriptQueryResponse, error) {
+	if !gctscript.GCTScriptConfig.Enabled {
+		return &gctrpc.GCTScriptQueryResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
+	}
+
+	resp := &gctrpc.GCTScriptQueryResponse{}
+
+	UUID, err := uuid.FromString(r.Script.UUID)
+	if err != nil {
+		return &gctrpc.GCTScriptQueryResponse{Status: "error"}, nil
+	}
+
+	if v, f := gctscript.AllVMs[UUID]; f {
+		resp.Status = "ok"
+		resp.Data, err = v.Read()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return resp, nil
+}
 // GCTScriptExecute execute a script
 func (s *RPCServer) GCTScriptExecute(ctx context.Context, r *gctrpc.GCTScriptExecuteRequest) (*gctrpc.GCTScriptGenericResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
@@ -1263,7 +1285,7 @@ func (s *RPCServer) GCTScriptExecute(ctx context.Context, r *gctrpc.GCTScriptExe
 
 	return &gctrpc.GCTScriptGenericResponse{
 		Status: "ok",
-		Data:   r.Script.Name + " executed",
+		Data:   r.Script.Name + " (" + gctVM.ID.String() + ") executed",
 	}, nil
 }
 
@@ -1309,7 +1331,6 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 	if err != nil {
 		return nil, err
 	}
-
 	defer file.Close()
 
 	n, err := file.Write(r.Data)
@@ -1380,16 +1401,13 @@ func (s *RPCServer) GCTScriptReadScript(ctx context.Context, r *gctrpc.GCTScript
 	}
 
 	var data []byte
-	UUID, err := uuid.FromString(r.Script.UUID)
-	if err != nil {
-		return &gctrpc.GCTScriptGenericResponse{Status: "error", Data: err.Error()}, nil
+	filename := filepath.Join(gctscript.ScriptPath, r.Script.Name)
+	if !strings.HasPrefix(filename, filepath.Clean(gctscript.ScriptPath)+string(os.PathSeparator)) {
+		return nil, fmt.Errorf("%s: invalid file path", filename)
 	}
-
-	if v, f := gctscript.AllVMs[UUID]; f {
-		data, err = v.Read()
-		if err != nil {
-			return &gctrpc.GCTScriptGenericResponse{Status: "error", Data: err.Error()}, nil
-		}
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
 	}
 
 	return &gctrpc.GCTScriptGenericResponse{
@@ -1415,7 +1433,6 @@ func (s *RPCServer) GCTScriptListAll(context.Context, *gctrpc.GCTScriptListAllRe
 					Name: path,
 				})
 			}
-
 			return nil
 		})
 	if err != nil {

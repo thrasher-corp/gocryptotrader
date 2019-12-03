@@ -29,7 +29,7 @@ type Exchange interface {
 	SubmitOrder(exch string, submit *order.Submit) (*order.SubmitResponse, error)
 	CancelOrder(exch, orderid string) (bool, error)
 
-	AccountInformation(exch string) (AccountInfo, error)
+	AccountInformation(exch string) (*AccountInfo, error)
 	DepositAddress(exch string, currencyCode currency.Code, accountID string) (string, error)
 	WithdrawalFiatFunds(exch string) (err error)
 	WithdrawalCryptoFunds(exch string) (err error)

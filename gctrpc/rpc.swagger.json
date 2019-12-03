@@ -4,10 +4,6 @@
     "title": "rpc.proto",
     "version": "version not set"
   },
-  "schemes": [
-    "http",
-    "https"
-  ],
   "consumes": [
     "application/json"
   ],
@@ -279,6 +275,48 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/gctrpcGCTScriptGenericResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "script.UUID",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "script.name",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "script.path",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "script.next_run",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/gctscript/query": {
+      "get": {
+        "operationId": "GCTScriptQuery",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGCTScriptQueryResponse"
             }
           }
         },
@@ -1647,6 +1685,21 @@
     },
     "gctrpcGCTScriptListAllRequest": {
       "type": "object"
+    },
+    "gctrpcGCTScriptQueryResponse": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "script": {
+          "$ref": "#/definitions/gctrpcGCTScript"
+        },
+        "data": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
     },
     "gctrpcGCTScriptReadScriptRequest": {
       "type": "object",
