@@ -1,6 +1,7 @@
 package poloniex
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -95,7 +95,7 @@ func (p *Poloniex) WsHandleData() {
 			}
 			p.Websocket.TrafficAlert <- struct{}{}
 			var result interface{}
-			err = common.JSONDecode(resp.Raw, &result)
+			err = json.Unmarshal(resp.Raw, &result)
 			if err != nil {
 				p.Websocket.DataHandler <- err
 				continue

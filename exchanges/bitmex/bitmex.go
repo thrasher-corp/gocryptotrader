@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -829,7 +828,7 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(verb, path string, params Paramete
 		if err != nil {
 			return err
 		}
-		data, err := common.JSONEncode(params)
+		data, err := json.Marshal(params)
 		if err != nil {
 			return err
 		}
@@ -870,14 +869,14 @@ func (b *Bitmex) CaptureError(resp, reType interface{}) error {
 		return err
 	}
 
-	err = common.JSONDecode(marshalled, &Error)
+	err = json.Unmarshal(marshalled, &Error)
 	if err == nil {
 		return fmt.Errorf("bitmex error %s: %s",
 			Error.Error.Name,
 			Error.Error.Message)
 	}
 
-	return common.JSONDecode(marshalled, reType)
+	return json.Unmarshal(marshalled, reType)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

@@ -5,7 +5,7 @@
 
 |User|Contribution Amount|
 |--|--|
-{{- range $contributor := .Contributors -}}
+{{range $contributor := .Contributors -}}
 | [{{$contributor.Login}}]({{$contributor.URL}}) | {{$contributor.Contributions}} |
 {{end}}
-{{end}}
+{{- end}}

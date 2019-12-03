@@ -1,6 +1,7 @@
 package bitfinex
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -953,7 +954,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 		req[key] = value
 	}
 
-	PayloadJSON, err := common.JSONEncode(req)
+	PayloadJSON, err := json.Marshal(req)
 	if err != nil {
 		return errors.New("sendAuthenticatedAPIRequest: unable to JSON request")
 	}

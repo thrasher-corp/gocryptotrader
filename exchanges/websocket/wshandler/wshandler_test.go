@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/flate"
 	"compress/gzip"
+	"encoding/json"
 	"errors"
 	"net"
 	"net/http"
@@ -14,7 +15,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 )
@@ -666,7 +666,7 @@ func readMessages(wc *WebsocketConnection, t *testing.T) {
 				return
 			}
 			var incoming testResponse
-			err = common.JSONDecode(resp.Raw, &incoming)
+			err = json.Unmarshal(resp.Raw, &incoming)
 			if err != nil {
 				t.Error(err)
 				return

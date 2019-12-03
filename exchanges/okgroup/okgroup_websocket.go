@@ -1,6 +1,7 @@
 package okgroup
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -226,7 +226,7 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 			}
 			o.Websocket.TrafficAlert <- struct{}{}
 			var dataResponse WebsocketDataResponse
-			err = common.JSONDecode(resp.Raw, &dataResponse)
+			err = json.Unmarshal(resp.Raw, &dataResponse)
 			if err == nil && dataResponse.Table != "" {
 				if len(dataResponse.Data) > 0 {
 					o.WsHandleDataResponse(&dataResponse)
@@ -234,7 +234,7 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 				continue
 			}
 			var errorResponse WebsocketErrorResponse
-			err = common.JSONDecode(resp.Raw, &errorResponse)
+			err = json.Unmarshal(resp.Raw, &errorResponse)
 			if err == nil && errorResponse.ErrorCode > 0 {
 				if o.Verbose {
 					log.Debugf(log.ExchangeSys,
@@ -247,7 +247,7 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 				continue
 			}
 			var eventResponse WebsocketEventResponse
-			err = common.JSONDecode(resp.Raw, &eventResponse)
+			err = json.Unmarshal(resp.Raw, &eventResponse)
 			if err == nil && eventResponse.Event != "" {
 				if eventResponse.Event == "login" {
 					o.Websocket.SetCanUseAuthenticatedEndpoints(eventResponse.Success)

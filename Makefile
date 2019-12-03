@@ -6,6 +6,7 @@ GCTLISTENPORT=9050
 GCTPROFILERLISTENPORT=8085
 CRON = $(TRAVIS_EVENT_TYPE)
 DRIVER ?= psql
+RACE_FLAG := $(if $(NO_RACE_TEST),,-race)
 
 get:
 	GO111MODULE=on go get $(GCTPKG)
@@ -19,9 +20,9 @@ check: linter test
 
 test:
 ifeq ($(CRON), cron)
-	go test -race -tags=mock_test_off -coverprofile=coverage.txt -covermode=atomic  ./...
+	go test $(RACE_FLAG) -tags=mock_test_off -coverprofile=coverage.txt -covermode=atomic  ./...
 else
-	go test -race -coverprofile=coverage.txt -covermode=atomic  ./...
+	go test $(RACE_FLAG) -coverprofile=coverage.txt -covermode=atomic  ./...
 endif
 
 build:

@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -428,7 +427,7 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, re
 		Message string `json:"message"`
 	}{}
 
-	if err := common.JSONDecode(intermidiary, &errCap); err == nil {
+	if err := json.Unmarshal(intermidiary, &errCap); err == nil {
 		if !errCap.Result {
 			return fmt.Errorf("%s auth request error, code: %d message: %s",
 				g.Name,
@@ -437,7 +436,7 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, re
 		}
 	}
 
-	return common.JSONDecode(intermidiary, result)
+	return json.Unmarshal(intermidiary, result)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

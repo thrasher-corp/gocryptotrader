@@ -1,10 +1,9 @@
 package currency
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
-
-	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 // NewPairDelimiter splits the desired currency string at delimeter, the returns
@@ -113,7 +112,7 @@ func (p Pair) Upper() Pair {
 // UnmarshalJSON comforms type to the umarshaler interface
 func (p *Pair) UnmarshalJSON(d []byte) error {
 	var pair string
-	err := common.JSONDecode(d, &pair)
+	err := json.Unmarshal(d, &pair)
 	if err != nil {
 		return err
 	}
@@ -124,7 +123,7 @@ func (p *Pair) UnmarshalJSON(d []byte) error {
 
 // MarshalJSON conforms type to the marshaler interface
 func (p Pair) MarshalJSON() ([]byte, error) {
-	return common.JSONEncode(p.String())
+	return json.Marshal(p.String())
 }
 
 // Format changes the currency based on user preferences overriding the default

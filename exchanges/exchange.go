@@ -82,7 +82,7 @@ func (e *Base) SetClientProxyAddress(addr string) error {
 
 		// No needs to check err here as the only err condition is an empty
 		// string which is already checked above
-		e.Requester.SetProxy(proxy)
+		_ = e.Requester.SetProxy(proxy)
 
 		if e.Websocket != nil {
 			err = e.Websocket.SetProxyAddress(addr)
@@ -460,7 +460,7 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	}
 
 	if e.Features.Supports.Websocket {
-		e.Websocket.Initialise()
+		return e.Websocket.Initialise()
 	}
 	return nil
 }

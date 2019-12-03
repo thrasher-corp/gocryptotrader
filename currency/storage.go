@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/currency/coinmarketcap"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
@@ -263,7 +263,7 @@ func (s *Storage) SeedCurrencyAnalysisData() error {
 	}
 
 	var fromFile File
-	err = common.JSONDecode(b, &fromFile)
+	err = json.Unmarshal(b, &fromFile)
 	if err != nil {
 		return err
 	}
@@ -318,7 +318,7 @@ func (s *Storage) WriteCurrencyDataToFile(path string, mainUpdate bool) error {
 		return err
 	}
 
-	return common.WriteFile(path, encoded)
+	return file.Write(path, encoded)
 }
 
 // LoadFileCurrencyData loads currencies into the currency codes
@@ -363,7 +363,7 @@ func (s *Storage) LoadFileCurrencyData(f *File) error {
 	return nil
 }
 
-// UpdateCurrencies updates currency roll and information using coin market cap
+// UpdateCurrencies updates currency role and information using coin market cap
 func (s *Storage) UpdateCurrencies() error {
 	m, err := s.currencyAnalysis.GetCryptocurrencyIDMap()
 	if err != nil {

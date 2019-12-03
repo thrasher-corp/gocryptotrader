@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -339,7 +338,7 @@ func (z *ZB) SendAuthenticatedHTTPRequest(httpMethod string, params url.Values, 
 		return err
 	}
 
-	err = common.JSONDecode(intermediary, &errCap)
+	err = json.Unmarshal(intermediary, &errCap)
 	if err == nil {
 		if errCap.Code > 1000 {
 			return fmt.Errorf("sendAuthenticatedHTTPRequest error code: %d message %s",
@@ -348,7 +347,7 @@ func (z *ZB) SendAuthenticatedHTTPRequest(httpMethod string, params url.Values, 
 		}
 	}
 
-	return common.JSONDecode(intermediary, result)
+	return json.Unmarshal(intermediary, result)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

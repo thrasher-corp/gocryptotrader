@@ -5,6 +5,7 @@ package telegram
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -219,7 +220,7 @@ func (t *Telegram) SendMessage(text string, chatID int64) error {
 		text,
 	}
 
-	json, err := common.JSONEncode(&messageToSend)
+	json, err := json.Marshal(&messageToSend)
 	if err != nil {
 		return err
 	}
@@ -241,14 +242,17 @@ func (t *Telegram) SendMessage(text string, chatID int64) error {
 }
 
 // SendHTTPRequest sends an authenticated HTTP request
-func (t *Telegram) SendHTTPRequest(path string, json []byte, result interface{}) error {
+func (t *Telegram) SendHTTPRequest(path string, data []byte, result interface{}) error {
 	headers := make(map[string]string)
 	headers["content-type"] = "application/json"
 
-	resp, err := common.SendHTTPRequest(http.MethodPost, path, headers, bytes.NewBuffer(json))
+	resp, err := common.SendHTTPRequest(http.MethodPost,
+		path,
+		headers,
+		bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
 
-	return common.JSONDecode([]byte(resp), result)
+	return json.Unmarshal([]byte(resp), result)
 }

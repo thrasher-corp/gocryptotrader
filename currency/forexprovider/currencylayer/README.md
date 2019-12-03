@@ -29,15 +29,15 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + Individual package example below:
 ```go
 import (
-"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
-"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/currencylayer"
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/currencylayer"
 )
 
 c := currencylayer.CurrencyLayer{}
 
 // Define configuration
 newSettings := base.Settings{
-  Name: "CurrencyLayer",
+  	Name: "CurrencyLayer",
 	Enabled: true,
 	Verbose: false,
 	RESTPollingDelay: time.Duration,
@@ -72,4 +72,3 @@ When submitting a PR, please abide by our coding guidelines:
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
 ***1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB***
-

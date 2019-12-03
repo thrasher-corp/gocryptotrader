@@ -2,6 +2,7 @@ package alphapoint
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -513,7 +513,7 @@ func (a *Alphapoint) SendHTTPRequest(method, path string, data map[string]interf
 	headers["Content-Type"] = "application/json"
 	path = fmt.Sprintf("%s/ajax/v%s/%s", a.API.Endpoints.URL, alphapointAPIVersion, path)
 
-	PayloadJSON, err := common.JSONEncode(data)
+	PayloadJSON, err := json.Marshal(data)
 	if err != nil {
 		return errors.New("unable to JSON request")
 	}
@@ -548,7 +548,7 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(method, path string, data map[
 	data["apiSig"] = strings.ToUpper(crypto.HexEncodeToString(hmac))
 	path = fmt.Sprintf("%s/ajax/v%s/%s", a.API.Endpoints.URL, alphapointAPIVersion, path)
 
-	PayloadJSON, err := common.JSONEncode(data)
+	PayloadJSON, err := json.Marshal(data)
 	if err != nil {
 		return errors.New("unable to JSON request")
 	}

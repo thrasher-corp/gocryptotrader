@@ -12,13 +12,11 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/gofrs/uuid"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -42,11 +40,6 @@ const (
 	SatoshisPerLTC = 100000000
 	WeiPerEther    = 1000000000000000000
 )
-
-// GetV4UUID returns a RFC 4122 UUID based on random numbers
-func GetV4UUID() (uuid.UUID, error) {
-	return uuid.NewV4()
-}
 
 func initialiseHTTPClient() {
 	// If the HTTPClient isn't set, start a new client with a default timeout of 15 seconds
@@ -227,26 +220,13 @@ func SendHTTPGetRequest(urlPath string, jsonDecode, isVerbose bool, result inter
 	defer res.Body.Close()
 
 	if jsonDecode {
-		err := JSONDecode(contents, result)
+		err := json.Unmarshal(contents, result)
 		if err != nil {
 			return err
 		}
 	}
 
 	return nil
-}
-
-// JSONEncode encodes structure data into JSON
-func JSONEncode(v interface{}) ([]byte, error) {
-	return json.Marshal(v)
-}
-
-// JSONDecode decodes JSON data into a structure
-func JSONDecode(data []byte, to interface{}) error {
-	if !strings.Contains(reflect.ValueOf(to).Type().String(), "*") {
-		return errors.New("json decode error - memory address not supplied")
-	}
-	return json.Unmarshal(data, to)
 }
 
 // EncodeURLValues concatenates url values onto a url string and returns a
@@ -279,7 +259,7 @@ func ExtractPort(host string) int {
 func OutputCSV(filePath string, data [][]string) error {
 	_, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		errTwo := WriteFile(filePath, nil)
+		errTwo := ioutil.WriteFile(filePath, nil, 0770)
 		if errTwo != nil {
 			return errTwo
 		}
@@ -293,11 +273,6 @@ func OutputCSV(filePath string, data [][]string) error {
 
 	writer := csv.NewWriter(file)
 	return writer.WriteAll(data)
-}
-
-// WriteFile writes selected data to a file and returns an error
-func WriteFile(file string, data []byte) error {
-	return ioutil.WriteFile(file, data, 0644)
 }
 
 // GetURIPath returns the path of a URL given a URI
@@ -353,8 +328,8 @@ func CreateDir(dir string) error {
 	return os.MkdirAll(dir, 0770)
 }
 
-// ChangePerm lists all the directories and files in an array
-func ChangePerm(directory string) error {
+// ChangePermission lists all the directories and files in an array
+func ChangePermission(directory string) error {
 	return filepath.Walk(directory, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err

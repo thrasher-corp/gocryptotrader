@@ -68,7 +68,7 @@ func main() {
 	}
 
 	path := filepath.Join(outputFolder, "sqlboiler.json")
-	err = ioutil.WriteFile(path, jsonOutput, 0644)
+	err = ioutil.WriteFile(path, jsonOutput, 0770)
 	if err != nil {
 		fmt.Printf("Write failed: %v", err)
 		os.Exit(1)

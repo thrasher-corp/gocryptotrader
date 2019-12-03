@@ -263,62 +263,6 @@ func TestSendHTTPGetRequest(t *testing.T) {
 	}
 }
 
-func TestJSONEncode(t *testing.T) {
-	t.Parallel()
-	type test struct {
-		Status int `json:"status"`
-		Data   []struct {
-			Address   string      `json:"address"`
-			Balance   float64     `json:"balance"`
-			Nonce     interface{} `json:"nonce"`
-			Code      string      `json:"code"`
-			Name      interface{} `json:"name"`
-			Storage   interface{} `json:"storage"`
-			FirstSeen interface{} `json:"firstSeen"`
-		} `json:"data"`
-	}
-	expectOutputString := `{"status":0,"data":null}`
-	v := test{}
-
-	bitey, err := JSONEncode(v)
-	if err != nil {
-		t.Errorf("common JSONEncode error: %s", err)
-	}
-	if string(bitey) != expectOutputString {
-		t.Error("common JSONEncode error")
-	}
-	_, err = JSONEncode("WigWham")
-	if err != nil {
-		t.Errorf("common JSONEncode error: %s", err)
-	}
-}
-
-func TestJSONDecode(t *testing.T) {
-	t.Parallel()
-	var data []byte
-	result := "Not a memory address"
-	err := JSONDecode(data, result)
-	if err == nil {
-		t.Error("Common JSONDecode, unmarshalled when address not supplied")
-	}
-
-	type test struct {
-		Status int `json:"status"`
-		Data   []struct {
-			Address string  `json:"address"`
-			Balance float64 `json:"balance"`
-		} `json:"data"`
-	}
-
-	var v test
-	data = []byte(`{"status":1,"data":null}`)
-	err = JSONDecode(data, &v)
-	if err != nil || v.Status != 1 {
-		t.Errorf("Common JSONDecode. Data: %v \nError: %s",
-			v, err)
-	}
-}
-
 func TestEncodeURLValues(t *testing.T) {
 	t.Parallel()
 	urlstring := "https://www.test.com"
@@ -504,11 +448,11 @@ func TestCreateDir(t *testing.T) {
 	}
 }
 
-func TestChangePerm(t *testing.T) {
-	testDir := filepath.Join(GetDefaultDataDir(runtime.GOOS), "TestFileASDFGHJ")
+func TestChangePermission(t *testing.T) {
+	testDir := filepath.Join(os.TempDir(), "TestFileASDFGHJ")
 	switch runtime.GOOS {
 	case "windows":
-		err := ChangePerm("*")
+		err := ChangePermission("*")
 		if err == nil {
 			t.Fatal("expected an error on non-existent path")
 		}
@@ -516,7 +460,7 @@ func TestChangePerm(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Mkdir failed. Err: %v", err)
 		}
-		err = ChangePerm(GetDefaultDataDir(runtime.GOOS))
+		err = ChangePermission(testDir)
 		if err != nil {
 			t.Fatalf("ChangePerm was unsuccessful. Err: %v", err)
 		}
@@ -529,7 +473,7 @@ func TestChangePerm(t *testing.T) {
 			t.Fatalf("os.Remove failed. Err: %v", err)
 		}
 	default:
-		err := ChangePerm("")
+		err := ChangePermission("")
 		if err == nil {
 			t.Fatal("expected an error on non-existent path")
 		}
@@ -537,7 +481,7 @@ func TestChangePerm(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Mkdir failed. Err: %v", err)
 		}
-		err = ChangePerm(GetDefaultDataDir(runtime.GOOS))
+		err = ChangePermission(testDir)
 		if err != nil {
 			t.Fatalf("ChangePerm was unsuccessful. Err: %v", err)
 		}

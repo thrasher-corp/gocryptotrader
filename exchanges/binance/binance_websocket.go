@@ -1,6 +1,7 @@
 package binance
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -92,7 +92,7 @@ func (b *Binance) WsHandleData() {
 			}
 			b.Websocket.TrafficAlert <- struct{}{}
 			var multiStreamData MultiStreamData
-			err = common.JSONDecode(read.Raw, &multiStreamData)
+			err = json.Unmarshal(read.Raw, &multiStreamData)
 			if err != nil {
 				b.Websocket.DataHandler <- fmt.Errorf("%v - Could not load multi stream data: %s",
 					b.Name,
@@ -103,7 +103,7 @@ func (b *Binance) WsHandleData() {
 			switch streamType[1] {
 			case "trade":
 				trade := TradeStream{}
-				err := common.JSONDecode(multiStreamData.Data, &trade)
+				err := json.Unmarshal(multiStreamData.Data, &trade)
 				if err != nil {
 					b.Websocket.DataHandler <- fmt.Errorf("%v - Could not unmarshal trade data: %s",
 						b.Name,
@@ -140,7 +140,7 @@ func (b *Binance) WsHandleData() {
 				continue
 			case "ticker":
 				t := TickerStream{}
-				err := common.JSONDecode(multiStreamData.Data, &t)
+				err := json.Unmarshal(multiStreamData.Data, &t)
 				if err != nil {
 					b.Websocket.DataHandler <- fmt.Errorf("%v - Could not convert to a TickerStream structure %s",
 						b.Name,
@@ -168,7 +168,7 @@ func (b *Binance) WsHandleData() {
 				continue
 			case "kline":
 				kline := KlineStream{}
-				err := common.JSONDecode(multiStreamData.Data, &kline)
+				err := json.Unmarshal(multiStreamData.Data, &kline)
 				if err != nil {
 					b.Websocket.DataHandler <- fmt.Errorf("%v - Could not convert to a KlineStream structure %s",
 						b.Name,
@@ -194,7 +194,7 @@ func (b *Binance) WsHandleData() {
 				continue
 			case "depth":
 				depth := WebsocketDepthStream{}
-				err := common.JSONDecode(multiStreamData.Data, &depth)
+				err := json.Unmarshal(multiStreamData.Data, &depth)
 				if err != nil {
 					b.Websocket.DataHandler <- fmt.Errorf("%v - Could not convert to depthStream structure %s",
 						b.Name,

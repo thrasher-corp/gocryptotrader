@@ -1,6 +1,7 @@
 package bitmex
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -85,7 +85,7 @@ func (b *Bitmex) WsConnect() error {
 	}
 	b.Websocket.TrafficAlert <- struct{}{}
 	var welcomeResp WebsocketWelcome
-	err = common.JSONDecode(p.Raw, &welcomeResp)
+	err = json.Unmarshal(p.Raw, &welcomeResp)
 	if err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 			}
 
 			quickCapture := make(map[string]interface{})
-			err = common.JSONDecode(resp.Raw, &quickCapture)
+			err = json.Unmarshal(resp.Raw, &quickCapture)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				continue
@@ -151,7 +151,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 
 			var respError WebsocketErrorResponse
 			if _, ok := quickCapture["status"]; ok {
-				err = common.JSONDecode(resp.Raw, &respError)
+				err = json.Unmarshal(resp.Raw, &respError)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -162,7 +162,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 
 			if _, ok := quickCapture["success"]; ok {
 				var decodedResp WebsocketSubscribeResp
-				err := common.JSONDecode(resp.Raw, &decodedResp)
+				err := json.Unmarshal(resp.Raw, &decodedResp)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -189,7 +189,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Name, decodedResp.Subscribe)
 			} else if _, ok := quickCapture["table"]; ok {
 				var decodedResp WebsocketMainResponse
-				err := common.JSONDecode(resp.Raw, &decodedResp)
+				err := json.Unmarshal(resp.Raw, &decodedResp)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -198,7 +198,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 				switch decodedResp.Table {
 				case bitmexWSOrderbookL2:
 					var orderbooks OrderBookData
-					err = common.JSONDecode(resp.Raw, &orderbooks)
+					err = json.Unmarshal(resp.Raw, &orderbooks)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -223,7 +223,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 
 				case bitmexWSTrade:
 					var trades TradeData
-					err = common.JSONDecode(resp.Raw, &trades)
+					err = json.Unmarshal(resp.Raw, &trades)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -254,7 +254,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 
 				case bitmexWSAnnouncement:
 					var announcement AnnouncementData
-					err = common.JSONDecode(resp.Raw, &announcement)
+					err = json.Unmarshal(resp.Raw, &announcement)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -267,7 +267,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Websocket.DataHandler <- announcement.Data
 				case bitmexWSAffiliate:
 					var response WsAffiliateResponse
-					err = common.JSONDecode(resp.Raw, &response)
+					err = json.Unmarshal(resp.Raw, &response)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -275,7 +275,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Websocket.DataHandler <- response
 				case bitmexWSExecution:
 					var response WsExecutionResponse
-					err = common.JSONDecode(resp.Raw, &response)
+					err = json.Unmarshal(resp.Raw, &response)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -283,7 +283,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Websocket.DataHandler <- response
 				case bitmexWSOrder:
 					var response WsOrderResponse
-					err = common.JSONDecode(resp.Raw, &response)
+					err = json.Unmarshal(resp.Raw, &response)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -291,7 +291,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Websocket.DataHandler <- response
 				case bitmexWSMargin:
 					var response WsMarginResponse
-					err = common.JSONDecode(resp.Raw, &response)
+					err = json.Unmarshal(resp.Raw, &response)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -299,7 +299,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Websocket.DataHandler <- response
 				case bitmexWSPosition:
 					var response WsPositionResponse
-					err = common.JSONDecode(resp.Raw, &response)
+					err = json.Unmarshal(resp.Raw, &response)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -307,7 +307,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Websocket.DataHandler <- response
 				case bitmexWSPrivateNotifications:
 					var response WsPrivateNotificationsResponse
-					err = common.JSONDecode(resp.Raw, &response)
+					err = json.Unmarshal(resp.Raw, &response)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -315,7 +315,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Websocket.DataHandler <- response
 				case bitmexWSTransact:
 					var response WsTransactResponse
-					err = common.JSONDecode(resp.Raw, &response)
+					err = json.Unmarshal(resp.Raw, &response)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -323,7 +323,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Websocket.DataHandler <- response
 				case bitmexWSWallet:
 					var response WsWalletResponse
-					err = common.JSONDecode(resp.Raw, &response)
+					err = json.Unmarshal(resp.Raw, &response)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
