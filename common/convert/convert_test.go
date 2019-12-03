@@ -1,6 +1,7 @@
 package convert
 
 import (
+	"math"
 	"testing"
 	"time"
 )
@@ -186,6 +187,21 @@ func TestSplitFloatDecimals(t *testing.T) {
 		t.Error(err)
 	}
 	if x != 1 && y != 0 {
+		t.Error("Conversion error")
+	}
+	x, y, err = SplitFloatDecimals(float64(math.MaxInt64) + 1)
+	if err == nil {
+		t.Error("Expected conversion error")
+	}
+	x, y, err = SplitFloatDecimals(1797693134862315700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111)
+	if err == nil {
+		t.Error("Expected conversion error")
+	}
+	x, y, err = SplitFloatDecimals(-1.2)
+	if err != nil {
+		t.Error(err)
+	}
+	if x != -1 && y != -2 {
 		t.Error("Conversion error")
 	}
 }

@@ -390,7 +390,6 @@ func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			Price:    o.Price,
 		})
 		if err != nil {
-			submitOrderResponse.IsOrderPlaced = false
 			return submitOrderResponse, err
 		}
 	} else {
@@ -404,7 +403,6 @@ func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			o.OrderType.String(),
 			false)
 		if err != nil {
-			submitOrderResponse.IsOrderPlaced = false
 			return submitOrderResponse, err
 		}
 		if response.OrderID > 0 {

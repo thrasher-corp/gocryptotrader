@@ -1,7 +1,9 @@
 package convert
 
 import (
+	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -82,6 +84,9 @@ func RecvWindow(d time.Duration) int64 {
 // SplitFloatDecimals takes in a float64 and splits
 // the decimals into their own integers
 func SplitFloatDecimals(input float64) (baseNum, decimalNum int64, err error) {
+	if input > float64(math.MaxInt64) {
+		return 0, 0, errors.New("number too larger to split into integers")
+	}
 	if input == float64(int64(input)) {
 		return int64(input), 0, nil
 	}
@@ -94,6 +99,9 @@ func SplitFloatDecimals(input float64) (baseNum, decimalNum int64, err error) {
 	decimalNum, err = strconv.ParseInt(splitNum[1], 10, 64)
 	if err != nil {
 		return 0, 0, err
+	}
+	if baseNum < 0 {
+		decimalNum = decimalNum * -1
 	}
 	return baseNum, decimalNum, nil
 }
