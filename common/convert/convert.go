@@ -85,7 +85,7 @@ func RecvWindow(d time.Duration) int64 {
 // the decimals into their own integers
 func SplitFloatDecimals(input float64) (baseNum, decimalNum int64, err error) {
 	if input > float64(math.MaxInt64) {
-		return 0, 0, errors.New("number too larger to split into integers")
+		return 0, 0, errors.New("number too large to split into integers")
 	}
 	if input == float64(int64(input)) {
 		return int64(input), 0, nil
