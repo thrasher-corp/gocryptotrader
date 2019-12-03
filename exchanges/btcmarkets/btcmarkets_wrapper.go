@@ -244,9 +244,9 @@ func (b *BTCMarkets) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
 	var resp ticker.Price
-	allPairs := b.GetEnabledPairs(asset.Spot)
+	allPairs := b.GetEnabledPairs(assetType)
 	for x := range allPairs {
-		tick, err := b.GetTicker(b.FormatExchangeCurrency(allPairs[x], asset.Spot).String())
+		tick, err := b.GetTicker(b.FormatExchangeCurrency(allPairs[x], assetType).String())
 		if err != nil {
 			return resp, err
 		}
@@ -568,7 +568,7 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 			case orderCancelled:
 				tempResp.Status = order.Cancelled
 			case orderPartiallyCancelled:
-				tempResp.Status = order.PartiallyFilled
+				tempResp.Status = order.PartiallyCancelled
 			case orderFailed:
 				tempResp.Status = order.Rejected
 			}
@@ -618,7 +618,7 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 		case orderFailed:
 			tempResp.Status = order.Rejected
 		case orderPartiallyCancelled:
-			tempResp.Status = order.PartiallyFilled
+			tempResp.Status = order.PartiallyCancelled
 		case orderCancelled:
 			tempResp.Status = order.Cancelled
 		case orderFullyMatched:

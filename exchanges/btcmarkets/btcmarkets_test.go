@@ -356,7 +356,7 @@ func TestGetTransactions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetTransactions("")
+	_, err := b.GetTransactions("", -1, -1, -1)
 	if err != nil {
 		t.Error(err)
 	}

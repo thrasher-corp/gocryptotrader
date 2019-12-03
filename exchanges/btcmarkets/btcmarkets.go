@@ -97,15 +97,18 @@ func (b *BTCMarkets) GetTicker(marketID string) (Ticker, error) {
 
 // GetTrades returns executed trades on the exchange
 func (b *BTCMarkets) GetTrades(marketID string, before, after, limit int64) ([]Trade, error) {
+	if (before > 0) && (after >= 0) {
+		return nil, errors.New("BTCMarkets only supports either before or after, not both")
+	}
 	var trades []Trade
 	params := url.Values{}
-	if before != 0 {
+	if before > 0 {
 		params.Set("before", strconv.FormatInt(before, 10))
 	}
-	if after != 0 {
+	if after >= 0 {
 		params.Set("after", strconv.FormatInt(after, 10))
 	}
-	if limit != 0 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	return trades, b.SendHTTPRequest(btcMarketsUnauthPath+marketID+btcMarketsGetTrades+params.Encode(),
@@ -161,6 +164,9 @@ func (b *BTCMarkets) GetOrderbook(marketID string, level int64) (Orderbook, erro
 
 // GetMarketCandles gets candles for specified currency pair
 func (b *BTCMarkets) GetMarketCandles(marketID, timeWindow, from, to string, before, after, limit int64) ([]MarketCandle, error) {
+	if (before > 0) && (after >= 0) {
+		return nil, errors.New("BTCMarkets only supports either before or after, not both")
+	}
 	var marketCandles []MarketCandle
 	var temp [][]string
 	params := url.Values{}
@@ -173,13 +179,13 @@ func (b *BTCMarkets) GetMarketCandles(marketID, timeWindow, from, to string, bef
 	if to != "" {
 		params.Set("to", to)
 	}
-	if before != 0 {
+	if before > 0 {
 		params.Set("before", strconv.FormatInt(before, 10))
 	}
-	if after != 0 {
+	if after >= 0 {
 		params.Set("after", strconv.FormatInt(after, 10))
 	}
-	if limit != 0 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	err := b.SendHTTPRequest(btcMarketsUnauthPath+marketID+btcMarketsCandles+params.Encode(),
@@ -304,6 +310,9 @@ func (b *BTCMarkets) GetTradingFees() (TradingFeeResponse, error) {
 
 // GetTradeHistory returns trade history
 func (b *BTCMarkets) GetTradeHistory(marketID, orderID string, before, after, limit int64) ([]TradeHistoryData, error) {
+	if (before > 0) && (after >= 0) {
+		return nil, errors.New("BTCMarkets only supports either before or after, not both")
+	}
 	var resp []TradeHistoryData
 	params := url.Values{}
 	if marketID != "" {
@@ -311,9 +320,6 @@ func (b *BTCMarkets) GetTradeHistory(marketID, orderID string, before, after, li
 	}
 	if orderID != "" {
 		params.Set("orderId", orderID)
-	}
-	if (before > 0) && (after >= 0) {
-		return resp, errors.New("BTCMarkets only supports either before or after, not both")
 	}
 	if before > 0 {
 		params.Set("before", strconv.FormatInt(before, 10))
@@ -370,13 +376,13 @@ func (b *BTCMarkets) NewOrder(marketID string, price, amount float64, orderType,
 
 // GetOrders returns current order information on the exchange
 func (b *BTCMarkets) GetOrders(marketID string, before, after, limit int64, status string) ([]OrderData, error) {
+	if (before > 0) && (after >= 0) {
+		return nil, errors.New("BTCMarkets only supports either before or after, not both")
+	}
 	var resp []OrderData
 	params := url.Values{}
 	if marketID != "" {
 		params.Set("marketId", marketID)
-	}
-	if (before > 0) && (after >= 0) {
-		return resp, errors.New("BTCMarkets only supports either before or after, not both")
 	}
 	if before > 0 {
 		params.Set("before", strconv.FormatInt(before, 10))
@@ -424,11 +430,11 @@ func (b *BTCMarkets) RemoveOrder(id string) (CancelOrderResp, error) {
 
 // ListWithdrawals lists the withdrawal history
 func (b *BTCMarkets) ListWithdrawals(before, after, limit int64) ([]TransferData, error) {
+	if (before > 0) && (after >= 0) {
+		return nil, errors.New("BTCMarkets only supports either before or after, not both")
+	}
 	var resp []TransferData
 	params := url.Values{}
-	if (before > 0) && (after >= 0) {
-		return resp, errors.New("BTCMarkets only supports either before or after, not both")
-	}
 	if before > 0 {
 		params.Set("before", strconv.FormatInt(before, 10))
 	}
@@ -456,11 +462,11 @@ func (b *BTCMarkets) GetWithdrawal(id string) (TransferData, error) {
 
 // ListDeposits lists the deposit history
 func (b *BTCMarkets) ListDeposits(before, after, limit int64) ([]TransferData, error) {
+	if (before > 0) && (after >= 0) {
+		return nil, errors.New("BTCMarkets only supports either before or after, not both")
+	}
 	var resp []TransferData
 	params := url.Values{}
-	if (before > 0) && (after >= 0) {
-		return resp, errors.New("BTCMarkets only supports either before or after, not both")
-	}
 	if before > 0 {
 		params.Set("before", strconv.FormatInt(before, 10))
 	}
@@ -485,11 +491,11 @@ func (b *BTCMarkets) GetDeposit(id string) (TransferData, error) {
 
 // ListTransfers lists the past asset transfers
 func (b *BTCMarkets) ListTransfers(before, after, limit int64) ([]TransferData, error) {
+	if (before > 0) && (after >= 0) {
+		return nil, errors.New("BTCMarkets only supports either before or after, not both")
+	}
 	var resp []TransferData
 	params := url.Values{}
-	if (before > 0) && (after >= 0) {
-		return resp, errors.New("BTCMarkets only supports either before or after, not both")
-	}
 	if before > 0 {
 		params.Set("before", strconv.FormatInt(before, 10))
 	}
@@ -515,13 +521,11 @@ func (b *BTCMarkets) GetTransfer(id string) (TransferData, error) {
 // FetchDepositAddress gets deposit address for the given asset
 func (b *BTCMarkets) FetchDepositAddress(assetName string, before, after, limit int64) (DepositAddress, error) {
 	var resp DepositAddress
-	params := url.Values{}
 	if (before > 0) && (after >= 0) {
 		return resp, errors.New("BTCMarkets only supports either before or after, not both")
 	}
-	if assetName != "" {
-		params.Set("assetName", assetName)
-	}
+	params := url.Values{}
+	params.Set("assetName", assetName)
 	if before > 0 {
 		params.Set("before", strconv.FormatInt(before, 10))
 	}
@@ -551,11 +555,28 @@ func (b *BTCMarkets) ListAssets() ([]AssetData, error) {
 }
 
 // GetTransactions gets trading fees
-func (b *BTCMarkets) GetTransactions(assetName string) ([]TransactionData, error) {
+func (b *BTCMarkets) GetTransactions(assetName string, before, after, limit int64) ([]TransactionData, error) {
+	if (before > 0) && (after >= 0) {
+		return nil, errors.New("BTCMarkets only supports either before or after, not both")
+	}
 	var resp []TransactionData
-	req := make(map[string]interface{})
-	req["assetName"] = assetName
-	return resp, b.SendAuthenticatedRequest(http.MethodGet, btcMarketsTransactions, req, &resp)
+	params := url.Values{}
+	if assetName != "" {
+		params.Set("assetName", assetName)
+	}
+	if before > 0 {
+		params.Set("before", strconv.FormatInt(before, 10))
+	}
+	if after >= 0 {
+		params.Set("after", strconv.FormatInt(after, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	return resp, b.SendAuthenticatedRequest(http.MethodGet,
+		common.EncodeURLValues(btcMarketsTransactions, params),
+		nil,
+		&resp)
 }
 
 // CreateNewReport creates a new report
@@ -611,6 +632,9 @@ func (b *BTCMarkets) BatchPlaceCancelOrders(cancelOrders []CancelBatch, placeOrd
 		orderRequests = append(orderRequests, CancelOrderMethod{CancelOrder: cancelOrders[x]})
 	}
 	for y := range placeOrders {
+		if placeOrders[y].ClientOrderID == "" {
+			return resp, errors.New("placeorders must have clientorderids filled")
+		}
 		orderRequests = append(orderRequests, PlaceOrderMethod{PlaceOrder: placeOrders[y]})
 	}
 	return resp, b.SendAuthenticatedRequest(http.MethodPost, btcMarketsBatchOrders, orderRequests, &resp)

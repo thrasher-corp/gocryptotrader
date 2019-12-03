@@ -295,11 +295,11 @@ type CancelBatch struct {
 
 // PlaceBatch stores data for place batch request
 type PlaceBatch struct {
-	MarketID      string  `json:"marketId,omitempty"`
-	Price         float64 `json:"price,omitempty"`
-	Amount        float64 `json:"amount,omitempty"`
-	OrderType     string  `json:"type,omitempty"`
-	Side          string  `json:"side,omitempty"`
+	MarketID      string  `json:"marketId"`
+	Price         float64 `json:"price"`
+	Amount        float64 `json:"amount"`
+	OrderType     string  `json:"type"`
+	Side          string  `json:"side"`
 	TriggerPrice  float64 `json:"triggerPrice,omitempty"`
 	TriggerAmount float64 `json:"triggerAmount,omitempty"`
 	TimeInForce   string  `json:"timeInForce,omitempty"`
