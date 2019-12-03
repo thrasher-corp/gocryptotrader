@@ -495,7 +495,7 @@ func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.Crypt
 // withdrawal is submitted
 func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
 	if withdrawRequest.Currency != currency.AUD {
-		return "", errors.New("only AUD is supported for withdrawals")
+		return "", errors.New("only aud is supported for withdrawals")
 	}
 	a, err := b.RequestWithdraw(withdrawRequest.GenericWithdrawRequestInfo.Currency.String(),
 		withdrawRequest.GenericWithdrawRequestInfo.Amount,

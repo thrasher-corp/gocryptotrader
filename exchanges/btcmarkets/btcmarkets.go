@@ -620,7 +620,7 @@ func (b *BTCMarkets) BatchPlaceCancelOrders(cancelOrders []CancelBatch, placeOrd
 func (b *BTCMarkets) GetBatchTrades(ids []string) (BatchTradeResponse, error) {
 	var resp BatchTradeResponse
 	if len(ids) > 50 {
-		return resp, errors.New("GetBatchTrades can only handle 50 ids at a time")
+		return resp, errors.New("batchtrades can only handle 50 ids at a time")
 	}
 	marketIDs := strings.Join(ids, ",")
 	return resp, b.SendAuthenticatedRequest(http.MethodGet, btcMarketsBatchOrders+"/"+marketIDs,
