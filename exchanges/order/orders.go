@@ -335,6 +335,8 @@ func StringToOrderType(oType string) (Type, error) {
 		return Stop, nil
 	case strings.EqualFold(oType, TrailingStop.String()):
 		return TrailingStop, nil
+	case strings.EqualFold(oType, AnyType.String()):
+		return AnyType, nil
 	default:
 		return Unknown, fmt.Errorf("%s not recognised as order type", oType)
 	}

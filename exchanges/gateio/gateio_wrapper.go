@@ -584,8 +584,8 @@ func (g *Gateio) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 				orderDate := time.Unix(firstNum, decNum)
 				orders = append(orders, order.Detail{
 					Exchange:        g.Name,
-					AccountID:       strconv.FormatInt(resp.WebSocketOrderQueryRecords[j].User, 64),
-					ID:              strconv.FormatInt(resp.WebSocketOrderQueryRecords[j].ID, 64),
+					AccountID:       strconv.FormatInt(resp.WebSocketOrderQueryRecords[j].User, 10),
+					ID:              strconv.FormatInt(resp.WebSocketOrderQueryRecords[j].ID, 10),
 					CurrencyPair:    currency.NewPairFromString(resp.WebSocketOrderQueryRecords[j].Market),
 					OrderSide:       orderSide,
 					OrderType:       orderType,

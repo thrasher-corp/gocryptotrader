@@ -618,8 +618,8 @@ func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
 	}
 	orderDetail = order.Detail{
 		Exchange:       h.Name,
-		ID:             strconv.FormatInt(respData.ID, 64),
-		AccountID:      strconv.FormatInt(respData.AccountID, 64),
+		ID:             strconv.FormatInt(respData.ID, 10),
+		AccountID:      strconv.FormatInt(respData.AccountID, 10),
 		CurrencyPair:   currency.NewPairFromString(respData.Symbol),
 		OrderType:      orderType,
 		OrderSide:      orderSide,
@@ -709,8 +709,8 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 				}
 				orders = append(orders, order.Detail{
 					Exchange:        h.Name,
-					AccountID:       strconv.FormatInt(resp.Data[j].AccountID, 64),
-					ID:              strconv.FormatInt(resp.Data[j].OrderID, 64),
+					AccountID:       strconv.FormatInt(resp.Data[j].AccountID, 10),
+					ID:              strconv.FormatInt(resp.Data[j].OrderID, 10),
 					CurrencyPair:    req.Currencies[i],
 					OrderType:       orderType,
 					OrderSide:       orderSide,
@@ -744,7 +744,7 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 					ExecutedAmount: resp[i].FilledAmount,
 					OrderDate:      time.Unix(0, resp[i].CreatedAt*int64(time.Millisecond)),
 					Status:         order.Status(resp[i].State),
-					AccountID:      strconv.FormatInt(resp[i].AccountID, 64),
+					AccountID:      strconv.FormatInt(resp[i].AccountID, 10),
 					Fee:            resp[i].FilledFees,
 				}
 
@@ -791,7 +791,7 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 				ExecutedAmount: resp[i].FilledAmount,
 				OrderDate:      time.Unix(0, resp[i].CreatedAt*int64(time.Millisecond)),
 				Status:         order.Status(resp[i].State),
-				AccountID:      strconv.FormatInt(resp[i].AccountID, 64),
+				AccountID:      strconv.FormatInt(resp[i].AccountID, 10),
 				Fee:            resp[i].FilledFees,
 			}
 

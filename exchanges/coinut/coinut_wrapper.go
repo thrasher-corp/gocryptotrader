@@ -594,7 +594,7 @@ func (c *COINUT) CancelAllOrders(details *order.Cancel) (order.CancelAllResponse
 		}
 		for i := range resp.Results {
 			if openOrders.Orders[i].Status[0] != "OK" {
-				cancelAllOrdersResponse.Status[strconv.FormatInt(openOrders.Orders[i].OrderID, 64)] = strings.Join(openOrders.Orders[i].Status, ",")
+				cancelAllOrdersResponse.Status[strconv.FormatInt(openOrders.Orders[i].OrderID, 10)] = strings.Join(openOrders.Orders[i].Status, ",")
 			}
 		}
 	} else {
@@ -704,7 +704,7 @@ func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 			for i := range openOrders.Orders {
 				orders = append(orders, order.Detail{
 					Exchange:        c.Name,
-					ID:              strconv.FormatInt(openOrders.Orders[i].OrderID, 64),
+					ID:              strconv.FormatInt(openOrders.Orders[i].OrderID, 10),
 					CurrencyPair:    c.FormatExchangeCurrency(currency.NewPairFromString(currenciesToCheck[x]), asset.Spot),
 					OrderSide:       order.Side(openOrders.Orders[i].Side),
 					OrderDate:       time.Unix(0, openOrders.Orders[i].Timestamp),
@@ -782,7 +782,7 @@ func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 					curr := c.instrumentMap.LookupInstrument(trades.Trades[x].InstID)
 					allOrders = append(allOrders, order.Detail{
 						Exchange:        c.Name,
-						ID:              strconv.FormatInt(trades.Trades[x].OrderID, 64),
+						ID:              strconv.FormatInt(trades.Trades[x].OrderID, 10),
 						CurrencyPair:    currency.NewPairFromString(curr),
 						OrderSide:       order.Side(trades.Trades[x].Side),
 						OrderDate:       time.Unix(0, trades.Trades[x].Timestamp),

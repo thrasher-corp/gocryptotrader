@@ -718,8 +718,8 @@ func TestGetWSToken(t *testing.T) {
 func TestWsAddOrder(t *testing.T) {
 	setupWsTests(t)
 	orderID, err := k.wsAddOrder(&WsAddOrderRequest{
-		OrderType: "limit",
-		OrderSide: "buy",
+		OrderType: order.Limit.Lower(),
+		OrderSide: order.Buy.Lower(),
 		Pair:      "XBT/USD",
 		Price:     -100,
 	})

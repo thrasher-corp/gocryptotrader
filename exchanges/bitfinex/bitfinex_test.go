@@ -1049,7 +1049,7 @@ func TestWsPlaceOrder(t *testing.T) {
 	}
 	_, err := b.WsNewOrder(&WsNewOrderRequest{
 		CustomID: 1337,
-		Type:     "BUY",
+		Type:     order.Buy.String(),
 		Symbol:   "tBTCUSD",
 		Amount:   10,
 		Price:    -10,
@@ -1128,7 +1128,7 @@ func TestWsNewOffer(t *testing.T) {
 		runAuth(t)
 	}
 	err := b.WsNewOffer(&WsNewOfferRequest{
-		Type:   "LIMIT",
+		Type:   order.Limit.String(),
 		Symbol: "fBTC",
 		Amount: -10,
 		Rate:   10,
