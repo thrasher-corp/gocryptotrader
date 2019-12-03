@@ -1,6 +1,7 @@
 package btcmarkets
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -66,7 +67,7 @@ func (b *BTCMarkets) WsHandleData() {
 			}
 			b.Websocket.TrafficAlert <- struct{}{}
 			var wsResponse WsMessageType
-			err = common.JSONDecode(resp.Raw, &wsResponse)
+			err = json.Unmarshal(resp.Raw, &wsResponse)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				continue
@@ -78,7 +79,7 @@ func (b *BTCMarkets) WsHandleData() {
 				}
 			case wsOB:
 				var ob WsOrderbook
-				err := common.JSONDecode(resp.Raw, &ob)
+				err := json.Unmarshal(resp.Raw, &ob)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -139,7 +140,7 @@ func (b *BTCMarkets) WsHandleData() {
 				}
 			case trade:
 				var trade WsTrade
-				err := common.JSONDecode(resp.Raw, &trade)
+				err := json.Unmarshal(resp.Raw, &trade)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -155,7 +156,7 @@ func (b *BTCMarkets) WsHandleData() {
 				}
 			case tick:
 				var tick WsTick
-				err := common.JSONDecode(resp.Raw, &tick)
+				err := json.Unmarshal(resp.Raw, &tick)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -176,7 +177,7 @@ func (b *BTCMarkets) WsHandleData() {
 				}
 			case fundChange:
 				var transferData WsFundTransfer
-				err := common.JSONDecode(resp.Raw, &transferData)
+				err := json.Unmarshal(resp.Raw, &transferData)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -184,7 +185,7 @@ func (b *BTCMarkets) WsHandleData() {
 				b.Websocket.DataHandler <- transferData
 			case orderChange:
 				var orderData WsOrderChange
-				err := common.JSONDecode(resp.Raw, &orderData)
+				err := json.Unmarshal(resp.Raw, &orderData)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -192,7 +193,7 @@ func (b *BTCMarkets) WsHandleData() {
 				b.Websocket.DataHandler <- orderData
 			case "error":
 				var wsErr WsError
-				err := common.JSONDecode(resp.Raw, &wsErr)
+				err := json.Unmarshal(resp.Raw, &wsErr)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue

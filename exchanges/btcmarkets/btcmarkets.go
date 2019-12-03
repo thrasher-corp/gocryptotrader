@@ -2,6 +2,7 @@ package btcmarkets
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -661,7 +662,7 @@ func (b *BTCMarkets) SendAuthenticatedRequest(method, path string, data, result 
 	var payload, hmac []byte
 	switch data.(type) {
 	case map[string]interface{}, []interface{}:
-		payload, err = common.JSONEncode(data)
+		payload, err = json.Marshal(data)
 		if err != nil {
 			return err
 		}
