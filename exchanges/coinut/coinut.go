@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -116,9 +117,9 @@ func (c *COINUT) NewOrder(instrumentID int64, quantity, price float64, buy bool,
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
 	if price > 0 {
-		params["price"] = fmt.Sprintf("%v", price)
+		params["price"] = strconv.FormatFloat(price, 'f', -1, 64)
 	}
-	params["qty"] = fmt.Sprintf("%v", quantity)
+	params["qty"] = strconv.FormatFloat(quantity, 'f', -1, 64)
 	params["side"] = order.Buy.String()
 	if !buy {
 		params["side"] = order.Sell.String()

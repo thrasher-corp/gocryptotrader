@@ -2,6 +2,7 @@ package anx
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -416,7 +417,7 @@ func (a *ANX) GetDepositAddress(cryptocurrency currency.Code, _ string) (string,
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (a *ANX) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithdrawRequest) (string, error) {
-	return a.Send(withdrawRequest.Currency.String(), withdrawRequest.Address, "", fmt.Sprintf("%v", withdrawRequest.Amount))
+	return a.Send(withdrawRequest.Currency.String(), withdrawRequest.Address, "", strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64))
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is

@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/gorilla/websocket"
@@ -518,7 +519,7 @@ func TestWsCreateSuUserKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	userID := subUsers.Message[0].UserID
-	_, err = z.wsCreateSubUserKey(true, true, true, true, "subu", fmt.Sprintf("%v", userID))
+	_, err = z.wsCreateSubUserKey(true, true, true, true, "subu", strconv.FormatInt(userID, 10))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -515,7 +515,7 @@ func (h *HUOBI) GetOrders(symbol, types, start, end, states, from, direct, size 
 }
 
 // GetOpenOrders returns a list of orders
-func (h *HUOBI) GetOpenOrders(accountID, symbol, side string, size int) ([]OrderInfo, error) {
+func (h *HUOBI) GetOpenOrders(accountID, symbol, side string, size int64) ([]OrderInfo, error) {
 	type response struct {
 		Response
 		Orders []OrderInfo `json:"data"`
@@ -527,7 +527,7 @@ func (h *HUOBI) GetOpenOrders(accountID, symbol, side string, size int) ([]Order
 	if len(side) > 0 {
 		vals.Set("side", side)
 	}
-	vals.Set("size", fmt.Sprintf("%v", size))
+	vals.Set("size", strconv.FormatInt(size, 10))
 
 	var result response
 	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, huobiGetOpenOrders, vals, nil, &result)

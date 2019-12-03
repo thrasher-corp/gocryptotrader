@@ -378,7 +378,7 @@ func (z *ZB) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 		if err != nil {
 			return submitOrderResponse, err
 		}
-		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.Data.EntrustID)
+		submitOrderResponse.OrderID = strconv.FormatInt(response.Data.EntrustID, 10)
 	} else {
 		var oT SpotNewOrderRequestParamsType
 		if o.OrderSide == order.Buy {
@@ -399,7 +399,7 @@ func (z *ZB) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			return submitOrderResponse, err
 		}
 		if response > 0 {
-			submitOrderResponse.OrderID = fmt.Sprintf("%v", response)
+			submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
 		}
 	}
 	submitOrderResponse.IsOrderPlaced = true
@@ -469,7 +469,7 @@ func (z *ZB) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 
 	for i := range allOpenOrders {
 		err := z.CancelOrder(&order.Cancel{
-			OrderID:      fmt.Sprintf("%v", allOpenOrders[i].ID),
+			OrderID:      strconv.FormatInt(allOpenOrders[i].ID, 10),
 			CurrencyPair: currency.NewPairFromString(allOpenOrders[i].Currency),
 		})
 		if err != nil {

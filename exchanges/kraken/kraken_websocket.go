@@ -336,7 +336,7 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) {
 				if len(tradeData) == 1 {
 					// just a status update
 					if status, ok := tradeData["status"].(string); ok {
-						k.Websocket.DataHandler <- "Order " + key + " " + status
+						k.Websocket.DataHandler <- k.Name + " - Order " + key + " " + status
 					}
 				}
 				startTimeConv, err := strconv.ParseFloat(tradeData["starttm"].(string), 64)
@@ -853,10 +853,10 @@ func (k *Kraken) GenerateDefaultSubscriptions() {
 func (k *Kraken) GenerateAuthenticatedSubscriptions() {
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range authenticatedChannels {
-		mapperino := make(map[string]interface{})
+		params := make(map[string]interface{})
 		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 			Channel: authenticatedChannels[i],
-			Params:  mapperino,
+			Params:  params,
 		})
 	}
 	k.Websocket.SubscribeToChannels(subscriptions)
@@ -872,6 +872,7 @@ func (k *Kraken) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 		RequestID: k.WebsocketConn.GenerateMessageID(false),
 	}
 	if channelToSubscribe.Channel == "book" {
+		// TODO: Add ability to make depth customisable
 		resp.Subscription.Depth = 1000
 	}
 	if !channelToSubscribe.Currency.IsEmpty() {

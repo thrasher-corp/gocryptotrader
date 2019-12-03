@@ -424,15 +424,16 @@ var stringsToOrderSide = []struct {
 }
 
 func TestStringToOrderSide(t *testing.T) {
-	for _, tt := range stringsToOrderSide {
-		t.Run(tt.in, func(t *testing.T) {
-			out, err := StringToOrderSide(tt.in)
+	for i := 0; i < len(stringsToOrderSide); i++ {
+		testData := &stringsToOrderSide[i]
+		t.Run(testData.in, func(t *testing.T) {
+			out, err := StringToOrderSide(testData.in)
 			if err != nil {
-				if err.Error() != tt.err.Error() {
+				if err.Error() != testData.err.Error() {
 					t.Error("Unexpected error", err)
 				}
-			} else if out != tt.out {
-				t.Errorf("Unexpected output %v. Expected %v", out, tt.out)
+			} else if out != testData.out {
+				t.Errorf("Unexpected output %v. Expected %v", out, testData.out)
 			}
 		})
 	}
@@ -465,15 +466,16 @@ var stringsToOrderType = []struct {
 }
 
 func TestStringToOrderType(t *testing.T) {
-	for _, tt := range stringsToOrderType {
-		t.Run(tt.in, func(t *testing.T) {
-			out, err := StringToOrderType(tt.in)
+	for i := 0; i < len(stringsToOrderType); i++ {
+		testData := &stringsToOrderType[i]
+		t.Run(testData.in, func(t *testing.T) {
+			out, err := StringToOrderType(testData.in)
 			if err != nil {
-				if err.Error() != tt.err.Error() {
+				if err.Error() != testData.err.Error() {
 					t.Error("Unexpected error", err)
 				}
-			} else if out != tt.out {
-				t.Errorf("Unexpected output %v. Expected %v", out, tt.out)
+			} else if out != testData.out {
+				t.Errorf("Unexpected output %v. Expected %v", out, testData.out)
 			}
 		})
 	}
@@ -518,15 +520,16 @@ var stringsToOrderStatus = []struct {
 }
 
 func TestStringToOrderStatus(t *testing.T) {
-	for _, tt := range stringsToOrderStatus {
-		t.Run(tt.in, func(t *testing.T) {
-			out, err := StringToOrderStatus(tt.in)
+	for i := 0; i < len(stringsToOrderStatus); i++ {
+		testData := &stringsToOrderStatus[i]
+		t.Run(testData.in, func(t *testing.T) {
+			out, err := StringToOrderStatus(testData.in)
 			if err != nil {
-				if err.Error() != tt.err.Error() {
+				if err.Error() != testData.err.Error() {
 					t.Error("Unexpected error", err)
 				}
-			} else if out != tt.out {
-				t.Errorf("Unexpected output %v. Expected %v", out, tt.out)
+			} else if out != testData.out {
+				t.Errorf("Unexpected output %v. Expected %v", out, testData.out)
 			}
 		})
 	}
