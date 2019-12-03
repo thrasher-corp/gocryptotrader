@@ -101,7 +101,7 @@ func SplitFloatDecimals(input float64) (baseNum, decimalNum int64, err error) {
 		return 0, 0, err
 	}
 	if baseNum < 0 {
-		decimalNum = decimalNum * -1
+		decimalNum *= -1
 	}
 	return baseNum, decimalNum, nil
 }
