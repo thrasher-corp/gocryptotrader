@@ -371,8 +371,8 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 										c.Ticker.IsUsingWebsocket = false
 										c.Ticker.IsUsingREST = true
 										log.Warnf(log.SyncMgr,
-											"%s %s: No ticker update after 10 seconds, switching from websocket to rest\n",
-											c.Exchange, FormatCurrency(enabledPairs[i]).String())
+											"%s %s: No ticker update after %s seconds, switching from websocket to rest\n",
+											c.Exchange, FormatCurrency(enabledPairs[i]).String(), e.Cfg.SyncTimeout)
 										switchedToRest = true
 										e.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, false)
 									}
@@ -435,8 +435,8 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 										c.Orderbook.IsUsingWebsocket = false
 										c.Orderbook.IsUsingREST = true
 										log.Warnf(log.SyncMgr,
-											"%s %s: No orderbook update after 15 seconds, switching from websocket to rest\n",
-											c.Exchange, FormatCurrency(c.Pair).String())
+											"%s %s: No orderbook update after %s seconds, switching from websocket to rest\n",
+											c.Exchange, FormatCurrency(c.Pair).String(), e.Cfg.SyncTimeout)
 										switchedToRest = true
 										e.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, false)
 									}
