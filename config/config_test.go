@@ -1053,59 +1053,6 @@ func TestCountEnabledExchanges(t *testing.T) {
 	}
 }
 
-func TestGetConfigCurrencyPairFormat(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Errorf(
-			"TestGetConfigCurrencyPairFormat. LoadConfig Error: %s", err.Error(),
-		)
-	}
-	_, err = cfg.GetConfigCurrencyPairFormat("asdasdasd")
-	if err == nil {
-		t.Errorf(
-			"TestGetRequestCurrencyPairFormat. Non-existent exchange returned nil error",
-		)
-	}
-
-	exchFmt, err := cfg.GetConfigCurrencyPairFormat("Yobit")
-	if err != nil {
-		t.Errorf("TestGetConfigCurrencyPairFormat err: %s", err)
-	}
-	if !exchFmt.Uppercase || exchFmt.Delimiter != "_" {
-		t.Errorf(
-			"TestGetConfigCurrencyPairFormat. Invalid values",
-		)
-	}
-}
-
-func TestGetRequestCurrencyPairFormat(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Errorf(
-			"TestGetRequestCurrencyPairFormat. LoadConfig Error: %s", err.Error(),
-		)
-	}
-
-	_, err = cfg.GetRequestCurrencyPairFormat("asdasdasd")
-	if err == nil {
-		t.Errorf(
-			"TestGetRequestCurrencyPairFormat. Non-existent exchange returned nil error",
-		)
-	}
-
-	exchFmt, err := cfg.GetRequestCurrencyPairFormat("Yobit")
-	if err != nil {
-		t.Errorf("TestGetRequestCurrencyPairFormat. Err: %s", err)
-	}
-	if exchFmt.Uppercase || exchFmt.Delimiter != "_" || exchFmt.Separator != "-" {
-		t.Errorf(
-			"TestGetRequestCurrencyPairFormat. Invalid values",
-		)
-	}
-}
-
 func TestGetCurrencyPairDisplayConfig(t *testing.T) {
 	cfg := GetConfig()
 	err := cfg.LoadConfig(TestFile, true)
@@ -1935,5 +1882,12 @@ func TestCheckCurrencyConfigValues(t *testing.T) {
 	if c.Currency.CryptocurrencyProvider.APIkey != DefaultUnsetAPIKey ||
 		c.Currency.CryptocurrencyProvider.AccountPlan != DefaultUnsetAccountPlan {
 		t.Error("Failed to set CryptocurrencyProvider.APIkey and AccountPlan")
+	}
+}
+
+func TestPreengineConfigUpgrade(t *testing.T) {
+	var c Config
+	if err := c.LoadConfig("../testdata/preengine_config.json", false); err != nil {
+		t.Fatal(err)
 	}
 }

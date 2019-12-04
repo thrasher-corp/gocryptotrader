@@ -5,6 +5,7 @@ lib
 .vscode
 
 testdata/dump
+testdata/preengine_config.json
 testdata/writefiletest
 
 # InteliJ

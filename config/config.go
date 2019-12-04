@@ -666,26 +666,6 @@ func (c *Config) CountEnabledExchanges() int {
 	return counter
 }
 
-// GetConfigCurrencyPairFormat returns the config currency pair format
-// for a specific exchange
-func (c *Config) GetConfigCurrencyPairFormat(exchName string) (*currency.PairFormat, error) {
-	exchCfg, err := c.GetExchangeConfig(exchName)
-	if err != nil {
-		return nil, err
-	}
-	return exchCfg.ConfigCurrencyPairFormat, nil
-}
-
-// GetRequestCurrencyPairFormat returns the request currency pair format
-// for a specific exchange
-func (c *Config) GetRequestCurrencyPairFormat(exchName string) (*currency.PairFormat, error) {
-	exchCfg, err := c.GetExchangeConfig(exchName)
-	if err != nil {
-		return nil, err
-	}
-	return exchCfg.RequestCurrencyPairFormat, nil
-}
-
 // GetCurrencyPairDisplayConfig retrieves the currency pair display preference
 func (c *Config) GetCurrencyPairDisplayConfig() *CurrencyPairFormatConfig {
 	return c.Currency.CurrencyPairFormat
