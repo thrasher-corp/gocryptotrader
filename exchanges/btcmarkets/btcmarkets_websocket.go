@@ -6,9 +6,13 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -32,10 +36,15 @@ func (b *BTCMarkets) WsConnect() error {
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
 	}
-
-	b.generateDefaultSubscriptions()
 	go b.WsHandleData()
-
+	if b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		b.createChannels()
+		if err != nil {
+			b.Websocket.DataHandler <- err
+			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		}
+	}
+	b.generateDefaultSubscriptions()
 	return nil
 }
 
@@ -64,11 +73,11 @@ func (b *BTCMarkets) WsHandleData() {
 				continue
 			}
 			switch wsResponse.MessageType {
-			case "heartbeat":
+			case heartbeat:
 				if b.Verbose {
 					log.Debugf(log.ExchangeSys, "%v - Websocket heartbeat received %s", b.Name, resp.Raw)
 				}
-			case "orderbook":
+			case wsOB:
 				var ob WsOrderbook
 				err := json.Unmarshal(resp.Raw, &ob)
 				if err != nil {
@@ -129,7 +138,7 @@ func (b *BTCMarkets) WsHandleData() {
 					Asset:    asset.Spot,
 					Exchange: b.Name,
 				}
-			case "trade":
+			case trade:
 				var trade WsTrade
 				err := json.Unmarshal(resp.Raw, &trade)
 				if err != nil {
@@ -145,7 +154,7 @@ func (b *BTCMarkets) WsHandleData() {
 					Price:        trade.Price,
 					Amount:       trade.Volume,
 				}
-			case "tick":
+			case tick:
 				var tick WsTick
 				err := json.Unmarshal(resp.Raw, &tick)
 				if err != nil {
@@ -166,6 +175,22 @@ func (b *BTCMarkets) WsHandleData() {
 					AssetType: asset.Spot,
 					Pair:      p,
 				}
+			case fundChange:
+				var transferData WsFundTransfer
+				err := json.Unmarshal(resp.Raw, &transferData)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					continue
+				}
+				b.Websocket.DataHandler <- transferData
+			case orderChange:
+				var orderData WsOrderChange
+				err := json.Unmarshal(resp.Raw, &orderData)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					continue
+				}
+				b.Websocket.DataHandler <- orderData
 			case "error":
 				var wsErr WsError
 				err := json.Unmarshal(resp.Raw, &wsErr)
@@ -182,7 +207,7 @@ func (b *BTCMarkets) WsHandleData() {
 }
 
 func (b *BTCMarkets) generateDefaultSubscriptions() {
-	var channels = []string{"tick", "trade", "orderbook"}
+	var channels = []string{tick, trade, wsOB}
 	enabledCurrencies := b.GetEnabledPairs(asset.Spot)
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range channels {
@@ -198,10 +223,68 @@ func (b *BTCMarkets) generateDefaultSubscriptions() {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *BTCMarkets) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
-	req := WsSubscribe{
-		MarketIDs:   []string{channelToSubscribe.Currency.String()},
-		Channels:    []string{channelToSubscribe.Channel},
-		MessageType: "subscribe",
+	unauthChannels := []string{tick, trade, wsOB}
+	authChannels := []string{fundChange, heartbeat, orderChange}
+	switch {
+	case common.StringDataCompare(unauthChannels, channelToSubscribe.Channel):
+		req := WsSubscribe{
+			MarketIDs:   []string{b.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot).String()},
+			Channels:    []string{channelToSubscribe.Channel},
+			MessageType: subscribe,
+		}
+		err := b.WebsocketConn.SendMessage(req)
+		if err != nil {
+			return err
+		}
+	case common.StringDataCompare(authChannels, channelToSubscribe.Channel):
+		message, ok := channelToSubscribe.Params["AuthSub"].(WsAuthSubscribe)
+		if !ok {
+			return errors.New("invalid params data")
+		}
+		tempAuthData := b.generateAuthSubscriptions()
+		message.Channels = append(message.Channels, channelToSubscribe.Channel, heartbeat)
+		message.Key = tempAuthData.Key
+		message.Signature = tempAuthData.Signature
+		message.Timestamp = tempAuthData.Timestamp
+		err := b.WebsocketConn.SendMessage(message)
+		if err != nil {
+			return err
+		}
 	}
-	return b.WebsocketConn.SendMessage(req)
+	return nil
+}
+
+// Login logs in allowing private ws events
+func (b *BTCMarkets) generateAuthSubscriptions() WsAuthSubscribe {
+	var authSubInfo WsAuthSubscribe
+	signTime := strconv.FormatInt(time.Now().UTC().UnixNano()/1000000, 10)
+	strToSign := "/users/self/subscribe" + "\n" + signTime
+	tempSign := crypto.GetHMAC(crypto.HashSHA512,
+		[]byte(strToSign),
+		[]byte(b.API.Credentials.Secret))
+	sign := crypto.Base64Encode(tempSign)
+	authSubInfo.Key = b.API.Credentials.Key
+	authSubInfo.Signature = sign
+	authSubInfo.Timestamp = signTime
+	return authSubInfo
+}
+
+// createChannels creates channels that need to be
+func (b *BTCMarkets) createChannels() {
+	tempChannels := []string{orderChange, fundChange}
+	var channels []wshandler.WebsocketChannelSubscription
+	pairArray := b.GetEnabledPairs(asset.Spot)
+	for y := range tempChannels {
+		for x := range pairArray {
+			var authSub WsAuthSubscribe
+			var channel wshandler.WebsocketChannelSubscription
+			channel.Params = make(map[string]interface{})
+			channel.Channel = tempChannels[y]
+			authSub.MarketIDs = append(authSub.MarketIDs, b.FormatExchangeCurrency(pairArray[x], asset.Spot).String())
+			authSub.MessageType = subscribe
+			channel.Params["AuthSub"] = authSub
+			channels = append(channels, channel)
+		}
+	}
+	b.Websocket.SubscribeToChannels(channels)
 }

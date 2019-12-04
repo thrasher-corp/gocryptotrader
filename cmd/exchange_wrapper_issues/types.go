@@ -73,7 +73,7 @@ type EndpointResponse struct {
 // Bank contains all required data for a wrapper withdrawal request
 type Bank struct {
 	BankAccountName               string  `json:"bankAccountName"`
-	BankAccountNumber             float64 `json:"bankAccountNumber"`
+	BankAccountNumber             string  `json:"bankAccountNumber"`
 	BankAddress                   string  `json:"bankAddress"`
 	BankCity                      string  `json:"bankCity"`
 	BankCountry                   string  `json:"bankCountry"`

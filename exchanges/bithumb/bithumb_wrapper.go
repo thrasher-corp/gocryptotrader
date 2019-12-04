@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"strconv"
 	"sync"
 	"time"
 
@@ -419,9 +418,7 @@ func (b *Bithumb) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawReques
 		return "", errors.New("only KRW is supported")
 	}
 	bankDetails := fmt.Sprintf("%v_%v", withdrawRequest.BankCode, withdrawRequest.BankName)
-	bankAccountNumber := strconv.FormatFloat(withdrawRequest.BankAccountNumber, 'f', -1, 64)
-	withdrawAmountInt := int64(withdrawRequest.Amount)
-	resp, err := b.RequestKRWWithdraw(bankDetails, bankAccountNumber, withdrawAmountInt)
+	resp, err := b.RequestKRWWithdraw(bankDetails, withdrawRequest.BankAccountNumber, int64(withdrawRequest.Amount))
 	if err != nil {
 		return "", err
 	}
