@@ -187,20 +187,22 @@ func (y *Yobit) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 		return tickerPrice, err
 	}
 
-	for _, x := range y.GetEnabledPairs(assetType) {
-		curr := y.FormatExchangeCurrency(x, assetType).Lower().String()
+	enabledPairs := y.GetEnabledPairs(assetType)
+	for i := range enabledPairs {
+		curr := y.FormatExchangeCurrency(enabledPairs[i], assetType).Lower().String()
 		if _, ok := result[curr]; !ok {
 			continue
 		}
+		resultCurr := result[curr]
 		var tickerPrice ticker.Price
-		tickerPrice.Pair = x
-		tickerPrice.Last = result[curr].Last
-		tickerPrice.Ask = result[curr].Sell
-		tickerPrice.Bid = result[curr].Buy
-		tickerPrice.Last = result[curr].Last
-		tickerPrice.Low = result[curr].Low
-		tickerPrice.QuoteVolume = result[curr].VolumeCurrent
-		tickerPrice.Volume = result[curr].Vol
+		tickerPrice.Pair = enabledPairs[i]
+		tickerPrice.Last = resultCurr.Last
+		tickerPrice.Ask = resultCurr.Sell
+		tickerPrice.Bid = resultCurr.Buy
+		tickerPrice.Last = resultCurr.Last
+		tickerPrice.Low = resultCurr.Low
+		tickerPrice.QuoteVolume = resultCurr.VolumeCurrent
+		tickerPrice.Volume = resultCurr.Vol
 
 		err = ticker.ProcessTicker(y.Name, &tickerPrice, assetType)
 		if err != nil {
@@ -323,13 +325,15 @@ func (y *Yobit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		s.OrderSide.String(),
 		s.Amount,
 		s.Price)
+	if err != nil {
+		return submitOrderResponse, err
+	}
 	if response > 0 {
 		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
 	}
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
-	}
-	return submitOrderResponse, err
+
+	submitOrderResponse.IsOrderPlaced = true
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

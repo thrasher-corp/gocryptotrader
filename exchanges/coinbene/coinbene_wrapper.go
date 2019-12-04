@@ -3,6 +3,7 @@ package coinbene
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -504,9 +505,9 @@ func (c *Coinbene) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]
 		for y := range tempData.OpenOrders {
 			tempResp.Exchange = c.Name
 			tempResp.CurrencyPair = getOrdersRequest.Currencies[x]
-			tempResp.OrderSide = buy
-			if tempData.OpenOrders[y].OrderType == sell {
-				tempResp.OrderSide = sell
+			tempResp.OrderSide = order.Buy
+			if strings.EqualFold(tempData.OpenOrders[y].OrderType, order.Sell.String()) {
+				tempResp.OrderSide = order.Sell
 			}
 			t, err = time.Parse(time.RFC3339, tempData.OpenOrders[y].OrderTime)
 			if err != nil {
@@ -556,7 +557,7 @@ func (c *Coinbene) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]
 			tempResp.Exchange = c.Name
 			tempResp.CurrencyPair = getOrdersRequest.Currencies[x]
 			tempResp.OrderSide = order.Buy
-			if tempData.Data[y].OrderType == sell {
+			if strings.EqualFold(tempData.Data[y].OrderType, order.Sell.String()) {
 				tempResp.OrderSide = order.Sell
 			}
 			t, err = time.Parse(time.RFC3339, tempData.Data[y].OrderTime)

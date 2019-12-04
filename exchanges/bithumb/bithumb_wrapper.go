@@ -220,9 +220,9 @@ func (b *Bithumb) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbo
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bithumb) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	currency := p.Base.String()
+	curr := p.Base.String()
 
-	orderbookNew, err := b.GetOrderBook(currency)
+	orderbookNew, err := b.GetOrderBook(curr)
 	if err != nil {
 		return orderBook, err
 	}
@@ -311,20 +311,25 @@ func (b *Bithumb) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	if s.OrderSide == order.Buy {
 		var result MarketBuy
 		result, err = b.MarketBuyOrder(s.Pair.Base.String(), s.Amount)
+		if err != nil {
+			return submitOrderResponse, err
+		}
 		orderID = result.OrderID
 	} else if s.OrderSide == order.Sell {
 		var result MarketSell
 		result, err = b.MarketSellOrder(s.Pair.Base.String(), s.Amount)
+		if err != nil {
+			return submitOrderResponse, err
+		}
 		orderID = result.OrderID
 	}
-
 	if orderID != "" {
 		submitOrderResponse.OrderID = orderID
+		submitOrderResponse.FullyMatched = true
 	}
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
-	}
-	return submitOrderResponse, err
+	submitOrderResponse.IsOrderPlaced = true
+
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -358,12 +363,13 @@ func (b *Bithumb) CancelAllOrders(orderCancellation *order.Cancel) (order.Cancel
 	}
 
 	var allOrders []OrderData
-	for _, currency := range b.GetEnabledPairs(asset.Spot) {
+	currs := b.GetEnabledPairs(asset.Spot)
+	for i := range currs {
 		orders, err := b.GetOrders("",
 			orderCancellation.Side.String(),
 			"100",
 			"",
-			currency.Base.String())
+			currs[i].Base.String())
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}

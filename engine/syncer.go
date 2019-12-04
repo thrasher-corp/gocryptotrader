@@ -310,16 +310,17 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 			}
 
 			for y := range assetTypes {
-				for _, p := range Bot.Exchanges[x].GetEnabledPairs(assetTypes[y]) {
+				enabledPairs := Bot.Exchanges[x].GetEnabledPairs(assetTypes[y])
+				for i := range enabledPairs {
 					if atomic.LoadInt32(&e.shutdown) == 1 {
 						return
 					}
 
-					if !e.exists(exchangeName, p, assetTypes[y]) {
+					if !e.exists(exchangeName, enabledPairs[i], assetTypes[y]) {
 						c := CurrencyPairSyncAgent{
 							AssetType: assetTypes[y],
 							Exchange:  exchangeName,
-							Pair:      p,
+							Pair:      enabledPairs[i],
 						}
 
 						if e.Cfg.SyncTicker {
@@ -346,7 +347,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 						e.add(&c)
 					}
 
-					c, err := e.get(exchangeName, p, assetTypes[y])
+					c, err := e.get(exchangeName, enabledPairs[i], assetTypes[y])
 					if err != nil {
 						log.Errorf(log.SyncMgr, "failed to get item. Err: %s\n", err)
 						continue
@@ -354,7 +355,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 					if switchedToRest && usingWebsocket {
 						log.Infof(log.SyncMgr,
 							"%s %s: Websocket re-enabled, switching from rest to websocket\n",
-							c.Exchange, FormatCurrency(p).String())
+							c.Exchange, FormatCurrency(enabledPairs[i]).String())
 						switchedToRest = false
 					}
 					if e.Cfg.SyncTicker {
@@ -371,7 +372,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 										c.Ticker.IsUsingREST = true
 										log.Warnf(log.SyncMgr,
 											"%s %s: No ticker update after 10 seconds, switching from websocket to rest\n",
-											c.Exchange, FormatCurrency(p).String())
+											c.Exchange, FormatCurrency(enabledPairs[i]).String())
 										switchedToRest = true
 										e.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemTicker, false)
 									}
@@ -521,14 +522,15 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 		}
 
 		for y := range assetTypes {
-			for _, p := range Bot.Exchanges[x].GetEnabledPairs(assetTypes[y]) {
-				if e.exists(exchangeName, p, assetTypes[y]) {
+			enabledPairs := Bot.Exchanges[x].GetEnabledPairs(assetTypes[y])
+			for i := range enabledPairs {
+				if e.exists(exchangeName, enabledPairs[i], assetTypes[y]) {
 					continue
 				}
 				c := CurrencyPairSyncAgent{
 					AssetType: assetTypes[y],
 					Exchange:  exchangeName,
-					Pair:      p,
+					Pair:      enabledPairs[i],
 				}
 
 				if e.Cfg.SyncTicker {

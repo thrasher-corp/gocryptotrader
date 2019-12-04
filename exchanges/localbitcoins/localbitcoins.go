@@ -579,7 +579,7 @@ func (l *LocalBitcoins) WalletSend(address string, amount float64, pin int64) er
 	path := localbitcoinsAPIWalletSend
 
 	if pin > 0 {
-		values.Set("pincode", fmt.Sprintf("%v", pin))
+		values.Set("pincode", strconv.FormatInt(pin, 10))
 		path = localbitcoinsAPIWalletSendPin
 	}
 

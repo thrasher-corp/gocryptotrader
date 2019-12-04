@@ -400,16 +400,19 @@ func (c *CoinbasePro) SubmitOrder(s *order.Submit) (order.SubmitResponse, error)
 	default:
 		err = errors.New("order type not supported")
 	}
-
+	if err != nil {
+		return submitOrderResponse, err
+	}
+	if s.OrderType == order.Market {
+		submitOrderResponse.FullyMatched = true
+	}
 	if response != "" {
 		submitOrderResponse.OrderID = response
 	}
 
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
-	}
+	submitOrderResponse.IsOrderPlaced = true
 
-	return submitOrderResponse, err
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -509,7 +512,7 @@ func (c *CoinbasePro) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Deta
 
 	var orders []order.Detail
 	for i := range respOrders {
-		currency := currency.NewPairDelimiter(respOrders[i].ProductID,
+		curr := currency.NewPairDelimiter(respOrders[i].ProductID,
 			c.GetPairFormat(asset.Spot, false).Delimiter)
 		orderSide := order.Side(strings.ToUpper(respOrders[i].Side))
 		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
@@ -530,7 +533,7 @@ func (c *CoinbasePro) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Deta
 			OrderType:      orderType,
 			OrderDate:      orderDate,
 			OrderSide:      orderSide,
-			CurrencyPair:   currency,
+			CurrencyPair:   curr,
 			Exchange:       c.Name,
 		})
 	}
@@ -545,9 +548,9 @@ func (c *CoinbasePro) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Deta
 // Can Limit response to specific order status
 func (c *CoinbasePro) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var respOrders []GeneralizedOrderResponse
-	for _, currency := range req.Currencies {
+	for i := range req.Currencies {
 		resp, err := c.GetOrders([]string{"done", "settled"},
-			c.FormatExchangeCurrency(currency, asset.Spot).String())
+			c.FormatExchangeCurrency(req.Currencies[i], asset.Spot).String())
 		if err != nil {
 			return nil, err
 		}
@@ -556,7 +559,7 @@ func (c *CoinbasePro) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Deta
 
 	var orders []order.Detail
 	for i := range respOrders {
-		currency := currency.NewPairDelimiter(respOrders[i].ProductID,
+		curr := currency.NewPairDelimiter(respOrders[i].ProductID,
 			c.GetPairFormat(asset.Spot, false).Delimiter)
 		orderSide := order.Side(strings.ToUpper(respOrders[i].Side))
 		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
@@ -577,7 +580,7 @@ func (c *CoinbasePro) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Deta
 			OrderType:      orderType,
 			OrderDate:      orderDate,
 			OrderSide:      orderSide,
-			CurrencyPair:   currency,
+			CurrencyPair:   curr,
 			Exchange:       c.Name,
 		})
 	}

@@ -1,8 +1,11 @@
 package convert
 
 import (
+	"errors"
 	"fmt"
+	"math"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -76,4 +79,31 @@ func UnixMillis(t time.Time) int64 {
 // RecvWindow converts a supplied time.Duration to milliseconds
 func RecvWindow(d time.Duration) int64 {
 	return int64(d) / int64(time.Millisecond)
+}
+
+// SplitFloatDecimals takes in a float64 and splits
+// the decimals into their own integers
+// Warning. Passing in numbers with many decimals
+// can lead to a loss of accuracy
+func SplitFloatDecimals(input float64) (baseNum, decimalNum int64, err error) {
+	if input > float64(math.MaxInt64) {
+		return 0, 0, errors.New("number too large to split into integers")
+	}
+	if input == float64(int64(input)) {
+		return int64(input), 0, nil
+	}
+	decStr := strconv.FormatFloat(input, 'f', -1, 64)
+	splitNum := strings.Split(decStr, ".")
+	baseNum, err = strconv.ParseInt(splitNum[0], 10, 64)
+	if err != nil {
+		return 0, 0, err
+	}
+	decimalNum, err = strconv.ParseInt(splitNum[1], 10, 64)
+	if err != nil {
+		return 0, 0, err
+	}
+	if baseNum < 0 {
+		decimalNum *= -1
+	}
+	return baseNum, decimalNum, nil
 }

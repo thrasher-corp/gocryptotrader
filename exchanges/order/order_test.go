@@ -1,6 +1,7 @@
 package order
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -396,5 +397,140 @@ func TestSortOrdersByOrderType(t *testing.T) {
 		t.Errorf("Expected: '%v', received: '%v'",
 			TrailingStop,
 			orders[0].OrderType)
+	}
+}
+
+var stringsToOrderSide = []struct {
+	in  string
+	out Side
+	err error
+}{
+	{"buy", Buy, nil},
+	{"BUY", Buy, nil},
+	{"bUy", Buy, nil},
+	{"sell", Sell, nil},
+	{"SELL", Sell, nil},
+	{"sElL", Sell, nil},
+	{"bid", Bid, nil},
+	{"BID", Bid, nil},
+	{"bId", Bid, nil},
+	{"ask", Ask, nil},
+	{"ASK", Ask, nil},
+	{"aSk", Ask, nil},
+	{"any", AnySide, nil},
+	{"ANY", AnySide, nil},
+	{"aNy", AnySide, nil},
+	{"woahMan", Buy, errors.New("woahMan not recognised as side type")},
+}
+
+func TestStringToOrderSide(t *testing.T) {
+	for i := 0; i < len(stringsToOrderSide); i++ {
+		testData := &stringsToOrderSide[i]
+		t.Run(testData.in, func(t *testing.T) {
+			out, err := StringToOrderSide(testData.in)
+			if err != nil {
+				if err.Error() != testData.err.Error() {
+					t.Error("Unexpected error", err)
+				}
+			} else if out != testData.out {
+				t.Errorf("Unexpected output %v. Expected %v", out, testData.out)
+			}
+		})
+	}
+}
+
+var stringsToOrderType = []struct {
+	in  string
+	out Type
+	err error
+}{
+	{"limit", Limit, nil},
+	{"LIMIT", Limit, nil},
+	{"lImIt", Limit, nil},
+	{"market", Market, nil},
+	{"MARKET", Market, nil},
+	{"mArKeT", Market, nil},
+	{"immediate_or_cancel", ImmediateOrCancel, nil},
+	{"IMMEDIATE_OR_CANCEL", ImmediateOrCancel, nil},
+	{"iMmEdIaTe_Or_CaNcEl", ImmediateOrCancel, nil},
+	{"stop", Stop, nil},
+	{"STOP", Stop, nil},
+	{"sToP", Stop, nil},
+	{"trailingstop", TrailingStop, nil},
+	{"TRAILINGSTOP", TrailingStop, nil},
+	{"tRaIlInGsToP", TrailingStop, nil},
+	{"any", AnyType, nil},
+	{"ANY", AnyType, nil},
+	{"aNy", AnyType, nil},
+	{"woahMan", Unknown, errors.New("woahMan not recognised as order type")},
+}
+
+func TestStringToOrderType(t *testing.T) {
+	for i := 0; i < len(stringsToOrderType); i++ {
+		testData := &stringsToOrderType[i]
+		t.Run(testData.in, func(t *testing.T) {
+			out, err := StringToOrderType(testData.in)
+			if err != nil {
+				if err.Error() != testData.err.Error() {
+					t.Error("Unexpected error", err)
+				}
+			} else if out != testData.out {
+				t.Errorf("Unexpected output %v. Expected %v", out, testData.out)
+			}
+		})
+	}
+}
+
+var stringsToOrderStatus = []struct {
+	in  string
+	out Status
+	err error
+}{
+	{"any", AnyStatus, nil},
+	{"ANY", AnyStatus, nil},
+	{"aNy", AnyStatus, nil},
+	{"new", New, nil},
+	{"NEW", New, nil},
+	{"nEw", New, nil},
+	{"active", Active, nil},
+	{"ACTIVE", Active, nil},
+	{"aCtIvE", Active, nil},
+	{"partially_filled", PartiallyFilled, nil},
+	{"PARTIALLY_FILLED", PartiallyFilled, nil},
+	{"pArTiAlLy_FiLlEd", PartiallyFilled, nil},
+	{"filled", Filled, nil},
+	{"FILLED", Filled, nil},
+	{"fIlLeD", Filled, nil},
+	{"canceled", Cancelled, nil},
+	{"CANCELED", Cancelled, nil},
+	{"cAnCelEd", Cancelled, nil},
+	{"pending_cancel", PendingCancel, nil},
+	{"PENDING_CANCEL", PendingCancel, nil},
+	{"pENdInG_cAnCeL", PendingCancel, nil},
+	{"rejected", Rejected, nil},
+	{"REJECTED", Rejected, nil},
+	{"rEjEcTeD", Rejected, nil},
+	{"expired", Expired, nil},
+	{"EXPIRED", Expired, nil},
+	{"eXpIrEd", Expired, nil},
+	{"hidden", Hidden, nil},
+	{"HIDDEN", Hidden, nil},
+	{"hIdDeN", Hidden, nil},
+	{"woahMan", UnknownStatus, errors.New("woahMan not recognised as order STATUS")},
+}
+
+func TestStringToOrderStatus(t *testing.T) {
+	for i := 0; i < len(stringsToOrderStatus); i++ {
+		testData := &stringsToOrderStatus[i]
+		t.Run(testData.in, func(t *testing.T) {
+			out, err := StringToOrderStatus(testData.in)
+			if err != nil {
+				if err.Error() != testData.err.Error() {
+					t.Error("Unexpected error", err)
+				}
+			} else if out != testData.out {
+				t.Errorf("Unexpected output %v. Expected %v", out, testData.out)
+			}
+		})
 	}
 }

@@ -49,7 +49,7 @@ const (
 )
 
 // Instantiates a communications channel between websocket connections
-var comms = make(chan WsMessage, 1)
+var comms = make(chan WsMessage)
 
 // WsConnect initiates a new websocket connection
 func (h *HUOBI) WsConnect() error {
@@ -68,6 +68,7 @@ func (h *HUOBI) WsConnect() error {
 	err = h.wsLogin()
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", h.Name, err)
+		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 
 	go h.WsHandleData()
@@ -434,7 +435,7 @@ func (h *HUOBI) wsAuthenticatedSubscribe(operation, endpoint, topic string) erro
 	return h.AuthenticatedWebsocketConn.SendMessage(request)
 }
 
-func (h *HUOBI) wsGetAccountsList(pair currency.Pair) (*WsAuthenticatedAccountsListResponse, error) {
+func (h *HUOBI) wsGetAccountsList() (*WsAuthenticatedAccountsListResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated cannot get accounts list", h.Name)
 	}
@@ -446,7 +447,6 @@ func (h *HUOBI) wsGetAccountsList(pair currency.Pair) (*WsAuthenticatedAccountsL
 		SignatureVersion: signatureVersion,
 		Timestamp:        timestamp,
 		Topic:            wsAccountsList,
-		Symbol:           h.FormatExchangeCurrency(pair, asset.Spot).String(),
 	}
 	hmac := h.wsGenerateSignature(timestamp, wsAccountListEndpoint)
 	request.Signature = crypto.Base64Encode(hmac)

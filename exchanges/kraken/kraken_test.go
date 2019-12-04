@@ -3,6 +3,8 @@ package kraken
 import (
 	"log"
 	"net/http"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/gorilla/websocket"
@@ -25,13 +27,9 @@ const (
 	canManipulateRealOrders = false
 )
 
-// TestSetDefaults setup func
-func TestSetDefaults(t *testing.T) {
-	k.SetDefaults()
-}
-
 // TestSetup setup func
-func TestSetup(t *testing.T) {
+func TestMain(m *testing.M) {
+	k.SetDefaults()
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
@@ -39,19 +37,19 @@ func TestSetup(t *testing.T) {
 	}
 	krakenConfig, err := cfg.GetExchangeConfig("Kraken")
 	if err != nil {
-		t.Error("kraken Setup() init error", err)
+		log.Fatal("kraken Setup() init error", err)
 	}
 	krakenConfig.API.AuthenticatedSupport = true
 	krakenConfig.API.Credentials.Key = apiKey
 	krakenConfig.API.Credentials.Secret = apiSecret
 	krakenConfig.API.Credentials.ClientID = clientID
 	krakenConfig.API.Endpoints.WebsocketURL = k.API.Endpoints.WebsocketURL
-	subscribeToDefaultChannels = false
-
 	err = k.Setup(krakenConfig)
 	if err != nil {
-		t.Fatal("Kraken setup error", err)
+		log.Fatal("Kraken setup error", err)
 	}
+
+	os.Exit(m.Run())
 }
 
 // TestGetServerTime API endpoint test
@@ -278,7 +276,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
 	k.GetFeeByType(feeBuilder)
-	if apiKey == "" || apiSecret == "" {
+	if !areTestAPIKeysSet() {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
 		}
@@ -290,8 +288,6 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
 	var feeBuilder = setFeeBuilder()
 
 	if areTestAPIKeysSet() {
@@ -373,11 +369,8 @@ func TestGetFee(t *testing.T) {
 
 // TestFormatWithdrawPermissions logic test
 func TestFormatWithdrawPermissions(t *testing.T) {
-	k.SetDefaults()
 	expectedResult := exchange.AutoWithdrawCryptoWithSetupText + " & " + exchange.WithdrawCryptoWith2FAText + " & " + exchange.AutoWithdrawFiatWithSetupText + " & " + exchange.WithdrawFiatWith2FAText
-
 	withdrawPermissions := k.FormatWithdrawPermissions()
-
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
 	}
@@ -385,9 +378,6 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 // TestGetActiveOrders wrapper test
 func TestGetActiveOrders(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
-
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
 	}
@@ -402,9 +392,6 @@ func TestGetActiveOrders(t *testing.T) {
 
 // TestGetOrderHistory wrapper test
 func TestGetOrderHistory(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
-
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
 	}
@@ -417,6 +404,21 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 }
 
+// TestGetOrderHistory wrapper test
+func TestGetOrderInfo(t *testing.T) {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	_, err := k.GetOrderInfo("ImACoolOrderID")
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting error")
+	}
+	if areTestAPIKeysSet() && !strings.Contains(err.Error(), "- Order ID not found:") {
+		t.Error("Expected Order ID not found error")
+	}
+}
+
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
@@ -425,9 +427,6 @@ func areTestAPIKeysSet() bool {
 
 // TestSubmitOrder wrapper test
 func TestSubmitOrder(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -453,15 +452,11 @@ func TestSubmitOrder(t *testing.T) {
 
 // TestCancelExchangeOrder wrapper test
 func TestCancelExchangeOrder(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -480,15 +475,11 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 // TestCancelAllExchangeOrders wrapper test
 func TestCancelAllExchangeOrders(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -512,7 +503,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 // TestGetAccountInfo wrapper test
 func TestGetAccountInfo(t *testing.T) {
-	if apiKey != "" || apiSecret != "" || clientID != "" {
+	if areTestAPIKeysSet() || clientID != "" {
 		_, err := k.GetAccountInfo()
 		if err != nil {
 			t.Error("GetAccountInfo() error", err)
@@ -527,6 +518,9 @@ func TestGetAccountInfo(t *testing.T) {
 
 // TestModifyOrder wrapper test
 func TestModifyOrder(t *testing.T) {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := k.ModifyOrder(&order.Modify{})
 	if err == nil {
 		t.Error("ModifyOrder() Expected error")
@@ -535,9 +529,6 @@ func TestModifyOrder(t *testing.T) {
 
 // TestWithdraw wrapper test
 func TestWithdraw(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
-
 	withdrawCryptoRequest := exchange.CryptoWithdrawRequest{
 		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
 			Amount:        -1,
@@ -563,9 +554,6 @@ func TestWithdraw(t *testing.T) {
 
 // TestWithdrawFiat wrapper test
 func TestWithdrawFiat(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -590,9 +578,6 @@ func TestWithdrawFiat(t *testing.T) {
 
 // TestWithdrawInternationalBank wrapper test
 func TestWithdrawInternationalBank(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -632,9 +617,6 @@ func TestGetDepositAddress(t *testing.T) {
 
 // TestWithdrawStatus wrapper test
 func TestWithdrawStatus(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() {
 		_, err := k.WithdrawStatus(currency.BTC, "")
 		if err != nil {
@@ -650,8 +632,6 @@ func TestWithdrawStatus(t *testing.T) {
 
 // TestWithdrawCancel wrapper test
 func TestWithdrawCancel(t *testing.T) {
-	k.SetDefaults()
-	TestSetup(t)
 	_, err := k.WithdrawCancel(currency.BTC, "")
 	if areTestAPIKeysSet() && err == nil {
 		t.Error("WithdrawCancel() error cannot be nil")
@@ -666,16 +646,22 @@ func setupWsTests(t *testing.T) {
 	if wsSetupRan {
 		return
 	}
-	TestSetDefaults(t)
-	TestSetup(t)
 	if !k.Websocket.IsEnabled() && !k.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
 	k.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	comms = make(chan wshandler.WebsocketResponse, sharedtestvalues.WebsocketChannelOverrideCapacity)
 	k.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	k.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName:         k.Name,
 		URL:                  krakenWSURL,
+		Verbose:              k.Verbose,
+		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
+		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
+	}
+	k.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         k.Name,
+		URL:                  krakenAuthWSURL,
 		Verbose:              k.Verbose,
 		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
 		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
@@ -685,7 +671,21 @@ func setupWsTests(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	err = k.AuthenticatedWebsocketConn.Dial(&dialer, http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	token, err := k.GetWebsocketToken()
+	if err != nil {
+		t.Error(err)
+	}
+	authToken = token
+
+	go k.WsReadData(k.WebsocketConn)
+	go k.WsReadData(k.AuthenticatedWebsocketConn)
 	go k.WsHandleData()
+	go k.wsPingHandler()
 	wsSetupRan = true
 }
 
@@ -696,6 +696,41 @@ func TestWebsocketSubscribe(t *testing.T) {
 		Channel:  defaultSubscribedChannels[0],
 		Currency: currency.NewPairWithDelimiter("XBT", "USD", "/"),
 	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWSToken(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required, skipping")
+	}
+	resp, err := k.GetWebsocketToken()
+	if err != nil {
+		t.Error(err)
+	}
+	if resp == "" {
+		t.Error("Token not returned")
+	}
+}
+
+func TestWsAddOrder(t *testing.T) {
+	setupWsTests(t)
+	_, err := k.wsAddOrder(&WsAddOrderRequest{
+		OrderType: order.Limit.Lower(),
+		OrderSide: order.Buy.Lower(),
+		Pair:      "XBT/USD",
+		Price:     -100,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsCancelOrder(t *testing.T) {
+	setupWsTests(t)
+	err := k.wsCancelOrders([]string{"1337"})
 	if err != nil {
 		t.Error(err)
 	}

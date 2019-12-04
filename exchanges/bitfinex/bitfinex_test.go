@@ -1,8 +1,10 @@
 package bitfinex
 
 import (
+	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -25,37 +27,43 @@ const (
 )
 
 var b Bitfinex
+var wsAuthExecuted bool
 
-func TestSetup(t *testing.T) {
+func TestMain(m *testing.M) {
 	b.SetDefaults()
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		t.Fatal("Bitfinex load config error", err)
+		log.Fatal("Bitfinex load config error", err)
 	}
 	bfxConfig, err := cfg.GetExchangeConfig("Bitfinex")
 	if err != nil {
-		t.Error("Bitfinex Setup() init error")
+		log.Fatal("Bitfinex Setup() init error")
 	}
 	err = b.Setup(bfxConfig)
 	if err != nil {
-		t.Fatal("Bitfinex setup error", err)
+		log.Fatal("Bitfinex setup error", err)
 	}
 	b.API.Credentials.Key = apiKey
 	b.API.Credentials.Secret = apiSecret
 	if !b.Enabled || b.API.AuthenticatedSupport ||
 		b.Verbose || b.Websocket.IsEnabled() || len(b.BaseCurrencies) < 1 {
-		t.Error("Bitfinex Setup values not set correctly")
+		log.Fatal("Bitfinex Setup values not set correctly")
 	}
 
-	b.API.AuthenticatedSupport = true
-	b.API.AuthenticatedWebsocketSupport = true
+	if areTestAPIKeysSet() {
+		b.API.AuthenticatedSupport = true
+		b.API.AuthenticatedWebsocketSupport = true
+	}
+
 	// custom rate limit for testing
 	b.Requester.SetRateLimit(true, time.Millisecond*300, 1)
 	b.Requester.SetRateLimit(false, time.Millisecond*300, 1)
+	os.Exit(m.Run())
 }
 
 func TestAppendOptionalDelimiter(t *testing.T) {
+	t.Parallel()
 	curr1 := currency.NewPairFromString("BTCUSD")
 	b.appendOptionalDelimiter(&curr1)
 	if curr1.Delimiter != "" {
@@ -71,7 +79,6 @@ func TestAppendOptionalDelimiter(t *testing.T) {
 
 func TestGetPlatformStatus(t *testing.T) {
 	t.Parallel()
-
 	result, err := b.GetPlatformStatus()
 	if err != nil {
 		t.Errorf("TestGetPlatformStatus error: %s", err)
@@ -653,7 +660,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
 	b.GetFeeByType(feeBuilder)
-	if apiKey == "" || apiSecret == "" {
+	if !areTestAPIKeysSet() {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
 		}
@@ -665,11 +672,10 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
 	var feeBuilder = setFeeBuilder()
+	t.Parallel()
 
-	if apiKey != "" || apiSecret != "" {
+	if areTestAPIKeysSet() {
 		// CryptocurrencyTradeFee Basic
 		if resp, err := b.GetFee(feeBuilder); resp != float64(0.002) || err != nil {
 			t.Error(err)
@@ -738,20 +744,16 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	b.SetDefaults()
+	t.Parallel()
 	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText + " & " + exchange.AutoWithdrawFiatWithAPIPermissionText
-
 	withdrawPermissions := b.FormatWithdrawPermissions()
-
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
 	}
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
-
+	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
 	}
@@ -765,9 +767,7 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
-
+	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
 	}
@@ -787,9 +787,7 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestSubmitOrder(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
-
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -806,23 +804,25 @@ func TestSubmitOrder(t *testing.T) {
 		ClientID:  "meowOrder",
 	}
 	response, err := b.SubmitOrder(orderSubmission)
-	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
-		t.Errorf("Order failed to be placed: %v", err)
-	} else if !areTestAPIKeysSet() && err == nil {
+
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Could not cancel orders: %v", err)
+	}
+	if areTestAPIKeysSet() && !response.IsOrderPlaced {
+		t.Error("Order not placed")
+	}
+	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
-
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -840,15 +840,12 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrdera(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
-
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -871,6 +868,10 @@ func TestCancelAllExchangeOrdera(t *testing.T) {
 }
 
 func TestModifyOrder(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.ModifyOrder(&order.Modify{})
 	if err == nil {
 		t.Error("ModifyOrder() Expected error")
@@ -878,8 +879,7 @@ func TestModifyOrder(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -903,9 +903,7 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestWithdrawFiat(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
-
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -938,9 +936,7 @@ func TestWithdrawFiat(t *testing.T) {
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
-
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -979,6 +975,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() {
 		_, err := b.GetDepositAddress(currency.BTC, "deposit")
 		if err != nil {
@@ -992,40 +989,168 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-// TestWsAuth dials websocket, sends login request.
-func TestWsAuth(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
-	if !b.Websocket.IsEnabled() && !b.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
-		t.Skip(wshandler.WebsocketNotEnabled)
-	}
-	b.WebsocketConn = &wshandler.WebsocketConnection{
+func setupWs() {
+	b.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName:         b.Name,
-		URL:                  b.Websocket.GetWebsocketURL(),
+		URL:                  authenticatedBitfinexWebsocketEndpoint,
 		Verbose:              b.Verbose,
 		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
 		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
 	}
 	var dialer websocket.Dialer
-	err := b.WebsocketConn.Dial(&dialer, http.Header{})
+	err := b.AuthenticatedWebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	go b.WsReadData(b.AuthenticatedWebsocketConn)
 	go b.WsDataHandler()
-	err = b.WsSendAuth()
+}
+
+// TestWsAuth dials websocket, sends login request.
+func TestWsAuth(t *testing.T) {
+	if !b.Websocket.IsEnabled() && !b.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
+	}
+	runAuth(t)
+}
+
+func runAuth(t *testing.T) {
+	setupWs()
+	err := b.WsSendAuth()
 	if err != nil {
 		t.Error(err)
 	}
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
 	case resp := <-b.Websocket.DataHandler:
-		if resp.(map[string]interface{})["event"] != "auth" && resp.(map[string]interface{})["status"] != "OK" {
-			t.Error("expected successful login")
+		if logResponse, ok := resp.(map[string]interface{}); ok {
+			if logResponse["event"] != "auth" && logResponse["status"] != "OK" {
+				t.Error("expected successful login")
+			}
+		} else {
+			t.Error("Unexpected response")
 		}
 	case <-timer.C:
 		t.Error("Have not received a response")
 	}
 	timer.Stop()
+	wsAuthExecuted = true
+}
+
+// TestWsPlaceOrder dials websocket, sends order request.
+func TestWsPlaceOrder(t *testing.T) {
+	if !b.Websocket.IsEnabled() && !b.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
+	}
+	if !wsAuthExecuted {
+		runAuth(t)
+	}
+	_, err := b.WsNewOrder(&WsNewOrderRequest{
+		CustomID: 1337,
+		Type:     order.Buy.String(),
+		Symbol:   "tBTCUSD",
+		Amount:   10,
+		Price:    -10,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// TestWsCancelOrder dials websocket, sends cancel request.
+func TestWsCancelOrder(t *testing.T) {
+	if !b.Websocket.IsEnabled() && !b.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
+	}
+	if !wsAuthExecuted {
+		runAuth(t)
+	}
+	err := b.WsCancelOrder(1234)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// TestWsCancelOrder dials websocket, sends modify request.
+func TestWsUpdateOrder(t *testing.T) {
+	if !b.Websocket.IsEnabled() && !b.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
+	}
+	if !wsAuthExecuted {
+		runAuth(t)
+	}
+	err := b.WsModifyOrder(&WsUpdateOrderRequest{
+		OrderID: 1234,
+		Price:   -111,
+		Amount:  111,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// TestWsCancelAllOrders dials websocket, sends cancel all request.
+func TestWsCancelAllOrders(t *testing.T) {
+	if !b.Websocket.IsEnabled() && !b.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
+	}
+	if !wsAuthExecuted {
+		runAuth(t)
+	}
+	err := b.WsCancelAllOrders()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// TestWsCancelAllOrders dials websocket, sends cancel all request.
+func TestWsCancelMultiOrders(t *testing.T) {
+	if !b.Websocket.IsEnabled() && !b.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
+	}
+	if !wsAuthExecuted {
+		runAuth(t)
+	}
+	err := b.WsCancelMultiOrders([]int64{1, 2, 3, 4})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// TestWsNewOffer dials websocket, sends new offer request.
+func TestWsNewOffer(t *testing.T) {
+	if !b.Websocket.IsEnabled() && !b.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
+	}
+	if !wsAuthExecuted {
+		runAuth(t)
+	}
+	err := b.WsNewOffer(&WsNewOfferRequest{
+		Type:   order.Limit.String(),
+		Symbol: "fBTC",
+		Amount: -10,
+		Rate:   10,
+		Period: 30,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	time.Sleep(time.Second)
+}
+
+// TestWsCancelOffer dials websocket, sends cancel offer request.
+func TestWsCancelOffer(t *testing.T) {
+	if !b.Websocket.IsEnabled() && !b.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
+	}
+	if !wsAuthExecuted {
+		runAuth(t)
+	}
+	err := b.WsCancelOffer(1234)
+	if err != nil {
+		t.Error(err)
+	}
+	time.Sleep(time.Second)
 }

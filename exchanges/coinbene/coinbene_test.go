@@ -7,6 +7,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -103,7 +104,7 @@ func TestPlaceOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := c.PlaceOrder(140, 1, btcusdt, "buy", "")
+	_, err := c.PlaceOrder(1, 1, btcusdt, order.Buy.Lower(), "")
 	if err != nil {
 		t.Error(err)
 	}

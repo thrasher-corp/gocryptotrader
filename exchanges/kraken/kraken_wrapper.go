@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -106,6 +107,9 @@ func (k *Kraken) SetDefaults() {
 				Subscribe:          true,
 				Unsubscribe:        true,
 				MessageCorrelation: true,
+				SubmitOrder:        true,
+				CancelOrder:        true,
+				CancelOrders:       true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
 				exchange.WithdrawCryptoWith2FA |
@@ -164,6 +168,16 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 	k.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName:         k.Name,
 		URL:                  k.Websocket.GetWebsocketURL(),
+		ProxyURL:             k.Websocket.GetProxyAddress(),
+		Verbose:              k.Verbose,
+		RateLimit:            krakenWsRateLimit,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	}
+
+	k.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         k.Name,
+		URL:                  krakenAuthWSURL,
 		ProxyURL:             k.Websocket.GetProxyAddress(),
 		Verbose:              k.Verbose,
 		RateLimit:            krakenWsRateLimit,
@@ -397,25 +411,47 @@ func (k *Kraken) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]ex
 // SubmitOrder submits a new order
 func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
-	if err := s.Validate(); err != nil {
+	err := s.Validate()
+	if err != nil {
 		return submitOrderResponse, err
 	}
 
-	response, err := k.AddOrder(s.Pair.String(),
-		s.OrderSide.String(),
-		s.OrderType.String(),
-		s.Amount,
-		s.Price,
-		0,
-		0,
-		&AddOrderOptions{})
-	if len(response.TransactionIds) > 0 {
-		submitOrderResponse.OrderID = strings.Join(response.TransactionIds, ", ")
-	}
-	if err == nil {
+	if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		var resp string
+		resp, err = k.wsAddOrder(&WsAddOrderRequest{
+			OrderType: s.OrderType.String(),
+			OrderSide: s.OrderSide.String(),
+			Pair:      s.Pair.String(),
+			Price:     s.Price,
+			Volume:    s.Amount,
+		})
+		if err != nil {
+			return submitOrderResponse, err
+		}
+		submitOrderResponse.OrderID = resp
 		submitOrderResponse.IsOrderPlaced = true
+	} else {
+		var response AddOrderResponse
+		response, err = k.AddOrder(s.Pair.String(),
+			s.OrderSide.String(),
+			s.OrderType.String(),
+			s.Amount,
+			s.Price,
+			0,
+			0,
+			&AddOrderOptions{})
+		if err != nil {
+			return submitOrderResponse, err
+		}
+		if len(response.TransactionIds) > 0 {
+			submitOrderResponse.OrderID = strings.Join(response.TransactionIds, ", ")
+		}
 	}
-	return submitOrderResponse, err
+	if s.OrderType == order.Market {
+		submitOrderResponse.FullyMatched = true
+	}
+	submitOrderResponse.IsOrderPlaced = true
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -426,6 +462,9 @@ func (k *Kraken) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (k *Kraken) CancelOrder(order *order.Cancel) error {
+	if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		return k.wsCancelOrders([]string{order.OrderID})
+	}
 	_, err := k.CancelExistingOrder(order.OrderID)
 
 	return err
@@ -436,26 +475,78 @@ func (k *Kraken) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, erro
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
+
 	var emptyOrderOptions OrderInfoOptions
 	openOrders, err := k.GetOpenOrders(emptyOrderOptions)
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
-
 	for orderID := range openOrders.Open {
-		_, err = k.CancelExistingOrder(orderID)
+		var err error
+		if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			err = k.wsCancelOrders([]string{orderID})
+		} else {
+			_, err = k.CancelExistingOrder(orderID)
+		}
 		if err != nil {
 			cancelAllOrdersResponse.Status[orderID] = err.Error()
 		}
 	}
-
 	return cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns information on a current open order
 func (k *Kraken) GetOrderInfo(orderID string) (order.Detail, error) {
 	var orderDetail order.Detail
-	return orderDetail, common.ErrNotYetImplemented
+	var emptyOrderOptions OrderInfoOptions
+	openOrders, err := k.GetOpenOrders(emptyOrderOptions)
+	if err != nil {
+		return orderDetail, err
+	}
+	if orderInfo, ok := openOrders.Open[orderID]; ok {
+		var trades []order.TradeHistory
+		for i := range orderInfo.Trades {
+			trades = append(trades, order.TradeHistory{
+				TID: orderInfo.Trades[i],
+			})
+		}
+		firstNum, decNum, err := convert.SplitFloatDecimals(orderInfo.StartTime)
+		if err != nil {
+			return orderDetail, err
+		}
+		side, err := order.StringToOrderSide(orderInfo.Description.Type)
+		if err != nil {
+			return orderDetail, err
+		}
+		status, err := order.StringToOrderStatus(orderInfo.Status)
+		if err != nil {
+			return orderDetail, err
+		}
+		oType, err := order.StringToOrderType(orderInfo.Description.OrderType)
+		if err != nil {
+			return orderDetail, err
+		}
+
+		orderDetail = order.Detail{
+			Exchange:        k.Name,
+			ID:              orderID,
+			CurrencyPair:    currency.NewPairFromString(orderInfo.Description.Pair),
+			OrderSide:       side,
+			OrderType:       oType,
+			OrderDate:       time.Unix(firstNum, decNum),
+			Status:          status,
+			Price:           orderInfo.Price,
+			Amount:          orderInfo.Volume,
+			ExecutedAmount:  orderInfo.VolumeExecuted,
+			RemainingAmount: orderInfo.Volume - orderInfo.VolumeExecuted,
+			Fee:             orderInfo.Fee,
+			Trades:          trades,
+		}
+	} else {
+		return orderDetail, errors.New(k.Name + " - Order ID not found: " + orderID)
+	}
+
+	return orderDetail, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -606,5 +697,9 @@ func (k *Kraken) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, e
 
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (k *Kraken) AuthenticateWebsocket() error {
-	return common.ErrFunctionNotSupported
+	resp, err := k.GetWebsocketToken()
+	if resp != "" {
+		authToken = resp
+	}
+	return err
 }

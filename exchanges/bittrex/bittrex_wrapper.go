@@ -329,7 +329,6 @@ func (b *Bittrex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 
 	buy := s.OrderSide == order.Buy
-
 	if s.OrderType != order.Limit {
 		return submitOrderResponse,
 			errors.New("limit orders only supported on exchange")
@@ -346,16 +345,16 @@ func (b *Bittrex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			s.Amount,
 			s.Price)
 	}
-
+	if err != nil {
+		return submitOrderResponse, err
+	}
 	if response.Result.ID != "" {
 		submitOrderResponse.OrderID = response.Result.ID
 	}
 
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
-	}
+	submitOrderResponse.IsOrderPlaced = true
 
-	return submitOrderResponse, err
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

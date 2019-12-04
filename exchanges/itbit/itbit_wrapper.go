@@ -331,14 +331,18 @@ func (i *ItBit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		s.Price,
 		s.Pair.String(),
 		"")
+	if err != nil {
+		return submitOrderResponse, err
+	}
 	if response.ID != "" {
 		submitOrderResponse.OrderID = response.ID
 	}
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
-	}
 
-	return submitOrderResponse, err
+	if response.AmountFilled == s.Amount {
+		submitOrderResponse.FullyMatched = true
+	}
+	submitOrderResponse.IsOrderPlaced = true
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

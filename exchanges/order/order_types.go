@@ -50,6 +50,7 @@ type Submit struct {
 // SubmitResponse is what is returned after submitting an order to an exchange
 type SubmitResponse struct {
 	IsOrderPlaced bool
+	FullyMatched  bool
 	OrderID       string
 }
 
@@ -127,7 +128,7 @@ type Detail struct {
 // TradeHistory holds exchange history data
 type TradeHistory struct {
 	Timestamp   time.Time
-	TID         int64
+	TID         string
 	Price       float64
 	Amount      float64
 	Exchange    string
