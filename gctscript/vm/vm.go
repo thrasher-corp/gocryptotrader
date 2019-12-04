@@ -121,6 +121,10 @@ func (vm *VM) CompileAndRun() {
 	err := vm.Compile()
 	if err != nil {
 		log.Error(log.GCTScriptMgr, err)
+		err = RemoveVM(vm.ID)
+		if err != nil {
+			log.Error(log.GCTScriptMgr, err)
+		}
 		return
 	}
 
@@ -131,11 +135,16 @@ func (vm *VM) CompileAndRun() {
 	err = vm.RunCtx()
 	if err != nil {
 		log.Error(log.GCTScriptMgr, err)
+		err = RemoveVM(vm.ID)
+		if err != nil {
+			log.Error(log.GCTScriptMgr, err)
+		}
 		return
 	}
 
 	if vm.Compiled.Get("timer").String() != "" {
 		vm.T, err = time.ParseDuration(vm.Compiled.Get("timer").String())
+
 		if err != nil {
 			log.Error(log.GCTScriptMgr, err)
 			err = vm.Shutdown()

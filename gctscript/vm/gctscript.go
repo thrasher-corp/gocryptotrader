@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/gofrs/uuid"
-
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 

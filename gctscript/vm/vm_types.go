@@ -18,7 +18,6 @@ const (
 )
 
 var (
-	// pool stuff
 	pool = &sync.Pool{
 		New: func() interface{} {
 			return new(script.Script)

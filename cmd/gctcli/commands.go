@@ -3177,8 +3177,7 @@ func gctScriptRead(c *cli.Context) error {
 		return err
 	}
 
-	fmt.Printf("%s\n", executeCommand.Data)
-
+	fmt.Printf("%s\n", executeCommand)
 	return nil
 }
 
@@ -3213,7 +3212,7 @@ func gctScriptQuery(c *cli.Context) error {
 		return err
 	}
 
-	fmt.Printf("%s\n", executeCommand)
+	//fmt.Printf("%s\n", executeCommand)
 	jsonOutput(executeCommand)
 
 	return nil

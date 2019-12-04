@@ -35,7 +35,7 @@ func TestMain(m *testing.M) {
 	var t int
 	err := setupEngine()
 	if err != nil {
-		fmt.Println("Failed to configure exchange test cannot continue")
+		fmt.Printf("Failed to configure exchange test cannot continue: %v", err)
 		os.Exit(1)
 	}
 	t = m.Run()

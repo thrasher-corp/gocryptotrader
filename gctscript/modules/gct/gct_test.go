@@ -215,7 +215,6 @@ func TestExchangeOrderSubmit(t *testing.T) {
 func TestAllModuleNames(t *testing.T) {
 	x := AllModuleNames()
 	xType := reflect.TypeOf(x).Kind()
-	t.Log(xType)
 	if xType != reflect.Slice {
 		t.Fatalf("AllModuleNames() should return slice instead received: %v", x)
 	}
@@ -376,12 +375,12 @@ func (w Wrapper) CancelOrder(exch, orderid string) (bool, error) {
 	return true, nil
 }
 
-func (w Wrapper) AccountInformation(exch string) (modules.AccountInfo, error) {
+func (w Wrapper) AccountInformation(exch string) (*modules.AccountInfo, error) {
 	if exch == exchError.String() {
-		return modules.AccountInfo{}, errTestFailed
+		return &modules.AccountInfo{}, errTestFailed
 	}
 
-	return modules.AccountInfo{
+	return &modules.AccountInfo{
 		Exchange: exch,
 		Accounts: []modules.Account{
 			{
