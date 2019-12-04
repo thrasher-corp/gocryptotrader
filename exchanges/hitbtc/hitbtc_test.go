@@ -1,7 +1,9 @@
 package hitbtc
 
 import (
+	"log"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -26,19 +28,16 @@ const (
 	canManipulateRealOrders = false
 )
 
-func TestSetDefaults(t *testing.T) {
+func TestMain(m *testing.M) {
 	h.SetDefaults()
-}
-
-func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		t.Fatal("HitBTC load config error", err)
+		log.Fatal("HitBTC load config error", err)
 	}
 	hitbtcConfig, err := cfg.GetExchangeConfig("HitBTC")
 	if err != nil {
-		t.Error("HitBTC Setup() init error")
+		log.Fatal("HitBTC Setup() init error")
 	}
 	hitbtcConfig.API.AuthenticatedSupport = true
 	hitbtcConfig.API.AuthenticatedWebsocketSupport = true
@@ -47,8 +46,10 @@ func TestSetup(t *testing.T) {
 
 	err = h.Setup(hitbtcConfig)
 	if err != nil {
-		t.Fatal("HitBTC setup error", err)
+		log.Fatal("HitBTC setup error", err)
 	}
+
+	os.Exit(m.Run())
 }
 
 func TestGetOrderbook(t *testing.T) {
@@ -94,7 +95,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
 	h.GetFeeByType(feeBuilder)
-	if apiKey == "" || apiSecret == "" {
+	if !areTestAPIKeysSet() {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
 		}
@@ -106,9 +107,6 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 }
 
 func TestUpdateTicker(t *testing.T) {
-	h.SetDefaults()
-	TestSetup(t)
-
 	h.CurrencyPairs.StorePairs(asset.Spot, currency.NewPairsFromStrings([]string{"BTC-USD", "XRP-USD"}), true)
 	_, err := h.UpdateTicker(currency.NewPair(currency.BTC, currency.USD), asset.Spot)
 	if err != nil {
@@ -136,9 +134,6 @@ func TestGetSingularTicker(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	h.SetDefaults()
-	TestSetup(t)
-
 	var feeBuilder = setFeeBuilder()
 	if areTestAPIKeysSet() {
 		// CryptocurrencyTradeFee Basic
@@ -219,20 +214,14 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	h.SetDefaults()
 	expectedResult := exchange.AutoWithdrawCryptoText + " & " + exchange.NoFiatWithdrawalsText
-
 	withdrawPermissions := h.FormatWithdrawPermissions()
-
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
 	}
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	h.SetDefaults()
-	TestSetup(t)
-
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType:  order.AnyType,
 		Currencies: []currency.Pair{currency.NewPair(currency.ETH, currency.BTC)},
@@ -247,9 +236,6 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
-	h.SetDefaults()
-	TestSetup(t)
-
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType:  order.AnyType,
 		Currencies: []currency.Pair{currency.NewPair(currency.ETH, currency.BTC)},
@@ -270,9 +256,6 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestSubmitOrder(t *testing.T) {
-	h.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -297,15 +280,11 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	h.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -323,15 +302,11 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	h.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -354,6 +329,9 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestModifyOrder(t *testing.T) {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := h.ModifyOrder(&order.Modify{})
 	if err == nil {
 		t.Error("ModifyOrder() Expected error")
@@ -361,8 +339,6 @@ func TestModifyOrder(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
-	h.SetDefaults()
-	TestSetup(t)
 	withdrawCryptoRequest := exchange.CryptoWithdrawRequest{
 		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
 			Amount:      -1,
@@ -386,9 +362,6 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestWithdrawFiat(t *testing.T) {
-	h.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -401,9 +374,6 @@ func TestWithdrawFiat(t *testing.T) {
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
-	h.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -432,8 +402,6 @@ func setupWsAuth(t *testing.T) {
 	if wsSetupRan {
 		return
 	}
-	TestSetDefaults(t)
-	TestSetup(t)
 	if !h.Websocket.IsEnabled() && !h.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}

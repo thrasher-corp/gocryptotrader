@@ -364,16 +364,18 @@ func (b *Bitstamp) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		s.Amount,
 		buy,
 		market)
-
+	if err != nil {
+		return submitOrderResponse, err
+	}
 	if response.ID > 0 {
 		submitOrderResponse.OrderID = strconv.FormatInt(response.ID, 10)
 	}
 
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
+	submitOrderResponse.IsOrderPlaced = true
+	if s.OrderType == order.Market {
+		submitOrderResponse.FullyMatched = true
 	}
-
-	return submitOrderResponse, err
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

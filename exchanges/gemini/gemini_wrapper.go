@@ -333,13 +333,16 @@ func (g *Gemini) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		s.Price,
 		s.OrderSide.String(),
 		"exchange limit")
+	if err != nil {
+		return submitOrderResponse, err
+	}
 	if response > 0 {
 		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
 	}
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
-	}
-	return submitOrderResponse, err
+
+	submitOrderResponse.IsOrderPlaced = true
+
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -369,8 +372,8 @@ func (g *Gemini) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, erro
 		return cancelAllOrdersResponse, err
 	}
 
-	for _, order := range resp.Details.CancelRejects {
-		cancelAllOrdersResponse.Status[order] = "Could not cancel order"
+	for i := range resp.Details.CancelRejects {
+		cancelAllOrdersResponse.Status[resp.Details.CancelRejects[i]] = "Could not cancel order"
 	}
 
 	return cancelAllOrdersResponse, nil

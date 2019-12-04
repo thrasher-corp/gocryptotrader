@@ -1,7 +1,9 @@
 package coinut
 
 import (
+	"log"
 	"net/http"
+	"os"
 	"testing"
 
 	"github.com/gorilla/websocket"
@@ -24,44 +26,41 @@ const (
 	canManipulateRealOrders = false
 )
 
-func TestSetDefaults(t *testing.T) {
+func TestMain(m *testing.M) {
 	c.SetDefaults()
-}
-
-func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		t.Fatal("Coinut load config error", err)
+		log.Fatal("Coinut load config error", err)
 	}
 	bConfig, err := cfg.GetExchangeConfig("COINUT")
 	if err != nil {
-		t.Error("Coinut Setup() init error")
+		log.Fatal("Coinut Setup() init error")
 	}
 	bConfig.API.AuthenticatedSupport = true
 	bConfig.API.AuthenticatedWebsocketSupport = true
 	bConfig.API.Credentials.Key = apiKey
 	bConfig.API.Credentials.ClientID = clientID
-	bConfig.Verbose = true
 	err = c.Setup(bConfig)
 	if err != nil {
-		t.Fatal("Coinut setup error", err)
+		log.Fatal("Coinut setup error", err)
 	}
 
-	if !c.IsEnabled() || !c.Verbose ||
-		c.Websocket.IsEnabled() || len(c.BaseCurrencies) < 1 {
-		t.Error("Coinut Setup values not set correctly")
-	}
+	c.SeedInstruments()
+
+	os.Exit(m.Run())
 }
 
 func setupWSTestAuth(t *testing.T) {
 	if wsSetupRan {
 		return
 	}
-	c.SetDefaults()
-	TestSetup(t)
+
 	if !c.Websocket.IsEnabled() && !c.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip(wshandler.WebsocketNotEnabled)
+	}
+	if areTestAPIKeysSet() {
+		c.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 	c.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName:         c.Name,
@@ -71,6 +70,7 @@ func setupWSTestAuth(t *testing.T) {
 		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
 		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
 	}
+
 	var dialer websocket.Dialer
 	err := c.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
@@ -84,6 +84,10 @@ func setupWSTestAuth(t *testing.T) {
 		t.Error(err)
 	}
 	wsSetupRan = true
+	_, err = c.WsGetInstruments()
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestGetInstruments(t *testing.T) {
@@ -130,12 +134,8 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
 	t.Parallel()
-
 	var feeBuilder = setFeeBuilder()
-
 	// CryptocurrencyTradeFee Basic
 	if resp, err := c.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
 		t.Error(err)
@@ -248,38 +248,29 @@ func TestGetFee(t *testing.T) {
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	c.SetDefaults()
 	expectedResult := exchange.WithdrawCryptoViaWebsiteOnlyText + " & " + exchange.WithdrawFiatViaWebsiteOnlyText
-
 	withdrawPermissions := c.FormatWithdrawPermissions()
-
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
 	}
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
 	}
-
 	_, err := c.GetActiveOrders(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get open orders: %s", err)
 	}
 }
 
-func TestGetOrderHistory(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-
+func TestGetOrderHistoryWrapper(t *testing.T) {
+	setupWSTestAuth(t)
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
 		Currencies: []currency.Pair{currency.NewPair(currency.BTC,
-			currency.LTC)},
+			currency.USD)},
 	}
 
 	_, err := c.GetOrderHistory(&getOrdersRequest)
@@ -295,9 +286,6 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestSubmitOrder(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -311,7 +299,7 @@ func TestSubmitOrder(t *testing.T) {
 		OrderType: order.Limit,
 		Price:     1,
 		Amount:    1,
-		ClientID:  "meowOrder",
+		ClientID:  "123",
 	}
 	response, err := c.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -322,15 +310,10 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-
-	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-
+	currencyPair := currency.NewPair(currency.BTC, currency.USD)
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -348,15 +331,11 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
@@ -393,6 +372,9 @@ func TestGetAccountInfo(t *testing.T) {
 }
 
 func TestModifyOrder(t *testing.T) {
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := c.ModifyOrder(&order.Modify{})
 	if err == nil {
 		t.Error("ModifyOrder() Expected error")
@@ -400,8 +382,6 @@ func TestModifyOrder(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
 	withdrawCryptoRequest := exchange.CryptoWithdrawRequest{
 		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
 			Amount:      -1,
@@ -422,9 +402,6 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestWithdrawFiat(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -437,9 +414,6 @@ func TestWithdrawFiat(t *testing.T) {
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -473,14 +447,14 @@ func TestWsAuthSubmitOrder(t *testing.T) {
 	if !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	order := WsSubmitOrderParameters{
+	ord := WsSubmitOrderParameters{
 		Amount:   1,
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  1,
 		Price:    1,
 		Side:     order.Buy,
 	}
-	_, err := c.wsSubmitOrder(&order)
+	_, err := c.wsSubmitOrder(&ord)
 	if err != nil {
 		t.Error(err)
 	}
@@ -513,12 +487,13 @@ func TestWsAuthSubmitOrders(t *testing.T) {
 }
 
 // TestWsAuthCancelOrders dials websocket, cancels orders
+// doesn't care about if the order cancellations fail
 func TestWsAuthCancelOrders(t *testing.T) {
 	setupWSTestAuth(t)
 	if !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	order := WsCancelOrderParameters{
+	ord := WsCancelOrderParameters{
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  1,
 	}
@@ -526,9 +501,28 @@ func TestWsAuthCancelOrders(t *testing.T) {
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  2,
 	}
-	_, errs := c.wsCancelOrders([]WsCancelOrderParameters{order, order2})
-	if len(errs) > 0 {
-		t.Error(errs)
+	resp, err := c.wsCancelOrders([]WsCancelOrderParameters{ord, order2})
+	if err != nil {
+		t.Error(err)
+	}
+	if resp.Status[0] != "OK" {
+		t.Error("Order failed to cancel")
+	}
+}
+
+// TestWsAuthCancelOrders dials websocket, cancels orders
+// Checks that the wrapper oversight works
+func TestWsAuthCancelOrdersWrapper(t *testing.T) {
+	setupWSTestAuth(t)
+	if !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+	orderDetails := order.Cancel{
+		CurrencyPair: currency.NewPair(currency.LTC, currency.BTC),
+	}
+	_, err := c.CancelAllOrders(&orderDetails)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -538,20 +532,23 @@ func TestWsAuthCancelOrder(t *testing.T) {
 	if !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	order := WsCancelOrderParameters{
+	ord := &WsCancelOrderParameters{
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  1,
 	}
-	err := c.wsCancelOrder(order)
+	resp, err := c.wsCancelOrder(ord)
 	if err != nil {
 		t.Error(err)
+	}
+	if len(resp.Status) >= 1 && resp.Status[0] != "OK" {
+		t.Errorf("Failed to cancel order")
 	}
 }
 
 // TestWsAuthGetOpenOrders dials websocket, retrieves open orders
 func TestWsAuthGetOpenOrders(t *testing.T) {
 	setupWSTestAuth(t)
-	err := c.wsGetOpenOrders(currency.NewPair(currency.LTC, currency.BTC))
+	_, err := c.wsGetOpenOrders(currency.NewPair(currency.LTC, currency.BTC).String())
 	if err != nil {
 		t.Error(err)
 	}
@@ -573,7 +570,6 @@ func TestCurrencyMapIsLoaded(t *testing.T) {
 func TestCurrencyMapSeed(t *testing.T) {
 	t.Parallel()
 	var i instrumentMap
-
 	// Test non-seeded lookups
 	if id := i.LookupInstrument(1234); id != "" {
 		t.Error("unexpected result")

@@ -170,24 +170,23 @@ type CancelOrderBatch struct {
 
 // OrderInfo stores the order info
 type OrderInfo struct {
-	ID               int     `json:"id"`
+	ID               int64   `json:"id"`
 	Symbol           string  `json:"symbol"`
-	AccountID        float64 `json:"account-id"`
+	AccountID        int64   `json:"account-id"`
 	Amount           float64 `json:"amount,string"`
 	Price            float64 `json:"price,string"`
 	CreatedAt        int64   `json:"created-at"`
 	Type             string  `json:"type"`
 	FieldAmount      float64 `json:"field-amount,string"`
 	FieldCashAmount  float64 `json:"field-cash-amount,string"`
-	Fieldees         float64 `json:"field-fees,string"`
 	FilledAmount     float64 `json:"filled-amount,string"`
 	FilledCashAmount float64 `json:"filled-cash-amount,string"`
 	FilledFees       float64 `json:"filled-fees,string"`
 	FinishedAt       int64   `json:"finished-at"`
-	UserID           int     `json:"user-id"`
+	UserID           int64   `json:"user-id"`
 	Source           string  `json:"source"`
 	State            string  `json:"state"`
-	CanceledAt       int     `json:"canceled-at"`
+	CanceledAt       int64   `json:"canceled-at"`
 	Exchange         string  `json:"exchange"`
 	Batch            string  `json:"batch"`
 }
@@ -547,31 +546,13 @@ type WsAuthenticatedAccountsListResponseDataList struct {
 // WsAuthenticatedOrdersListResponse response from OrdersList authenticated endpoint
 type WsAuthenticatedOrdersListResponse struct {
 	WsAuthenticatedDataResponse
-	Data []WsAuthenticatedOrdersListResponseData `json:"data"`
-}
-
-// WsAuthenticatedOrdersListResponseData contains order details
-type WsAuthenticatedOrdersListResponseData struct {
-	ID               int64   `json:"id"`
-	Symbol           string  `json:"symbol"`
-	AccountID        int64   `json:"account-id"`
-	Amount           float64 `json:"amount,string"`
-	Price            float64 `json:"price,string"`
-	CreatedAt        int64   `json:"created-at"`
-	Type             string  `json:"type"`
-	FilledAmount     float64 `json:"filled-amount,string"`
-	FilledCashAmount float64 `json:"filled-cash-amount,string"`
-	FilledFees       float64 `json:"filled-fees,string"`
-	FinishedAt       int64   `json:"finished-at"`
-	Source           string  `json:"source"`
-	State            string  `json:"state"`
-	CanceledAt       int64   `json:"canceled-at"`
+	Data []OrderInfo `json:"data"`
 }
 
 // WsAuthenticatedOrderDetailResponse response from OrderDetail authenticated endpoint
 type WsAuthenticatedOrderDetailResponse struct {
 	WsAuthenticatedDataResponse
-	Data WsAuthenticatedOrdersListResponseData `json:"data"`
+	Data OrderInfo `json:"data"`
 }
 
 // WsPong sent for pong messages

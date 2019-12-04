@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -395,7 +396,7 @@ func (h *HitBTC) wsLogin() error {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", h.Name)
 	}
 	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	nonce := fmt.Sprintf("%v", time.Now().Unix())
+	nonce := strconv.FormatInt(time.Now().Unix(), 10)
 	hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(nonce), []byte(h.API.Credentials.Secret))
 	request := WsLoginRequest{
 		Method: "login",
@@ -483,7 +484,7 @@ func (h *HitBTC) wsReplaceOrder(clientOrderID string, quantity, price float64) (
 		Method: "cancelReplaceOrder",
 		Params: WsReplaceOrderRequestData{
 			ClientOrderID:   clientOrderID,
-			RequestClientID: fmt.Sprintf("%v", time.Now().Unix()),
+			RequestClientID: strconv.FormatInt(time.Now().Unix(), 10),
 			Quantity:        quantity,
 			Price:           price,
 		},

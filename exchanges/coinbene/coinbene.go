@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
@@ -27,8 +28,6 @@ const (
 	coinbeneAPIURL     = "https://openapi-exchange.coinbene.com/api/exchange/"
 	coinbeneAuthPath   = "/api/exchange/v2"
 	coinbeneAPIVersion = "v2"
-	buy                = "buy"
-	sell               = "sell"
 
 	// Public endpoints
 	coinbeneFetchTicker    = "/market/ticker/one"
@@ -114,9 +113,9 @@ func (c *Coinbene) PlaceOrder(price, quantity float64, symbol, direction, client
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	switch direction {
-	case sell:
+	case order.Buy.Lower():
 		params.Set("direction", "2")
-	case buy:
+	case order.Sell.Lower():
 		params.Set("direction", "1")
 	default:
 		return resp,

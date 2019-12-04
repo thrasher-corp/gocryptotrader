@@ -423,10 +423,10 @@ func (z *ZB) Withdraw(currency, address, safepassword string, amount, fees float
 
 	vals := url.Values{}
 	vals.Set("accesskey", z.API.Credentials.Key)
-	vals.Set("amount", fmt.Sprintf("%v", amount))
+	vals.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	vals.Set("currency", currency)
-	vals.Set("fees", fmt.Sprintf("%v", fees))
-	vals.Set("itransfer", fmt.Sprintf("%v", itransfer))
+	vals.Set("fees", strconv.FormatFloat(fees, 'f', -1, 64))
+	vals.Set("itransfer", strconv.FormatBool(itransfer))
 	vals.Set("method", "withdraw")
 	vals.Set("recieveAddr", address)
 	vals.Set("safePwd", safepassword)

@@ -432,15 +432,18 @@ func (b *Bitmex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 
 	response, err := b.CreateOrder(&orderNewParams)
+	if err != nil {
+		return submitOrderResponse, err
+	}
 	if response.OrderID != "" {
 		submitOrderResponse.OrderID = response.OrderID
 	}
-
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
+	if s.OrderType == order.Market {
+		submitOrderResponse.FullyMatched = true
 	}
+	submitOrderResponse.IsOrderPlaced = true
 
-	return submitOrderResponse, err
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

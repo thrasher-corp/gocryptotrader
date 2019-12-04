@@ -273,6 +273,9 @@ func (o *OKGroup) SubmitOrder(s *order.Submit) (resp order.SubmitResponse, err e
 
 	resp.IsOrderPlaced = orderResponse.Result
 	resp.OrderID = orderResponse.OrderID
+	if s.OrderType == order.Market {
+		resp.FullyMatched = true
+	}
 	return
 }
 

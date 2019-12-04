@@ -44,7 +44,7 @@ const (
 	huobiOrderCancel           = "order/orders/%s/submitcancel"
 	huobiOrderCancelBatch      = "order/orders/batchcancel"
 	huobiBatchCancelOpenOrders = "order/orders/batchCancelOpenOrders"
-	huobiGetOrder              = "order/orders/%s"
+	huobiGetOrder              = "order/orders/getClientOrder"
 	huobiGetOrderMatch         = "order/orders/%s/matchresults"
 	huobiGetOrders             = "order/orders"
 	huobiGetOpenOrders         = "order/openOrders"
@@ -443,8 +443,9 @@ func (h *HUOBI) GetOrder(orderID int64) (OrderInfo, error) {
 	}
 
 	var result response
-	endpoint := fmt.Sprintf(huobiGetOrder, strconv.FormatInt(orderID, 10))
-	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, endpoint, url.Values{}, nil, &result)
+	urlVal := url.Values{}
+	urlVal.Set("clientOrderId", strconv.FormatInt(orderID, 10))
+	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, huobiGetOrder, urlVal, nil, &result)
 
 	if result.ErrorMessage != "" {
 		return result.Order, errors.New(result.ErrorMessage)
@@ -514,7 +515,7 @@ func (h *HUOBI) GetOrders(symbol, types, start, end, states, from, direct, size 
 }
 
 // GetOpenOrders returns a list of orders
-func (h *HUOBI) GetOpenOrders(accountID, symbol, side string, size int) ([]OrderInfo, error) {
+func (h *HUOBI) GetOpenOrders(accountID, symbol, side string, size int64) ([]OrderInfo, error) {
 	type response struct {
 		Response
 		Orders []OrderInfo `json:"data"`
@@ -526,7 +527,7 @@ func (h *HUOBI) GetOpenOrders(accountID, symbol, side string, size int) ([]Order
 	if len(side) > 0 {
 		vals.Set("side", side)
 	}
-	vals.Set("size", fmt.Sprintf("%v", size))
+	vals.Set("size", strconv.FormatInt(size, 10))
 
 	var result response
 	err := h.SendAuthenticatedHTTPRequest(http.MethodGet, huobiGetOpenOrders, vals, nil, &result)
@@ -855,8 +856,7 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 		values.Set("PrivateSignature", crypto.Base64Encode(privSig))
 	}
 
-	urlPath := fmt.Sprintf("%s%s", common.EncodeURLValues(h.API.Endpoints.URL, values),
-		endpoint)
+	urlPath := h.API.Endpoints.URL + common.EncodeURLValues(endpoint, values)
 
 	var body []byte
 

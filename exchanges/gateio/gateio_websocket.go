@@ -40,6 +40,7 @@ func (g *Gateio) WsConnect() error {
 	_, err = g.wsServerSignIn()
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", g.Name, err)
+		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	g.GenerateAuthenticatedSubscriptions()
 	g.GenerateDefaultSubscriptions()
@@ -416,7 +417,7 @@ func (g *Gateio) wsGetOrderInfo(market string, offset, limit int) (*WebSocketOrd
 	if !g.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authorised to get order info", g.Name)
 	}
-	order := WebsocketRequest{
+	ord := WebsocketRequest{
 		ID:     g.WebsocketConn.GenerateMessageID(true),
 		Method: "order.query",
 		Params: []interface{}{
@@ -425,7 +426,7 @@ func (g *Gateio) wsGetOrderInfo(market string, offset, limit int) (*WebSocketOrd
 			limit,
 		},
 	}
-	resp, err := g.WebsocketConn.SendMessageReturnResponse(order.ID, order)
+	resp, err := g.WebsocketConn.SendMessageReturnResponse(ord.ID, ord)
 	if err != nil {
 		return nil, err
 	}

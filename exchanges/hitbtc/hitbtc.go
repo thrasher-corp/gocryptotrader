@@ -315,7 +315,7 @@ func (h *HitBTC) GetOpenOrders(currency string) ([]OrderHistoryResponse, error) 
 
 // PlaceOrder places an order on the exchange
 func (h *HitBTC) PlaceOrder(currency string, rate, amount float64, orderType, side string) (OrderResponse, error) {
-	result := OrderResponse{}
+	var result OrderResponse
 	values := url.Values{}
 
 	values.Set("symbol", currency)

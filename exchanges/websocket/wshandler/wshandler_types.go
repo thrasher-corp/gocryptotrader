@@ -17,7 +17,8 @@ const (
 	WebsocketNotEnabled      = "exchange_websocket_not_enabled"
 	manageSubscriptionsDelay = 5 * time.Second
 	// connection monitor time delays and limits
-	connectionMonitorDelay = 2 * time.Second
+	connectionMonitorDelay             = 2 * time.Second
+	WebsocketNotAuthenticatedUsingRest = "%v - Websocket not authenticated, using REST"
 )
 
 // Websocket defines a return type for websocket connections via the interface

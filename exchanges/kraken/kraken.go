@@ -47,6 +47,7 @@ const (
 	krakenDepositAddresses = "DepositAddresses"
 	krakenWithdrawStatus   = "WithdrawStatus"
 	krakenWithdrawCancel   = "WithdrawCancel"
+	krakenWebsocketToken   = "GetWebSocketsToken"
 
 	krakenAuthRate   = 0
 	krakenUnauthRate = 0
@@ -57,8 +58,9 @@ var assetPairMap map[string]string
 // Kraken is the overarching type across the alphapoint package
 type Kraken struct {
 	exchange.Base
-	WebsocketConn *wshandler.WebsocketConnection
-	wsRequestMtx  sync.Mutex
+	WebsocketConn              *wshandler.WebsocketConnection
+	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
+	wsRequestMtx               sync.Mutex
 }
 
 // GetServerTime returns current server time
@@ -1035,4 +1037,15 @@ func (k *Kraken) WithdrawCancel(c currency.Code, refID string) (bool, error) {
 	}
 
 	return response.Result, GetError(response.Error)
+}
+
+func (k *Kraken) GetWebsocketToken() (string, error) {
+	var response WsTokenResponse
+	if err := k.SendAuthenticatedHTTPRequest(krakenWebsocketToken, url.Values{}, &response); err != nil {
+		return "", err
+	}
+	if len(response.Error) > 0 {
+		return "", fmt.Errorf("%s - %v", k.Name, response.Error)
+	}
+	return response.Result.Token, nil
 }

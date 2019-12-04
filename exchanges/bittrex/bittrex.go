@@ -329,7 +329,7 @@ func (b *Bittrex) Withdraw(currency, paymentID, address string, quantity float64
 	var id UUID
 	values := url.Values{}
 	values.Set("currency", currency)
-	values.Set("quantity", fmt.Sprintf("%v", quantity))
+	values.Set("quantity", strconv.FormatFloat(quantity, 'f', -1, 64))
 	values.Set("address", address)
 	if len(paymentID) > 0 {
 		values.Set("paymentid", paymentID)

@@ -1,9 +1,9 @@
 package lbank
 
 import (
-	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -91,7 +91,7 @@ func TestGetMarketDepths(t *testing.T) {
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
 	_, err := l.GetTrades(testCurrencyPair, "600",
-		fmt.Sprintf("%v", time.Now().Unix()))
+		strconv.FormatInt(time.Now().Unix(), 10))
 	if err != nil {
 		t.Error(err)
 	}
@@ -104,7 +104,7 @@ func TestGetTrades(t *testing.T) {
 func TestGetKlines(t *testing.T) {
 	t.Parallel()
 	_, err := l.GetKlines(testCurrencyPair, "600", "minute1",
-		fmt.Sprintf("%v", time.Now().Unix()))
+		strconv.FormatInt(time.Now().Unix(), 10))
 	if err != nil {
 		t.Error(err)
 	}

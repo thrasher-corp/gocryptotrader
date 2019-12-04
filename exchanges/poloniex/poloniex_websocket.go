@@ -469,12 +469,12 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber int64, target []inter
 func (p *Poloniex) GenerateDefaultSubscriptions() {
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
-		Channel: fmt.Sprintf("%v", wsTickerDataID),
+		Channel: strconv.FormatInt(wsTickerDataID, 10),
 	})
 
 	if p.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
-			Channel: fmt.Sprintf("%v", wsAccountNotificationID),
+			Channel: strconv.FormatInt(wsAccountNotificationID, 10),
 		})
 	}
 
@@ -495,9 +495,9 @@ func (p *Poloniex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 		Command: "subscribe",
 	}
 	switch {
-	case strings.EqualFold(fmt.Sprintf("%v", wsAccountNotificationID), channelToSubscribe.Channel):
+	case strings.EqualFold(strconv.FormatInt(wsAccountNotificationID, 10), channelToSubscribe.Channel):
 		return p.wsSendAuthorisedCommand("subscribe")
-	case strings.EqualFold(fmt.Sprintf("%v", wsTickerDataID), channelToSubscribe.Channel):
+	case strings.EqualFold(strconv.FormatInt(wsTickerDataID, 10), channelToSubscribe.Channel):
 		subscriptionRequest.Channel = wsTickerDataID
 	default:
 		subscriptionRequest.Channel = channelToSubscribe.Currency.String()
@@ -511,9 +511,9 @@ func (p *Poloniex) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubs
 		Command: "unsubscribe",
 	}
 	switch {
-	case strings.EqualFold(fmt.Sprintf("%v", wsAccountNotificationID), channelToSubscribe.Channel):
+	case strings.EqualFold(strconv.FormatInt(wsAccountNotificationID, 10), channelToSubscribe.Channel):
 		return p.wsSendAuthorisedCommand("unsubscribe")
-	case strings.EqualFold(fmt.Sprintf("%v", wsTickerDataID), channelToSubscribe.Channel):
+	case strings.EqualFold(strconv.FormatInt(wsTickerDataID, 10), channelToSubscribe.Channel):
 		unsubscriptionRequest.Channel = wsTickerDataID
 	default:
 		unsubscriptionRequest.Channel = channelToSubscribe.Currency.String()

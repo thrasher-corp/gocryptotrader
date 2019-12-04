@@ -2,6 +2,7 @@ package anx
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -346,16 +347,18 @@ func (a *ANX) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		false,
 		"",
 		false)
-
+	if err != nil {
+		return submitOrderResponse, err
+	}
 	if response != "" {
 		submitOrderResponse.OrderID = response
 	}
-
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
+	if s.OrderType == order.Market {
+		submitOrderResponse.FullyMatched = true
 	}
+	submitOrderResponse.IsOrderPlaced = true
 
-	return submitOrderResponse, err
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -391,9 +394,9 @@ func (a *ANX) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) 
 		return cancelAllOrdersResponse, err
 	}
 
-	for _, order := range resp.OrderCancellationResponses {
-		if order.Error != CancelRequestSubmitted {
-			cancelAllOrdersResponse.Status[order.UUID] = order.Error
+	for i := range resp.OrderCancellationResponses {
+		if resp.OrderCancellationResponses[i].Error != CancelRequestSubmitted {
+			cancelAllOrdersResponse.Status[resp.OrderCancellationResponses[i].UUID] = resp.OrderCancellationResponses[i].Error
 		}
 	}
 
@@ -414,7 +417,7 @@ func (a *ANX) GetDepositAddress(cryptocurrency currency.Code, _ string) (string,
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (a *ANX) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithdrawRequest) (string, error) {
-	return a.Send(withdrawRequest.Currency.String(), withdrawRequest.Address, "", fmt.Sprintf("%v", withdrawRequest.Amount))
+	return a.Send(withdrawRequest.Currency.String(), withdrawRequest.Address, "", strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64))
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is

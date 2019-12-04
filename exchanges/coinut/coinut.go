@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -105,9 +106,8 @@ func (c *COINUT) GetTrades(instrumentID int) (Trades, error) {
 }
 
 // GetUserBalance returns the full user balance
-func (c *COINUT) GetUserBalance() (UserBalance, error) {
-	result := UserBalance{}
-
+func (c *COINUT) GetUserBalance() (*UserBalance, error) {
+	var result *UserBalance
 	return result, c.SendHTTPRequest(coinutBalance, nil, true, &result)
 }
 
@@ -117,26 +117,16 @@ func (c *COINUT) NewOrder(instrumentID int64, quantity, price float64, buy bool,
 	params := make(map[string]interface{})
 	params["inst_id"] = instrumentID
 	if price > 0 {
-		params["price"] = fmt.Sprintf("%v", price)
+		params["price"] = strconv.FormatFloat(price, 'f', -1, 64)
 	}
-	params["qty"] = fmt.Sprintf("%v", quantity)
+	params["qty"] = strconv.FormatFloat(quantity, 'f', -1, 64)
 	params["side"] = order.Buy.String()
 	if !buy {
 		params["side"] = order.Sell.String()
 	}
 	params["client_ord_id"] = orderID
 
-	err := c.SendHTTPRequest(coinutOrder, params, true, &result)
-	if _, ok := result.(OrderRejectResponse); ok {
-		return result.(OrderRejectResponse), err
-	}
-	if _, ok := result.(OrderFilledResponse); ok {
-		return result.(OrderFilledResponse), err
-	}
-	if _, ok := result.(OrdersBase); ok {
-		return result.(OrdersBase), err
-	}
-	return result, err
+	return result, c.SendHTTPRequest(coinutOrder, params, true, &result)
 }
 
 // NewOrders places multiple orders on the exchange
@@ -424,4 +414,78 @@ func getInternationalBankDepositFee(c currency.Code, amount float64) float64 {
 	}
 
 	return fee
+}
+
+// IsLoaded returns whether or not the instrument map has been seeded
+func (i *instrumentMap) IsLoaded() bool {
+	i.m.Lock()
+	defer i.m.Unlock()
+	return i.Loaded
+}
+
+// Seed seeds the instrument map
+func (i *instrumentMap) Seed(curr string, id int64) {
+	i.m.Lock()
+	defer i.m.Unlock()
+
+	if !i.Loaded {
+		i.Instruments = make(map[string]int64)
+	}
+
+	// check to see if the instrument already exists
+	_, ok := i.Instruments[curr]
+	if ok {
+		return
+	}
+
+	i.Instruments[curr] = id
+	i.Loaded = true
+}
+
+// LookupInstrument looks up an instrument based on an id
+func (i *instrumentMap) LookupInstrument(id int64) string {
+	i.m.Lock()
+	defer i.m.Unlock()
+
+	if !i.Loaded {
+		return ""
+	}
+
+	for k, v := range i.Instruments {
+		if v == id {
+			return k
+		}
+	}
+	return ""
+}
+
+// LookupID looks up an ID based on a string
+func (i *instrumentMap) LookupID(curr string) int64 {
+	i.m.Lock()
+	defer i.m.Unlock()
+
+	if !i.Loaded {
+		return 0
+	}
+
+	if ic, ok := i.Instruments[curr]; ok {
+		return ic
+	}
+	return 0
+}
+
+// GetInstrumentIDs returns a list of IDs
+func (i *instrumentMap) GetInstrumentIDs() []int64 {
+	i.m.Lock()
+	defer i.m.Unlock()
+
+	if !i.Loaded {
+		return nil
+	}
+
+	var instruments []int64
+	for _, x := range i.Instruments {
+		instruments = append(instruments, x)
+	}
+	return instruments
 }

@@ -85,8 +85,9 @@ const (
 // depending on some factors (e.g. servers load, endpoint, etc.).
 type Bitfinex struct {
 	exchange.Base
-	WebsocketConn         *wshandler.WebsocketConnection
-	WebsocketSubdChannels map[int]WebsocketChanInfo
+	WebsocketConn              *wshandler.WebsocketConnection
+	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
+	WebsocketSubdChannels      map[int]WebsocketChanInfo
 }
 
 // GetPlatformStatus returns the Bifinex platform status
@@ -358,11 +359,11 @@ func (b *Bitfinex) GetTradesV2(currencyPair string, timestampStart, timestampEnd
 	}
 
 	var tempHistory TradeStructureV2
-	for _, data := range resp {
-		tempHistory.TID = int64(data[0].(float64))
-		tempHistory.Timestamp = int64(data[1].(float64))
-		tempHistory.Amount = data[2].(float64)
-		tempHistory.Price = data[3].(float64)
+	for i := range resp {
+		tempHistory.TID = int64(resp[i][0].(float64))
+		tempHistory.Timestamp = int64(resp[i][1].(float64))
+		tempHistory.Amount = resp[i][2].(float64)
+		tempHistory.Price = resp[i][3].(float64)
 		tempHistory.Exchange = b.Name
 		tempHistory.Type = order.Buy.String()
 
@@ -548,7 +549,7 @@ func (b *Bitfinex) WithdrawFIAT(withdrawalType, walletType string, withdrawReque
 	req["walletselected"] = walletType
 	req["amount"] = strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64)
 	req["account_name"] = withdrawRequest.BankAccountName
-	req["account_number"] = strconv.FormatFloat(withdrawRequest.BankAccountNumber, 'f', -1, 64)
+	req["account_number"] = withdrawRequest.BankAccountNumber
 	req["bank_name"] = withdrawRequest.BankName
 	req["bank_address"] = withdrawRequest.BankAddress
 	req["bank_city"] = withdrawRequest.BankCity

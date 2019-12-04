@@ -38,7 +38,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 
 	var feeBuilder = setFeeBuilder()
 	b.GetFeeByType(feeBuilder)
-	if apiKey == "" || apiSecret == "" {
+	if !areTestAPIKeysSet() {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
 			t.Errorf("Expected %v, received %v",
 				exchange.OfflineTradeFee,
@@ -319,7 +319,6 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 	expectedResult := exchange.AutoWithdrawCryptoText +
 		" & " +
 		exchange.AutoWithdrawFiatText
-
 	withdrawPermissions := b.FormatWithdrawPermissions()
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s",
@@ -489,7 +488,7 @@ func TestWithdrawFiat(t *testing.T) {
 			Description: "WITHDRAW IT ALL",
 		},
 		BankAccountName:          "Satoshi Nakamoto",
-		BankAccountNumber:        12345,
+		BankAccountNumber:        "12345",
 		BankAddress:              "123 Fake St",
 		BankCity:                 "Tarry Town",
 		BankCountry:              "AU",
@@ -527,7 +526,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 			Description: "WITHDRAW IT ALL",
 		},
 		BankAccountName:               "Satoshi Nakamoto",
-		BankAccountNumber:             12345,
+		BankAccountNumber:             "12345",
 		BankAddress:                   "123 Fake St",
 		BankCity:                      "Tarry Town",
 		BankCountry:                   "AU",

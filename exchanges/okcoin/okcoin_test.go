@@ -2,7 +2,9 @@ package okcoin
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -34,43 +36,25 @@ var testSetupRan bool
 var spotCurrency = currency.NewPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "-").Lower().String()
 var websocketEnabled bool
 
-// TestSetDefaults Sets standard default settings for running a test
-func TestSetDefaults(t *testing.T) {
-	if o.Name != OKGroupExchange {
-		o.SetDefaults()
-	}
-	if o.Name != OKGroupExchange {
-		t.Errorf("%v - SetDefaults() error", OKGroupExchange)
-	}
-	TestSetup(t)
-}
-
 // TestSetRealOrderDefaults Sets test defaults when test can impact real money/orders
 func TestSetRealOrderDefaults(t *testing.T) {
-	TestSetDefaults(t)
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("Ensure canManipulateRealOrders is true and your API keys are set")
 	}
 }
 
 // TestSetup Sets defaults for test environment
-func TestSetup(t *testing.T) {
-	if testSetupRan {
-		return
-	}
-	if o.API.Credentials.Key == apiKey && o.API.Credentials.Secret == apiSecret &&
-		o.API.Credentials.ClientID == passphrase && apiKey != "" && apiSecret != "" && passphrase != "" {
-		return
-	}
+func TestMain(m *testing.M) {
+	o.SetDefaults()
 	o.ExchangeName = OKGroupExchange
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		t.Fatal("Okcoin load config error", err)
+		log.Fatal("Okcoin load config error", err)
 	}
 	okcoinConfig, err := cfg.GetExchangeConfig(OKGroupExchange)
 	if err != nil {
-		t.Fatalf("%v Setup() init error", OKGroupExchange)
+		log.Fatalf("%v Setup() init error", OKGroupExchange)
 	}
 	if okcoinConfig.Features.Enabled.Websocket {
 		websocketEnabled = true
@@ -84,11 +68,13 @@ func TestSetup(t *testing.T) {
 	okcoinConfig.API.Endpoints.WebsocketURL = o.API.Endpoints.WebsocketURL
 	err = o.Setup(okcoinConfig)
 	if err != nil {
-		t.Fatal("OKCoin setup error", err)
+		log.Fatal("OKCoin setup error", err)
 	}
 	testSetupRan = true
 	o.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	o.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+
+	os.Exit(m.Run())
 }
 
 func areTestAPIKeysSet() bool {
@@ -106,14 +92,12 @@ func testStandardErrorHandling(t *testing.T, err error) {
 
 // TestGetAccountCurrencies API endpoint test
 func TestGetAccountCurrencies(t *testing.T) {
-	TestSetDefaults(t)
 	_, err := o.GetAccountCurrencies()
 	testStandardErrorHandling(t, err)
 }
 
 // TestGetAccountWalletInformation API endpoint test
 func TestGetAccountWalletInformation(t *testing.T) {
-	TestSetDefaults(t)
 	resp, err := o.GetAccountWalletInformation("")
 	if areTestAPIKeysSet() {
 		if err != nil {
@@ -129,7 +113,6 @@ func TestGetAccountWalletInformation(t *testing.T) {
 
 // TestGetAccountWalletInformationForCurrency API endpoint test
 func TestGetAccountWalletInformationForCurrency(t *testing.T) {
-	TestSetDefaults(t)
 	resp, err := o.GetAccountWalletInformation(currency.BTC.String())
 	if areTestAPIKeysSet() {
 		if err != nil {
@@ -173,7 +156,6 @@ func TestAccountWithdrawRequest(t *testing.T) {
 
 // TestGetAccountWithdrawalFee API endpoint test
 func TestGetAccountWithdrawalFee(t *testing.T) {
-	TestSetDefaults(t)
 	resp, err := o.GetAccountWithdrawalFee("")
 	if areTestAPIKeysSet() {
 		if err != nil {
@@ -189,7 +171,6 @@ func TestGetAccountWithdrawalFee(t *testing.T) {
 
 // TestGetWithdrawalFeeForCurrency API endpoint test
 func TestGetAccountWithdrawalFeeForCurrency(t *testing.T) {
-	TestSetDefaults(t)
 	resp, err := o.GetAccountWithdrawalFee(currency.BTC.String())
 	if areTestAPIKeysSet() {
 		if err != nil {
@@ -205,63 +186,54 @@ func TestGetAccountWithdrawalFeeForCurrency(t *testing.T) {
 
 // TestGetAccountWithdrawalHistory API endpoint test
 func TestGetAccountWithdrawalHistory(t *testing.T) {
-	TestSetDefaults(t)
 	_, err := o.GetAccountWithdrawalHistory("")
 	testStandardErrorHandling(t, err)
 }
 
 // TestGetAccountWithdrawalHistoryForCurrency API endpoint test
 func TestGetAccountWithdrawalHistoryForCurrency(t *testing.T) {
-	TestSetDefaults(t)
 	_, err := o.GetAccountWithdrawalHistory(currency.BTC.String())
 	testStandardErrorHandling(t, err)
 }
 
 // TestGetAccountBillDetails API endpoint test
 func TestGetAccountBillDetails(t *testing.T) {
-	TestSetDefaults(t)
 	_, err := o.GetAccountBillDetails(okgroup.GetAccountBillDetailsRequest{})
 	testStandardErrorHandling(t, err)
 }
 
 // TestGetAccountDepositAddressForCurrency API endpoint test
 func TestGetAccountDepositAddressForCurrency(t *testing.T) {
-	TestSetDefaults(t)
 	_, err := o.GetAccountDepositAddressForCurrency(currency.BTC.String())
 	testStandardErrorHandling(t, err)
 }
 
 // TestGetAccountDepositHistory API endpoint test
 func TestGetAccountDepositHistory(t *testing.T) {
-	TestSetDefaults(t)
 	_, err := o.GetAccountDepositHistory("")
 	testStandardErrorHandling(t, err)
 }
 
 // TestGetAccountDepositHistoryForCurrency API endpoint test
 func TestGetAccountDepositHistoryForCurrency(t *testing.T) {
-	TestSetDefaults(t)
 	_, err := o.GetAccountDepositHistory(currency.BTC.String())
 	testStandardErrorHandling(t, err)
 }
 
 // TestGetSpotTradingAccounts API endpoint test
 func TestGetSpotTradingAccounts(t *testing.T) {
-	TestSetDefaults(t)
 	_, err := o.GetSpotTradingAccounts()
 	testStandardErrorHandling(t, err)
 }
 
 // TestGetSpotTradingAccountsForCurrency API endpoint test
 func TestGetSpotTradingAccountsForCurrency(t *testing.T) {
-	TestSetDefaults(t)
 	_, err := o.GetSpotTradingAccountForCurrency(currency.BTC.String())
 	testStandardErrorHandling(t, err)
 }
 
 // TestGetSpotBillDetailsForCurrency API endpoint test
 func TestGetSpotBillDetailsForCurrency(t *testing.T) {
-	TestSetDefaults(t)
 	request := okgroup.GetSpotBillDetailsForCurrencyRequest{
 		Currency: currency.BTC.String(),
 		Limit:    100,
@@ -272,7 +244,6 @@ func TestGetSpotBillDetailsForCurrency(t *testing.T) {
 
 // TestGetSpotBillDetailsForCurrencyBadLimit API logic test
 func TestGetSpotBillDetailsForCurrencyBadLimit(t *testing.T) {
-	TestSetDefaults(t)
 	request := okgroup.GetSpotBillDetailsForCurrencyRequest{
 		Currency: currency.BTC.String(),
 		Limit:    -1,
@@ -316,7 +287,7 @@ func TestPlaceSpotOrderMarket(t *testing.T) {
 // TestPlaceMultipleSpotOrders API endpoint test
 func TestPlaceMultipleSpotOrders(t *testing.T) {
 	TestSetRealOrderDefaults(t)
-	order := okgroup.PlaceOrderRequest{
+	ord := okgroup.PlaceOrderRequest{
 		InstrumentID: spotCurrency,
 		Type:         order.Limit.Lower(),
 		Side:         order.Buy.Lower(),
@@ -325,7 +296,7 @@ func TestPlaceMultipleSpotOrders(t *testing.T) {
 	}
 
 	request := []okgroup.PlaceOrderRequest{
-		order,
+		ord,
 	}
 
 	_, errs := o.PlaceMultipleSpotOrders(request)
@@ -336,8 +307,7 @@ func TestPlaceMultipleSpotOrders(t *testing.T) {
 
 // TestPlaceMultipleSpotOrdersOverCurrencyLimits API logic test
 func TestPlaceMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
-	TestSetDefaults(t)
-	order := okgroup.PlaceOrderRequest{
+	ord := okgroup.PlaceOrderRequest{
 		InstrumentID: spotCurrency,
 		Type:         order.Limit.Lower(),
 		Side:         order.Buy.Lower(),
@@ -346,11 +316,11 @@ func TestPlaceMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
 	}
 
 	request := []okgroup.PlaceOrderRequest{
-		order,
-		order,
-		order,
-		order,
-		order,
+		ord,
+		ord,
+		ord,
+		ord,
+		ord,
 	}
 
 	_, errs := o.PlaceMultipleSpotOrders(request)
@@ -361,8 +331,7 @@ func TestPlaceMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
 
 // TestPlaceMultipleSpotOrdersOverPairLimits API logic test
 func TestPlaceMultipleSpotOrdersOverPairLimits(t *testing.T) {
-	TestSetDefaults(t)
-	order := okgroup.PlaceOrderRequest{
+	ord := okgroup.PlaceOrderRequest{
 		InstrumentID: spotCurrency,
 		Type:         order.Limit.Lower(),
 		Side:         order.Buy.Lower(),
@@ -371,7 +340,7 @@ func TestPlaceMultipleSpotOrdersOverPairLimits(t *testing.T) {
 	}
 
 	request := []okgroup.PlaceOrderRequest{
-		order,
+		ord,
 	}
 
 	pairs := currency.Pairs{
@@ -382,8 +351,8 @@ func TestPlaceMultipleSpotOrdersOverPairLimits(t *testing.T) {
 	}
 
 	for x := range pairs {
-		order.InstrumentID = pairs[x].Format("-", false).String()
-		request = append(request, order)
+		ord.InstrumentID = pairs[x].Format("-", false).String()
+		request = append(request, ord)
 	}
 
 	_, errs := o.PlaceMultipleSpotOrders(request)
@@ -439,7 +408,6 @@ func TestCancelMultipleSpotOrdersOverCurrencyLimits(t *testing.T) {
 
 // TestGetSpotOrders API endpoint test
 func TestGetSpotOrders(t *testing.T) {
-	TestSetDefaults(t)
 	request := okgroup.GetSpotOrdersRequest{
 		InstrumentID: spotCurrency,
 		Status:       "all",
@@ -450,7 +418,6 @@ func TestGetSpotOrders(t *testing.T) {
 
 // TestGetSpotOpenOrders API endpoint test
 func TestGetSpotOpenOrders(t *testing.T) {
-	TestSetDefaults(t)
 	request := okgroup.GetSpotOpenOrdersRequest{}
 	_, err := o.GetSpotOpenOrders(request)
 	testStandardErrorHandling(t, err)
@@ -458,7 +425,6 @@ func TestGetSpotOpenOrders(t *testing.T) {
 
 // TestGetSpotOrder API endpoint test
 func TestGetSpotOrder(t *testing.T) {
-	TestSetDefaults(t)
 	request := okgroup.GetSpotOrderRequest{
 		OrderID:      "-1234",
 		InstrumentID: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "-").Upper().String(),
@@ -469,7 +435,6 @@ func TestGetSpotOrder(t *testing.T) {
 
 // TestGetSpotTransactionDetails API endpoint test
 func TestGetSpotTransactionDetails(t *testing.T) {
-	TestSetDefaults(t)
 	request := okgroup.GetSpotTransactionDetailsRequest{
 		OrderID:      1234,
 		InstrumentID: spotCurrency,
@@ -480,7 +445,6 @@ func TestGetSpotTransactionDetails(t *testing.T) {
 
 // TestGetSpotTokenPairDetails API endpoint test
 func TestGetSpotTokenPairDetails(t *testing.T) {
-	TestSetDefaults(t)
 	_, err := o.GetSpotTokenPairDetails()
 	if err != nil {
 		t.Error(err)
@@ -489,7 +453,6 @@ func TestGetSpotTokenPairDetails(t *testing.T) {
 
 // TestGetSpotAllTokenPairsInformation API endpoint test
 func TestGetSpotAllTokenPairsInformation(t *testing.T) {
-	TestSetDefaults(t)
 	_, err := o.GetSpotAllTokenPairsInformation()
 	if err != nil {
 		t.Error(err)
@@ -498,7 +461,6 @@ func TestGetSpotAllTokenPairsInformation(t *testing.T) {
 
 // TestGetSpotAllTokenPairsInformationForCurrency API endpoint test
 func TestGetSpotAllTokenPairsInformationForCurrency(t *testing.T) {
-	TestSetDefaults(t)
 	_, err := o.GetSpotAllTokenPairsInformationForCurrency(spotCurrency)
 	if err != nil {
 		t.Error(err)
@@ -507,7 +469,6 @@ func TestGetSpotAllTokenPairsInformationForCurrency(t *testing.T) {
 
 // TestGetSpotFilledOrdersInformation API endpoint test
 func TestGetSpotFilledOrdersInformation(t *testing.T) {
-	TestSetDefaults(t)
 	request := okgroup.GetSpotFilledOrdersInformationRequest{
 		InstrumentID: spotCurrency,
 	}
@@ -519,7 +480,6 @@ func TestGetSpotFilledOrdersInformation(t *testing.T) {
 
 // TestGetSpotMarketData API endpoint test
 func TestGetSpotMarketData(t *testing.T) {
-	TestSetDefaults(t)
 	request := okgroup.GetSpotMarketDataRequest{
 		InstrumentID: spotCurrency,
 		Granularity:  604800,
@@ -532,21 +492,18 @@ func TestGetSpotMarketData(t *testing.T) {
 
 // TestGetMarginTradingAccounts API endpoint test
 func TestGetMarginTradingAccounts(t *testing.T) {
-	TestSetDefaults(t)
 	_, err := o.GetMarginTradingAccounts()
 	testStandardErrorHandling(t, err)
 }
 
 // TestGetMarginTradingAccountsForCurrency API endpoint test
 func TestGetMarginTradingAccountsForCurrency(t *testing.T) {
-	TestSetDefaults(t)
 	_, err := o.GetMarginTradingAccountsForCurrency(spotCurrency)
 	testStandardErrorHandling(t, err)
 }
 
 // TestGetMarginBillDetails API endpoint test
 func TestGetMarginBillDetails(t *testing.T) {
-	TestSetDefaults(t)
 	request := okgroup.GetMarginBillDetailsRequest{
 		InstrumentID: spotCurrency,
 		Limit:        100,
@@ -557,14 +514,12 @@ func TestGetMarginBillDetails(t *testing.T) {
 
 // TestGetMarginAccountSettings API endpoint test
 func TestGetMarginAccountSettings(t *testing.T) {
-	TestSetDefaults(t)
 	_, err := o.GetMarginAccountSettings("")
 	testStandardErrorHandling(t, err)
 }
 
 // TestGetMarginAccountSettingsForCurrency API endpoint test
 func TestGetMarginAccountSettingsForCurrency(t *testing.T) {
-	TestSetDefaults(t)
 	_, err := o.GetMarginAccountSettings(spotCurrency)
 	testStandardErrorHandling(t, err)
 }
@@ -631,7 +586,7 @@ func TestPlaceMarginOrderMarket(t *testing.T) {
 // TestPlaceMultipleMarginOrders API endpoint test
 func TestPlaceMultipleMarginOrders(t *testing.T) {
 	TestSetRealOrderDefaults(t)
-	order := okgroup.PlaceOrderRequest{
+	ord := okgroup.PlaceOrderRequest{
 		InstrumentID:  spotCurrency,
 		Type:          order.Limit.Lower(),
 		Side:          order.Buy.Lower(),
@@ -641,7 +596,7 @@ func TestPlaceMultipleMarginOrders(t *testing.T) {
 	}
 
 	request := []okgroup.PlaceOrderRequest{
-		order,
+		ord,
 	}
 
 	_, errs := o.PlaceMultipleMarginOrders(request)
@@ -652,8 +607,7 @@ func TestPlaceMultipleMarginOrders(t *testing.T) {
 
 // TestPlaceMultipleMarginOrdersOverCurrencyLimits API logic test
 func TestPlaceMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
-	TestSetDefaults(t)
-	order := okgroup.PlaceOrderRequest{
+	ord := okgroup.PlaceOrderRequest{
 		InstrumentID:  spotCurrency,
 		Type:          order.Limit.Lower(),
 		Side:          order.Buy.Lower(),
@@ -663,11 +617,11 @@ func TestPlaceMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
 	}
 
 	request := []okgroup.PlaceOrderRequest{
-		order,
-		order,
-		order,
-		order,
-		order,
+		ord,
+		ord,
+		ord,
+		ord,
+		ord,
 	}
 
 	_, errs := o.PlaceMultipleMarginOrders(request)
@@ -678,8 +632,7 @@ func TestPlaceMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
 
 // TestPlaceMultipleMarginOrdersOverPairLimits API logic test
 func TestPlaceMultipleMarginOrdersOverPairLimits(t *testing.T) {
-	TestSetDefaults(t)
-	order := okgroup.PlaceOrderRequest{
+	ord := okgroup.PlaceOrderRequest{
 		InstrumentID:  spotCurrency,
 		Type:          order.Limit.Lower(),
 		Side:          order.Buy.Lower(),
@@ -689,7 +642,7 @@ func TestPlaceMultipleMarginOrdersOverPairLimits(t *testing.T) {
 	}
 
 	request := []okgroup.PlaceOrderRequest{
-		order,
+		ord,
 	}
 
 	pairs := currency.Pairs{
@@ -700,8 +653,8 @@ func TestPlaceMultipleMarginOrdersOverPairLimits(t *testing.T) {
 	}
 
 	for x := range pairs {
-		order.InstrumentID = pairs[x].Format("-", false).String()
-		request = append(request, order)
+		ord.InstrumentID = pairs[x].Format("-", false).String()
+		request = append(request, ord)
 	}
 
 	_, errs := o.PlaceMultipleMarginOrders(request)
@@ -752,7 +705,6 @@ func TestCancelMultipleMarginOrdersOverCurrencyLimits(t *testing.T) {
 
 // TestGetMarginOrders API endpoint test
 func TestGetMarginOrders(t *testing.T) {
-	TestSetDefaults(t)
 	request := okgroup.GetSpotOrdersRequest{
 		InstrumentID: spotCurrency,
 		Status:       "all",
@@ -763,7 +715,6 @@ func TestGetMarginOrders(t *testing.T) {
 
 // TestGetMarginOpenOrders API endpoint test
 func TestGetMarginOpenOrders(t *testing.T) {
-	TestSetDefaults(t)
 	request := okgroup.GetSpotOpenOrdersRequest{}
 	_, err := o.GetMarginOpenOrders(request)
 	testStandardErrorHandling(t, err)
@@ -771,7 +722,6 @@ func TestGetMarginOpenOrders(t *testing.T) {
 
 // TestGetMarginOrder API endpoint test
 func TestGetMarginOrder(t *testing.T) {
-	TestSetDefaults(t)
 	request := okgroup.GetSpotOrderRequest{
 		OrderID:      "1234",
 		InstrumentID: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "-").Upper().String(),
@@ -782,7 +732,6 @@ func TestGetMarginOrder(t *testing.T) {
 
 // TestGetMarginTransactionDetails API endpoint test
 func TestGetMarginTransactionDetails(t *testing.T) {
-	TestSetDefaults(t)
 	request := okgroup.GetSpotTransactionDetailsRequest{
 		OrderID:      1234,
 		InstrumentID: spotCurrency,
@@ -797,7 +746,6 @@ func TestGetMarginTransactionDetails(t *testing.T) {
 // Attempts to subscribe to a channel that doesn't exist
 // Will log in if credentials are present
 func TestSendWsMessages(t *testing.T) {
-	TestSetDefaults(t)
 	if !o.Websocket.IsEnabled() && !o.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
@@ -850,7 +798,6 @@ func TestGetAssetTypeFromTableName(t *testing.T) {
 
 // TestGetWsChannelWithoutOrderType logic test
 func TestGetWsChannelWithoutOrderType(t *testing.T) {
-	TestSetDefaults(t)
 	str := "spot/depth5:BTC-USDT"
 	expected := "depth5"
 	resp := o.GetWsChannelWithoutOrderType(str)
@@ -872,7 +819,6 @@ func TestGetWsChannelWithoutOrderType(t *testing.T) {
 
 // TestOrderBookUpdateChecksumCalculator logic test
 func TestOrderBookUpdateChecksumCalculator(t *testing.T) {
-	TestSetDefaults(t)
 	if !websocketEnabled {
 		t.Skip("Websocket not enabled, skipping")
 	}
@@ -902,7 +848,6 @@ func TestOrderBookUpdateChecksumCalculator(t *testing.T) {
 
 // TestOrderBookUpdateChecksumCalculatorWithDash logic test
 func TestOrderBookUpdateChecksumCalculatorWith8DecimalPlaces(t *testing.T) {
-	TestSetDefaults(t)
 	if !websocketEnabled {
 		t.Skip("Websocket not enabled, skipping")
 	}
@@ -964,7 +909,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
 	o.GetFeeByType(feeBuilder)
-	if apiKey == "" || apiSecret == "" {
+	if !areTestAPIKeysSet() {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
 		}
@@ -976,7 +921,6 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	TestSetDefaults(t)
 	var feeBuilder = setFeeBuilder()
 	// CryptocurrencyTradeFee Basic
 	if resp, err := o.GetFee(feeBuilder); resp != float64(0.0015) || err != nil {
@@ -1031,7 +975,6 @@ func TestGetFee(t *testing.T) {
 
 // TestFormatWithdrawPermissions helper test
 func TestFormatWithdrawPermissions(t *testing.T) {
-	TestSetDefaults(t)
 	expectedResult := exchange.AutoWithdrawCryptoText + " & " + exchange.NoFiatWithdrawalsText
 	withdrawPermissions := o.FormatWithdrawPermissions()
 	if withdrawPermissions != expectedResult {
@@ -1147,5 +1090,27 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	_, err := o.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
+	}
+}
+
+// TestGetOrderbook logic test
+func TestGetOrderbook(t *testing.T) {
+	t.Parallel()
+	_, err := o.GetOrderBook(okgroup.GetOrderBookRequest{InstrumentID: "BTC-USDT"},
+		asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = o.GetOrderBook(okgroup.GetOrderBookRequest{InstrumentID: "Payload"},
+		asset.Futures)
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	_, err = o.GetOrderBook(okgroup.GetOrderBookRequest{InstrumentID: "BTC-USD-SWAP"},
+		asset.PerpetualSwap)
+	if err == nil {
+		t.Error("error cannot be nil")
 	}
 }

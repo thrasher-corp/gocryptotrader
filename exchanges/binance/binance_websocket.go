@@ -53,8 +53,9 @@ func (b *Binance) WsConnect() error {
 		kline +
 		"/" +
 		depth
-	for _, ePair := range b.GetEnabledPairs(asset.Spot) {
-		err = b.SeedLocalCache(ePair)
+	enabledPairs := b.GetEnabledPairs(asset.Spot)
+	for i := range enabledPairs {
+		err = b.SeedLocalCache(enabledPairs[i])
 		if err != nil {
 			return err
 		}

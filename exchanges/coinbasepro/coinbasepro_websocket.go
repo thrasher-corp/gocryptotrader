@@ -3,7 +3,6 @@ package coinbasepro
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -311,7 +310,7 @@ func (c *CoinbasePro) Subscribe(channelToSubscribe wshandler.WebsocketChannelSub
 		},
 	}
 	if channelToSubscribe.Channel == "user" || channelToSubscribe.Channel == "full" {
-		n := fmt.Sprintf("%v", time.Now().Unix())
+		n := strconv.FormatInt(time.Now().Unix(), 10)
 		message := n + "GET" + "/users/self/verify"
 		hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(message),
 			[]byte(c.API.Credentials.Secret))

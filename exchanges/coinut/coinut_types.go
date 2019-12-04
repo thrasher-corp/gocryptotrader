@@ -1,7 +1,6 @@
 package coinut
 
 import (
-	"strings"
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -177,7 +176,7 @@ type CancelOrdersResponse struct {
 	Results []struct {
 		OrderID      int64  `json:"order_id"`
 		Status       string `json:"status"`
-		InstrumentID int    `json:"inst_id"`
+		InstrumentID int64  `json:"inst_id"`
 	} `json:"results"`
 }
 
@@ -372,10 +371,10 @@ type WsTradeUpdate struct {
 
 // WsInstrumentList defines instrument list
 type WsInstrumentList struct {
-	Spot   map[string][]WsSupportedCurrency `json:"SPOT"`
-	Nonce  int64                            `json:"nonce"`
-	Reply  string                           `json:"inst_list"`
-	Status []interface{}                    `json:"status"`
+	Spot   map[string][]InstrumentBase `json:"SPOT"`
+	Nonce  int64                       `json:"nonce,omitempty"`
+	Reply  string                      `json:"inst_list,omitempty"`
+	Status []interface{}               `json:"status,omitempty"`
 }
 
 // WsSupportedCurrency defines supported currency on the exchange
@@ -536,14 +535,15 @@ type WsOrderFilledResponse struct {
 
 // WsOrderData ws response data
 type WsOrderData struct {
-	ClientOrdID int64   `json:"client_ord_id"`
-	InstID      int64   `json:"inst_id"`
-	OpenQty     float64 `json:"open_qty,string"`
-	OrderID     int64   `json:"order_id"`
-	Price       float64 `json:"price,string"`
-	Qty         float64 `json:"qty,string"`
-	Side        string  `json:"side"`
-	Timestamp   int64   `json:"timestamp"`
+	ClientOrdID int64    `json:"client_ord_id"`
+	InstID      int64    `json:"inst_id"`
+	OpenQty     float64  `json:"open_qty,string"`
+	OrderID     int64    `json:"order_id"`
+	Price       float64  `json:"price,string"`
+	Qty         float64  `json:"qty,string"`
+	Side        string   `json:"side"`
+	Timestamp   int64    `json:"timestamp"`
+	Status      []string `json:"status"`
 }
 
 // WsOrderFilledCommissionData ws response data
@@ -656,20 +656,20 @@ type WsNewOrderResponse struct {
 
 // WsGetAccountBalanceResponse contains values of each currency
 type WsGetAccountBalanceResponse struct {
-	BCH     string   `json:"BCH"`
-	BTC     string   `json:"BTC"`
-	BTG     string   `json:"BTG"`
-	CAD     string   `json:"CAD"`
-	ETC     string   `json:"ETC"`
-	ETH     string   `json:"ETH"`
-	LCH     string   `json:"LCH"`
-	LTC     string   `json:"LTC"`
-	MYR     string   `json:"MYR"`
-	SGD     string   `json:"SGD"`
-	USD     string   `json:"USD"`
-	USDT    string   `json:"USDT"`
-	XMR     string   `json:"XMR"`
-	ZEC     string   `json:"ZEC"`
+	BCH     float64  `json:"BCH,string"`
+	BTC     float64  `json:"BTC,string"`
+	BTG     float64  `json:"BTG,string"`
+	CAD     float64  `json:"CAD,string"`
+	ETC     float64  `json:"ETC,string"`
+	ETH     float64  `json:"ETH,string"`
+	LCH     float64  `json:"LCH,string"`
+	LTC     float64  `json:"LTC,string"`
+	MYR     float64  `json:"MYR,string"`
+	SGD     float64  `json:"SGD,string"`
+	USD     float64  `json:"USD,string"`
+	USDT    float64  `json:"USDT,string"`
+	XMR     float64  `json:"XMR,string"`
+	ZEC     float64  `json:"ZEC,string"`
 	Nonce   int64    `json:"nonce"`
 	Reply   string   `json:"reply"`
 	Status  []string `json:"status"`
@@ -680,80 +680,4 @@ type instrumentMap struct {
 	Instruments map[string]int64
 	Loaded      bool
 	m           sync.Mutex
-}
-
-// IsLoaded returns whether or not the instrument map has been seeded
-func (i *instrumentMap) IsLoaded() bool {
-	i.m.Lock()
-	defer i.m.Unlock()
-	return i.Loaded
-}
-
-// Seed seeds the instrument map
-func (i *instrumentMap) Seed(currency string, id int64) {
-	i.m.Lock()
-	defer i.m.Unlock()
-
-	if !i.Loaded {
-		i.Instruments = make(map[string]int64)
-	}
-
-	// check to see if the instrument already exists
-	_, ok := i.Instruments[currency]
-	if ok {
-		return
-	}
-
-	i.Instruments[currency] = id
-	i.Loaded = true
-}
-
-// LookupInstrument looks up an instrument based on an id
-func (i *instrumentMap) LookupInstrument(id int64) string {
-	i.m.Lock()
-	defer i.m.Unlock()
-
-	if !i.Loaded {
-		return ""
-	}
-
-	for k, v := range i.Instruments {
-		if v == id {
-			return k
-		}
-	}
-	return ""
-}
-
-// LookupID looks up an ID based on a string
-func (i *instrumentMap) LookupID(currency string) int64 {
-	i.m.Lock()
-	defer i.m.Unlock()
-
-	if !i.Loaded {
-		return 0
-	}
-
-	for k, v := range i.Instruments {
-		if strings.EqualFold(currency, k) {
-			return v
-		}
-	}
-	return 0
-}
-
-// GetInstrumentIDs returns a list of IDs
-func (i *instrumentMap) GetInstrumentIDs() []int64 {
-	i.m.Lock()
-	defer i.m.Unlock()
-
-	if !i.Loaded {
-		return nil
-	}
-
-	var instruments []int64
-	for _, x := range i.Instruments {
-		instruments = append(instruments, x)
-	}
-	return instruments
 }

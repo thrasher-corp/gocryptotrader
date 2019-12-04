@@ -238,13 +238,14 @@ func (p *Poloniex) UpdateTicker(currencyPair currency.Pair, assetType asset.Item
 		return tickerPrice, err
 	}
 
-	for _, x := range p.GetEnabledPairs(assetType) {
+	enabledPairs := p.GetEnabledPairs(assetType)
+	for i := range enabledPairs {
 		var tp ticker.Price
-		curr := p.FormatExchangeCurrency(x, assetType).String()
+		curr := p.FormatExchangeCurrency(enabledPairs[i], assetType).String()
 		if _, ok := tick[curr]; !ok {
 			continue
 		}
-		tp.Pair = x
+		tp.Pair = enabledPairs[i]
 		tp.Ask = tick[curr].LowestAsk
 		tp.Bid = tick[curr].HighestBid
 		tp.High = tick[curr].High24Hr
@@ -287,9 +288,9 @@ func (p *Poloniex) UpdateOrderbook(currencyPair currency.Pair, assetType asset.I
 		return orderBook, err
 	}
 
-	for _, x := range p.GetEnabledPairs(assetType) {
-		currency := p.FormatExchangeCurrency(x, assetType).String()
-		data, ok := orderbookNew.Data[currency]
+	enabledPairs := p.GetEnabledPairs(assetType)
+	for i := range enabledPairs {
+		data, ok := orderbookNew.Data[p.FormatExchangeCurrency(enabledPairs[i], assetType).String()]
 		if !ok {
 			continue
 		}
@@ -307,7 +308,7 @@ func (p *Poloniex) UpdateOrderbook(currencyPair currency.Pair, assetType asset.I
 				Amount: data.Asks[y].Amount, Price: data.Asks[y].Price})
 		}
 		orderBook.Asks = obItems
-		orderBook.Pair = x
+		orderBook.Pair = enabledPairs[i]
 		orderBook.ExchangeName = p.Name
 		orderBook.AssetType = assetType
 
@@ -370,13 +371,18 @@ func (p *Poloniex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		false,
 		fillOrKill,
 		isBuyOrder)
+	if err != nil {
+		return submitOrderResponse, err
+	}
 	if response.OrderNumber > 0 {
 		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderNumber, 10)
 	}
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
+
+	submitOrderResponse.IsOrderPlaced = true
+	if s.OrderType == order.Market {
+		submitOrderResponse.FullyMatched = true
 	}
-	return submitOrderResponse, err
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to

@@ -327,6 +327,17 @@ func (w *Websocket) IsConnectionMonitorRunning() bool {
 	return w.connectionMonitorRunning
 }
 
+// CanUseAuthenticatedWebsocketForWrapper Handles a common check to
+// verify whether a wrapper can use an authenticated websocket endpoint
+func (w *Websocket) CanUseAuthenticatedWebsocketForWrapper() bool {
+	if w.IsConnected() && w.CanUseAuthenticatedEndpoints() {
+		return true
+	} else if w.IsConnected() && !w.CanUseAuthenticatedEndpoints() {
+		log.Infof(log.WebsocketMgr, WebsocketNotAuthenticatedUsingRest, w.exchangeName)
+	}
+	return false
+}
+
 // SetWebsocketURL sets websocket URL
 func (w *Websocket) SetWebsocketURL(websocketURL string) {
 	if websocketURL == "" || websocketURL == config.WebsocketURLNonDefaultMessage {
@@ -629,7 +640,6 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 		}
 		dialer.Proxy = http.ProxyURL(proxy)
 	}
-
 	var err error
 	var conStatus *http.Response
 	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)
@@ -640,7 +650,7 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 		return fmt.Errorf("%v Error: %v", w.URL, err)
 	}
 	if w.Verbose {
-		log.Infof(log.WebsocketMgr, "%v Websocket connected", w.ExchangeName)
+		log.Infof(log.WebsocketMgr, "%v Websocket connected to %s", w.ExchangeName, w.URL)
 	}
 	w.setConnectedStatus(true)
 	return nil
@@ -703,6 +713,12 @@ func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
 			for k := range w.IDResponses {
 				if k == id {
 					w.Unlock()
+					if !timer.Stop() {
+						select {
+						case <-timer.C:
+						default:
+						}
+					}
 					return
 				}
 			}

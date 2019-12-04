@@ -2,6 +2,7 @@ package zb
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -268,8 +269,9 @@ func (z *ZB) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Ba
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (z *ZB) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
-	orderbookNew, err := z.GetOrderbook(z.FormatExchangeCurrency(p,
-		assetType).String())
+	curr := z.FormatExchangeCurrency(p, assetType).String()
+
+	orderbookNew, err := z.GetOrderbook(curr)
 	if err != nil {
 		return orderBook, err
 	}
@@ -304,25 +306,35 @@ func (z *ZB) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.B
 // ZB exchange
 func (z *ZB) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
-	bal, err := z.GetAccountInformation()
-	if err != nil {
-		return info, err
+	var balances []exchange.AccountCurrencyInfo
+	var coins []AccountsResponseCoin
+	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		resp, err := z.wsGetAccountInfoRequest()
+		if err != nil {
+			return info, err
+		}
+		coins = resp.Data.Coins
+	} else {
+		bal, err := z.GetAccountInformation()
+		if err != nil {
+			return info, err
+		}
+		coins = bal.Result.Coins
 	}
 
-	var balances []exchange.AccountCurrencyInfo
-	for _, data := range bal.Result.Coins {
-		hold, err := strconv.ParseFloat(data.Freez, 64)
+	for i := range coins {
+		hold, err := strconv.ParseFloat(coins[i].Freeze, 64)
 		if err != nil {
 			return info, err
 		}
 
-		avail, err := strconv.ParseFloat(data.Available, 64)
+		avail, err := strconv.ParseFloat(coins[i].Available, 64)
 		if err != nil {
 			return info, err
 		}
 
 		balances = append(balances, exchange.AccountCurrencyInfo{
-			CurrencyName: currency.NewCode(data.EnName),
+			CurrencyName: currency.NewCode(coins[i].EnName),
 			TotalValue:   hold + avail,
 			Hold:         hold,
 		})
@@ -348,33 +360,53 @@ func (z *ZB) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchan
 }
 
 // SubmitOrder submits a new order
-func (z *ZB) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+func (z *ZB) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
-	if err := s.Validate(); err != nil {
+	err := o.Validate()
+	if err != nil {
 		return submitOrderResponse, err
 	}
-
-	var oT SpotNewOrderRequestParamsType
-	if s.OrderSide == order.Buy {
-		oT = SpotNewOrderRequestParamsTypeBuy
+	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		var isBuyOrder int64
+		if o.OrderSide == order.Buy {
+			isBuyOrder = 1
+		} else {
+			isBuyOrder = 0
+		}
+		var response *WsSubmitOrderResponse
+		response, err = z.wsSubmitOrder(o.Pair, o.Amount, o.Price, isBuyOrder)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+		submitOrderResponse.OrderID = strconv.FormatInt(response.Data.EntrustID, 10)
 	} else {
-		oT = SpotNewOrderRequestParamsTypeSell
-	}
+		var oT SpotNewOrderRequestParamsType
+		if o.OrderSide == order.Buy {
+			oT = SpotNewOrderRequestParamsTypeBuy
+		} else {
+			oT = SpotNewOrderRequestParamsTypeSell
+		}
 
-	var params = SpotNewOrderRequestParams{
-		Amount: s.Amount,
-		Price:  s.Price,
-		Symbol: s.Pair.Lower().String(),
-		Type:   oT,
+		var params = SpotNewOrderRequestParams{
+			Amount: o.Amount,
+			Price:  o.Price,
+			Symbol: o.Pair.Lower().String(),
+			Type:   oT,
+		}
+		var response int64
+		response, err = z.SpotNewOrder(params)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+		if response > 0 {
+			submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
+		}
 	}
-	response, err := z.SpotNewOrder(params)
-	if response > 0 {
-		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
+	submitOrderResponse.IsOrderPlaced = true
+	if o.OrderType == order.Market {
+		submitOrderResponse.FullyMatched = true
 	}
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
-	}
-	return submitOrderResponse, err
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -389,8 +421,20 @@ func (z *ZB) CancelOrder(o *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	curr := z.FormatExchangeCurrency(o.CurrencyPair, o.AssetType).String()
-	return z.CancelExistingOrder(orderIDInt, curr)
+
+	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		var response *WsCancelOrderResponse
+		response, err = z.wsCancelOrder(o.CurrencyPair, orderIDInt)
+		if err != nil {
+			return err
+		}
+		if !response.Success {
+			return fmt.Errorf("%v - Could not cancel order %v", z.Name, o.OrderID)
+		}
+		return nil
+	}
+	return z.CancelExistingOrder(orderIDInt, z.FormatExchangeCurrency(o.CurrencyPair,
+		o.AssetType).String())
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -424,11 +468,12 @@ func (z *ZB) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	}
 
 	for i := range allOpenOrders {
-		err := z.CancelExistingOrder(allOpenOrders[i].ID,
-			allOpenOrders[i].Currency)
+		err := z.CancelOrder(&order.Cancel{
+			OrderID:      strconv.FormatInt(allOpenOrders[i].ID, 10),
+			CurrencyPair: currency.NewPairFromString(allOpenOrders[i].Currency),
+		})
 		if err != nil {
-			ID := strconv.FormatInt(allOpenOrders[i].ID, 10)
-			cancelAllOrdersResponse.Status[ID] = err.Error()
+			cancelAllOrdersResponse.Status[strconv.FormatInt(allOpenOrders[i].ID, 10)] = err.Error()
 		}
 	}
 
@@ -539,35 +584,45 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 	if req.OrderSide == order.AnySide || req.OrderSide == "" {
 		return nil, errors.New("specific order side is required")
 	}
-
 	var allOrders []Order
-
+	var orders []order.Detail
 	var side int64
-	if req.OrderSide == order.Buy {
-		side = 1
-	}
 
-	for x := range req.Currencies {
-		for y := int64(1); ; y++ {
-			fPair := z.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String()
-			resp, err := z.GetOrders(fPair, y, side)
-			if err != nil {
-				return nil, err
+	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		for x := range req.Currencies {
+			for y := int64(1); ; y++ {
+				resp, err := z.wsGetOrdersIgnoreTradeType(req.Currencies[x], y, 10)
+				if err != nil {
+					return nil, err
+				}
+				allOrders = append(allOrders, resp.Data...)
+				if len(resp.Data) != 10 {
+					break
+				}
 			}
-
-			if len(resp) == 0 {
-				break
-			}
-
-			allOrders = append(allOrders, resp...)
-
-			if len(resp) != 10 {
-				break
+		}
+	} else {
+		if req.OrderSide == order.Buy {
+			side = 1
+		}
+		for x := range req.Currencies {
+			for y := int64(1); ; y++ {
+				fPair := z.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String()
+				resp, err := z.GetOrders(fPair, y, side)
+				if err != nil {
+					return nil, err
+				}
+				if len(resp) == 0 {
+					break
+				}
+				allOrders = append(allOrders, resp...)
+				if len(resp) != 10 {
+					break
+				}
 			}
 		}
 	}
 
-	var orders []order.Detail
 	for i := range allOrders {
 		symbol := currency.NewPairDelimiter(allOrders[i].Currency,
 			z.GetPairFormat(asset.Spot, false).Delimiter)

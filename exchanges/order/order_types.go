@@ -37,17 +37,20 @@ var (
 
 // Submit contains the order submission data
 type Submit struct {
-	Pair      currency.Pair
-	OrderType Type
-	OrderSide Side
-	Price     float64
-	Amount    float64
-	ClientID  string
+	Pair         currency.Pair
+	OrderType    Type
+	OrderSide    Side
+	TriggerPrice float64
+	TargetAmount float64
+	Price        float64
+	Amount       float64
+	ClientID     string
 }
 
 // SubmitResponse is what is returned after submitting an order to an exchange
 type SubmitResponse struct {
 	IsOrderPlaced bool
+	FullyMatched  bool
 	OrderID       string
 }
 
@@ -125,7 +128,7 @@ type Detail struct {
 // TradeHistory holds exchange history data
 type TradeHistory struct {
 	Timestamp   time.Time
-	TID         int64
+	TID         string
 	Price       float64
 	Amount      float64
 	Exchange    string
@@ -161,17 +164,18 @@ type Status string
 
 // All order status types
 const (
-	AnyStatus       Status = "ANY"
-	New             Status = "NEW"
-	Active          Status = "ACTIVE"
-	PartiallyFilled Status = "PARTIALLY_FILLED"
-	Filled          Status = "FILLED"
-	Cancelled       Status = "CANCELED"
-	PendingCancel   Status = "PENDING_CANCEL"
-	Rejected        Status = "REJECTED"
-	Expired         Status = "EXPIRED"
-	Hidden          Status = "HIDDEN"
-	UnknownStatus   Status = "UNKNOWN"
+	AnyStatus          Status = "ANY"
+	New                Status = "NEW"
+	Active             Status = "ACTIVE"
+	PartiallyCancelled Status = "PARTIALLY_CANCELLED"
+	PartiallyFilled    Status = "PARTIALLY_FILLED"
+	Filled             Status = "FILLED"
+	Cancelled          Status = "CANCELED"
+	PendingCancel      Status = "PENDING_CANCEL"
+	Rejected           Status = "REJECTED"
+	Expired            Status = "EXPIRED"
+	Hidden             Status = "HIDDEN"
+	UnknownStatus      Status = "UNKNOWN"
 )
 
 // ByPrice used for sorting orders by price
