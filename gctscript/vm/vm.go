@@ -116,7 +116,7 @@ func (vm *VM) RunCtx() (err error) {
 	return
 }
 
-// CompileAndRun Compile and Run script
+// CompileAndRun Compile and Run script with support for task running
 func (vm *VM) CompileAndRun() {
 	err := vm.Compile()
 	if err != nil {
@@ -195,4 +195,8 @@ func (vm *VM) shortName(file string) string {
 	}
 
 	return filepath.Base(file)
+}
+
+func (vm *VM) validate() error {
+	return nil
 }
