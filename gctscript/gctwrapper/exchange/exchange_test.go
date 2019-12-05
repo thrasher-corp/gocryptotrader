@@ -3,6 +3,7 @@ package exchange
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -12,7 +13,7 @@ import (
 
 var (
 	settings = engine.Settings{
-		ConfigFile:          "../../../testdata/gctscript/config.json",
+		ConfigFile:          filepath.Join("..","..","..","testdata", "gctscript","config.json"),
 		EnableDryRun:        true,
 		DataDir:             "../../../testdata/gocryptotrader",
 		Verbose:             false,
@@ -50,7 +51,7 @@ func TestExchange_Exchanges(t *testing.T) {
 	t.Parallel()
 	x := exchangeTest.Exchanges(false)
 	y := len(x)
-	if y != 2 {
+	if y != 28 {
 		t.Fatalf("expected only one result received %v", y)
 	}
 }
@@ -73,7 +74,7 @@ func TestExchange_IsEnabled(t *testing.T) {
 	if !x {
 		t.Fatal("expected return to be true")
 	}
-	x = exchangeTest.IsEnabled("yobit")
+	x = exchangeTest.IsEnabled("fake_exchange")
 	if x {
 		t.Fatal("expected return to be false")
 	}

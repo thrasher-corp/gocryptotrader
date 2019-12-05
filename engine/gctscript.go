@@ -9,7 +9,7 @@ import (
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
-const name = "gctscript"
+const gctscriptManagerName = "gctscript"
 
 type gctScriptManager struct {
 	running  atomic.Value
@@ -24,9 +24,9 @@ func (g *gctScriptManager) Started() bool {
 // Start starts gctscript subsystem and creates shutdown channel
 func (g *gctScriptManager) Start() error {
 	if g.Started() {
-		return fmt.Errorf("%s %s", name, ErrSubSystemAlreadyStarted)
+		return fmt.Errorf("%s %s", gctscriptManagerName, ErrSubSystemAlreadyStarted)
 	}
-	log.Debugf(log.Global, "%s %s", name, MsgSubSystemStarting)
+	log.Debugf(log.Global, "%s %s", gctscriptManagerName, MsgSubSystemStarting)
 	g.shutdown = make(chan struct{})
 	go g.run()
 	return nil
@@ -35,10 +35,10 @@ func (g *gctScriptManager) Start() error {
 // Stop stops gctscript subsystem along with all running Virtual Machines
 func (g *gctScriptManager) Stop() error {
 	if !g.Started() {
-		return fmt.Errorf("%s %s", name, ErrSubSystemAlreadyStarted)
+		return fmt.Errorf("%s %s", gctscriptManagerName, ErrSubSystemAlreadyStopped)
 	}
 
-	log.Debugf(log.Global, "%s %s", name, MsgSubSystemShuttingDown)
+	log.Debugf(log.Global, "%s %s", gctscriptManagerName, MsgSubSystemShuttingDown)
 	close(g.shutdown)
 	err := vm.ShutdownAll()
 	if err != nil {
@@ -48,7 +48,7 @@ func (g *gctScriptManager) Stop() error {
 }
 
 func (g *gctScriptManager) run() {
-	log.Debugf(log.GCTScriptMgr, "%s %s", name, MsgSubSystemStarted)
+	log.Debugf(log.GCTScriptMgr, "%s %s", gctscriptManagerName, MsgSubSystemStarted)
 
 	Bot.ServicesWG.Add(1)
 	g.running.Store(true)
@@ -57,7 +57,7 @@ func (g *gctScriptManager) run() {
 	defer func() {
 		g.running.Store(false)
 		Bot.ServicesWG.Done()
-		log.Debugf(log.GCTScriptMgr, "%s %s", name, MsgSubSystemShutdown)
+		log.Debugf(log.GCTScriptMgr, "%s %s", gctscriptManagerName, MsgSubSystemShutdown)
 	}()
 
 	<-g.shutdown

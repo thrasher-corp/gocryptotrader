@@ -18,7 +18,7 @@ func newVM() *VM {
 	newUUID, err := uuid.NewV4()
 	if err != nil {
 		log.Error(log.GCTScriptMgr, Error{
-			Action: "New -> UUID",
+			Action: "New: UUID",
 			Cause:  err,
 		})
 		return nil
@@ -46,13 +46,13 @@ func (vm *VM) Load(file string) error {
 	}
 
 	if GCTScriptConfig.Verbose {
-		log.Debugf(log.GCTScriptMgr, "Loading script: %v", file)
+		log.Debugf(log.GCTScriptMgr, "Loading script: %s ID: %v", vm.Name, vm.ID)
 	}
 
 	f, err := os.Open(file)
 	if err != nil {
 		return &Error{
-			Action: "Load -> Open",
+			Action: "Load: Open",
 			Script: file,
 			Cause:  err,
 		}
@@ -61,7 +61,7 @@ func (vm *VM) Load(file string) error {
 	code, err := ioutil.ReadAll(f)
 	if err != nil {
 		return &Error{
-			Action: "Load -> Read",
+			Action: "Load: Read",
 			Script: file,
 			Cause:  err,
 		}
@@ -74,7 +74,7 @@ func (vm *VM) Load(file string) error {
 
 	if GCTScriptConfig.AllowImports {
 		if GCTScriptConfig.Verbose {
-			log.Debugf(log.GCTScriptMgr, "file imports enabled for vm: %v", vm.ID)
+			log.Debugf(log.GCTScriptMgr, "File imports enabled for vm: %v", vm.ID)
 		}
 		vm.Script.EnableFileImport(true)
 	}
@@ -109,7 +109,7 @@ func (vm *VM) RunCtx() (err error) {
 	err = vm.Compiled.RunContext(ct)
 	if err != nil {
 		return Error{
-			Action: "RunCtx()",
+			Action: "RunCtx",
 			Cause:  err,
 		}
 	}
@@ -129,7 +129,7 @@ func (vm *VM) CompileAndRun() {
 	}
 
 	if GCTScriptConfig.Verbose {
-		log.Debugf(log.GCTScriptMgr, "Running script: %v", vm.ID)
+		log.Debugf(log.GCTScriptMgr,"Running script: %s ID: %v", vm.Name, vm.ID)
 	}
 
 	err = vm.RunCtx()
@@ -154,7 +154,7 @@ func (vm *VM) CompileAndRun() {
 			return
 		}
 		if vm.T < time.Nanosecond {
-			log.Error(log.GCTScriptMgr, "repeat timer cannot be under 1 nano second")
+			log.Error(log.GCTScriptMgr, "Repeat timer cannot be under 1 nano second")
 			return
 		}
 		vm.runner()
@@ -174,7 +174,7 @@ func (vm *VM) Shutdown() error {
 		close(vm.S)
 	}
 	if GCTScriptConfig.Verbose {
-		log.Debugf(log.GCTScriptMgr, "Shutting script: %v", vm.ID)
+		log.Debugf(log.GCTScriptMgr, "Shutting down script: %s ID: %v", vm.Name, vm.ID)
 	}
 	return RemoveVM(vm.ID)
 }
@@ -182,7 +182,7 @@ func (vm *VM) Shutdown() error {
 // Read contents of script back
 func (vm *VM) Read() ([]byte, error) {
 	if GCTScriptConfig.Verbose {
-		log.Debugf(log.GCTScriptMgr, "Read script: %v", vm.ID)
+		log.Debugf(log.GCTScriptMgr, "Read script: %s ID: %v", vm.Name, vm.ID)
 	}
 
 	audit.Event(vm.ID.String(), AuditEventName, "Script contents read")

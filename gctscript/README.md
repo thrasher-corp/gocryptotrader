@@ -44,7 +44,7 @@ type Config struct {
 	ScriptTimeout time.Duration `json:"timeout"`
 	AllowImports  bool          `json:"allow_imports"`
 	AutoLoad      []string      `json:"auto_load"`
-	DebugMode     bool          `json:"debug"`
+	Verbose       bool          `json:"Verbose"`
 }
 ```
 

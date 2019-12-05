@@ -19,16 +19,13 @@ type GCT interface {
 // Exchange interface requirements
 type Exchange interface {
 	Exchanges(enabledOnly bool) []string
-
 	IsEnabled(exch string) bool
 	Orderbook(exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error)
 	Ticker(exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error)
 	Pairs(exch string, enabledOnly bool, item asset.Item) (*currency.Pairs, error)
-
 	QueryOrder(exch, orderid string) (*order.Detail, error)
 	SubmitOrder(exch string, submit *order.Submit) (*order.SubmitResponse, error)
 	CancelOrder(exch, orderid string) (bool, error)
-
 	AccountInformation(exch string) (*AccountInfo, error)
 	DepositAddress(exch string, currencyCode currency.Code, accountID string) (string, error)
 	WithdrawalFiatFunds(exch string) (err error)

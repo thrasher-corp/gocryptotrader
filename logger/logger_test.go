@@ -7,10 +7,6 @@ import (
 	"testing"
 )
 
-var (
-	falseptr = func(b bool) *bool { return &b }(false)
-)
-
 func SetupTest() {
 	logTest := Config{
 		Enabled: true,

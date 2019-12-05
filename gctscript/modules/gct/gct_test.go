@@ -335,7 +335,7 @@ func (w Wrapper) QueryOrder(exch, orderid string) (*order.Detail, error) {
 		Trades: []order.TradeHistory{
 			{
 				Timestamp:   time.Now(),
-				TID:         0,
+				TID:         "",
 				Price:       1,
 				Amount:      2,
 				Exchange:    exch,

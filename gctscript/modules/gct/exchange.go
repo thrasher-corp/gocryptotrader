@@ -23,10 +23,9 @@ var exchangeModule = map[string]objects.Object{
 }
 
 // ExchangeOrderbook returns orderbook for requested exchange & currencypair
-func ExchangeOrderbook(args ...objects.Object) (ret objects.Object, err error) {
+func ExchangeOrderbook(args ...objects.Object) (objects.Object,error) {
 	if len(args) != 4 {
-		err = objects.ErrWrongNumArguments
-		return
+		return nil, objects.ErrWrongNumArguments
 	}
 
 	exchangeName, _ := objects.ToString(args[0])
@@ -39,7 +38,7 @@ func ExchangeOrderbook(args ...objects.Object) (ret objects.Object, err error) {
 
 	ob, err := modules.Wrapper.Orderbook(exchangeName, pairs, assetType)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	var asks, bids objects.Array
@@ -71,10 +70,9 @@ func ExchangeOrderbook(args ...objects.Object) (ret objects.Object, err error) {
 }
 
 // ExchangeTicker returns ticker data for requested exchange and currency pair
-func ExchangeTicker(args ...objects.Object) (ret objects.Object, err error) {
+func ExchangeTicker(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 4 {
-		err = objects.ErrWrongNumArguments
-		return
+		return nil, objects.ErrWrongNumArguments
 	}
 
 	exchangeName, _ := objects.ToString(args[0])
@@ -87,7 +85,7 @@ func ExchangeTicker(args ...objects.Object) (ret objects.Object, err error) {
 
 	tx, err := modules.Wrapper.Ticker(exchangeName, pairs, assetType)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	data := make(map[string]objects.Object, 14)
@@ -112,10 +110,9 @@ func ExchangeTicker(args ...objects.Object) (ret objects.Object, err error) {
 }
 
 // ExchangeExchanges returns list of exchanges either enabled or all
-func ExchangeExchanges(args ...objects.Object) (ret objects.Object, err error) {
+func ExchangeExchanges(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 1 {
-		err = objects.ErrWrongNumArguments
-		return
+		return nil, objects.ErrWrongNumArguments
 	}
 
 	enabledOnly, _ := objects.ToBool(args[0])
@@ -130,10 +127,9 @@ func ExchangeExchanges(args ...objects.Object) (ret objects.Object, err error) {
 }
 
 // ExchangePairs returns currency pairs for requested exchange
-func ExchangePairs(args ...objects.Object) (ret objects.Object, err error) {
+func ExchangePairs(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 3 {
-		err = objects.ErrWrongNumArguments
-		return
+		return nil, objects.ErrWrongNumArguments
 	}
 
 	exchangeName, _ := objects.ToString(args[0])
@@ -143,7 +139,7 @@ func ExchangePairs(args ...objects.Object) (ret objects.Object, err error) {
 
 	rtnValue, err := modules.Wrapper.Pairs(exchangeName, enabledOnly, assetType)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	r := objects.Array{}
@@ -154,16 +150,15 @@ func ExchangePairs(args ...objects.Object) (ret objects.Object, err error) {
 }
 
 // ExchangeAccountInfo returns account information for requested exchange
-func ExchangeAccountInfo(args ...objects.Object) (ret objects.Object, err error) {
+func ExchangeAccountInfo(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 1 {
-		err = objects.ErrWrongNumArguments
-		return
+		return nil, objects.ErrWrongNumArguments
 	}
 
 	exchangeName, _ := objects.ToString(args[0])
 	rtnValue, err := modules.Wrapper.AccountInformation(exchangeName)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	var funds objects.Array
@@ -187,10 +182,9 @@ func ExchangeAccountInfo(args ...objects.Object) (ret objects.Object, err error)
 }
 
 // ExchangeOrderQuery query order on exchange
-func ExchangeOrderQuery(args ...objects.Object) (ret objects.Object, err error) {
+func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 2 {
-		err = objects.ErrWrongNumArguments
-		return
+		return nil, objects.ErrWrongNumArguments
 	}
 
 	exchangeName, _ := objects.ToString(args[0])
@@ -198,7 +192,7 @@ func ExchangeOrderQuery(args ...objects.Object) (ret objects.Object, err error) 
 
 	orderDetails, err := modules.Wrapper.QueryOrder(exchangeName, orderID)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	var tradeHistory objects.Array
@@ -236,10 +230,9 @@ func ExchangeOrderQuery(args ...objects.Object) (ret objects.Object, err error) 
 }
 
 // ExchangeOrderCancel cancels order on requested exchange
-func ExchangeOrderCancel(args ...objects.Object) (ret objects.Object, err error) {
+func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 2 {
-		err = objects.ErrWrongNumArguments
-		return
+		return nil, objects.ErrWrongNumArguments
 	}
 
 	exchangeName, _ := objects.ToString(args[0])
@@ -247,7 +240,7 @@ func ExchangeOrderCancel(args ...objects.Object) (ret objects.Object, err error)
 
 	rtn, err := modules.Wrapper.CancelOrder(exchangeName, orderID)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	if rtn {
@@ -257,16 +250,14 @@ func ExchangeOrderCancel(args ...objects.Object) (ret objects.Object, err error)
 }
 
 // ExchangeOrderSubmit submit order on exchange
-func ExchangeOrderSubmit(args ...objects.Object) (ret objects.Object, err error) {
+func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 8 {
-		err = objects.ErrWrongNumArguments
-		return
+		return nil, objects.ErrWrongNumArguments
 	}
 
 	exchangeName, _ := objects.ToString(args[0])
 	currencyPair, _ := objects.ToString(args[1])
 	delimiter, _ := objects.ToString(args[2])
-
 	orderType, _ := objects.ToString(args[3])
 	orderSide, _ := objects.ToString(args[4])
 	orderPrice, _ := objects.ToFloat64(args[5])
@@ -284,14 +275,14 @@ func ExchangeOrderSubmit(args ...objects.Object) (ret objects.Object, err error)
 		ClientID:  orderClientID,
 	}
 
-	err = tempSubmit.Validate()
+	err := tempSubmit.Validate()
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	rtn, err := modules.Wrapper.SubmitOrder(exchangeName, tempSubmit)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	data := make(map[string]objects.Object, 2)
@@ -308,10 +299,9 @@ func ExchangeOrderSubmit(args ...objects.Object) (ret objects.Object, err error)
 }
 
 // ExchangeDepositAddress returns deposit address (if supported by exchange)
-func ExchangeDepositAddress(args ...objects.Object) (ret objects.Object, err error) {
+func ExchangeDepositAddress(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 3 {
-		err = objects.ErrWrongNumArguments
-		return
+		return nil, objects.ErrWrongNumArguments
 	}
 
 	exchangeName, _ := objects.ToString(args[0])
@@ -322,7 +312,7 @@ func ExchangeDepositAddress(args ...objects.Object) (ret objects.Object, err err
 
 	rtn, err := modules.Wrapper.DepositAddress(exchangeName, currCode, accountID)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	return &objects.String{Value: rtn}, nil
