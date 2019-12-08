@@ -849,7 +849,7 @@ func (k *Kraken) GenerateDefaultSubscriptions() {
 	k.Websocket.SubscribeToChannels(subscriptions)
 }
 
-// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+// GenerateAuthenticatedSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (k *Kraken) GenerateAuthenticatedSubscriptions() {
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range authenticatedChannels {

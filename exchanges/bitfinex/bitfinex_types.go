@@ -620,7 +620,7 @@ type WsMarginInfoBase struct {
 	MarginNet      float64
 }
 
-// WsMarginInfoBase recent funding trades received via websocket
+// WsFundingTrade recent funding trades received via websocket
 type WsFundingTrade struct {
 	ID         int64
 	Symbol     string

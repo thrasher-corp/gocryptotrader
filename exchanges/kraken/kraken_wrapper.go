@@ -260,10 +260,9 @@ func (k *Kraken) FetchTradablePairs(asset asset.Item) ([]string, error) {
 		if v.Quote[0] == 'Z' || v.Quote[0] == 'X' {
 			v.Quote = v.Quote[1:]
 		}
-		products = append(products,
-			v.Base+
-				k.GetPairFormat(asset, false).Delimiter+
-				v.Quote)
+		products = append(products, v.Base+
+			k.GetPairFormat(asset, false).Delimiter+
+			v.Quote)
 	}
 	return products, nil
 }

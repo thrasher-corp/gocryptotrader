@@ -231,10 +231,9 @@ func (b *Binance) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 	for x := range info.Symbols {
 		if info.Symbols[x].Status == "TRADING" {
-			validCurrencyPairs = append(validCurrencyPairs,
-				info.Symbols[x].BaseAsset+
-					b.GetPairFormat(asset, false).Delimiter+
-					info.Symbols[x].QuoteAsset)
+			validCurrencyPairs = append(validCurrencyPairs, info.Symbols[x].BaseAsset+
+				b.GetPairFormat(asset, false).Delimiter+
+				info.Symbols[x].QuoteAsset)
 		}
 	}
 	return validCurrencyPairs, nil

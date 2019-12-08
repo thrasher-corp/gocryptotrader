@@ -523,17 +523,16 @@ func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawReque
 		return "", errors.New("no withdrawID returned. Check order status")
 	}
 
-	var withdrawalSuccesses strings.Builder
-	var withdrawalErrors strings.Builder
-	for _, withdrawal := range resp {
-		if withdrawal.Status == "error" {
-			withdrawalErrors.WriteString(" " + withdrawal.Message)
+	var withdrawalSuccesses, withdrawalErrors strings.Builder
+	for x := range resp {
+		if resp[x].Status == "error" {
+			withdrawalErrors.WriteString(resp[x].Message + " ")
 		}
-		if withdrawal.Status == "success" {
-			withdrawalSuccesses.WriteString(strconv.FormatInt(withdrawal.WithdrawalID, 10) + ",")
+		if resp[x].Status == "success" {
+			withdrawalSuccesses.WriteString(strconv.FormatInt(resp[x].WithdrawalID, 10) + ",")
 		}
 	}
-	if len(withdrawalErrors.String()) > 0 {
+	if withdrawalErrors.Len() > 0 {
 		return withdrawalSuccesses.String(), errors.New(withdrawalErrors.String())
 	}
 

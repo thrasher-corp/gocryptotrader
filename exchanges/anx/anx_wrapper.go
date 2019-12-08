@@ -190,10 +190,9 @@ func (a *ANX) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 	var currencies []string
 	for x := range result.CurrencyPairs {
-		currencies = append(currencies,
-			result.CurrencyPairs[x].TradedCcy+
-				a.GetPairFormat(asset, false).Delimiter+
-				result.CurrencyPairs[x].SettlementCcy)
+		currencies = append(currencies, result.CurrencyPairs[x].TradedCcy+
+			a.GetPairFormat(asset, false).Delimiter+
+			result.CurrencyPairs[x].SettlementCcy)
 	}
 
 	return currencies, nil
