@@ -601,11 +601,11 @@ func (l *LocalBitcoins) WalletSend(address string, amount float64, pin int64) er
 
 	if resp.Data.Message != "Money is being sent" {
 		if len(resp.Error.Errors) != 0 {
-			var details string
-			for _, val := range resp.Error.Errors {
-				details += val
+			var details strings.Builder
+			for x := range resp.Error.Errors {
+				details.WriteString(resp.Error.Errors[x])
 			}
-			return errors.New(details)
+			return errors.New(details.String())
 		}
 		return errors.New(resp.Data.Message)
 	}

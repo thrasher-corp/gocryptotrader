@@ -74,10 +74,9 @@ func (b *Bithumb) GetTradablePairs() ([]string, error) {
 // symbol e.g. "btc"
 func (b *Bithumb) GetTicker(symbol string) (Ticker, error) {
 	var response TickerResponse
-	path := fmt.Sprintf("%s%s%s",
-		b.API.Endpoints.URL,
-		publicTicker,
-		strings.ToUpper(symbol))
+	path := b.API.Endpoints.URL +
+		publicTicker +
+		strings.ToUpper(symbol)
 	err := b.SendHTTPRequest(path, &response)
 	if err != nil {
 		return response.Data, err
@@ -93,7 +92,7 @@ func (b *Bithumb) GetTicker(symbol string) (Ticker, error) {
 // GetAllTickers returns all ticker information
 func (b *Bithumb) GetAllTickers() (map[string]Ticker, error) {
 	var response TickersResponse
-	path := fmt.Sprintf("%s%s%s", b.API.Endpoints.URL, publicTicker, "all")
+	path := b.API.Endpoints.URL + publicTicker + "all"
 	err := b.SendHTTPRequest(path, &response)
 	if err != nil {
 		return nil, err
@@ -123,7 +122,7 @@ func (b *Bithumb) GetAllTickers() (map[string]Ticker, error) {
 // symbol e.g. "btc"
 func (b *Bithumb) GetOrderBook(symbol string) (Orderbook, error) {
 	response := Orderbook{}
-	path := fmt.Sprintf("%s%s%s", b.API.Endpoints.URL, publicOrderBook, strings.ToUpper(symbol))
+	path := b.API.Endpoints.URL + publicOrderBook + strings.ToUpper(symbol)
 
 	err := b.SendHTTPRequest(path, &response)
 	if err != nil {
@@ -142,7 +141,9 @@ func (b *Bithumb) GetOrderBook(symbol string) (Orderbook, error) {
 // symbol e.g. "btc"
 func (b *Bithumb) GetTransactionHistory(symbol string) (TransactionHistory, error) {
 	response := TransactionHistory{}
-	path := fmt.Sprintf("%s%s%s", b.API.Endpoints.URL, publicTransactionHistory, strings.ToUpper(symbol))
+	path := b.API.Endpoints.URL +
+		publicTransactionHistory +
+		strings.ToUpper(symbol)
 
 	err := b.SendHTTPRequest(path, &response)
 	if err != nil {

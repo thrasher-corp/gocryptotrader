@@ -279,7 +279,7 @@ func (b *Binance) GetPriceChangeStats(symbol string) (PriceChangeStats, error) {
 // GetTickers returns the ticker data for the last 24 hrs
 func (b *Binance) GetTickers() ([]PriceChangeStats, error) {
 	var resp []PriceChangeStats
-	path := fmt.Sprintf("%s%s", b.API.Endpoints.URL, priceChange)
+	path := b.API.Endpoints.URL + priceChange
 	return resp, b.SendHTTPRequest(path, &resp)
 }
 
@@ -313,7 +313,7 @@ func (b *Binance) GetBestPrice(symbol string) (BestPrice, error) {
 func (b *Binance) NewOrder(o *NewOrderRequest) (NewOrderResponse, error) {
 	var resp NewOrderResponse
 
-	path := fmt.Sprintf("%s%s", b.API.Endpoints.URL, newOrder)
+	path := b.API.Endpoints.URL + newOrder
 
 	params := url.Values{}
 	params.Set("symbol", o.Symbol)
@@ -357,7 +357,7 @@ func (b *Binance) NewOrder(o *NewOrderRequest) (NewOrderResponse, error) {
 func (b *Binance) CancelExistingOrder(symbol string, orderID int64, origClientOrderID string) (CancelOrderResponse, error) {
 	var resp CancelOrderResponse
 
-	path := fmt.Sprintf("%s%s", b.API.Endpoints.URL, cancelOrder)
+	path := b.API.Endpoints.URL + cancelOrder
 
 	params := url.Values{}
 	params.Set("symbol", symbol)
@@ -379,7 +379,7 @@ func (b *Binance) CancelExistingOrder(symbol string, orderID int64, origClientOr
 func (b *Binance) OpenOrders(symbol string) ([]QueryOrderData, error) {
 	var resp []QueryOrderData
 
-	path := fmt.Sprintf("%s%s", b.API.Endpoints.URL, openOrders)
+	path := b.API.Endpoints.URL + openOrders
 
 	params := url.Values{}
 
@@ -400,7 +400,7 @@ func (b *Binance) OpenOrders(symbol string) ([]QueryOrderData, error) {
 func (b *Binance) AllOrders(symbol, orderID, limit string) ([]QueryOrderData, error) {
 	var resp []QueryOrderData
 
-	path := fmt.Sprintf("%s%s", b.API.Endpoints.URL, allOrders)
+	path := b.API.Endpoints.URL + allOrders
 
 	params := url.Values{}
 	params.Set("symbol", strings.ToUpper(symbol))
@@ -421,7 +421,7 @@ func (b *Binance) AllOrders(symbol, orderID, limit string) ([]QueryOrderData, er
 func (b *Binance) QueryOrder(symbol, origClientOrderID string, orderID int64) (QueryOrderData, error) {
 	var resp QueryOrderData
 
-	path := fmt.Sprintf("%s%s", b.API.Endpoints.URL, queryOrder)
+	path := b.API.Endpoints.URL + queryOrder
 
 	params := url.Values{}
 	params.Set("symbol", strings.ToUpper(symbol))
@@ -451,7 +451,7 @@ func (b *Binance) GetAccount() (*Account, error) {
 
 	var resp response
 
-	path := fmt.Sprintf("%s%s", b.API.Endpoints.URL, accountInfo)
+	path := b.API.Endpoints.URL + accountInfo
 	params := url.Values{}
 
 	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, &resp); err != nil {
@@ -503,7 +503,7 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, re
 	}
 
 	path = common.EncodeURLValues(path, params)
-	path += fmt.Sprintf("&signature=%s", hmacSignedStr)
+	path += "&signature=" + hmacSignedStr
 
 	interim := json.RawMessage{}
 
@@ -643,7 +643,7 @@ func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
 // WithdrawCrypto sends cryptocurrency to the address of your choosing
 func (b *Binance) WithdrawCrypto(asset, address, addressTag, name, amount string) (string, error) {
 	var resp WithdrawResponse
-	path := fmt.Sprintf("%s%s", b.API.Endpoints.URL, withdraw)
+	path := b.API.Endpoints.URL + withdraw
 
 	params := url.Values{}
 	params.Set("asset", asset)
@@ -669,7 +669,7 @@ func (b *Binance) WithdrawCrypto(asset, address, addressTag, name, amount string
 
 // GetDepositAddressForCurrency retrieves the wallet address for a given currency
 func (b *Binance) GetDepositAddressForCurrency(currency string) (string, error) {
-	path := fmt.Sprintf("%s%s", b.API.Endpoints.URL, depositAddress)
+	path := b.API.Endpoints.URL + depositAddress
 
 	resp := struct {
 		Address    string `json:"address"`

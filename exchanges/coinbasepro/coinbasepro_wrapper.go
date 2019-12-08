@@ -233,8 +233,9 @@ func (c *CoinbasePro) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 	var products []string
 	for x := range pairs {
-		products = append(products, fmt.Sprintf("%s%s%s", pairs[x].BaseCurrency,
-			c.GetPairFormat(asset, false).Delimiter, pairs[x].QuoteCurrency))
+		products = append(products, pairs[x].BaseCurrency+
+			c.GetPairFormat(asset, false).Delimiter+
+			pairs[x].QuoteCurrency)
 	}
 
 	return products, nil
