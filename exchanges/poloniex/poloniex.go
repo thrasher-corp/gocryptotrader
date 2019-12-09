@@ -10,14 +10,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const (
@@ -31,8 +28,6 @@ const (
 	poloniexDepositsWithdrawals  = "returnDepositsWithdrawals"
 	poloniexOrders               = "returnOpenOrders"
 	poloniexTradeHistory         = "returnTradeHistory"
-	poloniexOrderBuy             = "buy"
-	poloniexOrderSell            = "sell"
 	poloniexOrderCancel          = "cancelOrder"
 	poloniexOrderMove            = "moveOrder"
 	poloniexWithdraw             = "withdraw"
@@ -64,108 +59,6 @@ type Poloniex struct {
 	WebsocketConn *wshandler.WebsocketConnection
 }
 
-// SetDefaults sets default settings for poloniex
-func (p *Poloniex) SetDefaults() {
-	p.Name = "Poloniex"
-	p.Enabled = false
-	p.Fee = 0
-	p.Verbose = false
-	p.RESTPollingDelay = 10
-	p.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
-		exchange.NoFiatWithdrawals
-	p.RequestCurrencyPairFormat.Delimiter = "_"
-	p.RequestCurrencyPairFormat.Uppercase = true
-	p.ConfigCurrencyPairFormat.Delimiter = "_"
-	p.ConfigCurrencyPairFormat.Uppercase = true
-	p.AssetTypes = []string{ticker.Spot}
-	p.SupportsAutoPairUpdating = true
-	p.SupportsRESTTickerBatching = true
-	p.Requester = request.New(p.Name,
-		request.NewRateLimit(time.Second, poloniexAuthRate),
-		request.NewRateLimit(time.Second, poloniexUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	p.APIUrlDefault = poloniexAPIURL
-	p.APIUrl = p.APIUrlDefault
-	p.Websocket = wshandler.New()
-	p.Websocket.Functionality = wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported
-	p.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	p.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	p.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
-
-// Setup sets user exchange configuration settings
-func (p *Poloniex) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		p.SetEnabled(false)
-	} else {
-		p.Enabled = true
-		p.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		p.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
-		p.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
-		p.SetHTTPClientTimeout(exch.HTTPTimeout)
-		p.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		p.RESTPollingDelay = exch.RESTPollingDelay
-		p.Verbose = exch.Verbose
-		p.HTTPDebugging = exch.HTTPDebugging
-		p.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		p.BaseCurrencies = exch.BaseCurrencies
-		p.AvailablePairs = exch.AvailablePairs
-		p.EnabledPairs = exch.EnabledPairs
-		err := p.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = p.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = p.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = p.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = p.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = p.Websocket.Setup(p.WsConnect,
-			p.Subscribe,
-			p.Unsubscribe,
-			exch.Name,
-			exch.Websocket,
-			exch.Verbose,
-			poloniexWebsocketAddress,
-			exch.WebsocketURL,
-			exch.AuthenticatedWebsocketAPISupport)
-		if err != nil {
-			log.Fatal(err)
-		}
-		p.WebsocketConn = &wshandler.WebsocketConnection{
-			ExchangeName:         p.Name,
-			URL:                  p.Websocket.GetWebsocketURL(),
-			ProxyURL:             p.Websocket.GetProxyAddress(),
-			Verbose:              p.Verbose,
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		}
-		p.Websocket.Orderbook.Setup(
-			exch.WebsocketOrderbookBufferLimit,
-			true,
-			true,
-			true,
-			false,
-			exch.Name)
-	}
-}
-
 // GetTicker returns current ticker information
 func (p *Poloniex) GetTicker() (map[string]Ticker, error) {
 	type response struct {
@@ -173,7 +66,7 @@ func (p *Poloniex) GetTicker() (map[string]Ticker, error) {
 	}
 
 	resp := response{}
-	path := fmt.Sprintf("%s/public?command=returnTicker", p.APIUrl)
+	path := fmt.Sprintf("%s/public?command=returnTicker", p.API.Endpoints.URL)
 
 	return resp.Data, p.SendHTTPRequest(path, &resp.Data)
 }
@@ -181,7 +74,7 @@ func (p *Poloniex) GetTicker() (map[string]Ticker, error) {
 // GetVolume returns a list of currencies with associated volume
 func (p *Poloniex) GetVolume() (interface{}, error) {
 	var resp interface{}
-	path := fmt.Sprintf("%s/public?command=return24hVolume", p.APIUrl)
+	path := fmt.Sprintf("%s/public?command=return24hVolume", p.API.Endpoints.URL)
 
 	return resp, p.SendHTTPRequest(path, &resp)
 }
@@ -198,7 +91,7 @@ func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (OrderbookAll, e
 	if currencyPair != "" {
 		vals.Set("currencyPair", currencyPair)
 		resp := OrderbookResponse{}
-		path := fmt.Sprintf("%s/public?command=returnOrderBook&%s", p.APIUrl, vals.Encode())
+		path := fmt.Sprintf("%s/public?command=returnOrderBook&%s", p.API.Endpoints.URL, vals.Encode())
 		err := p.SendHTTPRequest(path, &resp)
 		if err != nil {
 			return oba, err
@@ -230,31 +123,33 @@ func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (OrderbookAll, e
 	} else {
 		vals.Set("currencyPair", "all")
 		resp := OrderbookResponseAll{}
-		path := fmt.Sprintf("%s/public?command=returnOrderBook&%s", p.APIUrl, vals.Encode())
+		path := fmt.Sprintf("%s/public?command=returnOrderBook&%s", p.API.Endpoints.URL, vals.Encode())
 		err := p.SendHTTPRequest(path, &resp.Data)
 		if err != nil {
 			return oba, err
 		}
 		for currency, orderbook := range resp.Data {
-			ob := Orderbook{}
+			var ob Orderbook
 			for x := range orderbook.Asks {
-				data := orderbook.Asks[x]
-				price, err := strconv.ParseFloat(data[0].(string), 64)
+				price, err := strconv.ParseFloat(orderbook.Asks[x][0].(string), 64)
 				if err != nil {
 					return oba, err
 				}
-				amount := data[1].(float64)
-				ob.Asks = append(ob.Asks, OrderbookItem{Price: price, Amount: amount})
+				ob.Asks = append(ob.Asks, OrderbookItem{
+					Price:  price,
+					Amount: orderbook.Asks[x][1].(float64),
+				})
 			}
 
 			for x := range orderbook.Bids {
-				data := orderbook.Bids[x]
-				price, err := strconv.ParseFloat(data[0].(string), 64)
+				price, err := strconv.ParseFloat(orderbook.Bids[x][0].(string), 64)
 				if err != nil {
 					return oba, err
 				}
-				amount := data[1].(float64)
-				ob.Bids = append(ob.Bids, OrderbookItem{Price: price, Amount: amount})
+				ob.Asks = append(ob.Asks, OrderbookItem{
+					Price:  price,
+					Amount: orderbook.Bids[x][1].(float64),
+				})
 			}
 			oba.Data[currency] = Orderbook{Bids: ob.Bids, Asks: ob.Asks}
 		}
@@ -276,7 +171,7 @@ func (p *Poloniex) GetTradeHistory(currencyPair, start, end string) ([]TradeHist
 	}
 
 	var resp []TradeHistory
-	path := fmt.Sprintf("%s/public?command=returnTradeHistory&%s", p.APIUrl, vals.Encode())
+	path := fmt.Sprintf("%s/public?command=returnTradeHistory&%s", p.API.Endpoints.URL, vals.Encode())
 
 	return resp, p.SendHTTPRequest(path, &resp)
 }
@@ -299,7 +194,7 @@ func (p *Poloniex) GetChartData(currencyPair, start, end, period string) ([]Char
 	}
 
 	var resp []ChartData
-	path := fmt.Sprintf("%s/public?command=returnChartData&%s", p.APIUrl, vals.Encode())
+	path := fmt.Sprintf("%s/public?command=returnChartData&%s", p.API.Endpoints.URL, vals.Encode())
 
 	err := p.SendHTTPRequest(path, &resp)
 	if err != nil {
@@ -315,32 +210,16 @@ func (p *Poloniex) GetCurrencies() (map[string]Currencies, error) {
 		Data map[string]Currencies
 	}
 	resp := Response{}
-	path := fmt.Sprintf("%s/public?command=returnCurrencies", p.APIUrl)
+	path := fmt.Sprintf("%s/public?command=returnCurrencies", p.API.Endpoints.URL)
 
 	return resp.Data, p.SendHTTPRequest(path, &resp.Data)
-}
-
-// GetExchangeCurrencies returns a list of currencies using the GetTicker API
-// as the GetExchangeCurrencies information doesn't return currency pair information
-func (p *Poloniex) GetExchangeCurrencies() ([]string, error) {
-	response, err := p.GetTicker()
-	if err != nil {
-		return nil, err
-	}
-
-	var currencies []string
-	for x := range response {
-		currencies = append(currencies, x)
-	}
-
-	return currencies, nil
 }
 
 // GetLoanOrders returns the list of loan offers and demands for a given
 // currency, specified by the "currency" GET parameter.
 func (p *Poloniex) GetLoanOrders(currency string) (LoanOrders, error) {
 	resp := LoanOrders{}
-	path := fmt.Sprintf("%s/public?command=returnLoanOrders&currency=%s", p.APIUrl, currency)
+	path := fmt.Sprintf("%s/public?command=returnLoanOrders&currency=%s", p.API.Endpoints.URL, currency)
 
 	return resp, p.SendHTTPRequest(path, &resp)
 }
@@ -534,9 +413,9 @@ func (p *Poloniex) PlaceOrder(currency string, rate, amount float64, immediate, 
 
 	var orderType string
 	if buy {
-		orderType = poloniexOrderBuy
+		orderType = order.Buy.Lower()
 	} else {
-		orderType = poloniexOrderSell
+		orderType = order.Sell.Lower()
 	}
 
 	values.Set("currencyPair", currency)
@@ -888,24 +767,24 @@ func (p *Poloniex) SendHTTPRequest(path string, result interface{}) error {
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Values, result interface{}) error {
-	if !p.AuthenticatedAPISupport {
+	if !p.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			p.Name)
 	}
 
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
-	headers["Key"] = p.APIKey
+	headers["Key"] = p.API.Credentials.Key
 	values.Set("nonce", p.Requester.GetNonce(true).String())
 	values.Set("command", endpoint)
 
-	hmac := common.GetHMAC(common.HashSHA512,
+	hmac := crypto.GetHMAC(crypto.HashSHA512,
 		[]byte(values.Encode()),
-		[]byte(p.APISecret))
+		[]byte(p.API.Credentials.Secret))
 
-	headers["Sign"] = common.HexEncodeToString(hmac)
+	headers["Sign"] = crypto.HexEncodeToString(hmac)
 
-	path := fmt.Sprintf("%s/%s", p.APIUrl, poloniexAPITradingEndpoint)
+	path := fmt.Sprintf("%s/%s", p.API.Endpoints.URL, poloniexAPITradingEndpoint)
 
 	return p.SendPayload(method,
 		path,

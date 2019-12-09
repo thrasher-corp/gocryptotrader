@@ -1,6 +1,8 @@
 package bittrex
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 // Response is the generalised response type for Bittrex
 type Response struct {

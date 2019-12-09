@@ -9,13 +9,150 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
+
+// GetDefaultConfig returns a default exchange config
+func (l *LakeBTC) GetDefaultConfig() (*config.ExchangeConfig, error) {
+	l.SetDefaults()
+	exchCfg := new(config.ExchangeConfig)
+	exchCfg.Name = l.Name
+	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
+	exchCfg.BaseCurrencies = l.BaseCurrencies
+
+	err := l.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if l.Features.Supports.RESTCapabilities.AutoPairUpdates {
+		err = l.UpdateTradablePairs(true)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return exchCfg, nil
+}
+
+// SetDefaults sets LakeBTC defaults
+func (l *LakeBTC) SetDefaults() {
+	l.Name = "LakeBTC"
+	l.Enabled = true
+	l.Verbose = true
+	l.API.CredentialsValidator.RequiresKey = true
+	l.API.CredentialsValidator.RequiresSecret = true
+
+	l.CurrencyPairs = currency.PairsManager{
+		AssetTypes: asset.Items{
+			asset.Spot,
+		},
+
+		UseGlobalFormat: true,
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+	}
+
+	l.Features = exchange.Features{
+		Supports: exchange.FeaturesSupported{
+			REST:      true,
+			Websocket: true,
+			RESTCapabilities: protocol.Features{
+				TickerBatching:    true,
+				TickerFetching:    true,
+				TradeFetching:     true,
+				OrderbookFetching: true,
+				AutoPairUpdates:   true,
+				AccountInfo:       true,
+				GetOrder:          true,
+				GetOrders:         true,
+				CancelOrders:      true,
+				CancelOrder:       true,
+				SubmitOrder:       true,
+				UserTradeHistory:  true,
+				CryptoWithdrawal:  true,
+				TradeFee:          true,
+				CryptoDepositFee:  true,
+			},
+			WebsocketCapabilities: protocol.Features{
+				TradeFetching:     true,
+				OrderbookFetching: true,
+				Subscribe:         true,
+			},
+			WithdrawPermissions: exchange.AutoWithdrawCrypto |
+				exchange.WithdrawFiatViaWebsiteOnly,
+		},
+		Enabled: exchange.FeaturesEnabled{
+			AutoPairUpdates: true,
+		},
+	}
+
+	l.Requester = request.New(l.Name,
+		request.NewRateLimit(time.Second, lakeBTCAuthRate),
+		request.NewRateLimit(time.Second, lakeBTCUnauth),
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+
+	l.API.Endpoints.URLDefault = lakeBTCAPIURL
+	l.API.Endpoints.URL = l.API.Endpoints.URLDefault
+	l.Websocket = wshandler.New()
+	l.API.Endpoints.WebsocketURL = lakeBTCWSURL
+	l.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	l.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	l.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+}
+
+// Setup sets exchange configuration profile
+func (l *LakeBTC) Setup(exch *config.ExchangeConfig) error {
+	if !exch.Enabled {
+		l.SetEnabled(false)
+		return nil
+	}
+
+	err := l.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
+
+	err = l.Websocket.Setup(
+		&wshandler.WebsocketSetup{
+			Enabled:                          exch.Features.Enabled.Websocket,
+			Verbose:                          exch.Verbose,
+			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+			DefaultURL:                       lakeBTCWSURL,
+			ExchangeName:                     exch.Name,
+			RunningURL:                       exch.API.Endpoints.WebsocketURL,
+			Connector:                        l.WsConnect,
+			Subscriber:                       l.Subscribe,
+			Features:                         &l.Features.Supports.WebsocketCapabilities,
+		})
+	if err != nil {
+		return err
+	}
+
+	l.Websocket.Orderbook.Setup(
+		exch.WebsocketOrderbookBufferLimit,
+		false,
+		false,
+		false,
+		false,
+		exch.Name)
+	return nil
+}
 
 // Start starts the LakeBTC go routine
 func (l *LakeBTC) Start(wg *sync.WaitGroup) {
@@ -29,65 +166,88 @@ func (l *LakeBTC) Start(wg *sync.WaitGroup) {
 // Run implements the LakeBTC wrapper
 func (l *LakeBTC) Run() {
 	if l.Verbose {
-		log.Debugf("%s polling delay: %ds.\n", l.GetName(), l.RESTPollingDelay)
-		log.Debugf("%s %d currencies enabled: %s.\n", l.GetName(), len(l.EnabledPairs), l.EnabledPairs)
+		l.PrintEnabledPairs()
 	}
 
-	exchangeProducts, err := l.GetTradablePairs()
-	if err != nil {
-		log.Errorf("%s Failed to get available products.\n", l.GetName())
-	} else {
-		var newExchangeProducts currency.Pairs
-		for _, p := range exchangeProducts {
-			newExchangeProducts = append(newExchangeProducts,
-				currency.NewPairFromString(p))
-		}
+	if !l.GetEnabledFeatures().AutoPairUpdates {
+		return
+	}
 
-		err = l.UpdateCurrencies(newExchangeProducts, false, false)
-		if err != nil {
-			log.Errorf("%s Failed to update available currencies.\n", l.GetName())
-		}
+	err := l.UpdateTradablePairs(false)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", l.Name, err)
 	}
 }
 
+// FetchTradablePairs returns a list of the exchanges tradable pairs
+func (l *LakeBTC) FetchTradablePairs(asset asset.Item) ([]string, error) {
+	result, err := l.GetTicker()
+	if err != nil {
+		return nil, err
+	}
+
+	var currencies []string
+	for x := range result {
+		currencies = append(currencies, strings.ToUpper(x))
+	}
+
+	return currencies, nil
+}
+
+// UpdateTradablePairs updates the exchanges available pairs and stores
+// them in the exchanges config
+func (l *LakeBTC) UpdateTradablePairs(forceUpdate bool) error {
+	pairs, err := l.FetchTradablePairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+
+	return l.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
-func (l *LakeBTC) UpdateTicker(p currency.Pair, assetType string) (ticker.Price, error) {
-	tick, err := l.GetTicker()
+func (l *LakeBTC) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+	ticks, err := l.GetTicker()
 	if err != nil {
 		return ticker.Price{}, err
 	}
 
-	for _, x := range l.GetEnabledCurrencies() {
-		currency := exchange.FormatExchangeCurrency(l.Name, x).String()
-		var tickerPrice ticker.Price
-		tickerPrice.Pair = x
-		tickerPrice.Ask = tick[currency].Ask
-		tickerPrice.Bid = tick[currency].Bid
-		tickerPrice.Volume = tick[currency].Volume
-		tickerPrice.High = tick[currency].High
-		tickerPrice.Low = tick[currency].Low
-		tickerPrice.Last = tick[currency].Last
+	pairs := l.GetEnabledPairs(assetType)
+	for i := range pairs {
+		c, ok := ticks[l.FormatExchangeCurrency(pairs[i], assetType).String()]
+		if !ok {
+			continue
+		}
 
-		err = ticker.ProcessTicker(l.GetName(), &tickerPrice, assetType)
+		var tickerPrice ticker.Price
+		tickerPrice.Pair = pairs[i]
+		tickerPrice.Ask = c.Ask
+		tickerPrice.Bid = c.Bid
+		tickerPrice.Volume = c.Volume
+		tickerPrice.High = c.High
+		tickerPrice.Low = c.Low
+		tickerPrice.Last = c.Last
+
+		err = ticker.ProcessTicker(l.Name, &tickerPrice, assetType)
 		if err != nil {
-			return tickerPrice, err
+			log.Error(log.Ticker, err)
 		}
 	}
 	return ticker.GetTicker(l.Name, p, assetType)
 }
 
-// GetTickerPrice returns the ticker for a currency pair
-func (l *LakeBTC) GetTickerPrice(p currency.Pair, assetType string) (ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(l.GetName(), p, assetType)
+// FetchTicker returns the ticker for a currency pair
+func (l *LakeBTC) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+	tickerNew, err := ticker.GetTicker(l.Name, p, assetType)
 	if err != nil {
 		return l.UpdateTicker(p, assetType)
 	}
 	return tickerNew, nil
 }
 
-// GetOrderbookEx returns orderbook base on the currency pair
-func (l *LakeBTC) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.Base, error) {
-	ob, err := orderbook.Get(l.GetName(), p, assetType)
+// FetchOrderbook returns orderbook base on the currency pair
+func (l *LakeBTC) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
+	ob, err := orderbook.Get(l.Name, p, assetType)
 	if err != nil {
 		return l.UpdateOrderbook(p, assetType)
 	}
@@ -95,7 +255,7 @@ func (l *LakeBTC) GetOrderbookEx(p currency.Pair, assetType string) (orderbook.B
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.Base, error) {
+func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
 	var orderBook orderbook.Base
 	orderbookNew, err := l.GetOrderBook(p.String())
 	if err != nil {
@@ -111,7 +271,7 @@ func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.
 	}
 
 	orderBook.Pair = p
-	orderBook.ExchangeName = l.GetName()
+	orderBook.ExchangeName = l.Name
 	orderBook.AssetType = assetType
 
 	err = orderBook.Process()
@@ -126,7 +286,7 @@ func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType string) (orderbook.
 // LakeBTC exchange
 func (l *LakeBTC) GetAccountInfo() (exchange.AccountInfo, error) {
 	var response exchange.AccountInfo
-	response.Exchange = l.GetName()
+	response.Exchange = l.Name
 	accountInfo, err := l.GetAccountInformation()
 	if err != nil {
 		return response, err
@@ -156,42 +316,46 @@ func (l *LakeBTC) GetAccountInfo() (exchange.AccountInfo, error) {
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (l *LakeBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
-	var fundHistory []exchange.FundHistory
-	return fundHistory, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (l *LakeBTC) GetExchangeHistory(p currency.Pair, assetType string) ([]exchange.TradeHistory, error) {
-	var resp []exchange.TradeHistory
-
-	return resp, common.ErrNotYetImplemented
+func (l *LakeBTC) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
-func (l *LakeBTC) SubmitOrder(p currency.Pair, side exchange.OrderSide, _ exchange.OrderType, amount, price float64, _ string) (exchange.SubmitOrderResponse, error) {
-	var submitOrderResponse exchange.SubmitOrderResponse
-	isBuyOrder := side == exchange.BuyOrderSide
-	response, err := l.Trade(isBuyOrder, amount, price, p.Lower().String())
+func (l *LakeBTC) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	var submitOrderResponse order.SubmitResponse
+	if err := s.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
 
+	isBuyOrder := s.OrderSide == order.Buy
+	response, err := l.Trade(isBuyOrder, s.Amount, s.Price,
+		s.Pair.Lower().String())
+	if err != nil {
+		return submitOrderResponse, err
+	}
 	if response.ID > 0 {
-		submitOrderResponse.OrderID = fmt.Sprintf("%v", response.ID)
+		submitOrderResponse.OrderID = strconv.FormatInt(response.ID, 10)
 	}
 
-	if err == nil {
-		submitOrderResponse.IsOrderPlaced = true
+	submitOrderResponse.IsOrderPlaced = true
+	if s.OrderType == order.Market {
+		submitOrderResponse.FullyMatched = true
 	}
-
-	return submitOrderResponse, err
+	return submitOrderResponse, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
-func (l *LakeBTC) ModifyOrder(action *exchange.ModifyOrder) (string, error) {
+func (l *LakeBTC) ModifyOrder(action *order.Modify) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (l *LakeBTC) CancelOrder(order *exchange.OrderCancellation) error {
+func (l *LakeBTC) CancelOrder(order *order.Cancel) error {
 	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
 
 	if err != nil {
@@ -202,24 +366,24 @@ func (l *LakeBTC) CancelOrder(order *exchange.OrderCancellation) error {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (l *LakeBTC) CancelAllOrders(_ *exchange.OrderCancellation) (exchange.CancelAllOrdersResponse, error) {
-	var cancelAllOrdersResponse exchange.CancelAllOrdersResponse
+func (l *LakeBTC) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
+	var cancelAllOrdersResponse order.CancelAllResponse
 	openOrders, err := l.GetOpenOrders()
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
 
 	var ordersToCancel []string
-	for _, order := range openOrders {
-		ordersToCancel = append(ordersToCancel, strconv.FormatInt(order.ID, 10))
+	for i := range openOrders {
+		ordersToCancel = append(ordersToCancel, strconv.FormatInt(openOrders[i].ID, 10))
 	}
 
 	return cancelAllOrdersResponse, l.CancelExistingOrders(ordersToCancel)
 }
 
 // GetOrderInfo returns information on a current open order
-func (l *LakeBTC) GetOrderInfo(orderID string) (exchange.OrderDetail, error) {
-	var orderDetail exchange.OrderDetail
+func (l *LakeBTC) GetOrderInfo(orderID string) (order.Detail, error) {
+	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
 
@@ -240,7 +404,7 @@ func (l *LakeBTC) GetDepositAddress(cryptocurrency currency.Code, _ string) (str
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (l *LakeBTC) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+func (l *LakeBTC) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithdrawRequest) (string, error) {
 	if withdrawRequest.Currency != currency.BTC {
 		return "", errors.New("only BTC supported for withdrawals")
 	}
@@ -250,18 +414,18 @@ func (l *LakeBTC) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.Withdraw
 		return "", err
 	}
 
-	return fmt.Sprintf("%v", resp.ID), nil
+	return strconv.FormatInt(resp.ID, 10), nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (l *LakeBTC) WithdrawFiatFunds(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+func (l *LakeBTC) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (l *LakeBTC) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.WithdrawRequest) (string, error) {
+func (l *LakeBTC) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
@@ -272,7 +436,7 @@ func (l *LakeBTC) GetWebsocket() (*wshandler.Websocket, error) {
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (l *LakeBTC) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	if (l.APIKey == "" || l.APISecret == "") && // Todo check connection status
+	if !l.AllowAuthenticatedRequest() && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
@@ -280,22 +444,23 @@ func (l *LakeBTC) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 }
 
 // GetActiveOrders retrieves any orders that are active/open
-func (l *LakeBTC) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (l *LakeBTC) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := l.GetOpenOrders()
 	if err != nil {
 		return nil, err
 	}
 
-	var orders []exchange.OrderDetail
-	for _, order := range resp {
-		symbol := currency.NewPairDelimiter(order.Symbol, l.ConfigCurrencyPairFormat.Delimiter)
-		orderDate := time.Unix(order.At, 0)
-		side := exchange.OrderSide(strings.ToUpper(order.Type))
+	var orders []order.Detail
+	for i := range resp {
+		symbol := currency.NewPairDelimiter(resp[i].Symbol,
+			l.GetPairFormat(asset.Spot, false).Delimiter)
+		orderDate := time.Unix(resp[i].At, 0)
+		side := order.Side(strings.ToUpper(resp[i].Type))
 
-		orders = append(orders, exchange.OrderDetail{
-			Amount:       order.Amount,
-			ID:           fmt.Sprintf("%v", order.ID),
-			Price:        order.Price,
+		orders = append(orders, order.Detail{
+			Amount:       resp[i].Amount,
+			ID:           strconv.FormatInt(resp[i].ID, 10),
+			Price:        resp[i].Price,
 			OrderSide:    side,
 			OrderDate:    orderDate,
 			CurrencyPair: symbol,
@@ -303,36 +468,36 @@ func (l *LakeBTC) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) (
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (l *LakeBTC) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
+func (l *LakeBTC) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := l.GetOrders([]int64{})
 	if err != nil {
 		return nil, err
 	}
 
-	var orders []exchange.OrderDetail
-	for _, order := range resp {
-		if order.State == "active" {
+	var orders []order.Detail
+	for i := range resp {
+		if resp[i].State == "active" {
 			continue
 		}
 
-		symbol := currency.NewPairDelimiter(order.Symbol,
-			l.ConfigCurrencyPairFormat.Delimiter)
-		orderDate := time.Unix(order.At, 0)
-		side := exchange.OrderSide(strings.ToUpper(order.Type))
+		symbol := currency.NewPairDelimiter(resp[i].Symbol,
+			l.GetPairFormat(asset.Spot, false).Delimiter)
+		orderDate := time.Unix(resp[i].At, 0)
+		side := order.Side(strings.ToUpper(resp[i].Type))
 
-		orders = append(orders, exchange.OrderDetail{
-			Amount:       order.Amount,
-			ID:           fmt.Sprintf("%v", order.ID),
-			Price:        order.Price,
+		orders = append(orders, order.Detail{
+			Amount:       resp[i].Amount,
+			ID:           strconv.FormatInt(resp[i].ID, 10),
+			Price:        resp[i].Price,
 			OrderSide:    side,
 			OrderDate:    orderDate,
 			CurrencyPair: symbol,
@@ -340,10 +505,9 @@ func (l *LakeBTC) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) (
 		})
 	}
 
-	exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
-	exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 
 	return orders, nil
 }

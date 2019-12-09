@@ -2,15 +2,25 @@ package okgroup
 
 import (
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+)
+
+// Order types
+const (
+	NormalOrder = iota
+	PostOnlyOrder
+	FillOrKillOrder
+	ImmediateOrCancelOrder
 )
 
 // GetAccountCurrenciesResponse response data for GetAccountCurrencies
 type GetAccountCurrenciesResponse struct {
-	CanDeposit    int64   `json:"can_deposit"`
-	CanWithdraw   int64   `json:"can_withdraw"`
-	Currency      string  `json:"currency"`
-	MinWithdrawal float64 `json:"min_withdrawal"`
 	Name          string  `json:"name"`
+	Currency      string  `json:"currency"`
+	CanDeposit    int     `json:"can_deposit,string"`
+	CanWithdraw   int     `json:"can_withdraw,string"`
+	MinWithdrawal float64 `json:"min_withdrawal,string"`
 }
 
 // WalletInformationResponse response data for WalletInformation
@@ -62,22 +72,22 @@ type AccountWithdrawResponse struct {
 // GetAccountWithdrawalFeeResponse response data for GetAccountWithdrawalFee
 type GetAccountWithdrawalFeeResponse struct {
 	Currency string  `json:"currency"`
-	MinFee   float64 `json:"min_fee"`
-	MaxFee   float64 `json:"max_fee"`
+	MinFee   float64 `json:"min_fee,string"`
+	MaxFee   float64 `json:"max_fee,string"`
 }
 
 // WithdrawalHistoryResponse response data for WithdrawalHistoryResponse
 type WithdrawalHistoryResponse struct {
-	Amount    float64   `json:"amount"`
-	Currency  string    `json:"currency"`
-	Fee       string    `json:"fee"`
-	From      string    `json:"from"`
-	Status    int64     `json:"status"`
-	Timestamp time.Time `json:"timestamp"`
-	To        string    `json:"to"`
-	Txid      string    `json:"txid"`
-	PaymentID string    `json:"payment_id"`
-	Tag       string    `json:"tag"`
+	Amount        float64   `json:"amount,string"`
+	Currency      string    `json:"currency"`
+	Fee           string    `json:"fee"`
+	From          string    `json:"from"`
+	Status        int64     `json:"status,string"`
+	Timestamp     time.Time `json:"timestamp"`
+	To            string    `json:"to"`
+	TransactionID string    `json:"txid"`
+	PaymentID     string    `json:"payment_id"`
+	Tag           string    `json:"tag"`
 }
 
 // GetAccountBillDetailsRequest request data for GetAccountBillDetailsRequest
@@ -110,11 +120,12 @@ type GetDepositAddressResponse struct {
 
 // GetAccountDepositHistoryResponse response data for GetAccountDepositHistory
 type GetAccountDepositHistoryResponse struct {
-	Amount        float64   `json:"amount"`
+	Amount        float64   `json:"amount,string"`
 	Currency      string    `json:"currency"`
-	Status        int64     `json:"status"`
-	Timestamp     time.Time `json:"timestamp"`
+	From          string    `json:"from"`
 	To            string    `json:"to"`
+	Timestamp     time.Time `json:"timestamp"`
+	Status        int64     `json:"status,string"`
 	TransactionID string    `json:"txid"`
 }
 
@@ -154,20 +165,21 @@ type SpotBillDetails struct {
 	InstrumentID string `json:"instrument_id"`
 }
 
-// PlaceSpotOrderRequest request data for PlaceSpotOrder
-type PlaceSpotOrderRequest struct {
+// PlaceOrderRequest request data for placing an order
+type PlaceOrderRequest struct {
 	ClientOID     string `json:"client_oid,omitempty"` // the order ID customized by yourself
 	Type          string `json:"type"`                 // limit / market(default: limit)
 	Side          string `json:"side"`                 // buy or sell
 	InstrumentID  string `json:"instrument_id"`        // trading pair
-	MarginTrading string `json:"margin_trading"`       // order type (The request value is 1)
+	MarginTrading string `json:"margin_trading"`       // margin trading
+	OrderType     string `json:"order_type"`           // order type (0: Normal order (Unfilled and 0 imply normal limit order) 1: Post only 2: Fill or Kill 3: Immediate Or Cancel
 	Size          string `json:"size"`
 	Notional      string `json:"notional,omitempty"` //
 	Price         string `json:"price,omitempty"`    // price (Limit order only)
 }
 
-// PlaceSpotOrderResponse response data for PlaceSpotOrder
-type PlaceSpotOrderResponse struct {
+// PlaceOrderResponse response data for PlaceSpotOrder
+type PlaceOrderResponse struct {
 	ClientOid string `json:"client_oid"`
 	OrderID   string `json:"order_id"`
 	Result    bool   `json:"result"`
@@ -272,15 +284,15 @@ type GetSpotTokenPairDetailsResponse struct {
 	TickSize      string `json:"tick_size"`
 }
 
-// GetSpotOrderBookRequest request data for GetSpotOrderBook
-type GetSpotOrderBookRequest struct {
+// GetOrderBookRequest request data for GetOrderBook
+type GetOrderBookRequest struct {
 	Size         int64   `url:"size,string,omitempty"`  // [optional] number of results per request. Maximum 200
 	Depth        float64 `url:"depth,string,omitempty"` // [optional] the aggregation of the book. e.g . 0.1,0.001
 	InstrumentID string  `url:"-"`                      // [required] trading pairs
 }
 
-// GetSpotOrderBookResponse response data for GetSpotOrderBook
-type GetSpotOrderBookResponse struct {
+// GetOrderBookResponse response data
+type GetOrderBookResponse struct {
 	Timestamp time.Time  `json:"timestamp"`
 	Asks      [][]string `json:"asks"` // [[0]: "Price", [1]: "Size", [2]: "Num_orders"], ...
 	Bids      [][]string `json:"bids"` // [[0]: "Price", [1]: "Size", [2]: "Num_orders"], ...
@@ -288,16 +300,16 @@ type GetSpotOrderBookResponse struct {
 
 // GetSpotTokenPairsInformationResponse response data for GetSpotTokenPairsInformation
 type GetSpotTokenPairsInformationResponse struct {
-	BaseVolume24h  float64   `json:"base_volume_24h,string"`  // 24 trading volume of the base currency
-	BestAsk        float64   `json:"best_ask,string"`         // best ask price
-	BestBid        float64   `json:"best_bid,string"`         // best bid price
-	High24h        float64   `json:"high_24h,string"`         // 24 hour high
-	InstrumentID   string    `json:"instrument_id"`           // trading pair
-	Last           float64   `json:"last,string"`             // last traded price
-	Low24h         float64   `json:"low_24h,string"`          // 24 hour low
-	Open24h        float64   `json:"open_24h,string"`         // 24 hour open
-	QuoteVolume24h float64   `json:"quote_volume_24h,string"` // 24 trading volume of the quote currency
-	Timestamp      time.Time `json:"timestamp"`
+	BaseVolume24h  float64       `json:"base_volume_24h,string"`  // 24 trading volume of the base currency
+	BestAsk        float64       `json:"best_ask,string"`         // best ask price
+	BestBid        float64       `json:"best_bid,string"`         // best bid price
+	High24h        float64       `json:"high_24h,string"`         // 24 hour high
+	InstrumentID   currency.Pair `json:"instrument_id"`           // trading pair
+	Last           float64       `json:"last,string"`             // last traded price
+	Low24h         float64       `json:"low_24h,string"`          // 24 hour low
+	Open24h        float64       `json:"open_24h,string"`         // 24 hour open
+	QuoteVolume24h float64       `json:"quote_volume_24h,string"` // 24 trading volume of the quote currency
+	Timestamp      time.Time     `json:"timestamp"`
 }
 
 // GetSpotFilledOrdersInformationRequest request data for GetSpotFilledOrdersInformation
@@ -682,27 +694,6 @@ type GetFuturesContractInformationResponse struct {
 	UnderlyingIndex       string  `json:"underlying_index"`
 }
 
-// GetFuturesOrderBookRequest request data for GetFuturesOrderBook
-type GetFuturesOrderBookRequest struct {
-	InstrumentID string `url:"-"`              // [required] Contract ID, e.g. "BTC-USD-180213"
-	Size         int64  `url:"size,omitempty"` // [optional] The size of the price range (max: 200)
-}
-
-// FuturesOrderbookItem stores an individual futures orderbook item
-type FuturesOrderbookItem struct {
-	Price                 float64
-	Size                  int64
-	ForceLiquidatedOrders int64 // Number of force liquidated orders
-	NumberOrders          int64 // Number of orders on the price
-}
-
-// GetFuturesOrderBookResponse response data for GetFuturesOrderBook
-type GetFuturesOrderBookResponse struct {
-	Asks      []FuturesOrderbookItem
-	Bids      []FuturesOrderbookItem
-	Timestamp time.Time
-}
-
 // GetFuturesTokenInfoResponse response data for GetFuturesOrderBook
 type GetFuturesTokenInfoResponse struct {
 	BestAsk      float64   `json:"best_ask,string"`
@@ -712,7 +703,7 @@ type GetFuturesTokenInfoResponse struct {
 	Last         float64   `json:"last,string"`
 	Low24h       float64   `json:"low_24h,string"`
 	Timestamp    time.Time `json:"timestamp"`
-	Volume24h    int64     `json:"volume_24h,string"`
+	Volume24h    float64   `json:"volume_24h,string"`
 }
 
 // GetFuturesFilledOrderRequest request data for GetFuturesFilledOrder
@@ -1346,12 +1337,14 @@ type WebsocketDataWrapper struct {
 
 // WebsocketTickerData contains formatted data for ticker related websocket responses
 type WebsocketTickerData struct {
-	High24H   float64 `json:"high_24h,string,omitempty"`
-	Last      float64 `json:"last,string,omitempty"`
-	BestBid   float64 `json:"best_bid,string,omitempty"`
-	BestAsk   float64 `json:"best_ask,string,omitempty"`
-	Low24H    float64 `json:"low_24h,string,omitempty"`
-	Volume24H float64 `json:"volume_24h,string,omitempty"`
+	BaseVolume24h  float64 `json:"base_volume_24h,string,omitempty"`
+	BestAsk        float64 `json:"best_ask,string,omitempty"`
+	BestBid        float64 `json:"best_bid,string,omitempty"`
+	High24h        float64 `json:"high_24h,string,omitempty"`
+	Last           float64 `json:"last,string,omitempty"`
+	Low24h         float64 `json:"low_24h,string,omitempty"`
+	Open24h        float64 `json:"open_24h,string,omitempty"`
+	QuoteVolume24h float64 `json:"quote_volume_24h,string,omitempty"`
 }
 
 // WebsocketTradeResponse contains formatted data for trade related websocket responses
@@ -1514,7 +1507,7 @@ type WebsocketSpotOrderResponse struct {
 	Notional       float64 `json:"notional,string"`
 	Size           float64 `json:"size,string"`
 	Status         string  `json:"status"`
-	MarginTrading  int64   `json:"margin_trading"`
+	MarginTrading  int64   `json:"margin_trading,omitempty"`
 	Type           string  `json:"type"`
 	// Price        A member, but part already exists as part of WebsocketDataResponse
 	// InstrumentID A member, but part already exists as part of WebsocketDataResponse

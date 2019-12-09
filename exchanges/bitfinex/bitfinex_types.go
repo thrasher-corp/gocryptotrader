@@ -1,5 +1,7 @@
 package bitfinex
 
+import "time"
+
 // Ticker holds basic ticker information from the exchange
 type Ticker struct {
 	Mid       float64 `json:"mid,string"`
@@ -28,6 +30,7 @@ type Tickerv2 struct {
 	Volume          float64
 	High            float64
 	Low             float64
+	Timestamp       time.Time
 }
 
 // Tickersv2 holds the version 2 tickers information
@@ -382,7 +385,7 @@ type WebsocketChanInfo struct {
 // WebsocketBook holds booking information
 type WebsocketBook struct {
 	Price  float64
-	Count  int
+	ID     int
 	Amount float64
 }
 
@@ -392,6 +395,16 @@ type WebsocketTrade struct {
 	Timestamp int64
 	Price     float64
 	Amount    float64
+}
+
+// WebsocketCandle candle data
+type WebsocketCandle struct {
+	Timestamp int64
+	Open      float64
+	Close     float64
+	High      float64
+	Low       float64
+	Volume    float64
 }
 
 // WebsocketTicker holds ticker information
@@ -413,7 +426,11 @@ type WebsocketPosition struct {
 	Amount            float64
 	Price             float64
 	MarginFunding     float64
-	MarginFundingType int
+	MarginFundingType int64
+	ProfitLoss        float64
+	ProfitLossPercent float64
+	LiquidationPrice  float64
+	Leverage          float64
 }
 
 // WebsocketWallet holds wallet information
@@ -456,6 +473,9 @@ type WebsocketTradeData struct {
 	OrderID        int64
 	AmountExecuted float64
 	PriceExecuted  float64
+	OrderType      string
+	OrderPrice     float64
+	Maker          bool
 	Fee            float64
 	FeeCurrency    string
 }
@@ -465,21 +485,215 @@ type ErrorCapture struct {
 	Message string `json:"message"`
 }
 
-// TimeInterval represents interval enum.
-type TimeInterval string
+// WebsocketHandshake defines the communication between the websocket API for
+// initial connection
+type WebsocketHandshake struct {
+	Event   string  `json:"event"`
+	Code    int64   `json:"code"`
+	Version float64 `json:"version"`
+}
 
-// TimeInvterval vars
-var (
-	TimeIntervalMinute         = TimeInterval("1m")
-	TimeIntervalFiveMinutes    = TimeInterval("5m")
-	TimeIntervalFifteenMinutes = TimeInterval("15m")
-	TimeIntervalThirtyMinutes  = TimeInterval("30m")
-	TimeIntervalHour           = TimeInterval("1h")
-	TimeIntervalThreeHours     = TimeInterval("3h")
-	TimeIntervalSixHours       = TimeInterval("6h")
-	TimeIntervalTwelveHours    = TimeInterval("12h")
-	TimeIntervalDay            = TimeInterval("1d")
-	TimeIntervalSevenDays      = TimeInterval("7d")
-	TimeIntervalFourteenDays   = TimeInterval("14d")
-	TimeIntervalMonth          = TimeInterval("1M")
+const (
+	authenticatedBitfinexWebsocketEndpoint = "wss://api.bitfinex.com/ws/2"
+	publicBitfinexWebsocketEndpoint        = "wss://api-pub.bitfinex.com/ws/2"
+	pong                                   = "pong"
+	wsHeartbeat                            = "hb"
+	wsPositionSnapshot                     = "ps"
+	wsPositionNew                          = "pn"
+	wsPositionUpdate                       = "pu"
+	wsPositionClose                        = "pc"
+	wsWalletSnapshot                       = "ws"
+	wsWalletUpdate                         = "wu"
+	wsTradeExecutionUpdate                 = "tu"
+	wsTradeExecuted                        = "te"
+	wsFundingCreditSnapshot                = "fcs"
+	wsFundingCreditNew                     = "fcn"
+	wsFundingCreditUpdate                  = "fcu"
+	wsFundingCreditCancel                  = "fcc"
+	wsFundingLoanSnapshot                  = "fls"
+	wsFundingLoanNew                       = "fln"
+	wsFundingLoanUpdate                    = "flu"
+	wsFundingLoanCancel                    = "flc"
+	wsFundingTradeExecuted                 = "fte"
+	wsFundingTradeUpdate                   = "ftu"
+	wsFundingInfoUpdate                    = "fiu"
+	wsBalanceUpdate                        = "bu"
+	wsMarginInfoUpdate                     = "miu"
+	wsNotification                         = "n"
+	wsOrderNew                             = "on"
+	wsOrderUpdate                          = "ou"
+	wsOrderCancel                          = "oc"
+	wsFundingOrderSnapshot                 = "fos"
+	wsFundingOrderNew                      = "fon"
+	wsFundingOrderUpdate                   = "fou"
+	wsFundingOrderCancel                   = "foc"
+	wsCancelMultipleOrders                 = "oc_multi"
+	wsBook                                 = "book"
+	wsCandles                              = "candles"
+	wsTicker                               = "ticker"
+	wsTrades                               = "trades"
+	wsError                                = "error"
 )
+
+// WsAuthRequest container for WS auth request
+type WsAuthRequest struct {
+	Event         string `json:"event"`
+	APIKey        string `json:"apiKey"`
+	AuthPayload   string `json:"authPayload"`
+	AuthSig       string `json:"authSig"`
+	AuthNonce     string `json:"authNonce"`
+	DeadManSwitch int64  `json:"dms,omitempty"`
+}
+
+// WsFundingOffer funding offer received via websocket
+type WsFundingOffer struct {
+	ID         int64
+	Symbol     string
+	Created    int64
+	Updated    int64
+	Amount     float64
+	AmountOrig float64
+	Type       string
+	Flags      interface{}
+	Status     string
+	Rate       float64
+	Period     int64
+	Notify     bool
+	Hidden     bool
+	Insure     bool
+	Renew      bool
+	RateReal   float64
+}
+
+// WsCredit credit details received via websocket
+type WsCredit struct {
+	ID           int64
+	Symbol       string
+	Side         string
+	Created      int64
+	Updated      int64
+	Amount       float64
+	Flags        interface{}
+	Status       string
+	Rate         float64
+	Period       int64
+	Opened       int64
+	LastPayout   int64
+	Notify       bool
+	Hidden       bool
+	Insure       bool
+	Renew        bool
+	RateReal     float64
+	NoClose      bool
+	PositionPair string
+}
+
+// WsWallet wallet update details received via websocket
+type WsWallet struct {
+	Type              string
+	Currency          string
+	Balance           float64
+	UnsettledInterest float64
+	BalanceAvailable  float64
+}
+
+// WsBalanceInfo the total and net assets in your account received via websocket
+type WsBalanceInfo struct {
+	TotalAssetsUnderManagement float64
+	NetAssetsUnderManagement   float64
+}
+
+// WsFundingInfo account funding info received via websocket
+type WsFundingInfo struct {
+	Symbol       string
+	YieldLoan    float64
+	YieldLend    float64
+	DurationLoan float64
+	DurationLend float64
+}
+
+// WsMarginInfoBase account margin info received via websocket
+type WsMarginInfoBase struct {
+	UserProfitLoss float64
+	UserSwaps      float64
+	MarginBalance  float64
+	MarginNet      float64
+}
+
+// WsFundingTrade recent funding trades received via websocket
+type WsFundingTrade struct {
+	ID         int64
+	Symbol     string
+	MTSCreated int64
+	OfferID    int64
+	Amount     float64
+	Rate       float64
+	Period     int64
+	Maker      bool
+}
+
+// WsNewOrderRequest new order request...
+type WsNewOrderRequest struct {
+	GroupID             int64   `json:"gid,omitempty"`
+	CustomID            int64   `json:"cid,omitempty"`
+	Type                string  `json:"type"`
+	Symbol              string  `json:"symbol"`
+	Amount              float64 `json:"amount,string"`
+	Price               float64 `json:"price,string"`
+	Leverage            int64   `json:"lev,omitempty"`
+	TrailingPrice       float64 `json:"price_trailing,string,omitempty"`
+	AuxiliaryLimitPrice float64 `json:"price_aux_limit,string,omitempty"`
+	StopPrice           float64 `json:"price_oco_stop,string,omitempty"`
+	Flags               int64   `json:"flags,omitempty"`
+	TimeInForce         string  `json:"tif,omitempty"`
+}
+
+// WsUpdateOrderRequest update order request...
+type WsUpdateOrderRequest struct {
+	OrderID             int64   `json:"id,omitempty"`
+	CustomID            int64   `json:"cid,omitempty"`
+	CustomIDDate        string  `json:"cid_date,omitempty"`
+	GroupID             int64   `json:"gid,omitempty"`
+	Price               float64 `json:"price,string,omitempty"`
+	Amount              float64 `json:"amount,string,omitempty"`
+	Leverage            int64   `json:"lev,omitempty"`
+	Delta               float64 `json:"delta,string,omitempty"`
+	AuxiliaryLimitPrice float64 `json:"price_aux_limit,string,omitempty"`
+	TrailingPrice       float64 `json:"price_trailing,string,omitempty"`
+	Flags               int64   `json:"flags,omitempty"`
+	TimeInForce         string  `json:"tif,omitempty"`
+}
+
+// WsCancelOrderRequest cancel order request...
+type WsCancelOrderRequest struct {
+	OrderID      int64  `json:"id,omitempty"`
+	CustomID     int64  `json:"cid,omitempty"`
+	CustomIDDate string `json:"cid_date,omitempty"`
+}
+
+// WsCancelGroupOrdersRequest cancel orders request...
+type WsCancelGroupOrdersRequest struct {
+	OrderID      []int64   `json:"id,omitempty"`
+	CustomID     [][]int64 `json:"cid,omitempty"`
+	GroupOrderID []int64   `json:"gid,omitempty"`
+}
+
+// WsNewOfferRequest new offer request
+type WsNewOfferRequest struct {
+	Type   string  `json:"type,omitempty"`
+	Symbol string  `json:"symbol,omitempty"`
+	Amount float64 `json:"amount,string,omitempty"`
+	Rate   float64 `json:"rate,string,omitempty"`
+	Period float64 `json:"period,omitempty"`
+	Flags  int64   `json:"flags,omitempty"`
+}
+
+// WsCancelOfferRequest cancel offer request
+type WsCancelOfferRequest struct {
+	OrderID int64 `json:"id"`
+}
+
+// WsCancelAllOrdersRequest cancel all orders request
+type WsCancelAllOrdersRequest struct {
+	All int64 `json:"all"`
+}

@@ -1,13 +1,15 @@
 package bittrex
 
 import (
+	"log"
+	"os"
 	"testing"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // Please supply you own test keys here to run better tests.
@@ -19,39 +21,39 @@ const (
 
 var b Bittrex
 
-func TestSetDefaults(t *testing.T) {
+func TestMain(m *testing.M) {
 	b.SetDefaults()
-	if b.GetName() != "Bittrex" {
-		t.Error("Test Failed - Bittrex - SetDefaults() error")
-	}
-}
-
-func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		log.Fatal("Bittrex load config error", err)
+	}
 	bConfig, err := cfg.GetExchangeConfig("Bittrex")
 	if err != nil {
-		t.Error("Test Failed - Bittrex Setup() init error")
+		log.Fatal("Bittrex Setup() init error")
 	}
-	bConfig.APIKey = apiKey
-	bConfig.APISecret = apiSecret
-	bConfig.AuthenticatedAPISupport = true
+	bConfig.API.Credentials.Key = apiKey
+	bConfig.API.Credentials.Secret = apiSecret
+	bConfig.API.AuthenticatedSupport = true
 
-	b.Setup(&bConfig)
-
-	if !b.IsEnabled() ||
-		b.RESTPollingDelay != time.Duration(10) || b.Verbose ||
-		b.Websocket.IsEnabled() || len(b.BaseCurrencies) < 1 ||
-		len(b.AvailablePairs) < 1 || len(b.EnabledPairs) < 1 {
-		t.Error("Test Failed - Bittrex Setup values not set correctly")
+	err = b.Setup(bConfig)
+	if err != nil {
+		log.Fatal("Bittrex setup error", err)
 	}
+
+	if !b.IsEnabled() || !b.API.AuthenticatedSupport ||
+		b.Verbose || len(b.BaseCurrencies) < 1 {
+		log.Fatal("Bittrex Setup values not set correctly")
+	}
+
+	os.Exit(m.Run())
 }
 
 func TestGetMarkets(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetMarkets()
 	if err != nil {
-		t.Errorf("Test Failed - Bittrex - GetMarkets() error: %s", err)
+		t.Errorf("Bittrex - GetMarkets() error: %s", err)
 	}
 }
 
@@ -59,7 +61,7 @@ func TestGetCurrencies(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetCurrencies()
 	if err != nil {
-		t.Errorf("Test Failed - Bittrex - GetCurrencies() error: %s", err)
+		t.Errorf("Bittrex - GetCurrencies() error: %s", err)
 	}
 }
 
@@ -69,7 +71,7 @@ func TestGetTicker(t *testing.T) {
 
 	_, err := b.GetTicker(btc)
 	if err != nil {
-		t.Errorf("Test Failed - Bittrex - GetTicker() error: %s", err)
+		t.Errorf("Bittrex - GetTicker() error: %s", err)
 	}
 }
 
@@ -77,7 +79,7 @@ func TestGetMarketSummaries(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetMarketSummaries()
 	if err != nil {
-		t.Errorf("Test Failed - Bittrex - GetMarketSummaries() error: %s", err)
+		t.Errorf("Bittrex - GetMarketSummaries() error: %s", err)
 	}
 }
 
@@ -87,7 +89,7 @@ func TestGetMarketSummary(t *testing.T) {
 
 	_, err := b.GetMarketSummary(pairOne)
 	if err != nil {
-		t.Errorf("Test Failed - Bittrex - GetMarketSummary() error: %s", err)
+		t.Errorf("Bittrex - GetMarketSummary() error: %s", err)
 	}
 }
 
@@ -96,7 +98,7 @@ func TestGetOrderbook(t *testing.T) {
 
 	_, err := b.GetOrderbook("btc-ltc")
 	if err != nil {
-		t.Errorf("Test Failed - Bittrex - GetOrderbook() error: %s", err)
+		t.Errorf("Bittrex - GetOrderbook() error: %s", err)
 	}
 }
 
@@ -105,7 +107,7 @@ func TestGetMarketHistory(t *testing.T) {
 
 	_, err := b.GetMarketHistory("btc-ltc")
 	if err != nil {
-		t.Errorf("Test Failed - Bittrex - GetMarketHistory() error: %s", err)
+		t.Errorf("Bittrex - GetMarketHistory() error: %s", err)
 	}
 }
 
@@ -114,7 +116,7 @@ func TestPlaceBuyLimit(t *testing.T) {
 
 	_, err := b.PlaceBuyLimit("btc-ltc", 1, 1)
 	if err == nil {
-		t.Error("Test Failed - Bittrex - PlaceBuyLimit() error")
+		t.Error("Bittrex - PlaceBuyLimit() Expected error")
 	}
 }
 
@@ -123,7 +125,7 @@ func TestPlaceSellLimit(t *testing.T) {
 
 	_, err := b.PlaceSellLimit("btc-ltc", 1, 1)
 	if err == nil {
-		t.Error("Test Failed - Bittrex - PlaceSellLimit() error")
+		t.Error("Bittrex - PlaceSellLimit() Expected error")
 	}
 }
 
@@ -132,11 +134,11 @@ func TestGetOpenOrders(t *testing.T) {
 
 	_, err := b.GetOpenOrders("")
 	if err == nil {
-		t.Error("Test Failed - Bittrex - GetOrder() error")
+		t.Error("Bittrex - GetOrder() Expected error")
 	}
 	_, err = b.GetOpenOrders("btc-ltc")
 	if err == nil {
-		t.Error("Test Failed - Bittrex - GetOrder() error")
+		t.Error("Bittrex - GetOrder() Expected error")
 	}
 }
 
@@ -145,7 +147,7 @@ func TestCancelExistingOrder(t *testing.T) {
 
 	_, err := b.CancelExistingOrder("blaaaaaaa")
 	if err == nil {
-		t.Error("Test Failed - Bittrex - CancelExistingOrder() error")
+		t.Error("Bittrex - CancelExistingOrder() Expected error")
 	}
 }
 
@@ -154,7 +156,7 @@ func TestGetAccountBalances(t *testing.T) {
 
 	_, err := b.GetAccountBalances()
 	if err == nil {
-		t.Error("Test Failed - Bittrex - GetAccountBalances() error")
+		t.Error("Bittrex - GetAccountBalances() Expected error")
 	}
 }
 
@@ -163,7 +165,7 @@ func TestGetAccountBalanceByCurrency(t *testing.T) {
 
 	_, err := b.GetAccountBalanceByCurrency("btc")
 	if err == nil {
-		t.Error("Test Failed - Bittrex - GetAccountBalanceByCurrency() error")
+		t.Error("Bittrex - GetAccountBalanceByCurrency() Expected error")
 	}
 }
 
@@ -172,11 +174,11 @@ func TestGetOrder(t *testing.T) {
 
 	_, err := b.GetOrder("0cb4c4e4-bdc7-4e13-8c13-430e587d2cc1")
 	if err == nil {
-		t.Error("Test Failed - Bittrex - GetOrder() error")
+		t.Error("Bittrex - GetOrder() Expected error")
 	}
 	_, err = b.GetOrder("")
 	if err == nil {
-		t.Error("Test Failed - Bittrex - GetOrder() error")
+		t.Error("Bittrex - GetOrder() Expected error")
 	}
 }
 
@@ -185,11 +187,11 @@ func TestGetOrderHistoryForCurrency(t *testing.T) {
 
 	_, err := b.GetOrderHistoryForCurrency("")
 	if err == nil {
-		t.Error("Test Failed - Bittrex - GetOrderHistory() error")
+		t.Error("Bittrex - GetOrderHistory() Expected error")
 	}
 	_, err = b.GetOrderHistoryForCurrency("btc-ltc")
 	if err == nil {
-		t.Error("Test Failed - Bittrex - GetOrderHistory() error")
+		t.Error("Bittrex - GetOrderHistory() Expected error")
 	}
 }
 
@@ -198,11 +200,11 @@ func TestGetwithdrawalHistory(t *testing.T) {
 
 	_, err := b.GetWithdrawalHistory("")
 	if err == nil {
-		t.Error("Test Failed - Bittrex - GetWithdrawalHistory() error")
+		t.Error("Bittrex - GetWithdrawalHistory() Expected error")
 	}
 	_, err = b.GetWithdrawalHistory("btc-ltc")
 	if err == nil {
-		t.Error("Test Failed - Bittrex - GetWithdrawalHistory() error")
+		t.Error("Bittrex - GetWithdrawalHistory() Expected error")
 	}
 }
 
@@ -211,11 +213,11 @@ func TestGetDepositHistory(t *testing.T) {
 
 	_, err := b.GetDepositHistory("")
 	if err == nil {
-		t.Error("Test Failed - Bittrex - GetDepositHistory() error")
+		t.Error("Bittrex - GetDepositHistory() Expected error")
 	}
 	_, err = b.GetDepositHistory("btc-ltc")
 	if err == nil {
-		t.Error("Test Failed - Bittrex - GetDepositHistory() error")
+		t.Error("Bittrex - GetDepositHistory() Expected error")
 	}
 }
 
@@ -232,7 +234,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
 	b.GetFeeByType(feeBuilder)
-	if apiKey == "" || apiSecret == "" {
+	if !areTestAPIKeysSet() {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
 		}
@@ -244,15 +246,11 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
-
 	var feeBuilder = setFeeBuilder()
-
 	// CryptocurrencyTradeFee Basic
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0.0025) || err != nil {
 		t.Error(err)
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.0025), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.0025), resp)
 	}
 
 	// CryptocurrencyTradeFee High quantity
@@ -260,7 +258,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.Amount = 1000
 	feeBuilder.PurchasePrice = 1000
 	if resp, err := b.GetFee(feeBuilder); resp != float64(2500) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(2500), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(2500), resp)
 		t.Error(err)
 	}
 
@@ -268,7 +266,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0.0025) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.0025), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.0025), resp)
 		t.Error(err)
 	}
 
@@ -276,7 +274,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.PurchasePrice = -1000
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -284,7 +282,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0.0005) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.0005), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.0005), resp)
 		t.Error(err)
 	}
 
@@ -292,7 +290,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CyptocurrencyDepositFee
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -301,7 +299,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
 	feeBuilder.FiatCurrency = currency.HKD
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -310,28 +308,22 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.HKD
 	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	b.SetDefaults()
 	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText + " & " + exchange.NoFiatWithdrawalsText
-
 	withdrawPermissions := b.FormatWithdrawPermissions()
-
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
 	}
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
-
-	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType: exchange.AnyOrderType,
+	var getOrdersRequest = order.GetOrdersRequest{
+		OrderType: order.AnyType,
 		Currencies: []currency.Pair{currency.NewPair(currency.LTC,
 			currency.BTC)},
 	}
@@ -347,11 +339,8 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
-
-	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType: exchange.AnyOrderType,
+	var getOrdersRequest = order.GetOrdersRequest{
+		OrderType: order.AnyType,
 	}
 
 	_, err := b.GetOrderHistory(&getOrdersRequest)
@@ -365,27 +354,27 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if b.APIKey != "" && b.APIKey != "Key" &&
-		b.APISecret != "" && b.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return b.ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var p = currency.Pair{
-		Delimiter: "-",
-		Base:      currency.BTC,
-		Quote:     currency.LTC,
+	var orderSubmission = &order.Submit{
+		Pair: currency.Pair{
+			Delimiter: "-",
+			Base:      currency.BTC,
+			Quote:     currency.LTC,
+		},
+		OrderSide: order.Buy,
+		OrderType: order.Limit,
+		Price:     1,
+		Amount:    1,
+		ClientID:  "meowOrder",
 	}
-	response, err := b.SubmitOrder(p, exchange.BuyOrderSide, exchange.LimitOrderType, 1, 1, "clientId")
+	response, err := b.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -394,16 +383,12 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-
-	var orderCancellation = &exchange.OrderCancellation{
+	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -420,16 +405,12 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-
-	var orderCancellation = &exchange.OrderCancellation{
+	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -445,26 +426,29 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Errorf("Could not cancel orders: %v", err)
 	}
 
-	if len(resp.OrderStatus) > 0 {
-		t.Errorf("%v orders failed to cancel", len(resp.OrderStatus))
+	if len(resp.Status) > 0 {
+		t.Errorf("%v orders failed to cancel", len(resp.Status))
 	}
 }
 
 func TestModifyOrder(t *testing.T) {
-	_, err := b.ModifyOrder(&exchange.ModifyOrder{})
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+	_, err := b.ModifyOrder(&order.Modify{})
 	if err == nil {
-		t.Error("Test failed - ModifyOrder() error")
+		t.Error("ModifyOrder() Expected error")
 	}
 }
 
 func TestWithdraw(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
-	var withdrawCryptoRequest = exchange.WithdrawRequest{
-		Amount:      100,
-		Currency:    currency.LTC,
-		Address:     "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
-		Description: "WITHDRAW IT ALL",
+	withdrawCryptoRequest := exchange.CryptoWithdrawRequest{
+		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
+			Amount:      -1,
+			Currency:    currency.BTC,
+			Description: "WITHDRAW IT ALL",
+		},
+		Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 	}
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -481,14 +465,11 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestWithdrawFiat(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{}
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
 
 	_, err := b.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
@@ -497,14 +478,11 @@ func TestWithdrawFiat(t *testing.T) {
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
-	b.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{}
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
 
 	_, err := b.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
@@ -516,12 +494,30 @@ func TestGetDepositAddress(t *testing.T) {
 	if areTestAPIKeysSet() {
 		_, err := b.GetDepositAddress(currency.BTC, "")
 		if err != nil {
-			t.Error("Test Failed - GetDepositAddress() error", err)
+			t.Error("GetDepositAddress() error", err)
 		}
 	} else {
 		_, err := b.GetDepositAddress(currency.BTC, "")
 		if err == nil {
-			t.Error("Test Failed - GetDepositAddress() error cannot be nil")
+			t.Error("GetDepositAddress() error cannot be nil")
 		}
+	}
+}
+
+func TestParseTime(t *testing.T) {
+	t.Parallel()
+
+	tm, err := parseTime("2019-11-21T02:08:34.87")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if tm.Year() != 2019 ||
+		tm.Month() != 11 ||
+		tm.Day() != 21 ||
+		tm.Hour() != 2 ||
+		tm.Minute() != 8 ||
+		tm.Second() != 34 {
+		t.Error("invalid time values")
 	}
 }

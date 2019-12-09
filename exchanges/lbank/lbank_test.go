@@ -1,15 +1,17 @@
 package lbank
 
 import (
-	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -17,6 +19,7 @@ const (
 	testAPIKey              = ""
 	testAPISecret           = ""
 	canManipulateRealOrders = false
+	testCurrencyPair        = "btc_usdt"
 )
 
 var l Lbank
@@ -24,7 +27,7 @@ var l Lbank
 func TestMain(m *testing.M) {
 	l.SetDefaults()
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -32,27 +35,36 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	lbankConfig.Websocket = true
-	lbankConfig.AuthenticatedAPISupport = true
-	lbankConfig.APISecret = testAPISecret
-	lbankConfig.APIKey = testAPIKey
-	l.Setup(&lbankConfig)
-
+	lbankConfig.API.AuthenticatedSupport = true
+	lbankConfig.API.Credentials.Key = testAPIKey
+	lbankConfig.API.Credentials.Secret = testAPISecret
+	err = l.Setup(lbankConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
 	os.Exit(m.Run())
 }
+
 func areTestAPIKeysSet() bool {
-	if l.APIKey != "" && l.APIKey != "Key" &&
-		l.APISecret != "" && l.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return l.AllowAuthenticatedRequest()
 }
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := l.GetTicker("btc_usdt")
+	_, err := l.GetTicker(testCurrencyPair)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetTickers(t *testing.T) {
+	t.Parallel()
+	tickers, err := l.GetTickers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tickers) <= 1 {
+		t.Errorf("expected multiple tickers, received %v", len(tickers))
 	}
 }
 
@@ -66,23 +78,24 @@ func TestGetCurrencyPairs(t *testing.T) {
 
 func TestGetMarketDepths(t *testing.T) {
 	t.Parallel()
-	_, err := l.GetMarketDepths("btc_usdt", "600", "1")
+	_, err := l.GetMarketDepths(testCurrencyPair, "600", "1")
 	if err != nil {
-		t.Errorf("GetMarketDepth failed: %v", err)
+		t.Fatal(err)
 	}
-	a, _ := l.GetMarketDepths("btc_usdt", "4", "0")
+	a, _ := l.GetMarketDepths(testCurrencyPair, "4", "0")
 	if len(a.Asks) != 4 {
-		t.Errorf("length requested doesnt match the output")
+		t.Errorf("asks length requested doesnt match the output")
 	}
 }
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := l.GetTrades("btc_usdt", "600", fmt.Sprintf("%v", time.Now().Unix()))
+	_, err := l.GetTrades(testCurrencyPair, "600",
+		strconv.FormatInt(time.Now().Unix(), 10))
 	if err != nil {
 		t.Error(err)
 	}
-	a, err := l.GetTrades("btc_usdt", "600", "0")
+	a, err := l.GetTrades(testCurrencyPair, "600", "0")
 	if len(a) != 600 && err != nil {
 		t.Error(err)
 	}
@@ -90,7 +103,8 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetKlines(t *testing.T) {
 	t.Parallel()
-	_, err := l.GetKlines("btc_usdt", "600", "minute1", fmt.Sprintf("%v", time.Now().Unix()))
+	_, err := l.GetKlines(testCurrencyPair, "600", "minute1",
+		strconv.FormatInt(time.Now().Unix(), 10))
 	if err != nil {
 		t.Error(err)
 	}
@@ -103,9 +117,9 @@ func TestUpdateOrderbook(t *testing.T) {
 		Base:      currency.ETH,
 		Quote:     currency.BTC}
 
-	_, err := l.UpdateOrderbook(p.Lower(), "spot")
+	_, err := l.UpdateOrderbook(p.Lower(), asset.Spot)
 	if err != nil {
-		t.Errorf("Update for orderbook failed: %v", err)
+		t.Error(err)
 	}
 }
 
@@ -116,7 +130,7 @@ func TestGetUserInfo(t *testing.T) {
 	}
 	_, err := l.GetUserInfo()
 	if err != nil {
-		t.Errorf("invalid key or sign: %v", err)
+		t.Error(err)
 	}
 }
 
@@ -130,15 +144,15 @@ func TestCreateOrder(t *testing.T) {
 	if err == nil {
 		t.Error("CreateOrder error cannot be nil")
 	}
-	_, err = l.CreateOrder(cp.Lower().String(), "buy", 0, 0)
+	_, err = l.CreateOrder(cp.Lower().String(), order.Buy.Lower(), 0, 0)
 	if err == nil {
 		t.Error("CreateOrder error cannot be nil")
 	}
-	_, err = l.CreateOrder(cp.Lower().String(), "sell", 1231, 0)
+	_, err = l.CreateOrder(cp.Lower().String(), order.Sell.Lower(), 1231, 0)
 	if err == nil {
 		t.Error("CreateOrder error cannot be nil")
 	}
-	_, err = l.CreateOrder(cp.Lower().String(), "buy", 58, 681)
+	_, err = l.CreateOrder(cp.Lower().String(), order.Buy.Lower(), 58, 681)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -152,7 +166,7 @@ func TestRemoveOrder(t *testing.T) {
 	cp := currency.NewPairWithDelimiter(currency.ETH.String(), currency.BTC.String(), "_")
 	_, err := l.RemoveOrder(cp.Lower().String(), "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23")
 	if err != nil {
-		t.Errorf("unable to remove order: %v", err)
+		t.Error(err)
 	}
 }
 
@@ -164,7 +178,7 @@ func TestQueryOrder(t *testing.T) {
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
 	_, err := l.QueryOrder(cp.Lower().String(), "1")
 	if err != nil {
-		t.Errorf("unexpected error: %v", err)
+		t.Error(err)
 	}
 }
 
@@ -184,7 +198,7 @@ func TestGetPairInfo(t *testing.T) {
 	t.Parallel()
 	_, err := l.GetPairInfo()
 	if err != nil {
-		t.Errorf("couldnt get pair info: %v", err)
+		t.Error(err)
 	}
 }
 
@@ -193,9 +207,9 @@ func TestOrderTransactionDetails(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := l.OrderTransactionDetails("eth_btc", "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23")
+	_, err := l.OrderTransactionDetails(testCurrencyPair, "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23")
 	if err != nil {
-		t.Errorf("couldnt get transaction details: %v", err)
+		t.Error(err)
 	}
 }
 
@@ -204,9 +218,9 @@ func TestTransactionHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := l.TransactionHistory("btc_usdt", "", "", "", "", "", "")
+	_, err := l.TransactionHistory(testCurrencyPair, "", "", "", "", "", "")
 	if err != nil {
-		t.Errorf("couldnt get transaction history: %v", err)
+		t.Error(err)
 	}
 }
 
@@ -218,7 +232,7 @@ func TestGetOpenOrders(t *testing.T) {
 	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
 	_, err := l.GetOpenOrders(cp.Lower().String(), "1", "50")
 	if err != nil {
-		t.Error("unexpected error", err)
+		t.Error(err)
 	}
 }
 
@@ -226,15 +240,15 @@ func TestUSD2RMBRate(t *testing.T) {
 	t.Parallel()
 	_, err := l.USD2RMBRate()
 	if err != nil {
-		t.Error("unable to acquire the rate")
+		t.Error(err)
 	}
 }
 
 func TestGetWithdrawConfig(t *testing.T) {
 	t.Parallel()
-	_, err := l.GetWithdrawConfig("eth")
+	_, err := l.GetWithdrawConfig(currency.ETH.Lower().String())
 	if err != nil {
-		t.Errorf("unable to get withdraw config: %v", err)
+		t.Error(err)
 	}
 }
 
@@ -245,7 +259,7 @@ func TestWithdraw(t *testing.T) {
 	}
 	_, err := l.Withdraw("", "", "", "", "", "")
 	if err != nil {
-		t.Errorf("unable to withdraw: %v", err)
+		t.Error(err)
 	}
 }
 
@@ -254,9 +268,10 @@ func TestGetWithdrawRecords(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := l.GetWithdrawalRecords("eth", "0", "1", "20")
+	_, err := l.GetWithdrawalRecords(currency.ETH.Lower().String(),
+		"0", "1", "20")
 	if err != nil {
-		t.Errorf("unable to get withdrawal records: %v", err)
+		t.Error(err)
 	}
 }
 
@@ -269,10 +284,10 @@ func TestLoadPrivKey(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	l.APISecret = "errortest"
+	l.API.Credentials.Secret = "errortest"
 	err = l.loadPrivKey()
 	if err == nil {
-		t.Errorf("expected error due to pemblock nil, got err: %v", err)
+		t.Errorf("Expected error due to pemblock nil")
 	}
 }
 
@@ -281,7 +296,7 @@ func TestSign(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	l.APISecret = testAPISecret
+	l.API.Credentials.Secret = testAPISecret
 	l.loadPrivKey()
 	_, err := l.sign("hello123")
 	if err != nil {
@@ -291,13 +306,27 @@ func TestSign(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API keys required but not set, skipping test")
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_")
-	_, err := l.SubmitOrder(cp.Lower(), "BUY", "ANY", 2, 1312, "")
-	if err != nil {
-		t.Error(err)
+
+	var orderSubmission = &order.Submit{
+		Pair: currency.Pair{
+			Base:      currency.BTC,
+			Quote:     currency.USDT,
+			Delimiter: "_",
+		},
+		OrderSide: order.Buy,
+		OrderType: order.Limit,
+		Price:     1,
+		Amount:    1,
+		ClientID:  "meowOrder",
+	}
+	response, err := l.SubmitOrder(orderSubmission)
+	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
+		t.Errorf("Order failed to be placed: %v", err)
+	} else if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
 	}
 }
 
@@ -307,7 +336,7 @@ func TestCancelOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	cp := currency.NewPairWithDelimiter(currency.ETH.String(), currency.BTC.String(), "_")
-	var a exchange.OrderCancellation
+	var a order.Cancel
 	a.CurrencyPair = cp
 	a.OrderID = "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23"
 	err := l.CancelOrder(&a)
@@ -347,10 +376,10 @@ func TestGetFeeByType(t *testing.T) {
 	input.Pair = cp
 	a, err := l.GetFeeByType(&input)
 	if err != nil {
-		t.Errorf("couldnt get fee: %v", err)
+		t.Error(err)
 	}
 	if a != 0.0005 {
-		t.Errorf("testGetFeeByType failed. Expected: 0.0005, Received: %v", a)
+		t.Errorf("expected: 0.0005, received: %v", a)
 	}
 }
 
@@ -370,8 +399,8 @@ func TestGetOrderHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	var input exchange.GetOrdersRequest
-	input.OrderSide = exchange.BuyOrderSide
+	var input order.GetOrdersRequest
+	input.OrderSide = order.Buy
 	_, err := l.GetOrderHistory(&input)
 	if err != nil {
 		t.Error(err)

@@ -2,12 +2,52 @@
  "name": "Skynet",
  "encryptConfig": 0,
  "globalHTTPTimeout": 15000000000,
+ "database": {
+  "enabled": false,
+  "verbose": false,
+  "driver": "sqlite",
+  "connectionDetails": {
+   "host": "",
+   "port": 0,
+   "username": "",
+   "password": "",
+   "database": "",
+   "sslmode": ""
+  }
+ },
  "logging": {
   "enabled": true,
-  "file": "debug.txt",
-  "colour": false,
-  "level": "DEBUG|WARN|INFO|ERROR|FATAL",
-  "rotate": false
+  "level": "INFO|WARN|DEBUG|ERROR",
+  "output": "console",
+  "fileSettings": {
+   "filename": "log.txt",
+   "rotate": true,
+   "maxsize": 250
+  },
+  "advancedSettings": {
+   "spacer": " | ",
+   "timeStampFormat": "02/01/2006 15:04:05",
+   "headers": {
+    "info": "[INFO] ",
+    "warn": "[WARN] ",
+    "debug": "[DEBUG]",
+    "error": "[ERROR]"
+   }
+  }
+ },
+ "connectionMonitor": {
+  "preferredDNSList": [
+   "8.8.8.8",
+   "8.8.4.4",
+   "1.1.1.1",
+   "1.0.0.1"
+  ],
+  "preferredDomainList": [
+   "www.google.com",
+   "www.cloudflare.com",
+   "www.facebook.com"
+  ],
+  "checkInterval": 1000000000
  },
  "profiler": {
   "enabled": false
@@ -94,6 +134,7 @@
   },
   "smsGlobal": {
    "name": "SMSGlobal",
+   "from": "Skynet",
    "enabled": false,
    "verbose": false,
    "username": "Username",
@@ -114,6 +155,7 @@
    "port": "537",
    "accountName": "some",
    "accountPassword": "password",
+   "from": "",
    "recipientList": "lol123@gmail.com"
   },
   "telegram": {
@@ -123,8 +165,29 @@
    "verificationToken": "testest"
   }
  },
+ "remoteControl": {
+  "username": "admin",
+  "password": "Password",
+  "gRPC": {
+   "enabled": true,
+   "listenAddress": "localhost:9052",
+   "grpcProxyEnabled": false,
+   "grpcProxyListenAddress": "localhost:9053"
+  },
+  "deprecatedRPC": {
+   "enabled": true,
+   "listenAddress": "localhost:9050"
+  },
+  "websocketRPC": {
+   "enabled": true,
+   "listenAddress": "localhost:9051",
+   "connectionLimit": 1,
+   "maxAuthFailures": 3,
+   "allowInsecureOrigin": true
+  }
+ },
  "portfolioAddresses": {
-  "Addresses": [
+  "addresses": [
    {
     "Address": "1JCe8z4jJVNXSjohjM4i9Hh813dLCNx2Sy",
     "CoinType": "BTC",
@@ -151,53 +214,76 @@
    }
   ]
  },
- "webserver": {
-  "enabled": true,
-  "adminUsername": "admin",
-  "adminPassword": "Password",
-  "listenAddress": ":9050",
-  "websocketConnectionLimit": 1,
-  "websocketMaxAuthFailures": 3,
-  "websocketAllowInsecureOrigin": true
- },
  "exchanges": [
   {
    "name": "ANX",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "ATENC_GBP,ATENC_NZD,BTC_AUD,BTC_SGD,LTC_BTC,START_GBP,STR_BTC,XRP_BTC,ATENC_SGD,BTC_GBP,DOGE_BTC,OAX_ETH,START_AUD,START_JPY,ATENC_USD,BTC_EUR,GNT_ETH,START_EUR,ATENC_EUR,BTC_CAD,START_BTC,START_CAD,ATENC_HKD,ATENC_JPY,ETH_BTC,ETH_HKD,START_HKD,START_USD,ATENC_AUD,ETH_USD,START_SGD,ATENC_CAD,BTC_HKD,BTC_JPY,BTC_NZD,BTC_USD,START_NZD",
-   "enabledPairs": "BTC_USD,BTC_HKD,BTC_EUR,BTC_CAD,BTC_AUD,BTC_SGD,BTC_JPY,BTC_GBP,BTC_NZD,LTC_BTC,STR_BTC,XRP_BTC",
    "baseCurrencies": "USD,HKD,EUR,CAD,AUD,SGD,JPY,GBP,NZD",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "_"
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": true
+    },
+    "configFormat": {
+     "uppercase": true,
+     "delimiter": "_"
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "BTC_USD,BTC_HKD,BTC_EUR,BTC_CAD,BTC_AUD,BTC_SGD,BTC_JPY,BTC_GBP,BTC_NZD,LTC_BTC,STR_BTC,XRP_BTC",
+      "available": "ATENC_GBP,ATENC_NZD,BTC_AUD,BTC_SGD,LTC_BTC,START_GBP,STR_BTC,XRP_BTC,ATENC_SGD,BTC_GBP,DOGE_BTC,OAX_ETH,START_AUD,START_JPY,ATENC_USD,BTC_EUR,GNT_ETH,START_EUR,ATENC_EUR,BTC_CAD,START_BTC,START_CAD,ATENC_HKD,ATENC_JPY,ETH_BTC,ETH_HKD,START_HKD,START_USD,ATENC_AUD,ETH_USD,START_SGD,ATENC_CAD,BTC_HKD,BTC_JPY,BTC_NZD,BTC_USD,START_NZD"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": true
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true,
+     "requiresBase64DecodeSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "autoPairUpdates": true
+     },
+     "websocketAPI": false,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -210,39 +296,71 @@
    "name": "Binance",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "ETH-BTC,LTC-BTC,BNB-BTC,NEO-BTC,QTUM-ETH,EOS-ETH,SNT-ETH,BNT-ETH,GAS-BTC,BNB-ETH,BTC-USDT,ETH-USDT,OAX-ETH,DNT-ETH,MCO-ETH,MCO-BTC,WTC-BTC,WTC-ETH,LRC-BTC,LRC-ETH,QTUM-BTC,YOYO-BTC,OMG-BTC,OMG-ETH,ZRX-BTC,ZRX-ETH,STRAT-BTC,STRAT-ETH,SNGLS-BTC,SNGLS-ETH,BQX-BTC,BQX-ETH,KNC-BTC,KNC-ETH,FUN-BTC,FUN-ETH,SNM-BTC,SNM-ETH,NEO-ETH,IOTA-BTC,IOTA-ETH,LINK-BTC,LINK-ETH,XVG-BTC,XVG-ETH,MDA-BTC,MDA-ETH,MTL-BTC,MTL-ETH,EOS-BTC,SNT-BTC,ETC-ETH,ETC-BTC,MTH-BTC,MTH-ETH,ENG-BTC,ENG-ETH,DNT-BTC,ZEC-BTC,ZEC-ETH,BNT-BTC,AST-BTC,AST-ETH,DASH-BTC,DASH-ETH,OAX-BTC,BTG-BTC,BTG-ETH,EVX-BTC,EVX-ETH,REQ-BTC,REQ-ETH,VIB-BTC,VIB-ETH,TRX-BTC,TRX-ETH,POWR-BTC,POWR-ETH,ARK-BTC,ARK-ETH,YOYO-ETH,XRP-BTC,XRP-ETH,ENJ-BTC,ENJ-ETH,STORJ-BTC,STORJ-ETH,BNB-USDT,YOYO-BNB,POWR-BNB,KMD-BTC,KMD-ETH,NULS-BNB,RCN-BTC,RCN-ETH,RCN-BNB,NULS-BTC,NULS-ETH,RDN-BTC,RDN-ETH,RDN-BNB,XMR-BTC,XMR-ETH,DLT-BNB,WTC-BNB,DLT-BTC,DLT-ETH,AMB-BTC,AMB-ETH,AMB-BNB,BAT-BTC,BAT-ETH,BAT-BNB,BCPT-BTC,BCPT-ETH,BCPT-BNB,ARN-BTC,ARN-ETH,GVT-BTC,GVT-ETH,CDT-BTC,CDT-ETH,GXS-BTC,GXS-ETH,NEO-USDT,NEO-BNB,POE-BTC,POE-ETH,QSP-BTC,QSP-ETH,QSP-BNB,BTS-BTC,BTS-ETH,BTS-BNB,XZC-BTC,XZC-ETH,XZC-BNB,LSK-BTC,LSK-ETH,LSK-BNB,TNT-BTC,TNT-ETH,FUEL-BTC,FUEL-ETH,MANA-BTC,MANA-ETH,BCD-BTC,BCD-ETH,DGD-BTC,DGD-ETH,IOTA-BNB,ADX-BTC,ADX-ETH,ADX-BNB,ADA-BTC,ADA-ETH,PPT-BTC,PPT-ETH,CMT-BTC,CMT-ETH,CMT-BNB,XLM-BTC,XLM-ETH,XLM-BNB,CND-BTC,CND-ETH,CND-BNB,LEND-BTC,LEND-ETH,WABI-BTC,WABI-ETH,WABI-BNB,LTC-ETH,LTC-USDT,LTC-BNB,TNB-BTC,TNB-ETH,WAVES-BTC,WAVES-ETH,WAVES-BNB,GTO-BTC,GTO-ETH,GTO-BNB,ICX-BTC,ICX-ETH,ICX-BNB,OST-BTC,OST-ETH,OST-BNB,ELF-BTC,ELF-ETH,AION-BTC,AION-ETH,AION-BNB,NEBL-BTC,NEBL-ETH,NEBL-BNB,BRD-BTC,BRD-ETH,BRD-BNB,MCO-BNB,EDO-BTC,EDO-ETH,NAV-BTC,NAV-ETH,NAV-BNB,LUN-BTC,LUN-ETH,APPC-BTC,APPC-ETH,APPC-BNB,VIBE-BTC,VIBE-ETH,RLC-BTC,RLC-ETH,RLC-BNB,INS-BTC,INS-ETH,PIVX-BTC,PIVX-ETH,PIVX-BNB,IOST-BTC,IOST-ETH,STEEM-BTC,STEEM-ETH,STEEM-BNB,NANO-BTC,NANO-ETH,NANO-BNB,VIA-BTC,VIA-ETH,VIA-BNB,BLZ-BTC,BLZ-ETH,BLZ-BNB,AE-BTC,AE-ETH,AE-BNB,NCASH-BTC,NCASH-ETH,NCASH-BNB,POA-BTC,POA-ETH,POA-BNB,ZIL-BTC,ZIL-ETH,ZIL-BNB,ONT-BTC,ONT-ETH,ONT-BNB,STORM-BTC,STORM-ETH,STORM-BNB,QTUM-BNB,QTUM-USDT,XEM-BTC,XEM-ETH,XEM-BNB,WAN-BTC,WAN-ETH,WAN-BNB,WPR-BTC,WPR-ETH,QLC-BTC,QLC-ETH,SYS-BTC,SYS-ETH,SYS-BNB,QLC-BNB,GRS-BTC,GRS-ETH,ADA-USDT,ADA-BNB,GNT-BTC,GNT-ETH,GNT-BNB,LOOM-BTC,LOOM-ETH,LOOM-BNB,XRP-USDT,REP-BTC,REP-ETH,REP-BNB,BTC-TUSD,ETH-TUSD,ZEN-BTC,ZEN-ETH,ZEN-BNB,SKY-BTC,SKY-ETH,SKY-BNB,EOS-USDT,EOS-BNB,CVC-BTC,CVC-ETH,CVC-BNB,THETA-BTC,THETA-ETH,THETA-BNB,XRP-BNB,TUSD-USDT,IOTA-USDT,XLM-USDT,IOTX-BTC,IOTX-ETH,QKC-BTC,QKC-ETH,AGI-BTC,AGI-ETH,AGI-BNB,NXS-BTC,NXS-ETH,NXS-BNB,ENJ-BNB,DATA-BTC,DATA-ETH,ONT-USDT,TRX-BNB,TRX-USDT,ETC-USDT,ETC-BNB,ICX-USDT,SC-BTC,SC-ETH,SC-BNB,NPXS-BTC,NPXS-ETH,KEY-BTC,KEY-ETH,NAS-BTC,NAS-ETH,NAS-BNB,MFT-BTC,MFT-ETH,MFT-BNB,DENT-BTC,DENT-ETH,ARDR-BTC,ARDR-ETH,ARDR-BNB,NULS-USDT,HOT-BTC,HOT-ETH,VET-BTC,VET-ETH,VET-USDT,VET-BNB,DOCK-BTC,DOCK-ETH,POLY-BTC,POLY-BNB,HC-BTC,HC-ETH,GO-BTC,GO-BNB,PAX-USDT,RVN-BTC,RVN-BNB,DCR-BTC,DCR-BNB,MITH-BTC,MITH-BNB,BCHABC-BTC,BCHABC-USDT,BNB-PAX,BTC-PAX,ETH-PAX,XRP-PAX,EOS-PAX,XLM-PAX,REN-BTC,REN-BNB,BNB-TUSD,XRP-TUSD,EOS-TUSD,XLM-TUSD,BNB-USDC,BTC-USDC,ETH-USDC,XRP-USDC,EOS-USDC,XLM-USDC,USDC-USDT,ADA-TUSD,TRX-TUSD,NEO-TUSD,TRX-XRP,XZC-XRP,PAX-TUSD,USDC-TUSD,USDC-PAX,LINK-USDT,LINK-TUSD,LINK-PAX,LINK-USDC,WAVES-USDT,WAVES-TUSD,WAVES-PAX,WAVES-USDC,BCHABC-TUSD,BCHABC-PAX,BCHABC-USDC,LTC-TUSD,LTC-PAX,LTC-USDC,TRX-PAX,TRX-USDC,BTT-BTC,BTT-BNB,BTT-USDT,BNB-USDS,BTC-USDS,USDS-USDT,USDS-PAX,USDS-TUSD,USDS-USDC,BTT-PAX,BTT-TUSD,BTT-USDC,ONG-BNB,ONG-BTC,ONG-USDT,HOT-BNB,HOT-USDT,ZIL-USDT,ZRX-BNB,ZRX-USDT,FET-BNB,FET-BTC,FET-USDT,BAT-USDT,XMR-BNB,XMR-USDT,ZEC-BNB,ZEC-USDT,ZEC-PAX,ZEC-TUSD,ZEC-USDC,IOST-BNB,IOST-USDT,CELR-BNB,CELR-BTC,CELR-USDT,ADA-PAX,ADA-USDC,NEO-PAX,NEO-USDC,DASH-BNB,DASH-USDT,NANO-USDT,OMG-BNB,OMG-USDT,THETA-USDT,ENJ-USDT,MITH-USDT,MATIC-BNB,MATIC-BTC,MATIC-USDT,ATOM-BNB,ATOM-BTC,ATOM-USDT,ATOM-USDC,ATOM-PAX,ATOM-TUSD,ETC-USDC,ETC-PAX,ETC-TUSD,BAT-USDC,BAT-PAX,BAT-TUSD,PHB-BNB,PHB-BTC,PHB-USDC,PHB-TUSD,PHB-PAX,TFUEL-BNB,TFUEL-BTC,TFUEL-USDT,TFUEL-USDC,TFUEL-TUSD,TFUEL-PAX,ONE-BNB,ONE-BTC,ONE-USDT,ONE-TUSD,ONE-PAX,ONE-USDC,FTM-BNB,FTM-BTC,FTM-USDT,FTM-TUSD,FTM-PAX,FTM-USDC,BTCB-BTC,BCPT-TUSD,BCPT-PAX,BCPT-USDC,ALGO-BNB,ALGO-BTC,ALGO-USDT,ALGO-TUSD,ALGO-PAX,ALGO-USDC,USDSB-USDT,USDSB-USDS,GTO-USDT,GTO-PAX,GTO-TUSD,GTO-USDC,ERD-BNB,ERD-BTC,ERD-USDT,ERD-PAX,ERD-USDC,DOGE-BNB,DOGE-BTC,DOGE-USDT,DOGE-PAX,DOGE-USDC,DUSK-BNB,DUSK-BTC,DUSK-USDT,DUSK-USDC,DUSK-PAX,BGBP-USDC,ANKR-BNB,ANKR-BTC,ANKR-USDT,ANKR-TUSD,ANKR-PAX,ANKR-USDC,ONT-PAX,ONT-USDC,WIN-BNB,WIN-BTC,WIN-USDT,WIN-USDC,COS-BNB,COS-BTC,COS-USDT,TUSDB-TUSD,NPXS-USDT,NPXS-USDC,COCOS-BNB,COCOS-BTC,COCOS-USDT,MTL-USDT,TOMO-BNB,TOMO-BTC,TOMO-USDT,TOMO-USDC",
-   "enabledPairs": "BTC-USDT,ETH-USDT,LTC-USDT,ADA-USDT,XRP-USDT",
    "baseCurrencies": "USD",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "-"
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": true
+    },
+    "configFormat": {
+     "uppercase": true,
+     "delimiter": "-"
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "BTC-USDT,ETH-USDT,LTC-USDT,ADA-USDT,XRP-USDT",
+      "available": "ETH-BTC,LTC-BTC,BNB-BTC,NEO-BTC,QTUM-ETH,EOS-ETH,SNT-ETH,BNT-ETH,GAS-BTC,BNB-ETH,BTC-USDT,ETH-USDT,OAX-ETH,DNT-ETH,MCO-ETH,MCO-BTC,WTC-BTC,WTC-ETH,LRC-BTC,LRC-ETH,QTUM-BTC,YOYO-BTC,OMG-BTC,OMG-ETH,ZRX-BTC,ZRX-ETH,STRAT-BTC,STRAT-ETH,SNGLS-BTC,BQX-BTC,BQX-ETH,KNC-BTC,KNC-ETH,FUN-BTC,FUN-ETH,SNM-BTC,SNM-ETH,NEO-ETH,IOTA-BTC,IOTA-ETH,LINK-BTC,LINK-ETH,XVG-BTC,XVG-ETH,MDA-BTC,MDA-ETH,MTL-BTC,MTL-ETH,EOS-BTC,SNT-BTC,ETC-ETH,ETC-BTC,MTH-BTC,MTH-ETH,ENG-BTC,ENG-ETH,DNT-BTC,ZEC-BTC,ZEC-ETH,BNT-BTC,AST-BTC,AST-ETH,DASH-BTC,DASH-ETH,OAX-BTC,BTG-BTC,BTG-ETH,EVX-BTC,EVX-ETH,REQ-BTC,REQ-ETH,VIB-BTC,VIB-ETH,TRX-BTC,TRX-ETH,POWR-BTC,POWR-ETH,ARK-BTC,ARK-ETH,YOYO-ETH,XRP-BTC,XRP-ETH,ENJ-BTC,ENJ-ETH,STORJ-BTC,STORJ-ETH,BNB-USDT,YOYO-BNB,POWR-BNB,KMD-BTC,KMD-ETH,NULS-BNB,RCN-BTC,RCN-ETH,RCN-BNB,NULS-BTC,NULS-ETH,RDN-BTC,RDN-ETH,RDN-BNB,XMR-BTC,XMR-ETH,DLT-BNB,WTC-BNB,DLT-BTC,DLT-ETH,AMB-BTC,AMB-ETH,AMB-BNB,BAT-BTC,BAT-ETH,BAT-BNB,BCPT-BTC,BCPT-ETH,BCPT-BNB,ARN-BTC,ARN-ETH,GVT-BTC,GVT-ETH,CDT-BTC,CDT-ETH,GXS-BTC,GXS-ETH,NEO-USDT,NEO-BNB,POE-BTC,POE-ETH,QSP-BTC,QSP-ETH,QSP-BNB,BTS-BTC,BTS-ETH,XZC-BTC,XZC-ETH,XZC-BNB,LSK-BTC,LSK-ETH,LSK-BNB,TNT-BTC,TNT-ETH,FUEL-BTC,MANA-BTC,MANA-ETH,BCD-BTC,BCD-ETH,DGD-BTC,DGD-ETH,IOTA-BNB,ADX-BTC,ADX-ETH,ADX-BNB,ADA-BTC,ADA-ETH,PPT-BTC,PPT-ETH,CMT-BTC,CMT-ETH,CMT-BNB,XLM-BTC,XLM-ETH,XLM-BNB,CND-BTC,CND-ETH,CND-BNB,LEND-BTC,LEND-ETH,WABI-BTC,WABI-ETH,WABI-BNB,LTC-ETH,LTC-USDT,LTC-BNB,TNB-BTC,TNB-ETH,WAVES-BTC,WAVES-ETH,WAVES-BNB,GTO-BTC,GTO-ETH,GTO-BNB,ICX-BTC,ICX-ETH,ICX-BNB,OST-BTC,OST-ETH,OST-BNB,ELF-BTC,ELF-ETH,AION-BTC,AION-ETH,AION-BNB,NEBL-BTC,NEBL-ETH,NEBL-BNB,BRD-BTC,BRD-ETH,BRD-BNB,MCO-BNB,EDO-BTC,EDO-ETH,NAV-BTC,LUN-BTC,APPC-BTC,APPC-ETH,APPC-BNB,VIBE-BTC,VIBE-ETH,RLC-BTC,RLC-ETH,RLC-BNB,INS-BTC,INS-ETH,PIVX-BTC,PIVX-ETH,PIVX-BNB,IOST-BTC,IOST-ETH,STEEM-BTC,STEEM-ETH,STEEM-BNB,NANO-BTC,NANO-ETH,NANO-BNB,VIA-BTC,VIA-ETH,VIA-BNB,BLZ-BTC,BLZ-ETH,BLZ-BNB,AE-BTC,AE-ETH,AE-BNB,NCASH-BTC,NCASH-ETH,POA-BTC,POA-ETH,POA-BNB,ZIL-BTC,ZIL-ETH,ZIL-BNB,ONT-BTC,ONT-ETH,ONT-BNB,STORM-BTC,STORM-ETH,STORM-BNB,QTUM-BNB,QTUM-USDT,XEM-BTC,XEM-ETH,XEM-BNB,WAN-BTC,WAN-ETH,WAN-BNB,WPR-BTC,WPR-ETH,QLC-BTC,QLC-ETH,SYS-BTC,SYS-ETH,SYS-BNB,QLC-BNB,GRS-BTC,GRS-ETH,ADA-USDT,ADA-BNB,GNT-BTC,GNT-ETH,GNT-BNB,LOOM-BTC,LOOM-ETH,LOOM-BNB,XRP-USDT,REP-BTC,REP-ETH,BTC-TUSD,ETH-TUSD,ZEN-BTC,ZEN-ETH,ZEN-BNB,SKY-BTC,SKY-ETH,SKY-BNB,EOS-USDT,EOS-BNB,CVC-BTC,CVC-ETH,THETA-BTC,THETA-ETH,THETA-BNB,XRP-BNB,TUSD-USDT,IOTA-USDT,XLM-USDT,IOTX-BTC,IOTX-ETH,QKC-BTC,QKC-ETH,AGI-BTC,AGI-ETH,AGI-BNB,NXS-BTC,NXS-ETH,NXS-BNB,ENJ-BNB,DATA-BTC,DATA-ETH,ONT-USDT,TRX-BNB,TRX-USDT,ETC-USDT,ETC-BNB,ICX-USDT,SC-BTC,SC-ETH,SC-BNB,NPXS-ETH,KEY-BTC,KEY-ETH,NAS-BTC,NAS-ETH,NAS-BNB,MFT-BTC,MFT-ETH,MFT-BNB,DENT-ETH,ARDR-BTC,ARDR-ETH,ARDR-BNB,NULS-USDT,HOT-BTC,HOT-ETH,VET-BTC,VET-ETH,VET-USDT,VET-BNB,DOCK-BTC,DOCK-ETH,POLY-BTC,POLY-BNB,HC-BTC,HC-ETH,GO-BTC,GO-BNB,PAX-USDT,RVN-BTC,RVN-BNB,DCR-BTC,DCR-BNB,MITH-BTC,MITH-BNB,BNB-PAX,BTC-PAX,ETH-PAX,XRP-PAX,EOS-PAX,XLM-PAX,REN-BTC,REN-BNB,BNB-TUSD,XRP-TUSD,EOS-TUSD,XLM-TUSD,BNB-USDC,BTC-USDC,ETH-USDC,XRP-USDC,EOS-USDC,XLM-USDC,USDC-USDT,ADA-TUSD,TRX-TUSD,NEO-TUSD,TRX-XRP,XZC-XRP,PAX-TUSD,USDC-TUSD,USDC-PAX,LINK-USDT,LINK-TUSD,LINK-PAX,LINK-USDC,WAVES-USDT,WAVES-TUSD,WAVES-USDC,LTC-TUSD,LTC-PAX,LTC-USDC,TRX-PAX,TRX-USDC,BTT-BNB,BTT-USDT,BNB-USDS,BTC-USDS,USDS-USDT,USDS-PAX,USDS-TUSD,USDS-USDC,BTT-PAX,BTT-TUSD,BTT-USDC,ONG-BNB,ONG-BTC,ONG-USDT,HOT-BNB,HOT-USDT,ZIL-USDT,ZRX-BNB,ZRX-USDT,FET-BNB,FET-BTC,FET-USDT,BAT-USDT,XMR-BNB,XMR-USDT,ZEC-BNB,ZEC-USDT,ZEC-PAX,ZEC-TUSD,ZEC-USDC,IOST-BNB,IOST-USDT,CELR-BNB,CELR-BTC,CELR-USDT,ADA-PAX,ADA-USDC,NEO-PAX,NEO-USDC,DASH-BNB,DASH-USDT,NANO-USDT,OMG-BNB,OMG-USDT,THETA-USDT,ENJ-USDT,MITH-USDT,MATIC-BNB,MATIC-BTC,MATIC-USDT,ATOM-BNB,ATOM-BTC,ATOM-USDT,ATOM-USDC,ATOM-TUSD,ETC-TUSD,BAT-USDC,BAT-PAX,BAT-TUSD,PHB-BNB,PHB-BTC,PHB-TUSD,TFUEL-BNB,TFUEL-BTC,TFUEL-USDT,ONE-BNB,ONE-BTC,ONE-USDT,ONE-USDC,FTM-BNB,FTM-BTC,FTM-USDT,FTM-USDC,ALGO-BNB,ALGO-BTC,ALGO-USDT,ALGO-TUSD,ALGO-PAX,ALGO-USDC,GTO-USDT,ERD-BNB,ERD-BTC,ERD-USDT,DOGE-BNB,DOGE-BTC,DOGE-USDT,DUSK-BNB,DUSK-BTC,DUSK-USDT,DUSK-USDC,DUSK-PAX,BGBP-USDC,ANKR-BNB,ANKR-BTC,ANKR-USDT,ONT-PAX,ONT-USDC,WIN-BNB,WIN-USDT,WIN-USDC,COS-BNB,COS-BTC,COS-USDT,NPXS-USDT,COCOS-BNB,COCOS-BTC,COCOS-USDT,MTL-USDT,TOMO-BNB,TOMO-BTC,TOMO-USDT,TOMO-USDC,PERL-BNB,PERL-BTC,PERL-USDC,PERL-USDT,DENT-USDT,MFT-USDT,KEY-USDT,STORM-USDT,DOCK-USDT,WAN-USDT,FUN-USDT,CVC-USDT,BTT-TRX,WIN-TRX,CHZ-BNB,CHZ-BTC,CHZ-USDT,BAND-BNB,BAND-BTC,BAND-USDT,BNB-BUSD,BTC-BUSD,BUSD-USDT,BEAM-BNB,BEAM-BTC,BEAM-USDT,XTZ-BNB,XTZ-BTC,XTZ-USDT,REN-USDT,RVN-USDT,HC-USDT,HBAR-BNB,HBAR-BTC,HBAR-USDT,NKN-BNB,NKN-BTC,NKN-USDT,XRP-BUSD,ETH-BUSD,LTC-BUSD,LINK-BUSD,ETC-BUSD,STX-BNB,STX-BTC,STX-USDT,KAVA-BNB,KAVA-BTC,KAVA-USDT,BUSD-NGN,BNB-NGN,BTC-NGN,ARPA-BNB,ARPA-BTC,ARPA-USDT,TRX-BUSD,EOS-BUSD,IOTX-USDT,RLC-USDT,MCO-USDT,XLM-BUSD,ADA-BUSD,CTXC-BNB,CTXC-BTC,CTXC-USDT,BCH-BNB,BCH-BTC,BCH-USDT,BCH-USDC,BCH-TUSD,BCH-PAX,BCH-BUSD,BTC-RUB,ETH-RUB,XRP-RUB,BNB-RUB"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": true
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "tickerBatching": true,
+      "autoPairUpdates": true
+     },
+     "websocketAPI": true,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -255,38 +373,70 @@
    "name": "Bitfinex",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "BTCUSD,LTCUSD,LTCBTC,ETHUSD,ETHBTC,ETCBTC,ETCUSD,RRTUSD,RRTBTC,ZECUSD,ZECBTC,XMRUSD,XMRBTC,DSHUSD,DSHBTC,BTCEUR,BTCJPY,XRPUSD,XRPBTC,IOTUSD,IOTBTC,IOTETH,EOSUSD,EOSBTC,EOSETH,SANUSD,SANBTC,SANETH,OMGUSD,OMGBTC,OMGETH,NEOUSD,NEOBTC,NEOETH,ETPUSD,ETPBTC,ETPETH,QTMUSD,QTMBTC,QTMETH,AVTUSD,AVTBTC,AVTETH,EDOUSD,EDOBTC,EDOETH,BTGUSD,BTGBTC,DATUSD,DATBTC,DATETH,QSHUSD,QSHBTC,QSHETH,YYWUSD,YYWBTC,YYWETH,GNTUSD,GNTBTC,GNTETH,SNTUSD,SNTBTC,SNTETH,IOTEUR,BATUSD,BATBTC,BATETH,MNAUSD,MNABTC,MNAETH,FUNUSD,FUNBTC,FUNETH,ZRXUSD,ZRXBTC,ZRXETH,TNBUSD,TNBBTC,TNBETH,SPKUSD,SPKBTC,SPKETH,TRXUSD,TRXBTC,TRXETH,RCNUSD,RCNBTC,RCNETH,RLCUSD,RLCBTC,RLCETH,AIDUSD,AIDBTC,AIDETH,SNGUSD,SNGBTC,SNGETH,REPUSD,REPBTC,REPETH,ELFUSD,ELFBTC,ELFETH,NECUSD,NECBTC,NECETH,BTCGBP,ETHEUR,ETHJPY,ETHGBP,NEOEUR,NEOJPY,NEOGBP,EOSEUR,EOSJPY,EOSGBP,IOTJPY,IOTGBP,IOSUSD,IOSBTC,IOSETH,AIOUSD,AIOBTC,AIOETH,REQUSD,REQBTC,REQETH,RDNUSD,RDNBTC,RDNETH,LRCUSD,LRCBTC,LRCETH,WAXUSD,WAXBTC,WAXETH,DAIUSD,DAIBTC,DAIETH,AGIUSD,AGIBTC,AGIETH,BFTUSD,BFTBTC,BFTETH,MTNUSD,MTNBTC,MTNETH,ODEUSD,ODEBTC,ODEETH,ANTUSD,ANTBTC,ANTETH,DTHUSD,DTHBTC,DTHETH,MITUSD,MITBTC,MITETH,STJUSD,STJBTC,STJETH,XLMUSD,XLMEUR,XLMJPY,XLMGBP,XLMBTC,XLMETH,XVGUSD,XVGEUR,XVGJPY,XVGGBP,XVGBTC,XVGETH,BCIUSD,BCIBTC,MKRUSD,MKRBTC,MKRETH,KNCUSD,KNCBTC,KNCETH,POAUSD,POABTC,POAETH,EVTUSD,LYMUSD,LYMBTC,LYMETH,UTKUSD,UTKBTC,UTKETH,VEEUSD,VEEBTC,VEEETH,DADUSD,DADBTC,DADETH,ORSUSD,ORSBTC,ORSETH,AUCUSD,AUCBTC,AUCETH,POYUSD,POYBTC,POYETH,FSNUSD,FSNBTC,FSNETH,CBTUSD,CBTBTC,CBTETH,ZCNUSD,ZCNBTC,ZCNETH,SENUSD,SENBTC,SENETH,NCAUSD,NCABTC,NCAETH,CNDUSD,CNDBTC,CNDETH,CTXUSD,CTXBTC,CTXETH,PAIUSD,PAIBTC,SEEUSD,SEEBTC,SEEETH,ESSUSD,ESSBTC,ESSETH,ATMUSD,ATMBTC,ATMETH,HOTUSD,HOTBTC,HOTETH,DTAUSD,DTABTC,DTAETH,IQXUSD,IQXBTC,IQXEOS,WPRUSD,WPRBTC,WPRETH,ZILUSD,ZILBTC,ZILETH,BNTUSD,BNTBTC,BNTETH,ABSUSD,ABSETH,XRAUSD,XRAETH,MANUSD,MANETH,BBNUSD,BBNETH,NIOUSD,NIOETH,DGXUSD,DGXETH,VETUSD,VETBTC,VETETH,UTNUSD,UTNETH,TKNUSD,TKNETH,GOTUSD,GOTEUR,GOTETH,XTZUSD,XTZBTC,CNNUSD,CNNETH,BOXUSD,BOXETH,TRXEUR,TRXGBP,TRXJPY,MGOUSD,MGOETH,RTEUSD,RTEETH,YGGUSD,YGGETH,MLNUSD,MLNETH,WTCUSD,WTCETH,CSXUSD,CSXETH,OMNUSD,OMNBTC,INTUSD,INTETH,DRNUSD,DRNETH,PNKUSD,PNKETH,DGBUSD,DGBBTC,BSVUSD,BSVBTC,BABUSD,BABBTC,WLOUSD,WLOXLM,VLDUSD,VLDETH,ENJUSD,ENJETH,ONLUSD,ONLETH,RBTUSD,RBTBTC,USTUSD,EUTEUR,EUTUSD,GSDUSD,UDCUSD,TSDUSD,PAXUSD,RIFUSD,RIFBTC,PASUSD,PASETH,VSYUSD,VSYBTC,ZRXDAI,MKRDAI,OMGDAI,BTTUSD,BTTBTC,BTCUST,ETHUST,CLOUSD,CLOBTC,IMPUSD,IMPETH,LTCUST,EOSUST,BABUST,SCRUSD,SCRETH,GNOUSD,GNOETH,GENUSD,GENETH,ATOUSD,ATOBTC,ATOETH,WBTUSD,XCHUSD,EUSUSD,WBTETH,XCHETH,EUSETH,LEOUSD,LEOBTC,LEOUST,LEOEOS,LEOETH,ASTUSD,ASTETH,FOAUSD,FOAETH,UFRUSD,UFRETH,ZBTUSD,ZBTUST,OKBUSD,USKUSD,GTXUSD,KANUSD,OKBUST,OKBETH,OKBBTC,USKUST,USKETH,USKBTC,USKEOS,GTXUST,KANUST,AMPUSD,ALGUSD,ALGBTC,ALGUST,BTCXCH,SWMUSD,SWMETH,TRIUSD,TRIETH,LOOUSD,LOOETH,AMPUST,DUSK:USD,DUSK:BTC,UOSUSD,UOSBTC,RRBUSD,RRBUST,DTXUSD,DTXUST,AMPBTC,FTTUSD,FTTUST,BTCF0:USTF0,ETHF0:USTF0",
-   "enabledPairs": "BTCUSD,LTCUSD,LTCBTC,ETHUSD,ETHBTC",
    "baseCurrencies": "USD",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": true
+    },
+    "configFormat": {
+     "uppercase": true
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "BTCUSD,LTCUSD,LTCBTC,ETHUSD,ETHBTC",
+      "available": "BTCUSD,LTCUSD,LTCBTC,ETHUSD,ETHBTC,ETCBTC,ETCUSD,RRTUSD,RRTBTC,ZECUSD,ZECBTC,XMRUSD,XMRBTC,DSHUSD,DSHBTC,BTCEUR,BTCJPY,XRPUSD,XRPBTC,IOTUSD,IOTBTC,IOTETH,EOSUSD,EOSBTC,EOSETH,SANUSD,SANBTC,SANETH,OMGUSD,OMGBTC,OMGETH,NEOUSD,NEOBTC,NEOETH,ETPUSD,ETPBTC,ETPETH,QTMUSD,QTMBTC,QTMETH,AVTUSD,AVTBTC,AVTETH,EDOUSD,EDOBTC,EDOETH,BTGUSD,BTGBTC,DATUSD,DATBTC,DATETH,QSHUSD,QSHBTC,QSHETH,YYWUSD,YYWBTC,YYWETH,GNTUSD,GNTBTC,GNTETH,SNTUSD,SNTBTC,SNTETH,IOTEUR,BATUSD,BATBTC,BATETH,MNAUSD,MNABTC,MNAETH,FUNUSD,FUNBTC,FUNETH,ZRXUSD,ZRXBTC,ZRXETH,TNBUSD,TNBBTC,TNBETH,SPKUSD,SPKBTC,SPKETH,TRXUSD,TRXBTC,TRXETH,RCNUSD,RCNBTC,RCNETH,RLCUSD,RLCBTC,RLCETH,AIDUSD,AIDBTC,AIDETH,SNGUSD,SNGBTC,SNGETH,REPUSD,REPBTC,REPETH,ELFUSD,ELFBTC,ELFETH,NECUSD,NECBTC,NECETH,BTCGBP,ETHEUR,ETHJPY,ETHGBP,NEOEUR,NEOJPY,NEOGBP,EOSEUR,EOSJPY,EOSGBP,IOTJPY,IOTGBP,IOSUSD,IOSBTC,IOSETH,AIOUSD,AIOBTC,AIOETH,REQUSD,REQBTC,REQETH,RDNUSD,RDNBTC,RDNETH,LRCUSD,LRCBTC,LRCETH,WAXUSD,WAXBTC,WAXETH,DAIUSD,DAIBTC,DAIETH,AGIUSD,AGIBTC,AGIETH,BFTUSD,BFTBTC,BFTETH,MTNUSD,MTNBTC,MTNETH,ODEUSD,ODEBTC,ODEETH,ANTUSD,ANTBTC,ANTETH,DTHUSD,DTHBTC,DTHETH,MITUSD,MITBTC,MITETH,STJUSD,STJBTC,STJETH,XLMUSD,XLMEUR,XLMJPY,XLMGBP,XLMBTC,XLMETH,XVGUSD,XVGEUR,XVGJPY,XVGGBP,XVGBTC,XVGETH,BCIUSD,BCIBTC,MKRUSD,MKRBTC,MKRETH,KNCUSD,KNCBTC,KNCETH,POAUSD,POABTC,POAETH,EVTUSD,LYMUSD,LYMBTC,LYMETH,UTKUSD,UTKBTC,UTKETH,VEEUSD,VEEBTC,VEEETH,DADUSD,DADBTC,DADETH,ORSUSD,ORSBTC,ORSETH,AUCUSD,AUCBTC,AUCETH,POYUSD,POYBTC,POYETH,FSNUSD,FSNBTC,FSNETH,CBTUSD,CBTBTC,CBTETH,ZCNUSD,ZCNBTC,ZCNETH,SENUSD,SENBTC,SENETH,NCAUSD,NCABTC,NCAETH,CNDUSD,CNDBTC,CNDETH,CTXUSD,CTXBTC,CTXETH,PAIUSD,PAIBTC,SEEUSD,SEEBTC,SEEETH,ESSUSD,ESSBTC,ESSETH,ATMUSD,ATMBTC,ATMETH,HOTUSD,HOTBTC,HOTETH,DTAUSD,DTABTC,DTAETH,IQXUSD,IQXBTC,IQXEOS,WPRUSD,WPRBTC,WPRETH,ZILUSD,ZILBTC,ZILETH,BNTUSD,BNTBTC,BNTETH,ABSUSD,ABSETH,XRAUSD,XRAETH,MANUSD,MANETH,BBNUSD,BBNETH,NIOUSD,NIOETH,DGXUSD,DGXETH,VETUSD,VETBTC,VETETH,UTNUSD,UTNETH,TKNUSD,TKNETH,GOTUSD,GOTEUR,GOTETH,XTZUSD,XTZBTC,CNNUSD,CNNETH,BOXUSD,BOXETH,TRXEUR,TRXGBP,TRXJPY,MGOUSD,MGOETH,RTEUSD,RTEETH,YGGUSD,YGGETH,MLNUSD,MLNETH,WTCUSD,WTCETH,CSXUSD,CSXETH,OMNUSD,OMNBTC,INTUSD,INTETH,DRNUSD,DRNETH,PNKUSD,PNKETH,DGBUSD,DGBBTC,BSVUSD,BSVBTC,BABUSD,BABBTC,WLOUSD,WLOXLM,VLDUSD,VLDETH,ENJUSD,ENJETH,ONLUSD,ONLETH,RBTUSD,RBTBTC,USTUSD,EUTEUR,EUTUSD,GSDUSD,UDCUSD,TSDUSD,PAXUSD,RIFUSD,RIFBTC,PASUSD,PASETH,VSYUSD,VSYBTC,ZRXDAI,MKRDAI,OMGDAI,BTTUSD,BTTBTC,BTCUST,ETHUST,CLOUSD,CLOBTC,IMPUSD,IMPETH,LTCUST,EOSUST,BABUST,SCRUSD,SCRETH,GNOUSD,GNOETH,GENUSD,GENETH,ATOUSD,ATOBTC,ATOETH,WBTUSD,XCHUSD,EUSUSD,WBTETH,XCHETH,EUSETH,LEOUSD,LEOBTC,LEOUST,LEOEOS,LEOETH,ASTUSD,ASTETH,FOAUSD,FOAETH,UFRUSD,UFRETH,ZBTUSD,ZBTUST,OKBUSD,USKUSD,GTXUSD,KANUSD,OKBUST,OKBETH,OKBBTC,USKUST,USKETH,USKBTC,USKEOS,GTXUST,KANUST,AMPUSD,ALGUSD,ALGBTC,ALGUST,BTCXCH,SWMUSD,SWMETH,TRIUSD,TRIETH,LOOUSD,LOOETH,AMPUST,DUSK:USD,DUSK:BTC,UOSUSD,UOSBTC,RRBUSD,RRBUST,DTXUSD,DTXUST,AMPBTC,FTTUSD,FTTUST,PAXUST,UDCUST,TSDUST,BTC:CNHT,UST:CNHT,CNH:CNHT,CHZUSD,CHZUST,BTCF0:USTF0,ETHF0:USTF0"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": true
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "tickerBatching": true,
+      "autoPairUpdates": true
+     },
+     "websocketAPI": true,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -299,41 +449,73 @@
    "name": "Bitflyer",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "BTC_JPY,FXBTC_JPY,ETH_BTC,BCH_BTC",
-   "enabledPairs": "BTC_JPY,ETH_BTC,BCH_BTC",
    "baseCurrencies": "JPY",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": false,
-   "pairsLastUpdated": 1566798411,
-   "configCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "_"
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": true,
+     "delimiter": "_"
+    },
+    "configFormat": {
+     "uppercase": true,
+     "delimiter": "_"
+    },
+    "useGlobalFormat": true,
+    "lastUpdated": 1566798411,
+    "assetTypes": [
+     "spot",
+     "futures"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "BTC_JPY,ETH_BTC,BCH_BTC",
+      "available": "BTC_JPY,FXBTC_JPY,ETH_BTC,BCH_BTC"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "_"
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "autoPairUpdates": true
+     },
+     "websocketAPI": false,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": false,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -346,40 +528,72 @@
    "name": "Bithumb",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "clientId": "ClientID",
-   "availablePairs": "VETKRW,REPKRW,ARNKRW,OCNKRW,ETHOSKRW,STEEMKRW,LRCKRW,ETCKRW,CMTKRW,HDACKRW,WTCKRW,PLYKRW,QTUMKRW,MCOKRW,NPXSKRW,ABTKRW,BSVKRW,SNTKRW,STRATKRW,BATKRW,ETHKRW,CTXCKRW,AUTOKRW,HYCKRW,POLYKRW,QKCKRW,TMTGKRW,BCHKRW,MXCKRW,XEMKRW,GTOKRW,BTTKRW,APISKRW,DACKRW,ELFKRW,XLMKRW,DACCKRW,GNTKRW,EOSKRW,TRXKRW,BZNTKRW,ETZKRW,XRPKRW,WAVESKRW,WETKRW,HCKRW,XMRKRW,PPTKRW,LOOMKRW,KNCKRW,MIXKRW,RDNKRW,ADAKRW,ENJKRW,ZRXKRW,DASHKRW,PIVXKRW,THETAKRW,VALORKRW,BHPKRW,OMGKRW,RNTKRW,GXCKRW,AMOKRW,CROKRW,LAMBKRW,LINKKRW,ROMKRW,ZILKRW,ORBSKRW,POWRKRW,INSKRW,CONKRW,XVGKRW,BCDKRW,ICXKRW,BTCKRW,BTGKRW,LBAKRW,MTLKRW,MITHKRW,PAYKRW,WAXKRW,ANKRKRW,IOSTKRW,AEKRW,LTCKRW,ITCKRW,SALTKRW,ZECKRW,TRUEKRW,PSTKRW",
-   "enabledPairs": "BTCKRW,ETHKRW,DASHKRW,LTCKRW,ETCKRW,XRPKRW,BCHKRW,XMRKRW,ZECKRW,QTUMKRW,BTGKRW,EOSKRW",
    "baseCurrencies": "KRW",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true,
-    "index": "KRW"
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": true
+    },
+    "configFormat": {
+     "uppercase": true,
+     "index": "KRW"
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "BTCKRW,ETHKRW,DASHKRW,LTCKRW,ETCKRW,XRPKRW,BCHKRW,XMRKRW,ZECKRW,QTUMKRW,BTGKRW,EOSKRW",
+      "available": "POWRKRW,CMTKRW,ABTKRW,WICCKRW,ADAKRW,ITCKRW,ETHKRW,XMRKRW,BATKRW,MIXKRW,BTGKRW,DVPKRW,XRPKRW,LOOMKRW,BCDKRW,ETZKRW,KNCKRW,CHRKRW,OGOKRW,DASHKRW,CROKRW,TRUEKRW,LAMBKRW,ANKRKRW,STRATKRW,HDACKRW,VALORKRW,PCMKRW,ZECKRW,PAYKRW,INSKRW,FNBKRW,XLMKRW,BSVKRW,BZNTKRW,REPKRW,TRXKRW,AEKRW,ZILKRW,THETAKRW,QKCKRW,GNTKRW,WTCKRW,BTCKRW,ORBSKRW,WOMKRW,FABKRW,WETKRW,ELFKRW,AMOKRW,OMGKRW,POLYKRW,IOSTKRW,HCKRW,PIVXKRW,BCHKRW,AUTOKRW,BHPKRW,ICXKRW,AOAKRW,ETHOSKRW,FCTKRW,NPXSKRW,WAXPKRW,ENJKRW,WAVESKRW,FXKRW,OCNKRW,ARNKRW,MTLKRW,ZRXKRW,QTUMKRW,LRCKRW,APISKRW,MXCKRW,PLYKRW,STEEMKRW,SNTKRW,RNTKRW,EOSKRW,DADKRW,XVGKRW,SALTKRW,TMTGKRW,XSRKRW,CTXCKRW,LBAKRW,PPTKRW,LINKKRW,MCOKRW,FZZKRW,GXCKRW,VETKRW,DACKRW,CONKRW,MITHKRW,BTTKRW,XEMKRW,ETCKRW,HYCKRW,DACCKRW,TRVKRW,LTCKRW,RDNKRW,ROMKRW,PSTKRW,GTOKRW"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": true
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret",
+     "clientID": "ClientID"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "tickerBatching": true,
+      "autoPairUpdates": true
+     },
+     "websocketAPI": false,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -392,38 +606,106 @@
    "name": "Bitmex",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "XRPU19,BCHU19,ADAU19,EOSU19,TRXU19,XBTUSD,XBT7D_U105,XBT7D_D95,XBTU19,XBTZ19,ETHUSD,ETHU19,LTCU19",
-   "enabledPairs": "XBTUSD",
    "baseCurrencies": "USD",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true
+   "currencyPairs": {
+    "assetTypes": [
+     "perpetualcontract",
+     "futures",
+     "downsideprofitcontract",
+     "upsideprofitcontract"
+    ],
+    "pairs": {
+     "downsideprofitcontract": {
+      "available": "XBT7D_D95",
+      "requestFormat": {
+       "uppercase": true,
+       "delimiter": "_"
+      },
+      "configFormat": {
+       "uppercase": true,
+       "delimiter": "_"
+      }
+     },
+     "futures": {
+      "available": "XRPZ19,BCHZ19,ADAZ19,EOSZ19,TRXZ19,XBTZ19,ETHZ19,LTCZ19",
+      "requestFormat": {
+       "uppercase": true
+      },
+      "configFormat": {
+       "uppercase": true
+      }
+     },
+     "perpetualcontract": {
+      "available": "XBTUSD,ETHUSD",
+      "requestFormat": {
+       "uppercase": true
+      },
+      "configFormat": {
+       "uppercase": true
+      }
+     },
+     "spot": {
+      "enabled": "XBTUSD",
+      "available": "XRPU19,BCHU19,ADAU19,EOSU19,TRXU19,XBTUSD,XBT7D_U105,XBT7D_D95,XBTU19,XBTZ19,ETHUSD,ETHU19,LTCU19"
+     },
+     "upsideprofitcontract": {
+      "available": "XBT7D_U105",
+      "requestFormat": {
+       "uppercase": true,
+       "delimiter": "_"
+      },
+      "configFormat": {
+       "uppercase": true,
+       "delimiter": "_"
+      }
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": true
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "tickerBatching": true,
+      "autoPairUpdates": true
+     },
+     "websocketAPI": true,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -436,39 +718,71 @@
    "name": "Bitstamp",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "clientId": "ClientID",
-   "availablePairs": "LTCUSD,ETHUSD,XRPEUR,BCHUSD,BCHEUR,BTCEUR,XRPBTC,EURUSD,BCHBTC,LTCEUR,BTCUSD,LTCBTC,XRPUSD,ETHBTC,ETHEUR",
-   "enabledPairs": "BTCUSD,BTCEUR,EURUSD,XRPUSD,XRPEUR",
    "baseCurrencies": "USD,EUR",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": true
+    },
+    "configFormat": {
+     "uppercase": true
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "BTCUSD,BTCEUR,EURUSD,XRPUSD,XRPEUR",
+      "available": "LTCUSD,ETHUSD,XRPEUR,BCHUSD,BCHEUR,BTCEUR,XRPBTC,EURUSD,BCHBTC,LTCEUR,BTCUSD,LTCBTC,XRPUSD,ETHBTC,ETHEUR"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": true
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret",
+     "clientID": "ClientID"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true,
+     "requiresClientID": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "autoPairUpdates": true
+     },
+     "websocketAPI": true,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -481,40 +795,72 @@
    "name": "Bittrex",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "BTC-LTC,BTC-DOGE,BTC-VTC,BTC-PPC,BTC-FTC,BTC-RDD,BTC-NXT,BTC-DASH,BTC-POT,BTC-BLK,BTC-EMC2,BTC-XMY,BTC-GLC,BTC-GRS,BTC-NLG,BTC-MONA,BTC-VRC,BTC-CURE,BTC-XMR,BTC-XDN,BTC-NAV,BTC-XST,BTC-VIA,BTC-PINK,BTC-IOC,BTC-SYS,BTC-DGB,BTC-BURST,BTC-EXCL,BTC-BLOCK,BTC-BTS,BTC-XRP,BTC-GAME,BTC-NXS,BTC-GEO,BTC-FLDC,BTC-FLO,BTC-MUE,BTC-XEM,BTC-SPHR,BTC-OK,BTC-AEON,BTC-ETH,BTC-EXP,BTC-AMP,BTC-XLM,USDT-BTC,BTC-RVR,BTC-FCT,BTC-MAID,BTC-SLS,BTC-RADS,BTC-DCR,BTC-XVG,BTC-PIVX,BTC-MEME,BTC-STEEM,BTC-LSK,BTC-DGD,BTC-WAVES,BTC-LBC,BTC-SBD,BTC-ETC,ETH-ETC,BTC-STRAT,BTC-REP,BTC-SHIFT,BTC-ARDR,BTC-XZC,BTC-NEO,BTC-ZEC,BTC-IOP,BTC-UBQ,BTC-KMD,BTC-SIB,BTC-ION,BTC-CRW,BTC-SWT,BTC-MLN,BTC-ARK,BTC-INCNT,BTC-GBYTE,BTC-GNT,BTC-EDG,BTC-MORE,ETH-GNT,ETH-REP,USDT-ETH,BTC-WINGS,BTC-RLC,BTC-GNO,BTC-GUP,ETH-GNO,BTC-HMQ,BTC-ANT,ETH-ANT,BTC-SC,ETH-BAT,BTC-BAT,BTC-ZEN,BTC-1ST,BTC-QRL,BTC-PTOY,BTC-BNT,ETH-BNT,BTC-NMR,ETH-LTC,ETH-XRP,BTC-SNT,ETH-SNT,BTC-DCT,BTC-XEL,BTC-MCO,ETH-MCO,BTC-ADT,BTC-FUN,BTC-PAY,ETH-PAY,BTC-MTL,BTC-STORJ,BTC-ADX,ETH-ADX,ETH-DASH,ETH-SC,ETH-ZEC,USDT-ZEC,USDT-LTC,USDT-ETC,USDT-XRP,BTC-OMG,ETH-OMG,BTC-CVC,ETH-CVC,BTC-PART,BTC-QTUM,ETH-QTUM,ETH-XMR,ETH-XEM,ETH-XLM,ETH-NEO,USDT-XMR,USDT-DASH,ETH-BCH,USDT-BCH,BTC-BCH,BTC-DNT,USDT-NEO,ETH-WAVES,ETH-STRAT,ETH-DGB,USDT-OMG,BTC-ADA,BTC-MANA,ETH-MANA,BTC-RCN,BTC-VIB,ETH-VIB,BTC-MER,BTC-POWR,ETH-POWR,ETH-ADA,BTC-ENG,ETH-ENG,USDT-ADA,USDT-XVG,USDT-NXT,BTC-UKG,ETH-UKG,BTC-IGNIS,BTC-SRN,ETH-SRN,BTC-WAX,ETH-WAX,BTC-ZRX,ETH-ZRX,BTC-VEE,BTC-BCPT,BTC-TRX,ETH-TRX,BTC-TUSD,BTC-LRC,ETH-TUSD,BTC-UP,BTC-DMT,ETH-DMT,USDT-TUSD,BTC-POLY,ETH-POLY,BTC-PRO,USDT-SC,USDT-TRX,BTC-BLT,BTC-STORM,ETH-STORM,BTC-AID,BTC-NGC,BTC-GTO,USDT-DCR,BTC-OCN,ETH-OCN,USD-BTC,USD-USDT,USD-TUSD,BTC-TUBE,BTC-CMCT,USD-ETH,BTC-NLC2,BTC-BKX,BTC-MFT,BTC-LOOM,BTC-RFR,USDT-DGB,BTC-RVN,USD-XRP,USD-ETC,BTC-BFT,BTC-GO,BTC-HYDRO,BTC-UPP,USD-ADA,USD-ZEC,USDT-DOGE,BTC-ENJ,BTC-MET,USD-LTC,USD-TRX,BTC-DTA,BTC-EDR,BTC-BOXX,BTC-IHT,USD-BCH,BTC-XHV,USDT-ZRX,BTC-NPXS,BTC-PMA,USDT-BAT,USDT-RVN,BTC-PAL,USD-SC,BTC-PAX,USDT-PAX,BTC-ZIL,BTC-MOC,BTC-OST,BTC-SPC,BTC-MEDX,BTC-BSV,BTC-IOST,BTC-XNK,USDT-BSV,ETH-BSV,BTC-NCASH,BTC-SOLVE,BTC-USDS,USDT-PMA,ETH-NPXS,USDT-NPXS,USD-ZRX,BTC-JNT,BTC-LBA,BTC-MOBI,USD-BAT,USD-BSV,BTC-DENT,USD-USDS,BTC-DRGN,USD-PAX,BTC-VITE,BTC-IOTX,USD-DGB,BTC-BTM,BTC-ELF,USD-EDR,BTC-QNT,BTC-BTU,USD-ZEN,BTC-SPND,BTC-BTT,BTC-NKN,USD-KMD,USDT-BTT,BTC-GRIN,BTC-CTXC,BTC-HXRO,BTC-META,USDT-GRIN,BTC-FSN,BTC-HST,BTC-ANKR,USDT-XLM,BTC-TRAC,BTC-CRO,BTC-ONT,ETH-SOLVE,BTC-ONG,BTC-AERGO,BTC-TTC,USD-SPND,BTC-SLT,BTC-PTON,BTC-PI,ETH-ANKR,BTC-PLA,BTC-ART,BTC-ORBS,USDT-ENJ,BTC-VBK,BTC-BORA,BTC-CND,USDT-ONT,BTC-TRIO,BTC-FX,ETH-FX,BTC-ATOM,USDT-ATOM,ETH-ATOM,BTC-XYO,BTC-OCEAN,USDT-OCEAN,BTC-WIB,BTC-BWX,BTC-SNX,BTC-SUSD,BTC-VDX,USDT-VDX,ETH-VDX,BTC-COSM,BTC-OGO,USDT-OGO,BTC-ITM,BTC-LAMB,BTC-STPT,BTC-FET,BTC-MKR,ETH-MKR,BTC-DAI,ETH-DAI,USDT-DAI,BTC-CPT,BTC-ABT,BTC-PROM,BTC-FTM,BTC-ABYSS,BTC-EOS,ETH-EOS,USDT-EOS,BTC-FXC,BTC-DUSK,BTC-URAC,BTC-BLOC,BTC-BRZ,BTC-TEMCO,BTC-SPIN,BTC-HINT,BTC-LUNA,BTC-CHR,BTC-TUDA,BTC-UTK,BTC-PXL,BTC-AKRO,BTC-TSHP",
-   "enabledPairs": "USDT-BTC",
    "baseCurrencies": "USD",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "-"
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": true,
+     "delimiter": "-"
+    },
+    "configFormat": {
+     "uppercase": true,
+     "delimiter": "-"
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "USDT-BTC",
+      "available": "BTC-LTC,BTC-DOGE,BTC-VTC,BTC-PPC,BTC-FTC,BTC-RDD,BTC-NXT,BTC-DASH,BTC-POT,BTC-BLK,BTC-EMC2,BTC-XMY,BTC-GRS,BTC-NLG,BTC-MONA,BTC-VRC,BTC-CURE,BTC-XMR,BTC-XDN,BTC-NAV,BTC-XST,BTC-VIA,BTC-PINK,BTC-IOC,BTC-SYS,BTC-DGB,BTC-BURST,BTC-EXCL,BTC-BLOCK,BTC-BTS,BTC-XRP,BTC-GAME,BTC-NXS,BTC-GEO,BTC-FLO,BTC-MUE,BTC-XEM,BTC-SPHR,BTC-OK,BTC-AEON,BTC-ETH,BTC-EXP,BTC-XLM,USDT-BTC,BTC-FCT,BTC-MAID,BTC-SLS,BTC-RADS,BTC-DCR,BTC-XVG,BTC-PIVX,BTC-MEME,BTC-STEEM,BTC-LSK,BTC-WAVES,BTC-LBC,BTC-SBD,BTC-ETC,ETH-ETC,BTC-STRAT,BTC-REP,BTC-ARDR,BTC-XZC,BTC-NEO,BTC-ZEC,BTC-UBQ,BTC-KMD,BTC-SIB,BTC-ION,BTC-CRW,BTC-ARK,BTC-INCNT,BTC-GBYTE,BTC-GNT,BTC-EDG,BTC-MORE,ETH-GNT,ETH-REP,USDT-ETH,BTC-RLC,BTC-GNO,ETH-GNO,BTC-HMQ,BTC-ANT,ETH-ANT,BTC-SC,ETH-BAT,BTC-BAT,BTC-ZEN,BTC-1ST,BTC-QRL,BTC-PTOY,BTC-BNT,ETH-BNT,BTC-NMR,ETH-LTC,ETH-XRP,BTC-SNT,ETH-SNT,BTC-DCT,BTC-XEL,BTC-MCO,ETH-MCO,BTC-ADT,BTC-PAY,ETH-PAY,BTC-MTL,BTC-STORJ,BTC-ADX,ETH-ADX,ETH-DASH,ETH-SC,ETH-ZEC,USDT-ZEC,USDT-LTC,USDT-ETC,USDT-XRP,BTC-OMG,ETH-OMG,BTC-CVC,ETH-CVC,BTC-PART,BTC-QTUM,ETH-QTUM,ETH-XMR,ETH-XEM,ETH-XLM,ETH-NEO,USDT-XMR,USDT-DASH,ETH-BCH,USDT-BCH,BTC-BCH,BTC-DNT,USDT-NEO,ETH-WAVES,ETH-STRAT,ETH-DGB,USDT-OMG,BTC-ADA,BTC-MANA,ETH-MANA,BTC-RCN,BTC-VIB,ETH-VIB,BTC-MER,ETH-ADA,BTC-ENG,ETH-ENG,USDT-ADA,USDT-XVG,BTC-UKG,ETH-UKG,BTC-IGNIS,BTC-SRN,ETH-SRN,BTC-WAXP,ETH-WAXP,BTC-ZRX,ETH-ZRX,BTC-VEE,BTC-TRX,ETH-TRX,BTC-TUSD,BTC-LRC,ETH-TUSD,BTC-DMT,ETH-DMT,USDT-TUSD,USDT-SC,USDT-TRX,BTC-STORM,ETH-STORM,BTC-AID,BTC-GTO,USDT-DCR,USD-BTC,USD-USDT,USD-TUSD,BTC-TUBE,BTC-CMCT,USD-ETH,BTC-NLC2,BTC-BKX,BTC-MFT,BTC-LOOM,BTC-RFR,USDT-DGB,BTC-RVN,USD-XRP,USD-ETC,BTC-BFT,BTC-GO,BTC-HYDRO,BTC-UPP,USD-ADA,USD-ZEC,USDT-DOGE,BTC-ENJ,BTC-MET,USD-LTC,USD-TRX,BTC-DTA,BTC-EDR,BTC-IHT,USD-BCH,BTC-XHV,USDT-ZRX,BTC-NPXS,BTC-PMA,USDT-BAT,USDT-RVN,BTC-PAL,USD-SC,BTC-PAX,BTC-ZIL,BTC-MOC,BTC-OST,BTC-SPC,BTC-MED,BTC-BSV,BTC-IOST,USDT-BSV,ETH-BSV,BTC-SOLVE,BTC-USDS,USDT-PMA,ETH-NPXS,USDT-NPXS,USD-ZRX,BTC-JNT,BTC-LBA,USD-BAT,USD-BSV,BTC-DENT,USD-USDS,BTC-DRGN,USD-PAX,BTC-VITE,BTC-IOTX,USD-DGB,BTC-BTM,BTC-ELF,BTC-QNT,BTC-BTU,USD-ZEN,BTC-SPND,BTC-BTT,BTC-NKN,USD-KMD,USDT-BTT,BTC-GRIN,BTC-CTXC,BTC-HXRO,BTC-META,USDT-GRIN,BTC-FSN,BTC-ANKR,USDT-XLM,BTC-TRAC,BTC-CRO,BTC-ONT,ETH-SOLVE,BTC-ONG,BTC-TTC,BTC-PTON,BTC-PI,ETH-ANKR,BTC-PLA,BTC-ART,BTC-ORBS,USDT-ENJ,BTC-VBK,BTC-BORA,BTC-CND,USDT-ONT,BTC-FX,ETH-FX,BTC-ATOM,USDT-ATOM,ETH-ATOM,BTC-OCEAN,USDT-OCEAN,BTC-BWX,BTC-VDX,USDT-VDX,ETH-VDX,BTC-COSM,BTC-LAMB,BTC-STPT,BTC-DAI,ETH-DAI,USDT-DAI,BTC-CPT,BTC-FNB,BTC-PROM,BTC-ABYSS,BTC-EOS,ETH-EOS,USDT-EOS,BTC-FXC,BTC-DUSK,BTC-URAC,BTC-BLOC,BTC-TEMCO,BTC-SPIN,BTC-LUNA,BTC-CHR,BTC-TUDA,BTC-UTK,BTC-PXL,BTC-AKRO,BTC-TSHP,BTC-HEDG,BTC-MRPH,BTC-HBAR,ETH-HBAR,USD-HBAR,USDT-HBAR,BTC-PLG,BTC-VET,USDT-VET,BTC-SIX,BTC-WGP,BTC-APM,BTC-FLETA,USD-DCR,BTC-BLTV"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "-"
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "tickerBatching": true,
+      "autoPairUpdates": true
+     },
+     "websocketAPI": false,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -527,40 +873,71 @@
    "name": "BTSE",
    "enabled": true,
    "verbose": false,
-   "websocket": true,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "BTC-CNY,BTC-EUR,BTC-GBP,BTC-HKD,BTC-JPY,BTC-SGD,BTC-USD,ETH-CNY,ETH-EUR,ETH-GBP,ETH-HKD,ETH-JPY,ETH-SGD,ETH-USD,LTC-CNY,LTC-EUR,LTC-GBP,LTC-HKD,LTC-JPY,LTC-SGD,LTC-USD,USDT-CNY,USDT-EUR,USDT-GBP,USDT-HKD,USDT-JPY,USDT-SGD,USDT-USD",
-   "enabledPairs": "BTC-USD",
    "baseCurrencies": "USD",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "-"
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": true,
+     "delimiter": "-"
+    },
+    "configFormat": {
+     "uppercase": true,
+     "delimiter": "-"
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "BTC-USD",
+      "available": "BTC-CNY,BTC-EUR,BTC-GBP,BTC-HKD,BTC-JPY,BTC-SGD,BTC-USD,ETH-CNY,ETH-EUR,ETH-GBP,ETH-HKD,ETH-JPY,ETH-SGD,ETH-USD,LTC-CNY,LTC-EUR,LTC-GBP,LTC-HKD,LTC-JPY,LTC-SGD,LTC-USD,USDT-CNY,USDT-EUR,USDT-GBP,USDT-HKD,USDT-JPY,USDT-SGD,USDT-USD,XMR-CNY,XMR-EUR,XMR-GBP,XMR-HKD,XMR-JPY,XMR-SGD,XMR-USD"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "-"
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "autoPairUpdates": true
+     },
+     "websocketAPI": true,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": true
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -573,39 +950,71 @@
    "name": "BTC Markets",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "BTC-AUD,LTC-AUD,LTC-BTC,ETH-BTC,ETH-AUD,ETC-AUD,ETC-BTC,XRP-AUD,XRP-BTC,POWR-AUD,POWR-BTC,OMG-AUD,OMG-BTC,BCHABC-AUD,BCHABC-BTC,BCHSV-AUD,BCHSV-BTC,GNT-AUD,GNT-BTC,BAT-AUD,BAT-BTC,XLM-AUD,XLM-BTC",
-   "enabledPairs": "BTC-AUD",
    "baseCurrencies": "AUD",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "-"
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": true
+    },
+    "configFormat": {
+     "uppercase": true,
+     "delimiter": "-"
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "BTC-AUD",
+      "available": "BTC-AUD,LTC-AUD,LTC-BTC,ETH-BTC,ETH-AUD,ETC-AUD,ETC-BTC,XRP-AUD,XRP-BTC,POWR-AUD,POWR-BTC,OMG-AUD,OMG-BTC,BCHABC-AUD,BCHABC-BTC,BCHSV-AUD,BCHSV-BTC,GNT-AUD,GNT-BTC,BAT-AUD,BAT-BTC,XLM-AUD,XLM-BTC"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": true
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true,
+     "requiresBase64DecodeSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "autoPairUpdates": true
+     },
+     "websocketAPI": true,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -618,39 +1027,70 @@
    "name": "COINUT",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "clientId": "ClientID",
-   "availablePairs": "BTCUSDT,ETCBTC,ETHUSDT,BTCCAD,ETHLTC,ETHUSD,LTCUSD,BTCSGD,ETCSGD,ETHSGD,ZECBTC,ZECUSD,ZECUSDT,ETHBTC,LTCBTC,USDTSGD,USDTUSD,XMRUSDT,BTCUSD,LTCCAD,LTCSGD,LTCUSDT,XMRBTC,XMRLTC,ZECLTC,ETCUSDT,ZECSGD,ETCLTC,ETHCAD,ZECCAD",
-   "enabledPairs": "LTCBTC,ETCBTC,ETHBTC",
    "baseCurrencies": "USD",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": true
+    },
+    "configFormat": {
+     "uppercase": true
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "LTC-USDT",
+      "available": "ETH-BTC,LTC-SGD,BTC-CAD,DAI-SGD,ETH-CAD,ETH-SGD,ETH-USD,ZEC-USDT,BTC-USD,ETC-SGD,ETH-LTC,ZEC-SGD,BTC-SGD,ETC-USDT,XMR-BTC,XMR-USDT,ZEC-BTC,ZEC-CAD,ZEC-LTC,LTC-CAD,LTC-USDT,LTC-USD,XMR-LTC,ETC-LTC,LTC-BTC,ETH-USDT,ZEC-USD,USDT-SGD,USDT-USD,BTC-USDT,ETC-BTC"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": true
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret",
+     "clientID": "ClientID"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresClientID": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "autoPairUpdates": true
+     },
+     "websocketAPI": true,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -663,41 +1103,73 @@
    "name": "EXMO",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "WAVES_BTC,BTC_RUB,DCR_UAH,XMR_UAH,USDC_BTC,XEM_USD,XLM_RUB,ATMCASH_BTC,QTUM_USD,ADA_USD,TRX_BTC,XRP_BTC,MKR_DAI,STQ_USD,ETH_USD,KICK_USDT,ZRX_USD,USDC_ETH,GUSD_BTC,ZRX_ETH,DASH_BTC,ETC_BTC,LTC_RUB,BTC_USD,STQ_EUR,BCH_RUB,XRP_USDT,WAVES_ETH,XTZ_ETH,QTUM_BTC,XEM_BTC,LSK_BTC,TRX_RUB,ETH_PLN,PTI_USDT,MNC_ETH,DAI_BTC,NEO_USD,KICK_BTC,ETH_BTC,ZEC_BTC,ETZ_USDT,DAI_ETH,DAI_USD,GNT_ETH,HBZ_USD,DXT_BTC,XRP_TRY,DAI_RUB,MNX_BTC,BCH_ETH,WAVES_USD,TRX_USD,INK_ETH,XLM_BTC,XMR_USD,KICK_ETH,DASH_RUB,LTC_BTC,USDT_RUB,USDT_EUR,DOGE_USD,DASH_UAH,XTZ_USD,ETZ_ETH,HB_BTC,GUSD_RUB,BTC_TRY,ADA_BTC,ADA_ETH,BTG_BTC,BCH_USDT,USDT_UAH,PTI_RUB,XTZ_RUB,DASH_USD,LTC_USD,ETH_USDT,MNC_BTC,XEM_EUR,GUSD_USD,XMR_BTC,XRP_EUR,SMART_USD,HBZ_BTC,BCH_USD,ETH_RUB,XRP_ETH,ZEC_RUB,XRP_RUB,DCR_BTC,DCR_RUB,PTI_EOS,EOS_USD,DXT_USD,ETH_LTC,BTC_USDT,USDT_USD,DASH_USDT,BTG_ETH,BCH_UAH,ROOBEE_ETH,TRX_UAH,MNC_USD,QTUM_ETH,BTCZ_BTC,XRP_UAH,USDC_USDT,NEO_BTC,OMG_ETH,STQ_BTC,ETC_USD,XMR_EUR,EOS_EUR,BTC_PLN,NEO_RUB,ZRX_BTC,INK_BTC,MNX_ETH,ETH_UAH,LSK_RUB,BCH_BTC,ETH_EUR,XLM_USD,ETC_RUB,DOGE_BTC,EXM_BTC,ROOBEE_BTC,LSK_USD,HBZ_ETH,LTC_EUR,USD_RUB,KICK_RUB,USDC_USD,PTI_BTC,OMG_USD,XRP_USD,XEM_UAH,GNT_BTC,LTC_UAH,SMART_BTC,SMART_EUR,SMART_RUB,BTG_USD,GAS_USD,BTC_UAH,XTZ_BTC,ZEC_USD,MKR_BTC,INK_USD,EOS_BTC,STQ_RUB,ZEC_EUR,XMR_ETH,BTC_EUR,XMR_RUB,XLM_TRY,GAS_BTC,MNX_USD,WAVES_RUB,ETZ_BTC,ETH_TRY,OMG_BTC,BCH_EUR",
-   "enabledPairs": "BTC_USD,LTC_USD",
    "baseCurrencies": "USD,EUR,RUB,PLN,UAH",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "_"
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": true,
+     "delimiter": "_",
+     "separator": ","
+    },
+    "configFormat": {
+     "uppercase": true,
+     "delimiter": "_"
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "BTC_USD,LTC_USD",
+      "available": "DCR_RUB,DAI_USD,ZRX_ETH,VLX_BTC,XRP_BTC,DASH_UAH,ETH_RUB,ZEC_RUB,USD_RUB,XTZ_BTC,PTI_EOS,ETH_LTC,SMART_USD,ADA_BTC,GNT_BTC,XRP_RUB,USDC_USDT,ETZ_BTC,HB_BTC,DAI_BTC,SMART_EUR,BCH_ETH,LTC_BTC,USDT_RUB,BTC_PLN,XMR_UAH,TRX_UAH,XRP_TRY,TRX_RUB,LTC_UAH,USDC_USD,ZRX_BTC,DASH_USD,DCR_BTC,PTI_USDT,MKR_BTC,DASH_RUB,DASH_USDT,XTZ_RUB,QTUM_ETH,OMG_USD,MNX_ETH,XRP_UAH,NEO_BTC,GNT_ETH,INK_ETH,BTG_USD,ZAG_BTC,XTZ_USD,LSK_RUB,BTT_BTC,BCH_EUR,ETH_USDT,WAVES_BTC,TRX_USD,MNX_USD,BCH_RUB,GAS_BTC,ETH_UAH,KICK_ETH,USDC_BTC,ETZ_USDT,LSK_USD,BCH_UAH,XMR_RUB,ETH_USD,LTC_EUR,USDT_USD,XLM_USD,BTG_BTC,BCH_BTC,SMART_BTC,XEM_USD,XMR_BTC,QTUM_BTC,OMG_ETH,ZEC_EUR,XTZ_ETH,MNC_ETH,DAI_RUB,XEM_EUR,DXT_USD,ETH_EUR,ZEC_USD,DOGE_BTC,DCR_UAH,MKR_DAI,QTUM_USD,XRP_USDT,WAVES_ETH,BTG_ETH,KICK_RUB,ETC_RUB,KICK_USDT,ZEC_BTC,XEM_UAH,DOGE_USD,GUSD_BTC,GUSD_RUB,GAS_USD,LSK_BTC,MNX_BTC,DXT_BTC,LTC_USD,BTC_USD,EXM_BTC,MNC_BTC,BTC_USDT,PTI_RUB,SMART_RUB,XMR_EUR,GUSD_USD,OMG_BTC,ETH_PLN,EOS_EUR,XRP_ETH,BTC_TRY,ROOBEE_BTC,ETH_TRY,XMR_ETH,ADA_USD,XLM_RUB,ETC_BTC,ETC_USD,XRP_USD,ATMCASH_BTC,XEM_BTC,NEO_RUB,XMR_USD,USDT_EUR,INK_USD,USDC_ETH,ETZ_ETH,TRX_BTC,DASH_BTC,ZRX_USD,EOS_USD,XRP_EUR,BTC_EUR,BTT_UAH,INK_BTC,BCH_USD,ETH_BTC,XLM_TRY,NEO_USD,BTCZ_BTC,LTC_RUB,KICK_BTC,BCH_USDT,ROOBEE_ETH,MNC_USD,DAI_ETH,EOS_BTC,WAVES_USD,BTC_RUB,BTC_UAH,ADA_ETH,WAVES_RUB,USDT_UAH,BTT_RUB,PTI_BTC,XLM_BTC"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "_",
-    "separator": ","
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "tickerBatching": true,
+      "autoPairUpdates": true
+     },
+     "websocketAPI": false,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -710,40 +1182,73 @@
    "name": "CoinbasePro",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "clientId": "ClientID",
-   "availablePairs": "EOSUSD,ETHBTC,ETHUSDC,ETHEUR,ZECUSDC,REPUSD,LIN-ETH,EOSBTC,LTCGBP,CVCUSDC,XLMEUR,ETCGBP,XTZBTC,XRPUSD,XRPBTC,ALG-USD,BTCUSDC,GNTUSDC,ZRXBTC,DNTUSDC,BTCUSD,LTCBTC,LTCUSD,ETHGBP,ZRXUSD,BATETH,ZRXEUR,REPBTC,ETCEUR,XRPEUR,EOSEUR,BCHEUR,MAN-USDC,XLMUSD,BATUSDC,LOO-USDC,BTCEUR,BCHGBP,LTCEUR,BCHBTC,LIN-USD,DAIUSDC,XTZUSD,ETCBTC,BCHUSD,BTCGBP,ETHUSD,XLMBTC,ETCUSD,ZECBTC,ETHDAI",
-   "enabledPairs": "BTCUSD,BTCGBP,BTCEUR",
    "baseCurrencies": "USD,GBP,EUR",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": true,
+     "delimiter": "-"
+    },
+    "configFormat": {
+     "uppercase": true
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "BTC-USD",
+      "available": "BTC-GBP,BTC-USD,REP-BTC,LTC-EUR,BCH-BTC,XRP-USD,BTC-USDC,DNT-USDC,ETH-DAI,GNT-USDC,EOS-BTC,XTZ-BTC,EOS-USD,ZEC-USDC,BTC-EUR,BAT-USDC,DASH-USD,ETC-USD,XLM-BTC,XRP-EUR,ETH-BTC,BCH-GBP,XRP-BTC,LTC-BTC,MANA-USDC,LOOM-USDC,BAT-ETH,ZRX-BTC,REP-USD,LTC-USD,EOS-EUR,BCH-USD,XLM-EUR,XTZ-USD,ETC-BTC,ZEC-BTC,ETC-EUR,ZRX-EUR,ETH-EUR,LTC-GBP,DAI-USDC,ZRX-USD,ETH-USDC,BCH-EUR,LINK-ETH,ETC-GBP,DASH-BTC,XLM-USD,CVC-USDC,ETH-USD,ETH-GBP,ALGO-USD,LINK-USD"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "-"
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret",
+     "clientID": "ClientID"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true,
+     "requiresClientID": true,
+     "requiresBase64DecodeSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "autoPairUpdates": true
+     },
+     "websocketAPI": true,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -753,90 +1258,153 @@
    ]
   },
   {
-    "name": "Coinbene",
-    "enabled": true,
-    "verbose": false,
-    "websocket": false,
-    "useSandbox": false,
-    "restPollingDelay": 10,
-    "httpTimeout": 15000000000,
-    "websocketResponseCheckTimeout": 30000000,
-    "websocketResponseMaxLimit": 7000000000,
-    "websocketOrderbookBufferLimit": 5,
-    "httpUserAgent": "",
-    "httpDebugging": false,
-    "authenticatedApiSupport": false,
-    "authenticatedWebsocketApiSupport": false,
-    "apiKey": "Key",
-    "apiSecret": "Secret",
-    "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-    "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-    "proxyAddress": "",
-    "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-    "clientId": "ClientID",
-    "availablePairs": "ABBC/BTC,ABT/ETH,ABT/USDT,ABYSS/ETH,ACDC/BTC,ACDC/USDT,ADI/ETH,ADK/BTC,ADN/BTC,AE/BTC,AE/USDT,AID/BTC,AIDOC/BTC,AION/BTC,AIPE/USDT,AIT/USDT,ALGO/USDT,ALI/ETH,ALX/ETH,APL/ETH,ATX/BTC,B2G/BTC,B91/USDT,BAAS/BTC,BAT/BTC,BCHABC/USDT,BCHSV/USDT,BEAUTY/ETH,BETHER/ETH,BEZ/BTC,BGC/USDT,BKG/BTC,BNT/BTC,BOA/USDT,BSTN/ETH,BTC/USDT,BTFM/USDT,BTNT/BTC,BTSC/BTC,BTT/USDT,BU/ETH,BVT/ETH,C3W/ETH,CAN/ETH,CCC/ETH,CCE/USDT,CC/USDT,CEDEX/ETH,CENT/BTC,CFT/USDT,CLO/BTC,CMT/ETH,CMT/USDT,CNN/BTC,CNN/ETH,CNN/USDT,CONI/USDT,COSM/BTC,COSM/ETH,COZP/BTC,CPC/BTC,CPMS/USDT,CREDO/ETH,CRN/BTC,CS/ETH,CS/USDT,CTXC/ETH,CUST/USDT,CVC/BTC,CXC/USDT,CXP/BTC,DCA/ETH,DCT/BTC,DENT/BTC,DGD/BTC,DOCK/ETH,DSCB/USDT,DTA/ETH,DUC/BTC,DVC/ETH,EBC/BTC,EBC/ETH,EBC/USDT,ECA/BTC,EDC/BTC,EDR/ETH,ELF/BTC,EMT/USDT,EOS/BTC,EOS/USDT,EQUAD/BTC,ETC/BTC,ETC/USDT,ETH/BTC,ETH/USDT,ETK/BTC,ETN/BTC,FAB/ETH,FACC/ETH,FCC/BTC,FDS/USDT,FND/ETH,FNKOS/ETH,FTN/BTC,FTN/USDT,FTT/BTC,FXT/ETH,GETX/ETH,GLDR/ETH,GMTK/ETH,GOM/USDT,GRAM/USDT,GRIN/BTC,GRN/BTC,GSTT/USDT,GUSD/USDT,GVT/BTC,HAPPY/BTC,HDAC/BTC,HMB/USDT,HNB/USDT,HPT/ETH,HUP/USDT,INCX/ETH,IOST/BTC,IOTE/USDT,ISR/BTC,ISR/ETH,IVY/ETH,JOB/BTC,KBC/BTC,KBC/USDT,KMD/BTC,KNT/ETH,KST/BTC,KUE/BTC,KUE/ETH,KUKY/BTC,LAMB/USDT,LATX/BTC,LBK/BTC,LINK/BTC,LOOM/BTC,LTC/BTC,LTC/USDT,LUC/ETH,LUX/BTC,LVTC/ETH,MDC/USDT,MGC/USDT,MIB/BTC,MINX/BTC,MINX/ETH,MOAC/USDT,MPL/BTC,MTC/BTC,MT/ETH,MTN/ETH,MT/USDT,MVL/ETH,MVPT/ETH,MWT/USDT,NANO/BTC,NBAI/ETH,NCASH/BTC,NEO/BTC,NEO/USDT,NOBS/BTC,NPXS/ETH,NPXS/USDT,NTY/ETH,ODC/USDT,OMG/BTC,OMX/ETH,OVC/ETH,OZX/ETH,PAL/ETH,PAT/ETH,PAX/USDT,PKX/BTC,PLAY/BTC,PMA/ETH,POLL/BTC,POLY/BTC,PPT/BTC,PSM/BTC,QKC/BTC,QTUM/BTC,QTUM/USDT,RBG/BTC,RBG/ETH,RBG/USDT,RBTC/BTC,RBZ/USDT,RCOIN/BTC,RCOIN/USDT,REP/BTC,REV/BTC,RIF/BTC,SALT/BTC,SCC/BTC,SCO/BTC,SEN/BTC,SENC/ETH,SHE/BTC,SHVR/BTC,SIM/BTC,SKB/BTC,SKM/ETH,SKYM/USDT,SLT/ETH,SMARTUP/ETH,SMARTUP/USDT,SMART/USDT,SORO/USDT,SRCOIN/BTC,SRCOIN/ETH,STORJ/BTC,STQ/BTC,SWET/BTC,SWTC/USDT,TCT/BTC,TEMCO/USDT,TEN/BTC,TEN/ETH,THM/ETH,TIB/BTC,TIMO/USDT,TMTG/BTC,TOC/ETH,TOSC/BTC,TRUE/ETH,TRX/BTC,TRX/USDT,TSL/BTC,TVB/USDT,UTNP/BTC,VBT/USDT,VEEN/BTC,VME/BTC,VME/ETH,VOLLAR/USDT,VSC/ETH,W12/BTC,W12/ETH,WBL/BTC,WFX/BTC,XEM/BTC,XLM/BTC,XMCT/ETH,XMCT/USDT,XMR/BTC,XNK/ETH,XRP/BTC,XRP/USDT,XSR/USDT,YTA/USDT,ZAT/ETH,ZDC/BTC,ZEC/BTC,ZGC/BTC,ZRX/BTC",
-    "enabledPairs": "BTC/USDT",
-    "baseCurrencies": "USD",
-    "assetTypes": "SPOT",
-    "supportsAutoPairUpdates": true,
-    "configCurrencyPairFormat": {
-      "uppercase": true,
-      "delimiter": "/"
-    },
-    "requestCurrencyPairFormat": {
+   "name": "Coinbene",
+   "enabled": true,
+   "verbose": false,
+   "httpTimeout": 15000000000,
+   "websocketResponseCheckTimeout": 30000000,
+   "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
+   "websocketOrderbookBufferLimit": 5,
+   "baseCurrencies": "USD",
+   "currencyPairs": {
+    "requestFormat": {
      "uppercase": true,
      "delimiter": "/"
     },
-    "bankAccounts": [
-     {
-      "bankName": "",
-      "bankAddress": "",
-      "accountName": "",
-      "accountNumber": "",
-      "swiftCode": "",
-      "iban": "",
-      "supportedCurrencies": ""
+    "configFormat": {
+     "uppercase": true,
+     "delimiter": "/"
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "BTC/USDT",
+      "available": "ABBC/BTC,ABBC/USDT,ABT/ETH,ABT/USDT,ABYSS/ETH,ACDC/BTC,ACDC/USDT,ADI/ETH,ADK/BTC,ADN/BTC,AE/BTC,AE/USDT,AIDOC/BTC,AION/BTC,AIPE/USDT,AIT/USDT,ALGO/USDT,ALI/ETH,ALX/ETH,APL/ETH,ATX/BTC,B2G/BTC,BAAS/BTC,BAT/BTC,BCH/USDT,BEAUTY/ETH,BETHER/ETH,BEZ/BTC,BGC/USDT,BKG/BTC,BNB/USDT,BNT/BTC,BOA/USDT,BSTN/ETH,BSV/USDT,BTC/USDT,BTFM/USDT,BTNT/BTC,BTSC/BTC,BTT/USDT,BU/ETH,BVT/ETH,C3W/ETH,CAN/ETH,CCC/ETH,CCE/USDT,CC/USDT,CEDEX/ETH,CENT/BTC,CFT/USDT,CLO/BTC,CMT/ETH,CMT/USDT,CNN/BTC,CNN/ETH,CNN/USDT,CONI/USDT,COSM/BTC,COSM/ETH,COZP/BTC,CPC/BTC,CREDO/ETH,CRN/BTC,CSCC/USDT,CS/ETH,CS/USDT,CTXC/ETH,CUST/USDT,CVC/BTC,CXP/BTC,DCA/ETH,DCT/BTC,DDAM/ETH,DDAM/USDT,DENT/BTC,DGD/BTC,DOCK/ETH,DSCB/USDT,DTA/ETH,DUC/BTC,DVC/ETH,EBC/BTC,EBC/ETH,EBC/USDT,ECA/BTC,ECP/BTC,EDC/BTC,EDR/ETH,ELF/BTC,EMT/USDT,EOS/BTC,EOS/USDT,EQUAD/BTC,ETC/BTC,ETC/USDT,ETH/BTC,ETH/USDT,ETK/BTC,ETN/BTC,FAB/ETH,FCC/BTC,FND/ETH,FNKOS/ETH,FTN/BTC,FTN/USDT,FTT/BTC,FXT/ETH,GDC/BTC,GDC/ETH,GDC/USDT,GETX/ETH,GLDR/ETH,GMTK/ETH,GOM2/USDT,GRAM/USDT,GRIN/BTC,GRN/BTC,GUSD/USDT,GVT/BTC,HAPPY/BTC,HDAC/BTC,HMB/USDT,HNB/USDT,HPT/ETH,HT/USDT,HUP/USDT,INCX/ETH,IOST/BTC,IOTE/USDT,ISR/BTC,ISR/ETH,IVY/ETH,JOB/BTC,KBC/BTC,KBC/USDT,KMD/BTC,KNT/ETH,KST/BTC,KUE/BTC,KUE/ETH,LAMB/USDT,LATX/BTC,LBK/BTC,LINK/BTC,LOOM/BTC,LTC/BTC,LTC/USDT,LUC/ETH,LUX/BTC,LVTC/ETH,MC/USDT,MDC/USDT,MIB/BTC,MINX/BTC,MINX/ETH,MOAC/USDT,MPL/BTC,MTC/BTC,MT/ETH,MTN/ETH,MT/USDT,MVL/ETH,MVPT/ETH,MXM/ETH,MXM/USDT,MZG/USDT,NANO/BTC,NBAI/ETH,NCASH/BTC,NEO/BTC,NEO/USDT,NFT/USDT,NOBS/BTC,NPXS/ETH,NPXS/USDT,NTY/ETH,ODC/USDT,OMG/BTC,OMX/ETH,OVC/ETH,OZX/ETH,PAL/ETH,PAT/ETH,PAX/USDT,PKX/BTC,PLAY/BTC,PMA/ETH,POLL/BTC,POLY/BTC,PPT/BTC,PSM/BTC,QKC/BTC,QTUM/BTC,QTUM/USDT,RBTC/BTC,RCOIN/BTC,RCOIN/USDT,REP/BTC,REV/BTC,RIF/BTC,SBT/USDT,SCC/BTC,SCO/BTC,SEN/BTC,SENC/ETH,SHE/BTC,SHVR/BTC,SIM/BTC,SKB/BTC,SKM/ETH,SKYM/USDT,SLT/ETH,SMARTUP/ETH,SMARTUP/USDT,SMART/USDT,SORO/USDT,SRCOIN/BTC,SRCOIN/ETH,STORJ/BTC,STQ/BTC,SWET/BTC,SWTC/USDT,TCT/BTC,TEMCO/USDT,TEN/BTC,TEN/ETH,TIB/BTC,TMTG/BTC,TOC/ETH,TOOS/USDT,TOSC/BTC,TRUE/ETH,TRX/BTC,TRX/USDT,TSL/BTC,TVB/USDT,UNI/USDT,UTNP/BTC,VBT/USDT,VEEN/BTC,VME/BTC,VME/ETH,VSC/ETH,VSF/BTC,W12/BTC,W12/ETH,WBL/BTC,WFX/BTC,XEM/BTC,XLM/BTC,XMCT/ETH,XMCT/USDT,XMR/BTC,XNK/ETH,XRP/BTC,XRP/USDT,XSR/USDT,YAP/BTC,YAP/USDT,YTA/USDT,ZAT/ETH,ZDC/BTC,ZEC/BTC,ZGC/BTC,ZRX/BTC"
      }
-    ]
+    }
    },
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret",
+     "clientID": "ClientID"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "autoPairUpdates": true
+     },
+     "websocketAPI": false,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
+   },
+   "bankAccounts": [
+    {
+     "enabled": false,
+     "bankName": "",
+     "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
+     "accountName": "",
+     "accountNumber": "",
+     "swiftCode": "",
+     "iban": "",
+     "supportedCurrencies": ""
+    }
+   ]
+  },
   {
    "name": "GateIO",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "USDT_CNYX,BTC_CNYX,ETH_CNYX,EOS_CNYX,BCH_CNYX,XRP_CNYX,DOGE_CNYX,TIPS_CNYX,BTC_USDC,BTC_PAX,BTC_USDT,BCH_USDT,ETH_USDT,ETC_USDT,QTUM_USDT,LTC_USDT,DASH_USDT,ZEC_USDT,BTM_USDT,EOS_USDT,REQ_USDT,SNT_USDT,OMG_USDT,PAY_USDT,CVC_USDT,ZRX_USDT,TNT_USDT,XMR_USDT,XRP_USDT,DOGE_USDT,BAT_USDT,PST_USDT,BTG_USDT,DPY_USDT,LRC_USDT,STORJ_USDT,RDN_USDT,STX_USDT,KNC_USDT,LINK_USDT,CDT_USDT,AE_USDT,AE_ETH,AE_BTC,CDT_ETH,RDN_ETH,STX_ETH,KNC_ETH,LINK_ETH,REQ_ETH,RCN_ETH,TRX_ETH,ARN_ETH,KICK_ETH,BNT_ETH,VET_ETH,MCO_ETH,FUN_ETH,DATA_ETH,RLC_ETH,RLC_USDT,ZSC_ETH,WINGS_ETH,MDA_ETH,RCN_USDT,TRX_USDT,KICK_USDT,VET_USDT,MCO_USDT,FUN_USDT,DATA_USDT,ZSC_USDT,MDA_USDT,XTZ_USDT,XTZ_BTC,XTZ_ETH,GNT_USDT,GNT_ETH,GEM_USDT,GEM_ETH,RFR_USDT,RFR_ETH,DADI_USDT,DADI_ETH,ABT_USDT,ABT_ETH,LEDU_BTC,LEDU_ETH,OST_USDT,OST_ETH,XLM_USDT,XLM_ETH,XLM_BTC,MOBI_USDT,MOBI_ETH,MOBI_BTC,OCN_USDT,OCN_ETH,OCN_BTC,ZPT_USDT,ZPT_ETH,ZPT_BTC,COFI_USDT,COFI_ETH,JNT_USDT,JNT_ETH,JNT_BTC,BLZ_USDT,BLZ_ETH,GXS_USDT,GXS_BTC,MTN_USDT,MTN_ETH,RUFF_USDT,RUFF_ETH,RUFF_BTC,TNC_USDT,TNC_ETH,TNC_BTC,ZIL_USDT,ZIL_ETH,BTO_USDT,BTO_ETH,THETA_USDT,THETA_ETH,DDD_USDT,DDD_ETH,DDD_BTC,MKR_USDT,MKR_ETH,DAI_USDT,SMT_USDT,SMT_ETH,MDT_USDT,MDT_ETH,MDT_BTC,MANA_USDT,MANA_ETH,LUN_USDT,LUN_ETH,SALT_USDT,SALT_ETH,FUEL_USDT,FUEL_ETH,ELF_USDT,ELF_ETH,DRGN_USDT,DRGN_ETH,GTC_USDT,GTC_ETH,GTC_BTC,QLC_USDT,QLC_BTC,QLC_ETH,DBC_USDT,DBC_BTC,DBC_ETH,BNTY_USDT,BNTY_ETH,LEND_USDT,LEND_ETH,ICX_USDT,ICX_ETH,BTF_USDT,BTF_BTC,ADA_USDT,ADA_BTC,LSK_USDT,LSK_BTC,WAVES_USDT,WAVES_BTC,BIFI_USDT,BIFI_BTC,MDS_ETH,MDS_USDT,DGD_USDT,DGD_ETH,QASH_USDT,QASH_ETH,QASH_BTC,POWR_USDT,POWR_ETH,POWR_BTC,FIL_USDT,BCD_USDT,BCD_BTC,SBTC_USDT,SBTC_BTC,GOD_USDT,GOD_BTC,BCX_USDT,BCX_BTC,QSP_USDT,QSP_ETH,INK_BTC,INK_USDT,INK_ETH,INK_QTUM,MED_QTUM,MED_ETH,MED_USDT,QBT_QTUM,QBT_ETH,QBT_USDT,TSL_QTUM,TSL_USDT,GNX_USDT,GNX_ETH,NEO_USDT,GAS_USDT,NEO_BTC,GAS_BTC,IOTA_USDT,IOTA_BTC,NAS_USDT,NAS_ETH,NAS_BTC,ETH_BTC,ETC_BTC,ETC_ETH,ZEC_BTC,DASH_BTC,LTC_BTC,BCH_BTC,BTG_BTC,QTUM_BTC,QTUM_ETH,XRP_BTC,DOGE_BTC,XMR_BTC,ZRX_BTC,ZRX_ETH,DNT_ETH,DPY_ETH,OAX_BTC,OAX_USDT,OAX_ETH,REP_ETH,LRC_ETH,LRC_BTC,PST_ETH,BCDN_ETH,BCDN_USDT,TNT_ETH,SNT_ETH,SNT_BTC,BTM_ETH,BTM_BTC,SNET_ETH,SNET_USDT,LLT_SNET,OMG_ETH,OMG_BTC,PAY_ETH,PAY_BTC,BAT_ETH,BAT_BTC,CVC_ETH,STORJ_ETH,STORJ_BTC,EOS_ETH,EOS_BTC,BTS_USDT,BTS_BTC,TIPS_ETH,GT_BTC,GT_USDT,ATOM_BTC,ATOM_USDT,XEM_ETH,XEM_USDT,XEM_BTC,BU_USDT,BU_ETH,BU_BTC,BCHSV_USDT,BCHSV_CNYX,BCHSV_BTC,DCR_USDT,DCR_BTC,BCN_USDT,BCN_BTC,XMC_USDT,XMC_BTC,ATP_USDT,ATP_ETH,NBOT_ETH,NBOT_USDT,MEDX_USDT,MEDX_ETH,GRIN_USDT,GRIN_ETH,GRIN_BTC,BEAM_USDT,BEAM_ETH,BEAM_BTC,VTHO_ETH,BTT_USDT,BTT_ETH,BTT_TRX,TFUEL_ETH,TFUEL_USDT,CELR_ETH,CELR_USDT,CS_ETH,CS_USDT,MAN_ETH,MAN_USDT,REM_ETH,REM_USDT,LYM_ETH,LYM_BTC,LYM_USDT,ONG_ETH,ONG_USDT,ONT_ETH,ONT_USDT,BFT_ETH,BFT_USDT,IHT_ETH,IHT_USDT,SENC_ETH,SENC_USDT,TOMO_ETH,TOMO_USDT,ELEC_ETH,ELEC_USDT,HAV_ETH,HAV_USDT,SWTH_ETH,SWTH_USDT,NKN_ETH,NKN_USDT,SOUL_ETH,SOUL_USDT,LRN_ETH,LRN_USDT,EOSDAC_ETH,EOSDAC_USDT,DOCK_USDT,DOCK_ETH,GSE_USDT,GSE_ETH,RATING_USDT,RATING_ETH,HSC_USDT,HSC_ETH,HIT_USDT,HIT_ETH,DX_USDT,DX_ETH,CNNS_ETH,CNNS_USDT,DREP_ETH,DREP_USDT,MBL_USDT,MBL_ETH,GMAT_USDT,GMAT_ETH,MIX_USDT,MIX_ETH,LAMB_USDT,LAMB_ETH,LEO_USDT,LEO_BTC,WICC_USDT,WICC_ETH,SERO_USDT,SERO_ETH,VIDY_USDT,VIDY_ETH,KGC_USDT,FTM_USDT,FTM_ETH,ONE_USDT,ARPA_USDT,ARPA_ETH,ALGO_USDT,BKC_USDT,BXC_USDT,BXC_ETH,PAX_USDT,PAX_CNYX,USDC_CNYX,USDC_USDT,TUSD_CNYX,TUSD_USDT,HC_USDT,HC_BTC,HC_ETH,GARD_USDT,GARD_ETH,FTI_USDT,FTI_ETH,SOP_ETH,SOP_USDT,LEMO_USDT,LEMO_ETH,QKC_USDT,QKC_ETH,IOTX_USDT,IOTX_ETH,RED_USDT,RED_ETH,LBA_USDT,LBA_ETH,OPEN_USDT,OPEN_ETH,MITH_USDT,MITH_ETH,SKM_USDT,SKM_ETH,XVG_USDT,XVG_BTC,NANO_USDT,NANO_BTC,HT_USDT,BNB_USDT,MET_ETH,MET_USDT,TCT_ETH,TCT_USDT,MXC_USDT,MXC_BTC,MXC_ETH",
-   "enabledPairs": "BTC_USDT",
    "baseCurrencies": "USD",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "_"
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": false,
+     "delimiter": "_"
+    },
+    "configFormat": {
+     "uppercase": true,
+     "delimiter": "_"
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "BTC_USDT",
+      "available": "USDT_CNYX,BTC_CNYX,ETH_CNYX,EOS_CNYX,BCH_CNYX,XRP_CNYX,DOGE_CNYX,TIPS_CNYX,BTC_USDC,BTC_PAX,BTC_USDT,BCH_USDT,ETH_USDT,ETC_USDT,QTUM_USDT,LTC_USDT,DASH_USDT,ZEC_USDT,BTM_USDT,EOS_USDT,REQ_USDT,SNT_USDT,OMG_USDT,PAY_USDT,CVC_USDT,ZRX_USDT,TNT_USDT,XMR_USDT,XRP_USDT,DOGE_USDT,BAT_USDT,PST_USDT,BTG_USDT,DPY_USDT,LRC_USDT,STORJ_USDT,RDN_USDT,STX_USDT,KNC_USDT,LINK_USDT,CDT_USDT,AE_USDT,AE_ETH,AE_BTC,CDT_ETH,RDN_ETH,STX_ETH,KNC_ETH,LINK_ETH,REQ_ETH,RCN_ETH,TRX_ETH,ARN_ETH,KICK_ETH,BNT_ETH,VET_ETH,MCO_ETH,FUN_ETH,DATA_ETH,RLC_ETH,RLC_USDT,ZSC_ETH,WINGS_ETH,MDA_ETH,RCN_USDT,TRX_USDT,KICK_USDT,VET_USDT,MCO_USDT,FUN_USDT,DATA_USDT,ZSC_USDT,MDA_USDT,XTZ_USDT,XTZ_BTC,XTZ_ETH,GNT_USDT,GNT_ETH,GEM_USDT,GEM_ETH,RFR_USDT,RFR_ETH,DADI_USDT,DADI_ETH,ABT_USDT,ABT_ETH,LEDU_BTC,LEDU_ETH,OST_USDT,OST_ETH,XLM_USDT,XLM_ETH,XLM_BTC,MOBI_USDT,MOBI_ETH,MOBI_BTC,OCN_USDT,OCN_ETH,OCN_BTC,ZPT_USDT,ZPT_ETH,ZPT_BTC,COFI_USDT,COFI_ETH,JNT_USDT,JNT_ETH,JNT_BTC,BLZ_USDT,BLZ_ETH,GXS_USDT,GXS_BTC,MTN_USDT,MTN_ETH,RUFF_USDT,RUFF_ETH,RUFF_BTC,TNC_USDT,TNC_ETH,TNC_BTC,ZIL_USDT,ZIL_ETH,BTO_USDT,BTO_ETH,THETA_USDT,THETA_ETH,DDD_USDT,DDD_ETH,DDD_BTC,MKR_USDT,MKR_ETH,DAI_USDT,SMT_USDT,SMT_ETH,MDT_USDT,MDT_ETH,MDT_BTC,MANA_USDT,MANA_ETH,LUN_USDT,LUN_ETH,SALT_USDT,SALT_ETH,FUEL_USDT,FUEL_ETH,ELF_USDT,ELF_ETH,DRGN_USDT,DRGN_ETH,GTC_USDT,GTC_ETH,GTC_BTC,QLC_USDT,QLC_BTC,QLC_ETH,DBC_USDT,DBC_BTC,DBC_ETH,BNTY_USDT,BNTY_ETH,LEND_USDT,LEND_ETH,ICX_USDT,ICX_ETH,BTF_USDT,BTF_BTC,ADA_USDT,ADA_BTC,LSK_USDT,LSK_BTC,WAVES_USDT,WAVES_BTC,BIFI_USDT,BIFI_BTC,MDS_ETH,MDS_USDT,DGD_USDT,DGD_ETH,QASH_USDT,QASH_ETH,QASH_BTC,POWR_USDT,POWR_ETH,POWR_BTC,FIL_USDT,BCD_USDT,BCD_BTC,SBTC_USDT,SBTC_BTC,GOD_USDT,GOD_BTC,BCX_USDT,BCX_BTC,QSP_USDT,QSP_ETH,INK_BTC,INK_USDT,INK_ETH,INK_QTUM,QBT_QTUM,QBT_ETH,QBT_USDT,TSL_QTUM,TSL_USDT,GNX_USDT,GNX_ETH,NEO_USDT,GAS_USDT,NEO_BTC,GAS_BTC,IOTA_USDT,IOTA_BTC,NAS_USDT,NAS_ETH,NAS_BTC,ETH_BTC,ETC_BTC,ETC_ETH,ZEC_BTC,DASH_BTC,LTC_BTC,BCH_BTC,BTG_BTC,QTUM_BTC,QTUM_ETH,XRP_BTC,DOGE_BTC,XMR_BTC,ZRX_BTC,ZRX_ETH,DNT_ETH,DPY_ETH,OAX_BTC,OAX_USDT,OAX_ETH,REP_ETH,LRC_ETH,LRC_BTC,PST_ETH,BCDN_ETH,BCDN_USDT,TNT_ETH,SNT_ETH,SNT_BTC,BTM_ETH,BTM_BTC,SNET_ETH,SNET_USDT,LLT_SNET,OMG_ETH,OMG_BTC,PAY_ETH,PAY_BTC,BAT_ETH,BAT_BTC,CVC_ETH,STORJ_ETH,STORJ_BTC,EOS_ETH,EOS_BTC,BTS_USDT,BTS_BTC,TIPS_ETH,GT_BTC,GT_USDT,ATOM_BTC,ATOM_USDT,XEM_ETH,XEM_USDT,XEM_BTC,BU_USDT,BU_ETH,BU_BTC,BCHSV_USDT,BCHSV_CNYX,BCHSV_BTC,DCR_USDT,DCR_BTC,BCN_USDT,BCN_BTC,XMC_USDT,XMC_BTC,ATP_USDT,ATP_ETH,NAX_ETH,NBOT_ETH,NBOT_USDT,MED_USDT,MED_ETH,GRIN_USDT,GRIN_ETH,GRIN_BTC,BEAM_USDT,BEAM_ETH,BEAM_BTC,VTHO_ETH,BTT_USDT,BTT_ETH,BTT_TRX,TFUEL_ETH,TFUEL_USDT,CELR_ETH,CELR_USDT,CS_ETH,CS_USDT,MAN_ETH,MAN_USDT,REM_ETH,REM_USDT,LYM_ETH,LYM_BTC,LYM_USDT,ONG_ETH,ONG_USDT,ONT_ETH,ONT_USDT,BFT_ETH,BFT_USDT,IHT_ETH,IHT_USDT,SENC_ETH,SENC_USDT,TOMO_ETH,TOMO_USDT,ELEC_ETH,ELEC_USDT,HAV_ETH,HAV_USDT,SWTH_ETH,SWTH_USDT,NKN_ETH,NKN_USDT,SOUL_ETH,SOUL_USDT,LRN_ETH,LRN_USDT,EOSDAC_ETH,EOSDAC_USDT,DOCK_USDT,DOCK_ETH,GSE_USDT,GSE_ETH,RATING_USDT,RATING_ETH,HSC_USDT,HSC_ETH,HIT_USDT,HIT_ETH,DX_USDT,DX_ETH,CNNS_ETH,CNNS_USDT,DREP_ETH,DREP_USDT,MBL_USDT,MBL_ETH,GMAT_USDT,GMAT_ETH,MIX_USDT,MIX_ETH,LAMB_USDT,LAMB_ETH,LEO_USDT,LEO_BTC,WICC_USDT,WICC_ETH,SERO_USDT,SERO_ETH,VIDY_USDT,VIDY_ETH,KGC_USDT,FTM_USDT,FTM_ETH,COS_USDT,CRO_USDT,ALY_USDT,WIN_USDT,MTV_USDT,ONE_USDT,ARPA_USDT,ARPA_ETH,DILI_USDT,ALGO_USDT,PI_USDT,CKB_USDT,CKB_BTC,CKB_ETH,BKC_USDT,BXC_USDT,BXC_ETH,PAX_USDT,PAX_CNYX,USDC_CNYX,USDC_USDT,TUSD_CNYX,TUSD_USDT,HC_USDT,HC_BTC,HC_ETH,GARD_USDT,GARD_ETH,FTI_USDT,FTI_ETH,SOP_ETH,SOP_USDT,LEMO_USDT,LEMO_ETH,QKC_USDT,QKC_ETH,QKC_BTC,IOTX_USDT,IOTX_ETH,RED_USDT,RED_ETH,LBA_USDT,LBA_ETH,OPEN_USDT,OPEN_ETH,MITH_USDT,MITH_ETH,SKM_USDT,SKM_ETH,XVG_USDT,XVG_BTC,NANO_USDT,NANO_BTC,HT_USDT,BNB_USDT,MET_ETH,MET_USDT,TCT_ETH,TCT_USDT,MXC_USDT,MXC_BTC,MXC_ETH"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": false,
-    "delimiter": "_"
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "tickerBatching": true,
+      "autoPairUpdates": true
+     },
+     "websocketAPI": true,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -849,38 +1417,69 @@
    "name": "Gemini",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "BTCUSD,ETHBTC,ETHUSD,BCHUSD,BCHBTC,BCHETH,LTCUSD,LTCBTC,LTCETH,LTCBCH,ZECUSD,ZECBTC,ZECETH,ZECBCH,ZECLTC",
-   "enabledPairs": "BTCUSD",
    "baseCurrencies": "USD",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": true
+    },
+    "configFormat": {
+     "uppercase": true
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "BTCUSD",
+      "available": "BTCUSD,ETHBTC,ETHUSD,BCHUSD,BCHBTC,BCHETH,LTCUSD,LTCBTC,LTCETH,LTCBCH,ZECUSD,ZECBTC,ZECETH,ZECBCH,ZECLTC"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": true
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "autoPairUpdates": true
+     },
+     "websocketAPI": true,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -893,39 +1492,71 @@
    "name": "HitBTC",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "BCN-BTC,BTC-USD,DASH-BTC,DOGE-BTC,DOGE-USD,EMC-BTC,ETH-BTC,LSK-BTC,LTC-BTC,LTC-USD,NXT-BTC,SBD-BTC,SC-BTC,STEEM-BTC,XDN-BTC,XEM-BTC,XMR-BTC,ARDR-BTC,ZEC-BTC,WAVES-BTC,MAID-BTC,AMP-BTC,DGD-BTC,SNGLS-BTC,1ST-BTC,TRST-BTC,TIME-BTC,GNO-BTC,REP-BTC,XMR-USD,DASH-USD,ETH-USD,NXT-USD,ZRC-BTC,BOS-BTC,DCT-BTC,ANT-BTC,AEON-BTC,GUP-BTC,PLU-BTC,LUN-BTC,EDG-BTC,RLC-BTC,SWT-BTC,TKN-BTC,WINGS-BTC,XAUR-BTC,AE-BTC,PTOY-BTC,ZEC-USD,XEM-USD,BCN-USD,XDN-USD,MAID-USD,ETC-BTC,ETC-USD,PLBT-BTC,BNT-BTC,SNT-ETH,CVC-USD,PAY-ETH,OAX-ETH,OMG-ETH,BQX-ETH,XTZ-BTC,DICE-BTC,PTOY-ETH,1ST-ETH,XAUR-ETH,TIME-ETH,DICE-ETH,SWT-ETH,XMR-ETH,ETC-ETH,DASH-ETH,ZEC-ETH,PLU-ETH,GNO-ETH,XRP-BTC,STRAT-USD,STRAT-BTC,SNC-ETH,ADX-ETH,BET-ETH,EOS-ETH,DENT-ETH,SAN-ETH,EOS-BTC,EOS-USD,XTZ-ETH,XTZ-USD,MYB-ETH,SUR-ETH,IXT-ETH,PLR-ETH,TIX-ETH,PRO-ETH,AVT-ETH,EVX-USD,DLT-BTC,BNT-ETH,BNT-USD,MANA-USD,DNT-BTC,FYP-BTC,OPT-BTC,TNT-ETH,STX-BTC,STX-ETH,STX-USD,TNT-USD,TNT-BTC,ENG-ETH,XUC-USD,SNC-BTC,SNC-USD,OAX-USD,OAX-BTC,ZRX-BTC,ZRX-ETH,ZRX-USD,RVT-BTC,PPC-BTC,PPC-USD,QTUM-ETH,IGNIS-ETH,BMC-BTC,BMC-ETH,BMC-USD,CND-BTC,CND-ETH,CND-USD,CDT-ETH,CDT-USD,FUN-BTC,FUN-ETH,FUN-USD,HVN-BTC,HVN-ETH,POE-BTC,POE-ETH,AMB-USD,AMB-ETH,AMB-BTC,HPC-BTC,PPT-ETH,MTH-BTC,MTH-ETH,LRC-BTC,LRC-ETH,ICX-BTC,ICX-ETH,NEO-BTC,NEO-ETH,NEO-USD,CSNO-BTC,ICX-USD,PIX-BTC,PIX-ETH,IND-ETH,KICK-BTC,YOYOW-BTC,CDT-BTC,XVG-BTC,XVG-ETH,XVG-USD,DGB-BTC,DGB-ETH,DGB-USD,DCN-BTC,DCN-ETH,DCN-USD,VIBE-BTC,ENJ-BTC,ENJ-ETH,ENJ-USD,ZSC-BTC,ZSC-ETH,ZSC-USD,TRX-BTC,TRX-ETH,TRX-USD,ART-BTC,EVX-BTC,EVX-ETH,SUB-BTC,SUB-ETH,SUB-USD,WTC-BTC,BTM-BTC,BTM-ETH,BTM-USD,LIFE-BTC,VIB-BTC,VIB-ETH,VIB-USD,DRT-ETH,STU-USD,OMG-BTC,PAY-BTC,PPT-BTC,SNT-BTC,BTG-BTC,BTG-ETH,BTG-USD,SMART-BTC,SMART-ETH,SMART-USD,XUC-ETH,XUC-BTC,LA-ETH,EDO-BTC,EDO-ETH,EDO-USD,HGT-ETH,IXT-BTC,SCL-BTC,ETP-BTC,ETP-ETH,ETP-USD,DRPU-BTC,NEBL-BTC,NEBL-ETH,ARN-BTC,ARN-ETH,STU-BTC,STU-ETH,GVT-ETH,BTX-BTC,LTC-ETH,BCN-ETH,MAID-ETH,NXT-ETH,STRAT-ETH,XDN-ETH,XEM-ETH,PLR-BTC,SUR-BTC,BQX-BTC,DOGE-ETH,AMM-BTC,AMM-ETH,AMM-USD,DBIX-BTC,PRE-BTC,ZAP-BTC,DOV-BTC,DOV-ETH,DRPU-ETH,XRP-ETH,XRP-USD,HSR-BTC,LEND-BTC,LEND-ETH,SPF-ETH,SBTC-BTC,SBTC-ETH,LOC-BTC,LOC-ETH,LOC-USD,SWFTC-BTC,SWFTC-ETH,SWFTC-USD,STAR-ETH,SBTC-USD,STORM-BTC,DIM-ETH,DIM-USD,DIM-BTC,NGC-BTC,NGC-ETH,NGC-USD,EMC-ETH,EMC-USD,MCO-BTC,MCO-ETH,MCO-USD,MANA-ETH,MANA-BTC,CPAY-ETH,DATA-BTC,DATA-ETH,DATA-USD,UTT-BTC,UTT-ETH,UTT-USD,KMD-BTC,KMD-ETH,KMD-USD,QTUM-USD,QTUM-BTC,SNT-USD,OMG-USD,EKO-BTC,EKO-ETH,ADX-BTC,ADX-USD,LSK-ETH,LSK-USD,PLR-USD,SUR-USD,BQX-USD,DRT-USD,REP-ETH,REP-USD,WAX-BTC,WAX-ETH,WAX-USD,C20-BTC,C20-ETH,IDH-BTC,IDH-ETH,IPL-BTC,COV-BTC,COV-ETH,SENT-BTC,SENT-ETH,SENT-USD,SMT-BTC,SMT-ETH,SMT-USD,CHAT-BTC,CHAT-ETH,CHAT-USD,TRAC-ETH,JNT-ETH,UTK-BTC,UTK-ETH,UTK-USD,GNX-ETH,CHSB-BTC,CHSB-ETH,DAY-BTC,DAY-ETH,DAY-USD,NEU-BTC,NEU-ETH,NEU-USD,TAU-BTC,FLP-BTC,FLP-ETH,FLP-USD,R-BTC,R-ETH,EKO-USD,BCPT-ETH,BCPT-USD,PKT-BTC,PKT-ETH,BETR-BTC,BETR-ETH,HAND-ETH,HAND-USD,CHP-ETH,BCPT-BTC,ACT-BTC,ACT-ETH,ACT-USD,ADA-BTC,ADA-ETH,ADA-USD,MTX-BTC,MTX-ETH,MTX-USD,WIZ-BTC,WIZ-ETH,WIZ-USD,DADI-BTC,DADI-ETH,BDG-ETH,DATX-BTC,DATX-ETH,TRUE-BTC,DRG-BTC,DRG-ETH,BANCA-BTC,BANCA-ETH,ZAP-ETH,ZAP-USD,AUTO-BTC,NOAH-BTC,SOC-BTC,OCN-BTC,OCN-ETH,STQ-BTC,STQ-ETH,XLM-BTC,XLM-ETH,XLM-USD,IOTA-BTC,IOTA-ETH,IOTA-USD,DRT-BTC,BETR-USD,ERT-BTC,CRPT-BTC,CRPT-USD,MESH-BTC,MESH-ETH,MESH-USD,IHT-BTC,IHT-ETH,IHT-USD,SCC-BTC,YCC-BTC,DAN-BTC,TEL-BTC,TEL-ETH,NCT-BTC,NCT-ETH,NCT-USD,BMH-BTC,BANCA-USD,NOAH-ETH,NOAH-USD,BERRY-BTC,BERRY-ETH,BERRY-USD,GBX-BTC,GBX-ETH,GBX-USD,SHIP-BTC,SHIP-ETH,NANO-BTC,NANO-ETH,NANO-USD,LNC-BTC,KIN-ETH,ARDR-USD,FOTA-ETH,FOTA-BTC,CVT-BTC,CVT-ETH,CVT-USD,STQ-USD,GNT-BTC,GNT-ETH,GNT-USD,GET-BTC,MITH-BTC,MITH-ETH,MITH-USD,SUNC-ETH,DADI-USD,TKY-BTC,ACAT-BTC,ACAT-ETH,ACAT-USD,BTX-USD,WIKI-BTC,WIKI-ETH,WIKI-USD,ONT-BTC,ONT-ETH,ONT-USD,FTX-BTC,FTX-ETH,FREC-BTC,NAVI-BTC,FREC-ETH,FREC-USD,VME-ETH,NAVI-ETH,LND-ETH,CSM-BTC,NANJ-BTC,NTK-BTC,NTK-ETH,NTK-USD,AUC-BTC,AUC-ETH,CMCT-BTC,CMCT-ETH,CMCT-USD,MAN-BTC,MAN-ETH,MAN-USD,PNT-BTC,PNT-ETH,FXT-BTC,NEXO-BTC,PAT-BTC,PAT-ETH,XMC-BTC,FXT-ETH,HERO-BTC,HERO-ETH,XMC-ETH,XMC-USD,FDZ-BTC,FDZ-ETH,FDZ-USD,SPD-BTC,SPD-ETH,MITX-BTC,TIV-BTC,B2G-BTC,B2G-USD,ZPT-BTC,ZPT-ETH,HBZ-BTC,FACE-BTC,FACE-ETH,HBZ-ETH,HBZ-USD,ZPT-USD,CPT-BTC,PAT-USD,HTML-BTC,HTML-ETH,MITX-ETH,JOT-BTC,JBC-BTC,JBC-ETH,BTS-BTC,BNK-BTC,KBC-BTC,KBC-ETH,BNK-ETH,BNK-USD,TIV-ETH,TIV-USD,CSM-ETH,CSM-USD,INK-BTC,IOST-BTC,INK-ETH,INK-USD,CBC-BTC,IOST-USD,ZIL-BTC,ABYSS-BTC,ABYSS-ETH,ZIL-USD,BCI-BTC,CBC-ETH,CBC-USD,PITCH-BTC,PITCH-ETH,HTML-USD,TDS-BTC,TDS-ETH,TDS-USD,SBD-ETH,SBD-USD,DPN-BTC,UUU-BTC,UUU-ETH,XBP-BTC,CLN-BTC,CLN-ETH,ELEC-BTC,ELEC-ETH,ELEC-USD,QNTU-BTC,QNTU-ETH,QNTU-USD,IPL-ETH,IPL-USD,CENNZ-BTC,CENNZ-ETH,SWM-BTC,SPF-USD,SPF-BTC,LCC-BTC,HGT-BTC,ETH-TUSD,BTC-TUSD,LTC-TUSD,XMR-TUSD,ZRX-TUSD,NEO-TUSD,USD-TUSD,BTC-DAI,ETH-DAI,MKR-DAI,EOS-DAI,USD-DAI,MKR-BTC,MKR-ETH,MKR-USD,TUSD-DAI,NEO-DAI,LTC-DAI,XMR-DAI,XRP-DAI,NEXO-ETH,NEXO-USD,DWS-BTC,DWS-ETH,DWS-USD,APPC-BTC,APPC-ETH,APPC-USD,BIT-ETH,SPC-BTC,SPC-ETH,SPC-USD,REX-BTC,REX-ETH,REX-USD,ELF-BTC,ELF-USD,BCD-BTC,BCD-USD,CVCOIN-BTC,CVCOIN-ETH,CVCOIN-USD,EDG-ETH,EDG-USD,NLC2-BTC,COSM-BTC,COSM-ETH,DASH-EURS,ZEC-EURS,BTC-EURS,EOS-EURS,ETH-EURS,LTC-EURS,NEO-EURS,XMR-EURS,XRP-EURS,EURS-USD,EURS-TUSD,EURS-DAI,MNX-USD,ROX-ETH,ZPR-ETH,MNX-BTC,MNX-ETH,KIND-BTC,KIND-ETH,ENGT-BTC,ENGT-ETH,PMA-BTC,PMA-ETH,TV-BTC,TV-ETH,TV-USD,XCLR-BTC,BAT-BTC,BAT-ETH,BAT-USD,SRN-BTC,SRN-ETH,SRN-USD,SVD-BTC,SVD-ETH,SVD-USD,GST-BTC,GST-ETH,GST-USD,BNB-BTC,BNB-ETH,BNB-USD,DIT-BTC,DIT-ETH,POA20-BTC,CCL-USD,PROC-BTC,POA20-ETH,POA20-USD,POA20-DAI,NIM-BTC,USE-BTC,USE-ETH,DAV-BTC,DAV-ETH,ABTC-BTC,NIM-ETH,ABA-BTC,ABA-ETH,ABA-USD,BCN-EOS,LTC-EOS,XMR-EOS,DASH-EOS,TRX-EOS,NEO-EOS,ZEC-EOS,LSK-EOS,XEM-EOS,XRP-EOS,MESSE-BTC,MESSE-ETH,MESSE-USD,CCL-ETH,RCN-BTC,RCN-ETH,RCN-USD,HMQ-BTC,HMQ-ETH,MYST-BTC,MYST-ETH,USD-GUSD,BTC-GUSD,ETH-GUSD,EOS-GUSD,AXPR-BTC,AXPR-ETH,DAG-BTC,DAG-ETH,BITS-BTC,BITS-ETH,BITS-USD,CDCC-BTC,CDCC-ETH,CDCC-USD,VET-BTC,VET-ETH,VET-USD,SILK-ETH,BOX-BTC,BOX-ETH,BOX-EURS,BOX-EOS,VOCO-BTC,VOCO-ETH,VOCO-USD,PASS-BTC,PASS-ETH,SLX-BTC,SLX-USD,PBTT-BTC,PMA-USD,TRAD-BTC,DGTX-BTC,DGTX-ETH,DGTX-USD,MRK-BTC,MRK-ETH,DGB-TUSD,MESSE-EOS,MESSE-EURS,SNBL-BTC,BCH-BTC,BCH-USD,BSV-BTC,BSV-USD,BKX-BTC,NPLC-BTC,NPLC-ETH,ETN-BTC,ETN-ETH,ETN-USD,MRS-BTC,MRS-ETH,MRS-USD,DTR-BTC,DTR-ETH,TDP-BTC,HBT-ETH,PXG-BTC,PXG-USD,BTC-PAX,ETH-PAX,USD-PAX,BTC-USDC,ETH-USDC,USD-USDC,TUSD-USDC,DAI-USDC,EOS-PAX,CLO-BTC,CLO-ETH,CLO-USD,PETH-BTC,PETH-ETH,PETH-USD,BRD-BTC,BRD-ETH,NMR-BTC,SALT-BTC,SALT-ETH,POLY-BTC,POLY-ETH,POWR-BTC,POWR-ETH,STORJ-BTC,STORJ-ETH,STORJ-USD,MLN-BTC,MLN-ETH,BDG-BTC,POA-ETH,POA-BTC,POA-USD,POA-DAI,KIN-BTC,VEO-BTC,PLA-BTC,PLA-ETH,PLA-USD,BTT-BTC,BTT-USD,BTT-ETH,ZEN-BTC,ZEN-ETH,ZEN-USD,GRIN-BTC,GRIN-ETH,GRIN-USD,FET-BTC,HT-BTC,HT-USD,XZC-BTC,XZC-ETH,XZC-USD,VRA-BTC,VRA-ETH,BTC-KRWB,USD-KRWB,WBTC-ETH,CRO-BTC,CRO-ETH,CRO-USD,GAS-BTC,GAS-ETH,GAS-USD,ORMEUS-BTC,ORMEUS-ETH,SWM-ETH,SWM-USD,PRE-ETH,PHX-BTC,PHX-ETH,PHX-USD,BET-BTC,USD-EOSDT,BTC-EOSDT,ETH-EOSDT,EOS-EOSDT,DAI-EOSDT,NUT-BTC,NUT-EOS,NUT-USD,CUTE-BTC,CUTE-ETH,CUTE-USD,CUTE-EOS,XCON-BTC,DCR-BTC,DCR-ETH,DCR-USD,MG-BTC,MG-ETH,MG-EOS,MG-USD,GNX-BTC,PRO-BTC,EURS-EOSDT,TUSD-EOSDT,ECOIN-BTC,ECOIN-ETH,ECOIN-USD,AGI-BTC,LOOM-BTC,LOOM-ETH,BLZ-BTC,QKC-BTC,QKC-ETH,KNC-BTC,KNC-ETH,KNC-USD,KEY-BTC,KEY-ETH,ATOM-BTC,ATOM-USD,ATOM-ETH,BRDG-BTC,BRDG-ETH,BRDG-USD,MTL-BTC,MTL-ETH,EXP-BTC,BTCB-BTC,PBT-BTC,PBT-ETH,LINK-BTC,LINK-ETH,LINK-USD,USD-USDT20,PHB-BTC,BCH-ETH,BCH-DAI,BCH-TUSD,BCH-EURS,DAPP-BTC,DAPP-EOS,BTC-USDT20,DENT-BTC,DENT-USD",
-   "enabledPairs": "BTC-USD",
    "baseCurrencies": "USD",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "-"
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": true
+    },
+    "configFormat": {
+     "uppercase": true,
+     "delimiter": "-"
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "BTC-USD",
+      "available": "BCN-BTC,BTC-USD,DASH-BTC,DOGE-BTC,DOGE-USD,EMC-BTC,ETH-BTC,LSK-BTC,LTC-BTC,LTC-USD,NXT-BTC,SBD-BTC,SC-BTC,STEEM-BTC,XDN-BTC,XEM-BTC,XMR-BTC,ARDR-BTC,ZEC-BTC,WAVES-BTC,MAID-BTC,DGD-BTC,SNGLS-BTC,1ST-BTC,TRST-BTC,TIME-BTC,GNO-BTC,REP-BTC,XMR-USD,DASH-USD,ETH-USD,NXT-USD,ZRC-BTC,BOS-BTC,DCT-BTC,ANT-BTC,AEON-BTC,GUP-BTC,PLU-BTC,LUN-BTC,EDG-BTC,RLC-BTC,SWT-BTC,TKN-BTC,WINGS-BTC,XAUR-BTC,AE-BTC,PTOY-BTC,ZEC-USD,XEM-USD,BCN-USD,XDN-USD,MAID-USD,ETC-BTC,ETC-USD,PLBT-BTC,BNT-BTC,SNT-ETH,CVC-USD,PAY-ETH,OAX-ETH,OMG-ETH,BQX-ETH,XTZ-BTC,DICE-BTC,PTOY-ETH,1ST-ETH,XAUR-ETH,TIME-ETH,DICE-ETH,SWT-ETH,XMR-ETH,ETC-ETH,DASH-ETH,ZEC-ETH,PLU-ETH,GNO-ETH,XRP-BTC,STRAT-USD,STRAT-BTC,SNC-ETH,ADX-ETH,BET-ETH,EOS-ETH,DENT-ETH,SAN-ETH,EOS-BTC,EOS-USD,XTZ-ETH,XTZ-USD,MYB-ETH,SUR-ETH,IXT-ETH,PLR-ETH,TIX-ETH,PRO-ETH,AVT-ETH,EVX-USD,DLT-BTC,BNT-ETH,BNT-USD,MANA-USD,DNT-BTC,FYP-BTC,OPT-BTC,TNT-ETH,STX-BTC,STX-ETH,STX-USD,TNT-USD,TNT-BTC,ENG-ETH,XUC-USD,SNC-BTC,SNC-USD,OAX-USD,OAX-BTC,ZRX-BTC,ZRX-ETH,ZRX-USD,RVT-BTC,PPC-BTC,PPC-USD,QTUM-ETH,IGNIS-ETH,BMC-BTC,BMC-ETH,BMC-USD,CND-BTC,CND-ETH,CND-USD,CDT-ETH,CDT-USD,FUN-BTC,FUN-ETH,FUN-USD,HVN-BTC,HVN-ETH,POE-BTC,POE-ETH,AMB-USD,AMB-ETH,AMB-BTC,HPC-BTC,PPT-ETH,MTH-BTC,MTH-ETH,LRC-BTC,LRC-ETH,ICX-BTC,ICX-ETH,NEO-BTC,NEO-ETH,NEO-USD,CSNO-BTC,ICX-USD,IND-ETH,KICK-BTC,YOYOW-BTC,CDT-BTC,XVG-BTC,XVG-ETH,XVG-USD,DGB-BTC,DGB-ETH,DGB-USD,DCN-ETH,DCN-USD,VIBE-BTC,ENJ-BTC,ENJ-ETH,ENJ-USD,ZSC-BTC,ZSC-ETH,ZSC-USD,TRX-BTC,TRX-ETH,TRX-USD,ART-BTC,EVX-BTC,EVX-ETH,SUB-BTC,SUB-ETH,SUB-USD,WTC-BTC,BTM-BTC,BTM-ETH,BTM-USD,LIFE-BTC,VIB-BTC,VIB-ETH,VIB-USD,DRT-ETH,STU-USD,OMG-BTC,PAY-BTC,PPT-BTC,SNT-BTC,BTG-BTC,BTG-ETH,BTG-USD,SMART-BTC,SMART-ETH,SMART-USD,XUC-ETH,XUC-BTC,LA-ETH,EDO-BTC,EDO-ETH,EDO-USD,HGT-ETH,IXT-BTC,SCL-BTC,ETP-BTC,ETP-ETH,ETP-USD,NEBL-BTC,NEBL-ETH,ARN-BTC,ARN-ETH,STU-BTC,STU-ETH,GVT-ETH,BTX-BTC,LTC-ETH,BCN-ETH,MAID-ETH,NXT-ETH,STRAT-ETH,XDN-ETH,XEM-ETH,PLR-BTC,SUR-BTC,BQX-BTC,DOGE-ETH,AMM-BTC,AMM-ETH,AMM-USD,DBIX-BTC,PRE-BTC,ZAP-BTC,DOV-BTC,DOV-ETH,XRP-ETH,XRP-USD,HSR-BTC,LEND-BTC,LEND-ETH,SPF-ETH,SBTC-BTC,SBTC-ETH,LOC-BTC,LOC-ETH,LOC-USD,SWFTC-BTC,SWFTC-ETH,SWFTC-USD,STAR-ETH,SBTC-USD,STORM-BTC,DIM-ETH,DIM-USD,DIM-BTC,NGC-BTC,NGC-ETH,NGC-USD,EMC-ETH,EMC-USD,MCO-BTC,MCO-ETH,MCO-USD,MANA-ETH,MANA-BTC,CPAY-ETH,DATA-BTC,DATA-ETH,DATA-USD,UTT-BTC,UTT-ETH,UTT-USD,KMD-BTC,KMD-ETH,KMD-USD,QTUM-USD,QTUM-BTC,SNT-USD,OMG-USD,EKO-BTC,EKO-ETH,ADX-BTC,ADX-USD,LSK-ETH,LSK-USD,PLR-USD,SUR-USD,BQX-USD,DRT-USD,REP-ETH,REP-USD,WAXP-BTC,WAXP-ETH,WAXP-USD,C20-BTC,C20-ETH,IDH-BTC,IDH-ETH,IPL-BTC,COV-BTC,COV-ETH,SENT-BTC,SENT-ETH,SENT-USD,SMT-BTC,SMT-ETH,SMT-USD,CHAT-BTC,CHAT-ETH,CHAT-USD,TRAC-ETH,JNT-ETH,UTK-BTC,UTK-ETH,UTK-USD,GNX-ETH,CHSB-BTC,CHSB-ETH,DAY-BTC,DAY-ETH,DAY-USD,NEU-BTC,NEU-ETH,NEU-USD,TAU-BTC,FLP-BTC,FLP-ETH,FLP-USD,R-BTC,R-ETH,EKO-USD,BCPT-ETH,BCPT-USD,PKT-BTC,PKT-ETH,BETR-BTC,BETR-ETH,HAND-ETH,HAND-USD,CHP-ETH,BCPT-BTC,ACT-BTC,ACT-ETH,ACT-USD,ADA-BTC,ADA-ETH,ADA-USD,SIG-BTC,MTX-BTC,MTX-ETH,MTX-USD,WIZ-BTC,WIZ-ETH,WIZ-USD,DADI-BTC,DADI-ETH,BDG-ETH,DATX-BTC,DATX-ETH,TRUE-BTC,DRG-BTC,DRG-ETH,BANCA-BTC,BANCA-ETH,ZAP-ETH,ZAP-USD,AUTO-BTC,SOC-BTC,OCN-BTC,OCN-ETH,STQ-BTC,STQ-ETH,XLM-BTC,XLM-ETH,XLM-USD,IOTA-BTC,IOTA-ETH,IOTA-USD,DRT-BTC,BETR-USD,ERT-BTC,CRPT-BTC,CRPT-USD,MESH-BTC,MESH-ETH,MESH-USD,IHT-BTC,IHT-ETH,IHT-USD,SCC-BTC,YCC-BTC,DAN-BTC,TEL-BTC,TEL-ETH,NCT-BTC,NCT-ETH,NCT-USD,BMH-BTC,BANCA-USD,BERRY-BTC,BERRY-ETH,BERRY-USD,GBX-BTC,GBX-ETH,GBX-USD,SHIP-BTC,SHIP-ETH,NANO-BTC,NANO-ETH,NANO-USD,LNC-BTC,KIN-ETH,ARDR-USD,FOTA-ETH,FOTA-BTC,CVT-BTC,CVT-ETH,CVT-USD,STQ-USD,GNT-BTC,GNT-ETH,GNT-USD,GET-BTC,MITH-BTC,MITH-ETH,MITH-USD,DADI-USD,TKY-BTC,ACAT-BTC,ACAT-ETH,ACAT-USD,BTX-USD,WIKI-BTC,WIKI-ETH,WIKI-USD,ONT-BTC,ONT-ETH,ONT-USD,FTX-BTC,FTX-ETH,NAVI-BTC,VME-ETH,NAVI-ETH,LND-ETH,CSM-BTC,NANJ-BTC,NTK-BTC,NTK-ETH,NTK-USD,AUC-BTC,AUC-ETH,CMCT-BTC,CMCT-ETH,CMCT-USD,MAN-BTC,MAN-ETH,MAN-USD,PNT-BTC,PNT-ETH,FXT-BTC,NEXO-BTC,PAT-BTC,PAT-ETH,XMC-BTC,FXT-ETH,HERO-BTC,HERO-ETH,XMC-ETH,XMC-USD,FDZ-BTC,FDZ-ETH,FDZ-USD,SPD-BTC,SPD-ETH,MITX-BTC,TIV-BTC,B2G-BTC,B2G-USD,HBZ-BTC,FACE-BTC,FACE-ETH,HBZ-ETH,HBZ-USD,CPT-BTC,PAT-USD,HTML-BTC,HTML-ETH,MITX-ETH,BTS-BTC,BNK-BTC,BNK-ETH,BNK-USD,TIV-ETH,TIV-USD,CSM-ETH,CSM-USD,INK-BTC,IOST-BTC,INK-ETH,INK-USD,CBC-BTC,IOST-USD,ZIL-BTC,ABYSS-BTC,ABYSS-ETH,ZIL-USD,BCI-BTC,CBC-ETH,CBC-USD,PITCH-BTC,PITCH-ETH,HTML-USD,TDS-BTC,TDS-ETH,TDS-USD,SBD-ETH,SBD-USD,DPN-BTC,UUU-BTC,UUU-ETH,XBP-BTC,ELEC-BTC,ELEC-ETH,ELEC-USD,QNTU-BTC,QNTU-ETH,QNTU-USD,IPL-ETH,IPL-USD,CENNZ-BTC,CENNZ-ETH,SWM-BTC,SPF-USD,SPF-BTC,LCC-BTC,HGT-BTC,ETH-TUSD,BTC-TUSD,LTC-TUSD,XMR-TUSD,ZRX-TUSD,NEO-TUSD,USD-TUSD,BTC-DAI,ETH-DAI,MKR-DAI,EOS-DAI,USD-DAI,MKR-BTC,MKR-ETH,MKR-USD,TUSD-DAI,NEO-DAI,LTC-DAI,XMR-DAI,XRP-DAI,NEXO-ETH,NEXO-USD,DWS-BTC,DWS-ETH,DWS-USD,APPC-BTC,APPC-ETH,APPC-USD,BIT-ETH,SPC-BTC,SPC-ETH,SPC-USD,REX-BTC,REX-ETH,REX-USD,ELF-BTC,ELF-USD,BCD-BTC,BCD-USD,CVCOIN-BTC,CVCOIN-ETH,CVCOIN-USD,EDG-ETH,EDG-USD,NLC2-BTC,DASH-EURS,ZEC-EURS,BTC-EURS,EOS-EURS,ETH-EURS,LTC-EURS,NEO-EURS,XMR-EURS,XRP-EURS,EURS-USD,EURS-TUSD,EURS-DAI,MNX-USD,ROX-ETH,ZPR-ETH,MNX-BTC,MNX-ETH,KIND-BTC,KIND-ETH,ENGT-BTC,ENGT-ETH,PMA-BTC,PMA-ETH,TV-BTC,TV-ETH,TV-USD,BAT-BTC,BAT-ETH,BAT-USD,SRN-BTC,SRN-ETH,SRN-USD,SVD-BTC,SVD-ETH,SVD-USD,GST-BTC,GST-ETH,GST-USD,BNB-BTC,BNB-ETH,BNB-USD,DIT-BTC,DIT-ETH,POA20-BTC,PROC-BTC,POA20-ETH,POA20-USD,POA20-DAI,NIM-BTC,USE-BTC,USE-ETH,DAV-BTC,DAV-ETH,ABTC-BTC,NIM-ETH,ABA-BTC,ABA-ETH,ABA-USD,BCN-EOS,LTC-EOS,XMR-EOS,DASH-EOS,TRX-EOS,NEO-EOS,ZEC-EOS,LSK-EOS,XEM-EOS,XRP-EOS,RCN-BTC,RCN-ETH,RCN-USD,HMQ-BTC,HMQ-ETH,MYST-BTC,MYST-ETH,USD-GUSD,BTC-GUSD,ETH-GUSD,EOS-GUSD,AXPR-BTC,AXPR-ETH,DAG-BTC,DAG-ETH,BITS-BTC,BITS-ETH,BITS-USD,CDCC-BTC,CDCC-ETH,CDCC-USD,VET-BTC,VET-ETH,VET-USD,SILK-ETH,BOX-BTC,BOX-ETH,BOX-EURS,BOX-EOS,VOCO-BTC,VOCO-ETH,VOCO-USD,PASS-BTC,PASS-ETH,SLX-BTC,SLX-USD,PBTT-BTC,PMA-USD,TRAD-BTC,DGTX-BTC,DGTX-ETH,DGTX-USD,MRK-BTC,MRK-ETH,DGB-TUSD,SNBL-BTC,BCH-BTC,BCH-USD,BSV-BTC,BSV-USD,BKX-BTC,NPLC-BTC,NPLC-ETH,ETN-BTC,ETN-ETH,ETN-USD,DTR-BTC,DTR-ETH,TDP-BTC,HBT-ETH,PXG-BTC,PXG-USD,BTC-PAX,ETH-PAX,USD-PAX,BTC-USDC,ETH-USDC,USD-USDC,TUSD-USDC,DAI-USDC,EOS-PAX,CLO-BTC,CLO-ETH,CLO-USD,PETH-BTC,PETH-ETH,PETH-USD,BRD-BTC,BRD-ETH,NMR-BTC,SALT-BTC,SALT-ETH,POLY-BTC,POLY-ETH,POWR-BTC,POWR-ETH,STORJ-BTC,STORJ-ETH,STORJ-USD,MLN-BTC,MLN-ETH,BDG-BTC,POA-ETH,POA-BTC,POA-USD,POA-DAI,KIN-BTC,VEO-BTC,PLA-BTC,PLA-ETH,PLA-USD,BTT-BTC,BTT-USD,BTT-ETH,ZEN-BTC,ZEN-ETH,ZEN-USD,GRIN-BTC,GRIN-ETH,GRIN-USD,FET-BTC,HT-BTC,HT-USD,XZC-BTC,XZC-ETH,XZC-USD,VRA-BTC,VRA-ETH,BTC-KRWB,USD-KRWB,WBTC-ETH,CRO-BTC,CRO-ETH,CRO-USD,GAS-BTC,GAS-ETH,GAS-USD,ORMEUS-BTC,ORMEUS-ETH,SWM-ETH,SWM-USD,PRE-ETH,PHX-BTC,PHX-ETH,PHX-USD,BET-BTC,USD-EOSDT,BTC-EOSDT,ETH-EOSDT,EOS-EOSDT,DAI-EOSDT,NUT-BTC,NUT-EOS,NUT-USD,CUTE-BTC,CUTE-ETH,CUTE-USD,CUTE-EOS,XCON-BTC,DCR-BTC,DCR-ETH,DCR-USD,MG-BTC,MG-ETH,MG-EOS,MG-USD,GNX-BTC,PRO-BTC,EURS-EOSDT,TUSD-EOSDT,ECOIN-BTC,ECOIN-ETH,ECOIN-USD,AGI-BTC,LOOM-BTC,LOOM-ETH,BLZ-BTC,QKC-BTC,QKC-ETH,KNC-BTC,KNC-ETH,KNC-USD,KEY-BTC,KEY-ETH,ATOM-BTC,ATOM-USD,ATOM-ETH,BRDG-BTC,BRDG-ETH,BRDG-USD,MTL-BTC,MTL-ETH,EXP-BTC,BTCB-BTC,PBT-BTC,PBT-ETH,LINK-BTC,LINK-ETH,LINK-USD,USD-USDT20,PHB-BTC,BCH-ETH,BCH-DAI,BCH-TUSD,BCH-EURS,DAPP-BTC,DAPP-EOS,BTC-USDT20,DENT-BTC,DENT-USD,NJBC-BTC,NJBC-ETH,XRC-BTC,EOS-BCH,LTC-BCH,XRP-BCH,TRX-BCH,XLM-BCH,ETC-BCH,DASH-BCH,ZEC-BCH,BKX-USD,LAMB-BTC,NPXS-BTC,HBAR-BTC,HBAR-USD,ONE-BTC,RFR-BTC,RFR-USD,BUSD-USD,PAXG-BTC,PAXG-USD,REN-BTC,IGNIS-BTC,CEL-BTC,CEL-ETH,WIN-USD,ADK-BTC,PART-BTC,SOZ-BTC,SOZ-ETH,SOZ-USD,WAVES-USD,ADA-BCH,ONT-BCH,XMR-BCH,ATOM-BCH,LINK-BCH,OMG-BCH,WAVES-BCH,IOTX-BTC,HOT-BTC,SLV-BTC,HEDG-BTC,CHZ-BTC,CHZ-USD,COCOS-BTC,COCOS-USD,SEELE-BTC,SEELE-USD,MDA-BTC,LEO-USD,REM-BTC,REM-ETH,REM-USD,SCD-DAI,BTC-BUSD,RVN-BTC,BST-BTC,ERD-BTC"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": true
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "tickerBatching": true,
+      "autoPairUpdates": true
+     },
+     "websocketAPI": true,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -938,40 +1569,72 @@
    "name": "Huobi",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiAuthPemKey": "-----BEGIN EC PRIVATE KEY-----\nJUSTADUMMY\n-----END EC PRIVATE KEY-----\n",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "HT-USDT,BAT-ETH,AST-ETH,TRX-BTC,NEW-BTC,AE-BTC,IIC-BTC,NEW-USDT,CDC-BTC,AE-USDT,DGB-BTC,NAS-ETH,QSP-BTC,LYM-ETH,YCC-BTC,BCH-HT,BIX-ETH,WXT-BTC,XRP-BTC,IOST-BTC,CHAT-BTC,BTC-USDT,XTZ-BTC,PVT-BTC,PVT-USDT,WAVES-ETH,ACT-BTC,RSR-BTC,ACT-USDT,WXT-USDT,XLM-ETH,HT-BTC,UUU-USDT,XRP-USDT,UGAS-BTC,BTS-ETH,IRIS-ETH,LUN-BTC,IOST-HT,DOCK-BTC,ABT-ETH,CRO-BTC,MAN-ETH,ENG-ETH,QUN-BTC,APPC-BTC,KAN-ETH,VET-USDT,SOC-ETH,RSR-HT,RUFF-ETH,RCCC-ETH,AAC-ETH,MCO-BTC,RSR-USDT,TNB-ETH,UTK-ETH,ADX-BTC,WAX-ETH,IOST-USDT,HOT-ETH,WTC-USDT,CVCOIN-BTC,NCASH-ETH,ATP-BTC,SWFTC-ETH,GTC-BTC,PNT-BTC,GT-HT,NEO-BTC,OMG-BTC,EOS-HUSD,WPR-ETH,ARPA-BTC,BTM-BTC,BTM-USDT,KCASH-ETH,SSP-ETH,ARPA-USDT,CNN-BTC,NKN-BTC,NPXS-BTC,OMG-USDT,TOPC-ETH,XEM-BTC,BCH-USDT,SNC-BTC,POLY-ETH,CMT-ETH,PAI-USDT,ZEC-USDT,LSK-ETH,SMT-ETH,DASH-USDT,GAS-ETH,DASH-BTC,GXC-ETH,FTT-HT,IOTA-ETH,FTI-BTC,TRIO-ETH,LET-BTC,ZRX-ETH,ETN-ETH,EVX-ETH,BFT-ETH,GRS-BTC,XRP-HT,DASH-HT,QTUM-ETH,HIT-ETH,NEXO-BTC,QASH-BTC,EOS-ETH,ARDR-ETH,ADA-BTC,NEO-USDT,BTT-TRX,COVA-ETH,REN-BTC,LOOM-BTC,CVC-ETH,NANO-ETH,ARPA-HT,NEW-HT,BLZ-ETH,LINK-ETH,XTZ-USDT,PAY-BTC,GNT-USDT,YEE-ETH,XZC-ETH,EGCC-ETH,PROPY-ETH,ZEC-BTC,EDU-ETH,RTE-BTC,DCR-USDT,FTT-BTC,DCR-BTC,EKO-BTC,SBTC-BTC,ZLA-ETH,TOP-HT,ALGO-BTC,DTA-ETH,EKT-ETH,ATOM-USDT,LXT-USDT,ZEN-ETH,LOL-USDT,LTC-USDT,DAT-BTC,REQ-ETH,ELA-ETH,NKN-HT,PC-BTC,HIT-BTC,EKO-ETH,STK-ETH,LAMB-USDT,LAMB-HT,DOGE-ETH,ATOM-BTC,THETA-USDT,LOL-BTC,THETA-BTC,LSK-BTC,ADA-USDT,RDN-BTC,OGO-HT,UIP-USDT,WICC-BTC,OCN-BTC,ELF-BTC,AKRO-USDT,USDC-HUSD,LAMB-BTC,DBC-ETH,BTT-ETH,FAIR-BTC,POWR-ETH,MUSK-ETH,MT-BTC,STEEM-USDT,RBTC-BTC,CTXC-BTC,MANA-USDT,ICX-ETH,GET-BTC,LTC-BTC,ITC-ETH,BCV-BTC,ZJLT-BTC,AKRO-HT,TNT-ETH,TOP-BTC,MEX-BTC,DATX-BTC,ALGO-USDT,LXT-BTC,GT-USDT,FSN-HT,FSN-USDT,MTX-ETH,LET-ETH,OGO-USDT,PHX-BTC,KCASH-HT,HC-USDT,LOL-HT,NKN-USDT,HOT-BTC,LBA-BTC,XMX-BTC,OST-ETH,VEN-USDT,LTC-HT,LBA-USDT,VEN-BTC,CRE-HT,BIFI-BTC,BT1-BTC,HPT-BTC,NULS-BTC,WAN-BTC,ZIL-BTC,ETC-HT,TOS-BTC,MANA-BTC,SHE-BTC,GT-BTC,FSN-BTC,MCO-ETH,MTN-BTC,MDS-BTC,SRN-ETH,GVE-BTC,XMR-ETH,MEET-ETH,NULS-USDT,BCH-BTC,PAI-BTC,NCC-ETH,BSV-BTC,AKRO-BTC,ELF-USDT,DGD-ETH,PVT-HT,UIP-BTC,ATP-USDT,SEELE-ETH,GSC-BTC,ETC-USDT,SOC-BTC,GNX-BTC,WICC-USDT,QSP-ETH,RUFF-BTC,KNC-ETH,ATP-HT,CTXC-USDT,KMD-ETH,OGO-BTC,BKBT-BTC,DGB-ETH,WAVES-USDT,BCD-BTC,HPT-HT,ZIL-USDT,BUT-ETH,CVNT-BTC,OCN-USDT,SALT-ETH,XLM-BTC,TRX-USDT,RCN-BTC,DAC-ETH,MT-HT,ETH-HUSD,HPT-USDT,XTZ-ETH,USDT-HUSD,CHAT-ETH,ONT-USDT,SKM-USDT,MAN-BTC,ARDR-BTC,BCX-BTC,SKM-BTC,EOS-USDT,GNX-ETH,CRE-USDT,PORTAL-ETH,COVA-BTC,BIX-BTC,UUU-ETH,AAC-BTC,TRX-ETH,NEXO-ETH,NAS-BTC,ENG-BTC,AST-BTC,TT-HT,QUN-ETH,EOS-BTC,18C-ETH,WTC-ETH,CVCOIN-ETH,CRE-BTC,CNNS-USDT,WAX-BTC,AIDOC-BTC,VET-ETH,CMT-USDT,BSV-USDT,IDT-ETH,IOST-ETH,BTC-HUSD,IOTA-BTC,TNB-BTC,LINK-BTC,TOPC-BTC,RCCC-BTC,ZRX-USDT,CNNS-BTC,BOX-BTC,MDS-USDT,XLM-USDT,BAT-BTC,LYM-BTC,UC-ETH,RUFF-USDT,LUN-ETH,BIX-USDT,CDC-ETH,BTS-USDT,YCC-ETH,KAN-USDT,MTL-BTC,WAVES-BTC,ONT-BTC,HT-HUSD,IRIS-USDT,SOC-USDT,WPR-BTC,ETC-BTC,TUSD-HUSD,CVC-USDT,PROPY-BTC,TRIO-BTC,CVC-BTC,BTT-USDT,NANO-BTC,GXC-BTC,NCASH-BTC,XRP-HUSD,TT-USDT,SHE-ETH,NANO-USDT,LOOM-ETH,POWR-BTC,QTUM-BTC,SSP-BTC,BTM-ETH,QTUM-USDT,XZC-BTC,GNT-ETH,OMG-ETH,NPXS-ETH,SNT-USDT,ETH-USDT,ABT-BTC,BTS-BTC,STEEM-BTC,VSYS-USDT,BLZ-BTC,CNNS-HT,ADX-ETH,SMT-USDT,IOTA-USDT,PAY-ETH,CMT-BTC,UTK-BTC,SWFTC-BTC,GTC-ETH,LINK-USDT,SNC-ETH,SNT-BTC,EOS-HT,REN-ETH,PAX-HUSD,KCASH-BTC,HC-BTC,IIC-ETH,QASH-ETH,GRS-ETH,EDU-BTC,HIT-USDT,TOP-USDT,XZC-USDT,KAN-BTC,SC-BTC,SKM-HT,AE-ETH,STORJ-USDT,XVG-ETH,ZRX-BTC,EVX-BTC,ETN-BTC,BFT-BTC,FTI-ETH,DAT-ETH,UGAS-ETH,BAT-USDT,GXC-USDT,GAS-BTC,TNT-BTC,HB10-USDT,MUSK-BTC,FTT-USDT,STK-BTC,ELF-ETH,KNC-BTC,CTXC-ETH,DBC-BTC,HC-ETH,EKT-BTC,DTA-USDT,ZLA-BTC,EKT-USDT,DTA-BTC,OCN-ETH,DGD-BTC,BHT-USDT,MTX-BTC,BCV-ETH,YEE-BTC,VSYS-HT,MEX-ETH,DATX-ETH,EGCC-BTC,LXT-ETH,ITC-USDT,TOS-ETH,ITC-BTC,RCN-ETH,XVG-BTC,SC-ETH,BT2-BTC,REQ-BTC,ELA-USDT,LET-USDT,STORJ-BTC,ALGO-ETH,POLY-BTC,LAMB-ETH,DCR-ETH,EGT-BTC,RTE-ETH,FAIR-ETH,CNN-ETH,BHT-BTC,GSC-ETH,GNT-BTC,PAI-ETH,PC-ETH,ADA-ETH,DOGE-BTC,ZEN-BTC,STEEM-ETH,XMR-BTC,XMR-USDT,MDS-ETH,TT-BTC,BTT-BTC,BHT-HT,ZJLT-ETH,UC-BTC,GVE-ETH,MXC-BTC,MANA-ETH,VSYS-BTC,THETA-ETH,NCC-BTC,APPC-ETH,SMT-BTC,IDT-BTC,UIP-ETH,ETH-BTC,BOX-ETH,LBA-ETH,NULS-ETH,PNT-ETH,BTG-BTC,CVNT-ETH,SALT-BTC,XEM-USDT,WXT-HT,BUT-BTC,DAC-BTC,DOCK-ETH,GET-ETH,AIDOC-ETH,EGT-USDT,WAN-ETH,KMD-BTC,MTN-ETH,CRO-USDT,ONT-ETH,BKBT-ETH,MEET-BTC,VEN-ETH,MT-ETH,SRN-BTC,UUU-BTC,SEELE-BTC,ICX-BTC,RDN-ETH,EGT-HT,ZIL-ETH,IRIS-BTC,CRO-HT,ACT-ETH,DOGE-USDT,NAS-USDT,PORTAL-BTC,ELA-BTC,OST-BTC,WICC-ETH,VET-BTC,XMX-ETH,WTC-BTC,HT-ETH,ATOM-ETH,18C-BTC",
-   "enabledPairs": "BTC-USDT",
    "baseCurrencies": "USD",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "-"
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": false
+    },
+    "configFormat": {
+     "uppercase": true,
+     "delimiter": "-"
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "BTC-USDT",
+      "available": "NKN-HT,HC-BTC,ZEC-USDT,KCASH-HT,CRE-USDT,SRN-BTC,LOOM-BTC,WAN-ETH,DAC-ETH,EDU-BTC,KCASH-BTC,BHD-BTC,UTK-ETH,LINK-USDT,EDU-ETH,WAN-BTC,DAC-BTC,OST-ETH,UTK-BTC,BCX-BTC,NODE-BTC,OST-BTC,BTM-USDT,NEXO-ETH,NPXS-BTC,GNT-USDT,FOR-USDT,LOOM-ETH,KCASH-ETH,DCR-USDT,NPXS-ETH,NKN-BTC,DASH-HT,EGT-USDT,NODE-HT,OGO-USDT,HC-ETH,ATOM-BTC,ZIL-USDT,ATOM-ETH,XMR-USDT,BKBT-BTC,STK-ETH,AST-ETH,NEXO-BTC,STK-BTC,STEEM-ETH,MTX-ETH,EVX-ETH,AKRO-BTC,IDT-ETH,DATX-ETH,AKRO-HT,GNX-BTC,WICC-ETH,DASH-BTC,YEE-BTC,WAVES-ETH,IOST-HT,SRN-ETH,DOCK-USDT,ZRX-ETH,CNNS-HT,TT-HT,AE-USDT,TT-BTC,RDN-BTC,IOST-BTC,ITC-ETH,COVA-BTC,AAC-ETH,PAI-ETH,CNNS-BTC,BHD-HT,DTA-BTC,REN-ETH,FTI-ETH,ALGO-ETH,IIC-BTC,PC-BTC,STORJ-BTC,ELA-BTC,AE-BTC,YCC-BTC,ETH-USDT,KMD-BTC,HT-USDT,BTT-BTC,QASH-BTC,MTN-BTC,MX-HT,AE-ETH,ETH-HUSD,FTI-BTC,LUN-BTC,BAT-ETH,TNB-BTC,PC-ETH,LAMB-BTC,PAY-BTC,18C-BTC,MUSK-BTC,QSP-BTC,DOGE-USDT,MANA-ETH,TOPC-ETH,QSP-ETH,HB10-USDT,HT-BTC,BCH-HT,MUSK-ETH,LYM-ETH,PORTAL-BTC,YCC-ETH,TOPC-BTC,ELA-ETH,ARDR-BTC,BSV-HUSD,CVNT-ETH,NCC-ETH,LOL-BTC,AST-BTC,HIT-ETH,KAN-USDT,BKBT-ETH,BHT-HT,BTS-BTC,ZRX-BTC,FOR-HT,AIDOC-BTC,NEO-BTC,THETA-ETH,GNX-ETH,BSV-BTC,WICC-BTC,EVX-BTC,ZIL-BTC,WTC-ETH,KNC-BTC,CNN-BTC,XRP-HT,TOP-BTC,DTA-ETH,REN-BTC,HT-HUSD,AAC-BTC,BTT-USDT,PAI-BTC,LAMB-USDT,YEE-ETH,RSR-HT,BTM-ETH,NKN-USDT,CRE-HT,WXT-BTC,NAS-ETH,SKM-HT,CRE-BTC,DAT-BTC,BIFI-BTC,DGD-ETH,TNT-ETH,HC-USDT,OCN-ETH,XTZ-ETH,PROPY-ETH,BCD-BTC,EKO-BTC,MEET-BTC,SMT-BTC,SALT-BTC,GXC-BTC,HOT-BTC,SBTC-BTC,SALT-ETH,CKB-BTC,UC-BTC,NANO-BTC,PAX-HUSD,FAIR-ETH,SWFTC-ETH,GSC-ETH,ONT-ETH,SKM-BTC,USDT-HUSD,EM-USDT,CKB-HT,XVG-BTC,CVCOIN-ETH,RTE-ETH,BHD-USDT,NANO-ETH,BFT-BTC,ICX-BTC,FTT-HT,XZC-BTC,CVNT-BTC,WAVES-USDT,GNT-ETH,HIT-BTC,LSK-ETH,NCC-BTC,CMT-BTC,STEEM-USDT,ATOM-USDT,LOL-USDT,DOGE-ETH,SMT-ETH,PROPY-BTC,KAN-BTC,DCR-BTC,GXC-ETH,CNN-ETH,REN-USDT,AIDOC-ETH,ITC-USDT,MCO-BTC,ETC-USDT,VSYS-USDT,BSV-USDT,FTT-BTC,TRIO-ETH,GT-USDT,ARPA-USDT,LET-USDT,LTC-BTC,XLM-BTC,NAS-BTC,REQ-BTC,NCASH-BTC,ARPA-BTC,ELA-USDT,ARDR-ETH,RSR-BTC,LAMB-HT,IIC-ETH,MANA-USDT,IOTA-ETH,ONE-BTC,DTA-USDT,MTN-ETH,MX-USDT,MEX-ETH,BTG-BTC,MAN-ETH,VIDY-BTC,RSR-USDT,MX-BTC,UUU-BTC,APPC-BTC,MANA-BTC,PAY-ETH,EGCC-ETH,GTC-BTC,SEELE-BTC,DBC-ETH,MDS-BTC,RCCC-ETH,NEW-USDT,SHE-BTC,STEEM-BTC,BLZ-ETH,ATP-HT,ITC-BTC,FOR-BTC,XMR-ETH,LTC-USDT,CTXC-USDT,XMX-BTC,BUT-BTC,VIDY-USDT,UIP-ETH,18C-ETH,NEW-BTC,NAS-USDT,BCV-BTC,ELF-ETH,BIX-BTC,GT-BTC,ETC-BTC,ONE-USDT,ADX-BTC,LINK-ETH,WAVES-BTC,RDN-ETH,PHX-BTC,ENG-BTC,MDS-USDT,HIT-USDT,IRIS-ETH,ACT-ETH,RCN-BTC,IOST-ETH,EOS-ETH,BOX-ETH,ADA-USDT,SKM-USDT,SMT-USDT,SNT-USDT,RUFF-BTC,POWR-BTC,XTZ-USDT,CKB-USDT,RUFF-ETH,EM-HT,LET-ETH,OCN-USDT,WXT-USDT,LET-BTC,POWR-ETH,PVT-HT,BOX-BTC,CRO-BTC,VSYS-BTC,EM-BTC,QTUM-BTC,LBA-ETH,XRP-USDT,CTXC-ETH,LBA-BTC,QTUM-ETH,GT-HT,CTXC-BTC,GAS-ETH,CRO-HT,PVT-BTC,VSYS-HT,BTS-USDT,NEO-USDT,QUN-BTC,NANO-USDT,BTC-USDT,BTC-HUSD,NULS-USDT,GRS-ETH,ETN-BTC,TOS-BTC,SC-BTC,LXT-USDT,ZEN-BTC,CVC-BTC,SSP-BTC,SNC-BTC,ELF-BTC,ZJLT-ETH,ACT-BTC,OMG-BTC,VET-BTC,EOS-BTC,ATP-USDT,BHT-USDT,GXC-USDT,IRIS-BTC,BIX-USDT,RCN-ETH,REQ-ETH,POLY-BTC,UUU-USDT,EOS-HUSD,CHAT-ETH,MEX-BTC,TOP-USDT,CVC-USDT,EOS-USDT,XLM-USDT,HPT-BTC,SC-ETH,ZEN-ETH,PNT-BTC,UGAS-BTC,DGB-BTC,ATP-BTC,SEELE-USDT,IOTA-BTC,UIP-USDT,ETC-HT,SHE-ETH,MT-BTC,WPR-ETH,PNT-ETH,HPT-USDT,XZC-USDT,VIDY-HT,ELF-USDT,BLZ-BTC,UGAS-ETH,MT-ETH,NULS-ETH,POLY-ETH,ARPA-HT,USDC-HUSD,ONE-HT,RCCC-BTC,ETN-ETH,TRX-ETH,MDS-ETH,DOGE-BTC,EKT-ETH,TUSD-HUSD,FTT-USDT,GAS-BTC,GRS-BTC,SOC-ETH,APPC-ETH,IOST-USDT,LSK-BTC,ONT-USDT,CMT-USDT,ABT-ETH,GET-ETH,WAXP-ETH,DOCK-BTC,OMG-USDT,TRIO-BTC,IOTA-USDT,SNT-BTC,NEW-HT,MCO-ETH,VET-ETH,OGO-HT,FSN-HT,NODE-USDT,ADA-BTC,TOS-ETH,EKO-ETH,EGT-BTC,OCN-BTC,DGD-BTC,ZEC-BTC,BTM-BTC,XTZ-BTC,ACT-USDT,IRIS-USDT,SWFTC-BTC,QTUM-USDT,ZLA-BTC,DCR-ETH,ABT-BTC,MEET-ETH,ZLA-ETH,WXT-HT,BFT-ETH,XVG-ETH,TT-USDT,CVCOIN-BTC,PVT-USDT,CNNS-USDT,HOT-ETH,GVE-ETH,RTE-BTC,GSC-BTC,DAT-ETH,GVE-BTC,RUFF-USDT,ONT-BTC,FAIR-BTC,UC-ETH,LXT-BTC,MTL-BTC,WICC-USDT,LXT-ETH,LBA-USDT,NULS-BTC,TRX-BTC,XEM-BTC,ZIL-ETH,LTC-HT,ZRX-USDT,EKT-BTC,CRO-USDT,XMX-ETH,ENG-ETH,BUT-ETH,BCV-ETH,BIX-ETH,THETA-BTC,XMR-BTC,ADX-ETH,UIP-BTC,WAXP-BTC,ADA-ETH,BTS-ETH,PAI-USDT,SOC-BTC,GET-BTC,DOCK-ETH,KNC-ETH,EGT-HT,LINK-BTC,ETH-BTC,XLM-ETH,BTT-ETH,STORJ-USDT,FSN-BTC,QASH-ETH,SOC-USDT,BTT-TRX,LAMB-ETH,LUN-ETH,TNB-ETH,MXC-BTC,RBTC-BTC,TOP-HT,EOS-HT,ALGO-USDT,MAN-BTC,MT-HT,BCH-BTC,EGCC-BTC,LYM-BTC,BAT-BTC,CHAT-BTC,EKT-USDT,WTC-BTC,DBC-BTC,UUU-ETH,HT-ETH,ALGO-BTC,NCASH-ETH,FSN-USDT,GTC-ETH,SEELE-ETH,THETA-USDT,DGB-ETH,WPR-BTC,DATX-BTC,PORTAL-ETH,XEM-USDT,MTX-BTC,XZC-ETH,CMT-ETH,QUN-ETH,BCH-USDT,LOL-HT,ICX-ETH,GNT-BTC,AKRO-USDT,BCH-HUSD,BHT-BTC,XRP-HUSD,XRP-BTC,OGO-BTC,VET-USDT,TRX-USDT,SSP-ETH,KAN-ETH,SNC-ETH,KMD-ETH,HPT-HT,COVA-ETH,OMG-ETH,WTC-USDT,TNT-BTC,DASH-USDT,BAT-USDT,CVC-ETH,IDT-BTC,ZJLT-BTC"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": false
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret",
+     "pemKey": "-----BEGIN EC PRIVATE KEY-----\nJUSTADUMMY\n-----END EC PRIVATE KEY-----\n"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "tickerBatching": true,
+      "autoPairUpdates": true
+     },
+     "websocketAPI": true,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -984,40 +1647,69 @@
    "name": "ITBIT",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "clientId": "ClientID",
-   "availablePairs": "XBTUSD,XBTSGD",
-   "enabledPairs": "XBTUSD,XBTSGD",
    "baseCurrencies": "USD,SGD",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": false,
-   "pairsLastUpdated": 1566798411,
-   "configCurrencyPairFormat": {
-    "uppercase": true
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": true
+    },
+    "configFormat": {
+     "uppercase": true
+    },
+    "useGlobalFormat": true,
+    "lastUpdated": 1566798411,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "XBTUSD,XBTSGD",
+      "available": "XBTUSD,XBTSGD"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": true
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret",
+     "clientID": "ClientID"
+    },
+    "credentialsValidator": {
+     "requiresSecret": true,
+     "requiresClientID": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {},
+     "websocketAPI": false,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": false,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -1030,40 +1722,73 @@
    "name": "Kraken",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "ATOM-ETH,QTUM-EUR,QTUM-USD,LTC-XBT,XTZ-ETH,XMR-XBT,ADA-EUR,BAT-ETH,BAT-EUR,BAT-XBT,QTUM-CAD,WAVES-USD,ETC-EUR,MLN-ETH,XLM-USD,XRP-CAD,ADA-USD,DASH-XBT,REP-XBT,XBT-CAD,XBT-EUR,XBT-GBP,USDT-USD,ETH-JPY,XBT-USD,ZEC-USD,ETH-EUR,ETH-USD,XTZ-XBT,ZEC-EUR,ZEC-JPY,ADA-ETH,EOS-ETH,QTUM-ETH,ETH-CAD,XTZ-EUR,EOS-EUR,REP-USD,XMR-USD,BCH-XBT,EOS-XBT,ETC-ETH,XLM-XBT,ADA-CAD,ADA-XBT,ATOM-EUR,ATOM-XBT,DASH-EUR,GNO-USD,GNO-XBT,WAVES-XBT,ETH-GBP,XBT-JPY,ZEC-XBT,QTUM-XBT,WAVES-ETH,XDG-XBT,XRP-XBT,EOS-USD,XMR-EUR,XRP-EUR,ATOM-CAD,DASH-USD,ETC-USD,ETH-XBT,GNO-EUR,ETC-XBT,LTC-EUR,REP-ETH,XTZ-USD,XLM-EUR,GNO-ETH,LTC-USD,REP-EUR,XRP-JPY,XRP-USD,ATOM-USD,BCH-USD,WAVES-EUR,BAT-USD,BCH-EUR,MLN-XBT,XTZ-CAD",
-   "enabledPairs": "XBT-USD",
    "baseCurrencies": "EUR,USD,CAD,GBP,JPY",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "-"
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": true,
+     "separator": ","
+    },
+    "configFormat": {
+     "uppercase": true,
+     "delimiter": "-"
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "XBT-USD",
+      "available": "ATOM-CAD,ATOM-XBT,XBT-CAD,XMR-USD,XRP-USD,BAT-XBT,OMG-USD,XBT-EUR,XTZ-CAD,ETH-GBP,ETH-JPY,XBT-JPY,ZEC-XBT,DASH-XBT,LSK-EUR,PAXG-EUR,XRP-EUR,BCH-XBT,GNO-USD,REP-EUR,XTZ-USD,ADA-CAD,ETH-XBT,LTC-USD,XLM-EUR,DASH-EUR,ICX-XBT,LSK-ETH,ZEC-EUR,REP-XBT,ATOM-EUR,EOS-EUR,EOS-USD,ETC-ETH,NANO-XBT,XTZ-ETH,EOS-XBT,ICX-ETH,LINK-ETH,ETH-EUR,ICX-EUR,ICX-USD,REP-ETH,ADA-EUR,WAVES-EUR,XRP-XBT,MLN-ETH,BAT-EUR,LSK-USD,NANO-USD,OMG-ETH,XLM-USD,XMR-XBT,ZEC-USD,BAT-USD,DAI-USD,PAXG-ETH,WAVES-USD,ADA-ETH,GNO-ETH,XTZ-XBT,ETH-CAD,ETH-USD,MLN-XBT,XBT-GBP,PAXG-USD,NANO-ETH,LTC-XBT,XRP-JPY,ATOM-ETH,LSK-XBT,XLM-XBT,ADA-XBT,GNO-EUR,LINK-XBT,ETC-USD,XTZ-EUR,XBT-USD,QTUM-ETH,QTUM-XBT,ETC-XBT,EOS-ETH,OMG-EUR,XDG-XBT,USDT-USD,ATOM-USD,GNO-XBT,LINK-EUR,SC-EUR,LTC-EUR,BCH-EUR,BCH-USD,QTUM-EUR,SC-XBT,DAI-USDT,NANO-EUR,SC-ETH,WAVES-XBT,ETC-EUR,REP-USD,ADA-USD,ETH-DAI,PAXG-XBT,QTUM-CAD,LINK-USD,OMG-XBT,SC-USD,WAVES-ETH,XMR-EUR,XRP-CAD,ZEC-JPY,BAT-ETH,DAI-EUR,DASH-USD,QTUM-USD"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": true,
-    "separator": ","
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true,
+     "requiresBase64DecodeSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "tickerBatching": true,
+      "autoPairUpdates": true
+     },
+     "websocketAPI": true,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -1076,38 +1801,70 @@
    "name": "LakeBTC",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "BACETH,BTCUSD,USDSGD,USDJPY,LTCBTC,BTCCHF,BTCNZD,BTCJPY,USDNGN,BCHBTC,BTCAUD,NZDUSD,EURUSD,USDHKD,BTCEUR,USDCHF,GBPUSD,XRPBTC,AUDUSD,BTCHKD,BTCGBP,BTCCAD,BTCNGN,BTCSGD,USDCAD,ETHBTC",
-   "enabledPairs": "BTCUSD,BTCAUD",
    "baseCurrencies": "USD,EUR,HKD,AUD,GBP,NZD,JPY,SGD,NGN,CHF,CAD",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": true
+    },
+    "configFormat": {
+     "uppercase": true
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "BTCUSD,BTCAUD",
+      "available": "BACETH,BTCUSD,USDSGD,USDJPY,LTCBTC,BTCCHF,BTCNZD,BTCJPY,USDNGN,BCHBTC,BTCAUD,NZDUSD,EURUSD,USDHKD,BTCEUR,USDCHF,GBPUSD,XRPBTC,AUDUSD,BTCHKD,BTCGBP,BTCCAD,BTCNGN,BTCSGD,USDCAD,ETHBTC"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": true
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "tickerBatching": true,
+      "autoPairUpdates": true
+     },
+     "websocketAPI": true,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -1120,40 +1877,72 @@
    "name": "LBank",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "FBC_USDT,HDS_USDT,GALT_USDT,IOG_USDT,IOEX_USDT,VOLLAR_USDT,OATH_USDT,BLOC_USDT,BTC_USDT,ETH_USDT,ETH_BTC,ABBC_BTC,BZKY_ETH,ONOT_ETH,KISC_ETH,BXA_USDT,ATP_USDT,MAT_USDT,SKY_BTC,RNT_USDT,VENA_USDT,GRIN_USDT,IDA_USDT,PNT_USDT,BSV_USDT,OPX_USDT,TENA_ETH,VTHO_BTC,VNX_BTC,AMO_ETH,UBEX_BTC,EOS_BTC,UBEX_USDT,TNS_BTC,ALI_ETH,SDC_ETH,SAIT_ETH,ARTCN_USDT,DAX_BTC,DAX_ETH,DALI_USDT,VET_USDT,BCH_BTC,BCH_USDT,NEO_USDT,QTUM_USDT,ZEC_USDT,VET_BTC,PAI_BTC,PNT_BTC,NEO_BTC,DASH_BTC,LTC_BTC,ETC_BTC,QTUM_BTC,ZEC_BTC,SC_BTC,BTS_BTC,CPX_BTC,XWC_BTC,FIL6_BTC,FIL12_BTC,FIL36_BTC,EOS_USDT,UT_ETH,ELA_ETH,VET_ETH,VTHO_ETH,PAI_ETH,BFDT_ETH,HER_ETH,PTT_ETH,TAC_ETH,IDHUB_ETH,SSC_ETH,SKM_ETH,IIC_ETH,PLY_ETH,EXT_ETH,EOS_ETH,YOYOW_ETH,TRX_ETH,QTUM_ETH,ZEC_ETH,BTS_ETH,BTM_ETH,MITH_ETH,NAS_ETH,MAN_ETH,DBC_ETH,BTO_ETH,DDD_ETH,CPX_ETH,CS_ETH,IHT_ETH,TKY_ETH,OCN_ETH,DCT_ETH,ZPT_ETH,EKO_ETH,MDA_ETH,PST_ETH,XWC_ETH,PUT_ETH,PNT_ETH,AAC_ETH,FIL6_ETH,FIL12_ETH,FIL36_ETH,UIP_ETH,SEER_ETH,BSB_ETH,CDC_ETH,GRAMS_ETH,DDMX_ETH,EAI_ETH,INC_ETH,BNB_USDT,HT_USDT,KBC_BTC,KBC_USDT,MAI_USDT,PHV_USDT,GT_USDT,B91_USDT,VOKEN_USDT,CYE_USDT,BRC_USDT,BTC_AUSD,CXC_BTC,CXC_USDT,DDMX_USDT,SEAL_USDT,SEOS_BTC,BTY_USDT,FO_USDT,VCC_ETH,DLX_USDT,KDS_USDT,BFC_USDT,LBK_USDT,SERO_USDT,MTV_USDT,CKB_USDT,ARPA_USDT,ZIP_USDT,AT_USDT",
-   "enabledPairs": "btc_usdt",
    "baseCurrencies": "USD",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": false,
-    "delimiter": "_"
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": false,
+     "delimiter": "_"
+    },
+    "configFormat": {
+     "uppercase": false,
+     "delimiter": "_"
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "btc_usdt",
+      "available": "FBC_USDT,GALT_USDT,IOEX_USDT,OATH_USDT,BLOC_USDT,BTC_USDT,ETH_USDT,ETH_BTC,ABBC_BTC,KISC_ETH,BXA_USDT,ATP_USDT,MAT_USDT,SKY_BTC,RNT_USDT,VENA_USDT,GRIN_USDT,IDA_USDT,PNT_USDT,OPX_USDT,VTHO_BTC,AMO_ETH,UBEX_BTC,EOS_BTC,UBEX_USDT,TNS_BTC,SAIT_ETH,DAX_BTC,DAX_ETH,DALI_USDT,VET_USDT,BCH_BTC,BCH_USDT,NEO_USDT,QTUM_USDT,ZEC_USDT,VET_BTC,PAI_BTC,PNT_BTC,NEO_BTC,DASH_BTC,LTC_BTC,ETC_BTC,QTUM_BTC,ZEC_BTC,SC_BTC,BTS_BTC,CPX_BTC,XWC_BTC,FIL6_BTC,FIL12_BTC,FIL36_BTC,EOS_USDT,UT_ETH,ELA_ETH,VET_ETH,VTHO_ETH,PAI_ETH,HER_ETH,PTT_ETH,TAC_ETH,IDHUB_ETH,SSC_ETH,SKM_ETH,PLY_ETH,EXT_ETH,EOS_ETH,YOYOW_ETH,TRX_ETH,QTUM_ETH,ZEC_ETH,BTS_ETH,BTM_ETH,MITH_ETH,NAS_ETH,MAN_ETH,DBC_ETH,BTO_ETH,DDD_ETH,CPX_ETH,CS_ETH,IHT_ETH,OCN_ETH,EKO_ETH,XWC_ETH,PUT_ETH,PNT_ETH,AAC_ETH,FIL6_ETH,FIL12_ETH,FIL36_ETH,SEER_ETH,BSB_ETH,CDC_ETH,GRAMS_ETH,DDMX_ETH,EAI_ETH,BNB_USDT,HT_USDT,KBC_BTC,KBC_USDT,MAI_USDT,PHV_USDT,GT_USDT,VOKEN_USDT,CYE_USDT,BRC_USDT,BTC_AUSD,DDMX_USDT,SEAL_USDT,SEOS_BTC,BTY_USDT,FO_USDT,DLX_USDT,BFC_USDT,LBK_USDT,SERO_USDT,MTV_USDT,CKB_USDT,ARPA_USDT,ZIP_USDT,AT_USDT,DOT_USDT,DILI_USDT,DUO_USDT,TEP_USDT,BIKI_USDT,MX_USDT,DNS_USDT,OKB_USDT,FLDT_USDT,CCTC_USDT,WIN_USDT,BTT_USDT,TRX_USDT,GRS_BTC,GST_USDT,GST_ETH,ABBC_USDT,UTK_USDT,GKI_USDT,BPX_USDT,SUTER_USDT,LT_USDT,LM_USDT"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": false,
-    "delimiter": "_"
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "tickerBatching": true,
+      "autoPairUpdates": true
+     },
+     "websocketAPI": false,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -1166,38 +1955,70 @@
    "name": "LocalBitcoins",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "BTCXAF,BTCHKD,BTCBRL,BTCPLN,BTCGHS,BTCPEN,BTCSAR,BTCCAD,BTCJOD,BTCVES,BTCXOF,BTCRWF,BTCEUR,BTCNOK,BTCLTC,BTCZMW,BTCXRP,BTCPAB,BTCUSD,BTCCRC,BTCTTD,BTCLBP,BTCOMR,BTCRON,BTCGEL,BTCKRW,BTCCLP,BTCSZL,BTCNGN,BTCILS,BTCDKK,BTCMYR,BTCRUB,BTCKES,BTCINR,BTCJPY,BTCKHR,BTCCOP,BTCIRR,BTCARS,BTCKZT,BTCTZS,BTCVND,BTCEGP,BTCGBP,BTCTHB,BTCAED,BTCGTQ,BTCCHF,BTCIDR,BTCAUD,BTCNZD,BTCKWD,BTCBOB,BTCUGX,BTCETH,BTCUAH,BTCSGD,BTCCNY,BTCPHP,BTCTWD,BTCLKR,BTCNAD,BTCMXN,BTCBYN,BTCBDT,BTCDOP,BTCTRY,BTCPYG,BTCPKR,BTCQAR,BTCSEK,BTCMAD,BTCZAR",
-   "enabledPairs": "BTCAUD,BTCUSD",
    "baseCurrencies": "ARS,AUD,BRL,CAD,CHF,CZK,DKK,EUR,GBP,HKD,ILS,INR,MXN,NOK,NZD,PLN,RUB,SEK,SGD,THB,USD,ZAR",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": true
+    },
+    "configFormat": {
+     "uppercase": true
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "BTCAUD,BTCUSD",
+      "available": "BTCXAF,BTCRUB,BTCXRP,BTCIDR,BTCTZS,BTCKWD,BTCTHB,BTCPKR,BTCBWP,BTCTRY,BTCCLP,BTCMXN,BTCCZK,BTCLTC,BTCARS,BTCMAD,BTCMUR,BTCGEL,BTCPEN,BTCSAR,BTCKES,BTCBGN,BTCGBP,BTCUAH,BTCCNY,BTCHKD,BTCRON,BTCSGD,BTCPLN,BTCINR,BTCDKK,BTCCRC,BTCUGX,BTCSEK,BTCPYG,BTCZMW,BTCPHP,BTCNZD,BTCNOK,BTCZAR,BTCBDT,BTCUSD,BTCEGP,BTCBOB,BTCRSD,BTCCHF,BTCKZT,BTCPAB,BTCTWD,BTCAED,BTCVND,BTCETH,BTCDOP,BTCCAD,BTCJPY,BTCAUD,BTCBRL,BTCJOD,BTCGHS,BTCQAR,BTCGTQ,BTCKRW,BTCBYN,BTCEUR,BTCBAM,BTCLKR,BTCHUF,BTCTTD,BTCVES,BTCILS,BTCCOP,BTCSZL,BTCMWK,BTCMYR,BTCUYU,BTCNGN,BTCJMD,BTCXOF,BTCRWF"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": true
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "tickerBatching": true,
+      "autoPairUpdates": true
+     },
+     "websocketAPI": false,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -1210,40 +2031,74 @@
    "name": "OKCOIN International",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "BTC_USD,LTC_USD,ETH_USD,ETC_USD,TUSD_USD,BCH_USD,EOS_USD,XRP_USD,TRX_USD,BSV_USD,USDT_USD,USDK_USD,XLM_USD,ADA_USD,BAT_USD,DCR_USD,EURS_USD,GRIN_USD,GUSD_USD,PAX_USD,USDC_USD,ZEC_USD,ZRX_USD,BTC_USDT,BTC_GUSD,BTC_PAX,BTC_TUSD,BTC_EUR,BTC_EURS,BTC_USDC,ETH_EUR,BCH_EUR,EURS_EUR",
-   "enabledPairs": "BTC_USD",
    "baseCurrencies": "USD",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "_"
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": true,
+     "delimiter": "-"
+    },
+    "configFormat": {
+     "uppercase": true,
+     "delimiter": "-"
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot",
+     "margin"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "BTC-USD",
+      "available": "BTC-USD,LTC-USD,ETH-USD,ETC-USD,TUSD-USD,BCH-USD,EOS-USD,XRP-USD,TRX-USD,BSV-USD,USDT-USD,USDK-USD,XLM-USD,ADA-USD,BAT-USD,DCR-USD,EURS-USD,HBAR-USD,PAX-USD,USDC-USD,ZEC-USD,BTC-USDT,BTC-EUR,BTC-EURS,ETH-EUR,BCH-EUR,EURS-EUR"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": false,
-    "delimiter": "_"
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true,
+     "requiresClientID": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "tickerBatching": true,
+      "autoPairUpdates": true
+     },
+     "websocketAPI": true,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -1256,40 +2111,108 @@
    "name": "OKEX",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "BCH_BTC,BSV_BTC,DASH_BTC,ADA_BTC,ABL_BTC,AE_BTC,ALGO_BTC,ARDR_BTC,ATOM_BTC,BLOC_BTC,BTT_BTC,CAI_BTC,CTXC_BTC,CVT_BTC,DCR_BTC,EGT_BTC,GUSD_BTC,HPB_BTC,HYC_BTC,KAN_BTC,LBA_BTC,LEO_BTC,LET_BTC,LSK_BTC,NXT_BTC,ORS_BTC,PAX_BTC,SC_BTC,TUSD_BTC,USDC_BTC,VITE_BTC,WAVES_BTC,WIN_BTC,WXT_BTC,XAS_BTC,YOU_BTC,ZCO_BTC,ZIL_BTC,XRP_BTC,ELF_BTC,LRC_BTC,MCO_BTC,NULS_BTC,BCX_BTC,CMT_BTC,EDO_BTC,ITC_BTC,SBTC_BTC,ZEC_BTC,NEO_BTC,GAS_BTC,HC_BTC,QTUM_BTC,IOTA_BTC,XUC_BTC,EOS_BTC,SNT_BTC,OMG_BTC,LTC_BTC,ETH_BTC,ETC_BTC,BCD_BTC,BTG_BTC,ACT_BTC,PAY_BTC,BTM_BTC,DGD_BTC,GNT_BTC,LINK_BTC,WTC_BTC,ZRX_BTC,BNT_BTC,CVC_BTC,MANA_BTC,KNC_BTC,GNX_BTC,ICX_BTC,XEM_BTC,ARK_BTC,YOYO_BTC,FUN_BTC,ACE_BTC,TRX_BTC,DGB_BTC,SWFTC_BTC,XMR_BTC,XLM_BTC,KCASH_BTC,MDT_BTC,NAS_BTC,UGC_BTC,DPY_BTC,SSC_BTC,AAC_BTC,VIB_BTC,QUN_BTC,INT_BTC,IOST_BTC,INS_BTC,MOF_BTC,TCT_BTC,STC_BTC,THETA_BTC,PST_BTC,SNC_BTC,MKR_BTC,LIGHT_BTC,OF_BTC,TRUE_BTC,SOC_BTC,ZEN_BTC,HMC_BTC,ZIP_BTC,NANO_BTC,CIC_BTC,GTO_BTC,CHAT_BTC,INSUR_BTC,R_BTC,BEC_BTC,MITH_BTC,ABT_BTC,BKX_BTC,RFR_BTC,TRIO_BTC,DADI_BTC,ONT_BTC,OKB_BTC,ADA_ETH,ABL_ETH,AE_ETH,ALGO_ETH,ATOM_ETH,BTT_ETH,CAI_ETH,CTXC_ETH,DCR_ETH,EGT_ETH,HPB_ETH,HYC_ETH,KAN_ETH,LEO_ETH,LSK_ETH,MVP_ETH,ORS_ETH,SC_ETH,SDA_ETH,WAVES_ETH,WIN_ETH,YOU_ETH,ZIL_ETH,ELF_ETH,LTC_ETH,CMT_ETH,PRA_ETH,LRC_ETH,MCO_ETH,NULS_ETH,DGD_ETH,SNT_ETH,STORJ_ETH,ACT_ETH,BTM_ETH,EOS_ETH,OMG_ETH,DASH_ETH,XRP_ETH,ZEC_ETH,NEO_ETH,GAS_ETH,HC_ETH,QTUM_ETH,IOTA_ETH,ETC_ETH,LINK_ETH,WTC_ETH,ZRX_ETH,BNT_ETH,CVC_ETH,MANA_ETH,GNX_ETH,ICX_ETH,XEM_ETH,YOYO_ETH,TRX_ETH,DGB_ETH,SWFTC_ETH,XMR_ETH,XLM_ETH,KCASH_ETH,MDT_ETH,NAS_ETH,SSC_ETH,AAC_ETH,FAIR_ETH,RCT_ETH,TOPC_ETH,QUN_ETH,INT_ETH,IOST_ETH,INS_ETH,MOF_ETH,REF_ETH,SNC_ETH,MKR_ETH,LIGHT_ETH,OF_ETH,TRUE_ETH,ZEN_ETH,HMC_ETH,ZIP_ETH,NANO_ETH,CIC_ETH,GTO_ETH,INSUR_ETH,UCT_ETH,MITH_ETH,ABT_ETH,AUTO_ETH,TRIO_ETH,TRA_ETH,ONT_ETH,OKB_ETH,BTC_USDK,LTC_USDK,ETH_USDK,OKB_USDK,ETC_USDK,BCH_USDT,BCH_USDK,EOS_USDK,XRP_USDK,TRX_USDK,BSV_USDT,BSV_USDK,USDT_USDK,ADA_USDT,AE_USDT,ALGO_USDT,ALGO_USDK,ALV_USDT,ATOM_USDT,BLOC_USDT,BTT_USDT,CAI_USDT,CRO_USDT,CRO_USDK,CTXC_USDT,CVT_USDT,DCR_USDT,DOGE_USDT,DOGE_USDK,EC_USDT,EC_USDK,EGT_USDT,EM_USDT,EM_USDK,ETM_USDT,ETM_USDK,FSN_USDT,FSN_USDK,FTM_USDT,FTM_USDK,GUSD_USDT,HPB_USDT,HYC_USDT,KAN_USDT,LAMB_USDT,LAMB_USDK,LBA_USDT,LEO_USDT,LEO_USDK,LET_USDT,LSK_USDT,MVP_USDT,ORBS_USDT,ORBS_USDK,ORS_USDT,PAX_USDT,PLG_USDT,PLG_USDK,SC_USDT,TUSD_USDT,USDC_USDT,VNT_USDT,VNT_USDK,WAVES_USDT,WIN_USDT,WXT_USDT,WXT_USDK,XAS_USDT,YOU_USDT,ZIL_USDT,TRX_OKB,ADA_OKB,AE_OKB,BLOC_OKB,DCR_OKB,EGT_OKB,SC_OKB,WAVES_OKB,WXT_OKB,ELF_USDT,DASH_USDT,BTG_USDT,LRC_USDT,MCO_USDT,NULS_USDT,DASH_OKB,XRP_USDT,ZEC_USDT,NEO_USDT,GAS_USDT,HC_USDT,QTUM_USDT,IOTA_USDT,BTC_USDT,BCD_USDT,XUC_USDT,CMT_USDT,EDO_USDT,ITC_USDT,PRA_USDT,ETH_USDT,LTC_USDT,ETC_USDT,EOS_USDT,OMG_USDT,ACT_USDT,BTM_USDT,DGD_USDT,GNT_USDT,PAY_USDT,STORJ_USDT,SNT_USDT,LINK_USDT,WTC_USDT,ZRX_USDT,BNT_USDT,CVC_USDT,MANA_USDT,KNC_USDT,ICX_USDT,XEM_USDT,ARK_USDT,YOYO_USDT,AST_USDT,TRX_USDT,MDA_USDT,DGB_USDT,PPT_USDT,SWFTC_USDT,XMR_USDT,XLM_USDT,KCASH_USDT,MDT_USDT,NAS_USDT,RNT_USDT,UGC_USDT,DPY_USDT,SSC_USDT,AAC_USDT,FAIR_USDT,UBTC_USDT,SHOW_USDT,VIB_USDT,MOT_USDT,UTK_USDT,TOPC_USDT,QUN_USDT,INT_USDT,IPC_USDT,IOST_USDT,INS_USDT,YEE_USDT,MOF_USDT,TCT_USDT,STC_USDT,THETA_USDT,PST_USDT,MKR_USDT,LIGHT_USDT,OF_USDT,TRUE_USDT,SOC_USDT,ZEN_USDT,HMC_USDT,ZIP_USDT,NANO_USDT,CIC_USDT,GTO_USDT,CHAT_USDT,INSUR_USDT,R_USDT,BEC_USDT,MITH_USDT,ABT_USDT,BKX_USDT,RFR_USDT,TRIO_USDT,DADI_USDT,ONT_USDT,OKB_USDT,NEO_OKB,LTC_OKB,ETC_OKB,XRP_OKB,ZEC_OKB,QTUM_OKB,IOTA_OKB,EOS_OKB",
-   "enabledPairs": "eos_usdt",
    "baseCurrencies": "USD",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "_"
+   "currencyPairs": {
+    "assetTypes": [
+     "spot",
+     "futures",
+     "perpetualswap",
+     "index"
+    ],
+    "pairs": {
+     "futures": {
+      "available": "XRP-USD_191206,XRP-USD_191213,XRP-USD_191227,BTC-USD_191206,BTC-USD_191213,BTC-USD_191227,BTC-USDT_191206,BTC-USDT_191213,BTC-USDT_191227,LTC-USD_191206,LTC-USD_191213,LTC-USD_191227,LTC-USDT_191206,LTC-USDT_191213,LTC-USDT_191227,ETH-USD_191206,ETH-USD_191213,ETH-USD_191227,ETH-USDT_191206,ETH-USDT_191213,ETH-USDT_191227,ETC-USD_191206,ETC-USD_191213,ETC-USD_191227,BCH-USD_191206,BCH-USD_191213,BCH-USD_191227,BCH-USDT_191206,BCH-USDT_191213,BCH-USDT_191227,BSV-USD_191206,BSV-USD_191213,BSV-USD_191227,EOS-USDT_191206,EOS-USDT_191213,EOS-USDT_191227,EOS-USD_191206,EOS-USD_191213,EOS-USD_191227,TRX-USD_191206,TRX-USD_191213,TRX-USD_191227",
+      "requestFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      },
+      "configFormat": {
+       "uppercase": true,
+       "delimiter": "_"
+      }
+     },
+     "index": {
+      "available": "XRP-USD,XRP-USD,XRP-USD,BTC-USD,BTC-USD,BTC-USD,BTC-USDT,BTC-USDT,BTC-USDT,LTC-USD,LTC-USD,LTC-USD,LTC-USDT,LTC-USDT,LTC-USDT,ETH-USD,ETH-USD,ETH-USD,ETH-USDT,ETH-USDT,ETH-USDT,ETC-USD,ETC-USD,ETC-USD,BCH-USD,BCH-USD,BCH-USD,BCH-USDT,BCH-USDT,BCH-USDT,BSV-USD,BSV-USD,BSV-USD,EOS-USDT,EOS-USDT,EOS-USDT,EOS-USD,EOS-USD,EOS-USD,TRX-USD,TRX-USD,TRX-USD",
+      "requestFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      },
+      "configFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      }
+     },
+     "perpetualswap": {
+      "available": "BTC-USD_SWAP,LTC-USD_SWAP,ETH-USD_SWAP,TRX-USD_SWAP,BCH-USD_SWAP,BSV-USD_SWAP,EOS-USD_SWAP,XRP-USD_SWAP,ETC-USD_SWAP",
+      "requestFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      },
+      "configFormat": {
+       "uppercase": true,
+       "delimiter": "_"
+      }
+     },
+     "spot": {
+      "enabled": "EOS-USDT",
+      "available": "XPO-USDT,SPND-USDK,SPND-BTC,ROAD-USDK,BCH-BTC,BSV-BTC,DASH-BTC,ADA-BTC,ABL-BTC,AE-BTC,ALGO-BTC,ARDR-BTC,ATOM-BTC,BLOC-BTC,BTT-BTC,CAI-BTC,CRO-BTC,CTXC-BTC,CVT-BTC,DCR-BTC,EGT-BTC,GUSD-BTC,HBAR-BTC,HPB-BTC,HYC-BTC,KAN-BTC,LBA-BTC,LEO-BTC,LET-BTC,LSK-BTC,NXT-BTC,ORS-BTC,PAX-BTC,PMA-BTC,SC-BTC,TUSD-BTC,USDC-BTC,VITE-BTC,VSYS-BTC,WAVES-BTC,WIN-BTC,WXT-BTC,XAS-BTC,XTZ-BTC,YOU-BTC,ZIL-BTC,XRP-BTC,ELF-BTC,LRC-BTC,MCO-BTC,NULS-BTC,BCX-BTC,CMT-BTC,EDO-BTC,ITC-BTC,SBTC-BTC,ZEC-BTC,NEO-BTC,GAS-BTC,HC-BTC,QTUM-BTC,IOTA-BTC,XUC-BTC,EOS-BTC,SNT-BTC,OMG-BTC,LTC-BTC,ETH-BTC,ETC-BTC,BCD-BTC,BTG-BTC,ACT-BTC,PAY-BTC,BTM-BTC,DGD-BTC,GNT-BTC,LINK-BTC,WTC-BTC,ZRX-BTC,BNT-BTC,CVC-BTC,MANA-BTC,KNC-BTC,GNX-BTC,ICX-BTC,XEM-BTC,ARK-BTC,YOYO-BTC,FUN-BTC,ACE-BTC,TRX-BTC,DGB-BTC,SWFTC-BTC,XMR-BTC,XLM-BTC,KCASH-BTC,MDT-BTC,NAS-BTC,UGC-BTC,DPY-BTC,SSC-BTC,AAC-BTC,VIB-BTC,QUN-BTC,INT-BTC,IOST-BTC,INS-BTC,MOF-BTC,TCT-BTC,STC-BTC,THETA-BTC,PST-BTC,SNC-BTC,MKR-BTC,LIGHT-BTC,OF-BTC,TRUE-BTC,SOC-BTC,ZEN-BTC,HMC-BTC,ZIP-BTC,NANO-BTC,CIC-BTC,GTO-BTC,CHAT-BTC,INSUR-BTC,R-BTC,BEC-BTC,MITH-BTC,ABT-BTC,BKX-BTC,RFR-BTC,TRIO-BTC,EDGE-BTC,ONT-BTC,OKB-BTC,ADA-ETH,ABL-ETH,AE-ETH,ALGO-ETH,ATOM-ETH,BTT-ETH,CAI-ETH,CTXC-ETH,DCR-ETH,EGT-ETH,HPB-ETH,HYC-ETH,KAN-ETH,LEO-ETH,MVP-ETH,ORS-ETH,SC-ETH,SDA-ETH,WAVES-ETH,WIN-ETH,YOU-ETH,ZIL-ETH,ELF-ETH,LTC-ETH,CMT-ETH,PRA-ETH,LRC-ETH,MCO-ETH,NULS-ETH,DGD-ETH,STORJ-ETH,BTM-ETH,EOS-ETH,OMG-ETH,DASH-ETH,XRP-ETH,ZEC-ETH,NEO-ETH,GAS-ETH,HC-ETH,QTUM-ETH,IOTA-ETH,ETC-ETH,LINK-ETH,WTC-ETH,ZRX-ETH,CVC-ETH,MANA-ETH,GNX-ETH,XEM-ETH,TRX-ETH,SWFTC-ETH,XMR-ETH,XLM-ETH,KCASH-ETH,MDT-ETH,NAS-ETH,SSC-ETH,AAC-ETH,FAIR-ETH,RCT-ETH,TOPC-ETH,INT-ETH,IOST-ETH,INS-ETH,MOF-ETH,REF-ETH,MKR-ETH,LIGHT-ETH,OF-ETH,TRUE-ETH,ZEN-ETH,NANO-ETH,CIC-ETH,GTO-ETH,UCT-ETH,MITH-ETH,ABT-ETH,AUTO-ETH,TRIO-ETH,ONT-ETH,OKB-ETH,BTC-USDK,LTC-USDK,ETH-USDK,OKB-USDK,ETC-USDK,BCH-USDT,BCH-USDK,EOS-USDK,XRP-USDK,TRX-USDK,BSV-USDT,BSV-USDK,USDT-USDK,ADA-USDT,AE-USDT,ALGO-USDT,ALGO-USDK,ALV-USDT,ATOM-USDT,BLOC-USDT,BTT-USDT,CAI-USDT,CRO-USDT,CRO-USDK,CTXC-USDT,CVT-USDT,DCR-USDT,DOGE-USDT,DOGE-USDK,EC-USDT,EC-USDK,EGT-USDT,EM-USDT,EM-USDK,ETM-USDT,ETM-USDK,FSN-USDT,FSN-USDK,FTM-USDT,FTM-USDK,GUSD-USDT,HBAR-USDT,HBAR-USDK,HPB-USDT,HYC-USDT,KAN-USDT,LAMB-USDT,LAMB-USDK,LBA-USDT,LEO-USDT,LEO-USDK,LET-USDT,LSK-USDT,MVP-USDT,ORBS-USDT,ORBS-USDK,ORS-USDT,PAX-USDT,PLG-USDT,PLG-USDK,PMA-USDK,ROAD-USDT,SC-USDT,TUSD-USDT,USDC-USDT,VNT-USDT,VNT-USDK,VSYS-USDT,VSYS-USDK,WAVES-USDT,WIN-USDT,WXT-USDT,WXT-USDK,XAS-USDT,XPO-USDK,XTZ-USDT,YOU-USDT,ZIL-USDT,TRX-OKB,AE-OKB,BLOC-OKB,EGT-OKB,SC-OKB,WXT-OKB,ELF-USDT,DASH-USDT,BTG-USDT,LRC-USDT,MCO-USDT,NULS-USDT,DASH-OKB,XRP-USDT,ZEC-USDT,NEO-USDT,GAS-USDT,HC-USDT,QTUM-USDT,IOTA-USDT,BTC-USDT,BCD-USDT,XUC-USDT,CMT-USDT,EDO-USDT,ITC-USDT,PRA-USDT,ETH-USDT,LTC-USDT,ETC-USDT,EOS-USDT,OMG-USDT,ACT-USDT,BTM-USDT,DGD-USDT,GNT-USDT,PAY-USDT,STORJ-USDT,SNT-USDT,LINK-USDT,WTC-USDT,ZRX-USDT,BNT-USDT,CVC-USDT,MANA-USDT,KNC-USDT,ICX-USDT,XEM-USDT,ARK-USDT,YOYO-USDT,AST-USDT,TRX-USDT,MDA-USDT,DGB-USDT,PPT-USDT,SWFTC-USDT,XMR-USDT,XLM-USDT,KCASH-USDT,MDT-USDT,NAS-USDT,RNT-USDT,UGC-USDT,DPY-USDT,SSC-USDT,AAC-USDT,FAIR-USDT,UBTC-USDT,SHOW-USDT,VIB-USDT,MOT-USDT,UTK-USDT,TOPC-USDT,QUN-USDT,INT-USDT,IPC-USDT,IOST-USDT,INS-USDT,YEE-USDT,MOF-USDT,TCT-USDT,STC-USDT,THETA-USDT,PST-USDT,MKR-USDT,LIGHT-USDT,OF-USDT,TRUE-USDT,SOC-USDT,ZEN-USDT,HMC-USDT,ZIP-USDT,NANO-USDT,CIC-USDT,GTO-USDT,CHAT-USDT,INSUR-USDT,R-USDT,BEC-USDT,MITH-USDT,ABT-USDT,BKX-USDT,RFR-USDT,TRIO-USDT,EDGE-USDT,ONT-USDT,OKB-USDT,NEO-OKB,LTC-OKB,ETC-OKB,XRP-OKB,ZEC-OKB,IOTA-OKB,EOS-OKB",
+      "requestFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      },
+      "configFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      }
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": false,
-    "delimiter": "_"
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true,
+     "requiresClientID": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "tickerBatching": true,
+      "autoPairUpdates": true
+     },
+     "websocketAPI": true,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -1302,40 +2225,72 @@
    "name": "Poloniex",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "BTC_DASH,BTC_VIA,USDC_ZEC,USDT_BCHSV,BTC_XEM,USDT_STR,ETH_REP,BTC_MANA,USDC_STR,USDC_ETH,USDT_BTC,BTC_REP,BTC_PASC,BTC_GNT,ETH_ZRX,BTC_SNT,ETH_BAT,USDC_DOGE,BTC_POLY,BTC_ATOM,BTC_BAT,BTC_DGB,BTC_NXT,BTC_STR,BTC_STRAT,BTC_EOS,ETH_EOS,BTC_KNC,USDT_SC,BTC_BCHSV,BTC_XMR,BTC_STEEM,BTC_ZEC,BTC_GAS,USDT_BCHABC,USDC_ATOM,BTC_XRP,USDT_DASH,USDT_ETH,USDT_DOGE,BTC_QTUM,USDC_BTC,BTC_LPT,USDT_DGB,BTC_DOGE,USDT_BAT,USDC_BCHSV,BTC_BTS,BTC_GAME,BTC_SC,BTC_OMG,USDT_MANA,BTC_GRIN,BTC_LTC,BTC_ETH,USDT_EOS,USDT_LSK,USDC_BCHABC,USDC_XMR,BTC_NMR,USDT_REP,BTC_ZRX,USDT_GNT,USDT_QTUM,BTC_BNT,USDC_EOS,BTC_BCN,USDT_ATOM,USDC_DASH,BTC_OMNI,BTC_FCT,BTC_LSK,USDC_XRP,BTC_FOAM,BTC_CVC,BTC_NAV,USDT_LTC,USDT_NXT,USDT_XMR,USDT_XRP,BTC_LBC,USDT_ETC,BTC_LOOM,USDT_GRIN,BTC_DCR,BTC_ETC,ETH_ETC,BTC_ARDR,USDT_ZEC,BTC_BCHABC,USDC_GRIN,BTC_STORJ,USDT_ZRX,USDC_USDT,USDC_ETC,BTC_CLAM,BTC_MAID,BTC_VTC,BTC_XPM,ETH_ZEC,USDC_LTC",
-   "enabledPairs": "BTC_LTC,BTC_ETH,BTC_DOGE,BTC_DASH,BTC_XRP",
    "baseCurrencies": "USD",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "_"
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": true,
+     "delimiter": "_"
+    },
+    "configFormat": {
+     "uppercase": true,
+     "delimiter": "_"
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "BTC_LTC,BTC_ETH,BTC_DOGE,BTC_DASH,BTC_XRP",
+      "available": "BTC_ATOM,USDT_BCHABC,BTC_STR,USDT_DASH,ETH_BAT,BTC_MANA,USDT_MANA,USDT_ETC,USDT_REP,BTC_STORJ,USDT_BCHSV,USDC_GRIN,BTC_DOGE,BTC_XRP,USDT_ZEC,USDT_DOGE,USDC_ETH,BTC_LSK,ETH_ETC,BTC_ZRX,USDC_ZEC,USDT_XMR,USDT_EOS,BTC_QTUM,USDC_STR,USDC_USDT,BTC_BNT,BTC_BCHSV,BTC_LTC,BTC_ETC,BTC_REP,BTC_ARDR,BTC_KNC,BTC_LPT,BTC_TRX,USDT_ETH,USDT_ATOM,USDC_ETC,USDC_BCHABC,USDC_ATOM,USDT_GRIN,BTC_XPM,USDT_BAT,BTC_LOOM,USDT_QTUM,BTC_BCHABC,BTC_GAS,USDT_GNT,USDC_LTC,BTC_BTS,BTC_DASH,USDT_STR,BTC_ETH,ETH_ZEC,USDC_DASH,BTC_XMR,USDT_BTC,BTC_SC,BTC_ZEC,BTC_MAID,BTC_NXT,ETH_REP,BTC_STRAT,BTC_NMR,USDC_XMR,USDC_EOS,BTC_OMNI,BTC_OMG,ETH_EOS,USDT_ZRX,USDC_BCHSV,BTC_BCN,BTC_EOS,BTC_BAT,USDT_DGB,USDC_BTC,USDC_DOGE,USDT_TRX,BTC_DGB,BTC_FCT,ETH_ZRX,USDT_LSK,USDT_SC,BTC_VIA,USDT_LTC,BTC_GNT,USDC_XRP,BTC_CVC,BTC_SNT,BTC_FOAM,BTC_VTC,BTC_XEM,USDT_NXT,USDT_XRP,BTC_DCR,BTC_POLY,BTC_GRIN,USDC_TRX"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "_"
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "tickerBatching": true,
+      "autoPairUpdates": true
+     },
+     "websocketAPI": true,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -1348,42 +2303,74 @@
    "name": "Yobit",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "DASH_BTC,WAVES_BTC,LSK_BTC,LIZA_BTC,BCC_BTC,ETH_BTC,LTC_BTC,TRX_BTC,DOGE_BTC,VNTX_BTC,SW_BTC,ZEC_BTC,DASH_ETH,WAVES_ETH,LSK_ETH,LIZA_ETH,BCC_ETH,LTC_ETH,TRX_ETH,DOGE_ETH,VNTX_ETH,SW_ETH,ZEC_ETH,DASH_DOGE,WAVES_DOGE,LSK_DOGE,LIZA_DOGE,BCC_DOGE,LTC_DOGE,TRX_DOGE,VNTX_DOGE,SW_DOGE,ZEC_DOGE,DASH_USD,WAVES_USD,LSK_USD,LIZA_USD,BCC_USD,LTC_USD,TRX_USD,VNTX_USD,SW_USD,ZEC_USD,ETH_USD,BTC_USD,DASH_RUR,WAVES_BTC,WAVES_RUR,LSK_RUR,LIZA_RUR,BCC_RUR,LTC_RUR,TRX_RUR,VNTX_RUR,SW_RUR,ETH_RUR,ZEC_RUR",
-   "enabledPairs": "LTC_BTC,ETH_BTC,BTC_USD,DASH_BTC",
    "baseCurrencies": "USD,RUR",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": false,
-   "pairsLastUpdated": 1566798411,
-   "configCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "_"
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": false,
+     "delimiter": "_",
+     "separator": "-"
+    },
+    "configFormat": {
+     "uppercase": true,
+     "delimiter": "_"
+    },
+    "useGlobalFormat": true,
+    "lastUpdated": 1566798411,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "LTC_BTC,ETH_BTC,BTC_USD,DASH_BTC",
+      "available": "DASH_BTC,WAVES_BTC,LSK_BTC,LIZA_BTC,BCC_BTC,ETH_BTC,LTC_BTC,TRX_BTC,DOGE_BTC,VNTX_BTC,SW_BTC,ZEC_BTC,DASH_ETH,WAVES_ETH,LSK_ETH,LIZA_ETH,BCC_ETH,LTC_ETH,TRX_ETH,DOGE_ETH,VNTX_ETH,SW_ETH,ZEC_ETH,DASH_DOGE,WAVES_DOGE,LSK_DOGE,LIZA_DOGE,BCC_DOGE,LTC_DOGE,TRX_DOGE,VNTX_DOGE,SW_DOGE,ZEC_DOGE,DASH_USD,WAVES_USD,LSK_USD,LIZA_USD,BCC_USD,LTC_USD,TRX_USD,VNTX_USD,SW_USD,ZEC_USD,ETH_USD,BTC_USD,DASH_RUR,WAVES_BTC,WAVES_RUR,LSK_RUR,LIZA_RUR,BCC_RUR,LTC_RUR,TRX_RUR,VNTX_RUR,SW_RUR,ETH_RUR,ZEC_RUR"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": false,
-    "delimiter": "_",
-    "separator": "-"
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "tickerBatching": true,
+      "autoPairUpdates": true
+     },
+     "websocketAPI": false,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": false,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -1396,40 +2383,72 @@
    "name": "ZB",
    "enabled": true,
    "verbose": false,
-   "websocket": false,
-   "useSandbox": false,
-   "restPollingDelay": 10,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
    "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
    "websocketOrderbookBufferLimit": 5,
-   "httpUserAgent": "",
-   "httpDebugging": false,
-   "authenticatedApiSupport": false,
-   "authenticatedWebsocketApiSupport": false,
-   "apiKey": "Key",
-   "apiSecret": "Secret",
-   "apiUrl": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "apiUrlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-   "proxyAddress": "",
-   "websocketUrl": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API",
-   "availablePairs": "DASH_USDT,XLM_QC,DOGE_QC,SBTC_USDT,SNT_USDT,BRC_BTC,BCHSV_QC,TUSD_USDT,ZB_BTC,GRIN_USDT,BAT_USDT,HPY_USDT,ADA_BTC,XTZ_USDT,XWC_USDT,YTNB_USDT,QTUM_USDT,EDO_USDT,BTC_QC,ETC_PAX,TV_BTC,HSR_BTC,XWC_QC,TRX_USDT,VSYS_ZB,LTC_PAX,OMG_QC,ETH_BTC,NEO_BTC,HPY_QC,TOPC_USDT,ICX_USDT,BCX_USDT,GNT_QC,B91_QC,EOS_QC,PAX_QC,BTC_PAX,XRP_QC,LTC_USDT,MANA_BTC,BITE_BTC,EOS_BTC,XUC_QC,HOTC_QC,BAR_USDT,ETZ_QC,XRP_USDT,HOTC_USDT,DOGE_BTC,ZRX_BTC,TRUE_USDT,GRAM_USDT,BTH_QC,HLC_QC,SLT_QC,BCD_USDT,ETC_USDT,GNT_BTC,BTP_QC,ZRX_USDT,BCW_QC,PDX_QC,QTUM_BTC,LTC_QC,BRC_USDT,EPC_QC,GRAM_QC,CHAT_USDT,KNC_QC,DASH_BTC,XMR_QC,XEM_QC,BTP_USDT,HSR_QC,BCD_QC,EOSDAC_USDT,MTL_USDT,ENTC_USDT,KNC_USDT,MITH_QC,SAFE_USDT,1ST_USDT,TRX_QC,OMG_BTC,BRC_QC,MCO_QC,LBTC_BTC,KAN_BTC,1ST_QC,BTM_QC,INK_USDT,GRIN_QC,UBTC_QC,EPC_BTC,XEM_BTC,TV_USDT,ETC_BTC,XEM_USDT,UBTC_USDT,TRUE_BTC,HSR_USDT,BCHSV_USDT,AE_BTC,BCX_QC,ETH_PAX,ACC_USDT,OMG_USDT,ETZ_USDT,DDM_QC,KAN_QC,INK_QC,DOGE_USDT,BCHABC_QC,BITCNY_QC,TRUE_QC,DASH_QC,QUN_USDT,ZRX_QC,BTM_BTC,BTM_USDT,HLC_USDT,SLT_USDT,BTC_USDT,CDC_QC,AE_QC,LBTC_USDT,MCO_USDT,XLM_BTC,LEO_USDT,BTN_QC,SAFE_QC,XRP_BTC,BTS_BTC,BCX_BTC,DDM_USDT,TRX_BTC,QUN_QC,BTS_USDT,PDX_BTC,ETC_QC,BCHABC_USDT,QTUM_QC,ADA_USDT,EOSDAC_QC,BDS_QC,BTN_USDT,SLT_BTC,PDX_USDT,SUB_QC,USDT_QC,TOPC_QC,XMR_USDT,BAT_QC,SNT_QC,B91_USDT,GNT_USDT,PAX_USDT,AE_USDT,ZB_USDT,NWT_USDT,CDC_USDT,RCN_USDT,NEO_QC,MANA_USDT,TV_QC,VSYS_BTC,ZB_QC,GRAM_BTC,BTH_USDT,AAA_QC,ICX_QC,LTC_BTC,ETH_QC,CHAT_QC,BCW_USDT,SNT_BTC,ADA_QC,VSYS_QC,XLM_USDT,BAT_BTC,ETH_USDT,EOS_USDT,ICX_BTC,LBTC_QC,NEO_USDT,MANA_QC,BTS_QC",
-   "enabledPairs": "BTC_USDT,ETH_USDT",
    "baseCurrencies": "USD",
-   "assetTypes": "SPOT",
-   "supportsAutoPairUpdates": true,
-   "configCurrencyPairFormat": {
-    "uppercase": true,
-    "delimiter": "_"
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": false,
+     "delimiter": "_"
+    },
+    "configFormat": {
+     "uppercase": true,
+     "delimiter": "_"
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": {
+     "spot": {
+      "enabled": "BTC_USDT,ETH_USDT",
+      "available": "TOPC_QC,CDC_QC,1ST_USDT,TSR_USDT,XRP_QC,ZRX_USDT,INK_QC,PAX_USDT,BTC_USDT,B91_QC,ETZ_USDT,ETH_USDT,SLT_QC,BRC_QC,XWC_QC,ZB_BTC,EOS_BTC,BTH_QC,BCD_USDT,MTL_USDT,SLT_BTC,EOS_USDT,HLC_QC,EPC_QC,QUN_USDT,BTP_USDT,NEO_BTC,LTC_QC,BRC_USDT,SNT_BTC,BCW_QC,BAT_QC,ADA_QC,HSR_BTC,ZRX_QC,SLT_USDT,SNT_QC,MANA_QC,MITH_QC,XEM_USDT,ZB_USDT,RCN_USDT,LVN_QC,ADA_BTC,PDX_USDT,CDC_USDT,PAX_QC,XLM_QC,LEO_USDT,BCHSV_QC,BTM_BTC,ETH_QC,DOGE_USDT,MANA_BTC,GRAM_QC,TRX_USDT,AAA_QC,TOPC_USDT,TRX_QC,YTNB_USDT,EDO_USDT,HSR_USDT,XRP_BTC,LTC_USDT,TUSD_USDT,EOSDAC_QC,BTM_USDT,HPY_USDT,DOGE_BTC,XEM_QC,QUN_QC,DASH_BTC,BCW_USDT,SUB_QC,SAFE_QC,ZB_QC,OMG_QC,ICX_QC,DDM_USDT,BCX_USDT,BAT_BTC,EOS_QC,BTS_USDT,GNT_QC,LBTC_USDT,MANA_USDT,TRUE_QC,UBTC_QC,BRC_BTC,CHAT_USDT,ICX_BTC,BITCNY_QC,MCO_USDT,BCHSV_USDT,EOSDAC_USDT,TRUE_BTC,VSYS_BTC,CRO_QC,BCHABC_QC,TV_QC,ETC_BTC,EPC_BTC,HPY_QC,XMR_QC,GRAM_BTC,VSYS_QC,QTUM_USDT,NWT_USDT,ACC_USDT,NEO_QC,OMG_BTC,GRIN_QC,HSR_QC,INK_USDT,AE_QC,BTH_USDT,BCX_QC,ADA_USDT,KNC_USDT,B91_USDT,ENTC_USDT,TV_USDT,XRP_USDT,ETZ_QC,BCX_BTC,TRUE_USDT,USDT_QC,XLM_USDT,DASH_USDT,XWC_USDT,HOTC_USDT,1ST_QC,MCO_QC,GRAM_USDT,QTUM_QC,UBTC_USDT,SBTC_USDT,KNC_QC,XTZ_USDT,NEO_USDT,KAN_BTC,BTP_QC,DASH_QC,TV_BTC,QTUM_BTC,BAT_USDT,BCHABC_USDT,FN_QC,BAR_USDT,ZRX_BTC,PDX_BTC,GNT_USDT,BTN_QC,BTS_QC,GRIN_USDT,TRX_BTC,ETH_BTC,LBTC_QC,BTN_USDT,VSYS_ZB,AE_USDT,BITE_BTC,ICX_USDT,DDM_QC,PDX_QC,LTC_BTC,KAN_QC,BTS_BTC,GNT_BTC,BCD_QC,HOTC_QC,BDS_QC,LBTC_BTC,CHAT_QC,ETC_USDT,SNT_USDT,BTC_QC,XEM_BTC,XMR_USDT,ETC_QC,BTM_QC,OMG_USDT,DOGE_QC,XLM_BTC,HLC_USDT,AE_BTC,SAFE_USDT,XUC_QC"
+     }
+    }
    },
-   "requestCurrencyPairFormat": {
-    "uppercase": false,
-    "delimiter": "_"
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true
+    }
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "tickerBatching": true,
+      "autoPairUpdates": true
+     },
+     "websocketAPI": true,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": false
+    }
    },
    "bankAccounts": [
     {
+     "enabled": false,
      "bankName": "",
      "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
      "accountName": "",
      "accountNumber": "",
      "swiftCode": "",
@@ -1441,8 +2460,12 @@
  ],
  "bankAccounts": [
   {
+   "enabled": false,
    "bankName": "test",
    "bankAddress": "test",
+   "bankPostalCode": "",
+   "bankPostalCity": "",
+   "bankCountry": "",
    "accountName": "TestAccount",
    "accountNumber": "0234",
    "swiftCode": "91272837",
@@ -1450,20 +2473,5 @@
    "supportedCurrencies": "USD",
    "supportedExchanges": "ANX,Kraken"
   }
- ],
- "connectionMonitor": {
-  "preferredDNSList": [
-   "8.8.8.8",
-   "8.8.4.4",
-   "1.1.1.1",
-   "1.0.0.1"
-  ],
-  "preferredDomainList": [
-   "www.google.com",
-   "www.cloudflare.com",
-   "www.facebook.com"
-  ],
-  "checkInterval": 1000000000
- },
- "fiatDispayCurrency": ""
+ ]
 }

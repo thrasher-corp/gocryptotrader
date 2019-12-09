@@ -29,7 +29,7 @@ import "github.com/thrasher-corp/gocryptotrader/common"
 
 testString := "aAaAa"
 
-upper := common.StringToUpper(testString)
+upper := strings.ToUpper(testString)
 
 // upper == "AAAAA"
 ```
@@ -55,4 +55,3 @@ When submitting a PR, please abide by our coding guidelines:
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
 ***1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB***
-

@@ -17,16 +17,22 @@ var mockTests = false
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		log.Fatal("LocalBitcoins load config error", err)
+	}
 	localbitcoinsConfig, err := cfg.GetExchangeConfig("LocalBitcoins")
 	if err != nil {
-		log.Fatal("Test Failed - LocalBitcoins Setup() init error", err)
+		log.Fatal("LocalBitcoins Setup() init error", err)
 	}
-	localbitcoinsConfig.AuthenticatedAPISupport = true
-	localbitcoinsConfig.APIKey = apiKey
-	localbitcoinsConfig.APISecret = apiSecret
+	localbitcoinsConfig.API.AuthenticatedSupport = true
+	localbitcoinsConfig.API.Credentials.Key = apiKey
+	localbitcoinsConfig.API.Credentials.Secret = apiSecret
 	l.SetDefaults()
-	l.Setup(&localbitcoinsConfig)
-	log.Printf(sharedtestvalues.LiveTesting, l.GetName(), l.APIUrl)
+	err = l.Setup(localbitcoinsConfig)
+	if err != nil {
+		log.Fatal("Localbitcoins setup error", err)
+	}
+	log.Printf(sharedtestvalues.LiveTesting, l.Name, l.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

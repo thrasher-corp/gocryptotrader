@@ -14,16 +14,16 @@ func TestGetEthereumBalance(t *testing.T) {
 
 	response, err := GetEthereumBalance(address)
 	if err != nil {
-		t.Errorf("Test Failed - Portfolio GetEthereumBalance() Error: %s", err)
+		t.Errorf("Portfolio GetEthereumBalance() Error: %s", err)
 	}
 
 	if response.Address != "0xb794f5ea0ba39494ce839613fffba74279579268" {
-		t.Error("Test Failed - Portfolio GetEthereumBalance() address invalid")
+		t.Error("Portfolio GetEthereumBalance() address invalid")
 	}
 
 	response, err = GetEthereumBalance(nonsenseAddress)
 	if response.Error.Message != "" || err == nil {
-		t.Errorf("Test Failed - Portfolio GetEthereumBalance() Error: %s",
+		t.Errorf("Portfolio GetEthereumBalance() Error: %s",
 			response.Error.Message)
 	}
 }
@@ -32,7 +32,7 @@ func TestGetCryptoIDBalance(t *testing.T) {
 	ltcAddress := "LX2LMYXtuv5tiYEMztSSoEZcafFPYJFRK1"
 	_, err := GetCryptoIDAddress(ltcAddress, currency.LTC)
 	if err != nil {
-		t.Fatalf("Test failed. TestGetCryptoIDBalance error: %s", err)
+		t.Fatalf("TestGetCryptoIDBalance error: %s", err)
 	}
 }
 
@@ -50,7 +50,7 @@ func TestGetAddressBalance(t *testing.T) {
 		ltc)
 
 	if addBalance != balance {
-		t.Error("Test Failed - Portfolio GetAddressBalance() Error: Incorrect value")
+		t.Error("Portfolio GetAddressBalance() Error: Incorrect value")
 	}
 
 	addBalance, found := portfolio.GetAddressBalance("WigWham",
@@ -58,10 +58,10 @@ func TestGetAddressBalance(t *testing.T) {
 		ltc)
 
 	if addBalance != 0 {
-		t.Error("Test Failed - Portfolio GetAddressBalance() Error: Incorrect value")
+		t.Error("Portfolio GetAddressBalance() Error: Incorrect value")
 	}
 	if found {
-		t.Error("Test Failed - Portfolio GetAddressBalance() Error: Incorrect value")
+		t.Error("Portfolio GetAddressBalance() Error: Incorrect value")
 	}
 }
 
@@ -73,10 +73,10 @@ func TestExchangeExists(t *testing.T) {
 		0.02)
 
 	if !newBase.ExchangeExists("someaddress") {
-		t.Error("Test Failed - portfolio_test.go - AddressExists error")
+		t.Error("portfolio_test.go - AddressExists error")
 	}
 	if newBase.ExchangeExists("bla") {
-		t.Error("Test Failed - portfolio_test.go - AddressExists error")
+		t.Error("portfolio_test.go - AddressExists error")
 	}
 }
 
@@ -88,10 +88,10 @@ func TestAddressExists(t *testing.T) {
 		0.02)
 
 	if !newbase.AddressExists("someaddress") {
-		t.Error("Test Failed - portfolio_test.go - AddressExists error")
+		t.Error("portfolio_test.go - AddressExists error")
 	}
 	if newbase.AddressExists("bla") {
-		t.Error("Test Failed - portfolio_test.go - AddressExists error")
+		t.Error("portfolio_test.go - AddressExists error")
 	}
 }
 
@@ -103,10 +103,10 @@ func TestExchangeAddressExists(t *testing.T) {
 		0.02)
 
 	if !newbase.ExchangeAddressExists("someaddress", currency.LTC) {
-		t.Error("Test Failed - portfolio_test.go - ExchangeAddressExists error")
+		t.Error("portfolio_test.go - ExchangeAddressExists error")
 	}
 	if newbase.ExchangeAddressExists("TEST", currency.LTC) {
-		t.Error("Test Failed - portfolio_test.go - ExchangeAddressExists error")
+		t.Error("portfolio_test.go - ExchangeAddressExists error")
 	}
 }
 
@@ -116,7 +116,7 @@ func TestAddExchangeAddress(t *testing.T) {
 	newbase.AddExchangeAddress("ANX", currency.BTC, 200)
 
 	if !newbase.ExchangeAddressExists("ANX", currency.BTC) {
-		t.Error("Test Failed - TestExchangeAddressExists address doesn't exist")
+		t.Error("TestExchangeAddressExists address doesn't exist")
 	}
 }
 
@@ -132,26 +132,38 @@ func TestUpdateAddressBalance(t *testing.T) {
 	value := newbase.GetPortfolioSummary()
 	if value.Totals[0].Coin != currency.LTC &&
 		value.Totals[0].Balance != 0.03 {
-		t.Error("Test Failed - portfolio_test.go - UpdateUpdateAddressBalance error")
+		t.Error("portfolio_test.go - UpdateUpdateAddressBalance error")
 	}
 }
 
 func TestRemoveAddress(t *testing.T) {
-	newbase := Base{}
+	var newbase Base
+	if err := newbase.RemoveAddress("", "MEOW", currency.LTC); err == nil {
+		t.Error("invalid address should throw an error")
+	}
+
+	if err := newbase.RemoveAddress("Gibson", "", currency.NewCode("")); err == nil {
+		t.Error("invalid coin type should throw an error")
+	}
+
+	if err := newbase.RemoveAddress("HIDDENERINO", "MEOW", currency.LTC); err == nil {
+		t.Error("non-existent address should throw an error")
+	}
+
 	newbase.AddAddress("someaddr",
 		currency.LTC.String(),
 		currency.NewCode("LTCWALLETTEST"),
 		420)
 
 	if !newbase.AddressExists("someaddr") {
-		t.Error("Test failed - portfolio_test.go - TestRemoveAddress")
+		t.Error("portfolio_test.go - TestRemoveAddress")
 	}
 
 	newbase.RemoveAddress("someaddr",
 		currency.LTC.String(),
 		currency.NewCode("LTCWALLETTEST"))
 	if newbase.AddressExists("someaddr") {
-		t.Error("Test failed - portfolio_test.go - TestRemoveAddress")
+		t.Error("portfolio_test.go - TestRemoveAddress")
 	}
 }
 
@@ -163,12 +175,12 @@ func TestRemoveExchangeAddress(t *testing.T) {
 	newbase.AddExchangeAddress(exchangeName, coinType, 420)
 
 	if !newbase.ExchangeAddressExists(exchangeName, coinType) {
-		t.Error("Test failed - portfolio_test.go - TestRemoveAddress")
+		t.Error("portfolio_test.go - TestRemoveAddress")
 	}
 
 	newbase.RemoveExchangeAddress(exchangeName, coinType)
 	if newbase.ExchangeAddressExists(exchangeName, coinType) {
-		t.Error("Test failed - portfolio_test.go - TestRemoveAddress")
+		t.Error("portfolio_test.go - TestRemoveAddress")
 	}
 }
 
@@ -176,26 +188,50 @@ func TestUpdateExchangeAddressBalance(t *testing.T) {
 	newbase := Base{}
 	newbase.AddExchangeAddress("someaddress", currency.LTC, 0.02)
 	portfolio := GetPortfolio()
-	portfolio.SeedPortfolio(newbase)
+	portfolio.Seed(newbase)
 	portfolio.UpdateExchangeAddressBalance("someaddress", currency.LTC, 0.04)
 
 	value := portfolio.GetPortfolioSummary()
 	if value.Totals[0].Coin != currency.LTC && value.Totals[0].Balance != 0.04 {
-		t.Error("Test Failed - portfolio_test.go - UpdateExchangeAddressBalance error")
+		t.Error("portfolio_test.go - UpdateExchangeAddressBalance error")
 	}
 }
 
 func TestAddAddress(t *testing.T) {
-	newbase := Base{}
+	var newbase Base
+	if err := newbase.AddAddress("", "MEOW", currency.LTC, 1); err == nil {
+		t.Error("invalid address should throw an error")
+	}
+
+	if err := newbase.AddAddress("Gibson", "", currency.NewCode(""), 1); err == nil {
+		t.Error("invalid coin type should throw an error")
+	}
+
+	// test adding an exchange address
+	err := newbase.AddAddress("COINUT", PortfolioAddressExchange, currency.LTC, 0)
+	if err != nil {
+		t.Errorf("failed to add address: %v", err)
+	}
+
+	// add a test portfolio address and amount
 	newbase.AddAddress("Gibson",
 		currency.LTC.String(),
 		currency.NewCode("LTCWALLETTEST"),
 		0.02)
 
+	// test updating the balance and make sure it's reflected
+	newbase.AddAddress("Gibson", currency.LTC.String(),
+		currency.NewCode("LTCWALLETTEST"), 0.05)
+	b, _ := newbase.GetAddressBalance("Gibson", "LTC",
+		currency.NewCode("LTCWALLETTEST"))
+	if b != 0.05 {
+		t.Error("invalid portfolio amount")
+	}
+
 	portfolio := GetPortfolio()
-	portfolio.SeedPortfolio(newbase)
+	portfolio.Seed(newbase)
 	if !portfolio.AddressExists("Gibson") {
-		t.Error("Test Failed - portfolio_test.go - AddAddress error")
+		t.Error("portfolio_test.go - AddAddress error")
 	}
 
 	// Test updating balance to <= 0, expected result is to remove the address.
@@ -206,7 +242,7 @@ func TestAddAddress(t *testing.T) {
 		-1)
 
 	if newbase.AddressExists("Gibson") {
-		t.Error("Test Failed - portfolio_test.go - AddAddress error")
+		t.Error("portfolio_test.go - AddAddress error")
 	}
 }
 
@@ -218,30 +254,30 @@ func TestUpdatePortfolio(t *testing.T) {
 		0.02)
 
 	portfolio := GetPortfolio()
-	portfolio.SeedPortfolio(newbase)
+	portfolio.Seed(newbase)
 
 	value := portfolio.UpdatePortfolio(
 		[]string{"LdP8Qox1VAhCzLJNqrr74YovaWYyNBUWvL"}, currency.LTC,
 	)
 	if !value {
-		t.Error("Test Failed - portfolio_test.go - UpdatePortfolio error")
+		t.Error("portfolio_test.go - UpdatePortfolio error")
 	}
 	value = portfolio.UpdatePortfolio([]string{"Testy"}, currency.LTC)
 	if value {
-		t.Error("Test Failed - portfolio_test.go - UpdatePortfolio error")
+		t.Error("portfolio_test.go - UpdatePortfolio error")
 	}
 	value = portfolio.UpdatePortfolio(
 		[]string{"LdP8Qox1VAhCzLJNqrr74YovaWYyNBUWvL", "LVa8wZ983PvWtdwXZ8viK6SocMENLCXkEy"},
 		currency.LTC,
 	)
 	if !value {
-		t.Error("Test Failed - portfolio_test.go - UpdatePortfolio error")
+		t.Error("portfolio_test.go - UpdatePortfolio error")
 	}
 	value = portfolio.UpdatePortfolio(
 		[]string{"LdP8Qox1VAhCzLJNqrr74YovaWYyNBUWvL", "Testy"}, currency.LTC,
 	)
 	if value {
-		t.Error("Test Failed - portfolio_test.go - UpdatePortfolio error")
+		t.Error("portfolio_test.go - UpdatePortfolio error")
 	}
 
 	time.Sleep(time.Second * 5)
@@ -250,20 +286,20 @@ func TestUpdatePortfolio(t *testing.T) {
 			"0xe853c56864a2ebe4576a807d26fdc4a0ada51919"}, currency.ETH,
 	)
 	if !value {
-		t.Error("Test Failed - portfolio_test.go - UpdatePortfolio error")
+		t.Error("portfolio_test.go - UpdatePortfolio error")
 	}
 	value = portfolio.UpdatePortfolio(
 		[]string{"0xb794f5ea0ba39494ce839613fffba74279579268", "TESTY"}, currency.ETH,
 	)
 	if value {
-		t.Error("Test Failed - portfolio_test.go - UpdatePortfolio error")
+		t.Error("portfolio_test.go - UpdatePortfolio error")
 	}
 
 	value = portfolio.UpdatePortfolio(
 		[]string{PortfolioAddressExchange, PortfolioAddressPersonal}, currency.LTC)
 
 	if !value {
-		t.Error("Test Failed - portfolio_test.go - UpdatePortfolio error")
+		t.Error("portfolio_test.go - UpdatePortfolio error")
 	}
 }
 
@@ -273,25 +309,25 @@ func TestGetPortfolioByExchange(t *testing.T) {
 	newbase.AddExchangeAddress("Bitfinex", currency.LTC, 0.05)
 	newbase.AddAddress("someaddress", "LTC", currency.NewCode(PortfolioAddressPersonal), 0.03)
 	portfolio := GetPortfolio()
-	portfolio.SeedPortfolio(newbase)
+	portfolio.Seed(newbase)
 	value := portfolio.GetPortfolioByExchange("ANX")
 	result, ok := value[currency.LTC]
 	if !ok {
-		t.Error("Test Failed - portfolio_test.go - GetPortfolioByExchange error")
+		t.Error("portfolio_test.go - GetPortfolioByExchange error")
 	}
 
 	if result != 0.07 {
-		t.Error("Test Failed - portfolio_test.go - GetPortfolioByExchange result != 0.10")
+		t.Error("portfolio_test.go - GetPortfolioByExchange result != 0.10")
 	}
 
 	value = portfolio.GetPortfolioByExchange("Bitfinex")
 	result, ok = value[currency.LTC]
 	if !ok {
-		t.Error("Test Failed - portfolio_test.go - GetPortfolioByExchange error")
+		t.Error("portfolio_test.go - GetPortfolioByExchange error")
 	}
 
 	if result != 0.05 {
-		t.Error("Test Failed - portfolio_test.go - GetPortfolioByExchange result != 0.05")
+		t.Error("portfolio_test.go - GetPortfolioByExchange result != 0.05")
 	}
 }
 
@@ -301,16 +337,16 @@ func TestGetExchangePortfolio(t *testing.T) {
 	newbase.AddAddress("Bitfinex", PortfolioAddressExchange, currency.LTC, 0.05)
 	newbase.AddAddress("someaddress", PortfolioAddressPersonal, currency.LTC, 0.03)
 	portfolio := GetPortfolio()
-	portfolio.SeedPortfolio(newbase)
+	portfolio.Seed(newbase)
 	value := portfolio.GetExchangePortfolio()
 
 	result, ok := value[currency.LTC]
 	if !ok {
-		t.Error("Test Failed - portfolio_test.go - GetExchangePortfolio error")
+		t.Error("portfolio_test.go - GetExchangePortfolio error")
 	}
 
 	if result != 0.08 {
-		t.Error("Test Failed - portfolio_test.go - GetExchangePortfolio result != 0.08")
+		t.Error("portfolio_test.go - GetExchangePortfolio result != 0.08")
 	}
 }
 
@@ -320,15 +356,15 @@ func TestGetPersonalPortfolio(t *testing.T) {
 	newbase.AddAddress("anotheraddress", PortfolioAddressPersonal, currency.N2O, 0.03)
 	newbase.AddAddress("Exchange", PortfolioAddressExchange, currency.N2O, 0.01)
 	portfolio := GetPortfolio()
-	portfolio.SeedPortfolio(newbase)
+	portfolio.Seed(newbase)
 	value := portfolio.GetPersonalPortfolio()
 	result, ok := value[currency.N2O]
 	if !ok {
-		t.Error("Test Failed - portfolio_test.go - GetPersonalPortfolio error")
+		t.Error("portfolio_test.go - GetPersonalPortfolio error")
 	}
 
 	if result != 0.05 {
-		t.Error("Test Failed - portfolio_test.go - GetPersonalPortfolio result != 0.05")
+		t.Error("portfolio_test.go - GetPersonalPortfolio result != 0.05")
 	}
 }
 
@@ -349,7 +385,7 @@ func TestGetPortfolioSummary(t *testing.T) {
 	newbase.AddExchangeAddress("ANX", currency.ETH, 42)
 
 	portfolio := GetPortfolio()
-	portfolio.SeedPortfolio(newbase)
+	portfolio.Seed(newbase)
 	value := portfolio.GetPortfolioSummary()
 
 	getTotalsVal := func(c currency.Code) Coin {
@@ -362,19 +398,19 @@ func TestGetPortfolioSummary(t *testing.T) {
 	}
 
 	if getTotalsVal(currency.LTC).Coin != currency.LTC {
-		t.Error("Test Failed - portfolio_test.go - TestGetPortfolioSummary error")
+		t.Error("portfolio_test.go - TestGetPortfolioSummary error")
 	}
 
 	if getTotalsVal(currency.ETH).Coin == currency.LTC {
-		t.Error("Test Failed - portfolio_test.go - TestGetPortfolioSummary error")
+		t.Error("portfolio_test.go - TestGetPortfolioSummary error")
 	}
 
 	if getTotalsVal(currency.LTC).Balance != 23 {
-		t.Error("Test Failed - portfolio_test.go - TestGetPortfolioSummary error")
+		t.Error("portfolio_test.go - TestGetPortfolioSummary error")
 	}
 
 	if getTotalsVal(currency.BTC).Balance != 200 {
-		t.Error("Test Failed - portfolio_test.go - TestGetPortfolioSummary error")
+		t.Error("portfolio_test.go - TestGetPortfolioSummary error")
 	}
 }
 
@@ -383,21 +419,21 @@ func TestGetPortfolioGroupedCoin(t *testing.T) {
 	newbase.AddAddress("someaddress", currency.LTC.String(), currency.LTC, 0.02)
 	newbase.AddAddress("Exchange", PortfolioAddressExchange, currency.LTC, 0.05)
 	portfolio := GetPortfolio()
-	portfolio.SeedPortfolio(newbase)
+	portfolio.Seed(newbase)
 	value := portfolio.GetPortfolioGroupedCoin()
 	if value[currency.LTC][0] != "someaddress" && len(value[currency.LTC][0]) != 1 {
-		t.Error("Test Failed - portfolio_test.go - GetPortfolioGroupedCoin error")
+		t.Error("portfolio_test.go - GetPortfolioGroupedCoin error")
 	}
 }
 
-func TestSeedPortfolio(t *testing.T) {
+func TestSeed(t *testing.T) {
 	newbase := Base{}
 	newbase.AddAddress("someaddress", currency.LTC.String(), currency.LTC, 0.02)
 	portfolio := GetPortfolio()
-	portfolio.SeedPortfolio(newbase)
+	portfolio.Seed(newbase)
 
 	if !portfolio.AddressExists("someaddress") {
-		t.Error("Test Failed - portfolio_test.go - SeedPortfolio error")
+		t.Error("portfolio_test.go - Seed error")
 	}
 }
 
@@ -414,10 +450,10 @@ func TestStartPortfolioWatcher(t *testing.T) {
 		0.02)
 
 	portfolio := GetPortfolio()
-	portfolio.SeedPortfolio(newBase)
+	portfolio.Seed(newBase)
 
 	if !portfolio.AddressExists("LX2LMYXtuv5tiYEMztSSoEZcafFPYJFRK1") {
-		t.Error("Test Failed - portfolio_test.go - TestStartPortfolioWatcher")
+		t.Error("portfolio_test.go - TestStartPortfolioWatcher")
 	}
 
 	go StartPortfolioWatcher()
@@ -426,6 +462,6 @@ func TestStartPortfolioWatcher(t *testing.T) {
 func TestGetPortfolio(t *testing.T) {
 	ptrBASE := GetPortfolio()
 	if reflect.TypeOf(ptrBASE).String() != "*portfolio.Base" {
-		t.Error("Test Failed - portfolio_test.go - GetoPortfolio error")
+		t.Error("portfolio_test.go - GetoPortfolio error")
 	}
 }

@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/google/go-querystring/query"
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -90,89 +90,19 @@ type OKGroup struct {
 	// Spot and contract market error codes as per https://www.okex.com/rest_request.html
 	ErrorCodes map[string]error
 	// Stores for corresponding variable checks
-	ContractTypes    []string
-	CurrencyPairs    []string
-	ContractPosition []string
-	Types            []string
+	ContractTypes         []string
+	CurrencyPairsDefaults []string
+	ContractPosition      []string
+	Types                 []string
 	// URLs to be overridden by implementations of OKGroup
 	APIURL       string
 	APIVersion   string
 	WebsocketURL string
 }
 
-// Setup method sets current configuration details if enabled
-func (o *OKGroup) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		o.SetEnabled(false)
-	} else {
-		o.Name = exch.Name
-		o.Enabled = true
-		o.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		o.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
-		o.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, false)
-		o.SetHTTPClientTimeout(exch.HTTPTimeout)
-		o.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		o.RESTPollingDelay = exch.RESTPollingDelay
-		o.Verbose = exch.Verbose
-		o.HTTPDebugging = exch.HTTPDebugging
-		o.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		o.BaseCurrencies = exch.BaseCurrencies
-		o.AvailablePairs = exch.AvailablePairs
-		o.EnabledPairs = exch.EnabledPairs
-		err := o.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = o.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = o.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = o.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = o.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = o.Websocket.Setup(o.WsConnect,
-			o.Subscribe,
-			o.Unsubscribe,
-			exch.Name,
-			exch.Websocket,
-			exch.Verbose,
-			o.WebsocketURL,
-			exch.WebsocketURL,
-			exch.AuthenticatedWebsocketAPISupport)
-		if err != nil {
-			log.Fatal(err)
-		}
-		o.WebsocketConn = &wshandler.WebsocketConnection{
-			ExchangeName:         o.Name,
-			URL:                  o.Websocket.GetWebsocketURL(),
-			ProxyURL:             o.Websocket.GetProxyAddress(),
-			Verbose:              o.Verbose,
-			RateLimit:            okGroupWsRateLimit,
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		}
-		o.Websocket.Orderbook.Setup(
-			exch.WebsocketOrderbookBufferLimit,
-			false,
-			false,
-			false,
-			false,
-			exch.Name)
-	}
-}
-
 // GetAccountCurrencies returns a list of tradable spot instruments and their properties
 func (o *OKGroup) GetAccountCurrencies() (resp []GetAccountCurrenciesResponse, _ error) {
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupAccountSubsection, okGroupGetAccountCurrencies, nil, &resp, false)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupAccountSubsection, okGroupGetAccountCurrencies, nil, &resp, true)
 }
 
 // GetAccountWalletInformation returns a list of wallets and their properties
@@ -242,7 +172,7 @@ func (o *OKGroup) GetAccountDepositHistory(currency string) (resp []GetAccountDe
 	if currency != "" {
 		requestURL = fmt.Sprintf("%v/%v", OKGroupGetAccountDepositHistory, currency)
 	} else {
-		requestURL = okGroupGetWithdrawalHistory
+		requestURL = OKGroupGetAccountDepositHistory
 	}
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupAccountSubsection, requestURL, nil, &resp, true)
 }
@@ -267,17 +197,23 @@ func (o *OKGroup) GetSpotBillDetailsForCurrency(request GetSpotBillDetailsForCur
 // PlaceSpotOrder token trading only supports limit and market orders (more order types will become available in the future).
 // You can place an order only if you have enough funds.
 // Once your order is placed, the amount will be put on hold.
-func (o *OKGroup) PlaceSpotOrder(request *PlaceSpotOrderRequest) (resp PlaceSpotOrderResponse, _ error) {
+func (o *OKGroup) PlaceSpotOrder(request *PlaceOrderRequest) (resp PlaceOrderResponse, _ error) {
+	if request.OrderType == "" {
+		request.OrderType = strconv.Itoa(NormalOrder)
+	}
 	return resp, o.SendHTTPRequest(http.MethodPost, okGroupTokenSubsection, OKGroupOrders, request, &resp, true)
 }
 
 // PlaceMultipleSpotOrders supports placing multiple orders for specific trading pairs
 // up to 4 trading pairs, maximum 4 orders for each pair
-func (o *OKGroup) PlaceMultipleSpotOrders(request []PlaceSpotOrderRequest) (map[string][]PlaceSpotOrderResponse, []error) {
+func (o *OKGroup) PlaceMultipleSpotOrders(request []PlaceOrderRequest) (map[string][]PlaceOrderResponse, []error) {
 	currencyPairOrders := make(map[string]int)
-	resp := make(map[string][]PlaceSpotOrderResponse)
+	resp := make(map[string][]PlaceOrderResponse)
 
 	for i := range request {
+		if request[i].OrderType == "" {
+			request[i].OrderType = strconv.Itoa(NormalOrder)
+		}
 		currencyPairOrders[request[i].InstrumentID]++
 	}
 
@@ -297,8 +233,8 @@ func (o *OKGroup) PlaceMultipleSpotOrders(request []PlaceSpotOrderRequest) (map[
 
 	var orderErrors []error
 	for currency, orderResponse := range resp {
-		for _, order := range orderResponse {
-			if !order.Result {
+		for i := range orderResponse {
+			if !orderResponse[i].Result {
 				orderErrors = append(orderErrors, fmt.Errorf("order for currency %v failed to be placed", currency))
 			}
 		}
@@ -326,15 +262,15 @@ func (o *OKGroup) CancelMultipleSpotOrders(request CancelMultipleSpotOrdersReque
 	}
 
 	for currency, orderResponse := range resp {
-		for _, order := range orderResponse {
+		for i := range orderResponse {
 			cancellationResponse := CancelMultipleSpotOrdersResponse{
-				OrderID:   order.OrderID,
-				Result:    order.Result,
-				ClientOID: order.ClientOID,
+				OrderID:   orderResponse[i].OrderID,
+				Result:    orderResponse[i].Result,
+				ClientOID: orderResponse[i].ClientOID,
 			}
 
-			if !order.Result {
-				cancellationResponse.Error = fmt.Errorf("order %v for currency %v failed to be cancelled", order.OrderID, currency)
+			if !orderResponse[i].Result {
+				cancellationResponse.Error = fmt.Errorf("order %v for currency %v failed to be cancelled", orderResponse[i].OrderID, currency)
 			}
 
 			resp[currency] = append(resp[currency], cancellationResponse)
@@ -377,11 +313,35 @@ func (o *OKGroup) GetSpotTokenPairDetails() (resp []GetSpotTokenPairDetailsRespo
 	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, OKGroupInstruments, nil, &resp, false)
 }
 
-// GetSpotOrderBook Getting the order book of a trading pair. Pagination is not supported here.
-// The whole book will be returned for one request. Websocket is recommended here.
-func (o *OKGroup) GetSpotOrderBook(request GetSpotOrderBookRequest) (resp GetSpotOrderBookResponse, _ error) {
-	requestURL := fmt.Sprintf("%v/%v/%v%v", OKGroupInstruments, request.InstrumentID, OKGroupGetSpotOrderBook, FormatParameters(request))
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, false)
+// GetOrderBook Getting the order book of a trading pair. Pagination is not
+// supported here. The whole book will be returned for one request. Websocket is
+// recommended here.
+func (o *OKGroup) GetOrderBook(request GetOrderBookRequest, a asset.Item) (resp GetOrderBookResponse, _ error) {
+	var requestType, endpoint string
+	switch a {
+	case asset.Spot:
+		endpoint = OKGroupGetSpotOrderBook
+		requestType = okGroupTokenSubsection
+	case asset.Futures:
+		endpoint = OKGroupGetSpotOrderBook
+		requestType = "futures"
+	case asset.PerpetualSwap:
+		endpoint = "depth"
+		requestType = "swap"
+	default:
+		return resp, errors.New("unhandled asset type")
+	}
+	requestURL := fmt.Sprintf("%v/%v/%v/%v",
+		OKGroupInstruments,
+		request.InstrumentID,
+		endpoint,
+		FormatParameters(request))
+	return resp, o.SendHTTPRequest(http.MethodGet,
+		requestType,
+		requestURL,
+		nil,
+		&resp,
+		false)
 }
 
 // GetSpotAllTokenPairsInformation Get the last traded price, best bid/ask price, 24 hour trading volume and more info of all trading pairs.
@@ -467,14 +427,14 @@ func (o *OKGroup) RepayMarginLoan(request RepayMarginLoanRequest) (resp RepayMar
 
 // PlaceMarginOrder OKEx API only supports limit and market orders (more orders will become available in the future).
 // You can place an order only if you have enough funds. Once your order is placed, the amount will be put on hold.
-func (o *OKGroup) PlaceMarginOrder(request *PlaceSpotOrderRequest) (resp PlaceSpotOrderResponse, _ error) {
+func (o *OKGroup) PlaceMarginOrder(request *PlaceOrderRequest) (resp PlaceOrderResponse, _ error) {
 	return resp, o.SendHTTPRequest(http.MethodPost, okGroupMarginTradingSubsection, OKGroupOrders, request, &resp, true)
 }
 
 // PlaceMultipleMarginOrders Place multiple orders for specific trading pairs (up to 4 trading pairs, maximum 4 orders each)
-func (o *OKGroup) PlaceMultipleMarginOrders(request []PlaceSpotOrderRequest) (map[string][]PlaceSpotOrderResponse, []error) {
+func (o *OKGroup) PlaceMultipleMarginOrders(request []PlaceOrderRequest) (map[string][]PlaceOrderResponse, []error) {
 	currencyPairOrders := make(map[string]int)
-	resp := make(map[string][]PlaceSpotOrderResponse)
+	resp := make(map[string][]PlaceOrderResponse)
 	for i := range request {
 		currencyPairOrders[request[i].InstrumentID]++
 	}
@@ -494,8 +454,8 @@ func (o *OKGroup) PlaceMultipleMarginOrders(request []PlaceSpotOrderRequest) (ma
 
 	var orderErrors []error
 	for currency, orderResponse := range resp {
-		for _, order := range orderResponse {
-			if !order.Result {
+		for i := range orderResponse {
+			if !orderResponse[i].Result {
 				orderErrors = append(orderErrors, fmt.Errorf("order for currency %v failed to be placed", currency))
 			}
 		}
@@ -524,9 +484,9 @@ func (o *OKGroup) CancelMultipleMarginOrders(request CancelMultipleSpotOrdersReq
 
 	var orderErrors []error
 	for currency, orderResponse := range resp {
-		for _, order := range orderResponse {
-			if !order.Result {
-				orderErrors = append(orderErrors, fmt.Errorf("order %v for currency %v failed to be cancelled", order.OrderID, currency))
+		for i := range orderResponse {
+			if !orderResponse[i].Result {
+				orderErrors = append(orderErrors, fmt.Errorf("order %v for currency %v failed to be cancelled", orderResponse[i].OrderID, currency))
 			}
 		}
 	}
@@ -563,7 +523,7 @@ func (o *OKGroup) GetMarginTransactionDetails(request GetSpotTransactionDetailsR
 func FormatParameters(request interface{}) (parameters string) {
 	v, err := query.Values(request)
 	if err != nil {
-		log.Errorf("Could not parse %v to URL values. Check that the type has url fields", reflect.TypeOf(request).Name())
+		log.Errorf(log.ExchangeSys, "Could not parse %v to URL values. Check that the type has url fields", reflect.TypeOf(request).Name())
 		return
 	}
 	urlEncodedValues := v.Encode()
@@ -596,42 +556,42 @@ func (o *OKGroup) GetErrorCode(code interface{}) error {
 // path with a JSON payload (of present)
 // URL arguments must be in the request path and not as url.URL values
 func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, data, result interface{}, authenticated bool) (err error) {
-	if authenticated && !o.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, o.Name)
+	if authenticated && !o.AllowAuthenticatedRequest() {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
+			o.Name)
 	}
 
-	utcTime := time.Now().UTC()
-	iso := utcTime.String()
-	isoBytes := []byte(iso)
-	iso = string(isoBytes[:10]) + "T" + string(isoBytes[11:23]) + "Z"
+	utcTime := time.Now().UTC().Format(time.RFC3339)
 	payload := []byte("")
 
 	if data != nil {
-		payload, err = common.JSONEncode(data)
+		payload, err = json.Marshal(data)
 		if err != nil {
 			return errors.New("sendHTTPRequest: Unable to JSON request")
 		}
 
 		if o.Verbose {
-			log.Debugf("Request JSON: %s\n", payload)
+			log.Debugf(log.ExchangeSys, "Request JSON: %s\n", payload)
 		}
 	}
 
-	path := o.APIUrl + requestType + o.APIVersion + requestPath
+	path := o.API.Endpoints.URL + requestType + o.APIVersion + requestPath
 	if o.Verbose {
-		log.Debugf("Sending %v request to %s \n", requestType, path)
+		log.Debugf(log.ExchangeSys, "Sending %v request to %s \n", requestType, path)
 	}
 
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
 	if authenticated {
-		signPath := fmt.Sprintf("/%v%v%v%v", OKGroupAPIPath, requestType, o.APIVersion, requestPath)
-		hmac := common.GetHMAC(common.HashSHA256, []byte(iso+httpMethod+signPath+string(payload)), []byte(o.APISecret))
-		base64 := common.Base64Encode(hmac)
-		headers["OK-ACCESS-KEY"] = o.APIKey
-		headers["OK-ACCESS-SIGN"] = base64
-		headers["OK-ACCESS-TIMESTAMP"] = iso
-		headers["OK-ACCESS-PASSPHRASE"] = o.ClientID
+		signPath := fmt.Sprintf("/%v%v%v%v", OKGroupAPIPath,
+			requestType, o.APIVersion, requestPath)
+		hmac := crypto.GetHMAC(crypto.HashSHA256,
+			[]byte(utcTime+httpMethod+signPath+string(payload)),
+			[]byte(o.API.Credentials.Secret))
+		headers["OK-ACCESS-KEY"] = o.API.Credentials.Key
+		headers["OK-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
+		headers["OK-ACCESS-TIMESTAMP"] = utcTime
+		headers["OK-ACCESS-PASSPHRASE"] = o.API.Credentials.ClientID
 	}
 
 	var intermediary json.RawMessage
@@ -656,7 +616,7 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 		return err
 	}
 
-	err = common.JSONDecode(intermediary, &errCap)
+	err = json.Unmarshal(intermediary, &errCap)
 	if err == nil {
 		if errCap.ErrorMessage != "" {
 			return fmt.Errorf("error: %v", errCap.ErrorMessage)
@@ -670,7 +630,7 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 		}
 	}
 
-	return common.JSONDecode(intermediary, result)
+	return json.Unmarshal(intermediary, result)
 }
 
 // SetCheckVarDefaults sets main variables that will be used in requests because
@@ -678,7 +638,7 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 // to check on this, this end.
 func (o *OKGroup) SetCheckVarDefaults() {
 	o.ContractTypes = []string{"this_week", "next_week", "quarter"}
-	o.CurrencyPairs = []string{"btc_usd", "ltc_usd", "eth_usd", "etc_usd", "bch_usd"}
+	o.CurrencyPairsDefaults = []string{"btc_usd", "ltc_usd", "eth_usd", "etc_usd", "bch_usd"}
 	o.Types = []string{"1min", "3min", "5min", "15min", "30min", "1day", "3day",
 		"1week", "1hour", "2hour", "4hour", "6hour", "12hour"}
 	o.ContractPosition = []string{"1", "2", "3", "4"}

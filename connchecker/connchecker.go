@@ -53,9 +53,9 @@ func New(dnsList, domainList []string, checkInterval time.Duration) (*Checker, e
 	}
 
 	if c.connected {
-		log.Debug(ConnFound)
+		log.Debugln(log.Global, ConnFound)
 	} else {
-		log.Warnf(ConnNotFound)
+		log.Warnln(log.Global, ConnNotFound)
 	}
 
 	c.shutdown = make(chan struct{}, 1)
@@ -86,7 +86,7 @@ func (c *Checker) Shutdown() {
 // Monitor determines internet connectivity via a DNS lookup
 func (c *Checker) Monitor(wg *sync.WaitGroup) {
 	c.wg.Add(1)
-	tick := time.NewTicker(time.Second)
+	tick := time.NewTicker(c.CheckInterval)
 	defer func() { tick.Stop(); c.wg.Done() }()
 	wg.Done()
 	for {
@@ -137,7 +137,7 @@ func (c *Checker) connectionTest() {
 		if err == nil {
 			c.Lock()
 			if !c.connected {
-				log.Debug(ConnRe)
+				log.Debugln(log.Global, ConnRe)
 				c.connected = true
 			}
 			c.Unlock()
@@ -150,7 +150,7 @@ func (c *Checker) connectionTest() {
 		if err == nil {
 			c.Lock()
 			if !c.connected {
-				log.Debug(ConnRe)
+				log.Debugln(log.Global, ConnRe)
 				c.connected = true
 			}
 			c.Unlock()
@@ -160,7 +160,7 @@ func (c *Checker) connectionTest() {
 
 	c.Lock()
 	if c.connected {
-		log.Warn(ConnLost)
+		log.Warnln(log.Global, ConnLost)
 		c.connected = false
 	}
 	c.Unlock()

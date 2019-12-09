@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -12,29 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
-
-// const declarations consist of endpoints
-const (
-	APIEndpointURL     = "https://currencyconverterapi.com/api/"
-	APIEndpointFreeURL = "https://free.currencyconverterapi.com/api/"
-	APIEndpointVersion = "v5"
-
-	APIEndpointConvert    = "convert"
-	APIEndpointCurrencies = "currencies"
-	APIEndpointCountries  = "countries"
-	APIEndpointUsage      = "usage"
-
-	defaultAPIKey = "Key"
-
-	authRate   = 0
-	unAuthRate = 0
-)
-
-// CurrencyConverter stores the struct for the CurrencyConverter API
-type CurrencyConverter struct {
-	base.Base
-	Requester *request.Requester
-}
 
 // Setup sets appropriate values for CurrencyLayer
 func (c *CurrencyConverter) Setup(config base.Settings) error {
@@ -54,7 +32,7 @@ func (c *CurrencyConverter) Setup(config base.Settings) error {
 
 // GetRates is a wrapper function to return rates
 func (c *CurrencyConverter) GetRates(baseCurrency, symbols string) (map[string]float64, error) {
-	splitSymbols := common.SplitStrings(symbols, ",")
+	splitSymbols := strings.Split(symbols, ",")
 
 	if len(splitSymbols) == 1 {
 		return c.Convert(baseCurrency, symbols)
@@ -75,11 +53,11 @@ func (c *CurrencyConverter) GetRates(baseCurrency, symbols string) (map[string]f
 			batch := completedStrings[i : i+2]
 			result, err := c.ConvertMany(batch)
 			if err != nil {
-				log.Errorf("Failed to get batch err: %s", err)
+				log.Errorf(log.Global, "Failed to get batch err: %s\n", err)
 				continue
 			}
 			for k, v := range result {
-				rates[common.ReplaceString(k, "_", "", -1)] = v
+				rates[strings.Replace(k, "_", "", -1)] = v
 			}
 		}
 	}
@@ -98,7 +76,7 @@ func (c *CurrencyConverter) GetRates(baseCurrency, symbols string) (map[string]f
 	}
 
 	for k, v := range result {
-		rates[common.ReplaceString(k, "_", "", -1)] = v
+		rates[strings.Replace(k, "_", "", -1)] = v
 	}
 
 	return rates, nil
@@ -113,7 +91,7 @@ func (c *CurrencyConverter) ConvertMany(currencies []string) (map[string]float64
 
 	result := make(map[string]float64)
 	v := url.Values{}
-	joined := common.JoinStrings(currencies, ",")
+	joined := strings.Join(currencies, ",")
 	v.Set("q", joined)
 	v.Set("compact", "ultra")
 

@@ -4,82 +4,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sync"
+	"io/ioutil"
+	"path/filepath"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/currency/coinmarketcap"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
-// CurrencyFileUpdateDelay defines the rate at which the currency.json file is
-// updated
-const (
-	DefaultCurrencyFileDelay    = 168 * time.Hour
-	DefaultForeignExchangeDelay = 1 * time.Minute
-)
-
 func init() {
 	storage.SetDefaults()
-}
-
-// storage is an overarching type that keeps track of and updates currency,
-// currency exchange rates and pairs
-var storage Storage
-
-// Storage contains the loaded storage currencies supported on available crypto
-// or fiat marketplaces
-// NOTE: All internal currencies are upper case
-type Storage struct {
-	// FiatCurrencies defines the running fiat currencies in the currency
-	// storage
-	fiatCurrencies Currencies
-
-	// Cryptocurrencies defines the running cryptocurrencies in the currency
-	// storage
-	cryptocurrencies Currencies
-
-	// CurrencyCodes is a full basket of currencies either crypto, fiat, ico or
-	// contract being tracked by the currency storage system
-	currencyCodes BaseCodes
-
-	// Main converting currency
-	baseCurrency Code
-
-	// FXRates defines a protected conversion rate map
-	fxRates ConversionRates
-
-	// DefaultBaseCurrency is the base currency used for conversion
-	defaultBaseCurrency Code
-
-	// DefaultFiatCurrencies has the default minimum of FIAT values
-	defaultFiatCurrencies Currencies
-
-	// DefaultCryptoCurrencies has the default minimum of crytpocurrency values
-	defaultCryptoCurrencies Currencies
-
-	// FiatExchangeMarkets defines an interface to access FX data for fiat
-	// currency rates
-	fiatExchangeMarkets *forexprovider.ForexProviders
-
-	// CurrencyAnalysis defines a full market analysis suite to receieve and
-	// define different fiat currencies, cryptocurrencies and markets
-	currencyAnalysis *coinmarketcap.Coinmarketcap
-
-	// Path defines the main folder to dump and find currency JSON
-	path string
-
-	// Update delay variables
-	currencyFileUpdateDelay    time.Duration
-	foreignExchangeUpdateDelay time.Duration
-
-	mtx            sync.Mutex
-	wg             sync.WaitGroup
-	shutdownC      chan struct{}
-	updaterRunning bool
-	Verbose        bool
 }
 
 // SetDefaults sets storage defaults for basic package functionality
@@ -110,10 +47,13 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration
 		return errors.New("currency storage error, no fiat display currency set in config")
 	}
 	s.baseCurrency = settings.FiatDisplayCurrency
-	log.Debugf("Fiat display currency: %s.", s.baseCurrency)
+	log.Debugf(log.Global,
+		"Fiat display currency: %s.\n", s.baseCurrency)
 
 	if settings.CryptocurrencyProvider.Enabled {
-		log.Debugf("Setting up currency analysis system with Coinmarketcap...")
+		log.Debugln(
+			log.Global,
+			"Setting up currency analysis system with Coinmarketcap...")
 		c := &coinmarketcap.Coinmarketcap{}
 		c.SetDefaults()
 		err := c.Setup(coinmarketcap.Settings{
@@ -124,7 +64,8 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration
 			Verbose:     settings.CryptocurrencyProvider.Verbose,
 		})
 		if err != nil {
-			log.Errorf("Unable to setup CoinMarketCap analysis. Error: %s", err)
+			log.Errorf(log.Global,
+				"Unable to setup CoinMarketCap analysis. Error: %s", err)
 			c = nil
 			settings.CryptocurrencyProvider.Enabled = false
 		} else {
@@ -137,7 +78,7 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration
 		return errors.New("currency package runUpdater error filepath not set")
 	}
 
-	s.path = filePath + common.GetOSPathSlash() + "currency.json"
+	s.path = filepath.Join(filePath, DefaultStorageFile)
 
 	if settings.CurrencyDelay.Nanoseconds() == 0 {
 		s.currencyFileUpdateDelay = DefaultCurrencyFileDelay
@@ -202,11 +143,13 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration
 			return err
 		}
 
-		log.Debugf("Primary foreign exchange conversion provider %s enabled",
+		log.Debugf(log.Global,
+			"Primary foreign exchange conversion provider %s enabled\n",
 			s.fiatExchangeMarkets.Primary.Provider.GetName())
 
 		for i := range s.fiatExchangeMarkets.Support {
-			log.Debugf("Support forex conversion provider %s enabled",
+			log.Debugf(log.Global,
+				"Support forex conversion provider %s enabled\n",
 				s.fiatExchangeMarkets.Support[i].Provider.GetName())
 		}
 
@@ -214,7 +157,8 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration
 		// until this system initially updates
 		go s.ForeignExchangeUpdater()
 	} else {
-		log.Warnf("No foreign exchange providers enabled in config.json")
+		log.Warnln(log.Global,
+			"No foreign exchange providers enabled in config.json")
 		s.mtx.Unlock()
 	}
 
@@ -231,19 +175,15 @@ func (s *Storage) SetupConversionRates() {
 // SetDefaultFiatCurrencies assigns the default fiat currency list and adds it
 // to the running list
 func (s *Storage) SetDefaultFiatCurrencies(c ...Code) {
-	for _, currency := range c {
-		s.defaultFiatCurrencies = append(s.defaultFiatCurrencies, currency)
-		s.fiatCurrencies = append(s.fiatCurrencies, currency)
-	}
+	s.defaultFiatCurrencies = append(s.defaultFiatCurrencies, c...)
+	s.fiatCurrencies = append(s.fiatCurrencies, c...)
 }
 
 // SetDefaultCryptocurrencies assigns the default cryptocurrency list and adds
 // it to the running list
 func (s *Storage) SetDefaultCryptocurrencies(c ...Code) {
-	for _, currency := range c {
-		s.defaultCryptoCurrencies = append(s.defaultCryptoCurrencies, currency)
-		s.cryptocurrencies = append(s.cryptocurrencies, currency)
-	}
+	s.defaultCryptoCurrencies = append(s.defaultCryptoCurrencies, c...)
+	s.cryptocurrencies = append(s.cryptocurrencies, c...)
 }
 
 // SetupForexProviders sets up a new instance of the forex providers
@@ -260,19 +200,20 @@ func (s *Storage) SetupForexProviders(setting ...base.Settings) error {
 // ForeignExchangeUpdater is a routine that seeds foreign exchange rate and keeps
 // updated as fast as possible
 func (s *Storage) ForeignExchangeUpdater() {
-	log.Debugf("Foreign exchange updater started, seeding FX rate list..")
+	log.Debugln(log.Global,
+		"Foreign exchange updater started, seeding FX rate list..")
 
 	s.wg.Add(1)
 	defer s.wg.Done()
 
 	err := s.SeedCurrencyAnalysisData()
 	if err != nil {
-		log.Error(err)
+		log.Errorln(log.Global, err)
 	}
 
 	err = s.SeedForeignExchangeRates()
 	if err != nil {
-		log.Error(err)
+		log.Errorln(log.Global, err)
 	}
 
 	// Unlock main rate retrieval mutex so all routines waiting can get access
@@ -293,13 +234,13 @@ func (s *Storage) ForeignExchangeUpdater() {
 		case <-SeedForeignExchangeTick.C:
 			err := s.SeedForeignExchangeRates()
 			if err != nil {
-				log.Error(err)
+				log.Errorln(log.Global, err)
 			}
 
 		case <-SeedCurrencyAnalysisTick.C:
 			err := s.SeedCurrencyAnalysisData()
 			if err != nil {
-				log.Error(err)
+				log.Errorln(log.Global, err)
 			}
 		}
 	}
@@ -307,7 +248,7 @@ func (s *Storage) ForeignExchangeUpdater() {
 
 // SeedCurrencyAnalysisData sets a new instance of a coinmarketcap data.
 func (s *Storage) SeedCurrencyAnalysisData() error {
-	b, err := common.ReadFile(s.path)
+	b, err := ioutil.ReadFile(s.path)
 	if err != nil {
 		err = s.FetchCurrencyAnalysisData()
 		if err != nil {
@@ -318,7 +259,7 @@ func (s *Storage) SeedCurrencyAnalysisData() error {
 	}
 
 	var fromFile File
-	err = common.JSONDecode(b, &fromFile)
+	err = json.Unmarshal(b, &fromFile)
 	if err != nil {
 		return err
 	}
@@ -346,7 +287,8 @@ func (s *Storage) SeedCurrencyAnalysisData() error {
 // loads it into memory
 func (s *Storage) FetchCurrencyAnalysisData() error {
 	if s.currencyAnalysis == nil {
-		log.Warn("Currency analysis system offline please set api keys for coinmarketcap")
+		log.Warnln(log.Global,
+			"Currency analysis system offline, please set api keys for coinmarketcap if you wish to use this feature.")
 		return errors.New("currency analysis system offline")
 	}
 
@@ -372,7 +314,7 @@ func (s *Storage) WriteCurrencyDataToFile(path string, mainUpdate bool) error {
 		return err
 	}
 
-	return common.WriteFile(path, encoded)
+	return file.Write(path, encoded)
 }
 
 // LoadFileCurrencyData loads currencies into the currency codes
@@ -417,7 +359,7 @@ func (s *Storage) LoadFileCurrencyData(f *File) error {
 	return nil
 }
 
-// UpdateCurrencies updates currency roll and information using coin market cap
+// UpdateCurrencies updates currency role and information using coin market cap
 func (s *Storage) UpdateCurrencies() error {
 	m, err := s.currencyAnalysis.GetCryptocurrencyIDMap()
 	if err != nil {
@@ -561,8 +503,8 @@ func (s *Storage) GetTotalMarketCryptocurrencies() (Currencies, error) {
 // IsDefaultCurrency returns if a currency is a default currency
 func (s *Storage) IsDefaultCurrency(c Code) bool {
 	t, _ := GetTranslation(c)
-	for _, d := range s.defaultFiatCurrencies {
-		if d.Match(c) || d.Match(t) {
+	for i := range s.defaultFiatCurrencies {
+		if s.defaultFiatCurrencies[i].Match(c) || s.defaultFiatCurrencies[i].Match(t) {
 			return true
 		}
 	}

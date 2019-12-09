@@ -8922,7 +8922,7 @@
       "currencyPair": "BTC_LTC"
      },
      "queryString": "",
-     "bodyParams": "amount=1\u0026command=buy\u0026currencyPair=BTC_LTC\u0026fillOrKill=1\u0026nonce=1560226024406623067\u0026rate=10",
+     "bodyParams": "amount=10000000\u0026command=buy\u0026currencyPair=BTC_LTC\u0026fillOrKill=1\u0026nonce=1560226024406623067\u0026rate=10",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"

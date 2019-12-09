@@ -2,6 +2,11 @@ package btse
 
 import "time"
 
+const (
+	// Default order type is good till cancel (or filled)
+	goodTillCancel = "gtc"
+)
+
 // OverviewData stores market overview data
 type OverviewData struct {
 	High24Hr         float64 `json:"high24hr,string"`
@@ -66,12 +71,12 @@ type Ticker struct {
 
 // MarketStatistics stores market statistics for a particular product
 type MarketStatistics struct {
-	Open   float64 `json:"open,string"`
-	Low    float64 `json:"low,string"`
-	High   float64 `json:"high,string"`
-	Close  float64 `json:"close,string"`
-	Volume float64 `json:"volume,string"`
-	Time   string  `json:"time"`
+	Open   float64   `json:"open,string"`
+	Low    float64   `json:"low,string"`
+	High   float64   `json:"high,string"`
+	Close  float64   `json:"close,string"`
+	Volume float64   `json:"volume,string"`
+	Time   time.Time `json:"time"`
 }
 
 // ServerTime stores the server time data

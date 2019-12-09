@@ -1,0 +1,24 @@
+{{define "main"}}
+package {{.Name}}
+
+import (
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+)
+
+// {{.CapitalName}} is the overarching type across this package
+type {{.CapitalName}} struct {
+	exchange.Base
+}
+
+const (
+	{{.Name}}APIURL = ""
+	{{.Name}}APIVersion = ""
+
+	// Public endpoints
+
+	// Authenticated endpoints
+)
+
+// Start implementing public and private exchange API funcs below
+
+{{end}}

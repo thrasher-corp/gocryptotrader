@@ -20,25 +20,32 @@ var mockTests = true
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		log.Fatal("Poloniex load config error", err)
+	}
 	poloniexConfig, err := cfg.GetExchangeConfig("Poloniex")
 	if err != nil {
-		log.Fatal("Test Failed - Poloniex Setup() init error", err)
+		log.Fatal("Poloniex Setup() init error", err)
 	}
-	poloniexConfig.AuthenticatedAPISupport = true
-	poloniexConfig.APIKey = apiKey
-	poloniexConfig.APISecret = apiSecret
+	p.SkipAuthCheck = true
+	poloniexConfig.API.AuthenticatedSupport = true
+	poloniexConfig.API.Credentials.Key = apiKey
+	poloniexConfig.API.Credentials.Secret = apiSecret
 	p.SetDefaults()
-	p.Setup(&poloniexConfig)
+	err = p.Setup(poloniexConfig)
+	if err != nil {
+		log.Fatal("Poloniex setup error", err)
+	}
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
 	if err != nil {
-		log.Fatalf("Test Failed - Mock server error %s", err)
+		log.Fatalf("Mock server error %s", err)
 	}
 
 	p.HTTPClient = newClient
-	p.APIUrl = serverDetails
+	p.API.Endpoints.URL = serverDetails
 
-	log.Printf(sharedtestvalues.MockTesting, p.GetName(), p.APIUrl)
+	log.Printf(sharedtestvalues.MockTesting, p.Name, p.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

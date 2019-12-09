@@ -1,10 +1,9 @@
 package currency
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
-
-	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 // NewPairDelimiter splits the desired currency string at delimeter, the returns
@@ -62,7 +61,7 @@ func NewPairFromIndex(currencyPair, index string) (Pair, error) {
 // NewPairFromString converts currency string into a new CurrencyPair
 // with or without delimeter
 func NewPairFromString(currencyPair string) Pair {
-	delimiters := []string{"_", "-", "/"}
+	delimiters := []string{"_", "-", "/", ":"}
 	var delimiter string
 	for _, x := range delimiters {
 		if strings.Contains(currencyPair, x) {
@@ -73,11 +72,18 @@ func NewPairFromString(currencyPair string) Pair {
 	return NewPairFromStrings(currencyPair[0:3], currencyPair[3:])
 }
 
-// Pair holds currency pair information
-type Pair struct {
-	Delimiter string `json:"delimiter"`
-	Base      Code   `json:"base"`
-	Quote     Code   `json:"quote"`
+// NewPairFromFormattedPairs matches a supplied currency pair to a list of pairs
+// with a specific format. This is helpful for exchanges which
+// provide currency pairs with no delimiter so we can match it with a list and
+// apply the same format
+func NewPairFromFormattedPairs(currencyPair string, pairs Pairs, pairFmt PairFormat) Pair {
+	for x := range pairs {
+		if strings.EqualFold(pairs[x].Format(pairFmt.Delimiter,
+			pairFmt.Uppercase).String(), currencyPair) {
+			return pairs[x]
+		}
+	}
+	return NewPairFromString(currencyPair)
 }
 
 // String returns a currency pair string
@@ -106,7 +112,7 @@ func (p Pair) Upper() Pair {
 // UnmarshalJSON comforms type to the umarshaler interface
 func (p *Pair) UnmarshalJSON(d []byte) error {
 	var pair string
-	err := common.JSONDecode(d, &pair)
+	err := json.Unmarshal(d, &pair)
 	if err != nil {
 		return err
 	}
@@ -117,7 +123,7 @@ func (p *Pair) UnmarshalJSON(d []byte) error {
 
 // MarshalJSON conforms type to the marshaler interface
 func (p Pair) MarshalJSON() ([]byte, error) {
-	return common.JSONEncode(p.String())
+	return json.Marshal(p.String())
 }
 
 // Format changes the currency based on user preferences overriding the default
@@ -133,7 +139,8 @@ func (p Pair) Format(delimiter string, uppercase bool) Pair {
 
 // Equal compares two currency pairs and returns whether or not they are equal
 func (p Pair) Equal(cPair Pair) bool {
-	return p.Base.Item == cPair.Base.Item && p.Quote.Item == cPair.Quote.Item
+	return strings.EqualFold(p.Base.String(), cPair.Base.String()) &&
+		strings.EqualFold(p.Quote.String(), cPair.Quote.String())
 }
 
 // EqualIncludeReciprocal compares two currency pairs and returns whether or not
@@ -187,4 +194,11 @@ func (p Pair) IsEmpty() bool {
 // ContainsCurrency checks to see if a pair contains a specific currency
 func (p Pair) ContainsCurrency(c Code) bool {
 	return p.Base.Item == c.Item || p.Quote.Item == c.Item
+}
+
+// Pair holds currency pair information
+type Pair struct {
+	Delimiter string `json:"delimiter"`
+	Base      Code   `json:"base"`
+	Quote     Code   `json:"quote"`
 }

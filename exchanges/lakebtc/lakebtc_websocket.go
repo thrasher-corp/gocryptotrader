@@ -1,14 +1,16 @@
 package lakebtc
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -20,9 +22,10 @@ const (
 	marketGlobalEndpoint = "market-global"
 	marketSubstring      = "market-"
 	globalSubstring      = "-global"
-	volumeString         = "volume"
-	highString           = "high"
-	lowString            = "low"
+	tickerHighString     = "high"
+	tickerLastString     = "last"
+	tickerLowString      = "low"
+	tickerVolumeString   = "volume"
 	wssSchem             = "wss"
 )
 
@@ -53,15 +56,15 @@ func (l *LakeBTC) listenToEndpoints() error {
 	var err error
 	l.WebsocketConn.Ticker, err = l.WebsocketConn.Client.Bind("tickers")
 	if err != nil {
-		return fmt.Errorf("%s Websocket Bind error: %s", l.GetName(), err)
+		return fmt.Errorf("%s Websocket Bind error: %s", l.Name, err)
 	}
 	l.WebsocketConn.Orderbook, err = l.WebsocketConn.Client.Bind("update")
 	if err != nil {
-		return fmt.Errorf("%s Websocket Bind error: %s", l.GetName(), err)
+		return fmt.Errorf("%s Websocket Bind error: %s", l.Name, err)
 	}
 	l.WebsocketConn.Trade, err = l.WebsocketConn.Client.Bind("trades")
 	if err != nil {
-		return fmt.Errorf("%s Websocket Bind error: %s", l.GetName(), err)
+		return fmt.Errorf("%s Websocket Bind error: %s", l.Name, err)
 	}
 	return nil
 }
@@ -69,10 +72,14 @@ func (l *LakeBTC) listenToEndpoints() error {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (l *LakeBTC) GenerateDefaultSubscriptions() {
 	var subscriptions []wshandler.WebsocketChannelSubscription
-	enabledCurrencies := l.GetEnabledCurrencies()
+	enabledCurrencies := l.GetEnabledPairs(asset.Spot)
+
 	for j := range enabledCurrencies {
 		enabledCurrencies[j].Delimiter = ""
-		channel := fmt.Sprintf("%v%v%v", marketSubstring, enabledCurrencies[j].Lower(), globalSubstring)
+		channel := marketSubstring +
+			enabledCurrencies[j].Lower().String() +
+			globalSubstring
+
 		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 			Channel:  channel,
 			Currency: enabledCurrencies[j],
@@ -96,7 +103,8 @@ func (l *LakeBTC) wsHandleIncomingData() {
 			return
 		case data := <-l.WebsocketConn.Ticker:
 			if l.Verbose {
-				log.Debugf("%v Websocket message received: %v", l.Name, data)
+				log.Debugf(log.ExchangeSys,
+					"%v Websocket message received: %v", l.Name, data)
 			}
 			l.Websocket.TrafficAlert <- struct{}{}
 			err := l.processTicker(data.Data)
@@ -107,7 +115,8 @@ func (l *LakeBTC) wsHandleIncomingData() {
 		case data := <-l.WebsocketConn.Trade:
 			l.Websocket.TrafficAlert <- struct{}{}
 			if l.Verbose {
-				log.Debugf("%v Websocket message received: %v", l.Name, data)
+				log.Debugf(log.ExchangeSys,
+					"%v Websocket message received: %v", l.Name, data)
 			}
 			err := l.processTrades(data.Data, data.Channel)
 			if err != nil {
@@ -117,7 +126,8 @@ func (l *LakeBTC) wsHandleIncomingData() {
 		case data := <-l.WebsocketConn.Orderbook:
 			l.Websocket.TrafficAlert <- struct{}{}
 			if l.Verbose {
-				log.Debugf("%v Websocket message received: %v", l.Name, data)
+				log.Debugf(log.ExchangeSys,
+					"%v Websocket message received: %v", l.Name, data)
 			}
 			err := l.processOrderbook(data.Data, data.Channel)
 			if err != nil {
@@ -130,7 +140,7 @@ func (l *LakeBTC) wsHandleIncomingData() {
 
 func (l *LakeBTC) processTrades(data, channel string) error {
 	var tradeData WsTrades
-	err := common.JSONDecode([]byte(data), &tradeData)
+	err := json.Unmarshal([]byte(data), &tradeData)
 	if err != nil {
 		return err
 	}
@@ -139,9 +149,9 @@ func (l *LakeBTC) processTrades(data, channel string) error {
 		l.Websocket.DataHandler <- wshandler.TradeData{
 			Timestamp:    time.Unix(tradeData.Trades[i].Date, 0),
 			CurrencyPair: curr,
-			AssetType:    orderbook.Spot,
-			Exchange:     l.GetName(),
-			EventType:    orderbook.Spot,
+			AssetType:    asset.Spot,
+			Exchange:     l.Name,
+			EventType:    asset.Spot.String(),
 			EventTime:    tradeData.Trades[i].Date,
 			Price:        tradeData.Trades[i].Price,
 			Amount:       tradeData.Trades[i].Amount,
@@ -153,14 +163,17 @@ func (l *LakeBTC) processTrades(data, channel string) error {
 
 func (l *LakeBTC) processOrderbook(obUpdate, channel string) error {
 	var update WsOrderbookUpdate
-	err := common.JSONDecode([]byte(obUpdate), &update)
+	err := json.Unmarshal([]byte(obUpdate), &update)
 	if err != nil {
 		return err
 	}
+
+	p := l.getCurrencyFromChannel(channel)
+
 	book := orderbook.Base{
-		Pair:         l.getCurrencyFromChannel(channel),
+		Pair:         p,
 		LastUpdated:  time.Now(),
-		AssetType:    orderbook.Spot,
+		AssetType:    asset.Spot,
 		ExchangeName: l.Name,
 	}
 
@@ -181,6 +194,7 @@ func (l *LakeBTC) processOrderbook(obUpdate, channel string) error {
 			Price:  price,
 		})
 	}
+
 	for i := 0; i < len(update.Bids); i++ {
 		var amount, price float64
 		amount, err = strconv.ParseFloat(update.Bids[i][1], 64)
@@ -198,7 +212,19 @@ func (l *LakeBTC) processOrderbook(obUpdate, channel string) error {
 			Price:  price,
 		})
 	}
-	return l.Websocket.Orderbook.LoadSnapshot(&book, true)
+
+	err = l.Websocket.Orderbook.LoadSnapshot(&book)
+	if err != nil {
+		return err
+	}
+
+	l.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+		Pair:     p,
+		Asset:    asset.Spot,
+		Exchange: l.Name,
+	}
+
+	return nil
 }
 
 func (l *LakeBTC) getCurrencyFromChannel(channel string) currency.Pair {
@@ -209,39 +235,47 @@ func (l *LakeBTC) getCurrencyFromChannel(channel string) currency.Pair {
 
 func (l *LakeBTC) processTicker(ticker string) error {
 	var tUpdate map[string]interface{}
-	err := common.JSONDecode([]byte(ticker), &tUpdate)
+	err := json.Unmarshal([]byte(ticker), &tUpdate)
 	if err != nil {
 		l.Websocket.DataHandler <- err
 		return err
 	}
+
+	enabled := l.GetEnabledPairs(asset.Spot)
 	for k, v := range tUpdate {
+		returnCurrency := currency.NewPairFromString(k)
+		if !enabled.Contains(returnCurrency, true) {
+			continue
+		}
+
 		tickerData := v.(map[string]interface{})
-		if tickerData[highString] == nil || tickerData[lowString] == nil || tickerData[volumeString] == nil {
-			continue
+		processTickerItem := func(tick map[string]interface{}, item string) float64 {
+			if tick[item] == nil {
+				return 0
+			}
+
+			p, err := strconv.ParseFloat(tick[item].(string), 64)
+			if err != nil {
+				l.Websocket.DataHandler <- fmt.Errorf("%s error parsing ticker data '%s' %v",
+					l.Name,
+					item,
+					tickerData)
+				return 0
+			}
+
+			return p
 		}
-		high, err := strconv.ParseFloat(tickerData[highString].(string), 64)
-		if err != nil {
-			l.Websocket.DataHandler <- fmt.Errorf("%v error parsing ticker data 'high' %v", l.Name, tickerData)
-			continue
-		}
-		low, err := strconv.ParseFloat(tickerData[lowString].(string), 64)
-		if err != nil {
-			l.Websocket.DataHandler <- fmt.Errorf("%v error parsing ticker data 'low' %v", l.Name, tickerData)
-			continue
-		}
-		vol, err := strconv.ParseFloat(tickerData[volumeString].(string), 64)
-		if err != nil {
-			l.Websocket.DataHandler <- fmt.Errorf("%v error parsing ticker data 'volume' %v", l.Name, tickerData)
-			continue
-		}
+
 		l.Websocket.DataHandler <- wshandler.TickerData{
-			Timestamp: time.Now(),
-			Pair:      currency.NewPairFromString(k),
-			AssetType: orderbook.Spot,
-			Exchange:  l.GetName(),
-			Quantity:  vol,
-			HighPrice: high,
-			LowPrice:  low,
+			Exchange:  l.Name,
+			Bid:       processTickerItem(tickerData, order.Buy.Lower()),
+			High:      processTickerItem(tickerData, tickerHighString),
+			Last:      processTickerItem(tickerData, tickerLastString),
+			Low:       processTickerItem(tickerData, tickerLowString),
+			Ask:       processTickerItem(tickerData, order.Sell.Lower()),
+			Volume:    processTickerItem(tickerData, tickerVolumeString),
+			AssetType: asset.Spot,
+			Pair:      returnCurrency,
 		}
 	}
 	return nil

@@ -19,7 +19,7 @@ func TestGetFilteredHeader(t *testing.T) {
 	}
 
 	if fMap.Get("Key") != "" {
-		t.Error("Test Failed - risky vals where not replaced correctly")
+		t.Error("risky vals where not replaced correctly")
 	}
 }
 
@@ -29,11 +29,11 @@ func TestGetFilteredURLVals(t *testing.T) {
 	shadyVals.Set("real_name", superSecretData)
 	cleanVals, err := GetFilteredURLVals(shadyVals)
 	if err != nil {
-		t.Error("Test Failed - GetFilteredURLVals error", err)
+		t.Error("GetFilteredURLVals error", err)
 	}
 
 	if strings.Contains(cleanVals, superSecretData) {
-		t.Error("Test Failed - Super secret data found")
+		t.Error("Super secret data found")
 	}
 }
 
@@ -46,12 +46,12 @@ func TestCheckResponsePayload(t *testing.T) {
 
 	payload, err := json.Marshal(testbody)
 	if err != nil {
-		t.Fatal("Test Failed - json marshal error", err)
+		t.Fatal("json marshal error", err)
 	}
 
 	data, err := CheckResponsePayload(payload)
 	if err != nil {
-		t.Error("Test Failed - CheckBody error", err)
+		t.Error("CheckBody error", err)
 	}
 
 	expected := `{
@@ -126,23 +126,23 @@ func TestCheckJSON(t *testing.T) {
 
 	exclusionList, err := GetExcludedItems()
 	if err != nil {
-		t.Error("Test Failed - GetExcludedItems error", err)
+		t.Error("GetExcludedItems error", err)
 	}
 
 	vals, err := CheckJSON(testVal, &exclusionList)
 	if err != nil {
-		t.Error("Test Failed - Check JSON error", err)
+		t.Error("Check JSON error", err)
 	}
 
 	payload, err := json.Marshal(vals)
 	if err != nil {
-		t.Fatal("Test Failed - json marshal error", err)
+		t.Fatal("json marshal error", err)
 	}
 
 	newStruct := TestStructLevel0{}
 	err = json.Unmarshal(payload, &newStruct)
 	if err != nil {
-		t.Fatal("Test Failed - Umarshal error", err)
+		t.Fatal("Umarshal error", err)
 	}
 
 	if newStruct.StructVal.BadVal != "" {
@@ -173,14 +173,14 @@ func TestCheckJSON(t *testing.T) {
 func TestGetExcludedItems(t *testing.T) {
 	exclusionList, err := GetExcludedItems()
 	if err != nil {
-		t.Error("Test Failed - GetExcludedItems error", err)
+		t.Error("GetExcludedItems error", err)
 	}
 
 	if len(exclusionList.Headers) == 0 {
-		t.Error("Test Failed - Header exclusion list not popoulated")
+		t.Error("Header exclusion list not popoulated")
 	}
 
 	if len(exclusionList.Variables) == 0 {
-		t.Error("Test Failed - Variable exclusion list not popoulated")
+		t.Error("Variable exclusion list not popoulated")
 	}
 }

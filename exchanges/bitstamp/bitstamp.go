@@ -7,17 +7,15 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -36,14 +34,13 @@ const (
 	bitstampAPIOrderStatus        = "order_status"
 	bitstampAPICancelOrder        = "cancel_order"
 	bitstampAPICancelAllOrders    = "cancel_all_orders"
-	bitstampAPIBuy                = "buy"
-	bitstampAPISell               = "sell"
 	bitstampAPIMarket             = "market"
 	bitstampAPIWithdrawalRequests = "withdrawal_requests"
 	bitstampAPIOpenWithdrawal     = "withdrawal/open"
 	bitstampAPIBitcoinWithdrawal  = "bitcoin_withdrawal"
 	bitstampAPILTCWithdrawal      = "ltc_withdrawal"
 	bitstampAPIETHWithdrawal      = "eth_withdrawal"
+	bitstampAPIBCHWithdrawal      = "bch_withdrawal"
 	bitstampAPIBitcoinDeposit     = "bitcoin_deposit_address"
 	bitstampAPILitecoinDeposit    = "ltc_address"
 	bitstampAPIEthereumDeposit    = "eth_address"
@@ -56,117 +53,15 @@ const (
 	bitstampAPIReturnType         = "string"
 	bitstampAPITradingPairsInfo   = "trading-pairs-info"
 
-	bitstampAuthRate   = 600
-	bitstampUnauthRate = 600
+	bitstampAuthRate   = 8000
+	bitstampUnauthRate = 8000
+	bitstampTimeLayout = "2006-1-2 15:04:05"
 )
 
 // Bitstamp is the overarching type across the bitstamp package
 type Bitstamp struct {
 	exchange.Base
 	WebsocketConn *wshandler.WebsocketConnection
-}
-
-// SetDefaults sets default for Bitstamp
-func (b *Bitstamp) SetDefaults() {
-	b.Name = "Bitstamp"
-	b.Enabled = false
-	b.Verbose = false
-	b.RESTPollingDelay = 10
-	b.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
-		exchange.AutoWithdrawFiat
-	b.RequestCurrencyPairFormat.Delimiter = ""
-	b.RequestCurrencyPairFormat.Uppercase = true
-	b.ConfigCurrencyPairFormat.Delimiter = ""
-	b.ConfigCurrencyPairFormat.Uppercase = true
-	b.AssetTypes = []string{ticker.Spot}
-	b.SupportsAutoPairUpdating = true
-	b.SupportsRESTTickerBatching = false
-	b.Requester = request.New(b.Name,
-		request.NewRateLimit(time.Minute*10, bitstampAuthRate),
-		request.NewRateLimit(time.Minute*10, bitstampUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	b.APIUrlDefault = bitstampAPIURL
-	b.APIUrl = b.APIUrlDefault
-	b.Websocket = wshandler.New()
-	b.Websocket.Functionality = wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported
-	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
-
-// Setup sets configuration values to bitstamp
-func (b *Bitstamp) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		b.SetEnabled(false)
-	} else {
-		b.Enabled = true
-		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		b.SetAPIKeys(exch.APIKey, exch.APISecret, exch.ClientID, false)
-		b.SetHTTPClientTimeout(exch.HTTPTimeout)
-		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		b.RESTPollingDelay = exch.RESTPollingDelay
-		b.Verbose = exch.Verbose
-		b.HTTPDebugging = exch.HTTPDebugging
-		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		b.BaseCurrencies = exch.BaseCurrencies
-		b.AvailablePairs = exch.AvailablePairs
-		b.EnabledPairs = exch.EnabledPairs
-		b.APIKey = exch.APIKey
-		b.APISecret = exch.APISecret
-		b.SetAPIKeys(exch.APIKey, exch.APISecret, b.ClientID, false)
-		b.AuthenticatedAPISupport = true
-		b.WebsocketURL = bitstampWSURL
-		err := b.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.Websocket.Setup(b.WsConnect,
-			b.Subscribe,
-			b.Unsubscribe,
-			exch.Name,
-			exch.Websocket,
-			exch.Verbose,
-			bitstampWSURL,
-			exch.WebsocketURL,
-			exch.AuthenticatedWebsocketAPISupport)
-		if err != nil {
-			log.Fatal(err)
-		}
-		b.WebsocketConn = &wshandler.WebsocketConnection{
-			ExchangeName:         b.Name,
-			URL:                  b.Websocket.GetWebsocketURL(),
-			ProxyURL:             b.Websocket.GetProxyAddress(),
-			Verbose:              b.Verbose,
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		}
-		b.Websocket.Orderbook.Setup(
-			exch.WebsocketOrderbookBufferLimit,
-			true,
-			true,
-			true,
-			false,
-			exch.Name)
-	}
 }
 
 // GetFee returns an estimate of fee based on type of transaction
@@ -228,22 +123,17 @@ func getInternationalBankDepositFee(amount float64) float64 {
 }
 
 // CalculateTradingFee returns fee on a currency pair
-func (b *Bitstamp) CalculateTradingFee(base, quote currency.Code, purchasePrice, amount float64, balances *Balances) float64 {
+func (b *Bitstamp) CalculateTradingFee(base, quote currency.Code, purchasePrice, amount float64, balances Balances) float64 {
 	var fee float64
-
-	switch base.String() + quote.String() {
-	case currency.BTC.String() + currency.USD.String():
-		fee = balances.BTCUSDFee
-	case currency.BTC.String() + currency.EUR.String():
-		fee = balances.BTCEURFee
-	case currency.XRP.String() + currency.EUR.String():
-		fee = balances.XRPEURFee
-	case currency.XRP.String() + currency.USD.String():
-		fee = balances.XRPUSDFee
-	case currency.EUR.String() + currency.USD.String():
-		fee = balances.EURUSDFee
-	default:
-		fee = 0
+	if v, ok := balances[base.String()]; ok {
+		switch quote {
+		case currency.BTC:
+			fee = v.BTCFee
+		case currency.USD:
+			fee = v.USDFee
+		case currency.EUR:
+			fee = v.EURFee
+		}
 	}
 	return fee * purchasePrice * amount
 }
@@ -259,10 +149,10 @@ func (b *Bitstamp) GetTicker(currency string, hourly bool) (Ticker, error) {
 
 	path := fmt.Sprintf(
 		"%s/v%s/%s/%s/",
-		b.APIUrl,
+		b.API.Endpoints.URL,
 		bitstampAPIVersion,
 		tickerEndpoint,
-		common.StringToLower(currency),
+		strings.ToLower(currency),
 	)
 	return response, b.SendHTTPRequest(path, &response)
 }
@@ -280,10 +170,10 @@ func (b *Bitstamp) GetOrderbook(currency string) (Orderbook, error) {
 
 	path := fmt.Sprintf(
 		"%s/v%s/%s/%s/",
-		b.APIUrl,
+		b.API.Endpoints.URL,
 		bitstampAPIVersion,
 		bitstampAPIOrderbook,
-		common.StringToLower(currency),
+		strings.ToLower(currency),
 	)
 
 	err := b.SendHTTPRequest(path, &resp)
@@ -297,12 +187,12 @@ func (b *Bitstamp) GetOrderbook(currency string) (Orderbook, error) {
 	for _, x := range resp.Bids {
 		price, err := strconv.ParseFloat(x[0], 64)
 		if err != nil {
-			log.Error(err)
+			log.Error(log.ExchangeSys, err)
 			continue
 		}
 		amount, err := strconv.ParseFloat(x[1], 64)
 		if err != nil {
-			log.Error(err)
+			log.Error(log.ExchangeSys, err)
 			continue
 		}
 		orderbook.Bids = append(orderbook.Bids, OrderbookBase{price, amount})
@@ -311,12 +201,12 @@ func (b *Bitstamp) GetOrderbook(currency string) (Orderbook, error) {
 	for _, x := range resp.Asks {
 		price, err := strconv.ParseFloat(x[0], 64)
 		if err != nil {
-			log.Error(err)
+			log.Error(log.ExchangeSys, err)
 			continue
 		}
 		amount, err := strconv.ParseFloat(x[1], 64)
 		if err != nil {
-			log.Error(err)
+			log.Error(log.ExchangeSys, err)
 			continue
 		}
 		orderbook.Asks = append(orderbook.Asks, OrderbookBase{price, amount})
@@ -331,7 +221,7 @@ func (b *Bitstamp) GetTradingPairs() ([]TradingPair, error) {
 	var result []TradingPair
 
 	path := fmt.Sprintf("%s/v%s/%s",
-		b.APIUrl,
+		b.API.Endpoints.URL,
 		bitstampAPIVersion,
 		bitstampAPITradingPairsInfo)
 
@@ -346,10 +236,10 @@ func (b *Bitstamp) GetTransactions(currencyPair string, values url.Values) ([]Tr
 	path := common.EncodeURLValues(
 		fmt.Sprintf(
 			"%s/v%s/%s/%s/",
-			b.APIUrl,
+			b.API.Endpoints.URL,
 			bitstampAPIVersion,
 			bitstampAPITransactions,
-			common.StringToLower(currencyPair),
+			strings.ToLower(currencyPair),
 		),
 		values,
 	)
@@ -360,31 +250,68 @@ func (b *Bitstamp) GetTransactions(currencyPair string, values url.Values) ([]Tr
 // GetEURUSDConversionRate returns the conversion rate between Euro and USD
 func (b *Bitstamp) GetEURUSDConversionRate() (EURUSDConversionRate, error) {
 	rate := EURUSDConversionRate{}
-	path := fmt.Sprintf("%s/%s", b.APIUrl, bitstampAPIEURUSD)
+	path := fmt.Sprintf("%s/%s", b.API.Endpoints.URL, bitstampAPIEURUSD)
 
 	return rate, b.SendHTTPRequest(path, &rate)
 }
 
 // GetBalance returns full balance of currency held on the exchange
-func (b *Bitstamp) GetBalance() (*Balances, error) {
-	var balance Balances
-	return &balance,
-		b.SendAuthenticatedHTTPRequest(bitstampAPIBalance, true, nil, &balance)
+func (b *Bitstamp) GetBalance() (Balances, error) {
+	var balance map[string]string
+	err := b.SendAuthenticatedHTTPRequest(bitstampAPIBalance, true, nil, &balance)
+	if err != nil {
+		return nil, err
+	}
+
+	balances := make(map[string]Balance)
+	for k := range balance {
+		curr := k[0:3]
+		_, ok := balances[strings.ToUpper(curr)]
+		if !ok {
+			avail, _ := strconv.ParseFloat(balance[curr+"_available"], 64)
+			bal, _ := strconv.ParseFloat(balance[curr+"_balance"], 64)
+			reserved, _ := strconv.ParseFloat(balance[curr+"_reserved"], 64)
+			withdrawalFee, _ := strconv.ParseFloat(balance[curr+"_withdrawal_fee"], 64)
+			currBalance := Balance{
+				Available:     avail,
+				Balance:       bal,
+				Reserved:      reserved,
+				WithdrawalFee: withdrawalFee,
+			}
+			switch strings.ToUpper(curr) {
+			case currency.USD.String():
+				eurFee, _ := strconv.ParseFloat(balance[curr+"eur_fee"], 64)
+				currBalance.EURFee = eurFee
+			case currency.EUR.String():
+				usdFee, _ := strconv.ParseFloat(balance[curr+"usd_fee"], 64)
+				currBalance.USDFee = usdFee
+			default:
+				btcFee, _ := strconv.ParseFloat(balance[curr+"btc_fee"], 64)
+				currBalance.BTCFee = btcFee
+				eurFee, _ := strconv.ParseFloat(balance[curr+"eur_fee"], 64)
+				currBalance.EURFee = eurFee
+				usdFee, _ := strconv.ParseFloat(balance[curr+"usd_fee"], 64)
+				currBalance.USDFee = usdFee
+			}
+			balances[strings.ToUpper(curr)] = currBalance
+		}
+	}
+	return balances, nil
 }
 
 // GetUserTransactions returns an array of transactions
 func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions, error) {
 	type Response struct {
-		Date    string      `json:"datetime"`
-		TransID int64       `json:"id"`
-		Type    int         `json:"type,string"`
-		USD     interface{} `json:"usd"`
-		EUR     float64     `json:"eur"`
-		XRP     float64     `json:"xrp"`
-		BTC     interface{} `json:"btc"`
-		BTCUSD  interface{} `json:"btc_usd"`
-		Fee     float64     `json:"fee,string"`
-		OrderID int64       `json:"order_id"`
+		Date          string      `json:"datetime"`
+		TransactionID int64       `json:"id"`
+		Type          int         `json:"type,string"`
+		USD           interface{} `json:"usd"`
+		EUR           interface{} `json:"eur"`
+		XRP           interface{} `json:"xrp"`
+		BTC           interface{} `json:"btc"`
+		BTCUSD        interface{} `json:"btc_usd"`
+		Fee           float64     `json:"fee,string"`
+		OrderID       int64       `json:"order_id"`
 	}
 	var response []Response
 
@@ -404,41 +331,31 @@ func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions,
 		}
 	}
 
+	processNumber := func(i interface{}) float64 {
+		switch t := i.(type) {
+		case float64:
+			return t
+		case string:
+			amt, _ := strconv.ParseFloat(t, 64)
+			return amt
+		default:
+			return 0
+		}
+	}
+
 	var transactions []UserTransactions
-
-	for _, y := range response {
+	for x := range response {
 		tx := UserTransactions{}
-		tx.Date = y.Date
-		tx.TransID = y.TransID
-		tx.Type = y.Type
-
-		/* Hack due to inconsistent JSON values... */
-		varType := reflect.TypeOf(y.USD).String()
-		if varType == bitstampAPIReturnType {
-			tx.USD, _ = strconv.ParseFloat(y.USD.(string), 64)
-		} else {
-			tx.USD = y.USD.(float64)
-		}
-
-		tx.EUR = y.EUR
-		tx.XRP = y.XRP
-
-		varType = reflect.TypeOf(y.BTC).String()
-		if varType == bitstampAPIReturnType {
-			tx.BTC, _ = strconv.ParseFloat(y.BTC.(string), 64)
-		} else {
-			tx.BTC = y.BTC.(float64)
-		}
-
-		varType = reflect.TypeOf(y.BTCUSD).String()
-		if varType == bitstampAPIReturnType {
-			tx.BTCUSD, _ = strconv.ParseFloat(y.BTCUSD.(string), 64)
-		} else {
-			tx.BTCUSD = y.BTCUSD.(float64)
-		}
-
-		tx.Fee = y.Fee
-		tx.OrderID = y.OrderID
+		tx.Date = response[x].Date
+		tx.TransactionID = response[x].TransactionID
+		tx.Type = response[x].Type
+		tx.EUR = processNumber(response[x].EUR)
+		tx.XRP = processNumber(response[x].XRP)
+		tx.USD = processNumber(response[x].USD)
+		tx.BTC = processNumber(response[x].BTC)
+		tx.BTCUSD = processNumber(response[x].BTCUSD)
+		tx.Fee = response[x].Fee
+		tx.OrderID = response[x].OrderID
 		transactions = append(transactions, tx)
 	}
 
@@ -449,7 +366,7 @@ func (b *Bitstamp) GetUserTransactions(currencyPair string) ([]UserTransactions,
 func (b *Bitstamp) GetOpenOrders(currencyPair string) ([]Order, error) {
 	var resp []Order
 	path := fmt.Sprintf(
-		"%s/%s", bitstampAPIOpenOrders, common.StringToLower(currencyPair),
+		"%s/%s", bitstampAPIOpenOrders, strings.ToLower(currencyPair),
 	)
 
 	return resp, b.SendAuthenticatedHTTPRequest(path, true, nil, &resp)
@@ -466,13 +383,17 @@ func (b *Bitstamp) GetOrderStatus(orderID int64) (OrderStatus, error) {
 }
 
 // CancelExistingOrder cancels order by ID
-func (b *Bitstamp) CancelExistingOrder(orderID int64) (bool, error) {
-	result := false
+func (b *Bitstamp) CancelExistingOrder(orderID int64) (CancelOrder, error) {
 	var req = url.Values{}
 	req.Add("id", strconv.FormatInt(orderID, 10))
 
-	return result,
-		b.SendAuthenticatedHTTPRequest(bitstampAPICancelOrder, true, req, &result)
+	var result CancelOrder
+	err := b.SendAuthenticatedHTTPRequest(bitstampAPICancelOrder, true, req, &result)
+	if err != nil {
+		return result, err
+	}
+
+	return result, nil
 }
 
 // CancelAllExistingOrders cancels all open orders on the exchange
@@ -489,17 +410,17 @@ func (b *Bitstamp) PlaceOrder(currencyPair string, price, amount float64, buy, m
 	req.Add("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	req.Add("price", strconv.FormatFloat(price, 'f', -1, 64))
 	response := Order{}
-	orderType := bitstampAPIBuy
+	orderType := order.Buy.Lower()
 
 	if !buy {
-		orderType = bitstampAPISell
+		orderType = order.Sell.Lower()
 	}
 
 	var path string
 	if market {
-		path = fmt.Sprintf("%s/%s/%s", orderType, bitstampAPIMarket, common.StringToLower(currencyPair))
+		path = fmt.Sprintf("%s/%s/%s", orderType, bitstampAPIMarket, strings.ToLower(currencyPair))
 	} else {
-		path = fmt.Sprintf("%s/%s", orderType, common.StringToLower(currencyPair))
+		path = fmt.Sprintf("%s/%s", orderType, strings.ToLower(currencyPair))
 	}
 
 	return response,
@@ -539,23 +460,25 @@ func (b *Bitstamp) CryptoWithdrawal(amount float64, address, symbol, destTag str
 	resp := CryptoWithdrawalResponse{}
 	var endpoint string
 
-	switch common.StringToLower(symbol) {
-	case "btc":
+	switch strings.ToLower(symbol) {
+	case currency.BTC.Lower().String():
 		if instant {
 			req.Add("instant", "1")
 		} else {
 			req.Add("instant", "0")
 		}
 		endpoint = bitstampAPIBitcoinWithdrawal
-	case "ltc":
+	case currency.LTC.Lower().String():
 		endpoint = bitstampAPILTCWithdrawal
-	case "eth":
+	case currency.ETH.Lower().String():
 		endpoint = bitstampAPIETHWithdrawal
-	case "xrp":
+	case currency.XRP.Lower().String():
 		if destTag != "" {
 			req.Add("destination_tag", destTag)
 		}
 		endpoint = bitstampAPIXrpWithdrawal
+	case currency.BCH.Lower().String():
+		endpoint = bitstampAPIBCHWithdrawal
 	default:
 		return resp, errors.New("incorrect symbol")
 	}
@@ -616,6 +539,9 @@ func (b *Bitstamp) OpenInternationalBankWithdrawal(amount float64, currency,
 // crypto - example "btc", "ltc", "eth", "xrp" or "bch"
 func (b *Bitstamp) GetCryptoDepositAddress(crypto currency.Code) (string, error) {
 	var resp string
+	v2Resp := struct {
+		Address string `json:"address"`
+	}{}
 
 	switch crypto {
 	case currency.BTC:
@@ -623,20 +549,20 @@ func (b *Bitstamp) GetCryptoDepositAddress(crypto currency.Code) (string, error)
 			b.SendAuthenticatedHTTPRequest(bitstampAPIBitcoinDeposit, false, nil, &resp)
 
 	case currency.LTC:
-		return resp,
-			b.SendAuthenticatedHTTPRequest(bitstampAPILitecoinDeposit, true, nil, &resp)
+		return v2Resp.Address,
+			b.SendAuthenticatedHTTPRequest(bitstampAPILitecoinDeposit, true, nil, &v2Resp)
 
 	case currency.ETH:
-		return resp,
-			b.SendAuthenticatedHTTPRequest(bitstampAPIEthereumDeposit, true, nil, &resp)
+		return v2Resp.Address,
+			b.SendAuthenticatedHTTPRequest(bitstampAPIEthereumDeposit, true, nil, &v2Resp)
 
 	case currency.XRP:
-		return resp,
-			b.SendAuthenticatedHTTPRequest(bitstampAPIXrpDeposit, true, nil, &resp)
+		return v2Resp.Address,
+			b.SendAuthenticatedHTTPRequest(bitstampAPIXrpDeposit, true, nil, &v2Resp)
 
 	case currency.BCH:
-		return resp,
-			b.SendAuthenticatedHTTPRequest(bitstampAPIBitcoinCashDeposit, true, nil, &resp)
+		return v2Resp.Address,
+			b.SendAuthenticatedHTTPRequest(bitstampAPIBitcoinCashDeposit, true, nil, &v2Resp)
 
 	default:
 		return resp, fmt.Errorf("unsupported cryptocurrency string %s", crypto)
@@ -695,7 +621,7 @@ func (b *Bitstamp) SendHTTPRequest(path string, result interface{}) error {
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
 func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url.Values, result interface{}) error {
-	if !b.AuthenticatedAPISupport {
+	if !b.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}
 
@@ -705,19 +631,21 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 		values = url.Values{}
 	}
 
-	values.Set("key", b.APIKey)
+	values.Set("key", b.API.Credentials.Key)
 	values.Set("nonce", n)
-	hmac := common.GetHMAC(common.HashSHA256, []byte(n+b.ClientID+b.APIKey), []byte(b.APISecret))
-	values.Set("signature", common.StringToUpper(common.HexEncodeToString(hmac)))
+	hmac := crypto.GetHMAC(crypto.HashSHA256,
+		[]byte(n+b.API.Credentials.ClientID+b.API.Credentials.Key),
+		[]byte(b.API.Credentials.Secret))
+	values.Set("signature", strings.ToUpper(crypto.HexEncodeToString(hmac)))
 
 	if v2 {
-		path = fmt.Sprintf("%s/v%s/%s/", b.APIUrl, bitstampAPIVersion, path)
+		path = fmt.Sprintf("%s/v%s/%s/", b.API.Endpoints.URL, bitstampAPIVersion, path)
 	} else {
-		path = fmt.Sprintf("%s/%s/", b.APIUrl, path)
+		path = fmt.Sprintf("%s/%s/", b.API.Endpoints.URL, path)
 	}
 
 	if b.Verbose {
-		log.Debugf("Sending POST request to " + path)
+		log.Debugf(log.ExchangeSys, "Sending POST request to "+path)
 	}
 
 	headers := make(map[string]string)
@@ -748,16 +676,16 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 		return err
 	}
 
-	if err := common.JSONDecode(interim, &errCap); err == nil {
+	if err := json.Unmarshal(interim, &errCap); err == nil {
 		if errCap.Error != "" {
 			return errors.New(errCap.Error)
 		}
 		if data, ok := errCap.Reason.(map[string][]string); ok {
-			var details string
-			for _, v := range data {
-				details += strings.Join(v, "")
+			var details strings.Builder
+			for x := range data {
+				details.WriteString(strings.Join(data[x], ""))
 			}
-			return errors.New(details)
+			return errors.New(details.String())
 		}
 
 		if data, ok := errCap.Reason.(string); ok {
@@ -769,5 +697,9 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 		}
 	}
 
-	return common.JSONDecode(interim, result)
+	return json.Unmarshal(interim, result)
+}
+
+func parseTime(dateTime string) (time.Time, error) {
+	return time.Parse(bitstampTimeLayout, dateTime)
 }

@@ -47,22 +47,22 @@ main.go
 ```go
 var g exchange.IBotExchange
 
-for i := range bot.exchanges {
-  if bot.exchanges[i].GetName() == "Gemini" {
-    g = bot.exchanges[i]
+for i := range bot.Exchanges {
+  if bot.Exchanges[i].GetName() == "Gemini" {
+    g = bot.Exchanges[i]
   }
 }
 
 // Public calls - wrapper functions
 
 // Fetches current ticker information
-tick, err := g.GetTickerPrice()
+tick, err := g.FetchTicker()
 if err != nil {
   // Handle error
 }
 
 // Fetches current orderbook information
-ob, err := g.GetOrderbookEx()
+ob, err := g.FetchOrderbook()
 if err != nil {
   // Handle error
 }
@@ -130,4 +130,3 @@ When submitting a PR, please abide by our coding guidelines:
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
 ***1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB***
-

@@ -5,9 +5,11 @@ package telegram
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -23,23 +25,17 @@ const (
 	methodGetUpdates  = "getUpdates"
 	methodSendMessage = "sendMessage"
 
-	cmdStart     = "/start"
-	cmdStatus    = "/status"
-	cmdHelp      = "/help"
-	cmdSettings  = "/settings"
-	cmdTicker    = "/ticker"
-	cmdPortfolio = "/portfolio"
-	cmdOrders    = "/orderbooks"
+	cmdStart    = "/start"
+	cmdStatus   = "/status"
+	cmdHelp     = "/help"
+	cmdSettings = "/settings"
 
 	cmdHelpReply = `GoCryptoTrader TelegramBot, thank you for using this service!
 	Current commands are:
 	/start  		- Will authenticate your ID
 	/status 		- Displays the status of the bot
 	/help 			- Displays current command list
-	/settings 	- Displays current bot settings
-	/ticker 		- Displays current ANX ticker data
-	/portfolio	- Displays your current portfolio
-	/orderbooks - Displays current orderbooks for ANX`
+	/settings 	- Displays current bot settings`
 
 	talkRoot = "GoCryptoTrader bot"
 )
@@ -59,6 +55,9 @@ type Telegram struct {
 	AuthorisedClients []int64
 }
 
+// IsConnected returns whether or not the connection is connected
+func (t *Telegram) IsConnected() bool { return t.Connected }
+
 // Setup takes in a Telegram configuration and sets verification token
 func (t *Telegram) Setup(cfg *config.CommunicationsConfig) {
 	t.Name = cfg.TelegramConfig.Name
@@ -73,7 +72,7 @@ func (t *Telegram) Connect() error {
 		return err
 	}
 
-	log.Debugln("Telegram: Connected successfully!")
+	log.Debugln(log.CommunicationMgr, "Telegram: Connected successfully!")
 	t.Connected = true
 	go t.PollerStart()
 	return nil
@@ -81,8 +80,8 @@ func (t *Telegram) Connect() error {
 
 // PushEvent sends an event to a supplied recipient list via telegram
 func (t *Telegram) PushEvent(event base.Event) error {
-	msg := fmt.Sprintf("Type: %s Details: %s GainOrLoss: %s",
-		event.Type, event.TradeDetails, event.GainLoss)
+	msg := fmt.Sprintf("Type: %s Message: %s",
+		event.Type, event.Message)
 	for i := range t.AuthorisedClients {
 		err := t.SendMessage(msg, t.AuthorisedClients[i])
 		if err != nil {
@@ -95,7 +94,7 @@ func (t *Telegram) PushEvent(event base.Event) error {
 // PollerStart starts the long polling sequence
 func (t *Telegram) PollerStart() {
 	errWait := func(err error) {
-		log.Error(err)
+		log.Errorln(log.CommunicationMgr, err)
 		time.Sleep(ErrWaiter)
 	}
 
@@ -120,7 +119,7 @@ func (t *Telegram) PollerStart() {
 				if string(resp.Result[i].Message.Text[0]) == "/" {
 					err = t.HandleMessages(resp.Result[i].Message.Text, resp.Result[i].Message.From.ID)
 					if err != nil {
-						log.Errorf("Telegram: Unable to HandleMessages. Error: %s\n", err)
+						log.Errorf(log.CommunicationMgr, "Telegram: Unable to HandleMessages. Error: %s\n", err)
 						continue
 					}
 				}
@@ -152,7 +151,7 @@ func (t *Telegram) InitialConnect() error {
 	for userName, ID := range warmWelcomeList {
 		err = t.SendMessage(fmt.Sprintf("GoCryptoTrader bot has connected: Hello, %s!", userName), ID)
 		if err != nil {
-			log.Errorf("Telegram: Unable to send welcome message. Error: %s\n", err)
+			log.Errorf(log.CommunicationMgr, "Telegram: Unable to send welcome message. Error: %s\n", err)
 			continue
 		}
 	}
@@ -168,30 +167,18 @@ func (t *Telegram) InitialConnect() error {
 // HandleMessages handles incoming message from the long polling routine
 func (t *Telegram) HandleMessages(text string, chatID int64) error {
 	if t.Verbose {
-		log.Debugf("Telegram: Received message: %s\n", text)
+		log.Debugf(log.CommunicationMgr, "Telegram: Received message: %s\n", text)
 	}
 
 	switch {
-	case common.StringContains(text, cmdHelp):
+	case strings.Contains(text, cmdHelp):
 		return t.SendMessage(fmt.Sprintf("%s: %s", talkRoot, cmdHelpReply), chatID)
 
-	case common.StringContains(text, cmdStart):
+	case strings.Contains(text, cmdStart):
 		return t.SendMessage(fmt.Sprintf("%s: START COMMANDS HERE", talkRoot), chatID)
 
-	case common.StringContains(text, cmdOrders):
-		return t.SendMessage(fmt.Sprintf("%s: %s", talkRoot, t.GetOrderbook("ANX")), chatID)
-
-	case common.StringContains(text, cmdStatus):
+	case strings.Contains(text, cmdStatus):
 		return t.SendMessage(fmt.Sprintf("%s: %s", talkRoot, t.GetStatus()), chatID)
-
-	case common.StringContains(text, cmdTicker):
-		return t.SendMessage(fmt.Sprintf("%s: %s", talkRoot, t.GetTicker("ANX")), chatID)
-
-	case common.StringContains(text, cmdSettings):
-		return t.SendMessage(fmt.Sprintf("%s: %s", talkRoot, t.GetSettings()), chatID)
-
-	case common.StringContains(text, cmdPortfolio):
-		return t.SendMessage(fmt.Sprintf("%s: %s", talkRoot, t.GetPortfolio()), chatID)
 
 	default:
 		return t.SendMessage(fmt.Sprintf("Command %s not recognized", text), chatID)
@@ -233,7 +220,7 @@ func (t *Telegram) SendMessage(text string, chatID int64) error {
 		text,
 	}
 
-	json, err := common.JSONEncode(&messageToSend)
+	json, err := json.Marshal(&messageToSend)
 	if err != nil {
 		return err
 	}
@@ -249,20 +236,23 @@ func (t *Telegram) SendMessage(text string, chatID int64) error {
 	}
 
 	if t.Verbose {
-		log.Debugf("Telegram: Sent '%s'\n", text)
+		log.Debugf(log.CommunicationMgr, "Telegram: Sent '%s'\n", text)
 	}
 	return nil
 }
 
 // SendHTTPRequest sends an authenticated HTTP request
-func (t *Telegram) SendHTTPRequest(path string, json []byte, result interface{}) error {
+func (t *Telegram) SendHTTPRequest(path string, data []byte, result interface{}) error {
 	headers := make(map[string]string)
 	headers["content-type"] = "application/json"
 
-	resp, err := common.SendHTTPRequest(http.MethodPost, path, headers, bytes.NewBuffer(json))
+	resp, err := common.SendHTTPRequest(http.MethodPost,
+		path,
+		headers,
+		bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
 
-	return common.JSONDecode([]byte(resp), result)
+	return json.Unmarshal([]byte(resp), result)
 }

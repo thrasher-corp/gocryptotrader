@@ -5,6 +5,7 @@ lib
 .vscode
 
 testdata/dump
+testdata/preengine_config.json
 testdata/writefiletest
 
 # InteliJ
@@ -25,3 +26,5 @@ gocryptotrader
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+sqlboiler.toml
+sqlboiler.json

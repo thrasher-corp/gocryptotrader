@@ -20,25 +20,32 @@ var mockTests = true
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		log.Fatal("Localbitcoins load config error", err)
+	}
 	localbitcoinsConfig, err := cfg.GetExchangeConfig("LocalBitcoins")
 	if err != nil {
-		log.Fatal("Test Failed - Localbitcoins Setup() init error", err)
+		log.Fatal("Localbitcoins Setup() init error", err)
 	}
-	localbitcoinsConfig.AuthenticatedAPISupport = true
-	localbitcoinsConfig.APIKey = apiKey
-	localbitcoinsConfig.APISecret = apiSecret
+	l.SkipAuthCheck = true
+	localbitcoinsConfig.API.AuthenticatedSupport = true
+	localbitcoinsConfig.API.Credentials.Key = apiKey
+	localbitcoinsConfig.API.Credentials.Secret = apiSecret
 	l.SetDefaults()
-	l.Setup(&localbitcoinsConfig)
+	err = l.Setup(localbitcoinsConfig)
+	if err != nil {
+		log.Fatal("Localbitcoins setup error", err)
+	}
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
 	if err != nil {
-		log.Fatalf("Test Failed - Mock server error %s", err)
+		log.Fatalf("Mock server error %s", err)
 	}
 
 	l.HTTPClient = newClient
-	l.APIUrl = serverDetails
+	l.API.Endpoints.URL = serverDetails
 
-	log.Printf(sharedtestvalues.MockTesting, l.GetName(), l.APIUrl)
+	log.Printf(sharedtestvalues.MockTesting, l.Name, l.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

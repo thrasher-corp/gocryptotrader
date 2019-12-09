@@ -13,7 +13,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 )
 
 // HTTPResponse defines expected response from the end point including request
@@ -47,7 +48,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 
 	fileout := filepath.Join(DefaultDirectory, service, service+".json")
 
-	contents, err := common.ReadFile(fileout)
+	contents, err := ioutil.ReadFile(fileout)
 	if err != nil {
 		return err
 	}
@@ -100,7 +101,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 
 	case textPlain:
 		payload := res.Request.Header.Get("X-Gemini-Payload")
-		j, dErr := common.Base64Decode(payload)
+		j, dErr := crypto.Base64Decode(payload)
 		if dErr != nil {
 			return dErr
 		}
@@ -211,7 +212,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 		return err
 	}
 
-	return common.WriteFile(fileout, payload)
+	return file.Write(fileout, payload)
 }
 
 // GetFilteredHeader filters excluded http headers for insertion into a mock

@@ -9,22 +9,22 @@ func TestConnection(t *testing.T) {
 	faultyHost := []string{"faultyHost"}
 	_, err := New(faultyDomain, nil, 100000)
 	if err == nil {
-		t.Fatal("Test Failed - New error cannot be nil")
+		t.Fatal("New error cannot be nil")
 	}
 
 	_, err = New(DefaultDNSList, nil, 100000)
 	if err != nil {
-		t.Fatal("Test Failed - New error", err)
+		t.Fatal("New error", err)
 	}
 
 	_, err = New(nil, faultyHost, 100000)
 	if err != nil {
-		t.Fatal("Test Failed - New error cannot be nil", err)
+		t.Fatal("New error cannot be nil", err)
 	}
 
 	c, err := New(nil, nil, 0)
 	if err != nil {
-		t.Fatal("Test Failed - New error", err)
+		t.Fatal("New error", err)
 	}
 
 	if !c.IsConnected() {

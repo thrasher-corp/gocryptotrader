@@ -45378,7 +45378,7 @@
    "POST": [
     {
      "data": {},
-     "queryString": "quantity=1\u0026recvWindow=5000\u0026side=BUY\u0026signature=d122bfd46f4dcf8dda98974aed14221916aabc050a6aa30194d124e81ffe7f44\u0026symbol=LTCBTC\u0026timeInForce=GTC\u0026timestamp=1560236466000\u0026type=MARKET",
+     "queryString": "price=1\u0026quantity=1000000000\u0026recvWindow=5000\u0026side=BUY\u0026symbol=LTCBTC\u0026timeInForce=GTC\u0026timestamp=1572330506000\u0026type=LIMIT\u0026signature=00954d00c69761017b3440e6e26d9bf6b394bea354c658ca09254b8c28995c73",
      "bodyParams": "",
      "headers": {
       "Key": [

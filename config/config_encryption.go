@@ -5,11 +5,13 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"golang.org/x/crypto/scrypt"
 )
@@ -32,8 +34,8 @@ var (
 )
 
 // PromptForConfigEncryption asks for encryption key
-func (c *Config) PromptForConfigEncryption() bool {
-	log.Println("Would you like to encrypt your config file (y/n)?")
+func (c *Config) PromptForConfigEncryption(configPath string, dryrun bool) bool {
+	fmt.Println("Would you like to encrypt your config file (y/n)?")
 
 	input := ""
 	_, err := fmt.Scanln(&input)
@@ -42,8 +44,11 @@ func (c *Config) PromptForConfigEncryption() bool {
 	}
 
 	if !common.YesOrNo(input) {
-		c.EncryptConfig = configFileEncryptionDisabled
-		c.SaveConfig("")
+		c.EncryptConfig = fileEncryptionDisabled
+		err := c.SaveConfig(configPath, dryrun)
+		if err != nil {
+			log.Errorf(log.ConfigMgr, "cannot save config %s", err)
+		}
 		return false
 	}
 	return true
@@ -54,7 +59,7 @@ func PromptForConfigKey(initialSetup bool) ([]byte, error) {
 	var cryptoKey []byte
 
 	for {
-		log.Println("Please enter in your password: ")
+		fmt.Println("Please enter in your password: ")
 		pwPrompt := func(i *[]byte) error {
 			_, err := fmt.Scanln(i)
 			return err
@@ -72,7 +77,7 @@ func PromptForConfigKey(initialSetup bool) ([]byte, error) {
 		}
 
 		var p2 []byte
-		log.Println("Please re-enter your password: ")
+		fmt.Println("Please re-enter your password: ")
 		err = pwPrompt(&p2)
 		if err != nil {
 			return nil, err
@@ -82,7 +87,7 @@ func PromptForConfigKey(initialSetup bool) ([]byte, error) {
 			cryptoKey = p1
 			break
 		}
-		log.Printf("Passwords did not match, please try again.")
+		fmt.Printf("Passwords did not match, please try again.")
 	}
 	return cryptoKey, nil
 }
@@ -164,7 +169,7 @@ func DecryptConfigFile(configData, key []byte) ([]byte, error) {
 
 // ConfirmConfigJSON confirms JSON in file
 func ConfirmConfigJSON(file []byte, result interface{}) error {
-	return common.JSONDecode(file, &result)
+	return json.Unmarshal(file, &result)
 }
 
 // ConfirmSalt checks whether the encrypted data contains a salt
@@ -191,7 +196,7 @@ func getScryptDK(key, salt []byte) ([]byte, error) {
 
 func makeNewSessionDK(key []byte) ([]byte, error) {
 	var err error
-	storedSalt, err = common.GetRandomSalt([]byte(SaltPrefix), SaltRandomLength)
+	storedSalt, err = crypto.GetRandomSalt([]byte(SaltPrefix), SaltRandomLength)
 	if err != nil {
 		return nil, err
 	}

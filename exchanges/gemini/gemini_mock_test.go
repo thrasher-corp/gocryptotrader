@@ -20,25 +20,32 @@ var mockTests = true
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		log.Fatal("Gemini load config error", err)
+	}
 	geminiConfig, err := cfg.GetExchangeConfig("Gemini")
 	if err != nil {
-		log.Fatal("Test Failed - Mock server error", err)
+		log.Fatal("Mock server error", err)
 	}
-	geminiConfig.AuthenticatedAPISupport = true
-	geminiConfig.APIKey = apiKey
-	geminiConfig.APISecret = apiSecret
+	g.SkipAuthCheck = true
+	geminiConfig.API.AuthenticatedSupport = true
+	geminiConfig.API.Credentials.Key = apiKey
+	geminiConfig.API.Credentials.Secret = apiSecret
 	g.SetDefaults()
-	g.Setup(&geminiConfig)
+	err = g.Setup(geminiConfig)
+	if err != nil {
+		log.Fatal("Gemini setup error", err)
+	}
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockFile)
 	if err != nil {
-		log.Fatalf("Test Failed - Mock server error %s", err)
+		log.Fatalf("Mock server error %s", err)
 	}
 
 	g.HTTPClient = newClient
-	g.APIUrl = serverDetails
+	g.API.Endpoints.URL = serverDetails
 
-	log.Printf(sharedtestvalues.MockTesting, g.GetName(), g.APIUrl)
+	log.Printf(sharedtestvalues.MockTesting, g.Name, g.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

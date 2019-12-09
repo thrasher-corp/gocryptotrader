@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const (
@@ -39,6 +40,7 @@ func (s *SMSGlobal) Setup(cfg *config.CommunicationsConfig) {
 	s.Verbose = cfg.SMSGlobalConfig.Verbose
 	s.Username = cfg.SMSGlobalConfig.Username
 	s.Password = cfg.SMSGlobalConfig.Password
+	s.SendFrom = cfg.SMSGlobalConfig.From
 
 	var contacts []Contact
 	for x := range cfg.SMSGlobalConfig.Contacts {
@@ -49,8 +51,17 @@ func (s *SMSGlobal) Setup(cfg *config.CommunicationsConfig) {
 				Enabled: cfg.SMSGlobalConfig.Contacts[x].Enabled,
 			},
 		)
+		log.Debugf(log.CommunicationMgr, "SMSGlobal: SMS Contact: %s. Number: %s. Enabled: %v\n",
+			cfg.SMSGlobalConfig.Contacts[x].Name,
+			cfg.SMSGlobalConfig.Contacts[x].Number,
+			cfg.SMSGlobalConfig.Contacts[x].Enabled)
 	}
 	s.Contacts = contacts
+}
+
+// IsConnected returns whether or not the connection is connected
+func (s *SMSGlobal) IsConnected() bool {
+	return s.Connected
 }
 
 // Connect connects to the service
@@ -60,8 +71,8 @@ func (s *SMSGlobal) Connect() error {
 }
 
 // PushEvent pushes an event to a contact list via SMS
-func (s *SMSGlobal) PushEvent(base.Event) error {
-	return common.ErrNotYetImplemented
+func (s *SMSGlobal) PushEvent(event base.Event) error {
+	return s.SendMessageToAll(event.Message)
 }
 
 // GetEnabledContacts returns how many SMS contacts are enabled in the
@@ -89,7 +100,7 @@ func (s *SMSGlobal) GetContactByNumber(number string) (Contact, error) {
 // GetContactByName returns a contact with supplied name
 func (s *SMSGlobal) GetContactByName(name string) (Contact, error) {
 	for x := range s.Contacts {
-		if common.StringToLower(s.Contacts[x].Name) == common.StringToLower(name) {
+		if strings.EqualFold(s.Contacts[x].Name, name) {
 			return s.Contacts[x], nil
 		}
 	}
@@ -113,7 +124,7 @@ func (s *SMSGlobal) AddContact(contact Contact) error {
 // ContactExists checks to see if a contact exists
 func (s *SMSGlobal) ContactExists(contact Contact) bool {
 	for x := range s.Contacts {
-		if s.Contacts[x].Number == contact.Number && common.StringToLower(s.Contacts[x].Name) == common.StringToLower(contact.Name) {
+		if s.Contacts[x].Number == contact.Number && strings.EqualFold(s.Contacts[x].Name, contact.Name) {
 			return true
 		}
 	}
@@ -139,6 +150,10 @@ func (s *SMSGlobal) RemoveContact(contact Contact) error {
 func (s *SMSGlobal) SendMessageToAll(message string) error {
 	for x := range s.Contacts {
 		if s.Contacts[x].Enabled {
+			if s.Verbose {
+				log.Debugf(log.CommunicationMgr, "SMSGlobal: Sending SMS to %s. Number: %s. Message: %s [From: %s]\n",
+					s.Contacts[x].Name, s.Contacts[x].Number, message, s.SendFrom)
+			}
 			err := s.SendMessage(s.Contacts[x].Number, message)
 			if err != nil {
 				return err
@@ -173,7 +188,7 @@ func (s *SMSGlobal) SendMessage(to, message string) error {
 		return err
 	}
 
-	if !common.StringContains(resp, "OK: 0; Sent queued message") {
+	if !strings.Contains(resp, "OK: 0; Sent queued message") {
 		return errSMSNotSent
 	}
 	return nil

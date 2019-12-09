@@ -1903,7 +1903,7 @@
       "result": "error"
      },
      "queryString": "",
-     "bodyParams": "{\"amount\":\"1\",\"nonce\":\"1565757283294274961\",\"price\":\"9000\",\"request\":\"/v1/order/new\",\"side\":\"buy\",\"symbol\":\"btcusd\",\"type\":\"exchange limit\"}",
+     "bodyParams": "{\"amount\":\"1\",\"nonce\":\"1565757283294274961\",\"price\":\"9000000\",\"request\":\"/v1/order/new\",\"side\":\"sell\",\"symbol\":\"btcusd\",\"type\":\"exchange limit\"}",
      "headers": {
       "Cache-Control": [
        "no-cache"
@@ -2706,7 +2706,7 @@
       "result": "error"
      },
      "queryString": "",
-     "bodyParams": "{\"address\":\"1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB\",\"amount\":\"100\",\"nonce\":\"1565755733919473409\",\"request\":\"/v1/withdraw/btc\"}",
+     "bodyParams": "{\"address\":\"1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB\",\"amount\":\"-1\",\"nonce\":\"1565755733919473409\",\"request\":\"/v1/withdraw/btc\"}",
      "headers": {
       "Cache-Control": [
        "no-cache"
@@ -2727,6 +2727,64 @@
        "1e421f7d1726bfec26770e53b8f860f7406c33a329517ef199b1bdb2adf070e5866996bedcce1f69ffc6df19013ddc4e"
       ]
      }
+    }
+   ]
+  },
+  "/v2/ticker/BTCUSD": {
+   "GET": [
+    {
+     "data": {
+      "ask": "9663.28",
+      "bid": "9662.94",
+      "changes": [
+       "9719",
+       "9730.13",
+       "9718.58",
+       "9672.54",
+       "9668.57",
+       "9701.67",
+       "10191.27",
+       "10225.8",
+       "10238.78",
+       "10210.5",
+       "10171.2",
+       "10156.31",
+       "10138.69",
+       "10121.71",
+       "10147.31",
+       "10120.74",
+       "10149.82",
+       "10185.68",
+       "10128.28",
+       "10070.56",
+       "10082.86",
+       "10114",
+       "10089.25",
+       "10142.29"
+      ],
+      "close": "9662.94",
+      "high": "11000",
+      "low": "9210",
+      "open": "10148.67",
+      "symbol": "BTCUSD"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/v2/ticker/bla": {
+   "GET": [
+    {
+     "data": {
+      "message": "Supplied value 'bla' is not a valid symbol.  Please correct your API request to use one of the supported symbols: [zecbch, bchbtc, zecusd, ethusd, zecbtc, bcheth, zecltc, ltcbch, bchusd, ethbtc, ltcbtc, ltceth, zeceth, ltcusd, btcusd]",
+      "reason": "Bad Request",
+      "result": "error"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   }

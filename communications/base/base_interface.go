@@ -1,11 +1,10 @@
 package base
 
 import (
+	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -25,16 +24,15 @@ type ICommunicate interface {
 // Setup sets up communication variables and intiates a connection to the
 // communication mediums
 func (c IComm) Setup() {
-	TickerStaged = make(map[string]map[string]map[string]ticker.Price)
-	OrderbookStaged = make(map[string]map[string]map[string]Orderbook)
 	ServiceStarted = time.Now()
-
 	for i := range c {
 		if c[i].IsEnabled() && !c[i].IsConnected() {
 			err := c[i].Connect()
 			if err != nil {
-				log.Errorf("Communications: %s failed to connect. Err: %s", c[i].GetName(), err)
+				log.Errorf(log.CommunicationMgr, "Communications: %s failed to connect. Err: %s", c[i].GetName(), err)
+				continue
 			}
+			log.Debugf(log.CommunicationMgr, "Communications: %v is enabled and online.", c[i].GetName())
 		}
 	}
 }
@@ -45,64 +43,38 @@ func (c IComm) PushEvent(event Event) {
 		if c[i].IsEnabled() && c[i].IsConnected() {
 			err := c[i].PushEvent(event)
 			if err != nil {
-				log.Errorf("Communications error - PushEvent() in package %s with %v",
-					c[i].GetName(), event)
+				log.Errorf(log.CommunicationMgr, "Communications error - PushEvent() in package %s with %v. Err %s",
+					c[i].GetName(), event, err)
 			}
 		}
 	}
 }
 
+// GetStatus returns the status of the comms relayers
+func (c IComm) GetStatus() map[string]CommsStatus {
+	result := make(map[string]CommsStatus)
+	for x := range c {
+		result[c[x].GetName()] = CommsStatus{
+			Enabled:   c[x].IsEnabled(),
+			Connected: c[x].IsConnected(),
+		}
+	}
+	return result
+}
+
 // GetEnabledCommunicationMediums prints out enabled and connected communication
 // packages
 // (#debug output only)
-func (c IComm) GetEnabledCommunicationMediums() {
+func (c IComm) GetEnabledCommunicationMediums() error {
 	var count int
 	for i := range c {
 		if c[i].IsEnabled() && c[i].IsConnected() {
-			log.Debugf("Communications: Medium %s is enabled.", c[i].GetName())
+			log.Debugf(log.CommunicationMgr, "Communications: Medium %s is enabled.", c[i].GetName())
 			count++
 		}
 	}
 	if count == 0 {
-		log.Warnf("Communications: No communication mediums are enabled.")
+		return errors.New("no communication mediums are enabled")
 	}
-}
-
-// StageTickerData stages updated ticker data for the communications package
-func (c IComm) StageTickerData(exchangeName, assetType string, tickerPrice *ticker.Price) {
-	m.Lock()
-	defer m.Unlock()
-
-	if _, ok := TickerStaged[exchangeName]; !ok {
-		TickerStaged[exchangeName] = make(map[string]map[string]ticker.Price)
-	}
-
-	if _, ok := TickerStaged[exchangeName][assetType]; !ok {
-		TickerStaged[exchangeName][assetType] = make(map[string]ticker.Price)
-	}
-
-	TickerStaged[exchangeName][assetType][tickerPrice.Pair.String()] = *tickerPrice
-}
-
-// StageOrderbookData stages updated orderbook data for the communications
-// package
-func (c IComm) StageOrderbookData(exchangeName, assetType string, ob *orderbook.Base) {
-	m.Lock()
-	defer m.Unlock()
-
-	if _, ok := OrderbookStaged[exchangeName]; !ok {
-		OrderbookStaged[exchangeName] = make(map[string]map[string]Orderbook)
-	}
-
-	if _, ok := OrderbookStaged[exchangeName][assetType]; !ok {
-		OrderbookStaged[exchangeName][assetType] = make(map[string]Orderbook)
-	}
-
-	_, totalAsks := ob.TotalAsksAmount()
-	_, totalBids := ob.TotalBidsAmount()
-
-	OrderbookStaged[exchangeName][assetType][ob.Pair.String()] = Orderbook{
-		CurrencyPair: ob.Pair.String(),
-		TotalAsks:    totalAsks,
-		TotalBids:    totalBids}
+	return nil
 }

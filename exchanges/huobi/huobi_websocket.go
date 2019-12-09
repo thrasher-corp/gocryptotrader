@@ -1,6 +1,7 @@
 package huobi
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,9 +10,10 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -20,10 +22,11 @@ import (
 const (
 	baseWSURL = "wss://api.huobi.pro"
 
-	wsMarketURL   = baseWSURL + "/ws"
-	wsMarketKline = "market.%s.kline.1min"
-	wsMarketDepth = "market.%s.depth.step0"
-	wsMarketTrade = "market.%s.trade.detail"
+	wsMarketURL    = baseWSURL + "/ws"
+	wsMarketKline  = "market.%s.kline.1min"
+	wsMarketDepth  = "market.%s.depth.step0"
+	wsMarketTrade  = "market.%s.trade.detail"
+	wsMarketTicker = "market.%s.detail"
 
 	wsAccountsOrdersEndPoint = "/ws/v1"
 	wsAccountsList           = "accounts.list"
@@ -46,7 +49,7 @@ const (
 )
 
 // Instantiates a communications channel between websocket connections
-var comms = make(chan WsMessage, 1)
+var comms = make(chan WsMessage)
 
 // WsConnect initiates a new websocket connection
 func (h *HUOBI) WsConnect() error {
@@ -60,11 +63,12 @@ func (h *HUOBI) WsConnect() error {
 	}
 	err = h.wsAuthenticatedDial(&dialer)
 	if err != nil {
-		log.Errorf("%v - authenticated dial failed: %v", h.Name, err)
+		log.Errorf(log.ExchangeSys, "%v - authenticated dial failed: %v\n", h.Name, err)
 	}
 	err = h.wsLogin()
 	if err != nil {
-		log.Errorf("%v - authentication failed: %v", h.Name, err)
+		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", h.Name, err)
+		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 
 	go h.WsHandleData()
@@ -135,7 +139,7 @@ func (h *HUOBI) WsHandleData() {
 
 func (h *HUOBI) wsHandleAuthenticatedData(resp WsMessage) {
 	var init WsAuthenticatedDataResponse
-	err := common.JSONDecode(resp.Raw, &init)
+	err := json.Unmarshal(resp.Raw, &init)
 	if err != nil {
 		h.Websocket.DataHandler <- err
 		return
@@ -143,7 +147,7 @@ func (h *HUOBI) wsHandleAuthenticatedData(resp WsMessage) {
 	if init.Ping != 0 {
 		err = h.WebsocketConn.SendMessage(WsPong{Pong: init.Ping})
 		if err != nil {
-			log.Error(err)
+			log.Error(log.ExchangeSys, err)
 		}
 		return
 	}
@@ -152,7 +156,7 @@ func (h *HUOBI) wsHandleAuthenticatedData(resp WsMessage) {
 	}
 	if init.Op == "sub" {
 		if h.Verbose {
-			log.Debugf("%v: %v: Successfully subscribed to %v", h.Name, resp.URL, init.Topic)
+			log.Debugf(log.ExchangeSys, "%v: %v: Successfully subscribed to %v", h.Name, resp.URL, init.Topic)
 		}
 		return
 	}
@@ -165,29 +169,29 @@ func (h *HUOBI) wsHandleAuthenticatedData(resp WsMessage) {
 	case strings.EqualFold(init.Op, authOp):
 		h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		var response WsAuthenticatedDataResponse
-		err := common.JSONDecode(resp.Raw, &response)
+		err := json.Unmarshal(resp.Raw, &response)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 		}
 		h.Websocket.DataHandler <- response
 	case strings.EqualFold(init.Topic, "accounts"):
 		var response WsAuthenticatedAccountsResponse
-		err := common.JSONDecode(resp.Raw, &response)
+		err := json.Unmarshal(resp.Raw, &response)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 		}
 		h.Websocket.DataHandler <- response
-	case common.StringContains(init.Topic, "orders") &&
-		common.StringContains(init.Topic, "update"):
+	case strings.Contains(init.Topic, "orders") &&
+		strings.Contains(init.Topic, "update"):
 		var response WsAuthenticatedOrdersUpdateResponse
-		err := common.JSONDecode(resp.Raw, &response)
+		err := json.Unmarshal(resp.Raw, &response)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 		}
 		h.Websocket.DataHandler <- response
-	case common.StringContains(init.Topic, "orders"):
+	case strings.Contains(init.Topic, "orders"):
 		var response WsAuthenticatedOrdersResponse
-		err := common.JSONDecode(resp.Raw, &response)
+		err := json.Unmarshal(resp.Raw, &response)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 		}
@@ -197,7 +201,7 @@ func (h *HUOBI) wsHandleAuthenticatedData(resp WsMessage) {
 
 func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 	var init WsResponse
-	err := common.JSONDecode(resp.Raw, &init)
+	err := json.Unmarshal(resp.Raw, &init)
 	if err != nil {
 		h.Websocket.DataHandler <- err
 		return
@@ -216,91 +220,130 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 	if init.Ping != 0 {
 		err = h.WebsocketConn.SendMessage(WsPong{Pong: init.Ping})
 		if err != nil {
-			log.Error(err)
+			log.Error(log.ExchangeSys, err)
 		}
 		return
 	}
 
 	switch {
-	case common.StringContains(init.Channel, "depth"):
+	case strings.Contains(init.Channel, "depth"):
 		var depth WsDepth
-		err := common.JSONDecode(resp.Raw, &depth)
+		err := json.Unmarshal(resp.Raw, &depth)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 			return
 		}
-		data := common.SplitStrings(depth.Channel, ".")
-		h.WsProcessOrderbook(&depth, data[1])
-	case common.StringContains(init.Channel, "kline"):
+
+		data := strings.Split(depth.Channel, ".")
+		err = h.WsProcessOrderbook(&depth, data[1])
+		if err != nil {
+			h.Websocket.DataHandler <- err
+			return
+		}
+
+	case strings.Contains(init.Channel, "kline"):
 		var kline WsKline
-		err := common.JSONDecode(resp.Raw, &kline)
+		err := json.Unmarshal(resp.Raw, &kline)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 			return
 		}
-		data := common.SplitStrings(kline.Channel, ".")
+		data := strings.Split(kline.Channel, ".")
 		h.Websocket.DataHandler <- wshandler.KlineData{
-			Timestamp:  time.Unix(0, kline.Timestamp),
-			Exchange:   h.GetName(),
-			AssetType:  orderbook.Spot,
-			Pair:       currency.NewPairFromString(data[1]),
+			Timestamp: time.Unix(0, kline.Timestamp),
+			Exchange:  h.Name,
+			AssetType: asset.Spot,
+			Pair: currency.NewPairFromFormattedPairs(data[1],
+				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
 			OpenPrice:  kline.Tick.Open,
 			ClosePrice: kline.Tick.Close,
 			HighPrice:  kline.Tick.High,
 			LowPrice:   kline.Tick.Low,
 			Volume:     kline.Tick.Volume,
 		}
-	case common.StringContains(init.Channel, "trade"):
+	case strings.Contains(init.Channel, "trade.detail"):
 		var trade WsTrade
-		err := common.JSONDecode(resp.Raw, &trade)
+		err := json.Unmarshal(resp.Raw, &trade)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 			return
 		}
-		data := common.SplitStrings(trade.Channel, ".")
+		data := strings.Split(trade.Channel, ".")
 		h.Websocket.DataHandler <- wshandler.TradeData{
-			Exchange:     h.GetName(),
-			AssetType:    orderbook.Spot,
-			CurrencyPair: currency.NewPairFromString(data[1]),
-			Timestamp:    time.Unix(0, trade.Tick.Timestamp),
+			Exchange:  h.Name,
+			AssetType: asset.Spot,
+			CurrencyPair: currency.NewPairFromFormattedPairs(data[1],
+				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
+			Timestamp: time.Unix(0, trade.Tick.Timestamp),
+		}
+	case strings.Contains(init.Channel, "detail"):
+		var ticker WsTick
+		err := json.Unmarshal(resp.Raw, &ticker)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+			return
+		}
+		data := strings.Split(ticker.Channel, ".")
+		h.Websocket.DataHandler <- wshandler.TickerData{
+			Exchange:    h.Name,
+			Open:        ticker.Tick.Open,
+			Close:       ticker.Tick.Close,
+			Volume:      ticker.Tick.Amount,
+			QuoteVolume: ticker.Tick.Volume,
+			High:        ticker.Tick.High,
+			Low:         ticker.Tick.Low,
+			Timestamp:   time.Unix(0, ticker.Timestamp),
+			AssetType:   asset.Spot,
+			Pair: currency.NewPairFromFormattedPairs(data[1],
+				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
 		}
 	}
 }
 
 // WsProcessOrderbook processes new orderbook data
 func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
-	p := currency.NewPairFromString(symbol)
+	p := currency.NewPairFromFormattedPairs(symbol,
+		h.GetEnabledPairs(asset.Spot),
+		h.GetPairFormat(asset.Spot, true))
+
 	var bids, asks []orderbook.Item
-	for i := 0; i < len(update.Tick.Bids); i++ {
-		bidLevel := update.Tick.Bids[i].([]interface{})
-		bids = append(bids, orderbook.Item{Price: bidLevel[0].(float64),
-			Amount: bidLevel[0].(float64)})
+	for i := range update.Tick.Bids {
+		bids = append(bids, orderbook.Item{
+			Price:  update.Tick.Bids[i][0].(float64),
+			Amount: update.Tick.Bids[i][1].(float64),
+		})
 	}
-	for i := 0; i < len(update.Tick.Asks); i++ {
-		askLevel := update.Tick.Asks[i].([]interface{})
-		asks = append(asks, orderbook.Item{Price: askLevel[0].(float64),
-			Amount: askLevel[0].(float64)})
+
+	for i := range update.Tick.Asks {
+		asks = append(asks, orderbook.Item{
+			Price:  update.Tick.Asks[i][0].(float64),
+			Amount: update.Tick.Asks[i][1].(float64),
+		})
 	}
+
 	var newOrderBook orderbook.Base
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
 	newOrderBook.Pair = p
-	err := h.Websocket.Orderbook.LoadSnapshot(&newOrderBook, true)
+	newOrderBook.AssetType = asset.Spot
+	newOrderBook.ExchangeName = h.Name
+
+	err := h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 	if err != nil {
 		return err
 	}
+
 	h.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 		Pair:     p,
-		Exchange: h.GetName(),
-		Asset:    orderbook.Spot,
+		Exchange: h.Name,
+		Asset:    asset.Spot,
 	}
-
 	return nil
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (h *HUOBI) GenerateDefaultSubscriptions() {
-	var channels = []string{wsMarketKline, wsMarketDepth, wsMarketTrade}
+	var channels = []string{wsMarketKline, wsMarketDepth, wsMarketTrade, wsMarketTicker}
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
 		channels = append(channels, "orders.%v", "orders.%v.update")
@@ -308,7 +351,7 @@ func (h *HUOBI) GenerateDefaultSubscriptions() {
 			Channel: "accounts",
 		})
 	}
-	enabledCurrencies := h.GetEnabledCurrencies()
+	enabledCurrencies := h.GetEnabledPairs(asset.Spot)
 	for i := range channels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = ""
@@ -324,8 +367,8 @@ func (h *HUOBI) GenerateDefaultSubscriptions() {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (h *HUOBI) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
-	if common.StringContains(channelToSubscribe.Channel, "orders.") ||
-		common.StringContains(channelToSubscribe.Channel, "accounts") {
+	if strings.Contains(channelToSubscribe.Channel, "orders.") ||
+		strings.Contains(channelToSubscribe.Channel, "accounts") {
 		return h.wsAuthenticatedSubscribe("sub", wsAccountsOrdersEndPoint+channelToSubscribe.Channel, channelToSubscribe.Channel)
 	}
 	return h.WebsocketConn.SendMessage(WsRequest{Subscribe: channelToSubscribe.Channel})
@@ -333,8 +376,8 @@ func (h *HUOBI) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscript
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (h *HUOBI) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
-	if common.StringContains(channelToSubscribe.Channel, "orders.") ||
-		common.StringContains(channelToSubscribe.Channel, "accounts") {
+	if strings.Contains(channelToSubscribe.Channel, "orders.") ||
+		strings.Contains(channelToSubscribe.Channel, "accounts") {
 		return h.wsAuthenticatedSubscribe("unsub", wsAccountsOrdersEndPoint+channelToSubscribe.Channel, channelToSubscribe.Channel)
 	}
 	return h.WebsocketConn.SendMessage(WsRequest{Unsubscribe: channelToSubscribe.Channel})
@@ -342,14 +385,14 @@ func (h *HUOBI) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscri
 
 func (h *HUOBI) wsGenerateSignature(timestamp, endpoint string) []byte {
 	values := url.Values{}
-	values.Set("AccessKeyId", h.APIKey)
+	values.Set("AccessKeyId", h.API.Credentials.Key)
 	values.Set("SignatureMethod", signatureMethod)
 	values.Set("SignatureVersion", signatureVersion)
 	values.Set("Timestamp", timestamp)
 	host := "api.huobi.pro"
 	payload := fmt.Sprintf("%s\n%s\n%s\n%s",
 		"GET", host, endpoint, values.Encode())
-	return common.GetHMAC(common.HashSHA256, []byte(payload), []byte(h.APISecret))
+	return crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(h.API.Credentials.Secret))
 }
 
 func (h *HUOBI) wsLogin() error {
@@ -360,13 +403,13 @@ func (h *HUOBI) wsLogin() error {
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	request := WsAuthenticationRequest{
 		Op:               authOp,
-		AccessKeyID:      h.APIKey,
+		AccessKeyID:      h.API.Credentials.Key,
 		SignatureMethod:  signatureMethod,
 		SignatureVersion: signatureVersion,
 		Timestamp:        timestamp,
 	}
 	hmac := h.wsGenerateSignature(timestamp, wsAccountsOrdersEndPoint)
-	request.Signature = common.Base64Encode(hmac)
+	request.Signature = crypto.Base64Encode(hmac)
 	err := h.AuthenticatedWebsocketConn.SendMessage(request)
 	if err != nil {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -381,40 +424,39 @@ func (h *HUOBI) wsAuthenticatedSubscribe(operation, endpoint, topic string) erro
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	request := WsAuthenticatedSubscriptionRequest{
 		Op:               operation,
-		AccessKeyID:      h.APIKey,
+		AccessKeyID:      h.API.Credentials.Key,
 		SignatureMethod:  signatureMethod,
 		SignatureVersion: signatureVersion,
 		Timestamp:        timestamp,
 		Topic:            topic,
 	}
 	hmac := h.wsGenerateSignature(timestamp, endpoint)
-	request.Signature = common.Base64Encode(hmac)
+	request.Signature = crypto.Base64Encode(hmac)
 	return h.AuthenticatedWebsocketConn.SendMessage(request)
 }
 
-func (h *HUOBI) wsGetAccountsList(pair currency.Pair) (*WsAuthenticatedAccountsListResponse, error) {
+func (h *HUOBI) wsGetAccountsList() (*WsAuthenticatedAccountsListResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated cannot get accounts list", h.Name)
 	}
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	request := WsAuthenticatedAccountsListRequest{
 		Op:               requestOp,
-		AccessKeyID:      h.APIKey,
+		AccessKeyID:      h.API.Credentials.Key,
 		SignatureMethod:  signatureMethod,
 		SignatureVersion: signatureVersion,
 		Timestamp:        timestamp,
 		Topic:            wsAccountsList,
-		Symbol:           pair,
 	}
 	hmac := h.wsGenerateSignature(timestamp, wsAccountListEndpoint)
-	request.Signature = common.Base64Encode(hmac)
+	request.Signature = crypto.Base64Encode(hmac)
 	request.ClientID = h.AuthenticatedWebsocketConn.GenerateMessageID(true)
 	resp, err := h.AuthenticatedWebsocketConn.SendMessageReturnResponse(request.ClientID, request)
 	if err != nil {
 		return nil, err
 	}
 	var response WsAuthenticatedAccountsListResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	return &response, err
 }
 
@@ -425,24 +467,24 @@ func (h *HUOBI) wsGetOrdersList(accountID int64, pair currency.Pair) (*WsAuthent
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	request := WsAuthenticatedOrdersListRequest{
 		Op:               requestOp,
-		AccessKeyID:      h.APIKey,
+		AccessKeyID:      h.API.Credentials.Key,
 		SignatureMethod:  signatureMethod,
 		SignatureVersion: signatureVersion,
 		Timestamp:        timestamp,
 		Topic:            wsOrdersList,
 		AccountID:        accountID,
-		Symbol:           pair.Lower(),
+		Symbol:           h.FormatExchangeCurrency(pair, asset.Spot).String(),
 		States:           "submitted,partial-filled",
 	}
 	hmac := h.wsGenerateSignature(timestamp, wsOrdersListEndpoint)
-	request.Signature = common.Base64Encode(hmac)
+	request.Signature = crypto.Base64Encode(hmac)
 	request.ClientID = h.AuthenticatedWebsocketConn.GenerateMessageID(true)
 	resp, err := h.AuthenticatedWebsocketConn.SendMessageReturnResponse(request.ClientID, request)
 	if err != nil {
 		return nil, err
 	}
 	var response WsAuthenticatedOrdersResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	return &response, err
 }
 
@@ -453,7 +495,7 @@ func (h *HUOBI) wsGetOrderDetails(orderID string) (*WsAuthenticatedOrderDetailRe
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	request := WsAuthenticatedOrderDetailsRequest{
 		Op:               requestOp,
-		AccessKeyID:      h.APIKey,
+		AccessKeyID:      h.API.Credentials.Key,
 		SignatureMethod:  signatureMethod,
 		SignatureVersion: signatureVersion,
 		Timestamp:        timestamp,
@@ -461,13 +503,13 @@ func (h *HUOBI) wsGetOrderDetails(orderID string) (*WsAuthenticatedOrderDetailRe
 		OrderID:          orderID,
 	}
 	hmac := h.wsGenerateSignature(timestamp, wsOrdersDetailEndpoint)
-	request.Signature = common.Base64Encode(hmac)
+	request.Signature = crypto.Base64Encode(hmac)
 	request.ClientID = h.AuthenticatedWebsocketConn.GenerateMessageID(true)
 	resp, err := h.AuthenticatedWebsocketConn.SendMessageReturnResponse(request.ClientID, request)
 	if err != nil {
 		return nil, err
 	}
 	var response WsAuthenticatedOrderDetailResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	return &response, err
 }

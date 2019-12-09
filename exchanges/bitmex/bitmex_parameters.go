@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 )
@@ -35,7 +36,7 @@ func StructValsToURLVals(v interface{}) (url.Values, error) {
 		if structType.Field(i).Tag != "" {
 			jsonTag := structType.Field(i).Tag.Get("json")
 			if jsonTag != "" {
-				split := common.SplitStrings(jsonTag, ",")
+				split := strings.Split(jsonTag, ",")
 				outgoingTag = split[0]
 			}
 		}

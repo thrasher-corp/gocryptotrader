@@ -1,6 +1,57 @@
 package coinmarketcap
 
-import "time"
+import (
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+)
+
+// Coinmarketcap account plan bitmasks, url and enpoint consts
+const (
+	Basic uint8 = 1 << iota
+	Hobbyist
+	Startup
+	Standard
+	Professional
+	Enterprise
+
+	baseURL    = "https://pro-api.coinmarketcap.com"
+	sandboxURL = "https://sandbox-api.coinmarketcap.com"
+	version    = "/v1/"
+
+	endpointCryptocurrencyInfo               = "cryptocurrency/info"
+	endpointCryptocurrencyMap                = "cryptocurrency/map"
+	endpointCryptocurrencyHistoricalListings = "cryptocurrency/listings/historical"
+	endpointCryptocurrencyLatestListings     = "cryptocurrency/listings/latest"
+	endpointCryptocurrencyMarketPairs        = "cryptocurrency/market-pairs/latest"
+	endpointOHLCVHistorical                  = "cryptocurrency/ohlcv/historical"
+	endpointOHLCVLatest                      = "cryptocurrency/ohlcv/latest"
+	endpointGetMarketQuotesHistorical        = "cryptocurrency/quotes/historical"
+	endpointGetMarketQuotesLatest            = "cryptocurrency/quotes/latest"
+	endpointExchangeInfo                     = "exchange/info"
+	endpointExchangeMap                      = "exchange/map"
+	endpointExchangeMarketPairsLatest        = "exchange/market-pairs/latest"
+	endpointExchangeMarketQuoteHistorical    = "exchange/quotes/historical"
+	endpointExchangeMarketQuoteLatest        = "exchange/quotes/latest"
+	endpointGlobalQuoteHistorical            = "global-metrics/quotes/historical"
+	endpointGlobalQuoteLatest                = "global-metrics/quotes/latest"
+	endpointPriceConversion                  = "tools/price-conversion"
+
+	authrate       = 0
+	defaultTimeOut = time.Second * 15
+)
+
+// Coinmarketcap is the overarching type across this package
+type Coinmarketcap struct {
+	Verbose    bool
+	Enabled    bool
+	Name       string
+	APIkey     string
+	APIUrl     string
+	APIVersion string
+	Plan       uint8
+	Requester  *request.Requester
+}
 
 // Settings defines the current settings from configuration file
 type Settings struct {

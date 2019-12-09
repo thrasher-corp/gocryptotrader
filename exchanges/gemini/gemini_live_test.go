@@ -17,17 +17,23 @@ var mockTests = false
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		log.Fatal("Gemini load config error", err)
+	}
 	geminiConfig, err := cfg.GetExchangeConfig("Gemini")
 	if err != nil {
-		log.Fatal("Test Failed - Gemini Setup() init error", err)
+		log.Fatal("Gemini Setup() init error", err)
 	}
-	geminiConfig.AuthenticatedAPISupport = true
-	geminiConfig.APIKey = apiKey
-	geminiConfig.APISecret = apiSecret
+	geminiConfig.API.AuthenticatedSupport = true
+	geminiConfig.API.Credentials.Key = apiKey
+	geminiConfig.API.Credentials.Secret = apiSecret
 	g.SetDefaults()
-	g.Setup(&geminiConfig)
-	g.APIUrl = geminiSandboxAPIURL
-	log.Printf(sharedtestvalues.LiveTesting, g.GetName(), g.APIUrl)
+	err = g.Setup(geminiConfig)
+	if err != nil {
+		log.Fatal("Gemini setup error", err)
+	}
+	g.API.Endpoints.URL = geminiSandboxAPIURL
+	log.Printf(sharedtestvalues.LiveTesting, g.Name, g.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

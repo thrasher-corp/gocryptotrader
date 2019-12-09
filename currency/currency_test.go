@@ -7,12 +7,12 @@ import (
 func TestGetDefaultExchangeRates(t *testing.T) {
 	rates, err := GetDefaultExchangeRates()
 	if err != nil {
-		t.Error("Test failed - GetDefaultExchangeRates() err", err)
+		t.Error("GetDefaultExchangeRates() err", err)
 	}
 
 	for _, val := range rates {
 		if !val.IsFiat() {
-			t.Errorf("Test failed - GetDefaultExchangeRates() %s is not fiat pair",
+			t.Errorf("GetDefaultExchangeRates() %s is not fiat pair",
 				val)
 		}
 	}
@@ -21,12 +21,12 @@ func TestGetDefaultExchangeRates(t *testing.T) {
 func TestGetExchangeRates(t *testing.T) {
 	rates, err := GetExchangeRates()
 	if err != nil {
-		t.Error("Test failed - GetExchangeRates() err", err)
+		t.Error("GetExchangeRates() err", err)
 	}
 
 	for _, val := range rates {
 		if !val.IsFiat() {
-			t.Errorf("Test failed - GetExchangeRates() %s is not fiat pair",
+			t.Errorf("GetExchangeRates() %s is not fiat pair",
 				val)
 		}
 	}
@@ -35,23 +35,23 @@ func TestGetExchangeRates(t *testing.T) {
 func TestUpdateBaseCurrency(t *testing.T) {
 	err := UpdateBaseCurrency(AUD)
 	if err != nil {
-		t.Error("Test failed - UpdateBaseCurrency() err", err)
+		t.Error("UpdateBaseCurrency() err", err)
 	}
 
 	err = UpdateBaseCurrency(LTC)
 	if err == nil {
-		t.Error("Test failed - UpdateBaseCurrency() cannot be nil")
+		t.Error("UpdateBaseCurrency() error cannot be nil")
 	}
 
 	if GetBaseCurrency() != AUD {
-		t.Errorf("Test failed - GetBaseCurrency() expected %s but received %s",
+		t.Errorf("GetBaseCurrency() expected %s but received %s",
 			AUD, GetBaseCurrency())
 	}
 }
 
 func TestGetDefaultBaseCurrency(t *testing.T) {
 	if GetDefaultBaseCurrency() != USD {
-		t.Errorf("Test failed - GetDefaultBaseCurrency() expected %s but received %s",
+		t.Errorf("GetDefaultBaseCurrency() expected %s but received %s",
 			USD, GetDefaultBaseCurrency())
 	}
 }
@@ -59,7 +59,7 @@ func TestGetDefaultBaseCurrency(t *testing.T) {
 func TestGetDefaulCryptoCurrencies(t *testing.T) {
 	expected := Currencies{BTC, LTC, ETH, DOGE, DASH, XRP, XMR}
 	if !GetDefaultCryptocurrencies().Match(expected) {
-		t.Errorf("Test failed - GetDefaultCryptocurrencies() expected %s but received %s",
+		t.Errorf("GetDefaultCryptocurrencies() expected %s but received %s",
 			expected, GetDefaultCryptocurrencies())
 	}
 }
@@ -67,7 +67,7 @@ func TestGetDefaulCryptoCurrencies(t *testing.T) {
 func TestGetDefaultFiatCurrencies(t *testing.T) {
 	expected := Currencies{USD, AUD, EUR, CNY}
 	if !GetDefaultFiatCurrencies().Match(expected) {
-		t.Errorf("Test failed - GetDefaultFiatCurrencies() expected %s but received %s",
+		t.Errorf("GetDefaultFiatCurrencies() expected %s but received %s",
 			expected, GetDefaultFiatCurrencies())
 	}
 }
@@ -77,14 +77,14 @@ func TestUpdateCurrencies(t *testing.T) {
 	UpdateCurrencies(fiat, false)
 	rFiat := GetFiatCurrencies()
 	if !rFiat.Contains(HKN) || !rFiat.Contains(JPY) {
-		t.Error("Test failed - UpdateCurrencies() currencies did not update")
+		t.Error("UpdateCurrencies() currencies did not update")
 	}
 
 	crypto := Currencies{ZAR, ZCAD, B2}
 	UpdateCurrencies(crypto, true)
 	rCrypto := GetCryptocurrencies()
 	if !rCrypto.Contains(ZAR) || !rCrypto.Contains(ZCAD) || !rCrypto.Contains(B2) {
-		t.Error("Test failed - UpdateCurrencies() currencies did not update")
+		t.Error("UpdateCurrencies() currencies did not update")
 	}
 }
 
@@ -100,7 +100,7 @@ func TestConvertCurrency(t *testing.T) {
 	}
 
 	if r != 100 {
-		t.Errorf("Test Failed - ConvertCurrency error, incorrect rate return %2.f but received %2.f",
+		t.Errorf("ConvertCurrency error, incorrect rate return %2.f but received %2.f",
 			100.00, r)
 	}
 

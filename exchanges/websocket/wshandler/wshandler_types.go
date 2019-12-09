@@ -6,92 +6,46 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 )
 
 // Websocket functionality list and state consts
 const (
-	NoWebsocketSupport       uint32 = 0
-	WebsocketTickerSupported uint32 = 1 << (iota - 1)
-	WebsocketOrderbookSupported
-	WebsocketKlineSupported
-	WebsocketTradeDataSupported
-	WebsocketAccountSupported
-	WebsocketAllowsRequests
-	WebsocketSubscribeSupported
-	WebsocketUnsubscribeSupported
-	WebsocketAuthenticatedEndpointsSupported
-	WebsocketAccountDataSupported
-	WebsocketSubmitOrderSupported
-	WebsocketCancelOrderSupported
-	WebsocketWithdrawSupported
-	WebsocketMessageCorrelationSupported
-	WebsocketSequenceNumberSupported
-	WebsocketDeadMansSwitchSupported
-
-	WebsocketTickerSupportedText                 = "TICKER STREAMING SUPPORTED"
-	WebsocketOrderbookSupportedText              = "ORDERBOOK STREAMING SUPPORTED"
-	WebsocketKlineSupportedText                  = "KLINE STREAMING SUPPORTED"
-	WebsocketTradeDataSupportedText              = "TRADE STREAMING SUPPORTED"
-	WebsocketAccountSupportedText                = "ACCOUNT STREAMING SUPPORTED"
-	WebsocketAllowsRequestsText                  = "WEBSOCKET REQUESTS SUPPORTED"
-	NoWebsocketSupportText                       = "WEBSOCKET NOT SUPPORTED"
-	UnknownWebsocketFunctionality                = "UNKNOWN FUNCTIONALITY BITMASK"
-	WebsocketSubscribeSupportedText              = "WEBSOCKET SUBSCRIBE SUPPORTED"
-	WebsocketUnsubscribeSupportedText            = "WEBSOCKET UNSUBSCRIBE SUPPORTED"
-	WebsocketAuthenticatedEndpointsSupportedText = "WEBSOCKET AUTHENTICATED ENDPOINTS SUPPORTED"
-	WebsocketAccountDataSupportedText            = "WEBSOCKET ACCOUNT DATA SUPPORTED"
-	WebsocketSubmitOrderSupportedText            = "WEBSOCKET SUBMIT ORDER SUPPORTED"
-	WebsocketCancelOrderSupportedText            = "WEBSOCKET CANCEL ORDER SUPPORTED"
-	WebsocketWithdrawSupportedText               = "WEBSOCKET WITHDRAW SUPPORTED"
-	WebsocketMessageCorrelationSupportedText     = "WEBSOCKET MESSAGE CORRELATION SUPPORTED"
-	WebsocketSequenceNumberSupportedText         = "WEBSOCKET SEQUENCE NUMBER SUPPORTED"
-	WebsocketDeadMansSwitchSupportedText         = "WEBSOCKET DEAD MANS SWITCH SUPPORTED"
-
 	// WebsocketNotEnabled alerts of a disabled websocket
-	WebsocketNotEnabled = "exchange_websocket_not_enabled"
-	// WebsocketTrafficLimitTime defines a standard time for no traffic from the
-	// websocket connection
-	WebsocketTrafficLimitTime     = 5 * time.Second
-	websocketRestablishConnection = time.Second
-	manageSubscriptionsDelay      = 5 * time.Second
+	WebsocketNotEnabled      = "exchange_websocket_not_enabled"
+	manageSubscriptionsDelay = 5 * time.Second
 	// connection monitor time delays and limits
-	connectionMonitorDelay = 2 * time.Second
-	// WebsocketStateTimeout defines a const for when a websocket connection
-	// times out, will be handled by the routine management system
-	WebsocketStateTimeout = "TIMEOUT"
+	connectionMonitorDelay             = 2 * time.Second
+	WebsocketNotAuthenticatedUsingRest = "%v - Websocket not authenticated, using REST"
 )
 
 // Websocket defines a return type for websocket connections via the interface
 // wrapper for routine processing in routines.go
 type Websocket struct {
-	proxyAddr                string
-	defaultURL               string
-	runningURL               string
-	exchangeName             string
-	enabled                  bool
-	init                     bool
-	connected                bool
-	connecting               bool
-	verbose                  bool
-	connector                func() error
-	m                        sync.Mutex
-	subscriptionLock         sync.Mutex
-	connectionMonitorRunning bool
-	reconnectionLimit        int
-	noConnectionChecks       int
-	reconnectionChecks       int
-	noConnectionCheckLimit   int
-	subscribedChannels       []WebsocketChannelSubscription
-	channelsToSubscribe      []WebsocketChannelSubscription
-	channelSubscriber        func(channelToSubscribe WebsocketChannelSubscription) error
-	channelUnsubscriber      func(channelToUnsubscribe WebsocketChannelSubscription) error
-	// Connected denotes a channel switch for diversion of request flow
-	Connected chan struct{}
-	// Disconnected denotes a channel switch for diversion of request flow
-	Disconnected chan struct{}
-	// DataHandler pipes websocket data to an exchange websocket data handler
-	DataHandler chan interface{}
+	canUseAuthenticatedEndpoints bool
+	enabled                      bool
+	init                         bool
+	connected                    bool
+	connecting                   bool
+	trafficMonitorRunning        bool
+	verbose                      bool
+	connectionMonitorRunning     bool
+	trafficTimeout               time.Duration
+	proxyAddr                    string
+	defaultURL                   string
+	runningURL                   string
+	exchangeName                 string
+	m                            sync.Mutex
+	subscriptionMutex            sync.Mutex
+	connectionMutex              sync.RWMutex
+	connector                    func() error
+	subscribedChannels           []WebsocketChannelSubscription
+	channelsToSubscribe          []WebsocketChannelSubscription
+	channelSubscriber            func(channelToSubscribe WebsocketChannelSubscription) error
+	channelUnsubscriber          func(channelToUnsubscribe WebsocketChannelSubscription) error
+	DataHandler                  chan interface{}
 	// ShutdownC is the main shutdown channel which controls all websocket go funcs
 	ShutdownC chan struct{}
 	// Orderbook is a local cache of orderbooks
@@ -101,9 +55,23 @@ type Websocket struct {
 	Wg sync.WaitGroup
 	// TrafficAlert monitors if there is a halt in traffic throughput
 	TrafficAlert chan struct{}
-	// Functionality defines websocket stream capabilities
-	Functionality                uint32
-	canUseAuthenticatedEndpoints bool
+	// ReadMessageErrors will received all errors from ws.ReadMessage() and verify if its a disconnection
+	ReadMessageErrors chan error
+	features          *protocol.Features
+}
+
+type WebsocketSetup struct {
+	Enabled                          bool
+	Verbose                          bool
+	AuthenticatedWebsocketAPISupport bool
+	WebsocketTimeout                 time.Duration
+	DefaultURL                       string
+	ExchangeName                     string
+	RunningURL                       string
+	Connector                        func() error
+	Subscriber                       func(channelToSubscribe WebsocketChannelSubscription) error
+	UnSubscriber                     func(channelToUnsubscribe WebsocketChannelSubscription) error
+	Features                         *protocol.Features
 }
 
 // WebsocketChannelSubscription container for websocket subscriptions
@@ -124,7 +92,7 @@ type WebsocketResponse struct {
 // has been updated in the orderbook package
 type WebsocketOrderbookUpdate struct {
 	Pair     currency.Pair
-	Asset    string
+	Asset    asset.Item
 	Exchange string
 }
 
@@ -132,7 +100,7 @@ type WebsocketOrderbookUpdate struct {
 type TradeData struct {
 	Timestamp    time.Time
 	CurrencyPair currency.Pair
-	AssetType    string
+	AssetType    asset.Item
 	Exchange     string
 	EventType    string
 	EventTime    int64
@@ -143,22 +111,27 @@ type TradeData struct {
 
 // TickerData defines ticker feed
 type TickerData struct {
-	Timestamp  time.Time
-	Pair       currency.Pair
-	AssetType  string
-	Exchange   string
-	ClosePrice float64
-	Quantity   float64
-	OpenPrice  float64
-	HighPrice  float64
-	LowPrice   float64
+	Exchange    string
+	Open        float64
+	Close       float64
+	Volume      float64
+	QuoteVolume float64
+	High        float64
+	Low         float64
+	Bid         float64
+	Ask         float64
+	Last        float64
+	PriceATH    float64
+	Timestamp   time.Time
+	AssetType   asset.Item
+	Pair        currency.Pair
 }
 
 // KlineData defines kline feed
 type KlineData struct {
 	Timestamp  time.Time
 	Pair       currency.Pair
-	AssetType  string
+	AssetType  asset.Item
 	Exchange   string
 	StartTime  time.Time
 	CloseTime  time.Time
@@ -174,23 +147,26 @@ type KlineData struct {
 type WebsocketPositionUpdated struct {
 	Timestamp time.Time
 	Pair      currency.Pair
-	AssetType string
+	AssetType asset.Item
 	Exchange  string
 }
 
 // WebsocketConnection contains all the data needed to send a message to a WS
 type WebsocketConnection struct {
 	sync.Mutex
-	Verbose      bool
-	RateLimit    float64
-	ExchangeName string
-	URL          string
-	ProxyURL     string
-	Wg           sync.WaitGroup
-	Connection   *websocket.Conn
-	Shutdown     chan struct{}
+	Verbose         bool
+	connected       bool
+	connectionMutex sync.RWMutex
+	RateLimit       float64
+	ExchangeName    string
+	URL             string
+	ProxyURL        string
+	Wg              sync.WaitGroup
+	Connection      *websocket.Conn
+	Shutdown        chan struct{}
 	// These are the request IDs and the corresponding response JSON
 	IDResponses          map[int64][]byte
 	ResponseCheckTimeout time.Duration
 	ResponseMaxLimit     time.Duration
+	TrafficTimeout       time.Duration
 }

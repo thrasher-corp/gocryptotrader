@@ -17,6 +17,7 @@ In order to maintain a consistent style across the codebase, the following codin
 - In line with gofmt, for loops and if statements don't require parenthesis.
 
 Block style example:
+
 ```go
 func SendHTTPRequest(method, path string, headers map[string]string, body io.Reader) (string, error) {
     result := strings.ToUpper(method)
@@ -38,9 +39,12 @@ func SendHTTPRequest(method, path string, headers map[string]string, body io.Rea
 ```
 
 ## Effective Go Guidelines
+
 [CodeLingo](https://codelingo.io) automatically checks every pull request against the following guidelines from [Effective Go](https://golang.org/doc/effective_go.html).
 
 {{range .}}
+
 ### {{.title}}
+
 {{.body}}
 {{end}}

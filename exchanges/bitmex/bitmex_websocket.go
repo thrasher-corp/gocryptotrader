@@ -1,6 +1,7 @@
 package bitmex
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,9 +10,11 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
@@ -64,8 +67,8 @@ var (
 	pongChan = make(chan int, 1)
 )
 
-// WsConnector initiates a new websocket connection
-func (b *Bitmex) WsConnector() error {
+// WsConnect initiates a new websocket connection
+func (b *Bitmex) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
@@ -77,17 +80,18 @@ func (b *Bitmex) WsConnector() error {
 
 	p, err := b.WebsocketConn.ReadMessage()
 	if err != nil {
+		b.Websocket.ReadMessageErrors <- err
 		return err
 	}
 	b.Websocket.TrafficAlert <- struct{}{}
 	var welcomeResp WebsocketWelcome
-	err = common.JSONDecode(p.Raw, &welcomeResp)
+	err = json.Unmarshal(p.Raw, &welcomeResp)
 	if err != nil {
 		return err
 	}
 
 	if b.Verbose {
-		log.Debugf("Successfully connected to Bitmex %s at time: %s Limit: %d",
+		log.Debugf(log.ExchangeSys, "Successfully connected to Bitmex %s at time: %s Limit: %d",
 			welcomeResp.Info,
 			welcomeResp.Timestamp,
 			welcomeResp.Limit.Remaining)
@@ -98,7 +102,7 @@ func (b *Bitmex) WsConnector() error {
 
 	err = b.websocketSendAuth()
 	if err != nil {
-		log.Errorf("%v - authentication failed: %v", b.Name, err)
+		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", b.Name, err)
 	}
 	b.GenerateAuthenticatedSubscriptions()
 	return nil
@@ -125,12 +129,12 @@ func (b *Bitmex) wsHandleIncomingData() {
 			}
 			b.Websocket.TrafficAlert <- struct{}{}
 			message := string(resp.Raw)
-			if common.StringContains(message, "pong") {
+			if strings.Contains(message, "pong") {
 				pongChan <- 1
 				continue
 			}
 
-			if common.StringContains(message, "ping") {
+			if strings.Contains(message, "ping") {
 				err = b.WebsocketConn.SendMessage("pong")
 				if err != nil {
 					b.Websocket.DataHandler <- err
@@ -139,7 +143,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 			}
 
 			quickCapture := make(map[string]interface{})
-			err = common.JSONDecode(resp.Raw, &quickCapture)
+			err = json.Unmarshal(resp.Raw, &quickCapture)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				continue
@@ -147,7 +151,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 
 			var respError WebsocketErrorResponse
 			if _, ok := quickCapture["status"]; ok {
-				err = common.JSONDecode(resp.Raw, &respError)
+				err = json.Unmarshal(resp.Raw, &respError)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -158,7 +162,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 
 			if _, ok := quickCapture["success"]; ok {
 				var decodedResp WebsocketSubscribeResp
-				err := common.JSONDecode(resp.Raw, &decodedResp)
+				err := json.Unmarshal(resp.Raw, &decodedResp)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -168,13 +172,13 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Websocket.DataHandler <- decodedResp
 					if len(quickCapture) == 3 {
 						if b.Verbose {
-							log.Debugf("%s websocket: Successfully subscribed to %s",
+							log.Debugf(log.ExchangeSys, "%s websocket: Successfully subscribed to %s",
 								b.Name, decodedResp.Subscribe)
 						}
 					} else {
 						b.Websocket.SetCanUseAuthenticatedEndpoints(true)
 						if b.Verbose {
-							log.Debugf("%s websocket: Successfully authenticated websocket connection",
+							log.Debugf(log.ExchangeSys, "%s websocket: Successfully authenticated websocket connection",
 								b.Name)
 						}
 					}
@@ -185,7 +189,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Name, decodedResp.Subscribe)
 			} else if _, ok := quickCapture["table"]; ok {
 				var decodedResp WebsocketMainResponse
-				err := common.JSONDecode(resp.Raw, &decodedResp)
+				err := json.Unmarshal(resp.Raw, &decodedResp)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -194,15 +198,24 @@ func (b *Bitmex) wsHandleIncomingData() {
 				switch decodedResp.Table {
 				case bitmexWSOrderbookL2:
 					var orderbooks OrderBookData
-					err = common.JSONDecode(resp.Raw, &orderbooks)
+					err = json.Unmarshal(resp.Raw, &orderbooks)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
 					}
 
 					p := currency.NewPairFromString(orderbooks.Data[0].Symbol)
-					// TODO: update this to support multiple asset types
-					err = b.processOrderbook(orderbooks.Data, orderbooks.Action, p, "CONTRACT")
+					var a asset.Item
+					a, err = b.GetPairAssetType(p)
+					if err != nil {
+						b.Websocket.DataHandler <- err
+						continue
+					}
+
+					err = b.processOrderbook(orderbooks.Data,
+						orderbooks.Action,
+						p,
+						a)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -210,7 +223,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 
 				case bitmexWSTrade:
 					var trades TradeData
-					err = common.JSONDecode(resp.Raw, &trades)
+					err = json.Unmarshal(resp.Raw, &trades)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -233,7 +246,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 							Price:        trades.Data[i].Price,
 							Amount:       float64(trades.Data[i].Size),
 							CurrencyPair: currency.NewPairFromString(trades.Data[i].Symbol),
-							Exchange:     b.GetName(),
+							Exchange:     b.Name,
 							AssetType:    "CONTRACT",
 							Side:         trades.Data[i].Side,
 						}
@@ -241,7 +254,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 
 				case bitmexWSAnnouncement:
 					var announcement AnnouncementData
-					err = common.JSONDecode(resp.Raw, &announcement)
+					err = json.Unmarshal(resp.Raw, &announcement)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -254,7 +267,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Websocket.DataHandler <- announcement.Data
 				case bitmexWSAffiliate:
 					var response WsAffiliateResponse
-					err = common.JSONDecode(resp.Raw, &response)
+					err = json.Unmarshal(resp.Raw, &response)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -262,7 +275,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Websocket.DataHandler <- response
 				case bitmexWSExecution:
 					var response WsExecutionResponse
-					err = common.JSONDecode(resp.Raw, &response)
+					err = json.Unmarshal(resp.Raw, &response)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -270,7 +283,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Websocket.DataHandler <- response
 				case bitmexWSOrder:
 					var response WsOrderResponse
-					err = common.JSONDecode(resp.Raw, &response)
+					err = json.Unmarshal(resp.Raw, &response)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -278,7 +291,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Websocket.DataHandler <- response
 				case bitmexWSMargin:
 					var response WsMarginResponse
-					err = common.JSONDecode(resp.Raw, &response)
+					err = json.Unmarshal(resp.Raw, &response)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -286,7 +299,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Websocket.DataHandler <- response
 				case bitmexWSPosition:
 					var response WsPositionResponse
-					err = common.JSONDecode(resp.Raw, &response)
+					err = json.Unmarshal(resp.Raw, &response)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -294,7 +307,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Websocket.DataHandler <- response
 				case bitmexWSPrivateNotifications:
 					var response WsPrivateNotificationsResponse
-					err = common.JSONDecode(resp.Raw, &response)
+					err = json.Unmarshal(resp.Raw, &response)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -302,7 +315,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Websocket.DataHandler <- response
 				case bitmexWSTransact:
 					var response WsTransactResponse
-					err = common.JSONDecode(resp.Raw, &response)
+					err = json.Unmarshal(resp.Raw, &response)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -310,7 +323,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Websocket.DataHandler <- response
 				case bitmexWSWallet:
 					var response WsWalletResponse
-					err = common.JSONDecode(resp.Raw, &response)
+					err = json.Unmarshal(resp.Raw, &response)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -326,7 +339,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 }
 
 // ProcessOrderbook processes orderbook updates
-func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPair currency.Pair, assetType string) error { // nolint: unparam
+func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPair currency.Pair, assetType asset.Item) error { // nolint: unparam
 	if len(data) < 1 {
 		return errors.New("bitmex_websocket.go error - no orderbook data")
 	}
@@ -334,30 +347,26 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 	switch action {
 	case bitmexActionInitialData:
 		var newOrderBook orderbook.Base
-		var bids, asks []orderbook.Item
 		for i := range data {
-			if strings.EqualFold(data[i].Side, exchange.SellOrderSide.ToString()) {
-				asks = append(asks, orderbook.Item{
+			if strings.EqualFold(data[i].Side, order.Sell.String()) {
+				newOrderBook.Asks = append(newOrderBook.Asks, orderbook.Item{
 					Price:  data[i].Price,
 					Amount: float64(data[i].Size),
+					ID:     data[i].ID,
 				})
 				continue
 			}
-			bids = append(bids, orderbook.Item{
+			newOrderBook.Bids = append(newOrderBook.Bids, orderbook.Item{
 				Price:  data[i].Price,
 				Amount: float64(data[i].Size),
+				ID:     data[i].ID,
 			})
 		}
-
-		if len(bids) == 0 || len(asks) == 0 {
-			return errors.New("bitmex_websocket.go error - snapshot not initialised correctly")
-		}
-
-		newOrderBook.Asks = asks
-		newOrderBook.Bids = bids
 		newOrderBook.AssetType = assetType
 		newOrderBook.Pair = currencyPair
-		err := b.Websocket.Orderbook.LoadSnapshot(&newOrderBook, false)
+		newOrderBook.ExchangeName = b.Name
+
+		err := b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {
 			return fmt.Errorf("bitmex_websocket.go process orderbook error -  %s",
 				err)
@@ -365,31 +374,30 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 			Pair:     currencyPair,
 			Asset:    assetType,
-			Exchange: b.GetName(),
+			Exchange: b.Name,
 		}
 	default:
 		var asks, bids []orderbook.Item
 		for i := range data {
 			if strings.EqualFold(data[i].Side, "Sell") {
 				asks = append(asks, orderbook.Item{
-					Price:  data[i].Price,
 					Amount: float64(data[i].Size),
+					ID:     data[i].ID,
 				})
 				continue
 			}
 			bids = append(bids, orderbook.Item{
-				Price:  data[i].Price,
 				Amount: float64(data[i].Size),
+				ID:     data[i].ID,
 			})
 		}
 
 		err := b.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
-			Bids:         bids,
-			Asks:         asks,
-			CurrencyPair: currencyPair,
-			UpdateTime:   time.Now(),
-			AssetType:    assetType,
-			Action:       action,
+			Bids:   bids,
+			Asks:   asks,
+			Pair:   currencyPair,
+			Asset:  assetType,
+			Action: action,
 		})
 		if err != nil {
 			return err
@@ -398,7 +406,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 			Pair:     currencyPair,
 			Asset:    assetType,
-			Exchange: b.GetName(),
+			Exchange: b.Name,
 		}
 	}
 	return nil
@@ -406,7 +414,16 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitmex) GenerateDefaultSubscriptions() {
-	contracts := b.GetEnabledCurrencies()
+	assets := b.GetAssetTypes()
+	var allPairs currency.Pairs
+
+	for x := range assets {
+		contracts := b.GetEnabledPairs(assets[x])
+		for y := range contracts {
+			allPairs = allPairs.Add(contracts[y])
+		}
+	}
+
 	channels := []string{bitmexWSOrderbookL2, bitmexWSTrade}
 	subscriptions := []wshandler.WebsocketChannelSubscription{
 		{
@@ -415,10 +432,10 @@ func (b *Bitmex) GenerateDefaultSubscriptions() {
 	}
 
 	for i := range channels {
-		for j := range contracts {
+		for j := range allPairs {
 			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
-				Channel:  fmt.Sprintf("%v:%v", channels[i], contracts[j].String()),
-				Currency: contracts[j],
+				Channel:  channels[i] + ":" + allPairs[j].String(),
+				Currency: allPairs[j],
 			})
 		}
 	}
@@ -430,7 +447,7 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() {
 	if !b.Websocket.CanUseAuthenticatedEndpoints() {
 		return
 	}
-	contracts := b.GetEnabledCurrencies()
+	contracts := b.GetEnabledPairs(asset.PerpetualContract)
 	channels := []string{bitmexWSExecution,
 		bitmexWSPosition,
 	}
@@ -457,7 +474,7 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() {
 	for i := range channels {
 		for j := range contracts {
 			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
-				Channel:  fmt.Sprintf("%v:%v", channels[i], contracts[j].String()),
+				Channel:  channels[i] + ":" + contracts[j].String(),
 				Currency: contracts[j],
 			})
 		}
@@ -491,13 +508,14 @@ func (b *Bitmex) websocketSendAuth() error {
 	b.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	timestamp := time.Now().Add(time.Hour * 1).Unix()
 	newTimestamp := strconv.FormatInt(timestamp, 10)
-	hmac := common.GetHMAC(common.HashSHA256,
+	hmac := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte("GET/realtime"+newTimestamp),
-		[]byte(b.APISecret))
-	signature := common.HexEncodeToString(hmac)
+		[]byte(b.API.Credentials.Secret))
+	signature := crypto.HexEncodeToString(hmac)
+
 	var sendAuth WebsocketRequest
 	sendAuth.Command = "authKeyExpires"
-	sendAuth.Arguments = append(sendAuth.Arguments, b.APIKey, timestamp,
+	sendAuth.Arguments = append(sendAuth.Arguments, b.API.Credentials.Key, timestamp,
 		signature)
 	err := b.WebsocketConn.SendMessage(sendAuth)
 	if err != nil {

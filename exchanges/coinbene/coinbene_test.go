@@ -7,6 +7,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -14,8 +15,7 @@ const (
 	testAPIKey              = ""
 	testAPISecret           = ""
 	canManipulateRealOrders = false
-
-	btcusdt = "BTC/USDT"
+	btcusdt                 = "BTC/USDT"
 )
 
 var c Coinbene
@@ -23,42 +23,42 @@ var c Coinbene
 func TestMain(m *testing.M) {
 	c.SetDefaults()
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		log.Fatalf("Test Failed - Coinbene Setup() init error:, %v", err)
+		log.Fatal(err)
 	}
 	coinbeneConfig, err := cfg.GetExchangeConfig("Coinbene")
 	if err != nil {
-		log.Fatalf("Test Failed - Coinbene Setup() init error: %v", err)
+		log.Fatal(err)
 	}
-	coinbeneConfig.Websocket = true
-	coinbeneConfig.AuthenticatedAPISupport = true
-	coinbeneConfig.APISecret = testAPISecret
-	coinbeneConfig.APIKey = testAPIKey
-	c.Setup(&coinbeneConfig)
+	coinbeneConfig.API.AuthenticatedWebsocketSupport = true
+	coinbeneConfig.API.AuthenticatedSupport = true
+	coinbeneConfig.API.Credentials.Secret = testAPISecret
+	coinbeneConfig.API.Credentials.Key = testAPIKey
+
+	err = c.Setup(coinbeneConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	os.Exit(m.Run())
 }
 
 func areTestAPIKeysSet() bool {
-	if c.APIKey != "" && c.APIKey != "Key" &&
-		c.APISecret != "" && c.APISecret != "Secret" {
-		return true
-	}
-	return false
+	return c.AllowAuthenticatedRequest()
 }
 
-func TestFetchTicker(t *testing.T) {
+func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := c.FetchTicker(btcusdt)
+	_, err := c.GetTicker(btcusdt)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-func TestFetchOrderbooks(t *testing.T) {
+func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := c.FetchOrderbooks(btcusdt, 100)
+	_, err := c.GetOrderbook(btcusdt, 100)
 	if err != nil {
 		t.Error(err)
 	}
@@ -104,7 +104,7 @@ func TestPlaceOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := c.PlaceOrder(140, 1, btcusdt, "buy", "")
+	_, err := c.PlaceOrder(1, 1, btcusdt, order.Buy.Lower(), "")
 	if err != nil {
 		t.Error(err)
 	}

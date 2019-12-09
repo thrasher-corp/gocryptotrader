@@ -1,16 +1,19 @@
 package zb
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -55,13 +58,13 @@ func (z *ZB) WsHandleData() {
 		default:
 			resp, err := z.WebsocketConn.ReadMessage()
 			if err != nil {
-				z.Websocket.DataHandler <- err
+				z.Websocket.ReadMessageErrors <- err
 				return
 			}
 			z.Websocket.TrafficAlert <- struct{}{}
 			fixedJSON := z.wsFixInvalidJSON(resp.Raw)
 			var result Generic
-			err = common.JSONDecode(fixedJSON, &result)
+			err = json.Unmarshal(fixedJSON, &result)
 			if err != nil {
 				z.Websocket.DataHandler <- err
 				continue
@@ -75,36 +78,40 @@ func (z *ZB) WsHandleData() {
 				continue
 			}
 			switch {
-			case common.StringContains(result.Channel, "markets"):
+			case strings.Contains(result.Channel, "markets"):
 				var markets Markets
-				err := common.JSONDecode(result.Data, &markets)
+				err := json.Unmarshal(result.Data, &markets)
 				if err != nil {
 					z.Websocket.DataHandler <- err
 					continue
 				}
 
-			case common.StringContains(result.Channel, "ticker"):
-				cPair := common.SplitStrings(result.Channel, "_")
+			case strings.Contains(result.Channel, "ticker"):
+				cPair := strings.Split(result.Channel, "_")
 				var ticker WsTicker
-				err := common.JSONDecode(fixedJSON, &ticker)
+				err := json.Unmarshal(fixedJSON, &ticker)
 				if err != nil {
 					z.Websocket.DataHandler <- err
 					continue
 				}
 
 				z.Websocket.DataHandler <- wshandler.TickerData{
-					Timestamp:  time.Unix(0, ticker.Date),
-					Pair:       currency.NewPairFromString(cPair[0]),
-					AssetType:  orderbook.Spot,
-					Exchange:   z.GetName(),
-					ClosePrice: ticker.Data.Last,
-					HighPrice:  ticker.Data.High,
-					LowPrice:   ticker.Data.Low,
+					Exchange:  z.Name,
+					Close:     ticker.Data.Last,
+					Volume:    ticker.Data.Volume24Hr,
+					High:      ticker.Data.High,
+					Low:       ticker.Data.Low,
+					Last:      ticker.Data.Last,
+					Bid:       ticker.Data.Buy,
+					Ask:       ticker.Data.Sell,
+					Timestamp: time.Unix(0, ticker.Date*int64(time.Millisecond)),
+					AssetType: asset.Spot,
+					Pair:      currency.NewPairFromString(cPair[0]),
 				}
 
-			case common.StringContains(result.Channel, "depth"):
+			case strings.Contains(result.Channel, "depth"):
 				var depth WsDepth
-				err := common.JSONDecode(fixedJSON, &depth)
+				err := json.Unmarshal(fixedJSON, &depth)
 				if err != nil {
 					z.Websocket.DataHandler <- err
 					continue
@@ -112,32 +119,30 @@ func (z *ZB) WsHandleData() {
 
 				var asks []orderbook.Item
 				for i := range depth.Asks {
-					ask := depth.Asks[i].([]interface{})
 					asks = append(asks, orderbook.Item{
-						Amount: ask[1].(float64),
-						Price:  ask[0].(float64),
+						Amount: depth.Asks[i][1].(float64),
+						Price:  depth.Asks[i][0].(float64),
 					})
 				}
 
 				var bids []orderbook.Item
 				for i := range depth.Bids {
-					bid := depth.Bids[i].([]interface{})
 					bids = append(bids, orderbook.Item{
-						Amount: bid[1].(float64),
-						Price:  bid[0].(float64),
+						Amount: depth.Bids[i][1].(float64),
+						Price:  depth.Bids[i][0].(float64),
 					})
 				}
 
-				channelInfo := common.SplitStrings(result.Channel, "_")
+				channelInfo := strings.Split(result.Channel, "_")
 				cPair := currency.NewPairFromString(channelInfo[0])
 				var newOrderBook orderbook.Base
 				newOrderBook.Asks = asks
 				newOrderBook.Bids = bids
-				newOrderBook.AssetType = orderbook.Spot
+				newOrderBook.AssetType = asset.Spot
 				newOrderBook.Pair = cPair
+				newOrderBook.ExchangeName = z.Name
 
-				err = z.Websocket.Orderbook.LoadSnapshot(&newOrderBook,
-					true)
+				err = z.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 				if err != nil {
 					z.Websocket.DataHandler <- err
 					continue
@@ -145,13 +150,13 @@ func (z *ZB) WsHandleData() {
 
 				z.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 					Pair:     cPair,
-					Asset:    orderbook.Spot,
-					Exchange: z.GetName(),
+					Asset:    asset.Spot,
+					Exchange: z.Name,
 				}
 
-			case common.StringContains(result.Channel, "trades"):
+			case strings.Contains(result.Channel, "trades"):
 				var trades WsTrades
-				err := common.JSONDecode(fixedJSON, &trades)
+				err := json.Unmarshal(fixedJSON, &trades)
 				if err != nil {
 					z.Websocket.DataHandler <- err
 					continue
@@ -161,13 +166,14 @@ func (z *ZB) WsHandleData() {
 					continue
 				}
 				t := trades.Data[len(trades.Data)-1]
-				channelInfo := common.SplitStrings(result.Channel, "_")
+
+				channelInfo := strings.Split(result.Channel, "_")
 				cPair := currency.NewPairFromString(channelInfo[0])
 				z.Websocket.DataHandler <- wshandler.TradeData{
-					Timestamp:    time.Unix(0, t.Date),
+					Timestamp:    time.Unix(0, t.Date*int64(time.Millisecond)),
 					CurrencyPair: cPair,
-					AssetType:    orderbook.Spot,
-					Exchange:     z.GetName(),
+					AssetType:    asset.Spot,
+					Exchange:     z.Name,
 					EventTime:    t.Date,
 					Price:        t.Price,
 					Amount:       t.Amount,
@@ -181,40 +187,6 @@ func (z *ZB) WsHandleData() {
 	}
 }
 
-var wsErrCodes = map[int64]string{
-	1000: "Successful call",
-	1001: "General error message",
-	1002: "internal error",
-	1003: "Verification failed",
-	1004: "Financial security password lock",
-	1005: "The fund security password is incorrect. Please confirm and re-enter.",
-	1006: "Real-name certification is awaiting review or review",
-	1007: "Channel is empty",
-	1008: "Event is empty",
-	1009: "This interface is being maintained",
-	1011: "Not open yet",
-	1012: "Insufficient permissions",
-	1013: "Can not trade, if you have any questions, please contact online customer service",
-	1014: "Cannot be sold during the pre-sale period",
-	2002: "Insufficient balance in Bitcoin account",
-	2003: "Insufficient balance of Litecoin account",
-	2005: "Insufficient balance in Ethereum account",
-	2006: "Insufficient balance in ETC currency account",
-	2007: "Insufficient balance of BTS currency account",
-	2008: "Insufficient balance in EOS currency account",
-	2009: "Insufficient account balance",
-	3001: "Pending order not found",
-	3002: "Invalid amount",
-	3003: "Invalid quantity",
-	3004: "User does not exist",
-	3005: "Invalid parameter",
-	3006: "Invalid IP or inconsistent with the bound IP",
-	3007: "Request time has expired",
-	3008: "Transaction history not found",
-	4001: "API interface is locked",
-	4002: "Request too frequently",
-}
-
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (z *ZB) GenerateDefaultSubscriptions() {
 	var subscriptions []wshandler.WebsocketChannelSubscription
@@ -223,7 +195,7 @@ func (z *ZB) GenerateDefaultSubscriptions() {
 		Channel: "markets",
 	})
 	channels := []string{"%s_ticker", "%s_depth", "%s_trades"}
-	enabledCurrencies := z.GetEnabledCurrencies()
+	enabledCurrencies := z.GetEnabledPairs(asset.Spot)
 	for i := range channels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = ""
@@ -246,14 +218,14 @@ func (z *ZB) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription
 }
 
 func (z *ZB) wsGenerateSignature(request interface{}) string {
-	jsonResponse, err := common.JSONEncode(request)
+	jsonResponse, err := json.Marshal(request)
 	if err != nil {
-		log.Error(err)
+		log.Error(log.ExchangeSys, err)
 		return ""
 	}
-	hmac := common.GetHMAC(common.HashMD5,
+	hmac := crypto.GetHMAC(crypto.HashMD5,
 		jsonResponse,
-		[]byte(common.Sha1ToHex(z.APISecret)))
+		[]byte(crypto.Sha1ToHex(z.API.Credentials.Secret)))
 	return fmt.Sprintf("%x", hmac)
 }
 
@@ -265,10 +237,10 @@ func (z *ZB) wsFixInvalidJSON(json []byte) []byte {
 		return json
 	}
 	// Remove first quote character
-	capturedInvalidZBJSON := common.ReplaceString(string(matchingResults), "\"", "", 1)
+	capturedInvalidZBJSON := strings.Replace(string(matchingResults), "\"", "", 1)
 	// Remove last quote character
 	fixedJSON := capturedInvalidZBJSON[:len(capturedInvalidZBJSON)-1]
-	return []byte(common.ReplaceString(string(json), string(matchingResults), fixedJSON, 1))
+	return []byte(strings.Replace(string(json), string(matchingResults), fixedJSON, 1))
 }
 
 func (z *ZB) wsAddSubUser(username, password string) (*WsGetSubUserListResponse, error) {
@@ -282,7 +254,7 @@ func (z *ZB) wsAddSubUser(username, password string) (*WsGetSubUserListResponse,
 	}
 	request.Channel = "addSubUser"
 	request.Event = zWebsocketAddChannel
-	request.Accesskey = z.APIKey
+	request.Accesskey = z.API.Credentials.Key
 	request.No = z.WebsocketConn.GenerateMessageID(true)
 	request.Sign = z.wsGenerateSignature(request)
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
@@ -290,7 +262,7 @@ func (z *ZB) wsAddSubUser(username, password string) (*WsGetSubUserListResponse,
 		return nil, err
 	}
 	var genericResponse Generic
-	err = common.JSONDecode(resp, &genericResponse)
+	err = json.Unmarshal(resp, &genericResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +270,7 @@ func (z *ZB) wsAddSubUser(username, password string) (*WsGetSubUserListResponse,
 		return nil, fmt.Errorf("%v request failed, message: %v, error code: %v", z.Name, genericResponse.Message, wsErrCodes[genericResponse.Code])
 	}
 	var response WsGetSubUserListResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +284,7 @@ func (z *ZB) wsGetSubUserList() (*WsGetSubUserListResponse, error) {
 	request := WsAuthenticatedRequest{}
 	request.Channel = "getSubUserList"
 	request.Event = zWebsocketAddChannel
-	request.Accesskey = z.APIKey
+	request.Accesskey = z.API.Credentials.Key
 	request.No = z.WebsocketConn.GenerateMessageID(true)
 	request.Sign = z.wsGenerateSignature(request)
 
@@ -321,7 +293,7 @@ func (z *ZB) wsGetSubUserList() (*WsGetSubUserListResponse, error) {
 		return nil, err
 	}
 	var response WsGetSubUserListResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -344,7 +316,7 @@ func (z *ZB) wsDoTransferFunds(pair currency.Code, amount float64, fromUserName,
 	}
 	request.Channel = "doTransferFunds"
 	request.Event = zWebsocketAddChannel
-	request.Accesskey = z.APIKey
+	request.Accesskey = z.API.Credentials.Key
 	request.Sign = z.wsGenerateSignature(request)
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
@@ -352,7 +324,7 @@ func (z *ZB) wsDoTransferFunds(pair currency.Code, amount float64, fromUserName,
 		return nil, err
 	}
 	var response WsRequestResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -377,7 +349,7 @@ func (z *ZB) wsCreateSubUserKey(assetPerm, entrustPerm, leverPerm, moneyPerm boo
 	}
 	request.Channel = "createSubUserKey"
 	request.Event = zWebsocketAddChannel
-	request.Accesskey = z.APIKey
+	request.Accesskey = z.API.Credentials.Key
 	request.Sign = z.wsGenerateSignature(request)
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
@@ -385,7 +357,7 @@ func (z *ZB) wsCreateSubUserKey(assetPerm, entrustPerm, leverPerm, moneyPerm boo
 		return nil, err
 	}
 	var response WsRequestResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -405,9 +377,9 @@ func (z *ZB) wsSubmitOrder(pair currency.Pair, amount, price float64, tradeType 
 		TradeType: tradeType,
 		No:        z.WebsocketConn.GenerateMessageID(true),
 	}
-	request.Channel = fmt.Sprintf("%v_order", pair.String())
+	request.Channel = pair.String() + "_order"
 	request.Event = zWebsocketAddChannel
-	request.Accesskey = z.APIKey
+	request.Accesskey = z.API.Credentials.Key
 	request.Sign = z.wsGenerateSignature(request)
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
@@ -415,7 +387,7 @@ func (z *ZB) wsSubmitOrder(pair currency.Pair, amount, price float64, tradeType 
 		return nil, err
 	}
 	var response WsSubmitOrderResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -433,9 +405,9 @@ func (z *ZB) wsCancelOrder(pair currency.Pair, orderID int64) (*WsCancelOrderRes
 		ID: orderID,
 		No: z.WebsocketConn.GenerateMessageID(true),
 	}
-	request.Channel = fmt.Sprintf("%v_cancelorder", pair.String())
+	request.Channel = pair.String() + "_cancelorder"
 	request.Event = zWebsocketAddChannel
-	request.Accesskey = z.APIKey
+	request.Accesskey = z.API.Credentials.Key
 	request.Sign = z.wsGenerateSignature(request)
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
@@ -443,7 +415,7 @@ func (z *ZB) wsCancelOrder(pair currency.Pair, orderID int64) (*WsCancelOrderRes
 		return nil, err
 	}
 	var response WsCancelOrderResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -461,9 +433,9 @@ func (z *ZB) wsGetOrder(pair currency.Pair, orderID int64) (*WsGetOrderResponse,
 		ID: orderID,
 		No: z.WebsocketConn.GenerateMessageID(true),
 	}
-	request.Channel = fmt.Sprintf("%v_getorder", pair.String())
+	request.Channel = pair.String() + "_getorder"
 	request.Event = zWebsocketAddChannel
-	request.Accesskey = z.APIKey
+	request.Accesskey = z.API.Credentials.Key
 	request.Sign = z.wsGenerateSignature(request)
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
@@ -471,7 +443,7 @@ func (z *ZB) wsGetOrder(pair currency.Pair, orderID int64) (*WsGetOrderResponse,
 		return nil, err
 	}
 	var response WsGetOrderResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -490,16 +462,16 @@ func (z *ZB) wsGetOrders(pair currency.Pair, pageIndex, tradeType int64) (*WsGet
 		TradeType: tradeType,
 		No:        z.WebsocketConn.GenerateMessageID(true),
 	}
-	request.Channel = fmt.Sprintf("%v_getorders", pair.String())
+	request.Channel = pair.String() + "_getorders"
 	request.Event = zWebsocketAddChannel
-	request.Accesskey = z.APIKey
+	request.Accesskey = z.API.Credentials.Key
 	request.Sign = z.wsGenerateSignature(request)
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
 	if err != nil {
 		return nil, err
 	}
 	var response WsGetOrdersResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -518,9 +490,9 @@ func (z *ZB) wsGetOrdersIgnoreTradeType(pair currency.Pair, pageIndex, pageSize 
 		PageSize:  pageSize,
 		No:        z.WebsocketConn.GenerateMessageID(true),
 	}
-	request.Channel = fmt.Sprintf("%v_getordersignoretradetype", pair.String())
+	request.Channel = pair.String() + "_getordersignoretradetype"
 	request.Event = zWebsocketAddChannel
-	request.Accesskey = z.APIKey
+	request.Accesskey = z.API.Credentials.Key
 	request.Sign = z.wsGenerateSignature(request)
 
 	resp, err := z.WebsocketConn.SendMessageReturnResponse(request.No, request)
@@ -528,7 +500,7 @@ func (z *ZB) wsGetOrdersIgnoreTradeType(pair currency.Pair, pageIndex, pageSize 
 		return nil, err
 	}
 	var response WsGetOrdersIgnoreTradeTypeResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -545,7 +517,7 @@ func (z *ZB) wsGetAccountInfoRequest() (*WsGetAccountInfoResponse, error) {
 	request := WsAuthenticatedRequest{
 		Channel:   "getaccountinfo",
 		Event:     zWebsocketAddChannel,
-		Accesskey: z.APIKey,
+		Accesskey: z.API.Credentials.Key,
 		No:        z.WebsocketConn.GenerateMessageID(true),
 	}
 	request.Sign = z.wsGenerateSignature(request)
@@ -555,7 +527,7 @@ func (z *ZB) wsGetAccountInfoRequest() (*WsGetAccountInfoResponse, error) {
 		return nil, err
 	}
 	var response WsGetAccountInfoResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, err
 	}

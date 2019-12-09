@@ -19,42 +19,42 @@ func TestMatchURLVals(t *testing.T) {
 	var expected = false
 	received := MatchURLVals(testVal, emptyVal)
 	if received != expected {
-		t.Errorf("Test Failed - MatchURLVals error expected %v received %v",
+		t.Errorf("MatchURLVals error expected %v received %v",
 			expected,
 			received)
 	}
 
 	received = MatchURLVals(emptyVal, testVal)
 	if received != expected {
-		t.Errorf("Test Failed - MatchURLVals error expected %v received %v",
+		t.Errorf("MatchURLVals error expected %v received %v",
 			expected,
 			received)
 	}
 
 	received = MatchURLVals(testVal, testVal2)
 	if received != expected {
-		t.Errorf("Test Failed - MatchURLVals error expected %v received %v",
+		t.Errorf("MatchURLVals error expected %v received %v",
 			expected,
 			received)
 	}
 
 	received = MatchURLVals(testVal2, testVal)
 	if received != expected {
-		t.Errorf("Test Failed - MatchURLVals error expected %v received %v",
+		t.Errorf("MatchURLVals error expected %v received %v",
 			expected,
 			received)
 	}
 
 	received = MatchURLVals(testVal, testVal3)
 	if received != expected {
-		t.Errorf("Test Failed - MatchURLVals error expected %v received %v",
+		t.Errorf("MatchURLVals error expected %v received %v",
 			expected,
 			received)
 	}
 
 	received = MatchURLVals(nonceVal1, testVal2)
 	if received != expected {
-		t.Errorf("Test Failed - MatchURLVals error expected %v received %v",
+		t.Errorf("MatchURLVals error expected %v received %v",
 			expected,
 			received)
 	}
@@ -62,21 +62,21 @@ func TestMatchURLVals(t *testing.T) {
 	expected = true
 	received = MatchURLVals(emptyVal, emptyVal)
 	if received != expected {
-		t.Errorf("Test Failed - MatchURLVals error expected %v received %v",
+		t.Errorf("MatchURLVals error expected %v received %v",
 			expected,
 			received)
 	}
 
 	received = MatchURLVals(testVal, testVal)
 	if received != expected {
-		t.Errorf("Test Failed - MatchURLVals error expected %v received %v",
+		t.Errorf("MatchURLVals error expected %v received %v",
 			expected,
 			received)
 	}
 
 	received = MatchURLVals(nonceVal1, nonceVal2)
 	if received != expected {
-		t.Errorf("Test Failed - MatchURLVals error expected %v received %v",
+		t.Errorf("MatchURLVals error expected %v received %v",
 			expected,
 			received)
 	}
@@ -105,12 +105,12 @@ func TestDeriveURLValsFromJSON(t *testing.T) {
 
 	payload, err := json.Marshal(test1)
 	if err != nil {
-		t.Error("Test Failed - marshal error", err)
+		t.Error("marshal error", err)
 	}
 
 	_, err = DeriveURLValsFromJSONMap(payload)
 	if err != nil {
-		t.Error("Test Failed - DeriveURLValsFromJSON error", err)
+		t.Error("DeriveURLValsFromJSON error", err)
 	}
 
 	test2 := map[string]string{
@@ -125,16 +125,16 @@ func TestDeriveURLValsFromJSON(t *testing.T) {
 
 	payload, err = json.Marshal(test2)
 	if err != nil {
-		t.Error("Test Failed - marshal error", err)
+		t.Error("marshal error", err)
 	}
 
 	vals, err := DeriveURLValsFromJSONMap(payload)
 	if err != nil {
-		t.Error("Test Failed - DeriveURLValsFromJSON error", err)
+		t.Error("DeriveURLValsFromJSON error", err)
 	}
 
 	if vals["val"][0] != "1" {
-		t.Error("Test Failed - DeriveURLValsFromJSON unexpected value",
+		t.Error("DeriveURLValsFromJSON unexpected value",
 			vals["val"][0])
 	}
 }

@@ -8,7 +8,7 @@ tenets:
   - import: codelingo/effective-go/unnecessary-else
   - import: codelingo/code-review-comments/declare-empty-slice 
   - import: codelingo/effective-go/defer-close-file
-  - import: codelingo/effective-go/comment-first-word-when-empty
+  # - import: codelingo/effective-go/comment-first-word-when-empty # this has been disabled temporarily
   - name:  missing-stop-ticker
     actions:
       codelingo/review:

@@ -1,5 +1,36 @@
 package fixer
 
+import (
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+)
+
+const (
+	fixerAPIFree = iota
+	fixerAPIBasic
+	fixerAPIProfessional
+	fixerAPIProfessionalPlus
+	fixerAPIEnterprise
+
+	fixerAPI                 = "http://data.fixer.io/api/"
+	fixerAPISSL              = "https://data.fixer.io/api/"
+	fixerAPILatest           = "latest"
+	fixerAPIConvert          = "convert"
+	fixerAPITimeSeries       = "timeseries"
+	fixerAPIFluctuation      = "fluctuation"
+	fixerSupportedCurrencies = "symbols"
+
+	authRate   = 0
+	unAuthRate = 0
+)
+
+// Fixer is a foreign exchange rate provider at https://fixer.io/
+// NOTE DEFAULT BASE CURRENCY IS EUR upgrade to basic to change
+type Fixer struct {
+	base.Base
+	Requester *request.Requester
+}
+
 // Rates contains the data fields for the currencies you have requested.
 type Rates struct {
 	Success    bool               `json:"success"`

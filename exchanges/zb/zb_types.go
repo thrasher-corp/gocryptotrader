@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // OrderbookResponse holds the orderbook data for a symbol
@@ -16,7 +16,7 @@ type OrderbookResponse struct {
 
 // AccountsResponseCoin holds the accounts coin details
 type AccountsResponseCoin struct {
-	Freez       string `json:"freez"`       // 冻结资产
+	Freeze      string `json:"freez"`       // 冻结资产
 	EnName      string `json:"enName"`      // 币种英文名
 	UnitDecimal int    `json:"unitDecimal"` // 保留小数位
 	UnName      string `json:"cnName"`      // 币种中文名
@@ -44,6 +44,9 @@ type Order struct {
 	TradeDate   int     `json:"trade_date"`
 	TradeMoney  float64 `json:"trade_money"`
 	Type        int64   `json:"type"`
+	Fees        float64 `json:"fees,omitempty"`
+	TradePrice  float64 `json:"trade_price,omitempty"`
+	No          int64   `json:"no,string,omitempty"`
 }
 
 // AccountsResponse 用户基本信息
@@ -72,12 +75,12 @@ type TickerResponse struct {
 
 // TickerChildResponse holds the ticker child response data
 type TickerChildResponse struct {
-	Vol  float64 `json:"vol,string"`  // 成交量(最近的24小时)
-	Last float64 `json:"last,string"` // 最新成交价
-	Sell float64 `json:"sell,string"` // 卖一价
-	Buy  float64 `json:"buy,string"`  // 买一价
-	High float64 `json:"high,string"` // 最高价
-	Low  float64 `json:"low,string"`  // 最低价
+	Volume float64 `json:"vol,string"`  // 成交量(最近的24小时)
+	Last   float64 `json:"last,string"` // 最新成交价
+	Sell   float64 `json:"sell,string"` // 卖一价
+	Buy    float64 `json:"buy,string"`  // 买一价
+	High   float64 `json:"high,string"` // 最高价
+	Low    float64 `json:"low,string"`  // 最低价
 }
 
 // SpotNewOrderRequestParamsType ZB 交易类型
@@ -241,7 +244,7 @@ var WithdrawalFees = map[currency.Code]float64{
 }
 
 // orderSideMap holds order type info based on Alphapoint data
-var orderSideMap = map[int64]exchange.OrderSide{
-	0: exchange.BuyOrderSide,
-	1: exchange.SellOrderSide,
+var orderSideMap = map[int64]order.Side{
+	0: order.Buy,
+	1: order.Sell,
 }

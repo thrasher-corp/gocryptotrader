@@ -1,8 +1,10 @@
 package coinut
 
 import (
+	"sync"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // GenericResponse is the generic response you will get from coinut
@@ -17,7 +19,7 @@ type GenericResponse struct {
 type InstrumentBase struct {
 	Base          string `json:"base"`
 	DecimalPlaces int    `json:"decimal_places"`
-	InstID        int    `json:"inst_id"`
+	InstID        int64  `json:"inst_id"`
 	Quote         string `json:"quote"`
 }
 
@@ -28,15 +30,22 @@ type Instruments struct {
 
 // Ticker holds ticker information
 type Ticker struct {
-	HighestBuy   float64 `json:"highest_buy,string"`
-	InstrumentID int     `json:"inst_id"`
-	Last         float64 `json:"last,string"`
-	LowestSell   float64 `json:"lowest_sell,string"`
-	OpenInterest float64 `json:"open_interest,string"`
-	Timestamp    float64 `json:"timestamp"`
-	TransID      int64   `json:"trans_id"`
-	Volume       float64 `json:"volume,string"`
-	Volume24     float64 `json:"volume24,string"`
+	High24        float64 `json:"high24,string"`
+	HighestBuy    float64 `json:"highest_buy,string"`
+	InstrumentID  int     `json:"inst_id"`
+	Last          float64 `json:"last,string"`
+	Low24         float64 `json:"low24,string"`
+	LowestSell    float64 `json:"lowest_sell,string"`
+	PrevTransID   int64   `json:"prev_trans_id"`
+	PriceChange24 float64 `json:"price_change_24,string"`
+	Reply         string  `json:"reply"`
+	OpenInterest  float64 `json:"open_interest,string"`
+	Timestamp     int64   `json:"timestamp"`
+	TransID       int64   `json:"trans_id"`
+	Volume        float64 `json:"volume,string"`
+	Volume24      float64 `json:"volume24,string"`
+	Volume24Quote float64 `json:"volume24_quote,string"`
+	VolumeQuote   float64 `json:"volume_quote,string"`
 }
 
 // OrderbookBase is a sub-type holding price and quantity
@@ -167,7 +176,7 @@ type CancelOrdersResponse struct {
 	Results []struct {
 		OrderID      int64  `json:"order_id"`
 		Status       string `json:"status"`
-		InstrumentID int    `json:"inst_id"`
+		InstrumentID int64  `json:"inst_id"`
 	} `json:"results"`
 }
 
@@ -280,16 +289,23 @@ type wsHeartbeatResp struct {
 
 // WsTicker defines the resp for ticker updates from the websocket connection
 type WsTicker struct {
-	HighestBuy   float64 `json:"highest_buy,string"`
-	InstID       int64   `json:"inst_id"`
-	Last         float64 `json:"last,string"`
-	LowestSell   float64 `json:"lowest_sell,string"`
-	OpenInterest float64 `json:"open_interest,string"`
-	Reply        string  `json:"reply"`
-	Timestamp    int64   `json:"timestamp"`
-	TransID      int64   `json:"trans_id"`
-	Volume       float64 `json:"volume,string"`
-	Volume24H    float64 `json:"volume24,string"`
+	High24        float64  `json:"high24,string"`
+	HighestBuy    float64  `json:"highest_buy,string"`
+	InstID        int64    `json:"inst_id"`
+	Last          float64  `json:"last,string"`
+	Low24         float64  `json:"low24,string"`
+	LowestSell    float64  `json:"lowest_sell,string"`
+	Nonce         int64    `json:"nonce"`
+	PrevTransID   int64    `json:"prev_trans_id"`
+	PriceChange24 float64  `json:"price_change_24,string"`
+	Reply         string   `json:"reply"`
+	Status        []string `json:"status"`
+	Timestamp     int64    `json:"timestamp"`
+	TransID       int64    `json:"trans_id"`
+	Volume        float64  `json:"volume,string"`
+	Volume24      float64  `json:"volume24,string"`
+	Volume24Quote float64  `json:"volume24_quote,string"`
+	VolumeQuote   float64  `json:"volume_quote,string"`
 }
 
 // WsOrderbookSnapshot defines the resp for orderbook snapshot updates from
@@ -355,10 +371,10 @@ type WsTradeUpdate struct {
 
 // WsInstrumentList defines instrument list
 type WsInstrumentList struct {
-	Spot   map[string][]WsSupportedCurrency `json:"SPOT"`
-	Nonce  int64                            `json:"nonce"`
-	Reply  string                           `json:"inst_list"`
-	Status []interface{}                    `json:"status"`
+	Spot   map[string][]InstrumentBase `json:"SPOT"`
+	Nonce  int64                       `json:"nonce,omitempty"`
+	Reply  string                      `json:"inst_list,omitempty"`
+	Status []interface{}               `json:"status,omitempty"`
 }
 
 // WsSupportedCurrency defines supported currency on the exchange
@@ -467,7 +483,7 @@ type WsSubmitOrderRequest struct {
 // WsSubmitOrderParameters ws request parameters
 type WsSubmitOrderParameters struct {
 	Currency      currency.Pair
-	Side          exchange.OrderSide
+	Side          order.Side
 	Amount, Price float64
 	OrderID       int64
 }
@@ -519,14 +535,15 @@ type WsOrderFilledResponse struct {
 
 // WsOrderData ws response data
 type WsOrderData struct {
-	ClientOrdID int64   `json:"client_ord_id"`
-	InstID      int64   `json:"inst_id"`
-	OpenQty     float64 `json:"open_qty,string"`
-	OrderID     int64   `json:"order_id"`
-	Price       float64 `json:"price,string"`
-	Qty         float64 `json:"qty,string"`
-	Side        string  `json:"side"`
-	Timestamp   int64   `json:"timestamp"`
+	ClientOrdID int64    `json:"client_ord_id"`
+	InstID      int64    `json:"inst_id"`
+	OpenQty     float64  `json:"open_qty,string"`
+	OrderID     int64    `json:"order_id"`
+	Price       float64  `json:"price,string"`
+	Qty         float64  `json:"qty,string"`
+	Side        string   `json:"side"`
+	Timestamp   int64    `json:"timestamp"`
+	Status      []string `json:"status"`
 }
 
 // WsOrderFilledCommissionData ws response data
@@ -639,22 +656,28 @@ type WsNewOrderResponse struct {
 
 // WsGetAccountBalanceResponse contains values of each currency
 type WsGetAccountBalanceResponse struct {
-	BCH     string   `json:"BCH"`
-	BTC     string   `json:"BTC"`
-	BTG     string   `json:"BTG"`
-	CAD     string   `json:"CAD"`
-	ETC     string   `json:"ETC"`
-	ETH     string   `json:"ETH"`
-	LCH     string   `json:"LCH"`
-	LTC     string   `json:"LTC"`
-	MYR     string   `json:"MYR"`
-	SGD     string   `json:"SGD"`
-	USD     string   `json:"USD"`
-	USDT    string   `json:"USDT"`
-	XMR     string   `json:"XMR"`
-	ZEC     string   `json:"ZEC"`
+	BCH     float64  `json:"BCH,string"`
+	BTC     float64  `json:"BTC,string"`
+	BTG     float64  `json:"BTG,string"`
+	CAD     float64  `json:"CAD,string"`
+	ETC     float64  `json:"ETC,string"`
+	ETH     float64  `json:"ETH,string"`
+	LCH     float64  `json:"LCH,string"`
+	LTC     float64  `json:"LTC,string"`
+	MYR     float64  `json:"MYR,string"`
+	SGD     float64  `json:"SGD,string"`
+	USD     float64  `json:"USD,string"`
+	USDT    float64  `json:"USDT,string"`
+	XMR     float64  `json:"XMR,string"`
+	ZEC     float64  `json:"ZEC,string"`
 	Nonce   int64    `json:"nonce"`
 	Reply   string   `json:"reply"`
 	Status  []string `json:"status"`
 	TransID int64    `json:"trans_id"`
+}
+
+type instrumentMap struct {
+	Instruments map[string]int64
+	Loaded      bool
+	m           sync.Mutex
 }

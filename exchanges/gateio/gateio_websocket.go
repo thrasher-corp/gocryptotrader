@@ -1,6 +1,7 @@
 package gateio
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,9 +10,10 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
@@ -37,7 +39,8 @@ func (g *Gateio) WsConnect() error {
 	go g.WsHandleData()
 	_, err = g.wsServerSignIn()
 	if err != nil {
-		log.Errorf("%v - authentication failed: %v", g.Name, err)
+		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", g.Name, err)
+		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	g.GenerateAuthenticatedSubscriptions()
 	g.GenerateDefaultSubscriptions()
@@ -50,11 +53,11 @@ func (g *Gateio) wsServerSignIn() (*WebsocketAuthenticationResponse, error) {
 	}
 	nonce := int(time.Now().Unix() * 1000)
 	sigTemp := g.GenerateSignature(strconv.Itoa(nonce))
-	signature := common.Base64Encode(sigTemp)
+	signature := crypto.Base64Encode(sigTemp)
 	signinWsRequest := WebsocketRequest{
 		ID:     g.WebsocketConn.GenerateMessageID(true),
 		Method: "server.sign",
-		Params: []interface{}{g.APIKey, signature, nonce},
+		Params: []interface{}{g.API.Credentials.Key, signature, nonce},
 	}
 	resp, err := g.WebsocketConn.SendMessageReturnResponse(signinWsRequest.ID, signinWsRequest)
 	if err != nil {
@@ -62,7 +65,7 @@ func (g *Gateio) wsServerSignIn() (*WebsocketAuthenticationResponse, error) {
 		return nil, err
 	}
 	var response WebsocketAuthenticationResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return nil, err
@@ -90,12 +93,12 @@ func (g *Gateio) WsHandleData() {
 		default:
 			resp, err := g.WebsocketConn.ReadMessage()
 			if err != nil {
-				g.Websocket.DataHandler <- err
+				g.Websocket.ReadMessageErrors <- err
 				return
 			}
 			g.Websocket.TrafficAlert <- struct{}{}
 			var result WebsocketResponse
-			err = common.JSONDecode(resp.Raw, &result)
+			err = json.Unmarshal(resp.Raw, &result)
 			if err != nil {
 				g.Websocket.DataHandler <- err
 				continue
@@ -107,7 +110,7 @@ func (g *Gateio) WsHandleData() {
 			}
 
 			if result.Error.Code != 0 {
-				if common.StringContains(result.Error.Message, "authentication") {
+				if strings.Contains(result.Error.Message, "authentication") {
 					g.Websocket.DataHandler <- fmt.Errorf("%v - authentication failed: %v", g.Name, err)
 					g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 					continue
@@ -118,43 +121,44 @@ func (g *Gateio) WsHandleData() {
 			}
 
 			switch {
-			case common.StringContains(result.Method, "ticker"):
+			case strings.Contains(result.Method, "ticker"):
 				var ticker WebsocketTicker
 				var c string
-				err = common.JSONDecode(result.Params[1], &ticker)
+				err = json.Unmarshal(result.Params[1], &ticker)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
 				}
 
-				err = common.JSONDecode(result.Params[0], &c)
+				err = json.Unmarshal(result.Params[0], &c)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
 				}
 
 				g.Websocket.DataHandler <- wshandler.TickerData{
-					Timestamp:  time.Now(),
-					Pair:       currency.NewPairFromString(c),
-					AssetType:  orderbook.Spot,
-					Exchange:   g.GetName(),
-					ClosePrice: ticker.Close,
-					Quantity:   ticker.BaseVolume,
-					OpenPrice:  ticker.Open,
-					HighPrice:  ticker.High,
-					LowPrice:   ticker.Low,
+					Exchange:    g.Name,
+					Open:        ticker.Open,
+					Close:       ticker.Close,
+					Volume:      ticker.BaseVolume,
+					QuoteVolume: ticker.QuoteVolume,
+					High:        ticker.High,
+					Low:         ticker.Low,
+					Last:        ticker.Last,
+					AssetType:   asset.Spot,
+					Pair:        currency.NewPairFromString(c),
 				}
 
-			case common.StringContains(result.Method, "trades"):
+			case strings.Contains(result.Method, "trades"):
 				var trades []WebsocketTrade
 				var c string
-				err = common.JSONDecode(result.Params[1], &trades)
+				err = json.Unmarshal(result.Params[1], &trades)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
 				}
 
-				err = common.JSONDecode(result.Params[0], &c)
+				err = json.Unmarshal(result.Params[0], &c)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
@@ -164,31 +168,31 @@ func (g *Gateio) WsHandleData() {
 					g.Websocket.DataHandler <- wshandler.TradeData{
 						Timestamp:    time.Now(),
 						CurrencyPair: currency.NewPairFromString(c),
-						AssetType:    orderbook.Spot,
-						Exchange:     g.GetName(),
+						AssetType:    asset.Spot,
+						Exchange:     g.Name,
 						Price:        trades[i].Price,
 						Amount:       trades[i].Amount,
 						Side:         trades[i].Type,
 					}
 				}
 
-			case common.StringContains(result.Method, "depth"):
+			case strings.Contains(result.Method, "depth"):
 				var IsSnapshot bool
 				var c string
 				var data = make(map[string][][]string)
-				err = common.JSONDecode(result.Params[0], &IsSnapshot)
+				err = json.Unmarshal(result.Params[0], &IsSnapshot)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
 				}
 
-				err = common.JSONDecode(result.Params[2], &c)
+				err = json.Unmarshal(result.Params[2], &c)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
 				}
 
-				err = common.JSONDecode(result.Params[1], &data)
+				err = json.Unmarshal(result.Params[1], &data)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
@@ -232,22 +236,22 @@ func (g *Gateio) WsHandleData() {
 					var newOrderBook orderbook.Base
 					newOrderBook.Asks = asks
 					newOrderBook.Bids = bids
-					newOrderBook.AssetType = orderbook.Spot
+					newOrderBook.AssetType = asset.Spot
 					newOrderBook.Pair = currency.NewPairFromString(c)
+					newOrderBook.ExchangeName = g.Name
 
-					err = g.Websocket.Orderbook.LoadSnapshot(&newOrderBook,
-						false)
+					err = g.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 					if err != nil {
 						g.Websocket.DataHandler <- err
 					}
 				} else {
 					err = g.Websocket.Orderbook.Update(
 						&wsorderbook.WebsocketOrderbookUpdate{
-							Asks:         asks,
-							Bids:         bids,
-							CurrencyPair: currency.NewPairFromString(c),
-							UpdateTime:   time.Now(),
-							AssetType:    orderbook.Spot,
+							Asks:       asks,
+							Bids:       bids,
+							Pair:       currency.NewPairFromString(c),
+							UpdateTime: time.Now(),
+							Asset:      asset.Spot,
 						})
 					if err != nil {
 						g.Websocket.DataHandler <- err
@@ -256,13 +260,13 @@ func (g *Gateio) WsHandleData() {
 
 				g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 					Pair:     currency.NewPairFromString(c),
-					Asset:    orderbook.Spot,
-					Exchange: g.GetName(),
+					Asset:    asset.Spot,
+					Exchange: g.Name,
 				}
 
-			case common.StringContains(result.Method, "kline"):
+			case strings.Contains(result.Method, "kline"):
 				var data []interface{}
-				err = common.JSONDecode(result.Params[0], &data)
+				err = json.Unmarshal(result.Params[0], &data)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
@@ -277,8 +281,8 @@ func (g *Gateio) WsHandleData() {
 				g.Websocket.DataHandler <- wshandler.KlineData{
 					Timestamp:  time.Now(),
 					Pair:       currency.NewPairFromString(data[7].(string)),
-					AssetType:  orderbook.Spot,
-					Exchange:   g.GetName(),
+					AssetType:  asset.Spot,
+					Exchange:   g.Name,
 					OpenPrice:  open,
 					ClosePrice: closePrice,
 					HighPrice:  high,
@@ -297,7 +301,7 @@ func (g *Gateio) GenerateAuthenticatedSubscriptions() {
 	}
 	var channels = []string{"balance.subscribe", "order.subscribe"}
 	var subscriptions []wshandler.WebsocketChannelSubscription
-	enabledCurrencies := g.GetEnabledCurrencies()
+	enabledCurrencies := g.GetEnabledPairs(asset.Spot)
 	for i := range channels {
 		for j := range enabledCurrencies {
 			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
@@ -313,7 +317,7 @@ func (g *Gateio) GenerateAuthenticatedSubscriptions() {
 func (g *Gateio) GenerateDefaultSubscriptions() {
 	var channels = []string{"ticker.subscribe", "trades.subscribe", "depth.subscribe", "kline.subscribe"}
 	var subscriptions []wshandler.WebsocketChannelSubscription
-	enabledCurrencies := g.GetEnabledCurrencies()
+	enabledCurrencies := g.GetEnabledPairs(asset.Spot)
 	for i := range channels {
 		for j := range enabledCurrencies {
 			params := make(map[string]interface{})
@@ -335,7 +339,9 @@ func (g *Gateio) GenerateDefaultSubscriptions() {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (g *Gateio) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
-	params := []interface{}{channelToSubscribe.Currency.String()}
+	params := []interface{}{g.FormatExchangeCurrency(channelToSubscribe.Currency,
+		asset.Spot).Upper()}
+
 	for i := range channelToSubscribe.Params {
 		params = append(params, channelToSubscribe.Params[i])
 	}
@@ -351,7 +357,7 @@ func (g *Gateio) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 		return err
 	}
 	var response WebsocketAuthenticationResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return err
 	}
@@ -367,14 +373,15 @@ func (g *Gateio) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 	subscribe := WebsocketRequest{
 		ID:     g.WebsocketConn.GenerateMessageID(true),
 		Method: unsbuscribeText,
-		Params: []interface{}{channelToSubscribe.Currency.String(), 1800},
+		Params: []interface{}{g.FormatExchangeCurrency(channelToSubscribe.Currency,
+			asset.Spot).Upper(), 1800},
 	}
 	resp, err := g.WebsocketConn.SendMessageReturnResponse(subscribe.ID, subscribe)
 	if err != nil {
 		return err
 	}
 	var response WebsocketAuthenticationResponse
-	err = common.JSONDecode(resp, &response)
+	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return err
 	}
@@ -398,7 +405,7 @@ func (g *Gateio) wsGetBalance(currencies []string) (*WsGetBalanceResponse, error
 		return nil, err
 	}
 	var balance WsGetBalanceResponse
-	err = common.JSONDecode(resp, &balance)
+	err = json.Unmarshal(resp, &balance)
 	if err != nil {
 		return &balance, err
 	}
@@ -410,7 +417,7 @@ func (g *Gateio) wsGetOrderInfo(market string, offset, limit int) (*WebSocketOrd
 	if !g.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authorised to get order info", g.Name)
 	}
-	order := WebsocketRequest{
+	ord := WebsocketRequest{
 		ID:     g.WebsocketConn.GenerateMessageID(true),
 		Method: "order.query",
 		Params: []interface{}{
@@ -419,12 +426,12 @@ func (g *Gateio) wsGetOrderInfo(market string, offset, limit int) (*WebSocketOrd
 			limit,
 		},
 	}
-	resp, err := g.WebsocketConn.SendMessageReturnResponse(order.ID, order)
+	resp, err := g.WebsocketConn.SendMessageReturnResponse(ord.ID, ord)
 	if err != nil {
 		return nil, err
 	}
 	var orderQuery WebSocketOrderQueryResult
-	err = common.JSONDecode(resp, &orderQuery)
+	err = json.Unmarshal(resp, &orderQuery)
 	if err != nil {
 		return &orderQuery, err
 	}

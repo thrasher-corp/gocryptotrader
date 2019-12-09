@@ -2640,7 +2640,7 @@
       }
      },
      "queryString": "",
-     "bodyParams": "address=1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB\u0026amount=100",
+     "bodyParams": "address=1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB\u0026amount=-1",
      "headers": {
       "Apiauth-Key": [
        ""

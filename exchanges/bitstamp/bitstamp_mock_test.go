@@ -20,26 +20,33 @@ var mockTests = true
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		log.Fatal("Bitstamp load config error", err)
+	}
 	bitstampConfig, err := cfg.GetExchangeConfig("Bitstamp")
 	if err != nil {
-		log.Fatal("Test Failed - Bitstamp Setup() init error", err)
+		log.Fatal("Bitstamp Setup() init error", err)
 	}
-	bitstampConfig.AuthenticatedAPISupport = true
-	bitstampConfig.APIKey = apiKey
-	bitstampConfig.APISecret = apiSecret
-	bitstampConfig.ClientID = customerID
+	b.SkipAuthCheck = true
+	bitstampConfig.API.AuthenticatedSupport = true
+	bitstampConfig.API.Credentials.Key = apiKey
+	bitstampConfig.API.Credentials.Secret = apiSecret
+	bitstampConfig.API.Credentials.ClientID = customerID
 	b.SetDefaults()
-	b.Setup(&bitstampConfig)
+	err = b.Setup(bitstampConfig)
+	if err != nil {
+		log.Fatal("Bitstamp setup error", err)
+	}
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
 	if err != nil {
-		log.Fatalf("Test Failed - Mock server error %s", err)
+		log.Fatalf("Mock server error %s", err)
 	}
 
 	b.HTTPClient = newClient
-	b.APIUrl = serverDetails + "/api"
+	b.API.Endpoints.URL = serverDetails + "/api"
 
-	log.Printf(sharedtestvalues.MockTesting, b.GetName(), b.APIUrl)
+	log.Printf(sharedtestvalues.MockTesting, b.Name, b.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

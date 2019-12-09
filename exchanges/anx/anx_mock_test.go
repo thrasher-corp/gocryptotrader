@@ -20,25 +20,32 @@ var mockTests = true
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		log.Fatal("ANX load config error", err)
+	}
 	anxConfig, err := cfg.GetExchangeConfig("ANX")
 	if err != nil {
-		log.Fatal("Test Failed - Mock server error", err)
+		log.Fatal("Mock server error", err)
 	}
-	anxConfig.AuthenticatedAPISupport = true
-	anxConfig.APIKey = apiKey
-	anxConfig.APISecret = apiSecret
+	a.SkipAuthCheck = true
+	anxConfig.API.AuthenticatedSupport = true
+	anxConfig.API.Credentials.Key = apiKey
+	anxConfig.API.Credentials.Secret = apiSecret
 	a.SetDefaults()
-	a.Setup(&anxConfig)
+	err = a.Setup(anxConfig)
+	if err != nil {
+		log.Fatal("ANX setup error", err)
+	}
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockFile)
 	if err != nil {
-		log.Fatalf("Test Failed - Mock server error %s", err)
+		log.Fatalf("Mock server error %s", err)
 	}
 
 	a.HTTPClient = newClient
-	a.APIUrl = serverDetails + "/"
+	a.API.Endpoints.URL = serverDetails + "/"
 
-	log.Printf(sharedtestvalues.MockTesting, a.GetName(), a.APIUrl)
+	log.Printf(sharedtestvalues.MockTesting, a.Name, a.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

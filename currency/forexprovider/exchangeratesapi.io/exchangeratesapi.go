@@ -14,24 +14,6 @@ import (
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
-const (
-	exchangeRatesAPI                 = "https://api.exchangeratesapi.io"
-	exchangeRatesLatest              = "latest"
-	exchangeRatesHistory             = "history"
-	exchangeRatesSupportedCurrencies = "EUR,CHF,USD,BRL,ISK,PHP,KRW,BGN,MXN," +
-		"RON,CAD,SGD,NZD,THB,HKD,JPY,NOK,HRK,ILS,GBP,DKK,HUF,MYR,RUB,TRY,IDR," +
-		"ZAR,INR,AUD,CZK,SEK,CNY,PLN"
-
-	authRate   = 0
-	unAuthRate = 0
-)
-
-// ExchangeRates stores the struct for the ExchangeRatesAPI API
-type ExchangeRates struct {
-	base.Base
-	Requester *request.Requester
-}
-
 // Setup sets appropriate values for CurrencyLayer
 func (e *ExchangeRates) Setup(config base.Settings) error {
 	e.Name = config.Name
@@ -66,8 +48,9 @@ func cleanCurrencies(baseCurrency, symbols string) string {
 		}
 
 		// remove and warn about any unsupported currencies
-		if !common.StringContains(exchangeRatesSupportedCurrencies, x) {
-			log.Warnf("Forex provider ExchangeRatesAPI does not support currency %s, removing from forex rates query.", x)
+		if !strings.Contains(exchangeRatesSupportedCurrencies, x) { // nolint:gocritic
+			log.Warnf(log.Global,
+				"Forex provider ExchangeRatesAPI does not support currency %s, removing from forex rates query.\n", x)
 			continue
 		}
 		cleanedCurrencies = append(cleanedCurrencies, x)
@@ -164,7 +147,7 @@ func (e *ExchangeRates) GetRates(baseCurrency, symbols string) (map[string]float
 
 // GetSupportedCurrencies returns the supported currency list
 func (e *ExchangeRates) GetSupportedCurrencies() ([]string, error) {
-	return common.SplitStrings(exchangeRatesSupportedCurrencies, ","), nil
+	return strings.Split(exchangeRatesSupportedCurrencies, ","), nil
 }
 
 // SendHTTPRequest sends a HTTPS request to the desired endpoint and returns the result

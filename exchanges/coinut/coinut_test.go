@@ -1,15 +1,17 @@
 package coinut
 
 import (
+	"log"
 	"net/http"
+	"os"
 	"testing"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
@@ -24,39 +26,41 @@ const (
 	canManipulateRealOrders = false
 )
 
-func TestSetDefaults(t *testing.T) {
+func TestMain(m *testing.M) {
 	c.SetDefaults()
-}
-
-func TestSetup(t *testing.T) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		log.Fatal("Coinut load config error", err)
+	}
 	bConfig, err := cfg.GetExchangeConfig("COINUT")
 	if err != nil {
-		t.Error("Test Failed - Coinut Setup() init error")
+		log.Fatal("Coinut Setup() init error")
 	}
-	bConfig.AuthenticatedAPISupport = true
-	bConfig.AuthenticatedWebsocketAPISupport = true
-	bConfig.APIKey = apiKey
-	c.Setup(&bConfig)
-	c.ClientID = clientID
+	bConfig.API.AuthenticatedSupport = true
+	bConfig.API.AuthenticatedWebsocketSupport = true
+	bConfig.API.Credentials.Key = apiKey
+	bConfig.API.Credentials.ClientID = clientID
+	err = c.Setup(bConfig)
+	if err != nil {
+		log.Fatal("Coinut setup error", err)
+	}
 
-	if !c.IsEnabled() ||
-		c.RESTPollingDelay != time.Duration(10) ||
-		c.Websocket.IsEnabled() || len(c.BaseCurrencies) < 1 ||
-		len(c.AvailablePairs) < 1 || len(c.EnabledPairs) < 1 {
-		t.Error("Test Failed - Coinut Setup values not set correctly")
-	}
+	c.SeedInstruments()
+
+	os.Exit(m.Run())
 }
 
 func setupWSTestAuth(t *testing.T) {
 	if wsSetupRan {
 		return
 	}
-	c.SetDefaults()
-	TestSetup(t)
-	if !c.Websocket.IsEnabled() && !c.AuthenticatedWebsocketAPISupport || !areTestAPIKeysSet() {
+
+	if !c.Websocket.IsEnabled() && !c.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip(wshandler.WebsocketNotEnabled)
+	}
+	if areTestAPIKeysSet() {
+		c.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 	c.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName:         c.Name,
@@ -66,6 +70,7 @@ func setupWSTestAuth(t *testing.T) {
 		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
 		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
 	}
+
 	var dialer websocket.Dialer
 	err := c.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
@@ -78,16 +83,29 @@ func setupWSTestAuth(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	instrumentListByString = make(map[string]int64)
-	instrumentListByString[currency.NewPair(currency.LTC, currency.BTC).String()] = 1
 	wsSetupRan = true
+	_, err = c.WsGetInstruments()
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestGetInstruments(t *testing.T) {
 	_, err := c.GetInstruments()
 	if err != nil {
-		t.Error("Test failed - GetInstruments() error", err)
+		t.Error("GetInstruments() error", err)
+	}
+}
+
+func TestSeedInstruments(t *testing.T) {
+	err := c.SeedInstruments()
+	if err != nil {
+		// No point checking the next condition
+		t.Fatal(err)
+	}
+
+	if len(c.instrumentMap.GetInstrumentIDs()) == 0 {
+		t.Error("instrument map hasn't been seeded")
 	}
 }
 
@@ -116,16 +134,12 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
 	t.Parallel()
-
 	var feeBuilder = setFeeBuilder()
-
 	// CryptocurrencyTradeFee Basic
 	if resp, err := c.GetFee(feeBuilder); resp != float64(0.001) || err != nil {
 		t.Error(err)
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0.0010), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.0010), resp)
 	}
 
 	// CryptocurrencyTradeFee High quantity
@@ -133,7 +147,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.Amount = 1000
 	feeBuilder.PurchasePrice = 1000
 	if resp, err := c.GetFee(feeBuilder); resp != float64(1000) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(1000), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(1000), resp)
 		t.Error(err)
 	}
 
@@ -141,7 +155,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
 	if resp, err := c.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -149,7 +163,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.PurchasePrice = -1000
 	if resp, err := c.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -157,7 +171,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 	if resp, err := c.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -165,7 +179,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CyptocurrencyDepositFee
 	if resp, err := c.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -174,7 +188,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
 	feeBuilder.FiatCurrency = currency.EUR
 	if resp, err := c.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -183,7 +197,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
 	feeBuilder.FiatCurrency = currency.USD
 	if resp, err := c.GetFee(feeBuilder); resp != float64(10) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(10), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(10), resp)
 		t.Error(err)
 	}
 
@@ -192,7 +206,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
 	feeBuilder.FiatCurrency = currency.SGD
 	if resp, err := c.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
 		t.Error(err)
 	}
 
@@ -201,7 +215,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.USD
 	if resp, err := c.GetFee(feeBuilder); resp != float64(10) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(10), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(10), resp)
 		t.Error(err)
 	}
 
@@ -210,7 +224,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.CAD
 	if resp, err := c.GetFee(feeBuilder); resp != float64(2) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(2), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(2), resp)
 		t.Error(err)
 	}
 
@@ -219,7 +233,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.SGD
 	if resp, err := c.GetFee(feeBuilder); resp != float64(10) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(10), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(10), resp)
 		t.Error(err)
 	}
 
@@ -228,44 +242,35 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.CAD
 	if resp, err := c.GetFee(feeBuilder); resp != float64(2) || err != nil {
-		t.Errorf("Test Failed - GetFee() error. Expected: %f, Received: %f", float64(2), resp)
+		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(2), resp)
 		t.Error(err)
 	}
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	c.SetDefaults()
 	expectedResult := exchange.WithdrawCryptoViaWebsiteOnlyText + " & " + exchange.WithdrawFiatViaWebsiteOnlyText
-
 	withdrawPermissions := c.FormatWithdrawPermissions()
-
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
 	}
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-
-	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType: exchange.AnyOrderType,
+	var getOrdersRequest = order.GetOrdersRequest{
+		OrderType: order.AnyType,
 	}
-
 	_, err := c.GetActiveOrders(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get open orders: %s", err)
 	}
 }
 
-func TestGetOrderHistory(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-
-	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType: exchange.AnyOrderType,
+func TestGetOrderHistoryWrapper(t *testing.T) {
+	setupWSTestAuth(t)
+	var getOrdersRequest = order.GetOrdersRequest{
+		OrderType: order.AnyType,
 		Currencies: []currency.Pair{currency.NewPair(currency.BTC,
-			currency.LTC)},
+			currency.USD)},
 	}
 
 	_, err := c.GetOrderHistory(&getOrdersRequest)
@@ -277,26 +282,26 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 func areTestAPIKeysSet() bool {
-	if c.APIKey != "" && c.APIKey != "Key" {
-		return true
-	}
-	return false
+	return c.ValidateAPICredentials()
 }
 
 func TestSubmitOrder(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var p = currency.Pair{
-		Delimiter: "",
-		Base:      currency.BTC,
-		Quote:     currency.USD,
+	var orderSubmission = &order.Submit{
+		Pair: currency.Pair{
+			Base:  currency.BTC,
+			Quote: currency.USD,
+		},
+		OrderSide: order.Buy,
+		OrderType: order.Limit,
+		Price:     1,
+		Amount:    1,
+		ClientID:  "123",
 	}
-	response, err := c.SubmitOrder(p, exchange.BuyOrderSide, exchange.LimitOrderType, 1, 10, "1234234")
+	response, err := c.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
 		t.Errorf("Order failed to be placed: %v", err)
 	} else if !areTestAPIKeysSet() && err == nil {
@@ -305,16 +310,11 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-
-	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-
-	var orderCancellation = &exchange.OrderCancellation{
+	currencyPair := currency.NewPair(currency.BTC, currency.USD)
+	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -331,16 +331,12 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-
-	var orderCancellation = &exchange.OrderCancellation{
+	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -356,8 +352,8 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Errorf("Could not cancel orders: %v", err)
 	}
 
-	if len(resp.OrderStatus) > 0 {
-		t.Errorf("%v orders failed to cancel", len(resp.OrderStatus))
+	if len(resp.Status) > 0 {
+		t.Errorf("%v orders failed to cancel", len(resp.Status))
 	}
 }
 
@@ -365,31 +361,34 @@ func TestGetAccountInfo(t *testing.T) {
 	if apiKey != "" || clientID != "" {
 		_, err := c.GetAccountInfo()
 		if err != nil {
-			t.Error("Test Failed - GetAccountInfo() error", err)
+			t.Error("GetAccountInfo() error", err)
 		}
 	} else {
 		_, err := c.GetAccountInfo()
 		if err == nil {
-			t.Error("Test Failed - GetAccountInfo() error")
+			t.Error("GetAccountInfo() Expected error")
 		}
 	}
 }
 
 func TestModifyOrder(t *testing.T) {
-	_, err := c.ModifyOrder(&exchange.ModifyOrder{})
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+	_, err := c.ModifyOrder(&order.Modify{})
 	if err == nil {
-		t.Error("Test failed - ModifyOrder() error")
+		t.Error("ModifyOrder() Expected error")
 	}
 }
 
 func TestWithdraw(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-	var withdrawCryptoRequest = exchange.WithdrawRequest{
-		Amount:      100,
-		Currency:    currency.LTC,
-		Address:     "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
-		Description: "WITHDRAW IT ALL",
+	withdrawCryptoRequest := exchange.CryptoWithdrawRequest{
+		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
+			Amount:      -1,
+			Currency:    currency.BTC,
+			Description: "WITHDRAW IT ALL",
+		},
+		Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 	}
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -403,15 +402,11 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestWithdrawFiat(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{}
-
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
 	_, err := c.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
@@ -419,15 +414,11 @@ func TestWithdrawFiat(t *testing.T) {
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
-	c.SetDefaults()
-	TestSetup(t)
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{}
-
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
 	_, err := c.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
@@ -437,7 +428,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 func TestGetDepositAddress(t *testing.T) {
 	_, err := c.GetDepositAddress(currency.BTC, "")
 	if err == nil {
-		t.Error("Test Failed - GetDepositAddress() function unsupported cannot be nil")
+		t.Error("GetDepositAddress() function unsupported cannot be nil")
 	}
 }
 
@@ -456,14 +447,14 @@ func TestWsAuthSubmitOrder(t *testing.T) {
 	if !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	order := WsSubmitOrderParameters{
+	ord := WsSubmitOrderParameters{
 		Amount:   1,
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  1,
 		Price:    1,
-		Side:     exchange.BuyOrderSide,
+		Side:     order.Buy,
 	}
-	_, err := c.wsSubmitOrder(&order)
+	_, err := c.wsSubmitOrder(&ord)
 	if err != nil {
 		t.Error(err)
 	}
@@ -480,14 +471,14 @@ func TestWsAuthSubmitOrders(t *testing.T) {
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  1,
 		Price:    1,
-		Side:     exchange.BuyOrderSide,
+		Side:     order.Buy,
 	}
 	order2 := WsSubmitOrderParameters{
 		Amount:   3,
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  2,
 		Price:    2,
-		Side:     exchange.BuyOrderSide,
+		Side:     order.Buy,
 	}
 	_, err := c.wsSubmitOrders([]WsSubmitOrderParameters{order1, order2})
 	if err != nil {
@@ -496,12 +487,13 @@ func TestWsAuthSubmitOrders(t *testing.T) {
 }
 
 // TestWsAuthCancelOrders dials websocket, cancels orders
+// doesn't care about if the order cancellations fail
 func TestWsAuthCancelOrders(t *testing.T) {
 	setupWSTestAuth(t)
 	if !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	order := WsCancelOrderParameters{
+	ord := WsCancelOrderParameters{
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  1,
 	}
@@ -509,9 +501,28 @@ func TestWsAuthCancelOrders(t *testing.T) {
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  2,
 	}
-	_, errs := c.wsCancelOrders([]WsCancelOrderParameters{order, order2})
-	if len(errs) > 0 {
-		t.Error(errs)
+	resp, err := c.wsCancelOrders([]WsCancelOrderParameters{ord, order2})
+	if err != nil {
+		t.Error(err)
+	}
+	if resp.Status[0] != "OK" {
+		t.Error("Order failed to cancel")
+	}
+}
+
+// TestWsAuthCancelOrders dials websocket, cancels orders
+// Checks that the wrapper oversight works
+func TestWsAuthCancelOrdersWrapper(t *testing.T) {
+	setupWSTestAuth(t)
+	if !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+	orderDetails := order.Cancel{
+		CurrencyPair: currency.NewPair(currency.LTC, currency.BTC),
+	}
+	_, err := c.CancelAllOrders(&orderDetails)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -521,21 +532,109 @@ func TestWsAuthCancelOrder(t *testing.T) {
 	if !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	order := WsCancelOrderParameters{
+	ord := &WsCancelOrderParameters{
 		Currency: currency.NewPair(currency.LTC, currency.BTC),
 		OrderID:  1,
 	}
-	err := c.wsCancelOrder(order)
+	resp, err := c.wsCancelOrder(ord)
 	if err != nil {
 		t.Error(err)
+	}
+	if len(resp.Status) >= 1 && resp.Status[0] != "OK" {
+		t.Errorf("Failed to cancel order")
 	}
 }
 
 // TestWsAuthGetOpenOrders dials websocket, retrieves open orders
 func TestWsAuthGetOpenOrders(t *testing.T) {
 	setupWSTestAuth(t)
-	err := c.wsGetOpenOrders(currency.NewPair(currency.LTC, currency.BTC))
+	_, err := c.wsGetOpenOrders(currency.NewPair(currency.LTC, currency.BTC).String())
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestCurrencyMapIsLoaded(t *testing.T) {
+	t.Parallel()
+	var i instrumentMap
+	if l := i.IsLoaded(); l {
+		t.Error("unexpected result")
+	}
+
+	i.Seed("BTCUSD", 1337)
+	if l := i.IsLoaded(); !l {
+		t.Error("unexpected result")
+	}
+}
+
+func TestCurrencyMapSeed(t *testing.T) {
+	t.Parallel()
+	var i instrumentMap
+	// Test non-seeded lookups
+	if id := i.LookupInstrument(1234); id != "" {
+		t.Error("unexpected result")
+	}
+	if id := i.LookupID("BLAH"); id != 0 {
+		t.Error("unexpected result")
+	}
+
+	// Test seeded lookups
+	i.Seed("BTCUSD", 1337)
+	if id := i.LookupID("BTCUSD"); id != 1337 {
+		t.Error("unexpected result")
+	}
+	if id := i.LookupInstrument(1337); id != "BTCUSD" {
+		t.Error("unexpected result")
+	}
+
+	// Test invalid lookups
+	if id := i.LookupInstrument(1234); id != "" {
+		t.Error("unexpected result")
+	}
+	if id := i.LookupID("BLAH"); id != 0 {
+		t.Error("unexpected result")
+	}
+
+	// Test seeding existing item
+	i.Seed("BTCUSD", 1234)
+	if id := i.LookupID("BTCUSD"); id != 1337 {
+		t.Error("unexpected result")
+	}
+	if id := i.LookupInstrument(1337); id != "BTCUSD" {
+		t.Error("unexpected result")
+	}
+}
+
+func TestCurrencyMapInstrumentIDs(t *testing.T) {
+	t.Parallel()
+
+	var i instrumentMap
+	if r := i.GetInstrumentIDs(); len(r) > 0 {
+		t.Error("non initialised instrument map shouldn't return any ids")
+	}
+
+	// Seed the instrument map
+	i.Seed("BTCUSD", 1234)
+	i.Seed("LTCUSD", 1337)
+
+	f := func(ids []int64, target int64) bool {
+		for x := range ids {
+			if ids[x] == target {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Test 2 valid instruments and one invalid
+	ids := i.GetInstrumentIDs()
+	if r := f(ids, 1234); !r {
+		t.Error("unexpected result")
+	}
+	if r := f(ids, 1337); !r {
+		t.Error("unexpected result")
+	}
+	if r := f(ids, 4321); r {
+		t.Error("unexpected result")
 	}
 }

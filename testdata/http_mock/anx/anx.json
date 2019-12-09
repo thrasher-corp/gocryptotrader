@@ -2339,7 +2339,7 @@
       "timestamp": "1565238020536"
      },
      "queryString": "",
-     "bodyParams": "{\"nonce\":\"1565238020075\",\"order\":{\"orderType\":\"MARKET\",\"buyTradedCurrency\":true,\"tradedCurrency\":\"BTC\",\"settlementCurrency\":\"USD\",\"tradedCurrencyAmount\":\"1\",\"settlementCurrencyAmount\":\"0\",\"limitPriceInSettlementCurrency\":\"0\",\"replaceExistingOrderUuid\":\"\",\"replaceOnlyIfActive\":false}}",
+     "bodyParams": "{\"nonce\":\"1565238020075\",\"order\":{\"orderType\":\"LIMIT\",\"buyTradedCurrency\":true,\"tradedCurrency\":\"BTC\",\"settlementCurrency\":\"USD\",\"tradedCurrencyAmount\":\"1\",\"settlementCurrencyAmount\":\"0\",\"limitPriceInSettlementCurrency\":\"1\",\"replaceExistingOrderUuid\":\"\",\"replaceOnlyIfActive\":false}}",
      "headers": {
       "Content-Type": [
        "application/json"
@@ -2385,7 +2385,7 @@
       "timestamp": "1565243984807"
      },
      "queryString": "",
-     "bodyParams": "{\"address\":\"1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB\",\"amount\":\"100\",\"ccy\":\"BTC\",\"nonce\":\"1565243984355\"}",
+     "bodyParams": "{\"address\":\"1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB\",\"amount\":\"-1\",\"ccy\":\"BTC\",\"nonce\":\"1565243984355\"}",
      "headers": {
       "Content-Type": [
        "application/json"

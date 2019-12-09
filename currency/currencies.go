@@ -1,6 +1,9 @@
 package currency
 
-import "github.com/thrasher-corp/gocryptotrader/common"
+import (
+	"encoding/json"
+	"strings"
+)
 
 // NewCurrenciesFromStringArray returns a Currencies object from strings
 func NewCurrenciesFromStringArray(currencies []string) Currencies {
@@ -38,19 +41,19 @@ func (c Currencies) Contains(cc Code) bool {
 
 // Join returns a comma serparated string
 func (c Currencies) Join() string {
-	return common.JoinStrings(c.Strings(), ",")
+	return strings.Join(c.Strings(), ",")
 }
 
 // UnmarshalJSON comforms type to the umarshaler interface
 func (c *Currencies) UnmarshalJSON(d []byte) error {
 	var configCurrencies string
-	err := common.JSONDecode(d, &configCurrencies)
+	err := json.Unmarshal(d, &configCurrencies)
 	if err != nil {
 		return err
 	}
 
 	var allTheCurrencies Currencies
-	for _, data := range common.SplitStrings(configCurrencies, ",") {
+	for _, data := range strings.Split(configCurrencies, ",") {
 		allTheCurrencies = append(allTheCurrencies, NewCode(data))
 	}
 
@@ -60,7 +63,7 @@ func (c *Currencies) UnmarshalJSON(d []byte) error {
 
 // MarshalJSON conforms type to the marshaler interface
 func (c Currencies) MarshalJSON() ([]byte, error) {
-	return common.JSONEncode(c.Join())
+	return json.Marshal(c.Join())
 }
 
 // Match returns if the full list equals the supplied list
@@ -82,11 +85,6 @@ func (c Currencies) Match(other Currencies) bool {
 		}
 	}
 	return true
-}
-
-// Slice exposes the underlying type
-func (c Currencies) Slice() []Code {
-	return c
 }
 
 // HasData checks to see if Currencies type has actual currencies

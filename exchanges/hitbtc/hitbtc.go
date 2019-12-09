@@ -7,16 +7,11 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const (
@@ -40,8 +35,7 @@ const (
 	apiv2OpenOrders     = "api/2/order"
 	apiV2FeeInfo        = "api/2/trading/fee"
 	orders              = "order"
-	orderBuy            = "api/2/order"
-	orderSell           = "sell"
+	apiOrder            = "api/2/order"
 	orderMove           = "moveOrder"
 	tradableBalances    = "returnTradableBalances"
 	transferBalance     = "transferBalance"
@@ -56,111 +50,6 @@ type HitBTC struct {
 	WebsocketConn *wshandler.WebsocketConnection
 }
 
-// SetDefaults sets default settings for hitbtc
-func (h *HitBTC) SetDefaults() {
-	h.Name = "HitBTC"
-	h.Enabled = false
-	h.Fee = 0
-	h.Verbose = false
-	h.RESTPollingDelay = 10
-	h.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
-		exchange.NoFiatWithdrawals
-	h.RequestCurrencyPairFormat.Delimiter = ""
-	h.RequestCurrencyPairFormat.Uppercase = true
-	h.ConfigCurrencyPairFormat.Delimiter = "-"
-	h.ConfigCurrencyPairFormat.Uppercase = true
-	h.AssetTypes = []string{ticker.Spot}
-	h.SupportsAutoPairUpdating = true
-	h.SupportsRESTTickerBatching = true
-	h.Requester = request.New(h.Name,
-		request.NewRateLimit(time.Second, hitbtcAuthRate),
-		request.NewRateLimit(time.Second, hitbtcUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	h.APIUrlDefault = apiURL
-	h.APIUrl = h.APIUrlDefault
-	h.Websocket = wshandler.New()
-	h.Websocket.Functionality = wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported |
-		wshandler.WebsocketSubmitOrderSupported |
-		wshandler.WebsocketCancelOrderSupported |
-		wshandler.WebsocketMessageCorrelationSupported
-	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
-
-// Setup sets user exchange configuration settings
-func (h *HitBTC) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		h.SetEnabled(false)
-	} else {
-		h.Enabled = true
-		h.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		h.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
-		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
-		h.SetHTTPClientTimeout(exch.HTTPTimeout)
-		h.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		h.RESTPollingDelay = exch.RESTPollingDelay // Max 60000ms
-		h.Verbose = exch.Verbose
-		h.HTTPDebugging = exch.HTTPDebugging
-		h.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		h.BaseCurrencies = exch.BaseCurrencies
-		h.AvailablePairs = exch.AvailablePairs
-		h.EnabledPairs = exch.EnabledPairs
-		err := h.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = h.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = h.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = h.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = h.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = h.Websocket.Setup(h.WsConnect,
-			h.Subscribe,
-			h.Unsubscribe,
-			exch.Name,
-			exch.Websocket,
-			exch.Verbose,
-			hitbtcWebsocketAddress,
-			exch.WebsocketURL,
-			exch.AuthenticatedWebsocketAPISupport)
-		if err != nil {
-			log.Fatal(err)
-		}
-		h.WebsocketConn = &wshandler.WebsocketConnection{
-			ExchangeName:         h.Name,
-			URL:                  h.Websocket.GetWebsocketURL(),
-			ProxyURL:             h.Websocket.GetProxyAddress(),
-			Verbose:              h.Verbose,
-			RateLimit:            rateLimit,
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		}
-		h.Websocket.Orderbook.Setup(
-			exch.WebsocketOrderbookBufferLimit,
-			true,
-			true,
-			true,
-			false,
-			exch.Name)
-	}
-}
-
 // Public Market Data
 // https://api.hitbtc.com/?python#market-data
 
@@ -171,7 +60,7 @@ func (h *HitBTC) GetCurrencies() (map[string]Currencies, error) {
 		Data []Currencies
 	}
 	resp := Response{}
-	path := fmt.Sprintf("%s/%s", h.APIUrl, apiV2Currency)
+	path := fmt.Sprintf("%s/%s", h.API.Endpoints.URL, apiV2Currency)
 
 	ret := make(map[string]Currencies)
 	err := h.SendHTTPRequest(path, &resp.Data)
@@ -192,7 +81,7 @@ func (h *HitBTC) GetCurrency(currency string) (Currencies, error) {
 		Data Currencies
 	}
 	resp := Response{}
-	path := fmt.Sprintf("%s/%s/%s", h.APIUrl, apiV2Currency, currency)
+	path := fmt.Sprintf("%s/%s/%s", h.API.Endpoints.URL, apiV2Currency, currency)
 
 	return resp.Data, h.SendHTTPRequest(path, &resp.Data)
 }
@@ -204,7 +93,7 @@ func (h *HitBTC) GetCurrency(currency string) (Currencies, error) {
 // of the base currency.
 func (h *HitBTC) GetSymbols(symbol string) ([]string, error) {
 	var resp []Symbol
-	path := fmt.Sprintf("%s/%s/%s", h.APIUrl, apiV2Symbol, symbol)
+	path := fmt.Sprintf("%s/%s/%s", h.API.Endpoints.URL, apiV2Symbol, symbol)
 
 	ret := make([]string, 0, len(resp))
 	err := h.SendHTTPRequest(path, &resp)
@@ -222,71 +111,22 @@ func (h *HitBTC) GetSymbols(symbol string) ([]string, error) {
 // all their details.
 func (h *HitBTC) GetSymbolsDetailed() ([]Symbol, error) {
 	var resp []Symbol
-	path := fmt.Sprintf("%s/%s", h.APIUrl, apiV2Symbol)
-
+	path := fmt.Sprintf("%s/%s", h.API.Endpoints.URL, apiV2Symbol)
 	return resp, h.SendHTTPRequest(path, &resp)
 }
 
 // GetTicker returns ticker information
-func (h *HitBTC) GetTicker(symbol string) (map[string]Ticker, error) {
-	var resp1 []TickerResponse
-	resp2 := TickerResponse{}
-	ret := make(map[string]TickerResponse)
-	result := make(map[string]Ticker)
-	path := fmt.Sprintf("%s/%s/%s", h.APIUrl, apiV2Ticker, symbol)
-	var err error
+func (h *HitBTC) GetTicker(symbol string) (TickerResponse, error) {
+	var resp TickerResponse
+	path := fmt.Sprintf("%s/%s/%s", h.API.Endpoints.URL, apiV2Ticker, symbol)
+	return resp, h.SendHTTPRequest(path, &resp)
+}
 
-	if symbol == "" {
-		err = h.SendHTTPRequest(path, &resp1)
-		if err != nil {
-			return nil, err
-		}
-
-		for i := range resp1 {
-			if resp1[i].Symbol != "" {
-				ret[resp1[i].Symbol] = resp1[i]
-			}
-		}
-	} else {
-		err = h.SendHTTPRequest(path, &resp2)
-		ret[resp2.Symbol] = resp2
-	}
-
-	if err == nil {
-		for i := range ret {
-			tick := Ticker{}
-
-			ask, _ := strconv.ParseFloat(ret[i].Ask, 64)
-			tick.Ask = ask
-
-			bid, _ := strconv.ParseFloat(ret[i].Bid, 64)
-			tick.Bid = bid
-
-			high, _ := strconv.ParseFloat(ret[i].High, 64)
-			tick.High = high
-
-			last, _ := strconv.ParseFloat(ret[i].Last, 64)
-			tick.Last = last
-
-			low, _ := strconv.ParseFloat(ret[i].Low, 64)
-			tick.Low = low
-
-			open, _ := strconv.ParseFloat(ret[i].Open, 64)
-			tick.Open = open
-
-			vol, _ := strconv.ParseFloat(ret[i].Volume, 64)
-			tick.Volume = vol
-
-			volQuote, _ := strconv.ParseFloat(ret[i].VolumeQuote, 64)
-			tick.VolumeQuote = volQuote
-
-			tick.Symbol = ret[i].Symbol
-			tick.Timestamp = ret[i].Timestamp
-			result[i] = tick
-		}
-	}
-
-	return result, err
+// GetTickers returns ticker information
+func (h *HitBTC) GetTickers() ([]TickerResponse, error) {
+	var resp []TickerResponse
+	path := fmt.Sprintf("%s/%s/", h.API.Endpoints.URL, apiV2Ticker)
+	return resp, h.SendHTTPRequest(path, &resp)
 }
 
 // GetTrades returns trades from hitbtc
@@ -324,8 +164,7 @@ func (h *HitBTC) GetTrades(currencyPair, from, till, limit, offset, by, sort str
 	}
 
 	var resp []TradeHistory
-	path := fmt.Sprintf("%s/%s/%s?%s", h.APIUrl, apiV2Trades, currencyPair, vals.Encode())
-
+	path := fmt.Sprintf("%s/%s/%s?%s", h.API.Endpoints.URL, apiV2Trades, currencyPair, vals.Encode())
 	return resp, h.SendHTTPRequest(path, &resp)
 }
 
@@ -340,7 +179,7 @@ func (h *HitBTC) GetOrderbook(currencyPair string, limit int) (Orderbook, error)
 	}
 
 	resp := OrderbookResponse{}
-	path := fmt.Sprintf("%s/%s/%s?%s", h.APIUrl, apiV2Orderbook, currencyPair, vals.Encode())
+	path := fmt.Sprintf("%s/%s/%s?%s", h.API.Endpoints.URL, apiV2Orderbook, currencyPair, vals.Encode())
 
 	err := h.SendHTTPRequest(path, &resp)
 	if err != nil {
@@ -369,8 +208,7 @@ func (h *HitBTC) GetCandles(currencyPair, limit, period string) ([]ChartData, er
 	}
 
 	var resp []ChartData
-	path := fmt.Sprintf("%s/%s/%s?%s", h.APIUrl, apiV2Candles, currencyPair, vals.Encode())
-
+	path := fmt.Sprintf("%s/%s/%s?%s", h.API.Endpoints.URL, apiV2Candles, currencyPair, vals.Encode())
 	return resp, h.SendHTTPRequest(path, &resp)
 }
 
@@ -477,7 +315,7 @@ func (h *HitBTC) GetOpenOrders(currency string) ([]OrderHistoryResponse, error) 
 
 // PlaceOrder places an order on the exchange
 func (h *HitBTC) PlaceOrder(currency string, rate, amount float64, orderType, side string) (OrderResponse, error) {
-	result := OrderResponse{}
+	var result OrderResponse
 	values := url.Values{}
 
 	values.Set("symbol", currency)
@@ -487,7 +325,7 @@ func (h *HitBTC) PlaceOrder(currency string, rate, amount float64, orderType, si
 	values.Set("price", strconv.FormatFloat(rate, 'f', -1, 64))
 	values.Set("type", orderType)
 
-	return result, h.SendAuthenticatedHTTPRequest(http.MethodPost, orderBuy, values, &result)
+	return result, h.SendAuthenticatedHTTPRequest(http.MethodPost, apiOrder, values, &result)
 }
 
 // CancelExistingOrder cancels a specific order by OrderID
@@ -495,7 +333,7 @@ func (h *HitBTC) CancelExistingOrder(orderID int64) (bool, error) {
 	result := GenericResponse{}
 	values := url.Values{}
 
-	err := h.SendAuthenticatedHTTPRequest(http.MethodDelete, orderBuy+"/"+strconv.FormatInt(orderID, 10), values, &result)
+	err := h.SendAuthenticatedHTTPRequest(http.MethodDelete, apiOrder+"/"+strconv.FormatInt(orderID, 10), values, &result)
 
 	if err != nil {
 		return false, err
@@ -512,7 +350,7 @@ func (h *HitBTC) CancelExistingOrder(orderID int64) (bool, error) {
 func (h *HitBTC) CancelAllExistingOrders() ([]Order, error) {
 	var result []Order
 	values := url.Values{}
-	return result, h.SendAuthenticatedHTTPRequest(http.MethodDelete, orderBuy, values, &result)
+	return result, h.SendAuthenticatedHTTPRequest(http.MethodDelete, apiOrder, values, &result)
 }
 
 // MoveOrder generates a new move order
@@ -636,14 +474,14 @@ func (h *HitBTC) SendHTTPRequest(path string, result interface{}) error {
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request
 func (h *HitBTC) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Values, result interface{}) error {
-	if !h.AuthenticatedAPISupport {
+	if !h.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			h.Name)
 	}
 	headers := make(map[string]string)
-	headers["Authorization"] = "Basic " + common.Base64Encode([]byte(h.APIKey+":"+h.APISecret))
+	headers["Authorization"] = "Basic " + crypto.Base64Encode([]byte(h.API.Credentials.Key+":"+h.API.Credentials.Secret))
 
-	path := fmt.Sprintf("%s/%s", h.APIUrl, endpoint)
+	path := fmt.Sprintf("%s/%s", h.API.Endpoints.URL, endpoint)
 
 	return h.SendPayload(method,
 		path,

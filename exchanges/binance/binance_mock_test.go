@@ -20,25 +20,32 @@ var mockTests = true
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		log.Fatal("Binance load config error", err)
+	}
 	binanceConfig, err := cfg.GetExchangeConfig("Binance")
 	if err != nil {
-		log.Fatal("Test Failed - Binance Setup() init error", err)
+		log.Fatal("Binance Setup() init error", err)
 	}
-	binanceConfig.AuthenticatedAPISupport = true
-	binanceConfig.APIKey = apiKey
-	binanceConfig.APISecret = apiSecret
+	b.SkipAuthCheck = true
+	binanceConfig.API.AuthenticatedSupport = true
+	binanceConfig.API.Credentials.Key = apiKey
+	binanceConfig.API.Credentials.Secret = apiSecret
 	b.SetDefaults()
-	b.Setup(&binanceConfig)
+	err = b.Setup(binanceConfig)
+	if err != nil {
+		log.Fatal("Binance setup error", err)
+	}
 
 	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
 	if err != nil {
-		log.Fatalf("Test Failed - Mock server error %s", err)
+		log.Fatalf("Mock server error %s", err)
 	}
 
 	b.HTTPClient = newClient
-	b.APIUrl = serverDetails
+	b.API.Endpoints.URL = serverDetails
 
-	log.Printf(sharedtestvalues.MockTesting, b.GetName(), b.APIUrl)
+	log.Printf(sharedtestvalues.MockTesting, b.Name, b.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

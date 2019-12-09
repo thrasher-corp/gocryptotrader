@@ -17,17 +17,23 @@ var mockTests = false
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		log.Fatal("Bitstamp load config error", err)
+	}
 	bitstampConfig, err := cfg.GetExchangeConfig("Bitstamp")
 	if err != nil {
-		log.Fatal("Test Failed - Bitstamp Setup() init error", err)
+		log.Fatal("Bitstamp Setup() init error", err)
 	}
-	bitstampConfig.AuthenticatedAPISupport = true
-	bitstampConfig.APIKey = apiKey
-	bitstampConfig.APISecret = apiSecret
-	bitstampConfig.ClientID = customerID
+	bitstampConfig.API.AuthenticatedSupport = true
+	bitstampConfig.API.Credentials.Key = apiKey
+	bitstampConfig.API.Credentials.Secret = apiSecret
+	bitstampConfig.API.Credentials.ClientID = customerID
 	b.SetDefaults()
-	b.Setup(&bitstampConfig)
-	log.Printf(sharedtestvalues.LiveTesting, b.GetName(), b.APIUrl)
+	err = b.Setup(bitstampConfig)
+	if err != nil {
+		log.Fatal("Bitstamp setup error", err)
+	}
+	log.Printf(sharedtestvalues.LiveTesting, b.Name, b.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

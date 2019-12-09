@@ -1,31 +1,30 @@
 package currency
 
 import (
+	"encoding/json"
 	"testing"
-
-	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 func TestCurrenciesUnmarshalJSON(t *testing.T) {
 	var unmarshalHere Currencies
 	expected := "btc,usd,ltc,bro,things"
-	encoded, err := common.JSONEncode(expected)
+	encoded, err := json.Marshal(expected)
 	if err != nil {
-		t.Fatal("Test Failed - Currencies UnmarshalJSON() error", err)
+		t.Fatal("Currencies UnmarshalJSON() error", err)
 	}
 
-	err = common.JSONDecode(encoded, &unmarshalHere)
+	err = json.Unmarshal(encoded, &unmarshalHere)
 	if err != nil {
-		t.Fatal("Test Failed - Currencies UnmarshalJSON() error", err)
+		t.Fatal("Currencies UnmarshalJSON() error", err)
 	}
 
-	err = common.JSONDecode(encoded, &unmarshalHere)
+	err = json.Unmarshal(encoded, &unmarshalHere)
 	if err != nil {
-		t.Fatal("Test Failed - Currencies UnmarshalJSON() error", err)
+		t.Fatal("Currencies UnmarshalJSON() error", err)
 	}
 
 	if unmarshalHere.Join() != expected {
-		t.Errorf("Test Failed - Currencies UnmarshalJSON() error expected %s but received %s",
+		t.Errorf("Currencies UnmarshalJSON() error expected %s but received %s",
 			expected, unmarshalHere.Join())
 	}
 }
@@ -37,14 +36,14 @@ func TestCurrenciesMarshalJSON(t *testing.T) {
 		C: NewCurrenciesFromStringArray([]string{"btc", "usd", "ltc", "bro", "things"}),
 	}
 
-	encoded, err := common.JSONEncode(quickStruct)
+	encoded, err := json.Marshal(quickStruct)
 	if err != nil {
-		t.Fatal("Test Failed - Currencies MarshalJSON() error", err)
+		t.Fatal("Currencies MarshalJSON() error", err)
 	}
 
 	expected := `{"amazingCurrencies":"btc,usd,ltc,bro,things"}`
 	if string(encoded) != expected {
-		t.Errorf("Test Failed - Currencies MarshalJSON() error expected %s but received %s",
+		t.Errorf("Currencies MarshalJSON() error expected %s but received %s",
 			expected, string(encoded))
 	}
 }

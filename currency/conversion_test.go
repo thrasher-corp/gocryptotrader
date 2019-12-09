@@ -1,30 +1,30 @@
 package currency
 
 import (
+	"fmt"
+	"strings"
 	"testing"
-
-	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 func TestNewConversionFromString(t *testing.T) {
 	expected := "AUDUSD"
 	conv, err := NewConversionFromString(expected)
 	if err != nil {
-		t.Error("Test Failed - NewConversionFromString() error", err)
+		t.Error(err)
 	}
 	if conv.String() != expected {
-		t.Errorf("Test Failed - NewConversion() error expected %s but received %s",
+		t.Errorf("NewConversion() error expected %s but received %s",
 			expected,
 			conv)
 	}
 
-	newexpected := common.StringToLower(expected)
+	newexpected := strings.ToLower(expected)
 	conv, err = NewConversionFromString(newexpected)
 	if err != nil {
-		t.Error("Test Failed - NewConversionFromString() error", err)
+		t.Error(err)
 	}
 	if conv.String() != newexpected {
-		t.Errorf("Test Failed - NewConversion() error expected %s but received %s",
+		t.Errorf("NewConversion() error expected %s but received %s",
 			newexpected,
 			conv)
 	}
@@ -37,11 +37,11 @@ func TestNewConversionFromStrings(t *testing.T) {
 
 	conv, err := NewConversionFromStrings(from, to)
 	if err != nil {
-		t.Error("Test Failed - NewConversionFromString() error", err)
+		t.Error(err)
 	}
 
 	if conv.String() != expected {
-		t.Errorf("Test Failed - NewConversion() error expected %s but received %s",
+		t.Errorf("NewConversion() error expected %s but received %s",
 			expected,
 			conv)
 	}
@@ -54,11 +54,11 @@ func TestNewConversion(t *testing.T) {
 
 	conv, err := NewConversion(from, to)
 	if err != nil {
-		t.Error("Test Failed - NewConversionFromCode() error", err)
+		t.Error(err)
 	}
 
 	if conv.String() != expected {
-		t.Errorf("Test Failed - NewConversion() error expected %s but received %s",
+		t.Errorf("NewConversion() error expected %s but received %s",
 			expected,
 			conv)
 	}
@@ -70,18 +70,18 @@ func TestConversionIsInvalid(t *testing.T) {
 
 	conv, err := NewConversion(from, to)
 	if err != nil {
-		t.Fatal("Test Failed - NewConversion() error", err)
+		t.Fatal(err)
 	}
 
 	if conv.IsInvalid() {
-		t.Errorf("Test Failed - IsInvalid() error expected false but received %v",
+		t.Errorf("IsInvalid() error expected false but received %v",
 			conv.IsInvalid())
 	}
 
 	to = AUD
 	conv, err = NewConversion(from, to)
 	if err == nil {
-		t.Fatal("Test Failed - NewConversion() error", err)
+		t.Error("Expected error")
 	}
 }
 
@@ -91,18 +91,18 @@ func TestConversionIsFiatPair(t *testing.T) {
 
 	conv, err := NewConversion(from, to)
 	if err != nil {
-		t.Fatal("Test Failed - NewConversion() error", err)
+		t.Fatal(err)
 	}
 
 	if !conv.IsFiat() {
-		t.Errorf("Test Failed - IsFiatPair() error expected true but received %v",
+		t.Errorf("IsFiatPair() error expected true but received %v",
 			conv.IsFiat())
 	}
 
 	to = LTC
 	conv, err = NewConversion(from, to)
 	if err == nil {
-		t.Fatal("Test Failed - NewConversion() error", err)
+		t.Error("Expected error")
 	}
 }
 
@@ -110,7 +110,7 @@ func TestConversionsRatesSystem(t *testing.T) {
 	var SuperDuperConversionSystem ConversionRates
 
 	if SuperDuperConversionSystem.HasData() {
-		t.Fatalf("Test Failed - HasData() error expected false but received %v",
+		t.Fatalf("HasData() error expected false but received %v",
 			SuperDuperConversionSystem.HasData())
 	}
 
@@ -142,16 +142,16 @@ func TestConversionsRatesSystem(t *testing.T) {
 
 	err := SuperDuperConversionSystem.Update(testmap)
 	if err != nil {
-		t.Fatal("Test Failed - Update() error", err)
+		t.Fatal(err)
 	}
 
 	err = SuperDuperConversionSystem.Update(nil)
 	if err == nil {
-		t.Fatal("Test Failed - Update() error cannot be nil")
+		t.Fatal("Update() error cannot be nil")
 	}
 
 	if !SuperDuperConversionSystem.HasData() {
-		t.Fatalf("Test Failed - HasData() error expected true but received %v",
+		t.Fatalf("HasData() error expected true but received %v",
 			SuperDuperConversionSystem.HasData())
 	}
 
@@ -162,7 +162,7 @@ func TestConversionsRatesSystem(t *testing.T) {
 	r := *p * 1000
 	expectedRate := 1396.9317581
 	if r != expectedRate {
-		t.Errorf("Test Failed - Convert() error expected %.13f but received %.13f",
+		t.Errorf("Convert() error expected %.13f but received %.13f",
 			expectedRate,
 			r)
 	}
@@ -170,8 +170,78 @@ func TestConversionsRatesSystem(t *testing.T) {
 	inverseR := *pi * expectedRate
 	expectedInverseRate := float64(1000)
 	if inverseR != expectedInverseRate {
-		t.Errorf("Test Failed - Convert() error expected %.13f but received %.13f",
+		t.Errorf("Convert() error expected %.13f but received %.13f",
 			expectedInverseRate,
 			inverseR)
+	}
+}
+
+func TestGetRate(t *testing.T) {
+	from := NewCode("AUD")
+	to := NewCode("USD")
+
+	c, err := NewConversion(from, to)
+	if err != nil {
+		t.Error(err)
+	}
+	rate, err := c.GetRate()
+	if err != nil {
+		t.Error(err)
+	}
+	if rate == 0 {
+		t.Error("Rate not set")
+	}
+	inv, err := c.GetInversionRate()
+	if err != nil {
+		t.Error(err)
+	}
+	if inv == 0 {
+		t.Error("Inverted rate not set")
+	}
+	conv, err := c.Convert(1)
+	if err != nil {
+		t.Error(err)
+	}
+	if rate != conv {
+		t.Errorf("Incorrect rate %v %v", rate, conv)
+	}
+	invConv, err := c.ConvertInverse(1)
+	if err != nil {
+		t.Error(err)
+	}
+	if inv != invConv {
+		t.Errorf("Incorrect rate %v %v", conv, invConv)
+	}
+
+	var convs ConversionRates
+	var convRate float64
+	_, err = convs.GetRate(BTC, USDT)
+	if err == nil {
+		t.Errorf("Expected %s", fmt.Errorf("rate not found for from %s to %s conversion",
+			BTC,
+			USD))
+	}
+	convRate, err = convs.GetRate(USDT, USD)
+	if err != nil {
+		t.Error(err)
+	}
+	if convRate != 1 {
+		t.Errorf("Expected rate to be 1")
+	}
+
+	convRate, err = convs.GetRate(RUR, RUB)
+	if err != nil {
+		t.Error(err)
+	}
+	if convRate != 1 {
+		t.Errorf("Expected rate to be 1")
+	}
+
+	convRate, err = convs.GetRate(RUB, RUR)
+	if err != nil {
+		t.Error(err)
+	}
+	if convRate != 1 {
+		t.Errorf("Expected rate to be 1")
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
@@ -19,14 +20,15 @@ var itemArray = [][]orderbook.Item{
 	{{Price: 5000, Amount: 1, ID: 5}},
 }
 
+var cp = currency.NewPairFromString("BTCUSD")
+
 const (
 	exchangeName = "exchangeTest"
-	spot         = orderbook.Spot
 )
 
-func createSnapshot() (obl *WebsocketOrderbookLocal, curr currency.Pair, asks, bids []orderbook.Item, err error) {
+func createSnapshot() (obl *WebsocketOrderbookLocal, asks, bids []orderbook.Item, err error) {
 	var snapShot1 orderbook.Base
-	curr = currency.NewPairFromString("BTCUSD")
+	snapShot1.ExchangeName = exchangeName
 	asks = []orderbook.Item{
 		{Price: 4000, Amount: 1, ID: 6},
 	}
@@ -35,30 +37,94 @@ func createSnapshot() (obl *WebsocketOrderbookLocal, curr currency.Pair, asks, b
 	}
 	snapShot1.Asks = asks
 	snapShot1.Bids = bids
-	snapShot1.AssetType = spot
-	snapShot1.Pair = curr
-	obl = &WebsocketOrderbookLocal{}
-	err = obl.LoadSnapshot(&snapShot1, false)
+	snapShot1.AssetType = asset.Spot
+	snapShot1.Pair = cp
+	obl = &WebsocketOrderbookLocal{exchangeName: exchangeName}
+	err = obl.LoadSnapshot(&snapShot1)
 	return
 }
 
-// BenchmarkBufferPerformance demonstrates buffer more performant than multi process calls
+func bidAskGenerator() []orderbook.Item {
+	var response []orderbook.Item
+	randIterator := 100
+	for i := 0; i < randIterator; i++ {
+		price := float64(rand.Intn(1000))
+		if price == 0 {
+			price = 1
+		}
+		response = append(response, orderbook.Item{
+			Amount: float64(rand.Intn(10)),
+			Price:  price,
+			ID:     int64(i),
+		})
+	}
+	return response
+}
+
+func BenchmarkUpdateBidsByPrice(b *testing.B) {
+	ob, _, _, err := createSnapshot()
+	if err != nil {
+		b.Error(err)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bidAsks := bidAskGenerator()
+		update := &WebsocketOrderbookUpdate{
+			Bids:       bidAsks,
+			Asks:       bidAsks,
+			Pair:       cp,
+			UpdateTime: time.Now(),
+			Asset:      asset.Spot,
+		}
+		ob.updateBidsByPrice(ob.ob[cp][asset.Spot], update)
+	}
+}
+
+func BenchmarkUpdateAsksByPrice(b *testing.B) {
+	ob, _, _, err := createSnapshot()
+	if err != nil {
+		b.Error(err)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bidAsks := bidAskGenerator()
+		update := &WebsocketOrderbookUpdate{
+			Bids:       bidAsks,
+			Asks:       bidAsks,
+			Pair:       cp,
+			UpdateTime: time.Now(),
+			Asset:      asset.Spot,
+		}
+		ob.updateAsksByPrice(ob.ob[cp][asset.Spot], update)
+	}
+}
+
+// BenchmarkBufferPerformance demonstrates buffer more performant than multi
+// process calls
 func BenchmarkBufferPerformance(b *testing.B) {
-	obl, curr, asks, bids, err := createSnapshot()
+	obl, asks, bids, err := createSnapshot()
 	if err != nil {
 		b.Fatal(err)
 	}
-	obl.exchangeName = exchangeName
-	obl.sortBuffer = true
-	update := &WebsocketOrderbookUpdate{
-		Bids:         bids,
-		Asks:         asks,
-		CurrencyPair: curr,
-		UpdateTime:   time.Now(),
-		AssetType:    spot,
+	obl.bufferEnabled = true
+	// This is to ensure we do not send in zero orderbook info to our main book
+	// in orderbook.go, orderbooks should not be zero even after an update.
+	dummyItem := orderbook.Item{
+		Amount: 1333337,
+		Price:  1337.1337,
+		ID:     1337,
 	}
+	obl.ob[cp][asset.Spot].Bids = append(obl.ob[cp][asset.Spot].Bids, dummyItem)
+	update := &WebsocketOrderbookUpdate{
+		Bids:       bids,
+		Asks:       asks,
+		Pair:       cp,
+		UpdateTime: time.Now(),
+		Asset:      asset.Spot,
+	}
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		randomIndex := rand.Intn(5)
+		randomIndex := rand.Intn(4)
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		err = obl.Update(update)
@@ -70,23 +136,30 @@ func BenchmarkBufferPerformance(b *testing.B) {
 
 // BenchmarkBufferSortingPerformance benchmark
 func BenchmarkBufferSortingPerformance(b *testing.B) {
-	obl, curr, asks, bids, err := createSnapshot()
+	obl, asks, bids, err := createSnapshot()
 	if err != nil {
 		b.Fatal(err)
 	}
-	obl.exchangeName = exchangeName
-	obl.sortBuffer = true
 	obl.bufferEnabled = true
-	obl.obBufferLimit = 5
-	update := &WebsocketOrderbookUpdate{
-		Bids:         bids,
-		Asks:         asks,
-		CurrencyPair: curr,
-		UpdateTime:   time.Now(),
-		AssetType:    spot,
+	obl.sortBuffer = true
+	// This is to ensure we do not send in zero orderbook info to our main book
+	// in orderbook.go, orderbooks should not be zero even after an update.
+	dummyItem := orderbook.Item{
+		Amount: 1333337,
+		Price:  1337.1337,
+		ID:     1337,
 	}
+	obl.ob[cp][asset.Spot].Bids = append(obl.ob[cp][asset.Spot].Bids, dummyItem)
+	update := &WebsocketOrderbookUpdate{
+		Bids:       bids,
+		Asks:       asks,
+		Pair:       cp,
+		UpdateTime: time.Now(),
+		Asset:      asset.Spot,
+	}
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		randomIndex := rand.Intn(5)
+		randomIndex := rand.Intn(4)
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		err = obl.Update(update)
@@ -96,70 +169,148 @@ func BenchmarkBufferSortingPerformance(b *testing.B) {
 	}
 }
 
-// BenchmarkNoBufferPerformance demonstrates orderbook process less performant than buffer
-func BenchmarkNoBufferPerformance(b *testing.B) {
-	obl, curr, asks, bids, err := createSnapshot()
+// BenchmarkBufferSortingPerformance benchmark
+func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
+	obl, asks, bids, err := createSnapshot()
 	if err != nil {
 		b.Fatal(err)
 	}
-	obl.exchangeName = exchangeName
-	update := &WebsocketOrderbookUpdate{
-		Bids:         bids,
-		Asks:         asks,
-		CurrencyPair: curr,
-		UpdateTime:   time.Now(),
-		AssetType:    spot,
+	obl.bufferEnabled = true
+	obl.sortBuffer = true
+	obl.sortBufferByUpdateIDs = true
+	// This is to ensure we do not send in zero orderbook info to our main book
+	// in orderbook.go, orderbooks should not be zero even after an update.
+	dummyItem := orderbook.Item{
+		Amount: 1333337,
+		Price:  1337.1337,
+		ID:     1337,
 	}
+	obl.ob[cp][asset.Spot].Bids = append(obl.ob[cp][asset.Spot].Bids, dummyItem)
+	update := &WebsocketOrderbookUpdate{
+		Bids:       bids,
+		Asks:       asks,
+		Pair:       cp,
+		UpdateTime: time.Now(),
+		Asset:      asset.Spot,
+	}
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		randomIndex := rand.Intn(5)
+		randomIndex := rand.Intn(4)
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		err = obl.Update(update)
 		if err != nil {
 			b.Fatal(err)
 		}
+	}
+}
+
+// BenchmarkNoBufferPerformance demonstrates orderbook process less performant
+// than buffer
+func BenchmarkNoBufferPerformance(b *testing.B) {
+	obl, asks, bids, err := createSnapshot()
+	if err != nil {
+		b.Fatal(err)
+	}
+	// This is to ensure we do not send in zero orderbook info to our main book
+	// in orderbook.go, orderbooks should not be zero even after an update.
+	dummyItem := orderbook.Item{
+		Amount: 1333337,
+		Price:  1337.1337,
+		ID:     1337,
+	}
+	obl.ob[cp][asset.Spot].Bids = append(obl.ob[cp][asset.Spot].Bids, dummyItem)
+	update := &WebsocketOrderbookUpdate{
+		Bids:       bids,
+		Asks:       asks,
+		Pair:       cp,
+		UpdateTime: time.Now(),
+		Asset:      asset.Spot,
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		randomIndex := rand.Intn(4)
+		update.Asks = itemArray[randomIndex]
+		update.Bids = itemArray[randomIndex]
+		err = obl.Update(update)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func TestUpdates(t *testing.T) {
+	obl, _, _, err := createSnapshot()
+	if err != nil {
+		t.Error(err)
+	}
+
+	obl.updateAsksByPrice(obl.ob[cp][asset.Spot], &WebsocketOrderbookUpdate{
+		Bids:       itemArray[5],
+		Asks:       itemArray[5],
+		Pair:       cp,
+		UpdateTime: time.Now(),
+		Asset:      asset.Spot,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	obl.updateAsksByPrice(obl.ob[cp][asset.Spot], &WebsocketOrderbookUpdate{
+		Bids:       itemArray[0],
+		Asks:       itemArray[0],
+		Pair:       cp,
+		UpdateTime: time.Now(),
+		Asset:      asset.Spot,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(obl.ob[cp][asset.Spot].Asks) != 3 {
+		t.Error("Did not update")
 	}
 }
 
 // TestHittingTheBuffer logic test
 func TestHittingTheBuffer(t *testing.T) {
-	obl, curr, _, _, err := createSnapshot()
+	obl, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
 	}
-	obl.exchangeName = exchangeName
 	obl.bufferEnabled = true
 	obl.obBufferLimit = 5
 	for i := 0; i < len(itemArray); i++ {
 		asks := itemArray[i]
 		bids := itemArray[i]
 		err = obl.Update(&WebsocketOrderbookUpdate{
-			Bids:         bids,
-			Asks:         asks,
-			CurrencyPair: curr,
-			UpdateTime:   time.Now(),
-			AssetType:    spot,
+			Bids:       bids,
+			Asks:       asks,
+			Pair:       cp,
+			UpdateTime: time.Now(),
+			Asset:      asset.Spot,
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
-	if len(obl.ob[curr][spot].Asks) != 3 {
-		t.Log(obl.ob[curr][spot])
-		t.Errorf("expected 3 entries, received: %v", len(obl.ob[curr][spot].Asks))
+	if len(obl.ob[cp][asset.Spot].Asks) != 3 {
+		t.Log(obl.ob[cp][asset.Spot])
+		t.Errorf("expected 3 entries, received: %v",
+			len(obl.ob[cp][asset.Spot].Asks))
 	}
-	if len(obl.ob[curr][spot].Bids) != 3 {
-		t.Errorf("expected 3 entries, received: %v", len(obl.ob[curr][spot].Bids))
+	if len(obl.ob[cp][asset.Spot].Bids) != 3 {
+		t.Errorf("expected 3 entries, received: %v",
+			len(obl.ob[cp][asset.Spot].Bids))
 	}
 }
 
 // TestInsertWithIDs logic test
 func TestInsertWithIDs(t *testing.T) {
-	obl, curr, _, _, err := createSnapshot()
+	obl, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
 	}
-	obl.exchangeName = exchangeName
 	obl.bufferEnabled = true
 	obl.updateEntriesByID = true
 	obl.obBufferLimit = 5
@@ -167,32 +318,33 @@ func TestInsertWithIDs(t *testing.T) {
 		asks := itemArray[i]
 		bids := itemArray[i]
 		err = obl.Update(&WebsocketOrderbookUpdate{
-			Bids:         bids,
-			Asks:         asks,
-			CurrencyPair: curr,
-			UpdateTime:   time.Now(),
-			AssetType:    spot,
-			Action:       "insert",
+			Bids:       bids,
+			Asks:       asks,
+			Pair:       cp,
+			UpdateTime: time.Now(),
+			Asset:      asset.Spot,
+			Action:     "insert",
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
-	if len(obl.ob[curr][spot].Asks) != 6 {
-		t.Errorf("expected 6 entries, received: %v", len(obl.ob[curr][spot].Asks))
+	if len(obl.ob[cp][asset.Spot].Asks) != 6 {
+		t.Errorf("expected 6 entries, received: %v",
+			len(obl.ob[cp][asset.Spot].Asks))
 	}
-	if len(obl.ob[curr][spot].Bids) != 6 {
-		t.Errorf("expected 6 entries, received: %v", len(obl.ob[curr][spot].Bids))
+	if len(obl.ob[cp][asset.Spot].Bids) != 6 {
+		t.Errorf("expected 6 entries, received: %v",
+			len(obl.ob[cp][asset.Spot].Bids))
 	}
 }
 
 // TestSortIDs logic test
 func TestSortIDs(t *testing.T) {
-	obl, curr, _, _, err := createSnapshot()
+	obl, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
 	}
-	obl.exchangeName = exchangeName
 	obl.bufferEnabled = true
 	obl.sortBufferByUpdateIDs = true
 	obl.sortBuffer = true
@@ -201,116 +353,136 @@ func TestSortIDs(t *testing.T) {
 		asks := itemArray[i]
 		bids := itemArray[i]
 		err = obl.Update(&WebsocketOrderbookUpdate{
-			Bids:         bids,
-			Asks:         asks,
-			CurrencyPair: curr,
-			UpdateID:     int64(i),
-			AssetType:    spot,
+			Bids:     bids,
+			Asks:     asks,
+			Pair:     cp,
+			UpdateID: int64(i),
+			Asset:    asset.Spot,
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
-	if len(obl.ob[curr][spot].Asks) != 3 {
-		t.Errorf("expected 6 entries, received: %v", len(obl.ob[curr][spot].Asks))
+	if len(obl.ob[cp][asset.Spot].Asks) != 3 {
+		t.Errorf("expected 3 entries, received: %v",
+			len(obl.ob[cp][asset.Spot].Asks))
 	}
-	if len(obl.ob[curr][spot].Bids) != 3 {
-		t.Errorf("expected 6 entries, received: %v", len(obl.ob[curr][spot].Bids))
+	if len(obl.ob[cp][asset.Spot].Bids) != 3 {
+		t.Errorf("expected 3 entries, received: %v",
+			len(obl.ob[cp][asset.Spot].Bids))
 	}
 }
 
 // TestDeleteWithIDs logic test
 func TestDeleteWithIDs(t *testing.T) {
-	obl, curr, _, _, err := createSnapshot()
+	obl, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
 	}
-	obl.exchangeName = exchangeName
+
+	// This is to ensure we do not send in zero orderbook info to our main book
+	// in orderbook.go, orderbooks should not be zero even after an update.
+	dummyItem := orderbook.Item{
+		Amount: 1333337,
+		Price:  1337.1337,
+		ID:     1337,
+	}
+	obl.ob[cp][asset.Spot].Bids = append(obl.ob[cp][asset.Spot].Bids, dummyItem)
+	obl.ob[cp][asset.Spot].Asks = append(obl.ob[cp][asset.Spot].Asks,
+		itemArray[2][0])
+	obl.ob[cp][asset.Spot].Asks = append(obl.ob[cp][asset.Spot].Asks,
+		itemArray[1][0])
+
 	obl.updateEntriesByID = true
 	for i := 0; i < len(itemArray); i++ {
 		asks := itemArray[i]
 		bids := itemArray[i]
 		err = obl.Update(&WebsocketOrderbookUpdate{
-			Bids:         bids,
-			Asks:         asks,
-			CurrencyPair: curr,
-			UpdateTime:   time.Now(),
-			AssetType:    spot,
-			Action:       "delete",
+			Bids:       bids,
+			Asks:       asks,
+			Pair:       cp,
+			UpdateTime: time.Now(),
+			Asset:      asset.Spot,
+			Action:     "delete",
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
-	if len(obl.ob[curr][spot].Asks) != 0 {
-		t.Errorf("expected 0 entries, received: %v", len(obl.ob[curr][spot].Asks))
+
+	if len(obl.ob[cp][asset.Spot].Asks) != 0 {
+		t.Errorf("expected 0 entries, received: %v",
+			len(obl.ob[cp][asset.Spot].Asks))
 	}
-	if len(obl.ob[curr][spot].Bids) != 0 {
-		t.Errorf("expected 0 entries, received: %v", len(obl.ob[curr][spot].Bids))
+	if len(obl.ob[cp][asset.Spot].Bids) != 1 {
+		t.Errorf("expected 1 entries, received: %v",
+			len(obl.ob[cp][asset.Spot].Bids))
 	}
 }
 
 // TestUpdateWithIDs logic test
 func TestUpdateWithIDs(t *testing.T) {
-	obl, curr, _, _, err := createSnapshot()
+	obl, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
 	}
-	obl.exchangeName = exchangeName
 	obl.updateEntriesByID = true
 	for i := 0; i < len(itemArray); i++ {
 		asks := itemArray[i]
 		bids := itemArray[i]
 		err = obl.Update(&WebsocketOrderbookUpdate{
-			Bids:         bids,
-			Asks:         asks,
-			CurrencyPair: curr,
-			UpdateTime:   time.Now(),
-			AssetType:    spot,
-			Action:       "update",
+			Bids:       bids,
+			Asks:       asks,
+			Pair:       cp,
+			UpdateTime: time.Now(),
+			Asset:      asset.Spot,
+			Action:     "update",
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
-	if len(obl.ob[curr][spot].Asks) != 1 {
-		t.Log(obl.ob[curr][spot])
-		t.Errorf("expected 1 entries, received: %v", len(obl.ob[curr][spot].Asks))
+	if len(obl.ob[cp][asset.Spot].Asks) != 1 {
+		t.Log(obl.ob[cp][asset.Spot])
+		t.Errorf("expected 1 entries, received: %v",
+			len(obl.ob[cp][asset.Spot].Asks))
 	}
-	if len(obl.ob[curr][spot].Bids) != 1 {
-		t.Errorf("expected 1 entries, received: %v", len(obl.ob[curr][spot].Bids))
+	if len(obl.ob[cp][asset.Spot].Bids) != 1 {
+		t.Errorf("expected 1 entries, received: %v",
+			len(obl.ob[cp][asset.Spot].Bids))
 	}
 }
 
 // TestOutOfOrderIDs logic test
 func TestOutOfOrderIDs(t *testing.T) {
-	obl, curr, _, _, err := createSnapshot()
+	obl, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
 	}
-	outOFOrderIDs := []int64{2, 1, 5, 3, 4, 6}
+	outOFOrderIDs := []int64{2, 1, 5, 3, 4, 6, 7}
 	if itemArray[0][0].Price != 1000 {
-		t.Errorf("expected sorted price to be 3000, received: %v", itemArray[1][0].Price)
+		t.Errorf("expected sorted price to be 3000, received: %v",
+			itemArray[1][0].Price)
 	}
-	obl.exchangeName = exchangeName
 	obl.bufferEnabled = true
 	obl.sortBuffer = true
 	obl.obBufferLimit = 5
 	for i := 0; i < len(itemArray); i++ {
 		asks := itemArray[i]
 		err = obl.Update(&WebsocketOrderbookUpdate{
-			Asks:         asks,
-			CurrencyPair: curr,
-			UpdateID:     outOFOrderIDs[i],
-			AssetType:    spot,
+			Asks:     asks,
+			Pair:     cp,
+			UpdateID: outOFOrderIDs[i],
+			Asset:    asset.Spot,
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 	// Index 1 since index 0 is price 7000
-	if obl.ob[curr][spot].Asks[1].Price != 2000 {
-		t.Errorf("expected sorted price to be 3000, received: %v", obl.ob[curr][spot].Asks[1].Price)
+	if obl.ob[cp][asset.Spot].Asks[1].Price != 2000 {
+		t.Errorf("expected sorted price to be 3000, received: %v",
+			obl.ob[cp][asset.Spot].Asks[1].Price)
 	}
 }
 
@@ -318,7 +490,6 @@ func TestOutOfOrderIDs(t *testing.T) {
 func TestRunUpdateWithoutSnapshot(t *testing.T) {
 	var obl WebsocketOrderbookLocal
 	var snapShot1 orderbook.Base
-	curr := currency.NewPairFromString("BTCUSD")
 	asks := []orderbook.Item{
 		{Price: 4000, Amount: 1, ID: 8},
 	}
@@ -328,20 +499,20 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 	}
 	snapShot1.Asks = asks
 	snapShot1.Bids = bids
-	snapShot1.AssetType = spot
-	snapShot1.Pair = curr
+	snapShot1.AssetType = asset.Spot
+	snapShot1.Pair = cp
 	obl.exchangeName = exchangeName
 	err := obl.Update(&WebsocketOrderbookUpdate{
-		Bids:         bids,
-		Asks:         asks,
-		CurrencyPair: curr,
-		UpdateTime:   time.Now(),
-		AssetType:    spot,
+		Bids:       bids,
+		Asks:       asks,
+		Pair:       cp,
+		UpdateTime: time.Now(),
+		Asset:      asset.Spot,
 	})
 	if err == nil {
 		t.Fatal("expected an error running update with no snapshot loaded")
 	}
-	if err.Error() != "ob.Base could not be found for Exchange exchangeTest CurrencyPair: BTCUSD AssetType: SPOT" {
+	if err.Error() != "ob.Base could not be found for Exchange exchangeTest CurrencyPair: BTCUSD AssetType: spot" {
 		t.Fatal(err)
 	}
 }
@@ -350,23 +521,23 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 	var obl WebsocketOrderbookLocal
 	var snapShot1 orderbook.Base
-	curr := currency.NewPairFromString("BTCUSD")
 	snapShot1.Asks = []orderbook.Item{}
 	snapShot1.Bids = []orderbook.Item{}
-	snapShot1.AssetType = spot
-	snapShot1.Pair = curr
+	snapShot1.AssetType = asset.Spot
+	snapShot1.Pair = cp
 	obl.exchangeName = exchangeName
 	err := obl.Update(&WebsocketOrderbookUpdate{
-		Bids:         snapShot1.Asks,
-		Asks:         snapShot1.Bids,
-		CurrencyPair: curr,
-		UpdateTime:   time.Now(),
-		AssetType:    spot,
+		Bids:       snapShot1.Asks,
+		Asks:       snapShot1.Bids,
+		Pair:       cp,
+		UpdateTime: time.Now(),
+		Asset:      asset.Spot,
 	})
 	if err == nil {
 		t.Fatal("expected an error running update with no snapshot loaded")
 	}
-	if err.Error() != fmt.Sprintf("%v cannot have bids and ask targets both nil", exchangeName) {
+	if err.Error() != fmt.Sprintf("%v cannot have bids and ask targets both nil",
+		exchangeName) {
 		t.Fatal("expected nil asks and bids error")
 	}
 }
@@ -375,15 +546,13 @@ func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 func TestRunSnapshotWithNoData(t *testing.T) {
 	var obl WebsocketOrderbookLocal
 	var snapShot1 orderbook.Base
-	curr := currency.NewPairFromString("BTCUSD")
 	snapShot1.Asks = []orderbook.Item{}
 	snapShot1.Bids = []orderbook.Item{}
-	snapShot1.AssetType = spot
-	snapShot1.Pair = curr
+	snapShot1.AssetType = asset.Spot
+	snapShot1.Pair = cp
 	snapShot1.ExchangeName = "test"
 	obl.exchangeName = "test"
-	err := obl.LoadSnapshot(&snapShot1,
-		false)
+	err := obl.LoadSnapshot(&snapShot1)
 	if err == nil {
 		t.Fatal("expected an error loading a snapshot")
 	}
@@ -392,11 +561,11 @@ func TestRunSnapshotWithNoData(t *testing.T) {
 	}
 }
 
-// TestLoadSnapshotWithOverride logic test
-func TestLoadSnapshotWithOverride(t *testing.T) {
+// TestLoadSnapshot logic test
+func TestLoadSnapshot(t *testing.T) {
 	var obl WebsocketOrderbookLocal
 	var snapShot1 orderbook.Base
-	curr := currency.NewPairFromString("BTCUSD")
+	snapShot1.ExchangeName = "SnapshotWithOverride"
 	asks := []orderbook.Item{
 		{Price: 4000, Amount: 1, ID: 8},
 	}
@@ -405,33 +574,25 @@ func TestLoadSnapshotWithOverride(t *testing.T) {
 	}
 	snapShot1.Asks = asks
 	snapShot1.Bids = bids
-	snapShot1.AssetType = spot
-	snapShot1.Pair = curr
-	err := obl.LoadSnapshot(&snapShot1, false)
-	if err != nil {
-		t.Error(err)
-	}
-	err = obl.LoadSnapshot(&snapShot1, false)
-	if err == nil {
-		t.Error("expected error: 'snapshot instance already found'")
-	}
-	err = obl.LoadSnapshot(&snapShot1, true)
+	snapShot1.AssetType = asset.Spot
+	snapShot1.Pair = cp
+	err := obl.LoadSnapshot(&snapShot1)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-// TestInsertWithIDs logic test
+// TestFlushCache logic test
 func TestFlushCache(t *testing.T) {
-	obl, curr, _, _, err := createSnapshot()
+	obl, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if obl.ob[curr][spot] == nil {
+	if obl.ob[cp][asset.Spot] == nil {
 		t.Error("expected ob to have ask entries")
 	}
 	obl.FlushCache()
-	if obl.ob[curr][spot] != nil {
+	if obl.ob[cp][asset.Spot] != nil {
 		t.Error("expected ob be flushed")
 	}
 }
@@ -440,6 +601,7 @@ func TestFlushCache(t *testing.T) {
 func TestInsertingSnapShots(t *testing.T) {
 	var obl WebsocketOrderbookLocal
 	var snapShot1 orderbook.Base
+	snapShot1.ExchangeName = "WSORDERBOOKTEST1"
 	asks := []orderbook.Item{
 		{Price: 6000, Amount: 1, ID: 1},
 		{Price: 6001, Amount: 0.5, ID: 2},
@@ -470,13 +632,14 @@ func TestInsertingSnapShots(t *testing.T) {
 
 	snapShot1.Asks = asks
 	snapShot1.Bids = bids
-	snapShot1.AssetType = spot
-	snapShot1.Pair = currency.NewPairFromString("BTCUSD")
-	err := obl.LoadSnapshot(&snapShot1, false)
+	snapShot1.AssetType = asset.Spot
+	snapShot1.Pair = cp
+	err := obl.LoadSnapshot(&snapShot1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var snapShot2 orderbook.Base
+	snapShot2.ExchangeName = "WSORDERBOOKTEST2"
 	asks = []orderbook.Item{
 		{Price: 51, Amount: 1, ID: 1},
 		{Price: 52, Amount: 0.5, ID: 2},
@@ -507,13 +670,14 @@ func TestInsertingSnapShots(t *testing.T) {
 
 	snapShot2.Asks = asks
 	snapShot2.Bids = bids
-	snapShot2.AssetType = spot
+	snapShot2.AssetType = asset.Spot
 	snapShot2.Pair = currency.NewPairFromString("LTCUSD")
-	err = obl.LoadSnapshot(&snapShot2, false)
+	err = obl.LoadSnapshot(&snapShot2)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var snapShot3 orderbook.Base
+	snapShot3.ExchangeName = "WSORDERBOOKTEST3"
 	asks = []orderbook.Item{
 		{Price: 511, Amount: 1, ID: 1},
 		{Price: 52, Amount: 0.5, ID: 2},
@@ -546,28 +710,34 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot3.Bids = bids
 	snapShot3.AssetType = "FUTURES"
 	snapShot3.Pair = currency.NewPairFromString("LTCUSD")
-	err = obl.LoadSnapshot(&snapShot3, false)
+	err = obl.LoadSnapshot(&snapShot3)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if obl.ob[snapShot1.Pair][snapShot1.AssetType].Asks[0] != snapShot1.Asks[0] {
-		t.Errorf("loaded data mismatch. Expected %v, received %v", snapShot1.Asks[0], obl.ob[snapShot1.Pair][snapShot1.AssetType].Asks[0])
+		t.Errorf("loaded data mismatch. Expected %v, received %v",
+			snapShot1.Asks[0],
+			obl.ob[snapShot1.Pair][snapShot1.AssetType].Asks[0])
 	}
 	if obl.ob[snapShot2.Pair][snapShot2.AssetType].Asks[0] != snapShot2.Asks[0] {
-		t.Errorf("loaded data mismatch. Expected %v, received %v", snapShot2.Asks[0], obl.ob[snapShot2.Pair][snapShot2.AssetType].Asks[0])
+		t.Errorf("loaded data mismatch. Expected %v, received %v",
+			snapShot2.Asks[0],
+			obl.ob[snapShot2.Pair][snapShot2.AssetType].Asks[0])
 	}
 	if obl.ob[snapShot3.Pair][snapShot3.AssetType].Asks[0] != snapShot3.Asks[0] {
-		t.Errorf("loaded data mismatch. Expected %v, received %v", snapShot3.Asks[0], obl.ob[snapShot3.Pair][snapShot3.AssetType].Asks[0])
+		t.Errorf("loaded data mismatch. Expected %v, received %v",
+			snapShot3.Asks[0],
+			obl.ob[snapShot3.Pair][snapShot3.AssetType].Asks[0])
 	}
 }
 
 func TestGetOrderbook(t *testing.T) {
-	obl, curr, _, _, err := createSnapshot()
+	obl, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
 	}
-	ob := obl.GetOrderbook(curr, spot)
-	if obl.ob[curr][spot] != ob {
+	ob := obl.GetOrderbook(cp, asset.Spot)
+	if obl.ob[cp][asset.Spot] != ob {
 		t.Error("Failed to get orderbook")
 	}
 }
@@ -575,7 +745,35 @@ func TestGetOrderbook(t *testing.T) {
 func TestSetup(t *testing.T) {
 	w := WebsocketOrderbookLocal{}
 	w.Setup(1, true, true, true, true, "hi")
-	if w.obBufferLimit != 1 || !w.bufferEnabled || !w.sortBuffer || !w.sortBufferByUpdateIDs || !w.updateEntriesByID || w.exchangeName != "hi" {
+	if w.obBufferLimit != 1 ||
+		!w.bufferEnabled ||
+		!w.sortBuffer ||
+		!w.sortBufferByUpdateIDs ||
+		!w.updateEntriesByID ||
+		w.exchangeName != "hi" {
 		t.Errorf("Setup incorrectly loaded %s", w.exchangeName)
+	}
+}
+
+func TestEnsureMultipleUpdatesViaPrice(t *testing.T) {
+	obl, _, _, err := createSnapshot()
+	if err != nil {
+		t.Error(err)
+	}
+
+	asks := bidAskGenerator()
+	obl.updateAsksByPrice(obl.ob[cp][asset.Spot], &WebsocketOrderbookUpdate{
+		Bids:       asks,
+		Asks:       asks,
+		Pair:       cp,
+		UpdateTime: time.Now(),
+		Asset:      asset.Spot,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(obl.ob[cp][asset.Spot].Asks) <= 3 {
+		t.Errorf("Insufficient updates")
 	}
 }

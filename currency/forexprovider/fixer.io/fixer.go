@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -21,36 +22,11 @@ import (
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
-const (
-	fixerAPIFree = iota
-	fixerAPIBasic
-	fixerAPIProfessional
-	fixerAPIProfessionalPlus
-	fixerAPIEnterprise
-
-	fixerAPI                 = "http://data.fixer.io/api/"
-	fixerAPISSL              = "https://data.fixer.io/api/"
-	fixerAPILatest           = "latest"
-	fixerAPIConvert          = "convert"
-	fixerAPITimeSeries       = "timeseries"
-	fixerAPIFluctuation      = "fluctuation"
-	fixerSupportedCurrencies = "symbols"
-
-	authRate   = 0
-	unAuthRate = 0
-)
-
-// Fixer is a foreign exchange rate provider at https://fixer.io/
-// NOTE DEFAULT BASE CURRENCY IS EUR upgrade to basic to change
-type Fixer struct {
-	base.Base
-	Requester *request.Requester
-}
-
 // Setup sets appropriate values for fixer object
 func (f *Fixer) Setup(config base.Settings) error {
 	if config.APIKeyLvl < 0 || config.APIKeyLvl > 4 {
-		log.Errorf("apikey incorrectly set in config.json for %s, please set appropriate account levels",
+		log.Errorf(log.Global,
+			"apikey incorrectly set in config.json for %s, please set appropriate account levels\n",
 			config.Name)
 		return errors.New("apikey set failure")
 	}
@@ -142,7 +118,7 @@ func (f *Fixer) GetHistoricalRates(date, baseCurrency string, symbols []string) 
 	var resp Rates
 
 	v := url.Values{}
-	v.Set("symbols", common.JoinStrings(symbols, ","))
+	v.Set("symbols", strings.Join(symbols, ","))
 
 	if baseCurrency != "" {
 		v.Set("base", baseCurrency)
@@ -205,7 +181,7 @@ func (f *Fixer) GetTimeSeriesData(startDate, endDate, baseCurrency string, symbo
 	v.Set("start_date", startDate)
 	v.Set("end_date", endDate)
 	v.Set("base", baseCurrency)
-	v.Set("symbols", common.JoinStrings(symbols, ","))
+	v.Set("symbols", strings.Join(symbols, ","))
 
 	err := f.SendOpenHTTPRequest(fixerAPITimeSeries, v, &resp)
 	if err != nil {
@@ -231,7 +207,7 @@ func (f *Fixer) GetFluctuationData(startDate, endDate, baseCurrency string, symb
 	v.Set("start_date", startDate)
 	v.Set("end_date", endDate)
 	v.Set("base", baseCurrency)
-	v.Set("symbols", common.JoinStrings(symbols, ","))
+	v.Set("symbols", strings.Join(symbols, ","))
 
 	err := f.SendOpenHTTPRequest(fixerAPIFluctuation, v, &resp)
 	if err != nil {

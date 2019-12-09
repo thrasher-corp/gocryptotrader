@@ -1,20 +1,16 @@
 package lakebtc
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -44,115 +40,13 @@ type LakeBTC struct {
 	WebsocketConn
 }
 
-// SetDefaults sets LakeBTC defaults
-func (l *LakeBTC) SetDefaults() {
-	l.Name = "LakeBTC"
-	l.Enabled = false
-	l.TakerFee = 0.2
-	l.MakerFee = 0.15
-	l.Verbose = false
-	l.RESTPollingDelay = 10
-	l.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
-		exchange.WithdrawFiatViaWebsiteOnly
-	l.RequestCurrencyPairFormat.Delimiter = ""
-	l.RequestCurrencyPairFormat.Uppercase = true
-	l.ConfigCurrencyPairFormat.Delimiter = ""
-	l.ConfigCurrencyPairFormat.Uppercase = true
-	l.AssetTypes = []string{ticker.Spot}
-	l.SupportsAutoPairUpdating = true
-	l.SupportsRESTTickerBatching = true
-	l.Requester = request.New(l.Name,
-		request.NewRateLimit(time.Second, lakeBTCAuthRate),
-		request.NewRateLimit(time.Second, lakeBTCUnauth),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	l.APIUrlDefault = lakeBTCAPIURL
-	l.APIUrl = l.APIUrlDefault
-	l.Websocket = wshandler.New()
-	l.Websocket.Functionality = wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketSubscribeSupported
-	l.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
-
-// Setup sets exchange configuration profile
-func (l *LakeBTC) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		l.SetEnabled(false)
-	} else {
-		l.Enabled = true
-		l.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		l.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
-		l.SetHTTPClientTimeout(exch.HTTPTimeout)
-		l.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		l.RESTPollingDelay = exch.RESTPollingDelay
-		l.Verbose = exch.Verbose
-		l.HTTPDebugging = exch.HTTPDebugging
-		l.BaseCurrencies = exch.BaseCurrencies
-		l.AvailablePairs = exch.AvailablePairs
-		l.EnabledPairs = exch.EnabledPairs
-		err := l.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = l.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = l.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = l.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = l.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = l.Websocket.Setup(l.WsConnect,
-			l.Subscribe,
-			nil,
-			exch.Name,
-			exch.Websocket,
-			exch.Verbose,
-			lakeBTCWSURL,
-			exch.WebsocketURL,
-			exch.AuthenticatedWebsocketAPISupport)
-		if err != nil {
-			log.Fatal(err)
-		}
-		l.Websocket.Orderbook.Setup(
-			exch.WebsocketOrderbookBufferLimit,
-			false,
-			false,
-			false,
-			false,
-			exch.Name)
-	}
-}
-
-// GetTradablePairs returns a list of available pairs from the exchange
-func (l *LakeBTC) GetTradablePairs() ([]string, error) {
-	result, err := l.GetTicker()
-	if err != nil {
-		return nil, err
-	}
-
-	var currencies []string
-	for x := range result {
-		currencies = append(currencies, common.StringToUpper(x))
-	}
-
-	return currencies, nil
-}
-
 // GetTicker returns the current ticker from lakeBTC
 func (l *LakeBTC) GetTicker() (map[string]Ticker, error) {
 	response := make(map[string]TickerResponse)
-	path := fmt.Sprintf("%s/%s", l.APIUrl, lakeBTCTicker)
+	path := fmt.Sprintf("%s/%s", l.API.Endpoints.URL, lakeBTCTicker)
 
-	if err := l.SendHTTPRequest(path, &response); err != nil {
+	err := l.SendHTTPRequest(path, &response)
+	if err != nil {
 		return nil, err
 	}
 
@@ -160,24 +54,42 @@ func (l *LakeBTC) GetTicker() (map[string]Ticker, error) {
 
 	for k, v := range response {
 		var tick Ticker
-		key := common.StringToUpper(k)
+		key := strings.ToUpper(k)
 		if v.Ask != nil {
-			tick.Ask, _ = strconv.ParseFloat(v.Ask.(string), 64)
+			tick.Ask, err = strconv.ParseFloat(v.Ask.(string), 64)
+			if err != nil {
+				return nil, err
+			}
 		}
 		if v.Bid != nil {
-			tick.Bid, _ = strconv.ParseFloat(v.Bid.(string), 64)
+			tick.Bid, err = strconv.ParseFloat(v.Bid.(string), 64)
+			if err != nil {
+				return nil, err
+			}
 		}
 		if v.High != nil {
-			tick.High, _ = strconv.ParseFloat(v.High.(string), 64)
+			tick.High, err = strconv.ParseFloat(v.High.(string), 64)
+			if err != nil {
+				return nil, err
+			}
 		}
 		if v.Last != nil {
-			tick.Last, _ = strconv.ParseFloat(v.Last.(string), 64)
+			tick.Last, err = strconv.ParseFloat(v.Last.(string), 64)
+			if err != nil {
+				return nil, err
+			}
 		}
 		if v.Low != nil {
-			tick.Low, _ = strconv.ParseFloat(v.Low.(string), 64)
+			tick.Low, err = strconv.ParseFloat(v.Low.(string), 64)
+			if err != nil {
+				return nil, err
+			}
 		}
 		if v.Volume != nil {
-			tick.Volume, _ = strconv.ParseFloat(v.Volume.(string), 64)
+			tick.Volume, err = strconv.ParseFloat(v.Volume.(string), 64)
+			if err != nil {
+				return nil, err
+			}
 		}
 		result[key] = tick
 	}
@@ -190,7 +102,7 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 		Bids [][]string `json:"bids"`
 		Asks [][]string `json:"asks"`
 	}
-	path := fmt.Sprintf("%s/%s?symbol=%s", l.APIUrl, lakeBTCOrderbook, common.StringToLower(currency))
+	path := fmt.Sprintf("%s/%s?symbol=%s", l.API.Endpoints.URL, lakeBTCOrderbook, strings.ToLower(currency))
 	resp := Response{}
 	err := l.SendHTTPRequest(path, &resp)
 	if err != nil {
@@ -201,12 +113,12 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 	for _, x := range resp.Bids {
 		price, err := strconv.ParseFloat(x[0], 64)
 		if err != nil {
-			log.Error(err)
+			log.Error(log.ExchangeSys, err)
 			continue
 		}
 		amount, err := strconv.ParseFloat(x[1], 64)
 		if err != nil {
-			log.Error(err)
+			log.Error(log.ExchangeSys, err)
 			continue
 		}
 		orderbook.Bids = append(orderbook.Bids, OrderbookStructure{price, amount})
@@ -215,12 +127,12 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 	for _, x := range resp.Asks {
 		price, err := strconv.ParseFloat(x[0], 64)
 		if err != nil {
-			log.Error(err)
+			log.Error(log.ExchangeSys, err)
 			continue
 		}
 		amount, err := strconv.ParseFloat(x[1], 64)
 		if err != nil {
-			log.Error(err)
+			log.Error(log.ExchangeSys, err)
 			continue
 		}
 		orderbook.Asks = append(orderbook.Asks, OrderbookStructure{price, amount})
@@ -230,16 +142,14 @@ func (l *LakeBTC) GetOrderBook(currency string) (Orderbook, error) {
 
 // GetTradeHistory returns the trade history for a given currency pair
 func (l *LakeBTC) GetTradeHistory(currency string) ([]TradeHistory, error) {
-	path := fmt.Sprintf("%s/%s?symbol=%s", l.APIUrl, lakeBTCTrades, common.StringToLower(currency))
+	path := fmt.Sprintf("%s/%s?symbol=%s", l.API.Endpoints.URL, lakeBTCTrades, strings.ToLower(currency))
 	var resp []TradeHistory
-
 	return resp, l.SendHTTPRequest(path, &resp)
 }
 
 // GetAccountInformation returns your current account information
 func (l *LakeBTC) GetAccountInformation() (AccountInfo, error) {
 	resp := AccountInfo{}
-
 	return resp, l.SendAuthenticatedHTTPRequest(lakeBTCGetAccountInfo, "", &resp)
 }
 
@@ -282,7 +192,7 @@ func (l *LakeBTC) GetOrders(orders []int64) ([]Orders, error) {
 
 	var resp []Orders
 	return resp,
-		l.SendAuthenticatedHTTPRequest(lakeBTCGetOrders, common.JoinStrings(ordersStr, ","), &resp)
+		l.SendAuthenticatedHTTPRequest(lakeBTCGetOrders, strings.Join(ordersStr, ","), &resp)
 }
 
 // CancelExistingOrder cancels an order by ID number and returns an error
@@ -311,7 +221,7 @@ func (l *LakeBTC) CancelExistingOrders(orderIDs []string) error {
 	}
 
 	resp := Response{}
-	params := common.JoinStrings(orderIDs, ",")
+	params := strings.Join(orderIDs, ",")
 	err := l.SendAuthenticatedHTTPRequest(lakeBTCCancelOrder, params, &resp)
 	if err != nil {
 		return err
@@ -374,36 +284,36 @@ func (l *LakeBTC) SendHTTPRequest(path string, result interface{}) error {
 
 // SendAuthenticatedHTTPRequest sends an autheticated HTTP request to a LakeBTC
 func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result interface{}) (err error) {
-	if !l.AuthenticatedAPISupport {
+	if !l.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, l.Name)
 	}
 
 	n := l.Requester.GetNonce(true).String()
 
-	req := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=1&method=%s&params=%s", n, l.APIKey, method, params)
-	hmac := common.GetHMAC(common.HashSHA1, []byte(req), []byte(l.APISecret))
+	req := fmt.Sprintf("tonce=%s&accesskey=%s&requestmethod=post&id=1&method=%s&params=%s", n, l.API.Credentials.Key, method, params)
+	hmac := crypto.GetHMAC(crypto.HashSHA1, []byte(req), []byte(l.API.Credentials.Secret))
 
 	if l.Verbose {
-		log.Debugf("Sending POST request to %s calling method %s with params %s\n", l.APIUrl, method, req)
+		log.Debugf(log.ExchangeSys, "Sending POST request to %s calling method %s with params %s\n", l.API.Endpoints.URL, method, req)
 	}
 
 	postData := make(map[string]interface{})
 	postData["method"] = method
 	postData["id"] = 1
-	postData["params"] = common.SplitStrings(params, ",")
+	postData["params"] = strings.Split(params, ",")
 
-	data, err := common.JSONEncode(postData)
+	data, err := json.Marshal(postData)
 	if err != nil {
 		return err
 	}
 
 	headers := make(map[string]string)
 	headers["Json-Rpc-Tonce"] = l.Nonce.String()
-	headers["Authorization"] = "Basic " + common.Base64Encode([]byte(l.APIKey+":"+common.HexEncodeToString(hmac)))
+	headers["Authorization"] = "Basic " + crypto.Base64Encode([]byte(l.API.Credentials.Key+":"+crypto.HexEncodeToString(hmac)))
 	headers["Content-Type"] = "application/json-rpc"
 
 	return l.SendPayload(http.MethodPost,
-		l.APIUrl,
+		l.API.Endpoints.URL,
 		headers,
 		strings.NewReader(string(data)),
 		result,

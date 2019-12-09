@@ -3,6 +3,7 @@ package portfolio
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -148,10 +149,17 @@ func (p *Base) UpdateExchangeAddressBalance(exchangeName string, coinType curren
 }
 
 // AddAddress adds an address to the portfolio base
-func (p *Base) AddAddress(address, description string, coinType currency.Code, balance float64) {
+func (p *Base) AddAddress(address, description string, coinType currency.Code, balance float64) error {
+	if address == "" {
+		return errors.New("address is empty")
+	}
+
+	if coinType.String() == "" {
+		return errors.New("coin type is empty")
+	}
+
 	if description == PortfolioAddressExchange {
 		p.AddExchangeAddress(address, coinType, balance)
-		return
 	}
 	if !p.AddressExists(address) {
 		p.Addresses = append(
@@ -165,25 +173,36 @@ func (p *Base) AddAddress(address, description string, coinType currency.Code, b
 			p.UpdateAddressBalance(address, balance)
 		}
 	}
+	return nil
 }
 
 // RemoveAddress removes an address when checked against the correct address and
 // coinType
-func (p *Base) RemoveAddress(address, description string, coinType currency.Code) {
+func (p *Base) RemoveAddress(address, description string, coinType currency.Code) error {
+	if address == "" {
+		return errors.New("address is empty")
+	}
+
+	if coinType.String() == "" {
+		return errors.New("coin type is empty")
+	}
+
 	for x := range p.Addresses {
 		if p.Addresses[x].Address == address &&
 			p.Addresses[x].CoinType == coinType &&
 			p.Addresses[x].Description == description {
 			p.Addresses = append(p.Addresses[:x], p.Addresses[x+1:]...)
-			return
+			return nil
 		}
 	}
+
+	return errors.New("portfolio item does not exist")
 }
 
 // UpdatePortfolio adds to the portfolio addresses by coin type
 func (p *Base) UpdatePortfolio(addresses []string, coinType currency.Code) bool {
-	if common.StringContains(common.JoinStrings(addresses, ","), PortfolioAddressExchange) ||
-		common.StringContains(common.JoinStrings(addresses, ","), PortfolioAddressPersonal) {
+	if strings.Contains(strings.Join(addresses, ","), PortfolioAddressExchange) ||
+		strings.Contains(strings.Join(addresses, ","), PortfolioAddressPersonal) {
 		return true
 	}
 
@@ -224,7 +243,7 @@ func (p *Base) UpdatePortfolio(addresses []string, coinType currency.Code) bool 
 func (p *Base) GetPortfolioByExchange(exchangeName string) map[currency.Code]float64 {
 	result := make(map[currency.Code]float64)
 	for x := range p.Addresses {
-		if common.StringContains(p.Addresses[x].Address, exchangeName) {
+		if strings.Contains(p.Addresses[x].Address, exchangeName) {
 			result[p.Addresses[x].CoinType] = p.Addresses[x].Balance
 		}
 	}
@@ -379,7 +398,7 @@ func (p *Base) GetPortfolioSummary() Summary {
 func (p *Base) GetPortfolioGroupedCoin() map[currency.Code][]string {
 	result := make(map[currency.Code][]string)
 	for _, x := range p.Addresses {
-		if common.StringContains(x.Description, PortfolioAddressExchange) {
+		if strings.Contains(x.Description, PortfolioAddressExchange) {
 			continue
 		}
 		result[x.CoinType] = append(result[x.CoinType], x.Address)
@@ -387,16 +406,16 @@ func (p *Base) GetPortfolioGroupedCoin() map[currency.Code][]string {
 	return result
 }
 
-// SeedPortfolio appends a portfolio base object with another base portfolio
+// Seed appends a portfolio base object with another base portfolio
 // addresses
-func (p *Base) SeedPortfolio(port Base) {
+func (p *Base) Seed(port Base) {
 	p.Addresses = port.Addresses
 }
 
 // StartPortfolioWatcher observes the portfolio object
 func StartPortfolioWatcher() {
 	addrCount := len(Portfolio.Addresses)
-	log.Debugf(
+	log.Debugf(log.PortfolioMgr,
 		"PortfolioWatcher started: Have %d entries in portfolio.\n", addrCount,
 	)
 	for {
@@ -404,7 +423,7 @@ func StartPortfolioWatcher() {
 		for key, value := range data {
 			success := Portfolio.UpdatePortfolio(value, key)
 			if success {
-				log.Debugf(
+				log.Debugf(log.PortfolioMgr,
 					"PortfolioWatcher: Successfully updated address balance for %s address(es) %s\n",
 					key, value,
 				)

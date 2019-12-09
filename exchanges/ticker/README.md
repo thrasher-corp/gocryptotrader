@@ -35,7 +35,7 @@ exchange interface system set by exchange wrapper orderbook functions in
 Examples below:
 
 ```go
-tick, err := yobitExchange.GetTickerPrice()
+tick, err := yobitExchange.FetchTicker()
 if err != nil {
   // Handle error
 }
@@ -74,4 +74,3 @@ When submitting a PR, please abide by our coding guidelines:
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
 ***1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB***
-

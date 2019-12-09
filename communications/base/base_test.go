@@ -2,14 +2,10 @@ package base
 
 import (
 	"testing"
-
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
 var (
 	b Base
-	i IComm
 )
 
 func TestStart(t *testing.T) {
@@ -23,54 +19,19 @@ func TestStart(t *testing.T) {
 
 func TestIsEnabled(t *testing.T) {
 	if !b.IsEnabled() {
-		t.Error("test failed - base IsEnabled() error")
+		t.Error("base IsEnabled() error")
 	}
 }
 
 func TestIsConnected(t *testing.T) {
 	if !b.IsConnected() {
-		t.Error("test failed - base IsConnected() error")
+		t.Error("base IsConnected() error")
 	}
 }
 
 func TestGetName(t *testing.T) {
 	if b.GetName() != "test" {
-		t.Error("test failed - base GetName() error")
-	}
-}
-
-func TestGetTicker(t *testing.T) {
-	v := b.GetTicker("ANX")
-	if v != "" {
-		t.Error("test failed - base GetTicker() error")
-	}
-}
-
-func TestGetOrderbook(t *testing.T) {
-	v := b.GetOrderbook("ANX")
-	if v != "" {
-		t.Error("test failed - base GetOrderbook() error")
-	}
-}
-
-func TestGetPortfolio(t *testing.T) {
-	v := b.GetPortfolio()
-	if v != "{}" {
-		t.Error("test failed - base GetPortfolio() error")
-	}
-}
-
-func TestGetSettings(t *testing.T) {
-	v := b.GetSettings()
-	if v != "{ }" {
-		t.Error("test failed - base GetSettings() error")
-	}
-}
-
-func TestGetStatus(t *testing.T) {
-	v := b.GetStatus()
-	if v == "" {
-		t.Error("test failed - base GetStatus() error")
+		t.Error("base GetName() error")
 	}
 }
 
@@ -164,60 +125,5 @@ func TestPushEvent(t *testing.T) {
 		if exp != act {
 			t.Fatalf("provider should be enabled and connected: exp=%v, act=%v", exp, act)
 		}
-	}
-}
-
-func TestStageTickerData(t *testing.T) {
-	_, ok := TickerStaged["bitstamp"]["someAsset"]["BTCUSD"]
-	if ok {
-		t.Fatalf("key should not exists")
-	}
-
-	price := ticker.Price{}
-	var i IComm
-	i.Setup()
-
-	i.StageTickerData("bitstamp", "someAsset", &price)
-
-	_, ok = TickerStaged["bitstamp"]["someAsset"][price.Pair.String()]
-	if !ok {
-		t.Fatalf("key should exists")
-	}
-}
-
-func TestOrderbookData(t *testing.T) {
-	_, ok := OrderbookStaged["bitstamp"]["someAsset"]["someOrderbook"]
-	if ok {
-		t.Fatal("key should not exists")
-	}
-
-	ob := orderbook.Base{
-		Asks: []orderbook.Item{
-			{Amount: 1, Price: 2, ID: 3},
-			{Amount: 4, Price: 5, ID: 6},
-		},
-	}
-	var i IComm
-	i.Setup()
-
-	i.StageOrderbookData("bitstamp", "someAsset", &ob)
-
-	orderbook, ok := OrderbookStaged["bitstamp"]["someAsset"][ob.Pair.String()]
-	if !ok {
-		t.Fatal("key should exists")
-	}
-
-	if ob.Pair.String() != orderbook.CurrencyPair {
-		t.Fatal("currency missmatched")
-	}
-
-	_, totalAsks := ob.TotalAsksAmount()
-	if totalAsks != orderbook.TotalAsks {
-		t.Fatal("total asks missmatched")
-	}
-
-	_, totalBids := ob.TotalBidsAmount()
-	if totalBids != orderbook.TotalBids {
-		t.Fatal("total bids missmatched")
 	}
 }

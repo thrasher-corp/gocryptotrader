@@ -1,11 +1,15 @@
 package alphapoint
 
 import (
+	"encoding/json"
+	"log"
+	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 const (
@@ -15,509 +19,445 @@ const (
 	canManipulateRealOrders = false
 )
 
-func TestSetDefaults(t *testing.T) {
-	t.Parallel()
-	SetDefaults := Alphapoint{}
+var a Alphapoint
 
-	SetDefaults.SetDefaults()
-	if SetDefaults.APIUrl != "https://sim3.alphapoint.com:8400" {
-		t.Error("Test Failed - SetDefaults: String Incorrect -", SetDefaults.APIUrl)
+func TestMain(m *testing.M) {
+	a.SetDefaults()
+	a.API.Credentials.Key = apiKey
+	a.API.Credentials.Secret = apiSecret
+	a.API.AuthenticatedSupport = true
+	if a.API.Endpoints.URL != "https://sim3.alphapoint.com:8400" {
+		log.Fatal("SetDefaults: String Incorrect -", a.API.Endpoints.URL)
 	}
-	if SetDefaults.WebsocketURL != "wss://sim3.alphapoint.com:8401/v1/GetTicker/" {
-		t.Error("Test Failed - SetDefaults: String Incorrect -", SetDefaults.WebsocketURL)
+	if a.API.Endpoints.WebsocketURL != "wss://sim3.alphapoint.com:8401/v1/GetTicker/" {
+		log.Fatal("SetDefaults: String Incorrect -", a.API.Endpoints.WebsocketURL)
 	}
+	os.Exit(m.Run())
 }
 
-func testSetAPIKey(a *Alphapoint) {
-	a.APIKey = apiKey
-	a.APISecret = apiSecret
-	a.AuthenticatedAPISupport = true
+func areTestAPIKeysSet() bool {
+	return a.ValidateAPICredentials()
 }
 
-func testIsAPIKeysSet(a *Alphapoint) bool {
-	if apiKey != "" && apiSecret != "" && a.AuthenticatedAPISupport {
-		return true
-	}
-	return false
-}
 func TestGetTicker(t *testing.T) {
-	alpha := Alphapoint{}
-	alpha.SetDefaults()
-
+	t.Parallel()
 	var ticker Ticker
 	var err error
-
 	if onlineTest {
-		ticker, err = alpha.GetTicker("BTCUSD")
+		ticker, err = a.GetTicker("BTCUSD")
 		if err != nil {
-			t.Fatal("Test Failed - Alphapoint GetTicker init error: ", err)
+			t.Fatal("Alphapoint GetTicker init error: ", err)
 		}
 
-		_, err = alpha.GetTicker("wigwham")
+		_, err = a.GetTicker("wigwham")
 		if err == nil {
-			t.Error("Test Failed - Alphapoint GetTicker error")
+			t.Error("Alphapoint GetTicker Expected error")
 		}
 	} else {
 		mockResp := []byte(
 			string(`{"high":253.101,"last":249.76,"bid":248.8901,"volume":5.813354,"low":231.21,"ask":248.9012,"Total24HrQtyTraded":52.654968,"Total24HrProduct2Traded":569.05762,"Total24HrNumTrades":4,"sellOrderCount":7,"buyOrderCount":11,"numOfCreateOrders":0,"isAccepted":true}`),
 		)
 
-		err = common.JSONDecode(mockResp, &ticker)
+		err = json.Unmarshal(mockResp, &ticker)
 		if err != nil {
-			t.Fatal("Test Failed - Alphapoint GetTicker unmarshalling error: ", err)
+			t.Fatal("Alphapoint GetTicker unmarshalling error: ", err)
 		}
 
 		if ticker.Last != 249.76 {
-			t.Error("Test failed - Alphapoint GetTicker expected last = 249.76")
+			t.Error("Alphapoint GetTicker expected last = 249.76")
 		}
 	}
 
 	if ticker.Last < 0 {
-		t.Error("Test failed - Alphapoint GetTicker last < 0")
+		t.Error("Alphapoint GetTicker last < 0")
 	}
 }
 
 func TestGetTrades(t *testing.T) {
-	alpha := Alphapoint{}
-	alpha.SetDefaults()
-
+	t.Parallel()
 	var trades Trades
 	var err error
-
 	if onlineTest {
-		trades, err = alpha.GetTrades("BTCUSD", 0, 10)
+		trades, err = a.GetTrades("BTCUSD", 0, 10)
 		if err != nil {
-			t.Fatalf("Test Failed - Init error: %s", err)
+			t.Fatalf("Init error: %s", err)
 		}
 
-		_, err = alpha.GetTrades("wigwham", 0, 10)
+		_, err = a.GetTrades("wigwham", 0, 10)
 		if err == nil {
-			t.Fatal("Test Failed - GetTrades error")
+			t.Fatal("GetTrades Expected error")
 		}
 	} else {
 		mockResp := []byte(
 			string(`{"isAccepted":true,"dateTimeUtc":635507981548085938,"ins":"BTCUSD","startIndex":0,"count":10,"trades":[{"tid":0,"px":231.8379,"qty":4.913,"unixtime":1399951989,"utcticks":635355487898355234,"incomingOrderSide":0,"incomingServerOrderId":2598,"bookServerOrderId":2588},{"tid":1,"px":7895.1487,"qty":0.25,"unixtime":1403143708,"utcticks":635387405087297421,"incomingOrderSide":0,"incomingServerOrderId":284241,"bookServerOrderId":284235},{"tid":2,"px":7935.058,"qty":0.25,"unixtime":1403195348,"utcticks":635387921488684140,"incomingOrderSide":0,"incomingServerOrderId":575845,"bookServerOrderId":574078},{"tid":3,"px":7935.0448,"qty":0.25,"unixtime":1403195378,"utcticks":635387921780090390,"incomingOrderSide":0,"incomingServerOrderId":576028,"bookServerOrderId":575946},{"tid":4,"px":7933.9566,"qty":0.1168,"unixtime":1403195510,"utcticks":635387923108371640,"incomingOrderSide":0,"incomingServerOrderId":576974,"bookServerOrderId":576947},{"tid":5,"px":7961.0856,"qty":0.25,"unixtime":1403202307,"utcticks":635387991073850156,"incomingOrderSide":0,"incomingServerOrderId":600547,"bookServerOrderId":600338},{"tid":6,"px":7961.1388,"qty":0.011,"unixtime":1403202307,"utcticks":635387991073850156,"incomingOrderSide":0,"incomingServerOrderId":600547,"bookServerOrderId":600418},{"tid":7,"px":7961.2451,"qty":0.02,"unixtime":1403202307,"utcticks":635387991073850156,"incomingOrderSide":0,"incomingServerOrderId":600547,"bookServerOrderId":600428},{"tid":8,"px":7947.1437,"qty":0.09,"unixtime":1403202749,"utcticks":635387995498225156,"incomingOrderSide":0,"incomingServerOrderId":602183,"bookServerOrderId":601745},{"tid":9,"px":7818.5073,"qty":0.25,"unixtime":1403219720,"utcticks":635388165206506406,"incomingOrderSide":0,"incomingServerOrderId":661909,"bookServerOrderId":661620}]}`),
 		)
 
-		err = common.JSONDecode(mockResp, &trades)
+		err = json.Unmarshal(mockResp, &trades)
 		if err != nil {
-			t.Fatal("Test Failed - GetTrades unmarshalling error: ", err)
+			t.Fatal("GetTrades unmarshalling error: ", err)
 		}
 	}
 
 	if !trades.IsAccepted {
-		t.Error("Test Failed - GetTrades IsAccepted failed")
+		t.Error("GetTrades IsAccepted failed")
 	}
 
 	if trades.Count <= 0 {
-		t.Error("Test failed - GetTrades trades count is <= 0")
+		t.Error("GetTrades trades count is <= 0")
 	}
 
 	if trades.Instrument != "BTCUSD" {
-		t.Error("Test failed - GetTrades instrument is != BTCUSD")
+		t.Error("GetTrades instrument is != BTCUSD")
 	}
 }
 
 func TestGetTradesByDate(t *testing.T) {
-	alpha := Alphapoint{}
-	alpha.SetDefaults()
-
+	t.Parallel()
 	var trades Trades
 	var err error
-
 	if onlineTest {
-		trades, err = alpha.GetTradesByDate("BTCUSD", 1414799400, 1414800000)
+		trades, err = a.GetTradesByDate("BTCUSD", 1414799400, 1414800000)
 		if err != nil {
-			t.Errorf("Test Failed - Init error: %s", err)
+			t.Errorf("Init error: %s", err)
 		}
-		_, err = alpha.GetTradesByDate("wigwham", 1414799400, 1414800000)
+		_, err = a.GetTradesByDate("wigwham", 1414799400, 1414800000)
 		if err == nil {
-			t.Error("Test Failed - GetTradesByDate error")
+			t.Error("GetTradesByDate Expected error")
 		}
 	} else {
 		mockResp := []byte(
 			string(`{"isAccepted":true,"dateTimeUtc":635504540880633671,"ins":"BTCUSD","startDate":1414799400,"endDate":1414800000,"trades":[{"tid":11505,"px":334.669,"qty":0.1211,"unixtime":1414799403,"utcticks":635503962032459843,"incomingOrderSide":1,"incomingServerOrderId":5185651,"bookServerOrderId":5162440},{"tid":11506,"px":334.669,"qty":0.1211,"unixtime":1414799405,"utcticks":635503962058446171,"incomingOrderSide":1,"incomingServerOrderId":5186245,"bookServerOrderId":5162440},{"tid":11507,"px":336.498,"qty":0.011,"unixtime":1414799407,"utcticks":635503962072967656,"incomingOrderSide":0,"incomingServerOrderId":5186530,"bookServerOrderId":5178944},{"tid":11508,"px":335.948,"qty":0.011,"unixtime":1414799410,"utcticks":635503962108055546,"incomingOrderSide":0,"incomingServerOrderId":5187260,"bookServerOrderId":5186531}]}`),
 		)
 
-		err = common.JSONDecode(mockResp, &trades)
+		err = json.Unmarshal(mockResp, &trades)
 		if err != nil {
-			t.Fatal("Test Failed - GetTradesByDate unmarshalling error: ", err)
+			t.Fatal("GetTradesByDate unmarshalling error: ", err)
 		}
 	}
 
 	if trades.DateTimeUTC < 0 {
-		t.Error("Test Failed - Alphapoint trades.Count value is negative")
+		t.Error("Alphapoint trades.Count value is negative")
 	}
 	if trades.EndDate < 0 {
-		t.Error("Test Failed - Alphapoint trades.DateTimeUTC value is negative")
+		t.Error("Alphapoint trades.DateTimeUTC value is negative")
 	}
 	if trades.Instrument != "BTCUSD" {
-		t.Error("Test Failed - Alphapoint trades.Instrument value is incorrect")
+		t.Error("Alphapoint trades.Instrument value is incorrect")
 	}
 	if !trades.IsAccepted {
-		t.Error("Test Failed - Alphapoint trades.IsAccepted value is true")
+		t.Error("Alphapoint trades.IsAccepted value is true")
 	}
 	if len(trades.RejectReason) > 0 {
-		t.Error("Test Failed - Alphapoint trades.IsAccepted value has been returned")
+		t.Error("Alphapoint trades.IsAccepted value has been returned")
 	}
 	if trades.StartDate < 0 {
-		t.Error("Test Failed - Alphapoint trades.StartIndex value is negative")
+		t.Error("Alphapoint trades.StartIndex value is negative")
 	}
 }
 
 func TestGetOrderbook(t *testing.T) {
-	alpha := Alphapoint{}
-	alpha.SetDefaults()
-
+	t.Parallel()
 	var orderBook Orderbook
 	var err error
-
 	if onlineTest {
-		orderBook, err = alpha.GetOrderbook("BTCUSD")
+		orderBook, err = a.GetOrderbook("BTCUSD")
 		if err != nil {
-			t.Errorf("Test Failed - Init error: %s", err)
+			t.Errorf("Init error: %s", err)
 		}
 
-		_, err = alpha.GetOrderbook("wigwham")
+		_, err = a.GetOrderbook("wigwham")
 		if err == nil {
-			t.Error("Test Failed - GetOrderbook() error")
+			t.Error("GetOrderbook() Expected error")
 		}
 	} else {
 		mockResp := []byte(
 			string(`{"bids":[{"qty":725,"px":66},{"qty":1289,"px":65},{"qty":1266,"px":64}],"asks":[{"qty":1,"px":67},{"qty":1,"px":69},{"qty":2,"px":70}],"isAccepted":true}`),
 		)
 
-		err = common.JSONDecode(mockResp, &orderBook)
+		err = json.Unmarshal(mockResp, &orderBook)
 		if err != nil {
-			t.Fatal("Test Failed - TestGetOrderbook unmarshalling error: ", err)
+			t.Fatal("TestGetOrderbook unmarshalling error: ", err)
 		}
 
 		if orderBook.Bids[0].Quantity != 725 {
-			t.Error("Test Failed - TestGetOrderbook Bids[0].Quantity != 725")
+			t.Error("TestGetOrderbook Bids[0].Quantity != 725")
 		}
 	}
 
 	if !orderBook.IsAccepted {
-		t.Error("Test Failed - Alphapoint orderBook.IsAccepted value is negative")
+		t.Error("Alphapoint orderBook.IsAccepted value is negative")
 	}
 
 	if len(orderBook.Asks) == 0 {
-		t.Error("Test Failed - Alphapoint orderBook.Asks has len 0")
+		t.Error("Alphapoint orderBook.Asks has len 0")
 	}
 
 	if len(orderBook.Bids) == 0 {
-		t.Error("Test Failed - Alphapoint orderBook.Bids has len 0")
+		t.Error("Alphapoint orderBook.Bids has len 0")
 	}
 }
 
 func TestGetProductPairs(t *testing.T) {
-	alpha := Alphapoint{}
-	alpha.SetDefaults()
-
+	t.Parallel()
 	var products ProductPairs
 	var err error
 
 	if onlineTest {
-		products, err = alpha.GetProductPairs()
+		products, err = a.GetProductPairs()
 		if err != nil {
-			t.Errorf("Test Failed - Init error: %s", err)
+			t.Errorf("Init error: %s", err)
 		}
 	} else {
 		mockResp := []byte(
 			string(`{"productPairs":[{"name":"LTCUSD","productPairCode":100,"product1Label":"LTC","product1DecimalPlaces":8,"product2Label":"USD","product2DecimalPlaces":6}, {"name":"BTCUSD","productPairCode":99,"product1Label":"BTC","product1DecimalPlaces":8,"product2Label":"USD","product2DecimalPlaces":6}],"isAccepted":true}`),
 		)
 
-		err = common.JSONDecode(mockResp, &products)
+		err = json.Unmarshal(mockResp, &products)
 		if err != nil {
-			t.Fatal("Test Failed - TestGetProductPairs unmarshalling error: ", err)
+			t.Fatal("TestGetProductPairs unmarshalling error: ", err)
 		}
 
 		if products.ProductPairs[0].Name != "LTCUSD" {
-			t.Error("Test Failed - Alphapoint ProductPairs 0 != LTCUSD")
+			t.Error("Alphapoint ProductPairs 0 != LTCUSD")
 		}
 
 		if products.ProductPairs[1].Product1Label != "BTC" {
-			t.Error("Test Failed - Alphapoint ProductPairs 1 != BTC")
+			t.Error("Alphapoint ProductPairs 1 != BTC")
 		}
 	}
 
 	if !products.IsAccepted {
-		t.Error("Test Failed - Alphapoint ProductPairs.IsAccepted value is negative")
+		t.Error("Alphapoint ProductPairs.IsAccepted value is negative")
 	}
 
 	if len(products.ProductPairs) == 0 {
-		t.Error("Test Failed - Alphapoint ProductPairs len is 0")
+		t.Error("Alphapoint ProductPairs len is 0")
 	}
 }
 
 func TestGetProducts(t *testing.T) {
-	alpha := Alphapoint{}
-	alpha.SetDefaults()
-
+	t.Parallel()
 	var products Products
 	var err error
 
 	if onlineTest {
-		products, err = alpha.GetProducts()
+		products, err = a.GetProducts()
 		if err != nil {
-			t.Errorf("Test Failed - Init error: %s", err)
+			t.Errorf("Init error: %s", err)
 		}
 	} else {
 		mockResp := []byte(
 			string(`{"products": [{"name": "USD","isDigital": false,"productCode": 0,"decimalPlaces": 4,"fullName": "US Dollar"},{"name": "BTC","isDigital": true,"productCode": 1,"decimalPlaces": 6,"fullName": "Bitcoin"}],"isAccepted": true}`),
 		)
 
-		err = common.JSONDecode(mockResp, &products)
+		err = json.Unmarshal(mockResp, &products)
 		if err != nil {
-			t.Fatal("Test Failed - TestGetProducts unmarshalling error: ", err)
+			t.Fatal("TestGetProducts unmarshalling error: ", err)
 		}
 
 		if products.Products[0].Name != "USD" {
-			t.Error("Test Failed - Alphapoint Products 0 != USD")
+			t.Error("Alphapoint Products 0 != USD")
 		}
 
 		if products.Products[1].ProductCode != 1 {
-			t.Error("Test Failed - Alphapoint Products 1 product code != 1")
+			t.Error("Alphapoint Products 1 product code != 1")
 		}
 	}
 
 	if !products.IsAccepted {
-		t.Error("Test Failed - Alphapoint Products.IsAccepted value is negative")
+		t.Error("Alphapoint Products.IsAccepted value is negative")
 	}
 
 	if len(products.Products) == 0 {
-		t.Error("Test Failed - Alphapoint Products len is 0")
+		t.Error("Alphapoint Products len is 0")
 	}
 }
 
 func TestCreateAccount(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	err := a.CreateAccount("test", "account", "something@something.com", "0292383745", "lolcat123")
 	if err != nil {
-		t.Errorf("Test Failed - Init error: %s", err)
+		t.Errorf("Init error: %s", err)
 	}
 	err = a.CreateAccount("test", "account", "something@something.com", "0292383745", "bla")
 	if err == nil {
-		t.Errorf("Test Failed - CreateAccount() error")
+		t.Errorf("CreateAccount() Expected error")
 	}
 	err = a.CreateAccount("", "", "", "", "lolcat123")
 	if err == nil {
-		t.Errorf("Test Failed - CreateAccount() error")
+		t.Errorf("CreateAccount() Expected error")
 	}
 }
 
 func TestGetUserInfo(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	_, err := a.GetUserInfo()
 	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
+		t.Error("GetUserInfo() Expected error")
 	}
 }
 
 func TestSetUserInfo(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	_, err := a.SetUserInfo("bla", "bla", "1", "meh", true, true)
 	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
+		t.Error("GetUserInfo() Expected error")
 	}
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	_, err := a.GetAccountInfo()
 	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
+		t.Error("GetUserInfo() Expected error")
 	}
 }
 
 func TestGetAccountTrades(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	_, err := a.GetAccountTrades("", 1, 2)
 	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
+		t.Error("GetUserInfo() Expected error")
 	}
 }
 
 func TestGetDepositAddresses(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	_, err := a.GetDepositAddresses()
 	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
+		t.Error("GetUserInfo() Expected error")
 	}
 }
 
 func TestWithdrawCoins(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	err := a.WithdrawCoins("", "", "", 0.01)
 	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
+		t.Error("GetUserInfo() Expected error")
 	}
 }
 
 func TestCreateOrder(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
-	_, err := a.CreateOrder("", "", exchange.MarketOrderType.ToString(), 0.01, 0)
+	_, err := a.CreateOrder("", "", order.Limit.String(), 0.01, 0)
 	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
+		t.Error("GetUserInfo() Expected error")
 	}
 }
 
 func TestModifyExistingOrder(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	_, err := a.ModifyExistingOrder("", 1, 1)
 	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
+		t.Error("GetUserInfo() Expected error")
 	}
 }
 
 func TestCancelAllExistingOrders(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	err := a.CancelAllExistingOrders("")
 	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
+		t.Error("GetUserInfo() Expected error")
 	}
 }
 
 func TestGetOrders(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	_, err := a.GetOrders()
 	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
+		t.Error("GetUserInfo() Expected error")
 	}
 }
 
 func TestGetOrderFee(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	testSetAPIKey(a)
-
-	if !testIsAPIKeysSet(a) {
-		return
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys not set, skipping")
 	}
 
 	_, err := a.GetOrderFee("", "", 1, 1)
 	if err == nil {
-		t.Error("Test Failed - GetUserInfo() error")
+		t.Error("GetUserInfo() Expected error")
 	}
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
+	t.Parallel()
 	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText + " & " + exchange.WithdrawCryptoWith2FAText + " & " + exchange.NoFiatWithdrawalsText
-
 	withdrawPermissions := a.FormatWithdrawPermissions()
-
 	if withdrawPermissions != expectedResult {
 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
 	}
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-
-	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType: exchange.AnyOrderType,
+	t.Parallel()
+	var getOrdersRequest = order.GetOrdersRequest{
+		OrderType: order.AnyType,
 	}
 
 	_, err := a.GetActiveOrders(&getOrdersRequest)
-	if areTestAPIKeysSet(a) && err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get open orders: %s", err)
-	} else if !areTestAPIKeysSet(a) && err == nil {
+	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
 }
 
 func TestGetOrderHistory(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-
-	var getOrdersRequest = exchange.GetOrdersRequest{
-		OrderType: exchange.AnyOrderType,
+	t.Parallel()
+	var getOrdersRequest = order.GetOrdersRequest{
+		OrderType: order.AnyType,
 	}
 
 	_, err := a.GetOrderHistory(&getOrdersRequest)
-	if areTestAPIKeysSet(a) && err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get order history: %s", err)
-	} else if !areTestAPIKeysSet(a) && err == nil {
+	} else if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
 }
@@ -525,31 +465,30 @@ func TestGetOrderHistory(t *testing.T) {
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // ----------------------------------------------------------------------------------------------------------------------------
 
-func areTestAPIKeysSet(a *Alphapoint) bool {
-	if a.APIKey != "" && a.APIKey != "Key" &&
-		a.APISecret != "" && a.APISecret != "Secret" {
-		return true
-	}
-	return false
-}
-
 func TestSubmitOrder(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-
-	if areTestAPIKeysSet(a) && !canManipulateRealOrders {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	var p = currency.Pair{
-		Delimiter: "_",
-		Base:      currency.BTC,
-		Quote:     currency.USD,
+
+	var orderSubmission = &order.Submit{
+		Pair: currency.Pair{
+			Delimiter: "_",
+			Base:      currency.BTC,
+			Quote:     currency.USD,
+		},
+		OrderSide: order.Buy,
+		OrderType: order.Limit,
+		Price:     1,
+		Amount:    1,
+		ClientID:  "meowOrder",
 	}
-	response, err := a.SubmitOrder(p, exchange.BuyOrderSide, exchange.MarketOrderType, 1, 1, "clientId")
-	if !areTestAPIKeysSet(a) && err == nil {
+
+	response, err := a.SubmitOrder(orderSubmission)
+	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
-	if areTestAPIKeysSet(a) && err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 
 		if !response.IsOrderPlaced {
@@ -559,16 +498,13 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-
-	if areTestAPIKeysSet(a) && !canManipulateRealOrders {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	currencyPair := currency.NewPair(currency.BTC, currency.LTC)
-
-	var orderCancellation = &exchange.OrderCancellation{
+	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -576,25 +512,22 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 
 	err := a.CancelOrder(orderCancellation)
-	if !areTestAPIKeysSet(a) && err == nil {
+	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
-	if areTestAPIKeysSet(a) && err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 	}
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-
-	if areTestAPIKeysSet(a) && !canManipulateRealOrders {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
 	currencyPair := currency.NewPair(currency.BTC, currency.LTC)
-
-	var orderCancellation = &exchange.OrderCancellation{
+	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		AccountID:     "1",
@@ -602,40 +535,32 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 
 	resp, err := a.CancelAllOrders(orderCancellation)
-
-	if !areTestAPIKeysSet(a) && err == nil {
+	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
-	if areTestAPIKeysSet(a) && err != nil {
+	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 	}
 
-	if len(resp.OrderStatus) > 0 {
-		t.Errorf("%v orders failed to cancel", len(resp.OrderStatus))
+	if len(resp.Status) > 0 {
+		t.Errorf("%v orders failed to cancel", len(resp.Status))
 	}
 }
 
 func TestModifyOrder(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-
-	_, err := a.ModifyOrder(&exchange.ModifyOrder{})
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+	_, err := a.ModifyOrder(&order.Modify{})
 	if err == nil {
-		t.Error("Test failed - ModifyOrder() error")
+		t.Error("ModifyOrder() Expected error")
 	}
 }
 
 func TestWithdraw(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-	var withdrawCryptoRequest = exchange.WithdrawRequest{
-		Amount:      100,
-		Currency:    currency.BTC,
-		Address:     "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
-		Description: "WITHDRAW IT ALL",
-		AddressTag:  "0123456789",
-	}
-
+	t.Parallel()
+	var withdrawCryptoRequest = exchange.CryptoWithdrawRequest{}
 	_, err := a.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected 'Not implemented', received %v", err)
@@ -643,15 +568,12 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestWithdrawFiat(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-
-	if areTestAPIKeysSet(a) && !canManipulateRealOrders {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{}
-
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
 	_, err := a.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrNotYetImplemented, err)
@@ -659,15 +581,12 @@ func TestWithdrawFiat(t *testing.T) {
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
-	a := &Alphapoint{}
-	a.SetDefaults()
-
-	if areTestAPIKeysSet(a) && !canManipulateRealOrders {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.WithdrawRequest{}
-
+	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
 	_, err := a.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrNotYetImplemented, err)
