@@ -15,7 +15,8 @@ const (
 	testAPIKey              = ""
 	testAPISecret           = ""
 	canManipulateRealOrders = false
-	btcusdt                 = "BTC/USDT"
+	spotTestPair            = "BTC/USDT"
+	swapTestPair            = "BTCUSDT"
 )
 
 var c Coinbene
@@ -50,7 +51,7 @@ func areTestAPIKeysSet() bool {
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetTicker(btcusdt)
+	_, err := c.GetTicker(spotTestPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -58,7 +59,7 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetOrderbook(btcusdt, 100)
+	_, err := c.GetOrderbook(spotTestPair, 100)
 	if err != nil {
 		t.Error(err)
 	}
@@ -66,7 +67,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetTrades(btcusdt)
+	_, err := c.GetTrades(spotTestPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -82,7 +83,7 @@ func TestGetAllPairs(t *testing.T) {
 
 func TestGetPairInfo(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetPairInfo(btcusdt)
+	_, err := c.GetPairInfo(spotTestPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -104,7 +105,7 @@ func TestPlaceOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := c.PlaceOrder(1, 1, btcusdt, order.Buy.Lower(), "")
+	_, err := c.PlaceOrder(1, 1, spotTestPair, order.Buy.Lower(), "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -137,7 +138,7 @@ func TestFetchOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := c.FetchOpenOrders(btcusdt)
+	_, err := c.FetchOpenOrders(spotTestPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -148,7 +149,7 @@ func TestFetchClosedOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := c.FetchClosedOrders(btcusdt, "")
+	_, err := c.FetchClosedOrders(spotTestPair, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -193,7 +194,7 @@ func TestGetSwapTickers(t *testing.T) {
 
 func TestGetSwapTicker(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetSwapTicker("BTCUSDT")
+	_, err := c.GetSwapTicker(swapTestPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -201,7 +202,7 @@ func TestGetSwapTicker(t *testing.T) {
 
 func TestGetSwapOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetSwapOrderbook("BTCUSDT", "100")
+	_, err := c.GetSwapOrderbook(swapTestPair, "100")
 	if err != nil {
 		t.Error(err)
 	}
@@ -209,7 +210,7 @@ func TestGetSwapOrderbook(t *testing.T) {
 
 func TestGetSwapKlines(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetSwapKlines("BTCUSDT",
+	_, err := c.GetSwapKlines(swapTestPair,
 		"1573184608",
 		"1573184808",
 		"1")
@@ -220,7 +221,7 @@ func TestGetSwapKlines(t *testing.T) {
 
 func TestGetSwapTrades(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetSwapTrades("BTCUSDT", "10")
+	_, err := c.GetSwapTrades(swapTestPair, "10")
 	if err != nil {
 		t.Error(err)
 	}
@@ -242,7 +243,7 @@ func TestGetSwapPositions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := c.GetSwapPositions("BTCUSDT")
+	_, err := c.GetSwapPositions(swapTestPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -254,7 +255,7 @@ func TestPlaceSwapOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 
-	_, err := c.PlaceSwapOrder("BTCUSDT",
+	_, err := c.PlaceSwapOrder(swapTestPair,
 		"openLong",
 		"limit",
 		"fixed",
@@ -263,7 +264,7 @@ func TestPlaceSwapOrder(t *testing.T) {
 		1,
 		1)
 	if err != nil {
-		t.Log(err)
+		t.Error(err)
 	}
 }
 
@@ -275,6 +276,102 @@ func TestCancelSwapOrder(t *testing.T) {
 
 	_, err := c.CancelSwapOrder("1337")
 	if err != nil {
-		t.Log(err)
+		t.Error(err)
+	}
+}
+
+func TestGetOpenSwapOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
+
+	_, err := c.GetSwapOpenOrders(swapTestPair, 0, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapOpenOrdersByPage(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
+
+	_, err := c.GetSwapOpenOrdersByPage(swapTestPair, "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapOrderInfo(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
+
+	_, err := c.GetSwapOrderInfo("1337")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapOrderHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
+
+	_, err := c.GetSwapOrderHistory("", "", swapTestPair, "1", "10", "", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapOrderHistoryByOrderID(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
+
+	_, err := c.GetSwapOrderHistoryByOrderID("", "", swapTestPair, "", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelMultipleSwapOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
+
+	_, err := c.CancelMultipleSwapOrders([]string{"578639816552972288", "578639902896914432"})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapOrderFills(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
+
+	_, err := c.GetSwapOrderFills(swapTestPair, "5807143157122003", "580714315825905664")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapFundingRates(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
+
+	_, err := c.GetSwapFundingRates("1", "2")
+	if err != nil {
+		t.Error(err)
 	}
 }

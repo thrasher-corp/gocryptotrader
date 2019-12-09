@@ -305,7 +305,7 @@ type SwapAccountInfo struct {
 type SwapPosition struct {
 	AvailableQuantity       float64   `json:"availableQuantity,string"`
 	AveragePrice            float64   `json:"averagePrice,string"`
-	CreateTime              time.Time `json:"createTime,string"`
+	CreateTime              time.Time `json:"createTime"`
 	DeleveragePercentile    int       `json:"deleveragePercentile,string"`
 	Leverage                int       `json:"leverage,string"`
 	LiquidationPrice        float64   `json:"liquidationPrice,string"`
@@ -330,19 +330,53 @@ type SwapPlaceOrderResponse struct {
 
 // SwapOrder stores the swap order data
 type SwapOrder struct {
-	OrderID      string    `json:"orderId"`
-	Direction    string    `json:"direction"`
-	Leverage     int       `json:"leverage,string"`
-	OrderType    string    `json:"orderType"`
-	Quantitity   float64   `json:"quantity,string"`
-	OrderPirce   float64   `json:"orderPrice,string"`
-	OrderValue   float64   `json:"orderValue,string"`
-	Fee          float64   `json:"fee"`
-	FillQuantity float64   `json:"fillQuantity,string"`
-	AveragePrice float64   `json:"averagePrice,string"`
-	OrderTime    time.Time `json:"orderTime"`
-	Status       string    `json:"status"`
+	OrderID        string    `json:"orderId"`
+	Direction      string    `json:"direction"`
+	Leverage       int       `json:"leverage,string"`
+	OrderType      string    `json:"orderType"`
+	Quantitity     float64   `json:"quantity,string"`
+	OrderPrice     float64   `json:"orderPrice,string"`
+	OrderValue     float64   `json:"orderValue,string"`
+	Fee            float64   `json:"fee"`
+	FilledQuantity float64   `json:"filledQuantity,string"`
+	AveragePrice   float64   `json:"averagePrice,string"`
+	OrderTime      time.Time `json:"orderTime"`
+	Status         string    `json:"status"`
 }
 
 // SwapOrders stores a collection of swap orders
 type SwapOrders []SwapOrder
+
+// OrderCancellationResponse returns a list of cancel order status
+type OrderCancellationResponse struct {
+	OrderID string `json:"orderId"`
+	Code    int    `json:"code,string"`
+	Message string `json:"message"`
+}
+
+// SwapOrderFill stores a swap orders fill info
+type SwapOrderFill struct {
+	Symbol    string    `json:"symbol"`
+	TradeTime time.Time `json:"tradeTime"`
+	TradeID   int64     `json:"tradeId,string"`
+	OrderID   int64     `json:"orderId,string"`
+	Price     float64   `json:"price,string"`
+	Fee       float64   `json:"fee,string"`
+	ExecType  string    `json:"execType"`
+	Side      string    `json:"side"`
+	Quantity  float64   `json:"quantity,string"`
+}
+
+// SwapOrderFills stores a collection of swap order fills
+type SwapOrderFills []SwapOrderFill
+
+// SwapFundingRate stores a collection of funding rates
+type SwapFundingRate struct {
+	Symbol        string  `json:"symbol"`
+	Side          string  `json:"side"`
+	MarkPrice     float64 `json:"markPrice,string"`
+	PositionValue float64 `json:"positionValue,string"`
+	Fee           float64 `json:"fee,string"`
+	FeeRate       float64 `json:"feeRate,string"`
+	Leverage      int64   `json:"leverage"`
+}
