@@ -74,8 +74,7 @@ type Bitflyer struct {
 // analysis system
 func (b *Bitflyer) GetLatestBlockCA() (ChainAnalysisBlock, error) {
 	var resp ChainAnalysisBlock
-	path := fmt.Sprintf("%s%s", b.API.Endpoints.URLSecondary, latestBlock)
-
+	path := b.API.Endpoints.URLSecondary + latestBlock
 	return resp, b.SendHTTPRequest(path, &resp)
 }
 
@@ -83,8 +82,7 @@ func (b *Bitflyer) GetLatestBlockCA() (ChainAnalysisBlock, error) {
 // analysis system
 func (b *Bitflyer) GetBlockCA(blockhash string) (ChainAnalysisBlock, error) {
 	var resp ChainAnalysisBlock
-	path := fmt.Sprintf("%s%s%s", b.API.Endpoints.URLSecondary, blockByBlockHash, blockhash)
-
+	path := b.API.Endpoints.URLSecondary + blockByBlockHash + blockhash
 	return resp, b.SendHTTPRequest(path, &resp)
 }
 
@@ -92,8 +90,9 @@ func (b *Bitflyer) GetBlockCA(blockhash string) (ChainAnalysisBlock, error) {
 // analysis system
 func (b *Bitflyer) GetBlockbyHeightCA(height int64) (ChainAnalysisBlock, error) {
 	var resp ChainAnalysisBlock
-	path := fmt.Sprintf("%s%s%s", b.API.Endpoints.URLSecondary, blockByBlockHeight, strconv.FormatInt(height, 10))
-
+	path := b.API.Endpoints.URLSecondary +
+		blockByBlockHeight +
+		strconv.FormatInt(height, 10)
 	return resp, b.SendHTTPRequest(path, &resp)
 }
 
@@ -101,8 +100,7 @@ func (b *Bitflyer) GetBlockbyHeightCA(height int64) (ChainAnalysisBlock, error) 
 // bitflyer chain analysis system
 func (b *Bitflyer) GetTransactionByHashCA(txHash string) (ChainAnalysisTransaction, error) {
 	var resp ChainAnalysisTransaction
-	path := fmt.Sprintf("%s%s%s", b.API.Endpoints.URLSecondary, transaction, txHash)
-
+	path := b.API.Endpoints.URLSecondary + transaction + txHash
 	return resp, b.SendHTTPRequest(path, &resp)
 }
 
@@ -110,7 +108,7 @@ func (b *Bitflyer) GetTransactionByHashCA(txHash string) (ChainAnalysisTransacti
 // from bitflyer chain analysis system
 func (b *Bitflyer) GetAddressInfoCA(addressln string) (ChainAnalysisAddress, error) {
 	var resp ChainAnalysisAddress
-	path := fmt.Sprintf("%s%s%s", b.API.Endpoints.URLSecondary, address, addressln)
+	path := b.API.Endpoints.URLSecondary + address + addressln
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
@@ -118,7 +116,7 @@ func (b *Bitflyer) GetAddressInfoCA(addressln string) (ChainAnalysisAddress, err
 // GetMarkets returns market information
 func (b *Bitflyer) GetMarkets() ([]MarketInfo, error) {
 	var resp []MarketInfo
-	path := fmt.Sprintf("%s%s", b.API.Endpoints.URL, pubGetMarkets)
+	path := b.API.Endpoints.URL + pubGetMarkets
 
 	return resp, b.SendHTTPRequest(path, &resp)
 }
@@ -139,7 +137,6 @@ func (b *Bitflyer) GetTicker(symbol string) (Ticker, error) {
 	v := url.Values{}
 	v.Set("product_code", symbol)
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, pubGetTicker, v.Encode())
-
 	return resp, b.SendHTTPRequest(path, &resp)
 }
 
@@ -157,7 +154,7 @@ func (b *Bitflyer) GetExecutionHistory(symbol string) ([]ExecutedTrade, error) {
 func (b *Bitflyer) GetExchangeStatus() (string, error) {
 	resp := make(map[string]string)
 
-	path := fmt.Sprintf("%s%s", b.API.Endpoints.URL, pubGetHealth)
+	path := b.API.Endpoints.URL + pubGetHealth
 
 	err := b.SendHTTPRequest(path, &resp)
 	if err != nil {

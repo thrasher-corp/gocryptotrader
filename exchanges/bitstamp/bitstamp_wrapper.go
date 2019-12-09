@@ -430,11 +430,11 @@ func (b *Bitstamp) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoW
 		return "", err
 	}
 	if len(resp.Error) != 0 {
-		var details string
-		for _, v := range resp.Error {
-			details += strings.Join(v, "")
+		var details strings.Builder
+		for x := range resp.Error {
+			details.WriteString(strings.Join(resp.Error[x], ""))
 		}
-		return "", errors.New(details)
+		return "", errors.New(details.String())
 	}
 
 	return resp.ID, nil
@@ -458,11 +458,11 @@ func (b *Bitstamp) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawReque
 		return "", err
 	}
 	if resp.Status == errStr {
-		var details string
-		for _, v := range resp.Reason {
-			details += strings.Join(v, "")
+		var details strings.Builder
+		for x := range resp.Reason {
+			details.WriteString(strings.Join(resp.Reason[x], ""))
 		}
-		return "", errors.New(details)
+		return "", errors.New(details.String())
 	}
 
 	return resp.ID, nil
@@ -492,11 +492,11 @@ func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchang
 		return "", err
 	}
 	if resp.Status == errStr {
-		var details string
-		for _, v := range resp.Reason {
-			details += strings.Join(v, "")
+		var details strings.Builder
+		for x := range resp.Reason {
+			details.WriteString(strings.Join(resp.Reason[x], ""))
 		}
-		return "", errors.New(details)
+		return "", errors.New(details.String())
 	}
 
 	return resp.ID, nil

@@ -13,7 +13,6 @@ package currencylayer
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -200,10 +199,10 @@ func (c *CurrencyLayer) SendHTTPRequest(endPoint string, values url.Values, resu
 
 	var auth bool
 	if c.APIKeyLvl == AccountFree {
-		path = fmt.Sprintf("%s%s%s", APIEndpointURL, endPoint, "?")
+		path = APIEndpointURL + endPoint + "?"
 	} else {
 		auth = true
-		path = fmt.Sprintf("%s%s%s", APIEndpointURLSSL, endPoint, "?")
+		path = APIEndpointURLSSL + endPoint + "?"
 	}
 	path += values.Encode()
 

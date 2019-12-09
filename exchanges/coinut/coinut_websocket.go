@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -377,7 +378,9 @@ func (c *COINUT) wsAuthenticate() error {
 	}
 	timestamp := time.Now().Unix()
 	nonce := c.WebsocketConn.GenerateMessageID(false)
-	payload := fmt.Sprintf("%v|%v|%v", c.API.Credentials.ClientID, timestamp, nonce)
+	payload := c.API.Credentials.ClientID + "|" +
+		strconv.FormatInt(timestamp, 10) + "|" +
+		strconv.FormatInt(nonce, 10)
 	hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(c.API.Credentials.Key))
 	loginRequest := struct {
 		Request   string `json:"request"`

@@ -2,7 +2,6 @@ package bitfinex
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -524,21 +523,20 @@ func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawReque
 		return "", errors.New("no withdrawID returned. Check order status")
 	}
 
-	var withdrawalSuccesses string
-	var withdrawalErrors string
-	for _, withdrawal := range resp {
-		if withdrawal.Status == "error" {
-			withdrawalErrors += fmt.Sprintf("%v ", withdrawal.Message)
+	var withdrawalSuccesses, withdrawalErrors strings.Builder
+	for x := range resp {
+		if resp[x].Status == "error" {
+			withdrawalErrors.WriteString(resp[x].Message + " ")
 		}
-		if withdrawal.Status == "success" {
-			withdrawalSuccesses += fmt.Sprintf("%v,", withdrawal.WithdrawalID)
+		if resp[x].Status == "success" {
+			withdrawalSuccesses.WriteString(strconv.FormatInt(resp[x].WithdrawalID, 10) + ",")
 		}
 	}
-	if len(withdrawalErrors) > 0 {
-		return withdrawalSuccesses, errors.New(withdrawalErrors)
+	if withdrawalErrors.Len() > 0 {
+		return withdrawalSuccesses.String(), errors.New(withdrawalErrors.String())
 	}
 
-	return withdrawalSuccesses, nil
+	return withdrawalSuccesses.String(), nil
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is submitted

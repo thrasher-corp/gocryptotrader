@@ -210,12 +210,9 @@ func (e *EXMO) GetCryptoDepositAddress() (map[string]string, error) {
 	switch r := result.(type) {
 	case map[string]interface{}:
 		mapString := make(map[string]string)
-
 		for key, value := range r {
-			strValue := fmt.Sprintf("%v", value)
-			mapString[key] = strValue
+			mapString[key] = value.(string)
 		}
-
 		return mapString, nil
 
 	default:

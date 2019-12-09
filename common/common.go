@@ -282,7 +282,7 @@ func GetURIPath(uri string) string {
 		return ""
 	}
 	if urip.RawQuery != "" {
-		return fmt.Sprintf("%s?%s", urip.Path, urip.RawQuery)
+		return urip.Path + "?" + urip.RawQuery
 	}
 	return urip.Path
 }

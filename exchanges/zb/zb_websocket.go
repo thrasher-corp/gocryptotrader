@@ -377,7 +377,7 @@ func (z *ZB) wsSubmitOrder(pair currency.Pair, amount, price float64, tradeType 
 		TradeType: tradeType,
 		No:        z.WebsocketConn.GenerateMessageID(true),
 	}
-	request.Channel = fmt.Sprintf("%v_order", pair.String())
+	request.Channel = pair.String() + "_order"
 	request.Event = zWebsocketAddChannel
 	request.Accesskey = z.API.Credentials.Key
 	request.Sign = z.wsGenerateSignature(request)
@@ -405,7 +405,7 @@ func (z *ZB) wsCancelOrder(pair currency.Pair, orderID int64) (*WsCancelOrderRes
 		ID: orderID,
 		No: z.WebsocketConn.GenerateMessageID(true),
 	}
-	request.Channel = fmt.Sprintf("%v_cancelorder", pair.String())
+	request.Channel = pair.String() + "_cancelorder"
 	request.Event = zWebsocketAddChannel
 	request.Accesskey = z.API.Credentials.Key
 	request.Sign = z.wsGenerateSignature(request)
@@ -433,7 +433,7 @@ func (z *ZB) wsGetOrder(pair currency.Pair, orderID int64) (*WsGetOrderResponse,
 		ID: orderID,
 		No: z.WebsocketConn.GenerateMessageID(true),
 	}
-	request.Channel = fmt.Sprintf("%v_getorder", pair.String())
+	request.Channel = pair.String() + "_getorder"
 	request.Event = zWebsocketAddChannel
 	request.Accesskey = z.API.Credentials.Key
 	request.Sign = z.wsGenerateSignature(request)
@@ -462,7 +462,7 @@ func (z *ZB) wsGetOrders(pair currency.Pair, pageIndex, tradeType int64) (*WsGet
 		TradeType: tradeType,
 		No:        z.WebsocketConn.GenerateMessageID(true),
 	}
-	request.Channel = fmt.Sprintf("%v_getorders", pair.String())
+	request.Channel = pair.String() + "_getorders"
 	request.Event = zWebsocketAddChannel
 	request.Accesskey = z.API.Credentials.Key
 	request.Sign = z.wsGenerateSignature(request)
@@ -490,7 +490,7 @@ func (z *ZB) wsGetOrdersIgnoreTradeType(pair currency.Pair, pageIndex, pageSize 
 		PageSize:  pageSize,
 		No:        z.WebsocketConn.GenerateMessageID(true),
 	}
-	request.Channel = fmt.Sprintf("%v_getordersignoretradetype", pair.String())
+	request.Channel = pair.String() + "_getordersignoretradetype"
 	request.Event = zWebsocketAddChannel
 	request.Accesskey = z.API.Credentials.Key
 	request.Sign = z.wsGenerateSignature(request)
