@@ -11,12 +11,13 @@ const gctScript = "GCT Script"
 type Config struct {
 	Enabled       bool          `json:"enabled"`
 	ScriptTimeout time.Duration `json:"timeout"`
+	MaxVirtualMachines 	  uint8			`json:"max_virtual_machines"`
 	AllowImports  bool          `json:"allow_imports"`
 	AutoLoad      []string      `json:"auto_load"`
 	Verbose       bool          `json:"verbose"`
 }
 
-// Error error interface for VM
+// Error interface to meet error requirements
 type Error struct {
 	Script string
 	Action string

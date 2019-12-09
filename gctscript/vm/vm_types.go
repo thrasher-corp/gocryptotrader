@@ -12,9 +12,10 @@ import (
 const (
 	// AuditEventName name to use for audit event logging
 	AuditEventName = "gctscript"
-
 	// DefaultTimeoutValue default timeout value for virtual machines
 	DefaultTimeoutValue = 1 * time.Minute
+	// DefaultMaxVirtualMachines max number of virtual machines that can be loaded at one time
+	DefaultMaxVirtualMachines = 10
 )
 
 var (

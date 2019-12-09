@@ -74,6 +74,9 @@ type Settings struct {
 	EnableDispatcher        bool
 	DispatchMaxWorkerAmount int
 	DispatchJobsLimit       int
+
+	// GCTscript settings
+	MaxVirtualMachines	uint
 }
 
 const (

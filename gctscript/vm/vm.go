@@ -38,11 +38,19 @@ func newVM() *VM {
 
 // Load parses and creates a new instance of tengo script vm
 func (vm *VM) Load(file string) error {
+	if vm == nil {
+		return ErrNoVMLoaded
+	}
+
 	if !GCTScriptConfig.Enabled {
 		return &Error{
 			Action: "Load",
 			Cause:  ErrScriptingDisabled,
 		}
+	}
+
+	if filepath.Ext(file) != ".gct" {
+		file += ".gct"
 	}
 
 	if GCTScriptConfig.Verbose {
@@ -107,7 +115,7 @@ func (vm *VM) RunCtx() (err error) {
 	audit.Event(vm.ID.String(), AuditEventName, "Script executed")
 
 	err = vm.Compiled.RunContext(ct)
-	if err != nil {
+	if err != nil {;
 		return Error{
 			Action: "RunCtx",
 			Cause:  err,
@@ -176,6 +184,8 @@ func (vm *VM) Shutdown() error {
 	if GCTScriptConfig.Verbose {
 		log.Debugf(log.GCTScriptMgr, "Shutting down script: %s ID: %v", vm.Name, vm.ID)
 	}
+	vm.Script = nil
+	pool.Put(vm.Script)
 	return RemoveVM(vm.ID)
 }
 

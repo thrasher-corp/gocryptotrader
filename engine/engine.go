@@ -270,6 +270,7 @@ func PrintSettings(s *Settings) {
 	log.Debugf(log.Global, "\t Exchange HTTP proxy: %v\n", s.ExchangeHTTPProxy)
 	log.Debugf(log.Global, "- GCTSCRIPT SETTINGS: ")
 	log.Debugf(log.Global, "\t Enable GCTScript manager: %v", s.EnableGCTScriptManager)
+	log.Debugf(log.Global, "\t GCTScript max virtual machines: %v", s.MaxVirtualMachines)
 	log.Debugf(log.Global, "- COMMON SETTINGS:")
 	log.Debugf(log.Global, "\t Global HTTP timeout: %v", s.GlobalHTTPTimeout)
 	log.Debugf(log.Global, "\t Global HTTP user agent: %v", s.GlobalHTTPUserAgent)

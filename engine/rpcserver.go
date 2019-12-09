@@ -1221,12 +1221,14 @@ func (s *RPCServer) GCTScriptStatus(ctx context.Context, r *gctrpc.GCTScriptStat
 		return &gctrpc.GCTScriptStatusResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
-	if len(gctscript.AllVMs) < 1 {
+	totalVM := len(gctscript.AllVMs)
+
+	if totalVM < 1 {
 		return &gctrpc.GCTScriptStatusResponse{Status: "no scripts running"}, nil
 	}
 
 	resp := &gctrpc.GCTScriptStatusResponse{
-		Status: "ok",
+		Status: fmt.Sprintf("%v of %v virtual machines running", totalVM, gctscript.GCTScriptConfig.MaxVirtualMachines),
 	}
 
 	for x := range gctscript.AllVMs {
@@ -1272,6 +1274,10 @@ func (s *RPCServer) GCTScriptExecute(ctx context.Context, r *gctrpc.GCTScriptExe
 	}
 
 	gctVM := gctscript.New()
+	if gctVM == nil {
+		return &gctrpc.GCTScriptGenericResponse{}, nil
+	}
+
 	script := filepath.Join(r.Script.Path, r.Script.Name)
 	err := gctVM.Load(script)
 	if err != nil {

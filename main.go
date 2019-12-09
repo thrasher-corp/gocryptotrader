@@ -86,6 +86,9 @@ func main() {
 	flag.StringVar(&settings.GlobalHTTPUserAgent, "globalhttpuseragent", "", "sets the common HTTP client's user agent")
 	flag.StringVar(&settings.GlobalHTTPProxy, "globalhttpproxy", "", "sets the common HTTP client's proxy server")
 
+	// GCTScript tuning settings
+	flag.UintVar(&settings.MaxVirtualMachines, "maxvirtualmachines", 10, "set max virtual machines that can load")
+
 	flag.Parse()
 
 	if *versionFlag {

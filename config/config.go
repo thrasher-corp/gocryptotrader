@@ -1210,6 +1210,10 @@ func (c *Config) checkGCTScriptConfig() error {
 		c.GCTScript.ScriptTimeout = gctscript.DefaultTimeoutValue
 	}
 
+	if c.GCTScript.MaxVirtualMachines <= 0 {
+		c.GCTScript.MaxVirtualMachines = gctscript.DefaultMaxVirtualMachines
+	}
+
 	scriptPath := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "scripts")
 	err := common.CreateDir(scriptPath)
 	if err != nil {

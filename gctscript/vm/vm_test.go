@@ -24,14 +24,14 @@ func TestNewVM(t *testing.T) {
 }
 
 func TestVMLoad(t *testing.T) {
+	GCTScriptConfig = configHelper(true, true, 0, 6)
 	testVM := New()
-	GCTScriptConfig = configHelper(true, true, 0)
 	err := testVM.Load(testScript)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	GCTScriptConfig = configHelper(false, false, 0)
+	GCTScriptConfig = configHelper(false, false, 0, 6)
 	err = testVM.Load(testScript)
 	if err != nil {
 		if !errors.Is(err, ErrScriptingDisabled) {
@@ -41,9 +41,8 @@ func TestVMLoad(t *testing.T) {
 }
 
 func TestVMLoadNoFile(t *testing.T) {
+	GCTScriptConfig = configHelper(true, false, 0, 6)
 	testVM := New()
-
-	GCTScriptConfig = configHelper(true, false, 0)
 	err := testVM.Load("missing file")
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
@@ -53,8 +52,8 @@ func TestVMLoadNoFile(t *testing.T) {
 }
 
 func TestVMCompile(t *testing.T) {
+	GCTScriptConfig = configHelper(true, true, 6000000, 6)
 	testVM := New()
-	GCTScriptConfig = configHelper(true, true, 0)
 	err := testVM.Load(testScript)
 	if err != nil {
 		t.Fatal(err)
@@ -67,8 +66,8 @@ func TestVMCompile(t *testing.T) {
 }
 
 func TestVMRun(t *testing.T) {
+	GCTScriptConfig = configHelper(true, true, 10000, 6)
 	testVM := New()
-	GCTScriptConfig = configHelper(true, true, 10000)
 	err := testVM.Load(testScript)
 	if err != nil {
 		t.Fatal(err)
@@ -86,8 +85,8 @@ func TestVMRun(t *testing.T) {
 }
 
 func TestVMRunTX(t *testing.T) {
+	GCTScriptConfig = configHelper(true, true, 6000000, 6)
 	testVM := New()
-	GCTScriptConfig = configHelper(true, true, 6000000)
 	err := testVM.Load(testScript)
 	if err != nil {
 		t.Fatal(err)
@@ -106,9 +105,8 @@ func TestVMRunTX(t *testing.T) {
 
 func TestVMWithRunner(t *testing.T) {
 	vmCount := len(AllVMs)
-
+	GCTScriptConfig = configHelper(true, true, 6000000, 6)
 	VM := New()
-	GCTScriptConfig = configHelper(true, true, 6000000)
 	err := VM.Load(testScriptRunner)
 	if err != nil {
 		t.Fatal(err)
@@ -131,9 +129,8 @@ func TestVMWithRunner(t *testing.T) {
 
 func TestShutdownAll(t *testing.T) {
 	vmCount := len(AllVMs)
-
+	GCTScriptConfig = configHelper(true, true, 6000000,6)
 	VM := New()
-	GCTScriptConfig = configHelper(true, true, 6000000)
 	err := VM.Load(testScriptRunner)
 	if err != nil {
 		t.Fatal(err)
@@ -156,8 +153,8 @@ func TestShutdownAll(t *testing.T) {
 }
 
 func TestRead(t *testing.T) {
+	GCTScriptConfig = configHelper(true, true, 6000000, 1)
 	VM := New()
-	GCTScriptConfig = configHelper(true, true, 6000000)
 	err := VM.Load(testScriptRunner)
 	if err != nil {
 		t.Fatal(err)
@@ -197,10 +194,11 @@ func TestError_Error(t *testing.T) {
 	}
 }
 
-func configHelper(enabled, imports bool, timeout time.Duration) *Config {
+func configHelper(enabled, imports bool, timeout time.Duration, max uint8) *Config {
 	return &Config{
 		Enabled:       enabled,
 		AllowImports:  imports,
 		ScriptTimeout: timeout,
+		MaxVirtualMachines: max,
 	}
 }

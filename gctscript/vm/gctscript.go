@@ -9,10 +9,16 @@ import (
 
 // New returns a new instance of VM
 func New() *VM {
-	vm := newVM()
 	if AllVMs == nil {
 		AllVMs = make(map[uuid.UUID]*VM)
 	}
+
+	if len(AllVMs) >= int(GCTScriptConfig.MaxVirtualMachines) {
+		log.Warnln(log.GCTScriptMgr, "GCTScript MaxVirtualMachines hit unable to start further instances")
+		return nil
+	}
+
+	vm := newVM()
 	AllVMs[vm.ID] = vm
 	return vm
 }
