@@ -3,7 +3,6 @@ package bitstamp
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -128,7 +127,7 @@ func (b *Bitstamp) generateDefaultSubscriptions() {
 	for i := range channels {
 		for j := range enabledCurrencies {
 			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
-				Channel: fmt.Sprintf("%v%v", channels[i], enabledCurrencies[j].Lower().String()),
+				Channel: channels[i] + enabledCurrencies[j].Lower().String(),
 			})
 		}
 	}

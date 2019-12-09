@@ -267,10 +267,9 @@ func (h *HUOBI) FetchTradablePairs(asset asset.Item) ([]string, error) {
 		if symbols[x].State != "online" {
 			continue
 		}
-		pairs = append(pairs, fmt.Sprintf("%v%v%v",
-			symbols[x].BaseCurrency,
-			h.GetPairFormat(asset, false).Delimiter,
-			symbols[x].QuoteCurrency))
+		pairs = append(pairs, symbols[x].BaseCurrency+
+			h.GetPairFormat(asset, false).Delimiter+
+			symbols[x].QuoteCurrency)
 	}
 
 	return pairs, nil

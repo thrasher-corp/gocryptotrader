@@ -362,21 +362,21 @@ func (e *Base) SupportsPair(p currency.Pair, enabledPairs bool, assetType asset.
 // FormatExchangeCurrencies returns a string containing
 // the exchanges formatted currency pairs
 func (e *Base) FormatExchangeCurrencies(pairs []currency.Pair, assetType asset.Item) (string, error) {
-	var currencyItems string
+	var currencyItems strings.Builder
 	pairFmt := e.GetPairFormat(assetType, true)
 
 	for x := range pairs {
-		currencyItems += e.FormatExchangeCurrency(pairs[x], assetType).String()
+		currencyItems.WriteString(e.FormatExchangeCurrency(pairs[x], assetType).String())
 		if x == len(pairs)-1 {
 			continue
 		}
-		currencyItems += pairFmt.Separator
+		currencyItems.WriteString(pairFmt.Separator)
 	}
 
-	if currencyItems == "" {
+	if currencyItems.Len() == 0 {
 		return "", errors.New("returned empty string")
 	}
-	return currencyItems, nil
+	return currencyItems.String(), nil
 }
 
 // FormatExchangeCurrency is a method that formats and returns a currency pair

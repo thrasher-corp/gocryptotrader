@@ -1,7 +1,6 @@
 package lakebtc
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -474,7 +473,7 @@ func TestWsTickerProcessing(t *testing.T) {
 
 func TestGetCurrencyFromChannel(t *testing.T) {
 	curr := currency.NewPair(currency.LTC, currency.BTC)
-	result := l.getCurrencyFromChannel(fmt.Sprintf("%v%v%v", marketSubstring, curr, globalSubstring))
+	result := l.getCurrencyFromChannel(marketSubstring + curr.String() + globalSubstring)
 	if curr != result {
 		t.Errorf("currency result is not equal. Expected  %v", curr)
 	}

@@ -327,9 +327,8 @@ func (b *Bitmex) GetCurrentNotifications() ([]Notification, error) {
 // GetOrders returns all the orders, open and closed
 func (b *Bitmex) GetOrders(params *OrdersRequest) ([]Order, error) {
 	var orders []Order
-
 	return orders, b.SendAuthenticatedHTTPRequest(http.MethodGet,
-		fmt.Sprintf("%v%v", bitmexEndpointOrder, ""),
+		bitmexEndpointOrder,
 		params,
 		&orders)
 }

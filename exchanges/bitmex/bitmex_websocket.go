@@ -434,7 +434,7 @@ func (b *Bitmex) GenerateDefaultSubscriptions() {
 	for i := range channels {
 		for j := range allPairs {
 			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
-				Channel:  fmt.Sprintf("%v:%v", channels[i], allPairs[j].String()),
+				Channel:  channels[i] + ":" + allPairs[j].String(),
 				Currency: allPairs[j],
 			})
 		}
@@ -474,7 +474,7 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() {
 	for i := range channels {
 		for j := range contracts {
 			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
-				Channel:  fmt.Sprintf("%v:%v", channels[i], contracts[j].String()),
+				Channel:  channels[i] + ":" + contracts[j].String(),
 				Currency: contracts[j],
 			})
 		}

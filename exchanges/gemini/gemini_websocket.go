@@ -104,7 +104,7 @@ func (g *Gemini) WsSecureSubscribe(dialer *websocket.Dialer, url string) error {
 		return fmt.Errorf("%v sendAuthenticatedHTTPRequest: Unable to JSON request", g.Name)
 	}
 
-	endpoint := fmt.Sprintf("%v%v", g.API.Endpoints.WebsocketURL, url)
+	endpoint := g.API.Endpoints.WebsocketURL + url
 	PayloadBase64 := crypto.Base64Encode(PayloadJSON)
 	hmac := crypto.GetHMAC(crypto.HashSHA512_384, []byte(PayloadBase64), []byte(g.API.Credentials.Secret))
 	headers := http.Header{}

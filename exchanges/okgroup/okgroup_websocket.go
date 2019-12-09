@@ -670,23 +670,23 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 // there are less than 25 entries (for whatever reason)
 // eg Bid:Ask:Bid:Ask:Ask:Ask
 func (o *OKGroup) CalculatePartialOrderbookChecksum(orderbookData *WebsocketDataWrapper) int32 {
-	var checksum string
+	var checksum strings.Builder
 	for i := 0; i < allowableIterations; i++ {
 		if len(orderbookData.Bids)-1 >= i {
-			checksum += orderbookData.Bids[i][0].(string) +
+			checksum.WriteString(orderbookData.Bids[i][0].(string) +
 				delimiterColon +
 				orderbookData.Bids[i][1].(string) +
-				delimiterColon
+				delimiterColon)
 		}
 		if len(orderbookData.Asks)-1 >= i {
-			checksum += orderbookData.Asks[i][0].(string) +
+			checksum.WriteString(orderbookData.Asks[i][0].(string) +
 				delimiterColon +
 				orderbookData.Asks[i][1].(string) +
-				delimiterColon
+				delimiterColon)
 		}
 	}
-	checksum = strings.TrimSuffix(checksum, delimiterColon)
-	return int32(crc32.ChecksumIEEE([]byte(checksum)))
+	checksumStr := strings.TrimSuffix(checksum.String(), delimiterColon)
+	return int32(crc32.ChecksumIEEE([]byte(checksumStr)))
 }
 
 // CalculateUpdateOrderbookChecksum alternates over the first 25 bid and ask
@@ -695,21 +695,21 @@ func (o *OKGroup) CalculatePartialOrderbookChecksum(orderbookData *WebsocketData
 // there are less than 25 entries (for whatever reason)
 // eg Bid:Ask:Bid:Ask:Ask:Ask
 func (o *OKGroup) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base) int32 {
-	var checksum string
+	var checksum strings.Builder
 	for i := 0; i < allowableIterations; i++ {
 		if len(orderbookData.Bids)-1 >= i {
 			price := strconv.FormatFloat(orderbookData.Bids[i].Price, 'f', -1, 64)
 			amount := strconv.FormatFloat(orderbookData.Bids[i].Amount, 'f', -1, 64)
-			checksum += price + delimiterColon + amount + delimiterColon
+			checksum.WriteString(price + delimiterColon + amount + delimiterColon)
 		}
 		if len(orderbookData.Asks)-1 >= i {
 			price := strconv.FormatFloat(orderbookData.Asks[i].Price, 'f', -1, 64)
 			amount := strconv.FormatFloat(orderbookData.Asks[i].Amount, 'f', -1, 64)
-			checksum += price + delimiterColon + amount + delimiterColon
+			checksum.WriteString(price + delimiterColon + amount + delimiterColon)
 		}
 	}
-	checksum = strings.TrimSuffix(checksum, delimiterColon)
-	return int32(crc32.ChecksumIEEE([]byte(checksum)))
+	checksumStr := strings.TrimSuffix(checksum.String(), delimiterColon)
+	return int32(crc32.ChecksumIEEE([]byte(checksumStr)))
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be

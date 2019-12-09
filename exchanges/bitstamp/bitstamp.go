@@ -681,11 +681,11 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(path string, v2 bool, values url
 			return errors.New(errCap.Error)
 		}
 		if data, ok := errCap.Reason.(map[string][]string); ok {
-			var details string
-			for _, v := range data {
-				details += strings.Join(v, "")
+			var details strings.Builder
+			for x := range data {
+				details.WriteString(strings.Join(data[x], ""))
 			}
-			return errors.New(details)
+			return errors.New(details.String())
 		}
 
 		if data, ok := errCap.Reason.(string); ok {

@@ -76,10 +76,9 @@ func (l *LakeBTC) GenerateDefaultSubscriptions() {
 
 	for j := range enabledCurrencies {
 		enabledCurrencies[j].Delimiter = ""
-		channel := fmt.Sprintf("%v%v%v",
-			marketSubstring,
-			enabledCurrencies[j].Lower(),
-			globalSubstring)
+		channel := marketSubstring +
+			enabledCurrencies[j].Lower().String() +
+			globalSubstring
 
 		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 			Channel:  channel,
