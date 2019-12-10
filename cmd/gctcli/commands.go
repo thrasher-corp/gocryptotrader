@@ -3181,7 +3181,6 @@ func gctScriptRead(c *cli.Context) error {
 	return nil
 }
 
-
 func gctScriptQuery(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		_ = cli.ShowSubcommandHelp(c)

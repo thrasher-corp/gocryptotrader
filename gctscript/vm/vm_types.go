@@ -16,6 +16,15 @@ const (
 	DefaultTimeoutValue = 1 * time.Minute
 	// DefaultMaxVirtualMachines max number of virtual machines that can be loaded at one time
 	DefaultMaxVirtualMachines = 10
+
+	TypeExecute = "execute"
+	TypeUpload = "upload"
+	TypeStop = "stop"
+	TypeStatus = "status"
+
+	StatusSuccess = "success"
+	StatusFailure = "failure"
+	StatusError = "error"
 )
 
 var (
@@ -32,7 +41,7 @@ var (
 type VM struct {
 	ID       uuid.UUID
 	Name     string
-	file     string
+	File     string
 	Script   *script.Script
 	Compiled *script.Compiled
 

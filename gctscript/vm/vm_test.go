@@ -129,7 +129,7 @@ func TestVMWithRunner(t *testing.T) {
 
 func TestShutdownAll(t *testing.T) {
 	vmCount := len(AllVMs)
-	GCTScriptConfig = configHelper(true, true, 6000000,6)
+	GCTScriptConfig = configHelper(true, true, 6000000, 6)
 	VM := New()
 	err := VM.Load(testScriptRunner)
 	if err != nil {
@@ -196,9 +196,9 @@ func TestError_Error(t *testing.T) {
 
 func configHelper(enabled, imports bool, timeout time.Duration, max uint8) *Config {
 	return &Config{
-		Enabled:       enabled,
-		AllowImports:  imports,
-		ScriptTimeout: timeout,
+		Enabled:            enabled,
+		AllowImports:       imports,
+		ScriptTimeout:      timeout,
 		MaxVirtualMachines: max,
 	}
 }

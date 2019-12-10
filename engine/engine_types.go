@@ -76,7 +76,7 @@ type Settings struct {
 	DispatchJobsLimit       int
 
 	// GCTscript settings
-	MaxVirtualMachines	uint
+	MaxVirtualMachines uint
 }
 
 const (

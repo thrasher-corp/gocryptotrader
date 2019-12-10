@@ -13,7 +13,7 @@ import (
 
 var (
 	settings = engine.Settings{
-		ConfigFile:          filepath.Join("..","..","..","testdata", "gctscript","config.json"),
+		ConfigFile:          filepath.Join("..", "..", "..", "testdata", "gctscript", "config.json"),
 		EnableDryRun:        true,
 		DataDir:             "../../../testdata/gocryptotrader",
 		Verbose:             false,
@@ -128,7 +128,7 @@ func TestExchange_Pairs(t *testing.T) {
 //
 // func TestExchange_SubmitOrder(t *testing.T) {
 // 	t.Parallel()
-// 	tempOrder := &order.Submit{}
+// 	tempOrder := &order.Submit{}P
 // 	_, err := exchangeTest.SubmitOrder(exchName, tempOrder)
 // 	if err != nil {
 // 		t.Fatal(err)

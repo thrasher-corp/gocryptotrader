@@ -266,8 +266,8 @@ func (w Wrapper) Orderbook(exch string, pair currency.Pair, item asset.Item) (*o
 
 	return &orderbook.Base{
 		ExchangeName: exch,
-		AssetType: item,
-		Pair: pair,
+		AssetType:    item,
+		Pair:         pair,
 		Bids: []orderbook.Item{
 			{
 				Amount: 1,

@@ -23,7 +23,7 @@ var exchangeModule = map[string]objects.Object{
 }
 
 // ExchangeOrderbook returns orderbook for requested exchange & currencypair
-func ExchangeOrderbook(args ...objects.Object) (objects.Object,error) {
+func ExchangeOrderbook(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 4 {
 		return nil, objects.ErrWrongNumArguments
 	}

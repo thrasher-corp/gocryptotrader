@@ -2,6 +2,7 @@ package vm
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -9,9 +10,12 @@ import (
 
 	"github.com/d5/tengo/script"
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
+	scriptevent "github.com/thrasher-corp/gocryptotrader/database/repository/script"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/loader"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/volatiletech/null"
 )
 
 func newVM() *VM {
@@ -66,6 +70,7 @@ func (vm *VM) Load(file string) error {
 		}
 	}
 
+	defer f.Close()
 	code, err := ioutil.ReadAll(f)
 	if err != nil {
 		return &Error{
@@ -75,7 +80,7 @@ func (vm *VM) Load(file string) error {
 		}
 	}
 
-	vm.file = f.Name()
+	vm.File = f.Name()
 	vm.Name = vm.shortName(file)
 	vm.Script = script.New(code)
 	vm.Script.SetImports(loader.GetModuleMap())
@@ -99,8 +104,8 @@ func (vm *VM) Compile() (err error) {
 
 // Run runs byte code
 func (vm *VM) Run() (err error) {
-	audit.Event(vm.ID.String(), AuditEventName, "Script executed")
-	return vm.Compiled.Run()
+	ret := vm.Compiled.Run()
+	return ret
 }
 
 // RunCtx runs compiled byte code with context.Context support.
@@ -112,15 +117,15 @@ func (vm *VM) RunCtx() (err error) {
 	ct, cancel := context.WithTimeout(vm.ctx, GCTScriptConfig.ScriptTimeout)
 	defer cancel()
 
-	audit.Event(vm.ID.String(), AuditEventName, "Script executed")
-
 	err = vm.Compiled.RunContext(ct)
-	if err != nil {;
+	if err != nil {
+		vm.event("failure", TypeExecute, true)
 		return Error{
 			Action: "RunCtx",
 			Cause:  err,
 		}
 	}
+	vm.event("success", TypeExecute, true)
 	return
 }
 
@@ -137,7 +142,7 @@ func (vm *VM) CompileAndRun() {
 	}
 
 	if GCTScriptConfig.Verbose {
-		log.Debugf(log.GCTScriptMgr,"Running script: %s ID: %v", vm.Name, vm.ID)
+		log.Debugf(log.GCTScriptMgr, "Running script: %s ID: %v", vm.Name, vm.ID)
 	}
 
 	err = vm.RunCtx()
@@ -175,7 +180,7 @@ func (vm *VM) CompileAndRun() {
 	}
 }
 
-// Shutdown shuts down current VM
+// Shutdown shuts down current VMP
 func (vm *VM) Shutdown() error {
 	if vm.S != nil {
 		vm.S <- struct{}{}
@@ -186,6 +191,7 @@ func (vm *VM) Shutdown() error {
 	}
 	vm.Script = nil
 	pool.Put(vm.Script)
+	vm.event("success", TypeStop, false)
 	return RemoveVM(vm.ID)
 }
 
@@ -196,7 +202,7 @@ func (vm *VM) Read() ([]byte, error) {
 	}
 
 	audit.Event(vm.ID.String(), AuditEventName, "Script contents read")
-	return ioutil.ReadFile(vm.file)
+	return ioutil.ReadFile(vm.File)
 }
 
 func (vm *VM) shortName(file string) string {
@@ -209,4 +215,18 @@ func (vm *VM) shortName(file string) string {
 
 func (vm *VM) validate() error {
 	return nil
+}
+
+func (vm *VM) event(status, executionType string, includeScriptHash bool) {
+	var hash null.Bytes
+	if includeScriptHash {
+		contents, err := vm.Read()
+		if err != nil {
+			log.Errorln(log.GCTScriptMgr, err)
+		}
+
+		hash.Bytes = crypto.GetSHA512(contents)
+	}
+	fmt.Println(hash)
+	scriptevent.Event(vm.Name, vm.ID, executionType, time.Now(), status, hash)
 }

@@ -23,6 +23,15 @@ func New() *VM {
 	return vm
 }
 
+func Validate(file string) (err error) {
+	tempVM := newVM()
+	err = tempVM.Load(file)
+	if err != nil {
+		return
+	}
+	return tempVM.Compile()
+}
+
 // ShutdownAll shutdown all
 func ShutdownAll() (err error) {
 	if GCTScriptConfig.Verbose {

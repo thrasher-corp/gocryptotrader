@@ -19,6 +19,7 @@ import (
 	grpcruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
@@ -1263,6 +1264,7 @@ func (s *RPCServer) GCTScriptQuery(ctx context.Context, r *gctrpc.GCTScriptQuery
 	}
 	return resp, nil
 }
+
 // GCTScriptExecute execute a script
 func (s *RPCServer) GCTScriptExecute(ctx context.Context, r *gctrpc.GCTScriptExecuteRequest) (*gctrpc.GCTScriptGenericResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
@@ -1331,6 +1333,17 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 		}
 	} else if !r.Overwrite {
 		return nil, fmt.Errorf("%s script found and overwrite set to false", r.ScriptName)
+	} else if r.Overwrite {
+		f := filepath.Join(gctscript.ScriptPath, "version_history")
+		err := os.MkdirAll(f,0770)
+		if err != nil {
+			return nil, err
+		}
+		renamedFile := filepath.Join(f, time.Now().Format(time.RFC3339)+ " " + r.ScriptName)
+		err = file.Move(fPath, renamedFile)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	file, err := os.Create(fPath)
@@ -1339,12 +1352,18 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 	}
 	defer file.Close()
 
-	n, err := file.Write(r.Data)
+	_, err = file.Write(r.Data)
 	if err != nil {
 		return nil, err
 	}
-	if n != len(r.Data) {
-		return nil, fmt.Errorf("failed to write expected output length: %v got %v", len(r.Data), n)
+
+	err = gctscript.Validate(fPath)
+	if err != nil {
+		errRemove := os.Remove(fPath)
+		if errRemove != nil {
+			return nil, err
+		}
+		return &gctrpc.GCTScriptGenericResponse{Status: "validation  failed", Data: err.Error()}, nil
 	}
 
 	if r.Archived {
