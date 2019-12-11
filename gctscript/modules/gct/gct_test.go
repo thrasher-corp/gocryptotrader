@@ -48,12 +48,10 @@ func TestMain(m *testing.M) {
 
 func TestExchangeOrderbook(t *testing.T) {
 	t.Parallel()
-	ret, err := ExchangeOrderbook(exch, currencyPair, delimiter, assetType)
+	_, err := ExchangeOrderbook(exch, currencyPair, delimiter, assetType)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	t.Log(ret.String())
 
 	_, err = ExchangeOrderbook(exchError, currencyPair, delimiter, assetType)
 	if err != nil && errors.Is(err, errTestFailed) {
@@ -369,10 +367,7 @@ func (w Wrapper) CancelOrder(exch, orderid string) (bool, error) {
 	if exch == exchError.String() {
 		return false, errTestFailed
 	}
-	if orderid == "false" {
-		return false, nil
-	}
-	return true, nil
+	return orderid != "false", nil
 }
 
 func (w Wrapper) AccountInformation(exch string) (*modules.AccountInfo, error) {

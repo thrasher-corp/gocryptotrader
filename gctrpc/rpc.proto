@@ -572,7 +572,7 @@ message GCTScriptStatusResponse{
 message GCTScriptQueryResponse{
     string status = 1;
     GCTScript script = 2;
-    bytes data = 3;
+    string data = 3;
 }
 
 message GCTScriptGenericResponse {
@@ -906,7 +906,7 @@ service GoCryptoTrader {
         };
     }
 
-    rpc GCTScriptReadScript(GCTScriptReadScriptRequest) returns (GCTScriptGenericResponse) {
+    rpc GCTScriptReadScript(GCTScriptReadScriptRequest) returns (GCTScriptQueryResponse) {
         option (google.api.http) = {
             post: "/v1/gctscript/read",
             body: "*"

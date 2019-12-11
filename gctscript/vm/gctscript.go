@@ -50,7 +50,7 @@ func ShutdownAll() (err error) {
 		err = fmt.Errorf("failed to shutdown the follow Virtual Machines: %v", errors)
 	}
 
-	return
+	return err
 }
 
 // RemoveVM remove VM from list

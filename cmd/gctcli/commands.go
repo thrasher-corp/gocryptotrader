@@ -3177,7 +3177,7 @@ func gctScriptRead(c *cli.Context) error {
 		return err
 	}
 
-	fmt.Printf("%s\n", executeCommand)
+	jsonOutput(executeCommand)
 	return nil
 }
 
@@ -3211,7 +3211,6 @@ func gctScriptQuery(c *cli.Context) error {
 		return err
 	}
 
-	//fmt.Printf("%s\n", executeCommand)
 	jsonOutput(executeCommand)
 
 	return nil
@@ -3248,8 +3247,6 @@ func gctScriptUpload(c *cli.Context) error {
 			archived = ow
 		}
 	}
-
-	fmt.Println(filepath.Ext(filename))
 
 	if filepath.Ext(filename) != ".gct" && filepath.Ext(filename) != ".zip" {
 		return errors.New("file type must be gct or zip")

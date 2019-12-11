@@ -9,27 +9,37 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+)
+
+// change these if you wish to test another exchange and/or currency pair
+const (
+	exchName      = "BTC Markets" // change to test on another exchange
+	exchAPIKEY    = ""
+	exchAPISECRET = ""
+	exchClientID  = ""
+	pairs         = "BTC-AUD" // change to test another currency pair
+	delimiter     = "-"
+	assetType     = asset.Spot
+	orderID       = "1234"
+	orderType     = order.Limit
+	orderSide     = order.Buy
+	orderClientID = ""
+	orderPrice    = 1
+	orderAmount   = 1
 )
 
 var (
 	settings = engine.Settings{
 		ConfigFile:          filepath.Join("..", "..", "..", "testdata", "gctscript", "config.json"),
 		EnableDryRun:        true,
-		DataDir:             "../../../testdata/gocryptotrader",
+		DataDir:             filepath.Join("..", "..", "..", "testdata", "gocryptotrader"),
 		Verbose:             false,
 		EnableGRPC:          false,
 		EnableDeprecatedRPC: false,
 		EnableWebsocketRPC:  false,
 	}
 	exchangeTest = Exchange{}
-)
-
-const (
-	exchName  = "BTC Markets" // change to test on another exchange
-	pairs     = "BTC-AUD"     // change to test another currency pair
-	delimiter = "-"
-	assetType = asset.Spot
-	orderID   = "1234"
 )
 
 func TestMain(m *testing.M) {
@@ -110,45 +120,62 @@ func TestExchange_Pairs(t *testing.T) {
 	}
 }
 
-// func TestExchange_AccountInformation(t *testing.T) {
-// 	t.Parallel()
-// 	_, err := exchangeTest.AccountInformation(exchName)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// }
-//
-// func TestExchange_QueryOrder(t *testing.T) {
-// 	t.Parallel()
-// 	_, err := exchangeTest.QueryOrder(exchName, orderID)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// }
-//
-// func TestExchange_SubmitOrder(t *testing.T) {
-// 	t.Parallel()
-// 	tempOrder := &order.Submit{}P
-// 	_, err := exchangeTest.SubmitOrder(exchName, tempOrder)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// }
-//
-// func TestExchange_CancelOrder(t *testing.T) {
-// 	t.Parallel()
-// 	_, err := exchangeTest.CancelOrder(exchName, orderID)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// }
+func TestExchange_AccountInformation(t *testing.T) {
+	if !configureExchangeKeys() {
+		t.Skip("no exchange configured test skipped")
+	}
+	tx, err := exchangeTest.AccountInformation(exchName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(tx)
+}
+
+func TestExchange_QueryOrder(t *testing.T) {
+	if !configureExchangeKeys() {
+		t.Skip("no exchange configured test skipped")
+	}
+	_, err := exchangeTest.QueryOrder(exchName, orderID)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestExchange_SubmitOrder(t *testing.T) {
+	if !configureExchangeKeys() {
+		t.Skip("no exchange configured test skipped")
+	}
+	tempOrder := &order.Submit{
+		Pair:         currency.NewPairDelimiter(pairs, delimiter),
+		OrderType:    orderType,
+		OrderSide:    orderSide,
+		TriggerPrice: 0,
+		TargetAmount: 0,
+		Price:        orderPrice,
+		Amount:       orderAmount,
+		ClientID:     orderClientID,
+	}
+	_, err := exchangeTest.SubmitOrder(exchName, tempOrder)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestExchange_CancelOrder(t *testing.T) {
+	if !configureExchangeKeys() {
+		t.Skip("no exchange configured test skipped")
+	}
+	_, err := exchangeTest.CancelOrder(exchName, orderID)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
 func setupEngine() (err error) {
 	engine.Bot, err = engine.NewFromSettings(&settings)
 	if engine.Bot == nil || err != nil {
 		return err
 	}
-
 	return engine.Bot.Start()
 }
 
@@ -158,4 +185,11 @@ func cleanup() (err error) {
 		return
 	}
 	return nil
+}
+
+func configureExchangeKeys() bool {
+	ex := engine.GetExchangeByName(exchName).GetBase()
+	ex.SetAPIKeys(exchAPIKEY, exchAPISECRET, exchClientID)
+	ex.SkipAuthCheck = true
+	return ex.ValidateAPICredentials()
 }

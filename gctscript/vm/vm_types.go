@@ -10,20 +10,24 @@ import (
 )
 
 const (
-	// AuditEventName name to use for audit event logging
-	AuditEventName = "gctscript"
+	AuditEventID = "gctscript"
 	// DefaultTimeoutValue default timeout value for virtual machines
 	DefaultTimeoutValue = 1 * time.Minute
 	// DefaultMaxVirtualMachines max number of virtual machines that can be loaded at one time
 	DefaultMaxVirtualMachines = 10
 
+	// TypeExecute text to display in script_event table when a script is executed
 	TypeExecute = "execute"
-	TypeUpload = "upload"
+	// TypeStop text to display in script_event table when a running script is stopped
 	TypeStop = "stop"
-	TypeStatus = "status"
+	// TypeRead text to display in script_event table when a script contents is read
+	TypeRead = "read"
 
+	// StatusSuccess text to display in script_event table on successful execution
 	StatusSuccess = "success"
+	// StatusFailure text to display in script_event table when script execution fails
 	StatusFailure = "failure"
+	// StatusError text to display in script_event table when there was an error in execution
 	StatusError = "error"
 )
 
@@ -40,15 +44,12 @@ var (
 // VM contains a pointer to "script" (precompiled source) and "compiled" (compiled byte code) instances
 type VM struct {
 	ID       uuid.UUID
-	Name     string
 	File     string
+	Path     string
 	Script   *script.Script
 	Compiled *script.Compiled
-
-	ctx context.Context
-	T   time.Duration
-
-	NextRun time.Time
-
-	S chan struct{}
+	ctx      context.Context
+	T        time.Duration
+	NextRun  time.Time
+	S        chan struct{}
 }

@@ -13,7 +13,6 @@ func GetModuleMap() *objects.ModuleMap {
 	modules := objects.NewModuleMap()
 
 	gctModuleList := gct.AllModuleNames()
-
 	for _, name := range gctModuleList {
 		if mod := gct.Modules[name]; mod != nil {
 			modules.AddBuiltinModule(name, mod)
@@ -29,6 +28,5 @@ func GetModuleMap() *objects.ModuleMap {
 			modules.AddSourceModule(name, []byte(mod))
 		}
 	}
-
 	return modules
 }

@@ -4,7 +4,9 @@
 package sqlite3
 
 var TableNames = struct {
-	AuditEvent string
+	AuditEvent  string
+	ScriptEvent string
 }{
-	AuditEvent: "audit_event",
+	AuditEvent:  "audit_event",
+	ScriptEvent: "script_event",
 }

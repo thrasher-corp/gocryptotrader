@@ -1235,7 +1235,7 @@ func (s *RPCServer) GCTScriptStatus(ctx context.Context, r *gctrpc.GCTScriptStat
 	for x := range gctscript.AllVMs {
 		resp.Scripts = append(resp.Scripts, &gctrpc.GCTScript{
 			UUID:    gctscript.AllVMs[x].ID.String(),
-			Name:    gctscript.AllVMs[x].Name,
+			Name:    gctscript.AllVMs[x].ShortName(),
 			NextRun: gctscript.AllVMs[x].NextRun.String(),
 		})
 	}
@@ -1257,10 +1257,16 @@ func (s *RPCServer) GCTScriptQuery(ctx context.Context, r *gctrpc.GCTScriptQuery
 
 	if v, f := gctscript.AllVMs[UUID]; f {
 		resp.Status = "ok"
-		resp.Data, err = v.Read()
+		resp.Script = new(gctrpc.GCTScript)
+		resp.Script.Name = v.ShortName()
+		resp.Script.UUID = v.ID.String()
+		resp.Script.Path = v.Path
+		resp.Script.NextRun = v.NextRun.String()
+		data, err := v.Read()
 		if err != nil {
 			return nil, err
 		}
+		resp.Data = string(data)
 	}
 	return resp, nil
 }
@@ -1293,7 +1299,7 @@ func (s *RPCServer) GCTScriptExecute(ctx context.Context, r *gctrpc.GCTScriptExe
 
 	return &gctrpc.GCTScriptGenericResponse{
 		Status: "ok",
-		Data:   r.Script.Name + " (" + gctVM.ID.String() + ") executed",
+		Data:   gctVM.ShortName() + " (" + gctVM.ID.String() + ") executed",
 	}, nil
 }
 
@@ -1331,28 +1337,30 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 		if !os.IsNotExist(err) {
 			return nil, err
 		}
-	} else if !r.Overwrite {
-		return nil, fmt.Errorf("%s script found and overwrite set to false", r.ScriptName)
-	} else if r.Overwrite {
-		f := filepath.Join(gctscript.ScriptPath, "version_history")
-		err := os.MkdirAll(f,0770)
-		if err != nil {
-			return nil, err
-		}
-		renamedFile := filepath.Join(f, time.Now().Format(time.RFC3339)+ " " + r.ScriptName)
-		err = file.Move(fPath, renamedFile)
-		if err != nil {
-			return nil, err
+	} else {
+		if !r.Overwrite {
+			return nil, fmt.Errorf("%s script found and overwrite set to false", r.ScriptName)
+		} else if r.Overwrite {
+			f := filepath.Join(gctscript.ScriptPath, "version_history")
+			err = os.MkdirAll(f, 0770)
+			if err != nil {
+				return nil, err
+			}
+			renamedFile := filepath.Join(f, time.Now().Format(time.RFC3339)+" "+r.ScriptName)
+			err = file.Move(fPath, renamedFile)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
-	file, err := os.Create(fPath)
+	newFile, err := os.Create(fPath)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer newFile.Close()
 
-	_, err = file.Write(r.Data)
+	_, err = newFile.Write(r.Data)
 	if err != nil {
 		return nil, err
 	}
@@ -1415,14 +1423,14 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 
 	return &gctrpc.GCTScriptGenericResponse{
 		Status: "ok",
-		Data:   fmt.Sprintf("script %s written", file.Name()),
+		Data:   fmt.Sprintf("script %s written", newFile.Name()),
 	}, nil
 }
 
 // GCTScriptReadScript read a script and return contents
-func (s *RPCServer) GCTScriptReadScript(ctx context.Context, r *gctrpc.GCTScriptReadScriptRequest) (*gctrpc.GCTScriptGenericResponse, error) {
+func (s *RPCServer) GCTScriptReadScript(ctx context.Context, r *gctrpc.GCTScriptReadScriptRequest) (*gctrpc.GCTScriptQueryResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
-		return &gctrpc.GCTScriptGenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
+		return &gctrpc.GCTScriptQueryResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
 	var data []byte
@@ -1435,9 +1443,13 @@ func (s *RPCServer) GCTScriptReadScript(ctx context.Context, r *gctrpc.GCTScript
 		return nil, err
 	}
 
-	return &gctrpc.GCTScriptGenericResponse{
+	return &gctrpc.GCTScriptQueryResponse{
 		Status: "ok",
-		Data:   string(data),
+		Script: &gctrpc.GCTScript{
+			Name: filepath.Base(filename),
+			Path: filepath.Dir(filename),
+		},
+		Data: string(data),
 	}, nil
 }
 

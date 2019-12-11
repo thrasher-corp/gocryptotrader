@@ -2,7 +2,7 @@ package vm
 
 import (
 	"context"
-	"fmt"
+	"encoding/hex"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -11,14 +11,13 @@ import (
 	"github.com/d5/tengo/script"
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 	scriptevent "github.com/thrasher-corp/gocryptotrader/database/repository/script"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/loader"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/volatiletech/null"
 )
 
-func newVM() *VM {
+func newVM() (vm *VM) {
 	newUUID, err := uuid.NewV4()
 	if err != nil {
 		log.Error(log.GCTScriptMgr, Error{
@@ -32,12 +31,12 @@ func newVM() *VM {
 		log.Debugln(log.GCTScriptMgr, "New GCTScript VM created")
 	}
 
-	audit.Event(newUUID.String(), AuditEventName, "virtual machine created")
-
-	return &VM{
+	vm = &VM{
 		ID:     newUUID,
 		Script: pool.Get().(*script.Script),
 	}
+	vm.event(StatusSuccess, "create", false)
+	return
 }
 
 // Load parses and creates a new instance of tengo script vm
@@ -58,7 +57,7 @@ func (vm *VM) Load(file string) error {
 	}
 
 	if GCTScriptConfig.Verbose {
-		log.Debugf(log.GCTScriptMgr, "Loading script: %s ID: %v", vm.Name, vm.ID)
+		log.Debugf(log.GCTScriptMgr, "Loading script: %s ID: %v", vm.ShortName(), vm.ID)
 	}
 
 	f, err := os.Open(file)
@@ -81,7 +80,7 @@ func (vm *VM) Load(file string) error {
 	}
 
 	vm.File = f.Name()
-	vm.Name = vm.shortName(file)
+	vm.Path = filepath.Dir(file)
 	vm.Script = script.New(code)
 	vm.Script.SetImports(loader.GetModuleMap())
 
@@ -91,7 +90,7 @@ func (vm *VM) Load(file string) error {
 		}
 		vm.Script.EnableFileImport(true)
 	}
-	audit.Event(vm.ID.String(), AuditEventName, "Script loaded")
+	vm.event(StatusSuccess, "load", true)
 	return nil
 }
 
@@ -104,8 +103,20 @@ func (vm *VM) Compile() (err error) {
 
 // Run runs byte code
 func (vm *VM) Run() (err error) {
-	ret := vm.Compiled.Run()
-	return ret
+	if GCTScriptConfig.Verbose {
+		log.Debugf(log.GCTScriptMgr, "Running script: %s ID: %v", vm.ShortName(), vm.ID)
+	}
+
+	err = vm.Compiled.Run()
+	if err != nil {
+		vm.event(StatusFailure, TypeExecute, true)
+		return Error{
+			Action: "Run",
+			Cause:  err,
+		}
+	}
+	vm.event(StatusSuccess, TypeExecute, true)
+	return
 }
 
 // RunCtx runs compiled byte code with context.Context support.
@@ -117,15 +128,19 @@ func (vm *VM) RunCtx() (err error) {
 	ct, cancel := context.WithTimeout(vm.ctx, GCTScriptConfig.ScriptTimeout)
 	defer cancel()
 
+	if GCTScriptConfig.Verbose {
+		log.Debugf(log.GCTScriptMgr, "Running script: %s ID: %v", vm.ShortName(), vm.ID)
+	}
+
 	err = vm.Compiled.RunContext(ct)
 	if err != nil {
-		vm.event("failure", TypeExecute, true)
+		vm.event(StatusFailure, TypeExecute, true)
 		return Error{
 			Action: "RunCtx",
 			Cause:  err,
 		}
 	}
-	vm.event("success", TypeExecute, true)
+	vm.event(StatusSuccess, TypeExecute, true)
 	return
 }
 
@@ -139,10 +154,6 @@ func (vm *VM) CompileAndRun() {
 			log.Error(log.GCTScriptMgr, err)
 		}
 		return
-	}
-
-	if GCTScriptConfig.Verbose {
-		log.Debugf(log.GCTScriptMgr, "Running script: %s ID: %v", vm.Name, vm.ID)
 	}
 
 	err = vm.RunCtx()
@@ -187,46 +198,45 @@ func (vm *VM) Shutdown() error {
 		close(vm.S)
 	}
 	if GCTScriptConfig.Verbose {
-		log.Debugf(log.GCTScriptMgr, "Shutting down script: %s ID: %v", vm.Name, vm.ID)
+		log.Debugf(log.GCTScriptMgr, "Shutting down script: %s ID: %v", vm.ShortName(), vm.ID)
 	}
 	vm.Script = nil
 	pool.Put(vm.Script)
-	vm.event("success", TypeStop, false)
+	vm.event(StatusSuccess, TypeStop, true)
 	return RemoveVM(vm.ID)
 }
 
-// Read contents of script back
 func (vm *VM) Read() ([]byte, error) {
-	if GCTScriptConfig.Verbose {
-		log.Debugf(log.GCTScriptMgr, "Read script: %s ID: %v", vm.Name, vm.ID)
-	}
+	vm.event(StatusSuccess, TypeRead, true)
+	return vm.read()
+}
 
-	audit.Event(vm.ID.String(), AuditEventName, "Script contents read")
+// Read contents of script back
+func (vm *VM) read() ([]byte, error) {
+	if GCTScriptConfig.Verbose {
+		log.Debugf(log.GCTScriptMgr, "Read script: %s ID: %v", vm.ShortName(), vm.ID)
+	}
 	return ioutil.ReadFile(vm.File)
 }
 
-func (vm *VM) shortName(file string) string {
-	if file[0] == '.' {
-		file = file[2:]
-	}
-
-	return filepath.Base(file)
-}
-
-func (vm *VM) validate() error {
-	return nil
+func (vm *VM) ShortName() string {
+	return filepath.Base(vm.File)
 }
 
 func (vm *VM) event(status, executionType string, includeScriptHash bool) {
-	var hash null.Bytes
+	var hash, name, path null.String
 	if includeScriptHash {
-		contents, err := vm.Read()
+		contents, err := vm.read()
 		if err != nil {
 			log.Errorln(log.GCTScriptMgr, err)
 		}
-
-		hash.Bytes = crypto.GetSHA512(contents)
+		hash.SetValid(hex.EncodeToString(crypto.GetSHA512(contents)))
 	}
-	fmt.Println(hash)
-	scriptevent.Event(vm.Name, vm.ID, executionType, time.Now(), status, hash)
+	if vm.ShortName() != "" {
+		name.SetValid(vm.ShortName())
+	}
+	if vm.Path != "" {
+		path.SetValid(vm.Path)
+	}
+	scriptevent.Event(vm.ID, name, path, hash, executionType, status, time.Now())
 }

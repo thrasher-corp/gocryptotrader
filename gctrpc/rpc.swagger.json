@@ -358,7 +358,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptGenericResponse"
+              "$ref": "#/definitions/gctrpcGCTScriptQueryResponse"
             }
           }
         },
@@ -1696,8 +1696,7 @@
           "$ref": "#/definitions/gctrpcGCTScript"
         },
         "data": {
-          "type": "string",
-          "format": "byte"
+          "type": "string"
         }
       }
     },
