@@ -401,16 +401,21 @@ func (b *BTCMarkets) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, 
 	for x := range orders {
 		orderIDs = append(orderIDs, orders[x].OrderID)
 	}
-	tempResp, err := b.CancelBatchOrders(orderIDs)
-	if err != nil {
-		return resp, err
+	splitOrders := common.SplitStringSliceByLimit(orderIDs, 20)
+
+	for z := range splitOrders {
+		tempResp, err := b.CancelBatchOrders(splitOrders[z])
+		if err != nil {
+			return resp, err
+		}
+		for y := range tempResp.CancelOrders {
+			tempMap[tempResp.CancelOrders[y].OrderID] = "Success"
+		}
+		for z := range tempResp.UnprocessedRequests {
+			tempMap[tempResp.UnprocessedRequests[z].RequestID] = "Cancellation Failed"
+		}
 	}
-	for y := range tempResp.CancelOrders {
-		tempMap[tempResp.CancelOrders[y].OrderID] = "Success"
-	}
-	for z := range tempResp.UnprocessedRequests {
-		tempMap[tempResp.UnprocessedRequests[z].RequestID] = "Cancellation Failed"
-	}
+	resp.Status = tempMap
 	return resp, nil
 }
 
@@ -630,38 +635,42 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 			tempArray = append(tempArray, orders[z].OrderID)
 		}
 	}
-	tempData, err := b.GetBatchTrades(tempArray)
-	if err != nil {
-		return resp, err
-	}
-	for c := range tempData.Orders {
-		switch tempData.Orders[c].Status {
-		case orderFailed:
-			tempResp.Status = order.Rejected
-		case orderPartiallyCancelled:
-			tempResp.Status = order.PartiallyCancelled
-		case orderCancelled:
-			tempResp.Status = order.Cancelled
-		case orderFullyMatched:
-			tempResp.Status = order.Filled
-		case orderPartiallyMatched:
-			continue
-		case orderPlaced:
-			continue
-		case orderAccepted:
-			continue
+	splitOrders := common.SplitStringSliceByLimit(tempArray, 50)
+
+	for x := range splitOrders {
+		tempData, err := b.GetBatchTrades(splitOrders[x])
+		if err != nil {
+			return resp, err
 		}
-		tempResp.Exchange = b.Name
-		tempResp.CurrencyPair = currency.NewPairFromString(tempData.Orders[c].MarketID)
-		tempResp.OrderSide = order.Bid
-		if tempData.Orders[c].Side == ask {
-			tempResp.OrderSide = order.Ask
+		for c := range tempData.Orders {
+			switch tempData.Orders[c].Status {
+			case orderFailed:
+				tempResp.Status = order.Rejected
+			case orderPartiallyCancelled:
+				tempResp.Status = order.PartiallyCancelled
+			case orderCancelled:
+				tempResp.Status = order.Cancelled
+			case orderFullyMatched:
+				tempResp.Status = order.Filled
+			case orderPartiallyMatched:
+				continue
+			case orderPlaced:
+				continue
+			case orderAccepted:
+				continue
+			}
+			tempResp.Exchange = b.Name
+			tempResp.CurrencyPair = currency.NewPairFromString(tempData.Orders[c].MarketID)
+			tempResp.OrderSide = order.Bid
+			if tempData.Orders[c].Side == ask {
+				tempResp.OrderSide = order.Ask
+			}
+			tempResp.ID = tempData.Orders[c].OrderID
+			tempResp.OrderDate = tempData.Orders[c].CreationTime
+			tempResp.Price = tempData.Orders[c].Price
+			tempResp.ExecutedAmount = tempData.Orders[c].Amount
+			resp = append(resp, tempResp)
 		}
-		tempResp.ID = tempData.Orders[c].OrderID
-		tempResp.OrderDate = tempData.Orders[c].CreationTime
-		tempResp.Price = tempData.Orders[c].Price
-		tempResp.ExecutedAmount = tempData.Orders[c].Amount
-		resp = append(resp, tempResp)
 	}
 	return resp, nil
 }
