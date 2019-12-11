@@ -37,7 +37,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ##### Configuration
 
-The database configuration struct is currently: 
+The gctscript configuration struct is currently: 
 ```shell script
 type Config struct {
 	Enabled       bool          `json:"enabled"`
@@ -102,22 +102,36 @@ With an example configuration being:
       ]
     }
   ```
-  - Read:
+  - Read file:
   ```shell script
-    gctcli gctscript read <uuid>
-    gctcli gctscript read 821bd73e-02b1-4974-9463-874cb49f130d
+    gctcli gctscript read <filename>
+    gctcli gctscript read "timer.gct"
   
-    fmt := import("fmt")
-    t := import("times")
-
-    name := "run"
-    timer := "5s"
-
-    load := func() {
-	    fmt.printf("5s %s\n",t.now())
+    {
+      "status": "ok",
+      "script": {
+      "name": "timer.gct",
+      "path": "/home/andrew/.gocryptotrader/scripts"
+      },
+      "data": "fmt := import(\"fmt\")\nt := import(\"times\")\n\nname := \"run\"\ntimer := \"5s\"\n\nload := func() {\n\tfmt.printf(\"5s %s\\n\",t.now())\n}\n\nload()\n"
     }
-    load()  
    ```
+    - Query running script:
+    ```shell script
+      gctcli gctscript queru <uuid>
+      gctcli gctscript query 821bd73e-02b1-4974-9463-874cb49f130d
+      {
+        "status": "ok",
+        "script": {
+        "UUID": "bf692e2d-fa1e-4d95-92fd-33d7634d3d77",
+        "name": "timer.gct",
+        "path": "/home/andrew/dev/projects/thrashercorp/gocryptotrader-xtda/testdata/gctscript",
+        "next_run": "2019-12-12 07:44:19.747572406 +1100 AEDT m=+16.782773385"
+      },
+      "data": "fmt := import(\"fmt\")\nt := import(\"times\")\n\nname := \"run\"\ntimer := \"5s\"\n\nload := func() {\n\tfmt.printf(\"5s %s\\n\",t.now())\n}\n\nload()\n"
+      }
+      load()  
+     ```
 ##### Scripting & Extending modules
 
 The scripting engine utilises [tengo](https://github.com/d5/tengo) an intro tutorial for it can be found [here](https://github.com/d5/tengo/blob/master/docs/tutorial.md)
