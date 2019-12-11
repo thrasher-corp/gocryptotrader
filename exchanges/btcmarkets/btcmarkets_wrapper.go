@@ -402,7 +402,6 @@ func (b *BTCMarkets) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, 
 		orderIDs = append(orderIDs, orders[x].OrderID)
 	}
 	splitOrders := common.SplitStringSliceByLimit(orderIDs, 20)
-
 	for z := range splitOrders {
 		tempResp, err := b.CancelBatchOrders(splitOrders[z])
 		if err != nil {
@@ -636,7 +635,6 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 		}
 	}
 	splitOrders := common.SplitStringSliceByLimit(tempArray, 50)
-
 	for x := range splitOrders {
 		tempData, err := b.GetBatchTrades(splitOrders[x])
 		if err != nil {
