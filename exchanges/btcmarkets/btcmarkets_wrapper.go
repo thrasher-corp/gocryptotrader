@@ -532,30 +532,45 @@ func (b *BTCMarkets) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, err
 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
-	var resp []order.Detail
-	var tempResp order.Detail
-	var tempData []OrderData
 	if len(req.Currencies) == 0 {
-		allPairs := b.GetEnabledPairs(asset.Spot)
+		allPairs := b.GetAvailablePairs(asset.Spot)
 		for a := range allPairs {
 			req.Currencies = append(req.Currencies,
 				allPairs[a])
 		}
 	}
+
+	var resp []order.Detail
 	var err error
 	for x := range req.Currencies {
+		var tempData []OrderData
 		tempData, err = b.GetOrders(b.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String(), -1, -1, -1, "open")
 		if err != nil {
 			return resp, err
 		}
 		for y := range tempData {
+			var tempResp order.Detail
 			tempResp.Exchange = b.Name
 			tempResp.CurrencyPair = req.Currencies[x]
+			tempResp.ID = tempData[y].OrderID
 			tempResp.OrderSide = order.Bid
 			if tempData[y].Side == ask {
 				tempResp.OrderSide = order.Ask
 			}
 			tempResp.OrderDate = tempData[y].CreationTime
+
+			switch tempData[y].Type {
+			case "Limit":
+				tempResp.OrderType = order.Limit
+			case "Market":
+				tempResp.OrderType = order.Market
+			default:
+				log.Errorf(log.ExchangeSys,
+					"%s unknown order type %s getting order",
+					b.Name,
+					tempData[y].Type)
+				tempResp.OrderType = order.Unknown
+			}
 			switch tempData[y].Status {
 			case orderAccepted:
 				tempResp.Status = order.Active
@@ -571,6 +586,12 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 				tempResp.Status = order.PartiallyCancelled
 			case orderFailed:
 				tempResp.Status = order.Rejected
+			default:
+				log.Errorf(log.ExchangeSys,
+					"%s unknown status %s getting order",
+					b.Name,
+					tempData[y].Status)
+				tempResp.Status = order.UnknownStatus
 			}
 			tempResp.Price = tempData[y].Price
 			tempResp.Amount = tempData[y].Amount
@@ -636,6 +657,7 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 		if tempData.Orders[c].Side == ask {
 			tempResp.OrderSide = order.Ask
 		}
+		tempResp.ID = tempData.Orders[c].OrderID
 		tempResp.OrderDate = tempData.Orders[c].CreationTime
 		tempResp.Price = tempData.Orders[c].Price
 		tempResp.ExecutedAmount = tempData.Orders[c].Amount
