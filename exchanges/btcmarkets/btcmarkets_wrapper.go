@@ -544,7 +544,7 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 	}
 	var err error
 	for x := range req.Currencies {
-		tempData, err = b.GetOrders(b.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String(), -1, -1, -1, "")
+		tempData, err = b.GetOrders(b.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String(), -1, -1, -1, "open")
 		if err != nil {
 			return resp, err
 		}
