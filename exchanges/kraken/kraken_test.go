@@ -530,8 +530,8 @@ func TestModifyOrder(t *testing.T) {
 
 // TestWithdraw wrapper test
 func TestWithdraw(t *testing.T) {
-	withdrawCryptoRequest := withdraw.CryptoWithdrawRequest{
-		GenericWithdrawRequestInfo: withdraw.GenericWithdrawRequestInfo{
+	withdrawCryptoRequest := withdraw.CryptoRequest{
+		GenericInfo: withdraw.GenericInfo{
 			Amount:        -1,
 			Currency:      currency.XXBT,
 			Description:   "WITHDRAW IT ALL",
@@ -560,7 +560,7 @@ func TestWithdrawFiat(t *testing.T) {
 	}
 
 	var withdrawFiatRequest = withdraw.FiatWithdrawRequest{
-		GenericWithdrawRequestInfo: withdraw.GenericWithdrawRequestInfo{
+		GenericInfo: withdraw.GenericInfo{
 			Amount:        -1,
 			Currency:      currency.EUR,
 			Description:   "WITHDRAW IT ALL",
@@ -584,7 +584,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	}
 
 	var withdrawFiatRequest = withdraw.FiatWithdrawRequest{
-		GenericWithdrawRequestInfo: withdraw.GenericWithdrawRequestInfo{
+		GenericInfo: withdraw.GenericInfo{
 			Amount:        -1,
 			Currency:      currency.EUR,
 			Description:   "WITHDRAW IT ALL",

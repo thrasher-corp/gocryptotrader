@@ -620,13 +620,13 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{r19}),
 		})
 
-		genericWithdrawRequest := withdraw.GenericWithdrawRequestInfo{
+		genericWithdrawRequest := withdraw.GenericInfo{
 			Amount:   config.OrderSubmission.Amount,
 			Currency: p.Quote,
 		}
-		withdrawRequest := withdraw.CryptoWithdrawRequest{
-			GenericWithdrawRequestInfo: genericWithdrawRequest,
-			Address:                    withdrawAddressOverride,
+		withdrawRequest := withdraw.CryptoRequest{
+			GenericInfo: genericWithdrawRequest,
+			Address:     withdrawAddressOverride,
 		}
 		var r20 string
 		r20, err = e.WithdrawCryptocurrencyFunds(&withdrawRequest)
@@ -665,17 +665,17 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		fiatWithdrawRequest := withdraw.FiatWithdrawRequest{
-			GenericWithdrawRequestInfo:    genericWithdrawRequest,
-			BankAccountName:               config.BankDetails.BankAccountName,
-			BankAccountNumber:             config.BankDetails.BankAccountNumber,
-			SwiftCode:                     config.BankDetails.SwiftCode,
-			IBAN:                          config.BankDetails.Iban,
-			BankCity:                      config.BankDetails.BankCity,
-			BankName:                      config.BankDetails.BankName,
-			BankAddress:                   config.BankDetails.BankAddress,
-			BankCountry:                   config.BankDetails.BankCountry,
-			BankPostalCode:                config.BankDetails.BankPostalCode,
-			BankCode:                      config.BankDetails.BankCode,
+			GenericInfo:       genericWithdrawRequest,
+			BankAccountName:   config.BankDetails.BankAccountName,
+			BankAccountNumber: config.BankDetails.BankAccountNumber,
+			SwiftCode:         config.BankDetails.SwiftCode,
+			IBAN:              config.BankDetails.Iban,
+			BankCity:          config.BankDetails.BankCity,
+			BankName:          config.BankDetails.BankName,
+			BankAddress:       config.BankDetails.BankAddress,
+			BankCountry:       config.BankDetails.BankCountry,
+			BankPostalCode:    config.BankDetails.BankPostalCode,
+			BankCode:          config.BankDetails.BankCode,
 			IsExpressWire:                 config.BankDetails.IsExpressWire,
 			RequiresIntermediaryBank:      config.BankDetails.RequiresIntermediaryBank,
 			IntermediaryBankName:          config.BankDetails.IntermediaryBankName,

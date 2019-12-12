@@ -394,7 +394,7 @@ func (l *LocalBitcoins) GetDepositAddress(cryptocurrency currency.Code, _ string
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (l *LocalBitcoins) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoWithdrawRequest) (string, error) {
+func (l *LocalBitcoins) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error) {
 	return "",
 		l.WalletSend(withdrawRequest.Address,
 			withdrawRequest.Amount,

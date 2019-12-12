@@ -561,7 +561,7 @@ func TestModifyOrder(t *testing.T) {
 
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
-	var withdrawCryptoRequest = withdraw.CryptoWithdrawRequest{}
+	var withdrawCryptoRequest = withdraw.CryptoRequest{}
 	_, err := a.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected 'Not implemented', received %v", err)

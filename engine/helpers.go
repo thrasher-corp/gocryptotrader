@@ -700,7 +700,7 @@ func GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]string {
 }
 
 // WithdrawCryptocurrencyFundsByExchange withdraws the desired cryptocurrency and amount to a desired cryptocurrency address
-func WithdrawCryptocurrencyFundsByExchange(exchName string, req *withdraw.CryptoWithdrawRequest) (string, error) {
+func WithdrawCryptocurrencyFundsByExchange(exchName string, req *withdraw.CryptoRequest) (string, error) {
 	if req == nil {
 		return "", errors.New("crypto withdraw request param is nil")
 	}

@@ -174,7 +174,7 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "GetDepositAddress")
 	}
 
-	_, err = e.WithdrawCryptocurrencyFunds(&withdraw.CryptoWithdrawRequest{})
+	_, err = e.WithdrawCryptocurrencyFunds(&withdraw.CryptoRequest{})
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "WithdrawCryptocurrencyFunds")
 	}

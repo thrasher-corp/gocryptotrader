@@ -348,8 +348,8 @@ func TestModifyOrder(t *testing.T) {
 
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
-	withdrawCryptoRequest := withdraw.CryptoWithdrawRequest{
-		GenericWithdrawRequestInfo: withdraw.GenericWithdrawRequestInfo{
+	withdrawCryptoRequest := withdraw.CryptoRequest{
+		GenericInfo: withdraw.GenericInfo{
 			Amount:      0,
 			Currency:    currency.LTC,
 			Description: "WITHDRAW IT ALL",

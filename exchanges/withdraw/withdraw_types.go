@@ -2,8 +2,8 @@ package withdraw
 
 import "github.com/thrasher-corp/gocryptotrader/currency"
 
-// GenericWithdrawRequestInfo stores genric withdraw request info
-type GenericWithdrawRequestInfo struct {
+// GenericInfo stores genric withdraw request info
+type GenericInfo struct {
 	// General withdraw information
 	Currency        currency.Code
 	Description     string
@@ -14,9 +14,9 @@ type GenericWithdrawRequestInfo struct {
 	Amount          float64
 }
 
-// CryptoWithdrawRequest stores the info required for a crypto withdrawal request
-type CryptoWithdrawRequest struct {
-	GenericWithdrawRequestInfo
+// CryptoRequest stores the info required for a crypto withdrawal request
+type CryptoRequest struct {
+	GenericInfo
 	// Crypto related information
 	Address    string
 	AddressTag string
@@ -25,7 +25,7 @@ type CryptoWithdrawRequest struct {
 
 // FiatWithdrawRequest used for fiat withdrawal requests
 type FiatWithdrawRequest struct {
-	GenericWithdrawRequestInfo
+	GenericInfo
 	// FIAT related information
 	BankAccountName   string
 	BankAccountNumber string

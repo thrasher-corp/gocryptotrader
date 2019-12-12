@@ -478,7 +478,7 @@ func (b *BTCMarkets) GetDepositAddress(cryptocurrency currency.Code, accountID s
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
-func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoWithdrawRequest) (string, error) {
+func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error) {
 	a, err := b.RequestWithdraw(withdrawRequest.Currency.String(),
 		withdrawRequest.Amount,
 		withdrawRequest.Address,
@@ -498,8 +498,8 @@ func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest *withdraw.FiatWithdrawReq
 	if withdrawRequest.Currency != currency.AUD {
 		return "", errors.New("only aud is supported for withdrawals")
 	}
-	a, err := b.RequestWithdraw(withdrawRequest.GenericWithdrawRequestInfo.Currency.String(),
-		withdrawRequest.GenericWithdrawRequestInfo.Amount,
+	a, err := b.RequestWithdraw(withdrawRequest.GenericInfo.Currency.String(),
+		withdrawRequest.GenericInfo.Amount,
 		"",
 		withdrawRequest.BankAccountName,
 		withdrawRequest.BankAccountNumber,
