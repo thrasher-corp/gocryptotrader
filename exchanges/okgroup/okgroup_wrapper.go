@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -366,7 +367,7 @@ func (o *OKGroup) GetDepositAddress(p currency.Code, accountID string) (string, 
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithdrawRequest) (string, error) {
+func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoWithdrawRequest) (string, error) {
 	withdrawal, err := o.AccountWithdraw(AccountWithdrawRequest{
 		Amount:      withdrawRequest.Amount,
 		Currency:    withdrawRequest.Currency.Lower().String(),
@@ -390,13 +391,13 @@ func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWi
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKGroup) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
+func (o *OKGroup) WithdrawFiatFunds(withdrawRequest *withdraw.FiatWithdrawRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
+func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatWithdrawRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

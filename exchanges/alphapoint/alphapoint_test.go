@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 )
 
 const (
@@ -560,7 +561,7 @@ func TestModifyOrder(t *testing.T) {
 
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
-	var withdrawCryptoRequest = exchange.CryptoWithdrawRequest{}
+	var withdrawCryptoRequest = withdraw.CryptoWithdrawRequest{}
 	_, err := a.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected 'Not implemented', received %v", err)
@@ -573,7 +574,7 @@ func TestWithdrawFiat(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
+	var withdrawFiatRequest = withdraw.FiatWithdrawRequest{}
 	_, err := a.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrNotYetImplemented, err)
@@ -586,7 +587,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
+	var withdrawFiatRequest = withdraw.FiatWithdrawRequest{}
 	_, err := a.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrNotYetImplemented, err)

@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -420,7 +421,7 @@ func (b *Bitstamp) GetDepositAddress(cryptocurrency currency.Code, _ string) (st
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bitstamp) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithdrawRequest) (string, error) {
+func (b *Bitstamp) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoWithdrawRequest) (string, error) {
 	resp, err := b.CryptoWithdrawal(withdrawRequest.Amount,
 		withdrawRequest.Address,
 		withdrawRequest.Currency.String(),
@@ -442,7 +443,7 @@ func (b *Bitstamp) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoW
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Bitstamp) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
+func (b *Bitstamp) WithdrawFiatFunds(withdrawRequest *withdraw.FiatWithdrawRequest) (string, error) {
 	resp, err := b.OpenBankWithdrawal(withdrawRequest.Amount,
 		withdrawRequest.Currency.String(),
 		withdrawRequest.BankAccountName,
@@ -470,7 +471,7 @@ func (b *Bitstamp) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawReque
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
+func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatWithdrawRequest) (string, error) {
 	resp, err := b.OpenInternationalBankWithdrawal(withdrawRequest.Amount,
 		withdrawRequest.Currency.String(),
 		withdrawRequest.BankAccountName,

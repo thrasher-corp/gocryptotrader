@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 )
 
 // Please supply your own APIKEYS here for due diligence testing
@@ -332,8 +333,8 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
 
-	withdrawCryptoRequest := exchange.CryptoWithdrawRequest{
-		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
+	withdrawCryptoRequest := withdraw.CryptoWithdrawRequest{
+		GenericWithdrawRequestInfo: withdraw.GenericWithdrawRequestInfo{
 			Amount:      -1,
 			Currency:    currency.BTC,
 			Description: "WITHDRAW IT ALL",
@@ -359,7 +360,7 @@ func TestWithdraw(t *testing.T) {
 func TestWithdrawFiat(t *testing.T) {
 	t.Parallel()
 
-	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
+	var withdrawFiatRequest = withdraw.FiatWithdrawRequest{}
 	_, err := l.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'",
@@ -371,7 +372,7 @@ func TestWithdrawFiat(t *testing.T) {
 func TestWithdrawInternationalBank(t *testing.T) {
 	t.Parallel()
 
-	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
+	var withdrawFiatRequest = withdraw.FiatWithdrawRequest{}
 	_, err := l.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'",

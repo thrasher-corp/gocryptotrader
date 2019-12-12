@@ -12,6 +12,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 )
 
 const (
@@ -173,16 +174,16 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "GetDepositAddress")
 	}
 
-	_, err = e.WithdrawCryptocurrencyFunds(&exchange.CryptoWithdrawRequest{})
+	_, err = e.WithdrawCryptocurrencyFunds(&withdraw.CryptoWithdrawRequest{})
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "WithdrawCryptocurrencyFunds")
 	}
 
-	_, err = e.WithdrawFiatFunds(&exchange.FiatWithdrawRequest{})
+	_, err = e.WithdrawFiatFunds(&withdraw.FiatWithdrawRequest{})
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "WithdrawFiatFunds")
 	}
-	_, err = e.WithdrawFiatFundsToInternationalBank(&exchange.FiatWithdrawRequest{})
+	_, err = e.WithdrawFiatFundsToInternationalBank(&withdraw.FiatWithdrawRequest{})
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "WithdrawFiatFundsToInternationalBank")
 	}

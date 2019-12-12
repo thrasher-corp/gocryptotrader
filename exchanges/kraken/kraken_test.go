@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 )
 
 var k Kraken
@@ -529,8 +530,8 @@ func TestModifyOrder(t *testing.T) {
 
 // TestWithdraw wrapper test
 func TestWithdraw(t *testing.T) {
-	withdrawCryptoRequest := exchange.CryptoWithdrawRequest{
-		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
+	withdrawCryptoRequest := withdraw.CryptoWithdrawRequest{
+		GenericWithdrawRequestInfo: withdraw.GenericWithdrawRequestInfo{
 			Amount:        -1,
 			Currency:      currency.XXBT,
 			Description:   "WITHDRAW IT ALL",
@@ -558,8 +559,8 @@ func TestWithdrawFiat(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.FiatWithdrawRequest{
-		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
+	var withdrawFiatRequest = withdraw.FiatWithdrawRequest{
+		GenericWithdrawRequestInfo: withdraw.GenericWithdrawRequestInfo{
 			Amount:        -1,
 			Currency:      currency.EUR,
 			Description:   "WITHDRAW IT ALL",
@@ -582,8 +583,8 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.FiatWithdrawRequest{
-		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
+	var withdrawFiatRequest = withdraw.FiatWithdrawRequest{
+		GenericWithdrawRequestInfo: withdraw.GenericWithdrawRequestInfo{
 			Amount:        -1,
 			Currency:      currency.EUR,
 			Description:   "WITHDRAW IT ALL",

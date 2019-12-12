@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 )
 
 func main() {
@@ -619,11 +620,11 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{r19}),
 		})
 
-		genericWithdrawRequest := exchange.GenericWithdrawRequestInfo{
+		genericWithdrawRequest := withdraw.GenericWithdrawRequestInfo{
 			Amount:   config.OrderSubmission.Amount,
 			Currency: p.Quote,
 		}
-		withdrawRequest := exchange.CryptoWithdrawRequest{
+		withdrawRequest := withdraw.CryptoWithdrawRequest{
 			GenericWithdrawRequestInfo: genericWithdrawRequest,
 			Address:                    withdrawAddressOverride,
 		}
@@ -663,7 +664,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{r21}),
 		})
 
-		fiatWithdrawRequest := exchange.FiatWithdrawRequest{
+		fiatWithdrawRequest := withdraw.FiatWithdrawRequest{
 			GenericWithdrawRequestInfo:    genericWithdrawRequest,
 			BankAccountName:               config.BankDetails.BankAccountName,
 			BankAccountNumber:             config.BankDetails.BankAccountNumber,

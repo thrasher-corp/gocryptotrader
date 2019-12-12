@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/utils"
@@ -699,7 +700,7 @@ func GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]string {
 }
 
 // WithdrawCryptocurrencyFundsByExchange withdraws the desired cryptocurrency and amount to a desired cryptocurrency address
-func WithdrawCryptocurrencyFundsByExchange(exchName string, req *exchange.CryptoWithdrawRequest) (string, error) {
+func WithdrawCryptocurrencyFundsByExchange(exchName string, req *withdraw.CryptoWithdrawRequest) (string, error) {
 	if req == nil {
 		return "", errors.New("crypto withdraw request param is nil")
 	}

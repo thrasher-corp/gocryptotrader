@@ -46,7 +46,7 @@ const (
 	allOrders    = "/api/v3/allOrders"
 
 	// Withdraw API endpoints
-	withdraw          = "/wapi/v3/withdraw.html"
+	withdrawEndpoint  = "/wapi/v3/withdraw.html"
 	depositHistory    = "/wapi/v3/depositHistory.html"
 	withdrawalHistory = "/wapi/v3/withdrawHistory.html"
 	depositAddress    = "/wapi/v3/depositAddress.html"
@@ -643,7 +643,7 @@ func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
 // WithdrawCrypto sends cryptocurrency to the address of your choosing
 func (b *Binance) WithdrawCrypto(asset, address, addressTag, name, amount string) (string, error) {
 	var resp WithdrawResponse
-	path := b.API.Endpoints.URL + withdraw
+	path := b.API.Endpoints.URL + withdrawEndpoint
 
 	params := url.Values{}
 	params.Set("asset", asset)
