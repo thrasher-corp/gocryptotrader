@@ -35,6 +35,12 @@ func NTPClient(pool []string) (time.Time, error) {
 			continue
 		}
 
+		if err := con.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+			log.Warnf(log.TimeMgr, "Unable to SetDeadline. Error: %s\n", err)
+			con.Close()
+			continue
+		}
+
 		req := &ntppacket{Settings: 0x1B}
 		if err := binary.Write(con, binary.BigEndian, req); err != nil {
 			con.Close()
