@@ -418,7 +418,7 @@ func (b *Bithumb) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRe
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Bithumb) WithdrawFiatFunds(withdrawRequest *withdraw.FiatWithdrawRequest) (string, error) {
+func (b *Bithumb) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
 	if math.Mod(withdrawRequest.Amount, 1) != 0 {
 		return "", errors.New("currency KRW does not support decimal places")
 	}
@@ -439,7 +439,7 @@ func (b *Bithumb) WithdrawFiatFunds(withdrawRequest *withdraw.FiatWithdrawReques
 }
 
 // WithdrawFiatFundsToInternationalBank is not supported as Bithumb only withdraws KRW to South Korean banks
-func (b *Bithumb) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatWithdrawRequest) (string, error) {
+func (b *Bithumb) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

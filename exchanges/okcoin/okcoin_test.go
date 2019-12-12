@@ -1077,7 +1077,7 @@ func TestWithdraw(t *testing.T) {
 // TestWithdrawFiat Wrapper test
 func TestWithdrawFiat(t *testing.T) {
 	TestSetRealOrderDefaults(t)
-	var withdrawFiatRequest = withdraw.FiatWithdrawRequest{}
+	var withdrawFiatRequest = withdraw.FiatRequest{}
 	_, err := o.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
@@ -1087,7 +1087,7 @@ func TestWithdrawFiat(t *testing.T) {
 // TestSubmitOrder Wrapper test
 func TestWithdrawInternationalBank(t *testing.T) {
 	TestSetRealOrderDefaults(t)
-	var withdrawFiatRequest = withdraw.FiatWithdrawRequest{}
+	var withdrawFiatRequest = withdraw.FiatRequest{}
 	_, err := o.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)

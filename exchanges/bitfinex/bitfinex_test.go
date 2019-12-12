@@ -909,7 +909,7 @@ func TestWithdrawFiat(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = withdraw.FiatWithdrawRequest{
+	var withdrawFiatRequest = withdraw.FiatRequest{
 		GenericInfo: withdraw.GenericInfo{
 			Amount:      -1,
 			Currency:    currency.USD,
@@ -942,7 +942,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = withdraw.FiatWithdrawRequest{
+	var withdrawFiatRequest = withdraw.FiatRequest{
 		GenericInfo: withdraw.GenericInfo{
 			Amount:      -1,
 			Currency:    currency.BTC,

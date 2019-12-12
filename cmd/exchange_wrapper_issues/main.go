@@ -664,7 +664,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{r21}),
 		})
 
-		fiatWithdrawRequest := withdraw.FiatWithdrawRequest{
+		fiatWithdrawRequest := withdraw.FiatRequest{
 			GenericInfo:       genericWithdrawRequest,
 			BankAccountName:   config.BankDetails.BankAccountName,
 			BankAccountNumber: config.BankDetails.BankAccountNumber,

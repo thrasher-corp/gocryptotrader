@@ -455,7 +455,7 @@ func (c *CoinbasePro) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Cryp
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest *withdraw.FiatWithdrawRequest) (string, error) {
+func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
 	paymentMethods, err := c.GetPayMethods()
 	if err != nil {
 		return "", err
@@ -482,7 +482,7 @@ func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest *withdraw.FiatWithdrawRe
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (c *CoinbasePro) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatWithdrawRequest) (string, error) {
+func (c *CoinbasePro) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
 	return c.WithdrawFiatFunds(withdrawRequest)
 }
 

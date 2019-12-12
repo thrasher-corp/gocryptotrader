@@ -23,8 +23,8 @@ type CryptoRequest struct {
 	FeeAmount  float64
 }
 
-// FiatWithdrawRequest used for fiat withdrawal requests
-type FiatWithdrawRequest struct {
+// FiatRequest used for fiat withdrawal requests
+type FiatRequest struct {
 	GenericInfo
 	// FIAT related information
 	BankAccountName   string

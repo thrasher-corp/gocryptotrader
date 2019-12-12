@@ -494,7 +494,7 @@ func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Crypt
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest *withdraw.FiatWithdrawRequest) (string, error) {
+func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
 	if withdrawRequest.Currency != currency.AUD {
 		return "", errors.New("only aud is supported for withdrawals")
 	}
@@ -513,7 +513,7 @@ func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest *withdraw.FiatWithdrawReq
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *BTCMarkets) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatWithdrawRequest) (string, error) {
+func (b *BTCMarkets) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
