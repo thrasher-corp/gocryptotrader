@@ -57,6 +57,6 @@ func NTPClient(pool []string) (time.Time, error) {
 
 		return time.Unix(int64(secs), nanos), nil
 	}
-	log.Warnln(log.Global, "No valid ntp server found returning current system time")
+	log.Warnln(log.TimeMgr, "No valid NTP servers found, using current system time")
 	return time.Now().UTC(), nil
 }
