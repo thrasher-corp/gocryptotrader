@@ -564,9 +564,9 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 			tempResp.OrderDate = tempData[y].CreationTime
 
 			switch tempData[y].Type {
-			case "Limit":
+			case limit:
 				tempResp.OrderType = order.Limit
-			case "Market":
+			case market:
 				tempResp.OrderType = order.Market
 			default:
 				log.Errorf(log.ExchangeSys,
