@@ -86,6 +86,7 @@ const (
 	UnknownWithdrawalTypeText               string = "UNKNOWN"
 )
 
+// FeeType is the type for holding a custom fee type (International withdrawal fee)
 type FeeType uint8
 
 // InternationalBankTransactionType custom type for calculating fees based on fiat transaction types

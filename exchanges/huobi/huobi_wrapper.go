@@ -205,12 +205,12 @@ func (h *HUOBI) Run() {
 	}
 
 	var forceUpdate bool
-	if common.StringDataContains(h.GetEnabledPairs(asset.Spot).Strings(), "CNY") ||
-		common.StringDataContains(h.GetAvailablePairs(asset.Spot).Strings(), "CNY") {
+	if common.StringDataContains(h.GetEnabledPairs(asset.Spot).Strings(), currency.CNY.String()) ||
+		common.StringDataContains(h.GetAvailablePairs(asset.Spot).Strings(), currency.CNY.String()) {
 		forceUpdate = true
 	}
 
-	if common.StringDataContains(h.BaseCurrencies.Strings(), "CNY") {
+	if common.StringDataContains(h.BaseCurrencies.Strings(), currency.CNY.String()) {
 		cfg := config.GetConfig()
 		exchCfg, err := cfg.GetExchangeConfig(h.Name)
 		if err != nil {
@@ -228,7 +228,7 @@ func (h *HUOBI) Run() {
 		enabledPairs := currency.Pairs{currency.Pair{
 			Base:      currency.BTC.Lower(),
 			Quote:     currency.USDT.Lower(),
-			Delimiter: "-",
+			Delimiter: h.GetPairFormat(asset.Spot, false).Delimiter,
 		},
 		}
 		log.Warn(log.ExchangeSys,

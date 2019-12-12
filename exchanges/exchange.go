@@ -255,7 +255,7 @@ func (e *Base) GetExchangeBankAccounts(exchangeName, depositCurrency string) (co
 }
 
 // SetCurrencyPairFormat checks the exchange request and config currency pair
-// formats and sets it to a default setting if it doesn't exist
+// formats and syncs it with the exchanges SetDefault settings
 func (e *Base) SetCurrencyPairFormat() {
 	if e.Config.CurrencyPairs == nil {
 		e.Config.CurrencyPairs = new(currency.PairsManager)
@@ -263,12 +263,8 @@ func (e *Base) SetCurrencyPairFormat() {
 
 	e.Config.CurrencyPairs.UseGlobalFormat = e.CurrencyPairs.UseGlobalFormat
 	if e.Config.CurrencyPairs.UseGlobalFormat {
-		if e.Config.CurrencyPairs.ConfigFormat == nil {
-			e.Config.CurrencyPairs.ConfigFormat = e.CurrencyPairs.ConfigFormat
-		}
-		if e.Config.CurrencyPairs.RequestFormat == nil {
-			e.Config.CurrencyPairs.RequestFormat = e.CurrencyPairs.RequestFormat
-		}
+		e.Config.CurrencyPairs.RequestFormat = e.CurrencyPairs.RequestFormat
+		e.Config.CurrencyPairs.ConfigFormat = e.CurrencyPairs.ConfigFormat
 		return
 	}
 
@@ -288,6 +284,27 @@ func (e *Base) SetCurrencyPairFormat() {
 			}
 			e.Config.CurrencyPairs.Store(assetTypes[x], *e.CurrencyPairs.Get(assetTypes[x]))
 		}
+	}
+}
+
+// SetConfigPairs sets the exchanges currency pairs to the pairs set in the config
+func (e *Base) SetConfigPairs() {
+	assetTypes := e.GetAssetTypes()
+	for x := range assetTypes {
+		cfgPS := e.Config.CurrencyPairs.Get(assetTypes[x])
+		if cfgPS == nil {
+			continue
+		}
+		exchPS := e.CurrencyPairs.Get(assetTypes[x])
+		if e.Config.CurrencyPairs.UseGlobalFormat {
+			e.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
+			e.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true)
+			continue
+		}
+		cfgPS.ConfigFormat = exchPS.ConfigFormat
+		cfgPS.RequestFormat = exchPS.RequestFormat
+		e.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
+		e.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true)
 	}
 }
 
@@ -443,6 +460,7 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	e.SetHTTPRateLimiter()
 	e.SetAssetTypes()
 	e.SetCurrencyPairFormat()
+	e.SetConfigPairs()
 	e.SetFeatureDefaults()
 	e.SetAPIURL()
 	e.SetAPICredentialDefaults()
@@ -450,14 +468,6 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	e.SetHTTPRateLimiter()
 
 	e.BaseCurrencies = exch.BaseCurrencies
-
-	assetTypes := e.GetAssetTypes()
-	for x := range assetTypes {
-		p := exch.CurrencyPairs.Get(assetTypes[x])
-		if p != nil {
-			e.CurrencyPairs.Store(assetTypes[x], *p)
-		}
-	}
 
 	if e.Features.Supports.Websocket {
 		return e.Websocket.Initialise()

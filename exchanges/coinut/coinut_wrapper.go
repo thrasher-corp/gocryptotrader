@@ -198,7 +198,7 @@ func (c *COINUT) Run() {
 		!common.StringDataContains(c.CurrencyPairs.GetPairs(asset.Spot,
 			false).Strings(), delim) {
 		enabledPairs := currency.NewPairsFromStrings(
-			[]string{fmt.Sprintf("LTC%sUSDT", delim)},
+			[]string{currency.LTC.String() + delim + currency.USDT.String()},
 		)
 		log.Warn(log.ExchangeSys,
 			"Enabled pairs for Coinut reset due to config upgrade, please enable the ones you would like to use again")

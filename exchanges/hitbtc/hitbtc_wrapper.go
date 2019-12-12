@@ -191,9 +191,10 @@ func (h *HitBTC) Run() {
 	}
 
 	forceUpdate := false
-	if !common.StringDataContains(h.GetEnabledPairs(asset.Spot).Strings(), "-") ||
-		!common.StringDataContains(h.GetAvailablePairs(asset.Spot).Strings(), "-") {
-		enabledPairs := []string{"BTC-USD"}
+	delim := h.GetPairFormat(asset.Spot, false).Delimiter
+	if !common.StringDataContains(h.GetEnabledPairs(asset.Spot).Strings(), delim) ||
+		!common.StringDataContains(h.GetAvailablePairs(asset.Spot).Strings(), delim) {
+		enabledPairs := []string{currency.BTC.String() + delim + currency.USD.String()}
 		log.Warn(log.ExchangeSys, "Available pairs for HitBTC reset due to config upgrade, please enable the ones you would like again.")
 		forceUpdate = true
 

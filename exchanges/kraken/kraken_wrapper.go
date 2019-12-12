@@ -2,7 +2,6 @@ package kraken
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -211,9 +210,12 @@ func (k *Kraken) Run() {
 	}
 
 	forceUpdate := false
-	if !common.StringDataContains(k.GetEnabledPairs(asset.Spot).Strings(), k.GetPairFormat(asset.Spot, false).Delimiter) ||
-		!common.StringDataContains(k.GetAvailablePairs(asset.Spot).Strings(), k.GetPairFormat(asset.Spot, false).Delimiter) {
-		enabledPairs := currency.NewPairsFromStrings([]string{fmt.Sprintf("XBT%vUSD", k.GetPairFormat(asset.Spot, false).Delimiter)})
+	delim := k.GetPairFormat(asset.Spot, false).Delimiter
+	if !common.StringDataContains(k.GetEnabledPairs(asset.Spot).Strings(), delim) ||
+		!common.StringDataContains(k.GetAvailablePairs(asset.Spot).Strings(), delim) {
+		enabledPairs := currency.NewPairsFromStrings(
+			[]string{currency.XBT.String() + delim + currency.USD.String()},
+		)
 		log.Warn(log.ExchangeSys, "Available pairs for Kraken reset due to config upgrade, please enable the ones you would like again")
 		forceUpdate = true
 

@@ -180,8 +180,9 @@ func (b *BTCMarkets) Run() {
 		b.PrintEnabledPairs()
 	}
 	forceUpdate := false
-	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), "-") ||
-		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), "-") {
+	delim := b.GetPairFormat(asset.Spot, false).Delimiter
+	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), delim) ||
+		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), delim) {
 		log.Warnln(log.ExchangeSys, "Available pairs for BTC Markets reset due to config upgrade, please enable the pairs you would like again.")
 		forceUpdate = true
 	}
@@ -189,7 +190,7 @@ func (b *BTCMarkets) Run() {
 		enabledPairs := currency.Pairs{currency.Pair{
 			Base:      currency.BTC.Lower(),
 			Quote:     currency.AUD.Lower(),
-			Delimiter: "-",
+			Delimiter: delim,
 		},
 		}
 		err := b.UpdatePairs(enabledPairs, asset.Spot, true, true)
