@@ -186,6 +186,7 @@ func (o *OKEX) Run() {
 	forceUpdate := false
 	if !common.StringDataContains(o.GetEnabledPairs(asset.Spot).Strings(), delim) ||
 		!common.StringDataContains(o.GetAvailablePairs(asset.Spot).Strings(), delim) {
+		forceUpdate = true
 		enabledPairs := currency.NewPairsFromStrings(
 			[]string{currency.BTC.String() + delim + currency.USDT.String()},
 		)
