@@ -29,32 +29,29 @@ type ntppacket struct {
 // NTPClient create's a new NTPClient and returns local based on ntp servers provided timestamp
 func NTPClient(pool []string) (time.Time, error) {
 	for i := range pool {
-		con, err := net.Dial("udp", pool[i])
+
+		con, err := net.DialTimeout("udp", pool[i],  5 *time.Second)
 		if err != nil {
 			log.Warnf(log.TimeMgr, "Unable to connect to hosts %v attempting next", pool[i])
 			continue
 		}
 
-		defer con.Close()
-
-		err = con.SetDeadline(time.Now().Add(5 * time.Second))
-		if err != nil {
-			return time.Time{}, err
-		}
-
 		req := &ntppacket{Settings: 0x1B}
 		if err := binary.Write(con, binary.BigEndian, req); err != nil {
+			con.Close()
 			continue
 		}
 
 		rsp := &ntppacket{}
 		if err := binary.Read(con, binary.BigEndian, rsp); err != nil {
+			con.Close()
 			continue
 		}
 
 		secs := float64(rsp.TxTimeSec) - 2208988800
 		nanos := (int64(rsp.TxTimeFrac) * 1e9) >> 32
 
+		con.Close()
 		return time.Unix(int64(secs), nanos), nil
 	}
 	log.Warnln(log.TimeMgr, "No valid NTP servers found, using current system time")
