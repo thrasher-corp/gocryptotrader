@@ -461,7 +461,7 @@ func TestLoadConfigPairs(t *testing.T) {
 				Uppercase: true,
 			},
 			Pairs: map[asset.Item]*currency.PairStore{
-				asset.Spot: &currency.PairStore{
+				asset.Spot: {
 					RequestFormat: &currency.PairFormat{},
 					ConfigFormat:  &currency.PairFormat{},
 				},
@@ -488,7 +488,7 @@ func TestLoadConfigPairs(t *testing.T) {
 		},
 		AssetTypes: asset.Items{asset.Spot},
 		Pairs: map[asset.Item]*currency.PairStore{
-			asset.Spot: &currency.PairStore{
+			asset.Spot: {
 				Enabled:       pairs,
 				Available:     pairs,
 				RequestFormat: &currency.PairFormat{},
@@ -504,7 +504,7 @@ func TestLoadConfigPairs(t *testing.T) {
 	// 1) Config pairs are set
 	// 2) pair format is set for RequestFormat
 	// 3) pair format is set for ConfigFormat
-	// 4) Config gloabl format delimiter is updated based off exchange.Base
+	// 4) Config global format delimiter is updated based off exchange.Base
 	pFmt := b.GetPairFormat(asset.Spot, false)
 	p := b.GetEnabledPairs(asset.Spot)[0].Format(pFmt.Delimiter,
 		pFmt.Uppercase).String()
