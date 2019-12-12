@@ -295,12 +295,12 @@ func (e *Base) SetConfigPairs() {
 		if cfgPS == nil {
 			continue
 		}
-		exchPS := e.CurrencyPairs.Get(assetTypes[x])
 		if e.Config.CurrencyPairs.UseGlobalFormat {
 			e.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
 			e.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true)
 			continue
 		}
+		exchPS := e.CurrencyPairs.Get(assetTypes[x])
 		cfgPS.ConfigFormat = exchPS.ConfigFormat
 		cfgPS.RequestFormat = exchPS.RequestFormat
 		e.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
