@@ -29,7 +29,6 @@ type ntppacket struct {
 // NTPClient create's a new NTPClient and returns local based on ntp servers provided timestamp
 func NTPClient(pool []string) (time.Time, error) {
 	for i := range pool {
-
 		con, err := net.DialTimeout("udp", pool[i],  5 *time.Second)
 		if err != nil {
 			log.Warnf(log.TimeMgr, "Unable to connect to hosts %v attempting next", pool[i])
