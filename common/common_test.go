@@ -511,12 +511,10 @@ func initStringSlice(t *testing.T, size int) (out []string) {
 
 func TestSplitStringSliceByLimit(t *testing.T) {
 	slice50 := initStringSlice(t, 50)
-
 	out := SplitStringSliceByLimit(slice50, 20)
 	if len(out) != 3 {
 		t.Errorf("test failed expected len() to be 3 instead received: %v", len(out))
 	}
-
 	if len(out[0]) != 20 {
 		t.Errorf("test failed expected len() to be 20 instead received: %v", len(out[0]))
 	}
@@ -525,7 +523,6 @@ func TestSplitStringSliceByLimit(t *testing.T) {
 	if len(out) != 1 {
 		t.Errorf("test failed expected len() to be 3 instead received: %v", len(out))
 	}
-
 	if len(out[0]) != 50 {
 		t.Errorf("test failed expected len() to be 20 instead received: %v", len(out[0]))
 	}
