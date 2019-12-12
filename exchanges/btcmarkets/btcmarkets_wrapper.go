@@ -537,7 +537,7 @@ func (b *BTCMarkets) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, err
 // GetActiveOrders retrieves any orders that are active/open
 func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if len(req.Currencies) == 0 {
-		allPairs := b.GetAvailablePairs(asset.Spot)
+		allPairs := b.GetEnabledPairs(asset.Spot)
 		for a := range allPairs {
 			req.Currencies = append(req.Currencies,
 				allPairs[a])

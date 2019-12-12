@@ -27,7 +27,8 @@ type ntppacket struct {
 }
 
 // NTPClient create's a new NTPClient and returns local based on ntp servers provided timestamp
-func NTPClient(pool []string) (time.Time, error) {
+// if no server can be reached will return local time in UTC()
+func NTPClient(pool []string) time.Time {
 	for i := range pool {
 		con, err := net.DialTimeout("udp", pool[i], 5*time.Second)
 		if err != nil {
@@ -57,8 +58,8 @@ func NTPClient(pool []string) (time.Time, error) {
 		nanos := (int64(rsp.TxTimeFrac) * 1e9) >> 32
 
 		con.Close()
-		return time.Unix(int64(secs), nanos), nil
+		return time.Unix(int64(secs), nanos)
 	}
 	log.Warnln(log.TimeMgr, "No valid NTP servers found, using current system time")
-	return time.Now().UTC(), nil
+	return time.Now().UTC()
 }
