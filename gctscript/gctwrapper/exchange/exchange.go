@@ -169,6 +169,9 @@ func (e Exchange) DepositAddress(exch string, currencyCode currency.Code, accoun
 	return ex.GetDepositAddress(currencyCode, accountID)
 }
 
+// TODO: import cycles suck couldn't find a decent work around
+// pending approval/merge of: https://github.com/thrasher-corp/gocryptotrader/pull/395#issuecomment-564834458
+
 // WithdrawalFiatFunds withdraw funds from exchange to requested fiat source
 func (e Exchange) WithdrawalFiatFunds(exch string) (out string, err error) {
 	ex, err := e.GetExchange(exch)
@@ -176,9 +179,10 @@ func (e Exchange) WithdrawalFiatFunds(exch string) (out string, err error) {
 		return
 	}
 	withdrawalDetails := &exchange.FiatWithdrawRequest{}
-	return  ex.WithdrawFiatFunds(withdrawalDetails)
+	return ex.WithdrawFiatFunds(withdrawalDetails)
 }
 
+// WithdrawalCryptoFunds withdraw funds from exchange to requested Crypto source
 func (e Exchange) WithdrawalCryptoFunds(exch string) (out string, err error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
@@ -186,5 +190,5 @@ func (e Exchange) WithdrawalCryptoFunds(exch string) (out string, err error) {
 	}
 
 	withdrawalDetails := &exchange.CryptoWithdrawRequest{}
-	return  ex.WithdrawCryptocurrencyFunds(withdrawalDetails)
+	return ex.WithdrawCryptocurrencyFunds(withdrawalDetails)
 }
