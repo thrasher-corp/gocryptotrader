@@ -2,7 +2,6 @@ package ntpclient
 
 import (
 	"encoding/binary"
-	"errors"
 	"net"
 	"time"
 
@@ -38,7 +37,10 @@ func NTPClient(pool []string) (time.Time, error) {
 
 		defer con.Close()
 
-		con.SetDeadline(time.Now().Add(5 * time.Second))
+		err = con.SetDeadline(time.Now().Add(5 * time.Second))
+		if err != nil {
+			return time.Time{}, err
+		}
 
 		req := &ntppacket{Settings: 0x1B}
 		if err := binary.Write(con, binary.BigEndian, req); err != nil {
@@ -55,5 +57,6 @@ func NTPClient(pool []string) (time.Time, error) {
 
 		return time.Unix(int64(secs), nanos), nil
 	}
-	return time.Unix(0, 0), errors.New("no valid time servers")
+	log.Warnln(log.Global, "No valid ntp server found returning current system time")
+	return time.Now().UTC(), nil
 }
