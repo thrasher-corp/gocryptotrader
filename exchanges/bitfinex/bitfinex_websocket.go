@@ -122,6 +122,12 @@ func (b *Bitfinex) WsDataHandler() {
 					}
 				case "[]interface {}":
 					chanData := result.([]interface{})
+					if hb, ok := chanData[1].(string); ok {
+						// Capturing heart beat
+						if hb == "hb" {
+							continue
+						}
+					}
 					chanID := int(chanData[0].(float64))
 					chanInfo, ok := b.WebsocketSubdChannels[chanID]
 					if !ok && chanID != 0 {
@@ -235,8 +241,11 @@ func (b *Bitfinex) WsDataHandler() {
 										Amount:    y[2].(float64)})
 							}
 						case 3:
-							if chanData[1].(string) == wsTradeExecuted {
-								// the te update contains less data then the "tu"
+							if chanData[1].(string) == wsTradeExecutionUpdate ||
+								chanData[1].(string) == wsFundingTradeUpdate {
+								// "(f)te - trade executed" && "(f)tu - trade updated"
+								// contain the same amount of data
+								// "(f)te" gets sent first so we can drop "(f)tu"
 								continue
 							}
 							data := chanData[2].([]interface{})
@@ -246,27 +255,27 @@ func (b *Bitfinex) WsDataHandler() {
 								Price:     data[3].(float64),
 								Amount:    data[2].(float64)})
 						}
-						if len(trades) > 0 {
-							for i := range trades {
-								side := order.Buy.String()
-								newAmount := trades[i].Amount
-								if newAmount < 0 {
-									side = order.Sell.String()
-									newAmount *= -1
-								}
-								b.Websocket.DataHandler <- wshandler.TradeData{
-									CurrencyPair: currency.NewPairFromString(chanInfo.Pair),
-									Timestamp:    time.Unix(trades[i].Timestamp, 0),
-									Price:        trades[i].Price,
-									Amount:       newAmount,
-									Exchange:     b.Name,
-									AssetType:    asset.Spot,
-									Side:         side,
-								}
+
+						for i := range trades {
+							side := order.Buy.String()
+							newAmount := trades[i].Amount
+							if newAmount < 0 {
+								side = order.Sell.String()
+								newAmount *= -1
 							}
-							continue
+							b.Websocket.DataHandler <- wshandler.TradeData{
+								CurrencyPair: currency.NewPairFromString(chanInfo.Pair),
+								Timestamp:    time.Unix(trades[i].Timestamp, 0),
+								Price:        trades[i].Price,
+								Amount:       newAmount,
+								Exchange:     b.Name,
+								AssetType:    asset.Spot,
+								Side:         side,
+							}
 						}
+						continue
 					}
+
 					if authResp, ok := chanData[1].(string); ok {
 						switch authResp {
 						case wsHeartbeat, pong:
