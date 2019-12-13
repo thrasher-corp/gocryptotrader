@@ -582,19 +582,12 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 				tempResp.Status = order.Active
 			case orderPartiallyMatched:
 				tempResp.Status = order.PartiallyFilled
-			case orderFullyMatched:
-				tempResp.Status = order.Filled
-			case orderCancelled:
-				tempResp.Status = order.Cancelled
-			case orderPartiallyCancelled:
-				tempResp.Status = order.PartiallyCancelled
-			case orderFailed:
-				tempResp.Status = order.Rejected
 			default:
 				log.Errorf(log.ExchangeSys,
-					"%s unknown status %s getting order",
+					"%s unexpected status %s on order %v",
 					b.Name,
-					tempData[y].Status)
+					tempData[y].Status,
+					tempData[y].OrderID)
 				tempResp.Status = order.UnknownStatus
 			}
 			tempResp.Price = tempData[y].Price

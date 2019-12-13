@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -341,8 +342,13 @@ func ChangePermission(directory string) error {
 	})
 }
 
-// SplitStringSliceByLimit splits a slice of strings into slices by input limit and returns a slice of slice of strings ¯\_(ツ)_/¯
+// SplitStringSliceByLimit splits a slice of strings into slices by input limit and returns a slice of slice of strings
 func SplitStringSliceByLimit(in []string, limit int) [][]string {
+	if limit < 0 {
+		log.Errorf(log.Global, "limit value exceeds range 0-%v", math.MaxInt64)
+		return [][]string{}
+	}
+
 	var stringSlice []string
 	sliceSlice := make([][]string, 0, len(in)/limit+1)
 	for len(in) >= limit {
