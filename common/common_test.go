@@ -1,7 +1,6 @@
 package common
 
 import (
-	"math"
 	"net/url"
 	"os"
 	"os/user"
@@ -526,16 +525,5 @@ func TestSplitStringSliceByLimit(t *testing.T) {
 	}
 	if len(out[0]) != 50 {
 		t.Errorf("expected len() to be 20 instead received: %v", len(out[0]))
-	}
-
-	out = SplitStringSliceByLimit(slice50, -1)
-	if len(out) != 0 {
-		t.Errorf("expected len() to be 0 instead received: %v", len(out))
-	}
-
-	overflowNumber := math.MaxInt64
-	out = SplitStringSliceByLimit(slice50, overflowNumber+1)
-	if len(out) != 0 {
-		t.Errorf("expected len() to be 0 instead received: %v", len(out))
 	}
 }
