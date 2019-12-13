@@ -37,8 +37,9 @@ func GetEthereumBalance(address string) (EthplorerResponse, error) {
 	urlPath := fmt.Sprintf(
 		"%s/%s/%s?apiKey=freekey", ethplorerAPIURL, ethplorerAddressInfo, address,
 	)
+
 	result := EthplorerResponse{}
-	return result, common.SendHTTPGetRequest(urlPath, true, false, &result)
+	return result, common.SendHTTPGetRequest(urlPath, true, true, &result)
 }
 
 // GetCryptoIDAddress queries CryptoID for an address balance for a
@@ -55,7 +56,7 @@ func GetCryptoIDAddress(address string, coinType currency.Code) (float64, error)
 		coinType.Lower(),
 		address)
 
-	err = common.SendHTTPGetRequest(url, true, false, &result)
+	err = common.SendHTTPGetRequest(url, true, true, &result)
 	if err != nil {
 		return 0, err
 	}
@@ -200,43 +201,41 @@ func (p *Base) RemoveAddress(address, description string, coinType currency.Code
 }
 
 // UpdatePortfolio adds to the portfolio addresses by coin type
-func (p *Base) UpdatePortfolio(addresses []string, coinType currency.Code) bool {
+func (p *Base) UpdatePortfolio(addresses []string, coinType currency.Code) error {
 	if strings.Contains(strings.Join(addresses, ","), PortfolioAddressExchange) ||
 		strings.Contains(strings.Join(addresses, ","), PortfolioAddressPersonal) {
-		return true
+		log.Debugln(log.PortfolioMgr, "porfolio already updated")
+		return nil
 	}
 
-	numErrors := 0
 	if coinType == currency.ETH {
 		for x := range addresses {
 			result, err := GetEthereumBalance(addresses[x])
 			if err != nil {
-				numErrors++
-				continue
+				return err
 			}
 
 			if result.Error.Message != "" {
-				numErrors++
-				continue
+				return errors.New(result.Error.Message)
 			}
+
 			p.AddAddress(addresses[x],
 				PortfolioAddressPersonal,
 				coinType,
 				result.ETH.Balance)
 		}
-		return numErrors == 0
 	}
 	for x := range addresses {
 		result, err := GetCryptoIDAddress(addresses[x], coinType)
 		if err != nil {
-			return false
+			return err
 		}
 		p.AddAddress(addresses[x],
 			PortfolioAddressPersonal,
 			coinType,
 			result)
 	}
-	return true
+	return nil
 }
 
 // GetPortfolioByExchange returns currency portfolio amount by exchange
@@ -421,13 +420,19 @@ func StartPortfolioWatcher() {
 	for {
 		data := Portfolio.GetPortfolioGroupedCoin()
 		for key, value := range data {
-			success := Portfolio.UpdatePortfolio(value, key)
-			if success {
-				log.Debugf(log.PortfolioMgr,
-					"PortfolioWatcher: Successfully updated address balance for %s address(es) %s\n",
-					key, value,
-				)
+			err := Portfolio.UpdatePortfolio(value, key)
+			if err != nil {
+				log.Errorf(log.PortfolioMgr,
+					"PortfolioWatcher error %s for currency %s\n",
+					err,
+					key)
+				continue
 			}
+
+			log.Debugf(log.PortfolioMgr,
+				"PortfolioWatcher: Successfully updated address balance for %s address(es) %s\n",
+				key,
+				value)
 		}
 		time.Sleep(time.Minute * 10)
 	}
