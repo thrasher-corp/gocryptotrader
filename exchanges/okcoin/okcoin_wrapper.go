@@ -1,7 +1,6 @@
 package okcoin
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -155,9 +154,9 @@ func (o *OKCoin) Run() {
 		true).Strings(), delim) ||
 		!common.StringDataContains(o.CurrencyPairs.GetPairs(asset.Spot,
 			false).Strings(), delim) {
-		enabledPairs := currency.NewPairsFromStrings([]string{
-			fmt.Sprintf("BTC%sUSD", delim),
-		})
+		enabledPairs := currency.NewPairsFromStrings(
+			[]string{currency.BTC.String() + delim + currency.USD.String()},
+		)
 		log.Warnf(log.ExchangeSys,
 			"Enabled pairs for %v reset due to config upgrade, please enable the ones you would like again.\n",
 			o.Name)

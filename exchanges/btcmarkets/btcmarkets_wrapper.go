@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -180,8 +181,9 @@ func (b *BTCMarkets) Run() {
 		b.PrintEnabledPairs()
 	}
 	forceUpdate := false
-	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), "-") ||
-		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), "-") {
+	delim := b.GetPairFormat(asset.Spot, false).Delimiter
+	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), delim) ||
+		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), delim) {
 		log.Warnln(log.ExchangeSys, "Available pairs for BTC Markets reset due to config upgrade, please enable the pairs you would like again.")
 		forceUpdate = true
 	}
@@ -189,7 +191,7 @@ func (b *BTCMarkets) Run() {
 		enabledPairs := currency.Pairs{currency.Pair{
 			Base:      currency.BTC.Lower(),
 			Quote:     currency.AUD.Lower(),
-			Delimiter: "-",
+			Delimiter: delim,
 		},
 		}
 		err := b.UpdatePairs(enabledPairs, asset.Spot, true, true)
@@ -477,7 +479,7 @@ func (b *BTCMarkets) GetDepositAddress(cryptocurrency currency.Code, accountID s
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
-func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithdrawRequest) (string, error) {
+func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error) {
 	a, err := b.RequestWithdraw(withdrawRequest.Currency.String(),
 		withdrawRequest.Amount,
 		withdrawRequest.Address,
@@ -493,12 +495,12 @@ func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.Crypt
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
+func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
 	if withdrawRequest.Currency != currency.AUD {
 		return "", errors.New("only aud is supported for withdrawals")
 	}
-	a, err := b.RequestWithdraw(withdrawRequest.GenericWithdrawRequestInfo.Currency.String(),
-		withdrawRequest.GenericWithdrawRequestInfo.Amount,
+	a, err := b.RequestWithdraw(withdrawRequest.GenericInfo.Currency.String(),
+		withdrawRequest.GenericInfo.Amount,
 		"",
 		withdrawRequest.BankAccountName,
 		withdrawRequest.BankAccountNumber,
@@ -512,7 +514,7 @@ func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawReq
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *BTCMarkets) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
+func (b *BTCMarkets) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

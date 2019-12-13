@@ -440,6 +440,127 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 	}
 }
 
+func TestLoadConfigPairs(t *testing.T) {
+	t.Parallel()
+
+	pairs := currency.Pairs{
+		currency.Pair{Base: currency.BTC, Quote: currency.USD},
+		currency.Pair{Base: currency.LTC, Quote: currency.USD},
+	}
+
+	b := Base{
+		CurrencyPairs: currency.PairsManager{
+			UseGlobalFormat: true,
+			AssetTypes:      asset.Items{asset.Spot},
+			RequestFormat: &currency.PairFormat{
+				Delimiter: ">",
+				Uppercase: false,
+			},
+			ConfigFormat: &currency.PairFormat{
+				Delimiter: "^",
+				Uppercase: true,
+			},
+			Pairs: map[asset.Item]*currency.PairStore{
+				asset.Spot: {
+					RequestFormat: &currency.PairFormat{},
+					ConfigFormat:  &currency.PairFormat{},
+				},
+			},
+		},
+		Config: &config.ExchangeConfig{
+			CurrencyPairs: &currency.PairsManager{},
+		},
+	}
+
+	// Test a nil PairsManager
+	b.SetConfigPairs()
+
+	// Now setup a proper PairsManager
+	b.Config.CurrencyPairs = &currency.PairsManager{
+		UseGlobalFormat: true,
+		RequestFormat: &currency.PairFormat{
+			Delimiter: "!",
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Delimiter: "!",
+			Uppercase: true,
+		},
+		AssetTypes: asset.Items{asset.Spot},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: {
+				Enabled:       pairs,
+				Available:     pairs,
+				RequestFormat: &currency.PairFormat{},
+				ConfigFormat:  &currency.PairFormat{},
+			},
+		},
+	}
+
+	// Test UseGlobalFormat setting of pairs
+	b.SetCurrencyPairFormat()
+	b.SetConfigPairs()
+	// Test four things:
+	// 1) Config pairs are set
+	// 2) pair format is set for RequestFormat
+	// 3) pair format is set for ConfigFormat
+	// 4) Config global format delimiter is updated based off exchange.Base
+	pFmt := b.GetPairFormat(asset.Spot, false)
+	p := b.GetEnabledPairs(asset.Spot)[0].Format(pFmt.Delimiter,
+		pFmt.Uppercase).String()
+	if p != "BTC^USD" {
+		t.Errorf("incorrect value, expected BTC^USD")
+	}
+	p = b.FormatExchangeCurrency(b.GetAvailablePairs(asset.Spot)[0],
+		asset.Spot).String()
+	if p != "btc>usd" {
+		t.Error("incorrect value, expected btc>usd")
+	}
+	if b.Config.CurrencyPairs.RequestFormat.Delimiter != ">" ||
+		b.Config.CurrencyPairs.RequestFormat.Uppercase ||
+		b.Config.CurrencyPairs.ConfigFormat.Delimiter != "^" ||
+		!b.Config.CurrencyPairs.ConfigFormat.Uppercase {
+		t.Error("incorrect delimiter values")
+	}
+
+	// Test !UseGlobalFormat setting of pairs
+	exchPS := b.CurrencyPairs.Get(asset.Spot)
+	exchPS.RequestFormat.Delimiter = "~"
+	exchPS.RequestFormat.Uppercase = false
+	exchPS.ConfigFormat.Delimiter = "/"
+	exchPS.ConfigFormat.Uppercase = false
+	pairs = append(pairs, currency.Pair{Base: currency.XRP, Quote: currency.USD})
+	b.Config.CurrencyPairs.StorePairs(asset.Spot, pairs, false)
+	b.Config.CurrencyPairs.StorePairs(asset.Spot, pairs, true)
+	b.Config.CurrencyPairs.UseGlobalFormat = false
+	b.CurrencyPairs.UseGlobalFormat = false
+
+	b.SetConfigPairs()
+	// Test four things:
+	// 1) XRP-USD is set
+	// 2) pair format is set for RequestFormat
+	// 3) pair format is set for ConfigFormat
+	// 4) Config pair store formats are the same as the exchanges
+	pFmt = b.GetPairFormat(asset.Spot, false)
+	p = b.GetEnabledPairs(asset.Spot)[2].Format(pFmt.Delimiter,
+		pFmt.Uppercase).String()
+	if p != "xrp/usd" {
+		t.Error("incorrect value, expected xrp/usd")
+	}
+	p = b.FormatExchangeCurrency(b.GetAvailablePairs(asset.Spot)[2],
+		asset.Spot).String()
+	if p != "xrp~usd" {
+		t.Error("incorrect value, expected xrp~usd")
+	}
+	ps := b.Config.CurrencyPairs.Get(asset.Spot)
+	if ps.RequestFormat.Delimiter != "~" ||
+		ps.RequestFormat.Uppercase ||
+		ps.ConfigFormat.Delimiter != "/" ||
+		ps.ConfigFormat.Uppercase {
+		t.Error("incorrect delimiter values")
+	}
+}
+
 // TestGetAuthenticatedAPISupport logic test
 func TestGetAuthenticatedAPISupport(t *testing.T) {
 	t.Parallel()
