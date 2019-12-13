@@ -141,22 +141,13 @@ func (z *ZB) GetOrders(currency string, pageindex, side int64) ([]Order, error) 
 func (z *ZB) GetMarkets() (map[string]MarketResponseItem, error) {
 	endpoint := fmt.Sprintf("%s/%s/%s", z.API.Endpoints.URL, zbAPIVersion, zbMarkets)
 
-	var res interface{}
+	var res map[string]MarketResponseItem
 	err := z.SendHTTPRequest(endpoint, &res)
 	if err != nil {
 		return nil, err
 	}
 
-	list := res.(map[string]interface{})
-	result := map[string]MarketResponseItem{}
-	for k, v := range list {
-		item := v.(map[string]interface{})
-		result[k] = MarketResponseItem{
-			AmountScale: item["amountScale"].(float64),
-			PriceScale:  item["priceScale"].(float64),
-		}
-	}
-	return result, nil
+	return res, nil
 }
 
 // GetLatestSpotPrice returns latest spot price of symbol
