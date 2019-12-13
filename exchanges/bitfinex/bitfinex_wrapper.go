@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -485,7 +486,7 @@ func (b *Bitfinex) GetDepositAddress(cryptocurrency currency.Code, accountID str
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
-func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithdrawRequest) (string, error) {
+func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error) {
 	withdrawalType := b.ConvertSymbolToWithdrawalType(withdrawRequest.Currency)
 	// Bitfinex has support for three types, exchange, margin and deposit
 	// As this is for trading, I've made the wrapper default 'exchange'
@@ -509,7 +510,7 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoW
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
 // Returns comma delimited withdrawal IDs
-func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
+func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
 	withdrawalType := "wire"
 	// Bitfinex has support for three types, exchange, margin and deposit
 	// As this is for trading, I've made the wrapper default 'exchange'
@@ -541,7 +542,7 @@ func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawReque
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is submitted
 // Returns comma delimited withdrawal IDs
-func (b *Bitfinex) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
+func (b *Bitfinex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
 	return b.WithdrawFiatFunds(withdrawRequest)
 }
 

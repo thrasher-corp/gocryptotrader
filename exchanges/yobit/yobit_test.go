@@ -13,6 +13,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 )
 
 var y Yobit
@@ -445,8 +446,8 @@ func TestModifyOrder(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
-	withdrawCryptoRequest := exchange.CryptoWithdrawRequest{
-		GenericWithdrawRequestInfo: exchange.GenericWithdrawRequestInfo{
+	withdrawCryptoRequest := withdraw.CryptoRequest{
+		GenericInfo: withdraw.GenericInfo{
 			Amount:      -1,
 			Currency:    currency.BTC,
 			Description: "WITHDRAW IT ALL",
@@ -472,7 +473,7 @@ func TestWithdrawFiat(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
+	var withdrawFiatRequest = withdraw.FiatRequest{}
 	_, err := y.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'",
@@ -486,7 +487,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = exchange.FiatWithdrawRequest{}
+	var withdrawFiatRequest = withdraw.FiatRequest{}
 	_, err := y.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'",

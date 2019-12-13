@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -541,7 +542,7 @@ func (b *Bitfinex) WithdrawCryptocurrency(withdrawType, wallet, address, payment
 }
 
 // WithdrawFIAT Sends an authenticated request to withdraw FIAT currency
-func (b *Bitfinex) WithdrawFIAT(withdrawalType, walletType string, withdrawRequest *exchange.FiatWithdrawRequest) ([]Withdrawal, error) {
+func (b *Bitfinex) WithdrawFIAT(withdrawalType, walletType string, withdrawRequest *withdraw.FiatRequest) ([]Withdrawal, error) {
 	var response []Withdrawal
 	req := make(map[string]interface{})
 

@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -639,20 +640,20 @@ func (h *HUOBI) GetDepositAddress(cryptocurrency currency.Code, accountID string
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (h *HUOBI) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithdrawRequest) (string, error) {
+func (h *HUOBI) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error) {
 	resp, err := h.Withdraw(withdrawRequest.Currency, withdrawRequest.Address, withdrawRequest.AddressTag, withdrawRequest.Amount, withdrawRequest.FeeAmount)
 	return strconv.FormatInt(resp, 10), err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (h *HUOBI) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
+func (h *HUOBI) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (h *HUOBI) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
+func (h *HUOBI) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

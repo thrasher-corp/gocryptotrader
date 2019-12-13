@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -407,7 +408,7 @@ func (b *Bithumb) GetDepositAddress(cryptocurrency currency.Code, _ string) (str
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bithumb) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWithdrawRequest) (string, error) {
+func (b *Bithumb) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error) {
 	_, err := b.WithdrawCrypto(withdrawRequest.Address,
 		withdrawRequest.AddressTag,
 		withdrawRequest.Currency.String(),
@@ -417,7 +418,7 @@ func (b *Bithumb) WithdrawCryptocurrencyFunds(withdrawRequest *exchange.CryptoWi
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Bithumb) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
+func (b *Bithumb) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
 	if math.Mod(withdrawRequest.Amount, 1) != 0 {
 		return "", errors.New("currency KRW does not support decimal places")
 	}
@@ -438,7 +439,7 @@ func (b *Bithumb) WithdrawFiatFunds(withdrawRequest *exchange.FiatWithdrawReques
 }
 
 // WithdrawFiatFundsToInternationalBank is not supported as Bithumb only withdraws KRW to South Korean banks
-func (b *Bithumb) WithdrawFiatFundsToInternationalBank(withdrawRequest *exchange.FiatWithdrawRequest) (string, error) {
+func (b *Bithumb) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
