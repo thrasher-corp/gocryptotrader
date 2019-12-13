@@ -182,7 +182,16 @@ func (c *Coinbene) WsDataHandler() {
 					Side:      tradeList.Data[0][1],
 				}
 			case strings.Contains(result[topic].(string), "orderBook"):
-				var orderBook WsOrderbook
+				orderBook := struct {
+					Topic     string `json:"topic"`
+					Action    string `json:"action"`
+					Orderbook struct {
+						Bids [][]string `json:"bids"`
+						Asks [][]string `json:"asks"`
+					} `json:"data"`
+					Version   int64     `json:"version"`
+					Timestamp time.Time `json:"timestamp"`
+				}{}
 				err = json.Unmarshal(stream.Raw, &orderBook)
 				if err != nil {
 					c.Websocket.DataHandler <- err
@@ -194,13 +203,13 @@ func (c *Coinbene) WsDataHandler() {
 					c.GetPairFormat(asset.PerpetualSwap, true))
 				var amount, price float64
 				var asks, bids []orderbook.Item
-				for i := range orderBook.Data[0].Asks {
-					amount, err = strconv.ParseFloat(orderBook.Data[0].Asks[i][1], 64)
+				for i := range orderBook.Orderbook.Asks {
+					amount, err = strconv.ParseFloat(orderBook.Orderbook.Asks[i][1], 64)
 					if err != nil {
 						c.Websocket.DataHandler <- err
 						continue
 					}
-					price, err = strconv.ParseFloat(orderBook.Data[0].Asks[i][0], 64)
+					price, err = strconv.ParseFloat(orderBook.Orderbook.Asks[i][0], 64)
 					if err != nil {
 						c.Websocket.DataHandler <- err
 						continue
@@ -210,13 +219,13 @@ func (c *Coinbene) WsDataHandler() {
 						Price:  price,
 					})
 				}
-				for j := range orderBook.Data[0].Bids {
-					amount, err = strconv.ParseFloat(orderBook.Data[0].Bids[j][1], 64)
+				for j := range orderBook.Orderbook.Bids {
+					amount, err = strconv.ParseFloat(orderBook.Orderbook.Bids[j][1], 64)
 					if err != nil {
 						c.Websocket.DataHandler <- err
 						continue
 					}
-					price, err = strconv.ParseFloat(orderBook.Data[0].Bids[j][0], 64)
+					price, err = strconv.ParseFloat(orderBook.Orderbook.Bids[j][0], 64)
 					if err != nil {
 						c.Websocket.DataHandler <- err
 						continue

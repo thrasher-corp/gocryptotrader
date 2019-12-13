@@ -2,7 +2,6 @@ package coinbene
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -56,8 +55,11 @@ func (c *Coinbene) SetDefaults() {
 	c.CurrencyPairs = currency.PairsManager{
 		AssetTypes: asset.Items{
 			asset.Spot,
+			asset.PerpetualSwap,
 		},
-		UseGlobalFormat: true,
+	}
+
+	c.CurrencyPairs.Store(asset.Spot, currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 			Delimiter: "/",
@@ -66,12 +68,22 @@ func (c *Coinbene) SetDefaults() {
 			Uppercase: true,
 			Delimiter: "/",
 		},
-	}
+	})
+
+	c.CurrencyPairs.Store(asset.PerpetualSwap, currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: "/",
+		},
+	})
 
 	c.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
-			Websocket: false, // Purposely disabled until SWAP is supported
+			Websocket: true,
 			RESTCapabilities: protocol.Features{
 				TickerFetching:    true,
 				TradeFetching:     true,
@@ -127,15 +139,6 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 	err := c.SetupDefaults(exch)
 	if err != nil {
 		return err
-	}
-
-	// TO-DO: Remove this once SWAP is supported
-	if exch.Features.Enabled.Websocket {
-		log.Warnf(log.ExchangeSys,
-			"%s websocket only supports SWAP which GoCryptoTrader currently "+
-				"does not. Disabling.\n",
-			c.Name)
-		exch.Features.Enabled.Websocket = false
 	}
 
 	err = c.Websocket.Setup(
@@ -211,14 +214,34 @@ func (c *Coinbene) Run() {
 
 // FetchTradablePairs returns a list of exchange tradable pairs
 func (c *Coinbene) FetchTradablePairs(a asset.Item) ([]string, error) {
-	pairs, err := c.GetAllPairs()
-	if err != nil {
-		return nil, err
+	if !c.SupportsAsset(a) {
+		return nil, fmt.Errorf("%s does not support asset type %s", c.Name, a)
 	}
 
 	var currencies []string
-	for x := range pairs.Data {
-		currencies = append(currencies, pairs.Data[x].Symbol)
+	switch a {
+	case asset.Spot:
+		pairs, err := c.GetAllPairs()
+		if err != nil {
+			return nil, err
+		}
+
+		for x := range pairs {
+			currencies = append(currencies, pairs[x].Symbol)
+		}
+	case asset.PerpetualSwap:
+		tickers, err := c.GetSwapTickers()
+		if err != nil {
+			return nil, err
+		}
+		for t := range tickers {
+			idx := strings.Index(t, currency.USDT.String())
+			if idx == 0 {
+				return nil, fmt.Errorf("%s SWAP currency does not contain USDT", c.Name)
+			}
+			currencies = append(currencies,
+				t[0:idx]+c.GetPairFormat(a, false).Delimiter+t[idx:])
+		}
 	}
 	return currencies, nil
 }
@@ -226,38 +249,78 @@ func (c *Coinbene) FetchTradablePairs(a asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them
 func (c *Coinbene) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := c.FetchTradablePairs(asset.Spot)
-	if err != nil {
-		return err
+	assets := c.GetAssetTypes()
+	for x := range assets {
+		pairs, err := c.FetchTradablePairs(assets[x])
+		if err != nil {
+			return err
+		}
+		err = c.UpdatePairs(currency.NewPairsFromStrings(pairs),
+			assets[x], false, forceUpdate)
+		if err != nil {
+			return err
+		}
 	}
-
-	return c.UpdatePairs(currency.NewPairsFromStrings(pairs),
-		asset.Spot,
-		false,
-		forceUpdate)
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (c *Coinbene) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
-	allPairs := c.GetEnabledPairs(assetType)
-	for x := range allPairs {
-		tempResp, err := c.GetTicker(c.FormatExchangeCurrency(allPairs[x],
-			assetType).String())
-		if err != nil {
-			return tickerPrice, err
+	resp := new(ticker.Price)
+	if !c.SupportsAsset(assetType) {
+		return nil,
+			fmt.Errorf("%s does not support asset type %s", c.Name, assetType)
+	}
+
+	switch assetType {
+	case asset.Spot:
+		allPairs := c.GetEnabledPairs(assetType)
+		for x := range allPairs {
+			tempResp, err := c.GetTicker(c.FormatExchangeCurrency(allPairs[x],
+				assetType).String())
+			if err != nil {
+				return nil, err
+			}
+			resp.Pair = allPairs[x]
+			resp.Last = tempResp.LatestPrice
+			resp.High = tempResp.DailyHigh
+			resp.Low = tempResp.DailyLow
+			resp.Bid = tempResp.BestBid
+			resp.Ask = tempResp.BestAsk
+			resp.Volume = tempResp.DailyVolume
+			resp.LastUpdated = time.Now()
+			err = ticker.ProcessTicker(c.Name, resp, assetType)
+			if err != nil {
+				return nil, err
+			}
 		}
-		tickerPrice.Pair = allPairs[x]
-		tickerPrice.Last = tempResp.TickerData.LatestPrice
-		tickerPrice.High = tempResp.TickerData.DailyHigh
-		tickerPrice.Low = tempResp.TickerData.DailyLow
-		tickerPrice.Bid = tempResp.TickerData.BestBid
-		tickerPrice.Ask = tempResp.TickerData.BestAsk
-		tickerPrice.Volume = tempResp.TickerData.DailyVolume
-		tickerPrice.LastUpdated = time.Now()
-		err = ticker.ProcessTicker(c.Name, tickerPrice, assetType)
+	case asset.PerpetualSwap:
+		tickers, err := c.GetSwapTickers()
 		if err != nil {
-			return tickerPrice, err
+			return nil, err
+		}
+
+		allPairs := c.GetEnabledPairs(assetType)
+		for x := range allPairs {
+			tick, ok := tickers[c.FormatExchangeCurrency(allPairs[x],
+				assetType).String()]
+			if !ok {
+				log.Warnf(log.ExchangeSys,
+					"%s SWAP ticker item was not found", c.Name)
+				continue
+			}
+			resp.Pair = allPairs[x]
+			resp.Last = tick.LastPrice
+			resp.High = tick.High24Hour
+			resp.Low = tick.Low24Hour
+			resp.Bid = tick.BestBidPrice
+			resp.Ask = tick.BestAskPrice
+			resp.Volume = tick.Volume24Hour
+			resp.LastUpdated = tick.Timestamp
+			err = ticker.ProcessTicker(c.Name, resp, assetType)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	return ticker.GetTicker(c.Name, p, assetType)
@@ -265,6 +328,11 @@ func (c *Coinbene) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 
 // FetchTicker returns the ticker for a currency pair
 func (c *Coinbene) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	if !c.SupportsAsset(assetType) {
+		return nil,
+			fmt.Errorf("%s does not support asset type %s", c.Name, assetType)
+	}
+
 	tickerNew, err := ticker.GetTicker(c.Name, p, assetType)
 	if err != nil {
 		return c.UpdateTicker(p, assetType)
@@ -274,6 +342,11 @@ func (c *Coinbene) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (c *Coinbene) FetchOrderbook(currency currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if !c.SupportsAsset(assetType) {
+		return nil,
+			fmt.Errorf("%s does not support asset type %s", c.Name, assetType)
+	}
+
 	ob, err := orderbook.Get(c.Name, currency, assetType)
 	if err != nil {
 		return c.UpdateOrderbook(currency, assetType)
@@ -283,47 +356,56 @@ func (c *Coinbene) FetchOrderbook(currency currency.Pair, assetType asset.Item) 
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
-	tempResp, err := c.GetOrderbook(
-		c.FormatExchangeCurrency(p, assetType).String(),
-		100,
-	)
+	resp := new(orderbook.Base)
+	if !c.SupportsAsset(assetType) {
+		return nil,
+			fmt.Errorf("%s does not support asset type %s", c.Name, assetType)
+	}
+
+	var tempResp Orderbook
+	var err error
+
+	switch assetType {
+	case asset.Spot:
+		tempResp, err = c.GetOrderbook(
+			c.FormatExchangeCurrency(p, assetType).String(),
+			100,
+		)
+	case asset.PerpetualSwap:
+		tempResp, err = c.GetSwapOrderbook(
+			c.FormatExchangeCurrency(p, assetType).String(),
+			100,
+		)
+	}
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
-	orderBook.ExchangeName = c.Name
-	orderBook.Pair = p
-	orderBook.AssetType = assetType
-	var amount, price float64
-	for i := range tempResp.Orderbook.Asks {
-		amount, err = strconv.ParseFloat(tempResp.Orderbook.Asks[i][1], 64)
-		if err != nil {
-			return orderBook, err
+	resp.ExchangeName = c.Name
+	resp.Pair = p
+	resp.AssetType = assetType
+	for x := range tempResp.Asks {
+		item := orderbook.Item{
+			Price:  tempResp.Asks[x].Price,
+			Amount: tempResp.Asks[x].Amount,
 		}
-		price, err = strconv.ParseFloat(tempResp.Orderbook.Asks[i][0], 64)
-		if err != nil {
-			return orderBook, err
+		if assetType == asset.PerpetualSwap {
+			item.OrderCount = tempResp.Asks[x].Count
 		}
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
-			Price:  price,
-			Amount: amount})
+		resp.Asks = append(resp.Asks, item)
 	}
-	for j := range tempResp.Orderbook.Bids {
-		amount, err = strconv.ParseFloat(tempResp.Orderbook.Bids[j][1], 64)
-		if err != nil {
-			return orderBook, err
+	for x := range tempResp.Bids {
+		item := orderbook.Item{
+			Price:  tempResp.Bids[x].Price,
+			Amount: tempResp.Bids[x].Amount,
 		}
-		price, err = strconv.ParseFloat(tempResp.Orderbook.Bids[j][0], 64)
-		if err != nil {
-			return orderBook, err
+		if assetType == asset.PerpetualSwap {
+			item.OrderCount = tempResp.Bids[x].Count
 		}
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
-			Price:  price,
-			Amount: amount})
+		resp.Bids = append(resp.Bids, item)
 	}
-	err = orderBook.Process()
+	err = resp.Process()
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
 	return orderbook.Get(c.Name, p, assetType)
 }
@@ -332,15 +414,15 @@ func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 // Coinbene exchange
 func (c *Coinbene) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
-	data, err := c.GetUserBalance()
+	balance, err := c.GetUserBalance()
 	if err != nil {
 		return info, err
 	}
 	var account exchange.Account
-	for key := range data.Data {
-		c := currency.NewCode(data.Data[key].Asset)
-		hold := data.Data[key].Reserved
-		available := data.Data[key].Available
+	for key := range balance {
+		c := currency.NewCode(balance[key].Asset)
+		hold := balance[key].Reserved
+		available := balance[key].Available
 		account.Currencies = append(account.Currencies,
 			exchange.AccountCurrencyInfo{CurrencyName: c,
 				TotalValue: hold + available,
@@ -414,12 +496,12 @@ func (c *Coinbene) CancelAllOrders(orderCancellation *order.Cancel) (order.Cance
 	if err != nil {
 		return resp, err
 	}
-	for x := range orders.OpenOrders {
-		_, err := c.RemoveOrder(orders.OpenOrders[x].OrderID)
+	for x := range orders {
+		_, err := c.RemoveOrder(orders[x].OrderID)
 		if err != nil {
-			tempMap[orders.OpenOrders[x].OrderID] = "Failed"
+			tempMap[orders[x].OrderID] = "Failed"
 		} else {
-			tempMap[orders.OpenOrders[x].OrderID] = "Success"
+			tempMap[orders[x].OrderID] = "Success"
 		}
 	}
 	resp.Status = tempMap
@@ -436,17 +518,17 @@ func (c *Coinbene) GetOrderInfo(orderID string) (order.Detail, error) {
 	var t time.Time
 	resp.Exchange = c.Name
 	resp.ID = orderID
-	resp.CurrencyPair = currency.NewPairWithDelimiter(tempResp.Order.BaseAsset,
+	resp.CurrencyPair = currency.NewPairWithDelimiter(tempResp.BaseAsset,
 		"/",
-		tempResp.Order.QuoteAsset)
-	t, err = time.Parse(time.RFC3339, tempResp.Order.OrderTime)
+		tempResp.QuoteAsset)
+	t, err = time.Parse(time.RFC3339, tempResp.OrderTime)
 	if err != nil {
 		return resp, err
 	}
-	resp.Price = tempResp.Order.OrderPrice
+	resp.Price = tempResp.OrderPrice
 	resp.OrderDate = t
-	resp.ExecutedAmount = tempResp.Order.FilledAmount
-	resp.Fee = tempResp.Order.TotalFee
+	resp.ExecutedAmount = tempResp.FilledAmount
+	resp.Fee = tempResp.TotalFee
 	return resp, nil
 }
 
@@ -482,14 +564,15 @@ func (c *Coinbene) GetWebsocket() (*wshandler.Websocket, error) {
 func (c *Coinbene) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	var resp []order.Detail
 	var tempResp order.Detail
-	var tempData OpenOrderResponse
+	var tempData OrdersInfo
 	if len(getOrdersRequest.Currencies) == 0 {
 		allPairs, err := c.GetAllPairs()
 		if err != nil {
 			return resp, err
 		}
-		for a := range allPairs.Data {
-			getOrdersRequest.Currencies = append(getOrdersRequest.Currencies, currency.NewPairFromString(allPairs.Data[a].Symbol))
+		for a := range allPairs {
+			getOrdersRequest.Currencies = append(getOrdersRequest.Currencies,
+				currency.NewPairFromString(allPairs[a].Symbol))
 		}
 	}
 	var err error
@@ -503,24 +586,24 @@ func (c *Coinbene) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]
 			return resp, err
 		}
 		var t time.Time
-		for y := range tempData.OpenOrders {
+		for y := range tempData {
 			tempResp.Exchange = c.Name
 			tempResp.CurrencyPair = getOrdersRequest.Currencies[x]
 			tempResp.OrderSide = order.Buy
-			if strings.EqualFold(tempData.OpenOrders[y].OrderType, order.Sell.String()) {
+			if strings.EqualFold(tempData[y].OrderType, order.Sell.String()) {
 				tempResp.OrderSide = order.Sell
 			}
-			t, err = time.Parse(time.RFC3339, tempData.OpenOrders[y].OrderTime)
+			t, err = time.Parse(time.RFC3339, tempData[y].OrderTime)
 			if err != nil {
 				return resp, err
 			}
 			tempResp.OrderDate = t
-			tempResp.Status = order.Status(tempData.OpenOrders[y].OrderStatus)
-			tempResp.Price = tempData.OpenOrders[y].OrderPrice
-			tempResp.Amount = tempData.OpenOrders[y].Amount
-			tempResp.ExecutedAmount = tempData.OpenOrders[y].FilledAmount
-			tempResp.RemainingAmount = tempData.OpenOrders[y].Amount - tempData.OpenOrders[y].FilledAmount
-			tempResp.Fee = tempData.OpenOrders[y].TotalFee
+			tempResp.Status = order.Status(tempData[y].OrderStatus)
+			tempResp.Price = tempData[y].OrderPrice
+			tempResp.Amount = tempData[y].Amount
+			tempResp.ExecutedAmount = tempData[y].FilledAmount
+			tempResp.RemainingAmount = tempData[y].Amount - tempData[y].FilledAmount
+			tempResp.Fee = tempData[y].TotalFee
 			resp = append(resp, tempResp)
 		}
 	}
@@ -532,14 +615,15 @@ func (c *Coinbene) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]
 func (c *Coinbene) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	var resp []order.Detail
 	var tempResp order.Detail
-	var tempData ClosedOrderResponse
+	var tempData OrdersInfo
 	if len(getOrdersRequest.Currencies) == 0 {
 		allPairs, err := c.GetAllPairs()
 		if err != nil {
 			return resp, err
 		}
-		for a := range allPairs.Data {
-			getOrdersRequest.Currencies = append(getOrdersRequest.Currencies, currency.NewPairFromString(allPairs.Data[a].Symbol))
+		for a := range allPairs {
+			getOrdersRequest.Currencies = append(getOrdersRequest.Currencies,
+				currency.NewPairFromString(allPairs[a].Symbol))
 		}
 	}
 	var err error
@@ -554,24 +638,24 @@ func (c *Coinbene) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]
 			return resp, err
 		}
 		var t time.Time
-		for y := range tempData.Data {
+		for y := range tempData {
 			tempResp.Exchange = c.Name
 			tempResp.CurrencyPair = getOrdersRequest.Currencies[x]
 			tempResp.OrderSide = order.Buy
-			if strings.EqualFold(tempData.Data[y].OrderType, order.Sell.String()) {
+			if strings.EqualFold(tempData[y].OrderType, order.Sell.String()) {
 				tempResp.OrderSide = order.Sell
 			}
-			t, err = time.Parse(time.RFC3339, tempData.Data[y].OrderTime)
+			t, err = time.Parse(time.RFC3339, tempData[y].OrderTime)
 			if err != nil {
 				return resp, err
 			}
 			tempResp.OrderDate = t
-			tempResp.Status = order.Status(tempData.Data[y].OrderStatus)
-			tempResp.Price = tempData.Data[y].OrderPrice
-			tempResp.Amount = tempData.Data[y].Amount
-			tempResp.ExecutedAmount = tempData.Data[y].FilledAmount
-			tempResp.RemainingAmount = tempData.Data[y].Amount - tempData.Data[y].FilledAmount
-			tempResp.Fee = tempData.Data[y].TotalFee
+			tempResp.Status = order.Status(tempData[y].OrderStatus)
+			tempResp.Price = tempData[y].OrderPrice
+			tempResp.Amount = tempData[y].Amount
+			tempResp.ExecutedAmount = tempData[y].FilledAmount
+			tempResp.RemainingAmount = tempData[y].Amount - tempData[y].FilledAmount
+			tempResp.Fee = tempData[y].TotalFee
 			resp = append(resp, tempResp)
 		}
 	}
@@ -590,9 +674,9 @@ func (c *Coinbene) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error
 	}
 	switch feeBuilder.IsMaker {
 	case true:
-		fee = feeBuilder.PurchasePrice * feeBuilder.Amount * tempData.Data.MakerFeeRate
+		fee = feeBuilder.PurchasePrice * feeBuilder.Amount * tempData.MakerFeeRate
 	case false:
-		fee = feeBuilder.PurchasePrice * feeBuilder.Amount * tempData.Data.TakerFeeRate
+		fee = feeBuilder.PurchasePrice * feeBuilder.Amount * tempData.TakerFeeRate
 	}
 	return fee, nil
 }

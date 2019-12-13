@@ -63,52 +63,132 @@ const (
 )
 
 // GetTicker gets and stores ticker data for a currency pair
-func (c *Coinbene) GetTicker(symbol string) (TickerResponse, error) {
-	var t TickerResponse
+func (c *Coinbene) GetTicker(symbol string) (TickerData, error) {
+	resp := struct {
+		TickerData TickerData `json:"TickerData"`
+	}{}
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	path := common.EncodeURLValues(c.API.Endpoints.URL+coinbeneAPIVersion+coinbeneGetTicker, params)
-	return t, c.SendHTTPRequest(path, &t)
+	return resp.TickerData, c.SendHTTPRequest(path, &resp)
 }
 
 // GetOrderbook gets and stores orderbook data for given pair
-func (c *Coinbene) GetOrderbook(symbol string, size int64) (OrderbookResponse, error) {
-	var o OrderbookResponse
+func (c *Coinbene) GetOrderbook(symbol string, size int64) (Orderbook, error) {
+	resp := struct {
+		Data struct {
+			Asks [][]string `json:"asks"`
+			Bids [][]string `json:"bids"`
+			Time time.Time  `json:"timestamp"`
+		} `json:"data"`
+	}{}
+
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("depth", strconv.FormatInt(size, 10))
 	path := common.EncodeURLValues(c.API.Endpoints.URL+coinbeneAPIVersion+coinbeneGetOrderBook, params)
-	return o, c.SendHTTPRequest(path, &o)
+	err := c.SendHTTPRequest(path, &resp)
+	if err != nil {
+		return Orderbook{}, err
+	}
+
+	processOB := func(ob [][]string) ([]OrderbookItem, error) {
+		var o []OrderbookItem
+		for x := range ob {
+			var price, amount float64
+			amount, err = strconv.ParseFloat(ob[x][1], 64)
+			if err != nil {
+				return nil, err
+			}
+			price, err = strconv.ParseFloat(ob[x][0], 64)
+			if err != nil {
+				return nil, err
+			}
+			o = append(o, OrderbookItem{
+				Price:  price,
+				Amount: amount,
+			})
+		}
+		return o, nil
+	}
+
+	var s Orderbook
+	s.Bids, err = processOB(resp.Data.Bids)
+	if err != nil {
+		return s, err
+	}
+	s.Asks, err = processOB(resp.Data.Asks)
+	if err != nil {
+		return s, err
+	}
+	s.Time = resp.Data.Time
+	return s, nil
 }
 
 // GetTrades gets recent trades from the exchange
-func (c *Coinbene) GetTrades(symbol string) (TradeResponse, error) {
-	var t TradeResponse
+func (c *Coinbene) GetTrades(symbol string) (Trades, error) {
+	resp := struct {
+		Data [][]string `json:"data"`
+	}{}
+
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	path := common.EncodeURLValues(c.API.Endpoints.URL+coinbeneAPIVersion+coinbeneGetTrades, params)
-	return t, c.SendHTTPRequest(path, &t)
+	err := c.SendHTTPRequest(path, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	var trades Trades
+	for x := range resp.Data {
+		tm, err := time.Parse(time.RFC3339, resp.Data[x][4])
+		if err != nil {
+			return nil, err
+		}
+		price, err := strconv.ParseFloat(resp.Data[x][1], 64)
+		if err != nil {
+			return nil, err
+		}
+		volume, err := strconv.ParseFloat(resp.Data[x][2], 64)
+		if err != nil {
+			return nil, err
+		}
+		trades = append(trades, TradeItem{
+			CurrencyPair: resp.Data[x][0],
+			Price:        price,
+			Volume:       volume,
+			Direction:    resp.Data[x][3],
+			TradeTime:    tm,
+		})
+	}
+	return trades, nil
 }
 
 // GetPairInfo gets info about a single pair
-func (c *Coinbene) GetPairInfo(symbol string) (PairResponse, error) {
-	var resp PairResponse
+func (c *Coinbene) GetPairInfo(symbol string) (PairData, error) {
+	resp := struct {
+		Data PairData `json:"data"`
+	}{}
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	path := common.EncodeURLValues(c.API.Endpoints.URL+coinbeneAPIVersion+coinbenePairInfo, params)
-	return resp, c.SendHTTPRequest(path, &resp)
+	return resp.Data, c.SendHTTPRequest(path, &resp)
 }
 
 // GetAllPairs gets all pairs on the exchange
-func (c *Coinbene) GetAllPairs() (AllPairResponse, error) {
-	var a AllPairResponse
+func (c *Coinbene) GetAllPairs() ([]PairData, error) {
+	resp := struct {
+		Data []PairData `json:"data"`
+	}{}
 	path := c.API.Endpoints.URL + coinbeneAPIVersion + coinbeneGetAllPairs
-	return a, c.SendHTTPRequest(path, &a)
+	return resp.Data, c.SendHTTPRequest(path, &resp)
 }
 
 // GetUserBalance gets user balanace info
-func (c *Coinbene) GetUserBalance() (UserBalanceResponse, error) {
-	var resp UserBalanceResponse
+func (c *Coinbene) GetUserBalance() ([]UserBalanceData, error) {
+	resp := struct {
+		Data []UserBalanceData `json:"data"`
+	}{}
 	path := c.API.Endpoints.URL + coinbeneAPIVersion + coinbeneGetUserBalance
 	err := c.SendAuthHTTPRequest(http.MethodGet,
 		path,
@@ -118,9 +198,9 @@ func (c *Coinbene) GetUserBalance() (UserBalanceResponse, error) {
 		nil,
 		&resp)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	return resp, nil
+	return resp.Data, nil
 }
 
 // PlaceOrder creates an order
@@ -157,81 +237,89 @@ func (c *Coinbene) PlaceOrder(price, quantity float64, symbol, direction, client
 }
 
 // FetchOrderInfo gets order info
-func (c *Coinbene) FetchOrderInfo(orderID string) (OrderInfoResponse, error) {
-	var resp OrderInfoResponse
+func (c *Coinbene) FetchOrderInfo(orderID string) (OrderInfo, error) {
+	resp := struct {
+		Data OrderInfo `json:"data"`
+	}{}
 	params := url.Values{}
 	params.Set("orderId", orderID)
 	path := c.API.Endpoints.URL + coinbeneAPIVersion + coinbeneOrderInfo
 	err := c.SendAuthHTTPRequest(http.MethodGet, path, coinbeneOrderInfo, false, params, nil, &resp)
 	if err != nil {
-		return resp, err
+		return resp.Data, err
 	}
-	if resp.Order.OrderID != orderID {
-		return resp, fmt.Errorf("%s orderID doesn't match the returned orderID %s",
-			orderID, resp.Order.OrderID)
+	if resp.Data.OrderID != orderID {
+		return resp.Data, fmt.Errorf("%s orderID doesn't match the returned orderID %s",
+			orderID, resp.Data.OrderID)
 	}
-	return resp, nil
+	return resp.Data, nil
 }
 
 // RemoveOrder removes a given order
-func (c *Coinbene) RemoveOrder(orderID string) (RemoveOrderResponse, error) {
-	var resp RemoveOrderResponse
+func (c *Coinbene) RemoveOrder(orderID string) (string, error) {
+	resp := struct {
+		Data string `json:"data"`
+	}{}
 	params := url.Values{}
 	params.Set("orderId", orderID)
 	path := c.API.Endpoints.URL + coinbeneAPIVersion + coinbeneCancelOrder
 	err := c.SendAuthHTTPRequest(http.MethodPost, path, coinbeneCancelOrder, false, params, nil, &resp)
 	if err != nil {
-		return resp, err
+		return "", err
 	}
-	return resp, nil
+	return resp.Data, nil
 }
 
 // FetchOpenOrders finds open orders
-func (c *Coinbene) FetchOpenOrders(symbol string) (OpenOrderResponse, error) {
-	var resp OpenOrderResponse
+func (c *Coinbene) FetchOpenOrders(symbol string) (OrdersInfo, error) {
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	path := c.API.Endpoints.URL + coinbeneAPIVersion + coinbeneOpenOrders
+	var orders OrdersInfo
 	for i := int64(1); ; i++ {
-		var temp OpenOrderResponse
+		temp := struct {
+			Data OrdersInfo `json:"data"`
+		}{}
 		params.Set("pageNum", strconv.FormatInt(i, 10))
 		err := c.SendAuthHTTPRequest(http.MethodGet, path, coinbeneOpenOrders, false, params, nil, &temp)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
-		for j := range temp.OpenOrders {
-			resp.OpenOrders = append(resp.OpenOrders, temp.OpenOrders[j])
+		for j := range temp.Data {
+			orders = append(orders, temp.Data[j])
 		}
 
-		if len(temp.OpenOrders) != 20 {
+		if len(temp.Data) != 20 {
 			break
 		}
 	}
-	return resp, nil
+	return orders, nil
 }
 
 // FetchClosedOrders finds open orders
-func (c *Coinbene) FetchClosedOrders(symbol, latestID string) (ClosedOrderResponse, error) {
-	var resp ClosedOrderResponse
+func (c *Coinbene) FetchClosedOrders(symbol, latestID string) (OrdersInfo, error) {
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("latestOrderId", latestID)
 	path := c.API.Endpoints.URL + coinbeneAPIVersion + coinbeneClosedOrders
+	var orders OrdersInfo
 	for i := int64(1); ; i++ {
-		var temp ClosedOrderResponse
+		temp := struct {
+			Data OrdersInfo `json:"data"`
+		}{}
 		params.Set("pageNum", strconv.FormatInt(i, 10))
 		err := c.SendAuthHTTPRequest(http.MethodGet, path, coinbeneClosedOrders, false, params, nil, &temp)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		for j := range temp.Data {
-			resp.Data = append(resp.Data, temp.Data[j])
+			orders = append(orders, temp.Data[j])
 		}
 		if len(temp.Data) != 20 {
 			break
 		}
 	}
-	return resp, nil
+	return orders, nil
 }
 
 // GetSwapTickers returns a map of swap tickers
@@ -263,16 +351,16 @@ func (c *Coinbene) GetSwapTicker(symbol string) (SwapTicker, error) {
 }
 
 // GetSwapOrderbook returns an orderbook for the specified currency
-func (c *Coinbene) GetSwapOrderbook(symbol, size string) (SwapOrderbook, error) {
-	var s SwapOrderbook
+func (c *Coinbene) GetSwapOrderbook(symbol string, size int64) (Orderbook, error) {
+	var s Orderbook
 	if symbol == "" {
 		return s, fmt.Errorf("a symbol must be specified")
 	}
 
 	v := url.Values{}
 	v.Set("symbol", symbol)
-	if size != "" {
-		v.Set("size", size)
+	if size != 0 {
+		v.Set("size", strconv.FormatInt(size, 10))
 	}
 
 	type resp struct {
@@ -291,11 +379,15 @@ func (c *Coinbene) GetSwapOrderbook(symbol, size string) (SwapOrderbook, error) 
 		return s, err
 	}
 
-	processOB := func(ob [][]string) ([]SwapOrderbookItem, error) {
-		var o []SwapOrderbookItem
+	processOB := func(ob [][]string) ([]OrderbookItem, error) {
+		var o []OrderbookItem
 		for x := range ob {
 			var price, amount float64
 			var count int64
+			count, err = strconv.ParseInt(ob[x][2], 10, 64)
+			if err != nil {
+				return nil, err
+			}
 			price, err = strconv.ParseFloat(ob[x][0], 64)
 			if err != nil {
 				return nil, err
@@ -304,11 +396,7 @@ func (c *Coinbene) GetSwapOrderbook(symbol, size string) (SwapOrderbook, error) 
 			if err != nil {
 				return nil, err
 			}
-			count, err = strconv.ParseInt(ob[x][2], 10, 64)
-			if err != nil {
-				return nil, err
-			}
-			o = append(o, SwapOrderbookItem{Price: price,
+			o = append(o, OrderbookItem{Price: price,
 				Amount: amount,
 				Count:  count,
 			})
@@ -348,6 +436,10 @@ func (c *Coinbene) GetSwapKlines(symbol, startTime, endTime, resolution string) 
 	}
 
 	for x := range r.Data {
+		buyTurnover, err := strconv.ParseFloat(r.Data[x][8], 64)
+		if err != nil {
+			return nil, err
+		}
 		tm, err := strconv.ParseInt(r.Data[x][0], 10, 64)
 		if err != nil {
 			return nil, err
@@ -380,10 +472,6 @@ func (c *Coinbene) GetSwapKlines(symbol, startTime, endTime, resolution string) 
 		if err != nil {
 			return nil, err
 		}
-		buyTurnover, err := strconv.ParseFloat(r.Data[x][8], 64)
-		if err != nil {
-			return nil, err
-		}
 		s = append(s, SwapKlineItem{
 			Time:        time.Unix(tm, 0),
 			Open:        open,
@@ -400,11 +488,11 @@ func (c *Coinbene) GetSwapKlines(symbol, startTime, endTime, resolution string) 
 }
 
 // GetSwapTrades returns a list of trades for a swap symbol
-func (c *Coinbene) GetSwapTrades(symbol, limit string) (SwapTrades, error) {
+func (c *Coinbene) GetSwapTrades(symbol string, limit int) (SwapTrades, error) {
 	v := url.Values{}
 	v.Set("symbol", symbol)
-	if limit != "" {
-		v.Set("limit", limit)
+	if limit != 0 {
+		v.Set("limit", strconv.Itoa(limit))
 	}
 	type resp struct {
 		Data [][]string `json:"data"`
@@ -417,6 +505,10 @@ func (c *Coinbene) GetSwapTrades(symbol, limit string) (SwapTrades, error) {
 
 	var s SwapTrades
 	for x := range r.Data {
+		tm, err := time.Parse(time.RFC3339, r.Data[x][3])
+		if err != nil {
+			return nil, err
+		}
 		price, err := strconv.ParseFloat(r.Data[x][0], 64)
 		if err != nil {
 			return nil, err
@@ -426,10 +518,6 @@ func (c *Coinbene) GetSwapTrades(symbol, limit string) (SwapTrades, error) {
 			orderSide = order.Sell
 		}
 		volume, err := strconv.ParseFloat(r.Data[x][2], 64)
-		if err != nil {
-			return nil, err
-		}
-		tm, err := time.Parse(time.RFC3339, r.Data[x][3])
 		if err != nil {
 			return nil, err
 		}
@@ -763,7 +851,7 @@ func (c *Coinbene) SendAuthHTTPRequest(method, path, epPath string, isSwap bool,
 	switch method {
 	case http.MethodGet:
 		if len(params) > 0 {
-			preSign = fmt.Sprintf("%s%s%s%s?%s", timestamp, method, authPath, epPath, params.Encode())
+			preSign = timestamp + method + authPath + epPath + "?" + params.Encode()
 			path = common.EncodeURLValues(path, params)
 		} else {
 			preSign = timestamp + method + authPath + epPath

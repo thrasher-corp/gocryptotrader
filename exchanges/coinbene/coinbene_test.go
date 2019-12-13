@@ -7,6 +7,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -158,7 +159,11 @@ func TestFetchClosedOrders(t *testing.T) {
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	cp := currency.NewPairWithDelimiter("BTC", "USDT", "/")
-	_, err := c.UpdateTicker(cp, "spot")
+	_, err := c.UpdateTicker(cp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = c.UpdateTicker(cp, asset.PerpetualSwap)
 	if err != nil {
 		t.Error(err)
 	}
@@ -178,7 +183,11 @@ func TestGetAccountInfo(t *testing.T) {
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	cp := currency.NewPairWithDelimiter("BTC", "USDT", "/")
-	_, err := c.UpdateOrderbook(cp, "spot")
+	_, err := c.UpdateOrderbook(cp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = c.UpdateOrderbook(cp, asset.PerpetualSwap)
 	if err != nil {
 		t.Error(err)
 	}
@@ -202,7 +211,7 @@ func TestGetSwapTicker(t *testing.T) {
 
 func TestGetSwapOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetSwapOrderbook(swapTestPair, "100")
+	_, err := c.GetSwapOrderbook(swapTestPair, 100)
 	if err != nil {
 		t.Error(err)
 	}
@@ -221,7 +230,7 @@ func TestGetSwapKlines(t *testing.T) {
 
 func TestGetSwapTrades(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetSwapTrades(swapTestPair, "10")
+	_, err := c.GetSwapTrades(swapTestPair, 10)
 	if err != nil {
 		t.Error(err)
 	}
