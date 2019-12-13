@@ -147,12 +147,14 @@ func (a *ANX) Run() {
 	}
 
 	forceUpdate := false
-	if !common.StringDataContains(a.GetEnabledPairs(asset.Spot).Strings(), "_") ||
-		!common.StringDataContains(a.GetAvailablePairs(asset.Spot).Strings(), "_") {
-		enabledPairs := currency.NewPairsFromStrings([]string{"BTC_USD,BTC_HKD,BTC_EUR,BTC_CAD,BTC_AUD,BTC_SGD,BTC_JPY,BTC_GBP,BTC_NZD,LTC_BTC,DOG_EBTC,STR_BTC,XRP_BTC"})
+	delim := a.GetPairFormat(asset.Spot, false).Delimiter
+	if !common.StringDataContains(a.GetEnabledPairs(asset.Spot).Strings(), delim) ||
+		!common.StringDataContains(a.GetAvailablePairs(asset.Spot).Strings(), delim) {
+		enabledPairs := currency.NewPairsFromStrings(
+			[]string{currency.BTC.String() + delim + currency.USD.String()},
+		)
 		log.Warn(log.ExchangeSys,
 			"Enabled pairs for ANX reset due to config upgrade, please enable the ones you would like again.")
-
 		forceUpdate = true
 		err := a.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {

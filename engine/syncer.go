@@ -571,7 +571,7 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 		if atomic.CompareAndSwapInt32(&e.initSyncCompleted, 0, 1) {
 			log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync is complete.\n")
 			completedTime := time.Now()
-			log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initiial sync took %v [%v sync items].\n",
+			log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync took %v [%v sync items].\n",
 				completedTime.Sub(e.initSyncStartTime), createdCounter)
 
 			if !e.Cfg.SyncContinuously {

@@ -60,7 +60,6 @@ func (b *Bitmex) SetDefaults() {
 			asset.DownsideProfitContract,
 			asset.UpsideProfitContract,
 		},
-		UseGlobalFormat: false,
 	}
 
 	// Same format used for perpetual contracts and futures

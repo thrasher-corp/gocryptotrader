@@ -65,7 +65,6 @@ func (o *OKEX) SetDefaults() {
 			asset.PerpetualSwap,
 			asset.Index,
 		},
-		UseGlobalFormat: false,
 	}
 	// Same format used for perpetual swap and futures
 	fmt1 := currency.PairStore{
@@ -183,54 +182,19 @@ func (o *OKEX) Run() {
 			o.API.Endpoints.WebsocketURL)
 	}
 
-	if o.Config.CurrencyPairs.Pairs[asset.Spot].ConfigFormat == nil ||
-		o.Config.CurrencyPairs.Pairs[asset.Spot].RequestFormat == nil ||
-		o.Config.CurrencyPairs.Pairs[asset.Index].ConfigFormat == nil ||
-		o.Config.CurrencyPairs.Pairs[asset.Index].RequestFormat == nil {
-		currFmt := currency.PairStore{
-			RequestFormat: &currency.PairFormat{
-				Uppercase: true,
-				Delimiter: delimiterDash,
-			},
-			ConfigFormat: &currency.PairFormat{
-				Uppercase: true,
-				Delimiter: delimiterDash,
-			},
-		}
-		o.CurrencyPairs.Store(asset.Spot, currFmt)
-		o.Config.CurrencyPairs.Store(asset.Spot, currFmt)
-		o.CurrencyPairs.Store(asset.Index, currFmt)
-		o.Config.CurrencyPairs.Store(asset.Index, currFmt)
-	}
-
-	if o.Config.CurrencyPairs.Pairs[asset.Futures].ConfigFormat == nil ||
-		o.Config.CurrencyPairs.Pairs[asset.Futures].RequestFormat == nil ||
-		o.Config.CurrencyPairs.Pairs[asset.PerpetualSwap].ConfigFormat == nil ||
-		o.Config.CurrencyPairs.Pairs[asset.PerpetualSwap].RequestFormat == nil {
-		currFmt := currency.PairStore{
-			RequestFormat: &currency.PairFormat{
-				Uppercase: true,
-				Delimiter: delimiterDash,
-			},
-			ConfigFormat: &currency.PairFormat{
-				Uppercase: true,
-				Delimiter: delimiterUnderscore,
-			},
-		}
-		o.CurrencyPairs.Store(asset.Futures, currFmt)
-		o.Config.CurrencyPairs.Store(asset.Futures, currFmt)
-		o.CurrencyPairs.Store(asset.PerpetualSwap, currFmt)
-		o.Config.CurrencyPairs.Store(asset.PerpetualSwap, currFmt)
-	}
-
-	if !common.StringDataContains(o.Config.CurrencyPairs.Pairs[asset.Spot].Enabled.Strings(),
-		o.CurrencyPairs.Pairs[asset.Spot].RequestFormat.Delimiter) {
-		enabledPairs := currency.NewPairsFromStrings([]string{"EOS-USDT"})
+	delim := o.GetPairFormat(asset.Spot, false).Delimiter
+	forceUpdate := false
+	if !common.StringDataContains(o.GetEnabledPairs(asset.Spot).Strings(), delim) ||
+		!common.StringDataContains(o.GetAvailablePairs(asset.Spot).Strings(), delim) {
+		forceUpdate = true
+		enabledPairs := currency.NewPairsFromStrings(
+			[]string{currency.BTC.String() + delim + currency.USDT.String()},
+		)
 		log.Warnf(log.ExchangeSys,
 			"Enabled pairs for %v reset due to config upgrade, please enable the ones you would like again.",
 			o.Name)
 
-		err := o.UpdatePairs(enabledPairs, asset.Spot, true, true)
+		err := o.UpdatePairs(enabledPairs, asset.Spot, true, forceUpdate)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s failed to update currencies.\n",
@@ -239,11 +203,11 @@ func (o *OKEX) Run() {
 		}
 	}
 
-	if !o.GetEnabledFeatures().AutoPairUpdates {
+	if !o.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
 		return
 	}
 
-	err := o.UpdateTradablePairs(false)
+	err := o.UpdateTradablePairs(forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",

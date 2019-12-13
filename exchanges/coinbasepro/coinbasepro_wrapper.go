@@ -203,7 +203,7 @@ func (c *CoinbasePro) Run() {
 		!common.StringDataContains(c.CurrencyPairs.GetPairs(asset.Spot,
 			false).Strings(), delim) {
 		enabledPairs := currency.NewPairsFromStrings(
-			[]string{fmt.Sprintf("BTC%sUSD", delim)},
+			[]string{currency.BTC.String() + delim + currency.USD.String()},
 		)
 		log.Warn(log.ExchangeSys,
 			"Enabled pairs for CoinbasePro reset due to config upgrade, please enable the ones you would like to use again")

@@ -2,7 +2,6 @@ package binance
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -192,9 +191,12 @@ func (b *Binance) Run() {
 	}
 
 	forceUpdate := false
-	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), b.GetPairFormat(asset.Spot, false).Delimiter) ||
-		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), b.GetPairFormat(asset.Spot, false).Delimiter) {
-		enabledPairs := currency.NewPairsFromStrings([]string{fmt.Sprintf("BTC%vUSDT", b.GetPairFormat(asset.Spot, false).Delimiter)})
+	delim := b.GetPairFormat(asset.Spot, false).Delimiter
+	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), delim) ||
+		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), delim) {
+		enabledPairs := currency.NewPairsFromStrings(
+			[]string{currency.BTC.String() + delim + currency.USDT.String()},
+		)
 		log.Warn(log.ExchangeSys,
 			"Available pairs for Binance reset due to config upgrade, please enable the ones you would like to use again")
 		forceUpdate = true
