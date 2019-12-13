@@ -141,7 +141,7 @@ func (b *Bitfinex) WsDataHandler() {
 						var newOrderbook []WebsocketBook
 						curr := currency.NewPairFromString(chanInfo.Pair)
 						if obSnapBundle, ok := chanData[1].([]interface{}); ok {
-							switch obSnapBundle[0].(type) {
+							switch id := obSnapBundle[0].(type) {
 							case []interface{}:
 								for i := range obSnapBundle {
 									data := obSnapBundle[i].([]interface{})
@@ -159,7 +159,7 @@ func (b *Bitfinex) WsDataHandler() {
 								}
 							case float64:
 								newOrderbook = append(newOrderbook, WebsocketBook{
-									ID:     int(obSnapBundle[0].(float64)),
+									ID:     int(id),
 									Price:  obSnapBundle[1].(float64),
 									Amount: obSnapBundle[2].(float64)})
 								err := b.WsUpdateOrderbook(curr,
