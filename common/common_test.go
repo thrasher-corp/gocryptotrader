@@ -502,7 +502,6 @@ func TestChangePermission(t *testing.T) {
 }
 
 func initStringSlice(t *testing.T, size int) (out []string) {
-	t.Helper()
 	for x := 0; x < size; x++ {
 		out = append(out, "gct-"+strconv.Itoa(x))
 	}
