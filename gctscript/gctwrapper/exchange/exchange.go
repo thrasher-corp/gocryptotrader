@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
@@ -169,26 +170,28 @@ func (e Exchange) DepositAddress(exch string, currencyCode currency.Code, accoun
 	return ex.GetDepositAddress(currencyCode, accountID)
 }
 
-// TODO: import cycles suck couldn't find a decent work around
-// pending approval/merge of: https://github.com/thrasher-corp/gocryptotrader/pull/395#issuecomment-564834458
-
 // WithdrawalFiatFunds withdraw funds from exchange to requested fiat source
-func (e Exchange) WithdrawalFiatFunds(exch string) (out string, err error) {
+func (e Exchange) WithdrawalFiatFunds(exch string, request *withdraw.FiatRequest) (out string, err error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return
 	}
-	withdrawalDetails := &exchange.FiatWithdrawRequest{}
-	return ex.WithdrawFiatFunds(withdrawalDetails)
+	v, err := withdraw.Valid(request)
+	if !v {
+		return "", err
+	}
+	return ex.WithdrawFiatFunds(request)
 }
 
 // WithdrawalCryptoFunds withdraw funds from exchange to requested Crypto source
-func (e Exchange) WithdrawalCryptoFunds(exch string) (out string, err error) {
+func (e Exchange) WithdrawalCryptoFunds(exch string,request  *withdraw.CryptoRequest) (out string, err error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return
 	}
-
-	withdrawalDetails := &exchange.CryptoWithdrawRequest{}
-	return ex.WithdrawCryptocurrencyFunds(withdrawalDetails)
+	v, err := withdraw.Valid(request)
+	if !v {
+		return "", err
+	}
+	return ex.WithdrawCryptocurrencyFunds(request)
 }

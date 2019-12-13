@@ -20,6 +20,8 @@ var exchangeModule = map[string]objects.Object{
 	"orderquery":     &objects.UserFunction{Name: "orderquery", Value: ExchangeOrderQuery},
 	"ordercancel":    &objects.UserFunction{Name: "ordercancel", Value: ExchangeOrderCancel},
 	"ordersubmit":    &objects.UserFunction{Name: "ordersubmit", Value: ExchangeOrderSubmit},
+	"withdrawcrypto": &objects.UserFunction{Name: "withdrawcrypto", Value: ExchangeWithdrawCrypto},
+	"withdrawfiat": &objects.UserFunction{Name: "withdrawfiat", Value: ExchangeWithdrawFiat},
 }
 
 // ExchangeOrderbook returns orderbook for requested exchange & currencypair
@@ -307,7 +309,6 @@ func ExchangeDepositAddress(args ...objects.Object) (objects.Object, error) {
 	exchangeName, _ := objects.ToString(args[0])
 	currencyCode, _ := objects.ToString(args[1])
 	accountID, _ := objects.ToString(args[2])
-
 	currCode := currency.NewCode(currencyCode)
 
 	rtn, err := modules.Wrapper.DepositAddress(exchangeName, currCode, accountID)
@@ -316,4 +317,12 @@ func ExchangeDepositAddress(args ...objects.Object) (objects.Object, error) {
 	}
 
 	return &objects.String{Value: rtn}, nil
+}
+
+func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
+	return nil, nil
+}
+
+func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
+	return nil, nil
 }
