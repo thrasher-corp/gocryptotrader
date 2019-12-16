@@ -98,7 +98,7 @@ func SetSubsystem(subsys string, enable bool) error {
 		return Bot.OrderManager.Stop()
 	case "portfolio":
 		if enable {
-			return Bot.PortfolioManager.Start()
+			return Bot.PortfolioManager.Start(Bot.Settings.Verbose)
 		}
 		return Bot.OrderManager.Stop()
 	case "ntp_timekeeper":

@@ -185,10 +185,10 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 
 	b.Websocket.Orderbook.Setup(
 		exch.WebsocketOrderbookBufferLimit,
+		false,
+		false,
+		false,
 		true,
-		false,
-		false,
-		false,
 		exch.Name)
 	return nil
 }

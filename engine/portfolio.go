@@ -24,7 +24,7 @@ func (p *portfolioManager) Started() bool {
 	return atomic.LoadInt32(&p.started) == 1
 }
 
-func (p *portfolioManager) Start() error {
+func (p *portfolioManager) Start(verbose bool) error {
 	if atomic.AddInt32(&p.started, 1) != 1 {
 		return errors.New("portfolio manager already started")
 	}
@@ -33,6 +33,9 @@ func (p *portfolioManager) Start() error {
 	Bot.Portfolio = &portfolio.Portfolio
 	Bot.Portfolio.Seed(Bot.Config.Portfolio)
 	p.shutdown = make(chan struct{})
+	if verbose {
+		portfolio.Verbose = true
+	}
 	go p.run()
 	return nil
 }
@@ -41,6 +44,7 @@ func (p *portfolioManager) Stop() error {
 		return errors.New("portfolio manager is already stopped")
 	}
 
+	portfolio.Verbose = false
 	log.Debugln(log.PortfolioMgr, "Portfolio manager shutting down...")
 	close(p.shutdown)
 	return nil

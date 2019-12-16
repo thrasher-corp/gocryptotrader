@@ -26,6 +26,9 @@ const (
 // Portfolio is variable store holding an array of portfolioAddress
 var Portfolio Base
 
+// Verbose allows for debug output when sending an http request
+var Verbose bool
+
 // GetEthereumBalance single or multiple address information as
 // EtherchainBalanceResponse
 func GetEthereumBalance(address string) (EthplorerResponse, error) {
@@ -39,7 +42,7 @@ func GetEthereumBalance(address string) (EthplorerResponse, error) {
 	)
 
 	result := EthplorerResponse{}
-	return result, common.SendHTTPGetRequest(urlPath, true, true, &result)
+	return result, common.SendHTTPGetRequest(urlPath, true, Verbose, &result)
 }
 
 // GetCryptoIDAddress queries CryptoID for an address balance for a
@@ -56,7 +59,7 @@ func GetCryptoIDAddress(address string, coinType currency.Code) (float64, error)
 		coinType.Lower(),
 		address)
 
-	err = common.SendHTTPGetRequest(url, true, true, &result)
+	err = common.SendHTTPGetRequest(url, true, Verbose, &result)
 	if err != nil {
 		return 0, err
 	}
@@ -204,7 +207,6 @@ func (p *Base) RemoveAddress(address, description string, coinType currency.Code
 func (p *Base) UpdatePortfolio(addresses []string, coinType currency.Code) error {
 	if strings.Contains(strings.Join(addresses, ","), PortfolioAddressExchange) ||
 		strings.Contains(strings.Join(addresses, ","), PortfolioAddressPersonal) {
-		log.Debugln(log.PortfolioMgr, "porfolio already updated")
 		return nil
 	}
 

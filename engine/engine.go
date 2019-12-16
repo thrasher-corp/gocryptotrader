@@ -381,7 +381,7 @@ func (e *Engine) Start() error {
 	}
 
 	if e.Settings.EnablePortfolioManager {
-		if err = e.PortfolioManager.Start(); err != nil {
+		if err = e.PortfolioManager.Start(Bot.Settings.Verbose); err != nil {
 			log.Errorf(log.Global, "Fund manager unable to start: %v", err)
 		}
 	}

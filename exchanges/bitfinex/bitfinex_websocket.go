@@ -146,7 +146,7 @@ func (b *Bitfinex) WsDataHandler() {
 								for i := range obSnapBundle {
 									data := obSnapBundle[i].([]interface{})
 									newOrderbook = append(newOrderbook, WebsocketBook{
-										ID:     int(data[0].(float64)),
+										ID:     int64(data[0].(float64)),
 										Price:  data[1].(float64),
 										Amount: data[2].(float64)})
 								}
@@ -159,7 +159,7 @@ func (b *Bitfinex) WsDataHandler() {
 								}
 							case float64:
 								newOrderbook = append(newOrderbook, WebsocketBook{
-									ID:     int(id),
+									ID:     int64(id),
 									Price:  obSnapBundle[1].(float64),
 									Amount: obSnapBundle[2].(float64)})
 								err := b.WsUpdateOrderbook(curr,
@@ -617,15 +617,19 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 	}
 	var bid, ask []orderbook.Item
 	for i := range books {
-		if books[i].Amount >= 0 {
-			bid = append(bid, orderbook.Item{Amount: books[i].Amount, Price: books[i].Price})
+		if books[i].Amount > 0 {
+			bid = append(bid, orderbook.Item{
+				ID:     books[i].ID,
+				Amount: books[i].Amount,
+				Price:  books[i].Price})
 		} else {
-			ask = append(ask, orderbook.Item{Amount: books[i].Amount * -1, Price: books[i].Price})
+			ask = append(ask, orderbook.Item{
+				ID:     books[i].ID,
+				Amount: books[i].Amount * -1,
+				Price:  books[i].Price})
 		}
 	}
-	if len(bid) == 0 && len(ask) == 0 {
-		return errors.New("bitfinex.go error - no orderbooks in item lists")
-	}
+
 	var newOrderBook orderbook.Base
 	newOrderBook.Asks = ask
 	newOrderBook.AssetType = assetType
@@ -647,29 +651,41 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 // orderbook sides
 func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book []WebsocketBook) error {
 	orderbookUpdate := wsorderbook.WebsocketOrderbookUpdate{
-		Asks:  []orderbook.Item{},
-		Bids:  []orderbook.Item{},
 		Asset: assetType,
 		Pair:  p,
 	}
 
-	for i := 0; i < len(book); i++ {
+	for i := range book {
 		switch {
 		case book[i].Price > 0:
+			orderbookUpdate.Action = "update/insert"
 			if book[i].Amount > 0 {
 				// update bid
-				orderbookUpdate.Bids = append(orderbookUpdate.Bids, orderbook.Item{Amount: book[i].Amount, Price: book[i].Price})
+				orderbookUpdate.Bids = append(orderbookUpdate.Bids,
+					orderbook.Item{
+						ID:     book[i].ID,
+						Amount: book[i].Amount,
+						Price:  book[i].Price})
 			} else if book[i].Amount < 0 {
 				// update ask
-				orderbookUpdate.Asks = append(orderbookUpdate.Asks, orderbook.Item{Amount: book[i].Amount * -1, Price: book[i].Price})
+				orderbookUpdate.Asks = append(orderbookUpdate.Asks,
+					orderbook.Item{
+						ID:     book[i].ID,
+						Amount: book[i].Amount * -1,
+						Price:  book[i].Price})
 			}
 		case book[i].Price == 0:
+			orderbookUpdate.Action = "delete"
 			if book[i].Amount == 1 {
 				// delete bid
-				orderbookUpdate.Bids = append(orderbookUpdate.Bids, orderbook.Item{Amount: 0, Price: book[i].Price})
+				orderbookUpdate.Bids = append(orderbookUpdate.Bids,
+					orderbook.Item{
+						ID: book[i].ID})
 			} else if book[i].Amount == -1 {
 				// delete ask
-				orderbookUpdate.Asks = append(orderbookUpdate.Asks, orderbook.Item{Amount: 0, Price: book[i].Price})
+				orderbookUpdate.Asks = append(orderbookUpdate.Asks,
+					orderbook.Item{
+						ID: book[i].ID})
 			}
 		}
 	}
@@ -725,6 +741,7 @@ func (b *Bitfinex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 	req := make(map[string]interface{})
 	req["event"] = "subscribe"
 	req["channel"] = channelToSubscribe.Channel
+
 	if channelToSubscribe.Currency.String() != "" {
 		if channelToSubscribe.Channel == wsCandles {
 			// TODO: Add ability to select timescale
@@ -735,11 +752,13 @@ func (b *Bitfinex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 				asset.Spot).String()
 		}
 	}
+
 	if len(channelToSubscribe.Params) > 0 {
 		for k, v := range channelToSubscribe.Params {
 			req[k] = v
 		}
 	}
+
 	return b.WebsocketConn.SendMessage(req)
 }
 
