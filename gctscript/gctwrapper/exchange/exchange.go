@@ -2,8 +2,10 @@ package exchange
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -45,16 +47,7 @@ func (e Exchange) IsEnabled(exch string) bool {
 
 // Orderbook returns current orderbook requested exchange, pair and asset
 func (e Exchange) Orderbook(exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error) {
-	ex, err := e.GetExchange(exch)
-	if err != nil {
-		return nil, err
-	}
-
-	ob, err := ex.FetchOrderbook(pair, item)
-	if err != nil {
-		return nil, err
-	}
-	return &ob, nil
+	return engine.GetSpecificOrderbook(pair, exch, item)
 }
 
 // Ticker returns ticker for provided currency pair & asset type
@@ -159,39 +152,19 @@ func (e Exchange) AccountInformation(exch string) (*modules.AccountInfo, error) 
 
 // DepositAddress gets the address required to deposit funds for currency type
 func (e Exchange) DepositAddress(exch string, currencyCode currency.Code, accountID string) (out string, err error) {
-	ex, err := e.GetExchange(exch)
-	if err != nil {
-		return
-	}
-
 	if currencyCode.IsEmpty() {
+		err = errors.New("currency code is empty")
 		return
 	}
-	return ex.GetDepositAddress(currencyCode, accountID)
+	return engine.Bot.DepositAddressManager.GetDepositAddressByExchange(exch, currencyCode)
 }
 
 // WithdrawalFiatFunds withdraw funds from exchange to requested fiat source
 func (e Exchange) WithdrawalFiatFunds(exch string, request *withdraw.FiatRequest) (out string, err error) {
-	ex, err := e.GetExchange(exch)
-	if err != nil {
-		return
-	}
-	v, err := withdraw.Valid(request)
-	if !v {
-		return "", err
-	}
-	return ex.WithdrawFiatFunds(request)
+	return "", common.ErrNotYetImplemented
 }
 
 // WithdrawalCryptoFunds withdraw funds from exchange to requested Crypto source
 func (e Exchange) WithdrawalCryptoFunds(exch string,request  *withdraw.CryptoRequest) (out string, err error) {
-	ex, err := e.GetExchange(exch)
-	if err != nil {
-		return
-	}
-	v, err := withdraw.Valid(request)
-	if !v {
-		return "", err
-	}
-	return ex.WithdrawCryptocurrencyFunds(request)
+	return "", common.ErrNotYetImplemented
 }

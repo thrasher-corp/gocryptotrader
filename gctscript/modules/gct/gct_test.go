@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
@@ -408,10 +409,10 @@ func (w Wrapper) DepositAddress(exch string, currencyCode currency.Code, account
 	return exch, nil
 }
 
-func (w Wrapper) WithdrawalCryptoFunds(exch string) error {
+func (w Wrapper) WithdrawalCryptoFunds(exch string, request *withdraw.CryptoRequest) error {
 	return nil
 }
 
-func (w Wrapper) WithdrawalFiatFunds(exch string) error {
+func (w Wrapper) WithdrawalFiatFunds(exch string, request *withdraw.FiatRequest) error {
 	return nil
 }
