@@ -392,7 +392,7 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 				Pair:        nC,
 				LastUpdated: resp[j].Timestamp,
 			}
-			err = ticker.ProcessTicker(o.Name, nil, assetType)
+			err = ticker.ProcessTicker(o.Name, tickerPrice, assetType)
 			if err != nil {
 				log.Error(log.Ticker, err)
 			}
