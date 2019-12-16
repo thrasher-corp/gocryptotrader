@@ -29,7 +29,7 @@ const (
 	btcMarketsGetTrades          = "/trades?"
 	btcMarketOrderBooks          = "/orderbook?"
 	btcMarketsCandles            = "/candles?"
-	btcMarketsTickers            = "/tickers?"
+	btcMarketsTickers            = "tickers?"
 	btcMarketsMultipleOrderbooks = "/orderbooks?"
 	btcMarketsGetTime            = "/time"
 	btcMarketsWithdrawalFees     = "/withdrawal-fees"
@@ -227,11 +227,11 @@ func (b *BTCMarkets) GetMarketCandles(marketID, timeWindow, from, to string, bef
 }
 
 // GetTickers gets multiple tickers
-func (b *BTCMarkets) GetTickers(marketIDs []string) ([]Ticker, error) {
+func (b *BTCMarkets) GetTickers(marketIDs []currency.Pair) ([]Ticker, error) {
 	var tickers []Ticker
 	params := url.Values{}
 	for x := range marketIDs {
-		params.Add("marketId", marketIDs[x])
+		params.Add("marketId", marketIDs[x].String())
 	}
 	return tickers, b.SendHTTPRequest(btcMarketsUnauthPath+btcMarketsTickers+params.Encode(),
 		&tickers)

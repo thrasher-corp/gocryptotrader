@@ -245,20 +245,20 @@ func (b *BTCMarkets) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	var resp ticker.Price
 	allPairs := b.GetEnabledPairs(assetType)
-	for x := range allPairs {
-		tick, err := b.GetTicker(b.FormatExchangeCurrency(allPairs[x], assetType).String())
-		if err != nil {
-			return resp, err
-		}
-		resp.Pair = allPairs[x]
-		resp.Last = tick.LastPrice
-		resp.High = tick.High24h
-		resp.Low = tick.Low24h
-		resp.Bid = tick.BestBID
-		resp.Ask = tick.BestAsk
-		resp.Volume = tick.Volume
+	tickers, err := b.GetTickers(allPairs.Slice())
+	if err != nil {
+		return ticker.Price{}, err
+	}
+	for x := range tickers {
+		var resp ticker.Price
+		resp.Pair = currency.NewPairFromString(tickers[x].MarketID)
+		resp.Last = tickers[x].LastPrice
+		resp.High = tickers[x].High24h
+		resp.Low = tickers[x].Low24h
+		resp.Bid = tickers[x].BestBID
+		resp.Ask = tickers[x].BestAsk
+		resp.Volume = tickers[x].Volume
 		resp.LastUpdated = time.Now()
 		err = ticker.ProcessTicker(b.Name, &resp, assetType)
 		if err != nil {
@@ -546,7 +546,7 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 	}
 	var err error
 	for x := range req.Currencies {
-		tempData, err = b.GetOrders(b.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String(), -1, -1, -1, "")
+		tempData, err = b.GetOrders(b.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String(), -1, -1, -1, "open")
 		if err != nil {
 			return resp, err
 		}
