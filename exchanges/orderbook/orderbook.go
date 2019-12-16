@@ -18,7 +18,7 @@ import (
 func Get(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
 	o, err := service.Retrieve(exchange, p, a)
 	if err != nil {
-		return &Base{}, err
+		return nil, err
 	}
 	return o, nil
 }
