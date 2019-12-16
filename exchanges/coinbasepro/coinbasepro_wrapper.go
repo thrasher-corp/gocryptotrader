@@ -282,7 +282,6 @@ func (c *CoinbasePro) GetAccountInfo() (exchange.AccountInfo, error) {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (c *CoinbasePro) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
 	tick, err := c.GetTicker(c.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
 		return nil, err
@@ -292,7 +291,7 @@ func (c *CoinbasePro) UpdateTicker(p currency.Pair, assetType asset.Item) (*tick
 		return nil, err
 	}
 
-	tickerPrice = &ticker.Price{
+	tickerPrice := &ticker.Price{
 		Last:        tick.Size,
 		High:        stats.High,
 		Low:         stats.Low,

@@ -219,11 +219,11 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	if err != nil {
 		t.Fatal("ProcessTicker error", err)
 	}
-	result, err = GetTicker(exchName, newPair, asset.Spot)
+	_, err = GetTicker(exchName, newPair, asset.Spot)
 	if err != nil {
 		t.Fatal("TestProcessTicker failed to create and return a new ticker")
 	}
-	result, err = GetTicker(exchName, newPair, asset.Spot)
+	_, err = GetTicker(exchName, newPair, asset.Spot)
 	if err != nil {
 		t.Fatal("TestProcessTicker failed to return an existing ticker")
 	}
@@ -235,11 +235,11 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	if err != nil {
 		t.Fatal("ProcessTicker error", err)
 	}
-	result, err = GetTicker(exchName, newPair, asset.Spot)
+	_, err = GetTicker(exchName, newPair, asset.Spot)
 	if err != nil {
 		t.Fatal("TestProcessTicker failed to create and return a new ticker")
 	}
-	result, err = GetTicker(exchName, newPair, asset.Spot)
+	_, err = GetTicker(exchName, newPair, asset.Spot)
 	if err != nil {
 		t.Fatal("TestProcessTicker failed to return an existing ticker")
 	}
