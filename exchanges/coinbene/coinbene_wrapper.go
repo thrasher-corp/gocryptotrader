@@ -369,12 +369,12 @@ func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 	case asset.Spot:
 		tempResp, err = c.GetOrderbook(
 			c.FormatExchangeCurrency(p, assetType).String(),
-			100,
+			100, // TO-DO: Update this once we support configurable orderbook depth
 		)
 	case asset.PerpetualSwap:
 		tempResp, err = c.GetSwapOrderbook(
 			c.FormatExchangeCurrency(p, assetType).String(),
-			100,
+			100, // TO-DO: Update this once we support configurable orderbook depth
 		)
 	}
 	if err != nil {
@@ -460,11 +460,13 @@ func (c *Coinbene) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	if s.OrderType != order.Limit {
 		return resp, fmt.Errorf("only limit order is supported by this exchange")
 	}
-	tempResp, err := c.PlaceOrder(s.Price,
+	tempResp, err := c.PlaceSpotOrder(s.Price,
 		s.Amount,
 		c.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
+		s.OrderSide.String(),
 		s.OrderType.String(),
-		s.ClientID)
+		s.ClientID,
+		0)
 	if err != nil {
 		return resp, err
 	}
@@ -481,7 +483,7 @@ func (c *Coinbene) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (c *Coinbene) CancelOrder(order *order.Cancel) error {
-	_, err := c.RemoveOrder(order.OrderID)
+	_, err := c.CancelSpotOrder(order.OrderID)
 	return err
 }
 
@@ -489,7 +491,7 @@ func (c *Coinbene) CancelOrder(order *order.Cancel) error {
 func (c *Coinbene) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
 	tempMap := make(map[string]string)
-	orders, err := c.FetchOpenOrders(
+	orders, err := c.FetchOpenSpotOrders(
 		c.FormatExchangeCurrency(orderCancellation.CurrencyPair,
 			asset.Spot).String(),
 	)
@@ -497,7 +499,7 @@ func (c *Coinbene) CancelAllOrders(orderCancellation *order.Cancel) (order.Cance
 		return resp, err
 	}
 	for x := range orders {
-		_, err := c.RemoveOrder(orders[x].OrderID)
+		_, err := c.CancelSpotOrder(orders[x].OrderID)
 		if err != nil {
 			tempMap[orders[x].OrderID] = "Failed"
 		} else {
@@ -511,7 +513,7 @@ func (c *Coinbene) CancelAllOrders(orderCancellation *order.Cancel) (order.Cance
 // GetOrderInfo returns information on a current open order
 func (c *Coinbene) GetOrderInfo(orderID string) (order.Detail, error) {
 	var resp order.Detail
-	tempResp, err := c.FetchOrderInfo(orderID)
+	tempResp, err := c.FetchSpotOrderInfo(orderID)
 	if err != nil {
 		return resp, err
 	}
@@ -577,7 +579,7 @@ func (c *Coinbene) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]
 	}
 	var err error
 	for x := range getOrdersRequest.Currencies {
-		tempData, err = c.FetchOpenOrders(
+		tempData, err = c.FetchOpenSpotOrders(
 			c.FormatExchangeCurrency(
 				getOrdersRequest.Currencies[x],
 				asset.Spot).String(),

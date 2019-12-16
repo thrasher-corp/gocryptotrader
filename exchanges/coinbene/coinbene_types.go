@@ -72,6 +72,12 @@ type PlaceOrderResponse struct {
 	ClientID string `json:"clientId"`
 }
 
+// CancelOrdersResponse stores data for a cancelled order
+type CancelOrdersResponse struct {
+	OrderID string `json:"orderId"`
+	Message string `json:"message"`
+}
+
 // OrderInfo stores order info
 type OrderInfo struct {
 	OrderID      string  `json:"orderId"`
@@ -82,12 +88,23 @@ type OrderInfo struct {
 	Amount       float64 `json:"amout,string"`
 	FilledAmount float64 `json:"filledAmount"`
 	TakerRate    float64 `json:"takerFeeRate,string"`
-	MakerRate    float64 `json:"makerRate,string"`
+	MakerRate    float64 `json:"makerFeeRate,string"`
 	AvgPrice     float64 `json:"avgPrice,string"`
 	OrderPrice   float64 `json:"orderPrice,string"`
 	OrderStatus  string  `json:"orderStatus"`
 	OrderTime    string  `json:"orderTime"`
 	TotalFee     float64 `json:"totalFee"`
+}
+
+// OrderFills stores the fill info
+type OrderFills struct {
+	Price     float64   `json:"price,string"`
+	Quantity  float64   `json:"quantity,string"`
+	Amount    float64   `json:"amount,string"`
+	Fee       float64   `json:"fee,string"`
+	Direction string    `json:"direction"`
+	TradeTime time.Time `json:"tradeTime"`
+	FeeByConi float64   `json:"feeByConi,string"`
 }
 
 // OrdersInfo stores a collection of orders

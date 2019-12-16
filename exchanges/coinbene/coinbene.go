@@ -31,8 +31,6 @@ const (
 	coinbeneAuthPath     = "/api/exchange/v2"
 	coinbeneSwapAuthPath = "/api/swap/v2"
 	coinbeneAPIVersion   = "v2"
-	buy                  = "buy"
-	sell                 = "sell"
 
 	// Public endpoints
 	coinbeneGetTicker    = "/market/ticker/one"
@@ -46,7 +44,9 @@ const (
 	// Authenticated endpoints
 	coinbeneAccountInfo        = "/account/info"
 	coinbeneGetUserBalance     = "/account/list"
+	coinbeneAccountBalanceOne  = "/account/one"
 	coinbenePlaceOrder         = "/order/place"
+	coinbeneTradeFills         = "/order/trade/fills"
 	coinbeneOrderFills         = "/order/fills"
 	coinbeneOrderInfo          = "/order/info"
 	coinbeneCancelOrder        = "/order/cancel"
@@ -60,6 +60,11 @@ const (
 
 	authRateLimit   = 150
 	unauthRateLimit = 10
+
+	limitOrder    = "1"
+	marketOrder   = "2"
+	buyDirection  = "1"
+	sellDirection = "2"
 )
 
 // GetTicker gets and stores ticker data for a currency pair
@@ -203,26 +208,63 @@ func (c *Coinbene) GetUserBalance() ([]UserBalanceData, error) {
 	return resp.Data, nil
 }
 
-// PlaceOrder creates an order
-func (c *Coinbene) PlaceOrder(price, quantity float64, symbol, direction, clientID string) (PlaceOrderResponse, error) {
+// GetAccountAssetBalance gets user balanace info
+func (c *Coinbene) GetAccountAssetBalance(symbol string) (UserBalanceData, error) {
+	v := url.Values{}
+	v.Set("asset", symbol)
+	resp := struct {
+		Data UserBalanceData `json:"data"`
+	}{}
+	path := c.API.Endpoints.URL + coinbeneAPIVersion + coinbeneAccountBalanceOne
+	err := c.SendAuthHTTPRequest(http.MethodGet,
+		path,
+		coinbeneAccountBalanceOne,
+		false,
+		v,
+		nil,
+		&resp)
+	if err != nil {
+		return UserBalanceData{}, err
+	}
+	return resp.Data, nil
+}
+
+// PlaceSpotOrder creates an order
+func (c *Coinbene) PlaceSpotOrder(price, quantity float64, symbol, direction,
+	orderType, clientID string, notional int) (PlaceOrderResponse, error) {
 	var resp PlaceOrderResponse
-	path := c.API.Endpoints.URL + coinbeneAPIVersion + coinbenePlaceOrder
 	params := url.Values{}
-	params.Set("symbol", symbol)
 	switch direction {
 	case order.Buy.Lower():
-		params.Set("direction", "2")
+		params.Set("direction", buyDirection)
 	case order.Sell.Lower():
-		params.Set("direction", "1")
+		params.Set("direction", sellDirection)
 	default:
 		return resp,
-			fmt.Errorf("passed in direction %s is invalid must be 'buy' or 'sell'",
+			fmt.Errorf("invalid direction '%v', must be either 'buy' or 'sell'",
 				direction)
 	}
 
+	switch orderType {
+	case order.Limit.Lower():
+		params.Set("orderType", limitOrder)
+	case order.Market.Lower():
+		params.Set("orderType", marketOrder)
+	default:
+		return resp,
+			errors.New("invalid order type, must be either 'limit' or 'market'")
+	}
+
+	params.Set("symbol", symbol)
 	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	params.Set("quantity", strconv.FormatFloat(quantity, 'f', -1, 64))
-	params.Set("clientId", clientID)
+	if clientID != "" {
+		params.Set("clientId", clientID)
+	}
+	if notional != 0 {
+		params.Set("notional", strconv.Itoa(notional))
+	}
+	path := c.API.Endpoints.URL + coinbeneAPIVersion + coinbenePlaceOrder
 	err := c.SendAuthHTTPRequest(http.MethodPost,
 		path,
 		coinbenePlaceOrder,
@@ -236,8 +278,8 @@ func (c *Coinbene) PlaceOrder(price, quantity float64, symbol, direction, client
 	return resp, nil
 }
 
-// FetchOrderInfo gets order info
-func (c *Coinbene) FetchOrderInfo(orderID string) (OrderInfo, error) {
+// FetchSpotOrderInfo gets order info
+func (c *Coinbene) FetchSpotOrderInfo(orderID string) (OrderInfo, error) {
 	resp := struct {
 		Data OrderInfo `json:"data"`
 	}{}
@@ -255,23 +297,55 @@ func (c *Coinbene) FetchOrderInfo(orderID string) (OrderInfo, error) {
 	return resp.Data, nil
 }
 
-// RemoveOrder removes a given order
-func (c *Coinbene) RemoveOrder(orderID string) (string, error) {
+// GetSpotOrderFills returns a list of fills related to an order ID
+func (c *Coinbene) GetSpotOrderFills(orderID string) ([]OrderFills, error) {
 	resp := struct {
-		Data string `json:"data"`
+		Data []OrderFills `json:"data"`
 	}{}
 	params := url.Values{}
 	params.Set("orderId", orderID)
+	path := c.API.Endpoints.URL + coinbeneAPIVersion + coinbeneTradeFills
+	err := c.SendAuthHTTPRequest(http.MethodGet, path, coinbeneTradeFills, false, params, nil, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Data, nil
+}
+
+// CancelSpotOrder removes a given order
+func (c *Coinbene) CancelSpotOrder(orderID string) (string, error) {
+	resp := struct {
+		Data string `json:"data"`
+	}{}
+	req := make(map[string]interface{})
+	req["orderId"] = orderID
 	path := c.API.Endpoints.URL + coinbeneAPIVersion + coinbeneCancelOrder
-	err := c.SendAuthHTTPRequest(http.MethodPost, path, coinbeneCancelOrder, false, params, nil, &resp)
+	err := c.SendAuthHTTPRequest(http.MethodPost, path, coinbeneCancelOrder, false, nil, req, &resp)
 	if err != nil {
 		return "", err
 	}
 	return resp.Data, nil
 }
 
-// FetchOpenOrders finds open orders
-func (c *Coinbene) FetchOpenOrders(symbol string) (OrdersInfo, error) {
+// CancelSpotOrders cancels a batch of orders
+func (c *Coinbene) CancelSpotOrders(orderIDs []string) ([]OrderCancellationResponse, error) {
+	req := make(map[string]interface{})
+	req["orderIds"] = orderIDs
+	type resp struct {
+		Data []OrderCancellationResponse `json:"data"`
+	}
+
+	var r resp
+	path := c.API.Endpoints.URL + coinbeneAPIVersion + coinbeneBatchCancel
+	err := c.SendAuthHTTPRequest(http.MethodPost, path, coinbeneBatchCancel, false, nil, req, &r)
+	if err != nil {
+		return nil, err
+	}
+	return r.Data, nil
+}
+
+// FetchOpenSpotOrders finds open orders
+func (c *Coinbene) FetchOpenSpotOrders(symbol string) (OrdersInfo, error) {
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	path := c.API.Endpoints.URL + coinbeneAPIVersion + coinbeneOpenOrders
@@ -568,9 +642,29 @@ func (c *Coinbene) PlaceSwapOrder(symbol, direction, orderType, marginMode,
 	clientID string, price, quantity float64, leverage int) (SwapPlaceOrderResponse, error) {
 	v := url.Values{}
 	v.Set("symbol", symbol)
-	v.Set("direction", direction)
+
+	switch direction {
+	case order.Buy.Lower():
+		v.Set("direction", buyDirection)
+	case order.Sell.Lower():
+		v.Set("direction", sellDirection)
+	default:
+		return SwapPlaceOrderResponse{},
+			fmt.Errorf("invalid direction '%v', must be either 'buy' or 'sell'",
+				direction)
+	}
+
+	switch orderType {
+	case order.Limit.Lower():
+		v.Set("orderType", limitOrder)
+	case order.Market.Lower():
+		v.Set("orderType", marketOrder)
+	default:
+		return SwapPlaceOrderResponse{},
+			errors.New("invalid order type, must be either 'limit' or 'market'")
+	}
+
 	v.Set("leverage", strconv.Itoa(leverage))
-	v.Set("orderType", orderType)
 	v.Set("orderPrice", strconv.FormatFloat(price, 'f', -1, 64))
 	v.Set("quantity", strconv.FormatFloat(quantity, 'f', -1, 64))
 	if marginMode != "" {
@@ -623,7 +717,7 @@ func (c *Coinbene) GetSwapOpenOrders(symbol string, pageNum, pageSize int) (Swap
 	}
 	var r resp
 	path := coinbeneSwapAPIURL + coinbeneAPIVersion + coinbeneOpenOrders
-	err := c.SendAuthHTTPRequest(http.MethodPost, path, coinbeneOpenOrders, true, v, nil, &r)
+	err := c.SendAuthHTTPRequest(http.MethodGet, path, coinbeneOpenOrders, true, v, nil, &r)
 	if err != nil {
 		return nil, err
 	}
@@ -631,13 +725,13 @@ func (c *Coinbene) GetSwapOpenOrders(symbol string, pageNum, pageSize int) (Swap
 }
 
 // GetSwapOpenOrdersByPage gets a list of open orders by page
-func (c *Coinbene) GetSwapOpenOrdersByPage(symbol, latestOrderID string) (SwapOrders, error) {
+func (c *Coinbene) GetSwapOpenOrdersByPage(symbol string, latestOrderID int64) (SwapOrders, error) {
 	v := url.Values{}
 	if symbol != "" {
 		v.Set("symbol", symbol)
 	}
-	if latestOrderID != "" {
-		v.Set("latestOrderId", latestOrderID)
+	if latestOrderID != 0 {
+		v.Set("latestOrderId", strconv.FormatInt(latestOrderID, 10))
 	}
 	type resp struct {
 		Data SwapOrders `json:"data"`
@@ -668,8 +762,8 @@ func (c *Coinbene) GetSwapOrderInfo(orderID string) (SwapOrder, error) {
 }
 
 // GetSwapOrderHistory returns the swap order history for a given symbol
-func (c *Coinbene) GetSwapOrderHistory(beginTime, endTime, symbol, pageNum,
-	pageSize, direction, orderType string) (SwapOrders, error) {
+func (c *Coinbene) GetSwapOrderHistory(beginTime, endTime, symbol string, pageNum,
+	pageSize int, direction, orderType string) (SwapOrders, error) {
 	v := url.Values{}
 	if beginTime != "" {
 		v.Set("beginTime", beginTime)
@@ -678,11 +772,11 @@ func (c *Coinbene) GetSwapOrderHistory(beginTime, endTime, symbol, pageNum,
 		v.Set("endTime", endTime)
 	}
 	v.Set("symbol", symbol)
-	if pageNum != "" {
-		v.Set("pageNum", pageNum)
+	if pageNum != 0 {
+		v.Set("pageNum", strconv.Itoa(pageNum))
 	}
-	if pageSize != "" {
-		v.Set("pageSize", pageSize)
+	if pageSize != 0 {
+		v.Set("pageSize", strconv.Itoa(pageSize))
 	}
 	if direction != "" {
 		v.Set("direction", direction)
@@ -705,8 +799,8 @@ func (c *Coinbene) GetSwapOrderHistory(beginTime, endTime, symbol, pageNum,
 }
 
 // GetSwapOrderHistoryByOrderID returns a list of historic orders based on user params
-func (c *Coinbene) GetSwapOrderHistoryByOrderID(beginTime, endTime, symbol, status,
-	latestOrderID string) (SwapOrders, error) {
+func (c *Coinbene) GetSwapOrderHistoryByOrderID(beginTime, endTime, symbol, status string,
+	latestOrderID int64) (SwapOrders, error) {
 	v := url.Values{}
 	if beginTime != "" {
 		v.Set("beginTime", beginTime)
@@ -720,8 +814,8 @@ func (c *Coinbene) GetSwapOrderHistoryByOrderID(beginTime, endTime, symbol, stat
 	if status != "" {
 		v.Set("status", status)
 	}
-	if latestOrderID != "" {
-		v.Set("latestOrderId", latestOrderID)
+	if latestOrderID != 0 {
+		v.Set("latestOrderId", strconv.FormatInt(latestOrderID, 10))
 	}
 	type resp struct {
 		Data SwapOrders `json:"data"`
@@ -736,8 +830,8 @@ func (c *Coinbene) GetSwapOrderHistoryByOrderID(beginTime, endTime, symbol, stat
 	return r.Data, nil
 }
 
-// CancelMultipleSwapOrders cancels multiple swap order IDs
-func (c *Coinbene) CancelMultipleSwapOrders(orderIDs []string) ([]OrderCancellationResponse, error) {
+// CancelSwapOrders cancels multiple swap order IDs
+func (c *Coinbene) CancelSwapOrders(orderIDs []string) ([]OrderCancellationResponse, error) {
 	if len(orderIDs) > 10 {
 		return nil, errors.New("only 10 orderIDs are allowed at a time")
 	}
@@ -749,7 +843,7 @@ func (c *Coinbene) CancelMultipleSwapOrders(orderIDs []string) ([]OrderCancellat
 
 	var r resp
 	path := coinbeneSwapAPIURL + coinbeneAPIVersion + coinbeneBatchCancel
-	err := c.SendAuthHTTPRequest(http.MethodGet, path, coinbeneBatchCancel, true, nil, req, &r)
+	err := c.SendAuthHTTPRequest(http.MethodPost, path, coinbeneBatchCancel, true, nil, req, &r)
 	if err != nil {
 		return nil, err
 	}
@@ -757,7 +851,7 @@ func (c *Coinbene) CancelMultipleSwapOrders(orderIDs []string) ([]OrderCancellat
 }
 
 // GetSwapOrderFills returns a list of swap order fills
-func (c *Coinbene) GetSwapOrderFills(symbol, orderID, lastTradeID string) (SwapOrderFills, error) {
+func (c *Coinbene) GetSwapOrderFills(symbol, orderID string, lastTradeID int64) (SwapOrderFills, error) {
 	v := url.Values{}
 	if symbol != "" {
 		v.Set("symbol", symbol)
@@ -765,8 +859,8 @@ func (c *Coinbene) GetSwapOrderFills(symbol, orderID, lastTradeID string) (SwapO
 	if orderID != "" {
 		v.Set("orderId", orderID)
 	}
-	if lastTradeID != "" {
-		v.Set("lastTradedId", lastTradeID)
+	if lastTradeID != 0 {
+		v.Set("lastTradedId", strconv.FormatInt(lastTradeID, 10))
 	}
 	type resp struct {
 		Data SwapOrderFills `json:"data"`
@@ -782,13 +876,13 @@ func (c *Coinbene) GetSwapOrderFills(symbol, orderID, lastTradeID string) (SwapO
 }
 
 // GetSwapFundingRates returns a list of funding rates
-func (c *Coinbene) GetSwapFundingRates(pageNum, pageSize string) ([]SwapFundingRate, error) {
+func (c *Coinbene) GetSwapFundingRates(pageNum, pageSize int) ([]SwapFundingRate, error) {
 	v := url.Values{}
-	if pageNum != "" {
-		v.Set("pageNum", pageNum)
+	if pageNum != 0 {
+		v.Set("pageNum", strconv.Itoa(pageNum))
 	}
-	if pageSize != "" {
-		v.Set("pageSize", pageSize)
+	if pageSize != 0 {
+		v.Set("pageSize", strconv.Itoa(pageSize))
 	}
 	type resp struct {
 		Data []SwapFundingRate `json:"data"`
@@ -847,22 +941,30 @@ func (c *Coinbene) SendAuthHTTPRequest(method, path, epPath string, isSwap bool,
 	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05.999Z")
 	var finalBody io.Reader
 	var preSign string
-	// TO-DO: switch everything to use map[string]interface{}
-	switch method {
-	case http.MethodGet:
-		if len(params) > 0 {
-			preSign = timestamp + method + authPath + epPath + "?" + params.Encode()
-			path = common.EncodeURLValues(path, params)
-		} else {
-			preSign = timestamp + method + authPath + epPath
+	switch {
+	case len(params) != 0 && method == http.MethodGet:
+		preSign = timestamp + method + authPath + epPath + "?" + params.Encode()
+		path = common.EncodeURLValues(path, params)
+	case len(params) != 0:
+		m := make(map[string]string)
+		for k, v := range params {
+			m[k] = strings.Join(v, "")
 		}
-	case http.MethodPost:
+		tempBody, err := json.Marshal(m)
+		if err != nil {
+			return err
+		}
+		finalBody = bytes.NewBufferString(string(tempBody))
+		preSign = timestamp + method + authPath + epPath + string(tempBody)
+	case req != nil:
 		tempBody, err := json.Marshal(req)
 		if err != nil {
 			return err
 		}
 		finalBody = bytes.NewBufferString(string(tempBody))
 		preSign = timestamp + method + authPath + epPath + string(tempBody)
+	case len(params) == 0:
+		preSign = timestamp + method + authPath + epPath
 	}
 	tempSign := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(preSign),
