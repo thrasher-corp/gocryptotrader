@@ -501,7 +501,7 @@ func TestChangePermission(t *testing.T) {
 	}
 }
 
-func initStringSlice(t *testing.T, size int) (out []string) {
+func initStringSlice(size int) (out []string) {
 	for x := 0; x < size; x++ {
 		out = append(out, "gct-"+strconv.Itoa(x))
 	}
@@ -509,7 +509,7 @@ func initStringSlice(t *testing.T, size int) (out []string) {
 }
 
 func TestSplitStringSliceByLimit(t *testing.T) {
-	slice50 := initStringSlice(t, 50)
+	slice50 := initStringSlice(50)
 	out := SplitStringSliceByLimit(slice50, 20)
 	if len(out) != 3 {
 		t.Errorf("expected len() to be 3 instead received: %v", len(out))
