@@ -110,15 +110,12 @@ func (n *ntpManager) run() {
 	}
 }
 
-func (n *ntpManager) FetchNTPTime() (time.Time, error) {
+func (n *ntpManager) FetchNTPTime() time.Time {
 	return ntpclient.NTPClient(Bot.Config.NTPClient.Pool)
 }
 
 func (n *ntpManager) processTime() error {
-	NTPTime, err := n.FetchNTPTime()
-	if err != nil {
-		return err
-	}
+	NTPTime := n.FetchNTPTime()
 
 	currentTime := time.Now()
 	NTPcurrentTimeDifference := NTPTime.Sub(currentTime)

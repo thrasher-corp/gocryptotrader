@@ -221,7 +221,7 @@ func (o *orderManager) Submit(exchName string, newOrder *order.Submit) (*orderSu
 		return nil, err
 	}
 
-	if result.IsOrderPlaced {
+	if !result.IsOrderPlaced {
 		return nil, errors.New("order unable to be placed")
 	}
 
