@@ -236,13 +236,13 @@ func (g *Gemini) GetAccountInfo() (exchange.AccountInfo, error) {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (g *Gemini) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	var tickerPrice ticker.Price
+func (g *Gemini) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	tickerPrice := new(ticker.Price)
 	tick, err := g.GetTicker(p.String())
 	if err != nil {
 		return tickerPrice, err
 	}
-	tickerPrice = ticker.Price{
+	tickerPrice = &ticker.Price{
 		High:  tick.High,
 		Low:   tick.Low,
 		Bid:   tick.Bid,
@@ -251,7 +251,7 @@ func (g *Gemini) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 		Close: tick.Close,
 		Pair:  p,
 	}
-	err = ticker.ProcessTicker(g.Name, &tickerPrice, assetType)
+	err = ticker.ProcessTicker(g.Name, tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -260,7 +260,7 @@ func (g *Gemini) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (g *Gemini) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+func (g *Gemini) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(g.Name, p, assetType)
 	if err != nil {
 		return g.UpdateTicker(p, assetType)
@@ -269,7 +269,7 @@ func (g *Gemini) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (g *Gemini) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
+func (g *Gemini) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(g.Name, p, assetType)
 	if err != nil {
 		return g.UpdateOrderbook(p, assetType)
@@ -278,8 +278,8 @@ func (g *Gemini) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderboo
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (g *Gemini) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	var orderBook orderbook.Base
+func (g *Gemini) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	orderBook := new(orderbook.Base)
 	orderbookNew, err := g.GetOrderbook(p.String(), url.Values{})
 	if err != nil {
 		return orderBook, err

@@ -244,32 +244,32 @@ func (b *BTCMarkets) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	var resp ticker.Price
+func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	tickerPrice := new(ticker.Price)
 	allPairs := b.GetEnabledPairs(assetType)
 	for x := range allPairs {
 		tick, err := b.GetTicker(b.FormatExchangeCurrency(allPairs[x], assetType).String())
 		if err != nil {
-			return resp, err
+			return tickerPrice, err
 		}
-		resp.Pair = allPairs[x]
-		resp.Last = tick.LastPrice
-		resp.High = tick.High24h
-		resp.Low = tick.Low24h
-		resp.Bid = tick.BestBID
-		resp.Ask = tick.BestAsk
-		resp.Volume = tick.Volume
-		resp.LastUpdated = time.Now()
-		err = ticker.ProcessTicker(b.Name, &resp, assetType)
+		tickerPrice.Pair = allPairs[x]
+		tickerPrice.Last = tick.LastPrice
+		tickerPrice.High = tick.High24h
+		tickerPrice.Low = tick.Low24h
+		tickerPrice.Bid = tick.BestBID
+		tickerPrice.Ask = tick.BestAsk
+		tickerPrice.Volume = tick.Volume
+		tickerPrice.LastUpdated = time.Now()
+		err = ticker.ProcessTicker(b.Name, tickerPrice, assetType)
 		if err != nil {
-			return resp, err
+			return tickerPrice, err
 		}
 	}
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *BTCMarkets) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+func (b *BTCMarkets) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -278,7 +278,7 @@ func (b *BTCMarkets) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (b *BTCMarkets) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
+func (b *BTCMarkets) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -287,8 +287,8 @@ func (b *BTCMarkets) FetchOrderbook(p currency.Pair, assetType asset.Item) (orde
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	var orderBook orderbook.Base
+func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	orderBook := new(orderbook.Base)
 	tempResp, err := b.GetOrderbook(b.FormatExchangeCurrency(p, assetType).String(), 2)
 	if err != nil {
 		return orderBook, err

@@ -347,8 +347,8 @@ func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (c *COINUT) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	var tickerPrice ticker.Price
+func (c *COINUT) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	tickerPrice := new(ticker.Price)
 	err := c.loadInstrumentsIfNotLoaded()
 	if err != nil {
 		return tickerPrice, err
@@ -364,7 +364,7 @@ func (c *COINUT) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 	if err != nil {
 		return tickerPrice, err
 	}
-	tickerPrice = ticker.Price{
+	tickerPrice = &ticker.Price{
 		Last:        tick.Last,
 		High:        tick.High24,
 		Low:         tick.Low24,
@@ -374,7 +374,7 @@ func (c *COINUT) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 		Pair:        p,
 		LastUpdated: time.Unix(0, tick.Timestamp),
 	}
-	err = ticker.ProcessTicker(c.Name, &tickerPrice, assetType)
+	err = ticker.ProcessTicker(c.Name, tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -383,7 +383,7 @@ func (c *COINUT) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (c *COINUT) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+func (c *COINUT) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(c.Name, p, assetType)
 	if err != nil {
 		return c.UpdateTicker(p, assetType)
@@ -392,7 +392,7 @@ func (c *COINUT) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (c *COINUT) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
+func (c *COINUT) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(c.Name, p, assetType)
 	if err != nil {
 		return c.UpdateOrderbook(p, assetType)
@@ -401,8 +401,8 @@ func (c *COINUT) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderboo
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (c *COINUT) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	var orderBook orderbook.Base
+func (c *COINUT) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	orderBook := new(orderbook.Base)
 	err := c.loadInstrumentsIfNotLoaded()
 	if err != nil {
 		return orderBook, err

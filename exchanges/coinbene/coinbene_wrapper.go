@@ -238,33 +238,33 @@ func (c *Coinbene) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (c *Coinbene) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	var resp ticker.Price
+func (c *Coinbene) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	tickerPrice := new(ticker.Price)
 	allPairs := c.GetEnabledPairs(assetType)
 	for x := range allPairs {
 		tempResp, err := c.GetTicker(c.FormatExchangeCurrency(allPairs[x],
 			assetType).String())
 		if err != nil {
-			return resp, err
+			return tickerPrice, err
 		}
-		resp.Pair = allPairs[x]
-		resp.Last = tempResp.TickerData.LatestPrice
-		resp.High = tempResp.TickerData.DailyHigh
-		resp.Low = tempResp.TickerData.DailyLow
-		resp.Bid = tempResp.TickerData.BestBid
-		resp.Ask = tempResp.TickerData.BestAsk
-		resp.Volume = tempResp.TickerData.DailyVolume
-		resp.LastUpdated = time.Now()
-		err = ticker.ProcessTicker(c.Name, &resp, assetType)
+		tickerPrice.Pair = allPairs[x]
+		tickerPrice.Last = tempResp.TickerData.LatestPrice
+		tickerPrice.High = tempResp.TickerData.DailyHigh
+		tickerPrice.Low = tempResp.TickerData.DailyLow
+		tickerPrice.Bid = tempResp.TickerData.BestBid
+		tickerPrice.Ask = tempResp.TickerData.BestAsk
+		tickerPrice.Volume = tempResp.TickerData.DailyVolume
+		tickerPrice.LastUpdated = time.Now()
+		err = ticker.ProcessTicker(c.Name, tickerPrice, assetType)
 		if err != nil {
-			return resp, err
+			return tickerPrice, err
 		}
 	}
 	return ticker.GetTicker(c.Name, p, assetType)
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (c *Coinbene) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+func (c *Coinbene) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(c.Name, p, assetType)
 	if err != nil {
 		return c.UpdateTicker(p, assetType)
@@ -273,7 +273,7 @@ func (c *Coinbene) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (c *Coinbene) FetchOrderbook(currency currency.Pair, assetType asset.Item) (orderbook.Base, error) {
+func (c *Coinbene) FetchOrderbook(currency currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(c.Name, currency, assetType)
 	if err != nil {
 		return c.UpdateOrderbook(currency, assetType)
@@ -282,48 +282,48 @@ func (c *Coinbene) FetchOrderbook(currency currency.Pair, assetType asset.Item) 
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	var resp orderbook.Base
+func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	orderBook := new(orderbook.Base)
 	tempResp, err := c.GetOrderbook(
 		c.FormatExchangeCurrency(p, assetType).String(),
 		100,
 	)
 	if err != nil {
-		return resp, err
+		return orderBook, err
 	}
-	resp.ExchangeName = c.Name
-	resp.Pair = p
-	resp.AssetType = assetType
+	orderBook.ExchangeName = c.Name
+	orderBook.Pair = p
+	orderBook.AssetType = assetType
 	var amount, price float64
 	for i := range tempResp.Orderbook.Asks {
 		amount, err = strconv.ParseFloat(tempResp.Orderbook.Asks[i][1], 64)
 		if err != nil {
-			return resp, err
+			return orderBook, err
 		}
 		price, err = strconv.ParseFloat(tempResp.Orderbook.Asks[i][0], 64)
 		if err != nil {
-			return resp, err
+			return orderBook, err
 		}
-		resp.Asks = append(resp.Asks, orderbook.Item{
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
 			Price:  price,
 			Amount: amount})
 	}
 	for j := range tempResp.Orderbook.Bids {
 		amount, err = strconv.ParseFloat(tempResp.Orderbook.Bids[j][1], 64)
 		if err != nil {
-			return resp, err
+			return orderBook, err
 		}
 		price, err = strconv.ParseFloat(tempResp.Orderbook.Bids[j][0], 64)
 		if err != nil {
-			return resp, err
+			return orderBook, err
 		}
-		resp.Bids = append(resp.Bids, orderbook.Item{
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
 			Price:  price,
 			Amount: amount})
 	}
-	err = resp.Process()
+	err = orderBook.Process()
 	if err != nil {
-		return resp, err
+		return orderBook, err
 	}
 	return orderbook.Get(c.Name, p, assetType)
 }

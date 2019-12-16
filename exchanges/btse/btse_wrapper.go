@@ -222,8 +222,8 @@ func (b *BTSE) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	var tickerPrice ticker.Price
+func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	tickerPrice := new(ticker.Price)
 
 	t, err := b.GetTicker(b.FormatExchangeCurrency(p,
 		assetType).String())
@@ -246,7 +246,7 @@ func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 	tickerPrice.High = s.High
 	tickerPrice.LastUpdated = s.Time
 
-	err = ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
+	err = ticker.ProcessTicker(b.Name, tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -254,7 +254,7 @@ func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *BTSE) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+func (b *BTSE) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -263,7 +263,7 @@ func (b *BTSE) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price,
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (b *BTSE) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
+func (b *BTSE) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -272,28 +272,28 @@ func (b *BTSE) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	var resp orderbook.Base
+func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	orderBook := new(orderbook.Base)
 	a, err := b.FetchOrderBook(b.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
-		return resp, err
+		return orderBook, err
 	}
 	for x := range a.BuyQuote {
-		resp.Bids = append(resp.Bids, orderbook.Item{
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
 			Price:  a.BuyQuote[x].Price,
 			Amount: a.BuyQuote[x].Size})
 	}
 	for x := range a.SellQuote {
-		resp.Asks = append(resp.Asks, orderbook.Item{
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
 			Price:  a.SellQuote[x].Price,
 			Amount: a.SellQuote[x].Size})
 	}
-	resp.Pair = p
-	resp.ExchangeName = b.Name
-	resp.AssetType = assetType
-	err = resp.Process()
+	orderBook.Pair = p
+	orderBook.ExchangeName = b.Name
+	orderBook.AssetType = assetType
+	err = orderBook.Process()
 	if err != nil {
-		return resp, err
+		return orderBook, err
 	}
 	return orderbook.Get(b.Name, p, assetType)
 }

@@ -240,8 +240,8 @@ func (b *Bitfinex) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	var tickerPrice ticker.Price
+func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	tickerPrice := new(ticker.Price)
 	enabledPairs := b.GetEnabledPairs(assetType)
 	var pairs []string
 	for x := range enabledPairs {
@@ -274,7 +274,7 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.P
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *Bitfinex) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+func (b *Bitfinex) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	b.appendOptionalDelimiter(&p)
 	tick, err := ticker.GetTicker(b.Name, p, asset.Spot)
 	if err != nil {
@@ -284,7 +284,7 @@ func (b *Bitfinex) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 }
 
 // FetchOrderbook returns the orderbook for a currency pair
-func (b *Bitfinex) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
+func (b *Bitfinex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	b.appendOptionalDelimiter(&p)
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
@@ -294,9 +294,9 @@ func (b *Bitfinex) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderb
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
+func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	b.appendOptionalDelimiter(&p)
-	var orderBook orderbook.Base
+	orderBook := new(orderbook.Base)
 	urlVals := url.Values{}
 	urlVals.Set("limit_bids", "100")
 	urlVals.Set("limit_asks", "100")
