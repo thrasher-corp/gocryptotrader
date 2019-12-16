@@ -1796,10 +1796,7 @@ func TestCheckNTPConfig(t *testing.T) {
 	c.NTPClient.AllowedDifference = nil
 
 	c.CheckNTPConfig()
-	_, err := ntpclient.NTPClient(c.NTPClient.Pool)
-	if err != nil {
-		t.Fatalf("to create ntpclient failed reason: %v", err)
-	}
+	_ = ntpclient.NTPClient(c.NTPClient.Pool)
 
 	if c.NTPClient.Pool[0] != "pool.ntp.org:123" {
 		t.Error("ntpclient with no valid pool should default to pool.ntp.org")

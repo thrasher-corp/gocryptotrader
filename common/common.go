@@ -340,3 +340,17 @@ func ChangePermission(directory string) error {
 		return nil
 	})
 }
+
+// SplitStringSliceByLimit splits a slice of strings into slices by input limit and returns a slice of slice of strings
+func SplitStringSliceByLimit(in []string, limit uint) [][]string {
+	var stringSlice []string
+	sliceSlice := make([][]string, 0, len(in)/int(limit)+1)
+	for len(in) >= int(limit) {
+		stringSlice, in = in[:limit], in[limit:]
+		sliceSlice = append(sliceSlice, stringSlice)
+	}
+	if len(in) > 0 {
+		sliceSlice = append(sliceSlice, in)
+	}
+	return sliceSlice
+}

@@ -1,25 +1,26 @@
 package ntpclient
 
 import (
+	"reflect"
 	"testing"
+	"time"
 )
 
 func TestNTPClient(t *testing.T) {
 	pool := []string{"pool.ntp.org:123", "0.pool.ntp.org:123"}
-	_, err := NTPClient(pool)
-	if err != nil {
-		t.Fatalf("failed to get time %v", err)
+	v := NTPClient(pool)
+
+	if reflect.TypeOf(v) != reflect.TypeOf(time.Time{}) {
+		t.Errorf("NTPClient should return time.Time{}")
 	}
 
-	invalidpool := []string{"pool.thisisinvalid.org"}
-	_, err = NTPClient(invalidpool)
-	if err == nil {
-		t.Errorf("Expected error")
+	if v.IsZero() {
+		t.Error("NTPClient should return valid time received zero value")
 	}
 
-	firstInvalid := []string{"pool.thisisinvalid.org", "pool.ntp.org:123", "0.pool.ntp.org:123"}
-	_, err = NTPClient(firstInvalid)
-	if err != nil {
-		t.Errorf("failed to get time %v", err)
+	const timeFormat = "2006-01-02T15:04:05"
+
+	if v.UTC().Format(timeFormat) != time.Now().UTC().Format(timeFormat) {
+		t.Errorf("NTPClient returned incorrect time received: %v", v.UTC().Format(timeFormat))
 	}
 }

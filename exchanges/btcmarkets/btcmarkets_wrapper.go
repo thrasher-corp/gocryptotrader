@@ -363,8 +363,8 @@ func (b *BTCMarkets) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) 
 	tempResp, err := b.NewOrder(b.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
 		s.Price,
 		s.Amount,
-		s.OrderSide.String(),
 		s.OrderType.String(),
+		s.OrderSide.String(),
 		s.TriggerPrice,
 		s.TargetAmount,
 		"",
@@ -403,16 +403,20 @@ func (b *BTCMarkets) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, 
 	for x := range orders {
 		orderIDs = append(orderIDs, orders[x].OrderID)
 	}
-	tempResp, err := b.CancelBatchOrders(orderIDs)
-	if err != nil {
-		return resp, err
+	splitOrders := common.SplitStringSliceByLimit(orderIDs, 20)
+	for z := range splitOrders {
+		tempResp, err := b.CancelBatchOrders(splitOrders[z])
+		if err != nil {
+			return resp, err
+		}
+		for y := range tempResp.CancelOrders {
+			tempMap[tempResp.CancelOrders[y].OrderID] = "Success"
+		}
+		for z := range tempResp.UnprocessedRequests {
+			tempMap[tempResp.UnprocessedRequests[z].RequestID] = "Cancellation Failed"
+		}
 	}
-	for y := range tempResp.CancelOrders {
-		tempMap[tempResp.CancelOrders[y].OrderID] = "Success"
-	}
-	for z := range tempResp.UnprocessedRequests {
-		tempMap[tempResp.UnprocessedRequests[z].RequestID] = "Cancellation Failed"
-	}
+	resp.Status = tempMap
 	return resp, nil
 }
 
@@ -534,9 +538,6 @@ func (b *BTCMarkets) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, err
 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
-	var resp []order.Detail
-	var tempResp order.Detail
-	var tempData []OrderData
 	if len(req.Currencies) == 0 {
 		allPairs := b.GetEnabledPairs(asset.Spot)
 		for a := range allPairs {
@@ -544,20 +545,38 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 				allPairs[a])
 		}
 	}
+
+	var resp []order.Detail
 	var err error
 	for x := range req.Currencies {
-		tempData, err = b.GetOrders(b.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String(), -1, -1, -1, "")
+		var tempData []OrderData
+		tempData, err = b.GetOrders(b.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String(), -1, -1, -1, "open")
 		if err != nil {
 			return resp, err
 		}
 		for y := range tempData {
+			var tempResp order.Detail
 			tempResp.Exchange = b.Name
 			tempResp.CurrencyPair = req.Currencies[x]
+			tempResp.ID = tempData[y].OrderID
 			tempResp.OrderSide = order.Bid
 			if tempData[y].Side == ask {
 				tempResp.OrderSide = order.Ask
 			}
 			tempResp.OrderDate = tempData[y].CreationTime
+
+			switch tempData[y].Type {
+			case limit:
+				tempResp.OrderType = order.Limit
+			case market:
+				tempResp.OrderType = order.Market
+			default:
+				log.Errorf(log.ExchangeSys,
+					"%s unknown order type %s getting order",
+					b.Name,
+					tempData[y].Type)
+				tempResp.OrderType = order.Unknown
+			}
 			switch tempData[y].Status {
 			case orderAccepted:
 				tempResp.Status = order.Active
@@ -565,14 +584,13 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 				tempResp.Status = order.Active
 			case orderPartiallyMatched:
 				tempResp.Status = order.PartiallyFilled
-			case orderFullyMatched:
-				tempResp.Status = order.Filled
-			case orderCancelled:
-				tempResp.Status = order.Cancelled
-			case orderPartiallyCancelled:
-				tempResp.Status = order.PartiallyCancelled
-			case orderFailed:
-				tempResp.Status = order.Rejected
+			default:
+				log.Errorf(log.ExchangeSys,
+					"%s unexpected status %s on order %v",
+					b.Name,
+					tempData[y].Status,
+					tempData[y].OrderID)
+				tempResp.Status = order.UnknownStatus
 			}
 			tempResp.Price = tempData[y].Price
 			tempResp.Amount = tempData[y].Amount
@@ -611,37 +629,41 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 			tempArray = append(tempArray, orders[z].OrderID)
 		}
 	}
-	tempData, err := b.GetBatchTrades(tempArray)
-	if err != nil {
-		return resp, err
-	}
-	for c := range tempData.Orders {
-		switch tempData.Orders[c].Status {
-		case orderFailed:
-			tempResp.Status = order.Rejected
-		case orderPartiallyCancelled:
-			tempResp.Status = order.PartiallyCancelled
-		case orderCancelled:
-			tempResp.Status = order.Cancelled
-		case orderFullyMatched:
-			tempResp.Status = order.Filled
-		case orderPartiallyMatched:
-			continue
-		case orderPlaced:
-			continue
-		case orderAccepted:
-			continue
+	splitOrders := common.SplitStringSliceByLimit(tempArray, 50)
+	for x := range splitOrders {
+		tempData, err := b.GetBatchTrades(splitOrders[x])
+		if err != nil {
+			return resp, err
 		}
-		tempResp.Exchange = b.Name
-		tempResp.CurrencyPair = currency.NewPairFromString(tempData.Orders[c].MarketID)
-		tempResp.OrderSide = order.Bid
-		if tempData.Orders[c].Side == ask {
-			tempResp.OrderSide = order.Ask
+		for c := range tempData.Orders {
+			switch tempData.Orders[c].Status {
+			case orderFailed:
+				tempResp.Status = order.Rejected
+			case orderPartiallyCancelled:
+				tempResp.Status = order.PartiallyCancelled
+			case orderCancelled:
+				tempResp.Status = order.Cancelled
+			case orderFullyMatched:
+				tempResp.Status = order.Filled
+			case orderPartiallyMatched:
+				continue
+			case orderPlaced:
+				continue
+			case orderAccepted:
+				continue
+			}
+			tempResp.Exchange = b.Name
+			tempResp.CurrencyPair = currency.NewPairFromString(tempData.Orders[c].MarketID)
+			tempResp.OrderSide = order.Bid
+			if tempData.Orders[c].Side == ask {
+				tempResp.OrderSide = order.Ask
+			}
+			tempResp.ID = tempData.Orders[c].OrderID
+			tempResp.OrderDate = tempData.Orders[c].CreationTime
+			tempResp.Price = tempData.Orders[c].Price
+			tempResp.ExecutedAmount = tempData.Orders[c].Amount
+			resp = append(resp, tempResp)
 		}
-		tempResp.OrderDate = tempData.Orders[c].CreationTime
-		tempResp.Price = tempData.Orders[c].Price
-		tempResp.ExecutedAmount = tempData.Orders[c].Amount
-		resp = append(resp, tempResp)
 	}
 	return resp, nil
 }
