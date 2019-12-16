@@ -397,7 +397,7 @@ func (b *BTCMarkets) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, 
 	var resp order.CancelAllResponse
 	tempMap := make(map[string]string)
 	var orderIDs []string
-	orders, err := b.GetOrders("", -1, -1, -1, "open")
+	orders, err := b.GetOrders("", -1, -1, -1, true)
 	if err != nil {
 		return resp, err
 	}
@@ -547,7 +547,7 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 	}
 	var err error
 	for x := range req.Currencies {
-		tempData, err = b.GetOrders(b.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String(), -1, -1, -1, "open")
+		tempData, err = b.GetOrders(b.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String(), -1, -1, -1, true)
 		if err != nil {
 			return resp, err
 		}
@@ -595,7 +595,7 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 	var tempResp order.Detail
 	var tempArray []string
 	if len(req.Currencies) == 0 {
-		orders, err := b.GetOrders("", -1, -1, -1, "")
+		orders, err := b.GetOrders("", -1, -1, -1, false)
 		if err != nil {
 			return resp, err
 		}
@@ -604,7 +604,7 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 		}
 	}
 	for y := range req.Currencies {
-		orders, err := b.GetOrders(b.FormatExchangeCurrency(req.Currencies[y], asset.Spot).String(), -1, -1, -1, "")
+		orders, err := b.GetOrders(b.FormatExchangeCurrency(req.Currencies[y], asset.Spot).String(), -1, -1, -1, false)
 		if err != nil {
 			return resp, err
 		}

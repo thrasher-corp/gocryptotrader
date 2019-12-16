@@ -17,7 +17,7 @@ var b BTCMarkets
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = false
+	canManipulateRealOrders = true
 	BTCAUD                  = "BTC-AUD"
 	LTCAUD                  = "LTC-AUD"
 	ETHAUD                  = "ETH-AUD"
@@ -195,11 +195,11 @@ func TestGetOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetOrders("", -1, -1, 2, "")
+	_, err := b.GetOrders("", -1, -1, 2, false)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetOrders(LTCAUD, -1, -1, -1, "open")
+	_, err = b.GetOrders(LTCAUD, -1, -1, -1, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -479,4 +479,17 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
+
+	tx, err := b.GetActiveOrders(&order.GetOrdersRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%+v", tx)
 }
