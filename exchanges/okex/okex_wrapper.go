@@ -308,19 +308,19 @@ func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	var tickerData ticker.Price
+func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	tickerPrice := new(ticker.Price)
 	switch assetType {
 	case asset.Spot:
 		resp, err := o.GetSpotAllTokenPairsInformation()
 		if err != nil {
-			return tickerData, err
+			return tickerPrice, err
 		}
 		for j := range resp {
 			if !o.GetEnabledPairs(assetType).Contains(resp[j].InstrumentID, true) {
 				continue
 			}
-			tickerData = ticker.Price{
+			tickerPrice = &ticker.Price{
 				Last:        resp[j].Last,
 				High:        resp[j].High24h,
 				Low:         resp[j].Low24h,
@@ -332,7 +332,7 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 				Pair:        resp[j].InstrumentID,
 				LastUpdated: resp[j].Timestamp,
 			}
-			err = ticker.ProcessTicker(o.Name, &tickerData, assetType)
+			err = ticker.ProcessTicker(o.Name, tickerPrice, assetType)
 			if err != nil {
 				log.Error(log.Ticker, err)
 			}
@@ -341,7 +341,7 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 	case asset.PerpetualSwap:
 		resp, err := o.GetAllSwapTokensInformation()
 		if err != nil {
-			return tickerData, err
+			return nil, err
 		}
 
 		for j := range resp {
@@ -352,7 +352,7 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 			if !o.GetEnabledPairs(assetType).Contains(nC, true) {
 				continue
 			}
-			tickerData = ticker.Price{
+			tickerPrice = &ticker.Price{
 				Last:        resp[j].Last,
 				High:        resp[j].High24H,
 				Low:         resp[j].Low24H,
@@ -362,7 +362,7 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 				Pair:        nC,
 				LastUpdated: resp[j].Timestamp,
 			}
-			err = ticker.ProcessTicker(o.Name, &tickerData, assetType)
+			err = ticker.ProcessTicker(o.Name, tickerPrice, assetType)
 			if err != nil {
 				log.Error(log.Ticker, err)
 			}
@@ -371,7 +371,7 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 	case asset.Futures:
 		resp, err := o.GetAllFuturesTokenInfo()
 		if err != nil {
-			return tickerData, err
+			return nil, err
 		}
 
 		for j := range resp {
@@ -382,7 +382,7 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 			if !o.GetEnabledPairs(assetType).Contains(nC, true) {
 				continue
 			}
-			tickerData = ticker.Price{
+			tickerPrice = &ticker.Price{
 				Last:        resp[j].Last,
 				High:        resp[j].High24h,
 				Low:         resp[j].Low24h,
@@ -392,7 +392,7 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 				Pair:        nC,
 				LastUpdated: resp[j].Timestamp,
 			}
-			err = ticker.ProcessTicker(o.Name, &tickerData, assetType)
+			err = ticker.ProcessTicker(o.Name, tickerPrice, assetType)
 			if err != nil {
 				log.Error(log.Ticker, err)
 			}
@@ -403,7 +403,7 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (o *OKEX) FetchTicker(p currency.Pair, assetType asset.Item) (tickerData ticker.Price, err error) {
+func (o *OKEX) FetchTicker(p currency.Pair, assetType asset.Item) (tickerData *ticker.Price, err error) {
 	if assetType == asset.Index {
 		return tickerData, errors.New("ticker fetching not supported for index")
 	}

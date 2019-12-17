@@ -52,30 +52,30 @@ func SubscribeToExchangeTickers(exchange string) (dispatch.Pipe, error) {
 }
 
 // GetTicker checks and returns a requested ticker if it exists
-func GetTicker(exchange string, p currency.Pair, tickerType asset.Item) (Price, error) {
+func GetTicker(exchange string, p currency.Pair, tickerType asset.Item) (*Price, error) {
 	exchange = strings.ToLower(exchange)
 	service.RLock()
 	defer service.RUnlock()
 	if service.Tickers[exchange] == nil {
-		return Price{}, fmt.Errorf("no tickers for %s exchange", exchange)
+		return nil, fmt.Errorf("no tickers for %s exchange", exchange)
 	}
 
 	if service.Tickers[exchange][p.Base.Item] == nil {
-		return Price{}, fmt.Errorf("no tickers associated with base currency %s",
+		return nil, fmt.Errorf("no tickers associated with base currency %s",
 			p.Base)
 	}
 
 	if service.Tickers[exchange][p.Base.Item][p.Quote.Item] == nil {
-		return Price{}, fmt.Errorf("no tickers associated with quote currency %s",
+		return nil, fmt.Errorf("no tickers associated with quote currency %s",
 			p.Quote)
 	}
 
 	if service.Tickers[exchange][p.Base.Item][p.Quote.Item][tickerType] == nil {
-		return Price{}, fmt.Errorf("no tickers associated with asset type %s",
+		return nil, fmt.Errorf("no tickers associated with asset type %s",
 			tickerType)
 	}
 
-	return service.Tickers[exchange][p.Base.Item][p.Quote.Item][tickerType].Price, nil
+	return &service.Tickers[exchange][p.Base.Item][p.Quote.Item][tickerType].Price, nil
 }
 
 // ProcessTicker processes incoming tickers, creating or updating the Tickers

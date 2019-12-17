@@ -176,8 +176,8 @@ func (b *Bitflyer) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bitflyer) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	var tickerPrice ticker.Price
+func (b *Bitflyer) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	tickerPrice := new(ticker.Price)
 
 	p = b.CheckFXString(p)
 
@@ -191,7 +191,7 @@ func (b *Bitflyer) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.P
 	tickerPrice.Bid = tickerNew.BestBid
 	tickerPrice.Last = tickerNew.Last
 	tickerPrice.Volume = tickerNew.Volume
-	err = ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
+	err = ticker.ProcessTicker(b.Name, tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -200,7 +200,7 @@ func (b *Bitflyer) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.P
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *Bitflyer) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+func (b *Bitflyer) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -218,7 +218,7 @@ func (b *Bitflyer) CheckFXString(p currency.Pair) currency.Pair {
 }
 
 // FetchOrderbook returns the orderbook for a currency pair
-func (b *Bitflyer) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
+func (b *Bitflyer) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -227,8 +227,8 @@ func (b *Bitflyer) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderb
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bitflyer) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	var orderBook orderbook.Base
+func (b *Bitflyer) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	orderBook := new(orderbook.Base)
 
 	p = b.CheckFXString(p)
 

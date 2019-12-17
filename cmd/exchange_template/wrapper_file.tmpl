@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -198,15 +199,15 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTradablePairs(forceUpdate bool) err
 
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
   	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
 	/*
-	var tickerPrice ticker.Price
+	tickerPrice := new(ticker.Price)
 	tick, err := {{.Variable}}.GetTicker(p.String())
 	if err != nil {
 		return tickerPrice, err
 	}
-	tickerPrice = ticker.Price{
+	tickerPrice = &ticker.Price{
 		High:  tick.High,
 		Low:   tick.Low,
 		Bid:   tick.Bid,
@@ -215,7 +216,7 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(p currency.Pair, assetType a
 		Close: tick.Close,
 		Pair:  p,
 	}
-	err = ticker.ProcessTicker({{.Variable}}.Name, &tickerPrice, assetType)
+	err = ticker.ProcessTicker({{.Variable}}.Name, tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -224,7 +225,7 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(p currency.Pair, assetType a
 }
 
 // FetchTicker returns the ticker for a currency pair
-func ({{.Variable}} *{{.CapitalName}}) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+func ({{.Variable}} *{{.CapitalName}}) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker({{.Variable}}.Name, p, assetType)
 	if err != nil {
 		return {{.Variable}}.UpdateTicker(p, assetType)
@@ -233,7 +234,7 @@ func ({{.Variable}} *{{.CapitalName}}) FetchTicker(p currency.Pair, assetType as
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func ({{.Variable}} *{{.CapitalName}}) FetchOrderbook(currency currency.Pair, assetType asset.Item) (orderbook.Base, error) {
+func ({{.Variable}} *{{.CapitalName}}) FetchOrderbook(currency currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get({{.Variable}}.Name, currency, assetType)
 	if err != nil {
 		return {{.Variable}}.UpdateOrderbook(currency, assetType)
@@ -242,8 +243,8 @@ func ({{.Variable}} *{{.CapitalName}}) FetchOrderbook(currency currency.Pair, as
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	var orderBook orderbook.Base
+func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	orderBook := new(orderbook.Base)
     // NOTE: UPDATE ORDERBOOK EXAMPLE
 	/* 
 	orderbookNew, err := {{.Variable}}.GetOrderBook(exchange.FormatExchangeCurrency({{.Variable}}.Name, p).String(), 1000)

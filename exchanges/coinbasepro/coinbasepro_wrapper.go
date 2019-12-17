@@ -281,18 +281,17 @@ func (c *CoinbasePro) GetAccountInfo() (exchange.AccountInfo, error) {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (c *CoinbasePro) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	var tickerPrice ticker.Price
+func (c *CoinbasePro) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := c.GetTicker(c.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
-		return ticker.Price{}, err
+		return nil, err
 	}
 	stats, err := c.GetStats(c.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
-		return ticker.Price{}, err
+		return nil, err
 	}
 
-	tickerPrice = ticker.Price{
+	tickerPrice := &ticker.Price{
 		Last:        tick.Size,
 		High:        stats.High,
 		Low:         stats.Low,
@@ -304,7 +303,7 @@ func (c *CoinbasePro) UpdateTicker(p currency.Pair, assetType asset.Item) (ticke
 		LastUpdated: tick.Time,
 	}
 
-	err = ticker.ProcessTicker(c.Name, &tickerPrice, assetType)
+	err = ticker.ProcessTicker(c.Name, tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -313,7 +312,7 @@ func (c *CoinbasePro) UpdateTicker(p currency.Pair, assetType asset.Item) (ticke
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (c *CoinbasePro) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+func (c *CoinbasePro) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(c.Name, p, assetType)
 	if err != nil {
 		return c.UpdateTicker(p, assetType)
@@ -322,7 +321,7 @@ func (c *CoinbasePro) FetchTicker(p currency.Pair, assetType asset.Item) (ticker
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (c *CoinbasePro) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
+func (c *CoinbasePro) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(c.Name, p, assetType)
 	if err != nil {
 		return c.UpdateOrderbook(p, assetType)
@@ -331,8 +330,8 @@ func (c *CoinbasePro) FetchOrderbook(p currency.Pair, assetType asset.Item) (ord
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (c *CoinbasePro) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	var orderBook orderbook.Base
+func (c *CoinbasePro) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	orderBook := new(orderbook.Base)
 	orderbookNew, err := c.GetOrderbook(c.FormatExchangeCurrency(p,
 		assetType).String(), 2)
 	if err != nil {

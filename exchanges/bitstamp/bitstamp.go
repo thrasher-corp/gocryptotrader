@@ -139,7 +139,7 @@ func (b *Bitstamp) CalculateTradingFee(base, quote currency.Code, purchasePrice,
 }
 
 // GetTicker returns ticker information
-func (b *Bitstamp) GetTicker(currency string, hourly bool) (Ticker, error) {
+func (b *Bitstamp) GetTicker(currency string, hourly bool) (*Ticker, error) {
 	response := Ticker{}
 	tickerEndpoint := bitstampAPITicker
 
@@ -154,7 +154,7 @@ func (b *Bitstamp) GetTicker(currency string, hourly bool) (Ticker, error) {
 		tickerEndpoint,
 		strings.ToLower(currency),
 	)
-	return response, b.SendHTTPRequest(path, &response)
+	return &response, b.SendHTTPRequest(path, &response)
 }
 
 // GetOrderbook Returns a JSON dictionary with "bids" and "asks". Each is a list

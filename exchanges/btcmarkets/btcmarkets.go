@@ -55,7 +55,7 @@ const (
 	orderFailed             = "Failed"
 	orderPartiallyCancelled = "Partially Cancelled"
 	orderCancelled          = "Cancelled"
-	orderFullyMatched       = "FullyMatched"
+	orderFullyMatched       = "Fully Matched"
 	orderPartiallyMatched   = "Partially Matched"
 	orderPlaced             = "Placed"
 	orderAccepted           = "Accepted"

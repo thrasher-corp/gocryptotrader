@@ -172,8 +172,8 @@ func (b *Bithumb) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bithumb) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	var tickerPrice ticker.Price
+func (b *Bithumb) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	tickerPrice := new(ticker.Price)
 	tickers, err := b.GetAllTickers()
 	if err != nil {
 		return tickerPrice, err
@@ -202,7 +202,7 @@ func (b *Bithumb) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *Bithumb) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+func (b *Bithumb) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -211,7 +211,7 @@ func (b *Bithumb) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (b *Bithumb) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
+func (b *Bithumb) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -220,8 +220,8 @@ func (b *Bithumb) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbo
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bithumb) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	var orderBook orderbook.Base
+func (b *Bithumb) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	orderBook := new(orderbook.Base)
 	curr := p.Base.String()
 
 	orderbookNew, err := b.GetOrderBook(curr)
