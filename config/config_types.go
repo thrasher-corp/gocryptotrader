@@ -49,7 +49,7 @@ const (
 	ErrFailureOpeningConfig                    = "fatal error opening %s file. Error: %s"
 	ErrCheckingConfigValues                    = "fatal error checking config values. Error: %s"
 	ErrSavingConfigBytesMismatch               = "config file %q bytes comparison doesn't match, read %s expected %s"
-	ErrBankAccountNotFound                     = "Bank Account ID: %v not found"
+	ErrBankAccountNotFound                     = "bank account ID: %v not found"
 	WarningWebserverCredentialValuesEmpty      = "webserver support disabled due to empty Username/Password values"
 	WarningWebserverListenAddressInvalid       = "webserver support disabled due to invalid listen address"
 	WarningExchangeAuthAPIDefaultOrEmptyValues = "exchange %s authenticated API support disabled due to default/empty APIKey/Secret/ClientID values"
