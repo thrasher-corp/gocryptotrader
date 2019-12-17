@@ -621,7 +621,12 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 		return nil, errors.New("exchange is not loaded/doesn't exist")
 	}
 
-	resp, err := exch.GetActiveOrders(&order.GetOrdersRequest{})
+	resp, err := exch.GetActiveOrders(&order.GetOrdersRequest{
+		Currencies: []currency.Pair{
+			currency.NewPairWithDelimiter(r.Pair.Base,
+				r.Pair.Quote, r.Pair.Delimiter),
+		},
+	})
 	if err != nil {
 		return nil, err
 	}
