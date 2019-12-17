@@ -257,11 +257,10 @@ func (b *Binance) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	var tickerPrice ticker.Price
+func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := b.GetTickers()
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 	pairs := b.GetEnabledPairs(assetType)
 	for i := range pairs {
@@ -270,7 +269,7 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 			if tick[y].Symbol != pairFmt {
 				continue
 			}
-			tickerPrice := ticker.Price{
+			tickerPrice := &ticker.Price{
 				Last:        tick[y].LastPrice,
 				High:        tick[y].HighPrice,
 				Low:         tick[y].LowPrice,
@@ -282,7 +281,7 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 				Close:       tick[y].PrevClosePrice,
 				Pair:        pairs[i],
 			}
-			err = ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
+			err = ticker.ProcessTicker(b.Name, tickerPrice, assetType)
 			if err != nil {
 				log.Error(log.Ticker, err)
 			}
@@ -292,7 +291,7 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *Binance) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+func (b *Binance) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -301,7 +300,7 @@ func (b *Binance) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (b *Binance) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
+func (b *Binance) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -310,8 +309,8 @@ func (b *Binance) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbo
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	var orderBook orderbook.Base
+func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	orderBook := new(orderbook.Base)
 	orderbookNew, err := b.GetOrderBook(OrderBookDataRequestParams{Symbol: b.FormatExchangeCurrency(p,
 		assetType).String(), Limit: 1000})
 	if err != nil {

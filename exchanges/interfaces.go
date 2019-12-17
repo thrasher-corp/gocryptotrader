@@ -22,10 +22,10 @@ type IBotExchange interface {
 	GetName() string
 	IsEnabled() bool
 	SetEnabled(bool)
-	FetchTicker(currency currency.Pair, assetType asset.Item) (ticker.Price, error)
-	UpdateTicker(currency currency.Pair, assetType asset.Item) (ticker.Price, error)
-	FetchOrderbook(currency currency.Pair, assetType asset.Item) (orderbook.Base, error)
-	UpdateOrderbook(currency currency.Pair, assetType asset.Item) (orderbook.Base, error)
+	FetchTicker(currency currency.Pair, assetType asset.Item) (*ticker.Price, error)
+	UpdateTicker(currency currency.Pair, assetType asset.Item) (*ticker.Price, error)
+	FetchOrderbook(currency currency.Pair, assetType asset.Item) (*orderbook.Base, error)
+	UpdateOrderbook(currency currency.Pair, assetType asset.Item) (*orderbook.Base, error)
 	FetchTradablePairs(assetType asset.Item) ([]string, error)
 	UpdateTradablePairs(forceUpdate bool) error
 	GetEnabledPairs(assetType asset.Item) currency.Pairs

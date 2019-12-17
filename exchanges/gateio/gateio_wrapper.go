@@ -220,8 +220,8 @@ func (g *Gateio) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (g *Gateio) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	var tickerPrice ticker.Price
+func (g *Gateio) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	tickerPrice := new(ticker.Price)
 	result, err := g.GetTickers()
 	if err != nil {
 		return tickerPrice, err
@@ -232,7 +232,7 @@ func (g *Gateio) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 			if !strings.EqualFold(k, pairs[i].String()) {
 				continue
 			}
-			tickerPrice = ticker.Price{
+			tickerPrice = &ticker.Price{
 				Last:        result[k].Last,
 				High:        result[k].High,
 				Low:         result[k].Low,
@@ -242,7 +242,7 @@ func (g *Gateio) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 				Close:       result[k].Close,
 				Pair:        pairs[i],
 			}
-			err = ticker.ProcessTicker(g.Name, &tickerPrice, assetType)
+			err = ticker.ProcessTicker(g.Name, tickerPrice, assetType)
 			if err != nil {
 				log.Error(log.Ticker, err)
 			}
@@ -253,7 +253,7 @@ func (g *Gateio) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (g *Gateio) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+func (g *Gateio) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(g.Name, p, assetType)
 	if err != nil {
 		return g.UpdateTicker(p, assetType)
@@ -262,7 +262,7 @@ func (g *Gateio) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (g *Gateio) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
+func (g *Gateio) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(g.Name, p, assetType)
 	if err != nil {
 		return g.UpdateOrderbook(p, assetType)
@@ -271,8 +271,8 @@ func (g *Gateio) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderboo
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (g *Gateio) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	var orderBook orderbook.Base
+func (g *Gateio) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	orderBook := new(orderbook.Base)
 	curr := g.FormatExchangeCurrency(p, assetType).String()
 
 	orderbookNew, err := g.GetOrderbook(curr)

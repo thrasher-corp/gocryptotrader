@@ -80,7 +80,7 @@ func GetAllActiveOrderbooks() []EnabledExchangeOrderbooks {
 						err)
 					continue
 				}
-				exchangeOB.ExchangeValues = append(exchangeOB.ExchangeValues, ob)
+				exchangeOB.ExchangeValues = append(exchangeOB.ExchangeValues, *ob)
 			}
 			orderbookData = append(orderbookData, exchangeOB)
 		}

@@ -173,8 +173,8 @@ func (l *Lbank) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (l *Lbank) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	var tickerPrice ticker.Price
+func (l *Lbank) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	tickerPrice := new(ticker.Price)
 	tickerInfo, err := l.GetTickers()
 	if err != nil {
 		return tickerPrice, err
@@ -185,7 +185,7 @@ func (l *Lbank) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 			if !pairs[i].Equal(tickerInfo[j].Symbol) {
 				continue
 			}
-			tickerPrice = ticker.Price{
+			tickerPrice = &ticker.Price{
 				Last:        tickerInfo[j].Ticker.Latest,
 				High:        tickerInfo[j].Ticker.High,
 				Low:         tickerInfo[j].Ticker.Low,
@@ -193,7 +193,7 @@ func (l *Lbank) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 				Pair:        tickerInfo[j].Symbol,
 				LastUpdated: time.Unix(0, tickerInfo[j].Timestamp),
 			}
-			err = ticker.ProcessTicker(l.Name, &tickerPrice, assetType)
+			err = ticker.ProcessTicker(l.Name, tickerPrice, assetType)
 			if err != nil {
 				log.Error(log.Ticker, err)
 			}
@@ -203,7 +203,7 @@ func (l *Lbank) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (l *Lbank) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+func (l *Lbank) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(l.Name,
 		l.FormatExchangeCurrency(p, assetType), assetType)
 	if err != nil {
@@ -213,7 +213,7 @@ func (l *Lbank) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (l *Lbank) FetchOrderbook(currency currency.Pair, assetType asset.Item) (orderbook.Base, error) {
+func (l *Lbank) FetchOrderbook(currency currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(l.Name, currency, assetType)
 	if err != nil {
 		return l.UpdateOrderbook(currency, assetType)
@@ -222,8 +222,8 @@ func (l *Lbank) FetchOrderbook(currency currency.Pair, assetType asset.Item) (or
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	var orderBook orderbook.Base
+func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	orderBook := new(orderbook.Base)
 	a, err := l.GetMarketDepths(l.FormatExchangeCurrency(p, assetType).String(), "60", "1")
 	if err != nil {
 		return orderBook, err
