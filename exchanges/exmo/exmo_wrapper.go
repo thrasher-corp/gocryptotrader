@@ -175,8 +175,8 @@ func (e *EXMO) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (e *EXMO) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	var tickerPrice ticker.Price
+func (e *EXMO) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	tickerPrice := new(ticker.Price)
 	result, err := e.GetTicker()
 	if err != nil {
 		return tickerPrice, err
@@ -190,7 +190,7 @@ func (e *EXMO) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 			if !strings.EqualFold(pairs[i].String(), j) {
 				continue
 			}
-			tickerPrice = ticker.Price{
+			tickerPrice = &ticker.Price{
 				Pair:   pairs[i],
 				Last:   result[j].Last,
 				Ask:    result[j].Sell,
@@ -199,7 +199,7 @@ func (e *EXMO) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 				Low:    result[j].Low,
 				Volume: result[j].Volume,
 			}
-			err = ticker.ProcessTicker(e.Name, &tickerPrice, assetType)
+			err = ticker.ProcessTicker(e.Name, tickerPrice, assetType)
 			if err != nil {
 				log.Error(log.Ticker, err)
 			}
@@ -209,7 +209,7 @@ func (e *EXMO) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (e *EXMO) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+func (e *EXMO) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := ticker.GetTicker(e.Name, p, assetType)
 	if err != nil {
 		return e.UpdateTicker(p, assetType)
@@ -218,7 +218,7 @@ func (e *EXMO) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price,
 }
 
 // FetchOrderbook returns the orderbook for a currency pair
-func (e *EXMO) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
+func (e *EXMO) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(e.Name, p, assetType)
 	if err != nil {
 		return e.UpdateOrderbook(p, assetType)
@@ -227,8 +227,8 @@ func (e *EXMO) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	var orderBook orderbook.Base
+func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	orderBook := new(orderbook.Base)
 	pairsCollated, err := e.FormatExchangeCurrencies(e.GetEnabledPairs(assetType),
 		assetType)
 	if err != nil {

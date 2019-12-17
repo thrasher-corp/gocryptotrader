@@ -113,8 +113,8 @@ func (a *Alphapoint) GetAccountInfo() (exchange.AccountInfo, error) {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (a *Alphapoint) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	var tickerPrice ticker.Price
+func (a *Alphapoint) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	tickerPrice := new(ticker.Price)
 	tick, err := a.GetTicker(p.String())
 	if err != nil {
 		return tickerPrice, err
@@ -128,7 +128,7 @@ func (a *Alphapoint) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker
 	tickerPrice.Volume = tick.Volume
 	tickerPrice.Last = tick.Last
 
-	err = ticker.ProcessTicker(a.Name, &tickerPrice, assetType)
+	err = ticker.ProcessTicker(a.Name, tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -137,7 +137,7 @@ func (a *Alphapoint) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (a *Alphapoint) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+func (a *Alphapoint) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := ticker.GetTicker(a.Name, p, assetType)
 	if err != nil {
 		return a.UpdateTicker(p, assetType)
@@ -146,8 +146,8 @@ func (a *Alphapoint) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (a *Alphapoint) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	var orderBook orderbook.Base
+func (a *Alphapoint) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	orderBook := new(orderbook.Base)
 	orderbookNew, err := a.GetOrderbook(p.String())
 	if err != nil {
 		return orderBook, err
@@ -180,7 +180,7 @@ func (a *Alphapoint) UpdateOrderbook(p currency.Pair, assetType asset.Item) (ord
 }
 
 // FetchOrderbook returns the orderbook for a currency pair
-func (a *Alphapoint) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
+func (a *Alphapoint) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(a.Name, p, assetType)
 	if err != nil {
 		return a.UpdateOrderbook(p, assetType)
