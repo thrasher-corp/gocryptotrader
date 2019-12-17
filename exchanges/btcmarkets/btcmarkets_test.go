@@ -17,7 +17,7 @@ var b BTCMarkets
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 	BTCAUD                  = "BTC-AUD"
 	LTCAUD                  = "LTC-AUD"
 	ETHAUD                  = "ETH-AUD"
