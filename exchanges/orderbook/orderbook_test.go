@@ -395,7 +395,7 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Error("Process() error", err)
 	}
 
-	result, err = Get("Blah", c, "quarterly")
+	_, err = Get("Blah", c, "quarterly")
 	if err != nil {
 		t.Fatal("TestProcessOrderbook failed to create new orderbook")
 	}

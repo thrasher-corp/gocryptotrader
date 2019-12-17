@@ -15,12 +15,12 @@ import (
 
 // Get checks and returns the orderbook given an exchange name and currency pair
 // if it exists
-func Get(exchange string, p currency.Pair, a asset.Item) (Base, error) {
+func Get(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
 	o, err := service.Retrieve(exchange, p, a)
 	if err != nil {
-		return Base{}, err
+		return nil, err
 	}
-	return *o, nil
+	return o, nil
 }
 
 // SubscribeOrderbook subcribes to an orderbook and returns a communication

@@ -409,7 +409,7 @@ func TestGetSpecificOrderbook(t *testing.T) {
 		t.Fatal("Unexpected result")
 	}
 
-	ob, err = GetSpecificOrderbook(currency.NewPairFromStrings("ETH", "LTC"),
+	_, err = GetSpecificOrderbook(currency.NewPairFromStrings("ETH", "LTC"),
 		"Bitstamp",
 		asset.Spot)
 	if err == nil {
@@ -441,7 +441,7 @@ func TestGetSpecificTicker(t *testing.T) {
 		t.Fatal("Unexpected result")
 	}
 
-	tick, err = GetSpecificTicker(currency.NewPairFromStrings("ETH", "LTC"), "Bitstamp",
+	_, err = GetSpecificTicker(currency.NewPairFromStrings("ETH", "LTC"), "Bitstamp",
 		asset.Spot)
 	if err == nil {
 		t.Fatal("Unexpected result")

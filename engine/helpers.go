@@ -416,40 +416,14 @@ func GetRelatableCurrencies(p currency.Pair, incOrig, incUSDT bool) currency.Pai
 
 // GetSpecificOrderbook returns a specific orderbook given the currency,
 // exchangeName and assetType
-func GetSpecificOrderbook(p currency.Pair, exchangeName string, assetType asset.Item) (orderbook.Base, error) {
-	var specificOrderbook orderbook.Base
-	var err error
-	for x := range Bot.Exchanges {
-		if Bot.Exchanges[x] != nil {
-			if Bot.Exchanges[x].GetName() == exchangeName {
-				specificOrderbook, err = Bot.Exchanges[x].FetchOrderbook(
-					p,
-					assetType,
-				)
-				break
-			}
-		}
-	}
-	return specificOrderbook, err
+func GetSpecificOrderbook(p currency.Pair, exchangeName string, assetType asset.Item) (*orderbook.Base, error) {
+	return GetExchangeByName(exchangeName).FetchOrderbook(p, assetType)
 }
 
 // GetSpecificTicker returns a specific ticker given the currency,
 // exchangeName and assetType
-func GetSpecificTicker(p currency.Pair, exchangeName string, assetType asset.Item) (ticker.Price, error) {
-	var specificTicker ticker.Price
-	var err error
-	for x := range Bot.Exchanges {
-		if Bot.Exchanges[x] != nil {
-			if Bot.Exchanges[x].GetName() == exchangeName {
-				specificTicker, err = Bot.Exchanges[x].FetchTicker(
-					p,
-					assetType,
-				)
-				break
-			}
-		}
-	}
-	return specificTicker, err
+func GetSpecificTicker(p currency.Pair, exchangeName string, assetType asset.Item) (*ticker.Price, error) {
+	return GetExchangeByName(exchangeName).FetchTicker(p, assetType)
 }
 
 // GetCollatedExchangeAccountInfoByCoin collates individual exchange account
@@ -757,7 +731,7 @@ func GetAllActiveTickers() []EnabledExchangeCurrencies {
 						err)
 					continue
 				}
-				exchangeTicker.ExchangeValues = append(exchangeTicker.ExchangeValues, tp)
+				exchangeTicker.ExchangeValues = append(exchangeTicker.ExchangeValues, *tp)
 			}
 			tickerData = append(tickerData, exchangeTicker)
 		}

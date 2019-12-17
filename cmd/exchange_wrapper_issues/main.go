@@ -314,7 +314,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		log.Printf("Executing wrappers for %v %v %v", base.GetName(), assetTypes[i], p)
 
 		if !authenticatedOnly {
-			var r1 ticker.Price
+			var r1 *ticker.Price
 			r1, err = e.FetchTicker(p, assetTypes[i])
 			msg = ""
 			if err != nil {
@@ -328,7 +328,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]interface{}{r1}),
 			})
 
-			var r2 ticker.Price
+			var r2 *ticker.Price
 			r2, err = e.UpdateTicker(p, assetTypes[i])
 			msg = ""
 			if err != nil {
@@ -342,7 +342,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]interface{}{r2}),
 			})
 
-			var r3 orderbook.Base
+			var r3 *orderbook.Base
 			r3, err = e.FetchOrderbook(p, assetTypes[i])
 			msg = ""
 			if err != nil {
@@ -356,7 +356,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]interface{}{r3}),
 			})
 
-			var r4 orderbook.Base
+			var r4 *orderbook.Base
 			r4, err = e.UpdateOrderbook(p, assetTypes[i])
 			msg = ""
 			if err != nil {

@@ -207,10 +207,10 @@ func (l *LakeBTC) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (l *LakeBTC) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+func (l *LakeBTC) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	ticks, err := l.GetTicker()
 	if err != nil {
-		return ticker.Price{}, err
+		return nil, err
 	}
 
 	pairs := l.GetEnabledPairs(assetType)
@@ -220,7 +220,7 @@ func (l *LakeBTC) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 			continue
 		}
 
-		var tickerPrice ticker.Price
+		tickerPrice := new(ticker.Price)
 		tickerPrice.Pair = pairs[i]
 		tickerPrice.Ask = c.Ask
 		tickerPrice.Bid = c.Bid
@@ -229,7 +229,7 @@ func (l *LakeBTC) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 		tickerPrice.Low = c.Low
 		tickerPrice.Last = c.Last
 
-		err = ticker.ProcessTicker(l.Name, &tickerPrice, assetType)
+		err = ticker.ProcessTicker(l.Name, tickerPrice, assetType)
 		if err != nil {
 			log.Error(log.Ticker, err)
 		}
@@ -238,7 +238,7 @@ func (l *LakeBTC) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pr
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (l *LakeBTC) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+func (l *LakeBTC) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(l.Name, p, assetType)
 	if err != nil {
 		return l.UpdateTicker(p, assetType)
@@ -247,7 +247,7 @@ func (l *LakeBTC) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (l *LakeBTC) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
+func (l *LakeBTC) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(l.Name, p, assetType)
 	if err != nil {
 		return l.UpdateOrderbook(p, assetType)
@@ -256,8 +256,8 @@ func (l *LakeBTC) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbo
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	var orderBook orderbook.Base
+func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	orderBook := new(orderbook.Base)
 	orderbookNew, err := l.GetOrderBook(p.String())
 	if err != nil {
 		return orderBook, err

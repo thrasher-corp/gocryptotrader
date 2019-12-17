@@ -142,13 +142,13 @@ func (i *ItBit) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (i *ItBit) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	var tickerPrice ticker.Price
+func (i *ItBit) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	tickerPrice := new(ticker.Price)
 	tick, err := i.GetTicker(i.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
 		return tickerPrice, err
 	}
-	tickerPrice = ticker.Price{
+	tickerPrice = &ticker.Price{
 		Last:        tick.LastPrice,
 		High:        tick.High24h,
 		Low:         tick.Low24h,
@@ -159,7 +159,7 @@ func (i *ItBit) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 		Pair:        p,
 		LastUpdated: tick.ServertimeUTC,
 	}
-	err = ticker.ProcessTicker(i.Name, &tickerPrice, assetType)
+	err = ticker.ProcessTicker(i.Name, tickerPrice, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -168,7 +168,7 @@ func (i *ItBit) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (i *ItBit) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+func (i *ItBit) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(i.Name, p, assetType)
 	if err != nil {
 		return i.UpdateTicker(p, assetType)
@@ -177,7 +177,7 @@ func (i *ItBit) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (i *ItBit) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
+func (i *ItBit) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(i.Name, p, assetType)
 	if err != nil {
 		return i.UpdateOrderbook(p, assetType)
@@ -186,8 +186,8 @@ func (i *ItBit) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	var orderBook orderbook.Base
+func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	orderBook := new(orderbook.Base)
 	orderbookNew, err := i.GetOrderbook(i.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
 		return orderBook, err

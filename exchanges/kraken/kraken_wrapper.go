@@ -282,8 +282,8 @@ func (k *Kraken) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	var tickerPrice ticker.Price
+func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	tickerPrice := new(ticker.Price)
 	pairs := k.GetEnabledPairs(assetType)
 	pairsCollated, err := k.FormatExchangeCurrencies(pairs, assetType)
 	if err != nil {
@@ -307,7 +307,7 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 				}
 			}
 
-			tickerPrice = ticker.Price{
+			tickerPrice = &ticker.Price{
 				Last:   t.Last,
 				High:   t.High,
 				Low:    t.Low,
@@ -317,7 +317,7 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 				Open:   t.Open,
 				Pair:   pairs[i],
 			}
-			err = ticker.ProcessTicker(k.Name, &tickerPrice, assetType)
+			err = ticker.ProcessTicker(k.Name, tickerPrice, assetType)
 			if err != nil {
 				log.Error(log.Ticker, err)
 			}
@@ -327,7 +327,7 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (k *Kraken) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
+func (k *Kraken) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(k.Name, p, assetType)
 	if err != nil {
 		return k.UpdateTicker(p, assetType)
@@ -336,7 +336,7 @@ func (k *Kraken) FetchTicker(p currency.Pair, assetType asset.Item) (ticker.Pric
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (k *Kraken) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
+func (k *Kraken) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(k.Name, p, assetType)
 	if err != nil {
 		return k.UpdateOrderbook(p, assetType)
@@ -345,8 +345,8 @@ func (k *Kraken) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderboo
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	var orderBook orderbook.Base
+func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	orderBook := new(orderbook.Base)
 	orderbookNew, err := k.GetDepth(k.FormatExchangeCurrency(p,
 		assetType).String())
 	if err != nil {
