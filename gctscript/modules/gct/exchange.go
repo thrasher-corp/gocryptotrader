@@ -359,64 +359,23 @@ func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 	return &objects.String{Value: rtn}, nil
 }
 
+// I have PR https://github.com/thrasher-corp/gocryptotrader/pull/402 open to adds a GetBankAccountByID method to config
 func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
-	if len(args) != 20 {
+	if len(args) != 7 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
 	exchangeName, _ := objects.ToString(args[0])
 	cur, _ := objects.ToString(args[1])
 	description, _ := objects.ToString(args[2])
-	bankAccountName, _ := objects.ToString(args[3])
-	bankAccountNumber, _ := objects.ToString(args[4])
-	bankName, _ := objects.ToString(args[5])
-	bankAddress, _ := objects.ToString(args[6])
-	bankCity, _ := objects.ToString(args[7])
-	bankCountry, _ := objects.ToString(args[8])
-	bankPostalCode, _ := objects.ToString(args[9])
-	BSB, _ := objects.ToString(args[10])
-	swiftCode, _ := objects.ToString(args[11])
-	IBAN, _ := objects.ToString(args[12])
-	bankCode, _ := objects.ToFloat64(args[13])
-	isExpressWire, _ := objects.ToBool(args[14])
-	amount, _ := objects.ToFloat64(args[15])
-	pin, _ := objects.ToInt64(args[16])
-	tradePassword, _ := objects.ToString(args[17])
-	onetimePassword, _ := objects.ToInt64(args[18])
+	amount, _ := objects.ToFloat64(args[3])
 
 	withdrawRequest := &withdraw.FiatRequest{
 		GenericInfo: withdraw.GenericInfo{
 			Currency:        currency.NewCode(cur),
 			Description:     description,
-			OneTimePassword: onetimePassword,
-			AccountID:       "",
-			PIN:             pin,
-			TradePassword:   tradePassword,
 			Amount:          amount,
 		},
-		BankAccountName:               bankAccountName,
-		BankAccountNumber:             bankAccountNumber,
-		BankName:                      bankName,
-		BankAddress:                   bankAddress,
-		BankCity:                      bankCity,
-		BankCountry:                   bankCountry,
-		BankPostalCode:                bankPostalCode,
-		BSB:                           BSB,
-		SwiftCode:                     swiftCode,
-		IBAN:                          IBAN,
-		BankCode:                      bankCode,
-		IsExpressWire:                 isExpressWire,
-		RequiresIntermediaryBank:      false,
-		IntermediaryBankAccountNumber: 0,
-		IntermediaryBankName:          "",
-		IntermediaryBankAddress:       "",
-		IntermediaryBankCity:          "",
-		IntermediaryBankCountry:       "",
-		IntermediaryBankPostalCode:    "",
-		IntermediarySwiftCode:         "",
-		IntermediaryBankCode:          0,
-		IntermediaryIBAN:              "",
-		WireCurrency:                  "",
 	}
 
 	rtn, err := modules.Wrapper.WithdrawalFiatFunds(exchangeName, withdrawRequest)

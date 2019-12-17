@@ -168,10 +168,12 @@ func (e Exchange) WithdrawalFiatFunds(exch string, request *withdraw.FiatRequest
 	if err != nil {
 		return "", err
 	}
+
 	err = withdraw.Valid(request)
 	if err != nil {
 		return "", err
 	}
+
 	return ex.WithdrawFiatFunds(request)
 }
 
