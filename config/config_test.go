@@ -199,7 +199,6 @@ func TestCheckClientBankAccounts(t *testing.T) {
 }
 
 func TestGetBankAccountByID(t *testing.T) {
-	t.Parallel()
 	cfg := GetConfig()
 	err := cfg.LoadConfig(TestFile, true)
 	if err != nil {
