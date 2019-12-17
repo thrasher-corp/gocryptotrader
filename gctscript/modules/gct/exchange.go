@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
@@ -323,9 +324,105 @@ func ExchangeDepositAddress(args ...objects.Object) (objects.Object, error) {
 }
 
 func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
-	return nil, nil
+	if len(args) != 8 {
+		return nil, objects.ErrWrongNumArguments
+	}
+
+	exchangeName, _ := objects.ToString(args[0])
+	cur,_ := objects.ToString(args[1])
+	address, _ := objects.ToString(args[2])
+	addressTag, _ := objects.ToString(args[3])
+	amount, _ := objects.ToFloat64(args[4])
+	feeAmount, _ := objects.ToFloat64(args[5])
+	tradePassword, _ := objects.ToString(args[6])
+	onetimePassword, _ := objects.ToInt64(args[7])
+
+	withdrawRequest := &withdraw.CryptoRequest{
+		GenericInfo: withdraw.GenericInfo{
+			Currency:        currency.NewCode(cur),
+			Description:     "",
+			OneTimePassword: onetimePassword,
+			AccountID:       "",
+			PIN:             0,
+			TradePassword:   tradePassword,
+			Amount:          amount,
+		},
+		Address:     address,
+		AddressTag:  addressTag,
+		FeeAmount:   feeAmount,
+	}
+	rtn, err := modules.Wrapper.WithdrawalCryptoFunds(exchangeName, withdrawRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	return &objects.String{Value: rtn}, nil
 }
 
 func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
-	return nil, nil
+	if len(args) != 20 {
+		return nil, objects.ErrWrongNumArguments
+	}
+
+	exchangeName, _ := objects.ToString(args[0])
+	cur,_ := objects.ToString(args[1])
+	description, _ := objects.ToString(args[2])
+	bankAccountName, _ := objects.ToString(args[3])
+	bankAccountNumber, _ := objects.ToString(args[4])
+	bankName, _ := objects.ToString(args[5])
+	bankAddress, _ := objects.ToString(args[6])
+	bankCity, _ := objects.ToString(args[7])
+	bankCountry, _ := objects.ToString(args[8])
+	bankPostalCode, _ := objects.ToString(args[9])
+	BSB, _ := objects.ToString(args[10])
+	swiftCode, _ := objects.ToString(args[11])
+	IBAN, _ := objects.ToString(args[12])
+	bankCode, _ := objects.ToFloat64(args[13])
+	isExpressWire, _ := objects.ToBool(args[14])
+	amount, _ := objects.ToFloat64(args[15])
+	pin,_ := objects.ToInt64(args[16])
+	tradePassword, _ := objects.ToString(args[17])
+	onetimePassword, _ := objects.ToInt64(args[18])
+	
+	withdrawRequest := &withdraw.FiatRequest{
+		GenericInfo: withdraw.GenericInfo{
+			Currency:        currency.NewCode(cur),
+			Description:     description,
+			OneTimePassword: onetimePassword,
+			AccountID:       "",
+			PIN:             pin,
+			TradePassword:   tradePassword,
+			Amount:          amount,
+		},
+		BankAccountName:               bankAccountName,
+		BankAccountNumber:             bankAccountNumber,
+		BankName:                      bankName,
+		BankAddress:                   bankAddress,
+		BankCity:                      bankCity,
+		BankCountry:                   bankCountry,
+		BankPostalCode:                bankPostalCode,
+		BSB:                           BSB,
+		SwiftCode:                     swiftCode,
+		IBAN:                          IBAN,
+		BankCode:                      bankCode,
+		IsExpressWire:                 isExpressWire,
+		RequiresIntermediaryBank:      false,
+		IntermediaryBankAccountNumber: 0,
+		IntermediaryBankName:          "",
+		IntermediaryBankAddress:       "",
+		IntermediaryBankCity:          "",
+		IntermediaryBankCountry:       "",
+		IntermediaryBankPostalCode:    "",
+		IntermediarySwiftCode:         "",
+		IntermediaryBankCode:          0,
+		IntermediaryIBAN:              "",
+		WireCurrency:                  "",
+	}
+
+	rtn, err := modules.Wrapper.WithdrawalFiatFunds(exchangeName, withdrawRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	return &objects.String{Value: rtn}, nil
 }

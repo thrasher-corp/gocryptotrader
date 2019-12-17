@@ -1,61 +1,55 @@
 package withdraw
 
-func Valid(request interface{})(bool, error) {
+import (
+	"errors"
+	"strings"
+
+	"github.com/thrasher-corp/gocryptotrader/common"
+)
+
+// Valid takes interface and passes to asset type to check the request meets requirements to submit
+func Valid(request interface{}) error {
 	switch request.(type) {
 	case *FiatRequest:
 		return ValidateFiat(request.(*FiatRequest))
 	case *CryptoRequest:
 		return ValidateCrypto(request.(*CryptoRequest))
 	default:
-		return false, nil
+		return nil
 	}
 }
 
-func ValidateFiat(request *FiatRequest) (bool, error) {
+// ValidateFiat checks if Fiat request is valid
+func ValidateFiat(request *FiatRequest) error {
 	if request == nil {
-		return false, nil
+		return nil
 	}
-	return false, nil
+	return nil
 }
 
-func ValidateCrypto(request *CryptoRequest) (bool, error) {
+// ValidateCrypto checks if Crypto request is valid
+func ValidateCrypto(request *CryptoRequest) (err error) {
 	if request == nil {
-		return false, nil
+		return nil
 	}
 
-	return false, nil
+	var allErrors []string
+	if !request.Currency.IsCryptocurrency() {
+		allErrors = append(allErrors, "currency is not a crypto currency")
+	}
+
+	if request.Amount < 0 {
+		allErrors = append(allErrors, "amount must be greater than 0")
+	}
+
+	if request.Address == "" {
+		allErrors = append(allErrors, "address cannot be empty")
+	}
+
+	v,_ := common.IsValidCryptoAddress(request.Address, request.Currency.String())
+	if !v {
+		allErrors = append(allErrors, "address is not valid")
+	}
+
+	return errors.New(strings.Join(allErrors, "\n"))
 }
-
-
-/*
-
-type FiatRequest struct {
-	GenericInfo
-	// FIAT related information
-	BankAccountName   string
-	BankAccountNumber string
-	BankName          string
-	BankAddress       string
-	BankCity          string
-	BankCountry       string
-	BankPostalCode    string
-	BSB               string
-	SwiftCode         string
-	IBAN              string
-	BankCode          float64
-	IsExpressWire     bool
-	// Intermediary bank information
-	RequiresIntermediaryBank      bool
-	IntermediaryBankAccountNumber float64
-	IntermediaryBankName          string
-	IntermediaryBankAddress       string
-	IntermediaryBankCity          string
-	IntermediaryBankCountry       string
-	IntermediaryBankPostalCode    string
-	IntermediarySwiftCode         string
-	IntermediaryBankCode          float64
-	IntermediaryIBAN              string
-	WireCurrency                  string
-}
-
- */

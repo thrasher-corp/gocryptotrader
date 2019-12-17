@@ -35,6 +35,10 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## How to use
 
+##### Prerequisites
+
+To Enable database logging support you must have an active migrated database by following the [database setup guide](../database/README.md)
+
 ##### Configuration
 
 The gctscript configuration struct is currently: 

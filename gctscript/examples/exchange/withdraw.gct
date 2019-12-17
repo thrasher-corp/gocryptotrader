@@ -1,0 +1,24 @@
+// import fmt package
+fmt := import("fmt")
+// import exchange package
+exch := import("exchange")
+
+
+load := func() {
+   // retrieve account information from exchange and store in info variable
+   // withdrawcrypto
+   // 1: Exchange name
+   // 2: currency
+   // 3: address
+   // 4: address tag
+   // 5: amount
+   // 6: fee amount
+   // 7: trade password
+   // 8: OTP
+
+   info := exch.withdrawcrypto("BTC Markets","BTC", "1234562362", "1231", 1.0, 0.0, "","" )
+   // print out info
+   fmt.print(info)
+}
+
+load()

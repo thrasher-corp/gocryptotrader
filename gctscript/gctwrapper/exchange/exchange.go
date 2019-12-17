@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -47,7 +46,11 @@ func (e Exchange) IsEnabled(exch string) bool {
 
 // Orderbook returns current orderbook requested exchange, pair and asset
 func (e Exchange) Orderbook(exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error) {
-	return engine.GetSpecificOrderbook(pair, exch, item)
+	ob, err := engine.GetSpecificOrderbook(pair, exch, item)
+	if err != nil {
+		return nil, err
+	}
+	return &ob, nil
 }
 
 // Ticker returns ticker for provided currency pair & asset type
@@ -161,10 +164,26 @@ func (e Exchange) DepositAddress(exch string, currencyCode currency.Code, accoun
 
 // WithdrawalFiatFunds withdraw funds from exchange to requested fiat source
 func (e Exchange) WithdrawalFiatFunds(exch string, request *withdraw.FiatRequest) (out string, err error) {
-	return "", common.ErrNotYetImplemented
+	ex, err := e.GetExchange(exch)
+	if err != nil {
+		return "", err
+	}
+	err = withdraw.Valid(request)
+	if err != nil {
+		return "", err
+	}
+	return ex.WithdrawFiatFunds(request)
 }
 
 // WithdrawalCryptoFunds withdraw funds from exchange to requested Crypto source
 func (e Exchange) WithdrawalCryptoFunds(exch string,request  *withdraw.CryptoRequest) (out string, err error) {
-	return "", common.ErrNotYetImplemented
+	ex, err := e.GetExchange(exch)
+	if err != nil {
+		return "", err
+	}
+	err = withdraw.Valid(request)
+	if err != nil {
+		return "", err
+	}
+	return ex.WithdrawCryptocurrencyFunds(request)
 }
