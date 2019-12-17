@@ -211,6 +211,7 @@ func TestGetBankAccountByID(t *testing.T) {
 	if len(cfg.BankAccounts) == 0 {
 		t.Error("CheckClientBankAccounts error:", err)
 	}
+
 	_, err = cfg.GetBankAccountByID("test-bank-01")
 	if err != nil {
 		t.Error(err)
