@@ -176,7 +176,7 @@ func (e Exchange) WithdrawalFiatFunds(exch string, request *withdraw.FiatRequest
 }
 
 // WithdrawalCryptoFunds withdraw funds from exchange to requested Crypto source
-func (e Exchange) WithdrawalCryptoFunds(exch string,request  *withdraw.CryptoRequest) (out string, err error) {
+func (e Exchange) WithdrawalCryptoFunds(exch string, request *withdraw.CryptoRequest) (out string, err error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return "", err

@@ -52,4 +52,3 @@ type FiatRequest struct {
 	IntermediaryIBAN              string
 	WireCurrency                  string
 }
-

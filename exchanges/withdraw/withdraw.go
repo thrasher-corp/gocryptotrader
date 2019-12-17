@@ -9,11 +9,11 @@ import (
 
 // Valid takes interface and passes to asset type to check the request meets requirements to submit
 func Valid(request interface{}) error {
-	switch request.(type) {
+	switch request := request.(type) {
 	case *FiatRequest:
-		return ValidateFiat(request.(*FiatRequest))
+		return ValidateFiat(request)
 	case *CryptoRequest:
-		return ValidateCrypto(request.(*CryptoRequest))
+		return ValidateCrypto(request)
 	default:
 		return nil
 	}
@@ -46,7 +46,7 @@ func ValidateCrypto(request *CryptoRequest) (err error) {
 		allErrors = append(allErrors, "address cannot be empty")
 	}
 
-	v,_ := common.IsValidCryptoAddress(request.Address, request.Currency.String())
+	v, _ := common.IsValidCryptoAddress(request.Address, request.Currency.String())
 	if !v {
 		allErrors = append(allErrors, "address is not valid")
 	}

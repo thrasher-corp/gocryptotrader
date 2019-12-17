@@ -23,7 +23,7 @@ var exchangeModule = map[string]objects.Object{
 	"ordercancel":    &objects.UserFunction{Name: "ordercancel", Value: ExchangeOrderCancel},
 	"ordersubmit":    &objects.UserFunction{Name: "ordersubmit", Value: ExchangeOrderSubmit},
 	"withdrawcrypto": &objects.UserFunction{Name: "withdrawcrypto", Value: ExchangeWithdrawCrypto},
-	"withdrawfiat": &objects.UserFunction{Name: "withdrawfiat", Value: ExchangeWithdrawFiat},
+	"withdrawfiat":   &objects.UserFunction{Name: "withdrawfiat", Value: ExchangeWithdrawFiat},
 }
 
 // ExchangeOrderbook returns orderbook for requested exchange & currencypair
@@ -329,7 +329,7 @@ func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 	}
 
 	exchangeName, _ := objects.ToString(args[0])
-	cur,_ := objects.ToString(args[1])
+	cur, _ := objects.ToString(args[1])
 	address, _ := objects.ToString(args[2])
 	addressTag, _ := objects.ToString(args[3])
 	amount, _ := objects.ToFloat64(args[4])
@@ -347,9 +347,9 @@ func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 			TradePassword:   tradePassword,
 			Amount:          amount,
 		},
-		Address:     address,
-		AddressTag:  addressTag,
-		FeeAmount:   feeAmount,
+		Address:    address,
+		AddressTag: addressTag,
+		FeeAmount:  feeAmount,
 	}
 	rtn, err := modules.Wrapper.WithdrawalCryptoFunds(exchangeName, withdrawRequest)
 	if err != nil {
@@ -365,7 +365,7 @@ func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
 	}
 
 	exchangeName, _ := objects.ToString(args[0])
-	cur,_ := objects.ToString(args[1])
+	cur, _ := objects.ToString(args[1])
 	description, _ := objects.ToString(args[2])
 	bankAccountName, _ := objects.ToString(args[3])
 	bankAccountNumber, _ := objects.ToString(args[4])
@@ -380,10 +380,10 @@ func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
 	bankCode, _ := objects.ToFloat64(args[13])
 	isExpressWire, _ := objects.ToBool(args[14])
 	amount, _ := objects.ToFloat64(args[15])
-	pin,_ := objects.ToInt64(args[16])
+	pin, _ := objects.ToInt64(args[16])
 	tradePassword, _ := objects.ToString(args[17])
 	onetimePassword, _ := objects.ToInt64(args[18])
-	
+
 	withdrawRequest := &withdraw.FiatRequest{
 		GenericInfo: withdraw.GenericInfo{
 			Currency:        currency.NewCode(cur),
