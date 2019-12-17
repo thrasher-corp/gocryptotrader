@@ -576,7 +576,6 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 		k.Websocket.DataHandler <- wshandler.TradeData{
 			AssetType:    asset.Spot,
 			CurrencyPair: channelData.Pair,
-			EventTime:    time.Now().Unix(),
 			Exchange:     k.Name,
 			Price:        price,
 			Amount:       amount,

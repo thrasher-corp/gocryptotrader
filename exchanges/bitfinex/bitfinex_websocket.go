@@ -227,18 +227,27 @@ func (b *Bitfinex) WsDataHandler() {
 						var trades []WebsocketTrade
 						switch len(chanData) {
 						case 2:
-							data := chanData[1].([]interface{})
-							for i := range data {
-								y := data[i].([]interface{})
-								if _, ok := y[0].(string); ok {
+							snapshot := chanData[1].([]interface{})
+							for i := range snapshot {
+								elem := snapshot[i].([]interface{})
+								if len(elem) == 5 {
+									trades = append(trades,
+										WebsocketTrade{
+											ID:        int64(elem[0].(float64)),
+											Timestamp: int64(elem[1].(float64)),
+											Amount:    elem[3].(float64),
+											Rate:      elem[4].(float64),
+											Period:    int64(elem[4].(float64)),
+										})
 									continue
 								}
 								trades = append(trades,
 									WebsocketTrade{
-										ID:        int64(y[0].(float64)),
-										Timestamp: int64(y[1].(float64)),
-										Price:     y[3].(float64),
-										Amount:    y[2].(float64)})
+										ID:        int64(elem[0].(float64)),
+										Timestamp: int64(elem[1].(float64)),
+										Price:     elem[3].(float64),
+										Amount:    elem[2].(float64),
+									})
 							}
 						case 3:
 							if chanData[1].(string) == wsTradeExecutionUpdate ||
@@ -263,9 +272,24 @@ func (b *Bitfinex) WsDataHandler() {
 								side = order.Sell.String()
 								newAmount *= -1
 							}
+
+							if trades[i].Rate > 0 {
+								b.Websocket.DataHandler <- wshandler.FundingData{
+									CurrencyPair: currency.NewPairFromString(chanInfo.Pair),
+									Timestamp:    time.Unix(0, trades[i].Timestamp*int64(time.Millisecond)),
+									Amount:       newAmount,
+									Exchange:     b.Name,
+									AssetType:    asset.Spot,
+									Side:         side,
+									Rate:         trades[i].Rate,
+									Period:       trades[i].Period,
+								}
+								continue
+							}
+
 							b.Websocket.DataHandler <- wshandler.TradeData{
 								CurrencyPair: currency.NewPairFromString(chanInfo.Pair),
-								Timestamp:    time.Unix(trades[i].Timestamp, 0),
+								Timestamp:    time.Unix(0, trades[i].Timestamp*int64(time.Millisecond)),
 								Price:        trades[i].Price,
 								Amount:       newAmount,
 								Exchange:     b.Name,
@@ -801,14 +825,6 @@ func (b *Bitfinex) WsSendAuth() error {
 		return err
 	}
 	return nil
-}
-
-// WsSendUnauth sends an unauthenticated payload
-func (b *Bitfinex) WsSendUnauth() error {
-	req := make(map[string]string)
-	req["event"] = "unauth"
-
-	return b.WebsocketConn.SendMessage(req)
 }
 
 // WsAddSubscriptionChannel adds a new subscription channel to the

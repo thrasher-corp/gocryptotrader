@@ -174,7 +174,6 @@ func (z *ZB) WsHandleData() {
 					CurrencyPair: cPair,
 					AssetType:    asset.Spot,
 					Exchange:     z.Name,
-					EventTime:    t.Date,
 					Price:        t.Price,
 					Amount:       t.Amount,
 					Side:         t.TradeType,

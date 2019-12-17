@@ -152,7 +152,6 @@ func (l *LakeBTC) processTrades(data, channel string) error {
 			AssetType:    asset.Spot,
 			Exchange:     l.Name,
 			EventType:    asset.Spot.String(),
-			EventTime:    tradeData.Trades[i].Date,
 			Price:        tradeData.Trades[i].Price,
 			Amount:       tradeData.Trades[i].Amount,
 			Side:         tradeData.Trades[i].Type,

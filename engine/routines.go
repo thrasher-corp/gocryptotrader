@@ -287,9 +287,15 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 				log.Errorf(log.WebsocketMgr, "routines.go exchange %s websocket error - %s", ws.GetName(), data)
 			case wshandler.TradeData:
 				// Trade Data
-				// if Bot.Settings.Verbose {
-				//	log.Println("Websocket trades Updated:   ", data.(exchange.TradeData))
-				// }
+				if Bot.Settings.Verbose {
+					log.Infoln(log.Global, "Websocket trades Updated: ", d)
+				}
+
+			case wshandler.FundingData:
+				// Funding Data
+				if Bot.Settings.Verbose {
+					log.Infoln(log.Global, "Websocket funding Updated: ", d)
+				}
 
 			case wshandler.TickerData:
 				// Ticker data

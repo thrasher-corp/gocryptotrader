@@ -446,7 +446,6 @@ func (o *OKGroup) wsProcessTrades(response *WebsocketDataResponse) {
 			Amount:       response.Data[i].Size,
 			AssetType:    o.GetAssetTypeFromTableName(response.Table),
 			CurrencyPair: c,
-			EventTime:    time.Now().Unix(),
 			Exchange:     o.Name,
 			Price:        response.Data[i].WebsocketTradeResponse.Price,
 			Side:         response.Data[i].Side,
