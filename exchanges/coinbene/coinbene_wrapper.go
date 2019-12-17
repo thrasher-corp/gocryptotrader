@@ -153,6 +153,7 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 			Connector:                        c.WsConnect,
 			Subscriber:                       c.Subscribe,
 			UnSubscriber:                     c.Unsubscribe,
+			Features:                         &c.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err
@@ -414,7 +415,7 @@ func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 // Coinbene exchange
 func (c *Coinbene) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
-	balance, err := c.GetUserBalance()
+	balance, err := c.GetAccountBalances()
 	if err != nil {
 		return info, err
 	}
@@ -456,10 +457,10 @@ func (c *Coinbene) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			fmt.Errorf("%s orderside is not supported by this exchange",
 				s.OrderSide)
 	}
-
 	if s.OrderType != order.Limit {
 		return resp, fmt.Errorf("only limit order is supported by this exchange")
 	}
+
 	tempResp, err := c.PlaceSpotOrder(s.Price,
 		s.Amount,
 		c.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
@@ -490,7 +491,6 @@ func (c *Coinbene) CancelOrder(order *order.Cancel) error {
 // CancelAllOrders cancels all orders associated with a currency pair
 func (c *Coinbene) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
-	tempMap := make(map[string]string)
 	orders, err := c.FetchOpenSpotOrders(
 		c.FormatExchangeCurrency(orderCancellation.CurrencyPair,
 			asset.Spot).String(),
@@ -498,6 +498,7 @@ func (c *Coinbene) CancelAllOrders(orderCancellation *order.Cancel) (order.Cance
 	if err != nil {
 		return resp, err
 	}
+	tempMap := make(map[string]string)
 	for x := range orders {
 		_, err := c.CancelSpotOrder(orders[x].OrderID)
 		if err != nil {
@@ -564,41 +565,46 @@ func (c *Coinbene) GetWebsocket() (*wshandler.Websocket, error) {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (c *Coinbene) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	var resp []order.Detail
-	var tempResp order.Detail
-	var tempData OrdersInfo
 	if len(getOrdersRequest.Currencies) == 0 {
 		allPairs, err := c.GetAllPairs()
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		for a := range allPairs {
 			getOrdersRequest.Currencies = append(getOrdersRequest.Currencies,
 				currency.NewPairFromString(allPairs[a].Symbol))
 		}
 	}
+
 	var err error
+	var resp []order.Detail
+
 	for x := range getOrdersRequest.Currencies {
+		var tempData OrdersInfo
 		tempData, err = c.FetchOpenSpotOrders(
 			c.FormatExchangeCurrency(
 				getOrdersRequest.Currencies[x],
 				asset.Spot).String(),
 		)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
-		var t time.Time
+
 		for y := range tempData {
+			var tempResp order.Detail
 			tempResp.Exchange = c.Name
 			tempResp.CurrencyPair = getOrdersRequest.Currencies[x]
 			tempResp.OrderSide = order.Buy
 			if strings.EqualFold(tempData[y].OrderType, order.Sell.String()) {
 				tempResp.OrderSide = order.Sell
 			}
+
+			var t time.Time
 			t, err = time.Parse(time.RFC3339, tempData[y].OrderTime)
 			if err != nil {
-				return resp, err
+				return nil, err
 			}
+
 			tempResp.OrderDate = t
 			tempResp.Status = order.Status(tempData[y].OrderStatus)
 			tempResp.Price = tempData[y].OrderPrice
@@ -615,20 +621,21 @@ func (c *Coinbene) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (c *Coinbene) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	var resp []order.Detail
-	var tempResp order.Detail
-	var tempData OrdersInfo
 	if len(getOrdersRequest.Currencies) == 0 {
 		allPairs, err := c.GetAllPairs()
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		for a := range allPairs {
 			getOrdersRequest.Currencies = append(getOrdersRequest.Currencies,
 				currency.NewPairFromString(allPairs[a].Symbol))
 		}
 	}
+
+	var resp []order.Detail
+	var tempData OrdersInfo
 	var err error
+
 	for x := range getOrdersRequest.Currencies {
 		tempData, err = c.FetchClosedOrders(
 			c.FormatExchangeCurrency(
@@ -637,20 +644,24 @@ func (c *Coinbene) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]
 			"",
 		)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
-		var t time.Time
+
 		for y := range tempData {
+			var tempResp order.Detail
 			tempResp.Exchange = c.Name
 			tempResp.CurrencyPair = getOrdersRequest.Currencies[x]
 			tempResp.OrderSide = order.Buy
 			if strings.EqualFold(tempData[y].OrderType, order.Sell.String()) {
 				tempResp.OrderSide = order.Sell
 			}
+
+			var t time.Time
 			t, err = time.Parse(time.RFC3339, tempData[y].OrderTime)
 			if err != nil {
-				return resp, err
+				return nil, err
 			}
+
 			tempResp.OrderDate = t
 			tempResp.Status = order.Status(tempData[y].OrderStatus)
 			tempResp.Price = tempData[y].OrderPrice

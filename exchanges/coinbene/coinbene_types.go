@@ -66,10 +66,15 @@ type UserBalanceData struct {
 	Total     float64 `json:"total,string"`
 }
 
-// PlaceOrderResponse stores data for a placed order
-type PlaceOrderResponse struct {
-	OrderID  string `json:"orderId"`
-	ClientID string `json:"clientId"`
+// PlaceOrderRequest places an order request
+type PlaceOrderRequest struct {
+	Price     float64
+	Quantity  float64
+	Symbol    string
+	Direction string
+	OrderType string
+	ClientID  string
+	Notional  int
 }
 
 // CancelOrdersResponse stores data for a cancelled order
@@ -127,7 +132,7 @@ type WsTickerData struct {
 	BestBidVolume float64   `json:"bestBidVolume,string"`
 	High24h       float64   `json:"high24h,string"`
 	Low24h        float64   `json:"low24h,string"`
-	Volume24h     float64   `json:"volume,string"`
+	Volume24h     float64   `json:"volume24h,string"`
 	Timestamp     time.Time `json:"timestamp"`
 }
 
@@ -319,6 +324,9 @@ type OrderCancellationResponse struct {
 	Code    int    `json:"code,string"`
 	Message string `json:"message"`
 }
+
+// OrderPlacementResponse stores the order placement data
+type OrderPlacementResponse OrderCancellationResponse
 
 // SwapOrderFill stores a swap orders fill info
 type SwapOrderFill struct {

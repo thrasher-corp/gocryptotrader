@@ -50,30 +50,6 @@ func areTestAPIKeysSet() bool {
 	return c.AllowAuthenticatedRequest()
 }
 
-func TestGetTicker(t *testing.T) {
-	t.Parallel()
-	_, err := c.GetTicker(spotTestPair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetOrderbook(t *testing.T) {
-	t.Parallel()
-	_, err := c.GetOrderbook(spotTestPair, 100)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetTrades(t *testing.T) {
-	t.Parallel()
-	_, err := c.GetTrades(spotTestPair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestGetAllPairs(t *testing.T) {
 	t.Parallel()
 	_, err := c.GetAllPairs()
@@ -90,12 +66,36 @@ func TestGetPairInfo(t *testing.T) {
 	}
 }
 
-func TestGetUserBalance(t *testing.T) {
+func TestGetOrderbook(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetOrderbook(spotTestPair, 100)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTicker(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetTicker(spotTestPair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTrades(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetTrades(spotTestPair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAcounntBalances(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := c.GetUserBalance()
+	_, err := c.GetAccountBalances()
 	if err != nil {
 		t.Error(err)
 	}
@@ -126,6 +126,51 @@ func TestPlaceOrder(t *testing.T) {
 		"Sup3rAw3s0m3Cl13ntiDH",
 		0,
 	)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPlaceOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
+
+	_, err := c.PlaceSpotOrders(
+		[]PlaceOrderRequest{
+			{
+				1,
+				1,
+				spotTestPair,
+				order.Buy.Lower(),
+				order.Limit.Lower(),
+				"Sup3rAw3s0m3Cl13ntiDH",
+				0,
+			},
+		})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFetchOpenOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
+	_, err := c.FetchOpenSpotOrders(spotTestPair)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFetchClosedOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
+	_, err := c.FetchClosedOrders(spotTestPair, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -171,28 +216,6 @@ func TestCancelSpotOrders(t *testing.T) {
 	}
 
 	_, err := c.CancelSpotOrders([]string{"578639816552972288", "578639902896914432"})
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestFetchOpenOrders(t *testing.T) {
-	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API keys required but not set, skipping test")
-	}
-	_, err := c.FetchOpenSpotOrders(spotTestPair)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestFetchClosedOrders(t *testing.T) {
-	t.Parallel()
-	if !areTestAPIKeysSet() {
-		t.Skip("API keys required but not set, skipping test")
-	}
-	_, err := c.FetchClosedOrders(spotTestPair, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -307,7 +330,7 @@ func TestPlaceSwapOrder(t *testing.T) {
 	}
 
 	_, err := c.PlaceSwapOrder(swapTestPair,
-		"openLong",
+		order.Buy.Lower(),
 		"limit",
 		"fixed",
 		"12345",

@@ -138,11 +138,14 @@ func (c *Coinbene) WsDataHandler() {
 						Last:   ticker.Data[x].LastPrice,
 						High:   ticker.Data[x].High24h,
 						Low:    ticker.Data[x].Low24h,
+						Bid:    ticker.Data[x].BestBidPrice,
+						Ask:    ticker.Data[x].BestAskPrice,
 						Pair: currency.NewPairFromFormattedPairs(ticker.Data[x].Symbol,
 							c.GetEnabledPairs(asset.PerpetualSwap),
 							c.GetPairFormat(asset.PerpetualSwap, true)),
 						Exchange:  c.Name,
 						AssetType: asset.PerpetualSwap,
+						Timestamp: ticker.Data[x].Timestamp,
 					}
 				}
 			case strings.Contains(result[topic].(string), "tradeList"):
@@ -183,33 +186,33 @@ func (c *Coinbene) WsDataHandler() {
 				}
 			case strings.Contains(result[topic].(string), "orderBook"):
 				orderBook := struct {
-					Topic     string `json:"topic"`
-					Action    string `json:"action"`
-					Orderbook struct {
-						Bids [][]string `json:"bids"`
-						Asks [][]string `json:"asks"`
+					Topic  string `json:"topic"`
+					Action string `json:"action"`
+					Data   []struct {
+						Bids      [][]string `json:"bids"`
+						Asks      [][]string `json:"asks"`
+						Version   int64      `json:"version"`
+						Timestamp time.Time  `json:"timestamp"`
 					} `json:"data"`
-					Version   int64     `json:"version"`
-					Timestamp time.Time `json:"timestamp"`
 				}{}
 				err = json.Unmarshal(stream.Raw, &orderBook)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
 				}
-				p := strings.Replace(orderBook.Topic, "tradeList.", "", 1)
+				p := strings.Replace(orderBook.Topic, "orderBook.", "", 1)
 				cp := currency.NewPairFromFormattedPairs(p,
 					c.GetEnabledPairs(asset.PerpetualSwap),
 					c.GetPairFormat(asset.PerpetualSwap, true))
 				var amount, price float64
 				var asks, bids []orderbook.Item
-				for i := range orderBook.Orderbook.Asks {
-					amount, err = strconv.ParseFloat(orderBook.Orderbook.Asks[i][1], 64)
+				for i := range orderBook.Data[0].Asks {
+					amount, err = strconv.ParseFloat(orderBook.Data[0].Asks[i][1], 64)
 					if err != nil {
 						c.Websocket.DataHandler <- err
 						continue
 					}
-					price, err = strconv.ParseFloat(orderBook.Orderbook.Asks[i][0], 64)
+					price, err = strconv.ParseFloat(orderBook.Data[0].Asks[i][0], 64)
 					if err != nil {
 						c.Websocket.DataHandler <- err
 						continue
@@ -219,13 +222,13 @@ func (c *Coinbene) WsDataHandler() {
 						Price:  price,
 					})
 				}
-				for j := range orderBook.Orderbook.Bids {
-					amount, err = strconv.ParseFloat(orderBook.Orderbook.Bids[j][1], 64)
+				for j := range orderBook.Data[0].Bids {
+					amount, err = strconv.ParseFloat(orderBook.Data[0].Bids[j][1], 64)
 					if err != nil {
 						c.Websocket.DataHandler <- err
 						continue
 					}
-					price, err = strconv.ParseFloat(orderBook.Orderbook.Bids[j][0], 64)
+					price, err = strconv.ParseFloat(orderBook.Data[0].Bids[j][0], 64)
 					if err != nil {
 						c.Websocket.DataHandler <- err
 						continue
@@ -242,6 +245,7 @@ func (c *Coinbene) WsDataHandler() {
 					newOB.AssetType = asset.PerpetualSwap
 					newOB.Pair = cp
 					newOB.ExchangeName = c.Name
+					newOB.LastUpdated = orderBook.Data[0].Timestamp
 					err = c.Websocket.Orderbook.LoadSnapshot(&newOB)
 					if err != nil {
 						c.Websocket.DataHandler <- err
@@ -253,11 +257,12 @@ func (c *Coinbene) WsDataHandler() {
 					}
 				} else if orderBook.Action == "update" {
 					newOB := wsorderbook.WebsocketOrderbookUpdate{
-						Asks:     asks,
-						Bids:     bids,
-						Asset:    asset.PerpetualSwap,
-						Pair:     cp,
-						UpdateID: orderBook.Version,
+						Asks:       asks,
+						Bids:       bids,
+						Asset:      asset.PerpetualSwap,
+						Pair:       cp,
+						UpdateID:   orderBook.Data[0].Version,
+						UpdateTime: orderBook.Data[0].Timestamp,
 					}
 					err = c.Websocket.Orderbook.Update(&newOB)
 					if err != nil {
