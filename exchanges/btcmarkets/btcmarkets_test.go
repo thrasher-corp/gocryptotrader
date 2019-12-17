@@ -94,7 +94,7 @@ func TestGetMarketCandles(t *testing.T) {
 
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
-	temp := []string{BTCAUD, LTCAUD, ETHAUD}
+	temp := currency.NewPairsFromStrings([]string{LTCAUD, BTCAUD})
 	_, err := b.GetTickers(temp)
 	if err != nil {
 		t.Error(err)
@@ -194,11 +194,11 @@ func TestGetOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetOrders("", -1, -1, 2, "")
+	_, err := b.GetOrders("", -1, -1, 2, false)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetOrders(LTCAUD, -1, -1, -1, "open")
+	_, err = b.GetOrders(LTCAUD, -1, -1, -1, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -454,9 +454,10 @@ func TestGetOrderHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	var input order.GetOrdersRequest
-	input.OrderSide = order.Buy
-	_, err := b.GetOrderHistory(&input)
+
+	_, err := b.GetOrderHistory(&order.GetOrdersRequest{
+		OrderSide: order.Buy,
+	})
 	if err != nil {
 		t.Error(err)
 	}
@@ -477,5 +478,17 @@ func TestUpdateTicker(t *testing.T) {
 	_, err := b.UpdateTicker(cp, asset.Spot)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
+
+	_, err := b.GetActiveOrders(&order.GetOrdersRequest{})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
