@@ -94,7 +94,6 @@ func TestGetMarketCandles(t *testing.T) {
 
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	temp := currency.NewPairsFromStrings([]string{LTCAUD, BTCAUD})
 	_, err := b.GetTickers(temp)
 	if err != nil {
@@ -455,9 +454,10 @@ func TestGetOrderHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	var input order.GetOrdersRequest
-	input.OrderSide = order.Buy
-	_, err := b.GetOrderHistory(&input)
+
+	_, err := b.GetOrderHistory(&order.GetOrdersRequest{
+		OrderSide: order.Buy,
+	})
 	if err != nil {
 		t.Error(err)
 	}
@@ -487,9 +487,8 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Skip("API keys required but not set, skipping test")
 	}
 
-	tx, err := b.GetActiveOrders(&order.GetOrdersRequest{})
+	_, err := b.GetActiveOrders(&order.GetOrdersRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("%+v", tx)
 }
