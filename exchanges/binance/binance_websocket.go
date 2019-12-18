@@ -62,9 +62,7 @@ func (b *Binance) WsConnect() error {
 	}
 
 	b.WebsocketConn.URL = wsurl
-	if b.Verbose {
-		b.WebsocketConn.Verbose = true
-	}
+	b.WebsocketConn.Verbose = b.Verbose
 
 	err = b.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
