@@ -170,7 +170,7 @@ func (z *ZB) WsHandleData() {
 				channelInfo := strings.Split(result.Channel, "_")
 				cPair := currency.NewPairFromString(channelInfo[0])
 				z.Websocket.DataHandler <- wshandler.TradeData{
-					Timestamp:    time.Unix(0, t.Date*int64(time.Millisecond)),
+					Timestamp:    time.Unix(t.Date, 0),
 					CurrencyPair: cPair,
 					AssetType:    asset.Spot,
 					Exchange:     z.Name,
