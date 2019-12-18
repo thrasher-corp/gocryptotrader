@@ -243,7 +243,6 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 
 	case strings.Contains(init.Channel, "kline"):
 		var kline WsKline
-		fmt.Println(string(resp.Raw))
 		err := json.Unmarshal(resp.Raw, &kline)
 		if err != nil {
 			h.Websocket.DataHandler <- err
