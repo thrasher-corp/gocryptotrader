@@ -91,12 +91,10 @@ func (b *BTSE) SetDefaults() {
 				CryptoWithdrawalFee: true,
 			},
 			WebsocketCapabilities: protocol.Features{
-				TickerFetching:    true,
 				OrderbookFetching: true,
+				TradeFetching:     true,
 				Subscribe:         true,
 				Unsubscribe:       true,
-				// TradeHistory is supported but it is currently broken on BTSE's
-				// API so it has been left as unsupported
 			},
 			WithdrawPermissions: exchange.NoAPIWithdrawalMethods,
 		},
