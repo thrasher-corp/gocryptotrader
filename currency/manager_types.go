@@ -19,8 +19,8 @@ type PairsManager struct {
 
 // PairStore stores a currency pair store
 type PairStore struct {
-	Enabled       Pairs       `json:"enabled,omitempty"`
-	Available     Pairs       `json:"available,omitempty"`
+	Enabled       Pairs       `json:"enabled"`
+	Available     Pairs       `json:"available"`
 	RequestFormat *PairFormat `json:"requestFormat,omitempty"`
 	ConfigFormat  *PairFormat `json:"configFormat,omitempty"`
 }
