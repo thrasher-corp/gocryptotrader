@@ -29,7 +29,7 @@ const (
 	btcMarketsGetTrades          = "/trades?"
 	btcMarketOrderBooks          = "/orderbook?"
 	btcMarketsCandles            = "/candles?"
-	btcMarketsTickers            = "/tickers?"
+	btcMarketsTickers            = "tickers?"
 	btcMarketsMultipleOrderbooks = "/orderbooks?"
 	btcMarketsGetTime            = "/time"
 	btcMarketsWithdrawalFees     = "/withdrawal-fees"
@@ -227,11 +227,11 @@ func (b *BTCMarkets) GetMarketCandles(marketID, timeWindow, from, to string, bef
 }
 
 // GetTickers gets multiple tickers
-func (b *BTCMarkets) GetTickers(marketIDs []string) ([]Ticker, error) {
+func (b *BTCMarkets) GetTickers(marketIDs []currency.Pair) ([]Ticker, error) {
 	var tickers []Ticker
 	params := url.Values{}
 	for x := range marketIDs {
-		params.Add("marketId", marketIDs[x])
+		params.Add("marketId", marketIDs[x].String())
 	}
 	return tickers, b.SendHTTPRequest(btcMarketsUnauthPath+btcMarketsTickers+params.Encode(),
 		&tickers)
@@ -375,7 +375,7 @@ func (b *BTCMarkets) NewOrder(marketID string, price, amount float64, orderType,
 }
 
 // GetOrders returns current order information on the exchange
-func (b *BTCMarkets) GetOrders(marketID string, before, after, limit int64, status string) ([]OrderData, error) {
+func (b *BTCMarkets) GetOrders(marketID string, before, after, limit int64, openOnly bool) ([]OrderData, error) {
 	if (before > 0) && (after >= 0) {
 		return nil, errors.New("BTCMarkets only supports either before or after, not both")
 	}
@@ -393,8 +393,8 @@ func (b *BTCMarkets) GetOrders(marketID string, before, after, limit int64, stat
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	if status != "" {
-		params.Set("status", status)
+	if openOnly {
+		params.Set("status", "open")
 	}
 	return resp, b.SendAuthenticatedRequest(http.MethodGet,
 		common.EncodeURLValues(btcMarketsOrders, params), nil, &resp)
