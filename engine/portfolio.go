@@ -43,7 +43,6 @@ func (p *portfolioManager) Stop() error {
 		return errors.New("portfolio manager is already stopped")
 	}
 
-	portfolio.Verbose = false
 	log.Debugln(log.PortfolioMgr, "Portfolio manager shutting down...")
 	close(p.shutdown)
 	return nil
