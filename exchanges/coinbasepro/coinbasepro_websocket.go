@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 )
@@ -81,25 +82,25 @@ func (c *CoinbasePro) WsHandleData() {
 				c.Websocket.DataHandler <- errors.New(string(resp.Raw))
 
 			case "ticker":
-				ticker := WebsocketTicker{}
-				err := json.Unmarshal(resp.Raw, &ticker)
+				wsTicker := WebsocketTicker{}
+				err := json.Unmarshal(resp.Raw, &wsTicker)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
 				}
 
-				c.Websocket.DataHandler <- wshandler.TickerData{
-					Timestamp: ticker.Time,
-					Pair:      ticker.ProductID,
-					AssetType: asset.Spot,
-					Exchange:  c.Name,
-					Open:      ticker.Open24H,
-					High:      ticker.High24H,
-					Low:       ticker.Low24H,
-					Last:      ticker.Price,
-					Volume:    ticker.Volume24H,
-					Bid:       ticker.BestBid,
-					Ask:       ticker.BestAsk,
+				c.Websocket.DataHandler <- &ticker.Price{
+					LastUpdated:  wsTicker.Time,
+					Pair:         wsTicker.ProductID,
+					AssetType:    asset.Spot,
+					ExchangeName: c.Name,
+					Open:         wsTicker.Open24H,
+					High:         wsTicker.High24H,
+					Low:          wsTicker.Low24H,
+					Last:         wsTicker.Price,
+					Volume:       wsTicker.Volume24H,
+					Bid:          wsTicker.BestBid,
+					Ask:          wsTicker.BestAsk,
 				}
 
 			case "snapshot":

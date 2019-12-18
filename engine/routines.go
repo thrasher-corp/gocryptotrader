@@ -293,7 +293,7 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 			case error:
 				log.Errorf(log.WebsocketMgr, "routines.go exchange %s websocket error - %s", ws.GetName(), data)
 			case wshandler.TradeData:
-				// Trade Data
+				// Websocket Trade Data
 				if Bot.Settings.Verbose {
 					log.Infof(log.WebsocketMgr, "%s websocket %s %s trade updated %+v\n",
 						ws.GetName(),
@@ -302,7 +302,7 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 						d)
 				}
 			case wshandler.FundingData:
-				// Funding Data
+				// Websocket Funding Data
 				if Bot.Settings.Verbose {
 					log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v\n",
 						ws.GetName(),
@@ -310,21 +310,8 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 						d.AssetType,
 						d)
 				}
-			case wshandler.TickerData:
-				tickerNew := ticker.Price{
-					Last:        d.Last,
-					High:        d.High,
-					Low:         d.Low,
-					Bid:         d.Bid,
-					Ask:         d.Ask,
-					Volume:      d.Volume,
-					QuoteVolume: d.QuoteVolume,
-					PriceATH:    d.PriceATH,
-					Open:        d.Open,
-					Close:       d.Close,
-					Pair:        d.Pair,
-					LastUpdated: d.Timestamp,
-				}
+			case *ticker.Price:
+				// Websocket Ticker Data
 				if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
 					Bot.ExchangeCurrencyPairManager.update(ws.GetName(),
 						d.Pair,
@@ -332,10 +319,10 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 						SyncItemTicker,
 						nil)
 				}
-				err := ticker.ProcessTicker(ws.GetName(), &tickerNew, d.AssetType)
-				printTickerSummary(&tickerNew, tickerNew.Pair, d.AssetType, ws.GetName(), "websocket", err)
+				err := ticker.ProcessTicker(ws.GetName(), d, d.AssetType)
+				printTickerSummary(d, d.Pair, d.AssetType, ws.GetName(), "websocket", err)
 			case wshandler.KlineData:
-				// Kline data
+				// Websocket Kline Data
 				if Bot.Settings.Verbose {
 					log.Infoln(log.WebsocketMgr, "%s websocket %s %s kline updated %+v\n",
 						ws.GetName(),
@@ -344,7 +331,7 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 						d)
 				}
 			case wshandler.WebsocketOrderbookUpdate:
-				// Orderbook data
+				// Websocket Orderbook Data
 				result := data.(wshandler.WebsocketOrderbookUpdate)
 				if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
 					Bot.ExchangeCurrencyPairManager.update(ws.GetName(),

@@ -17,6 +17,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -410,20 +411,20 @@ func (o *OKGroup) wsProcessTickers(response *WebsocketDataResponse) {
 			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
 		}
 
-		o.Websocket.DataHandler <- wshandler.TickerData{
-			Exchange:    o.Name,
-			Open:        response.Data[i].Open24h,
-			Close:       response.Data[i].Last,
-			Volume:      response.Data[i].BaseVolume24h,
-			QuoteVolume: response.Data[i].QuoteVolume24h,
-			High:        response.Data[i].High24h,
-			Low:         response.Data[i].Low24h,
-			Bid:         response.Data[i].BestBid,
-			Ask:         response.Data[i].BestAsk,
-			Last:        response.Data[i].Last,
-			Timestamp:   response.Data[i].Timestamp,
-			AssetType:   o.GetAssetTypeFromTableName(response.Table),
-			Pair:        c,
+		o.Websocket.DataHandler <- &ticker.Price{
+			ExchangeName: o.Name,
+			Open:         response.Data[i].Open24h,
+			Close:        response.Data[i].Last,
+			Volume:       response.Data[i].BaseVolume24h,
+			QuoteVolume:  response.Data[i].QuoteVolume24h,
+			High:         response.Data[i].High24h,
+			Low:          response.Data[i].Low24h,
+			Bid:          response.Data[i].BestBid,
+			Ask:          response.Data[i].BestAsk,
+			Last:         response.Data[i].Last,
+			LastUpdated:  response.Data[i].Timestamp,
+			AssetType:    o.GetAssetTypeFromTableName(response.Table),
+			Pair:         c,
 		}
 	}
 }

@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -277,23 +278,23 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 			Timestamp: time.Unix(0, trade.Tick.Timestamp*int64(time.Millisecond)),
 		}
 	case strings.Contains(init.Channel, "detail"):
-		var ticker WsTick
-		err := json.Unmarshal(resp.Raw, &ticker)
+		var wsTicker WsTick
+		err := json.Unmarshal(resp.Raw, &wsTicker)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 			return
 		}
-		data := strings.Split(ticker.Channel, ".")
-		h.Websocket.DataHandler <- wshandler.TickerData{
-			Exchange:    h.Name,
-			Open:        ticker.Tick.Open,
-			Close:       ticker.Tick.Close,
-			Volume:      ticker.Tick.Amount,
-			QuoteVolume: ticker.Tick.Volume,
-			High:        ticker.Tick.High,
-			Low:         ticker.Tick.Low,
-			Timestamp:   time.Unix(0, ticker.Timestamp*int64(time.Millisecond)),
-			AssetType:   asset.Spot,
+		data := strings.Split(wsTicker.Channel, ".")
+		h.Websocket.DataHandler <- &ticker.Price{
+			ExchangeName: h.Name,
+			Open:         wsTicker.Tick.Open,
+			Close:        wsTicker.Tick.Close,
+			Volume:       wsTicker.Tick.Amount,
+			QuoteVolume:  wsTicker.Tick.Volume,
+			High:         wsTicker.Tick.High,
+			Low:          wsTicker.Tick.Low,
+			LastUpdated:  time.Unix(0, wsTicker.Timestamp*int64(time.Millisecond)),
+			AssetType:    asset.Spot,
 			Pair: currency.NewPairFromFormattedPairs(data[1],
 				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
 		}

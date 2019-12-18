@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -278,18 +279,17 @@ func (p *Poloniex) wsHandleTickerData(data []interface{}) {
 		return
 	}
 
-	p.Websocket.DataHandler <- wshandler.TickerData{
-		Exchange:    p.Name,
-		Volume:      t.BaseCurrencyVolume24H,
-		QuoteVolume: t.QuoteCurrencyVolume24H,
-		High:        t.HighestBid,
-		Low:         t.LowestAsk,
-		Bid:         t.HighestBid,
-		Ask:         t.LowestAsk,
-		Last:        t.LastPrice,
-		Timestamp:   time.Now(),
-		AssetType:   asset.Spot,
-		Pair:        currencyPair,
+	p.Websocket.DataHandler <- &ticker.Price{
+		ExchangeName: p.Name,
+		Volume:       t.BaseCurrencyVolume24H,
+		QuoteVolume:  t.QuoteCurrencyVolume24H,
+		High:         t.HighestBid,
+		Low:          t.LowestAsk,
+		Bid:          t.HighestBid,
+		Ask:          t.LowestAsk,
+		Last:         t.LastPrice,
+		AssetType:    asset.Spot,
+		Pair:         currencyPair,
 	}
 }
 

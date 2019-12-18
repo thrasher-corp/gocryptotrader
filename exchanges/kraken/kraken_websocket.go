@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -507,18 +508,17 @@ func (k *Kraken) wsProcessTickers(channelData *WebsocketChannelData, data map[st
 		return
 	}
 
-	k.Websocket.DataHandler <- wshandler.TickerData{
-		Exchange:  k.Name,
-		Open:      openPrice,
-		Close:     closePrice,
-		Volume:    quantity,
-		High:      highPrice,
-		Low:       lowPrice,
-		Bid:       bid,
-		Ask:       ask,
-		Timestamp: time.Now(),
-		AssetType: asset.Spot,
-		Pair:      channelData.Pair,
+	k.Websocket.DataHandler <- &ticker.Price{
+		ExchangeName: k.Name,
+		Open:         openPrice,
+		Close:        closePrice,
+		Volume:       quantity,
+		High:         highPrice,
+		Low:          lowPrice,
+		Bid:          bid,
+		Ask:          ask,
+		AssetType:    asset.Spot,
+		Pair:         channelData.Pair,
 	}
 }
 

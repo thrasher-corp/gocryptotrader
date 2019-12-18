@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 )
@@ -151,19 +152,19 @@ func (b *Binance) WsHandleData() {
 					continue
 				}
 
-				b.Websocket.DataHandler <- wshandler.TickerData{
-					Exchange:    b.Name,
-					Open:        t.OpenPrice,
-					Close:       t.ClosePrice,
-					Volume:      t.TotalTradedVolume,
-					QuoteVolume: t.TotalTradedQuoteVolume,
-					High:        t.HighPrice,
-					Low:         t.LowPrice,
-					Bid:         t.BestBidPrice,
-					Ask:         t.BestAskPrice,
-					Last:        t.LastPrice,
-					Timestamp:   time.Unix(0, t.EventTime*int64(time.Millisecond)),
-					AssetType:   asset.Spot,
+				b.Websocket.DataHandler <- &ticker.Price{
+					ExchangeName: b.Name,
+					Open:         t.OpenPrice,
+					Close:        t.ClosePrice,
+					Volume:       t.TotalTradedVolume,
+					QuoteVolume:  t.TotalTradedQuoteVolume,
+					High:         t.HighPrice,
+					Low:          t.LowPrice,
+					Bid:          t.BestBidPrice,
+					Ask:          t.BestAskPrice,
+					Last:         t.LastPrice,
+					LastUpdated:  time.Unix(0, t.EventTime*int64(time.Millisecond)),
+					AssetType:    asset.Spot,
 					Pair: currency.NewPairFromFormattedPairs(t.Symbol, b.GetEnabledPairs(asset.Spot),
 						b.GetPairFormat(asset.Spot, true)),
 				}

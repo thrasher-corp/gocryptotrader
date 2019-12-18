@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -211,16 +212,16 @@ func (b *Bitfinex) WsDataHandler() {
 						continue
 					case wsTicker:
 						tickerData := chanData[1].([]interface{})
-						b.Websocket.DataHandler <- wshandler.TickerData{
-							Exchange:  b.Name,
-							Bid:       tickerData[0].(float64),
-							Ask:       tickerData[2].(float64),
-							Last:      tickerData[6].(float64),
-							Volume:    tickerData[7].(float64),
-							High:      tickerData[8].(float64),
-							Low:       tickerData[9].(float64),
-							AssetType: asset.Spot,
-							Pair:      currency.NewPairFromString(chanInfo.Pair),
+						b.Websocket.DataHandler <- &ticker.Price{
+							ExchangeName: b.Name,
+							Bid:          tickerData[0].(float64),
+							Ask:          tickerData[2].(float64),
+							Last:         tickerData[6].(float64),
+							Volume:       tickerData[7].(float64),
+							High:         tickerData[8].(float64),
+							Low:          tickerData[9].(float64),
+							AssetType:    asset.Spot,
+							Pair:         currency.NewPairFromString(chanInfo.Pair),
 						}
 						continue
 					case wsTrades:
