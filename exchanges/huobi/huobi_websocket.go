@@ -243,6 +243,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 
 	case strings.Contains(init.Channel, "kline"):
 		var kline WsKline
+		fmt.Println(string(resp.Raw))
 		err := json.Unmarshal(resp.Raw, &kline)
 		if err != nil {
 			h.Websocket.DataHandler <- err
@@ -250,7 +251,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 		}
 		data := strings.Split(kline.Channel, ".")
 		h.Websocket.DataHandler <- wshandler.KlineData{
-			Timestamp: time.Unix(0, kline.Timestamp),
+			Timestamp: time.Unix(0, kline.Timestamp*int64(time.Millisecond)),
 			Exchange:  h.Name,
 			AssetType: asset.Spot,
 			Pair: currency.NewPairFromFormattedPairs(data[1],
@@ -274,7 +275,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 			AssetType: asset.Spot,
 			CurrencyPair: currency.NewPairFromFormattedPairs(data[1],
 				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
-			Timestamp: time.Unix(0, trade.Tick.Timestamp),
+			Timestamp: time.Unix(0, trade.Tick.Timestamp*int64(time.Millisecond)),
 		}
 	case strings.Contains(init.Channel, "detail"):
 		var ticker WsTick
@@ -292,7 +293,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 			QuoteVolume: ticker.Tick.Volume,
 			High:        ticker.Tick.High,
 			Low:         ticker.Tick.Low,
-			Timestamp:   time.Unix(0, ticker.Timestamp),
+			Timestamp:   time.Unix(0, ticker.Timestamp*int64(time.Millisecond)),
 			AssetType:   asset.Spot,
 			Pair: currency.NewPairFromFormattedPairs(data[1],
 				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
