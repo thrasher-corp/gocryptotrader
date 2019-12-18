@@ -24,7 +24,7 @@ func (p *portfolioManager) Started() bool {
 	return atomic.LoadInt32(&p.started) == 1
 }
 
-func (p *portfolioManager) Start(verbose bool) error {
+func (p *portfolioManager) Start() error {
 	if atomic.AddInt32(&p.started, 1) != 1 {
 		return errors.New("portfolio manager already started")
 	}
@@ -33,9 +33,8 @@ func (p *portfolioManager) Start(verbose bool) error {
 	Bot.Portfolio = &portfolio.Portfolio
 	Bot.Portfolio.Seed(Bot.Config.Portfolio)
 	p.shutdown = make(chan struct{})
-	if verbose {
-		portfolio.Verbose = true
-	}
+	portfolio.Verbose = Bot.Settings.Verbose
+
 	go p.run()
 	return nil
 }
