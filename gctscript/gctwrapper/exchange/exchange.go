@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -153,12 +154,36 @@ func (e Exchange) DepositAddress(exch string, currencyCode currency.Code, accoun
 	return engine.Bot.DepositAddressManager.GetDepositAddressByExchange(exch, currencyCode)
 }
 
+
 // WithdrawalFiatFunds withdraw funds from exchange to requested fiat source
-func (e Exchange) WithdrawalFiatFunds(exch string, request *withdraw.FiatRequest) (out string, err error) {
+func (e Exchange) WithdrawalFiatFunds(exch, bankaccountid  string, request *withdraw.FiatRequest) (out string, err error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return "", err
 	}
+	v, err := engine.Bot.Config.GetBankAccountByID(bankaccountid)
+	if err != nil {
+		return "", err
+	}
+
+	otp, err := engine.GetExchangeoOTPByName(exch)
+	if err == nil {
+		v, err := strconv.ParseInt(otp, 10, 64)
+		if err != nil {
+
+		}
+		request.GenericInfo.OneTimePassword = v
+	}
+	request.BankAccountName = v.AccountName
+	request.BankAccountNumber = v.AccountNumber
+	request.BankName = v.BankName
+	request.BankAddress = v.BankAddress
+	request.BankCity = v.BankPostalCity
+	request.BankCountry = v.BankCountry
+	request.BankPostalCode = v.BankPostalCode
+	request.BSB = v.BSBNumber
+	request.SwiftCode = v.SWIFTCode
+	request.IBAN = v.IBAN
 
 	err = withdraw.Valid(request)
 	if err != nil {
@@ -174,6 +199,7 @@ func (e Exchange) WithdrawalCryptoFunds(exch string, request *withdraw.CryptoReq
 	if err != nil {
 		return "", err
 	}
+
 	err = withdraw.Valid(request)
 	if err != nil {
 		return "", err

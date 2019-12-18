@@ -323,6 +323,7 @@ func ExchangeDepositAddress(args ...objects.Object) (objects.Object, error) {
 	return &objects.String{Value: rtn}, nil
 }
 
+// ExchangeWithdrawCrypto submit request to withdraw crypto assets
 func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 8 {
 		return nil, objects.ErrWrongNumArguments
@@ -359,9 +360,9 @@ func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 	return &objects.String{Value: rtn}, nil
 }
 
-// I have PR https://github.com/thrasher-corp/gocryptotrader/pull/402 open to adds a GetBankAccountByID method to config
+// ExchangeWithdrawFiat submit request to withdraw fiat assets
 func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
-	if len(args) != 7 {
+	if len(args) != 5 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
@@ -369,6 +370,7 @@ func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
 	cur, _ := objects.ToString(args[1])
 	description, _ := objects.ToString(args[2])
 	amount, _ := objects.ToFloat64(args[3])
+	bankAccountID, _ := objects.ToString(args[4])
 
 	withdrawRequest := &withdraw.FiatRequest{
 		GenericInfo: withdraw.GenericInfo{
@@ -378,10 +380,11 @@ func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
 		},
 	}
 
-	rtn, err := modules.Wrapper.WithdrawalFiatFunds(exchangeName, withdrawRequest)
+	rtn, err := modules.Wrapper.WithdrawalFiatFunds(exchangeName, bankAccountID, withdrawRequest)
 	if err != nil {
 		return nil, err
 	}
 
 	return &objects.String{Value: rtn}, nil
 }
+

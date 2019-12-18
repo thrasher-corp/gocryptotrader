@@ -16,8 +16,7 @@ load := func() {
    // 7: trade password
    // 8: OTP
 
-   // submit request to withdraw funds
-   info := exch.withdrawfiat("BTC Markets", "AUD", "hello", 1, "-")
+   info := exch.withdrawcrypto("BTC Markets","BTC", "1234562362", "1231", 1.0, 0.0, "","" )
    // print out info
    fmt.print(info)
 }

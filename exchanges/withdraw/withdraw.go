@@ -15,16 +15,29 @@ func Valid(request interface{}) error {
 	case *CryptoRequest:
 		return ValidateCrypto(request)
 	default:
-		return nil
+		return errors.New("invalid request type")
 	}
 }
 
 // ValidateFiat checks if Fiat request is valid
-func ValidateFiat(request *FiatRequest) error {
+func ValidateFiat(request *FiatRequest) (err error) {
 	if request == nil {
-		return nil
+		return errors.New("request cannot be nil")
 	}
-	return nil
+
+	var allErrors []string
+	if !request.Currency.IsFiatCurrency() {
+		allErrors = append(allErrors, "currency is not a fiat currency")
+	}
+
+	if request.Amount < 0 {
+		allErrors = append(allErrors, "amount must be greater than 0")
+	}
+
+	if len(allErrors) > 0 {
+		err = errors.New(strings.Join(allErrors, "\n"))
+	}
+	return err
 }
 
 // ValidateCrypto checks if Crypto request is valid
@@ -51,5 +64,8 @@ func ValidateCrypto(request *CryptoRequest) (err error) {
 		allErrors = append(allErrors, "address is not valid")
 	}
 
-	return errors.New(strings.Join(allErrors, "\n"))
+	if len(allErrors) > 0 {
+		err = errors.New(strings.Join(allErrors, "\n"))
+	}
+	return err
 }
