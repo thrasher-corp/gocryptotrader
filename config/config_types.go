@@ -49,6 +49,7 @@ const (
 	ErrFailureOpeningConfig                    = "fatal error opening %s file. Error: %s"
 	ErrCheckingConfigValues                    = "fatal error checking config values. Error: %s"
 	ErrSavingConfigBytesMismatch               = "config file %q bytes comparison doesn't match, read %s expected %s"
+	ErrBankAccountNotFound                     = "bank account ID: %v not found"
 	WarningWebserverCredentialValuesEmpty      = "webserver support disabled due to empty Username/Password values"
 	WarningWebserverListenAddressInvalid       = "webserver support disabled due to invalid listen address"
 	WarningExchangeAuthAPIDefaultOrEmptyValues = "exchange %s authenticated API support disabled due to default/empty APIKey/Secret/ClientID values"
@@ -226,6 +227,7 @@ type CurrencyPairFormatConfig struct {
 // currency
 type BankAccount struct {
 	Enabled             bool   `json:"enabled"`
+	ID                  string `json:"id,omitempty"`
 	BankName            string `json:"bankName"`
 	BankAddress         string `json:"bankAddress"`
 	BankPostalCode      string `json:"bankPostalCode"`

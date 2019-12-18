@@ -198,6 +198,30 @@ func TestCheckClientBankAccounts(t *testing.T) {
 	}
 }
 
+func TestGetBankAccountByID(t *testing.T) {
+	cfg := GetConfig()
+	err := cfg.LoadConfig(TestFile, true)
+	if err != nil {
+		t.Error("CheckClientBankAccounts LoadConfig error", err)
+	}
+
+	cfg.BankAccounts = nil
+	cfg.CheckClientBankAccounts()
+	if len(cfg.BankAccounts) == 0 {
+		t.Error("CheckClientBankAccounts error:", err)
+	}
+
+	_, err = cfg.GetBankAccountByID("test-bank-01")
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = cfg.GetBankAccountByID("invalid-test-bank-01")
+	if err == nil {
+		t.Error("error expected for invalid account received nil")
+	}
+}
+
 func TestPurgeExchangeCredentials(t *testing.T) {
 	t.Parallel()
 	var c Config

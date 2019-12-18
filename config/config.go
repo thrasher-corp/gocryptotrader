@@ -110,6 +110,7 @@ func (c *Config) CheckClientBankAccounts() {
 	if len(c.BankAccounts) == 0 {
 		c.BankAccounts = append(c.BankAccounts,
 			BankAccount{
+				ID:                  "test-bank-01",
 				BankName:            "Test Bank",
 				BankAddress:         "42 Bank Street",
 				BankPostalCode:      "13337",
@@ -135,6 +136,19 @@ func (c *Config) CheckClientBankAccounts() {
 			}
 		}
 	}
+}
+
+// GetBankAccountByID Returns a bank account based on its ID
+func (c *Config) GetBankAccountByID(id string) (*BankAccount, error) {
+	m.Lock()
+	defer m.Unlock()
+
+	for x := range c.BankAccounts {
+		if strings.EqualFold(c.BankAccounts[x].ID, id) {
+			return &c.BankAccounts[x], nil
+		}
+	}
+	return nil, fmt.Errorf(ErrBankAccountNotFound, id)
 }
 
 // PurgeExchangeAPICredentials purges the stored API credentials
