@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 )
@@ -62,6 +63,8 @@ func (b *Binance) WsConnect() error {
 	}
 
 	b.WebsocketConn.URL = wsurl
+	b.WebsocketConn.Verbose = b.Verbose
+
 	err = b.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
@@ -131,7 +134,7 @@ func (b *Binance) WsHandleData() {
 				b.Websocket.DataHandler <- wshandler.TradeData{
 					CurrencyPair: currency.NewPairFromFormattedPairs(trade.Symbol, b.GetEnabledPairs(asset.Spot),
 						b.GetPairFormat(asset.Spot, true)),
-					Timestamp: time.Unix(0, trade.TimeStamp),
+					Timestamp: time.Unix(0, trade.TimeStamp*int64(time.Millisecond)),
 					Price:     price,
 					Amount:    amount,
 					Exchange:  b.Name,
@@ -149,25 +152,25 @@ func (b *Binance) WsHandleData() {
 					continue
 				}
 
-				b.Websocket.DataHandler <- wshandler.TickerData{
-					Exchange:    b.Name,
-					Open:        t.OpenPrice,
-					Close:       t.ClosePrice,
-					Volume:      t.TotalTradedVolume,
-					QuoteVolume: t.TotalTradedQuoteVolume,
-					High:        t.HighPrice,
-					Low:         t.LowPrice,
-					Bid:         t.BestBidPrice,
-					Ask:         t.BestAskPrice,
-					Last:        t.LastPrice,
-					Timestamp:   time.Unix(0, t.EventTime),
-					AssetType:   asset.Spot,
+				b.Websocket.DataHandler <- &ticker.Price{
+					ExchangeName: b.Name,
+					Open:         t.OpenPrice,
+					Close:        t.ClosePrice,
+					Volume:       t.TotalTradedVolume,
+					QuoteVolume:  t.TotalTradedQuoteVolume,
+					High:         t.HighPrice,
+					Low:          t.LowPrice,
+					Bid:          t.BestBidPrice,
+					Ask:          t.BestAskPrice,
+					Last:         t.LastPrice,
+					LastUpdated:  time.Unix(0, t.EventTime*int64(time.Millisecond)),
+					AssetType:    asset.Spot,
 					Pair: currency.NewPairFromFormattedPairs(t.Symbol, b.GetEnabledPairs(asset.Spot),
 						b.GetPairFormat(asset.Spot, true)),
 				}
 
 				continue
-			case "kline":
+			case "kline_1m":
 				kline := KlineStream{}
 				err := json.Unmarshal(multiStreamData.Data, &kline)
 				if err != nil {
@@ -178,13 +181,13 @@ func (b *Binance) WsHandleData() {
 				}
 
 				var wsKline wshandler.KlineData
-				wsKline.Timestamp = time.Unix(0, kline.EventTime)
+				wsKline.Timestamp = time.Unix(0, kline.EventTime*int64(time.Millisecond))
 				wsKline.Pair = currency.NewPairFromFormattedPairs(kline.Symbol, b.GetEnabledPairs(asset.Spot),
 					b.GetPairFormat(asset.Spot, true))
 				wsKline.AssetType = asset.Spot
 				wsKline.Exchange = b.Name
-				wsKline.StartTime = time.Unix(0, kline.Kline.StartTime)
-				wsKline.CloseTime = time.Unix(0, kline.Kline.CloseTime)
+				wsKline.StartTime = time.Unix(0, kline.Kline.StartTime*int64(time.Millisecond))
+				wsKline.CloseTime = time.Unix(0, kline.Kline.CloseTime*int64(time.Millisecond))
 				wsKline.Interval = kline.Kline.Interval
 				wsKline.OpenPrice, _ = strconv.ParseFloat(kline.Kline.OpenPrice, 64)
 				wsKline.ClosePrice, _ = strconv.ParseFloat(kline.Kline.ClosePrice, 64)
@@ -249,7 +252,6 @@ func (b *Binance) SeedLocalCache(p currency.Pair) error {
 		})
 	}
 
-	newOrderBook.LastUpdated = time.Unix(orderbookNew.LastUpdateID, 0)
 	newOrderBook.Pair = p
 	newOrderBook.AssetType = asset.Spot
 	newOrderBook.ExchangeName = b.Name

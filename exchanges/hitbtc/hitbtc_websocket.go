@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -105,30 +106,30 @@ func (h *HitBTC) WsHandleData() {
 func (h *HitBTC) handleSubscriptionUpdates(resp wshandler.WebsocketResponse, init capture) {
 	switch init.Method {
 	case "ticker":
-		var ticker WsTicker
-		err := json.Unmarshal(resp.Raw, &ticker)
+		var wsTicker WsTicker
+		err := json.Unmarshal(resp.Raw, &wsTicker)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 			return
 		}
-		ts, err := time.Parse(time.RFC3339, ticker.Params.Timestamp)
+		ts, err := time.Parse(time.RFC3339, wsTicker.Params.Timestamp)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 			return
 		}
-		h.Websocket.DataHandler <- wshandler.TickerData{
-			Exchange:    h.Name,
-			Open:        ticker.Params.Open,
-			Volume:      ticker.Params.Volume,
-			QuoteVolume: ticker.Params.VolumeQuote,
-			High:        ticker.Params.High,
-			Low:         ticker.Params.Low,
-			Bid:         ticker.Params.Bid,
-			Ask:         ticker.Params.Ask,
-			Last:        ticker.Params.Last,
-			Timestamp:   ts,
-			AssetType:   asset.Spot,
-			Pair: currency.NewPairFromFormattedPairs(ticker.Params.Symbol,
+		h.Websocket.DataHandler <- &ticker.Price{
+			ExchangeName: h.Name,
+			Open:         wsTicker.Params.Open,
+			Volume:       wsTicker.Params.Volume,
+			QuoteVolume:  wsTicker.Params.VolumeQuote,
+			High:         wsTicker.Params.High,
+			Low:          wsTicker.Params.Low,
+			Bid:          wsTicker.Params.Bid,
+			Ask:          wsTicker.Params.Ask,
+			Last:         wsTicker.Params.Last,
+			LastUpdated:  ts,
+			AssetType:    asset.Spot,
+			Pair: currency.NewPairFromFormattedPairs(wsTicker.Params.Symbol,
 				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
 		}
 	case "snapshotOrderbook":

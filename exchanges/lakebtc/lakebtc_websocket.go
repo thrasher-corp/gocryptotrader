@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/toorop/go-pusher"
@@ -152,7 +153,6 @@ func (l *LakeBTC) processTrades(data, channel string) error {
 			AssetType:    asset.Spot,
 			Exchange:     l.Name,
 			EventType:    asset.Spot.String(),
-			EventTime:    tradeData.Trades[i].Date,
 			Price:        tradeData.Trades[i].Price,
 			Amount:       tradeData.Trades[i].Amount,
 			Side:         tradeData.Trades[i].Type,
@@ -233,9 +233,9 @@ func (l *LakeBTC) getCurrencyFromChannel(channel string) currency.Pair {
 	return currency.NewPairFromString(curr)
 }
 
-func (l *LakeBTC) processTicker(ticker string) error {
+func (l *LakeBTC) processTicker(wsTicker string) error {
 	var tUpdate map[string]interface{}
-	err := json.Unmarshal([]byte(ticker), &tUpdate)
+	err := json.Unmarshal([]byte(wsTicker), &tUpdate)
 	if err != nil {
 		l.Websocket.DataHandler <- err
 		return err
@@ -266,16 +266,16 @@ func (l *LakeBTC) processTicker(ticker string) error {
 			return p
 		}
 
-		l.Websocket.DataHandler <- wshandler.TickerData{
-			Exchange:  l.Name,
-			Bid:       processTickerItem(tickerData, order.Buy.Lower()),
-			High:      processTickerItem(tickerData, tickerHighString),
-			Last:      processTickerItem(tickerData, tickerLastString),
-			Low:       processTickerItem(tickerData, tickerLowString),
-			Ask:       processTickerItem(tickerData, order.Sell.Lower()),
-			Volume:    processTickerItem(tickerData, tickerVolumeString),
-			AssetType: asset.Spot,
-			Pair:      returnCurrency,
+		l.Websocket.DataHandler <- &ticker.Price{
+			ExchangeName: l.Name,
+			Bid:          processTickerItem(tickerData, order.Buy.Lower()),
+			High:         processTickerItem(tickerData, tickerHighString),
+			Last:         processTickerItem(tickerData, tickerLastString),
+			Low:          processTickerItem(tickerData, tickerLowString),
+			Ask:          processTickerItem(tickerData, order.Sell.Lower()),
+			Volume:       processTickerItem(tickerData, tickerVolumeString),
+			AssetType:    asset.Spot,
+			Pair:         returnCurrency,
 		}
 	}
 	return nil

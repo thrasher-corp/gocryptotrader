@@ -297,11 +297,10 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 		for i := 0; i < len(result.Events); i++ {
 			if result.Events[i].Type == "trade" {
 				g.Websocket.DataHandler <- wshandler.TradeData{
-					Timestamp:    time.Now(),
+					Timestamp:    time.Unix(0, result.Timestamp),
 					CurrencyPair: pair,
 					AssetType:    asset.Spot,
 					Exchange:     g.Name,
-					EventTime:    result.Timestamp,
 					Price:        result.Events[i].Price,
 					Amount:       result.Events[i].Amount,
 					Side:         result.Events[i].MakerSide,

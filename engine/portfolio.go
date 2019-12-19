@@ -33,6 +33,8 @@ func (p *portfolioManager) Start() error {
 	Bot.Portfolio = &portfolio.Portfolio
 	Bot.Portfolio.Seed(Bot.Config.Portfolio)
 	p.shutdown = make(chan struct{})
+	portfolio.Verbose = Bot.Settings.Verbose
+
 	go p.run()
 	return nil
 }
@@ -73,13 +75,19 @@ func (p *portfolioManager) processPortfolio() {
 	pf := portfolio.GetPortfolio()
 	data := pf.GetPortfolioGroupedCoin()
 	for key, value := range data {
-		success := pf.UpdatePortfolio(value, key)
-		if success {
-			log.Debugf(log.PortfolioMgr,
-				"Portfolio manager: Successfully updated address balance for %s address(es) %s\n",
-				key, value,
-			)
+		err := pf.UpdatePortfolio(value, key)
+		if err != nil {
+			log.Errorf(log.PortfolioMgr,
+				"PortfolioWatcher error %s for currency %s\n",
+				err,
+				key)
+			continue
 		}
+
+		log.Debugf(log.PortfolioMgr,
+			"Portfolio manager: Successfully updated address balance for %s address(es) %s\n",
+			key,
+			value)
 	}
 	SeedExchangeAccountInfo(GetAllEnabledExchangeAccountInfo().Data)
 }

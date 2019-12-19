@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -122,9 +123,9 @@ func (g *Gateio) WsHandleData() {
 
 			switch {
 			case strings.Contains(result.Method, "ticker"):
-				var ticker WebsocketTicker
+				var wsTicker WebsocketTicker
 				var c string
-				err = json.Unmarshal(result.Params[1], &ticker)
+				err = json.Unmarshal(result.Params[1], &wsTicker)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
@@ -136,17 +137,17 @@ func (g *Gateio) WsHandleData() {
 					continue
 				}
 
-				g.Websocket.DataHandler <- wshandler.TickerData{
-					Exchange:    g.Name,
-					Open:        ticker.Open,
-					Close:       ticker.Close,
-					Volume:      ticker.BaseVolume,
-					QuoteVolume: ticker.QuoteVolume,
-					High:        ticker.High,
-					Low:         ticker.Low,
-					Last:        ticker.Last,
-					AssetType:   asset.Spot,
-					Pair:        currency.NewPairFromString(c),
+				g.Websocket.DataHandler <- &ticker.Price{
+					ExchangeName: g.Name,
+					Open:         wsTicker.Open,
+					Close:        wsTicker.Close,
+					Volume:       wsTicker.BaseVolume,
+					QuoteVolume:  wsTicker.QuoteVolume,
+					High:         wsTicker.High,
+					Low:          wsTicker.Low,
+					Last:         wsTicker.Last,
+					AssetType:    asset.Spot,
+					Pair:         currency.NewPairFromString(c),
 				}
 
 			case strings.Contains(result.Method, "trades"):

@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -133,25 +134,25 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 	case "hb":
 		channels["hb"] <- resp
 	case "inst_tick":
-		var ticker WsTicker
-		err := json.Unmarshal(resp, &ticker)
+		var wsTicker WsTicker
+		err := json.Unmarshal(resp, &wsTicker)
 		if err != nil {
 			c.Websocket.DataHandler <- err
 			return
 		}
 
-		currencyPair := c.instrumentMap.LookupInstrument(ticker.InstID)
-		c.Websocket.DataHandler <- wshandler.TickerData{
-			Exchange:    c.Name,
-			Volume:      ticker.Volume24,
-			QuoteVolume: ticker.Volume24Quote,
-			Bid:         ticker.HighestBuy,
-			Ask:         ticker.LowestSell,
-			High:        ticker.High24,
-			Low:         ticker.Low24,
-			Last:        ticker.Last,
-			Timestamp:   time.Unix(0, ticker.Timestamp),
-			AssetType:   asset.Spot,
+		currencyPair := c.instrumentMap.LookupInstrument(wsTicker.InstID)
+		c.Websocket.DataHandler <- &ticker.Price{
+			ExchangeName: c.Name,
+			Volume:       wsTicker.Volume24,
+			QuoteVolume:  wsTicker.Volume24Quote,
+			Bid:          wsTicker.HighestBuy,
+			Ask:          wsTicker.LowestSell,
+			High:         wsTicker.High24,
+			Low:          wsTicker.Low24,
+			Last:         wsTicker.Last,
+			LastUpdated:  time.Unix(0, wsTicker.Timestamp),
+			AssetType:    asset.Spot,
 			Pair: currency.NewPairFromFormattedPairs(currencyPair,
 				c.GetEnabledPairs(asset.Spot),
 				c.GetPairFormat(asset.Spot, true)),

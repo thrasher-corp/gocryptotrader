@@ -385,7 +385,7 @@ type WebsocketChanInfo struct {
 // WebsocketBook holds booking information
 type WebsocketBook struct {
 	Price  float64
-	ID     int
+	ID     int64
 	Amount float64
 }
 
@@ -395,6 +395,10 @@ type WebsocketTrade struct {
 	Timestamp int64
 	Price     float64
 	Amount    float64
+	// Funding rate of the trade
+	Rate float64
+	// Funding offer period in days
+	Period int64
 }
 
 // WebsocketCandle candle data

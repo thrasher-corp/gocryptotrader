@@ -256,50 +256,50 @@ func TestUpdatePortfolio(t *testing.T) {
 	portfolio := GetPortfolio()
 	portfolio.Seed(newbase)
 
-	value := portfolio.UpdatePortfolio(
-		[]string{"LdP8Qox1VAhCzLJNqrr74YovaWYyNBUWvL"}, currency.LTC,
-	)
-	if !value {
-		t.Error("portfolio_test.go - UpdatePortfolio error")
+	err := portfolio.UpdatePortfolio(
+		[]string{"LdP8Qox1VAhCzLJNqrr74YovaWYyNBUWvL"},
+		currency.LTC)
+	if err != nil {
+		t.Error("portfolio_test.go - UpdatePortfolio error", err)
 	}
-	value = portfolio.UpdatePortfolio([]string{"Testy"}, currency.LTC)
-	if value {
-		t.Error("portfolio_test.go - UpdatePortfolio error")
+	err = portfolio.UpdatePortfolio([]string{"Testy"}, currency.LTC)
+	if err == nil {
+		t.Error("portfolio_test.go - UpdatePortfolio error cannot be nil")
 	}
-	value = portfolio.UpdatePortfolio(
+	err = portfolio.UpdatePortfolio(
 		[]string{"LdP8Qox1VAhCzLJNqrr74YovaWYyNBUWvL", "LVa8wZ983PvWtdwXZ8viK6SocMENLCXkEy"},
 		currency.LTC,
 	)
-	if !value {
-		t.Error("portfolio_test.go - UpdatePortfolio error")
+	if err != nil {
+		t.Error("portfolio_test.go - UpdatePortfolio error", err)
 	}
-	value = portfolio.UpdatePortfolio(
+	err = portfolio.UpdatePortfolio(
 		[]string{"LdP8Qox1VAhCzLJNqrr74YovaWYyNBUWvL", "Testy"}, currency.LTC,
 	)
-	if value {
-		t.Error("portfolio_test.go - UpdatePortfolio error")
+	if err == nil {
+		t.Error("portfolio_test.go - UpdatePortfolio error cannot be nil")
 	}
 
 	time.Sleep(time.Second * 5)
-	value = portfolio.UpdatePortfolio(
+	err = portfolio.UpdatePortfolio(
 		[]string{"0xb794f5ea0ba39494ce839613fffba74279579268",
 			"0xe853c56864a2ebe4576a807d26fdc4a0ada51919"}, currency.ETH,
 	)
-	if !value {
-		t.Error("portfolio_test.go - UpdatePortfolio error")
+	if err == nil { // eth support seems to have been dropped for cryptoid
+		t.Error("portfolio_test.go - UpdatePortfolio error cannot be nil")
 	}
-	value = portfolio.UpdatePortfolio(
+	err = portfolio.UpdatePortfolio(
 		[]string{"0xb794f5ea0ba39494ce839613fffba74279579268", "TESTY"}, currency.ETH,
 	)
-	if value {
-		t.Error("portfolio_test.go - UpdatePortfolio error")
+	if err == nil {
+		t.Error("portfolio_test.go - UpdatePortfolio error cannot be nil")
 	}
 
-	value = portfolio.UpdatePortfolio(
+	err = portfolio.UpdatePortfolio(
 		[]string{PortfolioAddressExchange, PortfolioAddressPersonal}, currency.LTC)
 
-	if !value {
-		t.Error("portfolio_test.go - UpdatePortfolio error")
+	if err != nil {
+		t.Error("portfolio_test.go - UpdatePortfolio error", err)
 	}
 }
 
