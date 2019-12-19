@@ -59,11 +59,11 @@ func printConvertCurrencyFormat(origCurrency currency.Code, origPrice float64) s
 
 func printTickerSummary(result *ticker.Price, p currency.Pair, assetType asset.Item, exchangeName, protocol string, err error) {
 	if err != nil {
-		log.Errorf(log.Ticker, "Failed to get %s %s %s ticker. Error: %s\n",
+		log.Errorf(log.Ticker, "Failed to get %s %s %s %s ticker. Error: %s\n",
 			exchangeName,
 			protocol,
-			p.String(),
-			protocol,
+			p,
+			assetType,
 			err)
 		return
 	}
@@ -75,7 +75,7 @@ func printTickerSummary(result *ticker.Price, p currency.Pair, assetType asset.I
 		log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
 			exchangeName,
 			protocol,
-			FormatCurrency(p).String(),
+			FormatCurrency(p),
 			strings.ToUpper(assetType.String()),
 			printConvertCurrencyFormat(origCurrency, result.Last),
 			printConvertCurrencyFormat(origCurrency, result.Ask),
@@ -89,7 +89,7 @@ func printTickerSummary(result *ticker.Price, p currency.Pair, assetType asset.I
 			log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
 				exchangeName,
 				protocol,
-				FormatCurrency(p).String(),
+				FormatCurrency(p),
 				strings.ToUpper(assetType.String()),
 				printCurrencyFormat(result.Last),
 				printCurrencyFormat(result.Ask),
@@ -101,7 +101,7 @@ func printTickerSummary(result *ticker.Price, p currency.Pair, assetType asset.I
 			log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f\n",
 				exchangeName,
 				protocol,
-				FormatCurrency(p).String(),
+				FormatCurrency(p),
 				strings.ToUpper(assetType.String()),
 				result.Last,
 				result.Ask,
@@ -133,15 +133,15 @@ func printOrderbookSummary(result *orderbook.Base, p currency.Pair, assetType as
 		log.Infof(log.OrderBook, "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s\n",
 			exchangeName,
 			protocol,
-			FormatCurrency(p).String(),
+			FormatCurrency(p),
 			strings.ToUpper(assetType.String()),
 			len(result.Bids),
 			bidsAmount,
-			p.Base.String(),
+			p.Base,
 			printConvertCurrencyFormat(origCurrency, bidsValue),
 			len(result.Asks),
 			asksAmount,
-			p.Base.String(),
+			p.Base,
 			printConvertCurrencyFormat(origCurrency, asksValue),
 		)
 	} else {
@@ -150,30 +150,30 @@ func printOrderbookSummary(result *orderbook.Base, p currency.Pair, assetType as
 			log.Infof(log.OrderBook, "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s\n",
 				exchangeName,
 				protocol,
-				FormatCurrency(p).String(),
+				FormatCurrency(p),
 				strings.ToUpper(assetType.String()),
 				len(result.Bids),
 				bidsAmount,
-				p.Base.String(),
+				p.Base,
 				printCurrencyFormat(bidsValue),
 				len(result.Asks),
 				asksAmount,
-				p.Base.String(),
+				p.Base,
 				printCurrencyFormat(asksValue),
 			)
 		} else {
 			log.Infof(log.OrderBook, "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %f Asks len: %d Amount: %f %s. Total value: %f\n",
 				exchangeName,
 				protocol,
-				FormatCurrency(p).String(),
+				FormatCurrency(p),
 				strings.ToUpper(assetType.String()),
 				len(result.Bids),
 				bidsAmount,
-				p.Base.String(),
+				p.Base,
 				bidsValue,
 				len(result.Asks),
 				asksAmount,
-				p.Base.String(),
+				p.Base,
 				asksValue,
 			)
 		}
@@ -324,7 +324,7 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 			case wshandler.KlineData:
 				// Websocket Kline Data
 				if Bot.Settings.Verbose {
-					log.Infoln(log.WebsocketMgr, "%s websocket %s %s kline updated %+v\n",
+					log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v\n",
 						ws.GetName(),
 						FormatCurrency(d.Pair),
 						d.AssetType,

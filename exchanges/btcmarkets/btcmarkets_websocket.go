@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -154,6 +155,8 @@ func (b *BTCMarkets) WsHandleData() {
 					Exchange:     b.Name,
 					Price:        trade.Price,
 					Amount:       trade.Volume,
+					Side:         order.SideUnknown.String(),
+					EventType:    order.Unknown.String(),
 				}
 			case tick:
 				var tick WsTick

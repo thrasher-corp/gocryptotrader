@@ -100,11 +100,12 @@ type Side string
 
 // Order side types
 const (
-	AnySide Side = "ANY"
-	Buy     Side = "BUY"
-	Sell    Side = "SELL"
-	Bid     Side = "BID"
-	Ask     Side = "ASK"
+	AnySide     Side = "ANY"
+	Buy         Side = "BUY"
+	Sell        Side = "SELL"
+	Bid         Side = "BID"
+	Ask         Side = "ASK"
+	SideUnknown Side = "SIDEUNKNOWN"
 )
 
 // Detail holds order detail data
