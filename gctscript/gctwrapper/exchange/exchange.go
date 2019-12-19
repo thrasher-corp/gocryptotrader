@@ -146,7 +146,7 @@ func (e Exchange) AccountInformation(exch string) (*modules.AccountInfo, error) 
 }
 
 // DepositAddress gets the address required to deposit funds for currency type
-func (e Exchange) DepositAddress(exch string, currencyCode currency.Code, accountID string) (out string, err error) {
+func (e Exchange) DepositAddress(exch string, currencyCode currency.Code) (out string, err error) {
 	if currencyCode.IsEmpty() {
 		err = errors.New("currency code is empty")
 		return
@@ -156,7 +156,7 @@ func (e Exchange) DepositAddress(exch string, currencyCode currency.Code, accoun
 
 
 // WithdrawalFiatFunds withdraw funds from exchange to requested fiat source
-func (e Exchange) WithdrawalFiatFunds(exch, bankaccountid  string, request *withdraw.FiatRequest) (out string, err error) {
+func (e Exchange) WithdrawalFiatFunds(exch, bankaccountid string, request *withdraw.FiatRequest) (out string, err error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return "", err
@@ -198,6 +198,15 @@ func (e Exchange) WithdrawalCryptoFunds(exch string, request *withdraw.CryptoReq
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return "", err
+	}
+
+	otp, err := engine.GetExchangeoOTPByName(exch)
+	if err == nil {
+		v, err := strconv.ParseInt(otp, 10, 64)
+		if err != nil {
+
+		}
+		request.GenericInfo.OneTimePassword = v
 	}
 
 	err = withdraw.Valid(request)

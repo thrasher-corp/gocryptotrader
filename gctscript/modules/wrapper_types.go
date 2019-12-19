@@ -28,7 +28,7 @@ type Exchange interface {
 	SubmitOrder(exch string, submit *order.Submit) (*order.SubmitResponse, error)
 	CancelOrder(exch, orderid string) (bool, error)
 	AccountInformation(exch string) (*AccountInfo, error)
-	DepositAddress(exch string, currencyCode currency.Code, accountID string) (string, error)
+	DepositAddress(exch string, currencyCode currency.Code) (string, error)
 	WithdrawalFiatFunds(exch, bankaccountid string, request *withdraw.FiatRequest) (out string, err error)
 	WithdrawalCryptoFunds(exch string, request *withdraw.CryptoRequest) (out string, err error)
 }

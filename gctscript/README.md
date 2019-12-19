@@ -160,6 +160,66 @@ Similar steps can be taken to add a new module with a few adjustments
 - Open required [GCT](modules/gct/gct_types.go)
 - Add module name to GCTModules map
 
+##### GCT module methods
+
+Current supported methods added and exposed to scripts are as follows:
+
+```
+accountinfo
+-> exchange:string
+
+depositaddress
+-> exchange:string
+-> currency:string
+
+orderbook
+-> exchange:string
+-> currency pair:string
+-> delimiter:string
+-> asset:string
+
+ticker
+-> exchange:string
+-> currency pair:string
+-> delimiter:string
+-> asset:string
+
+pairs
+-> exchange:string
+-> enabled only:bool
+-> asset:string
+
+queryorder
+-> exchange:string
+-> order id:string
+
+submitorder
+-> exchange:string
+-> currency pair:string
+-> delimiter:string
+-> order type:string
+-> order side:string
+-> price:float64
+-> amount:float64
+-> client_id:string
+
+withdrawfiat
+-> exchange:string
+-> currency:string
+-> description:string
+-> amount:float64
+-> bank id:string
+
+withdrawcrypto
+-> exchange:string
+-> currency:string
+-> address:string
+-> address tag:string
+-> amount:float64
+-> fee:float64
+-> description:string
+```
+
 ## Contribution
 
 Please feel free to submit any pull requests or suggest any desired features to be added.

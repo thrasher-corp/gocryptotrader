@@ -312,10 +312,9 @@ func ExchangeDepositAddress(args ...objects.Object) (objects.Object, error) {
 
 	exchangeName, _ := objects.ToString(args[0])
 	currencyCode, _ := objects.ToString(args[1])
-	accountID, _ := objects.ToString(args[2])
 	currCode := currency.NewCode(currencyCode)
 
-	rtn, err := modules.Wrapper.DepositAddress(exchangeName, currCode, accountID)
+	rtn, err := modules.Wrapper.DepositAddress(exchangeName, currCode)
 	if err != nil {
 		return nil, err
 	}
@@ -325,7 +324,7 @@ func ExchangeDepositAddress(args ...objects.Object) (objects.Object, error) {
 
 // ExchangeWithdrawCrypto submit request to withdraw crypto assets
 func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
-	if len(args) != 8 {
+	if len(args) != 7 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
@@ -335,17 +334,13 @@ func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 	addressTag, _ := objects.ToString(args[3])
 	amount, _ := objects.ToFloat64(args[4])
 	feeAmount, _ := objects.ToFloat64(args[5])
-	tradePassword, _ := objects.ToString(args[6])
-	onetimePassword, _ := objects.ToInt64(args[7])
+	description, _ := objects.ToString(args[6])
+
 
 	withdrawRequest := &withdraw.CryptoRequest{
 		GenericInfo: withdraw.GenericInfo{
 			Currency:        currency.NewCode(cur),
-			Description:     "",
-			OneTimePassword: onetimePassword,
-			AccountID:       "",
-			PIN:             0,
-			TradePassword:   tradePassword,
+			Description:     description,
 			Amount:          amount,
 		},
 		Address:    address,

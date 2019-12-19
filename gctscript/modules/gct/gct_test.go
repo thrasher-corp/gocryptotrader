@@ -226,20 +226,52 @@ func TestExchangeDepositAddress(t *testing.T) {
 	}
 
 	currCode := &objects.String{Value: "BTC"}
-	_, err = ExchangeDepositAddress(exch, currCode, orderID)
+	_, err = ExchangeDepositAddress(exch, currCode)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = ExchangeDepositAddress(exchError, currCode, orderID)
+	_, err = ExchangeDepositAddress(exchError, currCode)
 	if err != nil && !errors.Is(err, errTestFailed) {
 		t.Fatal(err)
 	}
 }
 
-type Wrapper struct {
+func TestExchangeWithdrawCrypto(t *testing.T) {
+	_, err := ExchangeWithdrawCrypto()
+	if !errors.Is(err, objects.ErrWrongNumArguments) {
+		t.Fatal(err)
+	}
+
+	currCode := &objects.String{Value: "BTC"}
+	desc := &objects.String{Value: "HELLO"}
+	address := &objects.String{Value: "0xTHISISALEGITBTCADDRESSS"}
+	amount := &objects.Float{Value: 1.0}
+
+	_, err = ExchangeWithdrawCrypto(exch, currCode,address,address, amount, amount, desc )
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
+func TestExchangeWithdrawFiat(t *testing.T) {
+	_, err := ExchangeWithdrawFiat()
+	if !errors.Is(err, objects.ErrWrongNumArguments) {
+		t.Fatal(err)
+	}
+
+
+	currCode := &objects.String{Value: "AUD"}
+	desc := &objects.String{Value: "Hello"}
+	amount := &objects.Float{Value: 1.0}
+	bankID := &objects.String{Value: "test-bank-01"}
+	_, err = ExchangeWithdrawFiat(exch, currCode, desc, amount, bankID)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+type Wrapper struct {}
 func (w Wrapper) Exchanges(enabledOnly bool) []string {
 	if enabledOnly {
 		return []string{
@@ -402,17 +434,26 @@ func (w Wrapper) AccountInformation(exch string) (*modules.AccountInfo, error) {
 	}, nil
 }
 
-func (w Wrapper) DepositAddress(exch string, currencyCode currency.Code, accountID string) (string, error) {
+func (w Wrapper) DepositAddress(exch string, currencyCode currency.Code) (string, error) {
 	if exch == exchError.String() {
 		return exch, errTestFailed
 	}
+	
 	return exch, nil
 }
 
 func (w Wrapper) WithdrawalCryptoFunds(exch string, request *withdraw.CryptoRequest) (out string, err error) {
+	if exch == exchError.String() {
+		return exch, errTestFailed
+	}
+
 	return "", nil
 }
 
-func (w Wrapper) WithdrawalFiatFunds(exch string, request *withdraw.FiatRequest) (out string, err error) {
-	return "", nil
+func (w Wrapper) WithdrawalFiatFunds(exch, _ string, _ *withdraw.FiatRequest) (out string, err error) {
+	if exch == exchError.String() {
+		return exch, errTestFailed
+	}
+
+	return "123", nil
 }

@@ -10,3 +10,4 @@ load := func() {
 }
 
 load()
+
