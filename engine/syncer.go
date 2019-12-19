@@ -413,7 +413,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 									} else {
 										result, err = Bot.Exchanges[x].UpdateTicker(c.Pair, c.AssetType)
 									}
-									printTickerSummary(result, c.Pair, c.AssetType, exchangeName, err)
+									printTickerSummary(result, c.Pair, c.AssetType, exchangeName, "REST", err)
 									if err == nil {
 										//nolint:gocritic Bot.CommsRelayer.StageTickerData(exchangeName, c.AssetType, result)
 										if Bot.Config.RemoteControl.WebsocketRPC.Enabled {
@@ -453,7 +453,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 
 								e.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, true)
 								result, err := Bot.Exchanges[x].UpdateOrderbook(c.Pair, c.AssetType)
-								printOrderbookSummary(result, c.Pair, c.AssetType, exchangeName, err)
+								printOrderbookSummary(result, c.Pair, c.AssetType, exchangeName, "REST", err)
 								if err == nil {
 									//nolint:gocritic Bot.CommsRelayer.StageOrderbookData(exchangeName, c.AssetType, result)
 									if Bot.Config.RemoteControl.WebsocketRPC.Enabled {

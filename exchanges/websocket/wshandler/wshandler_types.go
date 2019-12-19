@@ -60,6 +60,7 @@ type Websocket struct {
 	features          *protocol.Features
 }
 
+// WebsocketSetup defines variables for setting up a websocket connection
 type WebsocketSetup struct {
 	Enabled                          bool
 	Verbose                          bool
@@ -103,28 +104,21 @@ type TradeData struct {
 	AssetType    asset.Item
 	Exchange     string
 	EventType    string
-	EventTime    int64
 	Price        float64
 	Amount       float64
 	Side         string
 }
 
-// TickerData defines ticker feed
-type TickerData struct {
-	Exchange    string
-	Open        float64
-	Close       float64
-	Volume      float64
-	QuoteVolume float64
-	High        float64
-	Low         float64
-	Bid         float64
-	Ask         float64
-	Last        float64
-	PriceATH    float64
-	Timestamp   time.Time
-	AssetType   asset.Item
-	Pair        currency.Pair
+// FundingData defines funding data
+type FundingData struct {
+	Timestamp    time.Time
+	CurrencyPair currency.Pair
+	AssetType    asset.Item
+	Exchange     string
+	Amount       float64
+	Rate         float64
+	Period       int64
+	Side         string
 }
 
 // KlineData defines kline feed

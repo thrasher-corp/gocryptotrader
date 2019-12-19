@@ -70,11 +70,6 @@ func (b *BTSE) WsHandleData() {
 			}
 			switch {
 			case strings.Contains(result["topic"].(string), "tradeHistory"):
-				log.Warnf(log.ExchangeSys,
-					"%s: Buy/Sell side functionality is broken for this exchange "+
-						"currently! 'gain' has no correlation with buy side or "+
-						"sell side",
-					b.Name)
 				var tradeHistory wsTradeHistory
 				err = json.Unmarshal(resp.Raw, &tradeHistory)
 				if err != nil {
@@ -87,8 +82,8 @@ func (b *BTSE) WsHandleData() {
 						side = order.Sell.String()
 					}
 					b.Websocket.DataHandler <- wshandler.TradeData{
-						Timestamp:    time.Unix(tradeHistory.Data[x].TransactionTime, 0),
-						CurrencyPair: currency.NewPairFromString(strings.Replace(tradeHistory.Topic, "tradeHistory", "", 1)),
+						Timestamp:    time.Unix(0, tradeHistory.Data[x].TransactionTime*int64(time.Millisecond)),
+						CurrencyPair: currency.NewPairFromString(strings.Replace(tradeHistory.Topic, "tradeHistory:", "", 1)),
 						AssetType:    asset.Spot,
 						Exchange:     b.Name,
 						Price:        tradeHistory.Data[x].Price,

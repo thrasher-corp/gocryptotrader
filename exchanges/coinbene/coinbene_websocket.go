@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 )
@@ -126,26 +127,26 @@ func (c *Coinbene) WsDataHandler() {
 			}
 			switch {
 			case strings.Contains(result[topic].(string), "ticker"):
-				var ticker WsTicker
-				err = json.Unmarshal(stream.Raw, &ticker)
+				var wsTicker WsTicker
+				err = json.Unmarshal(stream.Raw, &wsTicker)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
 				}
-				for x := range ticker.Data {
-					c.Websocket.DataHandler <- wshandler.TickerData{
-						Volume: ticker.Data[x].Volume24h,
-						Last:   ticker.Data[x].LastPrice,
-						High:   ticker.Data[x].High24h,
-						Low:    ticker.Data[x].Low24h,
-						Bid:    ticker.Data[x].BestBidPrice,
-						Ask:    ticker.Data[x].BestAskPrice,
-						Pair: currency.NewPairFromFormattedPairs(ticker.Data[x].Symbol,
+				for x := range wsTicker.Data {
+					c.Websocket.DataHandler <- &ticker.Price{
+						Volume: wsTicker.Data[x].Volume24h,
+						Last:   wsTicker.Data[x].LastPrice,
+						High:   wsTicker.Data[x].High24h,
+						Low:    wsTicker.Data[x].Low24h,
+						Bid:    wsTicker.Data[x].BestBidPrice,
+						Ask:    wsTicker.Data[x].BestAskPrice,
+						Pair: currency.NewPairFromFormattedPairs(wsTicker.Data[x].Symbol,
 							c.GetEnabledPairs(asset.PerpetualSwap),
 							c.GetPairFormat(asset.PerpetualSwap, true)),
-						Exchange:  c.Name,
-						AssetType: asset.PerpetualSwap,
-						Timestamp: ticker.Data[x].Timestamp,
+						ExchangeName: c.Name,
+						AssetType:    asset.PerpetualSwap,
+						LastUpdated:  wsTicker.Data[x].Timestamp,
 					}
 				}
 			case strings.Contains(result[topic].(string), "tradeList"):

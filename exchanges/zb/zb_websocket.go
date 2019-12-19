@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -88,25 +89,25 @@ func (z *ZB) WsHandleData() {
 
 			case strings.Contains(result.Channel, "ticker"):
 				cPair := strings.Split(result.Channel, "_")
-				var ticker WsTicker
-				err := json.Unmarshal(fixedJSON, &ticker)
+				var wsTicker WsTicker
+				err := json.Unmarshal(fixedJSON, &wsTicker)
 				if err != nil {
 					z.Websocket.DataHandler <- err
 					continue
 				}
 
-				z.Websocket.DataHandler <- wshandler.TickerData{
-					Exchange:  z.Name,
-					Close:     ticker.Data.Last,
-					Volume:    ticker.Data.Volume24Hr,
-					High:      ticker.Data.High,
-					Low:       ticker.Data.Low,
-					Last:      ticker.Data.Last,
-					Bid:       ticker.Data.Buy,
-					Ask:       ticker.Data.Sell,
-					Timestamp: time.Unix(0, ticker.Date*int64(time.Millisecond)),
-					AssetType: asset.Spot,
-					Pair:      currency.NewPairFromString(cPair[0]),
+				z.Websocket.DataHandler <- &ticker.Price{
+					ExchangeName: z.Name,
+					Close:        wsTicker.Data.Last,
+					Volume:       wsTicker.Data.Volume24Hr,
+					High:         wsTicker.Data.High,
+					Low:          wsTicker.Data.Low,
+					Last:         wsTicker.Data.Last,
+					Bid:          wsTicker.Data.Buy,
+					Ask:          wsTicker.Data.Sell,
+					LastUpdated:  time.Unix(0, wsTicker.Date*int64(time.Millisecond)),
+					AssetType:    asset.Spot,
+					Pair:         currency.NewPairFromString(cPair[0]),
 				}
 
 			case strings.Contains(result.Channel, "depth"):
@@ -170,11 +171,10 @@ func (z *ZB) WsHandleData() {
 				channelInfo := strings.Split(result.Channel, "_")
 				cPair := currency.NewPairFromString(channelInfo[0])
 				z.Websocket.DataHandler <- wshandler.TradeData{
-					Timestamp:    time.Unix(0, t.Date*int64(time.Millisecond)),
+					Timestamp:    time.Unix(t.Date, 0),
 					CurrencyPair: cPair,
 					AssetType:    asset.Spot,
 					Exchange:     z.Name,
-					EventTime:    t.Date,
 					Price:        t.Price,
 					Amount:       t.Amount,
 					Side:         t.TradeType,

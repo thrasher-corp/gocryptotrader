@@ -67,11 +67,11 @@ type OrderbookItem struct {
 
 // OrderBookData is resp data from orderbook endpoint
 type OrderBookData struct {
-	Code         int        `json:"code"`
-	Msg          string     `json:"msg"`
-	LastUpdateID int64      `json:"lastUpdateId"`
-	Bids         [][]string `json:"bids"`
-	Asks         [][]string `json:"asks"`
+	Code         int         `json:"code"`
+	Msg          string      `json:"msg"`
+	LastUpdateID int64       `json:"lastUpdateId"`
+	Bids         [][2]string `json:"bids"`
+	Asks         [][2]string `json:"asks"`
 }
 
 // OrderBook actual structured data that can be used for orderbook

@@ -196,6 +196,29 @@ func (w *WebsocketOrderbookLocal) updateByIDAndAction(o *orderbook.Base, u *Webs
 		sort.Slice(o.Asks, func(i, j int) bool {
 			return o.Asks[i].Price < o.Asks[j].Price
 		})
+
+	case "update/insert":
+	updateBids:
+		for x := range u.Bids {
+			for y := range o.Bids {
+				if o.Bids[y].ID == u.Bids[x].ID {
+					o.Bids[y].Amount = u.Bids[x].Amount
+					continue updateBids
+				}
+			}
+			o.Bids = append(o.Bids, u.Bids[x])
+		}
+
+	updateAsks:
+		for x := range u.Asks {
+			for y := range o.Asks {
+				if o.Asks[y].ID == u.Asks[x].ID {
+					o.Asks[y].Amount = u.Asks[x].Amount
+					continue updateAsks
+				}
+			}
+			o.Asks = append(o.Asks, u.Asks[x])
+		}
 	}
 }
 
