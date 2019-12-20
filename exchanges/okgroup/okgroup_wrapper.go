@@ -14,8 +14,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/withdraw"
 )
 
 // Note: GoCryptoTrader wrapper funcs currently only support SPOT trades.
@@ -367,13 +367,13 @@ func (o *OKGroup) GetDepositAddress(p currency.Code, accountID string) (string, 
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error) {
+func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
 	withdrawal, err := o.AccountWithdraw(AccountWithdrawRequest{
 		Amount:      withdrawRequest.Amount,
 		Currency:    withdrawRequest.Currency.Lower().String(),
 		Destination: 4, // 1, 2, 3 are all internal
-		Fee:         withdrawRequest.FeeAmount,
-		ToAddress:   withdrawRequest.Address,
+		Fee:         withdrawRequest.Crypto.FeeAmount,
+		ToAddress:   withdrawRequest.Crypto.Address,
 		TradePwd:    withdrawRequest.TradePassword,
 	})
 	if err != nil {
@@ -383,7 +383,7 @@ func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRe
 		return strconv.FormatInt(withdrawal.WithdrawalID, 10),
 			fmt.Errorf("could not withdraw currency %s to %s, no error specified",
 				withdrawRequest.Currency,
-				withdrawRequest.Address)
+				withdrawRequest.Crypto.Address)
 	}
 
 	return strconv.FormatInt(withdrawal.WithdrawalID, 10), nil
@@ -391,13 +391,13 @@ func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRe
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKGroup) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (o *OKGroup) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

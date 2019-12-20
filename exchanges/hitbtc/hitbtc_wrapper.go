@@ -19,8 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/withdraw"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -471,20 +471,20 @@ func (h *HitBTC) GetDepositAddress(currency currency.Code, _ string) (string, er
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (h *HitBTC) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error) {
-	_, err := h.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.Address, withdrawRequest.Amount)
+func (h *HitBTC) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
+	_, err := h.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.Crypto.Address, withdrawRequest.Amount)
 	return "", err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (h *HitBTC) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (h *HitBTC) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (h *HitBTC) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (h *HitBTC) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

@@ -19,8 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/withdraw"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -408,9 +408,9 @@ func (b *Bithumb) GetDepositAddress(cryptocurrency currency.Code, _ string) (str
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bithumb) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error) {
-	_, err := b.WithdrawCrypto(withdrawRequest.Address,
-		withdrawRequest.AddressTag,
+func (b *Bithumb) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
+	_, err := b.WithdrawCrypto(withdrawRequest.Crypto.Address,
+		withdrawRequest.Crypto.AddressTag,
 		withdrawRequest.Currency.String(),
 		withdrawRequest.Amount)
 	return "", err
@@ -418,16 +418,16 @@ func (b *Bithumb) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRe
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Bithumb) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (b *Bithumb) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string, error) {
 	if math.Mod(withdrawRequest.Amount, 1) != 0 {
 		return "", errors.New("currency KRW does not support decimal places")
 	}
 	if withdrawRequest.Currency != currency.KRW {
 		return "", errors.New("only KRW is supported")
 	}
-	bankDetails := strconv.FormatFloat(withdrawRequest.BankCode, 'f', -1, 64) +
-		"_" + withdrawRequest.BankName
-	resp, err := b.RequestKRWWithdraw(bankDetails, withdrawRequest.BankAccountNumber, int64(withdrawRequest.Amount))
+	bankDetails := strconv.FormatFloat(withdrawRequest.Fiat.BankCode, 'f', -1, 64) +
+		"_" + withdrawRequest.Fiat.BankName
+	resp, err := b.RequestKRWWithdraw(bankDetails, withdrawRequest.Fiat.BankAccountNumber, int64(withdrawRequest.Amount))
 	if err != nil {
 		return "", err
 	}
@@ -439,7 +439,7 @@ func (b *Bithumb) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (stri
 }
 
 // WithdrawFiatFundsToInternationalBank is not supported as Bithumb only withdraws KRW to South Korean banks
-func (b *Bithumb) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (b *Bithumb) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

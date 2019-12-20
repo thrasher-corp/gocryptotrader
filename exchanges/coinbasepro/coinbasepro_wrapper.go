@@ -18,8 +18,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/withdraw"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -447,14 +447,14 @@ func (c *CoinbasePro) GetDepositAddress(cryptocurrency currency.Code, accountID 
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (c *CoinbasePro) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error) {
-	resp, err := c.WithdrawCrypto(withdrawRequest.Amount, withdrawRequest.Currency.String(), withdrawRequest.Address)
+func (c *CoinbasePro) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
+	resp, err := c.WithdrawCrypto(withdrawRequest.Amount, withdrawRequest.Currency.String(), withdrawRequest.Crypto.Address)
 	return resp.ID, err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string, error) {
 	paymentMethods, err := c.GetPayMethods()
 	if err != nil {
 		return "", err
@@ -462,13 +462,13 @@ func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (
 
 	selectedWithdrawalMethod := PaymentMethod{}
 	for i := range paymentMethods {
-		if withdrawRequest.BankName == paymentMethods[i].Name {
+		if withdrawRequest.Fiat.BankName == paymentMethods[i].Name {
 			selectedWithdrawalMethod = paymentMethods[i]
 			break
 		}
 	}
 	if selectedWithdrawalMethod.ID == "" {
-		return "", fmt.Errorf("could not find payment method '%v'. Check the name via the website and try again", withdrawRequest.BankName)
+		return "", fmt.Errorf("could not find payment method '%v'. Check the name via the website and try again", withdrawRequest.Fiat.BankName)
 	}
 
 	resp, err := c.WithdrawViaPaymentMethod(withdrawRequest.Amount, withdrawRequest.Currency.String(), selectedWithdrawalMethod.ID)
@@ -481,7 +481,7 @@ func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (c *CoinbasePro) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (c *CoinbasePro) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
 	return c.WithdrawFiatFunds(withdrawRequest)
 }
 

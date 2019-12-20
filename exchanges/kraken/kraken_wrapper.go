@@ -19,8 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/withdraw"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -572,19 +572,19 @@ func (k *Kraken) GetDepositAddress(cryptocurrency currency.Code, _ string) (stri
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal
 // Populate exchange.WithdrawRequest.TradePassword with withdrawal key name, as set up on your account
-func (k *Kraken) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error) {
+func (k *Kraken) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
 	return k.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.TradePassword, withdrawRequest.Amount)
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (k *Kraken) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (k *Kraken) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string, error) {
 	return k.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.TradePassword, withdrawRequest.Amount)
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (k *Kraken) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (k *Kraken) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
 	return k.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.TradePassword, withdrawRequest.Amount)
 }
 

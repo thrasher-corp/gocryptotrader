@@ -1,23 +1,20 @@
 package withdraw
 
-import "github.com/thrasher-corp/gocryptotrader/currency"
+import (
+	"time"
 
-// GenericInfo stores genric withdraw request info
-type GenericInfo struct {
-	// General withdraw information
-	Currency        currency.Code
-	Description     string
-	OneTimePassword int64
-	AccountID       string
-	PIN             int64
-	TradePassword   string
-	Amount          float64
-}
+	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+)
+
+type Type uint8
+const (
+	Crypto Type = iota
+	Fiat
+)
 
 // CryptoRequest stores the info required for a crypto withdrawal request
 type CryptoRequest struct {
-	GenericInfo
-	// Crypto related information
 	Address    string
 	AddressTag string
 	FeeAmount  float64
@@ -25,8 +22,6 @@ type CryptoRequest struct {
 
 // FiatRequest used for fiat withdrawal requests
 type FiatRequest struct {
-	GenericInfo
-	// FIAT related information
 	BankAccountName   string
 	BankAccountNumber string
 	BankName          string
@@ -52,3 +47,28 @@ type FiatRequest struct {
 	IntermediaryIBAN              string
 	WireCurrency                  string
 }
+
+type Request struct {
+	Currency    currency.Code
+	Description string
+	Amount      float64
+	Type        Type
+
+	TradePassword string
+	OneTimePassword int64
+	PIN int64
+
+	Crypto *CryptoRequest
+	Fiat   *FiatRequest
+}
+
+
+type Response struct {
+	ID uuid.UUID
+
+	ExchangeID	string
+	RequestDetails	*Request
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"created_at"`
+}
+

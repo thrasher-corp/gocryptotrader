@@ -19,8 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/withdraw"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -405,7 +405,7 @@ func (l *LakeBTC) GetDepositAddress(cryptocurrency currency.Code, _ string) (str
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (l *LakeBTC) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error) {
+func (l *LakeBTC) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
 	if withdrawRequest.Currency != currency.BTC {
 		return "", errors.New("only BTC supported for withdrawals")
 	}
@@ -420,13 +420,13 @@ func (l *LakeBTC) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRe
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (l *LakeBTC) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (l *LakeBTC) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (l *LakeBTC) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (l *LakeBTC) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

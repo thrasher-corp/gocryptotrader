@@ -19,8 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/withdraw"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -407,8 +407,8 @@ func (y *Yobit) GetDepositAddress(cryptocurrency currency.Code, _ string) (strin
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (y *Yobit) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error) {
-	resp, err := y.WithdrawCoinsToAddress(withdrawRequest.Currency.String(), withdrawRequest.Amount, withdrawRequest.Address)
+func (y *Yobit) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
+	resp, err := y.WithdrawCoinsToAddress(withdrawRequest.Currency.String(), withdrawRequest.Amount, withdrawRequest.Crypto.Address)
 	if err != nil {
 		return "", err
 	}
@@ -420,13 +420,13 @@ func (y *Yobit) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequ
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (y *Yobit) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (y *Yobit) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (y *Yobit) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (y *Yobit) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

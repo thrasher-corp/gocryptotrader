@@ -13,56 +13,98 @@ import "testing"
 // Separating the tests thusly grants avoidance of Postgres deadlocks.
 func TestParent(t *testing.T) {
 	t.Run("AuditEvents", testAuditEvents)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptos)
+	t.Run("WithdrawalFiats", testWithdrawalFiats)
+	t.Run("WithdrawalHistories", testWithdrawalHistories)
 }
 
 func TestDelete(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsDelete)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosDelete)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsDelete)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesDelete)
 }
 
 func TestQueryDeleteAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsQueryDeleteAll)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosQueryDeleteAll)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsQueryDeleteAll)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesQueryDeleteAll)
 }
 
 func TestSliceDeleteAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSliceDeleteAll)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosSliceDeleteAll)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsSliceDeleteAll)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesSliceDeleteAll)
 }
 
 func TestExists(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsExists)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosExists)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsExists)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesExists)
 }
 
 func TestFind(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsFind)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosFind)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsFind)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesFind)
 }
 
 func TestBind(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsBind)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosBind)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsBind)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesBind)
 }
 
 func TestOne(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsOne)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosOne)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsOne)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesOne)
 }
 
 func TestAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsAll)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosAll)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsAll)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesAll)
 }
 
 func TestCount(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsCount)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosCount)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsCount)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesCount)
 }
 
 func TestHooks(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsHooks)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosHooks)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsHooks)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesHooks)
 }
 
 func TestInsert(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsInsert)
 	t.Run("AuditEvents", testAuditEventsInsertWhitelist)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosInsert)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosInsertWhitelist)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsInsert)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsInsertWhitelist)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesInsert)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesInsertWhitelist)
 }
 
 // TestToOne tests cannot be run in parallel
 // or deadlocks can occur.
-func TestToOne(t *testing.T) {}
+func TestToOne(t *testing.T) {
+	t.Run("WithdrawalCryptoToWithdrawalHistoryUsingWithdrawalCrypto", testWithdrawalCryptoToOneWithdrawalHistoryUsingWithdrawalCrypto)
+	t.Run("WithdrawalFiatToWithdrawalHistoryUsingWithdrawalFiat", testWithdrawalFiatToOneWithdrawalHistoryUsingWithdrawalFiat)
+}
 
 // TestOneToOne tests cannot be run in parallel
 // or deadlocks can occur.
@@ -70,15 +112,24 @@ func TestOneToOne(t *testing.T) {}
 
 // TestToMany tests cannot be run in parallel
 // or deadlocks can occur.
-func TestToMany(t *testing.T) {}
+func TestToMany(t *testing.T) {
+	t.Run("WithdrawalHistoryToWithdrawalCryptoWithdrawalCryptos", testWithdrawalHistoryToManyWithdrawalCryptoWithdrawalCryptos)
+	t.Run("WithdrawalHistoryToWithdrawalFiatWithdrawalFiats", testWithdrawalHistoryToManyWithdrawalFiatWithdrawalFiats)
+}
 
 // TestToOneSet tests cannot be run in parallel
 // or deadlocks can occur.
-func TestToOneSet(t *testing.T) {}
+func TestToOneSet(t *testing.T) {
+	t.Run("WithdrawalCryptoToWithdrawalHistoryUsingWithdrawalCryptoWithdrawalCryptos", testWithdrawalCryptoToOneSetOpWithdrawalHistoryUsingWithdrawalCrypto)
+	t.Run("WithdrawalFiatToWithdrawalHistoryUsingWithdrawalFiatWithdrawalFiats", testWithdrawalFiatToOneSetOpWithdrawalHistoryUsingWithdrawalFiat)
+}
 
 // TestToOneRemove tests cannot be run in parallel
 // or deadlocks can occur.
-func TestToOneRemove(t *testing.T) {}
+func TestToOneRemove(t *testing.T) {
+	t.Run("WithdrawalCryptoToWithdrawalHistoryUsingWithdrawalCryptoWithdrawalCryptos", testWithdrawalCryptoToOneRemoveOpWithdrawalHistoryUsingWithdrawalCrypto)
+	t.Run("WithdrawalFiatToWithdrawalHistoryUsingWithdrawalFiatWithdrawalFiats", testWithdrawalFiatToOneRemoveOpWithdrawalHistoryUsingWithdrawalFiat)
+}
 
 // TestOneToOneSet tests cannot be run in parallel
 // or deadlocks can occur.
@@ -90,32 +141,56 @@ func TestOneToOneRemove(t *testing.T) {}
 
 // TestToManyAdd tests cannot be run in parallel
 // or deadlocks can occur.
-func TestToManyAdd(t *testing.T) {}
+func TestToManyAdd(t *testing.T) {
+	t.Run("WithdrawalHistoryToWithdrawalCryptoWithdrawalCryptos", testWithdrawalHistoryToManyAddOpWithdrawalCryptoWithdrawalCryptos)
+	t.Run("WithdrawalHistoryToWithdrawalFiatWithdrawalFiats", testWithdrawalHistoryToManyAddOpWithdrawalFiatWithdrawalFiats)
+}
 
 // TestToManySet tests cannot be run in parallel
 // or deadlocks can occur.
-func TestToManySet(t *testing.T) {}
+func TestToManySet(t *testing.T) {
+	t.Run("WithdrawalHistoryToWithdrawalCryptoWithdrawalCryptos", testWithdrawalHistoryToManySetOpWithdrawalCryptoWithdrawalCryptos)
+	t.Run("WithdrawalHistoryToWithdrawalFiatWithdrawalFiats", testWithdrawalHistoryToManySetOpWithdrawalFiatWithdrawalFiats)
+}
 
 // TestToManyRemove tests cannot be run in parallel
 // or deadlocks can occur.
-func TestToManyRemove(t *testing.T) {}
+func TestToManyRemove(t *testing.T) {
+	t.Run("WithdrawalHistoryToWithdrawalCryptoWithdrawalCryptos", testWithdrawalHistoryToManyRemoveOpWithdrawalCryptoWithdrawalCryptos)
+	t.Run("WithdrawalHistoryToWithdrawalFiatWithdrawalFiats", testWithdrawalHistoryToManyRemoveOpWithdrawalFiatWithdrawalFiats)
+}
 
 func TestReload(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsReload)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosReload)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsReload)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesReload)
 }
 
 func TestReloadAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsReloadAll)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosReloadAll)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsReloadAll)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesReloadAll)
 }
 
 func TestSelect(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSelect)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosSelect)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsSelect)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesSelect)
 }
 
 func TestUpdate(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsUpdate)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosUpdate)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsUpdate)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesUpdate)
 }
 
 func TestSliceUpdateAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSliceUpdateAll)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosSliceUpdateAll)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsSliceUpdateAll)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesSliceUpdateAll)
 }

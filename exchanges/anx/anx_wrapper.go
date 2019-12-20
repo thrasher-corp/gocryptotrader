@@ -18,8 +18,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/withdraw"
 )
 
 // GetDefaultConfig returns a default exchange config for Alphapoint
@@ -420,20 +420,20 @@ func (a *ANX) GetDepositAddress(cryptocurrency currency.Code, _ string) (string,
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *ANX) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error) {
-	return a.Send(withdrawRequest.Currency.String(), withdrawRequest.Address, "", strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64))
+func (a *ANX) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
+	return a.Send(withdrawRequest.Currency.String(), withdrawRequest.Crypto.Address, "", strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64))
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *ANX) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (a *ANX) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string, error) {
 	// Fiat withdrawals available via website
 	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *ANX) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (a *ANX) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
 	// Fiat withdrawals available via website
 	return "", common.ErrFunctionNotSupported
 }

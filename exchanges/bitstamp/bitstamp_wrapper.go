@@ -18,8 +18,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/withdraw"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -421,11 +421,11 @@ func (b *Bitstamp) GetDepositAddress(cryptocurrency currency.Code, _ string) (st
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bitstamp) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error) {
+func (b *Bitstamp) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
 	resp, err := b.CryptoWithdrawal(withdrawRequest.Amount,
-		withdrawRequest.Address,
+		withdrawRequest.Crypto.Address,
 		withdrawRequest.Currency.String(),
-		withdrawRequest.AddressTag,
+		withdrawRequest.Crypto.AddressTag,
 		true)
 	if err != nil {
 		return "", err
@@ -443,16 +443,16 @@ func (b *Bitstamp) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoR
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Bitstamp) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (b *Bitstamp) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string, error) {
 	resp, err := b.OpenBankWithdrawal(withdrawRequest.Amount,
 		withdrawRequest.Currency.String(),
-		withdrawRequest.BankAccountName,
-		withdrawRequest.IBAN,
-		withdrawRequest.SwiftCode,
-		withdrawRequest.BankAddress,
-		withdrawRequest.BankPostalCode,
-		withdrawRequest.BankCity,
-		withdrawRequest.BankCountry,
+		withdrawRequest.Fiat.BankAccountName,
+		withdrawRequest.Fiat.IBAN,
+		withdrawRequest.Fiat.SwiftCode,
+		withdrawRequest.Fiat.BankAddress,
+		withdrawRequest.Fiat.BankPostalCode,
+		withdrawRequest.Fiat.BankCity,
+		withdrawRequest.Fiat.BankCountry,
 		withdrawRequest.Description,
 		sepaWithdrawal)
 	if err != nil {
@@ -471,22 +471,22 @@ func (b *Bitstamp) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (str
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
 	resp, err := b.OpenInternationalBankWithdrawal(withdrawRequest.Amount,
 		withdrawRequest.Currency.String(),
-		withdrawRequest.BankAccountName,
-		withdrawRequest.IBAN,
-		withdrawRequest.SwiftCode,
-		withdrawRequest.BankAddress,
-		withdrawRequest.BankPostalCode,
-		withdrawRequest.BankCity,
-		withdrawRequest.BankCountry,
-		withdrawRequest.IntermediaryBankName,
-		withdrawRequest.IntermediaryBankAddress,
-		withdrawRequest.IntermediaryBankPostalCode,
-		withdrawRequest.IntermediaryBankCity,
-		withdrawRequest.IntermediaryBankCountry,
-		withdrawRequest.WireCurrency,
+		withdrawRequest.Fiat.BankAccountName,
+		withdrawRequest.Fiat.IBAN,
+		withdrawRequest.Fiat.SwiftCode,
+		withdrawRequest.Fiat.BankAddress,
+		withdrawRequest.Fiat.BankPostalCode,
+		withdrawRequest.Fiat.BankCity,
+		withdrawRequest.Fiat.BankCountry,
+		withdrawRequest.Fiat.IntermediaryBankName,
+		withdrawRequest.Fiat.IntermediaryBankAddress,
+		withdrawRequest.Fiat.IntermediaryBankPostalCode,
+		withdrawRequest.Fiat.IntermediaryBankCity,
+		withdrawRequest.Fiat.IntermediaryBankCountry,
+		withdrawRequest.Fiat.WireCurrency,
 		withdrawRequest.Description,
 		internationalWithdrawal)
 	if err != nil {

@@ -19,8 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/withdraw"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -499,19 +499,19 @@ func (z *ZB) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, 
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (z *ZB) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error) {
-	return z.Withdraw(withdrawRequest.Currency.Lower().String(), withdrawRequest.Address, withdrawRequest.TradePassword, withdrawRequest.Amount, withdrawRequest.FeeAmount, false)
+func (z *ZB) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
+	return z.Withdraw(withdrawRequest.Currency.Lower().String(), withdrawRequest.Crypto.Address, withdrawRequest.TradePassword, withdrawRequest.Amount, withdrawRequest.Crypto.FeeAmount, false)
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (z *ZB) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (z *ZB) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (z *ZB) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (z *ZB) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

@@ -15,8 +15,8 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/withdraw"
 )
 
 const (
@@ -542,32 +542,32 @@ func (b *Bitfinex) WithdrawCryptocurrency(withdrawType, wallet, address, payment
 }
 
 // WithdrawFIAT Sends an authenticated request to withdraw FIAT currency
-func (b *Bitfinex) WithdrawFIAT(withdrawalType, walletType string, withdrawRequest *withdraw.FiatRequest) ([]Withdrawal, error) {
+func (b *Bitfinex) WithdrawFIAT(withdrawalType, walletType string, withdrawRequest *withdraw.Request) ([]Withdrawal, error) {
 	var response []Withdrawal
 	req := make(map[string]interface{})
 
 	req["withdraw_type"] = withdrawalType
 	req["walletselected"] = walletType
 	req["amount"] = strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64)
-	req["account_name"] = withdrawRequest.BankAccountName
-	req["account_number"] = withdrawRequest.BankAccountNumber
-	req["bank_name"] = withdrawRequest.BankName
-	req["bank_address"] = withdrawRequest.BankAddress
-	req["bank_city"] = withdrawRequest.BankCity
-	req["bank_country"] = withdrawRequest.BankCountry
-	req["expressWire"] = withdrawRequest.IsExpressWire
-	req["swift"] = withdrawRequest.SwiftCode
+	req["account_name"] = withdrawRequest.Fiat.BankAccountName
+	req["account_number"] = withdrawRequest.Fiat.BankAccountNumber
+	req["bank_name"] = withdrawRequest.Fiat.BankName
+	req["bank_address"] = withdrawRequest.Fiat.BankAddress
+	req["bank_city"] = withdrawRequest.Fiat.BankCity
+	req["bank_country"] = withdrawRequest.Fiat.BankCountry
+	req["expressWire"] = withdrawRequest.Fiat.IsExpressWire
+	req["swift"] = withdrawRequest.Fiat.SwiftCode
 	req["detail_payment"] = withdrawRequest.Description
-	req["currency"] = withdrawRequest.WireCurrency
-	req["account_address"] = withdrawRequest.BankAddress
+	req["currency"] = withdrawRequest.Currency
+	req["account_address"] = withdrawRequest.Fiat.BankAddress
 
-	if withdrawRequest.RequiresIntermediaryBank {
-		req["intermediary_bank_name"] = withdrawRequest.IntermediaryBankName
-		req["intermediary_bank_address"] = withdrawRequest.IntermediaryBankAddress
-		req["intermediary_bank_city"] = withdrawRequest.IntermediaryBankCity
-		req["intermediary_bank_country"] = withdrawRequest.IntermediaryBankCountry
-		req["intermediary_bank_account"] = strconv.FormatFloat(withdrawRequest.IntermediaryBankAccountNumber, 'f', -1, 64)
-		req["intermediary_bank_swift"] = withdrawRequest.IntermediarySwiftCode
+	if withdrawRequest.Fiat.RequiresIntermediaryBank {
+		req["intermediary_bank_name"] = withdrawRequest.Fiat.IntermediaryBankName
+		req["intermediary_bank_address"] = withdrawRequest.Fiat.IntermediaryBankAddress
+		req["intermediary_bank_city"] = withdrawRequest.Fiat.IntermediaryBankCity
+		req["intermediary_bank_country"] = withdrawRequest.Fiat.IntermediaryBankCountry
+		req["intermediary_bank_account"] = strconv.FormatFloat(withdrawRequest.Fiat.IntermediaryBankAccountNumber, 'f', -1, 64)
+		req["intermediary_bank_swift"] = withdrawRequest.Fiat.IntermediarySwiftCode
 	}
 
 	return response, b.SendAuthenticatedHTTPRequest(http.MethodPost, bitfinexWithdrawal, req, &response)

@@ -18,8 +18,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/withdraw"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -509,15 +509,15 @@ func (b *Bitmex) GetDepositAddress(cryptocurrency currency.Code, _ string) (stri
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bitmex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error) {
+func (b *Bitmex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
 	var request = UserRequestWithdrawalParams{
-		Address:  withdrawRequest.Address,
+		Address:  withdrawRequest.Crypto.Address,
 		Amount:   withdrawRequest.Amount,
 		Currency: withdrawRequest.Currency.String(),
 		OtpToken: withdrawRequest.OneTimePassword,
 	}
-	if withdrawRequest.FeeAmount > 0 {
-		request.Fee = withdrawRequest.FeeAmount
+	if withdrawRequest.Crypto.FeeAmount > 0 {
+		request.Fee = withdrawRequest.Crypto.FeeAmount
 	}
 
 	resp, err := b.UserRequestWithdrawal(request)
@@ -530,13 +530,13 @@ func (b *Bitmex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoReq
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bitmex) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (b *Bitmex) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bitmex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (b *Bitmex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

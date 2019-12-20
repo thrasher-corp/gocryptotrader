@@ -18,8 +18,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/withdraw"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -484,10 +484,10 @@ func (b *BTCMarkets) GetDepositAddress(cryptocurrency currency.Code, accountID s
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
-func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error) {
+func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
 	a, err := b.RequestWithdraw(withdrawRequest.Currency.String(),
 		withdrawRequest.Amount,
-		withdrawRequest.Address,
+		withdrawRequest.Crypto.Address,
 		"",
 		"",
 		"",
@@ -500,17 +500,17 @@ func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Crypt
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string, error) {
 	if withdrawRequest.Currency != currency.AUD {
 		return "", errors.New("only aud is supported for withdrawals")
 	}
-	a, err := b.RequestWithdraw(withdrawRequest.GenericInfo.Currency.String(),
-		withdrawRequest.GenericInfo.Amount,
+	a, err := b.RequestWithdraw(withdrawRequest.Currency.String(),
+		withdrawRequest.Amount,
 		"",
-		withdrawRequest.BankAccountName,
-		withdrawRequest.BankAccountNumber,
-		withdrawRequest.BSB,
-		withdrawRequest.BankName)
+		withdrawRequest.Fiat.BankAccountName,
+		withdrawRequest.Fiat.BankAccountNumber,
+		withdrawRequest.Fiat.BSB,
+		withdrawRequest.Fiat.BankName)
 	if err != nil {
 		return "", err
 	}
@@ -519,7 +519,7 @@ func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (s
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *BTCMarkets) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (b *BTCMarkets) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

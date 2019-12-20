@@ -4,7 +4,13 @@
 package postgres
 
 var TableNames = struct {
-	AuditEvent string
+	AuditEvent        string
+	WithdrawalCrypto  string
+	WithdrawalFiat    string
+	WithdrawalHistory string
 }{
-	AuditEvent: "audit_event",
+	AuditEvent:        "audit_event",
+	WithdrawalCrypto:  "withdrawal_crypto",
+	WithdrawalFiat:    "withdrawal_fiat",
+	WithdrawalHistory: "withdrawal_history",
 }

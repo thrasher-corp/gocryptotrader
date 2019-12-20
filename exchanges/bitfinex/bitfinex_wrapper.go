@@ -19,8 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/withdraw"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -486,7 +486,7 @@ func (b *Bitfinex) GetDepositAddress(cryptocurrency currency.Code, accountID str
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
-func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error) {
+func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
 	withdrawalType := b.ConvertSymbolToWithdrawalType(withdrawRequest.Currency)
 	// Bitfinex has support for three types, exchange, margin and deposit
 	// As this is for trading, I've made the wrapper default 'exchange'
@@ -494,7 +494,7 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoR
 	walletType := "exchange"
 	resp, err := b.WithdrawCryptocurrency(withdrawalType,
 		walletType,
-		withdrawRequest.Address,
+		withdrawRequest.Crypto.Address,
 		withdrawRequest.Description,
 		withdrawRequest.Amount,
 		withdrawRequest.Currency)
@@ -510,7 +510,7 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoR
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
 // Returns comma delimited withdrawal IDs
-func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string, error) {
 	withdrawalType := "wire"
 	// Bitfinex has support for three types, exchange, margin and deposit
 	// As this is for trading, I've made the wrapper default 'exchange'
@@ -542,7 +542,7 @@ func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (str
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is submitted
 // Returns comma delimited withdrawal IDs
-func (b *Bitfinex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (b *Bitfinex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
 	return b.WithdrawFiatFunds(withdrawRequest)
 }
 
