@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/thrasher-corp/gocryptotrader/engine"
 )
 
 // WithdrawCryptocurrencyFundsByExchange withdraws the desired cryptocurrency and amount to a desired cryptocurrency address
@@ -14,20 +13,20 @@ func Submit(exchName string, req *Request) (*Response, error) {
 		return nil, errors.New("crypto withdraw request param is nil")
 	}
 
-	exch := engine.GetExchangeByName(exchName)
-	if exch == nil {
-		return nil, engine.ErrExchangeNotFound
-	}
-
-	exchID, err := exch.WithdrawCryptocurrencyFunds(req)
-	if err != nil {
-		return nil, err
-	}
+	// exch := engine.GetExchangeByName(exchName)
+	// if exch == nil {
+	// 	return nil, engine.ErrExchangeNotFound
+	// }
+	//
+	// exchID, err := exch.WithdrawCryptocurrencyFunds(req)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	id, _ := uuid.NewV4()
 
 	resp := &Response{
 		ID:             id,
-		ExchangeID:     exchID,
+		ExchangeID:     "",
 		RequestDetails: req,
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),

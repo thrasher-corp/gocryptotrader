@@ -29,7 +29,6 @@ import (
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/utils"
-	"github.com/thrasher-corp/gocryptotrader/withdraw"
 )
 
 // GetSubsystemsStatus returns the status of various subsystems
