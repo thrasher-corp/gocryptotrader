@@ -67,7 +67,10 @@ type Response struct {
 	ID uuid.UUID
 
 	ExchangeID	string
+	Status string
+
 	RequestDetails	*Request
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"created_at"`
 }

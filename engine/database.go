@@ -90,7 +90,6 @@ func (a *databaseManager) run() {
 	Bot.ServicesWG.Add(1)
 
 	t := time.NewTicker(time.Second * 2)
-
 	a.running.Store(true)
 
 	defer func() {

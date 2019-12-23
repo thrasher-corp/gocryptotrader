@@ -4,10 +4,6 @@
     "title": "rpc.proto",
     "version": "version not set"
   },
-  "schemes": [
-    "http",
-    "https"
-  ],
   "consumes": [
     "application/json"
   ],
@@ -2337,55 +2333,17 @@
         "exchange": {
           "type": "string"
         },
-        "description": {
-          "type": "string"
-        },
-        "one_time_password": {
-          "type": "string"
-        },
-        "account_id": {
-          "type": "string"
-        },
-        "pin": {
-          "type": "string",
-          "format": "int64"
-        },
-        "trade_password": {
-          "type": "string"
-        },
         "currency": {
-          "type": "string"
-        },
-        "address": {
-          "type": "string"
-        },
-        "address_tag": {
           "type": "string"
         },
         "amount": {
           "type": "number",
           "format": "double"
         },
-        "fee_amount": {
-          "type": "number",
-          "format": "double"
-        },
-        "bank_name": {
+        "description": {
           "type": "string"
         },
-        "bank_address": {
-          "type": "string"
-        },
-        "bank_city": {
-          "type": "string"
-        },
-        "bank_country": {
-          "type": "string"
-        },
-        "swife_code": {
-          "type": "string"
-        },
-        "wire_currency": {
+        "bank_account_id": {
           "type": "string"
         }
       }
@@ -2393,7 +2351,10 @@
     "gctrpcWithdrawResponse": {
       "type": "object",
       "properties": {
-        "result": {
+        "id": {
+          "type": "string"
+        },
+        "status": {
           "type": "string"
         }
       }

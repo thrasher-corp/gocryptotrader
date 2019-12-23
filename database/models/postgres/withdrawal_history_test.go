@@ -1224,7 +1224,7 @@ func testWithdrawalHistoriesSelect(t *testing.T) {
 }
 
 var (
-	withdrawalHistoryDBTypes = map[string]string{`ID`: `uuid`, `Status`: `character varying`, `Currency`: `text`, `Amount`: `double precision`, `Description`: `text`, `WithdrawType`: `integer`, `CreatedAt`: `timestamp without time zone`, `UpdatedAt`: `timestamp without time zone`}
+	withdrawalHistoryDBTypes = map[string]string{`ID`: `uuid`, `Exchange`: `text`, `ExchangeID`: `text`, `Status`: `character varying`, `Currency`: `text`, `Amount`: `double precision`, `Description`: `text`, `WithdrawType`: `integer`, `CreatedAt`: `timestamp without time zone`, `UpdatedAt`: `timestamp without time zone`}
 	_                        = bytes.MinRead
 )
 

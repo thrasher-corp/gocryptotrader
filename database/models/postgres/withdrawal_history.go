@@ -25,11 +25,13 @@ import (
 // WithdrawalHistory is an object representing the database table.
 type WithdrawalHistory struct {
 	ID           string      `boil:"id" json:"id" toml:"id" yaml:"id"`
+	Exchange     string      `boil:"exchange" json:"exchange" toml:"exchange" yaml:"exchange"`
+	ExchangeID   string      `boil:"exchange_id" json:"exchange_id" toml:"exchange_id" yaml:"exchange_id"`
 	Status       string      `boil:"status" json:"status" toml:"status" yaml:"status"`
 	Currency     string      `boil:"currency" json:"currency" toml:"currency" yaml:"currency"`
 	Amount       float64     `boil:"amount" json:"amount" toml:"amount" yaml:"amount"`
 	Description  null.String `boil:"description" json:"description,omitempty" toml:"description" yaml:"description,omitempty"`
-	WithdrawType null.Int    `boil:"withdraw_type" json:"withdraw_type,omitempty" toml:"withdraw_type" yaml:"withdraw_type,omitempty"`
+	WithdrawType int         `boil:"withdraw_type" json:"withdraw_type" toml:"withdraw_type" yaml:"withdraw_type"`
 	CreatedAt    time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt    time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 
@@ -39,6 +41,8 @@ type WithdrawalHistory struct {
 
 var WithdrawalHistoryColumns = struct {
 	ID           string
+	Exchange     string
+	ExchangeID   string
 	Status       string
 	Currency     string
 	Amount       string
@@ -48,6 +52,8 @@ var WithdrawalHistoryColumns = struct {
 	UpdatedAt    string
 }{
 	ID:           "id",
+	Exchange:     "exchange",
+	ExchangeID:   "exchange_id",
 	Status:       "status",
 	Currency:     "currency",
 	Amount:       "amount",
@@ -59,45 +65,42 @@ var WithdrawalHistoryColumns = struct {
 
 // Generated where
 
-type whereHelpernull_Int struct{ field string }
+type whereHelperint struct{ field string }
 
-func (w whereHelpernull_Int) EQ(x null.Int) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, false, x)
-}
-func (w whereHelpernull_Int) NEQ(x null.Int) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, true, x)
-}
-func (w whereHelpernull_Int) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
-func (w whereHelpernull_Int) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
-func (w whereHelpernull_Int) LT(x null.Int) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LT, x)
-}
-func (w whereHelpernull_Int) LTE(x null.Int) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LTE, x)
-}
-func (w whereHelpernull_Int) GT(x null.Int) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GT, x)
-}
-func (w whereHelpernull_Int) GTE(x null.Int) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GTE, x)
+func (w whereHelperint) EQ(x int) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.EQ, x) }
+func (w whereHelperint) NEQ(x int) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.NEQ, x) }
+func (w whereHelperint) LT(x int) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.LT, x) }
+func (w whereHelperint) LTE(x int) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.LTE, x) }
+func (w whereHelperint) GT(x int) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.GT, x) }
+func (w whereHelperint) GTE(x int) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GTE, x) }
+func (w whereHelperint) IN(slice []int) qm.QueryMod {
+	values := make([]interface{}, 0, len(slice))
+	for _, value := range slice {
+		values = append(values, value)
+	}
+	return qm.WhereIn(fmt.Sprintf("%s IN ?", w.field), values...)
 }
 
 var WithdrawalHistoryWhere = struct {
 	ID           whereHelperstring
+	Exchange     whereHelperstring
+	ExchangeID   whereHelperstring
 	Status       whereHelperstring
 	Currency     whereHelperstring
 	Amount       whereHelperfloat64
 	Description  whereHelpernull_String
-	WithdrawType whereHelpernull_Int
+	WithdrawType whereHelperint
 	CreatedAt    whereHelpertime_Time
 	UpdatedAt    whereHelpertime_Time
 }{
 	ID:           whereHelperstring{field: "\"withdrawal_history\".\"id\""},
+	Exchange:     whereHelperstring{field: "\"withdrawal_history\".\"exchange\""},
+	ExchangeID:   whereHelperstring{field: "\"withdrawal_history\".\"exchange_id\""},
 	Status:       whereHelperstring{field: "\"withdrawal_history\".\"status\""},
 	Currency:     whereHelperstring{field: "\"withdrawal_history\".\"currency\""},
 	Amount:       whereHelperfloat64{field: "\"withdrawal_history\".\"amount\""},
 	Description:  whereHelpernull_String{field: "\"withdrawal_history\".\"description\""},
-	WithdrawType: whereHelpernull_Int{field: "\"withdrawal_history\".\"withdraw_type\""},
+	WithdrawType: whereHelperint{field: "\"withdrawal_history\".\"withdraw_type\""},
 	CreatedAt:    whereHelpertime_Time{field: "\"withdrawal_history\".\"created_at\""},
 	UpdatedAt:    whereHelpertime_Time{field: "\"withdrawal_history\".\"updated_at\""},
 }
@@ -126,8 +129,8 @@ func (*withdrawalHistoryR) NewStruct() *withdrawalHistoryR {
 type withdrawalHistoryL struct{}
 
 var (
-	withdrawalHistoryAllColumns            = []string{"id", "status", "currency", "amount", "description", "withdraw_type", "created_at", "updated_at"}
-	withdrawalHistoryColumnsWithoutDefault = []string{"status", "currency", "amount", "description", "withdraw_type"}
+	withdrawalHistoryAllColumns            = []string{"id", "exchange", "exchange_id", "status", "currency", "amount", "description", "withdraw_type", "created_at", "updated_at"}
+	withdrawalHistoryColumnsWithoutDefault = []string{"exchange", "exchange_id", "status", "currency", "amount", "description", "withdraw_type"}
 	withdrawalHistoryColumnsWithDefault    = []string{"id", "created_at", "updated_at"}
 	withdrawalHistoryPrimaryKeyColumns     = []string{"id"}
 )

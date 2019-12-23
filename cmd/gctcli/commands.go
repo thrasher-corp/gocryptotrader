@@ -2034,10 +2034,12 @@ func withdrawCryptocurrencyFunds(_ *cli.Context) error {
 	return common.ErrNotYetImplemented
 }
 
+
+
 var withdrawFiatFundsCommand = cli.Command{
 	Name:      "withdrawfiatfunds",
 	Usage:     "withdraws fiat funds from the desired exchange",
-	ArgsUsage: "<exchange> <fiat_currency>",
+	ArgsUsage: "<exchange> <currency> <amount> <description> <bank account id>",
 	Action:    withdrawFiatFunds,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -2045,14 +2047,94 @@ var withdrawFiatFundsCommand = cli.Command{
 			Usage: "the exchange to withdraw from",
 		},
 		cli.StringFlag{
-			Name:  "fiat_currency",
+			Name:  "currency",
 			Usage: "the fiat currency to withdraw funds from",
+	},
+		cli.StringFlag{
+			Name:  "description",
+			Usage: "description to submit with request",
+		},
+		cli.Float64Flag{
+			Name:  "amount",
+			Usage: "amount of funds to withdraw",
+		},
+
+		cli.StringFlag{
+			Name:  "bankaccountid",
+			Usage: "ID of bank account to use",
 		},
 	},
 }
 
-func withdrawFiatFunds(_ *cli.Context) error {
-	return common.ErrNotYetImplemented
+func withdrawFiatFunds(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "withdrawfiatfunds")
+		return nil
+	}
+
+	var exchange string
+	var cur string
+	var amount float64
+	var description string
+	var bankAccountID string
+
+	if !c.IsSet("exchange") {
+		if c.Args().Get(0) != "" {
+			exchange = c.Args().Get(0)
+		}
+	}
+
+	if !c.IsSet("currency") {
+		if c.Args().Get(1) != "" {
+			cur = c.Args().Get(1)
+		}
+	}
+
+	if !c.IsSet("description") {
+		if c.Args().Get(2) != "" {
+			description = c.Args().Get(2)
+		}
+	}
+
+	if !c.IsSet("amount") {
+		if c.Args().Get(3) != "" {
+			amountStr, err := strconv.ParseFloat(c.Args().Get(3), 64)
+			if err == nil {
+				amount = amountStr
+			}
+		}
+	}
+
+	if !c.IsSet("bankaccountid") {
+		if c.Args().Get(2) != "" {
+			bankAccountID = c.Args().Get(4)
+		}
+	}
+
+
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	result, err := client.WithdrawFiatFunds(context.Background(),
+		&gctrpc.WithdrawCurrencyRequest{
+			Exchange:             exchange,
+			Currency:             cur,
+			Amount:               amount,
+			Description:          description,
+			BankAccountId:        bankAccountID,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
 }
 
 var getLoggerDetailsCommand = cli.Command{

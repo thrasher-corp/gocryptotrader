@@ -27,7 +27,7 @@ type WithdrawalCrypto struct {
 	ID                 int64       `boil:"id" json:"id" toml:"id" yaml:"id"`
 	WithdrawalCryptoID null.String `boil:"withdrawal_crypto_id" json:"withdrawal_crypto_id,omitempty" toml:"withdrawal_crypto_id" yaml:"withdrawal_crypto_id,omitempty"`
 	Address            string      `boil:"address" json:"address" toml:"address" yaml:"address"`
-	AddressTag         string      `boil:"address_tag" json:"address_tag" toml:"address_tag" yaml:"address_tag"`
+	AddressTag         null.String `boil:"address_tag" json:"address_tag,omitempty" toml:"address_tag" yaml:"address_tag,omitempty"`
 	Fee                float64     `boil:"fee" json:"fee" toml:"fee" yaml:"fee"`
 
 	R *withdrawalCryptoR `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -92,13 +92,13 @@ var WithdrawalCryptoWhere = struct {
 	ID                 whereHelperint64
 	WithdrawalCryptoID whereHelpernull_String
 	Address            whereHelperstring
-	AddressTag         whereHelperstring
+	AddressTag         whereHelpernull_String
 	Fee                whereHelperfloat64
 }{
 	ID:                 whereHelperint64{field: "\"withdrawal_crypto\".\"id\""},
 	WithdrawalCryptoID: whereHelpernull_String{field: "\"withdrawal_crypto\".\"withdrawal_crypto_id\""},
 	Address:            whereHelperstring{field: "\"withdrawal_crypto\".\"address\""},
-	AddressTag:         whereHelperstring{field: "\"withdrawal_crypto\".\"address_tag\""},
+	AddressTag:         whereHelpernull_String{field: "\"withdrawal_crypto\".\"address_tag\""},
 	Fee:                whereHelperfloat64{field: "\"withdrawal_crypto\".\"fee\""},
 }
 

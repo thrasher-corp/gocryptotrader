@@ -27,6 +27,7 @@ import (
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/utils"
+	"github.com/thrasher-corp/gocryptotrader/withdraw"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
@@ -841,7 +842,45 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 
 // WithdrawFiatFunds withdraws fiat funds specified by exchange
 func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawCurrencyRequest) (*gctrpc.WithdrawResponse, error) {
-	return &gctrpc.WithdrawResponse{}, common.ErrNotYetImplemented
+	v, err := Bot.Config.GetBankAccountByID(r.BankAccountId)
+	if err != nil {
+		return nil, err
+	}
+
+	exch := GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errors.New("exchange is not loaded/doesn't exist")
+	}
+
+	request := &withdraw.Request{
+		Type:        withdraw.Fiat,
+		Description: r.Description,
+		Fiat:        new(withdraw.FiatRequest),
+	}
+
+
+	request.Amount = r.Amount
+	request.Currency = currency.NewCode(r.Currency)
+	request.Fiat.BankAccountName = v.AccountName
+	request.Fiat.BankAccountNumber = v.AccountNumber
+	request.Fiat.BankName = v.BankName
+	request.Fiat.BankAddress = v.BankAddress
+	request.Fiat.BankCity = v.BankPostalCity
+	request.Fiat.BankCountry = v.BankCountry
+	request.Fiat.BankPostalCode = v.BankPostalCode
+	request.Fiat.BSB = v.BSBNumber
+	request.Fiat.SwiftCode = v.SWIFTCode
+	request.Fiat.IBAN = v.IBAN
+
+	resp, err := SubmitWithdrawal(r.Exchange, request)
+	if err != nil {
+		return nil, err
+	}
+
+	return &gctrpc.WithdrawResponse{
+		Id:     resp.ID.String(),
+		Status: resp.Status,
+	}, nil
 }
 
 // GetLoggerDetails returns a loggers details
