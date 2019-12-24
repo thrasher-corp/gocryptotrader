@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	okExAuthRate     = 600
-	okExUnauthRate   = 600
+	okExAuthRate     = 1500
+	okExUnauthRate   = 1500
 	okExAPIPath      = "api/"
 	okExAPIURL       = "https://www.okex.com/" + okExAPIPath
 	okExAPIVersion   = "/v3/"

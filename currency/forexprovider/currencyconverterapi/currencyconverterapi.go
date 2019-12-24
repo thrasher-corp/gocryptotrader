@@ -3,7 +3,6 @@ package currencyconverter
 import (
 	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -162,16 +161,12 @@ func (c *CurrencyConverter) SendHTTPRequest(endPoint string, values url.Values, 
 	}
 	path += values.Encode()
 
-	err := c.Requester.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		&result,
-		auth,
-		false,
-		c.Verbose,
-		false,
-		false)
+	err := c.Requester.SendPayload(&request.Item{
+		Method:      path,
+		Result:      result,
+		AuthRequest: auth,
+		Verbose:     c.Verbose})
+
 	if err != nil {
 		return fmt.Errorf("currency converter API SendHTTPRequest error %s with path %s",
 			err,

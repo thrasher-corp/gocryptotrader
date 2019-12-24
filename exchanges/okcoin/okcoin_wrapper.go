@@ -114,8 +114,8 @@ func (o *OKCoin) SetDefaults() {
 	}
 
 	o.Requester = request.New(o.Name,
-		request.NewRateLimit(time.Second, okCoinAuthRate),
-		request.NewRateLimit(time.Second, okCoinUnauthRate),
+		request.NewRateLimit(time.Minute*5, okCoinAuthRate),
+		request.NewRateLimit(time.Minute*5, okCoinUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 	)
 

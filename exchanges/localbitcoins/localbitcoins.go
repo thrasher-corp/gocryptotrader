@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -731,16 +732,14 @@ func (l *LocalBitcoins) GetOrderbook(currency string) (Orderbook, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (l *LocalBitcoins) SendHTTPRequest(path string, result interface{}) error {
-	return l.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		result,
-		false,
-		false,
-		l.Verbose,
-		l.HTTPDebugging,
-		l.HTTPRecording)
+	return l.SendPayload(&request.Item{
+		Method:        http.MethodGet,
+		Path:          path,
+		Result:        result,
+		Verbose:       l.Verbose,
+		HTTPDebugging: l.HTTPDebugging,
+		HTTPRecording: l.HTTPRecording,
+	})
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to
@@ -770,16 +769,18 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, params
 		path += "?" + encoded
 	}
 
-	return l.SendPayload(method,
-		l.API.Endpoints.URL+path,
-		headers,
-		bytes.NewBufferString(encoded),
-		result,
-		true,
-		true,
-		l.Verbose,
-		l.HTTPDebugging,
-		l.HTTPRecording)
+	return l.SendPayload(&request.Item{
+		Method:        method,
+		Path:          l.API.Endpoints.URL + path,
+		Headers:       headers,
+		Body:          bytes.NewBufferString(encoded),
+		Result:        result,
+		AuthRequest:   true,
+		NonceEnabled:  true,
+		Verbose:       l.Verbose,
+		HTTPDebugging: l.HTTPDebugging,
+		HTTPRecording: l.HTTPRecording,
+	})
 }
 
 // GetFee returns an estimate of fee based on type of transaction

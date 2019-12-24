@@ -147,6 +147,7 @@ func init() {
 	WebsocketMgr = registerNewSubLogger("websocket")
 	EventMgr = registerNewSubLogger("event")
 	DispatchMgr = registerNewSubLogger("dispatch")
+	WorkMgr = registerNewSubLogger("workManager")
 
 	ExchangeSys = registerNewSubLogger("exchange")
 	GRPCSys = registerNewSubLogger("grpc")

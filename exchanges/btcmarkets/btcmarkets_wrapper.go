@@ -109,9 +109,16 @@ func (b *BTCMarkets) SetDefaults() {
 		},
 	}
 
+	/*
+		order placement API	/v3/orders POST	30 calls per 10 seconds
+		batch order API	/v3/batchorders POST	5 calls per 10 seconds
+		withdraw request API	/v3/withdrawals POST	10 calls per 10 seconds
+		creating new report API	/v3/reports POST	1 call per 10 seconds
+	*/
+
 	b.Requester = request.New(b.Name,
-		request.NewRateLimit(time.Second*10, btcmarketsAuthLimit),
-		request.NewRateLimit(time.Second*10, btcmarketsUnauthLimit),
+		request.NewRateLimit(time.Second*10, 5),
+		request.NewRateLimit(time.Second*10, 5),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 
 	b.API.Endpoints.WebsocketURL = btcMarketsWSURL

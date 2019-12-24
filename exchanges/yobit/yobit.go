@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -256,16 +257,14 @@ func (y *Yobit) RedeemCoupon(coupon string) (RedeemCoupon, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (y *Yobit) SendHTTPRequest(path string, result interface{}) error {
-	return y.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		result,
-		false,
-		false,
-		y.Verbose,
-		y.HTTPDebugging,
-		y.HTTPRecording)
+	return y.SendPayload(&request.Item{
+		Method:        http.MethodGet,
+		Path:          path,
+		Result:        result,
+		Verbose:       y.Verbose,
+		HTTPDebugging: y.HTTPDebugging,
+		HTTPRecording: y.HTTPRecording,
+	})
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to Yobit
@@ -298,16 +297,18 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, res
 	headers["Sign"] = crypto.HexEncodeToString(hmac)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	return y.SendPayload(http.MethodPost,
-		apiPrivateURL,
-		headers,
-		strings.NewReader(encoded),
-		result,
-		true,
-		true,
-		y.Verbose,
-		y.HTTPDebugging,
-		y.HTTPRecording)
+	return y.SendPayload(&request.Item{
+		Method:        http.MethodPost,
+		Path:          apiPrivateURL,
+		Headers:       headers,
+		Body:          strings.NewReader(encoded),
+		Result:        result,
+		AuthRequest:   true,
+		NonceEnabled:  true,
+		Verbose:       y.Verbose,
+		HTTPDebugging: y.HTTPDebugging,
+		HTTPRecording: y.HTTPRecording,
+	})
 }
 
 // GetFee returns an estimate of fee based on type of transaction

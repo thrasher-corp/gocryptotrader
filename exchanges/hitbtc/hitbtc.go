@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
@@ -460,16 +461,14 @@ func (h *HitBTC) TransferBalance(currency, from, to string, amount float64) (boo
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (h *HitBTC) SendHTTPRequest(path string, result interface{}) error {
-	return h.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		result,
-		false,
-		false,
-		h.Verbose,
-		h.HTTPDebugging,
-		h.HTTPRecording)
+	return h.SendPayload(&request.Item{
+		Method:        http.MethodGet,
+		Path:          path,
+		Result:        result,
+		Verbose:       h.Verbose,
+		HTTPDebugging: h.HTTPDebugging,
+		HTTPRecording: h.HTTPRecording,
+	})
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request
@@ -483,16 +482,17 @@ func (h *HitBTC) SendAuthenticatedHTTPRequest(method, endpoint string, values ur
 
 	path := fmt.Sprintf("%s/%s", h.API.Endpoints.URL, endpoint)
 
-	return h.SendPayload(method,
-		path,
-		headers,
-		bytes.NewBufferString(values.Encode()),
-		result,
-		true,
-		false,
-		h.Verbose,
-		h.HTTPDebugging,
-		h.HTTPRecording)
+	return h.SendPayload(&request.Item{
+		Method:        method,
+		Path:          path,
+		Headers:       headers,
+		Body:          bytes.NewBufferString(values.Encode()),
+		Result:        result,
+		AuthRequest:   true,
+		Verbose:       h.Verbose,
+		HTTPDebugging: h.HTTPDebugging,
+		HTTPRecording: h.HTTPRecording,
+	})
 }
 
 // GetFee returns an estimate of fee based on type of transaction

@@ -206,14 +206,10 @@ func (c *CurrencyLayer) SendHTTPRequest(endPoint string, values url.Values, resu
 	}
 	path += values.Encode()
 
-	return c.Requester.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		&result,
-		auth,
-		false,
-		c.Verbose,
-		false,
-		false)
+	return c.Requester.SendPayload(&request.Item{
+		Method:      http.MethodGet,
+		Path:        path,
+		Result:      &result,
+		AuthRequest: auth,
+		Verbose:     c.Verbose})
 }

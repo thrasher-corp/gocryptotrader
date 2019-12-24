@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
@@ -661,16 +662,14 @@ func (b *BTCMarkets) CancelBatchOrders(ids []string) (BatchCancelResponse, error
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *BTCMarkets) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		result,
-		false,
-		false,
-		b.Verbose,
-		b.HTTPDebugging,
-		b.HTTPRecording)
+	return b.SendPayload(&request.Item{
+		Method:        http.MethodGet,
+		Path:          path,
+		Result:        result,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+	})
 }
 
 // SendAuthenticatedRequest sends an authenticated HTTP request
@@ -708,16 +707,19 @@ func (b *BTCMarkets) SendAuthenticatedRequest(method, path string, data, result 
 	headers["BM-AUTH-APIKEY"] = b.API.Credentials.Key
 	headers["BM-AUTH-TIMESTAMP"] = strTime
 	headers["BM-AUTH-SIGNATURE"] = crypto.Base64Encode(hmac)
-	return b.SendPayload(method,
-		btcMarketsAPIURL+btcMarketsAPIVersion+path,
-		headers,
-		body,
-		result,
-		true,
-		false,
-		b.Verbose,
-		b.HTTPDebugging,
-		b.HTTPRecording)
+
+	return b.SendPayload(&request.Item{
+		Method:        method,
+		Path:          btcMarketsAPIURL + btcMarketsAPIVersion + path,
+		Headers:       headers,
+		Body:          body,
+		Result:        result,
+		AuthRequest:   true,
+		NonceEnabled:  false,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+	})
 }
 
 // GetFee returns an estimate of fee based on type of transaction

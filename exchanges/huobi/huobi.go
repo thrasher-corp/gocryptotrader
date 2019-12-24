@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
@@ -785,16 +786,14 @@ func (h *HUOBI) CancelWithdraw(withdrawID int64) (int64, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (h *HUOBI) SendHTTPRequest(path string, result interface{}) error {
-	return h.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		result,
-		false,
-		false,
-		h.Verbose,
-		h.HTTPDebugging,
-		h.HTTPRecording)
+	return h.SendPayload(&request.Item{
+		Method:        http.MethodGet,
+		Path:          path,
+		Result:        result,
+		Verbose:       h.Verbose,
+		HTTPDebugging: h.HTTPDebugging,
+		HTTPRecording: h.HTTPRecording,
+	})
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
@@ -869,16 +868,17 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 		body = encoded
 	}
 
-	return h.SendPayload(method,
-		urlPath,
-		headers,
-		bytes.NewReader(body),
-		result,
-		true,
-		false,
-		h.Verbose,
-		h.HTTPDebugging,
-		h.HTTPRecording)
+	return h.SendPayload(&request.Item{
+		Method:        method,
+		Path:          urlPath,
+		Headers:       headers,
+		Body:          bytes.NewReader(body),
+		Result:        result,
+		AuthRequest:   true,
+		Verbose:       h.Verbose,
+		HTTPDebugging: h.HTTPDebugging,
+		HTTPRecording: h.HTTPRecording,
+	})
 }
 
 // GetFee returns an estimate of fee based on type of transaction

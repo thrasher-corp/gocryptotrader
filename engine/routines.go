@@ -313,14 +313,8 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 			case *ticker.Price:
 				// Websocket Ticker Data
 				if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
-					Bot.ExchangeCurrencyPairManager.update(ws.GetName(),
-						d.Pair,
-						d.AssetType,
-						SyncItemTicker,
-						nil)
+					Bot.ExchangeCurrencyPairManager.StreamUpdate(d)
 				}
-				err := ticker.ProcessTicker(ws.GetName(), d, d.AssetType)
-				printTickerSummary(d, d.Pair, d.AssetType, ws.GetName(), "websocket", err)
 			case wshandler.KlineData:
 				// Websocket Kline Data
 				if Bot.Settings.Verbose {
@@ -332,20 +326,21 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 				}
 			case wshandler.WebsocketOrderbookUpdate:
 				// Websocket Orderbook Data
-				result := data.(wshandler.WebsocketOrderbookUpdate)
 				if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
-					Bot.ExchangeCurrencyPairManager.update(ws.GetName(),
-						result.Pair,
-						result.Asset,
-						SyncItemOrderbook,
-						nil)
+					// TODO: RM this as this adds overhead, pass the pointer
+					// to the orderbook around
+					storedOB, err := orderbook.Get(d.Exchange, d.Pair, d.Asset)
+					if err != nil {
+						log.Errorf(log.WebsocketMgr, "fetching internal orderbook %s", err)
+					}
+					Bot.ExchangeCurrencyPairManager.StreamUpdate(storedOB)
 				}
 
 				if Bot.Settings.Verbose {
 					log.Infof(log.WebsocketMgr,
 						"%s websocket %s %s orderbook updated\n",
 						ws.GetName(),
-						FormatCurrency(result.Pair),
+						FormatCurrency(d.Pair),
 						d.Asset)
 				}
 			default:

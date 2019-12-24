@@ -153,16 +153,11 @@ func (e *ExchangeRates) GetSupportedCurrencies() ([]string, error) {
 // SendHTTPRequest sends a HTTPS request to the desired endpoint and returns the result
 func (e *ExchangeRates) SendHTTPRequest(endPoint string, values url.Values, result interface{}) error {
 	path := common.EncodeURLValues(exchangeRatesAPI+"/"+endPoint, values)
-	err := e.Requester.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		&result,
-		false,
-		false,
-		e.Verbose,
-		false,
-		false)
+	err := e.Requester.SendPayload(&request.Item{
+		Method:  http.MethodGet,
+		Path:    path,
+		Result:  &result,
+		Verbose: e.Verbose})
 	if err != nil {
 		return fmt.Errorf("exchangeRatesAPI SendHTTPRequest error %s with path %s",
 			err,

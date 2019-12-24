@@ -178,20 +178,18 @@ func (e *Base) SetAPICredentialDefaults() {
 func (e *Base) SetHTTPRateLimiter() {
 	e.checkAndInitRequester()
 
-	if e.RequiresRateLimiter() {
-		if e.Config.HTTPRateLimiter == nil {
-			e.Config.HTTPRateLimiter = new(config.HTTPRateLimitConfig)
-			e.Config.HTTPRateLimiter.Authenticated.Duration = e.GetRateLimit(true).Duration
-			e.Config.HTTPRateLimiter.Authenticated.Rate = e.GetRateLimit(true).Rate
-			e.Config.HTTPRateLimiter.Unauthenticated.Duration = e.GetRateLimit(false).Duration
-			e.Config.HTTPRateLimiter.Unauthenticated.Rate = e.GetRateLimit(false).Rate
-		} else {
-			e.SetRateLimit(true, e.Config.HTTPRateLimiter.Authenticated.Duration,
-				e.Config.HTTPRateLimiter.Authenticated.Rate)
-			e.SetRateLimit(false, e.Config.HTTPRateLimiter.Unauthenticated.Duration,
-				e.Config.HTTPRateLimiter.Unauthenticated.Rate)
-		}
-	}
+	// if e.Config.HTTPRateLimiter == nil {
+	// 	e.Config.HTTPRateLimiter = new(config.HTTPRateLimitConfig)
+	// 	// e.Config.HTTPRateLimiter.Authenticated.Duration = e.GetRateLimit(true).Duration
+	// 	// e.Config.HTTPRateLimiter.Authenticated.Rate = e.GetRateLimit(true).Rate
+	// 	// e.Config.HTTPRateLimiter.Unauthenticated.Duration = e.GetRateLimit(false).Duration
+	// 	// e.Config.HTTPRateLimiter.Unauthenticated.Rate = e.GetRateLimit(false).Rate
+	// } else {
+	// 	e.SetRateLimit(true, e.Config.HTTPRateLimiter.Authenticated.Duration,
+	// 		e.Config.HTTPRateLimiter.Authenticated.Rate)
+	// 	e.SetRateLimit(false, e.Config.HTTPRateLimiter.Unauthenticated.Duration,
+	// 		e.Config.HTTPRateLimiter.Unauthenticated.Rate)
+	// }
 }
 
 // SupportsRESTTickerBatchUpdates returns whether or not the
@@ -457,7 +455,7 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 
 	e.HTTPDebugging = exch.HTTPDebugging
 	e.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-	e.SetHTTPRateLimiter()
+	// e.SetHTTPRateLimiter()
 	e.SetAssetTypes()
 	e.SetCurrencyPairFormat()
 	e.SetConfigPairs()
@@ -465,7 +463,7 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	e.SetAPIURL()
 	e.SetAPICredentialDefaults()
 	e.SetClientProxyAddress(exch.ProxyAddress)
-	e.SetHTTPRateLimiter()
+	// e.SetHTTPRateLimiter()
 
 	e.BaseCurrencies = exch.BaseCurrencies
 

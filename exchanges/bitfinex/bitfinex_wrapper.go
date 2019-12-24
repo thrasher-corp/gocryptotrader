@@ -123,8 +123,8 @@ func (b *Bitfinex) SetDefaults() {
 	}
 
 	b.Requester = request.New(b.Name,
-		request.NewRateLimit(time.Second*60, bitfinexAuthRate),
-		request.NewRateLimit(time.Second*60, bitfinexUnauthRate),
+		request.NewRateLimit(time.Minute, bitfinexAuthRate),
+		request.NewRateLimit(time.Minute, bitfinexUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 
 	b.API.Endpoints.URLDefault = bitfinexAPIURLBase

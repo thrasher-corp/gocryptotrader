@@ -148,8 +148,8 @@ func (o *OKEX) SetDefaults() {
 	}
 
 	o.Requester = request.New(o.Name,
-		request.NewRateLimit(time.Second, okExAuthRate),
-		request.NewRateLimit(time.Second, okExUnauthRate),
+		request.NewRateLimit(time.Minute*5, okExAuthRate),
+		request.NewRateLimit(time.Minute*5, okExUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 	)
 

@@ -16,6 +16,7 @@ var (
 	WebsocketMgr     *subLogger
 	EventMgr         *subLogger
 	DispatchMgr      *subLogger
+	WorkMgr          *subLogger
 
 	ExchangeSys *subLogger
 	GRPCSys     *subLogger

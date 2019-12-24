@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
@@ -753,16 +754,14 @@ func (p *Poloniex) ToggleAutoRenew(orderNumber int64) (bool, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (p *Poloniex) SendHTTPRequest(path string, result interface{}) error {
-	return p.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		result,
-		false,
-		false,
-		p.Verbose,
-		p.HTTPDebugging,
-		p.HTTPRecording)
+	return p.SendPayload(&request.Item{
+		Method:        http.MethodGet,
+		Path:          path,
+		Result:        result,
+		Verbose:       p.Verbose,
+		HTTPDebugging: p.HTTPDebugging,
+		HTTPRecording: p.HTTPRecording,
+	})
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -786,16 +785,18 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 
 	path := fmt.Sprintf("%s/%s", p.API.Endpoints.URL, poloniexAPITradingEndpoint)
 
-	return p.SendPayload(method,
-		path,
-		headers,
-		bytes.NewBufferString(values.Encode()),
-		result,
-		true,
-		true,
-		p.Verbose,
-		p.HTTPDebugging,
-		p.HTTPRecording)
+	return p.SendPayload(&request.Item{
+		Method:        method,
+		Path:          path,
+		Headers:       headers,
+		Body:          bytes.NewBufferString(values.Encode()),
+		Result:        result,
+		AuthRequest:   true,
+		NonceEnabled:  true,
+		Verbose:       p.Verbose,
+		HTTPDebugging: p.HTTPDebugging,
+		HTTPRecording: p.HTTPRecording,
+	})
 }
 
 // GetFee returns an estimate of fee based on type of transaction

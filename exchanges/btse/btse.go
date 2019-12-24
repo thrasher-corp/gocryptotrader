@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -187,16 +188,14 @@ func (b *BTSE) GetFills(orderID, symbol, before, after, limit, username string) 
 
 // SendHTTPRequest sends an HTTP request to the desired endpoint
 func (b *BTSE) SendHTTPRequest(method, endpoint string, result interface{}) error {
-	return b.SendPayload(method,
-		b.API.Endpoints.URL+btseAPIPath+endpoint,
-		nil,
-		nil,
-		&result,
-		false,
-		false,
-		b.Verbose,
-		b.HTTPDebugging,
-		b.HTTPRecording)
+	return b.SendPayload(&request.Item{
+		Method:        method,
+		Path:          b.API.Endpoints.URL + btseAPIPath + endpoint,
+		Result:        result,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+	})
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the desired endpoint
@@ -238,16 +237,18 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[str
 			"%s Sending %s request to URL %s with params %s\n",
 			b.Name, method, path, string(payload))
 	}
-	return b.SendPayload(method,
-		b.API.Endpoints.URL+path,
-		headers,
-		body,
-		&result,
-		true,
-		false,
-		b.Verbose,
-		b.HTTPDebugging,
-		b.HTTPRecording)
+
+	return b.SendPayload(&request.Item{
+		Method:        method,
+		Path:          b.API.Endpoints.URL + path,
+		Headers:       headers,
+		Body:          body,
+		Result:        result,
+		AuthRequest:   true,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+	})
 }
 
 // GetFee returns an estimate of fee based on type of transaction

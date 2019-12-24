@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 const (
@@ -518,16 +519,16 @@ func (a *Alphapoint) SendHTTPRequest(method, path string, data map[string]interf
 		return errors.New("unable to JSON request")
 	}
 
-	return a.SendPayload(method,
-		path,
-		headers,
-		bytes.NewBuffer(PayloadJSON),
-		result,
-		false,
-		false,
-		a.Verbose,
-		a.HTTPDebugging,
-		a.HTTPRecording)
+	return a.SendPayload(&request.Item{
+		Method:        method,
+		Path:          path,
+		Headers:       headers,
+		Body:          bytes.NewBuffer(PayloadJSON),
+		Result:        result,
+		Verbose:       a.Verbose,
+		HTTPDebugging: a.HTTPDebugging,
+		HTTPRecording: a.HTTPRecording,
+	})
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
@@ -553,14 +554,16 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(method, path string, data map[
 		return errors.New("unable to JSON request")
 	}
 
-	return a.SendPayload(method,
-		path,
-		headers,
-		bytes.NewBuffer(PayloadJSON),
-		result,
-		true,
-		true,
-		a.Verbose,
-		a.HTTPDebugging,
-		a.HTTPRecording)
+	return a.SendPayload(&request.Item{
+		Method:        method,
+		Path:          path,
+		Headers:       headers,
+		Body:          bytes.NewBuffer(PayloadJSON),
+		Result:        result,
+		AuthRequest:   true,
+		NonceEnabled:  true,
+		Verbose:       a.Verbose,
+		HTTPDebugging: a.HTTPDebugging,
+		HTTPRecording: a.HTTPRecording,
+	})
 }

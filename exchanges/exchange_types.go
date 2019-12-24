@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -136,6 +137,8 @@ type TradeHistory struct {
 	Exchange    string
 	Type        string
 	Fee         float64
+	AssetType   asset.Item
+	Pair        currency.Pair
 	Description string
 }
 
@@ -231,4 +234,10 @@ type Base struct {
 	Websocket                     *wshandler.Websocket
 	*request.Requester
 	Config *config.ExchangeConfig
+}
+
+// TradeHistoryRequest meow
+type TradeHistoryRequest struct {
+	Pair  currency.Pair
+	Asset asset.Item
 }

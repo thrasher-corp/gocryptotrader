@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
@@ -276,16 +277,14 @@ func (z *ZB) GetCryptoAddress(currency currency.Code) (UserAddress, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (z *ZB) SendHTTPRequest(path string, result interface{}) error {
-	return z.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		result,
-		false,
-		false,
-		z.Verbose,
-		z.HTTPDebugging,
-		z.HTTPRecording)
+	return z.SendPayload(&request.Item{
+		Method:        http.MethodGet,
+		Path:          path,
+		Result:        result,
+		Verbose:       z.Verbose,
+		HTTPDebugging: z.HTTPDebugging,
+		HTTPRecording: z.HTTPRecording,
+	})
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the zb API
@@ -315,16 +314,16 @@ func (z *ZB) SendAuthenticatedHTTPRequest(httpMethod string, params url.Values, 
 		Message string `json:"message"`
 	}{}
 
-	err := z.SendPayload(httpMethod,
-		urlPath,
-		nil,
-		strings.NewReader(""),
-		&intermediary,
-		true,
-		false,
-		z.Verbose,
-		z.HTTPDebugging,
-		z.HTTPRecording)
+	err := z.SendPayload(&request.Item{
+		Method:        httpMethod,
+		Path:          urlPath,
+		Body:          strings.NewReader(""),
+		Result:        &intermediary,
+		AuthRequest:   true,
+		Verbose:       z.Verbose,
+		HTTPDebugging: z.HTTPDebugging,
+		HTTPRecording: z.HTTPRecording,
+	})
 	if err != nil {
 		return err
 	}

@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -712,16 +713,14 @@ func (c *CoinbasePro) GetTrailingVolume() ([]Volume, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (c *CoinbasePro) SendHTTPRequest(path string, result interface{}) error {
-	return c.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		result,
-		false,
-		false,
-		c.Verbose,
-		c.HTTPDebugging,
-		c.HTTPRecording)
+	return c.SendPayload(&request.Item{
+		Method:        http.MethodGet,
+		Path:          path,
+		Result:        result,
+		Verbose:       c.Verbose,
+		HTTPDebugging: c.HTTPDebugging,
+		HTTPRecording: c.HTTPRecording,
+	})
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP reque
@@ -754,16 +753,18 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params m
 	headers["CB-ACCESS-PASSPHRASE"] = c.API.Credentials.ClientID
 	headers["Content-Type"] = "application/json"
 
-	return c.SendPayload(method,
-		c.API.Endpoints.URL+path,
-		headers,
-		bytes.NewBuffer(payload),
-		result,
-		true,
-		true,
-		c.Verbose,
-		c.HTTPDebugging,
-		c.HTTPRecording)
+	return c.SendPayload(&request.Item{
+		Method:        method,
+		Path:          c.API.Endpoints.URL + path,
+		Headers:       headers,
+		Body:          bytes.NewBuffer(payload),
+		Result:        result,
+		AuthRequest:   true,
+		NonceEnabled:  true,
+		Verbose:       c.Verbose,
+		HTTPDebugging: c.HTTPDebugging,
+		HTTPRecording: c.HTTPRecording,
+	})
 }
 
 // GetFee returns an estimate of fee based on type of transaction

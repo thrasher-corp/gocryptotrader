@@ -28,7 +28,7 @@ type Engine struct {
 	Config                      *config.Config
 	Portfolio                   *portfolio.Base
 	Exchanges                   []exchange.IBotExchange
-	ExchangeCurrencyPairManager *ExchangeCurrencyPairSyncer
+	ExchangeCurrencyPairManager *SyncManager
 	NTPManager                  ntpManager
 	ConnectionManager           connectionManager
 	DatabaseManager             databaseManager
@@ -36,6 +36,7 @@ type Engine struct {
 	PortfolioManager            portfolioManager
 	CommsManager                commsManager
 	DepositAddressManager       *DepositAddressManager
+	WoRkMaNaGeR                 *WorkManager
 	Settings                    Settings
 	Uptime                      time.Time
 	ServicesWG                  sync.WaitGroup
@@ -179,8 +180,8 @@ func ValidateSettings(b *Engine, s *Settings) {
 
 	// Checks if the flag values are different from the defaults
 	b.Settings.MaxHTTPRequestJobsLimit = s.MaxHTTPRequestJobsLimit
-	if b.Settings.MaxHTTPRequestJobsLimit != request.DefaultMaxRequestJobs && s.MaxHTTPRequestJobsLimit > 0 {
-		request.MaxRequestJobs = b.Settings.MaxHTTPRequestJobsLimit
+	if int32(b.Settings.MaxHTTPRequestJobsLimit) != request.DefaultMaxRequestJobs && s.MaxHTTPRequestJobsLimit > 0 {
+		request.MaxRequestJobs = int32(b.Settings.MaxHTTPRequestJobsLimit)
 	}
 
 	b.Settings.RequestTimeoutRetryAttempts = s.RequestTimeoutRetryAttempts
@@ -279,6 +280,11 @@ func (e *Engine) Start() error {
 		return errors.New("engine instance is nil")
 	}
 
+	e.WoRkMaNaGeR = Get(10, e.Settings.Verbose)
+	if err := e.WoRkMaNaGeR.Start(); err != nil {
+		log.Errorf(log.Global, "Work manager is effed because,", err)
+	}
+
 	if e.Settings.EnableDatabaseManager {
 		if err := e.DatabaseManager.Start(); err != nil {
 			log.Errorf(log.Global, "Database manager unable to start: %v", err)
@@ -286,7 +292,7 @@ func (e *Engine) Start() error {
 	}
 
 	if e.Settings.EnableDispatcher {
-		if err := dispatch.Start(e.Settings.DispatchMaxWorkerAmount, e.Settings.DispatchJobsLimit); err != nil {
+		if err := dispatch.Start(e.Settings.DispatchMaxWorkerAmount, 1000); err != nil {
 			log.Errorf(log.DispatchMgr, "Dispatcher unable to start: %v", err)
 		}
 	}
@@ -398,16 +404,14 @@ func (e *Engine) Start() error {
 	}
 
 	if e.Settings.EnableExchangeSyncManager {
-		exchangeSyncCfg := CurrencyPairSyncerConfig{
-			SyncTicker:       e.Settings.EnableTickerSyncing,
-			SyncOrderbook:    e.Settings.EnableOrderbookSyncing,
-			SyncTrades:       e.Settings.EnableTradeSyncing,
-			SyncContinuously: e.Settings.SyncContinuously,
-			NumWorkers:       e.Settings.SyncWorkers,
-			Verbose:          e.Settings.Verbose,
-		}
-
-		e.ExchangeCurrencyPairManager, err = NewCurrencyPairSyncer(exchangeSyncCfg)
+		e.ExchangeCurrencyPairManager, err = NewSyncManager(SyncConfig{
+			Ticker:     e.Settings.EnableTickerSyncing,
+			Orderbook:  e.Settings.EnableOrderbookSyncing,
+			Trades:     e.Settings.EnableTradeSyncing,
+			Continuous: e.Settings.SyncContinuously,
+			NumWorkers: e.Settings.SyncWorkers,
+			Verbose:    e.Settings.Verbose,
+		})
 		if err != nil {
 			log.Warnf(log.Global, "Unable to initialise exchange currency pair syncer. Err: %s", err)
 		} else {
