@@ -248,7 +248,7 @@ func TestExchangeWithdrawCrypto(t *testing.T) {
 	address := &objects.String{Value: "0xTHISISALEGITBTCADDRESSS"}
 	amount := &objects.Float{Value: 1.0}
 
-	_, err = ExchangeWithdrawCrypto(exch, currCode,address,address, amount, amount, desc )
+	_, err = ExchangeWithdrawCrypto(exch, currCode, address, address, amount, amount, desc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -260,7 +260,6 @@ func TestExchangeWithdrawFiat(t *testing.T) {
 		t.Fatal(err)
 	}
 
-
 	currCode := &objects.String{Value: "AUD"}
 	desc := &objects.String{Value: "Hello"}
 	amount := &objects.Float{Value: 1.0}
@@ -271,7 +270,8 @@ func TestExchangeWithdrawFiat(t *testing.T) {
 	}
 }
 
-type Wrapper struct {}
+type Wrapper struct{}
+
 func (w Wrapper) Exchanges(enabledOnly bool) []string {
 	if enabledOnly {
 		return []string{
@@ -438,7 +438,7 @@ func (w Wrapper) DepositAddress(exch string, currencyCode currency.Code) (string
 	if exch == exchError.String() {
 		return exch, errTestFailed
 	}
-	
+
 	return exch, nil
 }
 

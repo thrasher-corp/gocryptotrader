@@ -30,5 +30,3 @@ require (
 	google.golang.org/grpc v1.21.1
 	gopkg.in/yaml.v2 v2.2.4 // indirect
 )
-
-replace github.com/d5/tengo => ../tengo

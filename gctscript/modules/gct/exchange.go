@@ -336,12 +336,11 @@ func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 	feeAmount, _ := objects.ToFloat64(args[5])
 	description, _ := objects.ToString(args[6])
 
-
 	withdrawRequest := &withdraw.CryptoRequest{
 		GenericInfo: withdraw.GenericInfo{
-			Currency:        currency.NewCode(cur),
-			Description:     description,
-			Amount:          amount,
+			Currency:    currency.NewCode(cur),
+			Description: description,
+			Amount:      amount,
 		},
 		Address:    address,
 		AddressTag: addressTag,
@@ -369,9 +368,9 @@ func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
 
 	withdrawRequest := &withdraw.FiatRequest{
 		GenericInfo: withdraw.GenericInfo{
-			Currency:        currency.NewCode(cur),
-			Description:     description,
-			Amount:          amount,
+			Currency:    currency.NewCode(cur),
+			Description: description,
+			Amount:      amount,
 		},
 	}
 
@@ -382,4 +381,3 @@ func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
 
 	return &objects.String{Value: rtn}, nil
 }
-

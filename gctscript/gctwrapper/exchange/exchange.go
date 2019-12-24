@@ -154,9 +154,8 @@ func (e Exchange) DepositAddress(exch string, currencyCode currency.Code) (out s
 	return engine.Bot.DepositAddressManager.GetDepositAddressByExchange(exch, currencyCode)
 }
 
-
 // WithdrawalFiatFunds withdraw funds from exchange to requested fiat source
-func (e Exchange) WithdrawalFiatFunds(exch, bankaccountid string, request *withdraw.FiatRequest) (out string, err error) {
+func (e Exchange) WithdrawalFiatFunds(exch, bankaccountid string, request *withdraw.FiatRequest) (string, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return "", err
@@ -168,11 +167,11 @@ func (e Exchange) WithdrawalFiatFunds(exch, bankaccountid string, request *withd
 
 	otp, err := engine.GetExchangeoOTPByName(exch)
 	if err == nil {
-		v, err := strconv.ParseInt(otp, 10, 64)
-		if err != nil {
-
+		otpValue, errParse := strconv.ParseInt(otp, 10, 64)
+		if errParse != nil {
+			return "", errors.New("failed to generate OTP unable to continue")
 		}
-		request.GenericInfo.OneTimePassword = v
+		request.GenericInfo.OneTimePassword = otpValue
 	}
 	request.BankAccountName = v.AccountName
 	request.BankAccountNumber = v.AccountNumber
@@ -202,9 +201,9 @@ func (e Exchange) WithdrawalCryptoFunds(exch string, request *withdraw.CryptoReq
 
 	otp, err := engine.GetExchangeoOTPByName(exch)
 	if err == nil {
-		v, err := strconv.ParseInt(otp, 10, 64)
-		if err != nil {
-
+		v, errParse := strconv.ParseInt(otp, 10, 64)
+		if errParse != nil {
+			return "", errors.New("failed to generate OTP unable to continue")
 		}
 		request.GenericInfo.OneTimePassword = v
 	}

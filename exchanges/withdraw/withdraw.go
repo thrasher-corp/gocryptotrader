@@ -43,7 +43,7 @@ func ValidateFiat(request *FiatRequest) (err error) {
 // ValidateCrypto checks if Crypto request is valid
 func ValidateCrypto(request *CryptoRequest) (err error) {
 	if request == nil {
-		return nil
+		return errors.New("request cannot be nil")
 	}
 
 	var allErrors []string
