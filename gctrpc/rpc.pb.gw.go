@@ -1042,7 +1042,7 @@ func local_request_GoCryptoTrader_GetCryptocurrencyDepositAddress_0(ctx context.
 }
 
 func request_GoCryptoTrader_WithdrawCryptocurrencyFunds_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq WithdrawCurrencyRequest
+	var protoReq WithdrawCryptoRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -1059,7 +1059,7 @@ func request_GoCryptoTrader_WithdrawCryptocurrencyFunds_0(ctx context.Context, m
 }
 
 func local_request_GoCryptoTrader_WithdrawCryptocurrencyFunds_0(ctx context.Context, marshaler runtime.Marshaler, server GoCryptoTraderServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq WithdrawCurrencyRequest
+	var protoReq WithdrawCryptoRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -1076,7 +1076,7 @@ func local_request_GoCryptoTrader_WithdrawCryptocurrencyFunds_0(ctx context.Cont
 }
 
 func request_GoCryptoTrader_WithdrawFiatFunds_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq WithdrawCurrencyRequest
+	var protoReq WithdrawFiatRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -1093,7 +1093,7 @@ func request_GoCryptoTrader_WithdrawFiatFunds_0(ctx context.Context, marshaler r
 }
 
 func local_request_GoCryptoTrader_WithdrawFiatFunds_0(ctx context.Context, marshaler runtime.Marshaler, server GoCryptoTraderServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq WithdrawCurrencyRequest
+	var protoReq WithdrawFiatRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)

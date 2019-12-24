@@ -34,6 +34,7 @@ type FiatRequest struct {
 	IBAN              string
 	BankCode          float64
 	IsExpressWire     bool
+
 	// Intermediary bank information
 	RequiresIntermediaryBank      bool
 	IntermediaryBankAccountNumber float64

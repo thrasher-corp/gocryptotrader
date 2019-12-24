@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/urfave/cli"
@@ -2014,9 +2013,9 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 }
 
 var withdrawCryptocurrencyFundsCommand = cli.Command{
-	Name:      "withdrawcryptocurrencyfunds",
+	Name:      "withdrawcryptofunds",
 	Usage:     "withdraws cryptocurrency funds from the desired exchange",
-	ArgsUsage: "<exchange> <cryptocurrency>",
+	ArgsUsage: "<exchange> <cryptocurrency> <address> <addresstag> <amount> <fee> <description>",
 	Action:    withdrawCryptocurrencyFunds,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -2027,14 +2026,112 @@ var withdrawCryptocurrencyFundsCommand = cli.Command{
 			Name:  "cryptocurrency",
 			Usage: "the cryptocurrency to withdraw funds from",
 		},
+		cli.StringFlag{
+			Name:  "address",
+			Usage: "address to withdraw to",
+		},
+		cli.StringFlag{
+			Name:  "addresstag",
+			Usage: "address tag/memo",
+		},
+		cli.Float64Flag{
+			Name:  "amount",
+			Usage: "amount of funds to withdraw",
+		},
+		cli.Float64Flag{
+			Name:  "fee",
+			Usage: "fee to submit with request",
+		},
+		cli.StringFlag{
+			Name:  "description",
+			Usage: "description to submit with request",
+		},
 	},
 }
 
-func withdrawCryptocurrencyFunds(_ *cli.Context) error {
-	return common.ErrNotYetImplemented
+// <exchange> <cryptocurrency> <address> <addresstag> <amount> <fee> <description>
+func withdrawCryptocurrencyFunds(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "withdrawcryptofunds")
+		return nil
+	}
+
+	var exchange, cur, address, addresstag, description string
+	var amount, fee float64
+
+	if !c.IsSet("exchange") {
+		if c.Args().Get(0) != "" {
+			exchange = c.Args().Get(0)
+		}
+	}
+
+	if !c.IsSet("cryptocurrency") {
+		if c.Args().Get(1) != "" {
+			cur = c.Args().Get(1)
+		}
+	}
+
+	if !c.IsSet("address") {
+		if c.Args().Get(2) != "" {
+			address = c.Args().Get(2)
+		}
+	}
+
+	if !c.IsSet("addresstag") {
+		if c.Args().Get(2) != "" {
+			addresstag = c.Args().Get(3)
+		}
+	}
+
+	if !c.IsSet("amount") {
+		if c.Args().Get(3) != "" {
+			amountStr, err := strconv.ParseFloat(c.Args().Get(4), 64)
+			if err == nil {
+				amount = amountStr
+			}
+		}
+	}
+
+	if !c.IsSet("fee") {
+		if c.Args().Get(3) != "" {
+			feeStr, err := strconv.ParseFloat(c.Args().Get(5), 64)
+			if err == nil {
+				fee = feeStr
+			}
+		}
+	}
+
+	if !c.IsSet("description") {
+		if c.Args().Get(2) != "" {
+			description = c.Args().Get(6)
+		}
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	result, err := client.WithdrawCryptocurrencyFunds(context.Background(),
+		&gctrpc.WithdrawCryptoRequest{
+			Exchange:    exchange,
+			Currency:    cur,
+			Address:     address,
+			AddressTag:  addresstag,
+			Amount:      amount,
+			Fee:         fee,
+			Description: description,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
 }
-
-
 
 var withdrawFiatFundsCommand = cli.Command{
 	Name:      "withdrawfiatfunds",
@@ -2049,7 +2146,7 @@ var withdrawFiatFundsCommand = cli.Command{
 		cli.StringFlag{
 			Name:  "currency",
 			Usage: "the fiat currency to withdraw funds from",
-	},
+		},
 		cli.StringFlag{
 			Name:  "description",
 			Usage: "description to submit with request",
@@ -2111,8 +2208,6 @@ func withdrawFiatFunds(c *cli.Context) error {
 		}
 	}
 
-
-
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -2122,12 +2217,12 @@ func withdrawFiatFunds(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
 	result, err := client.WithdrawFiatFunds(context.Background(),
-		&gctrpc.WithdrawCurrencyRequest{
-			Exchange:             exchange,
-			Currency:             cur,
-			Amount:               amount,
-			Description:          description,
-			BankAccountId:        bankAccountID,
+		&gctrpc.WithdrawFiatRequest{
+			Exchange:      exchange,
+			Currency:      cur,
+			Amount:        amount,
+			Description:   description,
+			BankAccountId: bankAccountID,
 		},
 	)
 	if err != nil {

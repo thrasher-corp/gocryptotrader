@@ -10,7 +10,6 @@ import (
 
 // Valid takes interface and passes to asset type to check the request meets requirements to submit
 func Valid(request *Request) (err error) {
-	fmt.Printf("%+v", request)
 	var allErrors []string
 	if request.Amount <= 0 {
 		allErrors = append(allErrors, "amount cannot be empty")
@@ -47,7 +46,7 @@ func validateFiat(request *Request) (err []string) {
 	}
 
 	if request.Fiat.BankAccountNumber == "" {
-		err = append(err, "BankAccountNumber cannot be empty")
+		err = append(err, "Bank Account Number cannot be empty")
 	}
 
 	if request.Currency == currency.AUD {

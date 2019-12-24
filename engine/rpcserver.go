@@ -836,12 +836,36 @@ func (s *RPCServer) GetCryptocurrencyDepositAddress(ctx context.Context, r *gctr
 
 // WithdrawCryptocurrencyFunds withdraws cryptocurrency funds specified by
 // exchange
-func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.WithdrawCurrencyRequest) (*gctrpc.WithdrawResponse, error) {
-	return &gctrpc.WithdrawResponse{}, common.ErrNotYetImplemented
+func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.WithdrawCryptoRequest) (*gctrpc.WithdrawResponse, error) {
+	exch := GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errors.New("exchange is not loaded/doesn't exist")
+	}
+
+	request := &withdraw.Request{
+		Amount: r.Amount,
+		Currency: currency.NewCode(r.Currency),
+		Type:        withdraw.Fiat,
+		Description: r.Description,
+		Crypto:        &withdraw.CryptoRequest{
+			Address:    r.Address,
+			AddressTag: r.AddressTag,
+			FeeAmount:  r.Fee,
+		},
+	}
+	resp, err := SubmitWithdrawal(r.Exchange, request)
+	if err != nil {
+		return nil, err
+	}
+
+	return &gctrpc.WithdrawResponse{
+		Id:     resp.ID.String(),
+		Status: resp.Status,
+	}, nil
 }
 
 // WithdrawFiatFunds withdraws fiat funds specified by exchange
-func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawCurrencyRequest) (*gctrpc.WithdrawResponse, error) {
+func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFiatRequest) (*gctrpc.WithdrawResponse, error) {
 	v, err := Bot.Config.GetBankAccountByID(r.BankAccountId)
 	if err != nil {
 		return nil, err
@@ -853,24 +877,23 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawCur
 	}
 
 	request := &withdraw.Request{
+		Amount: r.Amount,
+		Currency: currency.NewCode(r.Currency),
 		Type:        withdraw.Fiat,
 		Description: r.Description,
-		Fiat:        new(withdraw.FiatRequest),
+		Fiat:        &withdraw.FiatRequest{
+			BankAccountName:               v.AccountName,
+			BankAccountNumber:             v.AccountNumber,
+			BankName:                      v.BankName,
+			BankAddress:                   v.BankAddress,
+			BankCity:                      v.BankPostalCity,
+			BankCountry:                   v.BankCountry,
+			BankPostalCode:                v.BankPostalCity,
+			BSB:                           v.BSBNumber,
+			SwiftCode:                     v.SWIFTCode,
+			IBAN:                          v.IBAN,
+		},
 	}
-
-
-	request.Amount = r.Amount
-	request.Currency = currency.NewCode(r.Currency)
-	request.Fiat.BankAccountName = v.AccountName
-	request.Fiat.BankAccountNumber = v.AccountNumber
-	request.Fiat.BankName = v.BankName
-	request.Fiat.BankAddress = v.BankAddress
-	request.Fiat.BankCity = v.BankPostalCity
-	request.Fiat.BankCountry = v.BankCountry
-	request.Fiat.BankPostalCode = v.BankPostalCode
-	request.Fiat.BSB = v.BSBNumber
-	request.Fiat.SwiftCode = v.SWIFTCode
-	request.Fiat.IBAN = v.IBAN
 
 	resp, err := SubmitWithdrawal(r.Exchange, request)
 	if err != nil {

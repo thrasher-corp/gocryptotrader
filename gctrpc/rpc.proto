@@ -434,12 +434,22 @@ message GetCryptocurrencyDepositAddressResponse {
     string address = 1;
 }
 
-message WithdrawCurrencyRequest {
+message WithdrawFiatRequest {
     string exchange = 1;
     string currency = 2;
     double amount = 3;
     string description = 4;
     string bank_account_id = 5;
+}
+
+message WithdrawCryptoRequest {
+    string exchange = 1;
+    string address = 2;
+    string address_tag  = 3;
+    string currency = 4;
+    double amount = 5;
+    double fee = 6;
+    string description = 7;
 }
 
 message WithdrawResponse {
@@ -752,14 +762,14 @@ service GoCryptoTrader {
         };
     }
 
-    rpc WithdrawCryptocurrencyFunds(WithdrawCurrencyRequest) returns (WithdrawResponse) {
+    rpc WithdrawCryptocurrencyFunds(WithdrawCryptoRequest) returns (WithdrawResponse) {
         option (google.api.http) = {
             post: "/v1/withdrawcryptofunds"
             body: "*"
         };
     }
 
-    rpc WithdrawFiatFunds(WithdrawCurrencyRequest) returns (WithdrawResponse) {
+    rpc WithdrawFiatFunds(WithdrawFiatRequest) returns (WithdrawResponse) {
         option (google.api.http) = {
             post: "/v1/withdrawfiatfunds"
             body: "*"

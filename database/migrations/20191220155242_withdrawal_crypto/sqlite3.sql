@@ -1,8 +1,14 @@
 -- +goose Up
--- +goose StatementBegin
-SELECT 'up SQL query';
--- +goose StatementEnd
+-- SQL in this section is executed when the migration is applied.
+CREATE TABLE IF NOT EXISTS withdrawal_crypto
+(
+    id	        integer not null primary key,
+    address                   text NOT NULL,
+    address_tag               text NULL,
+    fee                       real NOT NULL,
+    withdrawal_history_id  text NOT NULL,
+    FOREIGN KEY(withdrawal_history_id) REFERENCES withdrawal_history(id)
+);
 -- +goose Down
--- +goose StatementBegin
-SELECT 'down SQL query';
--- +goose StatementEnd
+-- SQL in this section is executed when the migration is rolled back.
+DROP TABLE IF EXISTS  withdrawal_crypto
