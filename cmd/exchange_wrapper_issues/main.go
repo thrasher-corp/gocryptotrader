@@ -620,13 +620,12 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{r19}),
 		})
 
-		genericWithdrawRequest := withdraw.GenericInfo{
-			Amount:   config.OrderSubmission.Amount,
+		withdrawRequest := withdraw.Request{
 			Currency: p.Quote,
-		}
-		withdrawRequest := withdraw.CryptoRequest{
-			GenericInfo: genericWithdrawRequest,
-			Address:     withdrawAddressOverride,
+			Crypto: &withdraw.CryptoRequest{
+				Address:    withdrawAddressOverride,
+			},
+			Amount: config.OrderSubmission.Amount,
 		}
 		var r20 string
 		r20, err = e.WithdrawCryptocurrencyFunds(&withdrawRequest)
@@ -664,53 +663,56 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{r21}),
 		})
 
-		fiatWithdrawRequest := withdraw.FiatRequest{
-			GenericInfo:                   genericWithdrawRequest,
-			BankAccountName:               config.BankDetails.BankAccountName,
-			BankAccountNumber:             config.BankDetails.BankAccountNumber,
-			SwiftCode:                     config.BankDetails.SwiftCode,
-			IBAN:                          config.BankDetails.Iban,
-			BankCity:                      config.BankDetails.BankCity,
-			BankName:                      config.BankDetails.BankName,
-			BankAddress:                   config.BankDetails.BankAddress,
-			BankCountry:                   config.BankDetails.BankCountry,
-			BankPostalCode:                config.BankDetails.BankPostalCode,
-			BankCode:                      config.BankDetails.BankCode,
-			IsExpressWire:                 config.BankDetails.IsExpressWire,
-			RequiresIntermediaryBank:      config.BankDetails.RequiresIntermediaryBank,
-			IntermediaryBankName:          config.BankDetails.IntermediaryBankName,
-			IntermediaryBankAccountNumber: config.BankDetails.IntermediaryBankAccountNumber,
-			IntermediarySwiftCode:         config.BankDetails.IntermediarySwiftCode,
-			IntermediaryIBAN:              config.BankDetails.IntermediaryIban,
-			IntermediaryBankCity:          config.BankDetails.IntermediaryBankCity,
-			IntermediaryBankAddress:       config.BankDetails.IntermediaryBankAddress,
-			IntermediaryBankCountry:       config.BankDetails.IntermediaryBankCountry,
-			IntermediaryBankPostalCode:    config.BankDetails.IntermediaryBankPostalCode,
-			IntermediaryBankCode:          config.BankDetails.IntermediaryBankCode,
+		withdrawRequestFiat := withdraw.Request{
+			Currency: p.Quote,
+			Amount: config.OrderSubmission.Amount,
+			Fiat: &withdraw.FiatRequest{
+				BankAccountName:               config.BankDetails.BankAccountName,
+				BankAccountNumber:             config.BankDetails.BankAccountNumber,
+				SwiftCode:                     config.BankDetails.SwiftCode,
+				IBAN:                          config.BankDetails.Iban,
+				BankCity:                      config.BankDetails.BankCity,
+				BankName:                      config.BankDetails.BankName,
+				BankAddress:                   config.BankDetails.BankAddress,
+				BankCountry:                   config.BankDetails.BankCountry,
+				BankPostalCode:                config.BankDetails.BankPostalCode,
+				BankCode:                      config.BankDetails.BankCode,
+				IsExpressWire:                 config.BankDetails.IsExpressWire,
+				RequiresIntermediaryBank:      config.BankDetails.RequiresIntermediaryBank,
+				IntermediaryBankName:          config.BankDetails.IntermediaryBankName,
+				IntermediaryBankAccountNumber: config.BankDetails.IntermediaryBankAccountNumber,
+				IntermediarySwiftCode:         config.BankDetails.IntermediarySwiftCode,
+				IntermediaryIBAN:              config.BankDetails.IntermediaryIban,
+				IntermediaryBankCity:          config.BankDetails.IntermediaryBankCity,
+				IntermediaryBankAddress:       config.BankDetails.IntermediaryBankAddress,
+				IntermediaryBankCountry:       config.BankDetails.IntermediaryBankCountry,
+				IntermediaryBankPostalCode:    config.BankDetails.IntermediaryBankPostalCode,
+				IntermediaryBankCode:          config.BankDetails.IntermediaryBankCode,
+			},
 		}
 		var r22 string
-		r22, err = e.WithdrawFiatFunds(&fiatWithdrawRequest)
+		r22, err = e.WithdrawFiatFunds(&withdrawRequestFiat)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
 			responseContainer.ErrorCount++
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			SentParams: jsonifyInterface([]interface{}{fiatWithdrawRequest}),
+			SentParams: jsonifyInterface([]interface{}{withdrawRequestFiat}),
 			Function:   "WithdrawFiatFunds",
 			Error:      msg,
 			Response:   r22,
 		})
 
 		var r23 string
-		r23, err = e.WithdrawFiatFundsToInternationalBank(&fiatWithdrawRequest)
+		r23, err = e.WithdrawFiatFundsToInternationalBank(&withdrawRequestFiat)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
 			responseContainer.ErrorCount++
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			SentParams: jsonifyInterface([]interface{}{fiatWithdrawRequest}),
+			SentParams: jsonifyInterface([]interface{}{withdrawRequestFiat}),
 			Function:   "WithdrawFiatFundsToInternationalBank",
 			Error:      msg,
 			Response:   r23,

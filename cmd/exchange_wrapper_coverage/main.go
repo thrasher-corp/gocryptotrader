@@ -174,16 +174,16 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "GetDepositAddress")
 	}
 
-	_, err = e.WithdrawCryptocurrencyFunds(&withdraw.CryptoRequest{})
+	_, err = e.WithdrawCryptocurrencyFunds(&withdraw.Request{})
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "WithdrawCryptocurrencyFunds")
 	}
 
-	_, err = e.WithdrawFiatFunds(&withdraw.FiatRequest{})
+	_, err = e.WithdrawFiatFunds(&withdraw.Request{})
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "WithdrawFiatFunds")
 	}
-	_, err = e.WithdrawFiatFundsToInternationalBank(&withdraw.FiatRequest{})
+	_, err = e.WithdrawFiatFundsToInternationalBank(&withdraw.Request{})
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "WithdrawFiatFundsToInternationalBank")
 	}
