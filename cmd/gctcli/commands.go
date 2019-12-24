@@ -2169,11 +2169,9 @@ func withdrawFiatFunds(c *cli.Context) error {
 		return nil
 	}
 
-	var exchange string
-	var cur string
+	var exchange, cur, description,bankAccountID string
 	var amount float64
-	var description string
-	var bankAccountID string
+
 
 	if !c.IsSet("exchange") {
 		if c.Args().Get(0) != "" {
