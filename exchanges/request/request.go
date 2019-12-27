@@ -1,11 +1,9 @@
 package request
 
 import (
-	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -15,7 +13,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/timedmutex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
@@ -24,27 +21,17 @@ import (
 )
 
 // NewRateLimit creates a new RateLimit based of time interval and how many
-// actions allowed down to a APS level -- Burst rate is kept as one action per
-// rate of interval
+// actions allowed and breaks it down to an actions-per-second basis -- Burst
+// rate is kept as one as this is not supported for out-bound requests.
 func NewRateLimit(interval time.Duration, actions int) *rate.Limiter {
 	if actions == 0 || interval == 0 {
-		// Just gives you an open rate limiter
+		// Returns an un-restricted rate limiter
 		return rate.NewLimiter(rate.Inf, 1)
 	}
 
-	invSeconds := 1 / interval.Seconds()
-	actualRate := invSeconds * float64(actions)
-	return rate.NewLimiter(rate.Limit(actualRate), 1)
-}
-
-// SetTimeoutRetryAttempts sets the amount of times the job will be retried
-// if it times out
-func (r *Requester) SetTimeoutRetryAttempts(n int) error {
-	if n < 0 {
-		return errors.New("routines.go error - timeout retry attempts cannot be less than zero")
-	}
-	r.timeoutRetryAttempts = n
-	return nil
+	i := 1 / interval.Seconds()
+	rateLimit := i * float64(actions)
+	return rate.NewLimiter(rate.Limit(rateLimit), 1)
 }
 
 // New returns a new Requester
@@ -59,14 +46,41 @@ func New(name string, authLimit, unauthLimit *rate.Limiter, httpRequester *http.
 	}
 }
 
-// IsValidMethod returns whether the supplied method is supported
-func IsValidMethod(method string) bool {
-	return common.StringDataCompareInsensitive(supportedMethods, method)
+// SendPayload handles sending HTTP/HTTPS requests
+func (r *Requester) SendPayload(i *Item) error {
+	if !i.NonceEnabled {
+		r.timedLock.LockForDuration()
+	}
+
+	req, err := i.validateRequest(r)
+	if err != nil {
+		r.timedLock.UnlockIfLocked()
+		return err
+	}
+
+	if i.HTTPDebugging {
+		// Err not evaluated due to validation check above
+		dump, _ := httputil.DumpRequestOut(req, true)
+		log.Debugf(log.Global, "DumpRequest:\n%s", dump)
+	}
+
+	if atomic.LoadInt32(&r.jobs) >= MaxRequestJobs {
+		r.timedLock.UnlockIfLocked()
+		return errors.New("max request jobs reached")
+	}
+
+	atomic.AddInt32(&r.jobs, 1)
+	err = r.DoRequest(req, i)
+	atomic.AddInt32(&r.jobs, -1)
+	r.timedLock.UnlockIfLocked()
+
+	return err
 }
 
-func (i *Item) checkRequest(r *Requester) (*http.Request, error) {
+// validateRequest validates the requester item fields
+func (i *Item) validateRequest(r *Requester) (*http.Request, error) {
 	if r == nil || r.Name == "" {
-		return nil, errors.New("not initiliased, SetDefaults() called before making request?")
+		return nil, errors.New("not initialised, SetDefaults() called before making request?")
 	}
 
 	if i == nil {
@@ -86,8 +100,8 @@ func (i *Item) checkRequest(r *Requester) (*http.Request, error) {
 		req.Header.Add(k, v)
 	}
 
-	if r.UserAgent != "" && req.Header.Get("User-Agent") == "" {
-		req.Header.Add("User-Agent", r.UserAgent)
+	if r.UserAgent != "" && req.Header.Get(userAgent) == "" {
+		req.Header.Add(userAgent, r.UserAgent)
 	}
 
 	return req, nil
@@ -97,11 +111,9 @@ func (i *Item) checkRequest(r *Requester) (*http.Request, error) {
 func (r *Requester) DoRequest(req *http.Request, p *Item) error {
 	if p.Verbose {
 		log.Debugf(log.Global,
-			"%s exchange request path: %s requires rate limiter: %v",
+			"%s exchange request path: %s",
 			r.Name,
-			p.Path,
-			// r.RequiresRateLimiter())
-			false)
+			p.Path)
 
 		for k, d := range req.Header {
 			log.Debugf(log.Global,
@@ -114,19 +126,19 @@ func (r *Requester) DoRequest(req *http.Request, p *Item) error {
 			"%s exchange request type: %s",
 			r.Name,
 			req.Method)
-		log.Debugf(log.Global,
-			"%s exchange request body: %v",
-			r.Name,
-			p.Body)
+
+		if p.Body != nil {
+			log.Debugf(log.Global,
+				"%s exchange request body: %v",
+				r.Name,
+				p.Body)
+		}
 	}
 
 	var timeoutError error
 	for i := 0; i < r.timeoutRetryAttempts+1; i++ {
-		err := r.InitiateRateLimit(p.AuthRequest, p.Verbose)
-		if err != nil {
-			return err
-		}
-
+		// Initiate a rate limit reservation and sleep
+		r.InitiateRateLimit(p.AuthRequest, p.Verbose)
 		resp, err := r.HTTPClient.Do(req)
 		if err != nil {
 			if timeoutErr, ok := err.(net.Error); ok && timeoutErr.Timeout() {
@@ -142,37 +154,17 @@ func (r *Requester) DoRequest(req *http.Request, p *Item) error {
 			return err
 		}
 
-		if resp == nil {
-			return errors.New("resp is nil")
+		if !strings.Contains(resp.Header.Get("Content-Type"), "application/json") {
+			if p.Verbose {
+				log.Warnf(log.ExchangeSys,
+					"%s request response content type differs from JSON; received %v [path: %s]\n",
+					r.Name,
+					resp.Header.Get("Content-Type"),
+					p.Path)
+			}
 		}
 
-		var reader io.ReadCloser
-		switch resp.Header.Get("Content-Encoding") {
-		case "gzip":
-			reader, err = gzip.NewReader(resp.Body)
-			defer reader.Close()
-			if err != nil {
-				return err
-			}
-
-		case "json":
-			reader = resp.Body
-
-		default:
-			contentType := resp.Header.Get("Content-Type")
-			if !strings.Contains(contentType, "application/json") {
-				if p.Verbose {
-					log.Warnf(log.ExchangeSys,
-						"%s request response content type differs from JSON; received %v [path: %s]\n",
-						r.Name,
-						contentType,
-						p.Path)
-				}
-			}
-			reader = resp.Body
-		}
-
-		contents, err := ioutil.ReadAll(reader)
+		contents, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return err
 		}
@@ -185,7 +177,9 @@ func (r *Requester) DoRequest(req *http.Request, p *Item) error {
 			}
 		}
 
-		if resp.StatusCode != 200 && resp.StatusCode != 201 && resp.StatusCode != 202 {
+		if resp.StatusCode != 200 &&
+			resp.StatusCode != 201 &&
+			resp.StatusCode != 202 {
 			return fmt.Errorf("%s exchange unsuccessful HTTP status code: %d  raw response: %s",
 				r.Name,
 				resp.StatusCode,
@@ -220,10 +214,10 @@ func (r *Requester) DoRequest(req *http.Request, p *Item) error {
 		timeoutError)
 }
 
-// InitiateRateLimit sets call for auth, unauth or global rate limit shells
-func (r *Requester) InitiateRateLimit(auth, verbose bool) error {
+// InitiateRateLimit sleeps for authenticated or unauthenticated rate limits
+func (r *Requester) InitiateRateLimit(auth, verbose bool) {
 	if DisableRateLimiter {
-		return nil
+		return
 	}
 
 	var limit *rate.Limiter
@@ -233,51 +227,7 @@ func (r *Requester) InitiateRateLimit(auth, verbose bool) error {
 		limit = r.UnauthLimit
 	}
 
-	reserved := limit.Reserve()
-
-	delay := reserved.Delay()
-	if delay == rate.InfDuration {
-		return errors.New("issues")
-	}
-	time.Sleep(reserved.Delay())
-	return nil
-}
-
-// SendPayload handles sending HTTP/HTTPS requests
-func (r *Requester) SendPayload(i *Item) error {
-	if !i.NonceEnabled {
-		r.timedLock.LockForDuration()
-	}
-
-	req, err := i.checkRequest(r)
-	if err != nil {
-		r.timedLock.UnlockIfLocked()
-		return err
-	}
-
-	if i.HTTPDebugging {
-		dump, err := httputil.DumpRequestOut(req, true)
-		if err != nil {
-			log.Errorf(log.Global,
-				"DumpRequest invalid response %v:", err)
-		}
-		log.Debugf(log.Global,
-			"DumpRequest:\n%s", dump)
-	}
-
-	if atomic.LoadInt32(&r.jobs) >= MaxRequestJobs {
-		r.timedLock.UnlockIfLocked()
-		return errors.New("max request jobs reached")
-	}
-
-	atomic.AddInt32(&r.jobs, 1)
-
-	err = r.DoRequest(req, i)
-
-	atomic.AddInt32(&r.jobs, -1)
-	r.timedLock.UnlockIfLocked()
-
-	return err
+	time.Sleep(limit.Reserve().Delay())
 }
 
 // GetNonce returns a nonce for requests. This locks and enforces concurrent

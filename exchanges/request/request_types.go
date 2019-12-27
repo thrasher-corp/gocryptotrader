@@ -10,15 +10,13 @@ import (
 	"golang.org/x/time/rate"
 )
 
-var supportedMethods = []string{http.MethodGet, http.MethodPost, http.MethodHead,
-	http.MethodPut, http.MethodDelete, http.MethodOptions, http.MethodConnect}
-
 // Const vars for rate limiter
 const (
 	DefaultMaxRequestJobs       int32 = 50
 	DefaultTimeoutRetryAttempts       = 3
 	DefaultMutexLockTimeout           = 50 * time.Millisecond
 	proxyTLSTimeout                   = 15 * time.Second
+	userAgent                         = "User-Agent"
 )
 
 // Vars for rate limiter
