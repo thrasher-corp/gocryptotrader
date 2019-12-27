@@ -14,14 +14,13 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/html"
-
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"golang.org/x/net/html"
 )
 
 const (
-	path              = "https://api.github.com/repos/%s/commits/master"
-	file              = "Updates.json"
+	githubPath        = "https://api.github.com/repos/%s/commits/master"
+	jsonFile          = "updates.json"
 	github            = "GitHub Sha Check"
 	htmlScrape        = "HTML String Check"
 	pathOkCoin        = "https://www.okcoin.com/docs/en/#change-change"
@@ -44,42 +43,40 @@ const (
 	pathChecklists    = "https://api.trello.com/1/checklists/%s/checkItems?%s&key=%s&token=%s"
 	apiKey            = ""
 	apiToken          = ""
-	updateCardID      = "5dfc54b96da13a6ac5ceca97"
 	updateChecklistID = "5dfc5a5377835d0ba025787a"
 )
 
 var verbose bool
 
 func main() {
-	flag.BoolVar(&verbose, "verbose", false, "increases logging verbosity for GoCryptoTrader")
+	flag.BoolVar(&verbose, "verbose", false, "Increases logging verbosity for API Update Checker")
 	flag.Parse()
-	updates, err := CheckUpdates(file)
+	updates, err := CheckUpdates(jsonFile)
 	if err != nil {
 		log.Println(err)
 	}
 	log.Println(updates)
-	// update - exchange name / apitype / reposiroty
 }
 
 // GetSha gets the sha of the latest commit
 func GetSha(repoPath string) (ShaResponse, error) {
 	var resp ShaResponse
-	finalPath := fmt.Sprintf(path, repoPath)
+	finalPath := fmt.Sprintf(githubPath, repoPath)
 	if verbose {
-		log.Println(fmt.Sprintf(path, repoPath))
+		log.Println(finalPath)
 	}
 	return resp, common.SendHTTPGetRequest(finalPath, true, false, &resp)
 }
 
 // CheckExistingExchanges checks if the given exchange exists
 func CheckExistingExchanges(fileName, exchName string) ([]ExchangeInfo, bool, error) {
-	var resp bool
 	var data []ExchangeInfo
 	var err error
 	data, err = ReadFileData(fileName)
 	if err != nil {
-		return data, resp, err
+		return data, false, err
 	}
+	var resp bool
 	for x := range data {
 		if data[x].Name == exchName {
 			resp = true
@@ -91,16 +88,16 @@ func CheckExistingExchanges(fileName, exchName string) ([]ExchangeInfo, bool, er
 
 // ReadFileData reads the file data for the json file
 func ReadFileData(fileName string) ([]ExchangeInfo, error) {
-	var data []ExchangeInfo
 	jsonFile, err := os.Open(fileName)
 	if err != nil {
-		return data, err
+		return nil, err
 	}
 	defer jsonFile.Close()
 	byteValue, err := ioutil.ReadAll(jsonFile)
 	if err != nil {
-		return data, err
+		return nil, err
 	}
+	var data []ExchangeInfo
 	json.Unmarshal(byteValue, &data)
 	return data, nil
 }
@@ -120,9 +117,6 @@ func CheckUpdates(fileName string) ([]string, error) {
 				return resp, err
 			}
 			if sha.ShaResp != data[x].Data.GitHubData.Sha {
-				if verbose {
-					log.Printf("%s api needs to be updated", data[x].Name)
-				}
 				data[x].Data.GitHubData.Sha = sha.ShaResp
 				continue
 			}
@@ -142,125 +136,125 @@ func CheckUpdates(fileName string) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
-	return resp, ioutil.WriteFile(fileName, []byte(file), 0644)
+	return resp, ioutil.WriteFile(fileName, file, 0644)
 }
 
 // CheckChangeLog checks the exchanges which support changelog Updates.json
 func CheckChangeLog(htmlData HTMLScrapingData) (string, error) {
-	var stringsss []string
+	var dataStrings []string
 	var err error
 	switch htmlData.Path {
 	case pathBTSE:
-		stringsss, err = HTMLScrapeBTSE(htmlData)
+		dataStrings, err = HTMLScrapeBTSE(htmlData)
 		if err != nil {
 			return "", err
 		}
-		return stringsss[0], nil
+		return dataStrings[0], nil
 	case pathBitfinex:
-		stringsss, err = HTMLScrapeBitfinex(htmlData)
+		dataStrings, err = HTMLScrapeBitfinex(htmlData)
 		if err != nil {
 			return "", err
 		}
 	case pathBitmex:
-		stringsss, err = HTMLScrapeBitmex(htmlData)
+		dataStrings, err = HTMLScrapeBitmex(htmlData)
 		if err != nil {
 			return "", err
 		}
 	case pathANX:
-		stringsss, err = HTMLScrapeANX(htmlData)
+		dataStrings, err = HTMLScrapeANX(htmlData)
 		if err != nil {
 			return "", err
 		}
-		return stringsss[0], nil
+		return dataStrings[0], nil
 	case pathPoloniex:
-		stringsss, err = HTMLScrapePoloniex(htmlData)
+		dataStrings, err = HTMLScrapePoloniex(htmlData)
 		if err != nil {
 			return "", err
 		}
 	case pathIbBit:
-		stringsss, err = HTMLScrapeItBit(htmlData)
+		dataStrings, err = HTMLScrapeItBit(htmlData)
 		if err != nil {
 			return "", err
 		}
-		return stringsss[0], nil
+		return dataStrings[0], nil
 	case pathBTCMarkets:
-		stringsss, err = HTMLScrapeBTCMarkets(htmlData)
+		dataStrings, err = HTMLScrapeBTCMarkets(htmlData)
 		if err != nil {
 			return "", err
 		}
-		return stringsss[0], nil
+		return dataStrings[0], nil
 	case pathEXMO:
-		stringsss, err = HTMLScrapeExmo(htmlData)
+		dataStrings, err = HTMLScrapeExmo(htmlData)
 		if err != nil {
 			return "", err
 		}
-		return stringsss[0], nil
+		return dataStrings[0], nil
 	case pathBitstamp:
-		stringsss, err = HTMLScrapeBitstamp(htmlData)
+		dataStrings, err = HTMLScrapeBitstamp(htmlData)
 		if err != nil {
 			return "", err
 		}
-		return stringsss[0], nil
+		return dataStrings[0], nil
 	case pathHitBTC:
-		stringsss, err = HTMLScrapeHitBTC(htmlData)
+		dataStrings, err = HTMLScrapeHitBTC(htmlData)
 		if err != nil {
 			return "", err
 		}
-		return stringsss[0], nil
+		return dataStrings[0], nil
 	case pathBitflyer:
-		stringsss, err = HTMLScrapeBitflyer(htmlData)
+		dataStrings, err = HTMLScrapeBitflyer(htmlData)
 		if err != nil {
 			return "", err
 		}
-		return stringsss[0], nil
+		return dataStrings[0], nil
 	case pathLakeBTC:
-		stringsss, err = HTMLScrapeLakeBTC(htmlData)
+		dataStrings, err = HTMLScrapeLakeBTC(htmlData)
 		if err != nil {
 			return "", err
 		}
-		return stringsss[0], nil
+		return dataStrings[0], nil
 	case pathKraken:
-		stringsss, err = HTMLScrapeKraken(htmlData)
+		dataStrings, err = HTMLScrapeKraken(htmlData)
 		if err != nil {
 			return "", err
 		}
-		return stringsss[0], nil
+		return dataStrings[0], nil
 	default:
-		stringsss, err = HTMLScrapeDefault(htmlData)
+		dataStrings, err = HTMLScrapeDefault(htmlData)
 		if err != nil {
 			return "", err
 		}
 	}
 	switch htmlData.Path {
 	case pathOkCoin, pathOkex:
-		for x := range stringsss {
-			if len(stringsss[x]) != 10 {
-				tempStorage := strings.Split(stringsss[x], "-")
-				stringsss[x] = fmt.Sprintf("%s-0%s-%s", tempStorage[0], tempStorage[1], tempStorage[2])
+		for x := range dataStrings {
+			if len(dataStrings[x]) != 10 {
+				tempStorage := strings.Split(dataStrings[x], "-")
+				dataStrings[x] = fmt.Sprintf("%s-0%s-%s", tempStorage[0], tempStorage[1], tempStorage[2])
 			}
 		}
 	}
 
 	switch {
-	case len(stringsss) == 1:
-		return stringsss[0], nil
-	case len(stringsss) > 1:
-		x, err := time.Parse(htmlData.DateFormat, stringsss[0])
+	case len(dataStrings) == 1:
+		return dataStrings[0], nil
+	case len(dataStrings) > 1:
+		x, err := time.Parse(htmlData.DateFormat, dataStrings[0])
 		if err != nil {
 			return "", err
 		}
-		y, err := time.Parse(htmlData.DateFormat, stringsss[len(stringsss)-1])
+		y, err := time.Parse(htmlData.DateFormat, dataStrings[len(dataStrings)-1])
 		if err != nil {
 			return "", err
 		}
 		z := y.Sub(x)
 		switch {
 		case z > 0:
-			return stringsss[len(stringsss)-1], nil
+			return dataStrings[len(dataStrings)-1], nil
 		case z < 0:
-			return stringsss[0], nil
+			return dataStrings[0], nil
 		default:
-			return "", errors.New("y and x store the same value, please manually check for Updates.json")
+			return "", errors.New("two or more updates were done on the same day, please check manually")
 		}
 	default:
 	}
@@ -269,13 +263,13 @@ func CheckChangeLog(htmlData HTMLScrapingData) (string, error) {
 
 // Add checks if api Updates.json are needed
 func Add(exchName, checkType, path string, data interface{}) error {
-	finalResp, check, err := CheckExistingExchanges(file, exchName)
+	finalResp, check, err := CheckExistingExchanges(jsonFile, exchName)
 	if err != nil {
 		return err
 	}
 	if check {
 		if verbose {
-			log.Println("Exchange Already Exists")
+			log.Printf("%v exchange Already Exists\n", exchName)
 		}
 		return nil
 	}
@@ -288,53 +282,51 @@ func Add(exchName, checkType, path string, data interface{}) error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile("Updates.json", file, 0644)
-	if err != nil {
-		return err
-	}
-	return nil
+	return ioutil.WriteFile("Updates.json", file, 0644)
 }
 
 // FillData fills exchange data based on the given checkType
 func FillData(exchName, checkType, path string, data interface{}) (ExchangeInfo, error) {
-	var resp ExchangeInfo
+	tempSha, err := GetSha(path)
+	if err != nil {
+		return ExchangeInfo{}, err
+	}
+
 	switch checkType {
 	case github:
-		var gitData GithubData
-		var resp ExchangeInfo
-		resp.Name = exchName
-		resp.CheckType = checkType
-		gitData.Repo = path
-		tempSha, err := GetSha(path)
-		if err != nil {
-			return resp, err
-		}
-		gitData.Sha = tempSha.ShaResp
-		resp.Data.GitHubData = &gitData
-		return resp, nil
+		return ExchangeInfo{
+			Name:      exchName,
+			CheckType: checkType,
+			Data: &CheckData{
+				GitHubData: &GithubData{
+					Repo: path,
+					Sha:  tempSha.ShaResp},
+			},
+		}, nil
 	case htmlScrape:
 		tempData := data.(HTMLScrapingData)
-		var htmlData HTMLScrapingData
 		checkStr, err := CheckChangeLog(tempData)
 		if err != nil {
-			return resp, err
+			return ExchangeInfo{}, err
 		}
-		var resp ExchangeInfo
-		resp.Name = exchName
-		resp.CheckType = checkType
-		htmlData.CheckString = checkStr
-		htmlData.DateFormat = tempData.DateFormat
-		htmlData.Key = tempData.Key
-		htmlData.RegExp = tempData.RegExp
-		htmlData.TextTokenData = tempData.TextTokenData
-		htmlData.TokenData = tempData.TokenData
-		htmlData.TokenDataEnd = tempData.TokenDataEnd
-		htmlData.Val = tempData.Val
-		htmlData.Path = tempData.Path
-		resp.Data.HTMLData = &htmlData
-		return resp, nil
+		return ExchangeInfo{
+			Name:      exchName,
+			CheckType: checkType,
+			Data: &CheckData{
+				HTMLData: &HTMLScrapingData{
+					CheckString:   checkStr,
+					DateFormat:    tempData.DateFormat,
+					Key:           tempData.Key,
+					RegExp:        tempData.RegExp,
+					TextTokenData: tempData.TextTokenData,
+					TokenData:     tempData.TokenData,
+					TokenDataEnd:  tempData.TokenDataEnd,
+					Val:           tempData.Val,
+					Path:          tempData.Path},
+			},
+		}, nil
 	default:
-		return resp, errors.New("invalid checkType")
+		return ExchangeInfo{}, errors.New("invalid checkType")
 	}
 }
 
@@ -345,34 +337,33 @@ func HTMLScrapeDefault(htmlData HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
-	meow := html.NewTokenizer(temp.Body)
+	tokenizer := html.NewTokenizer(temp.Body)
 loop:
 	for {
-		next := meow.Next()
+		next := tokenizer.Next()
 		switch next {
 		case html.ErrorToken:
 			break loop
 		case html.StartTagToken:
-			token := meow.Token()
-			isBool := token.Data == htmlData.TokenData
-			if isBool {
+			token := tokenizer.Token()
+			if token.Data == htmlData.TokenData {
 				for _, a := range token.Attr {
 					if a.Key == htmlData.Key && a.Val == htmlData.Val {
 					loop2:
 						for {
-							nextToken := meow.Next()
+							nextToken := tokenizer.Next()
 							switch nextToken {
 							case html.EndTagToken:
-								t := meow.Token()
+								t := tokenizer.Token()
 								if t.Data == htmlData.TokenDataEnd {
 									break loop2
 								}
 							case html.StartTagToken:
-								tokz := meow.Token()
-								if tokz.Data == htmlData.TextTokenData {
-									inner := meow.Next()
+								new := tokenizer.Token()
+								if new.Data == htmlData.TextTokenData {
+									inner := tokenizer.Next()
 									if inner == html.TextToken {
-										tempStr := (string)(meow.Text())
+										tempStr := string(tokenizer.Text())
 										r, err := regexp.Compile(htmlData.RegExp)
 										if err != nil {
 											return resp, err
@@ -403,22 +394,21 @@ func HTMLScrapeBTSE(htmlData HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
-	meow := html.NewTokenizer(temp.Body)
+	tokenizer := html.NewTokenizer(temp.Body)
 loop:
 	for {
-		next := meow.Next()
+		next := tokenizer.Next()
 		switch next {
 		case html.ErrorToken:
 			break loop
 		case html.StartTagToken:
-			token := meow.Token()
-			isBool := token.Data == htmlData.TokenData
-			if isBool {
+			token := tokenizer.Token()
+			if token.Data == htmlData.TokenData {
 				for _, z := range token.Attr {
 					if z.Key == htmlData.Key && z.Val == htmlData.Val {
-						inner := meow.Next()
+						inner := tokenizer.Next()
 						if inner == html.TextToken {
-							resp = append(resp, (string)(meow.Text()))
+							resp = append(resp, string(tokenizer.Text()))
 						}
 					}
 				}
@@ -435,25 +425,24 @@ func HTMLScrapeBitfinex(htmlData HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
-	meow := html.NewTokenizer(temp.Body)
+	tokenizer := html.NewTokenizer(temp.Body)
 loop:
 	for {
-		next := meow.Next()
+		next := tokenizer.Next()
 		switch next {
 		case html.ErrorToken:
 			break loop
 		case html.StartTagToken:
-			token := meow.Token()
-			isBool := token.Data == htmlData.TokenData
-			if isBool {
+			token := tokenizer.Token()
+			if token.Data == htmlData.TokenData {
 				for _, a := range token.Attr {
 					if a.Key == htmlData.Key && a.Val == htmlData.Val {
 					loop2:
 						for {
-							nextToken := meow.Next()
+							nextToken := tokenizer.Next()
 							switch nextToken {
 							case html.StartTagToken:
-								nextToken := meow.Token()
+								nextToken := tokenizer.Token()
 								for _, z := range nextToken.Attr {
 									if z.Key == "id" {
 										r, err := regexp.Compile(htmlData.RegExp)
@@ -468,7 +457,7 @@ loop:
 									}
 								}
 							case html.EndTagToken:
-								tok := meow.Token()
+								tok := tokenizer.Token()
 								if tok.Data == htmlData.TokenDataEnd {
 									break loop2
 								}
@@ -491,17 +480,17 @@ func HTMLScrapeBitmex(htmlData HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
-	meow := html.NewTokenizer(temp.Body)
+	tokenizer := html.NewTokenizer(temp.Body)
 loop:
 	for {
-		next := meow.Next()
+		next := tokenizer.Next()
 		switch next {
 		case html.ErrorToken:
 			break loop
 		case html.StartTagToken:
-			tokz := meow.Token()
-			if tokz.Data == htmlData.TokenData {
-				for _, x := range tokz.Attr {
+			token := tokenizer.Token()
+			if token.Data == htmlData.TokenData {
+				for _, x := range token.Attr {
 					if x.Key == htmlData.Key {
 						tempStr := x.Val
 						r, err := regexp.Compile(htmlData.RegExp)
@@ -530,34 +519,33 @@ func HTMLScrapeHitBTC(htmlData HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
-	meow := html.NewTokenizer(temp.Body)
+	tokenizer := html.NewTokenizer(temp.Body)
 loop:
 	for {
-		next := meow.Next()
+		next := tokenizer.Next()
 		switch next {
 		case html.ErrorToken:
 			break loop
 		case html.StartTagToken:
-			token := meow.Token()
-			isBool := token.Data == htmlData.TokenData
-			if isBool {
+			token := tokenizer.Token()
+			if token.Data == htmlData.TokenData {
 				for _, z := range token.Attr {
 					if z.Key == htmlData.Key && z.Val == htmlData.Val {
 					loop2:
 						for {
-							nextToken := meow.Next()
+							nextToken := tokenizer.Next()
 							switch nextToken {
 							case html.EndTagToken:
-								t := meow.Token()
+								t := tokenizer.Token()
 								if t.Data == htmlData.TokenDataEnd {
 									break loop2
 								}
 							case html.StartTagToken:
-								t := meow.Token()
+								t := tokenizer.Token()
 								if t.Data == htmlData.TextTokenData {
-									inner := meow.Next()
+									inner := tokenizer.Next()
 									if inner == html.TextToken {
-										tempStr := ((string)(meow.Text()))
+										tempStr := (string(tokenizer.Text()))
 										r, err := regexp.Compile(htmlData.RegExp)
 										if err != nil {
 											return resp, err
@@ -590,12 +578,11 @@ func HTMLScrapeBTCMarkets(htmlData HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
-	tempStr := ((string)(tempData))
 	r, err := regexp.Compile(htmlData.RegExp)
 	if err != nil {
 		return resp, err
 	}
-	result := r.FindString(tempStr)
+	result := r.FindString(string(tempData))
 	resp = append(resp, result)
 	return resp, nil
 }
@@ -608,30 +595,30 @@ func HTMLScrapeBitflyer(htmlData HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
-	meow := html.NewTokenizer(temp.Body)
+	tokenizer := html.NewTokenizer(temp.Body)
 loop:
 	for {
-		next := meow.Next()
+		next := tokenizer.Next()
 		switch next {
 		case html.ErrorToken:
 			break loop
 		case html.StartTagToken:
-			tokz := meow.Token()
-			if tokz.Data == htmlData.TokenData {
+			token := tokenizer.Token()
+			if token.Data == htmlData.TokenData {
 				for {
-					nextToken := meow.Next()
+					nextToken := tokenizer.Next()
 					switch nextToken {
 					case html.EndTagToken:
-						t := meow.Token()
+						t := tokenizer.Token()
 						if t.Data == htmlData.TokenDataEnd {
 							break loop
 						}
 					case html.StartTagToken:
-						t := meow.Token()
+						t := tokenizer.Token()
 						if t.Data == htmlData.TextTokenData {
-							inner := meow.Next()
+							inner := tokenizer.Next()
 							if inner == html.TextToken {
-								tempStr := ((string)(meow.Text()))
+								tempStr := (string(tokenizer.Text()))
 								r, err := regexp.Compile(htmlData.RegExp)
 								if err != nil {
 									return resp, err
@@ -663,15 +650,15 @@ func HTMLScrapeANX(htmlData HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
-	meow := html.NewTokenizer(temp.Body)
+	tokenizer := html.NewTokenizer(temp.Body)
 loop:
 	for {
-		next := meow.Next()
+		next := tokenizer.Next()
 		switch next {
 		case html.ErrorToken:
 			break loop
 		case html.TextToken:
-			tempStr := ((string)(meow.Text()))
+			tempStr := (string(tokenizer.Text()))
 			r, err := regexp.Compile(htmlData.RegExp)
 			if err != nil {
 				return resp, err
@@ -701,35 +688,34 @@ func HTMLScrapeExmo(htmlData HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
-	meow := html.NewTokenizer(httpResp.Body)
+	tokenizer := html.NewTokenizer(httpResp.Body)
 
 loop:
 	for {
-		next := meow.Next()
+		next := tokenizer.Next()
 		switch next {
 		case html.ErrorToken:
 			break loop
 		case html.StartTagToken:
-			token := meow.Token()
-			isBool := token.Data == htmlData.TokenData
-			if isBool {
+			token := tokenizer.Token()
+			if token.Data == htmlData.TokenData {
 				for _, z := range token.Attr {
 					if z.Key == htmlData.Key && z.Val == htmlData.Val {
 					loop2:
 						for {
-							nextToken := meow.Next()
+							nextToken := tokenizer.Next()
 							switch nextToken {
 							case html.EndTagToken:
-								t := meow.Token()
+								t := tokenizer.Token()
 								if t.Data == htmlData.TokenDataEnd {
 									break loop2
 								}
 							case html.StartTagToken:
-								t := meow.Token()
+								t := tokenizer.Token()
 								if t.Data == htmlData.TextTokenData {
-									nextToken := meow.Next()
+									nextToken := tokenizer.Next()
 									if nextToken == html.TextToken {
-										resp = append(resp, ((string)(meow.Text())))
+										resp = append(resp, (string(tokenizer.Text())))
 									}
 								}
 							}
@@ -749,34 +735,33 @@ func HTMLScrapePoloniex(htmlData HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
-	meow := html.NewTokenizer(temp.Body)
+	tokenizer := html.NewTokenizer(temp.Body)
 loop:
 	for {
-		next := meow.Next()
+		next := tokenizer.Next()
 		switch next {
 		case html.ErrorToken:
 			break loop
 		case html.StartTagToken:
-			token := meow.Token()
-			isBool := token.Data == htmlData.TokenData
-			if isBool {
+			token := tokenizer.Token()
+			if token.Data == htmlData.TokenData {
 				for _, z := range token.Attr {
 					if z.Key == htmlData.Key && z.Val == htmlData.Val {
 					loop2:
 						for {
-							nextToken := meow.Next()
+							nextToken := tokenizer.Next()
 							switch nextToken {
 							case html.EndTagToken:
-								t := meow.Token()
+								t := tokenizer.Token()
 								if t.Data == htmlData.TokenDataEnd {
 									break loop2
 								}
 							case html.StartTagToken:
-								t := meow.Token()
+								t := tokenizer.Token()
 								if t.Data == htmlData.TextTokenData {
-									newToken := meow.Next()
+									newToken := tokenizer.Next()
 									if newToken == html.TextToken {
-										tempStr := ((string)(meow.Text()))
+										tempStr := (string(tokenizer.Text()))
 										r, err := regexp.Compile(htmlData.RegExp)
 										if err != nil {
 											return resp, err
@@ -802,17 +787,16 @@ func HTMLScrapeItBit(htmlData HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
-	meow := html.NewTokenizer(temp.Body)
+	tokenizer := html.NewTokenizer(temp.Body)
 loop:
 	for {
-		next := meow.Next()
+		next := tokenizer.Next()
 		switch next {
 		case html.ErrorToken:
 			break loop
 		case html.StartTagToken:
-			token := meow.Token()
-			isBool := token.Data == htmlData.TokenData
-			if isBool {
+			token := tokenizer.Token()
+			if token.Data == htmlData.TokenData {
 				for _, z := range token.Attr {
 					if z.Key == htmlData.Key {
 						r, err := regexp.Compile(htmlData.RegExp)
@@ -837,34 +821,33 @@ func HTMLScrapeLakeBTC(htmlData HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
-	meow := html.NewTokenizer(temp.Body)
+	tokenizer := html.NewTokenizer(temp.Body)
 loop:
 	for {
-		next := meow.Next()
+		next := tokenizer.Next()
 		switch next {
 		case html.ErrorToken:
 			break loop
 		case html.StartTagToken:
-			token := meow.Token()
-			isBool := token.Data == htmlData.TokenData
-			if isBool {
+			token := tokenizer.Token()
+			if token.Data == htmlData.TokenData {
 				for _, z := range token.Attr {
 					if z.Key == htmlData.Key && z.Val == htmlData.Val {
 					loop2:
 						for {
-							nextToken := meow.Next()
+							nextToken := tokenizer.Next()
 							switch nextToken {
 							case html.EndTagToken:
-								t := meow.Token()
+								t := tokenizer.Token()
 								if t.Data == htmlData.TokenDataEnd {
 									break loop2
 								}
 							case html.StartTagToken:
-								t := meow.Token()
+								t := tokenizer.Token()
 								if t.Data == htmlData.TextTokenData {
-									inner := meow.Next()
+									inner := tokenizer.Next()
 									if inner == html.TextToken {
-										tempStr := ((string)(meow.Text()))
+										tempStr := (string(tokenizer.Text()))
 										r, err := regexp.Compile(htmlData.RegExp)
 										if err != nil {
 											return resp, err
@@ -893,30 +876,29 @@ func HTMLScrapeBitstamp(htmlData HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
-	meow := html.NewTokenizer(temp.Body)
+	tokenizer := html.NewTokenizer(temp.Body)
 loop:
 	for {
-		next := meow.Next()
+		next := tokenizer.Next()
 		switch next {
 		case html.ErrorToken:
 			break loop
 		case html.StartTagToken:
-			token := meow.Token()
-			isBool := token.Data == htmlData.TokenData
-			if isBool {
+			token := tokenizer.Token()
+			if token.Data == htmlData.TokenData {
 				for _, z := range token.Attr {
 					if z.Key == htmlData.Key && z.Val == htmlData.Val {
 					loop2:
 						for {
-							nextToken := meow.Next()
+							nextToken := tokenizer.Next()
 							switch nextToken {
 							case html.EndTagToken:
-								t := meow.Token()
+								t := tokenizer.Token()
 								if t.Data == htmlData.TokenDataEnd {
 									break loop2
 								}
 							case html.TextToken:
-								tempStr := ((string)(meow.Text()))
+								tempStr := (string(tokenizer.Text()))
 								r, err := regexp.Compile(htmlData.RegExp)
 								if err != nil {
 									return resp, err
@@ -945,35 +927,34 @@ func HTMLScrapeKraken(htmlData HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
-	meow := html.NewTokenizer(temp.Body)
+	tokenizer := html.NewTokenizer(temp.Body)
 loop:
 	for {
-		next := meow.Next()
+		next := tokenizer.Next()
 		switch next {
 		case html.ErrorToken:
 			break loop
 		case html.StartTagToken:
-			token := meow.Token()
-			isBool := token.Data == htmlData.TokenData
-			if isBool {
-				inner := meow.Next()
+			token := tokenizer.Token()
+			if token.Data == htmlData.TokenData {
+				inner := tokenizer.Next()
 				if inner == html.TextToken {
-					if ((string)(meow.Text())) == "Get account balance" {
+					if (string(tokenizer.Text())) == "Get account balance" {
 					loop2:
 						for {
-							next := meow.Next()
+							next := tokenizer.Next()
 							switch next {
 							case html.EndTagToken:
-								t := meow.Token()
+								t := tokenizer.Token()
 								if t.Data == htmlData.TokenDataEnd {
 									break loop2
 								}
 							case html.StartTagToken:
-								t := meow.Token()
+								t := tokenizer.Token()
 								if t.Data == htmlData.TextTokenData {
-									inside := meow.Next()
+									inside := tokenizer.Next()
 									if inside == html.TextToken {
-										tempStr := ((string)(meow.Text()))
+										tempStr := (string(tokenizer.Text()))
 										r, err := regexp.Compile(htmlData.RegExp)
 										if err != nil {
 											return resp, err
@@ -1004,7 +985,6 @@ func GetListsData(idBoard string) ([]ListData, error) {
 	if err != nil {
 		return resp, err
 	}
-	log.Println(resp)
 	return resp, nil
 }
 
@@ -1030,7 +1010,6 @@ func CreateNewCard(fillData CardFill) error {
 	if fillData.LabelsID != "" {
 		params.Set("idLabels", fillData.LabelsID)
 	}
-	log.Println(params.Encode())
 	path := fmt.Sprintf(pathNewCard, params.Encode(), apiKey, apiToken)
 	_, err := common.SendHTTPRequest(http.MethodPost, path, nil, nil)
 	return err

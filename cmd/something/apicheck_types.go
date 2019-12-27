@@ -9,10 +9,13 @@ type ShaResponse struct {
 type ExchangeInfo struct {
 	Name      string
 	CheckType string
-	Data      struct {
-		HTMLData   *HTMLScrapingData `json:",omitempty"`
-		GitHubData *GithubData       `json:",omitempty"`
-	}
+	Data      *CheckData `json:",omitempty"`
+}
+
+// CheckData is the necessary data required for checking updates
+type CheckData struct {
+	HTMLData   *HTMLScrapingData `json:",omitempty"`
+	GitHubData *GithubData       `json:",omitempty"`
 }
 
 // HTMLScrapingData stores input required for extracting latest update data using HTML

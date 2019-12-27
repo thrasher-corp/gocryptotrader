@@ -1,13 +1,11 @@
 package main
 
 import (
-	"log"
 	"testing"
 )
 
 func TestCheckExistingExchanges(t *testing.T) {
-	_, a, err := CheckExistingExchanges("Updates", "Kraken")
-	log.Println(a)
+	_, _, err := CheckExistingExchanges("Updates", "Kraken")
 	if err != nil {
 		t.Error(err)
 	}
@@ -22,7 +20,6 @@ func TestCheckChangeLog(t *testing.T) {
 		DateFormat:    "2006-01-02",
 		RegExp:        `section-v-(2\d{3}-\d{1,2}-\d{1,2})`,
 		Path:          "https://docs.bitfinex.com/docs/changelog"}
-	log.Println(data.RegExp)
 	_, err := CheckChangeLog(data)
 	if err != nil {
 		t.Error(err)
@@ -45,7 +42,7 @@ func TestAdd(t *testing.T) {
 }
 
 func TestCheckUpdates(t *testing.T) {
-	_, err := CheckUpdates("Updates.json")
+	_, err := CheckUpdates(jsonFile)
 	if err != nil {
 		t.Error(err)
 	}
@@ -118,7 +115,7 @@ func TestHTMLScrapeBTCMarkets(t *testing.T) {
 		TokenDataEnd:  "",
 		TextTokenData: "",
 		DateFormat:    "",
-		RegExp:        `^version: \d{1}.\d{1}.\d{1}\n`,
+		RegExp:        `^version: \d{1}.\d{1}.\d{1}`,
 		Path:          "https://api.btcmarkets.net/openapi/info/index.yaml"}
 	_, err := HTMLScrapeBTCMarkets(data)
 	if err != nil {
