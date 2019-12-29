@@ -38,6 +38,7 @@ const (
 	pathBitflyer      = "https://lightning.bitflyer.com/docs?lang=en"
 	pathLakeBTC       = "https://www.lakebtc.com/s/api_v2"
 	pathKraken        = "https://www.kraken.com/features/api"
+	pathAlphaPoint    = "https://alphapoint.github.io/slate/#introduction"
 	pathGetAllLists   = "https://api.trello.com/1/boards/%s/lists?cards=none&card_fields=all&filter=open&fields=all&key=%s&token=%s"
 	pathNewCard       = "https://api.trello.com/1/cards?%s&key=%s&token=%s"
 	pathChecklists    = "https://api.trello.com/1/checklists/%s/checkItems?%s&key=%s&token=%s"
@@ -98,7 +99,10 @@ func ReadFileData(fileName string) ([]ExchangeInfo, error) {
 		return nil, err
 	}
 	var data []ExchangeInfo
-	json.Unmarshal(byteValue, &data)
+	err = json.Unmarshal(byteValue, &data)
+	if err != nil {
+		return nil, err
+	}
 	return data, nil
 }
 
@@ -219,6 +223,12 @@ func CheckChangeLog(htmlData HTMLScrapingData) (string, error) {
 			return "", err
 		}
 		return dataStrings[0], nil
+	case pathAlphaPoint:
+		dataStrings, err = HTMLScrapeAlphaPoint(htmlData)
+		if err != nil {
+			return "", err
+		}
+		return dataStrings[0], nil
 	default:
 		dataStrings, err = HTMLScrapeDefault(htmlData)
 		if err != nil {
@@ -287,13 +297,12 @@ func Add(exchName, checkType, path string, data interface{}) error {
 
 // FillData fills exchange data based on the given checkType
 func FillData(exchName, checkType, path string, data interface{}) (ExchangeInfo, error) {
-	tempSha, err := GetSha(path)
-	if err != nil {
-		return ExchangeInfo{}, err
-	}
-
 	switch checkType {
 	case github:
+		tempSha, err := GetSha(path)
+		if err != nil {
+			return ExchangeInfo{}, err
+		}
 		return ExchangeInfo{
 			Name:      exchName,
 			CheckType: checkType,
@@ -545,7 +554,7 @@ loop:
 								if t.Data == htmlData.TextTokenData {
 									inner := tokenizer.Next()
 									if inner == html.TextToken {
-										tempStr := (string(tokenizer.Text()))
+										tempStr := string(tokenizer.Text())
 										r, err := regexp.Compile(htmlData.RegExp)
 										if err != nil {
 											return resp, err
@@ -618,7 +627,7 @@ loop:
 						if t.Data == htmlData.TextTokenData {
 							inner := tokenizer.Next()
 							if inner == html.TextToken {
-								tempStr := (string(tokenizer.Text()))
+								tempStr := string(tokenizer.Text())
 								r, err := regexp.Compile(htmlData.RegExp)
 								if err != nil {
 									return resp, err
@@ -658,7 +667,7 @@ loop:
 		case html.ErrorToken:
 			break loop
 		case html.TextToken:
-			tempStr := (string(tokenizer.Text()))
+			tempStr := string(tokenizer.Text())
 			r, err := regexp.Compile(htmlData.RegExp)
 			if err != nil {
 				return resp, err
@@ -715,7 +724,7 @@ loop:
 								if t.Data == htmlData.TextTokenData {
 									nextToken := tokenizer.Next()
 									if nextToken == html.TextToken {
-										resp = append(resp, (string(tokenizer.Text())))
+										resp = append(resp, string(tokenizer.Text()))
 									}
 								}
 							}
@@ -761,7 +770,7 @@ loop:
 								if t.Data == htmlData.TextTokenData {
 									newToken := tokenizer.Next()
 									if newToken == html.TextToken {
-										tempStr := (string(tokenizer.Text()))
+										tempStr := string(tokenizer.Text())
 										r, err := regexp.Compile(htmlData.RegExp)
 										if err != nil {
 											return resp, err
@@ -847,7 +856,7 @@ loop:
 								if t.Data == htmlData.TextTokenData {
 									inner := tokenizer.Next()
 									if inner == html.TextToken {
-										tempStr := (string(tokenizer.Text()))
+										tempStr := string(tokenizer.Text())
 										r, err := regexp.Compile(htmlData.RegExp)
 										if err != nil {
 											return resp, err
@@ -898,7 +907,7 @@ loop:
 									break loop2
 								}
 							case html.TextToken:
-								tempStr := (string(tokenizer.Text()))
+								tempStr := string(tokenizer.Text())
 								r, err := regexp.Compile(htmlData.RegExp)
 								if err != nil {
 									return resp, err
@@ -939,7 +948,7 @@ loop:
 			if token.Data == htmlData.TokenData {
 				inner := tokenizer.Next()
 				if inner == html.TextToken {
-					if (string(tokenizer.Text())) == "Get account balance" {
+					if string(tokenizer.Text()) == "Get account balance" {
 					loop2:
 						for {
 							next := tokenizer.Next()
@@ -954,7 +963,7 @@ loop:
 								if t.Data == htmlData.TextTokenData {
 									inside := tokenizer.Next()
 									if inside == html.TextToken {
-										tempStr := (string(tokenizer.Text()))
+										tempStr := string(tokenizer.Text())
 										r, err := regexp.Compile(htmlData.RegExp)
 										if err != nil {
 											return resp, err
@@ -962,6 +971,62 @@ loop:
 										result := r.MatchString(tempStr)
 										if result {
 											resp = append(resp, tempStr)
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		default:
+			continue
+		}
+	}
+	return resp, nil
+}
+
+// HTMLScrapeAlphaPoint gets the check string for Kraken Exchange
+func HTMLScrapeAlphaPoint(htmlData HTMLScrapingData) ([]string, error) {
+	var resp []string
+	temp, err := http.Get(htmlData.Path)
+	if err != nil {
+		return resp, err
+	}
+	tokenizer := html.NewTokenizer(temp.Body)
+loop:
+	for {
+		next := tokenizer.Next()
+		switch next {
+		case html.ErrorToken:
+			break loop
+		case html.StartTagToken:
+			token := tokenizer.Token()
+			if token.Data == htmlData.TokenData {
+				for _, x := range token.Attr {
+					if x.Key == htmlData.Key && x.Val == htmlData.Val {
+					loop2:
+						for {
+							inner := tokenizer.Next()
+							switch inner {
+							case html.EndTagToken:
+								t := tokenizer.Token()
+								if t.Data == htmlData.TokenDataEnd {
+									break loop2
+								}
+							case html.StartTagToken:
+								t := tokenizer.Token()
+								if t.Data == htmlData.TextTokenData {
+									for _, y := range t.Attr {
+										if y.Key == htmlData.Key {
+											r, err := regexp.Compile(htmlData.RegExp)
+											if err != nil {
+												return resp, err
+											}
+											result := r.MatchString(y.Val)
+											if result {
+												resp = append(resp, y.Val)
+											}
 										}
 									}
 								}

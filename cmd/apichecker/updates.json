@@ -353,5 +353,21 @@
     "Path": "https://www.bitstamp.net/api/"
    }
   }
+ },
+ {
+  "Name": "AlphaPoint",
+  "CheckType": "HTML String Check",
+  "Data": {
+   "HTMLData": {
+    "TokenData": "h1",
+    "Key": "id",
+    "Val": "introduction",
+    "TokenDataEnd": "blockquote",
+    "TextTokenData": "h3",
+    "RegExp": "revised-calls-\\d{1}-\\d{1}-\\d{1}-gt-\\d{1}-\\d{1}-\\d{1}",
+    "CheckString": "revised-calls-3-3-2-gt-3-3-3",
+    "Path": "https://alphapoint.github.io/slate/#introduction"
+   }
+  }
  }
 ]

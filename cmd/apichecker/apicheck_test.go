@@ -27,15 +27,15 @@ func TestCheckChangeLog(t *testing.T) {
 }
 
 func TestAdd(t *testing.T) {
-	data := HTMLScrapingData{TokenData: "h2",
-		Key:           "class",
-		Val:           "text-subtitle mt48",
-		TokenDataEnd:  "h4",
-		TextTokenData: "p",
+	data := HTMLScrapingData{TokenData: "h1",
+		Key:           "id",
+		Val:           "introduction",
+		TokenDataEnd:  "blockquote",
+		TextTokenData: "h3",
 		DateFormat:    "",
-		RegExp:        `refer to the v\d{1} API for future references.`,
-		Path:          "https://www.bitstamp.net/api/"}
-	err := Add("Bitstamp", htmlScrape, data.Path, data)
+		RegExp:        `revised-calls-\d{1}-\d{1}-\d{1}-gt-\d{1}-\d{1}-\d{1}`,
+		Path:          "https://alphapoint.github.io/slate/#introduction"}
+	err := Add("AlphaPoint", htmlScrape, data.Path, data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -238,6 +238,21 @@ func TestHTMLKraken(t *testing.T) {
 		RegExp:        `URL: https://api.kraken.com/\d{1}/private/Balance`,
 		Path:          "https://www.kraken.com/features/api"}
 	_, err := HTMLScrapeKraken(data)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestHTMLAlphaPoint(t *testing.T) {
+	data := HTMLScrapingData{TokenData: "h1",
+		Key:           "id",
+		Val:           "introduction",
+		TokenDataEnd:  "blockquote",
+		TextTokenData: "h3",
+		DateFormat:    "",
+		RegExp:        `revised-calls-\d{1}-\d{1}-\d{1}-gt-\d{1}-\d{1}-\d{1}`,
+		Path:          "https://alphapoint.github.io/slate/#introduction"}
+	_, err := HTMLScrapeAlphaPoint(data)
 	if err != nil {
 		t.Error(err)
 	}
