@@ -8,6 +8,7 @@ import (
 const (
 	timestampFormat = " 02/01/2006 15:04:05 "
 	spacer          = "|"
+	MaxFileSize int64 = 100
 )
 
 var (

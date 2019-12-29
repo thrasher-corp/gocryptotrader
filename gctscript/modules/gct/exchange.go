@@ -1,7 +1,6 @@
 package gct
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/d5/tengo/objects"
@@ -91,8 +90,6 @@ func ExchangeTicker(args ...objects.Object) (objects.Object, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println(tx)
 
 	data := make(map[string]objects.Object, 14)
 	data["exchange"] = &objects.String{Value: tx.ExchangeName}

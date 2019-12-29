@@ -1189,7 +1189,6 @@ func (c *Config) CheckLoggerConfig() error {
 	}
 
 	f := func(f bool) *bool { return &f }(false)
-
 	if c.Logging.LoggerFileConfig != nil {
 		if c.Logging.LoggerFileConfig.FileName == "" {
 			c.Logging.LoggerFileConfig.FileName = "log.txt"
@@ -1198,8 +1197,8 @@ func (c *Config) CheckLoggerConfig() error {
 			c.Logging.LoggerFileConfig.Rotate = f
 		}
 		if c.Logging.LoggerFileConfig.MaxSize <= 0 {
-			log.Warnln(log.Global, "Logger rotation size invalid setting to default")
-			c.Logging.LoggerFileConfig.MaxSize = 100
+			log.Warnf(log.Global, "Logger rotation size invalid setting to %v", log.MaxFileSize)
+			c.Logging.LoggerFileConfig.MaxSize = log.MaxFileSize
 		}
 		log.FileLoggingConfiguredCorrectly = true
 	}

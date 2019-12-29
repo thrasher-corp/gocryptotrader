@@ -1376,7 +1376,7 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 		if errRemove != nil {
 			return nil, err
 		}
-		return &gctrpc.GCTScriptGenericResponse{Status: "validation  failed", Data: err.Error()}, nil
+		return &gctrpc.GCTScriptGenericResponse{Status: "validation failed", Data: err.Error()}, nil
 	}
 
 	if r.Archived {

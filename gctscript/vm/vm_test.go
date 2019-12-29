@@ -3,6 +3,7 @@ package vm
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -10,9 +11,10 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-const (
-	testScript       = "../../testdata/gctscript/once.gct"
-	testScriptRunner = "../../testdata/gctscript/timer.gct"
+var (
+	testScript       = filepath.Join("..","..","testdata","gctscript","once.gct")
+	testInvalidScript       = filepath.Join("..","..","testdata","gctscript","broken.gct")
+	testScriptRunner = filepath.Join("..","..","testdata","gctscript","timer.gct")
 )
 
 func TestNewVM(t *testing.T) {
@@ -191,6 +193,20 @@ func TestError_Error(t *testing.T) {
 
 	if x.Error() != "GCT Script: (ACTION) test (SCRIPT) noscript.gct HELLO ERROR" {
 		t.Fatal(x.Error())
+	}
+}
+
+func TestVM_CompileInvalid(t *testing.T) {
+	GCTScriptConfig = configHelper(true, true, 6000000, 6)
+	testVM := New()
+	err := testVM.Load(testInvalidScript)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = testVM.Compile()
+	if err == nil {
+		t.Fatal("unexpected result broken script compiled successfully ")
 	}
 }
 

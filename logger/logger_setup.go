@@ -46,7 +46,7 @@ func GenDefaultSettings() (log Config) {
 			MaxSize:  0,
 		},
 		AdvancedSettings: advancedSettings{
-			Spacer:          " | ",
+			Spacer:          spacer,
 			TimeStampFormat: timestampFormat,
 			Headers: headers{
 				Info:  "[INFO]",
