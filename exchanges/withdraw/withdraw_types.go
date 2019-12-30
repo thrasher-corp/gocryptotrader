@@ -1,7 +1,23 @@
 package withdraw
 
-import "github.com/thrasher-corp/gocryptotrader/currency"
+import (
+	"errors"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
+)
+
+const (
+	ErrStrAmountMustBeGreaterThanZero = "amount must be greater than 0"
+	ErrStrAddressisInvalid = "address is not valid"
+	ErrStrNoCurrecnySet = "currency not set"
+	ErrStrAddressNotSet = "address cannot be empty"
+)
+
+var (
+	ErrRequestCannotBeNil = errors.New("request cannot be nil")
+	ErrInvalidRequest = errors.New("invalid request type")
+
+)
 // GenericInfo stores genric withdraw request info
 type GenericInfo struct {
 	// General withdraw information
