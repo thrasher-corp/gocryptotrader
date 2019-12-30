@@ -34,9 +34,9 @@ func (b *BTSE) WsConnect() error {
 		return err
 	}
 	b.WebsocketConn.SetupPingHandler(wshandler.WebsocketPingHandler{
-		UseGorilla:  true,
-		MessageType: websocket.PingMessage,
-		Delay:       btseWebsocketTimer,
+		UseGorillaHandler: true,
+		MessageType:       websocket.PingMessage,
+		Delay:             btseWebsocketTimer,
 	})
 	go b.WsHandleData()
 	b.GenerateDefaultSubscriptions()

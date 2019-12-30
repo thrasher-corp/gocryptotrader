@@ -169,8 +169,8 @@ type WebsocketConnection struct {
 
 // WebsocketPingHandler container for ping handler settings
 type WebsocketPingHandler struct {
-	UseGorilla  bool
-	MessageType int
-	Message     []byte
-	Delay       time.Duration
+	UseGorillaHandler bool
+	MessageType       int
+	Message           []byte
+	Delay             time.Duration
 }

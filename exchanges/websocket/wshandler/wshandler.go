@@ -690,7 +690,7 @@ func (w *WebsocketConnection) SendRawMessage(message []byte) error {
 }
 
 func (w *WebsocketConnection) SetupPingHandler(handler WebsocketPingHandler) {
-	if handler.UseGorilla {
+	if handler.UseGorillaHandler {
 		h := func(msg string) error {
 			err := w.Connection.WriteControl(handler.MessageType, []byte(msg), time.Now().Add(handler.Delay))
 			if e, ok := err.(net.Error); ok && e.Temporary() {
@@ -701,6 +701,7 @@ func (w *WebsocketConnection) SetupPingHandler(handler WebsocketPingHandler) {
 		w.Connection.SetPingHandler(h)
 		return
 	}
+	defer w.Wg.Done()
 	go func() {
 		ticker := time.NewTicker(handler.Delay)
 		for {
