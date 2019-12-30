@@ -1790,6 +1790,10 @@ func TestCheckGCTScriptConfig(t *testing.T) {
 	if c.GCTScript.ScriptTimeout != gctscript.DefaultTimeoutValue {
 		t.Fatal("unexpected value return")
 	}
+
+	if c.GCTScript.MaxVirtualMachines != gctscript.DefaultMaxVirtualMachines {
+		t.Fatal("unexpected value return")
+	}
 }
 
 func TestCheckDatabaseConfig(t *testing.T) {

@@ -1197,7 +1197,7 @@ func (c *Config) CheckLoggerConfig() error {
 			c.Logging.LoggerFileConfig.Rotate = f
 		}
 		if c.Logging.LoggerFileConfig.MaxSize <= 0 {
-			log.Warnf(log.Global, "Logger rotation size invalid setting to %v", log.MaxFileSize)
+			log.Warnf(log.Global, "Logger rotation size invalid, defaulting to %v", log.MaxFileSize)
 			c.Logging.LoggerFileConfig.MaxSize = log.MaxFileSize
 		}
 		log.FileLoggingConfiguredCorrectly = true

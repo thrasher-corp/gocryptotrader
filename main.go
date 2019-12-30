@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/gctscript"
+	gctscriptVM "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
@@ -87,7 +88,7 @@ func main() {
 	flag.StringVar(&settings.GlobalHTTPProxy, "globalhttpproxy", "", "sets the common HTTP client's proxy server")
 
 	// GCTScript tuning settings
-	flag.UintVar(&settings.MaxVirtualMachines, "maxvirtualmachines", 10, "set max virtual machines that can load")
+	flag.UintVar(&settings.MaxVirtualMachines, "maxvirtualmachines", gctscriptVM.DefaultMaxVirtualMachines, "set max virtual machines that can load")
 
 	flag.Parse()
 

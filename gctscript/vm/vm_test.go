@@ -33,6 +33,14 @@ func TestVMLoad(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	testScript = testScript[0:len(testScript)-4]
+	GCTScriptConfig = configHelper(true, true, 0, 6)
+	testVM = New()
+	err = testVM.Load(testScript)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	GCTScriptConfig = configHelper(false, false, 0, 6)
 	err = testVM.Load(testScript)
 	if err != nil {
