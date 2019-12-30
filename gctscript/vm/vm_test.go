@@ -11,6 +11,11 @@ import (
 	"github.com/gofrs/uuid"
 )
 
+const (
+	maxTestVirtualMachines uint8 = 10
+	testVirtualMachineTimeout time.Duration = 6000000
+
+)
 var (
 	testScript       = filepath.Join("..","..","testdata","gctscript","once.gct")
 	testInvalidScript       = filepath.Join("..","..","testdata","gctscript","broken.gct")
@@ -26,7 +31,7 @@ func TestNewVM(t *testing.T) {
 }
 
 func TestVMLoad(t *testing.T) {
-	GCTScriptConfig = configHelper(true, true, 0, 6)
+	GCTScriptConfig = configHelper(true, true, testVirtualMachineTimeout, maxTestVirtualMachines)
 	testVM := New()
 	err := testVM.Load(testScript)
 	if err != nil {
@@ -34,14 +39,14 @@ func TestVMLoad(t *testing.T) {
 	}
 
 	testScript = testScript[0:len(testScript)-4]
-	GCTScriptConfig = configHelper(true, true, 0, 6)
+	GCTScriptConfig = configHelper(true, true, testVirtualMachineTimeout, maxTestVirtualMachines)
 	testVM = New()
 	err = testVM.Load(testScript)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	GCTScriptConfig = configHelper(false, false, 0, 6)
+	GCTScriptConfig = configHelper(false, false, testVirtualMachineTimeout, maxTestVirtualMachines)
 	err = testVM.Load(testScript)
 	if err != nil {
 		if !errors.Is(err, ErrScriptingDisabled) {
@@ -51,7 +56,7 @@ func TestVMLoad(t *testing.T) {
 }
 
 func TestVMLoadNoFile(t *testing.T) {
-	GCTScriptConfig = configHelper(true, false, 0, 6)
+	GCTScriptConfig = configHelper(true, false, testVirtualMachineTimeout, maxTestVirtualMachines)
 	testVM := New()
 	err := testVM.Load("missing file")
 	if err != nil {
@@ -62,7 +67,7 @@ func TestVMLoadNoFile(t *testing.T) {
 }
 
 func TestVMCompile(t *testing.T) {
-	GCTScriptConfig = configHelper(true, true, 6000000, 6)
+	GCTScriptConfig = configHelper(true, true, testVirtualMachineTimeout, maxTestVirtualMachines)
 	testVM := New()
 	err := testVM.Load(testScript)
 	if err != nil {
@@ -76,7 +81,7 @@ func TestVMCompile(t *testing.T) {
 }
 
 func TestVMRun(t *testing.T) {
-	GCTScriptConfig = configHelper(true, true, 10000, 6)
+	GCTScriptConfig = configHelper(true, true, testVirtualMachineTimeout, maxTestVirtualMachines)
 	testVM := New()
 	err := testVM.Load(testScript)
 	if err != nil {
@@ -95,7 +100,7 @@ func TestVMRun(t *testing.T) {
 }
 
 func TestVMRunTX(t *testing.T) {
-	GCTScriptConfig = configHelper(true, true, 6000000, 6)
+	GCTScriptConfig = configHelper(true, true, testVirtualMachineTimeout, maxTestVirtualMachines)
 	testVM := New()
 	err := testVM.Load(testScript)
 	if err != nil {
@@ -115,7 +120,7 @@ func TestVMRunTX(t *testing.T) {
 
 func TestVMWithRunner(t *testing.T) {
 	vmCount := len(AllVMs)
-	GCTScriptConfig = configHelper(true, true, 6000000, 6)
+	GCTScriptConfig = configHelper(true, true, testVirtualMachineTimeout, maxTestVirtualMachines)
 	VM := New()
 	err := VM.Load(testScriptRunner)
 	if err != nil {
@@ -139,7 +144,7 @@ func TestVMWithRunner(t *testing.T) {
 
 func TestShutdownAll(t *testing.T) {
 	vmCount := len(AllVMs)
-	GCTScriptConfig = configHelper(true, true, 6000000, 6)
+	GCTScriptConfig = configHelper(true, true, testVirtualMachineTimeout, maxTestVirtualMachines)
 	VM := New()
 	err := VM.Load(testScriptRunner)
 	if err != nil {
@@ -163,7 +168,7 @@ func TestShutdownAll(t *testing.T) {
 }
 
 func TestRead(t *testing.T) {
-	GCTScriptConfig = configHelper(true, true, 6000000, 1)
+	GCTScriptConfig = configHelper(true, true, testVirtualMachineTimeout, maxTestVirtualMachines)
 	VM := New()
 	err := VM.Load(testScriptRunner)
 	if err != nil {
@@ -205,7 +210,7 @@ func TestError_Error(t *testing.T) {
 }
 
 func TestVM_CompileInvalid(t *testing.T) {
-	GCTScriptConfig = configHelper(true, true, 6000000, 6)
+	GCTScriptConfig = configHelper(true, true, testVirtualMachineTimeout, 6)
 	testVM := New()
 	err := testVM.Load(testInvalidScript)
 	if err != nil {
