@@ -156,8 +156,7 @@ func (k *Kraken) wsPingHandler() error {
 	if err != nil {
 		return err
 	}
-	k.WebsocketConn.Wg.Add(1)
-	go k.WebsocketConn.SetupPingHandler(wshandler.WebsocketPingHandler{
+	k.WebsocketConn.SetupPingHandler(wshandler.WebsocketPingHandler{
 		Message: message,
 		Delay:   krakenWsPingDelay,
 	})

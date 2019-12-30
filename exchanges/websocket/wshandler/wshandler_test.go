@@ -643,7 +643,6 @@ func TestSetupPingHandler(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wc.Wg.Add(1)
 	wc.SetupPingHandler(WebsocketPingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     []byte(Ping),

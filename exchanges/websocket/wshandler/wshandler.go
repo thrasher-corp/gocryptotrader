@@ -703,6 +703,7 @@ func (w *WebsocketConnection) SetupPingHandler(handler WebsocketPingHandler) {
 		w.Connection.SetPingHandler(h)
 		return
 	}
+	w.Wg.Add(1)
 	defer w.Wg.Done()
 	go func() {
 		ticker := time.NewTicker(handler.Delay)
