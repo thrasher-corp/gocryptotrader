@@ -163,7 +163,7 @@ func (s *SMSGlobal) SendMessageToAll(message string) error {
 	return nil
 }
 
-// SendJSONMessage sends a message to an individual contact
+// SendMessage sends a message to an individual contact
 func (s *SMSGlobal) SendMessage(to, message string) error {
 	if flag.Lookup("test.v") != nil {
 		return nil

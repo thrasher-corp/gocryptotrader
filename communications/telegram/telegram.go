@@ -208,7 +208,7 @@ func (t *Telegram) TestConnection() error {
 	return nil
 }
 
-// SendJSONMessage sends a message to a user by their chatID
+// SendMessage sends a message to a user by their chatID
 func (t *Telegram) SendMessage(text string, chatID int64) error {
 	path := fmt.Sprintf(apiURL, t.Token, methodSendMessage)
 

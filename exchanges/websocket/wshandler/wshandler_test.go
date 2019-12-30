@@ -569,7 +569,7 @@ func TestSendMessage(t *testing.T) {
 				}
 				t.Fatal(err)
 			}
-			err = testData.WC.SendJSONMessage("ping")
+			err = testData.WC.SendJSONMessage(Ping)
 			if err != nil {
 				t.Error(err)
 			}

@@ -655,7 +655,7 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 	return nil
 }
 
-// SendJSONMessage the one true message request. Sends message to WS
+// SendJSONMessage sends a JSON encoded message over the connection
 func (w *WebsocketConnection) SendJSONMessage(data interface{}) error {
 	w.Lock()
 	defer w.Unlock()
@@ -672,7 +672,8 @@ func (w *WebsocketConnection) SendJSONMessage(data interface{}) error {
 	return w.Connection.WriteJSON(data)
 }
 
-func (w *WebsocketConnection) SendTextMessage(message []byte) error {
+// SendRawMessage sends a message over the connection without JSON encoding it
+func (w *WebsocketConnection) SendRawMessage(message []byte) error {
 	w.Lock()
 	defer w.Unlock()
 	if !w.IsConnected() {
@@ -685,7 +686,7 @@ func (w *WebsocketConnection) SendTextMessage(message []byte) error {
 	if w.RateLimit > 0 {
 		time.Sleep(time.Duration(w.RateLimit) * time.Millisecond)
 	}
-	return w.Connection.WriteMessage(websocket.TextMessage, []byte(message))
+	return w.Connection.WriteMessage(websocket.TextMessage, message)
 }
 
 func (w *WebsocketConnection) SetupPingHandler(handler WebsocketPingHandler) {
@@ -708,7 +709,7 @@ func (w *WebsocketConnection) SetupPingHandler(handler WebsocketPingHandler) {
 				ticker.Stop()
 				return
 			case <-ticker.C:
-				err := w.SendTextMessage(handler.Message)
+				err := w.SendRawMessage(handler.Message)
 				if err != nil {
 					log.Errorf(log.WebsocketMgr,
 						"%v failed to send message to websocket %s", w.ExchangeName, handler.Message)

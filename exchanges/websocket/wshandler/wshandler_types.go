@@ -167,6 +167,7 @@ type WebsocketConnection struct {
 	TrafficTimeout       time.Duration
 }
 
+// WebsocketPingHandler container for ping handler settings
 type WebsocketPingHandler struct {
 	UseGorilla  bool
 	MessageType int
