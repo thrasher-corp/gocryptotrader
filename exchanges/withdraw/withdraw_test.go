@@ -38,7 +38,7 @@ var (
 		},
 		Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 	}
-	invalidCryptoRequest = &CryptoRequest{}
+	invalidCryptoRequest         = &CryptoRequest{}
 	invalidCurrencyCryptoRequest = &CryptoRequest{
 		GenericInfo: GenericInfo{
 			Currency: currency.AUD,
@@ -133,9 +133,9 @@ func TestValidateFiat(t *testing.T) {
 
 func TestValidateCrypto(t *testing.T) {
 	testCases := []struct {
-		name string
+		name    string
 		request *CryptoRequest
-		output interface{}
+		output  interface{}
 	}{
 		{
 			"Valid",

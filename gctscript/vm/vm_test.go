@@ -12,14 +12,15 @@ import (
 )
 
 const (
-	maxTestVirtualMachines uint8 = 10
-	testVirtualMachineTimeout time.Duration = 6000000
-
+	maxTestVirtualMachines           uint8         = 10
+	testVirtualMachineTimeout        time.Duration = 6000000
+	testVirtualMachineTimeout1000000 time.Duration = 1000000
 )
+
 var (
-	testScript       = filepath.Join("..","..","testdata","gctscript","once.gct")
-	testInvalidScript       = filepath.Join("..","..","testdata","gctscript","broken.gct")
-	testScriptRunner = filepath.Join("..","..","testdata","gctscript","timer.gct")
+	testScript        = filepath.Join("..", "..", "testdata", "gctscript", "once.gct")
+	testInvalidScript = filepath.Join("..", "..", "testdata", "gctscript", "broken.gct")
+	testScriptRunner  = filepath.Join("..", "..", "testdata", "gctscript", "timer.gct")
 )
 
 func TestNewVM(t *testing.T) {
@@ -31,22 +32,22 @@ func TestNewVM(t *testing.T) {
 }
 
 func TestVMLoad(t *testing.T) {
-	GCTScriptConfig = configHelper(true, true, testVirtualMachineTimeout, maxTestVirtualMachines)
+	GCTScriptConfig = configHelper(true, true, testVirtualMachineTimeout1000000, maxTestVirtualMachines)
 	testVM := New()
 	err := testVM.Load(testScript)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	testScript = testScript[0:len(testScript)-4]
-	GCTScriptConfig = configHelper(true, true, testVirtualMachineTimeout, maxTestVirtualMachines)
+	testScript = testScript[0 : len(testScript)-4]
+	GCTScriptConfig = configHelper(true, true, testVirtualMachineTimeout1000000, maxTestVirtualMachines)
 	testVM = New()
 	err = testVM.Load(testScript)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	GCTScriptConfig = configHelper(false, false, testVirtualMachineTimeout, maxTestVirtualMachines)
+	GCTScriptConfig = configHelper(false, false, testVirtualMachineTimeout1000000, maxTestVirtualMachines)
 	err = testVM.Load(testScript)
 	if err != nil {
 		if !errors.Is(err, ErrScriptingDisabled) {

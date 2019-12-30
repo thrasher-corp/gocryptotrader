@@ -263,4 +263,3 @@ func TestExchangeWithdrawFiat(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-

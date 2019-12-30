@@ -1393,11 +1393,11 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 			if err != nil {
 				return nil, err
 			}
-			defer zFile.Close()
 
 			zipPath := filepath.Join(gctscript.ScriptPath, z.Reader.File[x].Name) // nolint:gosec
 			// We ignore gosec linter above because the code below files the file traversal bug when extracting archives
 			if !strings.HasPrefix(zipPath, filepath.Clean(gctscript.ScriptPath)+string(os.PathSeparator)) {
+				_ = zFile.Close()
 				return nil, fmt.Errorf("%s: illegal file path", fPath)
 			}
 
@@ -1413,11 +1413,19 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 					return nil, err
 				}
 
-				defer outFile.Close()
 				_, err = io.Copy(outFile, zFile)
 				if err != nil {
+					_ = outFile.Close()
 					return nil, err
 				}
+				err = outFile.Close()
+				if err != nil {
+					log.Errorf(log.Global, "unable to close file %v %v", outFile, err)
+				}
+			}
+			err = zFile.Close()
+			if err != nil {
+				log.Errorf(log.Global, "unable to close file %v %v", zFile, err)
 			}
 		}
 		err = os.Remove(fPath)
