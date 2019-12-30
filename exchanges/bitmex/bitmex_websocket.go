@@ -134,8 +134,8 @@ func (b *Bitmex) wsHandleIncomingData() {
 				continue
 			}
 
-			if strings.Contains(message, "ping") {
-				err = b.WebsocketConn.SendJSONMessage("pong")
+			if strings.Contains(message, wshandler.Ping) {
+				err = b.WebsocketConn.SendTextMessage([]byte(wshandler.Pong))
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue

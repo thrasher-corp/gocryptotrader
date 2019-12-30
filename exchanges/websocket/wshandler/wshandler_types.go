@@ -19,6 +19,8 @@ const (
 	// connection monitor time delays and limits
 	connectionMonitorDelay             = 2 * time.Second
 	WebsocketNotAuthenticatedUsingRest = "%v - Websocket not authenticated, using REST"
+	Ping                               = "ping"
+	Pong                               = "pong"
 )
 
 // Websocket defines a return type for websocket connections via the interface

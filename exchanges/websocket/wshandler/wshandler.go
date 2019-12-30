@@ -672,6 +672,22 @@ func (w *WebsocketConnection) SendJSONMessage(data interface{}) error {
 	return w.Connection.WriteJSON(data)
 }
 
+func (w *WebsocketConnection) SendTextMessage(message []byte) error {
+	w.Lock()
+	defer w.Unlock()
+	if !w.IsConnected() {
+		return fmt.Errorf("%v cannot send message to a disconnected websocket", w.ExchangeName)
+	}
+	if w.Verbose {
+		log.Debugf(log.WebsocketMgr,
+			"%v sending message to websocket %s", w.ExchangeName, message)
+	}
+	if w.RateLimit > 0 {
+		time.Sleep(time.Duration(w.RateLimit) * time.Millisecond)
+	}
+	return w.Connection.WriteMessage(websocket.TextMessage, []byte(message))
+}
+
 func (w *WebsocketConnection) SetupPingHandler(handler WebsocketPingHandler) {
 	if handler.UseGorilla {
 		h := func(msg string) error {
@@ -692,13 +708,10 @@ func (w *WebsocketConnection) SetupPingHandler(handler WebsocketPingHandler) {
 				ticker.Stop()
 				return
 			case <-ticker.C:
-				w.Lock()
-				err := w.Connection.WriteMessage(websocket.TextMessage, handler.Message)
-				w.Unlock()
+				err := w.SendTextMessage(handler.Message)
 				if err != nil {
 					log.Errorf(log.WebsocketMgr,
-						"%v Websocket ping handler failed to send message",
-						w.ExchangeName)
+						"%v failed to send message to websocket %s", w.ExchangeName, handler.Message)
 					return
 				}
 			}
