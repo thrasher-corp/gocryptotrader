@@ -17,7 +17,7 @@ import (
 	"github.com/volatiletech/null"
 )
 
-func newVM() (vm *VM) {
+func NewVM() (vm *VM) {
 	newUUID, err := uuid.NewV4()
 	if err != nil {
 		log.Error(log.GCTScriptMgr, Error{

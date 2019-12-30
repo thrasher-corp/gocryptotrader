@@ -303,7 +303,7 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 
 // ExchangeDepositAddress returns deposit address (if supported by exchange)
 func ExchangeDepositAddress(args ...objects.Object) (objects.Object, error) {
-	if len(args) != 3 {
+	if len(args) != 2 {
 		return nil, objects.ErrWrongNumArguments
 	}
 

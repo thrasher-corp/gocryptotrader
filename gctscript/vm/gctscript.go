@@ -18,13 +18,13 @@ func New() *VM {
 		return nil
 	}
 
-	vm := newVM()
+	vm := NewVM()
 	AllVMs[vm.ID] = vm
 	return vm
 }
 
 func Validate(file string) (err error) {
-	tempVM := newVM()
+	tempVM := NewVM()
 	err = tempVM.Load(file)
 	if err != nil {
 		return

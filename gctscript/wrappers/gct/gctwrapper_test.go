@@ -1,4 +1,4 @@
-package gctwrapper
+package gct
 
 import (
 	"reflect"
