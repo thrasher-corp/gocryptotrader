@@ -101,7 +101,7 @@ func TestSendMessage(t *testing.T) {
 	t.Parallel()
 	err := T.SendMessage("Test message", int64(1337))
 	if err.Error() != testErrNotFound {
-		t.Errorf("telegram SendMessage() error, expected 'Not found' got '%s'",
+		t.Errorf("telegram SendJSONMessage() error, expected 'Not found' got '%s'",
 			err)
 	}
 }

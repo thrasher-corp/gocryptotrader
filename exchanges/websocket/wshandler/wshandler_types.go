@@ -164,3 +164,10 @@ type WebsocketConnection struct {
 	ResponseMaxLimit     time.Duration
 	TrafficTimeout       time.Duration
 }
+
+type WebsocketPingHandler struct {
+	UseGorilla  bool
+	MessageType int
+	Message     []byte
+	Delay       time.Duration
+}

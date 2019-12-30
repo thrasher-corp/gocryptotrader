@@ -502,7 +502,7 @@ func (p *Poloniex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 	default:
 		subscriptionRequest.Channel = channelToSubscribe.Currency.String()
 	}
-	return p.WebsocketConn.SendMessage(subscriptionRequest)
+	return p.WebsocketConn.SendJSONMessage(subscriptionRequest)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -518,7 +518,7 @@ func (p *Poloniex) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubs
 	default:
 		unsubscriptionRequest.Channel = channelToSubscribe.Currency.String()
 	}
-	return p.WebsocketConn.SendMessage(unsubscriptionRequest)
+	return p.WebsocketConn.SendJSONMessage(unsubscriptionRequest)
 }
 
 func (p *Poloniex) wsSendAuthorisedCommand(command string) error {
@@ -531,5 +531,5 @@ func (p *Poloniex) wsSendAuthorisedCommand(command string) error {
 		Key:     p.API.Credentials.Key,
 		Payload: nonce,
 	}
-	return p.WebsocketConn.SendMessage(request)
+	return p.WebsocketConn.SendJSONMessage(request)
 }

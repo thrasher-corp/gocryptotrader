@@ -284,7 +284,7 @@ func (o *OKGroup) WsLogin() error {
 			base64,
 		},
 	}
-	err := o.WebsocketConn.SendMessage(request)
+	err := o.WebsocketConn.SendJSONMessage(request)
 	if err != nil {
 		o.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -827,7 +827,7 @@ func (o *OKGroup) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscri
 			channelToSubscribe.Currency.Base.String()}
 	}
 
-	return o.WebsocketConn.SendMessage(request)
+	return o.WebsocketConn.SendJSONMessage(request)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -838,5 +838,5 @@ func (o *OKGroup) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubsc
 			delimiterColon +
 			channelToSubscribe.Currency.String()},
 	}
-	return o.WebsocketConn.SendMessage(request)
+	return o.WebsocketConn.SendJSONMessage(request)
 }

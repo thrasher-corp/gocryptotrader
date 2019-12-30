@@ -135,7 +135,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 			}
 
 			if strings.Contains(message, "ping") {
-				err = b.WebsocketConn.SendMessage("pong")
+				err = b.WebsocketConn.SendJSONMessage("pong")
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
@@ -487,7 +487,7 @@ func (b *Bitmex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 	var subscriber WebsocketRequest
 	subscriber.Command = "subscribe"
 	subscriber.Arguments = append(subscriber.Arguments, channelToSubscribe.Channel)
-	return b.WebsocketConn.SendMessage(subscriber)
+	return b.WebsocketConn.SendJSONMessage(subscriber)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -497,7 +497,7 @@ func (b *Bitmex) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 	subscriber.Arguments = append(subscriber.Arguments,
 		channelToSubscribe.Params["args"],
 		channelToSubscribe.Channel+":"+channelToSubscribe.Currency.String())
-	return b.WebsocketConn.SendMessage(subscriber)
+	return b.WebsocketConn.SendJSONMessage(subscriber)
 }
 
 // WebsocketSendAuth sends an authenticated subscription
@@ -517,7 +517,7 @@ func (b *Bitmex) websocketSendAuth() error {
 	sendAuth.Command = "authKeyExpires"
 	sendAuth.Arguments = append(sendAuth.Arguments, b.API.Credentials.Key, timestamp,
 		signature)
-	err := b.WebsocketConn.SendMessage(sendAuth)
+	err := b.WebsocketConn.SendJSONMessage(sendAuth)
 	if err != nil {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err

@@ -10,7 +10,7 @@ type WebsocketResponse struct {
 	} `json:"error"`
 }
 
-// SendMessage holds details for message information
+// SendJSONMessage holds details for message information
 type SendMessage struct {
 	ID      int64  `json:"id"`
 	Type    string `json:"type"`

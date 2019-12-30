@@ -98,6 +98,6 @@ func TestSendMessageToAll(t *testing.T) {
 func TestSendMessage(t *testing.T) {
 	err := s.SendMessage("1337", "Hello!")
 	if err != nil {
-		t.Error("SMSGlobal SendMessage() error", err)
+		t.Error("SMSGlobal SendJSONMessage() error", err)
 	}
 }

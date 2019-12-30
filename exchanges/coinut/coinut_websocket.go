@@ -346,7 +346,7 @@ func (c *COINUT) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 		Subscribe: true,
 		Nonce:     c.WebsocketConn.GenerateMessageID(false),
 	}
-	return c.WebsocketConn.SendMessage(subscribe)
+	return c.WebsocketConn.SendJSONMessage(subscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel

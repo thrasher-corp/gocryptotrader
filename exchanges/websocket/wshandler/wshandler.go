@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/flate"
 	"compress/gzip"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -656,32 +655,62 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 	return nil
 }
 
-// SendMessage the one true message request. Sends message to WS
-func (w *WebsocketConnection) SendMessage(data interface{}) error {
+// SendJSONMessage the one true message request. Sends message to WS
+func (w *WebsocketConnection) SendJSONMessage(data interface{}) error {
 	w.Lock()
 	defer w.Unlock()
 	if !w.IsConnected() {
 		return fmt.Errorf("%v cannot send message to a disconnected websocket", w.ExchangeName)
 	}
-	json, err := json.Marshal(data)
-	if err != nil {
-		return err
-	}
 	if w.Verbose {
 		log.Debugf(log.WebsocketMgr,
-			"%v sending message to websocket %v", w.ExchangeName, string(json))
+			"%v sending message to websocket %v", w.ExchangeName, data)
 	}
 	if w.RateLimit > 0 {
 		time.Sleep(time.Duration(w.RateLimit) * time.Millisecond)
 	}
-	return w.Connection.WriteMessage(websocket.TextMessage, json)
+	return w.Connection.WriteJSON(data)
+}
+
+func (w *WebsocketConnection) SetupPingHandler(handler WebsocketPingHandler) {
+	if handler.UseGorilla {
+		h := func(msg string) error {
+			err := w.Connection.WriteControl(handler.MessageType, []byte(msg), time.Now().Add(handler.Delay))
+			if e, ok := err.(net.Error); ok && e.Temporary() {
+				return nil
+			}
+			return err
+		}
+		w.Connection.SetPingHandler(h)
+		return
+	}
+	go func() {
+		ticker := time.NewTicker(handler.Delay)
+		for {
+			select {
+			case <-w.Shutdown:
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				w.Lock()
+				err := w.Connection.WriteMessage(websocket.TextMessage, handler.Message)
+				w.Unlock()
+				if err != nil {
+					log.Errorf(log.WebsocketMgr,
+						"%v Websocket ping handler failed to send message",
+						w.ExchangeName)
+					return
+				}
+			}
+		}
+	}()
 }
 
 // SendMessageReturnResponse will send a WS message to the connection
 // It will then run a goroutine to await a JSON response
 // If there is no response it will return an error
 func (w *WebsocketConnection) SendMessageReturnResponse(id int64, request interface{}) ([]byte, error) {
-	err := w.SendMessage(request)
+	err := w.SendJSONMessage(request)
 	if err != nil {
 		return nil, err
 	}

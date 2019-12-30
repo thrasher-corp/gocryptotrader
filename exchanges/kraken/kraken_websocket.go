@@ -164,7 +164,7 @@ func (k *Kraken) wsPingHandler() {
 				log.Debugf(log.ExchangeSys, "%v sending ping",
 					k.Name)
 			}
-			err := k.WebsocketConn.SendMessage(pingEvent)
+			err := k.WebsocketConn.SendJSONMessage(pingEvent)
 			if err != nil {
 				k.Websocket.DataHandler <- err
 			}
@@ -925,5 +925,5 @@ func (k *Kraken) wsCancelOrders(orderIDs []string) error {
 		Token:          authToken,
 		TransactionIDs: orderIDs,
 	}
-	return k.AuthenticatedWebsocketConn.SendMessage(request)
+	return k.AuthenticatedWebsocketConn.SendJSONMessage(request)
 }

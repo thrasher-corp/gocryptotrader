@@ -342,7 +342,7 @@ func (c *Coinbene) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 	var sub WsSub
 	sub.Operation = "subscribe"
 	sub.Arguments = []string{channelToSubscribe.Channel}
-	return c.WebsocketConn.SendMessage(sub)
+	return c.WebsocketConn.SendJSONMessage(sub)
 }
 
 // Unsubscribe sends a websocket message to receive data from the channel
@@ -350,7 +350,7 @@ func (c *Coinbene) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubs
 	var sub WsSub
 	sub.Operation = "unsubscribe"
 	sub.Arguments = []string{channelToSubscribe.Channel}
-	return c.WebsocketConn.SendMessage(sub)
+	return c.WebsocketConn.SendJSONMessage(sub)
 }
 
 // Login logs in
@@ -364,5 +364,5 @@ func (c *Coinbene) Login() error {
 	sign := crypto.HexEncodeToString(tempSign)
 	sub.Operation = "login"
 	sub.Arguments = []string{c.API.Credentials.Key, expTime, sign}
-	return c.WebsocketConn.SendMessage(sub)
+	return c.WebsocketConn.SendJSONMessage(sub)
 }
