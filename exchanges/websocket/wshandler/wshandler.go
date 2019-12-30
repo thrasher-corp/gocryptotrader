@@ -673,7 +673,7 @@ func (w *WebsocketConnection) SendJSONMessage(data interface{}) error {
 }
 
 // SendRawMessage sends a message over the connection without JSON encoding it
-func (w *WebsocketConnection) SendRawMessage(message []byte) error {
+func (w *WebsocketConnection) SendRawMessage(messageType int, message []byte) error {
 	w.Lock()
 	defer w.Unlock()
 	if !w.IsConnected() {
@@ -686,9 +686,11 @@ func (w *WebsocketConnection) SendRawMessage(message []byte) error {
 	if w.RateLimit > 0 {
 		time.Sleep(time.Duration(w.RateLimit) * time.Millisecond)
 	}
-	return w.Connection.WriteMessage(websocket.TextMessage, message)
+	return w.Connection.WriteMessage(messageType, message)
 }
 
+// SetupPingHandler will automatically send ping or pong messages based on
+// WebsocketPingHandler configuration
 func (w *WebsocketConnection) SetupPingHandler(handler WebsocketPingHandler) {
 	if handler.UseGorillaHandler {
 		h := func(msg string) error {
@@ -710,7 +712,7 @@ func (w *WebsocketConnection) SetupPingHandler(handler WebsocketPingHandler) {
 				ticker.Stop()
 				return
 			case <-ticker.C:
-				err := w.SendRawMessage(handler.Message)
+				err := w.SendRawMessage(handler.MessageType, handler.Message)
 				if err != nil {
 					log.Errorf(log.WebsocketMgr,
 						"%v failed to send message to websocket %s", w.ExchangeName, handler.Message)

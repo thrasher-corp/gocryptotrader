@@ -211,6 +211,8 @@ func (k *Kraken) WsHandleDataResponse(response WebsocketDataResponse) {
 // WsHandleEventResponse classifies the WS response and sends to appropriate handler
 func (k *Kraken) WsHandleEventResponse(response *WebsocketEventResponse, rawResponse []byte) {
 	switch response.Event {
+	case wshandler.Pong:
+		break
 	case krakenWsHeartbeat:
 		if k.Verbose {
 			log.Debugf(log.ExchangeSys, "%v Websocket heartbeat data received",

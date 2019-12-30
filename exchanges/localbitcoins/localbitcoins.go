@@ -280,7 +280,7 @@ func (l *LocalBitcoins) GetMessages(contactID string) (Message, error) {
 		l.SendAuthenticatedHTTPRequest(http.MethodPost, localbitcoinsAPIMessages+contactID, nil, &resp)
 }
 
-// SendJSONMessage posts a message and/or uploads an image to the trade. Encode
+// SendMessage posts a message and/or uploads an image to the trade. Encode
 // images with multipart/form-data encoding.
 // TODO
 func (l *LocalBitcoins) SendMessage(contactID string) error {

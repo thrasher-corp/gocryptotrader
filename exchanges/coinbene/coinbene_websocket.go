@@ -97,11 +97,11 @@ func (c *Coinbene) WsDataHandler() {
 			}
 			c.Websocket.TrafficAlert <- struct{}{}
 			if string(stream.Raw) == wshandler.Ping {
-				err = c.WebsocketConn.SendRawMessage([]byte(wshandler.Pong))
+				err = c.WebsocketConn.SendRawMessage(websocket.TextMessage, []byte(wshandler.Pong))
 				if err != nil {
 					c.Websocket.DataHandler <- err
-					continue
 				}
+				continue
 			}
 			var result map[string]interface{}
 			err = json.Unmarshal(stream.Raw, &result)

@@ -583,7 +583,7 @@ func TestSendMessage(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-			err = testData.WC.SendRawMessage([]byte(Ping))
+			err = testData.WC.SendRawMessage(websocket.TextMessage, []byte(Ping))
 			if err != nil {
 				t.Error(err)
 			}

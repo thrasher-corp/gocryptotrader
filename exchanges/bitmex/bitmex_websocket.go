@@ -63,10 +63,6 @@ const (
 	bitmexActionUpdateData  = "update"
 )
 
-var (
-	pongChan = make(chan int, 1)
-)
-
 // WsConnect initiates a new websocket connection
 func (b *Bitmex) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
@@ -99,7 +95,6 @@ func (b *Bitmex) WsConnect() error {
 
 	go b.wsHandleIncomingData()
 	b.GenerateDefaultSubscriptions()
-
 	err = b.websocketSendAuth()
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", b.Name, err)
@@ -128,19 +123,6 @@ func (b *Bitmex) wsHandleIncomingData() {
 				return
 			}
 			b.Websocket.TrafficAlert <- struct{}{}
-			message := string(resp.Raw)
-			if strings.Contains(message, "pong") {
-				pongChan <- 1
-				continue
-			}
-
-			if strings.Contains(message, wshandler.Ping) {
-				err = b.WebsocketConn.SendRawMessage([]byte(wshandler.Pong))
-				if err != nil {
-					b.Websocket.DataHandler <- err
-					continue
-				}
-			}
 
 			quickCapture := make(map[string]interface{})
 			err = json.Unmarshal(resp.Raw, &quickCapture)
