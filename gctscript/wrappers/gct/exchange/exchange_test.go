@@ -31,7 +31,7 @@ const (
 
 var (
 	settings = engine.Settings{
-		ConfigFile:          filepath.Join("..", "..", "..", "..", "testdata", "gctscript", "config.json"),
+		ConfigFile:          filepath.Join("..", "..", "..", "..", "testdata", "configtest.json"),
 		EnableDryRun:        true,
 		DataDir:             filepath.Join("..", "..", "..", "..", "testdata", "gocryptotrader"),
 		Verbose:             false,
