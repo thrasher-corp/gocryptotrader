@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"golang.org/x/net/html"
 )
@@ -54,26 +56,23 @@ func main() {
 	flag.Parse()
 	updates, err := CheckUpdates(jsonFile)
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 	}
 	log.Println(updates)
 }
 
-// GetSha gets the sha of the latest commit
-func GetSha(repoPath string) (ShaResponse, error) {
+// getSha gets the sha of the latest commit
+func getSha(repoPath string) (ShaResponse, error) {
 	var resp ShaResponse
-	finalPath := fmt.Sprintf(githubPath, repoPath)
 	if verbose {
-		log.Println(finalPath)
+		log.Println(githubPath + repoPath)
 	}
-	return resp, common.SendHTTPGetRequest(finalPath, true, false, &resp)
+	return resp, common.SendHTTPGetRequest(githubPath+repoPath, true, false, &resp)
 }
 
 // CheckExistingExchanges checks if the given exchange exists
 func CheckExistingExchanges(fileName, exchName string) ([]ExchangeInfo, bool, error) {
-	var data []ExchangeInfo
-	var err error
-	data, err = ReadFileData(fileName)
+	data, err := ReadFileData(fileName)
 	if err != nil {
 		return data, false, err
 	}
@@ -106,7 +105,7 @@ func ReadFileData(fileName string) ([]ExchangeInfo, error) {
 	return data, nil
 }
 
-// CheckUpdates checks Updates.json for all the existing exchanges
+// CheckUpdates checks updates.json for all the existing exchanges
 func CheckUpdates(fileName string) ([]string, error) {
 	var resp []string
 	data, err := ReadFileData(fileName)
@@ -116,9 +115,9 @@ func CheckUpdates(fileName string) ([]string, error) {
 	for x := range data {
 		switch data[x].CheckType {
 		case github:
-			sha, err := GetSha(data[x].Data.GitHubData.Repo)
+			sha, err := getSha(data[x].Data.GitHubData.Repo)
 			if err != nil {
-				return resp, err
+				log.Println(err)
 			}
 			if sha.ShaResp != data[x].Data.GitHubData.Sha {
 				data[x].Data.GitHubData.Sha = sha.ShaResp
@@ -127,7 +126,7 @@ func CheckUpdates(fileName string) ([]string, error) {
 		case htmlScrape:
 			checkStr, err := CheckChangeLog(*data[x].Data.HTMLData)
 			if err != nil {
-				return resp, err
+				log.Println(err)
 			}
 			if checkStr == data[x].Data.HTMLData.CheckString {
 				continue
@@ -140,10 +139,10 @@ func CheckUpdates(fileName string) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
-	return resp, ioutil.WriteFile(fileName, file, 0644)
+	return resp, ioutil.WriteFile(fileName, file, 0770)
 }
 
-// CheckChangeLog checks the exchanges which support changelog Updates.json
+// CheckChangeLog checks the exchanges which support changelog updates.json
 func CheckChangeLog(htmlData HTMLScrapingData) (string, error) {
 	var dataStrings []string
 	var err error
@@ -271,35 +270,52 @@ func CheckChangeLog(htmlData HTMLScrapingData) (string, error) {
 	return "", errors.New("no response found")
 }
 
-// Add checks if api Updates.json are needed
-func Add(exchName, checkType, path string, data interface{}) error {
+// Add appends exchange data to updates.json for future api checks
+func Add(exchName, checkType, path string, data interface{}, update bool) error {
 	finalResp, check, err := CheckExistingExchanges(jsonFile, exchName)
 	if err != nil {
 		return err
 	}
-	if check {
-		if verbose {
-			log.Printf("%v exchange Already Exists\n", exchName)
+	var file []byte
+	switch update {
+	case false:
+		if check {
+			if verbose {
+				log.Printf("%v exchange already exists\n", exchName)
+			}
+			return nil
 		}
-		return nil
+		exchange, err := FillData(exchName, checkType, path, data)
+		if err != nil {
+			return err
+		}
+		finalResp = append(finalResp, exchange)
+		file, err = json.MarshalIndent(finalResp, "", " ")
+		if err != nil {
+			return err
+		}
+	case true:
+		info, err := FillData(exchName, checkType, path, data)
+		if err != nil {
+			return err
+		}
+		allExchData, err := Update(exchName, finalResp, info)
+		if err != nil {
+			return err
+		}
+		file, err = json.MarshalIndent(allExchData, "", " ")
+		if err != nil {
+			return err
+		}
 	}
-	exchange, err := FillData(exchName, checkType, path, data)
-	if err != nil {
-		return err
-	}
-	finalResp = append(finalResp, exchange)
-	file, err := json.MarshalIndent(finalResp, "", " ")
-	if err != nil {
-		return err
-	}
-	return ioutil.WriteFile("Updates.json", file, 0644)
+	return ioutil.WriteFile(jsonFile, file, 0770)
 }
 
 // FillData fills exchange data based on the given checkType
 func FillData(exchName, checkType, path string, data interface{}) (ExchangeInfo, error) {
 	switch checkType {
 	case github:
-		tempSha, err := GetSha(path)
+		tempSha, err := getSha(path)
 		if err != nil {
 			return ExchangeInfo{}, err
 		}
@@ -1044,9 +1060,8 @@ loop:
 
 // GetListsData gets required data for all the lists on the given board
 func GetListsData(idBoard string) ([]ListData, error) {
-	path := fmt.Sprintf(pathGetAllLists, idBoard, apiKey, apiToken)
 	var resp []ListData
-	err := SendHTTPRequest(path, &resp)
+	err := SendHTTPRequest(pathGetAllLists+idBoard+apiKey+apiToken, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -1075,8 +1090,10 @@ func CreateNewCard(fillData CardFill) error {
 	if fillData.LabelsID != "" {
 		params.Set("idLabels", fillData.LabelsID)
 	}
-	path := fmt.Sprintf(pathNewCard, params.Encode(), apiKey, apiToken)
-	_, err := common.SendHTTPRequest(http.MethodPost, path, nil, nil)
+	_, err := common.SendHTTPRequest(http.MethodPost,
+		pathNewCard+params.Encode()+apiKey+apiToken,
+		nil,
+		nil)
 	return err
 }
 
@@ -1084,12 +1101,35 @@ func CreateNewCard(fillData CardFill) error {
 func CreateNewCheck(newCheck string) error {
 	params := url.Values{}
 	params.Set("name", newCheck)
-	path := fmt.Sprintf(pathChecklists, updateChecklistID, params.Encode(), apiKey, apiToken)
-	_, err := common.SendHTTPRequest(http.MethodPost, path, nil, nil)
+	_, err := common.SendHTTPRequest(http.MethodPost,
+		pathChecklists+updateChecklistID+params.Encode()+apiKey+apiToken,
+		nil,
+		nil)
 	return err
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func SendHTTPRequest(path string, result interface{}) error {
 	return common.SendHTTPGetRequest(path, true, false, result)
+}
+
+// Update updates the exchange data
+func Update(currentName string, info []ExchangeInfo, updatedInfo ExchangeInfo) ([]ExchangeInfo, error) {
+	for x := range info {
+		if info[x].Name == currentName {
+			if info[x].CheckType == updatedInfo.CheckType {
+				info[x].Data.GitHubData = updatedInfo.Data.GitHubData
+				info[x].Data.HTMLData = updatedInfo.Data.HTMLData
+				break
+			}
+		}
+	}
+	return info, nil
+}
+
+// Exchanges prints exchanges
+func Exchanges() []string {
+	temp := exchange.Exchanges
+	log.Println(temp)
+	return temp
 }

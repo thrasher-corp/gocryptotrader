@@ -5,7 +5,7 @@ import (
 )
 
 func TestCheckExistingExchanges(t *testing.T) {
-	_, _, err := CheckExistingExchanges("Updates", "Kraken")
+	_, _, err := CheckExistingExchanges(jsonFile, "Kraken")
 	if err != nil {
 		t.Error(err)
 	}
@@ -27,15 +27,15 @@ func TestCheckChangeLog(t *testing.T) {
 }
 
 func TestAdd(t *testing.T) {
-	data := HTMLScrapingData{TokenData: "h1",
+	data := HTMLScrapingData{TokenData: "div",
 		Key:           "id",
-		Val:           "introduction",
-		TokenDataEnd:  "blockquote",
-		TextTokenData: "h3",
+		Val:           "applicationHeaderContainer",
+		TokenDataEnd:  "script",
+		TextTokenData: "",
 		DateFormat:    "",
-		RegExp:        `revised-calls-\d{1}-\d{1}-\d{1}-gt-\d{1}-\d{1}-\d{1}`,
-		Path:          "https://alphapoint.github.io/slate/#introduction"}
-	err := Add("AlphaPoint", htmlScrape, data.Path, data)
+		RegExp:        `ANX Exchange API v\d{1}`,
+		Path:          "https://anxv3.docs.apiary.io/#reference/quickstart-catalog"}
+	err := Add("AlphaPoint", htmlScrape, data.Path, data, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -279,4 +279,29 @@ func TestCreateNewCheck(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestUpdate(t *testing.T) {
+	finalResp, _, err := CheckExistingExchanges(jsonFile, "ANX")
+	if err != nil {
+		t.Error(err)
+	}
+	info := ExchangeInfo{Name: "ANX",
+		CheckType: "HTML String Check",
+		Data: &CheckData{HTMLData: &HTMLScrapingData{RegExp: "ANX Exchange API v\\d{1}",
+			CheckString:   "ANX Exchange API v3",
+			Path:          "https://anxv3.docs.apiary.io/",
+			TextTokenData: "HELLLLOOOOO"},
+		},
+	}
+	a, err := Update("ANX", finalResp, info)
+	t.Log(a[15].Data.HTMLData)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestExchanges(t *testing.T) {
+	a := Exchanges()
+	t.Log(a)
 }
