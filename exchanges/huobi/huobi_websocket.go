@@ -146,7 +146,7 @@ func (h *HUOBI) wsHandleAuthenticatedData(resp WsMessage) {
 		return
 	}
 	if init.Ping != 0 {
-		h.sendPingResponse(err, init.Ping)
+		h.sendPingResponse(init.Ping)
 		return
 	}
 	if init.ErrorMessage == "api-signature-not-valid" {
@@ -216,7 +216,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 		return
 	}
 	if init.Ping != 0 {
-		h.sendPingResponse(err, init.Ping)
+		h.sendPingResponse(init.Ping)
 		return
 	}
 
@@ -295,12 +295,11 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 	}
 }
 
-func (h *HUOBI) sendPingResponse(err error, pong int64) {
-	err = h.WebsocketConn.SendJSONMessage(WsPong{Pong: pong})
+func (h *HUOBI) sendPingResponse(pong int64) {
+	err := h.WebsocketConn.SendJSONMessage(WsPong{Pong: pong})
 	if err != nil {
 		log.Error(log.ExchangeSys, err)
 	}
-	return
 }
 
 // WsProcessOrderbook processes new orderbook data
