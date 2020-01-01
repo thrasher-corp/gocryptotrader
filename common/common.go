@@ -32,6 +32,11 @@ var (
 	// ErrFunctionNotSupported defines a standardised error for an unsupported
 	// wrapper function by an API
 	ErrFunctionNotSupported = errors.New("unsupported wrapper function")
+
+	// FalsePtr returns a pointer to a false bool
+	FalsePtr = func(f bool) *bool { return &f }(false)
+	// TruePtr returns a pointer to a true bool
+	TruePtr = func(f bool) *bool { return &f }(false)
 )
 
 // Const declarations for common.go operations
@@ -40,6 +45,7 @@ const (
 	SatoshisPerLTC = 100000000
 	WeiPerEther    = 1000000000000000000
 )
+
 
 func initialiseHTTPClient() {
 	// If the HTTPClient isn't set, start a new client with a default timeout of 15 seconds
@@ -354,3 +360,5 @@ func SplitStringSliceByLimit(in []string, limit uint) [][]string {
 	}
 	return sliceSlice
 }
+
+

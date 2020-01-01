@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers"
 )
 
 var exchangeModule = map[string]objects.Object{
@@ -86,7 +87,7 @@ func ExchangeTicker(args ...objects.Object) (objects.Object, error) {
 	pairs := currency.NewPairDelimiter(currencyPair, delimiter)
 	assetType := asset.Item(assetTypeParam)
 
-	tx, err := modules.Wrapper.Ticker(exchangeName, pairs, assetType)
+	tx, err := wrappers.GetWrapper().Ticker(exchangeName, pairs, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -343,6 +344,7 @@ func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 		AddressTag: addressTag,
 		FeeAmount:  feeAmount,
 	}
+
 	rtn, err := modules.Wrapper.WithdrawalCryptoFunds(exchangeName, withdrawRequest)
 	if err != nil {
 		return nil, err

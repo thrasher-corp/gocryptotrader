@@ -12,6 +12,9 @@ import (
 // Wrapper instance of GCT to use for modules
 var Wrapper GCT
 
+// TestExecutionWrapper instance of GCT to use for modules when a test execution is required
+var TestExecutionWrapper GCT
+
 // GCT interface requirements
 type GCT interface {
 	Exchange

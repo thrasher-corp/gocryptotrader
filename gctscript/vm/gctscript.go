@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -24,12 +26,22 @@ func New() *VM {
 }
 
 func Validate(file string) (err error) {
+	defer func() {
+		validator.IsTestExecution = common.FalsePtr
+	}()
+	validator.IsTestExecution = common.TruePtr
+
 	tempVM := NewVM()
 	err = tempVM.Load(file)
 	if err != nil {
 		return
 	}
-	return tempVM.Compile()
+	err = tempVM.Compile()
+	if err != nil {
+		return
+	}
+
+	return	tempVM.Run()
 }
 
 // ShutdownAll shutdown all

@@ -31,4 +31,8 @@ var (
 	errTestFailed = errors.New("test failed")
 )
 
+var (
+	IsTestExecution *bool
+)
+
 type Wrapper struct{}
