@@ -41,7 +41,6 @@ const (
 	WeiPerEther    = 1000000000000000000
 )
 
-
 func initialiseHTTPClient() {
 	// If the HTTPClient isn't set, start a new client with a default timeout of 15 seconds
 	if HTTPClient == nil {
@@ -355,5 +354,3 @@ func SplitStringSliceByLimit(in []string, limit uint) [][]string {
 	}
 	return sliceSlice
 }
-
-
