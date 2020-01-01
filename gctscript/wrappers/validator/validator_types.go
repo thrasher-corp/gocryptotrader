@@ -2,11 +2,15 @@ package validator
 
 import (
 	"errors"
+	"sync"
 
 	"github.com/d5/tengo/objects"
 )
 
 var (
+	// RWValidatorLock mutex lock
+	RWValidatorLock sync.RWMutex
+	// IsTestExecution if test is executed under test conditions
 	IsTestExecution bool
 
 	exch = &objects.String{

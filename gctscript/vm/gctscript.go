@@ -27,7 +27,9 @@ func New() *VM {
 func Validate(file string) (err error) {
 	defer func() {
 		validator.IsTestExecution = false
+		validator.RWValidatorLock.Unlock()
 	}()
+	validator.RWValidatorLock.Lock()
 	validator.IsTestExecution = true
 	tempVM := NewVM()
 	err = tempVM.Load(file)

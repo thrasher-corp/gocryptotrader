@@ -224,6 +224,18 @@ func TestVM_CompileInvalid(t *testing.T) {
 	}
 }
 
+func TestValidate(t *testing.T) {
+	GCTScriptConfig = configHelper(true, true, testVirtualMachineTimeout, 6)
+	err := Validate(testInvalidScript)
+	if err == nil {
+		t.Fatal(err)
+	}
+	err = Validate(testScript)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func configHelper(enabled, imports bool, timeout time.Duration, max uint8) *Config {
 	return &Config{
 		Enabled:            enabled,
