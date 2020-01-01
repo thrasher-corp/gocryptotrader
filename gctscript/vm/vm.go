@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	scriptevent "github.com/thrasher-corp/gocryptotrader/database/repository/script"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/loader"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/volatiletech/null"
 )
@@ -224,6 +225,9 @@ func (vm *VM) ShortName() string {
 }
 
 func (vm *VM) event(status, executionType string, includeScriptHash bool) {
+	if validator.IsTestExecution {
+		return
+	}
 	var hash, name, path null.String
 	if includeScriptHash {
 		contents, err := vm.read()
