@@ -32,11 +32,6 @@ var (
 	// ErrFunctionNotSupported defines a standardised error for an unsupported
 	// wrapper function by an API
 	ErrFunctionNotSupported = errors.New("unsupported wrapper function")
-
-	// FalsePtr returns a pointer to a false bool
-	FalsePtr = func(f bool) *bool { return &f }(false)
-	// TruePtr returns a pointer to a true bool
-	TruePtr = func(f bool) *bool { return &f }(false)
 )
 
 // Const declarations for common.go operations

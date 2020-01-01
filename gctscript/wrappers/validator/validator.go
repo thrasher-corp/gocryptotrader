@@ -1,7 +1,6 @@
 package validator
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -32,8 +31,6 @@ func (w Wrapper) IsEnabled(exch string) (v bool) {
 }
 
 func (w Wrapper) Orderbook(exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error) {
-	fmt.Println("ValidatorOrderbook")
-
 	if exch == exchError.String() {
 		return nil, errTestFailed
 	}

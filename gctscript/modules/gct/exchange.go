@@ -8,7 +8,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
-	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers"
 )
 
@@ -40,7 +39,7 @@ func ExchangeOrderbook(args ...objects.Object) (objects.Object, error) {
 	pairs := currency.NewPairDelimiter(currencyPair, delimiter)
 	assetType := asset.Item(assetTypeParam)
 
-	ob, err := modules.Wrapper.Orderbook(exchangeName, pairs, assetType)
+	ob, err := wrappers.GetWrapper().Orderbook(exchangeName, pairs, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +119,7 @@ func ExchangeExchanges(args ...objects.Object) (objects.Object, error) {
 	}
 
 	enabledOnly, _ := objects.ToBool(args[0])
-	rtnValue := modules.Wrapper.Exchanges(enabledOnly)
+	rtnValue := wrappers.GetWrapper().Exchanges(enabledOnly)
 
 	r := objects.Array{}
 	for x := range rtnValue {
@@ -141,7 +140,7 @@ func ExchangePairs(args ...objects.Object) (objects.Object, error) {
 	assetTypeParam, _ := objects.ToString(args[2])
 	assetType := asset.Item(strings.ToLower(assetTypeParam))
 
-	rtnValue, err := modules.Wrapper.Pairs(exchangeName, enabledOnly, assetType)
+	rtnValue, err := wrappers.GetWrapper().Pairs(exchangeName, enabledOnly, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +159,7 @@ func ExchangeAccountInfo(args ...objects.Object) (objects.Object, error) {
 	}
 
 	exchangeName, _ := objects.ToString(args[0])
-	rtnValue, err := modules.Wrapper.AccountInformation(exchangeName)
+	rtnValue, err := wrappers.GetWrapper().AccountInformation(exchangeName)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +193,7 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 	exchangeName, _ := objects.ToString(args[0])
 	orderID, _ := objects.ToString(args[1])
 
-	orderDetails, err := modules.Wrapper.QueryOrder(exchangeName, orderID)
+	orderDetails, err := wrappers.GetWrapper().QueryOrder(exchangeName, orderID)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +241,7 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 	exchangeName, _ := objects.ToString(args[0])
 	orderID, _ := objects.ToString(args[1])
 
-	rtn, err := modules.Wrapper.CancelOrder(exchangeName, orderID)
+	rtn, err := wrappers.GetWrapper().CancelOrder(exchangeName, orderID)
 	if err != nil {
 		return nil, err
 	}
@@ -284,7 +283,7 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 		return nil, err
 	}
 
-	rtn, err := modules.Wrapper.SubmitOrder(exchangeName, tempSubmit)
+	rtn, err := wrappers.GetWrapper().SubmitOrder(exchangeName, tempSubmit)
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +311,7 @@ func ExchangeDepositAddress(args ...objects.Object) (objects.Object, error) {
 	currencyCode, _ := objects.ToString(args[1])
 	currCode := currency.NewCode(currencyCode)
 
-	rtn, err := modules.Wrapper.DepositAddress(exchangeName, currCode)
+	rtn, err := wrappers.GetWrapper().DepositAddress(exchangeName, currCode)
 	if err != nil {
 		return nil, err
 	}
@@ -345,7 +344,7 @@ func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 		FeeAmount:  feeAmount,
 	}
 
-	rtn, err := modules.Wrapper.WithdrawalCryptoFunds(exchangeName, withdrawRequest)
+	rtn, err := wrappers.GetWrapper().WithdrawalCryptoFunds(exchangeName, withdrawRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -373,7 +372,7 @@ func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
 		},
 	}
 
-	rtn, err := modules.Wrapper.WithdrawalFiatFunds(exchangeName, bankAccountID, withdrawRequest)
+	rtn, err := wrappers.GetWrapper().WithdrawalFiatFunds(exchangeName, bankAccountID, withdrawRequest)
 	if err != nil {
 		return nil, err
 	}

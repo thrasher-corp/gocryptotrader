@@ -7,6 +7,8 @@ import (
 )
 
 var (
+	IsTestExecution bool
+
 	exch = &objects.String{
 		Value: "BTC Markets",
 	}
@@ -29,10 +31,6 @@ var (
 	tv            = objects.TrueValue
 	fv            = objects.FalseValue
 	errTestFailed = errors.New("test failed")
-)
-
-var (
-	IsTestExecution *bool
 )
 
 type Wrapper struct{}
