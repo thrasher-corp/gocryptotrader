@@ -695,7 +695,9 @@ func (w *WebsocketConnection) SetupPingHandler(handler WebsocketPingHandler) {
 	if handler.UseGorillaHandler {
 		h := func(msg string) error {
 			err := w.Connection.WriteControl(handler.MessageType, []byte(msg), time.Now().Add(handler.Delay))
-			if e, ok := err.(net.Error); ok && e.Temporary() {
+			if err == websocket.ErrCloseSent {
+				return nil
+			} else if e, ok := err.(net.Error); ok && e.Temporary() {
 				return nil
 			}
 			return err

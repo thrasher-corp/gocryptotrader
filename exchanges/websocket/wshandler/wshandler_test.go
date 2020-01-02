@@ -629,8 +629,7 @@ func TestSetupPingHandler(t *testing.T) {
 
 	wc.SetupPingHandler(WebsocketPingHandler{
 		UseGorillaHandler: true,
-		MessageType:       websocket.TextMessage,
-		Message:           []byte(Ping),
+		MessageType:       websocket.PingMessage,
 		Delay:             1000,
 	})
 
