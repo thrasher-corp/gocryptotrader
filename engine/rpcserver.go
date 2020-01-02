@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1351,7 +1352,8 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 			if err != nil {
 				return nil, err
 			}
-			renamedFile := filepath.Join(f, time.Now().Format(time.RFC3339)+" "+r.ScriptName)
+			timeString := strconv.FormatInt(time.Now().UnixNano(), 10)
+			renamedFile := filepath.Join(f, timeString+"-"+r.ScriptName)
 			err = file.Move(fPath, renamedFile)
 			if err != nil {
 				return nil, err
