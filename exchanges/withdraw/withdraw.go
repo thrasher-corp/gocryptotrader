@@ -32,7 +32,7 @@ func ValidateFiat(request *FiatRequest) (err error) {
 			allErrors = append(allErrors, "currency is not a fiat currency")
 		}
 	} else {
-		allErrors = append(allErrors, ErrStrNoCurrecnySet)
+		allErrors = append(allErrors, ErrStrNoCurrencySet)
 	}
 
 	if request.Amount <= 0 {
@@ -57,7 +57,7 @@ func ValidateCrypto(request *CryptoRequest) (err error) {
 			allErrors = append(allErrors, "currency is not a crypto currency")
 		}
 	} else {
-		allErrors = append(allErrors, ErrStrNoCurrecnySet)
+		allErrors = append(allErrors, ErrStrNoCurrencySet)
 	}
 
 	if request.Amount <= 0 {

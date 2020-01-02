@@ -13,7 +13,7 @@ type Config struct {
 	ScriptTimeout      time.Duration `json:"timeout"`
 	MaxVirtualMachines uint8         `json:"max_virtual_machines"`
 	AllowImports       bool          `json:"allow_imports"`
-	AutoLoad           []string      `json:"auto_load,omitempty"`
+	AutoLoad           []string      `json:"auto_load"`
 	Verbose            bool          `json:"verbose"`
 }
 

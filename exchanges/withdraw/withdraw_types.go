@@ -9,7 +9,7 @@ import (
 const (
 	ErrStrAmountMustBeGreaterThanZero = "amount must be greater than 0"
 	ErrStrAddressisInvalid            = "address is not valid"
-	ErrStrNoCurrecnySet               = "currency not set"
+	ErrStrNoCurrencySet               = "currency not set"
 	ErrStrAddressNotSet               = "address cannot be empty"
 )
 
