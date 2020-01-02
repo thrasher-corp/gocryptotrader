@@ -27,17 +27,9 @@ func (l *Logger) newLogEvent(data, header, slName string, w io.Writer) error {
 	e := eventPool.Get().(*LogEvent)
 	e.output = w
 	e.data = append(e.data, []byte(header)...)
-	spacing := headerPadding - len(header)
-	for i := 0; i < spacing; i++ {
-		e.data = append(e.data, " "...)
-	}
 	if l.ShowLogSystemName {
 		e.data = append(e.data, l.Spacer...)
 		e.data = append(e.data, slName...)
-		spacing = subLoggerPadding - len(slName)
-		for i := 0; i < spacing; i++ {
-			e.data = append(e.data, " "...)
-		}
 	}
 	e.data = append(e.data, l.Spacer...)
 	if l.Timestamp != "" {

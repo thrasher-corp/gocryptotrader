@@ -6,10 +6,7 @@ import (
 )
 
 const (
-	timestampFormat  = " 02/01/2006 15:04:05 "
-	spacer           = "|"
-	headerPadding    = 7
-	subLoggerPadding = 10
+	timestampFormat = " 02/01/2006 15:04:05 "
 )
 
 var (
