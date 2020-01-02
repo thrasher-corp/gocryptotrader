@@ -18,6 +18,7 @@ import (
 	"github.com/volatiletech/null"
 )
 
+// NewVM attempts to create a new Virtual Machine firstly from pool
 func NewVM() (vm *VM) {
 	newUUID, err := uuid.NewV4()
 	if err != nil {
@@ -220,6 +221,7 @@ func (vm *VM) read() ([]byte, error) {
 	return ioutil.ReadFile(vm.File)
 }
 
+// ShortName returns short (just filename.extension) of running script
 func (vm *VM) ShortName() string {
 	return filepath.Base(vm.File)
 }

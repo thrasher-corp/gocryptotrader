@@ -1249,6 +1249,7 @@ func (s *RPCServer) GCTScriptStatus(ctx context.Context, r *gctrpc.GCTScriptStat
 	return resp, nil
 }
 
+// GCTScriptQuery queries a running script and returns script running information
 func (s *RPCServer) GCTScriptQuery(ctx context.Context, r *gctrpc.GCTScriptQueryRequest) (*gctrpc.GCTScriptQueryResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
 		return &gctrpc.GCTScriptQueryResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
@@ -1258,7 +1259,7 @@ func (s *RPCServer) GCTScriptQuery(ctx context.Context, r *gctrpc.GCTScriptQuery
 
 	UUID, err := uuid.FromString(r.Script.UUID)
 	if err != nil {
-		return &gctrpc.GCTScriptQueryResponse{Status: "error"}, nil
+		return &gctrpc.GCTScriptQueryResponse{Status: "error", Data: err.Error()}, nil
 	}
 
 	if v, f := gctscript.AllVMs[UUID]; f {
@@ -1289,7 +1290,7 @@ func (s *RPCServer) GCTScriptExecute(ctx context.Context, r *gctrpc.GCTScriptExe
 
 	gctVM := gctscript.New()
 	if gctVM == nil {
-		return &gctrpc.GCTScriptGenericResponse{}, nil
+		return &gctrpc.GCTScriptGenericResponse{Status: "error", Data: "unable to create VM instance"}, nil
 	}
 
 	script := filepath.Join(r.Script.Path, r.Script.Name)

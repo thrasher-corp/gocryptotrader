@@ -25,6 +25,8 @@ func New() *VM {
 	return vm
 }
 
+// Validate will attempt to execute a script in a test/non-live environment
+// to confirm it passes requirements
 func Validate(file string) (err error) {
 	defer func() {
 		validator.IsTestExecution = false

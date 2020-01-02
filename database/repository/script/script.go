@@ -23,7 +23,7 @@ func Event(id uuid.UUID, name, path, hash null.String, executionType, status str
 	ctx = boil.SkipTimestamps(ctx)
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
-		log.Errorf(log.Global, "Event transaction begin failed: %v", err)
+		log.Errorf(log.DatabaseMgr, "Event transaction begin failed: %v", err)
 		return
 	}
 
@@ -55,7 +55,7 @@ func Event(id uuid.UUID, name, path, hash null.String, executionType, status str
 		log.Errorf(log.Global, "Event insert failed: %v", err)
 		err = tx.Rollback()
 		if err != nil {
-			log.Errorf(log.Global, "Event Transaction rollback failed: %v", err)
+			log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
 		}
 		return
 	}
@@ -65,7 +65,7 @@ func Event(id uuid.UUID, name, path, hash null.String, executionType, status str
 		log.Errorf(log.Global, "Event Transaction commit failed: %v", err)
 		err = tx.Rollback()
 		if err != nil {
-			log.Errorf(log.Global, "Event Transaction rollback failed: %v", err)
+			log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
 		}
 		return
 	}

@@ -2918,7 +2918,7 @@ func getAuditEvent(c *cli.Context) error {
 	return nil
 }
 
-var gctCommand, uuid, filename, path string
+var uuid, filename, path string
 var gctScriptCommand = cli.Command{
 	Name:      "gctscript",
 	Usage:     "execute gctscript command",
