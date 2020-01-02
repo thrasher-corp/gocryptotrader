@@ -15,15 +15,15 @@ var (
 
 func SetupTest() {
 	logTest := Config{
-		Enabled:           trueptr,
-		ShowLogSystemName: trueptr,
+		Enabled: trueptr,
 		SubLoggerConfig: SubLoggerConfig{
 			Output: "console",
 			Level:  "INFO|WARN|DEBUG|ERROR",
 		},
 		AdvancedSettings: advancedSettings{
-			Spacer:          " | ",
-			TimeStampFormat: timestampFormat,
+			ShowLogSystemName: trueptr,
+			Spacer:            " | ",
+			TimeStampFormat:   timestampFormat,
 			Headers: headers{
 				Info:  "[INFO]",
 				Warn:  "[WARN]",
