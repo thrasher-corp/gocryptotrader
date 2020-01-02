@@ -16,6 +16,10 @@ const (
 	// DefaultMaxVirtualMachines max number of virtual machines that can be loaded at one time
 	DefaultMaxVirtualMachines = 10
 
+	// TypeLoad text to display in script_event table when a VM is loaded
+	TypeLoad = "load"
+	// TypeCreate text to display in script_event table when a VM is created
+	TypeCreate = "create"
 	// TypeExecute text to display in script_event table when a script is executed
 	TypeExecute = "execute"
 	// TypeStop text to display in script_event table when a running script is stopped

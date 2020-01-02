@@ -568,7 +568,7 @@ func testScriptEventsSelect(t *testing.T) {
 }
 
 var (
-	scriptEventDBTypes = map[string]string{`ID`: `INTEGER`, `ScriptID`: `BLOB`, `ScriptName`: `TEXT`, `ScriptPath`: `TEXT`, `ScriptHash`: `TEXT`, `ExecutionType`: `TEXT`, `ExecutionTime`: `TIMESTAMP`, `ExecutionStatus`: `TEXT`}
+	scriptEventDBTypes = map[string]string{`ID`: `INTEGER`, `ScriptID`: `TEXT`, `ScriptName`: `TEXT`, `ScriptPath`: `TEXT`, `ScriptHash`: `TEXT`, `ExecutionType`: `TEXT`, `ExecutionTime`: `TIMESTAMP`, `ExecutionStatus`: `TEXT`}
 	_                  = bytes.MinRead
 )
 

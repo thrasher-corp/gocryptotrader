@@ -15,7 +15,8 @@ func New() *VM {
 	}
 
 	if len(AllVMs) >= int(GCTScriptConfig.MaxVirtualMachines) {
-		log.Warnln(log.GCTScriptMgr, "GCTScript MaxVirtualMachines hit unable to start further instances")
+		log.Warnf(log.GCTScriptMgr, "GCTScript MaxVirtualMachines (%v) hit, unable to start further instances",
+			GCTScriptConfig.MaxVirtualMachines)
 		return nil
 	}
 

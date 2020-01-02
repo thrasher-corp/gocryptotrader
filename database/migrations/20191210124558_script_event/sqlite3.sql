@@ -2,7 +2,7 @@
 -- SQL in this section is executed when the migration is applied.
 CREATE TABLE "script_event" (
     id	        integer not null primary key,
-    script_id    BLOB not null,
+    script_id   text not null,
     script_name text NULL,
     script_path text NULL,
     script_hash text NULL,

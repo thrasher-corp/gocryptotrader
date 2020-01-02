@@ -9,7 +9,7 @@ import (
 
 func SetupTest() {
 	logTest := Config{
-		Enabled: true,
+		Enabled: t,
 		SubLoggerConfig: SubLoggerConfig{
 			Output: "console",
 			Level:  "INFO|WARN|DEBUG|ERROR",
@@ -39,7 +39,7 @@ func SetupTest() {
 
 func SetupDisabled() {
 	logTest := Config{
-		Enabled: false,
+		Enabled: f,
 	}
 
 	GlobalLogConfig = &logTest

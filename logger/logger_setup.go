@@ -32,10 +32,8 @@ func getWriters(s *SubLoggerConfig) io.Writer {
 
 // GenDefaultSettings return struct with known sane/working logger settings
 func GenDefaultSettings() (log Config) {
-	f := func(f bool) *bool { return &f }(false)
-
 	log = Config{
-		Enabled: true,
+		Enabled: t,
 		SubLoggerConfig: SubLoggerConfig{
 			Level:  "INFO|DEBUG|WARN|ERROR",
 			Output: "console",

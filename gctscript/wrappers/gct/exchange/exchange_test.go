@@ -124,11 +124,10 @@ func TestExchange_AccountInformation(t *testing.T) {
 	if !configureExchangeKeys() {
 		t.Skip("no exchange configured test skipped")
 	}
-	tx, err := exchangeTest.AccountInformation(exchName)
+	_, err := exchangeTest.AccountInformation(exchName)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(tx)
 }
 
 func TestExchange_QueryOrder(t *testing.T) {

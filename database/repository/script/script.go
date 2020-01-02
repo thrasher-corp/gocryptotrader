@@ -29,7 +29,7 @@ func Event(id uuid.UUID, name, path, hash null.String, executionType, status str
 
 	if repository.GetSQLDialect() == database.DBSQLite3 {
 		var tempEvent = modelSQLite.ScriptEvent{
-			ScriptID:        id.Bytes(),
+			ScriptID:        id.String(),
 			ScriptName:      name,
 			ScriptPath:      path,
 			ScriptHash:      hash,

@@ -87,7 +87,7 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 		return nil, fmt.Errorf("failed to open/create data directory: %s. Err: %s", settings.DataDir, err)
 	}
 
-	if b.Config.Logging.Enabled {
+	if *b.Config.Logging.Enabled {
 		log.SetupGlobalLogger()
 		log.SetupSubLoggers(b.Config.Logging.SubLoggers)
 	}
@@ -318,7 +318,7 @@ func (e *Engine) Start() error {
 	e.Uptime = time.Now()
 	log.Debugf(log.Global, "Bot '%s' started.\n", e.Config.Name)
 	log.Debugf(log.Global, "Using data dir: %s\n", e.Settings.DataDir)
-	if e.Config.Logging.Enabled && strings.Contains(e.Config.Logging.Output, "file") {
+	if *e.Config.Logging.Enabled && strings.Contains(e.Config.Logging.Output, "file") {
 		log.Debugf(log.Global, "Using log file: %s\n",
 			filepath.Join(log.LogPath, e.Config.Logging.LoggerFileConfig.FileName))
 	}

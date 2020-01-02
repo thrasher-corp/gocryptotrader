@@ -7,7 +7,7 @@ import (
 
 const (
 	timestampFormat          = " 02/01/2006 15:04:05 "
-	spacer                   = "|"
+	spacer                   = " | "
 	DefaultMaxFileSize int64 = 100
 )
 
@@ -30,11 +30,14 @@ var (
 
 	// LogPath system path to store log files in
 	LogPath string
+
+	f = func(f bool) *bool { return &f }(false)
+	t = func(t bool) *bool { return &t }(true)
 )
 
 // Config holds configuration settings loaded from bot config
 type Config struct {
-	Enabled bool `json:"enabled"`
+	Enabled *bool `json:"enabled"`
 	SubLoggerConfig
 	LoggerFileConfig *loggerFileConfig `json:"fileSettings,omitempty"`
 	AdvancedSettings advancedSettings  `json:"advancedSettings"`

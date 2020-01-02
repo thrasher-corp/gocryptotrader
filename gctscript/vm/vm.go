@@ -36,7 +36,7 @@ func NewVM() (vm *VM) {
 		ID:     newUUID,
 		Script: pool.Get().(*script.Script),
 	}
-	vm.event(StatusSuccess, "create", false)
+	vm.event(StatusSuccess, TypeCreate, false)
 	return
 }
 
@@ -91,7 +91,7 @@ func (vm *VM) Load(file string) error {
 		}
 		vm.Script.EnableFileImport(true)
 	}
-	vm.event(StatusSuccess, "load", true)
+	vm.event(StatusSuccess, TypeLoad, true)
 	return nil
 }
 

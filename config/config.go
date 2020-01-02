@@ -1184,7 +1184,7 @@ func (c *Config) CheckLoggerConfig() error {
 	m.Lock()
 	defer m.Unlock()
 
-	if c.Logging.Enabled || c.Logging.Output == "" {
+	if c.Logging.Enabled == nil || c.Logging.Output == "" {
 		c.Logging = log.GenDefaultSettings()
 	}
 

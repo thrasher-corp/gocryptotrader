@@ -1726,7 +1726,7 @@ func TestCheckLoggerConfig(t *testing.T) {
 		t.Errorf("Failed to create default logger. Error: %s", err)
 	}
 
-	if !c.Logging.Enabled {
+	if !*c.Logging.Enabled {
 		t.Error("unexpected result")
 	}
 

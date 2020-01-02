@@ -1372,18 +1372,9 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 		return nil, err
 	}
 
-	err = gctscript.Validate(fPath)
-	if err != nil {
-		errRemove := os.Remove(fPath)
-		if errRemove != nil {
-			return nil, err
-		}
-		return &gctrpc.GCTScriptGenericResponse{Status: "validation failed", Data: err.Error()}, nil
-	}
-
 	if r.Archived {
-		z, err := zip.OpenReader(fPath)
-		if err != nil {
+		z, errZip := zip.OpenReader(fPath)
+		if errZip != nil {
 			return nil, err
 		}
 
@@ -1433,6 +1424,15 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 		err = os.Remove(fPath)
 		if err != nil {
 			return nil, err
+		}
+	} else {
+		err = gctscript.Validate(fPath)
+		if err != nil {
+			errRemove := os.Remove(fPath)
+			if errRemove != nil {
+				return nil, err
+			}
+			return &gctrpc.GCTScriptGenericResponse{Status: "validation failed", Data: err.Error()}, nil
 		}
 	}
 

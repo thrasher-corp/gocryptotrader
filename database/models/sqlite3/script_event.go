@@ -24,7 +24,7 @@ import (
 // ScriptEvent is an object representing the database table.
 type ScriptEvent struct {
 	ID              int64       `boil:"id" json:"id" toml:"id" yaml:"id"`
-	ScriptID        []byte      `boil:"script_id" json:"script_id" toml:"script_id" yaml:"script_id"`
+	ScriptID        string      `boil:"script_id" json:"script_id" toml:"script_id" yaml:"script_id"`
 	ScriptName      null.String `boil:"script_name" json:"script_name,omitempty" toml:"script_name" yaml:"script_name,omitempty"`
 	ScriptPath      null.String `boil:"script_path" json:"script_path,omitempty" toml:"script_path" yaml:"script_path,omitempty"`
 	ScriptHash      null.String `boil:"script_hash" json:"script_hash,omitempty" toml:"script_hash" yaml:"script_hash,omitempty"`
@@ -58,15 +58,6 @@ var ScriptEventColumns = struct {
 
 // Generated where
 
-type whereHelper__byte struct{ field string }
-
-func (w whereHelper__byte) EQ(x []byte) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.EQ, x) }
-func (w whereHelper__byte) NEQ(x []byte) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.NEQ, x) }
-func (w whereHelper__byte) LT(x []byte) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.LT, x) }
-func (w whereHelper__byte) LTE(x []byte) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.LTE, x) }
-func (w whereHelper__byte) GT(x []byte) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.GT, x) }
-func (w whereHelper__byte) GTE(x []byte) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GTE, x) }
-
 type whereHelpernull_String struct{ field string }
 
 func (w whereHelpernull_String) EQ(x null.String) qm.QueryMod {
@@ -92,7 +83,7 @@ func (w whereHelpernull_String) GTE(x null.String) qm.QueryMod {
 
 var ScriptEventWhere = struct {
 	ID              whereHelperint64
-	ScriptID        whereHelper__byte
+	ScriptID        whereHelperstring
 	ScriptName      whereHelpernull_String
 	ScriptPath      whereHelpernull_String
 	ScriptHash      whereHelpernull_String
@@ -101,7 +92,7 @@ var ScriptEventWhere = struct {
 	ExecutionStatus whereHelperstring
 }{
 	ID:              whereHelperint64{field: "\"script_event\".\"id\""},
-	ScriptID:        whereHelper__byte{field: "\"script_event\".\"script_id\""},
+	ScriptID:        whereHelperstring{field: "\"script_event\".\"script_id\""},
 	ScriptName:      whereHelpernull_String{field: "\"script_event\".\"script_name\""},
 	ScriptPath:      whereHelpernull_String{field: "\"script_event\".\"script_path\""},
 	ScriptHash:      whereHelpernull_String{field: "\"script_event\".\"script_hash\""},
