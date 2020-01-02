@@ -47,8 +47,9 @@ func GenDefaultSettings() (log Config) {
 			MaxSize:  0,
 		},
 		AdvancedSettings: advancedSettings{
-			Spacer:          " | ",
-			TimeStampFormat: timestampFormat,
+			ShowLogSystemName: f,
+			Spacer:            " | ",
+			TimeStampFormat:   timestampFormat,
 			Headers: headers{
 				Info:  "[INFO]",
 				Warn:  "[WARN]",
@@ -78,7 +79,7 @@ func configureSubLogger(logger, levels string, output io.Writer) error {
 func SetupSubLoggers(s []SubLoggerConfig) {
 	for x := range s {
 		output := getWriters(&s[x])
-		err := configureSubLogger(s[x].Name, s[x].Level, output)
+		err := configureSubLogger(strings.ToUpper(s[x].Name), s[x].Level, output)
 		if err != nil {
 			continue
 		}
@@ -122,7 +123,7 @@ func splitLevel(level string) (l Levels) {
 
 func registerNewSubLogger(logger string) *subLogger {
 	temp := subLogger{
-		name:   logger,
+		name:   strings.ToUpper(logger),
 		output: os.Stdout,
 	}
 

@@ -155,7 +155,7 @@ func TestCloseLogger(t *testing.T) {
 }
 
 func TestConfigureSubLogger(t *testing.T) {
-	err := configureSubLogger("LOG", "INFO", os.Stdin)
+	err := configureSubLogger("log", "INFO", os.Stdin)
 	if err != nil {
 		t.Skipf("configureSubLogger() returned unexpected error %v", err)
 	}
@@ -164,6 +164,9 @@ func TestConfigureSubLogger(t *testing.T) {
 		Debug: false,
 	}) {
 		t.Error("configureSubLogger() incorrectly configure subLogger")
+	}
+	if Global.name != "LOG" {
+		t.Error("configureSubLogger() Failed to uppercase name")
 	}
 }
 
@@ -252,7 +255,7 @@ func TestInfo(t *testing.T) {
 func TestSubLoggerName(t *testing.T) {
 	SetupTest()
 	w := &bytes.Buffer{}
-
+	registerNewSubLogger("sublogger")
 	logger.newLogEvent("out", "header", "SUBLOGGER", w)
 	if !strings.Contains(w.String(), "SUBLOGGER") {
 		t.Error("Expected SUBLOGGER in output")
