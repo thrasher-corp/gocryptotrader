@@ -262,7 +262,6 @@ func TestSubLoggerName(t *testing.T) {
 	w = &bytes.Buffer{}
 	logger.newLogEvent("out", "header", "SUBLOGGER", w)
 	if strings.Contains(w.String(), "SUBLOGGER") {
-		t.Error("Expected SUBLOGGER in output")
+		t.Error("Unexpected SUBLOGGER in output")
 	}
-
 }
