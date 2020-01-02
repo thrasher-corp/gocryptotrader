@@ -6,8 +6,10 @@ import (
 )
 
 const (
-	timestampFormat = " 02/01/2006 15:04:05 "
-	spacer          = "|"
+	timestampFormat  = " 02/01/2006 15:04:05 "
+	spacer           = "|"
+	headerPadding    = 7
+	subLoggerPadding = 10
 )
 
 var (
@@ -33,7 +35,8 @@ var (
 
 // Config holds configuration settings loaded from bot config
 type Config struct {
-	Enabled *bool `json:"enabled"`
+	Enabled           *bool `json:"enabled"`
+	ShowLogSystemName *bool `json:"showLogSystemName"`
 	SubLoggerConfig
 	LoggerFileConfig *loggerFileConfig `json:"fileSettings,omitempty"`
 	AdvancedSettings advancedSettings  `json:"advancedSettings"`
@@ -68,6 +71,7 @@ type loggerFileConfig struct {
 
 // Logger each instance of logger settings
 type Logger struct {
+	ShowLogSystemName                                bool
 	Timestamp                                        string
 	InfoHeader, ErrorHeader, DebugHeader, WarnHeader string
 	Spacer                                           string
