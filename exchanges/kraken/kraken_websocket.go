@@ -29,8 +29,6 @@ const (
 	krakenWSSupportedVersion = "0.3.0"
 	// WS endpoints
 	krakenWsHeartbeat          = "heartbeat"
-	krakenWsPing               = "ping"
-	krakenWsPong               = "pong"
 	krakenWsSystemStatus       = "systemStatus"
 	krakenWsSubscribe          = "subscribe"
 	krakenWsSubscriptionStatus = "subscriptionStatus"
@@ -45,12 +43,14 @@ const (
 	krakenWsAddOrder           = "addOrder"
 	krakenWsCancelOrder        = "cancelOrder"
 	krakenWsRateLimit          = 50
+	krakenWsPingDelay          = time.Second * 27
 )
 
 // orderbookMutex Ensures if two entries arrive at once, only one can be processed at a time
 var subscriptionChannelPair []WebsocketChannelData
 var comms = make(chan wshandler.WebsocketResponse)
 var authToken string
+var pingRequest = WebsocketBaseEventRequest{Event: wshandler.Ping}
 
 // Channels require a topic and a currency
 // Format [[ticker,but-t4u],[orderbook,nce-btt]]
@@ -84,7 +84,10 @@ func (k *Kraken) WsConnect() error {
 
 	go k.WsReadData(k.WebsocketConn)
 	go k.WsHandleData()
-	go k.wsPingHandler()
+	err = k.wsPingHandler()
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%v - failed setup ping handler. Websocket may disconnect unexpectedly. %v\n", k.Name, err)
+	}
 	k.GenerateDefaultSubscriptions()
 
 	return nil
@@ -148,28 +151,17 @@ func (k *Kraken) WsHandleData() {
 }
 
 // wsPingHandler sends a message "ping" every 27 to maintain the connection to the websocket
-func (k *Kraken) wsPingHandler() {
-	k.Websocket.Wg.Add(1)
-	defer k.Websocket.Wg.Done()
-	ticker := time.NewTicker(time.Second * 27)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-k.Websocket.ShutdownC:
-			return
-		case <-ticker.C:
-			pingEvent := WebsocketBaseEventRequest{Event: krakenWsPing}
-			if k.Verbose {
-				log.Debugf(log.ExchangeSys, "%v sending ping",
-					k.Name)
-			}
-			err := k.WebsocketConn.SendMessage(pingEvent)
-			if err != nil {
-				k.Websocket.DataHandler <- err
-			}
-		}
+func (k *Kraken) wsPingHandler() error {
+	message, err := json.Marshal(pingRequest)
+	if err != nil {
+		return err
 	}
+	k.WebsocketConn.SetupPingHandler(wshandler.WebsocketPingHandler{
+		Message:     message,
+		Delay:       krakenWsPingDelay,
+		MessageType: websocket.TextMessage,
+	})
+	return nil
 }
 
 // WsHandleDataResponse classifies the WS response and sends to appropriate handler
@@ -219,14 +211,11 @@ func (k *Kraken) WsHandleDataResponse(response WebsocketDataResponse) {
 // WsHandleEventResponse classifies the WS response and sends to appropriate handler
 func (k *Kraken) WsHandleEventResponse(response *WebsocketEventResponse, rawResponse []byte) {
 	switch response.Event {
+	case wshandler.Pong:
+		break
 	case krakenWsHeartbeat:
 		if k.Verbose {
 			log.Debugf(log.ExchangeSys, "%v Websocket heartbeat data received",
-				k.Name)
-		}
-	case krakenWsPong:
-		if k.Verbose {
-			log.Debugf(log.ExchangeSys, "%v Websocket pong data received",
 				k.Name)
 		}
 	case krakenWsSystemStatus:
@@ -925,5 +914,5 @@ func (k *Kraken) wsCancelOrders(orderIDs []string) error {
 		Token:          authToken,
 		TransactionIDs: orderIDs,
 	}
-	return k.AuthenticatedWebsocketConn.SendMessage(request)
+	return k.AuthenticatedWebsocketConn.SendJSONMessage(request)
 }
