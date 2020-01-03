@@ -544,7 +544,6 @@ message GCTScriptStopRequest {
 }
 
 message GCTScriptStopAllRequest{}
-
 message GCTScriptStatusRequest {}
 message GCTScriptListAllRequest{}
 
@@ -562,6 +561,11 @@ message GCTScriptReadScriptRequest{
 
 message GCTScriptQueryRequest{
     GCTScript script = 1;
+}
+
+message GCTScriptAutoLoadRequest{
+    string script = 1;
+    bool status = 2;
 }
 
 message GCTScriptStatusResponse{
@@ -945,4 +949,12 @@ service GoCryptoTrader {
             body: "*"
         };
     }
+    rpc GCTScriptAutoLoadToggle(GCTScriptAutoLoadRequest) returns (GCTScriptGenericResponse) {
+        option (google.api.http) = {
+            post: "/v1/gctscript/autoload",
+            body: "*"
+        };
+    }
+
+
 }

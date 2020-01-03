@@ -267,6 +267,32 @@
         ]
       }
     },
+    "/v1/gctscript/autoload": {
+      "post": {
+        "operationId": "GCTScriptAutoLoadToggle",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGCTScriptGenericResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcGCTScriptAutoLoadRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/gctscript/execute": {
       "get": {
         "operationId": "GCTScriptExecute",
@@ -1669,6 +1695,18 @@
         },
         "next_run": {
           "type": "string"
+        }
+      }
+    },
+    "gctrpcGCTScriptAutoLoadRequest": {
+      "type": "object",
+      "properties": {
+        "script": {
+          "type": "string"
+        },
+        "status": {
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },

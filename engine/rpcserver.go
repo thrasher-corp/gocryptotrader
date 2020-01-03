@@ -1511,3 +1511,24 @@ func (s *RPCServer) GCTScriptStopAll(context.Context, *gctrpc.GCTScriptStopAllRe
 		Data:   "all running scripts have been stopped",
 	}, nil
 }
+
+// GCTScriptAutoLoadToggle adds or removes an entry to the autoload list
+func (s *RPCServer) GCTScriptAutoLoadToggle(ctx context.Context, r *gctrpc.GCTScriptAutoLoadRequest) (*gctrpc.GCTScriptGenericResponse, error) {
+	if !gctscript.GCTScriptConfig.Enabled {
+		return &gctrpc.GCTScriptGenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
+	}
+
+	if r.Status {
+		err := gctscript.Autoload(r.Script, true)
+		if err != nil {
+			return &gctrpc.GCTScriptGenericResponse{Status: "error", Data: err.Error()}, nil
+		}
+		return &gctrpc.GCTScriptGenericResponse{Status: "success", Data: "script " + r.Script + " removed from autoload list"}, nil
+	}
+
+	err := gctscript.Autoload(r.Script, false)
+	if err != nil {
+		return &gctrpc.GCTScriptGenericResponse{Status: "error", Data: err.Error()}, nil
+	}
+	return &gctrpc.GCTScriptGenericResponse{Status: "success", Data: "script " + r.Script + " added to autoload list"}, nil
+}

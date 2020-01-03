@@ -2944,7 +2944,7 @@ var gctScriptCommand = cli.Command{
 		},
 		{
 			Name:  "query",
-			Usage: "<uuid>",
+			Usage: "query running virtual machine",
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:        "uuid",
@@ -3013,7 +3013,73 @@ var gctScriptCommand = cli.Command{
 			},
 			Action: gctScriptUpload,
 		},
+		{
+			Name:  "autoload",
+			Usage: "add or remove script from autoload list",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "command",
+					Usage: "<add/remove>",
+				},
+				cli.StringFlag{
+					Name:  "script",
+					Usage: "<script name>",
+				},
+			},
+			Action: gctScriptAutoload,
+		},
 	},
+}
+
+func gctScriptAutoload(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		_ = cli.ShowSubcommandHelp(c)
+		return nil
+	}
+
+	var command, script string
+	var status bool
+	if !c.IsSet("command") {
+		if c.Args().Get(0) != "" {
+			command = c.Args().Get(0)
+		}
+	}
+
+	if !c.IsSet("script") {
+		if c.Args().Get(1) != "" {
+			script = c.Args().Get(1)
+		}
+	}
+
+	switch command {
+	case "add":
+		status = false
+	case "remove":
+		status = true
+	default:
+		_ = cli.ShowSubcommandHelp(c)
+		return nil
+	}
+	
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	executeCommand, err := client.GCTScriptAutoLoadToggle(context.Background(),
+		&gctrpc.GCTScriptAutoLoadRequest{
+			Script: script,
+			Status: status,
+		})
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(executeCommand)
+	return nil
 }
 
 func gctScriptExecute(c *cli.Context) error {
