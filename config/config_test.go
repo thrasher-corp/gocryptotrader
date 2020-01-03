@@ -1732,6 +1732,7 @@ func TestCheckLoggerConfig(t *testing.T) {
 	c.Logging.LoggerFileConfig.FileName = ""
 	c.Logging.LoggerFileConfig.Rotate = nil
 	c.Logging.LoggerFileConfig.MaxSize = -1
+	c.Logging.AdvancedSettings.ShowLogSystemName = nil
 
 	err = c.CheckLoggerConfig()
 	if err != nil {
@@ -1740,11 +1741,16 @@ func TestCheckLoggerConfig(t *testing.T) {
 
 	if c.Logging.LoggerFileConfig.FileName != "log.txt" ||
 		c.Logging.LoggerFileConfig.Rotate == nil ||
-		c.Logging.LoggerFileConfig.MaxSize != 100 {
+		c.Logging.LoggerFileConfig.MaxSize != 100 ||
+		c.Logging.AdvancedSettings.ShowLogSystemName == nil ||
+		*c.Logging.AdvancedSettings.ShowLogSystemName {
 		t.Error("unexpected result")
 	}
 
-	c.LoadConfig(TestFile, true)
+	err = c.LoadConfig(TestFile, true)
+	if err != nil {
+		t.Errorf("Failed to load config: %v", err)
+	}
 	err = c.CheckLoggerConfig()
 	if err != nil {
 		t.Errorf("Failed to create logger with user settings: reason: %v", err)
