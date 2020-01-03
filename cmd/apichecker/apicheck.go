@@ -12,7 +12,10 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 
@@ -41,33 +44,38 @@ const (
 	pathLakeBTC       = "https://www.lakebtc.com/s/api_v2"
 	pathKraken        = "https://www.kraken.com/features/api"
 	pathAlphaPoint    = "https://alphapoint.github.io/slate/#introduction"
+	pathYobit         = "https://www.yobit.net/en/api/"
+	pathLocalBitcoins = "https://localbitcoins.com/api-docs/"
 	pathGetAllLists   = "https://api.trello.com/1/boards/%s/lists?cards=none&card_fields=all&filter=open&fields=all&key=%s&token=%s"
 	pathNewCard       = "https://api.trello.com/1/cards?%s&key=%s&token=%s"
 	pathChecklists    = "https://api.trello.com/1/checklists/%s/checkItems?%s&key=%s&token=%s"
-	apiKey            = ""
-	apiToken          = ""
-	updateChecklistID = "5dfc5a5377835d0ba025787a"
 )
 
-var verbose bool
+var (
+	verbose                             bool
+	apiKey, apiToken, updateChecklistID string
+)
 
 func main() {
+	flag.StringVar(&apiKey, "key", "", "its an API Key for trello")
+	flag.StringVar(&apiToken, "token", "", "its an API Token for trello")
+	flag.StringVar(&updateChecklistID, "checklistid", "5dfc5a5377835d0ba025787a", "checklist id for trello")
 	flag.BoolVar(&verbose, "verbose", false, "Increases logging verbosity for API Update Checker")
 	flag.Parse()
-	updates, err := CheckUpdates(jsonFile)
+	err := CheckUpdates(jsonFile)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println(updates)
 }
 
 // getSha gets the sha of the latest commit
 func getSha(repoPath string) (ShaResponse, error) {
 	var resp ShaResponse
+	path := fmt.Sprintf(githubPath, repoPath)
 	if verbose {
-		log.Println(githubPath + repoPath)
+		log.Println(path)
 	}
-	return resp, common.SendHTTPGetRequest(githubPath+repoPath, true, false, &resp)
+	return resp, common.SendHTTPGetRequest(path, true, false, &resp)
 }
 
 // CheckExistingExchanges checks if the given exchange exists
@@ -84,6 +92,27 @@ func CheckExistingExchanges(fileName, exchName string) ([]ExchangeInfo, bool, er
 		}
 	}
 	return data, resp, nil
+}
+
+// CheckMissingExchanges checks if any supported exchanges are missing api checker functionality
+func CheckMissingExchanges(fileName string) ([]string, error) {
+	data, err := ReadFileData(fileName)
+	if err != nil {
+		return nil, err
+	}
+	var tempArray []string
+	for x := range data {
+		tempArray = append(tempArray, data[x].Name)
+	}
+	supportedExchs := exchange.Exchanges
+	for z := 0; z < len(supportedExchs); {
+		if common.StringDataContainsInsensitive(tempArray, supportedExchs[z]) {
+			supportedExchs = append(supportedExchs[:z], supportedExchs[z+1:]...)
+			continue
+		}
+		z++
+	}
+	return supportedExchs, nil
 }
 
 // ReadFileData reads the file data for the json file
@@ -106,45 +135,55 @@ func ReadFileData(fileName string) ([]ExchangeInfo, error) {
 }
 
 // CheckUpdates checks updates.json for all the existing exchanges
-func CheckUpdates(fileName string) ([]string, error) {
+func CheckUpdates(fileName string) error {
 	var resp []string
 	data, err := ReadFileData(fileName)
 	if err != nil {
-		return resp, err
+		return err
 	}
+	errMap := make(map[string]error)
+	var wg sync.WaitGroup
 	for x := range data {
-		switch data[x].CheckType {
-		case github:
-			sha, err := getSha(data[x].Data.GitHubData.Repo)
-			if err != nil {
-				log.Println(err)
+		wg.Add(1)
+		go func(x int) {
+			defer wg.Done()
+			switch data[x].CheckType {
+			case github:
+				sha, err := getSha(data[x].Data.GitHubData.Repo)
+				if err != nil {
+					errMap[data[x].Name] = err
+				}
+				if sha.ShaResp != data[x].Data.GitHubData.Sha {
+					data[x].Data.GitHubData.Sha = sha.ShaResp
+				}
+			case htmlScrape:
+				checkStr, err := CheckChangeLog(*data[x].Data.HTMLData)
+				if err != nil {
+					errMap[data[x].Name] = err
+				}
+				if checkStr != data[x].Data.HTMLData.CheckString {
+					resp = append(resp, data[x].Name)
+					data[x].Data.HTMLData.CheckString = checkStr
+				}
 			}
-			if sha.ShaResp != data[x].Data.GitHubData.Sha {
-				data[x].Data.GitHubData.Sha = sha.ShaResp
-				continue
-			}
-		case htmlScrape:
-			checkStr, err := CheckChangeLog(*data[x].Data.HTMLData)
-			if err != nil {
-				log.Println(err)
-			}
-			if checkStr == data[x].Data.HTMLData.CheckString {
-				continue
-			}
-			resp = append(resp, data[x].Name)
-			data[x].Data.HTMLData.CheckString = checkStr
-		}
+		}(x)
 	}
+	wg.Wait()
 	file, err := json.MarshalIndent(data, "", " ")
 	if err != nil {
-		return resp, err
+		return err
 	}
-	return resp, ioutil.WriteFile(fileName, file, 0770)
+	log.Println(errMap)
+	log.Printf("Following are the exchanges that require updates: %v\n", resp)
+	unsup, err := CheckMissingExchanges(jsonFile)
+	log.Printf("Following are the exchanges that are supported by GCT but not by apichecker: %v", unsup)
+	return ioutil.WriteFile(fileName, file, 0770)
 }
 
 // CheckChangeLog checks the exchanges which support changelog updates.json
 func CheckChangeLog(htmlData HTMLScrapingData) (string, error) {
 	var dataStrings []string
+	var dataString string
 	var err error
 	switch htmlData.Path {
 	case pathBTSE:
@@ -228,6 +267,17 @@ func CheckChangeLog(htmlData HTMLScrapingData) (string, error) {
 			return "", err
 		}
 		return dataStrings[0], nil
+	case pathYobit:
+		dataStrings, err = HTMLScrapeYobit(htmlData)
+		if err != nil {
+			return "", err
+		}
+	case pathLocalBitcoins:
+		dataString, err = HTMLScrapeLocalBitcoins(htmlData)
+		if err != nil {
+			return "", err
+		}
+		return dataString, nil
 	default:
 		dataStrings, err = HTMLScrapeDefault(htmlData)
 		if err != nil {
@@ -1058,6 +1108,89 @@ loop:
 	return resp, nil
 }
 
+// HTMLScrapeYobit gets the check string for Yobit Exchange
+func HTMLScrapeYobit(htmlData HTMLScrapingData) ([]string, error) {
+	var resp []string
+	temp, err := http.Get(htmlData.Path)
+	if err != nil {
+		return resp, err
+	}
+	tokenizer := html.NewTokenizer(temp.Body)
+	var case1, case2, case3 bool
+loop:
+	for {
+		next := tokenizer.Next()
+		switch next {
+		case html.ErrorToken:
+			break loop
+		case html.StartTagToken:
+			token := tokenizer.Token()
+			if token.Data == htmlData.TokenData {
+				for _, x := range token.Attr {
+					if x.Key == htmlData.Key {
+						switch x.Val {
+						case "n4":
+							inner := tokenizer.Next()
+							switch inner {
+							case html.TextToken:
+								if string(tokenizer.Text()) == "v2" {
+									case1 = true
+								}
+							}
+						case "n5":
+							inner := tokenizer.Next()
+							switch inner {
+							case html.TextToken:
+								tempStr := string(tokenizer.Text())
+								if tempStr == "v3" {
+									case2 = true
+									resp = append(resp, tempStr)
+								}
+							}
+						case "n6":
+							inner := tokenizer.Next()
+							switch inner {
+							case html.TextToken:
+								tempStr := string(tokenizer.Text())
+								if tempStr != "v4" {
+									case3 = true
+								}
+								if case1 && case2 && case3 {
+									return resp, nil
+								}
+								resp = append(resp, tempStr)
+							}
+						}
+					}
+				}
+			}
+		default:
+			continue
+		}
+	}
+	return resp, nil
+}
+
+// HTMLScrapeLocalBitcoins gets the check string for Yobit Exchange
+func HTMLScrapeLocalBitcoins(htmlData HTMLScrapingData) (string, error) {
+	temp, err := http.Get(htmlData.Path)
+	if err != nil {
+		return "", err
+	}
+	a, err := ioutil.ReadAll(temp.Body)
+	if err != nil {
+		return "", err
+	}
+	abody := string(a)
+	r, err := regexp.Compile(htmlData.RegExp)
+	if err != nil {
+		return "", err
+	}
+	str := r.FindString(abody)
+	sha := crypto.GetSHA256([]byte(str))
+	return crypto.HexEncodeToString(sha), nil
+}
+
 // GetListsData gets required data for all the lists on the given board
 func GetListsData(idBoard string) ([]ListData, error) {
 	var resp []ListData
@@ -1125,11 +1258,4 @@ func Update(currentName string, info []ExchangeInfo, updatedInfo ExchangeInfo) (
 		}
 	}
 	return info, nil
-}
-
-// Exchanges prints exchanges
-func Exchanges() []string {
-	temp := exchange.Exchanges
-	log.Println(temp)
-	return temp
 }

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+	"sync"
 	"testing"
 )
 
@@ -28,21 +30,18 @@ func TestCheckChangeLog(t *testing.T) {
 
 func TestAdd(t *testing.T) {
 	data := HTMLScrapingData{TokenData: "div",
-		Key:           "id",
-		Val:           "applicationHeaderContainer",
-		TokenDataEnd:  "script",
-		TextTokenData: "",
-		DateFormat:    "",
-		RegExp:        `ANX Exchange API v\d{1}`,
-		Path:          "https://anxv3.docs.apiary.io/#reference/quickstart-catalog"}
-	err := Add("AlphaPoint", htmlScrape, data.Path, data, false)
+		Key:    "class",
+		Val:    "col-md-12",
+		RegExp: `col-md-12([\s\S]*?)clearfix`,
+		Path:   "https://localbitcoins.com/api-docs/"}
+	err := Add("LocalBitcoins", htmlScrape, data.Path, data, false)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestCheckUpdates(t *testing.T) {
-	_, err := CheckUpdates(jsonFile)
+	err := CheckUpdates(jsonFile)
 	if err != nil {
 		t.Error(err)
 	}
@@ -258,6 +257,32 @@ func TestHTMLAlphaPoint(t *testing.T) {
 	}
 }
 
+func TestHTMLYobit(t *testing.T) {
+	data := HTMLScrapingData{TokenData: "h2",
+		Key:  "id",
+		Path: "https://www.yobit.net/en/api/"}
+	a, err := HTMLScrapeYobit(data)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestHTMLLocalBitcoins(t *testing.T) {
+	data := HTMLScrapingData{TokenData: "div",
+		Key:           "class",
+		Val:           "col-md-12",
+		TokenDataEnd:  "",
+		TextTokenData: "",
+		DateFormat:    "",
+		RegExp:        `col-md-12([\s\S]*?)clearfix`,
+		Path:          "https://localbitcoins.com/api-docs/"}
+	_, err := HTMLScrapeLocalBitcoins(data)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetListsData(t *testing.T) {
 	_, err := GetListsData("5bd11e6998c8507ebbbec4fa")
 	if err != nil {
@@ -301,7 +326,22 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
-func TestExchanges(t *testing.T) {
-	a := Exchanges()
+func TestCheckMissingExchanges(t *testing.T) {
+	a, err := CheckMissingExchanges(jsonFile)
 	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSomething(t *testing.T) {
+	var wg sync.WaitGroup
+	for i := 0; i < 1000; i++ {
+		wg.Add(1)
+		go func(i int) {
+			log.Printf("HelloWorld %d", i)
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
 }

@@ -14,7 +14,8 @@
     "CheckString": "2019/11/18",
     "Path": "https://docs.gemini.com/rest-api/#revision-history"
    }
-  }
+  },
+  "Err": null
  },
  {
   "Name": "Huobi",
@@ -28,13 +29,14 @@
     "TextTokenData": "td",
     "DateFormat": "2006.01.02 15:04",
     "RegExp": "^20(\\d){2}.(\\d){2}.(\\d){2} (\\d){2}:(\\d){2}$",
-    "CheckString": "2019.12.05 11:00",
+    "CheckString": "2019.12.27 19:00",
     "Path": "https://huobiapi.github.io/docs/spot/v1/en/#change-log"
    }
-  }
+  },
+  "Err": null
  },
  {
-  "Name": "Coinbase",
+  "Name": "Coinbasepro",
   "CheckType": "HTML String Check",
   "Data": {
    "HTMLData": {
@@ -48,90 +50,91 @@
     "CheckString": "12/16/19",
     "Path": "https://docs.pro.coinbase.com/#changelog"
    }
-  }
+  },
+  "Err": null
  },
  {
   "Name": "Binance",
   "CheckType": "GitHub Sha Check",
   "Data": {
    "GitHubData": {
-    "Repo": "binance-exchange/binance-official-api-docs",
-    "Sha": "b5d8ac6c1bb6c9f8e2b40261cbfd4b87d2f62295"
+    "Repo": "binance-exchange/binance-official-api-docs"
    }
-  }
+  },
+  "Err": null
  },
  {
-  "Name": "Bitthumb",
+  "Name": "Bithumb",
   "CheckType": "GitHub Sha Check",
   "Data": {
    "GitHubData": {
-    "Repo": "bithumb-pro/bithumb.pro-official-api-docs",
-    "Sha": "72a27532b15fedf8642347e778d5c840c9993312"
+    "Repo": "bithumb-pro/bithumb.pro-official-api-docs"
    }
-  }
+  },
+  "Err": null
  },
  {
   "Name": "Bittrex",
   "CheckType": "GitHub Sha Check",
   "Data": {
    "GitHubData": {
-    "Repo": "Bittrex/bittrex.github.io",
-    "Sha": "fc749a8e4b70f84c5a2b56ac7b0583c2b6fdc97b"
+    "Repo": "Bittrex/bittrex.github.io"
    }
-  }
+  },
+  "Err": null
  },
  {
   "Name": "CoinbeneSpot",
   "CheckType": "GitHub Sha Check",
   "Data": {
    "GitHubData": {
-    "Repo": "Coinbene/API-SPOT-v2-Documents",
-    "Sha": "4f1e522d237cfb8bdab8104f7f1ad6d1d73f5de0"
+    "Repo": "Coinbene/API-SPOT-v2-Documents"
    }
-  }
+  },
+  "Err": null
  },
  {
   "Name": "CoinbeneSwap",
   "CheckType": "GitHub Sha Check",
   "Data": {
    "GitHubData": {
-    "Repo": "Coinbene/API-SWAP-Documents",
-    "Sha": "9f8aced70464f2953542c6f5d07470ae10b925b3"
+    "Repo": "Coinbene/API-SWAP-Documents"
    }
-  }
+  },
+  "Err": null
  },
  {
-  "Name": "Coinnut",
+  "Name": "Coinut",
   "CheckType": "GitHub Sha Check",
   "Data": {
    "GitHubData": {
-    "Repo": "coinut/api",
-    "Sha": "6936dab4d2beba3c8245a603aebf3f545ebcf3f9"
+    "Repo": "coinut/api"
    }
-  }
+  },
+  "Err": null
  },
  {
   "Name": "Gateio",
   "CheckType": "GitHub Sha Check",
   "Data": {
    "GitHubData": {
-    "Repo": "gateio/gateapi-go",
-    "Sha": "483f139f856055c290df5904cf0e53dfd4c350f2"
+    "Repo": "gateio/gateapi-go"
    }
-  }
+  },
+  "Err": null
  },
  {
   "Name": "Lbank",
   "CheckType": "GitHub Sha Check",
   "Data": {
    "GitHubData": {
-    "Repo": "LBank-exchange/lbank-official-api-docs",
-    "Sha": "85e7bb83f03d4239c3aad26cabb997a1a2bbb3d1"
+    "Repo": "LBank-exchange/lbank-official-api-docs"
    }
-  }
+  },
+  "Err": null
  },
  {
-  "Name": "OkCoin",
+  "Name": "OkCoin International",
   "CheckType": "HTML String Check",
   "Data": {
    "HTMLData": {
@@ -145,7 +148,8 @@
     "CheckString": "2019-04-28",
     "Path": "https://www.okcoin.com/docs/en/#change-change"
    }
-  }
+  },
+  "Err": null
  },
  {
   "Name": "Okex",
@@ -162,7 +166,8 @@
     "CheckString": "2019-04-28",
     "Path": "https://www.okex.com/docs/en/#change-change"
    }
-  }
+  },
+  "Err": null
  },
  {
   "Name": "BTSE",
@@ -178,7 +183,8 @@
     "CheckString": "BTSE Spot API v2.2",
     "Path": "https://www.btse.com/apiexplorer/spot/#btse-spot-api"
    }
-  }
+  },
+  "Err": null
  },
  {
   "Name": "Bitfinex",
@@ -194,7 +200,8 @@
     "CheckString": "2019-08-19",
     "Path": "https://docs.bitfinex.com/docs/changelog"
    }
-  }
+  },
+  "Err": null
  },
  {
   "Name": "ANX",
@@ -205,7 +212,8 @@
     "CheckString": "ANX Exchange API v3",
     "Path": "https://anxv3.docs.apiary.io/"
    }
-  }
+  },
+  "Err": null
  },
  {
   "Name": "Poloniex",
@@ -219,10 +227,11 @@
     "TextTokenData": "h2",
     "DateFormat": "2006-01-02",
     "RegExp": "(2\\d{3}-\\d{1,2}-\\d{1,2})",
-    "CheckString": "2019-11-19",
+    "CheckString": "2019-12-30",
     "Path": "https://docs.poloniex.com/#changelog"
    }
-  }
+  },
+  "Err": null
  },
  {
   "Name": "ItBit",
@@ -235,7 +244,8 @@
     "CheckString": "https://api.itbit.com/v1/",
     "Path": "https://api.itbit.com/docs"
    }
-  }
+  },
+  "Err": null
  },
  {
   "Name": "Bitmex",
@@ -249,7 +259,8 @@
     "CheckString": "Dec-16-2019",
     "Path": "https://www.bitmex.com/static/md/en-US/apiChangelog"
    }
-  }
+  },
+  "Err": null
  },
  {
   "Name": "HitBTC",
@@ -265,18 +276,20 @@
     "CheckString": "newest version 2.0",
     "Path": "https://api.hitbtc.com/"
    }
-  }
+  },
+  "Err": null
  },
  {
-  "Name": "BTCMarkets",
+  "Name": "BTC Markets",
   "CheckType": "HTML String Check",
   "Data": {
    "HTMLData": {
-    "RegExp": "^version: \\d{1}.\\d{1}.\\d{1}\\n",
-    "CheckString": "version: 3.0.0\n",
+    "RegExp": "^version: \\d{1}.\\d{1}.\\d{1}",
+    "CheckString": "version: 3.0.0",
     "Path": "https://api.btcmarkets.net/openapi/info/index.yaml"
    }
-  }
+  },
+  "Err": null
  },
  {
   "Name": "Bitflyer",
@@ -290,7 +303,8 @@
     "CheckString": "https://api.bitflyer.com/v1/",
     "Path": "https://lightning.bitflyer.com/docs?lang=en"
    }
-  }
+  },
+  "Err": null
  },
  {
   "Name": "LakeBTC",
@@ -306,7 +320,8 @@
     "CheckString": "APIv2",
     "Path": "https://www.lakebtc.com/s/api_v2"
    }
-  }
+  },
+  "Err": null
  },
  {
   "Name": "Exmo",
@@ -319,10 +334,11 @@
     "TokenDataEnd": "p",
     "TextTokenData": "p",
     "RegExp": "Last updated on {a",
-    "CheckString": "Last updated on March, 1th, 2019",
+    "CheckString": "Last updated on December, 16th, 2019",
     "Path": "https://exmo.com/en/api/"
    }
-  }
+  },
+  "Err": null
  },
  {
   "Name": "Kraken",
@@ -336,7 +352,8 @@
     "CheckString": "URL: https://api.kraken.com/0/private/Balance",
     "Path": "https://www.kraken.com/features/api"
    }
-  }
+  },
+  "Err": null
  },
  {
   "Name": "Bitstamp",
@@ -352,7 +369,8 @@
     "CheckString": "refer to the v2 API for future references.",
     "Path": "https://www.bitstamp.net/api/"
    }
-  }
+  },
+  "Err": null
  },
  {
   "Name": "AlphaPoint",
@@ -368,6 +386,35 @@
     "CheckString": "revised-calls-3-3-2-gt-3-3-3",
     "Path": "https://alphapoint.github.io/slate/#introduction"
    }
-  }
+  },
+  "Err": null
+ },
+ {
+  "Name": "Yobit",
+  "CheckType": "HTML String Check",
+  "Data": {
+   "HTMLData": {
+    "TokenData": "h2",
+    "Key": "id",
+    "CheckString": "v3",
+    "Path": "https://www.yobit.net/en/api/"
+   }
+  },
+  "Err": null
+ },
+ {
+  "Name": "LocalBitcoins",
+  "CheckType": "HTML String Check",
+  "Data": {
+   "HTMLData": {
+    "TokenData": "div",
+    "Key": "class",
+    "Val": "col-md-12",
+    "RegExp": "col-md-12([\\s\\S]*?)clearfix",
+    "CheckString": "d60e4f097b9d933a377d6be92d1e634dc2e2952375e9a5e7103cbd5885641953",
+    "Path": "https://localbitcoins.com/api-docs/"
+   }
+  },
+  "Err": null
  }
 ]
