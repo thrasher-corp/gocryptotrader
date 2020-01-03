@@ -112,10 +112,10 @@ func TestExchangeAddressExists(t *testing.T) {
 
 func TestAddExchangeAddress(t *testing.T) {
 	newbase := Base{}
-	newbase.AddExchangeAddress("ANX", currency.BTC, 100)
-	newbase.AddExchangeAddress("ANX", currency.BTC, 200)
+	newbase.AddExchangeAddress("OKEX", currency.BTC, 100)
+	newbase.AddExchangeAddress("OKEX", currency.BTC, 200)
 
-	if !newbase.ExchangeAddressExists("ANX", currency.BTC) {
+	if !newbase.ExchangeAddressExists("OKEX", currency.BTC) {
 		t.Error("TestExchangeAddressExists address doesn't exist")
 	}
 }
@@ -305,12 +305,12 @@ func TestUpdatePortfolio(t *testing.T) {
 
 func TestGetPortfolioByExchange(t *testing.T) {
 	newbase := Base{}
-	newbase.AddExchangeAddress("ANX", currency.LTC, 0.07)
+	newbase.AddExchangeAddress("OKEX", currency.LTC, 0.07)
 	newbase.AddExchangeAddress("Bitfinex", currency.LTC, 0.05)
 	newbase.AddAddress("someaddress", "LTC", currency.NewCode(PortfolioAddressPersonal), 0.03)
 	portfolio := GetPortfolio()
 	portfolio.Seed(newbase)
-	value := portfolio.GetPortfolioByExchange("ANX")
+	value := portfolio.GetPortfolioByExchange("OKEX")
 	result, ok := value[currency.LTC]
 	if !ok {
 		t.Error("portfolio_test.go - GetPortfolioByExchange error")
@@ -333,7 +333,7 @@ func TestGetPortfolioByExchange(t *testing.T) {
 
 func TestGetExchangePortfolio(t *testing.T) {
 	newbase := Base{}
-	newbase.AddAddress("ANX", PortfolioAddressExchange, currency.LTC, 0.03)
+	newbase.AddAddress("OKEX", PortfolioAddressExchange, currency.LTC, 0.03)
 	newbase.AddAddress("Bitfinex", PortfolioAddressExchange, currency.LTC, 0.05)
 	newbase.AddAddress("someaddress", PortfolioAddressPersonal, currency.LTC, 0.03)
 	portfolio := GetPortfolio()
@@ -382,7 +382,7 @@ func TestGetPortfolioSummary(t *testing.T) {
 	// Exchange holdings
 	newbase.AddExchangeAddress("Bitfinex", currency.LTC, 20)
 	newbase.AddExchangeAddress("Bitfinex", currency.BTC, 100)
-	newbase.AddExchangeAddress("ANX", currency.ETH, 42)
+	newbase.AddExchangeAddress("OKEX", currency.ETH, 42)
 
 	portfolio := GetPortfolio()
 	portfolio.Seed(newbase)

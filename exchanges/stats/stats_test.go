@@ -7,11 +7,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+const (
+	testExchange = "OKEX"
+)
+
 func TestLenByPrice(t *testing.T) {
 	p := currency.NewPairFromStrings("BTC", "USD")
 	Items = []Item{
 		{
-			Exchange:  "ANX",
+			Exchange:  testExchange,
 			Pair:      p,
 			AssetType: asset.Spot,
 			Price:     1200,
@@ -104,7 +108,7 @@ func TestSwapByVolume(t *testing.T) {
 func TestAdd(t *testing.T) {
 	Items = Items[:0]
 	p := currency.NewPairFromStrings("BTC", "USD")
-	Add("ANX", p, asset.Spot, 1200, 42)
+	Add(testExchange, p, asset.Spot, 1200, 42)
 
 	if len(Items) < 1 {
 		t.Error("stats Add did not add exchange info.")
@@ -117,14 +121,14 @@ func TestAdd(t *testing.T) {
 	}
 
 	p.Base = currency.XBT
-	Add("ANX", p, asset.Spot, 1201, 43)
+	Add(testExchange, p, asset.Spot, 1201, 43)
 
 	if Items[1].Pair.String() != "XBTUSD" {
 		t.Fatal("stats Add did not add exchange info.")
 	}
 
 	p = currency.NewPairFromStrings("ETH", "USDT")
-	Add("ANX", p, asset.Spot, 300, 1000)
+	Add(testExchange, p, asset.Spot, 300, 1000)
 
 	if Items[2].Pair.String() != "ETHUSD" {
 		t.Fatal("stats Add did not add exchange info.")
@@ -146,7 +150,7 @@ func TestAppend(t *testing.T) {
 
 func TestAlreadyExists(t *testing.T) {
 	p := currency.NewPairFromStrings("BTC", "USD")
-	if !AlreadyExists("ANX", p, asset.Spot, 1200, 42) {
+	if !AlreadyExists(testExchange, p, asset.Spot, 1200, 42) {
 		t.Error("stats AlreadyExists exchange does not exist.")
 	}
 	p.Base = currency.NewCode("dii")
@@ -163,7 +167,7 @@ func TestSortExchangesByVolume(t *testing.T) {
 	}
 
 	topVolume = SortExchangesByVolume(p, asset.Spot, false)
-	if topVolume[0].Exchange != "ANX" {
+	if topVolume[0].Exchange != testExchange {
 		t.Error("stats SortExchangesByVolume incorrectly sorted values.")
 	}
 }
@@ -176,7 +180,7 @@ func TestSortExchangesByPrice(t *testing.T) {
 	}
 
 	topPrice = SortExchangesByPrice(p, asset.Spot, false)
-	if topPrice[0].Exchange != "ANX" {
+	if topPrice[0].Exchange != testExchange {
 		t.Error("stats SortExchangesByPrice incorrectly sorted values.")
 	}
 }

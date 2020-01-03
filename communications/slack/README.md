@@ -30,8 +30,6 @@ app and share different types of data
 
 + Basic communication to your slack channel information includes:
   - Working status of bot
-  - Recent ANX ticker
-  - Current ANX orderbook
 
 ### How to enable
 
@@ -67,9 +65,6 @@ via Slack:
 !status 		- Displays current working status of bot
 !help 			- Displays help text
 !settings		- Displays current settings
-!ticker			- Displays recent ANX ticker
-!portfolio	- Displays portfolio data
-!orderbook	- Displays current ANX orderbook
 ```
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package

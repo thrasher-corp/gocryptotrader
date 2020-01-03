@@ -30,8 +30,6 @@ developed by Telegram Messenger LLP
 
 + Creation of bot that can retrieve
   - Bot status
-  - ANX orderbook
-  - ANX ticker
 
   ### How to enable
 
@@ -67,9 +65,6 @@ via Telegram:
 /status 		- Displays the status of the bot
 /help 			- Displays current command list
 /settings 	- Displays current bot settings
-/ticker 		- Displays current ANX ticker data
-/portfolio	- Displays your current portfolio
-/orderbooks - Displays current orderbooks for ANX`
 ```
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
