@@ -76,7 +76,7 @@ have multiple deposit accounts for different FIAT deposit currencies.
 ```js
 "Exchanges": [
  {
-  "Name": "OKEX",
+  "Name": "Bitfinex",
   "Enabled": true,
   "Verbose": false,
   "Websocket": false,
