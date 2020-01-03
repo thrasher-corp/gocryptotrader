@@ -121,7 +121,7 @@ func (c *Config) CheckClientBankAccounts() {
 				SWIFTCode:           "91272837",
 				IBAN:                "98218738671897",
 				SupportedCurrencies: "USD",
-				SupportedExchanges:  "ANX,Kraken",
+				SupportedExchanges:  "Kraken,Bitstamp",
 			},
 		)
 		return
