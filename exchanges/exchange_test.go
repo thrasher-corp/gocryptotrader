@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	defaultTestExchange     = "ANX"
+	defaultTestExchange     = "Bitfinex"
 	defaultTestCurrencyPair = "BTC-USD"
 )
 
@@ -1175,13 +1175,13 @@ func TestUpdatePairs(t *testing.T) {
 		t.Fatal("TestUpdatePairs failed to load config")
 	}
 
-	anxCfg, err := cfg.GetExchangeConfig(defaultTestExchange)
+	exchCfg, err := cfg.GetExchangeConfig(defaultTestExchange)
 	if err != nil {
 		t.Fatal("TestUpdatePairs failed to load config")
 	}
 
 	UAC := Base{Name: defaultTestExchange}
-	UAC.Config = anxCfg
+	UAC.Config = exchCfg
 	exchangeProducts := currency.NewPairsFromStrings([]string{"ltc", "btc", "usd", "aud", ""})
 	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, true, false)
 	if err != nil {

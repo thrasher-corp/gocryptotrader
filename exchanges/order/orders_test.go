@@ -5,7 +5,7 @@ import (
 )
 
 func TestNewOrder(t *testing.T) {
-	ID := NewOrder("ANX", 2000, 20.00)
+	ID := NewOrder("OKEX", 2000, 20.00)
 	if ID != 0 {
 		t.Error("Orders_test.go NewOrder() - Error")
 	}
@@ -25,7 +25,7 @@ func TestDeleteOrder(t *testing.T) {
 }
 
 func TestGetOrdersByExchange(t *testing.T) {
-	if value := GetOrdersByExchange("ANX"); len(value) != 0 {
+	if value := GetOrdersByExchange("OKEX"); len(value) != 0 {
 		t.Error("Orders_test.go GetOrdersByExchange() - Error")
 	}
 }

@@ -14,7 +14,6 @@ func IsSupported(exchangeName string) bool {
 
 // Exchanges stores a list of supported exchanges
 var Exchanges = []string{
-	"anx",
 	"binance",
 	"bitfinex",
 	"bitflyer",

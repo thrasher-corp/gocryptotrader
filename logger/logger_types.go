@@ -45,9 +45,10 @@ type Config struct {
 }
 
 type advancedSettings struct {
-	Spacer          string  `json:"spacer"`
-	TimeStampFormat string  `json:"timeStampFormat"`
-	Headers         headers `json:"headers"`
+	ShowLogSystemName *bool   `json:"showLogSystemName"`
+	Spacer            string  `json:"spacer"`
+	TimeStampFormat   string  `json:"timeStampFormat"`
+	Headers           headers `json:"headers"`
 }
 
 type headers struct {
@@ -72,6 +73,7 @@ type loggerFileConfig struct {
 
 // Logger each instance of logger settings
 type Logger struct {
+	ShowLogSystemName                                bool
 	Timestamp                                        string
 	InfoHeader, ErrorHeader, DebugHeader, WarnHeader string
 	Spacer                                           string

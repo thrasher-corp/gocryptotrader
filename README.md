@@ -19,7 +19,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Exchange | REST API | Streaming API | FIX API |
 |----------|------|-----------|-----|
 | Alphapoint | Yes  | Yes        | NA  |
-| ANXPRO | Yes  | No        | NA  |
 | Binance| Yes  | Yes        | NA  |
 | Bitfinex | Yes  | Yes        | NA  |
 | Bitflyer | Yes  | No      | NA  |
@@ -139,17 +138,16 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 551 |
-| [shazbert](https://github.com/shazbert) | 176 |
-| [gloriousCode](https://github.com/gloriousCode) | 155 |
-| [xtda](https://github.com/xtda) | 18 |
+| [thrasher-](https://github.com/thrasher-) | 625 |
+| [shazbert](https://github.com/shazbert) | 185 |
+| [gloriousCode](https://github.com/gloriousCode) | 163 |
+| [xtda](https://github.com/xtda) | 34 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
-| [MadCozBadd](https://github.com/MadCozBadd) | 6 |
+| [MadCozBadd](https://github.com/MadCozBadd) | 7 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
-| [leilaes](https://github.com/leilaes) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [bretep](https://github.com/bretep) | 2 |
@@ -157,6 +155,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [gam-phon](https://github.com/gam-phon) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |
 | [if1live](https://github.com/if1live) | 2 |
+| [lozdog245](https://github.com/lozdog245) | 2 |
 | [soxipy](https://github.com/soxipy) | 2 |
 | [herenow](https://github.com/herenow) | 2 |
 | [blombard](https://github.com/blombard) | 1 |

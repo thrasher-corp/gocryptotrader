@@ -122,7 +122,7 @@ func (c *Config) CheckClientBankAccounts() {
 				SWIFTCode:           "91272837",
 				IBAN:                "98218738671897",
 				SupportedCurrencies: "USD",
-				SupportedExchanges:  "ANX,Kraken",
+				SupportedExchanges:  "Kraken,Bitstamp",
 			},
 		)
 		return
@@ -1189,6 +1189,11 @@ func (c *Config) CheckLoggerConfig() error {
 	}
 
 	f := func(f bool) *bool { return &f }(false)
+
+	if c.Logging.AdvancedSettings.ShowLogSystemName == nil {
+		c.Logging.AdvancedSettings.ShowLogSystemName = f
+	}
+
 	if c.Logging.LoggerFileConfig != nil {
 		if c.Logging.LoggerFileConfig.FileName == "" {
 			c.Logging.LoggerFileConfig.FileName = "log.txt"

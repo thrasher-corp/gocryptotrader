@@ -17,7 +17,7 @@ import (
 const (
 	// Default number of enabled exchanges. Modify this whenever an exchange is
 	// added or removed
-	defaultEnabledExchanges = 28
+	defaultEnabledExchanges = 27
 	testFakeExchangeName    = "Stampbit"
 	testPair                = "BTC-USD"
 )
@@ -1112,7 +1112,7 @@ func TestGetExchangeConfig(t *testing.T) {
 			"GetExchangeConfig.LoadConfig Error: %s", err.Error(),
 		)
 	}
-	_, err = GetExchangeConfig.GetExchangeConfig("ANX")
+	_, err = GetExchangeConfig.GetExchangeConfig("Bitfinex")
 	if err != nil {
 		t.Errorf("GetExchangeConfig.GetExchangeConfig Error: %s",
 			err.Error())
@@ -1185,7 +1185,7 @@ func TestUpdateExchangeConfig(t *testing.T) {
 		t.Error("Expected error from non-existent exchange")
 	}
 
-	e, err = c.GetExchangeConfig("ANX")
+	e, err = c.GetExchangeConfig("OKEX")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1733,6 +1733,7 @@ func TestCheckLoggerConfig(t *testing.T) {
 	c.Logging.LoggerFileConfig.FileName = ""
 	c.Logging.LoggerFileConfig.Rotate = nil
 	c.Logging.LoggerFileConfig.MaxSize = -1
+	c.Logging.AdvancedSettings.ShowLogSystemName = nil
 
 	err = c.CheckLoggerConfig()
 	if err != nil {
@@ -1741,7 +1742,9 @@ func TestCheckLoggerConfig(t *testing.T) {
 
 	if c.Logging.LoggerFileConfig.FileName != "log.txt" ||
 		c.Logging.LoggerFileConfig.Rotate == nil ||
-		c.Logging.LoggerFileConfig.MaxSize != 100 {
+		c.Logging.LoggerFileConfig.MaxSize != 100 ||
+		c.Logging.AdvancedSettings.ShowLogSystemName == nil ||
+		*c.Logging.AdvancedSettings.ShowLogSystemName {
 		t.Error("unexpected result")
 	}
 }

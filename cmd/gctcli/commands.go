@@ -3060,7 +3060,7 @@ func gctScriptAutoload(c *cli.Context) error {
 		_ = cli.ShowSubcommandHelp(c)
 		return nil
 	}
-	
+
 	conn, err := setupClient()
 	if err != nil {
 		return err

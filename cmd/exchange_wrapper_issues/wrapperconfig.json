@@ -34,11 +34,6 @@
  },
  "exchanges": {
   "alphapoint": {},
-  "anx": {
-   "key": "Key",
-   "secret": "Secret",
-   "otpSecret": "-"
-  },
   "binance": {
    "key": "Key",
    "secret": "Secret",
