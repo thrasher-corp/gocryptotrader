@@ -262,7 +262,7 @@ func TestSubLoggerName(t *testing.T) {
 	}
 
 	logger.ShowLogSystemName = false
-	w = &bytes.Buffer{}
+	w.Reset()
 	logger.newLogEvent("out", "header", "SUBLOGGER", w)
 	if strings.Contains(w.String(), "SUBLOGGER") {
 		t.Error("Unexpected SUBLOGGER in output")
