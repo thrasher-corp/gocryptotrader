@@ -664,7 +664,7 @@ func (w *WebsocketConnection) SendJSONMessage(data interface{}) error {
 	}
 	if w.Verbose {
 		log.Debugf(log.WebsocketMgr,
-			"%v sending message to websocket %v", w.ExchangeName, data)
+			"%v sending message to websocket %+v", w.ExchangeName, data)
 	}
 	if w.RateLimit > 0 {
 		time.Sleep(time.Duration(w.RateLimit) * time.Millisecond)
