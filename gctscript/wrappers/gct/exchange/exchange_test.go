@@ -50,10 +50,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	t = m.Run()
-	err = cleanup()
-	if err != nil {
-		fmt.Printf("Clean up failed %v", err)
-	}
+	cleanup()
 	os.Exit(t)
 }
 
@@ -178,12 +175,11 @@ func setupEngine() (err error) {
 	return engine.Bot.Start()
 }
 
-func cleanup() (err error) {
-	err = os.RemoveAll(settings.DataDir)
+func cleanup() {
+	err := os.RemoveAll(settings.DataDir)
 	if err != nil {
-		return
+		fmt.Printf("Clean up failed to remove file: %v manual removal may be required", err)
 	}
-	return nil
 }
 
 func configureExchangeKeys() bool {

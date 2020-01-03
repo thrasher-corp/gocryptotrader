@@ -13,7 +13,7 @@ const (
 	// AuditEventID table name to use for database
 	AuditEventID = "gctscript"
 	// DefaultTimeoutValue default timeout value for virtual machines
-	DefaultTimeoutValue = 1 * time.Minute
+	DefaultTimeoutValue = 30 * time.Second
 	// DefaultMaxVirtualMachines max number of virtual machines that can be loaded at one time
 	DefaultMaxVirtualMachines = 10
 

@@ -66,6 +66,11 @@ func (g *gctScriptManager) run() {
 func (g *gctScriptManager) autoLoad() {
 	for x := range Bot.Config.GCTScript.AutoLoad {
 		temp := vm.New()
+		if temp == nil {
+			log.Errorf(log.GCTScriptMgr, "Unable to create Virtual Machine autoload failed for: %v",
+				Bot.Config.GCTScript.AutoLoad[x])
+			continue
+		}
 		scriptPath := filepath.Join(vm.ScriptPath, Bot.Config.GCTScript.AutoLoad[x]+".gct")
 		err := temp.Load(scriptPath)
 		if err != nil {

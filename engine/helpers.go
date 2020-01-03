@@ -417,7 +417,11 @@ func GetRelatableCurrencies(p currency.Pair, incOrig, incUSDT bool) currency.Pai
 // GetSpecificOrderbook returns a specific orderbook given the currency,
 // exchangeName and assetType
 func GetSpecificOrderbook(p currency.Pair, exchangeName string, assetType asset.Item) (*orderbook.Base, error) {
-	return GetExchangeByName(exchangeName).FetchOrderbook(p, assetType)
+	exch := GetExchangeByName(exchangeName)
+	if exch == nil {
+		return nil, ErrExchangeNotFound
+	}
+	return exch.FetchOrderbook(p, assetType)
 }
 
 // GetSpecificTicker returns a specific ticker given the currency,

@@ -26,7 +26,7 @@ func New() *VM {
 }
 
 // Validate will attempt to execute a script in a test/non-live environment
-// to confirm it passes requirements
+// to confirm it passes requirements for execution
 func Validate(file string) (err error) {
 	defer func() {
 		validator.IsTestExecution = false
@@ -43,11 +43,7 @@ func Validate(file string) (err error) {
 	if err != nil {
 		return
 	}
-	err = tempVM.Run()
-	if err != nil {
-		return
-	}
-	return
+	return tempVM.Run()
 }
 
 // ShutdownAll shutdown all

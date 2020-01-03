@@ -297,11 +297,6 @@ func (e *Engine) Start() error {
 		}
 	}
 
-	if e.Settings.EnableGCTScriptManager {
-		if err := e.GctScriptManager.Start(); err != nil {
-			log.Errorf(log.Global, "GCTScript manager unable to start: %v", err)
-		}
-	}
 	// Sets up internet connectivity monitor
 	if e.Settings.EnableConnectivityMonitor {
 		if err := e.ConnectionManager.Start(); err != nil {
@@ -432,6 +427,12 @@ func (e *Engine) Start() error {
 
 	if e.Settings.EnableWebsocketRoutine {
 		go WebsocketRoutine()
+	}
+
+	if e.Settings.EnableGCTScriptManager {
+		if err := e.GctScriptManager.Start(); err != nil {
+			log.Errorf(log.Global, "GCTScript manager unable to start: %v", err)
+		}
 	}
 
 	return nil
