@@ -23,7 +23,6 @@ import (
 
 const (
 	gateioWebsocketEndpoint  = "wss://ws.gateio.ws/v3/"
-	gatioWsMethodPing        = "ping"
 	gateioWebsocketRateLimit = 120
 )
 

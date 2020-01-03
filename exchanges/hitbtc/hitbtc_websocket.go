@@ -359,7 +359,7 @@ func (h *HitBTC) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 		}
 	}
 
-	return h.WebsocketConn.SendMessage(subscribe)
+	return h.WebsocketConn.SendJSONMessage(subscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -388,7 +388,7 @@ func (h *HitBTC) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 		}
 	}
 
-	return h.WebsocketConn.SendMessage(subscribe)
+	return h.WebsocketConn.SendJSONMessage(subscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -409,7 +409,7 @@ func (h *HitBTC) wsLogin() error {
 		},
 	}
 
-	err := h.WebsocketConn.SendMessage(request)
+	err := h.WebsocketConn.SendJSONMessage(request)
 	if err != nil {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err

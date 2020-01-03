@@ -146,10 +146,7 @@ func (h *HUOBI) wsHandleAuthenticatedData(resp WsMessage) {
 		return
 	}
 	if init.Ping != 0 {
-		err = h.WebsocketConn.SendMessage(WsPong{Pong: init.Ping})
-		if err != nil {
-			log.Error(log.ExchangeSys, err)
-		}
+		h.sendPingResponse(init.Ping)
 		return
 	}
 	if init.ErrorMessage == "api-signature-not-valid" {
@@ -219,10 +216,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 		return
 	}
 	if init.Ping != 0 {
-		err = h.WebsocketConn.SendMessage(WsPong{Pong: init.Ping})
-		if err != nil {
-			log.Error(log.ExchangeSys, err)
-		}
+		h.sendPingResponse(init.Ping)
 		return
 	}
 
@@ -301,6 +295,13 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 	}
 }
 
+func (h *HUOBI) sendPingResponse(pong int64) {
+	err := h.WebsocketConn.SendJSONMessage(WsPong{Pong: pong})
+	if err != nil {
+		log.Error(log.ExchangeSys, err)
+	}
+}
+
 // WsProcessOrderbook processes new orderbook data
 func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 	p := currency.NewPairFromFormattedPairs(symbol,
@@ -372,7 +373,7 @@ func (h *HUOBI) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscript
 		strings.Contains(channelToSubscribe.Channel, "accounts") {
 		return h.wsAuthenticatedSubscribe("sub", wsAccountsOrdersEndPoint+channelToSubscribe.Channel, channelToSubscribe.Channel)
 	}
-	return h.WebsocketConn.SendMessage(WsRequest{Subscribe: channelToSubscribe.Channel})
+	return h.WebsocketConn.SendJSONMessage(WsRequest{Subscribe: channelToSubscribe.Channel})
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -381,7 +382,7 @@ func (h *HUOBI) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscri
 		strings.Contains(channelToSubscribe.Channel, "accounts") {
 		return h.wsAuthenticatedSubscribe("unsub", wsAccountsOrdersEndPoint+channelToSubscribe.Channel, channelToSubscribe.Channel)
 	}
-	return h.WebsocketConn.SendMessage(WsRequest{Unsubscribe: channelToSubscribe.Channel})
+	return h.WebsocketConn.SendJSONMessage(WsRequest{Unsubscribe: channelToSubscribe.Channel})
 }
 
 func (h *HUOBI) wsGenerateSignature(timestamp, endpoint string) []byte {
@@ -411,7 +412,7 @@ func (h *HUOBI) wsLogin() error {
 	}
 	hmac := h.wsGenerateSignature(timestamp, wsAccountsOrdersEndPoint)
 	request.Signature = crypto.Base64Encode(hmac)
-	err := h.AuthenticatedWebsocketConn.SendMessage(request)
+	err := h.AuthenticatedWebsocketConn.SendJSONMessage(request)
 	if err != nil {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -433,7 +434,7 @@ func (h *HUOBI) wsAuthenticatedSubscribe(operation, endpoint, topic string) erro
 	}
 	hmac := h.wsGenerateSignature(timestamp, endpoint)
 	request.Signature = crypto.Base64Encode(hmac)
-	return h.AuthenticatedWebsocketConn.SendMessage(request)
+	return h.AuthenticatedWebsocketConn.SendJSONMessage(request)
 }
 
 func (h *HUOBI) wsGetAccountsList() (*WsAuthenticatedAccountsListResponse, error) {
