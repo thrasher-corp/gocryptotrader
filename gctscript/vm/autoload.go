@@ -16,7 +16,6 @@ func Autoload(name string, remove bool) error {
 			if GCTScriptConfig.AutoLoad[x] != name {
 				continue
 			}
-
 			GCTScriptConfig.AutoLoad = append(GCTScriptConfig.AutoLoad[:x], GCTScriptConfig.AutoLoad[x+1:]...)
 			if GCTScriptConfig.Verbose {
 				log.Debugf(log.GCTScriptMgr, "Removing script: %s from autoload", name)
