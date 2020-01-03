@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	// AuditEventID table name to use for database
+	// AuditEventID table name to use for database table
 	AuditEventID = "gctscript"
 	// DefaultTimeoutValue default timeout value for virtual machines
 	DefaultTimeoutValue = 30 * time.Second
