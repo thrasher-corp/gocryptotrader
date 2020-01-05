@@ -37,6 +37,7 @@ var (
 
 // Submit contains the order submission data
 type Submit struct {
+	Exchange     string
 	Pair         currency.Pair
 	OrderType    Type
 	OrderSide    Side
@@ -56,7 +57,8 @@ type SubmitResponse struct {
 
 // Modify is an order modifyer
 type Modify struct {
-	OrderID string
+	Exchange string
+	OrderID  string
 	Type
 	Side
 	Price             float64
@@ -141,6 +143,7 @@ type TradeHistory struct {
 
 // Cancel type required when requesting to cancel an order
 type Cancel struct {
+	Exchange      string
 	AccountID     string
 	OrderID       string
 	CurrencyPair  currency.Pair

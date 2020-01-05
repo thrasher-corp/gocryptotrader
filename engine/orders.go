@@ -102,8 +102,9 @@ func (o *orderManager) gracefulShutdown() {
 			for y := range v {
 				log.Debugf(log.OrderMgr, "order manager: Cancelling order ID %v [%v]",
 					v[y].ID, v[y])
-				err := o.Cancel(k, &order.Cancel{
-					OrderID: v[y].ID,
+				err := o.Cancel(&order.Cancel{
+					Exchange: k,
+					OrderID:  v[y].ID,
 				})
 				if err != nil {
 					msg := fmt.Sprintf("Order manager: Exchange %s unable to cancel order ID=%v. Err: %s",
@@ -151,8 +152,8 @@ func (o *orderManager) run() {
 
 func (o *orderManager) CancelAllOrders() {}
 
-func (o *orderManager) Cancel(exchName string, cancel *order.Cancel) error {
-	if exchName == "" {
+func (o *orderManager) Cancel(cancel *order.Cancel) error {
+	if cancel.Exchange == "" {
 		return errors.New("order exchange name is empty")
 	}
 
@@ -164,7 +165,7 @@ func (o *orderManager) Cancel(exchName string, cancel *order.Cancel) error {
 		return errors.New("order id is empty")
 	}
 
-	exch := GetExchangeByName(exchName)
+	exch := GetExchangeByName(cancel.Exchange)
 	if exch == nil {
 		return errors.New("unable to get exchange by name")
 	}
@@ -176,8 +177,8 @@ func (o *orderManager) Cancel(exchName string, cancel *order.Cancel) error {
 	return exch.CancelOrder(cancel)
 }
 
-func (o *orderManager) Submit(exchName string, newOrder *order.Submit) (*orderSubmitResponse, error) {
-	if exchName == "" {
+func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, error) {
+	if newOrder.Exchange == "" {
 		return nil, errors.New("order exchange name must be specified")
 	}
 
@@ -195,7 +196,7 @@ func (o *orderManager) Submit(exchName string, newOrder *order.Submit) (*orderSu
 		}
 
 		if len(o.cfg.AllowedExchanges) > 0 &&
-			!common.StringDataCompareInsensitive(o.cfg.AllowedExchanges, exchName) {
+			!common.StringDataCompareInsensitive(o.cfg.AllowedExchanges, newOrder.Exchange) {
 			return nil, errors.New("order exchange not found in allowed list")
 		}
 
@@ -204,7 +205,7 @@ func (o *orderManager) Submit(exchName string, newOrder *order.Submit) (*orderSu
 		}
 	}
 
-	exch := GetExchangeByName(exchName)
+	exch := GetExchangeByName(newOrder.Exchange)
 	if exch == nil {
 		return nil, errors.New("unable to get exchange by name")
 	}
@@ -226,7 +227,7 @@ func (o *orderManager) Submit(exchName string, newOrder *order.Submit) (*orderSu
 	}
 
 	msg := fmt.Sprintf("Order manager: Exchange %s submitted order ID=%v [Ours: %v] pair=%v price=%v amount=%v side=%v type=%v.",
-		exchName,
+		newOrder.Exchange,
 		result.OrderID,
 		id.String(),
 		newOrder.Pair,

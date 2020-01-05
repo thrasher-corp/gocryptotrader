@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -358,6 +359,31 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 						ws.GetName(),
 						FormatCurrency(result.Pair),
 						d.Asset)
+				}
+				// For orders that are not handled via wshandler.SendMessageReturnResponse
+			case order.Detail:
+				if !Bot.OrderManager.orderStore.exists(&d) {
+					err := Bot.OrderManager.orderStore.Add(&d)
+					if err != nil {
+						log.Error(log.WebsocketMgr, err)
+					}
+				} else {
+					for x := range Bot.OrderManager.orderStore.Orders[d.Exchange] {
+						if Bot.OrderManager.orderStore.Orders[d.Exchange][x].ID == d.ID {
+							Bot.OrderManager.orderStore.Orders[d.Exchange][x] = d
+						}
+					}
+				}
+				// For orders that are handled via wshandler.SendMessageReturnResponse
+			case order.Submit:
+				_, err := Bot.OrderManager.Submit(&d)
+				if err != nil {
+					log.Error(log.WebsocketMgr, err)
+				}
+			case order.Cancel:
+				err := Bot.OrderManager.Cancel(&d)
+				if err != nil {
+					log.Error(log.WebsocketMgr, err)
 				}
 			default:
 				if Bot.Settings.Verbose {
