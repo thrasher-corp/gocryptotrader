@@ -320,7 +320,7 @@ func (c *CoinbasePro) Subscribe(channelToSubscribe wshandler.WebsocketChannelSub
 		subscribe.Passphrase = c.API.Credentials.ClientID
 		subscribe.Timestamp = n
 	}
-	return c.WebsocketConn.SendMessage(subscribe)
+	return c.WebsocketConn.SendJSONMessage(subscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -337,5 +337,5 @@ func (c *CoinbasePro) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelS
 			},
 		},
 	}
-	return c.WebsocketConn.SendMessage(subscribe)
+	return c.WebsocketConn.SendJSONMessage(subscribe)
 }

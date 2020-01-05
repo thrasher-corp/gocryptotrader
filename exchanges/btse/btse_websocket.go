@@ -33,7 +33,10 @@ func (b *BTSE) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	go b.Pinger()
+	b.WebsocketConn.SetupPingHandler(wshandler.WebsocketPingHandler{
+		MessageType: websocket.PingMessage,
+		Delay:       btseWebsocketTimer,
+	})
 	go b.WsHandleData()
 	b.GenerateDefaultSubscriptions()
 
@@ -176,7 +179,7 @@ func (b *BTSE) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscripti
 	var sub wsSub
 	sub.Operation = "subscribe"
 	sub.Arguments = []string{channelToSubscribe.Channel}
-	return b.WebsocketConn.SendMessage(sub)
+	return b.WebsocketConn.SendJSONMessage(sub)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -184,21 +187,5 @@ func (b *BTSE) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 	var unSub wsSub
 	unSub.Operation = "unsubscribe"
 	unSub.Arguments = []string{channelToSubscribe.Channel}
-	return b.WebsocketConn.SendMessage(unSub)
-}
-
-// Pinger pings
-func (b *BTSE) Pinger() {
-	ticker := time.NewTicker(btseWebsocketTimer)
-
-	for {
-		select {
-		case <-b.Websocket.ShutdownC:
-			ticker.Stop()
-			return
-
-		case <-ticker.C:
-			b.WebsocketConn.Connection.WriteMessage(websocket.PingMessage, nil)
-		}
-	}
+	return b.WebsocketConn.SendJSONMessage(unSub)
 }

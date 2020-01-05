@@ -25,6 +25,7 @@
    "maxsize": 250
   },
   "advancedSettings": {
+   "showLogSystemName": false,
    "spacer": " | ",
    "timeStampFormat": "02/01/2006 15:04:05",
    "headers": {
@@ -215,83 +216,6 @@
   ]
  },
  "exchanges": [
-  {
-   "name": "ANX",
-   "enabled": true,
-   "verbose": false,
-   "httpTimeout": 15000000000,
-   "websocketResponseCheckTimeout": 30000000,
-   "websocketResponseMaxLimit": 7000000000,
-   "websocketTrafficTimeout": 30000000000,
-   "websocketOrderbookBufferLimit": 5,
-   "baseCurrencies": "USD,HKD,EUR,CAD,AUD,SGD,JPY,GBP,NZD",
-   "currencyPairs": {
-    "requestFormat": {
-     "uppercase": true
-    },
-    "configFormat": {
-     "uppercase": true,
-     "delimiter": "_"
-    },
-    "useGlobalFormat": true,
-    "assetTypes": [
-     "spot"
-    ],
-    "pairs": {
-     "spot": {
-      "enabled": "BTC_USD,BTC_HKD,BTC_EUR,BTC_CAD,BTC_AUD,BTC_SGD,BTC_JPY,BTC_GBP,BTC_NZD,LTC_BTC,STR_BTC,XRP_BTC",
-      "available": "ATENC_GBP,ATENC_NZD,BTC_AUD,BTC_SGD,LTC_BTC,START_GBP,STR_BTC,XRP_BTC,ATENC_SGD,BTC_GBP,DOGE_BTC,OAX_ETH,START_AUD,START_JPY,ATENC_USD,BTC_EUR,GNT_ETH,START_EUR,ATENC_EUR,BTC_CAD,START_BTC,START_CAD,ATENC_HKD,ATENC_JPY,ETH_BTC,ETH_HKD,START_HKD,START_USD,ATENC_AUD,ETH_USD,START_SGD,ATENC_CAD,BTC_HKD,BTC_JPY,BTC_NZD,BTC_USD,START_NZD"
-     }
-    }
-   },
-   "api": {
-    "authenticatedSupport": false,
-    "authenticatedWebsocketApiSupport": false,
-    "endpoints": {
-     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
-     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-    },
-    "credentials": {
-     "key": "Key",
-     "secret": "Secret"
-    },
-    "credentialsValidator": {
-     "requiresKey": true,
-     "requiresSecret": true,
-     "requiresBase64DecodeSecret": true
-    }
-   },
-   "features": {
-    "supports": {
-     "restAPI": true,
-     "restCapabilities": {
-      "autoPairUpdates": true
-     },
-     "websocketAPI": false,
-     "websocketCapabilities": {}
-    },
-    "enabled": {
-     "autoPairUpdates": true,
-     "websocketAPI": false
-    }
-   },
-   "bankAccounts": [
-    {
-     "enabled": false,
-     "bankName": "",
-     "bankAddress": "",
-     "bankPostalCode": "",
-     "bankPostalCity": "",
-     "bankCountry": "",
-     "accountName": "",
-     "accountNumber": "",
-     "swiftCode": "",
-     "iban": "",
-     "supportedCurrencies": ""
-    }
-   ]
-  },
   {
    "name": "Binance",
    "enabled": true,
@@ -2488,7 +2412,7 @@
    "swiftCode": "91272837",
    "iban": "98218738671897",
    "supportedCurrencies": "USD",
-   "supportedExchanges": "ANX,Kraken"
+   "supportedExchanges": "Kraken,Bitstamp"
   }
  ]
 }

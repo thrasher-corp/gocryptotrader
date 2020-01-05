@@ -63,10 +63,6 @@ const (
 	bitmexActionUpdateData  = "update"
 )
 
-var (
-	pongChan = make(chan int, 1)
-)
-
 // WsConnect initiates a new websocket connection
 func (b *Bitmex) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
@@ -99,7 +95,6 @@ func (b *Bitmex) WsConnect() error {
 
 	go b.wsHandleIncomingData()
 	b.GenerateDefaultSubscriptions()
-
 	err = b.websocketSendAuth()
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", b.Name, err)
@@ -128,19 +123,6 @@ func (b *Bitmex) wsHandleIncomingData() {
 				return
 			}
 			b.Websocket.TrafficAlert <- struct{}{}
-			message := string(resp.Raw)
-			if strings.Contains(message, "pong") {
-				pongChan <- 1
-				continue
-			}
-
-			if strings.Contains(message, "ping") {
-				err = b.WebsocketConn.SendMessage("pong")
-				if err != nil {
-					b.Websocket.DataHandler <- err
-					continue
-				}
-			}
 
 			quickCapture := make(map[string]interface{})
 			err = json.Unmarshal(resp.Raw, &quickCapture)
@@ -487,7 +469,7 @@ func (b *Bitmex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 	var subscriber WebsocketRequest
 	subscriber.Command = "subscribe"
 	subscriber.Arguments = append(subscriber.Arguments, channelToSubscribe.Channel)
-	return b.WebsocketConn.SendMessage(subscriber)
+	return b.WebsocketConn.SendJSONMessage(subscriber)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -497,7 +479,7 @@ func (b *Bitmex) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 	subscriber.Arguments = append(subscriber.Arguments,
 		channelToSubscribe.Params["args"],
 		channelToSubscribe.Channel+":"+channelToSubscribe.Currency.String())
-	return b.WebsocketConn.SendMessage(subscriber)
+	return b.WebsocketConn.SendJSONMessage(subscriber)
 }
 
 // WebsocketSendAuth sends an authenticated subscription
@@ -517,7 +499,7 @@ func (b *Bitmex) websocketSendAuth() error {
 	sendAuth.Command = "authKeyExpires"
 	sendAuth.Arguments = append(sendAuth.Arguments, b.API.Credentials.Key, timestamp,
 		signature)
-	err := b.WebsocketConn.SendMessage(sendAuth)
+	err := b.WebsocketConn.SendJSONMessage(sendAuth)
 	if err != nil {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err

@@ -455,13 +455,13 @@ func TestWithdraw(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	withdrawCryptoRequest := withdraw.CryptoRequest{
-		GenericInfo: withdraw.GenericInfo{
-			Amount:      -1,
-			Currency:    currency.BTC,
-			Description: "WITHDRAW IT ALL",
+	withdrawCryptoRequest := withdraw.Request{
+		Amount:      -1,
+		Currency:    currency.BTC,
+		Description: "WITHDRAW IT ALL",
+		Crypto: &withdraw.CryptoRequest{
+			Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		},
-		Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 	}
 
 	_, err := b.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
@@ -482,24 +482,24 @@ func TestWithdrawFiat(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = withdraw.FiatRequest{
-		GenericInfo: withdraw.GenericInfo{
-			Amount:      -1,
-			Currency:    currency.USD,
-			Description: "WITHDRAW IT ALL",
+	var withdrawFiatRequest = withdraw.Request{
+		Fiat: &withdraw.FiatRequest{
+			BankAccountName:          "Satoshi Nakamoto",
+			BankAccountNumber:        "12345",
+			BankAddress:              "123 Fake St",
+			BankCity:                 "Tarry Town",
+			BankCountry:              "AU",
+			BankName:                 "Federal Reserve Bank",
+			WireCurrency:             currency.USD.String(),
+			SwiftCode:                "CTBAAU2S",
+			RequiresIntermediaryBank: false,
+			IsExpressWire:            false,
+			BankPostalCode:           "2088",
+			IBAN:                     "IT60X0542811101000000123456",
 		},
-		BankAccountName:          "Satoshi Nakamoto",
-		BankAccountNumber:        "12345",
-		BankAddress:              "123 Fake St",
-		BankCity:                 "Tarry Town",
-		BankCountry:              "AU",
-		BankName:                 "Federal Reserve Bank",
-		WireCurrency:             currency.USD.String(),
-		SwiftCode:                "CTBAAU2S",
-		RequiresIntermediaryBank: false,
-		IsExpressWire:            false,
-		BankPostalCode:           "2088",
-		IBAN:                     "IT60X0542811101000000123456",
+		Amount:      -1,
+		Currency:    currency.USD,
+		Description: "WITHDRAW IT ALL",
 	}
 
 	_, err := b.WithdrawFiatFunds(&withdrawFiatRequest)
@@ -520,30 +520,30 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = withdraw.FiatRequest{
-		GenericInfo: withdraw.GenericInfo{
-			Amount:      -1,
-			Currency:    currency.USD,
-			Description: "WITHDRAW IT ALL",
+	var withdrawFiatRequest = withdraw.Request{
+		Fiat: &withdraw.FiatRequest{
+			BankAccountName:               "Satoshi Nakamoto",
+			BankAccountNumber:             "12345",
+			BankAddress:                   "123 Fake St",
+			BankCity:                      "Tarry Town",
+			BankCountry:                   "AU",
+			BankName:                      "Federal Reserve Bank",
+			WireCurrency:                  currency.USD.String(),
+			SwiftCode:                     "CTBAAU2S",
+			RequiresIntermediaryBank:      false,
+			IsExpressWire:                 false,
+			BankPostalCode:                "2088",
+			IBAN:                          "IT60X0542811101000000123456",
+			IntermediaryBankAccountNumber: 12345,
+			IntermediaryBankAddress:       "123 Fake St",
+			IntermediaryBankCity:          "Tarry Town",
+			IntermediaryBankCountry:       "AU",
+			IntermediaryBankName:          "Federal Reserve Bank",
+			IntermediaryBankPostalCode:    "2088",
 		},
-		BankAccountName:               "Satoshi Nakamoto",
-		BankAccountNumber:             "12345",
-		BankAddress:                   "123 Fake St",
-		BankCity:                      "Tarry Town",
-		BankCountry:                   "AU",
-		BankName:                      "Federal Reserve Bank",
-		WireCurrency:                  currency.USD.String(),
-		SwiftCode:                     "CTBAAU2S",
-		RequiresIntermediaryBank:      false,
-		IsExpressWire:                 false,
-		BankPostalCode:                "2088",
-		IBAN:                          "IT60X0542811101000000123456",
-		IntermediaryBankAccountNumber: 12345,
-		IntermediaryBankAddress:       "123 Fake St",
-		IntermediaryBankCity:          "Tarry Town",
-		IntermediaryBankCountry:       "AU",
-		IntermediaryBankName:          "Federal Reserve Bank",
-		IntermediaryBankPostalCode:    "2088",
+		Amount:      -1,
+		Currency:    currency.USD,
+		Description: "WITHDRAW IT ALL",
 	}
 
 	_, err := b.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)

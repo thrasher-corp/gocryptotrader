@@ -19,6 +19,8 @@ const (
 	// connection monitor time delays and limits
 	connectionMonitorDelay             = 2 * time.Second
 	WebsocketNotAuthenticatedUsingRest = "%v - Websocket not authenticated, using REST"
+	Ping                               = "ping"
+	Pong                               = "pong"
 )
 
 // Websocket defines a return type for websocket connections via the interface
@@ -163,4 +165,12 @@ type WebsocketConnection struct {
 	ResponseCheckTimeout time.Duration
 	ResponseMaxLimit     time.Duration
 	TrafficTimeout       time.Duration
+}
+
+// WebsocketPingHandler container for ping handler settings
+type WebsocketPingHandler struct {
+	UseGorillaHandler bool
+	MessageType       int
+	Message           []byte
+	Delay             time.Duration
 }

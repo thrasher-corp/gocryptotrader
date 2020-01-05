@@ -142,7 +142,7 @@ func (b *Bitstamp) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 			Channel: channelToSubscribe.Channel,
 		},
 	}
-	return b.WebsocketConn.SendMessage(req)
+	return b.WebsocketConn.SendJSONMessage(req)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -153,7 +153,7 @@ func (b *Bitstamp) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubs
 			Channel: channelToSubscribe.Channel,
 		},
 	}
-	return b.WebsocketConn.SendMessage(req)
+	return b.WebsocketConn.SendJSONMessage(req)
 }
 
 func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair, assetType asset.Item) error {

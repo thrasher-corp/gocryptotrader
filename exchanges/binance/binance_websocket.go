@@ -20,6 +20,7 @@ import (
 
 const (
 	binanceDefaultWebsocketURL = "wss://stream.binance.com:9443"
+	pingDelay                  = time.Minute * 9
 )
 
 // WsConnect intiates a websocket connection
@@ -71,7 +72,11 @@ func (b *Binance) WsConnect() error {
 			b.Name,
 			err)
 	}
-
+	b.WebsocketConn.SetupPingHandler(wshandler.WebsocketPingHandler{
+		UseGorillaHandler: true,
+		MessageType:       websocket.PongMessage,
+		Delay:             pingDelay,
+	})
 	go b.WsHandleData()
 
 	return nil

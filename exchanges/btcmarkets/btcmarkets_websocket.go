@@ -237,7 +237,7 @@ func (b *BTCMarkets) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubs
 			Channels:    []string{channelToSubscribe.Channel},
 			MessageType: subscribe,
 		}
-		err := b.WebsocketConn.SendMessage(req)
+		err := b.WebsocketConn.SendJSONMessage(req)
 		if err != nil {
 			return err
 		}
@@ -251,7 +251,7 @@ func (b *BTCMarkets) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubs
 		message.Key = tempAuthData.Key
 		message.Signature = tempAuthData.Signature
 		message.Timestamp = tempAuthData.Timestamp
-		err := b.WebsocketConn.SendMessage(message)
+		err := b.WebsocketConn.SendJSONMessage(message)
 		if err != nil {
 			return err
 		}

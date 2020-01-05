@@ -885,13 +885,13 @@ func TestWithdraw(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	withdrawCryptoRequest := withdraw.CryptoRequest{
-		GenericInfo: withdraw.GenericInfo{
-			Amount:      -1,
-			Currency:    currency.BTC,
-			Description: "WITHDRAW IT ALL",
+	withdrawCryptoRequest := withdraw.Request{
+		Amount:      -1,
+		Currency:    currency.BTC,
+		Description: "WITHDRAW IT ALL",
+		Crypto: &withdraw.CryptoRequest{
+			Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		},
-		Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 	}
 
 	_, err := b.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
@@ -909,22 +909,22 @@ func TestWithdrawFiat(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = withdraw.FiatRequest{
-		GenericInfo: withdraw.GenericInfo{
-			Amount:      -1,
-			Currency:    currency.USD,
-			Description: "WITHDRAW IT ALL",
+	var withdrawFiatRequest = withdraw.Request{
+		Amount:      -1,
+		Currency:    currency.USD,
+		Description: "WITHDRAW IT ALL",
+		Fiat: &withdraw.FiatRequest{
+			BankAccountName:          "Satoshi Nakamoto",
+			BankAccountNumber:        "12345",
+			BankAddress:              "123 Fake St",
+			BankCity:                 "Tarry Town",
+			BankCountry:              "Hyrule",
+			BankName:                 "Federal Reserve Bank",
+			WireCurrency:             currency.USD.String(),
+			SwiftCode:                "Taylor",
+			RequiresIntermediaryBank: false,
+			IsExpressWire:            false,
 		},
-		BankAccountName:          "Satoshi Nakamoto",
-		BankAccountNumber:        "12345",
-		BankAddress:              "123 Fake St",
-		BankCity:                 "Tarry Town",
-		BankCountry:              "Hyrule",
-		BankName:                 "Federal Reserve Bank",
-		WireCurrency:             currency.USD.String(),
-		SwiftCode:                "Taylor",
-		RequiresIntermediaryBank: false,
-		IsExpressWire:            false,
 	}
 
 	_, err := b.WithdrawFiatFunds(&withdrawFiatRequest)
@@ -942,28 +942,28 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = withdraw.FiatRequest{
-		GenericInfo: withdraw.GenericInfo{
-			Amount:      -1,
-			Currency:    currency.BTC,
-			Description: "WITHDRAW IT ALL",
+	var withdrawFiatRequest = withdraw.Request{
+		Amount:      -1,
+		Currency:    currency.BTC,
+		Description: "WITHDRAW IT ALL",
+		Fiat: &withdraw.FiatRequest{
+			BankAccountName:               "Satoshi Nakamoto",
+			BankAccountNumber:             "12345",
+			BankAddress:                   "123 Fake St",
+			BankCity:                      "Tarry Town",
+			BankCountry:                   "Hyrule",
+			BankName:                      "Federal Reserve Bank",
+			WireCurrency:                  currency.USD.String(),
+			SwiftCode:                     "Taylor",
+			RequiresIntermediaryBank:      true,
+			IsExpressWire:                 false,
+			IntermediaryBankAccountNumber: 12345,
+			IntermediaryBankAddress:       "123 Fake St",
+			IntermediaryBankCity:          "Tarry Town",
+			IntermediaryBankCountry:       "Hyrule",
+			IntermediaryBankName:          "Federal Reserve Bank",
+			IntermediarySwiftCode:         "Taylor",
 		},
-		BankAccountName:               "Satoshi Nakamoto",
-		BankAccountNumber:             "12345",
-		BankAddress:                   "123 Fake St",
-		BankCity:                      "Tarry Town",
-		BankCountry:                   "Hyrule",
-		BankName:                      "Federal Reserve Bank",
-		WireCurrency:                  currency.USD.String(),
-		SwiftCode:                     "Taylor",
-		RequiresIntermediaryBank:      true,
-		IsExpressWire:                 false,
-		IntermediaryBankAccountNumber: 12345,
-		IntermediaryBankAddress:       "123 Fake St",
-		IntermediaryBankCity:          "Tarry Town",
-		IntermediaryBankCountry:       "Hyrule",
-		IntermediaryBankName:          "Federal Reserve Bank",
-		IntermediarySwiftCode:         "Taylor",
 	}
 
 	_, err := b.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)

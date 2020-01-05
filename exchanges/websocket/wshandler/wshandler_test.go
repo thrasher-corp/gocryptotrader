@@ -156,6 +156,16 @@ func TestWebsocket(t *testing.T) {
 		t.Error("WebsocketSetup")
 	}
 
+	ws.setEnabled(false)
+	if ws.IsEnabled() {
+		t.Error("WebsocketSetup")
+	}
+
+	ws.setEnabled(true)
+	if !ws.IsEnabled() {
+		t.Error("WebsocketSetup")
+	}
+
 	if ws.GetProxyAddress() != "testProxy" {
 		t.Error("WebsocketSetup")
 	}
@@ -569,7 +579,11 @@ func TestSendMessage(t *testing.T) {
 				}
 				t.Fatal(err)
 			}
-			err = testData.WC.SendMessage("ping")
+			err = testData.WC.SendJSONMessage(Ping)
+			if err != nil {
+				t.Error(err)
+			}
+			err = testData.WC.SendRawMessage(websocket.TextMessage, []byte(Ping))
 			if err != nil {
 				t.Error(err)
 			}
@@ -600,6 +614,42 @@ func TestSendMessageWithResponse(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+// TestSetupPingHandler logic test
+func TestSetupPingHandler(t *testing.T) {
+	if wc.ProxyURL != "" && !useProxyTests {
+		t.Skip("Proxy testing not enabled, skipping")
+	}
+	wc.Shutdown = make(chan struct{})
+	err := wc.Dial(&dialer, http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wc.SetupPingHandler(WebsocketPingHandler{
+		UseGorillaHandler: true,
+		MessageType:       websocket.PingMessage,
+		Delay:             1000,
+	})
+
+	err = wc.Connection.Close()
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = wc.Dial(&dialer, http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wc.SetupPingHandler(WebsocketPingHandler{
+		MessageType: websocket.TextMessage,
+		Message:     []byte(Ping),
+		Delay:       200,
+	})
+	time.Sleep(time.Millisecond * 500)
+	close(wc.Shutdown)
+	wc.Wg.Wait()
 }
 
 // TestParseBinaryResponse logic test

@@ -784,7 +784,7 @@ func (b *Bitfinex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 		}
 	}
 
-	return b.WebsocketConn.SendMessage(req)
+	return b.WebsocketConn.SendJSONMessage(req)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -798,7 +798,7 @@ func (b *Bitfinex) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubs
 			req[k] = v
 		}
 	}
-	return b.WebsocketConn.SendMessage(req)
+	return b.WebsocketConn.SendJSONMessage(req)
 }
 
 // WsSendAuth sends a autheticated event payload
@@ -820,7 +820,7 @@ func (b *Bitfinex) WsSendAuth() error {
 		AuthNonce:     nonce,
 		DeadManSwitch: 0,
 	}
-	err := b.AuthenticatedWebsocketConn.SendMessage(request)
+	err := b.AuthenticatedWebsocketConn.SendJSONMessage(request)
 	if err != nil {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -907,7 +907,7 @@ func (b *Bitfinex) WsCancelMultiOrders(orderIDs []int64) error {
 		OrderID: orderIDs,
 	}
 	request := makeRequestInterface(wsCancelMultipleOrders, cancel)
-	return b.AuthenticatedWebsocketConn.SendMessage(request)
+	return b.AuthenticatedWebsocketConn.SendJSONMessage(request)
 }
 
 // WsCancelOrder authenticated cancel order request
@@ -942,13 +942,13 @@ func (b *Bitfinex) WsCancelOrder(orderID int64) error {
 func (b *Bitfinex) WsCancelAllOrders() error {
 	cancelAll := WsCancelAllOrdersRequest{All: 1}
 	request := makeRequestInterface(wsCancelMultipleOrders, cancelAll)
-	return b.AuthenticatedWebsocketConn.SendMessage(request)
+	return b.AuthenticatedWebsocketConn.SendJSONMessage(request)
 }
 
 // WsNewOffer authenticated new offer request
 func (b *Bitfinex) WsNewOffer(data *WsNewOfferRequest) error {
 	request := makeRequestInterface(wsFundingOrderNew, data)
-	return b.AuthenticatedWebsocketConn.SendMessage(request)
+	return b.AuthenticatedWebsocketConn.SendJSONMessage(request)
 }
 
 // WsCancelOffer authenticated cancel offer request

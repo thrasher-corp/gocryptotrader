@@ -214,7 +214,7 @@ func (z *ZB) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription
 		Event:   zWebsocketAddChannel,
 		Channel: channelToSubscribe.Channel,
 	}
-	return z.WebsocketConn.SendMessage(subscriptionRequest)
+	return z.WebsocketConn.SendJSONMessage(subscriptionRequest)
 }
 
 func (z *ZB) wsGenerateSignature(request interface{}) string {

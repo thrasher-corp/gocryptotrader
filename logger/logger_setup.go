@@ -47,8 +47,9 @@ func GenDefaultSettings() (log Config) {
 			MaxSize:  0,
 		},
 		AdvancedSettings: advancedSettings{
-			Spacer:          " | ",
-			TimeStampFormat: timestampFormat,
+			ShowLogSystemName: f,
+			Spacer:            " | ",
+			TimeStampFormat:   timestampFormat,
 			Headers: headers{
 				Info:  "[INFO]",
 				Warn:  "[WARN]",
@@ -78,7 +79,7 @@ func configureSubLogger(logger, levels string, output io.Writer) error {
 func SetupSubLoggers(s []SubLoggerConfig) {
 	for x := range s {
 		output := getWriters(&s[x])
-		err := configureSubLogger(s[x].Name, s[x].Level, output)
+		err := configureSubLogger(strings.ToUpper(s[x].Name), s[x].Level, output)
 		if err != nil {
 			continue
 		}
@@ -122,7 +123,7 @@ func splitLevel(level string) (l Levels) {
 
 func registerNewSubLogger(logger string) *subLogger {
 	temp := subLogger{
-		name:   logger,
+		name:   strings.ToUpper(logger),
 		output: os.Stdout,
 	}
 
@@ -134,24 +135,24 @@ func registerNewSubLogger(logger string) *subLogger {
 
 // register all loggers at package init()
 func init() {
-	Global = registerNewSubLogger("log")
+	Global = registerNewSubLogger("LOG")
 
-	ConnectionMgr = registerNewSubLogger("connection")
-	CommunicationMgr = registerNewSubLogger("comms")
-	ConfigMgr = registerNewSubLogger("config")
-	DatabaseMgr = registerNewSubLogger("database")
-	OrderMgr = registerNewSubLogger("order")
-	PortfolioMgr = registerNewSubLogger("portfolio")
-	SyncMgr = registerNewSubLogger("sync")
-	TimeMgr = registerNewSubLogger("timekeeper")
-	WebsocketMgr = registerNewSubLogger("websocket")
-	EventMgr = registerNewSubLogger("event")
-	DispatchMgr = registerNewSubLogger("dispatch")
+	ConnectionMgr = registerNewSubLogger("CONNECTION")
+	CommunicationMgr = registerNewSubLogger("COMMS")
+	ConfigMgr = registerNewSubLogger("CONFIG")
+	DatabaseMgr = registerNewSubLogger("DATABASE")
+	OrderMgr = registerNewSubLogger("ORDER")
+	PortfolioMgr = registerNewSubLogger("PORTFOLIO")
+	SyncMgr = registerNewSubLogger("SYNC")
+	TimeMgr = registerNewSubLogger("TIMEKEEPER")
+	WebsocketMgr = registerNewSubLogger("WEBSOCKET")
+	EventMgr = registerNewSubLogger("EVENT")
+	DispatchMgr = registerNewSubLogger("DISPATCH")
 
-	ExchangeSys = registerNewSubLogger("exchange")
-	GRPCSys = registerNewSubLogger("grpc")
-	RESTSys = registerNewSubLogger("rest")
+	ExchangeSys = registerNewSubLogger("EXCHANGE")
+	GRPCSys = registerNewSubLogger("GRPC")
+	RESTSys = registerNewSubLogger("REST")
 
-	Ticker = registerNewSubLogger("ticker")
-	OrderBook = registerNewSubLogger("orderbook")
+	Ticker = registerNewSubLogger("TICKER")
+	OrderBook = registerNewSubLogger("ORDERBOOK")
 }

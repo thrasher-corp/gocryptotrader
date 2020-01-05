@@ -449,13 +449,13 @@ func TestWithdraw(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	withdrawCryptoRequest := withdraw.CryptoRequest{
-		GenericInfo: withdraw.GenericInfo{
-			Amount:      -1,
-			Currency:    currency.BTC,
-			Description: "WITHDRAW IT ALL",
+	withdrawCryptoRequest := withdraw.Request{
+		Amount:      -1,
+		Currency:    currency.BTC,
+		Description: "WITHDRAW IT ALL",
+		Crypto: &withdraw.CryptoRequest{
+			Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 		},
-		Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
 	}
 
 	_, err := b.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
@@ -473,23 +473,23 @@ func TestWithdrawFiat(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = withdraw.FiatRequest{
-		GenericInfo: withdraw.GenericInfo{
-			Amount:      -1,
-			Currency:    currency.USD,
-			Description: "WITHDRAW IT ALL",
+	var withdrawFiatRequest = withdraw.Request{
+		Fiat: &withdraw.FiatRequest{
+			BankAccountName:          "Satoshi Nakamoto",
+			BankAccountNumber:        "12345",
+			BankCode:                 123,
+			BankAddress:              "123 Fake St",
+			BankCity:                 "Tarry Town",
+			BankCountry:              "Hyrule",
+			BankName:                 "Federal Reserve Bank",
+			WireCurrency:             currency.KRW.String(),
+			SwiftCode:                "Taylor",
+			RequiresIntermediaryBank: false,
+			IsExpressWire:            false,
 		},
-		BankAccountName:          "Satoshi Nakamoto",
-		BankAccountNumber:        "12345",
-		BankCode:                 123,
-		BankAddress:              "123 Fake St",
-		BankCity:                 "Tarry Town",
-		BankCountry:              "Hyrule",
-		BankName:                 "Federal Reserve Bank",
-		WireCurrency:             currency.KRW.String(),
-		SwiftCode:                "Taylor",
-		RequiresIntermediaryBank: false,
-		IsExpressWire:            false,
+		Amount:      -1,
+		Currency:    currency.USD,
+		Description: "WITHDRAW IT ALL",
 	}
 
 	_, err := b.WithdrawFiatFunds(&withdrawFiatRequest)
@@ -507,7 +507,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = withdraw.FiatRequest{}
+	var withdrawFiatRequest = withdraw.Request{}
 	_, err := b.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
