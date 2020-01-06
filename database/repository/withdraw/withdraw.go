@@ -29,15 +29,15 @@ func Event(req *withdraw.Response) {
 	}
 
 	if repository.GetSQLDialect() == database.DBSQLite3 {
-
-		newUUID, err := uuid.NewV4()
-		if err != nil {
+		newUUID, errUUID := uuid.NewV4()
+		if errUUID != nil {
 			log.Errorf(log.DatabaseMgr, "Failed to generate UUID: %v", err)
+			_ = tx.Rollback()
 			return
 		}
 
 		var tempEvent = modelSQLite.WithdrawalHistory{
-			ID:			newUUID.String(),
+			ID:           newUUID.String(),
 			ExchangeID:   req.ExchangeID,
 			Status:       req.Status,
 			Currency:     req.RequestDetails.Currency.String(),
@@ -49,6 +49,11 @@ func Event(req *withdraw.Response) {
 			tempEvent.Description.SetValid(req.RequestDetails.Description)
 		}
 		err = tempEvent.Insert(ctx, tx, boil.Infer())
+		if err != nil {
+			log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
+			_ = tx.Rollback()
+			return
+		}
 
 		if req.RequestDetails.Type == withdraw.Fiat {
 			fiatEvent := &modelSQLite.WithdrawalFiat{
@@ -62,6 +67,11 @@ func Event(req *withdraw.Response) {
 				BankCode:          req.RequestDetails.Fiat.BankCode,
 			}
 			err = tempEvent.AddWithdrawalFiats(ctx, tx, true, fiatEvent)
+			if err != nil {
+				log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
+				_ = tx.Rollback()
+				return
+			}
 		}
 		if req.RequestDetails.Type == withdraw.Crypto {
 			cryptoEvent := &modelSQLite.WithdrawalCrypto{
@@ -72,6 +82,11 @@ func Event(req *withdraw.Response) {
 				cryptoEvent.AddressTag.SetValid(req.RequestDetails.Crypto.AddressTag)
 			}
 			err = tempEvent.AddWithdrawalCryptos(ctx, tx, true, cryptoEvent)
+			if err != nil {
+				log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
+				_ = tx.Rollback()
+				return
+			}
 		}
 	} else {
 		var tempEvent = modelPSQL.WithdrawalHistory{
@@ -99,6 +114,11 @@ func Event(req *withdraw.Response) {
 				BankCode:          req.RequestDetails.Fiat.BankCode,
 			}
 			err = tempEvent.AddWithdrawalFiatWithdrawalFiats(ctx, tx, true, fiatEvent)
+			if err != nil {
+				log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
+				_ = tx.Rollback()
+				return
+			}
 		}
 		if req.RequestDetails.Type == withdraw.Crypto {
 			cryptoEvent := &modelPSQL.WithdrawalCrypto{
@@ -109,6 +129,11 @@ func Event(req *withdraw.Response) {
 				cryptoEvent.AddressTag.SetValid(req.RequestDetails.Crypto.AddressTag)
 			}
 			err = tempEvent.AddWithdrawalCryptoWithdrawalCryptos(ctx, tx, true, cryptoEvent)
+			if err != nil {
+				log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
+				_ = tx.Rollback()
+				return
+			}
 		}
 	}
 	if err != nil {

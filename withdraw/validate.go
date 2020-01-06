@@ -2,7 +2,6 @@ package withdraw
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -10,41 +9,48 @@ import (
 
 // Valid takes interface and passes to asset type to check the request meets requirements to submit
 func Valid(request *Request) (err error) {
+	if request == nil {
+		return ErrRequestCannotBeNil
+	}
+
 	var allErrors []string
 	if request.Amount <= 0 {
-		allErrors = append(allErrors, "amount cannot be empty")
+		allErrors = append(allErrors, ErrStrAmountMustBeGreaterThanZero)
 	}
 
 	switch request.Type {
 	case Fiat:
-		fmt.Printf("%+v", request.Fiat)
-		if !request.Currency.IsFiatCurrency() {
-			allErrors = append(allErrors, "requested currency is not fiat")
+		if request.Fiat == nil {
+			return ErrInvalidRequest
+		}
+		if (request.Currency != currency.Code{}) {
+			if !request.Currency.IsFiatCurrency() {
+				allErrors = append(allErrors, ErrStrCurrencyNotFiat)
+			}
 		}
 		allErrors = append(allErrors, validateFiat(request)...)
 	case Crypto:
-		fmt.Printf("%+v", request.Crypto)
-		if !request.Currency.IsCryptocurrency() {
-			allErrors = append(allErrors, "requested currency is not a cryptocurrency")
+		if request.Crypto == nil {
+			return ErrInvalidRequest
+		}
+		if (request.Currency != currency.Code{}) {
+			if !request.Currency.IsCryptocurrency() {
+				allErrors = append(allErrors, ErrStrCurrencyNotCrypto)
+			}
 		}
 		allErrors = append(allErrors, validateCrypto(request)...)
-		default:
-			allErrors = append(allErrors, "invalid request type")
-
+	default:
+		allErrors = append(allErrors, "invalid request type")
 	}
 	if len(allErrors) > 0 {
-		err = errors.New(strings.Join(allErrors, "\n"))
+		return errors.New(strings.Join(allErrors, ", "))
 	}
 
-	return
+	return nil
 }
 
 // Valid takes interface and passes to asset type to check the request meets requirements to submit
 func validateFiat(request *Request) (err []string) {
-	if request == nil {
-		return
-	}
-
 	if request.Fiat.BankAccountNumber == "" {
 		err = append(err, "Bank Account Number cannot be empty")
 	}
@@ -63,11 +69,6 @@ func validateFiat(request *Request) (err []string) {
 
 // ValidateCrypto checks if Crypto request is valid and meets the minimum requirements to submit a crypto withdrawal request
 func validateCrypto(request *Request) (err []string) {
-	if request == nil {
-		err = append(err, "Cryptorequest cannot be nil on a crypto request")
-		return
-	}
-
 	if request.Crypto.Address == "" {
 		err = append(err, "Address cannot be empty")
 	}

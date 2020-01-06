@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/thrasher-corp/gocryptotrader/withdraw"
 	withdrawal "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/withdraw"
 )
 
 func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Response, error) {
@@ -37,21 +37,19 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 			return nil, err
 		}
 	}
+
 	id, _ := uuid.NewV4()
 	resp := &withdraw.Response{
 		ID:             id,
-		ExchangeID:    	exchID,
+		ExchangeID:     exchID,
 		RequestDetails: req,
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
 	}
 
 	withdrawal.Event(resp)
-
 	return resp, nil
 }
-
-
 
 // RequestByID returns a withdrawal request by ID
 func RequestByID(id uuid.UUID) (*withdraw.Response, error) {

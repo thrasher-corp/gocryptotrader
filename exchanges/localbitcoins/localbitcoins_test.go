@@ -360,7 +360,7 @@ func TestWithdraw(t *testing.T) {
 func TestWithdrawFiat(t *testing.T) {
 	t.Parallel()
 
-	var withdrawFiatRequest = withdraw.FiatRequest{}
+	var withdrawFiatRequest = withdraw.Request{}
 	_, err := l.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'",
@@ -372,7 +372,7 @@ func TestWithdrawFiat(t *testing.T) {
 func TestWithdrawInternationalBank(t *testing.T) {
 	t.Parallel()
 
-	var withdrawFiatRequest = withdraw.FiatRequest{}
+	var withdrawFiatRequest = withdraw.Request{}
 	_, err := l.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'",

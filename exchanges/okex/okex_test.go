@@ -1752,15 +1752,15 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	withdrawCryptoRequest := withdraw.CryptoRequest{
-		GenericInfo: withdraw.GenericInfo{
-			Amount:        -1,
-			Currency:      currency.BTC,
-			Description:   "WITHDRAW IT ALL",
-			TradePassword: "Password",
+	withdrawCryptoRequest := withdraw.Request{
+		Crypto: &withdraw.CryptoRequest{
+			Address:   "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+			FeeAmount: 1,
 		},
-		Address:   "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
-		FeeAmount: 1,
+		Amount:        -1,
+		Currency:      currency.BTC,
+		Description:   "WITHDRAW IT ALL",
+		TradePassword: "Password",
 	}
 	_, err := o.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
 	testStandardErrorHandling(t, err)
@@ -1770,7 +1770,7 @@ func TestWithdraw(t *testing.T) {
 func TestWithdrawFiat(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	var withdrawFiatRequest = withdraw.FiatRequest{}
+	var withdrawFiatRequest = withdraw.Request{}
 	_, err := o.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'",
@@ -1783,7 +1783,7 @@ func TestWithdrawFiat(t *testing.T) {
 func TestWithdrawInternationalBank(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	var withdrawFiatRequest = withdraw.FiatRequest{}
+	var withdrawFiatRequest = withdraw.Request{}
 	_, err := o.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'",

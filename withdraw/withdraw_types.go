@@ -1,16 +1,32 @@
 package withdraw
 
 import (
+	"errors"
 	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
-type Type uint8
+type RequestType uint8
+
 const (
-	Crypto Type = iota
+	Crypto RequestType = iota
 	Fiat
+)
+
+const (
+	ErrStrAmountMustBeGreaterThanZero = "amount must be greater than 0"
+	ErrStrAddressisInvalid            = "address is not valid"
+	ErrStrNoCurrencySet               = "currency not set"
+	ErrStrAddressNotSet               = "address cannot be empty"
+	ErrStrCurrencyNotFiat             = "requested currency is not fiat"
+	ErrStrCurrencyNotCrypto           = "requested currency is not a cryptocurrency"
+)
+
+var (
+	ErrRequestCannotBeNil = errors.New("request cannot be nil")
+	ErrInvalidRequest     = errors.New("invalid request type")
 )
 
 // CryptoRequest stores the info required for a crypto withdrawal request
@@ -53,26 +69,24 @@ type Request struct {
 	Currency    currency.Code
 	Description string
 	Amount      float64
-	Type        Type
+	Type        RequestType
 
-	TradePassword string
+	TradePassword   string
 	OneTimePassword int64
-	PIN int64
+	PIN             int64
 
 	Crypto *CryptoRequest
 	Fiat   *FiatRequest
 }
 
-
 type Response struct {
 	ID uuid.UUID
 
-	ExchangeID	string
-	Status string
+	ExchangeID string
+	Status     string
 
-	RequestDetails	*Request
+	RequestDetails *Request
 
 	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
-

@@ -843,11 +843,11 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 	}
 
 	request := &withdraw.Request{
-		Amount: r.Amount,
-		Currency: currency.NewCode(r.Currency),
+		Amount:      r.Amount,
+		Currency:    currency.NewCode(r.Currency),
 		Type:        withdraw.Fiat,
 		Description: r.Description,
-		Crypto:        &withdraw.CryptoRequest{
+		Crypto: &withdraw.CryptoRequest{
 			Address:    r.Address,
 			AddressTag: r.AddressTag,
 			FeeAmount:  r.Fee,
@@ -877,21 +877,21 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 	}
 
 	request := &withdraw.Request{
-		Amount: r.Amount,
-		Currency: currency.NewCode(r.Currency),
+		Amount:      r.Amount,
+		Currency:    currency.NewCode(r.Currency),
 		Type:        withdraw.Fiat,
 		Description: r.Description,
-		Fiat:        &withdraw.FiatRequest{
-			BankAccountName:               v.AccountName,
-			BankAccountNumber:             v.AccountNumber,
-			BankName:                      v.BankName,
-			BankAddress:                   v.BankAddress,
-			BankCity:                      v.BankPostalCity,
-			BankCountry:                   v.BankCountry,
-			BankPostalCode:                v.BankPostalCity,
-			BSB:                           v.BSBNumber,
-			SwiftCode:                     v.SWIFTCode,
-			IBAN:                          v.IBAN,
+		Fiat: &withdraw.FiatRequest{
+			BankAccountName:   v.AccountName,
+			BankAccountNumber: v.AccountNumber,
+			BankName:          v.BankName,
+			BankAddress:       v.BankAddress,
+			BankCity:          v.BankPostalCity,
+			BankCountry:       v.BankCountry,
+			BankPostalCode:    v.BankPostalCity,
+			BSB:               v.BSBNumber,
+			SwiftCode:         v.SWIFTCode,
+			IBAN:              v.IBAN,
 		},
 	}
 

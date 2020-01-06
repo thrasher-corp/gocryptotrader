@@ -414,14 +414,14 @@ func TestModifyOrder(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
-	withdrawCryptoRequest := withdraw.CryptoRequest{
-		GenericInfo: withdraw.GenericInfo{
-			Amount:      -1,
-			Currency:    currency.BTC,
-			Description: "WITHDRAW IT ALL",
+	withdrawCryptoRequest := withdraw.Request{
+		Crypto: &withdraw.CryptoRequest{
+			Address:   "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+			FeeAmount: 1,
 		},
-		Address:   "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
-		FeeAmount: 1,
+		Amount:      -1,
+		Currency:    currency.BTC,
+		Description: "WITHDRAW IT ALL",
 	}
 
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -442,7 +442,7 @@ func TestWithdrawFiat(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = withdraw.FiatRequest{}
+	var withdrawFiatRequest = withdraw.Request{}
 	_, err := z.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
@@ -454,7 +454,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = withdraw.FiatRequest{}
+	var withdrawFiatRequest = withdraw.Request{}
 	_, err := z.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)

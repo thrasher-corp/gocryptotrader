@@ -406,7 +406,7 @@ func TestWithdrawFiat(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = withdraw.FiatRequest{}
+	var withdrawFiatRequest = withdraw.Request{}
 	_, err := e.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
@@ -418,7 +418,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	var withdrawFiatRequest = withdraw.FiatRequest{}
+	var withdrawFiatRequest = withdraw.Request{}
 	_, err := e.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)

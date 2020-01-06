@@ -623,7 +623,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		withdrawRequest := withdraw.Request{
 			Currency: p.Quote,
 			Crypto: &withdraw.CryptoRequest{
-				Address:    withdrawAddressOverride,
+				Address: withdrawAddressOverride,
 			},
 			Amount: config.OrderSubmission.Amount,
 		}
@@ -665,7 +665,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 
 		withdrawRequestFiat := withdraw.Request{
 			Currency: p.Quote,
-			Amount: config.OrderSubmission.Amount,
+			Amount:   config.OrderSubmission.Amount,
 			Fiat: &withdraw.FiatRequest{
 				BankAccountName:               config.BankDetails.BankAccountName,
 				BankAccountNumber:             config.BankDetails.BankAccountNumber,

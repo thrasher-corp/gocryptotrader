@@ -455,12 +455,12 @@ func TestWithdraw(t *testing.T) {
 	}
 
 	withdrawCryptoRequest := withdraw.Request{
-			Amount:      0,
-			Currency:    currency.BTC,
-			Description: "WITHDRAW IT ALL",
-			Crypto: &withdraw.CryptoRequest{
-				Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
-			},
+		Amount:      0,
+		Currency:    currency.BTC,
+		Description: "WITHDRAW IT ALL",
+		Crypto: &withdraw.CryptoRequest{
+			Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		},
 	}
 
 	_, err := b.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
