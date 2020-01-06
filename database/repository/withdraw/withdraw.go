@@ -2,6 +2,8 @@ package withdraw
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -12,6 +14,7 @@ import (
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/withdraw"
 	"github.com/thrasher-corp/sqlboiler/boil"
+	"github.com/thrasher-corp/sqlboiler/queries/qm"
 )
 
 func Event(req *withdraw.Response) {
@@ -154,4 +157,21 @@ func Event(req *withdraw.Response) {
 		}
 		return
 	}
+}
+
+func EventByUUID(id string) (*withdraw.Response, error) {
+	if database.DB.SQL == nil {
+		return nil, errors.New("database is nil")
+	}
+
+	ctx := context.Background()
+	if repository.GetSQLDialect() == database.DBSQLite3 {
+	} else {
+		x, err := modelPSQL.WithdrawalHistories(qm.InnerJoin("withdrawal_fiat wf on withdrawal_history.id = wf.withdrawal_fiat_id"), qm.Where("id = ?", id)).All(ctx, database.DB.SQL)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Println(x)
+	}
+	return nil, nil
 }
