@@ -1372,6 +1372,10 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 	if err != nil {
 		return nil, err
 	}
+	err = newFile.Close()
+	if err != nil{
+		log.Errorln(log.Global, "failed to close file handle, archive removal may fail")
+	}
 
 	if r.Archived {
 		z, errZip := zip.OpenReader(fPath)
@@ -1421,6 +1425,10 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 			if err != nil {
 				log.Errorf(log.Global, "unable to close file %v %v", zFile, err)
 			}
+		}
+		err = z.Close()
+		if err != nil {
+			log.Errorln(log.Global, "Failed to close archive removal may fail")
 		}
 		err = os.Remove(fPath)
 		if err != nil {
