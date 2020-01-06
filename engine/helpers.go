@@ -427,7 +427,11 @@ func GetSpecificOrderbook(p currency.Pair, exchangeName string, assetType asset.
 // GetSpecificTicker returns a specific ticker given the currency,
 // exchangeName and assetType
 func GetSpecificTicker(p currency.Pair, exchangeName string, assetType asset.Item) (*ticker.Price, error) {
-	return GetExchangeByName(exchangeName).FetchTicker(p, assetType)
+	exch := GetExchangeByName(exchangeName)
+	if exch == nil {
+		return nil, ErrExchangeNotFound
+	}
+	return exch.FetchTicker(p, assetType)
 }
 
 // GetCollatedExchangeAccountInfoByCoin collates individual exchange account
