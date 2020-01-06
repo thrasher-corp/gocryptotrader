@@ -4,7 +4,6 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
@@ -66,12 +65,8 @@ func ValidateCrypto(request *CryptoRequest) (err error) {
 
 	if request.Address == "" {
 		allErrors = append(allErrors, ErrStrAddressNotSet)
-	} else {
-		v, _ := common.IsValidCryptoAddress(request.Address, request.Currency.String())
-		if !v {
-			allErrors = append(allErrors, ErrStrAddressisInvalid)
-		}
 	}
+
 	if len(allErrors) > 0 {
 		err = errors.New(strings.Join(allErrors, ", "))
 	}

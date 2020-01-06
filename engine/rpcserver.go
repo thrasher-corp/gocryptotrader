@@ -1255,27 +1255,29 @@ func (s *RPCServer) GCTScriptQuery(ctx context.Context, r *gctrpc.GCTScriptQuery
 		return &gctrpc.GCTScriptQueryResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
-	resp := &gctrpc.GCTScriptQueryResponse{}
-
 	UUID, err := uuid.FromString(r.Script.UUID)
 	if err != nil {
 		return &gctrpc.GCTScriptQueryResponse{Status: "error", Data: err.Error()}, nil
 	}
 
 	if v, f := gctscript.AllVMs[UUID]; f {
-		resp.Status = "ok"
-		resp.Script = new(gctrpc.GCTScript)
-		resp.Script.Name = v.ShortName()
-		resp.Script.UUID = v.ID.String()
-		resp.Script.Path = v.Path
-		resp.Script.NextRun = v.NextRun.String()
+		resp := &gctrpc.GCTScriptQueryResponse{
+			Status: "ok",
+			Script: &gctrpc.GCTScript{
+				Name:    v.ShortName(),
+				UUID:    v.ID.String(),
+				Path:    v.Path,
+				NextRun: v.NextRun.String(),
+			},
+		}
 		data, err := v.Read()
 		if err != nil {
 			return nil, err
 		}
 		resp.Data = string(data)
+		return resp, nil
 	}
-	return resp, nil
+	return &gctrpc.GCTScriptQueryResponse{Status: "not found", Data: "UUID not found"}, nil
 }
 
 // GCTScriptExecute execute a script
@@ -1366,15 +1368,14 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 	if err != nil {
 		return nil, err
 	}
-	defer newFile.Close()
 
 	_, err = newFile.Write(r.Data)
 	if err != nil {
 		return nil, err
 	}
 	err = newFile.Close()
-	if err != nil{
-		log.Errorln(log.Global, "failed to close file handle, archive removal may fail")
+	if err != nil {
+		log.Errorln(log.Global, "Failed to close file handle, archive removal may fail")
 	}
 
 	if r.Archived {
@@ -1408,27 +1409,37 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 				var outFile *os.File
 				outFile, err = os.OpenFile(zipPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, z.Reader.File[x].Mode())
 				if err != nil {
+					if err != nil {
+						log.Errorf(log.Global, "Unable to close file %v %v", z.Reader.File[x].Name, err)
+					}
 					return nil, err
 				}
 
 				_, err = io.Copy(outFile, zFile)
 				if err != nil {
-					_ = outFile.Close()
+					err = outFile.Close()
+					if err != nil {
+						log.Errorf(log.Global, "Unable to close file %v %v", z.Reader.File[x].Name, err)
+					}
+					err = z.Close()
+					if err != nil {
+						log.Errorf(log.Global, "Unable to close file %v %v", z.Reader.File[x].Name, err)
+					}
 					return nil, err
 				}
 				err = outFile.Close()
 				if err != nil {
-					log.Errorf(log.Global, "unable to close file %v %v", outFile, err)
+					log.Errorf(log.Global, "Unable to close file %v %v", outFile, err)
 				}
 			}
 			err = zFile.Close()
 			if err != nil {
-				log.Errorf(log.Global, "unable to close file %v %v", zFile, err)
+				log.Errorf(log.Global, "Unable to close file %v %v", z.Reader.File[x].Name, err)
 			}
 		}
 		err = z.Close()
 		if err != nil {
-			log.Errorln(log.Global, "Failed to close archive removal may fail")
+			log.Errorln(log.Global, "Failed to close archive, removal may fail")
 		}
 		err = os.Remove(fPath)
 		if err != nil {

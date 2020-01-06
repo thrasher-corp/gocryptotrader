@@ -9,7 +9,7 @@ import (
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
-const gctscriptManagerName = "gctscript"
+const gctscriptManagerName = "GCTScript"
 
 type gctScriptManager struct {
 	running  atomic.Value

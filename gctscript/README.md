@@ -115,21 +115,21 @@ With an example configuration being:
       "status": "ok",
       "script": {
       "name": "timer.gct",
-      "path": "/home/andrew/.gocryptotrader/scripts"
+      "path": "/home/x/.gocryptotrader/scripts"
       },
       "data": "fmt := import(\"fmt\")\nt := import(\"times\")\n\nname := \"run\"\ntimer := \"5s\"\n\nload := func() {\n\tfmt.printf(\"5s %s\\n\",t.now())\n}\n\nload()\n"
     }
    ```
     - Query running script:
     ```shell script
-      gctcli gctscript queru <uuid>
+      gctcli gctscript query <uuid>
       gctcli gctscript query 821bd73e-02b1-4974-9463-874cb49f130d
       {
         "status": "ok",
         "script": {
         "UUID": "bf692e2d-fa1e-4d95-92fd-33d7634d3d77",
         "name": "timer.gct",
-        "path": "/home/andrew/dev/projects/thrashercorp/gocryptotrader-xtda/testdata/gctscript",
+        "path": "/home/x/gocryptotrader-xtda/testdata/gctscript",
         "next_run": "2019-12-12 07:44:19.747572406 +1100 AEDT m=+16.782773385"
       },
       "data": "fmt := import(\"fmt\")\nt := import(\"times\")\n\nname := \"run\"\ntimer := \"5s\"\n\nload := func() {\n\tfmt.printf(\"5s %s\\n\",t.now())\n}\n\nload()\n"
