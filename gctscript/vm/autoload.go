@@ -1,7 +1,6 @@
 package vm
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -22,7 +21,7 @@ func Autoload(name string, remove bool) error {
 			}
 			return nil
 		}
-		return errors.New("script not found")
+		return fmt.Errorf("%v - not found", name)
 	}
 
 	var scriptNameWithExtension string

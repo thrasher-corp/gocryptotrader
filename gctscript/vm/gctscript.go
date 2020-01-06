@@ -61,7 +61,7 @@ func ShutdownAll() (err error) {
 	}
 
 	if len(errors) > 0 {
-		err = fmt.Errorf("failed to shutdown the follow Virtual Machines: %v", errors)
+		err = fmt.Errorf("failed to shutdown the following Virtual Machines: %v", errors)
 	}
 
 	return err
