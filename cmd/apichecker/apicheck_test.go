@@ -345,3 +345,18 @@ func TestSomething(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestGetChecklistItems(t *testing.T) {
+	a, err := GetChecklistItems()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// func TestUpdateCheckItem(t *testing.T) {
+// 	err := UpdateCheckItem("5dfc604fe901ac6a592e9b75", "Gemini", "incomplete")
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// }
