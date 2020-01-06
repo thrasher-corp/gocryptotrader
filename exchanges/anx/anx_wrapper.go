@@ -1,6 +1,7 @@
 package anx
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"sync"
@@ -283,6 +284,16 @@ func (a *ANX) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 	}
 
 	return orderbook.Get(a.Name, p, assetType)
+}
+
+// FetchTrade returns the trades for a currency pair
+func (a *ANX) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
+// UpdateTrade updates and returns the trades for a currency pair
+func (a *ANX) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies on the

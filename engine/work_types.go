@@ -116,6 +116,17 @@ type UpdateOrderbook struct {
 	Error       error
 }
 
+// UpdateTrades defines a coupler to an exchange REST request
+type UpdateTrades struct {
+	exchange.IBotExchange
+	Pair        currency.Pair
+	Asset       asset.Item
+	Trades      []order.Trade
+	Reservation *rate.Reservation
+	CancelMe    chan int
+	Error       error
+}
+
 // GetAccountInfo defines a coupler to an exchange REST request
 type GetAccountInfo struct {
 	exchange.IBotExchange

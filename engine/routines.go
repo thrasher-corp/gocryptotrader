@@ -3,13 +3,15 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -42,7 +44,8 @@ func printConvertCurrencyFormat(origCurrency currency.Code, origPrice float64) s
 
 	origSymbol, err := currency.GetSymbolByCurrencyName(origCurrency)
 	if err != nil {
-		log.Errorf(log.Global, "Failed to get original currency symbol for %s: %s\n",
+		log.Errorf(log.Global,
+			"Failed to get original currency symbol for %s: %s\n",
 			origCurrency,
 			err)
 	}
@@ -57,126 +60,197 @@ func printConvertCurrencyFormat(origCurrency currency.Code, origPrice float64) s
 	)
 }
 
-func printTickerSummary(result *ticker.Price, p currency.Pair, assetType asset.Item, exchangeName, protocol string, err error) {
+func printTickerSummary(t *ticker.Price, protocol string, err error) {
 	if err != nil {
-		log.Errorf(log.Ticker, "Failed to get %s %s %s %s ticker. Error: %s\n",
-			exchangeName,
+		log.Errorf(log.Ticker,
+			"Failed to get %s %s %s %s ticker. Error: %s\n",
+			t.ExchangeName,
 			protocol,
-			p,
-			assetType,
+			t.Pair,
+			t.AssetType,
 			err)
 		return
 	}
 
-	stats.Add(exchangeName, p, assetType, result.Last, result.Volume)
-	if p.Quote.IsFiatCurrency() &&
-		p.Quote != Bot.Config.Currency.FiatDisplayCurrency {
-		origCurrency := p.Quote.Upper()
-		log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
-			exchangeName,
+	stats.Add(t.ExchangeName, t.Pair, t.AssetType, t.Last, t.Volume)
+	if t.Pair.Quote.IsFiatCurrency() &&
+		t.Pair.Quote != Bot.Config.Currency.FiatDisplayCurrency {
+		origCurrency := t.Pair.Quote.Upper()
+		log.Infof(log.Ticker,
+			"%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
+			t.ExchangeName,
 			protocol,
-			FormatCurrency(p),
-			strings.ToUpper(assetType.String()),
-			printConvertCurrencyFormat(origCurrency, result.Last),
-			printConvertCurrencyFormat(origCurrency, result.Ask),
-			printConvertCurrencyFormat(origCurrency, result.Bid),
-			printConvertCurrencyFormat(origCurrency, result.High),
-			printConvertCurrencyFormat(origCurrency, result.Low),
-			result.Volume)
+			FormatCurrency(t.Pair),
+			strings.ToUpper(t.AssetType.String()),
+			printConvertCurrencyFormat(origCurrency, t.Last),
+			printConvertCurrencyFormat(origCurrency, t.Ask),
+			printConvertCurrencyFormat(origCurrency, t.Bid),
+			printConvertCurrencyFormat(origCurrency, t.High),
+			printConvertCurrencyFormat(origCurrency, t.Low),
+			t.Volume)
 	} else {
-		if p.Quote.IsFiatCurrency() &&
-			p.Quote == Bot.Config.Currency.FiatDisplayCurrency {
-			log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
-				exchangeName,
+		if t.Pair.Quote.IsFiatCurrency() &&
+			t.Pair.Quote == Bot.Config.Currency.FiatDisplayCurrency {
+			log.Infof(log.Ticker,
+				"%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
+				t.ExchangeName,
 				protocol,
-				FormatCurrency(p),
-				strings.ToUpper(assetType.String()),
-				printCurrencyFormat(result.Last),
-				printCurrencyFormat(result.Ask),
-				printCurrencyFormat(result.Bid),
-				printCurrencyFormat(result.High),
-				printCurrencyFormat(result.Low),
-				result.Volume)
+				FormatCurrency(t.Pair),
+				strings.ToUpper(t.AssetType.String()),
+				printCurrencyFormat(t.Last),
+				printCurrencyFormat(t.Ask),
+				printCurrencyFormat(t.Bid),
+				printCurrencyFormat(t.High),
+				printCurrencyFormat(t.Low),
+				t.Volume)
 		} else {
-			log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f\n",
-				exchangeName,
+			log.Infof(log.Ticker,
+				"%s %s %s %s: TICKER: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f\n",
+				t.ExchangeName,
 				protocol,
-				FormatCurrency(p),
-				strings.ToUpper(assetType.String()),
-				result.Last,
-				result.Ask,
-				result.Bid,
-				result.High,
-				result.Low,
-				result.Volume)
+				FormatCurrency(t.Pair),
+				strings.ToUpper(t.AssetType.String()),
+				t.Last,
+				t.Ask,
+				t.Bid,
+				t.High,
+				t.Low,
+				t.Volume)
 		}
 	}
 }
 
-func printOrderbookSummary(result *orderbook.Base, p currency.Pair, assetType asset.Item, exchangeName, protocol string, err error) {
+func printOrderbookSummary(o *orderbook.Base, protocol string, err error) {
 	if err != nil {
-		log.Errorf(log.OrderBook, "Failed to get %s %s %s orderbook of type %s. Error: %s\n",
-			exchangeName,
+		log.Errorf(log.OrderBook,
+			"Failed to get %s %s %s orderbook of type %s. Error: %s\n",
+			o.ExchangeName,
 			protocol,
-			p,
-			assetType,
+			o.Pair,
+			o.AssetType,
 			err)
 		return
 	}
 
-	bidsAmount, bidsValue := result.TotalBidsAmount()
-	asksAmount, asksValue := result.TotalAsksAmount()
+	bidsAmount, bidsValue := o.TotalBidsAmount()
+	asksAmount, asksValue := o.TotalAsksAmount()
 
-	if p.Quote.IsFiatCurrency() &&
-		p.Quote != Bot.Config.Currency.FiatDisplayCurrency {
-		origCurrency := p.Quote.Upper()
-		log.Infof(log.OrderBook, "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s\n",
-			exchangeName,
+	if o.Pair.Quote.IsFiatCurrency() &&
+		o.Pair.Quote != Bot.Config.Currency.FiatDisplayCurrency {
+		origCurrency := o.Pair.Quote.Upper()
+		log.Infof(log.OrderBook,
+			"%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s Liquidity Ratio: %f\n",
+			o.ExchangeName,
 			protocol,
-			FormatCurrency(p),
-			strings.ToUpper(assetType.String()),
-			len(result.Bids),
+			FormatCurrency(o.Pair),
+			strings.ToUpper(o.AssetType.String()),
+			len(o.Bids),
 			bidsAmount,
-			p.Base,
+			o.Pair.Base,
 			printConvertCurrencyFormat(origCurrency, bidsValue),
-			len(result.Asks),
+			len(o.Asks),
 			asksAmount,
-			p.Base,
+			o.Pair.Base,
 			printConvertCurrencyFormat(origCurrency, asksValue),
+			bidsValue/asksValue,
 		)
 	} else {
-		if p.Quote.IsFiatCurrency() &&
-			p.Quote == Bot.Config.Currency.FiatDisplayCurrency {
-			log.Infof(log.OrderBook, "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s\n",
-				exchangeName,
+		if o.Pair.Quote.IsFiatCurrency() &&
+			o.Pair.Quote == Bot.Config.Currency.FiatDisplayCurrency {
+			log.Infof(log.OrderBook,
+				"%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s Liquidity Ratio: %f\n",
+				o.ExchangeName,
 				protocol,
-				FormatCurrency(p),
-				strings.ToUpper(assetType.String()),
-				len(result.Bids),
+				FormatCurrency(o.Pair),
+				strings.ToUpper(o.AssetType.String()),
+				len(o.Bids),
 				bidsAmount,
-				p.Base,
+				o.Pair.Base,
 				printCurrencyFormat(bidsValue),
-				len(result.Asks),
+				len(o.Asks),
 				asksAmount,
-				p.Base,
+				o.Pair.Base,
 				printCurrencyFormat(asksValue),
+				bidsValue/asksValue,
 			)
 		} else {
-			log.Infof(log.OrderBook, "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %f Asks len: %d Amount: %f %s. Total value: %f\n",
-				exchangeName,
+			log.Infof(log.OrderBook,
+				"%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %f Asks len: %d Amount: %f %s. Total value: %f Liquidity Ratio: %f\n",
+				o.ExchangeName,
 				protocol,
-				FormatCurrency(p),
-				strings.ToUpper(assetType.String()),
-				len(result.Bids),
+				FormatCurrency(o.Pair),
+				strings.ToUpper(o.AssetType.String()),
+				len(o.Bids),
 				bidsAmount,
-				p.Base,
+				o.Pair.Base,
 				bidsValue,
-				len(result.Asks),
+				len(o.Asks),
 				asksAmount,
-				p.Base,
+				o.Pair.Base,
 				asksValue,
+				bidsValue/asksValue,
 			)
 		}
+	}
+}
+
+func printAccountSummary(ai *exchange.AccountInfo, protocol string) {
+	for x := range ai.Accounts {
+		var account string
+		if ai.Accounts[x].ID != "" {
+			account = ai.Accounts[x].ID
+		} else {
+			account = strconv.FormatInt(int64(x), 10)
+		}
+
+		for y := range ai.Accounts[x].Currencies {
+			if ai.Accounts[x].Currencies[y].TotalValue == 0 {
+				continue
+			}
+			log.Infof(log.Global,
+				"%s %s: ACCOUNT UPDATE: AccountID:%s Currency:%s Amount:%f Hold:%f",
+				ai.Exchange,
+				protocol,
+				account,
+				ai.Accounts[x].Currencies[y].CurrencyName,
+				ai.Accounts[x].Currencies[y].TotalValue,
+				ai.Accounts[x].Currencies[y].Hold)
+		}
+	}
+}
+
+func printTradeSummary(t []order.Trade, protocol string) {
+	if len(t) != 0 {
+		i := len(t) - 1 // Temp stop spam
+		log.Infof(log.Global,
+			"%s %s: TRADE: Pair:%s Asset:%s Price:%f Amount:%f TradeID:%s Executed @ %s",
+			t[i].Exchange,
+			protocol,
+			t[i].Pair,
+			t[i].AssetType,
+			t[i].Price,
+			t[i].Amount,
+			t[i].TID,
+			t[i].Timestamp.Format(time.RFC822),
+		)
+	}
+}
+
+func printOrderSummary(o []order.Detail, protocol string) {
+	for i := range o {
+		log.Infof(log.Global,
+			"%s %s: ORDER UPDATE: AccountID:%s Pair:%s Asset:%s Price:%f Amount:%f Status:%s Side:%s Type:%s OrderID:%s",
+			o[i].Exchange,
+			protocol,
+			o[i].AccountID,
+			o[i].CurrencyPair,
+			o[i].AssetType,
+			o[i].Price,
+			o[i].Amount,
+			o[i].Status,
+			o[i].OrderSide,
+			o[i].OrderType,
+			o[i].ID)
 	}
 }
 
@@ -208,7 +282,8 @@ func WebsocketRoutine() {
 						common.IsEnabled(Bot.Exchanges[i].IsWebsocketEnabled()))
 				}
 
-				// TO-DO: expose IsConnected() and IsConnecting so this can be simplified
+				// TO-DO: expose IsConnected() and IsConnecting so this can be
+				// simplified
 				if Bot.Exchanges[i].IsWebsocketEnabled() {
 					ws, err := Bot.Exchanges[i].GetWebsocket()
 					if err != nil {
@@ -284,65 +359,41 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 				switch d {
 				case wshandler.WebsocketNotEnabled:
 					if Bot.Settings.Verbose {
-						log.Warnf(log.WebsocketMgr, "routines.go warning - exchange %s websocket not enabled\n",
+						log.Warnf(log.WebsocketMgr,
+							"routines.go warning - exchange %s websocket not enabled\n",
 							ws.GetName())
 					}
 				default:
 					log.Info(log.WebsocketMgr, d)
 				}
 			case error:
-				log.Errorf(log.WebsocketMgr, "routines.go exchange %s websocket error - %s", ws.GetName(), data)
+				log.Errorf(log.WebsocketMgr,
+					"routines.go exchange %s websocket error - %s",
+					ws.GetName(),
+					data)
+			case []order.Detail:
+				Bot.ExchangeCurrencyPairManager.StreamUpdate(d)
 			case wshandler.TradeData:
-				// Websocket Trade Data
-				if Bot.Settings.Verbose {
-					log.Infof(log.WebsocketMgr, "%s websocket %s %s trade updated %+v\n",
-						ws.GetName(),
-						FormatCurrency(d.CurrencyPair),
-						d.AssetType,
-						d)
-				}
-			case wshandler.FundingData:
-				// Websocket Funding Data
-				if Bot.Settings.Verbose {
-					log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v\n",
-						ws.GetName(),
-						FormatCurrency(d.CurrencyPair),
-						d.AssetType,
-						d)
-				}
+				Bot.ExchangeCurrencyPairManager.StreamUpdate(d)
+			case []order.Trade:
+				Bot.ExchangeCurrencyPairManager.StreamUpdate(d)
+			case *exchange.Funding:
+				Bot.ExchangeCurrencyPairManager.StreamUpdate(d)
 			case *ticker.Price:
-				// Websocket Ticker Data
-				if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
-					Bot.ExchangeCurrencyPairManager.StreamUpdate(d)
-				}
+				Bot.ExchangeCurrencyPairManager.StreamUpdate(d)
 			case wshandler.KlineData:
-				// Websocket Kline Data
-				if Bot.Settings.Verbose {
-					log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v\n",
-						ws.GetName(),
-						FormatCurrency(d.Pair),
-						d.AssetType,
-						d)
-				}
+				Bot.ExchangeCurrencyPairManager.StreamUpdate(d)
 			case wshandler.WebsocketOrderbookUpdate:
-				// Websocket Orderbook Data
-				if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
-					// TODO: RM this as this adds overhead, pass the pointer
-					// to the orderbook around
-					storedOB, err := orderbook.Get(d.Exchange, d.Pair, d.Asset)
-					if err != nil {
-						log.Errorf(log.WebsocketMgr, "fetching internal orderbook %s", err)
-					}
-					Bot.ExchangeCurrencyPairManager.StreamUpdate(storedOB)
+				// TODO: RM this as this adds overhead, pass the pointer
+				// to the orderbook around
+				storedOB, err := orderbook.Get(d.Exchange, d.Pair, d.Asset)
+				if err != nil {
+					log.Errorf(log.WebsocketMgr,
+						"fetching internal orderbook %s",
+						err)
+					continue
 				}
-
-				if Bot.Settings.Verbose {
-					log.Infof(log.WebsocketMgr,
-						"%s websocket %s %s orderbook updated\n",
-						ws.GetName(),
-						FormatCurrency(d.Pair),
-						d.Asset)
-				}
+				Bot.ExchangeCurrencyPairManager.StreamUpdate(storedOB)
 			default:
 				if Bot.Settings.Verbose {
 					log.Warnf(log.WebsocketMgr,

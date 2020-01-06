@@ -296,6 +296,16 @@ func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 	return orderbook.Get(b.Name, p, assetType)
 }
 
+// FetchTrade returns the trades for a currency pair
+func (b *BTSE) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
+// UpdateTrade updates and returns the trades for a currency pair
+func (b *BTSE) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // BTSE exchange
 func (b *BTSE) GetAccountInfo() (exchange.AccountInfo, error) {
@@ -475,7 +485,7 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 				log.Errorf(log.ExchangeSys,
 					"%s GetOrderInfo unable to parse time: %s\n", b.Name, err)
 			}
-			od.Trades = append(od.Trades, order.TradeHistory{
+			od.Trades = append(od.Trades, order.Trade{
 				Timestamp: createdAt,
 				TID:       strconv.FormatInt(fills[i].ID, 10),
 				Price:     fills[i].Price,
@@ -569,7 +579,7 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 					b.Name,
 					err)
 			}
-			openOrder.Trades = append(openOrder.Trades, order.TradeHistory{
+			openOrder.Trades = append(openOrder.Trades, order.Trade{
 				Timestamp: createdAt,
 				TID:       strconv.FormatInt(fills[i].ID, 10),
 				Price:     fills[i].Price,

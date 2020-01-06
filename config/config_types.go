@@ -130,6 +130,7 @@ type ExchangeConfig struct {
 	API                           APIConfig              `json:"api"`
 	Features                      *FeaturesConfig        `json:"features"`
 	BankAccounts                  []BankAccount          `json:"bankAccounts,omitempty"`
+	SyncHistory                   []TradeHistory         `json:"syncHistory"`
 
 	// Deprecated settings which will be removed in a future update
 	AvailablePairs                   *currency.Pairs      `json:"availablePairs,omitempty"`
@@ -150,6 +151,17 @@ type ExchangeConfig struct {
 	SupportsAutoPairUpdates          *bool                `json:"supportsAutoPairUpdates,omitempty"`
 	Websocket                        *bool                `json:"websocket,omitempty"`
 	WebsocketURL                     *string              `json:"websocketUrl,omitempty"`
+}
+
+// TradeHistory determines the allowable currency pair synchronisation config
+// which will slowly interact with the exchange. This will not be enabled if
+// the currency pair is not in the enabled currency pairs manager.
+type TradeHistory struct {
+	Enabled   bool          `json:"enabled"`
+	AssetType string        `json:"assetType"`
+	Pair      currency.Pair `json:"currencyPair"`
+	StartDate int64         `json:"startDate"`
+	EndDate   int64         `json:"endDate"`
 }
 
 // ProfilerConfig defines the profiler configuration to enable pprof

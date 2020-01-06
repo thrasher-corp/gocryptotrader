@@ -253,6 +253,16 @@ func (c *CoinbasePro) UpdateTradablePairs(forceUpdate bool) error {
 	return c.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
+// FetchTrade returns the trades for a currency pair
+func (c *CoinbasePro) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
+// UpdateTrade updates and returns the trades for a currency pair
+func (c *CoinbasePro) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // coinbasepro exchange
 func (c *CoinbasePro) GetAccountInfo() (exchange.AccountInfo, error) {

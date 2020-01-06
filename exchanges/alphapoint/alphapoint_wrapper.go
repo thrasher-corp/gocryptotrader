@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 )
@@ -177,6 +178,16 @@ func (a *Alphapoint) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*or
 	}
 
 	return orderbook.Get(a.Name, p, assetType)
+}
+
+// FetchTrade returns the trades for a currency pair
+func (a *Alphapoint) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
+// UpdateTrade updates and returns the trades for a currency pair
+func (a *Alphapoint) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
 }
 
 // FetchOrderbook returns the orderbook for a currency pair

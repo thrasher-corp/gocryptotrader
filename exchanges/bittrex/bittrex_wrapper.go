@@ -317,6 +317,16 @@ func (b *Bittrex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 	return orderbook.Get(b.Name, p, assetType)
 }
 
+// FetchTrade returns the trades for a currency pair
+func (b *Bittrex) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
+// UpdateTrade updates and returns the trades for a currency pair
+func (b *Bittrex) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (b *Bittrex) GetFundingHistory() ([]exchange.FundHistory, error) {

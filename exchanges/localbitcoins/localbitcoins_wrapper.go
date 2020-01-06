@@ -244,6 +244,16 @@ func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType asset.Item) (
 	return orderbook.Get(l.Name, p, assetType)
 }
 
+// FetchTrade returns the trades for a currency pair
+func (l *LocalBitcoins) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
+// UpdateTrade updates and returns the trades for a currency pair
+func (l *LocalBitcoins) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // LocalBitcoins exchange
 func (l *LocalBitcoins) GetAccountInfo() (exchange.AccountInfo, error) {

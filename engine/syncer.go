@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
@@ -14,40 +15,21 @@ import (
 
 // NewSyncManager gets a new exchange synchronisation manager
 func NewSyncManager(cfg SyncConfig) (*SyncManager, error) {
-	if !cfg.Orderbook && !cfg.Ticker && !cfg.Trades {
+	if cfg == (SyncConfig{}) {
 		return nil, ErrInvalidItems
 	}
 
-	if cfg.NumWorkers <= 0 {
-		cfg.NumWorkers = DefaultSyncerWorkers
-	}
-
-	if cfg.SyncTimeout <= time.Duration(0) {
-		cfg.SyncTimeout = DefaultSyncerTimeout
-	}
-
-	s := SyncManager{
+	return &SyncManager{
 		SyncConfig: cfg,
 		shutdown:   make(chan struct{}),
 		synchro:    make(chan struct{}),
 		pipe:       make(chan SyncUpdate),
 		syncComm:   make(chan time.Time),
-	}
-
-	log.Debugf(log.SyncMgr,
-		"Exchange currency pair syncer config: continuous: %v ticker: %v"+
-			" orderbook: %v trades: %v workers: %v verbose: %v timeout: %v\n",
-		s.SyncConfig.Continuous,
-		s.SyncConfig.Ticker,
-		s.SyncConfig.Orderbook,
-		s.SyncConfig.Trades,
-		s.SyncConfig.NumWorkers,
-		s.SyncConfig.Verbose,
-		s.SyncConfig.SyncTimeout)
-	return &s, nil
+	}, nil
 }
 
 // Start starts an exchange currency pair syncer
+// TODO: Add in time to update for each agent type
 func (e *SyncManager) Start() {
 	for x := range Bot.Exchanges {
 		if !Bot.Exchanges[x].IsEnabled() {
@@ -58,16 +40,15 @@ func (e *SyncManager) Start() {
 		// engine sub systems
 		Bot.Exchanges[x].GetBase().DisableRateLimit()
 
-		assetTypes := Bot.Exchanges[x].GetAssetTypes()
-
-		if !Bot.Exchanges[x].SupportsREST() && !Bot.Exchanges[x].SupportsWebsocket() {
+		if !Bot.Exchanges[x].SupportsREST() &&
+			!Bot.Exchanges[x].SupportsWebsocket() {
 			log.Warnf(log.SyncMgr,
 				"Loaded exchange %s does not support REST or Websocket.\n",
 				Bot.Exchanges[x].GetName())
 			continue
 		}
 
-		var protocol string = syncProtocolREST
+		// Set up initial websocket connection
 		if Bot.Exchanges[x].IsWebsocketEnabled() {
 			ws, err := Bot.Exchanges[x].GetWebsocket()
 			if err != nil {
@@ -75,108 +56,185 @@ func (e *SyncManager) Start() {
 					"%s failed to get websocket. Err: %s\n",
 					Bot.Exchanges[x].GetName(),
 					err)
-			}
-
-			if !ws.IsConnected() && !ws.IsConnecting() {
+			} else if !ws.IsConnected() && !ws.IsConnecting() {
 				go WebsocketDataHandler(ws)
-
 				err = ws.Connect()
 				if err != nil {
 					log.Errorf(log.SyncMgr,
 						"%s websocket failed to connect. Err: %s\n",
 						Bot.Exchanges[x].GetName(), err)
-				} else {
-					protocol = syncProtocolWebsocket
 				}
-			} else {
-				protocol = syncProtocolWebsocket
 			}
 		}
 
+		// Initial synchronisation count and waitgroup
 		var exchangeSyncItems int
 		var wg sync.WaitGroup
-		auth := Bot.Exchanges[x].GetBase().API.AuthenticatedSupport
-		if auth {
-			// TODO: Tie in with account config settings
-			e.Agents = append(e.Agents, &AccountAgent{
-				Exchange: Bot.Exchanges[x],
-				Protocol: protocol,
-				Pipe:     e.pipe,
-				Wg:       &wg,
-			})
-			exchangeSyncItems++
-			// TODO: Tie in with account fee settings
-			e.Agents = append(e.Agents, &FeeAgent{
-				Exchange: Bot.Exchanges[x],
-				Protocol: protocol,
-				Pipe:     e.pipe,
-				Wg:       &wg,
-			})
-			exchangeSyncItems++
-			// TODO: Tie in with order config settings
-			e.Agents = append(e.Agents, &OrderAgent{
-				Exchange: Bot.Exchanges[x],
-				Protocol: protocol,
-				Pipe:     e.pipe,
-				Wg:       &wg,
+		if e.ExchangeDepositAddresses {
+			// TODO:
+			// for _, cur := range Bot.Exchanges[x].GetBase().BaseCurrencies {
+			// 	if cur.IsFiatCurrency() {
+			// 		continue
+			// 	}
+
+			// 	e.Agents = append(e.Agents, &DepositAddressAgent{
+			// 		Exchange: Bot.Exchanges[x],
+			// 		Currency: cur,
+			// 		Pipe:     e.pipe,
+			// 		Wg:       &wg,
+			// 		CancelMe: make(chan int),
+			// 	})
+			// 	exchangeSyncItems++
+			// }
+		}
+
+		if Bot.Exchanges[x].GetBase().API.AuthenticatedSupport {
+			// Fetches account balance for the exchange
+			if e.AccountBalance {
+				e.Agents = append(e.Agents, &AccountAgent{
+					Agent: Agent{
+						Exchange: Bot.Exchanges[x],
+						Pipe:     e.pipe,
+						Wg:       &wg,
+						CancelMe: make(chan int),
+					},
+				})
+				exchangeSyncItems++
+			}
+
+			if e.AccountFees {
+				// Fetches updated fee structure
+				// TODO: REDO current fee retrieval system, package it
+				// e.Agents = append(e.Agents, &FeeAgent{
+				// 	Exchange: Bot.Exchanges[x],
+				// 	Pipe:     e.pipe,
+				// 	Wg:       &wg,
+				// 	CancelMe: make(chan int),
+				// })
+				// exchangeSyncItems++
+			}
+
+			if e.AccountOrders {
+				// Fetches account active orders
+				e.Agents = append(e.Agents, &OrderAgent{
+					Agent: Agent{
+						Exchange: Bot.Exchanges[x],
+						Pipe:     e.pipe,
+						Wg:       &wg,
+						CancelMe: make(chan int),
+					},
+				})
+				exchangeSyncItems++
+			}
+
+			if e.AccountFunding {
+				// TODO:
+				// Fetches funding status and alerts - will be used mostly from
+				// streaming
+				// e.Agents = append(e.Agents, &FundingAgent{
+				// 	Exchange: Bot.Exchanges[x],
+				// 	Pipe:     e.pipe,
+				// 	Wg:       &wg,
+				// 	CancelMe: make(chan int),
+				// })
+				// exchangeSyncItems++
+			}
+
+			if e.AccountPosition {
+				// TODO:
+				// Fetches position status and alerts - will be used mostly from
+				// streaming
+				// e.Agents = append(e.Agents, &PositionAgent{
+				// 	Exchange: Bot.Exchanges[x],
+				// 	Pipe:     e.pipe,
+				// 	Wg:       &wg,
+				// 	CancelMe: make(chan int),
+				// })
+				// exchangeSyncItems++
+			}
+		}
+
+		if e.ExchangeTradeHistory {
+			e.Agents = append(e.Agents, &ExchangeTradeHistoryAgent{
+				Agent: Agent{
+					Exchange: Bot.Exchanges[x],
+					Pipe:     e.pipe,
+					Wg:       &wg,
+					CancelMe: make(chan int),
+				},
 			})
 			exchangeSyncItems++
 		}
 
-		// TODO: Add Historic trades for an exchange and items to configuration
+		if e.ExchangeSupportedPairs {
+			// Periodically checks supported pairs list for a persistant bot
+			// instance
+			e.Agents = append(e.Agents, &SupportedPairsAgent{
+				Agent: Agent{
+					Exchange: Bot.Exchanges[x],
+					Pipe:     e.pipe,
+					Wg:       &wg,
+					CancelMe: make(chan int),
+				},
+			})
+		}
 
-		// e.Agents = append(e.Agents, &ExchangeTradeHistoryAgent{
-		// 	Exchange: Bot.Exchanges[x],
-		// 	Protocol: protocol,
-		// 	Pipe:     e.pipe,
-		// 	Wg:       &wg,
-		// })
-
-		// e.Agents = append(e.Agents, &SupportedPairsAgent{
-		// 	Exchange: Bot.Exchanges[x],
-		// 	Protocol: protocol,
-		// 	Pipe:     e.pipe,
-		// 	Wg:       &wg,
-		// })
-
+		assetTypes := Bot.Exchanges[x].GetAssetTypes()
 		for y := range assetTypes {
 			enabledPairs := Bot.Exchanges[x].GetEnabledPairs(assetTypes[y])
 			for z := range enabledPairs {
-				if e.SyncConfig.Ticker {
+				if e.ExchangeTicker {
 					e.Agents = append(e.Agents, &TickerAgent{
 						AssetType: assetTypes[y],
-						Exchange:  Bot.Exchanges[x],
 						Pair:      enabledPairs[z],
-						Protocol:  protocol,
-						Pipe:      e.pipe,
-						Wg:        &wg,
-						CancelMe:  make(chan int),
+						Agent: Agent{
+							Exchange: Bot.Exchanges[x],
+							Pipe:     e.pipe,
+							Wg:       &wg,
+							CancelMe: make(chan int),
+						},
 					})
 					exchangeSyncItems++
 				}
 
-				if e.SyncConfig.Orderbook {
+				if e.ExchangeOrderbook {
 					e.Agents = append(e.Agents, &OrderbookAgent{
 						AssetType: assetTypes[y],
-						Exchange:  Bot.Exchanges[x],
 						Pair:      enabledPairs[z],
-						Protocol:  protocol,
-						Pipe:      e.pipe,
-						Wg:        &wg,
-						CancelMe:  make(chan int),
+						Agent: Agent{
+							Exchange: Bot.Exchanges[x],
+							Pipe:     e.pipe,
+							Wg:       &wg,
+							CancelMe: make(chan int),
+						},
 					})
 					exchangeSyncItems++
 				}
 
-				if e.SyncConfig.Trades {
+				if e.ExchangeTrades {
 					e.Agents = append(e.Agents, &TradeAgent{
 						AssetType: assetTypes[y],
-						Exchange:  Bot.Exchanges[x],
 						Pair:      enabledPairs[z],
-						Protocol:  protocol,
-						Pipe:      e.pipe,
-						Wg:        &wg,
-						CancelMe:  make(chan int),
+						Agent: Agent{
+							Exchange: Bot.Exchanges[x],
+							Pipe:     e.pipe,
+							Wg:       &wg,
+							CancelMe: make(chan int),
+						},
+					})
+					exchangeSyncItems++
+				}
+
+				if e.ExchangeKline {
+					e.Agents = append(e.Agents, &KlineAgent{
+						AssetType: assetTypes[y],
+						Pair:      enabledPairs[z],
+						Agent: Agent{
+							Exchange: Bot.Exchanges[x],
+							Pipe:     e.pipe,
+							Wg:       &wg,
+							CancelMe: make(chan int),
+						},
 					})
 					exchangeSyncItems++
 				}
@@ -299,14 +357,6 @@ func (e *SyncManager) Monitor() {
 	}
 }
 
-// SyncUpdate wraps updates for concurrent processing
-type SyncUpdate struct {
-	Agent    Synchroniser
-	Payload  interface{}
-	Procotol string
-	Err      error
-}
-
 // Processor processing all concurrent sync agent updates
 func (e *SyncManager) Processor() {
 	for {
@@ -314,79 +364,97 @@ func (e *SyncManager) Processor() {
 		case <-e.shutdown:
 			return
 		case u := <-e.pipe:
-			if u.Err != nil {
-				fmt.Println("error occured", u.Err)
-				continue
-			}
-			e.Lock() // TODO - Possibly have a mutex to the agent instead
-			lastUpdated := u.Agent.GetLastUpdated()
-			if lastUpdated != (time.Time{}) {
-				if Bot.Settings.Verbose {
-					log.Debugf(log.SyncMgr, "Agent last updated %s ago",
-						time.Now().Sub(lastUpdated))
+			if u.Err == nil {
+				e.Lock()
+				// Check for last updated
+				lastUpdated := u.Agent.GetLastUpdated()
+				if lastUpdated != (time.Time{}) {
+					if Bot.Settings.Verbose {
+						log.Debugf(log.SyncMgr, "Agent last updated %s ago",
+							time.Now().Sub(lastUpdated))
+					}
+				} else {
+					// Set initial sync complete on agent
+					u.Agent.InitialSyncComplete()
 				}
-			} else {
-				u.Agent.InitialSyncComplete()
-			}
-			u.Agent.SetLastUpdated(time.Now())
-			u.Agent.SetNextUpdate(u.Agent.GetLastUpdated().Add(DefaultSyncerTimeout))
-			// TODO: Probably RM this field
-			if u.Agent.IsProcessing() &&
-				u.Agent.IsUsingProtocol(syncProtocolREST) &&
-				u.Procotol != syncProtocolREST {
-				// Processing in REST, cancel request
-				fmt.Println("Cancelling process", u.Procotol)
-				u.Agent.Cancel()
-			}
-			u.Agent.SetUsingProtocol(u.Procotol)
-			u.Agent.SetProcessing(false)
 
-			e.syncComm <- u.Agent.GetNextUpdate() // Send items next update time
-			// to the Monitor routine for check
-			e.Unlock()
+				if u.Agent.IsProcessing() && u.Protocol != REST {
+					// Cancel on job stack if update from stream connection
+					// comes through
+					u.Agent.Cancel()
+				}
+
+				// Sets new update time
+				u.Agent.SetNewUpdate()
+				u.Agent.SetProcessing(false)
+
+				// Send items next update time to the Monitor routine for check
+				e.syncComm <- u.Agent.GetNextUpdate()
+				e.Unlock()
+			}
+
+			// --- This section can be deprecated in production
 			switch p := u.Payload.(type) {
 			case *ticker.Price:
-				printTickerSummary(p,
-					p.Pair,
-					p.AssetType,
-					p.ExchangeName,
-					u.Procotol,
-					u.Err)
+				printTickerSummary(p, u.Protocol, u.Err)
 			case *orderbook.Base:
-				printOrderbookSummary(p,
-					p.Pair,
-					p.AssetType,
-					p.ExchangeName,
-					u.Procotol,
-					u.Err)
-				// TODO: Add all items to the list
-			case exchange.AccountInfo:
-				fmt.Println("YAY! Account info!")
+				printOrderbookSummary(p, u.Protocol, u.Err)
+			case *exchange.AccountInfo:
+				printAccountSummary(p, u.Protocol)
+			case []order.Trade:
+				printTradeSummary(p, u.Protocol)
 			case float64: // fee???
 				fmt.Println("YAY! Fee updated!")
 			case exchange.TradeHistory:
 				fmt.Println("YAY! Trade History updated!")
 			case []order.Detail:
-				fmt.Println("YAY! Open Orders updated!")
+				printOrderSummary(p, u.Protocol)
 			default:
 				panic(p) // TODO: Rework this
 			}
+			// ---
 		}
 	}
 }
 
-// StreamUpdate passes in a stream object TODO: Need to find a more efficient
-// way of matching agent
+// StreamUpdate passes in a stream object
+// TODO: Need to find a more efficient way of matching agent
 func (e *SyncManager) StreamUpdate(payload interface{}) {
+	// Default subscriptions for websocket streaming, this switch will stop
+	// interaction with the sync agent [temp]
+	switch payload.(type) {
+	case *ticker.Price:
+		if !e.ExchangeTicker {
+			return
+		}
+	case *orderbook.Base:
+		if !e.ExchangeOrderbook {
+			return
+		}
+	case []order.Detail:
+		// if !e.AccountOrders {
+		// 	return
+		// }
+	case []order.Trade:
+		if !e.ExchangeTrades {
+			return
+		}
+	default:
+		fmt.Println("Cannot match to agent", reflect.TypeOf(payload))
+		return
+	}
+
 	for i := range e.Agents {
 		if agent := e.Agents[i].Stream(payload); agent != nil {
 			go func(s Synchroniser, payload interface{}) {
 				e.pipe <- SyncUpdate{
 					Agent:    agent,
 					Payload:  payload,
-					Procotol: syncProtocolWebsocket,
+					Protocol: Websocket,
 				}
 			}(agent, payload)
+			return
 		}
 	}
+	fmt.Println("Cannot match to agent", reflect.TypeOf(payload))
 }

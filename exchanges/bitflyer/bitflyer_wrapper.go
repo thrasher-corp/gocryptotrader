@@ -1,6 +1,7 @@
 package bitflyer
 
 import (
+	"errors"
 	"strings"
 	"sync"
 	"time"
@@ -255,6 +256,16 @@ func (b *Bitflyer) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 	}
 
 	return orderbook.Get(b.Name, p, assetType)
+}
+
+// FetchTrade returns the trades for a currency pair
+func (b *Bitflyer) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
+// UpdateTrade updates and returns the trades for a currency pair
+func (b *Bitflyer) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies on the

@@ -140,23 +140,25 @@ func (b *BTCMarkets) WsHandleData() {
 					Asset:    asset.Spot,
 					Exchange: b.Name,
 				}
-			case trade:
-				var trade WsTrade
-				err := json.Unmarshal(resp.Raw, &trade)
+			case trades:
+				var wstrade WsTrade
+				err := json.Unmarshal(resp.Raw, &wstrade)
 				if err != nil {
 					b.Websocket.DataHandler <- err
 					continue
 				}
-				p := currency.NewPairFromString(trade.Currency)
-				b.Websocket.DataHandler <- wshandler.TradeData{
-					Timestamp:    trade.Timestamp,
-					CurrencyPair: p,
-					AssetType:    asset.Spot,
-					Exchange:     b.Name,
-					Price:        trade.Price,
-					Amount:       trade.Volume,
-					Side:         order.SideUnknown.String(),
-					EventType:    order.Unknown.String(),
+				p := currency.NewPairFromString(wstrade.Currency)
+				b.Websocket.DataHandler <- []order.Trade{
+					{
+						Timestamp: wstrade.Timestamp,
+						Pair:      p,
+						AssetType: asset.Spot,
+						Exchange:  b.Name,
+						Price:     wstrade.Price,
+						Amount:    wstrade.Volume,
+						Side:      order.SideUnknown,
+						Type:      order.Unknown,
+					},
 				}
 			case tick:
 				var tick WsTick
@@ -195,7 +197,49 @@ func (b *BTCMarkets) WsHandleData() {
 					b.Websocket.DataHandler <- err
 					continue
 				}
-				b.Websocket.DataHandler <- orderData
+				side, err := order.StringToOrderSide(orderData.Side)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					continue
+				}
+				otype, err := order.StringToOrderType(orderData.OrderType)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					continue
+				}
+				status, err := order.StringToOrderStatus(orderData.Status)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					continue
+				}
+
+				var trades []order.Trade
+				for i := range orderData.Trades {
+					trades = append(trades, order.Trade{
+						Exchange:      b.Name,
+						TID:           strconv.FormatInt(orderData.Trades[i].TradeID, 10),
+						Price:         orderData.Trades[i].Price,
+						Amount:        orderData.Trades[i].Volume,
+						Fee:           orderData.Trades[i].Fee,
+						LiquidityType: orderData.Trades[i].LiquidityType,
+					})
+				}
+
+				b.Websocket.DataHandler <- []order.Detail{
+					{
+						Exchange:     b.Name,
+						ID:           strconv.FormatInt(orderData.OrderID, 10),
+						CurrencyPair: currency.NewPairFromString(orderData.MarketID),
+						AssetType:    asset.Spot,
+						OrderSide:    side,
+						OrderType:    otype,
+						OrderDate:    orderData.Timestamp,
+						Status:       status,
+						Amount:       orderData.OpenVolume,
+						Trades:       trades,
+					},
+				}
+
 			case "error":
 				var wsErr WsError
 				err := json.Unmarshal(resp.Raw, &wsErr)
@@ -212,7 +256,7 @@ func (b *BTCMarkets) WsHandleData() {
 }
 
 func (b *BTCMarkets) generateDefaultSubscriptions() {
-	var channels = []string{tick, trade, wsOB}
+	var channels = []string{tick, trades, wsOB}
 	enabledCurrencies := b.GetEnabledPairs(asset.Spot)
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range channels {
@@ -228,7 +272,7 @@ func (b *BTCMarkets) generateDefaultSubscriptions() {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *BTCMarkets) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
-	unauthChannels := []string{tick, trade, wsOB}
+	unauthChannels := []string{tick, trades, wsOB}
 	authChannels := []string{fundChange, heartbeat, orderChange}
 	switch {
 	case common.StringDataCompare(unauthChannels, channelToSubscribe.Channel):

@@ -377,6 +377,16 @@ func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 	return orderbook.Get(h.Name, p, assetType)
 }
 
+// FetchTrade returns the trades for a currency pair
+func (h *HUOBI) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
+// UpdateTrade updates and returns the trades for a currency pair
+func (h *HUOBI) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
 // GetAccountID returns the account ID for trades
 func (h *HUOBI) GetAccountID() ([]Account, error) {
 	acc, err := h.GetAccounts()

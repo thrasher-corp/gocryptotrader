@@ -15,81 +15,57 @@ import (
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
-// TickerAgent implements the synchroniser interface
-type TickerAgent struct {
-	Exchange    exchange.IBotExchange
-	AssetType   asset.Item
-	Pair        currency.Pair
-	Protocol    string
-	Processing  bool
-	NextUpdate  time.Time
-	LastUpdated time.Time
-	Pipe        chan SyncUpdate
-	Wg          *sync.WaitGroup
-	CancelMe    chan int
+// Agent defines our core fields to implement the sychroniser interface.
+// To add additional agents requires the new struct to imbed an agent and
+// define an execution method and stream method
+type Agent struct {
+	Exchange        exchange.IBotExchange
+	Processing      bool
+	NextUpdate      time.Time
+	LastUpdated     time.Time
+	RestUpdateDelay time.Duration
+	Pipe            chan SyncUpdate
+	Wg              *sync.WaitGroup
+	CancelMe        chan int
 }
 
-// GetLastUpdated  ...
-func (a *TickerAgent) GetLastUpdated() time.Time {
+// GetLastUpdated returns when the agent was last update
+func (a *Agent) GetLastUpdated() time.Time {
 	return a.LastUpdated
 }
 
-// GetNextUpdate ...
-func (a *TickerAgent) GetNextUpdate() time.Time {
+// GetNextUpdate returns when the agent needs to be updated
+func (a *Agent) GetNextUpdate() time.Time {
 	return a.NextUpdate
 }
 
-// SetLastUpdated ...
-func (a *TickerAgent) SetLastUpdated(t time.Time) {
-	a.LastUpdated = t
+// SetNewUpdate sets agents last updated time and the updates the next required
+// update time for REST protocol
+func (a *Agent) SetNewUpdate() {
+	a.LastUpdated = time.Now()
+	if a.RestUpdateDelay == 0 {
+		panic("RestUpdateDelay not set")
+	}
+	a.NextUpdate = a.LastUpdated.Add(a.RestUpdateDelay)
 }
 
-// SetNextUpdate ...
-func (a *TickerAgent) SetNextUpdate(t time.Time) {
-	a.NextUpdate = t
-}
-
-// IsUsingProtocol ...
-func (a *TickerAgent) IsUsingProtocol(protocol string) bool {
-	return protocol == a.Protocol
-}
-
-// SetUsingProtocol ...
-func (a *TickerAgent) SetUsingProtocol(protocol string) {
-	a.Protocol = protocol
-}
-
-// IsProcessing ...
-func (a *TickerAgent) IsProcessing() bool {
+// IsProcessing checks if agent is being processed by the REST protocol
+func (a *Agent) IsProcessing() bool {
 	return a.Processing
 }
 
-// SetProcessing ...
-func (a *TickerAgent) SetProcessing(b bool) {
+// SetProcessing sets if agent is being processed by the REST protocol
+func (a *Agent) SetProcessing(b bool) {
 	a.Processing = b
 }
 
-// Execute ...
-func (a *TickerAgent) Execute() {
-	start := time.Now()
-	t, err := Bot.WoRkMaNaGeR.Exchange(syncManagerUUID, a.Exchange).UpdateTicker(a.Pair, a.AssetType, a.CancelMe)
-	end := time.Now()
-	if Bot.Settings.Verbose {
-		log.Debugf(log.SyncMgr,
-			"Ticker item took [%s] to update \n",
-			end.Sub(start))
-	}
-
-	a.Pipe <- SyncUpdate{
-		Agent:    a,
-		Payload:  t,
-		Procotol: syncProtocolREST,
-		Err:      err}
+// InitialSyncComplete sets initial sync to complete
+func (a *Agent) InitialSyncComplete() {
+	a.Wg.Done()
 }
 
-// Cancel cancels job so when sleep is done it cancels and resets
-func (a *TickerAgent) Cancel() {
-	fmt.Println("cancelling ticker update")
+// Cancel cancels job on the job stack
+func (a *Agent) Cancel() {
 	select {
 	case a.CancelMe <- 1:
 	default:
@@ -97,12 +73,26 @@ func (a *TickerAgent) Cancel() {
 	}
 }
 
-// InitialSyncComplete sets initial sync to complete
-func (a *TickerAgent) InitialSyncComplete() {
-	a.Wg.Done()
+// TickerAgent synchronises the exchange currency pair ticker
+type TickerAgent struct {
+	Agent
+	AssetType asset.Item
+	Pair      currency.Pair
 }
 
-// Stream couples protocol updates
+// Execute gets the ticker from the REST protocol
+func (a *TickerAgent) Execute() {
+	t, err := Bot.WoRkMaNaGeR.Exchange(syncManagerUUID,
+		a.Exchange).UpdateTicker(a.Pair, a.AssetType, a.CancelMe)
+
+	a.Pipe <- SyncUpdate{
+		Agent:    a,
+		Payload:  t,
+		Protocol: REST,
+		Err:      err}
+}
+
+// Stream couples agent with incoming stream data
 func (a *TickerAgent) Stream(payload interface{}) Synchroniser {
 	t, ok := payload.(*ticker.Price)
 	if !ok {
@@ -118,95 +108,26 @@ func (a *TickerAgent) Stream(payload interface{}) Synchroniser {
 	return nil
 }
 
-// OrderbookAgent implements the synchroniser interface
+// OrderbookAgent synchronises the exchange currency pair orderbook
 type OrderbookAgent struct {
-	Exchange    exchange.IBotExchange
-	Function    func()
-	AssetType   asset.Item
-	Pair        currency.Pair
-	Protocol    string
-	Processing  bool
-	NextUpdate  time.Time
-	LastUpdated time.Time
-	Pipe        chan SyncUpdate
-	Wg          *sync.WaitGroup
-	CancelMe    chan int
+	Agent
+	AssetType asset.Item
+	Pair      currency.Pair
 }
 
-// GetLastUpdated  ...
-func (a *OrderbookAgent) GetLastUpdated() time.Time {
-	return a.LastUpdated
-}
-
-// GetNextUpdate ...
-func (a *OrderbookAgent) GetNextUpdate() time.Time {
-	return a.NextUpdate
-}
-
-// SetLastUpdated ...
-func (a *OrderbookAgent) SetLastUpdated(t time.Time) {
-	a.LastUpdated = t
-}
-
-// SetNextUpdate ...
-func (a *OrderbookAgent) SetNextUpdate(t time.Time) {
-	a.NextUpdate = t
-}
-
-// IsUsingProtocol ...
-func (a *OrderbookAgent) IsUsingProtocol(protocol string) bool {
-	return protocol == a.Protocol
-}
-
-// SetUsingProtocol ...
-func (a *OrderbookAgent) SetUsingProtocol(protocol string) {
-	a.Protocol = protocol
-}
-
-// IsProcessing ...
-func (a *OrderbookAgent) IsProcessing() bool {
-	return a.Processing
-}
-
-// SetProcessing ...
-func (a *OrderbookAgent) SetProcessing(b bool) {
-	a.Processing = b
-}
-
-// Execute ...
+// Execute gets the orderbook from the REST protocol
 func (a *OrderbookAgent) Execute() {
-	start := time.Now()
-	o, err := Bot.WoRkMaNaGeR.Exchange(syncManagerUUID, a.Exchange).UpdateOrderbook(a.Pair, a.AssetType, a.CancelMe)
-	end := time.Now()
-	if Bot.Settings.Verbose {
-		log.Debugf(log.SyncMgr,
-			"Orderbook item took [%s] to update \n",
-			end.Sub(start))
-	}
+	o, err := Bot.WoRkMaNaGeR.Exchange(syncManagerUUID,
+		a.Exchange).UpdateOrderbook(a.Pair, a.AssetType, a.CancelMe)
 
 	a.Pipe <- SyncUpdate{
 		Agent:    a,
 		Payload:  o,
-		Procotol: syncProtocolREST,
+		Protocol: REST,
 		Err:      err}
 }
 
-// Cancel cancels job so when sleep is done it cancels and resets
-func (a *OrderbookAgent) Cancel() {
-	fmt.Println("cancelling orderbook update: ", a.Protocol, a.Pair, a.AssetType)
-	select {
-	case a.CancelMe <- 1:
-	default:
-		fmt.Println("failed to cancel")
-	}
-}
-
-// InitialSyncComplete sets initial sync to complete
-func (a *OrderbookAgent) InitialSyncComplete() {
-	a.Wg.Done()
-}
-
-// Stream couples protocol updates
+// Stream couples agent with incoming stream data
 func (a *OrderbookAgent) Stream(payload interface{}) Synchroniser {
 	o, ok := payload.(*orderbook.Base)
 	if !ok {
@@ -222,196 +143,57 @@ func (a *OrderbookAgent) Stream(payload interface{}) Synchroniser {
 	return nil
 }
 
-// TradeAgent implements the synchroniser interface
+// TradeAgent synchronises the exchange currency pair trades
 type TradeAgent struct {
-	Exchange    exchange.IBotExchange
-	Function    func()
-	AssetType   asset.Item
-	Pair        currency.Pair
-	Protocol    string
-	Processing  bool
-	NextUpdate  time.Time
-	LastUpdated time.Time
-	Pipe        chan SyncUpdate
-	Wg          *sync.WaitGroup
-	CancelMe    chan int
+	Agent
+	AssetType asset.Item
+	Pair      currency.Pair
 }
 
-// GetLastUpdated  ...
-func (a *TradeAgent) GetLastUpdated() time.Time {
-	return a.LastUpdated
-}
-
-// GetNextUpdate ...
-func (a *TradeAgent) GetNextUpdate() time.Time {
-	return a.NextUpdate
-}
-
-// SetLastUpdated ...
-func (a *TradeAgent) SetLastUpdated(t time.Time) {
-	a.LastUpdated = t
-}
-
-// SetNextUpdate ...
-func (a *TradeAgent) SetNextUpdate(t time.Time) {
-	a.NextUpdate = t
-}
-
-// IsUsingProtocol ...
-func (a *TradeAgent) IsUsingProtocol(protocol string) bool {
-	return protocol == a.Protocol
-}
-
-// SetUsingProtocol ...
-func (a *TradeAgent) SetUsingProtocol(protocol string) {
-	a.Protocol = protocol
-}
-
-// IsProcessing ...
-func (a *TradeAgent) IsProcessing() bool {
-	return a.Processing
-}
-
-// SetProcessing ...
-func (a *TradeAgent) SetProcessing(b bool) {
-	a.Processing = b
-}
-
-// Execute ...
+// Execute gets the trades from the REST protocol
 func (a *TradeAgent) Execute() {
-	start := time.Now()
-	o, err := Bot.WoRkMaNaGeR.Exchange(syncManagerUUID, a.Exchange).UpdateOrderbook(a.Pair, a.AssetType, a.CancelMe)
-	end := time.Now()
-	if Bot.Settings.Verbose {
-		log.Debugf(log.SyncMgr,
-			"Orderbook item took [%s] to update \n",
-			end.Sub(start))
-	}
+	t, err := Bot.WoRkMaNaGeR.Exchange(syncManagerUUID,
+		a.Exchange).UpdateTrades(a.Pair, a.AssetType, a.CancelMe)
 
 	a.Pipe <- SyncUpdate{
 		Agent:    a,
-		Payload:  &o,
-		Procotol: syncProtocolREST,
+		Payload:  t,
+		Protocol: REST,
 		Err:      err}
 }
 
-// Cancel cancels job so when sleep is done it cancels and resets
-func (a *TradeAgent) Cancel() {
-	fmt.Println("cancelling trade update: ", a.Protocol, a.Pair, a.AssetType)
-	select {
-	case a.CancelMe <- 1:
-	default:
-		fmt.Println("failed to cancel")
-	}
-}
-
-// InitialSyncComplete sets initial sync to complete
-func (a *TradeAgent) InitialSyncComplete() {
-	a.Wg.Done()
-}
-
-// Stream couples protocol updates
+// Stream couples agent with incoming stream data
 func (a *TradeAgent) Stream(payload interface{}) Synchroniser {
-	t, ok := payload.(*exchange.TradeHistory) // TODO: Change to correct type
+	t, ok := payload.([]order.Trade)
 	if !ok {
 		return nil
 	}
 
-	if strings.EqualFold(a.Exchange.GetName(), t.Exchange) &&
-		a.AssetType == t.AssetType &&
-		a.Pair == t.Pair {
+	if strings.EqualFold(a.Exchange.GetName(), t[0].Exchange) {
 		return a
 	}
 
 	return nil
 }
 
-// AccountAgent implements the synchroniser interface
+// AccountAgent synchronises the exchange account balances
 type AccountAgent struct {
-	Exchange    exchange.IBotExchange
-	Protocol    string
-	Processing  bool
-	NextUpdate  time.Time
-	LastUpdated time.Time
-	Pipe        chan SyncUpdate
-	Wg          *sync.WaitGroup
-	CancelMe    chan int
+	Agent
 }
 
-// GetLastUpdated  ...
-func (a *AccountAgent) GetLastUpdated() time.Time {
-	return a.LastUpdated
-}
-
-// GetNextUpdate ...
-func (a *AccountAgent) GetNextUpdate() time.Time {
-	return a.NextUpdate
-}
-
-// SetLastUpdated ...
-func (a *AccountAgent) SetLastUpdated(t time.Time) {
-	a.LastUpdated = t
-}
-
-// SetNextUpdate ...
-func (a *AccountAgent) SetNextUpdate(t time.Time) {
-	a.NextUpdate = t
-}
-
-// IsUsingProtocol ...
-func (a *AccountAgent) IsUsingProtocol(protocol string) bool {
-	return protocol == a.Protocol
-}
-
-// SetUsingProtocol ...
-func (a *AccountAgent) SetUsingProtocol(protocol string) {
-	a.Protocol = protocol
-}
-
-// IsProcessing ...
-func (a *AccountAgent) IsProcessing() bool {
-	return a.Processing
-}
-
-// SetProcessing ...
-func (a *AccountAgent) SetProcessing(b bool) {
-	a.Processing = b
-}
-
-// Execute ...
+// Execute gets the account balances from the REST protocol
 func (a *AccountAgent) Execute() {
-	start := time.Now()
-	acc, err := Bot.WoRkMaNaGeR.Exchange(syncManagerUUID, a.Exchange).GetAccountInfo(a.CancelMe)
-	end := time.Now()
-	if Bot.Settings.Verbose {
-		log.Debugf(log.SyncMgr,
-			"Account item took [%s] to update \n",
-			end.Sub(start))
-	}
+	acc, err := Bot.WoRkMaNaGeR.Exchange(syncManagerUUID,
+		a.Exchange).GetAccountInfo(a.CancelMe)
 
 	a.Pipe <- SyncUpdate{
 		Agent:    a,
 		Payload:  &acc,
-		Procotol: syncProtocolREST,
+		Protocol: REST,
 		Err:      err}
 }
 
-// Cancel cancels job so when sleep is done it cancels and resets
-func (a *AccountAgent) Cancel() {
-	fmt.Println("cancelling account update: ", a.Protocol)
-	select {
-	case a.CancelMe <- 1:
-	default:
-		fmt.Println("failed to cancel")
-	}
-}
-
-// InitialSyncComplete sets initial sync to complete
-func (a *AccountAgent) InitialSyncComplete() {
-	a.Wg.Done()
-}
-
-// Stream couples protocol updates
+// Stream couples agent with incoming stream data
 func (a *AccountAgent) Stream(payload interface{}) Synchroniser {
 	acc, ok := payload.(*exchange.AccountInfo)
 	if !ok {
@@ -425,92 +207,24 @@ func (a *AccountAgent) Stream(payload interface{}) Synchroniser {
 	return nil
 }
 
-// OrderAgent implements the synchroniser interface
+// OrderAgent synchronises the exchange account orders
 type OrderAgent struct {
-	Exchange    exchange.IBotExchange
-	Protocol    string
-	Processing  bool
-	NextUpdate  time.Time
-	LastUpdated time.Time
-	Pipe        chan SyncUpdate
-	Wg          *sync.WaitGroup
-	CancelMe    chan int
+	Agent
 }
 
-// GetLastUpdated  ...
-func (a *OrderAgent) GetLastUpdated() time.Time {
-	return a.LastUpdated
-}
-
-// GetNextUpdate ...
-func (a *OrderAgent) GetNextUpdate() time.Time {
-	return a.NextUpdate
-}
-
-// SetLastUpdated ...
-func (a *OrderAgent) SetLastUpdated(t time.Time) {
-	a.LastUpdated = t
-}
-
-// SetNextUpdate ...
-func (a *OrderAgent) SetNextUpdate(t time.Time) {
-	a.NextUpdate = t
-}
-
-// IsUsingProtocol ...
-func (a *OrderAgent) IsUsingProtocol(protocol string) bool {
-	return protocol == a.Protocol
-}
-
-// SetUsingProtocol ...
-func (a *OrderAgent) SetUsingProtocol(protocol string) {
-	a.Protocol = protocol
-}
-
-// IsProcessing ...
-func (a *OrderAgent) IsProcessing() bool {
-	return a.Processing
-}
-
-// SetProcessing ...
-func (a *OrderAgent) SetProcessing(b bool) {
-	a.Processing = b
-}
-
-// Execute ...
+// Execute gets the account orders from the REST protocol
 func (a *OrderAgent) Execute() {
-	start := time.Now()
-	o, err := Bot.WoRkMaNaGeR.Exchange(syncManagerUUID, a.Exchange).GetActiveOrders(nil, a.CancelMe)
-	end := time.Now()
-	if Bot.Settings.Verbose {
-		log.Debugf(log.SyncMgr,
-			"Get Active Orders item took [%s] to update \n",
-			end.Sub(start))
-	}
+	o, err := Bot.WoRkMaNaGeR.Exchange(syncManagerUUID,
+		a.Exchange).GetActiveOrders(&order.GetOrdersRequest{}, a.CancelMe)
 
 	a.Pipe <- SyncUpdate{
 		Agent:    a,
 		Payload:  o,
-		Procotol: syncProtocolREST,
+		Protocol: REST,
 		Err:      err}
 }
 
-// Cancel cancels job so when sleep is done it cancels and resets
-func (a *OrderAgent) Cancel() {
-	fmt.Println("cancelling order update: ", a.Protocol)
-	select {
-	case a.CancelMe <- 1:
-	default:
-		fmt.Println("failed to cancel")
-	}
-}
-
-// InitialSyncComplete sets initial sync to complete
-func (a *OrderAgent) InitialSyncComplete() {
-	a.Wg.Done()
-}
-
-// Stream couples protocol updates
+// Stream couples agent with incoming stream data
 func (a *OrderAgent) Stream(payload interface{}) Synchroniser {
 	o, ok := payload.([]order.Detail)
 	if !ok {
@@ -524,183 +238,48 @@ func (a *OrderAgent) Stream(payload interface{}) Synchroniser {
 	return nil
 }
 
-// FeeAgent implements the synchroniser interface
+// FeeAgent synchronises the exchange account fees
 type FeeAgent struct {
-	Exchange    exchange.IBotExchange
-	Protocol    string
-	Processing  bool
-	NextUpdate  time.Time
-	LastUpdated time.Time
-	Pipe        chan SyncUpdate
-	Wg          *sync.WaitGroup
-	CancelMe    chan int
+	Agent
 }
 
-// GetLastUpdated  ...
-func (a *FeeAgent) GetLastUpdated() time.Time {
-	return a.LastUpdated
-}
-
-// GetNextUpdate ...
-func (a *FeeAgent) GetNextUpdate() time.Time {
-	return a.NextUpdate
-}
-
-// SetLastUpdated ...
-func (a *FeeAgent) SetLastUpdated(t time.Time) {
-	a.LastUpdated = t
-}
-
-// SetNextUpdate ...
-func (a *FeeAgent) SetNextUpdate(t time.Time) {
-	a.NextUpdate = t
-}
-
-// IsUsingProtocol ...
-func (a *FeeAgent) IsUsingProtocol(protocol string) bool {
-	return protocol == a.Protocol
-}
-
-// SetUsingProtocol ...
-func (a *FeeAgent) SetUsingProtocol(protocol string) {
-	a.Protocol = protocol
-}
-
-// IsProcessing ...
-func (a *FeeAgent) IsProcessing() bool {
-	return a.Processing
-}
-
-// SetProcessing ...
-func (a *FeeAgent) SetProcessing(b bool) {
-	a.Processing = b
-}
-
-// Execute ...
+// Execute gets the account fees from the REST protocol
 func (a *FeeAgent) Execute() {
-	start := time.Now()
+	panic("Fees not completed")
 	// TODO: Fee structure type need to be reworked
 	// o, err := Bot.WoRkMaNaGeR.Exchange(syncManagerUUID, a.Exchange).GetFeeByType(nil)
-	end := time.Now()
-	if Bot.Settings.Verbose {
-		log.Debugf(log.SyncMgr,
-			"Fee item took [%s] to update \n",
-			end.Sub(start))
-	}
+
 	// a.Pipe <- SyncUpdate{
 	// 	Agent:   a,
 	// 	Payload: o,
-	// 	Procotol: syncProtocolREST,
+	// 	Procotol: REST,
 	// 	Err:     err}
 }
 
-// Cancel cancels job so when sleep is done it cancels and resets
-func (a *FeeAgent) Cancel() {
-	fmt.Println("cancelling fee update: ", a.Protocol)
-	select {
-	case a.CancelMe <- 1:
-	default:
-		fmt.Println("failed to cancel")
-	}
-}
-
-// InitialSyncComplete sets initial sync to complete
-func (a *FeeAgent) InitialSyncComplete() {
-	a.Wg.Done()
-}
-
-// Stream couples protocol updates
+// Stream couples agent with incoming stream data
 func (a *FeeAgent) Stream(payload interface{}) Synchroniser {
-	fee, ok := payload.(float64) // TODO: Fix fee structure
-	if !ok {
-		return nil
-	}
-
-	fmt.Println("fee structure for account == something", fee)
-
 	return nil
 }
 
-// SupportedPairsAgent implements the synchroniser interface
+// SupportedPairsAgent synchronises the exchange supported currency pairs
 type SupportedPairsAgent struct {
-	Exchange    exchange.IBotExchange
-	Protocol    string
-	Processing  bool
-	NextUpdate  time.Time
-	LastUpdated time.Time
-	Pipe        chan SyncUpdate
-	Wg          *sync.WaitGroup
-	CancelMe    chan int
+	Agent
 }
 
-// GetLastUpdated  ...
-func (a *SupportedPairsAgent) GetLastUpdated() time.Time {
-	return a.LastUpdated
-}
-
-// GetNextUpdate ...
-func (a *SupportedPairsAgent) GetNextUpdate() time.Time {
-	return a.NextUpdate
-}
-
-// SetLastUpdated ...
-func (a *SupportedPairsAgent) SetLastUpdated(t time.Time) {
-	a.LastUpdated = t
-}
-
-// SetNextUpdate ...
-func (a *SupportedPairsAgent) SetNextUpdate(t time.Time) {
-	a.NextUpdate = t
-}
-
-// IsUsingProtocol ...
-func (a *SupportedPairsAgent) IsUsingProtocol(protocol string) bool {
-	return protocol == a.Protocol
-}
-
-// SetUsingProtocol ...
-func (a *SupportedPairsAgent) SetUsingProtocol(protocol string) {
-	a.Protocol = protocol
-}
-
-// IsProcessing ...
-func (a *SupportedPairsAgent) IsProcessing() bool {
-	return a.Processing
-}
-
-// SetProcessing ...
-func (a *SupportedPairsAgent) SetProcessing(b bool) {
-	a.Processing = b
-}
-
-// Execute ...
+// Execute gets the account fees from the REST protocol
 func (a *SupportedPairsAgent) Execute() {
+	panic("Supported pairs not completed")
 	// TODO: Add in check supported pairs, update every hour
-	start := time.Now()
 	// o, err := Bot.WoRkMaNaGeR.Exchange(syncManagerUUID, a.Exchange).
-	end := time.Now()
-	if Bot.Settings.Verbose {
-		log.Debugf(log.SyncMgr,
-			"Supported pairs item took [%s] to update \n",
-			end.Sub(start))
-	}
+
 	// a.Pipe <- SyncUpdate{
 	// 	Agent:   a,
 	// 	Payload: &o,
-	//  Procotol: syncProtocolREST,
+	//  Procotol: REST,
 	// 	Err:     err}
 }
 
-// Cancel cancels job so when sleep is done it cancels and resets
-func (a *SupportedPairsAgent) Cancel() {
-}
-
-// InitialSyncComplete sets initial sync to complete
-func (a *SupportedPairsAgent) InitialSyncComplete() {
-	a.Wg.Done()
-}
-
-// Stream couples protocol updates
+// Stream couples agent with incoming stream data
 func (a *SupportedPairsAgent) Stream(payload interface{}) Synchroniser {
 	// Should not have a stream update
 	return nil
@@ -708,90 +287,29 @@ func (a *SupportedPairsAgent) Stream(payload interface{}) Synchroniser {
 
 // ExchangeTradeHistoryAgent implements the synchroniser interface
 type ExchangeTradeHistoryAgent struct {
-	Exchange    exchange.IBotExchange
-	Protocol    string
-	Processing  bool
-	Pair        currency.Pair
-	AssetType   asset.Item
-	NextUpdate  time.Time
-	LastUpdated time.Time
-	Pipe        chan SyncUpdate
-	Wg          *sync.WaitGroup
-	CancelMe    chan int
+	Agent
+	Pair      currency.Pair
+	AssetType asset.Item
 }
 
-// GetLastUpdated  ...
-func (a *ExchangeTradeHistoryAgent) GetLastUpdated() time.Time {
-	return a.LastUpdated
-}
-
-// GetNextUpdate ...
-func (a *ExchangeTradeHistoryAgent) GetNextUpdate() time.Time {
-	return a.NextUpdate
-}
-
-// SetLastUpdated ...
-func (a *ExchangeTradeHistoryAgent) SetLastUpdated(t time.Time) {
-	a.LastUpdated = t
-}
-
-// SetNextUpdate ...
-func (a *ExchangeTradeHistoryAgent) SetNextUpdate(t time.Time) {
-	a.NextUpdate = t
-}
-
-// IsUsingProtocol ...
-func (a *ExchangeTradeHistoryAgent) IsUsingProtocol(protocol string) bool {
-	return protocol == a.Protocol
-}
-
-// SetUsingProtocol ...
-func (a *ExchangeTradeHistoryAgent) SetUsingProtocol(protocol string) {
-	a.Protocol = protocol
-}
-
-// IsProcessing ...
-func (a *ExchangeTradeHistoryAgent) IsProcessing() bool {
-	return a.Processing
-}
-
-// SetProcessing ...
-func (a *ExchangeTradeHistoryAgent) SetProcessing(b bool) {
-	a.Processing = b
-}
-
-// Execute ...
+// Execute gets the exchange trade history from the REST protocol
 func (a *ExchangeTradeHistoryAgent) Execute() {
+	panic("ExchangeTradeHistory not completed")
 	// TODO: Add in exchange history support with configuration params
-	start := time.Now()
-	h, err := Bot.WoRkMaNaGeR.Exchange(syncManagerUUID, a.Exchange).GetExchangeHistory(&exchange.TradeHistoryRequest{
+	h, err := Bot.WoRkMaNaGeR.Exchange(syncManagerUUID,
+		a.Exchange).GetExchangeHistory(&exchange.TradeHistoryRequest{
 		Pair:  a.Pair,
 		Asset: a.AssetType,
 	}, a.CancelMe)
 
-	end := time.Now()
-	if Bot.Settings.Verbose {
-		log.Debugf(log.SyncMgr,
-			"Exchange History item took [%s] to update \n",
-			end.Sub(start))
-	}
 	a.Pipe <- SyncUpdate{
 		Agent:    a,
 		Payload:  h,
-		Procotol: syncProtocolREST,
+		Protocol: REST,
 		Err:      err}
 }
 
-// Cancel cancels job so when sleep is done it cancels and resets
-func (a *ExchangeTradeHistoryAgent) Cancel() {
-}
-
-// InitialSyncComplete sets initial sync to complete
-func (a *ExchangeTradeHistoryAgent) InitialSyncComplete() {
-	a.Wg.Done()
-}
-
-// Stream couples protocol updates
+// Stream couples agent with incoming stream data
 func (a *ExchangeTradeHistoryAgent) Stream(payload interface{}) Synchroniser {
 	h, ok := payload.([]exchange.TradeHistory)
 	if !ok {
@@ -804,5 +322,79 @@ func (a *ExchangeTradeHistoryAgent) Stream(payload interface{}) Synchroniser {
 		return a
 	}
 
+	return nil
+}
+
+// KlineAgent meow
+type KlineAgent struct {
+	Agent
+	Pair      currency.Pair
+	AssetType asset.Item
+}
+
+// Execute ...
+func (a *KlineAgent) Execute() {
+	// TODO: Add in KlineAgent support with configuration params
+	start := time.Now()
+	// h, err := Bot.WoRkMaNaGeR.Exchange(syncManagerUUID, a.Exchange).
+
+	end := time.Now()
+	if Bot.Settings.Verbose {
+		log.Debugf(log.SyncMgr,
+			"Exchange Kline item took [%s] to update \n",
+			end.Sub(start))
+	}
+	// a.Pipe <- SyncUpdate{
+	// 	Agent:    a,
+	// 	Payload:  h,
+	// 	Protocol: REST,
+	// 	Err:      err}
+}
+
+// Stream couples agent with incoming stream data
+func (a *KlineAgent) Stream(payload interface{}) Synchroniser {
+	h, ok := payload.([]exchange.TradeHistory)
+	if !ok {
+		return nil
+	}
+
+	if strings.EqualFold(a.Exchange.GetName(), h[0].Exchange) &&
+		a.AssetType == h[0].AssetType &&
+		a.Pair == h[0].Pair {
+		return a
+	}
+
+	return nil
+}
+
+// DepositAddressAgent synchronises the deposit addresses available on the
+// exchange
+type DepositAddressAgent struct {
+	Agent
+	Currency  currency.Code
+	AccountID string
+}
+
+// Execute gets the deposit address for the agent
+func (a *DepositAddressAgent) Execute() {
+	start := time.Now()
+	address, err := Bot.WoRkMaNaGeR.Exchange(syncManagerUUID,
+		a.Exchange).GetDepositAddress(a.Currency, a.AccountID, a.Agent.CancelMe)
+	end := time.Now()
+	if Bot.Settings.Verbose {
+		log.Debugf(log.SyncMgr,
+			"Exchange Kline item took [%s] to update \n",
+			end.Sub(start))
+	}
+	a.Pipe <- SyncUpdate{
+		Agent:    a,
+		Payload:  address,
+		Protocol: REST,
+		Err:      err}
+}
+
+// Stream couples agent with incoming stream data
+func (a *DepositAddressAgent) Stream(payload interface{}) Synchroniser {
+	// Should not match
 	return nil
 }

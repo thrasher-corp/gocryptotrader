@@ -1,6 +1,7 @@
 package lbank
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -247,6 +248,16 @@ func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 	}
 
 	return orderbook.Get(l.Name, p, assetType)
+}
+
+// FetchTrade returns the trades for a currency pair
+func (l *Lbank) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
+// UpdateTrade updates and returns the trades for a currency pair
+func (l *Lbank) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies for the

@@ -257,6 +257,16 @@ func (b *Bithumb) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 	return orderbook.Get(b.Name, p, assetType)
 }
 
+// FetchTrade returns the trades for a currency pair
+func (b *Bithumb) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
+// UpdateTrade updates and returns the trades for a currency pair
+func (b *Bithumb) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // Bithumb exchange
 func (b *Bithumb) GetAccountInfo() (exchange.AccountInfo, error) {

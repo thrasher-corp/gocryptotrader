@@ -22,6 +22,7 @@ func init() {
 // SubscribeTicker subcribes to a ticker and returns a communication channel to
 // stream new ticker updates
 func SubscribeTicker(exchange string, p currency.Pair, a asset.Item) (dispatch.Pipe, error) {
+	// TODO: Add in suported exchange string check
 	exchange = strings.ToLower(exchange)
 	service.RLock()
 	defer service.RUnlock()

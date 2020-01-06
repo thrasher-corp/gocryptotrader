@@ -373,6 +373,16 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 	return orderbook.Get(k.Name, p, assetType)
 }
 
+// FetchTrade returns the trades for a currency pair
+func (k *Kraken) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
+// UpdateTrade updates and returns the trades for a currency pair
+func (k *Kraken) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // Kraken exchange - to-do
 func (k *Kraken) GetAccountInfo() (exchange.AccountInfo, error) {
@@ -506,9 +516,10 @@ func (k *Kraken) GetOrderInfo(orderID string) (order.Detail, error) {
 		return orderDetail, err
 	}
 	if orderInfo, ok := openOrders.Open[orderID]; ok {
-		var trades []order.TradeHistory
+		var trades []order.Trade
+		// TODO: Check to see if more details can be provided
 		for i := range orderInfo.Trades {
-			trades = append(trades, order.TradeHistory{
+			trades = append(trades, order.Trade{
 				TID: orderInfo.Trades[i],
 			})
 		}

@@ -114,29 +114,34 @@ type Detail struct {
 	AccountID       string
 	ID              string
 	CurrencyPair    currency.Pair
+	AssetType       asset.Item
 	OrderSide       Side
 	OrderType       Type
 	OrderDate       time.Time
 	Status          Status
+	TriggerStatus   string
 	Price           float64
 	Amount          float64
 	ExecutedAmount  float64
 	RemainingAmount float64
 	Fee             float64
-	Trades          []TradeHistory
+	Trades          []Trade
 }
 
-// TradeHistory holds exchange history data
-type TradeHistory struct {
-	Timestamp   time.Time
-	TID         string
-	Price       float64
-	Amount      float64
-	Exchange    string
-	Type        Type
-	Side        Side
-	Fee         float64
-	Description string
+// Trade holds exechange executed trade data
+type Trade struct {
+	Timestamp     time.Time
+	Pair          currency.Pair
+	AssetType     asset.Item
+	TID           string
+	Price         float64
+	Amount        float64
+	Exchange      string
+	Type          Type
+	Side          Side
+	Fee           float64
+	Description   string
+	LiquidityType string
 }
 
 // Cancel type required when requesting to cancel an order

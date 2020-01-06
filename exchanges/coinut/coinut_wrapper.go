@@ -439,6 +439,16 @@ func (c *COINUT) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 	return orderbook.Get(c.Name, p, assetType)
 }
 
+// FetchTrade returns the trades for a currency pair
+func (c *COINUT) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
+// UpdateTrade updates and returns the trades for a currency pair
+func (c *COINUT) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (c *COINUT) GetFundingHistory() ([]exchange.FundHistory, error) {

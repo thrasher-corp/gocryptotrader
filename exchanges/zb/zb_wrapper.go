@@ -303,6 +303,16 @@ func (z *ZB) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.
 	return orderbook.Get(z.Name, p, assetType)
 }
 
+// FetchTrade returns the trades for a currency pair
+func (z *ZB) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
+// UpdateTrade updates and returns the trades for a currency pair
+func (z *ZB) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // ZB exchange
 func (z *ZB) GetAccountInfo() (exchange.AccountInfo, error) {

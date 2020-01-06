@@ -278,9 +278,9 @@ func IsValidEvent(exchange, item string, condition EventConditionParams, action 
 	return nil
 }
 
-// EventManger is the overarching routine that will iterate through the Events
+// EventManager is the overarching routine that will iterate through the Events
 // chain
-func EventManger() {
+func EventManager() {
 	log.Debugf(log.EventMgr, "EventManager started. SleepDelay: %v\n", EventSleepDelay.String())
 
 	for {

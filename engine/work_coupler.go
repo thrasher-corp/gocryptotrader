@@ -18,6 +18,7 @@ const (
 	updateTicker
 	fetchOrderbook
 	updateOrderbook
+	updateTrades
 	getAccountInfo
 	getExchangeHistory
 	getFeeByType
@@ -52,11 +53,6 @@ func (f *FetchTicker) Execute() {
 func (f *FetchTicker) GetReservation() *rate.Reservation {
 	return f.Reservation
 }
-
-// // IsCancelled checks if update is cancelled
-// func (f *FetchTicker) IsCancelled() bool {
-// 	return atomic.LoadInt32(f.CancelMe) == 1
-// }
 
 // FetchTicker initiates a call to an exchange through the priority job queue
 func (i Exchange) FetchTicker(p currency.Pair, a asset.Item, withCancel chan int) (*ticker.Price, error) {
@@ -95,13 +91,6 @@ func (f *UpdateTicker) GetReservation() *rate.Reservation {
 	return f.Reservation
 }
 
-// // IsCancelled checks if update is cancelled
-// func (f *UpdateTicker) IsCancelled() bool {
-// 	b := atomic.LoadInt32(f.CancelMe) == 1
-// 	fmt.Println("checking ticker is cancelled", b)
-// 	return b
-// }
-
 // UpdateTicker initiates a call to an exchange through the priority job queue
 func (i Exchange) UpdateTicker(p currency.Pair, a asset.Item, withCancel chan int) (*ticker.Price, error) {
 	if i.e == nil {
@@ -139,11 +128,6 @@ func (o *FetchOrderbook) GetReservation() *rate.Reservation {
 	return o.Reservation
 }
 
-// // IsCancelled checks if update is cancelled
-// func (o *FetchOrderbook) IsCancelled() bool {
-// 	return atomic.LoadInt32(o.CancelMe) == 1
-// }
-
 // FetchOrderbook initiates a call to an exchange through the priority job queue
 func (i Exchange) FetchOrderbook(p currency.Pair, a asset.Item, withCancel chan int) (*orderbook.Base, error) {
 	if i.e == nil {
@@ -180,13 +164,6 @@ func (o *UpdateOrderbook) GetReservation() *rate.Reservation {
 	return o.Reservation
 }
 
-// // IsCancelled checks if update is cancelled
-// func (o *UpdateOrderbook) IsCancelled() bool {
-// 	b := atomic.LoadInt32(o.CancelMe) == 1
-// 	fmt.Println("checking orderbook is cancelled", b)
-// 	return b
-// }
-
 // UpdateOrderbook initiates a call to an exchange through the priority job
 // queue
 func (i Exchange) UpdateOrderbook(p currency.Pair, a asset.Item, withCancel chan int) (*orderbook.Base, error) {
@@ -216,6 +193,44 @@ func (i Exchange) UpdateOrderbook(p currency.Pair, a asset.Item, withCancel chan
 }
 
 // Execute implements the command interface for the exchange coupler
+func (t *UpdateTrades) Execute() {
+	t.Trades, t.Error = t.UpdateTrades(t.Pair, t.Asset)
+}
+
+// GetReservation implements the command interface and returns a reservation
+func (t *UpdateTrades) GetReservation() *rate.Reservation {
+	return t.Reservation
+}
+
+// UpdateTrades initiates a call to an exchange through the priority job
+// queue
+func (i Exchange) UpdateTrades(p currency.Pair, a asset.Item, withCancel chan int) ([]order.Trade, error) {
+	if i.e == nil {
+		return nil, errExchangNotFound
+	}
+
+	err := i.checkFunctionality(i.e, updateTrades)
+	if err != nil {
+		return nil, err
+	}
+
+	t := &UpdateTrades{
+		Pair:         p,
+		Asset:        a,
+		IBotExchange: i.e,
+		Reservation:  i.e.GetBase().UnauthLimit.Reserve(),
+		CancelMe:     withCancel,
+	}
+
+	err = i.wm.ExecuteJob(t, medium, withCancel)
+	if err != nil {
+		return t.Trades, err
+	}
+
+	return t.Trades, t.Error
+}
+
+// Execute implements the command interface for the exchange coupler
 func (g *GetAccountInfo) Execute() {
 	g.AccountInfo, g.Error = g.GetAccountInfo()
 }
@@ -224,11 +239,6 @@ func (g *GetAccountInfo) Execute() {
 func (g *GetAccountInfo) GetReservation() *rate.Reservation {
 	return g.Reservation
 }
-
-// // IsCancelled checks if update is cancelled
-// func (g *GetAccountInfo) IsCancelled() bool {
-// 	return atomic.LoadInt32(g.CancelMe) == 1
-// }
 
 // GetAccountInfo initiates a call to an exchange through the priority job queue
 func (i Exchange) GetAccountInfo(withCancel chan int) (exchange.AccountInfo, error) {

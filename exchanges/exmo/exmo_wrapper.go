@@ -279,6 +279,16 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 	return orderbook.Get(e.Name, p, assetType)
 }
 
+// FetchTrade returns the trades for a currency pair
+func (e *EXMO) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
+// UpdateTrade updates and returns the trades for a currency pair
+func (e *EXMO) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // Exmo exchange
 func (e *EXMO) GetAccountInfo() (exchange.AccountInfo, error) {

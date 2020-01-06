@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/btcmarkets"
@@ -42,18 +43,26 @@ func TestStartStop(t *testing.T) {
 func TestFetchTickerLive(t *testing.T) {
 	b := btcmarkets.BTCMarkets{}
 	b.SetDefaults()
-	cfg, err := b.GetDefaultConfig()
+
+	cfg := config.GetConfig()
+	err := cfg.LoadConfig("../testdata/configtest.json", true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = b.Setup(cfg)
+
+	btc, err := cfg.GetExchangeConfig("BTC Markets")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = b.Setup(btc)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	b.Verbose = true
-	testWorkSuite := Get(10, true)
 
+	testWorkSuite := Get(10, true)
 	err = testWorkSuite.Start()
 	if err != nil {
 		t.Error(err)
@@ -61,9 +70,8 @@ func TestFetchTickerLive(t *testing.T) {
 
 	client, _ := uuid.NewV4()
 
-	p := currency.NewPairFromString("BTCAUD")
-
-	_, err = testWorkSuite.Exchange(client, &b).FetchTicker(p, asset.Spot)
+	p := currency.NewPairFromString("BTC-AUD")
+	_, err = testWorkSuite.Exchange(client, &b).FetchTicker(p, asset.Spot, make(chan int))
 	if err != nil {
 		t.Error(err)
 	}
@@ -83,8 +91,10 @@ func BenchmarkWorkManagerOneWorkerConsecutive(b *testing.B) {
 		b.Error(err)
 	}
 
+	c := make(chan int)
+
 	for i := 0; i < b.N; i++ {
-		err = testWorkSuite.ExecuteJob(&tester{}, low)
+		err = testWorkSuite.ExecuteJob(&tester{}, low, c)
 		if err != nil {
 			b.Error(err)
 		}
@@ -98,8 +108,10 @@ func BenchmarkWorkManagerDefaultWorkerAmountConsecutive(b *testing.B) {
 		b.Error(err)
 	}
 
+	c := make(chan int)
+
 	for i := 0; i < b.N; i++ {
-		err = testWorkSuite.ExecuteJob(&tester{}, low)
+		err = testWorkSuite.ExecuteJob(&tester{}, low, c)
 		if err != nil {
 			b.Error(err)
 		}
@@ -113,13 +125,15 @@ func BenchmarkWorkManagerOneWorkerParallel(b *testing.B) {
 		b.Error(err)
 	}
 
+	c := make(chan int)
+
 	for i := 0; i < b.N; i++ {
 		// Batch
 		var wg sync.WaitGroup
 		for x := 0; x < 12; x++ {
 			wg.Add(1)
 			go func(wg *sync.WaitGroup) {
-				err = testWorkSuite.ExecuteJob(&tester{}, low)
+				err = testWorkSuite.ExecuteJob(&tester{}, low, c)
 				if err != nil {
 					b.Error(err)
 				}
@@ -136,13 +150,15 @@ func BenchmarkWorkManagerDefaultWorkerAmountParallel(b *testing.B) {
 		b.Error(err)
 	}
 
+	c := make(chan int)
+
 	for i := 0; i < b.N; i++ {
 		// Batch
 		var wg sync.WaitGroup
 		for x := 0; x < 12; x++ {
 			wg.Add(1)
 			go func(wg *sync.WaitGroup) {
-				err = testWorkSuite.ExecuteJob(&tester{}, low)
+				err = testWorkSuite.ExecuteJob(&tester{}, low, c)
 				if err != nil {
 					b.Error(err)
 				}

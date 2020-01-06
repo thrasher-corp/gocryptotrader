@@ -33,13 +33,21 @@ type Settings struct {
 	EventManagerDelay           time.Duration
 	Verbose                     bool
 
-	// Exchange syncer settings
-	EnableTickerSyncing    bool
-	EnableOrderbookSyncing bool
-	EnableTradeSyncing     bool
-	SyncWorkers            int
-	SyncContinuously       bool
-	SyncTimeout            time.Duration
+	// Synchronisation settings
+	EnableExchangeTickerSyncing         bool
+	EnableExchangeOrderbookSyncing      bool
+	EnableExchangeTradeSyncing          bool
+	EnableExchangeDepositAddressSyncing bool
+	EnableExchangeTradeHistorySyncing   bool
+	EnableExchangeSupportedPairsSyncing bool
+	EnableExchangeKlineSyncing          bool
+	EnableAccountBalanceSyncing         bool
+	EnableAccountFeeSyncing             bool
+	EnableAccountOrdersSyncing          bool
+	EnableAccountFundingSyncing         bool
+	EnableAccountPositionSyncing        bool
+
+	SyncTimeout time.Duration
 
 	// Forex settings
 	EnableCurrencyConverter bool

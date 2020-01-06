@@ -160,6 +160,17 @@ type FundHistory struct {
 	BankFrom          string
 }
 
+type Funding struct {
+	Timestamp    time.Time
+	CurrencyPair currency.Pair
+	AssetType    asset.Item
+	Exchange     string
+	Amount       float64
+	Rate         float64
+	Period       int64
+	Side         string
+}
+
 // Features stores the supported and enabled features
 // for the exchange
 type Features struct {

@@ -50,13 +50,18 @@ func main() {
 	flag.IntVar(&settings.DispatchJobsLimit, "dispatchjobslimit", dispatch.DefaultJobsLimit, "sets the dispatch package max jobs limit")
 
 	// Exchange syncer settings
-	flag.BoolVar(&settings.EnableTickerSyncing, "tickersync", true, "enables ticker syncing for all enabled exchanges")
-	flag.BoolVar(&settings.EnableOrderbookSyncing, "orderbooksync", true, "enables orderbook syncing for all enabled exchanges")
-	flag.BoolVar(&settings.EnableTradeSyncing, "tradesync", false, "enables trade syncing for all enabled exchanges")
-	flag.IntVar(&settings.SyncWorkers, "syncworkers", engine.DefaultSyncerWorkers, "the amount of workers (goroutines) to use for syncing exchange data")
-	flag.BoolVar(&settings.SyncContinuously, "synccontinuously", true, "whether to sync exchange data continuously (ticker, orderbook and trade history info")
-	flag.DurationVar(&settings.SyncTimeout, "synctimeout", engine.DefaultSyncerTimeout,
-		"the amount of time before the syncer will switch from one protocol to the other (e.g. from REST to websocket)")
+	flag.BoolVar(&settings.EnableAccountBalanceSyncing, "balancesync", true, "enables account balance syncing for all enabled exchanges")
+	flag.BoolVar(&settings.EnableAccountFeeSyncing, "feesync", true, "enables account fee syncing for all enabled exchanges")
+	flag.BoolVar(&settings.EnableAccountOrdersSyncing, "ordersync", true, "enables account order syncing for all enabled exchanges")
+	flag.BoolVar(&settings.EnableAccountFundingSyncing, "fundingsync", true, "enables account funding syncing for all enabled exchanges")
+	flag.BoolVar(&settings.EnableAccountPositionSyncing, "positionsync", true, "enables account position syncing for all enabled exchanges")
+	flag.BoolVar(&settings.EnableExchangeTradeSyncing, "tradesync", true, "enables trade syncing for all enabled exchanges")
+	flag.BoolVar(&settings.EnableExchangeOrderbookSyncing, "orderbooksync", true, "enables orderbook syncing for all enabled exchanges")
+	flag.BoolVar(&settings.EnableExchangeDepositAddressSyncing, "depositaddresssync", true, "enables deposit address syncing for all enabled exchanges")
+	flag.BoolVar(&settings.EnableExchangeTradeHistorySyncing, "tradehistorysync", false, "enables trade history syncing for all enabled exchanges")
+	flag.BoolVar(&settings.EnableExchangeSupportedPairsSyncing, "supportedpairssync", true, "enables supported pairs syncing for all enabled exchanges")
+	flag.BoolVar(&settings.EnableExchangeTickerSyncing, "tickersync", true, "enables ticker syncing for all enabled exchanges")
+	flag.BoolVar(&settings.EnableExchangeKlineSyncing, "klinesync", true, "enables kline syncing for all enabled exchanges")
 
 	// Forex provider settings
 	flag.BoolVar(&settings.EnableCurrencyConverter, "currencyconverter", false, "overrides config and sets up foreign exchange Currency Converter")

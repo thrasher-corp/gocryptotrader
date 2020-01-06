@@ -275,7 +275,7 @@ func (b *Bitfinex) WsDataHandler() {
 							}
 
 							if trades[i].Rate > 0 {
-								b.Websocket.DataHandler <- wshandler.FundingData{
+								b.Websocket.DataHandler <- &exchange.Funding{
 									CurrencyPair: currency.NewPairFromString(chanInfo.Pair),
 									Timestamp:    time.Unix(0, trades[i].Timestamp*int64(time.Millisecond)),
 									Amount:       newAmount,

@@ -24,8 +24,14 @@ type IBotExchange interface {
 	SetEnabled(bool)
 	FetchTicker(currency currency.Pair, assetType asset.Item) (*ticker.Price, error)
 	UpdateTicker(currency currency.Pair, assetType asset.Item) (*ticker.Price, error)
+	// TODO: segregate ticker batch from update ticker if supported
+	// REASON: Rate limiting factors and future features update
 	FetchOrderbook(currency currency.Pair, assetType asset.Item) (*orderbook.Base, error)
 	UpdateOrderbook(currency currency.Pair, assetType asset.Item) (*orderbook.Base, error)
+	// TODO: segregate orderbook batch from update orderbook if supported
+	FetchTrades(currency currency.Pair, assetType asset.Item) ([]order.Trade, error)
+	UpdateTrades(currency currency.Pair, assetType asset.Item) ([]order.Trade, error)
+	// TODO: segregate trades batch from update trades if supported
 	FetchTradablePairs(assetType asset.Item) ([]string, error)
 	UpdateTradablePairs(forceUpdate bool) error
 	GetEnabledPairs(assetType asset.Item) currency.Pairs
@@ -44,22 +50,28 @@ type IBotExchange interface {
 	SupportsWithdrawPermissions(permissions uint32) bool
 	GetFundingHistory() ([]FundHistory, error)
 	SubmitOrder(s *order.Submit) (order.SubmitResponse, error)
+	// TODO: segregate SubmitOrder batch from SubmitOrder if supported
 	ModifyOrder(action *order.Modify) (string, error)
 	CancelOrder(order *order.Cancel) error
 	CancelAllOrders(orders *order.Cancel) (order.CancelAllResponse, error)
+	// TODO: segregate CancelAllOrders batch from CancelAllOrders if supported
+	// Do not allow a for loop to cancel as this will upset rate limiting
 	GetOrderInfo(orderID string) (order.Detail, error)
 	GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error)
+	// TODO: segregate GetDepositAddress batch from GetDepositAddress if supported
 	GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)
+	// TODO: segregate GetOrderHistory batch from GetOrderHistory if supported
 	GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)
+	// TODO: segregate GetActiveOrders batch from GetActiveOrders if supported
 	WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error)
 	WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error)
 	WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error)
 	SetHTTPClientUserAgent(ua string)
 	GetHTTPClientUserAgent() string
 	SetClientProxyAddress(addr string) error
-	SupportsWebsocket() bool
-	SupportsREST() bool
-	IsWebsocketEnabled() bool
+	SupportsWebsocket() bool  // FEATURE METHOD
+	SupportsREST() bool       // FEATURE METHOD
+	IsWebsocketEnabled() bool // FEATURE METHOD
 	GetWebsocket() (*wshandler.Websocket, error)
 	SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error
 	UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error

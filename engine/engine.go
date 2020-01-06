@@ -157,12 +157,20 @@ func ValidateSettings(b *Engine, s *Settings) {
 	b.Settings.EnableNTPClient = s.EnableNTPClient
 	b.Settings.EnableOrderManager = s.EnableOrderManager
 	b.Settings.EnableExchangeSyncManager = s.EnableExchangeSyncManager
-	b.Settings.EnableTickerSyncing = s.EnableTickerSyncing
-	b.Settings.EnableOrderbookSyncing = s.EnableOrderbookSyncing
-	b.Settings.EnableTradeSyncing = s.EnableTradeSyncing
-	b.Settings.SyncWorkers = s.SyncWorkers
-	b.Settings.SyncTimeout = s.SyncTimeout
-	b.Settings.SyncContinuously = s.SyncContinuously
+
+	b.Settings.EnableAccountBalanceSyncing = s.EnableAccountBalanceSyncing
+	b.Settings.EnableAccountFeeSyncing = s.EnableAccountFeeSyncing
+	b.Settings.EnableAccountOrdersSyncing = s.EnableAccountOrdersSyncing
+	b.Settings.EnableAccountFundingSyncing = s.EnableAccountFundingSyncing
+	b.Settings.EnableAccountPositionSyncing = s.EnableAccountPositionSyncing
+	b.Settings.EnableExchangeTradeSyncing = s.EnableExchangeTradeSyncing
+	b.Settings.EnableExchangeOrderbookSyncing = s.EnableExchangeOrderbookSyncing
+	b.Settings.EnableExchangeDepositAddressSyncing = s.EnableExchangeDepositAddressSyncing
+	b.Settings.EnableExchangeTradeHistorySyncing = s.EnableExchangeTradeHistorySyncing
+	b.Settings.EnableExchangeSupportedPairsSyncing = s.EnableExchangeSupportedPairsSyncing
+	b.Settings.EnableExchangeTickerSyncing = s.EnableExchangeTickerSyncing
+	b.Settings.EnableExchangeKlineSyncing = s.EnableExchangeKlineSyncing
+
 	b.Settings.EnableDepositAddressManager = s.EnableDepositAddressManager
 	b.Settings.EnableExchangeAutoPairUpdates = s.EnableExchangeAutoPairUpdates
 	b.Settings.EnableExchangeWebsocketSupport = s.EnableExchangeWebsocketSupport
@@ -244,12 +252,17 @@ func PrintSettings(s *Settings) {
 	log.Debugf(log.Global, "\t Dispatch package max worker amount: %d", s.DispatchMaxWorkerAmount)
 	log.Debugf(log.Global, "\t Dispatch package jobs limit: %d", s.DispatchJobsLimit)
 	log.Debugf(log.Global, "- EXCHANGE SYNCER SETTINGS:\n")
-	log.Debugf(log.Global, "\t Exchange sync continuously: %v\n", s.SyncContinuously)
-	log.Debugf(log.Global, "\t Exchange sync workers: %v\n", s.SyncWorkers)
-	log.Debugf(log.Global, "\t Enable ticker syncing: %v\n", s.EnableTickerSyncing)
-	log.Debugf(log.Global, "\t Enable orderbook syncing: %v\n", s.EnableOrderbookSyncing)
-	log.Debugf(log.Global, "\t Enable trade syncing: %v\n", s.EnableTradeSyncing)
-	log.Debugf(log.Global, "\t Exchange sync timeout: %v\n", s.SyncTimeout)
+	log.Debugf(log.Global, "\t Enable account balance syncing: %v\n", s.EnableAccountBalanceSyncing)
+	log.Debugf(log.Global, "\t Enable account fee syncing: %v\n", s.EnableAccountFeeSyncing)
+	log.Debugf(log.Global, "\t Enable account orders syncing: %v\n", s.EnableAccountOrdersSyncing)
+	log.Debugf(log.Global, "\t Enable account funding syncing: %v\n", s.EnableAccountFundingSyncing)
+	log.Debugf(log.Global, "\t Enable account position syncing: %v\n", s.EnableAccountPositionSyncing)
+	log.Debugf(log.Global, "\t Enable exchange trade syncing: %v\n", s.EnableExchangeTradeSyncing)
+	log.Debugf(log.Global, "\t Enable exchange orderbook syncing: %v\n", s.EnableExchangeOrderbookSyncing)
+	log.Debugf(log.Global, "\t Enable exchange deposit address syncing: %v\n", s.EnableExchangeDepositAddressSyncing)
+	log.Debugf(log.Global, "\t Enable exchange trade history syncing: %v\n", s.EnableExchangeTradeHistorySyncing)
+	log.Debugf(log.Global, "\t Enable exchange ticker syncing: %v\n", s.EnableExchangeTickerSyncing)
+	log.Debugf(log.Global, "\t Enable exchange kline syncing: %v\n", s.EnableExchangeKlineSyncing)
 	log.Debugf(log.Global, "- FOREX SETTINGS:")
 	log.Debugf(log.Global, "\t Enable currency conveter: %v", s.EnableCurrencyConverter)
 	log.Debugf(log.Global, "\t Enable currency layer: %v", s.EnableCurrencyLayer)
@@ -282,7 +295,7 @@ func (e *Engine) Start() error {
 
 	e.WoRkMaNaGeR = Get(10, e.Settings.Verbose)
 	if err := e.WoRkMaNaGeR.Start(); err != nil {
-		log.Errorf(log.Global, "Work manager is effed because,", err)
+		log.Errorf(log.Global, "Work manager unable to start: %v,", err)
 	}
 
 	if e.Settings.EnableDatabaseManager {
@@ -405,12 +418,18 @@ func (e *Engine) Start() error {
 
 	if e.Settings.EnableExchangeSyncManager {
 		e.ExchangeCurrencyPairManager, err = NewSyncManager(SyncConfig{
-			Ticker:     e.Settings.EnableTickerSyncing,
-			Orderbook:  e.Settings.EnableOrderbookSyncing,
-			Trades:     e.Settings.EnableTradeSyncing,
-			Continuous: e.Settings.SyncContinuously,
-			NumWorkers: e.Settings.SyncWorkers,
-			Verbose:    e.Settings.Verbose,
+			AccountBalance:           e.Settings.EnableAccountBalanceSyncing,
+			AccountFees:              e.Settings.EnableAccountFeeSyncing,
+			AccountOrders:            e.Settings.EnableAccountOrdersSyncing,
+			AccountFunding:           e.Settings.EnableAccountFundingSyncing,
+			AccountPosition:          e.Settings.EnableAccountPositionSyncing,
+			ExchangeTrades:           e.Settings.EnableExchangeTradeSyncing,
+			ExchangeOrderbook:        e.Settings.EnableExchangeOrderbookSyncing,
+			ExchangeDepositAddresses: e.Settings.EnableExchangeDepositAddressSyncing,
+			ExchangeTradeHistory:     e.Settings.EnableExchangeTradeHistorySyncing,
+			ExchangeSupportedPairs:   e.Settings.EnableExchangeSupportedPairsSyncing,
+			ExchangeTicker:           e.Settings.EnableExchangeTickerSyncing,
+			ExchangeKline:            e.Settings.EnableExchangeKlineSyncing,
 		})
 		if err != nil {
 			log.Warnf(log.Global, "Unable to initialise exchange currency pair syncer. Err: %s", err)
@@ -420,7 +439,7 @@ func (e *Engine) Start() error {
 	}
 
 	if e.Settings.EnableEventManager {
-		go EventManger()
+		go EventManager()
 	}
 
 	if e.Settings.EnableWebsocketRoutine {

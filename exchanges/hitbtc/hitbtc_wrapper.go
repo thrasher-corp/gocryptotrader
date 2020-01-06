@@ -336,6 +336,16 @@ func (h *HitBTC) UpdateOrderbook(currencyPair currency.Pair, assetType asset.Ite
 	return orderbook.Get(h.Name, currencyPair, assetType)
 }
 
+// FetchTrade returns the trades for a currency pair
+func (h *HitBTC) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
+// UpdateTrade updates and returns the trades for a currency pair
+func (h *HitBTC) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // HitBTC exchange
 func (h *HitBTC) GetAccountInfo() (exchange.AccountInfo, error) {

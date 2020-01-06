@@ -1,6 +1,7 @@
 package poloniex
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -319,6 +320,16 @@ func (p *Poloniex) UpdateOrderbook(currencyPair currency.Pair, assetType asset.I
 		}
 	}
 	return orderbook.Get(p.Name, currencyPair, assetType)
+}
+
+// FetchTrade returns the trades for a currency pair
+func (p *Poloniex) FetchTrades(pair currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
+// UpdateTrade updates and returns the trades for a currency pair
+func (p *Poloniex) UpdateTrades(pair currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies for the

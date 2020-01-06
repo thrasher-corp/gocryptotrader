@@ -10,22 +10,19 @@ import (
 
 // const holds the sync item types
 const (
-	SyncItemTicker = iota
-	SyncItemOrderbook
-	SyncItemTrade
+	REST      = "REST"
+	Websocket = "websocket"
 
-	DefaultSyncerWorkers = 15
-	DefaultSyncerTimeout = time.Second * 15
-
-	syncProtocolREST      = "REST     "
-	syncProtocolWebsocket = "websocket"
+	// default REST sync delays
+	defaultSyncDelay                  = 10 * time.Second
+	defaultExchangeTradeHistoryDelay  = time.Minute
+	defaultExchangeSupportedPairDelay = 30 * time.Minute
+	defaultDepositAddressDelay        = 5 * time.Minute
 )
 
 var (
-	createdCounter     = 0
-	removedCounter     = 0
 	syncManagerUUID, _ = uuid.NewV4()
-	// ErrInvalidItems  and such
+	// ErrInvalidItems alerts of no sync items enabled
 	ErrInvalidItems = errors.New("no sync items enabled")
 )
 
@@ -33,10 +30,7 @@ var (
 type Synchroniser interface {
 	GetLastUpdated() time.Time
 	GetNextUpdate() time.Time
-	SetLastUpdated(time.Time)
-	SetNextUpdate(time.Time)
-	IsUsingProtocol(string) bool
-	SetUsingProtocol(string)
+	SetNewUpdate()
 	IsProcessing() bool
 	SetProcessing(bool)
 	Execute()
@@ -49,19 +43,19 @@ type Synchroniser interface {
 
 // SyncConfig stores the currency pair config
 type SyncConfig struct {
-	Ticker      bool
-	Orderbook   bool
-	Trades      bool
-	Continuous  bool
-	SyncTimeout time.Duration
-	NumWorkers  int
-	Verbose     bool
-}
-
-// ExchangeSyncerConfig stores the exchange syncer config
-type ExchangeSyncerConfig struct {
-	SyncDepositAddresses bool
-	SyncOrders           bool
+	AccountBalance           bool
+	AccountFees              bool
+	AccountOrders            bool
+	AccountFunding           bool
+	AccountPosition          bool
+	ExchangeTrades           bool
+	ExchangeOrderbook        bool
+	ExchangeDepositAddresses bool
+	ExchangeTradeHistory     bool
+	ExchangeSupportedPairs   bool
+	ExchangeTicker           bool
+	ExchangeKline            bool
+	Verbose                  bool
 }
 
 // SyncManager stores the exchange currency pair syncer object
@@ -73,4 +67,12 @@ type SyncManager struct {
 	synchro  chan struct{}
 	syncComm chan time.Time
 	sync.Mutex
+}
+
+// SyncUpdate wraps updates for concurrent processing
+type SyncUpdate struct {
+	Agent    Synchroniser
+	Payload  interface{}
+	Protocol string
+	Err      error
 }

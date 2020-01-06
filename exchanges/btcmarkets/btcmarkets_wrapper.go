@@ -321,6 +321,33 @@ func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*or
 	return orderbook.Get(b.Name, p, assetType)
 }
 
+// FetchTrades returns the trades for a currency pair
+func (b *BTCMarkets) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
+// UpdateTrades updates and returns the trades for a currency pair
+func (b *BTCMarkets) UpdateTrades(p currency.Pair, _ asset.Item) ([]order.Trade, error) {
+	t, err := b.GetTrades(p.String(), 0, 0, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	var trades []order.Trade
+	for i := range t {
+		trades = append(trades, order.Trade{
+			Exchange:  b.Name,
+			TID:       t[i].TradeID,
+			Price:     t[i].Price,
+			Amount:    t[i].Amount,
+			Timestamp: t[i].Timestamp,
+			Pair:      p,
+			AssetType: asset.Spot,
+		})
+	}
+	return trades, nil
+}
+
 // GetAccountInfo retrieves balances for all enabled currencies
 func (b *BTCMarkets) GetAccountInfo() (exchange.AccountInfo, error) {
 	var resp exchange.AccountInfo
@@ -553,13 +580,13 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 				allPairs[a])
 		}
 	}
-
 	var resp []order.Detail
 	for x := range req.Currencies {
 		tempData, err := b.GetOrders(b.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String(), -1, -1, -1, true)
 		if err != nil {
 			return resp, err
 		}
+
 		for y := range tempData {
 			var tempResp order.Detail
 			tempResp.Exchange = b.Name
@@ -602,6 +629,7 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 			tempResp.Amount = tempData[y].Amount
 			tempResp.ExecutedAmount = tempData[y].Amount - tempData[y].OpenAmount
 			tempResp.RemainingAmount = tempData[y].OpenAmount
+			tempResp.AssetType = asset.Spot
 			resp = append(resp, tempResp)
 		}
 	}

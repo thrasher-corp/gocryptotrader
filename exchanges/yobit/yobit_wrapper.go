@@ -267,6 +267,16 @@ func (y *Yobit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 	return orderbook.Get(y.Name, p, assetType)
 }
 
+// FetchTrade returns the trades for a currency pair
+func (y *Yobit) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
+// UpdateTrade updates and returns the trades for a currency pair
+func (y *Yobit) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // Yobit exchange
 func (y *Yobit) GetAccountInfo() (exchange.AccountInfo, error) {

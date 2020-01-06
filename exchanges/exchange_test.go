@@ -93,8 +93,8 @@ func TestSetClientProxyAddress(t *testing.T) {
 	t.Parallel()
 
 	requester := request.New("rawr",
-		&request.RateLimit{},
-		&request.RateLimit{},
+		request.NewRateLimit(0, 0),
+		request.NewRateLimit(0, 0),
 		&http.Client{})
 
 	newBase := Base{
@@ -206,10 +206,8 @@ func TestSetHTTPRateLimiter(t *testing.T) {
 			common.NewHTTPClientWithTimeout(DefaultHTTPTimeout)),
 	}
 	b.SetHTTPRateLimiter()
-	if b.Requester.GetRateLimit(true).Duration.String() != "5s" &&
-		b.Requester.GetRateLimit(true).Rate != 10 &&
-		b.Requester.GetRateLimit(false).Duration.String() != "10s" &&
-		b.Requester.GetRateLimit(false).Rate != 15 {
+	if b.Requester.AuthLimit.Limit() != 0.5 &&
+		b.Requester.UnauthLimit.Limit() != 1.5 {
 		t.Error("rate limiter not set properly")
 	}
 
@@ -224,10 +222,8 @@ func TestSetHTTPRateLimiter(t *testing.T) {
 		},
 	}
 	b.SetHTTPRateLimiter()
-	if b.Requester.GetRateLimit(true).Duration.String() != "1m50s" &&
-		b.Requester.GetRateLimit(true).Rate != 150 &&
-		b.Requester.GetRateLimit(false).Duration.String() != "1m40s" &&
-		b.Requester.GetRateLimit(false).Rate != 100 {
+	if b.Requester.AuthLimit.Limit() != 30 &&
+		b.Requester.UnauthLimit.Limit() != 40 {
 		t.Error("rate limiter not set properly")
 	}
 }

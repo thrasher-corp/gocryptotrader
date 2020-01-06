@@ -97,6 +97,7 @@ type WebsocketOrderbookUpdate struct {
 	Exchange string
 }
 
+// TODO: Get rid of this type
 // TradeData defines trade data
 type TradeData struct {
 	Timestamp    time.Time
@@ -109,18 +110,20 @@ type TradeData struct {
 	Side         string
 }
 
-// FundingData defines funding data
-type FundingData struct {
-	Timestamp    time.Time
-	CurrencyPair currency.Pair
-	AssetType    asset.Item
-	Exchange     string
-	Amount       float64
-	Rate         float64
-	Period       int64
-	Side         string
-}
+// // TODO: Get rid of this type
+// // FundingData defines funding data
+// type FundingData struct {
+// 	Timestamp    time.Time
+// 	CurrencyPair currency.Pair
+// 	AssetType    asset.Item
+// 	Exchange     string
+// 	Amount       float64
+// 	Rate         float64
+// 	Period       int64
+// 	Side         string
+// }
 
+// TODO: Get rid of this type
 // KlineData defines kline feed
 type KlineData struct {
 	Timestamp  time.Time

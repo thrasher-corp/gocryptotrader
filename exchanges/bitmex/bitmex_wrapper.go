@@ -370,6 +370,16 @@ func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 	return orderbook.Get(b.Name, p, assetType)
 }
 
+// FetchTrade returns the trades for a currency pair
+func (b *Bitmex) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
+// UpdateTrade updates and returns the trades for a currency pair
+func (b *Bitmex) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // Bitmex exchange
 func (b *Bitmex) GetAccountInfo() (exchange.AccountInfo, error) {

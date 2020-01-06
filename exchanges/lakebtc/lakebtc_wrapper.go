@@ -283,6 +283,16 @@ func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 	return orderbook.Get(l.Name, p, assetType)
 }
 
+// FetchTrade returns the trades for a currency pair
+func (l *LakeBTC) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
+// UpdateTrade updates and returns the trades for a currency pair
+func (l *LakeBTC) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.Trade, error) {
+	return nil, errors.New("NOT DONE")
+}
+
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // LakeBTC exchange
 func (l *LakeBTC) GetAccountInfo() (exchange.AccountInfo, error) {
