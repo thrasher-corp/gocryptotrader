@@ -57,10 +57,10 @@ type SubmitResponse struct {
 
 // Modify is an order modifyer
 type Modify struct {
-	Exchange string
-	OrderID  string
-	Type
-	Side
+	Exchange          string
+	OrderID           string
+	OrderType         Type
+	OrderSide         Side
 	Price             float64
 	Amount            float64
 	LimitPriceUpper   float64

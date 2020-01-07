@@ -385,6 +385,20 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 				if err != nil {
 					log.Error(log.WebsocketMgr, err)
 				}
+			case order.Modify:
+				// convert to order.Detail
+				od, err := Bot.OrderManager.orderStore.GetByExchangeAndID(d.Exchange, d.OrderID)
+				if err != nil {
+					log.Error(log.WebsocketMgr, err)
+					continue
+				}
+
+				od.Amount = d.Amount
+				od.Price = d.Price
+				od.CurrencyPair = d.CurrencyPair
+				od.OrderType = d.OrderType
+				od.Exchange = d.Exchange
+				od.OrderSide = d.OrderSide
 			default:
 				if Bot.Settings.Verbose {
 					log.Warnf(log.WebsocketMgr,

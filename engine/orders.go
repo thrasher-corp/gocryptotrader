@@ -3,10 +3,12 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/gofrs/uuid"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -17,12 +19,28 @@ import (
 var (
 	OrderManagerDelay      = time.Second * 10
 	ErrOrdersAlreadyExists = errors.New("order already exists")
+	ErrOrderFourOhFour     = errors.New("order does not exist")
 )
 
 func (o *orderStore) Get() map[string][]order.Detail {
 	o.m.Lock()
 	defer o.m.Unlock()
 	return o.Orders
+}
+
+// GetByExchangeAndID returns a specific order
+func (o *orderStore) GetByExchangeAndID(exchange, ID string) (*order.Detail, error) {
+	r, ok := o.Orders[exchange]
+	if !ok {
+		return nil, ErrOrderFourOhFour
+	}
+
+	for x := range r {
+		if r[x].ID == ID {
+			return &r[x], nil
+		}
+	}
+	return nil, ErrOrderFourOhFour
 }
 
 func (o *orderStore) exists(order *order.Detail) bool {
@@ -92,40 +110,8 @@ func (o *orderManager) Stop() error {
 func (o *orderManager) gracefulShutdown() {
 	if o.cfg.CancelOrdersOnShutdown {
 		log.Debugln(log.OrderMgr, "Order manager: Cancelling any open orders...")
-		orders := o.orderStore.Get()
-		if orders == nil {
-			return
-		}
 
-		for k, v := range orders {
-			log.Debugf(log.OrderMgr, "Order manager: Cancelling order(s) for exchange %s.\n", k)
-			for y := range v {
-				log.Debugf(log.OrderMgr, "order manager: Cancelling order ID %v [%v]",
-					v[y].ID, v[y])
-				err := o.Cancel(&order.Cancel{
-					Exchange: k,
-					OrderID:  v[y].ID,
-				})
-				if err != nil {
-					msg := fmt.Sprintf("Order manager: Exchange %s unable to cancel order ID=%v. Err: %s",
-						k, v[y].ID, err)
-					log.Debugln(log.OrderBook, msg)
-					Bot.CommsManager.PushEvent(base.Event{
-						Type:    "order",
-						Message: msg,
-					})
-					continue
-				}
-
-				msg := fmt.Sprintf("Order manager: Exchange %s order ID=%v cancelled.",
-					k, v[y].ID)
-				log.Debugln(log.OrderBook, msg)
-				Bot.CommsManager.PushEvent(base.Event{
-					Type:    "order",
-					Message: msg,
-				})
-			}
-		}
+		o.CancelAllOrders(nil)
 	}
 }
 
@@ -150,7 +136,51 @@ func (o *orderManager) run() {
 	}
 }
 
-func (o *orderManager) CancelAllOrders() {}
+// CancelAllOrders iterates and cancels all orders
+// for all exchanges if exchangeNames nil
+func (o *orderManager) CancelAllOrders(exchangeNames []string) {
+	orders := o.orderStore.Get()
+	if orders == nil {
+		return
+	}
+
+	for k, v := range orders {
+		log.Debugf(log.OrderMgr, "Order manager: Cancelling order(s) for exchange %s.\n", k)
+		if len(exchangeNames) > 0 {
+			for i := range exchangeNames {
+				if !strings.EqualFold(k, exchangeNames[i]) {
+					continue
+				}
+			}
+		}
+		for y := range v {
+			log.Debugf(log.OrderMgr, "order manager: Cancelling order ID %v [%v]",
+				v[y].ID, v[y])
+			err := o.Cancel(&order.Cancel{
+				Exchange: k,
+				OrderID:  v[y].ID,
+			})
+			if err != nil {
+				msg := fmt.Sprintf("Order manager: Exchange %s unable to cancel order ID=%v. Err: %s",
+					k, v[y].ID, err)
+				log.Debugln(log.OrderBook, msg)
+				Bot.CommsManager.PushEvent(base.Event{
+					Type:    "order",
+					Message: msg,
+				})
+				continue
+			}
+
+			msg := fmt.Sprintf("Order manager: Exchange %s order ID=%v cancelled.",
+				k, v[y].ID)
+			log.Debugln(log.OrderBook, msg)
+			Bot.CommsManager.PushEvent(base.Event{
+				Type:    "order",
+				Message: msg,
+			})
+		}
+	}
+}
 
 func (o *orderManager) Cancel(cancel *order.Cancel) error {
 	if cancel.Exchange == "" {
