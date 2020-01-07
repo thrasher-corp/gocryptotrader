@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -125,12 +126,12 @@ func CheckMissingExchanges(fileName string) ([]string, error) {
 
 // ReadFileData reads the file data for the json file
 func ReadFileData(fileName string) ([]ExchangeInfo, error) {
-	jsonFile, err := os.Open(fileName)
+	file, err := os.Open(fileName)
 	if err != nil {
 		return nil, err
 	}
-	defer jsonFile.Close()
-	byteValue, err := ioutil.ReadAll(jsonFile)
+	defer file.Close()
+	byteValue, err := ioutil.ReadAll(file)
 	if err != nil {
 		return nil, err
 	}
@@ -188,13 +189,13 @@ func CheckUpdates(fileName string) error {
 		}
 		for z := range a.CheckItems {
 			if strings.Contains(a.CheckItems[z].Name, resp[y]) {
-				err = UpdateCheckItem(a.CheckItems[z].ID, a.CheckItems[z].Name, incomplete)
+				err = UpdateCheckItem(a.CheckItems[z].ID, a.CheckItems[z].Name, a.CheckItems[z].State)
 			}
 		}
 	}
 	log.Println(errMap)
 	log.Printf("Following are the exchanges that require updates: %v\n", resp)
-	unsup, err := CheckMissingExchanges(jsonFile)
+	unsup, err := CheckMissingExchanges(fileName)
 	log.Printf("Following are the exchanges that are supported by GCT but not by apichecker: %v", unsup)
 	return ioutil.WriteFile(fileName, file, 0770)
 }
@@ -340,7 +341,7 @@ func CheckChangeLog(htmlData HTMLScrapingData) (string, error) {
 }
 
 // Add appends exchange data to updates.json for future api checks
-func Add(exchName, checkType, path string, data interface{}, update bool) error {
+func Add(fileName, exchName, checkType, path string, data interface{}, update bool) error {
 	finalResp, check, err := CheckExistingExchanges(jsonFile, exchName)
 	if err != nil {
 		return err
@@ -1267,24 +1268,46 @@ func GetChecklistItems() (ChecklistItemData, error) {
 	return resp, common.SendHTTPGetRequest(path, true, false, &resp)
 }
 
-// NameUpdates returns the appropriate update name for trello
-func NameUpdates(currentName string) string {
-	// r, err := regexp.Compile(`[\s\S]*\d{1}$`)
-	// if err != nil {
-	// 	return ""
-	// }
-	// str := r.FindString(currentName)
-	return ""
+// NameStateChanges returns the appropriate update name & state for trello (assumes single digit updates pending)
+func NameStateChanges(currentName, currentState string) (string, error) {
+	r, err := regexp.Compile(`[\s\S]*\d{1}$`)
+	if err != nil {
+		return "", err
+	}
+	var tempNumber int64
+	var finalNumber string
+	if r.MatchString(currentName) {
+		stringNum := string(currentName[len(currentName)-1])
+		tempNumber, err = strconv.ParseInt(stringNum, 10, 64)
+		if err != nil {
+			return "", err
+		}
+		if tempNumber != 1 || currentState != complete {
+			tempNumber++
+		} else {
+			tempNumber = 1
+		}
+		finalNumber = strconv.FormatInt(tempNumber, 10)
+	}
+	byteNumber := []byte(finalNumber)
+	byteName := []byte(currentName)
+	byteName = byteName[:len(byteName)-1]
+	byteName = append(byteName, byteNumber[0])
+	return string(byteName), nil
 }
 
 // UpdateCheckItem updates a check item
 func UpdateCheckItem(checkItemID, name, state string) error {
 	params := url.Values{}
-	params.Set("name", name)
+	newName, err := NameStateChanges(name, state)
+	if err != nil {
+		return err
+	}
+	params.Set("name", newName)
 	params.Set("state", state)
 	path := fmt.Sprintf(pathUpdateItems, trelloCardID, checkItemID, params.Encode(), trelloKey, trelloToken)
 	log.Println(path)
-	_, err := common.SendHTTPRequest(http.MethodPut, path, nil, nil)
+	_, err = common.SendHTTPRequest(http.MethodPut, path, nil, nil)
 	return err
 }
 
@@ -1305,4 +1328,17 @@ func Update(currentName string, info []ExchangeInfo, updatedInfo ExchangeInfo) (
 		}
 	}
 	return info, nil
+}
+
+// UpdateTestFile updates test file to match updates.json
+func UpdateTestFile(name string) error {
+	realData, err := ReadFileData(jsonFile)
+	if err != nil {
+		return err
+	}
+	file, err := json.MarshalIndent(realData, "", " ")
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(name, file, 0770)
 }

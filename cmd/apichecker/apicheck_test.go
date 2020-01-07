@@ -6,8 +6,12 @@ import (
 	"testing"
 )
 
+const (
+	testJSONFile = "testupdates.json"
+)
+
 func TestCheckExistingExchanges(t *testing.T) {
-	_, _, err := CheckExistingExchanges(jsonFile, "Kraken")
+	_, _, err := CheckExistingExchanges(testJSONFile, "Kraken")
 	if err != nil {
 		t.Error(err)
 	}
@@ -34,14 +38,14 @@ func TestAdd(t *testing.T) {
 		Val:    "col-md-12",
 		RegExp: `col-md-12([\s\S]*?)clearfix`,
 		Path:   "https://localbitcoins.com/api-docs/"}
-	err := Add("LocalBitcoins", htmlScrape, data.Path, data, false)
+	err := Add(testJSONFile, "LocalBitcoins", htmlScrape, data.Path, data, false)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestCheckUpdates(t *testing.T) {
-	err := CheckUpdates(jsonFile)
+	err := CheckUpdates(testJSONFile)
 	if err != nil {
 		t.Error(err)
 	}
@@ -307,7 +311,7 @@ func TestCreateNewCheck(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	finalResp, _, err := CheckExistingExchanges(jsonFile, "ANX")
+	finalResp, _, err := CheckExistingExchanges(testJSONFile, "ANX")
 	if err != nil {
 		t.Error(err)
 	}
@@ -327,7 +331,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestCheckMissingExchanges(t *testing.T) {
-	a, err := CheckMissingExchanges(jsonFile)
+	a, err := CheckMissingExchanges(testJSONFile)
 	t.Log(a)
 	if err != nil {
 		t.Error(err)
@@ -354,9 +358,24 @@ func TestGetChecklistItems(t *testing.T) {
 	}
 }
 
-// func TestUpdateCheckItem(t *testing.T) {
-// 	err := UpdateCheckItem("5dfc604fe901ac6a592e9b75", "Gemini", "incomplete")
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// }
+func TestUpdateCheckItem(t *testing.T) {
+	err := UpdateCheckItem("5dfc604fe901ac6a592e9b75", "Gemini 1", "incomplete")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestNameUpdates(t *testing.T) {
+	a, err := NameStateChanges("Gemini 2", "complete")
+	log.Println(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateTestFile(t *testing.T) {
+	err := UpdateTestFile("testupdates.json")
+	if err != nil {
+		t.Error(err)
+	}
+}
