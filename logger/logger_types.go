@@ -30,9 +30,6 @@ var (
 
 	// LogPath system path to store log files in
 	LogPath string
-
-	f = func(f bool) *bool { return &f }(false)
-	t = func(t bool) *bool { return &t }(true)
 )
 
 // Config holds configuration settings loaded from bot config

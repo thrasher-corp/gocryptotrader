@@ -1257,12 +1257,12 @@ func (s *RPCServer) GCTScriptQuery(ctx context.Context, r *gctrpc.GCTScriptQuery
 
 	UUID, err := uuid.FromString(r.Script.UUID)
 	if err != nil {
-		return &gctrpc.GCTScriptQueryResponse{Status: "error", Data: err.Error()}, nil
+		return &gctrpc.GCTScriptQueryResponse{Status: MsgStatusError, Data: err.Error()}, nil
 	}
 
 	if v, f := gctscript.AllVMs[UUID]; f {
 		resp := &gctrpc.GCTScriptQueryResponse{
-			Status: "ok",
+			Status: MsgStatusOK,
 			Script: &gctrpc.GCTScript{
 				Name:    v.ShortName(),
 				UUID:    v.ID.String(),
@@ -1277,7 +1277,7 @@ func (s *RPCServer) GCTScriptQuery(ctx context.Context, r *gctrpc.GCTScriptQuery
 		resp.Data = string(data)
 		return resp, nil
 	}
-	return &gctrpc.GCTScriptQueryResponse{Status: "not found", Data: "UUID not found"}, nil
+	return &gctrpc.GCTScriptQueryResponse{Status: MsgStatusError, Data: "UUID not found"}, nil
 }
 
 // GCTScriptExecute execute a script
@@ -1292,14 +1292,14 @@ func (s *RPCServer) GCTScriptExecute(ctx context.Context, r *gctrpc.GCTScriptExe
 
 	gctVM := gctscript.New()
 	if gctVM == nil {
-		return &gctrpc.GCTScriptGenericResponse{Status: "error", Data: "unable to create VM instance"}, nil
+		return &gctrpc.GCTScriptGenericResponse{Status: MsgStatusError, Data: "unable to create VM instance"}, nil
 	}
 
 	script := filepath.Join(r.Script.Path, r.Script.Name)
 	err := gctVM.Load(script)
 	if err != nil {
 		return &gctrpc.GCTScriptGenericResponse{
-			Status: "error",
+			Status: MsgStatusError,
 			Data:   err.Error(),
 		}, nil
 	}
@@ -1307,7 +1307,7 @@ func (s *RPCServer) GCTScriptExecute(ctx context.Context, r *gctrpc.GCTScriptExe
 	go gctVM.CompileAndRun()
 
 	return &gctrpc.GCTScriptGenericResponse{
-		Status: "ok",
+		Status: MsgStatusOK,
 		Data:   gctVM.ShortName() + " (" + gctVM.ID.String() + ") executed",
 	}, nil
 }
@@ -1320,7 +1320,7 @@ func (s *RPCServer) GCTScriptStop(ctx context.Context, r *gctrpc.GCTScriptStopRe
 
 	UUID, err := uuid.FromString(r.Script.UUID)
 	if err != nil {
-		return &gctrpc.GCTScriptGenericResponse{Status: "error", Data: err.Error()}, nil
+		return &gctrpc.GCTScriptGenericResponse{Status: MsgStatusError, Data: err.Error()}, nil
 	}
 
 	if v, f := gctscript.AllVMs[UUID]; f {
@@ -1329,9 +1329,9 @@ func (s *RPCServer) GCTScriptStop(ctx context.Context, r *gctrpc.GCTScriptStopRe
 		if err != nil {
 			status = err.Error()
 		}
-		return &gctrpc.GCTScriptGenericResponse{Status: "ok", Data: v.ID.String() + status}, nil
+		return &gctrpc.GCTScriptGenericResponse{Status: MsgStatusOK, Data: v.ID.String() + status}, nil
 	}
-	return &gctrpc.GCTScriptGenericResponse{Status: "error", Data: "no running script found"}, nil
+	return &gctrpc.GCTScriptGenericResponse{Status: MsgStatusError, Data: "no running script found"}, nil
 }
 
 // GCTScriptUpload upload a new script to ScriptPath
@@ -1399,7 +1399,6 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 				_ = zFile.Close()
 				return nil, fmt.Errorf("%s: illegal file path", fPath)
 			}
-
 			if z.Reader.File[x].FileInfo().IsDir() {
 				err = os.MkdirAll(zipPath, z.Reader.File[x].Mode())
 				if err != nil {
@@ -1410,7 +1409,7 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 				outFile, err = os.OpenFile(zipPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, z.Reader.File[x].Mode())
 				if err != nil {
 					if err != nil {
-						log.Errorf(log.Global, "Unable to close file %v %v", z.Reader.File[x].Name, err)
+						log.Errorf(log.Global, ErrUnableToCloseFile, z.Reader.File[x].Name, err)
 					}
 					return nil, err
 				}
@@ -1419,22 +1418,22 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 				if err != nil {
 					err = outFile.Close()
 					if err != nil {
-						log.Errorf(log.Global, "Unable to close file %v %v", z.Reader.File[x].Name, err)
+						log.Errorf(log.Global, ErrUnableToCloseFile, z.Reader.File[x].Name, err)
 					}
 					err = z.Close()
 					if err != nil {
-						log.Errorf(log.Global, "Unable to close file %v %v", z.Reader.File[x].Name, err)
+						log.Errorf(log.Global, ErrUnableToCloseFile, z.Reader.File[x].Name, err)
 					}
 					return nil, err
 				}
 				err = outFile.Close()
 				if err != nil {
-					log.Errorf(log.Global, "Unable to close file %v %v", outFile, err)
+					log.Errorf(log.Global, ErrUnableToCloseFile, outFile, err)
 				}
 			}
 			err = zFile.Close()
 			if err != nil {
-				log.Errorf(log.Global, "Unable to close file %v %v", z.Reader.File[x].Name, err)
+				log.Errorf(log.Global, ErrUnableToCloseFile, z.Reader.File[x].Name, err)
 			}
 		}
 		err = z.Close()
@@ -1457,7 +1456,7 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 	}
 
 	return &gctrpc.GCTScriptGenericResponse{
-		Status: "ok",
+		Status: MsgStatusOK,
 		Data:   fmt.Sprintf("script %s written", newFile.Name()),
 	}, nil
 }
@@ -1479,7 +1478,7 @@ func (s *RPCServer) GCTScriptReadScript(ctx context.Context, r *gctrpc.GCTScript
 	}
 
 	return &gctrpc.GCTScriptQueryResponse{
-		Status: "ok",
+		Status: MsgStatusOK,
 		Script: &gctrpc.GCTScript{
 			Name: filepath.Base(filename),
 			Path: filepath.Dir(filename),
@@ -1526,7 +1525,7 @@ func (s *RPCServer) GCTScriptStopAll(context.Context, *gctrpc.GCTScriptStopAllRe
 	}
 
 	return &gctrpc.GCTScriptGenericResponse{
-		Status: "ok",
+		Status: MsgStatusOK,
 		Data:   "all running scripts have been stopped",
 	}, nil
 }

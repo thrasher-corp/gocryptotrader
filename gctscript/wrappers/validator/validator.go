@@ -1,4 +1,4 @@
-package validator
+package validator for test execution/scripts
 
 import (
 	"time"
@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
+// Exchanges validator for test execution/scripts
 func (w Wrapper) Exchanges(enabledOnly bool) []string {
 	if enabledOnly {
 		return []string{
@@ -30,6 +31,7 @@ func (w Wrapper) IsEnabled(exch string) (v bool) {
 	return true
 }
 
+// Orderbook validator for test execution/scripts
 func (w Wrapper) Orderbook(exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
@@ -54,6 +56,7 @@ func (w Wrapper) Orderbook(exch string, pair currency.Pair, item asset.Item) (*o
 	}, nil
 }
 
+// Ticker validator for test execution/scripts
 func (w Wrapper) Ticker(exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
@@ -76,6 +79,7 @@ func (w Wrapper) Ticker(exch string, pair currency.Pair, item asset.Item) (*tick
 	}, nil
 }
 
+// Pairs validator for test execution/scripts
 func (w Wrapper) Pairs(exch string, enabledOnly bool, item asset.Item) (*currency.Pairs, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
@@ -85,6 +89,7 @@ func (w Wrapper) Pairs(exch string, enabledOnly bool, item asset.Item) (*currenc
 	return &pairs, nil
 }
 
+// QueryOrder validator for test execution/scripts
 func (w Wrapper) QueryOrder(exch, orderid string) (*order.Detail, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
@@ -119,6 +124,7 @@ func (w Wrapper) QueryOrder(exch, orderid string) (*order.Detail, error) {
 	}, nil
 }
 
+// SubmitOrder validator for test execution/scripts
 func (w Wrapper) SubmitOrder(exch string, submit *order.Submit) (*order.SubmitResponse, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
@@ -136,6 +142,7 @@ func (w Wrapper) SubmitOrder(exch string, submit *order.Submit) (*order.SubmitRe
 	return tempOrder, nil
 }
 
+// CancelOrder validator for test execution/scripts
 func (w Wrapper) CancelOrder(exch, orderid string) (bool, error) {
 	if exch == exchError.String() {
 		return false, errTestFailed
@@ -143,6 +150,7 @@ func (w Wrapper) CancelOrder(exch, orderid string) (bool, error) {
 	return orderid != "false", nil
 }
 
+// AccountInformation validator for test execution/scripts
 func (w Wrapper) AccountInformation(exch string) (*modules.AccountInfo, error) {
 	if exch == exchError.String() {
 		return &modules.AccountInfo{}, errTestFailed
@@ -174,6 +182,7 @@ func (w Wrapper) AccountInformation(exch string) (*modules.AccountInfo, error) {
 	}, nil
 }
 
+// DepositAddress validator for test execution/scripts
 func (w Wrapper) DepositAddress(exch string, currencyCode currency.Code) (string, error) {
 	if exch == exchError.String() {
 		return exch, errTestFailed
@@ -182,6 +191,7 @@ func (w Wrapper) DepositAddress(exch string, currencyCode currency.Code) (string
 	return exch, nil
 }
 
+// WithdrawalCryptoFunds validator for test execution/scripts
 func (w Wrapper) WithdrawalCryptoFunds(exch string, request *withdraw.CryptoRequest) (out string, err error) {
 	if exch == exchError.String() {
 		return exch, errTestFailed
@@ -190,6 +200,7 @@ func (w Wrapper) WithdrawalCryptoFunds(exch string, request *withdraw.CryptoRequ
 	return "", nil
 }
 
+// WithdrawalFiatFunds validator for test execution/scripts
 func (w Wrapper) WithdrawalFiatFunds(exch, _ string, _ *withdraw.FiatRequest) (out string, err error) {
 	if exch == exchError.String() {
 		return exch, errTestFailed

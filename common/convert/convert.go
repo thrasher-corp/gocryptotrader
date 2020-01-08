@@ -107,3 +107,8 @@ func SplitFloatDecimals(input float64) (baseNum, decimalNum int64, err error) {
 	}
 	return baseNum, decimalNum, nil
 }
+
+func BoolPtr(condition bool) *bool {
+	b := condition
+	return &b
+}

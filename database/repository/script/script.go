@@ -67,6 +67,5 @@ func Event(id uuid.UUID, name, path, hash null.String, executionType, status str
 		if err != nil {
 			log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
 		}
-		return
 	}
 }

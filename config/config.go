@@ -1188,10 +1188,8 @@ func (c *Config) CheckLoggerConfig() error {
 		c.Logging = log.GenDefaultSettings()
 	}
 
-	f := func(f bool) *bool { return &f }(false)
-
 	if c.Logging.AdvancedSettings.ShowLogSystemName == nil {
-		c.Logging.AdvancedSettings.ShowLogSystemName = f
+		c.Logging.AdvancedSettings.ShowLogSystemName = convert.BoolPtr(false)
 	}
 
 	if c.Logging.LoggerFileConfig != nil {
@@ -1199,7 +1197,7 @@ func (c *Config) CheckLoggerConfig() error {
 			c.Logging.LoggerFileConfig.FileName = "log.txt"
 		}
 		if c.Logging.LoggerFileConfig.Rotate == nil {
-			c.Logging.LoggerFileConfig.Rotate = f
+			c.Logging.LoggerFileConfig.Rotate = convert.BoolPtr(false)
 		}
 		if c.Logging.LoggerFileConfig.MaxSize <= 0 {
 			log.Warnf(log.Global, "Logger rotation size invalid, defaulting to %v", log.DefaultMaxFileSize)

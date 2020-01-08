@@ -94,4 +94,13 @@ const (
 	MsgSubSystemShuttingDown = "shutting down..."
 	// MsgSubSystemShutdown message to return when a subsystem has shutdown
 	MsgSubSystemShutdown = "manager shutdown."
+
+	// MsgOK message to display when status is "OK"
+	MsgStatusOK string = "ok"
+	// MsgStatusSuccess message to display when status is successful
+	MsgStatusSuccess string = "success"
+	// MsgStatusError message to display when failure occurs
+	MsgStatusError string = "error"
+
+	ErrUnableToCloseFile string = "Unable to close file %v %v"
 )

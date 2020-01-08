@@ -26,7 +26,7 @@ func (g *gctScriptManager) Start() error {
 	if g.Started() {
 		return fmt.Errorf("%s %s", gctscriptManagerName, ErrSubSystemAlreadyStarted)
 	}
-	log.Debugf(log.Global, "%s %s", gctscriptManagerName, MsgSubSystemStarting)
+	log.Debugln(log.Global, gctscriptManagerName, MsgSubSystemStarting)
 	g.shutdown = make(chan struct{})
 	go g.run()
 	return nil
@@ -38,7 +38,7 @@ func (g *gctScriptManager) Stop() error {
 		return fmt.Errorf("%s %s", gctscriptManagerName, ErrSubSystemAlreadyStopped)
 	}
 
-	log.Debugf(log.Global, "%s %s", gctscriptManagerName, MsgSubSystemShuttingDown)
+	log.Debugln(log.Global, gctscriptManagerName, MsgSubSystemShuttingDown)
 	close(g.shutdown)
 	err := vm.ShutdownAll()
 	if err != nil {
@@ -48,7 +48,7 @@ func (g *gctScriptManager) Stop() error {
 }
 
 func (g *gctScriptManager) run() {
-	log.Debugf(log.GCTScriptMgr, "%s %s", gctscriptManagerName, MsgSubSystemStarted)
+	log.Debugln(log.GCTScriptMgr, gctscriptManagerName, MsgSubSystemStarted)
 
 	Bot.ServicesWG.Add(1)
 	g.running.Store(true)
@@ -57,7 +57,7 @@ func (g *gctScriptManager) run() {
 	defer func() {
 		g.running.Store(false)
 		Bot.ServicesWG.Done()
-		log.Debugf(log.GCTScriptMgr, "%s %s", gctscriptManagerName, MsgSubSystemShutdown)
+		log.Debugln(log.GCTScriptMgr, gctscriptManagerName, MsgSubSystemShutdown)
 	}()
 
 	<-g.shutdown
@@ -67,7 +67,7 @@ func (g *gctScriptManager) autoLoad() {
 	for x := range Bot.Config.GCTScript.AutoLoad {
 		temp := vm.New()
 		if temp == nil {
-			log.Errorf(log.GCTScriptMgr, "Unable to create Virtual Machine autoload failed for: %v",
+			log.Errorf(log.GCTScriptMgr, "Unable to create Virtual Machine, autoload failed for: %v",
 				Bot.Config.GCTScript.AutoLoad[x])
 			continue
 		}
