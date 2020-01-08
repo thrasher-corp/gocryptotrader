@@ -101,6 +101,4 @@ const (
 	MsgStatusSuccess string = "success"
 	// MsgStatusError message to display when failure occurs
 	MsgStatusError string = "error"
-
-	ErrUnableToCloseFile string = "Unable to close file %v %v"
 )

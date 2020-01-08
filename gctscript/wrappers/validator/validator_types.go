@@ -1,4 +1,4 @@
-package validator for test execution/scripts
+package validator
 
 import (
 	"errors"

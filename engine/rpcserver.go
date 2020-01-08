@@ -1,11 +1,9 @@
 package engine
 
 import (
-	"archive/zip"
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -20,6 +18,7 @@ import (
 	grpcruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common/extract"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
@@ -1379,66 +1378,9 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 	}
 
 	if r.Archived {
-		z, errZip := zip.OpenReader(fPath)
-		if errZip != nil {
-			return nil, err
-		}
-
-		defer z.Close()
-
-		for x := range z.Reader.File {
-			var zFile io.ReadCloser
-			zFile, err = z.Reader.File[x].Open()
-			if err != nil {
-				return nil, err
-			}
-
-			zipPath := filepath.Join(gctscript.ScriptPath, z.Reader.File[x].Name) // nolint:gosec
-			// We ignore gosec linter above because the code below files the file traversal bug when extracting archives
-			if !strings.HasPrefix(zipPath, filepath.Clean(gctscript.ScriptPath)+string(os.PathSeparator)) {
-				_ = zFile.Close()
-				return nil, fmt.Errorf("%s: illegal file path", fPath)
-			}
-			if z.Reader.File[x].FileInfo().IsDir() {
-				err = os.MkdirAll(zipPath, z.Reader.File[x].Mode())
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				var outFile *os.File
-				outFile, err = os.OpenFile(zipPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, z.Reader.File[x].Mode())
-				if err != nil {
-					if err != nil {
-						log.Errorf(log.Global, ErrUnableToCloseFile, z.Reader.File[x].Name, err)
-					}
-					return nil, err
-				}
-
-				_, err = io.Copy(outFile, zFile)
-				if err != nil {
-					err = outFile.Close()
-					if err != nil {
-						log.Errorf(log.Global, ErrUnableToCloseFile, z.Reader.File[x].Name, err)
-					}
-					err = z.Close()
-					if err != nil {
-						log.Errorf(log.Global, ErrUnableToCloseFile, z.Reader.File[x].Name, err)
-					}
-					return nil, err
-				}
-				err = outFile.Close()
-				if err != nil {
-					log.Errorf(log.Global, ErrUnableToCloseFile, outFile, err)
-				}
-			}
-			err = zFile.Close()
-			if err != nil {
-				log.Errorf(log.Global, ErrUnableToCloseFile, z.Reader.File[x].Name, err)
-			}
-		}
-		err = z.Close()
+		err = extract.Unzip(fPath, gctscript.ScriptPath)
 		if err != nil {
-			log.Errorln(log.Global, "Failed to close archive, removal may fail")
+			log.Errorf(log.Global, "Failed to extract zip file %v", err)
 		}
 		err = os.Remove(fPath)
 		if err != nil {
