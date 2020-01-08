@@ -110,7 +110,7 @@ type OrderInsert struct {
 	ContingencyType       string      `json:"contingencyType"`
 	CumQty                int64       `json:"cumQty"`
 	Currency              string      `json:"currency"`
-	DisplayQty            interface{} `json:"displayQty"`
+	DisplayQty            int64       `json:"displayQty"`
 	ExDestination         string      `json:"exDestination"`
 	ExecComm              int64       `json:"execComm"`
 	ExecCost              int64       `json:"execCost"`
@@ -130,15 +130,15 @@ type OrderInsert struct {
 	OrdType               string      `json:"ordType"`
 	OrderID               string      `json:"orderID"`
 	OrderQty              int64       `json:"orderQty"`
-	PegOffsetValue        interface{} `json:"pegOffsetValue"`
+	PegOffsetValue        float64     `json:"pegOffsetValue"`
 	PegPriceType          string      `json:"pegPriceType"`
 	Price                 float64     `json:"price"`
 	SettlCurrency         string      `json:"settlCurrency"`
 	Side                  string      `json:"side"`
 	SimpleCumQty          float64     `json:"simpleCumQty"`
 	SimpleLeavesQty       int64       `json:"simpleLeavesQty"`
-	SimpleOrderQty        interface{} `json:"simpleOrderQty"`
-	StopPx                interface{} `json:"stopPx"`
+	SimpleOrderQty        int64       `json:"simpleOrderQty"`
+	StopPx                float64     `json:"stopPx"`
 	Symbol                string      `json:"symbol"`
 	Text                  string      `json:"text"`
 	TimeInForce           string      `json:"timeInForce"`
