@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"sync"
 	"testing"
 )
 
@@ -26,7 +25,7 @@ func TestCheckChangeLog(t *testing.T) {
 		DateFormat:    "2006-01-02",
 		RegExp:        `section-v-(2\d{3}-\d{1,2}-\d{1,2})`,
 		Path:          "https://docs.bitfinex.com/docs/changelog"}
-	_, err := CheckChangeLog(data)
+	_, err := CheckChangeLog(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -52,15 +51,11 @@ func TestCheckUpdates(t *testing.T) {
 }
 
 func TestHTMLScrapeBitfinex(t *testing.T) {
-	data := HTMLScrapingData{TokenData: "h1",
-		Key:           "class",
-		Val:           "header-scroll",
-		TokenDataEnd:  "p",
-		TextTokenData: "",
-		DateFormat:    "2006-01-02",
-		RegExp:        `section-v-(2\d{3}-\d{1,2}-\d{1,2})`,
-		Path:          "https://docs.bitfinex.com/docs/changelog"}
-	_, err := HTMLScrapeBitfinex(data)
+	data := HTMLScrapingData{DateFormat: "2006-01-02",
+		RegExp: `section-v-(2\d{3}-\d{1,2}-\d{1,2})`,
+		Path:   "https://docs.bitfinex.com/docs/changelog"}
+	a, err := HTMLScrapeBitfinex(&data)
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -75,22 +70,16 @@ func TestHTMLScrapeBitmex(t *testing.T) {
 		DateFormat:    "Jan-2-2006",
 		RegExp:        `([A-Z]{1}[a-z]{2}-\d{1,2}-2\d{3})`,
 		Path:          "https://www.bitmex.com/static/md/en-US/apiChangelog"}
-	_, err := HTMLScrapeBitmex(data)
+	_, err := HTMLScrapeBitmex(&data)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestHTMLScrapeHitBTC(t *testing.T) {
-	data := HTMLScrapingData{TokenData: "h1",
-		Key:           "id",
-		Val:           "about-companyname-api",
-		TokenDataEnd:  "h2",
-		TextTokenData: "p",
-		DateFormat:    "",
-		RegExp:        `newest version \d{1}.\d{1}`,
-		Path:          "https://api.hitbtc.com/"}
-	_, err := HTMLScrapeHitBTC(data)
+	data := HTMLScrapingData{RegExp: `newest version \d{1}.\d{1}`,
+		Path: "https://api.hitbtc.com/"}
+	_, err := HTMLScrapeHitBTC(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -105,7 +94,7 @@ func TestHTMLScrapeBTSE(t *testing.T) {
 		DateFormat:    "",
 		RegExp:        `^BTSE Spot API v(\d){1}.(\d){1}$`,
 		Path:          "https://www.btse.com/apiexplorer/spot/#btse-spot-api"}
-	_, err := HTMLScrapeBTSE(data)
+	_, err := HTMLScrapeBTSE(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -120,7 +109,7 @@ func TestHTMLScrapeBTCMarkets(t *testing.T) {
 		DateFormat:    "",
 		RegExp:        `^version: \d{1}.\d{1}.\d{1}`,
 		Path:          "https://api.btcmarkets.net/openapi/info/index.yaml"}
-	_, err := HTMLScrapeBTCMarkets(data)
+	_, err := HTMLScrapeBTCMarkets(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -135,22 +124,16 @@ func TestHTMLScrapeBitflyer(t *testing.T) {
 		DateFormat:    "",
 		RegExp:        `^https://api.bitflyer.com/v\d{1}/$`,
 		Path:          "https://lightning.bitflyer.com/docs?lang=en"}
-	_, err := HTMLScrapeBitflyer(data)
+	_, err := HTMLScrapeBitflyer(&data)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestHTMLScrapeANX(t *testing.T) {
-	data := HTMLScrapingData{TokenData: "div",
-		Key:           "id",
-		Val:           "applicationHeaderContainer",
-		TokenDataEnd:  "script",
-		TextTokenData: "",
-		DateFormat:    "",
-		RegExp:        `ANX Exchange API v\d{1}`,
-		Path:          "https://anxv3.docs.apiary.io/#reference/quickstart-catalog"}
-	_, err := HTMLScrapeANX(data)
+	data := HTMLScrapingData{RegExp: `ANX Exchange API v\d{1}`,
+		Path: "https://anxv3.docs.apiary.io/#reference/quickstart-catalog"}
+	_, err := HTMLScrapeANX(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -165,7 +148,7 @@ func TestHTMLPoloniex(t *testing.T) {
 		DateFormat:    "2006-01-02",
 		RegExp:        `(2\d{3}-\d{1,2}-\d{1,2})`,
 		Path:          "https://docs.poloniex.com/#changelog"}
-	_, err := HTMLScrapePoloniex(data)
+	_, err := HTMLScrapePoloniex(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -180,7 +163,8 @@ func TestHTMLItBit(t *testing.T) {
 		DateFormat:    "2006-01-02",
 		RegExp:        `^https://api.itbit.com/v\d{1}/$`,
 		Path:          "https://api.itbit.com/docs"}
-	_, err := HTMLScrapeItBit(data)
+	a, err := HTMLScrapeItBit(&data)
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -195,37 +179,26 @@ func TestHTMLLakeBTC(t *testing.T) {
 		DateFormat:    "",
 		RegExp:        `APIv\d{1}`,
 		Path:          "https://www.lakebtc.com/s/api_v2"}
-	_, err := HTMLScrapeLakeBTC(data)
+	a, err := HTMLScrapeLakeBTC(&data)
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestHTMLExmo(t *testing.T) {
-	data := HTMLScrapingData{TokenData: "div",
-		Key:           "class",
-		Val:           "row section_inner content_single",
-		TokenDataEnd:  "p",
-		TextTokenData: "p",
-		DateFormat:    "",
-		RegExp:        `Last updated on {a`,
-		Path:          "https://exmo.com/en/api/"}
-	_, err := HTMLScrapeExmo(data)
+	data := HTMLScrapingData{RegExp: `Last updated on [\s\S]*, 20\d{2}`,
+		Path: "https://exmo.com/en/api/"}
+	_, err := HTMLScrapeExmo(&data)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestHTMLBitstamp(t *testing.T) {
-	data := HTMLScrapingData{TokenData: "h2",
-		Key:           "class",
-		Val:           "text-subtitle mt48",
-		TokenDataEnd:  "h4",
-		TextTokenData: "p",
-		DateFormat:    "",
-		RegExp:        `refer to the v\d{1} API for future references.`,
-		Path:          "https://www.bitstamp.net/api/"}
-	_, err := HTMLScrapeBitstamp(data)
+	data := HTMLScrapingData{RegExp: `refer to the v\d{1} API for future references.`,
+		Path: "https://www.bitstamp.net/api/"}
+	_, err := HTMLScrapeBitstamp(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -240,7 +213,8 @@ func TestHTMLKraken(t *testing.T) {
 		DateFormat:    "",
 		RegExp:        `URL: https://api.kraken.com/\d{1}/private/Balance`,
 		Path:          "https://www.kraken.com/features/api"}
-	_, err := HTMLScrapeKraken(data)
+	a, err := HTMLScrapeKraken(&data)
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -255,7 +229,7 @@ func TestHTMLAlphaPoint(t *testing.T) {
 		DateFormat:    "",
 		RegExp:        `revised-calls-\d{1}-\d{1}-\d{1}-gt-\d{1}-\d{1}-\d{1}`,
 		Path:          "https://alphapoint.github.io/slate/#introduction"}
-	_, err := HTMLScrapeAlphaPoint(data)
+	_, err := HTMLScrapeAlphaPoint(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -265,7 +239,7 @@ func TestHTMLYobit(t *testing.T) {
 	data := HTMLScrapingData{TokenData: "h2",
 		Key:  "id",
 		Path: "https://www.yobit.net/en/api/"}
-	a, err := HTMLScrapeYobit(data)
+	a, err := HTMLScrapeYobit(&data)
 	t.Log(a)
 	if err != nil {
 		t.Error(err)
@@ -281,7 +255,7 @@ func TestHTMLLocalBitcoins(t *testing.T) {
 		DateFormat:    "",
 		RegExp:        `col-md-12([\s\S]*?)clearfix`,
 		Path:          "https://localbitcoins.com/api-docs/"}
-	_, err := HTMLScrapeLocalBitcoins(data)
+	_, err := HTMLScrapeLocalBitcoins(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -323,11 +297,8 @@ func TestUpdate(t *testing.T) {
 			TextTokenData: "HELLLLOOOOO"},
 		},
 	}
-	a, err := Update("ANX", finalResp, info)
+	a := Update("ANX", finalResp, info)
 	t.Log(a[15].Data.HTMLData)
-	if err != nil {
-		t.Error(err)
-	}
 }
 
 func TestCheckMissingExchanges(t *testing.T) {
@@ -336,18 +307,6 @@ func TestCheckMissingExchanges(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-}
-
-func TestSomething(t *testing.T) {
-	var wg sync.WaitGroup
-	for i := 0; i < 1000; i++ {
-		wg.Add(1)
-		go func(i int) {
-			log.Printf("HelloWorld %d", i)
-			wg.Done()
-		}(i)
-	}
-	wg.Wait()
 }
 
 func TestGetChecklistItems(t *testing.T) {
