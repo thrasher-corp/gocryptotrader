@@ -1,6 +1,7 @@
 package gct
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/d5/tengo/objects"
@@ -31,10 +32,22 @@ func ExchangeOrderbook(args ...objects.Object) (objects.Object, error) {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	exchangeName, _ := objects.ToString(args[0])
-	currencyPair, _ := objects.ToString(args[1])
-	delimiter, _ := objects.ToString(args[2])
-	assetTypeParam, _ := objects.ToString(args[3])
+	exchangeName, ok := objects.ToString(args[0])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+	}
+	currencyPair, ok := objects.ToString(args[1])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPair)
+	}
+	delimiter, ok := objects.ToString(args[2])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, delimiter)
+	}
+	assetTypeParam, ok := objects.ToString(args[3])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeParam)
+	}
 
 	pairs := currency.NewPairDelimiter(currencyPair, delimiter)
 	assetType := asset.Item(assetTypeParam)
@@ -78,10 +91,22 @@ func ExchangeTicker(args ...objects.Object) (objects.Object, error) {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	exchangeName, _ := objects.ToString(args[0])
-	currencyPair, _ := objects.ToString(args[1])
-	delimiter, _ := objects.ToString(args[2])
-	assetTypeParam, _ := objects.ToString(args[3])
+	exchangeName, ok := objects.ToString(args[0])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+	}
+	currencyPair, ok := objects.ToString(args[1])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPair)
+	}
+	delimiter, ok := objects.ToString(args[2])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, delimiter)
+	}
+	assetTypeParam, ok := objects.ToString(args[3])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeParam)
+	}
 
 	pairs := currency.NewPairDelimiter(currencyPair, delimiter)
 	assetType := asset.Item(assetTypeParam)
@@ -118,7 +143,10 @@ func ExchangeExchanges(args ...objects.Object) (objects.Object, error) {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	enabledOnly, _ := objects.ToBool(args[0])
+	enabledOnly, ok := objects.ToBool(args[0])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, enabledOnly)
+	}
 	rtnValue := wrappers.GetWrapper().Exchanges(enabledOnly)
 
 	r := objects.Array{}
@@ -135,9 +163,18 @@ func ExchangePairs(args ...objects.Object) (objects.Object, error) {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	exchangeName, _ := objects.ToString(args[0])
-	enabledOnly, _ := objects.ToBool(args[1])
-	assetTypeParam, _ := objects.ToString(args[2])
+	exchangeName, ok := objects.ToString(args[0])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+	}
+	enabledOnly, ok := objects.ToBool(args[1])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, enabledOnly)
+	}
+	assetTypeParam, ok := objects.ToString(args[2])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeParam)
+	}
 	assetType := asset.Item(strings.ToLower(assetTypeParam))
 
 	rtnValue, err := wrappers.GetWrapper().Pairs(exchangeName, enabledOnly, assetType)
@@ -158,7 +195,10 @@ func ExchangeAccountInfo(args ...objects.Object) (objects.Object, error) {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	exchangeName, _ := objects.ToString(args[0])
+	exchangeName, ok := objects.ToString(args[0])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+	}
 	rtnValue, err := wrappers.GetWrapper().AccountInformation(exchangeName)
 	if err != nil {
 		return nil, err
@@ -190,9 +230,14 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	exchangeName, _ := objects.ToString(args[0])
-	orderID, _ := objects.ToString(args[1])
-
+	exchangeName, ok := objects.ToString(args[0])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+	}
+	orderID, ok := objects.ToString(args[1])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, orderID)
+	}
 	orderDetails, err := wrappers.GetWrapper().QueryOrder(exchangeName, orderID)
 	if err != nil {
 		return nil, err
@@ -238,7 +283,10 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	exchangeName, _ := objects.ToString(args[0])
+	exchangeName, ok := objects.ToString(args[0])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+	}
 	orderID, _ := objects.ToString(args[1])
 
 	rtn, err := wrappers.GetWrapper().CancelOrder(exchangeName, orderID)
@@ -258,15 +306,38 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	exchangeName, _ := objects.ToString(args[0])
-	currencyPair, _ := objects.ToString(args[1])
-	delimiter, _ := objects.ToString(args[2])
-	orderType, _ := objects.ToString(args[3])
-	orderSide, _ := objects.ToString(args[4])
-	orderPrice, _ := objects.ToFloat64(args[5])
-	orderAmount, _ := objects.ToFloat64(args[6])
-	orderClientID, _ := objects.ToString(args[7])
-
+	exchangeName, ok := objects.ToString(args[0])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+	}
+	currencyPair, ok := objects.ToString(args[1])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPair)
+	}
+	delimiter, ok := objects.ToString(args[2])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, delimiter)
+	}
+	orderType, ok := objects.ToString(args[3])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, orderType)
+	}
+	orderSide, ok := objects.ToString(args[4])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, orderSide)
+	}
+	orderPrice, ok := objects.ToFloat64(args[5])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, orderPrice)
+	}
+	orderAmount, ok := objects.ToFloat64(args[6])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, orderAmount)
+	}
+	orderClientID, ok := objects.ToString(args[7])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, orderClientID)
+	}
 	pair := currency.NewPairDelimiter(currencyPair, delimiter)
 
 	tempSubmit := &order.Submit{
@@ -307,8 +378,15 @@ func ExchangeDepositAddress(args ...objects.Object) (objects.Object, error) {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	exchangeName, _ := objects.ToString(args[0])
-	currencyCode, _ := objects.ToString(args[1])
+	exchangeName, ok := objects.ToString(args[0])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+	}
+	currencyCode, ok := objects.ToString(args[1])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, currencyCode)
+	}
+
 	currCode := currency.NewCode(currencyCode)
 
 	rtn, err := wrappers.GetWrapper().DepositAddress(exchangeName, currCode)
@@ -325,13 +403,34 @@ func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	exchangeName, _ := objects.ToString(args[0])
-	cur, _ := objects.ToString(args[1])
-	address, _ := objects.ToString(args[2])
-	addressTag, _ := objects.ToString(args[3])
-	amount, _ := objects.ToFloat64(args[4])
-	feeAmount, _ := objects.ToFloat64(args[5])
-	description, _ := objects.ToString(args[6])
+	exchangeName, ok := objects.ToString(args[0])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+	}
+	cur, ok := objects.ToString(args[1])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, cur)
+	}
+	address, ok := objects.ToString(args[2])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, address)
+	}
+	addressTag, ok := objects.ToString(args[3])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, addressTag)
+	}
+	amount, ok := objects.ToFloat64(args[4])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, amount)
+	}
+	feeAmount, ok := objects.ToFloat64(args[5])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, feeAmount)
+	}
+	description, ok := objects.ToString(args[6])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, description)
+	}
 
 	withdrawRequest := &withdraw.CryptoRequest{
 		GenericInfo: withdraw.GenericInfo{
@@ -358,11 +457,26 @@ func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	exchangeName, _ := objects.ToString(args[0])
-	cur, _ := objects.ToString(args[1])
-	description, _ := objects.ToString(args[2])
-	amount, _ := objects.ToFloat64(args[3])
-	bankAccountID, _ := objects.ToString(args[4])
+	exchangeName, ok := objects.ToString(args[0])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+	}
+	cur, ok := objects.ToString(args[1])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, cur)
+	}
+	description, ok := objects.ToString(args[2])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, description)
+	}
+	amount, ok := objects.ToFloat64(args[3])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, amount)
+	}
+	bankAccountID, ok := objects.ToString(args[4])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, bankAccountID)
+	}
 
 	withdrawRequest := &withdraw.FiatRequest{
 		GenericInfo: withdraw.GenericInfo{
