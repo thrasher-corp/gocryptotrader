@@ -270,7 +270,28 @@ func (b *Bitmex) wsHandleIncomingData() {
 						b.Websocket.DataHandler <- err
 						continue
 					}
-					b.Websocket.DataHandler <- response
+					if len(response.Data) == 1 {
+						oSide, err := order.StringToOrderSide(response.Data[0].Side)
+						if err != nil {
+							//
+						}
+						oType, err := order.StringToOrderType(response.Data[0].OrdType)
+						if err != nil {
+							//
+						}
+						sillyButtFloppyFlops := &order.Submit{
+							Exchange:     b.Name,
+							Pair:         currency.NewPairFromString(response.Data[0].Symbol),
+							OrderType:    oType,
+							OrderSide:    oSide,
+							TriggerPrice: response.Data[0].Price,
+							TargetAmount: response.Data[0].OrderQty,
+							Price:        response.Data[0].Price,
+							Amount:       response.Data[0].OrderQty,
+							ClientID:     response.Data[0].ClOrdID,
+						}
+						b.Websocket.DataHandler <- sillyButtFloppyFlops
+					}
 				case bitmexWSMargin:
 					var response WsMarginResponse
 					err = json.Unmarshal(resp.Raw, &response)

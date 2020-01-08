@@ -97,7 +97,58 @@ type WsOrderResponse struct {
 	ForeignKeys WsOrderResponseForeignKeys `json:"foreignKeys"`
 	Attributes  WsOrderResponseAttributes  `json:"attributes"`
 	Filter      WsOrderResponseFilter      `json:"filter"`
-	Data        []interface{}              `json:"data"`
+	Data        []OrderInsert              `json:"data"`
+}
+
+// OrderInsert
+type OrderInsert struct {
+	Account               int64       `json:"account"`
+	AvgPx                 float64     `json:"avgPx"`
+	ClOrdID               string      `json:"clOrdID"`
+	ClOrdLinkID           string      `json:"clOrdLinkID"`
+	Commission            float64     `json:"commission"`
+	ContingencyType       string      `json:"contingencyType"`
+	CumQty                int64       `json:"cumQty"`
+	Currency              string      `json:"currency"`
+	DisplayQty            interface{} `json:"displayQty"`
+	ExDestination         string      `json:"exDestination"`
+	ExecComm              int64       `json:"execComm"`
+	ExecCost              int64       `json:"execCost"`
+	ExecID                string      `json:"execID"`
+	ExecInst              string      `json:"execInst"`
+	ExecType              string      `json:"execType"`
+	ForeignNotional       int64       `json:"foreignNotional"`
+	HomeNotional          float64     `json:"homeNotional"`
+	LastLiquidityInd      string      `json:"lastLiquidityInd"`
+	LastMkt               string      `json:"lastMkt"`
+	LastPx                float64     `json:"lastPx"`
+	LastQty               int64       `json:"lastQty"`
+	LeavesQty             int64       `json:"leavesQty"`
+	MultiLegReportingType string      `json:"multiLegReportingType"`
+	OrdRejReason          string      `json:"ordRejReason"`
+	OrdStatus             string      `json:"ordStatus"`
+	OrdType               string      `json:"ordType"`
+	OrderID               string      `json:"orderID"`
+	OrderQty              int64       `json:"orderQty"`
+	PegOffsetValue        interface{} `json:"pegOffsetValue"`
+	PegPriceType          string      `json:"pegPriceType"`
+	Price                 float64     `json:"price"`
+	SettlCurrency         string      `json:"settlCurrency"`
+	Side                  string      `json:"side"`
+	SimpleCumQty          float64     `json:"simpleCumQty"`
+	SimpleLeavesQty       int64       `json:"simpleLeavesQty"`
+	SimpleOrderQty        interface{} `json:"simpleOrderQty"`
+	StopPx                interface{} `json:"stopPx"`
+	Symbol                string      `json:"symbol"`
+	Text                  string      `json:"text"`
+	TimeInForce           string      `json:"timeInForce"`
+	Timestamp             string      `json:"timestamp"`
+	TradePublishIndicator string      `json:"tradePublishIndicator"`
+	TransactTime          string      `json:"transactTime"`
+	TrdMatchID            string      `json:"trdMatchID"`
+	Triggered             string      `json:"triggered"`
+	UnderlyingLastPx      interface{} `json:"underlyingLastPx"`
+	WorkingIndicator      bool        `json:"workingIndicator"`
 }
 
 // WsOrderResponseAttributes private api data

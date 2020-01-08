@@ -354,7 +354,7 @@ func (b *Bithumb) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 func (b *Bithumb) ModifyOrder(action *order.Modify) (string, error) {
 	order, err := b.ModifyTrade(action.OrderID,
 		action.CurrencyPair.Base.String(),
-		action.Side.Lower(),
+		action.OrderSide.Lower(),
 		action.Amount,
 		int64(action.Price))
 

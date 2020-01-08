@@ -477,7 +477,7 @@ func (b *Bitfinex) ModifyOrder(action *order.Modify) (string, error) {
 		return action.OrderID, err
 	}
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		if action.Side == order.Sell && action.Amount > 0 {
+		if action.OrderSide == order.Sell && action.Amount > 0 {
 			action.Amount = -1 * action.Amount
 		}
 		err = b.WsModifyOrder(&WsUpdateOrderRequest{
