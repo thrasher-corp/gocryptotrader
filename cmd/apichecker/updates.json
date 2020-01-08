@@ -328,12 +328,7 @@
   "CheckType": "HTML String Check",
   "Data": {
    "HTMLData": {
-    "TokenData": "div",
-    "Key": "class",
-    "Val": "row section_inner content_single",
-    "TokenDataEnd": "p",
-    "TextTokenData": "p",
-    "RegExp": "Last updated on {a",
+    "RegExp": "Last updated on [\\s\\S]*, 20\\d{2}",
     "CheckString": "Last updated on December, 16th, 2019",
     "Path": "https://exmo.com/en/api/"
    }

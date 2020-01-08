@@ -16,17 +16,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"golang.org/x/net/html"
 )
 
 const (
 	githubPath         = "https://api.github.com/repos/%s/commits/master"
 	jsonFile           = "updates.json"
+	testJSONFile       = "testupdates.json"
 	github             = "GitHub Sha Check"
 	htmlScrape         = "HTML String Check"
 	pathOkCoin         = "https://www.okcoin.com/docs/en/#change-change"
@@ -71,10 +70,28 @@ func main() {
 	flag.StringVar(&updateChecklistID, "checklistid", "5dfc5a5377835d0ba025787a", "checklist id for trello")
 	flag.BoolVar(&verbose, "verbose", false, "Increases logging verbosity for API Update Checker")
 	flag.Parse()
-	err := CheckUpdates(jsonFile)
-	if err != nil {
-		log.Fatal(err)
+	if areAPIKeysSet() {
+		err := CheckUpdates(jsonFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		if verbose {
+			log.Printf("This is a test update since API keys are not set.\n")
+			err := CheckUpdates(testJSONFile)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
 	}
+}
+
+// areAPIKeysSet checks if api keys and tokens are set
+func areAPIKeysSet() bool {
+	if (trelloKey != "" && trelloKey != "key") || (trelloToken != "" && trelloToken != "token") {
+		return true
+	}
+	return false
 }
 
 // getSha gets the sha of the latest commit
@@ -165,6 +182,7 @@ func CheckUpdates(fileName string) error {
 					errMap[data[x].Name] = err
 				}
 				if sha.ShaResp != data[x].Data.GitHubData.Sha {
+					resp = append(resp, data[x].Name)
 					data[x].Data.GitHubData.Sha = sha.ShaResp
 				}
 			case htmlScrape:
@@ -184,130 +202,91 @@ func CheckUpdates(fileName string) error {
 	if err != nil {
 		return err
 	}
-	var a ChecklistItemData
-	for y := range resp {
-		a, err = GetChecklistItems()
-		if err != nil {
-			return err
-		}
-		for z := range a.CheckItems {
-			if strings.Contains(a.CheckItems[z].Name, resp[y]) {
-				err = UpdateCheckItem(a.CheckItems[z].ID, a.CheckItems[z].Name, a.CheckItems[z].State)
+	if areAPIKeysSet() {
+		var a ChecklistItemData
+		for y := range resp {
+			a, err = GetChecklistItems()
+			if err != nil {
+				return err
+			}
+			for z := range a.CheckItems {
+				if strings.Contains(a.CheckItems[z].Name, resp[y]) {
+					err = UpdateCheckItem(a.CheckItems[z].ID, a.CheckItems[z].Name, a.CheckItems[z].State)
+				}
 			}
 		}
 	}
-	log.Println(errMap)
-	unsup, err := CheckMissingExchanges(fileName)
-	if err != nil {
-		return err
+	if verbose && !areAPIKeysSet() {
+		log.Printf("API Keys and Token not set, trello will not be automatically updated\n")
 	}
-	log.Printf("Following are the exchanges that are supported by GCT but not by apichecker: %v", unsup)
+	if verbose {
+		log.Printf("The following exchanges need an update: %v\n", resp)
+		log.Printf("Errors: %v", errMap)
+		unsup, err := CheckMissingExchanges(fileName)
+		if err != nil {
+			return err
+		}
+		log.Printf("Following are the exchanges that are supported by GCT but not by apichecker: %v\n", unsup)
+	}
 	return ioutil.WriteFile(fileName, file, 0770)
 }
 
 // CheckChangeLog checks the exchanges which support changelog updates.json
 func CheckChangeLog(htmlData *HTMLScrapingData) (string, error) {
+	log.Println(*&htmlData.Path)
 	var dataStrings []string
 	var dataString string
 	var err error
 	switch htmlData.Path {
 	case pathBTSE:
 		dataStrings, err = HTMLScrapeBTSE(htmlData)
-		if err != nil {
-			return "", err
-		}
 		return dataStrings[0], nil
 	case pathBitfinex:
 		dataStrings, err = HTMLScrapeBitfinex(htmlData)
-		if err != nil {
-			return "", err
-		}
 	case pathBitmex:
 		dataStrings, err = HTMLScrapeBitmex(htmlData)
-		if err != nil {
-			return "", err
-		}
 	case pathANX:
 		dataStrings, err = HTMLScrapeANX(htmlData)
-		if err != nil {
-			return "", err
-		}
 		return dataStrings[0], nil
 	case pathPoloniex:
 		dataStrings, err = HTMLScrapePoloniex(htmlData)
-		if err != nil {
-			return "", err
-		}
 	case pathIbBit:
 		dataStrings, err = HTMLScrapeItBit(htmlData)
-		if err != nil {
-			return "", err
-		}
 		return dataStrings[0], nil
 	case pathBTCMarkets:
 		dataStrings, err = HTMLScrapeBTCMarkets(htmlData)
-		if err != nil {
-			return "", err
-		}
 		return dataStrings[0], nil
 	case pathEXMO:
 		dataStrings, err = HTMLScrapeExmo(htmlData)
-		if err != nil {
-			return "", err
-		}
 		return dataStrings[0], nil
 	case pathBitstamp:
 		dataStrings, err = HTMLScrapeBitstamp(htmlData)
-		if err != nil {
-			return "", err
-		}
 		return dataStrings[0], nil
 	case pathHitBTC:
 		dataStrings, err = HTMLScrapeHitBTC(htmlData)
-		if err != nil {
-			return "", err
-		}
 		return dataStrings[0], nil
 	case pathBitflyer:
 		dataStrings, err = HTMLScrapeBitflyer(htmlData)
-		if err != nil {
-			return "", err
-		}
 		return dataStrings[0], nil
 	case pathLakeBTC:
 		dataStrings, err = HTMLScrapeLakeBTC(htmlData)
-		if err != nil {
-			return "", err
-		}
 		return dataStrings[0], nil
 	case pathKraken:
 		dataStrings, err = HTMLScrapeKraken(htmlData)
-		if err != nil {
-			return "", err
-		}
 		return dataStrings[0], nil
 	case pathAlphaPoint:
 		dataStrings, err = HTMLScrapeAlphaPoint(htmlData)
-		if err != nil {
-			return "", err
-		}
 		return dataStrings[0], nil
 	case pathYobit:
 		dataStrings, err = HTMLScrapeYobit(htmlData)
-		if err != nil {
-			return "", err
-		}
 	case pathLocalBitcoins:
 		dataString, err = HTMLScrapeLocalBitcoins(htmlData)
-		if err != nil {
-			return "", err
-		}
 		return dataString, nil
 	default:
 		dataStrings, err = HTMLScrapeDefault(htmlData)
-		if err != nil {
-			return "", err
-		}
+	}
+	if err != nil {
+		return "", err
 	}
 	switch htmlData.Path {
 	case pathOkCoin, pathOkex:
@@ -383,7 +362,10 @@ func Add(fileName, exchName, checkType, path string, data interface{}, update bo
 			return err
 		}
 	}
-	return ioutil.WriteFile(jsonFile, file, 0770)
+	if areAPIKeysSet() {
+		return ioutil.WriteFile(jsonFile, file, 0770)
+	}
+	return ioutil.WriteFile(testJSONFile, file, 0770)
 }
 
 // FillData fills exchange data based on the given checkType
@@ -534,7 +516,6 @@ func HTMLScrapeBitfinex(htmlData *HTMLScrapingData) ([]string, error) {
 		return nil, err
 	}
 	str := r.FindAllString(abody, -1)
-	log.Println(str)
 	var resp []string
 	for x := range str {
 		tempStr := strings.Replace(str[x], "section-v-", "", 1)
@@ -622,7 +603,6 @@ func HTMLScrapeHitBTC(htmlData *HTMLScrapingData) ([]string, error) {
 			resp = append(resp, tempStr)
 		}
 	}
-	log.Println(resp)
 	return resp, nil
 }
 
@@ -732,7 +712,6 @@ func HTMLScrapeANX(htmlData *HTMLScrapingData) ([]string, error) {
 			resp = append(resp, tempStr)
 		}
 	}
-	log.Println(resp)
 	return resp, nil
 }
 

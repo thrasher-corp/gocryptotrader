@@ -5,10 +5,6 @@ import (
 	"testing"
 )
 
-const (
-	testJSONFile = "testupdates.json"
-)
-
 func TestCheckExistingExchanges(t *testing.T) {
 	_, _, err := CheckExistingExchanges(testJSONFile, "Kraken")
 	if err != nil {
@@ -17,27 +13,19 @@ func TestCheckExistingExchanges(t *testing.T) {
 }
 
 func TestCheckChangeLog(t *testing.T) {
-	data := HTMLScrapingData{TokenData: "h1",
-		Key:           "class",
-		Val:           "header-scroll",
-		TokenDataEnd:  "p",
-		TextTokenData: "",
-		DateFormat:    "2006-01-02",
-		RegExp:        `section-v-(2\d{3}-\d{1,2}-\d{1,2})`,
-		Path:          "https://docs.bitfinex.com/docs/changelog"}
-	_, err := CheckChangeLog(&data)
+	data := HTMLScrapingData{RegExp: `Last updated on [\s\S]*, 20\d{2}`,
+		Path: "https://exmo.com/en/api/"}
+	a, err := CheckChangeLog(&data)
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestAdd(t *testing.T) {
-	data := HTMLScrapingData{TokenData: "div",
-		Key:    "class",
-		Val:    "col-md-12",
-		RegExp: `col-md-12([\s\S]*?)clearfix`,
-		Path:   "https://localbitcoins.com/api-docs/"}
-	err := Add(testJSONFile, "LocalBitcoins", htmlScrape, data.Path, data, false)
+	data := HTMLScrapingData{RegExp: `Last updated on [\s\S]*, 20\d{2}`,
+		Path: "https://exmo.com/en/api/"}
+	err := Add(testJSONFile, "Exmo", htmlScrape, data.Path, data, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -54,8 +42,7 @@ func TestHTMLScrapeBitfinex(t *testing.T) {
 	data := HTMLScrapingData{DateFormat: "2006-01-02",
 		RegExp: `section-v-(2\d{3}-\d{1,2}-\d{1,2})`,
 		Path:   "https://docs.bitfinex.com/docs/changelog"}
-	a, err := HTMLScrapeBitfinex(&data)
-	t.Log(a)
+	_, err := HTMLScrapeBitfinex(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -80,6 +67,23 @@ func TestHTMLScrapeHitBTC(t *testing.T) {
 	data := HTMLScrapingData{RegExp: `newest version \d{1}.\d{1}`,
 		Path: "https://api.hitbtc.com/"}
 	_, err := HTMLScrapeHitBTC(&data)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestHTMLScrapeDefault(t *testing.T) {
+	data := HTMLScrapingData{TokenData: "h3",
+		Key:           "id",
+		Val:           "change-change",
+		TokenDataEnd:  "section",
+		TextTokenData: "p",
+		DateFormat:    "2006-01-02",
+		RegExp:        "(2\\d{3}-\\d{1,2}-\\d{1,2})",
+		CheckString:   "2019-04-28",
+		Path:          "https://www.okcoin.com/docs/en/#change-change"}
+	a, err := HTMLScrapeDefault(&data)
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -163,8 +167,7 @@ func TestHTMLItBit(t *testing.T) {
 		DateFormat:    "2006-01-02",
 		RegExp:        `^https://api.itbit.com/v\d{1}/$`,
 		Path:          "https://api.itbit.com/docs"}
-	a, err := HTMLScrapeItBit(&data)
-	t.Log(a)
+	_, err := HTMLScrapeItBit(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -179,17 +182,18 @@ func TestHTMLLakeBTC(t *testing.T) {
 		DateFormat:    "",
 		RegExp:        `APIv\d{1}`,
 		Path:          "https://www.lakebtc.com/s/api_v2"}
-	a, err := HTMLScrapeLakeBTC(&data)
-	t.Log(a)
+	_, err := HTMLScrapeLakeBTC(&data)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-func TestHTMLExmo(t *testing.T) {
+func TestHTMLScrapeExmo(t *testing.T) {
 	data := HTMLScrapingData{RegExp: `Last updated on [\s\S]*, 20\d{2}`,
 		Path: "https://exmo.com/en/api/"}
-	_, err := HTMLScrapeExmo(&data)
+	a, err := HTMLScrapeExmo(&data)
+	log.Println(a[0])
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -213,8 +217,7 @@ func TestHTMLKraken(t *testing.T) {
 		DateFormat:    "",
 		RegExp:        `URL: https://api.kraken.com/\d{1}/private/Balance`,
 		Path:          "https://www.kraken.com/features/api"}
-	a, err := HTMLScrapeKraken(&data)
-	t.Log(a)
+	_, err := HTMLScrapeKraken(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -239,8 +242,7 @@ func TestHTMLYobit(t *testing.T) {
 	data := HTMLScrapingData{TokenData: "h2",
 		Key:  "id",
 		Path: "https://www.yobit.net/en/api/"}
-	a, err := HTMLScrapeYobit(&data)
-	t.Log(a)
+	_, err := HTMLScrapeYobit(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -285,33 +287,28 @@ func TestCreateNewCheck(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	finalResp, _, err := CheckExistingExchanges(testJSONFile, "ANX")
+	finalResp, _, err := CheckExistingExchanges(testJSONFile, "Exmo")
 	if err != nil {
 		t.Error(err)
 	}
-	info := ExchangeInfo{Name: "ANX",
+	info := ExchangeInfo{Name: "Exmo",
 		CheckType: "HTML String Check",
-		Data: &CheckData{HTMLData: &HTMLScrapingData{RegExp: "ANX Exchange API v\\d{1}",
-			CheckString:   "ANX Exchange API v3",
-			Path:          "https://anxv3.docs.apiary.io/",
-			TextTokenData: "HELLLLOOOOO"},
+		Data: &CheckData{HTMLData: &HTMLScrapingData{RegExp: `Last updated on [\s\S]*, 20\d{2}`,
+			Path: "https://exmo.com/en/api/"},
 		},
 	}
-	a := Update("ANX", finalResp, info)
-	t.Log(a[15].Data.HTMLData)
+	Update("Exmo", finalResp, info)
 }
 
 func TestCheckMissingExchanges(t *testing.T) {
-	a, err := CheckMissingExchanges(testJSONFile)
-	t.Log(a)
+	_, err := CheckMissingExchanges(testJSONFile)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetChecklistItems(t *testing.T) {
-	a, err := GetChecklistItems()
-	t.Log(a)
+	_, err := GetChecklistItems()
 	if err != nil {
 		t.Error(err)
 	}
@@ -325,8 +322,7 @@ func TestUpdateCheckItem(t *testing.T) {
 }
 
 func TestNameUpdates(t *testing.T) {
-	a, err := NameStateChanges("Gemini 2", "complete")
-	log.Println(a)
+	_, err := NameStateChanges("Gemini 2", "complete")
 	if err != nil {
 		t.Error(err)
 	}
