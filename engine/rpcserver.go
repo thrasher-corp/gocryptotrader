@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/extract"
-	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
@@ -1340,23 +1339,23 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 	}
 
 	fPath := filepath.Join(gctscript.ScriptPath, r.ScriptName)
-	_, err := os.Stat(fPath)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return nil, err
-		}
-	} else {
+	var fPathExits = fPath
+	if filepath.Ext(fPath) == ".zip" {
+		fPathExits = fPathExits[0 : len(fPathExits)-4]
+	}
+
+	if _, err := os.Stat(fPathExits); !os.IsNotExist(err) {
 		if !r.Overwrite {
 			return nil, fmt.Errorf("%s script found and overwrite set to false", r.ScriptName)
-		} else if r.Overwrite {
+		} else {
 			f := filepath.Join(gctscript.ScriptPath, "version_history")
 			err = os.MkdirAll(f, 0770)
 			if err != nil {
 				return nil, err
 			}
 			timeString := strconv.FormatInt(time.Now().UnixNano(), 10)
-			renamedFile := filepath.Join(f, timeString+"-"+r.ScriptName)
-			err = file.Move(fPath, renamedFile)
+			renamedFile := filepath.Join(f, timeString+"-"+filepath.Base(fPathExits))
+			err = os.Rename(fPathExits, renamedFile)
 			if err != nil {
 				return nil, err
 			}
@@ -1378,14 +1377,27 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 	}
 
 	if r.Archived {
-		err = extract.Unzip(fPath, gctscript.ScriptPath)
+		files, err := extract.Unzip(fPath, filepath.Join(gctscript.ScriptPath, r.ScriptName[:len(r.ScriptName)-4]))
 		if err != nil {
 			log.Errorf(log.Global, "Failed to extract zip file %v", err)
+		}
+		for x := range files {
+			var failedFiles []string
+			err = gctscript.Validate(files[x])
+			if err != nil {
+				errRemove := os.Remove(fPath)
+				if errRemove != nil {
+					return nil, err
+				}
+				failedFiles = append(failedFiles, files[x])
+				return &gctrpc.GCTScriptGenericResponse{Status: ErrScriptFailedValidation, Data: strings.Join(failedFiles, ", ")}, nil
+			}
 		}
 		err = os.Remove(fPath)
 		if err != nil {
 			return nil, err
 		}
+
 	} else {
 		err = gctscript.Validate(fPath)
 		if err != nil {
@@ -1393,7 +1405,7 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 			if errRemove != nil {
 				return nil, err
 			}
-			return &gctrpc.GCTScriptGenericResponse{Status: "validation failed", Data: err.Error()}, nil
+			return &gctrpc.GCTScriptGenericResponse{Status: ErrScriptFailedValidation, Data: err.Error()}, nil
 		}
 	}
 

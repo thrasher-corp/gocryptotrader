@@ -85,6 +85,8 @@ const (
 	// ErrSubSystemAlreadyStopped message to return when a subsystem is already stopped
 	ErrSubSystemAlreadyStopped = "already stopped"
 
+	// ErrScriptFailedValidation message to display when a script fails its validation
+	ErrScriptFailedValidation string = "validation failed"
 	// MsgSubSystemStarting message to return when subsystem is starting up
 	MsgSubSystemStarting = "manager starting..."
 	// MsgSubSystemStarted message to return when subsystem has started

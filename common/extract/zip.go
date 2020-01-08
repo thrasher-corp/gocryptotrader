@@ -12,10 +12,10 @@ import (
 )
 
 // Unzip extracts input zip into dest path
-func Unzip(src, dest string) error {
+func Unzip(src, dest string) (fileList []string, err error) {
 	z, err := zip.OpenReader(src)
 	if err != nil {
-		return err
+		return
 	}
 
 	for x := range z.File {
@@ -26,38 +26,41 @@ func Unzip(src, dest string) error {
 			if err != nil {
 				log.Errorf(log.Global, ErrUnableToCloseFile, z, err)
 			}
-			return fmt.Errorf("%s: illegal file path", fPath)
+			err = fmt.Errorf("%s: illegal file path", fPath)
+			return
 		}
 
 		if z.File[x].FileInfo().IsDir() {
 			err = os.MkdirAll(fPath, os.ModePerm)
 			if err != nil {
-				return err
+				return
 			}
 			continue
 		}
 
 		err = os.MkdirAll(filepath.Dir(fPath), 0770)
 		if err != nil {
-			return err
+			return
 		}
 
-		outFile, err := os.OpenFile(fPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, z.File[x].Mode())
+		var outFile *os.File
+		outFile, err = os.OpenFile(fPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, z.File[x].Mode())
 		if err != nil {
-			return err
+			return
 		}
 
-		eFile, err := z.File[x].Open()
+		var eFile io.ReadCloser
+		eFile, err = z.File[x].Open()
 		if err != nil {
 			err = outFile.Close()
 			if err != nil {
 				log.Errorf(log.Global, ErrUnableToCloseFile, outFile, err)
 			}
-			return err
+			return
 		}
 
-		_, err = io.Copy(outFile, eFile)
-		if err != nil {
+		_, errIOCopy := io.Copy(outFile, eFile)
+		if errIOCopy != nil {
 			err = z.Close()
 			if err != nil {
 				log.Errorf(log.Global, ErrUnableToCloseFile, z, err)
@@ -70,7 +73,7 @@ func Unzip(src, dest string) error {
 			if err != nil {
 				log.Errorf(log.Global, ErrUnableToCloseFile, eFile, err)
 			}
-			return err
+			return fileList, errIOCopy
 		}
 		err = outFile.Close()
 		if err != nil {
@@ -81,8 +84,10 @@ func Unzip(src, dest string) error {
 			log.Errorf(log.Global, ErrUnableToCloseFile, eFile, err)
 		}
 		if err != nil {
-			return err
+			return
 		}
+
+		fileList = append(fileList, fPath)
 	}
-	return z.Close()
+	return fileList, z.Close()
 }
