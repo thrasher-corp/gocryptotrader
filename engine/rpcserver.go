@@ -1347,18 +1347,17 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 	if _, err := os.Stat(fPathExits); !os.IsNotExist(err) {
 		if !r.Overwrite {
 			return nil, fmt.Errorf("%s script found and overwrite set to false", r.ScriptName)
-		} else {
-			f := filepath.Join(gctscript.ScriptPath, "version_history")
-			err = os.MkdirAll(f, 0770)
-			if err != nil {
-				return nil, err
-			}
-			timeString := strconv.FormatInt(time.Now().UnixNano(), 10)
-			renamedFile := filepath.Join(f, timeString+"-"+filepath.Base(fPathExits))
-			err = os.Rename(fPathExits, renamedFile)
-			if err != nil {
-				return nil, err
-			}
+		}
+		f := filepath.Join(gctscript.ScriptPath, "version_history")
+		err = os.MkdirAll(f, 0770)
+		if err != nil {
+			return nil, err
+		}
+		timeString := strconv.FormatInt(time.Now().UnixNano(), 10)
+		renamedFile := filepath.Join(f, timeString+"-"+filepath.Base(fPathExits))
+		err = os.Rename(fPathExits, renamedFile)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -1377,9 +1376,10 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 	}
 
 	if r.Archived {
-		files, err := extract.Unzip(fPath, filepath.Join(gctscript.ScriptPath, r.ScriptName[:len(r.ScriptName)-4]))
-		if err != nil {
-			log.Errorf(log.Global, "Failed to extract zip file %v", err)
+		files, errExtract := extract.Unzip(fPath, filepath.Join(gctscript.ScriptPath, r.ScriptName[:len(r.ScriptName)-4]))
+		if errExtract != nil {
+			log.Errorf(log.Global, "Failed to extract zip file %v", errExtract)
+			return &gctrpc.GCTScriptGenericResponse{Status: MsgStatusError, Data: errExtract.Error()}, nil
 		}
 		for x := range files {
 			var failedFiles []string
@@ -1397,7 +1397,6 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 		if err != nil {
 			return nil, err
 		}
-
 	} else {
 		err = gctscript.Validate(fPath)
 		if err != nil {
