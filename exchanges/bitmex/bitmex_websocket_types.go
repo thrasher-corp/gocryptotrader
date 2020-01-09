@@ -51,6 +51,7 @@ type WebsocketMainResponse struct {
 		ID     string `json:"id"`
 		Symbol string `json:"symbol"`
 	} `json:"Attributes"`
+	Action string `json:"action,omitempty"`
 }
 
 // OrderBookData contains orderbook resp data with action to be taken

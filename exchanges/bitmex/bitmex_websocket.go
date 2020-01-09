@@ -176,7 +176,6 @@ func (b *Bitmex) wsHandleIncomingData() {
 					b.Websocket.DataHandler <- err
 					continue
 				}
-
 				switch decodedResp.Table {
 				case bitmexWSOrderbookL2:
 					var orderbooks OrderBookData
@@ -270,26 +269,83 @@ func (b *Bitmex) wsHandleIncomingData() {
 						b.Websocket.DataHandler <- err
 						continue
 					}
-					if len(response.Data) == 1 {
-						oSide, err := order.StringToOrderSide(response.Data[0].Side)
-						if err != nil {
-							//
+					switch response.Action {
+					case "update":
+						for x := range response.Data {
+							oSide, err := order.StringToOrderSide(response.Data[x].Side)
+							if err != nil {
+								b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert orderside: " + response.Data[x].Side)
+							}
+							oType, err := order.StringToOrderType(response.Data[x].OrdType)
+							if err != nil {
+								b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert ordertype: " + response.Data[x].OrdType)
+							}
+							newOrder := &order.Modify{
+								Exchange:          b.Name,
+								OrderID:           "",
+								OrderType:         oType,
+								OrderSide:         oSide,
+								Price:             response.Data[x].Price,
+								Amount:            0,
+								LimitPriceUpper:   0,
+								LimitPriceLower:   0,
+								CurrencyPair:      currency.Pair{},
+								ImmediateOrCancel: false,
+								HiddenOrder:       false,
+								FillOrKill:        false,
+								PostOnly:          false,
+							}
+							b.Websocket.DataHandler <- newOrder
 						}
-						oType, err := order.StringToOrderType(response.Data[0].OrdType)
-						if err != nil {
-							//
+					case "insert":
+						for x := range response.Data {
+							oSide, err := order.StringToOrderSide(response.Data[x].Side)
+							if err != nil {
+								b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert orderside: " + response.Data[x].Side)
+							}
+							oType, err := order.StringToOrderType(response.Data[x].OrdType)
+							if err != nil {
+								b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert ordertype: " + response.Data[x].OrdType)
+							}
+							newOrder := &order.Submit{
+								Exchange:     b.Name,
+								Pair:         currency.NewPairFromString(response.Data[x].Symbol),
+								OrderType:    oType,
+								OrderSide:    oSide,
+								TriggerPrice: response.Data[x].StopPx,
+								Price:        response.Data[x].Price,
+								Amount:       float64(response.Data[x].OrderQty),
+								ClientID:     response.Data[x].ClOrdID,
+							}
+							b.Websocket.DataHandler <- newOrder
 						}
-						newOrder := &order.Submit{
-							Exchange:     b.Name,
-							Pair:         currency.NewPairFromString(response.Data[0].Symbol),
-							OrderType:    oType,
-							OrderSide:    oSide,
-							TriggerPrice: response.Data[0].StopPx,
-							Price:        response.Data[0].Price,
-							Amount:       float64(response.Data[0].OrderQty),
-							ClientID:     response.Data[0].ClOrdID,
+					case "delete":
+						for x := range response.Data {
+							oSide, err := order.StringToOrderSide(response.Data[x].Side)
+							if err != nil {
+								b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert orderside: " + response.Data[x].Side)
+							}
+							oType, err := order.StringToOrderType(response.Data[x].OrdType)
+							if err != nil {
+								b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert ordertype: " + response.Data[x].OrdType)
+							}
+							newOrder := &order.Modify{
+								Exchange:          b.Name,
+								OrderID:           response.Data[x].OrderID,
+								Amount:            0,
+								LimitPriceUpper:   0,
+								LimitPriceLower:   0,
+								CurrencyPair:      currency.Pair{},
+								ImmediateOrCancel: false,
+								HiddenOrder:       false,
+								FillOrKill:        false,
+								PostOnly:          false,
+							}
+							b.Websocket.DataHandler <- newOrder
 						}
-						b.Websocket.DataHandler <- newOrder
+					case "partial":
+					default:
+						b.Websocket.DataHandler <- fmt.Errorf("%s - Unsupported order update %+v", b.Name, response)
 					}
 				case bitmexWSMargin:
 					var response WsMarginResponse
@@ -300,6 +356,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 					}
 					b.Websocket.DataHandler <- response
 				case bitmexWSPosition:
+					// position updates
 					var response WsPositionResponse
 					err = json.Unmarshal(resp.Raw, &response)
 					if err != nil {

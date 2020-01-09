@@ -157,6 +157,7 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 			log.Debugf(log.OrderMgr, "order manager: Cancelling order ID %v [%v]",
 				v[y].ID, v[y])
 			err := o.Cancel(&order.Cancel{
+
 				Exchange: k,
 				OrderID:  v[y].ID,
 			})
