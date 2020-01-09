@@ -32,5 +32,5 @@ type orderManager struct {
 
 type orderSubmitResponse struct {
 	order.SubmitResponse
-	OurOrderID string
+	InternalOrderID string
 }

@@ -78,11 +78,16 @@ func (o *orderStore) Add(order *order.Detail) error {
 	o.m.Lock()
 	defer o.m.Unlock()
 
+	exch := GetExchangeByName(order.Exchange)
+	if exch == nil {
+		return errors.New("unable to get exchange by name")
+	}
+
 	if o.exists(order) {
 		return ErrOrdersAlreadyExists
 	}
 
-	// Websocket orders will not have internalIDs yet
+	// Untracked websocket orders will not have internalIDs yet
 	if order.InternalOrderID == "" {
 		id, err := uuid.NewV4()
 		if err != nil {
@@ -363,7 +368,7 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 		SubmitResponse: order.SubmitResponse{
 			OrderID: result.OrderID,
 		},
-		OurOrderID: id.String(),
+		InternalOrderID: id.String(),
 	}, nil
 }
 

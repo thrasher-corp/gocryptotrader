@@ -41,9 +41,114 @@ func (s *Submit) Validate() error {
 	return nil
 }
 
-// Will update an order detail (used in order management) by comparing passed in
-// and existing values
-func (d *Detail) Update(m *Modify) {
+// UpdateOrderFromDetail Will update an order detail (used in order management)
+// by comparing passed in and existing values
+func (d *Detail) UpdateOrderFromDetail(m *Detail) {
+	var updated bool
+	if d.ImmediateOrCancel != m.ImmediateOrCancel {
+		d.ImmediateOrCancel = m.ImmediateOrCancel
+		updated = true
+	}
+	if d.HiddenOrder != m.HiddenOrder {
+		d.HiddenOrder = m.HiddenOrder
+		updated = true
+	}
+	if d.FillOrKill != m.FillOrKill {
+		d.FillOrKill = m.FillOrKill
+		updated = true
+	}
+	if m.Price > 0 && m.Price != d.Price {
+		d.Price = m.Price
+		updated = true
+	}
+	if m.Amount > 0 && m.Amount != d.Amount {
+		d.Amount = m.Amount
+		updated = true
+	}
+	if m.LimitPriceUpper > 0 && m.LimitPriceUpper != d.LimitPriceUpper {
+		d.LimitPriceUpper = m.LimitPriceUpper
+		updated = true
+	}
+	if m.LimitPriceLower > 0 && m.LimitPriceLower != d.LimitPriceLower {
+		d.LimitPriceLower = m.LimitPriceLower
+		updated = true
+	}
+	if m.TriggerPrice > 0 && m.TriggerPrice != d.TriggerPrice {
+		d.TriggerPrice = m.TriggerPrice
+		updated = true
+	}
+	if m.TargetAmount > 0 && m.TargetAmount != d.TargetAmount {
+		d.TargetAmount = m.TargetAmount
+		updated = true
+	}
+	if m.ExecutedAmount > 0 && m.ExecutedAmount != d.ExecutedAmount {
+		d.ExecutedAmount = m.ExecutedAmount
+		updated = true
+	}
+	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
+		d.RemainingAmount = m.RemainingAmount
+		updated = true
+	}
+	if m.Fee > 0 && m.Fee != d.Fee {
+		d.Fee = m.Fee
+		updated = true
+	}
+	if m.AccountID != "" && m.AccountID != d.AccountID {
+		d.AccountID = m.AccountID
+		updated = true
+	}
+	if m.ClientID != "" && m.ClientID != d.ClientID {
+		d.ClientID = m.ClientID
+		updated = true
+	}
+	if m.WalletAddress != "" && m.WalletAddress != d.WalletAddress {
+		d.WalletAddress = m.WalletAddress
+		updated = true
+	}
+	if m.Type != "" && m.Type != d.Type {
+		d.Type = m.Type
+		updated = true
+	}
+	if m.Side != "" && m.Side != d.Side {
+		d.Side = m.Side
+		updated = true
+	}
+	if m.Status != "" && m.Status != d.Status {
+		d.Status = m.Status
+		updated = true
+	}
+	if m.AssetType != "" && m.AssetType != d.AssetType {
+		d.AssetType = m.AssetType
+		updated = true
+	}
+	if m.Pair.IsEmpty() && !m.Pair.Equal(d.Pair) {
+		d.Pair = m.Pair
+		updated = true
+	}
+	if m.Trades != nil {
+		for x := range m.Trades {
+			var found bool
+			for y := range d.Trades {
+				if d.Trades[y].TID == m.Trades[x].TID && m.Price != d.Price {
+					d.Trades[y] = m.Trades[x]
+					found = true
+					updated = true
+				}
+			}
+			if !found {
+				d.Trades = append(d.Trades, m.Trades[x])
+				updated = true
+			}
+		}
+	}
+	if updated {
+		d.LastUpdated = time.Now()
+	}
+}
+
+// UpdateOrderFromModify Will update an order detail (used in order management)
+// by comparing passed in and existing values
+func (d *Detail) UpdateOrderFromModify(m *Modify) {
 	var updated bool
 	if d.ImmediateOrCancel != m.ImmediateOrCancel {
 		d.ImmediateOrCancel = m.ImmediateOrCancel

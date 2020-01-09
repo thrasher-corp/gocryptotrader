@@ -368,11 +368,12 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 						log.Error(log.WebsocketMgr, err)
 					}
 				} else {
-					for x := range Bot.OrderManager.orderStore.Orders[d.Exchange] {
-						if Bot.OrderManager.orderStore.Orders[d.Exchange][x].ID == d.ID {
-							Bot.OrderManager.orderStore.Orders[d.Exchange][x] = d
-						}
+					od, err := Bot.OrderManager.orderStore.GetByExchangeAndID(d.Exchange, d.ID)
+					if err != nil {
+						log.Error(log.WebsocketMgr, err)
+						continue
 					}
+					od.UpdateOrderFromDetail(&d)
 				}
 				// For orders that are handled via wshandler.SendMessageReturnResponse
 			case order.Submit:
@@ -386,13 +387,12 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 					log.Error(log.WebsocketMgr, err)
 				}
 			case order.Modify:
-				// convert to order.Detail
 				od, err := Bot.OrderManager.orderStore.GetByExchangeAndID(d.Exchange, d.ID)
 				if err != nil {
 					log.Error(log.WebsocketMgr, err)
 					continue
 				}
-				od.Update(&d)
+				od.UpdateOrderFromModify(&d)
 			default:
 				if Bot.Settings.Verbose {
 					log.Warnf(log.WebsocketMgr,
