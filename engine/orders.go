@@ -22,7 +22,9 @@ var (
 	ErrOrderFourOhFour     = errors.New("order does not exist")
 )
 
-func (o *orderStore) Get() map[string][]order.Detail {
+// get returns all orders for all exchanges
+// should not be exported as it can have large impact if used improperly
+func (o *orderStore) get() map[string][]order.Detail {
 	o.m.Lock()
 	defer o.m.Unlock()
 	return o.Orders
@@ -43,6 +45,19 @@ func (o *orderStore) GetByExchangeAndID(exchange, ID string) (*order.Detail, err
 	return nil, ErrOrderFourOhFour
 }
 
+// GetByInternalOrderID will search all orders for our internal orderID
+// and return the order
+func (o *orderStore) GetByInternalOrderID(internalOrderID string) (*order.Detail, error) {
+	for _, v := range o.Orders {
+		for x := range v {
+			if v[x].InternalOrderID == internalOrderID {
+				return &v[x], nil
+			}
+		}
+	}
+	return nil, ErrOrderFourOhFour
+}
+
 func (o *orderStore) exists(order *order.Detail) bool {
 	r, ok := o.Orders[order.Exchange]
 	if !ok {
@@ -58,6 +73,7 @@ func (o *orderStore) exists(order *order.Detail) bool {
 	return false
 }
 
+// Adds an order to the orderStore for tracking the lifecycle
 func (o *orderStore) Add(order *order.Detail) error {
 	o.m.Lock()
 	defer o.m.Unlock()
@@ -66,16 +82,28 @@ func (o *orderStore) Add(order *order.Detail) error {
 		return ErrOrdersAlreadyExists
 	}
 
+	// Websocket orders will not have internalIDs yet
+	if order.InternalOrderID == "" {
+		id, err := uuid.NewV4()
+		if err != nil {
+			log.Warnf(log.OrderMgr,
+				"Order manager: Unable to generate UUID. Err: %s\n",
+				err)
+		}
+		order.InternalOrderID = id.String()
+	}
 	orders := o.Orders[order.Exchange]
 	orders = append(orders, *order)
 	o.Orders[order.Exchange] = orders
 	return nil
 }
 
+// Started returns the status of the orderManager
 func (o *orderManager) Started() bool {
 	return atomic.LoadInt32(&o.started) == 1
 }
 
+// Start will boot up the orderManager
 func (o *orderManager) Start() error {
 	if atomic.AddInt32(&o.started, 1) != 1 {
 		return errors.New("order manager already started")
@@ -89,6 +117,7 @@ func (o *orderManager) Start() error {
 	return nil
 }
 
+// Stop will attempt to shutdown the orderManager
 func (o *orderManager) Stop() error {
 	if atomic.LoadInt32(&o.started) == 0 {
 		return errors.New("order manager not started")
@@ -139,7 +168,7 @@ func (o *orderManager) run() {
 // CancelAllOrders iterates and cancels all orders
 // for all exchanges if exchangeNames nil
 func (o *orderManager) CancelAllOrders(exchangeNames []string) {
-	orders := o.orderStore.Get()
+	orders := o.orderStore.get()
 	if orders == nil {
 		return
 	}
@@ -186,6 +215,8 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 	}
 }
 
+// Cancel will find the order in the orderManager, send a cancel request
+// to the exchange and if successful, update the status of the order
 func (o *orderManager) Cancel(cancel *order.Cancel) error {
 	if cancel.Exchange == "" {
 		return errors.New("order exchange name is empty")
@@ -222,6 +253,8 @@ func (o *orderManager) Cancel(cancel *order.Cancel) error {
 	return nil
 }
 
+// Submit will take in an order struct, send it to the exchange and
+// populate it in the orderManager if successful
 func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, error) {
 	if newOrder.Exchange == "" {
 		return nil, errors.New("order exchange name must be specified")
@@ -255,13 +288,6 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 		return nil, errors.New("unable to get exchange by name")
 	}
 
-	id, err := uuid.NewV4()
-	if err != nil {
-		log.Warnf(log.OrderMgr,
-			"Order manager: Unable to generate UUID. Err: %s\n",
-			err)
-	}
-
 	result, err := exch.SubmitOrder(newOrder)
 	if err != nil {
 		return nil, err
@@ -271,6 +297,13 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 		return nil, errors.New("order unable to be placed")
 	}
 
+	var id uuid.UUID
+	id, err = uuid.NewV4()
+	if err != nil {
+		log.Warnf(log.OrderMgr,
+			"Order manager: Unable to generate UUID. Err: %s\n",
+			err)
+	}
 	msg := fmt.Sprintf("Order manager: Exchange %s submitted order ID=%v [Ours: %v] pair=%v price=%v amount=%v side=%v type=%v.",
 		newOrder.Exchange,
 		result.OrderID,
@@ -286,6 +319,41 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 		Type:    "order",
 		Message: msg,
 	})
+	status := order.New
+	if result.FullyMatched {
+		status = order.Filled
+	}
+	err = o.orderStore.Add(&order.Detail{
+		ImmediateOrCancel: newOrder.ImmediateOrCancel,
+		HiddenOrder:       newOrder.HiddenOrder,
+		FillOrKill:        newOrder.FillOrKill,
+		PostOnly:          newOrder.PostOnly,
+		Price:             newOrder.Price,
+		Amount:            newOrder.Amount,
+		LimitPriceUpper:   newOrder.LimitPriceUpper,
+		LimitPriceLower:   newOrder.LimitPriceLower,
+		TriggerPrice:      newOrder.TriggerPrice,
+		TargetAmount:      newOrder.TargetAmount,
+		ExecutedAmount:    newOrder.ExecutedAmount,
+		RemainingAmount:   newOrder.RemainingAmount,
+		Fee:               newOrder.Fee,
+		Exchange:          newOrder.Exchange,
+		InternalOrderID:   id.String(),
+		ID:                result.OrderID,
+		AccountID:         newOrder.AccountID,
+		ClientID:          newOrder.ClientID,
+		WalletAddress:     newOrder.WalletAddress,
+		Type:              newOrder.Type,
+		Side:              newOrder.Side,
+		Status:            status,
+		AssetType:         newOrder.AssetType,
+		Date:              time.Now(),
+		LastUpdated:       time.Now(),
+		Pair:              newOrder.Pair,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("Order manager: Unable to add %v order %v to orderStore: %s\n", newOrder.Exchange, result.OrderID, err)
+	}
 
 	return &orderSubmitResponse{
 		SubmitResponse: order.SubmitResponse{

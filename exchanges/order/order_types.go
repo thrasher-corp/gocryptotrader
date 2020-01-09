@@ -8,7 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// vars related to orders
+// var error definitions
 var (
 	ErrSubmissionIsNil            = errors.New("order submission is nil")
 	ErrPairIsEmpty                = errors.New("order pair is empty")
@@ -18,8 +18,10 @@ var (
 	ErrPriceMustBeSetIfLimitOrder = errors.New("order price must be set if limit order type is desired")
 )
 
-// Submit contains all properties of an order that are required
+// Submit contains all properties of an order that may be required
 // for an order to be created on an exchange
+// Each exchange has their own requirements, so not all fields
+// are required to be populated
 type Submit struct {
 	ImmediateOrCancel bool
 	HiddenOrder       bool
@@ -53,7 +55,9 @@ type SubmitResponse struct {
 }
 
 // Modify contains all properties of an order
-// that can be updated after it has been created
+// that may be updated after it has been created
+// Each exchange has their own requirements, so not all fields
+// are required to be populated
 type Modify struct {
 	ImmediateOrCancel bool
 	HiddenOrder       bool
@@ -88,6 +92,8 @@ type ModifyResponse struct {
 }
 
 // Detail contains all properties of an order
+// Each exchange has their own requirements, so not all fields
+// are required to be populated
 type Detail struct {
 	ImmediateOrCancel bool
 	HiddenOrder       bool
@@ -103,6 +109,7 @@ type Detail struct {
 	RemainingAmount   float64
 	Fee               float64
 	Exchange          string
+	InternalOrderID   string
 	ID                string
 	AccountID         string
 	ClientID          string
@@ -117,8 +124,10 @@ type Detail struct {
 	Trades            []TradeHistory
 }
 
-// Cancel contains all properties required
-// to cancel an order on an exchagnge
+// Cancel contains all properties that may be required
+// to cancel an order on an exchange
+// Each exchange has their own requirements, so not all fields
+// are required to be populated
 type Cancel struct {
 	Price         float64
 	Amount        float64
@@ -137,7 +146,7 @@ type Cancel struct {
 }
 
 // CancelAllResponse returns the status from attempting to
-// cancel all orders on an exchagne
+// cancel all orders on an exchange
 type CancelAllResponse struct {
 	Status map[string]string
 }
