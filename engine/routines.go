@@ -392,13 +392,7 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 					log.Error(log.WebsocketMgr, err)
 					continue
 				}
-
-				od.Amount = d.Amount
-				od.Price = d.Price
-				od.Pair = d.Pair
-				od.Type = d.Type
-				od.Exchange = d.Exchange
-				od.Side = d.Side
+				od.Update(&d)
 			default:
 				if Bot.Settings.Verbose {
 					log.Warnf(log.WebsocketMgr,

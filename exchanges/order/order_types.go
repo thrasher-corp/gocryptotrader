@@ -112,6 +112,7 @@ type Detail struct {
 	Status            Status
 	AssetType         asset.Item
 	Date              time.Time
+	LastUpdated       time.Time
 	Pair              currency.Pair
 	Trades            []TradeHistory
 }

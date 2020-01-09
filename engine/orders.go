@@ -157,17 +157,20 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 			log.Debugf(log.OrderMgr, "order manager: Cancelling order ID %v [%v]",
 				v[y].ID, v[y])
 			err := o.Cancel(&order.Cancel{
-
-				Exchange: k,
-				ID:       v[y].ID,
+				Exchange:      k,
+				ID:            v[y].ID,
+				AccountID:     v[y].AccountID,
+				ClientID:      v[y].ClientID,
+				WalletAddress: v[y].WalletAddress,
+				Type:          v[y].Type,
+				Side:          v[y].Side,
+				Pair:          v[y].Pair,
 			})
 			if err != nil {
-				msg := fmt.Sprintf("Order manager: Exchange %s unable to cancel order ID=%v. Err: %s",
-					k, v[y].ID, err)
-				log.Debugln(log.OrderBook, msg)
+				log.Debugln(log.OrderBook, err)
 				Bot.CommsManager.PushEvent(base.Event{
 					Type:    "order",
-					Message: msg,
+					Message: err.Error(),
 				})
 				continue
 			}
@@ -205,7 +208,18 @@ func (o *orderManager) Cancel(cancel *order.Cancel) error {
 		return errors.New("order asset type not supported by exchange")
 	}
 
-	return exch.CancelOrder(cancel)
+	err := exch.CancelOrder(cancel)
+	if err != nil {
+		return fmt.Errorf("%v - Failed to cancel order: %v", cancel.Exchange, err)
+	}
+	var od *order.Detail
+	od, err = o.orderStore.GetByExchangeAndID(cancel.Exchange, cancel.ID)
+	if err != nil {
+		return fmt.Errorf("%v - Failed to retrieve order %v to update cancelled status: %v", cancel.Exchange, cancel.ID, err)
+	}
+
+	od.Status = order.Cancelled
+	return nil
 }
 
 func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, error) {
