@@ -349,8 +349,8 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
-		Currencies: []currency.Pair{
+		Type: order.AnyType,
+		Pairs: []currency.Pair{
 			currency.NewPair(currency.LTC, currency.BTC),
 		},
 	}
@@ -369,8 +369,8 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType:  order.AnyType,
-		Currencies: []currency.Pair{currency.NewPair(currency.LTC, currency.BTC)},
+		Type:  order.AnyType,
+		Pairs: []currency.Pair{currency.NewPair(currency.LTC, currency.BTC)},
 	}
 
 	_, err := g.GetOrderHistory(&getOrdersRequest)
@@ -402,11 +402,11 @@ func TestSubmitOrder(t *testing.T) {
 			Base:      currency.LTC,
 			Quote:     currency.BTC,
 		},
-		OrderSide: order.Buy,
-		OrderType: order.Limit,
-		Price:     10,
-		Amount:    1,
-		ClientID:  "1234234",
+		Side:     order.Buy,
+		Type:     order.Limit,
+		Price:    10,
+		Amount:   1,
+		ClientID: "1234234",
 	}
 
 	response, err := g.SubmitOrder(orderSubmission)
@@ -426,7 +426,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	var orderCancellation = &order.Cancel{
-		OrderID: "266029865",
+		ID: "266029865",
 	}
 
 	err := g.CancelOrder(orderCancellation)
@@ -448,10 +448,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	resp, err := g.CancelAllOrders(orderCancellation)

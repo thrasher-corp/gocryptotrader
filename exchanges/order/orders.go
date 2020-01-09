@@ -9,57 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
-// NewOrder creates a new order and returns a an orderID
-func NewOrder(exchangeName string, amount, price float64) int {
-	ord := &Order{}
-	if len(Orders) == 0 {
-		ord.OrderID = 0
-	} else {
-		ord.OrderID = len(Orders)
-	}
-
-	ord.Exchange = exchangeName
-	ord.Amount = amount
-	ord.Price = price
-	Orders = append(Orders, ord)
-	return ord.OrderID
-}
-
-// DeleteOrder deletes orders by ID and returns state
-func DeleteOrder(orderID int) bool {
-	for i := range Orders {
-		if Orders[i].OrderID == orderID {
-			Orders = append(Orders[:i], Orders[i+1:]...)
-			return true
-		}
-	}
-	return false
-}
-
-// GetOrdersByExchange returns order pointer grouped by exchange
-func GetOrdersByExchange(exchange string) []*Order {
-	var orders []*Order
-	for i := range Orders {
-		if Orders[i].Exchange == exchange {
-			orders = append(orders, Orders[i])
-		}
-	}
-	if len(orders) > 0 {
-		return orders
-	}
-	return nil
-}
-
-// GetOrderByOrderID returns order pointer by ID
-func GetOrderByOrderID(orderID int) *Order {
-	for i := range Orders {
-		if Orders[i].OrderID == orderID {
-			return Orders[i]
-		}
-	}
-	return nil
-}
-
 // Validate checks the supplied data and returns whether or not it's valid
 func (s *Submit) Validate() error {
 	if s == nil {
@@ -70,14 +19,14 @@ func (s *Submit) Validate() error {
 		return ErrPairIsEmpty
 	}
 
-	if s.OrderSide != Buy &&
-		s.OrderSide != Sell &&
-		s.OrderSide != Bid &&
-		s.OrderSide != Ask {
+	if s.Side != Buy &&
+		s.Side != Sell &&
+		s.Side != Bid &&
+		s.Side != Ask {
 		return ErrSideIsInvalid
 	}
 
-	if s.OrderType != Market && s.OrderType != Limit {
+	if s.Type != Market && s.Type != Limit {
 		return ErrTypeIsInvalid
 	}
 
@@ -85,7 +34,7 @@ func (s *Submit) Validate() error {
 		return ErrAmountIsInvalid
 	}
 
-	if s.OrderType == Limit && s.Price <= 0 {
+	if s.Type == Limit && s.Price <= 0 {
 		return ErrPriceMustBeSetIfLimitOrder
 	}
 
@@ -126,7 +75,7 @@ func FilterOrdersBySide(orders *[]Detail, side Side) {
 
 	var filteredOrders []Detail
 	for i := range *orders {
-		if strings.EqualFold(string((*orders)[i].OrderSide), string(side)) {
+		if strings.EqualFold(string((*orders)[i].Side), string(side)) {
 			filteredOrders = append(filteredOrders, (*orders)[i])
 		}
 	}
@@ -143,7 +92,7 @@ func FilterOrdersByType(orders *[]Detail, orderType Type) {
 
 	var filteredOrders []Detail
 	for i := range *orders {
-		if strings.EqualFold(string((*orders)[i].OrderType), string(orderType)) {
+		if strings.EqualFold(string((*orders)[i].Type), string(orderType)) {
 			filteredOrders = append(filteredOrders, (*orders)[i])
 		}
 	}
@@ -163,8 +112,8 @@ func FilterOrdersByTickRange(orders *[]Detail, startTicks, endTicks time.Time) {
 
 	var filteredOrders []Detail
 	for i := range *orders {
-		if (*orders)[i].OrderDate.Unix() >= startTicks.Unix() &&
-			(*orders)[i].OrderDate.Unix() <= endTicks.Unix() {
+		if (*orders)[i].Date.Unix() >= startTicks.Unix() &&
+			(*orders)[i].Date.Unix() <= endTicks.Unix() {
 			filteredOrders = append(filteredOrders, (*orders)[i])
 		}
 	}
@@ -184,7 +133,7 @@ func FilterOrdersByCurrencies(orders *[]Detail, currencies []currency.Pair) {
 	for i := range *orders {
 		matchFound := false
 		for _, c := range currencies {
-			if !matchFound && (*orders)[i].CurrencyPair.EqualIncludeReciprocal(c) {
+			if !matchFound && (*orders)[i].Pair.EqualIncludeReciprocal(c) {
 				matchFound = true
 			}
 		}
@@ -223,7 +172,7 @@ func (b ByOrderType) Len() int {
 }
 
 func (b ByOrderType) Less(i, j int) bool {
-	return b[i].OrderType.String() < b[j].OrderType.String()
+	return b[i].Type.String() < b[j].Type.String()
 }
 
 func (b ByOrderType) Swap(i, j int) {
@@ -244,7 +193,7 @@ func (b ByCurrency) Len() int {
 }
 
 func (b ByCurrency) Less(i, j int) bool {
-	return b[i].CurrencyPair.String() < b[j].CurrencyPair.String()
+	return b[i].Pair.String() < b[j].Pair.String()
 }
 
 func (b ByCurrency) Swap(i, j int) {
@@ -265,7 +214,7 @@ func (b ByDate) Len() int {
 }
 
 func (b ByDate) Less(i, j int) bool {
-	return b[i].OrderDate.Unix() < b[j].OrderDate.Unix()
+	return b[i].Date.Unix() < b[j].Date.Unix()
 }
 
 func (b ByDate) Swap(i, j int) {
@@ -286,7 +235,7 @@ func (b ByOrderSide) Len() int {
 }
 
 func (b ByOrderSide) Less(i, j int) bool {
-	return b[i].OrderSide.String() < b[j].OrderSide.String()
+	return b[i].Side.String() < b[j].Side.String()
 }
 
 func (b ByOrderSide) Swap(i, j int) {
@@ -338,7 +287,7 @@ func StringToOrderType(oType string) (Type, error) {
 	case strings.EqualFold(oType, AnyType.String()):
 		return AnyType, nil
 	default:
-		return Unknown, fmt.Errorf("%s not recognised as order type", oType)
+		return UnknownType, fmt.Errorf("%s not recognised as order type", oType)
 	}
 }
 

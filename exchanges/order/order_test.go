@@ -71,11 +71,11 @@ func TestValidate(t *testing.T) {
 
 	for x := range tester {
 		s := Submit{
-			Pair:      tester[x].Pair,
-			OrderSide: tester[x].Side,
-			OrderType: tester[x].Type,
-			Amount:    tester[x].Amount,
-			Price:     tester[x].Price,
+			Pair:   tester[x].Pair,
+			Side:   tester[x].Side,
+			Type:   tester[x].Type,
+			Amount: tester[x].Amount,
+			Price:  tester[x].Price,
 		}
 		if err := s.Validate(); err != tester[x].ExpectedErr {
 			t.Errorf("Unexpected result. Got: %s, want: %s", err, tester[x].ExpectedErr)
@@ -115,10 +115,10 @@ func TestFilterOrdersByType(t *testing.T) {
 
 	var orders = []Detail{
 		{
-			OrderType: ImmediateOrCancel,
+			Type: ImmediateOrCancel,
 		},
 		{
-			OrderType: Limit,
+			Type: Limit,
 		},
 	}
 
@@ -143,10 +143,10 @@ func TestFilterOrdersBySide(t *testing.T) {
 
 	var orders = []Detail{
 		{
-			OrderSide: Buy,
+			Side: Buy,
 		},
 		{
-			OrderSide: Sell,
+			Side: Sell,
 		},
 		{},
 	}
@@ -172,13 +172,13 @@ func TestFilterOrdersByTickRange(t *testing.T) {
 
 	var orders = []Detail{
 		{
-			OrderDate: time.Unix(100, 0),
+			Date: time.Unix(100, 0),
 		},
 		{
-			OrderDate: time.Unix(110, 0),
+			Date: time.Unix(110, 0),
 		},
 		{
-			OrderDate: time.Unix(111, 0),
+			Date: time.Unix(111, 0),
 		},
 	}
 
@@ -208,13 +208,13 @@ func TestFilterOrdersByCurrencies(t *testing.T) {
 
 	var orders = []Detail{
 		{
-			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
+			Pair: currency.NewPair(currency.BTC, currency.USD),
 		},
 		{
-			CurrencyPair: currency.NewPair(currency.LTC, currency.EUR),
+			Pair: currency.NewPair(currency.LTC, currency.EUR),
 		},
 		{
-			CurrencyPair: currency.NewPair(currency.DOGE, currency.RUB),
+			Pair: currency.NewPair(currency.DOGE, currency.RUB),
 		},
 	}
 
@@ -275,26 +275,26 @@ func TestSortOrdersByDate(t *testing.T) {
 
 	orders := []Detail{
 		{
-			OrderDate: time.Unix(0, 0),
+			Date: time.Unix(0, 0),
 		}, {
-			OrderDate: time.Unix(1, 0),
+			Date: time.Unix(1, 0),
 		}, {
-			OrderDate: time.Unix(2, 0),
+			Date: time.Unix(2, 0),
 		},
 	}
 
 	SortOrdersByDate(&orders, false)
-	if orders[0].OrderDate.Unix() != time.Unix(0, 0).Unix() {
+	if orders[0].Date.Unix() != time.Unix(0, 0).Unix() {
 		t.Errorf("Expected: '%v', received: '%v'",
 			time.Unix(0, 0).Unix(),
-			orders[0].OrderDate.Unix())
+			orders[0].Date.Unix())
 	}
 
 	SortOrdersByDate(&orders, true)
-	if orders[0].OrderDate.Unix() != time.Unix(2, 0).Unix() {
+	if orders[0].Date.Unix() != time.Unix(2, 0).Unix() {
 		t.Errorf("Expected: '%v', received: '%v'",
 			time.Unix(2, 0).Unix(),
-			orders[0].OrderDate.Unix())
+			orders[0].Date.Unix())
 	}
 }
 
@@ -303,40 +303,40 @@ func TestSortOrdersByCurrency(t *testing.T) {
 
 	orders := []Detail{
 		{
-			CurrencyPair: currency.NewPairWithDelimiter(currency.BTC.String(),
+			Pair: currency.NewPairWithDelimiter(currency.BTC.String(),
 				currency.USD.String(),
 				"-"),
 		}, {
-			CurrencyPair: currency.NewPairWithDelimiter(currency.DOGE.String(),
+			Pair: currency.NewPairWithDelimiter(currency.DOGE.String(),
 				currency.USD.String(),
 				"-"),
 		}, {
-			CurrencyPair: currency.NewPairWithDelimiter(currency.BTC.String(),
+			Pair: currency.NewPairWithDelimiter(currency.BTC.String(),
 				currency.RUB.String(),
 				"-"),
 		}, {
-			CurrencyPair: currency.NewPairWithDelimiter(currency.LTC.String(),
+			Pair: currency.NewPairWithDelimiter(currency.LTC.String(),
 				currency.EUR.String(),
 				"-"),
 		}, {
-			CurrencyPair: currency.NewPairWithDelimiter(currency.LTC.String(),
+			Pair: currency.NewPairWithDelimiter(currency.LTC.String(),
 				currency.AUD.String(),
 				"-"),
 		},
 	}
 
 	SortOrdersByCurrency(&orders, false)
-	if orders[0].CurrencyPair.String() != currency.BTC.String()+"-"+currency.RUB.String() {
+	if orders[0].Pair.String() != currency.BTC.String()+"-"+currency.RUB.String() {
 		t.Errorf("Expected: '%v', received: '%v'",
 			currency.BTC.String()+"-"+currency.RUB.String(),
-			orders[0].CurrencyPair.String())
+			orders[0].Pair.String())
 	}
 
 	SortOrdersByCurrency(&orders, true)
-	if orders[0].CurrencyPair.String() != currency.LTC.String()+"-"+currency.EUR.String() {
+	if orders[0].Pair.String() != currency.LTC.String()+"-"+currency.EUR.String() {
 		t.Errorf("Expected: '%v', received: '%v'",
 			currency.LTC.String()+"-"+currency.EUR.String(),
-			orders[0].CurrencyPair.String())
+			orders[0].Pair.String())
 	}
 }
 
@@ -345,28 +345,28 @@ func TestSortOrdersByOrderSide(t *testing.T) {
 
 	orders := []Detail{
 		{
-			OrderSide: Buy,
+			Side: Buy,
 		}, {
-			OrderSide: Sell,
+			Side: Sell,
 		}, {
-			OrderSide: Sell,
+			Side: Sell,
 		}, {
-			OrderSide: Buy,
+			Side: Buy,
 		},
 	}
 
 	SortOrdersBySide(&orders, false)
-	if !strings.EqualFold(orders[0].OrderSide.String(), Buy.String()) {
+	if !strings.EqualFold(orders[0].Side.String(), Buy.String()) {
 		t.Errorf("Expected: '%v', received: '%v'",
 			Buy,
-			orders[0].OrderSide)
+			orders[0].Side)
 	}
 
 	SortOrdersBySide(&orders, true)
-	if !strings.EqualFold(orders[0].OrderSide.String(), Sell.String()) {
+	if !strings.EqualFold(orders[0].Side.String(), Sell.String()) {
 		t.Errorf("Expected: '%v', received: '%v'",
 			Sell,
-			orders[0].OrderSide)
+			orders[0].Side)
 	}
 }
 
@@ -375,28 +375,28 @@ func TestSortOrdersByOrderType(t *testing.T) {
 
 	orders := []Detail{
 		{
-			OrderType: Market,
+			Type: Market,
 		}, {
-			OrderType: Limit,
+			Type: Limit,
 		}, {
-			OrderType: ImmediateOrCancel,
+			Type: ImmediateOrCancel,
 		}, {
-			OrderType: TrailingStop,
+			Type: TrailingStop,
 		},
 	}
 
 	SortOrdersByType(&orders, false)
-	if !strings.EqualFold(orders[0].OrderType.String(), ImmediateOrCancel.String()) {
+	if !strings.EqualFold(orders[0].Type.String(), ImmediateOrCancel.String()) {
 		t.Errorf("Expected: '%v', received: '%v'",
 			ImmediateOrCancel,
-			orders[0].OrderType)
+			orders[0].Type)
 	}
 
 	SortOrdersByType(&orders, true)
-	if !strings.EqualFold(orders[0].OrderType.String(), TrailingStop.String()) {
+	if !strings.EqualFold(orders[0].Type.String(), TrailingStop.String()) {
 		t.Errorf("Expected: '%v', received: '%v'",
 			TrailingStop,
-			orders[0].OrderType)
+			orders[0].Type)
 	}
 }
 
@@ -462,7 +462,7 @@ var stringsToOrderType = []struct {
 	{"any", AnyType, nil},
 	{"ANY", AnyType, nil},
 	{"aNy", AnyType, nil},
-	{"woahMan", Unknown, errors.New("woahMan not recognised as order type")},
+	{"woahMan", UnknownType, errors.New("woahMan not recognised as order type")},
 }
 
 func TestStringToOrderType(t *testing.T) {

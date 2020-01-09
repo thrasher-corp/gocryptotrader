@@ -478,7 +478,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
+		Type: order.AnyType,
 	}
 
 	_, err := b.GetActiveOrders(&getOrdersRequest)
@@ -491,8 +491,8 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
-		Currencies: []currency.Pair{currency.NewPair(currency.LTC,
+		Type: order.AnyType,
+		Pairs: []currency.Pair{currency.NewPair(currency.LTC,
 			currency.BTC)},
 	}
 
@@ -520,11 +520,11 @@ func TestSubmitOrder(t *testing.T) {
 			Base:  currency.XBT,
 			Quote: currency.USD,
 		},
-		OrderSide: order.Buy,
-		OrderType: order.Limit,
-		Price:     1,
-		Amount:    1,
-		ClientID:  "meowOrder",
+		Side:     order.Buy,
+		Type:     order.Limit,
+		Price:    1,
+		Amount:   1,
+		ClientID: "meowOrder",
 	}
 	response, err := b.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -541,10 +541,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		OrderID:       "123456789012345678901234567890123456",
+		ID:            "123456789012345678901234567890123456",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	err := b.CancelOrder(orderCancellation)
@@ -563,10 +563,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		OrderID:       "123456789012345678901234567890123456",
+		ID:            "123456789012345678901234567890123456",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	resp, err := b.CancelAllOrders(orderCancellation)
@@ -601,7 +601,7 @@ func TestModifyOrder(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := b.ModifyOrder(&order.Modify{OrderID: "1337"})
+	_, err := b.ModifyOrder(&order.Modify{ID: "1337"})
 	if err == nil {
 		t.Error("ModifyOrder() error")
 	}

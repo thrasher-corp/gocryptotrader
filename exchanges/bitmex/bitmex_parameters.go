@@ -397,7 +397,7 @@ type OrderAmendParams struct {
 // VerifyData verifies outgoing data sets
 func (p *OrderAmendParams) VerifyData() error {
 	if p.OrderID == "" {
-		return errors.New("verifydata() OrderNewParams error - OrderID not set")
+		return errors.New("verifydata() OrderNewParams error - ID not set")
 	}
 	return nil
 }

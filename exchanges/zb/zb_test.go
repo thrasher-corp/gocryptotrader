@@ -279,8 +279,8 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
-		Currencies: []currency.Pair{currency.NewPair(currency.XRP,
+		Type: order.AnyType,
+		Pairs: []currency.Pair{currency.NewPair(currency.XRP,
 			currency.USDT)},
 	}
 
@@ -294,9 +294,9 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
-		OrderSide: order.Buy,
-		Currencies: []currency.Pair{currency.NewPair(currency.LTC,
+		Type: order.AnyType,
+		Side: order.Buy,
+		Pairs: []currency.Pair{currency.NewPair(currency.LTC,
 			currency.BTC)},
 	}
 
@@ -327,11 +327,11 @@ func TestSubmitOrder(t *testing.T) {
 			Base:      currency.XRP,
 			Quote:     currency.USDT,
 		},
-		OrderSide: order.Buy,
-		OrderType: order.Limit,
-		Price:     1,
-		Amount:    1,
-		ClientID:  "meowOrder",
+		Side:     order.Buy,
+		Type:     order.Limit,
+		Price:    1,
+		Amount:   1,
+		ClientID: "meowOrder",
 	}
 	response, err := z.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -348,10 +348,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.XRP, currency.USDT)
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	err := z.CancelOrder(orderCancellation)
@@ -370,10 +370,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.XRP, currency.USDT)
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	resp, err := z.CancelAllOrders(orderCancellation)

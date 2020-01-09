@@ -373,8 +373,8 @@ func (b *Bitstamp) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
-	buy := s.OrderSide == order.Buy
-	market := s.OrderType == order.Market
+	buy := s.Side == order.Buy
+	market := s.Type == order.Market
 	response, err := b.PlaceOrder(s.Pair.String(),
 		s.Price,
 		s.Amount,
@@ -388,7 +388,7 @@ func (b *Bitstamp) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 
 	submitOrderResponse.IsOrderPlaced = true
-	if s.OrderType == order.Market {
+	if s.Type == order.Market {
 		submitOrderResponse.FullyMatched = true
 	}
 	return submitOrderResponse, nil
@@ -402,7 +402,7 @@ func (b *Bitstamp) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (b *Bitstamp) CancelOrder(order *order.Cancel) error {
-	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -534,10 +534,10 @@ func (b *Bitstamp) GetWebsocket() (*wshandler.Websocket, error) {
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Bitstamp) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var currPair string
-	if len(req.Currencies) != 1 {
+	if len(req.Pairs) != 1 {
 		currPair = "all"
 	} else {
-		currPair = req.Currencies[0].String()
+		currPair = req.Pairs[0].String()
 	}
 
 	resp, err := b.GetOpenOrders(currPair)
@@ -559,19 +559,19 @@ func (b *Bitstamp) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 		}
 
 		orders = append(orders, order.Detail{
-			Amount:       resp[i].Amount,
-			ID:           strconv.FormatInt(resp[i].ID, 10),
-			Price:        resp[i].Price,
-			OrderType:    order.Limit,
-			OrderSide:    orderSide,
-			OrderDate:    tm,
-			CurrencyPair: currency.NewPairFromString(resp[i].Currency),
-			Exchange:     b.Name,
+			Amount:   resp[i].Amount,
+			ID:       strconv.FormatInt(resp[i].ID, 10),
+			Price:    resp[i].Price,
+			Type:     order.Limit,
+			Side:     orderSide,
+			Date:     tm,
+			Pair:     currency.NewPairFromString(resp[i].Currency),
+			Exchange: b.Name,
 		})
 	}
 
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersByCurrencies(&orders, req.Currencies)
+	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -579,8 +579,8 @@ func (b *Bitstamp) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 // Can Limit response to specific order status
 func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var currPair string
-	if len(req.Currencies) == 1 {
-		currPair = req.Currencies[0].String()
+	if len(req.Pairs) == 1 {
+		currPair = req.Pairs[0].String()
 	}
 	resp, err := b.GetUserTransactions(currPair)
 	if err != nil {
@@ -601,7 +601,7 @@ func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 			baseCurrency = currency.XRP
 		default:
 			log.Warnf(log.ExchangeSys,
-				"%s No base currency found for OrderID '%d'\n",
+				"%s No base currency found for ID '%d'\n",
 				b.Name,
 				resp[i].OrderID)
 		}
@@ -632,15 +632,15 @@ func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 		}
 
 		orders = append(orders, order.Detail{
-			ID:           strconv.FormatInt(resp[i].OrderID, 10),
-			OrderDate:    tm,
-			Exchange:     b.Name,
-			CurrencyPair: currPair,
+			ID:       strconv.FormatInt(resp[i].OrderID, 10),
+			Date:     tm,
+			Exchange: b.Name,
+			Pair:     currPair,
 		})
 	}
 
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersByCurrencies(&orders, req.Currencies)
+	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
 }
 

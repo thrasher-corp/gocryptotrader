@@ -464,7 +464,7 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 
 	_, err := b.GetOrderHistory(&order.GetOrdersRequest{
-		OrderSide: order.Buy,
+		Side: order.Buy,
 	})
 	if err != nil {
 		t.Error(err)

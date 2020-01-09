@@ -282,14 +282,14 @@ func (b *Bitmex) wsHandleIncomingData() {
 							}
 							newOrder := &order.Modify{
 								Exchange:          b.Name,
-								OrderID:           "",
-								OrderType:         oType,
-								OrderSide:         oSide,
+								ID:                "",
+								Type:              oType,
+								Side:              oSide,
 								Price:             response.Data[x].Price,
 								Amount:            0,
 								LimitPriceUpper:   0,
 								LimitPriceLower:   0,
-								CurrencyPair:      currency.Pair{},
+								Pair:              currency.Pair{},
 								ImmediateOrCancel: false,
 								HiddenOrder:       false,
 								FillOrKill:        false,
@@ -310,8 +310,8 @@ func (b *Bitmex) wsHandleIncomingData() {
 							newOrder := &order.Submit{
 								Exchange:     b.Name,
 								Pair:         currency.NewPairFromString(response.Data[x].Symbol),
-								OrderType:    oType,
-								OrderSide:    oSide,
+								Type:         oType,
+								Side:         oSide,
 								TriggerPrice: response.Data[x].StopPx,
 								Price:        response.Data[x].Price,
 								Amount:       float64(response.Data[x].OrderQty),
@@ -321,21 +321,13 @@ func (b *Bitmex) wsHandleIncomingData() {
 						}
 					case "delete":
 						for x := range response.Data {
-							oSide, err := order.StringToOrderSide(response.Data[x].Side)
-							if err != nil {
-								b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert orderside: " + response.Data[x].Side)
-							}
-							oType, err := order.StringToOrderType(response.Data[x].OrdType)
-							if err != nil {
-								b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert ordertype: " + response.Data[x].OrdType)
-							}
 							newOrder := &order.Modify{
 								Exchange:          b.Name,
-								OrderID:           response.Data[x].OrderID,
+								ID:                response.Data[x].OrderID,
 								Amount:            0,
 								LimitPriceUpper:   0,
 								LimitPriceLower:   0,
-								CurrencyPair:      currency.Pair{},
+								Pair:              currency.Pair{},
 								ImmediateOrCancel: false,
 								HiddenOrder:       false,
 								FillOrKill:        false,

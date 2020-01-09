@@ -155,8 +155,8 @@ func (b *BTCMarkets) WsHandleData() {
 					Exchange:     b.Name,
 					Price:        trade.Price,
 					Amount:       trade.Volume,
-					Side:         order.SideUnknown.String(),
-					EventType:    order.Unknown.String(),
+					Side:         order.UnknownSide.String(),
+					EventType:    order.UnknownType.String(),
 				}
 			case tick:
 				var tick WsTick

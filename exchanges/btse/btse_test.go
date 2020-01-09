@@ -163,7 +163,7 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Skip("API keys not set, skipping test")
 	}
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
+		Type: order.AnyType,
 	}
 
 	_, err := b.GetActiveOrders(&getOrdersRequest)
@@ -178,7 +178,7 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Skip("API keys not set, skipping test")
 	}
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
+		Type: order.AnyType,
 	}
 	_, err := b.GetOrderHistory(&getOrdersRequest)
 	if err != nil {
@@ -299,11 +299,11 @@ func TestSubmitOrder(t *testing.T) {
 			Base:  currency.BTC,
 			Quote: currency.USD,
 		},
-		OrderSide: order.Buy,
-		OrderType: order.Limit,
-		Price:     100000,
-		Amount:    0.1,
-		ClientID:  "meowOrder",
+		Side:     order.Buy,
+		Type:     order.Limit,
+		Price:    100000,
+		Amount:   0.1,
+		ClientID: "meowOrder",
 	}
 	response, err := b.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -322,10 +322,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 		currency.USD.String(),
 		"-")
 	var orderCancellation = &order.Cancel{
-		OrderID:       "b334ecef-2b42-4998-b8a4-b6b14f6d2671",
+		ID:            "b334ecef-2b42-4998-b8a4-b6b14f6d2671",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 	err := b.CancelOrder(orderCancellation)
 	if err != nil {
@@ -342,10 +342,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		currency.USD.String(),
 		"-")
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 	resp, err := b.CancelAllOrders(orderCancellation)
 

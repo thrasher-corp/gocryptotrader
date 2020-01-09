@@ -419,8 +419,8 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType:  order.AnyType,
-		Currencies: []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
+		Type:  order.AnyType,
+		Pairs: []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
 	}
 
 	_, err := h.GetActiveOrders(&getOrdersRequest)
@@ -433,8 +433,8 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType:  order.AnyType,
-		Currencies: []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
+		Type:  order.AnyType,
+		Pairs: []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
 	}
 
 	_, err := h.GetOrderHistory(&getOrdersRequest)
@@ -470,11 +470,11 @@ func TestSubmitOrder(t *testing.T) {
 			Base:  currency.BTC,
 			Quote: currency.USDT,
 		},
-		OrderSide: order.Buy,
-		OrderType: order.Limit,
-		Price:     1,
-		Amount:    1,
-		ClientID:  strconv.FormatInt(accounts[0].ID, 10),
+		Side:     order.Buy,
+		Type:     order.Limit,
+		Price:    1,
+		Amount:   1,
+		ClientID: strconv.FormatInt(accounts[0].ID, 10),
 	}
 	response, err := h.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -489,10 +489,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	err := h.CancelOrder(orderCancellation)
@@ -512,10 +512,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	resp, err := h.CancelAllOrders(&orderCancellation)

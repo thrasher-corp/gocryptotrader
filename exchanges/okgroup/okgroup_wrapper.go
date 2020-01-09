@@ -276,11 +276,11 @@ func (o *OKGroup) SubmitOrder(s *order.Submit) (resp order.SubmitResponse, err e
 	request := PlaceOrderRequest{
 		ClientOID:    s.ClientID,
 		InstrumentID: o.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
-		Side:         s.OrderSide.Lower(),
-		Type:         s.OrderType.Lower(),
+		Side:         s.Side.Lower(),
+		Type:         s.Type.Lower(),
 		Size:         strconv.FormatFloat(s.Amount, 'f', -1, 64),
 	}
-	if s.OrderType == order.Limit {
+	if s.Type == order.Limit {
 		request.Price = strconv.FormatFloat(s.Price, 'f', -1, 64)
 	}
 
@@ -291,7 +291,7 @@ func (o *OKGroup) SubmitOrder(s *order.Submit) (resp order.SubmitResponse, err e
 
 	resp.IsOrderPlaced = orderResponse.Result
 	resp.OrderID = orderResponse.OrderID
-	if s.OrderType == order.Market {
+	if s.Type == order.Market {
 		resp.FullyMatched = true
 	}
 	return
@@ -305,12 +305,12 @@ func (o *OKGroup) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (o *OKGroup) CancelOrder(orderCancellation *order.Cancel) (err error) {
-	orderID, err := strconv.ParseInt(orderCancellation.OrderID, 10, 64)
+	orderID, err := strconv.ParseInt(orderCancellation.ID, 10, 64)
 	if err != nil {
 		return
 	}
 	orderCancellationResponse, err := o.CancelSpotOrder(CancelSpotOrderRequest{
-		InstrumentID: o.FormatExchangeCurrency(orderCancellation.CurrencyPair,
+		InstrumentID: o.FormatExchangeCurrency(orderCancellation.Pair,
 			asset.Spot).String(),
 		OrderID: orderID,
 	})
@@ -324,7 +324,7 @@ func (o *OKGroup) CancelOrder(orderCancellation *order.Cancel) (err error) {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (resp order.CancelAllResponse, err error) {
-	orderIDs := strings.Split(orderCancellation.OrderID, ",")
+	orderIDs := strings.Split(orderCancellation.ID, ",")
 	resp.Status = make(map[string]string)
 	var orderIDNumbers []int64
 	for i := range orderIDs {
@@ -337,7 +337,7 @@ func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (resp order.C
 	}
 
 	cancelOrdersResponse, err := o.CancelMultipleSpotOrders(CancelMultipleSpotOrdersRequest{
-		InstrumentID: o.FormatExchangeCurrency(orderCancellation.CurrencyPair,
+		InstrumentID: o.FormatExchangeCurrency(orderCancellation.Pair,
 			asset.Spot).String(),
 		OrderIDs: orderIDNumbers,
 	})
@@ -362,13 +362,13 @@ func (o *OKGroup) GetOrderInfo(orderID string) (resp order.Detail, err error) {
 	}
 	resp = order.Detail{
 		Amount: mOrder.Size,
-		CurrencyPair: currency.NewPairDelimiter(mOrder.InstrumentID,
+		Pair: currency.NewPairDelimiter(mOrder.InstrumentID,
 			o.GetPairFormat(asset.Spot, false).Delimiter),
 		Exchange:       o.Name,
-		OrderDate:      mOrder.Timestamp,
+		Date:           mOrder.Timestamp,
 		ExecutedAmount: mOrder.FilledSize,
 		Status:         order.Status(mOrder.Status),
-		OrderSide:      order.Side(mOrder.Side),
+		Side:           order.Side(mOrder.Side),
 	}
 	return
 }
@@ -422,9 +422,9 @@ func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw
 
 // GetActiveOrders retrieves any orders that are active/open
 func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Detail, err error) {
-	for x := range req.Currencies {
+	for x := range req.Pairs {
 		spotOpenOrders, err := o.GetSpotOpenOrders(GetSpotOpenOrdersRequest{
-			InstrumentID: o.FormatExchangeCurrency(req.Currencies[x],
+			InstrumentID: o.FormatExchangeCurrency(req.Pairs[x],
 				asset.Spot).String(),
 		})
 		if err != nil {
@@ -435,12 +435,12 @@ func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Det
 				ID:             spotOpenOrders[i].OrderID,
 				Price:          spotOpenOrders[i].Price,
 				Amount:         spotOpenOrders[i].Size,
-				CurrencyPair:   req.Currencies[x],
+				Pair:           req.Pairs[x],
 				Exchange:       o.Name,
-				OrderSide:      order.Side(spotOpenOrders[i].Side),
-				OrderType:      order.Type(spotOpenOrders[i].Type),
+				Side:           order.Side(spotOpenOrders[i].Side),
+				Type:           order.Type(spotOpenOrders[i].Type),
 				ExecutedAmount: spotOpenOrders[i].FilledSize,
-				OrderDate:      spotOpenOrders[i].Timestamp,
+				Date:           spotOpenOrders[i].Timestamp,
 				Status:         order.Status(spotOpenOrders[i].Status),
 			})
 		}
@@ -452,10 +452,10 @@ func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Det
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Detail, err error) {
-	for x := range req.Currencies {
+	for x := range req.Pairs {
 		spotOpenOrders, err := o.GetSpotOrders(GetSpotOrdersRequest{
 			Status: strings.Join([]string{"filled", "cancelled", "failure"}, "|"),
-			InstrumentID: o.FormatExchangeCurrency(req.Currencies[x],
+			InstrumentID: o.FormatExchangeCurrency(req.Pairs[x],
 				asset.Spot).String(),
 		})
 		if err != nil {
@@ -466,12 +466,12 @@ func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Det
 				ID:             spotOpenOrders[i].OrderID,
 				Price:          spotOpenOrders[i].Price,
 				Amount:         spotOpenOrders[i].Size,
-				CurrencyPair:   req.Currencies[x],
+				Pair:           req.Pairs[x],
 				Exchange:       o.Name,
-				OrderSide:      order.Side(spotOpenOrders[i].Side),
-				OrderType:      order.Type(spotOpenOrders[i].Type),
+				Side:           order.Side(spotOpenOrders[i].Side),
+				Type:           order.Type(spotOpenOrders[i].Type),
 				ExecutedAmount: spotOpenOrders[i].FilledSize,
-				OrderDate:      spotOpenOrders[i].Timestamp,
+				Date:           spotOpenOrders[i].Timestamp,
 				Status:         order.Status(spotOpenOrders[i].Status),
 			})
 		}

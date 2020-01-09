@@ -302,14 +302,14 @@ func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
+		Type: order.AnyType,
 	}
 	_, err := b.GetActiveOrders(&getOrdersRequest)
 	if err == nil {
 		t.Error("Expected: 'At least one currency is required to fetch order history'. received nil")
 	}
 
-	getOrdersRequest.Currencies = []currency.Pair{
+	getOrdersRequest.Pairs = []currency.Pair{
 		currency.NewPair(currency.LTC, currency.BTC),
 	}
 
@@ -328,7 +328,7 @@ func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
+		Type: order.AnyType,
 	}
 
 	_, err := b.GetOrderHistory(&getOrdersRequest)
@@ -336,7 +336,7 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Error("Expected: 'At least one currency is required to fetch order history'. received nil")
 	}
 
-	getOrdersRequest.Currencies = []currency.Pair{
+	getOrdersRequest.Pairs = []currency.Pair{
 		currency.NewPair(currency.LTC,
 			currency.BTC)}
 
@@ -367,11 +367,11 @@ func TestSubmitOrder(t *testing.T) {
 			Base:      currency.LTC,
 			Quote:     currency.BTC,
 		},
-		OrderSide: order.Buy,
-		OrderType: order.Limit,
-		Price:     1,
-		Amount:    1000000000,
-		ClientID:  "meowOrder",
+		Side:     order.Buy,
+		Type:     order.Limit,
+		Price:    1,
+		Amount:   1000000000,
+		ClientID: "meowOrder",
 	}
 
 	_, err := b.SubmitOrder(orderSubmission)
@@ -392,10 +392,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currency.NewPair(currency.LTC, currency.BTC),
+		Pair:          currency.NewPair(currency.LTC, currency.BTC),
 	}
 
 	err := b.CancelOrder(orderCancellation)
@@ -416,10 +416,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currency.NewPair(currency.LTC, currency.BTC),
+		Pair:          currency.NewPair(currency.LTC, currency.BTC),
 	}
 
 	_, err := b.CancelAllOrders(orderCancellation)

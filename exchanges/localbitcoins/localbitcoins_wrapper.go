@@ -309,7 +309,7 @@ func (l *LocalBitcoins) SubmitOrder(s *order.Submit) (order.SubmitResponse, erro
 		Currency:                   s.Pair.Quote.String(),
 		AccountInfo:                "-",
 		BankName:                   "Bank",
-		MSG:                        s.OrderSide.String(),
+		MSG:                        s.Side.String(),
 		SMSVerficationRequired:     true,
 		TrackMaxAmount:             true,
 		RequireTrustedByAdvertiser: true,
@@ -368,7 +368,7 @@ func (l *LocalBitcoins) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (l *LocalBitcoins) CancelOrder(order *order.Cancel) error {
-	return l.DeleteAd(order.OrderID)
+	return l.DeleteAd(order.ID)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -472,13 +472,13 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest
 		}
 
 		orders = append(orders, order.Detail{
-			Amount:    resp[i].Data.AmountBTC,
-			Price:     resp[i].Data.Amount,
-			ID:        strconv.FormatInt(int64(resp[i].Data.Advertisement.ID), 10),
-			OrderDate: orderDate,
-			Fee:       resp[i].Data.FeeBTC,
-			OrderSide: side,
-			CurrencyPair: currency.NewPairWithDelimiter(currency.BTC.String(),
+			Amount: resp[i].Data.AmountBTC,
+			Price:  resp[i].Data.Amount,
+			ID:     strconv.FormatInt(int64(resp[i].Data.Advertisement.ID), 10),
+			Date:   orderDate,
+			Fee:    resp[i].Data.FeeBTC,
+			Side:   side,
+			Pair: currency.NewPairWithDelimiter(currency.BTC.String(),
 				resp[i].Data.Currency,
 				l.GetPairFormat(asset.Spot, false).Delimiter),
 			Exchange: l.Name,
@@ -487,7 +487,7 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest
 
 	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
 		getOrdersRequest.EndTicks)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
 
 	return orders, nil
 }
@@ -548,14 +548,14 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest
 		}
 
 		orders = append(orders, order.Detail{
-			Amount:    allTrades[i].Data.AmountBTC,
-			Price:     allTrades[i].Data.Amount,
-			ID:        strconv.FormatInt(int64(allTrades[i].Data.Advertisement.ID), 10),
-			OrderDate: orderDate,
-			Fee:       allTrades[i].Data.FeeBTC,
-			OrderSide: side,
-			Status:    order.Status(status),
-			CurrencyPair: currency.NewPairWithDelimiter(currency.BTC.String(),
+			Amount: allTrades[i].Data.AmountBTC,
+			Price:  allTrades[i].Data.Amount,
+			ID:     strconv.FormatInt(int64(allTrades[i].Data.Advertisement.ID), 10),
+			Date:   orderDate,
+			Fee:    allTrades[i].Data.FeeBTC,
+			Side:   side,
+			Status: order.Status(status),
+			Pair: currency.NewPairWithDelimiter(currency.BTC.String(),
 				allTrades[i].Data.Currency,
 				l.GetPairFormat(asset.Spot, false).Delimiter),
 			Exchange: l.Name,
@@ -564,7 +564,7 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest
 
 	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
 		getOrdersRequest.EndTicks)
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
+	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
 
 	return orders, nil
 }

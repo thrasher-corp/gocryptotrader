@@ -718,7 +718,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 	}
 
 	resp, err := exch.GetActiveOrders(&order.GetOrdersRequest{
-		Currencies: []currency.Pair{
+		Pairs: []currency.Pair{
 			currency.NewPairWithDelimiter(r.Pair.Base,
 				r.Pair.Quote, r.Pair.Delimiter),
 		},
@@ -732,12 +732,12 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 		orders = append(orders, &gctrpc.OrderDetails{
 			Exchange:      r.Exchange,
 			Id:            resp[x].ID,
-			BaseCurrency:  resp[x].CurrencyPair.Base.String(),
-			QuoteCurrency: resp[x].CurrencyPair.Quote.String(),
+			BaseCurrency:  resp[x].Pair.Base.String(),
+			QuoteCurrency: resp[x].Pair.Quote.String(),
 			AssetType:     asset.Spot.String(),
-			OrderType:     resp[x].OrderType.String(),
-			OrderSide:     resp[x].OrderSide.String(),
-			CreationTime:  resp[x].OrderDate.Unix(),
+			OrderType:     resp[x].Type.String(),
+			OrderSide:     resp[x].Side.String(),
+			CreationTime:  resp[x].Date.Unix(),
 			Status:        resp[x].Status.String(),
 			Price:         resp[x].Price,
 			Amount:        resp[x].Amount,
@@ -762,12 +762,12 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 
 	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
 	submission := &order.Submit{
-		Pair:      p,
-		OrderSide: order.Side(r.Side),
-		OrderType: order.Type(r.OrderType),
-		Amount:    r.Amount,
-		Price:     r.Price,
-		ClientID:  r.ClientId,
+		Pair:     p,
+		Side:     order.Side(r.Side),
+		Type:     order.Type(r.OrderType),
+		Amount:   r.Amount,
+		Price:    r.Price,
+		ClientID: r.ClientId,
 	}
 	result, err := exch.SubmitOrder(submission)
 	return &gctrpc.SubmitOrderResponse{
@@ -860,7 +860,7 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 
 	err := exch.CancelOrder(&order.Cancel{
 		AccountID:     r.AccountId,
-		OrderID:       r.OrderId,
+		ID:            r.OrderId,
 		Side:          order.Side(r.Side),
 		WalletAddress: r.WalletAddress,
 	})

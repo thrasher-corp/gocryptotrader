@@ -259,7 +259,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
+		Type: order.AnyType,
 	}
 	_, err := c.GetActiveOrders(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
@@ -270,8 +270,8 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistoryWrapper(t *testing.T) {
 	setupWSTestAuth(t)
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
-		Currencies: []currency.Pair{currency.NewPair(currency.BTC,
+		Type: order.AnyType,
+		Pairs: []currency.Pair{currency.NewPair(currency.BTC,
 			currency.USD)},
 	}
 
@@ -297,11 +297,11 @@ func TestSubmitOrder(t *testing.T) {
 			Base:  currency.BTC,
 			Quote: currency.USD,
 		},
-		OrderSide: order.Buy,
-		OrderType: order.Limit,
-		Price:     1,
-		Amount:    1,
-		ClientID:  "123",
+		Side:     order.Buy,
+		Type:     order.Limit,
+		Price:    1,
+		Amount:   1,
+		ClientID: "123",
 	}
 	response, err := c.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -317,10 +317,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 	currencyPair := currency.NewPair(currency.BTC, currency.USD)
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	err := c.CancelOrder(orderCancellation)
@@ -339,10 +339,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	resp, err := c.CancelAllOrders(orderCancellation)
@@ -520,7 +520,7 @@ func TestWsAuthCancelOrdersWrapper(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	orderDetails := order.Cancel{
-		CurrencyPair: currency.NewPair(currency.LTC, currency.BTC),
+		Pair: currency.NewPair(currency.LTC, currency.BTC),
 	}
 	_, err := c.CancelAllOrders(&orderDetails)
 	if err != nil {

@@ -215,7 +215,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
+		Type: order.AnyType,
 	}
 
 	_, err := p.GetActiveOrders(&getOrdersRequest)
@@ -232,7 +232,7 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
+		Type: order.AnyType,
 	}
 
 	_, err := p.GetOrderHistory(&getOrdersRequest)
@@ -261,11 +261,11 @@ func TestSubmitOrder(t *testing.T) {
 			Base:      currency.BTC,
 			Quote:     currency.LTC,
 		},
-		OrderSide: order.Buy,
-		OrderType: order.Market,
-		Price:     10,
-		Amount:    10000000,
-		ClientID:  "hi",
+		Side:     order.Buy,
+		Type:     order.Market,
+		Price:    10,
+		Amount:   10000000,
+		ClientID: "hi",
 	}
 
 	response, err := p.SubmitOrder(orderSubmission)
@@ -285,10 +285,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currency.NewPair(currency.LTC, currency.BTC),
+		Pair:          currency.NewPair(currency.LTC, currency.BTC),
 	}
 
 	err := p.CancelOrder(orderCancellation)
@@ -310,10 +310,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	resp, err := p.CancelAllOrders(orderCancellation)
@@ -336,7 +336,7 @@ func TestModifyOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	_, err := p.ModifyOrder(&order.Modify{OrderID: "1337", Price: 1337})
+	_, err := p.ModifyOrder(&order.Modify{ID: "1337", Price: 1337})
 	switch {
 	case areTestAPIKeysSet() && err != nil && mockTests:
 		t.Error("ModifyOrder() error", err)

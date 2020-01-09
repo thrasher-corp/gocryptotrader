@@ -159,7 +159,7 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 			err := o.Cancel(&order.Cancel{
 
 				Exchange: k,
-				OrderID:  v[y].ID,
+				ID:       v[y].ID,
 			})
 			if err != nil {
 				msg := fmt.Sprintf("Order manager: Exchange %s unable to cancel order ID=%v. Err: %s",
@@ -192,7 +192,7 @@ func (o *orderManager) Cancel(cancel *order.Cancel) error {
 		return errors.New("order cancel param is nil")
 	}
 
-	if cancel.OrderID == "" {
+	if cancel.ID == "" {
 		return errors.New("order id is empty")
 	}
 
@@ -218,7 +218,7 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 	}
 
 	if o.cfg.EnforceLimitConfig {
-		if !o.cfg.AllowMarketOrders && newOrder.OrderType == order.Market {
+		if !o.cfg.AllowMarketOrders && newOrder.Type == order.Market {
 			return nil, errors.New("order market type is not allowed")
 		}
 
@@ -264,8 +264,8 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 		newOrder.Pair,
 		newOrder.Price,
 		newOrder.Amount,
-		newOrder.OrderSide,
-		newOrder.OrderType)
+		newOrder.Side,
+		newOrder.Type)
 
 	log.Debugln(log.OrderMgr, msg)
 	Bot.CommsManager.PushEvent(base.Event{
@@ -287,8 +287,8 @@ func (o *orderManager) processOrders() {
 		log.Debugf(log.OrderMgr, "Order manager: Procesing orders for exchange %v.\n", authExchanges[x])
 		exch := GetExchangeByName(authExchanges[x])
 		req := order.GetOrdersRequest{
-			OrderSide: order.AnySide,
-			OrderType: order.AnyType,
+			Side: order.AnySide,
+			Type: order.AnyType,
 		}
 		result, err := exch.GetActiveOrders(&req)
 		if err != nil {
@@ -301,7 +301,7 @@ func (o *orderManager) processOrders() {
 			result := o.orderStore.Add(ord)
 			if result != ErrOrdersAlreadyExists {
 				msg := fmt.Sprintf("Order manager: Exchange %s added order ID=%v pair=%v price=%v amount=%v side=%v type=%v.",
-					ord.Exchange, ord.ID, ord.CurrencyPair, ord.Price, ord.Amount, ord.OrderSide, ord.OrderType)
+					ord.Exchange, ord.ID, ord.Pair, ord.Price, ord.Amount, ord.Side, ord.Type)
 				log.Debugf(log.OrderMgr, "%v\n", msg)
 				Bot.CommsManager.PushEvent(base.Event{
 					Type:    "order",

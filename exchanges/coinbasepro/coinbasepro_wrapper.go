@@ -396,7 +396,7 @@ func (c *CoinbasePro) SubmitOrder(s *order.Submit) (order.SubmitResponse, error)
 
 	var response string
 	var err error
-	switch s.OrderType {
+	switch s.Type {
 	case order.Market:
 		response, err = c.PlaceMarketOrder("",
 			s.Amount,
@@ -420,7 +420,7 @@ func (c *CoinbasePro) SubmitOrder(s *order.Submit) (order.SubmitResponse, error)
 	if err != nil {
 		return submitOrderResponse, err
 	}
-	if s.OrderType == order.Market {
+	if s.Type == order.Market {
 		submitOrderResponse.FullyMatched = true
 	}
 	if response != "" {
@@ -440,7 +440,7 @@ func (c *CoinbasePro) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (c *CoinbasePro) CancelOrder(order *order.Cancel) error {
-	return c.CancelExistingOrder(order.OrderID)
+	return c.CancelExistingOrder(order.ID)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -532,9 +532,9 @@ func (c *CoinbasePro) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, er
 // GetActiveOrders retrieves any orders that are active/open
 func (c *CoinbasePro) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var respOrders []GeneralizedOrderResponse
-	for i := range req.Currencies {
+	for i := range req.Pairs {
 		resp, err := c.GetOrders([]string{"open", "pending", "active"},
-			c.FormatExchangeCurrency(req.Currencies[i], asset.Spot).String())
+			c.FormatExchangeCurrency(req.Pairs[i], asset.Spot).String())
 		if err != nil {
 			return nil, err
 		}
@@ -561,17 +561,17 @@ func (c *CoinbasePro) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Deta
 			ID:             respOrders[i].ID,
 			Amount:         respOrders[i].Size,
 			ExecutedAmount: respOrders[i].FilledSize,
-			OrderType:      orderType,
-			OrderDate:      orderDate,
-			OrderSide:      orderSide,
-			CurrencyPair:   curr,
+			Type:           orderType,
+			Date:           orderDate,
+			Side:           orderSide,
+			Pair:           curr,
 			Exchange:       c.Name,
 		})
 	}
 
-	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
 
@@ -579,9 +579,9 @@ func (c *CoinbasePro) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Deta
 // Can Limit response to specific order status
 func (c *CoinbasePro) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var respOrders []GeneralizedOrderResponse
-	for i := range req.Currencies {
+	for i := range req.Pairs {
 		resp, err := c.GetOrders([]string{"done", "settled"},
-			c.FormatExchangeCurrency(req.Currencies[i], asset.Spot).String())
+			c.FormatExchangeCurrency(req.Pairs[i], asset.Spot).String())
 		if err != nil {
 			return nil, err
 		}
@@ -608,17 +608,17 @@ func (c *CoinbasePro) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Deta
 			ID:             respOrders[i].ID,
 			Amount:         respOrders[i].Size,
 			ExecutedAmount: respOrders[i].FilledSize,
-			OrderType:      orderType,
-			OrderDate:      orderDate,
-			OrderSide:      orderSide,
-			CurrencyPair:   curr,
+			Type:           orderType,
+			Date:           orderDate,
+			Side:           orderSide,
+			Pair:           curr,
 			Exchange:       c.Name,
 		})
 	}
 
-	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
 

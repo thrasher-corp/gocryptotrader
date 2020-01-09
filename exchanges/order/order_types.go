@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // vars related to orders
@@ -17,22 +18,9 @@ var (
 	ErrPriceMustBeSetIfLimitOrder = errors.New("order price must be set if limit order type is desired")
 )
 
-// Order struct holds order values
-type Order struct {
-	OrderID  int
-	Exchange string
-	Type     int
-	Amount   float64
-	Price    float64
-}
-
-// Properties is the shared holder of all order details
-// Not all properties are required by all order structs
-// e.g. Modify order may only need an ID and amount for one exchange,
-// but may contain all properties on another.
-// Depending on the data returned by exchanges, it is best that all order
-// types contain the same properties so the orderStore can know all at all times
-type Properties struct {
+// Submit contains all properties of an order that are required
+// for an order to be created on an exchange
+type Submit struct {
 	ImmediateOrCancel bool
 	HiddenOrder       bool
 	FillOrKill        bool
@@ -47,21 +35,14 @@ type Properties struct {
 	RemainingAmount   float64
 	Fee               float64
 	Exchange          string
-	AccountID         string
 	ID                string
+	AccountID         string
 	ClientID          string
-	OrderID           string
-	OrderType         Type
-	OrderSide         Side
-	OrderStatus       Status
-	OrderDate         time.Time
-	CurrencyPair      currency.Pair
-	Trades            []TradeHistory
-}
-
-// Submit contains the order submission data
-type Submit struct {
-	Properties
+	WalletAddress     string
+	Type              Type
+	Side              Side
+	AssetType         asset.Item
+	Pair              currency.Pair
 }
 
 // SubmitResponse is what is returned after submitting an order to an exchange
@@ -71,9 +52,34 @@ type SubmitResponse struct {
 	OrderID       string
 }
 
-// Modify is an order modifyer
+// Modify contains all properties of an order
+// that can be updated after it has been created
 type Modify struct {
-	Properties
+	ImmediateOrCancel bool
+	HiddenOrder       bool
+	FillOrKill        bool
+	PostOnly          bool
+	Price             float64
+	Amount            float64
+	LimitPriceUpper   float64
+	LimitPriceLower   float64
+	TriggerPrice      float64
+	TargetAmount      float64
+	ExecutedAmount    float64
+	RemainingAmount   float64
+	Fee               float64
+	Exchange          string
+	ID                string
+	AccountID         string
+	ClientID          string
+	WalletAddress     string
+	Type              Type
+	Side              Side
+	Status            Status
+	AssetType         asset.Item
+	Date              time.Time
+	Pair              currency.Pair
+	Trades            []TradeHistory
 }
 
 // ModifyResponse is an order modifying return type
@@ -81,44 +87,82 @@ type ModifyResponse struct {
 	OrderID string
 }
 
-// Detail holds order detail data
+// Detail contains all properties of an order
 type Detail struct {
-	Properties
+	ImmediateOrCancel bool
+	HiddenOrder       bool
+	FillOrKill        bool
+	PostOnly          bool
+	Price             float64
+	Amount            float64
+	LimitPriceUpper   float64
+	LimitPriceLower   float64
+	TriggerPrice      float64
+	TargetAmount      float64
+	ExecutedAmount    float64
+	RemainingAmount   float64
+	Fee               float64
+	Exchange          string
+	ID                string
+	AccountID         string
+	ClientID          string
+	WalletAddress     string
+	Type              Type
+	Side              Side
+	Status            Status
+	AssetType         asset.Item
+	Date              time.Time
+	Pair              currency.Pair
+	Trades            []TradeHistory
 }
 
-// Cancel type required when requesting to cancel an order
+// Cancel contains all properties required
+// to cancel an order on an exchagnge
 type Cancel struct {
-	Properties
+	Price         float64
+	Amount        float64
+	Exchange      string
+	ID            string
+	AccountID     string
+	ClientID      string
+	WalletAddress string
+	Type          Type
+	Side          Side
+	Status        Status
+	AssetType     asset.Item
+	Date          time.Time
+	Pair          currency.Pair
+	Trades        []TradeHistory
 }
 
-// CancelAllResponse returns the status from attempting to cancel all orders on
-// an exchagne
+// CancelAllResponse returns the status from attempting to
+// cancel all orders on an exchagne
 type CancelAllResponse struct {
 	Status map[string]string
 }
 
 // TradeHistory holds exchange history data
 type TradeHistory struct {
-	Timestamp   time.Time
-	TID         string
 	Price       float64
 	Amount      float64
+	Fee         float64
 	Exchange    string
+	TID         string
+	Description string
 	Type        Type
 	Side        Side
-	Fee         float64
-	Description string
+	Timestamp   time.Time
 }
 
 // GetOrdersRequest used for GetOrderHistory and GetOpenOrders wrapper functions
 type GetOrdersRequest struct {
-	OrderType  Type
-	OrderSide  Side
+	Type       Type
+	Side       Side
 	StartTicks time.Time
 	EndTicks   time.Time
 	// Currencies Empty array = all currencies. Some endpoints only support
 	// singular currency enquiries
-	Currencies []currency.Pair
+	Pairs []currency.Pair
 }
 
 // Status defines order status types
@@ -150,8 +194,8 @@ const (
 	Market            Type = "MARKET"
 	ImmediateOrCancel Type = "IMMEDIATE_OR_CANCEL"
 	Stop              Type = "STOP"
-	TrailingStop      Type = "TRAILINGSTOP"
-	Unknown           Type = "UNKNOWN"
+	TrailingStop      Type = "TRAILING_STOP"
+	UnknownType       Type = "UNKNOWN"
 )
 
 // Side enforces a standard for order sides across the code base
@@ -164,7 +208,7 @@ const (
 	Sell        Side = "SELL"
 	Bid         Side = "BID"
 	Ask         Side = "ASK"
-	SideUnknown Side = "SIDEUNKNOWN"
+	UnknownSide Side = "UNKNOWN"
 )
 
 // ByPrice used for sorting orders by price
@@ -181,6 +225,3 @@ type ByDate []Detail
 
 // ByOrderSide used for sorting orders by order side (buy sell)
 type ByOrderSide []Detail
-
-// Orders variable holds an array of pointers to order structs
-var Orders []*Order

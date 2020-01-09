@@ -334,7 +334,7 @@ func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
+		Type: order.AnyType,
 	}
 
 	_, err := b.GetActiveOrders(&getOrdersRequest)
@@ -352,7 +352,7 @@ func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
+		Type: order.AnyType,
 	}
 
 	_, err := b.GetOrderHistory(&getOrdersRequest)
@@ -381,11 +381,11 @@ func TestSubmitOrder(t *testing.T) {
 			Base:  currency.BTC,
 			Quote: currency.USD,
 		},
-		OrderSide: order.Buy,
-		OrderType: order.Limit,
-		Price:     1,
-		Amount:    1,
-		ClientID:  "meowOrder",
+		Side:     order.Buy,
+		Type:     order.Limit,
+		Price:    1,
+		Amount:   1,
+		ClientID: "meowOrder",
 	}
 	response, err := b.SubmitOrder(orderSubmission)
 	switch {
@@ -406,7 +406,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 
 	orderCancellation := &order.Cancel{
-		OrderID: "1234",
+		ID: "1234",
 	}
 	err := b.CancelOrder(orderCancellation)
 	switch {
