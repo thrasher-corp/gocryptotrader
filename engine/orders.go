@@ -175,11 +175,15 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 
 	for k, v := range orders {
 		log.Debugf(log.OrderMgr, "Order manager: Cancelling order(s) for exchange %s.\n", k)
-		if len(exchangeNames) > 0 {
+		if exchangeNames != nil && len(exchangeNames) > 0 {
+			var found bool
 			for i := range exchangeNames {
-				if !strings.EqualFold(k, exchangeNames[i]) {
-					continue
+				if strings.EqualFold(k, exchangeNames[i]) {
+					found = true
 				}
+			}
+			if !found {
+				continue
 			}
 		}
 		for y := range v {
