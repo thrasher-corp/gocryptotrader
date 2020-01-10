@@ -126,7 +126,7 @@ func Zip(src, dest string) error {
 		z.Close()
 		errRemove := os.Remove(dest)
 		if errRemove != nil {
-			log.Debugf(log.Global, "failed to remove archive, manual deletion required: %v", errRemove)
+			log.Errorf(log.Global, "Failed to remove archive, manual deletion required: %v", errRemove)
 		}
 		return err
 	}
@@ -169,7 +169,7 @@ func addFilesToZipWrapper(z *zip.Writer, src string, isDir bool) error {
 		}
 		_, err = io.Copy(w, f)
 		if err != nil {
-			log.Debugf(log.Global, "Failed to Copy data: %v", err)
+			log.Errorf(log.Global, "Failed to Copy data: %v", err)
 		}
 
 		return f.Close()
