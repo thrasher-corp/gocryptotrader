@@ -14,6 +14,7 @@ import (
 	"github.com/volatiletech/null"
 )
 
+// Event inserts a new script event into database with execution details (script name time status hash of script)
 func Event(id uuid.UUID, name, path, hash null.String, executionType, status string, time time.Time) {
 	if database.DB.SQL == nil {
 		return

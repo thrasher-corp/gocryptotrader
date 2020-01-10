@@ -18,7 +18,8 @@ import (
 	grpcruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/common/extract"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/common/file/archive"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
@@ -51,7 +52,7 @@ type RPCServer struct{}
 func authenticateClient(ctx context.Context) (context.Context, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return ctx, fmt.Errorf("unable to extract metadata")
+		return ctx, fmt.Errorf("unable to archive metadata")
 	}
 
 	authStr, ok := md["authorization"]
@@ -1344,7 +1345,7 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 		fPathExits = fPathExits[0 : len(fPathExits)-4]
 	}
 
-	if _, err := os.Stat(fPathExits); !os.IsNotExist(err) {
+	if s, err := os.Stat(fPathExits); !os.IsNotExist(err) {
 		if !r.Overwrite {
 			return nil, fmt.Errorf("%s script found and overwrite set to false", r.ScriptName)
 		}
@@ -1355,9 +1356,16 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 		}
 		timeString := strconv.FormatInt(time.Now().UnixNano(), 10)
 		renamedFile := filepath.Join(f, timeString+"-"+filepath.Base(fPathExits))
-		err = os.Rename(fPathExits, renamedFile)
-		if err != nil {
-			return nil, err
+		if s.IsDir() {
+			err := archive.Zip(fPathExits, renamedFile+".zip")
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			err = file.Move(fPathExits, renamedFile)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -1376,9 +1384,9 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 	}
 
 	if r.Archived {
-		files, errExtract := extract.Unzip(fPath, filepath.Join(gctscript.ScriptPath, r.ScriptName[:len(r.ScriptName)-4]))
+		files, errExtract := archive.UnZip(fPath, filepath.Join(gctscript.ScriptPath, r.ScriptName[:len(r.ScriptName)-4]))
 		if errExtract != nil {
-			log.Errorf(log.Global, "Failed to extract zip file %v", errExtract)
+			log.Errorf(log.Global, "Failed to archive zip file %v", errExtract)
 			return &gctrpc.GCTScriptGenericResponse{Status: MsgStatusError, Data: errExtract.Error()}, nil
 		}
 		for x := range files {
@@ -1387,7 +1395,7 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 			if err != nil {
 				errRemove := os.Remove(fPath)
 				if errRemove != nil {
-					return nil, err
+					log.Errorf(log.GCTScriptMgr, "Failed to remove file %v, manual deletion required", filepath.Base(fPath))
 				}
 				failedFiles = append(failedFiles, files[x])
 				return &gctrpc.GCTScriptGenericResponse{Status: ErrScriptFailedValidation, Data: strings.Join(failedFiles, ", ")}, nil
@@ -1402,7 +1410,7 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 		if err != nil {
 			errRemove := os.Remove(fPath)
 			if errRemove != nil {
-				return nil, err
+				log.Errorf(log.GCTScriptMgr, "Failed to remove file %v, manual deletion required", filepath.Base(fPath))
 			}
 			return &gctrpc.GCTScriptGenericResponse{Status: ErrScriptFailedValidation, Data: err.Error()}, nil
 		}
@@ -1420,7 +1428,6 @@ func (s *RPCServer) GCTScriptReadScript(ctx context.Context, r *gctrpc.GCTScript
 		return &gctrpc.GCTScriptQueryResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
-	var data []byte
 	filename := filepath.Join(gctscript.ScriptPath, r.Script.Name)
 	if !strings.HasPrefix(filename, filepath.Clean(gctscript.ScriptPath)+string(os.PathSeparator)) {
 		return nil, fmt.Errorf("%s: invalid file path", filename)

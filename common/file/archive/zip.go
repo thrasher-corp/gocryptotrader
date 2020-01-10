@@ -1,4 +1,4 @@
-package extract
+package archive
 
 import (
 	"archive/zip"
@@ -11,8 +11,21 @@ import (
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
-// Unzip extracts input zip into dest path
-func Unzip(src, dest string) (fileList []string, err error) {
+const (
+	// ErrUnableToCloseFile message to display when file handler is unable to be closed normally
+	ErrUnableToCloseFile string = "Unable to close file %v %v"
+)
+
+var (
+	addFilesToZip func(z *zip.Writer, src string, isDir bool) error
+)
+
+func init() {
+	addFilesToZip = addFilesToZipWrapper
+}
+
+// UnZip extracts input zip into dest path
+func UnZip(src, dest string) (fileList []string, err error) {
 	z, err := zip.OpenReader(src)
 	if err != nil {
 		return
@@ -90,4 +103,76 @@ func Unzip(src, dest string) (fileList []string, err error) {
 		fileList = append(fileList, fPath)
 	}
 	return fileList, z.Close()
+}
+
+// Zip archives requested file or folder
+func Zip(src, dest string) error {
+	i, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Create(dest)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	z := zip.NewWriter(f)
+	defer z.Close()
+
+	var dir bool
+	if i.IsDir() {
+		dir = true
+	}
+	err = addFilesToZip(z, src, dir)
+	if err != nil {
+		z.Close()
+		errRemove := os.Remove(dest)
+		if errRemove != nil {
+			log.Debugf(log.Global, "failed to remove archive, manual deletion required: %v", errRemove)
+		}
+		return err
+	}
+	return nil
+}
+
+func addFilesToZipWrapper(z *zip.Writer, src string, isDir bool) error {
+	return filepath.Walk(src, func(path string, i os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		h, err := zip.FileInfoHeader(i)
+		if err != nil {
+			return err
+		}
+
+		if isDir {
+			h.Name = filepath.Join(filepath.Base(src), strings.TrimPrefix(path, src))
+		}
+
+		if i.IsDir() {
+			h.Name += "/"
+		} else {
+			h.Method = zip.Deflate
+		}
+
+		w, err := z.CreateHeader(h)
+		if err != nil {
+			return err
+		}
+
+		if i.IsDir() {
+			return nil
+		}
+
+		f, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		_, err = io.Copy(w, f)
+		f.Close()
+		return err
+	})
 }
