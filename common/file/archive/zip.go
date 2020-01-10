@@ -65,9 +65,9 @@ func UnZip(src, dest string) (fileList []string, err error) {
 		var eFile io.ReadCloser
 		eFile, err = z.File[x].Open()
 		if err != nil {
-			err = outFile.Close()
-			if err != nil {
-				log.Errorf(log.Global, ErrUnableToCloseFile, outFile, err)
+			errCls := outFile.Close()
+			if errCls != nil {
+				log.Errorf(log.Global, ErrUnableToCloseFile, outFile, errCls)
 			}
 			return
 		}
@@ -168,7 +168,10 @@ func addFilesToZipWrapper(z *zip.Writer, src string, isDir bool) error {
 			return err
 		}
 		_, err = io.Copy(w, f)
-		f.Close()
-		return err
+		if err != nil {
+			log.Debugf(log.Global, "Failed to Copy data: %v", err)
+		}
+
+		return f.Close()
 	})
 }
