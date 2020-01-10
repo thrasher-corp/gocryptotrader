@@ -156,3 +156,11 @@ func Zip(src, dest string) error {
 		return err
 	})
 }
+
+func addFilesToZip(z *zip.Writer, src, dest string) error {
+
+	err := filepath.Walk(src, func(path string, i os.FileInfo, err error) error {
+		return nil
+	})
+	return err
+}

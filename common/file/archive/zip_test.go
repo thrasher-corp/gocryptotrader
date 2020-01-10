@@ -27,7 +27,7 @@ func TestMain(m *testing.M) {
 	os.Exit(t)
 }
 
-func TestZip(t *testing.T) {
+func TestUnZip(t *testing.T) {
 	zipFile := filepath.Join("..", "..", "..", "testdata", "testdata.zip")
 	files, err := UnZip(zipFile, tempDir)
 	if err != nil {
@@ -44,7 +44,7 @@ func TestZip(t *testing.T) {
 	}
 }
 
-func TestUnZip(t *testing.T) {
+func TestZip(t *testing.T) {
 	singleFile := filepath.Join("..", "..", "..", "testdata", "configtest.json")
 	outFile := filepath.Join(tempDir, "out.zip")
 	err := Zip(singleFile, outFile)
@@ -68,6 +68,9 @@ func TestUnZip(t *testing.T) {
 	o, err = UnZip(outFolderZip, tempDir)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if filepath.Base(o[0]) != "binance.json" || filepath.Base(o[4]) != "localbitcoins.json" {
+		t.Fatal("unexpected archive result received")
 	}
 	if len(o) != 6 {
 		t.Fatalf("expected 2 files to be extracted received: %v ", len(o))
