@@ -222,18 +222,12 @@ func (b *BTCMarkets) WsHandleData() {
 				if err != nil {
 					b.Websocket.DataHandler <- b.Name + " - Unidentified order status: " + err.Error()
 				}
-				b.Websocket.DataHandler <- &order.Detail{
+				b.Websocket.DataHandler <- &order.Modify{
 					Price:           price,
 					Amount:          originalAmount,
-					LimitPriceUpper: 0,
-					LimitPriceLower: 0,
-					TriggerPrice:    0,
-					TargetAmount:    0,
-					ExecutedAmount:  0,
 					RemainingAmount: orderData.OpenVolume,
 					Exchange:        b.Name,
 					ID:              strconv.FormatInt(orderData.OrderID, 10),
-					AccountID:       "",
 					ClientID:        b.API.Credentials.ClientID,
 					Type:            oType,
 					Side:            oSide,
