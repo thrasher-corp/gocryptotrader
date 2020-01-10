@@ -16,6 +16,14 @@ const (
 	ErrUnableToCloseFile string = "Unable to close file %v %v"
 )
 
+var (
+	addFilesToZip func(z *zip.Writer, src string, isDir bool) error
+)
+
+func init() {
+	addFilesToZip = addFilesToZipWrapper
+}
+
 // UnZip extracts input zip into dest path
 func UnZip(src, dest string) (fileList []string, err error) {
 	z, err := zip.OpenReader(src)
@@ -113,11 +121,23 @@ func Zip(src, dest string) error {
 	z := zip.NewWriter(f)
 	defer z.Close()
 
-	var dir string
+	var dir bool
 	if i.IsDir() {
-		dir = filepath.Base(src)
+		dir = true
 	}
+	err = addFilesToZip(z, src, dir)
+	if err != nil {
+		z.Close()
+		errRemove := os.Remove(dest)
+		if errRemove != nil {
+			log.Debugf(log.Global, "failed to remove archive, manual deletion required: %v", errRemove)
+		}
+		return err
+	}
+	return nil
+}
 
+func addFilesToZipWrapper(z *zip.Writer, src string, isDir bool) error {
 	return filepath.Walk(src, func(path string, i os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -128,8 +148,8 @@ func Zip(src, dest string) error {
 			return err
 		}
 
-		if dir != "" {
-			h.Name = filepath.Join(dir, strings.TrimPrefix(path, src))
+		if isDir {
+			h.Name = filepath.Join(filepath.Base(src), strings.TrimPrefix(path, src))
 		}
 
 		if i.IsDir() {
@@ -155,12 +175,4 @@ func Zip(src, dest string) error {
 		f.Close()
 		return err
 	})
-}
-
-func addFilesToZip(z *zip.Writer, src, dest string) error {
-
-	err := filepath.Walk(src, func(path string, i os.FileInfo, err error) error {
-		return nil
-	})
-	return err
 }

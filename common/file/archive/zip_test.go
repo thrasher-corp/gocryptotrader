@@ -1,6 +1,8 @@
 package archive
 
 import (
+	"archive/zip"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -42,6 +44,12 @@ func TestUnZip(t *testing.T) {
 	if err == nil {
 		t.Fatal("Zip() expected to error due to ZipSlip detection but extracted successfully")
 	}
+
+	zipFile = filepath.Join("..", "..", "..", "testdata", "configtest.json")
+	_, err = UnZip(zipFile, tempDir)
+	if err == nil {
+		t.Fatal("Zip() expected to error due to invalid zipfile")
+	}
 }
 
 func TestZip(t *testing.T) {
@@ -82,4 +90,16 @@ func TestZip(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected IsNotExistError on invalid file")
 	}
+
+	addFilesToZip = addFilesToZipTestWrapper
+	folder = filepath.Join("..", "..", "..", "testdata", "http_mock")
+	outFolderZip = filepath.Join(tempDir, "error_zip.zip")
+	err = Zip(folder, outFolderZip)
+	if err == nil {
+		t.Fatal("expected Zip() to fail due to invalid addFilesToZipTestWrapper()")
+	}
+}
+
+func addFilesToZipTestWrapper(z *zip.Writer, src string, isDir bool) error {
+	return errors.New("error")
 }
