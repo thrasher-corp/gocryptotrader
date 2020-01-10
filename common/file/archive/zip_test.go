@@ -100,6 +100,6 @@ func TestZip(t *testing.T) {
 	}
 }
 
-func addFilesToZipTestWrapper(z *zip.Writer, src string, isDir bool) error {
+func addFilesToZipTestWrapper(_ *zip.Writer, _ string, _ bool) error {
 	return errors.New("error")
 }
