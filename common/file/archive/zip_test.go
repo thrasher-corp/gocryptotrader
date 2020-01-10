@@ -16,20 +16,20 @@ func TestMain(m *testing.M) {
 	var err error
 	tempDir, err = ioutil.TempDir("", "gct-temp")
 	if err != nil {
-		fmt.Printf("failed to create temp file: %v", err)
+		fmt.Printf("failed to create tempDir: %v", err)
 		os.Exit(1)
 	}
 	t := m.Run()
 	err = os.RemoveAll(tempDir)
 	if err != nil {
-		fmt.Printf("Failed to remove temp db file: %v", err)
+		fmt.Printf("Failed to remove tempDir %v", err)
 	}
 	os.Exit(t)
 }
 
 func TestZip(t *testing.T) {
 	zipFile := filepath.Join("..", "..", "..", "testdata", "testdata.zip")
-	files, err := Unzip(zipFile, tempDir)
+	files, err := UnZip(zipFile, tempDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,11 +38,12 @@ func TestZip(t *testing.T) {
 	}
 
 	zipFile = filepath.Join("..", "..", "..", "testdata", "zip-slip.zip")
-	_, err = Unzip(zipFile, tempDir)
+	_, err = UnZip(zipFile, tempDir)
 	if err == nil {
 		t.Fatal("Zip() expected to error due to ZipSlip detection but extracted successfully")
 	}
 }
+
 func TestUnZip(t *testing.T) {
 	singleFile := filepath.Join("..", "..", "..", "testdata", "configtest.json")
 	outFile := filepath.Join(tempDir, "out.zip")
@@ -50,9 +51,12 @@ func TestUnZip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = Unzip(outFile, tempDir)
+	o, err := UnZip(outFile, tempDir)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(o) != 1 {
+		t.Fatalf("expected 2 files to be extracted received: %v ", len(o))
 	}
 
 	folder := filepath.Join("..", "..", "..", "testdata", "http_mock")
@@ -61,9 +65,12 @@ func TestUnZip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = Unzip(outFolderZip, tempDir)
+	o, err = UnZip(outFolderZip, tempDir)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(o) != 6 {
+		t.Fatalf("expected 2 files to be extracted received: %v ", len(o))
 	}
 
 	folder = filepath.Join("..", "..", "..", "testdata", "invalid_file.json")

@@ -16,8 +16,8 @@ const (
 	ErrUnableToCloseFile string = "Unable to close file %v %v"
 )
 
-// Unzip extracts input zip into dest path
-func Unzip(src, dest string) (fileList []string, err error) {
+// UnZip extracts input zip into dest path
+func UnZip(src, dest string) (fileList []string, err error) {
 	z, err := zip.OpenReader(src)
 	if err != nil {
 		return
@@ -151,8 +151,8 @@ func Zip(src, dest string) error {
 		if err != nil {
 			return err
 		}
-		defer f.Close()
 		_, err = io.Copy(w, f)
+		f.Close()
 		return err
 	})
 }
