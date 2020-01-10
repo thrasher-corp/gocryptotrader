@@ -10,7 +10,9 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -37,10 +39,35 @@ func (b *BTSE) WsConnect() error {
 		MessageType: websocket.PingMessage,
 		Delay:       btseWebsocketTimer,
 	})
-	go b.WsHandleData()
-	b.GenerateDefaultSubscriptions()
 
+	go b.WsHandleData()
+	if b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		err =b.WsAuthenticate()
+		if err != nil {
+			b.Websocket.DataHandler <- err
+			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		}
+	}
+
+	b.GenerateDefaultSubscriptions()
 	return nil
+}
+
+// Send an authentication message to receive auth data
+func (b *BTSE) WsAuthenticate() error {
+	nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
+	path := "/spotWS" + nonce
+	hmac := crypto.GetHMAC(
+		crypto.HashSHA512_384,
+		[]byte((path + nonce)),
+		[]byte(b.API.Credentials.Secret),
+	)
+	sign  := crypto.HexEncodeToString(hmac)
+	req := wsSub{
+		Operation: "authKeyExpires",
+		Arguments: []string{b.API.Credentials.Key, nonce, sign}
+	}
+	return b.WebsocketConn.SendJSONMessage(req)
 }
 
 // WsHandleData handles read data from websocket connection
