@@ -37,8 +37,20 @@ const (
 	endpointGlobalQuoteLatest                = "global-metrics/quotes/latest"
 	endpointPriceConversion                  = "tools/price-conversion"
 
-	authrate       = 0
 	defaultTimeOut = time.Second * 15
+
+	// BASIC, HOBBYIST STARTUP tier rate limits
+	MainRateInterval = time.Minute
+	MainRateReq      = 30
+
+	// STANDARD tier rate limit
+	StandardRateRequests = 60
+
+	// PROFESSIONAL tier rate limit
+	ProfessionalRateRequests = 90
+
+	// ENTERPRISE tier rate limit - Can be extended checkout agreement
+	EnterpriseRateRequests = 120
 )
 
 // Coinmarketcap is the overarching type across this package

@@ -1,6 +1,6 @@
-// Currencylayer provides a simple REST API with real-time and historical
-// exchange rates for 168 world currencies, delivering currency pairs in
-// universally usable JSON format - compatible with any of your applications.
+// Package currencylayer provides a simple REST API with real-time and
+// historical exchange rates for 168 world currencies, delivering currency pairs
+// in universally usable JSON format - compatible with any of your applications.
 // Spot exchange rate data is retrieved from several major forex data providers
 // in real-time, validated, processed and delivered hourly, every 10 minutes, or
 // even within the 60-second market window.
@@ -8,7 +8,9 @@
 // ("midpoint" value) for every API request, the currencylayer API powers
 // currency converters, mobile applications, financial software components and
 // back-office systems all around the world.
-
+// https://currencylayer.com/product for product information
+// https://currencylayer.com/documentation for API documentation and supported
+// functionality
 package currencylayer
 
 import (
@@ -17,7 +19,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
@@ -41,9 +42,10 @@ func (c *CurrencyLayer) Setup(config base.Settings) error {
 	c.RESTPollingDelay = config.RESTPollingDelay
 	c.Verbose = config.Verbose
 	c.PrimaryProvider = config.PrimaryProvider
+	// Rate limit is based off a monthly counter - Open limit used.
 	c.Requester = request.New(c.Name,
-		request.NewRateLimit(time.Second*10, authRate),
-		request.NewRateLimit(time.Second*10, unAuthRate),
+		request.NewRateLimit(0, 0),
+		request.NewRateLimit(0, 0),
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
 
 	return nil
@@ -206,14 +208,10 @@ func (c *CurrencyLayer) SendHTTPRequest(endPoint string, values url.Values, resu
 	}
 	path += values.Encode()
 
-	return c.Requester.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		&result,
-		auth,
-		false,
-		c.Verbose,
-		false,
-		false)
+	return c.Requester.SendPayload(&request.Item{
+		Method:      http.MethodGet,
+		Path:        path,
+		Result:      &result,
+		AuthRequest: auth,
+		Verbose:     c.Verbose})
 }

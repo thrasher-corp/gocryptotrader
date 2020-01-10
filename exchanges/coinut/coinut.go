@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -297,16 +298,18 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 	headers["Content-Type"] = "application/json"
 
 	var rawMsg json.RawMessage
-	err = c.SendPayload(http.MethodPost,
-		c.API.Endpoints.URL,
-		headers,
-		bytes.NewBuffer(payload),
-		&rawMsg,
-		authenticated,
-		true,
-		c.Verbose,
-		c.HTTPDebugging,
-		c.HTTPRecording)
+	err = c.SendPayload(&request.Item{
+		Method:        http.MethodPost,
+		Path:          c.API.Endpoints.URL,
+		Headers:       headers,
+		Body:          bytes.NewBuffer(payload),
+		Result:        &rawMsg,
+		AuthRequest:   authenticated,
+		NonceEnabled:  true,
+		Verbose:       c.Verbose,
+		HTTPDebugging: c.HTTPDebugging,
+		HTTPRecording: c.HTTPRecording,
+	})
 	if err != nil {
 		return err
 	}

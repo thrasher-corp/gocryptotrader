@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -70,8 +71,8 @@ const (
 	bitfinexPlatformStatus     = "platform/status"
 
 	// requests per minute
-	bitfinexAuthRate   = 10
-	bitfinexUnauthRate = 10
+	GlobalRequestLimitInterval = time.Minute
+	GlobalRequestRate          = 60
 
 	// Bitfinex platform status values
 	// When the platform is marked in maintenance mode bots should stop trading
@@ -931,16 +932,14 @@ func (b *Bitfinex) CloseMarginFunding(swapID int64) (Offer, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Bitfinex) SendHTTPRequest(path string, result interface{}, verbose bool) error {
-	return b.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		result,
-		false,
-		false,
-		verbose,
-		b.HTTPDebugging,
-		b.HTTPRecording)
+	return b.SendPayload(&request.Item{
+		Method:        http.MethodGet,
+		Path:          path,
+		Result:        result,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+	})
 }
 
 // SendAuthenticatedHTTPRequest sends an autheticated http request and json
@@ -978,16 +977,17 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 	headers["X-BFX-PAYLOAD"] = PayloadBase64
 	headers["X-BFX-SIGNATURE"] = crypto.HexEncodeToString(hmac)
 
-	return b.SendPayload(method,
-		b.API.Endpoints.URL+bitfinexAPIVersion+path,
-		headers,
-		nil,
-		result,
-		true,
-		true,
-		b.Verbose,
-		b.HTTPDebugging,
-		b.HTTPRecording)
+	return b.SendPayload(&request.Item{
+		Method:        method,
+		Path:          b.API.Endpoints.URL + bitfinexAPIVersion + path,
+		Headers:       headers,
+		Result:        result,
+		AuthRequest:   true,
+		NonceEnabled:  true,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+	})
 }
 
 // GetFee returns an estimate of fee based on type of transaction

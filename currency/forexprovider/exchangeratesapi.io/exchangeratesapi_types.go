@@ -13,8 +13,7 @@ const (
 		"RON,CAD,SGD,NZD,THB,HKD,JPY,NOK,HRK,ILS,GBP,DKK,HUF,MYR,RUB,TRY,IDR," +
 		"ZAR,INR,AUD,CZK,SEK,CNY,PLN"
 
-	authRate   = 0
-	unAuthRate = 0
+	unAuthRate = 10
 )
 
 // ExchangeRates stores the struct for the ExchangeRatesAPI API

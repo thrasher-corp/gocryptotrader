@@ -1,6 +1,8 @@
 package currencyconverter
 
 import (
+	"time"
+
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -18,8 +20,9 @@ const (
 
 	defaultAPIKey = "Key"
 
-	authRate   = 0
-	unAuthRate = 0
+	rateTime   = time.Hour
+	authRate   = 100
+	unAuthRate = 100
 )
 
 // CurrencyConverter stores the struct for the CurrencyConverter API

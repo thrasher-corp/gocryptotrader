@@ -39,7 +39,7 @@ func (o *OXR) Setup(config base.Settings) error {
 	o.Verbose = config.Verbose
 	o.PrimaryProvider = config.PrimaryProvider
 	o.Requester = request.New(o.Name,
-		request.NewRateLimit(time.Second*10, authRate),
+		nil,
 		request.NewRateLimit(time.Second*10, unAuthRate),
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
 	return nil
@@ -220,14 +220,9 @@ func (o *OXR) SendHTTPRequest(endpoint string, values url.Values, result interfa
 	headers["Authorization"] = "Token " + o.APIKey
 	path := APIURL + endpoint + "?" + values.Encode()
 
-	return o.Requester.SendPayload(http.MethodGet,
-		path,
-		headers,
-		nil,
-		result,
-		false,
-		false,
-		o.Verbose,
-		false,
-		false)
+	return o.Requester.SendPayload(&request.Item{
+		Method:  http.MethodGet,
+		Path:    path,
+		Result:  result,
+		Verbose: o.Verbose})
 }

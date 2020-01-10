@@ -57,9 +57,7 @@ func TestMain(m *testing.M) {
 		b.API.AuthenticatedWebsocketSupport = true
 	}
 
-	// custom rate limit for testing
-	b.Requester.SetRateLimit(true, time.Millisecond*300, 1)
-	b.Requester.SetRateLimit(false, time.Millisecond*300, 1)
+	b.DisableRateLimit()
 	os.Exit(m.Run())
 }
 

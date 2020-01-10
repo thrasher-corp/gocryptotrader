@@ -32,7 +32,6 @@ const (
 		"TTD,TWD,TZS,UAH,UGX,USD,UYU,UZS,VEF,VND,VUV,WST,XAF,XAG,XAU,XCD,XDR," +
 		"XOF,XPD,XPF,XPT,YER,ZAR,ZMK,ZMW"
 
-	authRate   = 0
 	unAuthRate = 0
 )
 

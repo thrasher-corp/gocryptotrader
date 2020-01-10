@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
@@ -973,16 +974,14 @@ func (c *Coinbene) SendHTTPRequest(path string, result interface{}) error {
 		Message string `json:"message"`
 	}{}
 
-	if err := c.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		&resp,
-		false,
-		false,
-		c.Verbose,
-		c.HTTPDebugging,
-		c.HTTPRecording); err != nil {
+	if err := c.SendPayload(&request.Item{
+		Method:        http.MethodGet,
+		Path:          path,
+		Result:        &resp,
+		Verbose:       c.Verbose,
+		HTTPDebugging: c.HTTPDebugging,
+		HTTPRecording: c.HTTPRecording,
+	}); err != nil {
 		return err
 	}
 
@@ -1053,16 +1052,17 @@ func (c *Coinbene) SendAuthHTTPRequest(method, path, epPath string, isSwap bool,
 		Message string `json:"message"`
 	}{}
 
-	if err := c.SendPayload(method,
-		path,
-		headers,
-		finalBody,
-		&resp,
-		true,
-		false,
-		c.Verbose,
-		c.HTTPDebugging,
-		c.HTTPRecording); err != nil {
+	if err := c.SendPayload(&request.Item{
+		Method:        method,
+		Path:          path,
+		Headers:       headers,
+		Body:          finalBody,
+		Result:        &resp,
+		AuthRequest:   true,
+		Verbose:       c.Verbose,
+		HTTPDebugging: c.HTTPDebugging,
+		HTTPRecording: c.HTTPRecording,
+	}); err != nil {
 		return err
 	}
 

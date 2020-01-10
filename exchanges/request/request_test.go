@@ -1,322 +1,349 @@
 package request
 
 import (
+	"io"
+	"log"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
+	"os"
+	"sync"
 	"testing"
 	"time"
+
+	"golang.org/x/time/rate"
 )
 
-func TestNewRateLimit(t *testing.T) {
-	r := NewRateLimit(time.Second*10, 5)
+const unexpected = "unexpected values"
 
-	if r.Duration != time.Second*10 && r.Rate != 5 {
-		t.Fatal("unexpected values")
-	}
-}
+var testURL string
+var serverLimit *rate.Limiter
 
-func TestSetRate(t *testing.T) {
-	r := NewRateLimit(time.Second*10, 5)
-
-	r.SetRate(40)
-	if r.GetRate() != 40 {
-		t.Fatal("unexpected values")
-	}
-}
-
-func TestSetDuration(t *testing.T) {
-	r := NewRateLimit(time.Second*10, 5)
-
-	r.SetDuration(time.Second)
-	if r.GetDuration() != time.Second {
-		t.Fatal("unexpected values")
-	}
-}
-
-func TestDecerementRequests(t *testing.T) {
-	r := New("bitfinex", NewRateLimit(time.Second*10, 5), NewRateLimit(time.Second*20, 100), new(http.Client))
-
-	r.AuthLimit.SetRequests(99)
-	r.DecrementRequests(true)
-
-	if r.AuthLimit.GetRequests() != 98 {
-		t.Fatal("unexpected values")
-	}
-}
-func TestStartCycle(t *testing.T) {
-	r := New("bitfinex", NewRateLimit(time.Second*10, 5), NewRateLimit(time.Second*20, 100), new(http.Client))
-
-	if r.AuthLimit.Duration != time.Second*10 && r.AuthLimit.Rate != 5 {
-		t.Fatal("unexpected values")
-	}
-
-	if r.UnauthLimit.Duration != time.Second*20 && r.UnauthLimit.Rate != 100 {
-		t.Fatal("unexpected values")
-	}
-
-	r.AuthLimit.SetRequests(1)
-	r.UnauthLimit.SetRequests(1)
-	r.StartCycle()
-	if r.Cycle.IsZero() || r.AuthLimit.GetRequests() != 0 || r.UnauthLimit.GetRequests() != 0 {
-		t.Fatal("unexpcted values")
-	}
-}
-
-func TestIsRateLimited(t *testing.T) {
-	r := New("bitfinex", NewRateLimit(time.Second*10, 5), NewRateLimit(time.Second*20, 100), new(http.Client))
-	r.StartCycle()
-
-	if r.AuthLimit.String() != "Rate limiter set to 5 requests per 10s" {
-		t.Fatal("unexcpted values")
-	}
-
-	if r.UnauthLimit.String() != "Rate limiter set to 100 requests per 20s" {
-		t.Fatal("unexpected values")
-	}
-
-	if r.AuthLimit.String() != "Rate limiter set to 5 requests per 10s" {
-		t.Fatal("unexcpted values")
-	}
-
-	// FIXME: Need to account for unauth/auth/total requests
-	r.AuthLimit.SetRequests(4)
-	if r.AuthLimit.GetRequests() != 4 {
-		t.Fatal("unexpected values")
-	}
-
-	// test that we're not rate limited since 4 < 5
-	if r.IsRateLimited(true) {
-		t.Fatal("unexpected values")
-	}
-
-	// bump requests counter to 6 which would exceed the rate limiter
-	r.AuthLimit.SetRequests(6)
-	if !r.IsRateLimited(true) {
-		t.Fatal("unexpected values")
-	}
-
-	// FIXME: Need to account for unauth/auth/total requests
-	r.UnauthLimit.SetRequests(99)
-	if r.UnauthLimit.GetRequests() != 99 {
-		t.Fatal("unexpected values")
-	}
-
-	// test that we're not rate limited since 99 < 100
-	if r.IsRateLimited(false) {
-		t.Fatal("unexpected values")
-	}
-
-	// bump requests counter to 100 which would exceed the rate limiter
-	r.UnauthLimit.SetRequests(100)
-	if !r.IsRateLimited(false) {
-		t.Fatal("unexpected values")
-	}
-}
-
-func TestRequiresRateLimiter(t *testing.T) {
-	r := New("bitfinex", NewRateLimit(time.Second*10, 5), NewRateLimit(time.Second*20, 100), new(http.Client))
-	if !r.RequiresRateLimiter() {
-		t.Fatal("unexpected values")
-	}
-
-	r.AuthLimit.Rate = 0
-	r.UnauthLimit.Rate = 0
-
-	if r.RequiresRateLimiter() {
-		t.Fatal("unexpected values")
-	}
-}
-
-func TestSetLimit(t *testing.T) {
-	r := New("bitfinex", NewRateLimit(time.Second*10, 5), NewRateLimit(time.Second*20, 100), new(http.Client))
-
-	r.SetRateLimit(true, time.Minute, 20)
-	if r.AuthLimit.Rate != 20 && r.AuthLimit.Duration != time.Minute*20 {
-		t.Fatal("unexpected values")
-	}
-
-	r.SetRateLimit(false, time.Minute, 40)
-	if r.UnauthLimit.Rate != 40 && r.UnauthLimit.Duration != time.Minute {
-		t.Fatal("unexpected values")
-	}
-}
-
-func TestGetLimit(t *testing.T) {
-	r := New("bitfinex", NewRateLimit(time.Second*10, 5), NewRateLimit(time.Second*20, 100), new(http.Client))
-
-	if r.GetRateLimit(true).Duration != time.Second*10 && r.GetRateLimit(true).Rate != 5 {
-		t.Fatal("unexpected values")
-	}
-
-	if r.GetRateLimit(false).Duration != time.Second*10 && r.GetRateLimit(false).Rate != 100 {
-		t.Fatal("unexpected values")
-	}
-}
-
-func TestIsValidMethod(t *testing.T) {
-	for x := range supportedMethods {
-		if !IsValidMethod(supportedMethods[x]) {
-			t.Fatal("unexpected values")
+func TestMain(m *testing.M) {
+	serverLimit = NewRateLimit(time.Millisecond*500, 1)
+	sm := http.NewServeMux()
+	sm.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, `{"response":true}`)
+	})
+	sm.HandleFunc("/error", func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, `{"error":true}`)
+	})
+	sm.HandleFunc("/timeout", func(w http.ResponseWriter, req *http.Request) {
+		time.Sleep(time.Millisecond * 100)
+		w.WriteHeader(http.StatusGatewayTimeout)
+	})
+	sm.HandleFunc("/rate", func(w http.ResponseWriter, req *http.Request) {
+		if !serverLimit.Allow() {
+			http.Error(w, http.StatusText(429), http.StatusTooManyRequests)
+			io.WriteString(w, `{"response":false}`)
+			return
 		}
-	}
+		io.WriteString(w, `{"response":true}`)
+	})
 
-	if IsValidMethod("BLAH") {
-		t.Fatal("unexpected values")
-	}
+	server := httptest.NewServer(sm)
+	testURL = server.URL
+	issues := m.Run()
+	server.Close()
+	os.Exit(issues)
 }
 
-func TestIsValidCycle(t *testing.T) {
-	r := New("bitfinex", NewRateLimit(time.Second*10, 5), NewRateLimit(time.Second*20, 100), new(http.Client))
-	r.Cycle = time.Now().Add(-9 * time.Second)
-
-	if !r.IsValidCycle(true) {
-		t.Fatal("unexpected values")
+func TestNewRateLimit(t *testing.T) {
+	t.Parallel()
+	r := NewRateLimit(time.Second*10, 5)
+	if r.Limit() != 0.5 {
+		t.Fatal(unexpected)
 	}
 
-	r.Cycle = time.Now().Add(-11 * time.Second)
-	if r.IsValidCycle(true) {
-		t.Fatal("unexpected values")
+	// Ensures rate limiting factor is the same
+	r = NewRateLimit(time.Second*2, 1)
+	if r.Limit() != 0.5 {
+		t.Fatal(unexpected)
 	}
 
-	r.Cycle = time.Now().Add(-19 * time.Second)
-
-	if !r.IsValidCycle(false) {
-		t.Fatal("unexpected values")
+	// Test for open rate limit
+	r = NewRateLimit(time.Second*2, 0)
+	if r.Limit() != rate.Inf {
+		t.Fatal(unexpected)
 	}
 
-	r.Cycle = time.Now().Add(-21 * time.Second)
-	if r.IsValidCycle(false) {
-		t.Fatal("unexpected values")
+	r = NewRateLimit(0, 69)
+	if r.Limit() != rate.Inf {
+		t.Fatal(unexpected)
 	}
 }
 
 func TestCheckRequest(t *testing.T) {
-	r := New("", NewRateLimit(time.Second*10, 5), NewRateLimit(time.Second*20, 100), new(http.Client))
-	_, err := r.checkRequest("bad method, bad", "http://www.google.com", nil, nil)
+	t.Parallel()
+
+	r := New("TestRequest",
+		new(http.Client),
+		map[Functionality]*rate.Limiter{
+			Auth:   NewRateLimit(time.Second*10, 5),
+			UnAuth: NewRateLimit(time.Second*20, 100),
+		})
+
+	var check *Item
+	_, err := check.validateRequest(&Requester{})
 	if err == nil {
-		t.Fatal("unexpected values")
+		t.Fatal(unexpected)
+	}
+
+	_, err = check.validateRequest(nil)
+	if err == nil {
+		t.Fatal(unexpected)
+	}
+
+	_, err = check.validateRequest(r)
+	if err == nil {
+		t.Fatal(unexpected)
+	}
+
+	check = &Item{}
+	_, err = check.validateRequest(r)
+	if err == nil {
+		t.Fatal(unexpected)
+	}
+
+	check.Path = testURL
+	check.Method = " " // Forces method check; "" automatically converts to GET
+	_, err = check.validateRequest(r)
+	if err == nil {
+		t.Fatal(unexpected)
+	}
+
+	check.Method = http.MethodPost
+	_, err = check.validateRequest(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test setting headers
+	check.Headers = map[string]string{
+		"Content-Type": "Super awesome HTTP party experience",
+	}
+
+	// Test user agent set
+	r.UserAgent = "r00t axxs"
+	req, err := check.validateRequest(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if req.Header.Get("Content-Type") != "Super awesome HTTP party experience" {
+		t.Fatal(unexpected)
+	}
+
+	if req.UserAgent() != "r00t axxs" {
+		t.Fatal(unexpected)
 	}
 }
 
 func TestDoRequest(t *testing.T) {
-	r := New("", NewRateLimit(time.Second*10, 5), NewRateLimit(time.Second*20, 100), new(http.Client))
-	r.Name = "bitfinex"
-	err := r.SendPayload("BLAH", "https://www.google.com", nil, nil, nil, false, false, true, false, false)
+	t.Parallel()
+	r := New("test",
+		new(http.Client),
+		map[Functionality]*rate.Limiter{
+			Auth:   NewRateLimit(time.Millisecond*600, 1),
+			UnAuth: NewRateLimit(time.Second*1, 100),
+		})
+
+	err := r.SendPayload(&Item{})
 	if err == nil {
-		t.Fatal("Expected error")
+		t.Fatal(unexpected)
 	}
 
-	err = r.SendPayload(http.MethodGet, "", nil, nil, nil, false, false, true, false, false)
+	err = r.SendPayload(&Item{Method: http.MethodGet})
 	if err == nil {
-		t.Fatal("Expected error")
+		t.Fatal(unexpected)
 	}
 
-	err = r.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, nil, false, false, true, false, false)
-	if err != nil {
-		t.Fatal("unexpected values", err)
+	err = r.SendPayload(&Item{
+		Method: http.MethodGet,
+		Path:   testURL,
+	})
+	if err == nil {
+		t.Fatal(unexpected)
 	}
 
-	if !r.RequiresRateLimiter() {
-		t.Fatal("unexpected values")
+	// force debug
+	err = r.SendPayload(&Item{
+		Method:        http.MethodGet,
+		Path:          testURL,
+		HTTPDebugging: true,
+		Verbose:       true,
+	})
+	if err == nil {
+		t.Fatal(unexpected)
 	}
 
-	r.SetRateLimit(false, time.Second, 0)
-	r.SetRateLimit(true, time.Second, 0)
-
-	err = r.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, nil, false, false, true, false, false)
-	if err != nil {
-		t.Fatal("unexpected values", err)
+	// max request job ceiling
+	r.jobs = MaxRequestJobs
+	err = r.SendPayload(&Item{
+		Method: http.MethodGet,
+		Path:   testURL,
+	})
+	if err == nil {
+		t.Fatal(unexpected)
 	}
+	// reset jobs
+	r.jobs = 0
 
-	if r.RequiresRateLimiter() {
-		t.Fatal("unexpected values")
+	// timeout checker
+	r.HTTPClient.Timeout = time.Millisecond * 50
+	err = r.SendPayload(&Item{
+		Method: http.MethodGet,
+		Path:   testURL + "/timeout",
+	})
+	if err == nil {
+		t.Fatal(unexpected)
 	}
+	// reset timeout
+	r.HTTPClient.Timeout = 0
 
-	r.SetRateLimit(false, time.Millisecond*200, 100)
-	r.SetRateLimit(true, time.Millisecond*100, 100)
-	r.Cycle = time.Now().Add(time.Millisecond * -201)
-
-	if r.IsValidCycle(false) {
-		t.Fatal("unexpected values")
+	// Check JSON
+	var resp struct {
+		Response bool `json:"response"`
 	}
-
-	err = r.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, nil, false, false, true, false, false)
-	if err != nil {
-		t.Fatal("unexpected values")
-	}
-
-	r.Cycle = time.Now().Add(time.Millisecond * -101)
-
-	if r.IsValidCycle(true) {
-		t.Fatal("unexepcted values")
-	}
-
-	err = r.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, nil, true, false, true, false, false)
-	if err != nil {
-		t.Fatal("unexpected values")
-	}
-
-	var result interface{}
-	err = r.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, result, false, false, true, false, false)
+	err = r.SendPayload(&Item{
+		Method:  http.MethodGet,
+		Path:    testURL,
+		Result:  &resp,
+		Limiter: UnAuth,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !resp.Response {
+		t.Fatal(unexpected)
+	}
 
-	headers := make(map[string]string)
-	headers["content-type"] = "content/text"
-	err = r.SendPayload(http.MethodPost, "https://bitfinex.com", headers, nil, result, false, false, true, false, false)
+	// Check error
+	var respErr struct {
+		Error bool `json:"error"`
+	}
+	err = r.SendPayload(&Item{
+		Method: http.MethodGet,
+		Path:   testURL,
+		Result: &respErr,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	r.StartCycle()
-	r.UnauthLimit.SetRequests(100)
-	err = r.SendPayload(http.MethodGet, "https://www.google.com", nil, nil, result, false, false, false, false, false)
-	if err != nil {
-		t.Fatal("unexpected values")
+	if !resp.Response {
+		t.Fatal(unexpected)
 	}
 
-	err = r.SetTimeoutRetryAttempts(1)
-	if err != nil {
-		t.Fatal("setting timeout retry attempts")
+	// Check rate limit
+	var wg sync.WaitGroup
+	wg.Add(5)
+	for i := 0; i < 5; i++ {
+		go func(wg *sync.WaitGroup) {
+			var resp struct {
+				Response bool `json:"response"`
+			}
+			err = r.SendPayload(&Item{
+				Method:      http.MethodGet,
+				Path:        testURL + "/rate",
+				Result:      &resp,
+				AuthRequest: true,
+				Limiter:     Auth,
+			})
+			wg.Done()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !resp.Response {
+				t.Fatal(unexpected)
+			}
+		}(&wg)
+	}
+	wg.Wait()
+}
+
+func TestGetNonce(t *testing.T) {
+	t.Parallel()
+	r := New("test",
+		new(http.Client),
+		map[Functionality]*rate.Limiter{
+			Auth:   NewRateLimit(time.Millisecond*600, 1),
+			UnAuth: NewRateLimit(time.Second*1, 100),
+		})
+
+	if r.GetNonce(false) == r.GetNonce(false) {
+		t.Fatal(unexpected)
 	}
 
-	err = r.SetTimeoutRetryAttempts(-1)
-	if err == nil {
-		t.Fatal("setting timeout retry attempts with negative value")
-	}
+	r2 := New("test",
+		new(http.Client),
+		map[Functionality]*rate.Limiter{
+			Auth:   NewRateLimit(time.Millisecond*600, 1),
+			UnAuth: NewRateLimit(time.Second*1, 100),
+		})
 
-	r.HTTPClient.Timeout = 1 * time.Second
-	err = r.SendPayload(http.MethodPost, "https://httpstat.us/200?sleep=20000", nil, nil, nil, false, false, true, false, false)
-	if err == nil {
-		t.Fatal("Expected error")
-	}
-
-	proxy, err := url.Parse("")
-	if err != nil {
-		t.Error("failed to parse proxy address")
-	}
-
-	err = r.SetProxy(proxy)
-	if err == nil {
-		t.Error("Expected error")
-	}
-
-	proxy, err = url.Parse("https://192.0.0.1")
-	if err != nil {
-		t.Error("failed to parse proxy address")
-	}
-
-	err = r.SetProxy(proxy)
-	if err != nil {
-		t.Error("failed to set proxy")
+	if r2.GetNonce(true) == r2.GetNonce(true) {
+		t.Fatal(unexpected)
 	}
 }
 
-func BenchmarkRequestLockMech(b *testing.B) {
-	r := New("", NewRateLimit(time.Second*10, 5), NewRateLimit(time.Second*20, 100), new(http.Client))
-	var meep interface{}
-	for n := 0; n < b.N; n++ {
-		r.SendPayload(http.MethodGet, "127.0.0.1", nil, nil, &meep, false, false, false, false, false)
+func TestGetNonceMillis(t *testing.T) {
+	t.Parallel()
+	r := New("test",
+		new(http.Client),
+		map[Functionality]*rate.Limiter{
+			Auth:   NewRateLimit(time.Millisecond*600, 1),
+			UnAuth: NewRateLimit(time.Second*1, 100),
+		})
+
+	if r.GetNonceMilli() == r.GetNonceMilli() {
+		log.Fatal(unexpected)
+	}
+}
+
+func TestSetProxy(t *testing.T) {
+	t.Parallel()
+	r := New("test",
+		new(http.Client),
+		map[Functionality]*rate.Limiter{
+			Auth:   NewRateLimit(time.Millisecond*600, 1),
+			UnAuth: NewRateLimit(time.Second*1, 100),
+		})
+	u, err := url.Parse("http://www.google.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = r.SetProxy(u)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u, err = url.Parse("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = r.SetProxy(u)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+}
+
+func TestEnableDisableRateLimiter(t *testing.T) {
+	t.Parallel()
+	r := New("test",
+		new(http.Client),
+		map[Functionality]*rate.Limiter{
+			Auth:   NewRateLimit(time.Millisecond*600, 1),
+			UnAuth: NewRateLimit(time.Second*1, 100),
+		})
+
+	r.DisableRateLimit()
+	if !r.DisableRateLimiter {
+		t.Fatal(unexpected)
+	}
+
+	r.EnableRateLimit()
+	if r.DisableRateLimiter {
+		t.Fatal(unexpected)
 	}
 }

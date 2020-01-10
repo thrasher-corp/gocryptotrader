@@ -1,12 +1,12 @@
+// Package currencyconverter package
+// https://free.currencyconverterapi.com/
 package currencyconverter
 
 import (
 	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
@@ -24,8 +24,8 @@ func (c *CurrencyConverter) Setup(config base.Settings) error {
 	c.Verbose = config.Verbose
 	c.PrimaryProvider = config.PrimaryProvider
 	c.Requester = request.New(c.Name,
-		request.NewRateLimit(time.Second*10, authRate),
-		request.NewRateLimit(time.Second*10, unAuthRate),
+		request.NewRateLimit(rateTime, authRate),
+		request.NewRateLimit(rateTime, unAuthRate),
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
 	return nil
 }
@@ -162,16 +162,12 @@ func (c *CurrencyConverter) SendHTTPRequest(endPoint string, values url.Values, 
 	}
 	path += values.Encode()
 
-	err := c.Requester.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		&result,
-		auth,
-		false,
-		c.Verbose,
-		false,
-		false)
+	err := c.Requester.SendPayload(&request.Item{
+		Method:      path,
+		Result:      result,
+		AuthRequest: auth,
+		Verbose:     c.Verbose})
+
 	if err != nil {
 		return fmt.Errorf("currency converter API SendHTTPRequest error %s with path %s",
 			err,
