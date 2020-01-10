@@ -360,7 +360,6 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 						FormatCurrency(result.Pair),
 						d.Asset)
 				}
-				// For orders that are not handled via wshandler.SendMessageReturnResponse
 			case order.Detail:
 				if !Bot.OrderManager.orderStore.exists(&d) {
 					err := Bot.OrderManager.orderStore.Add(&d)
@@ -374,12 +373,6 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 						continue
 					}
 					od.UpdateOrderFromDetail(&d)
-				}
-				// For orders that are handled via wshandler.SendMessageReturnResponse
-			case order.Submit:
-				_, err := Bot.OrderManager.Submit(&d)
-				if err != nil {
-					log.Error(log.WebsocketMgr, err)
 				}
 			case order.Cancel:
 				err := Bot.OrderManager.Cancel(&d)

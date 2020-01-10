@@ -195,7 +195,53 @@ func (b *BTCMarkets) WsHandleData() {
 					b.Websocket.DataHandler <- err
 					continue
 				}
-				b.Websocket.DataHandler <- orderData
+				originalAmount := orderData.OpenVolume
+				var price float64
+				var trades []order.TradeHistory
+				for x := range orderData.Trades {
+					trades = append(trades, order.TradeHistory{
+						Price:    orderData.Trades[x].Price,
+						Amount:   orderData.Trades[x].Volume,
+						Fee:      orderData.Trades[x].Fee,
+						Exchange: b.Name,
+						TID:      strconv.FormatInt(orderData.Trades[x].TradeID, 10),
+						Type:     orderData.Trades[x].LiquidityType,
+					})
+					price = orderData.Trades[x].Price
+					originalAmount += orderData.Trades[x].Volume
+				}
+				oType, err := order.StringToOrderType(orderData.OrderType)
+				if err != nil {
+					b.Websocket.DataHandler <- b.Name + " - Unidentified order type: " + err.Error()
+				}
+				oSide, err := order.StringToOrderSide(orderData.Side)
+				if err != nil {
+					b.Websocket.DataHandler <- b.Name + " - Unidentified order side: " + err.Error()
+				}
+				oStatus, err := order.StringToOrderStatus(orderData.Status)
+				if err != nil {
+					b.Websocket.DataHandler <- b.Name + " - Unidentified order status: " + err.Error()
+				}
+				b.Websocket.DataHandler <- &order.Detail{
+					Price:           price,
+					Amount:          originalAmount,
+					LimitPriceUpper: 0,
+					LimitPriceLower: 0,
+					TriggerPrice:    0,
+					TargetAmount:    0,
+					ExecutedAmount:  0,
+					RemainingAmount: orderData.OpenVolume,
+					Exchange:        b.Name,
+					ID:              strconv.FormatInt(orderData.OrderID, 10),
+					AccountID:       "",
+					ClientID:        b.API.Credentials.ClientID,
+					Type:            oType,
+					Side:            oSide,
+					Status:          oStatus,
+					AssetType:       asset.Spot,
+					Date:            orderData.Timestamp,
+					Trades:          trades,
+				}
 			case "error":
 				var wsErr WsError
 				err := json.Unmarshal(resp.Raw, &wsErr)

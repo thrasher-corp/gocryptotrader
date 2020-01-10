@@ -143,6 +143,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 	}
 	if updated {
 		d.LastUpdated = time.Now()
+		// TODO trigger db update
 	}
 }
 
@@ -248,6 +249,7 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 	}
 	if updated {
 		d.LastUpdated = time.Now()
+		// TODO trigger db update
 	}
 }
 
@@ -488,11 +490,13 @@ func StringToOrderType(oType string) (Type, error) {
 		return Limit, nil
 	case strings.EqualFold(oType, Market.String()):
 		return Market, nil
-	case strings.EqualFold(oType, ImmediateOrCancel.String()):
+	case strings.EqualFold(oType, ImmediateOrCancel.String()),
+		strings.EqualFold(oType, "immediate or cancel"):
 		return ImmediateOrCancel, nil
 	case strings.EqualFold(oType, Stop.String()):
 		return Stop, nil
-	case strings.EqualFold(oType, TrailingStop.String()):
+	case strings.EqualFold(oType, TrailingStop.String()),
+		strings.EqualFold(oType, "trailing stop"):
 		return TrailingStop, nil
 	case strings.EqualFold(oType, AnyType.String()):
 		return AnyType, nil
@@ -511,13 +515,22 @@ func StringToOrderStatus(status string) (Status, error) {
 		return New, nil
 	case strings.EqualFold(status, Active.String()):
 		return Active, nil
-	case strings.EqualFold(status, PartiallyFilled.String()):
+	case strings.EqualFold(status, PartiallyFilled.String()),
+		strings.EqualFold(status, "partially matched"),
+		strings.EqualFold(status, "partially filled"):
 		return PartiallyFilled, nil
-	case strings.EqualFold(status, Filled.String()):
+	case strings.EqualFold(status, Filled.String()),
+		strings.EqualFold(status, "fully matched"),
+		strings.EqualFold(status, "fully filled"):
 		return Filled, nil
+	case strings.EqualFold(status, PartiallyCancelled.String()),
+		strings.EqualFold(status, "partially cancelled"):
+		return PartiallyCancelled, nil
 	case strings.EqualFold(status, Cancelled.String()):
 		return Cancelled, nil
-	case strings.EqualFold(status, PendingCancel.String()):
+	case strings.EqualFold(status, PendingCancel.String()),
+		strings.EqualFold(status, "pending cancel"),
+		strings.EqualFold(status, "pending cancellation"):
 		return PendingCancel, nil
 	case strings.EqualFold(status, Rejected.String()):
 		return Rejected, nil
