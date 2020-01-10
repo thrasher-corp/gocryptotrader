@@ -121,11 +121,7 @@ func Zip(src, dest string) error {
 	z := zip.NewWriter(f)
 	defer z.Close()
 
-	var dir bool
-	if i.IsDir() {
-		dir = true
-	}
-	err = addFilesToZip(z, src, dir)
+	err = addFilesToZip(z, src, i.IsDir())
 	if err != nil {
 		z.Close()
 		errRemove := os.Remove(dest)
