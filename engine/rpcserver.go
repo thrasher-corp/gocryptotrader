@@ -1213,3 +1213,10 @@ func (s *RPCServer) GetAuditEvent(ctx context.Context, r *gctrpc.GetAuditEventRe
 
 	return &resp, nil
 }
+
+// GetHistoricCandles returns historical candles for a given exchange
+func (s *RPCServer) GetHistoricCandles(context.Context, *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
+	resp := gctrpc.GetHistoricCandlesResponse{}
+
+	return &resp, nil
+}
