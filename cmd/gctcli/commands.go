@@ -2915,3 +2915,81 @@ func getAuditEvent(c *cli.Context) error {
 	jsonOutput(result)
 	return nil
 }
+
+var getHistoricCandlesCommand = cli.Command{
+	Name:      "gethistoriccandles",
+	Usage:     "gets historical candles for the specified granularity back in range size time from now.",
+	ArgsUsage: "<exchange> <rangesize> <granularity>",
+	Action:    getHistoricCandles,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:        "exchange, e",
+			Usage:       "the exchange to get the candles from",
+		},
+		cli.IntFlag{
+			Name:        "rangesize, r",
+			Usage:       "the amount of granularity to go back in time to",
+		},
+		cli.IntFlag{
+			Name:        "granularity, g",
+			Usage:       "value is in seconds and can be one of the following {60, 300, 900, 3600, 21600, 86400}",
+		},
+	},
+}
+
+func getHistoricCandles(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "gethistoriccandles")
+		return nil
+	}
+
+	var exchangeName string
+	if !c.IsSet("exchange") {
+		exchangeName = c.Args().First()
+	}
+
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	var rangesize int
+	if !c.IsSet("rangesize") {
+		if c.Args().Get(1) != "" {
+			rangesizestr, err := strconv.ParseInt(c.Args().Get(1), 10, 32)
+			if err == nil {
+				rangesize = int(rangesizestr)
+			}
+		}
+	}
+
+	var granularity int
+	if !c.IsSet("granularity") {
+		if c.Args().Get(2) != "" {
+			granularitystr, err := strconv.ParseInt(c.Args().Get(2), 10, 32)
+			if err == nil {
+				granularity = int(granularitystr)
+			}
+		}
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetHistoricCandles(context.Background(),
+		&gctrpc.GetHistoricCandlesRequest{
+			Exchange: exchangeName,
+			Rangesize: int32(rangesize),
+			Granularity: int32(granularity),
+		})
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
