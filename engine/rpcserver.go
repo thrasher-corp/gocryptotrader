@@ -1326,7 +1326,7 @@ func (s *RPCServer) GCTScriptStop(ctx context.Context, r *gctrpc.GCTScriptStopRe
 		err = v.Shutdown()
 		status := " terminated"
 		if err != nil {
-			status = err.Error()
+			status = " " + err.Error()
 		}
 		return &gctrpc.GCTScriptGenericResponse{Status: MsgStatusOK, Data: v.ID.String() + status}, nil
 	}
