@@ -123,7 +123,11 @@ func Zip(src, dest string) error {
 
 	err = addFilesToZip(z, src, i.IsDir())
 	if err != nil {
-		f.Close()
+		errCls := f.Close()
+		if errCls != nil {
+			log.Errorf(log.Global, "Failed to close file handle, manual deletion required: %v", errCls)
+			return err
+		}
 		errRemove := os.Remove(dest)
 		if errRemove != nil {
 			log.Errorf(log.Global, "Failed to remove archive, manual deletion required: %v", errRemove)
