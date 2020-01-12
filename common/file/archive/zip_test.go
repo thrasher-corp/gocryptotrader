@@ -64,7 +64,7 @@ func TestZip(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(o) != 1 {
-		t.Fatalf("expected 2 files to be extracted received: %v ", len(o))
+		t.Fatalf("expected 1 files to be extracted received: %v ", len(o))
 	}
 
 	folder := filepath.Join("..", "..", "..", "testdata", "http_mock")
