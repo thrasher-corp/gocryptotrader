@@ -1357,7 +1357,7 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 		timeString := strconv.FormatInt(time.Now().UnixNano(), 10)
 		renamedFile := filepath.Join(f, timeString+"-"+filepath.Base(fPathExits))
 		if s.IsDir() {
-			err := archive.Zip(fPathExits, renamedFile+".zip")
+			err = archive.Zip(fPathExits, renamedFile+".zip")
 			if err != nil {
 				return nil, err
 			}
