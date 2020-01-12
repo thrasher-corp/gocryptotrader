@@ -117,6 +117,7 @@ func ValidateSettings(b *Engine, s *Settings) {
 	b.Settings.EnableCoinmarketcapAnalysis = s.EnableCoinmarketcapAnalysis
 	b.Settings.EnableDatabaseManager = s.EnableDatabaseManager
 	b.Settings.EnableGCTScriptManager = s.EnableGCTScriptManager
+	b.Settings.MaxVirtualMachines = s.MaxVirtualMachines
 	b.Settings.EnableDispatcher = s.EnableDispatcher
 
 	if flagSet["grpc"] {

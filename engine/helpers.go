@@ -44,6 +44,7 @@ func GetSubsystemsStatus() map[string]bool {
 	systems["exchange_syncer"] = Bot.Settings.EnableExchangeSyncManager
 	systems["grpc"] = Bot.Settings.EnableGRPC
 	systems["grpc_proxy"] = Bot.Settings.EnableGRPCProxy
+	systems["gctscript"] = Bot.GctScriptManager.Started()
 	systems["deprecated_rpc"] = Bot.Settings.EnableDeprecatedRPC
 	systems["websocket_rpc"] = Bot.Settings.EnableWebsocketRPC
 	systems["dispatch"] = dispatch.IsRunning()

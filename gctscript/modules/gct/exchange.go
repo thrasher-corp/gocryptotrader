@@ -287,7 +287,10 @@ func ExchangeOrderCancel(args ...objects.Object) (objects.Object, error) {
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
 	}
-	orderID, _ := objects.ToString(args[1])
+	orderID, ok := objects.ToString(args[1])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, orderID)
+	}
 
 	rtn, err := wrappers.GetWrapper().CancelOrder(exchangeName, orderID)
 	if err != nil {

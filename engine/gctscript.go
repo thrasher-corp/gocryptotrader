@@ -12,20 +12,28 @@ import (
 const gctscriptManagerName = "GCTScript"
 
 type gctScriptManager struct {
-	running  atomic.Value
+	started  int32
+	stopped  int32
 	shutdown chan struct{}
 }
 
 // Started returns if gctscript manager subsystem is started
 func (g *gctScriptManager) Started() bool {
-	return g.running.Load() == true
+	return atomic.LoadInt32(&g.started) == 1
 }
 
 // Start starts gctscript subsystem and creates shutdown channel
-func (g *gctScriptManager) Start() error {
-	if g.Started() {
+func (g *gctScriptManager) Start() (err error) {
+	if atomic.AddInt32(&g.started, 1) != 1 {
 		return fmt.Errorf("%s %s", gctscriptManagerName, ErrSubSystemAlreadyStarted)
 	}
+
+	defer func() {
+		if err != nil {
+			atomic.CompareAndSwapInt32(&g.started, 1, 0)
+		}
+	}()
+
 	log.Debugln(log.Global, gctscriptManagerName, MsgSubSystemStarting)
 	g.shutdown = make(chan struct{})
 	go g.run()
@@ -34,7 +42,11 @@ func (g *gctScriptManager) Start() error {
 
 // Stop stops gctscript subsystem along with all running Virtual Machines
 func (g *gctScriptManager) Stop() error {
-	if !g.Started() {
+	if atomic.LoadInt32(&g.started) == 0 {
+		return fmt.Errorf("%s %s", gctscriptManagerName, ErrSubSystemNotStarted)
+	}
+
+	if atomic.AddInt32(&g.stopped, 1) != 1 {
 		return fmt.Errorf("%s %s", gctscriptManagerName, ErrSubSystemAlreadyStopped)
 	}
 
@@ -48,16 +60,15 @@ func (g *gctScriptManager) Stop() error {
 }
 
 func (g *gctScriptManager) run() {
-	log.Debugln(log.GCTScriptMgr, gctscriptManagerName, MsgSubSystemStarted)
+	log.Debugln(log.Global, gctscriptManagerName, MsgSubSystemStarted)
 
 	Bot.ServicesWG.Add(1)
-	g.running.Store(true)
 	g.autoLoad()
-
 	defer func() {
-		g.running.Store(false)
+		atomic.CompareAndSwapInt32(&g.stopped, 1, 0)
+		atomic.CompareAndSwapInt32(&g.started, 1, 0)
 		Bot.ServicesWG.Done()
-		log.Debugln(log.GCTScriptMgr, gctscriptManagerName, MsgSubSystemShutdown)
+		log.Debugln(log.Global, gctscriptManagerName, MsgSubSystemShutdown)
 	}()
 
 	<-g.shutdown

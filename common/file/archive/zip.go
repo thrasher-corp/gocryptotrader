@@ -65,9 +65,9 @@ func UnZip(src, dest string) (fileList []string, err error) {
 		var eFile io.ReadCloser
 		eFile, err = z.File[x].Open()
 		if err != nil {
-			err = outFile.Close()
-			if err != nil {
-				log.Errorf(log.Global, ErrUnableToCloseFile, outFile, err)
+			errCls := outFile.Close()
+			if errCls != nil {
+				log.Errorf(log.Global, ErrUnableToCloseFile, outFile, errCls)
 			}
 			return
 		}
@@ -121,16 +121,12 @@ func Zip(src, dest string) error {
 	z := zip.NewWriter(f)
 	defer z.Close()
 
-	var dir bool
-	if i.IsDir() {
-		dir = true
-	}
-	err = addFilesToZip(z, src, dir)
+	err = addFilesToZip(z, src, i.IsDir())
 	if err != nil {
-		z.Close()
+		f.Close()
 		errRemove := os.Remove(dest)
 		if errRemove != nil {
-			log.Debugf(log.Global, "failed to remove archive, manual deletion required: %v", errRemove)
+			log.Errorf(log.Global, "Failed to remove archive, manual deletion required: %v", errRemove)
 		}
 		return err
 	}
@@ -172,7 +168,10 @@ func addFilesToZipWrapper(z *zip.Writer, src string, isDir bool) error {
 			return err
 		}
 		_, err = io.Copy(w, f)
-		f.Close()
-		return err
+		if err != nil {
+			log.Errorf(log.Global, "Failed to Copy data: %v", err)
+		}
+
+		return f.Close()
 	})
 }

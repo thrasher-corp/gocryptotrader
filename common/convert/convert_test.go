@@ -205,3 +205,14 @@ func TestSplitFloatDecimals(t *testing.T) {
 		t.Error("Conversion error")
 	}
 }
+
+func TestBoolPtr(t *testing.T) {
+	y := BoolPtr(true)
+	if !*y {
+		t.Fatal("true expected received false")
+	}
+	z := BoolPtr(false)
+	if *z {
+		t.Fatal("false expected received true")
+	}
+}
