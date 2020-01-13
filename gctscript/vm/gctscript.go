@@ -10,7 +10,6 @@ import (
 
 // New returns a new instance of VM
 func New() *VM {
-	fmt.Println("HELLO")
 	mu.Lock()
 	defer mu.Unlock()
 	if AllVMs == nil {

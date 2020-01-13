@@ -440,8 +440,10 @@ func (e *Engine) Start() error {
 	}
 
 	if e.Settings.EnableGCTScriptManager {
-		if err := e.GctScriptManager.Start(); err != nil {
-			log.Errorf(log.Global, "GCTScript manager unable to start: %v", err)
+		if e.Config.GCTScript.Enabled {
+			if err := e.GctScriptManager.Start(); err != nil {
+				log.Errorf(log.Global, "GCTScript manager unable to start: %v", err)
+			}
 		}
 	}
 

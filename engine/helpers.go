@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/utils"
@@ -122,7 +123,15 @@ func SetSubsystem(subsys string, enable bool) error {
 			return dispatch.Start(Bot.Settings.DispatchMaxWorkerAmount, Bot.Settings.DispatchJobsLimit)
 		}
 		return dispatch.Stop()
+	case "gctscript":
+		if enable {
+			vm.GCTScriptConfig.Enabled = true
+			return Bot.GctScriptManager.Start()
+		}
+		vm.GCTScriptConfig.Enabled = false
+		return Bot.GctScriptManager.Stop()
 	}
+
 	return errors.New("subsystem not found")
 }
 
