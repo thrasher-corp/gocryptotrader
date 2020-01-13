@@ -82,6 +82,10 @@ type BTCMarkets struct {
 	WebsocketConn *wshandler.WebsocketConnection
 }
 
+func (b *BTCMarkets) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
 // GetMarkets returns the BTCMarkets instruments
 func (b *BTCMarkets) GetMarkets() ([]Market, error) {
 	var resp []Market

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -60,6 +61,10 @@ const (
 // Bittrex is the overaching type across the bittrex methods
 type Bittrex struct {
 	exchange.Base
+}
+
+func (b *Bittrex) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetMarkets is used to get the open and available trading markets at Bittrex

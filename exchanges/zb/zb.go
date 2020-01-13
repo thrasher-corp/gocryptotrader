@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -45,6 +46,10 @@ const (
 type ZB struct {
 	WebsocketConn *wshandler.WebsocketConnection
 	exchange.Base
+}
+
+func (z *ZB) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SpotNewOrder submits an order to ZB

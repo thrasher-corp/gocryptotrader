@@ -1215,8 +1215,25 @@ func (s *RPCServer) GetAuditEvent(ctx context.Context, r *gctrpc.GetAuditEventRe
 }
 
 // GetHistoricCandles returns historical candles for a given exchange
-func (s *RPCServer) GetHistoricCandles(context.Context, *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
+func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
+
+	candles, err := GetExchangeByName("coinbasepro").GetHistoricCandles(int(req.Rangesize), int(req.Granularity))
+	if err != nil {
+		return nil, err
+	}
 	resp := gctrpc.GetHistoricCandlesResponse{}
+
+	for _, candle := range candles {
+		tempCandle := &gctrpc.Candle{
+			Time:   candle.Time,
+			Low:    candle.Low,
+			High:   candle.High,
+			Open:   candle.Open,
+			Close:  candle.Close,
+			Volume: candle.Volume,
+		}
+		resp.Candle = append(resp.Candle, tempCandle)
+	}
 
 	return &resp, nil
 }

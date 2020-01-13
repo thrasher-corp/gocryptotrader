@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
 )
 
@@ -43,6 +44,10 @@ const (
 // OKEX bases all account, spot and margin methods off okgroup implementation
 type OKEX struct {
 	okgroup.OKGroup
+}
+
+func (o *OKEX) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetFuturesPostions Get the information of all holding positions in futures trading.

@@ -91,6 +91,10 @@ type Bitfinex struct {
 	WebsocketSubdChannels      map[int]WebsocketChanInfo
 }
 
+func (b *Bitfinex) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
 // GetPlatformStatus returns the Bifinex platform status
 func (b *Bitfinex) GetPlatformStatus() (int, error) {
 	var response []interface{}

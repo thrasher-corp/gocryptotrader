@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -61,6 +62,10 @@ type Kraken struct {
 	WebsocketConn              *wshandler.WebsocketConnection
 	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
 	wsRequestMtx               sync.Mutex
+}
+
+func (k *Kraken) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetServerTime returns current server time

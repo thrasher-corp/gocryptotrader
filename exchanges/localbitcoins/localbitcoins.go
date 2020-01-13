@@ -112,6 +112,10 @@ type LocalBitcoins struct {
 	exchange.Base
 }
 
+func (l *LocalBitcoins) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
 // GetAccountInformation lets you retrieve the public user information on a
 // LocalBitcoins user. The response contains the same information that is found
 // on an account's public profile page.

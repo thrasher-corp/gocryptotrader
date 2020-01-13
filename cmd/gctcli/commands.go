@@ -2923,16 +2923,16 @@ var getHistoricCandlesCommand = cli.Command{
 	Action:    getHistoricCandles,
 	Flags: []cli.Flag{
 		cli.StringFlag{
-			Name:        "exchange, e",
-			Usage:       "the exchange to get the candles from",
+			Name:  "exchange, e",
+			Usage: "the exchange to get the candles from",
 		},
 		cli.IntFlag{
-			Name:        "rangesize, r",
-			Usage:       "the amount of granularity to go back in time to",
+			Name:  "rangesize, r",
+			Usage: "the amount of granularity to go back in time to",
 		},
 		cli.IntFlag{
-			Name:        "granularity, g",
-			Usage:       "value is in seconds and can be one of the following {60, 300, 900, 3600, 21600, 86400}",
+			Name:  "granularity, g",
+			Usage: "value is in seconds and can be one of the following {60, 300, 900, 3600, 21600, 86400}",
 		},
 	},
 }
@@ -2981,8 +2981,8 @@ func getHistoricCandles(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetHistoricCandles(context.Background(),
 		&gctrpc.GetHistoricCandlesRequest{
-			Exchange: exchangeName,
-			Rangesize: int32(rangesize),
+			Exchange:    exchangeName,
+			Rangesize:   int32(rangesize),
 			Granularity: int32(granularity),
 		})
 

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -53,6 +54,10 @@ const (
 // Bithumb is the overarching type across the Bithumb package
 type Bithumb struct {
 	exchange.Base
+}
+
+func (b *Bithumb) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetTradablePairs returns a list of tradable currencies

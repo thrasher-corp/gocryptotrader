@@ -25,6 +25,10 @@ type Coinbene struct {
 	WebsocketConn *wshandler.WebsocketConnection
 }
 
+func (c *Coinbene) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
 const (
 	coinbeneAPIURL       = "https://openapi-exchange.coinbene.com/api/exchange/"
 	coinbeneSwapAPIURL   = "https://openapi-contract.coinbene.com/api/swap/"

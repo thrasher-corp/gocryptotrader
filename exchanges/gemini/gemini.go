@@ -67,6 +67,10 @@ type Gemini struct {
 	RequiresHeartBeat bool
 }
 
+func (g *Gemini) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
 // GetSymbols returns all available symbols for trading
 func (g *Gemini) GetSymbols() ([]string, error) {
 	var symbols []string

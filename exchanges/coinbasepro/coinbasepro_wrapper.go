@@ -96,6 +96,7 @@ func (c *CoinbasePro) SetDefaults() {
 				TradeFee:          true,
 				FiatDepositFee:    true,
 				FiatWithdrawalFee: true,
+				CandleHistory:     true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:         true,
@@ -614,4 +615,30 @@ func (c *CoinbasePro) GetSubscriptions() ([]wshandler.WebsocketChannelSubscripti
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (c *CoinbasePro) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+func (c *CoinbasePro) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+	iso8601format := "2006-01-02T15:04:05"
+	//start end granularity
+	end := time.Now().UTC()
+	start := time.Now().UTC().Add(-time.Minute * 30)
+	history, err := c.GetHistoricRates("BTC-EUR", start.Format(iso8601format), end.Format(iso8601format), 60)
+	if err != nil {
+		return nil, err
+	}
+	var candles []exchange.Candle
+	for x := range history {
+
+		candles = append(candles, exchange.Candle{
+			Time:   history[x].Time,
+			Low:    history[x].Low,
+			High:   history[x].High,
+			Open:   history[x].Open,
+			Close:  history[x].Close,
+			Volume: history[x].Volume,
+		})
+	}
+
+	return candles, nil
+
 }

@@ -1,6 +1,8 @@
 package okcoin
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/common"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
 )
 
@@ -17,4 +19,8 @@ const (
 // OKCoin bases all methods off okgroup implementation
 type OKCoin struct {
 	okgroup.OKGroup
+}
+
+func (o *OKCoin) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+	return nil, common.ErrFunctionNotSupported
 }

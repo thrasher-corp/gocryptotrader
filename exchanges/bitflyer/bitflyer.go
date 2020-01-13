@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
@@ -68,6 +69,10 @@ const (
 // Bitflyer is the overarching type across this package
 type Bitflyer struct {
 	exchange.Base
+}
+
+func (b *Bitflyer) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetLatestBlockCA returns the latest block information from bitflyer chain

@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	gctcrypto "github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -26,6 +27,10 @@ type Lbank struct {
 	exchange.Base
 	privateKey    *rsa.PrivateKey
 	WebsocketConn *wshandler.WebsocketConnection
+}
+
+func (l *Lbank) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 const (

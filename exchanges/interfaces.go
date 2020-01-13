@@ -68,4 +68,5 @@ type IBotExchange interface {
 	GetDefaultConfig() (*config.ExchangeConfig, error)
 	GetBase() *Base
 	SupportsAsset(assetType asset.Item) bool
+	GetHistoricCandles(rangesize int, granularity int) ([]Candle, error)
 }
