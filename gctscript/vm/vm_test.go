@@ -132,13 +132,11 @@ func TestVMWithRunner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	VM.CompileAndRun()
-
 	if len(AllVMs) == vmCount {
 		t.Fatal("expected VM count to increase")
 	}
-
+	VM.CompileAndRun()
+	
 	err = VM.Shutdown()
 	if err != nil {
 		t.Fatal(err)
