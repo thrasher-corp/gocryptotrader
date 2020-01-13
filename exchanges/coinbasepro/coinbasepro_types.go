@@ -365,70 +365,23 @@ type WsChannels struct {
 	ProductIDs []string `json:"product_ids"`
 }
 
-// WebsocketReceived holds websocket received values
-type WebsocketReceived struct {
-	Type      string  `json:"type"`
-	OrderID   string  `json:"order_id"`
-	OrderType string  `json:"order_type"`
-	Size      float64 `json:"size,string"`
-	Price     float64 `json:"price,omitempty,string"`
-	Funds     float64 `json:"funds,omitempty,string"`
-	Side      string  `json:"side"`
-	ClientOID string  `json:"client_oid"`
-	ProductID string  `json:"product_id"`
-	Sequence  int64   `json:"sequence"`
-	Time      string  `json:"time"`
-}
-
-// WebsocketOpen collates open orders
-type WebsocketOpen struct {
+// wsOrderReceived holds websocket received values
+type wsOrderReceived struct {
 	Type          string  `json:"type"`
-	Side          string  `json:"side"`
-	Price         float64 `json:"price,string"`
 	OrderID       string  `json:"order_id"`
-	RemainingSize float64 `json:"remaining_size,string"`
+	OrderType     string  `json:"order_type"`
+	Size          float64 `json:"size,string"`
+	Price         float64 `json:"price,omitempty,string"`
+	Funds         float64 `json:"funds,omitempty,string"`
+	Side          string  `json:"side"`
+	ClientOID     string  `json:"client_oid"`
 	ProductID     string  `json:"product_id"`
 	Sequence      int64   `json:"sequence"`
 	Time          string  `json:"time"`
-}
-
-// WebsocketDone holds finished order information
-type WebsocketDone struct {
-	Type          string  `json:"type"`
-	Side          string  `json:"side"`
-	OrderID       string  `json:"order_id"`
+	RemainingSize float64 `json:"remaining_size,string"`
+	NewSize       float64 `json:"new_size,string"`
+	OldSize       float64 `json:"old_size,string"`
 	Reason        string  `json:"reason"`
-	ProductID     string  `json:"product_id"`
-	Price         float64 `json:"price,string"`
-	RemainingSize float64 `json:"remaining_size,string"`
-	Sequence      int64   `json:"sequence"`
-	Time          string  `json:"time"`
-}
-
-// WebsocketMatch holds match information
-type WebsocketMatch struct {
-	Type         string  `json:"type"`
-	TradeID      int     `json:"trade_id"`
-	MakerOrderID string  `json:"maker_order_id"`
-	TakerOrderID string  `json:"taker_order_id"`
-	Side         string  `json:"side"`
-	Size         float64 `json:"size,string"`
-	Price        float64 `json:"price,string"`
-	ProductID    string  `json:"product_id"`
-	Sequence     int64   `json:"sequence"`
-	Time         string  `json:"time"`
-}
-
-// WebsocketChange holds change information
-type WebsocketChange struct {
-	Type     string  `json:"type"`
-	Time     string  `json:"time"`
-	Sequence int     `json:"sequence"`
-	OrderID  string  `json:"order_id"`
-	NewSize  float64 `json:"new_size,string"`
-	OldSize  float64 `json:"old_size,string"`
-	Price    float64 `json:"price,string"`
-	Side     string  `json:"side"`
 }
 
 // WebsocketHeartBeat defines JSON response for a heart beat message
@@ -473,21 +426,4 @@ type WebsocketL2Update struct {
 	ProductID string          `json:"product_id"`
 	Time      string          `json:"time"`
 	Changes   [][]interface{} `json:"changes"`
-}
-
-// WebsocketActivate an activate message is sent when a stop order is placed
-type WebsocketActivate struct {
-	Type         string  `json:"type"`
-	ProductID    string  `json:"product_id"`
-	Timestamp    string  `json:"timestamp"`
-	UserID       string  `json:"user_id"`
-	ProfileID    string  `json:"profile_id"`
-	OrderID      string  `json:"order_id"`
-	StopType     string  `json:"stop_type"`
-	Side         string  `json:"side"`
-	StopPrice    float64 `json:"stop_price,string"`
-	Size         float64 `json:"size,string"`
-	Funds        float64 `json:"funds,string"`
-	TakerFeeRate float64 `json:"taker_fee_rate,string"`
-	Private      bool    `json:"private"`
 }

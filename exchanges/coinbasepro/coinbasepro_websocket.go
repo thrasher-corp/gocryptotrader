@@ -130,53 +130,68 @@ func (c *CoinbasePro) WsHandleData() {
 					c.Websocket.DataHandler <- err
 					continue
 				}
-			case "received":
-				// We currently use l2update to calculate orderbook changes
-				received := WebsocketReceived{}
-				err := json.Unmarshal(resp.Raw, &received)
+				// the following cases contains data to synchronise authenticated orders
+				// subscribing to the "full" channel will consider ALL cbp orders as
+				// personal orders
+				// remove sending &order.Detail to the datahandler if you wish to subscribe to the
+				// "full" channel
+			case "received", "open", "done", "change", "activate":
+				var wsOrder wsOrderReceived
+				err := json.Unmarshal(resp.Raw, &wsOrder)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
 				}
-				c.Websocket.DataHandler <- received
-			case "open":
-				// We currently use l2update to calculate orderbook changes
-				open := WebsocketOpen{}
-				err := json.Unmarshal(resp.Raw, &open)
+				createdDate, err := time.Parse(wsOrder.Time, time.RFC3339)
 				if err != nil {
 					c.Websocket.DataHandler <- err
-					continue
+					createdDate = time.Now()
 				}
-				c.Websocket.DataHandler <- open
-			case "done":
-				// We currently use l2update to calculate orderbook changes
-				done := WebsocketDone{}
-				err := json.Unmarshal(resp.Raw, &done)
+				oType, err := order.StringToOrderType(wsOrder.OrderType)
 				if err != nil {
 					c.Websocket.DataHandler <- err
-					continue
 				}
-				c.Websocket.DataHandler <- done
-			case "change":
-				// We currently use l2update to calculate orderbook changes
-				change := WebsocketChange{}
-				err := json.Unmarshal(resp.Raw, &change)
+				oSide, err := order.StringToOrderSide(wsOrder.Side)
 				if err != nil {
 					c.Websocket.DataHandler <- err
-					continue
 				}
-				c.Websocket.DataHandler <- change
-			case "activate":
-				// We currently use l2update to calculate orderbook changes
-				activate := WebsocketActivate{}
-				err := json.Unmarshal(resp.Raw, &activate)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
+				oStatus := statusToStandardStatus(wsOrder.Type)
+				c.Websocket.DataHandler <- &order.Detail{
+					Price:           wsOrder.Price,
+					Amount:          wsOrder.Size,
+					Exchange:        c.Name,
+					ID:              wsOrder.OrderID,
+					ClientID:        c.API.Credentials.ClientID,
+					Type:            oType,
+					Side:            oSide,
+					Status:          oStatus,
+					AssetType:       asset.Spot,
+					Date:            createdDate,
+					Pair:            currency.NewPairFromString(wsOrder.ProductID),
+					ExecutedAmount:  wsOrder.Size - wsOrder.RemainingSize,
+					RemainingAmount: wsOrder.RemainingSize,
 				}
-				c.Websocket.DataHandler <- activate
 			}
 		}
+	}
+}
+
+func statusToStandardStatus(stat string) order.Status {
+	switch stat {
+	case "received":
+		return order.New
+	case "open":
+		return order.Active
+	case "done":
+		return order.Filled
+	case "match":
+		return order.PartiallyFilled
+	case "change":
+		return order.Active
+	case "activate":
+		return order.Rejected
+	default:
+		return order.UnknownStatus
 	}
 }
 
@@ -278,7 +293,7 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *CoinbasePro) GenerateDefaultSubscriptions() {
-	var channels = []string{"heartbeat", "level2", "ticker", "user"}
+	var channels = []string{"heartbeat", "user"}
 	enabledCurrencies := c.GetEnabledPairs(asset.Spot)
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range channels {

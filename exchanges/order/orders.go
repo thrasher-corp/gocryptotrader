@@ -81,11 +81,11 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		d.TargetAmount = m.TargetAmount
 		updated = true
 	}
-	if m.ExecutedAmount > 0 && m.ExecutedAmount != d.ExecutedAmount {
+	if m.ExecutedAmount != d.ExecutedAmount {
 		d.ExecutedAmount = m.ExecutedAmount
 		updated = true
 	}
-	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
+	if m.RemainingAmount != d.RemainingAmount {
 		d.RemainingAmount = m.RemainingAmount
 		updated = true
 	}
