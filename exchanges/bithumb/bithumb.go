@@ -48,8 +48,8 @@ const (
 	privateMarketBuy   = "/trade/market_buy"
 	privateMarketSell  = "/trade/market_sell"
 
-	bithumbAuthRate   = 10
-	bithumbUnauthRate = 20
+	bithumbAuthRate   = 95
+	bithumbUnauthRate = 95
 )
 
 // Bithumb is the overarching type across the Bithumb package

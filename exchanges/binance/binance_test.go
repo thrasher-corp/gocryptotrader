@@ -33,6 +33,14 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
+func TestGetExchangeInfo(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetExchangeInfo()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
 

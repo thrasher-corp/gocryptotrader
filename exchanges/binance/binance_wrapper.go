@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"golang.org/x/time/rate"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -110,9 +111,12 @@ func (b *Binance) SetDefaults() {
 	}
 
 	b.Requester = request.New(b.Name,
-		request.NewRateLimit(time.Second, binanceAuthRate),
-		request.NewRateLimit(time.Second, binanceUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		&RateLimit{
+			GlobalRate:   request.NewRateLimit(binanceGlobalInterval, binanceOrderDailyMaxRequests),
+			Orders:       request.NewRateLimit(binanceOrderInterval, binanceOrderRequestRate),
+			OrderCeiling: request.NewRateLimit(binanceOrderDailyInterval, binanceOrderDailyMaxRequests),
+		})
 
 	b.API.Endpoints.URLDefault = apiURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
@@ -121,6 +125,26 @@ func (b *Binance) SetDefaults() {
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+}
+
+// RateLimit implements the request.Limiter interface
+type RateLimit struct {
+	GlobalRate   *rate.Limiter
+	Orders       *rate.Limiter
+	OrderCeiling *rate.Limiter
+}
+
+// Limit executes rate limiting functionality for Binance
+func (r *RateLimit) Limit(f request.Functionality) error {
+	if f == request.Auth {
+		if !r.OrderCeiling.Allow() {
+			return errors.New("max requests achieved in a 24 hour period for orders")
+		}
+		time.Sleep(r.Orders.Reserve().Delay())
+		return nil
+	}
+	time.Sleep(r.GlobalRate.Reserve().Delay())
+	return nil
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

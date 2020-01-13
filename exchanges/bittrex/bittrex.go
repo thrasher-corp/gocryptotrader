@@ -54,9 +54,9 @@ const (
 	bittrexAPIGetWithdrawalHistory = "account/getwithdrawalhistory"
 	bittrexAPIGetDepositHistory    = "account/getdeposithistory"
 
-	bittrexAuthRate   = 0
-	bittrexUnauthRate = 0
-	bittrexTimeLayout = "2006-01-02T15:04:05"
+	bittrexRateInterval = time.Minute
+	bittrexRequestRate  = 60
+	bittrexTimeLayout   = "2006-01-02T15:04:05"
 )
 
 // Bittrex is the overaching type across the bittrex methods

@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"golang.org/x/time/rate"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -89,14 +90,55 @@ func (b *Bitflyer) SetDefaults() {
 	}
 
 	b.Requester = request.New(b.Name,
-		request.NewRateLimit(time.Minute, bitflyerAuthRate),
-		request.NewRateLimit(time.Minute, bitflyerUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		&RateLimit{
+			Auth: request.NewRateLimit(biflyerRateInterval,
+				bitflyerPrivateRequestRate),
+			UnAuth: request.NewRateLimit(biflyerRateInterval,
+				bitflyerPublicRequestRate),
+			Order: request.NewRateLimit(biflyerRateInterval,
+				bitflyerPrivateSendOrderRequestRate),
+			LowVolume: request.NewRateLimit(time.Minute,
+				bitflyerPrivateLowVolumeRequestRate),
+		})
 
 	b.API.Endpoints.URLDefault = japanURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
 	b.API.Endpoints.URLSecondaryDefault = chainAnalysis
 	b.API.Endpoints.URLSecondary = b.API.Endpoints.URLSecondaryDefault
+}
+
+// RateLimit ...
+type RateLimit struct {
+	Auth   *rate.Limiter
+	UnAuth *rate.Limiter
+
+	// Send a New Order
+	// Submit New Parent Order (Special order)
+	// Cancel All Orders
+	Order     *rate.Limiter
+	LowVolume *rate.Limiter
+}
+
+// Limit limits outbound requests
+func (r *RateLimit) Limit(f request.Functionality) error {
+	switch f {
+	case request.Auth:
+		time.Sleep(r.Auth.Reserve().Delay())
+	case request.Order:
+		res := r.Auth.Reserve()
+		time.Sleep(r.Order.Reserve().Delay())
+		time.Sleep(res.Delay())
+	case request.LowVolume:
+		authShell := r.Auth.Reserve()
+		orderShell := r.Order.Reserve()
+		time.Sleep(r.LowVolume.Reserve().Delay())
+		time.Sleep(orderShell.Delay())
+		time.Sleep(authShell.Delay())
+	default:
+		time.Sleep(r.UnAuth.Reserve().Delay())
+	}
+	return nil
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

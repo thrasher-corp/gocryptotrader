@@ -20,9 +20,8 @@ const (
 
 	defaultAPIKey = "Key"
 
-	rateTime   = time.Hour
-	authRate   = 100
-	unAuthRate = 100
+	rateInterval = time.Hour
+	requestRate  = 100
 )
 
 // CurrencyConverter stores the struct for the CurrencyConverter API

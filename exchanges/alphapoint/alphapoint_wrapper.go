@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
+	"golang.org/x/time/rate"
 )
 
 // GetDefaultConfig returns a default exchange config for Alphapoint
@@ -70,9 +71,11 @@ func (a *Alphapoint) SetDefaults() {
 	}
 
 	a.Requester = request.New(a.Name,
-		request.NewRateLimit(time.Minute*10, alphapointAuthRate),
-		request.NewRateLimit(time.Minute*10, alphapointUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		map[request.Functionality]*rate.Limiter{
+			request.Global: request.NewRateLimit(alphapointRateInterval,
+				alphapointRequestRate),
+		})
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

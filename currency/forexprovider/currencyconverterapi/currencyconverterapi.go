@@ -24,9 +24,8 @@ func (c *CurrencyConverter) Setup(config base.Settings) error {
 	c.Verbose = config.Verbose
 	c.PrimaryProvider = config.PrimaryProvider
 	c.Requester = request.New(c.Name,
-		request.NewRateLimit(rateTime, authRate),
-		request.NewRateLimit(rateTime, unAuthRate),
-		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
+		common.NewHTTPClientWithTimeout(base.DefaultTimeOut),
+		request.NewBasicRateLimit(rateInterval, requestRate))
 	return nil
 }
 

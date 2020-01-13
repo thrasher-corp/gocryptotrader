@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"golang.org/x/time/rate"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -135,9 +136,11 @@ func (b *Bitmex) SetDefaults() {
 	}
 
 	b.Requester = request.New(b.Name,
-		request.NewRateLimit(time.Second, bitmexAuthRate),
-		request.NewRateLimit(time.Second, bitmexUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		&RateLimit{
+			Auth:   request.NewRateLimit(bitmexRateInterval, bitmexAuthRate),
+			UnAuth: request.NewRateLimit(bitmexRateInterval, bitmexUnauthRate),
+		})
 
 	b.API.Endpoints.URLDefault = bitmexAPIURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
@@ -146,6 +149,22 @@ func (b *Bitmex) SetDefaults() {
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+}
+
+// RateLimit implements the request.Limiter interface
+type RateLimit struct {
+	Auth   *rate.Limiter
+	UnAuth *rate.Limiter
+}
+
+// Limit limits outbound calls
+func (r *RateLimit) Limit(f request.Functionality) error {
+	if f == request.Auth {
+		time.Sleep(r.Auth.Reserve().Delay())
+		return nil
+	}
+	time.Sleep(r.UnAuth.Reserve().Delay())
+	return nil
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

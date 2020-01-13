@@ -56,8 +56,6 @@ func TestMain(m *testing.M) {
 		b.API.AuthenticatedSupport = true
 		b.API.AuthenticatedWebsocketSupport = true
 	}
-
-	b.DisableRateLimit()
 	os.Exit(m.Run())
 }
 

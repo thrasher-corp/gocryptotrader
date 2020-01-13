@@ -1,6 +1,8 @@
 package request
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -80,10 +82,7 @@ func TestCheckRequest(t *testing.T) {
 
 	r := New("TestRequest",
 		new(http.Client),
-		map[Functionality]*rate.Limiter{
-			Auth:   NewRateLimit(time.Second*10, 5),
-			UnAuth: NewRateLimit(time.Second*20, 100),
-		})
+		nil)
 
 	var check *Item
 	_, err := check.validateRequest(&Requester{})
@@ -141,14 +140,39 @@ func TestCheckRequest(t *testing.T) {
 	}
 }
 
+type GlobalLimitTest struct {
+	Auth   *rate.Limiter
+	UnAuth *rate.Limiter
+}
+
+func (g *GlobalLimitTest) Limit(f Functionality) error {
+	switch f {
+	case Auth:
+		if g.Auth == nil {
+			return errors.New("auth rate not set")
+		}
+		time.Sleep(g.Auth.Reserve().Delay())
+		return nil
+	case UnAuth:
+		if g.UnAuth == nil {
+			return errors.New("unauth rate not set")
+		}
+		time.Sleep(g.UnAuth.Reserve().Delay())
+		return nil
+	default:
+		return fmt.Errorf("cannot execute functionality: %d not found", f)
+	}
+}
+
+var globalshell = GlobalLimitTest{
+	Auth:   NewRateLimit(time.Millisecond*600, 1),
+	UnAuth: NewRateLimit(time.Second*1, 100)}
+
 func TestDoRequest(t *testing.T) {
 	t.Parallel()
 	r := New("test",
 		new(http.Client),
-		map[Functionality]*rate.Limiter{
-			Auth:   NewRateLimit(time.Millisecond*600, 1),
-			UnAuth: NewRateLimit(time.Second*1, 100),
-		})
+		&globalshell)
 
 	err := r.SendPayload(&Item{})
 	if err == nil {
@@ -208,10 +232,10 @@ func TestDoRequest(t *testing.T) {
 		Response bool `json:"response"`
 	}
 	err = r.SendPayload(&Item{
-		Method:  http.MethodGet,
-		Path:    testURL,
-		Result:  &resp,
-		Limiter: UnAuth,
+		Method:   http.MethodGet,
+		Path:     testURL,
+		Result:   &resp,
+		Endpoint: UnAuth,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -249,7 +273,7 @@ func TestDoRequest(t *testing.T) {
 				Path:        testURL + "/rate",
 				Result:      &resp,
 				AuthRequest: true,
-				Limiter:     Auth,
+				Endpoint:    Auth,
 			})
 			wg.Done()
 			if err != nil {
@@ -267,10 +291,7 @@ func TestGetNonce(t *testing.T) {
 	t.Parallel()
 	r := New("test",
 		new(http.Client),
-		map[Functionality]*rate.Limiter{
-			Auth:   NewRateLimit(time.Millisecond*600, 1),
-			UnAuth: NewRateLimit(time.Second*1, 100),
-		})
+		&globalshell)
 
 	if r.GetNonce(false) == r.GetNonce(false) {
 		t.Fatal(unexpected)
@@ -278,10 +299,7 @@ func TestGetNonce(t *testing.T) {
 
 	r2 := New("test",
 		new(http.Client),
-		map[Functionality]*rate.Limiter{
-			Auth:   NewRateLimit(time.Millisecond*600, 1),
-			UnAuth: NewRateLimit(time.Second*1, 100),
-		})
+		&globalshell)
 
 	if r2.GetNonce(true) == r2.GetNonce(true) {
 		t.Fatal(unexpected)
@@ -292,10 +310,7 @@ func TestGetNonceMillis(t *testing.T) {
 	t.Parallel()
 	r := New("test",
 		new(http.Client),
-		map[Functionality]*rate.Limiter{
-			Auth:   NewRateLimit(time.Millisecond*600, 1),
-			UnAuth: NewRateLimit(time.Second*1, 100),
-		})
+		&globalshell)
 
 	if r.GetNonceMilli() == r.GetNonceMilli() {
 		log.Fatal(unexpected)
@@ -306,10 +321,7 @@ func TestSetProxy(t *testing.T) {
 	t.Parallel()
 	r := New("test",
 		new(http.Client),
-		map[Functionality]*rate.Limiter{
-			Auth:   NewRateLimit(time.Millisecond*600, 1),
-			UnAuth: NewRateLimit(time.Second*1, 100),
-		})
+		&globalshell)
 	u, err := url.Parse("http://www.google.com")
 	if err != nil {
 		t.Fatal(err)
@@ -332,10 +344,7 @@ func TestEnableDisableRateLimiter(t *testing.T) {
 	t.Parallel()
 	r := New("test",
 		new(http.Client),
-		map[Functionality]*rate.Limiter{
-			Auth:   NewRateLimit(time.Millisecond*600, 1),
-			UnAuth: NewRateLimit(time.Second*1, 100),
-		})
+		&globalshell)
 
 	r.DisableRateLimit()
 	if !r.DisableRateLimiter {

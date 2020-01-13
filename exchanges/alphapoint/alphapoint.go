@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -38,9 +39,9 @@ const (
 	alphapointOpenOrders       = "GetAccountOpenOrders"
 	alphapointOrderFee         = "GetOrderFee"
 
-	// alphapoint rate times
-	alphapointAuthRate   = 500
-	alphapointUnauthRate = 500
+	// alphapoint rate limit
+	alphapointRateInterval = time.Minute * 10
+	alphapointRequestRate  = 500
 )
 
 // Alphapoint is the overarching type across the alphapoint package
@@ -528,7 +529,7 @@ func (a *Alphapoint) SendHTTPRequest(method, path string, data map[string]interf
 		Verbose:       a.Verbose,
 		HTTPDebugging: a.HTTPDebugging,
 		HTTPRecording: a.HTTPRecording,
-	})
+		Limiter:       request.Global})
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
@@ -565,5 +566,5 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(method, path string, data map[
 		Verbose:       a.Verbose,
 		HTTPDebugging: a.HTTPDebugging,
 		HTTPRecording: a.HTTPRecording,
-	})
+		Limiter:       request.Global})
 }

@@ -1,6 +1,7 @@
 package coinbene
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -20,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"golang.org/x/time/rate"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -117,9 +119,25 @@ func (c *Coinbene) SetDefaults() {
 		},
 	}
 	c.Requester = request.New(c.Name,
-		request.NewRateLimit(time.Minute, authRateLimit),
-		request.NewRateLimit(time.Second, unauthRateLimit),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		&RateLimit{
+			Orderbook:             request.NewRateLimit(contractRateInterval, orderbookRequestRate),
+			Ticker:                request.NewRateLimit(contractRateInterval, tickerRequestRate),
+			Kline:                 request.NewRateLimit(contractRateInterval, klineRequestRate),
+			FilledOrder:           request.NewRateLimit(contractRateInterval, filledOrderRequestRate),
+			ContractAccountInfo:   request.NewRateLimit(contractRateInterval, contractAccountInfoRequestRate),
+			PositionInfo:          request.NewRateLimit(contractRateInterval, positionInfoRequestRate),
+			PlaceOrder:            request.NewRateLimit(contractRateInterval, placeOrderRequestRate),
+			CancelOrder:           request.NewRateLimit(contractRateInterval, cancelOrderRequestRate),
+			GetOpenOrders:         request.NewRateLimit(contractRateInterval, getOpenOrdersRequestRate),
+			OpenOrdersByPage:      request.NewRateLimit(contractRateInterval, openOrdersByPageRequestRate),
+			GetOrderInfo:          request.NewRateLimit(contractRateInterval, getOrderInfoRequestRate),
+			GetClosedOrders:       request.NewRateLimit(contractRateInterval, getClosedOrdersRequestRate),
+			GetClosedOrdersbyPage: request.NewRateLimit(contractRateInterval, getClosedOrdersbyPageRequestRate),
+			CancelMultipleOrders:  request.NewRateLimit(contractRateInterval, cancelMultipleOrdersRequestRate),
+			GetOrderFills:         request.NewRateLimit(contractRateInterval, getOrderFillsRequestRate),
+			GetFundingRate:        request.NewRateLimit(contractRateInterval, getFundingRateRequestRate),
+		})
 
 	c.API.Endpoints.URLDefault = coinbeneAPIURL
 	c.API.Endpoints.URL = c.API.Endpoints.URLDefault
@@ -128,6 +146,67 @@ func (c *Coinbene) SetDefaults() {
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+}
+
+// RateLimit implements the request.Limiter interface
+type RateLimit struct {
+	Orderbook             *rate.Limiter
+	Ticker                *rate.Limiter
+	Kline                 *rate.Limiter
+	FilledOrder           *rate.Limiter
+	ContractAccountInfo   *rate.Limiter
+	PositionInfo          *rate.Limiter
+	PlaceOrder            *rate.Limiter
+	CancelOrder           *rate.Limiter
+	GetOpenOrders         *rate.Limiter
+	OpenOrdersByPage      *rate.Limiter
+	GetOrderInfo          *rate.Limiter
+	GetClosedOrders       *rate.Limiter
+	GetClosedOrdersbyPage *rate.Limiter
+	CancelMultipleOrders  *rate.Limiter
+	GetOrderFills         *rate.Limiter
+	GetFundingRate        *rate.Limiter
+}
+
+// Limit limits outbound requests
+func (r *RateLimit) Limit(f request.Functionality) error {
+	switch f {
+	case request.Orderbook:
+		time.Sleep(r.Orderbook.Reserve().Delay())
+	case request.Ticker:
+		time.Sleep(r.Ticker.Reserve().Delay())
+	case request.Kline:
+		time.Sleep(r.Kline.Reserve().Delay())
+	case request.FilledOrder:
+		time.Sleep(r.FilledOrder.Reserve().Delay())
+	case request.ContractAccountInfo:
+		time.Sleep(r.ContractAccountInfo.Reserve().Delay())
+	case request.PositionInfo:
+		time.Sleep(r.PositionInfo.Reserve().Delay())
+	case request.PlaceOrder:
+		time.Sleep(r.PlaceOrder.Reserve().Delay())
+	case request.CancelOrder:
+		time.Sleep(r.CancelOrder.Reserve().Delay())
+	case request.GetOpenOrders:
+		time.Sleep(r.GetOpenOrders.Reserve().Delay())
+	case request.OpenOrdersByPage:
+		time.Sleep(r.OpenOrdersByPage.Reserve().Delay())
+	case request.GetOrderInfo:
+		time.Sleep(r.GetOrderInfo.Reserve().Delay())
+	case request.GetClosedOrders:
+		time.Sleep(r.GetClosedOrders.Reserve().Delay())
+	case request.GetClosedOrdersbyPage:
+		time.Sleep(r.GetClosedOrdersbyPage.Reserve().Delay())
+	case request.CancelMultipleOrders:
+		time.Sleep(r.CancelMultipleOrders.Reserve().Delay())
+	case request.GetOrderFills:
+		time.Sleep(r.GetOrderFills.Reserve().Delay())
+	case request.GetFundingRate:
+		time.Sleep(r.GetFundingRate.Reserve().Delay())
+	default:
+		return errors.New("rate limit error endpoint functionality not set")
+	}
+	return nil
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

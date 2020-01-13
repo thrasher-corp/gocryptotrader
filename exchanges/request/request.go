@@ -17,42 +17,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
-	"golang.org/x/time/rate"
 )
-
-// Const here define individual functionality sub types for rate limiting
-const (
-	Global Functionality = iota + 1
-	Auth
-	UnAuth
-	Orderbook
-	Ticker
-)
-
-// Functionality defines individual endpoint rate limits that are set when
-// New is called.
-type Functionality int
-
-// NewRateLimit creates a new RateLimit based of time interval and how many
-// actions allowed and breaks it down to an actions-per-second basis -- Burst
-// rate is kept as one as this is not supported for out-bound requests.
-func NewRateLimit(interval time.Duration, actions int) *rate.Limiter {
-	if actions == 0 || interval == 0 {
-		// Returns an un-restricted rate limiter
-		return rate.NewLimiter(rate.Inf, 1)
-	}
-
-	i := 1 / interval.Seconds()
-	rateLimit := i * float64(actions)
-	fmt.Println("Actual rate limit RPS:", rateLimit)
-	return rate.NewLimiter(rate.Limit(rateLimit), 1)
-}
 
 // New returns a new Requester
-func New(name string, httpRequester *http.Client, limiters map[Functionality]*rate.Limiter) *Requester {
+func New(name string, httpRequester *http.Client, l Limiter) *Requester {
 	return &Requester{
 		HTTPClient:           httpRequester,
-		Limiters:             limiters,
+		Limiter:              l,
 		Name:                 name,
 		timeoutRetryAttempts: TimeoutRetryAttempts,
 		timedLock:            timedmutex.NewTimedMutex(DefaultMutexLockTimeout),
@@ -151,8 +122,12 @@ func (r *Requester) DoRequest(req *http.Request, p *Item) error {
 
 	var timeoutError error
 	for i := 0; i < r.timeoutRetryAttempts+1; i++ {
-		// Initiate a rate limit reservation and sleep
-		r.InitiateRateLimit(p.Limiter)
+		// Initiate a rate limit reservation and sleep on requested endpoint
+		err := r.InitiateRateLimit(p.Endpoint)
+		if err != nil {
+			return err
+		}
+
 		resp, err := r.HTTPClient.Do(req)
 		if err != nil {
 			if timeoutErr, ok := err.(net.Error); ok && timeoutErr.Timeout() {
@@ -225,20 +200,6 @@ func (r *Requester) DoRequest(req *http.Request, p *Item) error {
 	}
 	return fmt.Errorf("request.go error - failed to retry request %s",
 		timeoutError)
-}
-
-// InitiateRateLimit sleeps for authenticated or unauthenticated rate limits
-func (r *Requester) InitiateRateLimit(f Functionality) {
-	if r.DisableRateLimiter {
-		return
-	}
-
-	if limit, ok := r.Limiters[f]; ok {
-		time.Sleep(limit.Reserve().Delay())
-		return
-	}
-
-	log.Errorf(log.Global, "%s item limiter functionality unset skipping", r.Name)
 }
 
 // GetNonce returns a nonce for requests. This locks and enforces concurrent

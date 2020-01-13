@@ -1,6 +1,8 @@
 package exchangerates
 
 import (
+	"time"
+
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -13,7 +15,8 @@ const (
 		"RON,CAD,SGD,NZD,THB,HKD,JPY,NOK,HRK,ILS,GBP,DKK,HUF,MYR,RUB,TRY,IDR," +
 		"ZAR,INR,AUD,CZK,SEK,CNY,PLN"
 
-	unAuthRate = 10
+	rateLimitInterval = time.Second * 10
+	requestRate       = 10
 )
 
 // ExchangeRates stores the struct for the ExchangeRatesAPI API

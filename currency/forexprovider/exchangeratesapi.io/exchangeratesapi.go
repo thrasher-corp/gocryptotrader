@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
@@ -22,9 +21,8 @@ func (e *ExchangeRates) Setup(config base.Settings) error {
 	e.Verbose = config.Verbose
 	e.PrimaryProvider = config.PrimaryProvider
 	e.Requester = request.New(e.Name,
-		nil,
-		request.NewRateLimit(time.Second*10, unAuthRate),
-		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
+		common.NewHTTPClientWithTimeout(base.DefaultTimeOut),
+		request.NewBasicRateLimit(rateLimitInterval, requestRate))
 	return nil
 }
 

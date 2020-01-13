@@ -71,8 +71,8 @@ const (
 	bitfinexPlatformStatus     = "platform/status"
 
 	// requests per minute
-	GlobalRequestLimitInterval = time.Minute
-	GlobalRequestRate          = 60
+	globalRequestLimitInterval = time.Minute
+	globalRequestRate          = 60
 
 	// Bitfinex platform status values
 	// When the platform is marked in maintenance mode bots should stop trading

@@ -7,7 +7,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common/timedmutex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
-	"golang.org/x/time/rate"
 )
 
 // Const vars for rate limiter
@@ -29,7 +28,7 @@ var (
 // Requester struct for the request client
 type Requester struct {
 	HTTPClient           *http.Client
-	Limiters             map[Functionality]*rate.Limiter
+	Limiter              Limiter
 	Name                 string
 	UserAgent            string
 	timeoutRetryAttempts int
@@ -52,5 +51,5 @@ type Item struct {
 	HTTPDebugging bool
 	HTTPRecording bool
 	IsReserved    bool
-	Limiter       Functionality
+	Endpoint      Functionality
 }

@@ -54,9 +54,9 @@ const (
 	bitstampAPIReturnType         = "string"
 	bitstampAPITradingPairsInfo   = "trading-pairs-info"
 
-	bitstampAuthRate   = 8000
-	bitstampUnauthRate = 8000
-	bitstampTimeLayout = "2006-1-2 15:04:05"
+	bitstampRateInterval = time.Minute * 10
+	bitstampRequestRate  = 8000
+	bitstampTimeLayout   = "2006-1-2 15:04:05"
 )
 
 // Bitstamp is the overarching type across the bitstamp package

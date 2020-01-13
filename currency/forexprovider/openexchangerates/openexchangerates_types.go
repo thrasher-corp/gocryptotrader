@@ -31,8 +31,6 @@ const (
 		"SGD,SHP,SLL,SOS,SRD,SSP,STD,STN,SVC,SYP,SZL,THB,TJS,TMT,TND,TOP,TRY," +
 		"TTD,TWD,TZS,UAH,UGX,USD,UYU,UZS,VEF,VND,VUV,WST,XAF,XAG,XAU,XCD,XDR," +
 		"XOF,XPD,XPF,XPT,YER,ZAR,ZMK,ZMW"
-
-	unAuthRate = 0
 )
 
 // OXR is a foreign exchange rate provider at https://openexchangerates.org/

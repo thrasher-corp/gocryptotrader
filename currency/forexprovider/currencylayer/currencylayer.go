@@ -44,9 +44,8 @@ func (c *CurrencyLayer) Setup(config base.Settings) error {
 	c.PrimaryProvider = config.PrimaryProvider
 	// Rate limit is based off a monthly counter - Open limit used.
 	c.Requester = request.New(c.Name,
-		request.NewRateLimit(0, 0),
-		request.NewRateLimit(0, 0),
-		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
+		common.NewHTTPClientWithTimeout(base.DefaultTimeOut),
+		nil)
 
 	return nil
 }

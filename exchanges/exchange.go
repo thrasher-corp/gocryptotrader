@@ -35,9 +35,8 @@ const (
 func (e *Base) checkAndInitRequester() {
 	if e.Requester == nil {
 		e.Requester = request.New(e.Name,
-			request.NewRateLimit(time.Second, 0),
-			request.NewRateLimit(time.Second, 0),
-			new(http.Client))
+			new(http.Client),
+			nil)
 	}
 }
 

@@ -94,10 +94,10 @@ const (
 	bitmexEndpointUserWalletSummary     = "/user/walletSummary"
 	bitmexEndpointUserRequestWithdraw   = "/user/requestWithdrawal"
 
-	// Rate limits - 150 requests per 5 minutes
-	bitmexUnauthRate = 30
-	// 300 requests per 5 minutes
-	bitmexAuthRate = 40
+	// rate limits
+	bitmexRateInterval = time.Minute
+	bitmexUnauthRate   = 30
+	bitmexAuthRate     = 60
 
 	// ContractPerpetual perpetual contract type
 	ContractPerpetual = iota
@@ -850,6 +850,7 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(verb, path string, params Paramete
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
+		Endpoint:      request.Auth,
 	})
 	if err != nil {
 		return err

@@ -15,7 +15,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
@@ -39,9 +38,8 @@ func (o *OXR) Setup(config base.Settings) error {
 	o.Verbose = config.Verbose
 	o.PrimaryProvider = config.PrimaryProvider
 	o.Requester = request.New(o.Name,
-		nil,
-		request.NewRateLimit(time.Second*10, unAuthRate),
-		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
+		common.NewHTTPClientWithTimeout(base.DefaultTimeOut),
+		nil)
 	return nil
 }
 

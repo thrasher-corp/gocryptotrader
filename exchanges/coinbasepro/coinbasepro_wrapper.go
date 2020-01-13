@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"golang.org/x/time/rate"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -116,9 +117,11 @@ func (c *CoinbasePro) SetDefaults() {
 	}
 
 	c.Requester = request.New(c.Name,
-		request.NewRateLimit(time.Second, coinbaseproAuthRate),
-		request.NewRateLimit(time.Second, coinbaseproUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		&RateLimit{
+			Auth:   request.NewRateLimit(coinbaseproRateInterval, coinbaseproAuthRate),
+			UnAuth: request.NewRateLimit(coinbaseproRateInterval, coinbaseproUnauthRate),
+		})
 
 	c.API.Endpoints.URLDefault = coinbaseproAPIURL
 	c.API.Endpoints.URL = c.API.Endpoints.URLDefault
@@ -127,6 +130,22 @@ func (c *CoinbasePro) SetDefaults() {
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+}
+
+// RateLimit implements the request.Limiter interface
+type RateLimit struct {
+	Auth   *rate.Limiter
+	UnAuth *rate.Limiter
+}
+
+// Limit limits outbound calls
+func (r *RateLimit) Limit(f request.Functionality) error {
+	if f == request.Auth {
+		time.Sleep(r.Auth.Reserve().Delay())
+		return nil
+	}
+	time.Sleep(r.UnAuth.Reserve().Delay())
+	return nil
 }
 
 // Setup initialises the exchange parameters with the current configuration
