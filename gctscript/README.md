@@ -136,6 +136,22 @@ With an example configuration being:
       }
       load()  
      ```
+  -- Add script to autoload:
+    ```shell script
+    gctcli gctscript autoload add timer
+    {
+      "status": "success",
+      "data": "script timer added to autoload list"
+    }
+    ```
+    -- Remove script from autoload:
+    ```shell script
+      gctcli gctscript autoload remove timer
+      {
+        "status": "success",
+        "data": " "data": "script timer removed from autoload list"
+      }
+    ```
 ##### Scripting & Extending modules
 
 The scripting engine utilises [tengo](https://github.com/d5/tengo) an intro tutorial for it can be found [here](https://github.com/d5/tengo/blob/master/docs/tutorial.md)

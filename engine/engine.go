@@ -147,7 +147,7 @@ func ValidateSettings(b *Engine, s *Settings) {
 
 	if flagSet["gctscriptmanager"] {
 		gctscript.GCTScriptConfig.Enabled = s.EnableGCTScriptManager
-	} 
+	}
 
 	b.Settings.EnableCommsRelayer = s.EnableCommsRelayer
 	b.Settings.EnableEventManager = s.EnableEventManager
