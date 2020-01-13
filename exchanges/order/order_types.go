@@ -162,6 +162,7 @@ type TradeHistory struct {
 	Type        Type
 	Side        Side
 	Timestamp   time.Time
+	IsMaker     bool
 }
 
 // GetOrdersRequest used for GetOrderHistory and GetOpenOrders wrapper functions

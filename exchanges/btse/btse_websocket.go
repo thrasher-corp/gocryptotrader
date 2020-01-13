@@ -42,7 +42,7 @@ func (b *BTSE) WsConnect() error {
 
 	go b.WsHandleData()
 	if b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		err =b.WsAuthenticate()
+		err = b.WsAuthenticate()
 		if err != nil {
 			b.Websocket.DataHandler <- err
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -62,12 +62,31 @@ func (b *BTSE) WsAuthenticate() error {
 		[]byte((path + nonce)),
 		[]byte(b.API.Credentials.Secret),
 	)
-	sign  := crypto.HexEncodeToString(hmac)
+	sign := crypto.HexEncodeToString(hmac)
 	req := wsSub{
 		Operation: "authKeyExpires",
-		Arguments: []string{b.API.Credentials.Key, nonce, sign}
+		Arguments: []string{b.API.Credentials.Key, nonce, sign},
 	}
 	return b.WebsocketConn.SendJSONMessage(req)
+}
+
+func statusToStandardStatus(stat string) order.Status {
+	switch stat {
+	case "ORDER_INSERTED", "TRIGGER_INSERTED":
+		return order.New
+	case "ORDER_CANCELLED":
+		return order.Cancelled
+	case "ORDER_FULL_TRANSACTED":
+		return order.Filled
+	case "ORDER_PARTIALLY_TRANSACTED":
+		return order.PartiallyFilled
+	case "TRIGGER_ACTIVATED":
+		return order.Active
+	case "INSUFFICIENT_BALANCE", "MARKET_UNAVAILABLE":
+		return order.Rejected
+	default:
+		return order.UnknownStatus
+	}
 }
 
 // WsHandleData handles read data from websocket connection
@@ -99,6 +118,34 @@ func (b *BTSE) WsHandleData() {
 				continue
 			}
 			switch {
+			case result["topic"] == "notificationsAPI":
+				var notification wsNotification
+				err = json.Unmarshal(resp.Raw, &notification)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					continue
+				}
+				orderType, err := order.StringToOrderType(notification.Type)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+				}
+				orderSide, err := order.StringToOrderSide(notification.OrderMode)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+				}
+				b.Websocket.DataHandler <- &order.Detail{
+					Price:        notification.Price,
+					Amount:       notification.Size,
+					TriggerPrice: notification.TriggerPrice,
+					Exchange:     b.Name,
+					ID:           notification.OrderID,
+					Type:         orderType,
+					Side:         orderSide,
+					Status:       statusToStandardStatus(notification.Status),
+					AssetType:    asset.Spot,
+					Date:         time.Unix(0, notification.Timestamp*int64(time.Millisecond)),
+					Pair:         currency.NewPairFromString(notification.Symbol),
+				}
 			case strings.Contains(result["topic"].(string), "tradeHistory"):
 				var tradeHistory wsTradeHistory
 				err = json.Unmarshal(resp.Raw, &tradeHistory)
@@ -190,6 +237,11 @@ func (b *BTSE) GenerateDefaultSubscriptions() {
 	var channels = []string{"orderBookApi:%s_0", "tradeHistory:%s"}
 	pairs := b.GetEnabledPairs(asset.Spot)
 	var subscriptions []wshandler.WebsocketChannelSubscription
+	if b.Websocket.CanUseAuthenticatedEndpoints() {
+		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			Channel: "notificationApi",
+		})
+	}
 	for i := range channels {
 		for j := range pairs {
 			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
@@ -206,6 +258,7 @@ func (b *BTSE) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscripti
 	var sub wsSub
 	sub.Operation = "subscribe"
 	sub.Arguments = []string{channelToSubscribe.Channel}
+
 	return b.WebsocketConn.SendJSONMessage(sub)
 }
 

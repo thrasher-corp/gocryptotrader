@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -199,13 +200,17 @@ func (b *BTCMarkets) WsHandleData() {
 				var price float64
 				var trades []order.TradeHistory
 				for x := range orderData.Trades {
+					var isMaker bool
+					if strings.Contains(orderData.Trades[x].LiquidityType, "maker") {
+						isMaker = true
+					}
 					trades = append(trades, order.TradeHistory{
 						Price:    orderData.Trades[x].Price,
 						Amount:   orderData.Trades[x].Volume,
 						Fee:      orderData.Trades[x].Fee,
 						Exchange: b.Name,
 						TID:      strconv.FormatInt(orderData.Trades[x].TradeID, 10),
-						Type:     orderData.Trades[x].LiquidityType,
+						IsMaker:  isMaker,
 					})
 					price = orderData.Trades[x].Price
 					originalAmount += orderData.Trades[x].Volume

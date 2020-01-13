@@ -493,7 +493,9 @@ func StringToOrderType(oType string) (Type, error) {
 	case strings.EqualFold(oType, ImmediateOrCancel.String()),
 		strings.EqualFold(oType, "immediate or cancel"):
 		return ImmediateOrCancel, nil
-	case strings.EqualFold(oType, Stop.String()):
+	case strings.EqualFold(oType, Stop.String()),
+		strings.EqualFold(oType, "stop loss"),
+		strings.EqualFold(oType, "stop_loss"):
 		return Stop, nil
 	case strings.EqualFold(oType, TrailingStop.String()),
 		strings.EqualFold(oType, "trailing stop"):
