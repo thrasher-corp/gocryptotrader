@@ -56,7 +56,7 @@ type COINUT struct {
 	instrumentMap instrumentMap
 }
 
-func (c *COINUT) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+func (c *COINUT) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

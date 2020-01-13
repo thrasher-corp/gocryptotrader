@@ -63,7 +63,7 @@ type Bittrex struct {
 	exchange.Base
 }
 
-func (b *Bittrex) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+func (b *Bittrex) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

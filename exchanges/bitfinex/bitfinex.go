@@ -91,7 +91,7 @@ type Bitfinex struct {
 	WebsocketSubdChannels      map[int]WebsocketChanInfo
 }
 
-func (b *Bitfinex) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

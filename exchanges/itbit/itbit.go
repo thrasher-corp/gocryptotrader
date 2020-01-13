@@ -40,7 +40,7 @@ type ItBit struct {
 	exchange.Base
 }
 
-func (i *ItBit) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+func (i *ItBit) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

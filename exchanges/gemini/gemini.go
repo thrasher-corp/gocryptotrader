@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	currency2 "github.com/thrasher-corp/gocryptotrader/currency"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -67,7 +68,7 @@ type Gemini struct {
 	RequiresHeartBeat bool
 }
 
-func (g *Gemini) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+func (g *Gemini) GetHistoricCandles(pair currency2.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

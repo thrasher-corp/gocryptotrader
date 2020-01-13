@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	currency2 "github.com/thrasher-corp/gocryptotrader/currency"
 	"io"
 	"net/http"
 	"net/url"
@@ -25,7 +26,7 @@ type Coinbene struct {
 	WebsocketConn *wshandler.WebsocketConnection
 }
 
-func (c *Coinbene) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+func (c *Coinbene) GetHistoricCandles(pair currency2.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

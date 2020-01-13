@@ -2918,17 +2918,21 @@ func getAuditEvent(c *cli.Context) error {
 
 var getHistoricCandlesCommand = cli.Command{
 	Name:      "gethistoriccandles",
-	Usage:     "gets historical candles for the specified granularity back in range size time from now.",
-	ArgsUsage: "<exchange> <rangesize> <granularity>",
+	Usage:     "gets historical candles for the specified granularity up to range size time from now.",
+	ArgsUsage: "<exchange> <pair> <rangesize> <granularity>",
 	Action:    getHistoricCandles,
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "exchange, e",
 			Usage: "the exchange to get the candles from",
 		},
+		cli.StringFlag{
+			Name:  "pair",
+			Usage: "the currency pair to get the candles for",
+		},
 		cli.IntFlag{
 			Name:  "rangesize, r",
-			Usage: "the amount of granularity to go back in time to",
+			Usage: "the amount of time to go back from now to fetch candles in the given granularity",
 		},
 		cli.IntFlag{
 			Name:  "granularity, g",
@@ -2945,17 +2949,25 @@ func getHistoricCandles(c *cli.Context) error {
 
 	var exchangeName string
 	if !c.IsSet("exchange") {
-		exchangeName = c.Args().First()
+		exchangeName = c.Args().Get(0)
 	}
-
 	if !validExchange(exchangeName) {
 		return errInvalidExchange
 	}
 
+	var currencyPair string
+	if !c.IsSet("pair") {
+		currencyPair = c.Args().Get(1)
+	}
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+
 	var rangesize int
 	if !c.IsSet("rangesize") {
 		if c.Args().Get(1) != "" {
-			rangesizestr, err := strconv.ParseInt(c.Args().Get(1), 10, 32)
+			rangesizestr, err := strconv.ParseInt(c.Args().Get(2), 10, 32)
 			if err == nil {
 				rangesize = int(rangesizestr)
 			}
@@ -2965,7 +2977,7 @@ func getHistoricCandles(c *cli.Context) error {
 	var granularity int
 	if !c.IsSet("granularity") {
 		if c.Args().Get(2) != "" {
-			granularitystr, err := strconv.ParseInt(c.Args().Get(2), 10, 32)
+			granularitystr, err := strconv.ParseInt(c.Args().Get(3), 10, 32)
 			if err == nil {
 				granularity = int(granularitystr)
 			}
@@ -2981,7 +2993,12 @@ func getHistoricCandles(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetHistoricCandles(context.Background(),
 		&gctrpc.GetHistoricCandlesRequest{
-			Exchange:    exchangeName,
+			Exchange: exchangeName,
+			Pair: &gctrpc.CurrencyPair{
+				Delimiter: p.Delimiter,
+				Base:      p.Base.String(),
+				Quote:     p.Quote.String(),
+			},
 			Rangesize:   int32(rangesize),
 			Granularity: int32(granularity),
 		})

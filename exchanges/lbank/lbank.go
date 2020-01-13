@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	currency2 "github.com/thrasher-corp/gocryptotrader/currency"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -29,7 +30,7 @@ type Lbank struct {
 	WebsocketConn *wshandler.WebsocketConnection
 }
 
-func (l *Lbank) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+func (l *Lbank) GetHistoricCandles(pair currency2.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

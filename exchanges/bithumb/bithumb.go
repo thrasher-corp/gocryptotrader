@@ -56,7 +56,7 @@ type Bithumb struct {
 	exchange.Base
 }
 
-func (b *Bithumb) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+func (b *Bithumb) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

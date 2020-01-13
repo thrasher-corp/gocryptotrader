@@ -64,7 +64,7 @@ type Kraken struct {
 	wsRequestMtx               sync.Mutex
 }
 
-func (k *Kraken) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+func (k *Kraken) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

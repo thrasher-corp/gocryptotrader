@@ -22,7 +22,7 @@ type Bitmex struct {
 	WebsocketConn *wshandler.WebsocketConnection
 }
 
-func (b *Bitmex) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+func (b *Bitmex) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

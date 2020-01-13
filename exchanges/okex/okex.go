@@ -2,6 +2,7 @@ package okex
 
 import (
 	"fmt"
+	currency2 "github.com/thrasher-corp/gocryptotrader/currency"
 	"net/http"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -46,7 +47,7 @@ type OKEX struct {
 	okgroup.OKGroup
 }
 
-func (o *OKEX) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+func (o *OKEX) GetHistoricCandles(pair currency2.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

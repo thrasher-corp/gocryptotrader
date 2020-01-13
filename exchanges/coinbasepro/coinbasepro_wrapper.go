@@ -617,18 +617,19 @@ func (c *CoinbasePro) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
 }
 
-func (c *CoinbasePro) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+// GetHistoricCandles Allows to retrieve an amount of candles back in time starting from now up to rangesize * granularity, where granularity is the trade period covered by each candle
+func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
 	iso8601format := "2006-01-02T15:04:05"
 	//start end granularity
 	end := time.Now().UTC()
-	start := time.Now().UTC().Add(-time.Minute * 30)
-	history, err := c.GetHistoricRates("BTC-EUR", start.Format(iso8601format), end.Format(iso8601format), 60)
+	b := granularity * rangesize
+	start := time.Now().UTC().Add(-time.Second * time.Duration(b))
+	history, err := c.GetHistoricRates(p.String(), start.Format(iso8601format), end.Format(iso8601format), int64(granularity))
 	if err != nil {
 		return nil, err
 	}
 	var candles []exchange.Candle
 	for x := range history {
-
 		candles = append(candles, exchange.Candle{
 			Time:   history[x].Time,
 			Low:    history[x].Low,
@@ -638,7 +639,5 @@ func (c *CoinbasePro) GetHistoricCandles(rangesize int, granularity int) ([]exch
 			Volume: history[x].Volume,
 		})
 	}
-
 	return candles, nil
-
 }

@@ -48,7 +48,7 @@ type Gateio struct {
 	exchange.Base
 }
 
-func (g *Gateio) GetHistoricCandles(rangesize int, granularity int) ([]exchange.Candle, error) {
+func (g *Gateio) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
