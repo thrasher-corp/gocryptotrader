@@ -70,7 +70,12 @@ With an example configuration being:
   ```
   This will look in your GoCryptoTrader data directory in a folder called "scripts" for files one.gct and two.gct and autoload them
 + Manual control of scripts can be done via the gctcli command with support for the following:
-  
+
+  - Enable/Disable GCTScript:
+   ```shell script
+    gctcli enablesubsystem "gctscript"
+    gctcli disablesubsystem "gctscript"
+  ```
   - Start/Execute:
   ```shell script
     gctcli gctscript execute <scriptname> <pathoverride>
@@ -129,7 +134,7 @@ With an example configuration being:
         "script": {
         "UUID": "bf692e2d-fa1e-4d95-92fd-33d7634d3d77",
         "name": "timer.gct",
-        "path": "/home/x/gocryptotrader-xtda/testdata/gctscript",
+        "path": "/home/x/.gocryptotrader/scripts",
         "next_run": "2019-12-12 07:44:19.747572406 +1100 AEDT m=+16.782773385"
       },
       "data": "fmt := import(\"fmt\")\nt := import(\"times\")\n\nname := \"run\"\ntimer := \"5s\"\n\nload := func() {\n\tfmt.printf(\"5s %s\\n\",t.now())\n}\n\nload()\n"
