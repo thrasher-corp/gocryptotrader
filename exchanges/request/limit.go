@@ -1,7 +1,6 @@
 package request
 
 import (
-	"errors"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -13,27 +12,6 @@ const (
 	Global
 	Auth
 	UnAuth
-	Order
-	LowVolume
-	Batch
-	Withdraw
-	NewReport
-	Orderbook
-	Ticker
-	Kline
-	FilledOrder
-	ContractAccountInfo
-	PositionInfo
-	PlaceOrder
-	CancelOrder
-	GetOpenOrders
-	OpenOrdersByPage
-	GetOrderInfo
-	GetClosedOrders
-	GetClosedOrdersbyPage
-	CancelMultipleOrders
-	GetOrderFills
-	GetFundingRate
 )
 
 // BasicLimit denotes basic rate limit that implements the Limiter interface
@@ -44,9 +22,6 @@ type BasicLimit struct {
 
 // Limit executes a single rate limit set by NewRateLimit
 func (b *BasicLimit) Limit(_ Functionality) error {
-	if b.r == nil {
-		return errors.New("rate limit not set")
-	}
 	time.Sleep(b.r.Reserve().Delay())
 	return nil
 }
