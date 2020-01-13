@@ -76,7 +76,7 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetHistoricRates(t *testing.T) {
-	_, err := c.GetHistoricRates(testPair, 0, 0, 0)
+	_, err := c.GetHistoricRates(testPair, "0", "0", 0)
 	if err != nil {
 		t.Error("GetHistoricRates() error", err)
 	}
