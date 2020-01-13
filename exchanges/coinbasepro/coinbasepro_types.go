@@ -382,6 +382,13 @@ type wsOrderReceived struct {
 	NewSize       float64 `json:"new_size,string"`
 	OldSize       float64 `json:"old_size,string"`
 	Reason        string  `json:"reason"`
+	Timestamp     string  `json:"timestamp"`
+	UserID        string  `json:"user_id"`
+	ProfileID     string  `json:"profile_id"`
+	StopType      string  `json:"stop_type"`
+	StopPrice     float64 `json:"stop_price,string"`
+	TakerFeeRate  float64 `json:"taker_fee_rate,string"`
+	Private       bool    `json:"private"`
 }
 
 // WebsocketHeartBeat defines JSON response for a heart beat message

@@ -156,11 +156,23 @@ func (c *CoinbasePro) WsHandleData() {
 					c.Websocket.DataHandler <- err
 				}
 				oStatus := statusToStandardStatus(wsOrder.Type)
+				if wsOrder.Reason == "canceled" {
+					oType = order.Cancelled
+				}
 				c.Websocket.DataHandler <- &order.Detail{
+					HiddenOrder:     wsOrder.Private,
 					Price:           wsOrder.Price,
 					Amount:          wsOrder.Size,
+					LimitPriceUpper: 0,
+					LimitPriceLower: 0,
+					TriggerPrice:    wsOrder.StopPrice,
+					TargetAmount:    0,
+					ExecutedAmount:  wsOrder.Size - wsOrder.RemainingSize,
+					RemainingAmount: wsOrder.RemainingSize,
+					Fee:             wsOrder.TakerFeeRate,
 					Exchange:        c.Name,
 					ID:              wsOrder.OrderID,
+					AccountID:       wsOrder.ProfileID,
 					ClientID:        c.API.Credentials.ClientID,
 					Type:            oType,
 					Side:            oSide,
@@ -168,8 +180,6 @@ func (c *CoinbasePro) WsHandleData() {
 					AssetType:       asset.Spot,
 					Date:            createdDate,
 					Pair:            currency.NewPairFromString(wsOrder.ProductID),
-					ExecutedAmount:  wsOrder.Size - wsOrder.RemainingSize,
-					RemainingAmount: wsOrder.RemainingSize,
 				}
 			}
 		}
@@ -293,7 +303,7 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *CoinbasePro) GenerateDefaultSubscriptions() {
-	var channels = []string{"heartbeat", "user"}
+	var channels = []string{"heartbeat", "level2", "ticker", "user"}
 	enabledCurrencies := c.GetEnabledPairs(asset.Spot)
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range channels {
