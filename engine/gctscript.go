@@ -50,7 +50,7 @@ func (g *gctScriptManager) Stop() error {
 		return fmt.Errorf("%s %s", gctscriptManagerName, ErrSubSystemAlreadyStopped)
 	}
 
-	log.Debugln(log.Global, gctscriptManagerName, MsgSubSystemShuttingDown)
+	log.Debugln(log.GCTScriptMgr, gctscriptManagerName, MsgSubSystemShuttingDown)
 	close(g.shutdown)
 	err := vm.ShutdownAll()
 	if err != nil {
@@ -68,7 +68,7 @@ func (g *gctScriptManager) run() {
 		atomic.CompareAndSwapInt32(&g.stopped, 1, 0)
 		atomic.CompareAndSwapInt32(&g.started, 1, 0)
 		Bot.ServicesWG.Done()
-		log.Debugln(log.Global, gctscriptManagerName, MsgSubSystemShutdown)
+		log.Debugln(log.GCTScriptMgr, gctscriptManagerName, MsgSubSystemShutdown)
 	}()
 
 	<-g.shutdown

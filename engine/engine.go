@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/utils"
@@ -143,6 +144,10 @@ func ValidateSettings(b *Engine, s *Settings) {
 	} else {
 		b.Settings.EnableDeprecatedRPC = b.Config.RemoteControl.DeprecatedRPC.Enabled
 	}
+
+	if flagSet["gctscriptmanager"] {
+		gctscript.GCTScriptConfig.Enabled = s.EnableGCTScriptManager
+	} 
 
 	b.Settings.EnableCommsRelayer = s.EnableCommsRelayer
 	b.Settings.EnableEventManager = s.EnableEventManager
