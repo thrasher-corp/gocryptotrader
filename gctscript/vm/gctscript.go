@@ -10,6 +10,9 @@ import (
 
 // New returns a new instance of VM
 func New() *VM {
+	fmt.Println("HELLO")
+	mu.Lock()
+	defer mu.Unlock()
 	if AllVMs == nil {
 		AllVMs = make(map[uuid.UUID]*VM)
 	}
@@ -22,6 +25,7 @@ func New() *VM {
 
 	vm := NewVM()
 	AllVMs[vm.ID] = vm
+
 	return vm
 }
 
@@ -69,11 +73,13 @@ func ShutdownAll() (err error) {
 
 // RemoveVM remove VM from list
 func RemoveVM(id uuid.UUID) error {
+	mu.Lock()
+	defer mu.Unlock()
 	if _, f := AllVMs[id]; !f {
 		return ErrNoVMFound
 	}
-
 	delete(AllVMs, id)
+
 	if GCTScriptConfig.Verbose {
 		log.Debugf(log.GCTScriptMgr, "VM %v removed from AllVMs", id)
 	}

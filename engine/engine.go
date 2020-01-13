@@ -149,6 +149,10 @@ func ValidateSettings(b *Engine, s *Settings) {
 		gctscript.GCTScriptConfig.Enabled = s.EnableGCTScriptManager
 	}
 
+	if flagSet["maxvirtualmachines"] {
+		gctscript.GCTScriptConfig.MaxVirtualMachines = uint8(s.MaxVirtualMachines)
+	}
+
 	b.Settings.EnableCommsRelayer = s.EnableCommsRelayer
 	b.Settings.EnableEventManager = s.EnableEventManager
 

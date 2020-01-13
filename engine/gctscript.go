@@ -35,6 +35,9 @@ func (g *gctScriptManager) Start() (err error) {
 	}()
 
 	log.Debugln(log.Global, gctscriptManagerName, MsgSubSystemStarting)
+	if !vm.GCTScriptConfig.Enabled {
+		return vm.ErrScriptingDisabled
+	}
 	g.shutdown = make(chan struct{})
 	go g.run()
 	return nil

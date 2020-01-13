@@ -230,6 +230,7 @@ func (vm *VM) event(status, executionType string, includeScriptHash bool) {
 	if validator.IsTestExecution {
 		return
 	}
+
 	var hash, name, path null.String
 	if includeScriptHash {
 		contents, err := vm.read()

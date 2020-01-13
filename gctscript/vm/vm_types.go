@@ -15,7 +15,7 @@ const (
 	// DefaultTimeoutValue default timeout value for virtual machines
 	DefaultTimeoutValue = 30 * time.Second
 	// DefaultMaxVirtualMachines max number of virtual machines that can be loaded at one time
-	DefaultMaxVirtualMachines = 10
+	DefaultMaxVirtualMachines uint8 = 10
 
 	// TypeLoad text to display in script_event table when a VM is loaded
 	TypeLoad = "load"

@@ -9,7 +9,7 @@ import (
 
 var (
 	// RWValidatorLock mutex lock
-	RWValidatorLock sync.RWMutex
+	RWValidatorLock = &sync.RWMutex{}
 	// IsTestExecution if test is executed under test conditions
 	IsTestExecution bool
 
