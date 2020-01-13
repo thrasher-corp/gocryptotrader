@@ -24,7 +24,8 @@ import (
 // Coinbene is the overarching type across this package
 type Coinbene struct {
 	exchange.Base
-	WebsocketConn *wshandler.WebsocketConnection
+	WSBTCContractConnection      *wshandler.WebsocketConnection
+	WSUSDTSWAPContractConnection *wshandler.WebsocketConnection
 }
 
 const (

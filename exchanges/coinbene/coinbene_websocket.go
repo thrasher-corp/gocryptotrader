@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -21,7 +22,8 @@ import (
 )
 
 const (
-	coinbeneWsURL = "wss://ws-contract.coinbene.vip/openapi/ws"
+	wsContractURL = "wss://ws-contract.coinbene.vip/openapi/ws"
+	wsUSDTSWAPURL = "wss://ws-contract.coinbene.vip/usdt/openapi/ws"
 	event         = "event"
 	topic         = "topic"
 )
@@ -32,7 +34,7 @@ func (c *Coinbene) WsConnect() error {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := c.WebsocketConn.Dial(&dialer, http.Header{})
+	err := c.WSBTCContractConnection.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -90,14 +92,14 @@ func (c *Coinbene) WsDataHandler() {
 			return
 
 		default:
-			stream, err := c.WebsocketConn.ReadMessage()
+			stream, err := c.WSBTCContractConnection.ReadMessage()
 			if err != nil {
 				c.Websocket.DataHandler <- err
 				return
 			}
 			c.Websocket.TrafficAlert <- struct{}{}
 			if string(stream.Raw) == wshandler.Ping {
-				err = c.WebsocketConn.SendRawMessage(websocket.TextMessage, []byte(wshandler.Pong))
+				err = c.WSBTCContractConnection.SendRawMessage(websocket.TextMessage, []byte(wshandler.Pong))
 				if err != nil {
 					c.Websocket.DataHandler <- err
 				}
@@ -330,7 +332,40 @@ func (c *Coinbene) WsDataHandler() {
 					c.Websocket.DataHandler <- err
 					continue
 				}
-				c.Websocket.DataHandler <- orders
+				for i := range orders.Data {
+					oType, err := order.StringToOrderType(orders.Data[i].OrderType)
+					if err != nil {
+						c.Websocket.DataHandler <- err
+					}
+					c.Websocket.DataHandler <- &order.Detail{
+						ImmediateOrCancel: false,
+						HiddenOrder:       false,
+						FillOrKill:        false,
+						PostOnly:          false,
+						Price:             0,
+						Amount:            0,
+						LimitPriceUpper:   0,
+						LimitPriceLower:   0,
+						TriggerPrice:      0,
+						TargetAmount:      0,
+						ExecutedAmount:    orders.Data[i].FilledQuantity,
+						RemainingAmount:   0,
+						Fee:               orders.Data[i].Fee,
+						Exchange:          c.Name,
+						ID:                orders.Data[i].OrderID,
+						AccountID:         "",
+						ClientID:          "",
+						WalletAddress:     "",
+						Type:              oType,
+						Side:              "",
+						Status:            "",
+						AssetType:         "",
+						Date:              time.Time{},
+						LastUpdated:       time.Time{},
+						Pair:              currency.NewPairFromString(orders.Data[i].Symbol),
+						Trades:            nil,
+					}
+				}
 			default:
 				c.Websocket.DataHandler <- fmt.Errorf("%s - unhandled response '%s'", c.Name, stream.Raw)
 			}
@@ -343,7 +378,7 @@ func (c *Coinbene) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 	var sub WsSub
 	sub.Operation = "subscribe"
 	sub.Arguments = []string{channelToSubscribe.Channel}
-	return c.WebsocketConn.SendJSONMessage(sub)
+	return c.WSBTCContractConnection.SendJSONMessage(sub)
 }
 
 // Unsubscribe sends a websocket message to receive data from the channel
@@ -351,7 +386,7 @@ func (c *Coinbene) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubs
 	var sub WsSub
 	sub.Operation = "unsubscribe"
 	sub.Arguments = []string{channelToSubscribe.Channel}
-	return c.WebsocketConn.SendJSONMessage(sub)
+	return c.WSBTCContractConnection.SendJSONMessage(sub)
 }
 
 // Login logs in
@@ -365,5 +400,5 @@ func (c *Coinbene) Login() error {
 	sign := crypto.HexEncodeToString(tempSign)
 	sub.Operation = "login"
 	sub.Arguments = []string{c.API.Credentials.Key, expTime, sign}
-	return c.WebsocketConn.SendJSONMessage(sub)
+	return c.WSBTCContractConnection.SendJSONMessage(sub)
 }

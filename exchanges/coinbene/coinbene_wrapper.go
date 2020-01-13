@@ -122,7 +122,7 @@ func (c *Coinbene) SetDefaults() {
 
 	c.API.Endpoints.URLDefault = coinbeneAPIURL
 	c.API.Endpoints.URL = c.API.Endpoints.URLDefault
-	c.API.Endpoints.WebsocketURL = coinbeneWsURL
+	c.API.Endpoints.WebsocketURL = wsContractURL
 	c.Websocket = wshandler.New()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -147,7 +147,7 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 			Verbose:                          exch.Verbose,
 			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-			DefaultURL:                       coinbeneWsURL,
+			DefaultURL:                       wsContractURL,
 			ExchangeName:                     exch.Name,
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        c.WsConnect,
@@ -159,9 +159,18 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	c.WebsocketConn = &wshandler.WebsocketConnection{
+	c.WSBTCContractConnection = &wshandler.WebsocketConnection{
 		ExchangeName:         c.Name,
 		URL:                  c.Websocket.GetWebsocketURL(),
+		ProxyURL:             c.Websocket.GetProxyAddress(),
+		Verbose:              c.Verbose,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	}
+
+	c.WSUSDTSWAPContractConnection = &wshandler.WebsocketConnection{
+		ExchangeName:         c.Name,
+		URL:                  wsUSDTSWAPURL,
 		ProxyURL:             c.Websocket.GetProxyAddress(),
 		Verbose:              c.Verbose,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
