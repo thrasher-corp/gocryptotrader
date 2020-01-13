@@ -62,6 +62,7 @@ const (
 var (
 	verbose                             bool
 	apiKey, apiToken, updateChecklistID string
+	exchangeData                        []ExchangeInfo
 )
 
 func main() {
@@ -71,7 +72,13 @@ func main() {
 	flag.BoolVar(&verbose, "verbose", false, "Increases logging verbosity for API Update Checker")
 	flag.Parse()
 	if areAPIKeysSet() {
-		err := CheckUpdates(jsonFile)
+		var err error
+		exchangeData, err = ReadFileData(jsonFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = CheckUpdates(jsonFile)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -84,6 +91,7 @@ func main() {
 			}
 		}
 	}
+
 }
 
 // areAPIKeysSet checks if api keys and tokens are set
@@ -99,36 +107,28 @@ func getSha(repoPath string) (ShaResponse, error) {
 	var resp ShaResponse
 	path := fmt.Sprintf(githubPath, repoPath)
 	if verbose {
-		log.Println(path)
+		fmt.Println(path)
 	}
 	return resp, common.SendHTTPGetRequest(path, true, false, &resp)
 }
 
 // CheckExistingExchanges checks if the given exchange exists
-func CheckExistingExchanges(fileName, exchName string) ([]ExchangeInfo, bool, error) {
-	data, err := ReadFileData(fileName)
-	if err != nil {
-		return data, false, err
-	}
+func CheckExistingExchanges(fileName, exchName string) (bool, error) {
 	var resp bool
-	for x := range data {
-		if data[x].Name == exchName {
+	for x := range exchangeData {
+		if exchangeData[x].Name == exchName {
 			resp = true
 			break
 		}
 	}
-	return data, resp, nil
+	return resp, nil
 }
 
 // CheckMissingExchanges checks if any supported exchanges are missing api checker functionality
 func CheckMissingExchanges(fileName string) ([]string, error) {
-	data, err := ReadFileData(fileName)
-	if err != nil {
-		return nil, err
-	}
 	var tempArray []string
-	for x := range data {
-		tempArray = append(tempArray, data[x].Name)
+	for x := range exchangeData {
+		tempArray = append(tempArray, exchangeData[x].Name)
 	}
 	supportedExchs := exchange.Exchanges
 	for z := 0; z < len(supportedExchs); {
@@ -141,7 +141,7 @@ func CheckMissingExchanges(fileName string) ([]string, error) {
 	return supportedExchs, nil
 }
 
-// ReadFileData reads the file data for the json file
+// ReadFileData reads the file data from the given json file
 func ReadFileData(fileName string) ([]ExchangeInfo, error) {
 	file, err := os.Open(fileName)
 	if err != nil {
@@ -163,42 +163,39 @@ func ReadFileData(fileName string) ([]ExchangeInfo, error) {
 // CheckUpdates checks updates.json for all the existing exchanges
 func CheckUpdates(fileName string) error {
 	var resp []string
-	data, err := ReadFileData(fileName)
-	if err != nil {
-		return err
-	}
 	errMap := make(map[string]error)
 	var wg sync.WaitGroup
 	var sha ShaResponse
 	var checkStr string
-	for x := range data {
+	var err error
+	for x := range exchangeData {
 		wg.Add(1)
 		go func(x int) {
 			defer wg.Done()
-			switch data[x].CheckType {
+			switch exchangeData[x].CheckType {
 			case github:
-				sha, err = getSha(data[x].Data.GitHubData.Repo)
+				sha, err = getSha(exchangeData[x].Data.GitHubData.Repo)
 				if err != nil {
-					errMap[data[x].Name] = err
+					errMap[exchangeData[x].Name] = err
 				}
-				if sha.ShaResp != data[x].Data.GitHubData.Sha {
-					resp = append(resp, data[x].Name)
-					data[x].Data.GitHubData.Sha = sha.ShaResp
+				if sha.ShaResp != exchangeData[x].Data.GitHubData.Sha {
+					resp = append(resp, exchangeData[x].Name)
+					exchangeData[x].Data.GitHubData.Sha = sha.ShaResp
 				}
 			case htmlScrape:
-				checkStr, err = CheckChangeLog(*&data[x].Data.HTMLData)
+				checkStr, err = CheckChangeLog(*&exchangeData[x].Data.HTMLData)
 				if err != nil {
-					errMap[data[x].Name] = err
+					errMap[exchangeData[x].Name] = err
 				}
-				if checkStr != data[x].Data.HTMLData.CheckString {
-					resp = append(resp, data[x].Name)
-					data[x].Data.HTMLData.CheckString = checkStr
+				if checkStr != exchangeData[x].Data.HTMLData.CheckString {
+					resp = append(resp, exchangeData[x].Name)
+					exchangeData[x].Data.HTMLData.CheckString = checkStr
 				}
 			}
 		}(x)
 	}
 	wg.Wait()
-	file, err := json.MarshalIndent(data, "", " ")
+	file, err := json.MarshalIndent(exchangeData, "", " ")
 	if err != nil {
 		return err
 	}
@@ -212,12 +209,20 @@ func CheckUpdates(fileName string) error {
 			for z := range a.CheckItems {
 				if strings.Contains(a.CheckItems[z].Name, resp[y]) {
 					err = UpdateCheckItem(a.CheckItems[z].ID, a.CheckItems[z].Name, a.CheckItems[z].State)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
 	}
 	if verbose && !areAPIKeysSet() {
-		log.Printf("API Keys and Token not set, trello will not be automatically updated\n")
+		err = UpdateTestFile()
+		if err != nil {
+			return err
+		}
+		fileName = testJSONFile
+		log.Println("Updating test file, main file & trello will not be automatically updated since API key & token are not set")
 	}
 	if verbose {
 		log.Printf("The following exchanges need an update: %v\n", resp)
@@ -235,69 +240,54 @@ func CheckUpdates(fileName string) error {
 func CheckChangeLog(htmlData *HTMLScrapingData) (string, error) {
 	log.Println(*&htmlData.Path)
 	var dataStrings []string
-	var dataString string
 	var err error
 	switch htmlData.Path {
 	case pathBTSE:
 		dataStrings, err = HTMLScrapeBTSE(htmlData)
-		return dataStrings[0], nil
 	case pathBitfinex:
 		dataStrings, err = HTMLScrapeBitfinex(htmlData)
 	case pathBitmex:
 		dataStrings, err = HTMLScrapeBitmex(htmlData)
 	case pathANX:
 		dataStrings, err = HTMLScrapeANX(htmlData)
-		return dataStrings[0], nil
 	case pathPoloniex:
 		dataStrings, err = HTMLScrapePoloniex(htmlData)
 	case pathIbBit:
 		dataStrings, err = HTMLScrapeItBit(htmlData)
-		return dataStrings[0], nil
 	case pathBTCMarkets:
 		dataStrings, err = HTMLScrapeBTCMarkets(htmlData)
-		return dataStrings[0], nil
 	case pathEXMO:
 		dataStrings, err = HTMLScrapeExmo(htmlData)
-		return dataStrings[0], nil
 	case pathBitstamp:
 		dataStrings, err = HTMLScrapeBitstamp(htmlData)
-		return dataStrings[0], nil
 	case pathHitBTC:
 		dataStrings, err = HTMLScrapeHitBTC(htmlData)
-		return dataStrings[0], nil
 	case pathBitflyer:
 		dataStrings, err = HTMLScrapeBitflyer(htmlData)
-		return dataStrings[0], nil
 	case pathLakeBTC:
 		dataStrings, err = HTMLScrapeLakeBTC(htmlData)
-		return dataStrings[0], nil
 	case pathKraken:
 		dataStrings, err = HTMLScrapeKraken(htmlData)
-		return dataStrings[0], nil
 	case pathAlphaPoint:
 		dataStrings, err = HTMLScrapeAlphaPoint(htmlData)
-		return dataStrings[0], nil
 	case pathYobit:
 		dataStrings, err = HTMLScrapeYobit(htmlData)
 	case pathLocalBitcoins:
-		dataString, err = HTMLScrapeLocalBitcoins(htmlData)
-		return dataString, nil
-	default:
-		dataStrings, err = HTMLScrapeDefault(htmlData)
-	}
-	if err != nil {
-		return "", err
-	}
-	switch htmlData.Path {
+		dataStrings, err = HTMLScrapeLocalBitcoins(htmlData)
 	case pathOkCoin, pathOkex:
+		dataStrings, err = HTMLScrapeDefault(htmlData)
 		for x := range dataStrings {
 			if len(dataStrings[x]) != 10 {
 				tempStorage := strings.Split(dataStrings[x], "-")
 				dataStrings[x] = fmt.Sprintf("%s-0%s-%s", tempStorage[0], tempStorage[1], tempStorage[2])
 			}
 		}
+	default:
+		dataStrings, err = HTMLScrapeDefault(htmlData)
 	}
-
+	if err != nil {
+		return "", err
+	}
 	switch {
 	case len(dataStrings) == 1:
 		return dataStrings[0], nil
@@ -326,13 +316,12 @@ func CheckChangeLog(htmlData *HTMLScrapingData) (string, error) {
 
 // Add appends exchange data to updates.json for future api checks
 func Add(fileName, exchName, checkType, path string, data interface{}, update bool) error {
-	finalResp, check, err := CheckExistingExchanges(jsonFile, exchName)
+	check, err := CheckExistingExchanges(fileName, exchName)
 	if err != nil {
 		return err
 	}
 	var file []byte
-	switch update {
-	case false:
+	if !update {
 		if check {
 			if verbose {
 				log.Printf("%v exchange already exists\n", exchName)
@@ -343,17 +332,17 @@ func Add(fileName, exchName, checkType, path string, data interface{}, update bo
 		if err != nil {
 			return err
 		}
-		finalResp = append(finalResp, exchange)
-		file, err = json.MarshalIndent(finalResp, "", " ")
+		exchangeData = append(exchangeData, exchange)
+		file, err = json.MarshalIndent(exchangeData, "", " ")
 		if err != nil {
 			return err
 		}
-	case true:
+	} else {
 		info, err := FillData(exchName, checkType, path, data)
 		if err != nil {
 			return err
 		}
-		allExchData := Update(exchName, finalResp, info)
+		allExchData := Update(exchName, exchangeData, info)
 		if err != nil {
 			return err
 		}
@@ -1074,23 +1063,25 @@ loop:
 }
 
 // HTMLScrapeLocalBitcoins gets the check string for Yobit Exchange
-func HTMLScrapeLocalBitcoins(htmlData *HTMLScrapingData) (string, error) {
+func HTMLScrapeLocalBitcoins(htmlData *HTMLScrapingData) ([]string, error) {
 	temp, err := http.Get(htmlData.Path)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	a, err := ioutil.ReadAll(temp.Body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	abody := string(a)
 	r, err := regexp.Compile(htmlData.RegExp)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	str := r.FindString(abody)
 	sha := crypto.GetSHA256([]byte(str))
-	return crypto.HexEncodeToString(sha), nil
+	var resp []string
+	resp = append(resp, crypto.HexEncodeToString(sha))
+	return resp, nil
 }
 
 // GetListsData gets required data for all the lists on the given board
@@ -1147,7 +1138,7 @@ func CreateNewCheck(newCheck string) error {
 func GetChecklistItems() (ChecklistItemData, error) {
 	var resp ChecklistItemData
 	path := fmt.Sprintf(pathChecklistItems, trelloChecklistID, trelloKey, trelloToken)
-	return resp, common.SendHTTPGetRequest(path, true, false, &resp)
+	return resp, common.SendHTTPGetRequest(path, true, verbose, &resp)
 }
 
 // NameStateChanges returns the appropriate update name & state for trello (assumes single digit updates pending)
@@ -1194,7 +1185,7 @@ func UpdateCheckItem(checkItemID, name, state string) error {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func SendHTTPRequest(path string, result interface{}) error {
-	return common.SendHTTPGetRequest(path, true, false, result)
+	return common.SendHTTPGetRequest(path, true, verbose, result)
 }
 
 // Update updates the exchange data
@@ -1212,14 +1203,10 @@ func Update(currentName string, info []ExchangeInfo, updatedInfo ExchangeInfo) [
 }
 
 // UpdateTestFile updates test file to match updates.json
-func UpdateTestFile(name string) error {
-	realData, err := ReadFileData(jsonFile)
+func UpdateTestFile() error {
+	file, err := json.MarshalIndent(exchangeData, "", " ")
 	if err != nil {
 		return err
 	}
-	file, err := json.MarshalIndent(realData, "", " ")
-	if err != nil {
-		return err
-	}
-	return ioutil.WriteFile(name, file, 0770)
+	return ioutil.WriteFile(testJSONFile, file, 0770)
 }

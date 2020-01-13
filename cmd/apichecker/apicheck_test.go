@@ -5,27 +5,48 @@ import (
 	"testing"
 )
 
+var (
+	testExchangeData []ExchangeInfo
+)
+
+func TestMain(m *testing.M) {
+	var err error
+	testExchangeData, err = ReadFileData(testJSONFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 func TestCheckExistingExchanges(t *testing.T) {
-	_, _, err := CheckExistingExchanges(testJSONFile, "Kraken")
+	_, err := CheckExistingExchanges(testJSONFile, "Kraken")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestCheckChangeLog(t *testing.T) {
-	data := HTMLScrapingData{RegExp: `Last updated on [\s\S]*, 20\d{2}`,
-		Path: "https://exmo.com/en/api/"}
-	a, err := CheckChangeLog(&data)
-	t.Log(a)
+	data := HTMLScrapingData{TokenData: "h3",
+		Key:           "id",
+		Val:           "change-change",
+		TokenDataEnd:  "table",
+		TextTokenData: "p",
+		DateFormat:    "2006-01-02",
+		RegExp:        "(2\\d{3}-\\d{1,2}-\\d{1,2})",
+		CheckString:   "2019-04-28",
+		Path:          "https://www.okex.com/docs/en/#change-change"}
+	_, err := CheckChangeLog(&data)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestAdd(t *testing.T) {
-	data := HTMLScrapingData{RegExp: `Last updated on [\s\S]*, 20\d{2}`,
-		Path: "https://exmo.com/en/api/"}
-	err := Add(testJSONFile, "Exmo", htmlScrape, data.Path, data, true)
+	data := HTMLScrapingData{TokenData: "div",
+		Key:    "class",
+		Val:    "col-md-12",
+		RegExp: "col-md-12([\\s\\S]*?)clearfix",
+		Path:   "https://localbitcoins.com/api-docs/"}
+	err := Add(testJSONFile, "LocalBitcoins", htmlScrape, data.Path, data, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -82,8 +103,7 @@ func TestHTMLScrapeDefault(t *testing.T) {
 		RegExp:        "(2\\d{3}-\\d{1,2}-\\d{1,2})",
 		CheckString:   "2019-04-28",
 		Path:          "https://www.okcoin.com/docs/en/#change-change"}
-	a, err := HTMLScrapeDefault(&data)
-	t.Log(a)
+	_, err := HTMLScrapeDefault(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -191,9 +211,7 @@ func TestHTMLLakeBTC(t *testing.T) {
 func TestHTMLScrapeExmo(t *testing.T) {
 	data := HTMLScrapingData{RegExp: `Last updated on [\s\S]*, 20\d{2}`,
 		Path: "https://exmo.com/en/api/"}
-	a, err := HTMLScrapeExmo(&data)
-	log.Println(a[0])
-	t.Log(a)
+	_, err := HTMLScrapeExmo(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -287,9 +305,11 @@ func TestCreateNewCheck(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	finalResp, _, err := CheckExistingExchanges(testJSONFile, "Exmo")
-	if err != nil {
-		t.Error(err)
+	var exchCheck, updatedExch HTMLScrapingData
+	for x := range testExchangeData {
+		if testExchangeData[x].Name == "Exmo" {
+			exchCheck = *testExchangeData[x].Data.HTMLData
+		}
 	}
 	info := ExchangeInfo{Name: "Exmo",
 		CheckType: "HTML String Check",
@@ -297,7 +317,15 @@ func TestUpdate(t *testing.T) {
 			Path: "https://exmo.com/en/api/"},
 		},
 	}
-	Update("Exmo", finalResp, info)
+	updatedExchs := Update("Exmo", testExchangeData, info)
+	for y := range updatedExchs {
+		if updatedExchs[y].Name == "Exmo" {
+			updatedExch = *updatedExchs[y].Data.HTMLData
+		}
+	}
+	if updatedExch == exchCheck {
+		t.Fatal("update failed")
+	}
 }
 
 func TestCheckMissingExchanges(t *testing.T) {
@@ -329,7 +357,7 @@ func TestNameUpdates(t *testing.T) {
 }
 
 func TestUpdateTestFile(t *testing.T) {
-	err := UpdateTestFile("testupdates.json")
+	err := UpdateTestFile()
 	if err != nil {
 		t.Error(err)
 	}

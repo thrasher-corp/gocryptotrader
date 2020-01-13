@@ -11,7 +11,7 @@
     "TextTokenData": "td",
     "DateFormat": "2006/01/02",
     "RegExp": "^20(\\d){2}/(\\d){2}/(\\d){2}$",
-    "CheckString": "2019/11/18",
+    "CheckString": "2019/11/15",
     "Path": "https://docs.gemini.com/rest-api/#revision-history"
    }
   },
@@ -58,8 +58,7 @@
   "CheckType": "GitHub Sha Check",
   "Data": {
    "GitHubData": {
-    "Repo": "binance-exchange/binance-official-api-docs",
-    "Sha": "b5d8ac6c1bb6c9f8e2b40261cbfd4b87d2f62295"
+    "Repo": "binance-exchange/binance-official-api-docs"
    }
   },
   "Err": null
@@ -69,8 +68,7 @@
   "CheckType": "GitHub Sha Check",
   "Data": {
    "GitHubData": {
-    "Repo": "bithumb-pro/bithumb.pro-official-api-docs",
-    "Sha": "7d86ac3e5268b118317a91659128f9982a07840e"
+    "Repo": "bithumb-pro/bithumb.pro-official-api-docs"
    }
   },
   "Err": null
@@ -80,8 +78,7 @@
   "CheckType": "GitHub Sha Check",
   "Data": {
    "GitHubData": {
-    "Repo": "Bittrex/bittrex.github.io",
-    "Sha": "fc749a8e4b70f84c5a2b56ac7b0583c2b6fdc97b"
+    "Repo": "Bittrex/bittrex.github.io"
    }
   },
   "Err": null
@@ -91,8 +88,7 @@
   "CheckType": "GitHub Sha Check",
   "Data": {
    "GitHubData": {
-    "Repo": "Coinbene/API-SPOT-v2-Documents",
-    "Sha": "f93dda13d6ee11771f0621098035ed7746a2a3bd"
+    "Repo": "Coinbene/API-SPOT-v2-Documents"
    }
   },
   "Err": null
@@ -102,8 +98,7 @@
   "CheckType": "GitHub Sha Check",
   "Data": {
    "GitHubData": {
-    "Repo": "Coinbene/API-SWAP-Documents",
-    "Sha": "9f8aced70464f2953542c6f5d07470ae10b925b3"
+    "Repo": "Coinbene/API-SWAP-Documents"
    }
   },
   "Err": null
@@ -113,8 +108,7 @@
   "CheckType": "GitHub Sha Check",
   "Data": {
    "GitHubData": {
-    "Repo": "coinut/api",
-    "Sha": "6936dab4d2beba3c8245a603aebf3f545ebcf3f9"
+    "Repo": "coinut/api"
    }
   },
   "Err": null
@@ -124,8 +118,7 @@
   "CheckType": "GitHub Sha Check",
   "Data": {
    "GitHubData": {
-    "Repo": "gateio/gateapi-go",
-    "Sha": "483f139f856055c290df5904cf0e53dfd4c350f2"
+    "Repo": "gateio/gateapi-go"
    }
   },
   "Err": null
@@ -135,8 +128,7 @@
   "CheckType": "GitHub Sha Check",
   "Data": {
    "GitHubData": {
-    "Repo": "LBank-exchange/lbank-official-api-docs",
-    "Sha": "85e7bb83f03d4239c3aad26cabb997a1a2bbb3d1"
+    "Repo": "LBank-exchange/lbank-official-api-docs"
    }
   },
   "Err": null
