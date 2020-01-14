@@ -30,13 +30,13 @@ func openDbConnection(driver string) (err error) {
 	if driver == database.DBPostgreSQL {
 		dbConn, err = dbPSQL.Connect()
 		if err != nil {
-			return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
+			return fmt.Errorf("database failed to connect: %v, some features that utilise a database will be unavailable", err)
 		}
 		return nil
 	} else if driver == database.DBSQLite || driver == database.DBSQLite3 {
 		dbConn, err = dbsqlite3.Connect()
 		if err != nil {
-			return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
+			return fmt.Errorf("database failed to connect: %v, some features that utilise a database will be unavailable", err)
 		}
 		return nil
 	}
