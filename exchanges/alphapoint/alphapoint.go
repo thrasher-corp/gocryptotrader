@@ -528,8 +528,7 @@ func (a *Alphapoint) SendHTTPRequest(method, path string, data map[string]interf
 		Result:        result,
 		Verbose:       a.Verbose,
 		HTTPDebugging: a.HTTPDebugging,
-		HTTPRecording: a.HTTPRecording,
-		Limiter:       request.Global})
+		HTTPRecording: a.HTTPRecording})
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
@@ -565,6 +564,5 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(method, path string, data map[
 		NonceEnabled:  true,
 		Verbose:       a.Verbose,
 		HTTPDebugging: a.HTTPDebugging,
-		HTTPRecording: a.HTTPRecording,
-		Limiter:       request.Global})
+		HTTPRecording: a.HTTPRecording})
 }
