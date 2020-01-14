@@ -1216,6 +1216,14 @@ func (s *RPCServer) GetAuditEvent(ctx context.Context, r *gctrpc.GetAuditEventRe
 
 // GetHistoricCandles returns historical candles for a given exchange
 func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
+	if req.Exchange == "" {
+		return nil, errors.New(errExchangeNameUnset)
+	}
+
+	if req.Pair.String() == "" {
+		return nil, errors.New(errCurrencyPairUnset)
+	}
+
 	candles, err := GetExchangeByName(req.Exchange).GetHistoricCandles(currency.Pair{
 		Delimiter: req.Pair.Delimiter,
 		Base:      currency.NewCode(req.Pair.Base),
