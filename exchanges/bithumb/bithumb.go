@@ -520,7 +520,7 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(path string, params url.Values, r
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
-	})
+		Endpoint:      request.Auth})
 	if err != nil {
 		return err
 	}
