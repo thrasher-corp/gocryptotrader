@@ -46,6 +46,20 @@ func Event(id, name, path string, hash null.String, executionType, status string
 			ScriptHash: hash,
 		}
 		err = tempEvent.Upsert(ctx, tx, true, []string{"script_id"}, boil.Whitelist("created_at"), boil.Infer())
+		if err != nil {
+			_ = tx.Rollback()
+			return
+		}
+		tempScriptExecution := &modelPSQL.ScriptExecution{
+			ExecutionTime:   time.UTC(),
+			ExecutionStatus: status,
+			ExecutionType:   executionType,
+		}
+		err = tempEvent.AddScriptScriptExecutions(ctx, tx, true, tempScriptExecution)
+		if err != nil {
+			_ = tx.Rollback()
+			return
+		}
 	}
 
 	if err != nil {

@@ -26,9 +26,9 @@ import (
 type ScriptExecution struct {
 	ID              string      `boil:"id" json:"id" toml:"id" yaml:"id"`
 	ScriptID        null.String `boil:"script_id" json:"script_id,omitempty" toml:"script_id" yaml:"script_id,omitempty"`
-	ExecutionTime   string      `boil:"execution_time" json:"execution_time" toml:"execution_time" yaml:"execution_time"`
+	ExecutionType   string      `boil:"execution_type" json:"execution_type" toml:"execution_type" yaml:"execution_type"`
 	ExecutionStatus string      `boil:"execution_status" json:"execution_status" toml:"execution_status" yaml:"execution_status"`
-	ExecutionType   time.Time   `boil:"execution_type" json:"execution_type" toml:"execution_type" yaml:"execution_type"`
+	ExecutionTime   time.Time   `boil:"execution_time" json:"execution_time" toml:"execution_time" yaml:"execution_time"`
 
 	R *scriptExecutionR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L scriptExecutionL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -37,15 +37,15 @@ type ScriptExecution struct {
 var ScriptExecutionColumns = struct {
 	ID              string
 	ScriptID        string
-	ExecutionTime   string
-	ExecutionStatus string
 	ExecutionType   string
+	ExecutionStatus string
+	ExecutionTime   string
 }{
 	ID:              "id",
 	ScriptID:        "script_id",
-	ExecutionTime:   "execution_time",
-	ExecutionStatus: "execution_status",
 	ExecutionType:   "execution_type",
+	ExecutionStatus: "execution_status",
+	ExecutionTime:   "execution_time",
 }
 
 // Generated where
@@ -53,15 +53,15 @@ var ScriptExecutionColumns = struct {
 var ScriptExecutionWhere = struct {
 	ID              whereHelperstring
 	ScriptID        whereHelpernull_String
-	ExecutionTime   whereHelperstring
+	ExecutionType   whereHelperstring
 	ExecutionStatus whereHelperstring
-	ExecutionType   whereHelpertime_Time
+	ExecutionTime   whereHelpertime_Time
 }{
 	ID:              whereHelperstring{field: "\"script_execution\".\"id\""},
 	ScriptID:        whereHelpernull_String{field: "\"script_execution\".\"script_id\""},
-	ExecutionTime:   whereHelperstring{field: "\"script_execution\".\"execution_time\""},
+	ExecutionType:   whereHelperstring{field: "\"script_execution\".\"execution_type\""},
 	ExecutionStatus: whereHelperstring{field: "\"script_execution\".\"execution_status\""},
-	ExecutionType:   whereHelpertime_Time{field: "\"script_execution\".\"execution_type\""},
+	ExecutionTime:   whereHelpertime_Time{field: "\"script_execution\".\"execution_time\""},
 }
 
 // ScriptExecutionRels is where relationship names are stored.
@@ -85,9 +85,9 @@ func (*scriptExecutionR) NewStruct() *scriptExecutionR {
 type scriptExecutionL struct{}
 
 var (
-	scriptExecutionAllColumns            = []string{"id", "script_id", "execution_time", "execution_status", "execution_type"}
-	scriptExecutionColumnsWithoutDefault = []string{"script_id", "execution_time", "execution_status"}
-	scriptExecutionColumnsWithDefault    = []string{"id", "execution_type"}
+	scriptExecutionAllColumns            = []string{"id", "script_id", "execution_type", "execution_status", "execution_time"}
+	scriptExecutionColumnsWithoutDefault = []string{"script_id", "execution_type", "execution_status"}
+	scriptExecutionColumnsWithDefault    = []string{"id", "execution_time"}
 	scriptExecutionPrimaryKeyColumns     = []string{"id"}
 )
 

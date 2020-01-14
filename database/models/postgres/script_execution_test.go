@@ -728,7 +728,7 @@ func testScriptExecutionsSelect(t *testing.T) {
 }
 
 var (
-	scriptExecutionDBTypes = map[string]string{`ID`: `uuid`, `ScriptID`: `uuid`, `ExecutionTime`: `character varying`, `ExecutionStatus`: `character varying`, `ExecutionType`: `timestamp without time zone`}
+	scriptExecutionDBTypes = map[string]string{`ID`: `uuid`, `ScriptID`: `uuid`, `ExecutionType`: `character varying`, `ExecutionStatus`: `character varying`, `ExecutionTime`: `timestamp without time zone`}
 	_                      = bytes.MinRead
 )
 
