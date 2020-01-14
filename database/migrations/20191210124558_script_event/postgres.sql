@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS script_event
     script_name varchar not null,
     script_path varchar not null,
     script_hash text null,
-    created_at TIMESTAMP DEFAULT (now() at time zone 'utc')
+    created_at TIMESTAMP DEFAULT (now() at time zone 'utc'),
+     CONSTRAINT script_event_uniq UNIQUE (script_id)
 );
 -- +goose Down
 -- SQL in this section is executed when the migration is rolled back.
