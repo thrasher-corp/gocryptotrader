@@ -1752,11 +1752,7 @@ func TestCheckLoggerConfig(t *testing.T) {
 func TestDisableNTPCheck(t *testing.T) {
 	t.Parallel()
 
-	c := GetConfig()
-	err := c.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	var c Config
 
 	warn, err := c.DisableNTPCheck(strings.NewReader("w\n"))
 	if err != nil {
