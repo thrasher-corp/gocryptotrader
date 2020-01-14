@@ -249,9 +249,10 @@ func TestDoRequest(t *testing.T) {
 		Error bool `json:"error"`
 	}
 	err = r.SendPayload(&Item{
-		Method: http.MethodGet,
-		Path:   testURL,
-		Result: &respErr,
+		Method:   http.MethodGet,
+		Path:     testURL,
+		Result:   &respErr,
+		Endpoint: UnAuth,
 	})
 	if err != nil {
 		t.Fatal(err)
