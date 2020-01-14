@@ -1389,22 +1389,25 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 			log.Errorf(log.Global, "Failed to archive zip file %v", errExtract)
 			return &gctrpc.GCTScriptGenericResponse{Status: MsgStatusError, Data: errExtract.Error()}, nil
 		}
+		var failedFiles []string
 		for x := range files {
-			var failedFiles []string
 			err = gctscript.Validate(files[x])
 			if err != nil {
-				errRemove := os.Remove(fPath)
-				if errRemove != nil {
-					log.Errorf(log.GCTScriptMgr, "Failed to remove file %v, manual deletion required", filepath.Base(fPath))
-				}
 				failedFiles = append(failedFiles, files[x])
-				return &gctrpc.GCTScriptGenericResponse{Status: ErrScriptFailedValidation, Data: strings.Join(failedFiles, ", ")}, nil
 			}
 		}
 		err = os.Remove(fPath)
 		if err != nil {
 			return nil, err
 		}
+		if len(failedFiles) > 0 {
+			err := os.RemoveAll(filepath.Join(gctscript.ScriptPath, r.ScriptName[:len(r.ScriptName)-4]))
+			if err != nil {
+				log.Errorf(log.GCTScriptMgr, "Failed to remove file %v (%v), manual deletion required", filepath.Base(fPath), err)
+			}
+			return &gctrpc.GCTScriptGenericResponse{Status: ErrScriptFailedValidation, Data: strings.Join(failedFiles, ", ")}, nil
+		}
+
 	} else {
 		err = gctscript.Validate(fPath)
 		if err != nil {
