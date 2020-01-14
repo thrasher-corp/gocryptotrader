@@ -8,7 +8,7 @@ import (
 func TestGetModuleMap(t *testing.T) {
 	x := GetModuleMap()
 	xType := reflect.TypeOf(x).String()
-	if xType != "*objects.ModuleMap" {
+	if xType != "*tengo.ModuleMap" {
 		t.Fatalf("GetModuleMap() should return pointer to ModuleMap instead received: %v", x)
 	}
 

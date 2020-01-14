@@ -1,16 +1,16 @@
 package loader
 
 import (
-	"github.com/d5/tengo/objects"
-	"github.com/d5/tengo/stdlib"
+	"github.com/d5/tengo/v2"
+	"github.com/d5/tengo/v2/stdlib"
 
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/gct"
 )
 
 // GetModuleMap returns the module map that includes all modules
 // for the given module names.
-func GetModuleMap() *objects.ModuleMap {
-	modules := objects.NewModuleMap()
+func GetModuleMap() *tengo.ModuleMap {
+	modules := tengo.NewModuleMap()
 
 	gctModuleList := gct.AllModuleNames()
 	for _, name := range gctModuleList {

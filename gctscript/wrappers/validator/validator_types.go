@@ -4,7 +4,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/d5/tengo/objects"
+	objects "github.com/d5/tengo/v2"
 )
 
 var (

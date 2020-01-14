@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/d5/tengo/objects"
+	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )

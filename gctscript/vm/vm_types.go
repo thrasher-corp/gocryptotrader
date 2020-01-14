@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/d5/tengo/script"
+	"github.com/d5/tengo/v2"
 	"github.com/gofrs/uuid"
 )
 
@@ -39,7 +39,7 @@ const (
 var (
 	pool = &sync.Pool{
 		New: func() interface{} {
-			return new(script.Script)
+			return new(tengo.Script)
 		},
 	}
 	// AllVMs stores all current Virtual Machine instances
@@ -51,8 +51,8 @@ type VM struct {
 	ID       uuid.UUID
 	File     string
 	Path     string
-	Script   *script.Script
-	Compiled *script.Compiled
+	Script   *tengo.Script
+	Compiled *tengo.Compiled
 	ctx      context.Context
 	T        time.Duration
 	NextRun  time.Time

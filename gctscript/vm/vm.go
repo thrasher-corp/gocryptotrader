@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/d5/tengo/script"
+	"github.com/d5/tengo/v2"
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	scriptevent "github.com/thrasher-corp/gocryptotrader/database/repository/script"
@@ -35,7 +35,7 @@ func NewVM() (vm *VM) {
 
 	vm = &VM{
 		ID:     newUUID,
-		Script: pool.Get().(*script.Script),
+		Script: pool.Get().(*tengo.Script),
 	}
 	vm.event(StatusSuccess, TypeCreate, false)
 	return
@@ -83,7 +83,7 @@ func (vm *VM) Load(file string) error {
 
 	vm.File = f.Name()
 	vm.Path = filepath.Dir(file)
-	vm.Script = script.New(code)
+	vm.Script = tengo.NewScript(code)
 	vm.Script.SetImports(loader.GetModuleMap())
 
 	if GCTScriptConfig.AllowImports {
@@ -98,7 +98,7 @@ func (vm *VM) Load(file string) error {
 
 // Compile compiles to byte code loaded copy of vm script
 func (vm *VM) Compile() (err error) {
-	vm.Compiled = new(script.Compiled)
+	vm.Compiled = new(tengo.Compiled)
 	vm.Compiled, err = vm.Script.Compile()
 	return
 }
