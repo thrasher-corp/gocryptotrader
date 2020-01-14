@@ -157,7 +157,7 @@ func (c *CoinbasePro) WsHandleData() {
 				}
 				oStatus := statusToStandardStatus(wsOrder.Type)
 				if wsOrder.Reason == "canceled" {
-					oType = order.Cancelled
+					oStatus = order.Cancelled
 				}
 				c.Websocket.DataHandler <- &order.Detail{
 					HiddenOrder:     wsOrder.Private,

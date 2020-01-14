@@ -27,6 +27,7 @@ type Submit struct {
 	HiddenOrder       bool
 	FillOrKill        bool
 	PostOnly          bool
+	Leverage          float64
 	Price             float64
 	Amount            float64
 	LimitPriceUpper   float64
@@ -37,14 +38,19 @@ type Submit struct {
 	RemainingAmount   float64
 	Fee               float64
 	Exchange          string
+	InternalOrderID   string
 	ID                string
 	AccountID         string
 	ClientID          string
 	WalletAddress     string
 	Type              Type
 	Side              Side
+	Status            Status
 	AssetType         asset.Item
+	Date              time.Time
+	LastUpdated       time.Time
 	Pair              currency.Pair
+	Trades            []TradeHistory
 }
 
 // SubmitResponse is what is returned after submitting an order to an exchange
@@ -63,6 +69,7 @@ type Modify struct {
 	HiddenOrder       bool
 	FillOrKill        bool
 	PostOnly          bool
+	Leverage          float64
 	Price             float64
 	Amount            float64
 	LimitPriceUpper   float64
@@ -73,6 +80,7 @@ type Modify struct {
 	RemainingAmount   float64
 	Fee               float64
 	Exchange          string
+	InternalOrderID   string
 	ID                string
 	AccountID         string
 	ClientID          string
@@ -82,6 +90,7 @@ type Modify struct {
 	Status            Status
 	AssetType         asset.Item
 	Date              time.Time
+	LastUpdated       time.Time
 	Pair              currency.Pair
 	Trades            []TradeHistory
 }
@@ -99,6 +108,7 @@ type Detail struct {
 	HiddenOrder       bool
 	FillOrKill        bool
 	PostOnly          bool
+	Leverage          float64
 	Price             float64
 	Amount            float64
 	LimitPriceUpper   float64

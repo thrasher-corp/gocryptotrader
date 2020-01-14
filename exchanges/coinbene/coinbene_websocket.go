@@ -28,6 +28,8 @@ const (
 	topic         = "topic"
 )
 
+var comms = make(chan wshandler.WebsocketResponse)
+
 // WsConnect connects to websocket
 func (c *Coinbene) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
@@ -38,6 +40,14 @@ func (c *Coinbene) WsConnect() error {
 	if err != nil {
 		return err
 	}
+	go c.WsReadData(c.WSBTCContractConnection)
+
+	c.WSUSDTSWAPContractConnection.Dial(&dialer, http.Header{})
+	if err != nil {
+		return err
+	}
+	go c.WsReadData(c.WSUSDTSWAPContractConnection)
+
 	go c.WsDataHandler()
 	if c.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = c.Login()
@@ -49,6 +59,26 @@ func (c *Coinbene) WsConnect() error {
 	c.GenerateDefaultSubscriptions()
 
 	return nil
+}
+
+// WsReadData funnels both auth and public ws data into one manageable place
+func (c *Coinbene) WsReadData(ws *wshandler.WebsocketConnection) {
+	c.Websocket.Wg.Add(1)
+	defer c.Websocket.Wg.Done()
+	for {
+		select {
+		case <-c.Websocket.ShutdownC:
+			return
+		default:
+			resp, err := ws.ReadMessage()
+			if err != nil {
+				c.Websocket.DataHandler <- err
+				return
+			}
+			c.Websocket.TrafficAlert <- struct{}{}
+			comms <- resp
+		}
+	}
 }
 
 // GenerateDefaultSubscriptions generates stuff
@@ -83,30 +113,23 @@ func (c *Coinbene) GenerateAuthSubs() {
 // WsDataHandler handles websocket data
 func (c *Coinbene) WsDataHandler() {
 	c.Websocket.Wg.Add(1)
-
 	defer c.Websocket.Wg.Done()
 
 	for {
 		select {
 		case <-c.Websocket.ShutdownC:
 			return
-
-		default:
-			stream, err := c.WSBTCContractConnection.ReadMessage()
-			if err != nil {
-				c.Websocket.DataHandler <- err
-				return
-			}
+		case stream := <-comms:
 			c.Websocket.TrafficAlert <- struct{}{}
 			if string(stream.Raw) == wshandler.Ping {
-				err = c.WSBTCContractConnection.SendRawMessage(websocket.TextMessage, []byte(wshandler.Pong))
+				err := c.WSBTCContractConnection.SendRawMessage(websocket.TextMessage, []byte(wshandler.Pong))
 				if err != nil {
 					c.Websocket.DataHandler <- err
 				}
 				continue
 			}
 			var result map[string]interface{}
-			err = json.Unmarshal(stream.Raw, &result)
+			err := json.Unmarshal(stream.Raw, &result)
 			if err != nil {
 				c.Websocket.DataHandler <- err
 			}
@@ -337,33 +360,24 @@ func (c *Coinbene) WsDataHandler() {
 					if err != nil {
 						c.Websocket.DataHandler <- err
 					}
+					oStatus, err := order.StringToOrderStatus(orders.Data[i].Status)
+					if err != nil {
+						c.Websocket.DataHandler <- err
+					}
 					c.Websocket.DataHandler <- &order.Detail{
-						ImmediateOrCancel: false,
-						HiddenOrder:       false,
-						FillOrKill:        false,
-						PostOnly:          false,
-						Price:             0,
-						Amount:            0,
-						LimitPriceUpper:   0,
-						LimitPriceLower:   0,
-						TriggerPrice:      0,
-						TargetAmount:      0,
-						ExecutedAmount:    orders.Data[i].FilledQuantity,
-						RemainingAmount:   0,
-						Fee:               orders.Data[i].Fee,
-						Exchange:          c.Name,
-						ID:                orders.Data[i].OrderID,
-						AccountID:         "",
-						ClientID:          "",
-						WalletAddress:     "",
-						Type:              oType,
-						Side:              "",
-						Status:            "",
-						AssetType:         "",
-						Date:              time.Time{},
-						LastUpdated:       time.Time{},
-						Pair:              currency.NewPairFromString(orders.Data[i].Symbol),
-						Trades:            nil,
+						Price:           orders.Data[i].OrderPrice,
+						Amount:          orders.Data[i].Quantity,
+						ExecutedAmount:  orders.Data[i].FilledQuantity,
+						RemainingAmount: orders.Data[i].Quantity - orders.Data[i].FilledQuantity,
+						Fee:             orders.Data[i].Fee,
+						Exchange:        c.Name,
+						ID:              orders.Data[i].OrderID,
+						Type:            oType,
+						Status:          oStatus,
+						AssetType:       asset.PerpetualSwap,
+						Date:            orders.Data[i].OrderTime,
+						Leverage:        orders.Data[i].Leverage,
+						Pair:            currency.NewPairFromString(orders.Data[i].Symbol),
 					}
 				}
 			default:
@@ -378,6 +392,9 @@ func (c *Coinbene) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 	var sub WsSub
 	sub.Operation = "subscribe"
 	sub.Arguments = []string{channelToSubscribe.Channel}
+	if strings.Contains(channelToSubscribe.Channel, "SWAP") {
+		return c.WSUSDTSWAPContractConnection.SendJSONMessage(sub)
+	}
 	return c.WSBTCContractConnection.SendJSONMessage(sub)
 }
 
@@ -386,6 +403,9 @@ func (c *Coinbene) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubs
 	var sub WsSub
 	sub.Operation = "unsubscribe"
 	sub.Arguments = []string{channelToSubscribe.Channel}
+	if strings.Contains(channelToSubscribe.Channel, "SWAP") {
+		return c.WSUSDTSWAPContractConnection.SendJSONMessage(sub)
+	}
 	return c.WSBTCContractConnection.SendJSONMessage(sub)
 }
 
