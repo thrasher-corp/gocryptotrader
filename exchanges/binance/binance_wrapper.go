@@ -113,9 +113,8 @@ func (b *Binance) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		&RateLimit{
-			GlobalRate:   request.NewRateLimit(binanceGlobalInterval, binanceOrderDailyMaxRequests),
-			Orders:       request.NewRateLimit(binanceOrderInterval, binanceOrderRequestRate),
-			OrderCeiling: request.NewRateLimit(binanceOrderDailyInterval, binanceOrderDailyMaxRequests),
+			GlobalRate: request.NewRateLimit(binanceGlobalInterval, binanceOrderDailyMaxRequests),
+			Orders:     request.NewRateLimit(binanceOrderInterval, binanceOrderRequestRate),
 		})
 
 	b.API.Endpoints.URLDefault = apiURL
@@ -129,17 +128,13 @@ func (b *Binance) SetDefaults() {
 
 // RateLimit implements the request.Limiter interface
 type RateLimit struct {
-	GlobalRate   *rate.Limiter
-	Orders       *rate.Limiter
-	OrderCeiling *rate.Limiter
+	GlobalRate *rate.Limiter
+	Orders     *rate.Limiter
 }
 
 // Limit executes rate limiting functionality for Binance
 func (r *RateLimit) Limit(f request.Functionality) error {
 	if f == request.Auth {
-		if !r.OrderCeiling.Allow() {
-			return errors.New("max requests achieved in a 24 hour period for orders")
-		}
 		time.Sleep(r.Orders.Reserve().Delay())
 		return nil
 	}
