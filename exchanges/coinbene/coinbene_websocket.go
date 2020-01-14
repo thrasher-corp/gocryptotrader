@@ -23,7 +23,6 @@ import (
 
 const (
 	wsContractURL = "wss://ws-contract.coinbene.vip/openapi/ws"
-	wsUSDTSWAPURL = "wss://ws-contract.coinbene.vip/usdt/openapi/ws"
 	event         = "event"
 	topic         = "topic"
 )
@@ -36,17 +35,10 @@ func (c *Coinbene) WsConnect() error {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := c.WSBTCContractConnection.Dial(&dialer, http.Header{})
+	err := c.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	go c.WsReadData(c.WSBTCContractConnection)
-
-	c.WSUSDTSWAPContractConnection.Dial(&dialer, http.Header{})
-	if err != nil {
-		return err
-	}
-	go c.WsReadData(c.WSUSDTSWAPContractConnection)
 
 	go c.WsDataHandler()
 	if c.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
@@ -59,26 +51,6 @@ func (c *Coinbene) WsConnect() error {
 	c.GenerateDefaultSubscriptions()
 
 	return nil
-}
-
-// WsReadData funnels both auth and public ws data into one manageable place
-func (c *Coinbene) WsReadData(ws *wshandler.WebsocketConnection) {
-	c.Websocket.Wg.Add(1)
-	defer c.Websocket.Wg.Done()
-	for {
-		select {
-		case <-c.Websocket.ShutdownC:
-			return
-		default:
-			resp, err := ws.ReadMessage()
-			if err != nil {
-				c.Websocket.DataHandler <- err
-				return
-			}
-			c.Websocket.TrafficAlert <- struct{}{}
-			comms <- resp
-		}
-	}
 }
 
 // GenerateDefaultSubscriptions generates stuff
@@ -119,17 +91,22 @@ func (c *Coinbene) WsDataHandler() {
 		select {
 		case <-c.Websocket.ShutdownC:
 			return
-		case stream := <-comms:
+		default:
+			stream, err := c.WebsocketConn.ReadMessage()
+			if err != nil {
+				c.Websocket.ReadMessageErrors <- err
+				return
+			}
 			c.Websocket.TrafficAlert <- struct{}{}
 			if string(stream.Raw) == wshandler.Ping {
-				err := c.WSBTCContractConnection.SendRawMessage(websocket.TextMessage, []byte(wshandler.Pong))
+				err := c.WebsocketConn.SendRawMessage(websocket.TextMessage, []byte(wshandler.Pong))
 				if err != nil {
 					c.Websocket.DataHandler <- err
 				}
 				continue
 			}
 			var result map[string]interface{}
-			err := json.Unmarshal(stream.Raw, &result)
+			err = json.Unmarshal(stream.Raw, &result)
 			if err != nil {
 				c.Websocket.DataHandler <- err
 			}
@@ -392,10 +369,7 @@ func (c *Coinbene) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 	var sub WsSub
 	sub.Operation = "subscribe"
 	sub.Arguments = []string{channelToSubscribe.Channel}
-	if strings.Contains(channelToSubscribe.Channel, "SWAP") {
-		return c.WSUSDTSWAPContractConnection.SendJSONMessage(sub)
-	}
-	return c.WSBTCContractConnection.SendJSONMessage(sub)
+	return c.WebsocketConn.SendJSONMessage(sub)
 }
 
 // Unsubscribe sends a websocket message to receive data from the channel
@@ -403,10 +377,7 @@ func (c *Coinbene) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubs
 	var sub WsSub
 	sub.Operation = "unsubscribe"
 	sub.Arguments = []string{channelToSubscribe.Channel}
-	if strings.Contains(channelToSubscribe.Channel, "SWAP") {
-		return c.WSUSDTSWAPContractConnection.SendJSONMessage(sub)
-	}
-	return c.WSBTCContractConnection.SendJSONMessage(sub)
+	return c.WebsocketConn.SendJSONMessage(sub)
 }
 
 // Login logs in
@@ -420,5 +391,5 @@ func (c *Coinbene) Login() error {
 	sign := crypto.HexEncodeToString(tempSign)
 	sub.Operation = "login"
 	sub.Arguments = []string{c.API.Credentials.Key, expTime, sign}
-	return c.WSBTCContractConnection.SendJSONMessage(sub)
+	return c.WebsocketConn.SendJSONMessage(sub)
 }

@@ -159,18 +159,9 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	c.WSBTCContractConnection = &wshandler.WebsocketConnection{
+	c.WebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName:         c.Name,
 		URL:                  c.Websocket.GetWebsocketURL(),
-		ProxyURL:             c.Websocket.GetProxyAddress(),
-		Verbose:              c.Verbose,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	}
-
-	c.WSUSDTSWAPContractConnection = &wshandler.WebsocketConnection{
-		ExchangeName:         c.Name,
-		URL:                  wsUSDTSWAPURL,
 		ProxyURL:             c.Websocket.GetProxyAddress(),
 		Verbose:              c.Verbose,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
