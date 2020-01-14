@@ -173,25 +173,6 @@ func (e *Base) SetAPICredentialDefaults() {
 	}
 }
 
-// SetHTTPRateLimiter sets the exchanges default HTTP rate limiter and updates the exchange's config
-// to default settings if it doesn't exist
-func (e *Base) SetHTTPRateLimiter() {
-	e.checkAndInitRequester()
-
-	// if e.Config.HTTPRateLimiter == nil {
-	// 	e.Config.HTTPRateLimiter = new(config.HTTPRateLimitConfig)
-	// 	// e.Config.HTTPRateLimiter.Authenticated.Duration = e.GetRateLimit(true).Duration
-	// 	// e.Config.HTTPRateLimiter.Authenticated.Rate = e.GetRateLimit(true).Rate
-	// 	// e.Config.HTTPRateLimiter.Unauthenticated.Duration = e.GetRateLimit(false).Duration
-	// 	// e.Config.HTTPRateLimiter.Unauthenticated.Rate = e.GetRateLimit(false).Rate
-	// } else {
-	// 	e.SetRateLimit(true, e.Config.HTTPRateLimiter.Authenticated.Duration,
-	// 		e.Config.HTTPRateLimiter.Authenticated.Rate)
-	// 	e.SetRateLimit(false, e.Config.HTTPRateLimiter.Unauthenticated.Duration,
-	// 		e.Config.HTTPRateLimiter.Unauthenticated.Rate)
-	// }
-}
-
 // SupportsRESTTickerBatchUpdates returns whether or not the
 // exhange supports REST batch ticker fetching
 func (e *Base) SupportsRESTTickerBatchUpdates() bool {
@@ -460,7 +441,6 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 
 	e.HTTPDebugging = exch.HTTPDebugging
 	e.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-	// e.SetHTTPRateLimiter()
 	e.SetAssetTypes()
 	e.SetCurrencyPairFormat()
 	e.SetConfigPairs()
@@ -468,8 +448,6 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	e.SetAPIURL()
 	e.SetAPICredentialDefaults()
 	e.SetClientProxyAddress(exch.ProxyAddress)
-	// e.SetHTTPRateLimiter()
-
 	e.BaseCurrencies = exch.BaseCurrencies
 
 	if e.Features.Supports.Websocket {

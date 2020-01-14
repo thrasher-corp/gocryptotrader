@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -191,38 +190,6 @@ func TestSetAPICredentialDefaults(t *testing.T) {
 		!b.Config.API.CredentialsValidator.RequiresPEM {
 		t.Error("incorrect values")
 	}
-}
-
-func TestSetHTTPRateLimiter(t *testing.T) {
-	t.Parallel()
-
-	b := Base{
-		Config: &config.ExchangeConfig{},
-		Requester: request.New("asdf",
-			common.NewHTTPClientWithTimeout(DefaultHTTPTimeout),
-			nil)}
-
-	// b.SetHTTPRateLimiter()
-	// if b.Requester.AuthLimit.Limit() != 0.5 &&
-	// 	b.Requester.UnauthLimit.Limit() != 1.5 {
-	// 	t.Error("rate limiter not set properly")
-	// }
-
-	b.Config.HTTPRateLimiter = &config.HTTPRateLimitConfig{
-		Unauthenticated: config.HTTPRateConfig{
-			Duration: time.Second * 100,
-			Rate:     100,
-		},
-		Authenticated: config.HTTPRateConfig{
-			Duration: time.Second * 110,
-			Rate:     150,
-		},
-	}
-	b.SetHTTPRateLimiter()
-	// if b.Requester.AuthLimit.Limit() != 30 &&
-	// 	b.Requester.UnauthLimit.Limit() != 40 {
-	// 	t.Error("rate limiter not set properly")
-	// }
 }
 
 func TestSetAutoPairDefaults(t *testing.T) {
