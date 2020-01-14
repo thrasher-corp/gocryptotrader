@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
@@ -15,7 +14,7 @@ import (
 )
 
 // Event inserts a new script event into database with execution details (script name time status hash of script)
-func Event(id uuid.UUID, name, path, hash null.String, executionType, status string, time time.Time) {
+func Event(id, name, path string, hash null.String, executionType, status string, time time.Time) {
 	if database.DB.SQL == nil {
 		return
 	}
@@ -30,26 +29,23 @@ func Event(id uuid.UUID, name, path, hash null.String, executionType, status str
 
 	if repository.GetSQLDialect() == database.DBSQLite3 {
 		var tempEvent = modelSQLite.ScriptEvent{
-			ScriptID:        id.String(),
-			ScriptName:      name,
-			ScriptPath:      path,
-			ScriptHash:      hash,
-			ExecutionType:   executionType,
-			ExecutionTime:   time.UTC().String(),
-			ExecutionStatus: status,
+			// ScriptID:        id.String(),
+			// ScriptName:      name,
+			// ScriptPath:      path,
+			// ScriptHash:      hash,
+			// ExecutionType:   executionType,
+			// ExecutionTime:   time.UTC().String(),
+			// ExecutionStatus: status,
 		}
 		err = tempEvent.Insert(ctx, tx, boil.Infer())
 	} else {
 		var tempEvent = modelPSQL.ScriptEvent{
-			ScriptID:        id.String(),
-			ScriptName:      name,
-			ScriptPath:      path,
-			ScriptHash:      hash,
-			ExecutionType:   executionType,
-			ExecutionTime:   time.UTC(),
-			ExecutionStatus: status,
+			ScriptID:        id,
+			ScriptName: name,
+			ScriptPath: path,
+			ScriptHash: hash,
 		}
-		err = tempEvent.Insert(ctx, tx, boil.Infer())
+		err = tempEvent.Upsert(ctx, tx, true, []string{"script_id"}, boil.Whitelist("created_at"), boil.Infer())
 	}
 
 	if err != nil {

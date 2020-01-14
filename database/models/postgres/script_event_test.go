@@ -494,6 +494,334 @@ func testScriptEventsInsertWhitelist(t *testing.T) {
 	}
 }
 
+func testScriptEventToManyScriptScriptExecutions(t *testing.T) {
+	var err error
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a ScriptEvent
+	var b, c ScriptExecution
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, scriptEventDBTypes, true, scriptEventColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize ScriptEvent struct: %s", err)
+	}
+
+	if err := a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = randomize.Struct(seed, &b, scriptExecutionDBTypes, false, scriptExecutionColumnsWithDefault...); err != nil {
+		t.Fatal(err)
+	}
+	if err = randomize.Struct(seed, &c, scriptExecutionDBTypes, false, scriptExecutionColumnsWithDefault...); err != nil {
+		t.Fatal(err)
+	}
+
+	queries.Assign(&b.ScriptID, a.ID)
+	queries.Assign(&c.ScriptID, a.ID)
+	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	check, err := a.ScriptScriptExecutions().All(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bFound, cFound := false, false
+	for _, v := range check {
+		if queries.Equal(v.ScriptID, b.ScriptID) {
+			bFound = true
+		}
+		if queries.Equal(v.ScriptID, c.ScriptID) {
+			cFound = true
+		}
+	}
+
+	if !bFound {
+		t.Error("expected to find b")
+	}
+	if !cFound {
+		t.Error("expected to find c")
+	}
+
+	slice := ScriptEventSlice{&a}
+	if err = a.L.LoadScriptScriptExecutions(ctx, tx, false, (*[]*ScriptEvent)(&slice), nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.ScriptScriptExecutions); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	a.R.ScriptScriptExecutions = nil
+	if err = a.L.LoadScriptScriptExecutions(ctx, tx, true, &a, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.ScriptScriptExecutions); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	if t.Failed() {
+		t.Logf("%#v", check)
+	}
+}
+
+func testScriptEventToManyAddOpScriptScriptExecutions(t *testing.T) {
+	var err error
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a ScriptEvent
+	var b, c, d, e ScriptExecution
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, scriptEventDBTypes, false, strmangle.SetComplement(scriptEventPrimaryKeyColumns, scriptEventColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*ScriptExecution{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, scriptExecutionDBTypes, false, strmangle.SetComplement(scriptExecutionPrimaryKeyColumns, scriptExecutionColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	foreignersSplitByInsertion := [][]*ScriptExecution{
+		{&b, &c},
+		{&d, &e},
+	}
+
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddScriptScriptExecutions(ctx, tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		first := x[0]
+		second := x[1]
+
+		if !queries.Equal(a.ID, first.ScriptID) {
+			t.Error("foreign key was wrong value", a.ID, first.ScriptID)
+		}
+		if !queries.Equal(a.ID, second.ScriptID) {
+			t.Error("foreign key was wrong value", a.ID, second.ScriptID)
+		}
+
+		if first.R.Script != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+		if second.R.Script != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+
+		if a.R.ScriptScriptExecutions[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.ScriptScriptExecutions[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.ScriptScriptExecutions().Count(ctx, tx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
+	}
+}
+
+func testScriptEventToManySetOpScriptScriptExecutions(t *testing.T) {
+	var err error
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a ScriptEvent
+	var b, c, d, e ScriptExecution
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, scriptEventDBTypes, false, strmangle.SetComplement(scriptEventPrimaryKeyColumns, scriptEventColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*ScriptExecution{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, scriptExecutionDBTypes, false, strmangle.SetComplement(scriptExecutionPrimaryKeyColumns, scriptExecutionColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	err = a.SetScriptScriptExecutions(ctx, tx, false, &b, &c)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err := a.ScriptScriptExecutions().Count(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	err = a.SetScriptScriptExecutions(ctx, tx, true, &d, &e)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err = a.ScriptScriptExecutions().Count(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	if !queries.IsValuerNil(b.ScriptID) {
+		t.Error("want b's foreign key value to be nil")
+	}
+	if !queries.IsValuerNil(c.ScriptID) {
+		t.Error("want c's foreign key value to be nil")
+	}
+	if !queries.Equal(a.ID, d.ScriptID) {
+		t.Error("foreign key was wrong value", a.ID, d.ScriptID)
+	}
+	if !queries.Equal(a.ID, e.ScriptID) {
+		t.Error("foreign key was wrong value", a.ID, e.ScriptID)
+	}
+
+	if b.R.Script != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if c.R.Script != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if d.R.Script != &a {
+		t.Error("relationship was not added properly to the foreign struct")
+	}
+	if e.R.Script != &a {
+		t.Error("relationship was not added properly to the foreign struct")
+	}
+
+	if a.R.ScriptScriptExecutions[0] != &d {
+		t.Error("relationship struct slice not set to correct value")
+	}
+	if a.R.ScriptScriptExecutions[1] != &e {
+		t.Error("relationship struct slice not set to correct value")
+	}
+}
+
+func testScriptEventToManyRemoveOpScriptScriptExecutions(t *testing.T) {
+	var err error
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a ScriptEvent
+	var b, c, d, e ScriptExecution
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, scriptEventDBTypes, false, strmangle.SetComplement(scriptEventPrimaryKeyColumns, scriptEventColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*ScriptExecution{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, scriptExecutionDBTypes, false, strmangle.SetComplement(scriptExecutionPrimaryKeyColumns, scriptExecutionColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	err = a.AddScriptScriptExecutions(ctx, tx, true, foreigners...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err := a.ScriptScriptExecutions().Count(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 4 {
+		t.Error("count was wrong:", count)
+	}
+
+	err = a.RemoveScriptScriptExecutions(ctx, tx, foreigners[:2]...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err = a.ScriptScriptExecutions().Count(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	if !queries.IsValuerNil(b.ScriptID) {
+		t.Error("want b's foreign key value to be nil")
+	}
+	if !queries.IsValuerNil(c.ScriptID) {
+		t.Error("want c's foreign key value to be nil")
+	}
+
+	if b.R.Script != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if c.R.Script != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if d.R.Script != &a {
+		t.Error("relationship to a should have been preserved")
+	}
+	if e.R.Script != &a {
+		t.Error("relationship to a should have been preserved")
+	}
+
+	if len(a.R.ScriptScriptExecutions) != 2 {
+		t.Error("should have preserved two relationships")
+	}
+
+	// Removal doesn't do a stable deletion for performance so we have to flip the order
+	if a.R.ScriptScriptExecutions[1] != &d {
+		t.Error("relationship to d should have been preserved")
+	}
+	if a.R.ScriptScriptExecutions[0] != &e {
+		t.Error("relationship to e should have been preserved")
+	}
+}
+
 func testScriptEventsReload(t *testing.T) {
 	t.Parallel()
 
@@ -568,7 +896,7 @@ func testScriptEventsSelect(t *testing.T) {
 }
 
 var (
-	scriptEventDBTypes = map[string]string{`ID`: `bigint`, `ScriptID`: `uuid`, `ScriptName`: `character varying`, `ScriptPath`: `text`, `ScriptHash`: `text`, `ExecutionType`: `character varying`, `ExecutionTime`: `timestamp without time zone`, `ExecutionStatus`: `character varying`}
+	scriptEventDBTypes = map[string]string{`ID`: `uuid`, `ScriptID`: `text`, `ScriptName`: `character varying`, `ScriptPath`: `character varying`, `ScriptHash`: `text`, `CreatedAt`: `timestamp without time zone`}
 	_                  = bytes.MinRead
 )
 

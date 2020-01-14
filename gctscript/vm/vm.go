@@ -235,19 +235,20 @@ func (vm *VM) event(status, executionType string, includeScriptHash bool) {
 		return
 	}
 
-	var hash, name, path null.String
+	var hash null.String
 	if includeScriptHash {
-		contents, err := vm.read()
-		if err != nil {
-			log.Errorln(log.GCTScriptMgr, err)
-		}
-		hash.SetValid(hex.EncodeToString(crypto.GetSHA512(contents)))
+		hash.SetValid(vm.getHash(false))
 	}
-	if vm.ShortName() != "" {
-		name.SetValid(vm.ShortName())
+	scriptevent.Event(vm.getHash(true), vm.ShortName(),vm.Path, hash, executionType, status, time.Now())
+}
+
+func (vm *VM) getHash(includeFileName bool) string {
+	contents, err := vm.read()
+	if err != nil {
+		log.Errorln(log.GCTScriptMgr, err)
 	}
-	if vm.Path != "" {
-		path.SetValid(vm.Path)
+	if includeFileName {
+		contents =  append(contents, vm.ShortName()...)
 	}
-	scriptevent.Event(vm.ID, name, path, hash, executionType, status, time.Now())
+	return hex.EncodeToString(crypto.GetSHA512(contents))
 }

@@ -24,37 +24,31 @@ import (
 
 // ScriptEvent is an object representing the database table.
 type ScriptEvent struct {
-	ID              int64       `boil:"id" json:"id" toml:"id" yaml:"id"`
-	ScriptID        string      `boil:"script_id" json:"script_id" toml:"script_id" yaml:"script_id"`
-	ScriptName      null.String `boil:"script_name" json:"script_name,omitempty" toml:"script_name" yaml:"script_name,omitempty"`
-	ScriptPath      null.String `boil:"script_path" json:"script_path,omitempty" toml:"script_path" yaml:"script_path,omitempty"`
-	ScriptHash      null.String `boil:"script_hash" json:"script_hash,omitempty" toml:"script_hash" yaml:"script_hash,omitempty"`
-	ExecutionType   string      `boil:"execution_type" json:"execution_type" toml:"execution_type" yaml:"execution_type"`
-	ExecutionTime   time.Time   `boil:"execution_time" json:"execution_time" toml:"execution_time" yaml:"execution_time"`
-	ExecutionStatus string      `boil:"execution_status" json:"execution_status" toml:"execution_status" yaml:"execution_status"`
+	ID         string      `boil:"id" json:"id" toml:"id" yaml:"id"`
+	ScriptID   string      `boil:"script_id" json:"script_id" toml:"script_id" yaml:"script_id"`
+	ScriptName string      `boil:"script_name" json:"script_name" toml:"script_name" yaml:"script_name"`
+	ScriptPath string      `boil:"script_path" json:"script_path" toml:"script_path" yaml:"script_path"`
+	ScriptHash null.String `boil:"script_hash" json:"script_hash,omitempty" toml:"script_hash" yaml:"script_hash,omitempty"`
+	CreatedAt  null.Time   `boil:"created_at" json:"created_at,omitempty" toml:"created_at" yaml:"created_at,omitempty"`
 
 	R *scriptEventR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L scriptEventL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var ScriptEventColumns = struct {
-	ID              string
-	ScriptID        string
-	ScriptName      string
-	ScriptPath      string
-	ScriptHash      string
-	ExecutionType   string
-	ExecutionTime   string
-	ExecutionStatus string
+	ID         string
+	ScriptID   string
+	ScriptName string
+	ScriptPath string
+	ScriptHash string
+	CreatedAt  string
 }{
-	ID:              "id",
-	ScriptID:        "script_id",
-	ScriptName:      "script_name",
-	ScriptPath:      "script_path",
-	ScriptHash:      "script_hash",
-	ExecutionType:   "execution_type",
-	ExecutionTime:   "execution_time",
-	ExecutionStatus: "execution_status",
+	ID:         "id",
+	ScriptID:   "script_id",
+	ScriptName: "script_name",
+	ScriptPath: "script_path",
+	ScriptHash: "script_hash",
+	CreatedAt:  "created_at",
 }
 
 // Generated where
@@ -82,32 +76,55 @@ func (w whereHelpernull_String) GTE(x null.String) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.GTE, x)
 }
 
+type whereHelpernull_Time struct{ field string }
+
+func (w whereHelpernull_Time) EQ(x null.Time) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, false, x)
+}
+func (w whereHelpernull_Time) NEQ(x null.Time) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, true, x)
+}
+func (w whereHelpernull_Time) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpernull_Time) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
+func (w whereHelpernull_Time) LT(x null.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpernull_Time) LTE(x null.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpernull_Time) GT(x null.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpernull_Time) GTE(x null.Time) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+
 var ScriptEventWhere = struct {
-	ID              whereHelperint64
-	ScriptID        whereHelperstring
-	ScriptName      whereHelpernull_String
-	ScriptPath      whereHelpernull_String
-	ScriptHash      whereHelpernull_String
-	ExecutionType   whereHelperstring
-	ExecutionTime   whereHelpertime_Time
-	ExecutionStatus whereHelperstring
+	ID         whereHelperstring
+	ScriptID   whereHelperstring
+	ScriptName whereHelperstring
+	ScriptPath whereHelperstring
+	ScriptHash whereHelpernull_String
+	CreatedAt  whereHelpernull_Time
 }{
-	ID:              whereHelperint64{field: "\"script_event\".\"id\""},
-	ScriptID:        whereHelperstring{field: "\"script_event\".\"script_id\""},
-	ScriptName:      whereHelpernull_String{field: "\"script_event\".\"script_name\""},
-	ScriptPath:      whereHelpernull_String{field: "\"script_event\".\"script_path\""},
-	ScriptHash:      whereHelpernull_String{field: "\"script_event\".\"script_hash\""},
-	ExecutionType:   whereHelperstring{field: "\"script_event\".\"execution_type\""},
-	ExecutionTime:   whereHelpertime_Time{field: "\"script_event\".\"execution_time\""},
-	ExecutionStatus: whereHelperstring{field: "\"script_event\".\"execution_status\""},
+	ID:         whereHelperstring{field: "\"script_event\".\"id\""},
+	ScriptID:   whereHelperstring{field: "\"script_event\".\"script_id\""},
+	ScriptName: whereHelperstring{field: "\"script_event\".\"script_name\""},
+	ScriptPath: whereHelperstring{field: "\"script_event\".\"script_path\""},
+	ScriptHash: whereHelpernull_String{field: "\"script_event\".\"script_hash\""},
+	CreatedAt:  whereHelpernull_Time{field: "\"script_event\".\"created_at\""},
 }
 
 // ScriptEventRels is where relationship names are stored.
 var ScriptEventRels = struct {
-}{}
+	ScriptScriptExecutions string
+}{
+	ScriptScriptExecutions: "ScriptScriptExecutions",
+}
 
 // scriptEventR is where relationships are stored.
 type scriptEventR struct {
+	ScriptScriptExecutions ScriptExecutionSlice
 }
 
 // NewStruct creates a new relationship struct
@@ -119,9 +136,9 @@ func (*scriptEventR) NewStruct() *scriptEventR {
 type scriptEventL struct{}
 
 var (
-	scriptEventAllColumns            = []string{"id", "script_id", "script_name", "script_path", "script_hash", "execution_type", "execution_time", "execution_status"}
-	scriptEventColumnsWithoutDefault = []string{"script_id", "script_name", "script_path", "script_hash", "execution_type", "execution_status"}
-	scriptEventColumnsWithDefault    = []string{"id", "execution_time"}
+	scriptEventAllColumns            = []string{"id", "script_id", "script_name", "script_path", "script_hash", "created_at"}
+	scriptEventColumnsWithoutDefault = []string{"script_id", "script_name", "script_path", "script_hash"}
+	scriptEventColumnsWithDefault    = []string{"id", "created_at"}
 	scriptEventPrimaryKeyColumns     = []string{"id"}
 )
 
@@ -400,6 +417,245 @@ func (q scriptEventQuery) Exists(ctx context.Context, exec boil.ContextExecutor)
 	return count > 0, nil
 }
 
+// ScriptScriptExecutions retrieves all the script_execution's ScriptExecutions with an executor via script_id column.
+func (o *ScriptEvent) ScriptScriptExecutions(mods ...qm.QueryMod) scriptExecutionQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"script_execution\".\"script_id\"=?", o.ID),
+	)
+
+	query := ScriptExecutions(queryMods...)
+	queries.SetFrom(query.Query, "\"script_execution\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"script_execution\".*"})
+	}
+
+	return query
+}
+
+// LoadScriptScriptExecutions allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (scriptEventL) LoadScriptScriptExecutions(ctx context.Context, e boil.ContextExecutor, singular bool, maybeScriptEvent interface{}, mods queries.Applicator) error {
+	var slice []*ScriptEvent
+	var object *ScriptEvent
+
+	if singular {
+		object = maybeScriptEvent.(*ScriptEvent)
+	} else {
+		slice = *maybeScriptEvent.(*[]*ScriptEvent)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &scriptEventR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &scriptEventR{}
+			}
+
+			for _, a := range args {
+				if queries.Equal(a, obj.ID) {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(qm.From(`script_execution`), qm.WhereIn(`script_execution.script_id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load script_execution")
+	}
+
+	var resultSlice []*ScriptExecution
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice script_execution")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on script_execution")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for script_execution")
+	}
+
+	if len(scriptExecutionAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.ScriptScriptExecutions = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &scriptExecutionR{}
+			}
+			foreign.R.Script = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if queries.Equal(local.ID, foreign.ScriptID) {
+				local.R.ScriptScriptExecutions = append(local.R.ScriptScriptExecutions, foreign)
+				if foreign.R == nil {
+					foreign.R = &scriptExecutionR{}
+				}
+				foreign.R.Script = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// AddScriptScriptExecutions adds the given related objects to the existing relationships
+// of the script_event, optionally inserting them as new records.
+// Appends related to o.R.ScriptScriptExecutions.
+// Sets related.R.Script appropriately.
+func (o *ScriptEvent) AddScriptScriptExecutions(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*ScriptExecution) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			queries.Assign(&rel.ScriptID, o.ID)
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"script_execution\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"script_id"}),
+				strmangle.WhereClause("\"", "\"", 2, scriptExecutionPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			queries.Assign(&rel.ScriptID, o.ID)
+		}
+	}
+
+	if o.R == nil {
+		o.R = &scriptEventR{
+			ScriptScriptExecutions: related,
+		}
+	} else {
+		o.R.ScriptScriptExecutions = append(o.R.ScriptScriptExecutions, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &scriptExecutionR{
+				Script: o,
+			}
+		} else {
+			rel.R.Script = o
+		}
+	}
+	return nil
+}
+
+// SetScriptScriptExecutions removes all previously related items of the
+// script_event replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Script's ScriptScriptExecutions accordingly.
+// Replaces o.R.ScriptScriptExecutions with related.
+// Sets related.R.Script's ScriptScriptExecutions accordingly.
+func (o *ScriptEvent) SetScriptScriptExecutions(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*ScriptExecution) error {
+	query := "update \"script_execution\" set \"script_id\" = null where \"script_id\" = $1"
+	values := []interface{}{o.ID}
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	_, err := exec.ExecContext(ctx, query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+
+	if o.R != nil {
+		for _, rel := range o.R.ScriptScriptExecutions {
+			queries.SetScanner(&rel.ScriptID, nil)
+			if rel.R == nil {
+				continue
+			}
+
+			rel.R.Script = nil
+		}
+
+		o.R.ScriptScriptExecutions = nil
+	}
+	return o.AddScriptScriptExecutions(ctx, exec, insert, related...)
+}
+
+// RemoveScriptScriptExecutions relationships from objects passed in.
+// Removes related items from R.ScriptScriptExecutions (uses pointer comparison, removal does not keep order)
+// Sets related.R.Script.
+func (o *ScriptEvent) RemoveScriptScriptExecutions(ctx context.Context, exec boil.ContextExecutor, related ...*ScriptExecution) error {
+	var err error
+	for _, rel := range related {
+		queries.SetScanner(&rel.ScriptID, nil)
+		if rel.R != nil {
+			rel.R.Script = nil
+		}
+		if _, err = rel.Update(ctx, exec, boil.Whitelist("script_id")); err != nil {
+			return err
+		}
+	}
+	if o.R == nil {
+		return nil
+	}
+
+	for _, rel := range related {
+		for i, ri := range o.R.ScriptScriptExecutions {
+			if rel != ri {
+				continue
+			}
+
+			ln := len(o.R.ScriptScriptExecutions)
+			if ln > 1 && i < ln-1 {
+				o.R.ScriptScriptExecutions[i] = o.R.ScriptScriptExecutions[ln-1]
+			}
+			o.R.ScriptScriptExecutions = o.R.ScriptScriptExecutions[:ln-1]
+			break
+		}
+	}
+
+	return nil
+}
+
 // ScriptEvents retrieves all the records using an executor.
 func ScriptEvents(mods ...qm.QueryMod) scriptEventQuery {
 	mods = append(mods, qm.From("\"script_event\""))
@@ -408,7 +664,7 @@ func ScriptEvents(mods ...qm.QueryMod) scriptEventQuery {
 
 // FindScriptEvent retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
-func FindScriptEvent(ctx context.Context, exec boil.ContextExecutor, iD int64, selectCols ...string) (*ScriptEvent, error) {
+func FindScriptEvent(ctx context.Context, exec boil.ContextExecutor, iD string, selectCols ...string) (*ScriptEvent, error) {
 	scriptEventObj := &ScriptEvent{}
 
 	sel := "*"
@@ -898,7 +1154,7 @@ func (o *ScriptEventSlice) ReloadAll(ctx context.Context, exec boil.ContextExecu
 }
 
 // ScriptEventExists checks if the ScriptEvent row exists.
-func ScriptEventExists(ctx context.Context, exec boil.ContextExecutor, iD int64) (bool, error) {
+func ScriptEventExists(ctx context.Context, exec boil.ContextExecutor, iD string) (bool, error) {
 	var exists bool
 	sql := "select exists(select 1 from \"script_event\" where \"id\"=$1 limit 1)"
 

@@ -9,4 +9,6 @@ func TestUpsert(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsUpsert)
 
 	t.Run("ScriptEvents", testScriptEventsUpsert)
+
+	t.Run("ScriptExecutions", testScriptExecutionsUpsert)
 }
