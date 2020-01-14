@@ -239,7 +239,7 @@ func (vm *VM) event(status, executionType string, includeScriptHash bool) {
 	if includeScriptHash {
 		hash.SetValid(vm.getHash(false))
 	}
-	scriptevent.Event(vm.getHash(true), vm.ShortName(),vm.Path, hash, executionType, status, time.Now())
+	scriptevent.Event(vm.getHash(true), vm.ShortName(), vm.Path, hash, executionType, status, time.Now())
 }
 
 func (vm *VM) getHash(includeFileName bool) string {
@@ -248,7 +248,7 @@ func (vm *VM) getHash(includeFileName bool) string {
 		log.Errorln(log.GCTScriptMgr, err)
 	}
 	if includeFileName {
-		contents =  append(contents, vm.ShortName()...)
+		contents = append(contents, vm.ShortName()...)
 	}
-	return hex.EncodeToString(crypto.GetSHA512(contents))
+	return hex.EncodeToString(crypto.GetSHA256(contents))
 }

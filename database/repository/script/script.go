@@ -40,7 +40,7 @@ func Event(id, name, path string, hash null.String, executionType, status string
 		err = tempEvent.Insert(ctx, tx, boil.Infer())
 	} else {
 		var tempEvent = modelPSQL.ScriptEvent{
-			ScriptID:        id,
+			ScriptID:   id,
 			ScriptName: name,
 			ScriptPath: path,
 			ScriptHash: hash,
