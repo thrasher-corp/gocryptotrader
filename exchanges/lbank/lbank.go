@@ -32,11 +32,9 @@ type Lbank struct {
 }
 
 const (
-	lbankAPIURL          = "https://api.lbkex.com"
-	lbankAPIVersion      = "1"
-	lbankAuthRateLimit   = 0
-	lbankUnAuthRateLimit = 0
-	lbankFeeNotFound     = 0.0
+	lbankAPIURL      = "https://api.lbkex.com"
+	lbankAPIVersion  = "1"
+	lbankFeeNotFound = 0.0
 
 	// Public endpoints
 	lbankTicker         = "ticker.do"

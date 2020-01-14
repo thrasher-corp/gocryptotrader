@@ -31,9 +31,6 @@ const (
 	itbitOrders         = "orders"
 	itbitCryptoDeposits = "cryptocurrency_deposits"
 	itbitWalletTransfer = "wallet_transfers"
-
-	itbitAuthRate   = 0
-	itbitUnauthRate = 0
 )
 
 // ItBit is the overarching type across the ItBit package

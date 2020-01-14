@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"golang.org/x/time/rate"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -113,9 +114,12 @@ func (h *HitBTC) SetDefaults() {
 	}
 
 	h.Requester = request.New(h.Name,
-		request.NewRateLimit(time.Second, hitbtcAuthRate),
-		request.NewRateLimit(time.Second, hitbtcUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		&RateLimit{
+			MarketData: request.NewRateLimit(hitbtcRateInterval, hitbtcMarketDataReqRate),
+			Trading:    request.NewRateLimit(hitbtcRateInterval, hitbtcTradingReqRate),
+			Other:      request.NewRateLimit(hitbtcRateInterval, hitbtcAllOthers),
+		})
 
 	h.API.Endpoints.URLDefault = apiURL
 	h.API.Endpoints.URL = h.API.Endpoints.URLDefault
@@ -124,6 +128,28 @@ func (h *HitBTC) SetDefaults() {
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+}
+
+// RateLimit implements the request.Limiter interface
+type RateLimit struct {
+	MarketData *rate.Limiter
+	Trading    *rate.Limiter
+	Other      *rate.Limiter
+}
+
+// Limit limits outbound requests
+func (r *RateLimit) Limit(f request.Functionality) error {
+	switch f {
+	case marketRequests:
+		time.Sleep(r.MarketData.Reserve().Delay())
+	case tradingRequests:
+		time.Sleep(r.Trading.Reserve().Delay())
+	case otherRequests:
+		time.Sleep(r.Other.Reserve().Delay())
+	default:
+		return errors.New("functionality not found")
+	}
+	return nil
 }
 
 // Setup sets user exchange configuration settings

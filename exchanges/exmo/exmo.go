@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -41,8 +42,8 @@ const (
 	exmoWalletHistory   = "wallet_history"
 
 	// Rate limit: 180 per/minute
-	exmoAuthRate   = 180
-	exmoUnauthRate = 180
+	exmoRateInterval = time.Minute
+	exmoRequestRate  = 180
 )
 
 // EXMO exchange struct

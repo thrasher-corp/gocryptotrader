@@ -39,9 +39,6 @@ const (
 	coinutPositionHistory = "position_history"
 	coinutPositionOpen    = "user_open_positions"
 
-	coinutAuthRate   = 0
-	coinutUnauthRate = 0
-
 	coinutStatusOK = "OK"
 )
 

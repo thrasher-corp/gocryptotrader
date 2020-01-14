@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -51,8 +52,9 @@ const (
 	krakenWithdrawCancel   = "WithdrawCancel"
 	krakenWebsocketToken   = "GetWebSocketsToken"
 
-	krakenAuthRate   = 0
-	krakenUnauthRate = 0
+	// Rate limit consts
+	krakenRateInterval = time.Second
+	krakenRequestRate  = 1
 )
 
 var assetPairMap map[string]string

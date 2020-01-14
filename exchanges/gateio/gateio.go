@@ -37,9 +37,6 @@ const (
 	gateioTickers         = "tickers"
 	gateioOrderbook       = "orderBook"
 
-	gateioAuthRate   = 100
-	gateioUnauthRate = 100
-
 	gateioGenerateAddress = "New address is being generated for you, please wait a moment and refresh this page. "
 )
 

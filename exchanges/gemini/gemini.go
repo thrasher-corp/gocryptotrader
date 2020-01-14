@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -45,8 +46,9 @@ const (
 	geminiVolume             = "notionalvolume"
 
 	// gemini limit rates
-	geminiAuthRate   = 600
-	geminiUnauthRate = 120
+	geminiRateInterval = time.Minute
+	geminiAuthRate     = 600
+	geminiUnauthRate   = 120
 
 	// Too many requests returns this
 	geminiRateError = "429"
@@ -402,6 +404,7 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(method, path string, params map[st
 		Verbose:       g.Verbose,
 		HTTPDebugging: g.HTTPDebugging,
 		HTTPRecording: g.HTTPRecording,
+		Endpoint:      request.Auth,
 	})
 }
 

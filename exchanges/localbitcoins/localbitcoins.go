@@ -98,8 +98,6 @@ const (
 	statePaidLateConfirmed   = "PAID_IN_LATE_AND_CONFIRMED"
 	statePaidPartlyConfirmed = "PAID_PARTLY_AND_CONFIRMED"
 
-	localbitcoinsAuthRate   = 0
-	localbitcoinsUnauthRate = 1
 	// String response used with order status
 	null = "null"
 )

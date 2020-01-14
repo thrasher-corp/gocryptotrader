@@ -144,13 +144,13 @@ func (r *RateLimit) Limit(f request.Functionality) error {
 	switch f {
 	case request.Auth:
 		time.Sleep(r.Auth.Reserve().Delay())
-	case request.Order:
+	case orderFunc:
 		time.Sleep(r.OrderPlacement.Reserve().Delay())
-	case request.Batch:
+	case batchFunc:
 		time.Sleep(r.BatchOrders.Reserve().Delay())
-	case request.Withdraw:
+	case withdrawFunc:
 		time.Sleep(r.WithdrawRequest.Reserve().Delay())
-	case request.NewReport:
+	case newReportFunc:
 		time.Sleep(r.CreateNewReport.Reserve().Delay())
 	default:
 		time.Sleep(r.UnAuth.Reserve().Delay())

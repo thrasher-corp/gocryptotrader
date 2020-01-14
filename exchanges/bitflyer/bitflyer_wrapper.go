@@ -108,7 +108,7 @@ func (b *Bitflyer) SetDefaults() {
 	b.API.Endpoints.URLSecondary = b.API.Endpoints.URLSecondaryDefault
 }
 
-// RateLimit ...
+// RateLimit implements the rate.Limiter interface
 type RateLimit struct {
 	Auth   *rate.Limiter
 	UnAuth *rate.Limiter
@@ -125,11 +125,11 @@ func (r *RateLimit) Limit(f request.Functionality) error {
 	switch f {
 	case request.Auth:
 		time.Sleep(r.Auth.Reserve().Delay())
-	case request.Order:
+	case orders:
 		res := r.Auth.Reserve()
 		time.Sleep(r.Order.Reserve().Delay())
 		time.Sleep(res.Delay())
-	case request.LowVolume:
+	case lowVolume:
 		authShell := r.Auth.Reserve()
 		orderShell := r.Order.Reserve()
 		time.Sleep(r.LowVolume.Reserve().Delay())

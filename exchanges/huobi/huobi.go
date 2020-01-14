@@ -59,8 +59,8 @@ const (
 	huobiWithdrawCreate        = "dw/withdraw/api/create"
 	huobiWithdrawCancel        = "dw/withdraw-virtual/%s/cancel"
 
-	huobiAuthRate   = 100
-	huobiUnauthRate = 100
+	huobiRateInterval = time.Second
+	huobiRequestRate  = 10
 )
 
 // HUOBI is the overarching type across this package
