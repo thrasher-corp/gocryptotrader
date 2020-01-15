@@ -34,7 +34,7 @@ type Currency struct {
 	Result  []struct {
 		Currency        string  `json:"Currency"`
 		CurrencyLong    string  `json:"CurrencyLong"`
-		MinConfirmation int64     `json:"MinConfirmation"`
+		MinConfirmation int64   `json:"MinConfirmation"`
 		TxFee           float64 `json:"TxFee"`
 		IsActive        bool    `json:"IsActive"`
 		CoinType        string  `json:"CoinType"`
@@ -67,8 +67,8 @@ type MarketSummary struct {
 		TimeStamp         string  `json:"TimeStamp"`
 		Bid               float64 `json:"Bid"`
 		Ask               float64 `json:"Ask"`
-		OpenBuyOrders     int64     `json:"OpenBuyOrders"`
-		OpenSellOrders    int64     `json:"OpenSellOrders"`
+		OpenBuyOrders     int64   `json:"OpenBuyOrders"`
+		OpenSellOrders    int64   `json:"OpenSellOrders"`
 		PrevDay           float64 `json:"PrevDay"`
 		Created           string  `json:"Created"`
 		DisplayMarketName string  `json:"DisplayMarketName"`
@@ -96,7 +96,7 @@ type MarketHistory struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
 	Result  []struct {
-		ID        int64     `json:"Id"`
+		ID        int64   `json:"Id"`
 		Timestamp string  `json:"TimeStamp"`
 		Quantity  float64 `json:"Quantity"`
 		Price     float64 `json:"Price"`
