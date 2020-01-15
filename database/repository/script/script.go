@@ -65,7 +65,9 @@ func Event(id, name, path string, hash null.String, data null.Bytes, executionTy
 				return
 			}
 		} else {
-			var tempEvent = modelSQLite.Script{}
+			var tempEvent = modelSQLite.Script{
+				ID: id,
+			}
 			tempScriptExecution := &modelSQLite.ScriptExecution{
 				ScriptID:        id,
 				ExecutionTime:   time.UTC().String(),
