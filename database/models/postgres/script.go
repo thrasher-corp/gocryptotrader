@@ -22,33 +22,39 @@ import (
 	"github.com/volatiletech/null"
 )
 
-// ScriptEvent is an object representing the database table.
-type ScriptEvent struct {
-	ID         string      `boil:"id" json:"id" toml:"id" yaml:"id"`
-	ScriptID   string      `boil:"script_id" json:"script_id" toml:"script_id" yaml:"script_id"`
-	ScriptName string      `boil:"script_name" json:"script_name" toml:"script_name" yaml:"script_name"`
-	ScriptPath string      `boil:"script_path" json:"script_path" toml:"script_path" yaml:"script_path"`
-	ScriptHash null.String `boil:"script_hash" json:"script_hash,omitempty" toml:"script_hash" yaml:"script_hash,omitempty"`
-	CreatedAt  null.Time   `boil:"created_at" json:"created_at,omitempty" toml:"created_at" yaml:"created_at,omitempty"`
+// Script is an object representing the database table.
+type Script struct {
+	ID             string      `boil:"id" json:"id" toml:"id" yaml:"id"`
+	ScriptID       string      `boil:"script_id" json:"script_id" toml:"script_id" yaml:"script_id"`
+	ScriptName     string      `boil:"script_name" json:"script_name" toml:"script_name" yaml:"script_name"`
+	ScriptPath     string      `boil:"script_path" json:"script_path" toml:"script_path" yaml:"script_path"`
+	ScriptHash     null.String `boil:"script_hash" json:"script_hash,omitempty" toml:"script_hash" yaml:"script_hash,omitempty"`
+	ScriptData     null.Bytes  `boil:"script_data" json:"script_data,omitempty" toml:"script_data" yaml:"script_data,omitempty"`
+	LastExecutedAt null.Time   `boil:"last_executed_at" json:"last_executed_at,omitempty" toml:"last_executed_at" yaml:"last_executed_at,omitempty"`
+	CreatedAt      null.Time   `boil:"created_at" json:"created_at,omitempty" toml:"created_at" yaml:"created_at,omitempty"`
 
-	R *scriptEventR `boil:"-" json:"-" toml:"-" yaml:"-"`
-	L scriptEventL  `boil:"-" json:"-" toml:"-" yaml:"-"`
+	R *scriptR `boil:"-" json:"-" toml:"-" yaml:"-"`
+	L scriptL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
-var ScriptEventColumns = struct {
-	ID         string
-	ScriptID   string
-	ScriptName string
-	ScriptPath string
-	ScriptHash string
-	CreatedAt  string
+var ScriptColumns = struct {
+	ID             string
+	ScriptID       string
+	ScriptName     string
+	ScriptPath     string
+	ScriptHash     string
+	ScriptData     string
+	LastExecutedAt string
+	CreatedAt      string
 }{
-	ID:         "id",
-	ScriptID:   "script_id",
-	ScriptName: "script_name",
-	ScriptPath: "script_path",
-	ScriptHash: "script_hash",
-	CreatedAt:  "created_at",
+	ID:             "id",
+	ScriptID:       "script_id",
+	ScriptName:     "script_name",
+	ScriptPath:     "script_path",
+	ScriptHash:     "script_hash",
+	ScriptData:     "script_data",
+	LastExecutedAt: "last_executed_at",
+	CreatedAt:      "created_at",
 }
 
 // Generated where
@@ -76,6 +82,29 @@ func (w whereHelpernull_String) GTE(x null.String) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.GTE, x)
 }
 
+type whereHelpernull_Bytes struct{ field string }
+
+func (w whereHelpernull_Bytes) EQ(x null.Bytes) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, false, x)
+}
+func (w whereHelpernull_Bytes) NEQ(x null.Bytes) qm.QueryMod {
+	return qmhelper.WhereNullEQ(w.field, true, x)
+}
+func (w whereHelpernull_Bytes) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
+func (w whereHelpernull_Bytes) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
+func (w whereHelpernull_Bytes) LT(x null.Bytes) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LT, x)
+}
+func (w whereHelpernull_Bytes) LTE(x null.Bytes) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelpernull_Bytes) GT(x null.Bytes) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GT, x)
+}
+func (w whereHelpernull_Bytes) GTE(x null.Bytes) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
+
 type whereHelpernull_Time struct{ field string }
 
 func (w whereHelpernull_Time) EQ(x null.Time) qm.QueryMod {
@@ -99,72 +128,76 @@ func (w whereHelpernull_Time) GTE(x null.Time) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.GTE, x)
 }
 
-var ScriptEventWhere = struct {
-	ID         whereHelperstring
-	ScriptID   whereHelperstring
-	ScriptName whereHelperstring
-	ScriptPath whereHelperstring
-	ScriptHash whereHelpernull_String
-	CreatedAt  whereHelpernull_Time
+var ScriptWhere = struct {
+	ID             whereHelperstring
+	ScriptID       whereHelperstring
+	ScriptName     whereHelperstring
+	ScriptPath     whereHelperstring
+	ScriptHash     whereHelpernull_String
+	ScriptData     whereHelpernull_Bytes
+	LastExecutedAt whereHelpernull_Time
+	CreatedAt      whereHelpernull_Time
 }{
-	ID:         whereHelperstring{field: "\"script_event\".\"id\""},
-	ScriptID:   whereHelperstring{field: "\"script_event\".\"script_id\""},
-	ScriptName: whereHelperstring{field: "\"script_event\".\"script_name\""},
-	ScriptPath: whereHelperstring{field: "\"script_event\".\"script_path\""},
-	ScriptHash: whereHelpernull_String{field: "\"script_event\".\"script_hash\""},
-	CreatedAt:  whereHelpernull_Time{field: "\"script_event\".\"created_at\""},
+	ID:             whereHelperstring{field: "\"script\".\"id\""},
+	ScriptID:       whereHelperstring{field: "\"script\".\"script_id\""},
+	ScriptName:     whereHelperstring{field: "\"script\".\"script_name\""},
+	ScriptPath:     whereHelperstring{field: "\"script\".\"script_path\""},
+	ScriptHash:     whereHelpernull_String{field: "\"script\".\"script_hash\""},
+	ScriptData:     whereHelpernull_Bytes{field: "\"script\".\"script_data\""},
+	LastExecutedAt: whereHelpernull_Time{field: "\"script\".\"last_executed_at\""},
+	CreatedAt:      whereHelpernull_Time{field: "\"script\".\"created_at\""},
 }
 
-// ScriptEventRels is where relationship names are stored.
-var ScriptEventRels = struct {
-	ScriptScriptExecutions string
+// ScriptRels is where relationship names are stored.
+var ScriptRels = struct {
+	ScriptExecutions string
 }{
-	ScriptScriptExecutions: "ScriptScriptExecutions",
+	ScriptExecutions: "ScriptExecutions",
 }
 
-// scriptEventR is where relationships are stored.
-type scriptEventR struct {
-	ScriptScriptExecutions ScriptExecutionSlice
+// scriptR is where relationships are stored.
+type scriptR struct {
+	ScriptExecutions ScriptExecutionSlice
 }
 
 // NewStruct creates a new relationship struct
-func (*scriptEventR) NewStruct() *scriptEventR {
-	return &scriptEventR{}
+func (*scriptR) NewStruct() *scriptR {
+	return &scriptR{}
 }
 
-// scriptEventL is where Load methods for each relationship are stored.
-type scriptEventL struct{}
+// scriptL is where Load methods for each relationship are stored.
+type scriptL struct{}
 
 var (
-	scriptEventAllColumns            = []string{"id", "script_id", "script_name", "script_path", "script_hash", "created_at"}
-	scriptEventColumnsWithoutDefault = []string{"script_id", "script_name", "script_path", "script_hash"}
-	scriptEventColumnsWithDefault    = []string{"id", "created_at"}
-	scriptEventPrimaryKeyColumns     = []string{"id"}
+	scriptAllColumns            = []string{"id", "script_id", "script_name", "script_path", "script_hash", "script_data", "last_executed_at", "created_at"}
+	scriptColumnsWithoutDefault = []string{"script_id", "script_name", "script_path", "script_hash", "script_data"}
+	scriptColumnsWithDefault    = []string{"id", "last_executed_at", "created_at"}
+	scriptPrimaryKeyColumns     = []string{"id"}
 )
 
 type (
-	// ScriptEventSlice is an alias for a slice of pointers to ScriptEvent.
-	// This should generally be used opposed to []ScriptEvent.
-	ScriptEventSlice []*ScriptEvent
-	// ScriptEventHook is the signature for custom ScriptEvent hook methods
-	ScriptEventHook func(context.Context, boil.ContextExecutor, *ScriptEvent) error
+	// ScriptSlice is an alias for a slice of pointers to Script.
+	// This should generally be used opposed to []Script.
+	ScriptSlice []*Script
+	// ScriptHook is the signature for custom Script hook methods
+	ScriptHook func(context.Context, boil.ContextExecutor, *Script) error
 
-	scriptEventQuery struct {
+	scriptQuery struct {
 		*queries.Query
 	}
 )
 
 // Cache for insert, update and upsert
 var (
-	scriptEventType                 = reflect.TypeOf(&ScriptEvent{})
-	scriptEventMapping              = queries.MakeStructMapping(scriptEventType)
-	scriptEventPrimaryKeyMapping, _ = queries.BindMapping(scriptEventType, scriptEventMapping, scriptEventPrimaryKeyColumns)
-	scriptEventInsertCacheMut       sync.RWMutex
-	scriptEventInsertCache          = make(map[string]insertCache)
-	scriptEventUpdateCacheMut       sync.RWMutex
-	scriptEventUpdateCache          = make(map[string]updateCache)
-	scriptEventUpsertCacheMut       sync.RWMutex
-	scriptEventUpsertCache          = make(map[string]insertCache)
+	scriptType                 = reflect.TypeOf(&Script{})
+	scriptMapping              = queries.MakeStructMapping(scriptType)
+	scriptPrimaryKeyMapping, _ = queries.BindMapping(scriptType, scriptMapping, scriptPrimaryKeyColumns)
+	scriptInsertCacheMut       sync.RWMutex
+	scriptInsertCache          = make(map[string]insertCache)
+	scriptUpdateCacheMut       sync.RWMutex
+	scriptUpdateCache          = make(map[string]updateCache)
+	scriptUpsertCacheMut       sync.RWMutex
+	scriptUpsertCache          = make(map[string]insertCache)
 )
 
 var (
@@ -175,24 +208,24 @@ var (
 	_ = qmhelper.Where
 )
 
-var scriptEventBeforeInsertHooks []ScriptEventHook
-var scriptEventBeforeUpdateHooks []ScriptEventHook
-var scriptEventBeforeDeleteHooks []ScriptEventHook
-var scriptEventBeforeUpsertHooks []ScriptEventHook
+var scriptBeforeInsertHooks []ScriptHook
+var scriptBeforeUpdateHooks []ScriptHook
+var scriptBeforeDeleteHooks []ScriptHook
+var scriptBeforeUpsertHooks []ScriptHook
 
-var scriptEventAfterInsertHooks []ScriptEventHook
-var scriptEventAfterSelectHooks []ScriptEventHook
-var scriptEventAfterUpdateHooks []ScriptEventHook
-var scriptEventAfterDeleteHooks []ScriptEventHook
-var scriptEventAfterUpsertHooks []ScriptEventHook
+var scriptAfterInsertHooks []ScriptHook
+var scriptAfterSelectHooks []ScriptHook
+var scriptAfterUpdateHooks []ScriptHook
+var scriptAfterDeleteHooks []ScriptHook
+var scriptAfterUpsertHooks []ScriptHook
 
 // doBeforeInsertHooks executes all "before insert" hooks.
-func (o *ScriptEvent) doBeforeInsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+func (o *Script) doBeforeInsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
 	if boil.HooksAreSkipped(ctx) {
 		return nil
 	}
 
-	for _, hook := range scriptEventBeforeInsertHooks {
+	for _, hook := range scriptBeforeInsertHooks {
 		if err := hook(ctx, exec, o); err != nil {
 			return err
 		}
@@ -202,12 +235,12 @@ func (o *ScriptEvent) doBeforeInsertHooks(ctx context.Context, exec boil.Context
 }
 
 // doBeforeUpdateHooks executes all "before Update" hooks.
-func (o *ScriptEvent) doBeforeUpdateHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+func (o *Script) doBeforeUpdateHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
 	if boil.HooksAreSkipped(ctx) {
 		return nil
 	}
 
-	for _, hook := range scriptEventBeforeUpdateHooks {
+	for _, hook := range scriptBeforeUpdateHooks {
 		if err := hook(ctx, exec, o); err != nil {
 			return err
 		}
@@ -217,12 +250,12 @@ func (o *ScriptEvent) doBeforeUpdateHooks(ctx context.Context, exec boil.Context
 }
 
 // doBeforeDeleteHooks executes all "before Delete" hooks.
-func (o *ScriptEvent) doBeforeDeleteHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+func (o *Script) doBeforeDeleteHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
 	if boil.HooksAreSkipped(ctx) {
 		return nil
 	}
 
-	for _, hook := range scriptEventBeforeDeleteHooks {
+	for _, hook := range scriptBeforeDeleteHooks {
 		if err := hook(ctx, exec, o); err != nil {
 			return err
 		}
@@ -232,12 +265,12 @@ func (o *ScriptEvent) doBeforeDeleteHooks(ctx context.Context, exec boil.Context
 }
 
 // doBeforeUpsertHooks executes all "before Upsert" hooks.
-func (o *ScriptEvent) doBeforeUpsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+func (o *Script) doBeforeUpsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
 	if boil.HooksAreSkipped(ctx) {
 		return nil
 	}
 
-	for _, hook := range scriptEventBeforeUpsertHooks {
+	for _, hook := range scriptBeforeUpsertHooks {
 		if err := hook(ctx, exec, o); err != nil {
 			return err
 		}
@@ -247,12 +280,12 @@ func (o *ScriptEvent) doBeforeUpsertHooks(ctx context.Context, exec boil.Context
 }
 
 // doAfterInsertHooks executes all "after Insert" hooks.
-func (o *ScriptEvent) doAfterInsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+func (o *Script) doAfterInsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
 	if boil.HooksAreSkipped(ctx) {
 		return nil
 	}
 
-	for _, hook := range scriptEventAfterInsertHooks {
+	for _, hook := range scriptAfterInsertHooks {
 		if err := hook(ctx, exec, o); err != nil {
 			return err
 		}
@@ -262,12 +295,12 @@ func (o *ScriptEvent) doAfterInsertHooks(ctx context.Context, exec boil.ContextE
 }
 
 // doAfterSelectHooks executes all "after Select" hooks.
-func (o *ScriptEvent) doAfterSelectHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+func (o *Script) doAfterSelectHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
 	if boil.HooksAreSkipped(ctx) {
 		return nil
 	}
 
-	for _, hook := range scriptEventAfterSelectHooks {
+	for _, hook := range scriptAfterSelectHooks {
 		if err := hook(ctx, exec, o); err != nil {
 			return err
 		}
@@ -277,12 +310,12 @@ func (o *ScriptEvent) doAfterSelectHooks(ctx context.Context, exec boil.ContextE
 }
 
 // doAfterUpdateHooks executes all "after Update" hooks.
-func (o *ScriptEvent) doAfterUpdateHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+func (o *Script) doAfterUpdateHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
 	if boil.HooksAreSkipped(ctx) {
 		return nil
 	}
 
-	for _, hook := range scriptEventAfterUpdateHooks {
+	for _, hook := range scriptAfterUpdateHooks {
 		if err := hook(ctx, exec, o); err != nil {
 			return err
 		}
@@ -292,12 +325,12 @@ func (o *ScriptEvent) doAfterUpdateHooks(ctx context.Context, exec boil.ContextE
 }
 
 // doAfterDeleteHooks executes all "after Delete" hooks.
-func (o *ScriptEvent) doAfterDeleteHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+func (o *Script) doAfterDeleteHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
 	if boil.HooksAreSkipped(ctx) {
 		return nil
 	}
 
-	for _, hook := range scriptEventAfterDeleteHooks {
+	for _, hook := range scriptAfterDeleteHooks {
 		if err := hook(ctx, exec, o); err != nil {
 			return err
 		}
@@ -307,12 +340,12 @@ func (o *ScriptEvent) doAfterDeleteHooks(ctx context.Context, exec boil.ContextE
 }
 
 // doAfterUpsertHooks executes all "after Upsert" hooks.
-func (o *ScriptEvent) doAfterUpsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
+func (o *Script) doAfterUpsertHooks(ctx context.Context, exec boil.ContextExecutor) (err error) {
 	if boil.HooksAreSkipped(ctx) {
 		return nil
 	}
 
-	for _, hook := range scriptEventAfterUpsertHooks {
+	for _, hook := range scriptAfterUpsertHooks {
 		if err := hook(ctx, exec, o); err != nil {
 			return err
 		}
@@ -321,33 +354,33 @@ func (o *ScriptEvent) doAfterUpsertHooks(ctx context.Context, exec boil.ContextE
 	return nil
 }
 
-// AddScriptEventHook registers your hook function for all future operations.
-func AddScriptEventHook(hookPoint boil.HookPoint, scriptEventHook ScriptEventHook) {
+// AddScriptHook registers your hook function for all future operations.
+func AddScriptHook(hookPoint boil.HookPoint, scriptHook ScriptHook) {
 	switch hookPoint {
 	case boil.BeforeInsertHook:
-		scriptEventBeforeInsertHooks = append(scriptEventBeforeInsertHooks, scriptEventHook)
+		scriptBeforeInsertHooks = append(scriptBeforeInsertHooks, scriptHook)
 	case boil.BeforeUpdateHook:
-		scriptEventBeforeUpdateHooks = append(scriptEventBeforeUpdateHooks, scriptEventHook)
+		scriptBeforeUpdateHooks = append(scriptBeforeUpdateHooks, scriptHook)
 	case boil.BeforeDeleteHook:
-		scriptEventBeforeDeleteHooks = append(scriptEventBeforeDeleteHooks, scriptEventHook)
+		scriptBeforeDeleteHooks = append(scriptBeforeDeleteHooks, scriptHook)
 	case boil.BeforeUpsertHook:
-		scriptEventBeforeUpsertHooks = append(scriptEventBeforeUpsertHooks, scriptEventHook)
+		scriptBeforeUpsertHooks = append(scriptBeforeUpsertHooks, scriptHook)
 	case boil.AfterInsertHook:
-		scriptEventAfterInsertHooks = append(scriptEventAfterInsertHooks, scriptEventHook)
+		scriptAfterInsertHooks = append(scriptAfterInsertHooks, scriptHook)
 	case boil.AfterSelectHook:
-		scriptEventAfterSelectHooks = append(scriptEventAfterSelectHooks, scriptEventHook)
+		scriptAfterSelectHooks = append(scriptAfterSelectHooks, scriptHook)
 	case boil.AfterUpdateHook:
-		scriptEventAfterUpdateHooks = append(scriptEventAfterUpdateHooks, scriptEventHook)
+		scriptAfterUpdateHooks = append(scriptAfterUpdateHooks, scriptHook)
 	case boil.AfterDeleteHook:
-		scriptEventAfterDeleteHooks = append(scriptEventAfterDeleteHooks, scriptEventHook)
+		scriptAfterDeleteHooks = append(scriptAfterDeleteHooks, scriptHook)
 	case boil.AfterUpsertHook:
-		scriptEventAfterUpsertHooks = append(scriptEventAfterUpsertHooks, scriptEventHook)
+		scriptAfterUpsertHooks = append(scriptAfterUpsertHooks, scriptHook)
 	}
 }
 
-// One returns a single scriptEvent record from the query.
-func (q scriptEventQuery) One(ctx context.Context, exec boil.ContextExecutor) (*ScriptEvent, error) {
-	o := &ScriptEvent{}
+// One returns a single script record from the query.
+func (q scriptQuery) One(ctx context.Context, exec boil.ContextExecutor) (*Script, error) {
+	o := &Script{}
 
 	queries.SetLimit(q.Query, 1)
 
@@ -356,7 +389,7 @@ func (q scriptEventQuery) One(ctx context.Context, exec boil.ContextExecutor) (*
 		if errors.Cause(err) == sql.ErrNoRows {
 			return nil, sql.ErrNoRows
 		}
-		return nil, errors.Wrap(err, "postgres: failed to execute a one query for script_event")
+		return nil, errors.Wrap(err, "postgres: failed to execute a one query for script")
 	}
 
 	if err := o.doAfterSelectHooks(ctx, exec); err != nil {
@@ -366,16 +399,16 @@ func (q scriptEventQuery) One(ctx context.Context, exec boil.ContextExecutor) (*
 	return o, nil
 }
 
-// All returns all ScriptEvent records from the query.
-func (q scriptEventQuery) All(ctx context.Context, exec boil.ContextExecutor) (ScriptEventSlice, error) {
-	var o []*ScriptEvent
+// All returns all Script records from the query.
+func (q scriptQuery) All(ctx context.Context, exec boil.ContextExecutor) (ScriptSlice, error) {
+	var o []*Script
 
 	err := q.Bind(ctx, exec, &o)
 	if err != nil {
-		return nil, errors.Wrap(err, "postgres: failed to assign all query results to ScriptEvent slice")
+		return nil, errors.Wrap(err, "postgres: failed to assign all query results to Script slice")
 	}
 
-	if len(scriptEventAfterSelectHooks) != 0 {
+	if len(scriptAfterSelectHooks) != 0 {
 		for _, obj := range o {
 			if err := obj.doAfterSelectHooks(ctx, exec); err != nil {
 				return o, err
@@ -386,8 +419,8 @@ func (q scriptEventQuery) All(ctx context.Context, exec boil.ContextExecutor) (S
 	return o, nil
 }
 
-// Count returns the count of all ScriptEvent records in the query.
-func (q scriptEventQuery) Count(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+// Count returns the count of all Script records in the query.
+func (q scriptQuery) Count(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
 	var count int64
 
 	queries.SetSelect(q.Query, nil)
@@ -395,14 +428,14 @@ func (q scriptEventQuery) Count(ctx context.Context, exec boil.ContextExecutor) 
 
 	err := q.Query.QueryRowContext(ctx, exec).Scan(&count)
 	if err != nil {
-		return 0, errors.Wrap(err, "postgres: failed to count script_event rows")
+		return 0, errors.Wrap(err, "postgres: failed to count script rows")
 	}
 
 	return count, nil
 }
 
 // Exists checks if the row exists in the table.
-func (q scriptEventQuery) Exists(ctx context.Context, exec boil.ContextExecutor) (bool, error) {
+func (q scriptQuery) Exists(ctx context.Context, exec boil.ContextExecutor) (bool, error) {
 	var count int64
 
 	queries.SetSelect(q.Query, nil)
@@ -411,14 +444,14 @@ func (q scriptEventQuery) Exists(ctx context.Context, exec boil.ContextExecutor)
 
 	err := q.Query.QueryRowContext(ctx, exec).Scan(&count)
 	if err != nil {
-		return false, errors.Wrap(err, "postgres: failed to check if script_event exists")
+		return false, errors.Wrap(err, "postgres: failed to check if script exists")
 	}
 
 	return count > 0, nil
 }
 
-// ScriptScriptExecutions retrieves all the script_execution's ScriptExecutions with an executor via script_id column.
-func (o *ScriptEvent) ScriptScriptExecutions(mods ...qm.QueryMod) scriptExecutionQuery {
+// ScriptExecutions retrieves all the script_execution's ScriptExecutions with an executor.
+func (o *Script) ScriptExecutions(mods ...qm.QueryMod) scriptExecutionQuery {
 	var queryMods []qm.QueryMod
 	if len(mods) != 0 {
 		queryMods = append(queryMods, mods...)
@@ -438,29 +471,29 @@ func (o *ScriptEvent) ScriptScriptExecutions(mods ...qm.QueryMod) scriptExecutio
 	return query
 }
 
-// LoadScriptScriptExecutions allows an eager lookup of values, cached into the
+// LoadScriptExecutions allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for a 1-M or N-M relationship.
-func (scriptEventL) LoadScriptScriptExecutions(ctx context.Context, e boil.ContextExecutor, singular bool, maybeScriptEvent interface{}, mods queries.Applicator) error {
-	var slice []*ScriptEvent
-	var object *ScriptEvent
+func (scriptL) LoadScriptExecutions(ctx context.Context, e boil.ContextExecutor, singular bool, maybeScript interface{}, mods queries.Applicator) error {
+	var slice []*Script
+	var object *Script
 
 	if singular {
-		object = maybeScriptEvent.(*ScriptEvent)
+		object = maybeScript.(*Script)
 	} else {
-		slice = *maybeScriptEvent.(*[]*ScriptEvent)
+		slice = *maybeScript.(*[]*Script)
 	}
 
 	args := make([]interface{}, 0, 1)
 	if singular {
 		if object.R == nil {
-			object.R = &scriptEventR{}
+			object.R = &scriptR{}
 		}
 		args = append(args, object.ID)
 	} else {
 	Outer:
 		for _, obj := range slice {
 			if obj.R == nil {
-				obj.R = &scriptEventR{}
+				obj.R = &scriptR{}
 			}
 
 			for _, a := range args {
@@ -507,7 +540,7 @@ func (scriptEventL) LoadScriptScriptExecutions(ctx context.Context, e boil.Conte
 		}
 	}
 	if singular {
-		object.R.ScriptScriptExecutions = resultSlice
+		object.R.ScriptExecutions = resultSlice
 		for _, foreign := range resultSlice {
 			if foreign.R == nil {
 				foreign.R = &scriptExecutionR{}
@@ -520,7 +553,7 @@ func (scriptEventL) LoadScriptScriptExecutions(ctx context.Context, e boil.Conte
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
 			if queries.Equal(local.ID, foreign.ScriptID) {
-				local.R.ScriptScriptExecutions = append(local.R.ScriptScriptExecutions, foreign)
+				local.R.ScriptExecutions = append(local.R.ScriptExecutions, foreign)
 				if foreign.R == nil {
 					foreign.R = &scriptExecutionR{}
 				}
@@ -533,11 +566,11 @@ func (scriptEventL) LoadScriptScriptExecutions(ctx context.Context, e boil.Conte
 	return nil
 }
 
-// AddScriptScriptExecutions adds the given related objects to the existing relationships
-// of the script_event, optionally inserting them as new records.
-// Appends related to o.R.ScriptScriptExecutions.
+// AddScriptExecutions adds the given related objects to the existing relationships
+// of the script, optionally inserting them as new records.
+// Appends related to o.R.ScriptExecutions.
 // Sets related.R.Script appropriately.
-func (o *ScriptEvent) AddScriptScriptExecutions(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*ScriptExecution) error {
+func (o *Script) AddScriptExecutions(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*ScriptExecution) error {
 	var err error
 	for _, rel := range related {
 		if insert {
@@ -567,11 +600,11 @@ func (o *ScriptEvent) AddScriptScriptExecutions(ctx context.Context, exec boil.C
 	}
 
 	if o.R == nil {
-		o.R = &scriptEventR{
-			ScriptScriptExecutions: related,
+		o.R = &scriptR{
+			ScriptExecutions: related,
 		}
 	} else {
-		o.R.ScriptScriptExecutions = append(o.R.ScriptScriptExecutions, related...)
+		o.R.ScriptExecutions = append(o.R.ScriptExecutions, related...)
 	}
 
 	for _, rel := range related {
@@ -586,13 +619,13 @@ func (o *ScriptEvent) AddScriptScriptExecutions(ctx context.Context, exec boil.C
 	return nil
 }
 
-// SetScriptScriptExecutions removes all previously related items of the
-// script_event replacing them completely with the passed
+// SetScriptExecutions removes all previously related items of the
+// script replacing them completely with the passed
 // in related items, optionally inserting them as new records.
-// Sets o.R.Script's ScriptScriptExecutions accordingly.
-// Replaces o.R.ScriptScriptExecutions with related.
-// Sets related.R.Script's ScriptScriptExecutions accordingly.
-func (o *ScriptEvent) SetScriptScriptExecutions(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*ScriptExecution) error {
+// Sets o.R.Script's ScriptExecutions accordingly.
+// Replaces o.R.ScriptExecutions with related.
+// Sets related.R.Script's ScriptExecutions accordingly.
+func (o *Script) SetScriptExecutions(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*ScriptExecution) error {
 	query := "update \"script_execution\" set \"script_id\" = null where \"script_id\" = $1"
 	values := []interface{}{o.ID}
 	if boil.DebugMode {
@@ -606,7 +639,7 @@ func (o *ScriptEvent) SetScriptScriptExecutions(ctx context.Context, exec boil.C
 	}
 
 	if o.R != nil {
-		for _, rel := range o.R.ScriptScriptExecutions {
+		for _, rel := range o.R.ScriptExecutions {
 			queries.SetScanner(&rel.ScriptID, nil)
 			if rel.R == nil {
 				continue
@@ -615,15 +648,15 @@ func (o *ScriptEvent) SetScriptScriptExecutions(ctx context.Context, exec boil.C
 			rel.R.Script = nil
 		}
 
-		o.R.ScriptScriptExecutions = nil
+		o.R.ScriptExecutions = nil
 	}
-	return o.AddScriptScriptExecutions(ctx, exec, insert, related...)
+	return o.AddScriptExecutions(ctx, exec, insert, related...)
 }
 
-// RemoveScriptScriptExecutions relationships from objects passed in.
-// Removes related items from R.ScriptScriptExecutions (uses pointer comparison, removal does not keep order)
+// RemoveScriptExecutions relationships from objects passed in.
+// Removes related items from R.ScriptExecutions (uses pointer comparison, removal does not keep order)
 // Sets related.R.Script.
-func (o *ScriptEvent) RemoveScriptScriptExecutions(ctx context.Context, exec boil.ContextExecutor, related ...*ScriptExecution) error {
+func (o *Script) RemoveScriptExecutions(ctx context.Context, exec boil.ContextExecutor, related ...*ScriptExecution) error {
 	var err error
 	for _, rel := range related {
 		queries.SetScanner(&rel.ScriptID, nil)
@@ -639,16 +672,16 @@ func (o *ScriptEvent) RemoveScriptScriptExecutions(ctx context.Context, exec boi
 	}
 
 	for _, rel := range related {
-		for i, ri := range o.R.ScriptScriptExecutions {
+		for i, ri := range o.R.ScriptExecutions {
 			if rel != ri {
 				continue
 			}
 
-			ln := len(o.R.ScriptScriptExecutions)
+			ln := len(o.R.ScriptExecutions)
 			if ln > 1 && i < ln-1 {
-				o.R.ScriptScriptExecutions[i] = o.R.ScriptScriptExecutions[ln-1]
+				o.R.ScriptExecutions[i] = o.R.ScriptExecutions[ln-1]
 			}
-			o.R.ScriptScriptExecutions = o.R.ScriptScriptExecutions[:ln-1]
+			o.R.ScriptExecutions = o.R.ScriptExecutions[:ln-1]
 			break
 		}
 	}
@@ -656,43 +689,43 @@ func (o *ScriptEvent) RemoveScriptScriptExecutions(ctx context.Context, exec boi
 	return nil
 }
 
-// ScriptEvents retrieves all the records using an executor.
-func ScriptEvents(mods ...qm.QueryMod) scriptEventQuery {
-	mods = append(mods, qm.From("\"script_event\""))
-	return scriptEventQuery{NewQuery(mods...)}
+// Scripts retrieves all the records using an executor.
+func Scripts(mods ...qm.QueryMod) scriptQuery {
+	mods = append(mods, qm.From("\"script\""))
+	return scriptQuery{NewQuery(mods...)}
 }
 
-// FindScriptEvent retrieves a single record by ID with an executor.
+// FindScript retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
-func FindScriptEvent(ctx context.Context, exec boil.ContextExecutor, iD string, selectCols ...string) (*ScriptEvent, error) {
-	scriptEventObj := &ScriptEvent{}
+func FindScript(ctx context.Context, exec boil.ContextExecutor, iD string, selectCols ...string) (*Script, error) {
+	scriptObj := &Script{}
 
 	sel := "*"
 	if len(selectCols) > 0 {
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from \"script_event\" where \"id\"=$1", sel,
+		"select %s from \"script\" where \"id\"=$1", sel,
 	)
 
 	q := queries.Raw(query, iD)
 
-	err := q.Bind(ctx, exec, scriptEventObj)
+	err := q.Bind(ctx, exec, scriptObj)
 	if err != nil {
 		if errors.Cause(err) == sql.ErrNoRows {
 			return nil, sql.ErrNoRows
 		}
-		return nil, errors.Wrap(err, "postgres: unable to select from script_event")
+		return nil, errors.Wrap(err, "postgres: unable to select from script")
 	}
 
-	return scriptEventObj, nil
+	return scriptObj, nil
 }
 
 // Insert a single record using an executor.
 // See boil.Columns.InsertColumnSet documentation to understand column list inference for inserts.
-func (o *ScriptEvent) Insert(ctx context.Context, exec boil.ContextExecutor, columns boil.Columns) error {
+func (o *Script) Insert(ctx context.Context, exec boil.ContextExecutor, columns boil.Columns) error {
 	if o == nil {
-		return errors.New("postgres: no script_event provided for insertion")
+		return errors.New("postgres: no script provided for insertion")
 	}
 
 	var err error
@@ -701,33 +734,33 @@ func (o *ScriptEvent) Insert(ctx context.Context, exec boil.ContextExecutor, col
 		return err
 	}
 
-	nzDefaults := queries.NonZeroDefaultSet(scriptEventColumnsWithDefault, o)
+	nzDefaults := queries.NonZeroDefaultSet(scriptColumnsWithDefault, o)
 
 	key := makeCacheKey(columns, nzDefaults)
-	scriptEventInsertCacheMut.RLock()
-	cache, cached := scriptEventInsertCache[key]
-	scriptEventInsertCacheMut.RUnlock()
+	scriptInsertCacheMut.RLock()
+	cache, cached := scriptInsertCache[key]
+	scriptInsertCacheMut.RUnlock()
 
 	if !cached {
 		wl, returnColumns := columns.InsertColumnSet(
-			scriptEventAllColumns,
-			scriptEventColumnsWithDefault,
-			scriptEventColumnsWithoutDefault,
+			scriptAllColumns,
+			scriptColumnsWithDefault,
+			scriptColumnsWithoutDefault,
 			nzDefaults,
 		)
 
-		cache.valueMapping, err = queries.BindMapping(scriptEventType, scriptEventMapping, wl)
+		cache.valueMapping, err = queries.BindMapping(scriptType, scriptMapping, wl)
 		if err != nil {
 			return err
 		}
-		cache.retMapping, err = queries.BindMapping(scriptEventType, scriptEventMapping, returnColumns)
+		cache.retMapping, err = queries.BindMapping(scriptType, scriptMapping, returnColumns)
 		if err != nil {
 			return err
 		}
 		if len(wl) != 0 {
-			cache.query = fmt.Sprintf("INSERT INTO \"script_event\" (\"%s\") %%sVALUES (%s)%%s", strings.Join(wl, "\",\""), strmangle.Placeholders(dialect.UseIndexPlaceholders, len(wl), 1, 1))
+			cache.query = fmt.Sprintf("INSERT INTO \"script\" (\"%s\") %%sVALUES (%s)%%s", strings.Join(wl, "\",\""), strmangle.Placeholders(dialect.UseIndexPlaceholders, len(wl), 1, 1))
 		} else {
-			cache.query = "INSERT INTO \"script_event\" %sDEFAULT VALUES%s"
+			cache.query = "INSERT INTO \"script\" %sDEFAULT VALUES%s"
 		}
 
 		var queryOutput, queryReturning string
@@ -754,46 +787,46 @@ func (o *ScriptEvent) Insert(ctx context.Context, exec boil.ContextExecutor, col
 	}
 
 	if err != nil {
-		return errors.Wrap(err, "postgres: unable to insert into script_event")
+		return errors.Wrap(err, "postgres: unable to insert into script")
 	}
 
 	if !cached {
-		scriptEventInsertCacheMut.Lock()
-		scriptEventInsertCache[key] = cache
-		scriptEventInsertCacheMut.Unlock()
+		scriptInsertCacheMut.Lock()
+		scriptInsertCache[key] = cache
+		scriptInsertCacheMut.Unlock()
 	}
 
 	return o.doAfterInsertHooks(ctx, exec)
 }
 
-// Update uses an executor to update the ScriptEvent.
+// Update uses an executor to update the Script.
 // See boil.Columns.UpdateColumnSet documentation to understand column list inference for updates.
 // Update does not automatically update the record in case of default values. Use .Reload() to refresh the records.
-func (o *ScriptEvent) Update(ctx context.Context, exec boil.ContextExecutor, columns boil.Columns) (int64, error) {
+func (o *Script) Update(ctx context.Context, exec boil.ContextExecutor, columns boil.Columns) (int64, error) {
 	var err error
 	if err = o.doBeforeUpdateHooks(ctx, exec); err != nil {
 		return 0, err
 	}
 	key := makeCacheKey(columns, nil)
-	scriptEventUpdateCacheMut.RLock()
-	cache, cached := scriptEventUpdateCache[key]
-	scriptEventUpdateCacheMut.RUnlock()
+	scriptUpdateCacheMut.RLock()
+	cache, cached := scriptUpdateCache[key]
+	scriptUpdateCacheMut.RUnlock()
 
 	if !cached {
 		wl := columns.UpdateColumnSet(
-			scriptEventAllColumns,
-			scriptEventPrimaryKeyColumns,
+			scriptAllColumns,
+			scriptPrimaryKeyColumns,
 		)
 
 		if len(wl) == 0 {
-			return 0, errors.New("postgres: unable to update script_event, could not build whitelist")
+			return 0, errors.New("postgres: unable to update script, could not build whitelist")
 		}
 
-		cache.query = fmt.Sprintf("UPDATE \"script_event\" SET %s WHERE %s",
+		cache.query = fmt.Sprintf("UPDATE \"script\" SET %s WHERE %s",
 			strmangle.SetParamNames("\"", "\"", 1, wl),
-			strmangle.WhereClause("\"", "\"", len(wl)+1, scriptEventPrimaryKeyColumns),
+			strmangle.WhereClause("\"", "\"", len(wl)+1, scriptPrimaryKeyColumns),
 		)
-		cache.valueMapping, err = queries.BindMapping(scriptEventType, scriptEventMapping, append(wl, scriptEventPrimaryKeyColumns...))
+		cache.valueMapping, err = queries.BindMapping(scriptType, scriptMapping, append(wl, scriptPrimaryKeyColumns...))
 		if err != nil {
 			return 0, err
 		}
@@ -809,42 +842,42 @@ func (o *ScriptEvent) Update(ctx context.Context, exec boil.ContextExecutor, col
 	var result sql.Result
 	result, err = exec.ExecContext(ctx, cache.query, values...)
 	if err != nil {
-		return 0, errors.Wrap(err, "postgres: unable to update script_event row")
+		return 0, errors.Wrap(err, "postgres: unable to update script row")
 	}
 
 	rowsAff, err := result.RowsAffected()
 	if err != nil {
-		return 0, errors.Wrap(err, "postgres: failed to get rows affected by update for script_event")
+		return 0, errors.Wrap(err, "postgres: failed to get rows affected by update for script")
 	}
 
 	if !cached {
-		scriptEventUpdateCacheMut.Lock()
-		scriptEventUpdateCache[key] = cache
-		scriptEventUpdateCacheMut.Unlock()
+		scriptUpdateCacheMut.Lock()
+		scriptUpdateCache[key] = cache
+		scriptUpdateCacheMut.Unlock()
 	}
 
 	return rowsAff, o.doAfterUpdateHooks(ctx, exec)
 }
 
 // UpdateAll updates all rows with the specified column values.
-func (q scriptEventQuery) UpdateAll(ctx context.Context, exec boil.ContextExecutor, cols M) (int64, error) {
+func (q scriptQuery) UpdateAll(ctx context.Context, exec boil.ContextExecutor, cols M) (int64, error) {
 	queries.SetUpdate(q.Query, cols)
 
 	result, err := q.Query.ExecContext(ctx, exec)
 	if err != nil {
-		return 0, errors.Wrap(err, "postgres: unable to update all for script_event")
+		return 0, errors.Wrap(err, "postgres: unable to update all for script")
 	}
 
 	rowsAff, err := result.RowsAffected()
 	if err != nil {
-		return 0, errors.Wrap(err, "postgres: unable to retrieve rows affected for script_event")
+		return 0, errors.Wrap(err, "postgres: unable to retrieve rows affected for script")
 	}
 
 	return rowsAff, nil
 }
 
 // UpdateAll updates all rows with the specified column values, using an executor.
-func (o ScriptEventSlice) UpdateAll(ctx context.Context, exec boil.ContextExecutor, cols M) (int64, error) {
+func (o ScriptSlice) UpdateAll(ctx context.Context, exec boil.ContextExecutor, cols M) (int64, error) {
 	ln := int64(len(o))
 	if ln == 0 {
 		return 0, nil
@@ -866,13 +899,13 @@ func (o ScriptEventSlice) UpdateAll(ctx context.Context, exec boil.ContextExecut
 
 	// Append all of the primary key values for each column
 	for _, obj := range o {
-		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), scriptEventPrimaryKeyMapping)
+		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), scriptPrimaryKeyMapping)
 		args = append(args, pkeyArgs...)
 	}
 
-	sql := fmt.Sprintf("UPDATE \"script_event\" SET %s WHERE %s",
+	sql := fmt.Sprintf("UPDATE \"script\" SET %s WHERE %s",
 		strmangle.SetParamNames("\"", "\"", 1, colNames),
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), len(colNames)+1, scriptEventPrimaryKeyColumns, len(o)))
+		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), len(colNames)+1, scriptPrimaryKeyColumns, len(o)))
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, sql)
@@ -881,28 +914,28 @@ func (o ScriptEventSlice) UpdateAll(ctx context.Context, exec boil.ContextExecut
 
 	result, err := exec.ExecContext(ctx, sql, args...)
 	if err != nil {
-		return 0, errors.Wrap(err, "postgres: unable to update all in scriptEvent slice")
+		return 0, errors.Wrap(err, "postgres: unable to update all in script slice")
 	}
 
 	rowsAff, err := result.RowsAffected()
 	if err != nil {
-		return 0, errors.Wrap(err, "postgres: unable to retrieve rows affected all in update all scriptEvent")
+		return 0, errors.Wrap(err, "postgres: unable to retrieve rows affected all in update all script")
 	}
 	return rowsAff, nil
 }
 
 // Upsert attempts an insert using an executor, and does an update or ignore on conflict.
 // See boil.Columns documentation for how to properly use updateColumns and insertColumns.
-func (o *ScriptEvent) Upsert(ctx context.Context, exec boil.ContextExecutor, updateOnConflict bool, conflictColumns []string, updateColumns, insertColumns boil.Columns) error {
+func (o *Script) Upsert(ctx context.Context, exec boil.ContextExecutor, updateOnConflict bool, conflictColumns []string, updateColumns, insertColumns boil.Columns) error {
 	if o == nil {
-		return errors.New("postgres: no script_event provided for upsert")
+		return errors.New("postgres: no script provided for upsert")
 	}
 
 	if err := o.doBeforeUpsertHooks(ctx, exec); err != nil {
 		return err
 	}
 
-	nzDefaults := queries.NonZeroDefaultSet(scriptEventColumnsWithDefault, o)
+	nzDefaults := queries.NonZeroDefaultSet(scriptColumnsWithDefault, o)
 
 	// Build cache key in-line uglily - mysql vs psql problems
 	buf := strmangle.GetBuffer()
@@ -932,41 +965,41 @@ func (o *ScriptEvent) Upsert(ctx context.Context, exec boil.ContextExecutor, upd
 	key := buf.String()
 	strmangle.PutBuffer(buf)
 
-	scriptEventUpsertCacheMut.RLock()
-	cache, cached := scriptEventUpsertCache[key]
-	scriptEventUpsertCacheMut.RUnlock()
+	scriptUpsertCacheMut.RLock()
+	cache, cached := scriptUpsertCache[key]
+	scriptUpsertCacheMut.RUnlock()
 
 	var err error
 
 	if !cached {
 		insert, ret := insertColumns.InsertColumnSet(
-			scriptEventAllColumns,
-			scriptEventColumnsWithDefault,
-			scriptEventColumnsWithoutDefault,
+			scriptAllColumns,
+			scriptColumnsWithDefault,
+			scriptColumnsWithoutDefault,
 			nzDefaults,
 		)
 		update := updateColumns.UpdateColumnSet(
-			scriptEventAllColumns,
-			scriptEventPrimaryKeyColumns,
+			scriptAllColumns,
+			scriptPrimaryKeyColumns,
 		)
 
 		if updateOnConflict && len(update) == 0 {
-			return errors.New("postgres: unable to upsert script_event, could not build update column list")
+			return errors.New("postgres: unable to upsert script, could not build update column list")
 		}
 
 		conflict := conflictColumns
 		if len(conflict) == 0 {
-			conflict = make([]string, len(scriptEventPrimaryKeyColumns))
-			copy(conflict, scriptEventPrimaryKeyColumns)
+			conflict = make([]string, len(scriptPrimaryKeyColumns))
+			copy(conflict, scriptPrimaryKeyColumns)
 		}
-		cache.query = buildUpsertQueryPostgres(dialect, "\"script_event\"", updateOnConflict, ret, update, conflict, insert)
+		cache.query = buildUpsertQueryPostgres(dialect, "\"script\"", updateOnConflict, ret, update, conflict, insert)
 
-		cache.valueMapping, err = queries.BindMapping(scriptEventType, scriptEventMapping, insert)
+		cache.valueMapping, err = queries.BindMapping(scriptType, scriptMapping, insert)
 		if err != nil {
 			return err
 		}
 		if len(ret) != 0 {
-			cache.retMapping, err = queries.BindMapping(scriptEventType, scriptEventMapping, ret)
+			cache.retMapping, err = queries.BindMapping(scriptType, scriptMapping, ret)
 			if err != nil {
 				return err
 			}
@@ -994,31 +1027,31 @@ func (o *ScriptEvent) Upsert(ctx context.Context, exec boil.ContextExecutor, upd
 		_, err = exec.ExecContext(ctx, cache.query, vals...)
 	}
 	if err != nil {
-		return errors.Wrap(err, "postgres: unable to upsert script_event")
+		return errors.Wrap(err, "postgres: unable to upsert script")
 	}
 
 	if !cached {
-		scriptEventUpsertCacheMut.Lock()
-		scriptEventUpsertCache[key] = cache
-		scriptEventUpsertCacheMut.Unlock()
+		scriptUpsertCacheMut.Lock()
+		scriptUpsertCache[key] = cache
+		scriptUpsertCacheMut.Unlock()
 	}
 
 	return o.doAfterUpsertHooks(ctx, exec)
 }
 
-// Delete deletes a single ScriptEvent record with an executor.
+// Delete deletes a single Script record with an executor.
 // Delete will match against the primary key column to find the record to delete.
-func (o *ScriptEvent) Delete(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (o *Script) Delete(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
 	if o == nil {
-		return 0, errors.New("postgres: no ScriptEvent provided for delete")
+		return 0, errors.New("postgres: no Script provided for delete")
 	}
 
 	if err := o.doBeforeDeleteHooks(ctx, exec); err != nil {
 		return 0, err
 	}
 
-	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), scriptEventPrimaryKeyMapping)
-	sql := "DELETE FROM \"script_event\" WHERE \"id\"=$1"
+	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), scriptPrimaryKeyMapping)
+	sql := "DELETE FROM \"script\" WHERE \"id\"=$1"
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, sql)
@@ -1027,12 +1060,12 @@ func (o *ScriptEvent) Delete(ctx context.Context, exec boil.ContextExecutor) (in
 
 	result, err := exec.ExecContext(ctx, sql, args...)
 	if err != nil {
-		return 0, errors.Wrap(err, "postgres: unable to delete from script_event")
+		return 0, errors.Wrap(err, "postgres: unable to delete from script")
 	}
 
 	rowsAff, err := result.RowsAffected()
 	if err != nil {
-		return 0, errors.Wrap(err, "postgres: failed to get rows affected by delete for script_event")
+		return 0, errors.Wrap(err, "postgres: failed to get rows affected by delete for script")
 	}
 
 	if err := o.doAfterDeleteHooks(ctx, exec); err != nil {
@@ -1043,33 +1076,33 @@ func (o *ScriptEvent) Delete(ctx context.Context, exec boil.ContextExecutor) (in
 }
 
 // DeleteAll deletes all matching rows.
-func (q scriptEventQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (q scriptQuery) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
 	if q.Query == nil {
-		return 0, errors.New("postgres: no scriptEventQuery provided for delete all")
+		return 0, errors.New("postgres: no scriptQuery provided for delete all")
 	}
 
 	queries.SetDelete(q.Query)
 
 	result, err := q.Query.ExecContext(ctx, exec)
 	if err != nil {
-		return 0, errors.Wrap(err, "postgres: unable to delete all from script_event")
+		return 0, errors.Wrap(err, "postgres: unable to delete all from script")
 	}
 
 	rowsAff, err := result.RowsAffected()
 	if err != nil {
-		return 0, errors.Wrap(err, "postgres: failed to get rows affected by deleteall for script_event")
+		return 0, errors.Wrap(err, "postgres: failed to get rows affected by deleteall for script")
 	}
 
 	return rowsAff, nil
 }
 
 // DeleteAll deletes all rows in the slice, using an executor.
-func (o ScriptEventSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
+func (o ScriptSlice) DeleteAll(ctx context.Context, exec boil.ContextExecutor) (int64, error) {
 	if len(o) == 0 {
 		return 0, nil
 	}
 
-	if len(scriptEventBeforeDeleteHooks) != 0 {
+	if len(scriptBeforeDeleteHooks) != 0 {
 		for _, obj := range o {
 			if err := obj.doBeforeDeleteHooks(ctx, exec); err != nil {
 				return 0, err
@@ -1079,12 +1112,12 @@ func (o ScriptEventSlice) DeleteAll(ctx context.Context, exec boil.ContextExecut
 
 	var args []interface{}
 	for _, obj := range o {
-		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), scriptEventPrimaryKeyMapping)
+		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), scriptPrimaryKeyMapping)
 		args = append(args, pkeyArgs...)
 	}
 
-	sql := "DELETE FROM \"script_event\" WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, scriptEventPrimaryKeyColumns, len(o))
+	sql := "DELETE FROM \"script\" WHERE " +
+		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, scriptPrimaryKeyColumns, len(o))
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, sql)
@@ -1093,15 +1126,15 @@ func (o ScriptEventSlice) DeleteAll(ctx context.Context, exec boil.ContextExecut
 
 	result, err := exec.ExecContext(ctx, sql, args...)
 	if err != nil {
-		return 0, errors.Wrap(err, "postgres: unable to delete all from scriptEvent slice")
+		return 0, errors.Wrap(err, "postgres: unable to delete all from script slice")
 	}
 
 	rowsAff, err := result.RowsAffected()
 	if err != nil {
-		return 0, errors.Wrap(err, "postgres: failed to get rows affected by deleteall for script_event")
+		return 0, errors.Wrap(err, "postgres: failed to get rows affected by deleteall for script")
 	}
 
-	if len(scriptEventAfterDeleteHooks) != 0 {
+	if len(scriptAfterDeleteHooks) != 0 {
 		for _, obj := range o {
 			if err := obj.doAfterDeleteHooks(ctx, exec); err != nil {
 				return 0, err
@@ -1114,8 +1147,8 @@ func (o ScriptEventSlice) DeleteAll(ctx context.Context, exec boil.ContextExecut
 
 // Reload refetches the object from the database
 // using the primary keys with an executor.
-func (o *ScriptEvent) Reload(ctx context.Context, exec boil.ContextExecutor) error {
-	ret, err := FindScriptEvent(ctx, exec, o.ID)
+func (o *Script) Reload(ctx context.Context, exec boil.ContextExecutor) error {
+	ret, err := FindScript(ctx, exec, o.ID)
 	if err != nil {
 		return err
 	}
@@ -1126,26 +1159,26 @@ func (o *ScriptEvent) Reload(ctx context.Context, exec boil.ContextExecutor) err
 
 // ReloadAll refetches every row with matching primary key column values
 // and overwrites the original object slice with the newly updated slice.
-func (o *ScriptEventSlice) ReloadAll(ctx context.Context, exec boil.ContextExecutor) error {
+func (o *ScriptSlice) ReloadAll(ctx context.Context, exec boil.ContextExecutor) error {
 	if o == nil || len(*o) == 0 {
 		return nil
 	}
 
-	slice := ScriptEventSlice{}
+	slice := ScriptSlice{}
 	var args []interface{}
 	for _, obj := range *o {
-		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), scriptEventPrimaryKeyMapping)
+		pkeyArgs := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(obj)), scriptPrimaryKeyMapping)
 		args = append(args, pkeyArgs...)
 	}
 
-	sql := "SELECT \"script_event\".* FROM \"script_event\" WHERE " +
-		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, scriptEventPrimaryKeyColumns, len(*o))
+	sql := "SELECT \"script\".* FROM \"script\" WHERE " +
+		strmangle.WhereClauseRepeated(string(dialect.LQ), string(dialect.RQ), 1, scriptPrimaryKeyColumns, len(*o))
 
 	q := queries.Raw(sql, args...)
 
 	err := q.Bind(ctx, exec, &slice)
 	if err != nil {
-		return errors.Wrap(err, "postgres: unable to reload all in ScriptEventSlice")
+		return errors.Wrap(err, "postgres: unable to reload all in ScriptSlice")
 	}
 
 	*o = slice
@@ -1153,10 +1186,10 @@ func (o *ScriptEventSlice) ReloadAll(ctx context.Context, exec boil.ContextExecu
 	return nil
 }
 
-// ScriptEventExists checks if the ScriptEvent row exists.
-func ScriptEventExists(ctx context.Context, exec boil.ContextExecutor, iD string) (bool, error) {
+// ScriptExists checks if the Script row exists.
+func ScriptExists(ctx context.Context, exec boil.ContextExecutor, iD string) (bool, error) {
 	var exists bool
-	sql := "select exists(select 1 from \"script_event\" where \"id\"=$1 limit 1)"
+	sql := "select exists(select 1 from \"script\" where \"id\"=$1 limit 1)"
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, sql)
@@ -1167,7 +1200,7 @@ func ScriptEventExists(ctx context.Context, exec boil.ContextExecutor, iD string
 
 	err := row.Scan(&exists)
 	if err != nil {
-		return false, errors.Wrap(err, "postgres: unable to check if script_event exists")
+		return false, errors.Wrap(err, "postgres: unable to check if script exists")
 	}
 
 	return exists, nil

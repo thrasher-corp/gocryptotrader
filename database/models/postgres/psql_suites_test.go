@@ -8,7 +8,7 @@ import "testing"
 func TestUpsert(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsUpsert)
 
-	t.Run("ScriptEvents", testScriptEventsUpsert)
+	t.Run("Scripts", testScriptsUpsert)
 
 	t.Run("ScriptExecutions", testScriptExecutionsUpsert)
 }

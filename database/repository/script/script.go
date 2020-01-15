@@ -2,8 +2,10 @@ package script
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
@@ -14,7 +16,7 @@ import (
 )
 
 // Event inserts a new script event into database with execution details (script name time status hash of script)
-func Event(id, name, path string, hash null.String, executionType, status string, time time.Time) {
+func Event(id, name, path string, hash null.String, data null.Bytes, executionType, status string, time time.Time) {
 	if database.DB.SQL == nil {
 		return
 	}
@@ -28,47 +30,91 @@ func Event(id, name, path string, hash null.String, executionType, status string
 	}
 
 	if repository.GetSQLDialect() == database.DBSQLite3 {
-		var tempEvent = modelSQLite.ScriptEvent{
-			// ScriptID:        id.String(),
-			// ScriptName:      name,
-			// ScriptPath:      path,
-			// ScriptHash:      hash,
-			// ExecutionType:   executionType,
-			// ExecutionTime:   time.UTC().String(),
-			// ExecutionStatus: status,
+		query := modelSQLite.ScriptWhere.ScriptID.EQ(id)
+		f, err := modelSQLite.Scripts(query).Exists(ctx, tx)
+		if err != nil {
+			log.Errorf(log.Global, "Event insert failed: %v", err)
+			err = tx.Rollback()
+			if err != nil {
+				log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
+			}
+			return
 		}
-		err = tempEvent.Insert(ctx, tx, boil.Infer())
+		if !f {
+			newUUID, errUUID := uuid.NewV4()
+			if errUUID != nil {
+				log.Errorf(log.DatabaseMgr, "Failed to generate UUID: %v", err)
+				_ = tx.Rollback()
+				return
+			}
+
+			var tempEvent = modelSQLite.Script{
+				ID: newUUID.String(),
+				ScriptID: id,
+				ScriptName:      name,
+				ScriptPath:      path,
+				ScriptHash:      hash,
+			}
+			err = tempEvent.Insert(ctx, tx, boil.Infer())
+			if err != nil {
+				log.Errorf(log.Global, "Event insert failed: %v", err)
+				err = tx.Rollback()
+				if err != nil {
+					log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
+				}
+				return
+			}
+		} else {
+			var tempEvent = modelSQLite.Script{}
+			tempScriptExecution := &modelSQLite.ScriptExecution{
+				ScriptID: id,
+				ExecutionTime:   time.UTC().String(),
+				ExecutionStatus: status,
+				ExecutionType:   executionType,
+			}
+			fmt.Println(id)
+			err = tempEvent.AddScriptExecutions(ctx, tx, true, tempScriptExecution)
+			if err != nil {
+				log.Errorf(log.Global, "Event insert failed: %v", err)
+				err = tx.Rollback()
+				if err != nil {
+					log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
+				}
+				return
+			}
+		}
 	} else {
-		var tempEvent = modelPSQL.ScriptEvent{
+		var tempEvent = modelPSQL.Script{
 			ScriptID:   id,
 			ScriptName: name,
 			ScriptPath: path,
 			ScriptHash: hash,
 		}
-		err = tempEvent.Upsert(ctx, tx, true, []string{"script_id"}, boil.Whitelist("created_at"), boil.Infer())
+		err = tempEvent.Upsert(ctx, tx, true, []string{"script_id"}, boil.Whitelist("last_executed_at"), boil.Infer())
 		if err != nil {
-			_ = tx.Rollback()
+			log.Errorf(log.Global, "Event insert failed: %v", err)
+			err = tx.Rollback()
+			if err != nil {
+				log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
+			}
 			return
 		}
+
 		tempScriptExecution := &modelPSQL.ScriptExecution{
 			ExecutionTime:   time.UTC(),
 			ExecutionStatus: status,
 			ExecutionType:   executionType,
 		}
-		err = tempEvent.AddScriptScriptExecutions(ctx, tx, true, tempScriptExecution)
+
+		err = tempEvent.AddScriptExecutions(ctx, tx, true, tempScriptExecution)
 		if err != nil {
-			_ = tx.Rollback()
+			log.Errorf(log.Global, "Event insert failed: %v", err)
+			err = tx.Rollback()
+			if err != nil {
+				log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
+			}
 			return
 		}
-	}
-
-	if err != nil {
-		log.Errorf(log.Global, "Event insert failed: %v", err)
-		err = tx.Rollback()
-		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
-		}
-		return
 	}
 
 	err = tx.Commit()

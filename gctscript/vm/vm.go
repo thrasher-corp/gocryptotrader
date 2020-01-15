@@ -236,10 +236,11 @@ func (vm *VM) event(status, executionType string, includeScriptHash bool) {
 	}
 
 	var hash null.String
+	var data null.Bytes
 	if includeScriptHash {
 		hash.SetValid(vm.getHash(false))
 	}
-	scriptevent.Event(vm.getHash(true), vm.ShortName(), vm.Path, hash, executionType, status, time.Now())
+	scriptevent.Event(vm.getHash(true), vm.ShortName(), vm.Path, hash, data, executionType, status, time.Now())
 }
 
 func (vm *VM) getHash(includeFileName bool) string {

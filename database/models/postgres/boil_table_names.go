@@ -5,10 +5,10 @@ package postgres
 
 var TableNames = struct {
 	AuditEvent      string
-	ScriptEvent     string
+	Script          string
 	ScriptExecution string
 }{
 	AuditEvent:      "audit_event",
-	ScriptEvent:     "script_event",
+	Script:          "script",
 	ScriptExecution: "script_execution",
 }

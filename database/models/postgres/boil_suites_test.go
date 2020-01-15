@@ -13,75 +13,75 @@ import "testing"
 // Separating the tests thusly grants avoidance of Postgres deadlocks.
 func TestParent(t *testing.T) {
 	t.Run("AuditEvents", testAuditEvents)
-	t.Run("ScriptEvents", testScriptEvents)
+	t.Run("Scripts", testScripts)
 	t.Run("ScriptExecutions", testScriptExecutions)
 }
 
 func TestDelete(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsDelete)
-	t.Run("ScriptEvents", testScriptEventsDelete)
+	t.Run("Scripts", testScriptsDelete)
 	t.Run("ScriptExecutions", testScriptExecutionsDelete)
 }
 
 func TestQueryDeleteAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsQueryDeleteAll)
-	t.Run("ScriptEvents", testScriptEventsQueryDeleteAll)
+	t.Run("Scripts", testScriptsQueryDeleteAll)
 	t.Run("ScriptExecutions", testScriptExecutionsQueryDeleteAll)
 }
 
 func TestSliceDeleteAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSliceDeleteAll)
-	t.Run("ScriptEvents", testScriptEventsSliceDeleteAll)
+	t.Run("Scripts", testScriptsSliceDeleteAll)
 	t.Run("ScriptExecutions", testScriptExecutionsSliceDeleteAll)
 }
 
 func TestExists(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsExists)
-	t.Run("ScriptEvents", testScriptEventsExists)
+	t.Run("Scripts", testScriptsExists)
 	t.Run("ScriptExecutions", testScriptExecutionsExists)
 }
 
 func TestFind(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsFind)
-	t.Run("ScriptEvents", testScriptEventsFind)
+	t.Run("Scripts", testScriptsFind)
 	t.Run("ScriptExecutions", testScriptExecutionsFind)
 }
 
 func TestBind(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsBind)
-	t.Run("ScriptEvents", testScriptEventsBind)
+	t.Run("Scripts", testScriptsBind)
 	t.Run("ScriptExecutions", testScriptExecutionsBind)
 }
 
 func TestOne(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsOne)
-	t.Run("ScriptEvents", testScriptEventsOne)
+	t.Run("Scripts", testScriptsOne)
 	t.Run("ScriptExecutions", testScriptExecutionsOne)
 }
 
 func TestAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsAll)
-	t.Run("ScriptEvents", testScriptEventsAll)
+	t.Run("Scripts", testScriptsAll)
 	t.Run("ScriptExecutions", testScriptExecutionsAll)
 }
 
 func TestCount(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsCount)
-	t.Run("ScriptEvents", testScriptEventsCount)
+	t.Run("Scripts", testScriptsCount)
 	t.Run("ScriptExecutions", testScriptExecutionsCount)
 }
 
 func TestHooks(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsHooks)
-	t.Run("ScriptEvents", testScriptEventsHooks)
+	t.Run("Scripts", testScriptsHooks)
 	t.Run("ScriptExecutions", testScriptExecutionsHooks)
 }
 
 func TestInsert(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsInsert)
 	t.Run("AuditEvents", testAuditEventsInsertWhitelist)
-	t.Run("ScriptEvents", testScriptEventsInsert)
-	t.Run("ScriptEvents", testScriptEventsInsertWhitelist)
+	t.Run("Scripts", testScriptsInsert)
+	t.Run("Scripts", testScriptsInsertWhitelist)
 	t.Run("ScriptExecutions", testScriptExecutionsInsert)
 	t.Run("ScriptExecutions", testScriptExecutionsInsertWhitelist)
 }
@@ -89,7 +89,7 @@ func TestInsert(t *testing.T) {
 // TestToOne tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToOne(t *testing.T) {
-	t.Run("ScriptExecutionToScriptEventUsingScript", testScriptExecutionToOneScriptEventUsingScript)
+	t.Run("ScriptExecutionToScriptUsingScript", testScriptExecutionToOneScriptUsingScript)
 }
 
 // TestOneToOne tests cannot be run in parallel
@@ -99,19 +99,19 @@ func TestOneToOne(t *testing.T) {}
 // TestToMany tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToMany(t *testing.T) {
-	t.Run("ScriptEventToScriptScriptExecutions", testScriptEventToManyScriptScriptExecutions)
+	t.Run("ScriptToScriptExecutions", testScriptToManyScriptExecutions)
 }
 
 // TestToOneSet tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToOneSet(t *testing.T) {
-	t.Run("ScriptExecutionToScriptEventUsingScriptScriptExecutions", testScriptExecutionToOneSetOpScriptEventUsingScript)
+	t.Run("ScriptExecutionToScriptUsingScriptExecutions", testScriptExecutionToOneSetOpScriptUsingScript)
 }
 
 // TestToOneRemove tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToOneRemove(t *testing.T) {
-	t.Run("ScriptExecutionToScriptEventUsingScriptScriptExecutions", testScriptExecutionToOneRemoveOpScriptEventUsingScript)
+	t.Run("ScriptExecutionToScriptUsingScriptExecutions", testScriptExecutionToOneRemoveOpScriptUsingScript)
 }
 
 // TestOneToOneSet tests cannot be run in parallel
@@ -125,47 +125,47 @@ func TestOneToOneRemove(t *testing.T) {}
 // TestToManyAdd tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToManyAdd(t *testing.T) {
-	t.Run("ScriptEventToScriptScriptExecutions", testScriptEventToManyAddOpScriptScriptExecutions)
+	t.Run("ScriptToScriptExecutions", testScriptToManyAddOpScriptExecutions)
 }
 
 // TestToManySet tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToManySet(t *testing.T) {
-	t.Run("ScriptEventToScriptScriptExecutions", testScriptEventToManySetOpScriptScriptExecutions)
+	t.Run("ScriptToScriptExecutions", testScriptToManySetOpScriptExecutions)
 }
 
 // TestToManyRemove tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToManyRemove(t *testing.T) {
-	t.Run("ScriptEventToScriptScriptExecutions", testScriptEventToManyRemoveOpScriptScriptExecutions)
+	t.Run("ScriptToScriptExecutions", testScriptToManyRemoveOpScriptExecutions)
 }
 
 func TestReload(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsReload)
-	t.Run("ScriptEvents", testScriptEventsReload)
+	t.Run("Scripts", testScriptsReload)
 	t.Run("ScriptExecutions", testScriptExecutionsReload)
 }
 
 func TestReloadAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsReloadAll)
-	t.Run("ScriptEvents", testScriptEventsReloadAll)
+	t.Run("Scripts", testScriptsReloadAll)
 	t.Run("ScriptExecutions", testScriptExecutionsReloadAll)
 }
 
 func TestSelect(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSelect)
-	t.Run("ScriptEvents", testScriptEventsSelect)
+	t.Run("Scripts", testScriptsSelect)
 	t.Run("ScriptExecutions", testScriptExecutionsSelect)
 }
 
 func TestUpdate(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsUpdate)
-	t.Run("ScriptEvents", testScriptEventsUpdate)
+	t.Run("Scripts", testScriptsUpdate)
 	t.Run("ScriptExecutions", testScriptExecutionsUpdate)
 }
 
 func TestSliceUpdateAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSliceUpdateAll)
-	t.Run("ScriptEvents", testScriptEventsSliceUpdateAll)
+	t.Run("Scripts", testScriptsSliceUpdateAll)
 	t.Run("ScriptExecutions", testScriptExecutionsSliceUpdateAll)
 }
