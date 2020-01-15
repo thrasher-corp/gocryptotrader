@@ -34,7 +34,7 @@ type Currency struct {
 	Result  []struct {
 		Currency        string  `json:"Currency"`
 		CurrencyLong    string  `json:"CurrencyLong"`
-		MinConfirmation int     `json:"MinConfirmation"`
+		MinConfirmation int64     `json:"MinConfirmation"`
 		TxFee           float64 `json:"TxFee"`
 		IsActive        bool    `json:"IsActive"`
 		CoinType        string  `json:"CoinType"`
@@ -67,8 +67,8 @@ type MarketSummary struct {
 		TimeStamp         string  `json:"TimeStamp"`
 		Bid               float64 `json:"Bid"`
 		Ask               float64 `json:"Ask"`
-		OpenBuyOrders     int     `json:"OpenBuyOrders"`
-		OpenSellOrders    int     `json:"OpenSellOrders"`
+		OpenBuyOrders     int64     `json:"OpenBuyOrders"`
+		OpenSellOrders    int64     `json:"OpenSellOrders"`
 		PrevDay           float64 `json:"PrevDay"`
 		Created           string  `json:"Created"`
 		DisplayMarketName string  `json:"DisplayMarketName"`
@@ -96,7 +96,7 @@ type MarketHistory struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
 	Result  []struct {
-		ID        int     `json:"Id"`
+		ID        int64     `json:"Id"`
 		Timestamp string  `json:"TimeStamp"`
 		Quantity  float64 `json:"Quantity"`
 		Price     float64 `json:"Price"`
@@ -215,12 +215,12 @@ type DepositHistory struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
 	Result  []struct {
-		Id    string  `json:"Id"`
-		Amount         float64 `json:"Amount"`
-		Currency       string  `json:"Currency"`
-		Confirmations  int	   `json:"Confirmations"`
-		LastUpdated	   string  `json:"LastUpdated"`
-		TxID           string  `json:"TxId"`
-		CryptoAddress  string  `json:"CryptoAddress"`
+		ID            string  `json:"Id"`
+		Amount        float64 `json:"Amount"`
+		Currency      string  `json:"Currency"`
+		Confirmations int64   `json:"Confirmations"`
+		LastUpdated   string  `json:"LastUpdated"`
+		TxID          string  `json:"TxId"`
+		CryptoAddress string  `json:"CryptoAddress"`
 	} `json:"result"`
 }
