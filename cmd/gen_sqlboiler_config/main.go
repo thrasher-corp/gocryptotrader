@@ -40,26 +40,19 @@ func main() {
 	fmt.Println(core.Copyright)
 	fmt.Println()
 
-	defaultPath, err := config.GetFilePath("")
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	flag.StringVar(&configFile, "config", defaultPath, "config file to load")
+	flag.StringVar(&configFile, "config", config.DefaultFilePath(), "config file to load")
 	flag.StringVar(&defaultDataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
 	flag.StringVar(&outputFolder, "outdir", "", "overwrite default output folder")
 	flag.Parse()
 
-	conf := config.GetConfig()
-
-	err = conf.LoadConfig(configFile, true)
+	var cfg config.Config
+	err := cfg.LoadConfig(configFile, true)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	convertGCTtoSQLBoilerConfig(&conf.Database)
+	convertGCTtoSQLBoilerConfig(&cfg.Database)
 
 	jsonOutput, err := json.MarshalIndent(sqlboilerConfig, "", " ")
 	if err != nil {
