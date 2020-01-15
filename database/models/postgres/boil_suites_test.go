@@ -14,67 +14,56 @@ import "testing"
 func TestParent(t *testing.T) {
 	t.Run("AuditEvents", testAuditEvents)
 	t.Run("Scripts", testScripts)
-	t.Run("ScriptExecutions", testScriptExecutions)
 }
 
 func TestDelete(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsDelete)
 	t.Run("Scripts", testScriptsDelete)
-	t.Run("ScriptExecutions", testScriptExecutionsDelete)
 }
 
 func TestQueryDeleteAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsQueryDeleteAll)
 	t.Run("Scripts", testScriptsQueryDeleteAll)
-	t.Run("ScriptExecutions", testScriptExecutionsQueryDeleteAll)
 }
 
 func TestSliceDeleteAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSliceDeleteAll)
 	t.Run("Scripts", testScriptsSliceDeleteAll)
-	t.Run("ScriptExecutions", testScriptExecutionsSliceDeleteAll)
 }
 
 func TestExists(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsExists)
 	t.Run("Scripts", testScriptsExists)
-	t.Run("ScriptExecutions", testScriptExecutionsExists)
 }
 
 func TestFind(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsFind)
 	t.Run("Scripts", testScriptsFind)
-	t.Run("ScriptExecutions", testScriptExecutionsFind)
 }
 
 func TestBind(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsBind)
 	t.Run("Scripts", testScriptsBind)
-	t.Run("ScriptExecutions", testScriptExecutionsBind)
 }
 
 func TestOne(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsOne)
 	t.Run("Scripts", testScriptsOne)
-	t.Run("ScriptExecutions", testScriptExecutionsOne)
 }
 
 func TestAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsAll)
 	t.Run("Scripts", testScriptsAll)
-	t.Run("ScriptExecutions", testScriptExecutionsAll)
 }
 
 func TestCount(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsCount)
 	t.Run("Scripts", testScriptsCount)
-	t.Run("ScriptExecutions", testScriptExecutionsCount)
 }
 
 func TestHooks(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsHooks)
 	t.Run("Scripts", testScriptsHooks)
-	t.Run("ScriptExecutions", testScriptExecutionsHooks)
 }
 
 func TestInsert(t *testing.T) {
@@ -82,8 +71,6 @@ func TestInsert(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsInsertWhitelist)
 	t.Run("Scripts", testScriptsInsert)
 	t.Run("Scripts", testScriptsInsertWhitelist)
-	t.Run("ScriptExecutions", testScriptExecutionsInsert)
-	t.Run("ScriptExecutions", testScriptExecutionsInsertWhitelist)
 }
 
 // TestToOne tests cannot be run in parallel
