@@ -142,7 +142,11 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		}
 	}
 	if updated {
-		d.LastUpdated = time.Now()
+		if m.Date != d.Date {
+			d.LastUpdated = m.Date
+		} else {
+			d.LastUpdated = time.Now()
+		}
 		// TODO trigger db update
 	}
 }

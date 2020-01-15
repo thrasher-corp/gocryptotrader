@@ -213,7 +213,7 @@ const (
 	AnyType           Type = "ANY"
 	Limit             Type = "LIMIT"
 	Market            Type = "MARKET"
-	ImmediateOrCancel Type = "IMMEDIATE_OR_CANCEL"
+	ImmediateOrCancel Type = "IMMEDIATE_OR_CANCEL" // Why do we have this if we have immediateorcancl on orderDetail?
 	Stop              Type = "STOP"
 	TrailingStop      Type = "TRAILING_STOP"
 	UnknownType       Type = "UNKNOWN"

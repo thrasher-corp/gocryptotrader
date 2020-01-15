@@ -360,9 +360,9 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 						FormatCurrency(result.Pair),
 						d.Asset)
 				}
-			case order.Detail:
-				if !Bot.OrderManager.orderStore.exists(&d) {
-					err := Bot.OrderManager.orderStore.Add(&d)
+			case *order.Detail:
+				if !Bot.OrderManager.orderStore.exists(d) {
+					err := Bot.OrderManager.orderStore.Add(d)
 					if err != nil {
 						log.Error(log.WebsocketMgr, err)
 					}
@@ -372,14 +372,14 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 						log.Error(log.WebsocketMgr, err)
 						continue
 					}
-					od.UpdateOrderFromDetail(&d)
+					od.UpdateOrderFromDetail(d)
 				}
-			case order.Cancel:
-				err := Bot.OrderManager.Cancel(&d)
+			case *order.Cancel:
+				err := Bot.OrderManager.Cancel(d)
 				if err != nil {
 					log.Error(log.WebsocketMgr, err)
 				}
-			case order.Modify:
+			case *order.Modify:
 				od, err := Bot.OrderManager.orderStore.GetByExchangeAndID(d.Exchange, d.ID)
 				if err != nil {
 					log.Error(log.WebsocketMgr, err)

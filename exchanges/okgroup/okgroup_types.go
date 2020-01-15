@@ -1332,7 +1332,6 @@ type WebsocketDataWrapper struct {
 	WebsocketSpotMarginOrderResponse
 	WebsocketUserFutureFixedMarginAccountResponse
 	WebsocketUserFuturePositionResponse
-	WebsocketSpotOrderResponse
 }
 
 // WebsocketTickerData contains formatted data for ticker related websocket responses
@@ -1502,17 +1501,28 @@ type WebsocketUserFuturePositionResponse struct {
 
 // WebsocketSpotOrderResponse contains formatted data for spot user orders
 type WebsocketSpotOrderResponse struct {
-	FilledNotional float64 `json:"filled_notional,string"`
-	FilledSize     float64 `json:"filled_size,string"`
-	Notional       float64 `json:"notional,string"`
-	Size           float64 `json:"size,string"`
-	Status         string  `json:"status"`
-	MarginTrading  int64   `json:"margin_trading,omitempty"`
-	Type           string  `json:"type"`
-	// Price        A member, but part already exists as part of WebsocketDataResponse
-	// InstrumentID A member, but part already exists as part of WebsocketDataResponse
-	// Timestamp    A member, but part already exists as part of WebsocketDataResponse
-	// OrderID      A member, but part already exists as part of WebsocketDataResponse
+	Table string `json:"table"`
+	Data  []struct {
+		ClientOid      string  `json:"client_oid"`
+		CreatedAt      string  `json:"created_at"`
+		FilledNotional float64 `json:"filled_notional,string"`
+		FilledSize     float64 `json:"filled_size,string"`
+		InstrumentID   string  `json:"instrument_id"`
+		LastFillPx     float64 `json:"last_fill_px,string"`
+		LastFillQty    float64 `json:"last_fill_qty,string"`
+		LastFillTime   string  `json:"last_fill_time"`
+		MarginTrading  float64 `json:"margin_trading,string"`
+		Notional       float64 `json:"notional,string"`
+		OrderID        string  `json:"order_id"`
+		OrderType      float64 `json:"order_type,string"`
+		Price          float64 `json:"price,string"`
+		Side           string  `json:"side"`
+		Size           float64 `json:"size,string"`
+		State          float64 `json:"state,string"`
+		Status         string  `json:"status"`
+		Timestamp      string  `json:"timestamp"`
+		Type           string  `json:"type"`
+	} `json:"data"`
 }
 
 // WebsocketErrorResponse yo
