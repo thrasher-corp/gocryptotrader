@@ -478,7 +478,7 @@ func StringToOrderSide(side string) (Side, error) {
 	case strings.EqualFold(side, AnySide.String()):
 		return AnySide, nil
 	default:
-		return Side(""), fmt.Errorf("%s not recognised as side type", side)
+		return UnknownSide, fmt.Errorf("%s not recognised as side type", side)
 	}
 }
 

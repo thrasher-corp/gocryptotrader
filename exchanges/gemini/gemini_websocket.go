@@ -165,6 +165,36 @@ func (g *Gemini) WsHandleData() {
 			if string(resp.Raw) == "[]" {
 				continue
 			}
+			// only order details are sent in arrays
+			if strings.HasPrefix(string(resp.Raw), "[") {
+				var result []WsOrderResponse
+				err := json.Unmarshal(resp.Raw, &result)
+				if err != nil {
+					g.Websocket.DataHandler <- err
+					continue
+				}
+				oSide, err := order.StringToOrderSide(result[i].Side)
+				if err != nil {
+					g.Websocket.DataHandler <- err
+				}
+				for i := range result {
+					g.Websocket.DataHandler <- &order.Detail{
+						HiddenOrder:     result[i].IsHidden,
+						Price:           result[i].Price,
+						Amount:          result[i].OriginalAmount,
+						ExecutedAmount:  result[i].ExecutedAmount,
+						RemainingAmount: result[i].RemainingAmount,
+						Exchange:        g.Name,
+						ID:              result[i].OrderID,
+						Type:            responseToOrderType(result[i].OrderType),
+						Side:            oSide,
+						Status:          responseToStatus(result[i].Type),
+						AssetType:       asset.Spot,
+						Date:            time.Unix(0, result[i].Timestampms*int64(time.Millisecond)),
+						Pair:            currency.NewPairFromString(result[i].Symbol),
+					}
+				}
+			}
 			var result map[string]interface{}
 			err := json.Unmarshal(resp.Raw, &result)
 			if err != nil {
@@ -182,46 +212,6 @@ func (g *Gemini) WsHandleData() {
 				g.Websocket.DataHandler <- result
 			case "initial":
 				var result WsSubscriptionAcknowledgementResponse
-				err := json.Unmarshal(resp.Raw, &result)
-				if err != nil {
-					g.Websocket.DataHandler <- err
-					continue
-				}
-				g.Websocket.DataHandler <- result
-			case "accepted":
-				var result WsActiveOrdersResponse
-				err := json.Unmarshal(resp.Raw, &result)
-				if err != nil {
-					g.Websocket.DataHandler <- err
-					continue
-				}
-				g.Websocket.DataHandler <- result
-			case "booked":
-				var result WsOrderBookedResponse
-				err := json.Unmarshal(resp.Raw, &result)
-				if err != nil {
-					g.Websocket.DataHandler <- err
-					continue
-				}
-				g.Websocket.DataHandler <- result
-			case "fill":
-				var result WsOrderFilledResponse
-				err := json.Unmarshal(resp.Raw, &result)
-				if err != nil {
-					g.Websocket.DataHandler <- err
-					continue
-				}
-				g.Websocket.DataHandler <- result
-			case "cancelled":
-				var result WsOrderCancelledResponse
-				err := json.Unmarshal(resp.Raw, &result)
-				if err != nil {
-					g.Websocket.DataHandler <- err
-					continue
-				}
-				g.Websocket.DataHandler <- result
-			case "closed":
-				var result WsOrderClosedResponse
 				err := json.Unmarshal(resp.Raw, &result)
 				if err != nil {
 					g.Websocket.DataHandler <- err
@@ -254,6 +244,37 @@ func (g *Gemini) WsHandleData() {
 					g.Name, resp.Raw)
 			}
 		}
+	}
+}
+
+func responseToStatus(response string) order.Status {
+	switch response {
+	case "accepted":
+		return order.New
+	case "booked":
+		return order.Active
+	case "filled":
+		return order.Filled
+	case "cancelled":
+		return order.Cancelled
+	case "cancel_rejected":
+		return order.Rejected
+	case "closed":
+		return order.Filled
+	default:
+		return order.UnknownStatus
+	}
+}
+
+func responseToOrderType(response string) order.Type {
+	switch response {
+	case "exchange limit", "auction-only limit", "indication-of-interest limit":
+		return order.Limit
+		// block trades are conducted off order-book, so their type is market, but would be considered a hidden trade
+	case "market buy", "market sell", "block_trade":
+		return order.Market
+	default:
+		return order.UnknownType
 	}
 }
 
