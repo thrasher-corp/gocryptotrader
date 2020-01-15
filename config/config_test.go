@@ -1618,7 +1618,7 @@ func TestDefaultFilePath(t *testing.T) {
 	result := DefaultFilePath()
 	if !strings.Contains(result, File) &&
 		!strings.Contains(result, EncryptedFile) {
-		t.Error("result should of contained config.json or config.dat")
+		t.Error("result should have contained config.json or config.dat")
 	}
 }
 
