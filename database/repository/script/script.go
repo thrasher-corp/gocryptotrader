@@ -2,7 +2,6 @@ package script
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -74,7 +73,6 @@ func Event(id, name, path string, hash null.String, data null.Bytes, executionTy
 				ExecutionStatus: status,
 				ExecutionType:   executionType,
 			}
-			fmt.Println(id)
 			err = tempEvent.AddScriptExecutions(ctx, tx, true, tempScriptExecution)
 			if err != nil {
 				log.Errorf(log.Global, "Event insert failed: %v", err)
