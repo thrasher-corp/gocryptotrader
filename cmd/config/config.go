@@ -20,15 +20,9 @@ func EncryptOrDecrypt(encrypt bool) string {
 func main() {
 	var inFile, outFile, key string
 	var encrypt bool
-	var err error
-
-	configFile, err := config.GetFilePath("")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	flag.StringVar(&inFile, "infile", configFile, "The config input file to process.")
-	flag.StringVar(&outFile, "outfile", configFile+".out", "The config output file.")
+	defaultCfgFile := config.DefaultFilePath()
+	flag.StringVar(&inFile, "infile", defaultCfgFile, "The config input file to process.")
+	flag.StringVar(&outFile, "outfile", defaultCfgFile+".out", "The config output file.")
 	flag.BoolVar(&encrypt, "encrypt", true, "Whether to encrypt or decrypt.")
 	flag.StringVar(&key, "key", "", "The key to use for AES encryption.")
 	flag.Parse()
@@ -36,9 +30,9 @@ func main() {
 	log.Println("GoCryptoTrader: config-helper tool.")
 
 	if key == "" {
-		result, errf := config.PromptForConfigKey(false)
-		if errf != nil {
-			log.Fatal("Unable to obtain encryption/decryption key.")
+		result, err := config.PromptForConfigKey(false)
+		if err != nil {
+			log.Fatalf("Unable to obtain encryption/decryption key: %s", err)
 		}
 		key = string(result)
 	}

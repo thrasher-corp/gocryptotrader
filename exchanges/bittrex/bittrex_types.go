@@ -209,3 +209,18 @@ type WithdrawalHistory struct {
 		InvalidAddress bool    `json:"InvalidAddress"`
 	} `json:"result"`
 }
+
+// DepositHistory holds the Deposit history data
+type DepositHistory struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+	Result  []struct {
+		Id    string  `json:"Id"`
+		Amount         float64 `json:"Amount"`
+		Currency       string  `json:"Currency"`
+		Confirmations  int	   `json:"Confirmations"`
+		LastUpdated	   string  `json:"LastUpdated"`
+		TxID           string  `json:"TxId"`
+		CryptoAddress  string  `json:"CryptoAddress"`
+	} `json:"result"`
+}

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -24,7 +25,7 @@ func main() {
 	versionFlag := flag.Bool("version", false, "retrieves current GoCryptoTrader version")
 
 	// Core settings
-	flag.StringVar(&settings.ConfigFile, "config", "", "config file to load")
+	flag.StringVar(&settings.ConfigFile, "config", config.DefaultFilePath(), "config file to load")
 	flag.StringVar(&settings.DataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
 	flag.IntVar(&settings.GoMaxProcs, "gomaxprocs", runtime.GOMAXPROCS(-1), "sets the runtime GOMAXPROCS value")
 	flag.BoolVar(&settings.EnableDryRun, "dryrun", false, "dry runs bot, doesn't save config file")
