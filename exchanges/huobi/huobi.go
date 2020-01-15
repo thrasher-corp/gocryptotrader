@@ -59,8 +59,26 @@ const (
 	huobiWithdrawCreate        = "dw/withdraw/api/create"
 	huobiWithdrawCancel        = "dw/withdraw-virtual/%s/cancel"
 
-	huobiRateInterval = time.Second
-	huobiRequestRate  = 10
+	// Huobi rate limits per API Key
+	huobiSpotRateInterval = time.Second * 1
+	huobiSpotRequestRate  = 10
+
+	huobiFuturesRateInterval    = time.Second * 3
+	huobiFuturesAuthRequestRate = 30
+	// Non market-request public interface rate
+	huobiFuturesUnAuthRequestRate    = 60
+	huobiFuturesTransferRateInterval = time.Second * 3
+	huobiFuturesTransferReqRate      = 10
+
+	huobiSwapRateInterval      = time.Second * 3
+	huobiSwapAuthRequestRate   = 30
+	huobiSwapUnauthRequestRate = 60
+
+	huobiFuturesAuth request.Functionality = iota
+	huobiFuturesUnAuth
+	huobiFuturesTransfer
+	huobiSwapAuth
+	huobiSwapUnauth
 )
 
 // HUOBI is the overarching type across this package

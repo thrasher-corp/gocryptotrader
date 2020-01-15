@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"golang.org/x/time/rate"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -112,7 +113,14 @@ func (h *HUOBI) SetDefaults() {
 
 	h.Requester = request.New(h.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.NewBasicRateLimit(huobiRateInterval, huobiRequestRate))
+		&RateLimit{
+			Spot:          request.NewRateLimit(huobiSpotRateInterval, huobiSpotRequestRate),
+			FuturesAuth:   request.NewRateLimit(huobiFuturesRateInterval, huobiFuturesAuthRequestRate),
+			FuturesUnauth: request.NewRateLimit(huobiFuturesRateInterval, huobiFuturesUnAuthRequestRate),
+			SwapAuth:      request.NewRateLimit(huobiSwapRateInterval, huobiSwapAuthRequestRate),
+			SwapUnauth:    request.NewRateLimit(huobiSwapRateInterval, huobiSwapUnauthRequestRate),
+			FuturesXfer:   request.NewRateLimit(huobiFuturesTransferRateInterval, huobiFuturesTransferReqRate),
+		})
 
 	h.API.Endpoints.URLDefault = huobiAPIURL
 	h.API.Endpoints.URL = h.API.Endpoints.URLDefault
@@ -121,6 +129,37 @@ func (h *HUOBI) SetDefaults() {
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+}
+
+// RateLimit implements the request.Limiter interface
+type RateLimit struct {
+	Spot          *rate.Limiter
+	FuturesAuth   *rate.Limiter
+	FuturesUnauth *rate.Limiter
+	SwapAuth      *rate.Limiter
+	SwapUnauth    *rate.Limiter
+	FuturesXfer   *rate.Limiter
+}
+
+// Limit limits outbound requests
+func (r *RateLimit) Limit(f request.Functionality) error {
+	switch f {
+	// TODO: Add futures and swap functionality
+	case huobiFuturesAuth:
+		time.Sleep(r.FuturesAuth.Reserve().Delay())
+	case huobiFuturesUnAuth:
+		time.Sleep(r.FuturesUnauth.Reserve().Delay())
+	case huobiFuturesTransfer:
+		time.Sleep(r.FuturesXfer.Reserve().Delay())
+	case huobiSwapAuth:
+		time.Sleep(r.SwapAuth.Reserve().Delay())
+	case huobiSwapUnauth:
+		time.Sleep(r.SwapUnauth.Reserve().Delay())
+	default:
+		// Spot calls
+		time.Sleep(r.Spot.Reserve().Delay())
+	}
+	return nil
 }
 
 // Setup sets user configuration
