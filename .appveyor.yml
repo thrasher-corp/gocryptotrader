@@ -24,7 +24,7 @@ environment:
   PSQL_PASS: Password12!
   PSQL_DBNAME: gct_dev_ci
   PSQL_SSLMODE: disable
-
+  PSQL_SKIPSQLCMD: true
 stack: go 1.13.x
 
 services:
