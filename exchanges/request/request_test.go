@@ -38,7 +38,9 @@ func TestMain(m *testing.M) {
 	})
 	sm.HandleFunc("/rate", func(w http.ResponseWriter, req *http.Request) {
 		if !serverLimit.Allow() {
-			http.Error(w, http.StatusText(429), http.StatusTooManyRequests)
+			http.Error(w,
+				http.StatusText(http.StatusTooManyRequests),
+				http.StatusTooManyRequests)
 			io.WriteString(w, `{"response":false}`)
 			return
 		}
@@ -278,10 +280,10 @@ func TestDoRequest(t *testing.T) {
 			})
 			wg.Done()
 			if err != nil {
-				t.Fatal(err)
+				log.Fatal(err)
 			}
 			if !resp.Response {
-				t.Fatal(unexpected)
+				log.Fatal(unexpected)
 			}
 		}(&wg)
 	}
@@ -294,15 +296,18 @@ func TestGetNonce(t *testing.T) {
 		new(http.Client),
 		&globalshell)
 
-	if r.GetNonce(false) == r.GetNonce(false) {
+	n1 := r.GetNonce(false)
+	n2 := r.GetNonce(false)
+	if n1 == n2 {
 		t.Fatal(unexpected)
 	}
 
 	r2 := New("test",
 		new(http.Client),
 		&globalshell)
-
-	if r2.GetNonce(true) == r2.GetNonce(true) {
+	n3 := r2.GetNonce(true)
+	n4 := r2.GetNonce(true)
+	if n3 == n4 {
 		t.Fatal(unexpected)
 	}
 }
@@ -312,8 +317,9 @@ func TestGetNonceMillis(t *testing.T) {
 	r := New("test",
 		new(http.Client),
 		&globalshell)
-
-	if r.GetNonceMilli() == r.GetNonceMilli() {
+	m1 := r.GetNonceMilli()
+	m2 := r.GetNonceMilli()
+	if m1 == m2 {
 		log.Fatal(unexpected)
 	}
 }
