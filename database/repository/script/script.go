@@ -31,9 +31,9 @@ func Event(id, name, path string, hash null.String, data null.Bytes, executionTy
 
 	if repository.GetSQLDialect() == database.DBSQLite3 {
 		query := modelSQLite.ScriptWhere.ScriptID.EQ(id)
-		f, err := modelSQLite.Scripts(query).Exists(ctx, tx)
-		if err != nil {
-			log.Errorf(log.Global, "Event insert failed: %v", err)
+		f, errQry := modelSQLite.Scripts(query).Exists(ctx, tx)
+		if errQry != nil {
+			log.Errorf(log.Global, "query failed: %v", err)
 			err = tx.Rollback()
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
@@ -49,11 +49,11 @@ func Event(id, name, path string, hash null.String, data null.Bytes, executionTy
 			}
 
 			var tempEvent = modelSQLite.Script{
-				ID: newUUID.String(),
-				ScriptID: id,
-				ScriptName:      name,
-				ScriptPath:      path,
-				ScriptHash:      hash,
+				ID:         newUUID.String(),
+				ScriptID:   id,
+				ScriptName: name,
+				ScriptPath: path,
+				ScriptHash: hash,
 			}
 			err = tempEvent.Insert(ctx, tx, boil.Infer())
 			if err != nil {
@@ -67,7 +67,7 @@ func Event(id, name, path string, hash null.String, data null.Bytes, executionTy
 		} else {
 			var tempEvent = modelSQLite.Script{}
 			tempScriptExecution := &modelSQLite.ScriptExecution{
-				ScriptID: id,
+				ScriptID:        id,
 				ExecutionTime:   time.UTC().String(),
 				ExecutionStatus: status,
 				ExecutionType:   executionType,
