@@ -1608,6 +1608,20 @@ func TestCheckConnectionMonitorConfig(t *testing.T) {
 	}
 }
 
+func TestDefaultFilePath(t *testing.T) {
+	// This is tricky to test because we're dealing with a config file stored
+	// in a persons default directory and to properly test it, it would
+	// require causing os.Stat to return !os.IsNotExist and os.IsNotExist (which
+	// means moving a users config file around), a way of getting around this is
+	// to pass the datadir as a param line but adds a burden to everyone who
+	// uses it
+	result := DefaultFilePath()
+	if !strings.Contains(result, File) &&
+		!strings.Contains(result, EncryptedFile) {
+		t.Error("result should of contained config.json or config.dat")
+	}
+}
+
 func TestGetFilePath(t *testing.T) {
 	expected := "blah.json"
 	result, _ := GetFilePath("blah.json")

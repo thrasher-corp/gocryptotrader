@@ -63,21 +63,14 @@ func getOnlineOfflinePortfolio(coins []portfolio.Coin, online bool) {
 
 func main() {
 	var inFile, key string
-
-	defaultCfg, err := config.GetFilePath("")
-	if err != nil {
-		log.Println(err)
-		os.Exit(1)
-	}
-
-	flag.StringVar(&inFile, "infile", defaultCfg, "The config input file to process.")
+	flag.StringVar(&inFile, "infile", config.DefaultFilePath(), "The config input file to process.")
 	flag.StringVar(&key, "key", "", "The key to use for AES encryption.")
 	flag.Parse()
 
 	log.Println("GoCryptoTrader: portfolio tool.")
 
 	var cfg config.Config
-	err = cfg.LoadConfig(inFile, true)
+	err := cfg.LoadConfig(inFile, true)
 	if err != nil {
 		log.Println(err)
 		os.Exit(1)
