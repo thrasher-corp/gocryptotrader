@@ -59,16 +59,25 @@ const (
 	incomplete         = "incomplete"
 )
 
+type config struct {
+	ConfCardID      string         `json:"CardID"`
+	ConfChecklistID string         `json:"ChecklistID"`
+	ConfKey         string         `json:"Key"`
+	ConfToken       string         `json:"Token"`
+	Exchanges       []ExchangeInfo `json:"Exchanges"`
+}
+
 var (
-	verbose                             bool
-	apiKey, apiToken, updateChecklistID string
-	exchangeData                        []ExchangeInfo
+	verbose                                           bool
+	apiKey, apiToken, updateChecklistID, updateCardID string
+	exchangeData                                      []ExchangeInfo
 )
 
 func main() {
 	flag.StringVar(&apiKey, "key", "", "its an API Key for trello")
 	flag.StringVar(&apiToken, "token", "", "its an API Token for trello")
 	flag.StringVar(&updateChecklistID, "checklistid", "5dfc5a5377835d0ba025787a", "checklist id for trello")
+	flag.StringVar(&updateCardID, "cardid", "5dfc54b96da13a6ac5ceca97", "card id for trello")
 	flag.BoolVar(&verbose, "verbose", false, "Increases logging verbosity for API Update Checker")
 	flag.Parse()
 	if areAPIKeysSet() {

@@ -1,8 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"os"
 	"testing"
+	"time"
 )
 
 var (
@@ -15,6 +18,8 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	a := m.Run()
+	os.Exit(a)
 }
 
 func TestCheckExistingExchanges(t *testing.T) {
@@ -357,8 +362,29 @@ func TestNameUpdates(t *testing.T) {
 }
 
 func TestUpdateTestFile(t *testing.T) {
-	err := UpdateTestFile()
+	var err error
+	exchangeData, err = ReadFileData(jsonFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = UpdateTestFile()
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestReadFileData(t *testing.T) {
+	panic("COCKS")
+	a, err := ReadFileData(testJSONFile)
+	fmt.Printf("HELLLO")
+	log.Println(a)
+	if err != nil {
+		t.Log(err)
+	}
+}
+
+func TestSomething(t *testing.T) {
+	time.Sleep(31)
+	t.Fatal("hello")
+	fmt.Println("WOW MAN!")
 }
