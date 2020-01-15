@@ -203,7 +203,8 @@ func (e *Base) SupportsRESTTickerBatchUpdates() bool {
 // SupportsAutoPairUpdates returns whether or not the exchange supports
 // auto currency pair updating
 func (e *Base) SupportsAutoPairUpdates() bool {
-	if e.Features.Supports.RESTCapabilities.AutoPairUpdates || e.Features.Supports.WebsocketCapabilities.AutoPairUpdates {
+	if e.Features.Supports.RESTCapabilities.AutoPairUpdates ||
+		e.Features.Supports.WebsocketCapabilities.AutoPairUpdates {
 		return true
 	}
 	return false
@@ -423,7 +424,9 @@ func (e *Base) SetAPIKeys(apiKey, apiSecret, clientID string) {
 		if err != nil {
 			e.API.AuthenticatedSupport = false
 			e.API.AuthenticatedWebsocketSupport = false
-			log.Warnf(log.ExchangeSys, warningBase64DecryptSecretKeyFailed, e.Name)
+			log.Warnf(log.ExchangeSys,
+				warningBase64DecryptSecretKeyFailed,
+				e.Name)
 			return
 		}
 		e.API.Credentials.Secret = string(result)
@@ -442,7 +445,9 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	e.API.AuthenticatedSupport = exch.API.AuthenticatedSupport
 	e.API.AuthenticatedWebsocketSupport = exch.API.AuthenticatedWebsocketSupport
 	if e.API.AuthenticatedSupport || e.API.AuthenticatedWebsocketSupport {
-		e.SetAPIKeys(exch.API.Credentials.Key, exch.API.Credentials.Secret, exch.API.Credentials.ClientID)
+		e.SetAPIKeys(exch.API.Credentials.Key,
+			exch.API.Credentials.Secret,
+			exch.API.Credentials.ClientID)
 	}
 
 	if exch.HTTPTimeout <= time.Duration(0) {
@@ -475,33 +480,40 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	return nil
 }
 
-// AllowAuthenticatedRequest checks to see if the required fields have been set before sending an authenticated
-// API request
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (e *Base) ValidateCredentials() error {
+	if !e.AllowAuthenticatedRequest() {
+		e.API.AuthenticatedSupport = false
+		e.API.AuthenticatedWebsocketSupport = false
+		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
+			e.Name)
+	}
+	return nil
+}
+
+// AllowAuthenticatedRequest checks to see if the required fields have been set
+// before sending an authenticated API request
 func (e *Base) AllowAuthenticatedRequest() bool {
-	// Skip auth check
 	if e.SkipAuthCheck {
 		return true
 	}
 
 	// Individual package usage, allow request if API credentials are valid a
 	// and without needing to set AuthenticatedSupport to true
-	if !e.LoadedByConfig && !e.ValidateAPICredentials() {
+	if !e.LoadedByConfig {
+		return e.ValidateAPICredentials()
+	}
+
+	// Bot usage, AuthenticatedSupport can be disabled by user if desired, so
+	// don't allow authenticated requests.
+	if !e.API.AuthenticatedSupport && !e.API.AuthenticatedWebsocketSupport {
 		return false
 	}
 
-	// Bot usage, AuthenticatedSupport can be disabled by user if desired, so don't
-	// allow authenticated requests.
-	if (!e.API.AuthenticatedSupport && !e.API.AuthenticatedWebsocketSupport) && e.LoadedByConfig {
-		return false
-	}
-
-	// Check to see if the user has enabled AuthenticatedSupport, but has invalid
-	// API credentials set and loaded by config
-	if (e.API.AuthenticatedSupport || e.API.AuthenticatedWebsocketSupport) && e.LoadedByConfig && !e.ValidateAPICredentials() {
-		return false
-	}
-
-	return true
+	// Check to see if the user has enabled AuthenticatedSupport, but has
+	// invalid API credentials set and loaded by config
+	return e.ValidateAPICredentials()
 }
 
 // ValidateAPICredentials validates the exchanges API credentials

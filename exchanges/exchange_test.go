@@ -974,6 +974,43 @@ func TestSetAPIKeys(t *testing.T) {
 	}
 }
 
+func TestValidateCredentials(t *testing.T) {
+	b := Base{
+		Name:    "TESTNAME",
+		Enabled: false,
+		API: API{
+			AuthenticatedSupport:          false,
+			AuthenticatedWebsocketSupport: false,
+		},
+	}
+
+	err := b.ValidateCredentials()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.API.AuthenticatedSupport = true
+	b.API.CredentialsValidator.RequiresKey = true
+	b.API.CredentialsValidator.RequiresSecret = true
+
+	err = b.ValidateCredentials()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	b.API.Credentials.Key = "Something"
+	err = b.ValidateCredentials()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	b.API.Credentials.Secret = "SomethingElse"
+	err = b.ValidateCredentials()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestSetupDefaults(t *testing.T) {
 	t.Parallel()
 
