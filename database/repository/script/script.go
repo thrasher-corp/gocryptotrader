@@ -43,7 +43,7 @@ func Event(id, name, path string, hash null.String, data null.Bytes, executionTy
 		if !f {
 			newUUID, errUUID := uuid.NewV4()
 			if errUUID != nil {
-				log.Errorf(log.DatabaseMgr, "Failed to generate UUID: %v", err)
+				log.Errorf(log.DatabaseMgr, "Failed to generate UUID: %v", errUUID)
 				_ = tx.Rollback()
 				return
 			}
