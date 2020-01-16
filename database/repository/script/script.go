@@ -64,7 +64,6 @@ func Event(id, name, path string, hash null.String, data null.Bytes, executionTy
 			}
 		} else {
 			tempEvent.ID = id
-
 		}
 
 		tempScriptExecution := &modelSQLite.ScriptExecution{
@@ -82,7 +81,6 @@ func Event(id, name, path string, hash null.String, data null.Bytes, executionTy
 			}
 			return
 		}
-
 	} else {
 		var tempEvent = modelPSQL.Script{
 			ScriptID:   id,

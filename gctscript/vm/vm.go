@@ -37,6 +37,7 @@ func NewVM() (vm *VM) {
 		ID:     newUUID,
 		Script: pool.Get().(*tengo.Script),
 	}
+	vm.event(StatusSuccess, TypeCreate, false)
 	return
 }
 
@@ -169,7 +170,6 @@ func (vm *VM) CompileAndRun() {
 
 	if vm.Compiled.Get("timer").String() != "" {
 		vm.T, err = time.ParseDuration(vm.Compiled.Get("timer").String())
-
 		if err != nil {
 			log.Error(log.GCTScriptMgr, err)
 			err = vm.Shutdown()
