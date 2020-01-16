@@ -37,7 +37,6 @@ func NewVM() (vm *VM) {
 		ID:     newUUID,
 		Script: pool.Get().(*tengo.Script),
 	}
-	vm.event(StatusSuccess, TypeCreate, false)
 	return
 }
 

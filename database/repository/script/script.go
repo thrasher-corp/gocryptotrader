@@ -39,6 +39,7 @@ func Event(id, name, path string, hash null.String, data null.Bytes, executionTy
 			}
 			return
 		}
+		var tempEvent = modelSQLite.Script{}
 		if !f {
 			newUUID, errUUID := uuid.NewV4()
 			if errUUID != nil {
@@ -47,13 +48,11 @@ func Event(id, name, path string, hash null.String, data null.Bytes, executionTy
 				return
 			}
 
-			var tempEvent = modelSQLite.Script{
-				ID:         newUUID.String(),
-				ScriptID:   id,
-				ScriptName: name,
-				ScriptPath: path,
-				ScriptHash: hash,
-			}
+			tempEvent.ID = newUUID.String()
+			tempEvent.ScriptID = id
+			tempEvent.ScriptName = name
+			tempEvent.ScriptPath = path
+			tempEvent.ScriptHash = hash
 			err = tempEvent.Insert(ctx, tx, boil.Infer())
 			if err != nil {
 				log.Errorf(log.Global, "Event insert failed: %v", err)
@@ -64,25 +63,26 @@ func Event(id, name, path string, hash null.String, data null.Bytes, executionTy
 				return
 			}
 		} else {
-			var tempEvent = modelSQLite.Script{
-				ID: id,
-			}
-			tempScriptExecution := &modelSQLite.ScriptExecution{
-				ScriptID:        id,
-				ExecutionTime:   time.UTC().String(),
-				ExecutionStatus: status,
-				ExecutionType:   executionType,
-			}
-			err = tempEvent.AddScriptExecutions(ctx, tx, true, tempScriptExecution)
-			if err != nil {
-				log.Errorf(log.Global, "Event insert failed: %v", err)
-				err = tx.Rollback()
-				if err != nil {
-					log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
-				}
-				return
-			}
+			tempEvent.ID = id
+
 		}
+
+		tempScriptExecution := &modelSQLite.ScriptExecution{
+			ScriptID:        id,
+			ExecutionTime:   time.UTC().String(),
+			ExecutionStatus: status,
+			ExecutionType:   executionType,
+		}
+		err = tempEvent.AddScriptExecutions(ctx, tx, true, tempScriptExecution)
+		if err != nil {
+			log.Errorf(log.Global, "Event insert failed: %v", err)
+			err = tx.Rollback()
+			if err != nil {
+				log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
+			}
+			return
+		}
+
 	} else {
 		var tempEvent = modelPSQL.Script{
 			ScriptID:   id,
