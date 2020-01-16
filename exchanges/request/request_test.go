@@ -356,10 +356,10 @@ func TestBasicLimiter(t *testing.T) {
 		Method: http.MethodGet,
 	}
 
-	_ = r.SendPayload(&i)
 	tn := time.Now()
 	_ = r.SendPayload(&i)
-	if time.Now().Sub(tn) < time.Millisecond*900 {
+	_ = r.SendPayload(&i)
+	if time.Since(tn) < time.Second {
 		t.Error("rate limit issues")
 	}
 }
