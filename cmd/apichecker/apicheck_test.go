@@ -1,11 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"testing"
-	"time"
 )
 
 var (
@@ -374,17 +372,15 @@ func TestUpdateTestFile(t *testing.T) {
 }
 
 func TestReadFileData(t *testing.T) {
-	panic("COCKS")
-	a, err := ReadFileData(testJSONFile)
-	fmt.Printf("HELLLO")
-	log.Println(a)
+	_, err := ReadFileData(testJSONFile)
 	if err != nil {
 		t.Log(err)
 	}
 }
 
-func TestSomething(t *testing.T) {
-	time.Sleep(31)
-	t.Fatal("hello")
-	fmt.Println("WOW MAN!")
+func TestNewFileTest(t *testing.T) {
+	err := NewFileTest()
+	if err != nil {
+		t.Log(err)
+	}
 }

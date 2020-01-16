@@ -1219,3 +1219,13 @@ func UpdateTestFile() error {
 	}
 	return ioutil.WriteFile(testJSONFile, file, 0770)
 }
+
+// NewFileTest does something
+func NewFileTest() error {
+	var new config
+	file, err := json.MarshalIndent(new, "", " ")
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile("bsfile.json", file, 0770)
+}
