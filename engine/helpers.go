@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
@@ -447,18 +448,22 @@ func GetSpecificTicker(p currency.Pair, exchangeName string, assetType asset.Ite
 // GetCollatedExchangeAccountInfoByCoin collates individual exchange account
 // information and turns into into a map string of
 // exchange.AccountCurrencyInfo
-func GetCollatedExchangeAccountInfoByCoin(exchAccounts []exchange.AccountInfo) map[currency.Code]exchange.AccountCurrencyInfo {
-	result := make(map[currency.Code]exchange.AccountCurrencyInfo)
+func GetCollatedExchangeAccountInfoByCoin(exchAccounts []account.Holdings) map[currency.Code]account.Balance {
+	result := make(map[currency.Code]account.Balance)
 	for _, accounts := range exchAccounts {
-		for _, account := range accounts.Accounts {
-			for _, accountCurrencyInfo := range account.Currencies {
+		for _, acc := range accounts.Accounts {
+			for _, accountCurrencyInfo := range acc.Currency {
 				currencyName := accountCurrencyInfo.CurrencyName
 				avail := accountCurrencyInfo.TotalValue
 				onHold := accountCurrencyInfo.Hold
 
 				info, ok := result[currencyName]
 				if !ok {
-					accountInfo := exchange.AccountCurrencyInfo{CurrencyName: currencyName, Hold: onHold, TotalValue: avail}
+					accountInfo := account.Balance{
+						CurrencyName: currencyName,
+						Hold:         onHold,
+						TotalValue:   avail,
+					}
 					result[currencyName] = accountInfo
 				} else {
 					info.Hold += onHold
@@ -472,13 +477,13 @@ func GetCollatedExchangeAccountInfoByCoin(exchAccounts []exchange.AccountInfo) m
 }
 
 // GetAccountCurrencyInfoByExchangeName returns info for an exchange
-func GetAccountCurrencyInfoByExchangeName(accounts []exchange.AccountInfo, exchangeName string) (exchange.AccountInfo, error) {
-	for i := 0; i < len(accounts); i++ {
+func GetAccountCurrencyInfoByExchangeName(accounts []account.Holdings, exchangeName string) (account.Holdings, error) {
+	for i := range accounts {
 		if accounts[i].Exchange == exchangeName {
 			return accounts[i], nil
 		}
 	}
-	return exchange.AccountInfo{}, ErrExchangeNotFound
+	return account.Holdings{}, ErrExchangeNotFound
 }
 
 // GetExchangeHighestPriceByCurrencyPair returns the exchange with the highest
@@ -504,7 +509,7 @@ func GetExchangeLowestPriceByCurrencyPair(p currency.Pair, assetType asset.Item)
 }
 
 // SeedExchangeAccountInfo seeds account info
-func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
+func SeedExchangeAccountInfo(data []account.Holdings) {
 	if len(data) == 0 {
 		return
 	}
@@ -513,9 +518,9 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 
 	for _, exchangeData := range data {
 		exchangeName := exchangeData.Exchange
-		var currencies []exchange.AccountCurrencyInfo
-		for _, account := range exchangeData.Accounts {
-			for _, info := range account.Currencies {
+		var currencies []account.Balance
+		for _, acc := range exchangeData.Accounts {
+			for _, info := range acc.Currency {
 				var update bool
 				for i := range currencies {
 					if info.CurrencyName == currencies[i].CurrencyName {
@@ -529,7 +534,7 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 					continue
 				}
 
-				currencies = append(currencies, exchange.AccountCurrencyInfo{
+				currencies = append(currencies, account.Balance{
 					CurrencyName: info.CurrencyName,
 					TotalValue:   info.TotalValue,
 					Hold:         info.Hold,

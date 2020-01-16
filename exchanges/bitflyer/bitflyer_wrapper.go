@@ -1,6 +1,7 @@
 package bitflyer
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -259,8 +261,8 @@ func (b *Bitflyer) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 
 // GetAccountInfo retrieves balances for all enabled currencies on the
 // Bitflyer exchange
-func (b *Bitflyer) GetAccountInfo() (exchange.AccountInfo, error) {
-	return exchange.AccountInfo{}, common.ErrNotYetImplemented
+func (b *Bitflyer) GetAccountInfo() (account.Holdings, error) {
+	return account.Holdings{}, common.ErrNotYetImplemented
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -371,4 +373,18 @@ func (b *Bitflyer) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription,
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (b *Bitflyer) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (b *Bitflyer) ValidateCredentials() error {
+	acc, err := b.GetAccountInfo()
+	if err != nil {
+		b.API.AuthenticatedSupport = false
+		b.API.AuthenticatedWebsocketSupport = false
+		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
+			b.Name)
+	}
+
+	return account.Process(&acc)
 }

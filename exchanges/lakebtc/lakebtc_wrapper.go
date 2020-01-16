@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -285,21 +286,21 @@ func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // LakeBTC exchange
-func (l *LakeBTC) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
+func (l *LakeBTC) GetAccountInfo() (account.Holdings, error) {
+	var response account.Holdings
 	response.Exchange = l.Name
 	accountInfo, err := l.GetAccountInformation()
 	if err != nil {
 		return response, err
 	}
 
-	var currencies []exchange.AccountCurrencyInfo
+	var currencies []account.Balance
 	for x, y := range accountInfo.Balance {
 		for z, w := range accountInfo.Locked {
 			if z != x {
 				continue
 			}
-			var exchangeCurrency exchange.AccountCurrencyInfo
+			var exchangeCurrency account.Balance
 			exchangeCurrency.CurrencyName = currency.NewCode(x)
 			exchangeCurrency.TotalValue, _ = strconv.ParseFloat(y, 64)
 			exchangeCurrency.Hold, _ = strconv.ParseFloat(w, 64)
@@ -307,8 +308,8 @@ func (l *LakeBTC) GetAccountInfo() (exchange.AccountInfo, error) {
 		}
 	}
 
-	response.Accounts = append(response.Accounts, exchange.Account{
-		Currencies: currencies,
+	response.Accounts = append(response.Accounts, account.SubAccount{
+		Currency: currencies,
 	})
 
 	return response, nil
@@ -533,4 +534,18 @@ func (l *LakeBTC) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, 
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (l *LakeBTC) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (l *LakeBTC) ValidateCredentials() error {
+	acc, err := l.GetAccountInfo()
+	if err != nil {
+		l.API.AuthenticatedSupport = false
+		l.API.AuthenticatedWebsocketSupport = false
+		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
+			l.Name)
+	}
+
+	return account.Process(&acc)
 }

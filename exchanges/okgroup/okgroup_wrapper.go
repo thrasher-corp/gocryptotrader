@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -171,10 +172,10 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies
-func (o *OKGroup) GetAccountInfo() (resp exchange.AccountInfo, err error) {
+func (o *OKGroup) GetAccountInfo() (resp account.Holdings, err error) {
 	resp.Exchange = o.Name
 	currencies, err := o.GetSpotTradingAccounts()
-	currencyAccount := exchange.Account{}
+	currencyAccount := account.SubAccount{}
 
 	for i := range currencies {
 		hold, err := strconv.ParseFloat(currencies[i].Hold, 64)
@@ -189,8 +190,8 @@ func (o *OKGroup) GetAccountInfo() (resp exchange.AccountInfo, err error) {
 				"Could not convert %v to float64",
 				currencies[i].Balance)
 		}
-		currencyAccount.Currencies = append(currencyAccount.Currencies,
-			exchange.AccountCurrencyInfo{
+		currencyAccount.Currency = append(currencyAccount.Currency,
+			account.Balance{
 				CurrencyName: currency.NewCode(currencies[i].Currency),
 				Hold:         hold,
 				TotalValue:   totalValue,
@@ -502,4 +503,18 @@ func (o *OKGroup) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, 
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (o *OKGroup) AuthenticateWebsocket() error {
 	return o.WsLogin()
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (o *OKGroup) ValidateCredentials() error {
+	acc, err := o.GetAccountInfo()
+	if err != nil {
+		o.API.AuthenticatedSupport = false
+		o.API.AuthenticatedWebsocketSupport = false
+		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
+			o.Name)
+	}
+
+	return account.Process(&acc)
 }

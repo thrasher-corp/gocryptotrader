@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -308,25 +309,25 @@ func (g *Gateio) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // ZB exchange
-func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
-	var info exchange.AccountInfo
-	var balances []exchange.AccountCurrencyInfo
+func (g *Gateio) GetAccountInfo() (account.Holdings, error) {
+	var info account.Holdings
+	var balances []account.Balance
 
 	if g.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		resp, err := g.wsGetBalance([]string{})
 		if err != nil {
 			return info, err
 		}
-		var currData []exchange.AccountCurrencyInfo
+		var currData []account.Balance
 		for k := range resp.Result {
-			currData = append(currData, exchange.AccountCurrencyInfo{
+			currData = append(currData, account.Balance{
 				CurrencyName: currency.NewCode(k),
 				TotalValue:   resp.Result[k].Available + resp.Result[k].Freeze,
 				Hold:         resp.Result[k].Freeze,
 			})
 		}
-		info.Accounts = append(info.Accounts, exchange.Account{
-			Currencies: currData,
+		info.Accounts = append(info.Accounts, account.SubAccount{
+			Currency: currData,
 		})
 	} else {
 		balance, err := g.GetBalances()
@@ -342,7 +343,7 @@ func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
 					return info, err
 				}
 
-				balances = append(balances, exchange.AccountCurrencyInfo{
+				balances = append(balances, account.Balance{
 					CurrencyName: currency.NewCode(x),
 					Hold:         lockedF,
 				})
@@ -368,7 +369,7 @@ func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
 					}
 				}
 				if !updated {
-					balances = append(balances, exchange.AccountCurrencyInfo{
+					balances = append(balances, account.Balance{
 						CurrencyName: currency.NewCode(x),
 						TotalValue:   availAmount,
 					})
@@ -378,8 +379,8 @@ func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
 			break
 		}
 
-		info.Accounts = append(info.Accounts, exchange.Account{
-			Currencies: balances,
+		info.Accounts = append(info.Accounts, account.SubAccount{
+			Currency: balances,
 		})
 	}
 
@@ -692,4 +693,18 @@ func (g *Gateio) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, e
 func (g *Gateio) AuthenticateWebsocket() error {
 	_, err := g.wsServerSignIn()
 	return err
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (g *Gateio) ValidateCredentials() error {
+	acc, err := g.GetAccountInfo()
+	if err != nil {
+		g.API.AuthenticatedSupport = false
+		g.API.AuthenticatedWebsocketSupport = false
+		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
+			g.Name)
+	}
+
+	return account.Process(&acc)
 }

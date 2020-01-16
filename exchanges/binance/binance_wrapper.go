@@ -2,6 +2,7 @@ package binance
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -11,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -347,14 +349,14 @@ func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // Bithumb exchange
-func (b *Binance) GetAccountInfo() (exchange.AccountInfo, error) {
-	var info exchange.AccountInfo
+func (b *Binance) GetAccountInfo() (account.Holdings, error) {
+	var info account.Holdings
 	raw, err := b.GetAccount()
 	if err != nil {
 		return info, err
 	}
 
-	var currencyBalance []exchange.AccountCurrencyInfo
+	var currencyBalance []account.Balance
 	for i := range raw.Balances {
 		freeCurrency, err := strconv.ParseFloat(raw.Balances[i].Free, 64)
 		if err != nil {
@@ -366,7 +368,7 @@ func (b *Binance) GetAccountInfo() (exchange.AccountInfo, error) {
 			return info, err
 		}
 
-		currencyBalance = append(currencyBalance, exchange.AccountCurrencyInfo{
+		currencyBalance = append(currencyBalance, account.Balance{
 			CurrencyName: currency.NewCode(raw.Balances[i].Asset),
 			TotalValue:   freeCurrency + lockedCurrency,
 			Hold:         freeCurrency,
@@ -374,8 +376,8 @@ func (b *Binance) GetAccountInfo() (exchange.AccountInfo, error) {
 	}
 
 	info.Exchange = b.Name
-	info.Accounts = append(info.Accounts, exchange.Account{
-		Currencies: currencyBalance,
+	info.Accounts = append(info.Accounts, account.SubAccount{
+		Currency: currencyBalance,
 	})
 
 	return info, nil
@@ -635,4 +637,18 @@ func (b *Binance) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, 
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (b *Binance) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (b *Binance) ValidateCredentials() error {
+	acc, err := b.GetAccountInfo()
+	if err != nil {
+		b.API.AuthenticatedSupport = false
+		b.API.AuthenticatedWebsocketSupport = false
+		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
+			b.Name)
+	}
+
+	return account.Process(&acc)
 }

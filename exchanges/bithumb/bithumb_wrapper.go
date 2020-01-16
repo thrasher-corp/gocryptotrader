@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -259,14 +260,14 @@ func (b *Bithumb) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // Bithumb exchange
-func (b *Bithumb) GetAccountInfo() (exchange.AccountInfo, error) {
-	var info exchange.AccountInfo
+func (b *Bithumb) GetAccountInfo() (account.Holdings, error) {
+	var info account.Holdings
 	bal, err := b.GetAccountBalance("ALL")
 	if err != nil {
 		return info, err
 	}
 
-	var exchangeBalances []exchange.AccountCurrencyInfo
+	var exchangeBalances []account.Balance
 	for key, totalAmount := range bal.Total {
 		hold, ok := bal.InUse[key]
 		if !ok {
@@ -274,15 +275,15 @@ func (b *Bithumb) GetAccountInfo() (exchange.AccountInfo, error) {
 				key)
 		}
 
-		exchangeBalances = append(exchangeBalances, exchange.AccountCurrencyInfo{
+		exchangeBalances = append(exchangeBalances, account.Balance{
 			CurrencyName: currency.NewCode(key),
 			TotalValue:   totalAmount,
 			Hold:         hold,
 		})
 	}
 
-	info.Accounts = append(info.Accounts, exchange.Account{
-		Currencies: exchangeBalances,
+	info.Accounts = append(info.Accounts, account.SubAccount{
+		Currency: exchangeBalances,
 	})
 
 	info.Exchange = b.Name
@@ -561,4 +562,18 @@ func (b *Bithumb) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, 
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (b *Bithumb) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (b *Bithumb) ValidateCredentials() error {
+	acc, err := b.GetAccountInfo()
+	if err != nil {
+		b.API.AuthenticatedSupport = false
+		b.API.AuthenticatedWebsocketSupport = false
+		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
+			b.Name)
+	}
+
+	return account.Process(&acc)
 }

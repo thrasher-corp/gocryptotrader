@@ -2,6 +2,7 @@ package bitfinex
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -331,8 +333,8 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 
 // GetAccountInfo retrieves balances for all enabled currencies on the
 // Bitfinex exchange
-func (b *Bitfinex) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
+func (b *Bitfinex) GetAccountInfo() (account.Holdings, error) {
+	var response account.Holdings
 	response.Exchange = b.Name
 
 	accountBalance, err := b.GetAccountBalance()
@@ -340,7 +342,7 @@ func (b *Bitfinex) GetAccountInfo() (exchange.AccountInfo, error) {
 		return response, err
 	}
 
-	var Accounts = []exchange.Account{
+	var Accounts = []account.SubAccount{
 		{ID: "deposit"},
 		{ID: "exchange"},
 		{ID: "trading"},
@@ -349,8 +351,8 @@ func (b *Bitfinex) GetAccountInfo() (exchange.AccountInfo, error) {
 	for x := range accountBalance {
 		for i := range Accounts {
 			if Accounts[i].ID == accountBalance[x].Type {
-				Accounts[i].Currencies = append(Accounts[i].Currencies,
-					exchange.AccountCurrencyInfo{
+				Accounts[i].Currency = append(Accounts[i].Currency,
+					account.Balance{
 						CurrencyName: currency.NewCode(accountBalance[x].Currency),
 						TotalValue:   accountBalance[x].Amount,
 						Hold:         accountBalance[x].Amount - accountBalance[x].Available,
@@ -718,4 +720,18 @@ func (b *Bitfinex) appendOptionalDelimiter(p *currency.Pair) {
 		len(p.Base.String()) > 3 {
 		p.Delimiter = ":"
 	}
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (b *Bitfinex) ValidateCredentials() error {
+	acc, err := b.GetAccountInfo()
+	if err != nil {
+		b.API.AuthenticatedSupport = false
+		b.API.AuthenticatedWebsocketSupport = false
+		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
+			b.Name)
+	}
+
+	return account.Process(&acc)
 }

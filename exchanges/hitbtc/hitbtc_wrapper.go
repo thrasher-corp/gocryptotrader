@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -338,27 +339,26 @@ func (h *HitBTC) UpdateOrderbook(currencyPair currency.Pair, assetType asset.Ite
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // HitBTC exchange
-func (h *HitBTC) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
+func (h *HitBTC) GetAccountInfo() (account.Holdings, error) {
+	var response account.Holdings
 	response.Exchange = h.Name
 	accountBalance, err := h.GetBalances()
 	if err != nil {
 		return response, err
 	}
 
-	var currencies []exchange.AccountCurrencyInfo
+	var currencies []account.Balance
 	for i := range accountBalance {
-		var exchangeCurrency exchange.AccountCurrencyInfo
+		var exchangeCurrency account.Balance
 		exchangeCurrency.CurrencyName = currency.NewCode(accountBalance[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance[i].Available
 		exchangeCurrency.Hold = accountBalance[i].Reserved
 		currencies = append(currencies, exchangeCurrency)
 	}
 
-	response.Accounts = append(response.Accounts,
-		exchange.Account{
-			Currencies: currencies,
-		})
+	response.Accounts = append(response.Accounts, account.SubAccount{
+		Currency: currencies,
+	})
 
 	return response, nil
 }
@@ -597,4 +597,18 @@ func (h *HitBTC) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, e
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (h *HitBTC) AuthenticateWebsocket() error {
 	return h.wsLogin()
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (h *HitBTC) ValidateCredentials() error {
+	acc, err := h.GetAccountInfo()
+	if err != nil {
+		h.API.AuthenticatedSupport = false
+		h.API.AuthenticatedWebsocketSupport = false
+		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
+			h.Name)
+	}
+
+	return account.Process(&acc)
 }

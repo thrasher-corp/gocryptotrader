@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -211,25 +213,25 @@ func (g *Gemini) UpdateTradablePairs(forceUpdate bool) error {
 
 // GetAccountInfo Retrieves balances for all enabled currencies for the
 // Gemini exchange
-func (g *Gemini) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
+func (g *Gemini) GetAccountInfo() (account.Holdings, error) {
+	var response account.Holdings
 	response.Exchange = g.Name
 	accountBalance, err := g.GetBalances()
 	if err != nil {
 		return response, err
 	}
 
-	var currencies []exchange.AccountCurrencyInfo
+	var currencies []account.Balance
 	for i := 0; i < len(accountBalance); i++ {
-		var exchangeCurrency exchange.AccountCurrencyInfo
+		var exchangeCurrency account.Balance
 		exchangeCurrency.CurrencyName = currency.NewCode(accountBalance[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance[i].Amount
 		exchangeCurrency.Hold = accountBalance[i].Available
 		currencies = append(currencies, exchangeCurrency)
 	}
 
-	response.Accounts = append(response.Accounts, exchange.Account{
-		Currencies: currencies,
+	response.Accounts = append(response.Accounts, account.SubAccount{
+		Currency: currencies,
 	})
 
 	return response, nil
@@ -544,4 +546,18 @@ func (g *Gemini) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, e
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (g *Gemini) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (g *Gemini) ValidateCredentials() error {
+	acc, err := g.GetAccountInfo()
+	if err != nil {
+		g.API.AuthenticatedSupport = false
+		g.API.AuthenticatedWebsocketSupport = false
+		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
+			g.Name)
+	}
+
+	return account.Process(&acc)
 }

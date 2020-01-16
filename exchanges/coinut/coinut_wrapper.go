@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -262,8 +263,8 @@ func (c *COINUT) UpdateTradablePairs(forceUpdate bool) error {
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // COINUT exchange
-func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
-	var info exchange.AccountInfo
+func (c *COINUT) GetAccountInfo() (account.Holdings, error) {
+	var info account.Holdings
 	var bal *UserBalance
 	var err error
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -280,7 +281,7 @@ func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 		}
 	}
 
-	var balances = []exchange.AccountCurrencyInfo{
+	var balances = []account.Balance{
 		{
 			CurrencyName: currency.BCH,
 			TotalValue:   bal.BCH,
@@ -339,8 +340,8 @@ func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 		},
 	}
 	info.Exchange = c.Name
-	info.Accounts = append(info.Accounts, exchange.Account{
-		Currencies: balances,
+	info.Accounts = append(info.Accounts, account.SubAccount{
+		Currency: balances,
 	})
 
 	return info, nil
@@ -886,4 +887,18 @@ func (c *COINUT) loadInstrumentsIfNotLoaded() error {
 		}
 	}
 	return nil
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (c *COINUT) ValidateCredentials() error {
+	acc, err := c.GetAccountInfo()
+	if err != nil {
+		c.API.AuthenticatedSupport = false
+		c.API.AuthenticatedWebsocketSupport = false
+		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
+			c.Name)
+	}
+
+	return account.Process(&acc)
 }

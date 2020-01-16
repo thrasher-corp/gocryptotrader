@@ -296,9 +296,12 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 		wg.Wait()
 	}
 
-	err = exch.ValidateCredentials()
-	if err != nil {
-		log.Warnln(log.ExchangeSys, err)
+	if exch.GetBase().API.AuthenticatedSupport ||
+		exch.GetBase().API.AuthenticatedWebsocketSupport {
+		err = exch.ValidateCredentials()
+		if err != nil {
+			log.Warnln(log.ExchangeSys, err)
+		}
 	}
 
 	return nil

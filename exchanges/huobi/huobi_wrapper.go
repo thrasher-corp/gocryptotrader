@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -393,20 +394,20 @@ func (h *HUOBI) GetAccountID() ([]Account, error) {
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // HUOBI exchange - to-do
-func (h *HUOBI) GetAccountInfo() (exchange.AccountInfo, error) {
-	var info exchange.AccountInfo
+func (h *HUOBI) GetAccountInfo() (account.Holdings, error) {
+	var info account.Holdings
 	info.Exchange = h.Name
 	if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		resp, err := h.wsGetAccountsList()
 		if err != nil {
 			return info, err
 		}
-		var currencyDetails []exchange.AccountCurrencyInfo
+		var currencyDetails []account.Balance
 		for i := range resp.Data {
 			if len(resp.Data[i].List) == 0 {
 				continue
 			}
-			currData := exchange.AccountCurrencyInfo{
+			currData := account.Balance{
 				CurrencyName: currency.NewCode(resp.Data[i].List[0].Currency),
 				TotalValue:   resp.Data[i].List[0].Balance,
 			}
@@ -415,8 +416,8 @@ func (h *HUOBI) GetAccountInfo() (exchange.AccountInfo, error) {
 			}
 			currencyDetails = append(currencyDetails, currData)
 		}
-		var acc exchange.Account
-		acc.Currencies = currencyDetails
+		var acc account.SubAccount
+		acc.Currency = currencyDetails
 		info.Accounts = append(info.Accounts, acc)
 	} else {
 		accounts, err := h.GetAccountID()
@@ -424,14 +425,14 @@ func (h *HUOBI) GetAccountInfo() (exchange.AccountInfo, error) {
 			return info, err
 		}
 		for i := range accounts {
-			var acc exchange.Account
+			var acc account.SubAccount
 			acc.ID = strconv.FormatInt(accounts[i].ID, 10)
 			balances, err := h.GetAccountBalance(acc.ID)
 			if err != nil {
 				return info, err
 			}
 
-			var currencyDetails []exchange.AccountCurrencyInfo
+			var currencyDetails []account.Balance
 			for j := range balances {
 				var frozen bool
 				if balances[j].Type == "frozen" {
@@ -456,20 +457,20 @@ func (h *HUOBI) GetAccountInfo() (exchange.AccountInfo, error) {
 
 				if frozen {
 					currencyDetails = append(currencyDetails,
-						exchange.AccountCurrencyInfo{
+						account.Balance{
 							CurrencyName: currency.NewCode(balances[j].Currency),
 							Hold:         balances[j].Balance,
 						})
 				} else {
 					currencyDetails = append(currencyDetails,
-						exchange.AccountCurrencyInfo{
+						account.Balance{
 							CurrencyName: currency.NewCode(balances[j].Currency),
 							TotalValue:   balances[j].Balance,
 						})
 				}
 			}
 
-			acc.Currencies = currencyDetails
+			acc.Currency = currencyDetails
 			info.Accounts = append(info.Accounts, acc)
 		}
 	}
@@ -844,4 +845,18 @@ func (h *HUOBI) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, er
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (h *HUOBI) AuthenticateWebsocket() error {
 	return h.wsLogin()
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (h *HUOBI) ValidateCredentials() error {
+	acc, err := h.GetAccountInfo()
+	if err != nil {
+		h.API.AuthenticatedSupport = false
+		h.API.AuthenticatedWebsocketSupport = false
+		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
+			h.Name)
+	}
+
+	return account.Process(&acc)
 }

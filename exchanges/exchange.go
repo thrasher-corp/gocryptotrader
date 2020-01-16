@@ -480,18 +480,6 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	return nil
 }
 
-// ValidateCredentials validates current credentials used for wrapper
-// functionality
-func (e *Base) ValidateCredentials() error {
-	if !e.AllowAuthenticatedRequest() {
-		e.API.AuthenticatedSupport = false
-		e.API.AuthenticatedWebsocketSupport = false
-		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
-			e.Name)
-	}
-	return nil
-}
-
 // AllowAuthenticatedRequest checks to see if the required fields have been set
 // before sending an authenticated API request
 func (e *Base) AllowAuthenticatedRequest() bool {

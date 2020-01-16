@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -246,19 +247,19 @@ func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType asset.Item) (
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // LocalBitcoins exchange
-func (l *LocalBitcoins) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
+func (l *LocalBitcoins) GetAccountInfo() (account.Holdings, error) {
+	var response account.Holdings
 	response.Exchange = l.Name
 	accountBalance, err := l.GetWalletBalance()
 	if err != nil {
 		return response, err
 	}
-	var exchangeCurrency exchange.AccountCurrencyInfo
+	var exchangeCurrency account.Balance
 	exchangeCurrency.CurrencyName = currency.BTC
 	exchangeCurrency.TotalValue = accountBalance.Total.Balance
 
-	response.Accounts = append(response.Accounts, exchange.Account{
-		Currencies: []exchange.AccountCurrencyInfo{exchangeCurrency},
+	response.Accounts = append(response.Accounts, account.SubAccount{
+		Currency: []account.Balance{exchangeCurrency},
 	})
 	return response, nil
 }
@@ -570,4 +571,18 @@ func (l *LocalBitcoins) GetSubscriptions() ([]wshandler.WebsocketChannelSubscrip
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (l *LocalBitcoins) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (l *LocalBitcoins) ValidateCredentials() error {
+	acc, err := l.GetAccountInfo()
+	if err != nil {
+		l.API.AuthenticatedSupport = false
+		l.API.AuthenticatedWebsocketSupport = false
+		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
+			l.Name)
+	}
+
+	return account.Process(&acc)
 }

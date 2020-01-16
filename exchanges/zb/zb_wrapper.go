@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -305,9 +306,9 @@ func (z *ZB) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // ZB exchange
-func (z *ZB) GetAccountInfo() (exchange.AccountInfo, error) {
-	var info exchange.AccountInfo
-	var balances []exchange.AccountCurrencyInfo
+func (z *ZB) GetAccountInfo() (account.Holdings, error) {
+	var info account.Holdings
+	var balances []account.Balance
 	var coins []AccountsResponseCoin
 	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		resp, err := z.wsGetAccountInfoRequest()
@@ -334,7 +335,7 @@ func (z *ZB) GetAccountInfo() (exchange.AccountInfo, error) {
 			return info, err
 		}
 
-		balances = append(balances, exchange.AccountCurrencyInfo{
+		balances = append(balances, account.Balance{
 			CurrencyName: currency.NewCode(coins[i].EnName),
 			TotalValue:   hold + avail,
 			Hold:         hold,
@@ -342,8 +343,8 @@ func (z *ZB) GetAccountInfo() (exchange.AccountInfo, error) {
 	}
 
 	info.Exchange = z.Name
-	info.Accounts = append(info.Accounts, exchange.Account{
-		Currencies: balances,
+	info.Accounts = append(info.Accounts, account.SubAccount{
+		Currency: balances,
 	})
 
 	return info, nil
@@ -665,4 +666,18 @@ func (z *ZB) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (z *ZB) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (z *ZB) ValidateCredentials() error {
+	acc, err := z.GetAccountInfo()
+	if err != nil {
+		z.API.AuthenticatedSupport = false
+		z.API.AuthenticatedWebsocketSupport = false
+		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
+			z.Name)
+	}
+
+	return account.Process(&acc)
 }

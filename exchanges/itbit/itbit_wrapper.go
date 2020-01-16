@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -240,8 +241,8 @@ func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies
-func (i *ItBit) GetAccountInfo() (exchange.AccountInfo, error) {
-	var info exchange.AccountInfo
+func (i *ItBit) GetAccountInfo() (account.Holdings, error) {
+	var info account.Holdings
 	info.Exchange = i.Name
 
 	wallets, err := i.GetWallets(url.Values{})
@@ -267,17 +268,17 @@ func (i *ItBit) GetAccountInfo() (exchange.AccountInfo, error) {
 		}
 	}
 
-	var fullBalance []exchange.AccountCurrencyInfo
+	var fullBalance []account.Balance
 	for key := range amounts {
-		fullBalance = append(fullBalance, exchange.AccountCurrencyInfo{
+		fullBalance = append(fullBalance, account.Balance{
 			CurrencyName: currency.NewCode(key),
 			TotalValue:   amounts[key].TotalValue,
 			Hold:         amounts[key].Hold,
 		})
 	}
 
-	info.Accounts = append(info.Accounts, exchange.Account{
-		Currencies: fullBalance,
+	info.Accounts = append(info.Accounts, account.SubAccount{
+		Currency: fullBalance,
 	})
 
 	return info, nil
@@ -546,4 +547,18 @@ func (i *ItBit) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, er
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (i *ItBit) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (i *ItBit) ValidateCredentials() error {
+	acc, err := i.GetAccountInfo()
+	if err != nil {
+		i.API.AuthenticatedSupport = false
+		i.API.AuthenticatedWebsocketSupport = false
+		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
+			i.Name)
+	}
+
+	return account.Process(&acc)
 }

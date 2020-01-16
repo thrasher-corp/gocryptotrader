@@ -2,6 +2,7 @@ package bittrex
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -197,25 +199,25 @@ func (b *Bittrex) UpdateTradablePairs(forceUpdate bool) error {
 
 // GetAccountInfo Retrieves balances for all enabled currencies for the
 // Bittrex exchange
-func (b *Bittrex) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
+func (b *Bittrex) GetAccountInfo() (account.Holdings, error) {
+	var response account.Holdings
 	response.Exchange = b.Name
 	accountBalance, err := b.GetAccountBalances()
 	if err != nil {
 		return response, err
 	}
 
-	var currencies []exchange.AccountCurrencyInfo
+	var currencies []account.Balance
 	for i := 0; i < len(accountBalance.Result); i++ {
-		var exchangeCurrency exchange.AccountCurrencyInfo
+		var exchangeCurrency account.Balance
 		exchangeCurrency.CurrencyName = currency.NewCode(accountBalance.Result[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance.Result[i].Balance
 		exchangeCurrency.Hold = accountBalance.Result[i].Balance - accountBalance.Result[i].Available
 		currencies = append(currencies, exchangeCurrency)
 	}
 
-	response.Accounts = append(response.Accounts, exchange.Account{
-		Currencies: currencies,
+	response.Accounts = append(response.Accounts, account.SubAccount{
+		Currency: currencies,
 	})
 
 	return response, nil
@@ -560,4 +562,18 @@ func (b *Bittrex) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, 
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (b *Bittrex) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (b *Bittrex) ValidateCredentials() error {
+	acc, err := b.GetAccountInfo()
+	if err != nil {
+		b.API.AuthenticatedSupport = false
+		b.API.AuthenticatedWebsocketSupport = false
+		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
+			b.Name)
+	}
+
+	return account.Process(&acc)
 }

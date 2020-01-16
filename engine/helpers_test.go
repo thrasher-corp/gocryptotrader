@@ -7,7 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
@@ -453,13 +453,13 @@ func TestGetSpecificTicker(t *testing.T) {
 func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 	SetupTestHelpers(t)
 
-	var exchangeInfo []exchange.AccountInfo
-	var info exchange.AccountInfo
+	var exchangeInfo []account.Holdings
+	var info account.Holdings
 
 	info.Exchange = "Bitfinex"
 	info.Accounts = append(info.Accounts,
-		exchange.Account{
-			Currencies: []exchange.AccountCurrencyInfo{
+		account.SubAccount{
+			Currency: []account.Balance{
 				{
 					CurrencyName: currency.BTC,
 					TotalValue:   100,
@@ -472,8 +472,8 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 
 	info.Exchange = "Bitstamp"
 	info.Accounts = append(info.Accounts,
-		exchange.Account{
-			Currencies: []exchange.AccountCurrencyInfo{
+		account.SubAccount{
+			Currency: []account.Balance{
 				{
 					CurrencyName: currency.LTC,
 					TotalValue:   100,
@@ -507,12 +507,12 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 func TestGetAccountCurrencyInfoByExchangeName(t *testing.T) {
 	SetupTestHelpers(t)
 
-	var exchangeInfo []exchange.AccountInfo
-	var info exchange.AccountInfo
+	var exchangeInfo []account.Holdings
+	var info account.Holdings
 	info.Exchange = "Bitfinex"
 	info.Accounts = append(info.Accounts,
-		exchange.Account{
-			Currencies: []exchange.AccountCurrencyInfo{
+		account.SubAccount{
+			Currency: []account.Balance{
 				{
 					CurrencyName: currency.BTC,
 					TotalValue:   100,

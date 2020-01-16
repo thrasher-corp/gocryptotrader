@@ -2,6 +2,7 @@ package alphapoint
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -87,26 +89,26 @@ func (a *Alphapoint) UpdateTradablePairs(forceUpdate bool) error {
 
 // GetAccountInfo retrieves balances for all enabled currencies on the
 // Alphapoint exchange
-func (a *Alphapoint) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
+func (a *Alphapoint) GetAccountInfo() (account.Holdings, error) {
+	var response account.Holdings
 	response.Exchange = a.Name
-	account, err := a.GetAccountInformation()
+	acc, err := a.GetAccountInformation()
 	if err != nil {
 		return response, err
 	}
 
-	var currencies []exchange.AccountCurrencyInfo
-	for i := 0; i < len(account.Currencies); i++ {
-		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = currency.NewCode(account.Currencies[i].Name)
-		exchangeCurrency.TotalValue = float64(account.Currencies[i].Balance)
-		exchangeCurrency.Hold = float64(account.Currencies[i].Hold)
+	var balances []account.Balance
+	for i := 0; i < len(acc.Currencies); i++ {
+		var balance account.Balance
+		balance.CurrencyName = currency.NewCode(acc.Currencies[i].Name)
+		balance.TotalValue = float64(acc.Currencies[i].Balance)
+		balance.Hold = float64(acc.Currencies[i].Hold)
 
-		currencies = append(currencies, exchangeCurrency)
+		balances = append(balances, balance)
 	}
 
-	response.Accounts = append(response.Accounts, exchange.Account{
-		Currencies: currencies,
+	response.Accounts = append(response.Accounts, account.SubAccount{
+		Currency: balances,
 	})
 
 	return response, nil
@@ -411,4 +413,18 @@ func (a *Alphapoint) GetSubscriptions() ([]wshandler.WebsocketChannelSubscriptio
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (a *Alphapoint) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (a *Alphapoint) ValidateCredentials() error {
+	acc, err := a.GetAccountInfo()
+	if err != nil {
+		a.API.AuthenticatedSupport = false
+		a.API.AuthenticatedWebsocketSupport = false
+		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
+			a.Name)
+	}
+
+	return account.Process(&acc)
 }

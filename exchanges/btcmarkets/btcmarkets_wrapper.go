@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -315,23 +316,23 @@ func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*or
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies
-func (b *BTCMarkets) GetAccountInfo() (exchange.AccountInfo, error) {
-	var resp exchange.AccountInfo
+func (b *BTCMarkets) GetAccountInfo() (account.Holdings, error) {
+	var resp account.Holdings
 	data, err := b.GetAccountBalance()
 	if err != nil {
 		return resp, err
 	}
-	var account exchange.Account
+	var acc account.SubAccount
 	for key := range data {
 		c := currency.NewCode(data[key].AssetName)
 		hold := data[key].Locked
 		total := data[key].Balance
-		account.Currencies = append(account.Currencies,
-			exchange.AccountCurrencyInfo{CurrencyName: c,
+		acc.Currency = append(acc.Currency,
+			account.Balance{CurrencyName: c,
 				TotalValue: total,
 				Hold:       hold})
 	}
-	resp.Accounts = append(resp.Accounts, account)
+	resp.Accounts = append(resp.Accounts, acc)
 	resp.Exchange = b.Name
 	return resp, nil
 }
@@ -687,4 +688,18 @@ func (b *BTCMarkets) GetSubscriptions() ([]wshandler.WebsocketChannelSubscriptio
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (b *BTCMarkets) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (b *BTCMarkets) ValidateCredentials() error {
+	acc, err := b.GetAccountInfo()
+	if err != nil {
+		b.API.AuthenticatedSupport = false
+		b.API.AuthenticatedWebsocketSupport = false
+		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
+			b.Name)
+	}
+
+	return account.Process(&acc)
 }

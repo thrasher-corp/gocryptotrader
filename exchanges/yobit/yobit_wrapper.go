@@ -2,6 +2,7 @@ package yobit
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -269,17 +271,17 @@ func (y *Yobit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
 // Yobit exchange
-func (y *Yobit) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
+func (y *Yobit) GetAccountInfo() (account.Holdings, error) {
+	var response account.Holdings
 	response.Exchange = y.Name
 	accountBalance, err := y.GetAccountInformation()
 	if err != nil {
 		return response, err
 	}
 
-	var currencies []exchange.AccountCurrencyInfo
+	var currencies []account.Balance
 	for x, y := range accountBalance.FundsInclOrders {
-		var exchangeCurrency exchange.AccountCurrencyInfo
+		var exchangeCurrency account.Balance
 		exchangeCurrency.CurrencyName = currency.NewCode(x)
 		exchangeCurrency.TotalValue = y
 		exchangeCurrency.Hold = 0
@@ -292,8 +294,8 @@ func (y *Yobit) GetAccountInfo() (exchange.AccountInfo, error) {
 		currencies = append(currencies, exchangeCurrency)
 	}
 
-	response.Accounts = append(response.Accounts, exchange.Account{
-		Currencies: currencies,
+	response.Accounts = append(response.Accounts, account.SubAccount{
+		Currency: currencies,
 	})
 
 	return response, nil
@@ -539,4 +541,18 @@ func (y *Yobit) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, er
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (y *Yobit) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (y *Yobit) ValidateCredentials() error {
+	acc, err := y.GetAccountInfo()
+	if err != nil {
+		y.API.AuthenticatedSupport = false
+		y.API.AuthenticatedWebsocketSupport = false
+		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
+			y.Name)
+	}
+
+	return account.Process(&acc)
 }
