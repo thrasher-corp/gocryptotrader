@@ -30,13 +30,13 @@ func openDbConnection(driver string) (err error) {
 	if driver == database.DBPostgreSQL {
 		dbConn, err = dbPSQL.Connect()
 		if err != nil {
-			return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
+			return fmt.Errorf("database failed to connect: %v, some features that utilise a database will be unavailable", err)
 		}
 		return nil
 	} else if driver == database.DBSQLite || driver == database.DBSQLite3 {
 		dbConn, err = dbsqlite3.Connect()
 		if err != nil {
-			return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
+			return fmt.Errorf("database failed to connect: %v, some features that utilise a database will be unavailable", err)
 		}
 		return nil
 	}
@@ -48,24 +48,16 @@ func main() {
 	fmt.Println(core.Copyright)
 	fmt.Println()
 
-	defaultPath, err := config.GetFilePath("")
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
 	flag.StringVar(&command, "command", "", "command to run status|up|up-by-one|up-to|down|create")
 	flag.StringVar(&args, "args", "", "arguments to pass to goose")
-
-	flag.StringVar(&configFile, "config", defaultPath, "config file to load")
+	flag.StringVar(&configFile, "config", config.DefaultFilePath(), "config file to load")
 	flag.StringVar(&defaultDataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
 	flag.StringVar(&migrationDir, "migrationdir", database.MigrationDir, "override migration folder")
 
 	flag.Parse()
 
-	conf := config.GetConfig()
-
-	err = conf.LoadConfig(configFile, true)
+	var conf config.Config
+	err := conf.LoadConfig(configFile, true)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -75,6 +67,7 @@ func main() {
 		fmt.Println("Database support is disabled")
 		os.Exit(1)
 	}
+
 	err = openDbConnection(conf.Database.Driver)
 	if err != nil {
 		fmt.Println(err)

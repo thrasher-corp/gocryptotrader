@@ -408,8 +408,8 @@ func (b *Bittrex) GetWithdrawalHistory(currency string) (WithdrawalHistory, erro
 
 // GetDepositHistory is used to retrieve your deposit history. If currency is
 // is omitted it will return the entire deposit history
-func (b *Bittrex) GetDepositHistory(currency string) (WithdrawalHistory, error) {
-	var history WithdrawalHistory
+func (b *Bittrex) GetDepositHistory(currency string) (DepositHistory, error) {
+	var history DepositHistory
 	values := url.Values{}
 
 	if !(currency == "" || currency == " ") {

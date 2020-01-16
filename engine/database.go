@@ -19,18 +19,25 @@ var (
 )
 
 type databaseManager struct {
-	running  atomic.Value
+	started  int32
+	stopped  int32
 	shutdown chan struct{}
 }
 
 func (a *databaseManager) Started() bool {
-	return a.running.Load() == true
+	return atomic.LoadInt32(&a.started) == 1
 }
 
 func (a *databaseManager) Start() (err error) {
-	if a.Started() {
+	if atomic.AddInt32(&a.started, 1) != 1 {
 		return errors.New("database manager already started")
 	}
+
+	defer func() {
+		if err != nil {
+			atomic.CompareAndSwapInt32(&a.started, 1, 0)
+		}
+	}()
 
 	log.Debugln(log.DatabaseMgr, "Database manager starting...")
 
@@ -71,11 +78,13 @@ func (a *databaseManager) Start() (err error) {
 }
 
 func (a *databaseManager) Stop() error {
-	if !a.Started() {
-		return errors.New("database manager already stopped")
+	if atomic.LoadInt32(&a.started) == 0 {
+		return errors.New("database manager not started")
 	}
 
-	log.Debugln(log.DatabaseMgr, "Database manager shutting down...")
+	if atomic.AddInt32(&a.stopped, 1) != 1 {
+		return errors.New("database manager is already stopping")
+	}
 
 	err := dbConn.SQL.Close()
 	if err != nil {
@@ -91,11 +100,11 @@ func (a *databaseManager) run() {
 	Bot.ServicesWG.Add(1)
 
 	t := time.NewTicker(time.Second * 2)
-	a.running.Store(true)
 
 	defer func() {
 		t.Stop()
-		a.running.Store(false)
+		atomic.CompareAndSwapInt32(&a.stopped, 1, 0)
+		atomic.CompareAndSwapInt32(&a.started, 1, 0)
 
 		Bot.ServicesWG.Done()
 
@@ -107,7 +116,7 @@ func (a *databaseManager) run() {
 		case <-a.shutdown:
 			return
 		case <-t.C:
-			_, err :=withdraw.EventByUUID("27aa440e-7bf4-4340-904c-c3f9bce19d9f")
+			_, err := withdraw.EventByUUID("27aa440e-7bf4-4340-904c-c3f9bce19d9f")
 			if err != nil {
 				fmt.Println(err)
 			}
