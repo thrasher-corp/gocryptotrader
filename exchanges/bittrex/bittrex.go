@@ -64,7 +64,7 @@ type Bittrex struct {
 }
 
 func (b *Bittrex) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetMarkets is used to get the open and available trading markets at Bittrex

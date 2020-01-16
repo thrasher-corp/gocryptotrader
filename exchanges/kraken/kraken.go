@@ -65,7 +65,7 @@ type Kraken struct {
 }
 
 func (k *Kraken) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetServerTime returns current server time

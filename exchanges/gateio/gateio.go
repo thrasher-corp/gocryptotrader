@@ -49,7 +49,7 @@ type Gateio struct {
 }
 
 func (g *Gateio) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetSymbols returns all supported symbols

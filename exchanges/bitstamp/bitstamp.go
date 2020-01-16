@@ -65,7 +65,7 @@ type Bitstamp struct {
 }
 
 func (b *Bitstamp) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetFee returns an estimate of fee based on type of transaction

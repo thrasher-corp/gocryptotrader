@@ -23,7 +23,7 @@ type Bitmex struct {
 }
 
 func (b *Bitmex) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }
 
 const (

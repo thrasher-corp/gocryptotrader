@@ -72,7 +72,7 @@ type Bitflyer struct {
 }
 
 func (b *Bitflyer) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetLatestBlockCA returns the latest block information from bitflyer chain

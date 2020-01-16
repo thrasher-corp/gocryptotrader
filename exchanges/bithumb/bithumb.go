@@ -57,7 +57,7 @@ type Bithumb struct {
 }
 
 func (b *Bithumb) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetTradablePairs returns a list of tradable currencies

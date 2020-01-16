@@ -25,7 +25,7 @@ type BTSE struct {
 }
 
 func (b *BTSE) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }
 
 const (

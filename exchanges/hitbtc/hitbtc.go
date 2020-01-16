@@ -52,7 +52,7 @@ type HitBTC struct {
 }
 
 func (h *HitBTC) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }
 
 // Public Market Data

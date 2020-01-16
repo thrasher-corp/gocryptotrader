@@ -44,7 +44,7 @@ type Yobit struct {
 }
 
 func (y *Yobit) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetInfo returns the Yobit info

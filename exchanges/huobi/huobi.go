@@ -71,7 +71,7 @@ type HUOBI struct {
 }
 
 func (h *HUOBI) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetSpotKline returns kline data

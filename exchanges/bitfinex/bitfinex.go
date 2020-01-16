@@ -92,7 +92,7 @@ type Bitfinex struct {
 }
 
 func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetPlatformStatus returns the Bifinex platform status

@@ -83,7 +83,7 @@ type BTCMarkets struct {
 }
 
 func (b *BTCMarkets) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetMarkets returns the BTCMarkets instruments

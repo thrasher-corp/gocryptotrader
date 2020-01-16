@@ -57,7 +57,7 @@ type COINUT struct {
 }
 
 func (c *COINUT) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }
 
 // SeedInstruments seeds the instrument map

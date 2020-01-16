@@ -49,7 +49,7 @@ type ZB struct {
 }
 
 func (z *ZB) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }
 
 // SpotNewOrder submits an order to ZB

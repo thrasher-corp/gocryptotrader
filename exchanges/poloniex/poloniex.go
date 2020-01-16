@@ -61,7 +61,7 @@ type Poloniex struct {
 }
 
 func (p *Poloniex) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetTicker returns current ticker information

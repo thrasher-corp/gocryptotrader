@@ -73,7 +73,7 @@ type Binance struct {
 }
 
 func (b *Binance) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetExchangeInfo returns exchange information. Check binance_types for more

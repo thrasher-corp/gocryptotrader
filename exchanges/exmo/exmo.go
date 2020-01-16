@@ -50,7 +50,7 @@ type EXMO struct {
 }
 
 func (e *EXMO) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetTrades returns the trades for a symbol or symbols

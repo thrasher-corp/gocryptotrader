@@ -42,7 +42,7 @@ type LakeBTC struct {
 }
 
 func (l *LakeBTC) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetTicker returns the current ticker from lakeBTC
