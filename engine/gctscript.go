@@ -83,7 +83,11 @@ func (g *gctScriptManager) autoLoad() {
 				Bot.Config.GCTScript.AutoLoad[x])
 			continue
 		}
-		scriptPath := filepath.Join(vm.ScriptPath, Bot.Config.GCTScript.AutoLoad[x]+".gct")
+		var name = Bot.Config.GCTScript.AutoLoad[x]
+		if filepath.Ext(name) != ".gct" {
+			name += ".gct"
+		}
+		scriptPath := filepath.Join(vm.ScriptPath, name)
 		err := temp.Load(scriptPath)
 		if err != nil {
 			log.Errorf(log.GCTScriptMgr, "%v failed to load: %v", filepath.Base(scriptPath), err)

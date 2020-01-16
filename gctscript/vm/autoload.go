@@ -10,6 +10,9 @@ import (
 
 // Autoload remove entry from autoload slice
 func Autoload(name string, remove bool) error {
+	if filepath.Ext(name) != ".gct" {
+		name += ".gct"
+	}
 	if remove {
 		for x := range GCTScriptConfig.AutoLoad {
 			if GCTScriptConfig.AutoLoad[x] != name {
@@ -24,11 +27,7 @@ func Autoload(name string, remove bool) error {
 		return fmt.Errorf("%v - not found", name)
 	}
 
-	var scriptNameWithExtension string
-	if name[0:4] != ".gct" {
-		scriptNameWithExtension = name + ".gct"
-	}
-	script := filepath.Join(ScriptPath, scriptNameWithExtension)
+	script := filepath.Join(ScriptPath, name)
 	_, err := os.Stat(script)
 	if err != nil {
 		if os.IsNotExist(err) {
