@@ -32,7 +32,7 @@ func Event(id, name, path string, hash null.String, data null.Bytes, executionTy
 		query := modelSQLite.ScriptWhere.ScriptID.EQ(id)
 		f, errQry := modelSQLite.Scripts(query).Exists(ctx, tx)
 		if errQry != nil {
-			log.Errorf(log.Global, "query failed: %v", err)
+			log.Errorf(log.Global, "Query failed: %v", err)
 			err = tx.Rollback()
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
@@ -55,7 +55,7 @@ func Event(id, name, path string, hash null.String, data null.Bytes, executionTy
 			tempEvent.ScriptHash = hash
 			err = tempEvent.Insert(ctx, tx, boil.Infer())
 			if err != nil {
-				log.Errorf(log.Global, "Event insert failed: %v", err)
+				log.Errorf(log.DatabaseMgr, "Event insert failed: %v", err)
 				err = tx.Rollback()
 				if err != nil {
 					log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)

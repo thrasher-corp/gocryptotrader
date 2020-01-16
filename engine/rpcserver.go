@@ -52,7 +52,7 @@ type RPCServer struct{}
 func authenticateClient(ctx context.Context) (context.Context, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return ctx, fmt.Errorf("unable to archive metadata")
+		return ctx, fmt.Errorf("unable to extract metadata")
 	}
 
 	authStr, ok := md["authorization"]
@@ -1412,7 +1412,7 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 		if err != nil {
 			errRemove := os.Remove(fPath)
 			if errRemove != nil {
-				log.Errorf(log.GCTScriptMgr, "Failed to remove file %v, manual deletion required", filepath.Base(fPath))
+				log.Errorf(log.GCTScriptMgr, "Failed to remove file %v, manual deletion required: %v", filepath.Base(fPath), errRemove)
 			}
 			return &gctrpc.GCTScriptGenericResponse{Status: ErrScriptFailedValidation, Data: err.Error()}, nil
 		}
