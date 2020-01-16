@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-const scriptName string = "1D01TH0RS3"
+const scriptName string = "1D01TH0RS3.gct"
 
 var (
 	GCTConfig = &Config{
