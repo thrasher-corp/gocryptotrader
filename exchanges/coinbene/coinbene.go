@@ -106,7 +106,7 @@ const (
 	cancelOrdersBatchSpotReqRate     = 3
 
 	// Rate limit functionality
-	contractOrderbook request.Functionality = iota
+	contractOrderbook request.EndpointLimit = iota
 	contractTickers
 	contractKline
 	contractTrades
@@ -1167,7 +1167,7 @@ func (c *Coinbene) GetSwapFundingRates(pageNum, pageSize int) ([]SwapFundingRate
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (c *Coinbene) SendHTTPRequest(path string, f request.Functionality, result interface{}) error {
+func (c *Coinbene) SendHTTPRequest(path string, f request.EndpointLimit, result interface{}) error {
 	var resp json.RawMessage
 	errCap := struct {
 		Code    int    `json:"code"`
@@ -1196,7 +1196,7 @@ func (c *Coinbene) SendHTTPRequest(path string, f request.Functionality, result 
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
 func (c *Coinbene) SendAuthHTTPRequest(method, path, epPath string, isSwap bool,
-	params, result interface{}, f request.Functionality) error {
+	params, result interface{}, f request.EndpointLimit) error {
 	if !c.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			c.Name)

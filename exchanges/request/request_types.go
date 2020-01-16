@@ -51,5 +51,5 @@ type Item struct {
 	HTTPDebugging bool
 	HTTPRecording bool
 	IsReserved    bool
-	Endpoint      Functionality
+	Endpoint      EndpointLimit
 }

@@ -490,7 +490,7 @@ func (b *Binance) SendHTTPRequest(path string, result interface{}) error {
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
-func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, f request.Functionality, result interface{}) error {
+func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, f request.EndpointLimit, result interface{}) error {
 	if !b.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
 	}

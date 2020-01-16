@@ -48,7 +48,7 @@ const (
 	hitbtcTradingReqRate    = 300
 	hitbtcAllOthers         = 10
 
-	marketRequests request.Functionality = iota
+	marketRequests request.EndpointLimit = iota
 	tradingRequests
 	otherRequests
 )
@@ -552,7 +552,7 @@ func (h *HitBTC) SendHTTPRequest(path string, result interface{}) error {
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated http request
-func (h *HitBTC) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Values, f request.Functionality, result interface{}) error {
+func (h *HitBTC) SendAuthenticatedHTTPRequest(method, endpoint string, values url.Values, f request.EndpointLimit, result interface{}) error {
 	if !h.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			h.Name)

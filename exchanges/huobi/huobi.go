@@ -74,7 +74,7 @@ const (
 	huobiSwapAuthRequestRate   = 30
 	huobiSwapUnauthRequestRate = 60
 
-	huobiFuturesAuth request.Functionality = iota
+	huobiFuturesAuth request.EndpointLimit = iota
 	huobiFuturesUnAuth
 	huobiFuturesTransfer
 	huobiSwapAuth

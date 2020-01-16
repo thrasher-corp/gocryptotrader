@@ -58,7 +58,7 @@ const (
 	btcmarketsWithdrawLimit        = 10
 	btcmarketsCreateNewReportLimit = 1
 
-	orderFunc request.Functionality = iota
+	orderFunc request.EndpointLimit = iota
 	batchFunc
 	withdrawFunc
 	newReportFunc
@@ -748,7 +748,7 @@ func (b *BTCMarkets) SendHTTPRequest(path string, result interface{}) error {
 }
 
 // SendAuthenticatedRequest sends an authenticated HTTP request
-func (b *BTCMarkets) SendAuthenticatedRequest(method, path string, data, result interface{}, f request.Functionality) (err error) {
+func (b *BTCMarkets) SendAuthenticatedRequest(method, path string, data, result interface{}, f request.EndpointLimit) (err error) {
 	if !b.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			b.Name)

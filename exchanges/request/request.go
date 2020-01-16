@@ -242,15 +242,3 @@ func (r *Requester) SetProxy(p *url.URL) error {
 	}
 	return nil
 }
-
-// DisableRateLimit disables rate limiting on the requester side so it can be
-// handled by the work management system
-func (r *Requester) DisableRateLimit() {
-	r.DisableRateLimiter = true
-}
-
-// EnableRateLimit enables rate limiting on the requester side so it can rate
-// limit calls
-func (r *Requester) EnableRateLimit() {
-	r.DisableRateLimiter = false
-}

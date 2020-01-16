@@ -8,8 +8,7 @@ import (
 
 // Const here define individual functionality sub types for rate limiting
 const (
-	Unset Functionality = iota
-	Global
+	Unset EndpointLimit = iota
 	Auth
 	UnAuth
 )
@@ -21,27 +20,27 @@ type BasicLimit struct {
 }
 
 // Limit executes a single rate limit set by NewRateLimit
-func (b *BasicLimit) Limit(_ Functionality) error {
+func (b *BasicLimit) Limit(_ EndpointLimit) error {
 	time.Sleep(b.r.Reserve().Delay())
 	return nil
 }
 
-// Functionality defines individual endpoint rate limits that are set when
+// EndpointLimit defines individual endpoint rate limits that are set when
 // New is called.
-type Functionality int
+type EndpointLimit int
 
 // Limiter interface groups rate limit functionality defined in the REST
 // wrapper for extended rate limiting configuration i.e. Shells of rate
 // limits with a global rate for sub rates.
 type Limiter interface {
-	Limit(Functionality) error
+	Limit(EndpointLimit) error
 }
 
 // NewRateLimit creates a new RateLimit based of time interval and how many
 // actions allowed and breaks it down to an actions-per-second basis -- Burst
 // rate is kept as one as this is not supported for out-bound requests.
 func NewRateLimit(interval time.Duration, actions int) *rate.Limiter {
-	if actions == 0 || interval == 0 {
+	if actions <= 0 || interval <= 0 {
 		// Returns an un-restricted rate limiter
 		return rate.NewLimiter(rate.Inf, 1)
 	}
@@ -58,13 +57,13 @@ func NewBasicRateLimit(interval time.Duration, actions int) Limiter {
 }
 
 // InitiateRateLimit sleeps for designated end point rate limits
-func (r *Requester) InitiateRateLimit(f Functionality) error {
+func (r *Requester) InitiateRateLimit(e EndpointLimit) error {
 	if r.DisableRateLimiter {
 		return nil
 	}
 
 	if r.Limiter != nil {
-		return r.Limiter.Limit(f)
+		return r.Limiter.Limit(e)
 	}
 
 	return nil

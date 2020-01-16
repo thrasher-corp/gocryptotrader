@@ -122,7 +122,7 @@ type RateLimit struct {
 }
 
 // Limit limits requests
-func (r *RateLimit) Limit(f request.Functionality) error {
+func (r *RateLimit) Limit(f request.EndpointLimit) error {
 	if f == request.Auth {
 		time.Sleep(r.Auth.Reserve().Delay())
 		return nil

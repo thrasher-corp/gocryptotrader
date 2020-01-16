@@ -203,7 +203,7 @@ type RateLimit struct {
 }
 
 // Limit limits outbound requests
-func (r *RateLimit) Limit(f request.Functionality) error {
+func (r *RateLimit) Limit(f request.EndpointLimit) error {
 	switch f {
 	case contractOrderbook:
 		time.Sleep(r.ContractOrderbook.Reserve().Delay())

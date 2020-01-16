@@ -133,7 +133,7 @@ type RateLimit struct {
 }
 
 // Limit executes rate limiting functionality for Binance
-func (r *RateLimit) Limit(f request.Functionality) error {
+func (r *RateLimit) Limit(f request.EndpointLimit) error {
 	if f == request.Auth {
 		time.Sleep(r.Orders.Reserve().Delay())
 		return nil

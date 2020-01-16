@@ -147,8 +147,8 @@ type GlobalLimitTest struct {
 	UnAuth *rate.Limiter
 }
 
-func (g *GlobalLimitTest) Limit(f Functionality) error {
-	switch f {
+func (g *GlobalLimitTest) Limit(e EndpointLimit) error {
+	switch e {
 	case Auth:
 		if g.Auth == nil {
 			return errors.New("auth rate not set")
@@ -162,7 +162,7 @@ func (g *GlobalLimitTest) Limit(f Functionality) error {
 		time.Sleep(g.UnAuth.Reserve().Delay())
 		return nil
 	default:
-		return fmt.Errorf("cannot execute functionality: %d not found", f)
+		return fmt.Errorf("cannot execute functionality: %d not found", e)
 	}
 }
 
@@ -271,7 +271,7 @@ func TestDoRequest(t *testing.T) {
 			var resp struct {
 				Response bool `json:"response"`
 			}
-			err = r.SendPayload(&Item{
+			payloadError := r.SendPayload(&Item{
 				Method:      http.MethodGet,
 				Path:        testURL + "/rate",
 				Result:      &resp,
@@ -279,7 +279,7 @@ func TestDoRequest(t *testing.T) {
 				Endpoint:    Auth,
 			})
 			wg.Done()
-			if err != nil {
+			if payloadError != nil {
 				log.Fatal(err)
 			}
 			if !resp.Response {
@@ -347,19 +347,19 @@ func TestSetProxy(t *testing.T) {
 	}
 }
 
-func TestEnableDisableRateLimiter(t *testing.T) {
-	t.Parallel()
+func TestBasicLimiter(t *testing.T) {
 	r := New("test",
 		new(http.Client),
-		&globalshell)
-
-	r.DisableRateLimit()
-	if !r.DisableRateLimiter {
-		t.Fatal(unexpected)
+		NewBasicRateLimit(time.Second, 1))
+	i := Item{
+		Path:   "http://www.google.com",
+		Method: http.MethodGet,
 	}
 
-	r.EnableRateLimit()
-	if r.DisableRateLimiter {
-		t.Fatal(unexpected)
+	_ = r.SendPayload(&i)
+	tn := time.Now()
+	_ = r.SendPayload(&i)
+	if time.Now().Sub(tn) < time.Millisecond*900 {
+		t.Error("rate limit issues")
 	}
 }
