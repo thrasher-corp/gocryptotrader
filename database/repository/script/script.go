@@ -32,7 +32,7 @@ func Event(id, name, path string, hash null.String, data null.Bytes, executionTy
 		query := modelSQLite.ScriptWhere.ScriptID.EQ(id)
 		f, errQry := modelSQLite.Scripts(query).Exists(ctx, tx)
 		if errQry != nil {
-			log.Errorf(log.DatabaseMgr, "Query failed: %v", err)
+			log.Errorf(log.DatabaseMgr, "Query failed: %v", errQry)
 			err = tx.Rollback()
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
