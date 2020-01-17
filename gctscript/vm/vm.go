@@ -243,7 +243,7 @@ func (vm *VM) event(status, executionType string, includeScriptHash bool) {
 	}
 	scriptData, err := vm.scriptData()
 	if err != nil {
-		log.Errorln(log.Global, "Hello")
+		log.Errorln(log.GCTScriptMgr, "Failed to retrieve scriptData: %v", err)
 	}
 	data.SetValid(scriptData)
 	scriptevent.Event(vm.getHash(true), vm.ShortName(), vm.Path, hash, data, executionType, status, time.Now())
