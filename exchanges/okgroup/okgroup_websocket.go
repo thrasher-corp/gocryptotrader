@@ -261,12 +261,35 @@ func (o *OKGroup) WsHandleData(wg *sync.WaitGroup) {
 func (o *OKGroup) WsParseResponse(respRaw []byte) {
 	var dataResponse WebsocketDataResponse
 	err := json.Unmarshal(respRaw, &dataResponse)
-	if err == nil && dataResponse.Table != "" {
-		if len(dataResponse.Data) > 0 {
-			o.WsHandleDataResponse(&dataResponse, respRaw)
+	if err != nil {
+		o.Websocket.ReadMessageErrors <- err
+		return
+	}
+	if len(dataResponse.Data) > 0 {
+		switch o.GetWsChannelWithoutOrderType(dataResponse.Table) {
+		case okGroupWsCandle60s, okGroupWsCandle180s, okGroupWsCandle300s,
+			okGroupWsCandle900s, okGroupWsCandle1800s, okGroupWsCandle3600s,
+			okGroupWsCandle7200s, okGroupWsCandle14400s, okGroupWsCandle21600s,
+			okGroupWsCandle43200s, okGroupWsCandle86400s, okGroupWsCandle604900s:
+			o.wsProcessCandles(respRaw)
+		case okGroupWsDepth, okGroupWsDepth5:
+			o.WsProcessOrderBook(respRaw)
+		case okGroupWsTicker:
+			o.wsProcessTickers(respRaw)
+		case okGroupWsTrade:
+			o.wsProcessTrades(respRaw)
+		case okGroupWsOrder:
+			o.wsProcessOrder(respRaw)
+		default:
+			log.Warnf(log.ExchangeSys,
+				"%s Unhandled channel: '%v'. Instrument '%v' Data '%s'",
+				o.Name,
+				dataResponse.Table,
+				respRaw)
 		}
 		return
 	}
+
 	var errorResponse WebsocketErrorResponse
 	err = json.Unmarshal(respRaw, &errorResponse)
 	if err == nil && errorResponse.ErrorCode > 0 {
@@ -293,27 +316,6 @@ func (o *OKGroup) WsParseResponse(respRaw []byte) {
 				eventResponse.Channel,
 				o.Name)
 		}
-	}
-}
-
-// WsHandleDataResponse classifies the WS response and sends to appropriate handler
-func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse, respRaw []byte) {
-	switch o.GetWsChannelWithoutOrderType(response.Table) {
-	case okGroupWsCandle60s, okGroupWsCandle180s, okGroupWsCandle300s,
-		okGroupWsCandle900s, okGroupWsCandle1800s, okGroupWsCandle3600s,
-		okGroupWsCandle7200s, okGroupWsCandle14400s, okGroupWsCandle21600s,
-		okGroupWsCandle43200s, okGroupWsCandle86400s, okGroupWsCandle604900s:
-		o.wsProcessCandles(response)
-	case okGroupWsDepth, okGroupWsDepth5:
-		o.WsProcessOrderBook(response)
-	case okGroupWsTicker:
-		o.wsProcessTickers(response)
-	case okGroupWsTrade:
-		o.wsProcessTrades(response)
-	case okGroupWsOrder:
-		o.wsProcessOrder(respRaw)
-	default:
-		logDataResponse(response, o.Name)
 	}
 }
 
@@ -391,21 +393,14 @@ func (o *OKGroup) wsProcessOrder(respRaw []byte) {
 	}
 }
 
-// logDataResponse will log the details of any websocket data event
-// where there is no websocket datahandler for it
-func logDataResponse(response *WebsocketDataResponse, exchangeName string) {
-	for i := range response.Data {
-		log.Warnf(log.ExchangeSys,
-			"%s Unhandled channel: '%v'. Instrument '%v' Timestamp '%v'",
-			exchangeName,
-			response.Table,
-			response.Data[i].InstrumentID,
-			response.Data[i].Timestamp)
-	}
-}
-
 // wsProcessTickers converts ticker data and sends it to the datahandler
-func (o *OKGroup) wsProcessTickers(response *WebsocketDataResponse) {
+func (o *OKGroup) wsProcessTickers(respRaw []byte) {
+	var response WebsocketTradeResponse
+	err := json.Unmarshal(respRaw, &response)
+	if err != nil {
+		o.Websocket.DataHandler <- err
+		return
+	}
 	for i := range response.Data {
 		a := o.GetAssetTypeFromTableName(response.Table)
 		var c currency.Pair
@@ -437,33 +432,50 @@ func (o *OKGroup) wsProcessTickers(response *WebsocketDataResponse) {
 }
 
 // wsProcessTrades converts trade data and sends it to the datahandler
-func (o *OKGroup) wsProcessTrades(response *WebsocketDataResponse) {
+func (o *OKGroup) wsProcessTrades(respRaw []byte) {
+	var response WebsocketTradeResponse
+	err := json.Unmarshal(respRaw, &response)
+	if err != nil {
+		o.Websocket.DataHandler <- err
+		return
+	}
 	for i := range response.Data {
-		a := o.GetAssetTypeFromTableName(response.Table)
-		var c currency.Pair
-		switch a {
-		case asset.Futures, asset.PerpetualSwap:
-			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
-			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1], f[2], delimiterUnderscore)
-		default:
-			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
-			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
-		}
-
-		o.Websocket.DataHandler <- wshandler.TradeData{
-			Amount:       response.Data[i].Size,
-			AssetType:    o.GetAssetTypeFromTableName(response.Table),
-			CurrencyPair: c,
-			Exchange:     o.Name,
-			Price:        response.Data[i].WebsocketTradeResponse.Price,
-			Side:         response.Data[i].Side,
-			Timestamp:    response.Data[i].Timestamp,
+		for j := range response.Data[i] {
+			a := o.GetAssetTypeFromTableName(response.Table)
+			var c currency.Pair
+			switch a {
+			case asset.Futures, asset.PerpetualSwap:
+				f := strings.Split(response.Data[i][j].InstrumentID, delimiterDash)
+				c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1], f[2], delimiterUnderscore)
+			default:
+				f := strings.Split(response.Data[i][j].InstrumentID, delimiterDash)
+				c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
+			}
+			ts, err := time.Parse("2006-01-02T15:04:05Z", response.Data[i][j].Timestamp)
+			if err != nil {
+				o.Websocket.DataHandler <- err
+			}
+			o.Websocket.DataHandler <- wshandler.TradeData{
+				Amount:       response.Data[i][j].Size,
+				AssetType:    o.GetAssetTypeFromTableName(response.Table),
+				CurrencyPair: c,
+				Exchange:     o.Name,
+				Price:        response.Data[i][j].Price,
+				Side:         response.Data[i][j].Side,
+				Timestamp:    ts,
+			}
 		}
 	}
 }
 
 // wsProcessCandles converts candle data and sends it to the data handler
-func (o *OKGroup) wsProcessCandles(response *WebsocketDataResponse) {
+func (o *OKGroup) wsProcessCandles(respRaw []byte) {
+	var response WebsocketCandleResponse
+	err := json.Unmarshal(respRaw, &response)
+	if err != nil {
+		o.Websocket.DataHandler <- err
+		return
+	}
 	for i := range response.Data {
 		a := o.GetAssetTypeFromTableName(response.Table)
 		var c currency.Pair
@@ -477,7 +489,7 @@ func (o *OKGroup) wsProcessCandles(response *WebsocketDataResponse) {
 		}
 
 		timeData, err := time.Parse(time.RFC3339Nano,
-			response.Data[i].WebsocketCandleResponse.Candle[0])
+			response.Data[i].Candle[0])
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%v Time data could not be parsed: %v",
