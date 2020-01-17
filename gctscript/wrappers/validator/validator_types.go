@@ -19,4 +19,5 @@ var (
 	errTestFailed = errors.New("test failed")
 )
 
+// Wrapper for validator interface
 type Wrapper struct{}
