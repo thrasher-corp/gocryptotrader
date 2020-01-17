@@ -1,6 +1,8 @@
 package vm
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"encoding/hex"
 	"io/ioutil"
@@ -239,7 +241,35 @@ func (vm *VM) event(status, executionType string, includeScriptHash bool) {
 	if includeScriptHash {
 		hash.SetValid(vm.getHash(false))
 	}
+	scriptData, err := vm.scriptData()
+	if err != nil {
+		log.Errorln(log.Global, "Hello")
+	}
+	data.SetValid(scriptData)
 	scriptevent.Event(vm.getHash(true), vm.ShortName(), vm.Path, hash, data, executionType, status, time.Now())
+}
+
+func (vm *VM) scriptData() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	w := zip.NewWriter(buf)
+
+	f, err := w.Create(vm.ShortName())
+	if err != nil {
+		return []byte{}, err
+	}
+	contents, err := vm.read()
+	if err != nil {
+		return []byte{}, err
+	}
+	_, err = f.Write(contents)
+	if err != nil {
+		return []byte{}, err
+	}
+	err = w.Close()
+	if err != nil {
+		return []byte{}, err
+	}
+	return buf.Bytes(), nil
 }
 
 func (vm *VM) getHash(includeFileName bool) string {

@@ -53,6 +53,7 @@ func Event(id, name, path string, hash null.String, data null.Bytes, executionTy
 			tempEvent.ScriptName = name
 			tempEvent.ScriptPath = path
 			tempEvent.ScriptHash = hash
+			tempEvent.ScriptData = data
 			err = tempEvent.Insert(ctx, tx, boil.Infer())
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "Event insert failed: %v", err)
@@ -87,8 +88,9 @@ func Event(id, name, path string, hash null.String, data null.Bytes, executionTy
 			ScriptName: name,
 			ScriptPath: path,
 			ScriptHash: hash,
+			ScriptData: data,
 		}
-		err = tempEvent.Upsert(ctx, tx, true, []string{"script_id"}, boil.Whitelist("last_executed_at"), boil.Infer())
+		err = tempEvent.Upsert(ctx, tx, true, []string{"script_id"}, boil.Whitelist("last_executed_at", "script_data"), boil.Infer())
 		if err != nil {
 			log.Errorf(log.DatabaseMgr, "Event insert failed: %v", err)
 			err = tx.Rollback()
