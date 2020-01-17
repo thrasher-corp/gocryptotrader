@@ -22,7 +22,6 @@ const (
 var (
 	MaxRequestJobs       = DefaultMaxRequestJobs
 	TimeoutRetryAttempts = DefaultTimeoutRetryAttempts
-	DisableRateLimiter   bool
 )
 
 // Requester struct for the request client

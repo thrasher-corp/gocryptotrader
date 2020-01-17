@@ -27,7 +27,6 @@ func New(name string, httpRequester *http.Client, l Limiter) *Requester {
 		Name:                 name,
 		timeoutRetryAttempts: TimeoutRetryAttempts,
 		timedLock:            timedmutex.NewTimedMutex(DefaultMutexLockTimeout),
-		DisableRateLimiter:   DisableRateLimiter,
 	}
 }
 
