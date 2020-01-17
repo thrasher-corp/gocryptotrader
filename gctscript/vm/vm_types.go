@@ -10,8 +10,6 @@ import (
 )
 
 const (
-	// AuditEventID table name to use for database table
-	AuditEventID = "gctscript"
 	// DefaultTimeoutValue default timeout value for virtual machines
 	DefaultTimeoutValue = 30 * time.Second
 	// DefaultMaxVirtualMachines max number of virtual machines that can be loaded at one time
@@ -32,8 +30,6 @@ const (
 	StatusSuccess = "success"
 	// StatusFailure text to display in script_event table when script execution fails
 	StatusFailure = "failure"
-	// StatusError text to display in script_event table when there was an error in execution
-	StatusError = "error"
 )
 
 var (

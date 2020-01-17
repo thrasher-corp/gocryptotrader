@@ -80,7 +80,7 @@ func (w Wrapper) Ticker(exch string, pair currency.Pair, item asset.Item) (*tick
 }
 
 // Pairs validator for test execution/scripts
-func (w Wrapper) Pairs(exch string, enabledOnly bool, item asset.Item) (*currency.Pairs, error) {
+func (w Wrapper) Pairs(exch string, _ bool, _ asset.Item) (*currency.Pairs, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
 	}
@@ -90,7 +90,7 @@ func (w Wrapper) Pairs(exch string, enabledOnly bool, item asset.Item) (*currenc
 }
 
 // QueryOrder validator for test execution/scripts
-func (w Wrapper) QueryOrder(exch, orderid string) (*order.Detail, error) {
+func (w Wrapper) QueryOrder(exch, _ string) (*order.Detail, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
 	}
@@ -125,7 +125,7 @@ func (w Wrapper) QueryOrder(exch, orderid string) (*order.Detail, error) {
 }
 
 // SubmitOrder validator for test execution/scripts
-func (w Wrapper) SubmitOrder(exch string, submit *order.Submit) (*order.SubmitResponse, error) {
+func (w Wrapper) SubmitOrder(exch string, _ *order.Submit) (*order.SubmitResponse, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
 	}
@@ -183,7 +183,7 @@ func (w Wrapper) AccountInformation(exch string) (*modules.AccountInfo, error) {
 }
 
 // DepositAddress validator for test execution/scripts
-func (w Wrapper) DepositAddress(exch string, currencyCode currency.Code) (string, error) {
+func (w Wrapper) DepositAddress(exch string, _ currency.Code) (string, error) {
 	if exch == exchError.String() {
 		return exch, errTestFailed
 	}
@@ -192,7 +192,7 @@ func (w Wrapper) DepositAddress(exch string, currencyCode currency.Code) (string
 }
 
 // WithdrawalCryptoFunds validator for test execution/scripts
-func (w Wrapper) WithdrawalCryptoFunds(exch string, request *withdraw.CryptoRequest) (out string, err error) {
+func (w Wrapper) WithdrawalCryptoFunds(exch string, _ *withdraw.CryptoRequest) (out string, err error) {
 	if exch == exchError.String() {
 		return exch, errTestFailed
 	}

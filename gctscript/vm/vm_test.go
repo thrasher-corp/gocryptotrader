@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	maxTestVirtualMachines     uint8         = 20
+	maxTestVirtualMachines     uint8         = 30
 	testVirtualMachineTimeout  time.Duration = 6000000
 	testVirtualMachineTimeout0 time.Duration = 0
 )
@@ -136,7 +136,6 @@ func TestVMWithRunner(t *testing.T) {
 		t.Fatal("expected VM count to increase")
 	}
 	VM.CompileAndRun()
-
 	err = VM.Shutdown()
 	if err != nil {
 		t.Fatal(err)
@@ -147,6 +146,7 @@ func TestVMWithRunner(t *testing.T) {
 }
 
 func TestShutdownAll(t *testing.T) {
+	GCTScriptConfig.Verbose = true
 	vmCount := len(AllVMs)
 	VM := New()
 	err := VM.Load(testScriptRunner)
