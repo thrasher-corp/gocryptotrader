@@ -4,15 +4,17 @@ import (
 	"log"
 	"os"
 	"testing"
-)
-
-var (
-	testExchangeData []ExchangeInfo
+	"reflect"
+	"fmt"
 )
 
 func TestMain(m *testing.M) {
 	var err error
-	testExchangeData, err = ReadFileData(testJSONFile)
+	configData, err = ReadFileData(jsonFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	testConfigData, err = ReadFileData(testJSONFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -21,7 +23,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestCheckExistingExchanges(t *testing.T) {
-	_, err := CheckExistingExchanges(testJSONFile, "Kraken")
+	_, err := CheckExistingExchanges(testJSONFile, "Kraken", testConfigData)
 	if err != nil {
 		t.Error(err)
 	}
@@ -49,14 +51,14 @@ func TestAdd(t *testing.T) {
 		Val:    "col-md-12",
 		RegExp: "col-md-12([\\s\\S]*?)clearfix",
 		Path:   "https://localbitcoins.com/api-docs/"}
-	err := Add(testJSONFile, "LocalBitcoins", htmlScrape, data.Path, data, true)
+	err := Add(testJSONFile, "LocalBitcoins", htmlScrape, data.Path, data, true, testConfigData)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestCheckUpdates(t *testing.T) {
-	err := CheckUpdates(testJSONFile)
+	err := CheckUpdates(testJSONFile, configData)
 	if err != nil {
 		t.Error(err)
 	}
@@ -309,9 +311,9 @@ func TestCreateNewCheck(t *testing.T) {
 
 func TestUpdate(t *testing.T) {
 	var exchCheck, updatedExch HTMLScrapingData
-	for x := range testExchangeData {
-		if testExchangeData[x].Name == "Exmo" {
-			exchCheck = *testExchangeData[x].Data.HTMLData
+	for x := range testConfigData.Exchanges {
+		if testConfigData.Exchanges[x].Name == "Exmo" {
+			exchCheck = *testConfigData.Exchanges[x].Data.HTMLData
 		}
 	}
 	info := ExchangeInfo{Name: "Exmo",
@@ -320,7 +322,7 @@ func TestUpdate(t *testing.T) {
 			Path: "https://exmo.com/en/api/"},
 		},
 	}
-	updatedExchs := Update("Exmo", testExchangeData, info)
+	updatedExchs := Update("Exmo", testConfigData.Exchanges, info)
 	for y := range updatedExchs {
 		if updatedExchs[y].Name == "Exmo" {
 			updatedExch = *updatedExchs[y].Data.HTMLData
@@ -332,7 +334,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestCheckMissingExchanges(t *testing.T) {
-	_, err := CheckMissingExchanges(testJSONFile)
+	_, err := CheckMissingExchanges(testJSONFile, testConfigData)
 	if err != nil {
 		t.Error(err)
 	}
@@ -360,27 +362,26 @@ func TestNameUpdates(t *testing.T) {
 }
 
 func TestUpdateTestFile(t *testing.T) {
-	var err error
-	exchangeData, err = ReadFileData(jsonFile)
+	err := UpdateTestFile(configData)
+	if err != nil {
+		t.Error(err)
+	}
+	realConf, err := ReadFileData(jsonFile)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = UpdateTestFile()
+	testConf, err := ReadFileData(testJSONFile)
 	if err != nil {
-		t.Error(err)
+		log.Fatal(err)
+	}
+	if !reflect.DeepEqual(realConf, testConf) {
+		t.Log("test file update failed")
 	}
 }
 
 func TestReadFileData(t *testing.T) {
 	_, err := ReadFileData(testJSONFile)
 	if err != nil {
-		t.Log(err)
-	}
-}
-
-func TestNewFileTest(t *testing.T) {
-	err := NewFileTest()
-	if err != nil {
-		t.Log(err)
+		t.Error(err)
 	}
 }
