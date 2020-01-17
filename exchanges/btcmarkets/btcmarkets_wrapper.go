@@ -21,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
-	"golang.org/x/time/rate"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -113,49 +112,13 @@ func (b *BTCMarkets) SetDefaults() {
 
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		&RateLimit{
-			Auth:            request.NewRateLimit(btcmarketsRateInterval, btcmarketsAuthLimit),
-			UnAuth:          request.NewRateLimit(btcmarketsRateInterval, btcmarketsUnauthLimit),
-			OrderPlacement:  request.NewRateLimit(btcmarketsRateInterval, btcmarketsOrderLimit),
-			BatchOrders:     request.NewRateLimit(btcmarketsRateInterval, btcmarketsBatchOrderLimit),
-			WithdrawRequest: request.NewRateLimit(btcmarketsRateInterval, btcmarketsWithdrawLimit),
-			CreateNewReport: request.NewRateLimit(btcmarketsRateInterval, btcmarketsCreateNewReportLimit),
-		})
+		SetRateLimit())
 
 	b.API.Endpoints.WebsocketURL = btcMarketsWSURL
 	b.Websocket = wshandler.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
-
-// RateLimit implements the request.Limiter interface
-type RateLimit struct {
-	Auth            *rate.Limiter
-	UnAuth          *rate.Limiter
-	OrderPlacement  *rate.Limiter
-	BatchOrders     *rate.Limiter
-	WithdrawRequest *rate.Limiter
-	CreateNewReport *rate.Limiter
-}
-
-// Limit limits the outbound requests
-func (r *RateLimit) Limit(f request.EndpointLimit) error {
-	switch f {
-	case request.Auth:
-		time.Sleep(r.Auth.Reserve().Delay())
-	case orderFunc:
-		time.Sleep(r.OrderPlacement.Reserve().Delay())
-	case batchFunc:
-		time.Sleep(r.BatchOrders.Reserve().Delay())
-	case withdrawFunc:
-		time.Sleep(r.WithdrawRequest.Reserve().Delay())
-	case newReportFunc:
-		time.Sleep(r.CreateNewReport.Reserve().Delay())
-	default:
-		time.Sleep(r.UnAuth.Reserve().Delay())
-	}
-	return nil
 }
 
 // Setup takes in an exchange configuration and sets all parameters

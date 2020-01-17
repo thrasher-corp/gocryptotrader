@@ -22,7 +22,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
-	"golang.org/x/time/rate"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -107,10 +106,7 @@ func (g *Gemini) SetDefaults() {
 
 	g.Requester = request.New(g.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		&RateLimit{
-			Auth:   request.NewRateLimit(geminiRateInterval, geminiAuthRate),
-			UnAuth: request.NewRateLimit(geminiRateInterval, geminiUnauthRate),
-		})
+		SetRateLimit())
 
 	g.API.Endpoints.URLDefault = geminiAPIURL
 	g.API.Endpoints.URL = g.API.Endpoints.URLDefault
@@ -119,22 +115,6 @@ func (g *Gemini) SetDefaults() {
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	g.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
-
-// RateLimit implements the request.Limiter interface
-type RateLimit struct {
-	Auth   *rate.Limiter
-	UnAuth *rate.Limiter
-}
-
-// Limit limits the endpoint functionality
-func (r *RateLimit) Limit(f request.EndpointLimit) error {
-	if f == request.Auth {
-		time.Sleep(r.Auth.Reserve().Delay())
-		return nil
-	}
-	time.Sleep(r.UnAuth.Reserve().Delay())
-	return nil
 }
 
 // Setup sets exchange configuration parameters

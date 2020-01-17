@@ -94,11 +94,6 @@ const (
 	bitmexEndpointUserWalletSummary     = "/user/walletSummary"
 	bitmexEndpointUserRequestWithdraw   = "/user/requestWithdrawal"
 
-	// rate limits
-	bitmexRateInterval = time.Minute
-	bitmexUnauthRate   = 30
-	bitmexAuthRate     = 60
-
 	// ContractPerpetual perpetual contract type
 	ContractPerpetual = iota
 	// ContractFutures futures contract type

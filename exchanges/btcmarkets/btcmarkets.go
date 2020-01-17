@@ -50,19 +50,6 @@ const (
 	btcMarketsReports        = "/reports"
 	btcMarketsBatchOrders    = "/batchorders"
 
-	btcmarketsRateInterval         = time.Second * 10
-	btcmarketsAuthLimit            = 50
-	btcmarketsUnauthLimit          = 50
-	btcmarketsOrderLimit           = 30
-	btcmarketsBatchOrderLimit      = 5
-	btcmarketsWithdrawLimit        = 10
-	btcmarketsCreateNewReportLimit = 1
-
-	orderFunc request.EndpointLimit = iota
-	batchFunc
-	withdrawFunc
-	newReportFunc
-
 	orderFailed             = "Failed"
 	orderPartiallyCancelled = "Partially Cancelled"
 	orderCancelled          = "Cancelled"

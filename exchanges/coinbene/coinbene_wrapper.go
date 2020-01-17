@@ -1,7 +1,6 @@
 package coinbene
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -21,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
-	"golang.org/x/time/rate"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -120,40 +118,7 @@ func (c *Coinbene) SetDefaults() {
 	}
 	c.Requester = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		&RateLimit{
-			ContractOrderbook:             request.NewRateLimit(contractRateInterval, orderbookContractReqRate),
-			ContractTickers:               request.NewRateLimit(contractRateInterval, tickersContractReqRate),
-			ContractKline:                 request.NewRateLimit(contractRateInterval, klineContractReqRate),
-			ContractTrades:                request.NewRateLimit(contractRateInterval, tradesContractReqRate),
-			ContractAccountInfo:           request.NewRateLimit(contractRateInterval, contractAccountInfoContractReqRate),
-			ContractPositionInfo:          request.NewRateLimit(contractRateInterval, positionInfoContractReqRate),
-			ContractPlaceOrder:            request.NewRateLimit(contractRateInterval, placeOrderContractReqRate),
-			ContractCancelOrder:           request.NewRateLimit(contractRateInterval, cancelOrderContractReqRate),
-			ContractGetOpenOrders:         request.NewRateLimit(contractRateInterval, getOpenOrdersContractReqRate),
-			ContractOpenOrdersByPage:      request.NewRateLimit(contractRateInterval, openOrdersByPageContractReqRate),
-			ContractGetOrderInfo:          request.NewRateLimit(contractRateInterval, getOrderInfoContractReqRate),
-			ContractGetClosedOrders:       request.NewRateLimit(contractRateInterval, getClosedOrdersContractReqRate),
-			ContractGetClosedOrdersbyPage: request.NewRateLimit(contractRateInterval, getClosedOrdersbyPageContractReqRate),
-			ContractCancelMultipleOrders:  request.NewRateLimit(contractRateInterval, cancelMultipleOrdersContractReqRate),
-			ContractGetOrderFills:         request.NewRateLimit(contractRateInterval, getOrderFillsContractReqRate),
-			ContractGetFundingRates:       request.NewRateLimit(contractRateInterval, getFundingRatesContractReqRate),
-			SpotPairs:                     request.NewRateLimit(spotRateInterval, getPairsSpotReqRate),
-			SpotPairInfo:                  request.NewRateLimit(spotRateInterval, getPairsInfoSpotReqRate),
-			SpotOrderbook:                 request.NewRateLimit(spotRateInterval, getOrderbookSpotReqRate),
-			SpotTickerList:                request.NewRateLimit(spotRateInterval, getTickerListSpotReqRate),
-			SpotSpecificTicker:            request.NewRateLimit(spotRateInterval, getSpecificTickerSpotReqRate),
-			SpotMarketTrades:              request.NewRateLimit(spotRateInterval, getMarketTradesSpotReqRate),
-			SpotAccountInfo:               request.NewRateLimit(spotRateInterval, getAccountInfoSpotReqRate),
-			SpotAccountAssetInfo:          request.NewRateLimit(spotRateInterval, queryAccountAssetInfoSpotReqRate),
-			SpotPlaceOrder:                request.NewRateLimit(spotRateInterval, placeOrderSpotReqRate),
-			SpotBatchOrder:                request.NewRateLimit(spotRateInterval, batchOrderSpotReqRate),
-			SpotQueryOpenOrders:           request.NewRateLimit(spotRateInterval, queryOpenOrdersSpotReqRate),
-			SpotQueryClosedOrders:         request.NewRateLimit(spotRateInterval, queryClosedOrdersSpotReqRate),
-			SpotQuerySpecficOrder:         request.NewRateLimit(spotRateInterval, querySpecficOrderSpotReqRate),
-			SpotQueryTradeFills:           request.NewRateLimit(spotRateInterval, queryTradeFillsSpotReqRate),
-			SpotCancelOrder:               request.NewRateLimit(spotRateInterval, cancelOrderSpotReqRate),
-			SpotCancelOrdersBatch:         request.NewRateLimit(spotRateInterval, cancelOrdersBatchSpotReqRate),
-		})
+		SetRateLimit())
 
 	c.API.Endpoints.URLDefault = coinbeneAPIURL
 	c.API.Endpoints.URL = c.API.Endpoints.URLDefault
@@ -162,121 +127,6 @@ func (c *Coinbene) SetDefaults() {
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
-
-// RateLimit implements the request.Limiter interface
-type RateLimit struct {
-	ContractOrderbook             *rate.Limiter
-	ContractTickers               *rate.Limiter
-	ContractKline                 *rate.Limiter
-	ContractTrades                *rate.Limiter
-	ContractAccountInfo           *rate.Limiter
-	ContractPositionInfo          *rate.Limiter
-	ContractPlaceOrder            *rate.Limiter
-	ContractCancelOrder           *rate.Limiter
-	ContractGetOpenOrders         *rate.Limiter
-	ContractOpenOrdersByPage      *rate.Limiter
-	ContractGetOrderInfo          *rate.Limiter
-	ContractGetClosedOrders       *rate.Limiter
-	ContractGetClosedOrdersbyPage *rate.Limiter
-	ContractCancelMultipleOrders  *rate.Limiter
-	ContractGetOrderFills         *rate.Limiter
-	ContractGetFundingRates       *rate.Limiter
-	SpotPairs                     *rate.Limiter
-	SpotPairInfo                  *rate.Limiter
-	SpotOrderbook                 *rate.Limiter
-	SpotTickerList                *rate.Limiter
-	SpotSpecificTicker            *rate.Limiter
-	SpotMarketTrades              *rate.Limiter
-	// spotKline        // Not implemented yet
-	// spotExchangeRate // Not implemented yet
-	SpotAccountInfo       *rate.Limiter
-	SpotAccountAssetInfo  *rate.Limiter
-	SpotPlaceOrder        *rate.Limiter
-	SpotBatchOrder        *rate.Limiter
-	SpotQueryOpenOrders   *rate.Limiter
-	SpotQueryClosedOrders *rate.Limiter
-	SpotQuerySpecficOrder *rate.Limiter
-	SpotQueryTradeFills   *rate.Limiter
-	SpotCancelOrder       *rate.Limiter
-	SpotCancelOrdersBatch *rate.Limiter
-}
-
-// Limit limits outbound requests
-func (r *RateLimit) Limit(f request.EndpointLimit) error {
-	switch f {
-	case contractOrderbook:
-		time.Sleep(r.ContractOrderbook.Reserve().Delay())
-	case contractTickers:
-		time.Sleep(r.ContractTickers.Reserve().Delay())
-	case contractKline:
-		time.Sleep(r.ContractKline.Reserve().Delay())
-	case contractTrades:
-		time.Sleep(r.ContractTrades.Reserve().Delay())
-	case contractAccountInfo:
-		time.Sleep(r.ContractAccountInfo.Reserve().Delay())
-	case contractPositionInfo:
-		time.Sleep(r.ContractPositionInfo.Reserve().Delay())
-	case contractPlaceOrder:
-		time.Sleep(r.ContractPlaceOrder.Reserve().Delay())
-	case contractCancelOrder:
-		time.Sleep(r.ContractCancelOrder.Reserve().Delay())
-	case contractGetOpenOrders:
-		time.Sleep(r.ContractGetOpenOrders.Reserve().Delay())
-	case contractOpenOrdersByPage:
-		time.Sleep(r.ContractOpenOrdersByPage.Reserve().Delay())
-	case contractGetOrderInfo:
-		time.Sleep(r.ContractGetOrderInfo.Reserve().Delay())
-	case contractGetClosedOrders:
-		time.Sleep(r.ContractGetClosedOrders.Reserve().Delay())
-	case contractGetClosedOrdersbyPage:
-		time.Sleep(r.ContractGetClosedOrdersbyPage.Reserve().Delay())
-	case contractCancelMultipleOrders:
-		time.Sleep(r.ContractCancelMultipleOrders.Reserve().Delay())
-	case contractGetOrderFills:
-		time.Sleep(r.ContractGetOrderFills.Reserve().Delay())
-	case contractGetFundingRates:
-		time.Sleep(r.ContractGetFundingRates.Reserve().Delay())
-	case spotPairs:
-		time.Sleep(r.SpotPairs.Reserve().Delay())
-	case spotPairInfo:
-		time.Sleep(r.SpotPairInfo.Reserve().Delay())
-	case spotOrderbook:
-		time.Sleep(r.SpotOrderbook.Reserve().Delay())
-	case spotTickerList:
-		time.Sleep(r.SpotTickerList.Reserve().Delay())
-	case spotSpecificTicker:
-		time.Sleep(r.SpotSpecificTicker.Reserve().Delay())
-	case spotMarketTrades:
-		time.Sleep(r.SpotMarketTrades.Reserve().Delay())
-	// case spotKline: // Not implemented yet
-	// 	time.Sleep(r.SpotKline.Reserve().Delay())
-	// case spotExchangeRate:
-	// 	time.Sleep(r.SpotExchangeRate.Reserve().Delay())
-	case spotAccountInfo:
-		time.Sleep(r.SpotAccountInfo.Reserve().Delay())
-	case spotAccountAssetInfo:
-		time.Sleep(r.SpotAccountAssetInfo.Reserve().Delay())
-	case spotPlaceOrder:
-		time.Sleep(r.SpotPlaceOrder.Reserve().Delay())
-	case spotBatchOrder:
-		time.Sleep(r.SpotBatchOrder.Reserve().Delay())
-	case spotQueryOpenOrders:
-		time.Sleep(r.SpotQueryOpenOrders.Reserve().Delay())
-	case spotQueryClosedOrders:
-		time.Sleep(r.SpotQueryClosedOrders.Reserve().Delay())
-	case spotQuerySpecficOrder:
-		time.Sleep(r.SpotQuerySpecficOrder.Reserve().Delay())
-	case spotQueryTradeFills:
-		time.Sleep(r.SpotQueryTradeFills.Reserve().Delay())
-	case spotCancelOrder:
-		time.Sleep(r.SpotCancelOrder.Reserve().Delay())
-	case spotCancelOrdersBatch:
-		time.Sleep(r.SpotCancelOrdersBatch.Reserve().Delay())
-	default:
-		return errors.New("rate limit error endpoint functionality not set")
-	}
-	return nil
 }
 
 // Setup takes in the supplied exchange configuration details and sets params

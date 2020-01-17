@@ -56,18 +56,6 @@ const (
 	dustLog           = "/wapi/v3/userAssetDribbletLog.html"
 	tradeFee          = "/wapi/v3/tradeFee.html"
 	assetDetail       = "/wapi/v3/assetDetail.html"
-
-	// Binance limit rates
-	// Global dictates the max rate limit for general request items which is
-	// 1200 requests per minute
-	binanceGlobalInterval    = time.Minute
-	binanceGlobalRequestRate = 1200
-	// Order related limits which are segregated from the global rate limits
-	// 10 requests per second and max 100000 requests per day.
-	binanceOrderInterval         = time.Second
-	binanceOrderRequestRate      = 10
-	binanceOrderDailyInterval    = time.Hour * 24
-	binanceOrderDailyMaxRequests = 100000
 )
 
 // Binance is the overarching type across the Bithumb package

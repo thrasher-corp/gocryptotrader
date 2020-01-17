@@ -23,15 +23,9 @@ const (
 
 	noError = "0000"
 
-	// Public API
-	requestsPerSecondPublicAPI = 20
-
 	publicTicker             = "/public/ticker/"
 	publicOrderBook          = "/public/orderbook/"
 	publicTransactionHistory = "/public/transaction_history/"
-
-	// Private API
-	requestsPerSecondPrivateAPI = 10
 
 	privateAccInfo     = "/info/account"
 	privateAccBalance  = "/info/balance"
@@ -47,9 +41,6 @@ const (
 	privateKRWWithdraw = "/trade/krw_withdrawal"
 	privateMarketBuy   = "/trade/market_buy"
 	privateMarketSell  = "/trade/market_sell"
-
-	bithumbAuthRate   = 95
-	bithumbUnauthRate = 95
 )
 
 // Bithumb is the overarching type across the Bithumb package

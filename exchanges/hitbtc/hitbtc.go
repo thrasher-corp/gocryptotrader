@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -42,15 +41,6 @@ const (
 	orderMove           = "moveOrder"
 	tradableBalances    = "returnTradableBalances"
 	transferBalance     = "transferBalance"
-
-	hitbtcRateInterval      = time.Second
-	hitbtcMarketDataReqRate = 100
-	hitbtcTradingReqRate    = 300
-	hitbtcAllOthers         = 10
-
-	marketRequests request.EndpointLimit = iota
-	tradingRequests
-	otherRequests
 )
 
 // HitBTC is the overarching type across the hitbtc package

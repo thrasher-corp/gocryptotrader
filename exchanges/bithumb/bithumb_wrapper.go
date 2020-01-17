@@ -22,7 +22,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
-	"golang.org/x/time/rate"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -106,29 +105,10 @@ func (b *Bithumb) SetDefaults() {
 
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		&RateLimit{
-			Auth:   request.NewRateLimit(time.Second, bithumbAuthRate),
-			UnAuth: request.NewRateLimit(time.Second, bithumbUnauthRate),
-		})
+		SetRateLimit())
 
 	b.API.Endpoints.URLDefault = apiURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
-}
-
-// RateLimit implements the request.Limiter interface
-type RateLimit struct {
-	Auth   *rate.Limiter
-	UnAuth *rate.Limiter
-}
-
-// Limit limits requests
-func (r *RateLimit) Limit(f request.EndpointLimit) error {
-	if f == request.Auth {
-		time.Sleep(r.Auth.Reserve().Delay())
-		return nil
-	}
-	time.Sleep(r.UnAuth.Reserve().Delay())
-	return nil
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
