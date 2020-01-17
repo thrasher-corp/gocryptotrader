@@ -29,7 +29,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestNewVM(t *testing.T) {
-	t.Parallel()
 	x := New()
 	xType := reflect.TypeOf(x).String()
 	if xType != "*vm.VM" {
@@ -63,7 +62,6 @@ func TestVMLoad(t *testing.T) {
 }
 
 func TestVMLoadNoFile(t *testing.T) {
-	t.Parallel()
 	testVM := New()
 	err := testVM.Load("missing file")
 	if err != nil {
@@ -74,7 +72,6 @@ func TestVMLoadNoFile(t *testing.T) {
 }
 
 func TestVMCompile(t *testing.T) {
-	t.Parallel()
 	testVM := New()
 	err := testVM.Load(testScript)
 	if err != nil {
@@ -88,7 +85,6 @@ func TestVMCompile(t *testing.T) {
 }
 
 func TestVMRun(t *testing.T) {
-	t.Parallel()
 	testVM := NewVM()
 	err := testVM.Load(testScript)
 	if err != nil {
@@ -107,7 +103,6 @@ func TestVMRun(t *testing.T) {
 }
 
 func TestVMRunTX(t *testing.T) {
-	t.Parallel()
 	testVM := NewVM()
 	err := testVM.Load(testScript)
 	if err != nil {
@@ -171,7 +166,6 @@ func TestShutdownAll(t *testing.T) {
 }
 
 func TestRead(t *testing.T) {
-	t.Parallel()
 	VM := NewVM()
 	err := VM.Load(testScriptRunner)
 	if err != nil {
@@ -192,7 +186,6 @@ func TestRead(t *testing.T) {
 }
 
 func TestRemoveVM(t *testing.T) {
-	t.Parallel()
 	id, _ := uuid.FromString("6f20c907-64a0-48f2-848a-7837dee61672")
 	err := RemoveVM(id)
 
@@ -202,7 +195,6 @@ func TestRemoveVM(t *testing.T) {
 }
 
 func TestError_Error(t *testing.T) {
-	t.Parallel()
 	x := Error{
 		Script: "noscript.gct",
 		Action: "test",
@@ -215,7 +207,6 @@ func TestError_Error(t *testing.T) {
 }
 
 func TestVM_CompileInvalid(t *testing.T) {
-	t.Parallel()
 	testVM := New()
 	err := testVM.Load(testInvalidScript)
 	if err != nil {
