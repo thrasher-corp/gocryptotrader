@@ -27,12 +27,7 @@ func main() {
 	var single bool
 	var err error
 
-	defaultCfg, err := config.GetFilePath("")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	flag.StringVar(&cfgFile, "config", defaultCfg, "The config input file to process.")
+	flag.StringVar(&cfgFile, "config", config.DefaultFilePath(), "The config input file to process.")
 	flag.BoolVar(&single, "single", false, "prompt for single use OTP code gen")
 	flag.Parse()
 
