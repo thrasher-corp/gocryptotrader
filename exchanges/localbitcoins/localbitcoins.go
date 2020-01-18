@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	currency2 "github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -113,7 +113,7 @@ type LocalBitcoins struct {
 	exchange.Base
 }
 
-func (l *LocalBitcoins) GetHistoricCandles(pair currency2.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
+func (l *LocalBitcoins) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

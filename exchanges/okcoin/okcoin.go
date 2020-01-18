@@ -2,7 +2,7 @@ package okcoin
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/common"
-	currency2 "github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
 )
@@ -22,6 +22,6 @@ type OKCoin struct {
 	okgroup.OKGroup
 }
 
-func (o *OKCoin) GetHistoricCandles(pair currency2.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
+func (o *OKCoin) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
 	return nil, common.ErrFunctionNotSupported
 }
