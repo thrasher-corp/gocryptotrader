@@ -524,8 +524,8 @@ message GetAuditEventResponse {
 message GetHistoricCandlesRequest {
     string exchange = 1;
     CurrencyPair pair = 2;
-    int32 rangesize = 3;
-    int32 granularity = 4;
+    int64 rangesize = 3;
+    int64 granularity = 4;
 }
 
 message GetHistoricCandlesResponse {

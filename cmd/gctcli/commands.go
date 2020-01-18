@@ -2948,15 +2948,19 @@ func getHistoricCandles(c *cli.Context) error {
 	}
 
 	var exchangeName string
-	if !c.IsSet("exchange") {
-		exchangeName = c.Args().Get(0)
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
 	}
 	if !validExchange(exchangeName) {
 		return errInvalidExchange
 	}
 
 	var currencyPair string
-	if !c.IsSet("pair") {
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
 		currencyPair = c.Args().Get(1)
 	}
 	if !validPair(currencyPair) {
@@ -2964,24 +2968,26 @@ func getHistoricCandles(c *cli.Context) error {
 	}
 	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
 
-	var rangesize int
-	if !c.IsSet("rangesize") {
-		if c.Args().Get(1) != "" {
-			rangesizestr, err := strconv.ParseInt(c.Args().Get(2), 10, 32)
-			if err == nil {
-				rangesize = int(rangesizestr)
-			}
+	var rangesize int64
+	if c.IsSet("rangesize") {
+		rangesize = c.Int64("rangesize")
+	} else {
+		rs, err := strconv.Atoi(c.Args().Get(2))
+		if err != nil {
+			return fmt.Errorf("unable to strconv input to int. Err: %s", err)
 		}
+		rangesize = int64(rs)
 	}
 
-	var granularity int
-	if !c.IsSet("granularity") {
-		if c.Args().Get(2) != "" {
-			granularitystr, err := strconv.ParseInt(c.Args().Get(3), 10, 32)
-			if err == nil {
-				granularity = int(granularitystr)
-			}
+	var granularity int64
+	if c.IsSet("granularity") {
+		granularity = c.Int64("granularity")
+	} else {
+		gr, err := strconv.Atoi(c.Args().Get(3))
+		if err != nil {
+			return fmt.Errorf("unable to strconv input to int. Err: %s", err)
 		}
+		granularity = int64(gr)
 	}
 
 	conn, err := setupClient()
@@ -2999,8 +3005,8 @@ func getHistoricCandles(c *cli.Context) error {
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
-			Rangesize:   int32(rangesize),
-			Granularity: int32(granularity),
+			Rangesize:   rangesize,
+			Granularity: granularity,
 		})
 
 	if err != nil {
