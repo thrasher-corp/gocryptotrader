@@ -510,10 +510,7 @@ func (o *OKGroup) AuthenticateWebsocket() error {
 func (o *OKGroup) ValidateCredentials() error {
 	acc, err := o.GetAccountInfo()
 	if err != nil {
-		o.API.AuthenticatedSupport = false
-		o.API.AuthenticatedWebsocketSupport = false
-		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
-			o.Name)
+		return o.CheckTransientError(err)
 	}
 
 	return account.Process(&acc)

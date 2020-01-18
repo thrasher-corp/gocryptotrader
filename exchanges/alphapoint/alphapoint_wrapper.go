@@ -2,7 +2,6 @@ package alphapoint
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -420,10 +419,7 @@ func (a *Alphapoint) AuthenticateWebsocket() error {
 func (a *Alphapoint) ValidateCredentials() error {
 	acc, err := a.GetAccountInfo()
 	if err != nil {
-		a.API.AuthenticatedSupport = false
-		a.API.AuthenticatedWebsocketSupport = false
-		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
-			a.Name)
+		return a.CheckTransientError(err)
 	}
 
 	return account.Process(&acc)

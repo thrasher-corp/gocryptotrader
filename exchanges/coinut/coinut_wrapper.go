@@ -894,10 +894,7 @@ func (c *COINUT) loadInstrumentsIfNotLoaded() error {
 func (c *COINUT) ValidateCredentials() error {
 	acc, err := c.GetAccountInfo()
 	if err != nil {
-		c.API.AuthenticatedSupport = false
-		c.API.AuthenticatedWebsocketSupport = false
-		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
-			c.Name)
+		return c.CheckTransientError(err)
 	}
 
 	return account.Process(&acc)

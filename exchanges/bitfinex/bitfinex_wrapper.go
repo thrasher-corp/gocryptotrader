@@ -2,7 +2,6 @@ package bitfinex
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -727,10 +726,7 @@ func (b *Bitfinex) appendOptionalDelimiter(p *currency.Pair) {
 func (b *Bitfinex) ValidateCredentials() error {
 	acc, err := b.GetAccountInfo()
 	if err != nil {
-		b.API.AuthenticatedSupport = false
-		b.API.AuthenticatedWebsocketSupport = false
-		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
-			b.Name)
+		return b.CheckTransientError(err)
 	}
 
 	return account.Process(&acc)

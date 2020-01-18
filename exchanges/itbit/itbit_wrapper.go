@@ -554,10 +554,7 @@ func (i *ItBit) AuthenticateWebsocket() error {
 func (i *ItBit) ValidateCredentials() error {
 	acc, err := i.GetAccountInfo()
 	if err != nil {
-		i.API.AuthenticatedSupport = false
-		i.API.AuthenticatedWebsocketSupport = false
-		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
-			i.Name)
+		return i.CheckTransientError(err)
 	}
 
 	return account.Process(&acc)

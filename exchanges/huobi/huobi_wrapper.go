@@ -852,10 +852,7 @@ func (h *HUOBI) AuthenticateWebsocket() error {
 func (h *HUOBI) ValidateCredentials() error {
 	acc, err := h.GetAccountInfo()
 	if err != nil {
-		h.API.AuthenticatedSupport = false
-		h.API.AuthenticatedWebsocketSupport = false
-		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
-			h.Name)
+		return h.CheckTransientError(err)
 	}
 
 	return account.Process(&acc)

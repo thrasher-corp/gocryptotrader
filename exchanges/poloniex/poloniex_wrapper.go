@@ -613,10 +613,7 @@ func (p *Poloniex) AuthenticateWebsocket() error {
 func (p *Poloniex) ValidateCredentials() error {
 	acc, err := p.GetAccountInfo()
 	if err != nil {
-		p.API.AuthenticatedSupport = false
-		p.API.AuthenticatedWebsocketSupport = false
-		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
-			p.Name)
+		return p.CheckTransientError(err)
 	}
 
 	return account.Process(&acc)

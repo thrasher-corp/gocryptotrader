@@ -3,6 +3,7 @@ package exchange
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -781,3 +782,23 @@ func (e *Base) PrintEnabledPairs() {
 
 // GetBase returns the exchange base
 func (e *Base) GetBase() *Base { return e }
+
+// CheckTransientError catches transient errors and returns nil if found, used
+// for validation of API credentials
+func (e *Base) CheckTransientError(err error) error {
+	if _, ok := err.(net.Error); ok {
+		log.Warnf(log.ExchangeSys,
+			"%s net error captured, will not disable authentication %s",
+			e.Name,
+			err)
+		return nil
+	}
+
+	if e.CheckError != nil {
+		// This is used for checking edge case transients, specific to an
+		// exchange
+		return e.CheckError.Validate(err)
+	}
+
+	return err
+}

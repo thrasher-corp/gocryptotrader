@@ -221,4 +221,12 @@ type Base struct {
 	Websocket                     *wshandler.Websocket
 	*request.Requester
 	Config *config.ExchangeConfig
+	// CheckError is used for exchange specific edge case transient errors,
+	// does not need to be added
+	CheckError
+}
+
+// CheckError interface is a exchange specific edge case transient catch.
+type CheckError interface {
+	Validate(error) error
 }

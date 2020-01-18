@@ -2,7 +2,6 @@ package binance
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -644,10 +643,7 @@ func (b *Binance) AuthenticateWebsocket() error {
 func (b *Binance) ValidateCredentials() error {
 	acc, err := b.GetAccountInfo()
 	if err != nil {
-		b.API.AuthenticatedSupport = false
-		b.API.AuthenticatedWebsocketSupport = false
-		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
-			b.Name)
+		return b.CheckTransientError(err)
 	}
 
 	return account.Process(&acc)

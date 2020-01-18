@@ -700,10 +700,7 @@ func (g *Gateio) AuthenticateWebsocket() error {
 func (g *Gateio) ValidateCredentials() error {
 	acc, err := g.GetAccountInfo()
 	if err != nil {
-		g.API.AuthenticatedSupport = false
-		g.API.AuthenticatedWebsocketSupport = false
-		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
-			g.Name)
+		return g.CheckTransientError(err)
 	}
 
 	return account.Process(&acc)

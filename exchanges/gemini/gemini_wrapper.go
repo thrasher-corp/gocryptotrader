@@ -2,7 +2,6 @@ package gemini
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -553,10 +552,7 @@ func (g *Gemini) AuthenticateWebsocket() error {
 func (g *Gemini) ValidateCredentials() error {
 	acc, err := g.GetAccountInfo()
 	if err != nil {
-		g.API.AuthenticatedSupport = false
-		g.API.AuthenticatedWebsocketSupport = false
-		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
-			g.Name)
+		return g.CheckTransientError(err)
 	}
 
 	return account.Process(&acc)

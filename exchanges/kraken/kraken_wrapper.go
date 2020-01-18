@@ -2,7 +2,6 @@ package kraken
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -713,10 +712,7 @@ func (k *Kraken) AuthenticateWebsocket() error {
 func (k *Kraken) ValidateCredentials() error {
 	acc, err := k.GetAccountInfo()
 	if err != nil {
-		k.API.AuthenticatedSupport = false
-		k.API.AuthenticatedWebsocketSupport = false
-		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
-			k.Name)
+		return k.CheckTransientError(err)
 	}
 
 	return account.Process(&acc)

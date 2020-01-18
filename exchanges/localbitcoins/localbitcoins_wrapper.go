@@ -578,10 +578,7 @@ func (l *LocalBitcoins) AuthenticateWebsocket() error {
 func (l *LocalBitcoins) ValidateCredentials() error {
 	acc, err := l.GetAccountInfo()
 	if err != nil {
-		l.API.AuthenticatedSupport = false
-		l.API.AuthenticatedWebsocketSupport = false
-		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
-			l.Name)
+		return l.CheckTransientError(err)
 	}
 
 	return account.Process(&acc)

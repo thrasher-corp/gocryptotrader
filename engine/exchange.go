@@ -288,20 +288,28 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 
 	Bot.Exchanges = append(Bot.Exchanges, exch)
 
+	base := exch.GetBase()
+	if base.API.AuthenticatedSupport ||
+		base.API.AuthenticatedWebsocketSupport {
+		err = exch.ValidateCredentials()
+		if err != nil {
+			log.Warnf(log.ExchangeSys,
+				"%s: cannot validate credentials, authenticated support has been disabled, Error: %s\n",
+				base.Name,
+				err)
+			base.API.AuthenticatedSupport = false
+			base.API.AuthenticatedWebsocketSupport = false
+			exchCfg.API.AuthenticatedSupport = false
+			exchCfg.API.AuthenticatedWebsocketSupport = false
+		}
+	}
+
 	if useWG {
 		exch.Start(wg)
 	} else {
-		wg := sync.WaitGroup{}
-		exch.Start(&wg)
-		wg.Wait()
-	}
-
-	if exch.GetBase().API.AuthenticatedSupport ||
-		exch.GetBase().API.AuthenticatedWebsocketSupport {
-		err = exch.ValidateCredentials()
-		if err != nil {
-			log.Warnln(log.ExchangeSys, err)
-		}
+		wgNow := sync.WaitGroup{}
+		exch.Start(&wgNow)
+		wgNow.Wait()
 	}
 
 	return nil
@@ -310,42 +318,41 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 // SetupExchanges sets up the exchanges used by the Bot
 func SetupExchanges() {
 	var wg sync.WaitGroup
-	exchanges := Bot.Config.GetAllExchangeConfigs()
-	for x := range exchanges {
-		exch := exchanges[x]
-		if CheckExchangeExists(exch.Name) {
-			e := GetExchangeByName(exch.Name)
+	configs := Bot.Config.GetAllExchangeConfigs()
+	for x := range configs {
+		if CheckExchangeExists(configs[x].Name) {
+			e := GetExchangeByName(configs[x].Name)
 			if e == nil {
 				log.Errorln(log.ExchangeSys, ErrExchangeNotFound)
 				continue
 			}
 
-			err := ReloadExchange(exch.Name)
+			err := ReloadExchange(configs[x].Name)
 			if err != nil {
-				log.Errorf(log.ExchangeSys, "ReloadExchange %s failed: %s\n", exch.Name, err)
+				log.Errorf(log.ExchangeSys, "ReloadExchange %s failed: %s\n", configs[x].Name, err)
 				continue
 			}
 
 			if !e.IsEnabled() {
-				UnloadExchange(exch.Name)
+				UnloadExchange(configs[x].Name)
 				continue
 			}
 			return
 		}
-		if !exch.Enabled && !Bot.Settings.EnableAllExchanges {
-			log.Debugf(log.ExchangeSys, "%s: Exchange support: Disabled\n", exch.Name)
+		if !configs[x].Enabled && !Bot.Settings.EnableAllExchanges {
+			log.Debugf(log.ExchangeSys, "%s: Exchange support: Disabled\n", configs[x].Name)
 			continue
 		}
-		err := LoadExchange(exch.Name, true, &wg)
+		err := LoadExchange(configs[x].Name, true, &wg)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "LoadExchange %s failed: %s\n", exch.Name, err)
+			log.Errorf(log.ExchangeSys, "LoadExchange %s failed: %s\n", configs[x].Name, err)
 			continue
 		}
 		log.Debugf(log.ExchangeSys,
 			"%s: Exchange support: Enabled (Authenticated API support: %s - Verbose mode: %s).\n",
-			exch.Name,
-			common.IsEnabled(exch.API.AuthenticatedSupport),
-			common.IsEnabled(exch.Verbose),
+			configs[x].Name,
+			common.IsEnabled(configs[x].API.AuthenticatedSupport),
+			common.IsEnabled(configs[x].Verbose),
 		)
 	}
 	wg.Wait()

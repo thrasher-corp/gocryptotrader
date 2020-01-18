@@ -2,7 +2,6 @@ package yobit
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -548,10 +547,7 @@ func (y *Yobit) AuthenticateWebsocket() error {
 func (y *Yobit) ValidateCredentials() error {
 	acc, err := y.GetAccountInfo()
 	if err != nil {
-		y.API.AuthenticatedSupport = false
-		y.API.AuthenticatedWebsocketSupport = false
-		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
-			y.Name)
+		return y.CheckTransientError(err)
 	}
 
 	return account.Process(&acc)

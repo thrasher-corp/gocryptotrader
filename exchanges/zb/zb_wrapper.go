@@ -673,10 +673,7 @@ func (z *ZB) AuthenticateWebsocket() error {
 func (z *ZB) ValidateCredentials() error {
 	acc, err := z.GetAccountInfo()
 	if err != nil {
-		z.API.AuthenticatedSupport = false
-		z.API.AuthenticatedWebsocketSupport = false
-		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
-			z.Name)
+		return z.CheckTransientError(err)
 	}
 
 	return account.Process(&acc)

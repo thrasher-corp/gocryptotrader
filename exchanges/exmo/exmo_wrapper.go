@@ -549,10 +549,7 @@ func (e *EXMO) AuthenticateWebsocket() error {
 func (e *EXMO) ValidateCredentials() error {
 	acc, err := e.GetAccountInfo()
 	if err != nil {
-		e.API.AuthenticatedSupport = false
-		e.API.AuthenticatedWebsocketSupport = false
-		return fmt.Errorf("%s cannot validate credentials, authenticated support has been disabled",
-			e.Name)
+		return e.CheckTransientError(err)
 	}
 
 	return account.Process(&acc)
