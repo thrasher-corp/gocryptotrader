@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -353,4 +354,25 @@ func SplitStringSliceByLimit(in []string, limit uint) [][]string {
 		sliceSlice = append(sliceSlice, in)
 	}
 	return sliceSlice
+}
+
+// In_array checks if val belongs to array
+func In_array(val interface{}, array interface{}) (exists bool, index int) {
+	exists = false
+	index = -1
+
+	switch reflect.TypeOf(array).Kind() {
+	case reflect.Slice:
+		s := reflect.ValueOf(array)
+
+		for i := 0; i < s.Len(); i++ {
+			if reflect.DeepEqual(val, s.Index(i).Interface()) == true {
+				index = i
+				exists = true
+				return
+			}
+		}
+	}
+
+	return
 }
