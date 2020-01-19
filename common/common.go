@@ -356,7 +356,7 @@ func SplitStringSliceByLimit(in []string, limit uint) [][]string {
 	return sliceSlice
 }
 
-// In_array checks if v_al_ belongs to _array_
+// In_array checks if _val_ belongs to _array_
 func In_array(val interface{}, array interface{}) (exists bool, index int) {
 	exists = false
 	index = -1
