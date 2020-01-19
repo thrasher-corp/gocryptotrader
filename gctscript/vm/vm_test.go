@@ -123,6 +123,9 @@ func TestVMRunTX(t *testing.T) {
 func TestVMWithRunner(t *testing.T) {
 	vmCount := len(AllVMs)
 	VM := New()
+	if VM == nil {
+		t.Fatal("Failed to allocate new VM exiting")
+	}
 	err := VM.Load(testScriptRunner)
 	if err != nil {
 		t.Fatal(err)
