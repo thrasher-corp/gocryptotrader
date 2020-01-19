@@ -273,7 +273,7 @@ func (l *Lbank) GetAccountInfo() (account.Holdings, error) {
 		if err != nil {
 			return info, err
 		}
-		acc.Currency = append(acc.Currency, account.Balance{
+		acc.Currencies = append(acc.Currencies, account.Balance{
 			CurrencyName: c,
 			TotalValue:   totalVal,
 			Hold:         totalHold})

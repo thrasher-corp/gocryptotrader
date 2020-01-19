@@ -278,7 +278,7 @@ func (i *ItBit) GetAccountInfo() (account.Holdings, error) {
 	}
 
 	info.Accounts = append(info.Accounts, account.SubAccount{
-		Currency: fullBalance,
+		Currencies: fullBalance,
 	})
 
 	return info, nil

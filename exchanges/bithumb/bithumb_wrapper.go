@@ -283,7 +283,7 @@ func (b *Bithumb) GetAccountInfo() (account.Holdings, error) {
 	}
 
 	info.Accounts = append(info.Accounts, account.SubAccount{
-		Currency: exchangeBalances,
+		Currencies: exchangeBalances,
 	})
 
 	info.Exchange = b.Name

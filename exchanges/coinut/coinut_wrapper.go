@@ -341,7 +341,7 @@ func (c *COINUT) GetAccountInfo() (account.Holdings, error) {
 	}
 	info.Exchange = c.Name
 	info.Accounts = append(info.Accounts, account.SubAccount{
-		Currency: balances,
+		Currencies: balances,
 	})
 
 	return info, nil

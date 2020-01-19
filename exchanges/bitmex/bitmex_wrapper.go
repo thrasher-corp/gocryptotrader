@@ -392,7 +392,7 @@ func (b *Bitmex) GetAccountInfo() (account.Holdings, error) {
 
 	info.Exchange = b.Name
 	info.Accounts = append(info.Accounts, account.SubAccount{
-		Currency: balances,
+		Currencies: balances,
 	})
 
 	return info, nil

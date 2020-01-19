@@ -107,7 +107,7 @@ func (a *Alphapoint) GetAccountInfo() (account.Holdings, error) {
 	}
 
 	response.Accounts = append(response.Accounts, account.SubAccount{
-		Currency: balances,
+		Currencies: balances,
 	})
 
 	return response, nil

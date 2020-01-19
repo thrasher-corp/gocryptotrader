@@ -376,7 +376,7 @@ func (b *Binance) GetAccountInfo() (account.Holdings, error) {
 
 	info.Exchange = b.Name
 	info.Accounts = append(info.Accounts, account.SubAccount{
-		Currency: currencyBalance,
+		Currencies: currencyBalance,
 	})
 
 	return info, nil

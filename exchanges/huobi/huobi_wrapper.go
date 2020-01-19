@@ -417,7 +417,7 @@ func (h *HUOBI) GetAccountInfo() (account.Holdings, error) {
 			currencyDetails = append(currencyDetails, currData)
 		}
 		var acc account.SubAccount
-		acc.Currency = currencyDetails
+		acc.Currencies = currencyDetails
 		info.Accounts = append(info.Accounts, acc)
 	} else {
 		accounts, err := h.GetAccountID()
@@ -470,7 +470,7 @@ func (h *HUOBI) GetAccountInfo() (account.Holdings, error) {
 				}
 			}
 
-			acc.Currency = currencyDetails
+			acc.Currencies = currencyDetails
 			info.Accounts = append(info.Accounts, acc)
 		}
 	}

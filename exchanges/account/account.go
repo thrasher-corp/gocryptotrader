@@ -17,8 +17,8 @@ type Holdings struct {
 
 // SubAccount defines a singular account type with asocciated currency balances
 type SubAccount struct {
-	ID       string
-	Currency []Balance
+	ID         string
+	Currencies []Balance
 }
 
 // Balance is a sub type to store currency name and individual totals

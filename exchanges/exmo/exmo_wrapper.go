@@ -306,7 +306,7 @@ func (e *EXMO) GetAccountInfo() (account.Holdings, error) {
 	}
 
 	response.Accounts = append(response.Accounts, account.SubAccount{
-		Currency: currencies,
+		Currencies: currencies,
 	})
 
 	return response, nil

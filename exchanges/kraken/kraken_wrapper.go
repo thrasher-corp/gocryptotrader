@@ -394,7 +394,7 @@ func (k *Kraken) GetAccountInfo() (account.Holdings, error) {
 	}
 
 	info.Accounts = append(info.Accounts, account.SubAccount{
-		Currency: balances,
+		Currencies: balances,
 	})
 
 	return info, nil

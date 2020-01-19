@@ -459,7 +459,7 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 	info.Exchange = "Bitfinex"
 	info.Accounts = append(info.Accounts,
 		account.SubAccount{
-			Currency: []account.Balance{
+			Currencies: []account.Balance{
 				{
 					CurrencyName: currency.BTC,
 					TotalValue:   100,
@@ -473,7 +473,7 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 	info.Exchange = "Bitstamp"
 	info.Accounts = append(info.Accounts,
 		account.SubAccount{
-			Currency: []account.Balance{
+			Currencies: []account.Balance{
 				{
 					CurrencyName: currency.LTC,
 					TotalValue:   100,
@@ -512,7 +512,7 @@ func TestGetAccountCurrencyInfoByExchangeName(t *testing.T) {
 	info.Exchange = "Bitfinex"
 	info.Accounts = append(info.Accounts,
 		account.SubAccount{
-			Currency: []account.Balance{
+			Currencies: []account.Balance{
 				{
 					CurrencyName: currency.BTC,
 					TotalValue:   100,

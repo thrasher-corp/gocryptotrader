@@ -307,9 +307,9 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 	if useWG {
 		exch.Start(wg)
 	} else {
-		wgNow := sync.WaitGroup{}
-		exch.Start(&wgNow)
-		wgNow.Wait()
+		tempWG := sync.WaitGroup{}
+		exch.Start(&tempWG)
+		tempWG.Wait()
 	}
 
 	return nil

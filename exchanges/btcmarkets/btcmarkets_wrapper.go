@@ -327,7 +327,7 @@ func (b *BTCMarkets) GetAccountInfo() (account.Holdings, error) {
 		c := currency.NewCode(data[key].AssetName)
 		hold := data[key].Locked
 		total := data[key].Balance
-		acc.Currency = append(acc.Currency,
+		acc.Currencies = append(acc.Currencies,
 			account.Balance{CurrencyName: c,
 				TotalValue: total,
 				Hold:       hold})

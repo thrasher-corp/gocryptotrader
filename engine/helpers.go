@@ -452,7 +452,7 @@ func GetCollatedExchangeAccountInfoByCoin(exchAccounts []account.Holdings) map[c
 	result := make(map[currency.Code]account.Balance)
 	for _, accounts := range exchAccounts {
 		for _, acc := range accounts.Accounts {
-			for _, accountCurrencyInfo := range acc.Currency {
+			for _, accountCurrencyInfo := range acc.Currencies {
 				currencyName := accountCurrencyInfo.CurrencyName
 				avail := accountCurrencyInfo.TotalValue
 				onHold := accountCurrencyInfo.Hold
@@ -520,7 +520,7 @@ func SeedExchangeAccountInfo(data []account.Holdings) {
 		exchangeName := exchangeData.Exchange
 		var currencies []account.Balance
 		for _, acc := range exchangeData.Accounts {
-			for _, info := range acc.Currency {
+			for _, info := range acc.Currencies {
 				var update bool
 				for i := range currencies {
 					if info.CurrencyName == currencies[i].CurrencyName {

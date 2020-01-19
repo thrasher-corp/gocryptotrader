@@ -190,7 +190,7 @@ func (o *OKGroup) GetAccountInfo() (resp account.Holdings, err error) {
 				"Could not convert %v to float64",
 				currencies[i].Balance)
 		}
-		currencyAccount.Currency = append(currencyAccount.Currency,
+		currencyAccount.Currencies = append(currencyAccount.Currencies,
 			account.Balance{
 				CurrencyName: currency.NewCode(currencies[i].Currency),
 				Hold:         hold,

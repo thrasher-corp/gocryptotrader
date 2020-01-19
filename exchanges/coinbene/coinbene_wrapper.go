@@ -425,7 +425,7 @@ func (c *Coinbene) GetAccountInfo() (account.Holdings, error) {
 		c := currency.NewCode(balance[key].Asset)
 		hold := balance[key].Reserved
 		available := balance[key].Available
-		acc.Currency = append(acc.Currency,
+		acc.Currencies = append(acc.Currencies,
 			account.Balance{
 				CurrencyName: c,
 				TotalValue:   hold + available,

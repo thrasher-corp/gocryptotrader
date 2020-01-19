@@ -327,7 +327,7 @@ func (g *Gateio) GetAccountInfo() (account.Holdings, error) {
 			})
 		}
 		info.Accounts = append(info.Accounts, account.SubAccount{
-			Currency: currData,
+			Currencies: currData,
 		})
 	} else {
 		balance, err := g.GetBalances()
@@ -380,7 +380,7 @@ func (g *Gateio) GetAccountInfo() (account.Holdings, error) {
 		}
 
 		info.Accounts = append(info.Accounts, account.SubAccount{
-			Currency: balances,
+			Currencies: balances,
 		})
 	}
 

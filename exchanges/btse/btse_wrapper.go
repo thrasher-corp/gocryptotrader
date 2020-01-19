@@ -319,7 +319,7 @@ func (b *BTSE) GetAccountInfo() (account.Holdings, error) {
 	a.Exchange = b.Name
 	a.Accounts = []account.SubAccount{
 		{
-			Currency: currencies,
+			Currencies: currencies,
 		},
 	}
 	return a, nil

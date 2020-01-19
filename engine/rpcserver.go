@@ -457,7 +457,7 @@ func (s *RPCServer) GetAccountInfo(ctx context.Context, r *gctrpc.GetAccountInfo
 	for x := range resp.Accounts {
 		var a gctrpc.Account
 		a.Id = resp.Accounts[x].ID
-		for _, y := range resp.Accounts[x].Currency {
+		for _, y := range resp.Accounts[x].Currencies {
 			a.Currencies = append(a.Currencies, &gctrpc.AccountCurrencyInfo{
 				Currency:   y.CurrencyName.String(),
 				Hold:       y.Hold,

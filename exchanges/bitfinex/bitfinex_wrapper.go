@@ -350,7 +350,7 @@ func (b *Bitfinex) GetAccountInfo() (account.Holdings, error) {
 	for x := range accountBalance {
 		for i := range Accounts {
 			if Accounts[i].ID == accountBalance[x].Type {
-				Accounts[i].Currency = append(Accounts[i].Currency,
+				Accounts[i].Currencies = append(Accounts[i].Currencies,
 					account.Balance{
 						CurrencyName: currency.NewCode(accountBalance[x].Currency),
 						TotalValue:   accountBalance[x].Amount,
