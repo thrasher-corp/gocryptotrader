@@ -77,7 +77,7 @@ func RemoveVM(id uuid.UUID) error {
 	mu.Lock()
 	defer mu.Unlock()
 	if _, f := AllVMs[id]; !f {
-		return ErrNoVMFound
+		return fmt.Errorf(ErrNoVMFound, id.String())
 	}
 	delete(AllVMs, id)
 

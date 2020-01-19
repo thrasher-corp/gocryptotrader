@@ -134,6 +134,7 @@ func TestVMWithRunner(t *testing.T) {
 		t.Fatal("expected VM count to increase")
 	}
 	VM.CompileAndRun()
+	t.Logf("%v", VM)
 	err = VM.Shutdown()
 	if err != nil {
 		t.Fatal(err)
@@ -192,7 +193,7 @@ func TestRemoveVM(t *testing.T) {
 	id, _ := uuid.FromString("6f20c907-64a0-48f2-848a-7837dee61672")
 	err := RemoveVM(id)
 
-	if !errors.Is(err, ErrNoVMFound) {
+	if err.Error() != "VM 6f20c907-64a0-48f2-848a-7837dee61672 not found" {
 		t.Fatal(err)
 	}
 }

@@ -1,10 +1,15 @@
 package vm
 
 import (
-	"errors"
 	"fmt"
 	"path/filepath"
 )
+
+const (
+	// ErrNoVMFound error returned when no virtual machine is found
+	ErrNoVMFound = "VM %v not found"
+)
+
 
 func (e Error) Error() string {
 	var scriptName, action string
@@ -24,7 +29,3 @@ func (e Error) Unwrap() error {
 	return e.Cause
 }
 
-var (
-	// ErrNoVMFound error returned when no virtual machine is found
-	ErrNoVMFound = errors.New("no VM found")
-)
