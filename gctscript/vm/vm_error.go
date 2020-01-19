@@ -10,7 +10,6 @@ const (
 	ErrNoVMFound = "VM %v not found"
 )
 
-
 func (e Error) Error() string {
 	var scriptName, action string
 	if e.Script != "" {
@@ -28,4 +27,3 @@ func (e Error) Error() string {
 func (e Error) Unwrap() error {
 	return e.Cause
 }
-
