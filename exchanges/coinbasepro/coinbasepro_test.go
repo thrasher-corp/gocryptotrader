@@ -76,33 +76,51 @@ func TestGetTrades(t *testing.T) {
 	}
 }
 
+// TestGetHistoricRates_api_check using a time range of 5 minutes and a granularity of 1 minutes, it should return exactly 5 candles
 func TestGetHistoricRates_api_check(t *testing.T) {
+	e := expectedCandles(5, 300, 60)
+	if e != nil {
+		t.Error(e)
+	}
+	e = expectedCandles(2, 600, 300)
+	if e != nil {
+		t.Error(e)
+	}
+	e = expectedCandles(2, 1800, 900)
+	if e != nil {
+		t.Error(e)
+	}
+	e = expectedCandles(2, 7200, 3600)
+	if e != nil {
+		t.Error(e)
+	}
+	e = expectedCandles(2, 43200, 21600)
+	if e != nil {
+		t.Error(e)
+	}
+	e = expectedCandles(2, 172800, 86400)
+	if e != nil {
+		t.Error(e)
+	}
+}
+
+func expectedCandles(expectedCandles int, timeRange time.Duration, candleGranularity int64) error {
 	iso8601format := "2006-01-02T15:04:05"
-	end := time.Now().UTC()
-	start := time.Now().UTC().Add(-time.Second * 300)
-	resp, err := c.GetHistoricRates(testPair, start.Format(iso8601format), end.Format(iso8601format), 60)
+	end := time.Now().UTC().Add(-time.Second * timeRange) // the latest candle may not yet be ready, so skipping to the previous one
+	start := end.Add(-time.Second * timeRange)
+	resp, err := c.GetHistoricRates(testPair, start.Format(iso8601format), end.Format(iso8601format), candleGranularity)
 	if err != nil {
-		t.Error(err)
+		return err
 	}
-	if len(resp) == 0 {
-		t.Error("Expected results")
+	// Using a time range of 5 minutes and a granularity of 1 minutes, it should return exactly 5 candles
+	if len(resp) != expectedCandles {
+		err := fmt.Errorf("Expected %d candles, returned: %d", expectedCandles, len(resp))
+		return err
 	}
+	return nil
 }
 
 func TestGetHistoricRates_granularity_check(t *testing.T) {
-	iso8601format := "2006-01-02T15:04:05"
-	end := time.Now().UTC()
-	start := time.Now().UTC().Add(-time.Second * 300)
-	invalid_granularity := 11
-	_, err := c.GetHistoricRates(testPair, start.Format(iso8601format), end.Format(iso8601format), int64(invalid_granularity))
-	if err == nil {
-		t.Error("Expected error as granularity value passed in as parameter is not correct")
-	} else {
-		fmt.Println(err)
-	}
-}
-
-func TestGetHistoricRates_invalid_inputs(t *testing.T) {
 	iso8601format := "2006-01-02T15:04:05"
 	end := time.Now().UTC()
 	start := time.Now().UTC().Add(-time.Second * 300)
