@@ -356,13 +356,13 @@ func SplitStringSliceByLimit(in []string, limit uint) [][]string {
 	return sliceSlice
 }
 
-// In_array checks if val belongs to array
+// In_array checks if v_al_ belongs to _array_
 func In_array(val interface{}, array interface{}) (exists bool, index int) {
 	exists = false
 	index = -1
 
 	switch reflect.TypeOf(array).Kind() {
-	case reflect.Slice:
+	case reflect.Array, reflect.Slice:
 		s := reflect.ValueOf(array)
 
 		for i := 0; i < s.Len(); i++ {
