@@ -1,6 +1,7 @@
 package coinbasepro
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -75,12 +76,45 @@ func TestGetTrades(t *testing.T) {
 	}
 }
 
-func TestGetHistoricRates(t *testing.T) {
-	_, err := c.GetHistoricRates(testPair, "0", "0", 0)
+func TestGetHistoricRates_api_check(t *testing.T) {
+	iso8601format := "2006-01-02T15:04:05"
+	end := time.Now().UTC()
+	start := time.Now().UTC().Add(-time.Second * 300)
+	resp, err := c.GetHistoricRates(testPair, start.Format(iso8601format), end.Format(iso8601format), 60)
 	if err != nil {
-		t.Error("GetHistoricRates() error", err)
+		t.Error(err)
+	}
+	if len(resp) == 0 {
+		t.Error("Expected results")
 	}
 }
+
+func TestGetHistoricRates_granularity_check(t *testing.T) {
+	iso8601format := "2006-01-02T15:04:05"
+	end := time.Now().UTC()
+	start := time.Now().UTC().Add(-time.Second * 300)
+	invalid_granularity := 11
+	_, err := c.GetHistoricRates(testPair, start.Format(iso8601format), end.Format(iso8601format), int64(invalid_granularity))
+	if err == nil {
+		t.Error("Expected error as granularity value passed in as parameter is not correct")
+	} else {
+		fmt.Println(err)
+	}
+}
+
+func TestGetHistoricRates_invalid_inputs(t *testing.T) {
+	iso8601format := "2006-01-02T15:04:05"
+	end := time.Now().UTC()
+	start := time.Now().UTC().Add(-time.Second * 300)
+	invalid_granularity := 11
+	_, err := c.GetHistoricRates(testPair, start.Format(iso8601format), end.Format(iso8601format), int64(invalid_granularity))
+	if err == nil {
+		t.Error("Expected error as granularity value passed in as parameter is not correct")
+	} else {
+		fmt.Println(err)
+	}
+}
+
 
 func TestGetStats(t *testing.T) {
 	_, err := c.GetStats(testPair)
