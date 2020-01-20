@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const (
@@ -18,12 +19,17 @@ const (
 )
 
 var (
-	testScript        = filepath.Join("..", "..", "testdata", "gctscript", "once.gct")
-	testInvalidScript = filepath.Join("..", "..", "testdata", "gctscript", "broken.gct")
-	testScriptRunner  = filepath.Join("..", "..", "testdata", "gctscript", "timer.gct")
+	testScript               = filepath.Join("..", "..", "testdata", "gctscript", "once.gct")
+	testInvalidScript        = filepath.Join("..", "..", "testdata", "gctscript", "broken.gct")
+	testScriptRunner         = filepath.Join("..", "..", "testdata", "gctscript", "timer.gct")
+	testScriptRunner1s         = filepath.Join("..", "..", "testdata", "gctscript", "1s_timer.gct")
+	testScriptRunnerNegative = filepath.Join("..", "..", "testdata", "gctscript", "negative_timer.gct")
 )
 
 func TestMain(m *testing.M) {
+	c := logger.GenDefaultSettings()
+	//c.Enabled = convert.BoolPtr(false)
+	logger.GlobalLogConfig = &c
 	GCTScriptConfig = configHelper(true, true, testVirtualMachineTimeout, maxTestVirtualMachines)
 	os.Exit(m.Run())
 }
@@ -59,6 +65,40 @@ func TestVMLoad(t *testing.T) {
 		}
 	}
 	GCTScriptConfig = configHelper(true, true, testVirtualMachineTimeout, maxTestVirtualMachines)
+}
+
+func TestVMLoad1s(t *testing.T) {
+	testVM := New()
+	err := testVM.Load(testScriptRunner1s)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testVM.CompileAndRun()
+	time.Sleep(2)
+	err = testVM.Shutdown()
+	if err != nil {
+		if !errors.Is(err, ErrNoVMLoaded) {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestVMLoadNilVM(t *testing.T) {
+	testVM := New()
+	err := testVM.Load(testScript)
+	if err != nil {
+		if !errors.Is(err, ErrNoVMLoaded) {
+			t.Fatal(err)
+		}
+	}
+	testVM = nil
+	err = testVM.Load(testScript)
+	if err != nil {
+		if !errors.Is(err, ErrNoVMLoaded) {
+			t.Fatal(err)
+		}
+	}
 }
 
 func TestVMLoadNoFile(t *testing.T) {
@@ -121,7 +161,6 @@ func TestVMRunTX(t *testing.T) {
 }
 
 func TestVMWithRunner(t *testing.T) {
-	AllVMs = make(map[uuid.UUID]*VM)
 	vmCount := len(AllVMs)
 	VM := New()
 	if VM == nil {
@@ -138,6 +177,52 @@ func TestVMWithRunner(t *testing.T) {
 	err = VM.Shutdown()
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(AllVMs) == vmCount-1 {
+		t.Fatal("expected VM count to decrease")
+	}
+}
+
+func TestVMWithRunnerOnce(t *testing.T) {
+	vmCount := len(AllVMs)
+	VM := New()
+	if VM == nil {
+		t.Fatal("Failed to allocate new VM exiting")
+	}
+	err := VM.Load(testScript)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(AllVMs) == vmCount {
+		t.Fatal("expected VM count to increase")
+	}
+	VM.CompileAndRun()
+	err = VM.Shutdown()
+	if err == nil {
+		t.Fatal("VM should not be running with invalid timer")
+	}
+	if len(AllVMs) == vmCount-1 {
+		t.Fatal("expected VM count to decrease")
+	}
+}
+
+func TestVMWithRunnerNegativeTimer(t *testing.T) {
+	vmCount := len(AllVMs)
+	VM := New()
+	if VM == nil {
+		t.Fatal("Failed to allocate new VM exiting")
+	}
+	err := VM.Load(testScriptRunnerNegative)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(AllVMs) == vmCount {
+		t.Fatal("expected VM count to increase")
+	}
+	VM.CompileAndRun()
+	err = VM.Shutdown()
+	if err == nil {
+		t.Fatal("VM should not be running with invalid timer")
 	}
 	if len(AllVMs) == vmCount-1 {
 		t.Fatal("expected VM count to decrease")

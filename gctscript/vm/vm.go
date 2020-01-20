@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -151,6 +150,9 @@ func (vm *VM) RunCtx() (err error) {
 
 // CompileAndRun Compile and Run script with support for task running
 func (vm *VM) CompileAndRun() {
+	if vm == nil {
+		return
+	}
 	err := vm.Compile()
 	if err != nil {
 		log.Error(log.GCTScriptMgr, err)
@@ -171,7 +173,6 @@ func (vm *VM) CompileAndRun() {
 		return
 	}
 	if vm.Compiled.Get("timer").String() != "" {
-		fmt.Println("Timer: ", vm.Compiled.Get("timer").String())
 		vm.T, err = time.ParseDuration(vm.Compiled.Get("timer").String())
 		if err != nil {
 			log.Error(log.GCTScriptMgr, err)
@@ -241,11 +242,13 @@ func (vm *VM) event(status, executionType string, includeScriptHash bool) {
 	if includeScriptHash {
 		hash.SetValid(vm.getHash(false))
 	}
-	scriptData, err := vm.scriptData()
-	if err != nil {
-		log.Errorf(log.GCTScriptMgr, "Failed to retrieve scriptData: %v", err)
+	if executionType != TypeCreate {
+		scriptData, err := vm.scriptData()
+		if err != nil {
+			log.Errorf(log.GCTScriptMgr, "Failed to retrieve scriptData: %v", err)
+		}
+		data.SetValid(scriptData)
 	}
-	data.SetValid(scriptData)
 	scriptevent.Event(vm.getHash(true), vm.ShortName(), vm.Path, hash, data, executionType, status, time.Now())
 }
 
