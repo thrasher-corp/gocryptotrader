@@ -173,11 +173,12 @@ func (g *Gemini) WsHandleData() {
 					g.Websocket.DataHandler <- err
 					continue
 				}
-				oSide, err := order.StringToOrderSide(result[i].Side)
-				if err != nil {
-					g.Websocket.DataHandler <- err
-				}
+
 				for i := range result {
+					oSide, err := order.StringToOrderSide(result[i].Side)
+					if err != nil {
+						g.Websocket.DataHandler <- err
+					}
 					g.Websocket.DataHandler <- &order.Detail{
 						HiddenOrder:     result[i].IsHidden,
 						Price:           result[i].Price,

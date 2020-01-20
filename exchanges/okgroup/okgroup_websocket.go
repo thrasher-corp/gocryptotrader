@@ -395,6 +395,48 @@ func (o *OKGroup) wsProcessOrder(respRaw []byte) {
 
 // wsProcessTickers converts ticker data and sends it to the datahandler
 func (o *OKGroup) wsProcessTickers(respRaw []byte) {
+	var response WebsocketTickerData
+	err := json.Unmarshal(respRaw, &response)
+	if err != nil {
+		o.Websocket.DataHandler <- err
+		return
+	}
+	for i := range response.Data {
+		a := o.GetAssetTypeFromTableName(response.Table)
+		var c currency.Pair
+		switch a {
+		case asset.Futures, asset.PerpetualSwap:
+			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
+			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1], f[2], delimiterUnderscore)
+		default:
+			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
+			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
+		}
+		lastUpdated, err := time.Parse(time.RFC3339, response.Data[i].Timestamp)
+		if err != nil {
+			o.Websocket.DataHandler <- err
+		}
+
+		o.Websocket.DataHandler <- &ticker.Price{
+			ExchangeName: o.Name,
+			Open:         response.Data[i].Open24h,
+			Close:        response.Data[i].Last,
+			Volume:       response.Data[i].BaseVolume24h,
+			QuoteVolume:  response.Data[i].QuoteVolume24h,
+			High:         response.Data[i].High24h,
+			Low:          response.Data[i].Low24h,
+			Bid:          response.Data[i].BestBid,
+			Ask:          response.Data[i].BestAsk,
+			Last:         response.Data[i].Last,
+			AssetType:    o.GetAssetTypeFromTableName(response.Table),
+			Pair:         c,
+			LastUpdated:  lastUpdated,
+		}
+	}
+}
+
+// wsProcessTrades converts trade data and sends it to the datahandler
+func (o *OKGroup) wsProcessTrades(respRaw []byte) {
 	var response WebsocketTradeResponse
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
@@ -412,58 +454,18 @@ func (o *OKGroup) wsProcessTickers(respRaw []byte) {
 			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
 			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
 		}
-
-		o.Websocket.DataHandler <- &ticker.Price{
-			ExchangeName: o.Name,
-			Open:         response.Data[i].Open24h,
-			Close:        response.Data[i].Last,
-			Volume:       response.Data[i].BaseVolume24h,
-			QuoteVolume:  response.Data[i].QuoteVolume24h,
-			High:         response.Data[i].High24h,
-			Low:          response.Data[i].Low24h,
-			Bid:          response.Data[i].BestBid,
-			Ask:          response.Data[i].BestAsk,
-			Last:         response.Data[i].Last,
-			LastUpdated:  response.Data[i].Timestamp,
-			AssetType:    o.GetAssetTypeFromTableName(response.Table),
-			Pair:         c,
+		ts, err := time.Parse("2006-01-02T15:04:05Z", response.Data[i].Timestamp)
+		if err != nil {
+			o.Websocket.DataHandler <- err
 		}
-	}
-}
-
-// wsProcessTrades converts trade data and sends it to the datahandler
-func (o *OKGroup) wsProcessTrades(respRaw []byte) {
-	var response WebsocketTradeResponse
-	err := json.Unmarshal(respRaw, &response)
-	if err != nil {
-		o.Websocket.DataHandler <- err
-		return
-	}
-	for i := range response.Data {
-		for j := range response.Data[i] {
-			a := o.GetAssetTypeFromTableName(response.Table)
-			var c currency.Pair
-			switch a {
-			case asset.Futures, asset.PerpetualSwap:
-				f := strings.Split(response.Data[i][j].InstrumentID, delimiterDash)
-				c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1], f[2], delimiterUnderscore)
-			default:
-				f := strings.Split(response.Data[i][j].InstrumentID, delimiterDash)
-				c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
-			}
-			ts, err := time.Parse("2006-01-02T15:04:05Z", response.Data[i][j].Timestamp)
-			if err != nil {
-				o.Websocket.DataHandler <- err
-			}
-			o.Websocket.DataHandler <- wshandler.TradeData{
-				Amount:       response.Data[i][j].Size,
-				AssetType:    o.GetAssetTypeFromTableName(response.Table),
-				CurrencyPair: c,
-				Exchange:     o.Name,
-				Price:        response.Data[i][j].Price,
-				Side:         response.Data[i][j].Side,
-				Timestamp:    ts,
-			}
+		o.Websocket.DataHandler <- wshandler.TradeData{
+			Amount:       response.Data[i].Size,
+			AssetType:    o.GetAssetTypeFromTableName(response.Table),
+			CurrencyPair: c,
+			Exchange:     o.Name,
+			Price:        response.Data[i].Price,
+			Side:         response.Data[i].Side,
+			Timestamp:    ts,
 		}
 	}
 }
@@ -542,7 +544,13 @@ func (o *OKGroup) wsProcessCandles(respRaw []byte) {
 }
 
 // WsProcessOrderBook Validates the checksum and updates internal orderbook values
-func (o *OKGroup) WsProcessOrderBook(response *WebsocketDataResponse) {
+func (o *OKGroup) WsProcessOrderBook(respRaw []byte) {
+	var response WebsocketOrderBooksData
+	err := json.Unmarshal(respRaw, &response)
+	if err != nil {
+		o.Websocket.DataHandler <- err
+		return
+	}
 	orderbookMutex.Lock()
 	for i := range response.Data {
 		a := o.GetAssetTypeFromTableName(response.Table)
@@ -560,7 +568,7 @@ func (o *OKGroup) WsProcessOrderBook(response *WebsocketDataResponse) {
 			err := o.WsProcessPartialOrderBook(&response.Data[i], c, a)
 			if err != nil {
 				o.Websocket.DataHandler <- err
-				o.wsResubscribeToOrderbook(response)
+				o.wsResubscribeToOrderbook(&response)
 			}
 		} else if response.Action == okGroupWsOrderbookUpdate {
 			if len(response.Data[i].Asks) == 0 && len(response.Data[i].Bids) == 0 {
@@ -569,14 +577,14 @@ func (o *OKGroup) WsProcessOrderBook(response *WebsocketDataResponse) {
 			err := o.WsProcessUpdateOrderbook(&response.Data[i], c, a)
 			if err != nil {
 				o.Websocket.DataHandler <- err
-				o.wsResubscribeToOrderbook(response)
+				o.wsResubscribeToOrderbook(&response)
 			}
 		}
 	}
 	orderbookMutex.Unlock()
 }
 
-func (o *OKGroup) wsResubscribeToOrderbook(response *WebsocketDataResponse) {
+func (o *OKGroup) wsResubscribeToOrderbook(response *WebsocketOrderBooksData) {
 	for i := range response.Data {
 		a := o.GetAssetTypeFromTableName(response.Table)
 		var c currency.Pair
@@ -616,7 +624,7 @@ func (o *OKGroup) AppendWsOrderbookItems(entries [][]interface{}) ([]orderbook.I
 
 // WsProcessPartialOrderBook takes websocket orderbook data and creates an orderbook
 // Calculates checksum to ensure it is valid
-func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, instrument currency.Pair, a asset.Item) error {
+func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketOrderBook, instrument currency.Pair, a asset.Item) error {
 	signedChecksum := o.CalculatePartialOrderbookChecksum(wsEventData)
 	if signedChecksum != wsEventData.Checksum {
 		return fmt.Errorf("%s channel: %s. Orderbook partial for %v checksum invalid",
@@ -665,7 +673,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, i
 
 // WsProcessUpdateOrderbook updates an existing orderbook using websocket data
 // After merging WS data, it will sort, validate and finally update the existing orderbook
-func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, instrument currency.Pair, a asset.Item) error {
+func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketOrderBook, instrument currency.Pair, a asset.Item) error {
 	update := wsorderbook.WebsocketOrderbookUpdate{
 		Asset:      a,
 		Pair:       instrument,
@@ -712,7 +720,7 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, in
 // quantity with a semicolon (:) deliminating them. This will also work when
 // there are less than 25 entries (for whatever reason)
 // eg Bid:Ask:Bid:Ask:Ask:Ask
-func (o *OKGroup) CalculatePartialOrderbookChecksum(orderbookData *WebsocketDataWrapper) int32 {
+func (o *OKGroup) CalculatePartialOrderbookChecksum(orderbookData *WebsocketOrderBook) int32 {
 	var checksum strings.Builder
 	for i := 0; i < allowableIterations; i++ {
 		if len(orderbookData.Bids)-1 >= i {
