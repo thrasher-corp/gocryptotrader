@@ -40,7 +40,7 @@ var (
 	}
 	// AllVMs stores all current Virtual Machine instances
 	AllVMs = make(map[uuid.UUID]*VM)
-	rmw sync.RWMutex
+	rmw    sync.RWMutex
 )
 
 // VM contains a pointer to "script" (precompiled source) and "compiled" (compiled byte code) instances

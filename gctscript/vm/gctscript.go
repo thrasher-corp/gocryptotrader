@@ -67,8 +67,8 @@ func ShutdownAll() (err error) {
 
 // RemoveVM remove VM from list
 func RemoveVM(id uuid.UUID) error {
-	_, err := loadVM(id);
-	if err != nil{
+	_, err := loadVM(id)
+	if err != nil {
 		return fmt.Errorf(ErrNoVMFound, id.String())
 	}
 	deleteVM(id)
@@ -88,7 +88,7 @@ func loadVM(id uuid.UUID) (*VM, error) {
 	return AllVMs[id], nil
 }
 
-func storeVM(k uuid.UUID,v *VM) {
+func storeVM(k uuid.UUID, v *VM) {
 	rmw.Lock()
 	defer rmw.Unlock()
 	AllVMs[k] = v
@@ -98,4 +98,10 @@ func deleteVM(id uuid.UUID) {
 	rmw.Lock()
 	defer rmw.Unlock()
 	delete(AllVMs, id)
+}
+
+func lenVM() int {
+	rmw.Lock()
+	defer rmw.Unlock()
+	return len(AllVMs)
 }
