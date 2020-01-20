@@ -56,6 +56,16 @@ func (b *BTCMarkets) SetDefaults() {
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 	b.API.Endpoints.URLDefault = btcMarketsAPIURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
+	// Specific authentication issues
+	b.ValidateCredentialError = func(err error) error {
+		if strings.Contains(err.Error(), "InvalidAPIKey") ||
+			strings.Contains(err.Error(), "InvalidAuthTimestamp") ||
+			strings.Contains(err.Error(), "InvalidAuthSignature") ||
+			strings.Contains(err.Error(), "InsufficientAPIPermission") {
+			return err
+		}
+		return nil
+	}
 
 	b.CurrencyPairs = currency.PairsManager{
 		AssetTypes: asset.Items{

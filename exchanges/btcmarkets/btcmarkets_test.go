@@ -1,6 +1,7 @@
 package btcmarkets
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -43,6 +44,13 @@ func TestMain(m *testing.M) {
 	err = b.Setup(bConfig)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	err = b.ValidateCredentials()
+	if err != nil {
+		fmt.Println("API credentials are invalid:", err)
+		b.API.AuthenticatedSupport = false
+		b.API.AuthenticatedWebsocketSupport = false
 	}
 
 	os.Exit(m.Run())

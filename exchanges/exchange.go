@@ -794,10 +794,10 @@ func (e *Base) CheckTransientError(err error) error {
 		return nil
 	}
 
-	if e.CheckError != nil {
+	if e.ValidateCredentialError != nil {
 		// This is used for checking edge case transients, specific to an
 		// exchange
-		return e.CheckError.Validate(err)
+		return e.ValidateCredentialError(err)
 	}
 
 	return err
