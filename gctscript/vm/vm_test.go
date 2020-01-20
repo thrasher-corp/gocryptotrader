@@ -156,7 +156,7 @@ func TestShutdownAll(t *testing.T) {
 	if len(AllVMs) == vmCount {
 		t.Fatal("expected VM count to increase")
 	}
-
+	time.Sleep(1000)
 	err = ShutdownAll()
 	if err != nil {
 		t.Fatal(err)
