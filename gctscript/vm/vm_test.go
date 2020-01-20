@@ -249,6 +249,6 @@ func configHelper(enabled, imports bool, timeout time.Duration, max uint8) *Conf
 		AllowImports:       imports,
 		ScriptTimeout:      timeout,
 		MaxVirtualMachines: max,
-		Verbose: true,
+		Verbose:            true,
 	}
 }

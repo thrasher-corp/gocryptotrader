@@ -172,7 +172,7 @@ func (vm *VM) CompileAndRun() {
 	}
 	fmt.Printf("%v\n", vm)
 	if vm.Compiled.Get("timer").String() != "" {
-		fmt.Println("Timer: ", vm.Compiled.Get("timer").String() )
+		fmt.Println("Timer: ", vm.Compiled.Get("timer").String())
 		vm.T, err = time.ParseDuration(vm.Compiled.Get("timer").String())
 		if err != nil {
 			log.Error(log.GCTScriptMgr, err)
