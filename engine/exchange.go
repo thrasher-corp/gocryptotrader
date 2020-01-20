@@ -294,7 +294,7 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 		err = exch.ValidateCredentials()
 		if err != nil {
 			log.Warnf(log.ExchangeSys,
-				"%s: cannot validate credentials, authenticated support has been disabled, Error: %s\n",
+				"%s: Cannot validate credentials, authenticated support has been disabled, Error: %s\n",
 				base.Name,
 				err)
 			base.API.AuthenticatedSupport = false
