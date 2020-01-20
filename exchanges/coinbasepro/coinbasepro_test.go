@@ -76,8 +76,7 @@ func TestGetTrades(t *testing.T) {
 	}
 }
 
-// TestGetHistoricRates_api_check using a time range of 5 minutes and a granularity of 1 minutes, it should return exactly 5 candles
-func TestGetHistoricRates_api_check(t *testing.T) {
+func TestGetHistoricRatesApiCheck(t *testing.T) {
 	e := expectedCandles(5, 300, 60)
 	if e != nil {
 		t.Error(e)
@@ -104,6 +103,7 @@ func TestGetHistoricRates_api_check(t *testing.T) {
 	}
 }
 
+// expectedCandles uses the previous candle time window because the current one might not be complete and if used the test would become non-deterministic
 func expectedCandles(expectedCandles int, timeRange time.Duration, candleGranularity int64) error {
 	end := time.Now().UTC().Add(-time.Second * timeRange) // the latest candle may not yet be ready, so skipping to the previous one
 	start := end.Add(-time.Second * timeRange)
@@ -111,7 +111,6 @@ func expectedCandles(expectedCandles int, timeRange time.Duration, candleGranula
 	if err != nil {
 		return err
 	}
-	// Using a time range of 5 minutes and a granularity of 1 minutes, it should return exactly 5 candles
 	if len(resp) != expectedCandles {
 		err := fmt.Errorf("Expected %d candles, returned: %d", expectedCandles, len(resp))
 		return err
@@ -119,12 +118,11 @@ func expectedCandles(expectedCandles int, timeRange time.Duration, candleGranula
 	return nil
 }
 
-func TestGetHistoricRates_granularity_check(t *testing.T) {
-	iso8601format := "2006-01-02T15:04:05"
+func TestGetHistoricRatesGranularityCheck(t *testing.T) {
 	end := time.Now().UTC()
 	start := time.Now().UTC().Add(-time.Second * 300)
 	invalid_granularity := 11
-	_, err := c.GetHistoricRates(testPair, start.Format(iso8601format), end.Format(iso8601format), int64(invalid_granularity))
+	_, err := c.GetHistoricRates(testPair, start.Format(time.RFC3339), end.Format(time.RFC3339), int64(invalid_granularity))
 	if err == nil {
 		t.Error("Expected error as granularity value passed in as parameter is not correct")
 	} else {
