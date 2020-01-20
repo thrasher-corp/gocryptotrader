@@ -170,7 +170,6 @@ func (vm *VM) CompileAndRun() {
 		}
 		return
 	}
-	fmt.Printf("%v\n", vm)
 	if vm.Compiled.Get("timer").String() != "" {
 		fmt.Println("Timer: ", vm.Compiled.Get("timer").String())
 		vm.T, err = time.ParseDuration(vm.Compiled.Get("timer").String())

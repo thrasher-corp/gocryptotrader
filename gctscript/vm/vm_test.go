@@ -174,8 +174,6 @@ func TestRead(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	VM.CompileAndRun()
-
 	ScriptPath = filepath.Join("..", "..", "testdata", "gctscript")
 	data, err := VM.Read()
 	if err != nil {
