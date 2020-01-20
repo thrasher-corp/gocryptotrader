@@ -618,7 +618,7 @@ func (c *CoinbasePro) AuthenticateWebsocket() error {
 }
 
 // GetHistoricCandles Allows to retrieve an amount of candles back in time starting from now up to rangesize * granularity, where granularity is the trade period covered by each candle
-func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
+func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
 	//start end granularity
 	end := time.Now().UTC()
 	b := granularity * rangesize
