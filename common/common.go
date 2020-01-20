@@ -360,11 +360,12 @@ func SplitStringSliceByLimit(in []string, limit uint) [][]string {
 func InArray(val interface{}, array interface{}) (exists bool, index int) {
 	exists = false
 	index = -1
-
+	if array == nil {
+		return
+	}
 	switch reflect.TypeOf(array).Kind() {
 	case reflect.Array, reflect.Slice:
 		s := reflect.ValueOf(array)
-
 		for i := 0; i < s.Len(); i++ {
 			if reflect.DeepEqual(val, s.Index(i).Interface()) == true {
 				index = i
@@ -373,6 +374,5 @@ func InArray(val interface{}, array interface{}) (exists bool, index int) {
 			}
 		}
 	}
-
 	return
 }
