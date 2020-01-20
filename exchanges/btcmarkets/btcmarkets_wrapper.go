@@ -695,13 +695,18 @@ func (b *BTCMarkets) AuthenticateWebsocket() error {
 func (b *BTCMarkets) ValidateCredentials() error {
 	acc, err := b.GetAccountInfo()
 	if err != nil {
+		if b.CheckTransientError(err) == nil {
+			return nil
+		}
+		// Check for specific auth errors; all other errors can be disregarded
+		// as this does not affect authenticated requests.
 		if strings.Contains(err.Error(), "InvalidAPIKey") ||
 			strings.Contains(err.Error(), "InvalidAuthTimestamp") ||
 			strings.Contains(err.Error(), "InvalidAuthSignature") ||
 			strings.Contains(err.Error(), "InsufficientAPIPermission") {
 			return err
 		}
-		return b.CheckTransientError(err)
+		return nil
 	}
 
 	return account.Process(&acc)
