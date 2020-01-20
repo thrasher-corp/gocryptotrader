@@ -221,7 +221,4 @@ type Base struct {
 	Websocket                     *wshandler.Websocket
 	*request.Requester
 	Config *config.ExchangeConfig
-	// ValidateCredentialError is used for exchange specific edge case errors,
-	// does not need to be added
-	ValidateCredentialError func(error) error
 }
