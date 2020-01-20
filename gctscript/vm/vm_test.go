@@ -134,7 +134,6 @@ func TestVMWithRunner(t *testing.T) {
 		t.Fatal("expected VM count to increase")
 	}
 	VM.CompileAndRun()
-	t.Logf("%v", VM)
 	err = VM.Shutdown()
 	if err != nil {
 		t.Fatal(err)
@@ -192,8 +191,10 @@ func TestRemoveVM(t *testing.T) {
 	id, _ := uuid.FromString("6f20c907-64a0-48f2-848a-7837dee61672")
 	err := RemoveVM(id)
 
-	if err.Error() != "VM 6f20c907-64a0-48f2-848a-7837dee61672 not found" {
-		t.Fatal(err)
+	if err != nil {
+		if err.Error() != "VM 6f20c907-64a0-48f2-848a-7837dee61672 not found" {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -248,5 +249,6 @@ func configHelper(enabled, imports bool, timeout time.Duration, max uint8) *Conf
 		AllowImports:       imports,
 		ScriptTimeout:      timeout,
 		MaxVirtualMachines: max,
+		Verbose: true,
 	}
 }

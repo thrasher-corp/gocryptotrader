@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -169,8 +170,9 @@ func (vm *VM) CompileAndRun() {
 		}
 		return
 	}
-
+	fmt.Printf("%v\n", vm)
 	if vm.Compiled.Get("timer").String() != "" {
+		fmt.Println("Timer: ", vm.Compiled.Get("timer").String() )
 		vm.T, err = time.ParseDuration(vm.Compiled.Get("timer").String())
 		if err != nil {
 			log.Error(log.GCTScriptMgr, err)
