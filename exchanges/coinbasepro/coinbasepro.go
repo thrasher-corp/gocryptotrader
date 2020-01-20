@@ -180,7 +180,7 @@ func (c *CoinbasePro) GetHistoricRates(currencyPair string, start, end string, g
 	}
 
 	allowedGranularities :=[6]int64{60, 300, 900, 3600, 21600, 86400}
-	validGran, _ := common.In_array(granularity, allowedGranularities)
+	validGran, _ := common.InArray(granularity, allowedGranularities)
 	if !validGran {
 		return nil, errors.New("Invalid granularity value: " + strconv.FormatInt(granularity,10) +". Allowed values are {60, 300, 900, 3600, 21600, 86400}")
 	}
