@@ -2,7 +2,6 @@ package vm
 
 import (
 	"errors"
-	"sync"
 	"time"
 )
 
@@ -37,6 +36,4 @@ var (
 	ErrScriptingDisabled = errors.New("scripting is disabled")
 	// ErrNoVMLoaded error message displayed if a virtual machine has not been initialised
 	ErrNoVMLoaded = errors.New("no virtual machine loaded")
-
-	mu = &sync.RWMutex{}
 )

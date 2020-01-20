@@ -10,12 +10,6 @@ import (
 
 // New returns a new instance of VM
 func New() *VM {
-	mu.Lock()
-	defer mu.Unlock()
-	if AllVMs == nil {
-		AllVMs = make(map[uuid.UUID]*VM)
-	}
-
 	if len(AllVMs) >= int(GCTScriptConfig.MaxVirtualMachines) {
 		if GCTScriptConfig.Verbose {
 			log.Warnf(log.GCTScriptMgr, "GCTScript MaxVirtualMachines (%v) hit, unable to start further instances",
@@ -25,8 +19,7 @@ func New() *VM {
 	}
 
 	vm := NewVM()
-	AllVMs[vm.ID] = vm
-
+	storeVM(vm.ID, vm)
 	return vm
 }
 
@@ -74,15 +67,35 @@ func ShutdownAll() (err error) {
 
 // RemoveVM remove VM from list
 func RemoveVM(id uuid.UUID) error {
-	mu.Lock()
-	defer mu.Unlock()
-	if _, f := AllVMs[id]; !f {
+	_, err := loadVM(id);
+	if err != nil{
 		return fmt.Errorf(ErrNoVMFound, id.String())
 	}
-	delete(AllVMs, id)
+	deleteVM(id)
 
 	if GCTScriptConfig.Verbose {
 		log.Debugf(log.GCTScriptMgr, "VM %v removed from AllVMs", id)
 	}
 	return nil
+}
+
+func loadVM(id uuid.UUID) (*VM, error) {
+	rmw.RLock()
+	defer rmw.RUnlock()
+	if _, f := AllVMs[id]; !f {
+		return nil, fmt.Errorf(ErrNoVMFound, id.String())
+	}
+	return AllVMs[id], nil
+}
+
+func storeVM(k uuid.UUID,v *VM) {
+	rmw.Lock()
+	defer rmw.Unlock()
+	AllVMs[k] = v
+}
+
+func deleteVM(id uuid.UUID) {
+	rmw.Lock()
+	defer rmw.Unlock()
+	delete(AllVMs, id)
 }

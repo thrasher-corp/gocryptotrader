@@ -121,6 +121,7 @@ func TestVMRunTX(t *testing.T) {
 }
 
 func TestVMWithRunner(t *testing.T) {
+	AllVMs = make(map[uuid.UUID]*VM)
 	vmCount := len(AllVMs)
 	VM := New()
 	if VM == nil {
@@ -144,6 +145,7 @@ func TestVMWithRunner(t *testing.T) {
 }
 
 func TestShutdownAll(t *testing.T) {
+	AllVMs = make(map[uuid.UUID]*VM)
 	vmCount := len(AllVMs)
 	VM := New()
 	err := VM.Load(testScriptRunner)
@@ -156,7 +158,6 @@ func TestShutdownAll(t *testing.T) {
 	if len(AllVMs) == vmCount {
 		t.Fatal("expected VM count to increase")
 	}
-	time.Sleep(1000)
 	err = ShutdownAll()
 	if err != nil {
 		t.Fatal(err)
