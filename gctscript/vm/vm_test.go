@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -22,13 +23,13 @@ var (
 	testScript               = filepath.Join("..", "..", "testdata", "gctscript", "once.gct")
 	testInvalidScript        = filepath.Join("..", "..", "testdata", "gctscript", "broken.gct")
 	testScriptRunner         = filepath.Join("..", "..", "testdata", "gctscript", "timer.gct")
-	testScriptRunner1s         = filepath.Join("..", "..", "testdata", "gctscript", "1s_timer.gct")
+	testScriptRunner1s       = filepath.Join("..", "..", "testdata", "gctscript", "1s_timer.gct")
 	testScriptRunnerNegative = filepath.Join("..", "..", "testdata", "gctscript", "negative_timer.gct")
 )
 
 func TestMain(m *testing.M) {
 	c := logger.GenDefaultSettings()
-	//c.Enabled = convert.BoolPtr(false)
+	c.Enabled = convert.BoolPtr(false)
 	logger.GlobalLogConfig = &c
 	GCTScriptConfig = configHelper(true, true, testVirtualMachineTimeout, maxTestVirtualMachines)
 	os.Exit(m.Run())
@@ -75,7 +76,7 @@ func TestVMLoad1s(t *testing.T) {
 	}
 
 	testVM.CompileAndRun()
-	time.Sleep(2)
+	time.Sleep(1000)
 	err = testVM.Shutdown()
 	if err != nil {
 		if !errors.Is(err, ErrNoVMLoaded) {
