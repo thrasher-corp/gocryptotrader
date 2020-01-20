@@ -124,9 +124,7 @@ func TestGetHistoricRatesGranularityCheck(t *testing.T) {
 	invalid_granularity := 11
 	_, err := c.GetHistoricRates(testPair, start.Format(time.RFC3339), end.Format(time.RFC3339), int64(invalid_granularity))
 	if err == nil {
-		t.Error("Expected error as granularity value passed in as parameter is not correct")
-	} else {
-		fmt.Println(err)
+		t.Error("Granularity validation did not work as expected")
 	}
 }
 
