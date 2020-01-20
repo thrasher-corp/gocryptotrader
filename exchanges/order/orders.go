@@ -85,10 +85,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		d.ExecutedAmount = m.ExecutedAmount
 		updated = true
 	}
-	if m.RemainingAmount != d.RemainingAmount {
-		d.RemainingAmount = m.RemainingAmount
-		updated = true
-	}
+
 	if m.Fee > 0 && m.Fee != d.Fee {
 		d.Fee = m.Fee
 		updated = true
@@ -139,7 +136,12 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 				d.Trades = append(d.Trades, m.Trades[x])
 				updated = true
 			}
+			m.RemainingAmount -= m.Trades[x].Amount
 		}
+	}
+	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
+		d.RemainingAmount = m.RemainingAmount
+		updated = true
 	}
 	if updated {
 		if m.Date != d.Date {
@@ -195,10 +197,7 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		d.ExecutedAmount = m.ExecutedAmount
 		updated = true
 	}
-	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
-		d.RemainingAmount = m.RemainingAmount
-		updated = true
-	}
+
 	if m.Fee > 0 && m.Fee != d.Fee {
 		d.Fee = m.Fee
 		updated = true
@@ -249,7 +248,12 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 				d.Trades = append(d.Trades, m.Trades[x])
 				updated = true
 			}
+			m.RemainingAmount -= m.Trades[x].Amount
 		}
+	}
+	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
+		d.RemainingAmount = m.RemainingAmount
+		updated = true
 	}
 	if updated {
 		d.LastUpdated = time.Now()
