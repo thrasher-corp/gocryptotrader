@@ -105,10 +105,9 @@ func TestGetHistoricRates_api_check(t *testing.T) {
 }
 
 func expectedCandles(expectedCandles int, timeRange time.Duration, candleGranularity int64) error {
-	iso8601format := "2006-01-02T15:04:05"
 	end := time.Now().UTC().Add(-time.Second * timeRange) // the latest candle may not yet be ready, so skipping to the previous one
 	start := end.Add(-time.Second * timeRange)
-	resp, err := c.GetHistoricRates(testPair, start.Format(iso8601format), end.Format(iso8601format), candleGranularity)
+	resp, err := c.GetHistoricRates(testPair, start.Format(time.RFC3339), end.Format(time.RFC3339), candleGranularity)
 	if err != nil {
 		return err
 	}
