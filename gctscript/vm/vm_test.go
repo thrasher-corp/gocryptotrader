@@ -145,7 +145,6 @@ func TestVMWithRunner(t *testing.T) {
 }
 
 func TestShutdownAll(t *testing.T) {
-	GCTScriptConfig.Verbose = true
 	vmCount := len(AllVMs)
 	VM := New()
 	err := VM.Load(testScriptRunner)

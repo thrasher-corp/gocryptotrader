@@ -201,7 +201,6 @@ func (vm *VM) CompileAndRun() {
 // Shutdown shuts down current VMP
 func (vm *VM) Shutdown() error {
 	if vm.S != nil {
-		vm.S <- struct{}{}
 		close(vm.S)
 	}
 	if GCTScriptConfig.Verbose {
