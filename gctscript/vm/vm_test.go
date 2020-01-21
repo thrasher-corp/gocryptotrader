@@ -14,15 +14,18 @@ import (
 )
 
 const (
-	maxTestVirtualMachines    uint8 = 30
-	testVirtualMachineTimeout       = time.Minute
+	maxTestVirtualMachines    uint8  = 30
+	testVirtualMachineTimeout        = time.Minute
+	scriptName                string = "1D01TH0RS3.gct"
 )
 
 var (
 	testScript               = filepath.Join("..", "..", "testdata", "gctscript", "once.gct")
-	testInvalidScript        = filepath.Join("..", "..", "testdata", "gctscript", "broken.gct")
+	testInvalidScript        = filepath.Join("..", "..", "testdata", "gctscript", "invalid.gct")
+	testBrokenScript         = filepath.Join("..", "..", "testdata", "gctscript", "broken.gct")
 	testScriptRunner         = filepath.Join("..", "..", "testdata", "gctscript", "timer.gct")
 	testScriptRunner1s       = filepath.Join("..", "..", "testdata", "gctscript", "1s_timer.gct")
+	testScriptRunnerInvalid  = filepath.Join("..", "..", "testdata", "gctscript", "invalid_timer.gct")
 	testScriptRunnerNegative = filepath.Join("..", "..", "testdata", "gctscript", "negative_timer.gct")
 )
 
@@ -81,6 +84,21 @@ func TestVMLoad1s(t *testing.T) {
 		if !errors.Is(err, ErrNoVMLoaded) {
 			t.Fatal(err)
 		}
+	}
+}
+
+func TestVMLoadNegativeTimer(t *testing.T) {
+	testVM := New()
+	err := testVM.Load(testScriptRunnerInvalid)
+	if err != nil {
+		if !errors.Is(err, ErrNoVMLoaded) {
+			t.Fatal(err)
+		}
+	}
+	testVM.CompileAndRun()
+	err = testVM.Shutdown()
+	if err == nil {
+		t.Fatal("expect error on shutdown due to invalid VM")
 	}
 }
 
@@ -298,13 +316,58 @@ func TestVM_CompileInvalid(t *testing.T) {
 	}
 
 	err = testVM.Compile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = testVM.Run()
+	if err == nil {
+		t.Fatal("unexpected result broken script compiled successfully ")
+	}
+
+	testVM = New()
+	err = testVM.Load(testInvalidScript)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = testVM.Compile()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = testVM.RunCtx()
+	if err == nil {
+		t.Fatal("unexpected result broken script compiled successfully ")
+	}
+
+	testVM = New()
+	err = testVM.Load(testInvalidScript)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testVM.CompileAndRun()
+	err = testVM.Shutdown()
+	if err == nil {
+		t.Fatal("Shutdown() passed successfully but expected to fail with invalid script")
+	}
+}
+
+func TestVM_CompileBroken(t *testing.T) {
+	testVM := New()
+	err := testVM.Load(testBrokenScript)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = testVM.Compile()
 	if err == nil {
 		t.Fatal("unexpected result broken script compiled successfully ")
 	}
 }
 
 func TestValidate(t *testing.T) {
-	err := Validate(testInvalidScript)
+	err := Validate(testBrokenScript)
 	if err == nil {
 		t.Fatal(err)
 	}
@@ -321,6 +384,46 @@ func TestVMLimit(t *testing.T) {
 		t.Fatal("expected nil but received pointer to VM")
 	}
 	GCTScriptConfig = configHelper(true, true, maxTestVirtualMachines)
+}
+
+func TestAutoload(t *testing.T) {
+	GCTScriptConfig = &Config{
+		Enabled: true,
+		AutoLoad: []string{
+			scriptName,
+		},
+		Verbose: true,
+	}
+
+	ScriptPath = filepath.Join("..", "..", "testdata", "gctscript")
+	err := Autoload(scriptName, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = Autoload(scriptName, true)
+	if err == nil {
+		t.Fatal("expected err to be script not found received nil")
+	}
+	err = Autoload("once", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = Autoload(scriptName, false)
+	if err == nil {
+		t.Fatal("expected err to be script not found received nil")
+	}
+}
+
+func TestVMCount(t *testing.T) {
+	var c vmscount
+	c.add()
+	if c.Len() != 1 {
+		t.Fatalf("expect c len to be 1 instead received %v", c.Len())
+	}
+	c.remove()
+	if c.Len() != 0 {
+		t.Fatalf("expect c len to be 0 instead received %v", c.Len())
+	}
 }
 
 func configHelper(enabled, imports bool, max uint8) *Config {

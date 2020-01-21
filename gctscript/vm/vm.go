@@ -201,7 +201,7 @@ func (vm *VM) CompileAndRun() {
 	}
 }
 
-// Shutdown shuts down current VMP
+// Shutdown shuts down current VM
 func (vm *VM) Shutdown() error {
 	if vm.S != nil {
 		close(vm.S)
@@ -215,6 +215,7 @@ func (vm *VM) Shutdown() error {
 	return RemoveVM(vm.ID)
 }
 
+// Read contents of script back and create script event
 func (vm *VM) Read() ([]byte, error) {
 	vm.event(StatusSuccess, TypeRead, true)
 	return vm.read()
