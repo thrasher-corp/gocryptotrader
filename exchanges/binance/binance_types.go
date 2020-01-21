@@ -612,3 +612,7 @@ type WithdrawResponse struct {
 	Msg     string `json:"msg"`
 	ID      string `json:"id"`
 }
+
+type UserAccountStream struct {
+	ListenKey string `json:"listenKey"`
+}

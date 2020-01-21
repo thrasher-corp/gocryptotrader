@@ -514,3 +514,27 @@ func TestGetDepositAddress(t *testing.T) {
 		t.Error("Mock GetDepositAddress() error", err)
 	}
 }
+
+func TestWSSubscriptionHandling(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "method": "SUBSCRIBE",
+  "params": [
+    "btcusdt@aggTrade",
+    "btcusdt@depth"
+  ],
+  "id": 1
+}`)
+	err := b.wsReadData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWsAuthStreamKey(t *testing.T) {
+	b.Verbose = true
+	hi, err := b.GetWsAuthStreamKey()
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log(hi)
+}

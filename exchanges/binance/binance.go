@@ -26,17 +26,18 @@ const (
 	apiURL = "https://api.binance.com"
 
 	// Public endpoints
-	exchangeInfo     = "/api/v1/exchangeInfo"
-	orderBookDepth   = "/api/v1/depth"
-	recentTrades     = "/api/v1/trades"
-	historicalTrades = "/api/v1/historicalTrades"
-	aggregatedTrades = "/api/v1/aggTrades"
-	candleStick      = "/api/v1/klines"
-	averagePrice     = "/api/v3/avgPrice"
-	priceChange      = "/api/v1/ticker/24hr"
-	symbolPrice      = "/api/v3/ticker/price"
-	bestPrice        = "/api/v3/ticker/bookTicker"
-	accountInfo      = "/api/v3/account"
+	exchangeInfo      = "/api/v1/exchangeInfo"
+	orderBookDepth    = "/api/v1/depth"
+	recentTrades      = "/api/v1/trades"
+	historicalTrades  = "/api/v1/historicalTrades"
+	aggregatedTrades  = "/api/v1/aggTrades"
+	candleStick       = "/api/v1/klines"
+	averagePrice      = "/api/v3/avgPrice"
+	priceChange       = "/api/v1/ticker/24hr"
+	symbolPrice       = "/api/v3/ticker/price"
+	bestPrice         = "/api/v3/ticker/bookTicker"
+	accountInfo       = "/api/v3/account"
+	userAccountStream = "/api/v3/userDataStream"
 
 	// Authenticated endpoints
 	newOrderTest = "/api/v3/order/test"
@@ -682,4 +683,12 @@ func (b *Binance) GetDepositAddressForCurrency(currency string) (string, error) 
 
 	return resp.Address,
 		b.SendAuthHTTPRequest(http.MethodGet, path, params, request.Unset, &resp)
+}
+
+// GetWsAuthStreamKey will retrieve a key to use for authorised WS streaming
+func (b *Binance) GetWsAuthStreamKey() (string, error) {
+	var resp UserAccountStream
+	path := b.API.Endpoints.URL + userAccountStream
+	return resp.ListenKey,
+		b.SendHTTPRequest(http.MethodPost, path, &resp)
 }
