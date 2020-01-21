@@ -193,7 +193,7 @@
      "TokenDataEnd": "blockquote",
      "TextTokenData": "h1",
      "RegExp": "^BTSE Spot API v(\\d){1}.(\\d){1}$",
-     "CheckString": "BTSE Spot API v2.2",
+     "CheckString": "BTSE Spot API v3.0.1",
      "Path": "https://www.btse.com/apiexplorer/spot/#btse-spot-api"
     }
    },

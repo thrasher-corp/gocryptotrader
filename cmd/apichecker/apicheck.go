@@ -26,6 +26,7 @@ const (
 	githubPath         = "https://api.github.com/repos/%s/commits/master"
 	jsonFile           = "updates.json"
 	testJSONFile       = "testupdates.json"
+	backupFile         = "backup.json"
 	github             = "GitHub Sha Check"
 	htmlScrape         = "HTML String Check"
 	pathOkCoin         = "https://www.okcoin.com/docs/en/#change-change"
@@ -90,33 +91,29 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// Assumption here is that if api key n token are set, then cardid and checklistid will be set too
 	if areAPIKeysSet() {
-		// Assumption here is that if api key n token are set, then cardid and checklistid will be set too
-		if areAPIKeysSet() {
-			configData.ConfKey = trelloKey
-			configData.ConfToken = trelloToken
-			configData.ConfCardID = trelloCardID
-			configData.ConfChecklistID = trelloChecklistID
-		}
+		UpdateFile(configData, backupFile)
+		configData.ConfKey = trelloKey
+		configData.ConfToken = trelloToken
+		configData.ConfCardID = trelloCardID
+		configData.ConfChecklistID = trelloChecklistID
 		err = CheckUpdates(jsonFile, configData)
 		if err != nil {
 			log.Fatal(err)
 		}
 	} else {
-		if verbose {
-			log.Printf("This is a test update since API keys are not set.\n")
-			err := CheckUpdates(testJSONFile, testConfigData)
-			if err != nil {
-				log.Fatal(err)
-			}
+		log.Printf("This is a test update since API keys are not set.\n")
+		err := CheckUpdates(testJSONFile, testConfigData)
+		if err != nil {
+			log.Fatal(err)
 		}
 	}
-
 }
 
 // areAPIKeysSet checks if api keys and tokens are set
 func areAPIKeysSet() bool {
-	if (trelloKey != "" && trelloKey != "key") || (trelloToken != "" && trelloToken != "token") {
+	if (trelloKey != "" && trelloKey != "key") && (trelloToken != "" && trelloToken != "token") {
 		return true
 	}
 	return false
@@ -127,21 +124,19 @@ func getSha(repoPath string) (ShaResponse, error) {
 	var resp ShaResponse
 	path := fmt.Sprintf(githubPath, repoPath)
 	if verbose {
-		fmt.Println(path)
+		fmt.Printf("Getting SHA of this path: %v\n", path)
 	}
 	return resp, common.SendHTTPGetRequest(path, true, false, &resp)
 }
 
 // CheckExistingExchanges checks if the given exchange exists
-func CheckExistingExchanges(fileName, exchName string, confData Config) (bool, error) {
-	var resp bool
+func CheckExistingExchanges(fileName, exchName string, confData Config) bool {
 	for x := range confData.Exchanges {
 		if confData.Exchanges[x].Name == exchName {
-			resp = true
-			break
+			return true
 		}
 	}
-	return resp, nil
+	return false
 }
 
 // CheckMissingExchanges checks if any supported exchanges are missing api checker functionality
@@ -188,9 +183,12 @@ func CheckUpdates(fileName string, confData Config) error {
 	var sha ShaResponse
 	var checkStr string
 	var err error
+	var m sync.Mutex
 	for x := range confData.Exchanges {
 		wg.Add(1)
 		go func(x int) {
+			m.Lock()
+			defer m.Unlock()
 			defer wg.Done()
 			switch confData.Exchanges[x].CheckType {
 			case github:
@@ -237,7 +235,7 @@ func CheckUpdates(fileName string, confData Config) error {
 		}
 	}
 	if verbose && !areAPIKeysSet() {
-		err = UpdateTestFile(confData)
+		err = UpdateFile(confData, testJSONFile)
 		if err != nil {
 			return err
 		}
@@ -335,10 +333,7 @@ func CheckChangeLog(htmlData *HTMLScrapingData) (string, error) {
 
 // Add appends exchange data to updates.json for future api checks
 func Add(fileName, exchName, checkType, path string, data interface{}, update bool, confData Config) error {
-	check, err := CheckExistingExchanges(fileName, exchName, configData)
-	if err != nil {
-		return err
-	}
+	check := CheckExistingExchanges(fileName, exchName, configData)
 	var file []byte
 	if !update {
 		if check {
@@ -471,8 +466,6 @@ loop:
 					}
 				}
 			}
-		default:
-			continue
 		}
 	}
 	return resp, nil
@@ -575,8 +568,6 @@ loop:
 					}
 				}
 			}
-		default:
-			continue
 		}
 	}
 	return resp, nil
@@ -678,13 +669,9 @@ loop:
 								}
 							}
 						}
-					default:
-						continue
 					}
 				}
 			}
-		default:
-			continue
 		}
 	}
 	resp = append(resp, tempArray[1])
@@ -883,8 +870,6 @@ loop:
 					}
 				}
 			}
-		default:
-			continue
 		}
 	}
 	return resp, nil
@@ -959,8 +944,6 @@ loop:
 					}
 				}
 			}
-		default:
-			continue
 		}
 	}
 	return resp, nil
@@ -1015,8 +998,6 @@ loop:
 					}
 				}
 			}
-		default:
-			continue
 		}
 	}
 	return resp, nil
@@ -1075,8 +1056,6 @@ loop:
 					}
 				}
 			}
-		default:
-			continue
 		}
 	}
 	return resp, nil
@@ -1222,11 +1201,11 @@ func Update(currentName string, info []ExchangeInfo, updatedInfo ExchangeInfo) [
 	return info
 }
 
-// UpdateTestFile updates test file to match updates.json
-func UpdateTestFile(Config) error {
-	file, err := json.MarshalIndent(configData, "", " ")
+// UpdateFile updates the given file to match updates.json
+func UpdateFile(confData Config, name string) error {
+	file, err := json.MarshalIndent(confData, "", " ")
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(testJSONFile, file, 0770)
+	return ioutil.WriteFile(name, file, 0770)
 }

@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 	"reflect"
-	"fmt"
 )
 
 func TestMain(m *testing.M) {
@@ -23,9 +22,10 @@ func TestMain(m *testing.M) {
 }
 
 func TestCheckExistingExchanges(t *testing.T) {
-	_, err := CheckExistingExchanges(testJSONFile, "Kraken", testConfigData)
-	if err != nil {
-		t.Error(err)
+	a := CheckExistingExchanges(testJSONFile, "Kraken", testConfigData)
+	if a != true {
+		t.Log("Kraken data not found")
+		t.Fail()
 	}
 }
 
@@ -59,6 +59,54 @@ func TestAdd(t *testing.T) {
 
 func TestCheckUpdates(t *testing.T) {
 	err := CheckUpdates(testJSONFile, configData)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestHTMLScrapeGemini(t *testing.T) {
+	data := HTMLScrapingData{TokenData: "h1",
+		Key: "id",
+		Val: "revision-history",
+		TokenDataEnd: "table",
+		TextTokenData: "td",
+		DateFormat: "2006/01/02",
+		RegExp: "^20(\\d){2}/(\\d){2}/(\\d){2}$",
+		CheckString: "2019/11/15",
+		Path: "https://docs.gemini.com/rest-api/#revision-history"}
+	_, err := HTMLScrapeDefault(&data)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestHTMLScrapeHuobi(t *testing.T) {
+	data := HTMLScrapingData{TokenData: "h1",
+		Key: "id",
+		Val: "change-log",
+		TokenDataEnd: "h2",
+		TextTokenData: "td",
+		DateFormat: "2006.01.02 15:04",
+		RegExp: "^20(\\d){2}.(\\d){2}.(\\d){2} (\\d){2}:(\\d){2}$",
+		CheckString: "2019.12.27 19:00",
+		Path: "https://huobiapi.github.io/docs/spot/v1/en/#change-log"}
+	_, err := HTMLScrapeDefault(&data)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestHTMLScrapeCoinbasepro(t *testing.T) {
+	data := HTMLScrapingData{TokenData: "h1",
+		Key: "id",
+		Val: "changelog",
+		TokenDataEnd: "ul",
+		TextTokenData: "strong",
+		DateFormat: "01/02/06",
+		RegExp: "^(\\d){2}/(\\d){2}/(\\d){2}$",
+		CheckString: "12/16/19",
+		Path: "https://docs.pro.coinbase.com/#changelog"}
+	_, err := HTMLScrapeDefault(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -115,14 +163,8 @@ func TestHTMLScrapeDefault(t *testing.T) {
 }
 
 func TestHTMLScrapeBTSE(t *testing.T) {
-	data := HTMLScrapingData{TokenData: "h1",
-		Key:           "id",
-		Val:           "btse-spot-api",
-		TokenDataEnd:  "blockquote",
-		TextTokenData: "h1",
-		DateFormat:    "",
-		RegExp:        `^BTSE Spot API v(\d){1}.(\d){1}$`,
-		Path:          "https://www.btse.com/apiexplorer/spot/#btse-spot-api"}
+	data := HTMLScrapingData{RegExp:        `^version: \d{1}.\d{1}.\d{1}`,
+	Path:          "https://api.btcmarkets.net/openapi/info/index.yaml"}
 	_, err := HTMLScrapeBTSE(&data)
 	if err != nil {
 		t.Error(err)
@@ -130,13 +172,7 @@ func TestHTMLScrapeBTSE(t *testing.T) {
 }
 
 func TestHTMLScrapeBTCMarkets(t *testing.T) {
-	data := HTMLScrapingData{TokenData: "",
-		Key:           "",
-		Val:           "",
-		TokenDataEnd:  "",
-		TextTokenData: "",
-		DateFormat:    "",
-		RegExp:        `^version: \d{1}.\d{1}.\d{1}`,
+	data := HTMLScrapingData{RegExp:        `^version: \d{1}.\d{1}.\d{1}`,
 		Path:          "https://api.btcmarkets.net/openapi/info/index.yaml"}
 	_, err := HTMLScrapeBTCMarkets(&data)
 	if err != nil {
@@ -361,8 +397,8 @@ func TestNameUpdates(t *testing.T) {
 	}
 }
 
-func TestUpdateTestFile(t *testing.T) {
-	err := UpdateTestFile(configData)
+func TestUpdateFile(t *testing.T) {
+	err := UpdateFile(configData, testJSONFile)
 	if err != nil {
 		t.Error(err)
 	}
@@ -376,11 +412,19 @@ func TestUpdateTestFile(t *testing.T) {
 	}
 	if !reflect.DeepEqual(realConf, testConf) {
 		t.Log("test file update failed")
+		t.Fail()
 	}
 }
 
 func TestReadFileData(t *testing.T) {
 	_, err := ReadFileData(testJSONFile)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSha(t *testing.T) {
+	_, err := getSha("binance-exchange/binance-official-api-docs")
 	if err != nil {
 		t.Error(err)
 	}
