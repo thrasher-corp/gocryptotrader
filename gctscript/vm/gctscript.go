@@ -2,6 +2,7 @@ package vm
 
 import (
 	"fmt"
+	"sync/atomic"
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
@@ -10,7 +11,7 @@ import (
 
 // New returns a new instance of VM
 func New() *VM {
-	if len(AllVMs) >= int(GCTScriptConfig.MaxVirtualMachines) {
+	if VMSCount.Len() >= int32(GCTScriptConfig.MaxVirtualMachines) {
 		if GCTScriptConfig.Verbose {
 			log.Warnf(log.GCTScriptMgr, "GCTScript MaxVirtualMachines (%v) hit, unable to start further instances",
 				GCTScriptConfig.MaxVirtualMachines)
@@ -19,7 +20,8 @@ func New() *VM {
 	}
 
 	vm := NewVM()
-	storeVM(vm.ID, vm)
+	AllVMSync.Store(vm.ID, vm)
+	VMSCount.add()
 	return vm
 }
 
@@ -51,12 +53,13 @@ func ShutdownAll() (err error) {
 	}
 
 	var errors []error
-	for x := range AllVMs {
-		err = AllVMs[x].Shutdown()
+	AllVMSync.Range(func(k, v interface{}) bool {
+		errShutdown := v.(*VM).Shutdown()
 		if err != nil {
-			errors = append(errors, err)
+			errors = append(errors, errShutdown)
 		}
-	}
+		return true
+	})
 
 	if len(errors) > 0 {
 		err = fmt.Errorf("failed to shutdown the following Virtual Machines: %v", errors)
@@ -67,41 +70,26 @@ func ShutdownAll() (err error) {
 
 // RemoveVM remove VM from list
 func RemoveVM(id uuid.UUID) error {
-	_, err := loadVM(id)
-	if err != nil {
+	if _, f := AllVMSync.Load(id); !f {
 		return fmt.Errorf(ErrNoVMFound, id.String())
 	}
-	deleteVM(id)
 
+	AllVMSync.Delete(id)
+	VMSCount.remove()
 	if GCTScriptConfig.Verbose {
 		log.Debugf(log.GCTScriptMgr, "VM %v removed from AllVMs", id)
 	}
 	return nil
 }
 
-func loadVM(id uuid.UUID) (*VM, error) {
-	rmw.RLock()
-	defer rmw.RUnlock()
-	if _, f := AllVMs[id]; !f {
-		return nil, fmt.Errorf(ErrNoVMFound, id.String())
-	}
-	return AllVMs[id], nil
+func (vmc *vmscount) add() {
+	atomic.AddInt32((*int32)(vmc), 1)
 }
 
-func storeVM(k uuid.UUID, v *VM) {
-	rmw.Lock()
-	defer rmw.Unlock()
-	AllVMs[k] = v
+func (vmc *vmscount) remove() {
+	atomic.AddInt32((*int32)(vmc), -1)
 }
 
-func deleteVM(id uuid.UUID) {
-	rmw.Lock()
-	defer rmw.Unlock()
-	delete(AllVMs, id)
-}
-
-func lenVM() int {
-	rmw.Lock()
-	defer rmw.Unlock()
-	return len(AllVMs)
+func (vmc *vmscount) Len() int32 {
+	return atomic.LoadInt32((*int32)(vmc))
 }

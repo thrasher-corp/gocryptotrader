@@ -1227,23 +1227,24 @@ func (s *RPCServer) GCTScriptStatus(ctx context.Context, r *gctrpc.GCTScriptStat
 		return &gctrpc.GCTScriptStatusResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
-	totalVM := len(gctscript.AllVMs)
-
-	if totalVM < 1 {
+	if gctscript.VMSCount.Len() < 1 {
 		return &gctrpc.GCTScriptStatusResponse{Status: "no scripts running"}, nil
 	}
 
 	resp := &gctrpc.GCTScriptStatusResponse{
-		Status: fmt.Sprintf("%v of %v virtual machines running", totalVM, gctscript.GCTScriptConfig.MaxVirtualMachines),
+		Status: fmt.Sprintf("%v of %v virtual machines running", gctscript.VMSCount.Len(), gctscript.GCTScriptConfig.MaxVirtualMachines),
 	}
 
-	for x := range gctscript.AllVMs {
+	gctscript.AllVMSync.Range(func(k, v interface{}) bool {
+		vm := v.(*gctscript.VM)
 		resp.Scripts = append(resp.Scripts, &gctrpc.GCTScript{
-			UUID:    gctscript.AllVMs[x].ID.String(),
-			Name:    gctscript.AllVMs[x].ShortName(),
-			NextRun: gctscript.AllVMs[x].NextRun.String(),
+			UUID:    vm.ID.String(),
+			Name:    vm.ShortName(),
+			NextRun: vm.NextRun.String(),
 		})
-	}
+
+		return true
+	})
 
 	return resp, nil
 }
@@ -1259,17 +1260,17 @@ func (s *RPCServer) GCTScriptQuery(ctx context.Context, r *gctrpc.GCTScriptQuery
 		return &gctrpc.GCTScriptQueryResponse{Status: MsgStatusError, Data: err.Error()}, nil
 	}
 
-	if v, f := gctscript.AllVMs[UUID]; f {
+	if v, f := gctscript.AllVMSync.Load(UUID); f {
 		resp := &gctrpc.GCTScriptQueryResponse{
 			Status: MsgStatusOK,
 			Script: &gctrpc.GCTScript{
-				Name:    v.ShortName(),
-				UUID:    v.ID.String(),
-				Path:    v.Path,
-				NextRun: v.NextRun.String(),
+				Name:    v.(*gctscript.VM).ShortName(),
+				UUID:    v.(*gctscript.VM).ID.String(),
+				Path:    v.(*gctscript.VM).Path,
+				NextRun: v.(*gctscript.VM).NextRun.String(),
 			},
 		}
-		data, err := v.Read()
+		data, err := v.(*gctscript.VM).Read()
 		if err != nil {
 			return nil, err
 		}
@@ -1322,13 +1323,13 @@ func (s *RPCServer) GCTScriptStop(ctx context.Context, r *gctrpc.GCTScriptStopRe
 		return &gctrpc.GCTScriptGenericResponse{Status: MsgStatusError, Data: err.Error()}, nil
 	}
 
-	if v, f := gctscript.AllVMs[UUID]; f {
-		err = v.Shutdown()
+	if v, f := gctscript.AllVMSync.Load(UUID); f {
+		err = v.(*gctscript.VM).Shutdown()
 		status := " terminated"
 		if err != nil {
 			status = " " + err.Error()
 		}
-		return &gctrpc.GCTScriptGenericResponse{Status: MsgStatusOK, Data: v.ID.String() + status}, nil
+		return &gctrpc.GCTScriptGenericResponse{Status: MsgStatusOK, Data: v.(*gctscript.VM).ID.String() + status}, nil
 	}
 	return &gctrpc.GCTScriptGenericResponse{Status: MsgStatusError, Data: "no running script found"}, nil
 }

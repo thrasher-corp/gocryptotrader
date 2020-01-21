@@ -32,15 +32,18 @@ const (
 	StatusFailure = "failure"
 )
 
+type vmscount int32
+
 var (
 	pool = &sync.Pool{
 		New: func() interface{} {
 			return new(tengo.Script)
 		},
 	}
-	// AllVMs stores all current Virtual Machine instances
-	AllVMs = make(map[uuid.UUID]*VM)
-	rmw    sync.RWMutex
+	// AllVMSync stores all current Virtual Machine instances
+	AllVMSync = &sync.Map{}
+	// VMSCount running total count of Virtual Machines
+	VMSCount  vmscount
 )
 
 // VM contains a pointer to "script" (precompiled source) and "compiled" (compiled byte code) instances
