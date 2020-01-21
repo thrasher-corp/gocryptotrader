@@ -5,6 +5,7 @@ import (
 )
 
 const (
+	// ErrParameterConvertFailed error to return when type conversion fails
 	ErrParameterConvertFailed string = "%v failed conversion"
 )
 

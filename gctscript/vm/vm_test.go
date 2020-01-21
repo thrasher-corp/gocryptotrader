@@ -366,6 +366,20 @@ func TestVM_CompileBroken(t *testing.T) {
 	}
 }
 
+func TestVM_CompileAndRunBroken(t *testing.T) {
+	testVM := New()
+	err := testVM.Load(testBrokenScript)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testVM.CompileAndRun()
+	err = testVM.Shutdown()
+	if err == nil {
+		t.Fatal("expect error on shutdown due to invalid VM")
+	}
+}
+
 func TestValidate(t *testing.T) {
 	err := Validate(testBrokenScript)
 	if err == nil {

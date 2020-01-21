@@ -85,6 +85,11 @@ func TestExchangeExchanges(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	_, err = ExchangeExchanges(exch)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	_, err = ExchangeExchanges(fv)
 	if err != nil {
 		t.Fatal(err)
