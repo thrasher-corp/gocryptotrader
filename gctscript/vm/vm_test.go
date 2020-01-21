@@ -119,6 +119,32 @@ func TestVMLoadNilVM(t *testing.T) {
 	}
 }
 
+func TestCompileAndRunNilVM(t *testing.T) {
+	vmcount := VMSCount.Len()
+	testVM := New()
+	err := testVM.Load(testScript)
+	if err != nil {
+		if !errors.Is(err, ErrNoVMLoaded) {
+			t.Fatal(err)
+		}
+	}
+	err = testVM.Load(testScript)
+	if err != nil {
+		if !errors.Is(err, ErrNoVMLoaded) {
+			t.Fatal(err)
+		}
+	}
+
+	testVM = nil
+	testVM.CompileAndRun()
+	err = testVM.Shutdown()
+	if err == nil {
+		t.Fatal("VM should not be running with invalid timer")
+	}
+	if VMSCount.Len() == vmcount-1 {
+		t.Fatal("expected VM count to decrease")
+	}
+}
 func TestVMLoadNoFile(t *testing.T) {
 	testVM := New()
 	err := testVM.Load("missing file")

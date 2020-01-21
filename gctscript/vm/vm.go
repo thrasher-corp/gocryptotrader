@@ -203,6 +203,9 @@ func (vm *VM) CompileAndRun() {
 
 // Shutdown shuts down current VM
 func (vm *VM) Shutdown() error {
+	if vm == nil {
+		return ErrNoVMLoaded
+	}
 	if vm.S != nil {
 		close(vm.S)
 	}
