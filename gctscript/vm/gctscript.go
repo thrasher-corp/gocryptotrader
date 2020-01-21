@@ -2,7 +2,6 @@ package vm
 
 import (
 	"fmt"
-	"sync/atomic"
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
@@ -80,16 +79,4 @@ func RemoveVM(id uuid.UUID) error {
 		log.Debugf(log.GCTScriptMgr, "VM %v removed from AllVMs", id)
 	}
 	return nil
-}
-
-func (vmc *vmscount) add() {
-	atomic.AddInt32((*int32)(vmc), 1)
-}
-
-func (vmc *vmscount) remove() {
-	atomic.AddInt32((*int32)(vmc), -1)
-}
-
-func (vmc *vmscount) Len() int32 {
-	return atomic.LoadInt32((*int32)(vmc))
 }

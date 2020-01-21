@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 
 	"github.com/d5/tengo/v2"
@@ -284,4 +285,17 @@ func (vm *VM) getHash(includeFileName bool) string {
 		contents = append(contents, vm.ShortName()...)
 	}
 	return hex.EncodeToString(crypto.GetSHA256(contents))
+}
+
+func (vmc *vmscount) add() {
+	atomic.AddInt32((*int32)(vmc), 1)
+}
+
+func (vmc *vmscount) remove() {
+	atomic.AddInt32((*int32)(vmc), -1)
+}
+
+// Len() returns current length vmscount
+func (vmc *vmscount) Len() int32 {
+	return atomic.LoadInt32((*int32)(vmc))
 }
