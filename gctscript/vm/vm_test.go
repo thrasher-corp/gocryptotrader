@@ -29,7 +29,7 @@ var (
 func TestMain(m *testing.M) {
 	c := logger.GenDefaultSettings()
 	logger.GlobalLogConfig = &c
-	GCTScriptConfig = configHelper(true, true, testVirtualMachineTimeout, maxTestVirtualMachines)
+	GCTScriptConfig = configHelper(true, true, maxTestVirtualMachines)
 	os.Exit(m.Run())
 }
 
@@ -42,7 +42,7 @@ func TestNewVM(t *testing.T) {
 }
 
 func TestVMLoad(t *testing.T) {
-	GCTScriptConfig = configHelper(true, true, testVirtualMachineTimeout, maxTestVirtualMachines)
+	GCTScriptConfig = configHelper(true, true, maxTestVirtualMachines)
 	testVM := New()
 	err := testVM.Load(testScript)
 	if err != nil {
@@ -56,14 +56,14 @@ func TestVMLoad(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	GCTScriptConfig = configHelper(false, false, testVirtualMachineTimeout0, maxTestVirtualMachines)
+	GCTScriptConfig = configHelper(false, false, maxTestVirtualMachines)
 	err = testVM.Load(testScript)
 	if err != nil {
 		if !errors.Is(err, ErrScriptingDisabled) {
 			t.Fatal(err)
 		}
 	}
-	GCTScriptConfig = configHelper(true, true, testVirtualMachineTimeout, maxTestVirtualMachines)
+	GCTScriptConfig = configHelper(true, true, maxTestVirtualMachines)
 }
 
 func TestVMLoad1s(t *testing.T) {
@@ -314,19 +314,19 @@ func TestValidate(t *testing.T) {
 }
 
 func TestVMLimit(t *testing.T) {
-	GCTScriptConfig = configHelper(true, false, testVirtualMachineTimeout0, 0)
+	GCTScriptConfig = configHelper(true, false, 0)
 	testVM := New()
 	if testVM != nil {
 		t.Fatal("expected nil but received pointer to VM")
 	}
-	GCTScriptConfig = configHelper(true, true, testVirtualMachineTimeout, maxTestVirtualMachines)
+	GCTScriptConfig = configHelper(true, true, maxTestVirtualMachines)
 }
 
-func configHelper(enabled, imports bool, timeout time.Duration, max uint8) *Config {
+func configHelper(enabled, imports bool, max uint8) *Config {
 	return &Config{
 		Enabled:            enabled,
 		AllowImports:       imports,
-		ScriptTimeout:      timeout,
+		ScriptTimeout:      testVirtualMachineTimeout,
 		MaxVirtualMachines: max,
 		Verbose:            true,
 	}
