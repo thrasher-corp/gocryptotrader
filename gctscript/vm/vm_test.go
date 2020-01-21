@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const (
 	maxTestVirtualMachines     uint8         = 30
-	testVirtualMachineTimeout  time.Duration = 6000000
-	testVirtualMachineTimeout0 time.Duration = 0
+	testVirtualMachineTimeout  = time.Minute
 )
 
 var (
@@ -28,6 +28,7 @@ var (
 
 func TestMain(m *testing.M) {
 	c := logger.GenDefaultSettings()
+	c.Enabled = convert.BoolPtr(false)
 	logger.GlobalLogConfig = &c
 	GCTScriptConfig = configHelper(true, true, maxTestVirtualMachines)
 	os.Exit(m.Run())
@@ -74,7 +75,7 @@ func TestVMLoad1s(t *testing.T) {
 	}
 
 	testVM.CompileAndRun()
-	time.Sleep(1000)
+	time.Sleep(5000)
 	err = testVM.Shutdown()
 	if err != nil {
 		if !errors.Is(err, ErrNoVMLoaded) {
