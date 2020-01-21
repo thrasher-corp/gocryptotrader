@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	maxTestVirtualMachines     uint8         = 30
-	testVirtualMachineTimeout  = time.Minute
+	maxTestVirtualMachines    uint8 = 30
+	testVirtualMachineTimeout       = time.Minute
 )
 
 var (
