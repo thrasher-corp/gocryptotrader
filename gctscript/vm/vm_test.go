@@ -214,7 +214,7 @@ func TestVMWithRunnerNegativeTimer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if VMSCount.Len()  == vmCount {
+	if VMSCount.Len() == vmCount {
 		t.Fatal("expected VM count to increase")
 	}
 	VM.CompileAndRun()
@@ -245,7 +245,7 @@ func TestShutdownAll(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if VMSCount.Len()  == vmCount-1 {
+	if VMSCount.Len() == vmCount-1 {
 		t.Fatal("expected VM count to decrease")
 	}
 }

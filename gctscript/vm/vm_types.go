@@ -43,7 +43,7 @@ var (
 	// AllVMSync stores all current Virtual Machine instances
 	AllVMSync = &sync.Map{}
 	// VMSCount running total count of Virtual Machines
-	VMSCount  vmscount
+	VMSCount vmscount
 )
 
 // VM contains a pointer to "script" (precompiled source) and "compiled" (compiled byte code) instances
