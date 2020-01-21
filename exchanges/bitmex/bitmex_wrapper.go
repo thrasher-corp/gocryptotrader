@@ -222,7 +222,7 @@ func (b *Bitmex) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bitmex) FetchTradablePairs(asset asset.Item) ([]string, error) {
+func (b *Bitmex) FetchTradablePairs(_ asset.Item) ([]string, error) {
 	marketInfo, err := b.GetActiveInstruments(&GenericRequestParams{})
 	if err != nil {
 		return nil, err

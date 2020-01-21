@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -49,6 +50,14 @@ func TestMain(m *testing.M) {
 	err = b.Setup(bitmexConfig)
 	if err != nil {
 		log.Fatal("Bitmex setup error", err)
+	}
+	b.CurrencyPairs.AssetTypes = asset.Items{asset.Spot}
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		Enabled: currency.Pairs{
+			currency.NewPair(currency.ETH, currency.USD),
+		},
+		ConfigFormat: &currency.PairFormat{Delimiter: "-"},
 	}
 	os.Exit(m.Run())
 }
@@ -360,7 +369,7 @@ func TestGetStatSummary(t *testing.T) {
 
 func TestGetTrade(t *testing.T) {
 	_, err := b.GetTrade(&GenericRequestParams{
-		Symbol:    "XBTUSD",
+		Symbol:    "ETHUSD",
 		StartTime: time.Now().Format(time.RFC3339),
 		Reverse:   true})
 	if err != nil {
@@ -703,4 +712,221 @@ func TestWsAuth(t *testing.T) {
 		t.Error("Have not received a response")
 	}
 	timer.Stop()
+}
+
+func TestWsPositionUpdate(t *testing.T) {
+	pressXToJSON := []byte(`{"table":"position",
+   "action":"update",
+   "data":[{
+    "account":2,"symbol":"ETHUSD","currency":"XBt",
+    "currentTimestamp":"2017-04-04T22:07:42.442Z", "currentQty":1,"markPrice":1136.88,"markValue":-87960,
+    "riskValue":87960,"homeNotional":0.0008796,"posState":"Liquidation","maintMargin":263,
+    "unrealisedGrossPnl":-677,"unrealisedPnl":-677,"unrealisedPnlPcnt":-0.0078,"unrealisedRoePcnt":-0.7756,
+    "simpleQty":0.001,"liquidationPrice":1140.1, "timestamp":"2017-04-04T22:07:45.442Z"
+   }]}`)
+	err := b.wsReadData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsInsertExectuionUpdate(t *testing.T) {
+	pressXToJSON := []byte(`{"table":"execution",
+   "action":"insert",
+   "data":[{
+    "execID":"0193e879-cb6f-2891-d099-2c4eb40fee21",
+    "orderID":"00000000-0000-0000-0000-000000000000","clOrdID":"","clOrdLinkID":"","account":2,"symbol":"ETHUSD",
+    "side":"Sell","lastQty":1,"lastPx":1134.37,"underlyingLastPx":null,"lastMkt":"XBME",
+    "lastLiquidityInd":"RemovedLiquidity", "simpleOrderQty":null,"orderQty":1,"price":1134.37,"displayQty":null,
+    "stopPx":null,"pegOffsetValue":null,"pegPriceType":"","currency":"USD","settlCurrency":"XBt",
+    "execType":"Trade","ordType":"Limit","timeInForce":"ImmediateOrCancel","execInst":"",
+    "contingencyType":"","exDestination":"XBME","ordStatus":"Filled","triggered":"","workingIndicator":false,
+    "ordRejReason":"","simpleLeavesQty":0,"leavesQty":0,"simpleCumQty":0.001,"cumQty":1,"avgPx":1134.37,
+    "commission":0.00075,"tradePublishIndicator":"DoNotPublishTrade","multiLegReportingType":"SingleSecurity",
+    "text":"Liquidation","trdMatchID":"7f4ab7f6-0006-3234-76f4-ae1385aad00f","execCost":88155,"execComm":66,
+    "homeNotional":-0.00088155,"foreignNotional":1,"transactTime":"2017-04-04T22:07:46.035Z",
+    "timestamp":"2017-04-04T22:07:46.035Z"
+   }]}`)
+	err := b.wsReadData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSConnectionHandling(t *testing.T) {
+	pressXToJSON := []byte(`{"info":"Welcome to the BitMEX Realtime API.","version":"1.1.0",
+     "timestamp":"2015-01-18T10:14:06.802Z","docs":"https://www.bitmex.com/app/wsAPI","heartbeatEnabled":false}`)
+	err := b.wsReadData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSSubscriptionHandling(t *testing.T) {
+	pressXToJSON := []byte(`{"success":true,"subscribe":"trade:ETHUSD",
+     "request":{"op":"subscribe","args":["trade:ETHUSD","instrument:ETHUSD"]}}`)
+	err := b.wsReadData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSPositionUpdateHandling(t *testing.T) {
+	pressXToJSON := []byte(`{"table":"position",
+   "action":"update",
+   "data":[{
+    "account":2,"symbol":"ETHUSD","currency":"XBt","currentQty":1,
+    "markPrice":1136.88,"posState":"Liquidated","simpleQty":0.001,"liquidationPrice":1140.1,"bankruptPrice":1134.37,
+    "timestamp":"2017-04-04T22:07:46.019Z"
+   }]}`)
+	err := b.wsReadData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+	pressXToJSON = []byte(`{"table":"position",
+   "action":"update",
+   "data":[{
+    "account":2,"symbol":"ETHUSD","currency":"XBt",
+    "deleveragePercentile":null,"rebalancedPnl":1003,"prevRealisedPnl":-1003,"execSellQty":1,
+    "execSellCost":88155,"execQty":0,"execCost":872,"execComm":131,"currentTimestamp":"2017-04-04T22:07:46.140Z",
+    "currentQty":0,"currentCost":872,"currentComm":131,"realisedCost":872,"unrealisedCost":0,"grossExecCost":0,
+    "isOpen":false,"markPrice":null,"markValue":0,"riskValue":0,"homeNotional":0,"foreignNotional":0,"posState":"",
+    "posCost":0,"posCost2":0,"posInit":0,"posComm":0,"posMargin":0,"posMaint":0,"maintMargin":0,
+    "realisedGrossPnl":-872,"realisedPnl":-1003,"unrealisedGrossPnl":0,"unrealisedPnl":0,
+    "unrealisedPnlPcnt":0,"unrealisedRoePcnt":0,"simpleQty":0,"simpleCost":0,"simpleValue":0,"avgCostPrice":null,
+    "avgEntryPrice":null,"breakEvenPrice":null,"marginCallPrice":null,"liquidationPrice":null,"bankruptPrice":null,
+    "timestamp":"2017-04-04T22:07:46.140Z"
+   }]}`)
+	err = b.wsReadData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSOrderbookHandling(t *testing.T) {
+	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	pressXToJSON := []byte(`{
+      "table":"orderBookL2_25",
+      "keys":["symbol","id","side"],
+      "types":{"id":"long","price":"float","side":"symbol","size":"long","symbol":"symbol"},
+      "foreignKeys":{"side":"side","symbol":"instrument"},
+      "attributes":{"id":"sorted","symbol":"grouped"},
+      "action":"partial",
+      "data":[
+        {"symbol":"ETHUSD","id":17999992000,"side":"Sell","size":100,"price":80},
+        {"symbol":"ETHUSD","id":17999993000,"side":"Sell","size":20,"price":70},
+        {"symbol":"ETHUSD","id":17999994000,"side":"Sell","size":10,"price":60},
+        {"symbol":"ETHUSD","id":17999995000,"side":"Buy","size":10,"price":50},
+        {"symbol":"ETHUSD","id":17999996000,"side":"Buy","size":20,"price":40},
+        {"symbol":"ETHUSD","id":17999997000,"side":"Buy","size":100,"price":30}
+      ]
+    }`)
+	err := b.wsReadData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(`{
+      "table":"orderBookL2_25",
+      "action":"update",
+      "data":[
+        {"symbol":"ETHUSD","id":17999995000,"side":"Buy","size":5}
+      ]
+    }`)
+	err = b.wsReadData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(`{
+      "table":"orderBookL2_25",
+      "action":"update",
+      "data":[
+      ]
+    }`)
+	err = b.wsReadData(pressXToJSON)
+	if err == nil {
+		t.Error("Expected error")
+	}
+
+	pressXToJSON = []byte(`{
+      "table":"orderBookL2_25",
+      "action":"delete",
+      "data":[
+        {"symbol":"ETHUSD","id":17999995000,"side":"Buy"}
+      ]
+    }`)
+	err = b.wsReadData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(`{
+      "table":"orderBookL2_25",
+      "action":"delete",
+      "data":[
+        {"symbol":"ETHUSD","id":17999995000,"side":"Buy"}
+      ]
+    }`)
+	err = b.wsReadData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWSDeleveragePositionUpdateHandling(t *testing.T) {
+	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	pressXToJSON := []byte(`{"table":"position",
+   "action":"update",
+   "data":[{
+    "account":2,"symbol":"ETHUSD","currency":"XBt","currentQty":2000,
+    "markPrice":1160.72,"posState":"Deleverage","simpleQty":1.746,"liquidationPrice":1140.1,
+    "timestamp":"2017-04-04T22:16:38.460Z"
+   }]}`)
+	err := b.wsReadData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(`{"table":"position",
+   "action":"update",
+   "data":[{
+    "account":2,"symbol":"ETHUSD","currency":"XBt",
+    "deleveragePercentile":null,"rebalancedPnl":-2171150,"prevRealisedPnl":2172153,"execSellQty":2001,
+    "execSellCost":172394155,"execQty":0,"execCost":-2259128,"execComm":87978,
+    "currentTimestamp":"2017-04-04T22:16:38.547Z","currentQty":0,"currentCost":-2259128,
+    "currentComm":87978,"realisedCost":-2259128,"unrealisedCost":0,"grossExecCost":0,"isOpen":false,
+    "markPrice":null,"markValue":0,"riskValue":0,"homeNotional":0,"foreignNotional":0,"posState":"","posCost":0,
+    "posCost2":0,"posInit":0,"posComm":0,"posMargin":0,"posMaint":0,"maintMargin":0,"realisedGrossPnl":2259128,
+    "realisedPnl":2171150,"unrealisedGrossPnl":0,"unrealisedPnl":0,"unrealisedPnlPcnt":0,"unrealisedRoePcnt":0,
+    "simpleQty":0,"simpleCost":0,"simpleValue":0,"simplePnl":0,"simplePnlPcnt":0,"avgCostPrice":null,
+    "avgEntryPrice":null,"breakEvenPrice":null,"marginCallPrice":null,"liquidationPrice":null,"bankruptPrice":null,
+    "timestamp":"2017-04-04T22:16:38.547Z"
+   }]}`)
+	err = b.wsReadData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+func TestWSDeleverageExecutionInsertHandling(t *testing.T) {
+	pressXToJSON := []byte(`{"table":"execution",
+   "action":"insert",
+   "data":[{
+    "execID":"20ad1ff4-c110-a4f2-dd31-f94eaa0701fd",
+    "orderID":"00000000-0000-0000-0000-000000000000","clOrdID":"","clOrdLinkID":"","account":2,"symbol":"ETHUSD",
+    "side":"Sell","lastQty":2000,"lastPx":1160.72,"underlyingLastPx":null,"lastMkt":"XBME",
+    "lastLiquidityInd":"AddedLiquidity","simpleOrderQty":null,"orderQty":2000,"price":1160.72,"displayQty":null,
+    "stopPx":null,"pegOffsetValue":null,"pegPriceType":"","currency":"USD","settlCurrency":"XBt","execType":"Trade",
+    "ordType":"Limit","timeInForce":"GoodTillCancel","execInst":"","contingencyType":"","exDestination":"XBME",
+    "ordStatus":"Filled","triggered":"","workingIndicator":false,"ordRejReason":"",
+    "simpleLeavesQty":0,"leavesQty":0,"simpleCumQty":1.746,"cumQty":2000,"avgPx":1160.72,"commission":-0.00025,
+    "tradePublishIndicator":"PublishTrade","multiLegReportingType":"SingleSecurity","text":"Deleverage",
+    "trdMatchID":"1e849b8a-7e88-3c67-a93f-cc654d40e8ba","execCost":172306000,"execComm":-43077,
+    "homeNotional":-1.72306,"foreignNotional":2000,"transactTime":"2017-04-04T22:16:38.472Z",
+    "timestamp":"2017-04-04T22:16:38.472Z"
+   }]}`)
+	err := b.wsReadData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
 }

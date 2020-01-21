@@ -8,7 +8,7 @@ import (
 
 // Ticker holds ticker data
 type Ticker struct {
-	ID            int64   `json:"id"`
+	ID            float64   `json:"id"`
 	Last          float64 `json:"last,string"`
 	LowestAsk     float64 `json:"lowestAsk,string"`
 	HighestBid    float64 `json:"highestBid,string"`
