@@ -45,10 +45,6 @@ func TestWrapper_DepositAddress(t *testing.T) {
 	}
 }
 
-func TestWrapper_Exchanges(t *testing.T) {
-
-}
-
 func TestWrapper_Orderbook(t *testing.T) {
 	_, err := testWrapper.Orderbook(exchError.String(), currencyPair, asset.Spot)
 	if err == nil {
