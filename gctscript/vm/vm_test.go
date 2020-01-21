@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -29,7 +28,6 @@ var (
 
 func TestMain(m *testing.M) {
 	c := logger.GenDefaultSettings()
-	c.Enabled = convert.BoolPtr(false)
 	logger.GlobalLogConfig = &c
 	GCTScriptConfig = configHelper(true, true, testVirtualMachineTimeout, maxTestVirtualMachines)
 	os.Exit(m.Run())
