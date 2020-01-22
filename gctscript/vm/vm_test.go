@@ -89,7 +89,7 @@ func TestVMLoad1s(t *testing.T) {
 
 func TestVMLoadNegativeTimer(t *testing.T) {
 	testVM := New()
-	err := testVM.Load(testScriptRunnerInvalid)
+	err := testVM.Load(testScriptRunnerNegative)
 	if err != nil {
 		if !errors.Is(err, ErrNoVMLoaded) {
 			t.Fatal(err)
