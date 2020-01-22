@@ -238,7 +238,7 @@ func (vm *VM) ShortName() string {
 }
 
 func (vm *VM) event(status, executionType string) {
-	if validator.IsTestExecution {
+	if validator.IsTestExecution.Load() == true {
 		return
 	}
 

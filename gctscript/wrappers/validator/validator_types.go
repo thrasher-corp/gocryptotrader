@@ -2,16 +2,14 @@ package validator
 
 import (
 	"errors"
-	"sync"
+	"sync/atomic"
 
 	objects "github.com/d5/tengo/v2"
 )
 
 var (
-	// RWValidatorLock mutex lock
-	RWValidatorLock = &sync.RWMutex{}
 	// IsTestExecution if test is executed under test conditions
-	IsTestExecution bool
+	IsTestExecution atomic.Value
 
 	exchError = &objects.String{
 		Value: "error",
