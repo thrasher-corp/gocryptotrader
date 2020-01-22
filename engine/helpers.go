@@ -417,13 +417,19 @@ func GetRelatableCurrencies(p currency.Pair, incOrig, incUSDT bool) currency.Pai
 // GetSpecificOrderbook returns a specific orderbook given the currency,
 // exchangeName and assetType
 func GetSpecificOrderbook(p currency.Pair, exchangeName string, assetType asset.Item) (*orderbook.Base, error) {
-	return GetExchangeByName(exchangeName).FetchOrderbook(p, assetType)
+	if CheckExchangeExists(exchangeName) {
+		return GetExchangeByName(exchangeName).FetchOrderbook(p, assetType)
+	}
+	return &orderbook.Base{}, errors.New("exchange is not loaded/doesn't exist")
 }
 
 // GetSpecificTicker returns a specific ticker given the currency,
 // exchangeName and assetType
 func GetSpecificTicker(p currency.Pair, exchangeName string, assetType asset.Item) (*ticker.Price, error) {
-	return GetExchangeByName(exchangeName).FetchTicker(p, assetType)
+	if CheckExchangeExists(exchangeName) {
+		return GetExchangeByName(exchangeName).FetchTicker(p, assetType)
+	}
+	return &ticker.Price{}, errors.New("exchange is not loaded/doesn't exist")
 }
 
 // GetCollatedExchangeAccountInfoByCoin collates individual exchange account
