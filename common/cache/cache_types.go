@@ -14,8 +14,8 @@ type LRUCache struct {
 // LRU non-thread safe fixed size LRU cache
 type LRU struct {
 	Cap   uint64
-	List  *list.List
-	Items map[interface{}]*list.Element
+	l     *list.List
+	items map[interface{}]*list.Element
 }
 
 // item holds key/value for the cache
