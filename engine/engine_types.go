@@ -99,7 +99,7 @@ const (
 	// MsgSubSystemShutdown message to return when a subsystem has shutdown
 	MsgSubSystemShutdown = "manager shutdown."
 
-	// MsgOK message to display when status is "OK"
+	// MsgStatusOK message to display when status is "OK"
 	MsgStatusOK string = "ok"
 	// MsgStatusSuccess message to display when status is successful
 	MsgStatusSuccess string = "success"

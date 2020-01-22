@@ -7,10 +7,14 @@ import (
 )
 
 const (
+	// ErrStrAmountMustBeGreaterThanZero message to return when withdraw amount is less than 0
 	ErrStrAmountMustBeGreaterThanZero = "amount must be greater than 0"
-	ErrStrAddressisInvalid            = "address is not valid"
-	ErrStrNoCurrencySet               = "currency not set"
-	ErrStrAddressNotSet               = "address cannot be empty"
+	// ErrStrAddressisInvalid message to return when address is invalid for crypto request
+	ErrStrAddressisInvalid = "address is not valid"
+	// ErrStrAddressNotSet message to returh when address is empty
+	ErrStrAddressNotSet = "address cannot be empty"
+	// ErrStrNoCurrencySet message to return when no currency is set
+	ErrStrNoCurrencySet = "currency not set"
 )
 
 var (

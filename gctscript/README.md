@@ -141,7 +141,7 @@ With an example configuration being:
       }
       load()  
      ```
-  - Add script to autoload:
+     - Add script to autoload:
     ```shell script
     gctcli gctscript autoload add timer
     {
@@ -149,7 +149,7 @@ With an example configuration being:
       "data": "script timer added to autoload list"
     }
     ```
-    -- Remove script from autoload:
+    - Remove script from autoload:
     ```shell script
       gctcli gctscript autoload remove timer
       {
