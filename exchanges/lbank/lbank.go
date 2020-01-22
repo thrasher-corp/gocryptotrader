@@ -10,13 +10,13 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	gctcrypto "github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -28,10 +28,6 @@ type Lbank struct {
 	exchange.Base
 	privateKey    *rsa.PrivateKey
 	WebsocketConn *wshandler.WebsocketConnection
-}
-
-func (l *Lbank) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
 }
 
 const (
@@ -583,4 +579,8 @@ func (l *Lbank) SendAuthHTTPRequest(method, endpoint string, vals url.Values, re
 		l.Verbose,
 		l.HTTPDebugging,
 		l.HTTPRecording)
+}
+
+func (l *Lbank) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
+	return nil, common.ErrFunctionNotSupported
 }

@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"io"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -22,10 +22,6 @@ import (
 type BTSE struct {
 	exchange.Base
 	WebsocketConn *wshandler.WebsocketConnection
-}
-
-func (b *BTSE) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
-	return nil, common.ErrNotYetImplemented
 }
 
 const (
@@ -328,4 +324,8 @@ func calculateTradingFee(isMaker bool) float64 {
 
 func parseOrderTime(timeStr string) (time.Time, error) {
 	return time.Parse(btseTimeLayout, timeStr)
+}
+
+func (b *BTSE) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
+	return nil, common.ErrNotYetImplemented
 }
