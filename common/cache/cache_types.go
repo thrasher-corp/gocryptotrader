@@ -18,7 +18,7 @@ type LRU struct {
 	Items map[interface{}]*list.Element
 }
 
-// item is
+// item holds key/value for the cache
 type item struct {
 	key   interface{}
 	value interface{}

@@ -3,9 +3,9 @@ package cache
 import "container/list"
 
 // NewLRUCache returns a new non-thread-safe LRU cache with input capacity
-func NewLRUCache(cap uint64) *LRU {
+func NewLRUCache(capacity uint64) *LRU {
 	return &LRU{
-		Cap:   cap,
+		Cap:   capacity,
 		List:  list.New(),
 		Items: make(map[interface{}]*list.Element),
 	}
@@ -28,6 +28,40 @@ func (l *LRU) Add(key, value interface{}) {
 	}
 }
 
+// Get returns keys value from cache if found
+func (l *LRU) Get(key interface{}) interface{} {
+	if i, f := l.Items[key]; f {
+		l.List.MoveToFront(i)
+
+		return i.Value.(*item).value
+	}
+	return nil
+}
+
+// GetOldest returns the oldest entry
+func (l *LRU) GetOldest() (key, value interface{}) {
+	x := l.List.Back()
+	if x != nil {
+		return x.Value.(*item).key, x.Value.(*item).value
+	}
+	return
+}
+
+// GetNewest returns the newest entry
+func (l *LRU) GetNewest() (key, value interface{}) {
+	x := l.List.Front()
+	if x != nil {
+		return x.Value.(*item).key, x.Value.(*item).value
+	}
+	return
+}
+
+// Contains check if key is in cache this does not update LRU
+func (l *LRU) Contains(key interface{}) (f bool) {
+	_, f = l.Items[key]
+	return
+}
+
 // Remove removes key from the cache, if the key was removed.
 func (l *LRU) Remove(key interface{}) bool {
 	if i, f := l.Items[key]; f {
@@ -35,20 +69,6 @@ func (l *LRU) Remove(key interface{}) bool {
 		return true
 	}
 	return false
-}
-
-// Get returns key's value from cache if found
-func (l *LRU) Get(key interface{}) (interface{}, bool) {
-	if i, f := l.Items[key]; f {
-		l.List.MoveToFront(i)
-
-		if i.Value.(*item) == nil {
-			return nil, false
-		}
-
-		return i.Value.(*item).value, true
-	}
-	return nil, false
 }
 
 // Clear is used to completely clear the cache.
@@ -75,5 +95,5 @@ func (l *LRU) removeOldestEntry() {
 // removeElement element from the cache
 func (l *LRU) removeElement(e *list.Element) {
 	l.List.Remove(e)
-	delete(l.Items, e.Value.(*item))
+	delete(l.Items, e.Value.(*item).key)
 }
