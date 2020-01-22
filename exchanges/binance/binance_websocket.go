@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const (
@@ -33,7 +34,7 @@ func (b *Binance) WsConnect() error {
 	var err error
 	listenKey, err := b.GetWsAuthStreamKey()
 	if err != nil {
-		// auth bad
+		b.Websocket.DataHandler <- err
 	}
 
 	pairs := b.GetEnabledPairs(asset.Spot).Strings()
@@ -58,9 +59,12 @@ func (b *Binance) WsConnect() error {
 		"/" +
 		kline +
 		"/" +
-		depth +
-		"/" +
-		listenKey
+		depth
+	if listenKey != "" {
+		wsurl += "/" +
+			listenKey
+	}
+
 	enabledPairs := b.GetEnabledPairs(asset.Spot)
 	for i := range enabledPairs {
 		err = b.SeedLocalCache(enabledPairs[i])
@@ -229,6 +233,8 @@ func (b *Binance) wsReadData(respRaw []byte) error {
 			Asset:    asset.Spot,
 			Exchange: b.Name,
 		}
+	default:
+		log.Debug(log.ExchangeSys, string(respRaw))
 	}
 	return nil
 }

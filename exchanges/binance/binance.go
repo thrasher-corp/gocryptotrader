@@ -689,6 +689,23 @@ func (b *Binance) GetDepositAddressForCurrency(currency string) (string, error) 
 func (b *Binance) GetWsAuthStreamKey() (string, error) {
 	var resp UserAccountStream
 	path := b.API.Endpoints.URL + userAccountStream
-	return resp.ListenKey,
-		b.SendHTTPRequest(http.MethodPost, path, &resp)
+	// Create a new post method unique to one function?
+	// NO!
+	headers := make(map[string]string)
+	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
+	err := b.SendPayload(http.MethodPost,
+		path,
+		headers,
+		bytes.NewBuffer(nil),
+		&resp,
+		true,
+		false,
+		b.Verbose,
+		b.HTTPDebugging,
+		b.HTTPRecording)
+	if err != nil {
+		return "", err
+	}
+
+	return resp.ListenKey, nil
 }
