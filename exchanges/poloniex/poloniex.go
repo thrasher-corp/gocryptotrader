@@ -60,7 +60,7 @@ type Poloniex struct {
 	WebsocketConn *wshandler.WebsocketConnection
 }
 
-func (p *Poloniex) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
+func (p *Poloniex) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

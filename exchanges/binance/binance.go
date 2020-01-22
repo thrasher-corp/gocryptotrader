@@ -72,7 +72,7 @@ type Binance struct {
 	validIntervals []TimeInterval
 }
 
-func (b *Binance) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
+func (b *Binance) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	currency2 "github.com/thrasher-corp/gocryptotrader/currency"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -15,6 +14,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 const (
@@ -66,10 +66,6 @@ type Gemini struct {
 	exchange.Base
 	Role              string
 	RequiresHeartBeat bool
-}
-
-func (g *Gemini) GetHistoricCandles(pair currency2.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
 }
 
 // GetSymbols returns all available symbols for trading
@@ -448,4 +444,8 @@ func calculateTradingFee(notionVolume *NotionalVolume, purchasePrice, amount flo
 	}
 
 	return volumeFee * amount * purchasePrice
+}
+
+func (g *Gemini) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
+	return nil, common.ErrFunctionNotSupported
 }

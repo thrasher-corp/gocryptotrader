@@ -41,7 +41,7 @@ type LakeBTC struct {
 	WebsocketConn
 }
 
-func (l *LakeBTC) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
+func (l *LakeBTC) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

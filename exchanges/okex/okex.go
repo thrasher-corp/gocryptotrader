@@ -47,7 +47,7 @@ type OKEX struct {
 	okgroup.OKGroup
 }
 
-func (o *OKEX) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
+func (o *OKEX) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

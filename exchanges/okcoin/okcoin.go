@@ -22,6 +22,6 @@ type OKCoin struct {
 	okgroup.OKGroup
 }
 
-func (o *OKCoin) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
+func (o *OKCoin) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
 	return nil, common.ErrFunctionNotSupported
 }

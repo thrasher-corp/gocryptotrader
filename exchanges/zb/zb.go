@@ -48,7 +48,7 @@ type ZB struct {
 	exchange.Base
 }
 
-func (z *ZB) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
+func (z *ZB) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

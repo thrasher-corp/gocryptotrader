@@ -1233,7 +1233,7 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHisto
 		Delimiter: req.Pair.Delimiter,
 		Base:      currency.NewCode(req.Pair.Base),
 		Quote:     currency.NewCode(req.Pair.Quote),
-	}, int(req.Rangesize), int(req.Granularity))
+	}, req.Rangesize, req.Granularity)
 	if err != nil {
 		return nil, err
 	}

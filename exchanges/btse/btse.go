@@ -24,7 +24,7 @@ type BTSE struct {
 	WebsocketConn *wshandler.WebsocketConnection
 }
 
-func (b *BTSE) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
+func (b *BTSE) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

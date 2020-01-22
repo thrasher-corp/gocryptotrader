@@ -71,7 +71,7 @@ type Bitflyer struct {
 	exchange.Base
 }
 
-func (b *Bitflyer) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
+func (b *Bitflyer) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

@@ -70,7 +70,7 @@ type HUOBI struct {
 	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
 }
 
-func (h *HUOBI) GetHistoricCandles(pair currency.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
+func (h *HUOBI) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

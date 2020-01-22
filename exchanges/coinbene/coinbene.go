@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	currency2 "github.com/thrasher-corp/gocryptotrader/currency"
 	"io"
 	"net/http"
 	"net/url"
@@ -18,16 +17,13 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 // Coinbene is the overarching type across this package
 type Coinbene struct {
 	exchange.Base
 	WebsocketConn *wshandler.WebsocketConnection
-}
-
-func (c *Coinbene) GetHistoricCandles(pair currency2.Pair, rangesize int, granularity int) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
 }
 
 const (
@@ -1076,4 +1072,8 @@ func (c *Coinbene) SendAuthHTTPRequest(method, path, epPath string, isSwap bool,
 		}
 	}
 	return json.Unmarshal(resp, result)
+}
+
+func (c *Coinbene) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
+	return nil, common.ErrFunctionNotSupported
 }
