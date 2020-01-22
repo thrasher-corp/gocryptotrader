@@ -17,7 +17,6 @@ func New() *VM {
 		}
 		return nil
 	}
-
 	vm := NewVM()
 	AllVMSync.Store(vm.ID, vm)
 	VMSCount.add()

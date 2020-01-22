@@ -24,14 +24,13 @@ import (
 
 // Script is an object representing the database table.
 type Script struct {
-	ID             string      `boil:"id" json:"id" toml:"id" yaml:"id"`
-	ScriptID       string      `boil:"script_id" json:"script_id" toml:"script_id" yaml:"script_id"`
-	ScriptName     string      `boil:"script_name" json:"script_name" toml:"script_name" yaml:"script_name"`
-	ScriptPath     string      `boil:"script_path" json:"script_path" toml:"script_path" yaml:"script_path"`
-	ScriptHash     null.String `boil:"script_hash" json:"script_hash,omitempty" toml:"script_hash" yaml:"script_hash,omitempty"`
-	ScriptData     null.Bytes  `boil:"script_data" json:"script_data,omitempty" toml:"script_data" yaml:"script_data,omitempty"`
-	LastExecutedAt null.Time   `boil:"last_executed_at" json:"last_executed_at,omitempty" toml:"last_executed_at" yaml:"last_executed_at,omitempty"`
-	CreatedAt      null.Time   `boil:"created_at" json:"created_at,omitempty" toml:"created_at" yaml:"created_at,omitempty"`
+	ID             string     `boil:"id" json:"id" toml:"id" yaml:"id"`
+	ScriptID       string     `boil:"script_id" json:"script_id" toml:"script_id" yaml:"script_id"`
+	ScriptName     string     `boil:"script_name" json:"script_name" toml:"script_name" yaml:"script_name"`
+	ScriptPath     string     `boil:"script_path" json:"script_path" toml:"script_path" yaml:"script_path"`
+	ScriptData     null.Bytes `boil:"script_data" json:"script_data,omitempty" toml:"script_data" yaml:"script_data,omitempty"`
+	LastExecutedAt null.Time  `boil:"last_executed_at" json:"last_executed_at,omitempty" toml:"last_executed_at" yaml:"last_executed_at,omitempty"`
+	CreatedAt      null.Time  `boil:"created_at" json:"created_at,omitempty" toml:"created_at" yaml:"created_at,omitempty"`
 
 	R *scriptR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L scriptL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -42,7 +41,6 @@ var ScriptColumns = struct {
 	ScriptID       string
 	ScriptName     string
 	ScriptPath     string
-	ScriptHash     string
 	ScriptData     string
 	LastExecutedAt string
 	CreatedAt      string
@@ -51,36 +49,12 @@ var ScriptColumns = struct {
 	ScriptID:       "script_id",
 	ScriptName:     "script_name",
 	ScriptPath:     "script_path",
-	ScriptHash:     "script_hash",
 	ScriptData:     "script_data",
 	LastExecutedAt: "last_executed_at",
 	CreatedAt:      "created_at",
 }
 
 // Generated where
-
-type whereHelpernull_String struct{ field string }
-
-func (w whereHelpernull_String) EQ(x null.String) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, false, x)
-}
-func (w whereHelpernull_String) NEQ(x null.String) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, true, x)
-}
-func (w whereHelpernull_String) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
-func (w whereHelpernull_String) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
-func (w whereHelpernull_String) LT(x null.String) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LT, x)
-}
-func (w whereHelpernull_String) LTE(x null.String) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LTE, x)
-}
-func (w whereHelpernull_String) GT(x null.String) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GT, x)
-}
-func (w whereHelpernull_String) GTE(x null.String) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GTE, x)
-}
 
 type whereHelpernull_Bytes struct{ field string }
 
@@ -133,7 +107,6 @@ var ScriptWhere = struct {
 	ScriptID       whereHelperstring
 	ScriptName     whereHelperstring
 	ScriptPath     whereHelperstring
-	ScriptHash     whereHelpernull_String
 	ScriptData     whereHelpernull_Bytes
 	LastExecutedAt whereHelpernull_Time
 	CreatedAt      whereHelpernull_Time
@@ -142,7 +115,6 @@ var ScriptWhere = struct {
 	ScriptID:       whereHelperstring{field: "\"script\".\"script_id\""},
 	ScriptName:     whereHelperstring{field: "\"script\".\"script_name\""},
 	ScriptPath:     whereHelperstring{field: "\"script\".\"script_path\""},
-	ScriptHash:     whereHelpernull_String{field: "\"script\".\"script_hash\""},
 	ScriptData:     whereHelpernull_Bytes{field: "\"script\".\"script_data\""},
 	LastExecutedAt: whereHelpernull_Time{field: "\"script\".\"last_executed_at\""},
 	CreatedAt:      whereHelpernull_Time{field: "\"script\".\"created_at\""},
@@ -169,8 +141,8 @@ func (*scriptR) NewStruct() *scriptR {
 type scriptL struct{}
 
 var (
-	scriptAllColumns            = []string{"id", "script_id", "script_name", "script_path", "script_hash", "script_data", "last_executed_at", "created_at"}
-	scriptColumnsWithoutDefault = []string{"script_id", "script_name", "script_path", "script_hash", "script_data"}
+	scriptAllColumns            = []string{"id", "script_id", "script_name", "script_path", "script_data", "last_executed_at", "created_at"}
+	scriptColumnsWithoutDefault = []string{"script_id", "script_name", "script_path", "script_data"}
 	scriptColumnsWithDefault    = []string{"id", "last_executed_at", "created_at"}
 	scriptPrimaryKeyColumns     = []string{"id"}
 )

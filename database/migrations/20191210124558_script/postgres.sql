@@ -6,7 +6,6 @@ CREATE TABLE IF NOT EXISTS script
     script_id text not null,
     script_name varchar not null,
     script_path varchar not null,
-    script_hash text null,
     script_data bytea null,
     last_executed_at TIMESTAMP DEFAULT (now() at time zone 'utc'),
     created_at TIMESTAMP DEFAULT (now() at time zone 'utc'),

@@ -5,7 +5,6 @@ CREATE TABLE "script" (
     script_id   text not null,
     script_name text not null,
     script_path text not NULL,
-    script_hash text NULL,
     script_data blob null,
     last_executed_at timestamp not null default CURRENT_TIMESTAMP,
     created_at   timestamp not null default CURRENT_TIMESTAMP

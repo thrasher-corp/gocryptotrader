@@ -722,7 +722,7 @@ func testScriptsSelect(t *testing.T) {
 }
 
 var (
-	scriptDBTypes = map[string]string{`ID`: `TEXT`, `ScriptID`: `TEXT`, `ScriptName`: `TEXT`, `ScriptPath`: `TEXT`, `ScriptHash`: `TEXT`, `ScriptData`: `BLOB`, `LastExecutedAt`: `TIMESTAMP`, `CreatedAt`: `TIMESTAMP`}
+	scriptDBTypes = map[string]string{`ID`: `TEXT`, `ScriptID`: `TEXT`, `ScriptName`: `TEXT`, `ScriptPath`: `TEXT`, `ScriptData`: `BLOB`, `LastExecutedAt`: `TIMESTAMP`, `CreatedAt`: `TIMESTAMP`}
 	_             = bytes.MinRead
 )
 

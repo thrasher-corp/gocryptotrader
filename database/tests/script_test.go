@@ -84,9 +84,8 @@ func writeScript() {
 		go func(x int) {
 			defer wg.Done()
 			test := fmt.Sprintf("test-%v", x)
-			var hash null.String
 			var data null.Bytes
-			script.Event(test, test, test, hash, data, test, test, time.Now())
+			script.Event(test, test, test, data, test, test, time.Now())
 		}(x)
 	}
 	wg.Wait()
