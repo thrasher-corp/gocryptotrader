@@ -2,11 +2,13 @@ package account
 
 import (
 	"errors"
+	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 var accounts = make(map[string]*Holdings)
+var mtx sync.Mutex
 
 // Holdings is a generic type to hold each exchange's holdings for all enabled
 // currencies
@@ -38,6 +40,8 @@ func Process(h *Holdings) error {
 		return errors.New("exchange name unset")
 	}
 
+	mtx.Lock()
+	defer mtx.Unlock()
 	holdings, ok := accounts[h.Exchange]
 	if !ok {
 		accounts[h.Exchange] = h
@@ -54,6 +58,8 @@ func GetHoldings(exch string) (Holdings, error) {
 		return Holdings{}, errors.New("exchange name unset")
 	}
 
+	mtx.Lock()
+	defer mtx.Unlock()
 	h, ok := accounts[exch]
 	if !ok {
 		return Holdings{}, errors.New("exchange account holdings not found")

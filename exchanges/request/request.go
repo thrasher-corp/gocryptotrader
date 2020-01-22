@@ -302,7 +302,8 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 			}
 		}
 
-		if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		if resp.StatusCode < http.StatusOK ||
+			resp.StatusCode > http.StatusAccepted {
 			return fmt.Errorf("unsuccessful HTTP status code: %d body: %s",
 				resp.StatusCode,
 				string(contents))
