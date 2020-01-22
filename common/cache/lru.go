@@ -2,7 +2,7 @@ package cache
 
 import "container/list"
 
-// NewLRUCache returns a new non-thread-safe LRU cache with input capacity
+// NewLRUCache returns a new non-concurrent-safe LRU cache with input capacity
 func NewLRUCache(capacity uint64) *LRU {
 	return &LRU{
 		Cap:   capacity,
