@@ -26,11 +26,11 @@ func New() *VM {
 // Validate will attempt to execute a script in a test/non-live environment
 // to confirm it passes requirements for execution
 func Validate(file string) (err error) {
+	validator.RWValidatorLock.Lock()
 	defer func() {
 		validator.IsTestExecution = false
 		validator.RWValidatorLock.Unlock()
 	}()
-	validator.RWValidatorLock.Lock()
 	validator.IsTestExecution = true
 	tempVM := NewVM()
 	err = tempVM.Load(file)
