@@ -528,42 +528,39 @@ func TestSplitStringSliceByLimit(t *testing.T) {
 }
 
 func TestInArray(t *testing.T) {
-
 	InArray(nil, nil)
 
 	array := [6]int{2, 3, 5, 7, 11, 13}
 	isIn, pos := InArray(5, array)
 	if !isIn {
-		t.Errorf("Failed to find the value within the array")
+		t.Errorf("failed to find the value within the array")
 	}
 	if pos != 2 {
-		t.Errorf("Failed return the correct position of the value in the array")
+		t.Errorf("failed return the correct position of the value in the array")
 	}
 	isIn, _ = InArray(1, array)
 	if isIn {
-		t.Errorf("Found a non existent value in the array")
+		t.Errorf("found a non existent value in the array")
 	}
 
 	slice := make([]int, 0)
-	slice = append(slice, 5)
-	slice = append(slice, 3)
+	slice = append(append(slice, 5), 3)
 	isIn, pos = InArray(5, slice)
 	if !isIn {
-		t.Errorf("Failed to find the value within the slice")
+		t.Errorf("failed to find the value within the slice")
 	}
 	if pos != 0 {
-		t.Errorf("Failed return the correct position of the value in the slice")
+		t.Errorf("failed return the correct position of the value in the slice")
 	}
 	isIn, pos = InArray(3, slice)
 	if !isIn {
-		t.Errorf("Failed to find the value within the slice")
+		t.Errorf("failed to find the value within the slice")
 	}
 	if pos != 1 {
-		t.Errorf("Failed return the correct position of the value in the slice")
+		t.Errorf("failed return the correct position of the value in the slice")
 	}
 	isIn, _ = InArray(1, slice)
 	if isIn {
-		t.Errorf("Found a non existent value in the slice")
+		t.Errorf("found a non existent value in the slice")
 	}
-
 }

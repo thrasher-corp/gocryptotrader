@@ -112,7 +112,7 @@ func expectedCandles(expectedCandles int, timeRange time.Duration, candleGranula
 		return err
 	}
 	if len(resp) != expectedCandles {
-		err := fmt.Errorf("Expected %d candles, returned: %d", expectedCandles, len(resp))
+		err := fmt.Errorf("expected %d candles, returned: %d", expectedCandles, len(resp))
 		return err
 	}
 	return nil
@@ -121,13 +121,12 @@ func expectedCandles(expectedCandles int, timeRange time.Duration, candleGranula
 func TestGetHistoricRatesGranularityCheck(t *testing.T) {
 	end := time.Now().UTC()
 	start := time.Now().UTC().Add(-time.Second * 300)
-	invalid_granularity := 11
-	_, err := c.GetHistoricRates(testPair, start.Format(time.RFC3339), end.Format(time.RFC3339), int64(invalid_granularity))
+	invalidGranularity := 11
+	_, err := c.GetHistoricRates(testPair, start.Format(time.RFC3339), end.Format(time.RFC3339), int64(invalidGranularity))
 	if err == nil {
-		t.Error("Granularity validation did not work as expected")
+		t.Error("granularity validation did not work as expected")
 	}
 }
-
 
 func TestGetStats(t *testing.T) {
 	_, err := c.GetStats(testPair)

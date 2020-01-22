@@ -1226,7 +1226,7 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHisto
 
 	exchange := GetExchangeByName(req.Exchange)
 	if exchange == nil {
-		return nil,  errors.New("Exchange " + req.Exchange + " not found")
+		return nil, errors.New("Exchange " + req.Exchange + " not found")
 	}
 
 	candles, err := exchange.GetHistoricCandles(currency.Pair{

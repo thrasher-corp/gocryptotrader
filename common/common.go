@@ -357,7 +357,7 @@ func SplitStringSliceByLimit(in []string, limit uint) [][]string {
 }
 
 // InArray checks if _val_ belongs to _array_
-func InArray(val interface{}, array interface{}) (exists bool, index int) {
+func InArray(val, array interface{}) (exists bool, index int) {
 	exists = false
 	index = -1
 	if array == nil {
@@ -367,7 +367,7 @@ func InArray(val interface{}, array interface{}) (exists bool, index int) {
 	case reflect.Array, reflect.Slice:
 		s := reflect.ValueOf(array)
 		for i := 0; i < s.Len(); i++ {
-			if reflect.DeepEqual(val, s.Index(i).Interface()) == true {
+			if reflect.DeepEqual(val, s.Index(i).Interface()) {
 				index = i
 				exists = true
 				return
