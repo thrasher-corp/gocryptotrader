@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	maxTestVirtualMachines    uint8  = 30
-	testVirtualMachineTimeout        = time.Minute
-	scriptName                string = "1D01TH0RS3.gct"
+	maxTestVirtualMachines    uint8 = 30
+	testVirtualMachineTimeout       = time.Minute
+	scriptName                      = "1D01TH0RS3.gct"
 )
 
 var (
@@ -145,6 +145,7 @@ func TestCompileAndRunNilVM(t *testing.T) {
 		t.Fatal("expected VM count to decrease")
 	}
 }
+
 func TestVMLoadNoFile(t *testing.T) {
 	testVM := New()
 	err := testVM.Load("missing file")

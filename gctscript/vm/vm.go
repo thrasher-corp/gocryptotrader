@@ -40,7 +40,6 @@ func NewVM() (vm *VM) {
 		ID:     newUUID,
 		Script: pool.Get().(*tengo.Script),
 	}
-	vm.event(StatusSuccess, TypeCreate, false)
 	return
 }
 
@@ -84,10 +83,11 @@ func (vm *VM) Load(file string) error {
 		}
 	}
 
-	vm.File = f.Name()
+	vm.File = file
 	vm.Path = filepath.Dir(file)
 	vm.Script = tengo.NewScript(code)
 	vm.Script.SetImports(loader.GetModuleMap())
+	vm.Hash = vm.getHash()
 
 	if GCTScriptConfig.AllowImports {
 		if GCTScriptConfig.Verbose {
@@ -95,7 +95,7 @@ func (vm *VM) Load(file string) error {
 		}
 		vm.Script.EnableFileImport(true)
 	}
-	vm.event(StatusSuccess, TypeLoad, true)
+	vm.event(StatusSuccess, TypeLoad)
 	return nil
 }
 
@@ -114,13 +114,13 @@ func (vm *VM) Run() (err error) {
 
 	err = vm.Compiled.Run()
 	if err != nil {
-		vm.event(StatusFailure, TypeExecute, true)
+		vm.event(StatusFailure, TypeExecute)
 		return Error{
 			Action: "Run",
 			Cause:  err,
 		}
 	}
-	vm.event(StatusSuccess, TypeExecute, true)
+	vm.event(StatusSuccess, TypeExecute)
 	return
 }
 
@@ -139,13 +139,13 @@ func (vm *VM) RunCtx() (err error) {
 
 	err = vm.Compiled.RunContext(ct)
 	if err != nil {
-		vm.event(StatusFailure, TypeExecute, true)
+		vm.event(StatusFailure, TypeExecute)
 		return Error{
 			Action: "RunCtx",
 			Cause:  err,
 		}
 	}
-	vm.event(StatusSuccess, TypeExecute, true)
+	vm.event(StatusSuccess, TypeExecute)
 	return
 }
 
@@ -214,13 +214,13 @@ func (vm *VM) Shutdown() error {
 	}
 	vm.Script = nil
 	pool.Put(vm.Script)
-	vm.event(StatusSuccess, TypeStop, true)
+	vm.event(StatusSuccess, TypeStop)
 	return RemoveVM(vm.ID)
 }
 
 // Read contents of script back and create script event
 func (vm *VM) Read() ([]byte, error) {
-	vm.event(StatusSuccess, TypeRead, true)
+	vm.event(StatusSuccess, TypeRead)
 	return vm.read()
 }
 
@@ -237,16 +237,12 @@ func (vm *VM) ShortName() string {
 	return filepath.Base(vm.File)
 }
 
-func (vm *VM) event(status, executionType string, includeScriptHash bool) {
+func (vm *VM) event(status, executionType string) {
 	if validator.IsTestExecution {
 		return
 	}
 
-	var hash null.String
 	var data null.Bytes
-	if includeScriptHash {
-		hash.SetValid(vm.getHash(false))
-	}
 	if executionType == TypeLoad {
 		scriptData, err := vm.scriptData()
 		if err != nil {
@@ -254,7 +250,7 @@ func (vm *VM) event(status, executionType string, includeScriptHash bool) {
 		}
 		data.SetValid(scriptData)
 	}
-	scriptevent.Event(vm.getHash(true), vm.ShortName(), vm.Path, hash, data, executionType, status, time.Now())
+	scriptevent.Event(vm.getHash(), vm.ShortName(), vm.Path, data, executionType, status, time.Now())
 }
 
 func (vm *VM) scriptData() ([]byte, error) {
@@ -280,14 +276,15 @@ func (vm *VM) scriptData() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (vm *VM) getHash(includeFileName bool) string {
+func (vm *VM) getHash() string {
+	if vm.Hash != "" {
+		return vm.Hash
+	}
 	contents, err := vm.read()
 	if err != nil {
 		log.Errorln(log.GCTScriptMgr, err)
 	}
-	if includeFileName {
-		contents = append(contents, vm.ShortName()...)
-	}
+	contents = append(contents, vm.ShortName()...)
 	return hex.EncodeToString(crypto.GetSHA256(contents))
 }
 

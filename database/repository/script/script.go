@@ -15,7 +15,7 @@ import (
 )
 
 // Event inserts a new script event into database with execution details (script name time status hash of script)
-func Event(id, name, path string, hash null.String, data null.Bytes, executionType, status string, time time.Time) {
+func Event(id, name, path string, data null.Bytes, executionType, status string, time time.Time) {
 	if database.DB.SQL == nil {
 		return
 	}
@@ -52,7 +52,6 @@ func Event(id, name, path string, hash null.String, data null.Bytes, executionTy
 			tempEvent.ScriptID = id
 			tempEvent.ScriptName = name
 			tempEvent.ScriptPath = path
-			tempEvent.ScriptHash = hash
 			tempEvent.ScriptData = data
 			err = tempEvent.Insert(ctx, tx, boil.Infer())
 			if err != nil {
@@ -87,10 +86,9 @@ func Event(id, name, path string, hash null.String, data null.Bytes, executionTy
 			ScriptID:   id,
 			ScriptName: name,
 			ScriptPath: path,
-			ScriptHash: hash,
 			ScriptData: data,
 		}
-		err = tempEvent.Upsert(ctx, tx, true, []string{"script_id"}, boil.Whitelist("last_executed_at", "script_data"), boil.Infer())
+		err = tempEvent.Upsert(ctx, tx, true, []string{"script_id"}, boil.Whitelist("last_executed_at"), boil.Infer())
 		if err != nil {
 			log.Errorf(log.DatabaseMgr, "Event insert failed: %v", err)
 			err = tx.Rollback()

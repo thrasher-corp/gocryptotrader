@@ -6,7 +6,7 @@ import (
 
 const (
 	// ErrParameterConvertFailed error to return when type conversion fails
-	ErrParameterConvertFailed string = "%v failed conversion"
+	ErrParameterConvertFailed = "%v failed conversion"
 )
 
 // Modules map of all loadable modules

@@ -49,6 +49,7 @@ var (
 // VM contains a pointer to "script" (precompiled source) and "compiled" (compiled byte code) instances
 type VM struct {
 	ID       uuid.UUID
+	Hash     string
 	File     string
 	Path     string
 	Script   *tengo.Script
