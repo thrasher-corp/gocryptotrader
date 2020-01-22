@@ -1,48 +1,27 @@
 package bitfinex
 
-import "time"
-
-// Ticker holds basic ticker information from the exchange
+// Ticker holds ticker information
 type Ticker struct {
-	Mid       float64 `json:"mid,string"`
-	Bid       float64 `json:"bid,string"`
-	Ask       float64 `json:"ask,string"`
-	Last      float64 `json:"last_price,string"`
-	Low       float64 `json:"low,string"`
-	High      float64 `json:"high,string"`
-	Volume    float64 `json:"volume,string"`
-	Timestamp string  `json:"timestamp"`
-	Message   string  `json:"message"`
-}
-
-// Tickerv2 holds the version 2 ticker information
-type Tickerv2 struct {
-	FlashReturnRate float64
-	Bid             float64
-	BidPeriod       int64
-	BidSize         float64
-	Ask             float64
-	AskPeriod       int64
-	AskSize         float64
-	DailyChange     float64
-	DailyChangePerc float64
-	Last            float64
-	Volume          float64
-	High            float64
-	Low             float64
-	Timestamp       time.Time
-}
-
-// Tickersv2 holds the version 2 tickers information
-type Tickersv2 struct {
-	Symbol string
-	Tickerv2
+	FlashReturnRate    float64
+	Bid                float64
+	BidPeriod          int64
+	BidSize            float64
+	Ask                float64
+	AskPeriod          int64
+	AskSize            float64
+	DailyChange        float64
+	DailyChangePerc    float64
+	Last               float64
+	Volume             float64
+	High               float64
+	Low                float64
+	FFRAmountAvailable float64
 }
 
 // Stat holds individual statistics from exchange
 type Stat struct {
-	Period int64   `json:"period"`
-	Volume float64 `json:"volume,string"`
+	Timestamp int64
+	Value     float64
 }
 
 // FundingBook holds current the full margin funding book
@@ -52,62 +31,55 @@ type FundingBook struct {
 	Message string `json:"message"`
 }
 
+// // Orderbook holds orderbook information from bid and ask sides
+// type Orderbook struct {
+// 	Bids []Book
+// 	Asks []Book
+// }
+
+// Book holds the orderbook item
+type Book struct {
+	OrderID int64
+	Price   float64
+	Rate    float64
+	Period  float64
+	Count   int64
+	Amount  float64
+}
+
 // Orderbook holds orderbook information from bid and ask sides
 type Orderbook struct {
 	Bids []Book
 	Asks []Book
 }
 
-// BookV2 holds the orderbook item
-type BookV2 struct {
-	Price  float64
-	Rate   float64
-	Period float64
-	Count  int64
-	Amount float64
-}
-
-// OrderbookV2 holds orderbook information from bid and ask sides
-type OrderbookV2 struct {
-	Bids []BookV2
-	Asks []BookV2
-}
-
-// TradeStructure holds executed trade information
-type TradeStructure struct {
-	Timestamp int64   `json:"timestamp"`
-	Tid       int64   `json:"tid"`
-	Price     float64 `json:"price,string"`
-	Amount    float64 `json:"amount,string"`
-	Exchange  string  `json:"exchange"`
-	Type      string  `json:"sell"`
-}
-
-// TradeStructureV2 holds resp information
-type TradeStructureV2 struct {
+// Trade holds resp information
+type Trade struct {
 	Timestamp int64
 	TID       int64
 	Price     float64
 	Amount    float64
 	Exchange  string
+	Rate      float64
+	Period    int64
 	Type      string
 }
 
-// Lendbook holds most recent funding data for a relevant currency
-type Lendbook struct {
-	Bids []Book `json:"bids"`
-	Asks []Book `json:"asks"`
-}
+// // Lendbook holds most recent funding data for a relevant currency
+// type Lendbook struct {
+// 	Bids []Book `json:"bids"`
+// 	Asks []Book `json:"asks"`
+// }
 
-// Book is a generalised sub-type to hold book information
-type Book struct {
-	Price           float64 `json:"price,string"`
-	Rate            float64 `json:"rate,string"`
-	Amount          float64 `json:"amount,string"`
-	Period          int     `json:"period"`
-	Timestamp       string  `json:"timestamp"`
-	FlashReturnRate string  `json:"frr"`
-}
+// // Book is a generalised sub-type to hold book information
+// type Book struct {
+// 	Price           float64 `json:"price,string"`
+// 	Rate            float64 `json:"rate,string"`
+// 	Amount          float64 `json:"amount,string"`
+// 	Period          int     `json:"period"`
+// 	Timestamp       string  `json:"timestamp"`
+// 	FlashReturnRate string  `json:"frr"`
+// }
 
 // Lends holds the lent information by currency
 type Lends struct {
@@ -237,10 +209,16 @@ type WalletTransfer struct {
 
 // Withdrawal holds withdrawal status information
 type Withdrawal struct {
-	Status       string `json:"status"`
-	Message      string `json:"message"`
-	WithdrawalID int64  `json:"withdrawal_id,omitempty"`
-	Fees         string `json:"fees,omitempty"`
+	Status       string  `json:"status"`
+	Message      string  `json:"message"`
+	WithdrawalID int64   `json:"withdrawal_id"`
+	Fees         string  `json:"fees"`
+	WalletType   string  `json:"wallettype"`
+	Method       string  `json:"method"`
+	Address      string  `json:"address"`
+	Invoice      string  `json:"invoice"`
+	PaymentID    string  `json:"payment_id"`
+	Amount       float64 `json:"amount,string"`
 }
 
 // Order holds order information when an order is in the market
@@ -401,8 +379,8 @@ type WebsocketTrade struct {
 	Period int64
 }
 
-// WebsocketCandle candle data
-type WebsocketCandle struct {
+// Candle holds OHLC data
+type Candle struct {
 	Timestamp int64
 	Open      float64
 	Close     float64

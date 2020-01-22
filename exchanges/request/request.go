@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -140,16 +139,6 @@ func (r *Requester) DoRequest(req *http.Request, p *Item) error {
 				continue
 			}
 			return err
-		}
-
-		if !strings.Contains(resp.Header.Get("Content-Type"), "application/json") {
-			if p.Verbose {
-				log.Warnf(log.ExchangeSys,
-					"%s request response content type differs from JSON; received %v [path: %s]\n",
-					r.Name,
-					resp.Header.Get("Content-Type"),
-					p.Path)
-			}
 		}
 
 		contents, err := ioutil.ReadAll(resp.Body)

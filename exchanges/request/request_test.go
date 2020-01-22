@@ -280,7 +280,7 @@ func TestDoRequest(t *testing.T) {
 			})
 			wg.Done()
 			if payloadError != nil {
-				log.Fatal(err)
+				log.Fatal(payloadError)
 			}
 			if !resp.Response {
 				log.Fatal(unexpected)
