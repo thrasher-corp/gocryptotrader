@@ -1,5 +1,18 @@
 package bitfinex
 
+// AcceptedOrderType defines the accepted market types, exchange strings denote
+// non-contract order types.
+var AcceptedOrderType = []string{"market", "limit", "stop", "trailing-stop",
+	"fill-or-kill", "exchange market", "exchange limit", "exchange stop",
+	"exchange trailing-stop", "exchange fill-or-kill"}
+
+// AcceptedWalletNames defines different wallets supported by the exchange
+var AcceptedWalletNames = []string{"trading", "exchange", "deposit", "margin",
+	"funding"}
+
+// AcceptableMethods defines a map of currency codes to methods
+var AcceptableMethods = make(map[string]string)
+
 // Ticker holds ticker information
 type Ticker struct {
 	FlashReturnRate    float64
@@ -20,22 +33,15 @@ type Ticker struct {
 
 // Stat holds individual statistics from exchange
 type Stat struct {
-	Timestamp int64
-	Value     float64
+	Period int64   `json:"period"`
+	Volume float64 `json:"volume,string"`
 }
 
 // FundingBook holds current the full margin funding book
 type FundingBook struct {
-	Bids    []Book `json:"bids"`
-	Asks    []Book `json:"asks"`
-	Message string `json:"message"`
+	Bids []FundingBookItem `json:"bids"`
+	Asks []FundingBookItem `json:"asks"`
 }
-
-// // Orderbook holds orderbook information from bid and ask sides
-// type Orderbook struct {
-// 	Bids []Book
-// 	Asks []Book
-// }
 
 // Book holds the orderbook item
 type Book struct {
@@ -65,21 +71,20 @@ type Trade struct {
 	Type      string
 }
 
-// // Lendbook holds most recent funding data for a relevant currency
-// type Lendbook struct {
-// 	Bids []Book `json:"bids"`
-// 	Asks []Book `json:"asks"`
-// }
+// Lendbook holds most recent funding data for a relevant currency
+type Lendbook struct {
+	Bids []Book `json:"bids"`
+	Asks []Book `json:"asks"`
+}
 
-// // Book is a generalised sub-type to hold book information
-// type Book struct {
-// 	Price           float64 `json:"price,string"`
-// 	Rate            float64 `json:"rate,string"`
-// 	Amount          float64 `json:"amount,string"`
-// 	Period          int     `json:"period"`
-// 	Timestamp       string  `json:"timestamp"`
-// 	FlashReturnRate string  `json:"frr"`
-// }
+// FundingBookItem is a generalised sub-type to hold book information
+type FundingBookItem struct {
+	Rate            float64 `json:"rate,string"`
+	Amount          float64 `json:"amount,string"`
+	Period          int     `json:"period"`
+	Timestamp       string  `json:"timestamp"`
+	FlashReturnRate string  `json:"frr"`
+}
 
 // Lends holds the lent information by currency
 type Lends struct {

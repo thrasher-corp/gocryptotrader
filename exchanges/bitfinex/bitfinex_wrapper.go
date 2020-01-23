@@ -319,7 +319,12 @@ func (b *Bitfinex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*order
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	b.appendOptionalDelimiter(&p)
-	orderbookNew, err := b.GetOrderbook(p.String(), "P0", 1000)
+	var prefix = "t"
+	if assetType == asset.Margin {
+		prefix = "f"
+	}
+
+	orderbookNew, err := b.GetOrderbook(prefix+p.String(), "P0", 100)
 	if err != nil {
 		return nil, err
 	}
@@ -434,11 +439,11 @@ func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 		isBuying := o.OrderSide == order.Buy
 		b.appendOptionalDelimiter(&o.Pair)
 		response, err = b.NewOrder(o.Pair.String(),
+			o.OrderType.String(),
 			o.Amount,
 			o.Price,
-			isBuying,
-			o.OrderType.String(),
-			false)
+			false,
+			isBuying)
 		if err != nil {
 			return submitOrderResponse, err
 		}
@@ -507,19 +512,18 @@ func (b *Bitfinex) GetOrderInfo(orderID string) (order.Detail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (b *Bitfinex) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
-	method, err := b.ConvertSymbolToDepositMethod(cryptocurrency)
+func (b *Bitfinex) GetDepositAddress(c currency.Code, accountID string) (string, error) {
+	if accountID == "" {
+		accountID = "deposit"
+	}
+
+	method, err := b.ConvertSymbolToDepositMethod(c)
 	if err != nil {
 		return "", err
 	}
 
-	var resp DepositResponse
-	resp, err = b.NewDeposit(method, accountID, 0)
-	if err != nil {
-		return "", err
-	}
-
-	return resp.Address, nil
+	resp, err := b.NewDeposit(method, accountID, 0)
+	return resp.Address, err
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted

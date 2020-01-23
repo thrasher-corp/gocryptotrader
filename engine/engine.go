@@ -185,10 +185,6 @@ func ValidateSettings(b *Engine, s *Settings) {
 	b.Settings.ExchangePurgeCredentials = s.ExchangePurgeCredentials
 	b.Settings.EnableWebsocketRoutine = s.EnableWebsocketRoutine
 
-	if !b.Settings.EnableExchangeHTTPRateLimiter {
-		request.DisableRateLimiter = true
-	}
-
 	// Checks if the flag values are different from the defaults
 	b.Settings.MaxHTTPRequestJobsLimit = s.MaxHTTPRequestJobsLimit
 	if b.Settings.MaxHTTPRequestJobsLimit != int(request.DefaultMaxRequestJobs) &&
@@ -405,7 +401,7 @@ func (e *Engine) Start() error {
 
 	if e.Settings.EnableDepositAddressManager {
 		e.DepositAddressManager = new(DepositAddressManager)
-		e.DepositAddressManager.Sync()
+		go e.DepositAddressManager.Sync()
 	}
 
 	if e.Settings.EnableOrderManager {

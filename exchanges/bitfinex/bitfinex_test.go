@@ -89,11 +89,6 @@ func TestGetTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	// _, err = b.GetTicker("test")
-	// if err == nil {
-	// 	t.Error("error cannot be nil")
-	// }
 }
 
 func TestGetTrades(t *testing.T) {
@@ -128,24 +123,36 @@ func TestGetOrderbook(t *testing.T) {
 	}
 }
 
+func TestGetStats(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetStats("btcusd")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFundingBook(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetFundingBook("usd")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetLends(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetLends("usd", nil)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetCandles(t *testing.T) {
 	t.Parallel()
-
-	b.Verbose = true
-
 	_, err := b.GetCandles("fUSD", "1m", 0, 0, 10, true, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// if len(lastCandle) > 1 {
-	// 	t.Error("cannot be more than one")
-	// }
-
-	// _, err = b.GetCandles("tBTCUSD", "1m", 0, 0, true, false)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
 }
 
 func TestGetAccountFees(t *testing.T) {
@@ -315,11 +322,11 @@ func TestNewOrder(t *testing.T) {
 	t.Parallel()
 
 	_, err := b.NewOrder("BTCUSD",
+		order.Limit.Lower(),
 		1,
 		2,
-		true,
-		order.Limit.Lower(),
-		false)
+		false,
+		true)
 	if err == nil {
 		t.Error(err)
 	}
@@ -347,45 +354,6 @@ func TestAppendOptionalDelimiter(t *testing.T) {
 		t.Errorf("Expected \"-\" as a delimiter, received %v", curr2.Delimiter)
 	}
 }
-
-// func TestGetFundingBook(t *testing.T) {
-// 	t.Parallel()
-// 	_, err := b.GetFundingBook("USD")
-// 	if err != nil {
-// 		t.Error("Testing Failed - GetFundingBook() error")
-// 	}
-// 	_, err = b.GetFundingBook("wigwham")
-// 	if err == nil {
-// 		t.Error("Testing Failed - GetFundingBook() Expected error")
-// 	}
-// }
-
-// func TestGetLendbook(t *testing.T) {
-// 	t.Parallel()
-
-// 	_, err := b.GetLendbook("BTCUSD", url.Values{})
-// 	if err != nil {
-// 		t.Error("Testing Failed - GetLendbook() error: ", err)
-// 	}
-// }
-
-// func TestGetLends(t *testing.T) {
-// 	t.Parallel()
-
-// 	_, err := b.GetLends("BTC", url.Values{})
-// 	if err != nil {
-// 		t.Error("BitfinexGetLends init error: ", err)
-// 	}
-// }
-
-// func TestGetSymbolsDetails(t *testing.T) {
-// 	t.Parallel()
-
-// 	_, err := b.GetSymbolsDetails()
-// 	if err != nil {
-// 		t.Error("BitfinexGetSymbolsDetails init error: ", err)
-// 	}
-// }
 
 func TestNewOrderMulti(t *testing.T) {
 	if !b.ValidateAPICredentials() {

@@ -489,6 +489,10 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 			continue
 		}
 
+		if !Bot.Settings.EnableExchangeHTTPRateLimiter {
+			Bot.Exchanges[x].GetBase().Requester.DisableRateLimiter = true
+		}
+
 		exchangeName := Bot.Exchanges[x].GetName()
 		supportsWebsocket := Bot.Exchanges[x].SupportsWebsocket()
 		assetTypes := Bot.Exchanges[x].GetAssetTypes()

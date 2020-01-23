@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -24,6 +25,7 @@ const (
 	bitfinexAPIURLBase = "https://api.bitfinex.com"
 	// Version 1 API endpoints
 	bitfinexAPIVersion         = "/v1/"
+	bitfinexStats              = "stats/"
 	bitfinexAccountInfo        = "account_infos"
 	bitfinexAccountFees        = "account_fees"
 	bitfinexAccountSummary     = "summary"
@@ -53,6 +55,8 @@ const (
 	bitfinexMarginUnusedFunds  = "unused_taken_funds"
 	bitfinexMarginTotalFunds   = "total_taken_funds"
 	bitfinexMarginClose        = "funding/close"
+	bitfinexLendbook           = "lendbook/"
+	bitfinexLends              = "lends/"
 
 	// Version 2 API endpoints
 	bitfinexAPIVersion2    = "/v2/"
@@ -61,25 +65,14 @@ const (
 	bitfinexTicker         = "ticker/"
 	bitfinexTrades         = "trades/"
 	bitfinexOrderbook      = "book/"
-	bitfinexStats          = "stats1/"
+	bitfinexStatistics     = "stats1/"
 	bitfinexCandles        = "candles/trade"
 	bitfinexKeyPermissions = "key_info"
 	bitfinexMarginInfo     = "margin_infos"
 
-	// bitfinexTicker             = "pubticker/"
-	// bitfinexLendbook           = "lendbook/"
-	// bitfinexOrderbook          = "book/"
-	// bitfinexTrades             = "trades/"
-
-	// bitfinexLends              = "lends/"
-	// bitfinexSymbols            = "symbols/"
-	// bitfinexSymbolsDetails     = "symbols_details/"
-
-	// bitfinexOfferStatus        = "offer/status"
-
 	// Bitfinex platform status values
 	// When the platform is marked in maintenance mode bots should stop trading
-	// activity. Cancelling orders will be still possible.
+	// activity. Cancelling orders will be possible.
 	bitfinexMaintenanceMode = 0
 	bitfinexOperativeMode   = 1
 )
@@ -378,8 +371,40 @@ func (b *Bitfinex) GetOrderbook(symbol, precision string, limit int64) (Orderboo
 }
 
 // GetStats returns various statistics about the requested pair
-func (b *Bitfinex) GetStats(symbol, key string) ([]Stat, error) {
-	return nil, common.ErrNotYetImplemented
+func (b *Bitfinex) GetStats(symbol string) ([]Stat, error) {
+	var response []Stat
+	path := b.API.Endpoints.URL + bitfinexAPIVersion + bitfinexStats + symbol
+	return response, b.SendHTTPRequest(path, &response, statsV1)
+}
+
+// GetFundingBook the entire margin funding book for both bids and asks sides
+// per currency string
+// symbol - example "USD"
+// WARNING: Orderbook now has this support, will be deprecated once a full
+// conversion to full V2 API update is done.
+func (b *Bitfinex) GetFundingBook(symbol string) (FundingBook, error) {
+	response := FundingBook{}
+	path := b.API.Endpoints.URL + bitfinexAPIVersion + bitfinexLendbook + symbol
+
+	if err := b.SendHTTPRequest(path, &response, fundingbook); err != nil {
+		return response, err
+	}
+
+	return response, nil
+}
+
+// GetLends returns a list of the most recent funding data for the given
+// currency: total amount provided and Flash Return Rate (in % by 365 days)
+// over time
+// Symbol - example "USD"
+func (b *Bitfinex) GetLends(symbol string, values url.Values) ([]Lends, error) {
+	var response []Lends
+	path := common.EncodeURLValues(b.API.Endpoints.URL+
+		bitfinexAPIVersion+
+		bitfinexLends+
+		symbol,
+		values)
+	return response, b.SendHTTPRequest(path, &response, lends)
 }
 
 // GetCandles returns all the candlessssss and things
@@ -531,10 +556,7 @@ func (b *Bitfinex) GetAccountSummary() (AccountSummary, error) {
 		getAccountSummary)
 }
 
-var AcceptedDepositCurrency = []string{"bitcoin", "litecoin", "ethereum",
-	"tethers", "ethereumc", "zcash", "monero", "iota", "bcash"}
-
-var AcceptedWalletNames = []string{"trading", "exchange", "deposit"}
+// func GetDepositAddressMethods() {}
 
 // NewDeposit returns a new deposit address
 // Method - Example methods accepted: “bitcoin”, “litecoin”, “ethereum”,
@@ -542,12 +564,17 @@ var AcceptedWalletNames = []string{"trading", "exchange", "deposit"}
 // WalletName - accepted: “trading”, “exchange”, “deposit”
 // renew - Default is 0. If set to 1, will return a new unused deposit address
 func (b *Bitfinex) NewDeposit(method, walletName string, renew int) (DepositResponse, error) {
-	if !common.StringDataCompare(AcceptedDepositCurrency, method) {
-		return DepositResponse{}, errors.New("method is not allowed")
-	}
+	// if !common.StringDataCompare(AcceptedDepositCurrency, method) {
+	// 	return DepositResponse{}, fmt.Errorf("method: [%s] is not allowed, supported: %s",
+	// 		method,
+	// 		AcceptedDepositCurrency)
+	// }
 
 	if !common.StringDataCompare(AcceptedWalletNames, walletName) {
-		return DepositResponse{}, errors.New("walletname is not allowed")
+		return DepositResponse{},
+			fmt.Errorf("walletname: [%s] is not allowed, supported: %s",
+				walletName,
+				AcceptedWalletNames)
 	}
 
 	response := DepositResponse{}
@@ -586,6 +613,7 @@ func (b *Bitfinex) GetMarginInfo() ([]MarginInfo, error) {
 
 // GetAccountBalance returns full wallet balance information
 func (b *Bitfinex) GetAccountBalance() ([]Balance, error) {
+	// TEST THIS
 	var response []Balance
 	return response, b.SendAuthenticatedHTTPRequest(http.MethodPost,
 		bitfinexBalances,
@@ -696,13 +724,9 @@ func (b *Bitfinex) WithdrawFIAT(withdrawalType, walletType string, withdrawReque
 	return response[0], nil
 }
 
-var AcceptedOrderType = []string{"market", "limit", "stop", "trailing-stop",
-	"fill-or-kill", "exchange market", "exchange limit", "exchange stop",
-	"exchange trailing-stop", "exchange fill-or-kill"}
-
 // NewOrder submits a new order and returns a order information
 // Major Upgrade needed on this function to include all query params
-func (b *Bitfinex) NewOrder(currencyPair string, amount, price float64, buy bool, orderType string, hidden bool) (Order, error) {
+func (b *Bitfinex) NewOrder(currencyPair, orderType string, amount, price float64, buy, hidden bool) (Order, error) {
 	if !common.StringDataCompare(AcceptedOrderType, orderType) {
 		return Order{}, errors.New("order type not accepted")
 	}
@@ -1184,14 +1208,14 @@ func getInternationalBankWithdrawalFee(amount float64) float64 {
 }
 
 // CalculateTradingFee returns an estimate of fee based on type of whether is maker or taker fee
-func (b *Bitfinex) CalculateTradingFee(accountInfos []AccountInfo, purchasePrice, amount float64, c currency.Code, isMaker bool) (fee float64, err error) {
-	for _, i := range accountInfos {
-		for _, j := range i.Fees {
-			if c.String() == j.Pairs {
+func (b *Bitfinex) CalculateTradingFee(i []AccountInfo, purchasePrice, amount float64, c currency.Code, isMaker bool) (fee float64, err error) {
+	for x := range i {
+		for y := range i[x].Fees {
+			if c.String() == i[x].Fees[y].Pairs {
 				if isMaker {
-					fee = j.MakerFees
+					fee = i[x].Fees[y].MakerFees
 				} else {
-					fee = j.TakerFees
+					fee = i[x].Fees[y].TakerFees
 				}
 				break
 			}
@@ -1250,29 +1274,34 @@ func (b *Bitfinex) ConvertSymbolToWithdrawalType(c currency.Code) string {
 }
 
 // ConvertSymbolToDepositMethod returns a converted currency deposit method
-func (b *Bitfinex) ConvertSymbolToDepositMethod(c currency.Code) (method string, err error) {
-	switch c {
-	case currency.BTC:
-		method = "bitcoin"
-	case currency.LTC:
-		method = "litecoin"
-	case currency.ETH:
-		method = "ethereum"
-	case currency.ETC:
-		method = "ethereumc"
-	case currency.USDT:
-		method = "tetheruso"
-	case currency.ZEC:
-		method = "zcash"
-	case currency.XMR:
-		method = "monero"
-	case currency.BCH:
-		method = "bcash"
-	case currency.MIOTA:
-		method = "iota"
-	default:
-		err = fmt.Errorf("currency %s not supported in method list",
+func (b *Bitfinex) ConvertSymbolToDepositMethod(c currency.Code) (string, error) {
+	if err := b.populateMethod(); err != nil {
+		return "", err
+	}
+	method, ok := AcceptableMethods[c.String()]
+	if !ok {
+		return "", fmt.Errorf("currency %s not supported in method list",
 			c)
 	}
-	return
+
+	return strings.ToLower(method), nil
+}
+
+func (b *Bitfinex) populateMethod() error {
+	if len(AcceptableMethods) == 0 {
+		var response [][][2]string
+		err := b.SendHTTPRequest(b.API.Endpoints.URL+
+			bitfinexAPIVersion2+
+			"conf/pub:map:currency:label",
+			&response,
+			configs)
+		if err != nil {
+			return err
+		}
+
+		for i := range response[0] {
+			AcceptableMethods[response[0][i][0]] = response[0][i][1]
+		}
+	}
+	return nil
 }

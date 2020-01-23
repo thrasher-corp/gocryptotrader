@@ -269,6 +269,10 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 		dryrunParamInteraction("enableallexchanges")
 	}
 
+	// if !b.Settings.EnableExchangeHTTPRateLimiter {
+	// 	request.DisableRateLimiter = true
+	// }
+
 	exchCfg.Enabled = true
 	err = exch.Setup(exchCfg)
 	if err != nil {

@@ -87,6 +87,9 @@ const (
 	withdrawV1ReqRate        = 10 // This is not specified just inputed above
 	orderV1ReqRate           = 10 // This is not specified just inputed above
 	orderMultiReqRate        = 10 // This is not specified just inputed above
+	statsV1ReqRate           = 10
+	fundingbookReqRate       = 15
+	lendsReqRate             = 30
 
 	// Rate limit endpoint functionality declaration
 	platformStatus request.EndpointLimit = iota
@@ -165,6 +168,9 @@ const (
 	withdrawV1
 	orderV1
 	orderMulti
+	statsV1
+	fundingbook
+	lends
 )
 
 // RateLimit implements the rate.Limiter interface
@@ -242,6 +248,9 @@ type RateLimit struct {
 	WithdrawV1        *rate.Limiter
 	OrderV1           *rate.Limiter
 	OrderMulti        *rate.Limiter
+	StatsV1           *rate.Limiter
+	Fundingbook       *rate.Limiter
+	Lends             *rate.Limiter
 }
 
 // Limit limits outbound requests
@@ -385,6 +394,12 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 		time.Sleep(r.OrderV1.Reserve().Delay())
 	case orderMulti:
 		time.Sleep(r.OrderMulti.Reserve().Delay())
+	case statsV1:
+		time.Sleep(r.Stats.Reserve().Delay())
+	case fundingbook:
+		time.Sleep(r.Fundingbook.Reserve().Delay())
+	case lends:
+		time.Sleep(r.Lends.Reserve().Delay())
 	default:
 		return errors.New("endpoint rate limit functionality not found")
 	}
@@ -467,5 +482,8 @@ func SetRateLimit() *RateLimit {
 		WithdrawV1:        request.NewRateLimit(requestLimitInterval, withdrawV1ReqRate),
 		OrderV1:           request.NewRateLimit(requestLimitInterval, orderV1ReqRate),
 		OrderMulti:        request.NewRateLimit(requestLimitInterval, orderMultiReqRate),
+		StatsV1:           request.NewRateLimit(requestLimitInterval, statsV1ReqRate),
+		Fundingbook:       request.NewRateLimit(requestLimitInterval, fundingbookReqRate),
+		Lends:             request.NewRateLimit(requestLimitInterval, lendsReqRate),
 	}
 }
