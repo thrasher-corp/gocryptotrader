@@ -556,20 +556,12 @@ func (b *Bitfinex) GetAccountSummary() (AccountSummary, error) {
 		getAccountSummary)
 }
 
-// func GetDepositAddressMethods() {}
-
 // NewDeposit returns a new deposit address
 // Method - Example methods accepted: “bitcoin”, “litecoin”, “ethereum”,
 // “tethers", "ethereumc", "zcash", "monero", "iota", "bcash"
 // WalletName - accepted: “trading”, “exchange”, “deposit”
 // renew - Default is 0. If set to 1, will return a new unused deposit address
 func (b *Bitfinex) NewDeposit(method, walletName string, renew int) (DepositResponse, error) {
-	// if !common.StringDataCompare(AcceptedDepositCurrency, method) {
-	// 	return DepositResponse{}, fmt.Errorf("method: [%s] is not allowed, supported: %s",
-	// 		method,
-	// 		AcceptedDepositCurrency)
-	// }
-
 	if !common.StringDataCompare(AcceptedWalletNames, walletName) {
 		return DepositResponse{},
 			fmt.Errorf("walletname: [%s] is not allowed, supported: %s",
@@ -613,7 +605,6 @@ func (b *Bitfinex) GetMarginInfo() ([]MarginInfo, error) {
 
 // GetAccountBalance returns full wallet balance information
 func (b *Bitfinex) GetAccountBalance() ([]Balance, error) {
-	// TEST THIS
 	var response []Balance
 	return response, b.SendAuthenticatedHTTPRequest(http.MethodPost,
 		bitfinexBalances,

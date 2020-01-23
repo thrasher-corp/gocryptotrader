@@ -37,10 +37,10 @@ func (b *Bitfinex) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	}
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		// err = b.UpdateTradablePairs(true)
-		// if err != nil {
-		// 	return nil, err
-		// }
+		err = b.UpdateTradablePairs(true)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return exchCfg, nil
@@ -224,7 +224,7 @@ func (b *Bitfinex) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (b *Bitfinex) FetchTradablePairs(a asset.Item) ([]string, error) {
-	allTheThings, err := b.GetTickerBatch()
+	items, err := b.GetTickerBatch()
 	if err != nil {
 		return nil, err
 	}
@@ -232,14 +232,14 @@ func (b *Bitfinex) FetchTradablePairs(a asset.Item) ([]string, error) {
 	var symbols []string
 	switch a {
 	case asset.Spot:
-		for k := range allTheThings {
+		for k := range items {
 			if k[0] != 't' {
 				continue
 			}
 			symbols = append(symbols, k[1:])
 		}
 	case asset.Margin:
-		for k := range allTheThings {
+		for k := range items {
 			if k[0] != 'f' {
 				continue
 			}
@@ -371,6 +371,8 @@ func (b *Bitfinex) UpdateAccountInfo() (account.Holdings, error) {
 		{ID: "deposit"},
 		{ID: "exchange"},
 		{ID: "trading"},
+		{ID: "margin"},
+		{ID: "funding "},
 	}
 
 	for x := range accountBalance {

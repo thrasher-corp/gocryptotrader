@@ -1,7 +1,6 @@
 package bitfinex
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -23,7 +22,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 )
 
 var b Bitfinex
@@ -198,8 +197,6 @@ func TestNewDeposit(t *testing.T) {
 	}
 	t.Parallel()
 
-	b.Verbose = true
-
 	_, err := b.NewDeposit("blabla", "testwallet", 0)
 	if err == nil {
 		t.Error("NewDeposit() Expected error")
@@ -252,6 +249,18 @@ func TestGetAccountBalance(t *testing.T) {
 	}
 }
 
+func TestGetAccountInfo(t *testing.T) {
+	if !b.ValidateAPICredentials() {
+		t.SkipNow()
+	}
+	t.Parallel()
+
+	_, err := b.GetAccountInfo()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestWalletTransfer(t *testing.T) {
 	if !b.ValidateAPICredentials() {
 		t.SkipNow()
@@ -285,8 +294,6 @@ func TestWithdrawFiat(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-
-	b.Verbose = true
 
 	var withdrawFiatRequest = withdraw.FiatRequest{
 		GenericInfo: withdraw.GenericInfo{
@@ -333,11 +340,10 @@ func TestNewOrder(t *testing.T) {
 }
 
 func TestUpdateTicker(t *testing.T) {
-	tick, err := b.UpdateTicker(currency.NewPairFromString("BTCUSD"), asset.Spot)
+	_, err := b.UpdateTicker(currency.NewPairFromString("BTCUSD"), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(tick)
 }
 
 func TestAppendOptionalDelimiter(t *testing.T) {
