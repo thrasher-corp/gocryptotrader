@@ -215,7 +215,7 @@ type DepositHistory struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
 	Result  []struct {
-		ID            string  `json:"Id"`
+		ID            int64   `json:"Id"`
 		Amount        float64 `json:"Amount"`
 		Currency      string  `json:"Currency"`
 		Confirmations int64   `json:"Confirmations"`

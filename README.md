@@ -72,6 +72,7 @@ We are aiming to support the top 20 highest volume exchanges based off the [Coin
 + Packages for handling currency pairs, tickers and orderbooks.
 + Portfolio management tool; fetches balances from supported exchanges and allows for custom address tracking.
 + Basic event trigger system.
++ Scripting support. See [gctscript](/gctscript/README.md)
 + WebGUI (discontinued).
 
 ## Planned Features
