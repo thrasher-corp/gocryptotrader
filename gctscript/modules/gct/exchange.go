@@ -441,10 +441,10 @@ func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 			AddressTag: addressTag,
 			FeeAmount:  feeAmount,
 		},
-			Currency:    currency.NewCode(cur),
-			Description: description,
-			Amount:      amount,
-		}
+		Currency:    currency.NewCode(cur),
+		Description: description,
+		Amount:      amount,
+	}
 
 	rtn, err := wrappers.GetWrapper().WithdrawalCryptoFunds(exchangeName, withdrawRequest)
 	if err != nil {

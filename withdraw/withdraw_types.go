@@ -28,7 +28,7 @@ const (
 var (
 	ErrRequestCannotBeNil = errors.New("request cannot be nil")
 	ErrInvalidRequest     = errors.New("invalid request type")
-	Cache = cache.New(50)
+	Cache                 = cache.New(50)
 )
 
 // CryptoRequest stores the info required for a crypto withdrawal request

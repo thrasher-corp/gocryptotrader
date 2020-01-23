@@ -121,7 +121,6 @@ func (a *databaseManager) run() {
 }
 
 func (a *databaseManager) checkConnection() {
-
 	dbConn.Mu.Lock()
 	defer dbConn.Mu.Unlock()
 
