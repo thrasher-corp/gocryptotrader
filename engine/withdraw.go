@@ -58,10 +58,15 @@ func RequestByID(id uuid.UUID) (*withdraw.Response, error) {
 	if v != nil {
 		return v.(*withdraw.Response), nil
 	}
-	return nil, nil
+	l, err := withdrawal.EventByUUID(id.String())
+	if err != nil {
+		return nil, errors.New("not found")
+	}
+	return l, nil
 }
 
 func RequestsByExchange(exchange string, limit int) ([]withdraw.Response, error) {
+
 	return nil, nil
 }
 

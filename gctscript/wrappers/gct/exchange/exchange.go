@@ -189,7 +189,11 @@ func (e Exchange) WithdrawalFiatFunds(exch, bankaccountid string, request *withd
 		return "", err
 	}
 
-	return ex.WithdrawFiatFunds(request)
+	resp, err := engine.SubmitWithdrawal(ex.GetName(), request)
+	if err != nil {
+		return "", err
+	}
+	return resp.ExchangeID, nil
 }
 
 // WithdrawalCryptoFunds withdraw funds from exchange to requested Crypto source
@@ -212,5 +216,9 @@ func (e Exchange) WithdrawalCryptoFunds(exch string, request *withdraw.Request) 
 	if err != nil {
 		return "", err
 	}
-	return ex.WithdrawCryptocurrencyFunds(request)
+	resp, err := engine.SubmitWithdrawal(ex.GetName(), request)
+	if err != nil {
+		return "", err
+	}
+	return resp.ExchangeID, nil
 }
