@@ -32,6 +32,8 @@ func (o *orderStore) get() map[string][]order.Detail {
 
 // GetByExchangeAndID returns a specific order
 func (o *orderStore) GetByExchangeAndID(exchange, ID string) (*order.Detail, error) {
+	o.m.Lock()
+	defer o.m.Unlock()
 	r, ok := o.Orders[exchange]
 	if !ok {
 		return nil, ErrOrderFourOhFour
@@ -48,6 +50,8 @@ func (o *orderStore) GetByExchangeAndID(exchange, ID string) (*order.Detail, err
 // GetByInternalOrderID will search all orders for our internal orderID
 // and return the order
 func (o *orderStore) GetByInternalOrderID(internalOrderID string) (*order.Detail, error) {
+	o.m.Lock()
+	defer o.m.Unlock()
 	for _, v := range o.Orders {
 		for x := range v {
 			if v[x].InternalOrderID == internalOrderID {
@@ -73,11 +77,30 @@ func (o *orderStore) exists(order *order.Detail) bool {
 	return false
 }
 
+func (o *orderStore) existsWithLock(order *order.Detail) bool {
+	o.m.Lock()
+	defer o.m.Unlock()
+	r, ok := o.Orders[order.Exchange]
+	if !ok {
+		return false
+	}
+
+	for x := range r {
+		if r[x].ID == order.ID {
+			return true
+		}
+	}
+
+	return false
+}
+
 // Adds an order to the orderStore for tracking the lifecycle
 func (o *orderStore) Add(order *order.Detail) error {
 	o.m.Lock()
 	defer o.m.Unlock()
-
+	if order == nil {
+		return errors.New("Order manager: Order is nil")
+	}
 	exch := GetExchangeByName(order.Exchange)
 	if exch == nil {
 		return errors.New("unable to get exchange by name")

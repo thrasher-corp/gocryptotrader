@@ -355,7 +355,7 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 						d.Asset)
 				}
 			case *order.Detail:
-				if !Bot.OrderManager.orderStore.exists(d) {
+				if !Bot.OrderManager.orderStore.existsWithLock(d) {
 					err := Bot.OrderManager.orderStore.Add(d)
 					if err != nil {
 						log.Error(log.WebsocketMgr, err)
