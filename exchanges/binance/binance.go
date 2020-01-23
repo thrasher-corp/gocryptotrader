@@ -706,6 +706,29 @@ func (b *Binance) GetWsAuthStreamKey() (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	return resp.ListenKey, nil
+}
+
+// MaintainWsAuthStreamKey will keep the key alive
+func (b *Binance) MaintainWsAuthStreamKey() error {
+	key, err := b.GetWsAuthStreamKey()
+	if err != nil {
+		return err
+	}
+	path := b.API.Endpoints.URL + userAccountStream
+	params := url.Values{}
+	params.Set("listenKey", key)
+	path = common.EncodeURLValues(path, params)
+	headers := make(map[string]string)
+	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
+	return b.SendPayload(http.MethodPut,
+		path,
+		headers,
+		bytes.NewBuffer(nil),
+		nil,
+		true,
+		false,
+		b.Verbose,
+		b.HTTPDebugging,
+		b.HTTPRecording)
 }

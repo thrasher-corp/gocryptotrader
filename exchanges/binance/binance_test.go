@@ -531,10 +531,28 @@ func TestWSSubscriptionHandling(t *testing.T) {
 }
 
 func TestGetWsAuthStreamKey(t *testing.T) {
-	b.Verbose = true
-	hi, err := b.GetWsAuthStreamKey()
+	if !areTestAPIKeysSet() && !mockTests {
+		t.Skip("API keys not set, skipping test")
+	}
+
+	key, err := b.GetWsAuthStreamKey()
 	if err != nil {
 		t.Error(err)
 	}
-	t.Log(hi)
+	if key == "" {
+		t.Error("Expected key")
+	}
+
+}
+
+func TestMaintainWsAuthStreamKey(t *testing.T) {
+	b.Verbose = true
+	if !areTestAPIKeysSet() && !mockTests {
+		t.Skip("API keys not set, skipping test")
+	}
+
+	err := b.MaintainWsAuthStreamKey()
+	if err != nil {
+		t.Error(err)
+	}
 }

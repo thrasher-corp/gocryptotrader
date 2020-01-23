@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -88,8 +89,29 @@ func (b *Binance) WsConnect() error {
 		Delay:             pingDelay,
 	})
 	go b.WsHandleData()
-
+	go b.KeepAuthKeyAlive()
 	return nil
+}
+
+func (b *Binance) KeepAuthKeyAlive() {
+	b.Websocket.Wg.Add(1)
+	defer func() {
+		b.Websocket.Wg.Done()
+	}()
+	ticks := time.NewTicker(time.Minute * 30)
+	for {
+		select {
+		case <-b.Websocket.ShutdownC:
+			ticks.Stop()
+			return
+		case <-ticks.C:
+			err := b.MaintainWsAuthStreamKey()
+			if err != nil {
+				b.Websocket.DataHandler <- err
+				log.Warnf(log.ExchangeSys, b.Name+" - Unable to renew auth websocket token, may experience shutdown")
+			}
+		}
+	}
 }
 
 // WsHandleData handles websocket data from WsReadData
@@ -126,117 +148,215 @@ func (b *Binance) wsReadData(respRaw []byte) error {
 			b.Name,
 			respRaw)
 	}
+
 	streamType := strings.Split(multiStreamData.Stream, "@")
-	switch streamType[1] {
-	case "trade":
-		trade := TradeStream{}
-		err := json.Unmarshal(multiStreamData.Data, &trade)
-		if err != nil {
-			return fmt.Errorf("%v - Could not unmarshal trade data: %s",
-				b.Name,
-				err)
-		}
+	if len(streamType) > 1 {
+		switch streamType[1] {
+		case "trade":
+			var trade TradeStream
+			err := json.Unmarshal(multiStreamData.Data, &trade)
+			if err != nil {
+				return fmt.Errorf("%v - Could not unmarshal trade data: %s",
+					b.Name,
+					err)
+			}
 
-		price, err := strconv.ParseFloat(trade.Price, 64)
-		if err != nil {
-			return fmt.Errorf("%v - price conversion error: %s",
-				b.Name,
-				err)
-		}
+			price, err := strconv.ParseFloat(trade.Price, 64)
+			if err != nil {
+				return fmt.Errorf("%v - price conversion error: %s",
+					b.Name,
+					err)
+			}
 
-		amount, err := strconv.ParseFloat(trade.Quantity, 64)
-		if err != nil {
-			return fmt.Errorf("%v - amount conversion error: %s",
-				b.Name,
-				err)
-		}
+			amount, err := strconv.ParseFloat(trade.Quantity, 64)
+			if err != nil {
+				return fmt.Errorf("%v - amount conversion error: %s",
+					b.Name,
+					err)
+			}
 
-		b.Websocket.DataHandler <- wshandler.TradeData{
-			CurrencyPair: currency.NewPairFromFormattedPairs(trade.Symbol, b.GetEnabledPairs(asset.Spot),
-				b.GetPairFormat(asset.Spot, true)),
-			Timestamp: time.Unix(0, trade.TimeStamp*int64(time.Millisecond)),
-			Price:     price,
-			Amount:    amount,
-			Exchange:  b.Name,
-			AssetType: asset.Spot,
-			Side:      trade.EventType,
-		}
-	case "ticker":
-		t := TickerStream{}
-		err := json.Unmarshal(multiStreamData.Data, &t)
-		if err != nil {
-			return fmt.Errorf("%v - Could not convert to a TickerStream structure %s",
-				b.Name,
-				err.Error())
-		}
+			b.Websocket.DataHandler <- wshandler.TradeData{
+				CurrencyPair: currency.NewPairFromFormattedPairs(trade.Symbol, b.GetEnabledPairs(asset.Spot),
+					b.GetPairFormat(asset.Spot, true)),
+				Timestamp: time.Unix(0, trade.TimeStamp*int64(time.Millisecond)),
+				Price:     price,
+				Amount:    amount,
+				Exchange:  b.Name,
+				AssetType: asset.Spot,
+				Side:      trade.EventType,
+			}
+		case "ticker":
+			var t TickerStream
+			err := json.Unmarshal(multiStreamData.Data, &t)
+			if err != nil {
+				return fmt.Errorf("%v - Could not convert to a TickerStream structure %s",
+					b.Name,
+					err.Error())
+			}
 
-		b.Websocket.DataHandler <- &ticker.Price{
-			ExchangeName: b.Name,
-			Open:         t.OpenPrice,
-			Close:        t.ClosePrice,
-			Volume:       t.TotalTradedVolume,
-			QuoteVolume:  t.TotalTradedQuoteVolume,
-			High:         t.HighPrice,
-			Low:          t.LowPrice,
-			Bid:          t.BestBidPrice,
-			Ask:          t.BestAskPrice,
-			Last:         t.LastPrice,
-			LastUpdated:  time.Unix(0, t.EventTime*int64(time.Millisecond)),
-			AssetType:    asset.Spot,
-			Pair: currency.NewPairFromFormattedPairs(t.Symbol, b.GetEnabledPairs(asset.Spot),
-				b.GetPairFormat(asset.Spot, true)),
-		}
-	case "kline_1m":
-		kline := KlineStream{}
-		err := json.Unmarshal(multiStreamData.Data, &kline)
-		if err != nil {
-			return fmt.Errorf("%v - Could not convert to a KlineStream structure %s",
-				b.Name,
-				err)
-		}
+			b.Websocket.DataHandler <- &ticker.Price{
+				ExchangeName: b.Name,
+				Open:         t.OpenPrice,
+				Close:        t.ClosePrice,
+				Volume:       t.TotalTradedVolume,
+				QuoteVolume:  t.TotalTradedQuoteVolume,
+				High:         t.HighPrice,
+				Low:          t.LowPrice,
+				Bid:          t.BestBidPrice,
+				Ask:          t.BestAskPrice,
+				Last:         t.LastPrice,
+				LastUpdated:  time.Unix(0, t.EventTime*int64(time.Millisecond)),
+				AssetType:    asset.Spot,
+				Pair: currency.NewPairFromFormattedPairs(t.Symbol, b.GetEnabledPairs(asset.Spot),
+					b.GetPairFormat(asset.Spot, true)),
+			}
+		case "kline_1m":
+			var kline KlineStream
+			err := json.Unmarshal(multiStreamData.Data, &kline)
+			if err != nil {
+				return fmt.Errorf("%v - Could not convert to a KlineStream structure %s",
+					b.Name,
+					err)
+			}
 
-		var wsKline wshandler.KlineData
-		wsKline.Timestamp = time.Unix(0, kline.EventTime*int64(time.Millisecond))
-		wsKline.Pair = currency.NewPairFromFormattedPairs(kline.Symbol, b.GetEnabledPairs(asset.Spot),
-			b.GetPairFormat(asset.Spot, true))
-		wsKline.AssetType = asset.Spot
-		wsKline.Exchange = b.Name
-		wsKline.StartTime = time.Unix(0, kline.Kline.StartTime*int64(time.Millisecond))
-		wsKline.CloseTime = time.Unix(0, kline.Kline.CloseTime*int64(time.Millisecond))
-		wsKline.Interval = kline.Kline.Interval
-		wsKline.OpenPrice, _ = strconv.ParseFloat(kline.Kline.OpenPrice, 64)
-		wsKline.ClosePrice, _ = strconv.ParseFloat(kline.Kline.ClosePrice, 64)
-		wsKline.HighPrice, _ = strconv.ParseFloat(kline.Kline.HighPrice, 64)
-		wsKline.LowPrice, _ = strconv.ParseFloat(kline.Kline.LowPrice, 64)
-		wsKline.Volume, _ = strconv.ParseFloat(kline.Kline.Volume, 64)
-		b.Websocket.DataHandler <- wsKline
-	case "depth":
-		depth := WebsocketDepthStream{}
-		err := json.Unmarshal(multiStreamData.Data, &depth)
-		if err != nil {
-			return fmt.Errorf("%v - Could not convert to depthStream structure %s",
-				b.Name,
-				err)
-		}
+			var wsKline wshandler.KlineData
+			wsKline.Timestamp = time.Unix(0, kline.EventTime*int64(time.Millisecond))
+			wsKline.Pair = currency.NewPairFromFormattedPairs(kline.Symbol, b.GetEnabledPairs(asset.Spot),
+				b.GetPairFormat(asset.Spot, true))
+			wsKline.AssetType = asset.Spot
+			wsKline.Exchange = b.Name
+			wsKline.StartTime = time.Unix(0, kline.Kline.StartTime*int64(time.Millisecond))
+			wsKline.CloseTime = time.Unix(0, kline.Kline.CloseTime*int64(time.Millisecond))
+			wsKline.Interval = kline.Kline.Interval
+			wsKline.OpenPrice, _ = strconv.ParseFloat(kline.Kline.OpenPrice, 64)
+			wsKline.ClosePrice, _ = strconv.ParseFloat(kline.Kline.ClosePrice, 64)
+			wsKline.HighPrice, _ = strconv.ParseFloat(kline.Kline.HighPrice, 64)
+			wsKline.LowPrice, _ = strconv.ParseFloat(kline.Kline.LowPrice, 64)
+			wsKline.Volume, _ = strconv.ParseFloat(kline.Kline.Volume, 64)
+			b.Websocket.DataHandler <- wsKline
+		case "depth":
+			var depth WebsocketDepthStream
+			err := json.Unmarshal(multiStreamData.Data, &depth)
+			if err != nil {
+				return fmt.Errorf("%v - Could not convert to depthStream structure %s",
+					b.Name,
+					err)
+			}
 
-		err = b.UpdateLocalCache(&depth)
-		if err != nil {
-			return fmt.Errorf("%v - UpdateLocalCache error: %s",
-				b.Name,
-				err)
-		}
+			err = b.UpdateLocalCache(&depth)
+			if err != nil {
+				return fmt.Errorf("%v - UpdateLocalCache error: %s",
+					b.Name,
+					err)
+			}
 
-		currencyPair := currency.NewPairFromFormattedPairs(depth.Pair, b.GetEnabledPairs(asset.Spot),
-			b.GetPairFormat(asset.Spot, true))
-		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Pair:     currencyPair,
-			Asset:    asset.Spot,
-			Exchange: b.Name,
+			currencyPair := currency.NewPairFromFormattedPairs(depth.Pair, b.GetEnabledPairs(asset.Spot),
+				b.GetPairFormat(asset.Spot, true))
+			b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+				Pair:     currencyPair,
+				Asset:    asset.Spot,
+				Exchange: b.Name,
+			}
+		default:
+			return fmt.Errorf("%v - Unhandled websocket data received %s",
+				b.Name,
+				respRaw)
 		}
-	default:
-		log.Debug(log.ExchangeSys, string(respRaw))
+	} else if len(streamType) == 1 {
+		switch multiStreamData.Stream {
+		case "outboundAccountInfo":
+			var data wsAccountInfo
+			err := json.Unmarshal(multiStreamData.Data, &data)
+			if err != nil {
+				return fmt.Errorf("%v - Could not convert to outboundAccountInfo structure %s",
+					b.Name,
+					err)
+			}
+			b.Websocket.DataHandler <- data
+		case "outboundAccountPosition":
+			var data wsAccountPosition
+			err := json.Unmarshal(multiStreamData.Data, &data)
+			if err != nil {
+				return fmt.Errorf("%v - Could not convert to outboundAccountPosition structure %s",
+					b.Name,
+					err)
+			}
+			b.Websocket.DataHandler <- data
+		case "balanceUpdate":
+			var data wsBalanceUpdate
+			err := json.Unmarshal(multiStreamData.Data, &data)
+			if err != nil {
+				return fmt.Errorf("%v - Could not convert to balanceUpdate structure %s",
+					b.Name,
+					err)
+			}
+			b.Websocket.DataHandler <- data
+		case "executionReport":
+			var data wsOrderUpdate
+			err := json.Unmarshal(multiStreamData.Data, &data)
+			if err != nil {
+				return fmt.Errorf("%v - Could not convert to executionReport structure %s",
+					b.Name,
+					err)
+			}
+			oType, err := order.StringToOrderType(data.OrderType)
+			if err != nil {
+				b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert order type: " + data.OrderType)
+			}
+			var oSide order.Side
+			oSide, err = order.StringToOrderSide(data.Side)
+			if err != nil {
+				return err
+			}
+			ts := time.Unix(data.OrderCreationTime, 0)
+
+			b.Websocket.DataHandler <- &order.Detail{
+				Price:           data.Price,
+				Amount:          data.Quantity,
+				ExecutedAmount:  data.CumulativeFilledQuantity,
+				RemainingAmount: data.Quantity - data.CumulativeFilledQuantity,
+				Exchange:        b.Name,
+				ID:              strconv.FormatInt(data.OrderID, 10),
+				Type:            oType,
+				Side:            oSide,
+				Status:          executionTypeToOrderStatus(data.CurrentExecutionType),
+				AssetType:       asset.Spot,
+				Date:            ts,
+				Pair:            currency.NewPairFromString(data.Symbol),
+			}
+		case "listStatus":
+			var data wsListStauts
+			err := json.Unmarshal(multiStreamData.Data, &data)
+			if err != nil {
+				return fmt.Errorf("%v - Could not convert to listStatus structure %s",
+					b.Name,
+					err)
+			}
+			b.Websocket.DataHandler <- data
+		default:
+			return fmt.Errorf("%v - Unhandled websocket data received %s",
+				b.Name,
+				respRaw)
+		}
 	}
 	return nil
+}
+
+func executionTypeToOrderStatus(executionType string) order.Status {
+	switch executionType {
+	case "NEW":
+		return order.New
+	case "CANCELLED":
+		return order.Cancelled
+	case "REJECTED":
+		return order.Rejected
+	case "TRADE":
+		return order.PartiallyFilled
+	case "EXPIRED":
+		return order.Expired
+	default:
+		return order.UnknownStatus
+	}
 }
 
 // SeedLocalCache seeds depth data
