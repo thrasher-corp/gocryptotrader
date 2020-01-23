@@ -24,7 +24,7 @@ var (
 
 // get returns all orders for all exchanges
 // should not be exported as it can have large impact if used improperly
-func (o *orderStore) get() map[string][]order.Detail {
+func (o *orderStore) get() map[string][]*order.Detail {
 	o.m.Lock()
 	defer o.m.Unlock()
 	return o.Orders
@@ -41,7 +41,7 @@ func (o *orderStore) GetByExchangeAndID(exchange, ID string) (*order.Detail, err
 
 	for x := range r {
 		if r[x].ID == ID {
-			return &r[x], nil
+			return r[x], nil
 		}
 	}
 	return nil, ErrOrderFourOhFour
@@ -55,7 +55,7 @@ func (o *orderStore) GetByInternalOrderID(internalOrderID string) (*order.Detail
 	for _, v := range o.Orders {
 		for x := range v {
 			if v[x].InternalOrderID == internalOrderID {
-				return &v[x], nil
+				return v[x], nil
 			}
 		}
 	}
@@ -63,6 +63,9 @@ func (o *orderStore) GetByInternalOrderID(internalOrderID string) (*order.Detail
 }
 
 func (o *orderStore) exists(order *order.Detail) bool {
+	if order == nil {
+		return false
+	}
 	r, ok := o.Orders[order.Exchange]
 	if !ok {
 		return false
@@ -80,18 +83,7 @@ func (o *orderStore) exists(order *order.Detail) bool {
 func (o *orderStore) existsWithLock(order *order.Detail) bool {
 	o.m.Lock()
 	defer o.m.Unlock()
-	r, ok := o.Orders[order.Exchange]
-	if !ok {
-		return false
-	}
-
-	for x := range r {
-		if r[x].ID == order.ID {
-			return true
-		}
-	}
-
-	return false
+	return o.exists(order)
 }
 
 // Adds an order to the orderStore for tracking the lifecycle
@@ -121,7 +113,7 @@ func (o *orderStore) Add(order *order.Detail) error {
 		order.InternalOrderID = id.String()
 	}
 	orders := o.Orders[order.Exchange]
-	orders = append(orders, *order)
+	orders = append(orders, order)
 	o.Orders[order.Exchange] = orders
 	return nil
 }
@@ -140,7 +132,7 @@ func (o *orderManager) Start() error {
 	log.Debugln(log.OrderBook, "Order manager starting...")
 
 	o.shutdown = make(chan struct{})
-	o.orderStore.Orders = make(map[string][]order.Detail)
+	o.orderStore.Orders = make(map[string][]*order.Detail)
 	go o.run()
 	return nil
 }
@@ -250,12 +242,12 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 // Cancel will find the order in the orderManager, send a cancel request
 // to the exchange and if successful, update the status of the order
 func (o *orderManager) Cancel(cancel *order.Cancel) error {
-	if cancel.Exchange == "" {
-		return errors.New("order exchange name is empty")
-	}
-
 	if cancel == nil {
 		return errors.New("order cancel param is nil")
+	}
+
+	if cancel.Exchange == "" {
+		return errors.New("order exchange name is empty")
 	}
 
 	if cancel.ID == "" {

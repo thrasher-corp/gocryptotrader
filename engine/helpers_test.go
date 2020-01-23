@@ -123,6 +123,7 @@ func TestGetAuthAPISupportedExchanges(t *testing.T) {
 }
 
 func TestIsOnline(t *testing.T) {
+	t.Skip()
 	SetupTestHelpers(t)
 	if r := IsOnline(); r {
 		t.Fatal("Unexpected result")

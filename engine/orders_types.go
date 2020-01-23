@@ -19,7 +19,7 @@ type orderManagerConfig struct {
 
 type orderStore struct {
 	m      sync.Mutex
-	Orders map[string][]order.Detail
+	Orders map[string][]*order.Detail
 }
 
 type orderManager struct {
