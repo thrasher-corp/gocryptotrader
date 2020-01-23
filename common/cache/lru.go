@@ -22,7 +22,6 @@ func (l *LRU) Add(key, value interface{}) {
 	newItem := &item{key, value}
 	itemList := l.l.PushFront(newItem)
 	l.items[key] = itemList
-
 	if l.Len() > l.Cap {
 		l.removeOldestEntry()
 	}
