@@ -1,0 +1,9 @@
+fmt := import("fmt")
+exch := import("exchange")
+
+load := func() {
+   info := exch.depositaddress("BTC Markets", "BTC", "")
+   fmt.println(info)
+}
+
+load()

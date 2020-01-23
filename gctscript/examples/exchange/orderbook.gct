@@ -1,0 +1,12 @@
+fmt := import("fmt")
+exch := import("exchange")
+
+name := "run"
+timer := "5s"
+
+load := func() {
+    tx := exch.orderbook("btc markets", "btc-aud", "-", "spot")
+	fmt.println(tx)
+}
+
+load()

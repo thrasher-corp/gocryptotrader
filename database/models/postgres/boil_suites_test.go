@@ -13,51 +13,64 @@ import "testing"
 // Separating the tests thusly grants avoidance of Postgres deadlocks.
 func TestParent(t *testing.T) {
 	t.Run("AuditEvents", testAuditEvents)
+	t.Run("Scripts", testScripts)
 }
 
 func TestDelete(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsDelete)
+	t.Run("Scripts", testScriptsDelete)
 }
 
 func TestQueryDeleteAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsQueryDeleteAll)
+	t.Run("Scripts", testScriptsQueryDeleteAll)
 }
 
 func TestSliceDeleteAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSliceDeleteAll)
+	t.Run("Scripts", testScriptsSliceDeleteAll)
 }
 
 func TestExists(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsExists)
+	t.Run("Scripts", testScriptsExists)
 }
 
 func TestFind(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsFind)
+	t.Run("Scripts", testScriptsFind)
 }
 
 func TestBind(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsBind)
+	t.Run("Scripts", testScriptsBind)
 }
 
 func TestOne(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsOne)
+	t.Run("Scripts", testScriptsOne)
 }
 
 func TestAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsAll)
+	t.Run("Scripts", testScriptsAll)
 }
 
 func TestCount(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsCount)
+	t.Run("Scripts", testScriptsCount)
 }
 
 func TestHooks(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsHooks)
+	t.Run("Scripts", testScriptsHooks)
 }
 
 func TestInsert(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsInsert)
 	t.Run("AuditEvents", testAuditEventsInsertWhitelist)
+	t.Run("Scripts", testScriptsInsert)
+	t.Run("Scripts", testScriptsInsertWhitelist)
 }
 
 // TestToOne tests cannot be run in parallel
@@ -102,20 +115,25 @@ func TestToManyRemove(t *testing.T) {}
 
 func TestReload(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsReload)
+	t.Run("Scripts", testScriptsReload)
 }
 
 func TestReloadAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsReloadAll)
+	t.Run("Scripts", testScriptsReloadAll)
 }
 
 func TestSelect(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSelect)
+	t.Run("Scripts", testScriptsSelect)
 }
 
 func TestUpdate(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsUpdate)
+	t.Run("Scripts", testScriptsUpdate)
 }
 
 func TestSliceUpdateAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSliceUpdateAll)
+	t.Run("Scripts", testScriptsSliceUpdateAll)
 }
