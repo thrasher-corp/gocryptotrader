@@ -1,0 +1,3 @@
+fmt := import("fmt")
+timer := "abc1234"
+fmt.print("hello")

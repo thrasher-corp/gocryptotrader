@@ -528,6 +528,62 @@ message AuditEvent {
     string timestamp = 4;
 }
 
+message GCTScript {
+    string UUID = 1;
+    string name = 2;
+    string path = 3;
+    string next_run = 4;
+}
+
+message GCTScriptExecuteRequest {
+    GCTScript script = 1;
+}
+
+message GCTScriptStopRequest {
+    GCTScript script = 1;
+}
+
+message GCTScriptStopAllRequest{}
+message GCTScriptStatusRequest {}
+message GCTScriptListAllRequest{}
+
+message GCTScriptUploadRequest {
+    string script_name = 1;
+    string script_data = 2;
+    bytes data = 3;
+    bool archived = 4;
+    bool overwrite = 5;
+}
+
+message GCTScriptReadScriptRequest{
+    GCTScript script = 1;
+}
+
+message GCTScriptQueryRequest{
+    GCTScript script = 1;
+}
+
+message GCTScriptAutoLoadRequest{
+    string script = 1;
+    bool status = 2;
+}
+
+message GCTScriptStatusResponse{
+    string status = 1;
+    repeated  GCTScript scripts = 2;
+}
+
+message GCTScriptQueryResponse{
+    string status = 1;
+    GCTScript script = 2;
+    string data = 3;
+}
+
+message GCTScriptGenericResponse {
+    string status = 1;
+    string data = 2;
+}
+
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
         option (google.api.http) = {
@@ -831,13 +887,74 @@ service GoCryptoTrader {
 
     rpc GetExchangeTickerStream(GetExchangeTickerStreamRequest) returns (stream TickerResponse) {
         option (google.api.http) = {
-            get: "/v1/getexchangetickerstream"
+            get: "/v1/getexchangetickerstream",
         };
     }
 
     rpc GetAuditEvent(GetAuditEventRequest) returns (GetAuditEventResponse) {
         option (google.api.http) = {
-            get: "/v1/getauditevent"
+            get: "/v1/getauditevent",
         };
     }
+
+    rpc GCTScriptExecute(GCTScriptExecuteRequest) returns (GCTScriptGenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/gctscript/execute",
+        };
+    }
+
+    rpc GCTScriptUpload(GCTScriptUploadRequest) returns (GCTScriptGenericResponse) {
+        option (google.api.http) = {
+            post: "/v1/gctscript/upload",
+            body: "*"
+        };
+    }
+
+    rpc GCTScriptReadScript(GCTScriptReadScriptRequest) returns (GCTScriptQueryResponse) {
+        option (google.api.http) = {
+            post: "/v1/gctscript/read",
+            body: "*"
+        };
+    }
+
+    rpc GCTScriptStatus(GCTScriptStatusRequest) returns (GCTScriptStatusResponse) {
+        option (google.api.http) = {
+            get: "/v1/gctscript/status",
+        };
+    }
+
+    rpc GCTScriptQuery(GCTScriptQueryRequest) returns (GCTScriptQueryResponse) {
+        option (google.api.http) = {
+            get: "/v1/gctscript/query",
+        };
+    }
+
+    rpc GCTScriptStop(GCTScriptStopRequest) returns (GCTScriptGenericResponse) {
+        option (google.api.http) = {
+            post: "/v1/gctscript/stop",
+            body: "*"
+        };
+    }
+
+    rpc GCTScriptStopAll(GCTScriptStopAllRequest) returns (GCTScriptGenericResponse) {
+        option (google.api.http) = {
+            post: "/v1/gctscript/stop",
+            body: "*"
+        };
+    }
+
+    rpc GCTScriptListAll(GCTScriptListAllRequest) returns (GCTScriptStatusResponse) {
+        option (google.api.http) = {
+            post: "/v1/gctscript/stop",
+            body: "*"
+        };
+    }
+    rpc GCTScriptAutoLoadToggle(GCTScriptAutoLoadRequest) returns (GCTScriptGenericResponse) {
+        option (google.api.http) = {
+            post: "/v1/gctscript/autoload",
+            body: "*"
+        };
+    }
+
+
 }

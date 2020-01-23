@@ -24,6 +24,8 @@ matrix:
         - PSQL_USER=postgres
         - PSQL_HOST=localhost
         - PSQL_DBNAME=gct_dev_ci
+        - PSQL_SKIPSQLCMD=true
+        - PSQL_TESTDBNAME=gct_dev_ci
       install: true
       cache:
         directories:
@@ -48,6 +50,8 @@ matrix:
         - PSQL_USER=postgres
         - PSQL_HOST=localhost
         - PSQL_DBNAME=gct_dev_ci
+        - PSQL_SKIPSQLCMD=true
+        - PSQL_TESTDBNAME=gct_dev_ci
       install: true
       cache:
         directories:

@@ -568,7 +568,7 @@ func testAuditEventsSelect(t *testing.T) {
 }
 
 var (
-	auditEventDBTypes = map[string]string{`ID`: `bigint`, `Type`: `character varying`, `Identifier`: `character varying`, `Message`: `text`, `CreatedAt`: `timestamp with time zone`}
+	auditEventDBTypes = map[string]string{`ID`: `bigint`, `Type`: `character varying`, `Identifier`: `character varying`, `Message`: `text`, `CreatedAt`: `timestamp without time zone`}
 	_                 = bytes.MinRead
 )
 

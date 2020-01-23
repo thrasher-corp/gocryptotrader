@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/utils"
@@ -32,6 +33,7 @@ type Engine struct {
 	NTPManager                  ntpManager
 	ConnectionManager           connectionManager
 	DatabaseManager             databaseManager
+	GctScriptManager            gctScriptManager
 	OrderManager                orderManager
 	PortfolioManager            portfolioManager
 	CommsManager                commsManager
@@ -115,6 +117,8 @@ func ValidateSettings(b *Engine, s *Settings) {
 	b.Settings.EnablePortfolioManager = s.EnablePortfolioManager
 	b.Settings.EnableCoinmarketcapAnalysis = s.EnableCoinmarketcapAnalysis
 	b.Settings.EnableDatabaseManager = s.EnableDatabaseManager
+	b.Settings.EnableGCTScriptManager = s.EnableGCTScriptManager
+	b.Settings.MaxVirtualMachines = s.MaxVirtualMachines
 	b.Settings.EnableDispatcher = s.EnableDispatcher
 
 	if flagSet["grpc"] {
@@ -139,6 +143,14 @@ func ValidateSettings(b *Engine, s *Settings) {
 		b.Settings.EnableDeprecatedRPC = s.EnableDeprecatedRPC
 	} else {
 		b.Settings.EnableDeprecatedRPC = b.Config.RemoteControl.DeprecatedRPC.Enabled
+	}
+
+	if flagSet["gctscriptmanager"] {
+		gctscript.GCTScriptConfig.Enabled = s.EnableGCTScriptManager
+	}
+
+	if flagSet["maxvirtualmachines"] {
+		gctscript.GCTScriptConfig.MaxVirtualMachines = uint8(s.MaxVirtualMachines)
 	}
 
 	b.Settings.EnableCommsRelayer = s.EnableCommsRelayer
@@ -266,10 +278,14 @@ func PrintSettings(s *Settings) {
 	log.Debugf(log.Global, "\t Exchange HTTP timeout: %v", s.ExchangeHTTPTimeout)
 	log.Debugf(log.Global, "\t Exchange HTTP user agent: %v", s.ExchangeHTTPUserAgent)
 	log.Debugf(log.Global, "\t Exchange HTTP proxy: %v\n", s.ExchangeHTTPProxy)
+	log.Debugf(log.Global, "- GCTSCRIPT SETTINGS: ")
+	log.Debugf(log.Global, "\t Enable GCTScript manager: %v", s.EnableGCTScriptManager)
+	log.Debugf(log.Global, "\t GCTScript max virtual machines: %v", s.MaxVirtualMachines)
 	log.Debugf(log.Global, "- COMMON SETTINGS:")
 	log.Debugf(log.Global, "\t Global HTTP timeout: %v", s.GlobalHTTPTimeout)
 	log.Debugf(log.Global, "\t Global HTTP user agent: %v", s.GlobalHTTPUserAgent)
 	log.Debugf(log.Global, "\t Global HTTP proxy: %v", s.ExchangeHTTPProxy)
+
 	log.Debugln(log.Global)
 }
 
@@ -423,6 +439,14 @@ func (e *Engine) Start() error {
 		go WebsocketRoutine()
 	}
 
+	if e.Settings.EnableGCTScriptManager {
+		if e.Config.GCTScript.Enabled {
+			if err := e.GctScriptManager.Start(); err != nil {
+				log.Errorf(log.Global, "GCTScript manager unable to start: %v", err)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -434,6 +458,11 @@ func (e *Engine) Stop() {
 		e.Config.Portfolio = portfolio.Portfolio
 	}
 
+	if e.GctScriptManager.Started() {
+		if err := e.GctScriptManager.Stop(); err != nil {
+			log.Errorf(log.Global, "GCTScript manager unable to stop. Error: %v", err)
+		}
+	}
 	if e.OrderManager.Started() {
 		if err := e.OrderManager.Stop(); err != nil {
 			log.Errorf(log.Global, "Order manager unable to stop. Error: %v", err)
