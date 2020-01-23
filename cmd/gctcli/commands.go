@@ -2078,13 +2078,13 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 	}
 
 	if !c.IsSet("addresstag") {
-		if c.Args().Get(2) != "" {
+		if c.Args().Get(3) != "" {
 			addresstag = c.Args().Get(3)
 		}
 	}
 
 	if !c.IsSet("amount") {
-		if c.Args().Get(3) != "" {
+		if c.Args().Get(4) != "" {
 			amountStr, err := strconv.ParseFloat(c.Args().Get(4), 64)
 			if err == nil {
 				amount = amountStr
@@ -2093,7 +2093,7 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 	}
 
 	if !c.IsSet("fee") {
-		if c.Args().Get(3) != "" {
+		if c.Args().Get(5) != "" {
 			feeStr, err := strconv.ParseFloat(c.Args().Get(5), 64)
 			if err == nil {
 				fee = feeStr
@@ -2102,7 +2102,7 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 	}
 
 	if !c.IsSet("description") {
-		if c.Args().Get(2) != "" {
+		if c.Args().Get(6) != "" {
 			description = c.Args().Get(6)
 		}
 	}
@@ -2200,7 +2200,7 @@ func withdrawFiatFunds(c *cli.Context) error {
 	}
 
 	if !c.IsSet("bankaccountid") {
-		if c.Args().Get(2) != "" {
+		if c.Args().Get(4) != "" {
 			bankAccountID = c.Args().Get(4)
 		}
 	}
