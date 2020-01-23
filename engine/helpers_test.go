@@ -504,40 +504,6 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 	}
 }
 
-func TestGetAccountCurrencyInfoByExchangeName(t *testing.T) {
-	SetupTestHelpers(t)
-
-	var exchangeInfo []account.Holdings
-	var info account.Holdings
-	info.Exchange = "Bitfinex"
-	info.Accounts = append(info.Accounts,
-		account.SubAccount{
-			Currencies: []account.Balance{
-				{
-					CurrencyName: currency.BTC,
-					TotalValue:   100,
-					Hold:         0,
-				},
-			},
-		})
-
-	exchangeInfo = append(exchangeInfo, info)
-
-	result, err := GetAccountCurrencyInfoByExchangeName(exchangeInfo, "Bitfinex")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if result.Exchange != "Bitfinex" {
-		t.Fatal("Unexepcted result")
-	}
-
-	_, err = GetAccountCurrencyInfoByExchangeName(exchangeInfo, "ASDF")
-	if err != ErrExchangeNotFound {
-		t.Fatal("Unexepcted result")
-	}
-}
-
 func TestGetExchangeHighestPriceByCurrencyPair(t *testing.T) {
 	SetupTestHelpers(t)
 

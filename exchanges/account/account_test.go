@@ -26,7 +26,6 @@ func TestHoldings(t *testing.T) {
 		t.Error(err)
 	}
 
-	// process update
 	err = Process(&Holdings{
 		Exchange: "Test",
 		Accounts: []SubAccount{{

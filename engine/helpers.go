@@ -475,16 +475,6 @@ func GetCollatedExchangeAccountInfoByCoin(accounts []account.Holdings) map[curre
 	return result
 }
 
-// GetAccountCurrencyInfoByExchangeName returns info for an exchange
-func GetAccountCurrencyInfoByExchangeName(accounts []account.Holdings, exchangeName string) (account.Holdings, error) {
-	for i := range accounts {
-		if accounts[i].Exchange == exchangeName {
-			return accounts[i], nil
-		}
-	}
-	return account.Holdings{}, ErrExchangeNotFound
-}
-
 // GetExchangeHighestPriceByCurrencyPair returns the exchange with the highest
 // price for a given currency pair and asset type
 func GetExchangeHighestPriceByCurrencyPair(p currency.Pair, assetType asset.Item) (string, error) {
