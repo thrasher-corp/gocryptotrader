@@ -9,7 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	dbpsql "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
-	"github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/sqlboiler/boil"
 )
@@ -116,10 +115,6 @@ func (a *databaseManager) run() {
 		case <-a.shutdown:
 			return
 		case <-t.C:
-			_, err := withdraw.EventByUUID("27aa440e-7bf4-4340-904c-c3f9bce19d9f")
-			if err != nil {
-				fmt.Println(err)
-			}
 			a.checkConnection()
 		}
 	}

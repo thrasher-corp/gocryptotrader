@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -1187,10 +1188,8 @@ func (c *Config) CheckLoggerConfig() error {
 		c.Logging = log.GenDefaultSettings()
 	}
 
-	f := func(f bool) *bool { return &f }(false)
-
 	if c.Logging.AdvancedSettings.ShowLogSystemName == nil {
-		c.Logging.AdvancedSettings.ShowLogSystemName = f
+		c.Logging.AdvancedSettings.ShowLogSystemName = convert.BoolPtr(false)
 	}
 
 	if c.Logging.LoggerFileConfig != nil {
@@ -1198,10 +1197,11 @@ func (c *Config) CheckLoggerConfig() error {
 			c.Logging.LoggerFileConfig.FileName = "log.txt"
 		}
 		if c.Logging.LoggerFileConfig.Rotate == nil {
-			c.Logging.LoggerFileConfig.Rotate = f
+			c.Logging.LoggerFileConfig.Rotate = convert.BoolPtr(false)
 		}
-		if c.Logging.LoggerFileConfig.MaxSize < 0 {
-			c.Logging.LoggerFileConfig.MaxSize = 100
+		if c.Logging.LoggerFileConfig.MaxSize <= 0 {
+			log.Warnf(log.Global, "Logger rotation size invalid, defaulting to %v", log.DefaultMaxFileSize)
+			c.Logging.LoggerFileConfig.MaxSize = log.DefaultMaxFileSize
 		}
 		log.FileLoggingConfiguredCorrectly = true
 	}
@@ -1214,6 +1214,30 @@ func (c *Config) CheckLoggerConfig() error {
 		return err
 	}
 	log.LogPath = logPath
+
+	return nil
+}
+
+func (c *Config) checkGCTScriptConfig() error {
+	m.Lock()
+	defer m.Unlock()
+
+	if c.GCTScript.ScriptTimeout <= 0 {
+		c.GCTScript.ScriptTimeout = gctscript.DefaultTimeoutValue
+	}
+
+	if c.GCTScript.MaxVirtualMachines == 0 {
+		c.GCTScript.MaxVirtualMachines = gctscript.DefaultMaxVirtualMachines
+	}
+
+	scriptPath := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "scripts")
+	err := common.CreateDir(scriptPath)
+	if err != nil {
+		return err
+	}
+
+	gctscript.ScriptPath = scriptPath
+	gctscript.GCTScriptConfig = &c.GCTScript
 
 	return nil
 }
@@ -1621,6 +1645,11 @@ func (c *Config) CheckConfig() error {
 	err = c.CheckExchangeConfigValues()
 	if err != nil {
 		return fmt.Errorf(ErrCheckingConfigValues, err)
+	}
+
+	err = c.checkGCTScriptConfig()
+	if err != nil {
+		log.Errorf(log.Global, "Failed to configure gctscript, feature has been disabled: %s\n", err)
 	}
 
 	c.CheckConnectionMonitorConfig()

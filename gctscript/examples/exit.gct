@@ -1,0 +1,16 @@
+fmt := import("fmt")
+
+timer := "5s"
+
+exit := func() {
+    timer = 0
+}
+
+load := func() {
+   for x := 0 ; x < 20; x++ {
+      fmt.printf("Hello %v", x)
+   }
+   exit()
+}
+
+load()

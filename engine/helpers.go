@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/utils"
@@ -43,6 +44,7 @@ func GetSubsystemsStatus() map[string]bool {
 	systems["exchange_syncer"] = Bot.Settings.EnableExchangeSyncManager
 	systems["grpc"] = Bot.Settings.EnableGRPC
 	systems["grpc_proxy"] = Bot.Settings.EnableGRPCProxy
+	systems["gctscript"] = Bot.GctScriptManager.Started()
 	systems["deprecated_rpc"] = Bot.Settings.EnableDeprecatedRPC
 	systems["websocket_rpc"] = Bot.Settings.EnableWebsocketRPC
 	systems["dispatch"] = dispatch.IsRunning()
@@ -120,7 +122,15 @@ func SetSubsystem(subsys string, enable bool) error {
 			return dispatch.Start(Bot.Settings.DispatchMaxWorkerAmount, Bot.Settings.DispatchJobsLimit)
 		}
 		return dispatch.Stop()
+	case "gctscript":
+		if enable {
+			vm.GCTScriptConfig.Enabled = true
+			return Bot.GctScriptManager.Start()
+		}
+		vm.GCTScriptConfig.Enabled = false
+		return Bot.GctScriptManager.Stop()
 	}
+
 	return errors.New("subsystem not found")
 }
 
@@ -416,19 +426,21 @@ func GetRelatableCurrencies(p currency.Pair, incOrig, incUSDT bool) currency.Pai
 // GetSpecificOrderbook returns a specific orderbook given the currency,
 // exchangeName and assetType
 func GetSpecificOrderbook(p currency.Pair, exchangeName string, assetType asset.Item) (*orderbook.Base, error) {
-	if CheckExchangeExists(exchangeName) {
-		return GetExchangeByName(exchangeName).FetchOrderbook(p, assetType)
+	exch := GetExchangeByName(exchangeName)
+	if exch == nil {
+		return nil, ErrExchangeNotFound
 	}
-	return &orderbook.Base{}, errors.New("exchange is not loaded/doesn't exist")
+	return exch.FetchOrderbook(p, assetType)
 }
 
 // GetSpecificTicker returns a specific ticker given the currency,
 // exchangeName and assetType
 func GetSpecificTicker(p currency.Pair, exchangeName string, assetType asset.Item) (*ticker.Price, error) {
-	if CheckExchangeExists(exchangeName) {
-		return GetExchangeByName(exchangeName).FetchTicker(p, assetType)
+	exch := GetExchangeByName(exchangeName)
+	if exch == nil {
+		return nil, ErrExchangeNotFound
 	}
-	return &ticker.Price{}, errors.New("exchange is not loaded/doesn't exist")
+	return exch.FetchTicker(p, assetType)
 }
 
 // GetCollatedExchangeAccountInfoByCoin collates individual exchange account

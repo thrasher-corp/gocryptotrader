@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -3087,5 +3089,438 @@ func getAuditEvent(c *cli.Context) error {
 	}
 
 	jsonOutput(result)
+	return nil
+}
+
+var uuid, filename, path string
+var gctScriptCommand = cli.Command{
+	Name:      "gctscript",
+	Usage:     "execute gctscript command",
+	ArgsUsage: "<command> <args>",
+	Subcommands: []cli.Command{
+		{
+			Name:      "execute",
+			Usage:     "execute script filename",
+			ArgsUsage: "<filename> <path>",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:        "filename",
+					Usage:       "<filename>",
+					Destination: &filename,
+				},
+				cli.StringFlag{
+					Name:        "path",
+					Usage:       "<script path>",
+					Destination: &path,
+				},
+			},
+			Action: gctScriptExecute,
+		},
+		{
+			Name:  "query",
+			Usage: "query running virtual machine",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:        "uuid",
+					Usage:       "<uuid>",
+					Destination: &uuid,
+				},
+			},
+			Action: gctScriptQuery,
+		},
+		{
+			Name:  "read",
+			Usage: "read script",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:        "name",
+					Usage:       "<name>",
+					Destination: &uuid,
+				},
+			},
+			Action: gctScriptRead,
+		},
+		{
+			Name:   "status",
+			Usage:  "get status of running scripts",
+			Action: gctScriptStatus,
+		},
+		{
+			Name:   "list",
+			Usage:  "lists all scripts in default scriptpath",
+			Action: gctScriptList,
+		},
+		{
+			Name:  "stop",
+			Usage: "terminate running script",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:        "uuid",
+					Usage:       "<uuid>",
+					Destination: &uuid,
+				},
+			},
+			Action: gctScriptStop,
+		},
+		{
+			Name:   "stopall",
+			Usage:  "terminate running script",
+			Action: gctScriptStopAll,
+		},
+		{
+			Name:  "upload",
+			Usage: "upload a new script/archive",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:        "path",
+					Usage:       "<path> to single script or zip collection",
+					Destination: &filename,
+				},
+				cli.BoolFlag{
+					Name:  "overwrite",
+					Usage: "<true/false>",
+				},
+				cli.BoolFlag{
+					Name:  "archived",
+					Usage: "<true/false>",
+				},
+			},
+			Action: gctScriptUpload,
+		},
+		{
+			Name:  "autoload",
+			Usage: "add or remove script from autoload list",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "command",
+					Usage: "<add/remove>",
+				},
+				cli.StringFlag{
+					Name:  "script",
+					Usage: "<script name>",
+				},
+			},
+			Action: gctScriptAutoload,
+		},
+	},
+}
+
+func gctScriptAutoload(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		_ = cli.ShowSubcommandHelp(c)
+		return nil
+	}
+
+	var command, script string
+	var status bool
+	if !c.IsSet("command") {
+		if c.Args().Get(0) != "" {
+			command = c.Args().Get(0)
+		}
+	}
+
+	if !c.IsSet("script") {
+		if c.Args().Get(1) != "" {
+			script = c.Args().Get(1)
+		}
+	}
+
+	switch command {
+	case "add":
+		status = false
+	case "remove":
+		status = true
+	default:
+		_ = cli.ShowSubcommandHelp(c)
+		return nil
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	executeCommand, err := client.GCTScriptAutoLoadToggle(context.Background(),
+		&gctrpc.GCTScriptAutoLoadRequest{
+			Script: script,
+			Status: status,
+		})
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(executeCommand)
+	return nil
+}
+
+func gctScriptExecute(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		_ = cli.ShowSubcommandHelp(c)
+		return nil
+	}
+
+	if !c.IsSet("filename") {
+		if c.Args().Get(0) != "" {
+			filename = c.Args().Get(0)
+		}
+	}
+
+	if !c.IsSet("path") {
+		if c.Args().Get(1) != "" {
+			path = c.Args().Get(1)
+		}
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	executeCommand, err := client.GCTScriptExecute(context.Background(),
+		&gctrpc.GCTScriptExecuteRequest{
+			Script: &gctrpc.GCTScript{
+				Name: filename,
+				Path: path,
+			},
+		})
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(executeCommand)
+
+	return nil
+}
+
+func gctScriptStatus(c *cli.Context) error {
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	executeCommand, err := client.GCTScriptStatus(context.Background(),
+		&gctrpc.GCTScriptStatusRequest{})
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(executeCommand)
+	return nil
+}
+
+func gctScriptList(c *cli.Context) error {
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	executeCommand, err := client.GCTScriptListAll(context.Background(),
+		&gctrpc.GCTScriptListAllRequest{})
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(executeCommand)
+	return nil
+}
+
+func gctScriptStop(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		_ = cli.ShowSubcommandHelp(c)
+		return nil
+	}
+
+	if !c.IsSet("uuid") {
+		if c.Args().Get(0) != "" {
+			uuid = c.Args().Get(0)
+		}
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	executeCommand, err := client.GCTScriptStop(context.Background(),
+		&gctrpc.GCTScriptStopRequest{
+			Script: &gctrpc.GCTScript{UUID: uuid},
+		})
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(executeCommand)
+	return nil
+}
+
+func gctScriptStopAll(c *cli.Context) error {
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	executeCommand, err := client.GCTScriptStopAll(context.Background(),
+		&gctrpc.GCTScriptStopAllRequest{})
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(executeCommand)
+	return nil
+}
+
+func gctScriptRead(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		_ = cli.ShowSubcommandHelp(c)
+		return nil
+	}
+
+	if !c.IsSet("name") {
+		if c.Args().Get(0) != "" {
+			uuid = c.Args().Get(0)
+		}
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	executeCommand, err := client.GCTScriptReadScript(context.Background(),
+		&gctrpc.GCTScriptReadScriptRequest{
+			Script: &gctrpc.GCTScript{
+				Name: uuid,
+			},
+		})
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(executeCommand)
+	return nil
+}
+
+func gctScriptQuery(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		_ = cli.ShowSubcommandHelp(c)
+		return nil
+	}
+
+	if !c.IsSet("uuid") {
+		if c.Args().Get(0) != "" {
+			uuid = c.Args().Get(0)
+		}
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	executeCommand, err := client.GCTScriptQuery(context.Background(),
+		&gctrpc.GCTScriptQueryRequest{
+			Script: &gctrpc.GCTScript{
+				UUID: uuid,
+			},
+		})
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(executeCommand)
+
+	return nil
+}
+
+func gctScriptUpload(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		_ = cli.ShowSubcommandHelp(c)
+		return nil
+	}
+
+	var overwrite bool
+	var archived bool
+	if !c.IsSet("path") {
+		if c.Args().Get(0) != "" {
+			filename = c.Args().Get(0)
+		}
+	}
+
+	if c.IsSet("overwrite") {
+		overwrite = c.Bool("overwrite")
+	} else {
+		ow, err := strconv.ParseBool(c.Args().Get(1))
+		if err == nil {
+			overwrite = ow
+		}
+	}
+
+	if c.IsSet("archived") {
+		archived = c.Bool("archived")
+	} else {
+		ow, err := strconv.ParseBool(c.Args().Get(1))
+		if err == nil {
+			archived = ow
+		}
+	}
+
+	if filepath.Ext(filename) != ".gct" && filepath.Ext(filename) != ".zip" {
+		return errors.New("file type must be gct or zip")
+	}
+
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	data, err := ioutil.ReadAll(file)
+	if err != nil {
+		return err
+	}
+
+	uploadCommand, err := client.GCTScriptUpload(context.Background(),
+		&gctrpc.GCTScriptUploadRequest{
+			ScriptName: filepath.Base(file.Name()),
+			Data:       data,
+			Archived:   archived,
+			Overwrite:  overwrite,
+		})
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(uploadCommand)
 	return nil
 }

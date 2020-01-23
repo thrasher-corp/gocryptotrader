@@ -7,7 +7,7 @@ import (
 
 // Info takes a pointer subLogger struct and string sends to newLogEvent
 func Info(sl *subLogger, data string) {
-	if sl == nil {
+	if sl == nil || !enabled() {
 		return
 	}
 
@@ -20,7 +20,7 @@ func Info(sl *subLogger, data string) {
 
 // Infoln takes a pointer subLogger struct and interface sends to newLogEvent
 func Infoln(sl *subLogger, v ...interface{}) {
-	if sl == nil {
+	if sl == nil || !enabled() {
 		return
 	}
 
@@ -33,7 +33,7 @@ func Infoln(sl *subLogger, v ...interface{}) {
 
 // Infof takes a pointer subLogger struct, string & interface formats and sends to Info()
 func Infof(sl *subLogger, data string, v ...interface{}) {
-	if sl == nil {
+	if sl == nil || !enabled() {
 		return
 	}
 
@@ -46,7 +46,7 @@ func Infof(sl *subLogger, data string, v ...interface{}) {
 
 // Debug takes a pointer subLogger struct and string sends to multiwriter
 func Debug(sl *subLogger, data string) {
-	if sl == nil {
+	if sl == nil || !enabled() {
 		return
 	}
 
@@ -59,7 +59,7 @@ func Debug(sl *subLogger, data string) {
 
 // Debugln  takes a pointer subLogger struct, string and interface sends to newLogEvent
 func Debugln(sl *subLogger, v ...interface{}) {
-	if sl == nil {
+	if sl == nil || !enabled() {
 		return
 	}
 
@@ -72,7 +72,7 @@ func Debugln(sl *subLogger, v ...interface{}) {
 
 // Debugf takes a pointer subLogger struct, string & interface formats and sends to Info()
 func Debugf(sl *subLogger, data string, v ...interface{}) {
-	if sl == nil {
+	if sl == nil || !enabled() {
 		return
 	}
 
@@ -85,7 +85,7 @@ func Debugf(sl *subLogger, data string, v ...interface{}) {
 
 // Warn takes a pointer subLogger struct & string  and sends to newLogEvent()
 func Warn(sl *subLogger, data string) {
-	if sl == nil {
+	if sl == nil || !enabled() {
 		return
 	}
 
@@ -98,7 +98,7 @@ func Warn(sl *subLogger, data string) {
 
 // Warnln takes a pointer subLogger struct & interface formats and sends to newLogEvent()
 func Warnln(sl *subLogger, v ...interface{}) {
-	if sl == nil {
+	if sl == nil || !enabled() {
 		return
 	}
 
@@ -111,7 +111,7 @@ func Warnln(sl *subLogger, v ...interface{}) {
 
 // Warnf takes a pointer subLogger struct, string & interface formats and sends to Warn()
 func Warnf(sl *subLogger, data string, v ...interface{}) {
-	if sl == nil {
+	if sl == nil || !enabled() {
 		return
 	}
 
@@ -124,7 +124,7 @@ func Warnf(sl *subLogger, data string, v ...interface{}) {
 
 // Error takes a pointer subLogger struct & interface formats and sends to newLogEvent()
 func Error(sl *subLogger, data ...interface{}) {
-	if sl == nil {
+	if sl == nil || !enabled() {
 		return
 	}
 
@@ -137,7 +137,7 @@ func Error(sl *subLogger, data ...interface{}) {
 
 // Errorln takes a pointer subLogger struct, string & interface formats and sends to newLogEvent()
 func Errorln(sl *subLogger, v ...interface{}) {
-	if sl == nil {
+	if sl == nil || !enabled() {
 		return
 	}
 
@@ -150,7 +150,7 @@ func Errorln(sl *subLogger, v ...interface{}) {
 
 // Errorf takes a pointer subLogger struct, string & interface formats and sends to Debug()
 func Errorf(sl *subLogger, data string, v ...interface{}) {
-	if sl == nil {
+	if sl == nil || !enabled() {
 		return
 	}
 
@@ -165,4 +165,11 @@ func displayError(err error) {
 	if err != nil {
 		log.Printf("Logger write error: %v\n", err)
 	}
+}
+
+func enabled() bool {
+	if GlobalLogConfig.Enabled == nil {
+		return false
+	}
+	return *GlobalLogConfig.Enabled
 }

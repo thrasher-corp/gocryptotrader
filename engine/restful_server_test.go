@@ -17,6 +17,7 @@ func loadConfig(t *testing.T) *config.Config {
 	if err != nil {
 		t.Error("GetCurrencyConfig LoadConfig error", err)
 	}
+	configLoaded = true
 	return cfg
 }
 

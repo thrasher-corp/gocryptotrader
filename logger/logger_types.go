@@ -7,6 +7,9 @@ import (
 
 const (
 	timestampFormat = " 02/01/2006 15:04:05 "
+	spacer          = " | "
+	// DefaultMaxFileSize for logger rotation file
+	DefaultMaxFileSize int64 = 100
 )
 
 var (

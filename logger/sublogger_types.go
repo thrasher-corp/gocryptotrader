@@ -9,6 +9,7 @@ var (
 	CommunicationMgr *subLogger
 	ConfigMgr        *subLogger
 	DatabaseMgr      *subLogger
+	GCTScriptMgr     *subLogger
 	OrderMgr         *subLogger
 	PortfolioMgr     *subLogger
 	SyncMgr          *subLogger
