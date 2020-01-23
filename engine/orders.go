@@ -192,7 +192,7 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 	if orders == nil {
 		return
 	}
-
+orderLoop:
 	for k, v := range orders {
 		log.Debugf(log.OrderMgr, "Order manager: Cancelling order(s) for exchange %s.\n", k)
 		if exchangeNames != nil && len(exchangeNames) > 0 {
@@ -203,9 +203,10 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 				}
 			}
 			if !found {
-				continue
+				continue orderLoop
 			}
 		}
+
 		for y := range v {
 			log.Debugf(log.OrderMgr, "order manager: Cancelling order ID %v [%v]",
 				v[y].ID, v[y])
@@ -280,6 +281,10 @@ func (o *orderManager) Cancel(cancel *order.Cancel) error {
 // Submit will take in an order struct, send it to the exchange and
 // populate it in the orderManager if successful
 func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, error) {
+	if newOrder == nil {
+		return nil, errors.New("order cannot be nil")
+	}
+
 	if newOrder.Exchange == "" {
 		return nil, errors.New("order exchange name must be specified")
 	}

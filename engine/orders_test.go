@@ -1,19 +1,12 @@
 package engine
 
 import (
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 )
 
 var oManager orderManager
@@ -105,9 +98,8 @@ func TestGetByInternalOrderID(t *testing.T) {
 func TestGetByExchangeAndID(t *testing.T) {
 	OrdersSetup(t)
 	err := oManager.orderStore.Add(&order.Detail{
-		Exchange:        testExchange,
-		ID:              "TestGetByExchangeAndID",
-		InternalOrderID: "internalTest",
+		Exchange: testExchange,
+		ID:       "TestGetByExchangeAndID",
 	})
 	if err != nil {
 		t.Error(err)
@@ -159,23 +151,60 @@ func TestExistsWithLock(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	OrdersSetup(t)
-	exch := GetExchangeByName(testExchange)
-	exch = &FakeExchange{
+	err := oManager.Cancel(nil)
+	if err == nil {
+		t.Error("Expected error due to nil cancel")
+	}
+
+	err = oManager.Cancel(&order.Cancel{})
+	if err == nil {
+		t.Error("Expected error due to nil cancel")
+	}
+
+	err = oManager.Cancel(&order.Cancel{
 		Exchange: testExchange,
+	})
+	if err == nil {
+		t.Error("Expected error due to no order ID")
 	}
-	Bot.Exchanges[0] = exch
+
+	err = oManager.Cancel(&order.Cancel{
+		ID: "ID",
+	})
+	if err == nil {
+		t.Error("Expected error due to no Exchange")
+	}
+
+	err = oManager.Cancel(&order.Cancel{
+		ID:        "ID",
+		Exchange:  testExchange,
+		AssetType: asset.Binary,
+	})
+	if err == nil {
+		t.Error("Expected error due to bad asset type")
+	}
+
 	o := &order.Detail{
-		Exchange:        testExchange,
-		ID:              "TestCancelOrder",
-		InternalOrderID: "internalTest",
-		Status:          order.New,
+		Exchange: fakePassExchange,
+		ID:       "TestCancelOrder",
+		Status:   order.New,
 	}
-	err := oManager.orderStore.Add(o)
+	err = oManager.orderStore.Add(o)
 	if err != nil {
 		t.Error(err)
 	}
+
+	err = oManager.Cancel(&order.Cancel{
+		ID:        "Unknown",
+		Exchange:  fakePassExchange,
+		AssetType: asset.Spot,
+	})
+	if err == nil {
+		t.Error("Expected error due to no order found")
+	}
+
 	cancel := &order.Cancel{
-		Exchange:  testExchange,
+		Exchange:  fakePassExchange,
 		ID:        "TestCancelOrder",
 		Side:      order.Sell,
 		Status:    order.New,
@@ -193,98 +222,120 @@ func TestCancelOrder(t *testing.T) {
 	}
 }
 
-// FakeExchange is used to override IBotExchange responses in tests
-// In this context, we don't care what FakeExchange does as we're testing
-// the engine package
-type FakeExchange struct {
-	Exchange string
+func TestCancelAllOrders(t *testing.T) {
+	OrdersSetup(t)
+	o := &order.Detail{
+		Exchange: fakePassExchange,
+		ID:       "TestCancelAllOrders",
+		Status:   order.New,
+	}
+	err := oManager.orderStore.Add(o)
+	if err != nil {
+		t.Error(err)
+	}
+
+	oManager.CancelAllOrders([]string{"NotFound"})
+	if o.Status == order.Cancelled {
+		t.Error("Order should not be cancelled")
+	}
+
+	oManager.CancelAllOrders([]string{fakePassExchange})
+	if o.Status != order.Cancelled {
+		t.Error("Order should be cancelled")
+	}
+
+	o.Status = order.New
+
+	oManager.CancelAllOrders(nil)
+	if o.Status != order.Cancelled {
+		t.Error("Order should be cancelled")
+	}
 }
 
-func (h *FakeExchange) Setup(exch *config.ExchangeConfig) error { return nil }
-func (h *FakeExchange) Start(wg *sync.WaitGroup)                {}
-func (h *FakeExchange) SetDefaults()                            {}
-func (h *FakeExchange) GetName() string                         { return testExchange }
-func (h *FakeExchange) IsEnabled() bool                         { return true }
-func (h *FakeExchange) SetEnabled(bool)                         {}
-func (h *FakeExchange) FetchTicker(currency currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	return nil, nil
+func TestSubmit(t *testing.T) {
+	OrdersSetup(t)
+	_, err := oManager.Submit(nil)
+	if err == nil {
+		t.Error("Expected error from nil order")
+	}
+
+	o := &order.Submit{
+		Exchange: "",
+		ID:       "FakePassingExchangeOrder",
+		Status:   order.New,
+		Type:     order.Market,
+	}
+	_, err = oManager.Submit(o)
+	if err == nil {
+		t.Error("Expected error from empty exchange")
+	}
+
+	o.Exchange = fakePassExchange
+	_, err = oManager.Submit(o)
+	if err == nil {
+		t.Error("Expected error from validation")
+	}
+
+	oManager.cfg.EnforceLimitConfig = true
+	oManager.cfg.AllowMarketOrders = false
+	o.Pair = currency.NewPairFromString("BTCUSD")
+	o.AssetType = asset.Spot
+	o.Side = order.Buy
+	o.Amount = 1
+	o.Price = 1
+	_, err = oManager.Submit(o)
+	if err == nil {
+		t.Error("Expected fail due to order market type is not allowed")
+	}
+	oManager.cfg.AllowMarketOrders = true
+	oManager.cfg.LimitAmount = 1
+	o.Amount = 2
+	_, err = oManager.Submit(o)
+	if err == nil {
+		t.Error("Expected fail due to order limit exceeds allowed limit")
+	}
+	oManager.cfg.LimitAmount = 0
+	oManager.cfg.AllowedExchanges = []string{"fake"}
+	_, err = oManager.Submit(o)
+	if err == nil {
+		t.Error("Expected fail due to order exchange not found in allowed list")
+	}
+
+	oManager.cfg.AllowedExchanges = nil
+	oManager.cfg.AllowedPairs = currency.Pairs{currency.NewPairFromString("BTCAUD")}
+	_, err = oManager.Submit(o)
+	if err == nil {
+		t.Error("Expected fail due to order pair not found in allowed list")
+	}
+
+	oManager.cfg.AllowedPairs = nil
+	_, err = oManager.Submit(o)
+	if err != nil {
+		t.Error(err)
+	}
+
+	o2, err := oManager.orderStore.GetByExchangeAndID(fakePassExchange, "FakePassingExchangeOrder")
+	if err != nil {
+		t.Error(err)
+	}
+	if o2.InternalOrderID == "" {
+		t.Error("Failed to assign internal order id")
+	}
 }
-func (h *FakeExchange) UpdateTicker(currency currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	return nil, nil
+
+func TestProcessOrders(t *testing.T) {
+	OrdersSetup(t)
+	oManager.processOrders()
 }
-func (h *FakeExchange) FetchOrderbook(currency currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	return nil, nil
+
+func TestShutdown(t *testing.T) {
+	OrdersSetup(t)
+	oManager.cfg.CancelOrdersOnShutdown = true
+	err := oManager.Stop()
+	if err != nil {
+		t.Error(err)
+	}
+	if oManager.started == 1 {
+		t.Error("Has not stopped")
+	}
 }
-func (h *FakeExchange) UpdateOrderbook(currency currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	return nil, nil
-}
-func (h *FakeExchange) FetchTradablePairs(assetType asset.Item) ([]string, error) { return nil, nil }
-func (h *FakeExchange) UpdateTradablePairs(forceUpdate bool) error                { return nil }
-func (h *FakeExchange) GetEnabledPairs(assetType asset.Item) currency.Pairs       { return currency.Pairs{} }
-func (h *FakeExchange) GetAvailablePairs(assetType asset.Item) currency.Pairs     { return currency.Pairs{} }
-func (h *FakeExchange) GetAccountInfo() (exchange.AccountInfo, error) {
-	return exchange.AccountInfo{}, nil
-}
-func (h *FakeExchange) GetAuthenticatedAPISupport(endpoint uint8) bool { return true }
-func (h *FakeExchange) SetPairs(pairs currency.Pairs, assetType asset.Item, enabled bool) error {
-	return nil
-}
-func (h *FakeExchange) GetAssetTypes() asset.Items { return asset.Items{asset.Spot} }
-func (h *FakeExchange) GetExchangeHistory(currencyPair currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
-	return nil, nil
-}
-func (h *FakeExchange) SupportsAutoPairUpdates() bool                                 { return true }
-func (h *FakeExchange) SupportsRESTTickerBatchUpdates() bool                          { return true }
-func (h *FakeExchange) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) { return 0, nil }
-func (h *FakeExchange) GetLastPairsUpdateTime() int64                                 { return 0 }
-func (h *FakeExchange) GetWithdrawPermissions() uint32                                { return 0 }
-func (h *FakeExchange) FormatWithdrawPermissions() string                             { return "" }
-func (h *FakeExchange) SupportsWithdrawPermissions(permissions uint32) bool           { return true }
-func (h *FakeExchange) GetFundingHistory() ([]exchange.FundHistory, error)            { return nil, nil }
-func (h *FakeExchange) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
-	return order.SubmitResponse{}, nil
-}
-func (h *FakeExchange) ModifyOrder(action *order.Modify) (string, error) { return "", nil }
-func (h *FakeExchange) CancelOrder(order *order.Cancel) error            { return nil }
-func (h *FakeExchange) CancelAllOrders(orders *order.Cancel) (order.CancelAllResponse, error) {
-	return order.CancelAllResponse{}, nil
-}
-func (h *FakeExchange) GetOrderInfo(orderID string) (order.Detail, error) { return order.Detail{}, nil }
-func (h *FakeExchange) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
-	return "", nil
-}
-func (h *FakeExchange) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	return nil, nil
-}
-func (h *FakeExchange) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	return nil, nil
-}
-func (h *FakeExchange) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error) {
-	return "", nil
-}
-func (h *FakeExchange) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
-	return "", nil
-}
-func (h *FakeExchange) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
-	return "", nil
-}
-func (h *FakeExchange) SetHTTPClientUserAgent(ua string)            {}
-func (h *FakeExchange) GetHTTPClientUserAgent() string              { return "" }
-func (h *FakeExchange) SetClientProxyAddress(addr string) error     { return nil }
-func (h *FakeExchange) SupportsWebsocket() bool                     { return true }
-func (h *FakeExchange) SupportsREST() bool                          { return true }
-func (h *FakeExchange) IsWebsocketEnabled() bool                    { return true }
-func (h *FakeExchange) GetWebsocket() (*wshandler.Websocket, error) { return nil, nil }
-func (h *FakeExchange) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	return nil
-}
-func (h *FakeExchange) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	return nil
-}
-func (h *FakeExchange) AuthenticateWebsocket() error { return nil }
-func (h *FakeExchange) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
-	return nil, nil
-}
-func (h *FakeExchange) GetDefaultConfig() (*config.ExchangeConfig, error) { return nil, nil }
-func (h *FakeExchange) GetBase() *exchange.Base                           { return nil }
-func (h *FakeExchange) SupportsAsset(assetType asset.Item) bool           { return true }

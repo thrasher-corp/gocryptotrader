@@ -118,7 +118,7 @@ func TestGetExchangeoOTPByName(t *testing.T) {
 func TestGetAuthAPISupportedExchanges(t *testing.T) {
 	SetupTestHelpers(t)
 	if result := GetAuthAPISupportedExchanges(); result != nil {
-		t.Fatal("Unexpected result")
+		t.Fatal("Unexpected result", result)
 	}
 }
 

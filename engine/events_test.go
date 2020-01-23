@@ -10,7 +10,8 @@ import (
 )
 
 const (
-	testExchange = "Bitstamp"
+	testExchange     = "Bitstamp"
+	fakePassExchange = "FakePassExchange"
 )
 
 var (
