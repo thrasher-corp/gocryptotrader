@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common/cache"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
@@ -27,6 +28,7 @@ const (
 var (
 	ErrRequestCannotBeNil = errors.New("request cannot be nil")
 	ErrInvalidRequest     = errors.New("invalid request type")
+	Cache = cache.New(50)
 )
 
 // CryptoRequest stores the info required for a crypto withdrawal request

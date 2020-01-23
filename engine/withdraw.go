@@ -47,12 +47,16 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 		UpdatedAt:      time.Now(),
 	}
 
+	withdraw.Cache.Add(id.String(), resp)
 	withdrawal.Event(resp)
 	return resp, nil
 }
 
 // RequestByID returns a withdrawal request by ID
 func RequestByID(id uuid.UUID) (*withdraw.Response, error) {
+	v := withdraw.Cache.Get(id.String()) ; if v != nil {
+		return v.(*withdraw.Response), nil
+	}
 	return nil, nil
 }
 
