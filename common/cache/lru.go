@@ -1,3 +1,12 @@
+/*
+	LRU Cache package
+
+	Based off information obtained from:
+
+	https://girai.dev/blog/lru-cache-implementation-in-go/
+	https://en.wikipedia.org/wiki/Cache_replacement_policies#Least_recently_used_(LRU)
+*/
+
 package cache
 
 import "container/list"

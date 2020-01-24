@@ -35,7 +35,7 @@ func (l *LRUCache) getNewest() (key, value interface{}) {
 	return l.lru.getNewest()
 }
 
-// Contain checks if cache contains key if not adds to cache
+// ContainsOrAdd checks if cache contains key if not adds to cache
 func (l *LRUCache) ContainsOrAdd(key, value interface{}) bool {
 	l.m.Lock()
 	defer l.m.Unlock()
@@ -46,13 +46,14 @@ func (l *LRUCache) ContainsOrAdd(key, value interface{}) bool {
 	return false
 }
 
-// Contain checks if cache contains key
+// Contains checks if cache contains key
 func (l *LRUCache) Contains(key interface{}) bool {
 	l.m.Lock()
 	defer l.m.Unlock()
 	return l.lru.Contains(key)
 }
 
+// Remove entry from cache
 func (l *LRUCache) Remove(key interface{}) bool {
 	l.m.Lock()
 	defer l.m.Unlock()
