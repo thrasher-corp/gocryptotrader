@@ -24,9 +24,10 @@ func TestWebsocketDataHandlerProcess(t *testing.T) {
 }
 
 func TestHandleData(t *testing.T) {
-	SetupTest(t)
+	OrdersSetup(t)
 	Bot.Settings.Verbose = true
 	var exchName = "exch"
+	var orderID = "testOrder.Detail"
 	err := WebsocketDataHandler(exchName, wshandler.WebsocketNotEnabled)
 	if err == nil {
 		t.Error("Expected error")
@@ -59,18 +60,52 @@ func TestHandleData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = WebsocketDataHandler(exchName, &order.Detail{})
+	origOrder := &order.Detail{
+		Exchange: fakePassExchange,
+		ID:       orderID,
+		Amount:   1337,
+		Price:    1337,
+	}
+	err = WebsocketDataHandler(exchName, origOrder)
 	if err != nil {
 		t.Error(err)
 	}
-	err = WebsocketDataHandler(exchName, &order.Cancel{})
+	//Send it again since it exists now
+	err = WebsocketDataHandler(exchName, &order.Detail{
+		Exchange: fakePassExchange,
+		ID:       orderID,
+		Amount:   1338,
+	})
 	if err != nil {
 		t.Error(err)
 	}
-	err = WebsocketDataHandler(exchName, &order.Modify{})
+	if origOrder.Amount != 1338 {
+		t.Error("Bad pipeline")
+	}
+
+	err = WebsocketDataHandler(exchName, &order.Modify{
+		Exchange: fakePassExchange,
+		ID:       orderID,
+		Status:   order.Active,
+	})
 	if err != nil {
 		t.Error(err)
 	}
+	if origOrder.Status != order.Active {
+		t.Error("Expected order to be modified to Active")
+	}
+
+	err = WebsocketDataHandler(exchName, &order.Cancel{
+		Exchange: fakePassExchange,
+		ID:       orderID,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	if origOrder.Status != order.Cancelled {
+		t.Error("Expected order status to be cancelled")
+	}
+	// Send some gibberish
 	err = WebsocketDataHandler(exchName, order.Stop)
 	if err != nil {
 		t.Error(err)
