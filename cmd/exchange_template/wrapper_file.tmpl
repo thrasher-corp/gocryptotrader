@@ -340,7 +340,7 @@ func ({{.Variable}} *{{.CapitalName}}) WithdrawCryptocurrencyFunds(withdrawReque
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string, error) {
+func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return "", common.ErrNotYetImplemented
 }
 

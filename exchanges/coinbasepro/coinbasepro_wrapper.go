@@ -454,10 +454,10 @@ func (c *CoinbasePro) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Requ
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string, error) {
+func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	paymentMethods, err := c.GetPayMethods()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	selectedWithdrawalMethod := PaymentMethod{}
@@ -468,21 +468,27 @@ func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (stri
 		}
 	}
 	if selectedWithdrawalMethod.ID == "" {
-		return "", fmt.Errorf("could not find payment method '%v'. Check the name via the website and try again", withdrawRequest.Fiat.BankName)
+		return nil, fmt.Errorf("could not find payment method '%v'. Check the name via the website and try again", withdrawRequest.Fiat.BankName)
 	}
 
 	resp, err := c.WithdrawViaPaymentMethod(withdrawRequest.Amount, withdrawRequest.Currency.String(), selectedWithdrawalMethod.ID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return resp.ID, nil
+	return &withdraw.ExchangeResponse{
+		Status: resp.ID,
+	}, nil
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
 func (c *CoinbasePro) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
-	return c.WithdrawFiatFunds(withdrawRequest)
+	v, err :=  c.WithdrawFiatFunds(withdrawRequest)
+	if err != nil {
+		return "", err
+	}
+	return v.ID, err
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

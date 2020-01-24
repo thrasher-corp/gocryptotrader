@@ -399,8 +399,8 @@ func (i *ItBit) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (i *ItBit) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string, error) {
-	return "", common.ErrFunctionNotSupported
+func (i *ItBit) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a

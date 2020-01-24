@@ -188,6 +188,8 @@ func EventByUUID(id string) (*withdraw.Response, error) {
 			Amount:          v.Amount,
 			Type:            withdraw.RequestType(v.WithdrawType),
 		}
+		resp.CreatedAt = v.CreatedAt
+		resp.UpdatedAt = v.UpdatedAt
 	}
 	return resp, nil
 }

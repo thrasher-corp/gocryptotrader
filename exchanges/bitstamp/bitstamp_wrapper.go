@@ -443,7 +443,7 @@ func (b *Bitstamp) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Bitstamp) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string, error) {
+func (b *Bitstamp) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	resp, err := b.OpenBankWithdrawal(withdrawRequest.Amount,
 		withdrawRequest.Currency.String(),
 		withdrawRequest.Fiat.BankAccountName,
@@ -456,17 +456,20 @@ func (b *Bitstamp) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string,
 		withdrawRequest.Description,
 		sepaWithdrawal)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if resp.Status == errStr {
 		var details strings.Builder
 		for x := range resp.Reason {
 			details.WriteString(strings.Join(resp.Reason[x], ""))
 		}
-		return "", errors.New(details.String())
+		return nil, errors.New(details.String())
 	}
 
-	return resp.ID, nil
+	return &withdraw.ExchangeResponse{
+		ID: resp.ID,
+		Status: resp.Status,
+	}, nil
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a

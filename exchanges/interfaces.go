@@ -52,7 +52,7 @@ type IBotExchange interface {
 	GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)
 	GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)
 	WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error)
-	WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string, error)
+	WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error)
 	SetHTTPClientUserAgent(ua string)
 	GetHTTPClientUserAgent() string

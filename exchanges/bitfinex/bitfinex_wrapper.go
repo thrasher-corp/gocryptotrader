@@ -510,7 +510,7 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
 // Returns comma delimited withdrawal IDs
-func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string, error) {
+func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	withdrawalType := "wire"
 	// Bitfinex has support for three types, exchange, margin and deposit
 	// As this is for trading, I've made the wrapper default 'exchange'
@@ -518,10 +518,10 @@ func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string,
 	walletType := "exchange"
 	resp, err := b.WithdrawFIAT(withdrawalType, walletType, withdrawRequest)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if len(resp) == 0 {
-		return "", errors.New("no withdrawID returned. Check order status")
+		return nil, errors.New("no withdrawID returned. Check order status")
 	}
 
 	var withdrawalSuccesses, withdrawalErrors strings.Builder
@@ -534,16 +534,22 @@ func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string,
 		}
 	}
 	if withdrawalErrors.Len() > 0 {
-		return withdrawalSuccesses.String(), errors.New(withdrawalErrors.String())
+		return nil, errors.New(withdrawalErrors.String())
 	}
 
-	return withdrawalSuccesses.String(), nil
+	return &withdraw.ExchangeResponse{
+		Status:  withdrawalSuccesses.String(),
+	}, nil
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is submitted
 // Returns comma delimited withdrawal IDs
 func (b *Bitfinex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
-	return b.WithdrawFiatFunds(withdrawRequest)
+	v, err := b.WithdrawFiatFunds(withdrawRequest)
+	if err != nil {
+		return "", err
+	}
+	return v.Status, err
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

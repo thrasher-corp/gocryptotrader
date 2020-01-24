@@ -24,36 +24,26 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 		return nil, ErrExchangeNotFound
 	}
 
-	var exchID string
-	if req.Type == withdraw.Crypto {
-		exchID, err = exch.WithdrawCryptocurrencyFunds(req)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if req.Type == withdraw.Fiat {
-		exchID, err = exch.WithdrawFiatFunds(req)
-		if err != nil {
-			return nil, err
-		}
-	} else if req.Type == withdraw.Crypto {
-		exchID, err = exch.WithdrawCryptocurrencyFunds(req)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	id, _ := uuid.NewV4()
 	resp := &withdraw.Response{
 		ID:             id,
-		Exchange: &withdraw.ExchangeResponse{
-			Name: exchName,
-			ID: exchID,
-		},
+		Exchange: &withdraw.ExchangeResponse{},
 		RequestDetails: req,
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
+	}
+	if req.Type == withdraw.Fiat {
+		v, err := exch.WithdrawFiatFunds(req)
+		if err != nil {
+			return nil, err
+		}
+		resp.Exchange.Status = v.Status
+		resp.Exchange.ID = v.ID
+	} else if req.Type == withdraw.Crypto {
+		_, err = exch.WithdrawCryptocurrencyFunds(req)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	withdraw.Cache.Add(id.String(), resp)

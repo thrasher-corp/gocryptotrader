@@ -288,8 +288,8 @@ func (a *Alphapoint) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Reque
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
-func (a *Alphapoint) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (a *Alphapoint) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is

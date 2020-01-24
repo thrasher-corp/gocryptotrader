@@ -418,24 +418,26 @@ func (b *Bithumb) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request)
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Bithumb) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (string, error) {
+func (b *Bithumb) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if math.Mod(withdrawRequest.Amount, 1) != 0 {
-		return "", errors.New("currency KRW does not support decimal places")
+		return nil, errors.New("currency KRW does not support decimal places")
 	}
 	if withdrawRequest.Currency != currency.KRW {
-		return "", errors.New("only KRW is supported")
+		return nil, errors.New("only KRW is supported")
 	}
 	bankDetails := strconv.FormatFloat(withdrawRequest.Fiat.BankCode, 'f', -1, 64) +
 		"_" + withdrawRequest.Fiat.BankName
 	resp, err := b.RequestKRWWithdraw(bankDetails, withdrawRequest.Fiat.BankAccountNumber, int64(withdrawRequest.Amount))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if resp.Status != "0000" {
-		return "", errors.New(resp.Message)
+		return nil, errors.New(resp.Message)
 	}
 
-	return resp.Message, nil
+	return &withdraw.ExchangeResponse{
+		Status: resp.Status,
+	}, nil
 }
 
 // WithdrawFiatFundsToInternationalBank is not supported as Bithumb only withdraws KRW to South Korean banks
