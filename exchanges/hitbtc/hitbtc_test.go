@@ -421,7 +421,7 @@ func setupWsAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	go h.WsHandleData()
+	go h.wsReadData()
 	h.wsLogin()
 	timer := time.NewTimer(time.Second)
 	select {

@@ -39,7 +39,7 @@ func (b *BTCMarkets) WsConnect() error {
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
 	}
-	go b.WsHandleData()
+	go b.wsReadData()
 	if b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		b.createChannels()
 		if err != nil {
@@ -51,8 +51,8 @@ func (b *BTCMarkets) WsConnect() error {
 	return nil
 }
 
-// WsHandleData handles websocket data from WsReadData
-func (b *BTCMarkets) WsHandleData() {
+// wsReadData handles websocket data from WsReadData
+func (b *BTCMarkets) wsReadData() {
 	b.Websocket.Wg.Add(1)
 	defer func() {
 		b.Websocket.Wg.Done()

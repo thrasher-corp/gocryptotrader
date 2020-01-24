@@ -75,7 +75,7 @@ func setupWsAuth(t *testing.T) {
 	}
 	z.Websocket.DataHandler = make(chan interface{}, 11)
 	z.Websocket.TrafficAlert = make(chan struct{}, 11)
-	go z.WsHandleData()
+	go z.wsReadData()
 	wsSetupRan = true
 }
 

@@ -454,7 +454,7 @@ func TestWsAuth(t *testing.T) {
 	}
 	p.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	p.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	go p.WsHandleData()
+	go p.wsReadData()
 	err = p.wsSendAuthorisedCommand("subscribe")
 	if err != nil {
 		t.Fatal(err)

@@ -35,13 +35,13 @@ func (c *CoinbasePro) WsConnect() error {
 	}
 
 	c.GenerateDefaultSubscriptions()
-	go c.WsHandleData()
+	go c.wsReadData()
 
 	return nil
 }
 
-// WsHandleData handles read data from websocket connection
-func (c *CoinbasePro) WsHandleData() {
+// wsReadData handles read data from websocket connection
+func (c *CoinbasePro) wsReadData() {
 	c.Websocket.Wg.Add(1)
 
 	defer func() {

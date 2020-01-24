@@ -88,7 +88,7 @@ func (b *Binance) WsConnect() error {
 		MessageType:       websocket.PongMessage,
 		Delay:             pingDelay,
 	})
-	go b.WsHandleData()
+	go b.wsReadData()
 	go b.KeepAuthKeyAlive()
 	return nil
 }
@@ -114,8 +114,8 @@ func (b *Binance) KeepAuthKeyAlive() {
 	}
 }
 
-// WsHandleData handles websocket data from WsReadData
-func (b *Binance) WsHandleData() {
+// wsReadData handles websocket data from WsReadData
+func (b *Binance) wsReadData() {
 	b.Websocket.Wg.Add(1)
 	defer func() {
 		b.Websocket.Wg.Done()
@@ -132,7 +132,7 @@ func (b *Binance) WsHandleData() {
 				return
 			}
 			b.Websocket.TrafficAlert <- struct{}{}
-			err = b.wsReadData(read.Raw)
+			err = b.wsHandleData(read.Raw)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 			}
@@ -140,7 +140,7 @@ func (b *Binance) WsHandleData() {
 	}
 }
 
-func (b *Binance) wsReadData(respRaw []byte) error {
+func (b *Binance) wsHandleData(respRaw []byte) error {
 	var multiStreamData MultiStreamData
 	err := json.Unmarshal(respRaw, &multiStreamData)
 	if err != nil {

@@ -40,7 +40,7 @@ func (h *HitBTC) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	go h.WsHandleData()
+	go h.wsReadData()
 	err = h.wsLogin()
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", h.Name, err)
@@ -51,8 +51,8 @@ func (h *HitBTC) WsConnect() error {
 	return nil
 }
 
-// WsHandleData handles websocket data
-func (h *HitBTC) WsHandleData() {
+// wsReadData handles websocket data
+func (h *HitBTC) wsReadData() {
 	h.Websocket.Wg.Add(1)
 
 	defer func() {

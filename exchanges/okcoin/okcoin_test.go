@@ -767,7 +767,7 @@ func TestSendWsMessages(t *testing.T) {
 	}
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	go o.WsHandleData(&wg)
+	go o.wsReadData(&wg)
 	wg.Wait()
 
 	subscription := wshandler.WebsocketChannelSubscription{

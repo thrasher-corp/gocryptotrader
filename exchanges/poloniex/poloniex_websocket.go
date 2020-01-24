@@ -59,7 +59,7 @@ func (p *Poloniex) WsConnect() error {
 		}
 	}
 
-	go p.WsHandleData()
+	go p.wsReadData()
 	p.GenerateDefaultSubscriptions()
 
 	return nil
@@ -75,8 +75,8 @@ func checkSubscriptionSuccess(data []interface{}) bool {
 	return data[1].(float64) == 1
 }
 
-// WsHandleData handles data from the websocket connection
-func (p *Poloniex) WsHandleData() {
+// wsReadData handles data from the websocket connection
+func (p *Poloniex) wsReadData() {
 	p.Websocket.Wg.Add(1)
 
 	defer func() {

@@ -37,15 +37,15 @@ func (z *ZB) WsConnect() error {
 		return err
 	}
 
-	go z.WsHandleData()
+	go z.wsReadData()
 	z.GenerateDefaultSubscriptions()
 
 	return nil
 }
 
-// WsHandleData handles all the websocket data coming from the websocket
+// wsReadData handles all the websocket data coming from the websocket
 // connection
-func (z *ZB) WsHandleData() {
+func (z *ZB) wsReadData() {
 	z.Websocket.Wg.Add(1)
 
 	defer func() {

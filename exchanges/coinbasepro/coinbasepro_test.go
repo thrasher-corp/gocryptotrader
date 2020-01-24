@@ -641,7 +641,7 @@ func TestWsAuth(t *testing.T) {
 	}
 	c.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	c.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	go c.WsHandleData()
+	go c.wsReadData()
 	err = c.Subscribe(wshandler.WebsocketChannelSubscription{
 		Channel:  "user",
 		Currency: currency.NewPairFromString(testPair),

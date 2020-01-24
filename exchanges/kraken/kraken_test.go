@@ -682,7 +682,7 @@ func setupWsTests(t *testing.T) {
 
 	go k.WsReadData(k.WebsocketConn)
 	go k.WsReadData(k.AuthenticatedWebsocketConn)
-	go k.WsHandleData()
+	go k.wsReadData()
 	go k.wsPingHandler()
 	wsSetupRan = true
 }

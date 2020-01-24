@@ -72,7 +72,7 @@ func (h *HUOBI) WsConnect() error {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 
-	go h.WsHandleData()
+	go h.wsReadData()
 	h.GenerateDefaultSubscriptions()
 
 	return nil
@@ -119,8 +119,8 @@ func (h *HUOBI) wsMultiConnectionFunnel(ws *wshandler.WebsocketConnection, url s
 	}
 }
 
-// WsHandleData handles data read from the websocket connection
-func (h *HUOBI) WsHandleData() {
+// wsReadData handles data read from the websocket connection
+func (h *HUOBI) wsReadData() {
 	h.Websocket.Wg.Add(1)
 	defer h.Websocket.Wg.Done()
 	for {

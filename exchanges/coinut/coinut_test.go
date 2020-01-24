@@ -80,7 +80,7 @@ func setupWSTestAuth(t *testing.T) {
 	}
 	c.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	c.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	go c.WsHandleData()
+	go c.wsReadData()
 	err = c.wsAuthenticate()
 	if err != nil {
 		t.Error(err)

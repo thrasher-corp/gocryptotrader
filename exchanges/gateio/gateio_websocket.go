@@ -36,7 +36,7 @@ func (g *Gateio) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	go g.WsHandleData()
+	go g.wsReadData()
 	_, err = g.wsServerSignIn()
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", g.Name, err)
@@ -76,9 +76,9 @@ func (g *Gateio) wsServerSignIn() (*WebsocketAuthenticationResponse, error) {
 	return &response, nil
 }
 
-// WsHandleData handles all the websocket data coming from the websocket
+// wsReadData handles all the websocket data coming from the websocket
 // connection
-func (g *Gateio) WsHandleData() {
+func (g *Gateio) wsReadData() {
 	g.Websocket.Wg.Add(1)
 
 	defer func() {

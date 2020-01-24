@@ -63,7 +63,7 @@ func setupWsTests(t *testing.T) {
 	comms = make(chan WsMessage, sharedtestvalues.WebsocketChannelOverrideCapacity)
 	h.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	h.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	go h.WsHandleData()
+	go h.wsReadData()
 	h.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
 		ExchangeName:         h.Name,
 		URL:                  wsAccountsOrdersURL,

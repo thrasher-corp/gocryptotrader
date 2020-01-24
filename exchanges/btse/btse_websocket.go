@@ -40,7 +40,7 @@ func (b *BTSE) WsConnect() error {
 		Delay:       btseWebsocketTimer,
 	})
 
-	go b.WsHandleData()
+	go b.wsReadData()
 	if b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = b.WsAuthenticate()
 		if err != nil {
@@ -89,8 +89,8 @@ func statusToStandardStatus(stat string) order.Status {
 	}
 }
 
-// WsHandleData handles read data from websocket connection
-func (b *BTSE) WsHandleData() {
+// wsReadData handles read data from websocket connection
+func (b *BTSE) wsReadData() {
 	b.Websocket.Wg.Add(1)
 
 	defer func() {

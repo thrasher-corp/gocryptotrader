@@ -40,13 +40,13 @@ func (b *Bitstamp) WsConnect() error {
 	}
 
 	b.generateDefaultSubscriptions()
-	go b.WsHandleData()
+	go b.wsReadData()
 
 	return nil
 }
 
-// WsHandleData handles websocket data from WsReadData
-func (b *Bitstamp) WsHandleData() {
+// wsReadData handles websocket data from WsReadData
+func (b *Bitstamp) wsReadData() {
 	b.Websocket.Wg.Add(1)
 
 	defer func() {

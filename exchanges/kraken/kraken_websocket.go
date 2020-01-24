@@ -83,7 +83,7 @@ func (k *Kraken) WsConnect() error {
 	}
 
 	go k.WsReadData(k.WebsocketConn)
-	go k.WsHandleData()
+	go k.wsReadData()
 	err = k.wsPingHandler()
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v - failed setup ping handler. Websocket may disconnect unexpectedly. %v\n", k.Name, err)
@@ -113,8 +113,8 @@ func (k *Kraken) WsReadData(ws *wshandler.WebsocketConnection) {
 	}
 }
 
-// WsHandleData handles the read data from the websocket connection
-func (k *Kraken) WsHandleData() {
+// wsReadData handles the read data from the websocket connection
+func (k *Kraken) wsReadData() {
 	k.Websocket.Wg.Add(1)
 	defer func() {
 		k.Websocket.Wg.Done()
@@ -141,7 +141,7 @@ func (k *Kraken) WsHandleData() {
 				continue
 			}
 			if _, ok := dataResponse[0].(float64); ok {
-				k.WsHandleDataResponse(dataResponse)
+				k.wsReadDataResponse(dataResponse)
 			}
 			if _, ok := dataResponse[1].(string); ok {
 				k.wsHandleAuthDataResponse(dataResponse)
@@ -164,8 +164,8 @@ func (k *Kraken) wsPingHandler() error {
 	return nil
 }
 
-// WsHandleDataResponse classifies the WS response and sends to appropriate handler
-func (k *Kraken) WsHandleDataResponse(response WebsocketDataResponse) {
+// wsReadDataResponse classifies the WS response and sends to appropriate handler
+func (k *Kraken) wsReadDataResponse(response WebsocketDataResponse) {
 	if cID, ok := response[0].(float64); ok {
 		channelID := int64(cID)
 		channelData := getSubscriptionChannelData(channelID)

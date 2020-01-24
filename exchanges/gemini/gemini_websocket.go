@@ -51,7 +51,7 @@ func (g *Gemini) WsConnect() error {
 		dialer.Proxy = http.ProxyURL(proxy)
 	}
 
-	go g.WsHandleData()
+	go g.wsReadData()
 	err := g.WsSecureSubscribe(&dialer, geminiWsOrderEvents)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", g.Name, err)
@@ -151,9 +151,9 @@ func (g *Gemini) WsReadData(ws *wshandler.WebsocketConnection, c currency.Pair) 
 	}
 }
 
-// WsHandleData handles all the websocket data coming from the websocket
+// wsReadData handles all the websocket data coming from the websocket
 // connection
-func (g *Gemini) WsHandleData() {
+func (g *Gemini) wsReadData() {
 	g.Websocket.Wg.Add(1)
 	defer g.Websocket.Wg.Done()
 	for {

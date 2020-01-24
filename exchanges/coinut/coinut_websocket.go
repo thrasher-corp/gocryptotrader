@@ -46,7 +46,7 @@ func (c *COINUT) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	go c.WsHandleData()
+	go c.wsReadData()
 
 	if !c.instrumentMap.IsLoaded() {
 		_, err = c.WsGetInstruments()
@@ -68,8 +68,8 @@ func (c *COINUT) WsConnect() error {
 	return nil
 }
 
-// WsHandleData handles read data
-func (c *COINUT) WsHandleData() {
+// wsReadData handles read data
+func (c *COINUT) wsReadData() {
 	c.Websocket.Wg.Add(1)
 
 	defer func() {

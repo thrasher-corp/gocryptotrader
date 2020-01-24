@@ -497,7 +497,7 @@ func TestWsGetBalance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	go g.WsHandleData()
+	go g.wsReadData()
 	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	resp, err := g.wsServerSignIn()
@@ -535,7 +535,7 @@ func TestWsGetOrderInfo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	go g.WsHandleData()
+	go g.wsReadData()
 	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	resp, err := g.wsServerSignIn()
@@ -571,7 +571,7 @@ func setupWSTestAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	go g.WsHandleData()
+	go g.wsReadData()
 	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	wsSetupRan = true
