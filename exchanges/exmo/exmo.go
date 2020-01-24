@@ -49,6 +49,11 @@ type EXMO struct {
 	exchange.Base
 }
 
+// GetHistoriCandles returns _rangesize_ number of candles for the given _granularity_ and _pair_ starting from the latest available
+func (e *EXMO) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetTrades returns the trades for a symbol or symbols
 func (e *EXMO) GetTrades(symbol string) (map[string][]Trades, error) {
 	v := url.Values{}

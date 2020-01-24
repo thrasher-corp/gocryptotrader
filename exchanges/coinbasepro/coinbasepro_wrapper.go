@@ -96,6 +96,7 @@ func (c *CoinbasePro) SetDefaults() {
 				TradeFee:          true,
 				FiatDepositFee:    true,
 				FiatWithdrawalFee: true,
+				CandleHistory:     true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:         true,
@@ -614,4 +615,27 @@ func (c *CoinbasePro) GetSubscriptions() ([]wshandler.WebsocketChannelSubscripti
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (c *CoinbasePro) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// GetHistoricCandles Allows to retrieve an amount of candles back in time starting from now up to rangesize * granularity, where granularity is the trade period covered by each candle
+func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
+	end := time.Now().UTC()
+	b := granularity * rangesize
+	start := time.Now().UTC().Add(-time.Second * time.Duration(b))
+	history, err := c.GetHistoricRates(p.String(), start.Format(time.RFC3339), end.Format(time.RFC3339), granularity)
+	if err != nil {
+		return nil, err
+	}
+	var candles []exchange.Candle
+	for x := range history {
+		candles = append(candles, exchange.Candle{
+			Time:   history[x].Time,
+			Low:    history[x].Low,
+			High:   history[x].High,
+			Open:   history[x].Open,
+			Close:  history[x].Close,
+			Volume: history[x].Volume,
+		})
+	}
+	return candles, nil
 }

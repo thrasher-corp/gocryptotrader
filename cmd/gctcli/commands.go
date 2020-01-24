@@ -3350,3 +3350,104 @@ func gctScriptUpload(c *cli.Context) error {
 	jsonOutput(uploadCommand)
 	return nil
 }
+
+var getHistoricCandlesCommand = cli.Command{
+	Name:      "gethistoriccandles",
+	Usage:     "gets historical candles for the specified granularity up to range size time from now.",
+	ArgsUsage: "<exchange> <pair> <rangesize> <granularity>",
+	Action:    getHistoricCandles,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "exchange, e",
+			Usage: "the exchange to get the candles from",
+		},
+		cli.StringFlag{
+			Name:  "pair",
+			Usage: "the currency pair to get the candles for",
+		},
+		cli.IntFlag{
+			Name:  "rangesize, r",
+			Usage: "the amount of time to go back from now to fetch candles in the given granularity",
+		},
+		cli.IntFlag{
+			Name:  "granularity, g",
+			Usage: "value is in seconds and can be one of the following {60, 300, 900, 3600, 21600, 86400}",
+		},
+	},
+}
+
+func getHistoricCandles(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "gethistoriccandles")
+		return nil
+	}
+
+	var exchangeName string
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	var currencyPair string
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(1)
+	}
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+
+	var rangesize int64
+	if c.IsSet("rangesize") {
+		rangesize = c.Int64("rangesize")
+	} else {
+		rs, err := strconv.Atoi(c.Args().Get(2))
+		if err != nil {
+			return fmt.Errorf("unable to strconv input to int. Err: %s", err)
+		}
+		rangesize = int64(rs)
+	}
+
+	var granularity int64
+	if c.IsSet("granularity") {
+		granularity = c.Int64("granularity")
+	} else {
+		gr, err := strconv.Atoi(c.Args().Get(3))
+		if err != nil {
+			return fmt.Errorf("unable to strconv input to int. Err: %s", err)
+		}
+		granularity = int64(gr)
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetHistoricCandles(context.Background(),
+		&gctrpc.GetHistoricCandlesRequest{
+			Exchange: exchangeName,
+			Pair: &gctrpc.CurrencyPair{
+				Delimiter: p.Delimiter,
+				Base:      p.Base.String(),
+				Quote:     p.Quote.String(),
+			},
+			Rangesize:   rangesize,
+			Granularity: granularity,
+		})
+
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}

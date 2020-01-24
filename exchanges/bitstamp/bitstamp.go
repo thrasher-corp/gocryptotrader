@@ -64,6 +64,11 @@ type Bitstamp struct {
 	WebsocketConn *wshandler.WebsocketConnection
 }
 
+// GetHistoriCandles returns _rangesize_ number of candles for the given _granularity_ and _pair_ starting from the latest available
+func (b *Bitstamp) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetFee returns an estimate of fee based on type of transaction
 func (b *Bitstamp) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64

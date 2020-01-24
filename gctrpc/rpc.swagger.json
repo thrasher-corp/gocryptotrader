@@ -840,6 +840,62 @@
         ]
       }
     },
+    "/v1/gethistoriccandles": {
+      "get": {
+        "operationId": "GetHistoricCandles",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetHistoricCandlesResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "rangesize",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "granularity",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/getinfo": {
       "get": {
         "operationId": "GetInfo",
@@ -1548,6 +1604,35 @@
     "gctrpcCancelOrderResponse": {
       "type": "object"
     },
+    "gctrpcCandle": {
+      "type": "object",
+      "properties": {
+        "time": {
+          "type": "string",
+          "format": "int64"
+        },
+        "low": {
+          "type": "number",
+          "format": "double"
+        },
+        "high": {
+          "type": "number",
+          "format": "double"
+        },
+        "open": {
+          "type": "number",
+          "format": "double"
+        },
+        "close": {
+          "type": "number",
+          "format": "double"
+        },
+        "volume": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
     "gctrpcCoin": {
       "type": "object",
       "properties": {
@@ -2028,6 +2113,17 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/gctrpcForexRatesConversion"
+          }
+        }
+      }
+    },
+    "gctrpcGetHistoricCandlesResponse": {
+      "type": "object",
+      "properties": {
+        "candle": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcCandle"
           }
         }
       }
