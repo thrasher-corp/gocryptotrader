@@ -80,9 +80,12 @@ func TestAdd(t *testing.T) {
 	if v.(int) != 2 {
 		t.Fatal("expected \"2\" key to contain value \"2\"")
 	}
-	k, _ := lruCache.getNewest()
+	k, v := lruCache.getNewest()
 	if k.(int) != 2 {
 		t.Fatal("expected latest key to be 2")
+	}
+	if v.(int) != 2 {
+		t.Fatal("expected latest value to be 2")
 	}
 	lruCache.Add(3, 3)
 	k, _ = lruCache.getNewest()
@@ -92,6 +95,13 @@ func TestAdd(t *testing.T) {
 	k, _ = lruCache.getOldest()
 	if k.(int) != 2 {
 		t.Fatal("expected oldest key to be 2")
+	}
+	k, v = lruCache.getOldest()
+	if k.(int) != 2 {
+		t.Fatal("expected oldest key to be 2")
+	}
+	if v.(int) != 2 {
+		t.Fatal("expected latest value to be 2")
 	}
 	lruCache.Add(2, 2)
 	k, _ = lruCache.getNewest()
