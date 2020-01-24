@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestNewLRUCache(t *testing.T) {
+func TestCache(t *testing.T) {
 	lruCache := New(5)
 	lruCache.Add("hello", "world")
 	c := lruCache.Contains("hello")
@@ -31,21 +31,19 @@ func TestNewLRUCache(t *testing.T) {
 	}
 }
 
-func TestNewLRUCache_ContainsOrAdd(t *testing.T) {
+func TestContainsOrAdd(t *testing.T) {
 	lruCache := New(5)
 
-	f := lruCache.ContainsOrAdd("hello", "world")
-	if f {
+	if lruCache.ContainsOrAdd("hello", "world") {
 		t.Fatal("expected ContainsOrAdd() to add new key when not found")
 	}
 
-	f = lruCache.ContainsOrAdd("hello", "world")
-	if !f {
+	if !lruCache.ContainsOrAdd("hello", "world") {
 		t.Fatal("expected ContainsOrAdd() to return true when key found")
 	}
 }
 
-func TestNewLRUCache_Clear(t *testing.T) {
+func TestClear(t *testing.T) {
 	lruCache := New(5)
 	for x := 0; x < 5; x++ {
 		lruCache.Add(x, x)
@@ -59,7 +57,7 @@ func TestNewLRUCache_Clear(t *testing.T) {
 	}
 }
 
-func TestLRUCache_Add(t *testing.T) {
+func TestAdd(t *testing.T) {
 	lruCache := New(2)
 	lruCache.Add(1, 1)
 	lruCache.Add(2, 2)
@@ -82,27 +80,31 @@ func TestLRUCache_Add(t *testing.T) {
 	if v.(int) != 2 {
 		t.Fatal("expected \"2\" key to contain value \"2\"")
 	}
+	k, _ := lruCache.getNewest()
+	if k.(int) != 2 {
+		t.Fatal("expected latest key to be 2")
+	}
 	lruCache.Add(3, 3)
-	k, _ := lruCache.GetNewest()
+	k, _ = lruCache.getNewest()
 	if k.(int) != 3 {
 		t.Fatal("expected latest key to be 3")
 	}
-	k, _ = lruCache.GetOldest()
+	k, _ = lruCache.getOldest()
 	if k.(int) != 2 {
 		t.Fatal("expected oldest key to be 2")
 	}
 	lruCache.Add(2, 2)
-	k, _ = lruCache.GetNewest()
+	k, _ = lruCache.getNewest()
 	if k.(int) != 2 {
 		t.Fatal("expected latest key to be 2")
 	}
-	k, _ = lruCache.GetOldest()
+	k, _ = lruCache.getOldest()
 	if k.(int) != 3 {
 		t.Fatal("expected oldest key to be 3")
 	}
 }
 
-func TestLRUCache_Remove(t *testing.T) {
+func TestRemove(t *testing.T) {
 	lruCache := New(2)
 	lruCache.Add(1, 1)
 
@@ -116,17 +118,17 @@ func TestLRUCache_Remove(t *testing.T) {
 	}
 }
 
-func TestLRUCache_GetNewest(t *testing.T) {
+func TestGetNewest(t *testing.T) {
 	lruCache := New(2)
-	k, _ := lruCache.GetNewest()
+	k, _ := lruCache.getNewest()
 	if k != nil {
 		t.Fatal("expected GetNewest() on empty cache to return nil")
 	}
 }
 
-func TestLRUCache_GetOldest(t *testing.T) {
+func TestGetOldest(t *testing.T) {
 	lruCache := New(2)
-	k, _ := lruCache.GetOldest()
+	k, _ := lruCache.getOldest()
 	if k != nil {
 		t.Fatal("expected GetOldest() on empty cache to return nil")
 	}

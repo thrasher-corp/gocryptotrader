@@ -22,20 +22,20 @@ func (l *LRUCache) Get(key interface{}) (value interface{}) {
 }
 
 // GetOldest looks up old key's value from the cache.
-func (l *LRUCache) GetOldest() (key, value interface{}) {
+func (l *LRUCache) getOldest() (key, value interface{}) {
 	l.m.Lock()
 	defer l.m.Unlock()
-	return l.lru.GetOldest()
+	return l.lru.getOldest()
 }
 
 // Get looks up a key's value from the cache.
-func (l *LRUCache) GetNewest() (key, value interface{}) {
+func (l *LRUCache) getNewest() (key, value interface{}) {
 	l.m.Lock()
 	defer l.m.Unlock()
-	return l.lru.GetNewest()
+	return l.lru.getNewest()
 }
 
-// ContainsOrAdd checks if cache contains key if not adds to cache
+// Contain checks if cache contains key if not adds to cache
 func (l *LRUCache) ContainsOrAdd(key, value interface{}) bool {
 	l.m.Lock()
 	defer l.m.Unlock()
@@ -46,14 +46,13 @@ func (l *LRUCache) ContainsOrAdd(key, value interface{}) bool {
 	return false
 }
 
-// Contains checks if cache contains key
+// Contain checks if cache contains key
 func (l *LRUCache) Contains(key interface{}) bool {
 	l.m.Lock()
 	defer l.m.Unlock()
 	return l.lru.Contains(key)
 }
 
-// Remove removes entry from cache if key is found
 func (l *LRUCache) Remove(key interface{}) bool {
 	l.m.Lock()
 	defer l.m.Unlock()
