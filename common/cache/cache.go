@@ -28,7 +28,7 @@ func (l *LRUCache) getOldest() (key, value interface{}) {
 	return l.lru.getOldest()
 }
 
-// Get looks up a key's value from the cache.
+// getNewest looks up a key's value from the cache.
 func (l *LRUCache) getNewest() (key, value interface{}) {
 	l.m.Lock()
 	defer l.m.Unlock()
