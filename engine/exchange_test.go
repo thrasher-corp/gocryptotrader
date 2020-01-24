@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"sync"
 	"testing"
 	"time"
@@ -68,24 +69,20 @@ func addPassingFakeExchange() {
 }
 
 func CleanupTest(t *testing.T) {
-	if GetExchangeByName(testExchange) == nil {
-		return
+	if GetExchangeByName(testExchange) != nil {
+		err := UnloadExchange(testExchange)
+		if err != nil {
+			t.Fatalf("CleanupTest: Failed to unload exchange: %s",
+				err)
+		}
 	}
 
-	err := UnloadExchange(testExchange)
-	if err != nil {
-		t.Fatalf("CleanupTest: Failed to unload exchange: %s",
-			err)
-	}
-
-	if !CheckExchangeExists(fakePassExchange) {
-		return
-	}
-
-	err = UnloadExchange(fakePassExchange)
-	if err != nil {
-		t.Fatalf("CleanupTest: Failed to unload exchange: %s",
-			err)
+	if GetExchangeByName(fakePassExchange) != nil{
+		err := UnloadExchange(fakePassExchange)
+		if err != nil {
+			t.Fatalf("CleanupTest: Failed to unload exchange: %s",
+				err)
+		}
 	}
 }
 
@@ -300,9 +297,22 @@ func (h *FakePassingExchange) GetEnabledPairs(_ asset.Item) currency.Pairs {
 func (h *FakePassingExchange) GetAvailablePairs(_ asset.Item) currency.Pairs {
 	return currency.Pairs{}
 }
-func (h *FakePassingExchange) GetAccountInfo() (exchange.AccountInfo, error) {
-	return exchange.AccountInfo{}, nil
+
+func (h *FakePassingExchange) FetchAccountInfo() (account.Holdings, error) {
+	return account.Holdings{}, nil
 }
+func (h *FakePassingExchange) UpdateAccountInfo() (account.Holdings, error) {
+	return account.Holdings{}, nil
+}
+
+func (h *FakePassingExchange) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
+	return []exchange.Candle{}, nil
+}
+
+func (h *FakePassingExchange) ValidateCredentials() error {
+	return nil
+}
+
 func (h *FakePassingExchange) GetAuthenticatedAPISupport(_ uint8) bool { return true }
 func (h *FakePassingExchange) SetPairs(_ currency.Pairs, _ asset.Item, _ bool) error {
 	return nil
