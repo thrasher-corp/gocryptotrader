@@ -10,7 +10,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 
-This database package is part of the GoCryptoTrader codebase.
+This cache package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -32,7 +32,7 @@ package main
 import ("github.com/thrasher-corp/gocryptotrader/common/cache")
 
 func main() {
-	lruCache := New(5)
+	lruCache := cache.New(5)
 	lruCache.Add("hello", "world")
 	c := lruCache.Contains("hello")
 	if !c {

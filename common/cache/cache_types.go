@@ -8,7 +8,7 @@ import (
 // LRUCache thread safe fixed size LRU cache
 type LRUCache struct {
 	lru *LRU
-	m   sync.RWMutex
+	m   sync.Mutex
 }
 
 // LRU non-thread safe fixed size LRU cache
