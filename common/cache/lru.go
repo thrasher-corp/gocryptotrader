@@ -1,3 +1,12 @@
+/*
+	LRU Cache package
+
+	Based off information obtained from:
+
+	https://girai.dev/blog/lru-cache-implementation-in-go/
+	https://en.wikipedia.org/wiki/Cache_replacement_policies#Least_recently_used_(LRU)
+*/
+
 package cache
 
 import "container/list"
@@ -37,7 +46,7 @@ func (l *LRU) Get(key interface{}) interface{} {
 }
 
 // GetOldest returns the oldest entry
-func (l *LRU) GetOldest() (key, value interface{}) {
+func (l *LRU) getOldest() (key, value interface{}) {
 	x := l.l.Back()
 	if x != nil {
 		return x.Value.(*item).key, x.Value.(*item).value
@@ -46,7 +55,7 @@ func (l *LRU) GetOldest() (key, value interface{}) {
 }
 
 // GetNewest returns the newest entry
-func (l *LRU) GetNewest() (key, value interface{}) {
+func (l *LRU) getNewest() (key, value interface{}) {
 	x := l.l.Front()
 	if x != nil {
 		return x.Value.(*item).key, x.Value.(*item).value
