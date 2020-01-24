@@ -2,6 +2,7 @@ package engine
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -36,12 +37,20 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 		if err != nil {
 			return nil, err
 		}
+	} else if req.Type == withdraw.Crypto {
+		exchID, err = exch.WithdrawCryptocurrencyFunds(req)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	id, _ := uuid.NewV4()
 	resp := &withdraw.Response{
 		ID:             id,
-		ExchangeID:     exchID,
+		Exchange: &withdraw.ExchangeResponse{
+			Name: exchName,
+			ID: exchID,
+		},
 		RequestDetails: req,
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
@@ -53,23 +62,24 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 }
 
 // RequestByID returns a withdrawal request by ID
-func RequestByID(id uuid.UUID) (*withdraw.Response, error) {
-	v := withdraw.Cache.Get(id.String())
+func WithdrawRequestByID(id string) (*withdraw.Response, error) {
+	v := withdraw.Cache.Get(id)
 	if v != nil {
+		fmt.Printf("\nCache hit:")
 		return v.(*withdraw.Response), nil
 	}
-	l, err := withdrawal.EventByUUID(id.String())
+	l, err := withdrawal.EventByUUID(id)
 	if err != nil {
 		return nil, errors.New("not found")
 	}
+	withdraw.Cache.Add(id, l)
 	return l, nil
 }
 
-func RequestsByExchange(exchange string, limit int) ([]withdraw.Response, error) {
-
+func WithdrawRequestsByExchange(exchange string, limit int) ([]withdraw.Response, error) {
 	return nil, nil
 }
 
-func RequestsByDate(start, end time.Time) ([]withdraw.Response, error) {
+func WithdrawRequestsByDate(start, end time.Time) ([]withdraw.Response, error) {
 	return nil, nil
 }

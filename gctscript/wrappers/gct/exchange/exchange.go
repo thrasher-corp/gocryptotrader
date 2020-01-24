@@ -193,7 +193,7 @@ func (e Exchange) WithdrawalFiatFunds(exch, bankaccountid string, request *withd
 	if err != nil {
 		return "", err
 	}
-	return resp.ExchangeID, nil
+	return resp.Exchange.ID, nil
 }
 
 // WithdrawalCryptoFunds withdraw funds from exchange to requested Crypto source
@@ -220,5 +220,5 @@ func (e Exchange) WithdrawalCryptoFunds(exch string, request *withdraw.Request) 
 	if err != nil {
 		return "", err
 	}
-	return resp.ExchangeID, nil
+	return resp.Exchange.ID, nil
 }

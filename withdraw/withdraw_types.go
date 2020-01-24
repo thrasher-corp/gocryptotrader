@@ -84,11 +84,15 @@ type Request struct {
 type Response struct {
 	ID uuid.UUID
 
-	ExchangeID string
-	Status     string
-
+	Exchange *ExchangeResponse
 	RequestDetails *Request
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type ExchangeResponse struct {
+	Name string
+	ID string
+	Status     string
 }

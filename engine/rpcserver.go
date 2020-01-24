@@ -867,7 +867,7 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 
 	return &gctrpc.WithdrawResponse{
 		Id:     resp.ID.String(),
-		Status: resp.Status,
+		Status: resp.Exchange.Status,
 	}, nil
 }
 
@@ -909,7 +909,7 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 
 	return &gctrpc.WithdrawResponse{
 		Id:     resp.ID.String(),
-		Status: resp.Status,
+		Status: resp.Exchange.Status,
 	}, nil
 }
 

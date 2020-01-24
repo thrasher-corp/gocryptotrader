@@ -3,10 +3,10 @@ package withdraw
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
@@ -41,8 +41,9 @@ func Event(req *withdraw.Response) {
 
 		var tempEvent = modelSQLite.WithdrawalHistory{
 			ID:           newUUID.String(),
-			ExchangeID:   req.ExchangeID,
-			Status:       req.Status,
+			Exchange: 	  req.Exchange.Name,
+			ExchangeID:   req.Exchange.ID,
+			Status:       req.Exchange.Status,
 			Currency:     req.RequestDetails.Currency.String(),
 			Amount:       req.RequestDetails.Amount,
 			WithdrawType: int64(req.RequestDetails.Type),
@@ -93,8 +94,9 @@ func Event(req *withdraw.Response) {
 		}
 	} else {
 		var tempEvent = modelPSQL.WithdrawalHistory{
-			ExchangeID:   req.ExchangeID,
-			Status:       req.Status,
+			Exchange:     req.Exchange.Name,
+			ExchangeID:   req.Exchange.ID,
+			Status:       req.Exchange.Status,
 			Currency:     req.RequestDetails.Currency.String(),
 			Amount:       req.RequestDetails.Amount,
 			WithdrawType: int(req.RequestDetails.Type),
@@ -165,13 +167,27 @@ func EventByUUID(id string) (*withdraw.Response, error) {
 	}
 
 	ctx := context.Background()
+	resp := &withdraw.Response{}
 	if repository.GetSQLDialect() == database.DBSQLite3 {
 	} else {
-		x, err := modelPSQL.WithdrawalHistories(qm.InnerJoin("withdrawal_fiat wf on withdrawal_history.id = wf.withdrawal_fiat_id"), qm.Where("id = ?", id)).All(ctx, database.DB.SQL)
+		query := qm.Where("id = ?", id)
+		v, err := modelPSQL.WithdrawalHistories(query).One(ctx, database.DB.SQL)
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println(x)
+		newUUID,_ := uuid.FromString(v.ID)
+		resp.ID = newUUID
+		resp.Exchange = new(withdraw.ExchangeResponse)
+		resp.Exchange.ID = v.ExchangeID
+		resp.Exchange.Name = v.Exchange
+		resp.Exchange.Status = v.Status
+		resp.RequestDetails = new(withdraw.Request)
+		resp.RequestDetails = &withdraw.Request{
+			Currency:        currency.Code{},
+			Description:     v.Description.String,
+			Amount:          v.Amount,
+			Type:            withdraw.RequestType(v.WithdrawType),
+		}
 	}
-	return nil, nil
+	return resp, nil
 }
