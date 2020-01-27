@@ -51,7 +51,7 @@ type IBotExchange interface {
 	GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error)
 	GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)
 	GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)
-	WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error)
+	WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error)
 	SetHTTPClientUserAgent(ua string)

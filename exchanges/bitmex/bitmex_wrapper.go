@@ -509,7 +509,7 @@ func (b *Bitmex) GetDepositAddress(cryptocurrency currency.Code, _ string) (stri
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bitmex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
+func (b *Bitmex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	var request = UserRequestWithdrawalParams{
 		Address:  withdrawRequest.Crypto.Address,
 		Amount:   withdrawRequest.Amount,
@@ -522,10 +522,13 @@ func (b *Bitmex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) 
 
 	resp, err := b.UserRequestWithdrawal(request)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return resp.TransactID, nil
+	return &withdraw.ExchangeResponse{
+		Status: resp.Text,
+		ID: resp.Tx,
+	}, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is

@@ -334,7 +334,7 @@ func ({{.Variable}} *{{.CapitalName}}) GetDepositAddress(cryptocurrency currency
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func ({{.Variable}} *{{.CapitalName}}) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
+func ({{.Variable}} *{{.CapitalName}}) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return "", common.ErrNotYetImplemented
 }
 

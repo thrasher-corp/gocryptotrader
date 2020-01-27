@@ -484,7 +484,7 @@ func (b *BTCMarkets) GetDepositAddress(cryptocurrency currency.Code, accountID s
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
-func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
+func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	a, err := b.RequestWithdraw(withdrawRequest.Currency.String(),
 		withdrawRequest.Amount,
 		withdrawRequest.Crypto.Address,

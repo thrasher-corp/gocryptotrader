@@ -393,7 +393,7 @@ func (i *ItBit) GetDepositAddress(cryptocurrency currency.Code, accountID string
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (i *ItBit) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
+func (i *ItBit) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

@@ -2,7 +2,6 @@ package engine
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -27,15 +26,17 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 	id, _ := uuid.NewV4()
 	resp := &withdraw.Response{
 		ID:             id,
-		Exchange: &withdraw.ExchangeResponse{},
+		Exchange:       &withdraw.ExchangeResponse{
+			Name: exchName,
+		},
 		RequestDetails: req,
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
 	}
 	if req.Type == withdraw.Fiat {
-		v, err := exch.WithdrawFiatFunds(req)
-		if err != nil {
-			return nil, err
+		v, errFiat := exch.WithdrawFiatFunds(req)
+		if errFiat != nil {
+			return nil, errFiat
 		}
 		resp.Exchange.Status = v.Status
 		resp.Exchange.ID = v.ID
@@ -55,7 +56,6 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 func WithdrawRequestByID(id string) (*withdraw.Response, error) {
 	v := withdraw.Cache.Get(id)
 	if v != nil {
-		fmt.Printf("\nCache hit:")
 		return v.(*withdraw.Response), nil
 	}
 	l, err := withdrawal.EventByUUID(id)

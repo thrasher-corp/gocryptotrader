@@ -408,12 +408,18 @@ func (b *Bithumb) GetDepositAddress(cryptocurrency currency.Code, _ string) (str
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bithumb) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
-	_, err := b.WithdrawCrypto(withdrawRequest.Crypto.Address,
+func (b *Bithumb) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	v, err := b.WithdrawCrypto(withdrawRequest.Crypto.Address,
 		withdrawRequest.Crypto.AddressTag,
 		withdrawRequest.Currency.String(),
 		withdrawRequest.Amount)
-	return "", err
+	if err != nil {
+		return nil, err
+	}
+	return &withdraw.ExchangeResponse{
+		ID:     v.Message,
+		Status: v.Status,
+	}, err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a

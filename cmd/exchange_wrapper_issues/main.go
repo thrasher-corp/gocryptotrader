@@ -690,7 +690,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				IntermediaryBankCode:          config.BankDetails.IntermediaryBankCode,
 			},
 		}
-		var r22 string
+		var r22 *withdraw.ExchangeResponse
 		r22, err = e.WithdrawFiatFunds(&withdrawRequestFiat)
 		msg = ""
 		if err != nil {

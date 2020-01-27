@@ -486,7 +486,7 @@ func (b *Bitfinex) GetDepositAddress(cryptocurrency currency.Code, accountID str
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
-func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
+func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	withdrawalType := b.ConvertSymbolToWithdrawalType(withdrawRequest.Currency)
 	// Bitfinex has support for three types, exchange, margin and deposit
 	// As this is for trading, I've made the wrapper default 'exchange'
@@ -538,7 +538,7 @@ func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdr
 	}
 
 	return &withdraw.ExchangeResponse{
-		Status:  withdrawalSuccesses.String(),
+		Status: withdrawalSuccesses.String(),
 	}, nil
 }
 

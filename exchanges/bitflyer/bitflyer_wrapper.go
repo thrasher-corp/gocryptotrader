@@ -310,8 +310,8 @@ func (b *Bitflyer) GetDepositAddress(cryptocurrency currency.Code, accountID str
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bitflyer) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (b *Bitflyer) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a

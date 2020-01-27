@@ -542,7 +542,7 @@ func (c *Coinbene) GetDepositAddress(cryptocurrency currency.Code, accountID str
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (c *Coinbene) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
+func (c *Coinbene) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return "", common.ErrFunctionNotSupported
 }
 

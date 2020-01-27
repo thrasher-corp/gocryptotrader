@@ -41,7 +41,7 @@ func Event(req *withdraw.Response) {
 
 		var tempEvent = modelSQLite.WithdrawalHistory{
 			ID:           newUUID.String(),
-			Exchange: 	  req.Exchange.Name,
+			Exchange:     req.Exchange.Name,
 			ExchangeID:   req.Exchange.ID,
 			Status:       req.Exchange.Status,
 			Currency:     req.RequestDetails.Currency.String(),
@@ -175,7 +175,7 @@ func EventByUUID(id string) (*withdraw.Response, error) {
 		if err != nil {
 			return nil, err
 		}
-		newUUID,_ := uuid.FromString(v.ID)
+		newUUID, _ := uuid.FromString(v.ID)
 		resp.ID = newUUID
 		resp.Exchange = new(withdraw.ExchangeResponse)
 		resp.Exchange.ID = v.ExchangeID
@@ -183,10 +183,10 @@ func EventByUUID(id string) (*withdraw.Response, error) {
 		resp.Exchange.Status = v.Status
 		resp.RequestDetails = new(withdraw.Request)
 		resp.RequestDetails = &withdraw.Request{
-			Currency:        currency.Code{},
-			Description:     v.Description.String,
-			Amount:          v.Amount,
-			Type:            withdraw.RequestType(v.WithdrawType),
+			Currency:    currency.Code{},
+			Description: v.Description.String,
+			Amount:      v.Amount,
+			Type:        withdraw.RequestType(v.WithdrawType),
 		}
 		resp.CreatedAt = v.CreatedAt
 		resp.UpdatedAt = v.UpdatedAt

@@ -283,7 +283,7 @@ func (a *Alphapoint) GetDepositAddress(cryptocurrency currency.Code, _ string) (
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *Alphapoint) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
+func (a *Alphapoint) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return "", common.ErrNotYetImplemented
 }
 

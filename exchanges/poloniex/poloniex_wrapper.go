@@ -463,7 +463,7 @@ func (p *Poloniex) GetDepositAddress(cryptocurrency currency.Code, _ string) (st
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (p *Poloniex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (string, error) {
+func (p *Poloniex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	_, err := p.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.Crypto.Address, withdrawRequest.Amount)
 	return "", err
 }

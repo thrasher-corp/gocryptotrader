@@ -45,7 +45,6 @@ func Valid(request *Request) (err error) {
 	if len(allErrors) > 0 {
 		return errors.New(strings.Join(allErrors, ", "))
 	}
-
 	return nil
 }
 
@@ -76,6 +75,5 @@ func validateCrypto(request *Request) (err []string) {
 	if request.Crypto.FeeAmount < 0 {
 		err = append(err, "FeeAmount cannot be a negative number")
 	}
-
 	return
 }
