@@ -1283,6 +1283,44 @@ func (s *RPCServer) GetAuditEvent(ctx context.Context, r *gctrpc.GetAuditEventRe
 	return &resp, nil
 }
 
+// GetHistoricCandles returns historical candles for a given exchange
+func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
+	if req.Exchange == "" {
+		return nil, errors.New(errExchangeNameUnset)
+	}
+
+	if req.Pair.String() == "" {
+		return nil, errors.New(errCurrencyPairUnset)
+	}
+
+	exchange := GetExchangeByName(req.Exchange)
+	if exchange == nil {
+		return nil, errors.New("Exchange " + req.Exchange + " not found")
+	}
+
+	candles, err := exchange.GetHistoricCandles(currency.Pair{
+		Delimiter: req.Pair.Delimiter,
+		Base:      currency.NewCode(req.Pair.Base),
+		Quote:     currency.NewCode(req.Pair.Quote),
+	}, req.Rangesize, req.Granularity)
+	if err != nil {
+		return nil, err
+	}
+	resp := gctrpc.GetHistoricCandlesResponse{}
+	for _, candle := range candles {
+		tempCandle := &gctrpc.Candle{
+			Time:   candle.Time,
+			Low:    candle.Low,
+			High:   candle.High,
+			Open:   candle.Open,
+			Close:  candle.Close,
+			Volume: candle.Volume,
+		}
+		resp.Candle = append(resp.Candle, tempCandle)
+	}
+	return &resp, nil
+}
+
 // GCTScriptStatus returns a slice of current running scripts that includes next run time and uuid
 func (s *RPCServer) GCTScriptStatus(ctx context.Context, r *gctrpc.GCTScriptStatusRequest) (*gctrpc.GCTScriptStatusResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {

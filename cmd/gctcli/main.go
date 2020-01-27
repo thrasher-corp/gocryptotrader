@@ -133,6 +133,7 @@ func main() {
 		getTickerStreamCommand,
 		getExchangeTickerStreamCommand,
 		getAuditEventCommand,
+		getHistoricCandlesCommand,
 		gctScriptCommand,
 	}
 

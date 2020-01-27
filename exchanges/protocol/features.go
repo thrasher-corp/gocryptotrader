@@ -37,4 +37,5 @@ type Features struct {
 	AuthenticatedEndpoints bool `json:"authenticatedEndpoints,omitempty"`
 	MessageCorrelation     bool `json:"messageCorrelation,omitempty"`
 	MessageSequenceNumbers bool `json:"messageSequenceNumbers,omitempty"`
+	CandleHistory          bool `json:"candlehistory,omitempty"`
 }

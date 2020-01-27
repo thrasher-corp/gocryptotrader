@@ -70,6 +70,11 @@ type HUOBI struct {
 	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
 }
 
+// GetHistoriCandles returns _rangesize_ number of candles for the given _granularity_ and _pair_ starting from the latest available
+func (h *HUOBI) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetSpotKline returns kline data
 // KlinesRequestParams contains symbol, period and size
 func (h *HUOBI) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
