@@ -126,13 +126,13 @@ func (b *Binance) wsReadData() {
 			return
 
 		default:
-			read, err := b.WebsocketConn.ReadMessage()
+			resp, err := b.WebsocketConn.ReadMessage()
 			if err != nil {
 				b.Websocket.ReadMessageErrors <- err
 				return
 			}
 			b.Websocket.TrafficAlert <- struct{}{}
-			err = b.wsHandleData(read.Raw)
+			err = b.wsHandleData(resp.Raw)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 			}
@@ -333,13 +333,9 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					err)
 			}
 			b.Websocket.DataHandler <- data
-		default:
-			return fmt.Errorf("%v - Unhandled websocket data received %s",
-				b.Name,
-				respRaw)
 		}
 	}
-	return nil
+	return fmt.Errorf("%v Unhandled websocket message %s", b.Name, respRaw)
 }
 
 func executionTypeToOrderStatus(executionType string) order.Status {

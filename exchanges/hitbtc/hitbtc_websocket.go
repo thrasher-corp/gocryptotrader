@@ -63,7 +63,6 @@ func (h *HitBTC) wsReadData() {
 		select {
 		case <-h.Websocket.ShutdownC:
 			return
-
 		default:
 			resp, err := h.WebsocketConn.ReadMessage()
 			if err != nil {
@@ -71,7 +70,6 @@ func (h *HitBTC) wsReadData() {
 				return
 			}
 			h.Websocket.TrafficAlert <- struct{}{}
-
 			var init capture
 			err = json.Unmarshal(resp.Raw, &init)
 			if err != nil {

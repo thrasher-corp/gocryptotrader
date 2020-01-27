@@ -107,7 +107,10 @@ func (c *COINUT) wsReadData() {
 						c.Websocket.DataHandler <- err
 						continue
 					}
-					c.wsProcessResponse(individualJSON)
+					err = c.wsHandleData(individualJSON)
+					if err != nil {
+						c.Websocket.DataHandler <- err
+					}
 				}
 			} else {
 				var incoming wsResponse
@@ -116,29 +119,29 @@ func (c *COINUT) wsReadData() {
 					c.Websocket.DataHandler <- err
 					continue
 				}
-
-				c.wsProcessResponse(resp.Raw)
+				err = c.wsHandleData(resp.Raw)
+				if err != nil {
+					c.Websocket.DataHandler <- err
+				}
 			}
 		}
 	}
 }
 
-func (c *COINUT) wsProcessResponse(resp []byte) {
+func (c *COINUT) wsHandleData(respRaw []byte) error {
 	var incoming wsResponse
-	err := json.Unmarshal(resp, &incoming)
+	err := json.Unmarshal(respRaw, &incoming)
 	if err != nil {
-		c.Websocket.DataHandler <- err
-		return
+		return err
 	}
 	switch incoming.Reply {
 	case "hb":
-		channels["hb"] <- resp
+		channels["hb"] <- respRaw
 	case "inst_tick":
 		var wsTicker WsTicker
-		err := json.Unmarshal(resp, &wsTicker)
+		err := json.Unmarshal(respRaw, &wsTicker)
 		if err != nil {
-			c.Websocket.DataHandler <- err
-			return
+			return err
 		}
 
 		currencyPair := c.instrumentMap.LookupInstrument(wsTicker.InstID)
@@ -159,18 +162,16 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		}
 
 	case "inst_order_book":
-		var orderbooksnapshot WsOrderbookSnapshot
-		err := json.Unmarshal(resp, &orderbooksnapshot)
+		var orderbookSnapshot WsOrderbookSnapshot
+		err := json.Unmarshal(respRaw, &orderbookSnapshot)
 		if err != nil {
-			c.Websocket.DataHandler <- err
-			return
+			return err
 		}
-		err = c.WsProcessOrderbookSnapshot(&orderbooksnapshot)
+		err = c.WsProcessOrderbookSnapshot(&orderbookSnapshot)
 		if err != nil {
-			c.Websocket.DataHandler <- err
-			return
+			return err
 		}
-		currencyPair := c.instrumentMap.LookupInstrument(orderbooksnapshot.InstID)
+		currencyPair := c.instrumentMap.LookupInstrument(orderbookSnapshot.InstID)
 		c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 			Exchange: c.Name,
 			Asset:    asset.Spot,
@@ -180,15 +181,13 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		}
 	case "inst_order_book_update":
 		var orderbookUpdate WsOrderbookUpdate
-		err := json.Unmarshal(resp, &orderbookUpdate)
+		err := json.Unmarshal(respRaw, &orderbookUpdate)
 		if err != nil {
-			c.Websocket.DataHandler <- err
-			return
+			return err
 		}
 		err = c.WsProcessOrderbookUpdate(&orderbookUpdate)
 		if err != nil {
-			c.Websocket.DataHandler <- err
-			return
+			return err
 		}
 		currencyPair := c.instrumentMap.LookupInstrument(orderbookUpdate.InstID)
 		c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
@@ -200,18 +199,16 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		}
 	case "inst_trade":
 		var tradeSnap WsTradeSnapshot
-		err := json.Unmarshal(resp, &tradeSnap)
+		err := json.Unmarshal(respRaw, &tradeSnap)
 		if err != nil {
-			c.Websocket.DataHandler <- err
-			return
+			return err
 		}
 
 	case "inst_trade_update":
 		var tradeUpdate WsTradeUpdate
-		err := json.Unmarshal(resp, &tradeUpdate)
+		err := json.Unmarshal(respRaw, &tradeUpdate)
 		if err != nil {
-			c.Websocket.DataHandler <- err
-			return
+			return err
 		}
 		currencyPair := c.instrumentMap.LookupInstrument(tradeUpdate.InstID)
 		c.Websocket.DataHandler <- wshandler.TradeData{
@@ -226,11 +223,11 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		}
 	default:
 		if incoming.Nonce > 0 {
-			c.WebsocketConn.AddResponseWithID(incoming.Nonce, resp)
-			return
+			c.WebsocketConn.AddResponseWithID(incoming.Nonce, respRaw)
+			return nil
 		}
-		c.Websocket.DataHandler <- fmt.Errorf("%v unhandled websocket response: %s", c.Name, resp)
 	}
+	return fmt.Errorf("%v Unhandled websocket message %s", c.Name, respRaw)
 }
 
 // WsGetInstruments fetches instrument list and propagates a local cache

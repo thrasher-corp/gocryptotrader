@@ -83,7 +83,7 @@ func (h *HUOBI) wsDial(dialer *websocket.Dialer) error {
 	if err != nil {
 		return err
 	}
-	go h.wsMultiConnectionFunnel(h.WebsocketConn, wsMarketURL)
+	go h.wsFunnelConnectionData(h.WebsocketConn, wsMarketURL)
 	return nil
 }
 
@@ -95,12 +95,12 @@ func (h *HUOBI) wsAuthenticatedDial(dialer *websocket.Dialer) error {
 	if err != nil {
 		return err
 	}
-	go h.wsMultiConnectionFunnel(h.AuthenticatedWebsocketConn, wsAccountsOrdersURL)
+	go h.wsFunnelConnectionData(h.AuthenticatedWebsocketConn, wsAccountsOrdersURL)
 	return nil
 }
 
-// wsMultiConnectionFunnel manages data from multiple endpoints and passes it to a channel
-func (h *HUOBI) wsMultiConnectionFunnel(ws *wshandler.WebsocketConnection, url string) {
+// wsFunnelConnectionData manages data from multiple endpoints and passes it to a channel
+func (h *HUOBI) wsFunnelConnectionData(ws *wshandler.WebsocketConnection, url string) {
 	h.Websocket.Wg.Add(1)
 	defer h.Websocket.Wg.Done()
 	for {
@@ -130,24 +130,29 @@ func (h *HUOBI) wsReadData() {
 		case resp := <-comms:
 			switch resp.URL {
 			case wsMarketURL:
-				h.wsHandleMarketData(resp)
+				err := h.wsHandleMarketData(resp)
+				if err != nil {
+					h.Websocket.DataHandler <- err
+				}
 			case wsAccountsOrdersURL:
-				h.wsHandleAuthenticatedData(resp)
+				err := h.wsHandleAuthenticatedData(resp)
+				if err != nil {
+					h.Websocket.DataHandler <- err
+				}
 			}
 		}
 	}
 }
 
-func (h *HUOBI) wsHandleAuthenticatedData(resp WsMessage) {
+func (h *HUOBI) wsHandleAuthenticatedData(resp WsMessage) error {
 	var init WsAuthenticatedDataResponse
 	err := json.Unmarshal(resp.Raw, &init)
 	if err != nil {
-		h.Websocket.DataHandler <- err
-		return
+		return err
 	}
 	if init.Ping != 0 {
 		h.sendPingResponse(init.Ping)
-		return
+		return nil
 	}
 	if init.ErrorMessage == "api-signature-not-valid" {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -156,11 +161,11 @@ func (h *HUOBI) wsHandleAuthenticatedData(resp WsMessage) {
 		if h.Verbose {
 			log.Debugf(log.ExchangeSys, "%v: %v: Successfully subscribed to %v", h.Name, resp.URL, init.Topic)
 		}
-		return
+		return nil
 	}
 	if init.ClientID > 0 {
 		h.AuthenticatedWebsocketConn.AddResponseWithID(init.ClientID, resp.Raw)
-		return
+		return nil
 	}
 
 	switch {
@@ -169,14 +174,14 @@ func (h *HUOBI) wsHandleAuthenticatedData(resp WsMessage) {
 		var response WsAuthenticatedDataResponse
 		err := json.Unmarshal(resp.Raw, &response)
 		if err != nil {
-			h.Websocket.DataHandler <- err
+			return err
 		}
 		h.Websocket.DataHandler <- response
 	case strings.EqualFold(init.Topic, "accounts"):
 		var response WsAuthenticatedAccountsResponse
 		err := json.Unmarshal(resp.Raw, &response)
 		if err != nil {
-			h.Websocket.DataHandler <- err
+			return err
 		}
 		h.Websocket.DataHandler <- response
 	case strings.Contains(init.Topic, "orders") &&
@@ -184,40 +189,39 @@ func (h *HUOBI) wsHandleAuthenticatedData(resp WsMessage) {
 		var response WsAuthenticatedOrdersUpdateResponse
 		err := json.Unmarshal(resp.Raw, &response)
 		if err != nil {
-			h.Websocket.DataHandler <- err
+			return err
 		}
 		h.Websocket.DataHandler <- response
 	case strings.Contains(init.Topic, "orders"):
 		var response WsAuthenticatedOrdersResponse
 		err := json.Unmarshal(resp.Raw, &response)
 		if err != nil {
-			h.Websocket.DataHandler <- err
+			return err
 		}
 		h.Websocket.DataHandler <- response
 	}
+	return fmt.Errorf("%v Unhandled websocket message %s", h.Name, resp.Raw)
 }
 
-func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
+func (h *HUOBI) wsHandleMarketData(resp WsMessage) error {
 	var init WsResponse
 	err := json.Unmarshal(resp.Raw, &init)
 	if err != nil {
-		h.Websocket.DataHandler <- err
-		return
+		return err
 	}
 	if init.Status == "error" {
-		h.Websocket.DataHandler <- fmt.Errorf("%v %v Websocket error %s %s",
+		return fmt.Errorf("%v %v Websocket error %s %s",
 			h.Name,
 			resp.URL,
 			init.ErrorCode,
 			init.ErrorMessage)
-		return
 	}
 	if init.Subscribed != "" {
-		return
+		return nil
 	}
 	if init.Ping != 0 {
 		h.sendPingResponse(init.Ping)
-		return
+		return nil
 	}
 
 	switch {
@@ -225,23 +229,20 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 		var depth WsDepth
 		err := json.Unmarshal(resp.Raw, &depth)
 		if err != nil {
-			h.Websocket.DataHandler <- err
-			return
+			return err
 		}
 
 		data := strings.Split(depth.Channel, ".")
 		err = h.WsProcessOrderbook(&depth, data[1])
 		if err != nil {
-			h.Websocket.DataHandler <- err
-			return
+			return err
 		}
 
 	case strings.Contains(init.Channel, "kline"):
 		var kline WsKline
 		err := json.Unmarshal(resp.Raw, &kline)
 		if err != nil {
-			h.Websocket.DataHandler <- err
-			return
+			return err
 		}
 		data := strings.Split(kline.Channel, ".")
 		h.Websocket.DataHandler <- wshandler.KlineData{
@@ -260,8 +261,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 		var trade WsTrade
 		err := json.Unmarshal(resp.Raw, &trade)
 		if err != nil {
-			h.Websocket.DataHandler <- err
-			return
+			return err
 		}
 		data := strings.Split(trade.Channel, ".")
 		h.Websocket.DataHandler <- wshandler.TradeData{
@@ -275,8 +275,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 		var wsTicker WsTick
 		err := json.Unmarshal(resp.Raw, &wsTicker)
 		if err != nil {
-			h.Websocket.DataHandler <- err
-			return
+			return err
 		}
 		data := strings.Split(wsTicker.Channel, ".")
 		h.Websocket.DataHandler <- &ticker.Price{
@@ -293,6 +292,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
 		}
 	}
+	return fmt.Errorf("%v Unhandled websocket message %s", h.Name, resp.Raw)
 }
 
 func (h *HUOBI) sendPingResponse(pong int64) {

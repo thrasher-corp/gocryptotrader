@@ -78,11 +78,11 @@ func (k *Kraken) WsConnect() error {
 			k.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys, "%v - failed to connect to authenticated endpoint: %v\n", k.Name, err)
 		}
-		go k.WsReadData(k.AuthenticatedWebsocketConn)
+		go k.wsFunnelConnectionData(k.AuthenticatedWebsocketConn)
 		k.GenerateAuthenticatedSubscriptions()
 	}
 
-	go k.WsReadData(k.WebsocketConn)
+	go k.wsFunnelConnectionData(k.WebsocketConn)
 	go k.wsReadData()
 	err = k.wsPingHandler()
 	if err != nil {
@@ -94,7 +94,7 @@ func (k *Kraken) WsConnect() error {
 }
 
 // WsReadData funnels both auth and public ws data into one manageable place
-func (k *Kraken) WsReadData(ws *wshandler.WebsocketConnection) {
+func (k *Kraken) wsFunnelConnectionData(ws *wshandler.WebsocketConnection) {
 	k.Websocket.Wg.Add(1)
 	defer k.Websocket.Wg.Done()
 	for {

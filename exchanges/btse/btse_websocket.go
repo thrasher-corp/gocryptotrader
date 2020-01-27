@@ -109,127 +109,122 @@ func (b *BTSE) wsReadData() {
 				return
 			}
 			b.Websocket.TrafficAlert <- struct{}{}
-
-			type Result map[string]interface{}
-			result := Result{}
-			err = json.Unmarshal(resp.Raw, &result)
+			err = b.wsHandleData(resp.Raw)
 			if err != nil {
 				b.Websocket.DataHandler <- err
-				continue
-			}
-			switch {
-			case result["topic"] == "notificationsAPI":
-				var notification wsNotification
-				err = json.Unmarshal(resp.Raw, &notification)
-				if err != nil {
-					b.Websocket.DataHandler <- err
-					continue
-				}
-				orderType, err := order.StringToOrderType(notification.Type)
-				if err != nil {
-					b.Websocket.DataHandler <- err
-				}
-				orderSide, err := order.StringToOrderSide(notification.OrderMode)
-				if err != nil {
-					b.Websocket.DataHandler <- err
-				}
-				b.Websocket.DataHandler <- &order.Detail{
-					Price:        notification.Price,
-					Amount:       notification.Size,
-					TriggerPrice: notification.TriggerPrice,
-					Exchange:     b.Name,
-					ID:           notification.OrderID,
-					Type:         orderType,
-					Side:         orderSide,
-					Status:       statusToStandardStatus(notification.Status),
-					AssetType:    asset.Spot,
-					Date:         time.Unix(0, notification.Timestamp*int64(time.Millisecond)),
-					Pair:         currency.NewPairFromString(notification.Symbol),
-				}
-			case strings.Contains(result["topic"].(string), "tradeHistory"):
-				var tradeHistory wsTradeHistory
-				err = json.Unmarshal(resp.Raw, &tradeHistory)
-				if err != nil {
-					b.Websocket.DataHandler <- err
-					continue
-				}
-				for x := range tradeHistory.Data {
-					side := order.Buy.String()
-					if tradeHistory.Data[x].Gain == -1 {
-						side = order.Sell.String()
-					}
-					b.Websocket.DataHandler <- wshandler.TradeData{
-						Timestamp:    time.Unix(0, tradeHistory.Data[x].TransactionTime*int64(time.Millisecond)),
-						CurrencyPair: currency.NewPairFromString(strings.Replace(tradeHistory.Topic, "tradeHistory:", "", 1)),
-						AssetType:    asset.Spot,
-						Exchange:     b.Name,
-						Price:        tradeHistory.Data[x].Price,
-						Amount:       tradeHistory.Data[x].Amount,
-						Side:         side,
-					}
-				}
-			case strings.Contains(result["topic"].(string), "orderBookApi"):
-				var t wsOrderBook
-				err = json.Unmarshal(resp.Raw, &t)
-				if err != nil {
-					b.Websocket.DataHandler <- err
-					continue
-				}
-				var newOB orderbook.Base
-				var price, amount float64
-				for i := range t.Data.SellQuote {
-					p := strings.Replace(t.Data.SellQuote[i].Price, ",", "", -1)
-					price, err = strconv.ParseFloat(p, 64)
-					if err != nil {
-						b.Websocket.DataHandler <- err
-						continue
-					}
-					a := strings.Replace(t.Data.SellQuote[i].Size, ",", "", -1)
-					amount, err = strconv.ParseFloat(a, 64)
-					if err != nil {
-						b.Websocket.DataHandler <- err
-						continue
-					}
-					newOB.Asks = append(newOB.Asks, orderbook.Item{
-						Price:  price,
-						Amount: amount,
-					})
-				}
-				for j := range t.Data.BuyQuote {
-					p := strings.Replace(t.Data.BuyQuote[j].Price, ",", "", -1)
-					price, err = strconv.ParseFloat(p, 64)
-					if err != nil {
-						b.Websocket.DataHandler <- err
-						continue
-					}
-					a := strings.Replace(t.Data.BuyQuote[j].Size, ",", "", -1)
-					amount, err = strconv.ParseFloat(a, 64)
-					if err != nil {
-						b.Websocket.DataHandler <- err
-						continue
-					}
-					newOB.Bids = append(newOB.Bids, orderbook.Item{
-						Price:  price,
-						Amount: amount,
-					})
-				}
-				newOB.AssetType = asset.Spot
-				newOB.Pair = currency.NewPairFromString(t.Topic[strings.Index(t.Topic, ":")+1 : strings.Index(t.Topic, "_")])
-				newOB.ExchangeName = b.Name
-				err = b.Websocket.Orderbook.LoadSnapshot(&newOB)
-				if err != nil {
-					b.Websocket.DataHandler <- err
-					continue
-				}
-				b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: newOB.Pair,
-					Asset:    asset.Spot,
-					Exchange: b.Name}
-			default:
-				log.Warnf(log.ExchangeSys,
-					"%s: unhandled websocket response: %s", b.Name, resp.Raw)
 			}
 		}
 	}
+}
+
+func (b *BTSE) wsHandleData(respRaw []byte) error {
+	type Result map[string]interface{}
+	var result Result
+	err := json.Unmarshal(respRaw, &result)
+	if err != nil {
+		return err
+	}
+	switch {
+	case result["topic"] == "notificationsAPI":
+		var notification wsNotification
+		err = json.Unmarshal(respRaw, &notification)
+		if err != nil {
+			return err
+		}
+		orderType, err := order.StringToOrderType(notification.Type)
+		if err != nil {
+			b.Websocket.DataHandler <- err
+		}
+		orderSide, err := order.StringToOrderSide(notification.OrderMode)
+		if err != nil {
+			b.Websocket.DataHandler <- err
+		}
+		b.Websocket.DataHandler <- &order.Detail{
+			Price:        notification.Price,
+			Amount:       notification.Size,
+			TriggerPrice: notification.TriggerPrice,
+			Exchange:     b.Name,
+			ID:           notification.OrderID,
+			Type:         orderType,
+			Side:         orderSide,
+			Status:       statusToStandardStatus(notification.Status),
+			AssetType:    asset.Spot,
+			Date:         time.Unix(0, notification.Timestamp*int64(time.Millisecond)),
+			Pair:         currency.NewPairFromString(notification.Symbol),
+		}
+	case strings.Contains(result["topic"].(string), "tradeHistory"):
+		var tradeHistory wsTradeHistory
+		err = json.Unmarshal(respRaw, &tradeHistory)
+		if err != nil {
+			return err
+		}
+		for x := range tradeHistory.Data {
+			side := order.Buy.String()
+			if tradeHistory.Data[x].Gain == -1 {
+				side = order.Sell.String()
+			}
+			b.Websocket.DataHandler <- wshandler.TradeData{
+				Timestamp:    time.Unix(0, tradeHistory.Data[x].TransactionTime*int64(time.Millisecond)),
+				CurrencyPair: currency.NewPairFromString(strings.Replace(tradeHistory.Topic, "tradeHistory:", "", 1)),
+				AssetType:    asset.Spot,
+				Exchange:     b.Name,
+				Price:        tradeHistory.Data[x].Price,
+				Amount:       tradeHistory.Data[x].Amount,
+				Side:         side,
+			}
+		}
+	case strings.Contains(result["topic"].(string), "orderBookApi"):
+		var t wsOrderBook
+		err = json.Unmarshal(respRaw, &t)
+		if err != nil {
+			return err
+		}
+		var newOB orderbook.Base
+		var price, amount float64
+		for i := range t.Data.SellQuote {
+			p := strings.Replace(t.Data.SellQuote[i].Price, ",", "", -1)
+			price, err = strconv.ParseFloat(p, 64)
+			if err != nil {
+				return err
+			}
+			a := strings.Replace(t.Data.SellQuote[i].Size, ",", "", -1)
+			amount, err = strconv.ParseFloat(a, 64)
+			if err != nil {
+				return err
+			}
+			newOB.Asks = append(newOB.Asks, orderbook.Item{
+				Price:  price,
+				Amount: amount,
+			})
+		}
+		for j := range t.Data.BuyQuote {
+			p := strings.Replace(t.Data.BuyQuote[j].Price, ",", "", -1)
+			price, err = strconv.ParseFloat(p, 64)
+			if err != nil {
+				return err
+			}
+			a := strings.Replace(t.Data.BuyQuote[j].Size, ",", "", -1)
+			amount, err = strconv.ParseFloat(a, 64)
+			if err != nil {
+				return err
+			}
+			newOB.Bids = append(newOB.Bids, orderbook.Item{
+				Price:  price,
+				Amount: amount,
+			})
+		}
+		newOB.AssetType = asset.Spot
+		newOB.Pair = currency.NewPairFromString(t.Topic[strings.Index(t.Topic, ":")+1 : strings.Index(t.Topic, "_")])
+		newOB.ExchangeName = b.Name
+		err = b.Websocket.Orderbook.LoadSnapshot(&newOB)
+		if err != nil {
+			return err
+		}
+		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: newOB.Pair,
+			Asset:    asset.Spot,
+			Exchange: b.Name}
+	}
+	return fmt.Errorf("%v Unhandled websocket message %s", b.Name, respRaw)
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()

@@ -252,13 +252,13 @@ func (o *OKGroup) wsReadData(wg *sync.WaitGroup) {
 				return
 			}
 			o.Websocket.TrafficAlert <- struct{}{}
-			o.WsParseResponse(resp.Raw)
+			o.wsHandleData(resp.Raw)
 		}
 	}
 }
 
-// WsParseResponse will read websocket raw data and pass to appropriate handler
-func (o *OKGroup) WsParseResponse(respRaw []byte) {
+// wsHandleData will read websocket raw data and pass to appropriate handler
+func (o *OKGroup) wsHandleData(respRaw []byte) {
 	var dataResponse WebsocketDataResponse
 	err := json.Unmarshal(respRaw, &dataResponse)
 	if err != nil {
@@ -281,8 +281,7 @@ func (o *OKGroup) WsParseResponse(respRaw []byte) {
 		case okGroupWsOrder:
 			o.wsProcessOrder(respRaw)
 		default:
-			log.Warnf(log.ExchangeSys,
-				"%s Unhandled channel: '%v'. Instrument '%v' Data '%s'",
+			o.Websocket.DataHandler <- fmt.Errorf("%s Unhandled channel: '%v'. Instrument '%v' Data '%s'",
 				o.Name,
 				dataResponse.Table,
 				respRaw)

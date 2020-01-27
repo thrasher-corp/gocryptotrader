@@ -433,12 +433,9 @@ func (b *Bitmex) wsReadData(respRaw []byte) error {
 				return err
 			}
 			b.Websocket.DataHandler <- response
-		default:
-			return fmt.Errorf("%s websocket error: unhandled data received - %s",
-				b.Name, respRaw)
 		}
 	}
-	return nil
+	return fmt.Errorf("%v Unhandled websocket message %s", b.Name, respRaw)
 }
 
 // ProcessOrderbook processes orderbook updates

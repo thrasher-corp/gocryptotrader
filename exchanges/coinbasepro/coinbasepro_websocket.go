@@ -3,6 +3,7 @@ package coinbasepro
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -59,131 +60,132 @@ func (c *CoinbasePro) wsReadData() {
 				return
 			}
 			c.Websocket.TrafficAlert <- struct{}{}
-
-			type MsgType struct {
-				Type      string `json:"type"`
-				Sequence  int64  `json:"sequence"`
-				ProductID string `json:"product_id"`
-			}
-
-			msgType := MsgType{}
-			err = json.Unmarshal(resp.Raw, &msgType)
+			err = c.wsHandleData(resp.Raw)
 			if err != nil {
 				c.Websocket.DataHandler <- err
-				continue
 			}
 
-			if msgType.Type == "subscriptions" || msgType.Type == "heartbeat" {
-				continue
-			}
-
-			switch msgType.Type {
-			case "error":
-				c.Websocket.DataHandler <- errors.New(string(resp.Raw))
-
-			case "ticker":
-				wsTicker := WebsocketTicker{}
-				err := json.Unmarshal(resp.Raw, &wsTicker)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-
-				c.Websocket.DataHandler <- &ticker.Price{
-					LastUpdated:  wsTicker.Time,
-					Pair:         wsTicker.ProductID,
-					AssetType:    asset.Spot,
-					ExchangeName: c.Name,
-					Open:         wsTicker.Open24H,
-					High:         wsTicker.High24H,
-					Low:          wsTicker.Low24H,
-					Last:         wsTicker.Price,
-					Volume:       wsTicker.Volume24H,
-					Bid:          wsTicker.BestBid,
-					Ask:          wsTicker.BestAsk,
-				}
-
-			case "snapshot":
-				snapshot := WebsocketOrderbookSnapshot{}
-				err := json.Unmarshal(resp.Raw, &snapshot)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-
-				err = c.ProcessSnapshot(&snapshot)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-
-			case "l2update":
-				update := WebsocketL2Update{}
-				err := json.Unmarshal(resp.Raw, &update)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-
-				err = c.ProcessUpdate(update)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-				// the following cases contains data to synchronise authenticated orders
-				// subscribing to the "full" channel will consider ALL cbp orders as
-				// personal orders
-				// remove sending &order.Detail to the datahandler if you wish to subscribe to the
-				// "full" channel
-			case "received", "open", "done", "change", "activate":
-				var wsOrder wsOrderReceived
-				err := json.Unmarshal(resp.Raw, &wsOrder)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-				createdDate, err := time.Parse(wsOrder.Time, time.RFC3339)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					createdDate = time.Now()
-				}
-				oType, err := order.StringToOrderType(wsOrder.OrderType)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-				}
-				oSide, err := order.StringToOrderSide(wsOrder.Side)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-				}
-				oStatus := statusToStandardStatus(wsOrder.Type)
-				if wsOrder.Reason == "canceled" {
-					oStatus = order.Cancelled
-				}
-				c.Websocket.DataHandler <- &order.Detail{
-					HiddenOrder:     wsOrder.Private,
-					Price:           wsOrder.Price,
-					Amount:          wsOrder.Size,
-					LimitPriceUpper: 0,
-					LimitPriceLower: 0,
-					TriggerPrice:    wsOrder.StopPrice,
-					TargetAmount:    0,
-					ExecutedAmount:  wsOrder.Size - wsOrder.RemainingSize,
-					RemainingAmount: wsOrder.RemainingSize,
-					Fee:             wsOrder.TakerFeeRate,
-					Exchange:        c.Name,
-					ID:              wsOrder.OrderID,
-					AccountID:       wsOrder.ProfileID,
-					ClientID:        c.API.Credentials.ClientID,
-					Type:            oType,
-					Side:            oSide,
-					Status:          oStatus,
-					AssetType:       asset.Spot,
-					Date:            createdDate,
-					Pair:            currency.NewPairFromString(wsOrder.ProductID),
-				}
-			}
 		}
 	}
+}
+
+func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
+	type MsgType struct {
+		Type      string `json:"type"`
+		Sequence  int64  `json:"sequence"`
+		ProductID string `json:"product_id"`
+	}
+
+	msgType := MsgType{}
+	err := json.Unmarshal(respRaw, &msgType)
+	if err != nil {
+		return err
+	}
+
+	if msgType.Type == "subscriptions" || msgType.Type == "heartbeat" {
+		return nil
+	}
+
+	switch msgType.Type {
+	case "error":
+		c.Websocket.DataHandler <- errors.New(string(respRaw))
+
+	case "ticker":
+		wsTicker := WebsocketTicker{}
+		err := json.Unmarshal(respRaw, &wsTicker)
+		if err != nil {
+			return err
+		}
+
+		c.Websocket.DataHandler <- &ticker.Price{
+			LastUpdated:  wsTicker.Time,
+			Pair:         wsTicker.ProductID,
+			AssetType:    asset.Spot,
+			ExchangeName: c.Name,
+			Open:         wsTicker.Open24H,
+			High:         wsTicker.High24H,
+			Low:          wsTicker.Low24H,
+			Last:         wsTicker.Price,
+			Volume:       wsTicker.Volume24H,
+			Bid:          wsTicker.BestBid,
+			Ask:          wsTicker.BestAsk,
+		}
+
+	case "snapshot":
+		snapshot := WebsocketOrderbookSnapshot{}
+		err := json.Unmarshal(respRaw, &snapshot)
+		if err != nil {
+			return err
+		}
+
+		err = c.ProcessSnapshot(&snapshot)
+		if err != nil {
+			return err
+		}
+
+	case "l2update":
+		update := WebsocketL2Update{}
+		err := json.Unmarshal(respRaw, &update)
+		if err != nil {
+			return err
+		}
+
+		err = c.ProcessUpdate(update)
+		if err != nil {
+			return err
+		}
+		// the following cases contains data to synchronise authenticated orders
+		// subscribing to the "full" channel will consider ALL cbp orders as
+		// personal orders
+		// remove sending &order.Detail to the datahandler if you wish to subscribe to the
+		// "full" channel
+	case "received", "open", "done", "change", "activate":
+		var wsOrder wsOrderReceived
+		err := json.Unmarshal(respRaw, &wsOrder)
+		if err != nil {
+			return err
+		}
+		createdDate, err := time.Parse(wsOrder.Time, time.RFC3339)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			createdDate = time.Now()
+		}
+		oType, err := order.StringToOrderType(wsOrder.OrderType)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+		}
+		oSide, err := order.StringToOrderSide(wsOrder.Side)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+		}
+		oStatus := statusToStandardStatus(wsOrder.Type)
+		if wsOrder.Reason == "canceled" {
+			oStatus = order.Cancelled
+		}
+		c.Websocket.DataHandler <- &order.Detail{
+			HiddenOrder:     wsOrder.Private,
+			Price:           wsOrder.Price,
+			Amount:          wsOrder.Size,
+			LimitPriceUpper: 0,
+			LimitPriceLower: 0,
+			TriggerPrice:    wsOrder.StopPrice,
+			TargetAmount:    0,
+			ExecutedAmount:  wsOrder.Size - wsOrder.RemainingSize,
+			RemainingAmount: wsOrder.RemainingSize,
+			Fee:             wsOrder.TakerFeeRate,
+			Exchange:        c.Name,
+			ID:              wsOrder.OrderID,
+			AccountID:       wsOrder.ProfileID,
+			ClientID:        c.API.Credentials.ClientID,
+			Type:            oType,
+			Side:            oSide,
+			Status:          oStatus,
+			AssetType:       asset.Spot,
+			Date:            createdDate,
+			Pair:            currency.NewPairFromString(wsOrder.ProductID),
+		}
+	}
+	return fmt.Errorf("%v Unhandled websocket message %s", c.Name, respRaw)
 }
 
 func statusToStandardStatus(stat string) order.Status {

@@ -47,7 +47,6 @@ func (z *ZB) WsConnect() error {
 // connection
 func (z *ZB) wsReadData() {
 	z.Websocket.Wg.Add(1)
-
 	defer func() {
 		z.Websocket.Wg.Done()
 	}()
@@ -64,127 +63,125 @@ func (z *ZB) wsReadData() {
 			}
 			z.Websocket.TrafficAlert <- struct{}{}
 			fixedJSON := z.wsFixInvalidJSON(resp.Raw)
-			var result Generic
-			err = json.Unmarshal(fixedJSON, &result)
+			err = z.wsHandleData(fixedJSON)
 			if err != nil {
 				z.Websocket.DataHandler <- err
-				continue
-			}
-			if result.No > 0 {
-				z.WebsocketConn.AddResponseWithID(result.No, fixedJSON)
-				continue
-			}
-			if result.Code > 0 && result.Code != 1000 {
-				z.Websocket.DataHandler <- fmt.Errorf("%v request failed, message: %v, error code: %v", z.Name, result.Message, wsErrCodes[result.Code])
-				continue
-			}
-			switch {
-			case strings.Contains(result.Channel, "markets"):
-				var markets Markets
-				err := json.Unmarshal(result.Data, &markets)
-				if err != nil {
-					z.Websocket.DataHandler <- err
-					continue
-				}
-
-			case strings.Contains(result.Channel, "ticker"):
-				cPair := strings.Split(result.Channel, "_")
-				var wsTicker WsTicker
-				err := json.Unmarshal(fixedJSON, &wsTicker)
-				if err != nil {
-					z.Websocket.DataHandler <- err
-					continue
-				}
-
-				z.Websocket.DataHandler <- &ticker.Price{
-					ExchangeName: z.Name,
-					Close:        wsTicker.Data.Last,
-					Volume:       wsTicker.Data.Volume24Hr,
-					High:         wsTicker.Data.High,
-					Low:          wsTicker.Data.Low,
-					Last:         wsTicker.Data.Last,
-					Bid:          wsTicker.Data.Buy,
-					Ask:          wsTicker.Data.Sell,
-					LastUpdated:  time.Unix(0, wsTicker.Date*int64(time.Millisecond)),
-					AssetType:    asset.Spot,
-					Pair:         currency.NewPairFromString(cPair[0]),
-				}
-
-			case strings.Contains(result.Channel, "depth"):
-				var depth WsDepth
-				err := json.Unmarshal(fixedJSON, &depth)
-				if err != nil {
-					z.Websocket.DataHandler <- err
-					continue
-				}
-
-				var asks []orderbook.Item
-				for i := range depth.Asks {
-					asks = append(asks, orderbook.Item{
-						Amount: depth.Asks[i][1].(float64),
-						Price:  depth.Asks[i][0].(float64),
-					})
-				}
-
-				var bids []orderbook.Item
-				for i := range depth.Bids {
-					bids = append(bids, orderbook.Item{
-						Amount: depth.Bids[i][1].(float64),
-						Price:  depth.Bids[i][0].(float64),
-					})
-				}
-
-				channelInfo := strings.Split(result.Channel, "_")
-				cPair := currency.NewPairFromString(channelInfo[0])
-				var newOrderBook orderbook.Base
-				newOrderBook.Asks = asks
-				newOrderBook.Bids = bids
-				newOrderBook.AssetType = asset.Spot
-				newOrderBook.Pair = cPair
-				newOrderBook.ExchangeName = z.Name
-
-				err = z.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
-				if err != nil {
-					z.Websocket.DataHandler <- err
-					continue
-				}
-
-				z.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-					Pair:     cPair,
-					Asset:    asset.Spot,
-					Exchange: z.Name,
-				}
-
-			case strings.Contains(result.Channel, "trades"):
-				var trades WsTrades
-				err := json.Unmarshal(fixedJSON, &trades)
-				if err != nil {
-					z.Websocket.DataHandler <- err
-					continue
-				}
-				// Most up to date trade
-				if len(trades.Data) == 0 {
-					continue
-				}
-				t := trades.Data[len(trades.Data)-1]
-
-				channelInfo := strings.Split(result.Channel, "_")
-				cPair := currency.NewPairFromString(channelInfo[0])
-				z.Websocket.DataHandler <- wshandler.TradeData{
-					Timestamp:    time.Unix(t.Date, 0),
-					CurrencyPair: cPair,
-					AssetType:    asset.Spot,
-					Exchange:     z.Name,
-					Price:        t.Price,
-					Amount:       t.Amount,
-					Side:         t.TradeType,
-				}
-			default:
-				z.Websocket.DataHandler <- errors.New("zb_websocket.go error - unhandled websocket response")
-				continue
 			}
 		}
 	}
+}
+
+func (z *ZB) wsHandleData(respRaw []byte) error {
+	var result Generic
+	err := json.Unmarshal(respRaw, &result)
+	if err != nil {
+		return err
+	}
+	if result.No > 0 {
+		z.WebsocketConn.AddResponseWithID(result.No, respRaw)
+		return nil
+	}
+	if result.Code > 0 && result.Code != 1000 {
+		return fmt.Errorf("%v request failed, message: %v, error code: %v", z.Name, result.Message, wsErrCodes[result.Code])
+	}
+	switch {
+	case strings.Contains(result.Channel, "markets"):
+		var markets Markets
+		err := json.Unmarshal(result.Data, &markets)
+		if err != nil {
+			return err
+		}
+
+	case strings.Contains(result.Channel, "ticker"):
+		cPair := strings.Split(result.Channel, "_")
+		var wsTicker WsTicker
+		err := json.Unmarshal(respRaw, &wsTicker)
+		if err != nil {
+			return err
+		}
+
+		z.Websocket.DataHandler <- &ticker.Price{
+			ExchangeName: z.Name,
+			Close:        wsTicker.Data.Last,
+			Volume:       wsTicker.Data.Volume24Hr,
+			High:         wsTicker.Data.High,
+			Low:          wsTicker.Data.Low,
+			Last:         wsTicker.Data.Last,
+			Bid:          wsTicker.Data.Buy,
+			Ask:          wsTicker.Data.Sell,
+			LastUpdated:  time.Unix(0, wsTicker.Date*int64(time.Millisecond)),
+			AssetType:    asset.Spot,
+			Pair:         currency.NewPairFromString(cPair[0]),
+		}
+
+	case strings.Contains(result.Channel, "depth"):
+		var depth WsDepth
+		err := json.Unmarshal(respRaw, &depth)
+		if err != nil {
+			return err
+		}
+
+		var asks []orderbook.Item
+		for i := range depth.Asks {
+			asks = append(asks, orderbook.Item{
+				Amount: depth.Asks[i][1].(float64),
+				Price:  depth.Asks[i][0].(float64),
+			})
+		}
+
+		var bids []orderbook.Item
+		for i := range depth.Bids {
+			bids = append(bids, orderbook.Item{
+				Amount: depth.Bids[i][1].(float64),
+				Price:  depth.Bids[i][0].(float64),
+			})
+		}
+
+		channelInfo := strings.Split(result.Channel, "_")
+		cPair := currency.NewPairFromString(channelInfo[0])
+		var newOrderBook orderbook.Base
+		newOrderBook.Asks = asks
+		newOrderBook.Bids = bids
+		newOrderBook.AssetType = asset.Spot
+		newOrderBook.Pair = cPair
+		newOrderBook.ExchangeName = z.Name
+
+		err = z.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+		if err != nil {
+			return err
+		}
+
+		z.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+			Pair:     cPair,
+			Asset:    asset.Spot,
+			Exchange: z.Name,
+		}
+
+	case strings.Contains(result.Channel, "trades"):
+		var trades WsTrades
+		err := json.Unmarshal(respRaw, &trades)
+		if err != nil {
+			return err
+		}
+		// Most up to date trade
+		if len(trades.Data) == 0 {
+			return errors.New(z.Name + " - Empty websocket trade data received: " + string(respRaw))
+		}
+		t := trades.Data[len(trades.Data)-1]
+
+		channelInfo := strings.Split(result.Channel, "_")
+		cPair := currency.NewPairFromString(channelInfo[0])
+		z.Websocket.DataHandler <- wshandler.TradeData{
+			Timestamp:    time.Unix(t.Date, 0),
+			CurrencyPair: cPair,
+			AssetType:    asset.Spot,
+			Exchange:     z.Name,
+			Price:        t.Price,
+			Amount:       t.Amount,
+			Side:         t.TradeType,
+		}
+	}
+	return errors.New(z.Name + " - unhandled websocket response: " + string(respRaw))
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
