@@ -86,9 +86,9 @@ func (a *Alphapoint) UpdateTradablePairs(forceUpdate bool) error {
 	return common.ErrFunctionNotSupported
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies on the
+// UpdateAccountInfo retrieves balances for all enabled currencies on the
 // Alphapoint exchange
-func (a *Alphapoint) GetAccountInfo() (account.Holdings, error) {
+func (a *Alphapoint) UpdateAccountInfo() (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = a.Name
 	acc, err := a.GetAccountInformation()
@@ -110,7 +110,23 @@ func (a *Alphapoint) GetAccountInfo() (account.Holdings, error) {
 		Currencies: balances,
 	})
 
+	err = account.Process(&response)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return response, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies on the
+// Alphapoint exchange
+func (a *Alphapoint) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(a.Name)
+	if err != nil {
+		return a.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -417,10 +433,6 @@ func (a *Alphapoint) AuthenticateWebsocket() error {
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (a *Alphapoint) ValidateCredentials() error {
-	acc, err := a.GetAccountInfo()
-	if err != nil {
-		return a.CheckTransientError(err)
-	}
-
-	return account.Process(&acc)
+	_, err := a.UpdateAccountInfo()
+	return a.CheckTransientError(err)
 }

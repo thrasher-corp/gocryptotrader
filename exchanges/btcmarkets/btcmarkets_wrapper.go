@@ -315,8 +315,8 @@ func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*or
 	return orderbook.Get(b.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies
-func (b *BTCMarkets) GetAccountInfo() (account.Holdings, error) {
+// UpdateAccountInfo retrieves balances for all enabled currencies
+func (b *BTCMarkets) UpdateAccountInfo() (account.Holdings, error) {
 	var resp account.Holdings
 	data, err := b.GetAccountBalance()
 	if err != nil {
@@ -334,8 +334,25 @@ func (b *BTCMarkets) GetAccountInfo() (account.Holdings, error) {
 	}
 	resp.Accounts = append(resp.Accounts, acc)
 	resp.Exchange = b.Name
+
+	err = account.Process(&resp)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return resp, nil
 }
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (b *BTCMarkets) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(b.Name)
+	if err != nil {
+		return b.UpdateAccountInfo()
+	}
+
+	return acc, nil
+}
+
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
@@ -693,7 +710,7 @@ func (b *BTCMarkets) AuthenticateWebsocket() error {
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (b *BTCMarkets) ValidateCredentials() error {
-	acc, err := b.GetAccountInfo()
+	_, err := b.UpdateAccountInfo()
 	if err != nil {
 		if b.CheckTransientError(err) == nil {
 			return nil
@@ -706,8 +723,7 @@ func (b *BTCMarkets) ValidateCredentials() error {
 			strings.Contains(err.Error(), "InsufficientAPIPermission") {
 			return err
 		}
-		return nil
 	}
 
-	return account.Process(&acc)
+	return nil
 }

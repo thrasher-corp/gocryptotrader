@@ -111,7 +111,7 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "UpdateTradablePairs")
 	}
 
-	_, err = e.GetAccountInfo()
+	_, err = e.FetchAccountInfo()
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "GetAccountInfo")
 	}

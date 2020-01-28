@@ -337,9 +337,9 @@ func (h *HitBTC) UpdateOrderbook(currencyPair currency.Pair, assetType asset.Ite
 	return orderbook.Get(h.Name, currencyPair, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // HitBTC exchange
-func (h *HitBTC) GetAccountInfo() (account.Holdings, error) {
+func (h *HitBTC) UpdateAccountInfo() (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = h.Name
 	accountBalance, err := h.GetBalances()
@@ -360,7 +360,22 @@ func (h *HitBTC) GetAccountInfo() (account.Holdings, error) {
 		Currencies: currencies,
 	})
 
+	err = account.Process(&response)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return response, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (h *HitBTC) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(h.Name)
+	if err != nil {
+		return h.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -602,10 +617,6 @@ func (h *HitBTC) AuthenticateWebsocket() error {
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (h *HitBTC) ValidateCredentials() error {
-	acc, err := h.GetAccountInfo()
-	if err != nil {
-		return h.CheckTransientError(err)
-	}
-
-	return account.Process(&acc)
+	_, err := h.UpdateAccountInfo()
+	return h.CheckTransientError(err)
 }

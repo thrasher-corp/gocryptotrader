@@ -210,9 +210,9 @@ func (g *Gemini) UpdateTradablePairs(forceUpdate bool) error {
 	return g.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
-// GetAccountInfo Retrieves balances for all enabled currencies for the
+// UpdateAccountInfo Retrieves balances for all enabled currencies for the
 // Gemini exchange
-func (g *Gemini) GetAccountInfo() (account.Holdings, error) {
+func (g *Gemini) UpdateAccountInfo() (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = g.Name
 	accountBalance, err := g.GetBalances()
@@ -233,7 +233,22 @@ func (g *Gemini) GetAccountInfo() (account.Holdings, error) {
 		Currencies: currencies,
 	})
 
+	err = account.Process(&response)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return response, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (g *Gemini) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(g.Name)
+	if err != nil {
+		return g.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -550,10 +565,6 @@ func (g *Gemini) AuthenticateWebsocket() error {
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (g *Gemini) ValidateCredentials() error {
-	acc, err := g.GetAccountInfo()
-	if err != nil {
-		return g.CheckTransientError(err)
-	}
-
-	return account.Process(&acc)
+	_, err := g.UpdateAccountInfo()
+	return g.CheckTransientError(err)
 }

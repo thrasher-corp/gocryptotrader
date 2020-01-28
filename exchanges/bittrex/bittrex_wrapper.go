@@ -196,9 +196,9 @@ func (b *Bittrex) UpdateTradablePairs(forceUpdate bool) error {
 	return b.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
-// GetAccountInfo Retrieves balances for all enabled currencies for the
+// UpdateAccountInfo Retrieves balances for all enabled currencies for the
 // Bittrex exchange
-func (b *Bittrex) GetAccountInfo() (account.Holdings, error) {
+func (b *Bittrex) UpdateAccountInfo() (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = b.Name
 	accountBalance, err := b.GetAccountBalances()
@@ -219,7 +219,22 @@ func (b *Bittrex) GetAccountInfo() (account.Holdings, error) {
 		Currencies: currencies,
 	})
 
+	err = account.Process(&response)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return response, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (b *Bittrex) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(b.Name)
+	if err != nil {
+		return b.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -566,10 +581,6 @@ func (b *Bittrex) AuthenticateWebsocket() error {
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (b *Bittrex) ValidateCredentials() error {
-	acc, err := b.GetAccountInfo()
-	if err != nil {
-		return b.CheckTransientError(err)
-	}
-
-	return account.Process(&acc)
+	_, err := b.UpdateAccountInfo()
+	return b.CheckTransientError(err)
 }

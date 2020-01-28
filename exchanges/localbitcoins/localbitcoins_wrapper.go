@@ -245,9 +245,9 @@ func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType asset.Item) (
 	return orderbook.Get(l.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // LocalBitcoins exchange
-func (l *LocalBitcoins) GetAccountInfo() (account.Holdings, error) {
+func (l *LocalBitcoins) UpdateAccountInfo() (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = l.Name
 	accountBalance, err := l.GetWalletBalance()
@@ -261,7 +261,23 @@ func (l *LocalBitcoins) GetAccountInfo() (account.Holdings, error) {
 	response.Accounts = append(response.Accounts, account.SubAccount{
 		Currencies: []account.Balance{exchangeCurrency},
 	})
+
+	err = account.Process(&response)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return response, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (l *LocalBitcoins) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(l.Name)
+	if err != nil {
+		return l.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -576,10 +592,6 @@ func (l *LocalBitcoins) AuthenticateWebsocket() error {
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (l *LocalBitcoins) ValidateCredentials() error {
-	acc, err := l.GetAccountInfo()
-	if err != nil {
-		return l.CheckTransientError(err)
-	}
-
-	return account.Process(&acc)
+	_, err := l.UpdateAccountInfo()
+	return l.CheckTransientError(err)
 }

@@ -392,9 +392,9 @@ func (h *HUOBI) GetAccountID() ([]Account, error) {
 	return acc, nil
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // HUOBI exchange - to-do
-func (h *HUOBI) GetAccountInfo() (account.Holdings, error) {
+func (h *HUOBI) UpdateAccountInfo() (account.Holdings, error) {
 	var info account.Holdings
 	info.Exchange = h.Name
 	if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -474,8 +474,25 @@ func (h *HUOBI) GetAccountInfo() (account.Holdings, error) {
 			info.Accounts = append(info.Accounts, acc)
 		}
 	}
+
+	err := account.Process(&info)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return info, nil
 }
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (h *HUOBI) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(h.Name)
+	if err != nil {
+		return h.UpdateAccountInfo()
+	}
+
+	return acc, nil
+}
+
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
@@ -850,10 +867,6 @@ func (h *HUOBI) AuthenticateWebsocket() error {
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (h *HUOBI) ValidateCredentials() error {
-	acc, err := h.GetAccountInfo()
-	if err != nil {
-		return h.CheckTransientError(err)
-	}
-
-	return account.Process(&acc)
+	_, err := h.UpdateAccountInfo()
+	return h.CheckTransientError(err)
 }

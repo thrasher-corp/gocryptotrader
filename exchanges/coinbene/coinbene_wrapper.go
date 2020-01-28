@@ -412,9 +412,9 @@ func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 	return orderbook.Get(c.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Coinbene exchange
-func (c *Coinbene) GetAccountInfo() (account.Holdings, error) {
+func (c *Coinbene) UpdateAccountInfo() (account.Holdings, error) {
 	var info account.Holdings
 	balance, err := c.GetAccountBalances()
 	if err != nil {
@@ -434,7 +434,23 @@ func (c *Coinbene) GetAccountInfo() (account.Holdings, error) {
 	}
 	info.Accounts = append(info.Accounts, acc)
 	info.Exchange = c.Name
+
+	err = account.Process(&info)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return info, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (c *Coinbene) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(c.Name)
+	if err != nil {
+		return c.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -724,10 +740,6 @@ func (c *Coinbene) AuthenticateWebsocket() error {
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (c *Coinbene) ValidateCredentials() error {
-	acc, err := c.GetAccountInfo()
-	if err != nil {
-		return c.CheckTransientError(err)
-	}
-
-	return account.Process(&acc)
+	_, err := c.UpdateAccountInfo()
+	return c.CheckTransientError(err)
 }

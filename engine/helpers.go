@@ -762,7 +762,7 @@ func GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
 				}
 				continue
 			}
-			individualExchange, err := individualBot.GetAccountInfo()
+			individualExchange, err := individualBot.FetchAccountInfo()
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "Error encountered retrieving exchange account info for %s. Error %s\n",
 					individualBot.GetName(), err)

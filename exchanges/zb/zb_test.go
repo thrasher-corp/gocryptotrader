@@ -391,12 +391,12 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	if z.ValidateAPICredentials() {
-		_, err := z.GetAccountInfo()
+		_, err := z.UpdateAccountInfo()
 		if err != nil {
 			t.Error("GetAccountInfo() error", err)
 		}
 	} else {
-		_, err := z.GetAccountInfo()
+		_, err := z.UpdateAccountInfo()
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}

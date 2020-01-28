@@ -255,9 +255,9 @@ func (c *CoinbasePro) UpdateTradablePairs(forceUpdate bool) error {
 	return c.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // coinbasepro exchange
-func (c *CoinbasePro) GetAccountInfo() (account.Holdings, error) {
+func (c *CoinbasePro) UpdateAccountInfo() (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = c.Name
 	accountBalance, err := c.GetAccounts()
@@ -279,7 +279,22 @@ func (c *CoinbasePro) GetAccountInfo() (account.Holdings, error) {
 		Currencies: currencies,
 	})
 
+	err = account.Process(&response)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return response, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (c *CoinbasePro) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(c.Name)
+	if err != nil {
+		return c.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -644,10 +659,6 @@ func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, rangesize, granularity
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (c *CoinbasePro) ValidateCredentials() error {
-	acc, err := c.GetAccountInfo()
-	if err != nil {
-		return c.CheckTransientError(err)
-	}
-
-	return account.Process(&acc)
+	_, err := c.UpdateAccountInfo()
+	return c.CheckTransientError(err)
 }

@@ -268,9 +268,9 @@ func (y *Yobit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 	return orderbook.Get(y.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Yobit exchange
-func (y *Yobit) GetAccountInfo() (account.Holdings, error) {
+func (y *Yobit) UpdateAccountInfo() (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = y.Name
 	accountBalance, err := y.GetAccountInformation()
@@ -297,7 +297,22 @@ func (y *Yobit) GetAccountInfo() (account.Holdings, error) {
 		Currencies: currencies,
 	})
 
+	err = account.Process(&response)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return response, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (y *Yobit) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(y.Name)
+	if err != nil {
+		return y.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -545,10 +560,6 @@ func (y *Yobit) AuthenticateWebsocket() error {
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (y *Yobit) ValidateCredentials() error {
-	acc, err := y.GetAccountInfo()
-	if err != nil {
-		return y.CheckTransientError(err)
-	}
-
-	return account.Process(&acc)
+	_, err := y.UpdateAccountInfo()
+	return y.CheckTransientError(err)
 }

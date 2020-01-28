@@ -258,10 +258,20 @@ func (b *Bitflyer) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 	return orderbook.Get(b.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies on the
+// UpdateAccountInfo retrieves balances for all enabled currencies on the
 // Bitflyer exchange
-func (b *Bitflyer) GetAccountInfo() (account.Holdings, error) {
+func (b *Bitflyer) UpdateAccountInfo() (account.Holdings, error) {
 	return account.Holdings{}, common.ErrNotYetImplemented
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (b *Bitflyer) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(b.Name)
+	if err != nil {
+		return b.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -377,10 +387,6 @@ func (b *Bitflyer) AuthenticateWebsocket() error {
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (b *Bitflyer) ValidateCredentials() error {
-	acc, err := b.GetAccountInfo()
-	if err != nil {
-		return b.CheckTransientError(err)
-	}
-
-	return account.Process(&acc)
+	_, err := b.UpdateAccountInfo()
+	return b.CheckTransientError(err)
 }

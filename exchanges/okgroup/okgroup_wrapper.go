@@ -171,8 +171,8 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 	return orderbook.Get(o.Name, p, a)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies
-func (o *OKGroup) GetAccountInfo() (resp account.Holdings, err error) {
+// UpdateAccountInfo retrieves balances for all enabled currencies
+func (o *OKGroup) UpdateAccountInfo() (resp account.Holdings, err error) {
 	resp.Exchange = o.Name
 	currencies, err := o.GetSpotTradingAccounts()
 	currencyAccount := account.SubAccount{}
@@ -199,7 +199,23 @@ func (o *OKGroup) GetAccountInfo() (resp account.Holdings, err error) {
 	}
 
 	resp.Accounts = append(resp.Accounts, currencyAccount)
+
+	err = account.Process(&resp)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (o *OKGroup) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(o.Name)
+	if err != nil {
+		return o.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -508,10 +524,6 @@ func (o *OKGroup) AuthenticateWebsocket() error {
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (o *OKGroup) ValidateCredentials() error {
-	acc, err := o.GetAccountInfo()
-	if err != nil {
-		return o.CheckTransientError(err)
-	}
-
-	return account.Process(&acc)
+	_, err := o.UpdateAccountInfo()
+	return o.CheckTransientError(err)
 }

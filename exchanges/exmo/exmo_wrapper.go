@@ -280,9 +280,9 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 	return orderbook.Get(e.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Exmo exchange
-func (e *EXMO) GetAccountInfo() (account.Holdings, error) {
+func (e *EXMO) UpdateAccountInfo() (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = e.Name
 	result, err := e.GetUserInfo()
@@ -309,7 +309,22 @@ func (e *EXMO) GetAccountInfo() (account.Holdings, error) {
 		Currencies: currencies,
 	})
 
+	err = account.Process(&response)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return response, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (e *EXMO) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(e.Name)
+	if err != nil {
+		return e.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -547,10 +562,6 @@ func (e *EXMO) AuthenticateWebsocket() error {
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (e *EXMO) ValidateCredentials() error {
-	acc, err := e.GetAccountInfo()
-	if err != nil {
-		return e.CheckTransientError(err)
-	}
-
-	return account.Process(&acc)
+	_, err := e.UpdateAccountInfo()
+	return e.CheckTransientError(err)
 }

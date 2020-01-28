@@ -400,14 +400,14 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		}
 
 		var r7 account.Holdings
-		r7, err = e.GetAccountInfo()
+		r7, err = e.FetchAccountInfo()
 		msg = ""
 		if err != nil {
 			msg = err.Error()
 			responseContainer.ErrorCount++
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "GetAccountInfo",
+			Function: "FetchAccountInfo",
 			Error:    msg,
 			Response: jsonifyInterface([]interface{}{r7}),
 		})

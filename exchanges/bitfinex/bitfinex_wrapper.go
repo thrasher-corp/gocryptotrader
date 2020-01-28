@@ -330,9 +330,9 @@ func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 	return orderbook.Get(b.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies on the
+// UpdateAccountInfo retrieves balances for all enabled currencies on the
 // Bitfinex exchange
-func (b *Bitfinex) GetAccountInfo() (account.Holdings, error) {
+func (b *Bitfinex) UpdateAccountInfo() (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = b.Name
 
@@ -361,7 +361,22 @@ func (b *Bitfinex) GetAccountInfo() (account.Holdings, error) {
 	}
 
 	response.Accounts = Accounts
+	err = account.Process(&response)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return response, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (b *Bitfinex) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(b.Name)
+	if err != nil {
+		return b.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -724,10 +739,6 @@ func (b *Bitfinex) appendOptionalDelimiter(p *currency.Pair) {
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (b *Bitfinex) ValidateCredentials() error {
-	acc, err := b.GetAccountInfo()
-	if err != nil {
-		return b.CheckTransientError(err)
-	}
-
-	return account.Process(&acc)
+	_, err := b.UpdateAccountInfo()
+	return b.CheckTransientError(err)
 }

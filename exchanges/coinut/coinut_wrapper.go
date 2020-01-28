@@ -261,9 +261,9 @@ func (c *COINUT) UpdateTradablePairs(forceUpdate bool) error {
 		asset.Spot, false, forceUpdate)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // COINUT exchange
-func (c *COINUT) GetAccountInfo() (account.Holdings, error) {
+func (c *COINUT) UpdateAccountInfo() (account.Holdings, error) {
 	var info account.Holdings
 	var bal *UserBalance
 	var err error
@@ -344,7 +344,22 @@ func (c *COINUT) GetAccountInfo() (account.Holdings, error) {
 		Currencies: balances,
 	})
 
+	err = account.Process(&info)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return info, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (c *COINUT) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(c.Name)
+	if err != nil {
+		return c.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -892,10 +907,6 @@ func (c *COINUT) loadInstrumentsIfNotLoaded() error {
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (c *COINUT) ValidateCredentials() error {
-	acc, err := c.GetAccountInfo()
-	if err != nil {
-		return c.CheckTransientError(err)
-	}
-
-	return account.Process(&acc)
+	_, err := c.UpdateAccountInfo()
+	return c.CheckTransientError(err)
 }

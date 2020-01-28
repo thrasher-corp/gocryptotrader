@@ -448,7 +448,7 @@ func (s *RPCServer) GetAccountInfo(ctx context.Context, r *gctrpc.GetAccountInfo
 		return nil, errors.New("exchange is not loaded/doesn't exist")
 	}
 
-	resp, err := exch.GetAccountInfo()
+	resp, err := exch.FetchAccountInfo()
 	if err != nil {
 		return nil, err
 	}

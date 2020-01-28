@@ -250,9 +250,9 @@ func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 	return orderbook.Get(l.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Lbank exchange
-func (l *Lbank) GetAccountInfo() (account.Holdings, error) {
+func (l *Lbank) UpdateAccountInfo() (account.Holdings, error) {
 	var info account.Holdings
 	data, err := l.GetUserInfo()
 	if err != nil {
@@ -281,7 +281,22 @@ func (l *Lbank) GetAccountInfo() (account.Holdings, error) {
 
 	info.Accounts = append(info.Accounts, acc)
 	info.Exchange = l.Name
+
+	err = account.Process(&info)
+	if err != nil {
+		return account.Holdings{}, err
+	}
 	return info, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (l *Lbank) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(l.Name)
+	if err != nil {
+		return l.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -695,10 +710,6 @@ func (l *Lbank) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, er
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (l *Lbank) ValidateCredentials() error {
-	acc, err := l.GetAccountInfo()
-	if err != nil {
-		return l.CheckTransientError(err)
-	}
-
-	return account.Process(&acc)
+	_, err := l.UpdateAccountInfo()
+	return l.CheckTransientError(err)
 }

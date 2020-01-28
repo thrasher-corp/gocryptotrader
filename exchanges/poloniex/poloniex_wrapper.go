@@ -322,9 +322,9 @@ func (p *Poloniex) UpdateOrderbook(currencyPair currency.Pair, assetType asset.I
 	return orderbook.Get(p.Name, currencyPair, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Poloniex exchange
-func (p *Poloniex) GetAccountInfo() (account.Holdings, error) {
+func (p *Poloniex) UpdateAccountInfo() (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = p.Name
 	accountBalance, err := p.GetBalances()
@@ -344,7 +344,22 @@ func (p *Poloniex) GetAccountInfo() (account.Holdings, error) {
 		Currencies: currencies,
 	})
 
+	err = account.Process(&response)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return response, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (p *Poloniex) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(p.Name)
+	if err != nil {
+		return p.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -611,10 +626,6 @@ func (p *Poloniex) AuthenticateWebsocket() error {
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (p *Poloniex) ValidateCredentials() error {
-	acc, err := p.GetAccountInfo()
-	if err != nil {
-		return p.CheckTransientError(err)
-	}
-
-	return account.Process(&acc)
+	_, err := p.UpdateAccountInfo()
+	return p.CheckTransientError(err)
 }

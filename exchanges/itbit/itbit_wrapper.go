@@ -240,8 +240,8 @@ func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 	return orderbook.Get(i.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies
-func (i *ItBit) GetAccountInfo() (account.Holdings, error) {
+// UpdateAccountInfo retrieves balances for all enabled currencies
+func (i *ItBit) UpdateAccountInfo() (account.Holdings, error) {
 	var info account.Holdings
 	info.Exchange = i.Name
 
@@ -281,7 +281,22 @@ func (i *ItBit) GetAccountInfo() (account.Holdings, error) {
 		Currencies: fullBalance,
 	})
 
+	err = account.Process(&info)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return info, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (i *ItBit) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(i.Name)
+	if err != nil {
+		return i.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -552,10 +567,6 @@ func (i *ItBit) AuthenticateWebsocket() error {
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (i *ItBit) ValidateCredentials() error {
-	acc, err := i.GetAccountInfo()
-	if err != nil {
-		return i.CheckTransientError(err)
-	}
-
-	return account.Process(&acc)
+	_, err := i.UpdateAccountInfo()
+	return i.CheckTransientError(err)
 }

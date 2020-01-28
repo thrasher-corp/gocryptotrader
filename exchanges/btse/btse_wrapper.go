@@ -297,9 +297,9 @@ func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 	return orderbook.Get(b.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // BTSE exchange
-func (b *BTSE) GetAccountInfo() (account.Holdings, error) {
+func (b *BTSE) UpdateAccountInfo() (account.Holdings, error) {
 	var a account.Holdings
 	balance, err := b.GetAccountBalance()
 	if err != nil {
@@ -322,7 +322,23 @@ func (b *BTSE) GetAccountInfo() (account.Holdings, error) {
 			Currencies: currencies,
 		},
 	}
+
+	err = account.Process(&a)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return a, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (b *BTSE) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(b.Name)
+	if err != nil {
+		return b.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -631,10 +647,6 @@ func (b *BTSE) AuthenticateWebsocket() error {
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (b *BTSE) ValidateCredentials() error {
-	acc, err := b.GetAccountInfo()
-	if err != nil {
-		return b.CheckTransientError(err)
-	}
-
-	return account.Process(&acc)
+	_, err := b.UpdateAccountInfo()
+	return b.CheckTransientError(err)
 }

@@ -307,9 +307,9 @@ func (g *Gateio) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 	return orderbook.Get(g.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // ZB exchange
-func (g *Gateio) GetAccountInfo() (account.Holdings, error) {
+func (g *Gateio) UpdateAccountInfo() (account.Holdings, error) {
 	var info account.Holdings
 	var balances []account.Balance
 
@@ -385,8 +385,22 @@ func (g *Gateio) GetAccountInfo() (account.Holdings, error) {
 	}
 
 	info.Exchange = g.Name
+	err := account.Process(&info)
+	if err != nil {
+		return account.Holdings{}, err
+	}
 
 	return info, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (g *Gateio) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(g.Name)
+	if err != nil {
+		return g.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -698,10 +712,6 @@ func (g *Gateio) AuthenticateWebsocket() error {
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (g *Gateio) ValidateCredentials() error {
-	acc, err := g.GetAccountInfo()
-	if err != nil {
-		return g.CheckTransientError(err)
-	}
-
-	return account.Process(&acc)
+	_, err := g.UpdateAccountInfo()
+	return g.CheckTransientError(err)
 }
