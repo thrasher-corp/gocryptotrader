@@ -894,7 +894,7 @@ func addPortfolioAddress(c *cli.Context) error {
 	}
 
 	if c.IsSet("description") {
-		description = c.String("asset")
+		description = c.String("description")
 	} else {
 		description = c.Args().Get(2)
 	}
@@ -902,7 +902,13 @@ func addPortfolioAddress(c *cli.Context) error {
 	if c.IsSet("balance") {
 		balance = c.Float64("balance")
 	} else {
-		balance, _ = strconv.ParseFloat(c.Args().Get(3), 64)
+		if c.Args().Get(3) != "" {
+			var err error
+			balance, err = strconv.ParseFloat(c.Args().Get(3), 64)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
@@ -973,7 +979,7 @@ func removePortfolioAddress(c *cli.Context) error {
 	}
 
 	if c.IsSet("description") {
-		description = c.String("asset")
+		description = c.String("description")
 	} else {
 		description = c.Args().Get(2)
 	}
@@ -1044,7 +1050,7 @@ func getForexRates(_ *cli.Context) error {
 var getOrdersCommand = cli.Command{
 	Name:      "getorders",
 	Usage:     "gets the open orders",
-	ArgsUsage: "<exchange> <asset_type> <pair>",
+	ArgsUsage: "<exchange> <asset> <pair>",
 	Action:    getOrders,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -1052,7 +1058,7 @@ var getOrdersCommand = cli.Command{
 			Usage: "the exchange to get orders for",
 		},
 		cli.StringFlag{
-			Name:  "asset_type",
+			Name:  "asset",
 			Usage: "the asset type to get orders for",
 		},
 		cli.StringFlag{
@@ -1077,8 +1083,8 @@ func getOrders(c *cli.Context) error {
 		return errInvalidExchange
 	}
 
-	if c.IsSet("asset_type") {
-		assetType = c.String("asset_type")
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
 	} else {
 		assetType = c.Args().Get(1)
 	}
@@ -1270,13 +1276,21 @@ func submitOrder(c *cli.Context) error {
 	if c.IsSet("amount") {
 		amount = c.Float64("amount")
 	} else {
-		amount, _ = strconv.ParseFloat(c.Args().Get(4), 64)
+		var err error
+		amount, err = strconv.ParseFloat(c.Args().Get(4), 64)
+		if err != nil {
+			return err
+		}
 	}
 
 	if c.IsSet("price") {
 		price = c.Float64("price")
 	} else {
-		price, _ = strconv.ParseFloat(c.Args().Get(5), 64)
+		var err error
+		price, err = strconv.ParseFloat(c.Args().Get(5), 64)
+		if err != nil {
+			return err
+		}
 	}
 
 	if c.IsSet("client_id") {
@@ -1375,11 +1389,23 @@ func simulateOrder(c *cli.Context) error {
 	} else {
 		orderSide = c.Args().Get(2)
 	}
+	if orderSide != "" {
+		return errors.New("side must be set")
+	}
 
 	if c.IsSet("amount") {
 		amount = c.Float64("amount")
 	} else {
-		amount, _ = strconv.ParseFloat(c.Args().Get(3), 64)
+		if c.Args().Get(3) != "" {
+			var err error
+			amount, err = strconv.ParseFloat(c.Args().Get(3), 64)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	if amount == 0 {
+		return errors.New("amount must be set")
 	}
 
 	conn, err := setupClient()
@@ -1473,7 +1499,13 @@ func whaleBomb(c *cli.Context) error {
 	if c.IsSet("price") {
 		price = c.Float64("price")
 	} else {
-		price, _ = strconv.ParseFloat(c.Args().Get(3), 64)
+		if c.Args().Get(3) != "" {
+			var err error
+			price, err = strconv.ParseFloat(c.Args().Get(3), 64)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	conn, err := setupClient()
@@ -1505,7 +1537,7 @@ func whaleBomb(c *cli.Context) error {
 var cancelOrderCommand = cli.Command{
 	Name:      "cancelorder",
 	Usage:     "cancel order cancels an exchange order",
-	ArgsUsage: "<exchange> <account_id> <order_id> <pair> <asset_type> <wallet_address> <side>",
+	ArgsUsage: "<exchange> <account_id> <order_id> <pair> <asset> <wallet_address> <side>",
 	Action:    cancelOrder,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -1525,7 +1557,7 @@ var cancelOrderCommand = cli.Command{
 			Usage: "the currency pair to cancel the order for",
 		},
 		cli.StringFlag{
-			Name:  "asset_type",
+			Name:  "asset",
 			Usage: "the asset type",
 		},
 		cli.Float64Flag{
@@ -1577,8 +1609,8 @@ func cancelOrder(c *cli.Context) error {
 		currencyPair = c.String("pair")
 	}
 
-	if c.IsSet("asset_type") {
-		assetType = c.String("asset_type")
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
 	}
 
 	assetType = strings.ToLower(assetType)
@@ -1702,7 +1734,7 @@ func getEvents(_ *cli.Context) error {
 var addEventCommand = cli.Command{
 	Name:      "addevent",
 	Usage:     "adds an event",
-	ArgsUsage: "<exchange> <item> <condition> <price> <check_bids> <check_bids_and_asks> <orderbook_amount> <pair> <asset_type> <action>",
+	ArgsUsage: "<exchange> <item> <condition> <price> <check_bids> <check_bids_and_asks> <orderbook_amount> <pair> <asset> <action>",
 	Action:    addEvent,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -1738,7 +1770,7 @@ var addEventCommand = cli.Command{
 			Usage: "the currency pair",
 		},
 		cli.StringFlag{
-			Name:  "asset_type",
+			Name:  "asset",
 			Usage: "the asset type",
 		},
 		cli.StringFlag{
@@ -1805,8 +1837,12 @@ func addEvent(c *cli.Context) error {
 		return fmt.Errorf("currency pair is required")
 	}
 
-	if c.IsSet("asset_type") {
-		assetType = c.String("asset_type")
+	if !validPair(currencyPair) {
+		return errInvalidPair
+	}
+
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
 	}
 
 	assetType = strings.ToLower(assetType)
@@ -1818,10 +1854,6 @@ func addEvent(c *cli.Context) error {
 		action = c.String("action")
 	} else {
 		return fmt.Errorf("action is required")
-	}
-
-	if !validPair(currencyPair) {
-		return errInvalidPair
 	}
 
 	conn, err := setupClient()
@@ -1881,11 +1913,14 @@ func removeEvent(c *cli.Context) error {
 	if c.IsSet("event_id") {
 		eventID = c.Int64("event_id")
 	} else {
-		evtID, err := strconv.Atoi(c.Args().Get(0))
-		if err != nil {
-			return fmt.Errorf("unable to strconv input to int. Err: %s", err)
+		if c.Args().Get(0) != "" {
+			var err error
+			eventID, err = strconv.ParseInt(c.Args().Get(0), 10, 64)
+			if err != nil {
+				return err
+			}
 		}
-		eventID = int64(evtID)
+
 	}
 
 	conn, err := setupClient()
@@ -1991,7 +2026,13 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 	if c.IsSet("cryptocurrency") {
 		cryptocurrency = c.String("cryptocurrency")
 	} else {
-		cryptocurrency = c.Args().Get(1)
+		if c.Args().Get(1) != "" {
+			cryptocurrency = c.Args().Get(1)
+		}
+	}
+
+	if cryptocurrency == "" {
+		return errors.New("cryptocurrency must be set")
 	}
 
 	conn, err := setupClient()
@@ -2868,7 +2909,7 @@ func getAuditEvent(c *cli.Context) error {
 
 	if !c.IsSet("limit") {
 		if c.Args().Get(3) != "" {
-			limitStr, err := strconv.ParseInt(c.Args().Get(3), 10, 32)
+			limitStr, err := strconv.ParseInt(c.Args().Get(3), 10, 64)
 			if err == nil {
 				limit = int(limitStr)
 			}
@@ -3351,6 +3392,7 @@ func gctScriptUpload(c *cli.Context) error {
 	return nil
 }
 
+var candleRangeSize, candleGranularity int64
 var getHistoricCandlesCommand = cli.Command{
 	Name:      "gethistoriccandles",
 	Usage:     "gets historical candles for the specified granularity up to range size time from now.",
@@ -3365,13 +3407,17 @@ var getHistoricCandlesCommand = cli.Command{
 			Name:  "pair",
 			Usage: "the currency pair to get the candles for",
 		},
-		cli.IntFlag{
-			Name:  "rangesize, r",
-			Usage: "the amount of time to go back from now to fetch candles in the given granularity",
+		cli.Int64Flag{
+			Name:        "rangesize, r",
+			Usage:       "the amount of time to go back from now to fetch candles in the given granularity",
+			Value:       10,
+			Destination: &candleRangeSize,
 		},
-		cli.IntFlag{
-			Name:  "granularity, g",
-			Usage: "value is in seconds and can be one of the following {60, 300, 900, 3600, 21600, 86400}",
+		cli.Int64Flag{
+			Name:        "granularity, g",
+			Usage:       "value is in seconds and can be one of the following {60, 300, 900, 3600, 21600, 86400}",
+			Value:       86400,
+			Destination: &candleGranularity,
 		},
 	},
 }
@@ -3403,26 +3449,28 @@ func getHistoricCandles(c *cli.Context) error {
 	}
 	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
 
-	var rangesize int64
 	if c.IsSet("rangesize") {
-		rangesize = c.Int64("rangesize")
+		candleRangeSize = c.Int64("rangesize")
 	} else {
-		rs, err := strconv.Atoi(c.Args().Get(2))
-		if err != nil {
-			return fmt.Errorf("unable to strconv input to int. Err: %s", err)
+		if c.Args().Get(2) != "" {
+			var err error
+			candleRangeSize, err = strconv.ParseInt(c.Args().Get(2), 10, 64)
+			if err != nil {
+				return err
+			}
 		}
-		rangesize = int64(rs)
 	}
 
-	var granularity int64
 	if c.IsSet("granularity") {
-		granularity = c.Int64("granularity")
+		candleGranularity = c.Int64("granularity")
 	} else {
-		gr, err := strconv.Atoi(c.Args().Get(3))
-		if err != nil {
-			return fmt.Errorf("unable to strconv input to int. Err: %s", err)
+		if c.Args().Get(3) != "" {
+			var err error
+			candleGranularity, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
+			if err != nil {
+				return err
+			}
 		}
-		granularity = int64(gr)
 	}
 
 	conn, err := setupClient()
@@ -3440,8 +3488,8 @@ func getHistoricCandles(c *cli.Context) error {
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
-			Rangesize:   rangesize,
-			Granularity: granularity,
+			Rangesize:   candleRangeSize,
+			Granularity: candleGranularity,
 		})
 
 	if err != nil {
