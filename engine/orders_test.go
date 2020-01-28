@@ -12,8 +12,8 @@ import (
 var ordersSetupRan bool
 
 func OrdersSetup(t *testing.T) {
+	SetupTest(t)
 	if !ordersSetupRan {
-		SetupTest(t)
 		err := Bot.OrderManager.Start()
 		if err != nil {
 			t.Fatal(err)
@@ -322,16 +322,4 @@ func TestSubmit(t *testing.T) {
 func TestProcessOrders(t *testing.T) {
 	OrdersSetup(t)
 	Bot.OrderManager.processOrders()
-}
-
-func TestShutdown(t *testing.T) {
-	OrdersSetup(t)
-	Bot.OrderManager.cfg.CancelOrdersOnShutdown = true
-	err := Bot.OrderManager.Stop()
-	if err != nil {
-		t.Error(err)
-	}
-	if Bot.OrderManager.started == 1 {
-		t.Error("Has not stopped")
-	}
 }

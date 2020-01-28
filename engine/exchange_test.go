@@ -1,7 +1,7 @@
 package engine
 
 import (
-		"sync"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,10 +18,8 @@ import (
 )
 
 var testSetup = false
-var mtx sync.Mutex
 
 func SetupTest(t *testing.T) {
-	mtx.Lock()
 	if !testSetup {
 		var err error
 		Bot, err = New()
@@ -68,7 +66,6 @@ func addPassingFakeExchange() {
 			Config:                        base.Config,
 		},
 	})
-	mtx.Unlock()
 }
 
 func CleanupTest(t *testing.T) {
