@@ -23,7 +23,7 @@ func TestMain(m *testing.M) {
 
 func TestCheckExistingExchanges(t *testing.T) {
 	t.Parallel()
-	a := CheckExistingExchanges(testJSONFile, "Kraken", &testConfigData)
+	a := CheckExistingExchanges("Kraken", &testConfigData)
 	if a != true {
 		t.Log("Kraken data not found")
 		t.Fail()
@@ -54,7 +54,7 @@ func TestAdd(t *testing.T) {
 		Val:    "col-md-12",
 		RegExp: "col-md-12([\\s\\S]*?)clearfix",
 		Path:   "https://localbitcoins.com/api-docs/"}
-	err := Add(testJSONFile, "LocalBitcoins", htmlScrape, data.Path, data, true, &testConfigData)
+	err := Add("LocalBitcoins", htmlScrape, data.Path, data, true, &testConfigData)
 	if err != nil {
 		t.Error(err)
 	}
@@ -408,7 +408,7 @@ func TestUpdate(t *testing.T) {
 
 func TestCheckMissingExchanges(t *testing.T) {
 	t.Parallel()
-	_, err := CheckMissingExchanges(testJSONFile, &testConfigData)
+	_, err := CheckMissingExchanges(&testConfigData)
 	if err != nil {
 		t.Error(err)
 	}

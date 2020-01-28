@@ -130,7 +130,7 @@ func getSha(repoPath string) (ShaResponse, error) {
 }
 
 // CheckExistingExchanges checks if the given exchange exists
-func CheckExistingExchanges(fileName, exchName string, confData *Config) bool {
+func CheckExistingExchanges(exchName string, confData *Config) bool {
 	for x := range confData.Exchanges {
 		if confData.Exchanges[x].Name == exchName {
 			return true
@@ -140,7 +140,7 @@ func CheckExistingExchanges(fileName, exchName string, confData *Config) bool {
 }
 
 // CheckMissingExchanges checks if any supported exchanges are missing api checker functionality
-func CheckMissingExchanges(fileName string, confData *Config) ([]string, error) {
+func CheckMissingExchanges(confData *Config) ([]string, error) {
 	var tempArray []string
 	for x := range confData.Exchanges {
 		tempArray = append(tempArray, confData.Exchanges[x].Name)
@@ -245,7 +245,7 @@ func CheckUpdates(fileName string, confData *Config) error {
 	if verbose {
 		log.Printf("The following exchanges need an update: %v\n", resp)
 		log.Printf("Errors: %v", errMap)
-		unsup, err := CheckMissingExchanges(fileName, &configData)
+		unsup, err := CheckMissingExchanges(&configData)
 		if err != nil {
 			return err
 		}
@@ -332,8 +332,8 @@ func CheckChangeLog(htmlData *HTMLScrapingData) (string, error) {
 }
 
 // Add appends exchange data to updates.json for future api checks
-func Add(fileName, exchName, checkType, path string, data interface{}, update bool, confData *Config) error {
-	check := CheckExistingExchanges(fileName, exchName, &configData)
+func Add(exchName, checkType, path string, data interface{}, update bool, confData *Config) error {
+	check := CheckExistingExchanges(exchName, &configData)
 	var file []byte
 	if !update {
 		if check {
