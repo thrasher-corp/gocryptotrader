@@ -2,20 +2,24 @@ package withdraw
 
 import (
 	"errors"
+	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/management/banking"
 )
 
 var (
 	validFiatRequest = &Request{
 		Fiat: &FiatRequest{
-			BankAccountName:   "test-bank-account",
-			BankAccountNumber: "test-bank-number",
-			BankName:          "test-bank-name",
-			BSB:               "123456",
-			SwiftCode:         "",
-			IBAN:              "",
+			Bank: &banking.Account{
+				AccountName:   "test-bank-account",
+				AccountNumber: "test-bank-number",
+				BankName:      "test-bank-name",
+				BSBNumber:     "123456",
+				SWIFTCode:     "test",
+				IBAN:          "",
+			},
 		},
 		Currency:    currency.AUD,
 		Description: "Test Withdrawal",
@@ -28,7 +32,9 @@ var (
 	}
 
 	invalidCurrencyFiatRequest = &Request{
-		Fiat:     &FiatRequest{},
+		Fiat: &FiatRequest{
+			Bank: &banking.Account{},
+		},
 		Currency: currency.BTC,
 		Amount:   1,
 		Type:     Fiat,
@@ -62,40 +68,26 @@ var (
 	}
 )
 
-// func TestValid(t *testing.T) {
-// 	testCases := []struct {
-// 		name    string
-// 		request interface{}
-// 		output  interface{}
-// 	}{
-// 		{
-// 			"Fiat",
-// 			validFiatRequest,
-// 			nil,
-// 		},
-// 		{
-// 			"Crypto",
-// 			validCryptoRequest,
-// 			nil,
-// 		},
-// 		{
-// 			"Invalid",
-// 			nil,
-// 			ErrInvalidRequest,
-// 		},
-// 	}
-// 	for _, tests := range testCases {
-// 		test := tests
-// 		t.Run(test.name, func(t *testing.T) {
-// 			err := Valid(test.request.(*Request))
-// 			if err != nil {
-// 				// if test.output.(error).Error() != err.Error() {
-// 				 	t.Fatal(err)
-// 				// }
-// 			}
-// 		})
-// 	}
-// }
+func TestMain(m *testing.M) {
+	banking.Accounts = append(banking.Accounts,
+		banking.Account{
+			ID:                  "test-bank-01",
+			BankName:            "Test Bank",
+			BankAddress:         "42 Bank Street",
+			BankPostalCode:      "13337",
+			BankPostalCity:      "Satoshiville",
+			BankCountry:         "Japan",
+			AccountName:         "Satoshi Nakamoto",
+			AccountNumber:       "0234",
+			SWIFTCode:           "91272837",
+			IBAN:                "98218738671897",
+			SupportedCurrencies: "USD",
+			SupportedExchanges:  "Kraken,Bitstamp",
+		},
+	)
+
+	os.Exit(m.Run())
+}
 
 func TestValidateFiat(t *testing.T) {
 	testCases := []struct {
@@ -126,7 +118,7 @@ func TestValidateFiat(t *testing.T) {
 			"CryptoCurrency",
 			invalidCurrencyFiatRequest,
 			Fiat,
-			errors.New("requested currency is not fiat, Bank Account Number cannot be empty, IBAN or Swift must be set"),
+			errors.New("requested currency is not fiat, Bank Account Number cannot be empty, IBAN/SWIFT values not set"),
 		},
 	}
 

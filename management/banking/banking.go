@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
@@ -32,6 +33,10 @@ func (b *Account) ExchangeSupported(exchange string) bool {
 
 // Validate validates bank account settings
 func (b *Account) Validate() error {
+	if b == nil {
+		return errors.New("nope")
+	}
+
 	if b.BankName == "" ||
 		b.BankAddress == "" ||
 		b.BankPostalCode == "" ||
@@ -66,4 +71,26 @@ func (b *Account) Validate() error {
 		}
 	}
 	return nil
+}
+
+func (b *Account) ValidateForWithdrawal(cur currency.Code) (err []string) {
+	if b == nil {
+		return []string{"Account cannot not be nil"}
+	}
+
+	if b.AccountNumber == "" {
+		err = append(err, "Bank Account Number cannot be empty")
+	}
+
+	if cur == currency.AUD {
+		if b.BSBNumber == "" {
+			err = append(err, "BSB must be set for AUD values not set")
+		}
+	} else {
+		if b.IBAN == "" && b.SWIFTCode == "" {
+			err = append(err, "IBAN/SWIFT values not set")
+		}
+	}
+
+	return
 }

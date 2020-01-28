@@ -497,7 +497,7 @@ func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Reque
 	}
 	return &withdraw.ExchangeResponse{
 		ID:     a.ID,
-		Status:  a.Status,
+		Status: a.Status,
 	}, nil
 }
 

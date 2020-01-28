@@ -50,23 +50,11 @@ func Valid(request *Request) (err error) {
 
 // Valid takes interface and passes to asset type to check the request meets requirements to submit
 func validateFiat(request *Request) (err []string) {
-	errBank := request.Fiat.Bank.Validate()
+	errBank := request.Fiat.Bank.ValidateForWithdrawal(request.Currency)
 	if errBank != nil {
-		err = append(err, errBank.Error())
+		err = append(err, errBank...)
 	}
-	// if request.Fiat.BankAccountNumber == "" {
-	// 	err = append(err, "Bank Account Number cannot be empty")
-	// }
-	//
-	// if request.Currency == currency.AUD {
-	// 	if request.Fiat.BSB == "" {
-	// 		err = append(err, "BSB must be set for AUD transfers")
-	// 	}
-	// } else {
-	// 	if request.Fiat.IBAN == "" && request.Fiat.SwiftCode == "" {
-	// 		err = append(err, "IBAN or Swift must be set")
-	// 	}
-	// }
+
 	return err
 }
 

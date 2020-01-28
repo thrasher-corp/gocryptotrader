@@ -506,7 +506,7 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request
 	}
 
 	return &withdraw.ExchangeResponse{
-		ID:     strconv.FormatInt(resp[0].WithdrawalID, 10),
+		ID: strconv.FormatInt(resp[0].WithdrawalID, 10),
 	}, err
 }
 

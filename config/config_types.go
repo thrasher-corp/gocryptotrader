@@ -92,7 +92,7 @@ type Config struct {
 	RemoteControl     RemoteControlConfig     `json:"remoteControl"`
 	Portfolio         portfolio.Base          `json:"portfolioAddresses"`
 	Exchanges         []ExchangeConfig        `json:"exchanges"`
-	BankAccounts      []banking.Account `json:"bankAccounts"`//[]BankAccount           `json:"bankAccounts"`
+	BankAccounts      []banking.Account       `json:"bankAccounts"`
 
 	// Deprecated config settings, will be removed at a future date
 	Webserver           *WebserverConfig          `json:"webserver,omitempty"`
@@ -129,6 +129,7 @@ type ExchangeConfig struct {
 	CurrencyPairs                 *currency.PairsManager `json:"currencyPairs"`
 	API                           APIConfig              `json:"api"`
 	Features                      *FeaturesConfig        `json:"features"`
+	BankAccounts                  []banking.Account      `json:"bankAccounts,omitempty"`
 
 	// Deprecated settings which will be removed in a future update
 	AvailablePairs                   *currency.Pairs      `json:"availablePairs,omitempty"`
@@ -220,25 +221,6 @@ type CurrencyPairFormatConfig struct {
 	Delimiter string `json:"delimiter,omitempty"`
 	Separator string `json:"separator,omitempty"`
 	Index     string `json:"index,omitempty"`
-}
-
-// BankAccount holds differing bank account details by supported funding
-// currency
-type BankAccount struct {
-	Enabled             bool   `json:"enabled"`
-	ID                  string `json:"id,omitempty"`
-	BankName            string `json:"bankName"`
-	BankAddress         string `json:"bankAddress"`
-	BankPostalCode      string `json:"bankPostalCode"`
-	BankPostalCity      string `json:"bankPostalCity"`
-	BankCountry         string `json:"bankCountry"`
-	AccountName         string `json:"accountName"`
-	AccountNumber       string `json:"accountNumber"`
-	SWIFTCode           string `json:"swiftCode"`
-	IBAN                string `json:"iban"`
-	BSBNumber           string `json:"bsbNumber,omitempty"`
-	SupportedCurrencies string `json:"supportedCurrencies"`
-	SupportedExchanges  string `json:"supportedExchanges,omitempty"`
 }
 
 // BankTransaction defines a related banking transaction

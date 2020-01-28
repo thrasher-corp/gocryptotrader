@@ -3,7 +3,7 @@ package banking
 import "sync"
 
 const (
-	ErrBankAccountNotFound                     = "bank account ID: %v not found"
+	ErrBankAccountNotFound = "bank account ID: %v not found"
 )
 
 // Account holds differing bank account details by supported funding

@@ -646,7 +646,7 @@ func (h *HUOBI) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (
 		return nil, err
 	}
 	return &withdraw.ExchangeResponse{
-		ID:     strconv.FormatInt(resp, 10),
+		ID: strconv.FormatInt(resp, 10),
 	}, err
 }
 

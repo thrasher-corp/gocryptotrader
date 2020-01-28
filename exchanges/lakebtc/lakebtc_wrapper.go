@@ -416,7 +416,7 @@ func (l *LakeBTC) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request)
 	}
 
 	return &withdraw.ExchangeResponse{
-		ID:     strconv.FormatInt(resp.ID, 10),
+		ID: strconv.FormatInt(resp.ID, 10),
 	}, nil
 }
 

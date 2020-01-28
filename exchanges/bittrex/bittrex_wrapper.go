@@ -421,7 +421,7 @@ func (b *Bittrex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request)
 		return nil, err
 	}
 	return &withdraw.ExchangeResponse{
-		ID:    uuid.Result.ID,
+		ID: uuid.Result.ID,
 	}, err
 }
 

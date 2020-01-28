@@ -578,7 +578,7 @@ func (k *Kraken) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) 
 		return nil, err
 	}
 	return &withdraw.ExchangeResponse{
-		ID:     v,
+		ID: v,
 	}, nil
 }
 

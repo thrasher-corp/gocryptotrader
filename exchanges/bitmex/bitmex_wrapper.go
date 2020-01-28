@@ -527,7 +527,7 @@ func (b *Bitmex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) 
 
 	return &withdraw.ExchangeResponse{
 		Status: resp.Text,
-		ID: resp.Tx,
+		ID:     resp.Tx,
 	}, nil
 }
 

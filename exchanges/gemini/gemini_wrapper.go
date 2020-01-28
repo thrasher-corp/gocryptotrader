@@ -407,7 +407,7 @@ func (g *Gemini) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) 
 	}
 
 	return &withdraw.ExchangeResponse{
-		ID:     resp.TXHash,
+		ID: resp.TXHash,
 	}, err
 }
 

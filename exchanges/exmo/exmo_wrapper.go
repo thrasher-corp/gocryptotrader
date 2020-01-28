@@ -426,7 +426,7 @@ func (e *EXMO) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*
 		withdrawRequest.Amount)
 
 	return &withdraw.ExchangeResponse{
-		ID:      strconv.FormatInt(resp, 10),
+		ID: strconv.FormatInt(resp, 10),
 	}, err
 }
 

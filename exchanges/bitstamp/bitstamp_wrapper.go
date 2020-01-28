@@ -439,7 +439,7 @@ func (b *Bitstamp) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request
 	}
 
 	return &withdraw.ExchangeResponse{
-		ID:    	resp.ID,
+		ID: resp.ID,
 	}, nil
 }
 

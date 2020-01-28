@@ -454,7 +454,7 @@ func (c *CoinbasePro) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Requ
 		return nil, err
 	}
 	return &withdraw.ExchangeResponse{
-		ID:     resp.ID,
+		ID: resp.ID,
 	}, err
 }
 

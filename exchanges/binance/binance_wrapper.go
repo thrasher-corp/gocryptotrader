@@ -498,7 +498,7 @@ func (b *Binance) GetDepositAddress(cryptocurrency currency.Code, _ string) (str
 // submitted
 func (b *Binance) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	amountStr := strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64)
-	v, err :=  b.WithdrawCrypto(withdrawRequest.Currency.String(),
+	v, err := b.WithdrawCrypto(withdrawRequest.Currency.String(),
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Crypto.AddressTag,
 		withdrawRequest.Description, amountStr)
@@ -506,7 +506,7 @@ func (b *Binance) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request)
 		return nil, err
 	}
 	return &withdraw.ExchangeResponse{
-		ID:     v,
+		ID: v,
 	}, nil
 }
 
