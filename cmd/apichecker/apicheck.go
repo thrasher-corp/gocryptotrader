@@ -78,8 +78,8 @@ var (
 func main() {
 	flag.StringVar(&apiKey, "key", "", "its an API Key for trello")
 	flag.StringVar(&apiToken, "token", "", "its an API Token for trello")
-	flag.StringVar(&updateChecklistID, "checklistid", "5dfc5a5377835d0ba025787a", "checklist id for trello")
-	flag.StringVar(&updateCardID, "cardid", "5dfc54b96da13a6ac5ceca97", "card id for trello")
+	flag.StringVar(&updateChecklistID, "checklistid", "", "checklist id for trello")
+	flag.StringVar(&updateCardID, "cardid", "", "card id for trello")
 	flag.BoolVar(&verbose, "verbose", false, "Increases logging verbosity for API Update Checker")
 	flag.Parse()
 	var err error
@@ -93,18 +93,18 @@ func main() {
 	}
 	// Assumption here is that if api key n token are set, then cardid and checklistid will be set too
 	if areAPIKeysSet() {
-		UpdateFile(configData, backupFile)
+		UpdateFile(&configData, backupFile)
 		configData.ConfKey = trelloKey
 		configData.ConfToken = trelloToken
 		configData.ConfCardID = trelloCardID
 		configData.ConfChecklistID = trelloChecklistID
-		err = CheckUpdates(jsonFile, configData)
+		err = CheckUpdates(jsonFile, &configData)
 		if err != nil {
 			log.Fatal(err)
 		}
 	} else {
 		log.Printf("This is a test update since API keys are not set.\n")
-		err := CheckUpdates(testJSONFile, testConfigData)
+		err := CheckUpdates(testJSONFile, &testConfigData)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -130,7 +130,7 @@ func getSha(repoPath string) (ShaResponse, error) {
 }
 
 // CheckExistingExchanges checks if the given exchange exists
-func CheckExistingExchanges(fileName, exchName string, confData Config) bool {
+func CheckExistingExchanges(fileName, exchName string, confData *Config) bool {
 	for x := range confData.Exchanges {
 		if confData.Exchanges[x].Name == exchName {
 			return true
@@ -140,7 +140,7 @@ func CheckExistingExchanges(fileName, exchName string, confData Config) bool {
 }
 
 // CheckMissingExchanges checks if any supported exchanges are missing api checker functionality
-func CheckMissingExchanges(fileName string, confData Config) ([]string, error) {
+func CheckMissingExchanges(fileName string, confData *Config) ([]string, error) {
 	var tempArray []string
 	for x := range confData.Exchanges {
 		tempArray = append(tempArray, confData.Exchanges[x].Name)
@@ -176,7 +176,7 @@ func ReadFileData(fileName string) (Config, error) {
 }
 
 // CheckUpdates checks updates.json for all the existing exchanges
-func CheckUpdates(fileName string, confData Config) error {
+func CheckUpdates(fileName string, confData *Config) error {
 	var resp []string
 	errMap := make(map[string]error)
 	var wg sync.WaitGroup
@@ -201,7 +201,7 @@ func CheckUpdates(fileName string, confData Config) error {
 					confData.Exchanges[x].Data.GitHubData.Sha = sha.ShaResp
 				}
 			case htmlScrape:
-				checkStr, err = CheckChangeLog(*&confData.Exchanges[x].Data.HTMLData)
+				checkStr, err = CheckChangeLog(confData.Exchanges[x].Data.HTMLData)
 				if err != nil {
 					errMap[confData.Exchanges[x].Name] = err
 				}
@@ -213,7 +213,7 @@ func CheckUpdates(fileName string, confData Config) error {
 		}(x)
 	}
 	wg.Wait()
-	file, err := json.MarshalIndent(confData, "", " ")
+	file, err := json.MarshalIndent(&confData, "", " ")
 	if err != nil {
 		return err
 	}
@@ -245,7 +245,7 @@ func CheckUpdates(fileName string, confData Config) error {
 	if verbose {
 		log.Printf("The following exchanges need an update: %v\n", resp)
 		log.Printf("Errors: %v", errMap)
-		unsup, err := CheckMissingExchanges(fileName, configData)
+		unsup, err := CheckMissingExchanges(fileName, &configData)
 		if err != nil {
 			return err
 		}
@@ -332,8 +332,8 @@ func CheckChangeLog(htmlData *HTMLScrapingData) (string, error) {
 }
 
 // Add appends exchange data to updates.json for future api checks
-func Add(fileName, exchName, checkType, path string, data interface{}, update bool, confData Config) error {
-	check := CheckExistingExchanges(fileName, exchName, configData)
+func Add(fileName, exchName, checkType, path string, data interface{}, update bool, confData *Config) error {
+	check := CheckExistingExchanges(fileName, exchName, &configData)
 	var file []byte
 	if !update {
 		if check {
@@ -347,7 +347,7 @@ func Add(fileName, exchName, checkType, path string, data interface{}, update bo
 			return err
 		}
 		confData.Exchanges = append(confData.Exchanges, exchange)
-		file, err = json.MarshalIndent(confData, "", " ")
+		file, err = json.MarshalIndent(&confData, "", " ")
 		if err != nil {
 			return err
 		}
@@ -361,7 +361,7 @@ func Add(fileName, exchName, checkType, path string, data interface{}, update bo
 			return err
 		}
 		confData.Exchanges = allExchData
-		file, err = json.MarshalIndent(confData, "", " ")
+		file, err = json.MarshalIndent(&confData, "", " ")
 		if err != nil {
 			return err
 		}
@@ -1202,8 +1202,8 @@ func Update(currentName string, info []ExchangeInfo, updatedInfo ExchangeInfo) [
 }
 
 // UpdateFile updates the given file to match updates.json
-func UpdateFile(confData Config, name string) error {
-	file, err := json.MarshalIndent(confData, "", " ")
+func UpdateFile(confData *Config, name string) error {
+	file, err := json.MarshalIndent(&confData, "", " ")
 	if err != nil {
 		return err
 	}
