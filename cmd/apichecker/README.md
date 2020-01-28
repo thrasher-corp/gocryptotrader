@@ -12,70 +12,20 @@
 
 This apichecker package is part of the GoCryptoTrader codebase.
 
+#### This tool tracks changes in exchange API documentation
+#### Keeps track of all the updates using the GoCryptoTrader trello board
+
+Be aware, this tool will:
+- Automatically update the live trello board if API keys and trello information are provided.
+- Automatically update the main json updates file, however a backup of the copy before the updates will be stored.
+
 ## This is still in active development
 
 You can track ideas, planned features and what's in progresss on this Trello board: [https://trello.com/b/ZAhMhpOy/gocryptotrader](https://trello.com/b/ZAhMhpOy/gocryptotrader).
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Current Features for apichecker
-
-#### This tool allows for the generation of new documentation through templating
-
-From the `gocryptotrader/cmd/documentation/` folder, using the go command: **go run documentation.go** this will auto-generate and regenerate documentation  across the **GoCryptoTrader** code base.
->Using the -v command will, ie **go run documentation.go -v** put the tool into verbose mode allowing you to see what is happening with a little more depth.
-
-Be aware, this tool will:
-- Works off a configuration JSON file located at ``gocryptotrader/cmd/documentation/`` for future use with multiple repositories.
-- Automatically find the directory and file tree for the GoCryptoTrader source code and alert you of undocumented file systems which **need** to be updated.
-- Automatically find the template folder tree.
-- Fetch an updated contributor list and rank on pull request commit amount
-- Sets up core folder docs for the root directory tree including **LICENSE** and **CONTRIBUTORS**
-
-### config.json example
-
-```json
-{
-"githubRepo": "https://api.github.com/repos/thrasher-corp/gocryptotrader", This is your current repo
-"exclusionList": { This allows for excluded directories and files
-"Files": null,
-"Directories": [
-"_templates",
-".git",
-"web"
-]
-},
-"rootReadmeActive": true, allows a root directory README.md
-"licenseFileActive": true, allows for a license file to be generated
-"contributorFileActive": true, fetches a new contributor list
-"referencePathToRepo": "../../"
-}
-```
-### Template example
->place a new template **example_file.tmpl** located in the current gocryptotrader/cmd/documentation/ folder; when the documentation tool finishes it will give you the define template associated name e.g. ``Template not found for path ../../cmd/documentation create new template with \{\{define "cmd documentation" -\}\} TEMPLATE HERE \{\{end}}`` so you can replace the below example with ``\{\{define "cmd documentation" -}}``
-
-```
-\{\{\define "example_definition_created_by_documentation_tool" -}}
-\{\{\template "header" .}}
-## Current Features for apichecker
-
-#### A concise blurb about the package or tool system
-
-+ Coding examples
-import "github.com/thrasher-corp/gocryptotrader/something"
-testString := "aAaAa"
-upper := strings.ToUpper(testString)
-// upper == "AAAAA"
-
-{\{\template "contributions"}}
-{\{\template "donations"}}
-{\{\end}}
-```
-
-### ALL NEW UPDATES AND FILE SYSTEM ADDITIONS NEED A DOCUMENTATION UPDATE USING THIS TOOL OR PR MERGE REQUEST MAY BE POSTPONED.
-
-
-### Please click GoDocs chevron above to view current GoDoc information for this package
+### FOR ALL THE NEW EXCHANGES ADDED, TRELLO CHECKLIST WILL NEED TO BE MANUALLY UPDATED SO THAT APICHECKER CAN CHECK FOR THE UPDATES ON ITS NEXT RUN.
 
 ## Contribution
 
