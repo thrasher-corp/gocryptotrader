@@ -553,7 +553,7 @@ func TestWsAuth(t *testing.T) {
 		t.Skip(wshandler.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	go g.wsHandleData()
+	go g.wsReadData()
 	err := g.WsSecureSubscribe(&dialer, geminiWsOrderEvents)
 	if err != nil {
 		t.Error(err)

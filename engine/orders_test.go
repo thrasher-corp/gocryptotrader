@@ -9,22 +9,19 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-var setupRan bool
+var ordersSetupRan bool
 
 func OrdersSetup(t *testing.T) {
-	if !setupRan {
+	if !ordersSetupRan {
 		SetupTest(t)
-		if Bot.OrderManager.Started() {
-			t.Fatal("Order manager already started")
-		}
 		err := Bot.OrderManager.Start()
-		if !Bot.OrderManager.Started() {
-			t.Fatal("Order manager not started")
-		}
 		if err != nil {
 			t.Fatal(err)
 		}
-		setupRan = true
+		if !Bot.OrderManager.Started() {
+			t.Fatal("Order manager not started")
+		}
+		ordersSetupRan = true
 	}
 }
 

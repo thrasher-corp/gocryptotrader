@@ -1,14 +1,14 @@
 package engine
 
 import (
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
-	"sync"
+		"sync"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -18,8 +18,10 @@ import (
 )
 
 var testSetup = false
+var mtx sync.Mutex
 
 func SetupTest(t *testing.T) {
+	mtx.Lock()
 	if !testSetup {
 		var err error
 		Bot, err = New()
@@ -29,13 +31,13 @@ func SetupTest(t *testing.T) {
 		testSetup = true
 	}
 
-	if GetExchangeByName(testExchange) != nil {
-		return
+	if GetExchangeByName(testExchange) == nil {
+		err := LoadExchange(testExchange, false, nil)
+		if err != nil {
+			t.Errorf("SetupTest: Failed to load exchange: %s", err)
+		}
 	}
-	err := LoadExchange(testExchange, false, nil)
-	if err != nil {
-		t.Errorf("SetupTest: Failed to load exchange: %s", err)
-	}
+
 	addPassingFakeExchange()
 }
 
@@ -66,6 +68,7 @@ func addPassingFakeExchange() {
 			Config:                        base.Config,
 		},
 	})
+	mtx.Unlock()
 }
 
 func CleanupTest(t *testing.T) {
@@ -190,7 +193,13 @@ func TestUnloadExchange(t *testing.T) {
 			err)
 	}
 
-	err = UnloadExchange(testExchange)
+	err = UnloadExchange(fakePassExchange)
+	if err != nil {
+		t.Errorf("TestUnloadExchange: Failed to get exchange. %s",
+			err)
+	}
+
+	err = UnloadExchange("asdf")
 	if err != ErrNoExchangesLoaded {
 		t.Errorf("TestUnloadExchange: Incorrect result: %s",
 			err)
@@ -304,15 +313,6 @@ func (h *FakePassingExchange) FetchAccountInfo() (account.Holdings, error) {
 func (h *FakePassingExchange) UpdateAccountInfo() (account.Holdings, error) {
 	return account.Holdings{}, nil
 }
-
-func (h *FakePassingExchange) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
-	return []exchange.Candle{}, nil
-}
-
-func (h *FakePassingExchange) ValidateCredentials() error {
-	return nil
-}
-
 func (h *FakePassingExchange) GetAuthenticatedAPISupport(_ uint8) bool { return true }
 func (h *FakePassingExchange) SetPairs(_ currency.Pairs, _ asset.Item, _ bool) error {
 	return nil
@@ -397,3 +397,9 @@ func (h *FakePassingExchange) GetSubscriptions() ([]wshandler.WebsocketChannelSu
 func (h *FakePassingExchange) GetDefaultConfig() (*config.ExchangeConfig, error) { return nil, nil }
 func (h *FakePassingExchange) GetBase() *exchange.Base                           { return nil }
 func (h *FakePassingExchange) SupportsAsset(_ asset.Item) bool                   { return true }
+func (h *FakePassingExchange) ValidateCredentials() error {
+	return nil
+}
+func (h *FakePassingExchange) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
+	return []exchange.Candle{}, nil
+}

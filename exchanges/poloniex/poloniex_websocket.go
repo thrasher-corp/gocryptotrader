@@ -119,12 +119,12 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 			if checkSubscriptionSuccess(data) {
 				if p.Verbose {
 					log.Debugf(log.ExchangeSys,
-						"%s websocket subscribed to channel successfully. %d",
+						"%s websocket subscribed to channel successfully. %f",
 						p.Name,
 						chanID)
 				}
 			} else {
-				return fmt.Errorf("%s websocket subscription to channel failed. %d",
+				return fmt.Errorf("%s websocket subscription to channel failed. %f",
 					p.Name,
 					chanID)
 			}
@@ -363,7 +363,7 @@ func (p *Poloniex) wsHandleAccountData(accountData [][]interface{}) {
 			}
 			p.Websocket.DataHandler <- response
 		case "o":
-			amount, err := strconv.ParseFloat(accountData[i][5].(string), 64)
+			amount, err := strconv.ParseFloat(accountData[i][2].(string), 64)
 			if err != nil {
 				p.Websocket.DataHandler <- err
 			}

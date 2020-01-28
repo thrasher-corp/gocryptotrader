@@ -59,6 +59,10 @@ func TestMain(m *testing.M) {
 		},
 		ConfigFormat: &currency.PairFormat{Delimiter: "-"},
 	}
+	if b.Websocket.IsEnabled() {
+		b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+		b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	}
 	os.Exit(m.Run())
 }
 
@@ -695,9 +699,8 @@ func TestWsAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	go b.wsHandleIncomingData()
+
+	go b.wsReadData()
 	err = b.websocketSendAuth()
 	if err != nil {
 		t.Fatal(err)
@@ -724,7 +727,7 @@ func TestWsPositionUpdate(t *testing.T) {
     "unrealisedGrossPnl":-677,"unrealisedPnl":-677,"unrealisedPnlPcnt":-0.0078,"unrealisedRoePcnt":-0.7756,
     "simpleQty":0.001,"liquidationPrice":1140.1, "timestamp":"2017-04-04T22:07:45.442Z"
    }]}`)
-	err := b.wsReadData(pressXToJSON)
+	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -747,7 +750,7 @@ func TestWsInsertExectuionUpdate(t *testing.T) {
     "homeNotional":-0.00088155,"foreignNotional":1,"transactTime":"2017-04-04T22:07:46.035Z",
     "timestamp":"2017-04-04T22:07:46.035Z"
    }]}`)
-	err := b.wsReadData(pressXToJSON)
+	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -756,7 +759,7 @@ func TestWsInsertExectuionUpdate(t *testing.T) {
 func TestWSConnectionHandling(t *testing.T) {
 	pressXToJSON := []byte(`{"info":"Welcome to the BitMEX Realtime API.","version":"1.1.0",
      "timestamp":"2015-01-18T10:14:06.802Z","docs":"https://www.bitmex.com/app/wsAPI","heartbeatEnabled":false}`)
-	err := b.wsReadData(pressXToJSON)
+	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -765,7 +768,7 @@ func TestWSConnectionHandling(t *testing.T) {
 func TestWSSubscriptionHandling(t *testing.T) {
 	pressXToJSON := []byte(`{"success":true,"subscribe":"trade:ETHUSD",
      "request":{"op":"subscribe","args":["trade:ETHUSD","instrument:ETHUSD"]}}`)
-	err := b.wsReadData(pressXToJSON)
+	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -779,7 +782,7 @@ func TestWSPositionUpdateHandling(t *testing.T) {
     "markPrice":1136.88,"posState":"Liquidated","simpleQty":0.001,"liquidationPrice":1140.1,"bankruptPrice":1134.37,
     "timestamp":"2017-04-04T22:07:46.019Z"
    }]}`)
-	err := b.wsReadData(pressXToJSON)
+	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -797,7 +800,7 @@ func TestWSPositionUpdateHandling(t *testing.T) {
     "avgEntryPrice":null,"breakEvenPrice":null,"marginCallPrice":null,"liquidationPrice":null,"bankruptPrice":null,
     "timestamp":"2017-04-04T22:07:46.140Z"
    }]}`)
-	err = b.wsReadData(pressXToJSON)
+	err = b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -821,7 +824,7 @@ func TestWSOrderbookHandling(t *testing.T) {
         {"symbol":"ETHUSD","id":17999997000,"side":"Buy","size":100,"price":30}
       ]
     }`)
-	err := b.wsReadData(pressXToJSON)
+	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -833,7 +836,7 @@ func TestWSOrderbookHandling(t *testing.T) {
         {"symbol":"ETHUSD","id":17999995000,"side":"Buy","size":5}
       ]
     }`)
-	err = b.wsReadData(pressXToJSON)
+	err = b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -844,7 +847,7 @@ func TestWSOrderbookHandling(t *testing.T) {
       "data":[
       ]
     }`)
-	err = b.wsReadData(pressXToJSON)
+	err = b.wsHandleData(pressXToJSON)
 	if err == nil {
 		t.Error("Expected error")
 	}
@@ -856,7 +859,7 @@ func TestWSOrderbookHandling(t *testing.T) {
         {"symbol":"ETHUSD","id":17999995000,"side":"Buy"}
       ]
     }`)
-	err = b.wsReadData(pressXToJSON)
+	err = b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -868,7 +871,7 @@ func TestWSOrderbookHandling(t *testing.T) {
         {"symbol":"ETHUSD","id":17999995000,"side":"Buy"}
       ]
     }`)
-	err = b.wsReadData(pressXToJSON)
+	err = b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -883,7 +886,7 @@ func TestWSDeleveragePositionUpdateHandling(t *testing.T) {
     "markPrice":1160.72,"posState":"Deleverage","simpleQty":1.746,"liquidationPrice":1140.1,
     "timestamp":"2017-04-04T22:16:38.460Z"
    }]}`)
-	err := b.wsReadData(pressXToJSON)
+	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -903,7 +906,7 @@ func TestWSDeleveragePositionUpdateHandling(t *testing.T) {
     "avgEntryPrice":null,"breakEvenPrice":null,"marginCallPrice":null,"liquidationPrice":null,"bankruptPrice":null,
     "timestamp":"2017-04-04T22:16:38.547Z"
    }]}`)
-	err = b.wsReadData(pressXToJSON)
+	err = b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -925,7 +928,7 @@ func TestWSDeleverageExecutionInsertHandling(t *testing.T) {
     "homeNotional":-1.72306,"foreignNotional":2000,"transactTime":"2017-04-04T22:16:38.472Z",
     "timestamp":"2017-04-04T22:16:38.472Z"
    }]}`)
-	err := b.wsReadData(pressXToJSON)
+	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}

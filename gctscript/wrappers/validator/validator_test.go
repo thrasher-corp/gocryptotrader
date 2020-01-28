@@ -147,8 +147,8 @@ func TestWrapper_SubmitOrder(t *testing.T) {
 
 	tempOrder := &order.Submit{
 		Pair:         currency.NewPairDelimiter(pairs, delimiter),
-		OrderType:    orderType,
-		OrderSide:    orderSide,
+		Type:         orderType,
+		Side:         orderSide,
 		TriggerPrice: 0,
 		TargetAmount: 0,
 		Price:        orderPrice,

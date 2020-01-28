@@ -189,7 +189,7 @@ func (o *OKGroup) WsConnect() error {
 	}
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	go o.wsReadData(&wg)
+	go o.WsReadData(&wg)
 	if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = o.WsLogin()
 		if err != nil {
@@ -233,8 +233,8 @@ func (o *OKGroup) WsLogin() error {
 	return nil
 }
 
-// wsReadData handles the read data from the websocket connection
-func (o *OKGroup) wsReadData(wg *sync.WaitGroup) {
+// WsReadData handles the read data from the websocket connection
+func (o *OKGroup) WsReadData(wg *sync.WaitGroup) {
 	o.Websocket.Wg.Add(1)
 	defer func() {
 		o.Websocket.Wg.Done()
@@ -252,18 +252,20 @@ func (o *OKGroup) wsReadData(wg *sync.WaitGroup) {
 				return
 			}
 			o.Websocket.TrafficAlert <- struct{}{}
-			o.wsHandleData(resp.Raw)
+			err = o.wsHandleData(resp.Raw)
+			if err != nil {
+				o.Websocket.DataHandler <- err
+			}
 		}
 	}
 }
 
 // wsHandleData will read websocket raw data and pass to appropriate handler
-func (o *OKGroup) wsHandleData(respRaw []byte) {
+func (o *OKGroup) wsHandleData(respRaw []byte) error {
 	var dataResponse WebsocketDataResponse
 	err := json.Unmarshal(respRaw, &dataResponse)
 	if err != nil {
-		o.Websocket.ReadMessageErrors <- err
-		return
+		return err
 	}
 	if len(dataResponse.Data) > 0 {
 		switch o.GetWsChannelWithoutOrderType(dataResponse.Table) {
@@ -271,22 +273,21 @@ func (o *OKGroup) wsHandleData(respRaw []byte) {
 			okGroupWsCandle900s, okGroupWsCandle1800s, okGroupWsCandle3600s,
 			okGroupWsCandle7200s, okGroupWsCandle14400s, okGroupWsCandle21600s,
 			okGroupWsCandle43200s, okGroupWsCandle86400s, okGroupWsCandle604900s:
-			o.wsProcessCandles(respRaw)
+			return o.wsProcessCandles(respRaw)
 		case okGroupWsDepth, okGroupWsDepth5:
-			o.WsProcessOrderBook(respRaw)
+			return o.WsProcessOrderBook(respRaw)
 		case okGroupWsTicker:
-			o.wsProcessTickers(respRaw)
+			return o.wsProcessTickers(respRaw)
 		case okGroupWsTrade:
-			o.wsProcessTrades(respRaw)
+			return o.wsProcessTrades(respRaw)
 		case okGroupWsOrder:
-			o.wsProcessOrder(respRaw)
-		default:
-			o.Websocket.DataHandler <- fmt.Errorf("%s Unhandled channel: '%v'. Instrument '%v' Data '%s'",
-				o.Name,
-				dataResponse.Table,
-				respRaw)
+			return o.wsProcessOrder(respRaw)
 		}
-		return
+
+		return fmt.Errorf("%s Unhandled channel: '%v'. Data '%s'",
+			o.Name,
+			dataResponse.Table,
+			respRaw)
 	}
 
 	var errorResponse WebsocketErrorResponse
@@ -299,8 +300,11 @@ func (o *OKGroup) wsHandleData(respRaw []byte) {
 				errorResponse.Message,
 				o.Name)
 		}
-		o.WsHandleErrorResponse(errorResponse)
-		return
+
+		return fmt.Errorf("%v error - %v message: %s ",
+				o.Name,
+				errorResponse.ErrorCode,
+				errorResponse.Message)
 	}
 	var eventResponse WebsocketEventResponse
 	err = json.Unmarshal(respRaw, &eventResponse)
@@ -316,19 +320,9 @@ func (o *OKGroup) wsHandleData(respRaw []byte) {
 				o.Name)
 		}
 	}
+	return nil
 }
 
-// WsHandleErrorResponse sends an error message to ws handler
-func (o *OKGroup) WsHandleErrorResponse(event WebsocketErrorResponse) {
-	errorMessage := fmt.Sprintf("%v error - %v message: %s ",
-		o.Name,
-		event.ErrorCode,
-		event.Message)
-	if o.Verbose {
-		log.Error(log.ExchangeSys, errorMessage)
-	}
-	o.Websocket.DataHandler <- fmt.Errorf(errorMessage)
-}
 
 func numberToOrderStatus(num float64) order.Status {
 	switch num {
@@ -351,12 +345,11 @@ func numberToOrderStatus(num float64) order.Status {
 	}
 }
 
-func (o *OKGroup) wsProcessOrder(respRaw []byte) {
+func (o *OKGroup) wsProcessOrder(respRaw []byte) error {
 	var resp WebsocketSpotOrderResponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
-		o.Websocket.DataHandler <- err
-		return
+		return err
 	}
 	for i := range resp.Data {
 		createdAt, err := time.Parse(time.RFC3339, resp.Data[i].CreatedAt)
@@ -366,11 +359,11 @@ func (o *OKGroup) wsProcessOrder(respRaw []byte) {
 		}
 		oType, err := order.StringToOrderType(resp.Data[i].Type)
 		if err != nil {
-			o.Websocket.DataHandler <- o.Name + " - Unidentified order side: " + err.Error()
+			return errors.New(o.Name + " - Unidentified order side: " + err.Error())
 		}
 		oSide, err := order.StringToOrderSide(resp.Data[i].Side)
 		if err != nil {
-			o.Websocket.DataHandler <- o.Name + " - Unidentified order side: " + err.Error()
+			return errors.New(o.Name + " - Unidentified order side: " + err.Error())
 		}
 		o.Websocket.DataHandler <- &order.Detail{
 			ImmediateOrCancel: resp.Data[i].OrderType == 3,
@@ -390,15 +383,15 @@ func (o *OKGroup) wsProcessOrder(respRaw []byte) {
 			Pair:              currency.NewPairFromString(resp.Data[i].InstrumentID),
 		}
 	}
+	return nil
 }
 
 // wsProcessTickers converts ticker data and sends it to the datahandler
-func (o *OKGroup) wsProcessTickers(respRaw []byte) {
+func (o *OKGroup) wsProcessTickers(respRaw []byte) error {
 	var response WebsocketTickerData
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
-		o.Websocket.DataHandler <- err
-		return
+		return err
 	}
 	for i := range response.Data {
 		a := o.GetAssetTypeFromTableName(response.Table)
@@ -413,7 +406,7 @@ func (o *OKGroup) wsProcessTickers(respRaw []byte) {
 		}
 		lastUpdated, err := time.Parse(time.RFC3339, response.Data[i].Timestamp)
 		if err != nil {
-			o.Websocket.DataHandler <- err
+			return err
 		}
 
 		o.Websocket.DataHandler <- &ticker.Price{
@@ -432,15 +425,15 @@ func (o *OKGroup) wsProcessTickers(respRaw []byte) {
 			LastUpdated:  lastUpdated,
 		}
 	}
+	return nil
 }
 
 // wsProcessTrades converts trade data and sends it to the datahandler
-func (o *OKGroup) wsProcessTrades(respRaw []byte) {
+func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 	var response WebsocketTradeResponse
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
-		o.Websocket.DataHandler <- err
-		return
+		return err
 	}
 	for i := range response.Data {
 		a := o.GetAssetTypeFromTableName(response.Table)
@@ -455,7 +448,7 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) {
 		}
 		ts, err := time.Parse("2006-01-02T15:04:05Z", response.Data[i].Timestamp)
 		if err != nil {
-			o.Websocket.DataHandler <- err
+			return err
 		}
 		o.Websocket.DataHandler <- wshandler.TradeData{
 			Amount:       response.Data[i].Size,
@@ -467,15 +460,15 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) {
 			Timestamp:    ts,
 		}
 	}
+	return nil
 }
 
 // wsProcessCandles converts candle data and sends it to the data handler
-func (o *OKGroup) wsProcessCandles(respRaw []byte) {
+func (o *OKGroup) wsProcessCandles(respRaw []byte) error {
 	var response WebsocketCandleResponse
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
-		o.Websocket.DataHandler <- err
-		return
+		return err
 	}
 	for i := range response.Data {
 		a := o.GetAssetTypeFromTableName(response.Table)
@@ -492,8 +485,7 @@ func (o *OKGroup) wsProcessCandles(respRaw []byte) {
 		timeData, err := time.Parse(time.RFC3339Nano,
 			response.Data[i].Candle[0])
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%v Time data could not be parsed: %v",
+			return fmt.Errorf("%v Time data could not be parsed: %v",
 				o.Name,
 				response.Data[i].Candle[0])
 		}
@@ -514,41 +506,36 @@ func (o *OKGroup) wsProcessCandles(respRaw []byte) {
 		}
 		klineData.OpenPrice, err = strconv.ParseFloat(response.Data[i].Candle[1], 64)
 		if err != nil {
-			o.Websocket.DataHandler <- err
-			continue
+			return err
 		}
 		klineData.HighPrice, err = strconv.ParseFloat(response.Data[i].Candle[2], 64)
 		if err != nil {
-			o.Websocket.DataHandler <- err
-			continue
+			return err
 		}
 		klineData.LowPrice, err = strconv.ParseFloat(response.Data[i].Candle[3], 64)
 		if err != nil {
-			o.Websocket.DataHandler <- err
-			continue
+			return err
 		}
 		klineData.ClosePrice, err = strconv.ParseFloat(response.Data[i].Candle[4], 64)
 		if err != nil {
-			o.Websocket.DataHandler <- err
-			continue
+			return err
 		}
 		klineData.Volume, err = strconv.ParseFloat(response.Data[i].Candle[5], 64)
 		if err != nil {
-			o.Websocket.DataHandler <- err
-			continue
+			return err
 		}
 
 		o.Websocket.DataHandler <- klineData
 	}
+	return nil
 }
 
 // WsProcessOrderBook Validates the checksum and updates internal orderbook values
-func (o *OKGroup) WsProcessOrderBook(respRaw []byte) {
+func (o *OKGroup) WsProcessOrderBook(respRaw []byte) error {
 	var response WebsocketOrderBooksData
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
-		o.Websocket.DataHandler <- err
-		return
+		return err
 	}
 	orderbookMutex.Lock()
 	for i := range response.Data {
@@ -566,21 +553,22 @@ func (o *OKGroup) WsProcessOrderBook(respRaw []byte) {
 		if response.Action == okGroupWsOrderbookPartial {
 			err := o.WsProcessPartialOrderBook(&response.Data[i], c, a)
 			if err != nil {
-				o.Websocket.DataHandler <- err
 				o.wsResubscribeToOrderbook(&response)
+				return err
 			}
 		} else if response.Action == okGroupWsOrderbookUpdate {
 			if len(response.Data[i].Asks) == 0 && len(response.Data[i].Bids) == 0 {
-				continue
+				return nil
 			}
 			err := o.WsProcessUpdateOrderbook(&response.Data[i], c, a)
 			if err != nil {
-				o.Websocket.DataHandler <- err
 				o.wsResubscribeToOrderbook(&response)
+				return err
 			}
 		}
 	}
 	orderbookMutex.Unlock()
+	return nil
 }
 
 func (o *OKGroup) wsResubscribeToOrderbook(response *WebsocketOrderBooksData) {

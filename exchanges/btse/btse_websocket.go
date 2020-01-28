@@ -223,8 +223,10 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: newOB.Pair,
 			Asset:    asset.Spot,
 			Exchange: b.Name}
+	default:
+		return fmt.Errorf("%v Unhandled websocket message %s", b.Name, respRaw)
 	}
-	return fmt.Errorf("%v Unhandled websocket message %s", b.Name, respRaw)
+	return nil
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()

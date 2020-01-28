@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
@@ -16,16 +17,15 @@ func TestWebsocketDataHandlerProcess(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	ws.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	go WebsocketDataReceiver(ws)
 	ws.DataHandler <- "string"
 	time.Sleep(time.Second)
 	close(shutdowner)
-	wg.Wait()
 }
 
 func TestHandleData(t *testing.T) {
-	OrdersSetup(t)
-	Bot.Settings.Verbose = true
+	SetupTest(t)
 	var exchName = "exch"
 	var orderID = "testOrder.Detail"
 	err := WebsocketDataHandler(exchName, wshandler.WebsocketNotEnabled)
@@ -110,5 +110,4 @@ func TestHandleData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	Bot.Settings.Verbose = false
 }

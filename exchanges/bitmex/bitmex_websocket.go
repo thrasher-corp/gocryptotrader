@@ -94,7 +94,7 @@ func (b *Bitmex) WsConnect() error {
 			welcomeResp.Limit.Remaining)
 	}
 
-	go b.wsHandleIncomingData()
+	go b.wsReadData()
 	b.GenerateDefaultSubscriptions()
 	err = b.websocketSendAuth()
 	if err != nil {
@@ -104,8 +104,8 @@ func (b *Bitmex) WsConnect() error {
 	return nil
 }
 
-// wsHandleIncomingData services incoming data from the websocket connection
-func (b *Bitmex) wsHandleIncomingData() {
+// wsReadData services incoming data from the websocket connection
+func (b *Bitmex) wsReadData() {
 	b.Websocket.Wg.Add(1)
 
 	defer func() {
@@ -124,7 +124,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 				return
 			}
 			b.Websocket.TrafficAlert <- struct{}{}
-			err = b.wsReadData(resp.Raw)
+			err = b.wsHandleData(resp.Raw)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 			}
@@ -132,7 +132,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 	}
 }
 
-func (b *Bitmex) wsReadData(respRaw []byte) error {
+func (b *Bitmex) wsHandleData(respRaw []byte) error {
 	quickCapture := make(map[string]interface{})
 	err := json.Unmarshal(respRaw, &quickCapture)
 	if err != nil {
@@ -155,7 +155,6 @@ func (b *Bitmex) wsReadData(respRaw []byte) error {
 		}
 
 		if decodedResp.Success {
-			b.Websocket.DataHandler <- decodedResp
 			if len(quickCapture) == 3 {
 				if b.Verbose {
 					log.Debugf(log.ExchangeSys, "%s websocket: Successfully subscribed to %s",
@@ -433,9 +432,11 @@ func (b *Bitmex) wsReadData(respRaw []byte) error {
 				return err
 			}
 			b.Websocket.DataHandler <- response
+		default:
+			return fmt.Errorf("%v Unhandled websocket message %s", b.Name, respRaw)
 		}
 	}
-	return fmt.Errorf("%v Unhandled websocket message %s", b.Name, respRaw)
+	return nil
 }
 
 // ProcessOrderbook processes orderbook updates

@@ -680,8 +680,8 @@ func setupWsTests(t *testing.T) {
 	}
 	authToken = token
 
-	go k.WsReadData(k.WebsocketConn)
-	go k.WsReadData(k.AuthenticatedWebsocketConn)
+	go k.wsFunnelConnectionData(k.WebsocketConn)
+	go k.wsFunnelConnectionData(k.AuthenticatedWebsocketConn)
 	go k.wsReadData()
 	go k.wsPingHandler()
 	wsSetupRan = true

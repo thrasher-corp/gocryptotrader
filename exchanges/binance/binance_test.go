@@ -524,7 +524,7 @@ func TestWSSubscriptionHandling(t *testing.T) {
   ],
   "id": 1
 }`)
-	err := b.wsReadData(pressXToJSON)
+	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -546,11 +546,9 @@ func TestGetWsAuthStreamKey(t *testing.T) {
 }
 
 func TestMaintainWsAuthStreamKey(t *testing.T) {
-	b.Verbose = true
 	if !areTestAPIKeysSet() && !mockTests {
 		t.Skip("API keys not set, skipping test")
 	}
-
 	err := b.MaintainWsAuthStreamKey()
 	if err != nil {
 		t.Error(err)

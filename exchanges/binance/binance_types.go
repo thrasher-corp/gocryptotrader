@@ -121,6 +121,7 @@ type RecentTrade struct {
 
 // MultiStreamData holds stream data
 type MultiStreamData struct {
+	Method string          `json:"method"`
 	Stream string          `json:"stream"`
 	Data   json.RawMessage `json:"data"`
 }

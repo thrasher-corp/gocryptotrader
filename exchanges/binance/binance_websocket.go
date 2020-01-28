@@ -148,6 +148,10 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 			b.Name,
 			respRaw)
 	}
+	if strings.EqualFold(multiStreamData.Method, "subscribe") {
+		//TODO add proper handling for subscriptions
+		return nil
+	}
 
 	streamType := strings.Split(multiStreamData.Stream, "@")
 	if len(streamType) > 1 {
@@ -333,9 +337,12 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					err)
 			}
 			b.Websocket.DataHandler <- data
+		default:
+			return fmt.Errorf("%v Unhandled websocket message %s", b.Name, respRaw)
 		}
+
 	}
-	return fmt.Errorf("%v Unhandled websocket message %s", b.Name, respRaw)
+	return nil
 }
 
 func executionTypeToOrderStatus(executionType string) order.Status {

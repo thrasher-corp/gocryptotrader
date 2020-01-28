@@ -344,11 +344,11 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType:  order.AnyType,
-		Currencies: []currency.Pair{currency.NewPairFromString(currPair)},
+		Type:  order.AnyType,
+		Pairs: []currency.Pair{currency.NewPairFromString(currPair)},
 	}
 
-	getOrdersRequest.Currencies[0].Delimiter = "-"
+	getOrdersRequest.Pairs[0].Delimiter = "-"
 
 	_, err := b.GetActiveOrders(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {

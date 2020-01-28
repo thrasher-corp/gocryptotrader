@@ -633,10 +633,12 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 						Maker:      data[7].(float64) == 1,
 					}
 				}
+			default:
+				return fmt.Errorf("%v Unhandled websocket message %s", b.Name, respRaw)
 			}
 		}
 	}
-	return fmt.Errorf("%v Unhandled websocket message %s", b.Name, respRaw)
+	return nil
 }
 
 // WsInsertSnapshot add the initial orderbook snapshot when subscribed to a

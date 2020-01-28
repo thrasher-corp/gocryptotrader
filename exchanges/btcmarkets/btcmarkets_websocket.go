@@ -242,8 +242,10 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		return fmt.Errorf("%v websocket error. Code: %v Message: %v", b.Name, wsErr.Code, wsErr.Message)
+	default:
+		return fmt.Errorf("%v Unhandled websocket message %s", b.Name, respRaw)
 	}
-	return fmt.Errorf("%v Unhandled websocket message %s", b.Name, respRaw)
+	return nil
 }
 
 func (b *BTCMarkets) generateDefaultSubscriptions() {
