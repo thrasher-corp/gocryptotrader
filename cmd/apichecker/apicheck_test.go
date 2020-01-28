@@ -22,7 +22,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestCheckExistingExchanges(t *testing.T) {
-	a := CheckExistingExchanges(testJSONFile, "Kraken", testConfigData)
+	a := CheckExistingExchanges(testJSONFile, "Kraken", &testConfigData)
 	if a != true {
 		t.Log("Kraken data not found")
 		t.Fail()
@@ -51,14 +51,14 @@ func TestAdd(t *testing.T) {
 		Val:    "col-md-12",
 		RegExp: "col-md-12([\\s\\S]*?)clearfix",
 		Path:   "https://localbitcoins.com/api-docs/"}
-	err := Add(testJSONFile, "LocalBitcoins", htmlScrape, data.Path, data, true, testConfigData)
+	err := Add(testJSONFile, "LocalBitcoins", htmlScrape, data.Path, data, true, &testConfigData)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestCheckUpdates(t *testing.T) {
-	err := CheckUpdates(testJSONFile, configData)
+	err := CheckUpdates(testJSONFile, &configData)
 	if err != nil {
 		t.Error(err)
 	}
@@ -370,7 +370,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestCheckMissingExchanges(t *testing.T) {
-	_, err := CheckMissingExchanges(testJSONFile, testConfigData)
+	_, err := CheckMissingExchanges(testJSONFile, &testConfigData)
 	if err != nil {
 		t.Error(err)
 	}
@@ -398,7 +398,7 @@ func TestNameUpdates(t *testing.T) {
 }
 
 func TestUpdateFile(t *testing.T) {
-	err := UpdateFile(configData, testJSONFile)
+	err := UpdateFile(&configData, testJSONFile)
 	if err != nil {
 		t.Error(err)
 	}
