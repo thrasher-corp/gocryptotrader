@@ -20,7 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
-	"github.com/thrasher-corp/gocryptotrader/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -400,13 +400,15 @@ func (g *Gemini) GetDepositAddress(cryptocurrency currency.Code, _ string) (stri
 func (g *Gemini) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	resp, err := g.WithdrawCrypto(withdrawRequest.Crypto.Address, withdrawRequest.Currency.String(), withdrawRequest.Amount)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if resp.Result == "error" {
-		return "", errors.New(resp.Message)
+		return nil, errors.New(resp.Message)
 	}
 
-	return resp.TXHash, err
+	return &withdraw.ExchangeResponse{
+		ID:     resp.TXHash,
+	}, err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a

@@ -6,7 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
 )
 
 // Wrapper instance of GCT to use for modules

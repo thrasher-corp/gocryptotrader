@@ -14,7 +14,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
-	"github.com/thrasher-corp/gocryptotrader/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/management/banking"
+	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
 )
 
 // Exchange implements all required methods for Wrapper
@@ -160,7 +161,7 @@ func (e Exchange) WithdrawalFiatFunds(exch, bankaccountid string, request *withd
 	if err != nil {
 		return "", err
 	}
-	v, err := engine.Bot.Config.GetBankAccountByID(bankaccountid)
+	v, err := banking.GetBankAccountByID(bankaccountid)
 	if err != nil {
 		return "", err
 	}

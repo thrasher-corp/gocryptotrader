@@ -7,6 +7,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common/cache"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/management/banking"
 )
 
 type RequestType uint8
@@ -40,6 +41,8 @@ type CryptoRequest struct {
 
 // FiatRequest used for fiat withdrawal requests
 type FiatRequest struct {
+	Bank *banking.Account
+
 	BankAccountName   string
 	BankAccountNumber string
 	BankName          string

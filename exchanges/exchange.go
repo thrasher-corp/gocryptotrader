@@ -242,17 +242,17 @@ func (e *Base) GetPairAssetType(c currency.Pair) (asset.Item, error) {
 
 // GetClientBankAccounts returns banking details associated with
 // a client for withdrawal purposes
-func (e *Base) GetClientBankAccounts(exchangeName, withdrawalCurrency string) (config.BankAccount, error) {
-	cfg := config.GetConfig()
-	return cfg.GetClientBankAccounts(exchangeName, withdrawalCurrency)
-}
-
-// GetExchangeBankAccounts returns banking details associated with an
-// exchange for funding purposes
-func (e *Base) GetExchangeBankAccounts(exchangeName, depositCurrency string) (config.BankAccount, error) {
-	cfg := config.GetConfig()
-	return cfg.GetExchangeBankAccounts(exchangeName, depositCurrency)
-}
+// func (e *Base) GetClientBankAccounts(exchangeName, withdrawalCurrency string) (config.BankAccount, error) {
+// 	cfg := config.GetConfig()
+// 	return cfg.GetClientBankAccounts(exchangeName, withdrawalCurrency)
+// }
+//
+// // GetExchangeBankAccounts returns banking details associated with an
+// // exchange for funding purposes
+// func (e *Base) GetExchangeBankAccounts(exchangeName, depositCurrency string) (config.BankAccount, error) {
+// 	cfg := config.GetConfig()
+// 	return cfg.GetExchangeBankAccounts(exchangeName, depositCurrency)
+// }
 
 // SetCurrencyPairFormat checks the exchange request and config currency pair
 // formats and syncs it with the exchanges SetDefault settings

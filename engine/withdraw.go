@@ -2,13 +2,17 @@ package engine
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/gofrs/uuid"
 	withdrawal "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
-	"github.com/thrasher-corp/gocryptotrader/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
 )
 
+const (
+	ErrWithdrawRequestNotFound  = "%v not found"
+)
 func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Response, error) {
 	if req == nil {
 		return nil, errors.New("crypto withdraw request param is nil")
@@ -33,19 +37,21 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
 	}
-	if req.Type == withdraw.Fiat {
-		v, errFiat := exch.WithdrawFiatFunds(req)
-		if errFiat != nil {
-			return nil, errFiat
-		}
-		resp.Exchange.Status = v.Status
-		resp.Exchange.ID = v.ID
-	} else if req.Type == withdraw.Crypto {
-		_, err = exch.WithdrawCryptocurrencyFunds(req)
-		if err != nil {
-			return nil, err
-		}
-	}
+	// if req.Type == withdraw.Fiat {
+	// 	v, errFiat := exch.WithdrawFiatFunds(req)
+	// 	if errFiat != nil {
+	// 		return nil, errFiat
+	// 	}
+	// 	resp.Exchange.Status = v.Status
+	// 	resp.Exchange.ID = v.ID
+	// } else if req.Type == withdraw.Crypto {
+	// 	v, err := exch.WithdrawCryptocurrencyFunds(req)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	resp.Exchange.Status = v.Status
+	// 	resp.Exchange.ID = v.ID
+	// }
 
 	withdraw.Cache.Add(id.String(), resp)
 	withdrawal.Event(resp)
@@ -60,7 +66,7 @@ func WithdrawRequestByID(id string) (*withdraw.Response, error) {
 	}
 	l, err := withdrawal.EventByUUID(id)
 	if err != nil {
-		return nil, errors.New("not found")
+		return nil, fmt.Errorf(ErrWithdrawRequestNotFound, id)
 	}
 	withdraw.Cache.Add(id, l)
 	return l, nil

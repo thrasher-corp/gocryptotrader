@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
-	"github.com/thrasher-corp/gocryptotrader/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
 )
 
 // Note: GoCryptoTrader wrapper funcs currently only support SPOT trades.
@@ -377,16 +377,18 @@ func (o *OKGroup) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request)
 		TradePwd:    withdrawRequest.TradePassword,
 	})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if !withdrawal.Result {
-		return strconv.FormatInt(withdrawal.WithdrawalID, 10),
+		return nil,
 			fmt.Errorf("could not withdraw currency %s to %s, no error specified",
 				withdrawRequest.Currency,
 				withdrawRequest.Crypto.Address)
 	}
 
-	return strconv.FormatInt(withdrawal.WithdrawalID, 10), nil
+	return &withdraw.ExchangeResponse{
+		ID: strconv.FormatInt(withdrawal.WithdrawalID, 10),
+	}, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a

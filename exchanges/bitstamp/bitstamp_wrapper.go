@@ -19,7 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
-	"github.com/thrasher-corp/gocryptotrader/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -428,17 +428,19 @@ func (b *Bitstamp) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request
 		withdrawRequest.Crypto.AddressTag,
 		true)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if len(resp.Error) != 0 {
 		var details strings.Builder
 		for x := range resp.Error {
 			details.WriteString(strings.Join(resp.Error[x], ""))
 		}
-		return "", errors.New(details.String())
+		return nil, errors.New(details.String())
 	}
 
-	return resp.ID, nil
+	return &withdraw.ExchangeResponse{
+		ID:    	resp.ID,
+	}, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a

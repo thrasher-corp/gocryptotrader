@@ -22,7 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
 )
 
 func main() {
@@ -627,7 +627,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			},
 			Amount: config.OrderSubmission.Amount,
 		}
-		var r20 string
+		var r20 *withdraw.ExchangeResponse
 		r20, err = e.WithdrawCryptocurrencyFunds(&withdrawRequest)
 		msg = ""
 		if err != nil {

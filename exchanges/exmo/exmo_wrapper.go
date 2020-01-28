@@ -20,7 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
-	"github.com/thrasher-corp/gocryptotrader/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -425,7 +425,9 @@ func (e *EXMO) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*
 		withdrawRequest.Crypto.AddressTag,
 		withdrawRequest.Amount)
 
-	return strconv.FormatInt(resp, 10), err
+	return &withdraw.ExchangeResponse{
+		ID:      strconv.FormatInt(resp, 10),
+	}, err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a

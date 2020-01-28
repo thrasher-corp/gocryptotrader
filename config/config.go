@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/management/banking"
 )
 
 // GetCurrencyConfig returns currency configurations
@@ -35,122 +36,110 @@ func (c *Config) GetCurrencyConfig() CurrencyConfig {
 
 // GetExchangeBankAccounts returns banking details associated with an exchange
 // for depositing funds
-func (c *Config) GetExchangeBankAccounts(exchangeName, depositingCurrency string) (BankAccount, error) {
-	m.Lock()
-	defer m.Unlock()
-
-	for x := range c.Exchanges {
-		if strings.EqualFold(c.Exchanges[x].Name, exchangeName) {
-			for y := range c.Exchanges[x].BankAccounts {
-				if strings.Contains(c.Exchanges[x].BankAccounts[y].SupportedCurrencies,
-					depositingCurrency) {
-					return c.Exchanges[x].BankAccounts[y], nil
-				}
-			}
-		}
-	}
-	return BankAccount{}, fmt.Errorf("exchange %s bank details not found for %s",
-		exchangeName,
-		depositingCurrency)
-}
+// func (c *Config) GetExchangeBankAccounts(exchangeName, depositingCurrency string) (BankAccount, error) {
+// 	m.Lock()
+// 	defer m.Unlock()
+//
+// 	for x := range c.Exchanges {
+// 		if strings.EqualFold(c.Exchanges[x].Name, exchangeName) {
+// 			for y := range c.Exchanges[x].BankAccounts {
+// 				if strings.Contains(c.Exchanges[x].BankAccounts[y].SupportedCurrencies,
+// 					depositingCurrency) {
+// 					return c.Exchanges[x].BankAccounts[y], nil
+// 				}
+// 			}
+// 		}
+// 	}
+// 	return BankAccount{}, fmt.Errorf("exchange %s bank details not found for %s",
+// 		exchangeName,
+// 		depositingCurrency)
+// }
 
 // UpdateExchangeBankAccounts updates the configuration for the associated
 // exchange bank
-func (c *Config) UpdateExchangeBankAccounts(exchangeName string, bankCfg []BankAccount) error {
-	m.Lock()
-	defer m.Unlock()
-
-	for i := range c.Exchanges {
-		if strings.EqualFold(c.Exchanges[i].Name, exchangeName) {
-			c.Exchanges[i].BankAccounts = bankCfg
-			return nil
-		}
-	}
-	return fmt.Errorf("exchange %s not found",
-		exchangeName)
-}
+// func (c *Config) UpdateExchangeBankAccounts(exchangeName string, bankCfg []BankAccount) error {
+// 	m.Lock()
+// 	defer m.Unlock()
+//
+// 	for i := range c.Exchanges {
+// 		if strings.EqualFold(c.Exchanges[i].Name, exchangeName) {
+// 			c.Exchanges[i].BankAccounts = bankCfg
+// 			return nil
+// 		}
+// 	}
+// 	return fmt.Errorf("exchange %s not found",
+// 		exchangeName)
+// }
 
 // GetClientBankAccounts returns banking details used for a given exchange
 // and currency
-func (c *Config) GetClientBankAccounts(exchangeName, targetCurrency string) (BankAccount, error) {
-	m.Lock()
-	defer m.Unlock()
-
-	for x := range c.BankAccounts {
-		if (strings.Contains(c.BankAccounts[x].SupportedExchanges, exchangeName) ||
-			c.BankAccounts[x].SupportedExchanges == "ALL") &&
-			strings.Contains(c.BankAccounts[x].SupportedCurrencies, targetCurrency) {
-			return c.BankAccounts[x], nil
-		}
-	}
-	return BankAccount{}, fmt.Errorf("client banking details not found for %s and currency %s",
-		exchangeName,
-		targetCurrency)
-}
+// func (c *Config) GetClientBankAccounts(exchangeName, targetCurrency string) (BankAccount, error) {
+// 	m.Lock()
+// 	defer m.Unlock()
+//
+// 	for x := range c.BankAccounts {
+// 		if (strings.Contains(c.BankAccounts[x].SupportedExchanges, exchangeName) ||
+// 			c.BankAccounts[x].SupportedExchanges == "ALL") &&
+// 			strings.Contains(c.BankAccounts[x].SupportedCurrencies, targetCurrency) {
+// 			return c.BankAccounts[x], nil
+// 		}
+// 	}
+// 	return BankAccount{}, fmt.Errorf("client banking details not found for %s and currency %s",
+// 		exchangeName,
+// 		targetCurrency)
+// }
 
 // UpdateClientBankAccounts updates the configuration for a bank
-func (c *Config) UpdateClientBankAccounts(bankCfg *BankAccount) error {
-	m.Lock()
-	defer m.Unlock()
+// func (c *Config) UpdateClientBankAccounts(bankCfg *BankAccount) error {
+// 	m.Lock()
+// 	defer m.Unlock()
+//
+// 	for i := range c.BankAccounts {
+// 		if c.BankAccounts[i].BankName == bankCfg.BankName && c.BankAccounts[i].AccountNumber == bankCfg.AccountNumber {
+// 			c.BankAccounts[i] = *bankCfg
+// 			return nil
+// 		}
+// 	}
+// 	return fmt.Errorf("client banking details for %s not found, update not applied",
+// 		bankCfg.BankName)
+// }
+//
+// // CheckClientBankAccounts checks client bank details
+// func (c *Config) CheckClientBankAccounts() {
+// 	m.Lock()
+// 	defer m.Unlock()
+//
+// 	if len(c.BankAccounts) == 0 {
+// 		c.BankAccounts = append(c.BankAccounts,
+// 			BankAccount{
+// 				ID:                  "test-bank-01",
+// 				BankName:            "Test Bank",
+// 				BankAddress:         "42 Bank Street",
+// 				BankPostalCode:      "13337",
+// 				BankPostalCity:      "Satoshiville",
+// 				BankCountry:         "Japan",
+// 				AccountName:         "Satoshi Nakamoto",
+// 				AccountNumber:       "0234",
+// 				SWIFTCode:           "91272837",
+// 				IBAN:                "98218738671897",
+// 				SupportedCurrencies: "USD",
+// 				SupportedExchanges:  "Kraken,Bitstamp",
+// 			},
+// 		)
+// 		return
+// 	}
+//
+// 	for i := range c.BankAccounts {
+// 		if c.BankAccounts[i].Enabled {
+// 			err := c.BankAccounts[i].Validate()
+// 			if err != nil {
+// 				c.BankAccounts[i].Enabled = false
+// 				log.Warn(log.ConfigMgr, err.Error())
+// 			}
+// 		}
+// 	}
+// }
 
-	for i := range c.BankAccounts {
-		if c.BankAccounts[i].BankName == bankCfg.BankName && c.BankAccounts[i].AccountNumber == bankCfg.AccountNumber {
-			c.BankAccounts[i] = *bankCfg
-			return nil
-		}
-	}
-	return fmt.Errorf("client banking details for %s not found, update not applied",
-		bankCfg.BankName)
-}
-
-// CheckClientBankAccounts checks client bank details
-func (c *Config) CheckClientBankAccounts() {
-	m.Lock()
-	defer m.Unlock()
-
-	if len(c.BankAccounts) == 0 {
-		c.BankAccounts = append(c.BankAccounts,
-			BankAccount{
-				ID:                  "test-bank-01",
-				BankName:            "Test Bank",
-				BankAddress:         "42 Bank Street",
-				BankPostalCode:      "13337",
-				BankPostalCity:      "Satoshiville",
-				BankCountry:         "Japan",
-				AccountName:         "Satoshi Nakamoto",
-				AccountNumber:       "0234",
-				SWIFTCode:           "91272837",
-				IBAN:                "98218738671897",
-				SupportedCurrencies: "USD",
-				SupportedExchanges:  "Kraken,Bitstamp",
-			},
-		)
-		return
-	}
-
-	for i := range c.BankAccounts {
-		if c.BankAccounts[i].Enabled {
-			err := c.BankAccounts[i].Validate()
-			if err != nil {
-				c.BankAccounts[i].Enabled = false
-				log.Warn(log.ConfigMgr, err.Error())
-			}
-		}
-	}
-}
-
-// GetBankAccountByID Returns a bank account based on its ID
-func (c *Config) GetBankAccountByID(id string) (*BankAccount, error) {
-	m.Lock()
-	defer m.Unlock()
-
-	for x := range c.BankAccounts {
-		if strings.EqualFold(c.BankAccounts[x].ID, id) {
-			return &c.BankAccounts[x], nil
-		}
-	}
-	return nil, fmt.Errorf(ErrBankAccountNotFound, id)
-}
 
 // PurgeExchangeAPICredentials purges the stored API credentials
 func (c *Config) PurgeExchangeAPICredentials() {
@@ -976,22 +965,26 @@ func (c *Config) CheckExchangeConfigValues() error {
 
 			c.CheckExchangeAssetsConsistency(c.Exchanges[i].Name)
 
-			for x := range c.Exchanges[i].BankAccounts {
-				if !c.Exchanges[i].BankAccounts[x].Enabled {
-					continue
-				}
-				err := c.Exchanges[i].BankAccounts[x].Validate()
-				if err != nil {
-					c.Exchanges[i].BankAccounts[x].Enabled = false
-					log.Warn(log.ConfigMgr, err.Error())
-				}
-			}
 			exchanges++
 		}
 	}
 	if exchanges == 0 {
 		return errors.New(ErrNoEnabledExchanges)
 	}
+	return nil
+}
+
+func (c *Config) CheckBankAccountConfig() error {
+
+	for x := range c.BankAccounts {
+		err := c.BankAccounts[x].Validate()
+		if err != nil {
+			c.BankAccounts[x].Enabled = false
+			log.Warn(log.ConfigMgr, err.Error())
+		}
+	}
+	banking.Accounts = c.BankAccounts
+
 	return nil
 }
 
@@ -1654,7 +1647,10 @@ func (c *Config) CheckConfig() error {
 
 	c.CheckConnectionMonitorConfig()
 	c.CheckCommunicationsConfig()
-	c.CheckClientBankAccounts()
+	err = c.CheckBankAccountConfig()
+	if err != nil {
+		log.Errorf(log.ConfigMgr, "Failed to configure Bank Account manager: %v", err)
+	}
 	c.CheckRemoteControlConfig()
 
 	err = c.CheckCurrencyConfigValues()

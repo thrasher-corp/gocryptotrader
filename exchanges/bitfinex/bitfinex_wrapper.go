@@ -20,7 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
-	"github.com/thrasher-corp/gocryptotrader/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -499,13 +499,15 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request
 		withdrawRequest.Amount,
 		withdrawRequest.Currency)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if len(resp) == 0 {
-		return "", errors.New("no withdrawID returned. Check order status")
+		return nil, errors.New("no withdrawID returned. Check order status")
 	}
 
-	return strconv.FormatInt(resp[0].WithdrawalID, 10), err
+	return &withdraw.ExchangeResponse{
+		ID:     strconv.FormatInt(resp[0].WithdrawalID, 10),
+	}, err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted

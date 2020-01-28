@@ -32,9 +32,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/management/banking"
+	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/utils"
-	"github.com/thrasher-corp/gocryptotrader/withdraw"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
@@ -873,7 +874,7 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 
 // WithdrawFiatFunds withdraws fiat funds specified by exchange
 func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFiatRequest) (*gctrpc.WithdrawResponse, error) {
-	v, err := Bot.Config.GetBankAccountByID(r.BankAccountId)
+	bankAccount, err := banking.GetBankAccountByID(r.BankAccountId)
 	if err != nil {
 		return nil, err
 	}
@@ -889,16 +890,7 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 		Type:        withdraw.Fiat,
 		Description: r.Description,
 		Fiat: &withdraw.FiatRequest{
-			BankAccountName:   v.AccountName,
-			BankAccountNumber: v.AccountNumber,
-			BankName:          v.BankName,
-			BankAddress:       v.BankAddress,
-			BankCity:          v.BankPostalCity,
-			BankCountry:       v.BankCountry,
-			BankPostalCode:    v.BankPostalCity,
-			BSB:               v.BSBNumber,
-			SwiftCode:         v.SWIFTCode,
-			IBAN:              v.IBAN,
+			Bank: bankAccount,
 		},
 	}
 

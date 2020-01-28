@@ -20,7 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
-	"github.com/thrasher-corp/gocryptotrader/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -407,15 +407,17 @@ func (l *LakeBTC) GetDepositAddress(cryptocurrency currency.Code, _ string) (str
 // submitted
 func (l *LakeBTC) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if withdrawRequest.Currency != currency.BTC {
-		return "", errors.New("only BTC supported for withdrawals")
+		return nil, errors.New("only BTC supported for withdrawals")
 	}
 
 	resp, err := l.CreateWithdraw(withdrawRequest.Amount, withdrawRequest.Description)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return strconv.FormatInt(resp.ID, 10), nil
+	return &withdraw.ExchangeResponse{
+		ID:     strconv.FormatInt(resp.ID, 10),
+	}, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a

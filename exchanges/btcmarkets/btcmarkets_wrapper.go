@@ -19,7 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
-	"github.com/thrasher-corp/gocryptotrader/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -493,9 +493,12 @@ func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Reque
 		"",
 		"")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return a.Status, nil
+	return &withdraw.ExchangeResponse{
+		ID:     a.ID,
+		Status:  a.Status,
+	}, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
@@ -507,10 +510,10 @@ func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*with
 	a, err := b.RequestWithdraw(withdrawRequest.Currency.String(),
 		withdrawRequest.Amount,
 		"",
-		withdrawRequest.Fiat.BankAccountName,
-		withdrawRequest.Fiat.BankAccountNumber,
-		withdrawRequest.Fiat.BSB,
-		withdrawRequest.Fiat.BankName)
+		withdrawRequest.Fiat.Bank.AccountName,
+		withdrawRequest.Fiat.Bank.AccountNumber,
+		withdrawRequest.Fiat.Bank.BSBNumber,
+		withdrawRequest.Fiat.Bank.BankName)
 	if err != nil {
 		return nil, err
 	}
