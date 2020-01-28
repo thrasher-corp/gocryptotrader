@@ -92,7 +92,7 @@ func main() {
 		log.Fatal(err)
 	}
 	// Assumption here is that if api key n token are set, then cardid and checklistid will be set too
-	if areAPIKeysSet() {
+	if AreAPIKeysSet() {
 		UpdateFile(&configData, backupFile)
 		configData.ConfKey = trelloKey
 		configData.ConfToken = trelloToken
@@ -111,8 +111,8 @@ func main() {
 	}
 }
 
-// areAPIKeysSet checks if api keys and tokens are set
-func areAPIKeysSet() bool {
+// AreAPIKeysSet checks if api keys and tokens are set
+func AreAPIKeysSet() bool {
 	if (trelloKey != "" && trelloKey != "key") && (trelloToken != "" && trelloToken != "token") {
 		return true
 	}
@@ -217,7 +217,7 @@ func CheckUpdates(fileName string, confData *Config) error {
 	if err != nil {
 		return err
 	}
-	if areAPIKeysSet() {
+	if AreAPIKeysSet() {
 		var a ChecklistItemData
 		for y := range resp {
 			a, err = GetChecklistItems()
@@ -234,7 +234,7 @@ func CheckUpdates(fileName string, confData *Config) error {
 			}
 		}
 	}
-	if verbose && !areAPIKeysSet() {
+	if verbose && !AreAPIKeysSet() {
 		err = UpdateFile(confData, testJSONFile)
 		if err != nil {
 			return err
@@ -366,7 +366,7 @@ func Add(fileName, exchName, checkType, path string, data interface{}, update bo
 			return err
 		}
 	}
-	if areAPIKeysSet() {
+	if AreAPIKeysSet() {
 		return ioutil.WriteFile(jsonFile, file, 0770)
 	}
 	return ioutil.WriteFile(testJSONFile, file, 0770)

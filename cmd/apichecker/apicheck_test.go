@@ -22,6 +22,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestCheckExistingExchanges(t *testing.T) {
+	t.Parallel()
 	a := CheckExistingExchanges(testJSONFile, "Kraken", &testConfigData)
 	if a != true {
 		t.Log("Kraken data not found")
@@ -30,6 +31,7 @@ func TestCheckExistingExchanges(t *testing.T) {
 }
 
 func TestCheckChangeLog(t *testing.T) {
+	t.Parallel()
 	data := HTMLScrapingData{TokenData: "h3",
 		Key:           "id",
 		Val:           "change-change",
@@ -46,6 +48,7 @@ func TestCheckChangeLog(t *testing.T) {
 }
 
 func TestAdd(t *testing.T) {
+	t.Parallel()
 	data := HTMLScrapingData{TokenData: "div",
 		Key:    "class",
 		Val:    "col-md-12",
@@ -58,6 +61,7 @@ func TestAdd(t *testing.T) {
 }
 
 func TestCheckUpdates(t *testing.T) {
+	t.Parallel()
 	err := CheckUpdates(testJSONFile, &configData)
 	if err != nil {
 		t.Error(err)
@@ -65,6 +69,7 @@ func TestCheckUpdates(t *testing.T) {
 }
 
 func TestHTMLScrapeGemini(t *testing.T) {
+	t.Parallel()
 	data := HTMLScrapingData{TokenData: "h1",
 		Key: "id",
 		Val: "revision-history",
@@ -81,6 +86,7 @@ func TestHTMLScrapeGemini(t *testing.T) {
 }
 
 func TestHTMLScrapeHuobi(t *testing.T) {
+	t.Parallel()
 	data := HTMLScrapingData{TokenData: "h1",
 		Key: "id",
 		Val: "change-log",
@@ -97,6 +103,7 @@ func TestHTMLScrapeHuobi(t *testing.T) {
 }
 
 func TestHTMLScrapeCoinbasepro(t *testing.T) {
+	t.Parallel()
 	data := HTMLScrapingData{TokenData: "h1",
 		Key: "id",
 		Val: "changelog",
@@ -113,6 +120,7 @@ func TestHTMLScrapeCoinbasepro(t *testing.T) {
 }
 
 func TestHTMLScrapeBitfinex(t *testing.T) {
+	t.Parallel()
 	data := HTMLScrapingData{DateFormat: "2006-01-02",
 		RegExp: `section-v-(2\d{3}-\d{1,2}-\d{1,2})`,
 		Path:   "https://docs.bitfinex.com/docs/changelog"}
@@ -123,6 +131,7 @@ func TestHTMLScrapeBitfinex(t *testing.T) {
 }
 
 func TestHTMLScrapeBitmex(t *testing.T) {
+	t.Parallel()
 	data := HTMLScrapingData{TokenData: "h4",
 		Key:           "id",
 		Val:           "",
@@ -138,6 +147,7 @@ func TestHTMLScrapeBitmex(t *testing.T) {
 }
 
 func TestHTMLScrapeHitBTC(t *testing.T) {
+	t.Parallel()
 	data := HTMLScrapingData{RegExp: `newest version \d{1}.\d{1}`,
 		Path: "https://api.hitbtc.com/"}
 	_, err := HTMLScrapeHitBTC(&data)
@@ -147,6 +157,7 @@ func TestHTMLScrapeHitBTC(t *testing.T) {
 }
 
 func TestHTMLScrapeDefault(t *testing.T) {
+	t.Parallel()
 	data := HTMLScrapingData{TokenData: "h3",
 		Key:           "id",
 		Val:           "change-change",
@@ -163,6 +174,7 @@ func TestHTMLScrapeDefault(t *testing.T) {
 }
 
 func TestHTMLScrapeBTSE(t *testing.T) {
+	t.Parallel()
 	data := HTMLScrapingData{RegExp:        `^version: \d{1}.\d{1}.\d{1}`,
 	Path:          "https://api.btcmarkets.net/openapi/info/index.yaml"}
 	_, err := HTMLScrapeBTSE(&data)
@@ -172,6 +184,7 @@ func TestHTMLScrapeBTSE(t *testing.T) {
 }
 
 func TestHTMLScrapeBTCMarkets(t *testing.T) {
+	t.Parallel()
 	data := HTMLScrapingData{RegExp:        `^version: \d{1}.\d{1}.\d{1}`,
 		Path:          "https://api.btcmarkets.net/openapi/info/index.yaml"}
 	_, err := HTMLScrapeBTCMarkets(&data)
@@ -181,6 +194,7 @@ func TestHTMLScrapeBTCMarkets(t *testing.T) {
 }
 
 func TestHTMLScrapeBitflyer(t *testing.T) {
+	t.Parallel()
 	data := HTMLScrapingData{TokenData: "p",
 		Key:           "",
 		Val:           "",
@@ -196,6 +210,7 @@ func TestHTMLScrapeBitflyer(t *testing.T) {
 }
 
 func TestHTMLScrapeANX(t *testing.T) {
+	t.Parallel()
 	data := HTMLScrapingData{RegExp: `ANX Exchange API v\d{1}`,
 		Path: "https://anxv3.docs.apiary.io/#reference/quickstart-catalog"}
 	_, err := HTMLScrapeANX(&data)
@@ -205,6 +220,7 @@ func TestHTMLScrapeANX(t *testing.T) {
 }
 
 func TestHTMLPoloniex(t *testing.T) {
+	t.Parallel()
 	data := HTMLScrapingData{TokenData: "h1",
 		Key:           "id",
 		Val:           "changelog",
@@ -220,6 +236,7 @@ func TestHTMLPoloniex(t *testing.T) {
 }
 
 func TestHTMLItBit(t *testing.T) {
+	t.Parallel()
 	data := HTMLScrapingData{TokenData: "a",
 		Key:           "href",
 		Val:           "changelog",
@@ -235,6 +252,7 @@ func TestHTMLItBit(t *testing.T) {
 }
 
 func TestHTMLLakeBTC(t *testing.T) {
+	t.Parallel()
 	data := HTMLScrapingData{TokenData: "div",
 		Key:           "class",
 		Val:           "flash-message",
@@ -250,6 +268,7 @@ func TestHTMLLakeBTC(t *testing.T) {
 }
 
 func TestHTMLScrapeExmo(t *testing.T) {
+	t.Parallel()
 	data := HTMLScrapingData{RegExp: `Last updated on [\s\S]*, 20\d{2}`,
 		Path: "https://exmo.com/en/api/"}
 	_, err := HTMLScrapeExmo(&data)
@@ -259,6 +278,7 @@ func TestHTMLScrapeExmo(t *testing.T) {
 }
 
 func TestHTMLBitstamp(t *testing.T) {
+	t.Parallel()
 	data := HTMLScrapingData{RegExp: `refer to the v\d{1} API for future references.`,
 		Path: "https://www.bitstamp.net/api/"}
 	_, err := HTMLScrapeBitstamp(&data)
@@ -268,6 +288,7 @@ func TestHTMLBitstamp(t *testing.T) {
 }
 
 func TestHTMLKraken(t *testing.T) {
+	t.Parallel()
 	data := HTMLScrapingData{TokenData: "h3",
 		Key:           "",
 		Val:           "",
@@ -283,6 +304,7 @@ func TestHTMLKraken(t *testing.T) {
 }
 
 func TestHTMLAlphaPoint(t *testing.T) {
+	t.Parallel()
 	data := HTMLScrapingData{TokenData: "h1",
 		Key:           "id",
 		Val:           "introduction",
@@ -298,6 +320,7 @@ func TestHTMLAlphaPoint(t *testing.T) {
 }
 
 func TestHTMLYobit(t *testing.T) {
+	t.Parallel()
 	data := HTMLScrapingData{TokenData: "h2",
 		Key:  "id",
 		Path: "https://www.yobit.net/en/api/"}
@@ -308,6 +331,7 @@ func TestHTMLYobit(t *testing.T) {
 }
 
 func TestHTMLLocalBitcoins(t *testing.T) {
+	t.Parallel()
 	data := HTMLScrapingData{TokenData: "div",
 		Key:           "class",
 		Val:           "col-md-12",
@@ -323,6 +347,10 @@ func TestHTMLLocalBitcoins(t *testing.T) {
 }
 
 func TestGetListsData(t *testing.T) {
+	t.Parallel()
+	if !AreAPIKeysSet() {
+		t.Skip()
+	}	
 	_, err := GetListsData("5bd11e6998c8507ebbbec4fa")
 	if err != nil {
 		t.Error(err)
@@ -330,6 +358,10 @@ func TestGetListsData(t *testing.T) {
 }
 
 func TestCreateNewCard(t *testing.T) {
+	t.Parallel()
+	if !AreAPIKeysSet() {
+		t.Skip()
+	}	
 	fillData := CardFill{ListID: "5d75f87cf0aa430d0bf4f029",
 		Name: "Exchange Updates"}
 	err := CreateNewCard(fillData)
@@ -339,6 +371,10 @@ func TestCreateNewCard(t *testing.T) {
 }
 
 func TestCreateNewCheck(t *testing.T) {
+	t.Parallel()
+	if !AreAPIKeysSet() {
+		t.Skip()
+	}	
 	err := CreateNewCheck("Gemini")
 	if err != nil {
 		t.Error(err)
@@ -346,6 +382,7 @@ func TestCreateNewCheck(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
+	t.Parallel()
 	var exchCheck, updatedExch HTMLScrapingData
 	for x := range testConfigData.Exchanges {
 		if testConfigData.Exchanges[x].Name == "Exmo" {
@@ -370,6 +407,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestCheckMissingExchanges(t *testing.T) {
+	t.Parallel()
 	_, err := CheckMissingExchanges(testJSONFile, &testConfigData)
 	if err != nil {
 		t.Error(err)
@@ -377,6 +415,10 @@ func TestCheckMissingExchanges(t *testing.T) {
 }
 
 func TestGetChecklistItems(t *testing.T) {
+	t.Parallel()
+	if !AreAPIKeysSet() {
+		t.Skip()
+	}	
 	_, err := GetChecklistItems()
 	if err != nil {
 		t.Error(err)
@@ -384,6 +426,10 @@ func TestGetChecklistItems(t *testing.T) {
 }
 
 func TestUpdateCheckItem(t *testing.T) {
+	t.Parallel()
+	if !AreAPIKeysSet() {
+		t.Skip()
+	}	
 	err := UpdateCheckItem("5dfc604fe901ac6a592e9b75", "Gemini 1", "incomplete")
 	if err != nil {
 		t.Error(err)
@@ -391,6 +437,7 @@ func TestUpdateCheckItem(t *testing.T) {
 }
 
 func TestNameUpdates(t *testing.T) {
+	t.Parallel()
 	_, err := NameStateChanges("Gemini 2", "complete")
 	if err != nil {
 		t.Error(err)
@@ -398,6 +445,7 @@ func TestNameUpdates(t *testing.T) {
 }
 
 func TestUpdateFile(t *testing.T) {
+	t.Parallel()
 	err := UpdateFile(&configData, testJSONFile)
 	if err != nil {
 		t.Error(err)
@@ -417,6 +465,7 @@ func TestUpdateFile(t *testing.T) {
 }
 
 func TestReadFileData(t *testing.T) {
+	t.Parallel()
 	_, err := ReadFileData(testJSONFile)
 	if err != nil {
 		t.Error(err)
@@ -424,6 +473,7 @@ func TestReadFileData(t *testing.T) {
 }
 
 func TestGetSha(t *testing.T) {
+	t.Parallel()
 	_, err := getSha("binance-exchange/binance-official-api-docs")
 	if err != nil {
 		t.Error(err)

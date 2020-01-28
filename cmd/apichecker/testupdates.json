@@ -1,6 +1,6 @@
 {
- "CardID": "",
- "ChecklistID": "",
+ "CardID": "5dfc54b96da13a6ac5ceca97",
+ "ChecklistID": "5dfc5a5377835d0ba025787a",
  "Key": "",
  "Token": "",
  "Exchanges": [
@@ -86,7 +86,7 @@
    "Data": {
     "GitHubData": {
      "Repo": "Bittrex/bittrex.github.io",
-     "Sha": "fc749a8e4b70f84c5a2b56ac7b0583c2b6fdc97b"
+     "Sha": "fc1ea9c10c48aa82c4dc2c6be74887ef61b5b31b"
     }
    },
    "Err": null
@@ -240,7 +240,7 @@
      "TextTokenData": "h2",
      "DateFormat": "2006-01-02",
      "RegExp": "(2\\d{3}-\\d{1,2}-\\d{1,2})",
-     "CheckString": "2020-01-16",
+     "CheckString": "2020-01-22",
      "Path": "https://docs.poloniex.com/#changelog"
     }
    },
