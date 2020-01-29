@@ -1,7 +1,6 @@
 package exchange
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -9,12 +8,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
-	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
 // Exchange implements all required methods for Wrapper
@@ -120,29 +119,18 @@ func (e Exchange) CancelOrder(exch, orderID string) (bool, error) {
 }
 
 // AccountInformation returns account information (balance etc) for requested exchange
-func (e Exchange) AccountInformation(exch string) (*modules.AccountInfo, error) {
+func (e Exchange) AccountInformation(exch string) (account.Holdings, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
-		return nil, err
+		return account.Holdings{}, err
 	}
 
-	r, err := ex.FetchAccountInfo()
+	accountInfo, err := ex.FetchAccountInfo()
 	if err != nil {
-		return nil, err
+		return account.Holdings{}, err
 	}
 
-	temp, err := json.Marshal(r)
-	if err != nil {
-		return nil, err
-	}
-
-	accountInfo := modules.AccountInfo{}
-	err = json.Unmarshal(temp, &accountInfo)
-	if err != nil {
-		return nil, err
-	}
-
-	return &accountInfo, nil
+	return accountInfo, nil
 }
 
 // DepositAddress gets the address required to deposit funds for currency type
