@@ -191,7 +191,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					for i := range candleBundle {
 						candle := candleBundle[i].([]interface{})
 						b.Websocket.DataHandler <- wshandler.KlineData{
-							Timestamp:  time.Unix(0, candle[0].(int64)),
+							Timestamp:  time.Unix(0, int64(candle[0].(float64))),
 							Exchange:   b.Name,
 							AssetType:  asset.Spot,
 							Pair:       curr,
@@ -204,7 +204,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					}
 				case float64:
 					b.Websocket.DataHandler <- wshandler.KlineData{
-						Timestamp:  time.Unix(0, candleBundle[0].(int64)),
+						Timestamp:  time.Unix(0, int64(candleBundle[0].(float64))),
 						Exchange:   b.Name,
 						AssetType:  asset.Spot,
 						Pair:       curr,
@@ -305,8 +305,6 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					Side:         side,
 				}
 			}
-		default:
-			return fmt.Errorf("%v Unhandled websocket message %s", b.Name, respRaw)
 		}
 
 		if authResp, ok := chanData[1].(string); ok {
@@ -335,6 +333,47 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				}
 				if notification[5] != nil && strings.EqualFold(notification[5].(string), wsError) {
 					return fmt.Errorf("%s - Error %s", b.Name, notification[6].(string))
+				}
+			case wsOrderSnapshot:
+				if snapBundle, ok := chanData[2].([]interface{}); ok && len(snapBundle) > 0 {
+					if _, ok := snapBundle[0].([]interface{}); ok {
+						for i := range snapBundle {
+							positionData := snapBundle[i].([]interface{})
+							b.Websocket.DataHandler <- &order.Detail{
+								Price:           positionData[16].(float64),
+								Amount:          positionData[7].(float64),
+								ExecutedAmount:  positionData[7].(float64) - positionData[6].(float64),
+								RemainingAmount: positionData[6].(float64),
+								Exchange:        b.Name,
+								ID:              strconv.FormatFloat(positionData[0].(float64), 'f', -1, 64),
+								//Type:            positionData[8].(string),
+								Side:        "",
+								Status:      "",
+								AssetType:   asset.Spot,
+								Date:        time.Unix(int64(positionData[4].(float64))*1000, 0),
+								LastUpdated: time.Unix(int64(positionData[5].(float64))*1000, 0),
+								Pair:        currency.NewPairFromString(positionData[3].(string)),
+							}
+						}
+					}
+				}
+			case wsOrderCancel, wsOrderNew, wsOrderUpdate:
+				if oData, ok := chanData[2].([]interface{}); ok && len(oData) > 0 {
+					b.Websocket.DataHandler <- &order.Detail{
+						Price:           oData[16].(float64),
+						Amount:          oData[7].(float64),
+						ExecutedAmount:  oData[7].(float64) - oData[6].(float64),
+						RemainingAmount: oData[6].(float64),
+						Exchange:        b.Name,
+						ID:              strconv.FormatFloat(oData[0].(float64), 'f', -1, 64),
+						//Type:            positionData[8].(string),
+						Side:        "",
+						Status:      "",
+						AssetType:   asset.Spot,
+						Date:        time.Unix(int64(oData[4].(float64))*1000, 0),
+						LastUpdated: time.Unix(int64(oData[5].(float64))*1000, 0),
+						Pair:        currency.NewPairFromString(oData[3].(string)),
+					}
 				}
 			case wsPositionSnapshot:
 				var snapshot []WebsocketPosition

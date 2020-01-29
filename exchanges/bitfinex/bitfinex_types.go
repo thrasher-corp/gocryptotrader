@@ -438,7 +438,7 @@ type WebsocketOrder struct {
 	Status     string
 	Price      float64
 	PriceAvg   float64
-	Timestamp  string
+	Timestamp  int64
 	Notify     int
 }
 
@@ -507,6 +507,7 @@ const (
 	wsBalanceUpdate                        = "bu"
 	wsMarginInfoUpdate                     = "miu"
 	wsNotification                         = "n"
+	wsOrderSnapshot                        = "os"
 	wsOrderNew                             = "on"
 	wsOrderUpdate                          = "ou"
 	wsOrderCancel                          = "oc"
