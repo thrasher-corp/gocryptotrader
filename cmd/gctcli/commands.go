@@ -1609,6 +1609,8 @@ func cancelOrder(c *cli.Context) error {
 
 	if c.IsSet("account_id") {
 		accountID = c.String("account_id")
+	} else {
+		accountID = c.Args().Get(1)
 	}
 
 	if c.IsSet("order_id") {
@@ -1623,10 +1625,14 @@ func cancelOrder(c *cli.Context) error {
 
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(3)
 	}
 
 	if c.IsSet("asset") {
 		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(4)
 	}
 
 	assetType = strings.ToLower(assetType)
@@ -1636,12 +1642,17 @@ func cancelOrder(c *cli.Context) error {
 
 	if c.IsSet("wallet_address") {
 		walletAddress = c.String("wallet_address")
+	} else {
+		walletAddress = c.Args().Get(5)
 	}
 
 	if c.IsSet("side") {
 		orderSide = c.String("side")
+	} else {
+		orderSide = c.Args().Get(6)
 	}
 
+	// pair is optional, but if it's set, do a validity check
 	var p currency.Pair
 	if len(currencyPair) > 0 {
 		if !validPair(currencyPair) {
@@ -1817,6 +1828,10 @@ func addEvent(c *cli.Context) error {
 		exchangeName = c.String("exchange")
 	} else {
 		return fmt.Errorf("exchange name is required")
+	}
+
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
 	}
 
 	if c.IsSet("item") {
