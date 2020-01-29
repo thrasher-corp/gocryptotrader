@@ -901,13 +901,10 @@ func addPortfolioAddress(c *cli.Context) error {
 
 	if c.IsSet("balance") {
 		balance = c.Float64("balance")
-	} else {
-		if c.Args().Get(3) != "" {
-			var err error
-			balance, err = strconv.ParseFloat(c.Args().Get(3), 64)
-			if err != nil {
-				return err
-			}
+	} else if c.Args().Get(3) != "" {
+		balance, err = strconv.ParseFloat(c.Args().Get(3), 64)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -1395,13 +1392,11 @@ func simulateOrder(c *cli.Context) error {
 
 	if c.IsSet("amount") {
 		amount = c.Float64("amount")
-	} else {
-		if c.Args().Get(3) != "" {
-			var err error
-			amount, err = strconv.ParseFloat(c.Args().Get(3), 64)
-			if err != nil {
-				return err
-			}
+	} else if c.Args().Get(3) != "" {
+		var err error
+		amount, err = strconv.ParseFloat(c.Args().Get(3), 64)
+		if err != nil {
+			return err
 		}
 	}
 	if amount == 0 {
@@ -1498,13 +1493,11 @@ func whaleBomb(c *cli.Context) error {
 
 	if c.IsSet("price") {
 		price = c.Float64("price")
-	} else {
-		if c.Args().Get(3) != "" {
-			var err error
-			price, err = strconv.ParseFloat(c.Args().Get(3), 64)
-			if err != nil {
-				return err
-			}
+	} else if c.Args().Get(3) != "" {
+		var err error
+		price, err = strconv.ParseFloat(c.Args().Get(3), 64)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -1912,15 +1905,12 @@ func removeEvent(c *cli.Context) error {
 	var eventID int64
 	if c.IsSet("event_id") {
 		eventID = c.Int64("event_id")
-	} else {
-		if c.Args().Get(0) != "" {
-			var err error
-			eventID, err = strconv.ParseInt(c.Args().Get(0), 10, 64)
-			if err != nil {
-				return err
-			}
+	} else if c.Args().Get(0) != "" {
+		var err error
+		eventID, err = strconv.ParseInt(c.Args().Get(0), 10, 64)
+		if err != nil {
+			return err
 		}
-
 	}
 
 	conn, err := setupClient()
@@ -2025,10 +2015,8 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 
 	if c.IsSet("cryptocurrency") {
 		cryptocurrency = c.String("cryptocurrency")
-	} else {
-		if c.Args().Get(1) != "" {
-			cryptocurrency = c.Args().Get(1)
-		}
+	} else if c.Args().Get(1) != "" {
+		cryptocurrency = c.Args().Get(1)
 	}
 
 	if cryptocurrency == "" {
@@ -3451,25 +3439,21 @@ func getHistoricCandles(c *cli.Context) error {
 
 	if c.IsSet("rangesize") {
 		candleRangeSize = c.Int64("rangesize")
-	} else {
-		if c.Args().Get(2) != "" {
-			var err error
-			candleRangeSize, err = strconv.ParseInt(c.Args().Get(2), 10, 64)
-			if err != nil {
-				return err
-			}
+	} else if c.Args().Get(2) != "" {
+		var err error
+		candleRangeSize, err = strconv.ParseInt(c.Args().Get(2), 10, 64)
+		if err != nil {
+			return err
 		}
 	}
 
 	if c.IsSet("granularity") {
 		candleGranularity = c.Int64("granularity")
-	} else {
-		if c.Args().Get(3) != "" {
-			var err error
-			candleGranularity, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
-			if err != nil {
-				return err
-			}
+	} else if c.Args().Get(3) != "" {
+		var err error
+		candleGranularity, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
+		if err != nil {
+			return err
 		}
 	}
 
