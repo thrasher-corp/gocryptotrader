@@ -59,10 +59,8 @@ func TestMain(m *testing.M) {
 		},
 		ConfigFormat: &currency.PairFormat{Delimiter: "-"},
 	}
-	if b.Websocket.IsEnabled() {
-		b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-		b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	}
+	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 

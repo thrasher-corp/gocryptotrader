@@ -221,7 +221,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		b.Websocket.DataHandler <- &order.Modify{
+		b.Websocket.DataHandler <- &order.Detail{
 			Price:           price,
 			Amount:          originalAmount,
 			RemainingAmount: orderData.OpenVolume,

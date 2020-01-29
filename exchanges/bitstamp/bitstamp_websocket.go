@@ -76,6 +76,14 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 	}
 
 	switch wsResponse.Event {
+	case "bts:subscribe":
+		if b.Verbose {
+			log.Debugf(log.ExchangeSys, "%v - Websocket subscription acknowledgement", b.Name)
+		}
+	case "bts:unsubscribe":
+		if b.Verbose {
+			log.Debugf(log.ExchangeSys, "%v - Websocket unsubscribe acknowledgement", b.Name)
+		}
 	case "bts:request_reconnect":
 		if b.Verbose {
 			log.Debugf(log.ExchangeSys, "%v - Websocket reconnection request received", b.Name)
@@ -108,8 +116,14 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 			Exchange:     b.Name,
 			AssetType:    asset.Spot,
 		}
+	case "order_created", "order_deleted", "order_changed":
+		if b.Verbose {
+			log.Debugf(log.ExchangeSys, "%v - Websocket order acknowledgement", b.Name)
+		}
+	default:
+		return errors.New(b.Name + " - Unrecognised response: " + string(respRaw))
 	}
-	return errors.New(b.Name + " - Unrecognised response: " + string(respRaw))
+	return nil
 }
 
 func (b *Bitstamp) generateDefaultSubscriptions() {

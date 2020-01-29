@@ -58,7 +58,7 @@ func TestMain(m *testing.M) {
 	}
 	b.WebsocketSubdChannels = make(map[int]WebsocketChanInfo)
 	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-
+	b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 

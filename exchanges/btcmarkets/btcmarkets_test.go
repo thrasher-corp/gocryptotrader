@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 var b BTCMarkets
@@ -45,6 +46,8 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 
 	err = b.ValidateCredentials()
 	if err != nil {
@@ -451,7 +454,7 @@ func TestGetAccountInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.UpdateAccountInfo()
+	_, err := b.GetAccountInfo()
 	if err != nil {
 		t.Error(err)
 	}

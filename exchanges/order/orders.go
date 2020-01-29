@@ -521,7 +521,8 @@ func StringToOrderStatus(status string) (Status, error) {
 	switch {
 	case strings.EqualFold(status, AnyStatus.String()):
 		return AnyStatus, nil
-	case strings.EqualFold(status, New.String()):
+	case strings.EqualFold(status, New.String()),
+		strings.EqualFold(status, "placed"):
 		return New, nil
 	case strings.EqualFold(status, Active.String()):
 		return Active, nil
