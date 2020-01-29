@@ -59,17 +59,6 @@ func dryrunParamInteraction(param string) {
 	}
 }
 
-// CheckExchangeExists returns true whether or not an exchange has already
-// been loaded
-func CheckExchangeExists(exchName string) bool {
-	for x := range Bot.Exchanges {
-		if strings.EqualFold(Bot.Exchanges[x].GetName(), exchName) {
-			return true
-		}
-	}
-	return false
-}
-
 // GetExchangeByName returns an exchange given an exchange name
 func GetExchangeByName(exchName string) exchange.IBotExchange {
 	for x := range Bot.Exchanges {
@@ -86,7 +75,8 @@ func ReloadExchange(name string) error {
 		return ErrNoExchangesLoaded
 	}
 
-	if !CheckExchangeExists(name) {
+	e := GetExchangeByName(name)
+	if e == nil {
 		return ErrExchangeNotFound
 	}
 
@@ -95,7 +85,6 @@ func ReloadExchange(name string) error {
 		return err
 	}
 
-	e := GetExchangeByName(name)
 	e.Setup(exchCfg)
 	log.Debugf(log.ExchangeSys, "%s exchange reloaded successfully.\n", name)
 	return nil
@@ -107,7 +96,7 @@ func UnloadExchange(name string) error {
 		return ErrNoExchangesLoaded
 	}
 
-	if !CheckExchangeExists(name) {
+	if GetExchangeByName(name) == nil {
 		return ErrExchangeNotFound
 	}
 
@@ -139,7 +128,7 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 	var exch exchange.IBotExchange
 
 	if len(Bot.Exchanges) > 0 {
-		if CheckExchangeExists(name) {
+		if GetExchangeByName(name) != nil {
 			return ErrExchangeAlreadyLoaded
 		}
 	}
@@ -320,13 +309,7 @@ func SetupExchanges() {
 	var wg sync.WaitGroup
 	configs := Bot.Config.GetAllExchangeConfigs()
 	for x := range configs {
-		if CheckExchangeExists(configs[x].Name) {
-			e := GetExchangeByName(configs[x].Name)
-			if e == nil {
-				log.Errorln(log.ExchangeSys, ErrExchangeNotFound)
-				continue
-			}
-
+		if e := GetExchangeByName(configs[x].Name); e != nil {
 			err := ReloadExchange(configs[x].Name)
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "ReloadExchange %s failed: %s\n", configs[x].Name, err)
