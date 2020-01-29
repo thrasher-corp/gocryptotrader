@@ -770,6 +770,67 @@ func getAccountInfo(c *cli.Context) error {
 	return nil
 }
 
+var getAccountInfoStreamCommand = cli.Command{
+	Name:      "getaccountinfostream",
+	Usage:     "gets the account info stream for a specific exchange",
+	ArgsUsage: "<exchange>",
+	Action:    getAccountInfoStream,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "exchange",
+			Usage: "the exchange to get the account info stream from",
+		},
+	},
+}
+
+func getAccountInfoStream(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "getaccountinfostream")
+		return nil
+	}
+
+	var exchangeName string
+
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	if !validExchange(exchangeName) {
+		return errInvalidExchange
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.GetAccountInfoStream(context.Background(),
+		&gctrpc.GetAccountInfoRequest{Exchange: exchangeName})
+	if err != nil {
+		return err
+	}
+
+	for {
+		resp, err := result.Recv()
+		if err != nil {
+			return err
+		}
+
+		err = clearScreen()
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Account balance stream for %s:\n\n", exchangeName)
+
+		fmt.Printf("%+v", resp)
+	}
+}
+
 var getConfigCommand = cli.Command{
 	Name:   "getconfig",
 	Usage:  "gets the config",

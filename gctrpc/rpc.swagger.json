@@ -4,6 +4,10 @@
     "title": "rpc.proto",
     "version": "version not set"
   },
+  "schemes": [
+    "http",
+    "https"
+  ],
   "consumes": [
     "application/json"
   ],
@@ -479,6 +483,30 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/gctrpcGetAccountInfoResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getaccountinfostream": {
+      "get": {
+        "operationId": "GetAccountInfoStream",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "$ref": "#/x-stream-definitions/gctrpcGetAccountInfoResponse"
             }
           }
         },
@@ -2846,6 +2874,18 @@
     }
   },
   "x-stream-definitions": {
+    "gctrpcGetAccountInfoResponse": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "$ref": "#/definitions/gctrpcGetAccountInfoResponse"
+        },
+        "error": {
+          "$ref": "#/definitions/runtimeStreamError"
+        }
+      },
+      "title": "Stream result of gctrpcGetAccountInfoResponse"
+    },
     "gctrpcOrderbookResponse": {
       "type": "object",
       "properties": {

@@ -126,7 +126,7 @@ func (e Exchange) AccountInformation(exch string) (*modules.AccountInfo, error) 
 		return nil, err
 	}
 
-	r, err := ex.GetAccountInfo()
+	r, err := ex.FetchAccountInfo()
 	if err != nil {
 		return nil, err
 	}

@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // Note: GoCryptoTrader wrapper funcs currently only support SPOT trades.
@@ -172,23 +171,24 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (o *OKGroup) UpdateAccountInfo() (resp account.Holdings, err error) {
-	resp.Exchange = o.Name
+func (o *OKGroup) UpdateAccountInfo() (account.Holdings, error) {
 	currencies, err := o.GetSpotTradingAccounts()
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
+	var resp account.Holdings
+	resp.Exchange = o.Name
 	currencyAccount := account.SubAccount{}
 
 	for i := range currencies {
 		hold, err := strconv.ParseFloat(currencies[i].Hold, 64)
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"Could not convert %v to float64",
-				currencies[i].Hold)
+			return resp, err
 		}
 		totalValue, err := strconv.ParseFloat(currencies[i].Balance, 64)
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"Could not convert %v to float64",
-				currencies[i].Balance)
+			return resp, err
 		}
 		currencyAccount.Currencies = append(currencyAccount.Currencies,
 			account.Balance{
@@ -202,10 +202,10 @@ func (o *OKGroup) UpdateAccountInfo() (resp account.Holdings, err error) {
 
 	err = account.Process(&resp)
 	if err != nil {
-		return account.Holdings{}, err
+		return resp, err
 	}
 
-	return
+	return resp, nil
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies

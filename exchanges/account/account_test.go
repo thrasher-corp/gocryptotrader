@@ -1,13 +1,19 @@
 package account
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 )
 
 func TestHoldings(t *testing.T) {
-	err := Process(nil)
+	err := dispatch.Start(1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = Process(nil)
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
@@ -76,4 +82,35 @@ func TestHoldings(t *testing.T) {
 		t.Errorf("expecting 20 but receieved %f",
 			u.Accounts[0].Currencies[0].Hold)
 	}
+
+	p, err := SubscribeToExchangeAccount("Test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func(p dispatch.Pipe, wg *sync.WaitGroup) {
+		<-p.C
+		wg.Done()
+	}(p, &wg)
+
+	err = Process(&Holdings{
+		Exchange: "Test",
+		Accounts: []SubAccount{{
+			ID: "1337",
+			Currencies: []Balance{
+				{
+					CurrencyName: currency.BTC,
+					TotalValue:   100000,
+					Hold:         20,
+				},
+			},
+		}},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	wg.Wait()
 }

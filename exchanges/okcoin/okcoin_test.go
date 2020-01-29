@@ -83,6 +83,7 @@ func areTestAPIKeysSet() bool {
 }
 
 func testStandardErrorHandling(t *testing.T, err error) {
+	t.Helper()
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
