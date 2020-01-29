@@ -10,7 +10,7 @@ import (
 const (
 	// Huobi rate limits per API Key
 	huobiSpotRateInterval = time.Second * 1
-	huobiSpotRequestRate  = 10
+	huobiSpotRequestRate  = 7
 
 	huobiFuturesRateInterval    = time.Second * 3
 	huobiFuturesAuthRequestRate = 30
