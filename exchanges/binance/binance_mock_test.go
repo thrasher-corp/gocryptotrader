@@ -1,4 +1,4 @@
-//+build mock_test_off
+//+build !mock_test_off
 
 // This will build if build tag mock_test_off is not parsed and will try to mock
 // all tests in _test.go
@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 
 	b.HTTPClient = newClient
 	b.API.Endpoints.URL = serverDetails
-
+	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	log.Printf(sharedtestvalues.MockTesting, b.Name, b.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

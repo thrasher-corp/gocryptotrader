@@ -1,4 +1,4 @@
-//+build !mock_test_off
+//+build mock_test_off
 
 // This will build if build tag mock_test_off is parsed and will do live testing
 // using all tests in (exchange)_test.go
@@ -33,6 +33,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Binance setup error", err)
 	}
+	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	log.Printf(sharedtestvalues.LiveTesting, b.Name, b.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

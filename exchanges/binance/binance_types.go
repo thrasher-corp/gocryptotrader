@@ -1,8 +1,6 @@
 package binance
 
 import (
-	"encoding/json"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
@@ -117,13 +115,6 @@ type RecentTrade struct {
 	Time         float64 `json:"time"`
 	IsBuyerMaker bool    `json:"isBuyerMaker"`
 	IsBestMatch  bool    `json:"isBestMatch"`
-}
-
-// MultiStreamData holds stream data
-type MultiStreamData struct {
-	Method string          `json:"method"`
-	Stream string          `json:"stream"`
-	Data   json.RawMessage `json:"data"`
 }
 
 // TradeStream holds the trade stream data

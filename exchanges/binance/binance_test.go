@@ -516,6 +516,7 @@ func TestGetDepositAddress(t *testing.T) {
 }
 
 func TestWSSubscriptionHandling(t *testing.T) {
+	t.Parallel()
 	pressXToJSON := []byte(`{
   "method": "SUBSCRIBE",
   "params": [
@@ -530,7 +531,221 @@ func TestWSSubscriptionHandling(t *testing.T) {
 	}
 }
 
+func TestWSUnsubscriptionHandling(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "method": "UNSUBSCRIBE",
+  "params": [
+    "btcusdt@depth"
+  ],
+  "id": 312
+}`)
+	err := b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsOrderUpdateHandling(t *testing.T) {
+	t.Parallel()
+	pressXToJSON := []byte(`{
+	  "e": "executionReport",        
+	  "E": 1499405658658,            
+	  "s": "ETHBTC",                 
+	  "c": "mUvoqJxFIILMdfAW5iGSOW", 
+	  "S": "BUY",                    
+	  "o": "LIMIT",                  
+	  "f": "GTC",                    
+	  "q": "1.00000000",             
+	  "p": "0.10264410",             
+	  "P": "0.00000000",             
+	  "F": "0.00000000",             
+	  "g": -1,                       
+	  "C": null,                     
+	  "x": "NEW",                    
+	  "X": "NEW",                    
+	  "r": "NONE",                   
+	  "i": 4293153,                  
+	  "l": "0.00000000",             
+	  "z": "0.00000000",             
+	  "L": "0.00000000",             
+	  "n": "0",                      
+	  "N": null,                     
+	  "T": 1499405658657,            
+	  "t": -1,                       
+	  "I": 8641984,                  
+	  "w": true,                     
+	  "m": false,                    
+	  "M": false,                    
+	  "O": 1499405658657,            
+	  "Z": "0.00000000",             
+	  "Y": "0.00000000",              
+	  "Q": "0.00000000"              
+	}`)
+	err := b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsOutboundAccountPosition(t *testing.T) {
+	t.Parallel()
+	pressXToJSON := []byte(`{
+  "e": "outboundAccountPosition", 
+  "E": 1564034571105,             
+  "u": 1564034571073,             
+  "B": [                          
+    {
+      "a": "ETH",                 
+      "f": "10000.000000",        
+      "l": "0.000000"             
+    }
+  ]
+}`)
+	err := b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsTickerUpdate(t *testing.T) {
+	t.Parallel()
+	pressXToJSON := []byte(`{"stream":"btcusdt@ticker","data":{"e":"24hrTicker","E":1580254809477,"s":"BTCUSDT","p":"420.97000000","P":"4.720","w":"9058.27981278","x":"8917.98000000","c":"9338.96000000","Q":"0.17246300","b":"9338.03000000","B":"0.18234600","a":"9339.70000000","A":"0.14097600","o":"8917.99000000","h":"9373.19000000","l":"8862.40000000","v":"72229.53692000","q":"654275356.16896672","O":1580168409456,"C":1580254809456,"F":235294268,"L":235894703,"n":600436}}`)
+	err := b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsKlineUpdate(t *testing.T) {
+	t.Parallel()
+	pressXToJSON := []byte(`{"stream":"btcusdt@kline_1m","data":{
+	  "e": "kline",     
+	  "E": 123456789,   
+	  "s": "BNBBTC",    
+	  "k": {
+		"t": 123400000, 
+		"T": 123460000, 
+		"s": "BNBBTC",  
+		"i": "1m",      
+		"f": 100,       
+		"L": 200,       
+		"o": "0.0010",  
+		"c": "0.0020",  
+		"h": "0.0025",  
+		"l": "0.0015",  
+		"v": "1000",    
+		"n": 100,       
+		"x": false,     
+		"q": "1.0000",  
+		"V": "500",     
+		"Q": "0.500",   
+		"B": "123456"   
+	  }
+	}}`)
+	err := b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsTradeUpdate(t *testing.T) {
+	t.Parallel()
+	pressXToJSON := []byte(`{"stream":"btcusdt@trade","data":{
+	  "e": "trade",     
+	  "E": 123456789,   
+	  "s": "BNBBTC",    
+	  "t": 12345,       
+	  "p": "0.001",     
+	  "q": "100",       
+	  "b": 88,          
+	  "a": 50,          
+	  "T": 123456785,   
+	  "m": true,        
+	  "M": true         
+	}}`)
+	err := b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsDepthUpdate(t *testing.T) {
+	t.Parallel()
+	pressXToJSON := []byte(`{"stream":"btcusdt@depth","data":{
+	  "e": "depthUpdate", 
+	  "E": 123456789,     
+	  "s": "BTCUSDT",      
+	  "U": 157,           
+	  "u": 160,           
+	  "b": [              
+		[
+		  "0.0024",       
+		  "10"            
+		]
+	  ],
+	  "a": [              
+		[
+		  "0.0026",       
+		  "100"           
+		]
+	  ]
+	}}`)
+
+	err := b.wsHandleData(pressXToJSON)
+	if err.Error() != "Binance - UpdateLocalCache error: ob.Base could not be found for Exchange Binance CurrencyPair: BTC-USDT AssetType: spot" {
+		t.Error(err)
+	}
+}
+
+func TestWsBalanceUpdate(t *testing.T) {
+	t.Parallel()
+	pressXToJSON := []byte(`{
+  "e": "balanceUpdate",         
+  "E": 1573200697110,           
+  "a": "BTC",                   
+  "d": "100.00000000",          
+  "T": 1573200697068            
+}`)
+	err := b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsOCO(t *testing.T) {
+	t.Parallel()
+	pressXToJSON := []byte(`{
+  "e": "listStatus",                
+  "E": 1564035303637,               
+  "s": "ETHBTC",                    
+  "g": 2,                           
+  "c": "OCO",                       
+  "l": "EXEC_STARTED",              
+  "L": "EXECUTING",                 
+  "r": "NONE",                      
+  "C": "F4QN4G8DlFATFlIUQ0cjdD",    
+  "T": 1564035303625,               
+  "O": [                            
+    {
+      "s": "ETHBTC",                
+      "i": 17,                      
+      "c": "AJYsMjErWJesZvqlJCTUgL" 
+    },
+    {
+      "s": "ETHBTC",
+      "i": 18,
+      "c": "bfYPSQdLoqAJeNrOr9adzq"
+    }
+  ]
+}`)
+	err := b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetWsAuthStreamKey(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() && !mockTests {
 		t.Skip("API keys not set, skipping test")
 	}
@@ -546,6 +761,7 @@ func TestGetWsAuthStreamKey(t *testing.T) {
 }
 
 func TestMaintainWsAuthStreamKey(t *testing.T) {
+	t.Parallel()
 	if !areTestAPIKeysSet() && !mockTests {
 		t.Skip("API keys not set, skipping test")
 	}
