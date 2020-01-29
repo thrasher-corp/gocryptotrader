@@ -60,7 +60,7 @@ type Poloniex struct {
 	WebsocketConn *wshandler.WebsocketConnection
 }
 
-// GetHistoricCandles returns _rangesize_ number of candles for the given _granularity_ and _pair_ starting from the latest available
+// GetHistoricCandles returns rangesize number of candles for the given granularity and pair starting from the latest available
 func (p *Poloniex) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
 	return nil, common.ErrNotYetImplemented
 }

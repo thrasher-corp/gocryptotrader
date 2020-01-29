@@ -1190,7 +1190,7 @@ func getOrder(c *cli.Context) error {
 var submitOrderCommand = cli.Command{
 	Name:      "submitorder",
 	Usage:     "submit order submits an exchange order",
-	ArgsUsage: "<exchange> <pair> <side> <order_type> <amount> <price> <client_id>",
+	ArgsUsage: "<exchange> <pair> <side> <type> <amount> <price> <client_id>",
 	Action:    submitOrder,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -1206,7 +1206,7 @@ var submitOrderCommand = cli.Command{
 			Usage: "the order side to use (BUY OR SELL)",
 		},
 		cli.StringFlag{
-			Name:  "order_type",
+			Name:  "type",
 			Usage: "the order type (MARKET OR LIMIT)",
 		},
 		cli.Float64Flag{
@@ -1264,15 +1264,23 @@ func submitOrder(c *cli.Context) error {
 		orderSide = c.Args().Get(2)
 	}
 
-	if c.IsSet("order_type") {
-		orderType = c.String("order_type")
+	if orderSide == "" {
+		return errors.New("order side must be set")
+	}
+
+	if c.IsSet("type") {
+		orderType = c.String("type")
 	} else {
 		orderType = c.Args().Get(3)
 	}
 
+	if orderType == "" {
+		return errors.New("order type must be set")
+	}
+
 	if c.IsSet("amount") {
 		amount = c.Float64("amount")
-	} else {
+	} else if c.Args().Get(4) != "" {
 		var err error
 		amount, err = strconv.ParseFloat(c.Args().Get(4), 64)
 		if err != nil {
@@ -1280,9 +1288,14 @@ func submitOrder(c *cli.Context) error {
 		}
 	}
 
+	if amount == 0 {
+		return errors.New("amount must be set")
+	}
+
+	// price is optional for market orders
 	if c.IsSet("price") {
 		price = c.Float64("price")
-	} else {
+	} else if c.Args().Get(5) != "" {
 		var err error
 		price, err = strconv.ParseFloat(c.Args().Get(5), 64)
 		if err != nil {
@@ -1386,7 +1399,8 @@ func simulateOrder(c *cli.Context) error {
 	} else {
 		orderSide = c.Args().Get(2)
 	}
-	if orderSide != "" {
+
+	if orderSide == "" {
 		return errors.New("side must be set")
 	}
 
@@ -1399,6 +1413,7 @@ func simulateOrder(c *cli.Context) error {
 			return err
 		}
 	}
+
 	if amount == 0 {
 		return errors.New("amount must be set")
 	}
@@ -1489,6 +1504,10 @@ func whaleBomb(c *cli.Context) error {
 		orderSide = c.String("side")
 	} else {
 		orderSide = c.Args().Get(2)
+	}
+
+	if orderSide == "" {
+		return errors.New("order side must be set")
 	}
 
 	if c.IsSet("price") {
@@ -1588,14 +1607,18 @@ func cancelOrder(c *cli.Context) error {
 		return errInvalidExchange
 	}
 
+	if c.IsSet("account_id") {
+		accountID = c.String("account_id")
+	}
+
 	if c.IsSet("order_id") {
 		orderID = c.String("order_id")
 	} else {
 		orderID = c.Args().Get(2)
 	}
 
-	if c.IsSet("account_id") {
-		accountID = c.String("account_id")
+	if orderID == "" {
+		return errors.New("an order ID must be set")
 	}
 
 	if c.IsSet("pair") {
@@ -1615,8 +1638,8 @@ func cancelOrder(c *cli.Context) error {
 		walletAddress = c.String("wallet_address")
 	}
 
-	if c.IsSet("order_side") {
-		orderSide = c.String("order_side")
+	if c.IsSet("side") {
+		orderSide = c.String("side")
 	}
 
 	var p currency.Pair
@@ -1913,6 +1936,10 @@ func removeEvent(c *cli.Context) error {
 		}
 	}
 
+	if eventID == 0 {
+		return errors.New("event id must be specified")
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -2112,6 +2139,10 @@ func getLoggerDetails(c *cli.Context) error {
 		logger = c.Args().First()
 	}
 
+	if logger == "" {
+		return errors.New("a logger must be specified")
+	}
+
 	conn, err := setupClient()
 	if err != nil {
 		return err
@@ -2164,10 +2195,18 @@ func setLoggerDetails(c *cli.Context) error {
 		logger = c.Args().First()
 	}
 
+	if logger == "" {
+		return errors.New("a logger must be specified")
+	}
+
 	if c.IsSet("level") {
 		level = c.String("level")
 	} else {
 		level = c.Args().Get(1)
+	}
+
+	if level == "" {
+		return errors.New("level must be specified")
 	}
 
 	conn, err := setupClient()
@@ -2437,7 +2476,7 @@ func disableExchangePair(c *cli.Context) error {
 var getOrderbookStreamCommand = cli.Command{
 	Name:      "getorderbookstream",
 	Usage:     "gets the orderbook stream for a specific currency pair and exchange",
-	ArgsUsage: "<exchange> <currencyPair> <asset>",
+	ArgsUsage: "<exchange> <pair> <asset>",
 	Action:    getOrderbookStream,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -2645,7 +2684,7 @@ func getExchangeOrderbookStream(c *cli.Context) error {
 var getTickerStreamCommand = cli.Command{
 	Name:      "gettickerstream",
 	Usage:     "gets the ticker stream for a specific currency pair and exchange",
-	ArgsUsage: "<exchange> <currencyPair> <asset>",
+	ArgsUsage: "<exchange> <pair> <asset>",
 	Action:    getTickerStream,
 	Flags: []cli.Flag{
 		cli.StringFlag{
