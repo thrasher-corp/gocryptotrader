@@ -115,11 +115,6 @@ func (a *databaseManager) run() {
 		case <-a.shutdown:
 			return
 		case <-t.C:
-			v, err := WithdrawRequestByID("4af93596-d5c7-4383-968a-6c7add47ee99")
-			if err != nil {
-				fmt.Println(err)
-			}
-			fmt.Printf("%+v", v)
 			a.checkConnection()
 		}
 	}

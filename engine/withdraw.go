@@ -12,13 +12,16 @@ import (
 
 const (
 	ErrWithdrawRequestNotFound = "%v not found"
+	ErrRequestCannotbeNill = "request cannot be nil"
 )
 
 func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Response, error) {
 	if req == nil {
-		return nil, errors.New("crypto withdraw request param is nil")
+		return nil, errors.New(ErrRequestCannotbeNill)
 	}
-
+	if req.Exchange == "" {
+		req.Exchange = exchName
+	}
 	err := withdraw.Valid(req)
 	if err != nil {
 		return nil, err
@@ -38,21 +41,23 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
 	}
-	if req.Type == withdraw.Fiat {
-		v, errFiat := exch.WithdrawFiatFunds(req)
-		if errFiat != nil {
-			return nil, errFiat
-		}
-		resp.Exchange.Status = v.Status
-		resp.Exchange.ID = v.ID
-	} else if req.Type == withdraw.Crypto {
-		v, err := exch.WithdrawCryptocurrencyFunds(req)
-		if err != nil {
-			return nil, err
-		}
-		resp.Exchange.Status = v.Status
-		resp.Exchange.ID = v.ID
-	}
+	fmt.Printf("\n%+v\n", req)
+	fmt.Printf("\n%+v\n", req.Fiat.Bank)
+	// if req.Type == withdraw.Fiat {
+	// 	v, errFiat := exch.WithdrawFiatFunds(req)
+	// 	if errFiat != nil {
+	// 		return nil, errFiat
+	// 	}
+	// 	resp.Exchange.Status = v.Status
+	// 	resp.Exchange.ID = v.ID
+	// } else if req.Type == withdraw.Crypto {
+	// 	v, err := exch.WithdrawCryptocurrencyFunds(req)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	resp.Exchange.Status = v.Status
+	// 	resp.Exchange.ID = v.ID
+	// }
 
 	withdraw.Cache.Add(id.String(), resp)
 	withdrawal.Event(resp)

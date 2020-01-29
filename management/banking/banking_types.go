@@ -1,9 +1,13 @@
 package banking
 
-import "sync"
+import (
+	"sync"
+)
 
 const (
 	ErrBankAccountNotFound = "bank account ID: %v not found"
+	ErrAccountCannotBeNil  = "Account cannot be nil"
+	ErrBankAccountDisabled = "account is disabled"
 )
 
 // Account holds differing bank account details by supported funding

@@ -50,7 +50,7 @@ func Valid(request *Request) (err error) {
 
 // Valid takes interface and passes to asset type to check the request meets requirements to submit
 func validateFiat(request *Request) (err []string) {
-	errBank := request.Fiat.Bank.ValidateForWithdrawal(request.Currency)
+	errBank := request.Fiat.Bank.ValidateForWithdrawal(request.Exchange, request.Currency)
 	if errBank != nil {
 		err = append(err, errBank...)
 	}

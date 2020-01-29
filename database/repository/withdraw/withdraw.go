@@ -61,14 +61,13 @@ func Event(req *withdraw.Response) {
 
 		if req.RequestDetails.Type == withdraw.Fiat {
 			fiatEvent := &modelSQLite.WithdrawalFiat{
-				BankName:          req.RequestDetails.Fiat.BankName,
-				BankAddress:       req.RequestDetails.Fiat.BankAddress,
-				BankAccountName:   req.RequestDetails.Fiat.BankName,
-				BankAccountNumber: req.RequestDetails.Fiat.BankAccountNumber,
-				BSB:               req.RequestDetails.Fiat.BSB,
-				SwiftCode:         req.RequestDetails.Fiat.SwiftCode,
-				Iban:              req.RequestDetails.Fiat.IBAN,
-				BankCode:          req.RequestDetails.Fiat.BankCode,
+				BankName:          req.RequestDetails.Fiat.Bank.BankName,
+				BankAddress:       req.RequestDetails.Fiat.Bank.BankAddress,
+				BankAccountName:   req.RequestDetails.Fiat.Bank.AccountName,
+				BankAccountNumber: req.RequestDetails.Fiat.Bank.AccountNumber,
+				BSB:               req.RequestDetails.Fiat.Bank.BSBNumber,
+				SwiftCode:         req.RequestDetails.Fiat.Bank.SWIFTCode,
+				Iban:              req.RequestDetails.Fiat.Bank.IBAN,
 			}
 			err = tempEvent.AddWithdrawalFiats(ctx, tx, true, fiatEvent)
 			if err != nil {
@@ -109,14 +108,13 @@ func Event(req *withdraw.Response) {
 
 		if req.RequestDetails.Type == withdraw.Fiat {
 			fiatEvent := &modelPSQL.WithdrawalFiat{
-				BankName:          req.RequestDetails.Fiat.BankName,
-				BankAddress:       req.RequestDetails.Fiat.BankAddress,
-				BankAccountName:   req.RequestDetails.Fiat.BankName,
-				BankAccountNumber: req.RequestDetails.Fiat.BankAccountNumber,
-				BSB:               req.RequestDetails.Fiat.BSB,
-				SwiftCode:         req.RequestDetails.Fiat.SwiftCode,
-				Iban:              req.RequestDetails.Fiat.IBAN,
-				BankCode:          req.RequestDetails.Fiat.BankCode,
+				BankName:          req.RequestDetails.Fiat.Bank.BankName,
+				BankAddress:       req.RequestDetails.Fiat.Bank.BankAddress,
+				BankAccountName:   req.RequestDetails.Fiat.Bank.AccountName,
+				BankAccountNumber: req.RequestDetails.Fiat.Bank.AccountNumber,
+				BSB:               req.RequestDetails.Fiat.Bank.BSBNumber,
+				SwiftCode:         req.RequestDetails.Fiat.Bank.SWIFTCode,
+				Iban:              req.RequestDetails.Fiat.Bank.IBAN,
 			}
 			err = tempEvent.AddWithdrawalFiatWithdrawalFiats(ctx, tx, true, fiatEvent)
 			if err != nil {

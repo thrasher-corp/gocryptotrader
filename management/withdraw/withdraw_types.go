@@ -71,6 +71,7 @@ type FiatRequest struct {
 }
 
 type Request struct {
+	Exchange    string
 	Currency    currency.Code
 	Description string
 	Amount      float64

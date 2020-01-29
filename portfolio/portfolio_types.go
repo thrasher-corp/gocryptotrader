@@ -9,10 +9,13 @@ type Base struct {
 
 // Address sub type holding address information for portfolio
 type Address struct {
-	Address     string
-	CoinType    currency.Code
-	Balance     float64
-	Description string
+	Address            string
+	CoinType           currency.Code
+	Balance            float64
+	Description        string
+	WhiteListed        bool
+	ColdStorage        bool
+	SupportedExchanges string
 }
 
 // EtherchainBalanceResponse holds JSON incoming and outgoing data for

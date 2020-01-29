@@ -557,6 +557,9 @@ func (s *RPCServer) GetPortfolioSummary(ctx context.Context, r *gctrpc.GetPortfo
 // AddPortfolioAddress adds an address to the portfolio manager
 func (s *RPCServer) AddPortfolioAddress(ctx context.Context, r *gctrpc.AddPortfolioAddressRequest) (*gctrpc.AddPortfolioAddressResponse, error) {
 	err := Bot.Portfolio.AddAddress(r.Address, r.Description, currency.NewCode(r.CoinType), r.Balance)
+	if err != nil {
+		return nil, err
+	}
 	return &gctrpc.AddPortfolioAddressResponse{}, err
 }
 

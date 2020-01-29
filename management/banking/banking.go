@@ -34,7 +34,7 @@ func (b *Account) ExchangeSupported(exchange string) bool {
 // Validate validates bank account settings
 func (b *Account) Validate() error {
 	if b == nil {
-		return errors.New("nope")
+		return errors.New(ErrAccountCannotBeNil)
 	}
 
 	if b.BankName == "" ||
@@ -56,8 +56,7 @@ func (b *Account) Validate() error {
 	if strings.Contains(strings.ToUpper(
 		b.SupportedCurrencies),
 		currency.AUD.String()) {
-		if b.BSBNumber == "" ||
-			b.SWIFTCode == "" {
+		if b.BSBNumber == "" {
 			return fmt.Errorf(
 				"banking details for %s is enabled but BSB/SWIFT values not set",
 				b.BankName)
@@ -73,9 +72,16 @@ func (b *Account) Validate() error {
 	return nil
 }
 
-func (b *Account) ValidateForWithdrawal(cur currency.Code) (err []string) {
+func (b *Account) ValidateForWithdrawal(exchange string, cur currency.Code) (err []string) {
 	if b == nil {
-		return []string{"Account cannot not be nil"}
+		return []string{ErrAccountCannotBeNil}
+	}
+
+	if !b.Enabled {
+		err = append(err, ErrBankAccountDisabled)
+	}
+	if !b.ExchangeSupported(exchange) {
+		err = append(err, "Exchange "+exchange+" not supported by bank account")
 	}
 
 	if b.AccountNumber == "" {
@@ -91,6 +97,5 @@ func (b *Account) ValidateForWithdrawal(cur currency.Code) (err []string) {
 			err = append(err, "IBAN/SWIFT values not set")
 		}
 	}
-
 	return
 }

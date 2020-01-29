@@ -860,6 +860,14 @@ var addPortfolioAddressCommand = cli.Command{
 			Name:  "balance",
 			Usage: "balance of the address",
 		},
+		cli.StringFlag{
+			Name:  "supported_exchanges",
+			Usage: "common separated list of exchanges supported by this address for withdrawals",
+		},
+		cli.BoolFlag{
+			Name:  "cold_storage",
+			Usage: "true/false if address is cold storage",
+		},
 	},
 }
 
@@ -879,6 +887,8 @@ func addPortfolioAddress(c *cli.Context) error {
 	var coinType string
 	var description string
 	var balance float64
+	var supportedExchanges string
+	var coldStroage bool
 
 	if c.IsSet("address") {
 		address = c.String("address")
@@ -904,13 +914,30 @@ func addPortfolioAddress(c *cli.Context) error {
 		balance, _ = strconv.ParseFloat(c.Args().Get(3), 64)
 	}
 
+	if c.IsSet("supported_exchangess") {
+		supportedExchanges = c.String("supportedExchanges")
+	} else {
+		supportedExchanges = c.Args().Get(4)
+	}
+
+	if c.IsSet("cold_storage") {
+		coldStroage = c.Bool("cold_stroage")
+	} else {
+		tv, errBool := strconv.ParseBool(c.Args().Get(51))
+		if errBool == nil {
+			coldStroage = tv
+		}
+	}
+
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.AddPortfolioAddress(context.Background(),
 		&gctrpc.AddPortfolioAddressRequest{
-			Address:     address,
-			CoinType:    coinType,
-			Description: description,
-			Balance:     balance,
+			Address:            address,
+			CoinType:           coinType,
+			Description:        description,
+			Balance:            balance,
+			SupportedExchanges: supportedExchanges,
+			ColdStorage:        coldStroage,
 		},
 	)
 

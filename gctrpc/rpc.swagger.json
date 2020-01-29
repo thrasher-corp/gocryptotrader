@@ -1533,6 +1533,13 @@
         "balance": {
           "type": "number",
           "format": "double"
+        },
+        "supported_exchanges": {
+          "type": "string"
+        },
+        "cold_storage": {
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },

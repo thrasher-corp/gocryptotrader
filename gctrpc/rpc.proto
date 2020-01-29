@@ -244,6 +244,8 @@ message AddPortfolioAddressRequest {
     string coin_type = 2;
     string description = 3;
     double balance = 4;
+    string supported_exchanges = 5;
+    bool cold_storage = 6;
 }
 
 message AddPortfolioAddressResponse {}

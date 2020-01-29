@@ -174,21 +174,17 @@ func (e Exchange) WithdrawalFiatFunds(exch, bankaccountid string, request *withd
 		}
 		request.OneTimePassword = otpValue
 	}
-	request.Fiat.BankAccountName = v.AccountName
-	request.Fiat.BankAccountNumber = v.AccountNumber
-	request.Fiat.BankName = v.BankName
-	request.Fiat.BankAddress = v.BankAddress
-	request.Fiat.BankCity = v.BankPostalCity
-	request.Fiat.BankCountry = v.BankCountry
-	request.Fiat.BankPostalCode = v.BankPostalCode
-	request.Fiat.BSB = v.BSBNumber
-	request.Fiat.SwiftCode = v.SWIFTCode
-	request.Fiat.IBAN = v.IBAN
-
-	err = withdraw.Valid(request)
-	if err != nil {
-		return "", err
-	}
+	request.Exchange = exch
+	request.Fiat.Bank.AccountName = v.AccountName
+	request.Fiat.Bank.AccountNumber = v.AccountNumber
+	request.Fiat.Bank.BankName = v.BankName
+	request.Fiat.Bank.BankAddress = v.BankAddress
+	request.Fiat.Bank.BankPostalCity = v.BankPostalCity
+	request.Fiat.Bank.BankCountry = v.BankCountry
+	request.Fiat.Bank.BankPostalCode = v.BankPostalCode
+	request.Fiat.Bank.BSBNumber = v.BSBNumber
+	request.Fiat.Bank.SWIFTCode = v.SWIFTCode
+	request.Fiat.Bank.IBAN = v.IBAN
 
 	resp, err := engine.SubmitWithdrawal(ex.GetName(), request)
 	if err != nil {
@@ -213,10 +209,6 @@ func (e Exchange) WithdrawalCryptoFunds(exch string, request *withdraw.Request) 
 		request.OneTimePassword = v
 	}
 
-	err = withdraw.Valid(request)
-	if err != nil {
-		return "", err
-	}
 	resp, err := engine.SubmitWithdrawal(ex.GetName(), request)
 	if err != nil {
 		return "", err
