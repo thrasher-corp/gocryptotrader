@@ -11,15 +11,17 @@ const (
 	ErrStrAmountMustBeGreaterThanZero = "amount must be greater than 0"
 	// ErrStrAddressisInvalid message to return when address is invalid for crypto request
 	ErrStrAddressisInvalid = "address is not valid"
-	// ErrStrAddressNotSet message to returh when address is empty
+	// ErrStrAddressNotSet message to return when address is empty
 	ErrStrAddressNotSet = "address cannot be empty"
 	// ErrStrNoCurrencySet message to return when no currency is set
 	ErrStrNoCurrencySet = "currency not set"
 )
 
 var (
+	// ErrRequestCannotBeNil message to return when a request is nil
 	ErrRequestCannotBeNil = errors.New("request cannot be nil")
-	ErrInvalidRequest     = errors.New("invalid request type")
+	// ErrInvalidRequest message to return when a request is invalid
+	ErrInvalidRequest = errors.New("invalid request type")
 )
 
 // GenericInfo stores genric withdraw request info
