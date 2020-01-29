@@ -38,23 +38,3 @@ type Exchange interface {
 func SetModuleWrapper(wrapper GCT) {
 	Wrapper = wrapper
 }
-
-// // AccountInfo is a Generic type to hold each exchange's holdings in
-// // all enabled currencies
-// type AccountInfo struct {
-// 	Exchange string
-// 	Accounts []Account
-// }
-
-// // Account defines a singular account type with associated currencies
-// type Account struct {
-// 	ID         string
-// 	Currencies []AccountCurrencyInfo
-// }
-
-// // AccountCurrencyInfo is a sub type to store currency name and value
-// type AccountCurrencyInfo struct {
-// 	CurrencyName currency.Code
-// 	TotalValue   float64
-// 	Hold         float64
-// }
