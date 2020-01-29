@@ -265,13 +265,13 @@ func (l *Lbank) UpdateAccountInfo() (account.Holdings, error) {
 		if !ok {
 			return info, fmt.Errorf("hold data not found with %s", key)
 		}
-		totalVal, err := strconv.ParseFloat(val, 64)
-		if err != nil {
-			return info, err
+		totalVal, parseErr := strconv.ParseFloat(val, 64)
+		if parseErr != nil {
+			return info, parseErr
 		}
-		totalHold, err := strconv.ParseFloat(hold, 64)
-		if err != nil {
-			return info, err
+		totalHold, parseErr := strconv.ParseFloat(hold, 64)
+		if parseErr != nil {
+			return info, parseErr
 		}
 		acc.Currencies = append(acc.Currencies, account.Balance{
 			CurrencyName: c,
