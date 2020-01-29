@@ -194,7 +194,6 @@ func (b *Bitfinex) GetTicker(symbol string) (Ticker, error) {
 			Low:                response[12].(float64),
 			FFRAmountAvailable: response[15].(float64),
 		}, nil
-
 	}
 	return Ticker{
 		Bid:             response[0].(float64),

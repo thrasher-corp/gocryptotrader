@@ -274,7 +274,7 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 		return nil, err
 	}
 	for k, v := range tickerNew {
-		p := currency.NewPairFromString(k[1:]) // Remove prefix
+		pair := currency.NewPairFromString(k[1:]) // Remove prefix
 		if !enabledPairs.Contains(p, true) {
 			continue
 		}
@@ -285,7 +285,7 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 			Bid:    v.Bid,
 			Ask:    v.Ask,
 			Volume: v.Volume,
-			Pair:   p,
+			Pair:   pair,
 		}
 		err = ticker.ProcessTicker(b.Name, &tick, assetType)
 		if err != nil {

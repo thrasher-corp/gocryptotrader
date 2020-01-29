@@ -188,7 +188,6 @@ func TestGetAccountSummary(t *testing.T) {
 	if err == nil {
 		t.Error("GetAccountSummary() Expected error")
 	}
-
 }
 
 func TestNewDeposit(t *testing.T) {
