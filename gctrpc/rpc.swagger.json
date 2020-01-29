@@ -4,10 +4,6 @@
     "title": "rpc.proto",
     "version": "version not set"
   },
-  "schemes": [
-    "http",
-    "https"
-  ],
   "consumes": [
     "application/json"
   ],
@@ -506,7 +502,16 @@
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "$ref": "#/x-stream-definitions/gctrpcGetAccountInfoResponse"
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/gctrpcGetAccountInfoResponse"
+                },
+                "error": {
+                  "$ref": "#/definitions/runtimeStreamError"
+                }
+              },
+              "title": "Stream result of gctrpcGetAccountInfoResponse"
             }
           }
         },
@@ -704,7 +709,16 @@
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "$ref": "#/x-stream-definitions/gctrpcOrderbookResponse"
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/gctrpcOrderbookResponse"
+                },
+                "error": {
+                  "$ref": "#/definitions/runtimeStreamError"
+                }
+              },
+              "title": "Stream result of gctrpcOrderbookResponse"
             }
           }
         },
@@ -819,7 +833,16 @@
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "$ref": "#/x-stream-definitions/gctrpcTickerResponse"
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/gctrpcTickerResponse"
+                },
+                "error": {
+                  "$ref": "#/definitions/runtimeStreamError"
+                }
+              },
+              "title": "Stream result of gctrpcTickerResponse"
             }
           }
         },
@@ -1039,7 +1062,16 @@
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "$ref": "#/x-stream-definitions/gctrpcOrderbookResponse"
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/gctrpcOrderbookResponse"
+                },
+                "error": {
+                  "$ref": "#/definitions/runtimeStreamError"
+                }
+              },
+              "title": "Stream result of gctrpcOrderbookResponse"
             }
           }
         },
@@ -1219,7 +1251,16 @@
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "$ref": "#/x-stream-definitions/gctrpcTickerResponse"
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/gctrpcTickerResponse"
+                },
+                "error": {
+                  "$ref": "#/definitions/runtimeStreamError"
+                }
+              },
+              "title": "Stream result of gctrpcTickerResponse"
             }
           }
         },
@@ -2871,44 +2912,6 @@
           }
         }
       }
-    }
-  },
-  "x-stream-definitions": {
-    "gctrpcGetAccountInfoResponse": {
-      "type": "object",
-      "properties": {
-        "result": {
-          "$ref": "#/definitions/gctrpcGetAccountInfoResponse"
-        },
-        "error": {
-          "$ref": "#/definitions/runtimeStreamError"
-        }
-      },
-      "title": "Stream result of gctrpcGetAccountInfoResponse"
-    },
-    "gctrpcOrderbookResponse": {
-      "type": "object",
-      "properties": {
-        "result": {
-          "$ref": "#/definitions/gctrpcOrderbookResponse"
-        },
-        "error": {
-          "$ref": "#/definitions/runtimeStreamError"
-        }
-      },
-      "title": "Stream result of gctrpcOrderbookResponse"
-    },
-    "gctrpcTickerResponse": {
-      "type": "object",
-      "properties": {
-        "result": {
-          "$ref": "#/definitions/gctrpcTickerResponse"
-        },
-        "error": {
-          "$ref": "#/definitions/runtimeStreamError"
-        }
-      },
-      "title": "Stream result of gctrpcTickerResponse"
     }
   }
 }

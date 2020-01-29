@@ -9,6 +9,8 @@ import (
 	proto "github.com/golang/protobuf/proto"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -7105,6 +7107,188 @@ type GoCryptoTraderServer interface {
 	GCTScriptListAll(context.Context, *GCTScriptListAllRequest) (*GCTScriptStatusResponse, error)
 	GCTScriptAutoLoadToggle(context.Context, *GCTScriptAutoLoadRequest) (*GCTScriptGenericResponse, error)
 	GetHistoricCandles(context.Context, *GetHistoricCandlesRequest) (*GetHistoricCandlesResponse, error)
+}
+
+// UnimplementedGoCryptoTraderServer can be embedded to have forward compatible implementations.
+type UnimplementedGoCryptoTraderServer struct {
+}
+
+func (*UnimplementedGoCryptoTraderServer) GetInfo(ctx context.Context, req *GetInfoRequest) (*GetInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetInfo not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetSubsystems(ctx context.Context, req *GetSubsystemsRequest) (*GetSusbsytemsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSubsystems not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) EnableSubsystem(ctx context.Context, req *GenericSubsystemRequest) (*GenericSubsystemResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method EnableSubsystem not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) DisableSubsystem(ctx context.Context, req *GenericSubsystemRequest) (*GenericSubsystemResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DisableSubsystem not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetRPCEndpoints(ctx context.Context, req *GetRPCEndpointsRequest) (*GetRPCEndpointsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetRPCEndpoints not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetCommunicationRelayers(ctx context.Context, req *GetCommunicationRelayersRequest) (*GetCommunicationRelayersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCommunicationRelayers not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetExchanges(ctx context.Context, req *GetExchangesRequest) (*GetExchangesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetExchanges not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) DisableExchange(ctx context.Context, req *GenericExchangeNameRequest) (*GenericExchangeNameResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DisableExchange not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetExchangeInfo(ctx context.Context, req *GenericExchangeNameRequest) (*GetExchangeInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetExchangeInfo not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetExchangeOTPCode(ctx context.Context, req *GenericExchangeNameRequest) (*GetExchangeOTPReponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetExchangeOTPCode not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetExchangeOTPCodes(ctx context.Context, req *GetExchangeOTPsRequest) (*GetExchangeOTPsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetExchangeOTPCodes not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) EnableExchange(ctx context.Context, req *GenericExchangeNameRequest) (*GenericExchangeNameResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method EnableExchange not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetTicker(ctx context.Context, req *GetTickerRequest) (*TickerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTicker not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetTickers(ctx context.Context, req *GetTickersRequest) (*GetTickersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTickers not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetOrderbook(ctx context.Context, req *GetOrderbookRequest) (*OrderbookResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOrderbook not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetOrderbooks(ctx context.Context, req *GetOrderbooksRequest) (*GetOrderbooksResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOrderbooks not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetAccountInfo(ctx context.Context, req *GetAccountInfoRequest) (*GetAccountInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAccountInfo not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetAccountInfoStream(req *GetAccountInfoRequest, srv GoCryptoTrader_GetAccountInfoStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetAccountInfoStream not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetConfig(ctx context.Context, req *GetConfigRequest) (*GetConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetConfig not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetPortfolio(ctx context.Context, req *GetPortfolioRequest) (*GetPortfolioResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPortfolio not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetPortfolioSummary(ctx context.Context, req *GetPortfolioSummaryRequest) (*GetPortfolioSummaryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPortfolioSummary not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) AddPortfolioAddress(ctx context.Context, req *AddPortfolioAddressRequest) (*AddPortfolioAddressResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddPortfolioAddress not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) RemovePortfolioAddress(ctx context.Context, req *RemovePortfolioAddressRequest) (*RemovePortfolioAddressResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemovePortfolioAddress not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetForexProviders(ctx context.Context, req *GetForexProvidersRequest) (*GetForexProvidersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetForexProviders not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetForexRates(ctx context.Context, req *GetForexRatesRequest) (*GetForexRatesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetForexRates not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetOrders(ctx context.Context, req *GetOrdersRequest) (*GetOrdersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOrders not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetOrder(ctx context.Context, req *GetOrderRequest) (*OrderDetails, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOrder not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) SubmitOrder(ctx context.Context, req *SubmitOrderRequest) (*SubmitOrderResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SubmitOrder not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) SimulateOrder(ctx context.Context, req *SimulateOrderRequest) (*SimulateOrderResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SimulateOrder not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) WhaleBomb(ctx context.Context, req *WhaleBombRequest) (*SimulateOrderResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method WhaleBomb not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) CancelOrder(ctx context.Context, req *CancelOrderRequest) (*CancelOrderResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CancelOrder not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) CancelAllOrders(ctx context.Context, req *CancelAllOrdersRequest) (*CancelAllOrdersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CancelAllOrders not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetEvents(ctx context.Context, req *GetEventsRequest) (*GetEventsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetEvents not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) AddEvent(ctx context.Context, req *AddEventRequest) (*AddEventResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddEvent not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) RemoveEvent(ctx context.Context, req *RemoveEventRequest) (*RemoveEventResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveEvent not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetCryptocurrencyDepositAddresses(ctx context.Context, req *GetCryptocurrencyDepositAddressesRequest) (*GetCryptocurrencyDepositAddressesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCryptocurrencyDepositAddresses not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetCryptocurrencyDepositAddress(ctx context.Context, req *GetCryptocurrencyDepositAddressRequest) (*GetCryptocurrencyDepositAddressResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCryptocurrencyDepositAddress not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) WithdrawCryptocurrencyFunds(ctx context.Context, req *WithdrawCurrencyRequest) (*WithdrawResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method WithdrawCryptocurrencyFunds not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) WithdrawFiatFunds(ctx context.Context, req *WithdrawCurrencyRequest) (*WithdrawResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method WithdrawFiatFunds not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetLoggerDetails(ctx context.Context, req *GetLoggerDetailsRequest) (*GetLoggerDetailsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetLoggerDetails not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) SetLoggerDetails(ctx context.Context, req *SetLoggerDetailsRequest) (*GetLoggerDetailsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetLoggerDetails not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetExchangePairs(ctx context.Context, req *GetExchangePairsRequest) (*GetExchangePairsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetExchangePairs not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) EnableExchangePair(ctx context.Context, req *ExchangePairRequest) (*GenericExchangeNameResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method EnableExchangePair not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) DisableExchangePair(ctx context.Context, req *ExchangePairRequest) (*GenericExchangeNameResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DisableExchangePair not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetOrderbookStream(req *GetOrderbookStreamRequest, srv GoCryptoTrader_GetOrderbookStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetOrderbookStream not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetExchangeOrderbookStream(req *GetExchangeOrderbookStreamRequest, srv GoCryptoTrader_GetExchangeOrderbookStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetExchangeOrderbookStream not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetTickerStream(req *GetTickerStreamRequest, srv GoCryptoTrader_GetTickerStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetTickerStream not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetExchangeTickerStream(req *GetExchangeTickerStreamRequest, srv GoCryptoTrader_GetExchangeTickerStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetExchangeTickerStream not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetAuditEvent(ctx context.Context, req *GetAuditEventRequest) (*GetAuditEventResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAuditEvent not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GCTScriptExecute(ctx context.Context, req *GCTScriptExecuteRequest) (*GCTScriptGenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GCTScriptExecute not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GCTScriptUpload(ctx context.Context, req *GCTScriptUploadRequest) (*GCTScriptGenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GCTScriptUpload not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GCTScriptReadScript(ctx context.Context, req *GCTScriptReadScriptRequest) (*GCTScriptQueryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GCTScriptReadScript not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GCTScriptStatus(ctx context.Context, req *GCTScriptStatusRequest) (*GCTScriptStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GCTScriptStatus not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GCTScriptQuery(ctx context.Context, req *GCTScriptQueryRequest) (*GCTScriptQueryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GCTScriptQuery not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GCTScriptStop(ctx context.Context, req *GCTScriptStopRequest) (*GCTScriptGenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GCTScriptStop not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GCTScriptStopAll(ctx context.Context, req *GCTScriptStopAllRequest) (*GCTScriptGenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GCTScriptStopAll not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GCTScriptListAll(ctx context.Context, req *GCTScriptListAllRequest) (*GCTScriptStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GCTScriptListAll not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GCTScriptAutoLoadToggle(ctx context.Context, req *GCTScriptAutoLoadRequest) (*GCTScriptGenericResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GCTScriptAutoLoadToggle not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) GetHistoricCandles(ctx context.Context, req *GetHistoricCandlesRequest) (*GetHistoricCandlesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetHistoricCandles not implemented")
 }
 
 func RegisterGoCryptoTraderServer(s *grpc.Server, srv GoCryptoTraderServer) {
