@@ -353,7 +353,6 @@ func (b *BTCMarkets) FetchAccountInfo() (account.Holdings, error) {
 	return acc, nil
 }
 
-
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (b *BTCMarkets) GetFundingHistory() ([]exchange.FundHistory, error) {

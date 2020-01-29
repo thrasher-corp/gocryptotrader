@@ -493,7 +493,6 @@ func (h *HUOBI) FetchAccountInfo() (account.Holdings, error) {
 	return acc, nil
 }
 
-
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (h *HUOBI) GetFundingHistory() ([]exchange.FundHistory, error) {

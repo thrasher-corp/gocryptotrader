@@ -330,7 +330,6 @@ func (l *LakeBTC) FetchAccountInfo() (account.Holdings, error) {
 	return acc, nil
 }
 
-
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (l *LakeBTC) GetFundingHistory() ([]exchange.FundHistory, error) {

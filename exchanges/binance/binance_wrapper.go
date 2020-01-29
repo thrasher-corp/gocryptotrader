@@ -357,14 +357,14 @@ func (b *Binance) UpdateAccountInfo() (account.Holdings, error) {
 
 	var currencyBalance []account.Balance
 	for i := range raw.Balances {
-		freeCurrency, err := strconv.ParseFloat(raw.Balances[i].Free, 64)
-		if err != nil {
-			return info, err
+		freeCurrency, parseErr := strconv.ParseFloat(raw.Balances[i].Free, 64)
+		if parseErr != nil {
+			return info, parseErr
 		}
 
-		lockedCurrency, err := strconv.ParseFloat(raw.Balances[i].Locked, 64)
-		if err != nil {
-			return info, err
+		lockedCurrency, parseErr := strconv.ParseFloat(raw.Balances[i].Locked, 64)
+		if parseErr != nil {
+			return info, parseErr
 		}
 
 		currencyBalance = append(currencyBalance, account.Balance{

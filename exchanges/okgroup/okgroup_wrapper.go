@@ -182,13 +182,13 @@ func (o *OKGroup) UpdateAccountInfo() (account.Holdings, error) {
 	currencyAccount := account.SubAccount{}
 
 	for i := range currencies {
-		hold, err := strconv.ParseFloat(currencies[i].Hold, 64)
-		if err != nil {
-			return resp, err
+		hold, parseErr := strconv.ParseFloat(currencies[i].Hold, 64)
+		if parseErr != nil {
+			return resp, parseErr
 		}
-		totalValue, err := strconv.ParseFloat(currencies[i].Balance, 64)
-		if err != nil {
-			return resp, err
+		totalValue, parseErr := strconv.ParseFloat(currencies[i].Balance, 64)
+		if parseErr != nil {
+			return resp, parseErr
 		}
 		currencyAccount.Currencies = append(currencyAccount.Currencies,
 			account.Balance{
