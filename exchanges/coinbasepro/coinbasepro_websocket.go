@@ -70,13 +70,7 @@ func (c *CoinbasePro) wsReadData() {
 }
 
 func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
-	type MsgType struct {
-		Type      string `json:"type"`
-		Sequence  int64  `json:"sequence"`
-		ProductID string `json:"product_id"`
-	}
-
-	msgType := MsgType{}
+	msgType := wsMsgType{}
 	err := json.Unmarshal(respRaw, &msgType)
 	if err != nil {
 		return err
@@ -87,6 +81,13 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 	}
 
 	switch msgType.Type {
+	case "status":
+		wsStatus := wsStatus{}
+		err := json.Unmarshal(respRaw, &wsStatus)
+		if err != nil {
+			return err
+		}
+		c.Websocket.DataHandler <- wsStatus
 	case "error":
 		c.Websocket.DataHandler <- errors.New(string(respRaw))
 
@@ -184,8 +185,39 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			Date:            createdDate,
 			Pair:            currency.NewPairFromString(wsOrder.ProductID),
 		}
+	case "match":
+		var wsOrder wsOrderReceived
+		err := json.Unmarshal(respRaw, &wsOrder)
+		if err != nil {
+			return err
+		}
+		createdDate, err := time.Parse(wsOrder.Time, time.RFC3339)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			createdDate = time.Now()
+		}
+		oSide, err := order.StringToOrderSide(wsOrder.Side)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+		}
+		c.Websocket.DataHandler <- &order.Detail{
+			ID: wsOrder.OrderID,
+			Trades: []order.TradeHistory{
+				{
+					Price:     wsOrder.Price,
+					Amount:    wsOrder.Size,
+					Exchange:  c.Name,
+					TID:       strconv.FormatInt(wsOrder.TradeID, 10),
+					Side:      oSide,
+					Timestamp: createdDate,
+					IsMaker:   wsOrder.TakerUserID == "",
+				},
+			},
+		}
+	default:
+		return fmt.Errorf("%v Unhandled websocket message %s", c.Name, respRaw)
 	}
-	return fmt.Errorf("%v Unhandled websocket message %s", c.Name, respRaw)
+	return nil
 }
 
 func statusToStandardStatus(stat string) order.Status {

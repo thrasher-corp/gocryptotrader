@@ -389,6 +389,10 @@ type wsOrderReceived struct {
 	StopPrice     float64 `json:"stop_price,string"`
 	TakerFeeRate  float64 `json:"taker_fee_rate,string"`
 	Private       bool    `json:"private"`
+	TradeID       int64   `json:"trade_id"`
+	MakerOrderID  string  `json:"maker_order_id"`
+	TakerOrderID  string  `json:"taker_order_id"`
+	TakerUserID   string  `json:"taker_user_id"`
 }
 
 // WebsocketHeartBeat defines JSON response for a heart beat message
@@ -433,4 +437,41 @@ type WebsocketL2Update struct {
 	ProductID string          `json:"product_id"`
 	Time      string          `json:"time"`
 	Changes   [][]interface{} `json:"changes"`
+}
+
+type wsMsgType struct {
+	Type      string `json:"type"`
+	Sequence  int64  `json:"sequence"`
+	ProductID string `json:"product_id"`
+}
+
+type wsStatus struct {
+	Currencies []struct {
+		ConvertibleTo []string    `json:"convertible_to"`
+		Details       struct{}    `json:"details"`
+		ID            string      `json:"id"`
+		MaxPrecision  string      `json:"max_precision"`
+		MinSize       string      `json:"min_size"`
+		Name          string      `json:"name"`
+		Status        string      `json:"status"`
+		StatusMessage interface{} `json:"status_message"`
+	} `json:"currencies"`
+	Products []struct {
+		BaseCurrency   string      `json:"base_currency"`
+		BaseIncrement  string      `json:"base_increment"`
+		BaseMaxSize    string      `json:"base_max_size"`
+		BaseMinSize    string      `json:"base_min_size"`
+		CancelOnly     bool        `json:"cancel_only"`
+		DisplayName    string      `json:"display_name"`
+		ID             string      `json:"id"`
+		LimitOnly      bool        `json:"limit_only"`
+		MaxMarketFunds string      `json:"max_market_funds"`
+		MinMarketFunds string      `json:"min_market_funds"`
+		PostOnly       bool        `json:"post_only"`
+		QuoteCurrency  string      `json:"quote_currency"`
+		QuoteIncrement string      `json:"quote_increment"`
+		Status         string      `json:"status"`
+		StatusMessage  interface{} `json:"status_message"`
+	} `json:"products"`
+	Type string `json:"type"`
 }
