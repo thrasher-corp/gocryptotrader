@@ -23,8 +23,8 @@ func SubscribeToExchangeAccount(exchange string) (dispatch.Pipe, error) {
 	acc, ok := service.accounts[exchange]
 	if !ok {
 		service.Unlock()
-		return dispatch.Pipe{}, fmt.Errorf("%s exchange tickers not found",
-			exchange)
+		return dispatch.Pipe{},
+			fmt.Errorf("%s exchange account not found", exchange)
 	}
 
 	defer service.Unlock()

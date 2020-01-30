@@ -84,6 +84,11 @@ func TestHoldings(t *testing.T) {
 			u.Accounts[0].Currencies[0].Hold)
 	}
 
+	_, err = SubscribeToExchangeAccount("nonsense")
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
 	p, err := SubscribeToExchangeAccount("Test")
 	if err != nil {
 		t.Fatal(err)
