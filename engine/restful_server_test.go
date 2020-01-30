@@ -92,7 +92,6 @@ func TestValidHostRequest(t *testing.T) {
 }
 
 func TestProfilerEnabledShouldEnableProfileEndPoint(t *testing.T) {
-	const host = "localhost:9050"
 	Bot = &Engine{
 		Config: loadConfig(t),
 	}
@@ -102,7 +101,7 @@ func TestProfilerEnabledShouldEnableProfileEndPoint(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	req.Host = host
+	req.Host = "localhost:9050"
 	resp := httptest.NewRecorder()
 	newRouter(true).ServeHTTP(resp, req)
 	if status := resp.Code; status != http.StatusNotFound {
@@ -115,12 +114,12 @@ func TestProfilerEnabledShouldEnableProfileEndPoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.Host = host
 
 	mutexValue := runtime.SetMutexProfileFraction(10)
 	if mutexValue != 0 {
 		t.Fatalf("SetMutexProfileFraction() should be 0 on first set received: %v", mutexValue)
 	}
+
 	resp = httptest.NewRecorder()
 	newRouter(true).ServeHTTP(resp, req)
 	mutexValue = runtime.SetMutexProfileFraction(10)
