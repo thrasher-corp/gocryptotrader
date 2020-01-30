@@ -24,7 +24,7 @@ func SubscribeToExchangeAccount(exchange string) (dispatch.Pipe, error) {
 	if !ok {
 		service.Unlock()
 		return dispatch.Pipe{},
-			fmt.Errorf("%s exchange account not found", exchange)
+			fmt.Errorf("%s exchange account holdings not found", exchange)
 	}
 
 	defer service.Unlock()
