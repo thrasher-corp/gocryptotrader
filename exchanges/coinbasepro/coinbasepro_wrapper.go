@@ -468,13 +468,13 @@ func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*wit
 
 	selectedWithdrawalMethod := PaymentMethod{}
 	for i := range paymentMethods {
-		if withdrawRequest.Fiat.BankName == paymentMethods[i].Name {
+		if withdrawRequest.Fiat.Bank.BankName == paymentMethods[i].Name {
 			selectedWithdrawalMethod = paymentMethods[i]
 			break
 		}
 	}
 	if selectedWithdrawalMethod.ID == "" {
-		return nil, fmt.Errorf("could not find payment method '%v'. Check the name via the website and try again", withdrawRequest.Fiat.BankName)
+		return nil, fmt.Errorf("could not find payment method '%v'. Check the name via the website and try again", withdrawRequest.Fiat.Bank.BankName)
 	}
 
 	resp, err := c.WithdrawViaPaymentMethod(withdrawRequest.Amount, withdrawRequest.Currency.String(), selectedWithdrawalMethod.ID)

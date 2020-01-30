@@ -12,7 +12,7 @@ import (
 
 const (
 	ErrWithdrawRequestNotFound = "%v not found"
-	ErrRequestCannotbeNill = "request cannot be nil"
+	ErrRequestCannotbeNill     = "request cannot be nil"
 )
 
 func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Response, error) {

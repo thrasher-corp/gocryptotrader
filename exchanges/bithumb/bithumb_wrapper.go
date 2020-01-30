@@ -431,9 +431,9 @@ func (b *Bithumb) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdra
 	if withdrawRequest.Currency != currency.KRW {
 		return nil, errors.New("only KRW is supported")
 	}
-	bankDetails := strconv.FormatFloat(withdrawRequest.Fiat.BankCode, 'f', -1, 64) +
-		"_" + withdrawRequest.Fiat.BankName
-	resp, err := b.RequestKRWWithdraw(bankDetails, withdrawRequest.Fiat.BankAccountNumber, int64(withdrawRequest.Amount))
+	bankDetails := strconv.FormatFloat(withdrawRequest.Fiat.Bank.BankCode, 'f', -1, 64) +
+		"_" + withdrawRequest.Fiat.Bank.BankName
+	resp, err := b.RequestKRWWithdraw(bankDetails, withdrawRequest.Fiat.Bank.AccountNumber, int64(withdrawRequest.Amount))
 	if err != nil {
 		return nil, err
 	}

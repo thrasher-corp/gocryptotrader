@@ -18,6 +18,10 @@ func Valid(request *Request) (err error) {
 		allErrors = append(allErrors, ErrStrAmountMustBeGreaterThanZero)
 	}
 
+	if (request.Currency == currency.Code{}) {
+		allErrors = append(allErrors, ErrStrNoCurrencySet)
+	}
+
 	switch request.Type {
 	case Fiat:
 		if request.Fiat == nil {
@@ -54,7 +58,6 @@ func validateFiat(request *Request) (err []string) {
 	if errBank != nil {
 		err = append(err, errBank...)
 	}
-
 	return err
 }
 

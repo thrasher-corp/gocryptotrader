@@ -11,16 +11,8 @@ import (
 
 var (
 	validFiatRequest = &Request{
-		Fiat: &FiatRequest{
-			Bank: &banking.Account{
-				AccountName:   "test-bank-account",
-				AccountNumber: "test-bank-number",
-				BankName:      "test-bank-name",
-				BSBNumber:     "123456",
-				SWIFTCode:     "test",
-				IBAN:          "",
-			},
-		},
+		Fiat: &FiatRequest{},
+		Exchange: "test-exchange",
 		Currency:    currency.AUD,
 		Description: "Test Withdrawal",
 		Amount:      0.1,
@@ -71,6 +63,7 @@ var (
 func TestMain(m *testing.M) {
 	banking.Accounts = append(banking.Accounts,
 		banking.Account{
+			Enabled: true,
 			ID:                  "test-bank-01",
 			BankName:            "Test Bank",
 			BankAddress:         "42 Bank Street",
@@ -79,10 +72,11 @@ func TestMain(m *testing.M) {
 			BankCountry:         "Japan",
 			AccountName:         "Satoshi Nakamoto",
 			AccountNumber:       "0234",
+			BSBNumber: 			 "123456",
 			SWIFTCode:           "91272837",
 			IBAN:                "98218738671897",
 			SupportedCurrencies: "USD",
-			SupportedExchanges:  "Kraken,Bitstamp",
+			SupportedExchanges:  "test-exchange",
 		},
 	)
 
@@ -94,18 +88,21 @@ func TestValidateFiat(t *testing.T) {
 		name        string
 		request     *Request
 		requestType RequestType
+		bankAccountId string
 		output      interface{}
 	}{
 		{
 			"Valid",
 			validFiatRequest,
 			Fiat,
+			"test-bank-01",
 			nil,
 		},
 		{
 			"Invalid",
 			invalidRequest,
 			Fiat,
+			"",
 			errors.New("invalid request type"),
 		},
 		{
@@ -118,7 +115,8 @@ func TestValidateFiat(t *testing.T) {
 			"CryptoCurrency",
 			invalidCurrencyFiatRequest,
 			Fiat,
-			errors.New("requested currency is not fiat, Bank Account Number cannot be empty, IBAN/SWIFT values not set"),
+			"",
+			errors.New("requested currency is not fiat, account is disabled, Bank Account Number cannot be empty, IBAN/SWIFT values not set"),
 		},
 	}
 
@@ -128,8 +126,16 @@ func TestValidateFiat(t *testing.T) {
 			if test.requestType < 3 {
 				test.request.Type = test.requestType
 			}
+			if test.bankAccountId != "" {
+				v, err := banking.GetBankAccountByID(test.bankAccountId)
+				if err != nil {
+					t.Fatal(err)
+				}
+				test.request.Fiat.Bank = v
+			}
 			err := Valid(test.request)
 			if err != nil {
+				t.Log(err)
 				if test.output.(error).Error() != err.Error() {
 					t.Fatal(err)
 				}

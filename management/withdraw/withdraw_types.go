@@ -43,19 +43,7 @@ type CryptoRequest struct {
 type FiatRequest struct {
 	Bank *banking.Account
 
-	BankAccountName   string
-	BankAccountNumber string
-	BankName          string
-	BankAddress       string
-	BankCity          string
-	BankCountry       string
-	BankPostalCode    string
-	BSB               string
-	SwiftCode         string
-	IBAN              string
-	BankCode          float64
 	IsExpressWire     bool
-
 	// Intermediary bank information
 	RequiresIntermediaryBank      bool
 	IntermediaryBankAccountNumber float64

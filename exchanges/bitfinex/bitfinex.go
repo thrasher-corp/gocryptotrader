@@ -554,17 +554,17 @@ func (b *Bitfinex) WithdrawFIAT(withdrawalType, walletType string, withdrawReque
 	req["withdraw_type"] = withdrawalType
 	req["walletselected"] = walletType
 	req["amount"] = strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64)
-	req["account_name"] = withdrawRequest.Fiat.BankAccountName
-	req["account_number"] = withdrawRequest.Fiat.BankAccountNumber
-	req["bank_name"] = withdrawRequest.Fiat.BankName
-	req["bank_address"] = withdrawRequest.Fiat.BankAddress
-	req["bank_city"] = withdrawRequest.Fiat.BankCity
-	req["bank_country"] = withdrawRequest.Fiat.BankCountry
+	req["account_name"] = withdrawRequest.Fiat.Bank.AccountName
+	req["account_number"] = withdrawRequest.Fiat.Bank.AccountNumber
+	req["bank_name"] = withdrawRequest.Fiat.Bank.BankName
+	req["bank_address"] = withdrawRequest.Fiat.Bank.BankAddress
+	req["bank_city"] = withdrawRequest.Fiat.Bank.BankPostalCity
+	req["bank_country"] = withdrawRequest.Fiat.Bank.BankCountry
 	req["expressWire"] = withdrawRequest.Fiat.IsExpressWire
-	req["swift"] = withdrawRequest.Fiat.SwiftCode
+	req["swift"] = withdrawRequest.Fiat.Bank.SWIFTCode
 	req["detail_payment"] = withdrawRequest.Description
 	req["currency"] = withdrawRequest.Currency
-	req["account_address"] = withdrawRequest.Fiat.BankAddress
+	req["account_address"] = withdrawRequest.Fiat.Bank.BankAddress
 
 	if withdrawRequest.Fiat.RequiresIntermediaryBank {
 		req["intermediary_bank_name"] = withdrawRequest.Fiat.IntermediaryBankName
