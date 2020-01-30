@@ -157,9 +157,9 @@ type WsKline struct {
 // WsUserData stores websocket user data
 type WsUserData struct {
 	Asset     string    `json:"string"`
-	Available float64   `json:"availableBalance"`
-	Locked    float64   `json:"frozenBalance"`
-	Total     float64   `json:"balance"`
+	Available float64   `json:"availableBalance,string"`
+	Locked    float64   `json:"frozenBalance,string"`
+	Total     float64   `json:"balance,string"`
 	Timestamp time.Time `json:"timestamp"`
 }
 
@@ -171,17 +171,17 @@ type WsUserInfo struct {
 
 // WsPositionData stores websocket info on user's position
 type WsPositionData struct {
-	AvailableQuantity float64   `json:"availableQuantity"`
-	AveragePrice      float64   `json:"avgPrice"`
-	Leverage          float64   `json:"leverage"`
-	LiquidationPrice  float64   `json:"liquidationPrice"`
-	MarkPrice         float64   `json:"markPrice"`
-	PositionMargin    float64   `json:"positionMargin"`
-	Quantity          float64   `json:"quantity"`
-	RealisedPNL       float64   `json:"realisedPnl"`
+	AvailableQuantity float64   `json:"availableQuantity,string"`
+	AveragePrice      float64   `json:"avgPrice,string"`
+	Leverage          float64   `json:"leverage,string"`
+	LiquidationPrice  float64   `json:"liquidationPrice,string"`
+	MarkPrice         float64   `json:"markPrice,string"`
+	PositionMargin    float64   `json:"positionMargin,string"`
+	Quantity          float64   `json:"quantity,string"`
+	RealisedPNL       float64   `json:"realisedPnl,string"`
 	Side              string    `json:"side"`
 	Symbol            string    `json:"symbol"`
-	MarginMode        int64     `json:"marginMode"`
+	MarginMode        int64     `json:"marginMode,string"`
 	CreateTime        time.Time `json:"createTime"`
 }
 
@@ -193,22 +193,22 @@ type WsPosition struct {
 
 // WsOrderData stores websocket user order data
 type WsOrderData struct {
-	OrderID          string    `json:"orderId"`
-	Direction        string    `json:"direction"`
-	Leverage         float64   `json:"leverage"`
-	Symbol           string    `json:"symbol"`
-	OrderType        string    `json:"orderType"`
-	Quantity         float64   `json:"quantity"`
-	OrderPrice       float64   `json:"orderPrice"`
-	OrderValue       float64   `json:"orderValue"`
-	Fee              float64   `json:"fee"`
-	FilledQuantity   float64   `json:"filledQuantity"`
-	AveragePrice     float64   `json:"averagePrice"`
-	OrderTime        time.Time `json:"orderTime"`
-	Status           string    `json:"status"`
-	LastFillQuantity float64   `json:"lastFillQuantity"`
-	LastFillPrice    float64   `json:"lastFillPrice"`
-	LastFillTime     time.Time `json:"lastFillTime"`
+	OrderID          string  `json:"orderId"`
+	Direction        string  `json:"direction"`
+	Leverage         float64 `json:"leverage,string"`
+	Symbol           string  `json:"symbol"`
+	OrderType        string  `json:"orderType"`
+	Quantity         float64 `json:"quantity,string"`
+	OrderPrice       float64 `json:"orderPrice,string"`
+	OrderValue       float64 `json:"orderValue,string"`
+	Fee              float64 `json:"fee,string"`
+	FilledQuantity   float64 `json:"filledQuantity,string"`
+	AveragePrice     float64 `json:"averagePrice,string"`
+	OrderTime        string  `json:"orderTime"`
+	Status           string  `json:"status"`
+	LastFillQuantity float64 `json:"lastFillQuantity,string"`
+	LastFillPrice    float64 `json:"lastFillPrice,string"`
+	LastFillTime     string  `json:"lastFillTime"`
 }
 
 // WsUserOrders stores websocket user orders' data

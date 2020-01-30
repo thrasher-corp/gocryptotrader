@@ -290,11 +290,15 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 		p := currency.NewPairFromFormattedPairs(kline.Data[0][0].(string),
 			c.GetEnabledPairs(asset.PerpetualSwap),
 			c.GetPairFormat(asset.PerpetualSwap, true))
+		ts, err := strconv.ParseInt(kline.Data[0][1].(string), 10, 64)
+		if err != nil {
+			return err
+		}
 		if tempKline == nil && len(tempKline) < 5 {
 			return errors.New(c.Name + " - received bad data ")
 		}
 		c.Websocket.DataHandler <- wshandler.KlineData{
-			Timestamp:  time.Unix(int64(kline.Data[0][1].(float64)), 0),
+			Timestamp:  time.Unix(ts, 0),
 			Pair:       p,
 			AssetType:  asset.PerpetualSwap,
 			Exchange:   c.Name,
@@ -333,6 +337,10 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
+			tm, err := time.Parse(time.RFC3339, orders.Data[i].OrderTime)
+			if err != nil {
+				return err
+			}
 			c.Websocket.DataHandler <- &order.Detail{
 				Price:           orders.Data[i].OrderPrice,
 				Amount:          orders.Data[i].Quantity,
@@ -344,13 +352,15 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				Type:            oType,
 				Status:          oStatus,
 				AssetType:       asset.PerpetualSwap,
-				Date:            orders.Data[i].OrderTime,
+				Date:            tm,
 				Leverage:        orders.Data[i].Leverage,
 				Pair:            currency.NewPairFromString(orders.Data[i].Symbol),
 			}
 		}
+	default:
+		return fmt.Errorf("%v Unhandled websocket message %s", c.Name, respRaw)
 	}
-	return fmt.Errorf("%v Unhandled websocket message %s", c.Name, respRaw)
+	return nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
