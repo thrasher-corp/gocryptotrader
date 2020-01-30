@@ -84,7 +84,7 @@ type Config struct {
 	Database          database.Config         `json:"database"`
 	Logging           log.Config              `json:"logging"`
 	ConnectionMonitor ConnectionMonitorConfig `json:"connectionMonitor"`
-	Profiler          ProfilerConfig          `json:"profiler"`
+	Profiler          Profiler                `json:"profiler"`
 	NTPClient         NTPClientConfig         `json:"ntpclient"`
 	GCTScript         gctscript.Config        `json:"gctscript"`
 	Currency          CurrencyConfig          `json:"currencyConfig"`
@@ -152,9 +152,10 @@ type ExchangeConfig struct {
 	WebsocketURL                     *string              `json:"websocketUrl,omitempty"`
 }
 
-// ProfilerConfig defines the profiler configuration to enable pprof
-type ProfilerConfig struct {
-	Enabled bool `json:"enabled"`
+// Profiler defines the profiler configuration to enable pprof
+type Profiler struct {
+	Enabled              bool `json:"enabled"`
+	MutexProfileFraction int  `json:"mutex_profile_fraction"`
 }
 
 // NTPClientConfig defines a network time protocol configuration to allow for

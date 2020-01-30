@@ -19,17 +19,26 @@ const (
 
 const (
 	ErrStrAmountMustBeGreaterThanZero = "amount must be greater than 0"
-	ErrStrAddressisInvalid            = "address is not valid"
-	ErrStrNoCurrencySet               = "currency not set"
-	ErrStrAddressNotSet               = "address cannot be empty"
-	ErrStrCurrencyNotFiat             = "requested currency is not fiat"
+	// ErrStrAddressisInvalid message to return when address is invalid for crypto request
+	ErrStrAddressisInvalid = "address is not valid"
+	// ErrStrAddressNotSet message to return when address is empty
+	ErrStrAddressNotSet = "address cannot be empty"
+	// ErrStrNoCurrencySet message to return when no currency is set
+	ErrStrNoCurrencySet = "currency not set"
+	// ErrStrCurrencyNotCrypto message to return when requested currency is not crypto
 	ErrStrCurrencyNotCrypto           = "requested currency is not a cryptocurrency"
+	// ErrStrCurrencyNotFiat message to return when requested currency is not fiat
+	ErrStrCurrencyNotFiat             = "requested currency is not fiat"
 )
 
 var (
+	// ErrRequestCannotBeNil message to return when a request is nil
 	ErrRequestCannotBeNil = errors.New("request cannot be nil")
-	ErrInvalidRequest     = errors.New("invalid request type")
+	// ErrInvalidRequest message to return when a request type is invalid
+	ErrInvalidRequest = errors.New("invalid request type")
+	// LRU cache for recent requests
 	Cache                 = cache.New(50)
+
 )
 
 // CryptoRequest stores the info required for a crypto withdrawal request

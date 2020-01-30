@@ -49,7 +49,8 @@
   "checkInterval": 1000000000
  },
  "profiler": {
-  "enabled": false
+  "enabled": false,
+  "mutex_profile_fraction": 0
  },
  "ntpclient": {
   "enabled": 0,
