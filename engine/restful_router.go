@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	_ "net/http/pprof" // nolint: gosec
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -85,6 +86,9 @@ func newRouter(isREST bool) *mux.Router {
 		}
 
 		if Bot.Config.Profiler.Enabled {
+			if Bot.Config.Profiler.MutexProfileFraction > 0 {
+				runtime.SetMutexProfileFraction(Bot.Config.Profiler.MutexProfileFraction)
+			}
 			log.Debugf(log.RESTSys,
 				"HTTP Go performance profiler (pprof) endpoint enabled: http://%s:%d/debug\n",
 				common.ExtractHost(listenAddr),
