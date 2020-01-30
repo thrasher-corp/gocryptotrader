@@ -97,7 +97,7 @@ func (a *Alphapoint) UpdateAccountInfo() (account.Holdings, error) {
 	}
 
 	var balances []account.Balance
-	for i := 0; i < len(acc.Currencies); i++ {
+	for i := range acc.Currencies {
 		var balance account.Balance
 		balance.CurrencyName = currency.NewCode(acc.Currencies[i].Name)
 		balance.TotalValue = float64(acc.Currencies[i].Balance)

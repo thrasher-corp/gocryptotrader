@@ -207,7 +207,7 @@ func (b *Bittrex) UpdateAccountInfo() (account.Holdings, error) {
 	}
 
 	var currencies []account.Balance
-	for i := 0; i < len(accountBalance.Result); i++ {
+	for i := range accountBalance.Result {
 		var exchangeCurrency account.Balance
 		exchangeCurrency.CurrencyName = currency.NewCode(accountBalance.Result[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance.Result[i].Balance

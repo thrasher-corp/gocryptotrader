@@ -266,7 +266,7 @@ func (c *CoinbasePro) UpdateAccountInfo() (account.Holdings, error) {
 	}
 
 	var currencies []account.Balance
-	for i := 0; i < len(accountBalance); i++ {
+	for i := range accountBalance {
 		var exchangeCurrency account.Balance
 		exchangeCurrency.CurrencyName = currency.NewCode(accountBalance[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance[i].Available

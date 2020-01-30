@@ -454,10 +454,10 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 	SetupTestHelpers(t)
 
 	var exchangeInfo []account.Holdings
-	var info account.Holdings
 
-	info.Exchange = "Bitfinex"
-	info.Accounts = append(info.Accounts,
+	var bitfinexHoldings account.Holdings
+	bitfinexHoldings.Exchange = "Bitfinex"
+	bitfinexHoldings.Accounts = append(bitfinexHoldings.Accounts,
 		account.SubAccount{
 			Currencies: []account.Balance{
 				{
@@ -468,10 +468,11 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 			},
 		})
 
-	exchangeInfo = append(exchangeInfo, info)
+	exchangeInfo = append(exchangeInfo, bitfinexHoldings)
 
-	info.Exchange = "Bitstamp"
-	info.Accounts = append(info.Accounts,
+	var bitstampHoldings account.Holdings
+	bitstampHoldings.Exchange = "Bitstamp"
+	bitstampHoldings.Accounts = append(bitstampHoldings.Accounts,
 		account.SubAccount{
 			Currencies: []account.Balance{
 				{
@@ -479,10 +480,15 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 					TotalValue:   100,
 					Hold:         0,
 				},
+				{
+					CurrencyName: currency.BTC,
+					TotalValue:   100,
+					Hold:         0,
+				},
 			},
 		})
 
-	exchangeInfo = append(exchangeInfo, info)
+	exchangeInfo = append(exchangeInfo, bitstampHoldings)
 
 	result := GetCollatedExchangeAccountInfoByCoin(exchangeInfo)
 	if len(result) == 0 {

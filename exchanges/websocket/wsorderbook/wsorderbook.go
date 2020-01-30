@@ -86,7 +86,7 @@ func (w *WebsocketOrderbookLocal) processBufferUpdate(o *orderbook.Base, u *Webs
 			})
 		}
 	}
-	for i := 0; i < len(bufferLookup); i++ {
+	for i := range bufferLookup {
 		w.processObUpdate(o, bufferLookup[i])
 	}
 	w.buffer[u.Pair][u.Asset] = bufferLookup
