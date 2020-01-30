@@ -129,11 +129,20 @@ func (c *COINUT) wsReadData() {
 }
 
 func (c *COINUT) wsHandleData(respRaw []byte) error {
+	if strings.HasPrefix(string(respRaw), "[") {
+		//// Its batch order creation!
+		//var incoming []wsOrder
+		//err := json.Unmarshal(respRaw, &incoming)
+		//if err != nil {
+		//	return err
+		//}
+	}
 	var incoming wsResponse
 	err := json.Unmarshal(respRaw, &incoming)
 	if err != nil {
 		return err
 	}
+
 	switch incoming.Reply {
 	case "hb":
 		channels["hb"] <- respRaw
@@ -222,12 +231,10 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 			Side:      tradeUpdate.Side,
 		}
 	default:
-		if incoming.Nonce > 0 {
-			c.WebsocketConn.AddResponseWithID(incoming.Nonce, respRaw)
-			return nil
-		}
+
+		return fmt.Errorf("%v Unhandled websocket message %s", c.Name, respRaw)
 	}
-	return fmt.Errorf("%v Unhandled websocket message %s", c.Name, respRaw)
+	return nil
 }
 
 // WsGetInstruments fetches instrument list and propagates a local cache
