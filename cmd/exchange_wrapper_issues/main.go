@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/management/banking"
 	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
 )
 
@@ -667,16 +668,19 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Currency: p.Quote,
 			Amount:   config.OrderSubmission.Amount,
 			Fiat: &withdraw.FiatRequest{
-				BankAccountName:               config.BankDetails.BankAccountName,
-				BankAccountNumber:             config.BankDetails.BankAccountNumber,
-				SwiftCode:                     config.BankDetails.SwiftCode,
-				IBAN:                          config.BankDetails.Iban,
-				BankCity:                      config.BankDetails.BankCity,
-				BankName:                      config.BankDetails.BankName,
-				BankAddress:                   config.BankDetails.BankAddress,
-				BankCountry:                   config.BankDetails.BankCountry,
-				BankPostalCode:                config.BankDetails.BankPostalCode,
-				BankCode:                      config.BankDetails.BankCode,
+				Bank: &banking.Account{
+					AccountName:    config.BankDetails.BankAccountName,
+					AccountNumber:  config.BankDetails.BankAccountNumber,
+					SWIFTCode:      config.BankDetails.SwiftCode,
+					IBAN:           config.BankDetails.Iban,
+					BankPostalCity: config.BankDetails.BankCity,
+					BankName:       config.BankDetails.BankName,
+					BankAddress:    config.BankDetails.BankAddress,
+					BankCountry:    config.BankDetails.BankCountry,
+					BankPostalCode: config.BankDetails.BankPostalCode,
+					BankCode:       config.BankDetails.BankCode,
+				},
+
 				IsExpressWire:                 config.BankDetails.IsExpressWire,
 				RequiresIntermediaryBank:      config.BankDetails.RequiresIntermediaryBank,
 				IntermediaryBankName:          config.BankDetails.IntermediaryBankName,

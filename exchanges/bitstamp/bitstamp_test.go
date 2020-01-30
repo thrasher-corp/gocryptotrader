@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/management/banking"
 	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
 )
 
@@ -484,18 +485,20 @@ func TestWithdrawFiat(t *testing.T) {
 
 	var withdrawFiatRequest = withdraw.Request{
 		Fiat: &withdraw.FiatRequest{
-			BankAccountName:          "Satoshi Nakamoto",
-			BankAccountNumber:        "12345",
-			BankAddress:              "123 Fake St",
-			BankCity:                 "Tarry Town",
-			BankCountry:              "AU",
-			BankName:                 "Federal Reserve Bank",
+			Bank: &banking.Account{
+				AccountName:    "Satoshi Nakamoto",
+				AccountNumber:  "12345",
+				BankAddress:    "123 Fake St",
+				BankPostalCity: "Tarry Town",
+				BankCountry:    "AU",
+				BankName:       "Federal Reserve Bank",
+				SWIFTCode:      "CTBAAU2S",
+				BankPostalCode: "2088",
+				IBAN:           "IT60X0542811101000000123456",
+			},
 			WireCurrency:             currency.USD.String(),
-			SwiftCode:                "CTBAAU2S",
 			RequiresIntermediaryBank: false,
 			IsExpressWire:            false,
-			BankPostalCode:           "2088",
-			IBAN:                     "IT60X0542811101000000123456",
 		},
 		Amount:      -1,
 		Currency:    currency.USD,
@@ -522,18 +525,20 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 	var withdrawFiatRequest = withdraw.Request{
 		Fiat: &withdraw.FiatRequest{
-			BankAccountName:               "Satoshi Nakamoto",
-			BankAccountNumber:             "12345",
-			BankAddress:                   "123 Fake St",
-			BankCity:                      "Tarry Town",
-			BankCountry:                   "AU",
-			BankName:                      "Federal Reserve Bank",
+			Bank: &banking.Account{
+				AccountName:    "Satoshi Nakamoto",
+				AccountNumber:  "12345",
+				BankAddress:    "123 Fake St",
+				BankPostalCity: "Tarry Town",
+				BankCountry:    "AU",
+				BankName:       "Federal Reserve Bank",
+				SWIFTCode:      "CTBAAU2S",
+				BankPostalCode: "2088",
+				IBAN:           "IT60X0542811101000000123456",
+			},
 			WireCurrency:                  currency.USD.String(),
-			SwiftCode:                     "CTBAAU2S",
 			RequiresIntermediaryBank:      false,
 			IsExpressWire:                 false,
-			BankPostalCode:                "2088",
-			IBAN:                          "IT60X0542811101000000123456",
 			IntermediaryBankAccountNumber: 12345,
 			IntermediaryBankAddress:       "123 Fake St",
 			IntermediaryBankCity:          "Tarry Town",

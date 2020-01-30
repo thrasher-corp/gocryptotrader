@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/management/banking"
 	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
 )
 
@@ -576,7 +577,9 @@ func TestWithdrawFiat(t *testing.T) {
 		Amount:   100,
 		Currency: currency.USD,
 		Fiat: &withdraw.FiatRequest{
-			BankName: "Federal Reserve Bank",
+			Bank: &banking.Account{
+				BankName: "Federal Reserve Bank",
+			},
 		},
 	}
 
@@ -598,7 +601,9 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		Amount:   100,
 		Currency: currency.USD,
 		Fiat: &withdraw.FiatRequest{
-			BankName: "Federal Reserve Bank",
+			Bank: &banking.Account{
+				BankName: "Federal Reserve Bank",
+			},
 		},
 	}
 

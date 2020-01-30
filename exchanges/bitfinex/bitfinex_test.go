@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/management/banking"
 	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
 )
 
@@ -914,14 +915,8 @@ func TestWithdrawFiat(t *testing.T) {
 		Currency:    currency.USD,
 		Description: "WITHDRAW IT ALL",
 		Fiat: &withdraw.FiatRequest{
-			BankAccountName:          "Satoshi Nakamoto",
-			BankAccountNumber:        "12345",
-			BankAddress:              "123 Fake St",
-			BankCity:                 "Tarry Town",
-			BankCountry:              "Hyrule",
-			BankName:                 "Federal Reserve Bank",
+			Bank:                     &banking.Account{},
 			WireCurrency:             currency.USD.String(),
-			SwiftCode:                "Taylor",
 			RequiresIntermediaryBank: false,
 			IsExpressWire:            false,
 		},
@@ -947,14 +942,8 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
 		Fiat: &withdraw.FiatRequest{
-			BankAccountName:               "Satoshi Nakamoto",
-			BankAccountNumber:             "12345",
-			BankAddress:                   "123 Fake St",
-			BankCity:                      "Tarry Town",
-			BankCountry:                   "Hyrule",
-			BankName:                      "Federal Reserve Bank",
+			Bank:                          &banking.Account{},
 			WireCurrency:                  currency.USD.String(),
-			SwiftCode:                     "Taylor",
 			RequiresIntermediaryBank:      true,
 			IsExpressWire:                 false,
 			IntermediaryBankAccountNumber: 12345,

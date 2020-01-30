@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/management/banking"
 	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
 )
 
@@ -475,15 +476,8 @@ func TestWithdrawFiat(t *testing.T) {
 
 	var withdrawFiatRequest = withdraw.Request{
 		Fiat: &withdraw.FiatRequest{
-			BankAccountName:          "Satoshi Nakamoto",
-			BankAccountNumber:        "12345",
-			BankCode:                 123,
-			BankAddress:              "123 Fake St",
-			BankCity:                 "Tarry Town",
-			BankCountry:              "Hyrule",
-			BankName:                 "Federal Reserve Bank",
+			Bank:                     &banking.Account{},
 			WireCurrency:             currency.KRW.String(),
-			SwiftCode:                "Taylor",
 			RequiresIntermediaryBank: false,
 			IsExpressWire:            false,
 		},

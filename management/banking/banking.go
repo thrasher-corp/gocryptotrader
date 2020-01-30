@@ -85,16 +85,16 @@ func (b *Account) ValidateForWithdrawal(exchange string, cur currency.Code) (err
 	}
 
 	if b.AccountNumber == "" {
-		err = append(err, "Bank Account Number cannot be empty")
+		err = append(err, ErrAccountCannotBeEmpty)
 	}
 
 	if cur == currency.AUD {
 		if b.BSBNumber == "" {
-			err = append(err, "BSB must be set for AUD values not set")
+			err = append(err, ErrBSBRequiredforAUD)
 		}
 	} else {
 		if b.IBAN == "" && b.SWIFTCode == "" {
-			err = append(err, "IBAN/SWIFT values not set")
+			err = append(err, ErrIBANSwiftNotSet)
 		}
 	}
 	return

@@ -11,8 +11,8 @@ import (
 
 var (
 	validFiatRequest = &Request{
-		Fiat: &FiatRequest{},
-		Exchange: "test-exchange",
+		Fiat:        &FiatRequest{},
+		Exchange:    "test-exchange",
 		Currency:    currency.AUD,
 		Description: "Test Withdrawal",
 		Amount:      0.1,
@@ -63,7 +63,7 @@ var (
 func TestMain(m *testing.M) {
 	banking.Accounts = append(banking.Accounts,
 		banking.Account{
-			Enabled: true,
+			Enabled:             true,
 			ID:                  "test-bank-01",
 			BankName:            "Test Bank",
 			BankAddress:         "42 Bank Street",
@@ -72,7 +72,7 @@ func TestMain(m *testing.M) {
 			BankCountry:         "Japan",
 			AccountName:         "Satoshi Nakamoto",
 			AccountNumber:       "0234",
-			BSBNumber: 			 "123456",
+			BSBNumber:           "123456",
 			SWIFTCode:           "91272837",
 			IBAN:                "98218738671897",
 			SupportedCurrencies: "USD",
@@ -85,11 +85,11 @@ func TestMain(m *testing.M) {
 
 func TestValidateFiat(t *testing.T) {
 	testCases := []struct {
-		name        string
-		request     *Request
-		requestType RequestType
-		bankAccountId string
-		output      interface{}
+		name          string
+		request       *Request
+		requestType   RequestType
+		bankAccountID string
+		output        interface{}
 	}{
 		{
 			"Valid",
@@ -116,7 +116,7 @@ func TestValidateFiat(t *testing.T) {
 			invalidCurrencyFiatRequest,
 			Fiat,
 			"",
-			errors.New("requested currency is not fiat, account is disabled, Bank Account Number cannot be empty, IBAN/SWIFT values not set"),
+			errors.New("requested currency is not fiat, Bank Account is disabled, Bank Account Number cannot be empty, IBAN/SWIFT values not set"),
 		},
 	}
 
@@ -126,8 +126,8 @@ func TestValidateFiat(t *testing.T) {
 			if test.requestType < 3 {
 				test.request.Type = test.requestType
 			}
-			if test.bankAccountId != "" {
-				v, err := banking.GetBankAccountByID(test.bankAccountId)
+			if test.bankAccountID != "" {
+				v, err := banking.GetBankAccountByID(test.bankAccountID)
 				if err != nil {
 					t.Fatal(err)
 				}

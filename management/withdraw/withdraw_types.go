@@ -26,9 +26,9 @@ const (
 	// ErrStrNoCurrencySet message to return when no currency is set
 	ErrStrNoCurrencySet = "currency not set"
 	// ErrStrCurrencyNotCrypto message to return when requested currency is not crypto
-	ErrStrCurrencyNotCrypto           = "requested currency is not a cryptocurrency"
+	ErrStrCurrencyNotCrypto = "requested currency is not a cryptocurrency"
 	// ErrStrCurrencyNotFiat message to return when requested currency is not fiat
-	ErrStrCurrencyNotFiat             = "requested currency is not fiat"
+	ErrStrCurrencyNotFiat = "requested currency is not fiat"
 )
 
 var (
@@ -36,9 +36,8 @@ var (
 	ErrRequestCannotBeNil = errors.New("request cannot be nil")
 	// ErrInvalidRequest message to return when a request type is invalid
 	ErrInvalidRequest = errors.New("invalid request type")
-	// LRU cache for recent requests
-	Cache                 = cache.New(50)
-
+	// Cache LRU cache for recent requests
+	Cache = cache.New(50)
 )
 
 // CryptoRequest stores the info required for a crypto withdrawal request
@@ -52,7 +51,7 @@ type CryptoRequest struct {
 type FiatRequest struct {
 	Bank *banking.Account
 
-	IsExpressWire     bool
+	IsExpressWire bool
 	// Intermediary bank information
 	RequiresIntermediaryBank      bool
 	IntermediaryBankAccountNumber float64

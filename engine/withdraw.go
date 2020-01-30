@@ -41,23 +41,22 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
 	}
-	fmt.Printf("\n%+v\n", req)
-	fmt.Printf("\n%+v\n", req.Fiat.Bank)
-	// if req.Type == withdraw.Fiat {
-	// 	v, errFiat := exch.WithdrawFiatFunds(req)
-	// 	if errFiat != nil {
-	// 		return nil, errFiat
-	// 	}
-	// 	resp.Exchange.Status = v.Status
-	// 	resp.Exchange.ID = v.ID
-	// } else if req.Type == withdraw.Crypto {
-	// 	v, err := exch.WithdrawCryptocurrencyFunds(req)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	resp.Exchange.Status = v.Status
-	// 	resp.Exchange.ID = v.ID
-	// }
+
+	if req.Type == withdraw.Fiat {
+		v, errFiat := exch.WithdrawFiatFunds(req)
+		if errFiat != nil {
+			return nil, errFiat
+		}
+		resp.Exchange.Status = v.Status
+		resp.Exchange.ID = v.ID
+	} else if req.Type == withdraw.Crypto {
+		v, err := exch.WithdrawCryptocurrencyFunds(req)
+		if err != nil {
+			return nil, err
+		}
+		resp.Exchange.Status = v.Status
+		resp.Exchange.ID = v.ID
+	}
 
 	withdraw.Cache.Add(id.String(), resp)
 	withdrawal.Event(resp)
@@ -83,5 +82,9 @@ func WithdrawRequestsByExchange(exchange string, limit int) ([]withdraw.Response
 }
 
 func WithdrawRequestsByDate(start, end time.Time) ([]withdraw.Response, error) {
+	return nil, nil
+}
+
+func WithdrawRequestByExchangeID(id string) (*withdraw.Response, error) {
 	return nil, nil
 }
