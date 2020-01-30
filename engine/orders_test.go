@@ -37,19 +37,19 @@ func TestOrdersAdd(t *testing.T) {
 	err := Bot.OrderManager.orderStore.Add(&order.Detail{
 		Exchange: testExchange,
 		ID:       "TestOrdersAdd",
-	})
+	}, true)
 	if err != nil {
 		t.Error(err)
 	}
 	err = Bot.OrderManager.orderStore.Add(&order.Detail{
 		Exchange: "testTest",
 		ID:       "TestOrdersAdd",
-	})
+	}, true)
 	if err == nil {
 		t.Error("Expected error from non existent exchange")
 	}
 
-	err = Bot.OrderManager.orderStore.Add(nil)
+	err = Bot.OrderManager.orderStore.Add(nil, true)
 	if err == nil {
 		t.Error("Expected error from nil order")
 	}
@@ -57,7 +57,7 @@ func TestOrdersAdd(t *testing.T) {
 	err = Bot.OrderManager.orderStore.Add(&order.Detail{
 		Exchange: testExchange,
 		ID:       "TestOrdersAdd",
-	})
+	}, true)
 	if err == nil {
 		t.Error("Expected error re-adding order")
 	}
@@ -69,7 +69,7 @@ func TestGetByInternalOrderID(t *testing.T) {
 		Exchange:        testExchange,
 		ID:              "TestGetByInternalOrderID",
 		InternalOrderID: "internalTest",
-	})
+	}, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -96,7 +96,7 @@ func TestGetByExchangeAndID(t *testing.T) {
 	err := Bot.OrderManager.orderStore.Add(&order.Detail{
 		Exchange: testExchange,
 		ID:       "TestGetByExchangeAndID",
-	})
+	}, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -128,7 +128,7 @@ func TestExistsWithLock(t *testing.T) {
 		Exchange: testExchange,
 		ID:       "TestExistsWithLock",
 	}
-	err := Bot.OrderManager.orderStore.Add(o)
+	err := Bot.OrderManager.orderStore.Add(o, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -141,7 +141,7 @@ func TestExistsWithLock(t *testing.T) {
 		ID:       "TestExistsWithLock2",
 	}
 	go Bot.OrderManager.orderStore.existsWithLock(o)
-	go Bot.OrderManager.orderStore.Add(o2)
+	go Bot.OrderManager.orderStore.Add(o2, true)
 	go Bot.OrderManager.orderStore.existsWithLock(o)
 }
 
@@ -185,7 +185,7 @@ func TestCancelOrder(t *testing.T) {
 		ID:       "TestCancelOrder",
 		Status:   order.New,
 	}
-	err = Bot.OrderManager.orderStore.Add(o)
+	err = Bot.OrderManager.orderStore.Add(o, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -225,7 +225,7 @@ func TestCancelAllOrders(t *testing.T) {
 		ID:       "TestCancelAllOrders",
 		Status:   order.New,
 	}
-	err := Bot.OrderManager.orderStore.Add(o)
+	err := Bot.OrderManager.orderStore.Add(o, true)
 	if err != nil {
 		t.Error(err)
 	}

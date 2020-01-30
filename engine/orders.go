@@ -87,9 +87,11 @@ func (o *orderStore) existsWithLock(order *order.Detail) bool {
 }
 
 // Adds an order to the orderStore for tracking the lifecycle
-func (o *orderStore) Add(order *order.Detail) error {
-	o.m.Lock()
-	defer o.m.Unlock()
+func (o *orderStore) Add(order *order.Detail, lock bool) error {
+	if lock {
+		o.m.Lock()
+		defer o.m.Unlock()
+	}
 	if order == nil {
 		return errors.New("Order manager: Order is nil")
 	}
@@ -316,7 +318,10 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 	if exch == nil {
 		return nil, errors.New("unable to get exchange by name")
 	}
-
+	// Lock at this point to ensure wrapper + websocket order submissions return
+	// before any routines.go order submission competes and this returns an error
+	o.orderStore.m.Lock()
+	defer o.orderStore.m.Unlock()
 	result, err := exch.SubmitOrder(newOrder)
 	if err != nil {
 		return nil, err
@@ -379,7 +384,7 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 		Date:              time.Now(),
 		LastUpdated:       time.Now(),
 		Pair:              newOrder.Pair,
-	})
+	}, false)
 	if err != nil {
 		return nil, fmt.Errorf("Order manager: Unable to add %v order %v to orderStore: %s\n", newOrder.Exchange, result.OrderID, err)
 	}
@@ -409,7 +414,7 @@ func (o *orderManager) processOrders() {
 
 		for x := range result {
 			ord := &result[x]
-			result := o.orderStore.Add(ord)
+			result := o.orderStore.Add(ord, true)
 			if result != ErrOrdersAlreadyExists {
 				msg := fmt.Sprintf("Order manager: Exchange %s added order ID=%v pair=%v price=%v amount=%v side=%v type=%v.",
 					ord.Exchange, ord.ID, ord.Pair, ord.Price, ord.Amount, ord.Side, ord.Type)

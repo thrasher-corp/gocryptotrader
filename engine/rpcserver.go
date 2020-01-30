@@ -761,18 +761,17 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 	}
 
 	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
-	submission := &order.Submit{
+	resp, err := Bot.OrderManager.Submit(&order.Submit{
 		Pair:     p,
 		Side:     order.Side(r.Side),
 		Type:     order.Type(r.OrderType),
 		Amount:   r.Amount,
 		Price:    r.Price,
 		ClientID: r.ClientId,
-	}
-	result, err := exch.SubmitOrder(submission)
+	})
 	return &gctrpc.SubmitOrderResponse{
-		OrderId:     result.OrderID,
-		OrderPlaced: result.IsOrderPlaced,
+		OrderId:     resp.OrderID,
+		OrderPlaced: resp.IsOrderPlaced,
 	}, err
 }
 

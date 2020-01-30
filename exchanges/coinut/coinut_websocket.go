@@ -131,18 +131,24 @@ func (c *COINUT) wsReadData() {
 func (c *COINUT) wsHandleData(respRaw []byte) error {
 	if strings.HasPrefix(string(respRaw), "[") {
 		//// Its batch order creation!
-		//var incoming []wsOrder
-		//err := json.Unmarshal(respRaw, &incoming)
-		//if err != nil {
-		//	return err
-		//}
+		var interfaces []interface{}
+		err := json.Unmarshal(respRaw, &interfaces)
+		if err != nil {
+			return err
+		}
+		for i := range interfaces {
+			standardOrder, err = c.wsStandardiseOrderResponse(respRaw)
+
+		}
 	}
 	var incoming wsResponse
 	err := json.Unmarshal(respRaw, &incoming)
 	if err != nil {
 		return err
 	}
-
+	if strings.Contains(string(respRaw), "client_ord_id") {
+		c.WebsocketConn.AddResponseWithID(incoming.Nonce, respRaw)
+	}
 	switch incoming.Reply {
 	case "hb":
 		channels["hb"] <- respRaw
