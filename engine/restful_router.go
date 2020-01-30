@@ -90,7 +90,7 @@ func newRouter(isREST bool) *mux.Router {
 				runtime.SetMutexProfileFraction(Bot.Config.Profiler.MutexProfileFraction)
 			}
 			log.Debugf(log.RESTSys,
-				"HTTP Go performance profiler (pprof) endpoint enabled: http://%s:%d/debug\n",
+				"HTTP Go performance profiler (pprof) endpoint enabled: http://%s:%d/debug/pprof\n",
 				common.ExtractHost(listenAddr),
 				common.ExtractPort(listenAddr))
 			router.PathPrefix("/debug").Handler(http.DefaultServeMux)
