@@ -3,6 +3,7 @@ package account
 import (
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
@@ -91,7 +92,14 @@ func TestHoldings(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func(p dispatch.Pipe, wg *sync.WaitGroup) {
-		<-p.C
+		for i := 0; i < 2; i++ {
+			c := time.NewTimer(time.Second)
+			select {
+			case <-p.C:
+			case <-c.C:
+			}
+		}
+
 		wg.Done()
 	}(p, &wg)
 
