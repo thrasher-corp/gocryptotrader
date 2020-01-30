@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"runtime"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -53,6 +54,10 @@ func TestConfigAllJsonResponse(t *testing.T) {
 }
 
 func TestInvalidHostRequest(t *testing.T) {
+	Bot = &Engine{
+		Config: loadConfig(t),
+	}
+
 	req, err := http.NewRequest(http.MethodGet, "/config/all", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -68,6 +73,10 @@ func TestInvalidHostRequest(t *testing.T) {
 }
 
 func TestValidHostRequest(t *testing.T) {
+	Bot = &Engine{
+		Config: loadConfig(t),
+	}
+
 	req, err := http.NewRequest(http.MethodGet, "/config/all", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -77,6 +86,46 @@ func TestValidHostRequest(t *testing.T) {
 	resp := httptest.NewRecorder()
 	newRouter(true).ServeHTTP(resp, req)
 
+	if status := resp.Code; status != http.StatusOK {
+		t.Errorf("Response returned wrong status code expected %v got %v", http.StatusOK, status)
+	}
+}
+
+func TestProfilerEnabledShouldEnableProfileEndPoint(t *testing.T) {
+	Bot = &Engine{
+		Config: loadConfig(t),
+	}
+
+	req, err := http.NewRequest(http.MethodGet, "/debug/pprof/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.Host = "localhost:9050"
+	resp := httptest.NewRecorder()
+	newRouter(true).ServeHTTP(resp, req)
+	if status := resp.Code; status != http.StatusNotFound {
+		t.Errorf("Response returned wrong status code expected %v got %v", http.StatusNotFound, status)
+	}
+
+	Bot.Config.Profiler.Enabled = true
+	Bot.Config.Profiler.MutexProfileFraction = 5
+	req, err = http.NewRequest(http.MethodGet, "/debug/pprof/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mutexValue := runtime.SetMutexProfileFraction(10)
+	if mutexValue != 0 {
+		t.Fatalf("SetMutexProfileFraction() should be 0 on first set received: %v", mutexValue)
+	}
+
+	resp = httptest.NewRecorder()
+	newRouter(true).ServeHTTP(resp, req)
+	mutexValue = runtime.SetMutexProfileFraction(10)
+	if mutexValue != 5 {
+		t.Fatalf("SetMutexProfileFraction() should be 5 after setup received: %v", mutexValue)
+	}
 	if status := resp.Code; status != http.StatusOK {
 		t.Errorf("Response returned wrong status code expected %v got %v", http.StatusOK, status)
 	}
