@@ -125,33 +125,36 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		return err
 	}
 	switch {
-	case result["topic"] == "notificationsAPI":
+	case result["topic"] == "notificationApi":
 		var notification wsNotification
 		err = json.Unmarshal(respRaw, &notification)
 		if err != nil {
 			return err
 		}
-		orderType, err := order.StringToOrderType(notification.Type)
-		if err != nil {
-			b.Websocket.DataHandler <- err
+		for i := range notification.Data {
+			orderType, err := order.StringToOrderType(notification.Data[i].Type)
+			if err != nil {
+				b.Websocket.DataHandler <- err
+			}
+			orderSide, err := order.StringToOrderSide(notification.Data[i].OrderMode)
+			if err != nil {
+				b.Websocket.DataHandler <- err
+			}
+			b.Websocket.DataHandler <- &order.Detail{
+				Price:        notification.Data[i].Price,
+				Amount:       notification.Data[i].Size,
+				TriggerPrice: notification.Data[i].TriggerPrice,
+				Exchange:     b.Name,
+				ID:           notification.Data[i].OrderID,
+				Type:         orderType,
+				Side:         orderSide,
+				Status:       statusToStandardStatus(notification.Data[i].Status),
+				AssetType:    asset.Spot,
+				Date:         time.Unix(0, notification.Data[i].Timestamp*int64(time.Millisecond)),
+				Pair:         currency.NewPairFromString(notification.Data[i].Symbol),
+			}
 		}
-		orderSide, err := order.StringToOrderSide(notification.OrderMode)
-		if err != nil {
-			b.Websocket.DataHandler <- err
-		}
-		b.Websocket.DataHandler <- &order.Detail{
-			Price:        notification.Price,
-			Amount:       notification.Size,
-			TriggerPrice: notification.TriggerPrice,
-			Exchange:     b.Name,
-			ID:           notification.OrderID,
-			Type:         orderType,
-			Side:         orderSide,
-			Status:       statusToStandardStatus(notification.Status),
-			AssetType:    asset.Spot,
-			Date:         time.Unix(0, notification.Timestamp*int64(time.Millisecond)),
-			Pair:         currency.NewPairFromString(notification.Symbol),
-		}
+
 	case strings.Contains(result["topic"].(string), "tradeHistory"):
 		var tradeHistory wsTradeHistory
 		err = json.Unmarshal(respRaw, &tradeHistory)

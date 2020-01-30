@@ -167,6 +167,11 @@ type wsTradeHistory struct {
 }
 
 type wsNotification struct {
+	Topic string          `json:"topic"`
+	Data  []wsOrderUpdate `json:"data"`
+}
+
+type wsOrderUpdate struct {
 	OrderID           string  `json:"orderID"`
 	OrderMode         string  `json:"orderMode"`
 	OrderType         string  `json:"orderType"`
