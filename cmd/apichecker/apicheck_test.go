@@ -351,7 +351,7 @@ func TestGetListsData(t *testing.T) {
 	if !AreAPIKeysSet() {
 		t.Skip()
 	}	
-	_, err := GetListsData("5bd11e6998c8507ebbbec4fa")
+	_, err := GetListsData(trelloBoardID)
 	if err != nil {
 		t.Error(err)
 	}
@@ -362,7 +362,7 @@ func TestCreateNewCard(t *testing.T) {
 	if !AreAPIKeysSet() {
 		t.Skip()
 	}	
-	fillData := CardFill{ListID: "5d75f87cf0aa430d0bf4f029",
+	fillData := CardFill{ListID: trelloListID,
 		Name: "Exchange Updates"}
 	err := CreateNewCard(fillData)
 	if err != nil {

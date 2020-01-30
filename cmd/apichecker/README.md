@@ -25,7 +25,11 @@ You can track ideas, planned features and what's in progresss on this Trello boa
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-### FOR ALL THE NEW EXCHANGES ADDED, TRELLO CHECKLIST WILL NEED TO BE MANUALLY UPDATED SO THAT APICHECKER CAN CHECK FOR THE UPDATES ON ITS NEXT RUN.
+## Current Features for apichecker
++ Checks for API updates
++ Can automatically update trello checklist for the updates required
+
+### Please click GoDocs chevron above to view current GoDoc information for this package
 
 ## Contribution
 

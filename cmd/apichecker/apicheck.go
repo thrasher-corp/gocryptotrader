@@ -54,6 +54,8 @@ const (
 	pathUpdateItems    = "https://api.trello.com/1/cards/%s/checkItem/%s?%s&key=%s&token=%s"
 	trelloKey          = ""
 	trelloToken        = ""
+	trelloBoardID      = "5bd11e6998c8507ebbbec4fa"
+	trelloListID       = "5d75f87cf0aa430d0bf4f029"
 	trelloChecklistID  = "5dfc5a5377835d0ba025787a"
 	trelloCardID       = "5dfc54b96da13a6ac5ceca97"
 	complete           = "complete"
@@ -62,11 +64,11 @@ const (
 
 // Config is a format for storing update data
 type Config struct {
-	ConfCardID      string         `json:"CardID"`
-	ConfChecklistID string         `json:"ChecklistID"`
-	ConfKey         string         `json:"Key"`
-	ConfToken       string         `json:"Token"`
-	Exchanges       []ExchangeInfo `json:"Exchanges"`
+	CardID      string         `json:"CardID"`
+	ChecklistID string         `json:"ChecklistID"`
+	Key         string         `json:"Key"`
+	Token       string         `json:"Token"`
+	Exchanges   []ExchangeInfo `json:"Exchanges"`
 }
 
 var (
@@ -94,10 +96,13 @@ func main() {
 	// Assumption here is that if api key n token are set, then cardid and checklistid will be set too
 	if AreAPIKeysSet() {
 		UpdateFile(&configData, backupFile)
-		configData.ConfKey = trelloKey
-		configData.ConfToken = trelloToken
-		configData.ConfCardID = trelloCardID
-		configData.ConfChecklistID = trelloChecklistID
+		if err != nil {
+			log.Fatal(err)
+		}
+		configData.Key = trelloKey
+		configData.Token = trelloToken
+		configData.CardID = trelloCardID
+		configData.ChecklistID = trelloChecklistID
 		err = CheckUpdates(jsonFile, &configData)
 		if err != nil {
 			log.Fatal(err)
@@ -126,7 +131,7 @@ func getSha(repoPath string) (ShaResponse, error) {
 	if verbose {
 		fmt.Printf("Getting SHA of this path: %v\n", path)
 	}
-	return resp, common.SendHTTPGetRequest(path, true, false, &resp)
+	return resp, common.SendHTTPGetRequest(path, true, verbose, &resp)
 }
 
 // CheckExistingExchanges checks if the given exchange exists
@@ -158,21 +163,21 @@ func CheckMissingExchanges(confData *Config) ([]string, error) {
 
 // ReadFileData reads the file data from the given json file
 func ReadFileData(fileName string) (Config, error) {
-	var resp Config
+	var c Config
 	file, err := os.Open(fileName)
 	if err != nil {
-		return resp, err
+		return c, err
 	}
 	defer file.Close()
 	byteValue, err := ioutil.ReadAll(file)
 	if err != nil {
-		return resp, err
+		return c, err
 	}
-	err = json.Unmarshal(byteValue, &resp)
+	err = json.Unmarshal(byteValue, &c)
 	if err != nil {
-		return resp, err
+		return c, err
 	}
-	return resp, nil
+	return c, nil
 }
 
 // CheckUpdates checks updates.json for all the existing exchanges
@@ -333,20 +338,19 @@ func CheckChangeLog(htmlData *HTMLScrapingData) (string, error) {
 
 // Add appends exchange data to updates.json for future api checks
 func Add(exchName, checkType, path string, data interface{}, update bool, confData *Config) error {
-	check := CheckExistingExchanges(exchName, &configData)
 	var file []byte
 	if !update {
-		if check {
+		if CheckExistingExchanges(exchName, &configData) {
 			if verbose {
 				log.Printf("%v exchange already exists\n", exchName)
 			}
 			return nil
 		}
-		exchange, err := FillData(exchName, checkType, path, data)
+		exchangeData, err := FillData(exchName, checkType, path, data)
 		if err != nil {
 			return err
 		}
-		confData.Exchanges = append(confData.Exchanges, exchange)
+		confData.Exchanges = append(confData.Exchanges, exchangeData)
 		file, err = json.MarshalIndent(&confData, "", " ")
 		if err != nil {
 			return err
@@ -357,9 +361,6 @@ func Add(exchName, checkType, path string, data interface{}, update bool, confDa
 			return err
 		}
 		allExchData := Update(exchName, confData.Exchanges, info)
-		if err != nil {
-			return err
-		}
 		confData.Exchanges = allExchData
 		file, err = json.MarshalIndent(&confData, "", " ")
 		if err != nil {
@@ -512,12 +513,11 @@ func HTMLScrapeBitfinex(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	abody := string(a)
 	r, err := regexp.Compile(htmlData.RegExp)
 	if err != nil {
 		return nil, err
 	}
-	str := r.FindAllString(abody, -1)
+	str := r.FindAllString(string(a), -1)
 	var resp []string
 	for x := range str {
 		tempStr := strings.Replace(str[x], "section-v-", "", 1)
@@ -1093,7 +1093,7 @@ func GetListsData(idBoard string) ([]ListData, error) {
 	return resp, nil
 }
 
-// CreateNewCard creates a new card on the list specified
+// CreateNewCard creates a new card on the list specified on trello
 func CreateNewCard(fillData CardFill) error {
 	params := url.Values{}
 	params.Set("idList", fillData.ListID)
@@ -1122,7 +1122,7 @@ func CreateNewCard(fillData CardFill) error {
 	return err
 }
 
-// CreateNewCheck creates a new checklist item within a given checklist
+// CreateNewCheck creates a new checklist item within a given checklist from trello
 func CreateNewCheck(newCheck string) error {
 	params := url.Values{}
 	params.Set("name", newCheck)
@@ -1133,10 +1133,10 @@ func CreateNewCheck(newCheck string) error {
 	return err
 }
 
-// GetChecklistItems get info on all the items on a given checklist
+// GetChecklistItems get info on all the items on a given checklist from trello
 func GetChecklistItems() (ChecklistItemData, error) {
 	var resp ChecklistItemData
-	path := fmt.Sprintf(pathChecklistItems, trelloChecklistID, configData.ConfKey, configData.ConfToken)
+	path := fmt.Sprintf(pathChecklistItems, trelloChecklistID, configData.Key, configData.Token)
 	return resp, common.SendHTTPGetRequest(path, true, verbose, &resp)
 }
 
@@ -1168,7 +1168,7 @@ func NameStateChanges(currentName, currentState string) (string, error) {
 	return string(byteName), nil
 }
 
-// UpdateCheckItem updates a check item
+// UpdateCheckItem updates a check item for trello
 func UpdateCheckItem(checkItemID, name, state string) error {
 	params := url.Values{}
 	newName, err := NameStateChanges(name, state)
@@ -1177,7 +1177,7 @@ func UpdateCheckItem(checkItemID, name, state string) error {
 	}
 	params.Set("name", newName)
 	params.Set("state", incomplete)
-	path := fmt.Sprintf(pathUpdateItems, trelloCardID, checkItemID, params.Encode(), configData.ConfKey, configData.ConfToken)
+	path := fmt.Sprintf(pathUpdateItems, trelloCardID, checkItemID, params.Encode(), configData.Key, configData.Token)
 	_, err = common.SendHTTPRequest(http.MethodPut, path, nil, nil)
 	return err
 }
