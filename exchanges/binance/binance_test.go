@@ -427,7 +427,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetAccountInfo()
+	_, err := b.UpdateAccountInfo()
 	switch {
 	case areTestAPIKeysSet() && err != nil:
 		t.Error("GetAccountInfo() error", err)

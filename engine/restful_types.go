@@ -3,7 +3,7 @@ package engine
 import (
 	"net/http"
 
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
@@ -42,5 +42,5 @@ type EnabledExchangeCurrencies struct {
 
 // AllEnabledExchangeAccounts holds all enabled accounts info
 type AllEnabledExchangeAccounts struct {
-	Data []exchange.AccountInfo `json:"data"`
+	Data []account.Holdings `json:"data"`
 }

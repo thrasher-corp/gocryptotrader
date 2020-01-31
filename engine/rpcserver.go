@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -448,7 +449,7 @@ func (s *RPCServer) GetAccountInfo(ctx context.Context, r *gctrpc.GetAccountInfo
 		return nil, errors.New("exchange is not loaded/doesn't exist")
 	}
 
-	resp, err := exch.GetAccountInfo()
+	resp, err := exch.FetchAccountInfo()
 	if err != nil {
 		return nil, err
 	}
@@ -468,6 +469,87 @@ func (s *RPCServer) GetAccountInfo(ctx context.Context, r *gctrpc.GetAccountInfo
 	}
 
 	return &gctrpc.GetAccountInfoResponse{Exchange: r.Exchange, Accounts: accounts}, nil
+}
+
+// GetAccountInfoStream streams an account balance for a specific exchange
+func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream gctrpc.GoCryptoTrader_GetAccountInfoStreamServer) error {
+	if r.Exchange == "" {
+		return errors.New(errExchangeNameUnset)
+	}
+
+	exch := GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return errors.New("exchange is not loaded/doesn't exist")
+	}
+
+	initAcc, err := exch.FetchAccountInfo()
+	if err != nil {
+		return err
+	}
+
+	var accounts []*gctrpc.Account
+	for x := range initAcc.Accounts {
+		var subAccounts []*gctrpc.AccountCurrencyInfo
+		for y := range initAcc.Accounts[x].Currencies {
+			subAccounts = append(subAccounts, &gctrpc.AccountCurrencyInfo{
+				Currency:   initAcc.Accounts[x].Currencies[y].CurrencyName.String(),
+				TotalValue: initAcc.Accounts[x].Currencies[y].TotalValue,
+				Hold:       initAcc.Accounts[x].Currencies[y].Hold,
+			})
+		}
+		accounts = append(accounts, &gctrpc.Account{
+			Id:         initAcc.Accounts[x].ID,
+			Currencies: subAccounts,
+		})
+	}
+
+	err = stream.Send(&gctrpc.GetAccountInfoResponse{
+		Exchange: initAcc.Exchange,
+		Accounts: accounts,
+	})
+	if err != nil {
+		return err
+	}
+
+	pipe, err := account.SubscribeToExchangeAccount(r.Exchange)
+	if err != nil {
+		return err
+	}
+
+	defer pipe.Release()
+
+	for {
+		data, ok := <-pipe.C
+		if !ok {
+			return errors.New(errDispatchSystem)
+		}
+
+		acc := (*data.(*interface{})).(account.Holdings)
+
+		var accounts []*gctrpc.Account
+		for x := range acc.Accounts {
+			var subAccounts []*gctrpc.AccountCurrencyInfo
+			for y := range acc.Accounts[x].Currencies {
+				subAccounts = append(subAccounts, &gctrpc.AccountCurrencyInfo{
+					Currency:   acc.Accounts[x].Currencies[y].CurrencyName.String(),
+					TotalValue: acc.Accounts[x].Currencies[y].TotalValue,
+					Hold:       acc.Accounts[x].Currencies[y].Hold,
+				})
+			}
+			accounts = append(accounts, &gctrpc.Account{
+				Id:         acc.Accounts[x].ID,
+				Currencies: subAccounts,
+			})
+		}
+
+		err := stream.Send(&gctrpc.GetAccountInfoResponse{
+			Exchange: acc.Exchange,
+			Accounts: accounts,
+		})
+		if err != nil {
+			return err
+		}
+	}
 }
 
 // GetConfig returns the bots config

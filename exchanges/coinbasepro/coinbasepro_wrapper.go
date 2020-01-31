@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -254,19 +255,19 @@ func (c *CoinbasePro) UpdateTradablePairs(forceUpdate bool) error {
 	return c.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // coinbasepro exchange
-func (c *CoinbasePro) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
+func (c *CoinbasePro) UpdateAccountInfo() (account.Holdings, error) {
+	var response account.Holdings
 	response.Exchange = c.Name
 	accountBalance, err := c.GetAccounts()
 	if err != nil {
 		return response, err
 	}
 
-	var currencies []exchange.AccountCurrencyInfo
-	for i := 0; i < len(accountBalance); i++ {
-		var exchangeCurrency exchange.AccountCurrencyInfo
+	var currencies []account.Balance
+	for i := range accountBalance {
+		var exchangeCurrency account.Balance
 		exchangeCurrency.CurrencyName = currency.NewCode(accountBalance[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance[i].Available
 		exchangeCurrency.Hold = accountBalance[i].Hold
@@ -274,11 +275,26 @@ func (c *CoinbasePro) GetAccountInfo() (exchange.AccountInfo, error) {
 		currencies = append(currencies, exchangeCurrency)
 	}
 
-	response.Accounts = append(response.Accounts, exchange.Account{
+	response.Accounts = append(response.Accounts, account.SubAccount{
 		Currencies: currencies,
 	})
 
+	err = account.Process(&response)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return response, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (c *CoinbasePro) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(c.Name)
+	if err != nil {
+		return c.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -638,4 +654,11 @@ func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, rangesize, granularity
 		})
 	}
 	return candles, nil
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (c *CoinbasePro) ValidateCredentials() error {
+	_, err := c.UpdateAccountInfo()
+	return c.CheckTransientError(err)
 }

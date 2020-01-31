@@ -505,12 +505,12 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 // TestGetAccountInfo wrapper test
 func TestGetAccountInfo(t *testing.T) {
 	if areTestAPIKeysSet() || clientID != "" {
-		_, err := k.GetAccountInfo()
+		_, err := k.UpdateAccountInfo()
 		if err != nil {
 			t.Error("GetAccountInfo() error", err)
 		}
 	} else {
-		_, err := k.GetAccountInfo()
+		_, err := k.UpdateAccountInfo()
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}

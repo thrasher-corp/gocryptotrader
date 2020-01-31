@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -279,19 +280,19 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 	return orderbook.Get(e.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Exmo exchange
-func (e *EXMO) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
+func (e *EXMO) UpdateAccountInfo() (account.Holdings, error) {
+	var response account.Holdings
 	response.Exchange = e.Name
 	result, err := e.GetUserInfo()
 	if err != nil {
 		return response, err
 	}
 
-	var currencies []exchange.AccountCurrencyInfo
+	var currencies []account.Balance
 	for x, y := range result.Balances {
-		var exchangeCurrency exchange.AccountCurrencyInfo
+		var exchangeCurrency account.Balance
 		exchangeCurrency.CurrencyName = currency.NewCode(x)
 		for z, w := range result.Reserved {
 			if z == x {
@@ -304,11 +305,26 @@ func (e *EXMO) GetAccountInfo() (exchange.AccountInfo, error) {
 		currencies = append(currencies, exchangeCurrency)
 	}
 
-	response.Accounts = append(response.Accounts, exchange.Account{
+	response.Accounts = append(response.Accounts, account.SubAccount{
 		Currencies: currencies,
 	})
 
+	err = account.Process(&response)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return response, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (e *EXMO) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(e.Name)
+	if err != nil {
+		return e.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -541,4 +557,11 @@ func (e *EXMO) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, err
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (e *EXMO) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (e *EXMO) ValidateCredentials() error {
+	_, err := e.UpdateAccountInfo()
+	return e.CheckTransientError(err)
 }

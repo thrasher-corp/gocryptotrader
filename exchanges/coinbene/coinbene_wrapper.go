@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -411,27 +412,45 @@ func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 	return orderbook.Get(c.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Coinbene exchange
-func (c *Coinbene) GetAccountInfo() (exchange.AccountInfo, error) {
-	var info exchange.AccountInfo
+func (c *Coinbene) UpdateAccountInfo() (account.Holdings, error) {
+	var info account.Holdings
 	balance, err := c.GetAccountBalances()
 	if err != nil {
 		return info, err
 	}
-	var account exchange.Account
+	var acc account.SubAccount
 	for key := range balance {
 		c := currency.NewCode(balance[key].Asset)
 		hold := balance[key].Reserved
 		available := balance[key].Available
-		account.Currencies = append(account.Currencies,
-			exchange.AccountCurrencyInfo{CurrencyName: c,
-				TotalValue: hold + available,
-				Hold:       hold})
+		acc.Currencies = append(acc.Currencies,
+			account.Balance{
+				CurrencyName: c,
+				TotalValue:   hold + available,
+				Hold:         hold,
+			})
 	}
-	info.Accounts = append(info.Accounts, account)
+	info.Accounts = append(info.Accounts, acc)
 	info.Exchange = c.Name
+
+	err = account.Process(&info)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return info, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (c *Coinbene) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(c.Name)
+	if err != nil {
+		return c.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -716,4 +735,11 @@ func (c *Coinbene) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription,
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (c *Coinbene) AuthenticateWebsocket() error {
 	return c.Login()
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (c *Coinbene) ValidateCredentials() error {
+	_, err := c.UpdateAccountInfo()
+	return c.CheckTransientError(err)
 }

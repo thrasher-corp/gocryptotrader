@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -239,9 +240,9 @@ func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 	return orderbook.Get(i.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies
-func (i *ItBit) GetAccountInfo() (exchange.AccountInfo, error) {
-	var info exchange.AccountInfo
+// UpdateAccountInfo retrieves balances for all enabled currencies
+func (i *ItBit) UpdateAccountInfo() (account.Holdings, error) {
+	var info account.Holdings
 	info.Exchange = i.Name
 
 	wallets, err := i.GetWallets(url.Values{})
@@ -267,20 +268,35 @@ func (i *ItBit) GetAccountInfo() (exchange.AccountInfo, error) {
 		}
 	}
 
-	var fullBalance []exchange.AccountCurrencyInfo
+	var fullBalance []account.Balance
 	for key := range amounts {
-		fullBalance = append(fullBalance, exchange.AccountCurrencyInfo{
+		fullBalance = append(fullBalance, account.Balance{
 			CurrencyName: currency.NewCode(key),
 			TotalValue:   amounts[key].TotalValue,
 			Hold:         amounts[key].Hold,
 		})
 	}
 
-	info.Accounts = append(info.Accounts, exchange.Account{
+	info.Accounts = append(info.Accounts, account.SubAccount{
 		Currencies: fullBalance,
 	})
 
+	err = account.Process(&info)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return info, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (i *ItBit) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(i.Name)
+	if err != nil {
+		return i.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -546,4 +562,11 @@ func (i *ItBit) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, er
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (i *ItBit) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (i *ItBit) ValidateCredentials() error {
+	_, err := i.UpdateAccountInfo()
+	return i.CheckTransientError(err)
 }

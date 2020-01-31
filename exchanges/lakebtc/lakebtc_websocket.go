@@ -146,7 +146,7 @@ func (l *LakeBTC) processTrades(data, channel string) error {
 		return err
 	}
 	curr := l.getCurrencyFromChannel(channel)
-	for i := 0; i < len(tradeData.Trades); i++ {
+	for i := range tradeData.Trades {
 		l.Websocket.DataHandler <- wshandler.TradeData{
 			Timestamp:    time.Unix(tradeData.Trades[i].Date, 0),
 			CurrencyPair: curr,
@@ -177,7 +177,7 @@ func (l *LakeBTC) processOrderbook(obUpdate, channel string) error {
 		ExchangeName: l.Name,
 	}
 
-	for i := 0; i < len(update.Asks); i++ {
+	for i := range update.Asks {
 		var amount, price float64
 		amount, err = strconv.ParseFloat(update.Asks[i][1], 64)
 		if err != nil {
@@ -195,7 +195,7 @@ func (l *LakeBTC) processOrderbook(obUpdate, channel string) error {
 		})
 	}
 
-	for i := 0; i < len(update.Bids); i++ {
+	for i := range update.Bids {
 		var amount, price float64
 		amount, err = strconv.ParseFloat(update.Bids[i][1], 64)
 		if err != nil {

@@ -21,7 +21,7 @@ func SetupTest(t *testing.T) {
 		testSetup = true
 	}
 
-	if CheckExchangeExists(testExchange) {
+	if GetExchangeByName(testExchange) != nil {
 		return
 	}
 	err := LoadExchange(testExchange, false, nil)
@@ -31,7 +31,7 @@ func SetupTest(t *testing.T) {
 }
 
 func CleanupTest(t *testing.T) {
-	if !CheckExchangeExists(testExchange) {
+	if GetExchangeByName(testExchange) == nil {
 		return
 	}
 
@@ -45,11 +45,11 @@ func CleanupTest(t *testing.T) {
 func TestCheckExchangeExists(t *testing.T) {
 	SetupTest(t)
 
-	if !CheckExchangeExists(testExchange) {
+	if GetExchangeByName(testExchange) == nil {
 		t.Errorf("TestGetExchangeExists: Unable to find exchange")
 	}
 
-	if CheckExchangeExists("Asdsad") {
+	if GetExchangeByName("Asdsad") != nil {
 		t.Errorf("TestGetExchangeExists: Non-existent exchange found")
 	}
 

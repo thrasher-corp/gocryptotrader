@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -303,11 +304,11 @@ func (z *ZB) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.
 	return orderbook.Get(z.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // ZB exchange
-func (z *ZB) GetAccountInfo() (exchange.AccountInfo, error) {
-	var info exchange.AccountInfo
-	var balances []exchange.AccountCurrencyInfo
+func (z *ZB) UpdateAccountInfo() (account.Holdings, error) {
+	var info account.Holdings
+	var balances []account.Balance
 	var coins []AccountsResponseCoin
 	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		resp, err := z.wsGetAccountInfoRequest()
@@ -334,7 +335,7 @@ func (z *ZB) GetAccountInfo() (exchange.AccountInfo, error) {
 			return info, err
 		}
 
-		balances = append(balances, exchange.AccountCurrencyInfo{
+		balances = append(balances, account.Balance{
 			CurrencyName: currency.NewCode(coins[i].EnName),
 			TotalValue:   hold + avail,
 			Hold:         hold,
@@ -342,11 +343,26 @@ func (z *ZB) GetAccountInfo() (exchange.AccountInfo, error) {
 	}
 
 	info.Exchange = z.Name
-	info.Accounts = append(info.Accounts, exchange.Account{
+	info.Accounts = append(info.Accounts, account.SubAccount{
 		Currencies: balances,
 	})
 
+	err := account.Process(&info)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return info, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (z *ZB) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(z.Name)
+	if err != nil {
+		return z.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -665,4 +681,11 @@ func (z *ZB) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (z *ZB) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (z *ZB) ValidateCredentials() error {
+	_, err := z.UpdateAccountInfo()
+	return z.CheckTransientError(err)
 }

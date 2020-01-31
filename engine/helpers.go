@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
@@ -447,18 +448,21 @@ func GetSpecificTicker(p currency.Pair, exchangeName string, assetType asset.Ite
 // GetCollatedExchangeAccountInfoByCoin collates individual exchange account
 // information and turns into into a map string of
 // exchange.AccountCurrencyInfo
-func GetCollatedExchangeAccountInfoByCoin(exchAccounts []exchange.AccountInfo) map[currency.Code]exchange.AccountCurrencyInfo {
-	result := make(map[currency.Code]exchange.AccountCurrencyInfo)
-	for _, accounts := range exchAccounts {
-		for _, account := range accounts.Accounts {
-			for _, accountCurrencyInfo := range account.Currencies {
-				currencyName := accountCurrencyInfo.CurrencyName
-				avail := accountCurrencyInfo.TotalValue
-				onHold := accountCurrencyInfo.Hold
-
+func GetCollatedExchangeAccountInfoByCoin(accounts []account.Holdings) map[currency.Code]account.Balance {
+	result := make(map[currency.Code]account.Balance)
+	for x := range accounts {
+		for y := range accounts[x].Accounts {
+			for z := range accounts[x].Accounts[y].Currencies {
+				currencyName := accounts[x].Accounts[y].Currencies[z].CurrencyName
+				avail := accounts[x].Accounts[y].Currencies[z].TotalValue
+				onHold := accounts[x].Accounts[y].Currencies[z].Hold
 				info, ok := result[currencyName]
 				if !ok {
-					accountInfo := exchange.AccountCurrencyInfo{CurrencyName: currencyName, Hold: onHold, TotalValue: avail}
+					accountInfo := account.Balance{
+						CurrencyName: currencyName,
+						Hold:         onHold,
+						TotalValue:   avail,
+					}
 					result[currencyName] = accountInfo
 				} else {
 					info.Hold += onHold
@@ -469,16 +473,6 @@ func GetCollatedExchangeAccountInfoByCoin(exchAccounts []exchange.AccountInfo) m
 		}
 	}
 	return result
-}
-
-// GetAccountCurrencyInfoByExchangeName returns info for an exchange
-func GetAccountCurrencyInfoByExchangeName(accounts []exchange.AccountInfo, exchangeName string) (exchange.AccountInfo, error) {
-	for i := 0; i < len(accounts); i++ {
-		if accounts[i].Exchange == exchangeName {
-			return accounts[i], nil
-		}
-	}
-	return exchange.AccountInfo{}, ErrExchangeNotFound
 }
 
 // GetExchangeHighestPriceByCurrencyPair returns the exchange with the highest
@@ -504,23 +498,23 @@ func GetExchangeLowestPriceByCurrencyPair(p currency.Pair, assetType asset.Item)
 }
 
 // SeedExchangeAccountInfo seeds account info
-func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
-	if len(data) == 0 {
+func SeedExchangeAccountInfo(accounts []account.Holdings) {
+	if len(accounts) == 0 {
 		return
 	}
 
 	port := portfolio.GetPortfolio()
 
-	for _, exchangeData := range data {
-		exchangeName := exchangeData.Exchange
-		var currencies []exchange.AccountCurrencyInfo
-		for _, account := range exchangeData.Accounts {
-			for _, info := range account.Currencies {
+	for x := range accounts {
+		exchangeName := accounts[x].Exchange
+		var currencies []account.Balance
+		for y := range accounts[x].Accounts {
+			for z := range accounts[x].Accounts[y].Currencies {
 				var update bool
 				for i := range currencies {
-					if info.CurrencyName == currencies[i].CurrencyName {
-						currencies[i].Hold += info.Hold
-						currencies[i].TotalValue += info.TotalValue
+					if accounts[x].Accounts[y].Currencies[z].CurrencyName == currencies[i].CurrencyName {
+						currencies[i].Hold += accounts[x].Accounts[y].Currencies[z].Hold
+						currencies[i].TotalValue += accounts[x].Accounts[y].Currencies[z].TotalValue
 						update = true
 					}
 				}
@@ -529,17 +523,17 @@ func SeedExchangeAccountInfo(data []exchange.AccountInfo) {
 					continue
 				}
 
-				currencies = append(currencies, exchange.AccountCurrencyInfo{
-					CurrencyName: info.CurrencyName,
-					TotalValue:   info.TotalValue,
-					Hold:         info.Hold,
+				currencies = append(currencies, account.Balance{
+					CurrencyName: accounts[x].Accounts[y].Currencies[z].CurrencyName,
+					TotalValue:   accounts[x].Accounts[y].Currencies[z].TotalValue,
+					Hold:         accounts[x].Accounts[y].Currencies[z].Hold,
 				})
 			}
 		}
 
-		for _, total := range currencies {
-			currencyName := total.CurrencyName
-			total := total.TotalValue
+		for x := range currencies {
+			currencyName := currencies[x].CurrencyName
+			total := currencies[x].TotalValue
 
 			if !port.ExchangeAddressExists(exchangeName, currencyName) {
 				if total <= 0 {
@@ -768,7 +762,7 @@ func GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
 				}
 				continue
 			}
-			individualExchange, err := individualBot.GetAccountInfo()
+			individualExchange, err := individualBot.FetchAccountInfo()
 			if err != nil {
 				log.Errorf(log.ExchangeSys, "Error encountered retrieving exchange account info for %s. Error %s\n",
 					individualBot.GetName(), err)

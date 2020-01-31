@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -22,6 +23,7 @@ type IBotExchange interface {
 	GetName() string
 	IsEnabled() bool
 	SetEnabled(bool)
+	ValidateCredentials() error
 	FetchTicker(currency currency.Pair, assetType asset.Item) (*ticker.Price, error)
 	UpdateTicker(currency currency.Pair, assetType asset.Item) (*ticker.Price, error)
 	FetchOrderbook(currency currency.Pair, assetType asset.Item) (*orderbook.Base, error)
@@ -30,7 +32,8 @@ type IBotExchange interface {
 	UpdateTradablePairs(forceUpdate bool) error
 	GetEnabledPairs(assetType asset.Item) currency.Pairs
 	GetAvailablePairs(assetType asset.Item) currency.Pairs
-	GetAccountInfo() (AccountInfo, error)
+	FetchAccountInfo() (account.Holdings, error)
+	UpdateAccountInfo() (account.Holdings, error)
 	GetAuthenticatedAPISupport(endpoint uint8) bool
 	SetPairs(pairs currency.Pairs, assetType asset.Item, enabled bool) error
 	GetAssetTypes() asset.Items

@@ -424,7 +424,7 @@ var stringsToOrderSide = []struct {
 }
 
 func TestStringToOrderSide(t *testing.T) {
-	for i := 0; i < len(stringsToOrderSide); i++ {
+	for i := range stringsToOrderSide {
 		testData := &stringsToOrderSide[i]
 		t.Run(testData.in, func(t *testing.T) {
 			out, err := StringToOrderSide(testData.in)
@@ -466,7 +466,7 @@ var stringsToOrderType = []struct {
 }
 
 func TestStringToOrderType(t *testing.T) {
-	for i := 0; i < len(stringsToOrderType); i++ {
+	for i := range stringsToOrderType {
 		testData := &stringsToOrderType[i]
 		t.Run(testData.in, func(t *testing.T) {
 			out, err := StringToOrderType(testData.in)
@@ -520,7 +520,7 @@ var stringsToOrderStatus = []struct {
 }
 
 func TestStringToOrderStatus(t *testing.T) {
-	for i := 0; i < len(stringsToOrderStatus); i++ {
+	for i := range stringsToOrderStatus {
 		testData := &stringsToOrderStatus[i]
 		t.Run(testData.in, func(t *testing.T) {
 			out, err := StringToOrderStatus(testData.in)
