@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -289,21 +290,44 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 			if err != nil {
 				return err
 			}
-			for i := range candle.Changes {
-				g.Websocket.DataHandler <- wshandler.KlineData{
-					Timestamp:  time.Unix(int64(candle.Changes[i][0])*1000, 0),
-					Pair:       curr,
-					AssetType:  asset.Spot,
-					Exchange:   g.Name,
-					Interval:   result["type"].(string),
-					OpenPrice:  candle.Changes[i][1],
-					ClosePrice: candle.Changes[i][4],
-					HighPrice:  candle.Changes[i][2],
-					LowPrice:   candle.Changes[i][3],
-					Volume:     candle.Changes[i][5],
-				}
+
+			var interval time.Duration
+			switch strings.Split(result["type"].(string), "_")[1] {
+			case "1m":
+				interval = kline.OneMin
+			case "5m":
+				interval = kline.FiveMin
+			case "15m":
+				interval = kline.FifteenMin
+			case "30m":
+				interval = kline.ThirtyMin
+			case "1h":
+				interval = kline.OneHour
+			case "6h":
+				interval = kline.SixHour
+			case "1d":
+				interval = kline.OneDay
 			}
 
+			newKline := &kline.Item{
+				Exchange: g.Name,
+				Pair:     curr,
+				Asset:    asset.Spot,
+				Interval: interval,
+			}
+
+			for i := range candle.Changes {
+				newKline.Candles = append(newKline.Candles, kline.Candle{
+					Time:   time.Unix(int64(candle.Changes[i][0])*1000, 0),
+					Open:   candle.Changes[i][1],
+					Close:  candle.Changes[i][4],
+					High:   candle.Changes[i][2],
+					Low:    candle.Changes[i][3],
+					Volume: candle.Changes[i][5],
+				})
+			}
+
+			g.Websocket.DataHandler <- newKline
 		default:
 			g.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: g.Name + wshandler.UnhandledMessage + string(respRaw)}
 			return nil
@@ -388,9 +412,6 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 			g.Websocket.DataHandler <- err
 			return
 		}
-		g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: pair,
-			Asset:    asset.Spot,
-			Exchange: g.Name}
 	} else {
 		var asks, bids []orderbook.Item
 		for i := range result.Events {
@@ -403,14 +424,16 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 						Err:      err,
 					}
 				}
-				g.Websocket.DataHandler <- wshandler.TradeData{
-					Timestamp:    time.Unix(0, result.Timestamp),
-					CurrencyPair: pair,
-					AssetType:    asset.Spot,
-					Exchange:     g.Name,
-					Price:        result.Events[i].Price,
-					Amount:       result.Events[i].Amount,
-					Side:         tSide,
+				g.Websocket.DataHandler <- []order.TradeHistory{
+					{
+						Timestamp: time.Unix(0, result.Timestamp),
+						Pair:      pair,
+						AssetType: asset.Spot,
+						Exchange:  g.Name,
+						Price:     result.Events[i].Price,
+						Amount:    result.Events[i].Amount,
+						Side:      tSide,
+					},
 				}
 			case "change":
 				item := orderbook.Item{
@@ -439,8 +462,5 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 		if err != nil {
 			g.Websocket.DataHandler <- fmt.Errorf("%v %v", g.Name, err)
 		}
-		g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: pair,
-			Asset:    asset.Spot,
-			Exchange: g.Name}
 	}
 }

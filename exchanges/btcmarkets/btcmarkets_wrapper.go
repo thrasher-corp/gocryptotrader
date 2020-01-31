@@ -586,6 +586,7 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 		if err != nil {
 			return resp, err
 		}
+
 		for y := range tempData {
 			var tempResp order.Detail
 			tempResp.Exchange = b.Name
@@ -628,6 +629,7 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 			tempResp.Amount = tempData[y].Amount
 			tempResp.ExecutedAmount = tempData[y].Amount - tempData[y].OpenAmount
 			tempResp.RemainingAmount = tempData[y].OpenAmount
+			tempResp.AssetType = asset.Spot
 			resp = append(resp, tempResp)
 		}
 	}
@@ -746,4 +748,36 @@ func (b *BTCMarkets) ValidateCredentials() error {
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *BTCMarkets) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
 	return kline.Item{}, common.ErrNotYetImplemented
+}
+
+// FetchTrades returns the trades for a currency pair
+func (b *BTCMarkets) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// UpdateTrades updates and returns the trades for a currency pair
+func (b *BTCMarkets) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.TradeHistory, error) {
+	t, err := b.GetTrades(p.String(), 0, 0, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	var trades []order.TradeHistory
+	for i := range t {
+		trades = append(trades, order.TradeHistory{
+			Exchange:  b.Name,
+			TID:       t[i].TradeID,
+			Price:     t[i].Price,
+			Amount:    t[i].Amount,
+			Timestamp: t[i].Timestamp,
+			Pair:      p,
+			AssetType: asset.Spot,
+		})
+	}
+	return trades, nil
+}
+
+// UpdateSupportedPairs updates the underlying supported pairs list
+func (b *BTCMarkets) UpdateSupportedPairs() error {
+	return common.ErrNotYetImplemented
 }

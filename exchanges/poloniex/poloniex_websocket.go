@@ -303,12 +303,6 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 						if err != nil {
 							return err
 						}
-
-						p.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-							Exchange: p.Name,
-							Asset:    asset.Spot,
-							Pair:     currency.NewPairFromString(currencyPair),
-						}
 					case "o":
 						currencyPair := currencyIDMap[channelID]
 						dataL3 := dataL2.([]interface{})
@@ -317,12 +311,6 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							currencyPair)
 						if err != nil {
 							return err
-						}
-
-						p.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-							Exchange: p.Name,
-							Asset:    asset.Spot,
-							Pair:     currency.NewPairFromString(currencyPair),
 						}
 					case "t":
 						currencyPair := currencyIDMap[channelID]
@@ -347,12 +335,15 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 						}
 						trade.Timestamp = int64(dataL3[5].(float64))
 
-						p.Websocket.DataHandler <- wshandler.TradeData{
-							Timestamp:    time.Unix(trade.Timestamp, 0),
-							CurrencyPair: currency.NewPairFromString(currencyPair),
-							Side:         side,
-							Amount:       trade.Volume,
-							Price:        trade.Price,
+						p.Websocket.DataHandler <- []order.TradeHistory{
+							{
+								Timestamp: time.Unix(trade.Timestamp, 0),
+								Pair:      currency.NewPairFromString(currencyPair),
+								Side:      side,
+								Amount:    trade.Volume,
+								Price:     trade.Price,
+								Exchange:  p.Name,
+							},
 						}
 					default:
 						p.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: p.Name + wshandler.UnhandledMessage + string(respRaw)}

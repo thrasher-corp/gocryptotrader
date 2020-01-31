@@ -76,4 +76,7 @@ type IBotExchange interface {
 	GetHistoricCandles(p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval time.Duration) (kline.Item, error)
 	DisableRateLimiter() error
 	EnableRateLimiter() error
+	FetchTrades(p currency.Pair, assetType asset.Item) ([]order.TradeHistory, error)
+	UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.TradeHistory, error)
+	UpdateSupportedPairs() error
 }

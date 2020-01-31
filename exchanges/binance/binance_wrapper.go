@@ -2,6 +2,7 @@ package binance
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -197,36 +198,8 @@ func (b *Binance) Run() {
 		b.PrintEnabledPairs()
 	}
 
-	forceUpdate := false
-	delim := b.GetPairFormat(asset.Spot, false).Delimiter
-	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), delim) ||
-		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), delim) {
-		enabledPairs := currency.NewPairsFromStrings(
-			[]string{currency.BTC.String() + delim + currency.USDT.String()},
-		)
-		log.Warn(log.ExchangeSys,
-			"Available pairs for Binance reset due to config upgrade, please enable the ones you would like to use again")
-		forceUpdate = true
-
-		err := b.UpdatePairs(enabledPairs, asset.Spot, true, true)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update currencies. Err: %s\n",
-				b.Name,
-				err)
-		}
-	}
-
-	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
-	}
-
-	err := b.UpdateTradablePairs(forceUpdate)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			b.Name,
-			err)
+	if err := b.UpdateSupportedPairs(); err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
 }
 
@@ -675,4 +648,48 @@ func (b *Binance) ValidateCredentials() error {
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
 	return kline.Item{}, common.ErrNotYetImplemented
+}
+
+// FetchTrades returns the trades for a currency pair
+func (b *Binance) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// UpdateTrades updates and returns the trades for a currency pair
+func (b *Binance) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// UpdateSupportedPairs updates the underlying supported pairs list
+func (b *Binance) UpdateSupportedPairs() error {
+	forceUpdate := false
+	delim := b.GetPairFormat(asset.Spot, false).Delimiter
+	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), delim) ||
+		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), delim) {
+		enabledPairs := currency.NewPairsFromStrings(
+			[]string{currency.BTC.String() + delim + currency.USDT.String()},
+		)
+		log.Warn(log.ExchangeSys,
+			"Available pairs for Binance reset due to config upgrade, please enable the ones you would like to use again")
+		forceUpdate = true
+
+		err := b.UpdatePairs(enabledPairs, asset.Spot, true, true)
+		if err != nil {
+			return fmt.Errorf("%s failed to update currencies. Err: %s",
+				b.Name,
+				err)
+		}
+	}
+
+	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
+		return nil
+	}
+
+	err := b.UpdateTradablePairs(forceUpdate)
+	if err != nil {
+		return fmt.Errorf("%s failed to update tradable pairs. Err: %s",
+			b.Name,
+			err)
+	}
+	return nil
 }

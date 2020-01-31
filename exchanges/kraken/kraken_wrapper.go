@@ -753,3 +753,18 @@ func (k *Kraken) ValidateCredentials() error {
 func (k *Kraken) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
 	return kline.Item{}, common.ErrNotYetImplemented
 }
+
+// FetchTrades returns the trades for a currency pair
+func (k *Kraken) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// UpdateTrades updates and returns the trades for a currency pair
+func (k *Kraken) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// UpdateSupportedPairs updates the underlying supported pairs list
+func (k *Kraken) UpdateSupportedPairs() error {
+	return common.ErrNotYetImplemented
+}

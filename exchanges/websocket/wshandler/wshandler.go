@@ -45,12 +45,8 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 	w.SetCanUseAuthenticatedEndpoints(setupData.AuthenticatedWebsocketAPISupport)
 	w.trafficTimeout = setupData.WebsocketTimeout
 	w.features = setupData.Features
-	err := w.Initialise()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	w.Orderbook.DataHandler = w.DataHandler
+	return w.Initialise()
 }
 
 // Connect initiates a websocket connection by using a package defined connection

@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -116,6 +117,8 @@ type TradeHistory struct {
 	Exchange    string
 	Type        string
 	Fee         float64
+	AssetType   asset.Item
+	Pair        currency.Pair
 	Description string
 }
 
@@ -135,6 +138,18 @@ type FundHistory struct {
 	CryptoTxID        string
 	BankTo            string
 	BankFrom          string
+}
+
+// Funding defines funding data
+type Funding struct {
+	Timestamp    time.Time
+	CurrencyPair currency.Pair
+	AssetType    asset.Item
+	Exchange     string
+	Amount       float64
+	Rate         float64
+	Period       int64
+	Side         string
 }
 
 // Features stores the supported and enabled features
@@ -200,6 +215,7 @@ type Base struct {
 	API                           API
 	BaseCurrencies                currency.Currencies
 	CurrencyPairs                 currency.PairsManager
+	DepositCurrencies             currency.Currencies
 	Features                      Features
 	HTTPTimeout                   time.Duration
 	HTTPUserAgent                 string

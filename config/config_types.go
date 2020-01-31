@@ -124,6 +124,7 @@ type ExchangeConfig struct {
 	WebsocketOrderbookBufferLimit int                    `json:"websocketOrderbookBufferLimit"`
 	ProxyAddress                  string                 `json:"proxyAddress,omitempty"`
 	BaseCurrencies                currency.Currencies    `json:"baseCurrencies"`
+	DepositCurrencies             currency.Currencies    `json:"depositCurrencies"`
 	CurrencyPairs                 *currency.PairsManager `json:"currencyPairs"`
 	API                           APIConfig              `json:"api"`
 	Features                      *FeaturesConfig        `json:"features"`

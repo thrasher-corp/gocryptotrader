@@ -39,6 +39,10 @@ func (p *portfolioManager) Start() error {
 	return nil
 }
 func (p *portfolioManager) Stop() error {
+	if atomic.LoadInt32(&p.started) == 0 {
+		return errors.New("portfolio manager not started")
+	}
+
 	if atomic.AddInt32(&p.stopped, 1) != 1 {
 		return errors.New("portfolio manager is already stopped")
 	}

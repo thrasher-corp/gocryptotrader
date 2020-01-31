@@ -143,31 +143,24 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 				Pair:       p,
 			})
 		}
-
 		if err != nil {
 			return err
 		}
-		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Pair:     p,
-			Asset:    asset.Spot,
-			Exchange: b.Name,
-		}
-	case trade:
+	case trades:
 		var trade WsTrade
 		err := json.Unmarshal(respRaw, &trade)
 		if err != nil {
 			return err
 		}
 		p := currency.NewPairFromString(trade.Currency)
-		b.Websocket.DataHandler <- wshandler.TradeData{
-			Timestamp:    trade.Timestamp,
-			CurrencyPair: p,
-			AssetType:    asset.Spot,
-			Exchange:     b.Name,
-			Price:        trade.Price,
-			Amount:       trade.Volume,
-			Side:         order.UnknownSide,
-			EventType:    order.UnknownType,
+		b.Websocket.DataHandler <- order.TradeHistory{
+			Timestamp: trade.Timestamp,
+			Pair:      p,
+			AssetType: asset.Spot,
+			Exchange:  b.Name,
+			Price:     trade.Price,
+			Amount:    trade.Volume,
+			Side:      order.UnknownSide,
 		}
 	case tick:
 		var tick WsTick
@@ -283,7 +276,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 }
 
 func (b *BTCMarkets) generateDefaultSubscriptions() {
-	var channels = []string{tick, trade, wsOB}
+	var channels = []string{tick, trades, wsOB}
 	enabledCurrencies := b.GetEnabledPairs(asset.Spot)
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range channels {
@@ -299,7 +292,7 @@ func (b *BTCMarkets) generateDefaultSubscriptions() {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *BTCMarkets) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
-	unauthChannels := []string{tick, trade, wsOB}
+	unauthChannels := []string{tick, trades, wsOB}
 	authChannels := []string{fundChange, heartbeat, orderChange}
 	switch {
 	case common.StringDataCompare(unauthChannels, channelToSubscribe.Channel):

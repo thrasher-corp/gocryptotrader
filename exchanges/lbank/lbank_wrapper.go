@@ -723,3 +723,18 @@ func (l *Lbank) ValidateCredentials() error {
 func (l *Lbank) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
 }
+
+// FetchTrades returns the trades for a currency pair
+func (l *Lbank) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// UpdateTrades updates and returns the trades for a currency pair
+func (l *Lbank) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// UpdateSupportedPairs updates the underlying supported pairs list
+func (l *Lbank) UpdateSupportedPairs() error {
+	return common.ErrNotYetImplemented
+}

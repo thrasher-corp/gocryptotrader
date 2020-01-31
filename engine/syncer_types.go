@@ -1,61 +1,134 @@
 package engine
 
 import (
+	"errors"
 	"sync"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// CurrencyPairSyncerConfig stores the currency pair config
-type CurrencyPairSyncerConfig struct {
-	SyncTicker       bool
-	SyncOrderbook    bool
-	SyncTrades       bool
-	SyncContinuously bool
-	SyncTimeout      time.Duration
-	NumWorkers       int
-	Verbose          bool
+// const holds the sync item types
+const (
+	REST      = "REST"
+	Websocket = "websocket"
+
+	// default REST sync delays
+	defaultSyncDelay                  = 10 * time.Second
+	defaultExchangeTradeHistoryDelay  = time.Minute
+	defaultExchangeSupportedPairDelay = 30 * time.Minute
+	defaultDepositAddressDelay        = 5 * time.Minute
+)
+
+var (
+	syncManagerUUID, _ = uuid.NewV4()
+	// ErrInvalidItems alerts of no sync items enabled
+	ErrInvalidItems = errors.New("no sync items enabled")
+)
+
+// Synchroniser wraps over individual synchronisation functionality
+type Synchroniser interface {
+	GetLastUpdated() time.Time
+	GetNextUpdate() time.Time
+	SetNewUpdate()
+	IsProcessing() bool
+	SetProcessing(bool)
+	Execute()
+	InitialSyncComplete()
+	// Stream takes and matches the payload with a synchronisation agent
+	// pre-processor requirement
+	Stream(payload interface{}) Synchroniser
+	IsRESTDisabled() bool
+	DisableREST()
+	EnableREST()
+	GetExchangeName() string
+	GetAgentName() string
 }
 
-// ExchangeSyncerConfig stores the exchange syncer config
-type ExchangeSyncerConfig struct {
-	SyncDepositAddresses bool
-	SyncOrders           bool
+// SyncConfig stores the currency pair config
+type SyncConfig struct {
+	AccountBalance         bool
+	AccountOrders          bool
+	ExchangeTrades         bool
+	ExchangeOrderbook      bool
+	ExchangeSupportedPairs bool
+	ExchangeTicker         bool
 }
 
-// ExchangeCurrencyPairSyncer stores the exchange currency pair syncer object
-type ExchangeCurrencyPairSyncer struct {
-	Cfg                      CurrencyPairSyncerConfig
-	CurrencyPairs            []CurrencyPairSyncAgent
-	tickerBatchLastRequested map[string]time.Time
-	mux                      sync.Mutex
-	initSyncWG               sync.WaitGroup
-
-	initSyncCompleted int32
-	initSyncStarted   int32
-	initSyncStartTime time.Time
-	shutdown          int32
+// SyncManager stores the exchange currency pair syncer object
+type SyncManager struct {
+	SyncConfig
+	Agents   []Synchroniser
+	started  int32
+	stopped  int32
+	shutdown chan struct{}
+	pipe     chan SyncUpdate
+	synchro  chan struct{}
+	syncComm chan time.Time
+	sync.Mutex
+	wg sync.WaitGroup
 }
 
-// SyncBase stores information
-type SyncBase struct {
-	IsUsingWebsocket bool
-	IsUsingREST      bool
-	IsProcessing     bool
-	LastUpdated      time.Time
-	HaveData         bool
-	NumErrors        int
+// SyncUpdate wraps updates for concurrent processing
+type SyncUpdate struct {
+	Agent    Synchroniser
+	Payload  interface{}
+	Protocol string
+	Err      error
 }
 
-// CurrencyPairSyncAgent stores the sync agent info
-type CurrencyPairSyncAgent struct {
-	Created   time.Time
-	Exchange  string
+// Agent defines core fields to implement the sychroniser interface.
+// To add additional agents requires the new struct to imbed an agent and
+// define an execution method and stream method
+type Agent struct {
+	Name            string
+	Exchange        exchange.IBotExchange
+	Processing      bool
+	NextUpdate      time.Time
+	LastUpdated     time.Time
+	RestUpdateDelay time.Duration
+	Pipe            chan SyncUpdate
+	Wg              *sync.WaitGroup
+	Disabled        bool
+}
+
+// TickerAgent synchronises the exchange currency pair ticker
+type TickerAgent struct {
+	Agent
 	AssetType asset.Item
 	Pair      currency.Pair
-	Ticker    SyncBase
-	Orderbook SyncBase
-	Trade     SyncBase
+}
+
+// OrderbookAgent synchronises the exchange currency pair orderbook
+type OrderbookAgent struct {
+	Agent
+	AssetType asset.Item
+	Pair      currency.Pair
+}
+
+// TradeAgent synchronises the exchange currency pair trades
+type TradeAgent struct {
+	Agent
+	AssetType asset.Item
+	Pair      currency.Pair
+}
+
+// AccountBalanceAgent synchronises the exchange account balances
+type AccountBalanceAgent struct {
+	Agent
+}
+
+// OrderAgent synchronises the exchange account orders
+type OrderAgent struct {
+	Agent
+	Pair  currency.Pair
+	Asset asset.Item
+}
+
+// SupportedPairsAgent synchronises the exchange supported currency pairs
+type SupportedPairsAgent struct {
+	Agent
 }

@@ -1,6 +1,10 @@
 package engine
 
-import "time"
+import (
+	"fmt"
+	"strings"
+	"time"
+)
 
 // Settings stores engine params
 type Settings struct {
@@ -35,13 +39,10 @@ type Settings struct {
 	EventManagerDelay           time.Duration
 	Verbose                     bool
 
-	// Exchange syncer settings
-	EnableTickerSyncing    bool
-	EnableOrderbookSyncing bool
-	EnableTradeSyncing     bool
-	SyncWorkers            int
-	SyncContinuously       bool
-	SyncTimeout            time.Duration
+	// Synchronisation settings
+	SyncerSettings SynchronisationSettings
+
+	SyncTimeout time.Duration
 
 	// Forex settings
 	EnableCurrencyConverter bool
@@ -110,3 +111,42 @@ const (
 	// MsgStatusError message to display when failure occurs
 	MsgStatusError string = "error"
 )
+
+// SynchronisationSettings implements the flag.Value interface
+type SynchronisationSettings struct {
+	EnableExchangeTicker         bool
+	EnableExchangeOrderbook      bool
+	EnableExchangeTrade          bool
+	EnableExchangeSupportedPairs bool
+	EnableAccountBalance         bool
+	EnableAccountOrders          bool
+}
+
+// String method returns a string
+func (i *SynchronisationSettings) String() string { return "" }
+
+// Set method takes in a comma delimitered string turns off what is not
+// needed
+func (i *SynchronisationSettings) Set(value string) error {
+	vals := strings.Split(value, ",")
+	for x := range vals {
+		switch vals[x] {
+		case "balance":
+			i.EnableAccountBalance = false
+		case "trade":
+			i.EnableExchangeTrade = false
+		case "orderbook":
+			i.EnableExchangeOrderbook = false
+		case "supportedpairs":
+			i.EnableExchangeSupportedPairs = false
+		case "ticker":
+			i.EnableExchangeTicker = false
+		case "order":
+			i.EnableAccountOrders = false
+		default:
+			return fmt.Errorf("cannot disable sync agent value: %s not found ",
+				vals[x])
+		}
+	}
+	return nil
+}

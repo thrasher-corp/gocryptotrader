@@ -27,21 +27,21 @@ import (
 // Engine contains configuration, portfolio, exchange & ticker data and is the
 // overarching type across this code base.
 type Engine struct {
-	Config                      *config.Config
-	Portfolio                   *portfolio.Base
-	ExchangeCurrencyPairManager *ExchangeCurrencyPairSyncer
-	NTPManager                  ntpManager
-	ConnectionManager           connectionManager
-	DatabaseManager             databaseManager
-	GctScriptManager            gctScriptManager
-	OrderManager                orderManager
-	PortfolioManager            portfolioManager
-	CommsManager                commsManager
-	exchangeManager             exchangeManager
-	DepositAddressManager       *DepositAddressManager
-	Settings                    Settings
-	Uptime                      time.Time
-	ServicesWG                  sync.WaitGroup
+	Config                *config.Config
+	Portfolio             *portfolio.Base
+	SyncManager           *SyncManager
+	NTPManager            ntpManager
+	ConnectionManager     connectionManager
+	DatabaseManager       databaseManager
+	GctScriptManager      gctScriptManager
+	OrderManager          orderManager
+	PortfolioManager      portfolioManager
+	CommsManager          commsManager
+	exchangeManager       exchangeManager
+	DepositAddressManager *DepositAddressManager
+	Settings              Settings
+	Uptime                time.Time
+	ServicesWG            sync.WaitGroup
 }
 
 // Vars for engine
@@ -182,12 +182,14 @@ func ValidateSettings(b *Engine, s *Settings) {
 	b.Settings.EnableNTPClient = s.EnableNTPClient
 	b.Settings.EnableOrderManager = s.EnableOrderManager
 	b.Settings.EnableExchangeSyncManager = s.EnableExchangeSyncManager
-	b.Settings.EnableTickerSyncing = s.EnableTickerSyncing
-	b.Settings.EnableOrderbookSyncing = s.EnableOrderbookSyncing
-	b.Settings.EnableTradeSyncing = s.EnableTradeSyncing
-	b.Settings.SyncWorkers = s.SyncWorkers
-	b.Settings.SyncTimeout = s.SyncTimeout
-	b.Settings.SyncContinuously = s.SyncContinuously
+
+	b.Settings.SyncerSettings.EnableAccountBalance = s.SyncerSettings.EnableAccountBalance
+	b.Settings.SyncerSettings.EnableAccountOrders = s.SyncerSettings.EnableAccountOrders
+	b.Settings.SyncerSettings.EnableExchangeTrade = s.SyncerSettings.EnableExchangeTrade
+	b.Settings.SyncerSettings.EnableExchangeOrderbook = s.SyncerSettings.EnableExchangeOrderbook
+	b.Settings.SyncerSettings.EnableExchangeSupportedPairs = s.SyncerSettings.EnableExchangeSupportedPairs
+	b.Settings.SyncerSettings.EnableExchangeTicker = s.SyncerSettings.EnableExchangeTicker
+
 	b.Settings.EnableDepositAddressManager = s.EnableDepositAddressManager
 	b.Settings.EnableExchangeAutoPairUpdates = s.EnableExchangeAutoPairUpdates
 	b.Settings.EnableExchangeWebsocketSupport = s.EnableExchangeWebsocketSupport
@@ -267,12 +269,11 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Dispatch package max worker amount: %d", s.DispatchMaxWorkerAmount)
 	gctlog.Debugf(gctlog.Global, "\t Dispatch package jobs limit: %d", s.DispatchJobsLimit)
 	gctlog.Debugf(gctlog.Global, "- EXCHANGE SYNCER SETTINGS:\n")
-	gctlog.Debugf(gctlog.Global, "\t Exchange sync continuously: %v\n", s.SyncContinuously)
-	gctlog.Debugf(gctlog.Global, "\t Exchange sync workers: %v\n", s.SyncWorkers)
-	gctlog.Debugf(gctlog.Global, "\t Enable ticker syncing: %v\n", s.EnableTickerSyncing)
-	gctlog.Debugf(gctlog.Global, "\t Enable orderbook syncing: %v\n", s.EnableOrderbookSyncing)
-	gctlog.Debugf(gctlog.Global, "\t Enable trade syncing: %v\n", s.EnableTradeSyncing)
-	gctlog.Debugf(gctlog.Global, "\t Exchange sync timeout: %v\n", s.SyncTimeout)
+	gctlog.Debugf(gctlog.Global, "\t Enable account balance syncing: %v\n", s.SyncerSettings.EnableAccountBalance)
+	gctlog.Debugf(gctlog.Global, "\t Enable account orders syncing: %v\n", s.SyncerSettings.EnableAccountOrders)
+	gctlog.Debugf(gctlog.Global, "\t Enable exchange trade syncing: %v\n", s.SyncerSettings.EnableExchangeTrade)
+	gctlog.Debugf(gctlog.Global, "\t Enable exchange orderbook syncing: %v\n", s.SyncerSettings.EnableExchangeOrderbook)
+	gctlog.Debugf(gctlog.Global, "\t Enable exchange ticker syncing: %v\n", s.SyncerSettings.EnableExchangeTicker)
 	gctlog.Debugf(gctlog.Global, "- FOREX SETTINGS:")
 	gctlog.Debugf(gctlog.Global, "\t Enable currency conveter: %v", s.EnableCurrencyConverter)
 	gctlog.Debugf(gctlog.Global, "\t Enable currency layer: %v", s.EnableCurrencyLayer)
@@ -423,26 +424,25 @@ func (e *Engine) Start() error {
 	}
 
 	if e.Settings.EnableExchangeSyncManager {
-		exchangeSyncCfg := CurrencyPairSyncerConfig{
-			SyncTicker:       e.Settings.EnableTickerSyncing,
-			SyncOrderbook:    e.Settings.EnableOrderbookSyncing,
-			SyncTrades:       e.Settings.EnableTradeSyncing,
-			SyncContinuously: e.Settings.SyncContinuously,
-			NumWorkers:       e.Settings.SyncWorkers,
-			Verbose:          e.Settings.Verbose,
-			SyncTimeout:      e.Settings.SyncTimeout,
-		}
-
-		e.ExchangeCurrencyPairManager, err = NewCurrencyPairSyncer(exchangeSyncCfg)
+		e.SyncManager, err = NewSyncManager(SyncConfig{
+			AccountBalance:         e.Settings.SyncerSettings.EnableAccountBalance,
+			AccountOrders:          e.Settings.SyncerSettings.EnableAccountOrders,
+			ExchangeTrades:         e.Settings.SyncerSettings.EnableExchangeTrade,
+			ExchangeOrderbook:      e.Settings.SyncerSettings.EnableExchangeOrderbook,
+			ExchangeSupportedPairs: e.Settings.SyncerSettings.EnableExchangeSupportedPairs,
+			ExchangeTicker:         e.Settings.SyncerSettings.EnableExchangeTicker,
+		})
 		if err != nil {
-			gctlog.Warnf(gctlog.Global, "Unable to initialise exchange currency pair syncer. Err: %s", err)
+			gctlog.Warnf(gctlog.Global, "Unable to initialise synchronisation manager. Err: %s", err)
 		} else {
-			go e.ExchangeCurrencyPairManager.Start()
+			if err = e.SyncManager.Start(); err != nil {
+				gctlog.Errorf(gctlog.Global, "Synchronisation manager unable to start: %v", err)
+			}
 		}
 	}
 
 	if e.Settings.EnableEventManager {
-		go EventManger()
+		go EventManager()
 	}
 
 	if e.Settings.EnableWebsocketRoutine {
@@ -521,6 +521,12 @@ func (e *Engine) Stop() {
 			gctlog.Errorln(gctlog.Global, "Unable to save config.")
 		} else {
 			gctlog.Debugln(gctlog.Global, "Config file saved successfully.")
+		}
+	}
+
+	if e.SyncManager.Started() {
+		if err := e.SyncManager.Stop(); err != nil {
+			gctlog.Errorf(gctlog.DispatchMgr, "Synchronisation manager unable to stop. Error: %v", err)
 		}
 	}
 

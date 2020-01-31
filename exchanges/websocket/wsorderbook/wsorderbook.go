@@ -56,6 +56,8 @@ func (w *WebsocketOrderbookLocal) Update(u *WebsocketOrderbookUpdate) error {
 		// Reset the buffer
 		w.buffer[u.Pair][u.Asset] = nil
 	}
+	// Send for processing
+	w.DataHandler <- obLookup
 	return nil
 }
 
@@ -252,7 +254,14 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base) err
 	}
 
 	w.ob[newOrderbook.Pair][newOrderbook.AssetType] = newOrderbook
-	return newOrderbook.Process()
+	err := newOrderbook.Process()
+	if err != nil {
+		return err
+	}
+
+	// Send for processing
+	w.DataHandler <- newOrderbook
+	return nil
 }
 
 // GetOrderbook use sparingly. Modifying anything here will ruin hash

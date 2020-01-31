@@ -777,3 +777,18 @@ func (b *Bitfinex) ValidateCredentials() error {
 func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
 	return kline.Item{}, common.ErrNotYetImplemented
 }
+
+// FetchTrades returns the trades for a currency pair
+func (b *Bitfinex) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// UpdateTrades updates and returns the trades for a currency pair
+func (b *Bitfinex) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// UpdateSupportedPairs updates the underlying supported pairs list
+func (b *Bitfinex) UpdateSupportedPairs() error {
+	return common.ErrNotYetImplemented
+}

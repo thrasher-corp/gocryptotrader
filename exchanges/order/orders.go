@@ -610,9 +610,8 @@ func StringToOrderStatus(status string) (Status, error) {
 	case strings.EqualFold(status, AnyStatus.String()):
 		return AnyStatus, nil
 	case strings.EqualFold(status, New.String()),
-		strings.EqualFold(status, "placed"):
-		return New, nil
-	case strings.EqualFold(status, Active.String()):
+		strings.EqualFold(status, "placed"),
+		strings.EqualFold(status, Active.String()):
 		return Active, nil
 	case strings.EqualFold(status, PartiallyFilled.String()),
 		strings.EqualFold(status, "partially matched"),

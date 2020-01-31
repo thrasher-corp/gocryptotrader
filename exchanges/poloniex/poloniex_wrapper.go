@@ -641,3 +641,18 @@ func (p *Poloniex) ValidateCredentials() error {
 func (p *Poloniex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
 	return kline.Item{}, common.ErrNotYetImplemented
 }
+
+// FetchTrades returns the trades for a currency pair
+func (p *Poloniex) FetchTrades(pair currency.Pair, assetType asset.Item) ([]order.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// UpdateTrades updates and returns the trades for a currency pair
+func (p *Poloniex) UpdateTrades(pair currency.Pair, assetType asset.Item) ([]order.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// UpdateSupportedPairs updates the underlying supported pairs list
+func (p *Poloniex) UpdateSupportedPairs() error {
+	return common.ErrNotYetImplemented
+}

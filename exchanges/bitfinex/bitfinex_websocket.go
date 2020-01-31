@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -185,28 +186,38 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				}
 				switch candleData := candleBundle[0].(type) {
 				case []interface{}:
-					b.Websocket.DataHandler <- wshandler.KlineData{
-						Timestamp:  time.Unix(0, int64(candleData[0].(float64))),
-						Exchange:   b.Name,
-						AssetType:  asset.Spot,
-						Pair:       curr,
-						OpenPrice:  candleData[1].(float64),
-						ClosePrice: candleData[2].(float64),
-						HighPrice:  candleData[3].(float64),
-						LowPrice:   candleData[4].(float64),
-						Volume:     candleData[5].(float64),
+					b.Websocket.DataHandler <- &kline.Item{
+						Exchange: b.Name,
+						Asset:    asset.Spot,
+						Pair:     curr,
+						// TODO: Interval: ,
+						Candles: []kline.Candle{
+							{
+								Time:   time.Unix(0, int64(candleData[0].(float64))),
+								Open:   candleData[1].(float64),
+								Close:  candleData[2].(float64),
+								High:   candleData[3].(float64),
+								Low:    candleData[4].(float64),
+								Volume: candleData[5].(float64),
+							},
+						},
 					}
 				case float64:
-					b.Websocket.DataHandler <- wshandler.KlineData{
-						Timestamp:  time.Unix(0, int64(candleData)),
-						Exchange:   b.Name,
-						AssetType:  asset.Spot,
-						Pair:       curr,
-						OpenPrice:  candleBundle[1].(float64),
-						ClosePrice: candleBundle[2].(float64),
-						HighPrice:  candleBundle[3].(float64),
-						LowPrice:   candleBundle[4].(float64),
-						Volume:     candleBundle[5].(float64),
+					b.Websocket.DataHandler <- &kline.Item{
+						Exchange: b.Name,
+						Asset:    asset.Spot,
+						Pair:     curr,
+						// TODO: Interval: ,
+						Candles: []kline.Candle{
+							{
+								Time:   time.Unix(0, int64(candleData)),
+								Open:   candleBundle[1].(float64),
+								Close:  candleBundle[2].(float64),
+								High:   candleBundle[3].(float64),
+								Low:    candleBundle[4].(float64),
+								Volume: candleBundle[5].(float64),
+							},
+						},
 					}
 				}
 			}
@@ -289,14 +300,14 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					return nil
 				}
 
-				b.Websocket.DataHandler <- wshandler.TradeData{
-					CurrencyPair: currency.NewPairFromString(chanInfo.Pair),
-					Timestamp:    time.Unix(0, trades[i].Timestamp*int64(time.Millisecond)),
-					Price:        trades[i].Price,
-					Amount:       newAmount,
-					Exchange:     b.Name,
-					AssetType:    asset.Spot,
-					Side:         side,
+				b.Websocket.DataHandler <- order.TradeHistory{
+					Pair:      currency.NewPairFromString(chanInfo.Pair),
+					Timestamp: time.Unix(0, trades[i].Timestamp*int64(time.Millisecond)),
+					Price:     trades[i].Price,
+					Amount:    newAmount,
+					Exchange:  b.Name,
+					AssetType: asset.Spot,
+					Side:      side,
 				}
 			}
 		}
@@ -781,14 +792,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 	newOrderBook.Pair = p
 	newOrderBook.ExchangeName = b.Name
 
-	err := b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
-	if err != nil {
-		return fmt.Errorf("bitfinex.go error - %s", err)
-	}
-	b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: p,
-		Asset:    assetType,
-		Exchange: b.Name}
-	return nil
+	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 
 // WsUpdateOrderbook updates the orderbook list, removing and adding to the
@@ -833,16 +837,7 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 			}
 		}
 	}
-	err := b.Websocket.Orderbook.Update(&orderbookUpdate)
-	if err != nil {
-		return err
-	}
-
-	b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: p,
-		Asset:    assetType,
-		Exchange: b.Name}
-
-	return nil
+	return b.Websocket.Orderbook.Update(&orderbookUpdate)
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()

@@ -191,3 +191,10 @@ func (h *FakePassingExchange) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.
 func (h *FakePassingExchange) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, nil
 }
+func (h *FakePassingExchange) FetchTrades(_ currency.Pair, _ asset.Item) ([]order.TradeHistory, error) {
+	return nil, nil
+}
+func (h *FakePassingExchange) UpdateTrades(_ currency.Pair, _ asset.Item) ([]order.TradeHistory, error) {
+	return nil, nil
+}
+func (h *FakePassingExchange) UpdateSupportedPairs() error { return nil }

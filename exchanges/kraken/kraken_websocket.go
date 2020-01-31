@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -538,14 +539,16 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 		if trade[3].(string) == "s" {
 			tSide = order.Sell
 		}
-		k.Websocket.DataHandler <- wshandler.TradeData{
-			AssetType:    asset.Spot,
-			CurrencyPair: channelData.Pair,
-			Exchange:     k.Name,
-			Price:        price,
-			Amount:       amount,
-			Timestamp:    timeUnix,
-			Side:         tSide,
+		k.Websocket.DataHandler <- []order.TradeHistory{
+			{
+				AssetType: asset.Spot,
+				Pair:      channelData.Pair,
+				Exchange:  k.Name,
+				Price:     price,
+				Amount:    amount,
+				Timestamp: timeUnix,
+				Side:      tSide,
+			},
 		}
 	}
 }
@@ -640,16 +643,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 	}
 	base.LastUpdated = highestLastUpdate
 	base.ExchangeName = k.Name
-	err := k.Websocket.Orderbook.LoadSnapshot(&base)
-	if err != nil {
-		return err
-	}
-	k.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Exchange: k.Name,
-		Asset:    asset.Spot,
-		Pair:     channelData.Pair,
-	}
-	return nil
+	return k.Websocket.Orderbook.LoadSnapshot(&base)
 }
 
 // wsProcessOrderBookUpdate updates an orderbook entry for a given currency pair
@@ -723,11 +717,6 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 		k.Websocket.DataHandler <- err
 		return err
 	}
-	k.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Exchange: k.Name,
-		Asset:    asset.Spot,
-		Pair:     channelData.Pair,
-	}
 	return nil
 }
 
@@ -739,13 +728,6 @@ func (k *Kraken) wsProcessCandles(channelData *WebsocketChannelData, data []inte
 	}
 	sec, dec := math.Modf(startTime)
 	startTimeUnix := time.Unix(int64(sec), int64(dec*(1e9)))
-
-	endTime, err := strconv.ParseFloat(data[1].(string), 64)
-	if err != nil {
-		return err
-	}
-	sec, dec = math.Modf(endTime)
-	endTimeUnix := time.Unix(int64(sec), int64(dec*(1e9)))
 
 	openPrice, err := strconv.ParseFloat(data[2].(string), 64)
 	if err != nil {
@@ -772,20 +754,22 @@ func (k *Kraken) wsProcessCandles(channelData *WebsocketChannelData, data []inte
 		return err
 	}
 
-	k.Websocket.DataHandler <- wshandler.KlineData{
-		AssetType: asset.Spot,
-		Pair:      channelData.Pair,
-		Timestamp: time.Now(),
-		Exchange:  k.Name,
-		StartTime: startTimeUnix,
-		CloseTime: endTimeUnix,
+	k.Websocket.DataHandler <- kline.Item{
+		Asset:    asset.Spot,
+		Pair:     channelData.Pair,
+		Exchange: k.Name,
 		// Candles are sent every 60 seconds
-		Interval:   "60",
-		HighPrice:  highPrice,
-		LowPrice:   lowPrice,
-		OpenPrice:  openPrice,
-		ClosePrice: closePrice,
-		Volume:     volume,
+		Interval: kline.OneMin,
+		Candles: []kline.Candle{
+			{
+				Time:   startTimeUnix,
+				High:   highPrice,
+				Low:    lowPrice,
+				Open:   openPrice,
+				Close:  closePrice,
+				Volume: volume,
+			},
+		},
 	}
 	return nil
 }

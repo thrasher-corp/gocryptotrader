@@ -21,6 +21,7 @@ type WebsocketOrderbookLocal struct {
 	updateEntriesByID     bool // Use the update IDs to match ob entries
 	exchangeName          string
 	m                     sync.Mutex
+	DataHandler           chan interface{}
 }
 
 // WebsocketOrderbookUpdate stores orderbook updates and dictates what features to use when processing

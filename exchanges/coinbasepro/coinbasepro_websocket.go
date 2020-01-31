@@ -299,18 +299,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 	base.Pair = pair
 	base.ExchangeName = c.Name
 
-	err := c.Websocket.Orderbook.LoadSnapshot(&base)
-	if err != nil {
-		return err
-	}
-
-	c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Pair:     pair,
-		Asset:    asset.Spot,
-		Exchange: c.Name,
-	}
-
-	return nil
+	return c.Websocket.Orderbook.LoadSnapshot(&base)
 }
 
 // ProcessUpdate updates the orderbook local cache
@@ -337,24 +326,13 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 	if err != nil {
 		return err
 	}
-	err = c.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+	return c.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
 		Bids:       bids,
 		Asks:       asks,
 		Pair:       p,
 		UpdateTime: timestamp,
 		Asset:      asset.Spot,
 	})
-	if err != nil {
-		return err
-	}
-
-	c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Pair:     p,
-		Asset:    asset.Spot,
-		Exchange: c.Name,
-	}
-
-	return nil
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()

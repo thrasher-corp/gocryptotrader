@@ -5,7 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -36,7 +38,7 @@ func TestHandleData(t *testing.T) {
 	if err == nil {
 		t.Error("Expected nil data error")
 	}
-	err = WebsocketDataHandler(exchName, wshandler.TradeData{})
+	err = WebsocketDataHandler(exchName, order.TradeHistory{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -48,11 +50,11 @@ func TestHandleData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = WebsocketDataHandler(exchName, wshandler.KlineData{})
+	err = WebsocketDataHandler(exchName, &kline.Item{})
 	if err != nil {
 		t.Error(err)
 	}
-	err = WebsocketDataHandler(exchName, wshandler.WebsocketOrderbookUpdate{})
+	err = WebsocketDataHandler(exchName, &orderbook.Base{})
 	if err != nil {
 		t.Error(err)
 	}

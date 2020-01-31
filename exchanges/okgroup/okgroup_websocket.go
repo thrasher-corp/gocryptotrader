@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -448,14 +449,16 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 				Err:      err,
 			}
 		}
-		o.Websocket.DataHandler <- wshandler.TradeData{
-			Amount:       response.Data[i].Size,
-			AssetType:    o.GetAssetTypeFromTableName(response.Table),
-			CurrencyPair: c,
-			Exchange:     o.Name,
-			Price:        response.Data[i].Price,
-			Side:         tSide,
-			Timestamp:    response.Data[i].Timestamp,
+		o.Websocket.DataHandler <- []order.TradeHistory{
+			{
+				Amount:    response.Data[i].Size,
+				AssetType: o.GetAssetTypeFromTableName(response.Table),
+				Pair:      c,
+				Exchange:  o.Name,
+				Price:     response.Data[i].Price,
+				Side:      tSide,
+				Timestamp: response.Data[i].Timestamp,
+			},
 		}
 	}
 	return nil
@@ -488,42 +491,53 @@ func (o *OKGroup) wsProcessCandles(respRaw []byte) error {
 				response.Data[i].Candle[0])
 		}
 
-		candleIndex := strings.LastIndex(response.Table, okGroupWsCandle)
-		secondIndex := strings.LastIndex(response.Table, "0s")
-		candleInterval := ""
-		if candleIndex > 0 || secondIndex > 0 {
-			candleInterval = response.Table[candleIndex+len(okGroupWsCandle) : secondIndex]
-		}
+		// candleIndex := strings.LastIndex(response.Table, okGroupWsCandle)
+		// secondIndex := strings.LastIndex(response.Table, "0s")
+		// // candleInterval := ""
+		// // if candleIndex > 0 || secondIndex > 0 {
+		// // 	candleInterval = response.Table[candleIndex+len(okGroupWsCandle) : secondIndex]
+		// // }
 
-		klineData := wshandler.KlineData{
-			AssetType: o.GetAssetTypeFromTableName(response.Table),
-			Pair:      c,
-			Exchange:  o.Name,
-			Timestamp: timeData,
-			Interval:  candleInterval,
-		}
-		klineData.OpenPrice, err = strconv.ParseFloat(response.Data[i].Candle[1], 64)
+		openPrice, err := strconv.ParseFloat(response.Data[i].Candle[1], 64)
 		if err != nil {
 			return err
 		}
-		klineData.HighPrice, err = strconv.ParseFloat(response.Data[i].Candle[2], 64)
+		highPrice, err := strconv.ParseFloat(response.Data[i].Candle[2], 64)
 		if err != nil {
 			return err
 		}
-		klineData.LowPrice, err = strconv.ParseFloat(response.Data[i].Candle[3], 64)
+		lowPrice, err := strconv.ParseFloat(response.Data[i].Candle[3], 64)
 		if err != nil {
 			return err
 		}
-		klineData.ClosePrice, err = strconv.ParseFloat(response.Data[i].Candle[4], 64)
+		closePrice, err := strconv.ParseFloat(response.Data[i].Candle[4], 64)
 		if err != nil {
 			return err
 		}
-		klineData.Volume, err = strconv.ParseFloat(response.Data[i].Candle[5], 64)
+		volume, err := strconv.ParseFloat(response.Data[i].Candle[5], 64)
 		if err != nil {
 			return err
 		}
 
-		o.Websocket.DataHandler <- klineData
+		klineData := kline.Item{
+			Asset:    o.GetAssetTypeFromTableName(response.Table),
+			Pair:     c,
+			Exchange: o.Name,
+			// TODO: Convert
+			// Interval:  candleInterval,
+			Candles: []kline.Candle{
+				{
+					Time:   timeData,
+					Open:   openPrice,
+					High:   highPrice,
+					Low:    lowPrice,
+					Close:  closePrice,
+					Volume: volume,
+				},
+			},
+		}
+
+		o.Websocket.DataHandler <- &klineData
 	}
 	return nil
 }
@@ -642,18 +656,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketOrderBook, ins
 		Pair:         instrument,
 		ExchangeName: o.Name,
 	}
-
-	err = o.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
-	if err != nil {
-		return err
-	}
-
-	o.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Exchange: o.Name,
-		Asset:    a,
-		Pair:     instrument,
-	}
-	return nil
+	return o.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 
 // WsProcessUpdateOrderbook updates an existing orderbook using websocket data
@@ -690,13 +693,6 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketOrderBook, inst
 			wsEventData.InstrumentID)
 		return errors.New("checksum failed")
 	}
-
-	o.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Exchange: o.Name,
-		Asset:    a,
-		Pair:     instrument,
-	}
-
 	return nil
 }
 

@@ -154,15 +154,16 @@ func (l *LakeBTC) processTrades(data, channel string) error {
 				Err:      err,
 			}
 		}
-		l.Websocket.DataHandler <- wshandler.TradeData{
-			Timestamp:    time.Unix(tradeData.Trades[i].Date, 0),
-			CurrencyPair: curr,
-			AssetType:    asset.Spot,
-			Exchange:     l.Name,
-			EventType:    order.UnknownType,
-			Price:        tradeData.Trades[i].Price,
-			Amount:       tradeData.Trades[i].Amount,
-			Side:         tSide,
+		l.Websocket.DataHandler <- []order.TradeHistory{
+			{
+				Timestamp: time.Unix(tradeData.Trades[i].Date, 0),
+				Pair:      curr,
+				AssetType: asset.Spot,
+				Exchange:  l.Name,
+				Price:     tradeData.Trades[i].Price,
+				Amount:    tradeData.Trades[i].Amount,
+				Side:      tSide,
+			},
 		}
 	}
 	return nil
@@ -219,19 +220,7 @@ func (l *LakeBTC) processOrderbook(obUpdate, channel string) error {
 			Price:  price,
 		})
 	}
-
-	err = l.Websocket.Orderbook.LoadSnapshot(&book)
-	if err != nil {
-		return err
-	}
-
-	l.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Pair:     p,
-		Asset:    asset.Spot,
-		Exchange: l.Name,
-	}
-
-	return nil
+	return l.Websocket.Orderbook.LoadSnapshot(&book)
 }
 
 func (l *LakeBTC) getCurrencyFromChannel(channel string) currency.Pair {

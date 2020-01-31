@@ -119,15 +119,14 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		b.Websocket.DataHandler <- wshandler.TradeData{
-			Timestamp:    time.Unix(wsTradeTemp.Data.Timestamp, 0),
-			CurrencyPair: p,
-			AssetType:    a,
-			Exchange:     b.Name,
-			EventType:    order.UnknownType,
-			Price:        wsTradeTemp.Data.Price,
-			Amount:       wsTradeTemp.Data.Amount,
-			Side:         side,
+		b.Websocket.DataHandler <- order.TradeHistory{
+			Timestamp: time.Unix(wsTradeTemp.Data.Timestamp, 0),
+			Pair:      p,
+			AssetType: a,
+			Exchange:  b.Name,
+			Price:     wsTradeTemp.Data.Price,
+			Amount:    wsTradeTemp.Data.Amount,
+			Side:      side,
 		}
 	case "order_created", "order_deleted", "order_changed":
 		if b.Verbose {
@@ -207,7 +206,8 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 
 		bids = append(bids, orderbook.Item{Price: target, Amount: amount})
 	}
-	err := b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+
+	return b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 		Bids:         bids,
 		Asks:         asks,
 		Pair:         p,
@@ -215,17 +215,6 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 		AssetType:    asset.Spot,
 		ExchangeName: b.Name,
 	})
-	if err != nil {
-		return err
-	}
-
-	b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Pair:     p,
-		Asset:    assetType,
-		Exchange: b.Name,
-	}
-
-	return nil
 }
 
 func (b *Bitstamp) seedOrderBook() error {
@@ -256,12 +245,6 @@ func (b *Bitstamp) seedOrderBook() error {
 		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {
 			return err
-		}
-
-		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Pair:     p[x],
-			Asset:    asset.Spot,
-			Exchange: b.Name,
 		}
 	}
 	return nil

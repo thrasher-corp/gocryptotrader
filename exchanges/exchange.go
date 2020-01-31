@@ -469,6 +469,7 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	e.SetAPICredentialDefaults()
 	e.SetClientProxyAddress(exch.ProxyAddress)
 	e.BaseCurrencies = exch.BaseCurrencies
+	e.DepositCurrencies = exch.DepositCurrencies
 
 	if e.Features.Supports.Websocket {
 		return e.Websocket.Initialise()

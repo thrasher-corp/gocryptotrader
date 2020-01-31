@@ -154,12 +154,6 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-
-		z.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Pair:     cPair,
-			Asset:    asset.Spot,
-			Exchange: z.Name,
-		}
 	case strings.Contains(result.Channel, "_order"):
 		cPair := strings.Split(result.Channel, "_")
 		var o WsSubmitOrderResponse
@@ -219,14 +213,14 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 				Err:      err,
 			}
 		}
-		z.Websocket.DataHandler <- wshandler.TradeData{
-			Timestamp:    time.Unix(t.Date, 0),
-			CurrencyPair: cPair,
-			AssetType:    asset.Spot,
-			Exchange:     z.Name,
-			Price:        t.Price,
-			Amount:       t.Amount,
-			Side:         tSide,
+		z.Websocket.DataHandler <- order.TradeHistory{
+			Timestamp: time.Unix(t.Date, 0),
+			Pair:      cPair,
+			AssetType: asset.Spot,
+			Exchange:  z.Name,
+			Price:     t.Price,
+			Amount:    t.Amount,
+			Side:      tSide,
 		}
 	default:
 		z.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: z.Name + wshandler.UnhandledMessage + string(respRaw)}

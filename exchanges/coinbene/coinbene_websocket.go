@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -182,8 +183,8 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 		if tradeList.Data[0][1] == "s" {
 			tSide = order.Sell
 		}
-		c.Websocket.DataHandler <- wshandler.TradeData{
-			CurrencyPair: currency.NewPairFromFormattedPairs(p,
+		c.Websocket.DataHandler <- order.TradeHistory{
+			Pair: currency.NewPairFromFormattedPairs(p,
 				c.GetEnabledPairs(asset.PerpetualSwap),
 				c.GetPairFormat(asset.PerpetualSwap, true)),
 			Timestamp: t,
@@ -254,10 +255,6 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: newOB.Pair,
-				Asset:    asset.PerpetualSwap,
-				Exchange: c.Name,
-			}
 		} else if orderBook.Action == "update" {
 			newOB := wsorderbook.WebsocketOrderbookUpdate{
 				Asks:       asks,
@@ -271,42 +268,43 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: newOB.Pair,
-				Asset:    asset.PerpetualSwap,
-				Exchange: c.Name,
-			}
 		}
 	case strings.Contains(result[topic].(string), "kline"):
-		var kline WsKline
+		var wskline WsKline
 		var tempFloat float64
 		var tempKline []float64
-		err = json.Unmarshal(respRaw, &kline)
+		err = json.Unmarshal(respRaw, &wskline)
 		if err != nil {
 			return err
 		}
-		for x := 2; x < len(kline.Data[0]); x++ {
-			tempFloat, err = strconv.ParseFloat(kline.Data[0][x].(string), 64)
+		for x := 2; x < len(wskline.Data[0]); x++ {
+			tempFloat, err = strconv.ParseFloat(wskline.Data[0][x].(string), 64)
 			if err != nil {
 				return err
 			}
 			tempKline = append(tempKline, tempFloat)
 		}
-		p := currency.NewPairFromFormattedPairs(kline.Data[0][0].(string),
+		p := currency.NewPairFromFormattedPairs(wskline.Data[0][0].(string),
 			c.GetEnabledPairs(asset.PerpetualSwap),
 			c.GetPairFormat(asset.PerpetualSwap, true))
 		if tempKline == nil && len(tempKline) < 5 {
 			return errors.New(c.Name + " - received bad data ")
 		}
-		c.Websocket.DataHandler <- wshandler.KlineData{
-			Timestamp:  time.Unix(int64(kline.Data[0][1].(float64)), 0),
-			Pair:       p,
-			AssetType:  asset.PerpetualSwap,
-			Exchange:   c.Name,
-			OpenPrice:  tempKline[0],
-			ClosePrice: tempKline[1],
-			HighPrice:  tempKline[2],
-			LowPrice:   tempKline[3],
-			Volume:     tempKline[4],
+		c.Websocket.DataHandler <- kline.Item{
+			Exchange: c.Name,
+			Pair:     p,
+			Asset:    asset.PerpetualSwap,
+			// TODO: Interval: ,
+			Candles: []kline.Candle{
+				{
+					Time:   time.Unix(int64(wskline.Data[0][1].(float64)), 0),
+					Open:   tempKline[0],
+					Close:  tempKline[1],
+					High:   tempKline[2],
+					Low:    tempKline[3],
+					Volume: tempKline[4],
+				},
+			},
 		}
 	case strings.Contains(result[topic].(string), "user.account"):
 		var userInfo WsUserInfo

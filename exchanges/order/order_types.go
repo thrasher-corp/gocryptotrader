@@ -164,6 +164,8 @@ type CancelAllResponse struct {
 
 // TradeHistory holds exchange history data
 type TradeHistory struct {
+	Pair        currency.Pair
+	AssetType   asset.Item
 	Price       float64
 	Amount      float64
 	Fee         float64
@@ -175,6 +177,22 @@ type TradeHistory struct {
 	Timestamp   time.Time
 	IsMaker     bool
 }
+
+// // Trade holds exchange executed trade data
+// type Trade struct {
+// 	Timestamp     time.Time
+// 	Pair          currency.Pair
+// 	AssetType     asset.Item
+// 	TID           string
+// 	Price         float64
+// 	Amount        float64
+// 	Exchange      string
+// 	Type          Type
+// 	Side          Side
+// 	Fee           float64
+// 	Description   string
+// 	LiquidityType string
+// }
 
 // GetOrdersRequest used for GetOrderHistory and GetOpenOrders wrapper functions
 type GetOrdersRequest struct {

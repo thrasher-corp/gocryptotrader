@@ -230,14 +230,14 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 					}
 				}
 
-				b.Websocket.DataHandler <- wshandler.TradeData{
-					Timestamp:    trades.Data[i].Timestamp,
-					Price:        trades.Data[i].Price,
-					Amount:       float64(trades.Data[i].Size),
-					CurrencyPair: p,
-					Exchange:     b.Name,
-					AssetType:    a,
-					Side:         oSide,
+				b.Websocket.DataHandler <- order.TradeHistory{
+					Timestamp: trades.Data[i].Timestamp,
+					Price:     trades.Data[i].Price,
+					Amount:    float64(trades.Data[i].Size),
+					Pair:      p,
+					Exchange:  b.Name,
+					AssetType: a,
+					Side:      oSide,
 				}
 			}
 
@@ -499,11 +499,6 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 			return fmt.Errorf("bitmex_websocket.go process orderbook error -  %s",
 				err)
 		}
-		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Pair:     currencyPair,
-			Asset:    assetType,
-			Exchange: b.Name,
-		}
 	default:
 		var asks, bids []orderbook.Item
 		for i := range data {
@@ -529,12 +524,6 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 		})
 		if err != nil {
 			return err
-		}
-
-		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Pair:     currencyPair,
-			Asset:    assetType,
-			Exchange: b.Name,
 		}
 	}
 	return nil

@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -300,44 +301,57 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	case strings.Contains(init.Rep, "kline"):
-		var kline wsKLineResponseThing
-		err := json.Unmarshal(respRaw, &kline)
+		var k wsKLineResponseThing
+		err := json.Unmarshal(respRaw, &k)
 		if err != nil {
 			return err
 		}
+
 		var curr = strings.Split(init.Rep, ".")
-		for i := range kline.Data {
-			h.Websocket.DataHandler <- wshandler.KlineData{
-				Timestamp: time.Now(),
-				Exchange:  h.Name,
-				AssetType: asset.Spot,
-				Pair: currency.NewPairFromFormattedPairs(curr[1],
-					h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
-				OpenPrice:  kline.Data[i].Open,
-				ClosePrice: kline.Data[i].Close,
-				HighPrice:  kline.Data[i].High,
-				LowPrice:   kline.Data[i].Low,
-				Volume:     kline.Data[i].Volume,
-			}
+		newKline := &kline.Item{
+			Exchange: h.Name,
+			Pair: currency.NewPairFromFormattedPairs(curr[1],
+				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
+			Asset: asset.Spot,
+			// TODO add in Interval: ,
 		}
+
+		for i := range k.Data {
+			newKline.Candles = append(newKline.Candles, kline.Candle{
+				Time:   time.Unix(k.Data[i].ID, 0),
+				Open:   k.Data[i].Open,
+				Close:  k.Data[i].Close,
+				High:   k.Data[i].High,
+				Low:    k.Data[i].Low,
+				Volume: k.Data[i].Volume,
+			})
+		}
+
+		h.Websocket.DataHandler <- newKline
 	case strings.Contains(init.Channel, "kline"):
-		var kline WsKline
-		err := json.Unmarshal(respRaw, &kline)
+		var k WsKline
+		err := json.Unmarshal(respRaw, &k)
 		if err != nil {
 			return err
 		}
-		data := strings.Split(kline.Channel, ".")
-		h.Websocket.DataHandler <- wshandler.KlineData{
-			Timestamp: time.Unix(0, kline.Timestamp*int64(time.Millisecond)),
-			Exchange:  h.Name,
-			AssetType: asset.Spot,
+		data := strings.Split(k.Channel, ".")
+		h.Websocket.DataHandler <- &kline.Item{
+			Exchange: h.Name,
+			Asset:    asset.Spot,
 			Pair: currency.NewPairFromFormattedPairs(data[1],
-				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
-			OpenPrice:  kline.Tick.Open,
-			ClosePrice: kline.Tick.Close,
-			HighPrice:  kline.Tick.High,
-			LowPrice:   kline.Tick.Low,
-			Volume:     kline.Tick.Volume,
+				h.GetEnabledPairs(asset.Spot),
+				h.GetPairFormat(asset.Spot, true)),
+			// TODO: Add interval
+			Candles: []kline.Candle{
+				{
+					Time:   time.Unix(0, k.Timestamp*int64(time.Millisecond)),
+					Open:   k.Tick.Open,
+					Close:  k.Tick.Close,
+					High:   k.Tick.High,
+					Low:    k.Tick.Low,
+					Volume: k.Tick.Volume,
+				},
+			},
 		}
 	case strings.Contains(init.Channel, "trade.detail"):
 		var trade WsTrade
@@ -346,12 +360,14 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		data := strings.Split(trade.Channel, ".")
-		h.Websocket.DataHandler <- wshandler.TradeData{
-			Exchange:  h.Name,
-			AssetType: asset.Spot,
-			CurrencyPair: currency.NewPairFromFormattedPairs(data[1],
-				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
-			Timestamp: time.Unix(0, trade.Tick.Timestamp*int64(time.Millisecond)),
+		h.Websocket.DataHandler <- []order.TradeHistory{
+			{
+				Exchange:  h.Name,
+				AssetType: asset.Spot,
+				Pair: currency.NewPairFromFormattedPairs(data[1],
+					h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
+				Timestamp: time.Unix(0, trade.Tick.Timestamp*int64(time.Millisecond)),
+			},
 		}
 	case strings.Contains(init.Channel, "detail"),
 		strings.Contains(init.Rep, "detail"):
@@ -422,17 +438,7 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 	newOrderBook.AssetType = asset.Spot
 	newOrderBook.ExchangeName = h.Name
 
-	err := h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
-	if err != nil {
-		return err
-	}
-
-	h.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Pair:     p,
-		Exchange: h.Name,
-		Asset:    asset.Spot,
-	}
-	return nil
+	return h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()

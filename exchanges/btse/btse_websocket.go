@@ -198,14 +198,14 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			b.Websocket.DataHandler <- wshandler.TradeData{
-				Timestamp:    time.Unix(0, tradeHistory.Data[x].TransactionTime*int64(time.Millisecond)),
-				CurrencyPair: p,
-				AssetType:    a,
-				Exchange:     b.Name,
-				Price:        tradeHistory.Data[x].Price,
-				Amount:       tradeHistory.Data[x].Amount,
-				Side:         side,
+			b.Websocket.DataHandler <- order.TradeHistory{
+				Timestamp: time.Unix(0, tradeHistory.Data[x].TransactionTime*int64(time.Millisecond)),
+				Pair:      p,
+				AssetType: a,
+				Exchange:  b.Name,
+				Price:     tradeHistory.Data[x].Price,
+				Amount:    tradeHistory.Data[x].Amount,
+				Side:      side,
 			}
 		}
 	case strings.Contains(result["topic"].(string), "orderBookApi"):
@@ -261,9 +261,6 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: newOB.Pair,
-			Asset:    a,
-			Exchange: b.Name}
 	default:
 		b.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: b.Name + wshandler.UnhandledMessage + string(respRaw)}
 		return nil

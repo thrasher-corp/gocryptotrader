@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -292,10 +293,12 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 							err)
 					}
 
-					b.Websocket.DataHandler <- wshandler.TradeData{
-						CurrencyPair: currency.NewPairFromFormattedPairs(trade.Symbol, b.GetEnabledPairs(asset.Spot),
+					b.Websocket.DataHandler <- order.TradeHistory{
+						Pair: currency.NewPairFromFormattedPairs(trade.Symbol,
+							b.GetEnabledPairs(asset.Spot),
 							b.GetPairFormat(asset.Spot, true)),
-						Timestamp: time.Unix(0, trade.TimeStamp*int64(time.Millisecond)),
+						Timestamp: time.Unix(0,
+							trade.TimeStamp*int64(time.Millisecond)),
 						Price:     price,
 						Amount:    amount,
 						Exchange:  b.Name,
@@ -328,28 +331,69 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					}
 				case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
 					"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
-					var kline KlineStream
-					err := json.Unmarshal(rawData, &kline)
+					var wsKline KlineStream
+					err := json.Unmarshal(rawData, &wsKline)
 					if err != nil {
 						return fmt.Errorf("%v - Could not convert to a KlineStream structure %s",
 							b.Name,
 							err)
 					}
 
-					b.Websocket.DataHandler <- wshandler.KlineData{
-						Timestamp: time.Unix(0, kline.EventTime*int64(time.Millisecond)),
-						Pair: currency.NewPairFromFormattedPairs(kline.Symbol, b.GetEnabledPairs(asset.Spot),
+					var interval time.Duration
+					switch wsKline.Kline.Interval {
+					case "1m":
+						interval = kline.OneMin
+					case "3m":
+						interval = kline.ThreeMin
+					case "5m":
+						interval = kline.FiveMin
+					case "15m":
+						interval = kline.FifteenMin
+					case "30m":
+						interval = kline.ThirtyMin
+					case "1h":
+						interval = kline.OneHour
+					case "2h":
+						interval = kline.TwoHour
+					case "4h":
+						interval = kline.FourHour
+					case "6h":
+						interval = kline.SixHour
+					case "8h":
+						interval = kline.EightHour
+					case "12h":
+						interval = kline.TwelveHour
+					case "1d":
+						interval = kline.OneDay
+					case "3d":
+						interval = kline.ThreeDay
+					case "1w":
+						interval = kline.OneWeek
+					case "1M":
+						interval = kline.OneMonth
+					default:
+						return fmt.Errorf("unhandled interval %s",
+							wsKline.Kline.Interval)
+					}
+
+					b.Websocket.DataHandler <- &kline.Item{
+						Pair: currency.NewPairFromFormattedPairs(wsKline.Symbol,
+							b.GetEnabledPairs(asset.Spot),
 							b.GetPairFormat(asset.Spot, true)),
-						AssetType:  asset.Spot,
-						Exchange:   b.Name,
-						StartTime:  time.Unix(0, kline.Kline.StartTime*int64(time.Millisecond)),
-						CloseTime:  time.Unix(0, kline.Kline.CloseTime*int64(time.Millisecond)),
-						Interval:   kline.Kline.Interval,
-						OpenPrice:  kline.Kline.OpenPrice,
-						ClosePrice: kline.Kline.ClosePrice,
-						HighPrice:  kline.Kline.HighPrice,
-						LowPrice:   kline.Kline.LowPrice,
-						Volume:     kline.Kline.Volume,
+						Asset:    asset.Spot,
+						Exchange: b.Name,
+						Interval: interval,
+						Candles: []kline.Candle{
+							{
+								Time: time.Unix(0,
+									wsKline.Kline.StartTime*int64(time.Millisecond)),
+								Open:   wsKline.Kline.OpenPrice,
+								Close:  wsKline.Kline.ClosePrice,
+								High:   wsKline.Kline.HighPrice,
+								Low:    wsKline.Kline.LowPrice,
+								Volume: wsKline.Kline.Volume,
+							},
+						},
 					}
 				case "depth":
 					var depth WebsocketDepthStream
@@ -365,14 +409,6 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						return fmt.Errorf("%v - UpdateLocalCache error: %s",
 							b.Name,
 							err)
-					}
-
-					currencyPair := currency.NewPairFromFormattedPairs(depth.Pair, b.GetEnabledPairs(asset.Spot),
-						b.GetPairFormat(asset.Spot, true))
-					b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-						Pair:     currencyPair,
-						Asset:    asset.Spot,
-						Exchange: b.Name,
 					}
 				default:
 					b.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: b.Name + wshandler.UnhandledMessage + string(respRaw)}

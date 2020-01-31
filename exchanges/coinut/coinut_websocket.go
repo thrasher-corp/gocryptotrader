@@ -257,14 +257,6 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		currencyPair := c.instrumentMap.LookupInstrument(orderbookSnapshot.InstID)
-		c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Exchange: c.Name,
-			Asset:    asset.Spot,
-			Pair: currency.NewPairFromFormattedPairs(currencyPair,
-				c.GetEnabledPairs(asset.Spot),
-				c.GetPairFormat(asset.Spot, true)),
-		}
 	case "inst_order_book_update":
 		var orderbookUpdate WsOrderbookUpdate
 		err := json.Unmarshal(respRaw, &orderbookUpdate)
@@ -274,14 +266,6 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		err = c.WsProcessOrderbookUpdate(&orderbookUpdate)
 		if err != nil {
 			return err
-		}
-		currencyPair := c.instrumentMap.LookupInstrument(orderbookUpdate.InstID)
-		c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Exchange: c.Name,
-			Asset:    asset.Spot,
-			Pair: currency.NewPairFromFormattedPairs(currencyPair,
-				c.GetEnabledPairs(asset.Spot),
-				c.GetPairFormat(asset.Spot, true)),
 		}
 	case "inst_trade":
 		var tradeSnap WsTradeSnapshot
@@ -304,15 +288,17 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 				Err:      err,
 			}
 		}
-		c.Websocket.DataHandler <- wshandler.TradeData{
-			Timestamp: time.Unix(tradeUpdate.Timestamp, 0),
-			CurrencyPair: currency.NewPairFromFormattedPairs(currencyPair,
-				c.GetEnabledPairs(asset.Spot),
-				c.GetPairFormat(asset.Spot, true)),
-			AssetType: asset.Spot,
-			Exchange:  c.Name,
-			Price:     tradeUpdate.Price,
-			Side:      tSide,
+		c.Websocket.DataHandler <- []order.TradeHistory{
+			{
+				Timestamp: time.Unix(tradeUpdate.Timestamp, 0),
+				Pair: currency.NewPairFromFormattedPairs(currencyPair,
+					c.GetEnabledPairs(asset.Spot),
+					c.GetPairFormat(asset.Spot, true)),
+				AssetType: asset.Spot,
+				Exchange:  c.Name,
+				Price:     tradeUpdate.Price,
+				Side:      tSide,
+			},
 		}
 	case "order_filled", "order_rejected", "order_accepted":
 		var orderContainer wsOrderContainer

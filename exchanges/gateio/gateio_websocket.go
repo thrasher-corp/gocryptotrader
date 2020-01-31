@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -176,14 +177,16 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 					Err:      err,
 				}
 			}
-			g.Websocket.DataHandler <- wshandler.TradeData{
-				Timestamp:    time.Now(),
-				CurrencyPair: currency.NewPairFromString(c),
-				AssetType:    asset.Spot,
-				Exchange:     g.Name,
-				Price:        trades[i].Price,
-				Amount:       trades[i].Amount,
-				Side:         tSide,
+			g.Websocket.DataHandler <- []order.TradeHistory{
+				{
+					Timestamp: time.Now(),
+					Pair:      currency.NewPairFromString(c),
+					AssetType: asset.Spot,
+					Exchange:  g.Name,
+					Price:     trades[i].Price,
+					Amount:    trades[i].Amount,
+					Side:      tSide,
+				},
 			}
 		}
 	case strings.Contains(result.Method, "balance.update"):
@@ -366,13 +369,6 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 				return err
 			}
 		}
-
-		g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Pair:     currency.NewPairFromString(c),
-			Asset:    asset.Spot,
-			Exchange: g.Name,
-		}
-
 	case strings.Contains(result.Method, "kline"):
 		var data []interface{}
 		err = json.Unmarshal(result.Params[0], &data)
@@ -400,16 +396,21 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		g.Websocket.DataHandler <- wshandler.KlineData{
-			Timestamp:  time.Now(),
-			Pair:       currency.NewPairFromString(data[7].(string)),
-			AssetType:  asset.Spot,
-			Exchange:   g.Name,
-			OpenPrice:  open,
-			ClosePrice: closePrice,
-			HighPrice:  high,
-			LowPrice:   low,
-			Volume:     volume,
+		g.Websocket.DataHandler <- &kline.Item{
+			Exchange: g.Name,
+			Pair:     currency.NewPairFromString(data[7].(string)),
+			Asset:    asset.Spot,
+			// TODO: Interval: ,
+			Candles: []kline.Candle{
+				{
+					// TODO: Time: ,
+					Open:   open,
+					Close:  closePrice,
+					High:   high,
+					Low:    low,
+					Volume: volume,
+				},
+			},
 		}
 	default:
 		g.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: g.Name + wshandler.UnhandledMessage + string(respRaw)}

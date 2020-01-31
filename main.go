@@ -57,13 +57,13 @@ func main() {
 	flag.IntVar(&settings.DispatchJobsLimit, "dispatchjobslimit", dispatch.DefaultJobsLimit, "sets the dispatch package max jobs limit")
 
 	// Exchange syncer settings
-	flag.BoolVar(&settings.EnableTickerSyncing, "tickersync", true, "enables ticker syncing for all enabled exchanges")
-	flag.BoolVar(&settings.EnableOrderbookSyncing, "orderbooksync", true, "enables orderbook syncing for all enabled exchanges")
-	flag.BoolVar(&settings.EnableTradeSyncing, "tradesync", false, "enables trade syncing for all enabled exchanges")
-	flag.IntVar(&settings.SyncWorkers, "syncworkers", engine.DefaultSyncerWorkers, "the amount of workers (goroutines) to use for syncing exchange data")
-	flag.BoolVar(&settings.SyncContinuously, "synccontinuously", true, "whether to sync exchange data continuously (ticker, orderbook and trade history info")
-	flag.DurationVar(&settings.SyncTimeout, "synctimeout", engine.DefaultSyncerTimeout,
-		"the amount of time before the syncer will switch from one protocol to the other (e.g. from REST to websocket)")
+	flag.Var(&settings.SyncerSettings, "disable-syncers", "comma delimitered string to disable sync items [balance,order,trade,orderbook,supportedpairs,ticker]")
+	settings.SyncerSettings.EnableAccountBalance = true
+	settings.SyncerSettings.EnableExchangeTrade = true
+	settings.SyncerSettings.EnableExchangeOrderbook = true
+	settings.SyncerSettings.EnableExchangeSupportedPairs = true
+	settings.SyncerSettings.EnableExchangeTicker = true
+	settings.SyncerSettings.EnableAccountOrders = true
 
 	// Forex provider settings
 	flag.BoolVar(&settings.EnableCurrencyConverter, "currencyconverter", false, "overrides config and sets up foreign exchange Currency Converter")

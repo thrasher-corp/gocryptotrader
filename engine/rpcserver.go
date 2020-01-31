@@ -1526,7 +1526,7 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHisto
 		return nil, errors.New("Exchange " + req.Exchange + " not found")
 	}
 
-	candles, err := exchange.GetHistoricCandles(currency.Pair{
+	c, err := exchange.GetHistoricCandles(currency.Pair{
 		Delimiter: req.Pair.Delimiter,
 		Base:      currency.NewCode(req.Pair.Base),
 		Quote:     currency.NewCode(req.Pair.Quote),
@@ -1539,14 +1539,14 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHisto
 		return nil, err
 	}
 	resp := gctrpc.GetHistoricCandlesResponse{}
-	for i := range candles.Candles {
+	for i := range c.Candles {
 		resp.Candle = append(resp.Candle, &gctrpc.Candle{
-			Time:   candles.Candles[i].Time.Unix(),
-			Low:    candles.Candles[i].Low,
-			High:   candles.Candles[i].High,
-			Open:   candles.Candles[i].Open,
-			Close:  candles.Candles[i].Close,
-			Volume: candles.Candles[i].Volume,
+			Time:   c.Candles[i].Time.Unix(),
+			Low:    c.Candles[i].Low,
+			High:   c.Candles[i].High,
+			Open:   c.Candles[i].Open,
+			Close:  c.Candles[i].Close,
+			Volume: c.Candles[i].Volume,
 		})
 	}
 	return &resp, nil

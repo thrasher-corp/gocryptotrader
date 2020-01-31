@@ -71,7 +71,7 @@ const (
 	heartbeat   = "heartbeat"
 	tick        = "tick"
 	wsOB        = "orderbookUpdate"
-	trade       = "trade"
+	trades      = "trade"
 )
 
 // BTCMarkets is the overarching type across the BTCMarkets package

@@ -18,10 +18,12 @@ const (
 	TwoHour    = 2 * time.Hour
 	FourHour   = 4 * time.Hour
 	SixHour    = 6 * time.Hour
+	EightHour  = 8 * time.Hour
 	TwelveHour = 12 * time.Hour
 	OneDay     = 24 * time.Hour
-	ThreeDay   = 72 * time.Hour
-	OneWeek    = 168 * time.Hour
+	ThreeDay   = 3 * 24 * time.Hour
+	OneWeek    = 7 * 24 * time.Hour
+	OneMonth   = 30 * 24 * time.Hour
 )
 
 // Item holds all the relevant information for internal kline elements

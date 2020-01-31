@@ -703,3 +703,18 @@ func (z *ZB) ValidateCredentials() error {
 func (z *ZB) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
 	return kline.Item{}, common.ErrNotYetImplemented
 }
+
+// FetchTrades returns the trades for a currency pair
+func (z *ZB) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// UpdateTrades updates and returns the trades for a currency pair
+func (z *ZB) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// UpdateSupportedPairs updates the underlying supported pairs list
+func (z *ZB) UpdateSupportedPairs() error {
+	return common.ErrNotYetImplemented
+}

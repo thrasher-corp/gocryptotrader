@@ -435,3 +435,18 @@ func (a *Alphapoint) ValidateCredentials() error {
 	_, err := a.UpdateAccountInfo()
 	return a.CheckTransientError(err)
 }
+
+// FetchTrades returns the trades for a currency pair
+func (a *Alphapoint) FetchTrades(p currency.Pair, assetType asset.Item) ([]order.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// UpdateTrades updates and returns the trades for a currency pair
+func (a *Alphapoint) UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.TradeHistory, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// UpdateSupportedPairs updates the underlying supported pairs list
+func (a *Alphapoint) UpdateSupportedPairs() error {
+	return common.ErrNotYetImplemented
+}
