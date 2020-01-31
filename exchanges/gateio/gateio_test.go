@@ -600,3 +600,148 @@ func TestWsUnsubscribe(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestWsTicker(t *testing.T) {
+	pressXToJSON := []byte(`{
+    "method": "ticker.update", 
+    "params": 
+        [
+            "BOT_USDT", 
+                {
+                    "period": 86400, 
+                    "open": "0",
+                    "close": "0",
+                    "high": "0",
+                    "low": "0",
+                    "last": "0.2844",
+                    "change": "0",
+                    "quoteVolume": "0",
+                    "baseVolume": "0"
+                }
+     ],
+     "id": null
+}`)
+	err := g.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsTrade(t *testing.T) {
+	pressXToJSON := []byte(`{
+    "method": "trades.update",
+    "params": 
+        [
+             "ETH_USDT", 
+             [
+                 {
+                 "id": 7172173,
+                 "time": 1523339279.761838,
+                 "price": "398.59",
+                 "amount": "0.027",
+                 "type": "buy"
+                 }
+             ]
+         ],
+     "id": null
+ }
+`)
+	err := g.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsDepth(t *testing.T) {
+	pressXToJSON := []byte(`{
+    "method": "depth.update", 
+    "params": [
+        true, 
+        {
+            "asks": [
+                [                    
+                    "8000.00",
+                    "9.6250"
+                ]
+            ],
+            "bids": [                
+                [                    
+                    "8000.00",
+                    "9.6250"
+                ]                
+            ]
+         }, 
+         "EOS_USDT"
+    ],
+    "id": null
+ }`)
+	err := g.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsKLine(t *testing.T) {
+	pressXToJSON := []byte(`{
+    "method": "kline.update",
+    "params":
+        [
+            [
+                1492358400,
+                "7000.00",
+                "8000.0",
+                "8100.00",
+                "6800.00",
+                "1000.00",
+                "123456.00",
+                "BTC_USDT"
+            ]
+        ],
+    "id": null
+}`)
+	err := g.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsOrderUpdate(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "method": "order.update",
+  "params": [
+    3,
+    {
+      "id": 34628963,
+      "market": "EOS_USDT",
+      "orderType": 1,
+      "type": 2,
+      "user": 602123,
+      "ctime": 1523013969.6271579,
+      "mtime": 1523013969.6271579,
+      "price": "0.1",
+      "amount": "1000",
+      "left": "1000",
+      "filledAmount": "0",
+      "filledTotal": "0",
+      "dealFee": "0"
+    }
+  ],
+  "id": null
+}`)
+	err := g.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsBalanceUpdate(t *testing.T) {
+	pressXToJSON := []byte(`{
+    "method": "balance.update", 
+    "params": [{"EOS": {"available": "96.765323611874", "freeze": "11"}}],
+    "id": 1234
+}`)
+	err := g.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}

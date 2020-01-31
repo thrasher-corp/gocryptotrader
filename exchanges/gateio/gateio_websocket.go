@@ -10,10 +10,12 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -114,7 +116,6 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 
 	if result.ID > 0 {
 		g.WebsocketConn.AddResponseWithID(result.ID, respRaw)
-		return nil
 	}
 
 	if result.Error.Code != 0 {
@@ -175,7 +176,88 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 				Side:         trades[i].Type,
 			}
 		}
+	case strings.Contains(result.Method, "balance.update"):
+		var balance wsBalanceSubscription
+		err = json.Unmarshal(respRaw, &balance)
+		if err != nil {
+			return err
+		}
+		g.Websocket.DataHandler <- balance
+	case strings.Contains(result.Method, "order.update"):
+		var orderUpdate wsOrderUpdate
+		err = json.Unmarshal(respRaw, &orderUpdate)
+		if err != nil {
+			return err
+		}
+		invalidJSON := orderUpdate.Params[1].(map[string]interface{})
+		oStatus := order.UnknownStatus
+		oType := order.UnknownType
+		oSide := order.UnknownSide
+		switch orderUpdate.Params[0].(float64) {
+		case 1:
+			oStatus = order.New
+		case 2:
+			oStatus = order.PartiallyFilled
+		case 3:
+			oStatus = order.Filled
+		}
+		switch invalidJSON["orderType"].(float64) {
+		case 1:
+			oType = order.Limit
+		case 2:
+			oType = order.Market
+		}
+		switch invalidJSON["type"].(float64) {
+		case 1:
+			oSide = order.Sell
+		case 2:
+			oSide = order.Buy
+		}
+		cTime, cTimeDec, err := convert.SplitFloatDecimals(invalidJSON["ctime"].(float64))
+		if err != nil {
+			return err
+		}
+		mTime, mTimeDec, err := convert.SplitFloatDecimals(invalidJSON["mtime"].(float64))
+		if err != nil {
+			return err
+		}
+		price, err := strconv.ParseFloat(invalidJSON["price"].(string), 64)
+		if err != nil {
+			return err
+		}
+		amount, err := strconv.ParseFloat(invalidJSON["amount"].(string), 64)
+		if err != nil {
+			return err
+		}
+		filledTotal, err := strconv.ParseFloat(invalidJSON["filledTotal"].(string), 64)
+		if err != nil {
+			return err
+		}
+		left, err := strconv.ParseFloat(invalidJSON["left"].(string), 64)
+		if err != nil {
+			return err
+		}
+		fee, err := strconv.ParseFloat(invalidJSON["dealFee"].(string), 64)
+		if err != nil {
+			return err
+		}
 
+		g.Websocket.DataHandler <- &order.Detail{
+			Price:           price,
+			Amount:          amount,
+			ExecutedAmount:  filledTotal,
+			RemainingAmount: left,
+			Fee:             fee,
+			Exchange:        g.Name,
+			ID:              strconv.FormatFloat(invalidJSON["id"].(float64), 'f', -1, 64),
+			Type:            oType,
+			Side:            oSide,
+			Status:          oStatus,
+			AssetType:       asset.Spot,
+			Date:            time.Unix(cTime, cTimeDec),
+			LastUpdated:     time.Unix(mTime, mTimeDec),
+			Pair:            currency.NewPairFromString(invalidJSON["market"].(string)),
+		}
 	case strings.Contains(result.Method, "depth"):
 		var IsSnapshot bool
 		var c string
@@ -298,8 +380,10 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			LowPrice:   low,
 			Volume:     volume,
 		}
+	default:
+		return fmt.Errorf("%v Unhandled websocket message %s", g.Name, respRaw)
 	}
-	return fmt.Errorf("%v Unhandled websocket message %s", g.Name, respRaw)
+	return nil
 }
 
 // GenerateAuthenticatedSubscriptions Adds authenticated subscriptions to websocket to be handled by ManageSubscriptions()
