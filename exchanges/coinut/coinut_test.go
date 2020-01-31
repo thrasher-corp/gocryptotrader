@@ -47,8 +47,10 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Coinut setup error", err)
 	}
-
-	c.SeedInstruments()
+	err = c.SeedInstruments()
+	if err != nil {
+		log.Fatal("Coinut setup error", err)
+	}
 	c.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	c.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
@@ -736,6 +738,9 @@ func TestWsGetInstruments(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	if c.instrumentMap.LookupID("ETHBTC") != 2 {
+		t.Error("Expected id to load")
+	}
 }
 
 func TestWsTrades(t *testing.T) {
@@ -879,7 +884,7 @@ func TestWsOrder(t *testing.T) {
     "nonce": 956475,
     "order": {
       "client_ord_id": 12345,
-      "inst_id": 2,
+      "inst_id": 1,
       "open_qty": "0.00000000",
       "order_id": 721923,
       "price": "748.00000000",
@@ -907,7 +912,7 @@ func TestWsOrder(t *testing.T) {
     "order_id": 7171,
     "open_qty": "100000.00000000",
     "price": "750.60000000",
-    "inst_id": 2,
+    "inst_id": 1,
     "reasons": [
         "NOT_ENOUGH_BALANCE"
     ],
@@ -919,8 +924,8 @@ func TestWsOrder(t *testing.T) {
     "trans_id": 3282993
 }`)
 	err = c.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
+	if err == nil {
+		t.Error("Expected not enough balance error")
 	}
 }
 

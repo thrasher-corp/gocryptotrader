@@ -569,6 +569,15 @@ type WsOrderRejectedResponse struct {
 	TransID     int64    `json:"trans_id"`
 }
 
+type wsInstList struct {
+	Spot map[string][]struct {
+		Base          string `json:"base"`
+		DecimalPlaces int64  `json:"decimal_places"`
+		InstID        int64  `json:"inst_id"`
+		Quote         string `json:"quote"`
+	} `json:"spot"`
+}
+
 // WsStandardOrderResponse a standardised order
 type WsStandardOrderResponse struct {
 	InstID             int64
@@ -680,4 +689,37 @@ type instrumentMap struct {
 	Instruments map[string]int64
 	Loaded      bool
 	m           sync.Mutex
+}
+
+type wsOrderContainer struct {
+	OrderID     int64    `json:"order_id"`
+	ClientOrdID int64    `json:"client_ord_id"`
+	InstID      int64    `json:"inst_id"`
+	Nonce       int64    `json:"nonce"`
+	Timestamp   int64    `json:"timestamp"`
+	TransID     int64    `json:"trans_id"`
+	OpenQty     float64  `json:"open_qty,string"`
+	OrderPrice  float64  `json:"order_price,string"`
+	Qty         float64  `json:"qty,string"`
+	FillPrice   float64  `json:"fill_price,string"`
+	FillQty     float64  `json:"fill_qty,string"`
+	Price       float64  `json:"price,string"`
+	Reply       string   `json:"reply"`
+	Side        string   `json:"side"`
+	Status      []string `json:"status"`
+	Reasons     []string `json:"reasons"`
+	Order       struct {
+		ClientOrdID int64   `json:"client_ord_id"`
+		InstID      int64   `json:"inst_id"`
+		OrderID     int64   `json:"order_id"`
+		Timestamp   int64   `json:"timestamp"`
+		Price       float64 `json:"price,string"`
+		Qty         float64 `json:"qty,string"`
+		OpenQty     float64 `json:"open_qty,string"`
+		Side        string  `json:"side"`
+	} `json:"order"`
+	Commission struct {
+		Amount   float64 `json:"amount,string"`
+		Currency string  `json:"currency"`
+	} `json:"commission"`
 }

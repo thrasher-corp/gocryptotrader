@@ -481,7 +481,7 @@ func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 	}
 
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		var response *WsStandardOrderResponse
+		var response *order.Detail
 		response, err = c.wsSubmitOrder(&WsSubmitOrderParameters{
 			Currency: o.Pair,
 			Side:     o.Side,
@@ -491,7 +491,7 @@ func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 		if err != nil {
 			return submitOrderResponse, err
 		}
-		submitOrderResponse.OrderID = strconv.FormatInt(response.OrderID, 10)
+		submitOrderResponse.OrderID = response.ID
 		submitOrderResponse.IsOrderPlaced = true
 	} else {
 		err = c.loadInstrumentsIfNotLoaded()

@@ -87,6 +87,8 @@ func (o *orderStore) existsWithLock(order *order.Detail) bool {
 }
 
 // Adds an order to the orderStore for tracking the lifecycle
+// lock is toggle-able in the event that you have already used
+// orderStore's lock. Most cases should be true
 func (o *orderStore) Add(order *order.Detail, lock bool) error {
 	if lock {
 		o.m.Lock()
