@@ -233,7 +233,7 @@ func (s *RPCServer) GetCommunicationRelayers(ctx context.Context, r *gctrpc.GetC
 // GetExchanges returns a list of exchanges
 // Param is whether or not you wish to list enabled exchanges
 func (s *RPCServer) GetExchanges(ctx context.Context, r *gctrpc.GetExchangesRequest) (*gctrpc.GetExchangesResponse, error) {
-	exchanges := strings.Join(GetExchanges(r.Enabled), ",")
+	exchanges := strings.Join(GetExchangeNames(r.Enabled), ",")
 	return &gctrpc.GetExchangesResponse{Exchanges: exchanges}, nil
 }
 

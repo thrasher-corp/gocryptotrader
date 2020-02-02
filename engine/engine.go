@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/coinmarketcap"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
@@ -28,7 +27,6 @@ import (
 type Engine struct {
 	Config                      *config.Config
 	Portfolio                   *portfolio.Base
-	Exchanges                   []exchange.IBotExchange
 	ExchangeCurrencyPairManager *ExchangeCurrencyPairSyncer
 	NTPManager                  ntpManager
 	ConnectionManager           connectionManager
@@ -37,6 +35,7 @@ type Engine struct {
 	OrderManager                orderManager
 	PortfolioManager            portfolioManager
 	CommsManager                commsManager
+	exchangeManager             exchangeManager
 	DepositAddressManager       *DepositAddressManager
 	Settings                    Settings
 	Uptime                      time.Time
@@ -54,6 +53,7 @@ var (
 // New starts a new engine
 func New() (*Engine, error) {
 	var b Engine
+	b.exchangeManager.init()
 	b.Config = &config.Cfg
 
 	err := b.Config.LoadConfig("", false)
@@ -71,6 +71,7 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 	}
 
 	var b Engine
+	b.exchangeManager.init()
 	b.Config = &config.Cfg
 	filePath, err := config.GetFilePath(settings.ConfigFile)
 	if err != nil {
@@ -347,7 +348,7 @@ func (e *Engine) Start() error {
 
 	log.Debugln(log.Global, "Setting up exchanges..")
 	SetupExchanges()
-	if len(Bot.Exchanges) == 0 {
+	if Bot.exchangeManager.Len() == 0 {
 		return errors.New("no exchanges are loaded")
 	}
 

@@ -2,21 +2,16 @@ package engine
 
 import (
 	"testing"
-
-	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
 var testSetup = false
 
 func SetupTest(t *testing.T) {
 	if !testSetup {
-		if Bot == nil {
-			Bot = new(Engine)
-		}
-		Bot.Config = &config.Cfg
-		err := Bot.Config.LoadConfig("", true)
+		var err error
+		Bot, err = New()
 		if err != nil {
-			t.Fatalf("SetupTest: Failed to load config: %s", err)
+			t.Fatal(err)
 		}
 		testSetup = true
 	}
