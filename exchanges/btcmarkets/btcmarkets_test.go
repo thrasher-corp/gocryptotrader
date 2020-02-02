@@ -449,12 +449,12 @@ func TestCancelBatchOrders(t *testing.T) {
 	}
 }
 
-func TestGetAccountInfo(t *testing.T) {
+func TestFetchAccountInfo(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.GetAccountInfo()
+	_, err := b.FetchAccountInfo()
 	if err != nil {
 		t.Error(err)
 	}

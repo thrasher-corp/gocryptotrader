@@ -43,11 +43,15 @@ func SetupTest(t *testing.T) {
 func addPassingFakeExchange() {
 	testExch := GetExchangeByName(testExchange)
 	base := testExch.GetBase()
+	Bot.Config.Exchanges = append(Bot.Config.Exchanges, config.ExchangeConfig{
+		Name:    fakePassExchange,
+		Enabled: true,
+		Verbose: false,
+	})
 	Bot.Exchanges = append(Bot.Exchanges, &FakePassingExchange{
 		Base: exchange.Base{
 			Name:                          fakePassExchange,
 			Enabled:                       true,
-			Verbose:                       true,
 			LoadedByConfig:                true,
 			SkipAuthCheck:                 true,
 			API:                           base.API,
@@ -76,8 +80,8 @@ func CleanupTest(t *testing.T) {
 				err)
 		}
 	}
-
-	if GetExchangeByName(fakePassExchange) != nil{
+	butts := GetExchangeByName(fakePassExchange)
+	if butts != nil {
 		err := UnloadExchange(fakePassExchange)
 		if err != nil {
 			t.Fatalf("CleanupTest: Failed to unload exchange: %s",
@@ -397,6 +401,6 @@ func (h *FakePassingExchange) SupportsAsset(_ asset.Item) bool                  
 func (h *FakePassingExchange) ValidateCredentials() error {
 	return nil
 }
-func (h *FakePassingExchange) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
+func (h *FakePassingExchange) GetHistoricCandles(_ currency.Pair, _, _ int64) ([]exchange.Candle, error) {
 	return []exchange.Candle{}, nil
 }

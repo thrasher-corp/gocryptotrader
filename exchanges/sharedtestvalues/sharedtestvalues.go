@@ -12,7 +12,7 @@ const (
 	WebsocketResponseExtendedTimeout = (15 * time.Second)
 	// WebsocketChannelOverrideCapacity used in websocket testing
 	// Defines channel capacity as defaults size can block tests
-	WebsocketChannelOverrideCapacity = 30
+	WebsocketChannelOverrideCapacity = 50
 
 	MockTesting = "Mock testing framework in use for %s exchange @ %s on REST endpoints only"
 	LiveTesting = "Mock testing bypassed; live testing of REST endpoints in use for %s exchange @ %s"
