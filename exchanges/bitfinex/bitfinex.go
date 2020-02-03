@@ -69,6 +69,7 @@ const (
 	bitfinexCandles        = "candles/trade"
 	bitfinexKeyPermissions = "key_info"
 	bitfinexMarginInfo     = "margin_infos"
+	bitfinexDepositMethod  = "conf/pub:map:currency:label"
 
 	// Bitfinex platform status values
 	// When the platform is marked in maintenance mode bots should stop trading
@@ -172,7 +173,7 @@ func (b *Bitfinex) GetTicker(symbol string) (Ticker, error) {
 		bitfinexTicker +
 		symbol
 
-	err := b.SendHTTPRequest(path, &response, tickerfunction)
+	err := b.SendHTTPRequest(path, &response, tickerFunction)
 	if err != nil {
 		return Ticker{}, err
 	}
@@ -406,7 +407,7 @@ func (b *Bitfinex) GetLends(symbol string, values url.Values) ([]Lends, error) {
 	return response, b.SendHTTPRequest(path, &response, lends)
 }
 
-// GetCandles returns all the candlessssss and things
+// GetCandles returns candle chart data
 // timeFrame values: '1m', '5m', '15m', '30m', '1h', '3h', '6h', '12h', '1D',
 // '7D', '14D', '1M'
 // section values: last or hist
@@ -1265,7 +1266,7 @@ func (b *Bitfinex) ConvertSymbolToWithdrawalType(c currency.Code) string {
 
 // ConvertSymbolToDepositMethod returns a converted currency deposit method
 func (b *Bitfinex) ConvertSymbolToDepositMethod(c currency.Code) (string, error) {
-	if err := b.populateMethod(); err != nil {
+	if err := b.PopulateAcceptableMethods(); err != nil {
 		return "", err
 	}
 	method, ok := AcceptableMethods[c.String()]
@@ -1277,19 +1278,28 @@ func (b *Bitfinex) ConvertSymbolToDepositMethod(c currency.Code) (string, error)
 	return strings.ToLower(method), nil
 }
 
-func (b *Bitfinex) populateMethod() error {
+// PopulateAcceptableMethods retrieves all accepted currency strings and
+// populates a map to check
+func (b *Bitfinex) PopulateAcceptableMethods() error {
 	if len(AcceptableMethods) == 0 {
 		var response [][][2]string
 		err := b.SendHTTPRequest(b.API.Endpoints.URL+
 			bitfinexAPIVersion2+
-			"conf/pub:map:currency:label",
+			bitfinexDepositMethod,
 			&response,
 			configs)
 		if err != nil {
 			return err
 		}
 
+		if len(response) == 0 {
+			return errors.New("response contains no data cannot populate acceptable method map")
+		}
+
 		for i := range response[0] {
+			if len(response[0][i]) != 2 {
+				return errors.New("response contains no data cannot populate acceptable method map")
+			}
 			AcceptableMethods[response[0][i][0]] = response[0][i][1]
 		}
 	}

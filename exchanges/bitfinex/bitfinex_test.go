@@ -195,7 +195,7 @@ func TestNewDeposit(t *testing.T) {
 		t.SkipNow()
 	}
 	t.Parallel()
-
+	b.Verbose = true
 	_, err := b.NewDeposit("blabla", "testwallet", 0)
 	if err == nil {
 		t.Error("NewDeposit() Expected error")
@@ -254,7 +254,7 @@ func TestGetAccountInfo(t *testing.T) {
 	}
 	t.Parallel()
 
-	_, err := b.GetAccountInfo()
+	_, err := b.FetchAccountInfo()
 	if err != nil {
 		t.Error(err)
 	}
@@ -1097,4 +1097,30 @@ func TestWsCancelOffer(t *testing.T) {
 		t.Error(err)
 	}
 	time.Sleep(time.Second)
+}
+
+func TestConvertSymbolToDepositMethod(t *testing.T) {
+	s, err := b.ConvertSymbolToDepositMethod(currency.BTC)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if s != "bitcoin" {
+		t.Errorf("expected bitcoin but received %s", s)
+	}
+
+	_, err = b.ConvertSymbolToDepositMethod(currency.NewCode("CATS!"))
+	if err == nil {
+		log.Fatal("error cannot be nil")
+	}
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	_, err := b.FetchTradablePairs(asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.FetchTradablePairs(asset.Margin)
+	if err != nil {
+		t.Error(err)
+	}
 }

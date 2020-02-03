@@ -233,14 +233,14 @@ func (b *Bitfinex) FetchTradablePairs(a asset.Item) ([]string, error) {
 	switch a {
 	case asset.Spot:
 		for k := range items {
-			if k[0] != 't' {
+			if !strings.HasPrefix(k, "t") {
 				continue
 			}
 			symbols = append(symbols, k[1:])
 		}
 	case asset.Margin:
 		for k := range items {
-			if k[0] != 'f' {
+			if !strings.HasPrefix(k, "f") {
 				continue
 			}
 			symbols = append(symbols, k[1:])

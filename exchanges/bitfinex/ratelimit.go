@@ -30,7 +30,7 @@ const (
 	accountWalletBalanceReqRate = 45
 	accountWalletHistoryReqRate = 45
 	// Orders -
-	retreiveOrderReqRate  = 45
+	retrieveOrderReqRate  = 45
 	submitOrderReqRate    = 45 // This is not specified just inputed above
 	updateOrderReqRate    = 45 // This is not specified just inputed above
 	cancelOrderReqRate    = 45 // This is not specified just inputed above
@@ -51,7 +51,7 @@ const (
 	getActiveFundingOffersReqRate   = 45
 	submitFundingOfferReqRate       = 45 // This is not specified just inputed above
 	cancelFundingOfferReqRate       = 45
-	cancelAllfundingOfferReqRate    = 45 // This is not specified just inputed above
+	cancelAllFundingOfferReqRate    = 45 // This is not specified just inputed above
 	closeFundingReqRate             = 45 // This is not specified just inputed above
 	fundingAutoRenewReqRate         = 45 // This is not specified just inputed above
 	keepFundingReqRate              = 45 // This is not specified just inputed above
@@ -94,7 +94,7 @@ const (
 	// Rate limit endpoint functionality declaration
 	platformStatus request.EndpointLimit = iota
 	tickerBatch
-	tickerfunction
+	tickerFunction
 	trade
 	orderbookfunction
 	stats
@@ -111,7 +111,7 @@ const (
 	accountWalletBalance
 	accountWalletHistory
 	// Orders -
-	retreiveOrder
+	retrieveOrder
 	submitOrder
 	updateOrder
 	cancelOrder
@@ -132,7 +132,7 @@ const (
 	getActiveFundingOffers
 	submitFundingOffer
 	cancelFundingOffer
-	cancelAllfundingOffer
+	cancelAllFundingOffer
 	closeFunding
 	fundingAutoRenew
 	keepFunding
@@ -191,7 +191,7 @@ type RateLimit struct {
 	AccountWalletBalance *rate.Limiter
 	AccountWalletHistory *rate.Limiter
 	// Orders -
-	RetreiveOrder  *rate.Limiter
+	RetrieveOrder  *rate.Limiter
 	SubmitOrder    *rate.Limiter
 	UpdateOrder    *rate.Limiter
 	CancelOrder    *rate.Limiter
@@ -212,7 +212,7 @@ type RateLimit struct {
 	GetActiveFundingOffers   *rate.Limiter
 	SubmitFundingOffer       *rate.Limiter
 	CancelFundingOffer       *rate.Limiter
-	CancelAllfundingOffer    *rate.Limiter
+	CancelAllFundingOffer    *rate.Limiter
 	CloseFunding             *rate.Limiter
 	FundingAutoRenew         *rate.Limiter
 	KeepFunding              *rate.Limiter
@@ -260,7 +260,7 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 		time.Sleep(r.PlatformStatus.Reserve().Delay())
 	case tickerBatch:
 		time.Sleep(r.TickerBatch.Reserve().Delay())
-	case tickerfunction:
+	case tickerFunction:
 		time.Sleep(r.Ticker.Reserve().Delay())
 	case trade:
 		time.Sleep(r.Trade.Reserve().Delay())
@@ -286,8 +286,8 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 		time.Sleep(r.AccountWalletBalance.Reserve().Delay())
 	case accountWalletHistory:
 		time.Sleep(r.AccountWalletHistory.Reserve().Delay())
-	case retreiveOrder:
-		time.Sleep(r.RetreiveOrder.Reserve().Delay())
+	case retrieveOrder:
+		time.Sleep(r.RetrieveOrder.Reserve().Delay())
 	case submitOrder:
 		time.Sleep(r.SubmitOrder.Reserve().Delay())
 	case updateOrder:
@@ -324,8 +324,8 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 		time.Sleep(r.SubmitFundingOffer.Reserve().Delay())
 	case cancelFundingOffer:
 		time.Sleep(r.CancelFundingOffer.Reserve().Delay())
-	case cancelAllfundingOffer:
-		time.Sleep(r.CancelAllfundingOffer.Reserve().Delay())
+	case cancelAllFundingOffer:
+		time.Sleep(r.CancelAllFundingOffer.Reserve().Delay())
 	case closeFunding:
 		time.Sleep(r.CloseFunding.Reserve().Delay())
 	case fundingAutoRenew:
@@ -425,7 +425,7 @@ func SetRateLimit() *RateLimit {
 		AccountWalletBalance: request.NewRateLimit(requestLimitInterval, accountWalletBalanceReqRate),
 		AccountWalletHistory: request.NewRateLimit(requestLimitInterval, accountWalletHistoryReqRate),
 		// Orders -
-		RetreiveOrder:  request.NewRateLimit(requestLimitInterval, retreiveOrderReqRate),
+		RetrieveOrder:  request.NewRateLimit(requestLimitInterval, retrieveOrderReqRate),
 		SubmitOrder:    request.NewRateLimit(requestLimitInterval, submitOrderReqRate),
 		UpdateOrder:    request.NewRateLimit(requestLimitInterval, updateOrderReqRate),
 		CancelOrder:    request.NewRateLimit(requestLimitInterval, cancelOrderReqRate),
@@ -446,7 +446,7 @@ func SetRateLimit() *RateLimit {
 		GetActiveFundingOffers:   request.NewRateLimit(requestLimitInterval, getActiveFundingOffersReqRate),
 		SubmitFundingOffer:       request.NewRateLimit(requestLimitInterval, submitFundingOfferReqRate),
 		CancelFundingOffer:       request.NewRateLimit(requestLimitInterval, cancelFundingOfferReqRate),
-		CancelAllfundingOffer:    request.NewRateLimit(requestLimitInterval, cancelAllfundingOfferReqRate),
+		CancelAllFundingOffer:    request.NewRateLimit(requestLimitInterval, cancelAllFundingOfferReqRate),
 		CloseFunding:             request.NewRateLimit(requestLimitInterval, closeFundingReqRate),
 		FundingAutoRenew:         request.NewRateLimit(requestLimitInterval, fundingAutoRenewReqRate),
 		KeepFunding:              request.NewRateLimit(requestLimitInterval, keepFundingReqRate),
