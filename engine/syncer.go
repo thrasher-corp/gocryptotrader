@@ -480,10 +480,8 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 // Start starts an exchange currency pair syncer
 func (e *ExchangeCurrencyPairSyncer) Start() {
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer started.")
-
 	exchanges := GetExchanges()
 	for x := range exchanges {
-
 		exchangeName := exchanges[x].GetName()
 		supportsWebsocket := exchanges[x].SupportsWebsocket()
 		assetTypes := exchanges[x].GetAssetTypes()
@@ -498,7 +496,6 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 
 		var usingWebsocket bool
 		var usingREST bool
-
 		if supportsWebsocket && exchanges[x].IsWebsocketEnabled() {
 			ws, err := exchanges[x].GetWebsocket()
 			if err != nil {
@@ -531,6 +528,7 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 				if e.exists(exchangeName, enabledPairs[i], assetTypes[y]) {
 					continue
 				}
+
 				c := CurrencyPairSyncAgent{
 					AssetType: assetTypes[y],
 					Exchange:  exchangeName,

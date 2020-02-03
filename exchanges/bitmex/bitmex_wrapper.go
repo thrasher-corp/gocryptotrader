@@ -257,7 +257,7 @@ func (b *Bitmex) UpdateTradablePairs(forceUpdate bool) error {
 			}
 		case asset.Futures:
 			for y := range pairs {
-				if strings.Contains(pairs[y], "19") {
+				if strings.Contains(pairs[y], "20") {
 					assetPairs = append(assetPairs, pairs[y])
 				}
 			}

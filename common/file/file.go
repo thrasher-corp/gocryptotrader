@@ -45,3 +45,12 @@ func Move(sourcePath, destPath string) error {
 
 	return os.Remove(sourcePath)
 }
+
+// Exists returns wheter or not a file or path exists
+func Exists(name string) bool {
+	_, err := os.Stat(name)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return true
+}

@@ -82,7 +82,8 @@ func authenticateClient(ctx context.Context) (context.Context, error) {
 
 // StartRPCServer starts a gRPC server with TLS auth
 func StartRPCServer() {
-	err := checkCerts()
+	targetDir := utils.GetTLSDir(Bot.Settings.DataDir)
+	err := checkCerts(targetDir)
 	if err != nil {
 		log.Errorf(log.GRPCSys, "gRPC checkCerts failed. err: %s\n", err)
 		return
@@ -95,7 +96,6 @@ func StartRPCServer() {
 		return
 	}
 
-	targetDir := utils.GetTLSDir(Bot.Settings.DataDir)
 	creds, err := credentials.NewServerTLSFromFile(filepath.Join(targetDir, "cert.pem"), filepath.Join(targetDir, "key.pem"))
 	if err != nil {
 		log.Errorf(log.GRPCSys, "gRPC server could not load TLS keys: %s\n", err)

@@ -104,3 +104,19 @@ func TestMove(t *testing.T) {
 		}
 	}
 }
+
+func TestExists(t *testing.T) {
+	if e := Exists("non-existant"); e {
+		t.Error("non-existant file should not exist")
+	}
+	tmpFile := filepath.Join(os.TempDir(), "gct-test.txt")
+	if err := ioutil.WriteFile(tmpFile, []byte("hello world"), os.ModeAppend); err != nil {
+		t.Fatal(err)
+	}
+	if e := Exists(tmpFile); !e {
+		t.Error("file should exist")
+	}
+	if err := os.Remove(tmpFile); err != nil {
+		t.Errorf("unable to remove %s, manual deletion is required", tmpFile)
+	}
+}

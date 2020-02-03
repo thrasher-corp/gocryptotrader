@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"net"
 	"os"
@@ -31,7 +32,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
-	"github.com/thrasher-corp/gocryptotrader/utils"
 )
 
 // GetSubsystemsStatus returns the status of various subsystems
@@ -774,18 +774,40 @@ func GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
 	return response
 }
 
-func checkCerts() error {
-	targetDir := utils.GetTLSDir(Bot.Settings.DataDir)
-	_, err := os.Stat(targetDir)
-	if os.IsNotExist(err) {
-		err := common.CreateDir(targetDir)
-		if err != nil {
-			return err
-		}
-		return genCert(targetDir)
+func checkCerts(certDir string) error {
+	certFile := filepath.Join(certDir, "cert.pem")
+	keyFile := filepath.Join(certDir, "key.pem")
+
+	if !file.Exists(certFile) || !file.Exists(keyFile) {
+		log.Warnln(log.Global, "gRPC certificate/key file missing, recreating.")
+		return genCert(certDir)
 	}
 
-	log.Debugln(log.Global, "gRPC TLS certs directory already exists, will use them.")
+	pemData, err := ioutil.ReadFile(certFile)
+	if err != nil {
+		return fmt.Errorf("unable to open TLS cert file: %s", err)
+	}
+
+	var pemBlock *pem.Block
+	pemBlock, pemData = pem.Decode(pemData)
+	if pemBlock == nil {
+		return fmt.Errorf("certificate PEM block data is nil")
+	}
+
+	if pemBlock.Type != "CERTIFICATE" {
+		return fmt.Errorf("certificate DER block type is not a certificate")
+	}
+
+	cert, err := x509.ParseCertificate(pemBlock.Bytes)
+	if err != nil {
+		return err
+	}
+
+	if time.Now().After(cert.NotAfter) {
+		log.Warnln(log.Global, "gRPC certificate has expired, regenerating...")
+		return genCert(certDir)
+	}
+	log.Infoln(log.Global, "gRPC TLS certificate and key files exist, will use them.")
 	return nil
 }
 
@@ -865,6 +887,6 @@ func genCert(targetDir string) error {
 		return fmt.Errorf("failed to write cert.pem file %s", err)
 	}
 
-	log.Debugf(log.Global, "TLS key.pem and cert.pem files written to %s\n", targetDir)
+	log.Infof(log.Global, "gRPC TLS key.pem and cert.pem files written to %s\n", targetDir)
 	return nil
 }

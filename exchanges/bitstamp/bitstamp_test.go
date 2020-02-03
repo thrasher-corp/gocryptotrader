@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -461,7 +462,7 @@ func TestWithdraw(t *testing.T) {
 			Currency:    currency.BTC,
 			Description: "WITHDRAW IT ALL",
 		},
-		Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		Address: core.BitcoinDonationAddress,
 	}
 
 	_, err := b.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
