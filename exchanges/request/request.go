@@ -53,7 +53,7 @@ func (r *Requester) SendPayload(i *Item) error {
 	}
 
 	atomic.AddInt32(&r.jobs, 1)
-	err = r.DoRequest(req, i)
+	err = r.doRequest(req, i)
 	atomic.AddInt32(&r.jobs, -1)
 	r.timedLock.UnlockIfLocked()
 
@@ -91,7 +91,7 @@ func (i *Item) validateRequest(r *Requester) (*http.Request, error) {
 }
 
 // DoRequest performs a HTTP/HTTPS request with the supplied params
-func (r *Requester) DoRequest(req *http.Request, p *Item) error {
+func (r *Requester) doRequest(req *http.Request, p *Item) error {
 	if p.Verbose {
 		log.Debugf(log.RequestSys,
 			"%s request path: %s",
