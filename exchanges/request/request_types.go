@@ -33,7 +33,7 @@ type Requester struct {
 	timeoutRetryAttempts int
 	jobs                 int32
 	Nonce                nonce.Nonce
-	DisableRateLimiter   bool
+	disableRateLimiter   int32
 	timedLock            *timedmutex.TimedMutex
 }
 

@@ -1,6 +1,8 @@
 package request
 
 import (
+	"errors"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -58,7 +60,7 @@ func NewBasicRateLimit(interval time.Duration, actions int) Limiter {
 
 // InitiateRateLimit sleeps for designated end point rate limits
 func (r *Requester) InitiateRateLimit(e EndpointLimit) error {
-	if r.DisableRateLimiter {
+	if atomic.LoadInt32(&r.disableRateLimiter) == 1 {
 		return nil
 	}
 
@@ -66,5 +68,21 @@ func (r *Requester) InitiateRateLimit(e EndpointLimit) error {
 		return r.Limiter.Limit(e)
 	}
 
+	return nil
+}
+
+// DisableRateLimiter disables the rate limiting system for the exchange
+func (r *Requester) DisableRateLimiter() error {
+	if !atomic.CompareAndSwapInt32(&r.disableRateLimiter, 0, 1) {
+		return errors.New("rate limiter already disabled")
+	}
+	return nil
+}
+
+// EnableRateLimiter enables the rate limiting system for the exchange
+func (r *Requester) EnableRateLimiter() error {
+	if !atomic.CompareAndSwapInt32(&r.disableRateLimiter, 1, 0) {
+		return errors.New("rate limiter already enabled")
+	}
 	return nil
 }

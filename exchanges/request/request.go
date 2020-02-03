@@ -44,7 +44,7 @@ func (r *Requester) SendPayload(i *Item) error {
 	if i.HTTPDebugging {
 		// Err not evaluated due to validation check above
 		dump, _ := httputil.DumpRequestOut(req, true)
-		log.Debugf(log.Global, "DumpRequest:\n%s", dump)
+		log.Debugf(log.RequestSys, "DumpRequest:\n%s", dump)
 	}
 
 	if atomic.LoadInt32(&r.jobs) >= MaxRequestJobs {
@@ -93,26 +93,26 @@ func (i *Item) validateRequest(r *Requester) (*http.Request, error) {
 // DoRequest performs a HTTP/HTTPS request with the supplied params
 func (r *Requester) DoRequest(req *http.Request, p *Item) error {
 	if p.Verbose {
-		log.Debugf(log.Global,
-			"%s exchange request path: %s",
+		log.Debugf(log.RequestSys,
+			"%s request path: %s",
 			r.Name,
 			p.Path)
 
 		for k, d := range req.Header {
-			log.Debugf(log.Global,
-				"%s exchange request header [%s]: %s",
+			log.Debugf(log.RequestSys,
+				"%s request header [%s]: %s",
 				r.Name,
 				k,
 				d)
 		}
-		log.Debugf(log.Global,
-			"%s exchange request type: %s",
+		log.Debugf(log.RequestSys,
+			"%s request type: %s",
 			r.Name,
 			req.Method)
 
 		if p.Body != nil {
-			log.Debugf(log.Global,
-				"%s exchange request body: %v",
+			log.Debugf(log.RequestSys,
+				"%s request body: %v",
 				r.Name,
 				p.Body)
 		}
@@ -130,7 +130,7 @@ func (r *Requester) DoRequest(req *http.Request, p *Item) error {
 		if err != nil {
 			if timeoutErr, ok := err.(net.Error); ok && timeoutErr.Timeout() {
 				if p.Verbose {
-					log.Errorf(log.ExchangeSys,
+					log.Errorf(log.RequestSys,
 						"%s request has timed-out retrying request, count %d",
 						r.Name,
 						i)
@@ -156,7 +156,7 @@ func (r *Requester) DoRequest(req *http.Request, p *Item) error {
 
 		if resp.StatusCode < http.StatusOK ||
 			resp.StatusCode > http.StatusAccepted {
-			return fmt.Errorf("%s exchange unsuccessful HTTP status code: %d  raw response: %s",
+			return fmt.Errorf("%s unsuccessful HTTP status code: %d  raw response: %s",
 				r.Name,
 				resp.StatusCode,
 				string(contents))
@@ -165,21 +165,21 @@ func (r *Requester) DoRequest(req *http.Request, p *Item) error {
 		if p.HTTPDebugging {
 			dump, err := httputil.DumpResponse(resp, false)
 			if err != nil {
-				log.Errorf(log.Global, "DumpResponse invalid response: %v:", err)
+				log.Errorf(log.RequestSys, "DumpResponse invalid response: %v:", err)
 			}
-			log.Debugf(log.Global, "DumpResponse Headers (%v):\n%s", p.Path, dump)
-			log.Debugf(log.Global, "DumpResponse Body (%v):\n %s", p.Path, string(contents))
+			log.Debugf(log.RequestSys, "DumpResponse Headers (%v):\n%s", p.Path, dump)
+			log.Debugf(log.RequestSys, "DumpResponse Body (%v):\n %s", p.Path, string(contents))
 		}
 
 		resp.Body.Close()
 		if p.Verbose {
-			log.Debugf(log.ExchangeSys,
+			log.Debugf(log.RequestSys,
 				"HTTP status: %s, Code: %v",
 				resp.Status,
 				resp.StatusCode)
 			if !p.HTTPDebugging {
-				log.Debugf(log.ExchangeSys,
-					"%s exchange raw response: %s",
+				log.Debugf(log.RequestSys,
+					"%s raw response: %s",
 					r.Name,
 					string(contents))
 			}

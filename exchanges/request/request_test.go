@@ -363,3 +363,75 @@ func TestBasicLimiter(t *testing.T) {
 		t.Error("rate limit issues")
 	}
 }
+
+func TestEnableDisableRateLimit(t *testing.T) {
+	r := New("TestRequest",
+		new(http.Client),
+		NewBasicRateLimit(time.Minute, 1))
+
+	var resp interface{}
+	err := r.SendPayload(&Item{
+		Method:      http.MethodGet,
+		Path:        testURL,
+		Result:      &resp,
+		AuthRequest: true,
+		Endpoint:    Auth,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = r.EnableRateLimiter()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	err = r.DisableRateLimiter()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = r.SendPayload(&Item{
+		Method:      http.MethodGet,
+		Path:        testURL,
+		Result:      &resp,
+		AuthRequest: true,
+		Endpoint:    Auth,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = r.DisableRateLimiter()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	err = r.EnableRateLimiter()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ti := time.NewTicker(time.Second)
+	c := make(chan struct{})
+	go func(c chan struct{}) {
+		err = r.SendPayload(&Item{
+			Method:      http.MethodGet,
+			Path:        testURL,
+			Result:      &resp,
+			AuthRequest: true,
+			Endpoint:    Auth,
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+		c <- struct{}{}
+	}(c)
+
+	select {
+	case <-c:
+		t.Fatal("rate limiting failure")
+	case <-ti.C:
+		// Correct test
+	}
+}

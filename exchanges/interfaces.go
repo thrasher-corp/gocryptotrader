@@ -72,4 +72,6 @@ type IBotExchange interface {
 	GetBase() *Base
 	SupportsAsset(assetType asset.Item) bool
 	GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]Candle, error)
+	DisableRateLimiter() error
+	EnableRateLimiter() error
 }
