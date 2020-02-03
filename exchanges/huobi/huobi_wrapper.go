@@ -87,6 +87,7 @@ func (h *HUOBI) SetDefaults() {
 				CancelOrders:      true,
 				CancelOrder:       true,
 				SubmitOrder:       true,
+				CryptoDeposit:     true,
 				CryptoWithdrawal:  true,
 				TradeFee:          true,
 			},
@@ -651,7 +652,8 @@ func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (h *HUOBI) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
-	return "", common.ErrFunctionNotSupported
+	resp, err := h.QueryDepositAddress(cryptocurrency.Lower().String())
+	return resp.Address, err
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
