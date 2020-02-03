@@ -255,15 +255,20 @@ func (b *Bitfinex) FetchTradablePairs(a asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (b *Bitfinex) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := b.FetchTradablePairs(asset.Spot)
-	if err != nil {
-		return err
+	for i := range b.CurrencyPairs.AssetTypes {
+		pairs, err := b.FetchTradablePairs(b.CurrencyPairs.AssetTypes[i])
+		if err != nil {
+			return err
+		}
+		err = b.UpdatePairs(currency.NewPairsFromStrings(pairs),
+			b.CurrencyPairs.AssetTypes[i],
+			false,
+			forceUpdate)
+		if err != nil {
+			return err
+		}
 	}
-
-	return b.UpdatePairs(currency.NewPairsFromStrings(pairs),
-		asset.Spot,
-		false,
-		forceUpdate)
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

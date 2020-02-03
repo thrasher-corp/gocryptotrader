@@ -92,6 +92,10 @@ func (i *Item) validateRequest(r *Requester) (*http.Request, error) {
 
 // DoRequest performs a HTTP/HTTPS request with the supplied params
 func (r *Requester) doRequest(req *http.Request, p *Item) error {
+	if p == nil {
+		return errors.New("request item cannot be nil")
+	}
+
 	if p.Verbose {
 		log.Debugf(log.RequestSys,
 			"%s request path: %s",

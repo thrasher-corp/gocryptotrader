@@ -1115,11 +1115,7 @@ func TestConvertSymbolToDepositMethod(t *testing.T) {
 }
 
 func TestUpdateTradablePairs(t *testing.T) {
-	_, err := b.FetchTradablePairs(asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = b.FetchTradablePairs(asset.Margin)
+	err := b.UpdateTradablePairs(false)
 	if err != nil {
 		t.Error(err)
 	}

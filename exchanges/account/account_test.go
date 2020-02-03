@@ -10,7 +10,7 @@ import (
 )
 
 func TestHoldings(t *testing.T) {
-	err := dispatch.Start(1, 1)
+	err := dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
 	if err != nil {
 		t.Fatal(err)
 	}
