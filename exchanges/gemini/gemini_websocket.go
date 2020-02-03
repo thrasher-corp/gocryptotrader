@@ -203,6 +203,7 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 				Pair:            currency.NewPairFromString(result[i].Symbol),
 			}
 		}
+		return nil
 	}
 	var result map[string]interface{}
 	err := json.Unmarshal(respRaw, &result)
@@ -242,8 +243,10 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 			return err
 		}
 		g.wsProcessUpdate(marketUpdate, curr)
+	default:
+		return fmt.Errorf("%v Unhandled websocket message %s", g.Name, respRaw)
 	}
-	return fmt.Errorf("%v Unhandled websocket message %s", g.Name, respRaw)
+	return nil
 }
 
 func responseToStatus(response string) order.Status {

@@ -45,6 +45,9 @@ func TestMain(m *testing.M) {
 	gConf.API.Credentials.Key = apiKey
 	gConf.API.Credentials.Secret = apiSecret
 
+	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+
 	err = g.Setup(gConf)
 	if err != nil {
 		log.Fatal("GateIO setup error", err)
@@ -498,8 +501,6 @@ func TestWsGetBalance(t *testing.T) {
 		t.Fatal(err)
 	}
 	go g.wsReadData()
-	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	resp, err := g.wsServerSignIn()
 	if err != nil {
 		t.Fatal(err)
@@ -536,8 +537,6 @@ func TestWsGetOrderInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	go g.wsReadData()
-	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	resp, err := g.wsServerSignIn()
 	if err != nil {
 		t.Fatal(err)
@@ -572,8 +571,6 @@ func setupWSTestAuth(t *testing.T) {
 		t.Fatal(err)
 	}
 	go g.wsReadData()
-	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	wsSetupRan = true
 }
 

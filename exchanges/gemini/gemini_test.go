@@ -569,3 +569,189 @@ func TestWsAuth(t *testing.T) {
 	}
 	timer.Stop()
 }
+
+func TestWsMissingRole(t *testing.T) {
+	pressXToJSON := []byte(`{
+		"result":"error",
+		"reason":"MissingRole",
+		"message":"To access this endpoint, you need to log in to the website and go to the settings page to assign one of these roles [FundManager] to API key wujB3szN54gtJ4QDhqRJ which currently has roles [Trader]"
+	}`)
+	err := g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsOrderEventSubscriptionResponse(t *testing.T) {
+	pressXToJSON := []byte(`[ {
+  "type" : "accepted",
+  "order_id" : "372456298",
+  "event_id" : "372456299",
+  "client_order_id": "20170208_example", 
+  "api_session" : "AeRLptFXoYEqLaNiRwv8",
+  "symbol" : "btcusd",
+  "side" : "buy",
+  "order_type" : "exchange limit",
+  "timestamp" : "1478203017",
+  "timestampms" : 1478203017455,
+  "is_live" : true,
+  "is_cancelled" : false,
+  "is_hidden" : false,
+  "avg_execution_price" : "0", 
+  "original_amount" : "14.0296",
+  "price" : "1059.54"
+} ]`)
+	err := g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(`[{
+    "type": "accepted",
+    "order_id": "109535951",
+    "event_id": "109535952",
+    "api_session": "UI",
+    "symbol": "btcusd",
+    "side": "buy",
+    "order_type": "exchange limit",
+    "timestamp": "1547742904",
+    "timestampms": 1547742904989,
+    "is_live": true,
+    "is_cancelled": false,
+    "is_hidden": false,
+    "original_amount": "1",
+    "price": "3592.00",
+    "socket_sequence": 13
+}]`)
+	err = g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(`[{
+    "type": "accepted",
+    "order_id": "109964529",
+    "event_id": "109964530",
+    "api_session": "UI",
+    "symbol": "bchusd",
+    "side": "buy",
+    "order_type": "market buy",
+    "timestamp": "1547756076",
+    "timestampms": 1547756076644,
+    "is_live": false,
+    "is_cancelled": false,
+    "is_hidden": false,
+    "total_spend": "200.00",
+    "socket_sequence": 29
+}]`)
+	err = g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(`[{
+    "type": "accepted",
+    "order_id": "109964616",
+    "event_id": "109964617",
+    "api_session": "UI",
+    "symbol": "ethusd",
+    "side": "sell",
+    "order_type": "market sell",
+    "timestamp": "1547756893",
+    "timestampms": 1547756893937,
+    "is_live": true,
+    "is_cancelled": false,
+    "is_hidden": false,
+    "original_amount": "25",
+    "socket_sequence": 26
+}]`)
+	err = g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(`[ {
+  "type" : "accepted",
+  "order_id" : "6321",
+  "event_id" : "6322",
+  "api_session" : "UI",
+  "symbol" : "btcusd",
+  "side" : "sell",
+  "order_type" : "block_trade",
+  "timestamp" : "1478204198",
+  "timestampms" : 1478204198989,
+  "is_live" : true,
+  "is_cancelled" : false,
+  "is_hidden" : true,
+  "avg_execution_price" : "0",
+  "original_amount" : "500",
+  "socket_sequence" : 32307
+} ]`)
+	err = g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsOrderStatus(t *testing.T) {
+	pressXToJSON := []byte(`{
+    "avg_execution_price": "0.00",
+    "client_order_id": "20170208_example",
+    "exchange": "gemini",
+    "executed_amount": "0",
+    "id": "372456298",
+    "is_cancelled": false,
+    "is_hidden": false,
+    "is_live": true,
+    "order_id": "372456298",
+    "original_amount": "14.0296",
+    "price": "1059.54",
+    "remaining_amount": "14.0296",
+    "side": "buy",
+    "symbol": "btcusd",
+    "timestamp": "1478203017",
+    "timestampms": 1478203017455,
+    "type": "exchange limit",
+    "was_forced": false
+}`)
+	err := g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsSubAck(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "type": "subscription_ack",
+  "accountId": 5365,
+  "subscriptionId": "ws-order-events-5365-b8bk32clqeb13g9tk8p0",
+  "symbolFilter": [
+    "btcusd"
+  ],
+  "apiSessionFilter": [
+    "UI"
+  ],
+  "eventTypeFilter": [
+    "fill",
+    "closed"
+  ]
+}`)
+	err := g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsHeartbeat(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "type": "heartbeat",
+  "timestampms": 1547742998508,
+  "sequence": 31,
+  "trace_id": "b8biknoqppr32kc7gfgg",
+  "socket_sequence": 37
+}`)
+	err := g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	if err != nil {
+		t.Error(err)
+	}
+}

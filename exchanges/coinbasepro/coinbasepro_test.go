@@ -939,4 +939,8 @@ func TestWsOrderStuff(t *testing.T) {
   "taker_fee_rate": "0.0025",
   "private": true
 }`)
+	err = c.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
 }
