@@ -9,6 +9,12 @@ type Response struct {
 	ErrorMessage string `json:"err-msg"`
 }
 
+// ResponseV2 stores the Huobi generic response info
+type ResponseV2 struct {
+	Code    int32  `json:"code"`
+	Message string `json:"message"`
+}
+
 // KlineItem stores a kline item
 type KlineItem struct {
 	ID     int64   `json:"id"`
@@ -244,6 +250,32 @@ type SpotNewOrderRequestParams struct {
 	Source    string                        `json:"source"`            // Order source, api: API call, margin-api: loan asset transaction
 	Symbol    string                        `json:"symbol"`            // The symbol to use; example btcusdt, bccbtc......
 	Type      SpotNewOrderRequestParamsType `json:"type"`              // 订单类型, buy-market: 市价买, sell-market: 市价卖, buy-limit: 限价买, sell-limit: 限价卖
+}
+
+// DepositAddress stores the users deposit address info
+type DepositAddress struct {
+	Currency   string `json:"currency"`
+	Address    string `json:"address"`
+	AddressTag string `json:"addressTag"`
+	Chain      string `json:"chain"`
+}
+
+// ChainQuota stores the users currency chain quota
+type ChainQuota struct {
+	Chain                         string  `json:"chain"`
+	MaxWithdrawAmount             float64 `json:"maxWithdrawAmt,string"`
+	WithdrawQuotaPerDay           float64 `json:"withdrawQuotaPerDay,string"`
+	RemainingWithdrawQuotaPerDay  float64 `json:"remainWithdrawQuotaPerDay,string"`
+	WithdrawQuotaPerYear          float64 `json:"withdrawQuotaPerYear,string"`
+	RemainingWithdrawQuotaPerYear float64 `json:"remainWithdrawQuotaPerYear,string"`
+	WithdrawQuotaTotal            float64 `json:"withdrawQuotaTotal,string"`
+	RemainingWithdrawQuotaTotal   float64 `json:"remainWithdrawQuotaTotal,string"`
+}
+
+// WithdrawQuota stores the users withdraw quotas
+type WithdrawQuota struct {
+	Currency string       `json:"currency"`
+	Chains   []ChainQuota `json:"chains"`
 }
 
 // SpotNewOrderRequestParamsType order type

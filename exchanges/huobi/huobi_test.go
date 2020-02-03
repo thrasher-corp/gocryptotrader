@@ -634,10 +634,23 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	}
 }
 
-func TestGetDepositAddress(t *testing.T) {
-	_, err := h.GetDepositAddress(currency.BTC, "")
-	if err == nil {
-		t.Error("GetDepositAddress() error cannot be nil")
+func TestQueryDepositAddress(t *testing.T) {
+	_, err := h.QueryDepositAddress(currency.BTC.Lower().String())
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Error(err)
+	}
+}
+
+func TestQueryWithdrawQuota(t *testing.T) {
+	_, err := h.QueryWithdrawQuotas(currency.BTC.Lower().String())
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Error(err)
 	}
 }
 
