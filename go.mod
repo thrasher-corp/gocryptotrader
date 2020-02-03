@@ -23,9 +23,7 @@ require (
 	github.com/urfave/cli v1.22.2
 	github.com/volatiletech/null v8.0.0+incompatible
 	golang.org/x/crypto v0.0.0-20190605123033-f99c8df09eb5
-	golang.org/x/net v0.0.0-20190606173856-1492cefac77f // indirect
 	golang.org/x/sys v0.0.0-20191003212358-c178f38b412c // indirect
 	google.golang.org/genproto v0.0.0-20191002211648-c459b9ce5143
 	google.golang.org/grpc v1.27.0
-	gopkg.in/yaml.v2 v2.2.4 // indirect
 )
