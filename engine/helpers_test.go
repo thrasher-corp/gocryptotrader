@@ -685,7 +685,7 @@ func TestCheckAndGenCerts(t *testing.T) {
 	tempDir := filepath.Join(os.TempDir(), "gct-temp-tls")
 	cleanup := func() {
 		if err := os.RemoveAll(tempDir); err != nil {
-			t.Errorf("Unable to remove temp dir %s, manual deletion required", tempDir)
+			t.Errorf("unable to remove temp dir %s, manual deletion required", tempDir)
 		}
 	}
 

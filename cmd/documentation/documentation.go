@@ -100,11 +100,12 @@ type DocumentationDetails struct {
 // Attributes defines specific documentation attributes when a template is
 // executed
 type Attributes struct {
-	Name         string
-	Contributors []Contributor
-	NameURL      string
-	Year         int
-	CapitalName  string
+	Name            string
+	Contributors    []Contributor
+	NameURL         string
+	Year            int
+	CapitalName     string
+	DonationAddress string
 }
 
 func main() {
@@ -197,6 +198,21 @@ func main() {
 			{
 				Login:         "zeldrinn",
 				URL:           "https://github.com/zeldrinn",
+				Contributions: 1,
+			},
+			{
+				Login:         "starit",
+				URL:           "https://github.com/starit",
+				Contributions: 1,
+			},
+			{
+				Login:         "Jimexist",
+				URL:           "https://github.com/Jimexist",
+				Contributions: 1,
+			},
+			{
+				Login:         "lookfirst",
+				URL:           "https://github.com/lookfirst",
 				Contributions: 1,
 			},
 		}...)
@@ -378,11 +394,12 @@ func GetContributorList(repo string) ([]Contributor, error) {
 // GetDocumentationAttributes returns specific attributes for a file template
 func GetDocumentationAttributes(packageName string, contributors []Contributor) Attributes {
 	return Attributes{
-		Name:         GetPackageName(packageName, false),
-		Contributors: contributors,
-		NameURL:      GetGoDocURL(packageName),
-		Year:         time.Now().Year(),
-		CapitalName:  GetPackageName(packageName, true),
+		Name:            GetPackageName(packageName, false),
+		Contributors:    contributors,
+		NameURL:         GetGoDocURL(packageName),
+		Year:            time.Now().Year(),
+		CapitalName:     GetPackageName(packageName, true),
+		DonationAddress: core.BitcoinDonationAddress,
 	}
 }
 
