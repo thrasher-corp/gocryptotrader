@@ -1,6 +1,6 @@
 {
- "CardID": "5dfc54b96da13a6ac5ceca97",
- "ChecklistID": "5dfc5a5377835d0ba025787a",
+ "CardID": "",
+ "ChecklistID": "",
  "Key": "",
  "Token": "",
  "Exchanges": [
@@ -16,7 +16,7 @@
      "TextTokenData": "td",
      "DateFormat": "2006/01/02",
      "RegExp": "^20(\\d){2}/(\\d){2}/(\\d){2}$",
-     "CheckString": "2019/11/15",
+     "CheckString": "2019/11/18",
      "Path": "https://docs.gemini.com/rest-api/#revision-history"
     }
    },
@@ -63,7 +63,8 @@
    "CheckType": "GitHub Sha Check",
    "Data": {
     "GitHubData": {
-     "Repo": "binance-exchange/binance-official-api-docs"
+     "Repo": "binance-exchange/binance-official-api-docs",
+     "Sha": "b5d8ac6c1bb6c9f8e2b40261cbfd4b87d2f62295"
     }
    },
    "Err": null
@@ -73,7 +74,8 @@
    "CheckType": "GitHub Sha Check",
    "Data": {
     "GitHubData": {
-     "Repo": "bithumb-pro/bithumb.pro-official-api-docs"
+     "Repo": "bithumb-pro/bithumb.pro-official-api-docs",
+     "Sha": "8207addce33dc6305497e0e6af1d707f73069b5a"
     }
    },
    "Err": null
@@ -83,7 +85,8 @@
    "CheckType": "GitHub Sha Check",
    "Data": {
     "GitHubData": {
-     "Repo": "Bittrex/bittrex.github.io"
+     "Repo": "Bittrex/bittrex.github.io",
+     "Sha": "fc1ea9c10c48aa82c4dc2c6be74887ef61b5b31b"
     }
    },
    "Err": null
@@ -93,7 +96,8 @@
    "CheckType": "GitHub Sha Check",
    "Data": {
     "GitHubData": {
-     "Repo": "Coinbene/API-SPOT-v2-Documents"
+     "Repo": "Coinbene/API-SPOT-v2-Documents",
+     "Sha": "c88c2ad51dc94a46820c9470c3afc17acf498128"
     }
    },
    "Err": null
@@ -103,7 +107,8 @@
    "CheckType": "GitHub Sha Check",
    "Data": {
     "GitHubData": {
-     "Repo": "Coinbene/API-SWAP-Documents"
+     "Repo": "Coinbene/API-SWAP-Documents",
+     "Sha": "46aad0b36d259765f2dfc6986577e9e3515c9ee0"
     }
    },
    "Err": null
@@ -113,7 +118,8 @@
    "CheckType": "GitHub Sha Check",
    "Data": {
     "GitHubData": {
-     "Repo": "coinut/api"
+     "Repo": "coinut/api",
+     "Sha": "6936dab4d2beba3c8245a603aebf3f545ebcf3f9"
     }
    },
    "Err": null
@@ -123,7 +129,8 @@
    "CheckType": "GitHub Sha Check",
    "Data": {
     "GitHubData": {
-     "Repo": "gateio/gateapi-go"
+     "Repo": "gateio/gateapi-go",
+     "Sha": "fe964d6ee64d27d7f7ef3cf3a54e502119710384"
     }
    },
    "Err": null
@@ -133,7 +140,8 @@
    "CheckType": "GitHub Sha Check",
    "Data": {
     "GitHubData": {
-     "Repo": "LBank-exchange/lbank-official-api-docs"
+     "Repo": "LBank-exchange/lbank-official-api-docs",
+     "Sha": "85e7bb83f03d4239c3aad26cabb997a1a2bbb3d1"
     }
    },
    "Err": null
@@ -185,7 +193,7 @@
      "TokenDataEnd": "blockquote",
      "TextTokenData": "h1",
      "RegExp": "^BTSE Spot API v(\\d){1}.(\\d){1}$",
-     "CheckString": "BTSE Spot API v2.2",
+     "CheckString": "BTSE Spot API v3.0.1",
      "Path": "https://www.btse.com/apiexplorer/spot/#btse-spot-api"
     }
    },
@@ -232,7 +240,7 @@
      "TextTokenData": "h2",
      "DateFormat": "2006-01-02",
      "RegExp": "(2\\d{3}-\\d{1,2}-\\d{1,2})",
-     "CheckString": "2019-12-30",
+     "CheckString": "2020-01-22",
      "Path": "https://docs.poloniex.com/#changelog"
     }
    },

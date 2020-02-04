@@ -52,12 +52,6 @@ const (
 	pathChecklists     = "https://api.trello.com/1/checklists/%s/checkItems?%s&key=%s&token=%s"
 	pathChecklistItems = "https://api.trello.com/1/checklists/%s?fields=name&cards=all&card_fields=name&key=%s&token=%s"
 	pathUpdateItems    = "https://api.trello.com/1/cards/%s/checkItem/%s?%s&key=%s&token=%s"
-	trelloKey          = ""
-	trelloToken        = ""
-	trelloBoardID      = "5bd11e6998c8507ebbbec4fa"
-	trelloListID       = "5d75f87cf0aa430d0bf4f029"
-	trelloChecklistID  = "5dfc5a5377835d0ba025787a"
-	trelloCardID       = "5dfc54b96da13a6ac5ceca97"
 	complete           = "complete"
 	incomplete         = "incomplete"
 )
@@ -72,16 +66,18 @@ type Config struct {
 }
 
 var (
-	verbose                                           bool
-	apiKey, apiToken, updateChecklistID, updateCardID string
-	configData, testConfigData                        Config
+	verbose                                                                        bool
+	apiKey, apiToken, trelloBoardID, trelloListID, trelloChecklistID, trelloCardID string
+	configData, testConfigData                                                     Config
 )
 
 func main() {
 	flag.StringVar(&apiKey, "key", "", "sets API key for Trello board interaction")
 	flag.StringVar(&apiToken, "token", "", "sets API token for Trello board interaction")
-	flag.StringVar(&updateChecklistID, "checklistid", "", "sets checklist ID for Trello board interaction")
-	flag.StringVar(&updateCardID, "cardid", "", "sets card ID for Trello board interaction")
+	flag.StringVar(&trelloChecklistID, "checklistid", "", "sets checklist ID for Trello board interaction")
+	flag.StringVar(&trelloCardID, "cardid", "", "sets card ID for Trello board interaction")
+	flag.StringVar(&trelloListID, "listid", "", "sets list ID for Trello board interaction")
+	flag.StringVar(&trelloBoardID, "boardid", "", "sets board ID for Trello board interaction")
 	flag.BoolVar(&verbose, "verbose", false, "increases logging verbosity for API Update Checker")
 	flag.Parse()
 	var err error
@@ -98,8 +94,8 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		configData.Key = trelloKey
-		configData.Token = trelloToken
+		configData.Key = apiKey
+		configData.Token = apiToken
 		configData.CardID = trelloCardID
 		configData.ChecklistID = trelloChecklistID
 		err = CheckUpdates(jsonFile, &configData)
@@ -125,7 +121,7 @@ func CanUpdateTrello() bool {
 
 // AreAPIKeysSet checks if api keys and tokens are set
 func AreAPIKeysSet() bool {
-	if trelloKey != "" && trelloToken != "" {
+	if (apiKey != "" && apiToken != "") || (configData.Key != "" && configData.Token != "") {
 		return true
 	}
 	return false
@@ -133,7 +129,8 @@ func AreAPIKeysSet() bool {
 
 // IsTrelloBoardDataSet checks if data required to update trello board is set
 func IsTrelloBoardDataSet() bool {
-	if trelloBoardID != "" && trelloListID != "" && trelloChecklistID != "" && trelloCardID != "" {
+	if (trelloBoardID != "" && trelloListID != "" && trelloChecklistID != "" && trelloCardID != "") ||
+		(configData.CardID != "" && configData.ChecklistID != "") {
 		return true
 	}
 	return false
@@ -1142,7 +1139,7 @@ func TrelloCreateNewCheck(newCheck string) error {
 	params := url.Values{}
 	params.Set("name", newCheck)
 	_, err := common.SendHTTPRequest(http.MethodPost,
-		pathChecklists+updateChecklistID+params.Encode()+apiKey+apiToken,
+		pathChecklists+trelloChecklistID+params.Encode()+apiKey+apiToken,
 		nil,
 		nil)
 	return err
