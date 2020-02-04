@@ -210,41 +210,89 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 	if err != nil {
 		return fmt.Errorf("%v Error: %v, Raw: %v", g.Name, err, string(respRaw))
 	}
-	switch result["type"] {
-	case "subscription_ack":
-		var result WsSubscriptionAcknowledgementResponse
-		err := json.Unmarshal(respRaw, &result)
-		if err != nil {
-			return err
+	if _, ok := result["type"]; ok {
+		switch result["type"] {
+		case "subscription_ack":
+			var result WsSubscriptionAcknowledgementResponse
+			err := json.Unmarshal(respRaw, &result)
+			if err != nil {
+				return err
+			}
+			g.Websocket.DataHandler <- result
+		case "unsubscribe":
+			var result wsUnsubscribeResponse
+			err := json.Unmarshal(respRaw, &result)
+			if err != nil {
+				return err
+			}
+			g.Websocket.DataHandler <- result
+		case "initial":
+			var result WsSubscriptionAcknowledgementResponse
+			err := json.Unmarshal(respRaw, &result)
+			if err != nil {
+				return err
+			}
+			g.Websocket.DataHandler <- result
+		case "heartbeat":
+			var result WsHeartbeatResponse
+			err := json.Unmarshal(respRaw, &result)
+			if err != nil {
+				return err
+			}
+			g.Websocket.DataHandler <- result
+		case "update":
+			if curr.IsEmpty() {
+				return fmt.Errorf("%v - unhandled data %s",
+					g.Name, respRaw)
+			}
+			var marketUpdate WsMarketUpdateResponse
+			err := json.Unmarshal(respRaw, &marketUpdate)
+			if err != nil {
+				return err
+			}
+			g.wsProcessUpdate(marketUpdate, curr)
+		case "candles_1m_updates",
+		"candles_5m_updates",
+		"candles_15m_updates",
+		"candles_30m_updates",
+		"candles_1h_updates",
+		"candles_6h_updates",
+		"candles_1d_updates":
+			var candle wsCandleResponse
+			err := json.Unmarshal(respRaw, &result)
+			if err != nil {
+				return err
+			}
+			for i := range candle.Changes {
+				g.Websocket.DataHandler <- wshandler.KlineData{
+					Timestamp:  time.Unix(int64(candle.Changes[i][0])*1000, 0),
+					Pair:       curr,
+					AssetType:  asset.Spot,
+					Exchange:   g.Name,
+					Interval:   result["type"].(string),
+					OpenPrice:  candle.Changes[i][1],
+					ClosePrice: candle.Changes[i][4],
+					HighPrice:  candle.Changes[i][2],
+					LowPrice:   candle.Changes[i][3],
+					Volume:     candle.Changes[i][5],
+				}
+			}
+
+		default:
+			return fmt.Errorf("%v Unhandled websocket message %s", g.Name, respRaw)
 		}
-		g.Websocket.DataHandler <- result
-	case "initial":
-		var result WsSubscriptionAcknowledgementResponse
-		err := json.Unmarshal(respRaw, &result)
-		if err != nil {
-			return err
+	} else if _, ok := result["result"]; ok {
+		switch result["result"].(string) {
+		case "error":
+			if _, ok := result["reason"]; ok {
+				if _, ok := result["message"]; ok {
+					return errors.New(result["reason"].(string) + " - " + result["message"].(string))
+				}
+			}
+			return fmt.Errorf("%v Unhandled websocket message %s", g.Name, respRaw)
+		default:
+			return fmt.Errorf("%v Unhandled websocket message %s", g.Name, respRaw)
 		}
-		g.Websocket.DataHandler <- result
-	case "heartbeat":
-		var result WsHeartbeatResponse
-		err := json.Unmarshal(respRaw, &result)
-		if err != nil {
-			return err
-		}
-		g.Websocket.DataHandler <- result
-	case "update":
-		if curr.IsEmpty() {
-			return fmt.Errorf("%v - unhandled data %s",
-				g.Name, respRaw)
-		}
-		var marketUpdate WsMarketUpdateResponse
-		err := json.Unmarshal(respRaw, &marketUpdate)
-		if err != nil {
-			return err
-		}
-		g.wsProcessUpdate(marketUpdate, curr)
-	default:
-		return fmt.Errorf("%v Unhandled websocket message %s", g.Name, respRaw)
 	}
 	return nil
 }
@@ -281,7 +329,7 @@ func responseToOrderType(response string) order.Type {
 }
 
 // wsProcessUpdate handles order book data
-func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pair) {
+func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pair)  {
 	if result.Timestamp == 0 && result.TimestampMS == 0 {
 		var bids, asks []orderbook.Item
 		for i := range result.Events {
@@ -318,7 +366,8 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 	} else {
 		var asks, bids []orderbook.Item
 		for i := range result.Events {
-			if result.Events[i].Type == "trade" {
+			switch result.Events[i].Type {
+			case "trade":
 				g.Websocket.DataHandler <- wshandler.TradeData{
 					Timestamp:    time.Unix(0, result.Timestamp),
 					CurrencyPair: pair,
@@ -328,7 +377,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 					Amount:       result.Events[i].Amount,
 					Side:         result.Events[i].MakerSide,
 				}
-			} else {
+			case "change":
 				item := orderbook.Item{
 					Amount: result.Events[i].Remaining,
 					Price:  result.Events[i].Price,
@@ -338,20 +387,25 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 				} else {
 					bids = append(bids, item)
 				}
+			default:
+				g.Websocket.DataHandler <- fmt.Errorf("%s - Unhandled websocket update: %+v", g.Name, result)
 			}
 		}
-		err := g.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
-			Asks:       asks,
-			Bids:       bids,
-			Pair:       pair,
-			UpdateTime: time.Unix(0, result.TimestampMS),
-			Asset:      asset.Spot,
-		})
-		if err != nil {
-			g.Websocket.DataHandler <- fmt.Errorf("%v %v", g.Name, err)
+		if len(asks) == 0 && len(bids) == 0 {
+			return
 		}
-		g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: pair,
-			Asset:    asset.Spot,
-			Exchange: g.Name}
+			err := g.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+				Asks:       asks,
+				Bids:       bids,
+				Pair:       pair,
+				UpdateTime: time.Unix(0, result.TimestampMS),
+				Asset:      asset.Spot,
+			})
+			if err != nil {
+				g.Websocket.DataHandler <- fmt.Errorf("%v %v", g.Name, err)
+			}
+			g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: pair,
+				Asset:    asset.Spot,
+				Exchange: g.Name}
 	}
 }

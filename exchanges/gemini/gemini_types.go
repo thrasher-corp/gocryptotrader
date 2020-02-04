@@ -309,3 +309,17 @@ type WsOrderFilledData struct {
 	Fee         float64 `json:"fee,string"`
 	FeeCurrency string  `json:"fee_currency"`
 }
+
+type wsUnsubscribeResponse struct {
+	Type          string `json:"type"`
+	Subscriptions []struct {
+		Name    string   `json:"name"`
+		Symbols []string `json:"symbols"`
+	} `json:"subscriptions"`
+}
+
+type wsCandleResponse struct {
+	Type    string      `json:"type"`
+	Symbol  string      `json:"symbol"`
+	Changes [][]float64 `json:"changes"`
+}
