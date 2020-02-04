@@ -200,36 +200,36 @@ func CheckUpdates(fileName string, confData *Config) error {
 	var resp []string
 	errMap := make(map[string]error)
 	var wg sync.WaitGroup
-	var sha ShaResponse
-	var checkStr string
-	var err error
 	var m sync.Mutex
-	for x := range confData.Exchanges {
+	allExchangeData := confData.Exchanges
+	for x := range allExchangeData {
 		wg.Add(1)
 		go func(x int) {
-			m.Lock()
-			defer m.Unlock()
-			defer wg.Done()
 			switch confData.Exchanges[x].CheckType {
 			case github:
-				sha, err = getSha(confData.Exchanges[x].Data.GitHubData.Repo)
+				sha, err := getSha(allExchangeData[x].Data.GitHubData.Repo)
+				m.Lock()
 				if err != nil {
 					errMap[confData.Exchanges[x].Name] = err
 				}
-				if sha.ShaResp != confData.Exchanges[x].Data.GitHubData.Sha {
-					resp = append(resp, confData.Exchanges[x].Name)
+				if sha.ShaResp != allExchangeData[x].Data.GitHubData.Sha {
+					resp = append(resp, allExchangeData[x].Name)
 					confData.Exchanges[x].Data.GitHubData.Sha = sha.ShaResp
 				}
+				m.Unlock()
 			case htmlScrape:
-				checkStr, err = CheckChangeLog(confData.Exchanges[x].Data.HTMLData)
+				checkStr, err := CheckChangeLog(allExchangeData[x].Data.HTMLData)
+				m.Lock()
 				if err != nil {
-					errMap[confData.Exchanges[x].Name] = err
+					errMap[allExchangeData[x].Name] = err
 				}
-				if checkStr != confData.Exchanges[x].Data.HTMLData.CheckString {
-					resp = append(resp, confData.Exchanges[x].Name)
-					confData.Exchanges[x].Data.HTMLData.CheckString = checkStr
+				if checkStr != allExchangeData[x].Data.HTMLData.CheckString {
+					resp = append(resp, allExchangeData[x].Name)
+					allExchangeData[x].Data.HTMLData.CheckString = checkStr
 				}
+				m.Unlock()
 			}
+			wg.Done()
 		}(x)
 	}
 	wg.Wait()

@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 	"reflect"
-	"fmt"
 )
 
 func TestMain(m *testing.M) {
@@ -452,7 +451,6 @@ func TestNameUpdates(t *testing.T) {
 
 func TestUpdateFile(t *testing.T) {
 	t.Parallel()
-	meow := fmt.Sprintf("%+v\n", configData)
 	err := UpdateFile(&configData, testJSONFile)
 	if err != nil {
 		t.Error(err)
