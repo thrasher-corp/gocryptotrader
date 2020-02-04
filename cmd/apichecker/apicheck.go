@@ -78,11 +78,11 @@ var (
 )
 
 func main() {
-	flag.StringVar(&apiKey, "key", "", "its an API Key for trello")
-	flag.StringVar(&apiToken, "token", "", "its an API Token for trello")
-	flag.StringVar(&updateChecklistID, "checklistid", "", "checklist id for trello")
-	flag.StringVar(&updateCardID, "cardid", "", "card id for trello")
-	flag.BoolVar(&verbose, "verbose", false, "Increases logging verbosity for API Update Checker")
+	flag.StringVar(&apiKey, "key", "", "sets API key for Trello board interaction")
+	flag.StringVar(&apiToken, "token", "", "sets API token for Trello board interaction")
+	flag.StringVar(&updateChecklistID, "checklistid", "", "sets checklist ID for Trello board interaction")
+	flag.StringVar(&updateCardID, "cardid", "", "sets card ID for Trello board interaction")
+	flag.BoolVar(&verbose, "verbose", false, "increases logging verbosity for API Update Checker")
 	flag.Parse()
 	var err error
 	testConfigData, err = ReadFileData(testJSONFile)
@@ -93,8 +93,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// Assumption here is that if api key n token are set, then cardid and checklistid will be set too
-	if AreAPIKeysSet() {
+	if CanUpdateTrello() {
 		UpdateFile(&configData, backupFile)
 		if err != nil {
 			log.Fatal(err)
@@ -116,9 +115,25 @@ func main() {
 	}
 }
 
+// CanUpdateTrello checks if all the data necessary for updating trello is available
+func CanUpdateTrello() bool {
+	if AreAPIKeysSet() && IsTrelloBoardDataSet() {
+		return true
+	}
+	return false
+}
+
 // AreAPIKeysSet checks if api keys and tokens are set
 func AreAPIKeysSet() bool {
-	if (trelloKey != "" && trelloKey != "key") && (trelloToken != "" && trelloToken != "token") {
+	if trelloKey != "" && trelloToken != "" {
+		return true
+	}
+	return false
+}
+
+// IsTrelloBoardDataSet checks if data required to update trello board is set
+func IsTrelloBoardDataSet() bool {
+	if trelloBoardID != "" && trelloListID != "" && trelloChecklistID != "" && trelloCardID != "" {
 		return true
 	}
 	return false
@@ -225,13 +240,13 @@ func CheckUpdates(fileName string, confData *Config) error {
 	if AreAPIKeysSet() {
 		var a ChecklistItemData
 		for y := range resp {
-			a, err = GetChecklistItems()
+			a, err = TrelloGetChecklistItems()
 			if err != nil {
 				return err
 			}
 			for z := range a.CheckItems {
 				if strings.Contains(a.CheckItems[z].Name, resp[y]) {
-					err = UpdateCheckItem(a.CheckItems[z].ID, a.CheckItems[z].Name, a.CheckItems[z].State)
+					err = TrelloUpdateCheckItem(a.CheckItems[z].ID, a.CheckItems[z].Name, a.CheckItems[z].State)
 					if err != nil {
 						return err
 					}
@@ -367,7 +382,7 @@ func Add(exchName, checkType, path string, data interface{}, update bool, confDa
 			return err
 		}
 	}
-	if AreAPIKeysSet() {
+	if CanUpdateTrello() {
 		return ioutil.WriteFile(jsonFile, file, 0770)
 	}
 	return ioutil.WriteFile(testJSONFile, file, 0770)
@@ -1083,8 +1098,8 @@ func HTMLScrapeLocalBitcoins(htmlData *HTMLScrapingData) ([]string, error) {
 	return resp, nil
 }
 
-// GetListsData gets required data for all the lists on the given board
-func GetListsData(idBoard string) ([]ListData, error) {
+// TrelloGetListsData gets required data for all the lists on the given trello board
+func TrelloGetListsData(idBoard string) ([]ListData, error) {
 	var resp []ListData
 	err := SendHTTPRequest(pathGetAllLists+idBoard+apiKey+apiToken, &resp)
 	if err != nil {
@@ -1093,8 +1108,8 @@ func GetListsData(idBoard string) ([]ListData, error) {
 	return resp, nil
 }
 
-// CreateNewCard creates a new card on the list specified on trello
-func CreateNewCard(fillData CardFill) error {
+// TrelloCreateNewCard creates a new card on the list specified on trello
+func TrelloCreateNewCard(fillData CardFill) error {
 	params := url.Values{}
 	params.Set("idList", fillData.ListID)
 	if fillData.Name != "" {
@@ -1122,8 +1137,8 @@ func CreateNewCard(fillData CardFill) error {
 	return err
 }
 
-// CreateNewCheck creates a new checklist item within a given checklist from trello
-func CreateNewCheck(newCheck string) error {
+// TrelloCreateNewCheck creates a new checklist item within a given checklist from trello
+func TrelloCreateNewCheck(newCheck string) error {
 	params := url.Values{}
 	params.Set("name", newCheck)
 	_, err := common.SendHTTPRequest(http.MethodPost,
@@ -1133,8 +1148,8 @@ func CreateNewCheck(newCheck string) error {
 	return err
 }
 
-// GetChecklistItems get info on all the items on a given checklist from trello
-func GetChecklistItems() (ChecklistItemData, error) {
+// TrelloGetChecklistItems get info on all the items on a given checklist from trello
+func TrelloGetChecklistItems() (ChecklistItemData, error) {
 	var resp ChecklistItemData
 	path := fmt.Sprintf(pathChecklistItems, trelloChecklistID, configData.Key, configData.Token)
 	return resp, common.SendHTTPGetRequest(path, true, verbose, &resp)
@@ -1168,8 +1183,8 @@ func NameStateChanges(currentName, currentState string) (string, error) {
 	return string(byteName), nil
 }
 
-// UpdateCheckItem updates a check item for trello
-func UpdateCheckItem(checkItemID, name, state string) error {
+// TrelloUpdateCheckItem updates a check item for trello
+func TrelloUpdateCheckItem(checkItemID, name, state string) error {
 	params := url.Values{}
 	newName, err := NameStateChanges(name, state)
 	if err != nil {

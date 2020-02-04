@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 	"reflect"
+	"fmt"
 )
 
 func TestMain(m *testing.M) {
@@ -57,6 +58,11 @@ func TestAdd(t *testing.T) {
 	err := Add("LocalBitcoins", htmlScrape, data.Path, data, true, &testConfigData)
 	if err != nil {
 		t.Error(err)
+	}
+	data2 := HTMLScrapingData{Path: "brokenpath"}
+	err = Add("TestExch", htmlScrape, data2.Path, data2, false, &testConfigData)
+	if err == nil {
+		t.Log("expected an error due to invalid path being parsed in")
 	}
 }
 
@@ -348,10 +354,10 @@ func TestHTMLLocalBitcoins(t *testing.T) {
 
 func TestGetListsData(t *testing.T) {
 	t.Parallel()
-	if !AreAPIKeysSet() {
+	if !CanUpdateTrello() {
 		t.Skip()
 	}	
-	_, err := GetListsData(trelloBoardID)
+	_, err := TrelloGetListsData(trelloBoardID)
 	if err != nil {
 		t.Error(err)
 	}
@@ -359,12 +365,12 @@ func TestGetListsData(t *testing.T) {
 
 func TestCreateNewCard(t *testing.T) {
 	t.Parallel()
-	if !AreAPIKeysSet() {
+	if !CanUpdateTrello() {
 		t.Skip()
 	}	
 	fillData := CardFill{ListID: trelloListID,
 		Name: "Exchange Updates"}
-	err := CreateNewCard(fillData)
+	err := TrelloCreateNewCard(fillData)
 	if err != nil {
 		t.Error(err)
 	}
@@ -372,10 +378,10 @@ func TestCreateNewCard(t *testing.T) {
 
 func TestCreateNewCheck(t *testing.T) {
 	t.Parallel()
-	if !AreAPIKeysSet() {
+	if !CanUpdateTrello() {
 		t.Skip()
 	}	
-	err := CreateNewCheck("Gemini")
+	err := TrelloCreateNewCheck("Gemini")
 	if err != nil {
 		t.Error(err)
 	}
@@ -416,10 +422,10 @@ func TestCheckMissingExchanges(t *testing.T) {
 
 func TestGetChecklistItems(t *testing.T) {
 	t.Parallel()
-	if !AreAPIKeysSet() {
+	if !CanUpdateTrello() {
 		t.Skip()
 	}	
-	_, err := GetChecklistItems()
+	_, err := TrelloGetChecklistItems()
 	if err != nil {
 		t.Error(err)
 	}
@@ -427,10 +433,10 @@ func TestGetChecklistItems(t *testing.T) {
 
 func TestUpdateCheckItem(t *testing.T) {
 	t.Parallel()
-	if !AreAPIKeysSet() {
+	if !CanUpdateTrello() {
 		t.Skip()
 	}	
-	err := UpdateCheckItem("5dfc604fe901ac6a592e9b75", "Gemini 1", "incomplete")
+	err := TrelloUpdateCheckItem("5dfc604fe901ac6a592e9b75", "Gemini 1", "incomplete")
 	if err != nil {
 		t.Error(err)
 	}
@@ -446,6 +452,7 @@ func TestNameUpdates(t *testing.T) {
 
 func TestUpdateFile(t *testing.T) {
 	t.Parallel()
+	meow := fmt.Sprintf("%+v\n", configData)
 	err := UpdateFile(&configData, testJSONFile)
 	if err != nil {
 		t.Error(err)
