@@ -34,6 +34,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
 
+var (
+	errCertExpired     = errors.New("gRPC TLS certificate has expired")
+	errCertDataIsNil   = errors.New("gRPC TLS certificate PEM data is nil")
+	errCertTypeInvalid = errors.New("gRPC TLS certificate type is invalid")
+)
+
 // GetSubsystemsStatus returns the status of various subsystems
 func GetSubsystemsStatus() map[string]bool {
 	systems := make(map[string]bool)
@@ -722,7 +728,6 @@ func GetExchangeNames(enabled bool) []string {
 // GetAllActiveTickers returns all enabled exchange tickers
 func GetAllActiveTickers() []EnabledExchangeCurrencies {
 	var tickerData []EnabledExchangeCurrencies
-
 	exchanges := GetExchanges()
 	for x := range exchanges {
 		if !exchanges[x].IsEnabled() {
@@ -774,28 +779,15 @@ func GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
 	return response
 }
 
-func checkCerts(certDir string) error {
-	certFile := filepath.Join(certDir, "cert.pem")
-	keyFile := filepath.Join(certDir, "key.pem")
-
-	if !file.Exists(certFile) || !file.Exists(keyFile) {
-		log.Warnln(log.Global, "gRPC certificate/key file missing, recreating.")
-		return genCert(certDir)
-	}
-
-	pemData, err := ioutil.ReadFile(certFile)
-	if err != nil {
-		return fmt.Errorf("unable to open TLS cert file: %s", err)
-	}
-
+func verifyCert(pemData []byte) error {
 	var pemBlock *pem.Block
-	pemBlock, pemData = pem.Decode(pemData)
+	pemBlock, _ = pem.Decode(pemData)
 	if pemBlock == nil {
-		return fmt.Errorf("certificate PEM block data is nil")
+		return errCertDataIsNil
 	}
 
 	if pemBlock.Type != "CERTIFICATE" {
-		return fmt.Errorf("certificate DER block type is not a certificate")
+		return errCertTypeInvalid
 	}
 
 	cert, err := x509.ParseCertificate(pemBlock.Bytes)
@@ -804,9 +796,33 @@ func checkCerts(certDir string) error {
 	}
 
 	if time.Now().After(cert.NotAfter) {
+		return errCertExpired
+	}
+	return nil
+}
+
+func checkCerts(certDir string) error {
+	certFile := filepath.Join(certDir, "cert.pem")
+	keyFile := filepath.Join(certDir, "key.pem")
+
+	if !file.Exists(certFile) || !file.Exists(keyFile) {
+		log.Warnln(log.Global, "gRPC certificate/key file missing, recreating...")
+		return genCert(certDir)
+	}
+
+	pemData, err := ioutil.ReadFile(certFile)
+	if err != nil {
+		return fmt.Errorf("unable to open TLS cert file: %s", err)
+	}
+
+	if err = verifyCert(pemData); err != nil {
+		if err != errCertExpired {
+			return err
+		}
 		log.Warnln(log.Global, "gRPC certificate has expired, regenerating...")
 		return genCert(certDir)
 	}
+
 	log.Infoln(log.Global, "gRPC TLS certificate and key files exist, will use them.")
 	return nil
 }
@@ -816,9 +832,6 @@ func genCert(targetDir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to generate ecdsa private key: %s", err)
 	}
-
-	notBefore := time.Now()
-	notAfter := notBefore.Add(time.Hour * 24 * 365)
 
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
@@ -842,14 +855,12 @@ func genCert(targetDir string) error {
 			Organization: []string{"gocryptotrader"},
 			CommonName:   host,
 		},
-		NotBefore:             notBefore,
-		NotAfter:              notAfter,
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(time.Hour * 24 * 365),
 		IsCA:                  true,
 		BasicConstraintsValid: true,
-
-		KeyUsage:    x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		IPAddresses: []net.IP{
 			net.ParseIP("127.0.0.1"),
 			net.ParseIP("::1"),

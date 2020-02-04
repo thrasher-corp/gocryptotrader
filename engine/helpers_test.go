@@ -1,10 +1,21 @@
 package engine
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
+	"net"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -560,5 +571,153 @@ func TestGetCryptocurrenciesByExchange(t *testing.T) {
 	_, err := GetCryptocurrenciesByExchange("Bitfinex", false, false, asset.Spot)
 	if err != nil {
 		t.Fatalf("Err %s", err)
+	}
+}
+
+func mockCert(derType string, notAfter time.Time) ([]byte, error) {
+	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		return nil, err
+	}
+
+	host, err := os.Hostname()
+	if err != nil {
+		return nil, err
+	}
+
+	dnsNames := []string{host}
+	if host != "localhost" {
+		dnsNames = append(dnsNames, "localhost")
+	}
+
+	if notAfter.IsZero() {
+		notAfter = time.Now().Add(time.Hour * 24 * 365)
+	}
+
+	template := x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			Organization: []string{"gocryptotrader"},
+			CommonName:   host,
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              notAfter,
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		IPAddresses: []net.IP{
+			net.ParseIP("127.0.0.1"),
+			net.ParseIP("::1"),
+		},
+		DNSNames: dnsNames,
+	}
+
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &privKey.PublicKey, privKey)
+	if err != nil {
+		return nil, err
+	}
+
+	if derType == "" {
+		derType = "CERTIFICATE"
+	}
+
+	certData := pem.EncodeToMemory(&pem.Block{Type: derType, Bytes: derBytes})
+	if certData == nil {
+		return nil, err
+	}
+
+	return certData, nil
+}
+
+func TestVerifyCert(t *testing.T) {
+	t.Parallel()
+
+	tester := []struct {
+		PEMType       string
+		CreateBypass  bool
+		NotAfter      time.Time
+		ErrorExpected error
+	}{
+		{
+			ErrorExpected: nil,
+		},
+		{
+			CreateBypass:  true,
+			ErrorExpected: errCertDataIsNil,
+		},
+		{
+			PEMType:       "MEOW",
+			ErrorExpected: errCertTypeInvalid,
+		},
+		{
+			NotAfter:      time.Now().Add(-time.Hour),
+			ErrorExpected: errCertExpired,
+		},
+	}
+
+	for x := range tester {
+		var cert []byte
+		var err error
+		if !tester[x].CreateBypass {
+			cert, err = mockCert(tester[x].PEMType, tester[x].NotAfter)
+			if err != nil {
+				t.Errorf("test %d unexpected error: %s", x, err)
+				continue
+			}
+		}
+		err = verifyCert(cert)
+		if err != tester[x].ErrorExpected {
+			t.Fatalf("test %d expected %v, got %v", x, tester[x].ErrorExpected, err)
+		}
+	}
+}
+
+func TestCheckAndGenCerts(t *testing.T) {
+	t.Parallel()
+
+	tempDir := filepath.Join(os.TempDir(), "gct-temp-tls")
+	cleanup := func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Errorf("Unable to remove temp dir %s, manual deletion required", tempDir)
+		}
+	}
+
+	if err := genCert(tempDir); err != nil {
+		cleanup()
+		t.Fatal(err)
+	}
+
+	defer cleanup()
+	if err := checkCerts(tempDir); err != nil {
+		t.Fatal(err)
+	}
+
+	// Now delete cert.pem and test regeneration of cert/key files
+	certFile := filepath.Join(tempDir, "cert.pem")
+	if err := os.Remove(certFile); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkCerts(tempDir); err != nil {
+		t.Fatal(err)
+	}
+
+	// Now call checkCerts to test an expired cert
+	certData, err := mockCert("", time.Now().Add(-time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = file.Write(certFile, certData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = checkCerts(tempDir); err != nil {
+		t.Fatal(err)
 	}
 }
