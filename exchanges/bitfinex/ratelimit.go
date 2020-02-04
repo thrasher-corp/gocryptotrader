@@ -96,7 +96,7 @@ const (
 	tickerBatch
 	tickerFunction
 	trade
-	orderbookfunction
+	orderbookFunction
 	stats
 	candle
 	configs
@@ -264,7 +264,7 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 		time.Sleep(r.Ticker.Reserve().Delay())
 	case trade:
 		time.Sleep(r.Trade.Reserve().Delay())
-	case orderbookfunction:
+	case orderbookFunction:
 		time.Sleep(r.Orderbook.Reserve().Delay())
 	case stats:
 		time.Sleep(r.Stats.Reserve().Delay())

@@ -302,7 +302,7 @@ func (b *Bitfinex) GetOrderbook(symbol, precision string, limit int64) (Orderboo
 		u.Encode()
 
 	var response [][]interface{}
-	err := b.SendHTTPRequest(path, &response, orderbookfunction)
+	err := b.SendHTTPRequest(path, &response, orderbookFunction)
 	if err != nil {
 		return Orderbook{}, err
 	}
