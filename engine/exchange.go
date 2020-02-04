@@ -45,6 +45,11 @@ var (
 	ErrExchangeFailedToLoad  = errors.New("exchange failed to load")
 )
 
+type exchangeManager struct {
+	m         sync.Mutex
+	exchanges map[string]exchange.IBotExchange
+}
+
 func dryrunParamInteraction(param string) {
 	if !Bot.Settings.CheckParamInteraction {
 		return
@@ -57,11 +62,6 @@ func dryrunParamInteraction(param string) {
 			param)
 		Bot.Settings.EnableDryRun = true
 	}
-}
-
-type exchangeManager struct {
-	m         sync.Mutex
-	exchanges map[string]exchange.IBotExchange
 }
 
 func (e *exchangeManager) init() {
@@ -133,7 +133,10 @@ func (e *exchangeManager) reloadExchange(exchangeName string) error {
 		return err
 	}
 
-	exch.Setup(exchCfg)
+	if err = exch.Setup(exchCfg); err != nil {
+		return err
+	}
+
 	log.Debugf(log.ExchangeSys, "%s exchange reloaded successfully.\n", exchangeName)
 	return nil
 }
@@ -325,6 +328,7 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 	exchCfg.Enabled = true
 	err = exch.Setup(exchCfg)
 	if err != nil {
+		exchCfg.Enabled = false
 		return err
 	}
 
