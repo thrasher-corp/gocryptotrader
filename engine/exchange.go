@@ -59,17 +59,6 @@ func dryrunParamInteraction(param string) {
 	}
 }
 
-// CheckExchangeExists returns true whether or not an exchange has already
-// been loaded
-func CheckExchangeExists(exchName string) bool {
-	for x := range Bot.Exchanges {
-		if strings.EqualFold(Bot.Exchanges[x].GetName(), exchName) {
-			return true
-		}
-	}
-	return false
-}
-
 // GetExchangeByName returns an exchange given an exchange name
 func GetExchangeByName(exchName string) exchange.IBotExchange {
 	for x := range Bot.Exchanges {
@@ -86,7 +75,8 @@ func ReloadExchange(name string) error {
 		return ErrNoExchangesLoaded
 	}
 
-	if !CheckExchangeExists(name) {
+	e := GetExchangeByName(name)
+	if e == nil {
 		return ErrExchangeNotFound
 	}
 
@@ -95,7 +85,6 @@ func ReloadExchange(name string) error {
 		return err
 	}
 
-	e := GetExchangeByName(name)
 	e.Setup(exchCfg)
 	log.Debugf(log.ExchangeSys, "%s exchange reloaded successfully.\n", name)
 	return nil
@@ -107,7 +96,7 @@ func UnloadExchange(name string) error {
 		return ErrNoExchangesLoaded
 	}
 
-	if !CheckExchangeExists(name) {
+	if GetExchangeByName(name) == nil {
 		return ErrExchangeNotFound
 	}
 
@@ -139,7 +128,7 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 	var exch exchange.IBotExchange
 
 	if len(Bot.Exchanges) > 0 {
-		if CheckExchangeExists(name) {
+		if GetExchangeByName(name) != nil {
 			return ErrExchangeAlreadyLoaded
 		}
 	}
@@ -288,55 +277,65 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 
 	Bot.Exchanges = append(Bot.Exchanges, exch)
 
+	base := exch.GetBase()
+	if base.API.AuthenticatedSupport ||
+		base.API.AuthenticatedWebsocketSupport {
+		err = exch.ValidateCredentials()
+		if err != nil {
+			log.Warnf(log.ExchangeSys,
+				"%s: Cannot validate credentials, authenticated support has been disabled, Error: %s\n",
+				base.Name,
+				err)
+			base.API.AuthenticatedSupport = false
+			base.API.AuthenticatedWebsocketSupport = false
+			exchCfg.API.AuthenticatedSupport = false
+			exchCfg.API.AuthenticatedWebsocketSupport = false
+		}
+	}
+
 	if useWG {
 		exch.Start(wg)
 	} else {
-		wg := sync.WaitGroup{}
-		exch.Start(&wg)
-		wg.Wait()
+		tempWG := sync.WaitGroup{}
+		exch.Start(&tempWG)
+		tempWG.Wait()
 	}
+
 	return nil
 }
 
 // SetupExchanges sets up the exchanges used by the Bot
 func SetupExchanges() {
 	var wg sync.WaitGroup
-	exchanges := Bot.Config.GetAllExchangeConfigs()
-	for x := range exchanges {
-		exch := exchanges[x]
-		if CheckExchangeExists(exch.Name) {
-			e := GetExchangeByName(exch.Name)
-			if e == nil {
-				log.Errorln(log.ExchangeSys, ErrExchangeNotFound)
-				continue
-			}
-
-			err := ReloadExchange(exch.Name)
+	configs := Bot.Config.GetAllExchangeConfigs()
+	for x := range configs {
+		if e := GetExchangeByName(configs[x].Name); e != nil {
+			err := ReloadExchange(configs[x].Name)
 			if err != nil {
-				log.Errorf(log.ExchangeSys, "ReloadExchange %s failed: %s\n", exch.Name, err)
+				log.Errorf(log.ExchangeSys, "ReloadExchange %s failed: %s\n", configs[x].Name, err)
 				continue
 			}
 
 			if !e.IsEnabled() {
-				UnloadExchange(exch.Name)
+				UnloadExchange(configs[x].Name)
 				continue
 			}
 			return
 		}
-		if !exch.Enabled && !Bot.Settings.EnableAllExchanges {
-			log.Debugf(log.ExchangeSys, "%s: Exchange support: Disabled\n", exch.Name)
+		if !configs[x].Enabled && !Bot.Settings.EnableAllExchanges {
+			log.Debugf(log.ExchangeSys, "%s: Exchange support: Disabled\n", configs[x].Name)
 			continue
 		}
-		err := LoadExchange(exch.Name, true, &wg)
+		err := LoadExchange(configs[x].Name, true, &wg)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "LoadExchange %s failed: %s\n", exch.Name, err)
+			log.Errorf(log.ExchangeSys, "LoadExchange %s failed: %s\n", configs[x].Name, err)
 			continue
 		}
 		log.Debugf(log.ExchangeSys,
 			"%s: Exchange support: Enabled (Authenticated API support: %s - Verbose mode: %s).\n",
-			exch.Name,
-			common.IsEnabled(exch.API.AuthenticatedSupport),
-			common.IsEnabled(exch.Verbose),
+			configs[x].Name,
+			common.IsEnabled(configs[x].API.AuthenticatedSupport),
+			common.IsEnabled(configs[x].Verbose),
 		)
 	}
 	wg.Wait()

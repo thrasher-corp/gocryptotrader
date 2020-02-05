@@ -107,26 +107,6 @@ type FeeBuilder struct {
 	Amount        float64
 }
 
-// AccountInfo is a Generic type to hold each exchange's holdings in
-// all enabled currencies
-type AccountInfo struct {
-	Exchange string
-	Accounts []Account
-}
-
-// Account defines a singular account type with asocciated currencies
-type Account struct {
-	ID         string
-	Currencies []AccountCurrencyInfo
-}
-
-// AccountCurrencyInfo is a sub type to store currency name and value
-type AccountCurrencyInfo struct {
-	CurrencyName currency.Code
-	TotalValue   float64
-	Hold         float64
-}
-
 // TradeHistory holds exchange history data
 type TradeHistory struct {
 	Timestamp   time.Time
@@ -137,6 +117,16 @@ type TradeHistory struct {
 	Type        string
 	Fee         float64
 	Description string
+}
+
+// Candle holds historic rate information. Modelled after the Coinbase historic rate structure
+type Candle struct {
+	Time   int64
+	Low    float64
+	High   float64
+	Open   float64
+	Close  float64
+	Volume float64
 }
 
 // FundHistory holds exchange funding history data

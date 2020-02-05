@@ -280,7 +280,7 @@ func TestHittingTheBuffer(t *testing.T) {
 	}
 	obl.bufferEnabled = true
 	obl.obBufferLimit = 5
-	for i := 0; i < len(itemArray); i++ {
+	for i := range itemArray {
 		asks := itemArray[i]
 		bids := itemArray[i]
 		err = obl.Update(&WebsocketOrderbookUpdate{
@@ -314,7 +314,7 @@ func TestInsertWithIDs(t *testing.T) {
 	obl.bufferEnabled = true
 	obl.updateEntriesByID = true
 	obl.obBufferLimit = 5
-	for i := 0; i < len(itemArray); i++ {
+	for i := range itemArray {
 		asks := itemArray[i]
 		bids := itemArray[i]
 		err = obl.Update(&WebsocketOrderbookUpdate{
@@ -349,7 +349,7 @@ func TestSortIDs(t *testing.T) {
 	obl.sortBufferByUpdateIDs = true
 	obl.sortBuffer = true
 	obl.obBufferLimit = 5
-	for i := 0; i < len(itemArray); i++ {
+	for i := range itemArray {
 		asks := itemArray[i]
 		bids := itemArray[i]
 		err = obl.Update(&WebsocketOrderbookUpdate{
@@ -394,7 +394,7 @@ func TestDeleteWithIDs(t *testing.T) {
 		itemArray[1][0])
 
 	obl.updateEntriesByID = true
-	for i := 0; i < len(itemArray); i++ {
+	for i := range itemArray {
 		asks := itemArray[i]
 		bids := itemArray[i]
 		err = obl.Update(&WebsocketOrderbookUpdate{
@@ -427,7 +427,7 @@ func TestUpdateWithIDs(t *testing.T) {
 		t.Fatal(err)
 	}
 	obl.updateEntriesByID = true
-	for i := 0; i < len(itemArray); i++ {
+	for i := range itemArray {
 		asks := itemArray[i]
 		bids := itemArray[i]
 		err = obl.Update(&WebsocketOrderbookUpdate{
@@ -467,7 +467,7 @@ func TestOutOfOrderIDs(t *testing.T) {
 	obl.bufferEnabled = true
 	obl.sortBuffer = true
 	obl.obBufferLimit = 5
-	for i := 0; i < len(itemArray); i++ {
+	for i := range itemArray {
 		asks := itemArray[i]
 		err = obl.Update(&WebsocketOrderbookUpdate{
 			Asks:     asks,

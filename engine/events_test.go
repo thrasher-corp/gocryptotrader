@@ -308,8 +308,9 @@ func TestIsValidExchange(t *testing.T) {
 	if s := IsValidExchange("invalidexchangerino"); s {
 		t.Error("unexpected result")
 	}
-
-	loadConfig(t)
+	if !configLoaded {
+		loadConfig(t)
+	}
 	if s := IsValidExchange(testExchange); !s {
 		t.Error("unexpected result")
 	}

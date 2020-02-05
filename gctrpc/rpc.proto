@@ -521,11 +521,87 @@ message GetAuditEventResponse {
     repeated AuditEvent events = 1;
 }
 
+message GetHistoricCandlesRequest {
+    string exchange = 1;
+    CurrencyPair pair = 2;
+    int64 rangesize = 3;
+    int64 granularity = 4;
+}
+
+message GetHistoricCandlesResponse {
+    repeated Candle candle =1;
+}
+
+message Candle {
+    int64 time = 1;
+    double low = 2;
+    double high = 3;
+    double open = 4;
+    double close = 5;
+    double volume = 6;
+}
+
 message AuditEvent {
-    string type = 1 ;
+    string type = 1;
     string identifier = 2;
     string message = 3;
     string timestamp = 4;
+}
+
+message GCTScript {
+    string UUID = 1;
+    string name = 2;
+    string path = 3;
+    string next_run = 4;
+}
+
+message GCTScriptExecuteRequest {
+    GCTScript script = 1;
+}
+
+message GCTScriptStopRequest {
+    GCTScript script = 1;
+}
+
+message GCTScriptStopAllRequest{}
+message GCTScriptStatusRequest {}
+message GCTScriptListAllRequest{}
+
+message GCTScriptUploadRequest {
+    string script_name = 1;
+    string script_data = 2;
+    bytes data = 3;
+    bool archived = 4;
+    bool overwrite = 5;
+}
+
+message GCTScriptReadScriptRequest{
+    GCTScript script = 1;
+}
+
+message GCTScriptQueryRequest{
+    GCTScript script = 1;
+}
+
+message GCTScriptAutoLoadRequest{
+    string script = 1;
+    bool status = 2;
+}
+
+message GCTScriptStatusResponse{
+    string status = 1;
+    repeated  GCTScript scripts = 2;
+}
+
+message GCTScriptQueryResponse{
+    string status = 1;
+    GCTScript script = 2;
+    string data = 3;
+}
+
+message GCTScriptGenericResponse {
+    string status = 1;
+    string data = 2;
 }
 
 service GoCryptoTrader {
@@ -632,6 +708,12 @@ service GoCryptoTrader {
     rpc GetAccountInfo (GetAccountInfoRequest) returns (GetAccountInfoResponse) {
         option (google.api.http) = {
             get: "/v1/getaccountinfo"
+        };
+    }
+
+    rpc GetAccountInfoStream (GetAccountInfoRequest) returns (stream GetAccountInfoResponse) {
+        option (google.api.http) = {
+            get: "/v1/getaccountinfostream"
         };
     }
 
@@ -831,13 +913,78 @@ service GoCryptoTrader {
 
     rpc GetExchangeTickerStream(GetExchangeTickerStreamRequest) returns (stream TickerResponse) {
         option (google.api.http) = {
-            get: "/v1/getexchangetickerstream"
+            get: "/v1/getexchangetickerstream",
         };
     }
 
     rpc GetAuditEvent(GetAuditEventRequest) returns (GetAuditEventResponse) {
         option (google.api.http) = {
-            get: "/v1/getauditevent"
+            get: "/v1/getauditevent",
+        };
+    }
+
+    rpc GCTScriptExecute(GCTScriptExecuteRequest) returns (GCTScriptGenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/gctscript/execute",
+        };
+    }
+
+    rpc GCTScriptUpload(GCTScriptUploadRequest) returns (GCTScriptGenericResponse) {
+        option (google.api.http) = {
+            post: "/v1/gctscript/upload",
+            body: "*"
+        };
+    }
+
+    rpc GCTScriptReadScript(GCTScriptReadScriptRequest) returns (GCTScriptQueryResponse) {
+        option (google.api.http) = {
+            post: "/v1/gctscript/read",
+            body: "*"
+        };
+    }
+
+    rpc GCTScriptStatus(GCTScriptStatusRequest) returns (GCTScriptStatusResponse) {
+        option (google.api.http) = {
+            get: "/v1/gctscript/status",
+        };
+    }
+
+    rpc GCTScriptQuery(GCTScriptQueryRequest) returns (GCTScriptQueryResponse) {
+        option (google.api.http) = {
+            get: "/v1/gctscript/query",
+        };
+    }
+
+    rpc GCTScriptStop(GCTScriptStopRequest) returns (GCTScriptGenericResponse) {
+        option (google.api.http) = {
+            post: "/v1/gctscript/stop",
+            body: "*"
+        };
+    }
+
+    rpc GCTScriptStopAll(GCTScriptStopAllRequest) returns (GCTScriptGenericResponse) {
+        option (google.api.http) = {
+            post: "/v1/gctscript/stop",
+            body: "*"
+        };
+    }
+
+    rpc GCTScriptListAll(GCTScriptListAllRequest) returns (GCTScriptStatusResponse) {
+        option (google.api.http) = {
+            post: "/v1/gctscript/stop",
+            body: "*"
+        };
+    }
+    rpc GCTScriptAutoLoadToggle(GCTScriptAutoLoadRequest) returns (GCTScriptGenericResponse) {
+        option (google.api.http) = {
+            post: "/v1/gctscript/autoload",
+            body: "*"
+        };
+    }
+
+    rpc GetHistoricCandles(GetHistoricCandlesRequest) returns (GetHistoricCandlesResponse) {
+        option (google.api.http) = {
+            get: "/v1/gethistoriccandles"
         };
     }
 }

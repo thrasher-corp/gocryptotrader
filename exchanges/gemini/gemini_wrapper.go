@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -209,30 +210,45 @@ func (g *Gemini) UpdateTradablePairs(forceUpdate bool) error {
 	return g.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
 }
 
-// GetAccountInfo Retrieves balances for all enabled currencies for the
+// UpdateAccountInfo Retrieves balances for all enabled currencies for the
 // Gemini exchange
-func (g *Gemini) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
+func (g *Gemini) UpdateAccountInfo() (account.Holdings, error) {
+	var response account.Holdings
 	response.Exchange = g.Name
 	accountBalance, err := g.GetBalances()
 	if err != nil {
 		return response, err
 	}
 
-	var currencies []exchange.AccountCurrencyInfo
-	for i := 0; i < len(accountBalance); i++ {
-		var exchangeCurrency exchange.AccountCurrencyInfo
+	var currencies []account.Balance
+	for i := range accountBalance {
+		var exchangeCurrency account.Balance
 		exchangeCurrency.CurrencyName = currency.NewCode(accountBalance[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance[i].Amount
 		exchangeCurrency.Hold = accountBalance[i].Available
 		currencies = append(currencies, exchangeCurrency)
 	}
 
-	response.Accounts = append(response.Accounts, exchange.Account{
+	response.Accounts = append(response.Accounts, account.SubAccount{
 		Currencies: currencies,
 	})
 
+	err = account.Process(&response)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return response, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (g *Gemini) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(g.Name)
+	if err != nil {
+		return g.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -544,4 +560,11 @@ func (g *Gemini) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, e
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (g *Gemini) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (g *Gemini) ValidateCredentials() error {
+	_, err := g.UpdateAccountInfo()
+	return g.CheckTransientError(err)
 }

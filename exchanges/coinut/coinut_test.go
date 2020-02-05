@@ -360,12 +360,12 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	if apiKey != "" || clientID != "" {
-		_, err := c.GetAccountInfo()
+		_, err := c.UpdateAccountInfo()
 		if err != nil {
 			t.Error("GetAccountInfo() error", err)
 		}
 	} else {
-		_, err := c.GetAccountInfo()
+		_, err := c.UpdateAccountInfo()
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}

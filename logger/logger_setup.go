@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 )
 
 func getWriters(s *SubLoggerConfig) io.Writer {
@@ -32,23 +34,20 @@ func getWriters(s *SubLoggerConfig) io.Writer {
 
 // GenDefaultSettings return struct with known sane/working logger settings
 func GenDefaultSettings() (log Config) {
-	t := func(t bool) *bool { return &t }(true)
-	f := func(f bool) *bool { return &f }(false)
-
 	log = Config{
-		Enabled: t,
+		Enabled: convert.BoolPtr(true),
 		SubLoggerConfig: SubLoggerConfig{
 			Level:  "INFO|DEBUG|WARN|ERROR",
 			Output: "console",
 		},
 		LoggerFileConfig: &loggerFileConfig{
 			FileName: "log.txt",
-			Rotate:   f,
+			Rotate:   convert.BoolPtr(false),
 			MaxSize:  0,
 		},
 		AdvancedSettings: advancedSettings{
-			ShowLogSystemName: f,
-			Spacer:            " | ",
+			ShowLogSystemName: convert.BoolPtr(false),
+			Spacer:            spacer,
 			TimeStampFormat:   timestampFormat,
 			Headers: headers{
 				Info:  "[INFO]",
@@ -145,6 +144,7 @@ func init() {
 	PortfolioMgr = registerNewSubLogger("PORTFOLIO")
 	SyncMgr = registerNewSubLogger("SYNC")
 	TimeMgr = registerNewSubLogger("TIMEKEEPER")
+	GCTScriptMgr = registerNewSubLogger("GCTSCRIPT")
 	WebsocketMgr = registerNewSubLogger("WEBSOCKET")
 	EventMgr = registerNewSubLogger("EVENT")
 	DispatchMgr = registerNewSubLogger("DISPATCH")

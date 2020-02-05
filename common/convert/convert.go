@@ -107,3 +107,9 @@ func SplitFloatDecimals(input float64) (baseNum, decimalNum int64, err error) {
 	}
 	return baseNum, decimalNum, nil
 }
+
+// BoolPtr takes in boolen condition and returns pointer version of it
+func BoolPtr(condition bool) *bool {
+	b := condition
+	return &b
+}

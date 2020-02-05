@@ -1,6 +1,7 @@
 package coinbasepro
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -75,10 +76,55 @@ func TestGetTrades(t *testing.T) {
 	}
 }
 
-func TestGetHistoricRates(t *testing.T) {
-	_, err := c.GetHistoricRates(testPair, 0, 0, 0)
+func TestGetHistoricRatesApiCheck(t *testing.T) {
+	e := expectedCandles(5, 300, 60)
+	if e != nil {
+		t.Error(e)
+	}
+	e = expectedCandles(2, 600, 300)
+	if e != nil {
+		t.Error(e)
+	}
+	e = expectedCandles(2, 1800, 900)
+	if e != nil {
+		t.Error(e)
+	}
+	e = expectedCandles(2, 7200, 3600)
+	if e != nil {
+		t.Error(e)
+	}
+	e = expectedCandles(2, 43200, 21600)
+	if e != nil {
+		t.Error(e)
+	}
+	e = expectedCandles(2, 172800, 86400)
+	if e != nil {
+		t.Error(e)
+	}
+}
+
+// expectedCandles uses the previous candle time window because the current one might not be complete and if used the test would become non-deterministic
+func expectedCandles(expectedCandles int, timeRange time.Duration, candleGranularity int64) error {
+	end := time.Now().UTC().Add(-time.Second * timeRange) // the latest candle may not yet be ready, so skipping to the previous one
+	start := end.Add(-time.Second * timeRange)
+	resp, err := c.GetHistoricRates(testPair, start.Format(time.RFC3339), end.Format(time.RFC3339), candleGranularity)
 	if err != nil {
-		t.Error("GetHistoricRates() error", err)
+		return err
+	}
+	if len(resp) != expectedCandles {
+		err := fmt.Errorf("expected %d candles, returned: %d", expectedCandles, len(resp))
+		return err
+	}
+	return nil
+}
+
+func TestGetHistoricRatesGranularityCheck(t *testing.T) {
+	end := time.Now().UTC()
+	start := time.Now().UTC().Add(-time.Second * 300)
+	invalidGranularity := 11
+	_, err := c.GetHistoricRates(testPair, start.Format(time.RFC3339), end.Format(time.RFC3339), int64(invalidGranularity))
+	if err == nil {
+		t.Error("granularity validation did not work as expected")
 	}
 }
 

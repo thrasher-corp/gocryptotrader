@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -283,23 +284,23 @@ func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 	return orderbook.Get(l.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // LakeBTC exchange
-func (l *LakeBTC) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
+func (l *LakeBTC) UpdateAccountInfo() (account.Holdings, error) {
+	var response account.Holdings
 	response.Exchange = l.Name
 	accountInfo, err := l.GetAccountInformation()
 	if err != nil {
 		return response, err
 	}
 
-	var currencies []exchange.AccountCurrencyInfo
+	var currencies []account.Balance
 	for x, y := range accountInfo.Balance {
 		for z, w := range accountInfo.Locked {
 			if z != x {
 				continue
 			}
-			var exchangeCurrency exchange.AccountCurrencyInfo
+			var exchangeCurrency account.Balance
 			exchangeCurrency.CurrencyName = currency.NewCode(x)
 			exchangeCurrency.TotalValue, _ = strconv.ParseFloat(y, 64)
 			exchangeCurrency.Hold, _ = strconv.ParseFloat(w, 64)
@@ -307,11 +308,26 @@ func (l *LakeBTC) GetAccountInfo() (exchange.AccountInfo, error) {
 		}
 	}
 
-	response.Accounts = append(response.Accounts, exchange.Account{
+	response.Accounts = append(response.Accounts, account.SubAccount{
 		Currencies: currencies,
 	})
 
+	err = account.Process(&response)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return response, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (l *LakeBTC) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(l.Name)
+	if err != nil {
+		return l.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -533,4 +549,11 @@ func (l *LakeBTC) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, 
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (l *LakeBTC) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (l *LakeBTC) ValidateCredentials() error {
+	_, err := l.UpdateAccountInfo()
+	return l.CheckTransientError(err)
 }

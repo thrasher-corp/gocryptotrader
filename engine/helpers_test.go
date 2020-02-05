@@ -7,7 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
@@ -453,13 +453,13 @@ func TestGetSpecificTicker(t *testing.T) {
 func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 	SetupTestHelpers(t)
 
-	var exchangeInfo []exchange.AccountInfo
-	var info exchange.AccountInfo
+	var exchangeInfo []account.Holdings
 
-	info.Exchange = "Bitfinex"
-	info.Accounts = append(info.Accounts,
-		exchange.Account{
-			Currencies: []exchange.AccountCurrencyInfo{
+	var bitfinexHoldings account.Holdings
+	bitfinexHoldings.Exchange = "Bitfinex"
+	bitfinexHoldings.Accounts = append(bitfinexHoldings.Accounts,
+		account.SubAccount{
+			Currencies: []account.Balance{
 				{
 					CurrencyName: currency.BTC,
 					TotalValue:   100,
@@ -468,21 +468,27 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 			},
 		})
 
-	exchangeInfo = append(exchangeInfo, info)
+	exchangeInfo = append(exchangeInfo, bitfinexHoldings)
 
-	info.Exchange = "Bitstamp"
-	info.Accounts = append(info.Accounts,
-		exchange.Account{
-			Currencies: []exchange.AccountCurrencyInfo{
+	var bitstampHoldings account.Holdings
+	bitstampHoldings.Exchange = "Bitstamp"
+	bitstampHoldings.Accounts = append(bitstampHoldings.Accounts,
+		account.SubAccount{
+			Currencies: []account.Balance{
 				{
 					CurrencyName: currency.LTC,
+					TotalValue:   100,
+					Hold:         0,
+				},
+				{
+					CurrencyName: currency.BTC,
 					TotalValue:   100,
 					Hold:         0,
 				},
 			},
 		})
 
-	exchangeInfo = append(exchangeInfo, info)
+	exchangeInfo = append(exchangeInfo, bitstampHoldings)
 
 	result := GetCollatedExchangeAccountInfoByCoin(exchangeInfo)
 	if len(result) == 0 {
@@ -501,40 +507,6 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 	_, ok = result[currency.ETH]
 	if ok {
 		t.Fatal("Unexpected result")
-	}
-}
-
-func TestGetAccountCurrencyInfoByExchangeName(t *testing.T) {
-	SetupTestHelpers(t)
-
-	var exchangeInfo []exchange.AccountInfo
-	var info exchange.AccountInfo
-	info.Exchange = "Bitfinex"
-	info.Accounts = append(info.Accounts,
-		exchange.Account{
-			Currencies: []exchange.AccountCurrencyInfo{
-				{
-					CurrencyName: currency.BTC,
-					TotalValue:   100,
-					Hold:         0,
-				},
-			},
-		})
-
-	exchangeInfo = append(exchangeInfo, info)
-
-	result, err := GetAccountCurrencyInfoByExchangeName(exchangeInfo, "Bitfinex")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if result.Exchange != "Bitfinex" {
-		t.Fatal("Unexepcted result")
-	}
-
-	_, err = GetAccountCurrencyInfoByExchangeName(exchangeInfo, "ASDF")
-	if err != ErrExchangeNotFound {
-		t.Fatal("Unexepcted result")
 	}
 }
 

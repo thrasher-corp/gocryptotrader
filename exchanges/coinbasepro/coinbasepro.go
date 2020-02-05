@@ -162,19 +162,28 @@ func (c *CoinbasePro) GetTrades(currencyPair string) ([]Trade, error) {
 
 // GetHistoricRates returns historic rates for a product. Rates are returned in
 // grouped buckets based on requested granularity.
-func (c *CoinbasePro) GetHistoricRates(currencyPair string, start, end, granularity int64) ([]History, error) {
+func (c *CoinbasePro) GetHistoricRates(currencyPair, start, end string, granularity int64) ([]History, error) {
 	var resp [][]interface{}
 	var history []History
 	values := url.Values{}
 
-	if start > 0 {
-		values.Set("start", strconv.FormatInt(start, 10))
+	if len(start) > 0 {
+		values.Set("start", start)
+	} else {
+		values.Set("start", "")
 	}
 
-	if end > 0 {
-		values.Set("end", strconv.FormatInt(end, 10))
+	if len(end) > 0 {
+		values.Set("end", end)
+	} else {
+		values.Set("end", "")
 	}
 
+	allowedGranularities := [6]int64{60, 300, 900, 3600, 21600, 86400}
+	validGran, _ := common.InArray(granularity, allowedGranularities)
+	if !validGran {
+		return nil, errors.New("Invalid granularity value: " + strconv.FormatInt(granularity, 10) + ". Allowed values are {60, 300, 900, 3600, 21600, 86400}")
+	}
 	if granularity > 0 {
 		values.Set("granularity", strconv.FormatInt(granularity, 10))
 	}

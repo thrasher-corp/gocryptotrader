@@ -51,7 +51,8 @@
   "checkInterval": 1000000000
  },
  "profiler": {
-  "enabled": false
+  "enabled": false,
+  "mutex_profile_fraction": 0
  },
  "ntpclient": {
   "enabled": 0,
@@ -60,6 +61,14 @@
   ],
   "allowedDifference": 50000000,
   "allowedNegativeDifference": 50000000
+ },
+ "gctscript": {
+  "enabled": true,
+  "timeout": 60000000000,
+  "max_virtual_machines": 10,
+  "allow_imports": true,
+  "auto_load": [],
+  "verbose": false
  },
  "currencyConfig": {
   "forexProviders": [

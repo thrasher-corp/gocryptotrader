@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -314,26 +315,42 @@ func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*or
 	return orderbook.Get(b.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies
-func (b *BTCMarkets) GetAccountInfo() (exchange.AccountInfo, error) {
-	var resp exchange.AccountInfo
+// UpdateAccountInfo retrieves balances for all enabled currencies
+func (b *BTCMarkets) UpdateAccountInfo() (account.Holdings, error) {
+	var resp account.Holdings
 	data, err := b.GetAccountBalance()
 	if err != nil {
 		return resp, err
 	}
-	var account exchange.Account
+	var acc account.SubAccount
 	for key := range data {
 		c := currency.NewCode(data[key].AssetName)
 		hold := data[key].Locked
 		total := data[key].Balance
-		account.Currencies = append(account.Currencies,
-			exchange.AccountCurrencyInfo{CurrencyName: c,
+		acc.Currencies = append(acc.Currencies,
+			account.Balance{CurrencyName: c,
 				TotalValue: total,
 				Hold:       hold})
 	}
-	resp.Accounts = append(resp.Accounts, account)
+	resp.Accounts = append(resp.Accounts, acc)
 	resp.Exchange = b.Name
+
+	err = account.Process(&resp)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return resp, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (b *BTCMarkets) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(b.Name)
+	if err != nil {
+		return b.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -687,4 +704,25 @@ func (b *BTCMarkets) GetSubscriptions() ([]wshandler.WebsocketChannelSubscriptio
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (b *BTCMarkets) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (b *BTCMarkets) ValidateCredentials() error {
+	_, err := b.UpdateAccountInfo()
+	if err != nil {
+		if b.CheckTransientError(err) == nil {
+			return nil
+		}
+		// Check for specific auth errors; all other errors can be disregarded
+		// as this does not affect authenticated requests.
+		if strings.Contains(err.Error(), "InvalidAPIKey") ||
+			strings.Contains(err.Error(), "InvalidAuthTimestamp") ||
+			strings.Contains(err.Error(), "InvalidAuthSignature") ||
+			strings.Contains(err.Error(), "InsufficientAPIPermission") {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -373,10 +374,10 @@ func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 	return orderbook.Get(k.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Kraken exchange - to-do
-func (k *Kraken) GetAccountInfo() (exchange.AccountInfo, error) {
-	var info exchange.AccountInfo
+func (k *Kraken) UpdateAccountInfo() (account.Holdings, error) {
+	var info account.Holdings
 	info.Exchange = k.Name
 
 	bal, err := k.GetBalance()
@@ -384,19 +385,34 @@ func (k *Kraken) GetAccountInfo() (exchange.AccountInfo, error) {
 		return info, err
 	}
 
-	var balances []exchange.AccountCurrencyInfo
+	var balances []account.Balance
 	for key := range bal {
-		balances = append(balances, exchange.AccountCurrencyInfo{
+		balances = append(balances, account.Balance{
 			CurrencyName: currency.NewCode(key),
 			TotalValue:   bal[key],
 		})
 	}
 
-	info.Accounts = append(info.Accounts, exchange.Account{
+	info.Accounts = append(info.Accounts, account.SubAccount{
 		Currencies: balances,
 	})
 
+	err = account.Process(&info)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return info, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (k *Kraken) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(k.Name)
+	if err != nil {
+		return k.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -704,4 +720,11 @@ func (k *Kraken) AuthenticateWebsocket() error {
 		authToken = resp
 	}
 	return err
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (k *Kraken) ValidateCredentials() error {
+	_, err := k.UpdateAccountInfo()
+	return k.CheckTransientError(err)
 }

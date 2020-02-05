@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
+	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
@@ -85,8 +86,9 @@ type Config struct {
 	Database          database.Config         `json:"database"`
 	Logging           log.Config              `json:"logging"`
 	ConnectionMonitor ConnectionMonitorConfig `json:"connectionMonitor"`
-	Profiler          ProfilerConfig          `json:"profiler"`
+	Profiler          Profiler                `json:"profiler"`
 	NTPClient         NTPClientConfig         `json:"ntpclient"`
+	GCTScript         gctscript.Config        `json:"gctscript"`
 	Currency          CurrencyConfig          `json:"currencyConfig"`
 	Communications    CommunicationsConfig    `json:"communications"`
 	RemoteControl     RemoteControlConfig     `json:"remoteControl"`
@@ -152,9 +154,10 @@ type ExchangeConfig struct {
 	WebsocketURL                     *string              `json:"websocketUrl,omitempty"`
 }
 
-// ProfilerConfig defines the profiler configuration to enable pprof
-type ProfilerConfig struct {
-	Enabled bool `json:"enabled"`
+// Profiler defines the profiler configuration to enable pprof
+type Profiler struct {
+	Enabled              bool `json:"enabled"`
+	MutexProfileFraction int  `json:"mutex_profile_fraction"`
 }
 
 // NTPClientConfig defines a network time protocol configuration to allow for

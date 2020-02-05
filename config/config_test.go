@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/ntpclient"
 )
@@ -1760,25 +1761,12 @@ func TestCheckLoggerConfig(t *testing.T) {
 		*c.Logging.AdvancedSettings.ShowLogSystemName {
 		t.Error("unexpected result")
 	}
-
-	err = c.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Errorf("Failed to load config: %v", err)
-	}
-	err = c.CheckLoggerConfig()
-	if err != nil {
-		t.Errorf("Failed to create logger with user settings: reason: %v", err)
-	}
 }
 
 func TestDisableNTPCheck(t *testing.T) {
 	t.Parallel()
 
-	c := GetConfig()
-	err := c.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	var c Config
 
 	warn, err := c.DisableNTPCheck(strings.NewReader("w\n"))
 	if err != nil {
@@ -1801,6 +1789,23 @@ func TestDisableNTPCheck(t *testing.T) {
 	_, err = c.DisableNTPCheck(strings.NewReader(" "))
 	if err.Error() != "EOF" {
 		t.Errorf("failed expected EOF got: %v", err)
+	}
+}
+
+func TestCheckGCTScriptConfig(t *testing.T) {
+	t.Parallel()
+
+	var c Config
+	if err := c.checkGCTScriptConfig(); err != nil {
+		t.Error(err)
+	}
+
+	if c.GCTScript.ScriptTimeout != gctscript.DefaultTimeoutValue {
+		t.Fatal("unexpected value return")
+	}
+
+	if c.GCTScript.MaxVirtualMachines != gctscript.DefaultMaxVirtualMachines {
+		t.Fatal("unexpected value return")
 	}
 }
 

@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -86,6 +87,7 @@ func (h *HUOBI) SetDefaults() {
 				CancelOrders:      true,
 				CancelOrder:       true,
 				SubmitOrder:       true,
+				CryptoDeposit:     true,
 				CryptoWithdrawal:  true,
 				TradeFee:          true,
 			},
@@ -391,22 +393,22 @@ func (h *HUOBI) GetAccountID() ([]Account, error) {
 	return acc, nil
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // HUOBI exchange - to-do
-func (h *HUOBI) GetAccountInfo() (exchange.AccountInfo, error) {
-	var info exchange.AccountInfo
+func (h *HUOBI) UpdateAccountInfo() (account.Holdings, error) {
+	var info account.Holdings
 	info.Exchange = h.Name
 	if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		resp, err := h.wsGetAccountsList()
 		if err != nil {
 			return info, err
 		}
-		var currencyDetails []exchange.AccountCurrencyInfo
+		var currencyDetails []account.Balance
 		for i := range resp.Data {
 			if len(resp.Data[i].List) == 0 {
 				continue
 			}
-			currData := exchange.AccountCurrencyInfo{
+			currData := account.Balance{
 				CurrencyName: currency.NewCode(resp.Data[i].List[0].Currency),
 				TotalValue:   resp.Data[i].List[0].Balance,
 			}
@@ -415,7 +417,7 @@ func (h *HUOBI) GetAccountInfo() (exchange.AccountInfo, error) {
 			}
 			currencyDetails = append(currencyDetails, currData)
 		}
-		var acc exchange.Account
+		var acc account.SubAccount
 		acc.Currencies = currencyDetails
 		info.Accounts = append(info.Accounts, acc)
 	} else {
@@ -424,14 +426,14 @@ func (h *HUOBI) GetAccountInfo() (exchange.AccountInfo, error) {
 			return info, err
 		}
 		for i := range accounts {
-			var acc exchange.Account
+			var acc account.SubAccount
 			acc.ID = strconv.FormatInt(accounts[i].ID, 10)
 			balances, err := h.GetAccountBalance(acc.ID)
 			if err != nil {
 				return info, err
 			}
 
-			var currencyDetails []exchange.AccountCurrencyInfo
+			var currencyDetails []account.Balance
 			for j := range balances {
 				var frozen bool
 				if balances[j].Type == "frozen" {
@@ -456,13 +458,13 @@ func (h *HUOBI) GetAccountInfo() (exchange.AccountInfo, error) {
 
 				if frozen {
 					currencyDetails = append(currencyDetails,
-						exchange.AccountCurrencyInfo{
+						account.Balance{
 							CurrencyName: currency.NewCode(balances[j].Currency),
 							Hold:         balances[j].Balance,
 						})
 				} else {
 					currencyDetails = append(currencyDetails,
-						exchange.AccountCurrencyInfo{
+						account.Balance{
 							CurrencyName: currency.NewCode(balances[j].Currency),
 							TotalValue:   balances[j].Balance,
 						})
@@ -473,7 +475,23 @@ func (h *HUOBI) GetAccountInfo() (exchange.AccountInfo, error) {
 			info.Accounts = append(info.Accounts, acc)
 		}
 	}
+
+	err := account.Process(&info)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return info, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (h *HUOBI) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(h.Name)
+	if err != nil {
+		return h.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -635,7 +653,8 @@ func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (h *HUOBI) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
-	return "", common.ErrFunctionNotSupported
+	resp, err := h.QueryDepositAddress(cryptocurrency.Lower().String())
+	return resp.Address, err
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -844,4 +863,11 @@ func (h *HUOBI) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, er
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (h *HUOBI) AuthenticateWebsocket() error {
 	return h.wsLogin()
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (h *HUOBI) ValidateCredentials() error {
+	_, err := h.UpdateAccountInfo()
+	return h.CheckTransientError(err)
 }
