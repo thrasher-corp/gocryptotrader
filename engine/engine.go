@@ -91,6 +91,7 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 	if *b.Config.Logging.Enabled {
 		gctlog.SetupGlobalLogger()
 		gctlog.SetupSubLoggers(b.Config.Logging.SubLoggers)
+		gctlog.Infoln(gctlog.Global, "Logger intialised.")
 	}
 
 	b.Settings.ConfigFile = filePath
@@ -518,6 +519,6 @@ func (e *Engine) Stop() {
 	e.ServicesWG.Wait()
 	err := gctlog.CloseLogger()
 	if err != nil {
-		fmt.Printf("Failed to close gctlogger %v", err)
+		log.Printf("Failed to close gctlogger. Error: %v\n", err)
 	}
 }
