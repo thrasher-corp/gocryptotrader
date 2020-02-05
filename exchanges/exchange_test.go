@@ -253,7 +253,6 @@ func TestSetAutoPairDefaults(t *testing.T) {
 	}
 
 	exch.Features.Supports.RESTCapabilities.AutoPairUpdates = false
-	cfg.UpdateExchangeConfig(exch)
 
 	exch, err = cfg.GetExchangeConfig("Bitstamp")
 	if err != nil {

@@ -2,6 +2,8 @@ package engine
 
 import (
 	"testing"
+
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 )
 
 var testSetup = false
@@ -34,6 +36,51 @@ func CleanupTest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CleanupTest: Failed to unload exchange: %s",
 			err)
+	}
+}
+
+func TestExchangeManagerAdd(t *testing.T) {
+	t.Parallel()
+	var e exchangeManager
+	bitfinex := new(bitfinex.Bitfinex)
+	bitfinex.SetDefaults()
+	e.add(bitfinex)
+	if exch := e.getExchanges(); exch[0].GetName() != "Bitfinex" {
+		t.Error("unexpected exchange name")
+	}
+}
+
+func TestExchangeManagerGetExchanges(t *testing.T) {
+	t.Parallel()
+	var e exchangeManager
+	if exchanges := e.getExchanges(); exchanges != nil {
+		t.Error("unexpected value")
+	}
+	bitfinex := new(bitfinex.Bitfinex)
+	bitfinex.SetDefaults()
+	e.add(bitfinex)
+	if exch := e.getExchanges(); exch[0].GetName() != "Bitfinex" {
+		t.Error("unexpected exchange name")
+	}
+}
+
+func TestExchangeManagerRemoveExchange(t *testing.T) {
+	t.Parallel()
+	var e exchangeManager
+	if err := e.removeExchange("Bitfinex"); err != ErrNoExchangesLoaded {
+		t.Error("no exchanges should be loaded")
+	}
+	bitfinex := new(bitfinex.Bitfinex)
+	bitfinex.SetDefaults()
+	e.add(bitfinex)
+	if err := e.removeExchange(testExchange); err != ErrExchangeNotFound {
+		t.Error("Bitstamp exchange should return an error")
+	}
+	if err := e.removeExchange("BiTFiNeX"); err != nil {
+		t.Error("exchange should of been removed")
+	}
+	if e.Len() != 0 {
+		t.Error("exchange manager len should be 0")
 	}
 }
 
@@ -79,30 +126,6 @@ func TestGetExchangeByName(t *testing.T) {
 	}
 
 	CleanupTest(t)
-}
-
-func TestReloadExchange(t *testing.T) {
-	SetupTest(t)
-
-	err := ReloadExchange("asdf")
-	if err != ErrExchangeNotFound {
-		t.Errorf("TestReloadExchange: Incorrect result: %s",
-			err)
-	}
-
-	err = ReloadExchange(testExchange)
-	if err != nil {
-		t.Errorf("TestReloadExchange: Incorrect result: %s",
-			err)
-	}
-
-	CleanupTest(t)
-
-	err = ReloadExchange("asdf")
-	if err != ErrNoExchangesLoaded {
-		t.Errorf("TestReloadExchange: Incorrect result: %s",
-			err)
-	}
 }
 
 func TestUnloadExchange(t *testing.T) {

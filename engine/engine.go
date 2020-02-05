@@ -54,7 +54,6 @@ var (
 // New starts a new engine
 func New() (*Engine, error) {
 	var b Engine
-	b.exchangeManager.init()
 	b.Config = &config.Cfg
 
 	err := b.Config.LoadConfig("", false)
@@ -72,7 +71,6 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 	}
 
 	var b Engine
-	b.exchangeManager.init()
 	b.Config = &config.Cfg
 	filePath, err := config.GetFilePath(settings.ConfigFile)
 	if err != nil {
