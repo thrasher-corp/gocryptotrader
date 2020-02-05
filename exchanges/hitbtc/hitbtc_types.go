@@ -379,28 +379,48 @@ type WsLoginData struct {
 	Signature string `json:"signature"`
 }
 
-// WsActiveOrdersResponse Active order response for auth subscription to reports
-type WsActiveOrdersResponse struct {
-	Params []WsActiveOrdersResponseData `json:"params"`
-	Error  ResponseError                `json:"error,omitempty"`
+// wsActiveOrdersResponse Active order response for auth subscription to reports
+type wsActiveOrdersResponse struct {
+	Params []wsOrderData `json:"params"`
+	Error  ResponseError `json:"error,omitempty"`
 }
 
-// WsActiveOrdersResponseData Active order data for WsActiveOrdersResponse
-type WsActiveOrdersResponseData struct {
-	ID            string    `json:"id"`
-	ClientOrderID string    `json:"clientOrderId,omitempty"`
-	Symbol        string    `json:"symbol"`
-	Side          string    `json:"side"`
-	Status        string    `json:"status"`
-	Type          string    `json:"type"`
-	TimeInForce   string    `json:"timeInForce"`
-	Quantity      float64   `json:"quantity,string"`
-	Price         float64   `json:"price,string"`
-	CumQuantity   float64   `json:"cumQuantity,string"`
-	PostOnly      bool      `json:"postOnly"`
-	CreatedAt     time.Time `json:"createdAt"`
-	UpdatedAt     time.Time `json:"updatedAt"`
-	ReportType    string    `json:"reportType"`
+type wsReportResponse struct {
+	OrderData wsOrderData `json:"params"`
+	ID        int64       `json:"id"`
+}
+
+type wsOrderResponse struct {
+	OrderData wsOrderData `json:"result"`
+	ID        int64       `json:"id"`
+}
+
+type wsActiveOrderRequestResponse struct {
+	OrderData []wsOrderData `json:"result"`
+	ID        int64         `json:"id"`
+}
+
+// wsOrderData Active order data for WsActiveOrdersResponse
+type wsOrderData struct {
+	ID                           string    `json:"id"`
+	ClientOrderID                string    `json:"clientOrderId,omitempty"`
+	Symbol                       string    `json:"symbol"`
+	Side                         string    `json:"side"`
+	Status                       string    `json:"status"`
+	Type                         string    `json:"type"`
+	TimeInForce                  string    `json:"timeInForce"`
+	Quantity                     float64   `json:"quantity,string"`
+	Price                        float64   `json:"price,string"`
+	CumQuantity                  float64   `json:"cumQuantity,string"`
+	PostOnly                     bool      `json:"postOnly"`
+	CreatedAt                    time.Time `json:"createdAt"`
+	UpdatedAt                    time.Time `json:"updatedAt"`
+	ReportType                   string    `json:"reportType"`
+	OriginalRequestClientOrderId string    `json:"originalRequestClientOrderId"`
+	TradeQuantity                float64   `json:"tradeQuantity,string"`
+	TradePrice                   float64   `json:"tradePrice,string"`
+	TradeID                      float64   `json:"tradeId"`
+	TradeFee                     float64   `json:"tradeFee,string"`
 }
 
 // WsReportResponse report response for auth subscription to reports

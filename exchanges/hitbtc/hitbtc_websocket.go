@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -70,50 +71,84 @@ func (h *HitBTC) wsReadData() {
 				return
 			}
 			h.Websocket.TrafficAlert <- struct{}{}
-			var init capture
-			err = json.Unmarshal(resp.Raw, &init)
+
+			err = h.wsHandleData(resp.Raw)
 			if err != nil {
 				h.Websocket.DataHandler <- err
-				continue
-			}
-			if init.Error.Code == 1002 {
-				h.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			}
-			if init.ID > 0 {
-				h.WebsocketConn.AddResponseWithID(init.ID, resp.Raw)
-				continue
-			}
-			if init.Error.Message != "" || init.Error.Code != 0 {
-				h.Websocket.DataHandler <- fmt.Errorf("hitbtc.go error - Code: %d, Message: %s",
-					init.Error.Code,
-					init.Error.Message)
-				continue
-			}
-			if _, ok := init.Result.(bool); ok {
-				continue
-			}
-			if init.Method != "" {
-				h.handleSubscriptionUpdates(resp, init)
-			} else {
-				h.handleCommandResponses(resp, init)
 			}
 		}
 	}
 }
 
-func (h *HitBTC) handleSubscriptionUpdates(resp wshandler.WebsocketResponse, init capture) {
-	switch init.Method {
+func (h *HitBTC) wsGetTableName(respRaw []byte) (string, error) {
+	var init capture
+	err := json.Unmarshal(respRaw, &init)
+	if err != nil {
+		return "", err
+	}
+	if init.Error.Code == 1002 {
+		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	}
+	if init.ID > 0 {
+		h.WebsocketConn.AddResponseWithID(init.ID, respRaw)
+	}
+	if init.Error.Message != "" || init.Error.Code != 0 {
+		return "", fmt.Errorf("hitbtc.go error - Code: %d, Message: %s",
+			init.Error.Code,
+			init.Error.Message)
+	}
+	if _, ok := init.Result.(bool); ok {
+		return "", nil
+	}
+	if init.Method != "" {
+		return init.Method, nil
+	} else {
+		switch resultType := init.Result.(type) {
+		case map[string]interface{}:
+			if reportType, ok := resultType["reportType"].(string); ok {
+				return reportType, nil
+			}
+			// check for ids - means it was a specific request
+			// and can't go through normal processing
+			if responseID, ok := resultType["id"].(string); ok {
+				if responseID != "" {
+					return "", nil
+				}
+			}
+		case []interface{}:
+			if len(resultType) == 0 {
+				h.Websocket.DataHandler <- fmt.Sprintf("No data returned. ID: %v", init.ID)
+				return "", nil
+			}
+
+			data := resultType[0].(map[string]interface{})
+			if _, ok := data["clientOrderId"]; ok {
+				return "order", nil
+			} else if _, ok := data["available"]; ok {
+				return "trading", nil
+			}
+		}
+	}
+	return "", fmt.Errorf("%s - Unhandled data type: %+v", h.Name, init)
+}
+
+func (h *HitBTC) wsHandleData(respRaw []byte) error {
+	name, err := h.wsGetTableName(respRaw)
+	if err != nil {
+		return err
+	}
+	switch name {
+	case "":
+		return nil
 	case "ticker":
 		var wsTicker WsTicker
-		err := json.Unmarshal(resp.Raw, &wsTicker)
+		err := json.Unmarshal(respRaw, &wsTicker)
 		if err != nil {
-			h.Websocket.DataHandler <- err
-			return
+			return err
 		}
 		ts, err := time.Parse(time.RFC3339, wsTicker.Params.Timestamp)
 		if err != nil {
-			h.Websocket.DataHandler <- err
-			return
+			return err
 		}
 		h.Websocket.DataHandler <- &ticker.Price{
 			ExchangeName: h.Name,
@@ -132,98 +167,94 @@ func (h *HitBTC) handleSubscriptionUpdates(resp wshandler.WebsocketResponse, ini
 		}
 	case "snapshotOrderbook":
 		var obSnapshot WsOrderbook
-		err := json.Unmarshal(resp.Raw, &obSnapshot)
+		err := json.Unmarshal(respRaw, &obSnapshot)
 		if err != nil {
-			h.Websocket.DataHandler <- err
+			return err
 		}
 		err = h.WsProcessOrderbookSnapshot(obSnapshot)
 		if err != nil {
-			h.Websocket.DataHandler <- err
+			return err
 		}
 	case "updateOrderbook":
 		var obUpdate WsOrderbook
-		err := json.Unmarshal(resp.Raw, &obUpdate)
+		err := json.Unmarshal(respRaw, &obUpdate)
 		if err != nil {
-			h.Websocket.DataHandler <- err
+			return err
 		}
-		h.WsProcessOrderbookUpdate(obUpdate)
+		err = h.WsProcessOrderbookUpdate(obUpdate)
+		if err != nil {
+			return err
+		}
 	case "snapshotTrades":
 		var tradeSnapshot WsTrade
-		err := json.Unmarshal(resp.Raw, &tradeSnapshot)
+		err := json.Unmarshal(respRaw, &tradeSnapshot)
 		if err != nil {
-			h.Websocket.DataHandler <- err
+			return err
 		}
 	case "updateTrades":
 		var tradeUpdates WsTrade
-		err := json.Unmarshal(resp.Raw, &tradeUpdates)
+		err := json.Unmarshal(respRaw, &tradeUpdates)
 		if err != nil {
-			h.Websocket.DataHandler <- err
+			return err
 		}
 	case "activeOrders":
-		var activeOrders WsActiveOrdersResponse
-		err := json.Unmarshal(resp.Raw, &activeOrders)
+		var o wsActiveOrdersResponse
+		err := json.Unmarshal(respRaw, &o)
 		if err != nil {
-			h.Websocket.DataHandler <- err
+			return err
 		}
-		h.Websocket.DataHandler <- activeOrders
+		for i := range o.Params {
+			err = h.wsHandleOrderData(&o.Params[i])
+			if err != nil {
+				return err
+			}
+		}
+	case "trading":
+		var trades WsGetTradingBalanceResponse
+		err := json.Unmarshal(respRaw, &trades)
+		if err != nil {
+			return err
+		}
+		h.Websocket.DataHandler <- trades
 	case "report":
-		var reportData WsReportResponse
-		err := json.Unmarshal(resp.Raw, &reportData)
+		var o wsReportResponse
+		err := json.Unmarshal(respRaw, &o)
 		if err != nil {
-			h.Websocket.DataHandler <- err
+			return err
 		}
-		h.Websocket.DataHandler <- reportData
+		err = h.wsHandleOrderData(&o.OrderData)
+		if err != nil {
+			return err
+		}
+	case "order":
+		var o wsActiveOrderRequestResponse
+		err := json.Unmarshal(respRaw, &o)
+		if err != nil {
+			return err
+		}
+		for i := range o.OrderData {
+			err = h.wsHandleOrderData(&o.OrderData[i])
+			if err != nil {
+				return err
+			}
+		}
+	case
+		"replaced",
+		"canceled",
+		"new":
+		var o wsOrderResponse
+		err := json.Unmarshal(respRaw, &o)
+		if err != nil {
+			return err
+		}
+		err = h.wsHandleOrderData(&o.OrderData)
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("%s - Unhandled data %s: %s", h.Name, name, respRaw)
 	}
-}
-
-func (h *HitBTC) handleCommandResponses(resp wshandler.WebsocketResponse, init capture) {
-	switch resultType := init.Result.(type) {
-	case map[string]interface{}:
-		switch resultType["reportType"].(string) {
-		case "new":
-			var response WsSubmitOrderSuccessResponse
-			err := json.Unmarshal(resp.Raw, &response)
-			if err != nil {
-				h.Websocket.DataHandler <- err
-			}
-			h.Websocket.DataHandler <- response
-		case "canceled":
-			var response WsCancelOrderResponse
-			err := json.Unmarshal(resp.Raw, &response)
-			if err != nil {
-				h.Websocket.DataHandler <- err
-			}
-			h.Websocket.DataHandler <- response
-		case "replaced":
-			var response WsReplaceOrderResponse
-			err := json.Unmarshal(resp.Raw, &response)
-			if err != nil {
-				h.Websocket.DataHandler <- err
-			}
-			h.Websocket.DataHandler <- response
-		}
-	case []interface{}:
-		if len(resultType) == 0 {
-			h.Websocket.DataHandler <- fmt.Sprintf("No data returned. ID: %v", init.ID)
-			return
-		}
-		data := resultType[0].(map[string]interface{})
-		if _, ok := data["clientOrderId"]; ok {
-			var response WsActiveOrdersResponse
-			err := json.Unmarshal(resp.Raw, &response)
-			if err != nil {
-				h.Websocket.DataHandler <- err
-			}
-			h.Websocket.DataHandler <- response
-		} else if _, ok := data["available"]; ok {
-			var response WsGetTradingBalanceResponse
-			err := json.Unmarshal(resp.Raw, &response)
-			if err != nil {
-				h.Websocket.DataHandler <- err
-			}
-			h.Websocket.DataHandler <- response
-		}
-	}
+	return nil
 }
 
 // WsProcessOrderbookSnapshot processes a full orderbook snapshot to a local cache
@@ -264,6 +295,51 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 		Pair:     p,
 	}
 
+	return nil
+}
+
+func (h *HitBTC) wsHandleOrderData(o *wsOrderData) error {
+	var trades []order.TradeHistory
+	if o.TradeID > 0 {
+		trades = append(trades, order.TradeHistory{
+			Price:     o.TradePrice,
+			Amount:    o.TradeQuantity,
+			Fee:       o.TradeFee,
+			Exchange:  h.Name,
+			TID:       strconv.FormatFloat(o.TradeID, 'f', -1, 64),
+			Timestamp: o.UpdatedAt,
+		})
+	}
+	oType, err := order.StringToOrderType(o.Type)
+	if err != nil {
+		return err
+	}
+	oStatus, err := order.StringToOrderStatus(o.Status)
+	if err != nil {
+		return err
+	}
+	oSide, err := order.StringToOrderSide(o.Side)
+	if err != nil {
+		return err
+	}
+
+	h.Websocket.DataHandler <- &order.Detail{
+		PostOnly:        false,
+		Price:           o.Price,
+		Amount:          o.Quantity,
+		ExecutedAmount:  o.CumQuantity,
+		RemainingAmount: o.Quantity - o.CumQuantity,
+		Exchange:        h.Name,
+		ID:              o.ID,
+		Type:            oType,
+		Side:            oSide,
+		Status:          oStatus,
+		AssetType:       asset.Spot,
+		Date:            o.CreatedAt,
+		LastUpdated:     o.UpdatedAt,
+		Pair:            currency.NewPairFromString(o.Symbol),
+		Trades:          trades,
+	}
 	return nil
 }
 
@@ -395,14 +471,14 @@ func (h *HitBTC) wsLogin() error {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", h.Name)
 	}
 	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	nonce := strconv.FormatInt(time.Now().Unix(), 10)
-	hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(nonce), []byte(h.API.Credentials.Secret))
+	n := strconv.FormatInt(time.Now().Unix(), 10)
+	hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(n), []byte(h.API.Credentials.Secret))
 	request := WsLoginRequest{
 		Method: "login",
 		Params: WsLoginData{
 			Algo:      "HS256",
 			PKey:      h.API.Credentials.Key,
-			Nonce:     nonce,
+			Nonce:     n,
 			Signature: crypto.HexEncodeToString(hmac),
 		},
 	}
@@ -505,7 +581,7 @@ func (h *HitBTC) wsReplaceOrder(clientOrderID string, quantity, price float64) (
 }
 
 // wsGetActiveOrders sends a websocket message to get all active orders
-func (h *HitBTC) wsGetActiveOrders() (*WsActiveOrdersResponse, error) {
+func (h *HitBTC) wsGetActiveOrders() (*wsActiveOrdersResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
@@ -518,7 +594,7 @@ func (h *HitBTC) wsGetActiveOrders() (*WsActiveOrdersResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
-	var response WsActiveOrdersResponse
+	var response wsActiveOrdersResponse
 	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
