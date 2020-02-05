@@ -279,6 +279,9 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 		return nil, err
 	}
 	for k, v := range tickerNew {
+		if strings.HasPrefix(k, "f") {
+			continue
+		}
 		pair := currency.NewPairFromString(k[1:]) // Remove prefix
 		if !enabledPairs.Contains(p, true) {
 			continue
