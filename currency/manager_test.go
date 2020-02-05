@@ -8,11 +8,21 @@ import (
 
 var p PairsManager
 
-func initTest() {
+func initTest(t *testing.T) {
+	spotAvailable, err := NewPairsFromStrings([]string{"BTC-USD", "LTC-USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	spotEnabled, err := NewPairsFromStrings([]string{"BTC-USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	p.Store(asset.Spot,
 		PairStore{
-			Available: NewPairsFromStrings([]string{"BTC-USD", "LTC-USD"}),
-			Enabled:   NewPairsFromStrings([]string{"BTC-USD"}),
+			Available: spotAvailable,
+			Enabled:   spotEnabled,
 			RequestFormat: &PairFormat{
 				Uppercase: true,
 			},
@@ -25,7 +35,7 @@ func initTest() {
 }
 
 func TestGetAssetTypes(t *testing.T) {
-	initTest()
+	initTest(t)
 
 	a := p.GetAssetTypes()
 	if len(a) == 0 {
@@ -38,7 +48,7 @@ func TestGetAssetTypes(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	initTest()
+	initTest(t)
 
 	if p.Get(asset.Spot) == nil {
 		t.Error("Spot assets shouldn't be nil")
@@ -50,10 +60,20 @@ func TestGet(t *testing.T) {
 }
 
 func TestStore(t *testing.T) {
+	availPairs, err := NewPairsFromStrings([]string{"BTC-USD", "LTC-USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	enabledPairs, err := NewPairsFromStrings([]string{"BTC-USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	p.Store(asset.Futures,
 		PairStore{
-			Available: NewPairsFromStrings([]string{"BTC-USD", "LTC-USD"}),
-			Enabled:   NewPairsFromStrings([]string{"BTC-USD"}),
+			Available: availPairs,
+			Enabled:   enabledPairs,
 			RequestFormat: &PairFormat{
 				Uppercase: true,
 			},
@@ -73,11 +93,15 @@ func TestDelete(t *testing.T) {
 	p.Pairs = nil
 	p.Delete(asset.Spot)
 
-	p.Store(asset.Spot,
-		PairStore{
-			Available: NewPairsFromStrings([]string{"BTC-USD"}),
-		},
-	)
+	btcusdPairs, err := NewPairsFromStrings([]string{"BTC-USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p.Store(asset.Spot, PairStore{
+		Available: btcusdPairs,
+	})
+
 	p.Delete(asset.UpsideProfitContract)
 	if p.Get(asset.Spot) == nil {
 		t.Error("AssetTypeSpot should exist")
@@ -96,7 +120,7 @@ func TestGetPairs(t *testing.T) {
 		t.Fatal("pairs shouldn't be populated")
 	}
 
-	initTest()
+	initTest(t)
 	pairs = p.GetPairs(asset.Spot, true)
 	if pairs == nil {
 		t.Fatal("pairs should be populated")
@@ -110,30 +134,52 @@ func TestGetPairs(t *testing.T) {
 
 func TestStorePairs(t *testing.T) {
 	p.Pairs = nil
-	p.StorePairs(asset.Spot, NewPairsFromStrings([]string{"ETH-USD"}), false)
+
+	ethusdPairs, err := NewPairsFromStrings([]string{"ETH-USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p.StorePairs(asset.Spot, ethusdPairs, false)
 	pairs := p.GetPairs(asset.Spot, false)
-	if !pairs.Contains(NewPairFromString("ETH-USD"), true) {
+
+	ethusd, err := NewPairFromString("ETH-USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !pairs.Contains(ethusd, true) {
 		t.Errorf("TestStorePairs failed, unexpected result")
 	}
 
-	initTest()
-	p.StorePairs(asset.Spot, NewPairsFromStrings([]string{"ETH-USD"}), false)
+	initTest(t)
+	p.StorePairs(asset.Spot, ethusdPairs, false)
 	pairs = p.GetPairs(asset.Spot, false)
 	if pairs == nil {
 		t.Errorf("pairs should be populated")
 	}
 
-	if !pairs.Contains(NewPairFromString("ETH-USD"), true) {
+	if !pairs.Contains(ethusd, true) {
 		t.Errorf("TestStorePairs failed, unexpected result")
 	}
 
-	p.StorePairs(asset.Futures, NewPairsFromStrings([]string{"ETH-KRW"}), true)
+	ethkrwPairs, err := NewPairsFromStrings([]string{"ETH-KRW"})
+	if err != nil {
+		t.Error(err)
+	}
+
+	p.StorePairs(asset.Futures, ethkrwPairs, true)
 	pairs = p.GetPairs(asset.Futures, true)
 	if pairs == nil {
 		t.Errorf("pairs futures should be populated")
 	}
 
-	if !pairs.Contains(NewPairFromString("ETH-KRW"), true) {
+	ethkrw, err := NewPairFromString("ETH-KRW")
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !pairs.Contains(ethkrw, true) {
 		t.Errorf("TestStorePairs failed, unexpected result")
 	}
 }
@@ -146,7 +192,7 @@ func TestDisablePair(t *testing.T) {
 	}
 
 	// Test asset type which doesn't exist
-	initTest()
+	initTest(t)
 	if err := p.DisablePair(asset.Futures, Pair{}); err == nil {
 		t.Error("unexpected result")
 	}
@@ -158,7 +204,7 @@ func TestDisablePair(t *testing.T) {
 	}
 
 	// Test disabling a pair which isn't enabled
-	initTest()
+	initTest(t)
 	if err := p.DisablePair(asset.Spot, NewPair(LTC, USD)); err == nil {
 		t.Error("unexpected result")
 	}
@@ -177,7 +223,7 @@ func TestEnablePair(t *testing.T) {
 	}
 
 	// Test asset type which doesn't exist
-	initTest()
+	initTest(t)
 	if err := p.EnablePair(asset.Futures, Pair{}); err == nil {
 		t.Error("unexpected result")
 	}
@@ -189,7 +235,7 @@ func TestEnablePair(t *testing.T) {
 	}
 
 	// Test enabling a pair which isn't in the list of available pairs
-	initTest()
+	initTest(t)
 	if err := p.EnablePair(asset.Spot, NewPair(ETH, USD)); err == nil {
 		t.Error("unexpected result")
 	}

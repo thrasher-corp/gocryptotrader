@@ -753,7 +753,11 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		return nil, errors.New("exchange is not loaded/doesn't exist")
 	}
 
-	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
 	submission := &order.Submit{
 		Pair:      p,
 		OrderSide: order.Side(r.Side),
@@ -777,7 +781,11 @@ func (s *RPCServer) SimulateOrder(ctx context.Context, r *gctrpc.SimulateOrderRe
 		return nil, errors.New("exchange is not loaded/doesn't exist")
 	}
 
-	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
 	o, err := exch.FetchOrderbook(p, asset.Spot)
 	if err != nil {
 		return nil, err
@@ -814,7 +822,11 @@ func (s *RPCServer) WhaleBomb(ctx context.Context, r *gctrpc.WhaleBombRequest) (
 		return nil, errors.New("exchange is not loaded/doesn't exist")
 	}
 
-	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
 	o, err := exch.FetchOrderbook(p, asset.Spot)
 	if err != nil {
 		return nil, err
@@ -1014,9 +1026,13 @@ func (s *RPCServer) EnableExchangePair(ctx context.Context, r *gctrpc.ExchangePa
 		return nil, err
 	}
 
-	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote).Format(
-		pairFmt.Delimiter, pairFmt.Uppercase)
-	err = exchCfg.CurrencyPairs.EnablePair(a, p)
+	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
+	err = exchCfg.CurrencyPairs.EnablePair(a,
+		p.Format(pairFmt.Delimiter, pairFmt.Uppercase))
 	if err != nil {
 		return nil, err
 	}
@@ -1048,9 +1064,13 @@ func (s *RPCServer) DisableExchangePair(ctx context.Context, r *gctrpc.ExchangeP
 		return nil, err
 	}
 
-	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote).Format(
-		pairFmt.Delimiter, pairFmt.Uppercase)
-	err = exchCfg.CurrencyPairs.DisablePair(asset.Item(r.AssetType), p)
+	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
+	err = exchCfg.CurrencyPairs.DisablePair(asset.Item(r.AssetType),
+		p.Format(pairFmt.Delimiter, pairFmt.Uppercase))
 	if err != nil {
 		return nil, err
 	}
@@ -1073,7 +1093,10 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 		return errors.New(errAssetTypeUnset)
 	}
 
-	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return err
+	}
 
 	pipe, err := orderbook.SubscribeOrderbook(r.Exchange, p, asset.Item(r.AssetType))
 	if err != nil {
@@ -1179,7 +1202,10 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 		return errors.New(errAssetTypeUnset)
 	}
 
-	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return err
+	}
 
 	pipe, err := ticker.SubscribeTicker(r.Exchange, p, asset.Item(r.AssetType))
 	if err != nil {

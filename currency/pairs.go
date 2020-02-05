@@ -10,16 +10,21 @@ import (
 
 // NewPairsFromStrings takes in currency pair strings and returns a currency
 // pair list
-func NewPairsFromStrings(pairs []string) Pairs {
-	var ps Pairs
-	for _, p := range pairs {
-		if p == "" {
+func NewPairsFromStrings(pairs []string) (Pairs, error) {
+	var newPairs Pairs
+	for i := range pairs {
+		if pairs[i] == "" {
 			continue
 		}
 
-		ps = append(ps, NewPairFromString(p))
+		newPair, err := NewPairFromString(pairs[i])
+		if err != nil {
+			return nil, err
+		}
+
+		newPairs = append(newPairs, newPair)
 	}
-	return ps
+	return newPairs, nil
 }
 
 // Strings returns a slice of strings referring to each currency pair
@@ -80,7 +85,11 @@ func (p *Pairs) UnmarshalJSON(d []byte) error {
 
 	var allThePairs Pairs
 	for _, data := range strings.Split(pairs, ",") {
-		allThePairs = append(allThePairs, NewPairFromString(data))
+		pair, err := NewPairFromString(data)
+		if err != nil {
+			return err
+		}
+		allThePairs = append(allThePairs, pair)
 	}
 
 	*p = allThePairs

@@ -136,15 +136,24 @@ func (b *Binance) WsHandleData() {
 					continue
 				}
 
+				p, err := currency.NewPairFromFormattedPairs(trade.Symbol,
+					b.GetEnabledPairs(asset.Spot),
+					b.GetPairFormat(asset.Spot, true))
+				if err != nil {
+					b.Websocket.DataHandler <- fmt.Errorf("%v - %s",
+						b.Name,
+						err.Error())
+					continue
+				}
+
 				b.Websocket.DataHandler <- wshandler.TradeData{
-					CurrencyPair: currency.NewPairFromFormattedPairs(trade.Symbol, b.GetEnabledPairs(asset.Spot),
-						b.GetPairFormat(asset.Spot, true)),
-					Timestamp: time.Unix(0, trade.TimeStamp*int64(time.Millisecond)),
-					Price:     price,
-					Amount:    amount,
-					Exchange:  b.Name,
-					AssetType: asset.Spot,
-					Side:      trade.EventType,
+					CurrencyPair: p,
+					Timestamp:    time.Unix(0, trade.TimeStamp*int64(time.Millisecond)),
+					Price:        price,
+					Amount:       amount,
+					Exchange:     b.Name,
+					AssetType:    asset.Spot,
+					Side:         trade.EventType,
 				}
 				continue
 			case "ticker":
@@ -152,6 +161,16 @@ func (b *Binance) WsHandleData() {
 				err := json.Unmarshal(multiStreamData.Data, &t)
 				if err != nil {
 					b.Websocket.DataHandler <- fmt.Errorf("%v - Could not convert to a TickerStream structure %s",
+						b.Name,
+						err.Error())
+					continue
+				}
+
+				p, err := currency.NewPairFromFormattedPairs(t.Symbol,
+					b.GetEnabledPairs(asset.Spot),
+					b.GetPairFormat(asset.Spot, true))
+				if err != nil {
+					b.Websocket.DataHandler <- fmt.Errorf("%v - %s",
 						b.Name,
 						err.Error())
 					continue
@@ -170,8 +189,7 @@ func (b *Binance) WsHandleData() {
 					Last:         t.LastPrice,
 					LastUpdated:  time.Unix(0, t.EventTime*int64(time.Millisecond)),
 					AssetType:    asset.Spot,
-					Pair: currency.NewPairFromFormattedPairs(t.Symbol, b.GetEnabledPairs(asset.Spot),
-						b.GetPairFormat(asset.Spot, true)),
+					Pair:         p,
 				}
 
 				continue
@@ -185,10 +203,19 @@ func (b *Binance) WsHandleData() {
 					continue
 				}
 
+				p, err := currency.NewPairFromFormattedPairs(kline.Symbol,
+					b.GetEnabledPairs(asset.Spot),
+					b.GetPairFormat(asset.Spot, true))
+				if err != nil {
+					b.Websocket.DataHandler <- fmt.Errorf("%v - %s",
+						b.Name,
+						err.Error())
+					continue
+				}
+
 				var wsKline wshandler.KlineData
 				wsKline.Timestamp = time.Unix(0, kline.EventTime*int64(time.Millisecond))
-				wsKline.Pair = currency.NewPairFromFormattedPairs(kline.Symbol, b.GetEnabledPairs(asset.Spot),
-					b.GetPairFormat(asset.Spot, true))
+				wsKline.Pair = p
 				wsKline.AssetType = asset.Spot
 				wsKline.Exchange = b.Name
 				wsKline.StartTime = time.Unix(0, kline.Kline.StartTime*int64(time.Millisecond))
@@ -219,10 +246,18 @@ func (b *Binance) WsHandleData() {
 					continue
 				}
 
-				currencyPair := currency.NewPairFromFormattedPairs(depth.Pair, b.GetEnabledPairs(asset.Spot),
+				p, err := currency.NewPairFromFormattedPairs(depth.Pair,
+					b.GetEnabledPairs(asset.Spot),
 					b.GetPairFormat(asset.Spot, true))
+				if err != nil {
+					b.Websocket.DataHandler <- fmt.Errorf("%v - %s",
+						b.Name,
+						err.Error())
+					continue
+				}
+
 				b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-					Pair:     currencyPair,
+					Pair:     p,
 					Asset:    asset.Spot,
 					Exchange: b.Name,
 				}
@@ -292,13 +327,18 @@ func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
 
 		updateAsk = append(updateAsk, orderbook.Item{Price: p, Amount: a})
 	}
-	currencyPair := currency.NewPairFromFormattedPairs(wsdp.Pair, b.GetEnabledPairs(asset.Spot),
+
+	p, err := currency.NewPairFromFormattedPairs(wsdp.Pair,
+		b.GetEnabledPairs(asset.Spot),
 		b.GetPairFormat(asset.Spot, true))
+	if err != nil {
+		return err
+	}
 
 	return b.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
 		Bids:     updateBid,
 		Asks:     updateAsk,
-		Pair:     currencyPair,
+		Pair:     p,
 		UpdateID: wsdp.LastUpdateID,
 		Asset:    asset.Spot,
 	})

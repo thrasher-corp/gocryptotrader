@@ -351,8 +351,14 @@ func wsGetTicker(client *WebsocketClient, data interface{}) error {
 		return err
 	}
 
-	result, err := GetSpecificTicker(currency.NewPairFromString(tickerReq.Currency),
-		tickerReq.Exchange, asset.Item(tickerReq.AssetType))
+	p, err := currency.NewPairFromString(tickerReq.Currency)
+	if err != nil {
+		return err
+	}
+
+	result, err := GetSpecificTicker(p,
+		tickerReq.Exchange,
+		asset.Item(tickerReq.AssetType))
 
 	if err != nil {
 		wsResp.Error = err.Error()
@@ -383,7 +389,12 @@ func wsGetOrderbook(client *WebsocketClient, data interface{}) error {
 		return err
 	}
 
-	result, err := GetSpecificOrderbook(currency.NewPairFromString(orderbookReq.Currency),
+	p, err := currency.NewPairFromString(orderbookReq.Currency)
+	if err != nil {
+		return err
+	}
+
+	result, err := GetSpecificOrderbook(p,
 		orderbookReq.Exchange, asset.Item(orderbookReq.AssetType))
 
 	if err != nil {

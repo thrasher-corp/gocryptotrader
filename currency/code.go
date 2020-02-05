@@ -67,18 +67,18 @@ func (b *BaseCodes) HasData() bool {
 // GetFullCurrencyData returns a type that is read to dump to file
 func (b *BaseCodes) GetFullCurrencyData() (File, error) {
 	var file File
-	for _, i := range b.Items {
-		switch i.Role {
+	for i := range b.Items {
+		switch b.Items[i].Role {
 		case Unset:
-			file.UnsetCurrency = append(file.UnsetCurrency, *i)
+			file.UnsetCurrency = append(file.UnsetCurrency, *b.Items[i])
 		case Fiat:
-			file.FiatCurrency = append(file.FiatCurrency, *i)
+			file.FiatCurrency = append(file.FiatCurrency, *b.Items[i])
 		case Cryptocurrency:
-			file.Cryptocurrency = append(file.Cryptocurrency, *i)
+			file.Cryptocurrency = append(file.Cryptocurrency, *b.Items[i])
 		case Token:
-			file.Token = append(file.Token, *i)
+			file.Token = append(file.Token, *b.Items[i])
 		case Contract:
-			file.Contracts = append(file.Contracts, *i)
+			file.Contracts = append(file.Contracts, *b.Items[i])
 		default:
 			return file, errors.New("role undefined")
 		}

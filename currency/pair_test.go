@@ -12,10 +12,16 @@ const (
 
 func TestLower(t *testing.T) {
 	t.Parallel()
-	pair := NewPairFromString(defaultPair)
+	pair, err := NewPairFromString(defaultPair)
+	if err != nil {
+		t.Fatal(err)
+	}
 	actual := pair.Lower()
-	expected := NewPairFromString(defaultPair).Lower()
-	if actual != expected {
+	expected, err := NewPairFromString(defaultPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if actual != expected.Lower() {
 		t.Errorf("Lower(): %s was not equal to expected value: %s",
 			actual, expected)
 	}
@@ -23,9 +29,15 @@ func TestLower(t *testing.T) {
 
 func TestUpper(t *testing.T) {
 	t.Parallel()
-	pair := NewPairFromString(defaultPair)
+	pair, err := NewPairFromString(defaultPair)
+	if err != nil {
+		t.Fatal(err)
+	}
 	actual := pair.Upper()
-	expected := NewPairFromString(defaultPair)
+	expected, err := NewPairFromString(defaultPair)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if actual != expected {
 		t.Errorf("Upper(): %s was not equal to expected value: %s",
 			actual, expected)
@@ -384,7 +396,10 @@ func TestNewPairFromIndex(t *testing.T) {
 func TestNewPairFromString(t *testing.T) {
 	t.Parallel()
 	pairStr := defaultPairWDelimiter
-	pair := NewPairFromString(pairStr)
+	pair, err := NewPairFromString(pairStr)
+	if err != nil {
+		t.Fatal(err)
+	}
 	actual := pair.String()
 	expected := defaultPairWDelimiter
 	if actual != expected {
@@ -395,7 +410,10 @@ func TestNewPairFromString(t *testing.T) {
 	}
 
 	pairStr = defaultPair
-	pair = NewPairFromString(pairStr)
+	pair, err = NewPairFromString(pairStr)
+	if err != nil {
+		t.Fatal(err)
+	}
 	actual = pair.String()
 	expected = defaultPair
 	if actual != expected {
@@ -413,18 +431,30 @@ func TestNewPairFromFormattedPairs(t *testing.T) {
 		NewPairDelimiter("LTC-USD", "-"),
 	}
 
-	p := NewPairFromFormattedPairs("BTCUSDT", pairs, PairFormat{Uppercase: true})
+	p, err := NewPairFromFormattedPairs("BTCUSDT", pairs, PairFormat{Uppercase: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if p.String() != "BTC-USDT" {
 		t.Error("TestNewPairFromFormattedPairs: Expected currency was not found")
 	}
 
-	p = NewPairFromFormattedPairs("btcusdt", pairs, PairFormat{Uppercase: false})
+	p, err = NewPairFromFormattedPairs("btcusdt", pairs, PairFormat{Uppercase: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if p.String() != "BTC-USDT" {
 		t.Error("TestNewPairFromFormattedPairs: Expected currency was not found")
 	}
 
 	// Now a wrong one, will default to NewPairFromString
-	p = NewPairFromFormattedPairs("ethusdt", pairs, PairFormat{})
+	p, err = NewPairFromFormattedPairs("ethusdt", pairs, PairFormat{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if p.String() != "ethusdt" && p.Base.String() != "eth" {
 		t.Error("TestNewPairFromFormattedPairs: Expected currency was not found")
 	}
@@ -501,22 +531,35 @@ func TestCopyPairFormat(t *testing.T) {
 }
 
 func TestFindPairDifferences(t *testing.T) {
-	pairList := NewPairsFromStrings([]string{defaultPairWDelimiter, "ETH-USD", "LTC-USD"})
+	pairList, err := NewPairsFromStrings([]string{defaultPairWDelimiter, "ETH-USD", "LTC-USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dash, err := NewPairsFromStrings([]string{"DASH-USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Test new pair update
-	newPairs, removedPairs := pairList.FindDifferences(NewPairsFromStrings([]string{"DASH-USD"}))
+	newPairs, removedPairs := pairList.FindDifferences(dash)
 	if len(newPairs) != 1 && len(removedPairs) != 3 {
 		t.Error("TestFindPairDifferences: Unexpected values")
 	}
 
+	emptyPairsList, err := NewPairsFromStrings([]string{""})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Test that we don't allow empty strings for new pairs
-	newPairs, removedPairs = pairList.FindDifferences(NewPairsFromStrings([]string{""}))
+	newPairs, removedPairs = pairList.FindDifferences(emptyPairsList)
 	if len(newPairs) != 0 && len(removedPairs) != 3 {
 		t.Error("TestFindPairDifferences: Unexpected values")
 	}
 
 	// Test that we don't allow empty strings for new pairs
-	newPairs, removedPairs = NewPairsFromStrings([]string{""}).FindDifferences(pairList)
+	newPairs, removedPairs = emptyPairsList.FindDifferences(pairList)
 	if len(newPairs) != 3 && len(removedPairs) != 0 {
 		t.Error("TestFindPairDifferences: Unexpected values")
 	}
