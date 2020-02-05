@@ -490,19 +490,6 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 		}
 
 		exchangeName := Bot.Exchanges[x].GetName()
-		if !Bot.Settings.EnableExchangeHTTPRateLimiter {
-			log.Warnf(log.SyncMgr,
-				"Loaded exchange %s rate limiting has been turned off.\n",
-				exchangeName)
-			err := Bot.Exchanges[x].GetBase().Requester.DisableRateLimiter()
-			if err != nil {
-				log.Errorf(log.SyncMgr,
-					"Loaded exchange %s rate limiting cannot be turned off: %s.\n",
-					exchangeName,
-					err)
-			}
-		}
-
 		supportsWebsocket := Bot.Exchanges[x].SupportsWebsocket()
 		assetTypes := Bot.Exchanges[x].GetAssetTypes()
 		supportsREST := Bot.Exchanges[x].SupportsREST()
