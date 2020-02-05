@@ -91,7 +91,7 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 	if *b.Config.Logging.Enabled {
 		gctlog.SetupGlobalLogger()
 		gctlog.SetupSubLoggers(b.Config.Logging.SubLoggers)
-		gctlog.Infoln(gctlog.Global, "Logger intialised.")
+		gctlog.Infoln(gctlog.Global, "Logger initialised.")
 	}
 
 	b.Settings.ConfigFile = filePath
@@ -115,12 +115,19 @@ func ValidateSettings(b *Engine, s *Settings) {
 	b.Settings.EnableDryRun = s.EnableDryRun
 	b.Settings.EnableAllExchanges = s.EnableAllExchanges
 	b.Settings.EnableAllPairs = s.EnableAllPairs
-	b.Settings.EnablePortfolioManager = s.EnablePortfolioManager
 	b.Settings.EnableCoinmarketcapAnalysis = s.EnableCoinmarketcapAnalysis
 	b.Settings.EnableDatabaseManager = s.EnableDatabaseManager
 	b.Settings.EnableGCTScriptManager = s.EnableGCTScriptManager
 	b.Settings.MaxVirtualMachines = s.MaxVirtualMachines
 	b.Settings.EnableDispatcher = s.EnableDispatcher
+	b.Settings.EnablePortfolioManager = s.EnablePortfolioManager
+	if b.Settings.EnablePortfolioManager {
+		if b.Settings.PortfolioManagerDelay != time.Duration(0) && s.PortfolioManagerDelay > 0 {
+			b.Settings.PortfolioManagerDelay = s.PortfolioManagerDelay
+		} else {
+			b.Settings.PortfolioManagerDelay = PortfolioSleepDelay
+		}
+	}
 
 	if flagSet["grpc"] {
 		b.Settings.EnableGRPC = s.EnableGRPC
@@ -239,6 +246,7 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Enable all pairs: %v", s.EnableAllPairs)
 	gctlog.Debugf(gctlog.Global, "\t Enable coinmarketcap analaysis: %v", s.EnableCoinmarketcapAnalysis)
 	gctlog.Debugf(gctlog.Global, "\t Enable portfolio manager: %v", s.EnablePortfolioManager)
+	gctlog.Debugf(gctlog.Global, "\t Portfolio manager sleep delay: %v\n", s.PortfolioManagerDelay)
 	gctlog.Debugf(gctlog.Global, "\t Enable gPRC: %v", s.EnableGRPC)
 	gctlog.Debugf(gctlog.Global, "\t Enable gRPC Proxy: %v", s.EnableGRPCProxy)
 	gctlog.Debugf(gctlog.Global, "\t Enable websocket RPC: %v", s.EnableWebsocketRPC)

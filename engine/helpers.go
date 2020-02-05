@@ -711,18 +711,14 @@ func FormatCurrency(p currency.Pair) currency.Pair {
 		Bot.Config.Currency.CurrencyPairFormat.Uppercase)
 }
 
-// GetExchangeNames returns a list of loaded exchanges
-func GetExchangeNames(enabled bool) []string {
-	var exchangesNames []string
-	exchanges := GetExchanges()
-	for x := range exchanges {
-		if exchanges[x].IsEnabled() && enabled {
-			exchangesNames = append(exchangesNames, exchanges[x].GetName())
-			continue
-		}
-		exchangesNames = append(exchangesNames, exchanges[x].GetName())
+// GetExchangeNames returns a list of enabled or disabled exchanges
+func GetExchangeNames(enabledOnly bool) []string {
+	exchangeNames := GetAvailableExchanges()
+	if enabledOnly {
+		return exchangeNames
 	}
-	return exchangesNames
+	exchangeNames = append(exchangeNames, Bot.Config.GetDisabledExchanges()...)
+	return exchangeNames
 }
 
 // GetAllActiveTickers returns all enabled exchange tickers
@@ -730,10 +726,6 @@ func GetAllActiveTickers() []EnabledExchangeCurrencies {
 	var tickerData []EnabledExchangeCurrencies
 	exchanges := GetExchanges()
 	for x := range exchanges {
-		if !exchanges[x].IsEnabled() {
-			continue
-		}
-
 		assets := exchanges[x].GetAssetTypes()
 		exchName := exchanges[x].GetName()
 		var exchangeTicker EnabledExchangeCurrencies

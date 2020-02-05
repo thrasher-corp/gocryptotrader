@@ -25,10 +25,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
-const (
-	TestConfig = "../testdata/configtest.json"
-)
-
 var (
 	helperTestLoaded = false
 )
@@ -40,7 +36,7 @@ func SetupTestHelpers(t *testing.T) {
 				Bot = new(Engine)
 			}
 			Bot.Config = &config.Cfg
-			err := Bot.Config.LoadConfig("../testdata/configtest.json", true)
+			err := Bot.Config.LoadConfig(config.TestFile, true)
 			if err != nil {
 				t.Fatalf("SetupTest: Failed to load config: %s", err)
 			}
@@ -571,6 +567,22 @@ func TestGetCryptocurrenciesByExchange(t *testing.T) {
 	_, err := GetCryptocurrenciesByExchange("Bitfinex", false, false, asset.Spot)
 	if err != nil {
 		t.Fatalf("Err %s", err)
+	}
+}
+
+func TestGetExchangeNames(t *testing.T) {
+	SetupTest(t)
+	if e := GetExchangeNames(true); len(e) == 0 {
+		t.Error("exchange names should be populated")
+	}
+	if err := UnloadExchange(testExchange); err != nil {
+		t.Fatal(err)
+	}
+	if e := GetExchangeNames(true); common.StringDataCompare(e, testExchange) {
+		t.Error("Bitstamp should be missing")
+	}
+	if e := GetExchangeNames(false); len(e) != 27 {
+		t.Error("len should be all available exchanges")
 	}
 }
 
