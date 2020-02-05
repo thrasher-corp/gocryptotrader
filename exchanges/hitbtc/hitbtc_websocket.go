@@ -314,6 +314,7 @@ func (h *HitBTC) wsHandleOrderData(o *wsOrderData) error {
 	if err != nil {
 		return err
 	}
+	o.Status = strings.Replace(o.Status, "canceled", "cancelled", 1)
 	oStatus, err := order.StringToOrderStatus(o.Status)
 	if err != nil {
 		return err

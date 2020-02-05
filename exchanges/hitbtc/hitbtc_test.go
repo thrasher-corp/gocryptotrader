@@ -51,6 +51,8 @@ func TestMain(m *testing.M) {
 		log.Fatal("HitBTC setup error", err)
 	}
 
+	h.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	h.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -570,6 +572,27 @@ func TestWsGetCurrenciesJSON(t *testing.T) {
 	}
 }
 
+func TestWsGetSymbolsJSON(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "jsonrpc": "2.0",
+  "result": {
+    "id": "ETHBTC",
+    "baseCurrency": "ETH",
+    "quoteCurrency": "BTC",
+    "quantityIncrement": "0.001",
+    "tickSize": "0.000001",
+    "takeLiquidityRate": "0.001",
+    "provideLiquidityRate": "-0.0001",
+    "feeCurrency": "BTC"
+  },
+  "id": 123
+}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestWsTicker(t *testing.T) {
 	pressXToJSON := []byte(`{
   "jsonrpc": "2.0",
@@ -632,6 +655,36 @@ func TestWsOrderbook(t *testing.T) {
   }
 }`)
 	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(`{
+  "jsonrpc": "2.0",
+  "method": "updateOrderbook",
+  "params": {    
+    "ask": [
+      {
+        "price": "0.054590",
+        "size": "0.000"
+      },
+      {
+        "price": "0.054591",
+        "size": "0.000"
+      }
+    ],
+    "bid": [
+      {
+        "price": "0.054504",
+         "size": "0.000"
+      }
+    ],
+    "symbol": "ETHBTC",
+    "sequence": 8073830,
+    "timestamp": "2018-11-19T05:00:28.700Z"
+  }
+}`)
+	err = h.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -803,6 +856,64 @@ func TestWsGetActiveOrdersRequestJSON(t *testing.T) {
   "id": 123
 }`)
 	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsTrades(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "jsonrpc": "2.0",
+  "method": "snapshotTrades",
+  "params": {
+    "data": [
+      {
+        "id": 54469456,
+        "price": "0.054656",
+        "quantity": "0.057",
+        "side": "buy",
+        "timestamp": "2017-10-19T16:33:42.821Z"
+      },
+      {
+        "id": 54469497,
+        "price": "0.054656",
+        "quantity": "0.092",
+        "side": "buy",
+        "timestamp": "2017-10-19T16:33:48.754Z"
+      },
+      {
+        "id": 54469697,
+        "price": "0.054669",
+        "quantity": "0.002",
+        "side": "buy",
+        "timestamp": "2017-10-19T16:34:13.288Z"
+      }
+    ],
+    "symbol": "ETHBTC"
+  }
+}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(`{
+  "jsonrpc": "2.0",
+  "method": "updateTrades",
+  "params": {
+    "data": [
+      {
+        "id": 54469813,
+        "price": "0.054670",
+        "quantity": "0.183",
+        "side": "buy",
+        "timestamp": "2017-10-19T16:34:25.041Z"
+      }
+    ],
+    "symbol": "ETHBTC"
+  }
+}    `)
+	err = h.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
