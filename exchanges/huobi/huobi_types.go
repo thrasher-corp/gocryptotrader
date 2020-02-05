@@ -331,14 +331,18 @@ type WsRequest struct {
 // WsResponse defines a response from the websocket connection when there
 // is an error
 type WsResponse struct {
-	TS           int64       `json:"ts"`
-	Status       string      `json:"status"`
-	ErrorCode    interface{} `json:"err-code"`
-	ErrorMessage string      `json:"err-msg"`
-	Ping         int64       `json:"ping"`
-	Channel      string      `json:"ch"`
-	Subscribed   string      `json:"subbed"`
-	ClientID     int64       `json:"cid,string,omitempty"`
+	Op           string `json:"op"`
+	TS           int64  `json:"ts"`
+	Status       string `json:"status"`
+	ErrorCode    int64  `json:"err-code"`
+	ErrorMessage string `json:"err-msg"`
+	Ping         int64  `json:"ping"`
+	Channel      string `json:"ch"`
+	Rep          string `json:"rep"`
+	Topic        string `json:"topic"`
+	Subscribed   string `json:"subbed"`
+	UnSubscribed string `json:"unsubbed"`
+	ClientID     int64  `json:"cid,string"`
 }
 
 // WsHeartBeat defines a heartbeat request
@@ -377,6 +381,7 @@ type WsKline struct {
 // WsTick stores websocket ticker data
 type WsTick struct {
 	Channel   string `json:"ch"`
+	Rep       string `json:"rep"`
 	Timestamp int64  `json:"ts"`
 	Tick      struct {
 		Amount    float64 `json:"amount"`
@@ -478,20 +483,9 @@ type WsAuthenticatedOrdersListRequest struct {
 	ClientID         int64  `json:"cid,string,omitempty"`
 }
 
-// WsAuthenticatedDataResponse response from authenticated connection
-type WsAuthenticatedDataResponse struct {
-	Op           string `json:"op,omitempty"`
-	Ts           int64  `json:"ts,omitempty"`
-	Topic        string `json:"topic,omitempty"`
-	ErrorCode    int64  `json:"err-code,omitempty"`
-	ErrorMessage string `json:"err-msg,omitempty"`
-	Ping         int64  `json:"ping,omitempty"`
-	ClientID     int64  `json:"cid,string,omitempty"`
-}
-
 // WsAuthenticatedAccountsResponse response from Accounts authenticated subscription
 type WsAuthenticatedAccountsResponse struct {
-	WsAuthenticatedDataResponse
+	WsResponse
 	Data WsAuthenticatedAccountsResponseData `json:"data"`
 }
 
@@ -511,7 +505,7 @@ type WsAuthenticatedAccountsResponseDataList struct {
 
 // WsAuthenticatedOrdersUpdateResponse response from OrdersUpdate authenticated subscription
 type WsAuthenticatedOrdersUpdateResponse struct {
-	WsAuthenticatedDataResponse
+	WsResponse
 	Data WsAuthenticatedOrdersUpdateResponseData `json:"data"`
 }
 
@@ -530,8 +524,14 @@ type WsAuthenticatedOrdersUpdateResponseData struct {
 
 // WsAuthenticatedOrdersResponse response from Orders authenticated subscription
 type WsAuthenticatedOrdersResponse struct {
-	WsAuthenticatedDataResponse
+	WsResponse
 	Data []WsAuthenticatedOrdersResponseData `json:"data"`
+}
+
+// WsAuthenticatedOrdersResponse response from Orders authenticated subscription
+type WsOldOrderUpdate struct {
+	WsResponse
+	Data WsAuthenticatedOrdersResponseData `json:"data"`
 }
 
 // WsAuthenticatedOrdersResponseData order data
@@ -556,7 +556,7 @@ type WsAuthenticatedOrdersResponseData struct {
 
 // WsAuthenticatedAccountsListResponse response from AccountsList authenticated endpoint
 type WsAuthenticatedAccountsListResponse struct {
-	WsAuthenticatedDataResponse
+	WsResponse
 	Data []WsAuthenticatedAccountsListResponseData `json:"data"`
 }
 
@@ -577,17 +577,32 @@ type WsAuthenticatedAccountsListResponseDataList struct {
 
 // WsAuthenticatedOrdersListResponse response from OrdersList authenticated endpoint
 type WsAuthenticatedOrdersListResponse struct {
-	WsAuthenticatedDataResponse
+	WsResponse
 	Data []OrderInfo `json:"data"`
 }
 
 // WsAuthenticatedOrderDetailResponse response from OrderDetail authenticated endpoint
 type WsAuthenticatedOrderDetailResponse struct {
-	WsAuthenticatedDataResponse
+	WsResponse
 	Data OrderInfo `json:"data"`
 }
 
 // WsPong sent for pong messages
 type WsPong struct {
 	Pong int64 `json:"pong"`
+}
+
+type wsKLineResponseThing struct {
+	Data []struct {
+		Amount float64 `json:"amount"`
+		Close  float64 `json:"close"`
+		Count  float64 `json:"count"`
+		High   float64 `json:"high"`
+		ID     int64   `json:"id"`
+		Low    float64 `json:"low"`
+		Open   float64 `json:"open"`
+		Volume float64 `json:"vol"`
+	} `json:"data"`
+	Rep    string `json:"rep"`
+	Status string `json:"status"`
 }

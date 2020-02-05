@@ -49,7 +49,8 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Huobi setup error", err)
 	}
-
+	h.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	h.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -655,7 +656,298 @@ func TestWsGetOrderDetails(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resp.ErrorCode > 0 && (orderID == "123" && resp.ErrorCode != 10022) {
+	if resp.ErrorCode > 0 && resp.ErrorCode != 10022 {
 		t.Error(resp.ErrorMessage)
+	}
+}
+
+func TestWsSubResponse(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "op": "sub",
+  "cid": "123",
+  "err-code": 0,
+  "ts": 1489474081631,
+  "topic": "accounts"
+}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsKline(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "ch": "market.btcusdt.kline.1min",
+  "ts": 1489474082831,
+  "tick": {
+    "id": 1489464480,
+    "amount": 0.0,
+    "count": 0,
+    "open": 7962.62,
+    "close": 7962.62,
+    "low": 7962.62,
+    "high": 7962.62,
+    "vol": 0.0
+  }
+}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsUnsubscribe(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "id": "id4",
+  "status": "ok",
+  "unsubbed": "market.btcusdt.trade.detail",
+  "ts": 1494326028889
+}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsKlineArray(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "status": "ok",
+  "rep": "market.btcusdt.kline.1min",
+  "data": [
+    {
+      "amount": 1.6206,
+      "count":  3,
+      "id":     1494465840,
+      "open":   9887.00,
+      "close":  9885.00,
+      "low":    9885.00,
+      "high":   9887.00,
+      "vol":    16021.632026
+    },
+    {
+      "amount": 2.2124,
+      "count":  6,
+      "id":     1494465900,
+      "open":   9885.00,
+      "close":  9880.00,
+      "low":    9880.00,
+      "high":   9885.00,
+      "vol":    21859.023500
+    }
+  ]
+}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsMarketDepth(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "ch": "market.htusdt.depth.step0",
+  "ts": 1572362902027,
+  "tick": {
+    "bids": [
+      [3.7721, 344.86],
+      [3.7709, 46.66]
+    ],
+    "asks": [
+      [3.7745, 15.44],
+      [3.7746, 70.52]
+    ],
+    "version": 100434317651,
+    "ts": 1572362902012
+  }
+}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsBestBidOffer(t *testing.T) {
+	pressXToJSON := []byte(`{
+	  "ch": "market.btcusdt.bbo",
+	  "ts": 1489474082831,
+	  "tick": {
+		"symbol": "btcusdt",
+		"quoteTime": "1489474082811",
+		"bid": "10008.31",
+		"bidSize": "0.01",
+		"ask": "10009.54",
+		"askSize": "0.3"
+	  }
+	}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err == nil {
+		t.Error("Expected error, not yet implemented")
+	}
+}
+
+func TestWsTradeDetail(t *testing.T) {
+	pressXToJSON := []byte(`{
+	  "ch": "market.btcusdt.trade.detail",
+	  "ts": 1489474082831,
+	  "tick": {
+			"id": 14650745135,
+			"ts": 1533265950234,
+			"data": [
+				{
+					"amount": 0.0099,
+					"ts": 1533265950234,
+					"id": 146507451359183894799,
+					"tradeId": 102043495674,
+					"price": 401.74,
+					"direction": "buy"
+				}
+			]
+	  }
+	}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsTicker(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "rep": "market.btcusdt.detail",
+  "id": "id11",
+	"data":{
+		"amount": 12224.2922,
+		"open":   9790.52,
+		"close":  10195.00,
+		"high":   10300.00,
+		"ts":     1494496390000,
+		"id":     1494496390,
+		"count":  15195,
+		"low":    9657.00,
+		"vol":    121906001.754751
+	  }
+}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsAccountUpdate(t *testing.T) {
+	pressXToJSON := []byte(`{
+	  "op": "notify",
+	  "ts": 1522856623232,
+	  "topic": "accounts",
+	  "data": {
+		"event": "order.place",
+		"list": [
+		  {
+			"account-id": 419013,
+			"currency": "usdt",
+			"type": "trade",
+			"balance": "500009195917.4362872650"
+		  }
+		]
+	  }
+	}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsOrderUpdate(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "op": "notify",
+  "topic": "orders.htusdt",
+  "ts": 1522856623232,
+  "data": {
+    "seq-id": 94984,
+    "order-id": 2039498445,
+    "symbol": "htusdt",
+    "account-id": 100077,
+    "order-amount": "5000.000000000000000000",
+    "order-price": "1.662100000000000000",
+    "created-at": 1522858623622,
+    "order-type": "buy-limit",
+    "order-source": "api",
+    "order-state": "filled",
+    "role": "taker",
+    "price": "1.662100000000000000",
+    "filled-amount": "5000.000000000000000000",
+    "unfilled-amount": "0.000000000000000000",
+    "filled-cash-amount": "8301.357280000000000000",
+    "filled-fees": "8.000000000000000000"
+  }
+}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsSubsbOp(t *testing.T) {
+	pressXToJSON := []byte(`{
+	  "op": "unsub",
+	  "topic": "accounts",
+	  "cid": "123"
+	}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+	pressXToJSON = []byte(`{
+	  "op": "sub",
+	  "cid": "123",
+	  "err-code": 0,
+	  "ts": 1489474081631,
+	  "topic": "accounts"
+	}`)
+	err = h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsMarketByPrice(t *testing.T) {
+	pressXToJSON := []byte(`{
+		"ch": "market.btcusdt.mbp.150",
+		"ts": 1573199608679,
+		"tick": {
+			"seqNum": 100020146795,
+			"prevSeqNum": 100020146794,
+			"bids": [],
+			"asks": [
+				[645.140000000000000000, 26.755973959140651643]
+			]
+		}
+	}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err == nil {
+		t.Error("Expected error, not yet implemented")
+	}
+	pressXToJSON = []byte(`{
+		"id": "id2",
+		"rep": "market.btcusdt.mbp.150",
+		"status": "ok",
+		"data": {
+			"seqNum": 100020142010,
+			"bids": [
+				[618.37, 71.594],
+				[423.33, 77.726],
+				[223.18, 47.997],
+				[219.34, 24.82],
+				[210.34, 94.463],
+		],
+			"asks": [
+				[650.59, 14.909733438479636],
+				[650.63, 97.996],
+				[650.77, 97.465],
+				[651.23, 83.973],
+				[651.42, 34.465],
+			]
+		}
+	}`)
+	err = h.wsHandleData(pressXToJSON)
+	if err == nil {
+		t.Error("Expected error, not yet implemented")
 	}
 }
