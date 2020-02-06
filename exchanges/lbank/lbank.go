@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
@@ -31,11 +32,9 @@ type Lbank struct {
 }
 
 const (
-	lbankAPIURL          = "https://api.lbkex.com"
-	lbankAPIVersion      = "1"
-	lbankAuthRateLimit   = 0
-	lbankUnAuthRateLimit = 0
-	lbankFeeNotFound     = 0.0
+	lbankAPIURL      = "https://api.lbkex.com"
+	lbankAPIVersion  = "1"
+	lbankFeeNotFound = 0.0
 
 	// Public endpoints
 	lbankTicker         = "ticker.do"
@@ -497,16 +496,14 @@ func ErrorCapture(code int64) error {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (l *Lbank) SendHTTPRequest(path string, result interface{}) error {
-	return l.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		&result,
-		false,
-		false,
-		l.Verbose,
-		l.HTTPDebugging,
-		l.HTTPRecording)
+	return l.SendPayload(&request.Item{
+		Method:        http.MethodGet,
+		Path:          path,
+		Result:        result,
+		Verbose:       l.Verbose,
+		HTTPDebugging: l.HTTPDebugging,
+		HTTPRecording: l.HTTPRecording,
+	})
 }
 
 func (l *Lbank) loadPrivKey() error {
@@ -569,16 +566,17 @@ func (l *Lbank) SendAuthHTTPRequest(method, endpoint string, vals url.Values, re
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	return l.SendPayload(method,
-		endpoint,
-		headers,
-		bytes.NewBufferString(payload),
-		&result,
-		true,
-		false,
-		l.Verbose,
-		l.HTTPDebugging,
-		l.HTTPRecording)
+	return l.SendPayload(&request.Item{
+		Method:        method,
+		Path:          endpoint,
+		Headers:       headers,
+		Body:          bytes.NewBufferString(payload),
+		Result:        result,
+		AuthRequest:   true,
+		Verbose:       l.Verbose,
+		HTTPDebugging: l.HTTPDebugging,
+		HTTPRecording: l.HTTPRecording,
+	})
 }
 
 // GetHistoricCandles returns rangesize number of candles for the given granularity and pair starting from the latest available

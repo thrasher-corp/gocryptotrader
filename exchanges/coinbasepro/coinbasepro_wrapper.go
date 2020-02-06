@@ -116,9 +116,8 @@ func (c *CoinbasePro) SetDefaults() {
 	}
 
 	c.Requester = request.New(c.Name,
-		request.NewRateLimit(time.Second, coinbaseproAuthRate),
-		request.NewRateLimit(time.Second, coinbaseproUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		SetRateLimit())
 
 	c.API.Endpoints.URLDefault = coinbaseproAPIURL
 	c.API.Endpoints.URL = c.API.Endpoints.URLDefault

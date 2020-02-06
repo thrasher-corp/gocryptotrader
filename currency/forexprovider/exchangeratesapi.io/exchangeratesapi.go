@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
@@ -22,9 +21,8 @@ func (e *ExchangeRates) Setup(config base.Settings) error {
 	e.Verbose = config.Verbose
 	e.PrimaryProvider = config.PrimaryProvider
 	e.Requester = request.New(e.Name,
-		request.NewRateLimit(time.Second*10, authRate),
-		request.NewRateLimit(time.Second*10, unAuthRate),
-		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
+		common.NewHTTPClientWithTimeout(base.DefaultTimeOut),
+		request.NewBasicRateLimit(rateLimitInterval, requestRate))
 	return nil
 }
 
@@ -153,16 +151,11 @@ func (e *ExchangeRates) GetSupportedCurrencies() ([]string, error) {
 // SendHTTPRequest sends a HTTPS request to the desired endpoint and returns the result
 func (e *ExchangeRates) SendHTTPRequest(endPoint string, values url.Values, result interface{}) error {
 	path := common.EncodeURLValues(exchangeRatesAPI+"/"+endPoint, values)
-	err := e.Requester.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		&result,
-		false,
-		false,
-		e.Verbose,
-		false,
-		false)
+	err := e.Requester.SendPayload(&request.Item{
+		Method:  http.MethodGet,
+		Path:    path,
+		Result:  &result,
+		Verbose: e.Verbose})
 	if err != nil {
 		return fmt.Errorf("exchangeRatesAPI SendHTTPRequest error %s with path %s",
 			err,

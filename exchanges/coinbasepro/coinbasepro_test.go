@@ -32,8 +32,6 @@ const (
 
 func TestMain(m *testing.M) {
 	c.SetDefaults()
-	c.Requester.SetRateLimit(false, time.Second, 1)
-
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {

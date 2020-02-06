@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -113,9 +112,8 @@ func (h *HitBTC) SetDefaults() {
 	}
 
 	h.Requester = request.New(h.Name,
-		request.NewRateLimit(time.Second, hitbtcAuthRate),
-		request.NewRateLimit(time.Second, hitbtcUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		SetRateLimit())
 
 	h.API.Endpoints.URLDefault = apiURL
 	h.API.Endpoints.URL = h.API.Endpoints.URLDefault

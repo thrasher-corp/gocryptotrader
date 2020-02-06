@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
@@ -30,9 +31,6 @@ const (
 	itbitOrders         = "orders"
 	itbitCryptoDeposits = "cryptocurrency_deposits"
 	itbitWalletTransfer = "wallet_transfers"
-
-	itbitAuthRate   = 0
-	itbitUnauthRate = 0
 )
 
 // ItBit is the overarching type across the ItBit package
@@ -281,16 +279,14 @@ func (i *ItBit) WalletTransfer(walletID, sourceWallet, destWallet string, amount
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (i *ItBit) SendHTTPRequest(path string, result interface{}) error {
-	return i.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		result,
-		false,
-		false,
-		i.Verbose,
-		i.HTTPDebugging,
-		i.HTTPRecording)
+	return i.SendPayload(&request.Item{
+		Method:        http.MethodGet,
+		Path:          path,
+		Result:        result,
+		Verbose:       i.Verbose,
+		HTTPDebugging: i.HTTPDebugging,
+		HTTPRecording: i.HTTPRecording,
+	})
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated request to itBit
@@ -345,16 +341,18 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(method, path string, params map[str
 		RequestID   string `json:"requestId"`
 	}{}
 
-	err = i.SendPayload(method,
-		urlPath,
-		headers,
-		bytes.NewBuffer(PayloadJSON),
-		&intermediary,
-		true,
-		true,
-		i.Verbose,
-		i.HTTPDebugging,
-		i.HTTPRecording)
+	err = i.SendPayload(&request.Item{
+		Method:        method,
+		Path:          urlPath,
+		Headers:       headers,
+		Body:          bytes.NewBuffer(PayloadJSON),
+		Result:        &intermediary,
+		AuthRequest:   true,
+		NonceEnabled:  true,
+		Verbose:       i.Verbose,
+		HTTPDebugging: i.HTTPDebugging,
+		HTTPRecording: i.HTTPRecording,
+	})
 	if err != nil {
 		return err
 	}

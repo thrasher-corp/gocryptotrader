@@ -923,28 +923,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 				c.Exchanges[i].HTTPTimeout = defaultHTTPTimeout
 			}
 
-			if c.Exchanges[i].HTTPRateLimiter != nil {
-				if c.Exchanges[i].HTTPRateLimiter.Authenticated.Duration < 0 {
-					log.Warnf(log.ExchangeSys, "Exchange %s HTTP Rate Limiter authenticated duration set to negative value, defaulting to 0\n", c.Exchanges[i].Name)
-					c.Exchanges[i].HTTPRateLimiter.Authenticated.Duration = 0
-				}
-
-				if c.Exchanges[i].HTTPRateLimiter.Authenticated.Rate < 0 {
-					log.Warnf(log.ExchangeSys, "Exchange %s HTTP Rate Limiter authenticated rate set to negative value, defaulting to 0\n", c.Exchanges[i].Name)
-					c.Exchanges[i].HTTPRateLimiter.Authenticated.Rate = 0
-				}
-
-				if c.Exchanges[i].HTTPRateLimiter.Unauthenticated.Duration < 0 {
-					log.Warnf(log.ExchangeSys, "Exchange %s HTTP Rate Limiter unauthenticated duration set to negative value, defaulting to 0\n", c.Exchanges[i].Name)
-					c.Exchanges[i].HTTPRateLimiter.Unauthenticated.Duration = 0
-				}
-
-				if c.Exchanges[i].HTTPRateLimiter.Unauthenticated.Rate < 0 {
-					log.Warnf(log.ExchangeSys, "Exchange %s HTTP Rate Limiter unauthenticated rate set to negative value, defaulting to 0\n", c.Exchanges[i].Name)
-					c.Exchanges[i].HTTPRateLimiter.Unauthenticated.Rate = 0
-				}
-			}
-
 			if c.Exchanges[i].WebsocketResponseCheckTimeout <= 0 {
 				log.Warnf(log.ExchangeSys, "Exchange %s Websocket response check timeout value not set, defaulting to %v.",
 					c.Exchanges[i].Name, defaultWebsocketResponseCheckTimeout)
