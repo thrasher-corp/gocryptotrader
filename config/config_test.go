@@ -1353,12 +1353,20 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		t.Error("unexpected results")
 	}
 
-	pairs := cfg.Exchanges[0].CurrencyPairs.GetPairs(asset.Spot, true)
+	pairs, err := cfg.Exchanges[0].CurrencyPairs.GetPairs(asset.Spot, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if len(pairs) == 0 || pairs.Join() != testPair {
 		t.Error("pairs not set properly")
 	}
 
-	pairs = cfg.Exchanges[0].CurrencyPairs.GetPairs(asset.Spot, false)
+	pairs, err = cfg.Exchanges[0].CurrencyPairs.GetPairs(asset.Spot, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if len(pairs) == 0 || pairs.Join() != testPair {
 		t.Error("pairs not set properly")
 	}

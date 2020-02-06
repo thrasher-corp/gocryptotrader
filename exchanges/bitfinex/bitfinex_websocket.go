@@ -759,14 +759,25 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() {
 		wsTicker,
 		wsCandles,
 	}
+
+	enabledPairs, err := b.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.WebsocketMgr,
+			"%v - Websocket cannot generate default subscriptions Err: %v",
+			b.Name,
+			err)
+		return
+	}
+
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range channels {
-		enabledPairs := b.GetEnabledPairs(asset.Spot)
+
 		for j := range enabledPairs {
 			if strings.HasPrefix(enabledPairs[j].Base.String(), "f") {
 				log.Warnf(log.WebsocketMgr,
 					"%v - Websocket does not support funding currency %v, skipping",
-					b.Name, enabledPairs[j])
+					b.Name,
+					enabledPairs[j])
 				continue
 			}
 			b.appendOptionalDelimiter(&enabledPairs[j])

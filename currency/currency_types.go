@@ -60,3 +60,14 @@ type File struct {
 	Contracts      []Item    `json:"contracts"`
 	Token          []Item    `json:"tokens"`
 }
+
+// Const here are packaged defined delimiters
+const (
+	Underscore   = "_"
+	Dash         = "-"
+	ForwardSlash = "/"
+	Colon        = ":"
+)
+
+// delimiters is a delimiter list
+var delimiters = []string{Underscore, Dash, ForwardSlash, Colon}

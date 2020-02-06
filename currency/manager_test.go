@@ -115,18 +115,29 @@ func TestDelete(t *testing.T) {
 
 func TestGetPairs(t *testing.T) {
 	p.Pairs = nil
-	pairs := p.GetPairs(asset.Spot, true)
+	pairs, err := p.GetPairs(asset.Spot, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if pairs != nil {
 		t.Fatal("pairs shouldn't be populated")
 	}
 
 	initTest(t)
-	pairs = p.GetPairs(asset.Spot, true)
+	pairs, err = p.GetPairs(asset.Spot, true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if pairs == nil {
 		t.Fatal("pairs should be populated")
 	}
 
-	pairs = p.GetPairs("blah", true)
+	pairs, err = p.GetPairs("blah", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if pairs != nil {
 		t.Fatal("pairs shouldn't be populated")
 	}
@@ -141,7 +152,10 @@ func TestStorePairs(t *testing.T) {
 	}
 
 	p.StorePairs(asset.Spot, ethusdPairs, false)
-	pairs := p.GetPairs(asset.Spot, false)
+	pairs, err := p.GetPairs(asset.Spot, false)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ethusd, err := NewPairFromString("ETH-USD")
 	if err != nil {
@@ -154,7 +168,11 @@ func TestStorePairs(t *testing.T) {
 
 	initTest(t)
 	p.StorePairs(asset.Spot, ethusdPairs, false)
-	pairs = p.GetPairs(asset.Spot, false)
+	pairs, err = p.GetPairs(asset.Spot, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if pairs == nil {
 		t.Errorf("pairs should be populated")
 	}
@@ -169,7 +187,11 @@ func TestStorePairs(t *testing.T) {
 	}
 
 	p.StorePairs(asset.Futures, ethkrwPairs, true)
-	pairs = p.GetPairs(asset.Futures, true)
+	pairs, err = p.GetPairs(asset.Futures, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if pairs == nil {
 		t.Errorf("pairs futures should be populated")
 	}

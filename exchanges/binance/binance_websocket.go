@@ -32,19 +32,23 @@ func (b *Binance) WsConnect() error {
 	var dialer websocket.Dialer
 	var err error
 
-	pairs := b.GetEnabledPairs(asset.Spot).Strings()
+	pairs, err := b.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+
 	tick := strings.ToLower(
 		strings.Replace(
-			strings.Join(pairs, "@ticker/"), "-", "", -1)) + "@ticker"
+			strings.Join(pairs.Strings(), "@ticker/"), "-", "", -1)) + "@ticker"
 	trade := strings.ToLower(
 		strings.Replace(
-			strings.Join(pairs, "@trade/"), "-", "", -1)) + "@trade"
+			strings.Join(pairs.Strings(), "@trade/"), "-", "", -1)) + "@trade"
 	kline := strings.ToLower(
 		strings.Replace(
-			strings.Join(pairs, "@kline_1m/"), "-", "", -1)) + "@kline_1m"
+			strings.Join(pairs.Strings(), "@kline_1m/"), "-", "", -1)) + "@kline_1m"
 	depth := strings.ToLower(
 		strings.Replace(
-			strings.Join(pairs, "@depth/"), "-", "", -1)) + "@depth"
+			strings.Join(pairs.Strings(), "@depth/"), "-", "", -1)) + "@depth"
 
 	wsurl := b.Websocket.GetWebsocketURL() +
 		"/stream?streams=" +
@@ -55,9 +59,9 @@ func (b *Binance) WsConnect() error {
 		kline +
 		"/" +
 		depth
-	enabledPairs := b.GetEnabledPairs(asset.Spot)
-	for i := range enabledPairs {
-		err = b.SeedLocalCache(enabledPairs[i])
+
+	for i := range pairs {
+		err = b.SeedLocalCache(pairs[i])
 		if err != nil {
 			return err
 		}
@@ -136,8 +140,16 @@ func (b *Binance) WsHandleData() {
 					continue
 				}
 
+				pair, err := b.GetEnabledPairs(asset.Spot)
+				if err != nil {
+					b.Websocket.DataHandler <- fmt.Errorf("%v - amount conversion error: %s",
+						b.Name,
+						err)
+					continue
+				}
+
 				p, err := currency.NewPairFromFormattedPairs(trade.Symbol,
-					b.GetEnabledPairs(asset.Spot),
+					pair,
 					b.GetPairFormat(asset.Spot, true))
 				if err != nil {
 					b.Websocket.DataHandler <- fmt.Errorf("%v - %s",
@@ -166,8 +178,14 @@ func (b *Binance) WsHandleData() {
 					continue
 				}
 
+				pairs, err := b.GetEnabledPairs(asset.Spot)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					continue
+				}
+
 				p, err := currency.NewPairFromFormattedPairs(t.Symbol,
-					b.GetEnabledPairs(asset.Spot),
+					pairs,
 					b.GetPairFormat(asset.Spot, true))
 				if err != nil {
 					b.Websocket.DataHandler <- fmt.Errorf("%v - %s",
@@ -203,8 +221,14 @@ func (b *Binance) WsHandleData() {
 					continue
 				}
 
+				pairs, err := b.GetEnabledPairs(asset.Spot)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					continue
+				}
+
 				p, err := currency.NewPairFromFormattedPairs(kline.Symbol,
-					b.GetEnabledPairs(asset.Spot),
+					pairs,
 					b.GetPairFormat(asset.Spot, true))
 				if err != nil {
 					b.Websocket.DataHandler <- fmt.Errorf("%v - %s",
@@ -246,8 +270,14 @@ func (b *Binance) WsHandleData() {
 					continue
 				}
 
+				pairs, err := b.GetEnabledPairs(asset.Spot)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					continue
+				}
+
 				p, err := currency.NewPairFromFormattedPairs(depth.Pair,
-					b.GetEnabledPairs(asset.Spot),
+					pairs,
 					b.GetPairFormat(asset.Spot, true))
 				if err != nil {
 					b.Websocket.DataHandler <- fmt.Errorf("%v - %s",
@@ -328,8 +358,13 @@ func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
 		updateAsk = append(updateAsk, orderbook.Item{Price: p, Amount: a})
 	}
 
+	pairs, err := b.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+
 	p, err := currency.NewPairFromFormattedPairs(wsdp.Pair,
-		b.GetEnabledPairs(asset.Spot),
+		pairs,
 		b.GetPairFormat(asset.Spot, true))
 	if err != nil {
 		return err

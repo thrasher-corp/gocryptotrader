@@ -703,3 +703,10 @@ func TestWsAuth(t *testing.T) {
 	}
 	timer.Stop()
 }
+
+func TestUpdateTradablePairs(t *testing.T) {
+	err := b.UpdateTradablePairs(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+}

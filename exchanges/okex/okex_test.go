@@ -1813,3 +1813,10 @@ func TestGetOrderbook(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestUpdateTradablePairs(t *testing.T) {
+	err := o.UpdateTradablePairs(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+}

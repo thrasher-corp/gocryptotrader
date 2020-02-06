@@ -66,16 +66,6 @@ func NewPairFromIndex(currencyPair, index string) (Pair, error) {
 	return NewPairFromStrings(currencyPair[0:i], currencyPair[i:])
 }
 
-// Const here are packaged defined bla
-const (
-	Underscore   = "_"
-	Dash         = "-"
-	ForwardSlash = "/"
-	Colon        = ":"
-)
-
-var delimiters = []string{Underscore, Dash, ForwardSlash, Colon}
-
 // NewPairFromString converts currency string into a new CurrencyPair
 // with or without delimeter
 func NewPairFromString(currencyPair string) (Pair, error) {

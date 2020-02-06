@@ -193,7 +193,14 @@ func (b *Binance) Run() {
 
 	forceUpdate := false
 	delim := b.GetPairFormat(asset.Spot, false).Delimiter
-	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), delim) ||
+	pairs, err := b.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
+			b.Name,
+			err)
+		return
+	}
+	if !common.StringDataContains(pairs.Strings(), delim) ||
 		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), delim) {
 		enabledPairs, err := currency.NewPairsFromStrings([]string{
 			currency.BTC.String() +
@@ -222,7 +229,7 @@ func (b *Binance) Run() {
 		return
 	}
 
-	err := b.UpdateTradablePairs(forceUpdate)
+	err = b.UpdateTradablePairs(forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -275,7 +282,12 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 	if err != nil {
 		return nil, err
 	}
-	pairs := b.GetEnabledPairs(assetType)
+
+	pairs, err := b.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
+
 	for i := range pairs {
 		for y := range tick {
 			pairFmt := b.FormatExchangeCurrency(pairs[i], assetType).String()

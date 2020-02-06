@@ -58,8 +58,7 @@ func (b *Bitmex) SetDefaults() {
 		AssetTypes: asset.Items{
 			asset.PerpetualContract,
 			asset.Futures,
-			asset.DownsideProfitContract,
-			asset.UpsideProfitContract,
+			asset.Index,
 		},
 	}
 
@@ -74,6 +73,7 @@ func (b *Bitmex) SetDefaults() {
 	}
 	b.CurrencyPairs.Store(asset.PerpetualContract, fmt1)
 	b.CurrencyPairs.Store(asset.Futures, fmt1)
+	b.CurrencyPairs.Store(asset.Index, fmt1)
 
 	// Upside and Downside profit contracts use the same format
 	fmt2 := currency.PairStore{
@@ -225,7 +225,7 @@ func (b *Bitmex) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (b *Bitmex) FetchTradablePairs(asset asset.Item) ([]string, error) {
-	marketInfo, err := b.GetActiveInstruments(&GenericRequestParams{})
+	marketInfo, err := b.GetActiveAndIndexInstruments()
 	if err != nil {
 		return nil, err
 	}
@@ -246,56 +246,61 @@ func (b *Bitmex) UpdateTradablePairs(forceUpdate bool) error {
 		return err
 	}
 
-	var assetPairs []string
-	for x := range b.CurrencyPairs.AssetTypes {
-		switch b.CurrencyPairs.AssetTypes[x] {
-		case asset.PerpetualContract:
-			for y := range pairs {
-				if strings.Contains(pairs[y], "USD") {
-					assetPairs = append(assetPairs, pairs[y])
-				}
-			}
-		case asset.Futures:
-			for y := range pairs {
-				if strings.Contains(pairs[y], "19") {
-					assetPairs = append(assetPairs, pairs[y])
-				}
-			}
-		case asset.DownsideProfitContract:
-			for y := range pairs {
-				if strings.Contains(pairs[y], "_D") {
-					assetPairs = append(assetPairs, pairs[y])
-				}
-			}
-		case asset.UpsideProfitContract:
-			for y := range pairs {
-				if strings.Contains(pairs[y], "_U") {
-					assetPairs = append(assetPairs, pairs[y])
-				}
-			}
+	// Zerovalue current list which will remove old asset pairs when contract
+	// types expire or become obsolete
+	var assetPairs = map[asset.Item][]string{
+		asset.Index:                  []string{},
+		asset.PerpetualContract:      []string{},
+		asset.UpsideProfitContract:   []string{},
+		asset.DownsideProfitContract: []string{},
+		asset.Futures:                []string{},
+	}
+
+	for x := range pairs {
+		if strings.Contains(pairs[x], ".") {
+			assetPairs[asset.Index] = append(assetPairs[asset.Index], pairs[x])
+			continue
 		}
 
-		p, err := currency.NewPairsFromStrings(assetPairs)
+		if strings.Contains(pairs[x], "USD") {
+			assetPairs[asset.PerpetualContract] = append(assetPairs[asset.PerpetualContract], pairs[x])
+			continue
+		}
+
+		if strings.Contains(pairs[x], "_D") {
+			assetPairs[asset.DownsideProfitContract] = append(assetPairs[asset.DownsideProfitContract], pairs[x])
+			continue
+		}
+
+		if strings.Contains(pairs[x], "_U") {
+			assetPairs[asset.UpsideProfitContract] = append(assetPairs[asset.UpsideProfitContract], pairs[x])
+			continue
+		}
+		assetPairs[asset.Futures] = append(assetPairs[asset.Futures], pairs[x])
+	}
+
+	for asset, values := range assetPairs {
+		p, err := currency.NewPairsFromStrings(values)
 		if err != nil {
 			return err
 		}
 
-		err = b.UpdatePairs(p, b.CurrencyPairs.AssetTypes[x], false, false)
+		err = b.UpdatePairs(p, asset, false, false)
 		if err != nil {
 			log.Warnf(log.ExchangeSys,
 				"%s failed to update available pairs. Err: %v",
 				b.Name,
 				err)
 		}
-		assetPairs = nil
 	}
+
 	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitmex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerPrice := new(ticker.Price)
-	tick, err := b.GetActiveInstruments(&GenericRequestParams{})
+	tick, err := b.GetActiveAndIndexInstruments()
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -345,6 +350,9 @@ func (b *Bitmex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if assetType == asset.Index {
+		return nil, common.ErrFunctionNotSupported
+	}
 	orderBook := new(orderbook.Base)
 
 	orderbookNew, err := b.GetOrderbook(OrderBookGetL2Params{

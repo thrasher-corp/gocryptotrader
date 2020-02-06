@@ -305,7 +305,7 @@ func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
 			if err != nil {
 				return err
 			}
-			// TODO TEST THIS WITH CONTINUE
+			continue
 		}
 		p, err := currency.NewPairsFromStrings(pairs)
 		if err != nil {

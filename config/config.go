@@ -617,7 +617,11 @@ func (c *Config) GetAvailablePairs(exchName string, assetType asset.Item) (curre
 		return nil, err
 	}
 
-	pairs := exchCfg.CurrencyPairs.GetPairs(assetType, false)
+	pairs, err := exchCfg.CurrencyPairs.GetPairs(assetType, false)
+	if err != nil {
+		return nil, err
+	}
+
 	if pairs == nil {
 		return nil, nil
 	}
@@ -638,7 +642,11 @@ func (c *Config) GetEnabledPairs(exchName string, assetType asset.Item) ([]curre
 		return nil, err
 	}
 
-	pairs := exchCfg.CurrencyPairs.GetPairs(assetType, true)
+	pairs, err := exchCfg.CurrencyPairs.GetPairs(assetType, true)
+	if err != nil {
+		return nil, err
+	}
+
 	if pairs == nil {
 		return nil, nil
 	}

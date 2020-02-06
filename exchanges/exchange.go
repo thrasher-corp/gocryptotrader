@@ -235,7 +235,11 @@ func (e *Base) GetAssetTypes() asset.Items {
 // GetPairAssetType returns the associated asset type for the currency pair
 func (e *Base) GetPairAssetType(c currency.Pair) (asset.Item, error) {
 	for i := range e.GetAssetTypes() {
-		if e.GetEnabledPairs(e.GetAssetTypes()[i]).Contains(c, true) {
+		pairs, err := e.GetEnabledPairs(e.GetAssetTypes()[i])
+		if err != nil {
+			return "", err
+		}
+		if pairs.Contains(c, true) {
 			return e.GetAssetTypes()[i], nil
 		}
 	}
@@ -355,17 +359,20 @@ func (e *Base) GetPairFormat(assetType asset.Item, requestFormat bool) currency.
 
 // GetEnabledPairs is a method that returns the enabled currency pairs of
 // the exchange by asset type
-func (e *Base) GetEnabledPairs(assetType asset.Item) currency.Pairs {
+func (e *Base) GetEnabledPairs(assetType asset.Item) (currency.Pairs, error) {
 	format := e.GetPairFormat(assetType, false)
-	pairs := e.CurrencyPairs.GetPairs(assetType, true)
-	return pairs.Format(format.Delimiter, format.Index, format.Uppercase)
+	enabledpairs, err := e.CurrencyPairs.GetPairs(assetType, true)
+	if err != nil {
+		return nil, err
+	}
+	return enabledpairs.Format(format.Delimiter, format.Index, format.Uppercase), nil
 }
 
 // GetAvailablePairs is a method that returns the available currency pairs
 // of the exchange by asset type
 func (e *Base) GetAvailablePairs(assetType asset.Item) currency.Pairs {
 	format := e.GetPairFormat(assetType, false)
-	pairs := e.CurrencyPairs.GetPairs(assetType, false)
+	pairs, _ := e.CurrencyPairs.GetPairs(assetType, false)
 	return pairs.Format(format.Delimiter, format.Index, format.Uppercase)
 }
 
@@ -373,7 +380,11 @@ func (e *Base) GetAvailablePairs(assetType asset.Item) currency.Pairs {
 // exchange available currencies or not
 func (e *Base) SupportsPair(p currency.Pair, enabledPairs bool, assetType asset.Item) bool {
 	if enabledPairs {
-		return e.GetEnabledPairs(assetType).Contains(p, false)
+		pairs, err := e.GetEnabledPairs(assetType)
+		if err != nil {
+			return false
+		}
+		return pairs.Contains(p, false)
 	}
 	return e.GetAvailablePairs(assetType).Contains(p, false)
 }
@@ -581,10 +592,6 @@ func (e *Base) SetPairs(pairs currency.Pairs, assetType asset.Item, enabled bool
 // UpdatePairs updates the exchange currency pairs for either enabledPairs or
 // availablePairs
 func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item, enabled, force bool) error {
-	if len(exchangeProducts) == 0 {
-		return fmt.Errorf("%s UpdatePairs error - exchangeProducts is empty", e.Name)
-	}
-
 	exchangeProducts = exchangeProducts.Upper()
 	var products currency.Pairs
 	for x := range exchangeProducts {
@@ -596,7 +603,10 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 
 	var newPairs, removedPairs currency.Pairs
 	var updateType string
-	targetPairs := e.CurrencyPairs.GetPairs(assetType, enabled)
+	targetPairs, err := e.CurrencyPairs.GetPairs(assetType, enabled)
+	if err != nil {
+		return err
+	}
 
 	if enabled {
 		newPairs, removedPairs = targetPairs.FindDifferences(products)

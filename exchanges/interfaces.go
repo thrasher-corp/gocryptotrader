@@ -30,7 +30,7 @@ type IBotExchange interface {
 	UpdateOrderbook(currency currency.Pair, assetType asset.Item) (*orderbook.Base, error)
 	FetchTradablePairs(assetType asset.Item) ([]string, error)
 	UpdateTradablePairs(forceUpdate bool) error
-	GetEnabledPairs(assetType asset.Item) currency.Pairs
+	GetEnabledPairs(assetType asset.Item) (currency.Pairs, error)
 	GetAvailablePairs(assetType asset.Item) currency.Pairs
 	FetchAccountInfo() (account.Holdings, error)
 	UpdateAccountInfo() (account.Holdings, error)

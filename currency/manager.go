@@ -2,6 +2,7 @@ package currency
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -62,26 +63,31 @@ func (p *PairsManager) Delete(a asset.Item) {
 
 // GetPairs gets a list of stored pairs based on the asset type and whether
 // they're enabled or not
-func (p *PairsManager) GetPairs(a asset.Item, enabled bool) Pairs {
+func (p *PairsManager) GetPairs(a asset.Item, enabled bool) (Pairs, error) {
 	p.m.Lock()
 	defer p.m.Unlock()
 	if p.Pairs == nil {
-		return nil
+		return nil, nil
 	}
 
 	c, ok := p.Pairs[a]
 	if !ok {
-		return nil
+		return nil, nil
 	}
 
 	var pairs Pairs
 	if enabled {
 		pairs = c.Enabled
+		for i := range pairs {
+			if !c.Available.Contains(pairs[i], true) {
+				return nil, fmt.Errorf("enabled pair %s not contained in available list", pairs[i])
+			}
+		}
 	} else {
 		pairs = c.Available
 	}
 
-	return pairs
+	return pairs, nil
 }
 
 // StorePairs stores a list of pairs based on the asset type and whether

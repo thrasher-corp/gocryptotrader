@@ -207,7 +207,10 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 			dryrunParamInteraction("enableallpairs")
 			assets := exchCfg.CurrencyPairs.GetAssetTypes()
 			for x := range assets {
-				pairs := exchCfg.CurrencyPairs.GetPairs(assets[x], false)
+				pairs, err := exchCfg.CurrencyPairs.GetPairs(assets[x], false)
+				if err != nil {
+					return err
+				}
 				exchCfg.CurrencyPairs.StorePairs(assets[x], pairs, true)
 			}
 		}
