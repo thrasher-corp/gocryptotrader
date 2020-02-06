@@ -20,7 +20,7 @@ var itemArray = [][]orderbook.Item{
 	{{Price: 5000, Amount: 1, ID: 5}},
 }
 
-var cp = currency.NewPairFromString("BTCUSD")
+var cp, _ = currency.NewPairFromString("BTCUSD")
 
 const (
 	exchangeName = "exchangeTest"
@@ -671,7 +671,10 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot2.Asks = asks
 	snapShot2.Bids = bids
 	snapShot2.AssetType = asset.Spot
-	snapShot2.Pair = currency.NewPairFromString("LTCUSD")
+	snapShot2.Pair, err = currency.NewPairFromString("LTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = obl.LoadSnapshot(&snapShot2)
 	if err != nil {
 		t.Fatal(err)
@@ -709,7 +712,10 @@ func TestInsertingSnapShots(t *testing.T) {
 	snapShot3.Asks = asks
 	snapShot3.Bids = bids
 	snapShot3.AssetType = "FUTURES"
-	snapShot3.Pair = currency.NewPairFromString("LTCUSD")
+	snapShot3.Pair, err = currency.NewPairFromString("LTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = obl.LoadSnapshot(&snapShot3)
 	if err != nil {
 		t.Fatal(err)

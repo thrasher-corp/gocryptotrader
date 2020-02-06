@@ -474,7 +474,12 @@ func TestWsTickerProcessing(t *testing.T) {
 
 func TestGetCurrencyFromChannel(t *testing.T) {
 	curr := currency.NewPair(currency.LTC, currency.BTC)
-	result := l.getCurrencyFromChannel(marketSubstring + curr.String() + globalSubstring)
+	result, err := l.getCurrencyFromChannel(marketSubstring +
+		curr.String() +
+		globalSubstring)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if curr != result {
 		t.Errorf("currency result is not equal. Expected  %v", curr)
 	}

@@ -199,16 +199,26 @@ func (c *COINUT) Run() {
 		true).Strings(), delim) ||
 		!common.StringDataContains(c.CurrencyPairs.GetPairs(asset.Spot,
 			false).Strings(), delim) {
-		enabledPairs := currency.NewPairsFromStrings(
-			[]string{currency.LTC.String() + delim + currency.USDT.String()},
-		)
-		log.Warn(log.ExchangeSys,
-			"Enabled pairs for Coinut reset due to config upgrade, please enable the ones you would like to use again")
-		forceUpdate = true
-
-		err := c.UpdatePairs(enabledPairs, asset.Spot, true, true)
+		p, err := currency.NewPairsFromStrings([]string{currency.LTC.String() +
+			delim +
+			currency.USDT.String()})
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err: %s\n", c.Name, err)
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update currencies. Err: %s\n",
+				c.Name,
+				err)
+		} else {
+			log.Warn(log.ExchangeSys,
+				"Enabled pairs for Coinut reset due to config upgrade, please enable the ones you would like to use again")
+			forceUpdate = true
+
+			err = c.UpdatePairs(p, asset.Spot, true, true)
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"%s failed to update currencies. Err: %s\n",
+					c.Name,
+					err)
+			}
 		}
 	}
 
@@ -257,8 +267,11 @@ func (c *COINUT) UpdateTradablePairs(forceUpdate bool) error {
 		return err
 	}
 
-	return c.UpdatePairs(currency.NewPairsFromStrings(pairs),
-		asset.Spot, false, forceUpdate)
+	p, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
+	return c.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
@@ -719,10 +732,15 @@ func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 				return nil, err
 			}
 			for i := range openOrders.Orders {
+				p, err := currency.NewPairFromString(currenciesToCheck[x])
+				if err != nil {
+					return nil, err
+				}
+
 				orders = append(orders, order.Detail{
 					Exchange:        c.Name,
 					ID:              strconv.FormatInt(openOrders.Orders[i].OrderID, 10),
-					CurrencyPair:    c.FormatExchangeCurrency(currency.NewPairFromString(currenciesToCheck[x]), asset.Spot),
+					CurrencyPair:    c.FormatExchangeCurrency(p, asset.Spot),
 					OrderSide:       order.Side(openOrders.Orders[i].Side),
 					OrderDate:       time.Unix(0, openOrders.Orders[i].Timestamp),
 					Status:          order.Active,
@@ -757,9 +775,13 @@ func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 			}
 			for y := range openOrders.Orders {
 				curr := c.instrumentMap.LookupInstrument(instrumentsToUse[x])
-				p := currency.NewPairFromFormattedPairs(curr,
+				p, err := currency.NewPairFromFormattedPairs(curr,
 					c.GetEnabledPairs(asset.Spot),
 					c.GetPairFormat(asset.Spot, true))
+				if err != nil {
+					return nil, err
+				}
+
 				orderSide := order.Side(strings.ToUpper(openOrders.Orders[y].Side))
 				orderDate := time.Unix(openOrders.Orders[y].Timestamp, 0)
 				orders = append(orders, order.Detail{
@@ -797,10 +819,15 @@ func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 				}
 				for x := range trades.Trades {
 					curr := c.instrumentMap.LookupInstrument(trades.Trades[x].InstID)
+					p, err := currency.NewPairFromString(curr)
+					if err != nil {
+						return nil, err
+					}
+
 					allOrders = append(allOrders, order.Detail{
 						Exchange:        c.Name,
 						ID:              strconv.FormatInt(trades.Trades[x].OrderID, 10),
-						CurrencyPair:    currency.NewPairFromString(curr),
+						CurrencyPair:    p,
 						OrderSide:       order.Side(trades.Trades[x].Side),
 						OrderDate:       time.Unix(0, trades.Trades[x].Timestamp),
 						Status:          order.Filled,
@@ -840,9 +867,13 @@ func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 			}
 			for y := range orders.Trades {
 				curr := c.instrumentMap.LookupInstrument(instrumentsToUse[x])
-				p := currency.NewPairFromFormattedPairs(curr,
+				p, err := currency.NewPairFromFormattedPairs(curr,
 					c.GetEnabledPairs(asset.Spot),
 					c.GetPairFormat(asset.Spot, true))
+				if err != nil {
+					return nil, err
+				}
+
 				orderSide := order.Side(strings.ToUpper(orders.Trades[y].Order.Side))
 				orderDate := time.Unix(orders.Trades[y].Order.Timestamp, 0)
 				allOrders = append(allOrders, order.Detail{

@@ -25,8 +25,8 @@ const (
 )
 
 var (
-	currencyPair = currency.NewPairFromString("BTCAUD")
-	testWrapper  = Wrapper{}
+	currencyPair, _ = currency.NewPairFromString("BTCAUD")
+	testWrapper     = Wrapper{}
 )
 
 func TestWrapper_Exchanges(t *testing.T) {

@@ -670,8 +670,12 @@ func TestGetEnabledPairs(t *testing.T) {
 		Name: "TESTNAME",
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot,
-		currency.NewPairsFromStrings([]string{defaultTestCurrencyPair}), true)
+	defaultPairs, err := currency.NewPairsFromStrings([]string{defaultTestCurrencyPair})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.StorePairs(asset.Spot, defaultPairs, true)
 	format := currency.PairFormat{
 		Delimiter: "-",
 		Index:     "",
@@ -702,8 +706,12 @@ func TestGetEnabledPairs(t *testing.T) {
 		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot,
-		currency.NewPairsFromStrings([]string{"BTCDOGE"}), true)
+	btcdoge, err := currency.NewPairsFromStrings([]string{"BTCDOGE"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.StorePairs(asset.Spot, btcdoge, true)
 	format.Index = currency.BTC.String()
 	b.CurrencyPairs.ConfigFormat = &format
 	c = b.GetEnabledPairs(assetType)
@@ -711,8 +719,12 @@ func TestGetEnabledPairs(t *testing.T) {
 		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot,
-		currency.NewPairsFromStrings([]string{"BTC_USD"}), true)
+	btcusdUnderscore, err := currency.NewPairsFromStrings([]string{"BTC_USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.StorePairs(asset.Spot, btcusdUnderscore, true)
 	b.CurrencyPairs.RequestFormat.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat.Delimiter = "_"
 	c = b.GetEnabledPairs(assetType)
@@ -720,8 +732,7 @@ func TestGetEnabledPairs(t *testing.T) {
 		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot,
-		currency.NewPairsFromStrings([]string{"BTCDOGE"}), true)
+	b.CurrencyPairs.StorePairs(asset.Spot, btcdoge, true)
 	b.CurrencyPairs.RequestFormat.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat.Index = currency.BTC.String()
@@ -730,8 +741,12 @@ func TestGetEnabledPairs(t *testing.T) {
 		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot,
-		currency.NewPairsFromStrings([]string{"BTCUSD"}), true)
+	btcusd, err := currency.NewPairsFromStrings([]string{"BTCUSD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.StorePairs(asset.Spot, btcusd, true)
 	b.CurrencyPairs.ConfigFormat.Index = ""
 	c = b.GetEnabledPairs(assetType)
 	if c[0].Base != currency.BTC && c[0].Quote != currency.USD {
@@ -746,8 +761,12 @@ func TestGetAvailablePairs(t *testing.T) {
 		Name: "TESTNAME",
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot,
-		currency.NewPairsFromStrings([]string{defaultTestCurrencyPair}), false)
+	defaultPairs, err := currency.NewPairsFromStrings([]string{defaultTestCurrencyPair})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.StorePairs(asset.Spot, defaultPairs, false)
 	format := currency.PairFormat{
 		Delimiter: "-",
 		Index:     "",
@@ -778,8 +797,9 @@ func TestGetAvailablePairs(t *testing.T) {
 		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot,
-		currency.NewPairsFromStrings([]string{"BTCDOGE"}), false)
+	dogePairs, err := currency.NewPairsFromStrings([]string{"BTCDOGE"})
+
+	b.CurrencyPairs.StorePairs(asset.Spot, dogePairs, false)
 	format.Index = currency.BTC.String()
 	b.CurrencyPairs.ConfigFormat = &format
 	c = b.GetAvailablePairs(assetType)
@@ -787,8 +807,12 @@ func TestGetAvailablePairs(t *testing.T) {
 		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot,
-		currency.NewPairsFromStrings([]string{"BTC_USD"}), false)
+	btcusdUnderscore, err := currency.NewPairsFromStrings([]string{"BTC_USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.StorePairs(asset.Spot, btcusdUnderscore, false)
 	b.CurrencyPairs.RequestFormat.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat.Delimiter = "_"
 	c = b.GetAvailablePairs(assetType)
@@ -796,8 +820,7 @@ func TestGetAvailablePairs(t *testing.T) {
 		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot,
-		currency.NewPairsFromStrings([]string{"BTCDOGE"}), false)
+	b.CurrencyPairs.StorePairs(asset.Spot, dogePairs, false)
 	b.CurrencyPairs.RequestFormat.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat.Delimiter = "_"
 	b.CurrencyPairs.ConfigFormat.Index = currency.BTC.String()
@@ -806,8 +829,12 @@ func TestGetAvailablePairs(t *testing.T) {
 		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot,
-		currency.NewPairsFromStrings([]string{"BTCUSD"}), false)
+	btcusd, err := currency.NewPairsFromStrings([]string{"BTCUSD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.StorePairs(asset.Spot, btcusd, false)
 	b.CurrencyPairs.ConfigFormat.Index = ""
 	c = b.GetAvailablePairs(assetType)
 	if c[0].Base != currency.BTC && c[0].Quote != currency.USD {
@@ -822,11 +849,20 @@ func TestSupportsPair(t *testing.T) {
 		Name: "TESTNAME",
 	}
 
-	b.CurrencyPairs.StorePairs(asset.Spot,
-		currency.NewPairsFromStrings([]string{
-			defaultTestCurrencyPair, "ETH-USD"}), false)
-	b.CurrencyPairs.StorePairs(asset.Spot,
-		currency.NewPairsFromStrings([]string{defaultTestCurrencyPair}), true)
+	pairs, err := currency.NewPairsFromStrings([]string{defaultTestCurrencyPair,
+		"ETH-USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.StorePairs(asset.Spot, pairs, false)
+
+	defaultpairs, err := currency.NewPairsFromStrings([]string{defaultTestCurrencyPair})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.StorePairs(asset.Spot, defaultpairs, true)
 
 	format := &currency.PairFormat{
 		Delimiter: "-",
@@ -846,7 +882,12 @@ func TestSupportsPair(t *testing.T) {
 		t.Error("Exchange SupportsPair() incorrect value")
 	}
 
-	if b.SupportsPair(currency.NewPairFromStrings("ASD", "ASDF"), true, assetType) {
+	asdasdf, err := currency.NewPairFromStrings("ASD", "ASDF")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if b.SupportsPair(asdasdf, true, assetType) {
 		t.Error("Exchange SupportsPair() incorrect value")
 	}
 }
@@ -1182,7 +1223,13 @@ func TestUpdatePairs(t *testing.T) {
 
 	UAC := Base{Name: defaultTestExchange}
 	UAC.Config = exchCfg
-	exchangeProducts := currency.NewPairsFromStrings([]string{"ltc", "btc", "usd", "aud", ""})
+	exchangeProducts, err := currency.NewPairsFromStrings([]string{"ltcusd",
+		"btcusd",
+		"usdbtc",
+		"audusd"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, true, false)
 	if err != nil {
 		t.Errorf("TestUpdatePairs error: %s", err)
@@ -1195,14 +1242,24 @@ func TestUpdatePairs(t *testing.T) {
 	}
 
 	// Test force updating to only one product
-	exchangeProducts = currency.NewPairsFromStrings([]string{"btc"})
+	exchangeProducts, err = currency.NewPairsFromStrings([]string{"btcusd"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, true, true)
 	if err != nil {
 		t.Errorf("TestUpdatePairs error: %s", err)
 	}
 
 	// Test updating exchange products
-	exchangeProducts = currency.NewPairsFromStrings([]string{"ltc", "btc", "usd", "aud"})
+	exchangeProducts, err = currency.NewPairsFromStrings([]string{"ltcusd",
+		"btcusd",
+		"usdbtc",
+		"audbtc"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	UAC.Name = defaultTestExchange
 	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, false)
 	if err != nil {
@@ -1216,14 +1273,20 @@ func TestUpdatePairs(t *testing.T) {
 	}
 
 	// Test force updating to only one product
-	exchangeProducts = currency.NewPairsFromStrings([]string{"btc"})
+	exchangeProducts, err = currency.NewPairsFromStrings([]string{"btcusd"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, true)
 	if err != nil {
 		t.Errorf("Forced Exchange UpdatePairs() error: %s", err)
 	}
 
 	// Test update currency pairs with btc excluded
-	exchangeProducts = currency.NewPairsFromStrings([]string{"ltc", "eth"})
+	exchangeProducts, err = currency.NewPairsFromStrings([]string{"ltcusd", "ethusd"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = UAC.UpdatePairs(exchangeProducts, asset.Spot, false, false)
 	if err != nil {
 		t.Errorf("Forced Exchange UpdatePairs() error: %s", err)

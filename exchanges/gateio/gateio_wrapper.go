@@ -217,7 +217,11 @@ func (g *Gateio) UpdateTradablePairs(forceUpdate bool) error {
 		return err
 	}
 
-	return g.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
+	p, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
+	return g.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -597,12 +601,18 @@ func (g *Gateio) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 				if err != nil {
 					return orders, err
 				}
+
+				p, err := currency.NewPairFromString(resp.WebSocketOrderQueryRecords[j].Market)
+				if err != nil {
+					return nil, err
+				}
+
 				orderDate := time.Unix(firstNum, decNum)
 				orders = append(orders, order.Detail{
 					Exchange:        g.Name,
 					AccountID:       strconv.FormatInt(resp.WebSocketOrderQueryRecords[j].User, 10),
 					ID:              strconv.FormatInt(resp.WebSocketOrderQueryRecords[j].ID, 10),
-					CurrencyPair:    currency.NewPairFromString(resp.WebSocketOrderQueryRecords[j].Market),
+					CurrencyPair:    p,
 					OrderSide:       orderSide,
 					OrderType:       orderType,
 					OrderDate:       orderDate,

@@ -136,6 +136,12 @@ func (g *Gateio) WsHandleData() {
 					continue
 				}
 
+				p, err := currency.NewPairFromString(c)
+				if err != nil {
+					g.Websocket.DataHandler <- err
+					continue
+				}
+
 				g.Websocket.DataHandler <- &ticker.Price{
 					ExchangeName: g.Name,
 					Open:         wsTicker.Open,
@@ -146,7 +152,7 @@ func (g *Gateio) WsHandleData() {
 					Low:          wsTicker.Low,
 					Last:         wsTicker.Last,
 					AssetType:    asset.Spot,
-					Pair:         currency.NewPairFromString(c),
+					Pair:         p,
 				}
 
 			case strings.Contains(result.Method, "trades"):
@@ -164,10 +170,16 @@ func (g *Gateio) WsHandleData() {
 					continue
 				}
 
+				p, err := currency.NewPairFromString(c)
+				if err != nil {
+					g.Websocket.DataHandler <- err
+					continue
+				}
+
 				for i := range trades {
 					g.Websocket.DataHandler <- wshandler.TradeData{
 						Timestamp:    time.Now(),
-						CurrencyPair: currency.NewPairFromString(c),
+						CurrencyPair: p,
 						AssetType:    asset.Spot,
 						Exchange:     g.Name,
 						Price:        trades[i].Price,
@@ -199,11 +211,18 @@ func (g *Gateio) WsHandleData() {
 				}
 
 				var asks, bids []orderbook.Item
-
 				askData, askOk := data["asks"]
 				for i := range askData {
-					amount, _ := strconv.ParseFloat(askData[i][1], 64)
-					price, _ := strconv.ParseFloat(askData[i][0], 64)
+					amount, err := strconv.ParseFloat(askData[i][1], 64)
+					if err != nil {
+						g.Websocket.DataHandler <- err
+						continue
+					}
+					price, err := strconv.ParseFloat(askData[i][0], 64)
+					if err != nil {
+						g.Websocket.DataHandler <- err
+						continue
+					}
 					asks = append(asks, orderbook.Item{
 						Amount: amount,
 						Price:  price,
@@ -212,8 +231,16 @@ func (g *Gateio) WsHandleData() {
 
 				bidData, bidOk := data["bids"]
 				for i := range bidData {
-					amount, _ := strconv.ParseFloat(bidData[i][1], 64)
-					price, _ := strconv.ParseFloat(bidData[i][0], 64)
+					amount, err := strconv.ParseFloat(bidData[i][1], 64)
+					if err != nil {
+						g.Websocket.DataHandler <- err
+						continue
+					}
+					price, err := strconv.ParseFloat(bidData[i][0], 64)
+					if err != nil {
+						g.Websocket.DataHandler <- err
+						continue
+					}
 					bids = append(bids, orderbook.Item{
 						Amount: amount,
 						Price:  price,
@@ -222,6 +249,12 @@ func (g *Gateio) WsHandleData() {
 
 				if !askOk && !bidOk {
 					g.Websocket.DataHandler <- errors.New("gatio websocket error - cannot access ask or bid data")
+				}
+
+				p, err := currency.NewPairFromString(c)
+				if err != nil {
+					g.Websocket.DataHandler <- err
+					continue
 				}
 
 				if IsSnapshot {
@@ -237,7 +270,7 @@ func (g *Gateio) WsHandleData() {
 					newOrderBook.Asks = asks
 					newOrderBook.Bids = bids
 					newOrderBook.AssetType = asset.Spot
-					newOrderBook.Pair = currency.NewPairFromString(c)
+					newOrderBook.Pair = p
 					newOrderBook.ExchangeName = g.Name
 
 					err = g.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
@@ -249,7 +282,7 @@ func (g *Gateio) WsHandleData() {
 						&wsorderbook.WebsocketOrderbookUpdate{
 							Asks:       asks,
 							Bids:       bids,
-							Pair:       currency.NewPairFromString(c),
+							Pair:       p,
 							UpdateTime: time.Now(),
 							Asset:      asset.Spot,
 						})
@@ -259,7 +292,7 @@ func (g *Gateio) WsHandleData() {
 				}
 
 				g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-					Pair:     currency.NewPairFromString(c),
+					Pair:     p,
 					Asset:    asset.Spot,
 					Exchange: g.Name,
 				}
@@ -272,15 +305,41 @@ func (g *Gateio) WsHandleData() {
 					continue
 				}
 
-				open, _ := strconv.ParseFloat(data[1].(string), 64)
-				closePrice, _ := strconv.ParseFloat(data[2].(string), 64)
-				high, _ := strconv.ParseFloat(data[3].(string), 64)
-				low, _ := strconv.ParseFloat(data[4].(string), 64)
-				volume, _ := strconv.ParseFloat(data[5].(string), 64)
+				open, err := strconv.ParseFloat(data[1].(string), 64)
+				if err != nil {
+					g.Websocket.DataHandler <- err
+					continue
+				}
+				closePrice, err := strconv.ParseFloat(data[2].(string), 64)
+				if err != nil {
+					g.Websocket.DataHandler <- err
+					continue
+				}
+				high, err := strconv.ParseFloat(data[3].(string), 64)
+				if err != nil {
+					g.Websocket.DataHandler <- err
+					continue
+				}
+				low, err := strconv.ParseFloat(data[4].(string), 64)
+				if err != nil {
+					g.Websocket.DataHandler <- err
+					continue
+				}
+				volume, err := strconv.ParseFloat(data[5].(string), 64)
+				if err != nil {
+					g.Websocket.DataHandler <- err
+					continue
+				}
+
+				p, err := currency.NewPairFromString(data[7].(string))
+				if err != nil {
+					g.Websocket.DataHandler <- err
+					continue
+				}
 
 				g.Websocket.DataHandler <- wshandler.KlineData{
 					Timestamp:  time.Now(),
-					Pair:       currency.NewPairFromString(data[7].(string)),
+					Pair:       p,
 					AssetType:  asset.Spot,
 					Exchange:   g.Name,
 					OpenPrice:  open,
@@ -315,7 +374,10 @@ func (g *Gateio) GenerateAuthenticatedSubscriptions() {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (g *Gateio) GenerateDefaultSubscriptions() {
-	var channels = []string{"ticker.subscribe", "trades.subscribe", "depth.subscribe", "kline.subscribe"}
+	var channels = []string{"ticker.subscribe",
+		"trades.subscribe",
+		"depth.subscribe",
+		"kline.subscribe"}
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	enabledCurrencies := g.GetEnabledPairs(asset.Spot)
 	for i := range channels {

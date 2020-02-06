@@ -93,7 +93,10 @@ func TestSubscribeToExchangeTickers(t *testing.T) {
 }
 
 func TestGetTicker(t *testing.T) {
-	newPair := currency.NewPairFromStrings("BTC", "USD")
+	newPair, err := currency.NewPairFromStrings("BTC", "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	priceStruct := Price{
 		Pair:     newPair,
 		Last:     1200,
@@ -105,7 +108,7 @@ func TestGetTicker(t *testing.T) {
 		PriceATH: 1337,
 	}
 
-	err := ProcessTicker("bitfinex", &priceStruct, asset.Spot)
+	err = ProcessTicker("bitfinex", &priceStruct, asset.Spot)
 	if err != nil {
 		t.Fatal("ProcessTicker error", err)
 	}
@@ -129,7 +132,11 @@ func TestGetTicker(t *testing.T) {
 		t.Fatal("TestGetTicker returned ticker for invalid first currency")
 	}
 
-	btcltcPair := currency.NewPairFromStrings("BTC", "LTC")
+	btcltcPair, err := currency.NewPairFromStrings("BTC", "LTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	_, err = GetTicker("bitfinex", btcltcPair, asset.Spot)
 	if err == nil {
 		t.Fatal("TestGetTicker returned ticker for invalid second currency")
@@ -170,7 +177,11 @@ func TestGetTicker(t *testing.T) {
 
 func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	exchName := "bitstamp"
-	newPair := currency.NewPairFromStrings("BTC", "USD")
+	newPair, err := currency.NewPairFromStrings("BTC", "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	priceStruct := Price{
 		Last:     1200,
 		High:     1298,
@@ -181,7 +192,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		PriceATH: 1337,
 	}
 
-	err := ProcessTicker("", &priceStruct, asset.Spot)
+	err = ProcessTicker("", &priceStruct, asset.Spot)
 	if err == nil {
 		t.Fatal("empty exchange should throw an err")
 	}
@@ -213,7 +224,11 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	}
 
 	// now test for processing a pair with a different quote currency
-	newPair = currency.NewPairFromStrings("BTC", "AUD")
+	newPair, err = currency.NewPairFromStrings("BTC", "AUD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	priceStruct.Pair = newPair
 	err = ProcessTicker(exchName, &priceStruct, asset.Spot)
 	if err != nil {
@@ -229,7 +244,11 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 	}
 
 	// now test for processing a pair which has a different base currency
-	newPair = currency.NewPairFromStrings("LTC", "AUD")
+	newPair, err = currency.NewPairFromStrings("LTC", "AUD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	priceStruct.Pair = newPair
 	err = ProcessTicker(exchName, &priceStruct, asset.Spot)
 	if err != nil {
@@ -266,8 +285,11 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		wg.Add(1)
 		go func() {
 			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10)
-			newPairs := currency.NewPairFromStrings("BTC"+strconv.FormatInt(rand.Int63(), 10),
+			newPairs, err := currency.NewPairFromStrings("BTC"+strconv.FormatInt(rand.Int63(), 10),
 				"USD"+strconv.FormatInt(rand.Int63(), 10))
+			if err != nil {
+				log.Fatal(err)
+			}
 
 			tp := Price{
 				Pair: newPairs,

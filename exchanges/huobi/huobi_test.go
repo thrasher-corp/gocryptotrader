@@ -669,7 +669,11 @@ func TestWsGetAccountsList(t *testing.T) {
 // TestWsGetOrderList connects to WS, logs in, gets order list
 func TestWsGetOrderList(t *testing.T) {
 	setupWsTests(t)
-	resp, err := h.wsGetOrdersList(1, currency.NewPairFromString("ethbtc"))
+	p, err := currency.NewPairFromString("ethbtc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := h.wsGetOrdersList(1, p)
 	if err != nil {
 		t.Fatal(err)
 	}

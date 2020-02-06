@@ -187,19 +187,25 @@ func (o *OKEX) Run() {
 	if !common.StringDataContains(o.GetEnabledPairs(asset.Spot).Strings(), delim) ||
 		!common.StringDataContains(o.GetAvailablePairs(asset.Spot).Strings(), delim) {
 		forceUpdate = true
-		enabledPairs := currency.NewPairsFromStrings(
-			[]string{currency.BTC.String() + delim + currency.USDT.String()},
-		)
-		log.Warnf(log.ExchangeSys,
-			"Enabled pairs for %v reset due to config upgrade, please enable the ones you would like again.",
-			o.Name)
-
-		err := o.UpdatePairs(enabledPairs, asset.Spot, true, forceUpdate)
+		p, err := currency.NewPairsFromStrings([]string{currency.BTC.String() +
+			delim +
+			currency.USDT.String()})
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s failed to update currencies.\n",
 				o.Name)
-			return
+		} else {
+			log.Warnf(log.ExchangeSys,
+				"Enabled pairs for %v reset due to config upgrade, please enable the ones you would like again.",
+				o.Name)
+
+			err = o.UpdatePairs(p, asset.Spot, true, forceUpdate)
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"%s failed to update currencies.\n",
+					o.Name)
+				return
+			}
 		}
 	}
 
@@ -289,16 +295,24 @@ func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
 				indexPairs = append(indexPairs,
 					strings.Split(pairs[i], delimiterUnderscore)[0])
 			}
-			err = o.UpdatePairs(currency.NewPairsFromStrings(indexPairs),
-				asset.Index,
-				false,
-				forceUpdate)
+
+			p, err := currency.NewPairsFromStrings(indexPairs)
 			if err != nil {
 				return err
 			}
+
+			err = o.UpdatePairs(p, asset.Index, false, forceUpdate)
+			if err != nil {
+				return err
+			}
+			// TODO TEST THIS WITH CONTINUE
+		}
+		p, err := currency.NewPairsFromStrings(pairs)
+		if err != nil {
+			return err
 		}
 
-		err = o.UpdatePairs(currency.NewPairsFromStrings(pairs),
+		err = o.UpdatePairs(p,
 			o.CurrencyPairs.AssetTypes[x], false, forceUpdate)
 		if err != nil {
 			return err

@@ -86,7 +86,12 @@ func (w Wrapper) Pairs(exch string, _ bool, _ asset.Item) (*currency.Pairs, erro
 		return nil, errTestFailed
 	}
 
-	pairs := currency.NewPairsFromStrings([]string{"btc_usd", "btc_aud", "btc_ltc"})
+	pairs, err := currency.NewPairsFromStrings([]string{"btc_usd",
+		"btc_aud",
+		"btc_ltc"})
+	if err != nil {
+		return nil, err
+	}
 	return &pairs, nil
 }
 
@@ -95,11 +100,17 @@ func (w Wrapper) QueryOrder(exch, _ string) (*order.Detail, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
 	}
+
+	pairs, err := currency.NewPairFromString("BTCAUD")
+	if err != nil {
+		return nil, err
+	}
+
 	return &order.Detail{
 		Exchange:        exch,
 		AccountID:       "hello",
 		ID:              "1",
-		CurrencyPair:    currency.NewPairFromString("BTCAUD"),
+		CurrencyPair:    pairs,
 		OrderSide:       "ask",
 		OrderType:       "limit",
 		OrderDate:       time.Now(),

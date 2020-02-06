@@ -142,6 +142,14 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		}
 
 		currencyPair := c.instrumentMap.LookupInstrument(wsTicker.InstID)
+		p, err := currency.NewPairFromFormattedPairs(currencyPair,
+			c.GetEnabledPairs(asset.Spot),
+			c.GetPairFormat(asset.Spot, true))
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
+
 		c.Websocket.DataHandler <- &ticker.Price{
 			ExchangeName: c.Name,
 			Volume:       wsTicker.Volume24,
@@ -153,9 +161,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			Last:         wsTicker.Last,
 			LastUpdated:  time.Unix(0, wsTicker.Timestamp),
 			AssetType:    asset.Spot,
-			Pair: currency.NewPairFromFormattedPairs(currencyPair,
-				c.GetEnabledPairs(asset.Spot),
-				c.GetPairFormat(asset.Spot, true)),
+			Pair:         p,
 		}
 
 	case "inst_order_book":
@@ -171,12 +177,17 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			return
 		}
 		currencyPair := c.instrumentMap.LookupInstrument(orderbooksnapshot.InstID)
+		p, err := currency.NewPairFromFormattedPairs(currencyPair,
+			c.GetEnabledPairs(asset.Spot),
+			c.GetPairFormat(asset.Spot, true))
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
 		c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 			Exchange: c.Name,
 			Asset:    asset.Spot,
-			Pair: currency.NewPairFromFormattedPairs(currencyPair,
-				c.GetEnabledPairs(asset.Spot),
-				c.GetPairFormat(asset.Spot, true)),
+			Pair:     p,
 		}
 	case "inst_order_book_update":
 		var orderbookUpdate WsOrderbookUpdate
@@ -191,12 +202,17 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			return
 		}
 		currencyPair := c.instrumentMap.LookupInstrument(orderbookUpdate.InstID)
+		p, err := currency.NewPairFromFormattedPairs(currencyPair,
+			c.GetEnabledPairs(asset.Spot),
+			c.GetPairFormat(asset.Spot, true))
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
 		c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 			Exchange: c.Name,
 			Asset:    asset.Spot,
-			Pair: currency.NewPairFromFormattedPairs(currencyPair,
-				c.GetEnabledPairs(asset.Spot),
-				c.GetPairFormat(asset.Spot, true)),
+			Pair:     p,
 		}
 	case "inst_trade":
 		var tradeSnap WsTradeSnapshot
@@ -214,15 +230,20 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			return
 		}
 		currencyPair := c.instrumentMap.LookupInstrument(tradeUpdate.InstID)
+		p, err := currency.NewPairFromFormattedPairs(currencyPair,
+			c.GetEnabledPairs(asset.Spot),
+			c.GetPairFormat(asset.Spot, true))
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
 		c.Websocket.DataHandler <- wshandler.TradeData{
-			Timestamp: time.Unix(tradeUpdate.Timestamp, 0),
-			CurrencyPair: currency.NewPairFromFormattedPairs(currencyPair,
-				c.GetEnabledPairs(asset.Spot),
-				c.GetPairFormat(asset.Spot, true)),
-			AssetType: asset.Spot,
-			Exchange:  c.Name,
-			Price:     tradeUpdate.Price,
-			Side:      tradeUpdate.Side,
+			Timestamp:    time.Unix(tradeUpdate.Timestamp, 0),
+			CurrencyPair: p,
+			AssetType:    asset.Spot,
+			Exchange:     c.Name,
+			Price:        tradeUpdate.Price,
+			Side:         tradeUpdate.Side,
 		}
 	default:
 		if incoming.Nonce > 0 {
@@ -290,11 +311,17 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 	var newOrderBook orderbook.Base
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
-	newOrderBook.Pair = currency.NewPairFromFormattedPairs(
+
+	var err error
+	newOrderBook.Pair, err = currency.NewPairFromFormattedPairs(
 		c.instrumentMap.LookupInstrument(ob.InstID),
 		c.GetEnabledPairs(asset.Spot),
 		c.GetPairFormat(asset.Spot, true),
 	)
+	if err != nil {
+		return err
+	}
+
 	newOrderBook.AssetType = asset.Spot
 	newOrderBook.ExchangeName = c.Name
 
@@ -303,11 +330,14 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 
 // WsProcessOrderbookUpdate process an orderbook update
 func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
-	p := currency.NewPairFromFormattedPairs(
+	p, err := currency.NewPairFromFormattedPairs(
 		c.instrumentMap.LookupInstrument(update.InstID),
 		c.GetEnabledPairs(asset.Spot),
-		c.GetPairFormat(asset.Spot, true),
-	)
+		c.GetPairFormat(asset.Spot, true))
+	if err != nil {
+		return err
+	}
+
 	bufferUpdate := &wsorderbook.WebsocketOrderbookUpdate{
 		Pair:     p,
 		UpdateID: update.TransID,

@@ -170,7 +170,11 @@ func (l *Lbank) UpdateTradablePairs(forceUpdate bool) error {
 		return err
 	}
 
-	return l.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
+	p, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
+	return l.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -426,7 +430,11 @@ func (l *Lbank) GetOrderInfo(orderID string) (order.Detail, error) {
 				return resp, err
 			}
 			resp.Exchange = l.Name
-			resp.CurrencyPair = currency.NewPairFromString(key)
+			resp.CurrencyPair, err = currency.NewPairFromString(key)
+			if err != nil {
+				return order.Detail{}, err
+			}
+
 			if strings.EqualFold(tempResp.Orders[0].Type, order.Buy.String()) {
 				resp.OrderSide = order.Buy
 			} else {
@@ -510,7 +518,11 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]ord
 				return finalResp, err
 			}
 			resp.Exchange = l.Name
-			resp.CurrencyPair = currency.NewPairFromString(key)
+			resp.CurrencyPair, err = currency.NewPairFromString(key)
+			if err != nil {
+				return nil, err
+			}
+
 			if strings.EqualFold(tempResp.Orders[0].Type, order.Buy.String()) {
 				resp.OrderSide = order.Buy
 			} else {
@@ -586,7 +598,11 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]ord
 			}
 			for x := 0; x < len(tempResp.Orders); x++ {
 				resp.Exchange = l.Name
-				resp.CurrencyPair = currency.NewPairFromString(tempResp.Orders[x].Symbol)
+				resp.CurrencyPair, err = currency.NewPairFromString(tempResp.Orders[x].Symbol)
+				if err != nil {
+					return nil, err
+				}
+
 				if strings.EqualFold(tempResp.Orders[x].Type, order.Buy.String()) {
 					resp.OrderSide = order.Buy
 				} else {

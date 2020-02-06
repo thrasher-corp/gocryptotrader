@@ -154,20 +154,26 @@ func (o *OKCoin) Run() {
 		true).Strings(), delim) ||
 		!common.StringDataContains(o.CurrencyPairs.GetPairs(asset.Spot,
 			false).Strings(), delim) {
-		enabledPairs := currency.NewPairsFromStrings(
-			[]string{currency.BTC.String() + delim + currency.USD.String()},
-		)
-		log.Warnf(log.ExchangeSys,
-			"Enabled pairs for %v reset due to config upgrade, please enable the ones you would like again.\n",
-			o.Name)
-		forceUpdate = true
-
-		err := o.UpdatePairs(enabledPairs, asset.Spot, true, true)
+		p, err := currency.NewPairsFromStrings([]string{currency.BTC.String() +
+			delim +
+			currency.USD.String()})
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s failed to update currencies.\n",
 				o.Name)
-			return
+		} else {
+			log.Warnf(log.ExchangeSys,
+				"Enabled pairs for %v reset due to config upgrade, please enable the ones you would like again.\n",
+				o.Name)
+			forceUpdate = true
+
+			err := o.UpdatePairs(p, asset.Spot, true, true)
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"%s failed to update currencies.\n",
+					o.Name)
+				return
+			}
 		}
 	}
 
@@ -208,9 +214,11 @@ func (o *OKCoin) UpdateTradablePairs(forceUpdate bool) error {
 	if err != nil {
 		return err
 	}
-
-	return o.UpdatePairs(currency.NewPairsFromStrings(pairs),
-		asset.Spot, false, forceUpdate)
+	p, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
+	return o.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

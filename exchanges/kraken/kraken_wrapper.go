@@ -215,18 +215,25 @@ func (k *Kraken) Run() {
 	delim := k.GetPairFormat(asset.Spot, false).Delimiter
 	if !common.StringDataContains(k.GetEnabledPairs(asset.Spot).Strings(), delim) ||
 		!common.StringDataContains(k.GetAvailablePairs(asset.Spot).Strings(), delim) {
-		enabledPairs := currency.NewPairsFromStrings(
-			[]string{currency.XBT.String() + delim + currency.USD.String()},
-		)
-		log.Warn(log.ExchangeSys, "Available pairs for Kraken reset due to config upgrade, please enable the ones you would like again")
-		forceUpdate = true
-
-		err := k.UpdatePairs(enabledPairs, asset.Spot, true, true)
+		p, err := currency.NewPairsFromStrings([]string{currency.XBT.String() +
+			delim +
+			currency.USD.String()})
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s failed to update currencies. Err: %s\n",
 				k.Name,
 				err)
+		} else {
+			log.Warn(log.ExchangeSys, "Available pairs for Kraken reset due to config upgrade, please enable the ones you would like again")
+			forceUpdate = true
+
+			err = k.UpdatePairs(p, asset.Spot, true, true)
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"%s failed to update currencies. Err: %s\n",
+					k.Name,
+					err)
+			}
 		}
 	}
 
@@ -279,7 +286,11 @@ func (k *Kraken) UpdateTradablePairs(forceUpdate bool) error {
 		return err
 	}
 
-	return k.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
+	p, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
+	return k.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -545,10 +556,14 @@ func (k *Kraken) GetOrderInfo(orderID string) (order.Detail, error) {
 			return orderDetail, err
 		}
 
+		p, err := currency.NewPairFromString(orderInfo.Description.Pair)
+		if err != nil {
+			return orderDetail, err
+		}
 		orderDetail = order.Detail{
 			Exchange:        k.Name,
 			ID:              orderID,
-			CurrencyPair:    currency.NewPairFromString(orderInfo.Description.Pair),
+			CurrencyPair:    p,
 			OrderSide:       side,
 			OrderType:       oType,
 			OrderDate:       time.Unix(firstNum, decNum),
@@ -627,7 +642,11 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 
 	var orders []order.Detail
 	for i := range resp.Open {
-		symbol := currency.NewPairFromString(resp.Open[i].Description.Pair)
+		symbol, err := currency.NewPairFromString(resp.Open[i].Description.Pair)
+		if err != nil {
+			return nil, err
+		}
+
 		orderDate := time.Unix(int64(resp.Open[i].StartTime), 0)
 		side := order.Side(strings.ToUpper(resp.Open[i].Description.Type))
 		orderType := order.Type(strings.ToUpper(resp.Open[i].Description.OrderType))
@@ -670,7 +689,11 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 
 	var orders []order.Detail
 	for i := range resp.Closed {
-		symbol := currency.NewPairFromString(resp.Closed[i].Description.Pair)
+		symbol, err := currency.NewPairFromString(resp.Closed[i].Description.Pair)
+		if err != nil {
+			return nil, err
+		}
+
 		orderDate := time.Unix(int64(resp.Closed[i].StartTime), 0)
 		side := order.Side(strings.ToUpper(resp.Closed[i].Description.Type))
 		orderType := order.Type(strings.ToUpper(resp.Closed[i].Description.OrderType))

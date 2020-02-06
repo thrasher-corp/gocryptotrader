@@ -291,10 +291,16 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 
 		switch {
 		case currencyPairOverride != "":
-			p = currency.NewPairFromString(currencyPairOverride)
+			var err error
+			p, err = currency.NewPairFromString(currencyPairOverride)
+			if err != nil {
+				log.Printf("%v Encountered error: '%v'", base.GetName(), err)
+				continue
+			}
 		case len(base.Config.CurrencyPairs.Pairs[assetTypes[i]].Enabled) == 0:
 			if len(base.Config.CurrencyPairs.Pairs[assetTypes[i]].Available) == 0 {
-				log.Printf("%v has no enabled or available currencies. Skipping", base.GetName())
+				log.Printf("%v has no enabled or available currencies. Skipping",
+					base.GetName())
 				continue
 			}
 			p = base.Config.CurrencyPairs.Pairs[assetTypes[i]].Available.GetRandomPair()

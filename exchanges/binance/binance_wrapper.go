@@ -200,7 +200,7 @@ func (b *Binance) Run() {
 				delim +
 				currency.USDT.String()})
 		if err != nil {
-			log.Error(log.ExchangeSys, "%s failed to update currencies. Err %s\n",
+			log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err %s\n",
 				b.Name,
 				err)
 		} else {

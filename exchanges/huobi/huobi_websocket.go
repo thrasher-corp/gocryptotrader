@@ -244,12 +244,18 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 			return
 		}
 		data := strings.Split(kline.Channel, ".")
+		p, err := currency.NewPairFromFormattedPairs(data[1],
+			h.GetEnabledPairs(asset.Spot),
+			h.GetPairFormat(asset.Spot, true))
+		if err != nil {
+			h.Websocket.DataHandler <- err
+			return
+		}
 		h.Websocket.DataHandler <- wshandler.KlineData{
-			Timestamp: time.Unix(0, kline.Timestamp*int64(time.Millisecond)),
-			Exchange:  h.Name,
-			AssetType: asset.Spot,
-			Pair: currency.NewPairFromFormattedPairs(data[1],
-				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
+			Timestamp:  time.Unix(0, kline.Timestamp*int64(time.Millisecond)),
+			Exchange:   h.Name,
+			AssetType:  asset.Spot,
+			Pair:       p,
 			OpenPrice:  kline.Tick.Open,
 			ClosePrice: kline.Tick.Close,
 			HighPrice:  kline.Tick.High,
@@ -264,12 +270,18 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 			return
 		}
 		data := strings.Split(trade.Channel, ".")
+		p, err := currency.NewPairFromFormattedPairs(data[1],
+			h.GetEnabledPairs(asset.Spot),
+			h.GetPairFormat(asset.Spot, true))
+		if err != nil {
+			h.Websocket.DataHandler <- err
+			return
+		}
 		h.Websocket.DataHandler <- wshandler.TradeData{
-			Exchange:  h.Name,
-			AssetType: asset.Spot,
-			CurrencyPair: currency.NewPairFromFormattedPairs(data[1],
-				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
-			Timestamp: time.Unix(0, trade.Tick.Timestamp*int64(time.Millisecond)),
+			Exchange:     h.Name,
+			AssetType:    asset.Spot,
+			CurrencyPair: p,
+			Timestamp:    time.Unix(0, trade.Tick.Timestamp*int64(time.Millisecond)),
 		}
 	case strings.Contains(init.Channel, "detail"):
 		var wsTicker WsTick
@@ -279,6 +291,12 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 			return
 		}
 		data := strings.Split(wsTicker.Channel, ".")
+		p, err := currency.NewPairFromFormattedPairs(data[1],
+			h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true))
+		if err != nil {
+			h.Websocket.DataHandler <- err
+			return
+		}
 		h.Websocket.DataHandler <- &ticker.Price{
 			ExchangeName: h.Name,
 			Open:         wsTicker.Tick.Open,
@@ -289,8 +307,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 			Low:          wsTicker.Tick.Low,
 			LastUpdated:  time.Unix(0, wsTicker.Timestamp*int64(time.Millisecond)),
 			AssetType:    asset.Spot,
-			Pair: currency.NewPairFromFormattedPairs(data[1],
-				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
+			Pair:         p,
 		}
 	}
 }
@@ -304,9 +321,12 @@ func (h *HUOBI) sendPingResponse(pong int64) {
 
 // WsProcessOrderbook processes new orderbook data
 func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
-	p := currency.NewPairFromFormattedPairs(symbol,
+	p, err := currency.NewPairFromFormattedPairs(symbol,
 		h.GetEnabledPairs(asset.Spot),
 		h.GetPairFormat(asset.Spot, true))
+	if err != nil {
+		return err
+	}
 
 	var bids, asks []orderbook.Item
 	for i := range update.Tick.Bids {
@@ -330,7 +350,7 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 	newOrderBook.AssetType = asset.Spot
 	newOrderBook.ExchangeName = h.Name
 
-	err := h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+	err = h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 	if err != nil {
 		return err
 	}

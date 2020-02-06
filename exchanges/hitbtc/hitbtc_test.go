@@ -108,8 +108,12 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 }
 
 func TestUpdateTicker(t *testing.T) {
-	h.CurrencyPairs.StorePairs(asset.Spot, currency.NewPairsFromStrings([]string{"BTC-USD", "XRP-USD"}), true)
-	_, err := h.UpdateTicker(currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	pairs, err := currency.NewPairsFromStrings([]string{"BTC-USD", "XRP-USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.CurrencyPairs.StorePairs(asset.Spot, pairs, true)
+	_, err = h.UpdateTicker(currency.NewPair(currency.BTC, currency.USD), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

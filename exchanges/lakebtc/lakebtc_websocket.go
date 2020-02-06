@@ -145,7 +145,11 @@ func (l *LakeBTC) processTrades(data, channel string) error {
 	if err != nil {
 		return err
 	}
-	curr := l.getCurrencyFromChannel(channel)
+	curr, err := l.getCurrencyFromChannel(channel)
+	if err != nil {
+		return err
+	}
+
 	for i := range tradeData.Trades {
 		l.Websocket.DataHandler <- wshandler.TradeData{
 			Timestamp:    time.Unix(tradeData.Trades[i].Date, 0),
@@ -168,7 +172,10 @@ func (l *LakeBTC) processOrderbook(obUpdate, channel string) error {
 		return err
 	}
 
-	p := l.getCurrencyFromChannel(channel)
+	p, err := l.getCurrencyFromChannel(channel)
+	if err != nil {
+		return err
+	}
 
 	book := orderbook.Base{
 		Pair:         p,
@@ -227,7 +234,7 @@ func (l *LakeBTC) processOrderbook(obUpdate, channel string) error {
 	return nil
 }
 
-func (l *LakeBTC) getCurrencyFromChannel(channel string) currency.Pair {
+func (l *LakeBTC) getCurrencyFromChannel(channel string) (currency.Pair, error) {
 	curr := strings.Replace(channel, marketSubstring, "", 1)
 	curr = strings.Replace(curr, globalSubstring, "", 1)
 	return currency.NewPairFromString(curr)
@@ -243,7 +250,11 @@ func (l *LakeBTC) processTicker(wsTicker string) error {
 
 	enabled := l.GetEnabledPairs(asset.Spot)
 	for k, v := range tUpdate {
-		returnCurrency := currency.NewPairFromString(k)
+		returnCurrency, err := currency.NewPairFromString(k)
+		if err != nil {
+			return err
+		}
+
 		if !enabled.Contains(returnCurrency, true) {
 			continue
 		}

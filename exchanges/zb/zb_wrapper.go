@@ -212,7 +212,11 @@ func (z *ZB) UpdateTradablePairs(forceUpdate bool) error {
 	if err != nil {
 		return err
 	}
-	return z.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
+	p, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
+	return z.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -485,9 +489,15 @@ func (z *ZB) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	}
 
 	for i := range allOpenOrders {
-		err := z.CancelOrder(&order.Cancel{
+		p, err := currency.NewPairFromString(allOpenOrders[i].Currency)
+		if err != nil {
+			cancelAllOrdersResponse.Status[strconv.FormatInt(allOpenOrders[i].ID, 10)] = err.Error()
+			continue
+		}
+
+		err = z.CancelOrder(&order.Cancel{
 			OrderID:      strconv.FormatInt(allOpenOrders[i].ID, 10),
-			CurrencyPair: currency.NewPairFromString(allOpenOrders[i].Currency),
+			CurrencyPair: p,
 		})
 		if err != nil {
 			cancelAllOrdersResponse.Status[strconv.FormatInt(allOpenOrders[i].ID, 10)] = err.Error()

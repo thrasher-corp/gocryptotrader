@@ -286,10 +286,11 @@ func (h *HUOBI) UpdateTradablePairs(forceUpdate bool) error {
 		return err
 	}
 
-	return h.UpdatePairs(currency.NewPairsFromStrings(pairs),
-		asset.Spot,
-		false,
-		forceUpdate)
+	p, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
+	return h.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -634,11 +635,15 @@ func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
 	if err != nil {
 		return orderDetail, err
 	}
+	p, err := currency.NewPairFromString(respData.Symbol)
+	if err != nil {
+		return orderDetail, err
+	}
 	orderDetail = order.Detail{
 		Exchange:       h.Name,
 		ID:             strconv.FormatInt(respData.ID, 10),
 		AccountID:      strconv.FormatInt(respData.AccountID, 10),
-		CurrencyPair:   currency.NewPairFromString(respData.Symbol),
+		CurrencyPair:   p,
 		OrderType:      orderType,
 		OrderSide:      orderSide,
 		OrderDate:      time.Unix(0, respData.CreatedAt*int64(time.Millisecond)),

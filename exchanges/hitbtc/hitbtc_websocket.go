@@ -117,6 +117,14 @@ func (h *HitBTC) handleSubscriptionUpdates(resp wshandler.WebsocketResponse, ini
 			h.Websocket.DataHandler <- err
 			return
 		}
+
+		p, err := currency.NewPairFromFormattedPairs(wsTicker.Params.Symbol,
+			h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true))
+		if err != nil {
+			h.Websocket.DataHandler <- err
+			return
+		}
+
 		h.Websocket.DataHandler <- &ticker.Price{
 			ExchangeName: h.Name,
 			Open:         wsTicker.Params.Open,
@@ -129,8 +137,7 @@ func (h *HitBTC) handleSubscriptionUpdates(resp wshandler.WebsocketResponse, ini
 			Last:         wsTicker.Params.Last,
 			LastUpdated:  ts,
 			AssetType:    asset.Spot,
-			Pair: currency.NewPairFromFormattedPairs(wsTicker.Params.Symbol,
-				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
+			Pair:         p,
 		}
 	case "snapshotOrderbook":
 		var obSnapshot WsOrderbook
@@ -249,13 +256,18 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 		})
 	}
 
-	p := currency.NewPairFromFormattedPairs(ob.Params.Symbol,
-		h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true))
+	p, err := currency.NewPairFromFormattedPairs(ob.Params.Symbol,
+		h.GetEnabledPairs(asset.Spot),
+		h.GetPairFormat(asset.Spot, true))
+	if err != nil {
+		h.Websocket.DataHandler <- err
+		return err
+	}
 	newOrderBook.AssetType = asset.Spot
 	newOrderBook.Pair = p
 	newOrderBook.ExchangeName = h.Name
 
-	err := h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+	err = h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 	if err != nil {
 		return err
 	}
@@ -290,9 +302,14 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update WsOrderbook) error {
 		})
 	}
 
-	p := currency.NewPairFromFormattedPairs(update.Params.Symbol,
-		h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true))
-	err := h.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+	p, err := currency.NewPairFromFormattedPairs(update.Params.Symbol,
+		h.GetEnabledPairs(asset.Spot),
+		h.GetPairFormat(asset.Spot, true))
+	if err != nil {
+		return err
+	}
+
+	err = h.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
 		Asks:     asks,
 		Bids:     bids,
 		Pair:     p,

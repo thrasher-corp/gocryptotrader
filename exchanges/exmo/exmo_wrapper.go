@@ -172,7 +172,12 @@ func (e *EXMO) UpdateTradablePairs(forceUpdate bool) error {
 		return err
 	}
 
-	return e.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
+	p, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
+
+	return e.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

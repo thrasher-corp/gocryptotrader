@@ -96,6 +96,12 @@ func (z *ZB) WsHandleData() {
 					continue
 				}
 
+				pair, err := currency.NewPairFromString(cPair[0])
+				if err != nil {
+					z.Websocket.DataHandler <- err
+					continue
+				}
+
 				z.Websocket.DataHandler <- &ticker.Price{
 					ExchangeName: z.Name,
 					Close:        wsTicker.Data.Last,
@@ -107,7 +113,7 @@ func (z *ZB) WsHandleData() {
 					Ask:          wsTicker.Data.Sell,
 					LastUpdated:  time.Unix(0, wsTicker.Date*int64(time.Millisecond)),
 					AssetType:    asset.Spot,
-					Pair:         currency.NewPairFromString(cPair[0]),
+					Pair:         pair,
 				}
 
 			case strings.Contains(result.Channel, "depth"):
@@ -135,7 +141,12 @@ func (z *ZB) WsHandleData() {
 				}
 
 				channelInfo := strings.Split(result.Channel, "_")
-				cPair := currency.NewPairFromString(channelInfo[0])
+				cPair, err := currency.NewPairFromString(channelInfo[0])
+				if err != nil {
+					z.Websocket.DataHandler <- err
+					continue
+				}
+
 				var newOrderBook orderbook.Base
 				newOrderBook.Asks = asks
 				newOrderBook.Bids = bids
@@ -169,7 +180,12 @@ func (z *ZB) WsHandleData() {
 				t := trades.Data[len(trades.Data)-1]
 
 				channelInfo := strings.Split(result.Channel, "_")
-				cPair := currency.NewPairFromString(channelInfo[0])
+				cPair, err := currency.NewPairFromString(channelInfo[0])
+				if err != nil {
+					z.Websocket.DataHandler <- err
+					continue
+				}
+
 				z.Websocket.DataHandler <- wshandler.TradeData{
 					Timestamp:    time.Unix(t.Date, 0),
 					CurrencyPair: cPair,

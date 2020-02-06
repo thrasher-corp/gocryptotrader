@@ -228,8 +228,11 @@ func (p *Poloniex) UpdateTradablePairs(forceUpgrade bool) error {
 	if err != nil {
 		return err
 	}
-
-	return p.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpgrade)
+	ps, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
+	return p.UpdatePairs(ps, asset.Spot, false, forceUpgrade)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

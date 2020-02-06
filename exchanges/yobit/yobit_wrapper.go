@@ -172,8 +172,11 @@ func (y *Yobit) UpdateTradablePairs(forceUpdate bool) error {
 	if err != nil {
 		return err
 	}
-
-	return y.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
+	p, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
+	return y.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

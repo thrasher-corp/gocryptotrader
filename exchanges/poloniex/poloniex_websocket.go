@@ -162,10 +162,16 @@ func (p *Poloniex) WsHandleData() {
 									continue
 								}
 
+								pair, err := currency.NewPairFromString(currencyPair)
+								if err != nil {
+									p.Websocket.DataHandler <- err
+									continue
+								}
+
 								p.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 									Exchange: p.Name,
 									Asset:    asset.Spot,
-									Pair:     currency.NewPairFromString(currencyPair),
+									Pair:     pair,
 								}
 							case "o":
 								currencyPair := currencyIDMap[chanID]
@@ -177,10 +183,16 @@ func (p *Poloniex) WsHandleData() {
 									continue
 								}
 
+								pair, err := currency.NewPairFromString(currencyPair)
+								if err != nil {
+									p.Websocket.DataHandler <- err
+									continue
+								}
+
 								p.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
 									Exchange: p.Name,
 									Asset:    asset.Spot,
-									Pair:     currency.NewPairFromString(currencyPair),
+									Pair:     pair,
 								}
 							case "t":
 								currencyPair := currencyIDMap[chanID]
@@ -204,10 +216,15 @@ func (p *Poloniex) WsHandleData() {
 									continue
 								}
 								trade.Timestamp = int64(dataL3[5].(float64))
+								pair, err := currency.NewPairFromString(currencyPair)
+								if err != nil {
+									p.Websocket.DataHandler <- err
+									continue
+								}
 
 								p.Websocket.DataHandler <- wshandler.TradeData{
 									Timestamp:    time.Unix(trade.Timestamp, 0),
-									CurrencyPair: currency.NewPairFromString(currencyPair),
+									CurrencyPair: pair,
 									Side:         trade.Side,
 									Amount:       trade.Volume,
 									Price:        trade.Price,
@@ -435,7 +452,12 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) e
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
 	newOrderBook.AssetType = asset.Spot
-	newOrderBook.Pair = currency.NewPairFromString(symbol)
+
+	var err error
+	newOrderBook.Pair, err = currency.NewPairFromString(symbol)
+	if err != nil {
+		return err
+	}
 	newOrderBook.ExchangeName = p.Name
 
 	return p.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
@@ -443,7 +465,10 @@ func (p *Poloniex) WsProcessOrderbookSnapshot(ob []interface{}, symbol string) e
 
 // WsProcessOrderbookUpdate processes new orderbook updates
 func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber int64, target []interface{}, symbol string) error {
-	cP := currency.NewPairFromString(symbol)
+	cP, err := currency.NewPairFromString(symbol)
+	if err != nil {
+		return err
+	}
 	price, err := strconv.ParseFloat(target[2].(string), 64)
 	if err != nil {
 		return err

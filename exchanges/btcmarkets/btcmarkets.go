@@ -736,7 +736,11 @@ func (b *BTCMarkets) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 			return fee, err
 		}
 		for x := range temp.FeeByMarkets {
-			if currency.NewPairFromString(temp.FeeByMarkets[x].MarketID) == feeBuilder.Pair {
+			p, err := currency.NewPairFromString(temp.FeeByMarkets[x].MarketID)
+			if err != nil {
+				return 0, err
+			}
+			if p == feeBuilder.Pair {
 				fee = temp.FeeByMarkets[x].MakerFeeRate
 				if !feeBuilder.IsMaker {
 					fee = temp.FeeByMarkets[x].TakerFeeRate
