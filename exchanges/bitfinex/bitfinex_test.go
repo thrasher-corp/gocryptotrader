@@ -65,12 +65,20 @@ func TestMain(m *testing.M) {
 
 func TestAppendOptionalDelimiter(t *testing.T) {
 	t.Parallel()
-	curr1 := currency.NewPairFromString("BTCUSD")
+	curr1, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	b.appendOptionalDelimiter(&curr1)
 	if curr1.Delimiter != "" {
 		t.Errorf("Expected no delimiter, received %v", curr1.Delimiter)
 	}
-	curr2 := currency.NewPairFromString("DUSK:USD")
+	curr2, err := currency.NewPairFromString("DUSK:USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	curr2.Delimiter = ""
 	b.appendOptionalDelimiter(&curr2)
 	if curr2.Delimiter != ":" {

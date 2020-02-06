@@ -213,12 +213,16 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 			orderbook.Item{Price: price, Amount: amount})
 	}
 
-	pair := currency.NewPairFromString(snapshot.ProductID)
+	pair, err := currency.NewPairFromString(snapshot.ProductID)
+	if err != nil {
+		return err
+	}
+
 	base.AssetType = asset.Spot
 	base.Pair = pair
 	base.ExchangeName = c.Name
 
-	err := c.Websocket.Orderbook.LoadSnapshot(&base)
+	err = c.Websocket.Orderbook.LoadSnapshot(&base)
 	if err != nil {
 		return err
 	}
@@ -251,7 +255,11 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 		return errors.New("coinbasepro_websocket.go error - no data in websocket update")
 	}
 
-	p := currency.NewPairFromString(update.ProductID)
+	p, err := currency.NewPairFromString(update.ProductID)
+	if err != nil {
+		return err
+	}
+
 	timestamp, err := time.Parse(time.RFC3339, update.Time)
 	if err != nil {
 		return err

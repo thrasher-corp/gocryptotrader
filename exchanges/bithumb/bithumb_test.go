@@ -431,8 +431,11 @@ func TestGetAccountInfo(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
-	curr := currency.NewPairFromString("BTCUSD")
-	_, err := b.ModifyOrder(&order.Modify{
+	curr, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.ModifyOrder(&order.Modify{
 		OrderID:      "1337",
 		Price:        100,
 		Amount:       1000,

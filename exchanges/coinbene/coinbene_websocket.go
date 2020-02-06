@@ -135,20 +135,24 @@ func (c *Coinbene) WsDataHandler() {
 					continue
 				}
 				for x := range wsTicker.Data {
+					p, err := currency.NewPairFromFormattedPairs(wsTicker.Data[x].Symbol,
+						c.GetEnabledPairs(asset.PerpetualSwap),
+						c.GetPairFormat(asset.PerpetualSwap, true))
+					if err != nil {
+						c.Websocket.DataHandler <- err
+						continue
+					}
 					c.Websocket.DataHandler <- &ticker.Price{
-						Volume: wsTicker.Data[x].Volume24h,
-						Last:   wsTicker.Data[x].LastPrice,
-						High:   wsTicker.Data[x].High24h,
-						Low:    wsTicker.Data[x].Low24h,
-						Bid:    wsTicker.Data[x].BestBidPrice,
-						Ask:    wsTicker.Data[x].BestAskPrice,
-						Pair: currency.NewPairFromFormattedPairs(wsTicker.Data[x].Symbol,
-							c.GetEnabledPairs(asset.PerpetualSwap),
-							c.GetPairFormat(asset.PerpetualSwap, true)),
+						Volume:       wsTicker.Data[x].Volume24h,
+						Last:         wsTicker.Data[x].LastPrice,
+						High:         wsTicker.Data[x].High24h,
+						Low:          wsTicker.Data[x].Low24h,
+						Bid:          wsTicker.Data[x].BestBidPrice,
+						Ask:          wsTicker.Data[x].BestAskPrice,
+						Pair:         p,
 						ExchangeName: c.Name,
 						AssetType:    asset.PerpetualSwap,
-						LastUpdated:  wsTicker.Data[x].Timestamp,
-					}
+						LastUpdated:  wsTicker.Data[x].Timestamp}
 				}
 			case strings.Contains(result[topic].(string), "tradeList"):
 				var tradeList WsTradeList
@@ -175,16 +179,21 @@ func (c *Coinbene) WsDataHandler() {
 					continue
 				}
 				p := strings.Replace(tradeList.Topic, "tradeList.", "", 1)
+				newPair, err := currency.NewPairFromFormattedPairs(p,
+					c.GetEnabledPairs(asset.PerpetualSwap),
+					c.GetPairFormat(asset.PerpetualSwap, true))
+				if err != nil {
+					c.Websocket.DataHandler <- err
+					continue
+				}
 				c.Websocket.DataHandler <- wshandler.TradeData{
-					CurrencyPair: currency.NewPairFromFormattedPairs(p,
-						c.GetEnabledPairs(asset.PerpetualSwap),
-						c.GetPairFormat(asset.PerpetualSwap, true)),
-					Timestamp: t,
-					Price:     price,
-					Amount:    amount,
-					Exchange:  c.Name,
-					AssetType: asset.PerpetualSwap,
-					Side:      tradeList.Data[0][1],
+					CurrencyPair: newPair,
+					Timestamp:    t,
+					Price:        price,
+					Amount:       amount,
+					Exchange:     c.Name,
+					AssetType:    asset.PerpetualSwap,
+					Side:         tradeList.Data[0][1],
 				}
 			case strings.Contains(result[topic].(string), "orderBook"):
 				orderBook := struct {
@@ -203,9 +212,13 @@ func (c *Coinbene) WsDataHandler() {
 					continue
 				}
 				p := strings.Replace(orderBook.Topic, "orderBook.", "", 1)
-				cp := currency.NewPairFromFormattedPairs(p,
+				cp, err := currency.NewPairFromFormattedPairs(p,
 					c.GetEnabledPairs(asset.PerpetualSwap),
 					c.GetPairFormat(asset.PerpetualSwap, true))
+				if err != nil {
+					c.Websocket.DataHandler <- err
+					continue
+				}
 				var amount, price float64
 				var asks, bids []orderbook.Item
 				for i := range orderBook.Data[0].Asks {
@@ -293,9 +306,13 @@ func (c *Coinbene) WsDataHandler() {
 					}
 					tempKline = append(tempKline, tempFloat)
 				}
-				p := currency.NewPairFromFormattedPairs(kline.Data[0][0].(string),
+				p, err := currency.NewPairFromFormattedPairs(kline.Data[0][0].(string),
 					c.GetEnabledPairs(asset.PerpetualSwap),
 					c.GetPairFormat(asset.PerpetualSwap, true))
+				if err != nil {
+					c.Websocket.DataHandler <- err
+					continue
+				}
 				c.Websocket.DataHandler <- wshandler.KlineData{
 					Timestamp:  time.Unix(int64(kline.Data[0][1].(float64)), 0),
 					Pair:       p,

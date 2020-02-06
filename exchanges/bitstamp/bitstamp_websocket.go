@@ -88,7 +88,11 @@ func (b *Bitstamp) WsHandleData() {
 				}
 
 				currencyPair := strings.Split(wsResponse.Channel, "_")
-				p := currency.NewPairFromString(strings.ToUpper(currencyPair[2]))
+				p, err := currency.NewPairFromString(strings.ToUpper(currencyPair[2]))
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					continue
+				}
 
 				err = b.wsUpdateOrderbook(wsOrderBookTemp.Data, p, asset.Spot)
 				if err != nil {
@@ -106,7 +110,11 @@ func (b *Bitstamp) WsHandleData() {
 				}
 
 				currencyPair := strings.Split(wsResponse.Channel, "_")
-				p := currency.NewPairFromString(strings.ToUpper(currencyPair[2]))
+				p, err := currency.NewPairFromString(strings.ToUpper(currencyPair[2]))
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					continue
+				}
 
 				b.Websocket.DataHandler <- wshandler.TradeData{
 					Price:        wsTradeTemp.Data.Price,

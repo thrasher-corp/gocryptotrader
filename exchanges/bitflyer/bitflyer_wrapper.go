@@ -165,10 +165,12 @@ func (b *Bitflyer) UpdateTradablePairs(forceUpdate bool) error {
 			return err
 		}
 
-		err = b.UpdatePairs(currency.NewPairsFromStrings(pairs),
-			a,
-			false,
-			forceUpdate)
+		p, err := currency.NewPairsFromStrings(pairs)
+		if err != nil {
+			return err
+		}
+
+		err = b.UpdatePairs(p, a, false, forceUpdate)
 		if err != nil {
 			return err
 		}

@@ -275,9 +275,17 @@ func (b *Bitmex) UpdateTradablePairs(forceUpdate bool) error {
 			}
 		}
 
-		err = b.UpdatePairs(currency.NewPairsFromStrings(assetPairs), b.CurrencyPairs.AssetTypes[x], false, false)
+		p, err := currency.NewPairsFromStrings(assetPairs)
 		if err != nil {
-			log.Warnf(log.ExchangeSys, "%s failed to update available pairs. Err: %v", b.Name, err)
+			return err
+		}
+
+		err = b.UpdatePairs(p, b.CurrencyPairs.AssetTypes[x], false, false)
+		if err != nil {
+			log.Warnf(log.ExchangeSys,
+				"%s failed to update available pairs. Err: %v",
+				b.Name,
+				err)
 		}
 		assetPairs = nil
 	}

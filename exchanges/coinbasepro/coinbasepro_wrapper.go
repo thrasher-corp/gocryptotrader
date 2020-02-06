@@ -204,16 +204,26 @@ func (c *CoinbasePro) Run() {
 		true).Strings(), delim) ||
 		!common.StringDataContains(c.CurrencyPairs.GetPairs(asset.Spot,
 			false).Strings(), delim) {
-		enabledPairs := currency.NewPairsFromStrings(
-			[]string{currency.BTC.String() + delim + currency.USD.String()},
-		)
-		log.Warn(log.ExchangeSys,
-			"Enabled pairs for CoinbasePro reset due to config upgrade, please enable the ones you would like to use again")
-		forceUpdate = true
-
-		err := c.UpdatePairs(enabledPairs, asset.Spot, true, true)
+		p, err := currency.NewPairsFromStrings([]string{currency.BTC.String() +
+			delim +
+			currency.USD.String()})
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err: %s\n", c.Name, err)
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update currencies. Err: %s\n",
+				c.Name,
+				err)
+		} else {
+			log.Warn(log.ExchangeSys,
+				"Enabled pairs for CoinbasePro reset due to config upgrade, please enable the ones you would like to use again")
+			forceUpdate = true
+
+			err = c.UpdatePairs(p, asset.Spot, true, true)
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"%s failed to update currencies. Err: %s\n",
+					c.Name,
+					err)
+			}
 		}
 	}
 
@@ -252,7 +262,12 @@ func (c *CoinbasePro) UpdateTradablePairs(forceUpdate bool) error {
 		return err
 	}
 
-	return c.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
+	p, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
+
+	return c.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the

@@ -224,7 +224,12 @@ func (b *Bitstamp) UpdateTradablePairs(forceUpdate bool) error {
 		return err
 	}
 
-	return b.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
+	p, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
+
+	return b.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -551,6 +556,11 @@ func (b *Bitstamp) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 				"%s GetActiveOrders unable to parse time: %s\n", b.Name, err)
 		}
 
+		pair, err := currency.NewPairFromString(resp[i].Currency)
+		if err != nil {
+			return nil, err
+		}
+
 		orders = append(orders, order.Detail{
 			Amount:       resp[i].Amount,
 			ID:           strconv.FormatInt(resp[i].ID, 10),
@@ -558,7 +568,7 @@ func (b *Bitstamp) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 			OrderType:    order.Limit,
 			OrderSide:    orderSide,
 			OrderDate:    tm,
-			CurrencyPair: currency.NewPairFromString(resp[i].Currency),
+			CurrencyPair: pair,
 			Exchange:     b.Name,
 		})
 	}

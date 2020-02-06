@@ -237,7 +237,12 @@ func (b *Bitfinex) UpdateTradablePairs(forceUpdate bool) error {
 		return err
 	}
 
-	return b.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
+	p, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
+
+	return b.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -253,8 +258,14 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 	if err != nil {
 		return tickerPrice, err
 	}
+
 	for i := range tickerNew {
 		newP := tickerNew[i].Symbol[1:] // Remove the "t" prefix
+		pair, err := currency.NewPairFromString(newP)
+		if err != nil {
+			return nil, err
+		}
+
 		tick := ticker.Price{
 			Last:        tickerNew[i].Last,
 			High:        tickerNew[i].High,
@@ -262,7 +273,7 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 			Bid:         tickerNew[i].Bid,
 			Ask:         tickerNew[i].Ask,
 			Volume:      tickerNew[i].Volume,
-			Pair:        currency.NewPairFromString(newP),
+			Pair:        pair,
 			LastUpdated: tickerNew[i].Timestamp,
 		}
 		err = ticker.ProcessTicker(b.Name, &tick, assetType)
@@ -594,6 +605,11 @@ func (b *Bitfinex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 		}
 		orderDate := time.Unix(timestamp, 0)
 
+		pair, err := currency.NewPairFromString(resp[i].Symbol)
+		if err != nil {
+			return nil, err
+		}
+
 		orderDetail := order.Detail{
 			Amount:          resp[i].OriginalAmount,
 			OrderDate:       orderDate,
@@ -602,7 +618,7 @@ func (b *Bitfinex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 			OrderSide:       orderSide,
 			Price:           resp[i].Price,
 			RemainingAmount: resp[i].RemainingAmount,
-			CurrencyPair:    currency.NewPairFromString(resp[i].Symbol),
+			CurrencyPair:    pair,
 			ExecutedAmount:  resp[i].ExecutedAmount,
 		}
 
@@ -653,6 +669,11 @@ func (b *Bitfinex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 		}
 		orderDate := time.Unix(timestamp, 0)
 
+		pair, err := currency.NewPairFromString(resp[i].Symbol)
+		if err != nil {
+			return nil, err
+		}
+
 		orderDetail := order.Detail{
 			Amount:          resp[i].OriginalAmount,
 			OrderDate:       orderDate,
@@ -662,7 +683,7 @@ func (b *Bitfinex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 			Price:           resp[i].Price,
 			RemainingAmount: resp[i].RemainingAmount,
 			ExecutedAmount:  resp[i].ExecutedAmount,
-			CurrencyPair:    currency.NewPairFromString(resp[i].Symbol),
+			CurrencyPair:    pair,
 		}
 
 		switch {

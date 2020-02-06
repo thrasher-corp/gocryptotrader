@@ -241,8 +241,12 @@ func (b *BTCMarkets) UpdateTradablePairs(forceUpdate bool) error {
 	if err != nil {
 		return err
 	}
+	p, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
 
-	return b.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
+	return b.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -253,8 +257,13 @@ func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticke
 		return nil, err
 	}
 	for x := range tickers {
+		p, err := currency.NewPairFromString(tickers[x].MarketID)
+		if err != nil {
+			return nil, err
+		}
+
 		var resp ticker.Price
-		resp.Pair = currency.NewPairFromString(tickers[x].MarketID)
+		resp.Pair = p
 		resp.Last = tickers[x].LastPrice
 		resp.High = tickers[x].High24h
 		resp.Low = tickers[x].Low24h
@@ -445,9 +454,15 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
 	if err != nil {
 		return resp, err
 	}
+
+	p, err := currency.NewPairFromString(o.MarketID)
+	if err != nil {
+		return order.Detail{}, err
+	}
+
 	resp.Exchange = b.Name
 	resp.ID = orderID
-	resp.CurrencyPair = currency.NewPairFromString(o.MarketID)
+	resp.CurrencyPair = p
 	resp.Price = o.Price
 	resp.OrderDate = o.CreationTime
 	resp.ExecutedAmount = o.Amount - o.OpenAmount
@@ -668,8 +683,14 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 			case orderAccepted:
 				continue
 			}
+
+			p, err := currency.NewPairFromString(tempData.Orders[c].MarketID)
+			if err != nil {
+				return nil, err
+			}
+
 			tempResp.Exchange = b.Name
-			tempResp.CurrencyPair = currency.NewPairFromString(tempData.Orders[c].MarketID)
+			tempResp.CurrencyPair = p
 			tempResp.OrderSide = order.Bid
 			if tempData.Orders[c].Side == ask {
 				tempResp.OrderSide = order.Ask

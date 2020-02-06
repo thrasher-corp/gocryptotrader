@@ -84,9 +84,14 @@ func (b *BTSE) WsHandleData() {
 					if tradeHistory.Data[x].Gain == -1 {
 						side = order.Sell.String()
 					}
+					p, err := currency.NewPairFromString(strings.Replace(tradeHistory.Topic, "tradeHistory:", "", 1))
+					if err != nil {
+						b.Websocket.DataHandler <- err
+						continue
+					}
 					b.Websocket.DataHandler <- wshandler.TradeData{
 						Timestamp:    time.Unix(0, tradeHistory.Data[x].TransactionTime*int64(time.Millisecond)),
-						CurrencyPair: currency.NewPairFromString(strings.Replace(tradeHistory.Topic, "tradeHistory:", "", 1)),
+						CurrencyPair: p,
 						AssetType:    asset.Spot,
 						Exchange:     b.Name,
 						Price:        tradeHistory.Data[x].Price,
@@ -140,7 +145,11 @@ func (b *BTSE) WsHandleData() {
 					})
 				}
 				newOB.AssetType = asset.Spot
-				newOB.Pair = currency.NewPairFromString(t.Topic[strings.Index(t.Topic, ":")+1 : strings.Index(t.Topic, "_")])
+				newOB.Pair, err = currency.NewPairFromString(t.Topic[strings.Index(t.Topic, ":")+1 : strings.Index(t.Topic, "_")])
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					continue
+				}
 				newOB.ExchangeName = b.Name
 				err = b.Websocket.Orderbook.LoadSnapshot(&newOB)
 				if err != nil {

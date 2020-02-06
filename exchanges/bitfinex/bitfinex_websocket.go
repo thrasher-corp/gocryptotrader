@@ -140,7 +140,13 @@ func (b *Bitfinex) WsDataHandler() {
 					switch chanInfo.Channel {
 					case wsBook:
 						var newOrderbook []WebsocketBook
-						curr := currency.NewPairFromString(chanInfo.Pair)
+						curr, err := currency.NewPairFromString(chanInfo.Pair)
+						if err != nil {
+							b.Websocket.DataHandler <- fmt.Errorf("bitfinex_websocket.go inserting snapshot error: %s",
+								err)
+							continue
+						}
+
 						if obSnapBundle, ok := chanData[1].([]interface{}); ok {
 							switch id := obSnapBundle[0].(type) {
 							case []interface{}:
@@ -174,7 +180,12 @@ func (b *Bitfinex) WsDataHandler() {
 						}
 						continue
 					case wsCandles:
-						curr := currency.NewPairFromString(chanInfo.Pair)
+						curr, err := currency.NewPairFromString(chanInfo.Pair)
+						if err != nil {
+							b.Websocket.DataHandler <- fmt.Errorf("bitfinex_websocket.go candles error: %s",
+								err)
+							continue
+						}
 						if candleBundle, ok := chanData[1].([]interface{}); ok {
 							if len(candleBundle) == 0 {
 								continue
@@ -211,6 +222,13 @@ func (b *Bitfinex) WsDataHandler() {
 						}
 						continue
 					case wsTicker:
+						pair, err := currency.NewPairFromString(chanInfo.Pair)
+						if err != nil {
+							b.Websocket.DataHandler <- fmt.Errorf("bitfinex_websocket.go ticker error: %s",
+								err)
+							continue
+						}
+
 						tickerData := chanData[1].([]interface{})
 						b.Websocket.DataHandler <- &ticker.Price{
 							ExchangeName: b.Name,
@@ -221,7 +239,7 @@ func (b *Bitfinex) WsDataHandler() {
 							High:         tickerData[8].(float64),
 							Low:          tickerData[9].(float64),
 							AssetType:    asset.Spot,
-							Pair:         currency.NewPairFromString(chanInfo.Pair),
+							Pair:         pair,
 						}
 						continue
 					case wsTrades:
@@ -274,9 +292,16 @@ func (b *Bitfinex) WsDataHandler() {
 								newAmount *= -1
 							}
 
+							pair, err := currency.NewPairFromString(chanInfo.Pair)
+							if err != nil {
+								b.Websocket.DataHandler <- fmt.Errorf("bitfinex_websocket.go trade error: %s",
+									err)
+								continue
+							}
+
 							if trades[i].Rate > 0 {
 								b.Websocket.DataHandler <- wshandler.FundingData{
-									CurrencyPair: currency.NewPairFromString(chanInfo.Pair),
+									CurrencyPair: pair,
 									Timestamp:    time.Unix(0, trades[i].Timestamp*int64(time.Millisecond)),
 									Amount:       newAmount,
 									Exchange:     b.Name,
@@ -289,7 +314,7 @@ func (b *Bitfinex) WsDataHandler() {
 							}
 
 							b.Websocket.DataHandler <- wshandler.TradeData{
-								CurrencyPair: currency.NewPairFromString(chanInfo.Pair),
+								CurrencyPair: pair,
 								Timestamp:    time.Unix(0, trades[i].Timestamp*int64(time.Millisecond)),
 								Price:        trades[i].Price,
 								Amount:       newAmount,

@@ -186,7 +186,12 @@ func (b *Bitmex) wsHandleIncomingData() {
 						continue
 					}
 
-					p := currency.NewPairFromString(orderbooks.Data[0].Symbol)
+					p, err := currency.NewPairFromString(orderbooks.Data[0].Symbol)
+					if err != nil {
+						b.Websocket.DataHandler <- err
+						continue
+					}
+
 					var a asset.Item
 					a, err = b.GetPairAssetType(p)
 					if err != nil {
@@ -222,12 +227,18 @@ func (b *Bitmex) wsHandleIncomingData() {
 							b.Websocket.DataHandler <- err
 							continue
 						}
+
+						pair, err := currency.NewPairFromString(trades.Data[i].Symbol)
+						if err != nil {
+							b.Websocket.DataHandler <- err
+							continue
+						}
 						// TODO: update this to support multiple asset types
 						b.Websocket.DataHandler <- wshandler.TradeData{
 							Timestamp:    timestamp,
 							Price:        trades.Data[i].Price,
 							Amount:       float64(trades.Data[i].Size),
-							CurrencyPair: currency.NewPairFromString(trades.Data[i].Symbol),
+							CurrencyPair: pair,
 							Exchange:     b.Name,
 							AssetType:    "CONTRACT",
 							Side:         trades.Data[i].Side,

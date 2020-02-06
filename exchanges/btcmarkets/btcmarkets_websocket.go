@@ -87,7 +87,12 @@ func (b *BTCMarkets) WsHandleData() {
 					continue
 				}
 
-				p := currency.NewPairFromString(ob.Currency)
+				p, err := currency.NewPairFromString(ob.Currency)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					continue
+				}
+
 				var bids, asks []orderbook.Item
 				for x := range ob.Bids {
 					var price, amount float64
@@ -147,7 +152,12 @@ func (b *BTCMarkets) WsHandleData() {
 					b.Websocket.DataHandler <- err
 					continue
 				}
-				p := currency.NewPairFromString(trade.Currency)
+				p, err := currency.NewPairFromString(trade.Currency)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					continue
+				}
+
 				b.Websocket.DataHandler <- wshandler.TradeData{
 					Timestamp:    trade.Timestamp,
 					CurrencyPair: p,
@@ -166,7 +176,11 @@ func (b *BTCMarkets) WsHandleData() {
 					continue
 				}
 
-				p := currency.NewPairFromString(tick.Currency)
+				p, err := currency.NewPairFromString(tick.Currency)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+					continue
+				}
 
 				b.Websocket.DataHandler <- &ticker.Price{
 					ExchangeName: b.Name,

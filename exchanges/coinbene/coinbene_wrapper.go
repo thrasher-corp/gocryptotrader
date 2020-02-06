@@ -239,7 +239,8 @@ func (c *Coinbene) FetchTradablePairs(a asset.Item) ([]string, error) {
 		for t := range tickers {
 			idx := strings.Index(t, currency.USDT.String())
 			if idx == 0 {
-				return nil, fmt.Errorf("%s SWAP currency does not contain USDT", c.Name)
+				return nil,
+					fmt.Errorf("%s SWAP currency does not contain USDT", c.Name)
 			}
 			currencies = append(currencies,
 				t[0:idx]+c.GetPairFormat(a, false).Delimiter+t[idx:])
@@ -257,8 +258,13 @@ func (c *Coinbene) UpdateTradablePairs(forceUpdate bool) error {
 		if err != nil {
 			return err
 		}
-		err = c.UpdatePairs(currency.NewPairsFromStrings(pairs),
-			assets[x], false, forceUpdate)
+
+		p, err := currency.NewPairsFromStrings(pairs)
+		if err != nil {
+			return err
+		}
+
+		err = c.UpdatePairs(p, assets[x], false, forceUpdate)
 		if err != nil {
 			return err
 		}
@@ -590,8 +596,11 @@ func (c *Coinbene) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]
 			return nil, err
 		}
 		for a := range allPairs {
-			getOrdersRequest.Currencies = append(getOrdersRequest.Currencies,
-				currency.NewPairFromString(allPairs[a].Symbol))
+			p, err := currency.NewPairFromString(allPairs[a].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			getOrdersRequest.Currencies = append(getOrdersRequest.Currencies, p)
 		}
 	}
 
@@ -645,9 +654,13 @@ func (c *Coinbene) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]
 		if err != nil {
 			return nil, err
 		}
+
 		for a := range allPairs {
-			getOrdersRequest.Currencies = append(getOrdersRequest.Currencies,
-				currency.NewPairFromString(allPairs[a].Symbol))
+			p, err := currency.NewPairFromString(allPairs[a].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			getOrdersRequest.Currencies = append(getOrdersRequest.Currencies, p)
 		}
 	}
 

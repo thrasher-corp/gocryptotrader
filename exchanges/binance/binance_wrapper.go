@@ -195,19 +195,26 @@ func (b *Binance) Run() {
 	delim := b.GetPairFormat(asset.Spot, false).Delimiter
 	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), delim) ||
 		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), delim) {
-		enabledPairs := currency.NewPairsFromStrings(
-			[]string{currency.BTC.String() + delim + currency.USDT.String()},
-		)
-		log.Warn(log.ExchangeSys,
-			"Available pairs for Binance reset due to config upgrade, please enable the ones you would like to use again")
-		forceUpdate = true
-
-		err := b.UpdatePairs(enabledPairs, asset.Spot, true, true)
+		enabledPairs, err := currency.NewPairsFromStrings([]string{
+			currency.BTC.String() +
+				delim +
+				currency.USDT.String()})
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update currencies. Err: %s\n",
+			log.Error(log.ExchangeSys, "%s failed to update currencies. Err %s\n",
 				b.Name,
 				err)
+		} else {
+			log.Warn(log.ExchangeSys,
+				"Available pairs for Binance reset due to config upgrade, please enable the ones you would like to use again")
+			forceUpdate = true
+
+			err = b.UpdatePairs(enabledPairs, asset.Spot, true, true)
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"%s failed to update currencies. Err: %s\n",
+					b.Name,
+					err)
+			}
 		}
 	}
 
@@ -251,7 +258,12 @@ func (b *Binance) UpdateTradablePairs(forceUpdate bool) error {
 		return err
 	}
 
-	return b.UpdatePairs(currency.NewPairsFromStrings(pairs),
+	p, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
+
+	return b.UpdatePairs(p,
 		asset.Spot,
 		false,
 		forceUpdate)
@@ -565,6 +577,11 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 			orderType := order.Type(strings.ToUpper(resp[i].Type))
 			orderDate := time.Unix(0, int64(resp[i].Time)*int64(time.Millisecond))
 
+			pair, err := currency.NewPairFromString(resp[i].Symbol)
+			if err != nil {
+				return nil, err
+			}
+
 			orders = append(orders, order.Detail{
 				Amount:       resp[i].OrigQty,
 				OrderDate:    orderDate,
@@ -574,7 +591,7 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 				OrderType:    orderType,
 				Price:        resp[i].Price,
 				Status:       order.Status(resp[i].Status),
-				CurrencyPair: currency.NewPairFromString(resp[i].Symbol),
+				CurrencyPair: pair,
 			})
 		}
 	}
@@ -611,6 +628,11 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 				continue
 			}
 
+			pair, err := currency.NewPairFromString(resp[i].Symbol)
+			if err != nil {
+				return nil, err
+			}
+
 			orders = append(orders, order.Detail{
 				Amount:       resp[i].OrigQty,
 				OrderDate:    orderDate,
@@ -619,7 +641,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 				OrderSide:    orderSide,
 				OrderType:    orderType,
 				Price:        resp[i].Price,
-				CurrencyPair: currency.NewPairFromString(resp[i].Symbol),
+				CurrencyPair: pair,
 				Status:       order.Status(resp[i].Status),
 			})
 		}

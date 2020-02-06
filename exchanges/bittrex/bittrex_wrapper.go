@@ -139,18 +139,22 @@ func (b *Bittrex) Run() {
 		forceUpdate = true
 		log.Warn(log.ExchangeSys, "Available pairs for Bittrex reset due to config upgrade, please enable the ones you would like again")
 
-		err := b.UpdatePairs(currency.NewPairsFromStrings(
-			[]string{currency.USDT.String() + delim + currency.BTC.String()},
-		),
-			asset.Spot,
-			true,
-			true,
-		)
+		pairs, err := currency.NewPairsFromStrings([]string{currency.USDT.String() +
+			delim +
+			currency.BTC.String()})
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s failed to update currencies. Err: %s\n",
 				b.Name,
 				err)
+		} else {
+			err := b.UpdatePairs(pairs, asset.Spot, true, true)
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"%s failed to update currencies. Err: %s\n",
+					b.Name,
+					err)
+			}
 		}
 	}
 
@@ -192,8 +196,12 @@ func (b *Bittrex) UpdateTradablePairs(forceUpdate bool) error {
 	if err != nil {
 		return err
 	}
+	p, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
 
-	return b.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
+	return b.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
 // UpdateAccountInfo Retrieves balances for all enabled currencies for the

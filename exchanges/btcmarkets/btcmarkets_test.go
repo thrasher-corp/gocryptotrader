@@ -102,8 +102,11 @@ func TestGetMarketCandles(t *testing.T) {
 
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
-	temp := currency.NewPairsFromStrings([]string{LTCAUD, BTCAUD})
-	_, err := b.GetTickers(temp)
+	temp, err := currency.NewPairsFromStrings([]string{LTCAUD, BTCAUD})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetTickers(temp)
 	if err != nil {
 		t.Error(err)
 	}
