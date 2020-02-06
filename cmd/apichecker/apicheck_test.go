@@ -6,6 +6,7 @@ import (
 	"testing"
 	"reflect"
 	"fmt"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
 
 func TestMain(m *testing.M) {
@@ -366,7 +367,7 @@ func TestCreateNewCard(t *testing.T) {
 	}	
 	fillData := CardFill{ListID: trelloListID,
 		Name: "Exchange Updates"}
-	err := TrelloCreateNewCard(fillData)
+	err := TrelloCreateNewCard(&fillData)
 	if err != nil {
 		t.Error(err)
 	}
@@ -410,9 +411,9 @@ func TestUpdate(t *testing.T) {
 
 func TestCheckMissingExchanges(t *testing.T) {
 	t.Parallel()
-	_, err := CheckMissingExchanges(&testConfigData)
-	if err != nil {
-		t.Error(err)
+	a := CheckMissingExchanges(&testConfigData)
+	if len(a) > len(exchange.Exchanges) {
+		log.Println("invalid response")
 	}
 }
 

@@ -157,7 +157,7 @@ func CheckExistingExchanges(exchName string, confData *Config) bool {
 }
 
 // CheckMissingExchanges checks if any supported exchanges are missing api checker functionality
-func CheckMissingExchanges(confData *Config) ([]string, error) {
+func CheckMissingExchanges(confData *Config) []string {
 	var tempArray []string
 	for x := range confData.Exchanges {
 		tempArray = append(tempArray, confData.Exchanges[x].Name)
@@ -170,7 +170,7 @@ func CheckMissingExchanges(confData *Config) ([]string, error) {
 		}
 		z++
 	}
-	return supportedExchs, nil
+	return supportedExchs
 }
 
 // ReadFileData reads the file data from the given json file
@@ -262,10 +262,7 @@ func CheckUpdates(fileName string, confData *Config) error {
 	if verbose {
 		log.Printf("The following exchanges need an update: %v\n", resp)
 		log.Printf("Errors: %v", errMap)
-		unsup, err := CheckMissingExchanges(&configData)
-		if err != nil {
-			return err
-		}
+		unsup := CheckMissingExchanges(&configData)
 		log.Printf("Following are the exchanges that are supported by GCT but not by apichecker: %v\n", unsup)
 	}
 	return ioutil.WriteFile(fileName, file, 0770)
@@ -1112,7 +1109,7 @@ func TrelloGetListsData(idBoard string) ([]ListData, error) {
 }
 
 // TrelloCreateNewCard creates a new card on the list specified on trello
-func TrelloCreateNewCard(fillData CardFill) error {
+func TrelloCreateNewCard(fillData *CardFill) error {
 	params := url.Values{}
 	params.Set("idList", fillData.ListID)
 	if fillData.Name != "" {
