@@ -59,7 +59,7 @@ We are aiming to support the top 20 highest volume exchanges based off the [Coin
 + REST API support for all exchanges.
 + Websocket support for applicable exchanges.
 + Ability to turn off/on certain exchanges.
-+ Communication packages (Slack, SMS via SMSGlobal, Telegram and SMTP)
++ Communication packages (Slack, SMS via SMSGlobal, Telegram and SMTP).
 + HTTP rate limiter package.
 + Unified API for exchange usage.
 + Customisation of HTTP client features including setting a proxy, user agent and adjusting transport settings.
@@ -69,10 +69,11 @@ We are aiming to support the top 20 highest volume exchanges based off the [Coin
 + Connection monitor package.
 + gRPC service and JSON RPC proxy. See [gRPC service](/gctrpc/README.md).
 + gRPC client. See [gctcli](/cmd/gctcli/README.md).
-+ Forex currency converter packages (CurrencyConverterAPI, CurrencyLayer, Fixer.io, OpenExchangeRates)
++ Forex currency converter packages (CurrencyConverterAPI, CurrencyLayer, Fixer.io, OpenExchangeRates).
 + Packages for handling currency pairs, tickers and orderbooks.
 + Portfolio management tool; fetches balances from supported exchanges and allows for custom address tracking.
 + Basic event trigger system.
++ Scripting support. See [gctscript](/gctscript/README.md).
 + WebGUI (discontinued).
 
 ## Planned Features
@@ -120,13 +121,7 @@ copy config_example.json %APPDATA%\GoCryptoTrader\config.json
 + Make any neccessary changes to the `config.json` file.
 + Run the `gocryptotrader` binary file inside your GOPATH bin folder.
 
-## Donations
-
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
-
-If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
-
-***1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB***
+{{template "donations" .}}
 
 ## Binaries
 

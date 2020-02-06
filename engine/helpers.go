@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"net"
 	"os"
@@ -31,7 +32,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
-	"github.com/thrasher-corp/gocryptotrader/utils"
+)
+
+var (
+	errCertExpired     = errors.New("gRPC TLS certificate has expired")
+	errCertDataIsNil   = errors.New("gRPC TLS certificate PEM data is nil")
+	errCertTypeInvalid = errors.New("gRPC TLS certificate type is invalid")
 )
 
 // GetSubsystemsStatus returns the status of various subsystems
@@ -177,15 +183,16 @@ func GetExchangeoOTPByName(exchName string) (string, error) {
 
 // GetAuthAPISupportedExchanges returns a list of auth api enabled exchanges
 func GetAuthAPISupportedExchanges() []string {
-	var exchanges []string
-	for x := range Bot.Exchanges {
-		if !Bot.Exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) &&
-			!Bot.Exchanges[x].GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	var exchangeNames []string
+	exchanges := GetExchanges()
+	for x := range exchanges {
+		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) &&
+			!exchanges[x].GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 			continue
 		}
-		exchanges = append(exchanges, Bot.Exchanges[x].GetName())
+		exchangeNames = append(exchangeNames, exchanges[x].GetName())
 	}
-	return exchanges
+	return exchangeNames
 }
 
 // IsOnline returns whether or not the engine has Internet connectivity
@@ -652,12 +659,10 @@ func GetExchangeCryptocurrencyDepositAddress(exchName, accountID string, item cu
 // GetExchangeCryptocurrencyDepositAddresses obtains an exchanges deposit cryptocurrency list
 func GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]string {
 	result := make(map[string]map[string]string)
-	for x := range Bot.Exchanges {
-		if !Bot.Exchanges[x].IsEnabled() {
-			continue
-		}
-		exchName := Bot.Exchanges[x].GetName()
-		if !Bot.Exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+	exchanges := GetExchanges()
+	for x := range exchanges {
+		exchName := exchanges[x].GetName()
+		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 			if Bot.Settings.Verbose {
 				log.Debugf(log.ExchangeSys, "GetExchangeCryptocurrencyDepositAddresses: Skippping %s due to disabled authenticated API support.\n", exchName)
 			}
@@ -673,7 +678,7 @@ func GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]string {
 		cryptoAddr := make(map[string]string)
 		for y := range cryptoCurrencies {
 			cryptocurrency := cryptoCurrencies[y]
-			depositAddr, err := Bot.Exchanges[x].GetDepositAddress(currency.NewCode(cryptocurrency), "")
+			depositAddr, err := exchanges[x].GetDepositAddress(currency.NewCode(cryptocurrency), "")
 			if err != nil {
 				log.Errorf(log.Global, "%s failed to get cryptocurrency deposit addresses. Err: %s\n", exchName, err)
 				continue
@@ -706,37 +711,30 @@ func FormatCurrency(p currency.Pair) currency.Pair {
 		Bot.Config.Currency.CurrencyPairFormat.Uppercase)
 }
 
-// GetExchanges returns a list of loaded exchanges
-func GetExchanges(enabled bool) []string {
-	var exchanges []string
-	for x := range Bot.Exchanges {
-		if Bot.Exchanges[x].IsEnabled() && enabled {
-			exchanges = append(exchanges, Bot.Exchanges[x].GetName())
-			continue
-		}
-		exchanges = append(exchanges, Bot.Exchanges[x].GetName())
+// GetExchangeNames returns a list of enabled or disabled exchanges
+func GetExchangeNames(enabledOnly bool) []string {
+	exchangeNames := GetAvailableExchanges()
+	if enabledOnly {
+		return exchangeNames
 	}
-	return exchanges
+	exchangeNames = append(exchangeNames, Bot.Config.GetDisabledExchanges()...)
+	return exchangeNames
 }
 
 // GetAllActiveTickers returns all enabled exchange tickers
 func GetAllActiveTickers() []EnabledExchangeCurrencies {
 	var tickerData []EnabledExchangeCurrencies
-
-	for _, exch := range Bot.Exchanges {
-		if !exch.IsEnabled() {
-			continue
-		}
-
-		assets := exch.GetAssetTypes()
-		exchName := exch.GetName()
+	exchanges := GetExchanges()
+	for x := range exchanges {
+		assets := exchanges[x].GetAssetTypes()
+		exchName := exchanges[x].GetName()
 		var exchangeTicker EnabledExchangeCurrencies
 		exchangeTicker.ExchangeName = exchName
 
 		for y := range assets {
-			currencies := exch.GetEnabledPairs(assets[y])
+			currencies := exchanges[x].GetEnabledPairs(assets[y])
 			for z := range currencies {
-				tp, err := exch.FetchTicker(currencies[z], assets[y])
+				tp, err := exchanges[x].FetchTicker(currencies[z], assets[y])
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName,
 						currencies[z].String(),
@@ -754,38 +752,70 @@ func GetAllActiveTickers() []EnabledExchangeCurrencies {
 // GetAllEnabledExchangeAccountInfo returns all the current enabled exchanges
 func GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
 	var response AllEnabledExchangeAccounts
-	for _, individualBot := range Bot.Exchanges {
-		if individualBot != nil && individualBot.IsEnabled() {
-			if !individualBot.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
-				if Bot.Settings.Verbose {
-					log.Debugf(log.ExchangeSys, "GetAllEnabledExchangeAccountInfo: Skippping %s due to disabled authenticated API support.\n", individualBot.GetName())
-				}
-				continue
+	exchanges := GetExchanges()
+	for x := range exchanges {
+		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+			if Bot.Settings.Verbose {
+				log.Debugf(log.ExchangeSys, "GetAllEnabledExchangeAccountInfo: Skippping %s due to disabled authenticated API support.\n", exchanges[x].GetName())
 			}
-			individualExchange, err := individualBot.FetchAccountInfo()
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "Error encountered retrieving exchange account info for %s. Error %s\n",
-					individualBot.GetName(), err)
-				continue
-			}
-			response.Data = append(response.Data, individualExchange)
+			continue
 		}
+		accountInfo, err := exchanges[x].FetchAccountInfo()
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "Error encountered retrieving exchange account info for %s. Error %s\n",
+				exchanges[x].GetName(), err)
+			continue
+		}
+		response.Data = append(response.Data, accountInfo)
 	}
 	return response
 }
 
-func checkCerts() error {
-	targetDir := utils.GetTLSDir(Bot.Settings.DataDir)
-	_, err := os.Stat(targetDir)
-	if os.IsNotExist(err) {
-		err := common.CreateDir(targetDir)
-		if err != nil {
-			return err
-		}
-		return genCert(targetDir)
+func verifyCert(pemData []byte) error {
+	var pemBlock *pem.Block
+	pemBlock, _ = pem.Decode(pemData)
+	if pemBlock == nil {
+		return errCertDataIsNil
 	}
 
-	log.Debugln(log.Global, "gRPC TLS certs directory already exists, will use them.")
+	if pemBlock.Type != "CERTIFICATE" {
+		return errCertTypeInvalid
+	}
+
+	cert, err := x509.ParseCertificate(pemBlock.Bytes)
+	if err != nil {
+		return err
+	}
+
+	if time.Now().After(cert.NotAfter) {
+		return errCertExpired
+	}
+	return nil
+}
+
+func checkCerts(certDir string) error {
+	certFile := filepath.Join(certDir, "cert.pem")
+	keyFile := filepath.Join(certDir, "key.pem")
+
+	if !file.Exists(certFile) || !file.Exists(keyFile) {
+		log.Warnln(log.Global, "gRPC certificate/key file missing, recreating...")
+		return genCert(certDir)
+	}
+
+	pemData, err := ioutil.ReadFile(certFile)
+	if err != nil {
+		return fmt.Errorf("unable to open TLS cert file: %s", err)
+	}
+
+	if err = verifyCert(pemData); err != nil {
+		if err != errCertExpired {
+			return err
+		}
+		log.Warnln(log.Global, "gRPC certificate has expired, regenerating...")
+		return genCert(certDir)
+	}
+
+	log.Infoln(log.Global, "gRPC TLS certificate and key files exist, will use them.")
 	return nil
 }
 
@@ -794,9 +824,6 @@ func genCert(targetDir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to generate ecdsa private key: %s", err)
 	}
-
-	notBefore := time.Now()
-	notAfter := notBefore.Add(time.Hour * 24 * 365)
 
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
@@ -820,14 +847,12 @@ func genCert(targetDir string) error {
 			Organization: []string{"gocryptotrader"},
 			CommonName:   host,
 		},
-		NotBefore:             notBefore,
-		NotAfter:              notAfter,
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(time.Hour * 24 * 365),
 		IsCA:                  true,
 		BasicConstraintsValid: true,
-
-		KeyUsage:    x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		IPAddresses: []net.IP{
 			net.ParseIP("127.0.0.1"),
 			net.ParseIP("::1"),
@@ -865,6 +890,6 @@ func genCert(targetDir string) error {
 		return fmt.Errorf("failed to write cert.pem file %s", err)
 	}
 
-	log.Debugf(log.Global, "TLS key.pem and cert.pem files written to %s\n", targetDir)
+	log.Infof(log.Global, "gRPC TLS key.pem and cert.pem files written to %s\n", targetDir)
 	return nil
 }

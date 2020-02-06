@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -1336,11 +1335,9 @@ func (c *Config) CheckConnectionMonitorConfig() {
 // Helpful for printing application usage
 func DefaultFilePath() string {
 	f := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), File)
-	_, err := os.Stat(f)
-	if os.IsNotExist(err) {
+	if !file.Exists(f) {
 		encFile := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), EncryptedFile)
-		_, err = os.Stat(encFile)
-		if !os.IsNotExist(err) {
+		if file.Exists(encFile) {
 			return encFile
 		}
 	}
@@ -1390,12 +1387,10 @@ func GetFilePath(configfile string) (string, error) {
 	// First upgrade the old dir config file if it exists to the corresponding
 	// new one
 	for x := range oldDirs {
-		_, err := os.Stat(oldDirs[x])
-		if os.IsNotExist(err) {
+		if !file.Exists(oldDirs[x]) {
 			continue
 		}
-		_, err = os.Stat(newDirs[x])
-		if !os.IsNotExist(err) {
+		if file.Exists(newDirs[x]) {
 			log.Warnf(log.ConfigMgr,
 				"config.json file found in root dir and gct dir; cannot overwrite, defaulting to gct dir config.json at %s",
 				newDirs[x])
@@ -1424,8 +1419,7 @@ func GetFilePath(configfile string) (string, error) {
 
 	// Secondly check to see if the new config file extension is correct or not
 	for x := range newDirs {
-		_, err := os.Stat(newDirs[x])
-		if os.IsNotExist(err) {
+		if !file.Exists(newDirs[x]) {
 			continue
 		}
 

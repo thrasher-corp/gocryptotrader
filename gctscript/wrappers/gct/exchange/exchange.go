@@ -21,7 +21,7 @@ type Exchange struct{}
 
 // Exchanges returns slice of all current exchanges
 func (e Exchange) Exchanges(enabledOnly bool) []string {
-	return engine.GetExchanges(enabledOnly)
+	return engine.GetExchangeNames(enabledOnly)
 }
 
 // GetExchange returns IBotExchange for exchange or error if exchange is not found

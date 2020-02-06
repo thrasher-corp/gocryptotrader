@@ -58,7 +58,7 @@ We are aiming to support the top 20 highest volume exchanges based off the [Coin
 + REST API support for all exchanges.
 + Websocket support for applicable exchanges.
 + Ability to turn off/on certain exchanges.
-+ Communication packages (Slack, SMS via SMSGlobal, Telegram and SMTP)
++ Communication packages (Slack, SMS via SMSGlobal, Telegram and SMTP).
 + HTTP rate limiter package.
 + Unified API for exchange usage.
 + Customisation of HTTP client features including setting a proxy, user agent and adjusting transport settings.
@@ -68,11 +68,11 @@ We are aiming to support the top 20 highest volume exchanges based off the [Coin
 + Connection monitor package.
 + gRPC service and JSON RPC proxy. See [gRPC service](/gctrpc/README.md).
 + gRPC client. See [gctcli](/cmd/gctcli/README.md).
-+ Forex currency converter packages (CurrencyConverterAPI, CurrencyLayer, Fixer.io, OpenExchangeRates)
++ Forex currency converter packages (CurrencyConverterAPI, CurrencyLayer, Fixer.io, OpenExchangeRates).
 + Packages for handling currency pairs, tickers and orderbooks.
 + Portfolio management tool; fetches balances from supported exchanges and allows for custom address tracking.
 + Basic event trigger system.
-+ Scripting support. See [gctscript](/gctscript/README.md)
++ Scripting support. See [gctscript](/gctscript/README.md).
 + WebGUI (discontinued).
 
 ## Planned Features
@@ -126,7 +126,7 @@ copy config_example.json %APPDATA%\GoCryptoTrader\config.json
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
-***1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB***
+***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***
 
 ## Binaries
 
@@ -138,11 +138,12 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 625 |
-| [shazbert](https://github.com/shazbert) | 185 |
-| [gloriousCode](https://github.com/gloriousCode) | 163 |
-| [xtda](https://github.com/xtda) | 34 |
+| [thrasher-](https://github.com/thrasher-) | 630 |
+| [shazbert](https://github.com/shazbert) | 186 |
+| [gloriousCode](https://github.com/gloriousCode) | 166 |
+| [xtda](https://github.com/xtda) | 38 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
+| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 12 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
@@ -152,6 +153,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [bretep](https://github.com/bretep) | 2 |
 | [woshidama323](https://github.com/woshidama323) | 2 |
+| [vazha](https://github.com/vazha) | 2 |
 | [gam-phon](https://github.com/gam-phon) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |
 | [if1live](https://github.com/if1live) | 2 |
@@ -159,18 +161,19 @@ Binaries will be published once the codebase reaches a stable condition.
 | [soxipy](https://github.com/soxipy) | 2 |
 | [herenow](https://github.com/herenow) | 2 |
 | [blombard](https://github.com/blombard) | 1 |
+| [Christian-Achilli](https://github.com/Christian-Achilli) | 1 |
 | [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
 | [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |
 | [Daanikus](https://github.com/Daanikus) | 1 |
 | [daniel-cohen](https://github.com/daniel-cohen) | 1 |
 | [DirectX](https://github.com/DirectX) | 1 |
 | [frankzougc](https://github.com/frankzougc) | 1 |
-| [starit](https://github.com/starit) | 1 |
-| [Jimexist](https://github.com/Jimexist) | 1 |
-| [lookfirst](https://github.com/lookfirst) | 1 |
 | [idoall](https://github.com/idoall) | 1 |
 | [mattkanwisher](https://github.com/mattkanwisher) | 1 |
 | [mKurrels](https://github.com/mKurrels) | 1 |
 | [m1kola](https://github.com/m1kola) | 1 |
 | [cavapoo2](https://github.com/cavapoo2) | 1 |
 | [zeldrinn](https://github.com/zeldrinn) | 1 |
+| [starit](https://github.com/starit) | 1 |
+| [Jimexist](https://github.com/Jimexist) | 1 |
+| [lookfirst](https://github.com/lookfirst) | 1 |
