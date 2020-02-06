@@ -1379,29 +1379,6 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	cfg.Exchanges[0].CurrencyPairs.LastUpdated = 0
 	cfg.CheckExchangeConfigValues()
 
-	// Test HTTP rate limiter negative values
-	cfg.Exchanges[0].HTTPRateLimiter = &HTTPRateLimitConfig{
-		Unauthenticated: HTTPRateConfig{
-			Duration: -1,
-			Rate:     -1,
-		},
-		Authenticated: HTTPRateConfig{
-			Duration: -1,
-			Rate:     -1,
-		},
-	}
-	err = cfg.CheckExchangeConfigValues()
-	if err != nil {
-		t.Error(err)
-	}
-
-	if cfg.Exchanges[0].HTTPRateLimiter.Authenticated.Duration != 0 ||
-		cfg.Exchanges[0].HTTPRateLimiter.Authenticated.Rate != 0 ||
-		cfg.Exchanges[0].HTTPRateLimiter.Unauthenticated.Duration != 0 ||
-		cfg.Exchanges[0].HTTPRateLimiter.Unauthenticated.Rate != 0 {
-		t.Error("unexpected results")
-	}
-
 	// Test exchange pair consistency error
 	cfg.Exchanges[0].CurrencyPairs.UseGlobalFormat = false
 	backup := cfg.Exchanges[0].CurrencyPairs.Pairs[asset.Spot]

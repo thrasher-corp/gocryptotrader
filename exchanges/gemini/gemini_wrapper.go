@@ -105,9 +105,8 @@ func (g *Gemini) SetDefaults() {
 	}
 
 	g.Requester = request.New(g.Name,
-		request.NewRateLimit(time.Minute, geminiAuthRate),
-		request.NewRateLimit(time.Minute, geminiUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		SetRateLimit())
 
 	g.API.Endpoints.URLDefault = geminiAPIURL
 	g.API.Endpoints.URL = g.API.Endpoints.URLDefault

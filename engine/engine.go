@@ -179,20 +179,17 @@ func ValidateSettings(b *Engine, s *Settings) {
 	b.Settings.EnableExchangeWebsocketSupport = s.EnableExchangeWebsocketSupport
 	b.Settings.EnableExchangeRESTSupport = s.EnableExchangeRESTSupport
 	b.Settings.EnableExchangeVerbose = s.EnableExchangeVerbose
-	b.Settings.EnableExchangeHTTPRateLimiter = s.EnableExchangeHTTPDebugging
+	b.Settings.EnableExchangeHTTPRateLimiter = s.EnableExchangeHTTPRateLimiter
 	b.Settings.EnableExchangeHTTPDebugging = s.EnableExchangeHTTPDebugging
 	b.Settings.DisableExchangeAutoPairUpdates = s.DisableExchangeAutoPairUpdates
 	b.Settings.ExchangePurgeCredentials = s.ExchangePurgeCredentials
 	b.Settings.EnableWebsocketRoutine = s.EnableWebsocketRoutine
 
-	if !b.Settings.EnableExchangeHTTPRateLimiter {
-		request.DisableRateLimiter = true
-	}
-
 	// Checks if the flag values are different from the defaults
 	b.Settings.MaxHTTPRequestJobsLimit = s.MaxHTTPRequestJobsLimit
-	if b.Settings.MaxHTTPRequestJobsLimit != request.DefaultMaxRequestJobs && s.MaxHTTPRequestJobsLimit > 0 {
-		request.MaxRequestJobs = b.Settings.MaxHTTPRequestJobsLimit
+	if b.Settings.MaxHTTPRequestJobsLimit != int(request.DefaultMaxRequestJobs) &&
+		s.MaxHTTPRequestJobsLimit > 0 {
+		request.MaxRequestJobs = int32(b.Settings.MaxHTTPRequestJobsLimit)
 	}
 
 	b.Settings.RequestTimeoutRetryAttempts = s.RequestTimeoutRetryAttempts
@@ -404,7 +401,7 @@ func (e *Engine) Start() error {
 
 	if e.Settings.EnableDepositAddressManager {
 		e.DepositAddressManager = new(DepositAddressManager)
-		e.DepositAddressManager.Sync()
+		go e.DepositAddressManager.Sync()
 	}
 
 	if e.Settings.EnableOrderManager {

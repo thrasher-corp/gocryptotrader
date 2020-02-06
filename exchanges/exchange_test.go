@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -66,9 +65,8 @@ func TestHTTPClient(t *testing.T) {
 
 	b := Base{Name: "RAWR"}
 	b.Requester = request.New(b.Name,
-		request.NewRateLimit(time.Second, 1),
-		request.NewRateLimit(time.Second, 1),
-		new(http.Client))
+		new(http.Client),
+		nil)
 
 	b.SetHTTPClientTimeout(time.Second * 5)
 	if b.GetHTTPClient().Timeout != time.Second*5 {
@@ -93,9 +91,8 @@ func TestSetClientProxyAddress(t *testing.T) {
 	t.Parallel()
 
 	requester := request.New("rawr",
-		&request.RateLimit{},
-		&request.RateLimit{},
-		&http.Client{})
+		&http.Client{},
+		nil)
 
 	newBase := Base{
 		Name:      "rawr",
@@ -192,43 +189,6 @@ func TestSetAPICredentialDefaults(t *testing.T) {
 		!b.Config.API.CredentialsValidator.RequiresClientID ||
 		!b.Config.API.CredentialsValidator.RequiresPEM {
 		t.Error("incorrect values")
-	}
-}
-
-func TestSetHTTPRateLimiter(t *testing.T) {
-	t.Parallel()
-
-	b := Base{
-		Config: &config.ExchangeConfig{},
-		Requester: request.New("asdf",
-			request.NewRateLimit(time.Second*5, 10),
-			request.NewRateLimit(time.Second*10, 15),
-			common.NewHTTPClientWithTimeout(DefaultHTTPTimeout)),
-	}
-	b.SetHTTPRateLimiter()
-	if b.Requester.GetRateLimit(true).Duration.String() != "5s" &&
-		b.Requester.GetRateLimit(true).Rate != 10 &&
-		b.Requester.GetRateLimit(false).Duration.String() != "10s" &&
-		b.Requester.GetRateLimit(false).Rate != 15 {
-		t.Error("rate limiter not set properly")
-	}
-
-	b.Config.HTTPRateLimiter = &config.HTTPRateLimitConfig{
-		Unauthenticated: config.HTTPRateConfig{
-			Duration: time.Second * 100,
-			Rate:     100,
-		},
-		Authenticated: config.HTTPRateConfig{
-			Duration: time.Second * 110,
-			Rate:     150,
-		},
-	}
-	b.SetHTTPRateLimiter()
-	if b.Requester.GetRateLimit(true).Duration.String() != "1m50s" &&
-		b.Requester.GetRateLimit(true).Rate != 150 &&
-		b.Requester.GetRateLimit(false).Duration.String() != "1m40s" &&
-		b.Requester.GetRateLimit(false).Rate != 100 {
-		t.Error("rate limiter not set properly")
 	}
 }
 

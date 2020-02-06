@@ -275,6 +275,19 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 		return err
 	}
 
+	if !Bot.Settings.EnableExchangeHTTPRateLimiter {
+		log.Warnf(log.ExchangeSys,
+			"Loaded exchange %s rate limiting has been turned off.\n",
+			exch.GetName())
+		err = exch.DisableRateLimiter()
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"Loaded exchange %s rate limiting cannot be turned off: %s.\n",
+				exch.GetName(),
+				err)
+		}
+	}
+
 	Bot.Exchanges = append(Bot.Exchanges, exch)
 
 	base := exch.GetBase()

@@ -3,6 +3,7 @@ package okex
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -11,8 +12,8 @@ import (
 )
 
 const (
-	okExAuthRate     = 600
-	okExUnauthRate   = 600
+	okExRateInterval = time.Second
+	okExRequestRate  = 6
 	okExAPIPath      = "api/"
 	okExAPIURL       = "https://www.okex.com/" + okExAPIPath
 	okExAPIVersion   = "/v3/"

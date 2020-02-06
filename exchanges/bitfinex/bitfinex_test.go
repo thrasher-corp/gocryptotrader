@@ -3,17 +3,15 @@ package bitfinex
 import (
 	"log"
 	"net/http"
-	"net/url"
 	"os"
-	"reflect"
 	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -56,26 +54,7 @@ func TestMain(m *testing.M) {
 		b.API.AuthenticatedSupport = true
 		b.API.AuthenticatedWebsocketSupport = true
 	}
-
-	// custom rate limit for testing
-	b.Requester.SetRateLimit(true, time.Millisecond*300, 1)
-	b.Requester.SetRateLimit(false, time.Millisecond*300, 1)
 	os.Exit(m.Run())
-}
-
-func TestAppendOptionalDelimiter(t *testing.T) {
-	t.Parallel()
-	curr1 := currency.NewPairFromString("BTCUSD")
-	b.appendOptionalDelimiter(&curr1)
-	if curr1.Delimiter != "" {
-		t.Errorf("Expected no delimiter, received %v", curr1.Delimiter)
-	}
-	curr2 := currency.NewPairFromString("DUSK:USD")
-	curr2.Delimiter = ""
-	b.appendOptionalDelimiter(&curr2)
-	if curr2.Delimiter != ":" {
-		t.Errorf("Expected \"-\" as a delimiter, received %v", curr2.Delimiter)
-	}
 }
 
 func TestGetPlatformStatus(t *testing.T) {
@@ -90,188 +69,92 @@ func TestGetPlatformStatus(t *testing.T) {
 	}
 }
 
-func TestGetLatestSpotPrice(t *testing.T) {
+func TestGetTickerBatch(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetLatestSpotPrice("BTCUSD")
+	_, err := b.GetTickerBatch()
 	if err != nil {
-		t.Error("Bitfinex GetLatestSpotPrice error: ", err)
+		t.Error(err)
 	}
 }
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTicker("BTCUSD")
+	_, err := b.GetTicker("tBTCUSD")
 	if err != nil {
-		t.Error("BitfinexGetTicker init error: ", err)
+		t.Error(err)
 	}
 
-	_, err = b.GetTicker("wigwham")
-	if err == nil {
-		t.Error("GetTicker() Expected error")
-	}
-}
-
-func TestGetTickerV2(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetTickerV2("tBTCUSD")
+	_, err = b.GetTicker("fUSD")
 	if err != nil {
-		t.Errorf("GetTickerV2 error: %s", err)
-	}
-
-	_, err = b.GetTickerV2("fUSD")
-	if err != nil {
-		t.Errorf("GetTickerV2 error: %s", err)
-	}
-}
-
-func TestGetTickersV2(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetTickersV2("tBTCUSD,fUSD")
-	if err != nil {
-		t.Errorf("GetTickersV2 error: %s", err)
-	}
-}
-
-func TestGetStats(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetStats("BTCUSD")
-	if err != nil {
-		t.Error("BitfinexGetStatsTest init error: ", err)
-	}
-
-	_, err = b.GetStats("wigwham")
-	if err == nil {
-		t.Error("GetStats() Expected error")
-	}
-}
-
-func TestGetFundingBook(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetFundingBook("USD")
-	if err != nil {
-		t.Error("Testing Failed - GetFundingBook() error")
-	}
-	_, err = b.GetFundingBook("wigwham")
-	if err == nil {
-		t.Error("Testing Failed - GetFundingBook() Expected error")
-	}
-}
-
-func TestGetLendbook(t *testing.T) {
-	t.Parallel()
-
-	_, err := b.GetLendbook("BTCUSD", url.Values{})
-	if err != nil {
-		t.Error("Testing Failed - GetLendbook() error: ", err)
-	}
-}
-
-func TestGetOrderbook(t *testing.T) {
-	t.Parallel()
-
-	_, err := b.GetOrderbook("BTCUSD", url.Values{})
-	if err != nil {
-		t.Error("BitfinexGetOrderbook init error: ", err)
-	}
-}
-
-func TestGetOrderbookV2(t *testing.T) {
-	t.Parallel()
-
-	_, err := b.GetOrderbookV2("tBTCUSD", "P0", url.Values{})
-	if err != nil {
-		t.Errorf("GetOrderbookV2 error: %s", err)
-	}
-
-	_, err = b.GetOrderbookV2("fUSD", "P0", url.Values{})
-	if err != nil {
-		t.Errorf("GetOrderbookV2 error: %s", err)
+		t.Error(err)
 	}
 }
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetTrades("BTCUSD", url.Values{})
+	_, err := b.GetTrades("tBTCUSD", 5, 0, 0, false)
 	if err != nil {
-		t.Error("BitfinexGetTrades init error: ", err)
+		t.Error(err)
 	}
 }
 
-func TestGetTradesv2(t *testing.T) {
+func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-
-	_, err := b.GetTradesV2("tBTCUSD", 0, 0, true)
+	_, err := b.GetOrderbook("tBTCUSD", "R0", 1)
 	if err != nil {
-		t.Error("BitfinexGetTrades init error: ", err)
+		t.Error(err)
+	}
+
+	_, err = b.GetOrderbook("fUSD", "R0", 1)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetOrderbook("tBTCUSD", "P0", 1)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetOrderbook("fUSD", "P0", 1)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetStats(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetStats("btcusd")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFundingBook(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetFundingBook("usd")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
 func TestGetLends(t *testing.T) {
 	t.Parallel()
-
-	_, err := b.GetLends("BTC", url.Values{})
+	_, err := b.GetLends("usd", nil)
 	if err != nil {
-		t.Error("BitfinexGetLends init error: ", err)
+		t.Error(err)
 	}
 }
 
-func TestGetSymbols(t *testing.T) {
+func TestGetCandles(t *testing.T) {
 	t.Parallel()
-
-	symbols, err := b.GetSymbols()
+	_, err := b.GetCandles("fUSD", "1m", 0, 0, 10, true, false)
 	if err != nil {
-		t.Fatal("BitfinexGetSymbols init error: ", err)
-	}
-	if reflect.TypeOf(symbols[0]).String() != "string" {
-		t.Error("Bitfinex GetSymbols is not a string")
-	}
-
-	expectedCurrencies := []string{
-		"rrtbtc",
-		"zecusd",
-		"zecbtc",
-		"xmrusd",
-		"xmrbtc",
-		"dshusd",
-		"dshbtc",
-		"bccbtc",
-		"bcubtc",
-		"bccusd",
-		"bcuusd",
-		"btcusd",
-		"ltcusd",
-		"ltcbtc",
-		"ethusd",
-		"ethbtc",
-		"etcbtc",
-		"etcusd",
-		"bfxusd",
-		"bfxbtc",
-		"rrtusd",
-	}
-	if len(expectedCurrencies) <= len(symbols) {
-		for _, explicitSymbol := range expectedCurrencies {
-			if common.StringDataCompare(expectedCurrencies, explicitSymbol) {
-				break
-			}
-			t.Error("BitfinexGetSymbols currency mismatch with: ", explicitSymbol)
-		}
-	} else {
-		t.Error("BitfinexGetSymbols currency mismatch, Expected Currencies < Exchange Currencies")
+		t.Fatal(err)
 	}
 }
 
-func TestGetSymbolsDetails(t *testing.T) {
-	t.Parallel()
-
-	_, err := b.GetSymbolsDetails()
-	if err != nil {
-		t.Error("BitfinexGetSymbolsDetails init error: ", err)
-	}
-}
-
-func TestGetAccountInfo(t *testing.T) {
+func TestGetAccountFees(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
@@ -283,15 +166,15 @@ func TestGetAccountInfo(t *testing.T) {
 	}
 }
 
-func TestGetAccountFees(t *testing.T) {
-	if !b.ValidateAPICredentials() {
+func TestGetWithdrawalFee(t *testing.T) {
+	if !areTestAPIKeysSet() {
 		t.SkipNow()
 	}
 	t.Parallel()
 
-	_, err := b.GetAccountFees()
-	if err == nil {
-		t.Error("GetAccountFees Expected error")
+	_, err := b.GetWithdrawalFees()
+	if err != nil {
+		t.Error("GetAccountInfo error", err)
 	}
 }
 
@@ -312,10 +195,20 @@ func TestNewDeposit(t *testing.T) {
 		t.SkipNow()
 	}
 	t.Parallel()
-
-	_, err := b.NewDeposit("blabla", "testwallet", 1)
+	b.Verbose = true
+	_, err := b.NewDeposit("blabla", "testwallet", 0)
 	if err == nil {
 		t.Error("NewDeposit() Expected error")
+	}
+
+	_, err = b.NewDeposit("bitcoin", "testwallet", 0)
+	if err == nil {
+		t.Error("NewDeposit() Expected error")
+	}
+
+	_, err = b.NewDeposit("bitcoin", "exchange", 0)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -326,8 +219,8 @@ func TestGetKeyPermissions(t *testing.T) {
 	t.Parallel()
 
 	_, err := b.GetKeyPermissions()
-	if err == nil {
-		t.Error("GetKeyPermissions() Expected error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -338,8 +231,8 @@ func TestGetMarginInfo(t *testing.T) {
 	t.Parallel()
 
 	_, err := b.GetMarginInfo()
-	if err == nil {
-		t.Error("GetMarginInfo() Expected error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -350,8 +243,20 @@ func TestGetAccountBalance(t *testing.T) {
 	t.Parallel()
 
 	_, err := b.GetAccountBalance()
-	if err == nil {
-		t.Error("GetAccountBalance() Expected error")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccountInfo(t *testing.T) {
+	if !b.ValidateAPICredentials() {
+		t.SkipNow()
+	}
+	t.Parallel()
+
+	_, err := b.FetchAccountInfo()
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -361,9 +266,58 @@ func TestWalletTransfer(t *testing.T) {
 	}
 	t.Parallel()
 
-	_, err := b.WalletTransfer(0.01, "bla", "bla", "bla")
+	_, err := b.WalletTransfer(0.01, "btc", "bla", "bla")
 	if err == nil {
-		t.Error("WalletTransfer() Expected error")
+		t.Error("error cannot be nil")
+	}
+}
+
+func TestWithdrawCryptocurrency(t *testing.T) {
+	if !b.ValidateAPICredentials() {
+		t.SkipNow()
+	}
+	t.Parallel()
+
+	_, err := b.WithdrawCryptocurrency("bad",
+		"rEb8TK3gBgk5auZkwc6sHnwrGVJH8DuaLh",
+		"102257461",
+		1,
+		currency.XRP)
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+}
+
+func TestWithdrawFiat(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
+
+	var withdrawFiatRequest = withdraw.FiatRequest{
+		GenericInfo: withdraw.GenericInfo{
+			Amount:      1,
+			Currency:    currency.USD,
+			Description: "WITHDRAW IT ALL",
+		},
+		BankAccountName:          "Satoshi Nakamoto",
+		BankAccountNumber:        "12345",
+		BankAddress:              "123 Fake St",
+		BankCity:                 "Tarry Town",
+		BankCountry:              "Hyrule",
+		BankName:                 "Federal Reserve Bank",
+		WireCurrency:             currency.USD.String(),
+		SwiftCode:                "Taylor",
+		RequiresIntermediaryBank: false,
+		IsExpressWire:            false,
+	}
+
+	_, err := b.WithdrawFIAT("wire", "exchange", &withdrawFiatRequest)
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Errorf("Withdraw failed to be placed: %v", err)
 	}
 }
 
@@ -374,13 +328,35 @@ func TestNewOrder(t *testing.T) {
 	t.Parallel()
 
 	_, err := b.NewOrder("BTCUSD",
+		order.Limit.Lower(),
 		1,
 		2,
-		true,
-		order.Limit.Lower(),
-		false)
+		false,
+		true)
 	if err == nil {
-		t.Error("NewOrder() Expected error")
+		t.Error(err)
+	}
+}
+
+func TestUpdateTicker(t *testing.T) {
+	_, err := b.UpdateTicker(currency.NewPairFromString("BTCUSD"), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestAppendOptionalDelimiter(t *testing.T) {
+	t.Parallel()
+	curr1 := currency.NewPairFromString("BTCUSD")
+	b.appendOptionalDelimiter(&curr1)
+	if curr1.Delimiter != "" {
+		t.Errorf("Expected no delimiter, received %v", curr1.Delimiter)
+	}
+	curr2 := currency.NewPairFromString("DUSK:USD")
+	curr2.Delimiter = ""
+	b.appendOptionalDelimiter(&curr2)
+	if curr2.Delimiter != ":" {
+		t.Errorf("Expected \"-\" as a delimiter, received %v", curr2.Delimiter)
 	}
 }
 
@@ -903,39 +879,6 @@ func TestWithdraw(t *testing.T) {
 	}
 }
 
-func TestWithdrawFiat(t *testing.T) {
-	t.Parallel()
-	if areTestAPIKeysSet() && !canManipulateRealOrders {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
-	}
-
-	var withdrawFiatRequest = withdraw.FiatRequest{
-		GenericInfo: withdraw.GenericInfo{
-			Amount:      -1,
-			Currency:    currency.USD,
-			Description: "WITHDRAW IT ALL",
-		},
-		BankAccountName:          "Satoshi Nakamoto",
-		BankAccountNumber:        "12345",
-		BankAddress:              "123 Fake St",
-		BankCity:                 "Tarry Town",
-		BankCountry:              "Hyrule",
-		BankName:                 "Federal Reserve Bank",
-		WireCurrency:             currency.USD.String(),
-		SwiftCode:                "Taylor",
-		RequiresIntermediaryBank: false,
-		IsExpressWire:            false,
-	}
-
-	_, err := b.WithdrawFiatFunds(&withdrawFiatRequest)
-	if !areTestAPIKeysSet() && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Withdraw failed to be placed: %v", err)
-	}
-}
-
 func TestWithdrawInternationalBank(t *testing.T) {
 	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
@@ -1154,4 +1097,26 @@ func TestWsCancelOffer(t *testing.T) {
 		t.Error(err)
 	}
 	time.Sleep(time.Second)
+}
+
+func TestConvertSymbolToDepositMethod(t *testing.T) {
+	s, err := b.ConvertSymbolToDepositMethod(currency.BTC)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if s != "bitcoin" {
+		t.Errorf("expected bitcoin but received %s", s)
+	}
+
+	_, err = b.ConvertSymbolToDepositMethod(currency.NewCode("CATS!"))
+	if err == nil {
+		log.Fatal("error cannot be nil")
+	}
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	err := b.UpdateTradablePairs(false)
+	if err != nil {
+		t.Error(err)
+	}
 }

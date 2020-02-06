@@ -117,9 +117,8 @@ func (c *Coinbene) SetDefaults() {
 		},
 	}
 	c.Requester = request.New(c.Name,
-		request.NewRateLimit(time.Minute, authRateLimit),
-		request.NewRateLimit(time.Second, unauthRateLimit),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		SetRateLimit())
 
 	c.API.Endpoints.URLDefault = coinbeneAPIURL
 	c.API.Endpoints.URL = c.API.Endpoints.URLDefault

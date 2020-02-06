@@ -98,9 +98,8 @@ func (l *Lbank) SetDefaults() {
 	}
 
 	l.Requester = request.New(l.Name,
-		request.NewRateLimit(time.Second, lbankAuthRateLimit),
-		request.NewRateLimit(time.Second, lbankUnAuthRateLimit),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		nil)
 
 	l.API.Endpoints.URLDefault = lbankAPIURL
 	l.API.Endpoints.URL = l.API.Endpoints.URLDefault

@@ -8,12 +8,14 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
@@ -50,8 +52,9 @@ const (
 	krakenWithdrawCancel   = "WithdrawCancel"
 	krakenWebsocketToken   = "GetWebSocketsToken"
 
-	krakenAuthRate   = 0
-	krakenUnauthRate = 0
+	// Rate limit consts
+	krakenRateInterval = time.Second
+	krakenRequestRate  = 1
 )
 
 var assetPairMap map[string]string
@@ -862,16 +865,14 @@ func GetError(apiErrors []string) error {
 
 // SendHTTPRequest sends an unauthenticated HTTP requests
 func (k *Kraken) SendHTTPRequest(path string, result interface{}) error {
-	return k.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		result,
-		false,
-		false,
-		k.Verbose,
-		k.HTTPDebugging,
-		k.HTTPRecording)
+	return k.SendPayload(&request.Item{
+		Method:        http.MethodGet,
+		Path:          path,
+		Result:        result,
+		Verbose:       k.Verbose,
+		HTTPDebugging: k.HTTPDebugging,
+		HTTPRecording: k.HTTPRecording,
+	})
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -900,16 +901,18 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 	headers["API-Key"] = k.API.Credentials.Key
 	headers["API-Sign"] = signature
 
-	return k.SendPayload(http.MethodPost,
-		k.API.Endpoints.URL+path,
-		headers,
-		strings.NewReader(encoded),
-		result,
-		true,
-		true,
-		k.Verbose,
-		k.HTTPDebugging,
-		k.HTTPRecording)
+	return k.SendPayload(&request.Item{
+		Method:        http.MethodPost,
+		Path:          k.API.Endpoints.URL + path,
+		Headers:       headers,
+		Body:          strings.NewReader(encoded),
+		Result:        result,
+		AuthRequest:   true,
+		NonceEnabled:  true,
+		Verbose:       k.Verbose,
+		HTTPDebugging: k.HTTPDebugging,
+		HTTPRecording: k.HTTPRecording,
+	})
 }
 
 // GetFee returns an estimate of fee based on type of transaction
