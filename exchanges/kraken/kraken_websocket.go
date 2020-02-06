@@ -7,6 +7,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -126,28 +127,50 @@ func (k *Kraken) wsReadData() {
 			return
 		default:
 			resp := <-comms
-			// event response handling
-			var eventResponse WebsocketEventResponse
-			err := json.Unmarshal(resp.Raw, &eventResponse)
-			if err == nil && eventResponse.Event != "" {
-				k.WsHandleEventResponse(&eventResponse, resp.Raw)
-				continue
-			}
-			// Data response handling
-			var dataResponse WebsocketDataResponse
-			err = json.Unmarshal(resp.Raw, &dataResponse)
+			err := k.wsHandleData(resp.Raw)
 			if err != nil {
-				log.Error(log.WebsocketMgr, fmt.Errorf("%s - unhandled websocket data: %v", k.Name, err))
-				continue
+				k.Websocket.DataHandler <- fmt.Errorf("%s - unhandled websocket data: %v", k.Name, err)
 			}
-			if _, ok := dataResponse[0].(float64); ok {
-				k.wsReadDataResponse(dataResponse)
-			}
-			if _, ok := dataResponse[1].(string); ok {
-				k.wsHandleAuthDataResponse(dataResponse)
+
+		}
+	}
+}
+
+func (k *Kraken) wsHandleData(respRaw []byte) error {
+	if strings.HasPrefix(string(respRaw), "[") {
+
+	} else {
+		var eventResponse map[string]interface{}
+		err := json.Unmarshal(respRaw, &eventResponse)
+		if err != nil {
+			return fmt.Errorf("%s - err %s unhandled websocket data: %s", k.Name, err, resp.Raw)
+		}
+		if _, ok := eventResponse["event"]; ok {
+			err = k.WsHandleEventResponse(respRaw)
+			if err != nil {
+				return fmt.Errorf("%s - err %s unhandled websocket data: %s", k.Name, err, resp.Raw)
 			}
 		}
 	}
+	// Data response handling
+	var dataResponse WebsocketDataResponse
+	err := json.Unmarshal(respRaw, &dataResponse)
+	if err != nil {
+		return err
+	}
+	if _, ok := dataResponse[0].(float64); ok {
+		err = k.wsReadDataResponse(dataResponse)
+		if err != nil {
+			return err
+		}
+	}
+	if _, ok := dataResponse[1].(string); ok {
+		err = k.wsHandleAuthDataResponse(dataResponse)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // wsPingHandler sends a message "ping" every 27 to maintain the connection to the websocket
@@ -165,7 +188,7 @@ func (k *Kraken) wsPingHandler() error {
 }
 
 // wsReadDataResponse classifies the WS response and sends to appropriate handler
-func (k *Kraken) wsReadDataResponse(response WebsocketDataResponse) {
+func (k *Kraken) wsReadDataResponse(response WebsocketDataResponse) error {
 	if cID, ok := response[0].(float64); ok {
 		channelID := int64(cID)
 		channelData := getSubscriptionChannelData(channelID)
@@ -206,23 +229,15 @@ func (k *Kraken) wsReadDataResponse(response WebsocketDataResponse) {
 				response)
 		}
 	}
+	return nil
 }
 
 // WsHandleEventResponse classifies the WS response and sends to appropriate handler
-func (k *Kraken) WsHandleEventResponse(response *WebsocketEventResponse, rawResponse []byte) {
+func (k *Kraken) WsHandleEventResponse(response *WebsocketEventResponse, rawResponse []byte) error {
 	switch response.Event {
-	case wshandler.Pong:
-		break
-	case krakenWsHeartbeat:
-		if k.Verbose {
-			log.Debugf(log.ExchangeSys, "%v Websocket heartbeat data received",
-				k.Name)
-		}
+	case wshandler.Pong, krakenWsHeartbeat:
+		return nil
 	case krakenWsSystemStatus:
-		if k.Verbose {
-			log.Debugf(log.ExchangeSys, "%v Websocket status data received",
-				k.Name)
-		}
 		if response.Status != "online" {
 			k.Websocket.DataHandler <- fmt.Errorf("%v Websocket status '%v'",
 				k.Name, response.Status)
@@ -234,17 +249,17 @@ func (k *Kraken) WsHandleEventResponse(response *WebsocketEventResponse, rawResp
 	case krakenWsSubscriptionStatus:
 		k.WebsocketConn.AddResponseWithID(response.RequestID, rawResponse)
 		if response.Status != "subscribed" {
-			k.Websocket.DataHandler <- fmt.Errorf("%v %v %v", k.Name, response.RequestID, response.WebsocketErrorResponse.ErrorMessage)
-			return
+			return fmt.Errorf("%v %v %v", k.Name, response.RequestID, response.WebsocketErrorResponse.ErrorMessage)
 		}
 		addNewSubscriptionChannelData(response)
 	default:
-		log.Errorf(log.ExchangeSys, "%v Unidentified websocket data received: %v",
-			k.Name, response)
+		return fmt.Errorf("%v Unidentified websocket data received: %s",
+			k.Name, rawResponse)
 	}
+	return nil
 }
 
-func (k *Kraken) wsHandleAuthDataResponse(response WebsocketDataResponse) {
+func (k *Kraken) wsHandleAuthDataResponse(response WebsocketDataResponse) error {
 	if chName, ok := response[1].(string); ok {
 		switch chName {
 		case krakenWsOwnTrades:
@@ -259,8 +274,12 @@ func (k *Kraken) wsHandleAuthDataResponse(response WebsocketDataResponse) {
 					k.Name)
 			}
 			k.wsProcessOpenOrders(&response[0])
+		default:
+			return fmt.Errorf("%v Unidentified websocket data received: %+v",
+				k.Name, response)
 		}
 	}
+	return nil
 }
 
 func (k *Kraken) wsProcessOwnTrades(ownOrders interface{}) {

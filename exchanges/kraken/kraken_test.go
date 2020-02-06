@@ -733,3 +733,14 @@ func TestWsCancelOrder(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestWsPong(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "event": "pong",
+  "reqid": 42
+}`)
+	err := k.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
