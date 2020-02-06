@@ -636,7 +636,7 @@ func (e *Base) SetAPIURL() error {
 	}
 
 	checkInsecureEndpoint := func(endpoint string) {
-		if !strings.Contains(endpoint, "https") {
+		if strings.Contains(endpoint, "https") {
 			return
 		}
 		log.Warnf(log.ExchangeSys,
