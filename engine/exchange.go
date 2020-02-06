@@ -122,12 +122,12 @@ func (e *exchangeManager) Len() int {
 }
 
 func (e *exchangeManager) unloadExchange(exchangeName string) error {
-	err := e.removeExchange(exchangeName)
+	exchCfg, err := Bot.Config.GetExchangeConfig(exchangeName)
 	if err != nil {
 		return err
 	}
 
-	exchCfg, err := Bot.Config.GetExchangeConfig(exchangeName)
+	err = e.removeExchange(exchangeName)
 	if err != nil {
 		return err
 	}

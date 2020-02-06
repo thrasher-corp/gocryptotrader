@@ -77,7 +77,7 @@ func TestExchangeManagerRemoveExchange(t *testing.T) {
 		t.Error("Bitstamp exchange should return an error")
 	}
 	if err := e.removeExchange("BiTFiNeX"); err != nil {
-		t.Error("exchange should of been removed")
+		t.Error("exchange should have been removed")
 	}
 	if e.Len() != 0 {
 		t.Error("exchange manager len should be 0")
@@ -132,7 +132,7 @@ func TestUnloadExchange(t *testing.T) {
 	SetupTest(t)
 
 	err := UnloadExchange("asdf")
-	if err != ErrExchangeNotFound {
+	if err.Error() != "exchange asdf not found" {
 		t.Errorf("TestUnloadExchange: Incorrect result: %s",
 			err)
 	}
@@ -143,7 +143,7 @@ func TestUnloadExchange(t *testing.T) {
 			err)
 	}
 
-	err = UnloadExchange("asdf")
+	err = UnloadExchange(testExchange)
 	if err != ErrNoExchangesLoaded {
 		t.Errorf("TestUnloadExchange: Incorrect result: %s",
 			err)

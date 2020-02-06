@@ -333,11 +333,11 @@ func (e *Engine) Start() error {
 	gctlog.Debugf(gctlog.Global, "Bot '%s' started.\n", e.Config.Name)
 	gctlog.Debugf(gctlog.Global, "Using data dir: %s\n", e.Settings.DataDir)
 	if *e.Config.Logging.Enabled && strings.Contains(e.Config.Logging.Output, "file") {
-		gctlog.Debugf(gctlog.Global, "Using gctlog file: %s\n",
+		gctlog.Debugf(gctlog.Global, "Using log file: %s\n",
 			filepath.Join(gctlog.LogPath, e.Config.Logging.LoggerFileConfig.FileName))
 	}
 	gctlog.Debugf(gctlog.Global,
-		"Using %d out of %d gctlogical processors for runtime performance\n",
+		"Using %d out of %d logical processors for runtime performance\n",
 		runtime.GOMAXPROCS(-1), runtime.NumCPU())
 
 	enabledExchanges := e.Config.CountEnabledExchanges()
@@ -389,7 +389,7 @@ func (e *Engine) Start() error {
 		e.Settings.DataDir,
 		e.Settings.Verbose)
 	if err != nil {
-		gctlog.Errorf(gctlog.Global, "currency updater system failed to start %v", err)
+		gctlog.Errorf(gctlog.Global, "Currency updater system failed to start %v", err)
 	}
 
 	if e.Settings.EnableGRPC {
@@ -527,6 +527,6 @@ func (e *Engine) Stop() {
 	e.ServicesWG.Wait()
 	err := gctlog.CloseLogger()
 	if err != nil {
-		log.Printf("Failed to close gctlogger. Error: %v\n", err)
+		log.Printf("Failed to close logger. Error: %v\n", err)
 	}
 }
