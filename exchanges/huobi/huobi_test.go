@@ -951,3 +951,28 @@ func TestWsMarketByPrice(t *testing.T) {
 		t.Error("Expected error, not yet implemented")
 	}
 }
+
+func TestWsOrdersUpdate(t *testing.T) {
+	pressXToJSON := []byte(`{
+		"op": "notify",
+		"ts": 1522856623232,
+		"topic": "orders.htusdt.update",
+		"data": {
+		"unfilled-amount": "0.000000000000000000",
+			"filled-amount": "5000.000000000000000000",
+			"price": "1.662100000000000000",
+			"order-id": 2039498445,
+			"symbol": "htusdt",
+			"match-id": 94984,
+			"filled-cash-amount": "8301.357280000000000000",
+			"role": "taker|maker",
+			"order-state": "filled",
+			"client-order-id": "a0001",
+			"order-type": "buy-limit"
+	}
+	}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}

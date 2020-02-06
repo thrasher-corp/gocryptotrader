@@ -509,7 +509,7 @@ type WsAuthenticatedOrdersUpdateResponse struct {
 	Data WsAuthenticatedOrdersUpdateResponseData `json:"data"`
 }
 
-// WsAuthenticatedOrdersUpdateResponseData order  updatedata
+// WsAuthenticatedOrdersUpdateResponseData order  update data
 type WsAuthenticatedOrdersUpdateResponseData struct {
 	UnfilledAmount   float64 `json:"unfilled-amount,string"`
 	FilledAmount     float64 `json:"filled-amount,string"`
@@ -520,6 +520,7 @@ type WsAuthenticatedOrdersUpdateResponseData struct {
 	FilledCashAmount float64 `json:"filled-cash-amount,string"`
 	Role             string  `json:"role"`
 	OrderState       string  `json:"order-state"`
+	OrderType        string  `json:"order-type"`
 }
 
 // WsAuthenticatedOrdersResponse response from Orders authenticated subscription

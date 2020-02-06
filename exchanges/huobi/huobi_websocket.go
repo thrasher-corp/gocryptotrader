@@ -138,6 +138,43 @@ func (h *HUOBI) wsReadData() {
 	}
 }
 
+func getStatus(status string) order.Status {
+	switch status {
+	case "submitted":
+		return order.New
+	case "canceled":
+		return order.Cancelled
+	case "partial-filled":
+		return order.PartiallyFilled
+	case "partial-canceled":
+		return order.PartiallyCancelled
+	default:
+		return order.UnknownStatus
+	}
+}
+
+func getSideType(sideType string) (order.Side, order.Type) {
+	var oSide order.Side
+	var oType order.Type
+	switch {
+	case strings.Contains(sideType, "buy"):
+		oSide = order.Buy
+	case strings.Contains(sideType, "sell"):
+		oSide = order.Sell
+	default:
+		oSide = order.UnknownSide
+	}
+	switch {
+	case strings.Contains(sideType, "limit"):
+		oType = order.Limit
+	case strings.Contains(sideType, "market"):
+		oType = order.Market
+	default:
+		oType = order.UnknownType
+	}
+	return oSide, oType
+}
+
 func (h *HUOBI) wsHandleData(respRaw []byte) error {
 	var init WsResponse
 	err := json.Unmarshal(respRaw, &init)
@@ -188,24 +225,23 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		data := strings.Split(response.Topic, ".")
+		if len(data) < 2 {
+			return errors.New(h.Name + " - currency could not be extracted from response")
+		}
+		oSide, oType := getSideType(response.Data.OrderType)
 		h.Websocket.DataHandler <- &order.Detail{
-			ImmediateOrCancel: false,
-			HiddenOrder:       false,
-			FillOrKill:        false,
-			PostOnly:          false,
-			Price:             response.Data.Price,
-			Amount:            response.Data.UnfilledAmount + response.Data.FilledAmount,
-			ExecutedAmount:    response.Data.FilledAmount,
-			RemainingAmount:   response.Data.UnfilledAmount,
-			Exchange:          h.Name,
-			ID:                strconv.FormatInt(response.Data.OrderID, 10),
-			Type:              "",
-			Side:              "",
-			Status:            "",
-			AssetType:         "",
-			Date:              time.Time{},
-			LastUpdated:       time.Unix(response.TS*1000, 0),
-			Pair:              currency.NewPairFromString(data[1]),
+			Price:           response.Data.Price,
+			Amount:          response.Data.UnfilledAmount + response.Data.FilledAmount,
+			ExecutedAmount:  response.Data.FilledAmount,
+			RemainingAmount: response.Data.UnfilledAmount,
+			Exchange:        h.Name,
+			ID:              strconv.FormatInt(response.Data.OrderID, 10),
+			Type:            oType,
+			Side:            oSide,
+			Status:          getStatus(response.Data.OrderState),
+			AssetType:       asset.Spot,
+			LastUpdated:     time.Unix(response.TS*1000, 0),
+			Pair:            currency.NewPairFromString(data[1]),
 		}
 
 	case strings.Contains(init.Topic, "orders"):
