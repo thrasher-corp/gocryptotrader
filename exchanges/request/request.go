@@ -188,7 +188,10 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 					string(contents))
 			}
 		}
-		return json.Unmarshal(contents, p.Result)
+		if p.Result != nil {
+			return json.Unmarshal(contents, p.Result)
+		}
+		return nil
 	}
 	return fmt.Errorf("request.go error - failed to retry request %s",
 		timeoutError)

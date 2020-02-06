@@ -449,7 +449,7 @@ func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 		isBuying := o.Side == order.Buy
 		b.appendOptionalDelimiter(&o.Pair)
 		response, err = b.NewOrder(o.Pair.String(),
-			o.OrderType.String(),
+			o.Type.String(),
 			o.Amount,
 			o.Price,
 			false,

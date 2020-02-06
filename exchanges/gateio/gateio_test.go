@@ -45,9 +45,6 @@ func TestMain(m *testing.M) {
 	gConf.API.Credentials.Key = apiKey
 	gConf.API.Credentials.Secret = apiSecret
 
-	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-
 	err = g.Setup(gConf)
 	if err != nil {
 		log.Fatal("GateIO setup error", err)
@@ -567,6 +564,9 @@ func setupWSTestAuth(t *testing.T) {
 	}
 	var dialer websocket.Dialer
 	err := g.WebsocketConn.Dial(&dialer, http.Header{})
+
+	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -574,10 +574,11 @@ func setupWSTestAuth(t *testing.T) {
 	wsSetupRan = true
 }
 
-// TestWsSubscribe dials websocket, sends a subscribe request.
-func TestWsSubscribe(t *testing.T) {
+// TestWsUnsubscribe dials websocket, sends an unsubscribe request.
+func TestWsUnsubscribe(t *testing.T) {
 	setupWSTestAuth(t)
-	err := g.Subscribe(wshandler.WebsocketChannelSubscription{
+	g.Verbose = true
+	err := g.Unsubscribe(wshandler.WebsocketChannelSubscription{
 		Channel:  "ticker.subscribe",
 		Currency: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_"),
 	})
@@ -586,10 +587,10 @@ func TestWsSubscribe(t *testing.T) {
 	}
 }
 
-// TestWsUnsubscribe dials websocket, sends an unsubscribe request.
-func TestWsUnsubscribe(t *testing.T) {
+// TestWsSubscribe dials websocket, sends a subscribe request.
+func TestWsSubscribe(t *testing.T) {
 	setupWSTestAuth(t)
-	err := g.Unsubscribe(wshandler.WebsocketChannelSubscription{
+	err := g.Subscribe(wshandler.WebsocketChannelSubscription{
 		Channel:  "ticker.subscribe",
 		Currency: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_"),
 	})

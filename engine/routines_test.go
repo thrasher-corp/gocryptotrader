@@ -25,7 +25,8 @@ func TestWebsocketDataHandlerProcess(t *testing.T) {
 }
 
 func TestHandleData(t *testing.T) {
-	SetupTest(t)
+	SetupTestHelpers(t)
+
 	err := Bot.OrderManager.Start()
 	if err != nil {
 		t.Fatal(err)

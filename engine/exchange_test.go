@@ -5,39 +5,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 )
-
-var testSetup = false
-
-func SetupTest(t *testing.T) {
-	if !testSetup {
-		var err error
-		Bot, err = New()
-		if err != nil {
-			t.Fatal(err)
-		}
-		testSetup = true
-	}
-
-	if GetExchangeByName(testExchange) == nil {
-		err := LoadExchange(testExchange, false, nil)
-		if err != nil {
-			t.Errorf("SetupTest: Failed to load exchange: %s", err)
-		}
-	}
-
-	addPassingFakeExchange()
-}
 
 // addPassingFakeExchange adds an exchange to engine tests where all funcs return a positive result
 func addPassingFakeExchange() {
@@ -48,7 +27,7 @@ func addPassingFakeExchange() {
 		Enabled: true,
 		Verbose: false,
 	})
-	Bot.Exchanges = append(Bot.Exchanges, &FakePassingExchange{
+	Bot.exchangeManager.add(&FakePassingExchange{
 		Base: exchange.Base{
 			Name:                          fakePassExchange,
 			Enabled:                       true,
@@ -68,6 +47,7 @@ func addPassingFakeExchange() {
 			Websocket:                     base.Websocket,
 			Requester:                     base.Requester,
 			Config:                        base.Config,
+			Verbose:                       false,
 		},
 	})
 }
@@ -136,7 +116,7 @@ func TestExchangeManagerRemoveExchange(t *testing.T) {
 }
 
 func TestCheckExchangeExists(t *testing.T) {
-	SetupTest(t)
+	SetupTestHelpers(t)
 
 	if GetExchangeByName(testExchange) == nil {
 		t.Errorf("TestGetExchangeExists: Unable to find exchange")
@@ -150,7 +130,7 @@ func TestCheckExchangeExists(t *testing.T) {
 }
 
 func TestGetExchangeByName(t *testing.T) {
-	SetupTest(t)
+	SetupTestHelpers(t)
 
 	exch := GetExchangeByName(testExchange)
 	if exch == nil {
@@ -180,7 +160,7 @@ func TestGetExchangeByName(t *testing.T) {
 }
 
 func TestUnloadExchange(t *testing.T) {
-	SetupTest(t)
+	SetupTestHelpers(t)
 
 	err := UnloadExchange("asdf")
 	if err.Error() != "exchange asdf not found" {
@@ -200,7 +180,7 @@ func TestUnloadExchange(t *testing.T) {
 			err)
 	}
 
-	err = UnloadExchange("asdf")
+	err = UnloadExchange(testExchange)
 	if err != ErrNoExchangesLoaded {
 		t.Errorf("TestUnloadExchange: Incorrect result: %s",
 			err)
@@ -210,7 +190,7 @@ func TestUnloadExchange(t *testing.T) {
 }
 
 func TestDryRunParamInteraction(t *testing.T) {
-	SetupTest(t)
+	SetupTestHelpers(t)
 
 	// Load bot as per normal, dry run and verbose for Bitfinex should be
 	// disabled
@@ -285,6 +265,8 @@ func (h *FakePassingExchange) SetDefaults()                         {}
 func (h *FakePassingExchange) GetName() string                      { return fakePassExchange }
 func (h *FakePassingExchange) IsEnabled() bool                      { return true }
 func (h *FakePassingExchange) SetEnabled(bool)                      {}
+func (h *FakePassingExchange) ValidateCredentials() error           { return nil }
+
 func (h *FakePassingExchange) FetchTicker(_ currency.Pair, _ asset.Item) (*ticker.Price, error) {
 	return nil, nil
 }
@@ -301,16 +283,17 @@ func (h *FakePassingExchange) FetchTradablePairs(_ asset.Item) ([]string, error)
 	return nil, nil
 }
 func (h *FakePassingExchange) UpdateTradablePairs(_ bool) error { return nil }
+
 func (h *FakePassingExchange) GetEnabledPairs(_ asset.Item) currency.Pairs {
 	return currency.Pairs{}
 }
 func (h *FakePassingExchange) GetAvailablePairs(_ asset.Item) currency.Pairs {
 	return currency.Pairs{}
 }
-
 func (h *FakePassingExchange) FetchAccountInfo() (account.Holdings, error) {
 	return account.Holdings{}, nil
 }
+
 func (h *FakePassingExchange) UpdateAccountInfo() (account.Holdings, error) {
 	return account.Holdings{}, nil
 }
@@ -398,9 +381,8 @@ func (h *FakePassingExchange) GetSubscriptions() ([]wshandler.WebsocketChannelSu
 func (h *FakePassingExchange) GetDefaultConfig() (*config.ExchangeConfig, error) { return nil, nil }
 func (h *FakePassingExchange) GetBase() *exchange.Base                           { return nil }
 func (h *FakePassingExchange) SupportsAsset(_ asset.Item) bool                   { return true }
-func (h *FakePassingExchange) ValidateCredentials() error {
-	return nil
-}
 func (h *FakePassingExchange) GetHistoricCandles(_ currency.Pair, _, _ int64) ([]exchange.Candle, error) {
 	return []exchange.Candle{}, nil
 }
+func (h *FakePassingExchange) DisableRateLimiter() error { return nil }
+func (h *FakePassingExchange) EnableRateLimiter() error  { return nil }

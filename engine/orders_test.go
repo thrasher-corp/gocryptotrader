@@ -12,7 +12,7 @@ import (
 var ordersSetupRan bool
 
 func OrdersSetup(t *testing.T) {
-	SetupTest(t)
+	SetupTestHelpers(t)
 	if !ordersSetupRan {
 		err := Bot.OrderManager.Start()
 		if err != nil {

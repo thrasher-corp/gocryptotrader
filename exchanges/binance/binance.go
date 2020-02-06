@@ -693,16 +693,19 @@ func (b *Binance) GetWsAuthStreamKey() (string, error) {
 	// NO!
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
-	err := b.SendPayload(http.MethodPost,
-		path,
-		headers,
-		bytes.NewBuffer(nil),
-		&resp,
-		true,
-		false,
-		b.Verbose,
-		b.HTTPDebugging,
-		b.HTTPRecording)
+	err := b.SendPayload(&request.Item{
+		Method:        http.MethodPost,
+		Path:          path,
+		Headers:       headers,
+		Body:          bytes.NewBuffer(nil),
+		Result:        &resp,
+		AuthRequest:   true,
+		NonceEnabled:  false,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+		IsReserved:    false,
+	})
 	if err != nil {
 		return "", err
 	}
@@ -721,14 +724,17 @@ func (b *Binance) MaintainWsAuthStreamKey() error {
 	path = common.EncodeURLValues(path, params)
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
-	return b.SendPayload(http.MethodPut,
-		path,
-		headers,
-		bytes.NewBuffer(nil),
-		nil,
-		true,
-		false,
-		b.Verbose,
-		b.HTTPDebugging,
-		b.HTTPRecording)
+	b.Verbose = true
+	return b.SendPayload(&request.Item{
+		Method:        http.MethodPut,
+		Path:          path,
+		Headers:       headers,
+		Body:          bytes.NewBuffer(nil),
+		AuthRequest:   true,
+		NonceEnabled:  false,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+		IsReserved:    false,
+	})
 }

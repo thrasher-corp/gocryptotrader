@@ -26,7 +26,7 @@ const (
 	// DefaultHTTPTimeout is the default HTTP/HTTPS Timeout for exchange requests
 	DefaultHTTPTimeout = time.Second * 15
 	// DefaultWebsocketResponseCheckTimeout is the default delay in checking for an expected websocket response
-	DefaultWebsocketResponseCheckTimeout = time.Millisecond * 30
+	DefaultWebsocketResponseCheckTimeout = time.Millisecond * 50
 	// DefaultWebsocketResponseMaxLimit is the default max wait for an expected websocket response before a timeout
 	DefaultWebsocketResponseMaxLimit = time.Second * 7
 	// DefaultWebsocketOrderbookBufferLimit is the maximum number of orderbook updates that get stored before being applied
