@@ -282,7 +282,10 @@ func (c *Coinbene) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 
 	switch assetType {
 	case asset.Spot:
-		allPairs := c.GetEnabledPairs(assetType)
+		allPairs, err := c.GetEnabledPairs(assetType)
+		if err != nil {
+			return nil, err
+		}
 		for x := range allPairs {
 			tempResp, err := c.GetTicker(c.FormatExchangeCurrency(allPairs[x],
 				assetType).String())
@@ -308,7 +311,10 @@ func (c *Coinbene) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 			return nil, err
 		}
 
-		allPairs := c.GetEnabledPairs(assetType)
+		allPairs, err := c.GetEnabledPairs(assetType)
+		if err != nil {
+			return nil, err
+		}
 		for x := range allPairs {
 			tick, ok := tickers[c.FormatExchangeCurrency(allPairs[x],
 				assetType).String()]

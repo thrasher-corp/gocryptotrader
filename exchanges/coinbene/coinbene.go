@@ -1035,7 +1035,7 @@ func (c *Coinbene) SendAuthHTTPRequest(method, path, epPath string, isSwap bool,
 		}
 		finalBody = bytes.NewBufferString(string(tempBody))
 		preSign = timestamp + method + authPath + epPath + string(tempBody)
-	case params == nil:
+	default:
 		preSign = timestamp + method + authPath + epPath
 	}
 	tempSign := crypto.GetHMAC(crypto.HashSHA256,

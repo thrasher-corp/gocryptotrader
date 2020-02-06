@@ -228,7 +228,10 @@ func (z *ZB) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price,
 		return tickerPrice, err
 	}
 
-	enabledPairs := z.GetEnabledPairs(assetType)
+	enabledPairs, err := z.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
 	for x := range enabledPairs {
 		// We can't use either pair format here, so format it to lower-
 		// case and without any delimiter
@@ -464,7 +467,10 @@ func (z *ZB) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 		Status: make(map[string]string),
 	}
 	var allOpenOrders []Order
-	enabledPairs := z.GetEnabledPairs(asset.Spot)
+	enabledPairs, err := z.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return cancelAllOrdersResponse, err
+	}
 	for x := range enabledPairs {
 		fPair := z.FormatExchangeCurrency(enabledPairs[x], asset.Spot).String()
 		for y := int64(1); ; y++ {

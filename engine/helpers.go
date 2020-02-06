@@ -722,21 +722,27 @@ func GetExchanges(enabled bool) []string {
 // GetAllActiveTickers returns all enabled exchange tickers
 func GetAllActiveTickers() []EnabledExchangeCurrencies {
 	var tickerData []EnabledExchangeCurrencies
-
-	for _, exch := range Bot.Exchanges {
-		if !exch.IsEnabled() {
+	for i := range Bot.Exchanges {
+		if !Bot.Exchanges[i].IsEnabled() {
 			continue
 		}
 
-		assets := exch.GetAssetTypes()
-		exchName := exch.GetName()
+		assets := Bot.Exchanges[i].GetAssetTypes()
+		exchName := Bot.Exchanges[i].GetName()
 		var exchangeTicker EnabledExchangeCurrencies
 		exchangeTicker.ExchangeName = exchName
 
 		for y := range assets {
-			currencies := exch.GetEnabledPairs(assets[y])
+			currencies, err := Bot.Exchanges[i].GetEnabledPairs(assets[y])
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"Exchange %s could not retrieve enabled currencies. Err: %s\n",
+					exchName,
+					err)
+				continue
+			}
 			for z := range currencies {
-				tp, err := exch.FetchTicker(currencies[z], assets[y])
+				tp, err := Bot.Exchanges[i].FetchTicker(currencies[z], assets[y])
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName,
 						currencies[z].String(),
@@ -754,18 +760,22 @@ func GetAllActiveTickers() []EnabledExchangeCurrencies {
 // GetAllEnabledExchangeAccountInfo returns all the current enabled exchanges
 func GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
 	var response AllEnabledExchangeAccounts
-	for _, individualBot := range Bot.Exchanges {
-		if individualBot != nil && individualBot.IsEnabled() {
-			if !individualBot.GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+	for i := range Bot.Exchanges {
+		if Bot.Exchanges[i] != nil && Bot.Exchanges[i].IsEnabled() {
+			if !Bot.Exchanges[i].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
 				if Bot.Settings.Verbose {
-					log.Debugf(log.ExchangeSys, "GetAllEnabledExchangeAccountInfo: Skippping %s due to disabled authenticated API support.\n", individualBot.GetName())
+					log.Debugf(log.ExchangeSys,
+						"GetAllEnabledExchangeAccountInfo: Skippping %s due to disabled authenticated API support.\n",
+						Bot.Exchanges[i].GetName())
 				}
 				continue
 			}
-			individualExchange, err := individualBot.FetchAccountInfo()
+			individualExchange, err := Bot.Exchanges[i].FetchAccountInfo()
 			if err != nil {
-				log.Errorf(log.ExchangeSys, "Error encountered retrieving exchange account info for %s. Error %s\n",
-					individualBot.GetName(), err)
+				log.Errorf(log.ExchangeSys,
+					"Error encountered retrieving exchange account info for %s. Error %s\n",
+					Bot.Exchanges[i].GetName(),
+					err)
 				continue
 			}
 			response.Data = append(response.Data, individualExchange)

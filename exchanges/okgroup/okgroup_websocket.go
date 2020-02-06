@@ -718,7 +718,14 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	assets := o.GetAssetTypes()
 	for x := range assets {
-		enabledCurrencies := o.GetEnabledPairs(assets[x])
+		enabledCurrencies, err := o.GetEnabledPairs(assets[x])
+		if err != nil {
+			log.Errorf(log.WebsocketMgr,
+				"%s could not generate default subscriptions Err: %s",
+				o.Name,
+				err)
+			return
+		}
 		if len(enabledCurrencies) == 0 {
 			continue
 		}

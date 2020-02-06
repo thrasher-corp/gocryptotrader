@@ -194,7 +194,16 @@ func (h *HitBTC) Run() {
 
 	forceUpdate := false
 	delim := h.GetPairFormat(asset.Spot, false).Delimiter
-	if !common.StringDataContains(h.GetEnabledPairs(asset.Spot).Strings(), delim) ||
+	enabled, err := h.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			h.Name,
+			err)
+		return
+	}
+
+	if !common.StringDataContains(enabled.Strings(), delim) ||
 		!common.StringDataContains(h.GetAvailablePairs(asset.Spot).Strings(), delim) {
 		enabledPairs := []string{currency.BTC.String() + delim + currency.USD.String()}
 		log.Warn(log.ExchangeSys,
@@ -210,7 +219,9 @@ func (h *HitBTC) Run() {
 		}
 		err = h.UpdatePairs(p, asset.Spot, true, true)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update enabled currencies.\n", h.Name)
+			log.Errorf(log.ExchangeSys,
+				"%s failed to update enabled currencies.\n",
+				h.Name)
 		}
 	}
 
@@ -218,9 +229,12 @@ func (h *HitBTC) Run() {
 		return
 	}
 
-	err := h.UpdateTradablePairs(forceUpdate)
+	err = h.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", h.Name, err)
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			h.Name,
+			err)
 	}
 }
 
@@ -261,7 +275,10 @@ func (h *HitBTC) UpdateTicker(currencyPair currency.Pair, assetType asset.Item) 
 	if err != nil {
 		return tickerPrice, err
 	}
-	pairs := h.GetEnabledPairs(assetType)
+	pairs, err := h.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
 	for i := range pairs {
 		for j := range tick {
 			pairFmt := h.FormatExchangeCurrency(pairs[i], assetType).String()

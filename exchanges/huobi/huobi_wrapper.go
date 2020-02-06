@@ -208,7 +208,14 @@ func (h *HUOBI) Run() {
 	}
 
 	var forceUpdate bool
-	if common.StringDataContains(h.GetEnabledPairs(asset.Spot).Strings(), currency.CNY.String()) ||
+	enabled, err := h.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s Failed to update enabled currencies. Err:%s\n",
+			h.Name,
+			err)
+	}
+	if common.StringDataContains(enabled.Strings(), currency.CNY.String()) ||
 		common.StringDataContains(h.GetAvailablePairs(asset.Spot).Strings(), currency.CNY.String()) {
 		forceUpdate = true
 	}
@@ -240,8 +247,9 @@ func (h *HUOBI) Run() {
 		err := h.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
-				"%s Failed to update enabled currencies.\n",
-				h.Name)
+				"%s Failed to update enabled currencies. Err:%s\n",
+				h.Name,
+				err)
 		}
 	}
 
@@ -249,7 +257,7 @@ func (h *HUOBI) Run() {
 		return
 	}
 
-	err := h.UpdateTradablePairs(forceUpdate)
+	err = h.UpdateTradablePairs(forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -300,7 +308,10 @@ func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 	if err != nil {
 		return tickerPrice, err
 	}
-	pairs := h.GetEnabledPairs(assetType)
+	pairs, err := h.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
 	for i := range pairs {
 		for j := range tickers.Data {
 			pairFmt := h.FormatExchangeCurrency(pairs[i], assetType).String()
@@ -575,7 +586,10 @@ func (h *HUOBI) CancelOrder(order *order.Cancel) error {
 // CancelAllOrders cancels all orders associated with a currency pair
 func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	var cancelAllOrdersResponse order.CancelAllResponse
-	enabledPairs := h.GetEnabledPairs(asset.Spot)
+	enabledPairs, err := h.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return cancelAllOrdersResponse, err
+	}
 	for i := range enabledPairs {
 		resp, err := h.CancelOpenOrdersBatch(orderCancellation.AccountID,
 			h.FormatExchangeCurrency(enabledPairs[i], asset.Spot).String())

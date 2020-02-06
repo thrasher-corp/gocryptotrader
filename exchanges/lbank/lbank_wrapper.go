@@ -184,7 +184,10 @@ func (l *Lbank) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 	if err != nil {
 		return tickerPrice, err
 	}
-	pairs := l.GetEnabledPairs(assetType)
+	pairs, err := l.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
 	for i := range pairs {
 		for j := range tickerInfo {
 			if !pairs[i].Equal(tickerInfo[j].Symbol) {
@@ -580,7 +583,11 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]ord
 	var resp order.Detail
 	var tempCurr currency.Pairs
 	if len(getOrdersRequest.Currencies) == 0 {
-		tempCurr = l.GetEnabledPairs(asset.Spot)
+		var err error
+		tempCurr, err = l.GetEnabledPairs(asset.Spot)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		tempCurr = getOrdersRequest.Currencies
 	}
@@ -671,7 +678,10 @@ func (l *Lbank) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 
 // GetAllOpenOrderID returns all open orders by currency pairs
 func (l *Lbank) getAllOpenOrderID() (map[string][]string, error) {
-	allPairs := l.GetEnabledPairs(asset.Spot)
+	allPairs, err := l.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
 	resp := make(map[string][]string)
 	for a := range allPairs {
 		p := l.FormatExchangeCurrency(allPairs[a], asset.Spot).String()

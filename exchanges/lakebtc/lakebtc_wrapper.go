@@ -218,7 +218,11 @@ func (l *LakeBTC) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 		return nil, err
 	}
 
-	pairs := l.GetEnabledPairs(assetType)
+	pairs, err := l.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
+
 	for i := range pairs {
 		c, ok := ticks[l.FormatExchangeCurrency(pairs[i], assetType).String()]
 		if !ok {

@@ -211,7 +211,14 @@ func (z *ZB) GenerateDefaultSubscriptions() {
 		Channel: "markets",
 	})
 	channels := []string{"%s_ticker", "%s_depth", "%s_trades"}
-	enabledCurrencies := z.GetEnabledPairs(asset.Spot)
+	enabledCurrencies, err := z.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.WebsocketMgr,
+			"%s could not generate default subscriptions Err: %s",
+			z.Name,
+			err)
+		return
+	}
 	for i := range channels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = ""

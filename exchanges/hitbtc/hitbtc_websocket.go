@@ -118,8 +118,15 @@ func (h *HitBTC) handleSubscriptionUpdates(resp wshandler.WebsocketResponse, ini
 			return
 		}
 
+		pairs, err := h.GetEnabledPairs(asset.Spot)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+			return
+		}
+
 		p, err := currency.NewPairFromFormattedPairs(wsTicker.Params.Symbol,
-			h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true))
+			pairs,
+			h.GetPairFormat(asset.Spot, true))
 		if err != nil {
 			h.Websocket.DataHandler <- err
 			return
@@ -256,8 +263,13 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 		})
 	}
 
+	pairs, err := h.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+
 	p, err := currency.NewPairFromFormattedPairs(ob.Params.Symbol,
-		h.GetEnabledPairs(asset.Spot),
+		pairs,
 		h.GetPairFormat(asset.Spot, true))
 	if err != nil {
 		h.Websocket.DataHandler <- err
@@ -302,8 +314,13 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update WsOrderbook) error {
 		})
 	}
 
+	pairs, err := h.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+
 	p, err := currency.NewPairFromFormattedPairs(update.Params.Symbol,
-		h.GetEnabledPairs(asset.Spot),
+		pairs,
 		h.GetPairFormat(asset.Spot, true))
 	if err != nil {
 		return err
@@ -337,7 +354,13 @@ func (h *HitBTC) GenerateDefaultSubscriptions() {
 			Channel: "subscribeReports",
 		})
 	}
-	enabledCurrencies := h.GetEnabledPairs(asset.Spot)
+	enabledCurrencies, err := h.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.WebsocketMgr, "%s could not generate default subscriptions Err: %s",
+			h.Name,
+			err)
+		return
+	}
 	for i := range channels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = ""

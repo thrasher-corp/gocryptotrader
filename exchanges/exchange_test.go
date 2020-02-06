@@ -506,8 +506,12 @@ func TestLoadConfigPairs(t *testing.T) {
 	// 3) pair format is set for ConfigFormat
 	// 4) Config global format delimiter is updated based off exchange.Base
 	pFmt := b.GetPairFormat(asset.Spot, false)
-	p := b.GetEnabledPairs(asset.Spot)[0].Format(pFmt.Delimiter,
-		pFmt.Uppercase).String()
+	pairs, err := b.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p := pairs[0].Format(pFmt.Delimiter, pFmt.Uppercase).String()
 	if p != "BTC^USD" {
 		t.Errorf("incorrect value, expected BTC^USD")
 	}
@@ -542,8 +546,11 @@ func TestLoadConfigPairs(t *testing.T) {
 	// 3) pair format is set for ConfigFormat
 	// 4) Config pair store formats are the same as the exchanges
 	pFmt = b.GetPairFormat(asset.Spot, false)
-	p = b.GetEnabledPairs(asset.Spot)[2].Format(pFmt.Delimiter,
-		pFmt.Uppercase).String()
+	pairs, err = b.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p = pairs[2].Format(pFmt.Delimiter, pFmt.Uppercase).String()
 	if p != "xrp/usd" {
 		t.Error("incorrect value, expected xrp/usd")
 	}
@@ -687,21 +694,30 @@ func TestGetEnabledPairs(t *testing.T) {
 	b.CurrencyPairs.RequestFormat = &format
 	b.CurrencyPairs.ConfigFormat = &format
 
-	c := b.GetEnabledPairs(assetType)
+	c, err := b.GetEnabledPairs(assetType)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if c[0].String() != defaultTestCurrencyPair {
 		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
 	format.Delimiter = "~"
 	b.CurrencyPairs.RequestFormat = &format
-	c = b.GetEnabledPairs(assetType)
+	c, err = b.GetEnabledPairs(assetType)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if c[0].String() != "BTC~USD" {
 		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
 
 	format.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat = &format
-	c = b.GetEnabledPairs(assetType)
+	c, err = b.GetEnabledPairs(assetType)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if c[0].String() != "BTCUSD" {
 		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
@@ -714,7 +730,10 @@ func TestGetEnabledPairs(t *testing.T) {
 	b.CurrencyPairs.StorePairs(asset.Spot, btcdoge, true)
 	format.Index = currency.BTC.String()
 	b.CurrencyPairs.ConfigFormat = &format
-	c = b.GetEnabledPairs(assetType)
+	c, err = b.GetEnabledPairs(assetType)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if c[0].Base != currency.BTC && c[0].Quote != currency.DOGE {
 		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
@@ -727,7 +746,10 @@ func TestGetEnabledPairs(t *testing.T) {
 	b.CurrencyPairs.StorePairs(asset.Spot, btcusdUnderscore, true)
 	b.CurrencyPairs.RequestFormat.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat.Delimiter = "_"
-	c = b.GetEnabledPairs(assetType)
+	c, err = b.GetEnabledPairs(assetType)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if c[0].Base != currency.BTC && c[0].Quote != currency.USD {
 		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
@@ -736,7 +758,10 @@ func TestGetEnabledPairs(t *testing.T) {
 	b.CurrencyPairs.RequestFormat.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat.Delimiter = ""
 	b.CurrencyPairs.ConfigFormat.Index = currency.BTC.String()
-	c = b.GetEnabledPairs(assetType)
+	c, err = b.GetEnabledPairs(assetType)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if c[0].Base != currency.BTC && c[0].Quote != currency.DOGE {
 		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
@@ -748,7 +773,10 @@ func TestGetEnabledPairs(t *testing.T) {
 
 	b.CurrencyPairs.StorePairs(asset.Spot, btcusd, true)
 	b.CurrencyPairs.ConfigFormat.Index = ""
-	c = b.GetEnabledPairs(assetType)
+	c, err = b.GetEnabledPairs(assetType)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if c[0].Base != currency.BTC && c[0].Quote != currency.USD {
 		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
@@ -1204,7 +1232,12 @@ func TestSetPairs(t *testing.T) {
 		t.Error(err)
 	}
 
-	if p := b.GetEnabledPairs(asset.Spot); len(p) != 1 {
+	p, err := b.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(p) != 1 {
 		t.Error("pairs shouldn't be nil")
 	}
 }
@@ -1313,7 +1346,12 @@ func TestUpdatePairs(t *testing.T) {
 	UAC.CurrencyPairs.ConfigFormat = &currency.PairFormat{
 		Delimiter: "-",
 	}
-	if !UAC.GetEnabledPairs(asset.Spot).Contains(p, true) {
+
+	uacPairs, err := UAC.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !uacPairs.Contains(p, true) {
 		t.Fatal("expected currency pair not found")
 	}
 }

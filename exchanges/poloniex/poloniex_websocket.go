@@ -242,11 +242,20 @@ func (p *Poloniex) wsHandleTickerData(data []interface{}) {
 	tickerData := data[2].([]interface{})
 	var t WsTicker
 	currencyPair := currency.NewPairDelimiter(currencyIDMap[int(tickerData[0].(float64))], delimiterUnderscore)
-	if !p.GetEnabledPairs(asset.Spot).Contains(currencyPair, true) {
+
+	enabled, err := p.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		p.Websocket.DataHandler <- err
 		return
 	}
 
-	var err error
+	if !enabled.Contains(currencyPair, true) {
+		if !p.GetAvailablePairs(asset.Spot).Contains(currencyPair, true) {
+			p.Websocket.DataHandler <- fmt.Errorf("currency pair %s not found in available pair list", currencyPair)
+		}
+		return
+	}
+
 	t.LastPrice, err = strconv.ParseFloat(tickerData[1].(string), 64)
 	if err != nil {
 		p.Websocket.DataHandler <- err
@@ -503,7 +512,14 @@ func (p *Poloniex) GenerateDefaultSubscriptions() {
 		})
 	}
 
-	enabledCurrencies := p.GetEnabledPairs(asset.Spot)
+	enabledCurrencies, err := p.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.WebsocketMgr,
+			"%s could not generate default subscriptions Err: %s",
+			p.Name,
+			err)
+		return
+	}
 	for j := range enabledCurrencies {
 		enabledCurrencies[j].Delimiter = delimiterUnderscore
 		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{

@@ -184,7 +184,15 @@ func (o *OKEX) Run() {
 
 	delim := o.GetPairFormat(asset.Spot, false).Delimiter
 	forceUpdate := false
-	if !common.StringDataContains(o.GetEnabledPairs(asset.Spot).Strings(), delim) ||
+	enabled, err := o.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			o.Name,
+			err)
+		return
+	}
+	if !common.StringDataContains(enabled.Strings(), delim) ||
 		!common.StringDataContains(o.GetAvailablePairs(asset.Spot).Strings(), delim) {
 		forceUpdate = true
 		p, err := currency.NewPairsFromStrings([]string{currency.BTC.String() +
@@ -213,7 +221,7 @@ func (o *OKEX) Run() {
 		return
 	}
 
-	err := o.UpdateTradablePairs(forceUpdate)
+	err = o.UpdateTradablePairs(forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -330,8 +338,14 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 		if err != nil {
 			return tickerPrice, err
 		}
+
+		enabled, err := o.GetEnabledPairs(asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+
 		for j := range resp {
-			if !o.GetEnabledPairs(assetType).Contains(resp[j].InstrumentID, true) {
+			if !enabled.Contains(resp[j].InstrumentID, true) {
 				continue
 			}
 			tickerPrice = &ticker.Price{
@@ -358,12 +372,17 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 			return nil, err
 		}
 
+		enabled, err := o.GetEnabledPairs(asset.PerpetualSwap)
+		if err != nil {
+			return nil, err
+		}
+
 		for j := range resp {
 			p := strings.Split(resp[j].InstrumentID, delimiterDash)
 			nC := currency.NewPairWithDelimiter(p[0]+delimiterDash+p[1],
 				p[2],
 				delimiterUnderscore)
-			if !o.GetEnabledPairs(assetType).Contains(nC, true) {
+			if !enabled.Contains(nC, true) {
 				continue
 			}
 			tickerPrice = &ticker.Price{
@@ -388,12 +407,17 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 			return nil, err
 		}
 
+		enabled, err := o.GetEnabledPairs(asset.Futures)
+		if err != nil {
+			return nil, err
+		}
+
 		for j := range resp {
 			p := strings.Split(resp[j].InstrumentID, delimiterDash)
 			nC := currency.NewPairWithDelimiter(p[0]+delimiterDash+p[1],
 				p[2],
 				delimiterUnderscore)
-			if !o.GetEnabledPairs(assetType).Contains(nC, true) {
+			if !enabled.Contains(nC, true) {
 				continue
 			}
 			tickerPrice = &ticker.Price{

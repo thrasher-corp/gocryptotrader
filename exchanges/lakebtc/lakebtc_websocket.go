@@ -73,7 +73,14 @@ func (l *LakeBTC) listenToEndpoints() error {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (l *LakeBTC) GenerateDefaultSubscriptions() {
 	var subscriptions []wshandler.WebsocketChannelSubscription
-	enabledCurrencies := l.GetEnabledPairs(asset.Spot)
+	enabledCurrencies, err := l.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.WebsocketMgr,
+			"%s could not generate default subscriptions Err: %s",
+			l.Name,
+			err)
+		return
+	}
 
 	for j := range enabledCurrencies {
 		enabledCurrencies[j].Delimiter = ""
@@ -248,7 +255,11 @@ func (l *LakeBTC) processTicker(wsTicker string) error {
 		return err
 	}
 
-	enabled := l.GetEnabledPairs(asset.Spot)
+	enabled, err := l.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+
 	for k, v := range tUpdate {
 		returnCurrency, err := currency.NewPairFromString(k)
 		if err != nil {

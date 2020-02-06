@@ -360,7 +360,13 @@ func (g *Gateio) GenerateAuthenticatedSubscriptions() {
 	}
 	var channels = []string{"balance.subscribe", "order.subscribe"}
 	var subscriptions []wshandler.WebsocketChannelSubscription
-	enabledCurrencies := g.GetEnabledPairs(asset.Spot)
+	enabledCurrencies, err := g.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.WebsocketMgr, "%s could not generate authenticated subscriptions Err: %s",
+			g.Name,
+			err)
+		return
+	}
 	for i := range channels {
 		for j := range enabledCurrencies {
 			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
@@ -379,7 +385,13 @@ func (g *Gateio) GenerateDefaultSubscriptions() {
 		"depth.subscribe",
 		"kline.subscribe"}
 	var subscriptions []wshandler.WebsocketChannelSubscription
-	enabledCurrencies := g.GetEnabledPairs(asset.Spot)
+	enabledCurrencies, err := g.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.WebsocketMgr, "%s could not generate default subscriptions Err: %s",
+			g.Name,
+			err)
+		return
+	}
 	for i := range channels {
 		for j := range enabledCurrencies {
 			params := make(map[string]interface{})

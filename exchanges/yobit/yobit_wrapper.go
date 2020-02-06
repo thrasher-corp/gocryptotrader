@@ -182,7 +182,11 @@ func (y *Yobit) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (y *Yobit) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerPrice := new(ticker.Price)
-	pairsCollated, err := y.FormatExchangeCurrencies(y.GetEnabledPairs(assetType), assetType)
+	enabledPairs, err := y.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
+	pairsCollated, err := y.FormatExchangeCurrencies(enabledPairs, assetType)
 	if err != nil {
 		return tickerPrice, err
 	}
@@ -192,7 +196,6 @@ func (y *Yobit) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 		return tickerPrice, err
 	}
 
-	enabledPairs := y.GetEnabledPairs(assetType)
 	for i := range enabledPairs {
 		curr := y.FormatExchangeCurrency(enabledPairs[i], assetType).Lower().String()
 		if _, ok := result[curr]; !ok {
@@ -379,7 +382,10 @@ func (y *Yobit) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error
 	}
 
 	var allActiveOrders []map[string]ActiveOrders
-	enabledPairs := y.GetEnabledPairs(asset.Spot)
+	enabledPairs, err := y.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return cancelAllOrdersResponse, err
+	}
 	for i := range enabledPairs {
 		fCurr := y.FormatExchangeCurrency(enabledPairs[i], asset.Spot).String()
 		activeOrdersForPair, err := y.GetOpenOrders(fCurr)

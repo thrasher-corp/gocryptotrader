@@ -195,10 +195,26 @@ func (c *COINUT) Run() {
 
 	forceUpdate := false
 	delim := c.GetPairFormat(asset.Spot, false).Delimiter
-	if !common.StringDataContains(c.CurrencyPairs.GetPairs(asset.Spot,
-		true).Strings(), delim) ||
-		!common.StringDataContains(c.CurrencyPairs.GetPairs(asset.Spot,
-			false).Strings(), delim) {
+
+	enabled, err := c.CurrencyPairs.GetPairs(asset.Spot, true)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update currencies. Err: %s\n",
+			c.Name,
+			err)
+		return
+	}
+	avail, err := c.CurrencyPairs.GetPairs(asset.Spot, false)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update currencies. Err: %s\n",
+			c.Name,
+			err)
+		return
+	}
+
+	if !common.StringDataContains(enabled.Strings(), delim) ||
+		!common.StringDataContains(avail.Strings(), delim) {
 		p, err := currency.NewPairsFromStrings([]string{currency.LTC.String() +
 			delim +
 			currency.USDT.String()})
@@ -226,7 +242,7 @@ func (c *COINUT) Run() {
 		return
 	}
 
-	err := c.UpdateTradablePairs(forceUpdate)
+	err = c.UpdateTradablePairs(forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", c.Name, err)
 	}
@@ -768,6 +784,11 @@ func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 			return nil, errors.New("no instrument IDs to use")
 		}
 
+		pairs, err := c.GetEnabledPairs(asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+
 		for x := range instrumentsToUse {
 			openOrders, err := c.GetOpenOrders(instrumentsToUse[x])
 			if err != nil {
@@ -776,7 +797,7 @@ func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 			for y := range openOrders.Orders {
 				curr := c.instrumentMap.LookupInstrument(instrumentsToUse[x])
 				p, err := currency.NewPairFromFormattedPairs(curr,
-					c.GetEnabledPairs(asset.Spot),
+					pairs,
 					c.GetPairFormat(asset.Spot, true))
 				if err != nil {
 					return nil, err
@@ -860,6 +881,12 @@ func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 		if len(instrumentsToUse) == 0 {
 			return nil, errors.New("no instrument IDs to use")
 		}
+
+		pairs, err := c.GetEnabledPairs(asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+
 		for x := range instrumentsToUse {
 			orders, err := c.GetTradeHistory(instrumentsToUse[x], -1, -1)
 			if err != nil {
@@ -868,7 +895,7 @@ func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 			for y := range orders.Trades {
 				curr := c.instrumentMap.LookupInstrument(instrumentsToUse[x])
 				p, err := currency.NewPairFromFormattedPairs(curr,
-					c.GetEnabledPairs(asset.Spot),
+					pairs,
 					c.GetPairFormat(asset.Spot, true))
 				if err != nil {
 					return nil, err

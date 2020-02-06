@@ -140,10 +140,14 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			c.Websocket.DataHandler <- err
 			return
 		}
-
+		pairs, err := c.GetEnabledPairs(asset.Spot)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
 		currencyPair := c.instrumentMap.LookupInstrument(wsTicker.InstID)
 		p, err := currency.NewPairFromFormattedPairs(currencyPair,
-			c.GetEnabledPairs(asset.Spot),
+			pairs,
 			c.GetPairFormat(asset.Spot, true))
 		if err != nil {
 			c.Websocket.DataHandler <- err
@@ -176,9 +180,14 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			c.Websocket.DataHandler <- err
 			return
 		}
+		pairs, err := c.GetEnabledPairs(asset.Spot)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
 		currencyPair := c.instrumentMap.LookupInstrument(orderbooksnapshot.InstID)
 		p, err := currency.NewPairFromFormattedPairs(currencyPair,
-			c.GetEnabledPairs(asset.Spot),
+			pairs,
 			c.GetPairFormat(asset.Spot, true))
 		if err != nil {
 			c.Websocket.DataHandler <- err
@@ -201,9 +210,15 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			c.Websocket.DataHandler <- err
 			return
 		}
+
+		pairs, err := c.GetEnabledPairs(asset.Spot)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
 		currencyPair := c.instrumentMap.LookupInstrument(orderbookUpdate.InstID)
 		p, err := currency.NewPairFromFormattedPairs(currencyPair,
-			c.GetEnabledPairs(asset.Spot),
+			pairs,
 			c.GetPairFormat(asset.Spot, true))
 		if err != nil {
 			c.Websocket.DataHandler <- err
@@ -229,9 +244,15 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 			c.Websocket.DataHandler <- err
 			return
 		}
+
+		pairs, err := c.GetEnabledPairs(asset.Spot)
+		if err != nil {
+			c.Websocket.DataHandler <- err
+			return
+		}
 		currencyPair := c.instrumentMap.LookupInstrument(tradeUpdate.InstID)
 		p, err := currency.NewPairFromFormattedPairs(currencyPair,
-			c.GetEnabledPairs(asset.Spot),
+			pairs,
 			c.GetPairFormat(asset.Spot, true))
 		if err != nil {
 			c.Websocket.DataHandler <- err
@@ -312,10 +333,14 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
 
-	var err error
+	pairs, err := c.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+
 	newOrderBook.Pair, err = currency.NewPairFromFormattedPairs(
 		c.instrumentMap.LookupInstrument(ob.InstID),
-		c.GetEnabledPairs(asset.Spot),
+		pairs,
 		c.GetPairFormat(asset.Spot, true),
 	)
 	if err != nil {
@@ -330,9 +355,14 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 
 // WsProcessOrderbookUpdate process an orderbook update
 func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
+	pairs, err := c.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+
 	p, err := currency.NewPairFromFormattedPairs(
 		c.instrumentMap.LookupInstrument(update.InstID),
-		c.GetEnabledPairs(asset.Spot),
+		pairs,
 		c.GetPairFormat(asset.Spot, true))
 	if err != nil {
 		return err
@@ -355,7 +385,13 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 func (c *COINUT) GenerateDefaultSubscriptions() {
 	var channels = []string{"inst_tick", "inst_order_book"}
 	var subscriptions []wshandler.WebsocketChannelSubscription
-	enabledCurrencies := c.GetEnabledPairs(asset.Spot)
+	enabledCurrencies, err := c.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.WebsocketMgr, "%s could not generate default subscriptions Err: %s",
+			c.Name,
+			err)
+		return
+	}
 	for i := range channels {
 		for j := range enabledCurrencies {
 			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{

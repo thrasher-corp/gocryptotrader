@@ -177,7 +177,10 @@ func (l *LocalBitcoins) UpdateTicker(p currency.Pair, assetType asset.Item) (*ti
 		return tickerPrice, err
 	}
 
-	pairs := l.GetEnabledPairs(assetType)
+	pairs, err := l.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
 	for i := range pairs {
 		curr := pairs[i].Quote.String()
 		if _, ok := tick[curr]; !ok {

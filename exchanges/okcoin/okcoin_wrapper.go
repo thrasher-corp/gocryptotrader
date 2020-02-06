@@ -150,10 +150,26 @@ func (o *OKCoin) Run() {
 
 	forceUpdate := false
 	delim := o.GetPairFormat(asset.Spot, false).Delimiter
-	if !common.StringDataContains(o.CurrencyPairs.GetPairs(asset.Spot,
-		true).Strings(), delim) ||
-		!common.StringDataContains(o.CurrencyPairs.GetPairs(asset.Spot,
-			false).Strings(), delim) {
+	enabled, err := o.CurrencyPairs.GetPairs(asset.Spot, true)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update currencies. Err: %s\n",
+			o.Name,
+			err)
+		return
+	}
+
+	avail, err := o.CurrencyPairs.GetPairs(asset.Spot, false)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update currencies. Err: %s\n",
+			o.Name,
+			err)
+		return
+	}
+
+	if !common.StringDataContains(enabled.Strings(), delim) ||
+		!common.StringDataContains(avail.Strings(), delim) {
 		p, err := currency.NewPairsFromStrings([]string{currency.BTC.String() +
 			delim +
 			currency.USD.String()})
@@ -170,8 +186,9 @@ func (o *OKCoin) Run() {
 			err := o.UpdatePairs(p, asset.Spot, true, true)
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
-					"%s failed to update currencies.\n",
-					o.Name)
+					"%s failed to update currencies. Err: %s\n",
+					o.Name,
+					err)
 				return
 			}
 		}
@@ -181,7 +198,7 @@ func (o *OKCoin) Run() {
 		return
 	}
 
-	err := o.UpdateTradablePairs(forceUpdate)
+	err = o.UpdateTradablePairs(forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -229,7 +246,10 @@ func (o *OKCoin) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 		if err != nil {
 			return nil, err
 		}
-		pairs := o.GetEnabledPairs(assetType)
+		pairs, err := o.GetEnabledPairs(assetType)
+		if err != nil {
+			return nil, err
+		}
 		for i := range pairs {
 			for j := range resp {
 				if !pairs[i].Equal(resp[j].InstrumentID) {

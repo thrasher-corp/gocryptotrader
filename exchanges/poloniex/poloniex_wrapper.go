@@ -243,7 +243,10 @@ func (p *Poloniex) UpdateTicker(currencyPair currency.Pair, assetType asset.Item
 		return tickerPrice, err
 	}
 
-	enabledPairs := p.GetEnabledPairs(assetType)
+	enabledPairs, err := p.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
 	for i := range enabledPairs {
 		var tp ticker.Price
 		curr := p.FormatExchangeCurrency(enabledPairs[i], assetType).String()
@@ -293,7 +296,10 @@ func (p *Poloniex) UpdateOrderbook(currencyPair currency.Pair, assetType asset.I
 		return orderBook, err
 	}
 
-	enabledPairs := p.GetEnabledPairs(assetType)
+	enabledPairs, err := p.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
 	for i := range enabledPairs {
 		data, ok := orderbookNew.Data[p.FormatExchangeCurrency(enabledPairs[i], assetType).String()]
 		if !ok {

@@ -231,7 +231,10 @@ func (g *Gateio) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 	if err != nil {
 		return tickerPrice, err
 	}
-	pairs := g.GetEnabledPairs(assetType)
+	pairs, err := g.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
 	for i := range pairs {
 		for k := range result {
 			if !strings.EqualFold(k, pairs[i].String()) {

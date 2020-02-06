@@ -190,7 +190,10 @@ func (e *EXMO) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 	if _, ok := result[p.String()]; !ok {
 		return tickerPrice, err
 	}
-	pairs := e.GetEnabledPairs(assetType)
+	pairs, err := e.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
 	for i := range pairs {
 		for j := range result {
 			if !strings.EqualFold(pairs[i].String(), j) {
@@ -235,8 +238,13 @@ func (e *EXMO) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
-	pairsCollated, err := e.FormatExchangeCurrencies(e.GetEnabledPairs(assetType),
-		assetType)
+
+	enabledPairs, err := e.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	pairsCollated, err := e.FormatExchangeCurrencies(enabledPairs, assetType)
 	if err != nil {
 		return orderBook, err
 	}
@@ -245,7 +253,7 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 	if err != nil {
 		return orderBook, err
 	}
-	enabledPairs := e.GetEnabledPairs(assetType)
+
 	for i := range enabledPairs {
 		curr := e.FormatExchangeCurrency(enabledPairs[i], assetType)
 		data, ok := result[curr.String()]
@@ -256,8 +264,14 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 		var obItems []orderbook.Item
 		for y := range data.Ask {
 			z := data.Ask[y]
-			price, _ := strconv.ParseFloat(z[0], 64)
-			amount, _ := strconv.ParseFloat(z[1], 64)
+			price, err := strconv.ParseFloat(z[0], 64)
+			if err != nil {
+				return nil, err
+			}
+			amount, err := strconv.ParseFloat(z[1], 64)
+			if err != nil {
+				return nil, err
+			}
 			obItems = append(obItems,
 				orderbook.Item{Price: price, Amount: amount})
 		}
@@ -266,8 +280,14 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 		obItems = []orderbook.Item{}
 		for y := range data.Bid {
 			z := data.Bid[y]
-			price, _ := strconv.ParseFloat(z[0], 64)
-			amount, _ := strconv.ParseFloat(z[1], 64)
+			price, err := strconv.ParseFloat(z[0], 64)
+			if err != nil {
+				return nil, err
+			}
+			amount, err := strconv.ParseFloat(z[1], 64)
+			if err != nil {
+				return nil, err
+			}
 			obItems = append(obItems,
 				orderbook.Item{Price: price, Amount: amount})
 		}

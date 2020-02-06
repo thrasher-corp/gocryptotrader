@@ -244,8 +244,13 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 			return
 		}
 		data := strings.Split(kline.Channel, ".")
+		pairs, err := h.GetEnabledPairs(asset.Spot)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+			return
+		}
 		p, err := currency.NewPairFromFormattedPairs(data[1],
-			h.GetEnabledPairs(asset.Spot),
+			pairs,
 			h.GetPairFormat(asset.Spot, true))
 		if err != nil {
 			h.Websocket.DataHandler <- err
@@ -270,8 +275,9 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 			return
 		}
 		data := strings.Split(trade.Channel, ".")
+		pairs, err := h.GetEnabledPairs(asset.Spot)
 		p, err := currency.NewPairFromFormattedPairs(data[1],
-			h.GetEnabledPairs(asset.Spot),
+			pairs,
 			h.GetPairFormat(asset.Spot, true))
 		if err != nil {
 			h.Websocket.DataHandler <- err
@@ -291,8 +297,14 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 			return
 		}
 		data := strings.Split(wsTicker.Channel, ".")
+		pairs, err := h.GetEnabledPairs(asset.Spot)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+			return
+		}
 		p, err := currency.NewPairFromFormattedPairs(data[1],
-			h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true))
+			pairs,
+			h.GetPairFormat(asset.Spot, true))
 		if err != nil {
 			h.Websocket.DataHandler <- err
 			return
@@ -321,8 +333,12 @@ func (h *HUOBI) sendPingResponse(pong int64) {
 
 // WsProcessOrderbook processes new orderbook data
 func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
+	pairs, err := h.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	}
 	p, err := currency.NewPairFromFormattedPairs(symbol,
-		h.GetEnabledPairs(asset.Spot),
+		pairs,
 		h.GetPairFormat(asset.Spot, true))
 	if err != nil {
 		return err
@@ -373,7 +389,14 @@ func (h *HUOBI) GenerateDefaultSubscriptions() {
 			Channel: "accounts",
 		})
 	}
-	enabledCurrencies := h.GetEnabledPairs(asset.Spot)
+	enabledCurrencies, err := h.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.WebsocketMgr,
+			"%s could not generate default subscriptions Err: %s",
+			h.Name,
+			err)
+		return
+	}
 	for i := range channels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = ""

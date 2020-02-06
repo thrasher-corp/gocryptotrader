@@ -200,10 +200,26 @@ func (c *CoinbasePro) Run() {
 
 	forceUpdate := false
 	delim := c.GetPairFormat(asset.Spot, false).Delimiter
-	if !common.StringDataContains(c.CurrencyPairs.GetPairs(asset.Spot,
-		true).Strings(), delim) ||
-		!common.StringDataContains(c.CurrencyPairs.GetPairs(asset.Spot,
-			false).Strings(), delim) {
+	enabled, err := c.CurrencyPairs.GetPairs(asset.Spot, true)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update currencies. Err: %s\n",
+			c.Name,
+			err)
+		return
+	}
+
+	avail, err := c.CurrencyPairs.GetPairs(asset.Spot, false)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update currencies. Err: %s\n",
+			c.Name,
+			err)
+		return
+	}
+
+	if !common.StringDataContains(enabled.Strings(), delim) ||
+		!common.StringDataContains(avail.Strings(), delim) {
 		p, err := currency.NewPairsFromStrings([]string{currency.BTC.String() +
 			delim +
 			currency.USD.String()})
@@ -231,7 +247,7 @@ func (c *CoinbasePro) Run() {
 		return
 	}
 
-	err := c.UpdateTradablePairs(forceUpdate)
+	err = c.UpdateTradablePairs(forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", c.Name, err)
 	}

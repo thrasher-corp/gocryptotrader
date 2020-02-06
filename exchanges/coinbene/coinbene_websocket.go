@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const (
@@ -53,7 +54,13 @@ func (c *Coinbene) WsConnect() error {
 func (c *Coinbene) GenerateDefaultSubscriptions() {
 	var channels = []string{"orderBook.%s.100", "tradeList.%s", "ticker.%s", "kline.%s"}
 	var subscriptions []wshandler.WebsocketChannelSubscription
-	pairs := c.GetEnabledPairs(asset.PerpetualSwap)
+	pairs, err := c.GetEnabledPairs(asset.PerpetualSwap)
+	if err != nil {
+		log.Errorf(log.WebsocketMgr, "%s could not generate default subscriptions Err: %s",
+			c.Name,
+			err)
+		return
+	}
 	for x := range channels {
 		for y := range pairs {
 			pairs[y].Delimiter = ""
@@ -126,6 +133,13 @@ func (c *Coinbene) WsDataHandler() {
 				c.Websocket.DataHandler <- fmt.Errorf("message: %s. code: %v", result["message"], result["code"])
 				continue
 			}
+
+			enabledSwap, err := c.GetEnabledPairs(asset.PerpetualSwap)
+			if err != nil {
+				c.Websocket.DataHandler <- err
+				continue
+			}
+
 			switch {
 			case strings.Contains(result[topic].(string), "ticker"):
 				var wsTicker WsTicker
@@ -136,7 +150,7 @@ func (c *Coinbene) WsDataHandler() {
 				}
 				for x := range wsTicker.Data {
 					p, err := currency.NewPairFromFormattedPairs(wsTicker.Data[x].Symbol,
-						c.GetEnabledPairs(asset.PerpetualSwap),
+						enabledSwap,
 						c.GetPairFormat(asset.PerpetualSwap, true))
 					if err != nil {
 						c.Websocket.DataHandler <- err
@@ -180,7 +194,7 @@ func (c *Coinbene) WsDataHandler() {
 				}
 				p := strings.Replace(tradeList.Topic, "tradeList.", "", 1)
 				newPair, err := currency.NewPairFromFormattedPairs(p,
-					c.GetEnabledPairs(asset.PerpetualSwap),
+					enabledSwap,
 					c.GetPairFormat(asset.PerpetualSwap, true))
 				if err != nil {
 					c.Websocket.DataHandler <- err
@@ -213,7 +227,7 @@ func (c *Coinbene) WsDataHandler() {
 				}
 				p := strings.Replace(orderBook.Topic, "orderBook.", "", 1)
 				cp, err := currency.NewPairFromFormattedPairs(p,
-					c.GetEnabledPairs(asset.PerpetualSwap),
+					enabledSwap,
 					c.GetPairFormat(asset.PerpetualSwap, true))
 				if err != nil {
 					c.Websocket.DataHandler <- err
@@ -307,7 +321,7 @@ func (c *Coinbene) WsDataHandler() {
 					tempKline = append(tempKline, tempFloat)
 				}
 				p, err := currency.NewPairFromFormattedPairs(kline.Data[0][0].(string),
-					c.GetEnabledPairs(asset.PerpetualSwap),
+					enabledSwap,
 					c.GetPairFormat(asset.PerpetualSwap, true))
 				if err != nil {
 					c.Websocket.DataHandler <- err

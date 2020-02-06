@@ -213,7 +213,15 @@ func (k *Kraken) Run() {
 
 	forceUpdate := false
 	delim := k.GetPairFormat(asset.Spot, false).Delimiter
-	if !common.StringDataContains(k.GetEnabledPairs(asset.Spot).Strings(), delim) ||
+	enabled, err := k.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			k.Name,
+			err)
+		return
+	}
+	if !common.StringDataContains(enabled.Strings(), delim) ||
 		!common.StringDataContains(k.GetAvailablePairs(asset.Spot).Strings(), delim) {
 		p, err := currency.NewPairsFromStrings([]string{currency.XBT.String() +
 			delim +
@@ -241,7 +249,7 @@ func (k *Kraken) Run() {
 		return
 	}
 
-	err := k.UpdateTradablePairs(forceUpdate)
+	err = k.UpdateTradablePairs(forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -296,7 +304,10 @@ func (k *Kraken) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerPrice := new(ticker.Price)
-	pairs := k.GetEnabledPairs(assetType)
+	pairs, err := k.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
 	pairsCollated, err := k.FormatExchangeCurrencies(pairs, assetType)
 	if err != nil {
 		return tickerPrice, err
