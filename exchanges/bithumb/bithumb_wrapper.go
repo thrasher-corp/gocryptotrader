@@ -184,7 +184,11 @@ func (b *Bithumb) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 	if err != nil {
 		return tickerPrice, err
 	}
-	pairs := b.GetEnabledPairs(assetType)
+	pairs, err := b.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
+
 	for i := range pairs {
 		curr := pairs[i].Base.String()
 		t, ok := tickers[curr]
@@ -386,7 +390,11 @@ func (b *Bithumb) CancelAllOrders(orderCancellation *order.Cancel) (order.Cancel
 	}
 
 	var allOrders []OrderData
-	currs := b.GetEnabledPairs(asset.Spot)
+	currs, err := b.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return cancelAllOrdersResponse, err
+	}
+
 	for i := range currs {
 		orders, err := b.GetOrders("",
 			orderCancellation.Side.String(),

@@ -225,9 +225,17 @@ func (b *BTCMarkets) WsHandleData() {
 	}
 }
 
+var channels = []string{tick, trade, wsOB}
+
 func (b *BTCMarkets) generateDefaultSubscriptions() {
-	var channels = []string{tick, trade, wsOB}
-	enabledCurrencies := b.GetEnabledPairs(asset.Spot)
+	enabledCurrencies, err := b.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.WebsocketMgr,
+			"%s could not generate default subscriptions Err: %s",
+			b.Name,
+			err)
+		return
+	}
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range channels {
 		for j := range enabledCurrencies {
@@ -240,10 +248,12 @@ func (b *BTCMarkets) generateDefaultSubscriptions() {
 	b.Websocket.SubscribeToChannels(subscriptions)
 }
 
+var unauthChannels = []string{tick, trade, wsOB}
+var authChannels = []string{fundChange, heartbeat, orderChange}
+
 // Subscribe sends a websocket message to receive data from the channel
 func (b *BTCMarkets) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
-	unauthChannels := []string{tick, trade, wsOB}
-	authChannels := []string{fundChange, heartbeat, orderChange}
+
 	switch {
 	case common.StringDataCompare(unauthChannels, channelToSubscribe.Channel):
 		req := WsSubscribe{
@@ -288,11 +298,19 @@ func (b *BTCMarkets) generateAuthSubscriptions() WsAuthSubscribe {
 	return authSubInfo
 }
 
+var tempChannels = []string{orderChange, fundChange}
+
 // createChannels creates channels that need to be
 func (b *BTCMarkets) createChannels() {
-	tempChannels := []string{orderChange, fundChange}
-	var channels []wshandler.WebsocketChannelSubscription
-	pairArray := b.GetEnabledPairs(asset.Spot)
+	var wsChannels []wshandler.WebsocketChannelSubscription
+	pairArray, err := b.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.WebsocketMgr,
+			"%s could not create channels Err: %s",
+			b.Name,
+			err)
+		return
+	}
 	for y := range tempChannels {
 		for x := range pairArray {
 			var authSub WsAuthSubscribe
@@ -302,8 +320,8 @@ func (b *BTCMarkets) createChannels() {
 			authSub.MarketIDs = append(authSub.MarketIDs, b.FormatExchangeCurrency(pairArray[x], asset.Spot).String())
 			authSub.MessageType = subscribe
 			channel.Params["AuthSub"] = authSub
-			channels = append(channels, channel)
+			wsChannels = append(wsChannels, channel)
 		}
 	}
-	b.Websocket.SubscribeToChannels(channels)
+	b.Websocket.SubscribeToChannels(wsChannels)
 }

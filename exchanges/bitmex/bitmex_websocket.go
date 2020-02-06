@@ -411,7 +411,14 @@ func (b *Bitmex) GenerateDefaultSubscriptions() {
 	var allPairs currency.Pairs
 
 	for x := range assets {
-		contracts := b.GetEnabledPairs(assets[x])
+		contracts, err := b.GetEnabledPairs(assets[x])
+		if err != nil {
+			log.Errorf(log.WebsocketMgr,
+				"%s could not generate default subscriptions Err: %s",
+				b.GetName,
+				err)
+			return
+		}
 		for y := range contracts {
 			allPairs = allPairs.Add(contracts[y])
 		}
@@ -440,7 +447,14 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() {
 	if !b.Websocket.CanUseAuthenticatedEndpoints() {
 		return
 	}
-	contracts := b.GetEnabledPairs(asset.PerpetualContract)
+	contracts, err := b.GetEnabledPairs(asset.PerpetualContract)
+	if err != nil {
+		log.Errorf(log.WebsocketMgr,
+			"%s could not generate auth subscriptions Err: %s",
+			b.GetName,
+			err)
+		return
+	}
 	channels := []string{bitmexWSExecution,
 		bitmexWSPosition,
 	}

@@ -128,9 +128,17 @@ func (b *Bitstamp) WsHandleData() {
 	}
 }
 
+var channels = []string{"live_trades_", "order_book_"}
+
 func (b *Bitstamp) generateDefaultSubscriptions() {
-	var channels = []string{"live_trades_", "order_book_"}
-	enabledCurrencies := b.GetEnabledPairs(asset.Spot)
+	enabledCurrencies, err := b.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.WebsocketMgr,
+			"%s could not generate default subscriptions Err: %s",
+			b.Name,
+			err)
+		return
+	}
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range channels {
 		for j := range enabledCurrencies {
@@ -224,7 +232,11 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 }
 
 func (b *Bitstamp) seedOrderBook() error {
-	p := b.GetEnabledPairs(asset.Spot)
+	p, err := b.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+
 	for x := range p {
 		orderbookSeed, err := b.GetOrderbook(p[x].String())
 		if err != nil {

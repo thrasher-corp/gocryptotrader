@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const (
@@ -284,10 +285,18 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 	return nil
 }
 
+var channels = []string{"heartbeat", "level2", "ticker", "user"}
+
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *CoinbasePro) GenerateDefaultSubscriptions() {
-	var channels = []string{"heartbeat", "level2", "ticker", "user"}
-	enabledCurrencies := c.GetEnabledPairs(asset.Spot)
+	enabledCurrencies, err := c.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.WebsocketMgr,
+			"%s could not generate default subscriptions Err: %s\n",
+			c.Name,
+			err)
+		return
+	}
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range channels {
 		if (channels[i] == "user" || channels[i] == "full") && !c.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {

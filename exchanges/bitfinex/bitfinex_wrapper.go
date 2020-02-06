@@ -248,7 +248,11 @@ func (b *Bitfinex) UpdateTradablePairs(forceUpdate bool) error {
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerPrice := new(ticker.Price)
-	enabledPairs := b.GetEnabledPairs(assetType)
+	enabledPairs, err := b.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
+
 	var pairs []string
 	for x := range enabledPairs {
 		b.appendOptionalDelimiter(&enabledPairs[x])

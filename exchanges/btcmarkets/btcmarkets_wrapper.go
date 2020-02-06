@@ -182,9 +182,18 @@ func (b *BTCMarkets) Run() {
 			btcMarketsWSURL)
 		b.PrintEnabledPairs()
 	}
+
 	forceUpdate := false
+	pairs, err := b.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s Failed to update enabled currencies Err:%s\n",
+			b.Name,
+			err)
+		return
+	}
 	delim := b.GetPairFormat(asset.Spot, false).Delimiter
-	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), delim) ||
+	if !common.StringDataContains(pairs.Strings(), delim) ||
 		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), delim) {
 		log.Warnln(log.ExchangeSys, "Available pairs for BTC Markets reset due to config upgrade, please enable the pairs you would like again.")
 		forceUpdate = true
@@ -208,7 +217,7 @@ func (b *BTCMarkets) Run() {
 		return
 	}
 
-	err := b.UpdateTradablePairs(forceUpdate)
+	err = b.UpdateTradablePairs(forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -251,7 +260,11 @@ func (b *BTCMarkets) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	allPairs := b.GetEnabledPairs(assetType)
+	allPairs, err := b.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
+
 	tickers, err := b.GetTickers(allPairs.Slice())
 	if err != nil {
 		return nil, err
@@ -572,7 +585,10 @@ func (b *BTCMarkets) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, err
 // GetActiveOrders retrieves any orders that are active/open
 func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	if len(req.Currencies) == 0 {
-		allPairs := b.GetEnabledPairs(asset.Spot)
+		allPairs, err := b.GetEnabledPairs(asset.Spot)
+		if err != nil {
+			return nil, err
+		}
 		for a := range allPairs {
 			req.Currencies = append(req.Currencies,
 				allPairs[a])

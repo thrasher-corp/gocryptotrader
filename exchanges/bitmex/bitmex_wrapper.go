@@ -304,7 +304,12 @@ func (b *Bitmex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 	if err != nil {
 		return tickerPrice, err
 	}
-	pairs := b.GetEnabledPairs(assetType)
+
+	pairs, err := b.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
+
 	for i := range pairs {
 		for j := range tick {
 			if !pairs[i].Equal(tick[j].Symbol) {
