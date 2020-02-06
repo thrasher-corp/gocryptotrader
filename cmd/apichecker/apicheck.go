@@ -380,6 +380,12 @@ func Add(exchName, checkType, path string, data interface{}, update bool, confDa
 		}
 	}
 	if CanUpdateTrello() {
+		if !update {
+			err := TrelloCreateNewCheck(fmt.Sprintf("%s 1", exchName))
+			if err != nil {
+				return err
+			}
+		}
 		return ioutil.WriteFile(jsonFile, file, 0770)
 	}
 	return ioutil.WriteFile(testJSONFile, file, 0770)

@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 	"reflect"
+	"fmt"
 )
 
 func TestMain(m *testing.M) {
@@ -49,12 +50,8 @@ func TestCheckChangeLog(t *testing.T) {
 
 func TestAdd(t *testing.T) {
 	t.Parallel()
-	data := HTMLScrapingData{TokenData: "div",
-		Key:    "class",
-		Val:    "col-md-12",
-		RegExp: "col-md-12([\\s\\S]*?)clearfix",
-		Path:   "https://localbitcoins.com/api-docs/"}
-	err := Add("LocalBitcoins", htmlScrape, data.Path, data, true, &testConfigData)
+	data := GithubData{Repo: "LBank-exchange/lbank-official-api-docs"}
+	err := Add("Lbank", github, fmt.Sprintf(githubPath, data.Repo), data, false, &configData)
 	if err != nil {
 		t.Error(err)
 	}
