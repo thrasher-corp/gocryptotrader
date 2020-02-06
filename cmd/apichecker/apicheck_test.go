@@ -6,6 +6,7 @@ import (
 	"testing"
 	"reflect"
 	"fmt"
+	
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
 
