@@ -418,6 +418,7 @@ func (e *Engine) Start() error {
 			SyncContinuously: e.Settings.SyncContinuously,
 			NumWorkers:       e.Settings.SyncWorkers,
 			Verbose:          e.Settings.Verbose,
+			SyncTimeout:      e.Settings.SyncTimeout,
 		}
 
 		e.ExchangeCurrencyPairManager, err = NewCurrencyPairSyncer(exchangeSyncCfg)
