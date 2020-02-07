@@ -58,9 +58,11 @@ func (b *Binance) SetDefaults() {
 	b.CurrencyPairs = currency.PairsManager{
 		AssetTypes: asset.Items{
 			asset.Spot,
+			asset.Margin,
 		},
+	}
 
-		UseGlobalFormat: true,
+	fmt1 := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 		},
@@ -69,6 +71,9 @@ func (b *Binance) SetDefaults() {
 			Uppercase: true,
 		},
 	}
+
+	b.CurrencyPairs.Store(asset.Spot, fmt1)
+	b.CurrencyPairs.Store(asset.Margin, fmt1)
 
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
@@ -239,41 +244,49 @@ func (b *Binance) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Binance) FetchTradablePairs(asset asset.Item) ([]string, error) {
-	var validCurrencyPairs []string
-
+func (b *Binance) FetchTradablePairs(a asset.Item) ([]string, error) {
 	info, err := b.GetExchangeInfo()
 	if err != nil {
 		return nil, err
 	}
 
+	var pairs []string
 	for x := range info.Symbols {
 		if info.Symbols[x].Status == "TRADING" {
-			validCurrencyPairs = append(validCurrencyPairs, info.Symbols[x].BaseAsset+
-				b.GetPairFormat(asset, false).Delimiter+
-				info.Symbols[x].QuoteAsset)
+			pair := info.Symbols[x].BaseAsset +
+				b.GetPairFormat(a, false).Delimiter +
+				info.Symbols[x].QuoteAsset
+			if a == asset.Spot && info.Symbols[x].IsSpotTradingAllowed {
+				pairs = append(pairs, pair)
+			}
+			if a == asset.Margin && info.Symbols[x].IsMarginTradingAllowed {
+				pairs = append(pairs, pair)
+			}
 		}
 	}
-	return validCurrencyPairs, nil
+	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (b *Binance) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := b.FetchTradablePairs(asset.Spot)
-	if err != nil {
-		return err
-	}
+	for i := range b.GetAssetTypes() {
+		p, err := b.FetchTradablePairs(b.GetAssetTypes()[i])
+		if err != nil {
+			return err
+		}
 
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
+		pairs, err := currency.NewPairsFromStrings(p)
+		if err != nil {
+			return err
+		}
 
-	return b.UpdatePairs(p,
-		asset.Spot,
-		false,
-		forceUpdate)
+		err = b.UpdatePairs(pairs, b.GetAssetTypes()[i], false, false)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

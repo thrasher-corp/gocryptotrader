@@ -25,15 +25,19 @@ type ExchangeInfo struct {
 	} `json:"rateLimits"`
 	ExchangeFilters interface{} `json:"exchangeFilters"`
 	Symbols         []struct {
-		Symbol             string   `json:"symbol"`
-		Status             string   `json:"status"`
-		BaseAsset          string   `json:"baseAsset"`
-		BaseAssetPrecision int      `json:"baseAssetPrecision"`
-		QuoteAsset         string   `json:"quoteAsset"`
-		QuotePrecision     int      `json:"quotePrecision"`
-		OrderTypes         []string `json:"orderTypes"`
-		IcebergAllowed     bool     `json:"icebergAllowed"`
-		Filters            []struct {
+		Symbol                     string   `json:"symbol"`
+		Status                     string   `json:"status"`
+		BaseAsset                  string   `json:"baseAsset"`
+		BaseAssetPrecision         int      `json:"baseAssetPrecision"`
+		QuoteAsset                 string   `json:"quoteAsset"`
+		QuotePrecision             int      `json:"quotePrecision"`
+		OrderTypes                 []string `json:"orderTypes"`
+		IcebergAllowed             bool     `json:"icebergAllowed"`
+		OCOAllowed                 bool     `json:"ocoAllowed"`
+		QuoteOrderQtyMarketAllowed bool     `json:"quoteOrderQtyMarketAllowed"`
+		IsSpotTradingAllowed       bool     `json:"isSpotTradingAllowed"`
+		IsMarginTradingAllowed     bool     `json:"isMarginTradingAllowed"`
+		Filters                    []struct {
 			FilterType          string  `json:"filterType"`
 			MinPrice            float64 `json:"minPrice,string"`
 			MaxPrice            float64 `json:"maxPrice,string"`

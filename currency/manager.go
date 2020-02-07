@@ -80,7 +80,9 @@ func (p *PairsManager) GetPairs(a asset.Item, enabled bool) (Pairs, error) {
 		pairs = c.Enabled
 		for i := range pairs {
 			if !c.Available.Contains(pairs[i], true) {
-				return nil, fmt.Errorf("enabled pair %s not contained in available list", pairs[i])
+				return c.Enabled,
+					fmt.Errorf("enabled pair %s not contained in available list",
+						pairs[i])
 			}
 		}
 	} else {
@@ -110,8 +112,6 @@ func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) {
 	} else {
 		c.Available = pairs
 	}
-
-	p.Pairs[a] = c
 }
 
 // DisablePair removes the pair from the enabled pairs list if found

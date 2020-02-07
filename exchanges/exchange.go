@@ -601,7 +601,6 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 		products = append(products, exchangeProducts[x])
 	}
 
-	var newPairs, removedPairs currency.Pairs
 	var updateType string
 	targetPairs, err := e.CurrencyPairs.GetPairs(assetType, enabled)
 	if err != nil {
@@ -609,32 +608,63 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 	}
 
 	if enabled {
-		newPairs, removedPairs = targetPairs.FindDifferences(products)
 		updateType = "enabled"
 	} else {
-		newPairs, removedPairs = targetPairs.FindDifferences(products)
 		updateType = "available"
 	}
 
+	newPairs, removedPairs := targetPairs.FindDifferences(products)
 	if force || len(newPairs) > 0 || len(removedPairs) > 0 {
 		if force {
 			log.Debugf(log.ExchangeSys,
-				"%s forced update of %s [%v] pairs.", e.Name, updateType,
+				"%s forced update of %s [%v] pairs.",
+				e.Name,
+				updateType,
 				strings.ToUpper(assetType.String()))
 		} else {
 			if len(newPairs) > 0 {
 				log.Debugf(log.ExchangeSys,
-					"%s Updating pairs [%v] - New: %s.\n", e.Name,
-					strings.ToUpper(assetType.String()), newPairs)
+					"%s Updating %s pairs [%v] - Added: %s.\n",
+					e.Name,
+					updateType,
+					strings.ToUpper(assetType.String()),
+					newPairs)
 			}
 			if len(removedPairs) > 0 {
 				log.Debugf(log.ExchangeSys,
-					"%s Updating pairs [%v] - Removed: %s.\n", e.Name,
-					strings.ToUpper(assetType.String()), removedPairs)
+					"%s Updating %s pairs [%v] - Removed: %s.\n",
+					e.Name,
+					updateType,
+					strings.ToUpper(assetType.String()),
+					removedPairs)
 			}
 		}
 		e.Config.CurrencyPairs.StorePairs(assetType, products, enabled)
 		e.CurrencyPairs.StorePairs(assetType, products, enabled)
+
+		if !enabled {
+			// If available pairs are changed we will remove currency pair items
+			// that are still included in the enabled pairs list.
+			enabledPairs, _ := e.CurrencyPairs.GetPairs(assetType, true)
+			availablePairs, _ := e.CurrencyPairs.GetPairs(assetType, false)
+
+			_, remove := enabledPairs.FindDifferences(availablePairs)
+
+			for i := range remove {
+				enabledPairs = enabledPairs.Remove(remove[i])
+			}
+
+			if len(remove) > 0 {
+				log.Debugf(log.ExchangeSys,
+					"%s Checked and updated enabled pairs [%v] - Removed: %s.\n",
+					e.Name,
+					strings.ToUpper(assetType.String()),
+					remove)
+
+				e.Config.CurrencyPairs.StorePairs(assetType, enabledPairs, true)
+				e.CurrencyPairs.StorePairs(assetType, enabledPairs, true)
+			}
+		}
 	}
 	return nil
 }

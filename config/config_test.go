@@ -460,7 +460,7 @@ func TestGetExchangeAssetTypes(t *testing.T) {
 func TestSupportsExchangeAssetType(t *testing.T) {
 	t.Parallel()
 	var c Config
-	_, err := c.SupportsExchangeAssetType("void", asset.Spot)
+	err := c.SupportsExchangeAssetType("void", asset.Spot)
 	if err == nil {
 		t.Error("Expected error for non-existent exchange")
 	}
@@ -477,22 +477,18 @@ func TestSupportsExchangeAssetType(t *testing.T) {
 		},
 	)
 
-	supports, err := c.SupportsExchangeAssetType(testFakeExchangeName, asset.Spot)
+	err = c.SupportsExchangeAssetType(testFakeExchangeName, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
 
-	if !supports {
-		t.Error("exchange should support spot asset item")
-	}
-
-	_, err = c.SupportsExchangeAssetType(testFakeExchangeName, "asdf")
+	err = c.SupportsExchangeAssetType(testFakeExchangeName, "asdf")
 	if err == nil {
 		t.Error("Expected error from invalid asset item")
 	}
 
 	c.Exchanges[0].CurrencyPairs = nil
-	_, err = c.SupportsExchangeAssetType(testFakeExchangeName, asset.Spot)
+	err = c.SupportsExchangeAssetType(testFakeExchangeName, asset.Spot)
 	if err == nil {
 		t.Error("Expected error from nil pair manager")
 	}
@@ -526,13 +522,9 @@ func TestCheckExchangeAssetsConsistency(t *testing.T) {
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.PerpetualContract] = &currency.PairStore{}
 	c.CheckExchangeAssetsConsistency(testFakeExchangeName)
 
-	supports, err := c.SupportsExchangeAssetType(testFakeExchangeName, asset.PerpetualContract)
+	err := c.SupportsExchangeAssetType(testFakeExchangeName, asset.PerpetualContract)
 	if err != nil {
 		t.Error(err)
-	}
-
-	if supports {
-		t.Error("perpetual contract should have been removed from the pair manager")
 	}
 }
 

@@ -358,21 +358,28 @@ func (c *Config) GetExchangeAssetTypes(exchName string) (asset.Items, error) {
 }
 
 // SupportsExchangeAssetType returns whether or not the exchange supports the supplied asset type
-func (c *Config) SupportsExchangeAssetType(exchName string, assetType asset.Item) (bool, error) {
+func (c *Config) SupportsExchangeAssetType(exchName string, assetType asset.Item) error {
 	exchCfg, err := c.GetExchangeConfig(exchName)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	if exchCfg.CurrencyPairs == nil {
-		return false, fmt.Errorf("exchange %s currency pairs is nil", exchName)
+		return fmt.Errorf("exchange %s currency pairs is nil", exchName)
 	}
 
 	if !asset.IsValid(assetType) {
-		return false, fmt.Errorf("exchange %s invalid asset types", exchName)
+		return fmt.Errorf("exchange %s invalid asset type %s",
+			exchName,
+			assetType)
 	}
 
-	return exchCfg.CurrencyPairs.AssetTypes.Contains(assetType), nil
+	if !exchCfg.CurrencyPairs.AssetTypes.Contains(assetType) {
+		return fmt.Errorf("exchange %s unsupported asset type %s",
+			exchName,
+			assetType)
+	}
+	return nil
 }
 
 // CheckExchangeAssetsConsistency checks the exchanges supported assets compared to the stored
@@ -401,22 +408,14 @@ func (c *Config) CheckExchangeAssetsConsistency(exchName string) {
 
 // SetPairs sets the exchanges currency pairs
 func (c *Config) SetPairs(exchName string, assetType asset.Item, enabled bool, pairs currency.Pairs) error {
-	if len(pairs) == 0 {
-		return fmt.Errorf("pairs is nil")
-	}
-
 	exchCfg, err := c.GetExchangeConfig(exchName)
 	if err != nil {
 		return err
 	}
 
-	supports, err := c.SupportsExchangeAssetType(exchName, assetType)
+	err = c.SupportsExchangeAssetType(exchName, assetType)
 	if err != nil {
 		return err
-	}
-
-	if !supports {
-		return fmt.Errorf("exchange %s does not support asset type %v", exchName, assetType)
 	}
 
 	exchCfg.CurrencyPairs.StorePairs(assetType, pairs, enabled)
@@ -430,13 +429,9 @@ func (c *Config) GetCurrencyPairConfig(exchName string, assetType asset.Item) (*
 		return nil, err
 	}
 
-	supports, err := c.SupportsExchangeAssetType(exchName, assetType)
+	err = c.SupportsExchangeAssetType(exchName, assetType)
 	if err != nil {
 		return nil, err
-	}
-
-	if !supports {
-		return nil, fmt.Errorf("exchange %s does not support asset type %v", exchName, assetType)
 	}
 
 	return exchCfg.CurrencyPairs.Get(assetType), nil
@@ -518,13 +513,19 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 	}
 
 	for x := range assetTypes {
-		enabledPairs, err := c.GetEnabledPairs(exchName, assetTypes[x])
+		enabledPairs, _ := c.GetEnabledPairs(exchName, assetTypes[x])
+		availPairs, err := c.GetAvailablePairs(exchName, assetTypes[x])
 		if err != nil {
 			return err
 		}
 
-		availPairs, _ := c.GetAvailablePairs(exchName, assetTypes[x])
 		if len(availPairs) == 0 {
+			if len(enabledPairs) != 0 {
+				err := c.SetPairs(exchName, assetTypes[x], true, currency.Pairs{})
+				if err != nil {
+					return err
+				}
+			}
 			continue
 		}
 
@@ -550,12 +551,18 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 
 		if len(pairs) == 0 || len(enabledPairs) == 0 {
 			newPair := availPairs.GetRandomPair()
-			c.SetPairs(exchName, assetTypes[x], true, currency.Pairs{newPair})
+			err := c.SetPairs(exchName, assetTypes[x], true, currency.Pairs{newPair})
+			if err != nil {
+				return err
+			}
 			log.Warnf(log.ExchangeSys, "Exchange %s: [%v] No enabled pairs found in available pairs, randomly added %v pair.\n",
 				exchName, assetTypes[x], newPair)
 			continue
 		} else {
-			c.SetPairs(exchName, assetTypes[x], true, pairs)
+			err := c.SetPairs(exchName, assetTypes[x], true, pairs)
+			if err != nil {
+				return err
+			}
 		}
 		log.Warnf(log.ExchangeSys, "Exchange %s: [%v] Removing enabled pair(s) %v from enabled pairs as it isn't an available pair.\n",
 			exchName, assetTypes[x], pairsRemoved.Strings())
@@ -580,15 +587,9 @@ func (c *Config) GetPairFormat(exchName string, assetType asset.Item) (currency.
 		return currency.PairFormat{}, err
 	}
 
-	supports, err := c.SupportsExchangeAssetType(exchName, assetType)
+	err = c.SupportsExchangeAssetType(exchName, assetType)
 	if err != nil {
 		return currency.PairFormat{}, err
-	}
-
-	if !supports {
-		return currency.PairFormat{},
-			fmt.Errorf("exchange %s does not support asset type %s", exchName,
-				assetType)
 	}
 
 	if exchCfg.CurrencyPairs.UseGlobalFormat {
@@ -631,7 +632,7 @@ func (c *Config) GetAvailablePairs(exchName string, assetType asset.Item) (curre
 }
 
 // GetEnabledPairs returns a list of currency pairs for a specifc exchange
-func (c *Config) GetEnabledPairs(exchName string, assetType asset.Item) ([]currency.Pair, error) {
+func (c *Config) GetEnabledPairs(exchName string, assetType asset.Item) (currency.Pairs, error) {
 	exchCfg, err := c.GetExchangeConfig(exchName)
 	if err != nil {
 		return nil, err
@@ -644,15 +645,17 @@ func (c *Config) GetEnabledPairs(exchName string, assetType asset.Item) ([]curre
 
 	pairs, err := exchCfg.CurrencyPairs.GetPairs(assetType, true)
 	if err != nil {
-		return nil, err
+		return pairs, err
 	}
 
 	if pairs == nil {
 		return nil, nil
 	}
 
-	return pairs.Format(pairFormat.Delimiter, pairFormat.Index,
-		pairFormat.Uppercase), nil
+	return pairs.Format(pairFormat.Delimiter,
+			pairFormat.Index,
+			pairFormat.Uppercase),
+		nil
 }
 
 // GetEnabledExchanges returns a list of enabled exchanges
@@ -1137,8 +1140,8 @@ func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool, assetType asset.I
 			continue
 		}
 
-		supports, _ := c.SupportsExchangeAssetType(c.Exchanges[x].Name, assetType)
-		if !supports {
+		err := c.SupportsExchangeAssetType(c.Exchanges[x].Name, assetType)
+		if err != nil {
 			continue
 		}
 
@@ -1151,13 +1154,12 @@ func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool, assetType asset.I
 	}
 
 	for x := range c.Exchanges {
-		supports, _ := c.SupportsExchangeAssetType(c.Exchanges[x].Name, assetType)
-		if !supports {
+		err := c.SupportsExchangeAssetType(c.Exchanges[x].Name, assetType)
+		if err != nil {
 			continue
 		}
 
 		var pairs []currency.Pair
-		var err error
 		if !c.Exchanges[x].Enabled && enabledOnly {
 			pairs, err = c.GetEnabledPairs(c.Exchanges[x].Name, assetType)
 		} else {
@@ -1642,12 +1644,16 @@ func (c *Config) CheckRemoteControlConfig() {
 func (c *Config) CheckConfig() error {
 	err := c.CheckLoggerConfig()
 	if err != nil {
-		log.Errorf(log.ConfigMgr, "Failed to configure logger, some logging features unavailable: %s\n", err)
+		log.Errorf(log.ConfigMgr,
+			"Failed to configure logger, some logging features unavailable: %s\n",
+			err)
 	}
 
 	err = c.checkDatabaseConfig()
 	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Failed to configure database: %v", err)
+		log.Errorf(log.DatabaseMgr,
+			"Failed to configure database: %v",
+			err)
 	}
 
 	err = c.CheckExchangeConfigValues()
@@ -1657,7 +1663,9 @@ func (c *Config) CheckConfig() error {
 
 	err = c.checkGCTScriptConfig()
 	if err != nil {
-		log.Errorf(log.Global, "Failed to configure gctscript, feature has been disabled: %s\n", err)
+		log.Errorf(log.Global,
+			"Failed to configure gctscript, feature has been disabled: %s\n",
+			err)
 	}
 
 	c.CheckConnectionMonitorConfig()
@@ -1671,7 +1679,9 @@ func (c *Config) CheckConfig() error {
 	}
 
 	if c.GlobalHTTPTimeout <= 0 {
-		log.Warnf(log.ConfigMgr, "Global HTTP Timeout value not set, defaulting to %v.\n", defaultHTTPTimeout)
+		log.Warnf(log.ConfigMgr,
+			"Global HTTP Timeout value not set, defaulting to %v.\n",
+			defaultHTTPTimeout)
 		c.GlobalHTTPTimeout = defaultHTTPTimeout
 	}
 
