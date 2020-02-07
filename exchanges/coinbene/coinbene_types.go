@@ -195,7 +195,7 @@ type WsPosition struct {
 type WsOrderData struct {
 	OrderID          string  `json:"orderId"`
 	Direction        string  `json:"direction"`
-	Leverage         float64 `json:"leverage,string"`
+	Leverage         string  `json:"leverage"`
 	Symbol           string  `json:"symbol"`
 	OrderType        string  `json:"orderType"`
 	Quantity         float64 `json:"quantity,string"`

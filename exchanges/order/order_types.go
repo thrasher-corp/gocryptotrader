@@ -27,7 +27,7 @@ type Submit struct {
 	HiddenOrder       bool
 	FillOrKill        bool
 	PostOnly          bool
-	Leverage          float64
+	Leverage          string
 	Price             float64
 	Amount            float64
 	LimitPriceUpper   float64
@@ -69,7 +69,7 @@ type Modify struct {
 	HiddenOrder       bool
 	FillOrKill        bool
 	PostOnly          bool
-	Leverage          float64
+	Leverage          string
 	Price             float64
 	Amount            float64
 	LimitPriceUpper   float64
@@ -108,7 +108,7 @@ type Detail struct {
 	HiddenOrder       bool
 	FillOrKill        bool
 	PostOnly          bool
-	Leverage          float64
+	Leverage          string
 	Price             float64
 	Amount            float64
 	LimitPriceUpper   float64
