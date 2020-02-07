@@ -1792,3 +1792,94 @@ func TestGetOrderbook(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestWsSubscribe(t *testing.T) {
+	pressXToJSON := []byte(`{"event":"subscribe","channel":"spot/ticker:ETH-USDT"}`)
+	err := o.WsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsUnsubscribe(t *testing.T) {
+	pressXToJSON := []byte(`{"event":"unsubscribe","channel":"spot/candle60s:BTC-USDT"}`)
+	err := o.WsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsTicker(t *testing.T) {
+	pressXToJSON := []byte(` {"table":"spot/ticker","data":[{"instrument_id":"ETH-USDT","last":"8.8","best_bid":"3","best_ask":"8.1","open_24h":"5.1","high_24h":"8.8","low_24h":"3","base_volume_24h":"13.77340909",
+ "quote_volume_24h":"78.49886361","timestamp":"2018-12-20T03:13:41.664Z"}]}`)
+	err := o.WsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsCandle(t *testing.T) {
+	pressXToJSON := []byte(`{"table":"spot/candle60s","data":[{"candle":["2018-12-20T06:18:00.000Z","8.8","8.8","8.8","8.8","0"],"instrument_id":"ETH-USDT"}]}`)
+	err := o.WsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsLogin(t *testing.T) {
+	pressXToJSON := []byte(`{"event":"login","success":"true"}`)
+	err := o.WsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsOrderbook(t *testing.T) {
+	pressXToJSON := []byte(`{
+    "table": "spot/depth",
+    "action": "partial",
+    "data": [{
+        "instrument_id": "ETH-USDT",
+        "asks": [
+            ["8.8", "96.99999966", 1],
+            ["9", "39", 3],
+            ["9.5", "100", 1],
+            ["12", "12", 1],
+            ["95", "0.42973686", 3],
+            ["11111", "1003.99999795", 1]
+        ],
+        "bids": [
+            ["5", "7", 4],
+            ["3", "5", 3],
+            ["2.5", "100", 2],
+            ["1.5", "100", 1],
+            ["1.1", "100", 1],
+            ["1", "1004.9998", 1]
+        ],
+        "timestamp": "2018-12-18T07:27:13.655Z",
+        "checksum": 468410539
+    }]
+}`)
+	err := o.WsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(`{
+    "table": "spot/depth",
+    "action": "update",
+    "data": [{
+        "instrument_id": "BTC-USDT",
+        "asks": [],
+        "bids": [
+            ["3983", "789", 0, 3]
+        ],
+        "timestamp": "2018-12-04T09:38:36.300Z",
+        "checksum": -1200119424
+    }]
+}`)
+	err = o.WsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}

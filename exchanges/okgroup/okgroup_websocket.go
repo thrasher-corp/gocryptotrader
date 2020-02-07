@@ -252,7 +252,7 @@ func (o *OKGroup) WsReadData(wg *sync.WaitGroup) {
 				return
 			}
 			o.Websocket.TrafficAlert <- struct{}{}
-			err = o.wsHandleData(resp.Raw)
+			err = o.WsHandleData(resp.Raw)
 			if err != nil {
 				o.Websocket.DataHandler <- err
 			}
@@ -260,8 +260,8 @@ func (o *OKGroup) WsReadData(wg *sync.WaitGroup) {
 	}
 }
 
-// wsHandleData will read websocket raw data and pass to appropriate handler
-func (o *OKGroup) wsHandleData(respRaw []byte) error {
+// WsHandleData will read websocket raw data and pass to appropriate handler
+func (o *OKGroup) WsHandleData(respRaw []byte) error {
 	var dataResponse WebsocketDataResponse
 	err := json.Unmarshal(respRaw, &dataResponse)
 	if err != nil {
@@ -302,9 +302,9 @@ func (o *OKGroup) wsHandleData(respRaw []byte) error {
 		}
 
 		return fmt.Errorf("%v error - %v message: %s ",
-				o.Name,
-				errorResponse.ErrorCode,
-				errorResponse.Message)
+			o.Name,
+			errorResponse.ErrorCode,
+			errorResponse.Message)
 	}
 	var eventResponse WebsocketEventResponse
 	err = json.Unmarshal(respRaw, &eventResponse)
@@ -322,7 +322,6 @@ func (o *OKGroup) wsHandleData(respRaw []byte) error {
 	}
 	return nil
 }
-
 
 func numberToOrderStatus(num float64) order.Status {
 	switch num {
