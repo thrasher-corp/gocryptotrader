@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -30,6 +31,14 @@ func setFeeBuilder() *exchange.FeeBuilder {
 		FeeType:       exchange.CryptocurrencyTradeFee,
 		Pair:          currency.NewPair(currency.BTC, currency.LTC),
 		PurchasePrice: 1,
+	}
+}
+
+func TestGetExchangeInfo(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetExchangeInfo()
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -384,7 +393,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
-		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		CurrencyPair:  currency.NewPair(currency.LTC, currency.BTC),
 	}
@@ -408,7 +417,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
-		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		CurrencyPair:  currency.NewPair(currency.LTC, currency.BTC),
 	}
@@ -427,7 +436,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetAccountInfo()
+	_, err := b.UpdateAccountInfo()
 	switch {
 	case areTestAPIKeysSet() && err != nil:
 		t.Error("GetAccountInfo() error", err)
@@ -459,7 +468,7 @@ func TestWithdraw(t *testing.T) {
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
 		Crypto: &withdraw.CryptoRequest{
-			Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+			Address: core.BitcoinDonationAddress,
 		},
 	}
 

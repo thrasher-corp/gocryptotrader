@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -460,7 +461,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
-		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		CurrencyPair:  currencyPair,
 	}
@@ -483,7 +484,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
-		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		CurrencyPair:  currencyPair,
 	}
@@ -505,12 +506,12 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 // TestGetAccountInfo wrapper test
 func TestGetAccountInfo(t *testing.T) {
 	if areTestAPIKeysSet() || clientID != "" {
-		_, err := k.GetAccountInfo()
+		_, err := k.UpdateAccountInfo()
 		if err != nil {
 			t.Error("GetAccountInfo() error", err)
 		}
 	} else {
-		_, err := k.GetAccountInfo()
+		_, err := k.UpdateAccountInfo()
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}
@@ -532,7 +533,7 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	withdrawCryptoRequest := withdraw.Request{
 		Crypto: &withdraw.CryptoRequest{
-			Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+			Address: core.BitcoinDonationAddress,
 		},
 		Amount:        -1,
 		Currency:      currency.XXBT,

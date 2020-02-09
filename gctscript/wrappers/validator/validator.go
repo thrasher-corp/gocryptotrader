@@ -4,11 +4,11 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
 )
 
@@ -152,17 +152,17 @@ func (w Wrapper) CancelOrder(exch, orderid string) (bool, error) {
 }
 
 // AccountInformation validator for test execution/scripts
-func (w Wrapper) AccountInformation(exch string) (*modules.AccountInfo, error) {
+func (w Wrapper) AccountInformation(exch string) (account.Holdings, error) {
 	if exch == exchError.String() {
-		return &modules.AccountInfo{}, errTestFailed
+		return account.Holdings{}, errTestFailed
 	}
 
-	return &modules.AccountInfo{
+	return account.Holdings{
 		Exchange: exch,
-		Accounts: []modules.Account{
+		Accounts: []account.SubAccount{
 			{
 				ID: exch,
-				Currencies: []modules.AccountCurrencyInfo{
+				Currencies: []account.Balance{
 					{
 						CurrencyName: currency.Code{
 							Item: &currency.Item{

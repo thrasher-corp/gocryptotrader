@@ -31,14 +31,15 @@ func main() {
 	log.Println("Done.")
 
 	var cfgs []config.ExchangeConfig
-	for x := range engine.Bot.Exchanges {
+	exchanges := engine.GetExchanges()
+	for x := range exchanges {
 		var cfg *config.ExchangeConfig
-		cfg, err = engine.Bot.Exchanges[x].GetDefaultConfig()
+		cfg, err = exchanges[x].GetDefaultConfig()
 		if err != nil {
 			log.Printf("Failed to get exchanges default config. Err: %s", err)
 			continue
 		}
-		log.Printf("Adding %s", engine.Bot.Exchanges[x].GetName())
+		log.Printf("Adding %s", exchanges[x].GetName())
 		cfgs = append(cfgs, *cfg)
 	}
 

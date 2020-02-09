@@ -10,11 +10,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
 )
 
@@ -170,27 +170,28 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 	return orderbook.Get(o.Name, p, a)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies
-func (o *OKGroup) GetAccountInfo() (resp exchange.AccountInfo, err error) {
-	resp.Exchange = o.Name
+// UpdateAccountInfo retrieves balances for all enabled currencies
+func (o *OKGroup) UpdateAccountInfo() (account.Holdings, error) {
 	currencies, err := o.GetSpotTradingAccounts()
-	currencyAccount := exchange.Account{}
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
+	var resp account.Holdings
+	resp.Exchange = o.Name
+	currencyAccount := account.SubAccount{}
 
 	for i := range currencies {
-		hold, err := strconv.ParseFloat(currencies[i].Hold, 64)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"Could not convert %v to float64",
-				currencies[i].Hold)
+		hold, parseErr := strconv.ParseFloat(currencies[i].Hold, 64)
+		if parseErr != nil {
+			return resp, parseErr
 		}
-		totalValue, err := strconv.ParseFloat(currencies[i].Balance, 64)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"Could not convert %v to float64",
-				currencies[i].Balance)
+		totalValue, parseErr := strconv.ParseFloat(currencies[i].Balance, 64)
+		if parseErr != nil {
+			return resp, parseErr
 		}
 		currencyAccount.Currencies = append(currencyAccount.Currencies,
-			exchange.AccountCurrencyInfo{
+			account.Balance{
 				CurrencyName: currency.NewCode(currencies[i].Currency),
 				Hold:         hold,
 				TotalValue:   totalValue,
@@ -198,7 +199,23 @@ func (o *OKGroup) GetAccountInfo() (resp exchange.AccountInfo, err error) {
 	}
 
 	resp.Accounts = append(resp.Accounts, currencyAccount)
-	return
+
+	err = account.Process(&resp)
+	if err != nil {
+		return resp, err
+	}
+
+	return resp, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (o *OKGroup) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(o.Name)
+	if err != nil {
+		return o.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -504,4 +521,11 @@ func (o *OKGroup) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, 
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (o *OKGroup) AuthenticateWebsocket() error {
 	return o.WsLogin()
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (o *OKGroup) ValidateCredentials() error {
+	_, err := o.UpdateAccountInfo()
+	return o.CheckTransientError(err)
 }

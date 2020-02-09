@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -108,9 +109,8 @@ func (b *Bitstamp) SetDefaults() {
 	}
 
 	b.Requester = request.New(b.Name,
-		request.NewRateLimit(time.Minute*10, bitstampAuthRate),
-		request.NewRateLimit(time.Minute*10, bitstampUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		request.NewBasicRateLimit(bitstampRateInterval, bitstampRequestRate))
 
 	b.API.Endpoints.URLDefault = bitstampAPIURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
@@ -315,29 +315,44 @@ func (b *Bitstamp) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 	return orderbook.Get(b.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Bitstamp exchange
-func (b *Bitstamp) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
+func (b *Bitstamp) UpdateAccountInfo() (account.Holdings, error) {
+	var response account.Holdings
 	response.Exchange = b.Name
 	accountBalance, err := b.GetBalance()
 	if err != nil {
 		return response, err
 	}
 
-	var currencies []exchange.AccountCurrencyInfo
+	var currencies []account.Balance
 	for k, v := range accountBalance {
-		currencies = append(currencies, exchange.AccountCurrencyInfo{
+		currencies = append(currencies, account.Balance{
 			CurrencyName: currency.NewCode(k),
 			TotalValue:   v.Available,
 			Hold:         v.Reserved,
 		})
 	}
-	response.Accounts = append(response.Accounts, exchange.Account{
+	response.Accounts = append(response.Accounts, account.SubAccount{
 		Currencies: currencies,
 	})
 
+	err = account.Process(&response)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return response, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (b *Bitstamp) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(b.Name)
+	if err != nil {
+		return b.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -648,4 +663,11 @@ func (b *Bitstamp) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription,
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (b *Bitstamp) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (b *Bitstamp) ValidateCredentials() error {
+	_, err := b.UpdateAccountInfo()
+	return b.CheckTransientError(err)
 }

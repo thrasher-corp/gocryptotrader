@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -109,9 +110,8 @@ func (b *Binance) SetDefaults() {
 	}
 
 	b.Requester = request.New(b.Name,
-		request.NewRateLimit(time.Second, binanceAuthRate),
-		request.NewRateLimit(time.Second, binanceUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		SetRateLimit())
 
 	b.API.Endpoints.URLDefault = apiURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
@@ -345,28 +345,28 @@ func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 	return orderbook.Get(b.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Bithumb exchange
-func (b *Binance) GetAccountInfo() (exchange.AccountInfo, error) {
-	var info exchange.AccountInfo
+func (b *Binance) UpdateAccountInfo() (account.Holdings, error) {
+	var info account.Holdings
 	raw, err := b.GetAccount()
 	if err != nil {
 		return info, err
 	}
 
-	var currencyBalance []exchange.AccountCurrencyInfo
+	var currencyBalance []account.Balance
 	for i := range raw.Balances {
-		freeCurrency, err := strconv.ParseFloat(raw.Balances[i].Free, 64)
-		if err != nil {
-			return info, err
+		freeCurrency, parseErr := strconv.ParseFloat(raw.Balances[i].Free, 64)
+		if parseErr != nil {
+			return info, parseErr
 		}
 
-		lockedCurrency, err := strconv.ParseFloat(raw.Balances[i].Locked, 64)
-		if err != nil {
-			return info, err
+		lockedCurrency, parseErr := strconv.ParseFloat(raw.Balances[i].Locked, 64)
+		if parseErr != nil {
+			return info, parseErr
 		}
 
-		currencyBalance = append(currencyBalance, exchange.AccountCurrencyInfo{
+		currencyBalance = append(currencyBalance, account.Balance{
 			CurrencyName: currency.NewCode(raw.Balances[i].Asset),
 			TotalValue:   freeCurrency + lockedCurrency,
 			Hold:         freeCurrency,
@@ -374,11 +374,26 @@ func (b *Binance) GetAccountInfo() (exchange.AccountInfo, error) {
 	}
 
 	info.Exchange = b.Name
-	info.Accounts = append(info.Accounts, exchange.Account{
+	info.Accounts = append(info.Accounts, account.SubAccount{
 		Currencies: currencyBalance,
 	})
 
+	err = account.Process(&info)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return info, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (b *Binance) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(b.Name)
+	if err != nil {
+		return b.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -641,4 +656,11 @@ func (b *Binance) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, 
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (b *Binance) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (b *Binance) ValidateCredentials() error {
+	_, err := b.UpdateAccountInfo()
+	return b.CheckTransientError(err)
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -32,8 +33,6 @@ const (
 
 func TestMain(m *testing.M) {
 	c.SetDefaults()
-	c.Requester.SetRateLimit(false, time.Second, 1)
-
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
@@ -494,7 +493,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
-		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		CurrencyPair:  currencyPair,
 	}
@@ -516,7 +515,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
-		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		CurrencyPair:  currencyPair,
 	}
@@ -551,7 +550,7 @@ func TestWithdraw(t *testing.T) {
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
 		Crypto: &withdraw.CryptoRequest{
-			Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+			Address: core.BitcoinDonationAddress,
 		},
 	}
 

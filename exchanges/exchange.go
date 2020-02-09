@@ -3,6 +3,7 @@ package exchange
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -35,9 +36,8 @@ const (
 func (e *Base) checkAndInitRequester() {
 	if e.Requester == nil {
 		e.Requester = request.New(e.Name,
-			request.NewRateLimit(time.Second, 0),
-			request.NewRateLimit(time.Second, 0),
-			new(http.Client))
+			new(http.Client),
+			nil)
 	}
 }
 
@@ -174,27 +174,6 @@ func (e *Base) SetAPICredentialDefaults() {
 	}
 }
 
-// SetHTTPRateLimiter sets the exchanges default HTTP rate limiter and updates the exchange's config
-// to default settings if it doesn't exist
-func (e *Base) SetHTTPRateLimiter() {
-	e.checkAndInitRequester()
-
-	if e.RequiresRateLimiter() {
-		if e.Config.HTTPRateLimiter == nil {
-			e.Config.HTTPRateLimiter = new(config.HTTPRateLimitConfig)
-			e.Config.HTTPRateLimiter.Authenticated.Duration = e.GetRateLimit(true).Duration
-			e.Config.HTTPRateLimiter.Authenticated.Rate = e.GetRateLimit(true).Rate
-			e.Config.HTTPRateLimiter.Unauthenticated.Duration = e.GetRateLimit(false).Duration
-			e.Config.HTTPRateLimiter.Unauthenticated.Rate = e.GetRateLimit(false).Rate
-		} else {
-			e.SetRateLimit(true, e.Config.HTTPRateLimiter.Authenticated.Duration,
-				e.Config.HTTPRateLimiter.Authenticated.Rate)
-			e.SetRateLimit(false, e.Config.HTTPRateLimiter.Unauthenticated.Duration,
-				e.Config.HTTPRateLimiter.Unauthenticated.Rate)
-		}
-	}
-}
-
 // SupportsRESTTickerBatchUpdates returns whether or not the
 // exhange supports REST batch ticker fetching
 func (e *Base) SupportsRESTTickerBatchUpdates() bool {
@@ -204,7 +183,8 @@ func (e *Base) SupportsRESTTickerBatchUpdates() bool {
 // SupportsAutoPairUpdates returns whether or not the exchange supports
 // auto currency pair updating
 func (e *Base) SupportsAutoPairUpdates() bool {
-	if e.Features.Supports.RESTCapabilities.AutoPairUpdates || e.Features.Supports.WebsocketCapabilities.AutoPairUpdates {
+	if e.Features.Supports.RESTCapabilities.AutoPairUpdates ||
+		e.Features.Supports.WebsocketCapabilities.AutoPairUpdates {
 		return true
 	}
 	return false
@@ -424,7 +404,9 @@ func (e *Base) SetAPIKeys(apiKey, apiSecret, clientID string) {
 		if err != nil {
 			e.API.AuthenticatedSupport = false
 			e.API.AuthenticatedWebsocketSupport = false
-			log.Warnf(log.ExchangeSys, warningBase64DecryptSecretKeyFailed, e.Name)
+			log.Warnf(log.ExchangeSys,
+				warningBase64DecryptSecretKeyFailed,
+				e.Name)
 			return
 		}
 		e.API.Credentials.Secret = string(result)
@@ -443,7 +425,9 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	e.API.AuthenticatedSupport = exch.API.AuthenticatedSupport
 	e.API.AuthenticatedWebsocketSupport = exch.API.AuthenticatedWebsocketSupport
 	if e.API.AuthenticatedSupport || e.API.AuthenticatedWebsocketSupport {
-		e.SetAPIKeys(exch.API.Credentials.Key, exch.API.Credentials.Secret, exch.API.Credentials.ClientID)
+		e.SetAPIKeys(exch.API.Credentials.Key,
+			exch.API.Credentials.Secret,
+			exch.API.Credentials.ClientID)
 	}
 
 	if exch.HTTPTimeout <= time.Duration(0) {
@@ -458,7 +442,6 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 
 	e.HTTPDebugging = exch.HTTPDebugging
 	e.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-	e.SetHTTPRateLimiter()
 	e.SetAssetTypes()
 	e.SetCurrencyPairFormat()
 	e.SetConfigPairs()
@@ -466,8 +449,6 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	e.SetAPIURL()
 	e.SetAPICredentialDefaults()
 	e.SetClientProxyAddress(exch.ProxyAddress)
-	e.SetHTTPRateLimiter()
-
 	e.BaseCurrencies = exch.BaseCurrencies
 
 	if e.Features.Supports.Websocket {
@@ -476,33 +457,28 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	return nil
 }
 
-// AllowAuthenticatedRequest checks to see if the required fields have been set before sending an authenticated
-// API request
+// AllowAuthenticatedRequest checks to see if the required fields have been set
+// before sending an authenticated API request
 func (e *Base) AllowAuthenticatedRequest() bool {
-	// Skip auth check
 	if e.SkipAuthCheck {
 		return true
 	}
 
 	// Individual package usage, allow request if API credentials are valid a
 	// and without needing to set AuthenticatedSupport to true
-	if !e.LoadedByConfig && !e.ValidateAPICredentials() {
+	if !e.LoadedByConfig {
+		return e.ValidateAPICredentials()
+	}
+
+	// Bot usage, AuthenticatedSupport can be disabled by user if desired, so
+	// don't allow authenticated requests.
+	if !e.API.AuthenticatedSupport && !e.API.AuthenticatedWebsocketSupport {
 		return false
 	}
 
-	// Bot usage, AuthenticatedSupport can be disabled by user if desired, so don't
-	// allow authenticated requests.
-	if (!e.API.AuthenticatedSupport && !e.API.AuthenticatedWebsocketSupport) && e.LoadedByConfig {
-		return false
-	}
-
-	// Check to see if the user has enabled AuthenticatedSupport, but has invalid
-	// API credentials set and loaded by config
-	if (e.API.AuthenticatedSupport || e.API.AuthenticatedWebsocketSupport) && e.LoadedByConfig && !e.ValidateAPICredentials() {
-		return false
-	}
-
-	return true
+	// Check to see if the user has enabled AuthenticatedSupport, but has
+	// invalid API credentials set and loaded by config
+	return e.ValidateAPICredentials()
 }
 
 // ValidateAPICredentials validates the exchanges API credentials
@@ -782,3 +758,26 @@ func (e *Base) PrintEnabledPairs() {
 
 // GetBase returns the exchange base
 func (e *Base) GetBase() *Base { return e }
+
+// CheckTransientError catches transient errors and returns nil if found, used
+// for validation of API credentials
+func (e *Base) CheckTransientError(err error) error {
+	if _, ok := err.(net.Error); ok {
+		log.Warnf(log.ExchangeSys,
+			"%s net error captured, will not disable authentication %s",
+			e.Name,
+			err)
+		return nil
+	}
+	return err
+}
+
+// DisableRateLimiter disables the rate limiting system for the exchange
+func (e *Base) DisableRateLimiter() error {
+	return e.Requester.DisableRateLimiter()
+}
+
+// EnableRateLimiter enables the rate limiting system for the exchange
+func (e *Base) EnableRateLimiter() error {
+	return e.Requester.EnableRateLimiter()
+}

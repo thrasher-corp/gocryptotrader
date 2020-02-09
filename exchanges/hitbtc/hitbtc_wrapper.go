@@ -6,12 +6,12 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -112,9 +112,8 @@ func (h *HitBTC) SetDefaults() {
 	}
 
 	h.Requester = request.New(h.Name,
-		request.NewRateLimit(time.Second, hitbtcAuthRate),
-		request.NewRateLimit(time.Second, hitbtcUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		SetRateLimit())
 
 	h.API.Endpoints.URLDefault = apiURL
 	h.API.Endpoints.URL = h.API.Endpoints.URLDefault
@@ -336,31 +335,45 @@ func (h *HitBTC) UpdateOrderbook(currencyPair currency.Pair, assetType asset.Ite
 	return orderbook.Get(h.Name, currencyPair, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // HitBTC exchange
-func (h *HitBTC) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
+func (h *HitBTC) UpdateAccountInfo() (account.Holdings, error) {
+	var response account.Holdings
 	response.Exchange = h.Name
 	accountBalance, err := h.GetBalances()
 	if err != nil {
 		return response, err
 	}
 
-	var currencies []exchange.AccountCurrencyInfo
+	var currencies []account.Balance
 	for i := range accountBalance {
-		var exchangeCurrency exchange.AccountCurrencyInfo
+		var exchangeCurrency account.Balance
 		exchangeCurrency.CurrencyName = currency.NewCode(accountBalance[i].Currency)
 		exchangeCurrency.TotalValue = accountBalance[i].Available
 		exchangeCurrency.Hold = accountBalance[i].Reserved
 		currencies = append(currencies, exchangeCurrency)
 	}
 
-	response.Accounts = append(response.Accounts,
-		exchange.Account{
-			Currencies: currencies,
-		})
+	response.Accounts = append(response.Accounts, account.SubAccount{
+		Currencies: currencies,
+	})
+
+	err = account.Process(&response)
+	if err != nil {
+		return account.Holdings{}, err
+	}
 
 	return response, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (h *HitBTC) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(h.Name)
+	if err != nil {
+		return h.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -602,4 +615,11 @@ func (h *HitBTC) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, e
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (h *HitBTC) AuthenticateWebsocket() error {
 	return h.wsLogin()
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (h *HitBTC) ValidateCredentials() error {
+	_, err := h.UpdateAccountInfo()
+	return h.CheckTransientError(err)
 }

@@ -2,6 +2,7 @@ package modules
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -27,7 +28,7 @@ type Exchange interface {
 	QueryOrder(exch, orderid string) (*order.Detail, error)
 	SubmitOrder(exch string, submit *order.Submit) (*order.SubmitResponse, error)
 	CancelOrder(exch, orderid string) (bool, error)
-	AccountInformation(exch string) (*AccountInfo, error)
+	AccountInformation(exch string) (account.Holdings, error)
 	DepositAddress(exch string, currencyCode currency.Code) (string, error)
 	WithdrawalFiatFunds(exch, bankaccountid string, request *withdraw.Request) (out string, err error)
 	WithdrawalCryptoFunds(exch string, request *withdraw.Request) (out string, err error)
@@ -36,24 +37,4 @@ type Exchange interface {
 // SetModuleWrapper link the wrapper and interface to use for modules
 func SetModuleWrapper(wrapper GCT) {
 	Wrapper = wrapper
-}
-
-// AccountInfo is a Generic type to hold each exchange's holdings in
-// all enabled currencies
-type AccountInfo struct {
-	Exchange string
-	Accounts []Account
-}
-
-// Account defines a singular account type with associated currencies
-type Account struct {
-	ID         string
-	Currencies []AccountCurrencyInfo
-}
-
-// AccountCurrencyInfo is a sub type to store currency name and value
-type AccountCurrencyInfo struct {
-	CurrencyName currency.Code
-	TotalValue   float64
-	Hold         float64
 }

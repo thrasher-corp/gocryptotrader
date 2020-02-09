@@ -281,20 +281,17 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 	defer cleanup()
 
 	for atomic.LoadInt32(&e.shutdown) != 1 {
-		for x := range Bot.Exchanges {
-			if !Bot.Exchanges[x].IsEnabled() {
-				continue
-			}
-
-			exchangeName := Bot.Exchanges[x].GetName()
-			assetTypes := Bot.Exchanges[x].GetAssetTypes()
-			supportsREST := Bot.Exchanges[x].SupportsREST()
-			supportsRESTTickerBatching := Bot.Exchanges[x].SupportsRESTTickerBatchUpdates()
+		exchanges := GetExchanges()
+		for x := range exchanges {
+			exchangeName := exchanges[x].GetName()
+			assetTypes := exchanges[x].GetAssetTypes()
+			supportsREST := exchanges[x].SupportsREST()
+			supportsRESTTickerBatching := exchanges[x].SupportsRESTTickerBatchUpdates()
 			var usingREST bool
 			var usingWebsocket bool
 			var switchedToRest bool
-			if Bot.Exchanges[x].SupportsWebsocket() && Bot.Exchanges[x].IsWebsocketEnabled() {
-				ws, err := Bot.Exchanges[x].GetWebsocket()
+			if exchanges[x].SupportsWebsocket() && exchanges[x].IsWebsocketEnabled() {
+				ws, err := exchanges[x].GetWebsocket()
 				if err != nil {
 					log.Errorf(log.SyncMgr, "%s unable to get websocket pointer. Err: %s\n",
 						exchangeName, err)
@@ -311,7 +308,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 			}
 
 			for y := range assetTypes {
-				enabledPairs := Bot.Exchanges[x].GetEnabledPairs(assetTypes[y])
+				enabledPairs := exchanges[x].GetEnabledPairs(assetTypes[y])
 				for i := range enabledPairs {
 					if atomic.LoadInt32(&e.shutdown) == 1 {
 						return
@@ -401,17 +398,17 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 											if e.Cfg.Verbose {
 												log.Debugf(log.SyncMgr, "%s Init'ing REST ticker batching\n", exchangeName)
 											}
-											result, err = Bot.Exchanges[x].UpdateTicker(c.Pair, c.AssetType)
+											result, err = exchanges[x].UpdateTicker(c.Pair, c.AssetType)
 											e.tickerBatchLastRequested[exchangeName] = time.Now()
 											e.mux.Unlock()
 										} else {
 											if e.Cfg.Verbose {
 												log.Debugf(log.SyncMgr, "%s Using recent batching cache\n", exchangeName)
 											}
-											result, err = Bot.Exchanges[x].FetchTicker(c.Pair, c.AssetType)
+											result, err = exchanges[x].FetchTicker(c.Pair, c.AssetType)
 										}
 									} else {
-										result, err = Bot.Exchanges[x].UpdateTicker(c.Pair, c.AssetType)
+										result, err = exchanges[x].UpdateTicker(c.Pair, c.AssetType)
 									}
 									printTickerSummary(result, c.Pair, c.AssetType, exchangeName, "REST", err)
 									if err == nil {
@@ -452,7 +449,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 								}
 
 								e.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, true)
-								result, err := Bot.Exchanges[x].UpdateOrderbook(c.Pair, c.AssetType)
+								result, err := exchanges[x].UpdateOrderbook(c.Pair, c.AssetType)
 								printOrderbookSummary(result, c.Pair, c.AssetType, exchangeName, "REST", err)
 								if err == nil {
 									//nolint:gocritic Bot.CommsRelayer.StageOrderbookData(exchangeName, c.AssetType, result)
@@ -483,16 +480,12 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 // Start starts an exchange currency pair syncer
 func (e *ExchangeCurrencyPairSyncer) Start() {
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer started.")
-
-	for x := range Bot.Exchanges {
-		if !Bot.Exchanges[x].IsEnabled() {
-			continue
-		}
-
-		exchangeName := Bot.Exchanges[x].GetName()
-		supportsWebsocket := Bot.Exchanges[x].SupportsWebsocket()
-		assetTypes := Bot.Exchanges[x].GetAssetTypes()
-		supportsREST := Bot.Exchanges[x].SupportsREST()
+	exchanges := GetExchanges()
+	for x := range exchanges {
+		exchangeName := exchanges[x].GetName()
+		supportsWebsocket := exchanges[x].SupportsWebsocket()
+		assetTypes := exchanges[x].GetAssetTypes()
+		supportsREST := exchanges[x].SupportsREST()
 
 		if !supportsREST && !supportsWebsocket {
 			log.Warnf(log.SyncMgr,
@@ -503,9 +496,8 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 
 		var usingWebsocket bool
 		var usingREST bool
-
-		if supportsWebsocket && Bot.Exchanges[x].IsWebsocketEnabled() {
-			ws, err := Bot.Exchanges[x].GetWebsocket()
+		if supportsWebsocket && exchanges[x].IsWebsocketEnabled() {
+			ws, err := exchanges[x].GetWebsocket()
 			if err != nil {
 				log.Errorf(log.SyncMgr, "%s failed to get websocket. Err: %s\n",
 					exchangeName, err)
@@ -531,11 +523,12 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 		}
 
 		for y := range assetTypes {
-			enabledPairs := Bot.Exchanges[x].GetEnabledPairs(assetTypes[y])
+			enabledPairs := exchanges[x].GetEnabledPairs(assetTypes[y])
 			for i := range enabledPairs {
 				if e.exists(exchangeName, enabledPairs[i], assetTypes[y]) {
 					continue
 				}
+
 				c := CurrencyPairSyncAgent{
 					AssetType: assetTypes[y],
 					Exchange:  exchangeName,

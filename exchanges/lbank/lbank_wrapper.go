@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -97,9 +98,8 @@ func (l *Lbank) SetDefaults() {
 	}
 
 	l.Requester = request.New(l.Name,
-		request.NewRateLimit(time.Second, lbankAuthRateLimit),
-		request.NewRateLimit(time.Second, lbankUnAuthRateLimit),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		nil)
 
 	l.API.Endpoints.URLDefault = lbankAPIURL
 	l.API.Endpoints.URL = l.API.Endpoints.URLDefault
@@ -249,38 +249,53 @@ func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 	return orderbook.Get(l.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Lbank exchange
-func (l *Lbank) GetAccountInfo() (exchange.AccountInfo, error) {
-	var info exchange.AccountInfo
+func (l *Lbank) UpdateAccountInfo() (account.Holdings, error) {
+	var info account.Holdings
 	data, err := l.GetUserInfo()
 	if err != nil {
 		return info, err
 	}
-	var account exchange.Account
+	var acc account.SubAccount
 	for key, val := range data.Info.Asset {
 		c := currency.NewCode(key)
 		hold, ok := data.Info.Freeze[key]
 		if !ok {
 			return info, fmt.Errorf("hold data not found with %s", key)
 		}
-		totalVal, err := strconv.ParseFloat(val, 64)
-		if err != nil {
-			return info, err
+		totalVal, parseErr := strconv.ParseFloat(val, 64)
+		if parseErr != nil {
+			return info, parseErr
 		}
-		totalHold, err := strconv.ParseFloat(hold, 64)
-		if err != nil {
-			return info, err
+		totalHold, parseErr := strconv.ParseFloat(hold, 64)
+		if parseErr != nil {
+			return info, parseErr
 		}
-		account.Currencies = append(account.Currencies,
-			exchange.AccountCurrencyInfo{CurrencyName: c,
-				TotalValue: totalVal,
-				Hold:       totalHold})
+		acc.Currencies = append(acc.Currencies, account.Balance{
+			CurrencyName: c,
+			TotalValue:   totalVal,
+			Hold:         totalHold})
 	}
 
-	info.Accounts = append(info.Accounts, account)
+	info.Accounts = append(info.Accounts, acc)
 	info.Exchange = l.Name
+
+	err = account.Process(&info)
+	if err != nil {
+		return account.Holdings{}, err
+	}
 	return info, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (l *Lbank) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(l.Name)
+	if err != nil {
+		return l.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -694,4 +709,11 @@ func (l *Lbank) AuthenticateWebsocket() error {
 // GetSubscriptions gets subscriptions
 func (l *Lbank) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return nil, common.ErrNotYetImplemented
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (l *Lbank) ValidateCredentials() error {
+	_, err := l.UpdateAccountInfo()
+	return l.CheckTransientError(err)
 }

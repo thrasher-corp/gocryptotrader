@@ -26,7 +26,8 @@ func TestWrite(t *testing.T) {
 	}
 
 	var tests []testTable
-	testFile := filepath.Join(os.TempDir(), "gcttest.txt")
+	tempDir := filepath.Join(os.TempDir(), "gct-temp")
+	testFile := filepath.Join(tempDir, "gcttest.txt")
 	switch runtime.GOOS {
 	case "windows":
 		tests = []testTable{
@@ -45,6 +46,10 @@ func TestWrite(t *testing.T) {
 		if err != nil && !tests[x].ErrExpected {
 			t.Errorf("Test %d failed, unexpected err %s\n", x, err)
 		}
+	}
+
+	if err := os.RemoveAll(tempDir); err != nil {
+		t.Errorf("unable to remove temp test dir %s, manual deletion required", tempDir)
 	}
 }
 
@@ -102,5 +107,21 @@ func TestMove(t *testing.T) {
 		if err != nil && !tests[x].ErrExpected {
 			t.Errorf("Test %d failed, unexpected err %s\n", x, err)
 		}
+	}
+}
+
+func TestExists(t *testing.T) {
+	if e := Exists("non-existent"); e {
+		t.Error("non-existent file should not exist")
+	}
+	tmpFile := filepath.Join(os.TempDir(), "gct-test.txt")
+	if err := ioutil.WriteFile(tmpFile, []byte("hello world"), os.ModeAppend); err != nil {
+		t.Fatal(err)
+	}
+	if e := Exists(tmpFile); !e {
+		t.Error("file should exist")
+	}
+	if err := os.Remove(tmpFile); err != nil {
+		t.Errorf("unable to remove %s, manual deletion is required", tmpFile)
 	}
 }

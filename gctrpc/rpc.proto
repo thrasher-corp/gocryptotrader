@@ -543,7 +543,7 @@ message Candle {
 }
 
 message AuditEvent {
-    string type = 1 ;
+    string type = 1;
     string identifier = 2;
     string message = 3;
     string timestamp = 4;
@@ -709,6 +709,12 @@ service GoCryptoTrader {
     rpc GetAccountInfo (GetAccountInfoRequest) returns (GetAccountInfoResponse) {
         option (google.api.http) = {
             get: "/v1/getaccountinfo"
+        };
+    }
+
+    rpc GetAccountInfoStream (GetAccountInfoRequest) returns (stream GetAccountInfoResponse) {
+        option (google.api.http) = {
+            get: "/v1/getaccountinfostream"
         };
     }
 

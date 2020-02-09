@@ -542,7 +542,7 @@ func TestDial(t *testing.T) {
 		{Error: errors.New(" Error: malformed ws or wss URL"), WC: WebsocketConnection{ExchangeName: "test2", Verbose: true, URL: "", ResponseCheckTimeout: 30000000, ResponseMaxLimit: 7000000000}},
 		{Error: nil, WC: WebsocketConnection{ExchangeName: "test3", Verbose: true, URL: websocketTestURL, ProxyURL: proxyURL, ResponseCheckTimeout: 30000000, ResponseMaxLimit: 7000000000}},
 	}
-	for i := 0; i < len(testCases); i++ {
+	for i := range testCases {
 		testData := &testCases[i]
 		t.Run(testData.WC.ExchangeName, func(t *testing.T) {
 			if testData.WC.ProxyURL != "" && !useProxyTests {
@@ -566,7 +566,7 @@ func TestSendMessage(t *testing.T) {
 		{Error: errors.New(" Error: malformed ws or wss URL"), WC: WebsocketConnection{ExchangeName: "test2", Verbose: true, URL: "", ResponseCheckTimeout: 30000000, ResponseMaxLimit: 7000000000}},
 		{Error: nil, WC: WebsocketConnection{ExchangeName: "test3", Verbose: true, URL: websocketTestURL, ProxyURL: proxyURL, ResponseCheckTimeout: 30000000, ResponseMaxLimit: 7000000000}},
 	}
-	for i := 0; i < len(testCases); i++ {
+	for i := range testCases {
 		testData := &testCases[i]
 		t.Run(testData.WC.ExchangeName, func(t *testing.T) {
 			if testData.WC.ProxyURL != "" && !useProxyTests {

@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -69,9 +70,8 @@ func (a *Alphapoint) SetDefaults() {
 	}
 
 	a.Requester = request.New(a.Name,
-		request.NewRateLimit(time.Minute*10, alphapointAuthRate),
-		request.NewRateLimit(time.Minute*10, alphapointUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		nil)
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -85,31 +85,47 @@ func (a *Alphapoint) UpdateTradablePairs(forceUpdate bool) error {
 	return common.ErrFunctionNotSupported
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies on the
+// UpdateAccountInfo retrieves balances for all enabled currencies on the
 // Alphapoint exchange
-func (a *Alphapoint) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
+func (a *Alphapoint) UpdateAccountInfo() (account.Holdings, error) {
+	var response account.Holdings
 	response.Exchange = a.Name
-	account, err := a.GetAccountInformation()
+	acc, err := a.GetAccountInformation()
 	if err != nil {
 		return response, err
 	}
 
-	var currencies []exchange.AccountCurrencyInfo
-	for i := 0; i < len(account.Currencies); i++ {
-		var exchangeCurrency exchange.AccountCurrencyInfo
-		exchangeCurrency.CurrencyName = currency.NewCode(account.Currencies[i].Name)
-		exchangeCurrency.TotalValue = float64(account.Currencies[i].Balance)
-		exchangeCurrency.Hold = float64(account.Currencies[i].Hold)
+	var balances []account.Balance
+	for i := range acc.Currencies {
+		var balance account.Balance
+		balance.CurrencyName = currency.NewCode(acc.Currencies[i].Name)
+		balance.TotalValue = float64(acc.Currencies[i].Balance)
+		balance.Hold = float64(acc.Currencies[i].Hold)
 
-		currencies = append(currencies, exchangeCurrency)
+		balances = append(balances, balance)
 	}
 
-	response.Accounts = append(response.Accounts, exchange.Account{
-		Currencies: currencies,
+	response.Accounts = append(response.Accounts, account.SubAccount{
+		Currencies: balances,
 	})
 
+	err = account.Process(&response)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return response, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies on the
+// Alphapoint exchange
+func (a *Alphapoint) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(a.Name)
+	if err != nil {
+		return a.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -411,4 +427,11 @@ func (a *Alphapoint) GetSubscriptions() ([]wshandler.WebsocketChannelSubscriptio
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (a *Alphapoint) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (a *Alphapoint) ValidateCredentials() error {
+	_, err := a.UpdateAccountInfo()
+	return a.CheckTransientError(err)
 }

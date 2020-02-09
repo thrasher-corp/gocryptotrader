@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -83,6 +84,7 @@ func areTestAPIKeysSet() bool {
 }
 
 func testStandardErrorHandling(t *testing.T, err error) {
+	t.Helper()
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
@@ -148,7 +150,7 @@ func TestAccountWithdrawRequest(t *testing.T) {
 		Currency:    currency.BTC.String(),
 		TradePwd:    "1234",
 		Destination: 4,
-		ToAddress:   "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		ToAddress:   core.BitcoinDonationAddress,
 		Fee:         1,
 	}
 	_, err := o.AccountWithdraw(request)
@@ -1013,7 +1015,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = order.Cancel{
 		OrderID:       "1",
-		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		CurrencyPair:  currencyPair,
 	}
@@ -1028,7 +1030,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = order.Cancel{
 		OrderID:       "1",
-		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		CurrencyPair:  currencyPair,
 	}
@@ -1042,7 +1044,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 // TestGetAccountInfo Wrapper test
 func TestGetAccountInfo(t *testing.T) {
-	_, err := o.GetAccountInfo()
+	_, err := o.UpdateAccountInfo()
 	testStandardErrorHandling(t, err)
 }
 

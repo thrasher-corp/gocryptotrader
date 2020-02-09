@@ -81,6 +81,7 @@ matrix:
         - PSQL_SSLMODE=disable
         - PSQL_SKIPSQLCMD=true
         - PSQL_TESTDBNAME=gct_dev_ci
+        - MACOSX_DEPLOYMENT_TARGET=10.15
       install: true
       cache:
         directories:

@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -88,8 +89,9 @@ func main() {
 	log.Println("Testing exchange wrappers..")
 	var exchangeResponses []ExchangeResponses
 
-	for x := range engine.Bot.Exchanges {
-		base := engine.Bot.Exchanges[x].GetBase()
+	exchs := engine.GetExchanges()
+	for x := range exchs {
+		base := exchs[x].GetBase()
 		if !base.Config.Enabled {
 			log.Printf("Exchange %v not enabled, skipping", base.GetName())
 			continue
@@ -101,13 +103,13 @@ func main() {
 		wg.Add(1)
 
 		go func(num int) {
-			name := engine.Bot.Exchanges[num].GetName()
+			name := exchs[num].GetName()
 			authenticated := setExchangeAPIKeys(name, wrapperConfig.Exchanges, base)
 			wrapperResult := ExchangeResponses{
 				ID:                 fmt.Sprintf("Exchange%v", num),
 				ExchangeName:       name,
 				APIKeysSet:         authenticated,
-				AssetPairResponses: testWrappers(engine.Bot.Exchanges[num], base, &wrapperConfig),
+				AssetPairResponses: testWrappers(exchs[num], base, &wrapperConfig),
 			}
 			for i := range wrapperResult.AssetPairResponses {
 				wrapperResult.ErrorCount += wrapperResult.AssetPairResponses[i].ErrorCount
@@ -399,15 +401,15 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			})
 		}
 
-		var r7 exchange.AccountInfo
-		r7, err = e.GetAccountInfo()
+		var r7 account.Holdings
+		r7, err = e.FetchAccountInfo()
 		msg = ""
 		if err != nil {
 			msg = err.Error()
 			responseContainer.ErrorCount++
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "GetAccountInfo",
+			Function: "FetchAccountInfo",
 			Error:    msg,
 			Response: jsonifyInterface([]interface{}{r7}),
 		})

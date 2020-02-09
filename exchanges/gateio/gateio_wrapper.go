@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -113,9 +114,8 @@ func (g *Gateio) SetDefaults() {
 	}
 
 	g.Requester = request.New(g.Name,
-		request.NewRateLimit(time.Second*10, gateioAuthRate),
-		request.NewRateLimit(time.Second*10, gateioUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		nil)
 
 	g.API.Endpoints.URLDefault = gateioTradeURL
 	g.API.Endpoints.URL = g.API.Endpoints.URLDefault
@@ -306,26 +306,26 @@ func (g *Gateio) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 	return orderbook.Get(g.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // ZB exchange
-func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
-	var info exchange.AccountInfo
-	var balances []exchange.AccountCurrencyInfo
+func (g *Gateio) UpdateAccountInfo() (account.Holdings, error) {
+	var info account.Holdings
+	var balances []account.Balance
 
 	if g.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		resp, err := g.wsGetBalance([]string{})
 		if err != nil {
 			return info, err
 		}
-		var currData []exchange.AccountCurrencyInfo
+		var currData []account.Balance
 		for k := range resp.Result {
-			currData = append(currData, exchange.AccountCurrencyInfo{
+			currData = append(currData, account.Balance{
 				CurrencyName: currency.NewCode(k),
 				TotalValue:   resp.Result[k].Available + resp.Result[k].Freeze,
 				Hold:         resp.Result[k].Freeze,
 			})
 		}
-		info.Accounts = append(info.Accounts, exchange.Account{
+		info.Accounts = append(info.Accounts, account.SubAccount{
 			Currencies: currData,
 		})
 	} else {
@@ -342,7 +342,7 @@ func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
 					return info, err
 				}
 
-				balances = append(balances, exchange.AccountCurrencyInfo{
+				balances = append(balances, account.Balance{
 					CurrencyName: currency.NewCode(x),
 					Hold:         lockedF,
 				})
@@ -368,7 +368,7 @@ func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
 					}
 				}
 				if !updated {
-					balances = append(balances, exchange.AccountCurrencyInfo{
+					balances = append(balances, account.Balance{
 						CurrencyName: currency.NewCode(x),
 						TotalValue:   availAmount,
 					})
@@ -378,14 +378,28 @@ func (g *Gateio) GetAccountInfo() (exchange.AccountInfo, error) {
 			break
 		}
 
-		info.Accounts = append(info.Accounts, exchange.Account{
+		info.Accounts = append(info.Accounts, account.SubAccount{
 			Currencies: balances,
 		})
 	}
 
 	info.Exchange = g.Name
+	err := account.Process(&info)
+	if err != nil {
+		return account.Holdings{}, err
+	}
 
 	return info, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (g *Gateio) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(g.Name)
+	if err != nil {
+		return g.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -692,4 +706,11 @@ func (g *Gateio) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, e
 func (g *Gateio) AuthenticateWebsocket() error {
 	_, err := g.wsServerSignIn()
 	return err
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (g *Gateio) ValidateCredentials() error {
+	_, err := g.UpdateAccountInfo()
+	return g.CheckTransientError(err)
 }

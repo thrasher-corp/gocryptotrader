@@ -19,9 +19,6 @@ const (
 	fixerAPITimeSeries       = "timeseries"
 	fixerAPIFluctuation      = "fluctuation"
 	fixerSupportedCurrencies = "symbols"
-
-	authRate   = 0
-	unAuthRate = 0
 )
 
 // Fixer is a foreign exchange rate provider at https://fixer.io/

@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -521,7 +522,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
-		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		CurrencyPair:  currencyPair,
 	}
@@ -544,7 +545,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = order.Cancel{
 		OrderID:       "1",
-		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		CurrencyPair:  currencyPair,
 	}
@@ -565,12 +566,12 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
-		_, err := h.GetAccountInfo()
+		_, err := h.UpdateAccountInfo()
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}
 	} else {
-		_, err := h.GetAccountInfo()
+		_, err := h.UpdateAccountInfo()
 		if err != nil {
 			t.Error("GetAccountInfo() error", err)
 		}
@@ -593,7 +594,7 @@ func TestWithdraw(t *testing.T) {
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
 		Crypto: &withdraw.CryptoRequest{
-			Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+			Address: core.BitcoinDonationAddress,
 		},
 	}
 
@@ -634,10 +635,23 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	}
 }
 
-func TestGetDepositAddress(t *testing.T) {
-	_, err := h.GetDepositAddress(currency.BTC, "")
-	if err == nil {
-		t.Error("GetDepositAddress() error cannot be nil")
+func TestQueryDepositAddress(t *testing.T) {
+	_, err := h.QueryDepositAddress(currency.BTC.Lower().String())
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Error(err)
+	}
+}
+
+func TestQueryWithdrawQuota(t *testing.T) {
+	_, err := h.QueryWithdrawQuotas(currency.BTC.Lower().String())
+	if !areTestAPIKeysSet() && err == nil {
+		t.Error("Expecting an error when no keys are set")
+	}
+	if areTestAPIKeysSet() && err != nil {
+		t.Error(err)
 	}
 }
 

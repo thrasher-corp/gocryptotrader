@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -322,7 +323,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		"-")
 	var orderCancellation = &order.Cancel{
 		OrderID:       "b334ecef-2b42-4998-b8a4-b6b14f6d2671",
-		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		CurrencyPair:  currencyPair,
 	}
@@ -342,7 +343,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		"-")
 	var orderCancellation = &order.Cancel{
 		OrderID:       "1",
-		WalletAddress: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		CurrencyPair:  currencyPair,
 	}

@@ -9,10 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"golang.org/x/crypto/scrypt"
 )
 
@@ -35,7 +35,7 @@ var (
 
 // PromptForConfigEncryption asks for encryption key
 func (c *Config) PromptForConfigEncryption(configPath string, dryrun bool) bool {
-	fmt.Println("Would you like to encrypt your config file (y/n)?")
+	log.Println("Would you like to encrypt your config file (y/n)?")
 
 	input := ""
 	_, err := fmt.Scanln(&input)
@@ -47,7 +47,7 @@ func (c *Config) PromptForConfigEncryption(configPath string, dryrun bool) bool 
 		c.EncryptConfig = fileEncryptionDisabled
 		err := c.SaveConfig(configPath, dryrun)
 		if err != nil {
-			log.Errorf(log.ConfigMgr, "cannot save config %s", err)
+			log.Printf("Cannot save config. Error: %s\n", err)
 		}
 		return false
 	}
@@ -59,7 +59,7 @@ func PromptForConfigKey(initialSetup bool) ([]byte, error) {
 	var cryptoKey []byte
 
 	for {
-		fmt.Println("Please enter in your password: ")
+		log.Println("Please enter in your password: ")
 		pwPrompt := func(i *[]byte) error {
 			_, err := fmt.Scanln(i)
 			return err
@@ -77,7 +77,7 @@ func PromptForConfigKey(initialSetup bool) ([]byte, error) {
 		}
 
 		var p2 []byte
-		fmt.Println("Please re-enter your password: ")
+		log.Println("Please re-enter your password: ")
 		err = pwPrompt(&p2)
 		if err != nil {
 			return nil, err
@@ -87,7 +87,7 @@ func PromptForConfigKey(initialSetup bool) ([]byte, error) {
 			cryptoKey = p1
 			break
 		}
-		fmt.Printf("Passwords did not match, please try again.")
+		log.Println("Passwords did not match, please try again.")
 	}
 	return cryptoKey, nil
 }

@@ -119,7 +119,6 @@ type ExchangeConfig struct {
 	HTTPTimeout                   time.Duration          `json:"httpTimeout"`
 	HTTPUserAgent                 string                 `json:"httpUserAgent,omitempty"`
 	HTTPDebugging                 bool                   `json:"httpDebugging,omitempty"`
-	HTTPRateLimiter               *HTTPRateLimitConfig   `json:"httpRateLimiter,omitempty"`
 	WebsocketResponseCheckTimeout time.Duration          `json:"websocketResponseCheckTimeout"`
 	WebsocketResponseMaxLimit     time.Duration          `json:"websocketResponseMaxLimit"`
 	WebsocketTrafficTimeout       time.Duration          `json:"websocketTrafficTimeout"`
@@ -377,16 +376,4 @@ type APIConfig struct {
 	Endpoints            APIEndpointsConfig             `json:"endpoints"`
 	Credentials          APICredentialsConfig           `json:"credentials"`
 	CredentialsValidator *APICredentialsValidatorConfig `json:"credentialsValidator,omitempty"`
-}
-
-// HTTPRateConfig stores the exchanges HTTP rate limiter config
-type HTTPRateConfig struct {
-	Duration time.Duration `json:"duration"`
-	Rate     int           `json:"rate"`
-}
-
-// HTTPRateLimitConfig stores the rate limit config
-type HTTPRateLimitConfig struct {
-	Unauthenticated HTTPRateConfig `json:"unauthenticated"`
-	Authenticated   HTTPRateConfig `json:"authenticated"`
 }

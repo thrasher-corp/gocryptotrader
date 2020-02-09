@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -103,9 +104,8 @@ func (b *Bithumb) SetDefaults() {
 	}
 
 	b.Requester = request.New(b.Name,
-		request.NewRateLimit(time.Second, bithumbAuthRate),
-		request.NewRateLimit(time.Second, bithumbUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		SetRateLimit())
 
 	b.API.Endpoints.URLDefault = apiURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
@@ -257,16 +257,16 @@ func (b *Bithumb) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*order
 	return orderbook.Get(b.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Bithumb exchange
-func (b *Bithumb) GetAccountInfo() (exchange.AccountInfo, error) {
-	var info exchange.AccountInfo
+func (b *Bithumb) UpdateAccountInfo() (account.Holdings, error) {
+	var info account.Holdings
 	bal, err := b.GetAccountBalance("ALL")
 	if err != nil {
 		return info, err
 	}
 
-	var exchangeBalances []exchange.AccountCurrencyInfo
+	var exchangeBalances []account.Balance
 	for key, totalAmount := range bal.Total {
 		hold, ok := bal.InUse[key]
 		if !ok {
@@ -274,19 +274,34 @@ func (b *Bithumb) GetAccountInfo() (exchange.AccountInfo, error) {
 				key)
 		}
 
-		exchangeBalances = append(exchangeBalances, exchange.AccountCurrencyInfo{
+		exchangeBalances = append(exchangeBalances, account.Balance{
 			CurrencyName: currency.NewCode(key),
 			TotalValue:   totalAmount,
 			Hold:         hold,
 		})
 	}
 
-	info.Accounts = append(info.Accounts, exchange.Account{
+	info.Accounts = append(info.Accounts, account.SubAccount{
 		Currencies: exchangeBalances,
 	})
 
 	info.Exchange = b.Name
+	err = account.Process(&info)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return info, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (b *Bithumb) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(b.Name)
+	if err != nil {
+		return b.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -569,4 +584,11 @@ func (b *Bithumb) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, 
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (b *Bithumb) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (b *Bithumb) ValidateCredentials() error {
+	_, err := b.UpdateAccountInfo()
+	return b.CheckTransientError(err)
 }

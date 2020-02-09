@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -114,9 +115,8 @@ func (c *COINUT) SetDefaults() {
 	}
 
 	c.Requester = request.New(c.Name,
-		request.NewRateLimit(time.Second, coinutAuthRate),
-		request.NewRateLimit(time.Second, coinutUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		nil)
 
 	c.API.Endpoints.URLDefault = coinutAPIURL
 	c.API.Endpoints.URL = c.API.Endpoints.URLDefault
@@ -260,10 +260,10 @@ func (c *COINUT) UpdateTradablePairs(forceUpdate bool) error {
 		asset.Spot, false, forceUpdate)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // COINUT exchange
-func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
-	var info exchange.AccountInfo
+func (c *COINUT) UpdateAccountInfo() (account.Holdings, error) {
+	var info account.Holdings
 	var bal *UserBalance
 	var err error
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -280,7 +280,7 @@ func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 		}
 	}
 
-	var balances = []exchange.AccountCurrencyInfo{
+	var balances = []account.Balance{
 		{
 			CurrencyName: currency.BCH,
 			TotalValue:   bal.BCH,
@@ -339,11 +339,26 @@ func (c *COINUT) GetAccountInfo() (exchange.AccountInfo, error) {
 		},
 	}
 	info.Exchange = c.Name
-	info.Accounts = append(info.Accounts, exchange.Account{
+	info.Accounts = append(info.Accounts, account.SubAccount{
 		Currencies: balances,
 	})
 
+	err = account.Process(&info)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return info, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (c *COINUT) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(c.Name)
+	if err != nil {
+		return c.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -886,4 +901,11 @@ func (c *COINUT) loadInstrumentsIfNotLoaded() error {
 		}
 	}
 	return nil
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (c *COINUT) ValidateCredentials() error {
+	_, err := c.UpdateAccountInfo()
+	return c.CheckTransientError(err)
 }

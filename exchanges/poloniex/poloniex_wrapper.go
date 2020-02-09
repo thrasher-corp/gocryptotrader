@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -110,9 +111,8 @@ func (p *Poloniex) SetDefaults() {
 	}
 
 	p.Requester = request.New(p.Name,
-		request.NewRateLimit(time.Second, poloniexAuthRate),
-		request.NewRateLimit(time.Second, poloniexUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		SetRateLimit())
 
 	p.API.Endpoints.URLDefault = poloniexAPIURL
 	p.API.Endpoints.URL = p.API.Endpoints.URLDefault
@@ -321,29 +321,44 @@ func (p *Poloniex) UpdateOrderbook(currencyPair currency.Pair, assetType asset.I
 	return orderbook.Get(p.Name, currencyPair, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Poloniex exchange
-func (p *Poloniex) GetAccountInfo() (exchange.AccountInfo, error) {
-	var response exchange.AccountInfo
+func (p *Poloniex) UpdateAccountInfo() (account.Holdings, error) {
+	var response account.Holdings
 	response.Exchange = p.Name
 	accountBalance, err := p.GetBalances()
 	if err != nil {
 		return response, err
 	}
 
-	var currencies []exchange.AccountCurrencyInfo
+	var currencies []account.Balance
 	for x, y := range accountBalance.Currency {
-		var exchangeCurrency exchange.AccountCurrencyInfo
+		var exchangeCurrency account.Balance
 		exchangeCurrency.CurrencyName = currency.NewCode(x)
 		exchangeCurrency.TotalValue = y
 		currencies = append(currencies, exchangeCurrency)
 	}
 
-	response.Accounts = append(response.Accounts, exchange.Account{
+	response.Accounts = append(response.Accounts, account.SubAccount{
 		Currencies: currencies,
 	})
 
+	err = account.Process(&response)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
 	return response, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (p *Poloniex) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(p.Name)
+	if err != nil {
+		return p.UpdateAccountInfo()
+	}
+
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -610,4 +625,11 @@ func (p *Poloniex) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription,
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (p *Poloniex) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func (p *Poloniex) ValidateCredentials() error {
+	_, err := p.UpdateAccountInfo()
+	return p.CheckTransientError(err)
 }

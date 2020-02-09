@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/management/banking"
 )
@@ -34,7 +35,7 @@ var (
 
 	validCryptoRequest = &Request{
 		Crypto: &CryptoRequest{
-			Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+			Address: core.BitcoinDonationAddress,
 		},
 		Currency:    currency.BTC,
 		Description: "Test Withdrawal",

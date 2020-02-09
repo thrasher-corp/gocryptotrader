@@ -1,21 +1,28 @@
 package engine
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
+	"net"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-)
-
-const (
-	TestConfig = "../testdata/configtest.json"
 )
 
 var (
@@ -29,7 +36,7 @@ func SetupTestHelpers(t *testing.T) {
 				Bot = new(Engine)
 			}
 			Bot.Config = &config.Cfg
-			err := Bot.Config.LoadConfig("../testdata/configtest.json", true)
+			err := Bot.Config.LoadConfig(config.TestFile, true)
 			if err != nil {
 				t.Fatalf("SetupTest: Failed to load config: %s", err)
 			}
@@ -453,13 +460,13 @@ func TestGetSpecificTicker(t *testing.T) {
 func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 	SetupTestHelpers(t)
 
-	var exchangeInfo []exchange.AccountInfo
-	var info exchange.AccountInfo
+	var exchangeInfo []account.Holdings
 
-	info.Exchange = "Bitfinex"
-	info.Accounts = append(info.Accounts,
-		exchange.Account{
-			Currencies: []exchange.AccountCurrencyInfo{
+	var bitfinexHoldings account.Holdings
+	bitfinexHoldings.Exchange = "Bitfinex"
+	bitfinexHoldings.Accounts = append(bitfinexHoldings.Accounts,
+		account.SubAccount{
+			Currencies: []account.Balance{
 				{
 					CurrencyName: currency.BTC,
 					TotalValue:   100,
@@ -468,21 +475,27 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 			},
 		})
 
-	exchangeInfo = append(exchangeInfo, info)
+	exchangeInfo = append(exchangeInfo, bitfinexHoldings)
 
-	info.Exchange = "Bitstamp"
-	info.Accounts = append(info.Accounts,
-		exchange.Account{
-			Currencies: []exchange.AccountCurrencyInfo{
+	var bitstampHoldings account.Holdings
+	bitstampHoldings.Exchange = "Bitstamp"
+	bitstampHoldings.Accounts = append(bitstampHoldings.Accounts,
+		account.SubAccount{
+			Currencies: []account.Balance{
 				{
 					CurrencyName: currency.LTC,
+					TotalValue:   100,
+					Hold:         0,
+				},
+				{
+					CurrencyName: currency.BTC,
 					TotalValue:   100,
 					Hold:         0,
 				},
 			},
 		})
 
-	exchangeInfo = append(exchangeInfo, info)
+	exchangeInfo = append(exchangeInfo, bitstampHoldings)
 
 	result := GetCollatedExchangeAccountInfoByCoin(exchangeInfo)
 	if len(result) == 0 {
@@ -501,40 +514,6 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 	_, ok = result[currency.ETH]
 	if ok {
 		t.Fatal("Unexpected result")
-	}
-}
-
-func TestGetAccountCurrencyInfoByExchangeName(t *testing.T) {
-	SetupTestHelpers(t)
-
-	var exchangeInfo []exchange.AccountInfo
-	var info exchange.AccountInfo
-	info.Exchange = "Bitfinex"
-	info.Accounts = append(info.Accounts,
-		exchange.Account{
-			Currencies: []exchange.AccountCurrencyInfo{
-				{
-					CurrencyName: currency.BTC,
-					TotalValue:   100,
-					Hold:         0,
-				},
-			},
-		})
-
-	exchangeInfo = append(exchangeInfo, info)
-
-	result, err := GetAccountCurrencyInfoByExchangeName(exchangeInfo, "Bitfinex")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if result.Exchange != "Bitfinex" {
-		t.Fatal("Unexepcted result")
-	}
-
-	_, err = GetAccountCurrencyInfoByExchangeName(exchangeInfo, "ASDF")
-	if err != ErrExchangeNotFound {
-		t.Fatal("Unexepcted result")
 	}
 }
 
@@ -588,5 +567,169 @@ func TestGetCryptocurrenciesByExchange(t *testing.T) {
 	_, err := GetCryptocurrenciesByExchange("Bitfinex", false, false, asset.Spot)
 	if err != nil {
 		t.Fatalf("Err %s", err)
+	}
+}
+
+func TestGetExchangeNames(t *testing.T) {
+	SetupTest(t)
+	if e := GetExchangeNames(true); len(e) == 0 {
+		t.Error("exchange names should be populated")
+	}
+	if err := UnloadExchange(testExchange); err != nil {
+		t.Fatal(err)
+	}
+	if e := GetExchangeNames(true); common.StringDataCompare(e, testExchange) {
+		t.Error("Bitstamp should be missing")
+	}
+	if e := GetExchangeNames(false); len(e) != 27 {
+		t.Error("len should be all available exchanges")
+	}
+}
+
+func mockCert(derType string, notAfter time.Time) ([]byte, error) {
+	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		return nil, err
+	}
+
+	host, err := os.Hostname()
+	if err != nil {
+		return nil, err
+	}
+
+	dnsNames := []string{host}
+	if host != "localhost" {
+		dnsNames = append(dnsNames, "localhost")
+	}
+
+	if notAfter.IsZero() {
+		notAfter = time.Now().Add(time.Hour * 24 * 365)
+	}
+
+	template := x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			Organization: []string{"gocryptotrader"},
+			CommonName:   host,
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              notAfter,
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		IPAddresses: []net.IP{
+			net.ParseIP("127.0.0.1"),
+			net.ParseIP("::1"),
+		},
+		DNSNames: dnsNames,
+	}
+
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &privKey.PublicKey, privKey)
+	if err != nil {
+		return nil, err
+	}
+
+	if derType == "" {
+		derType = "CERTIFICATE"
+	}
+
+	certData := pem.EncodeToMemory(&pem.Block{Type: derType, Bytes: derBytes})
+	if certData == nil {
+		return nil, err
+	}
+
+	return certData, nil
+}
+
+func TestVerifyCert(t *testing.T) {
+	t.Parallel()
+
+	tester := []struct {
+		PEMType       string
+		CreateBypass  bool
+		NotAfter      time.Time
+		ErrorExpected error
+	}{
+		{
+			ErrorExpected: nil,
+		},
+		{
+			CreateBypass:  true,
+			ErrorExpected: errCertDataIsNil,
+		},
+		{
+			PEMType:       "MEOW",
+			ErrorExpected: errCertTypeInvalid,
+		},
+		{
+			NotAfter:      time.Now().Add(-time.Hour),
+			ErrorExpected: errCertExpired,
+		},
+	}
+
+	for x := range tester {
+		var cert []byte
+		var err error
+		if !tester[x].CreateBypass {
+			cert, err = mockCert(tester[x].PEMType, tester[x].NotAfter)
+			if err != nil {
+				t.Errorf("test %d unexpected error: %s", x, err)
+				continue
+			}
+		}
+		err = verifyCert(cert)
+		if err != tester[x].ErrorExpected {
+			t.Fatalf("test %d expected %v, got %v", x, tester[x].ErrorExpected, err)
+		}
+	}
+}
+
+func TestCheckAndGenCerts(t *testing.T) {
+	t.Parallel()
+
+	tempDir := filepath.Join(os.TempDir(), "gct-temp-tls")
+	cleanup := func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Errorf("unable to remove temp dir %s, manual deletion required", tempDir)
+		}
+	}
+
+	if err := genCert(tempDir); err != nil {
+		cleanup()
+		t.Fatal(err)
+	}
+
+	defer cleanup()
+	if err := checkCerts(tempDir); err != nil {
+		t.Fatal(err)
+	}
+
+	// Now delete cert.pem and test regeneration of cert/key files
+	certFile := filepath.Join(tempDir, "cert.pem")
+	if err := os.Remove(certFile); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkCerts(tempDir); err != nil {
+		t.Fatal(err)
+	}
+
+	// Now call checkCerts to test an expired cert
+	certData, err := mockCert("", time.Now().Add(-time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = file.Write(certFile, certData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = checkCerts(tempDir); err != nil {
+		t.Fatal(err)
 	}
 }
