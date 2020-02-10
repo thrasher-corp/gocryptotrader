@@ -47,6 +47,18 @@ func (p *Poloniex) WsConnect() error {
 		return err
 	}
 
+	err2 := p.getCurrencyIDMap()
+	if err2 != nil {
+		return err2
+	}
+
+	go p.wsReadData()
+	p.GenerateDefaultSubscriptions()
+
+	return nil
+}
+
+func (p *Poloniex) getCurrencyIDMap() error {
 	if currencyIDMap == nil {
 		currencyIDMap = make(map[float64]string)
 		resp, err := p.GetTicker()
@@ -58,10 +70,6 @@ func (p *Poloniex) WsConnect() error {
 			currencyIDMap[v.ID] = k
 		}
 	}
-
-	go p.wsReadData()
-	p.GenerateDefaultSubscriptions()
-
 	return nil
 }
 
@@ -146,7 +154,7 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 					// TODO what do?
 					return nil
 				}
-				subData := data[2].([]interface{})
+					subData := data[2].([]interface{})
 				for x := range subData {
 					dataL2 := subData[x]
 					dataL3 := dataL2.([]interface{})

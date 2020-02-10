@@ -484,13 +484,12 @@ func TestWsBalanceUpdate(t *testing.T) {
 	}
 }
 
-func TestWsLimitOrder(t *testing.T) {
-	pressXToJSON := []byte(`[147, 1]`)
-	err := p.wsHandleData(pressXToJSON)
+func TestWsTicker(t *testing.T) {
+	err := p.getCurrencyIDMap()
 	if err != nil {
 		t.Error(err)
 	}
-	pressXToJSON = []byte(`["n", 148, 6083059, 1, "0.03000000", "2.00000000", "2018-09-08 04:54:09", "2.00000000", "12345"]`)
+	pressXToJSON := []byte(`[ 1002, null, [ 149, "382.98901522", "381.99755898", "379.41296309", "-0.04312950", "14969820.94951828", "38859.58435407", 0, "412.25844455", "364.56122072" ] ]`)
 	err = p.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
