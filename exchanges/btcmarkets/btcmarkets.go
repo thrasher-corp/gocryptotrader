@@ -230,7 +230,7 @@ func (b *BTCMarkets) GetMarketCandles(marketID, timeWindow, from, to string, bef
 }
 
 // GetTickers gets multiple tickers
-func (b *BTCMarkets) GetTickers(marketIDs []currency.Pair) ([]Ticker, error) {
+func (b *BTCMarkets) GetTickers(marketIDs currency.Pairs) ([]Ticker, error) {
 	var tickers []Ticker
 	params := url.Values{}
 	for x := range marketIDs {

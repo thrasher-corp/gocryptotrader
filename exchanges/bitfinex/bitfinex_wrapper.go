@@ -58,8 +58,12 @@ func (b *Bitfinex) SetDefaults() {
 	b.CurrencyPairs = currency.PairsManager{
 		AssetTypes: asset.Items{
 			asset.Spot,
+			asset.Margin,
+			asset.MarginFunding,
 		},
-		UseGlobalFormat: true,
+	}
+
+	fmt1 := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 		},
@@ -67,6 +71,10 @@ func (b *Bitfinex) SetDefaults() {
 			Uppercase: true,
 		},
 	}
+
+	b.CurrencyPairs.Store(asset.Spot, fmt1)
+	b.CurrencyPairs.Store(asset.Margin, fmt1)
+	b.CurrencyPairs.Store(asset.MarginFunding, fmt1)
 
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
@@ -241,6 +249,13 @@ func (b *Bitfinex) FetchTradablePairs(a asset.Item) ([]string, error) {
 			symbols = append(symbols, k[1:])
 		}
 	case asset.Margin:
+		for k := range items {
+			if !strings.Contains(k, ":") {
+				continue
+			}
+			symbols = append(symbols, k[1:])
+		}
+	case asset.MarginFunding:
 		for k := range items {
 			if !strings.HasPrefix(k, "f") {
 				continue

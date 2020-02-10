@@ -71,3 +71,37 @@ const (
 
 // delimiters is a delimiter list
 var delimiters = []string{Underscore, Dash, ForwardSlash, Colon}
+
+// Slice interface defines a slice of currency items
+type Slice interface {
+	Strings() []string
+	Join() string
+	Format(delimiter, index string, uppercase bool) Slice
+	UnmarshalJSON(d []byte) error
+	MarshalJSON() ([]byte, error)
+	Contains(check Pair, exact bool) bool
+	RemovePairsByFilter(filter Code) Slice
+	Remove(pair Singular) Slice
+	Add(pair Singular) Slice
+	FindDifferences(pairs Slice) (newPairs, removedPairs Pairs)
+	GetRandomPair() Singular
+}
+
+// Singular defines a singular currency item
+type Singular interface {
+	String() string
+	Lower() Singular
+	Upper() Singular
+	UnmarshalJSON(d []byte) error
+	MarshalJSON() ([]byte, error)
+	Format(delimiter string, uppercase bool) Singular
+	Equal(item Singular) bool
+	EqualIncludeReciprocal(item Singular) bool
+	IsCryptoPair() bool
+	IsCryptoFiatPair() bool
+	IsFiatPair() bool
+	IsInvalid() bool
+	Swap() Singular
+	IsEmpty() bool
+	ContainsCurrency(item Singular) bool
+}

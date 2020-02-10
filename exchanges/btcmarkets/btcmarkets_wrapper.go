@@ -264,7 +264,7 @@ func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticke
 		return nil, err
 	}
 
-	tickers, err := b.GetTickers(allPairs.Slice())
+	tickers, err := b.GetTickers(allPairs)
 	if err != nil {
 		return nil, err
 	}

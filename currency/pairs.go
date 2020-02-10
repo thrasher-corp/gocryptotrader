@@ -84,8 +84,9 @@ func (p *Pairs) UnmarshalJSON(d []byte) error {
 	}
 
 	var allThePairs Pairs
-	for _, data := range strings.Split(pairs, ",") {
-		pair, err := NewPairFromString(data)
+	oldPairs := strings.Split(pairs, ",")
+	for i := range oldPairs {
+		pair, err := NewPairFromString(oldPairs[i])
 		if err != nil {
 			return err
 		}
@@ -110,21 +111,16 @@ func (p Pairs) Upper() Pairs {
 	return upper
 }
 
-// Slice exposes the underlying type
-func (p Pairs) Slice() []Pair {
-	return p
-}
-
 // Contains checks to see if a specified pair exists inside a currency pair
 // array
 func (p Pairs) Contains(check Pair, exact bool) bool {
-	for _, pair := range p.Slice() {
+	for i := range p {
 		if exact {
-			if pair.Equal(check) {
+			if p[i].Equal(check) {
 				return true
 			}
 		} else {
-			if pair.EqualIncludeReciprocal(check) {
+			if p[i].EqualIncludeReciprocal(check) {
 				return true
 			}
 		}
@@ -136,11 +132,11 @@ func (p Pairs) Contains(check Pair, exact bool) bool {
 // and removes it from the list of pairs
 func (p Pairs) RemovePairsByFilter(filter Code) Pairs {
 	var pairs Pairs
-	for _, pair := range p.Slice() {
-		if pair.ContainsCurrency(filter) {
+	for i := range p {
+		if p[i].ContainsCurrency(filter) {
 			continue
 		}
-		pairs = append(pairs, pair)
+		pairs = append(pairs, p[i])
 	}
 	return pairs
 }
@@ -176,12 +172,12 @@ func (p Pairs) FindDifferences(pairs Pairs) (newPairs, removedPairs Pairs) {
 			newPairs = append(newPairs, pairs[x])
 		}
 	}
-	for _, oldPair := range p {
-		if oldPair.String() == "" {
+	for x := range p {
+		if p[x].String() == "" {
 			continue
 		}
-		if !pairs.Contains(oldPair, true) {
-			removedPairs = append(removedPairs, oldPair)
+		if !pairs.Contains(p[x], true) {
+			removedPairs = append(removedPairs, p[x])
 		}
 	}
 	return
@@ -197,6 +193,3 @@ func (p Pairs) GetRandomPair() Pair {
 
 	return p[rand.Intn(pairsLen)]
 }
-
-// Pairs defines a list of pairs
-type Pairs []Pair

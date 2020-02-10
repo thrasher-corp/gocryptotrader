@@ -14,6 +14,7 @@ type Items []Item
 const (
 	Spot                   = Item("spot")
 	Margin                 = Item("margin")
+	MarginFunding          = Item("marginfunding")
 	Index                  = Item("index")
 	Binary                 = Item("binary")
 	PerpetualContract      = Item("perpetualcontract")
@@ -26,6 +27,7 @@ const (
 var supported = Items{
 	Spot,
 	Margin,
+	MarginFunding,
 	Index,
 	Binary,
 	PerpetualContract,
