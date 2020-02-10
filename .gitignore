@@ -30,4 +30,4 @@ sqlboiler.toml
 sqlboiler.json
 
 # GCT API Check
-backuptest.json
+backup.json
