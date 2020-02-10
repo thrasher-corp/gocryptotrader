@@ -90,7 +90,7 @@ func main() {
 		log.Fatal(err)
 	}
 	if CanUpdateTrello() {
-		UpdateFile(&configData, backupFile)
+		err = UpdateFile(&configData, backupFile)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -108,6 +108,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		log.Printf("api update check completed successfully")
 	}
 }
 
@@ -141,7 +142,7 @@ func getSha(repoPath string) (ShaResponse, error) {
 	var resp ShaResponse
 	path := fmt.Sprintf(githubPath, repoPath)
 	if verbose {
-		fmt.Printf("Getting SHA of this path: %v\n", path)
+		log.Printf("Getting SHA of this path: %v\n", path)
 	}
 	return resp, common.SendHTTPGetRequest(path, true, verbose, &resp)
 }
@@ -263,7 +264,7 @@ func CheckUpdates(fileName string, confData *Config) error {
 		log.Printf("The following exchanges need an update: %v\n", resp)
 		log.Printf("Errors: %v", errMap)
 		unsup := CheckMissingExchanges(&configData)
-		log.Printf("Following are the exchanges that are supported by GCT but not by apichecker: %v\n", unsup)
+		log.Printf("Following exchanges are not supported by apichecker: %v\n", unsup)
 	}
 	return ioutil.WriteFile(fileName, file, 0770)
 }
@@ -1086,12 +1087,11 @@ func HTMLScrapeLocalBitcoins(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	abody := string(a)
 	r, err := regexp.Compile(htmlData.RegExp)
 	if err != nil {
 		return nil, err
 	}
-	str := r.FindString(abody)
+	str := r.FindString(string(a))
 	sha := crypto.GetSHA256([]byte(str))
 	var resp []string
 	resp = append(resp, crypto.HexEncodeToString(sha))
@@ -1101,7 +1101,7 @@ func HTMLScrapeLocalBitcoins(htmlData *HTMLScrapingData) ([]string, error) {
 // TrelloGetListsData gets required data for all the lists on the given trello board
 func TrelloGetListsData(idBoard string) ([]ListData, error) {
 	var resp []ListData
-	err := SendHTTPRequest(pathGetAllLists+idBoard+apiKey+apiToken, &resp)
+	err := common.SendHTTPGetRequest(pathGetAllLists+idBoard+apiKey+apiToken, true, verbose, &resp)
 	if err != nil {
 		return resp, err
 	}
@@ -1195,11 +1195,6 @@ func TrelloUpdateCheckItem(checkItemID, name, state string) error {
 	path := fmt.Sprintf(pathUpdateItems, trelloCardID, checkItemID, params.Encode(), configData.Key, configData.Token)
 	_, err = common.SendHTTPRequest(http.MethodPut, path, nil, nil)
 	return err
-}
-
-// SendHTTPRequest sends an unauthenticated HTTP request
-func SendHTTPRequest(path string, result interface{}) error {
-	return common.SendHTTPGetRequest(path, true, verbose, result)
 }
 
 // Update updates the exchange data

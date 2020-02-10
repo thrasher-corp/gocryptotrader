@@ -1,8 +1,46 @@
 {{define "cmd apichecker" -}}
 {{template "header" .}}
 ## Current Features for {{.Name}}
-Checks for API updates
-Can automatically update trello checklist for the updates required
+
++ Checks for API updates
++ Can automatically update Trello checklist for the updates required
+
+## Usage
+
++ To run a real check for updates, parse Trello API info as flags or add them to the updates.json file and use the following command from apichecker folder in GCT:
+```bash
+go build && apichecker.exe --verbose
+```
+
++ Upon addition of a new exchange, to update Trello checklist and to add the exchange to updates.json the following would need to be done:
+
+#### HTML Scraping method:
+```go
+func TestAdd(t *testing.T) {
+	t.Parallel()
+	data := HTMLScrapingData{TokenData: "div",
+		Key:    "class",
+		Val:    "col-md-12",
+		RegExp: "col-md-12([\\s\\S]*?)clearfix",
+		Path:   "https://localbitcoins.com/api-docs/"}
+	err := Add("LocalBitcoins", htmlScrape, data.Path, data, true, &testConfigData)
+	if err != nil {
+		t.Error(err)
+    }
+}
+```
+
+#### Github SHA Check Method:
+```go
+func TestAdd(t *testing.T) {
+	t.Parallel()
+	data := GithubData{Repo: "LBank-exchange/lbank-official-api-docs"}
+	err := Add("Lbank", github, fmt.Sprintf(githubPath, data.Repo), data, false, &configData)
+	if err != nil {
+		t.Error(err)
+    }
+}
+```
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 {{template "contributions"}}

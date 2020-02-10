@@ -350,7 +350,7 @@ func TestHTMLLocalBitcoins(t *testing.T) {
 	}
 }
 
-func TestGetListsData(t *testing.T) {
+func TestTrelloGetListsData(t *testing.T) {
 	t.Parallel()
 	if !CanUpdateTrello() {
 		t.Skip()
@@ -434,7 +434,7 @@ func TestUpdateCheckItem(t *testing.T) {
 	if !CanUpdateTrello() {
 		t.Skip()
 	}	
-	err := TrelloUpdateCheckItem("5dfc604fe901ac6a592e9b75", "Gemini 1", "incomplete")
+	err := TrelloUpdateCheckItem(trelloListID, "Gemini 1", "incomplete")
 	if err != nil {
 		t.Error(err)
 	}
