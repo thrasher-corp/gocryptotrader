@@ -82,7 +82,8 @@ func authenticateClient(ctx context.Context) (context.Context, error) {
 
 // StartRPCServer starts a gRPC server with TLS auth
 func StartRPCServer() {
-	err := checkCerts()
+	targetDir := utils.GetTLSDir(Bot.Settings.DataDir)
+	err := checkCerts(targetDir)
 	if err != nil {
 		log.Errorf(log.GRPCSys, "gRPC checkCerts failed. err: %s\n", err)
 		return
@@ -95,7 +96,6 @@ func StartRPCServer() {
 		return
 	}
 
-	targetDir := utils.GetTLSDir(Bot.Settings.DataDir)
 	creds, err := credentials.NewServerTLSFromFile(filepath.Join(targetDir, "cert.pem"), filepath.Join(targetDir, "key.pem"))
 	if err != nil {
 		log.Errorf(log.GRPCSys, "gRPC server could not load TLS keys: %s\n", err)
@@ -233,7 +233,7 @@ func (s *RPCServer) GetCommunicationRelayers(ctx context.Context, r *gctrpc.GetC
 // GetExchanges returns a list of exchanges
 // Param is whether or not you wish to list enabled exchanges
 func (s *RPCServer) GetExchanges(ctx context.Context, r *gctrpc.GetExchangesRequest) (*gctrpc.GetExchangesResponse, error) {
-	exchanges := strings.Join(GetExchanges(r.Enabled), ",")
+	exchanges := strings.Join(GetExchangeNames(r.Enabled), ",")
 	return &gctrpc.GetExchangesResponse{Exchanges: exchanges}, nil
 }
 

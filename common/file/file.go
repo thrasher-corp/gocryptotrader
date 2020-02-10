@@ -5,12 +5,19 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 )
 
 // Write writes selected data to a file or returns an error if it fails. This
 // func also ensures that all files are set to this permission (only rw access
 // for the running user and the group the user is a member of)
 func Write(file string, data []byte) error {
+	basePath := filepath.Dir(file)
+	if !Exists(basePath) {
+		if err := os.MkdirAll(basePath, 0770); err != nil {
+			return err
+		}
+	}
 	return ioutil.WriteFile(file, data, 0770)
 }
 
@@ -44,4 +51,10 @@ func Move(sourcePath, destPath string) error {
 	}
 
 	return os.Remove(sourcePath)
+}
+
+// Exists returns whether or not a file or path exists
+func Exists(name string) bool {
+	_, err := os.Stat(name)
+	return !os.IsNotExist(err)
 }

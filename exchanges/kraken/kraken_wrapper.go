@@ -123,9 +123,8 @@ func (k *Kraken) SetDefaults() {
 	}
 
 	k.Requester = request.New(k.Name,
-		request.NewRateLimit(time.Second, krakenAuthRate),
-		request.NewRateLimit(time.Second, krakenUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		request.NewBasicRateLimit(krakenRateInterval, krakenRequestRate))
 
 	k.API.Endpoints.URLDefault = krakenAPIURL
 	k.API.Endpoints.URL = k.API.Endpoints.URLDefault

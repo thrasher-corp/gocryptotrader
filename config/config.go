@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -935,28 +934,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 				c.Exchanges[i].HTTPTimeout = defaultHTTPTimeout
 			}
 
-			if c.Exchanges[i].HTTPRateLimiter != nil {
-				if c.Exchanges[i].HTTPRateLimiter.Authenticated.Duration < 0 {
-					log.Warnf(log.ExchangeSys, "Exchange %s HTTP Rate Limiter authenticated duration set to negative value, defaulting to 0\n", c.Exchanges[i].Name)
-					c.Exchanges[i].HTTPRateLimiter.Authenticated.Duration = 0
-				}
-
-				if c.Exchanges[i].HTTPRateLimiter.Authenticated.Rate < 0 {
-					log.Warnf(log.ExchangeSys, "Exchange %s HTTP Rate Limiter authenticated rate set to negative value, defaulting to 0\n", c.Exchanges[i].Name)
-					c.Exchanges[i].HTTPRateLimiter.Authenticated.Rate = 0
-				}
-
-				if c.Exchanges[i].HTTPRateLimiter.Unauthenticated.Duration < 0 {
-					log.Warnf(log.ExchangeSys, "Exchange %s HTTP Rate Limiter unauthenticated duration set to negative value, defaulting to 0\n", c.Exchanges[i].Name)
-					c.Exchanges[i].HTTPRateLimiter.Unauthenticated.Duration = 0
-				}
-
-				if c.Exchanges[i].HTTPRateLimiter.Unauthenticated.Rate < 0 {
-					log.Warnf(log.ExchangeSys, "Exchange %s HTTP Rate Limiter unauthenticated rate set to negative value, defaulting to 0\n", c.Exchanges[i].Name)
-					c.Exchanges[i].HTTPRateLimiter.Unauthenticated.Rate = 0
-				}
-			}
-
 			if c.Exchanges[i].WebsocketResponseCheckTimeout <= 0 {
 				log.Warnf(log.ExchangeSys, "Exchange %s Websocket response check timeout value not set, defaulting to %v.",
 					c.Exchanges[i].Name, defaultWebsocketResponseCheckTimeout)
@@ -1368,11 +1345,9 @@ func (c *Config) CheckConnectionMonitorConfig() {
 // Helpful for printing application usage
 func DefaultFilePath() string {
 	f := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), File)
-	_, err := os.Stat(f)
-	if os.IsNotExist(err) {
+	if !file.Exists(f) {
 		encFile := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), EncryptedFile)
-		_, err = os.Stat(encFile)
-		if !os.IsNotExist(err) {
+		if file.Exists(encFile) {
 			return encFile
 		}
 	}
@@ -1422,12 +1397,10 @@ func GetFilePath(configfile string) (string, error) {
 	// First upgrade the old dir config file if it exists to the corresponding
 	// new one
 	for x := range oldDirs {
-		_, err := os.Stat(oldDirs[x])
-		if os.IsNotExist(err) {
+		if !file.Exists(oldDirs[x]) {
 			continue
 		}
-		_, err = os.Stat(newDirs[x])
-		if !os.IsNotExist(err) {
+		if file.Exists(newDirs[x]) {
 			log.Warnf(log.ConfigMgr,
 				"config.json file found in root dir and gct dir; cannot overwrite, defaulting to gct dir config.json at %s",
 				newDirs[x])
@@ -1456,8 +1429,7 @@ func GetFilePath(configfile string) (string, error) {
 
 	// Secondly check to see if the new config file extension is correct or not
 	for x := range newDirs {
-		_, err := os.Stat(newDirs[x])
-		if os.IsNotExist(err) {
+		if !file.Exists(newDirs[x]) {
 			continue
 		}
 

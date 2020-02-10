@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
@@ -36,7 +37,7 @@ var (
 			Description: "Test Withdrawal",
 			Amount:      0.1,
 		},
-		Address: "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+		Address: core.BitcoinDonationAddress,
 	}
 	invalidCryptoRequest         = &CryptoRequest{}
 	invalidCurrencyCryptoRequest = &CryptoRequest{

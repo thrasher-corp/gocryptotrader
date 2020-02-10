@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
@@ -60,11 +61,7 @@ const (
 	huobiMarginAccountBalance  = "margin/accounts/balance"
 	huobiWithdrawCreate        = "dw/withdraw/api/create"
 	huobiWithdrawCancel        = "dw/withdraw-virtual/%s/cancel"
-
-	huobiAuthRate   = 100
-	huobiUnauthRate = 100
-
-	huobiStatusError = "error"
+	huobiStatusError           = "error"
 )
 
 // HUOBI is the overarching type across this package
@@ -724,16 +721,14 @@ func (h *HUOBI) QueryWithdrawQuotas(cryptocurrency string) (WithdrawQuota, error
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (h *HUOBI) SendHTTPRequest(path string, result interface{}) error {
-	return h.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		result,
-		false,
-		false,
-		h.Verbose,
-		h.HTTPDebugging,
-		h.HTTPRecording)
+	return h.SendPayload(&request.Item{
+		Method:        http.MethodGet,
+		Path:          path,
+		Result:        result,
+		Verbose:       h.Verbose,
+		HTTPDebugging: h.HTTPDebugging,
+		HTTPRecording: h.HTTPRecording,
+	})
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
@@ -812,16 +807,17 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 	}
 
 	interim := json.RawMessage{}
-	err := h.SendPayload(method,
-		urlPath,
-		headers,
-		bytes.NewBuffer(body),
-		&interim,
-		true,
-		false,
-		h.Verbose,
-		h.HTTPDebugging,
-		h.HTTPRecording)
+	err := h.SendPayload(&request.Item{
+		Method:        method,
+		Path:          urlPath,
+		Headers:       headers,
+		Body:          bytes.NewReader(body),
+		Result:        result,
+		AuthRequest:   true,
+		Verbose:       h.Verbose,
+		HTTPDebugging: h.HTTPDebugging,
+		HTTPRecording: h.HTTPRecording,
+	})
 	if err != nil {
 		return err
 	}

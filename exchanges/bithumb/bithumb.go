@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 const (
@@ -22,15 +23,9 @@ const (
 
 	noError = "0000"
 
-	// Public API
-	requestsPerSecondPublicAPI = 20
-
 	publicTicker             = "/public/ticker/"
 	publicOrderBook          = "/public/orderbook/"
 	publicTransactionHistory = "/public/transaction_history/"
-
-	// Private API
-	requestsPerSecondPrivateAPI = 10
 
 	privateAccInfo     = "/info/account"
 	privateAccBalance  = "/info/balance"
@@ -46,9 +41,6 @@ const (
 	privateKRWWithdraw = "/trade/krw_withdrawal"
 	privateMarketBuy   = "/trade/market_buy"
 	privateMarketSell  = "/trade/market_sell"
-
-	bithumbAuthRate   = 10
-	bithumbUnauthRate = 20
 )
 
 // Bithumb is the overarching type across the Bithumb package
@@ -465,16 +457,14 @@ func (b *Bithumb) MarketSellOrder(currency string, units float64) (MarketSell, e
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bithumb) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		result,
-		false,
-		false,
-		b.Verbose,
-		b.HTTPDebugging,
-		b.HTTPRecording)
+	return b.SendPayload(&request.Item{
+		Method:        http.MethodGet,
+		Path:          path,
+		Result:        result,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+	})
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to bithumb
@@ -510,16 +500,18 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(path string, params url.Values, r
 		Message string `json:"message"`
 	}{}
 
-	err := b.SendPayload(http.MethodPost,
-		b.API.Endpoints.URL+path,
-		headers,
-		bytes.NewBufferString(payload),
-		&intermediary,
-		true,
-		true,
-		b.Verbose,
-		b.HTTPDebugging,
-		b.HTTPRecording)
+	err := b.SendPayload(&request.Item{
+		Method:        http.MethodPost,
+		Path:          b.API.Endpoints.URL + path,
+		Headers:       headers,
+		Body:          bytes.NewBufferString(payload),
+		Result:        &intermediary,
+		AuthRequest:   true,
+		NonceEnabled:  true,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+		Endpoint:      request.Auth})
 	if err != nil {
 		return err
 	}

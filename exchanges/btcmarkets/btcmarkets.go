@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
@@ -48,9 +49,6 @@ const (
 	btcMarketsAssets         = "/assets"
 	btcMarketsReports        = "/reports"
 	btcMarketsBatchOrders    = "/batchorders"
-
-	btcmarketsAuthLimit   = 3
-	btcmarketsUnauthLimit = 50
 
 	orderFailed             = "Failed"
 	orderPartiallyCancelled = "Partially Cancelled"
@@ -301,7 +299,8 @@ func (b *BTCMarkets) GetAccountBalance() ([]AccountData, error) {
 		b.SendAuthenticatedRequest(http.MethodGet,
 			btcMarketsAccountBalance,
 			nil,
-			&resp)
+			&resp,
+			request.Auth)
 }
 
 // GetTradingFees returns trading fees for all pairs based on trading activity
@@ -310,7 +309,8 @@ func (b *BTCMarkets) GetTradingFees() (TradingFeeResponse, error) {
 	return resp, b.SendAuthenticatedRequest(http.MethodGet,
 		btcMarketsTradingFees,
 		nil,
-		&resp)
+		&resp,
+		request.Auth)
 }
 
 // GetTradeHistory returns trade history
@@ -338,7 +338,8 @@ func (b *BTCMarkets) GetTradeHistory(marketID, orderID string, before, after, li
 	return resp, b.SendAuthenticatedRequest(http.MethodGet,
 		common.EncodeURLValues(btcMarketsTradeHistory, params),
 		nil,
-		&resp)
+		&resp,
+		request.Auth)
 }
 
 // GetTradeByID returns the singular trade of the ID given
@@ -347,7 +348,8 @@ func (b *BTCMarkets) GetTradeByID(id string) (TradeHistoryData, error) {
 	return resp, b.SendAuthenticatedRequest(http.MethodGet,
 		btcMarketsTradeHistory+"/"+id,
 		nil,
-		&resp)
+		&resp,
+		request.Auth)
 }
 
 // NewOrder requests a new order and returns an ID
@@ -376,7 +378,11 @@ func (b *BTCMarkets) NewOrder(marketID string, price, amount float64, orderType,
 	if clientOrderID != "" {
 		req["clientOrderID"] = clientOrderID
 	}
-	return resp, b.SendAuthenticatedRequest(http.MethodPost, btcMarketsOrders, req, &resp)
+	return resp, b.SendAuthenticatedRequest(http.MethodPost,
+		btcMarketsOrders,
+		req,
+		&resp,
+		orderFunc)
 }
 
 // GetOrders returns current order information on the exchange
@@ -402,7 +408,10 @@ func (b *BTCMarkets) GetOrders(marketID string, before, after, limit int64, open
 		params.Set("status", "open")
 	}
 	return resp, b.SendAuthenticatedRequest(http.MethodGet,
-		common.EncodeURLValues(btcMarketsOrders, params), nil, &resp)
+		common.EncodeURLValues(btcMarketsOrders, params),
+		nil,
+		&resp,
+		request.Auth)
 }
 
 // CancelAllOpenOrdersByPairs cancels all open orders unless pairs are specified
@@ -416,21 +425,31 @@ func (b *BTCMarkets) CancelAllOpenOrdersByPairs(marketIDs []string) ([]CancelOrd
 		}
 		req["marketId"] = strTemp.String()[:strTemp.Len()-1]
 	}
-	return resp, b.SendAuthenticatedRequest(http.MethodDelete, btcMarketsOrders, req, &resp)
+	return resp, b.SendAuthenticatedRequest(http.MethodDelete,
+		btcMarketsOrders,
+		req,
+		&resp,
+		request.Auth)
 }
 
 // FetchOrder finds order based on the provided id
 func (b *BTCMarkets) FetchOrder(id string) (OrderData, error) {
 	var resp OrderData
-	return resp, b.SendAuthenticatedRequest(http.MethodGet, btcMarketsOrders+"/"+id,
-		nil, &resp)
+	return resp, b.SendAuthenticatedRequest(http.MethodGet,
+		btcMarketsOrders+"/"+id,
+		nil,
+		&resp,
+		request.Auth)
 }
 
 // RemoveOrder removes a given order
 func (b *BTCMarkets) RemoveOrder(id string) (CancelOrderResp, error) {
 	var resp CancelOrderResp
-	return resp, b.SendAuthenticatedRequest(http.MethodDelete, btcMarketsOrders+"/"+id,
-		nil, &resp)
+	return resp, b.SendAuthenticatedRequest(http.MethodDelete,
+		btcMarketsOrders+"/"+id,
+		nil,
+		&resp,
+		request.Auth)
 }
 
 // ListWithdrawals lists the withdrawal history
@@ -452,7 +471,8 @@ func (b *BTCMarkets) ListWithdrawals(before, after, limit int64) ([]TransferData
 	return resp, b.SendAuthenticatedRequest(http.MethodGet,
 		common.EncodeURLValues(btcMarketsWithdrawals, params),
 		nil,
-		&resp)
+		&resp,
+		request.Auth)
 }
 
 // GetWithdrawal gets withdrawawl info for a given id
@@ -461,8 +481,11 @@ func (b *BTCMarkets) GetWithdrawal(id string) (TransferData, error) {
 	if id == "" {
 		return resp, errors.New("id cannot be an empty string")
 	}
-	return resp, b.SendAuthenticatedRequest(http.MethodGet, btcMarketsWithdrawals+"/"+id,
-		nil, &resp)
+	return resp, b.SendAuthenticatedRequest(http.MethodGet,
+		btcMarketsWithdrawals+"/"+id,
+		nil,
+		&resp,
+		request.Auth)
 }
 
 // ListDeposits lists the deposit history
@@ -484,14 +507,18 @@ func (b *BTCMarkets) ListDeposits(before, after, limit int64) ([]TransferData, e
 	return resp, b.SendAuthenticatedRequest(http.MethodGet,
 		common.EncodeURLValues(btcMarketsDeposits, params),
 		nil,
-		&resp)
+		&resp,
+		request.Auth)
 }
 
 // GetDeposit gets deposit info for a given ID
 func (b *BTCMarkets) GetDeposit(id string) (TransferData, error) {
 	var resp TransferData
-	return resp, b.SendAuthenticatedRequest(http.MethodGet, btcMarketsDeposits+"/"+id,
-		nil, &resp)
+	return resp, b.SendAuthenticatedRequest(http.MethodGet,
+		btcMarketsDeposits+"/"+id,
+		nil,
+		&resp,
+		request.Auth)
 }
 
 // ListTransfers lists the past asset transfers
@@ -513,14 +540,18 @@ func (b *BTCMarkets) ListTransfers(before, after, limit int64) ([]TransferData, 
 	return resp, b.SendAuthenticatedRequest(http.MethodGet,
 		common.EncodeURLValues(btcMarketsTransfers, params),
 		nil,
-		&resp)
+		&resp,
+		request.Auth)
 }
 
 // GetTransfer gets asset transfer info for a given ID
 func (b *BTCMarkets) GetTransfer(id string) (TransferData, error) {
 	var resp TransferData
-	return resp, b.SendAuthenticatedRequest(http.MethodGet, btcMarketsTransfers+"/"+id,
-		nil, &resp)
+	return resp, b.SendAuthenticatedRequest(http.MethodGet,
+		btcMarketsTransfers+"/"+id,
+		nil,
+		&resp,
+		request.Auth)
 }
 
 // FetchDepositAddress gets deposit address for the given asset
@@ -543,7 +574,8 @@ func (b *BTCMarkets) FetchDepositAddress(assetName string, before, after, limit 
 	return resp, b.SendAuthenticatedRequest(http.MethodGet,
 		common.EncodeURLValues(btcMarketsAddresses, params),
 		nil,
-		&resp)
+		&resp,
+		request.Auth)
 }
 
 // GetWithdrawalFees gets withdrawal fees for all assets
@@ -556,7 +588,11 @@ func (b *BTCMarkets) GetWithdrawalFees() ([]WithdrawalFeeData, error) {
 // ListAssets lists all available assets
 func (b *BTCMarkets) ListAssets() ([]AssetData, error) {
 	var resp []AssetData
-	return resp, b.SendAuthenticatedRequest(http.MethodGet, btcMarketsAssets, nil, &resp)
+	return resp, b.SendAuthenticatedRequest(http.MethodGet,
+		btcMarketsAssets,
+		nil,
+		&resp,
+		request.Auth)
 }
 
 // GetTransactions gets trading fees
@@ -581,7 +617,8 @@ func (b *BTCMarkets) GetTransactions(assetName string, before, after, limit int6
 	return resp, b.SendAuthenticatedRequest(http.MethodGet,
 		common.EncodeURLValues(btcMarketsTransactions, params),
 		nil,
-		&resp)
+		&resp,
+		request.Auth)
 }
 
 // CreateNewReport creates a new report
@@ -590,14 +627,21 @@ func (b *BTCMarkets) CreateNewReport(reportType, format string) (CreateReportRes
 	req := make(map[string]interface{})
 	req["type"] = reportType
 	req["format"] = format
-	return resp, b.SendAuthenticatedRequest(http.MethodPost, btcMarketsReports, req, &resp)
+	return resp, b.SendAuthenticatedRequest(http.MethodPost,
+		btcMarketsReports,
+		req,
+		&resp,
+		newReportFunc)
 }
 
 // GetReport finds details bout a past report
 func (b *BTCMarkets) GetReport(reportID string) (ReportData, error) {
 	var resp ReportData
-	return resp, b.SendAuthenticatedRequest(http.MethodGet, btcMarketsReports+"/"+reportID,
-		nil, &resp)
+	return resp, b.SendAuthenticatedRequest(http.MethodGet,
+		btcMarketsReports+"/"+reportID,
+		nil,
+		&resp,
+		request.Auth)
 }
 
 // RequestWithdraw requests withdrawals
@@ -623,7 +667,11 @@ func (b *BTCMarkets) RequestWithdraw(assetName string, amount float64,
 			req["bankName"] = bankName
 		}
 	}
-	return resp, b.SendAuthenticatedRequest(http.MethodPost, btcMarketsWithdrawals, req, &resp)
+	return resp, b.SendAuthenticatedRequest(http.MethodPost,
+		btcMarketsWithdrawals,
+		req,
+		&resp,
+		withdrawFunc)
 }
 
 // BatchPlaceCancelOrders places and cancels batch orders
@@ -642,7 +690,11 @@ func (b *BTCMarkets) BatchPlaceCancelOrders(cancelOrders []CancelBatch, placeOrd
 		}
 		orderRequests = append(orderRequests, PlaceOrderMethod{PlaceOrder: placeOrders[y]})
 	}
-	return resp, b.SendAuthenticatedRequest(http.MethodPost, btcMarketsBatchOrders, orderRequests, &resp)
+	return resp, b.SendAuthenticatedRequest(http.MethodPost,
+		btcMarketsBatchOrders,
+		orderRequests,
+		&resp,
+		batchFunc)
 }
 
 // GetBatchTrades gets batch trades
@@ -652,34 +704,38 @@ func (b *BTCMarkets) GetBatchTrades(ids []string) (BatchTradeResponse, error) {
 		return resp, errors.New("batchtrades can only handle 50 ids at a time")
 	}
 	marketIDs := strings.Join(ids, ",")
-	return resp, b.SendAuthenticatedRequest(http.MethodGet, btcMarketsBatchOrders+"/"+marketIDs,
-		nil, &resp)
+	return resp, b.SendAuthenticatedRequest(http.MethodGet,
+		btcMarketsBatchOrders+"/"+marketIDs,
+		nil,
+		&resp,
+		request.Auth)
 }
 
 // CancelBatchOrders cancels given ids
 func (b *BTCMarkets) CancelBatchOrders(ids []string) (BatchCancelResponse, error) {
 	var resp BatchCancelResponse
 	marketIDs := strings.Join(ids, ",")
-	return resp, b.SendAuthenticatedRequest(http.MethodDelete, btcMarketsBatchOrders+"/"+marketIDs,
-		nil, &resp)
+	return resp, b.SendAuthenticatedRequest(http.MethodDelete,
+		btcMarketsBatchOrders+"/"+marketIDs,
+		nil,
+		&resp,
+		batchFunc)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *BTCMarkets) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		result,
-		false,
-		false,
-		b.Verbose,
-		b.HTTPDebugging,
-		b.HTTPRecording)
+	return b.SendPayload(&request.Item{
+		Method:        http.MethodGet,
+		Path:          path,
+		Result:        result,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+	})
 }
 
 // SendAuthenticatedRequest sends an authenticated HTTP request
-func (b *BTCMarkets) SendAuthenticatedRequest(method, path string, data, result interface{}) (err error) {
+func (b *BTCMarkets) SendAuthenticatedRequest(method, path string, data, result interface{}, f request.EndpointLimit) (err error) {
 	if !b.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			b.Name)
@@ -713,16 +769,20 @@ func (b *BTCMarkets) SendAuthenticatedRequest(method, path string, data, result 
 	headers["BM-AUTH-APIKEY"] = b.API.Credentials.Key
 	headers["BM-AUTH-TIMESTAMP"] = strTime
 	headers["BM-AUTH-SIGNATURE"] = crypto.Base64Encode(hmac)
-	return b.SendPayload(method,
-		btcMarketsAPIURL+btcMarketsAPIVersion+path,
-		headers,
-		body,
-		result,
-		true,
-		false,
-		b.Verbose,
-		b.HTTPDebugging,
-		b.HTTPRecording)
+
+	return b.SendPayload(&request.Item{
+		Method:        method,
+		Path:          btcMarketsAPIURL + btcMarketsAPIVersion + path,
+		Headers:       headers,
+		Body:          body,
+		Result:        result,
+		AuthRequest:   true,
+		NonceEnabled:  false,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+		Endpoint:      f,
+	})
 }
 
 // GetFee returns an estimate of fee based on type of transaction

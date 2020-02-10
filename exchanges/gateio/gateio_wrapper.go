@@ -114,9 +114,8 @@ func (g *Gateio) SetDefaults() {
 	}
 
 	g.Requester = request.New(g.Name,
-		request.NewRateLimit(time.Second*10, gateioAuthRate),
-		request.NewRateLimit(time.Second*10, gateioUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		nil)
 
 	g.API.Endpoints.URLDefault = gateioTradeURL
 	g.API.Endpoints.URL = g.API.Endpoints.URLDefault

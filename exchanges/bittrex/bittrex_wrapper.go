@@ -4,7 +4,6 @@ import (
 	"errors"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -99,9 +98,8 @@ func (b *Bittrex) SetDefaults() {
 	}
 
 	b.Requester = request.New(b.Name,
-		request.NewRateLimit(time.Second, bittrexAuthRate),
-		request.NewRateLimit(time.Second, bittrexUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		request.NewBasicRateLimit(bittrexRateInterval, bittrexRequestRate))
 
 	b.API.Endpoints.URLDefault = bittrexAPIURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault

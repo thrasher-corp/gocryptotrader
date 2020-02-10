@@ -88,8 +88,9 @@ func main() {
 	log.Println("Testing exchange wrappers..")
 	var exchangeResponses []ExchangeResponses
 
-	for x := range engine.Bot.Exchanges {
-		base := engine.Bot.Exchanges[x].GetBase()
+	exchs := engine.GetExchanges()
+	for x := range exchs {
+		base := exchs[x].GetBase()
 		if !base.Config.Enabled {
 			log.Printf("Exchange %v not enabled, skipping", base.GetName())
 			continue
@@ -101,13 +102,13 @@ func main() {
 		wg.Add(1)
 
 		go func(num int) {
-			name := engine.Bot.Exchanges[num].GetName()
+			name := exchs[num].GetName()
 			authenticated := setExchangeAPIKeys(name, wrapperConfig.Exchanges, base)
 			wrapperResult := ExchangeResponses{
 				ID:                 fmt.Sprintf("Exchange%v", num),
 				ExchangeName:       name,
 				APIKeysSet:         authenticated,
-				AssetPairResponses: testWrappers(engine.Bot.Exchanges[num], base, &wrapperConfig),
+				AssetPairResponses: testWrappers(exchs[num], base, &wrapperConfig),
 			}
 			for i := range wrapperResult.AssetPairResponses {
 				wrapperResult.ErrorCount += wrapperResult.AssetPairResponses[i].ErrorCount

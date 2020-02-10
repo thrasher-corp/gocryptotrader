@@ -45,6 +45,11 @@ var (
 	ErrExchangeFailedToLoad  = errors.New("exchange failed to load")
 )
 
+type exchangeManager struct {
+	m         sync.Mutex
+	exchanges map[string]exchange.IBotExchange
+}
+
 func dryrunParamInteraction(param string) {
 	if !Bot.Settings.CheckParamInteraction {
 		return
@@ -59,67 +64,91 @@ func dryrunParamInteraction(param string) {
 	}
 }
 
-// GetExchangeByName returns an exchange given an exchange name
-func GetExchangeByName(exchName string) exchange.IBotExchange {
-	for x := range Bot.Exchanges {
-		if strings.EqualFold(Bot.Exchanges[x].GetName(), exchName) {
-			return Bot.Exchanges[x]
-		}
+func (e *exchangeManager) add(exch exchange.IBotExchange) {
+	e.m.Lock()
+	if e.exchanges == nil {
+		e.exchanges = make(map[string]exchange.IBotExchange)
 	}
+	e.exchanges[strings.ToLower(exch.GetName())] = exch
+	e.m.Unlock()
+}
+
+func (e *exchangeManager) getExchanges() []exchange.IBotExchange {
+	if e.Len() == 0 {
+		return nil
+	}
+
+	e.m.Lock()
+	defer e.m.Unlock()
+	var exchs []exchange.IBotExchange
+	for x := range e.exchanges {
+		exchs = append(exchs, e.exchanges[x])
+	}
+	return exchs
+}
+
+func (e *exchangeManager) removeExchange(exchName string) error {
+	if e.Len() == 0 {
+		return ErrNoExchangesLoaded
+	}
+	exch := e.getExchangeByName(exchName)
+	if exch == nil {
+		return ErrExchangeNotFound
+	}
+	e.m.Lock()
+	defer e.m.Unlock()
+	delete(e.exchanges, strings.ToLower(exchName))
+	log.Infof(log.ExchangeSys, "%s exchange unloaded successfully.\n", exchName)
 	return nil
 }
 
-// ReloadExchange loads an exchange config by name
-func ReloadExchange(name string) error {
-	if len(Bot.Exchanges) == 0 {
-		return ErrNoExchangesLoaded
+func (e *exchangeManager) getExchangeByName(exchangeName string) exchange.IBotExchange {
+	if e.Len() == 0 {
+		return nil
 	}
-
-	e := GetExchangeByName(name)
-	if e == nil {
-		return ErrExchangeNotFound
+	e.m.Lock()
+	defer e.m.Unlock()
+	exch, ok := e.exchanges[strings.ToLower(exchangeName)]
+	if !ok {
+		return nil
 	}
+	return exch
+}
 
-	exchCfg, err := Bot.Config.GetExchangeConfig(name)
+func (e *exchangeManager) Len() int {
+	e.m.Lock()
+	defer e.m.Unlock()
+	return len(e.exchanges)
+}
+
+func (e *exchangeManager) unloadExchange(exchangeName string) error {
+	exchCfg, err := Bot.Config.GetExchangeConfig(exchangeName)
 	if err != nil {
 		return err
 	}
 
-	e.Setup(exchCfg)
-	log.Debugf(log.ExchangeSys, "%s exchange reloaded successfully.\n", name)
-	return nil
-}
-
-// UnloadExchange unloads an exchange by name
-func UnloadExchange(name string) error {
-	if len(Bot.Exchanges) == 0 {
-		return ErrNoExchangesLoaded
-	}
-
-	if GetExchangeByName(name) == nil {
-		return ErrExchangeNotFound
-	}
-
-	exchCfg, err := Bot.Config.GetExchangeConfig(name)
+	err = e.removeExchange(exchangeName)
 	if err != nil {
 		return err
 	}
 
 	exchCfg.Enabled = false
-	err = Bot.Config.UpdateExchangeConfig(exchCfg)
-	if err != nil {
-		return err
-	}
+	return nil
+}
 
-	for x := range Bot.Exchanges {
-		if strings.EqualFold(Bot.Exchanges[x].GetName(), name) {
-			Bot.Exchanges[x].SetEnabled(false)
-			Bot.Exchanges = append(Bot.Exchanges[:x], Bot.Exchanges[x+1:]...)
-			return nil
-		}
-	}
+// GetExchangeByName returns an exchange given an exchange name
+func GetExchangeByName(exchName string) exchange.IBotExchange {
+	return Bot.exchangeManager.getExchangeByName(exchName)
+}
 
-	return ErrExchangeNotFound
+// UnloadExchange unloads an exchange by name
+func UnloadExchange(exchName string) error {
+	return Bot.exchangeManager.unloadExchange(exchName)
+}
+
+// GetExchanges retrieves the loaded exchanges
+func GetExchanges() []exchange.IBotExchange {
+	return Bot.exchangeManager.getExchanges()
 }
 
 // LoadExchange loads an exchange by name
@@ -127,10 +156,8 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 	nameLower := strings.ToLower(name)
 	var exch exchange.IBotExchange
 
-	if len(Bot.Exchanges) > 0 {
-		if GetExchangeByName(name) != nil {
-			return ErrExchangeAlreadyLoaded
-		}
+	if Bot.exchangeManager.getExchangeByName(nameLower) != nil {
+		return ErrExchangeAlreadyLoaded
 	}
 
 	switch nameLower {
@@ -272,13 +299,29 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 		dryrunParamInteraction("enableallexchanges")
 	}
 
+	if !Bot.Settings.EnableExchangeHTTPRateLimiter {
+		log.Warnf(log.ExchangeSys,
+			"Loaded exchange %s rate limiting has been turned off.\n",
+			exch.GetName(),
+		)
+		err = exch.DisableRateLimiter()
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"Loaded exchange %s rate limiting cannot be turned off: %s.\n",
+				exch.GetName(),
+				err,
+			)
+		}
+	}
+
 	exchCfg.Enabled = true
 	err = exch.Setup(exchCfg)
 	if err != nil {
+		exchCfg.Enabled = false
 		return err
 	}
 
-	Bot.Exchanges = append(Bot.Exchanges, exch)
+	Bot.exchangeManager.add(exch)
 
 	base := exch.GetBase()
 	if base.API.AuthenticatedSupport ||
@@ -312,19 +355,6 @@ func SetupExchanges() {
 	var wg sync.WaitGroup
 	configs := Bot.Config.GetAllExchangeConfigs()
 	for x := range configs {
-		if e := GetExchangeByName(configs[x].Name); e != nil {
-			err := ReloadExchange(configs[x].Name)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "ReloadExchange %s failed: %s\n", configs[x].Name, err)
-				continue
-			}
-
-			if !e.IsEnabled() {
-				UnloadExchange(configs[x].Name)
-				continue
-			}
-			return
-		}
 		if !configs[x].Enabled && !Bot.Settings.EnableAllExchanges {
 			log.Debugf(log.ExchangeSys, "%s: Exchange support: Disabled\n", configs[x].Name)
 			continue

@@ -200,20 +200,28 @@ func WebsocketRoutine() {
 		log.Debugln(log.WebsocketMgr, "Connecting exchange websocket services...")
 	}
 
-	for i := range Bot.Exchanges {
+	exchanges := GetExchanges()
+	for i := range exchanges {
 		go func(i int) {
-			if Bot.Exchanges[i].SupportsWebsocket() {
+			if exchanges[i].SupportsWebsocket() {
 				if Bot.Settings.Verbose {
-					log.Debugf(log.WebsocketMgr, "Exchange %s websocket support: Yes Enabled: %v\n", Bot.Exchanges[i].GetName(),
-						common.IsEnabled(Bot.Exchanges[i].IsWebsocketEnabled()))
+					log.Debugf(log.WebsocketMgr,
+						"Exchange %s websocket support: Yes Enabled: %v\n",
+						exchanges[i].GetName(),
+						common.IsEnabled(exchanges[i].IsWebsocketEnabled()),
+					)
 				}
 
 				// TO-DO: expose IsConnected() and IsConnecting so this can be simplified
-				if Bot.Exchanges[i].IsWebsocketEnabled() {
-					ws, err := Bot.Exchanges[i].GetWebsocket()
+				if exchanges[i].IsWebsocketEnabled() {
+					ws, err := exchanges[i].GetWebsocket()
 					if err != nil {
-						log.Errorf(log.WebsocketMgr, "Exchange %s GetWebsocket error: %s\n",
-							Bot.Exchanges[i].GetName(), err)
+						log.Errorf(
+							log.WebsocketMgr,
+							"Exchange %s GetWebsocket error: %s\n",
+							exchanges[i].GetName(),
+							err,
+						)
 						return
 					}
 
@@ -232,7 +240,10 @@ func WebsocketRoutine() {
 					}
 				}
 			} else if Bot.Settings.Verbose {
-				log.Debugf(log.WebsocketMgr, "Exchange %s websocket support: No\n", Bot.Exchanges[i].GetName())
+				log.Debugf(log.WebsocketMgr,
+					"Exchange %s websocket support: No\n",
+					exchanges[i].GetName(),
+				)
 			}
 		}(i)
 	}

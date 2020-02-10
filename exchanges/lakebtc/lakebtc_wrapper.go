@@ -104,9 +104,8 @@ func (l *LakeBTC) SetDefaults() {
 	}
 
 	l.Requester = request.New(l.Name,
-		request.NewRateLimit(time.Second, lakeBTCAuthRate),
-		request.NewRateLimit(time.Second, lakeBTCUnauth),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		nil)
 
 	l.API.Endpoints.URLDefault = lakeBTCAPIURL
 	l.API.Endpoints.URL = l.API.Endpoints.URLDefault

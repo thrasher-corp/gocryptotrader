@@ -58,19 +58,15 @@ func RESTSaveAllSettings(w http.ResponseWriter, r *http.Request) {
 // GetAllActiveOrderbooks returns all enabled exchanges orderbooks
 func GetAllActiveOrderbooks() []EnabledExchangeOrderbooks {
 	var orderbookData []EnabledExchangeOrderbooks
-
-	for _, exch := range Bot.Exchanges {
-		if !exch.IsEnabled() {
-			continue
-		}
-
-		assets := exch.GetAssetTypes()
-		exchName := exch.GetName()
+	exchanges := GetExchanges()
+	for x := range exchanges {
+		assets := exchanges[x].GetAssetTypes()
+		exchName := exchanges[x].GetName()
 		var exchangeOB EnabledExchangeOrderbooks
 		exchangeOB.ExchangeName = exchName
 
 		for y := range assets {
-			currencies, err := exch.GetEnabledPairs(assets[y])
+			currencies, err := exchanges[x].GetEnabledPairs(assets[y])
 			if err != nil {
 				log.Errorf(log.RESTSys,
 					"Exchange %s could not retrieve enabled currencies. Err: %s\n",
@@ -79,7 +75,7 @@ func GetAllActiveOrderbooks() []EnabledExchangeOrderbooks {
 				continue
 			}
 			for z := range currencies {
-				ob, err := exch.FetchOrderbook(currencies[z], assets[y])
+				ob, err := exchanges[x].FetchOrderbook(currencies[z], assets[y])
 				if err != nil {
 					log.Errorf(log.RESTSys,
 						"Exchange %s failed to retrieve %s orderbook. Err: %s\n", exchName,

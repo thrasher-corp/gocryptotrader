@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
@@ -92,11 +93,6 @@ const (
 	bitmexEndpointUserWalletHistory     = "/user/walletHistory"
 	bitmexEndpointUserWalletSummary     = "/user/walletSummary"
 	bitmexEndpointUserRequestWithdraw   = "/user/requestWithdrawal"
-
-	// Rate limits - 150 requests per 5 minutes
-	bitmexUnauthRate = 30
-	// 300 requests per 5 minutes
-	bitmexAuthRate = 40
 
 	// ContractPerpetual perpetual contract type
 	ContractPerpetual = iota
@@ -774,32 +770,28 @@ func (b *Bitmex) SendHTTPRequest(path string, params Parameter, result interface
 			if err != nil {
 				return err
 			}
-			err = b.SendPayload(http.MethodGet,
-				encodedPath,
-				nil,
-				nil,
-				&respCheck,
-				false,
-				false,
-				b.Verbose,
-				b.HTTPDebugging,
-				b.HTTPRecording)
+			err = b.SendPayload(&request.Item{
+				Method:        http.MethodGet,
+				Path:          encodedPath,
+				Result:        &respCheck,
+				Verbose:       b.Verbose,
+				HTTPDebugging: b.HTTPDebugging,
+				HTTPRecording: b.HTTPRecording,
+			})
 			if err != nil {
 				return err
 			}
 			return b.CaptureError(respCheck, result)
 		}
 	}
-	err := b.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		&respCheck,
-		false,
-		false,
-		b.Verbose,
-		b.HTTPDebugging,
-		b.HTTPRecording)
+	err := b.SendPayload(&request.Item{
+		Method:        http.MethodGet,
+		Path:          path,
+		Result:        &respCheck,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+	})
 	if err != nil {
 		return err
 	}
@@ -843,16 +835,18 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(verb, path string, params Paramete
 
 	var respCheck interface{}
 
-	err := b.SendPayload(verb,
-		b.API.Endpoints.URL+path,
-		headers,
-		bytes.NewBuffer([]byte(payload)),
-		&respCheck,
-		true,
-		false,
-		b.Verbose,
-		b.HTTPDebugging,
-		b.HTTPRecording)
+	err := b.SendPayload(&request.Item{
+		Method:        verb,
+		Path:          b.API.Endpoints.URL + path,
+		Headers:       headers,
+		Body:          bytes.NewBuffer([]byte(payload)),
+		Result:        &respCheck,
+		AuthRequest:   true,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+		Endpoint:      request.Auth,
+	})
 	if err != nil {
 		return err
 	}

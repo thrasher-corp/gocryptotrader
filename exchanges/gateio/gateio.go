@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
@@ -35,9 +36,6 @@ const (
 	gateioTicker          = "ticker"
 	gateioTickers         = "tickers"
 	gateioOrderbook       = "orderBook"
-
-	gateioAuthRate   = 100
-	gateioUnauthRate = 100
 
 	gateioGenerateAddress = "New address is being generated for you, please wait a moment and refresh this page. "
 )
@@ -311,16 +309,14 @@ func (g *Gateio) CancelExistingOrder(orderID int64, symbol string) (bool, error)
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (g *Gateio) SendHTTPRequest(path string, result interface{}) error {
-	return g.SendPayload(http.MethodGet,
-		path,
-		nil,
-		nil,
-		result,
-		false,
-		false,
-		g.Verbose,
-		g.HTTPDebugging,
-		g.HTTPRecording)
+	return g.SendPayload(&request.Item{
+		Method:        http.MethodGet,
+		Path:          path,
+		Result:        result,
+		Verbose:       g.Verbose,
+		HTTPDebugging: g.HTTPDebugging,
+		HTTPRecording: g.HTTPRecording,
+	})
 }
 
 // CancelAllExistingOrders all orders for a given symbol and side
@@ -412,17 +408,17 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(method, endpoint, param string, re
 	urlPath := fmt.Sprintf("%s/%s/%s", g.API.Endpoints.URL, gateioAPIVersion, endpoint)
 
 	var intermidiary json.RawMessage
-
-	err := g.SendPayload(method,
-		urlPath,
-		headers,
-		strings.NewReader(param),
-		&intermidiary,
-		true,
-		false,
-		g.Verbose,
-		g.HTTPDebugging,
-		g.HTTPRecording)
+	err := g.SendPayload(&request.Item{
+		Method:        method,
+		Path:          urlPath,
+		Headers:       headers,
+		Body:          strings.NewReader(param),
+		Result:        &intermidiary,
+		AuthRequest:   true,
+		Verbose:       g.Verbose,
+		HTTPDebugging: g.HTTPDebugging,
+		HTTPRecording: g.HTTPRecording,
+	})
 	if err != nil {
 		return err
 	}

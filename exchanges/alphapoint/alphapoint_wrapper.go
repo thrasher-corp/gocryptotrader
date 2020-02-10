@@ -70,9 +70,8 @@ func (a *Alphapoint) SetDefaults() {
 	}
 
 	a.Requester = request.New(a.Name,
-		request.NewRateLimit(time.Minute*10, alphapointAuthRate),
-		request.NewRateLimit(time.Minute*10, alphapointUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		nil)
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

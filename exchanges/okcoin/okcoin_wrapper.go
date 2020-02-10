@@ -2,7 +2,6 @@ package okcoin
 
 import (
 	"sync"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -114,9 +113,9 @@ func (o *OKCoin) SetDefaults() {
 	}
 
 	o.Requester = request.New(o.Name,
-		request.NewRateLimit(time.Second, okCoinAuthRate),
-		request.NewRateLimit(time.Second, okCoinUnauthRate),
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		// TODO: Specify each individual endpoint rate limits as per docs
+		request.NewBasicRateLimit(okCoinRateInterval, okCoinStandardRequestRate),
 	)
 
 	o.API.Endpoints.URLDefault = okCoinAPIURL

@@ -97,9 +97,8 @@ func (l *LocalBitcoins) SetDefaults() {
 	}
 
 	l.Requester = request.New(l.Name,
-		request.NewRateLimit(time.Second*0, localbitcoinsAuthRate),
-		request.NewRateLimit(time.Second*0, localbitcoinsUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		nil)
 
 	l.API.Endpoints.URLDefault = localbitcoinsAPIURL
 	l.API.Endpoints.URL = l.API.Endpoints.URLDefault
