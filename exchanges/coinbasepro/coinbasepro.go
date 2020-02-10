@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -729,7 +730,7 @@ func (c *CoinbasePro) SendHTTPRequest(path string, result interface{}) error {
 	})
 }
 
-// SendAuthenticatedHTTPRequest sends an authenticated HTTP reque
+// SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params map[string]interface{}, result interface{}) (err error) {
 	if !c.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
@@ -749,7 +750,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params m
 		}
 	}
 
-	n := c.Requester.GetNonce(false).String()
+	n := strconv.FormatInt(time.Now().Unix(), 10)
 	message := n + method + "/" + path + string(payload)
 	hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(message), []byte(c.API.Credentials.Secret))
 	headers := make(map[string]string)
