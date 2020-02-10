@@ -7,7 +7,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/management/banking"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
 var (

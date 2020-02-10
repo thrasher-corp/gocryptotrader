@@ -459,6 +459,10 @@ message WithdrawResponse {
     string status = 2;
 }
 
+message WithdrawalRequestHistory {
+    string id = 1;
+}
+
 message GetLoggerDetailsRequest {
     string logger = 1;
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/management/banking"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
 const (

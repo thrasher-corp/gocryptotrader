@@ -12,7 +12,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // Please supply your own keys here for due diligence testing

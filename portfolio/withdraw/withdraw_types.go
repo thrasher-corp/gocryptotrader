@@ -7,7 +7,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common/cache"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/management/banking"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
 type RequestType uint8
@@ -37,7 +37,8 @@ var (
 	// ErrInvalidRequest message to return when a request type is invalid
 	ErrInvalidRequest = errors.New("invalid request type")
 	// Cache LRU cache for recent requests
-	Cache = cache.New(50)
+	Cache       = cache.New(50)
+	DryRunID, _ = uuid.FromString("3e7e2c25-5a0b-429b-95a1-0960079dce56")
 )
 
 // CryptoRequest stores the info required for a crypto withdrawal request

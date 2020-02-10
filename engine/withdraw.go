@@ -5,16 +5,19 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gofrs/uuid"
 	withdrawal "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
-	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 const (
+	// ErrWithdrawRequestNotFound message to display when no record is found
 	ErrWithdrawRequestNotFound = "%v not found"
-	ErrRequestCannotbeNill     = "request cannot be nil"
+	// ErrRequestCannotbeNill message to display when request is nil
+	ErrRequestCannotbeNill = "request cannot be nil"
 )
 
+// SubmitWithdrawal preforms validation and submits a new withdraw request to exchange
 func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Response, error) {
 	if req == nil {
 		return nil, errors.New(ErrRequestCannotbeNill)
@@ -31,9 +34,7 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 		return nil, ErrExchangeNotFound
 	}
 
-	id, _ := uuid.NewV4()
 	resp := &withdraw.Response{
-		ID: id,
 		Exchange: &withdraw.ExchangeResponse{
 			Name: exchName,
 		},
@@ -42,28 +43,34 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 		UpdatedAt:      time.Now(),
 	}
 
-	if req.Type == withdraw.Fiat {
-		v, errFiat := exch.WithdrawFiatFunds(req)
-		if errFiat != nil {
-			return nil, errFiat
+	if Bot.Settings.EnableDryRun {
+		log.Warnln(log.Global, "Dry run enabled no withdrawal request will be submitted or event created")
+		resp.ID = withdraw.DryRunID
+		resp.Exchange.Status = "dryrun"
+		resp.Exchange.ID = withdraw.DryRunID.String()
+	} else {
+		if req.Type == withdraw.Fiat {
+			v, errFiat := exch.WithdrawFiatFunds(req)
+			if errFiat != nil {
+				return nil, errFiat
+			}
+			resp.Exchange.Status = v.Status
+			resp.Exchange.ID = v.ID
+		} else if req.Type == withdraw.Crypto {
+			v, err := exch.WithdrawCryptocurrencyFunds(req)
+			if err != nil {
+				return nil, err
+			}
+			resp.Exchange.Status = v.Status
+			resp.Exchange.ID = v.ID
 		}
-		resp.Exchange.Status = v.Status
-		resp.Exchange.ID = v.ID
-	} else if req.Type == withdraw.Crypto {
-		v, err := exch.WithdrawCryptocurrencyFunds(req)
-		if err != nil {
-			return nil, err
-		}
-		resp.Exchange.Status = v.Status
-		resp.Exchange.ID = v.ID
+		withdrawal.Event(resp)
 	}
-
-	withdraw.Cache.Add(id.String(), resp)
-	withdrawal.Event(resp)
+	withdraw.Cache.Add(resp.ID, resp)
 	return resp, nil
 }
 
-// RequestByID returns a withdrawal request by ID
+// WithdrawRequestByID returns a withdrawal request by ID
 func WithdrawRequestByID(id string) (*withdraw.Response, error) {
 	v := withdraw.Cache.Get(id)
 	if v != nil {
@@ -77,14 +84,17 @@ func WithdrawRequestByID(id string) (*withdraw.Response, error) {
 	return l, nil
 }
 
+// WithdrawRequestsByExchange returns a withdrawal request by ID
 func WithdrawRequestsByExchange(exchange string, limit int) ([]withdraw.Response, error) {
 	return nil, nil
 }
 
+// WithdrawRequestsByDate returns a withdrawal request by ID
 func WithdrawRequestsByDate(start, end time.Time) ([]withdraw.Response, error) {
 	return nil, nil
 }
 
+// WithdrawRequestByExchangeID returns a withdrawal request by ID
 func WithdrawRequestByExchangeID(id string) (*withdraw.Response, error) {
 	return nil, nil
 }

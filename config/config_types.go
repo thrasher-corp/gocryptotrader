@@ -10,8 +10,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
-	"github.com/thrasher-corp/gocryptotrader/management/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
 // Constants declared here are filename strings and test strings

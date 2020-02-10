@@ -16,7 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
-	"github.com/thrasher-corp/gocryptotrader/management/banking"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
 const (

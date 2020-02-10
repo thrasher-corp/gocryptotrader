@@ -18,7 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/thrasher-corp/gocryptotrader/logger"
-	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 const (

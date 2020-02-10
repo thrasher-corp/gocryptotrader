@@ -902,7 +902,7 @@ func getPortfolioSummary(_ *cli.Context) error {
 var addPortfolioAddressCommand = cli.Command{
 	Name:      "addportfolioaddress",
 	Usage:     "adds an address to the portfolio",
-	ArgsUsage: "<address> <coin_type> <description> <balance>",
+	ArgsUsage: "<address> <coin_type> <description> <balance> <cold_storage> <supported_exchanges> ",
 	Action:    addPortfolioAddress,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -921,13 +921,13 @@ var addPortfolioAddressCommand = cli.Command{
 			Name:  "balance",
 			Usage: "balance of the address",
 		},
-		cli.StringFlag{
-			Name:  "supported_exchanges",
-			Usage: "common separated list of exchanges supported by this address for withdrawals",
-		},
 		cli.BoolFlag{
 			Name:  "cold_storage",
 			Usage: "true/false if address is cold storage",
+		},
+		cli.StringFlag{
+			Name:  "supported_exchanges",
+			Usage: "common separated list of exchanges supported by this address for withdrawals",
 		},
 	},
 }
@@ -949,7 +949,7 @@ func addPortfolioAddress(c *cli.Context) error {
 	var description string
 	var balance float64
 	var supportedExchanges string
-	var coldStroage bool
+	var coldstorage bool
 
 	if c.IsSet("address") {
 		address = c.String("address")
@@ -978,19 +978,19 @@ func addPortfolioAddress(c *cli.Context) error {
 		}
 	}
 
-	if c.IsSet("supported_exchangess") {
-		supportedExchanges = c.String("supportedExchanges")
+	if c.IsSet("cold_storage") {
+		coldstorage = c.Bool("cold_storage")
 	} else {
-		supportedExchanges = c.Args().Get(4)
+		tv, errBool := strconv.ParseBool(c.Args().Get(4))
+		if errBool == nil {
+			coldstorage = tv
+		}
 	}
 
-	if c.IsSet("cold_storage") {
-		coldStroage = c.Bool("cold_stroage")
+	if c.IsSet("supported_exchanges") {
+		supportedExchanges = c.String("supported_exchanges")
 	} else {
-		tv, errBool := strconv.ParseBool(c.Args().Get(51))
-		if errBool == nil {
-			coldStroage = tv
-		}
+		supportedExchanges = c.Args().Get(5)
 	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
@@ -1001,7 +1001,7 @@ func addPortfolioAddress(c *cli.Context) error {
 			Description:        description,
 			Balance:            balance,
 			SupportedExchanges: supportedExchanges,
-			ColdStorage:        coldStroage,
+			ColdStorage:        coldstorage,
 		},
 	)
 

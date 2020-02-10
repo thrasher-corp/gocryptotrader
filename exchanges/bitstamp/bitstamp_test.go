@@ -8,8 +8,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/management/banking"
-	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // Please add your private keys and customerID for better tests

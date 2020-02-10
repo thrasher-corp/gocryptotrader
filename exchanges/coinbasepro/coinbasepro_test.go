@@ -16,8 +16,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/management/banking"
-	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 var c CoinbasePro

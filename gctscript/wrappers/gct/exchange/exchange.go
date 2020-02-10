@@ -13,8 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/management/banking"
-	"github.com/thrasher-corp/gocryptotrader/management/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // Exchange implements all required methods for Wrapper
