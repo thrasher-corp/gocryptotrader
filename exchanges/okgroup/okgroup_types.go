@@ -1393,25 +1393,25 @@ type WebsocketUserSwapPositionHoldingData struct {
 type WebsocketSpotOrderResponse struct {
 	Table string `json:"table"`
 	Data  []struct {
-		ClientOid      string  `json:"client_oid"`
-		CreatedAt      string  `json:"created_at"`
-		FilledNotional float64 `json:"filled_notional,string"`
-		FilledSize     float64 `json:"filled_size,string"`
-		InstrumentID   string  `json:"instrument_id"`
-		LastFillPx     float64 `json:"last_fill_px,string"`
-		LastFillQty    float64 `json:"last_fill_qty,string"`
-		LastFillTime   string  `json:"last_fill_time"`
-		MarginTrading  float64 `json:"margin_trading,string"`
-		Notional       float64 `json:"notional,string"`
-		OrderID        string  `json:"order_id"`
-		OrderType      float64 `json:"order_type,string"`
-		Price          float64 `json:"price,string"`
-		Side           string  `json:"side"`
-		Size           float64 `json:"size,string"`
-		State          float64 `json:"state,string"`
-		Status         string  `json:"status"`
-		Timestamp      string  `json:"timestamp"`
-		Type           string  `json:"type"`
+		ClientOid      string `json:"client_oid"`
+		CreatedAt      string `json:"created_at"`
+		FilledNotional string `json:"filled_notional"`
+		FilledSize     string `json:"filled_size"`
+		InstrumentID   string `json:"instrument_id"`
+		LastFillPx     string `json:"last_fill_px"`
+		LastFillQty    string `json:"last_fill_qty"`
+		LastFillTime   string `json:"last_fill_time"`
+		MarginTrading  string `json:"margin_trading"`
+		Notional       string `json:"notional"`
+		OrderID        string `json:"order_id"`
+		OrderType      string `json:"order_type"`
+		Price          string `json:"price"`
+		Side           string `json:"side"`
+		Size           string `json:"size"`
+		State          string `json:"state"`
+		Status         string `json:"status"`
+		Timestamp      string `json:"timestamp"`
+		Type           string `json:"type"`
 	} `json:"data"`
 }
 
