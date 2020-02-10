@@ -26,6 +26,7 @@ You can track ideas, planned features and what's in progresss on this Trello boa
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
 ## Current Features for apichecker
+
 + Checks for API updates
 + Can automatically update Trello checklist for the updates required
 
@@ -66,6 +67,8 @@ func TestAdd(t *testing.T) {
 }
 ```
 
+### Please click GoDocs chevron above to view current GoDoc information for this package
+
 ## Contribution
 
 Please feel free to submit any pull requests or suggest any desired features to be added.
@@ -83,4 +86,4 @@ When submitting a PR, please abide by our coding guidelines:
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
-***1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB***
+******

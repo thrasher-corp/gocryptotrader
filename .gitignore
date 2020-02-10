@@ -28,3 +28,6 @@ gocryptotrader
 *.out
 sqlboiler.toml
 sqlboiler.json
+
+# GCT API Check
+backuptest.json

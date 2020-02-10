@@ -138,22 +138,22 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 630 |
-| [shazbert](https://github.com/shazbert) | 186 |
+| [thrasher-](https://github.com/thrasher-) | 631 |
+| [shazbert](https://github.com/shazbert) | 187 |
 | [gloriousCode](https://github.com/gloriousCode) | 166 |
 | [xtda](https://github.com/xtda) | 38 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
-| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 12 |
+| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 13 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 7 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
+| [vazha](https://github.com/vazha) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [bretep](https://github.com/bretep) | 2 |
 | [woshidama323](https://github.com/woshidama323) | 2 |
-| [vazha](https://github.com/vazha) | 2 |
 | [gam-phon](https://github.com/gam-phon) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |
 | [if1live](https://github.com/if1live) | 2 |
