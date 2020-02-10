@@ -467,3 +467,32 @@ func TestWsAuth(t *testing.T) {
 	}
 	timer.Stop()
 }
+
+func TestWsSubAck(t *testing.T) {
+	pressXToJSON := []byte(`[1002, 1]`)
+	err := p.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsBalanceUpdate(t *testing.T) {
+	pressXToJSON := []byte(`["b", 28, "e", "-0.06000000"]`)
+	err := p.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsLimitOrder(t *testing.T) {
+	pressXToJSON := []byte(`[147, 1]`)
+	err := p.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+	pressXToJSON = []byte(`["n", 148, 6083059, 1, "0.03000000", "2.00000000", "2018-09-08 04:54:09", "2.00000000", "12345"]`)
+	err = p.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
