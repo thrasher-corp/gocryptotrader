@@ -308,14 +308,10 @@ func CheckChangeLog(htmlData *HTMLScrapingData) (string, error) {
 		dataStrings, err = HTMLScrapeLocalBitcoins(htmlData)
 	case pathOkCoin, pathOkex:
 		dataStrings, err = HTMLScrapeDefault(htmlData)
-		for x := range dataStrings {
-			if len(dataStrings[x]) != 10 {
-				tempStorage := strings.Split(dataStrings[x], "-")
-				dataStrings[x] = fmt.Sprintf("%s-0%s-%s", tempStorage[0], tempStorage[1], tempStorage[2])
-			}
-		}
+		return dataStrings[0], nil
 	default:
 		dataStrings, err = HTMLScrapeDefault(htmlData)
+		return dataStrings[0], err
 	}
 	if err != nil {
 		return "", err
@@ -691,6 +687,59 @@ loop:
 		}
 	}
 	resp = append(resp, tempArray[1])
+	return resp, nil
+}
+
+// HTMLScrapeOk gets the check string for Okex
+func HTMLScrapeOk(htmlData *HTMLScrapingData) ([]string, error) {
+	var resp []string
+	temp, err := http.Get(htmlData.Path)
+	if err != nil {
+		return resp, err
+	}
+	tokenizer := html.NewTokenizer(temp.Body)
+loop:
+	for {
+		next := tokenizer.Next()
+		switch next {
+		case html.ErrorToken:
+			break loop
+		case html.StartTagToken:
+			token := tokenizer.Token()
+			if token.Data == htmlData.TokenData {
+				for _, a := range token.Attr {
+					if a.Key == htmlData.Key && a.Val == htmlData.Val {
+					loop2:
+						for {
+							nextToken := tokenizer.Next()
+							switch nextToken {
+							case html.StartTagToken:
+								f := tokenizer.Token()
+								for _, tkz := range f.Attr {
+									if tkz.Key == htmlData.Key {
+										r, err := regexp.Compile(htmlData.RegExp)
+										if err != nil {
+											return resp, err
+										}
+										result := r.MatchString(tkz.Val)
+										if result {
+											appendStr := strings.Replace(tkz.Val, "./#change-", "", 1)
+											resp = append(resp, appendStr)
+										}
+									}
+								}
+							case html.EndTagToken:
+								tk := tokenizer.Token()
+								if tk.Data == "ul" {
+									break loop2
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 	return resp, nil
 }
 

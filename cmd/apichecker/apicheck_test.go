@@ -42,7 +42,7 @@ func TestCheckChangeLog(t *testing.T) {
 		TextTokenData: "p",
 		DateFormat:    "2006-01-02",
 		RegExp:        "(2\\d{3}-\\d{1,2}-\\d{1,2})",
-		CheckString:   "2019-04-28",
+		CheckString:   "2019-12-10",
 		Path:          "https://www.okex.com/docs/en/#change-change"}
 	_, err := CheckChangeLog(&data)
 	if err != nil {
@@ -334,7 +334,7 @@ func TestHTMLYobit(t *testing.T) {
 	}
 }
 
-func TestHTMLLocalBitcoins(t *testing.T) {
+func TestHTMLScrapeLocalBitcoins(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{TokenData: "div",
 		Key:           "class",
@@ -345,6 +345,22 @@ func TestHTMLLocalBitcoins(t *testing.T) {
 		RegExp:        `col-md-12([\s\S]*?)clearfix`,
 		Path:          "https://localbitcoins.com/api-docs/"}
 	_, err := HTMLScrapeLocalBitcoins(&data)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestHTMLScrapeOk(t *testing.T) {
+	t.Parallel()
+	data := HTMLScrapingData{TokenData: "a",
+		Key:           "href",
+		Val:           "./#change-change",
+		TokenDataEnd:  "",
+		TextTokenData: "",
+		DateFormat:    "20060102",
+		RegExp:        `./#change-\d{8}`,
+		Path:          "https://www.okex.com/docs/en/"}
+	_, err := HTMLScrapeOk(&data)
 	if err != nil {
 		t.Error(err)
 	}
