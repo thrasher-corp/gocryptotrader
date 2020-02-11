@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 	"reflect"
-	"fmt"
 	
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
@@ -52,14 +51,14 @@ func TestCheckChangeLog(t *testing.T) {
 
 func TestAdd(t *testing.T) {
 	t.Parallel()
-	data := GithubData{Repo: "LBank-exchange/lbank-official-api-docs"}
-	err := Add("Lbank", github, fmt.Sprintf(githubPath, data.Repo), data, false, &configData)
+	data2 := HTMLScrapingData{TokenData: "a",
+	Key:           "href",
+	Val:           "./#change-change",
+	TokenDataEnd:  "./#change-",
+	RegExp:        `./#change-\d{8}`,
+	Path:          "https://www.okcoin.com/docs/en/#change-change"}
+	err := Add("Okex", htmlScrape, data2.Path, data2, false, &configData)
 	if err != nil {
-		t.Error(err)
-	}
-	data2 := HTMLScrapingData{Path: "brokenpath"}
-	err = Add("TestExch", htmlScrape, data2.Path, data2, false, &testConfigData)
-	if err == nil {
 		t.Log("expected an error due to invalid path being parsed in")
 	}
 }
@@ -114,7 +113,7 @@ func TestHTMLScrapeCoinbasepro(t *testing.T) {
 		TokenDataEnd: "ul",
 		TextTokenData: "strong",
 		DateFormat: "01/02/06",
-		RegExp: "^(\\d){2}/(\\d){2}/(\\d){2}$",
+		RegExp: "^(\\d){1,2}/(\\d){1,2}/(\\d){2}$",
 		CheckString: "12/16/19",
 		Path: "https://docs.pro.coinbase.com/#changelog"}
 	_, err := HTMLScrapeDefault(&data)
@@ -355,9 +354,7 @@ func TestHTMLScrapeOk(t *testing.T) {
 	data := HTMLScrapingData{TokenData: "a",
 		Key:           "href",
 		Val:           "./#change-change",
-		TokenDataEnd:  "",
-		TextTokenData: "",
-		DateFormat:    "20060102",
+		TokenDataEnd:  "./#change-",
 		RegExp:        `./#change-\d{8}`,
 		Path:          "https://www.okex.com/docs/en/"}
 	_, err := HTMLScrapeOk(&data)

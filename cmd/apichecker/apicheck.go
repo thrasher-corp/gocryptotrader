@@ -203,7 +203,7 @@ func CheckUpdates(fileName string, confData *Config) error {
 	for x := range allExchangeData {
 		wg.Add(1)
 		go func(x int) {
-			switch confData.Exchanges[x].CheckType {
+			switch allExchangeData[x].CheckType {
 			case github:
 				sha, err := getSha(allExchangeData[x].Data.GitHubData.Repo)
 				m.Lock()
@@ -307,11 +307,9 @@ func CheckChangeLog(htmlData *HTMLScrapingData) (string, error) {
 	case pathLocalBitcoins:
 		dataStrings, err = HTMLScrapeLocalBitcoins(htmlData)
 	case pathOkCoin, pathOkex:
-		dataStrings, err = HTMLScrapeDefault(htmlData)
-		return dataStrings[0], nil
+		dataStrings, err = HTMLScrapeOk(htmlData)
 	default:
 		dataStrings, err = HTMLScrapeDefault(htmlData)
-		return dataStrings[0], err
 	}
 	if err != nil {
 		return "", err
@@ -723,7 +721,7 @@ loop:
 										}
 										result := r.MatchString(tkz.Val)
 										if result {
-											appendStr := strings.Replace(tkz.Val, "./#change-", "", 1)
+											appendStr := strings.Replace(tkz.Val, htmlData.TokenDataEnd, "", 1)
 											resp = append(resp, appendStr)
 										}
 									}
@@ -740,6 +738,7 @@ loop:
 			}
 		}
 	}
+	resp = resp[:1]
 	return resp, nil
 }
 

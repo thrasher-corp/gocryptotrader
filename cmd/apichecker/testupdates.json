@@ -51,7 +51,7 @@
      "TokenDataEnd": "ul",
      "TextTokenData": "strong",
      "DateFormat": "01/02/06",
-     "RegExp": "^(\\d){2}/(\\d){2}/(\\d){2}$",
+     "RegExp": "^(\\d){1,2}/(\\d){1,2}/(\\d){2}$",
      "CheckString": "12/16/19",
      "Path": "https://docs.pro.coinbase.com/#changelog"
     }
@@ -134,42 +134,6 @@
    "Data": {
     "GitHubData": {
      "Repo": "LBank-exchange/lbank-official-api-docs"
-    }
-   },
-   "Err": null
-  },
-  {
-   "Name": "OkCoin International",
-   "CheckType": "HTML String Check",
-   "Data": {
-    "HTMLData": {
-     "TokenData": "h3",
-     "Key": "id",
-     "Val": "change-change",
-     "TokenDataEnd": "section",
-     "TextTokenData": "p",
-     "DateFormat": "2006-01-02",
-     "RegExp": "(2\\d{3}-\\d{1,2}-\\d{1,2})",
-     "CheckString": "2019-04-28",
-     "Path": "https://www.okcoin.com/docs/en/#change-change"
-    }
-   },
-   "Err": null
-  },
-  {
-   "Name": "Okex",
-   "CheckType": "HTML String Check",
-   "Data": {
-    "HTMLData": {
-     "TokenData": "h3",
-     "Key": "id",
-     "Val": "change-change",
-     "TokenDataEnd": "table",
-     "TextTokenData": "p",
-     "DateFormat": "2006-01-02",
-     "RegExp": "(2\\d{3}-\\d{1,2}-\\d{1,2})",
-     "CheckString": "2019-04-28",
-     "Path": "https://www.okex.com/docs/en/#change-change"
     }
    },
    "Err": null
@@ -413,6 +377,38 @@
      "RegExp": "col-md-12([\\s\\S]*?)clearfix",
      "CheckString": "d60e4f097b9d933a377d6be92d1e634dc2e2952375e9a5e7103cbd5885641953",
      "Path": "https://localbitcoins.com/api-docs/"
+    }
+   },
+   "Err": null
+  },
+  {
+   "Name": "OkCoin International",
+   "CheckType": "HTML String Check",
+   "Data": {
+    "HTMLData": {
+     "TokenData": "a",
+     "Key": "href",
+     "Val": "./#change-change",
+     "TokenDataEnd": "./#change-",
+     "RegExp": "./#change-\\d{8}",
+     "CheckString": "20200229",
+     "Path": "https://www.okcoin.com/docs/en/#change-change"
+    }
+   },
+   "Err": null
+  },
+  {
+   "Name": "Okex",
+   "CheckType": "HTML String Check",
+   "Data": {
+    "HTMLData": {
+     "TokenData": "a",
+     "Key": "href",
+     "Val": "./#change-change",
+     "TokenDataEnd": "./#change-",
+     "RegExp": "./#change-\\d{8}",
+     "CheckString": "20200229",
+     "Path": "https://www.okex.com/docs/en/#change-change"
     }
    },
    "Err": null
