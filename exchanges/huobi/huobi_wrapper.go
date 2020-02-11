@@ -136,9 +136,6 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	h.API.PEMKeySupport = exch.API.PEMKeySupport
-	h.API.Credentials.PEMKey = exch.API.Credentials.PEMKey
-
 	err = h.Websocket.Setup(
 		&wshandler.WebsocketSetup{
 			Enabled:                          exch.Features.Enabled.Websocket,

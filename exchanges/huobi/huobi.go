@@ -2,18 +2,12 @@ package huobi
 
 import (
 	"bytes"
-	"crypto/ecdsa"
-	"crypto/rand"
-	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -764,44 +758,14 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 	}
 
 	hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(h.API.Credentials.Secret))
-	signature := crypto.Base64Encode(hmac)
-	values.Set("Signature", signature)
-
-	if h.API.Credentials.PEMKey != "" && h.API.PEMKeySupport {
-		pemKey := strings.NewReader(h.API.Credentials.PEMKey)
-		pemBytes, err := ioutil.ReadAll(pemKey)
-		if err != nil {
-			return fmt.Errorf("%s unable to ioutil.ReadAll PEM key: %s", h.Name, err)
-		}
-
-		block, _ := pem.Decode(pemBytes)
-		if block == nil {
-			return fmt.Errorf("%s PEM block is nil", h.Name)
-		}
-
-		x509Encoded := block.Bytes
-		privKey, err := x509.ParseECPrivateKey(x509Encoded)
-		if err != nil {
-			return fmt.Errorf("%s unable to ParseECPrivKey: %s", h.Name, err)
-		}
-
-		r, s, err := ecdsa.Sign(rand.Reader, privKey, crypto.GetSHA256([]byte(signature)))
-		if err != nil {
-			return fmt.Errorf("%s unable to sign: %s", h.Name, err)
-		}
-
-		privSig := r.Bytes()
-		privSig = append(privSig, s.Bytes()...)
-		values.Set("PrivateSignature", crypto.Base64Encode(privSig))
-	}
-
+	values.Set("Signature", crypto.Base64Encode(hmac))
 	urlPath := h.API.Endpoints.URL + common.EncodeURLValues(endpoint, values)
 
 	var body []byte
 	if data != nil {
 		encoded, err := json.Marshal(data)
 		if err != nil {
-			return fmt.Errorf("%s unable to marshal data: %s", h.Name, err)
+			return err
 		}
 		body = encoded
 	}
