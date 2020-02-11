@@ -239,7 +239,6 @@ func (o *OKCoin) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (o *OKCoin) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	var tickerData ticker.Price
 	if assetType == asset.Spot {
 		resp, err := o.GetSpotAllTokenPairsInformation()
 		if err != nil {
@@ -254,21 +253,22 @@ func (o *OKCoin) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 				if !pairs[i].Equal(resp[j].InstrumentID) {
 					continue
 				}
-				tickerData = ticker.Price{
-					Last:        resp[j].Last,
-					High:        resp[j].High24h,
-					Low:         resp[j].Low24h,
-					Bid:         resp[j].BestBid,
-					Ask:         resp[j].BestAsk,
-					Volume:      resp[j].BaseVolume24h,
-					QuoteVolume: resp[j].QuoteVolume24h,
-					Open:        resp[j].Open24h,
-					Pair:        pairs[i],
-					LastUpdated: resp[j].Timestamp,
-				}
-				err = ticker.ProcessTicker(o.Name, &tickerData, assetType)
+
+				err = ticker.ProcessTicker(&ticker.Price{
+					Last:         resp[j].Last,
+					High:         resp[j].High24h,
+					Low:          resp[j].Low24h,
+					Bid:          resp[j].BestBid,
+					Ask:          resp[j].BestAsk,
+					Volume:       resp[j].BaseVolume24h,
+					QuoteVolume:  resp[j].QuoteVolume24h,
+					Open:         resp[j].Open24h,
+					Pair:         pairs[i],
+					LastUpdated:  resp[j].Timestamp,
+					ExchangeName: o.Name,
+					AssetType:    assetType})
 				if err != nil {
-					log.Error(log.Ticker, err)
+					return nil, err
 				}
 			}
 		}

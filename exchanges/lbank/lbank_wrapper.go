@@ -178,10 +178,9 @@ func (l *Lbank) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (l *Lbank) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
 	tickerInfo, err := l.GetTickers()
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 	pairs, err := l.GetEnabledPairs(assetType)
 	if err != nil {
@@ -192,17 +191,18 @@ func (l *Lbank) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 			if !pairs[i].Equal(tickerInfo[j].Symbol) {
 				continue
 			}
-			tickerPrice = &ticker.Price{
-				Last:        tickerInfo[j].Ticker.Latest,
-				High:        tickerInfo[j].Ticker.High,
-				Low:         tickerInfo[j].Ticker.Low,
-				Volume:      tickerInfo[j].Ticker.Volume,
-				Pair:        tickerInfo[j].Symbol,
-				LastUpdated: time.Unix(0, tickerInfo[j].Timestamp),
-			}
-			err = ticker.ProcessTicker(l.Name, tickerPrice, assetType)
+
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         tickerInfo[j].Ticker.Latest,
+				High:         tickerInfo[j].Ticker.High,
+				Low:          tickerInfo[j].Ticker.Low,
+				Volume:       tickerInfo[j].Ticker.Volume,
+				Pair:         tickerInfo[j].Symbol,
+				LastUpdated:  time.Unix(0, tickerInfo[j].Timestamp),
+				ExchangeName: l.Name,
+				AssetType:    assetType})
 			if err != nil {
-				log.Error(log.Ticker, err)
+				return nil, err
 			}
 		}
 	}

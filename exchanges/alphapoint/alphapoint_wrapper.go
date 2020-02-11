@@ -130,23 +130,24 @@ func (a *Alphapoint) FetchAccountInfo() (account.Holdings, error) {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (a *Alphapoint) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
 	tick, err := a.GetTicker(p.String())
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
-	tickerPrice.Pair = p
-	tickerPrice.Ask = tick.Ask
-	tickerPrice.Bid = tick.Bid
-	tickerPrice.Low = tick.Low
-	tickerPrice.High = tick.High
-	tickerPrice.Volume = tick.Volume
-	tickerPrice.Last = tick.Last
-
-	err = ticker.ProcessTicker(a.Name, tickerPrice, assetType)
+	err = ticker.ProcessTicker(&ticker.Price{
+		Pair:         p,
+		Ask:          tick.Ask,
+		Bid:          tick.Bid,
+		Low:          tick.Low,
+		High:         tick.High,
+		Volume:       tick.Volume,
+		Last:         tick.Last,
+		ExchangeName: a.Name,
+		AssetType:    assetType,
+	})
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
 	return ticker.GetTicker(a.Name, p, assetType)

@@ -306,21 +306,23 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 			if tick[y].Symbol != pairFmt {
 				continue
 			}
-			tickerPrice := &ticker.Price{
-				Last:        tick[y].LastPrice,
-				High:        tick[y].HighPrice,
-				Low:         tick[y].LowPrice,
-				Bid:         tick[y].BidPrice,
-				Ask:         tick[y].AskPrice,
-				Volume:      tick[y].Volume,
-				QuoteVolume: tick[y].QuoteVolume,
-				Open:        tick[y].OpenPrice,
-				Close:       tick[y].PrevClosePrice,
-				Pair:        pairs[i],
-			}
-			err = ticker.ProcessTicker(b.Name, tickerPrice, assetType)
+
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         tick[y].LastPrice,
+				High:         tick[y].HighPrice,
+				Low:          tick[y].LowPrice,
+				Bid:          tick[y].BidPrice,
+				Ask:          tick[y].AskPrice,
+				Volume:       tick[y].Volume,
+				QuoteVolume:  tick[y].QuoteVolume,
+				Open:         tick[y].OpenPrice,
+				Close:        tick[y].PrevClosePrice,
+				Pair:         pairs[i],
+				ExchangeName: b.Name,
+				AssetType:    assetType,
+			})
 			if err != nil {
-				log.Error(log.Ticker, err)
+				return nil, err
 			}
 		}
 	}

@@ -254,10 +254,9 @@ func (b *Bittrex) FetchAccountInfo() (account.Holdings, error) {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bittrex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
 	ticks, err := b.GetMarketSummaries()
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
 	pairs, err := b.GetEnabledPairs(assetType)
@@ -272,24 +271,24 @@ func (b *Bittrex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 			}
 			tickerTime, err := parseTime(ticks.Result[j].TimeStamp)
 			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s UpdateTicker unable to parse time: %s\n", b.Name, err)
+				return nil, err
 			}
-			tickerPrice = &ticker.Price{
-				Last:        ticks.Result[j].Last,
-				High:        ticks.Result[j].High,
-				Low:         ticks.Result[j].Low,
-				Bid:         ticks.Result[j].Bid,
-				Ask:         ticks.Result[j].Ask,
-				Volume:      ticks.Result[j].BaseVolume,
-				QuoteVolume: ticks.Result[j].Volume,
-				Close:       ticks.Result[j].PrevDay,
-				Pair:        pairs[i],
-				LastUpdated: tickerTime,
-			}
-			err = ticker.ProcessTicker(b.Name, tickerPrice, assetType)
+
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         ticks.Result[j].Last,
+				High:         ticks.Result[j].High,
+				Low:          ticks.Result[j].Low,
+				Bid:          ticks.Result[j].Bid,
+				Ask:          ticks.Result[j].Ask,
+				Volume:       ticks.Result[j].BaseVolume,
+				QuoteVolume:  ticks.Result[j].Volume,
+				Close:        ticks.Result[j].PrevDay,
+				Pair:         pairs[i],
+				LastUpdated:  tickerTime,
+				ExchangeName: b.Name,
+				AssetType:    assetType})
 			if err != nil {
-				log.Error(log.Ticker, err)
+				return nil, err
 			}
 		}
 	}

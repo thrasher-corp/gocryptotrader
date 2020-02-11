@@ -112,7 +112,7 @@ func (p Pair) Swap() Pair {
 // IsEmpty returns whether or not the pair is empty or is missing a currency
 // code
 func (p Pair) IsEmpty() bool {
-	return p.Base.IsEmpty() || p.Quote.IsEmpty()
+	return p.Base.IsEmpty() && p.Quote.IsEmpty()
 }
 
 // ContainsCurrency checks to see if a pair contains a specific currency

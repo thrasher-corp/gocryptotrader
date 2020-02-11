@@ -578,9 +578,11 @@ func TestGetSpecificTicker(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = ticker.ProcessTicker("Bitstamp",
-		&ticker.Price{Pair: p, Last: 1000},
-		asset.Spot)
+	err = ticker.ProcessTicker(&ticker.Price{
+		Pair:         p,
+		Last:         1000,
+		AssetType:    asset.Spot,
+		ExchangeName: "Bitstamp"})
 	if err != nil {
 		t.Fatal("ProcessTicker error", err)
 	}

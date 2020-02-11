@@ -225,10 +225,9 @@ func (g *Gateio) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (g *Gateio) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
 	result, err := g.GetTickers()
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 	pairs, err := g.GetEnabledPairs(assetType)
 	if err != nil {
@@ -239,19 +238,20 @@ func (g *Gateio) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 			if !strings.EqualFold(k, pairs[i].String()) {
 				continue
 			}
-			tickerPrice = &ticker.Price{
-				Last:        result[k].Last,
-				High:        result[k].High,
-				Low:         result[k].Low,
-				Volume:      result[k].BaseVolume,
-				QuoteVolume: result[k].QuoteVolume,
-				Open:        result[k].Open,
-				Close:       result[k].Close,
-				Pair:        pairs[i],
-			}
-			err = ticker.ProcessTicker(g.Name, tickerPrice, assetType)
+
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         result[k].Last,
+				High:         result[k].High,
+				Low:          result[k].Low,
+				Volume:       result[k].BaseVolume,
+				QuoteVolume:  result[k].QuoteVolume,
+				Open:         result[k].Open,
+				Close:        result[k].Close,
+				Pair:         pairs[i],
+				ExchangeName: g.Name,
+				AssetType:    assetType})
 			if err != nil {
-				log.Error(log.Ticker, err)
+				return nil, err
 			}
 		}
 	}

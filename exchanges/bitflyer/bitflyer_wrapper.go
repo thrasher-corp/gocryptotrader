@@ -178,23 +178,22 @@ func (b *Bitflyer) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitflyer) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
-
 	p = b.CheckFXString(p)
-
 	tickerNew, err := b.GetTicker(p.String())
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
-	tickerPrice.Pair = p
-	tickerPrice.Ask = tickerNew.BestAsk
-	tickerPrice.Bid = tickerNew.BestBid
-	tickerPrice.Last = tickerNew.Last
-	tickerPrice.Volume = tickerNew.Volume
-	err = ticker.ProcessTicker(b.Name, tickerPrice, assetType)
+	err = ticker.ProcessTicker(&ticker.Price{
+		Pair:         p,
+		Ask:          tickerNew.BestAsk,
+		Bid:          tickerNew.BestBid,
+		Last:         tickerNew.Last,
+		Volume:       tickerNew.Volume,
+		ExchangeName: b.Name,
+		AssetType:    assetType})
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
 	return ticker.GetTicker(b.Name, p, assetType)

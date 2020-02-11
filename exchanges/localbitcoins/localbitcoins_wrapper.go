@@ -170,10 +170,9 @@ func (l *LocalBitcoins) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (l *LocalBitcoins) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
 	tick, err := l.GetTicker()
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
 	pairs, err := l.GetEnabledPairs(assetType)
@@ -189,10 +188,12 @@ func (l *LocalBitcoins) UpdateTicker(p currency.Pair, assetType asset.Item) (*ti
 		tp.Pair = pairs[i]
 		tp.Last = tick[curr].Avg24h
 		tp.Volume = tick[curr].VolumeBTC
+		tp.ExchangeName = l.Name
+		tp.AssetType = assetType
 
-		err = ticker.ProcessTicker(l.Name, &tp, assetType)
+		err = ticker.ProcessTicker(&tp)
 		if err != nil {
-			log.Error(log.Ticker, err)
+			return nil, err
 		}
 	}
 

@@ -143,25 +143,25 @@ func (i *ItBit) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (i *ItBit) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
 	tick, err := i.GetTicker(i.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
-	tickerPrice = &ticker.Price{
-		Last:        tick.LastPrice,
-		High:        tick.High24h,
-		Low:         tick.Low24h,
-		Bid:         tick.Bid,
-		Ask:         tick.Ask,
-		Volume:      tick.Volume24h,
-		Open:        tick.OpenToday,
-		Pair:        p,
-		LastUpdated: tick.ServertimeUTC,
-	}
-	err = ticker.ProcessTicker(i.Name, tickerPrice, assetType)
+
+	err = ticker.ProcessTicker(&ticker.Price{
+		Last:         tick.LastPrice,
+		High:         tick.High24h,
+		Low:          tick.Low24h,
+		Bid:          tick.Bid,
+		Ask:          tick.Ask,
+		Volume:       tick.Volume24h,
+		Open:         tick.OpenToday,
+		Pair:         p,
+		LastUpdated:  tick.ServertimeUTC,
+		ExchangeName: i.Name,
+		AssetType:    assetType})
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
 	return ticker.GetTicker(i.Name, p, assetType)

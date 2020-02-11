@@ -18,13 +18,13 @@ func NewPairDelimiter(currencyPair, delimiter string) Pair {
 
 // NewPairFromStrings returns a CurrencyPair without a delimiter
 func NewPairFromStrings(base, quote string) (Pair, error) {
-	if base == "" || strings.Contains(base, " ") {
+	if strings.Contains(base, " ") {
 		return Pair{},
 			fmt.Errorf("cannot create pair invalid base currency string [%s]",
 				base)
 	}
 
-	if quote == "" || strings.Contains(quote, " ") {
+	if strings.Contains(quote, " ") {
 		return Pair{},
 			fmt.Errorf("cannot create pair invalid quote currency string [%s]",
 				quote)

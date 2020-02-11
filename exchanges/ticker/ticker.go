@@ -80,24 +80,23 @@ func GetTicker(exchange string, p currency.Pair, tickerType asset.Item) (*Price,
 
 // ProcessTicker processes incoming tickers, creating or updating the Tickers
 // list
-func ProcessTicker(exchangeName string, tickerNew *Price, assetType asset.Item) error {
-	if exchangeName == "" {
+func ProcessTicker(tickerNew *Price) error {
+	if tickerNew.ExchangeName == "" {
 		return fmt.Errorf(errExchangeNameUnset)
 	}
 
-	tickerNew.ExchangeName = strings.ToLower(exchangeName)
+	tickerNew.ExchangeName = strings.ToLower(tickerNew.ExchangeName)
 
 	if tickerNew.Pair.IsEmpty() {
-		return fmt.Errorf("%s %s", exchangeName, errPairNotSet)
+		return fmt.Errorf("%s %s", tickerNew.ExchangeName, errPairNotSet)
 	}
 
-	if assetType == "" {
-		return fmt.Errorf("%s %s %s", exchangeName,
+	if tickerNew.AssetType == "" {
+		return fmt.Errorf("%s %s %s",
+			tickerNew.ExchangeName,
 			tickerNew.Pair,
 			errAssetTypeNotSet)
 	}
-
-	tickerNew.AssetType = assetType
 
 	if tickerNew.LastUpdated.IsZero() {
 		tickerNew.LastUpdated = time.Now()

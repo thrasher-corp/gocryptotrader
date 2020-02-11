@@ -302,10 +302,9 @@ func (h *HUOBI) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
 	tickers, err := h.GetTickers()
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 	pairs, err := h.GetEnabledPairs(assetType)
 	if err != nil {
@@ -317,17 +316,18 @@ func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 			if pairFmt != tickers.Data[j].Symbol {
 				continue
 			}
-			tickerPrice := &ticker.Price{
-				High:   tickers.Data[j].High,
-				Low:    tickers.Data[j].Low,
-				Volume: tickers.Data[j].Volume,
-				Open:   tickers.Data[j].Open,
-				Close:  tickers.Data[j].Close,
-				Pair:   pairs[i],
-			}
-			err = ticker.ProcessTicker(h.Name, tickerPrice, assetType)
+
+			err = ticker.ProcessTicker(&ticker.Price{
+				High:         tickers.Data[j].High,
+				Low:          tickers.Data[j].Low,
+				Volume:       tickers.Data[j].Volume,
+				Open:         tickers.Data[j].Open,
+				Close:        tickers.Data[j].Close,
+				Pair:         pairs[i],
+				ExchangeName: h.Name,
+				AssetType:    assetType})
 			if err != nil {
-				log.Error(log.Ticker, err)
+				return nil, err
 			}
 		}
 	}

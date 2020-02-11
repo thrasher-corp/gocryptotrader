@@ -233,27 +233,25 @@ func (b *Bitstamp) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitstamp) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
 	tick, err := b.GetTicker(p.String(), false)
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
-	tickerPrice = &ticker.Price{
-		Last:        tick.Last,
-		High:        tick.High,
-		Low:         tick.Low,
-		Bid:         tick.Bid,
-		Ask:         tick.Ask,
-		Volume:      tick.Volume,
-		Open:        tick.Open,
-		Pair:        p,
-		LastUpdated: time.Unix(tick.Timestamp, 0),
-	}
-
-	err = ticker.ProcessTicker(b.Name, tickerPrice, assetType)
+	err = ticker.ProcessTicker(&ticker.Price{
+		Last:         tick.Last,
+		High:         tick.High,
+		Low:          tick.Low,
+		Bid:          tick.Bid,
+		Ask:          tick.Ask,
+		Volume:       tick.Volume,
+		Open:         tick.Open,
+		Pair:         p,
+		LastUpdated:  time.Unix(tick.Timestamp, 0),
+		ExchangeName: b.Name,
+		AssetType:    assetType})
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
 	return ticker.GetTicker(b.Name, p, assetType)

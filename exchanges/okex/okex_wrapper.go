@@ -347,21 +347,22 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 			if !enabled.Contains(resp[j].InstrumentID, true) {
 				continue
 			}
-			tickerPrice = &ticker.Price{
-				Last:        resp[j].Last,
-				High:        resp[j].High24h,
-				Low:         resp[j].Low24h,
-				Bid:         resp[j].BestBid,
-				Ask:         resp[j].BestAsk,
-				Volume:      resp[j].BaseVolume24h,
-				QuoteVolume: resp[j].QuoteVolume24h,
-				Open:        resp[j].Open24h,
-				Pair:        resp[j].InstrumentID,
-				LastUpdated: resp[j].Timestamp,
-			}
-			err = ticker.ProcessTicker(o.Name, tickerPrice, assetType)
+
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         resp[j].Last,
+				High:         resp[j].High24h,
+				Low:          resp[j].Low24h,
+				Bid:          resp[j].BestBid,
+				Ask:          resp[j].BestAsk,
+				Volume:       resp[j].BaseVolume24h,
+				QuoteVolume:  resp[j].QuoteVolume24h,
+				Open:         resp[j].Open24h,
+				Pair:         resp[j].InstrumentID,
+				LastUpdated:  resp[j].Timestamp,
+				ExchangeName: o.Name,
+				AssetType:    assetType})
 			if err != nil {
-				log.Error(log.Ticker, err)
+				return nil, err
 			}
 		}
 
@@ -384,19 +385,20 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 			if !enabled.Contains(nC, true) {
 				continue
 			}
-			tickerPrice = &ticker.Price{
-				Last:        resp[j].Last,
-				High:        resp[j].High24H,
-				Low:         resp[j].Low24H,
-				Bid:         resp[j].BestBid,
-				Ask:         resp[j].BestAsk,
-				Volume:      resp[j].Volume24H,
-				Pair:        nC,
-				LastUpdated: resp[j].Timestamp,
-			}
-			err = ticker.ProcessTicker(o.Name, tickerPrice, assetType)
+
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         resp[j].Last,
+				High:         resp[j].High24H,
+				Low:          resp[j].Low24H,
+				Bid:          resp[j].BestBid,
+				Ask:          resp[j].BestAsk,
+				Volume:       resp[j].Volume24H,
+				Pair:         nC,
+				LastUpdated:  resp[j].Timestamp,
+				ExchangeName: o.Name,
+				AssetType:    assetType})
 			if err != nil {
-				log.Error(log.Ticker, err)
+				return nil, err
 			}
 		}
 
@@ -419,19 +421,20 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 			if !enabled.Contains(nC, true) {
 				continue
 			}
-			tickerPrice = &ticker.Price{
-				Last:        resp[j].Last,
-				High:        resp[j].High24h,
-				Low:         resp[j].Low24h,
-				Bid:         resp[j].BestBid,
-				Ask:         resp[j].BestAsk,
-				Volume:      resp[j].Volume24h,
-				Pair:        nC,
-				LastUpdated: resp[j].Timestamp,
-			}
-			err = ticker.ProcessTicker(o.Name, tickerPrice, assetType)
+
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         resp[j].Last,
+				High:         resp[j].High24h,
+				Low:          resp[j].Low24h,
+				Bid:          resp[j].BestBid,
+				Ask:          resp[j].BestAsk,
+				Volume:       resp[j].Volume24h,
+				Pair:         nC,
+				LastUpdated:  resp[j].Timestamp,
+				ExchangeName: o.Name,
+				AssetType:    assetType})
 			if err != nil {
-				log.Error(log.Ticker, err)
+				return nil, err
 			}
 		}
 	}

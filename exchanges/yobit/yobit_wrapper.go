@@ -181,19 +181,18 @@ func (y *Yobit) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (y *Yobit) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
 	enabledPairs, err := y.GetEnabledPairs(assetType)
 	if err != nil {
 		return nil, err
 	}
 	pairsCollated, err := y.FormatExchangeCurrencies(enabledPairs, assetType)
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
 	result, err := y.GetTicker(pairsCollated)
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
 	for i := range enabledPairs {
@@ -201,20 +200,21 @@ func (y *Yobit) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 		if _, ok := result[curr]; !ok {
 			continue
 		}
-		resultCurr := result[curr]
-		tickerPrice := new(ticker.Price)
-		tickerPrice.Pair = enabledPairs[i]
-		tickerPrice.Last = resultCurr.Last
-		tickerPrice.Ask = resultCurr.Sell
-		tickerPrice.Bid = resultCurr.Buy
-		tickerPrice.Last = resultCurr.Last
-		tickerPrice.Low = resultCurr.Low
-		tickerPrice.QuoteVolume = resultCurr.VolumeCurrent
-		tickerPrice.Volume = resultCurr.Vol
 
-		err = ticker.ProcessTicker(y.Name, tickerPrice, assetType)
+		resultCurr := result[curr]
+		err = ticker.ProcessTicker(&ticker.Price{
+			Pair:         enabledPairs[i],
+			Last:         resultCurr.Last,
+			Ask:          resultCurr.Sell,
+			Bid:          resultCurr.Buy,
+			Low:          resultCurr.Low,
+			QuoteVolume:  resultCurr.VolumeCurrent,
+			Volume:       resultCurr.Vol,
+			ExchangeName: y.Name,
+			AssetType:    assetType,
+		})
 		if err != nil {
-			log.Error(log.Ticker, err)
+			return nil, err
 		}
 	}
 	return ticker.GetTicker(y.Name, p, assetType)

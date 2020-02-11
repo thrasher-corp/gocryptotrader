@@ -2,6 +2,7 @@ package currency
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"strings"
 
@@ -88,6 +89,7 @@ func (p *Pairs) UnmarshalJSON(d []byte) error {
 	for i := range oldPairs {
 		pair, err := NewPairFromString(oldPairs[i])
 		if err != nil {
+			fmt.Println("AWWWW MAN!!!")
 			return err
 		}
 		allThePairs = append(allThePairs, pair)

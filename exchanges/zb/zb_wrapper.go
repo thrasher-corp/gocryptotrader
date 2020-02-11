@@ -221,11 +221,9 @@ func (z *ZB) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (z *ZB) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
-
 	result, err := z.GetTickers()
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
 	enabledPairs, err := z.GetEnabledPairs(assetType)
@@ -239,18 +237,19 @@ func (z *ZB) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price,
 		if _, ok := result[curr]; !ok {
 			continue
 		}
-		var tp ticker.Price
-		tp.Pair = enabledPairs[x]
-		tp.High = result[curr].High
-		tp.Last = result[curr].Last
-		tp.Ask = result[curr].Sell
-		tp.Bid = result[curr].Buy
-		tp.Low = result[curr].Low
-		tp.Volume = result[curr].Volume
 
-		err = ticker.ProcessTicker(z.Name, &tp, assetType)
+		err = ticker.ProcessTicker(&ticker.Price{
+			Pair:         enabledPairs[x],
+			High:         result[curr].High,
+			Last:         result[curr].Last,
+			Ask:          result[curr].Sell,
+			Bid:          result[curr].Buy,
+			Low:          result[curr].Low,
+			Volume:       result[curr].Volume,
+			ExchangeName: z.Name,
+			AssetType:    assetType})
 		if err != nil {
-			log.Error(log.Ticker, err)
+			return nil, err
 		}
 	}
 

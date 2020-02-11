@@ -72,8 +72,18 @@ func (b *Bitfinex) SetDefaults() {
 		},
 	}
 
+	fmt2 := currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: ":",
+		},
+	}
+
 	b.CurrencyPairs.Store(asset.Spot, fmt1)
-	b.CurrencyPairs.Store(asset.Margin, fmt1)
+	b.CurrencyPairs.Store(asset.Margin, fmt2)
 	b.CurrencyPairs.Store(asset.MarginFunding, fmt1)
 
 	b.Features = exchange.Features{
@@ -283,10 +293,7 @@ func (b *Bitfinex) UpdateTradablePairs(forceUpdate bool) error {
 			return err
 		}
 
-		err = b.UpdatePairs(p,
-			b.CurrencyPairs.AssetTypes[i],
-			false,
-			forceUpdate)
+		err = b.UpdatePairs(p, b.CurrencyPairs.AssetTypes[i], false, forceUpdate)
 		if err != nil {
 			return err
 		}
@@ -307,10 +314,6 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 	}
 
 	for k, v := range tickerNew {
-		if strings.HasPrefix(k, "f") {
-			continue
-		}
-
 		pair, err := currency.NewPairFromString(k[1:]) // Remove prefix
 		if err != nil {
 			return nil, err
@@ -320,21 +323,20 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 			continue
 		}
 
-		tick := ticker.Price{
-			Last:   v.Last,
-			High:   v.High,
-			Low:    v.Low,
-			Bid:    v.Bid,
-			Ask:    v.Ask,
-			Volume: v.Volume,
-			Pair:   pair,
-		}
-		err = ticker.ProcessTicker(b.Name, &tick, assetType)
+		err = ticker.ProcessTicker(&ticker.Price{
+			Last:         v.Last,
+			High:         v.High,
+			Low:          v.Low,
+			Bid:          v.Bid,
+			Ask:          v.Ask,
+			Volume:       v.Volume,
+			Pair:         pair,
+			AssetType:    assetType,
+			ExchangeName: b.Name})
 		if err != nil {
 			return nil, err
 		}
 	}
-
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 
@@ -362,7 +364,7 @@ func (b *Bitfinex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*order
 func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	b.appendOptionalDelimiter(&p)
 	var prefix = "t"
-	if assetType == asset.Margin {
+	if assetType == asset.MarginFunding {
 		prefix = "f"
 	}
 

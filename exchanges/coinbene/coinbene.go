@@ -35,10 +35,11 @@ const (
 	coinbeneAPIVersion   = "v2"
 
 	// Public endpoints
-	coinbeneGetTicker    = "/market/ticker/one"
-	coinbeneGetTickers   = "/market/tickers"
-	coinbeneGetOrderBook = "/market/orderBook"
-	coinbeneGetKlines    = "/market/klines"
+	coinbeneGetTicker      = "/market/ticker/one"
+	coinbeneGetTickersSpot = "/market/ticker/list"
+	coinbeneGetTickers     = "/market/tickers"
+	coinbeneGetOrderBook   = "/market/orderBook"
+	coinbeneGetKlines      = "/market/klines"
 	// TODO: Implement function ---
 	coinbeneSpotKlines       = "/market/instruments/candles"
 	coinbeneSpotExchangeRate = "/market/rate/list"
@@ -162,7 +163,9 @@ func (c *Coinbene) GetTickers() ([]TickerData, error) {
 		TickerData []TickerData `json:"data"`
 	}{}
 
-	path := c.API.Endpoints.URL + coinbeneAPIVersion + coinbeneGetTicker
+	fmt.Println("FREAKIN CATS")
+
+	path := c.API.Endpoints.URL + coinbeneAPIVersion + coinbeneGetTickersSpot
 	return resp.TickerData, c.SendHTTPRequest(path, spotTickerList, &resp)
 }
 

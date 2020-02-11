@@ -330,7 +330,7 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 						SyncItemTicker,
 						nil)
 				}
-				err := ticker.ProcessTicker(ws.GetName(), d, d.AssetType)
+				err := ticker.ProcessTicker(d)
 				printTickerSummary(d, d.Pair, d.AssetType, ws.GetName(), "websocket", err)
 			case wshandler.KlineData:
 				// Websocket Kline Data

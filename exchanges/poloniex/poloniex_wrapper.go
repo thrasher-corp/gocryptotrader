@@ -236,10 +236,9 @@ func (p *Poloniex) UpdateTradablePairs(forceUpgrade bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (p *Poloniex) UpdateTicker(currencyPair currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
 	tick, err := p.GetTicker()
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
 	enabledPairs, err := p.GetEnabledPairs(assetType)
@@ -247,23 +246,24 @@ func (p *Poloniex) UpdateTicker(currencyPair currency.Pair, assetType asset.Item
 		return nil, err
 	}
 	for i := range enabledPairs {
-		var tp ticker.Price
 		curr := p.FormatExchangeCurrency(enabledPairs[i], assetType).String()
 		if _, ok := tick[curr]; !ok {
 			continue
 		}
-		tp.Pair = enabledPairs[i]
-		tp.Ask = tick[curr].LowestAsk
-		tp.Bid = tick[curr].HighestBid
-		tp.High = tick[curr].High24Hr
-		tp.Last = tick[curr].Last
-		tp.Low = tick[curr].Low24Hr
-		tp.Volume = tick[curr].BaseVolume
-		tp.QuoteVolume = tick[curr].QuoteVolume
 
-		err = ticker.ProcessTicker(p.Name, &tp, assetType)
+		err = ticker.ProcessTicker(&ticker.Price{
+			Pair:         enabledPairs[i],
+			Ask:          tick[curr].LowestAsk,
+			Bid:          tick[curr].HighestBid,
+			High:         tick[curr].High24Hr,
+			Last:         tick[curr].Last,
+			Low:          tick[curr].Low24Hr,
+			Volume:       tick[curr].BaseVolume,
+			QuoteVolume:  tick[curr].QuoteVolume,
+			ExchangeName: p.Name,
+			AssetType:    assetType})
 		if err != nil {
-			log.Error(log.Ticker, err)
+			return nil, err
 		}
 	}
 	return ticker.GetTicker(p.Name, currencyPair, assetType)

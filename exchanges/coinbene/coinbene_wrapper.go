@@ -273,33 +273,43 @@ func (c *Coinbene) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (c *Coinbene) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	resp := new(ticker.Price)
 	if !c.SupportsAsset(assetType) {
 		return nil,
 			fmt.Errorf("%s does not support asset type %s", c.Name, assetType)
 	}
 
+	allPairs, err := c.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
+
 	switch assetType {
 	case asset.Spot:
-		allPairs, err := c.GetEnabledPairs(assetType)
+		tickers, err := c.GetTickers()
 		if err != nil {
 			return nil, err
 		}
-		for x := range allPairs {
-			tempResp, err := c.GetTicker(c.FormatExchangeCurrency(allPairs[x],
-				assetType).String())
+
+		for i := range tickers {
+			p, err := currency.NewPairFromString(tickers[i].Symbol)
 			if err != nil {
 				return nil, err
 			}
-			resp.Pair = allPairs[x]
-			resp.Last = tempResp.LatestPrice
-			resp.High = tempResp.DailyHigh
-			resp.Low = tempResp.DailyLow
-			resp.Bid = tempResp.BestBid
-			resp.Ask = tempResp.BestAsk
-			resp.Volume = tempResp.DailyVolume
-			resp.LastUpdated = time.Now()
-			err = ticker.ProcessTicker(c.Name, resp, assetType)
+
+			if !allPairs.Contains(p, true) {
+				continue
+			}
+
+			err = ticker.ProcessTicker(&ticker.Price{
+				Pair:         p,
+				Last:         tickers[i].LatestPrice,
+				High:         tickers[i].DailyHigh,
+				Low:          tickers[i].DailyLow,
+				Bid:          tickers[i].BestBid,
+				Ask:          tickers[i].BestAsk,
+				Volume:       tickers[i].DailyVolume,
+				ExchangeName: c.Name,
+				AssetType:    assetType})
 			if err != nil {
 				return nil, err
 			}
@@ -310,27 +320,27 @@ func (c *Coinbene) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 			return nil, err
 		}
 
-		allPairs, err := c.GetEnabledPairs(assetType)
-		if err != nil {
-			return nil, err
-		}
 		for x := range allPairs {
 			tick, ok := tickers[c.FormatExchangeCurrency(allPairs[x],
 				assetType).String()]
 			if !ok {
 				log.Warnf(log.ExchangeSys,
-					"%s SWAP ticker item was not found", c.Name)
+					"%s SWAP ticker item was not found",
+					c.Name)
 				continue
 			}
-			resp.Pair = allPairs[x]
-			resp.Last = tick.LastPrice
-			resp.High = tick.High24Hour
-			resp.Low = tick.Low24Hour
-			resp.Bid = tick.BestBidPrice
-			resp.Ask = tick.BestAskPrice
-			resp.Volume = tick.Volume24Hour
-			resp.LastUpdated = tick.Timestamp
-			err = ticker.ProcessTicker(c.Name, resp, assetType)
+
+			err = ticker.ProcessTicker(&ticker.Price{
+				Pair:         allPairs[x],
+				Last:         tick.LastPrice,
+				High:         tick.High24Hour,
+				Low:          tick.Low24Hour,
+				Bid:          tick.BestBidPrice,
+				Ask:          tick.BestAskPrice,
+				Volume:       tick.Volume24Hour,
+				LastUpdated:  tick.Timestamp,
+				ExchangeName: c.Name,
+				AssetType:    assetType})
 			if err != nil {
 				return nil, err
 			}

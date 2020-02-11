@@ -392,35 +392,35 @@ func (c *COINUT) FetchAccountInfo() (account.Holdings, error) {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (c *COINUT) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
 	err := c.loadInstrumentsIfNotLoaded()
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
 	instID := c.instrumentMap.LookupID(c.FormatExchangeCurrency(p,
 		assetType).String())
 	if instID == 0 {
-		return tickerPrice, errors.New("unable to lookup instrument ID")
+		return nil, errors.New("unable to lookup instrument ID")
 	}
 	var tick Ticker
 	tick, err = c.GetInstrumentTicker(instID)
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
-	tickerPrice = &ticker.Price{
-		Last:        tick.Last,
-		High:        tick.High24,
-		Low:         tick.Low24,
-		Bid:         tick.HighestBuy,
-		Ask:         tick.LowestSell,
-		Volume:      tick.Volume24,
-		Pair:        p,
-		LastUpdated: time.Unix(0, tick.Timestamp),
-	}
-	err = ticker.ProcessTicker(c.Name, tickerPrice, assetType)
+
+	err = ticker.ProcessTicker(&ticker.Price{
+		Last:         tick.Last,
+		High:         tick.High24,
+		Low:          tick.Low24,
+		Bid:          tick.HighestBuy,
+		Ask:          tick.LowestSell,
+		Volume:       tick.Volume24,
+		Pair:         p,
+		LastUpdated:  time.Unix(0, tick.Timestamp),
+		ExchangeName: c.Name,
+		AssetType:    assetType})
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
 	return ticker.GetTicker(c.Name, p, assetType)

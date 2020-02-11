@@ -257,23 +257,23 @@ func (g *Gemini) FetchAccountInfo() (account.Holdings, error) {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (g *Gemini) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
 	tick, err := g.GetTicker(p.String())
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
-	tickerPrice = &ticker.Price{
-		High:  tick.High,
-		Low:   tick.Low,
-		Bid:   tick.Bid,
-		Ask:   tick.Ask,
-		Open:  tick.Open,
-		Close: tick.Close,
-		Pair:  p,
-	}
-	err = ticker.ProcessTicker(g.Name, tickerPrice, assetType)
+
+	err = ticker.ProcessTicker(&ticker.Price{
+		High:         tick.High,
+		Low:          tick.Low,
+		Bid:          tick.Bid,
+		Ask:          tick.Ask,
+		Open:         tick.Open,
+		Close:        tick.Close,
+		Pair:         p,
+		ExchangeName: g.Name,
+		AssetType:    assetType})
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
 	return ticker.GetTicker(g.Name, p, assetType)
