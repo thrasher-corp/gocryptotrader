@@ -767,7 +767,6 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params m
 		Body:          bytes.NewBuffer(payload),
 		Result:        result,
 		AuthRequest:   true,
-		NonceEnabled:  true,
 		Verbose:       c.Verbose,
 		HTTPDebugging: c.HTTPDebugging,
 		HTTPRecording: c.HTTPRecording,
