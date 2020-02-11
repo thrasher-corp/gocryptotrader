@@ -459,8 +459,13 @@ message WithdrawResponse {
     string status = 2;
 }
 
-message WithdrawalRequestHistory {
-    string id = 1;
+message WithdrawalEventByIDRequest {
+    string uuid = 1;
+}
+
+message WithdrawalEventByIDResponse {
+    string status = 1;
+    string message = 2;
 }
 
 message GetLoggerDetailsRequest {
@@ -860,6 +865,13 @@ service GoCryptoTrader {
     rpc WithdrawFiatFunds(WithdrawFiatRequest) returns (WithdrawResponse) {
         option (google.api.http) = {
             post: "/v1/withdrawfiatfunds"
+            body: "*"
+        };
+    }
+
+    rpc WithdrawalEventByID(WithdrawalEventByIDRequest) returns (WithdrawalEventByIDResponse) {
+        option (google.api.http) = {
+            post: "/v1/withdrawaleventbyid"
             body: "*"
         };
     }

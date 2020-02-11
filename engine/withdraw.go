@@ -70,8 +70,8 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 	return resp, nil
 }
 
-// WithdrawRequestByID returns a withdrawal request by ID
-func WithdrawRequestByID(id string) (*withdraw.Response, error) {
+// WithdrawEventtByID returns a withdrawal request by ID
+func WithdrawEventtByID(id string) (*withdraw.Response, error) {
 	v := withdraw.Cache.Get(id)
 	if v != nil {
 		return v.(*withdraw.Response), nil
@@ -84,17 +84,17 @@ func WithdrawRequestByID(id string) (*withdraw.Response, error) {
 	return l, nil
 }
 
-// WithdrawRequestsByExchange returns a withdrawal request by ID
-func WithdrawRequestsByExchange(exchange string, limit int) ([]withdraw.Response, error) {
+// WithdrawEventByExchange returns a withdrawal request by ID
+func WithdrawEventByExchange(exchange string, limit int) ([]withdraw.Response, error) {
 	return nil, nil
 }
 
-// WithdrawRequestsByDate returns a withdrawal request by ID
-func WithdrawRequestsByDate(start, end time.Time) ([]withdraw.Response, error) {
+// WithdrawEventByDate returns a withdrawal request by ID
+func WithdrawEventByDate(start, end time.Time) ([]withdraw.Response, error) {
 	return nil, nil
 }
 
-// WithdrawRequestByExchangeID returns a withdrawal request by ID
-func WithdrawRequestByExchangeID(id string) (*withdraw.Response, error) {
+// WithdrawEventByExchangeID returns a withdrawal request by ID
+func WithdrawEventByExchangeID(id string) (*withdraw.Response, error) {
 	return nil, nil
 }

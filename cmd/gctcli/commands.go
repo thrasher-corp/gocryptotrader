@@ -2390,6 +2390,57 @@ func withdrawFiatFunds(c *cli.Context) error {
 	return nil
 }
 
+var withdrawlRequestByIDCommand = cli.Command{
+	Name:      "withdrawlrequestbyid",
+	ShortName: "wid",
+	UsageText: "retrieve previous withdrawal request details",
+	ArgsUsage: "<id>",
+	Action:    withdrawlRequestByID,
+	Flags: []cli.Flag{
+		cli.StringFlag{
+			Name:  "id",
+			Usage: "event id",
+		},
+	},
+}
+
+func withdrawlRequestByID(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "withdrawlrequestbyid")
+		return nil
+	}
+
+	var ID string
+	if c.IsSet("id") {
+		ID = c.String("id")
+	} else {
+		ID = c.Args().First()
+	}
+
+	if ID == "" {
+		return errors.New("a ID must be specified")
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	result, err := client.WithdrawalEventByID(context.Background(),
+		&gctrpc.WithdrawalEventByIDRequest{
+			Uuid: ID,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}
+
 var getLoggerDetailsCommand = cli.Command{
 	Name:      "getloggerdetails",
 	Usage:     "gets an individual loggers details",

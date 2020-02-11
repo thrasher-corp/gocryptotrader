@@ -225,6 +225,10 @@ func EventByUUID(id string) (*withdraw.Response, error) {
 			return nil, err
 		}
 		resp.RequestDetails.Fiat.Bank = new(banking.Account)
+		resp.RequestDetails.Fiat.Bank.AccountName = x.BankAccountName
+		resp.RequestDetails.Fiat.Bank.AccountNumber = x.BankAccountNumber
+		resp.RequestDetails.Fiat.Bank.IBAN = x.Iban
+		resp.RequestDetails.Fiat.Bank.SWIFTCode = x.SwiftCode
 		resp.RequestDetails.Fiat.Bank.BSBNumber = x.BSB
 	}
 

@@ -1412,6 +1412,32 @@
         ]
       }
     },
+    "/v1/withdrawaleventbyid": {
+      "post": {
+        "operationId": "WithdrawalEventByID",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcWithdrawalEventByIDResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcWithdrawalEventByIDRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/withdrawcryptofunds": {
       "post": {
         "operationId": "WithdrawCryptocurrencyFunds",
@@ -2827,6 +2853,25 @@
           "type": "string"
         },
         "status": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcWithdrawalEventByIDRequest": {
+      "type": "object",
+      "properties": {
+        "uuid": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcWithdrawalEventByIDResponse": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "message": {
           "type": "string"
         }
       }

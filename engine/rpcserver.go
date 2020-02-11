@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -978,7 +979,6 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 			Bank: bankAccount,
 		},
 	}
-
 	resp, err := SubmitWithdrawal(r.Exchange, request)
 	if err != nil {
 		return nil, err
@@ -987,6 +987,24 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 	return &gctrpc.WithdrawResponse{
 		Id:     resp.ID.String(),
 		Status: resp.Exchange.Status,
+	}, nil
+}
+
+// WithdrawalEventByID returns previous withdrawal request details
+func (s *RPCServer) WithdrawalEventByID(ctx context.Context, r *gctrpc.WithdrawalEventByIDRequest) (*gctrpc.WithdrawalEventByIDResponse, error) {
+	resp, err := WithdrawEventtByID(r.Uuid)
+	if err != nil {
+		return nil, err
+	}
+
+	v, err := json.MarshalIndent(resp, "", "")
+	if err != nil {
+		return nil, err
+	}
+
+	return &gctrpc.WithdrawalEventByIDResponse{
+		Status:  "success",
+		Message: string(v),
 	}, nil
 }
 
