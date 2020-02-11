@@ -1,7 +1,6 @@
 package poloniex
 
 import (
-	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
@@ -415,24 +414,6 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-func TestWsHandleAccountData(t *testing.T) {
-	t.Parallel()
-	p.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	jsons := []string{
-		`[["n", 148, 6083059, 1, "0.03000000", "2.00000000", "2018-09-08 04:54:09", "2.00000000", "12345"],["b", 28, "e", "-0.06000000"]]`,
-		`[["o", 6083059, "1.50000000", "f", "12345"],["b", 28, "e", "-0.06000000"]]`,
-		`[["t", 12345, "0.03000000", "0.50000000", "0.00250000", 0, 6083059, "0.00000375", "2018-09-08 05:54:09", "12345"]]`,
-	}
-	for i := range jsons {
-		var result [][]interface{}
-		err := json.Unmarshal([]byte(jsons[i]), &result)
-		if err != nil {
-			t.Error(err)
-		}
-		p.wsHandleAccountData(result)
-	}
-}
-
 // TestWsAuth dials websocket, sends login request.
 // Will receive a message only on failure
 func TestWsAuth(t *testing.T) {
@@ -489,9 +470,59 @@ func TestWsTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	pressXToJSON := []byte(`[ 1002, null, [ 149, "382.98901522", "381.99755898", "379.41296309", "-0.04312950", "14969820.94951828", "38859.58435407", 0, "412.25844455", "364.56122072" ] ]`)
+	pressXToJSON := []byte(`[1002, null, [ 50, "382.98901522", "381.99755898", "379.41296309", "-0.04312950", "14969820.94951828", "38859.58435407", 0, "412.25844455", "364.56122072" ] ]`)
 	err = p.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestWsExchangeVolume(t *testing.T) {
+	err := p.getCurrencyIDMap()
+	if err != nil {
+		t.Error(err)
+	}
+	pressXToJSON := []byte(`[1003,null,["2018-11-07 16:26",5804,{"BTC":"3418.409","ETH":"2645.921","USDT":"10832502.689","USDC":"1578020.908"}]]`)
+	err = p.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsPriceAggregateOrderbook(t *testing.T) {
+	err := p.getCurrencyIDMap()
+	if err != nil {
+		t.Error(err)
+	}
+	pressXToJSON := []byte(`[148,599758718,[["i",{"currencyPair":"BTC_ETH","orderBook":[{"0.03342499":"0.98174196","0.03343000":"45.80780000", "0.00000001":"1462262.00000000"}]}]]]`)
+	err = p.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(`[148,599758719,[["o",1,"0.03315496","0.00000000"],["o",1,"0.03315498","99.33100000"]]]`)
+	err = p.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsHandleAccountData(t *testing.T) {
+	t.Parallel()
+	err := p.getCurrencyIDMap()
+	if err != nil {
+		t.Error(err)
+	}
+	jsons := []string{
+		`[1000,"",[["o",807230187,"0.00000000", "f"],["b",267,"e","0.10000000"]]]`,
+		`[1000,"",[["n",225,807230187,0,"1000.00000000","0.10000000","2018-11-07 16:42:42"],["b",267,"e","-0.10000000"]]]`,
+		`[1000,"",[["t", 12345, "0.03000000", "0.50000000", "0.00250000", 0, 6083059, "0.00000375", "2018-09-08 05:54:09", "12345"]]]`,
+		`[1000,"",[["k", 1337, ""]]]`,
+	}
+	for i := range jsons {
+		err := p.wsFromScrach([]byte(jsons[i]))
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }
