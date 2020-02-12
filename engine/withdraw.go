@@ -86,7 +86,11 @@ func WithdrawEventtByID(id string) (*withdraw.Response, error) {
 
 // WithdrawEventByExchange returns a withdrawal request by ID
 func WithdrawEventByExchange(exchange string, limit int) ([]withdraw.Response, error) {
-	return nil, nil
+	l, err := withdrawal.EventByExchange(exchange, limit)
+	if err != nil {
+		return nil, fmt.Errorf(ErrWithdrawRequestNotFound, exchange)
+	}
+	return l, nil
 }
 
 // WithdrawEventByDate returns a withdrawal request by ID
@@ -94,7 +98,7 @@ func WithdrawEventByDate(start, end time.Time) ([]withdraw.Response, error) {
 	return nil, nil
 }
 
-// WithdrawEventByExchangeID returns a withdrawal request by ID
+// WithdrawEventByExchangeID returns a withdrawal request by Exchange ID
 func WithdrawEventByExchangeID(id string) (*withdraw.Response, error) {
 	return nil, nil
 }

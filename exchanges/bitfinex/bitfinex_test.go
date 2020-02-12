@@ -843,10 +843,8 @@ func TestWithdrawFiat(t *testing.T) {
 		Currency:    currency.USD,
 		Description: "WITHDRAW IT ALL",
 		Fiat: &withdraw.FiatRequest{
-			Bank:                     &banking.Account{},
-			WireCurrency:             currency.USD.String(),
-			RequiresIntermediaryBank: false,
-			IsExpressWire:            false,
+			Bank:         &banking.Account{},
+			WireCurrency: currency.USD.String(),
 		},
 	}
 

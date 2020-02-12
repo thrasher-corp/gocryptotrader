@@ -1414,12 +1414,12 @@
     },
     "/v1/withdrawaleventbyid": {
       "post": {
-        "operationId": "WithdrawalEventByID",
+        "operationId": "WithdrawalEventByExchange",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcWithdrawalEventByIDResponse"
+              "$ref": "#/definitions/gctrpcWithdrawalEventByExchangeResponse"
             }
           }
         },
@@ -1746,6 +1746,21 @@
         }
       }
     },
+    "gctrpcCryptoWithdrawalEvent": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "address_tag": {
+          "type": "string"
+        },
+        "fee": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
     "gctrpcCurrencyPair": {
       "type": "object",
       "properties": {
@@ -1771,6 +1786,29 @@
         },
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
+        }
+      }
+    },
+    "gctrpcFiatWithdrawalEvent": {
+      "type": "object",
+      "properties": {
+        "bank_name": {
+          "type": "string"
+        },
+        "account_name": {
+          "type": "string"
+        },
+        "account_number": {
+          "type": "string"
+        },
+        "bsb": {
+          "type": "string"
+        },
+        "swift": {
+          "type": "string"
+        },
+        "iban": {
+          "type": "string"
         }
       }
     },
@@ -2857,10 +2895,24 @@
         }
       }
     },
+    "gctrpcWithdrawalEventByExchangeResponse": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "event": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcWithdrawalEventResponse"
+          }
+        }
+      }
+    },
     "gctrpcWithdrawalEventByIDRequest": {
       "type": "object",
       "properties": {
-        "uuid": {
+        "id": {
           "type": "string"
         }
       }
@@ -2871,7 +2923,68 @@
         "status": {
           "type": "string"
         },
-        "message": {
+        "event": {
+          "$ref": "#/definitions/gctrpcWithdrawalEventResponse"
+        }
+      }
+    },
+    "gctrpcWithdrawalEventResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "exchange": {
+          "$ref": "#/definitions/gctrpcWithdrawlExchangeEvent"
+        },
+        "request": {
+          "$ref": "#/definitions/gctrpcWithdrawalRequestEvent"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "gctrpcWithdrawalRequestEvent": {
+      "type": "object",
+      "properties": {
+        "currency": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number",
+          "format": "double"
+        },
+        "type": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "fiat": {
+          "$ref": "#/definitions/gctrpcFiatWithdrawalEvent"
+        },
+        "crypto": {
+          "$ref": "#/definitions/gctrpcCryptoWithdrawalEvent"
+        }
+      }
+    },
+    "gctrpcWithdrawlExchangeEvent": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "status": {
           "type": "string"
         }
       }

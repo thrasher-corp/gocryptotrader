@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
@@ -21,6 +20,7 @@ func GetBankAccountByID(id string) (*Account, error) {
 	return nil, fmt.Errorf(ErrBankAccountNotFound, id)
 }
 
+// ExchangeSupported Checks if exchange is supported by bank account
 func (b *Account) ExchangeSupported(exchange string) bool {
 	exchList := strings.Split(b.SupportedExchanges, ",")
 	for x := range exchList {
@@ -33,10 +33,6 @@ func (b *Account) ExchangeSupported(exchange string) bool {
 
 // Validate validates bank account settings
 func (b *Account) Validate() error {
-	if b == nil {
-		return errors.New(ErrAccountCannotBeNil)
-	}
-
 	if b.BankName == "" ||
 		b.BankAddress == "" ||
 		b.BankPostalCode == "" ||
@@ -72,11 +68,9 @@ func (b *Account) Validate() error {
 	return nil
 }
 
+// ValidateForWithdrawal confirms bank account meets minimum requirements to submit
+// a withdrawal request
 func (b *Account) ValidateForWithdrawal(exchange string, cur currency.Code) (err []string) {
-	if b == nil {
-		return []string{ErrAccountCannotBeNil}
-	}
-
 	if !b.Enabled {
 		err = append(err, ErrBankAccountDisabled)
 	}

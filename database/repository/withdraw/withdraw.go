@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/sqlboiler/boil"
+	"github.com/thrasher-corp/sqlboiler/queries/qm"
 )
 
 // Event store new Withdrawal event
@@ -179,6 +180,8 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 	return nil
 }
 
+// TODO: optimize these queries
+
 // EventByUUID return requested withdraw information by ID
 func EventByUUID(id string) (*withdraw.Response, error) {
 	if database.DB.SQL == nil {
@@ -232,5 +235,66 @@ func EventByUUID(id string) (*withdraw.Response, error) {
 		resp.RequestDetails.Fiat.Bank.BSBNumber = x.BSB
 	}
 
+	return resp, nil
+}
+
+// EventByExchange return all withdrawal requests by exchange
+func EventByExchange(exchange string, limit int) ([]withdraw.Response, error) {
+	if database.DB.SQL == nil {
+		return nil, errors.New("database is nil")
+	}
+
+	var resp []withdraw.Response
+	var ctx = context.Background()
+
+	queryWhere := qm.Where("exchange = ?", exchange)
+	queryLimit := qm.Limit(limit)
+	v, err := modelPSQL.WithdrawalHistories(queryWhere, queryLimit).All(ctx, database.DB.SQL)
+	if err != nil {
+		return nil, err
+	}
+
+	for x := range v {
+		var tempResp = withdraw.Response{}
+		newUUID, _ := uuid.FromString(v[x].ID)
+		tempResp.ID = newUUID
+		tempResp.Exchange = new(withdraw.ExchangeResponse)
+		tempResp.Exchange.ID = v[x].ExchangeID
+		tempResp.Exchange.Name = v[x].Exchange
+		tempResp.Exchange.Status = v[x].Status
+		tempResp.RequestDetails = new(withdraw.Request)
+		tempResp.RequestDetails = &withdraw.Request{
+			Currency:    currency.Code{},
+			Description: v[x].Description.String,
+			Amount:      v[x].Amount,
+			Type:        withdraw.RequestType(v[x].WithdrawType),
+		}
+		tempResp.CreatedAt = v[x].CreatedAt
+		tempResp.UpdatedAt = v[x].UpdatedAt
+
+		if withdraw.RequestType(v[x].WithdrawType) == withdraw.Crypto {
+			tempResp.RequestDetails.Crypto = new(withdraw.CryptoRequest)
+			x, err := v[x].WithdrawalCryptoWithdrawalCryptos().One(ctx, database.DB.SQL)
+			if err != nil {
+				return nil, err
+			}
+			tempResp.RequestDetails.Crypto.Address = x.Address
+			tempResp.RequestDetails.Crypto.AddressTag = x.AddressTag.String
+			tempResp.RequestDetails.Crypto.FeeAmount = x.Fee
+		} else if withdraw.RequestType(v[x].WithdrawType) == withdraw.Fiat {
+			tempResp.RequestDetails.Fiat = new(withdraw.FiatRequest)
+			x, err := v[x].WithdrawalFiatWithdrawalFiats().One(ctx, database.DB.SQL)
+			if err != nil {
+				return nil, err
+			}
+			tempResp.RequestDetails.Fiat.Bank = new(banking.Account)
+			tempResp.RequestDetails.Fiat.Bank.AccountName = x.BankAccountName
+			tempResp.RequestDetails.Fiat.Bank.AccountNumber = x.BankAccountNumber
+			tempResp.RequestDetails.Fiat.Bank.IBAN = x.Iban
+			tempResp.RequestDetails.Fiat.Bank.SWIFTCode = x.SwiftCode
+			tempResp.RequestDetails.Fiat.Bank.BSBNumber = x.BSB
+		}
+		resp = append(resp, tempResp)
+	}
 	return resp, nil
 }

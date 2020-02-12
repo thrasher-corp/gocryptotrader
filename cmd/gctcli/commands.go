@@ -2431,7 +2431,7 @@ func withdrawlRequestByID(c *cli.Context) error {
 
 	result, err := client.WithdrawalEventByID(context.Background(),
 		&gctrpc.WithdrawalEventByIDRequest{
-			Uuid: ID,
+			Id: ID,
 		},
 	)
 	if err != nil {

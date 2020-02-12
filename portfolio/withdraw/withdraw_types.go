@@ -35,6 +35,12 @@ const (
 	ErrStrCurrencyNotCrypto = "requested currency is not a cryptocurrency"
 	// ErrStrCurrencyNotFiat message to return when requested currency is not fiat
 	ErrStrCurrencyNotFiat = "requested currency is not fiat"
+	// ErrStrFeeCannotBeNegative message to return when fee amount is negative
+	ErrStrFeeCannotBeNegative = "fee amount cannot be negative"
+	// ErrStrAddressNotWhiteListed message to return when attempting to withdraw to non-whitelisted address
+	ErrStrAddressNotWhiteListed = "address is not whitelisted for withdrawals"
+	// ErrStrExchangeNotSupportedByAddress message to return when attemptign to withdraw to an unsupported exchange
+	ErrStrExchangeNotSupportedByAddress = "address is not supported by exchange"
 )
 
 var (

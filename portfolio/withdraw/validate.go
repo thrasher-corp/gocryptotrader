@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
 
 // Valid takes interface and passes to asset type to check the request meets requirements to submit
@@ -63,12 +64,20 @@ func validateFiat(request *Request) (err []string) {
 
 // ValidateCrypto checks if Crypto request is valid and meets the minimum requirements to submit a crypto withdrawal request
 func validateCrypto(request *Request) (err []string) {
+	if !portfolio.WhiteListed(request.Crypto.Address) {
+		err = append(err, ErrStrAddressNotWhiteListed)
+	}
+
+	if !portfolio.ExchangeSupported(request.Exchange, request.Crypto.Address) {
+		err = append(err, ErrStrExchangeNotSupportedByAddress)
+	}
+
 	if request.Crypto.Address == "" {
-		err = append(err, "Address cannot be empty")
+		err = append(err, ErrStrAddressNotSet)
 	}
 
 	if request.Crypto.FeeAmount < 0 {
-		err = append(err, "FeeAmount cannot be a negative number")
+		err = append(err, ErrStrFeeCannotBeNegative)
 	}
 	return
 }

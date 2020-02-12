@@ -7,7 +7,12 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
+)
+
+const (
+	testBTCAddress = "0xTHISISALEGITBTCADDRESSHONEST"
 )
 
 var (
@@ -43,25 +48,67 @@ var (
 		Type:        Crypto,
 	}
 
-	invalidCurrencyCryptoRequest = &Request{
-		Crypto:   &CryptoRequest{},
-		Currency: currency.AUD,
-		Amount:   0,
-		Type:     Crypto,
+	invalidCryptoNilRequest = &Request{
+		Currency:    currency.BTC,
+		Description: "Test Withdrawal",
+		Amount:      0.1,
+		Type:        Crypto,
 	}
 
-	invalidCryptoAddressRequest = &Request{
+	invalidCryptoNegativeFeeRequest = &Request{
 		Crypto: &CryptoRequest{
-			Address: "1D10TH0RS3",
+			Address:   core.BitcoinDonationAddress,
+			FeeAmount: -0.1,
 		},
 		Currency:    currency.BTC,
 		Description: "Test Withdrawal",
 		Amount:      0.1,
 		Type:        Crypto,
 	}
+
+	invalidCurrencyCryptoRequest = &Request{
+		Crypto: &CryptoRequest{
+			Address: core.BitcoinDonationAddress,
+		},
+		Currency: currency.AUD,
+		Amount:   0,
+		Type:     Crypto,
+	}
+
+	invalidCryptoNoAddressRequest = &Request{
+		Crypto:      &CryptoRequest{},
+		Currency:    currency.BTC,
+		Description: "Test Withdrawal",
+		Amount:      0.1,
+		Type:        Crypto,
+	}
+
+	invalidCryptoNonWhiteListedAddressRequest = &Request{
+		Crypto: &CryptoRequest{
+			Address: testBTCAddress,
+		},
+		Currency:    currency.BTC,
+		Description: "Test Withdrawal",
+		Amount:      0.1,
+		Type:        Crypto,
+	}
+
+	invalidType = &Request{
+		Type:     Unknown,
+		Currency: currency.BTC,
+		Amount:   0.1,
+	}
 )
 
 func TestMain(m *testing.M) {
+	portfolio.Portfolio.AddAddress(core.BitcoinDonationAddress, "test", currency.BTC, 1500)
+	portfolio.Portfolio.Addresses[0].WhiteListed = true
+	portfolio.Portfolio.Addresses[0].ColdStorage = true
+	portfolio.Portfolio.Addresses[0].SupportedExchanges = "BTC Markets,Binance"
+
+	portfolio.Portfolio.AddAddress(testBTCAddress, "test", currency.BTC, 1500)
+	portfolio.Portfolio.Addresses[1].SupportedExchanges = "BTC Markets,Binance"
+
 	banking.Accounts = append(banking.Accounts,
 		banking.Account{
 			Enabled:             true,
@@ -82,6 +129,15 @@ func TestMain(m *testing.M) {
 	)
 
 	os.Exit(m.Run())
+}
+
+func TestValid(t *testing.T) {
+	err := Valid(invalidType)
+	if err != nil {
+		if err.Error() != ErrInvalidRequest.Error() {
+			t.Fatal(err)
+		}
+	}
 }
 
 func TestValidateFiat(t *testing.T) {
@@ -117,7 +173,7 @@ func TestValidateFiat(t *testing.T) {
 			invalidCurrencyFiatRequest,
 			Fiat,
 			"",
-			errors.New("requested currency is not fiat, Bank Account is disabled, Bank Account Number cannot be empty, IBAN/SWIFT values not set"),
+			errors.New(ErrStrCurrencyNotFiat + ", " + banking.ErrBankAccountDisabled + ", " + banking.ErrAccountCannotBeEmpty + ", " + banking.ErrIBANSwiftNotSet),
 		},
 	}
 
@@ -136,7 +192,6 @@ func TestValidateFiat(t *testing.T) {
 			}
 			err := Valid(test.request)
 			if err != nil {
-				t.Log(err)
 				if test.output.(error).Error() != err.Error() {
 					t.Fatal(err)
 				}
@@ -162,6 +217,11 @@ func TestValidateCrypto(t *testing.T) {
 			ErrInvalidRequest,
 		},
 		{
+			"Invalid-Nil",
+			invalidCryptoNilRequest,
+			ErrInvalidRequest,
+		},
+		{
 			"NoRequest",
 			nil,
 			ErrRequestCannotBeNil,
@@ -169,12 +229,22 @@ func TestValidateCrypto(t *testing.T) {
 		{
 			"FiatCurrency",
 			invalidCurrencyCryptoRequest,
-			errors.New("amount must be greater than 0, requested currency is not a cryptocurrency, Address cannot be empty"),
+			errors.New(ErrStrAmountMustBeGreaterThanZero + ", " + ErrStrCurrencyNotCrypto),
 		},
 		{
-			"InvalidAddress",
-			invalidCryptoAddressRequest,
-			errors.New(ErrStrAddressisInvalid),
+			"NoAddress",
+			invalidCryptoNoAddressRequest,
+			errors.New(ErrStrAddressNotWhiteListed + ", " + ErrStrExchangeNotSupportedByAddress + ", " + ErrStrAddressNotSet),
+		},
+		{
+			"NonWhiteListed",
+			invalidCryptoNonWhiteListedAddressRequest,
+			errors.New(ErrStrAddressNotWhiteListed),
+		},
+		{
+			"NegativeFee",
+			invalidCryptoNegativeFeeRequest,
+			errors.New(ErrStrFeeCannotBeNegative),
 		},
 	}
 
@@ -183,7 +253,7 @@ func TestValidateCrypto(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			err := Valid(test.request)
 			if err != nil {
-				if test.output.(error).Error() != err.Error() {
+				if err.Error() != test.output.(error).Error() {
 					t.Fatal(err)
 				}
 			}
