@@ -1031,21 +1031,23 @@ func (s *RPCServer) WithdrawalEventByID(ctx context.Context, r *gctrpc.Withdrawa
 			Fee:        v.RequestDetails.Crypto.FeeAmount,
 		}
 	} else if v.RequestDetails.Type == withdraw.Fiat {
-		resp.Event.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
-		resp.Event.Request.Fiat = &gctrpc.FiatWithdrawalEvent{
-			BankName:      v.RequestDetails.Fiat.Bank.BankName,
-			AccountName:   v.RequestDetails.Fiat.Bank.AccountName,
-			AccountNumber: v.RequestDetails.Fiat.Bank.AccountNumber,
-			Bsb:           v.RequestDetails.Fiat.Bank.BSBNumber,
-			Swift:         v.RequestDetails.Fiat.Bank.SWIFTCode,
-			Iban:          v.RequestDetails.Fiat.Bank.IBAN,
+		if v.RequestDetails.Fiat != nil {
+			resp.Event.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
+			resp.Event.Request.Fiat = &gctrpc.FiatWithdrawalEvent{
+				BankName:      v.RequestDetails.Fiat.Bank.BankName,
+				AccountName:   v.RequestDetails.Fiat.Bank.AccountName,
+				AccountNumber: v.RequestDetails.Fiat.Bank.AccountNumber,
+				Bsb:           v.RequestDetails.Fiat.Bank.BSBNumber,
+				Swift:         v.RequestDetails.Fiat.Bank.SWIFTCode,
+				Iban:          v.RequestDetails.Fiat.Bank.IBAN,
+			}
 		}
 	}
 
 	return resp, nil
 }
 
-//WithdrawalEventByExchange returns previous withdrawal request details by exchange
+// WithdrawalEventByExchange returns previous withdrawal request details by exchange
 func (s *RPCServer) WithdrawalEventByExchange(ctx context.Context, r *gctrpc.WithdrawalEventByIDRequest) (*gctrpc.WithdrawalEventByExchangeResponse, error) {
 	return nil, nil
 }

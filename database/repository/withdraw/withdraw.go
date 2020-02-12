@@ -67,7 +67,6 @@ func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err 
 		Currency:     res.RequestDetails.Currency.String(),
 		Amount:       res.RequestDetails.Amount,
 		WithdrawType: int(res.RequestDetails.Type),
-		CreatedAt:    time.Now(),
 	}
 	if res.RequestDetails.Description != "" {
 		tempEvent.Description.SetValid(res.RequestDetails.Description)
@@ -132,7 +131,6 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 		Currency:     res.RequestDetails.Currency.String(),
 		Amount:       res.RequestDetails.Amount,
 		WithdrawType: int64(res.RequestDetails.Type),
-		CreatedAt:    time.Now().String(),
 	}
 	if res.RequestDetails.Description != "" {
 		tempEvent.Description.SetValid(res.RequestDetails.Description)
@@ -191,50 +189,84 @@ func EventByUUID(id string) (*withdraw.Response, error) {
 	var resp = &withdraw.Response{}
 	var ctx = context.Background()
 
-	v, err := modelPSQL.FindWithdrawalHistory(ctx, database.DB.SQL, id, "*")
-	if err != nil {
-		return nil, err
-	}
-
-	newUUID, _ := uuid.FromString(v.ID)
-	resp.ID = newUUID
-	resp.Exchange = new(withdraw.ExchangeResponse)
-	resp.Exchange.ID = v.ExchangeID
-	resp.Exchange.Name = v.Exchange
-	resp.Exchange.Status = v.Status
-	resp.RequestDetails = new(withdraw.Request)
-	resp.RequestDetails = &withdraw.Request{
-		Currency:    currency.Code{},
-		Description: v.Description.String,
-		Amount:      v.Amount,
-		Type:        withdraw.RequestType(v.WithdrawType),
-	}
-	resp.CreatedAt = v.CreatedAt
-	resp.UpdatedAt = v.UpdatedAt
-
-	if withdraw.RequestType(v.WithdrawType) == withdraw.Crypto {
-		resp.RequestDetails.Crypto = new(withdraw.CryptoRequest)
-		x, err := v.WithdrawalCryptoWithdrawalCryptos().One(ctx, database.DB.SQL)
+	if repository.GetSQLDialect() == database.DBSQLite3 {
+		v, err := modelSQLite.FindWithdrawalHistory(ctx, database.DB.SQL, id, "*")
 		if err != nil {
 			return nil, err
 		}
-		resp.RequestDetails.Crypto.Address = x.Address
-		resp.RequestDetails.Crypto.AddressTag = x.AddressTag.String
-		resp.RequestDetails.Crypto.FeeAmount = x.Fee
+		newUUID, _ := uuid.FromString(v.ID)
+		resp.ID = newUUID
+		resp.Exchange = new(withdraw.ExchangeResponse)
+		resp.Exchange.ID = v.ExchangeID
+		resp.Exchange.Name = v.Exchange
+		resp.Exchange.Status = v.Status
+		resp.RequestDetails = new(withdraw.Request)
+		resp.RequestDetails = &withdraw.Request{
+			Currency:    currency.Code{},
+			Description: v.Description.String,
+			Amount:      v.Amount,
+			Type:        withdraw.RequestType(v.WithdrawType),
+		}
+
+		createdAtTime, err := time.Parse("2006-01-02T15:04:05Z", v.CreatedAt)
+		if err != nil {
+			log.Errorf(log.DatabaseMgr, "time conversion error defaulting to empty time: %v", err)
+			resp.CreatedAt = time.Time{}
+		} else {
+			resp.CreatedAt = createdAtTime.UTC()
+		}
+		updatedAtTime, err := time.Parse("2006-01-02T15:04:05Z", v.UpdatedAt)
+		if err != nil {
+			log.Errorf(log.DatabaseMgr, "time conversion error defaulting to empty time: %v", err)
+			resp.UpdatedAt = time.Time{}
+		} else {
+			resp.UpdatedAt = updatedAtTime.UTC()
+		}
 	} else {
-		resp.RequestDetails.Fiat = new(withdraw.FiatRequest)
-		x, err := v.WithdrawalFiatWithdrawalFiats().One(ctx, database.DB.SQL)
+		v, err := modelPSQL.FindWithdrawalHistory(ctx, database.DB.SQL, id, "*")
 		if err != nil {
 			return nil, err
 		}
-		resp.RequestDetails.Fiat.Bank = new(banking.Account)
-		resp.RequestDetails.Fiat.Bank.AccountName = x.BankAccountName
-		resp.RequestDetails.Fiat.Bank.AccountNumber = x.BankAccountNumber
-		resp.RequestDetails.Fiat.Bank.IBAN = x.Iban
-		resp.RequestDetails.Fiat.Bank.SWIFTCode = x.SwiftCode
-		resp.RequestDetails.Fiat.Bank.BSBNumber = x.BSB
-	}
 
+		newUUID, _ := uuid.FromString(v.ID)
+		resp.ID = newUUID
+		resp.Exchange = new(withdraw.ExchangeResponse)
+		resp.Exchange.ID = v.ExchangeID
+		resp.Exchange.Name = v.Exchange
+		resp.Exchange.Status = v.Status
+		resp.RequestDetails = new(withdraw.Request)
+		resp.RequestDetails = &withdraw.Request{
+			Currency:    currency.Code{},
+			Description: v.Description.String,
+			Amount:      v.Amount,
+			Type:        withdraw.RequestType(v.WithdrawType),
+		}
+		resp.CreatedAt = v.CreatedAt
+		resp.UpdatedAt = v.UpdatedAt
+
+		if withdraw.RequestType(v.WithdrawType) == withdraw.Crypto {
+			resp.RequestDetails.Crypto = new(withdraw.CryptoRequest)
+			x, err := v.WithdrawalCryptoWithdrawalCryptos().One(ctx, database.DB.SQL)
+			if err != nil {
+				return nil, err
+			}
+			resp.RequestDetails.Crypto.Address = x.Address
+			resp.RequestDetails.Crypto.AddressTag = x.AddressTag.String
+			resp.RequestDetails.Crypto.FeeAmount = x.Fee
+		} else {
+			resp.RequestDetails.Fiat = new(withdraw.FiatRequest)
+			x, err := v.WithdrawalFiatWithdrawalFiats().One(ctx, database.DB.SQL)
+			if err != nil {
+				return nil, err
+			}
+			resp.RequestDetails.Fiat.Bank = new(banking.Account)
+			resp.RequestDetails.Fiat.Bank.AccountName = x.BankAccountName
+			resp.RequestDetails.Fiat.Bank.AccountNumber = x.BankAccountNumber
+			resp.RequestDetails.Fiat.Bank.IBAN = x.Iban
+			resp.RequestDetails.Fiat.Bank.SWIFTCode = x.SwiftCode
+			resp.RequestDetails.Fiat.Bank.BSBNumber = x.BSB
+		}
+	}
 	return resp, nil
 }
 

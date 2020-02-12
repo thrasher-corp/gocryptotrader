@@ -39,8 +39,6 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 			Name: exchName,
 		},
 		RequestDetails: req,
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
 	}
 
 	if Bot.Settings.EnableDryRun {
