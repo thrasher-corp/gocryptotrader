@@ -95,7 +95,6 @@ func (p *Poloniex) wsReadData() {
 		select {
 		case <-p.Websocket.ShutdownC:
 			return
-
 		default:
 			resp, err := p.WebsocketConn.ReadMessage()
 			if err != nil {
@@ -111,7 +110,7 @@ func (p *Poloniex) wsReadData() {
 	}
 }
 
-func (p *Poloniex) wsFromScrach(respRaw []byte) error {
+func (p *Poloniex) wsHandleData(respRaw []byte) error {
 	var result interface{}
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
@@ -131,6 +130,8 @@ func (p *Poloniex) wsFromScrach(respRaw []byte) error {
 		}
 		if channelID, ok := data[0].(float64); ok {
 			switch channelID {
+			case ws24HourExchangeVolumeID:
+				return nil
 			case wsAccountNotificationID:
 				if notificationsArray, ok := data[2].([]interface{}); ok {
 					if _, ok := notificationsArray[0].([]interface{}); ok {
@@ -269,87 +270,32 @@ func (p *Poloniex) wsFromScrach(respRaw []byte) error {
 					}
 				}
 			case wsTickerDataID:
-			case ws24HourExchangeVolumeID:
-
-			}
-		}
-		//	switch dataTwo := data[0].(type) {
-		//case []interface{}:
-		//	// multiple datatypes likely passed through
-		//case float64:
-		//	// channel id
-		//case string:
-		//	// notification handling
-		//}
-	}
-	return nil
-}
-
-func (p *Poloniex) wsHandleData(respRaw []byte) error {
-	var result interface{}
-	err := json.Unmarshal(respRaw, &result)
-	if err != nil {
-		return err
-	}
-	switch data := result.(type) {
-	case map[string]interface{}:
-		if errMessage, ok := data["error"]; ok {
-			return errors.New(errMessage.(string))
-		}
-	case []interface{}:
-		chanID := data[0].(float64)
-		if len(data) == 2 && chanID != wsHeartbeat {
-			if checkSubscriptionSuccess(data) {
-				if p.Verbose {
-					log.Debugf(log.ExchangeSys,
-						"%s websocket subscribed to channel successfully. %f",
-						p.Name,
-						chanID)
-				}
-			} else {
-				return fmt.Errorf("%s websocket subscription to channel failed. %f",
-					p.Name,
-					chanID)
-			}
-			return nil
-		}
-
-		switch chanID {
-		case wsAccountNotificationID:
-			p.wsHandleAccountData(data[2].([][]interface{}))
-		case wsTickerDataID:
-			p.wsHandleTickerData(data)
-		case ws24HourExchangeVolumeID:
-		case wsHeartbeat:
-		default:
-			if len(data) > 2 {
+				return p.wsHandleTickerData(data)
+			default:
 				subData := data[2].([]interface{})
 				for x := range subData {
 					dataL2 := subData[x]
-					dataL3 := dataL2.([]interface{})
 
 					switch getWSDataType(dataL2) {
 					case "i":
+						dataL3 := dataL2.([]interface{})
 						dataL3map := dataL3[1].(map[string]interface{})
 						currencyPair, ok := dataL3map["currencyPair"].(string)
 						if !ok {
-							p.Websocket.DataHandler <- fmt.Errorf("%s websocket could not find currency pair in map",
+							return fmt.Errorf("%s websocket could not find currency pair in map",
 								p.Name)
-							continue
 						}
 
 						orderbookData, ok := dataL3map["orderBook"].([]interface{})
 						if !ok {
-							p.Websocket.DataHandler <- fmt.Errorf("%s websocket could not find orderbook data in map",
+							return fmt.Errorf("%s websocket could not find orderbook data in map",
 								p.Name)
-							continue
 						}
 
 						err = p.WsProcessOrderbookSnapshot(orderbookData,
 							currencyPair)
 						if err != nil {
-							p.Websocket.DataHandler <- err
-							continue
+							return err
 						}
 
 						p.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
@@ -358,13 +304,13 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							Pair:     currency.NewPairFromString(currencyPair),
 						}
 					case "o":
-						currencyPair := currencyIDMap[chanID]
+						currencyPair := currencyIDMap[channelID]
+						dataL3 := dataL2.([]interface{})
 						err = p.WsProcessOrderbookUpdate(int64(data[1].(float64)),
 							dataL3,
 							currencyPair)
 						if err != nil {
-							p.Websocket.DataHandler <- err
-							continue
+							return err
 						}
 
 						p.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
@@ -373,11 +319,11 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							Pair:     currency.NewPairFromString(currencyPair),
 						}
 					case "t":
-						currencyPair := currencyIDMap[chanID]
+						currencyPair := currencyIDMap[channelID]
 						var trade WsTrade
-						trade.Symbol = currencyIDMap[chanID]
+						trade.Symbol = currencyIDMap[channelID]
+						dataL3 := dataL2.([]interface{})
 						trade.TradeID, _ = strconv.ParseInt(dataL3[1].(string), 10, 64)
-						// 1 for buy 0 for sell
 						side := order.Buy
 						if dataL3[2].(float64) != 1 {
 							side = order.Sell
@@ -385,16 +331,13 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 						trade.Side = side.Lower()
 						trade.Volume, err = strconv.ParseFloat(dataL3[3].(string), 64)
 						if err != nil {
-							p.Websocket.DataHandler <- err
-							continue
+							return err
 						}
 						trade.Price, err = strconv.ParseFloat(dataL3[4].(string), 64)
 						if err != nil {
-							p.Websocket.DataHandler <- err
-							continue
+							return err
 						}
 						trade.Timestamp = int64(dataL3[5].(float64))
-
 						p.Websocket.DataHandler <- wshandler.TradeData{
 							Timestamp:    time.Unix(trade.Timestamp, 0),
 							CurrencyPair: currency.NewPairFromString(currencyPair),
@@ -402,125 +345,16 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							Amount:       trade.Volume,
 							Price:        trade.Price,
 						}
+					default:
+						return fmt.Errorf("%v Unhandled websocket message %s", p.Name, respRaw)
 					}
 				}
 			}
 		}
 	}
-	return fmt.Errorf("%v Unhandled websocket message %s", p.Name, respRaw)
-}
-
-/*
-func (p *Poloniex) fuckyou(data []interface{}) error {
-	var err error
-	if chanID, ok := data[0].(float64); ok {
-		if len(data) == 2 && chanID != wsHeartbeat {
-			if checkSubscriptionSuccess(data) {
-				if p.Verbose {
-					log.Debugf(log.ExchangeSys,
-						"%s websocket subscribed to channel successfully. %f",
-						p.Name,
-						chanID)
-				}
-			} else {
-				return fmt.Errorf("%s websocket subscription to channel failed. %f",
-					p.Name,
-					chanID)
-			}
-			return nil
-		}
-		switch chanID {
-		case wsAccountNotificationID:
-			return p.wsHandleAccountData(data[2].([][]interface{}))
-		case wsTickerDataID:
-			return p.wsHandleTickerData(data)
-		}
-	} else if chanChar, ok := data[0].(string); ok {
-		switch chanChar {
-		case "i":
-			dataL3map := data[1].(map[string]interface{})
-			currencyPair, ok := dataL3map["currencyPair"].(string)
-			if !ok {
-				return fmt.Errorf("%s websocket could not find currency pair in map",
-					p.Name)
-			}
-
-			orderbookData, ok := dataL3map["orderBook"].([]interface{})
-			if !ok {
-				return fmt.Errorf("%s websocket could not find orderbook data in map",
-					p.Name)
-			}
-
-			err = p.WsProcessOrderbookSnapshot(orderbookData,
-				currencyPair)
-			if err != nil {
-				return err
-			}
-
-			p.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-				Exchange: p.Name,
-				Asset:    asset.Spot,
-				Pair:     currency.NewPairFromString(currencyPair),
-			}
-		case "o":
-			if chanID, ok := data[0].(float64); ok {
-				currencyPair := currencyIDMap[chanID]
-				dataL3 := dataL2.([]interface{})
-				err = p.WsProcessOrderbookUpdate(int64(data[1].(float64)),
-					dataL3,
-					currencyPair)
-				if err != nil {
-					return err
-				}
-
-				p.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-					Exchange: p.Name,
-					Asset:    asset.Spot,
-					Pair:     currency.NewPairFromString(currencyPair),
-				}
-			}
-			return fmt.Errorf(p.Name+" - Unrecognised channel ID returned: %s", respRaw)
-		case "t":
-			if chanID, ok := data[0].(float64); ok {
-				currencyPair := currencyIDMap[chanID]
-				dataL3 := dataL2.([]interface{})
-				var trade WsTrade
-				trade.Symbol = currencyIDMap[chanID]
-				trade.TradeID, _ = strconv.ParseInt(dataL3[1].(string), 10, 64)
-				// 1 for buy 0 for sell
-				side := order.Buy
-				if dataL3[2].(float64) != 1 {
-					side = order.Sell
-				}
-				trade.Side = side.Lower()
-				trade.Volume, err = strconv.ParseFloat(dataL3[3].(string), 64)
-				if err != nil {
-					return err
-				}
-				trade.Price, err = strconv.ParseFloat(dataL3[4].(string), 64)
-				if err != nil {
-					return err
-				}
-				trade.Timestamp = int64(dataL3[5].(float64))
-
-				p.Websocket.DataHandler <- wshandler.TradeData{
-					Timestamp:    time.Unix(trade.Timestamp, 0),
-					CurrencyPair: currency.NewPairFromString(currencyPair),
-					Side:         trade.Side,
-					Amount:       trade.Volume,
-					Price:        trade.Price,
-				}
-			}
-			return fmt.Errorf(p.Name+" - Unrecognised channel ID returned: %s", respRaw)
-		default:
-			return fmt.Errorf("%v Unhandled websocket message %s", p.Name, respRaw)
-		}
-	}
 	return nil
 }
 
-
-*/
 func (p *Poloniex) wsHandleTickerData(data []interface{}) error {
 	tickerData := data[2].([]interface{})
 	var t WsTicker
@@ -582,134 +416,6 @@ func (p *Poloniex) wsHandleTickerData(data []interface{}) error {
 		Last:         t.LastPrice,
 		AssetType:    asset.Spot,
 		Pair:         currencyPair,
-	}
-	return nil
-}
-
-// wsHandleAccountData Parses account data and sends to datahandler
-func (p *Poloniex) wsHandleAccountData(accountData [][]interface{}) error {
-	for i := range accountData {
-		switch accountData[i][0].(string) {
-		case "b":
-			amount, err := strconv.ParseFloat(accountData[i][3].(string), 64)
-			if err != nil {
-				return err
-			}
-
-			response := WsAccountBalanceUpdateResponse{
-				currencyID: accountData[i][1].(float64),
-				wallet:     accountData[i][2].(string),
-				amount:     amount,
-			}
-			p.Websocket.DataHandler <- response
-		case "n":
-			timeParse, err := time.Parse("2006-01-02 15:04:05", accountData[i][6].(string))
-			if err != nil {
-				return err
-			}
-
-			rate, err := strconv.ParseFloat(accountData[i][4].(string), 64)
-			if err != nil {
-				return err
-			}
-
-			amount, err := strconv.ParseFloat(accountData[i][5].(string), 64)
-			if err != nil {
-				return err
-			}
-			var buySell order.Side
-			switch accountData[i][2].(float64) {
-			case 0:
-				buySell = order.Buy
-			case 1:
-				buySell = order.Sell
-			}
-			var currPair currency.Pair
-			if currPairFromMap, ok := currencyIDMap[accountData[i][1].(float64)]; ok {
-				currPair = currency.NewPairFromString(currPairFromMap)
-			} else {
-				// It is better to still log an order which you can recheck later, rather than error out
-				return fmt.Errorf(p.Name+
-					" - Unknown currency pair ID. "+
-					"Currency will appear as the pair ID: '%v'",
-					accountData[i][1].(float64))
-				currPair = currency.NewPairFromString(strconv.FormatFloat(accountData[i][1].(float64), 'f', -1, 64))
-			}
-			response := &order.Detail{
-				Price:     rate,
-				Amount:    amount,
-				Exchange:  p.Name,
-				ID:        strconv.FormatFloat(accountData[i][2].(float64), 'f', -1, 64),
-				Type:      order.Limit,
-				Side:      buySell,
-				Status:    order.New,
-				AssetType: asset.Spot,
-				Date:      timeParse,
-				Pair:      currPair,
-			}
-			p.Websocket.DataHandler <- response
-		case "o":
-			amount, err := strconv.ParseFloat(accountData[i][2].(string), 64)
-			if err != nil {
-				return err
-			}
-			var oStatus order.Status
-			var oType = accountData[i][3].(string)
-			switch {
-			case amount > 0 && (oType == "f" || oType == "s"):
-				oStatus = order.PartiallyFilled
-			case amount == 0 && (oType == "f" || oType == "s"):
-				oStatus = order.Filled
-			case amount > 0 && oType == "c":
-				oStatus = order.PartiallyCancelled
-			case amount == 0 && oType == "c":
-				oStatus = order.Cancelled
-			}
-			response := &order.Modify{
-				RemainingAmount: amount,
-				Exchange:        p.Name,
-				ID:              strconv.FormatFloat(accountData[i][1].(float64), 'f', -1, 64),
-				Type:            order.Limit,
-				Status:          oStatus,
-				AssetType:       asset.Spot,
-			}
-			p.Websocket.DataHandler <- response
-		case "t":
-			timeParse, err := time.Parse("2006-01-02 15:04:05", accountData[i][8].(string))
-			if err != nil {
-				return err
-			}
-
-			rate, err := strconv.ParseFloat(accountData[i][2].(string), 64)
-			if err != nil {
-				return err
-			}
-
-			amount, err := strconv.ParseFloat(accountData[i][3].(string), 64)
-			if err != nil {
-				return err
-			}
-
-			totalFee, err := strconv.ParseFloat(accountData[i][7].(string), 64)
-			if err != nil {
-				return err
-			}
-			var trades []order.TradeHistory
-			trades = append(trades, order.TradeHistory{
-				Price:     rate,
-				Amount:    amount,
-				Fee:       totalFee,
-				Exchange:  p.Name,
-				TID:       strconv.FormatFloat(accountData[i][1].(float64), 'f', -1, 64),
-				Timestamp: timeParse,
-			})
-			response := &order.Modify{
-				ID:     strconv.FormatFloat(accountData[i][6].(float64), 'f', -1, 64),
-				Fee:    totalFee,
-				Trades: trades,
-			}
-			p.Websocket.DataHandler <- response
-		}
 	}
 	return nil
 }
