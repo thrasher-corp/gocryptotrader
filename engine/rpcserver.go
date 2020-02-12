@@ -648,7 +648,7 @@ func (s *RPCServer) RemovePortfolioAddress(ctx context.Context, r *gctrpc.Remove
 
 // GetForexProviders returns a list of available forex providers
 func (s *RPCServer) GetForexProviders(ctx context.Context, r *gctrpc.GetForexProvidersRequest) (*gctrpc.GetForexProvidersResponse, error) {
-	providers := Bot.Config.GetForexProvidersConfig()
+	providers := Bot.Config.GetForexProviders()
 	if len(providers) == 0 {
 		return nil, fmt.Errorf("forex providers is empty")
 	}

@@ -1,20 +1,13 @@
 package huobi
 
 import (
-	"crypto/ecdsa"
-	"crypto/rand"
-	"crypto/x509"
-	"encoding/pem"
-	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -309,31 +302,6 @@ func TestCancelWithdraw(t *testing.T) {
 	_, err := h.CancelWithdraw(1337)
 	if err == nil {
 		t.Error("Huobi TestCancelWithdraw Expected error")
-	}
-}
-
-func TestPEMLoadAndSign(t *testing.T) {
-	t.Parallel()
-	pemKey := strings.NewReader(h.API.Credentials.PEMKey)
-	pemBytes, err := ioutil.ReadAll(pemKey)
-	if err != nil {
-		t.Fatalf("TestPEMLoadAndSign Unable to ioutil.ReadAll PEM key: %s", err)
-	}
-
-	block, _ := pem.Decode(pemBytes)
-	if block == nil {
-		t.Fatalf("TestPEMLoadAndSign Block is nil")
-	}
-
-	x509Encoded := block.Bytes
-	privKey, err := x509.ParseECPrivateKey(x509Encoded)
-	if err != nil {
-		t.Fatalf("TestPEMLoadAndSign Unable to ParseECPrivKey: %s", err)
-	}
-
-	_, _, err = ecdsa.Sign(rand.Reader, privKey, crypto.GetSHA256([]byte("test")))
-	if err != nil {
-		t.Fatalf("TestPEMLoadAndSign Unable to sign: %s", err)
 	}
 }
 
