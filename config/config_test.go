@@ -10,7 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/ntpclient"
 )
 
@@ -1714,7 +1714,7 @@ func TestCheckLoggerConfig(t *testing.T) {
 	c.Logging = log.Config{}
 	err := c.CheckLoggerConfig()
 	if err != nil {
-		t.Errorf("Failed to create default logger. Error: %s", err)
+		t.Errorf("Failed to create default log. Error: %s", err)
 	}
 
 	if !*c.Logging.Enabled {

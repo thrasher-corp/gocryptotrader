@@ -18,7 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
-	gctlog "github.com/thrasher-corp/gocryptotrader/logger"
+	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/utils"
 )
@@ -525,6 +525,6 @@ func (e *Engine) Stop() {
 	e.ServicesWG.Wait()
 	err := gctlog.CloseLogger()
 	if err != nil {
-		log.Printf("Failed to close logger. Error: %v\n", err)
+		log.Printf("Failed to close log. Error: %v\n", err)
 	}
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
 

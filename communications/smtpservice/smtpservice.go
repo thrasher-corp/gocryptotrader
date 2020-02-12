@@ -8,7 +8,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/config"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (

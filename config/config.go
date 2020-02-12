@@ -24,7 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // GetCurrencyConfig returns currency configurations
@@ -1606,7 +1606,7 @@ func (c *Config) CheckRemoteControlConfig() {
 func (c *Config) CheckConfig() error {
 	err := c.CheckLoggerConfig()
 	if err != nil {
-		log.Errorf(log.ConfigMgr, "Failed to configure logger, some logging features unavailable: %s\n", err)
+		log.Errorf(log.ConfigMgr, "Failed to configure log, some logging features unavailable: %s\n", err)
 	}
 
 	err = c.checkDatabaseConfig()

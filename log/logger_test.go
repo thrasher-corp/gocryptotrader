@@ -1,4 +1,4 @@
-package logger
+package log
 
 import (
 	"bytes"
@@ -110,7 +110,7 @@ func TestLevel(t *testing.T) {
 
 	_, err = Level("totallyinvalidlogger")
 	if err == nil {
-		t.Error("Expected error on invalid logger")
+		t.Error("Expected error on invalid log")
 	}
 }
 
@@ -132,7 +132,7 @@ func TestSetLevel(t *testing.T) {
 
 	_, err = SetLevel("abc12345556665", "ERROR")
 	if err == nil {
-		t.Error("SetLevel() Should return error on invalid logger")
+		t.Error("SetLevel() Should return error on invalid log")
 	}
 }
 
@@ -140,7 +140,7 @@ func TestValidSubLogger(t *testing.T) {
 	b, logPtr := validSubLogger("LOG")
 
 	if !b {
-		t.Skip("validSubLogger() should return found, pointer if valid logger found")
+		t.Skip("validSubLogger() should return found, pointer if valid log found")
 	}
 	if logPtr == nil {
 		t.Error("validSubLogger() should return a pointer and not nil")

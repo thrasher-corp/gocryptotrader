@@ -6,7 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/communications"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // commsManager starts the NTP manager

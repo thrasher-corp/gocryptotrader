@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
 

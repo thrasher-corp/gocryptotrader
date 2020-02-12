@@ -1,4 +1,4 @@
-package logger
+package log
 
 import (
 	"errors"
@@ -24,7 +24,7 @@ func (l *Logger) newLogEvent(data, header, slName string, w io.Writer) error {
 		return errors.New("io.Writer not set")
 	}
 
-	e := eventPool.Get().(*LogEvent)
+	e := eventPool.Get().(*Event)
 	e.output = w
 	e.data = append(e.data, []byte(header)...)
 	if l.ShowLogSystemName {
@@ -68,7 +68,7 @@ func validSubLogger(s string) (bool, *subLogger) {
 func Level(s string) (*Levels, error) {
 	found, logger := validSubLogger(s)
 	if !found {
-		return nil, fmt.Errorf("logger %v not found", s)
+		return nil, fmt.Errorf("log %v not found", s)
 	}
 
 	return &logger.Levels, nil
@@ -78,7 +78,7 @@ func Level(s string) (*Levels, error) {
 func SetLevel(s, level string) (*Levels, error) {
 	found, logger := validSubLogger(s)
 	if !found {
-		return nil, fmt.Errorf("logger %v not found", s)
+		return nil, fmt.Errorf("log %v not found", s)
 	}
 	logger.Levels = splitLevel(level)
 

@@ -32,7 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/utils"
 	"google.golang.org/grpc"

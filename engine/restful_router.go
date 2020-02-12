@@ -11,7 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // RESTLogger logs the requests internally
