@@ -18,7 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
-	gctlog "github.com/thrasher-corp/gocryptotrader/logger"
+	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/utils"
 )
