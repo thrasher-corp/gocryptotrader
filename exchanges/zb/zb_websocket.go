@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -62,8 +64,7 @@ func (z *ZB) wsReadData() {
 				return
 			}
 			z.Websocket.TrafficAlert <- struct{}{}
-			fixedJSON := z.wsFixInvalidJSON(resp.Raw)
-			err = z.wsHandleData(fixedJSON)
+			err = z.wsHandleData(resp.Raw)
 			if err != nil {
 				z.Websocket.DataHandler <- err
 			}
@@ -72,14 +73,14 @@ func (z *ZB) wsReadData() {
 }
 
 func (z *ZB) wsHandleData(respRaw []byte) error {
+	fixedJSON := z.wsFixInvalidJSON(respRaw)
 	var result Generic
-	err := json.Unmarshal(respRaw, &result)
+	err := json.Unmarshal(fixedJSON, &result)
 	if err != nil {
 		return err
 	}
 	if result.No > 0 {
-		z.WebsocketConn.AddResponseWithID(result.No, respRaw)
-		return nil
+		z.WebsocketConn.AddResponseWithID(result.No, fixedJSON)
 	}
 	if result.Code > 0 && result.Code != 1000 {
 		return fmt.Errorf("%v request failed, message: %v, error code: %v", z.Name, result.Message, wsErrCodes[result.Code])
@@ -95,7 +96,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 	case strings.Contains(result.Channel, "ticker"):
 		cPair := strings.Split(result.Channel, "_")
 		var wsTicker WsTicker
-		err := json.Unmarshal(respRaw, &wsTicker)
+		err := json.Unmarshal(fixedJSON, &wsTicker)
 		if err != nil {
 			return err
 		}
@@ -116,7 +117,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 
 	case strings.Contains(result.Channel, "depth"):
 		var depth WsDepth
-		err := json.Unmarshal(respRaw, &depth)
+		err := json.Unmarshal(fixedJSON, &depth)
 		if err != nil {
 			return err
 		}
@@ -156,16 +157,46 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 			Asset:    asset.Spot,
 			Exchange: z.Name,
 		}
-
+	case strings.Contains(result.Channel, "_order"):
+		cPair := strings.Split(result.Channel, "_")
+		var o WsSubmitOrderResponse
+		err := json.Unmarshal(fixedJSON, &o)
+		if err != nil {
+			return err
+		}
+		if !o.Success {
+			return fmt.Errorf("%s - Order %v failed to be placed. %s", z.Name, o.Data.EntrustID, respRaw)
+		}
+		z.Websocket.DataHandler <- &order.Detail{
+			Exchange: z.Name,
+			ID:       strconv.FormatInt(o.Data.EntrustID, 10),
+			Pair:     currency.NewPairFromString(cPair[0]),
+		}
+	case strings.Contains(result.Channel, "_cancelorder"):
+		cPair := strings.Split(result.Channel, "_")
+		var o WsSubmitOrderResponse
+		err := json.Unmarshal(fixedJSON, &o)
+		if err != nil {
+			return err
+		}
+		if !o.Success {
+			return fmt.Errorf("%s - Order %v failed to be cancelled. %s", z.Name, o.Data.EntrustID, respRaw)
+		}
+		z.Websocket.DataHandler <- &order.Modify{
+			Exchange: z.Name,
+			ID:       strconv.FormatInt(o.Data.EntrustID, 10),
+			Pair:     currency.NewPairFromString(cPair[0]),
+			Status:   order.Cancelled,
+		}
 	case strings.Contains(result.Channel, "trades"):
 		var trades WsTrades
-		err := json.Unmarshal(respRaw, &trades)
+		err := json.Unmarshal(fixedJSON, &trades)
 		if err != nil {
 			return err
 		}
 		// Most up to date trade
 		if len(trades.Data) == 0 {
-			return errors.New(z.Name + " - Empty websocket trade data received: " + string(respRaw))
+			return errors.New(z.Name + " - Empty websocket trade data received: " + string(fixedJSON))
 		}
 		t := trades.Data[len(trades.Data)-1]
 
@@ -180,8 +211,10 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 			Amount:       t.Amount,
 			Side:         t.TradeType,
 		}
+	default:
+		return errors.New(z.Name + " - unhandled websocket response: " + string(fixedJSON))
 	}
-	return errors.New(z.Name + " - unhandled websocket response: " + string(respRaw))
+	return nil
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
