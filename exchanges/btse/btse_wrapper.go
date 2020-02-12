@@ -57,8 +57,11 @@ func (b *BTSE) SetDefaults() {
 	b.CurrencyPairs = currency.PairsManager{
 		AssetTypes: asset.Items{
 			asset.Spot,
+			asset.Futures,
 		},
-		UseGlobalFormat: true,
+	}
+
+	fmt1 := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 			Delimiter: "-",
@@ -68,6 +71,17 @@ func (b *BTSE) SetDefaults() {
 			Delimiter: "-",
 		},
 	}
+	b.CurrencyPairs.Store(asset.Spot, fmt1)
+
+	fmt2 := currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+	}
+	b.CurrencyPairs.Store(asset.Futures, fmt2)
 
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
@@ -191,36 +205,55 @@ func (b *BTSE) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *BTSE) FetchTradablePairs(asset asset.Item) ([]string, error) {
-	m, err := b.GetMarkets()
-	if err != nil {
-		return nil, err
+func (b *BTSE) FetchTradablePairs(a asset.Item) ([]string, error) {
+	var currencies []string
+	if a == asset.Spot {
+		m, err := b.GetSpotMarkets()
+		if err != nil {
+			return nil, err
+		}
+
+		for x := range m {
+			if m[x].Status != "active" {
+				continue
+			}
+			currencies = append(currencies, m[x].Symbol)
+		}
+	} else {
+		m, err := b.GetFuturesMarkets()
+		if err != nil {
+			return nil, err
+		}
+
+		for x := range m {
+			currencies = append(currencies, m[x].Symbol)
+		}
 	}
 
-	var currencies []string
-	for x := range m {
-		if m[x].Status != "active" {
-			continue
-		}
-		currencies = append(currencies, m[x].Symbol)
-	}
 	return currencies, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (b *BTSE) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := b.FetchTradablePairs(asset.Spot)
-	if err != nil {
-		return err
-	}
+	a := b.GetAssetTypes()
+	for i := range a {
+		pairs, err := b.FetchTradablePairs(a[i])
+		if err != nil {
+			return err
+		}
 
-	p, err := currency.NewPairsFromStrings(pairs)
-	if err != nil {
-		return err
-	}
+		p, err := currency.NewPairsFromStrings(pairs)
+		if err != nil {
+			return err
+		}
 
-	return b.UpdatePairs(p, asset.Spot, false, forceUpdate)
+		err = b.UpdatePairs(p, a[i], false, forceUpdate)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -412,7 +445,7 @@ func (b *BTSE) CancelOrder(order *order.Cancel) error {
 // If not specified, all orders of all markets will be cancelled
 func (b *BTSE) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
-	markets, err := b.GetMarkets()
+	markets, err := b.GetSpotMarkets()
 	if err != nil {
 		return resp, err
 	}

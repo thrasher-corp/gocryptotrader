@@ -67,7 +67,7 @@ func (p *PairsManager) GetPairs(a asset.Item, enabled bool) (Pairs, error) {
 	p.m.Lock()
 	defer p.m.Unlock()
 	if p.Pairs == nil {
-		return nil, nil
+		return nil, errors.New("asset pair store is nil")
 	}
 
 	c, ok := p.Pairs[a]
@@ -104,7 +104,8 @@ func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) {
 
 	c, ok := p.Pairs[a]
 	if !ok {
-		c = new(PairStore)
+		p.Pairs[a] = new(PairStore)
+		c = p.Pairs[a]
 	}
 
 	if enabled {

@@ -59,9 +59,17 @@ func TestGetMarketsSummary(t *testing.T) {
 	}
 }
 
-func TestGetMarkets(t *testing.T) {
+func TestGetSpotMarkets(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetMarkets()
+	_, err := b.GetSpotMarkets()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFuturesMarkets(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetFuturesMarkets()
 	if err != nil {
 		t.Error(err)
 	}

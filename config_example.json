@@ -437,7 +437,7 @@
      "websocketCapabilities": {}
     },
     "enabled": {
-     "autoPairUpdates": false,
+     "autoPairUpdates": true,
      "websocketAPI": false
     }
    },

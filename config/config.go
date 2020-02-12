@@ -513,10 +513,7 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 
 	for x := range assetTypes {
 		enabledPairs, _ := c.GetEnabledPairs(exchName, assetTypes[x])
-		availPairs, err := c.GetAvailablePairs(exchName, assetTypes[x])
-		if err != nil {
-			return err
-		}
+		availPairs, _ := c.GetAvailablePairs(exchName, assetTypes[x])
 
 		if len(availPairs) == 0 {
 			if len(enabledPairs) != 0 {

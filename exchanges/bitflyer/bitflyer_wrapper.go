@@ -103,7 +103,6 @@ func (b *Bitflyer) Setup(exch *config.ExchangeConfig) error {
 		b.SetEnabled(false)
 		return nil
 	}
-
 	return b.SetupDefaults(exch)
 }
 

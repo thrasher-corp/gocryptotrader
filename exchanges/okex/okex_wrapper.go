@@ -299,8 +299,11 @@ func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
 		if o.CurrencyPairs.AssetTypes[x] == asset.Futures {
 			var indexPairs []string
 			for i := range pairs {
-				indexPairs = append(indexPairs,
-					strings.Split(pairs[i], delimiterUnderscore)[0])
+				item := strings.Split(pairs[i], delimiterUnderscore)[0]
+				if common.StringDataContains(indexPairs, item) {
+					continue
+				}
+				indexPairs = append(indexPairs, item)
 			}
 
 			p, err := currency.NewPairsFromStrings(indexPairs)
