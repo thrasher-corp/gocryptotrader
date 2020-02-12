@@ -776,7 +776,7 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 		Path:          urlPath,
 		Headers:       headers,
 		Body:          bytes.NewReader(body),
-		Result:        result,
+		Result:        &interim,
 		AuthRequest:   true,
 		Verbose:       h.Verbose,
 		HTTPDebugging: h.HTTPDebugging,
