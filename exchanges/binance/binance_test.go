@@ -745,7 +745,6 @@ func TestWsOCO(t *testing.T) {
 }
 
 func TestGetWsAuthStreamKey(t *testing.T) {
-	t.Parallel()
 	if !areTestAPIKeysSet() && !mockTests {
 		t.Skip("API keys not set, skipping test")
 	}
@@ -761,7 +760,6 @@ func TestGetWsAuthStreamKey(t *testing.T) {
 }
 
 func TestMaintainWsAuthStreamKey(t *testing.T) {
-	t.Parallel()
 	if !areTestAPIKeysSet() && !mockTests {
 		t.Skip("API keys not set, skipping test")
 	}

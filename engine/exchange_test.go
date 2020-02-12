@@ -47,7 +47,6 @@ func addPassingFakeExchange() {
 			Websocket:                     base.Websocket,
 			Requester:                     base.Requester,
 			Config:                        base.Config,
-			Verbose:                       false,
 		},
 	})
 }
@@ -60,8 +59,7 @@ func CleanupTest(t *testing.T) {
 				err)
 		}
 	}
-	butts := GetExchangeByName(fakePassExchange)
-	if butts != nil {
+	if GetExchangeByName(fakePassExchange) != nil {
 		err := UnloadExchange(fakePassExchange)
 		if err != nil {
 			t.Fatalf("CleanupTest: Failed to unload exchange: %s",
