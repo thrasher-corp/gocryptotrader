@@ -1606,7 +1606,7 @@ func (c *Config) CheckRemoteControlConfig() {
 func (c *Config) CheckConfig() error {
 	err := c.CheckLoggerConfig()
 	if err != nil {
-		log.Errorf(log.ConfigMgr, "Failed to configure log, some logging features unavailable: %s\n", err)
+		log.Errorf(log.ConfigMgr, "Failed to configure logger, some logging features unavailable: %s\n", err)
 	}
 
 	err = c.checkDatabaseConfig()
