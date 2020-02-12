@@ -20,11 +20,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/connchecker"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider"
-	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
@@ -691,8 +690,8 @@ func (c *Config) GetExchangeConfig(name string) (*ExchangeConfig, error) {
 	return nil, fmt.Errorf(ErrExchangeNotFound, name)
 }
 
-// GetForexProviderConfig returns a forex provider configuration by its name
-func (c *Config) GetForexProviderConfig(name string) (base.Settings, error) {
+// GetForexProvider returns a forex provider configuration by its name
+func (c *Config) GetForexProvider(name string) (currency.FXSettings, error) {
 	m.Lock()
 	defer m.Unlock()
 	for i := range c.Currency.ForexProviders {
@@ -700,11 +699,11 @@ func (c *Config) GetForexProviderConfig(name string) (base.Settings, error) {
 			return c.Currency.ForexProviders[i], nil
 		}
 	}
-	return base.Settings{}, errors.New("provider not found")
+	return currency.FXSettings{}, errors.New("provider not found")
 }
 
-// GetForexProvidersConfig returns a list of available forex providers
-func (c *Config) GetForexProvidersConfig() []base.Settings {
+// GetForexProviders returns a list of available forex providers
+func (c *Config) GetForexProviders() []currency.FXSettings {
 	m.Lock()
 	defer m.Unlock()
 	return c.Currency.ForexProviders
@@ -969,10 +968,10 @@ func (c *Config) CheckCurrencyConfigValues() error {
 
 	if len(fxProviders) != len(c.Currency.ForexProviders) {
 		for x := range fxProviders {
-			_, err := c.GetForexProviderConfig(fxProviders[x])
+			_, err := c.GetForexProvider(fxProviders[x])
 			if err != nil {
 				log.Warnf(log.Global, "%s forex provider not found, adding to config..\n", fxProviders[x])
-				c.Currency.ForexProviders = append(c.Currency.ForexProviders, base.Settings{
+				c.Currency.ForexProviders = append(c.Currency.ForexProviders, currency.FXSettings{
 					Name:             fxProviders[x],
 					RESTPollingDelay: 600,
 					APIKey:           DefaultUnsetAPIKey,

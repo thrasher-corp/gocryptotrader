@@ -16,7 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/gctscript"
 	gctscriptVM "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
-	"github.com/thrasher-corp/gocryptotrader/logger"
+	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
 
@@ -114,12 +114,12 @@ func main() {
 
 	engine.PrintSettings(&engine.Bot.Settings)
 	if err = engine.Bot.Start(); err != nil {
-		logger.Errorf(logger.Global, "Unable to start bot engine. Error: %s\n", err)
+		gctlog.Errorf(gctlog.Global, "Unable to start bot engine. Error: %s\n", err)
 		os.Exit(1)
 	}
 
 	interrupt := signaler.WaitForInterrupt()
-	logger.Infof(logger.Global, "Captured %v, shutdown requested.\n", interrupt)
+	gctlog.Infof(gctlog.Global, "Captured %v, shutdown requested.\n", interrupt)
 	engine.Bot.Stop()
-	logger.Infoln(logger.Global, "Exiting.")
+	gctlog.Infoln(gctlog.Global, "Exiting.")
 }

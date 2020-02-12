@@ -63,7 +63,7 @@ func getOnlineOfflinePortfolio(coins []portfolio.Coin, online bool) {
 
 func main() {
 	var inFile, key string
-	flag.StringVar(&inFile, "infile", config.DefaultFilePath(), "The config input file to process.")
+	flag.StringVar(&inFile, "config", config.DefaultFilePath(), "The config input file to process.")
 	flag.StringVar(&key, "key", "", "The key to use for AES encryption.")
 	flag.Parse()
 
@@ -132,7 +132,8 @@ func main() {
 			bf := bitfinex.Bitfinex{}
 			bf.SetDefaults()
 			bf.Verbose = false
-			ticker, errf := bf.GetTicker(y.Coin.String() + currency.USD.String())
+			pair := "t" + y.Coin.String() + currency.USD.String()
+			ticker, errf := bf.GetTicker(pair)
 			if errf != nil {
 				log.Println(errf)
 			} else {

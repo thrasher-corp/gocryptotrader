@@ -1,4 +1,4 @@
-package logger
+package log
 
 import (
 	"errors"
@@ -24,7 +24,7 @@ func (l *Logger) newLogEvent(data, header, slName string, w io.Writer) error {
 		return errors.New("io.Writer not set")
 	}
 
-	e := eventPool.Get().(*LogEvent)
+	e := eventPool.Get().(*Event)
 	e.output = w
 	e.data = append(e.data, []byte(header)...)
 	if l.ShowLogSystemName {

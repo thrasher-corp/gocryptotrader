@@ -33,7 +33,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -654,7 +654,7 @@ func (s *RPCServer) RemovePortfolioAddress(ctx context.Context, r *gctrpc.Remove
 
 // GetForexProviders returns a list of available forex providers
 func (s *RPCServer) GetForexProviders(ctx context.Context, r *gctrpc.GetForexProvidersRequest) (*gctrpc.GetForexProvidersResponse, error) {
-	providers := Bot.Config.GetForexProvidersConfig()
+	providers := Bot.Config.GetForexProviders()
 	if len(providers) == 0 {
 		return nil, fmt.Errorf("forex providers is empty")
 	}

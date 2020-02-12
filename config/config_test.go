@@ -10,7 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/ntpclient"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
@@ -1086,25 +1086,25 @@ func TestGetForexProviderConfig(t *testing.T) {
 	if err != nil {
 		t.Error("GetForexProviderConfig. LoadConfig error", err)
 	}
-	_, err = cfg.GetForexProviderConfig("Fixer")
+	_, err = cfg.GetForexProvider("Fixer")
 	if err != nil {
 		t.Error("GetForexProviderConfig error", err)
 	}
 
-	_, err = cfg.GetForexProviderConfig("this is not a forex provider")
+	_, err = cfg.GetForexProvider("this is not a forex provider")
 	if err == nil {
 		t.Error("GetForexProviderConfig no error for invalid provider")
 	}
 }
 
-func TestGetForexProvidersConfig(t *testing.T) {
+func TestGetForexProviders(t *testing.T) {
 	cfg := GetConfig()
 	err := cfg.LoadConfig(TestFile, true)
 	if err != nil {
 		t.Error(err)
 	}
 
-	if r := cfg.GetForexProvidersConfig(); len(r) != 5 {
+	if r := cfg.GetForexProviders(); len(r) != 5 {
 		t.Error("unexpected length of forex providers")
 	}
 }

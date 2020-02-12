@@ -18,7 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
-	gctlog "github.com/thrasher-corp/gocryptotrader/logger"
+	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/utils"
 )
@@ -363,11 +363,6 @@ func (e *Engine) Start() error {
 		}
 	}
 
-	var newFxSettings []currency.FXSettings
-	for _, d := range e.Config.Currency.ForexProviders {
-		newFxSettings = append(newFxSettings, currency.FXSettings(d))
-	}
-
 	err := currency.RunStorageUpdater(currency.BotOverrides{
 		Coinmarketcap:       e.Settings.EnableCoinmarketcapAnalysis,
 		FxCurrencyConverter: e.Settings.EnableCurrencyConverter,
@@ -376,7 +371,7 @@ func (e *Engine) Start() error {
 		FxOpenExchangeRates: e.Settings.EnableOpenExchangeRates,
 	},
 		&currency.MainConfiguration{
-			ForexProviders:         newFxSettings,
+			ForexProviders:         e.Config.GetForexProviders(),
 			CryptocurrencyProvider: coinmarketcap.Settings(e.Config.Currency.CryptocurrencyProvider),
 			Cryptocurrencies:       e.Config.Currency.Cryptocurrencies,
 			FiatDisplayCurrency:    e.Config.Currency.FiatDisplayCurrency,

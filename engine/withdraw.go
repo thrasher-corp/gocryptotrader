@@ -6,7 +6,7 @@ import (
 	"time"
 
 	withdrawal "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 

@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	ntpclient "github.com/thrasher-corp/gocryptotrader/ntpclient"
 )
 

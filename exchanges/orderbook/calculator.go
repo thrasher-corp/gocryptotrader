@@ -6,7 +6,7 @@ import (
 	"sort"
 
 	math "github.com/thrasher-corp/gocryptotrader/common/math"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // WhaleBombResult returns the whale bomb result

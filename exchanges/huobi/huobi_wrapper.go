@@ -20,7 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -135,9 +135,6 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
-
-	h.API.PEMKeySupport = exch.API.PEMKeySupport
-	h.API.Credentials.PEMKey = exch.API.Credentials.PEMKey
 
 	err = h.Websocket.Setup(
 		&wshandler.WebsocketSetup{

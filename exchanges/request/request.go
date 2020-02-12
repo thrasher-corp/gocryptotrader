@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/timedmutex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // New returns a new Requester
