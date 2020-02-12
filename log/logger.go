@@ -68,7 +68,7 @@ func validSubLogger(s string) (bool, *subLogger) {
 func Level(s string) (*Levels, error) {
 	found, logger := validSubLogger(s)
 	if !found {
-		return nil, fmt.Errorf("log %v not found", s)
+		return nil, fmt.Errorf("logger %v not found", s)
 	}
 
 	return &logger.Levels, nil
@@ -78,7 +78,7 @@ func Level(s string) (*Levels, error) {
 func SetLevel(s, level string) (*Levels, error) {
 	found, logger := validSubLogger(s)
 	if !found {
-		return nil, fmt.Errorf("log %v not found", s)
+		return nil, fmt.Errorf("logger %v not found", s)
 	}
 	logger.Levels = splitLevel(level)
 
