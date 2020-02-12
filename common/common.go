@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Vars for common.go operations

@@ -17,7 +17,7 @@ import (
 	scriptevent "github.com/thrasher-corp/gocryptotrader/database/repository/script"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/loader"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/volatiletech/null"
 )
 
