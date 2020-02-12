@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (

@@ -507,7 +507,7 @@ type WsOpenOrder struct {
 	RefID           string  `json:"refid"`
 	Status          string  `json:"status"`
 	Description     struct {
-		Close     float64 `json:"close,string"`
+		Close     string  `json:"close"`
 		Price     float64 `json:"price,string"`
 		Price2    float64 `json:"price2,string"`
 		Leverage  string  `json:"leverage"`

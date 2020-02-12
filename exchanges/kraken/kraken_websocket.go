@@ -335,43 +335,52 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 				return err
 			}
 			for key, val := range result {
-				startTime, startTimeNano, err := convert.SplitFloatDecimals(val.StartTime)
-				if err != nil {
-					return err
-				}
-				oSide, err := order.StringToOrderSide(val.Description.Type)
-				if err != nil {
-					k.Websocket.DataHandler <- errors.New(k.Name + " Unable to convert orderside: " + val.Description.Type)
-				}
-				oType, err := order.StringToOrderType(val.Description.Type)
-				if err != nil {
-					k.Websocket.DataHandler <- errors.New(k.Name + " Unable to convert ordertype: " + val.Description.Type)
-				}
 				var oStatus order.Status
-				if strings.Contains(val.Description.Order, "sell") {
-					oSide = order.Sell
-				}
 				oStatus, err = order.StringToOrderStatus(val.Status)
 				if err != nil {
 					k.Websocket.DataHandler <- errors.New(k.Name + " Unable to convert status: " + val.Status)
 				}
-				k.Websocket.DataHandler <- &order.Modify{
-					Leverage:        val.Description.Leverage,
-					Price:           val.Price,
-					Amount:          val.Volume,
-					LimitPriceUpper: val.LimitPrice,
-					ExecutedAmount:  val.ExecutedVolume,
-					RemainingAmount: val.Volume - val.ExecutedVolume,
-					Fee:             val.Fee,
-					Exchange:        k.Name,
-					ID:              key,
-					Type:            oType,
-					Side:            oSide,
-					Status:          oStatus,
-					AssetType:       asset.Spot,
-					Date:            time.Unix(startTime, startTimeNano),
-					Pair:            currency.NewPairFromString(val.Description.Pair),
+				if val.Description.Price > 0 {
+					startTime, startTimeNano, err := convert.SplitFloatDecimals(val.StartTime)
+					if err != nil {
+						return err
+					}
+					oSide, err := order.StringToOrderSide(val.Description.Type)
+					if err != nil {
+						k.Websocket.DataHandler <- errors.New(k.Name + " Unable to convert orderside: " + val.Description.Type)
+					}
+					if strings.Contains(val.Description.Order, "sell") {
+						oSide = order.Sell
+					}
+					oType, err := order.StringToOrderType(val.Description.Type)
+					if err != nil {
+						k.Websocket.DataHandler <- errors.New(k.Name + " Unable to convert ordertype: " + val.Description.Type)
+					}
+					k.Websocket.DataHandler <- &order.Modify{
+						Leverage:        val.Description.Leverage,
+						Price:           val.Price,
+						Amount:          val.Volume,
+						LimitPriceUpper: val.LimitPrice,
+						ExecutedAmount:  val.ExecutedVolume,
+						RemainingAmount: val.Volume - val.ExecutedVolume,
+						Fee:             val.Fee,
+						Exchange:        k.Name,
+						ID:              key,
+						Type:            oType,
+						Side:            oSide,
+						Status:          oStatus,
+						AssetType:       asset.Spot,
+						Date:            time.Unix(startTime, startTimeNano),
+						Pair:            currency.NewPairFromString(val.Description.Pair),
+					}
+				} else {
+					k.Websocket.DataHandler <- &order.Modify{
+						Exchange: k.Name,
+						ID:       key,
+						Status:   oStatus,
+					}
 				}
+
 			}
 		}
 		return nil

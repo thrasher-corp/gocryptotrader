@@ -25,15 +25,10 @@ func TestWebsocketDataHandlerProcess(t *testing.T) {
 }
 
 func TestHandleData(t *testing.T) {
-	SetupTestHelpers(t)
-
-	err := Bot.OrderManager.Start()
-	if err != nil {
-		t.Fatal(err)
-	}
+	OrdersSetup(t)
 	var exchName = "exch"
 	var orderID = "testOrder.Detail"
-	err = WebsocketDataHandler(exchName, wshandler.WebsocketNotEnabled)
+	err := WebsocketDataHandler(exchName, wshandler.WebsocketNotEnabled)
 	if err == nil {
 		t.Error("Expected error")
 	}
