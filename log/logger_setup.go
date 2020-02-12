@@ -63,7 +63,7 @@ func GenDefaultSettings() (log Config) {
 func configureSubLogger(logger, levels string, output io.Writer) error {
 	found, logPtr := validSubLogger(logger)
 	if !found {
-		return fmt.Errorf("log %v not found", logger)
+		return fmt.Errorf("logger %v not found", logger)
 	}
 
 	logPtr.output = output

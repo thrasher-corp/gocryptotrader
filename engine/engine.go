@@ -525,6 +525,6 @@ func (e *Engine) Stop() {
 	e.ServicesWG.Wait()
 	err := gctlog.CloseLogger()
 	if err != nil {
-		log.Printf("Failed to close log. Error: %v\n", err)
+		log.Printf("Failed to close logger. Error: %v\n", err)
 	}
 }
