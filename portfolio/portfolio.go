@@ -445,22 +445,22 @@ func GetPortfolio() *Base {
 	return &Portfolio
 }
 
-// ExchangeSupported checks if exchange is supported by portfolio address
-func ExchangeSupported(exchange, address string) (ret bool) {
+// IsExchangeSupported checks if exchange is supported by portfolio address
+func IsExchangeSupported(exchange, address string) (ret bool) {
 	for x := range Portfolio.Addresses {
 		if Portfolio.Addresses[x].Address != address {
 			continue
 		}
-		exchangeList := strings.Split(Portfolio.Addresses[x].Address, ",")
-		if common.StringDataContainsInsensitive(exchangeList, address) {
+		exchangeList := strings.Split(Portfolio.Addresses[x].SupportedExchanges, ",")
+		if common.StringDataContainsInsensitive(exchangeList, exchange) {
 			return true
 		}
 	}
 	return
 }
 
-// ColdStorage checks if address is a cold storage wallet
-func ColdStorage(address string) (ret bool) {
+// IsColdStorage checks if address is a cold storage wallet
+func IsColdStorage(address string) (ret bool) {
 	for x := range Portfolio.Addresses {
 		if Portfolio.Addresses[x].Address != address {
 			continue
@@ -470,8 +470,8 @@ func ColdStorage(address string) (ret bool) {
 	return
 }
 
-// WhiteListed checks if address is whitelisted for withdraw transfers
-func WhiteListed(address string) (ret bool) {
+// IsWhiteListed checks if address is whitelisted for withdraw transfers
+func IsWhiteListed(address string) (ret bool) {
 	for x := range Portfolio.Addresses {
 		if Portfolio.Addresses[x].Address != address {
 			continue

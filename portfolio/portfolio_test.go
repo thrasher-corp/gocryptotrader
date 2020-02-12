@@ -1,12 +1,39 @@
 package portfolio
 
 import (
+	"fmt"
+	"os"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
+
+const (
+	testBTCAddress = "0x1D01TH0R53"
+)
+
+func TestMain(m *testing.M) {
+	err := Portfolio.AddAddress(core.BitcoinDonationAddress, "test", currency.BTC, 1500)
+	if err != nil {
+		fmt.Printf("failed to add portfolio address with reason: %v, unable to continue tests", err)
+		os.Exit(0)
+	}
+	Portfolio.Addresses[0].WhiteListed = true
+	Portfolio.Addresses[0].ColdStorage = true
+	Portfolio.Addresses[0].SupportedExchanges = "BTC Markets,Binance"
+
+	err = Portfolio.AddAddress(testBTCAddress, "test", currency.BTC, 1500)
+	if err != nil {
+		fmt.Printf("failed to add portfolio address with reason: %v, unable to continue tests", err)
+		os.Exit(0)
+	}
+	Portfolio.Addresses[1].SupportedExchanges = "BTC Markets,Binance"
+
+	os.Exit(m.Run())
+}
 
 func TestGetEthereumBalance(t *testing.T) {
 	address := "0xb794f5ea0ba39494ce839613fffba74279579268"
@@ -463,5 +490,46 @@ func TestGetPortfolio(t *testing.T) {
 	ptrBASE := GetPortfolio()
 	if reflect.TypeOf(ptrBASE).String() != "*portfolio.Base" {
 		t.Error("portfolio_test.go - GetoPortfolio error")
+	}
+}
+
+func TestIsExchangeSupported(t *testing.T) {
+	ret := IsExchangeSupported("BTC Markets", core.BitcoinDonationAddress)
+	if !ret {
+		t.Fatal("expected IsExchangeSupported() to return true")
+	}
+	ret = IsExchangeSupported("Kraken", core.BitcoinDonationAddress)
+	if ret {
+		t.Fatal("expected IsExchangeSupported() to return false")
+	}
+}
+
+func TestIsColdStorage(t *testing.T) {
+	ret := IsColdStorage(core.BitcoinDonationAddress)
+	if !ret {
+		t.Fatal("expected IsColdStorage() to return true")
+	}
+	ret = IsColdStorage(testBTCAddress)
+	if ret {
+		t.Fatal("expected IsColdStorage() to return false")
+	}
+	ret = IsColdStorage("hello")
+	if ret {
+		t.Fatal("expected IsColdStorage() to return false")
+	}
+}
+
+func TestIsWhiteListed(t *testing.T) {
+	ret := IsWhiteListed(core.BitcoinDonationAddress)
+	if !ret {
+		t.Fatal("expected IsColdStorage() to return true")
+	}
+	ret = IsWhiteListed(testBTCAddress)
+	if ret {
+		t.Fatal("expected IsColdStorage() to return false")
+	}
+	ret = IsWhiteListed("hello")
+	if ret {
+		t.Fatal("expected IsColdStorage() to return false")
 	}
 }

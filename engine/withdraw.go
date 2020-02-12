@@ -25,7 +25,7 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 	if req.Exchange == "" {
 		req.Exchange = exchName
 	}
-	err := withdraw.Valid(req)
+	err := withdraw.Validate(req)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 	}
 
 	if Bot.Settings.EnableDryRun {
-		log.Warnln(log.Global, "Dry run enabled no withdrawal request will be submitted or event created")
+		log.Warnln(log.Global, "Dry run enabled, no withdrawal request will be submitted or have an event created")
 		resp.ID = withdraw.DryRunID
 		resp.Exchange.Status = "dryrun"
 		resp.Exchange.ID = withdraw.DryRunID.String()

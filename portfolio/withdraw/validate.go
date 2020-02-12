@@ -8,8 +8,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
 
-// Valid takes interface and passes to asset type to check the request meets requirements to submit
-func Valid(request *Request) (err error) {
+// Validate takes interface and passes to asset type to check the request meets requirements to submit
+func Validate(request *Request) (err error) {
 	if request == nil {
 		return ErrRequestCannotBeNil
 	}
@@ -53,7 +53,7 @@ func Valid(request *Request) (err error) {
 	return nil
 }
 
-// Valid takes interface and passes to asset type to check the request meets requirements to submit
+// validateFiat takes interface and passes to asset type to check the request meets requirements to submit
 func validateFiat(request *Request) (err []string) {
 	errBank := request.Fiat.Bank.ValidateForWithdrawal(request.Exchange, request.Currency)
 	if errBank != nil {
@@ -62,13 +62,13 @@ func validateFiat(request *Request) (err []string) {
 	return err
 }
 
-// ValidateCrypto checks if Crypto request is valid and meets the minimum requirements to submit a crypto withdrawal request
+// validateCrypto checks if Crypto request is valid and meets the minimum requirements to submit a crypto withdrawal request
 func validateCrypto(request *Request) (err []string) {
-	if !portfolio.WhiteListed(request.Crypto.Address) {
+	if !portfolio.IsWhiteListed(request.Crypto.Address) {
 		err = append(err, ErrStrAddressNotWhiteListed)
 	}
 
-	if !portfolio.ExchangeSupported(request.Exchange, request.Crypto.Address) {
+	if !portfolio.IsExchangeSupported(request.Exchange, request.Crypto.Address) {
 		err = append(err, ErrStrExchangeNotSupportedByAddress)
 	}
 

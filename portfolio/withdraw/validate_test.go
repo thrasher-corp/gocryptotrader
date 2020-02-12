@@ -2,6 +2,7 @@ package withdraw
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 
@@ -101,12 +102,20 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	portfolio.Portfolio.AddAddress(core.BitcoinDonationAddress, "test", currency.BTC, 1500)
+	err := portfolio.Portfolio.AddAddress(core.BitcoinDonationAddress, "test", currency.BTC, 1500)
+	if err != nil {
+		fmt.Printf("failed to add portfolio address with reason: %v, unable to continue tests", err)
+		os.Exit(0)
+	}
 	portfolio.Portfolio.Addresses[0].WhiteListed = true
 	portfolio.Portfolio.Addresses[0].ColdStorage = true
 	portfolio.Portfolio.Addresses[0].SupportedExchanges = "BTC Markets,Binance"
 
-	portfolio.Portfolio.AddAddress(testBTCAddress, "test", currency.BTC, 1500)
+	err = portfolio.Portfolio.AddAddress(testBTCAddress, "test", currency.BTC, 1500)
+	if err != nil {
+		fmt.Printf("failed to add portfolio address with reason: %v, unable to continue tests", err)
+		os.Exit(0)
+	}
 	portfolio.Portfolio.Addresses[1].SupportedExchanges = "BTC Markets,Binance"
 
 	banking.Accounts = append(banking.Accounts,
@@ -132,7 +141,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestValid(t *testing.T) {
-	err := Valid(invalidType)
+	err := Validate(invalidType)
 	if err != nil {
 		if err.Error() != ErrInvalidRequest.Error() {
 			t.Fatal(err)
@@ -190,7 +199,7 @@ func TestValidateFiat(t *testing.T) {
 				}
 				test.request.Fiat.Bank = v
 			}
-			err := Valid(test.request)
+			err := Validate(test.request)
 			if err != nil {
 				if test.output.(error).Error() != err.Error() {
 					t.Fatal(err)
@@ -251,7 +260,7 @@ func TestValidateCrypto(t *testing.T) {
 	for _, tests := range testCases {
 		test := tests
 		t.Run(test.name, func(t *testing.T) {
-			err := Valid(test.request)
+			err := Validate(test.request)
 			if err != nil {
 				if err.Error() != test.output.(error).Error() {
 					t.Fatal(err)
