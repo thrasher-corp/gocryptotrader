@@ -511,6 +511,7 @@ func TestGetSha(t *testing.T) {
 }
 
 func TestSetAuthVars(t *testing.T) {
+	t.Parallel()
 	apiKey = ""
 	apiToken = ""
 	SetAuthVars()
