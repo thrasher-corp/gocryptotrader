@@ -1,8 +1,6 @@
 package portfolio
 
 import (
-	"fmt"
-	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -14,26 +12,6 @@ import (
 const (
 	testBTCAddress = "0x1D01TH0R53"
 )
-
-func TestMain(m *testing.M) {
-	err := Portfolio.AddAddress(core.BitcoinDonationAddress, "test", currency.BTC, 1500)
-	if err != nil {
-		fmt.Printf("failed to add portfolio address with reason: %v, unable to continue tests", err)
-		os.Exit(0)
-	}
-	Portfolio.Addresses[0].WhiteListed = true
-	Portfolio.Addresses[0].ColdStorage = true
-	Portfolio.Addresses[0].SupportedExchanges = "BTC Markets,Binance"
-
-	err = Portfolio.AddAddress(testBTCAddress, "test", currency.BTC, 1500)
-	if err != nil {
-		fmt.Printf("failed to add portfolio address with reason: %v, unable to continue tests", err)
-		os.Exit(0)
-	}
-	Portfolio.Addresses[1].SupportedExchanges = "BTC Markets,Binance"
-
-	os.Exit(m.Run())
-}
 
 func TestGetEthereumBalance(t *testing.T) {
 	address := "0xb794f5ea0ba39494ce839613fffba74279579268"
@@ -494,6 +472,7 @@ func TestGetPortfolio(t *testing.T) {
 }
 
 func TestIsExchangeSupported(t *testing.T) {
+	seedPortFolioForTest(t)
 	ret := IsExchangeSupported("BTC Markets", core.BitcoinDonationAddress)
 	if !ret {
 		t.Fatal("expected IsExchangeSupported() to return true")
@@ -505,6 +484,7 @@ func TestIsExchangeSupported(t *testing.T) {
 }
 
 func TestIsColdStorage(t *testing.T) {
+	seedPortFolioForTest(t)
 	ret := IsColdStorage(core.BitcoinDonationAddress)
 	if !ret {
 		t.Fatal("expected IsColdStorage() to return true")
@@ -520,6 +500,7 @@ func TestIsColdStorage(t *testing.T) {
 }
 
 func TestIsWhiteListed(t *testing.T) {
+	seedPortFolioForTest(t)
 	ret := IsWhiteListed(core.BitcoinDonationAddress)
 	if !ret {
 		t.Fatal("expected IsColdStorage() to return true")
@@ -532,4 +513,21 @@ func TestIsWhiteListed(t *testing.T) {
 	if ret {
 		t.Fatal("expected IsColdStorage() to return false")
 	}
+}
+
+func seedPortFolioForTest(t *testing.T) {
+	t.Helper()
+	err := Portfolio.AddAddress(core.BitcoinDonationAddress, "test", currency.BTC, 1500)
+	if err != nil {
+		t.Fatalf("failed to add portfolio address with reason: %v, unable to continue tests", err)
+	}
+	Portfolio.Addresses[0].WhiteListed = true
+	Portfolio.Addresses[0].ColdStorage = true
+	Portfolio.Addresses[0].SupportedExchanges = "BTC Markets,Binance"
+
+	err = Portfolio.AddAddress(testBTCAddress, "test", currency.BTC, 1500)
+	if err != nil {
+		t.Fatalf("failed to add portfolio address with reason: %v, unable to continue tests", err)
+	}
+	Portfolio.Addresses[1].SupportedExchanges = "BTC Markets,Binance"
 }
