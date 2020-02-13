@@ -1854,8 +1854,8 @@ func TestWsAccount(t *testing.T) {
     ]
 }`)
 	err := o.WsHandleData(pressXToJSON)
-	if err == nil {
-		t.Error("Expected unhandled error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -1884,8 +1884,8 @@ func TestWsMargin(t *testing.T) {
     }]
 }`)
 	err := o.WsHandleData(pressXToJSON)
-	if err == nil {
-		t.Error("Expected unhandled error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -1945,8 +1945,8 @@ func TestWsAlgoOrders(t *testing.T) {
     ]
 }`)
 	err := o.WsHandleData(pressXToJSON)
-	if err == nil {
-		t.Error("Expected unhandled error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -2063,13 +2063,13 @@ func TestWsDepthByTick(t *testing.T) {
                 ["9574.4","0.15659893","0","2"],
                 ["9574.2","0.0105","0","1"]
             ],
-            "timestamp":"2020-02-06T03:35:42.492Z"
+            "timestamp":"2020-02-06T03:35:42.492Z",
             "checksum":-2144245240
         }
     ]
 }`)
 	err := o.WsHandleData(pressXToJSON)
-	if err == nil {
-		t.Error("Expected unhandled error")
+	if err != nil {
+		t.Error(err)
 	}
 }

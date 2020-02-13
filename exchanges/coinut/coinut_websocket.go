@@ -335,10 +335,20 @@ func stringToStatus(status string, qty float64) order.Status {
 }
 
 func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detail, error) {
-	oSide, err := order.StringToOrderSide(oContainer.Side)
-	if err != nil {
-		return nil, err
+	var oSide order.Side
+	var err error
+	if oContainer.Side != "" {
+		oSide, err = order.StringToOrderSide(oContainer.Side)
+		if err != nil {
+			return nil, err
+		}
+	} else if oContainer.Order.Side != "" {
+		oSide, err = order.StringToOrderSide(oContainer.Order.Side)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	oStatus := stringToStatus(oContainer.Reply, oContainer.OpenQty)
 	if oContainer.Status[0] != "OK" {
 		return nil, fmt.Errorf("%s - Order rejected: %v", c.Name, oContainer.Status)

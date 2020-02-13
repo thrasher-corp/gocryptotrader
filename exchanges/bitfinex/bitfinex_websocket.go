@@ -188,19 +188,16 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				}
 				switch candleData := candleBundle[0].(type) {
 				case []interface{}:
-					for i := range candleBundle {
-						candle := candleData[i].([]interface{})
-						b.Websocket.DataHandler <- wshandler.KlineData{
-							Timestamp:  time.Unix(0, int64(candle[0].(float64))),
-							Exchange:   b.Name,
-							AssetType:  asset.Spot,
-							Pair:       curr,
-							OpenPrice:  candle[1].(float64),
-							ClosePrice: candle[2].(float64),
-							HighPrice:  candle[3].(float64),
-							LowPrice:   candle[4].(float64),
-							Volume:     candle[5].(float64),
-						}
+					b.Websocket.DataHandler <- wshandler.KlineData{
+						Timestamp:  time.Unix(0, int64(candleData[0].(float64))),
+						Exchange:   b.Name,
+						AssetType:  asset.Spot,
+						Pair:       curr,
+						OpenPrice:  candleData[1].(float64),
+						ClosePrice: candleData[2].(float64),
+						HighPrice:  candleData[3].(float64),
+						LowPrice:   candleData[4].(float64),
+						Volume:     candleData[5].(float64),
 					}
 				case float64:
 					b.Websocket.DataHandler <- wshandler.KlineData{

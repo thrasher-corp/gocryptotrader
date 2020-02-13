@@ -716,8 +716,8 @@ func TestWsGetOrderJSON(t *testing.T) {
     "no": "1337"
 }`)
 	err := z.wsHandleData(pressXToJSON)
-	if err == nil {
-		t.Error("Expected unsupported error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -743,8 +743,8 @@ func TestWsGetOrdersJSON(t *testing.T) {
     "no": "1337"
 }`)
 	err := z.wsHandleData(pressXToJSON)
-	if err == nil {
-		t.Error("Expected unsupported error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -770,8 +770,8 @@ func TestWsGetOrderIgnoreTypeJSON(t *testing.T) {
     "no": "1337"
 }`)
 	err := z.wsHandleData(pressXToJSON)
-	if err == nil {
-		t.Error("Expected unsupported error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -812,16 +812,16 @@ func TestWsGetUserInfo(t *testing.T) {
     "success": true
 }`)
 	err := z.wsHandleData(pressXToJSON)
-	if err == nil {
-		t.Error("Expected unsupported error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
 func TestWsGetSubUsersResponse(t *testing.T) {
 	pressXToJSON := []byte(`{"success": true,"code": 1000,"channel": "getSubUserList","message": "[{"isOpenApi": false,"memo": "1","userName": "15914665280@1","userId": 110980,"isFreez": false}, {"isOpenApi": false,"memo": "2","userName": "15914665280@2","userId": 110984,"isFreez": false}, {"isOpenApi": false,"memo": "test3","userName": "15914665280@3","userId": 111014,"isFreez": false}]","no": "0"}`)
 	err := z.wsHandleData(pressXToJSON)
-	if err == nil {
-		t.Error("Expected unsupported error")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -834,7 +834,7 @@ func TestWsCreateSubUserResponse(t *testing.T) {
 	"no": "1337"
 }`)
 	err := z.wsHandleData(pressXToJSON)
-	if err == nil {
-		t.Error("Expected unsupported error")
+	if err != nil {
+		t.Error(err)
 	}
 }

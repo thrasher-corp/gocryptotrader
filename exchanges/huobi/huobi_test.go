@@ -779,8 +779,8 @@ func TestWsBestBidOffer(t *testing.T) {
 	  }
 	}`)
 	err := h.wsHandleData(pressXToJSON)
-	if err == nil {
-		t.Error("Expected error, not yet implemented")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -921,8 +921,8 @@ func TestWsMarketByPrice(t *testing.T) {
 		}
 	}`)
 	err := h.wsHandleData(pressXToJSON)
-	if err == nil {
-		t.Error("Expected error, not yet implemented")
+	if err != nil {
+		t.Error(err)
 	}
 	pressXToJSON = []byte(`{
 		"id": "id2",
@@ -935,20 +935,20 @@ func TestWsMarketByPrice(t *testing.T) {
 				[423.33, 77.726],
 				[223.18, 47.997],
 				[219.34, 24.82],
-				[210.34, 94.463],
+				[210.34, 94.463]
 		],
 			"asks": [
 				[650.59, 14.909733438479636],
 				[650.63, 97.996],
 				[650.77, 97.465],
 				[651.23, 83.973],
-				[651.42, 34.465],
+				[651.42, 34.465]
 			]
 		}
 	}`)
 	err = h.wsHandleData(pressXToJSON)
-	if err == nil {
-		t.Error("Expected error, not yet implemented")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
