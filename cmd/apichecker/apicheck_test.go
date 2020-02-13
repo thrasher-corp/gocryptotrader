@@ -3,19 +3,19 @@ package main
 import (
 	"log"
 	"os"
-	"testing"
 	"reflect"
-	
+	"testing"
+
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
 
 const (
-	testAPIKey = ""
-	testAPIToken = ""
-	testCardID = ""
+	testAPIKey      = ""
+	testAPIToken    = ""
+	testCardID      = ""
 	testChecklistID = ""
-	testListID = ""
-	testBoardID = ""
+	testListID      = ""
+	testBoardID     = ""
 )
 
 func TestMain(m *testing.M) {
@@ -50,12 +50,12 @@ func TestCheckExistingExchanges(t *testing.T) {
 func TestCheckChangeLog(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{TokenData: "a",
-		 Key: "href",
-		 Val: "./#change-change",
-		 TokenDataEnd: "./#change-",
-		 RegExp: "./#change-\\d{8}",
-		 CheckString: "20200229",
-		 Path: "https://www.okex.com/docs/en/#change-change"}
+		Key:          "href",
+		Val:          "./#change-change",
+		TokenDataEnd: "./#change-",
+		RegExp:       "./#change-\\d{8}",
+		CheckString:  "20200229",
+		Path:         "https://www.okex.com/docs/en/#change-change"}
 	_, err := CheckChangeLog(&data)
 	if err != nil {
 		t.Error(err)
@@ -65,11 +65,11 @@ func TestCheckChangeLog(t *testing.T) {
 func TestAdd(t *testing.T) {
 	t.Parallel()
 	data2 := HTMLScrapingData{TokenData: "a",
-	Key:           "href",
-	Val:           "./#change-change",
-	TokenDataEnd:  "./#change-",
-	RegExp:        `./#change-\d{8}`,
-	Path:          "wrongpath"}
+		Key:          "href",
+		Val:          "./#change-change",
+		TokenDataEnd: "./#change-",
+		RegExp:       `./#change-\d{8}`,
+		Path:         "wrongpath"}
 	err := Add("WrongExch", htmlScrape, data2.Path, data2, false, &configData)
 	if err == nil {
 		t.Log("expected an error due to invalid path being parsed in")
@@ -87,14 +87,14 @@ func TestCheckUpdates(t *testing.T) {
 func TestHTMLScrapeGemini(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{TokenData: "h1",
-		Key: "id",
-		Val: "revision-history",
-		TokenDataEnd: "table",
+		Key:           "id",
+		Val:           "revision-history",
+		TokenDataEnd:  "table",
 		TextTokenData: "td",
-		DateFormat: "2006/01/02",
-		RegExp: "^20(\\d){2}/(\\d){2}/(\\d){2}$",
-		CheckString: "2019/11/15",
-		Path: "https://docs.gemini.com/rest-api/#revision-history"}
+		DateFormat:    "2006/01/02",
+		RegExp:        "^20(\\d){2}/(\\d){2}/(\\d){2}$",
+		CheckString:   "2019/11/15",
+		Path:          "https://docs.gemini.com/rest-api/#revision-history"}
 	_, err := HTMLScrapeDefault(&data)
 	if err != nil {
 		t.Error(err)
@@ -104,14 +104,14 @@ func TestHTMLScrapeGemini(t *testing.T) {
 func TestHTMLScrapeHuobi(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{TokenData: "h1",
-		Key: "id",
-		Val: "change-log",
-		TokenDataEnd: "h2",
+		Key:           "id",
+		Val:           "change-log",
+		TokenDataEnd:  "h2",
 		TextTokenData: "td",
-		DateFormat: "2006.01.02 15:04",
-		RegExp: "^20(\\d){2}.(\\d){2}.(\\d){2} (\\d){2}:(\\d){2}$",
-		CheckString: "2019.12.27 19:00",
-		Path: "https://huobiapi.github.io/docs/spot/v1/en/#change-log"}
+		DateFormat:    "2006.01.02 15:04",
+		RegExp:        "^20(\\d){2}.(\\d){2}.(\\d){2} (\\d){2}:(\\d){2}$",
+		CheckString:   "2019.12.27 19:00",
+		Path:          "https://huobiapi.github.io/docs/spot/v1/en/#change-log"}
 	_, err := HTMLScrapeDefault(&data)
 	if err != nil {
 		t.Error(err)
@@ -121,14 +121,14 @@ func TestHTMLScrapeHuobi(t *testing.T) {
 func TestHTMLScrapeCoinbasepro(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{TokenData: "h1",
-		Key: "id",
-		Val: "changelog",
-		TokenDataEnd: "ul",
+		Key:           "id",
+		Val:           "changelog",
+		TokenDataEnd:  "ul",
 		TextTokenData: "strong",
-		DateFormat: "01/02/06",
-		RegExp: "^(\\d){1,2}/(\\d){1,2}/(\\d){2}$",
-		CheckString: "12/16/19",
-		Path: "https://docs.pro.coinbase.com/#changelog"}
+		DateFormat:    "01/02/06",
+		RegExp:        "^(\\d){1,2}/(\\d){1,2}/(\\d){2}$",
+		CheckString:   "12/16/19",
+		Path:          "https://docs.pro.coinbase.com/#changelog"}
 	_, err := HTMLScrapeDefault(&data)
 	if err != nil {
 		t.Error(err)
@@ -191,8 +191,8 @@ func TestHTMLScrapeDefault(t *testing.T) {
 
 func TestHTMLScrapeBTSE(t *testing.T) {
 	t.Parallel()
-	data := HTMLScrapingData{RegExp:        `^version: \d{1}.\d{1}.\d{1}`,
-	Path:          "https://api.btcmarkets.net/openapi/info/index.yaml"}
+	data := HTMLScrapingData{RegExp: `^version: \d{1}.\d{1}.\d{1}`,
+		Path: "https://api.btcmarkets.net/openapi/info/index.yaml"}
 	_, err := HTMLScrapeBTSE(&data)
 	if err != nil {
 		t.Error(err)
@@ -201,8 +201,8 @@ func TestHTMLScrapeBTSE(t *testing.T) {
 
 func TestHTMLScrapeBTCMarkets(t *testing.T) {
 	t.Parallel()
-	data := HTMLScrapingData{RegExp:        `^version: \d{1}.\d{1}.\d{1}`,
-		Path:          "https://api.btcmarkets.net/openapi/info/index.yaml"}
+	data := HTMLScrapingData{RegExp: `^version: \d{1}.\d{1}.\d{1}`,
+		Path: "https://api.btcmarkets.net/openapi/info/index.yaml"}
 	_, err := HTMLScrapeBTCMarkets(&data)
 	if err != nil {
 		t.Error(err)
@@ -365,11 +365,11 @@ func TestHTMLScrapeLocalBitcoins(t *testing.T) {
 func TestHTMLScrapeOk(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{TokenData: "a",
-		Key:           "href",
-		Val:           "./#change-change",
-		TokenDataEnd:  "./#change-",
-		RegExp:        `./#change-\d{8}`,
-		Path:          "https://www.okex.com/docs/en/"}
+		Key:          "href",
+		Val:          "./#change-change",
+		TokenDataEnd: "./#change-",
+		RegExp:       `./#change-\d{8}`,
+		Path:         "https://www.okex.com/docs/en/"}
 	_, err := HTMLScrapeOk(&data)
 	if err != nil {
 		t.Error(err)
@@ -380,7 +380,7 @@ func TestTrelloGetListsData(t *testing.T) {
 	t.Parallel()
 	if !CanUpdateTrello() {
 		t.Skip()
-	}	
+	}
 	_, err := TrelloGetListsData(trelloBoardID)
 	if err != nil {
 		t.Error(err)
@@ -391,7 +391,7 @@ func TestCreateNewCard(t *testing.T) {
 	t.Parallel()
 	if !CanUpdateTrello() {
 		t.Skip()
-	}	
+	}
 	fillData := CardFill{ListID: trelloListID,
 		Name: "Exchange Updates"}
 	err := TrelloCreateNewCard(&fillData)
@@ -404,7 +404,7 @@ func TestCreateNewCheck(t *testing.T) {
 	t.Parallel()
 	if !CanUpdateTrello() {
 		t.Skip()
-	}	
+	}
 	err := TrelloCreateNewCheck("Gemini")
 	if err != nil {
 		t.Error(err)
@@ -448,7 +448,7 @@ func TestGetChecklistItems(t *testing.T) {
 	t.Parallel()
 	if !CanUpdateTrello() {
 		t.Skip()
-	}	
+	}
 	_, err := TrelloGetChecklistItems()
 	if err != nil {
 		t.Error(err)
@@ -459,7 +459,7 @@ func TestUpdateCheckItem(t *testing.T) {
 	t.Parallel()
 	if !CanUpdateTrello() {
 		t.Skip()
-	}	
+	}
 	err := TrelloUpdateCheckItem(trelloListID, "Gemini 1", "incomplete")
 	if err != nil {
 		t.Error(err)

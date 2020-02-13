@@ -65,7 +65,8 @@
    "CheckType": "GitHub Sha Check",
    "Data": {
     "GitHubData": {
-     "Repo": "binance-exchange/binance-official-api-docs"
+     "Repo": "binance-exchange/binance-official-api-docs",
+     "Sha": "b5d8ac6c1bb6c9f8e2b40261cbfd4b87d2f62295"
     }
    },
    "Err": null
@@ -75,7 +76,8 @@
    "CheckType": "GitHub Sha Check",
    "Data": {
     "GitHubData": {
-     "Repo": "bithumb-pro/bithumb.pro-official-api-docs"
+     "Repo": "bithumb-pro/bithumb.pro-official-api-docs",
+     "Sha": "8207addce33dc6305497e0e6af1d707f73069b5a"
     }
    },
    "Err": null
@@ -85,7 +87,8 @@
    "CheckType": "GitHub Sha Check",
    "Data": {
     "GitHubData": {
-     "Repo": "Bittrex/bittrex.github.io"
+     "Repo": "Bittrex/bittrex.github.io",
+     "Sha": "fc1ea9c10c48aa82c4dc2c6be74887ef61b5b31b"
     }
    },
    "Err": null
@@ -95,7 +98,8 @@
    "CheckType": "GitHub Sha Check",
    "Data": {
     "GitHubData": {
-     "Repo": "Coinbene/API-SPOT-v2-Documents"
+     "Repo": "Coinbene/API-SPOT-v2-Documents",
+     "Sha": "88f30f5b587f7024e4ad8eb5b433cb5b2cea0ef1"
     }
    },
    "Err": null
@@ -105,7 +109,8 @@
    "CheckType": "GitHub Sha Check",
    "Data": {
     "GitHubData": {
-     "Repo": "Coinbene/API-SWAP-Documents"
+     "Repo": "Coinbene/API-SWAP-Documents",
+     "Sha": "f11012ea36c21959499f2143cb4d123d84655eed"
     }
    },
    "Err": null
@@ -115,7 +120,8 @@
    "CheckType": "GitHub Sha Check",
    "Data": {
     "GitHubData": {
-     "Repo": "coinut/api"
+     "Repo": "coinut/api",
+     "Sha": "6936dab4d2beba3c8245a603aebf3f545ebcf3f9"
     }
    },
    "Err": null
@@ -125,7 +131,8 @@
    "CheckType": "GitHub Sha Check",
    "Data": {
     "GitHubData": {
-     "Repo": "gateio/gateapi-go"
+     "Repo": "gateio/gateapi-go",
+     "Sha": "fe964d6ee64d27d7f7ef3cf3a54e502119710384"
     }
    },
    "Err": null
@@ -135,7 +142,8 @@
    "CheckType": "GitHub Sha Check",
    "Data": {
     "GitHubData": {
-     "Repo": "LBank-exchange/lbank-official-api-docs"
+     "Repo": "LBank-exchange/lbank-official-api-docs",
+     "Sha": "85e7bb83f03d4239c3aad26cabb997a1a2bbb3d1"
     }
    },
    "Err": null
