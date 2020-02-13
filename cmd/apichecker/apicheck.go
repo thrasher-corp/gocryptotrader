@@ -1308,9 +1308,6 @@ func Update(currentName string, info []ExchangeInfo, updatedInfo ExchangeInfo) [
 
 // UpdateFile updates the given file to match updates.json
 func UpdateFile(confData *Config, name string) error {
-	if name == testJSONFile {
-		RemoveTestAuthVars(confData)
-	}
 	file, err := json.MarshalIndent(&confData, "", " ")
 	if err != nil {
 		return err

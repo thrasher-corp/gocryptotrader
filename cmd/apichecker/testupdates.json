@@ -18,7 +18,7 @@
      "TextTokenData": "td",
      "DateFormat": "2006/01/02",
      "RegExp": "^20(\\d){2}/(\\d){2}/(\\d){2}$",
-     "CheckString": "2019/11/15",
+     "CheckString": "2019/11/18",
      "Path": "https://docs.gemini.com/rest-api/#revision-history"
     }
    },
@@ -54,7 +54,7 @@
      "TextTokenData": "strong",
      "DateFormat": "01/02/06",
      "RegExp": "^(\\d){1,2}/(\\d){1,2}/(\\d){2}$",
-     "CheckString": "12/16/19",
+     "CheckString": "2/10/20",
      "Path": "https://docs.pro.coinbase.com/#changelog"
     }
    },
@@ -151,7 +151,7 @@
      "TokenDataEnd": "blockquote",
      "TextTokenData": "h1",
      "RegExp": "^BTSE Spot API v(\\d){1}.(\\d){1}$",
-     "CheckString": "BTSE Spot API v2.2",
+     "CheckString": "BTSE Spot API v3.0.1",
      "Path": "https://www.btse.com/apiexplorer/spot/#btse-spot-api"
     }
    },
@@ -198,7 +198,7 @@
      "TextTokenData": "h2",
      "DateFormat": "2006-01-02",
      "RegExp": "(2\\d{3}-\\d{1,2}-\\d{1,2})",
-     "CheckString": "2019-12-30",
+     "CheckString": "2020-02-06",
      "Path": "https://docs.poloniex.com/#changelog"
     }
    },

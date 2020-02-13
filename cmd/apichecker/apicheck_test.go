@@ -9,7 +9,22 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
 
+const (
+	testAPIKey = ""
+	testAPIToken = ""
+	testCardID = ""
+	testChecklistID = ""
+	testListID = ""
+	testBoardID = ""
+)
+
 func TestMain(m *testing.M) {
+	apiKey = testAPIKey
+	apiToken = testAPIToken
+	trelloCardID = testCardID
+	trelloChecklistID = testChecklistID
+	trelloListID = testListID
+	trelloBoardID = testBoardID
 	var err error
 	configData, err = ReadFileData(jsonFile)
 	if err != nil {
@@ -54,9 +69,9 @@ func TestAdd(t *testing.T) {
 	Val:           "./#change-change",
 	TokenDataEnd:  "./#change-",
 	RegExp:        `./#change-\d{8}`,
-	Path:          "https://www.okcoin.com/docs/en/#change-change"}
-	err := Add("Okex", htmlScrape, data2.Path, data2, false, &configData)
-	if err != nil {
+	Path:          "wrongpath"}
+	err := Add("WrongExch", htmlScrape, data2.Path, data2, false, &configData)
+	if err == nil {
 		t.Log("expected an error due to invalid path being parsed in")
 	}
 }
@@ -496,10 +511,10 @@ func TestGetSha(t *testing.T) {
 }
 
 func TestSetAuthVars(t *testing.T) {
-	apiKey = "a"
-	apiToken = "b"
+	apiKey = ""
+	apiToken = ""
 	SetAuthVars()
-	if configData.Key != "a" && configData.Token != "b" {
+	if configData.Key != "" && configData.Token != "" {
 		t.Errorf("incorrect key and token values")
 	}
 }
