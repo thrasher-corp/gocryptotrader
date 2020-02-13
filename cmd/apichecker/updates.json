@@ -1,7 +1,9 @@
 {
- "CardID": "",
+  "BoardID": "asdf",
+  "CardID": "",
  "ChecklistID": "",
  "Key": "",
+ "ListID": "",
  "Token": "",
  "Exchanges": [
   {

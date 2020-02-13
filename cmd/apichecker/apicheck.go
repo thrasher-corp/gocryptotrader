@@ -60,6 +60,8 @@ const (
 type Config struct {
 	CardID      string         `json:"CardID"`
 	ChecklistID string         `json:"ChecklistID"`
+	ListID      string         `json:"ListID"`
+	BoardID     string         `json:"BoardID"`
 	Key         string         `json:"Key"`
 	Token       string         `json:"Token"`
 	Exchanges   []ExchangeInfo `json:"Exchanges"`
@@ -90,14 +92,11 @@ func main() {
 		log.Fatal(err)
 	}
 	if CanUpdateTrello() {
+		SetAuthVars()
 		err = UpdateFile(&configData, backupFile)
 		if err != nil {
 			log.Fatal(err)
 		}
-		configData.Key = apiKey
-		configData.Token = apiToken
-		configData.CardID = trelloCardID
-		configData.ChecklistID = trelloChecklistID
 		err = CheckUpdates(jsonFile, &configData)
 		if err != nil {
 			log.Fatal(err)
@@ -110,6 +109,56 @@ func main() {
 		}
 		log.Printf("api update check completed successfully")
 	}
+}
+
+// SetAuthVars checks if the cmdline vars are set and sets them onto config file and vice versa
+func SetAuthVars() {
+	switch {
+	case true:
+		apiKey = configData.Key
+	case false:
+		configData.Key = apiKey
+	}
+	switch apiToken == "" {
+	case true:
+		apiToken = configData.Token
+	case false:
+		configData.Token = apiToken
+	}
+	switch trelloCardID == "" {
+	case true:
+		trelloCardID = configData.CardID
+	case false:
+		configData.CardID = trelloCardID
+	}
+	switch trelloChecklistID == "" {
+	case true:
+		trelloChecklistID = configData.ChecklistID
+	case false:
+		configData.ChecklistID = trelloChecklistID
+	}
+	switch trelloListID == "" {
+	case true:
+		trelloListID = configData.ListID
+	case false:
+		configData.ListID = trelloListID
+	}
+	switch trelloBoardID == "" {
+	case true:
+		trelloBoardID = configData.BoardID
+	case false:
+		configData.BoardID = trelloBoardID
+	}
+}
+
+// RemoveTestAuthVars removes authenticated variables when the test file is overwritten with the main jsonfile data
+func RemoveTestAuthVars(confData *Config) {
+	confData.BoardID = ""
+	confData.CardID = ""
+	confData.ChecklistID = ""
+	confData.ListID = ""
+	confData.Key = ""
+	confData.Token = ""
 }
 
 // CanUpdateTrello checks if all the data necessary for updating trello is available
@@ -131,7 +180,7 @@ func AreAPIKeysSet() bool {
 // IsTrelloBoardDataSet checks if data required to update trello board is set
 func IsTrelloBoardDataSet() bool {
 	if (trelloBoardID != "" && trelloListID != "" && trelloChecklistID != "" && trelloCardID != "") ||
-		(configData.CardID != "" && configData.ChecklistID != "") {
+		(configData.CardID != "" && configData.ChecklistID != "" && configData.BoardID != "" && configData.ListID != "") {
 		return true
 	}
 	return false
@@ -264,7 +313,7 @@ func CheckUpdates(fileName string, confData *Config) error {
 		log.Printf("The following exchanges need an update: %v\n", resp)
 		log.Printf("Errors: %v", errMap)
 		unsup := CheckMissingExchanges(&configData)
-		log.Printf("Following exchanges are not supported by apichecker: %v\n", unsup)
+		log.Printf("The following exchanges are not supported by apichecker: %v\n", unsup)
 	}
 	return ioutil.WriteFile(fileName, file, 0770)
 }
@@ -345,9 +394,7 @@ func Add(exchName, checkType, path string, data interface{}, update bool, confDa
 	var file []byte
 	if !update {
 		if CheckExistingExchanges(exchName, &configData) {
-			if verbose {
-				log.Printf("%v exchange already exists\n", exchName)
-			}
+			log.Printf("%v exchange already exists\n", exchName)
 			return nil
 		}
 		exchangeData, err := FillData(exchName, checkType, path, data)
@@ -1261,6 +1308,9 @@ func Update(currentName string, info []ExchangeInfo, updatedInfo ExchangeInfo) [
 
 // UpdateFile updates the given file to match updates.json
 func UpdateFile(confData *Config, name string) error {
+	if name == testJSONFile {
+		RemoveTestAuthVars(confData)
+	}
 	file, err := json.MarshalIndent(&confData, "", " ")
 	if err != nil {
 		return err

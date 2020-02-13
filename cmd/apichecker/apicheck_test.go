@@ -34,15 +34,13 @@ func TestCheckExistingExchanges(t *testing.T) {
 
 func TestCheckChangeLog(t *testing.T) {
 	t.Parallel()
-	data := HTMLScrapingData{TokenData: "h3",
-		Key:           "id",
-		Val:           "change-change",
-		TokenDataEnd:  "table",
-		TextTokenData: "p",
-		DateFormat:    "2006-01-02",
-		RegExp:        "(2\\d{3}-\\d{1,2}-\\d{1,2})",
-		CheckString:   "2019-12-10",
-		Path:          "https://www.okex.com/docs/en/#change-change"}
+	data := HTMLScrapingData{TokenData: "a",
+		 Key: "href",
+		 Val: "./#change-change",
+		 TokenDataEnd: "./#change-",
+		 RegExp: "./#change-\\d{8}",
+		 CheckString: "20200229",
+		 Path: "https://www.okex.com/docs/en/#change-change"}
 	_, err := CheckChangeLog(&data)
 	if err != nil {
 		t.Error(err)
@@ -494,5 +492,14 @@ func TestGetSha(t *testing.T) {
 	_, err := getSha("binance-exchange/binance-official-api-docs")
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestSetAuthVars(t *testing.T) {
+	apiKey = "a"
+	apiToken = "b"
+	SetAuthVars()
+	if configData.Key != "a" && configData.Token != "b" {
+		t.Errorf("incorrect key and token values")
 	}
 }

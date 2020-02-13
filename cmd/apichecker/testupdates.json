@@ -1,6 +1,8 @@
 {
  "CardID": "",
  "ChecklistID": "",
+ "ListID": "",
+ "BoardID": "",
  "Key": "",
  "Token": "",
  "Exchanges": [
