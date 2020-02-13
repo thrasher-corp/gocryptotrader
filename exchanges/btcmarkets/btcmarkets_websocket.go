@@ -47,7 +47,7 @@ func (b *BTCMarkets) WsConnect() error {
 	return nil
 }
 
-// wsReadData handles websocket data from WsReadData
+// wsReadData receives and passes on websocket messages for processing
 func (b *BTCMarkets) wsReadData() {
 	b.Websocket.Wg.Add(1)
 	defer func() {
@@ -243,7 +243,8 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		}
 		return fmt.Errorf("%v websocket error. Code: %v Message: %v", b.Name, wsErr.Code, wsErr.Message)
 	default:
-		return fmt.Errorf("%v Unhandled websocket message %s", b.Name, respRaw)
+		b.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: b.Name + wshandler.UnhandledMessage + string(respRaw)}
+		return nil
 	}
 	return nil
 }

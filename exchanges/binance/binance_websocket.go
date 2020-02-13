@@ -25,6 +25,8 @@ const (
 	pingDelay                  = time.Minute * 9
 )
 
+var listenKey string
+
 // WsConnect intiates a websocket connection
 func (b *Binance) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
@@ -33,7 +35,7 @@ func (b *Binance) WsConnect() error {
 
 	var dialer websocket.Dialer
 	var err error
-	listenKey, err := b.GetWsAuthStreamKey()
+	listenKey, err = b.GetWsAuthStreamKey()
 	if err != nil {
 		b.Websocket.DataHandler <- err
 	}
@@ -93,6 +95,8 @@ func (b *Binance) WsConnect() error {
 	return nil
 }
 
+// KeepAuthKeyAlive will continuously send messages to
+// keep the WS auth key active
 func (b *Binance) KeepAuthKeyAlive() {
 	b.Websocket.Wg.Add(1)
 	defer func() {
@@ -114,7 +118,7 @@ func (b *Binance) KeepAuthKeyAlive() {
 	}
 }
 
-// wsReadData handles websocket data from WsReadData
+// wsReadData receives and passes on websocket messages for processing
 func (b *Binance) wsReadData() {
 	b.Websocket.Wg.Add(1)
 	defer func() {
@@ -156,7 +160,6 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 			return nil
 		}
 	}
-	// check for auth events
 	if _, ok := multiStreamData["e"]; ok {
 		switch multiStreamData["e"].(string) {
 		case "outboundAccountInfo":
@@ -229,7 +232,8 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 			}
 			b.Websocket.DataHandler <- data
 		default:
-			return fmt.Errorf("%v Unhandled websocket message %s", b.Name, respRaw)
+			b.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: b.Name + wshandler.UnhandledMessage + string(respRaw)}
+			return nil
 		}
 	}
 	if _, ok := multiStreamData["stream"]; ok {
@@ -347,15 +351,11 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						Exchange: b.Name,
 					}
 				default:
-					return fmt.Errorf("%v - Unhandled websocket data received %s",
-						b.Name,
-						respRaw)
+					b.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: b.Name + wshandler.UnhandledMessage + string(respRaw)}
 				}
 			}
-
 		}
 	}
-
 	return nil
 }
 

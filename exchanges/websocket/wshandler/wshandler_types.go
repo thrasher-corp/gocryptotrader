@@ -21,6 +21,7 @@ const (
 	WebsocketNotAuthenticatedUsingRest = "%v - Websocket not authenticated, using REST"
 	Ping                               = "ping"
 	Pong                               = "pong"
+	UnhandledMessage                   = " - Unhandled websocket message: "
 )
 
 // Websocket defines a return type for websocket connections via the interface
@@ -173,4 +174,8 @@ type WebsocketPingHandler struct {
 	MessageType       int
 	Message           []byte
 	Delay             time.Duration
+}
+
+type UnhandledMessageWarning struct {
+	Message string
 }

@@ -689,8 +689,6 @@ func (b *Binance) GetDepositAddressForCurrency(currency string) (string, error) 
 func (b *Binance) GetWsAuthStreamKey() (string, error) {
 	var resp UserAccountStream
 	path := b.API.Endpoints.URL + userAccountStream
-	// Create a new post method unique to one function?
-	// NO!
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
 	err := b.SendPayload(&request.Item{
@@ -700,11 +698,9 @@ func (b *Binance) GetWsAuthStreamKey() (string, error) {
 		Body:          bytes.NewBuffer(nil),
 		Result:        &resp,
 		AuthRequest:   true,
-		NonceEnabled:  false,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
-		IsReserved:    false,
 	})
 	if err != nil {
 		return "", err
@@ -714,13 +710,16 @@ func (b *Binance) GetWsAuthStreamKey() (string, error) {
 
 // MaintainWsAuthStreamKey will keep the key alive
 func (b *Binance) MaintainWsAuthStreamKey() error {
-	key, err := b.GetWsAuthStreamKey()
-	if err != nil {
-		return err
+	var err error
+	if listenKey == "" {
+		listenKey, err = b.GetWsAuthStreamKey()
+		if err != nil {
+			return err
+		}
 	}
 	path := b.API.Endpoints.URL + userAccountStream
 	params := url.Values{}
-	params.Set("listenKey", key)
+	params.Set("listenKey", listenKey)
 	path = common.EncodeURLValues(path, params)
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
@@ -731,10 +730,8 @@ func (b *Binance) MaintainWsAuthStreamKey() error {
 		Headers:       headers,
 		Body:          bytes.NewBuffer(nil),
 		AuthRequest:   true,
-		NonceEnabled:  false,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
-		IsReserved:    false,
 	})
 }

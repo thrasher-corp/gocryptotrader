@@ -345,7 +345,8 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							Price:        trade.Price,
 						}
 					default:
-						return fmt.Errorf("%v Unhandled websocket message %s", p.Name, respRaw)
+						p.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: p.Name + wshandler.UnhandledMessage + string(respRaw)}
+						return nil
 					}
 				}
 			}
@@ -359,7 +360,9 @@ func (p *Poloniex) wsHandleTickerData(data []interface{}) error {
 	var t WsTicker
 	currencyPair := currency.NewPairDelimiter(currencyIDMap[tickerData[0].(float64)], delimiterUnderscore)
 	if !p.GetEnabledPairs(asset.Spot).Contains(currencyPair, true) {
-		return fmt.Errorf("%s - Currency %s is not recognised/enabled", p.Name, currencyPair.String())
+		// Ticker subscription receives all currencies, no specific subscription
+		// There should be no error associated with receiving data of disabled currency ticker data
+		return nil
 	}
 
 	var err error

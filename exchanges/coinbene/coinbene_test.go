@@ -595,7 +595,7 @@ func TestWsKLine(t *testing.T) {
     "data": [
         [
           "BTCUSDT",
-          "1557428280",
+          1557428280,
           "5794",
           "5794",
           "5794",

@@ -78,8 +78,7 @@ func (g *Gateio) wsServerSignIn() (*WebsocketAuthenticationResponse, error) {
 	return &response, nil
 }
 
-// wsReadData handles all the websocket data coming from the websocket
-// connection
+// wsReadData receives and passes on websocket messages for processing
 func (g *Gateio) wsReadData() {
 	g.Websocket.Wg.Add(1)
 
@@ -381,7 +380,8 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			Volume:     volume,
 		}
 	default:
-		return fmt.Errorf("%v Unhandled websocket message %s", g.Name, respRaw)
+		g.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: g.Name + wshandler.UnhandledMessage + string(respRaw)}
+		return nil
 	}
 	return nil
 }

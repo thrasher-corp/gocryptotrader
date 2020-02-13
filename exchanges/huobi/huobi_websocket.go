@@ -121,7 +121,7 @@ func (h *HUOBI) wsFunnelConnectionData(ws *wshandler.WebsocketConnection, url st
 	}
 }
 
-// wsReadData handles data read from the websocket connection
+// wsReadData receives and passes on websocket messages for processing
 func (h *HUOBI) wsReadData() {
 	h.Websocket.Wg.Add(1)
 	defer h.Websocket.Wg.Done()
@@ -345,7 +345,8 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
 		}
 	default:
-		return fmt.Errorf("%v Unhandled websocket message %s", h.Name, respRaw)
+		h.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: h.Name + wshandler.UnhandledMessage + string(respRaw)}
+		return nil
 	}
 	return nil
 }

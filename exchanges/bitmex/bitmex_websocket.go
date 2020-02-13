@@ -104,7 +104,7 @@ func (b *Bitmex) WsConnect() error {
 	return nil
 }
 
-// wsReadData services incoming data from the websocket connection
+// wsReadData receives and passes on websocket messages for processing
 func (b *Bitmex) wsReadData() {
 	b.Websocket.Wg.Add(1)
 
@@ -433,7 +433,8 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			}
 			b.Websocket.DataHandler <- response
 		default:
-			return fmt.Errorf("%v Unhandled websocket message %s", b.Name, respRaw)
+			b.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: b.Name + wshandler.UnhandledMessage + string(respRaw)}
+			return nil
 		}
 	}
 	return nil

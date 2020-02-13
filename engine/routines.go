@@ -360,6 +360,8 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 			return err
 		}
 		od.UpdateOrderFromModify(d)
+	case wshandler.UnhandledMessageWarning:
+		log.Warn(log.WebsocketMgr, d.Message)
 	default:
 		if Bot.Settings.Verbose {
 			log.Warnf(log.WebsocketMgr,

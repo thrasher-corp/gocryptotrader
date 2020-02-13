@@ -130,8 +130,7 @@ func (g *Gemini) WsSecureSubscribe(dialer *websocket.Dialer, url string) error {
 	return nil
 }
 
-// WsReadData reads from the websocket connection and returns the websocket
-// response
+// wsFunnelConnectionData receives data from multiple connections and passes it to wsReadData
 func (g *Gemini) wsFunnelConnectionData(ws *wshandler.WebsocketConnection, c currency.Pair) {
 	g.Websocket.Wg.Add(1)
 	defer g.Websocket.Wg.Done()
@@ -151,8 +150,7 @@ func (g *Gemini) wsFunnelConnectionData(ws *wshandler.WebsocketConnection, c cur
 	}
 }
 
-// wsReadData handles all the websocket data coming from the websocket
-// connection
+// wsReadData receives and passes on websocket messages for processing
 func (g *Gemini) wsReadData() {
 	g.Websocket.Wg.Add(1)
 	defer g.Websocket.Wg.Done()
@@ -242,7 +240,7 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 			g.Websocket.DataHandler <- result
 		case "update":
 			if curr.IsEmpty() {
-				return fmt.Errorf("%v - unhandled data %s",
+				return fmt.Errorf("%v - `update` response error. Currency is empty %s",
 					g.Name, respRaw)
 			}
 			var marketUpdate WsMarketUpdateResponse
@@ -252,12 +250,12 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 			}
 			g.wsProcessUpdate(marketUpdate, curr)
 		case "candles_1m_updates",
-		"candles_5m_updates",
-		"candles_15m_updates",
-		"candles_30m_updates",
-		"candles_1h_updates",
-		"candles_6h_updates",
-		"candles_1d_updates":
+			"candles_5m_updates",
+			"candles_15m_updates",
+			"candles_30m_updates",
+			"candles_1h_updates",
+			"candles_6h_updates",
+			"candles_1d_updates":
 			var candle wsCandleResponse
 			err := json.Unmarshal(respRaw, &result)
 			if err != nil {
@@ -279,7 +277,8 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 			}
 
 		default:
-			return fmt.Errorf("%v Unhandled websocket message %s", g.Name, respRaw)
+			g.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: g.Name + wshandler.UnhandledMessage + string(respRaw)}
+			return nil
 		}
 	} else if _, ok := result["result"]; ok {
 		switch result["result"].(string) {
@@ -289,9 +288,10 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 					return errors.New(result["reason"].(string) + " - " + result["message"].(string))
 				}
 			}
-			return fmt.Errorf("%v Unhandled websocket message %s", g.Name, respRaw)
+			return fmt.Errorf("%v Unhandled websocket error %s", g.Name, respRaw)
 		default:
-			return fmt.Errorf("%v Unhandled websocket message %s", g.Name, respRaw)
+			g.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: g.Name + wshandler.UnhandledMessage + string(respRaw)}
+			return nil
 		}
 	}
 	return nil
@@ -329,7 +329,7 @@ func responseToOrderType(response string) order.Type {
 }
 
 // wsProcessUpdate handles order book data
-func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pair)  {
+func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pair) {
 	if result.Timestamp == 0 && result.TimestampMS == 0 {
 		var bids, asks []orderbook.Item
 		for i := range result.Events {
@@ -394,18 +394,18 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 		if len(asks) == 0 && len(bids) == 0 {
 			return
 		}
-			err := g.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
-				Asks:       asks,
-				Bids:       bids,
-				Pair:       pair,
-				UpdateTime: time.Unix(0, result.TimestampMS),
-				Asset:      asset.Spot,
-			})
-			if err != nil {
-				g.Websocket.DataHandler <- fmt.Errorf("%v %v", g.Name, err)
-			}
-			g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: pair,
-				Asset:    asset.Spot,
-				Exchange: g.Name}
+		err := g.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+			Asks:       asks,
+			Bids:       bids,
+			Pair:       pair,
+			UpdateTime: time.Unix(0, result.TimestampMS),
+			Asset:      asset.Spot,
+		})
+		if err != nil {
+			g.Websocket.DataHandler <- fmt.Errorf("%v %v", g.Name, err)
+		}
+		g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: pair,
+			Asset:    asset.Spot,
+			Exchange: g.Name}
 	}
 }

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -90,10 +89,6 @@ func (o *orderStore) existsWithLock(order *order.Detail) bool {
 // lock is toggle-able in the event that you have already used
 // orderStore's lock. Most cases should be true
 func (o *orderStore) Add(order *order.Detail, lock bool) error {
-	if lock {
-		o.m.Lock()
-		defer o.m.Unlock()
-	}
 	if order == nil {
 		return errors.New("Order manager: Order is nil")
 	}
@@ -101,7 +96,10 @@ func (o *orderStore) Add(order *order.Detail, lock bool) error {
 	if exch == nil {
 		return errors.New("unable to get exchange by name")
 	}
-
+	if lock {
+		o.m.Lock()
+		defer o.m.Unlock()
+	}
 	if o.exists(order) {
 		return ErrOrdersAlreadyExists
 	}
@@ -196,7 +194,6 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 	if orders == nil {
 		return
 	}
-orderLoop:
 	for k, v := range orders {
 		log.Debugf(log.OrderMgr, "Order manager: Cancelling order(s) for exchange %s.\n", k)
 		if exchangeNames != nil && len(exchangeNames) > 0 {
@@ -207,7 +204,7 @@ orderLoop:
 				}
 			}
 			if !found {
-				continue orderLoop
+				continue
 			}
 		}
 

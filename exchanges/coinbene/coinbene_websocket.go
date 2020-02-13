@@ -82,7 +82,7 @@ func (c *Coinbene) GenerateAuthSubs() {
 	c.Websocket.SubscribeToChannels(subscriptions)
 }
 
-// wsReadData handles websocket data
+// wsReadData receives and passes on websocket messages for processing
 func (c *Coinbene) wsReadData() {
 	c.Websocket.Wg.Add(1)
 	defer c.Websocket.Wg.Done()
@@ -290,15 +290,11 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 		p := currency.NewPairFromFormattedPairs(kline.Data[0][0].(string),
 			c.GetEnabledPairs(asset.PerpetualSwap),
 			c.GetPairFormat(asset.PerpetualSwap, true))
-		ts, err := strconv.ParseInt(kline.Data[0][1].(string), 10, 64)
-		if err != nil {
-			return err
-		}
 		if tempKline == nil && len(tempKline) < 5 {
 			return errors.New(c.Name + " - received bad data ")
 		}
 		c.Websocket.DataHandler <- wshandler.KlineData{
-			Timestamp:  time.Unix(ts, 0),
+			Timestamp:  time.Unix(int64(kline.Data[0][1].(float64)), 0),
 			Pair:       p,
 			AssetType:  asset.PerpetualSwap,
 			Exchange:   c.Name,
@@ -358,7 +354,8 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			}
 		}
 	default:
-		return fmt.Errorf("%v Unhandled websocket message %s", c.Name, respRaw)
+		c.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: c.Name + wshandler.UnhandledMessage + string(respRaw)}
+		return nil
 	}
 	return nil
 }

@@ -3,12 +3,12 @@ package coinbasepro
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gorilla/websocket"
+
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -41,7 +41,7 @@ func (c *CoinbasePro) WsConnect() error {
 	return nil
 }
 
-// wsReadData handles read data from websocket connection
+// wsReadData receives and passes on websocket messages for processing
 func (c *CoinbasePro) wsReadData() {
 	c.Websocket.Wg.Add(1)
 
@@ -215,7 +215,8 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			},
 		}
 	default:
-		return fmt.Errorf("%v Unhandled websocket message %s", c.Name, respRaw)
+		c.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: c.Name + wshandler.UnhandledMessage + string(respRaw)}
+		return nil
 	}
 	return nil
 }

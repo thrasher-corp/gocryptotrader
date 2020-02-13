@@ -98,7 +98,7 @@ func (k *Kraken) WsConnect() error {
 	return nil
 }
 
-// WsReadData funnels both auth and public ws data into one manageable place
+// wsFunnelConnectionData funnels both auth and public ws data into one manageable place
 func (k *Kraken) wsFunnelConnectionData(ws *wshandler.WebsocketConnection) {
 	k.Websocket.Wg.Add(1)
 	defer k.Websocket.Wg.Done()
@@ -118,7 +118,7 @@ func (k *Kraken) wsFunnelConnectionData(ws *wshandler.WebsocketConnection) {
 	}
 }
 
-// wsReadData handles the read data from the websocket connection
+// wsReadData receives and passes on websocket messages for processing
 func (k *Kraken) wsReadData() {
 	k.Websocket.Wg.Add(1)
 	defer func() {
@@ -141,7 +141,6 @@ func (k *Kraken) wsReadData() {
 
 func (k *Kraken) wsHandleData(respRaw []byte) error {
 	if strings.HasPrefix(string(respRaw), "[") {
-		// data dump
 		var dataResponse WebsocketDataResponse
 		err := json.Unmarshal(respRaw, &dataResponse)
 		if err != nil {
@@ -163,7 +162,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 		var eventResponse map[string]interface{}
 		err := json.Unmarshal(respRaw, &eventResponse)
 		if err != nil {
-			return fmt.Errorf("%s - err %s unhandled websocket data: %s", k.Name, err, respRaw)
+			return fmt.Errorf("%s - err %s could not parse websocket data: %s", k.Name, err, respRaw)
 		}
 		if event, ok := eventResponse["event"]; ok {
 			switch event {
@@ -173,7 +172,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 				var systemStatus wsSystemStatus
 				err := json.Unmarshal(respRaw, &systemStatus)
 				if err != nil {
-					return fmt.Errorf("%s - err %s unhandled websocket data: %s", k.Name, err, respRaw)
+					return fmt.Errorf("%s - err %s unable to parse system status response: %s", k.Name, err, respRaw)
 				}
 				if systemStatus.Status != "online" {
 					k.Websocket.DataHandler <- fmt.Errorf("%v Websocket status '%v'",
@@ -187,7 +186,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 				var status WsAddOrderResponse
 				err := json.Unmarshal(respRaw, &status)
 				if err != nil {
-					return fmt.Errorf("%s - err %s unhandled websocket data: %s", k.Name, err, respRaw)
+					return fmt.Errorf("%s - err %s unable to parse add order response: %s", k.Name, err, respRaw)
 				}
 				if status.ErrorMessage != "" {
 					return fmt.Errorf("%s - err %s", k.Name, status.ErrorMessage)
@@ -201,7 +200,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 				var sub wsSubscription
 				err := json.Unmarshal(respRaw, &sub)
 				if err != nil {
-					return fmt.Errorf("%s - err %s unhandled websocket data: %s", k.Name, err, respRaw)
+					return fmt.Errorf("%s - err %s unable to parse subscription response: %s", k.Name, err, respRaw)
 				}
 				if sub.RequestID > 0 {
 					k.WebsocketConn.AddResponseWithID(sub.RequestID, respRaw)
@@ -211,13 +210,11 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 				}
 				k.addNewSubscriptionChannelData(&sub)
 			default:
-				return fmt.Errorf("%v Unidentified websocket data received: %s",
-					k.Name, respRaw)
+				k.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: k.Name + wshandler.UnhandledMessage + string(respRaw)}
 			}
 			return nil
 		}
 	}
-
 	return nil
 }
 

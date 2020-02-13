@@ -43,7 +43,7 @@ func (b *Bitstamp) WsConnect() error {
 	return nil
 }
 
-// wsReadData handles websocket data from WsReadData
+// wsReadData receives and passes on websocket messages for processing
 func (b *Bitstamp) wsReadData() {
 	b.Websocket.Wg.Add(1)
 	defer func() {
@@ -121,7 +121,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 			log.Debugf(log.ExchangeSys, "%v - Websocket order acknowledgement", b.Name)
 		}
 	default:
-		return errors.New(b.Name + " - Unrecognised response: " + string(respRaw))
+		b.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: b.Name + wshandler.UnhandledMessage + string(respRaw)}
 	}
 	return nil
 }

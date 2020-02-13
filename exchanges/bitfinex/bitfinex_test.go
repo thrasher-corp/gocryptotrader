@@ -923,7 +923,7 @@ func setupWs() {
 	}
 	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	go b.WsReadData(b.AuthenticatedWebsocketConn)
+	go b.wsReadData(b.AuthenticatedWebsocketConn)
 	go b.WsDataHandler()
 }
 

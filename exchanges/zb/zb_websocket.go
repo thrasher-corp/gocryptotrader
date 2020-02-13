@@ -212,7 +212,8 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 			Side:         t.TradeType,
 		}
 	default:
-		return errors.New(z.Name + " - unhandled websocket response: " + string(fixedJSON))
+		z.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: z.Name + wshandler.UnhandledMessage + string(respRaw)}
+		return nil
 	}
 	return nil
 }

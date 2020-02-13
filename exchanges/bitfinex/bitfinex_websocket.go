@@ -36,7 +36,7 @@ func (b *Bitfinex) WsConnect() error {
 	if err != nil {
 		return fmt.Errorf("%v unable to connect to Websocket. Error: %s", b.Name, err)
 	}
-	go b.WsReadData(b.WebsocketConn)
+	go b.wsReadData(b.WebsocketConn)
 
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
 		err = b.AuthenticatedWebsocketConn.Dial(&dialer, http.Header{})
@@ -44,7 +44,7 @@ func (b *Bitfinex) WsConnect() error {
 			log.Errorf(log.ExchangeSys, "%v unable to connect to authenticated Websocket. Error: %s", b.Name, err)
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
-		go b.WsReadData(b.AuthenticatedWebsocketConn)
+		go b.wsReadData(b.AuthenticatedWebsocketConn)
 		err = b.WsSendAuth()
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", b.Name, err)
@@ -57,8 +57,8 @@ func (b *Bitfinex) WsConnect() error {
 	return nil
 }
 
-// WsReadData funnels both auth and public ws data into one manageable place
-func (b *Bitfinex) WsReadData(ws *wshandler.WebsocketConnection) {
+// wsReadData receives and passes on websocket messages for processing
+func (b *Bitfinex) wsReadData(ws *wshandler.WebsocketConnection) {
 	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 	for {
@@ -77,7 +77,7 @@ func (b *Bitfinex) WsReadData(ws *wshandler.WebsocketConnection) {
 	}
 }
 
-// WsDataHandler handles data from WsReadData
+// WsDataHandler handles data from wsReadData
 func (b *Bitfinex) WsDataHandler() {
 	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
@@ -414,7 +414,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					}
 					b.Websocket.DataHandler <- position
 				}
-			case wsTradeExecutionUpdate:
+			case wsTradeExecuted, wsTradeExecutionUpdate:
 				if tradeData, ok := chanData[2].([]interface{}); ok && len(tradeData) > 4 {
 					b.Websocket.DataHandler <- WebsocketTradeData{
 						TradeID:        int64(tradeData[0].(float64)),
@@ -673,7 +673,8 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					}
 				}
 			default:
-				return fmt.Errorf("%v Unhandled websocket message %s", b.Name, respRaw)
+				b.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: b.Name + wshandler.UnhandledMessage + string(respRaw)}
+				return nil
 			}
 		}
 	}

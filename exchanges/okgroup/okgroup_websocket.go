@@ -189,7 +189,7 @@ func (o *OKGroup) WsConnect() error {
 	}
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	go o.WsReadData(&wg)
+	go o.wsReadData(&wg)
 	if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = o.WsLogin()
 		if err != nil {
@@ -233,8 +233,8 @@ func (o *OKGroup) WsLogin() error {
 	return nil
 }
 
-// WsReadData handles the read data from the websocket connection
-func (o *OKGroup) WsReadData(wg *sync.WaitGroup) {
+// wsReadData receives and passes on websocket messages for processing
+func (o *OKGroup) wsReadData(wg *sync.WaitGroup) {
 	o.Websocket.Wg.Add(1)
 	defer func() {
 		o.Websocket.Wg.Done()
@@ -283,11 +283,8 @@ func (o *OKGroup) WsHandleData(respRaw []byte) error {
 		case okGroupWsOrder:
 			return o.wsProcessOrder(respRaw)
 		}
-
-		return fmt.Errorf("%s Unhandled channel: '%v'. Data '%s'",
-			o.Name,
-			dataResponse.Table,
-			respRaw)
+		o.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: o.Name + wshandler.UnhandledMessage + string(respRaw)}
+		return nil
 	}
 
 	var errorResponse WebsocketErrorResponse
@@ -378,20 +375,20 @@ func (o *OKGroup) wsProcessOrder(respRaw []byte) error {
 		}
 		o.Websocket.DataHandler <- &order.Detail{
 			ImmediateOrCancel: resp.Data[i].OrderType == "3",
-			FillOrKill:      resp.Data[i].OrderType == "2",
-			PostOnly:        resp.Data[i].OrderType == "1",
-			Price:           price,
-			Amount:          amount,
-			ExecutedAmount:  executedAmount,
-			RemainingAmount: amount - executedAmount,
-			Exchange:        o.Name,
-			ID:              resp.Data[i].OrderID,
-			Type:            oType,
-			Side:            oSide,
-			Status:          stringToOrderStatus(resp.Data[i].State),
-			AssetType:       o.GetAssetTypeFromTableName(resp.Table),
-			Date:            createdAt,
-			Pair:            currency.NewPairFromString(resp.Data[i].InstrumentID),
+			FillOrKill:        resp.Data[i].OrderType == "2",
+			PostOnly:          resp.Data[i].OrderType == "1",
+			Price:             price,
+			Amount:            amount,
+			ExecutedAmount:    executedAmount,
+			RemainingAmount:   amount - executedAmount,
+			Exchange:          o.Name,
+			ID:                resp.Data[i].OrderID,
+			Type:              oType,
+			Side:              oSide,
+			Status:            stringToOrderStatus(resp.Data[i].State),
+			AssetType:         o.GetAssetTypeFromTableName(resp.Table),
+			Date:              createdAt,
+			Pair:              currency.NewPairFromString(resp.Data[i].InstrumentID),
 		}
 	}
 	return nil

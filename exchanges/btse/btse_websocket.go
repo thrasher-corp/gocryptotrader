@@ -88,7 +88,7 @@ func statusToStandardStatus(stat string) order.Status {
 	}
 }
 
-// wsReadData handles read data from websocket connection
+// wsReadData receives and passes on websocket messages for processing
 func (b *BTSE) wsReadData() {
 	b.Websocket.Wg.Add(1)
 
@@ -226,7 +226,8 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			Asset:    asset.Spot,
 			Exchange: b.Name}
 	default:
-		return fmt.Errorf("%v Unhandled websocket message %s", b.Name, respRaw)
+		b.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: b.Name + wshandler.UnhandledMessage + string(respRaw)}
+		return nil
 	}
 	return nil
 }

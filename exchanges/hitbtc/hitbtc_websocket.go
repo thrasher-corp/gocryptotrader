@@ -52,7 +52,7 @@ func (h *HitBTC) WsConnect() error {
 	return nil
 }
 
-// wsReadData handles websocket data
+// wsReadData receives and passes on websocket messages for processing
 func (h *HitBTC) wsReadData() {
 	h.Websocket.Wg.Add(1)
 
@@ -129,7 +129,8 @@ func (h *HitBTC) wsGetTableName(respRaw []byte) (string, error) {
 			}
 		}
 	}
-	return "", fmt.Errorf("%s - Unhandled data type: %+v", h.Name, init)
+	h.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: h.Name + wshandler.UnhandledMessage + string(respRaw)}
+	return "", nil
 }
 
 func (h *HitBTC) wsHandleData(respRaw []byte) error {
@@ -252,7 +253,8 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	default:
-		return fmt.Errorf("%s - Unhandled data %s: %s", h.Name, name, respRaw)
+		h.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: h.Name + wshandler.UnhandledMessage + string(respRaw)}
+		return nil
 	}
 	return nil
 }
@@ -325,7 +327,6 @@ func (h *HitBTC) wsHandleOrderData(o *wsOrderData) error {
 	}
 
 	h.Websocket.DataHandler <- &order.Detail{
-		PostOnly:        false,
 		Price:           o.Price,
 		Amount:          o.Quantity,
 		ExecutedAmount:  o.CumQuantity,

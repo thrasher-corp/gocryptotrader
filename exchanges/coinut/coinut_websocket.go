@@ -68,7 +68,7 @@ func (c *COINUT) WsConnect() error {
 	return nil
 }
 
-// wsReadData handles read data
+// wsReadData receives and passes on websocket messages for processing
 func (c *COINUT) wsReadData() {
 	c.Websocket.Wg.Add(1)
 
@@ -130,7 +130,6 @@ func (c *COINUT) wsReadData() {
 
 func (c *COINUT) wsHandleData(respRaw []byte) error {
 	if strings.HasPrefix(string(respRaw), "[") {
-		// Its batch order creation! :hypers:
 		var orders []wsOrderContainer
 		err := json.Unmarshal(respRaw, &orders)
 		if err != nil {
@@ -171,7 +170,6 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-	// TODO, integrate SHAZBERTOS HOLDINGS
 	case "user_open_orders":
 		var openOrders WsUserOpenOrdersResponse
 		err := json.Unmarshal(respRaw, &openOrders)
@@ -315,8 +313,8 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		}
 		c.Websocket.DataHandler <- o
 	default:
-
-		return fmt.Errorf("%v Unhandled websocket message %s", c.Name, respRaw)
+		c.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: c.Name + wshandler.UnhandledMessage + string(respRaw)}
+		return nil
 	}
 	return nil
 }
@@ -338,10 +336,13 @@ func stringToStatus(status string, qty float64) order.Status {
 
 func (c *COINUT) parseOrderContainer(oContainer wsOrderContainer) (*order.Detail, error) {
 	oSide, err := order.StringToOrderSide(oContainer.Side)
-	if err != nil && oContainer.Reply != "order_filled" {
-		return nil, err
-	}
 	oStatus := stringToStatus(oContainer.Reply, oContainer.OpenQty)
+	if oContainer.Status[0] != "OK" {
+		return nil, fmt.Errorf("%s - Order rejected: %v", c.Name, oContainer.Status)
+	}
+	if len(oContainer.Reasons) > 0 {
+		return nil, fmt.Errorf("%s - Order rejected: %v", c.Name, oContainer.Reasons)
+	}
 	o := &order.Detail{
 		Price:           oContainer.Price,
 		Amount:          oContainer.Qty,
@@ -377,12 +378,6 @@ func (c *COINUT) parseOrderContainer(oContainer wsOrderContainer) (*order.Detail
 		}
 	} else {
 		o.Pair = currency.NewPairFromString(c.instrumentMap.LookupInstrument(oContainer.InstID))
-	}
-	if oContainer.Status[0] != "OK" {
-		return o, fmt.Errorf("%s - Order rejected: %v", c.Name, oContainer.Status)
-	}
-	if len(oContainer.Reasons) > 0 {
-		return o, fmt.Errorf("%s - Order rejected: %v", c.Name, oContainer.Reasons)
 	}
 	return o, nil
 }
