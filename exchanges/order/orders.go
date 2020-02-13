@@ -181,8 +181,12 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		d.RemainingAmount = m.RemainingAmount
 		updated = true
 	}
-	if updated && d.LastUpdated != m.LastUpdated {
-		d.LastUpdated = time.Now()
+	if updated {
+		if d.LastUpdated == m.LastUpdated {
+			d.LastUpdated = time.Now()
+		} else {
+			d.LastUpdated = m.LastUpdated
+		}
 	}
 }
 
@@ -326,8 +330,12 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		d.RemainingAmount = m.RemainingAmount
 		updated = true
 	}
-	if updated && d.LastUpdated != m.LastUpdated {
-		d.LastUpdated = time.Now()
+	if updated {
+		if d.LastUpdated == m.LastUpdated {
+			d.LastUpdated = time.Now()
+		} else {
+			d.LastUpdated = m.LastUpdated
+		}
 	}
 }
 
