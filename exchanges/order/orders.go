@@ -81,17 +81,28 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		d.TargetAmount = m.TargetAmount
 		updated = true
 	}
-	if m.ExecutedAmount != d.ExecutedAmount {
+	if m.ExecutedAmount > 0 && m.ExecutedAmount != d.ExecutedAmount {
 		d.ExecutedAmount = m.ExecutedAmount
 		updated = true
 	}
-
 	if m.Fee > 0 && m.Fee != d.Fee {
 		d.Fee = m.Fee
 		updated = true
 	}
 	if m.AccountID != "" && m.AccountID != d.AccountID {
 		d.AccountID = m.AccountID
+		updated = true
+	}
+	if m.PostOnly != d.PostOnly {
+		d.PostOnly = m.PostOnly
+		updated = true
+	}
+	if !m.Pair.IsEmpty() && m.Pair != d.Pair {
+		d.Pair = m.Pair
+		updated = true
+	}
+	if m.Leverage != "" && m.Leverage != d.Leverage {
+		d.Leverage = m.Leverage
 		updated = true
 	}
 	if m.ClientID != "" && m.ClientID != d.ClientID {
@@ -118,18 +129,44 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		d.AssetType = m.AssetType
 		updated = true
 	}
-	if m.Pair.IsEmpty() && !m.Pair.Equal(d.Pair) {
-		d.Pair = m.Pair
-		updated = true
-	}
 	if m.Trades != nil {
 		for x := range m.Trades {
 			var found bool
 			for y := range d.Trades {
-				if d.Trades[y].TID == m.Trades[x].TID && m.Price != d.Price {
-					d.Trades[y] = m.Trades[x]
+				if d.Trades[y].TID == m.Trades[x].TID {
 					found = true
-					updated = true
+					if d.Trades[y].Fee != m.Trades[x].Fee {
+						d.Trades[y].Fee = m.Trades[x].Fee
+						updated = true
+					}
+					if m.Trades[y].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
+						d.Trades[y].Price = m.Trades[x].Price
+						updated = true
+					}
+					if d.Trades[y].Side != m.Trades[x].Side {
+						d.Trades[y].Side = m.Trades[x].Side
+						updated = true
+					}
+					if d.Trades[y].Type != m.Trades[x].Type {
+						d.Trades[y].Type = m.Trades[x].Type
+						updated = true
+					}
+					if d.Trades[y].Description != m.Trades[x].Description {
+						d.Trades[y].Description = m.Trades[x].Description
+						updated = true
+					}
+					if m.Trades[y].Amount != 0 && d.Trades[y].Amount != m.Trades[x].Amount {
+						d.Trades[y].Amount = m.Trades[x].Amount
+						updated = true
+					}
+					if d.Trades[y].Timestamp != m.Trades[x].Timestamp {
+						d.Trades[y].Timestamp = m.Trades[x].Timestamp
+						updated = true
+					}
+					if d.Trades[y].IsMaker != m.Trades[x].IsMaker {
+						d.Trades[y].IsMaker = m.Trades[x].IsMaker
+						updated = true
+					}
 				}
 			}
 			if !found {
@@ -143,13 +180,8 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		d.RemainingAmount = m.RemainingAmount
 		updated = true
 	}
-	if updated {
-		if m.Date != d.Date {
-			d.LastUpdated = m.Date
-		} else {
-			d.LastUpdated = time.Now()
-		}
-		// TODO trigger db update
+	if updated && d.LastUpdated != m.LastUpdated {
+		d.LastUpdated = time.Now()
 	}
 }
 
@@ -197,13 +229,24 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		d.ExecutedAmount = m.ExecutedAmount
 		updated = true
 	}
-
 	if m.Fee > 0 && m.Fee != d.Fee {
 		d.Fee = m.Fee
 		updated = true
 	}
 	if m.AccountID != "" && m.AccountID != d.AccountID {
 		d.AccountID = m.AccountID
+		updated = true
+	}
+	if m.PostOnly != d.PostOnly {
+		d.PostOnly = m.PostOnly
+		updated = true
+	}
+	if !m.Pair.IsEmpty() && m.Pair != d.Pair {
+		d.Pair = m.Pair
+		updated = true
+	}
+	if m.Leverage != "" && m.Leverage != d.Leverage {
+		d.Leverage = m.Leverage
 		updated = true
 	}
 	if m.ClientID != "" && m.ClientID != d.ClientID {
@@ -230,18 +273,44 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		d.AssetType = m.AssetType
 		updated = true
 	}
-	if m.Pair.IsEmpty() && !m.Pair.Equal(d.Pair) {
-		d.Pair = m.Pair
-		updated = true
-	}
 	if m.Trades != nil {
 		for x := range m.Trades {
 			var found bool
 			for y := range d.Trades {
-				if d.Trades[y].TID == m.Trades[x].TID && m.Price != d.Price {
-					d.Trades[y] = m.Trades[x]
+				if d.Trades[y].TID == m.Trades[x].TID {
 					found = true
-					updated = true
+					if d.Trades[y].Fee != m.Trades[x].Fee {
+						d.Trades[y].Fee = m.Trades[x].Fee
+						updated = true
+					}
+					if m.Trades[y].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
+						d.Trades[y].Price = m.Trades[x].Price
+						updated = true
+					}
+					if d.Trades[y].Side != m.Trades[x].Side {
+						d.Trades[y].Side = m.Trades[x].Side
+						updated = true
+					}
+					if d.Trades[y].Type != m.Trades[x].Type {
+						d.Trades[y].Type = m.Trades[x].Type
+						updated = true
+					}
+					if d.Trades[y].Description != m.Trades[x].Description {
+						d.Trades[y].Description = m.Trades[x].Description
+						updated = true
+					}
+					if m.Trades[y].Amount != 0 && d.Trades[y].Amount != m.Trades[x].Amount {
+						d.Trades[y].Amount = m.Trades[x].Amount
+						updated = true
+					}
+					if d.Trades[y].Timestamp != m.Trades[x].Timestamp {
+						d.Trades[y].Timestamp = m.Trades[x].Timestamp
+						updated = true
+					}
+					if d.Trades[y].IsMaker != m.Trades[x].IsMaker {
+						d.Trades[y].IsMaker = m.Trades[x].IsMaker
+						updated = true
+					}
 				}
 			}
 			if !found {
@@ -255,9 +324,8 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		d.RemainingAmount = m.RemainingAmount
 		updated = true
 	}
-	if updated {
+	if updated && d.LastUpdated != m.LastUpdated {
 		d.LastUpdated = time.Now()
-		// TODO trigger db update
 	}
 }
 

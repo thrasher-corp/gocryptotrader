@@ -536,3 +536,373 @@ func TestStringToOrderStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateOrderFromModify(t *testing.T) {
+	od := Detail{
+		ImmediateOrCancel: false,
+		HiddenOrder:       false,
+		FillOrKill:        false,
+		PostOnly:          false,
+		Leverage:          "",
+		Price:             0,
+		Amount:            0,
+		LimitPriceUpper:   0,
+		LimitPriceLower:   0,
+		TriggerPrice:      0,
+		TargetAmount:      0,
+		ExecutedAmount:    0,
+		RemainingAmount:   0,
+		Fee:               0,
+		Exchange:          "",
+		ID:                "1",
+		AccountID:         "",
+		ClientID:          "",
+		WalletAddress:     "",
+		Type:              "",
+		Side:              "",
+		Status:            "",
+		AssetType:         "",
+		Date:              time.Time{},
+		LastUpdated:       time.Time{},
+		Pair:              currency.Pair{},
+		Trades:            nil,
+	}
+	updated := time.Now()
+	om := Modify{
+		ImmediateOrCancel: true,
+		HiddenOrder:       true,
+		FillOrKill:        true,
+		PostOnly:          true,
+		Leverage:          "1",
+		Price:             1,
+		Amount:            1,
+		LimitPriceUpper:   1,
+		LimitPriceLower:   1,
+		TriggerPrice:      1,
+		TargetAmount:      1,
+		ExecutedAmount:    1,
+		RemainingAmount:   1,
+		Fee:               1,
+		Exchange:          "1",
+		InternalOrderID:   "1",
+		ID:                "1",
+		AccountID:         "1",
+		ClientID:          "1",
+		WalletAddress:     "1",
+		Type:              "1",
+		Side:              "1",
+		Status:            "1",
+		AssetType:         "1",
+		LastUpdated:       updated,
+		Pair:              currency.NewPairFromString("BTCUSD"),
+		Trades:            []TradeHistory{},
+	}
+
+	od.UpdateOrderFromModify(&om)
+	if od.InternalOrderID == "1" {
+		t.Error("Should not be able to update the internal order ID")
+	}
+	if !od.ImmediateOrCancel {
+		t.Error("Failed to update")
+	}
+	if !od.HiddenOrder {
+		t.Error("Failed to update")
+	}
+	if !od.FillOrKill {
+		t.Error("Failed to update")
+	}
+	if !od.PostOnly {
+		t.Error("Failed to update")
+	}
+	if od.Leverage != "1" {
+		t.Error("Failed to update")
+	}
+	if od.Price != 1 {
+		t.Error("Failed to update")
+	}
+	if od.Amount != 1 {
+		t.Error("Failed to update")
+	}
+	if od.LimitPriceLower != 1 {
+		t.Error("Failed to update")
+	}
+	if od.LimitPriceUpper != 1 {
+		t.Error("Failed to update")
+	}
+	if od.TriggerPrice != 1 {
+		t.Error("Failed to update")
+	}
+	if od.TargetAmount != 1 {
+		t.Error("Failed to update")
+	}
+	if od.ExecutedAmount != 1 {
+		t.Error("Failed to update")
+	}
+	if od.RemainingAmount != 1 {
+		t.Error("Failed to update")
+	}
+	if od.Fee != 1 {
+		t.Error("Failed to update")
+	}
+	if od.Exchange != "" {
+		t.Error("Should not be able to update exchange via modify")
+	}
+	if od.ID != "1" {
+		t.Error("Failed to update")
+	}
+	if od.ClientID != "1" {
+		t.Error("Failed to update")
+	}
+	if od.WalletAddress != "1" {
+		t.Error("Failed to update")
+	}
+	if od.Type != "1" {
+		t.Error("Failed to update")
+	}
+	if od.Side != "1" {
+		t.Error("Failed to update")
+	}
+	if od.Status != "1" {
+		t.Error("Failed to update")
+	}
+	if od.AssetType != "1" {
+		t.Error("Failed to update")
+	}
+	if od.LastUpdated != updated {
+		t.Error("Failed to update")
+	}
+	if od.Pair.String() != "BTCUSD" {
+		t.Error("Failed to update")
+	}
+	if od.Trades != nil {
+		t.Error("Failed to update")
+	}
+
+	om.Trades = append(om.Trades, TradeHistory{TID: "1"}, TradeHistory{TID: "2"})
+	od.UpdateOrderFromModify(&om)
+	if len(od.Trades) != 2 {
+		t.Error("Failed to add trades")
+	}
+	om.Trades[0].Exchange = "1337"
+	om.Trades[0].Price = 1337
+	om.Trades[0].Fee = 1337
+	om.Trades[0].IsMaker = true
+	om.Trades[0].Timestamp = updated
+	om.Trades[0].Description = "1337"
+	om.Trades[0].Side = UnknownSide
+	om.Trades[0].Type = UnknownType
+	om.Trades[0].Amount = 1337
+	od.UpdateOrderFromModify(&om)
+	if od.Trades[0].Exchange == "1337" {
+		t.Error("Should not be able to update exchange from update")
+	}
+	if od.Trades[0].Price != 1337 {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Fee != 1337 {
+		t.Error("Failed to update trades")
+	}
+	if !od.Trades[0].IsMaker {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Timestamp != updated {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Description != "1337" {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Side != UnknownSide {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Type != UnknownType {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Amount != 1337 {
+		t.Error("Failed to update trades")
+	}
+}
+
+func TestUpdateOrderFromDetail(t *testing.T) {
+	od := Detail{
+		ImmediateOrCancel: false,
+		HiddenOrder:       false,
+		FillOrKill:        false,
+		PostOnly:          false,
+		Leverage:          "",
+		Price:             0,
+		Amount:            0,
+		LimitPriceUpper:   0,
+		LimitPriceLower:   0,
+		TriggerPrice:      0,
+		TargetAmount:      0,
+		ExecutedAmount:    0,
+		RemainingAmount:   0,
+		Fee:               0,
+		Exchange:          "",
+		ID:                "1",
+		AccountID:         "",
+		ClientID:          "",
+		WalletAddress:     "",
+		Type:              "",
+		Side:              "",
+		Status:            "",
+		AssetType:         "",
+		Date:              time.Time{},
+		LastUpdated:       time.Time{},
+		Pair:              currency.Pair{},
+		Trades:            nil,
+	}
+	updated := time.Now()
+	om := Detail{
+		ImmediateOrCancel: true,
+		HiddenOrder:       true,
+		FillOrKill:        true,
+		PostOnly:          true,
+		Leverage:          "1",
+		Price:             1,
+		Amount:            1,
+		LimitPriceUpper:   1,
+		LimitPriceLower:   1,
+		TriggerPrice:      1,
+		TargetAmount:      1,
+		ExecutedAmount:    1,
+		RemainingAmount:   1,
+		Fee:               1,
+		Exchange:          "1",
+		InternalOrderID:   "1",
+		ID:                "1",
+		AccountID:         "1",
+		ClientID:          "1",
+		WalletAddress:     "1",
+		Type:              "1",
+		Side:              "1",
+		Status:            "1",
+		AssetType:         "1",
+		LastUpdated:       updated,
+		Pair:              currency.NewPairFromString("BTCUSD"),
+		Trades:            []TradeHistory{},
+	}
+
+	od.UpdateOrderFromDetail(&om)
+	if od.InternalOrderID == "1" {
+		t.Error("Should not be able to update the internal order ID")
+	}
+	if !od.ImmediateOrCancel {
+		t.Error("Failed to update")
+	}
+	if !od.HiddenOrder {
+		t.Error("Failed to update")
+	}
+	if !od.FillOrKill {
+		t.Error("Failed to update")
+	}
+	if !od.PostOnly {
+		t.Error("Failed to update")
+	}
+	if od.Leverage != "1" {
+		t.Error("Failed to update")
+	}
+	if od.Price != 1 {
+		t.Error("Failed to update")
+	}
+	if od.Amount != 1 {
+		t.Error("Failed to update")
+	}
+	if od.LimitPriceLower != 1 {
+		t.Error("Failed to update")
+	}
+	if od.LimitPriceUpper != 1 {
+		t.Error("Failed to update")
+	}
+	if od.TriggerPrice != 1 {
+		t.Error("Failed to update")
+	}
+	if od.TargetAmount != 1 {
+		t.Error("Failed to update")
+	}
+	if od.ExecutedAmount != 1 {
+		t.Error("Failed to update")
+	}
+	if od.RemainingAmount != 1 {
+		t.Error("Failed to update")
+	}
+	if od.Fee != 1 {
+		t.Error("Failed to update")
+	}
+	if od.Exchange != "" {
+		t.Error("Should not be able to update exchange via modify")
+	}
+	if od.ID != "1" {
+		t.Error("Failed to update")
+	}
+	if od.ClientID != "1" {
+		t.Error("Failed to update")
+	}
+	if od.WalletAddress != "1" {
+		t.Error("Failed to update")
+	}
+	if od.Type != "1" {
+		t.Error("Failed to update")
+	}
+	if od.Side != "1" {
+		t.Error("Failed to update")
+	}
+	if od.Status != "1" {
+		t.Error("Failed to update")
+	}
+	if od.AssetType != "1" {
+		t.Error("Failed to update")
+	}
+	if od.LastUpdated != updated {
+		t.Error("Failed to update")
+	}
+	if od.Pair.String() != "BTCUSD" {
+		t.Error("Failed to update")
+	}
+	if od.Trades != nil {
+		t.Error("Failed to update")
+	}
+
+	om.Trades = append(om.Trades, TradeHistory{TID: "1"}, TradeHistory{TID: "2"})
+	od.UpdateOrderFromDetail(&om)
+	if len(od.Trades) != 2 {
+		t.Error("Failed to add trades")
+	}
+	om.Trades[0].Exchange = "1337"
+	om.Trades[0].Price = 1337
+	om.Trades[0].Fee = 1337
+	om.Trades[0].IsMaker = true
+	om.Trades[0].Timestamp = updated
+	om.Trades[0].Description = "1337"
+	om.Trades[0].Side = UnknownSide
+	om.Trades[0].Type = UnknownType
+	om.Trades[0].Amount = 1337
+	od.UpdateOrderFromDetail(&om)
+	if od.Trades[0].Exchange == "1337" {
+		t.Error("Should not be able to update exchange from update")
+	}
+	if od.Trades[0].Price != 1337 {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Fee != 1337 {
+		t.Error("Failed to update trades")
+	}
+	if !od.Trades[0].IsMaker {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Timestamp != updated {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Description != "1337" {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Side != UnknownSide {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Type != UnknownType {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Amount != 1337 {
+		t.Error("Failed to update trades")
+	}
+}
