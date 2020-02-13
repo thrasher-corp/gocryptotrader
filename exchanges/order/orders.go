@@ -133,40 +133,41 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		for x := range m.Trades {
 			var found bool
 			for y := range d.Trades {
-				if d.Trades[y].TID == m.Trades[x].TID {
-					found = true
-					if d.Trades[y].Fee != m.Trades[x].Fee {
-						d.Trades[y].Fee = m.Trades[x].Fee
-						updated = true
-					}
-					if m.Trades[y].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
-						d.Trades[y].Price = m.Trades[x].Price
-						updated = true
-					}
-					if d.Trades[y].Side != m.Trades[x].Side {
-						d.Trades[y].Side = m.Trades[x].Side
-						updated = true
-					}
-					if d.Trades[y].Type != m.Trades[x].Type {
-						d.Trades[y].Type = m.Trades[x].Type
-						updated = true
-					}
-					if d.Trades[y].Description != m.Trades[x].Description {
-						d.Trades[y].Description = m.Trades[x].Description
-						updated = true
-					}
-					if m.Trades[y].Amount != 0 && d.Trades[y].Amount != m.Trades[x].Amount {
-						d.Trades[y].Amount = m.Trades[x].Amount
-						updated = true
-					}
-					if d.Trades[y].Timestamp != m.Trades[x].Timestamp {
-						d.Trades[y].Timestamp = m.Trades[x].Timestamp
-						updated = true
-					}
-					if d.Trades[y].IsMaker != m.Trades[x].IsMaker {
-						d.Trades[y].IsMaker = m.Trades[x].IsMaker
-						updated = true
-					}
+				if d.Trades[y].TID != m.Trades[x].TID {
+					continue
+				}
+				found = true
+				if d.Trades[y].Fee != m.Trades[x].Fee {
+					d.Trades[y].Fee = m.Trades[x].Fee
+					updated = true
+				}
+				if m.Trades[y].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
+					d.Trades[y].Price = m.Trades[x].Price
+					updated = true
+				}
+				if d.Trades[y].Side != m.Trades[x].Side {
+					d.Trades[y].Side = m.Trades[x].Side
+					updated = true
+				}
+				if d.Trades[y].Type != m.Trades[x].Type {
+					d.Trades[y].Type = m.Trades[x].Type
+					updated = true
+				}
+				if d.Trades[y].Description != m.Trades[x].Description {
+					d.Trades[y].Description = m.Trades[x].Description
+					updated = true
+				}
+				if m.Trades[y].Amount != 0 && d.Trades[y].Amount != m.Trades[x].Amount {
+					d.Trades[y].Amount = m.Trades[x].Amount
+					updated = true
+				}
+				if d.Trades[y].Timestamp != m.Trades[x].Timestamp {
+					d.Trades[y].Timestamp = m.Trades[x].Timestamp
+					updated = true
+				}
+				if d.Trades[y].IsMaker != m.Trades[x].IsMaker {
+					d.Trades[y].IsMaker = m.Trades[x].IsMaker
+					updated = true
 				}
 			}
 			if !found {
@@ -277,40 +278,41 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		for x := range m.Trades {
 			var found bool
 			for y := range d.Trades {
-				if d.Trades[y].TID == m.Trades[x].TID {
-					found = true
-					if d.Trades[y].Fee != m.Trades[x].Fee {
-						d.Trades[y].Fee = m.Trades[x].Fee
-						updated = true
-					}
-					if m.Trades[y].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
-						d.Trades[y].Price = m.Trades[x].Price
-						updated = true
-					}
-					if d.Trades[y].Side != m.Trades[x].Side {
-						d.Trades[y].Side = m.Trades[x].Side
-						updated = true
-					}
-					if d.Trades[y].Type != m.Trades[x].Type {
-						d.Trades[y].Type = m.Trades[x].Type
-						updated = true
-					}
-					if d.Trades[y].Description != m.Trades[x].Description {
-						d.Trades[y].Description = m.Trades[x].Description
-						updated = true
-					}
-					if m.Trades[y].Amount != 0 && d.Trades[y].Amount != m.Trades[x].Amount {
-						d.Trades[y].Amount = m.Trades[x].Amount
-						updated = true
-					}
-					if d.Trades[y].Timestamp != m.Trades[x].Timestamp {
-						d.Trades[y].Timestamp = m.Trades[x].Timestamp
-						updated = true
-					}
-					if d.Trades[y].IsMaker != m.Trades[x].IsMaker {
-						d.Trades[y].IsMaker = m.Trades[x].IsMaker
-						updated = true
-					}
+				if d.Trades[y].TID != m.Trades[x].TID {
+					continue
+				}
+				found = true
+				if d.Trades[y].Fee != m.Trades[x].Fee {
+					d.Trades[y].Fee = m.Trades[x].Fee
+					updated = true
+				}
+				if m.Trades[y].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
+					d.Trades[y].Price = m.Trades[x].Price
+					updated = true
+				}
+				if d.Trades[y].Side != m.Trades[x].Side {
+					d.Trades[y].Side = m.Trades[x].Side
+					updated = true
+				}
+				if d.Trades[y].Type != m.Trades[x].Type {
+					d.Trades[y].Type = m.Trades[x].Type
+					updated = true
+				}
+				if d.Trades[y].Description != m.Trades[x].Description {
+					d.Trades[y].Description = m.Trades[x].Description
+					updated = true
+				}
+				if m.Trades[y].Amount != 0 && d.Trades[y].Amount != m.Trades[x].Amount {
+					d.Trades[y].Amount = m.Trades[x].Amount
+					updated = true
+				}
+				if d.Trades[y].Timestamp != m.Trades[x].Timestamp {
+					d.Trades[y].Timestamp = m.Trades[x].Timestamp
+					updated = true
+				}
+				if d.Trades[y].IsMaker != m.Trades[x].IsMaker {
+					d.Trades[y].IsMaker = m.Trades[x].IsMaker
+					updated = true
 				}
 			}
 			if !found {

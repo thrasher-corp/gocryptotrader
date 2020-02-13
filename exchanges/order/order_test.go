@@ -538,6 +538,7 @@ func TestStringToOrderStatus(t *testing.T) {
 }
 
 func TestUpdateOrderFromModify(t *testing.T) {
+	var leet = "1337"
 	od := Detail{
 		ImmediateOrCancel: false,
 		HiddenOrder:       false,
@@ -683,17 +684,17 @@ func TestUpdateOrderFromModify(t *testing.T) {
 	if len(od.Trades) != 2 {
 		t.Error("Failed to add trades")
 	}
-	om.Trades[0].Exchange = "1337"
+	om.Trades[0].Exchange = leet
 	om.Trades[0].Price = 1337
 	om.Trades[0].Fee = 1337
 	om.Trades[0].IsMaker = true
 	om.Trades[0].Timestamp = updated
-	om.Trades[0].Description = "1337"
+	om.Trades[0].Description = leet
 	om.Trades[0].Side = UnknownSide
 	om.Trades[0].Type = UnknownType
 	om.Trades[0].Amount = 1337
 	od.UpdateOrderFromModify(&om)
-	if od.Trades[0].Exchange == "1337" {
+	if od.Trades[0].Exchange == leet {
 		t.Error("Should not be able to update exchange from update")
 	}
 	if od.Trades[0].Price != 1337 {
@@ -708,7 +709,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 	if od.Trades[0].Timestamp != updated {
 		t.Error("Failed to update trades")
 	}
-	if od.Trades[0].Description != "1337" {
+	if od.Trades[0].Description != leet {
 		t.Error("Failed to update trades")
 	}
 	if od.Trades[0].Side != UnknownSide {
@@ -723,6 +724,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 }
 
 func TestUpdateOrderFromDetail(t *testing.T) {
+	var leet = "1337"
 	od := Detail{
 		ImmediateOrCancel: false,
 		HiddenOrder:       false,
@@ -868,17 +870,17 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	if len(od.Trades) != 2 {
 		t.Error("Failed to add trades")
 	}
-	om.Trades[0].Exchange = "1337"
+	om.Trades[0].Exchange = leet
 	om.Trades[0].Price = 1337
 	om.Trades[0].Fee = 1337
 	om.Trades[0].IsMaker = true
 	om.Trades[0].Timestamp = updated
-	om.Trades[0].Description = "1337"
+	om.Trades[0].Description = leet
 	om.Trades[0].Side = UnknownSide
 	om.Trades[0].Type = UnknownType
 	om.Trades[0].Amount = 1337
 	od.UpdateOrderFromDetail(&om)
-	if od.Trades[0].Exchange == "1337" {
+	if od.Trades[0].Exchange == leet {
 		t.Error("Should not be able to update exchange from update")
 	}
 	if od.Trades[0].Price != 1337 {
@@ -893,7 +895,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	if od.Trades[0].Timestamp != updated {
 		t.Error("Failed to update trades")
 	}
-	if od.Trades[0].Description != "1337" {
+	if od.Trades[0].Description != leet {
 		t.Error("Failed to update trades")
 	}
 	if od.Trades[0].Side != UnknownSide {
