@@ -152,11 +152,9 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 	}
 	if _, ok := multiStreamData["method"]; ok {
 		if strings.EqualFold(multiStreamData["method"].(string), "subscribe") {
-			//TODO add proper handling for subscriptions
 			return nil
 		}
 		if strings.EqualFold(multiStreamData["method"].(string), "unsubscribe") {
-			//TODO add proper handling for subscriptions
 			return nil
 		}
 	}

@@ -64,7 +64,6 @@ func (c *CoinbasePro) wsReadData() {
 			if err != nil {
 				c.Websocket.DataHandler <- err
 			}
-
 		}
 	}
 }
@@ -82,15 +81,14 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 
 	switch msgType.Type {
 	case "status":
-		wsStatus := wsStatus{}
-		err := json.Unmarshal(respRaw, &wsStatus)
+		var status wsStatus
+		err = json.Unmarshal(respRaw, &status)
 		if err != nil {
 			return err
 		}
-		c.Websocket.DataHandler <- wsStatus
+		c.Websocket.DataHandler <- status
 	case "error":
 		c.Websocket.DataHandler <- errors.New(string(respRaw))
-
 	case "ticker":
 		wsTicker := WebsocketTicker{}
 		err := json.Unmarshal(respRaw, &wsTicker)

@@ -751,7 +751,6 @@ func TestWsUnsubscribe(t *testing.T) {
 	}
 }
 
-
 func TestWsTradeData(t *testing.T) {
 	pressXToJSON := []byte(`{
   "type": "update",
@@ -938,7 +937,6 @@ func TestWsAuctions(t *testing.T) {
 		t.Error(err)
 	}
 }
-
 
 func TestWsMarketData(t *testing.T) {
 	pressXToJSON := []byte(`{

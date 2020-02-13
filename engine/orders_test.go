@@ -109,12 +109,12 @@ func TestGetByExchangeAndID(t *testing.T) {
 		t.Error("Expected to retrieve order")
 	}
 
-	o, err = Bot.OrderManager.orderStore.GetByExchangeAndID("", "TestGetByExchangeAndID")
+	_, err = Bot.OrderManager.orderStore.GetByExchangeAndID("", "TestGetByExchangeAndID")
 	if err != ErrOrderFourOhFour {
 		t.Error(err)
 	}
 
-	o, err = Bot.OrderManager.orderStore.GetByExchangeAndID(testExchange, "")
+	_, err = Bot.OrderManager.orderStore.GetByExchangeAndID(testExchange, "")
 	if err != ErrOrderFourOhFour {
 		t.Error(err)
 	}

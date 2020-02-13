@@ -131,11 +131,13 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		for i := range notification.Data {
-			orderType, err := order.StringToOrderType(notification.Data[i].Type)
+			var orderType order.Type
+			var orderSide order.Side
+			orderType, err = order.StringToOrderType(notification.Data[i].Type)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 			}
-			orderSide, err := order.StringToOrderSide(notification.Data[i].OrderMode)
+			orderSide, err = order.StringToOrderSide(notification.Data[i].OrderMode)
 			if err != nil {
 				b.Websocket.DataHandler <- err
 			}

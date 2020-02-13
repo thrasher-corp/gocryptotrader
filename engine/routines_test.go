@@ -70,7 +70,7 @@ func TestHandleData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	//Send it again since it exists now
+	// Send it again since it exists now
 	err = WebsocketDataHandler(exchName, &order.Detail{
 		Exchange: fakePassExchange,
 		ID:       orderID,

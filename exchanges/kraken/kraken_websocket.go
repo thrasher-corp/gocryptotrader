@@ -279,7 +279,7 @@ func (k *Kraken) wsProcessOwnTrades(ownOrders interface{}) error {
 			if err != nil {
 				return err
 			}
-			var result map[string]WsOwnTrade
+			var result map[string]*WsOwnTrade
 			err = json.Unmarshal(trades, &result)
 			if err != nil {
 				return err
@@ -326,7 +326,7 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 			if err != nil {
 				return err
 			}
-			var result map[string]WsOpenOrder
+			var result map[string]*WsOpenOrder
 			err = json.Unmarshal(orders, &result)
 			if err != nil {
 				return err
@@ -377,7 +377,6 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 						Status:   oStatus,
 					}
 				}
-
 			}
 		}
 		return nil

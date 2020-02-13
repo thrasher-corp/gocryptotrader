@@ -272,14 +272,14 @@ func WebsocketDataReceiver(ws *wshandler.Websocket) {
 
 func WebsocketDataHandler(exchName string, data interface{}) error {
 	if data == nil {
-		return fmt.Errorf("routines.go - exchange %s nil data sent to websocket\n",
+		return fmt.Errorf("routines.go - exchange %s nil data sent to websocket",
 			exchName)
 	}
 	switch d := data.(type) {
 	case string:
 		switch d {
 		case wshandler.WebsocketNotEnabled:
-			return fmt.Errorf("routines.go - exchange %s websocket not enabled\n",
+			return fmt.Errorf("routines.go - exchange %s websocket not enabled",
 				exchName)
 		default:
 			log.Info(log.WebsocketMgr, d)
@@ -288,7 +288,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		return fmt.Errorf("routines.go exchange %s websocket error - %s", exchName, data)
 	case wshandler.TradeData:
 		if Bot.Settings.Verbose {
-			log.Infof(log.WebsocketMgr, "%s websocket %s %s trade updated %+v\n",
+			log.Infof(log.WebsocketMgr, "%s websocket %s %s trade updated %+v",
 				exchName,
 				FormatCurrency(d.CurrencyPair),
 				d.AssetType,
@@ -296,7 +296,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		}
 	case wshandler.FundingData:
 		if Bot.Settings.Verbose {
-			log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v\n",
+			log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",
 				exchName,
 				FormatCurrency(d.CurrencyPair),
 				d.AssetType,
@@ -314,7 +314,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		printTickerSummary(d, d.Pair, d.AssetType, exchName, "websocket", err)
 	case wshandler.KlineData:
 		if Bot.Settings.Verbose {
-			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v\n",
+			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
 				exchName,
 				FormatCurrency(d.Pair),
 				d.AssetType,
@@ -331,7 +331,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 
 		if Bot.Settings.Verbose {
 			log.Infof(log.WebsocketMgr,
-				"%s websocket %s %s orderbook updated\n",
+				"%s websocket %s %s orderbook updated",
 				exchName,
 				FormatCurrency(d.Pair),
 				d.Asset)
@@ -365,7 +365,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 	default:
 		if Bot.Settings.Verbose {
 			log.Warnf(log.WebsocketMgr,
-				"%s websocket Unknown type: %+v\n",
+				"%s websocket Unknown type: %+v",
 				exchName,
 				d)
 		}

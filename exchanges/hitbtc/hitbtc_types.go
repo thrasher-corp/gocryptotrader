@@ -416,7 +416,7 @@ type wsOrderData struct {
 	CreatedAt                    time.Time `json:"createdAt"`
 	UpdatedAt                    time.Time `json:"updatedAt"`
 	ReportType                   string    `json:"reportType"`
-	OriginalRequestClientOrderId string    `json:"originalRequestClientOrderId"`
+	OriginalRequestClientOrderID string    `json:"originalRequestClientOrderId"`
 	TradeQuantity                float64   `json:"tradeQuantity,string"`
 	TradePrice                   float64   `json:"tradePrice,string"`
 	TradeID                      float64   `json:"tradeId"`

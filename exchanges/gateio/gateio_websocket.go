@@ -212,31 +212,33 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		case 2:
 			oSide = order.Buy
 		}
-		cTime, cTimeDec, err := convert.SplitFloatDecimals(invalidJSON["ctime"].(float64))
+		var cTime, cTimeDec, mTime, mTimeDec int64
+		var price, amount, filledTotal, left, fee float64
+		cTime, cTimeDec, err = convert.SplitFloatDecimals(invalidJSON["ctime"].(float64))
 		if err != nil {
 			return err
 		}
-		mTime, mTimeDec, err := convert.SplitFloatDecimals(invalidJSON["mtime"].(float64))
+		mTime, mTimeDec, err = convert.SplitFloatDecimals(invalidJSON["mtime"].(float64))
 		if err != nil {
 			return err
 		}
-		price, err := strconv.ParseFloat(invalidJSON["price"].(string), 64)
+		price, err = strconv.ParseFloat(invalidJSON["price"].(string), 64)
 		if err != nil {
 			return err
 		}
-		amount, err := strconv.ParseFloat(invalidJSON["amount"].(string), 64)
+		amount, err = strconv.ParseFloat(invalidJSON["amount"].(string), 64)
 		if err != nil {
 			return err
 		}
-		filledTotal, err := strconv.ParseFloat(invalidJSON["filledTotal"].(string), 64)
+		filledTotal, err = strconv.ParseFloat(invalidJSON["filledTotal"].(string), 64)
 		if err != nil {
 			return err
 		}
-		left, err := strconv.ParseFloat(invalidJSON["left"].(string), 64)
+		left, err = strconv.ParseFloat(invalidJSON["left"].(string), 64)
 		if err != nil {
 			return err
 		}
-		fee, err := strconv.ParseFloat(invalidJSON["dealFee"].(string), 64)
+		fee, err = strconv.ParseFloat(invalidJSON["dealFee"].(string), 64)
 		if err != nil {
 			return err
 		}

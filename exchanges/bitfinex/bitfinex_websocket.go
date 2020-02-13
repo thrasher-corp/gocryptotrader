@@ -186,10 +186,10 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				if len(candleBundle) == 0 {
 					return nil
 				}
-				switch candleBundle[0].(type) {
+				switch candleData := candleBundle[0].(type) {
 				case []interface{}:
 					for i := range candleBundle {
-						candle := candleBundle[i].([]interface{})
+						candle := candleData[i].([]interface{})
 						b.Websocket.DataHandler <- wshandler.KlineData{
 							Timestamp:  time.Unix(0, int64(candle[0].(float64))),
 							Exchange:   b.Name,
@@ -204,7 +204,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					}
 				case float64:
 					b.Websocket.DataHandler <- wshandler.KlineData{
-						Timestamp:  time.Unix(0, int64(candleBundle[0].(float64))),
+						Timestamp:  time.Unix(0, int64(candleData)),
 						Exchange:   b.Name,
 						AssetType:  asset.Spot,
 						Pair:       curr,
@@ -243,19 +243,19 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 							WebsocketTrade{
 								ID:        int64(elem[0].(float64)),
 								Timestamp: int64(elem[1].(float64)),
-								Amount:    elem[3].(float64),
-								Rate:      elem[4].(float64),
+								Amount:    elem[2].(float64),
+								Rate:      elem[3].(float64),
 								Period:    int64(elem[4].(float64)),
 							})
-						return nil
+					} else {
+						trades = append(trades,
+							WebsocketTrade{
+								ID:        int64(elem[0].(float64)),
+								Timestamp: int64(elem[1].(float64)),
+								Amount:    elem[2].(float64),
+								Price:     elem[3].(float64),
+							})
 					}
-					trades = append(trades,
-						WebsocketTrade{
-							ID:        int64(elem[0].(float64)),
-							Timestamp: int64(elem[1].(float64)),
-							Price:     elem[3].(float64),
-							Amount:    elem[2].(float64),
-						})
 				}
 			case 3:
 				if chanData[1].(string) == wsTradeExecutionUpdate ||

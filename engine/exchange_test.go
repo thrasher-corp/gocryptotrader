@@ -27,6 +27,7 @@ func addPassingFakeExchange() {
 		Enabled: true,
 		Verbose: false,
 	})
+
 	Bot.exchangeManager.add(&FakePassingExchange{
 		Base: exchange.Base{
 			Name:                          fakePassExchange,
@@ -34,8 +35,6 @@ func addPassingFakeExchange() {
 			LoadedByConfig:                true,
 			SkipAuthCheck:                 true,
 			API:                           base.API,
-			BaseCurrencies:                base.BaseCurrencies,
-			CurrencyPairs:                 base.CurrencyPairs,
 			Features:                      base.Features,
 			HTTPTimeout:                   base.HTTPTimeout,
 			HTTPUserAgent:                 base.HTTPUserAgent,

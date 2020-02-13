@@ -138,7 +138,8 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							if notification, ok := (notificationsArray[i]).([]interface{}); ok {
 								switch notification[0].(string) {
 								case "o":
-									amount, err := strconv.ParseFloat(notification[2].(string), 64)
+									var amount float64
+									amount, err = strconv.ParseFloat(notification[2].(string), 64)
 									if err != nil {
 										return err
 									}
@@ -164,17 +165,17 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 									}
 									p.Websocket.DataHandler <- response
 								case "n":
-									timeParse, err := time.Parse("2006-01-02 15:04:05", notification[6].(string))
+									var timeParse time.Time
+									timeParse, err = time.Parse("2006-01-02 15:04:05", notification[6].(string))
 									if err != nil {
 										return err
 									}
-
-									rate, err := strconv.ParseFloat(notification[4].(string), 64)
+									var rate, amount float64
+									rate, err = strconv.ParseFloat(notification[4].(string), 64)
 									if err != nil {
 										return err
 									}
-
-									amount, err := strconv.ParseFloat(notification[5].(string), 64)
+									amount, err = strconv.ParseFloat(notification[5].(string), 64)
 									if err != nil {
 										return err
 									}
@@ -210,7 +211,8 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 									}
 									p.Websocket.DataHandler <- response
 								case "b":
-									amount, err := strconv.ParseFloat(notification[3].(string), 64)
+									var amount float64
+									amount, err = strconv.ParseFloat(notification[3].(string), 64)
 									if err != nil {
 										return err
 									}
@@ -222,22 +224,21 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 									}
 									p.Websocket.DataHandler <- response
 								case "t":
-									timeParse, err := time.Parse("2006-01-02 15:04:05", notification[8].(string))
+									var timeParse time.Time
+									timeParse, err = time.Parse("2006-01-02 15:04:05", notification[8].(string))
 									if err != nil {
 										return err
 									}
-
-									rate, err := strconv.ParseFloat(notification[2].(string), 64)
+									var rate, amount, totalFee float64
+									rate, err = strconv.ParseFloat(notification[2].(string), 64)
 									if err != nil {
 										return err
 									}
-
-									amount, err := strconv.ParseFloat(notification[3].(string), 64)
+									amount, err = strconv.ParseFloat(notification[3].(string), 64)
 									if err != nil {
 										return err
 									}
-
-									totalFee, err := strconv.ParseFloat(notification[7].(string), 64)
+									totalFee, err = strconv.ParseFloat(notification[7].(string), 64)
 									if err != nil {
 										return err
 									}

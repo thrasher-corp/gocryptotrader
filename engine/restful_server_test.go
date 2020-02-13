@@ -12,16 +12,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
-func loadConfig(t *testing.T) *config.Config {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("", true)
-	if err != nil {
-		t.Error("GetCurrencyConfig LoadConfig error", err)
-	}
-	configLoaded = true
-	return cfg
-}
-
 func makeHTTPGetRequest(t *testing.T, response interface{}) *http.Response {
 	w := httptest.NewRecorder()
 

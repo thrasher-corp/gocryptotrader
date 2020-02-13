@@ -189,7 +189,7 @@ func (o *OKGroup) WsConnect() error {
 	}
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	go o.wsReadData(&wg)
+	go o.WsReadData(&wg)
 	if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = o.WsLogin()
 		if err != nil {
@@ -234,7 +234,7 @@ func (o *OKGroup) WsLogin() error {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (o *OKGroup) wsReadData(wg *sync.WaitGroup) {
+func (o *OKGroup) WsReadData(wg *sync.WaitGroup) {
 	o.Websocket.Wg.Add(1)
 	defer func() {
 		o.Websocket.Wg.Done()

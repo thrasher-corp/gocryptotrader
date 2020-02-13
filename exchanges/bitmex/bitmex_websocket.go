@@ -149,7 +149,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 
 	if _, ok := quickCapture["success"]; ok {
 		var decodedResp WebsocketSubscribeResp
-		err := json.Unmarshal(respRaw, &decodedResp)
+		err = json.Unmarshal(respRaw, &decodedResp)
 		if err != nil {
 			return err
 		}
@@ -174,7 +174,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			b.Name, decodedResp.Subscribe)
 	} else if _, ok := quickCapture["table"]; ok {
 		var decodedResp WebsocketMainResponse
-		err := json.Unmarshal(respRaw, &decodedResp)
+		err = json.Unmarshal(respRaw, &decodedResp)
 		if err != nil {
 			return err
 		}
@@ -253,9 +253,8 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			b.Websocket.DataHandler <- response
 		case bitmexWSInstrument:
 			// ticker
-
 		case bitmexWSExecution:
-			//trades of an order
+			// trades of an order
 			var response WsExecutionResponse
 			err = json.Unmarshal(respRaw, &response)
 			if err != nil {
@@ -305,7 +304,6 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 						},
 					},
 				}
-
 			}
 		case bitmexWSOrder:
 			var response WsOrderResponse
@@ -327,11 +325,13 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 					if err != nil {
 						return err
 					}
-					oSide, err := order.StringToOrderSide(response.Data[x].Side)
+					var oSide order.Side
+					oSide, err = order.StringToOrderSide(response.Data[x].Side)
 					if err != nil {
 						b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert orderside: " + response.Data[x].Side)
 					}
-					oType, err := order.StringToOrderType(response.Data[x].OrdType)
+					var oType order.Type
+					oType, err = order.StringToOrderType(response.Data[x].OrdType)
 					if err != nil {
 						b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert ordertype: " + response.Data[x].OrdType)
 					}
@@ -367,11 +367,13 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 					if err != nil {
 						return err
 					}
-					oSide, err := order.StringToOrderSide(response.Data[x].Side)
+					var oSide order.Side
+					oSide, err = order.StringToOrderSide(response.Data[x].Side)
 					if err != nil {
 						b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert orderside: " + response.Data[x].Side)
 					}
-					oType, err := order.StringToOrderType(response.Data[x].OrdType)
+					var oType order.Type
+					oType, err = order.StringToOrderType(response.Data[x].OrdType)
 					if err != nil {
 						b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert ordertype: " + response.Data[x].OrdType)
 					}

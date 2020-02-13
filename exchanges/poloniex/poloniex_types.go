@@ -8,7 +8,7 @@ import (
 
 // Ticker holds ticker data
 type Ticker struct {
-	ID            float64   `json:"id"`
+	ID            float64 `json:"id"`
 	Last          float64 `json:"last,string"`
 	LowestAsk     float64 `json:"lowestAsk,string"`
 	HighestBid    float64 `json:"highestBid,string"`
@@ -412,16 +412,6 @@ type WsAccountBalanceUpdateResponse struct {
 	currencyID float64
 	wallet     string
 	amount     float64
-}
-
-// WsNewLimitOrderResponse Authenticated Ws Account data
-type WsNewLimitOrderResponse struct {
-	currencyID  float64
-	orderNumber float64
-	orderType   float64
-	rate        float64
-	amount      float64
-	date        time.Time
 }
 
 // WsOrderUpdateResponse Authenticated Ws Account data

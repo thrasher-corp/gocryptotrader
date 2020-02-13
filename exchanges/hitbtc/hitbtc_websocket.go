@@ -102,31 +102,30 @@ func (h *HitBTC) wsGetTableName(respRaw []byte) (string, error) {
 	}
 	if init.Method != "" {
 		return init.Method, nil
-	} else {
-		switch resultType := init.Result.(type) {
-		case map[string]interface{}:
-			if reportType, ok := resultType["reportType"].(string); ok {
-				return reportType, nil
-			}
-			// check for ids - means it was a specific request
-			// and can't go through normal processing
-			if responseID, ok := resultType["id"].(string); ok {
-				if responseID != "" {
-					return "", nil
-				}
-			}
-		case []interface{}:
-			if len(resultType) == 0 {
-				h.Websocket.DataHandler <- fmt.Sprintf("No data returned. ID: %v", init.ID)
+	}
+	switch resultType := init.Result.(type) {
+	case map[string]interface{}:
+		if reportType, ok := resultType["reportType"].(string); ok {
+			return reportType, nil
+		}
+		// check for ids - means it was a specific request
+		// and can't go through normal processing
+		if responseID, ok := resultType["id"].(string); ok {
+			if responseID != "" {
 				return "", nil
 			}
+		}
+	case []interface{}:
+		if len(resultType) == 0 {
+			h.Websocket.DataHandler <- fmt.Sprintf("No data returned. ID: %v", init.ID)
+			return "", nil
+		}
 
-			data := resultType[0].(map[string]interface{})
-			if _, ok := data["clientOrderId"]; ok {
-				return "order", nil
-			} else if _, ok := data["available"]; ok {
-				return "trading", nil
-			}
+		data := resultType[0].(map[string]interface{})
+		if _, ok := data["clientOrderId"]; ok {
+			return "order", nil
+		} else if _, ok := data["available"]; ok {
+			return "trading", nil
 		}
 	}
 	h.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: h.Name + wshandler.UnhandledMessage + string(respRaw)}

@@ -14,10 +14,6 @@ const (
 	fakePassExchange = "FakePassExchange"
 )
 
-var (
-	configLoaded = false
-)
-
 func addValidEvent() (int64, error) {
 	return Add(testExchange,
 		ItemPrice,
@@ -28,10 +24,7 @@ func addValidEvent() (int64, error) {
 }
 
 func TestAdd(t *testing.T) {
-	if !configLoaded {
-		loadConfig(t)
-	}
-
+	SetupTestHelpers(t)
 	_, err := Add("", "", EventConditionParams{}, currency.Pair{}, "", "")
 	if err == nil {
 		t.Error("should err on invalid params")
@@ -53,10 +46,7 @@ func TestAdd(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-	if !configLoaded {
-		loadConfig(t)
-	}
-
+	SetupTestHelpers(t)
 	id, err := addValidEvent()
 	if err != nil {
 		t.Error("unexpected result", err)
@@ -72,10 +62,7 @@ func TestRemove(t *testing.T) {
 }
 
 func TestGetEventCounter(t *testing.T) {
-	if !configLoaded {
-		loadConfig(t)
-	}
-
+	SetupTestHelpers(t)
 	_, err := addValidEvent()
 	if err != nil {
 		t.Error("unexpected result", err)
@@ -255,10 +242,7 @@ func TestCheckEventCondition(t *testing.T) {
 }
 
 func TestIsValidEvent(t *testing.T) {
-	if !configLoaded {
-		loadConfig(t)
-	}
-
+	SetupTestHelpers(t)
 	// invalid exchange name
 	if err := IsValidEvent("meow", "", EventConditionParams{}, ""); err != errExchangeDisabled {
 		t.Error("unexpected result:", err)
@@ -309,9 +293,7 @@ func TestIsValidExchange(t *testing.T) {
 	if s := IsValidExchange("invalidexchangerino"); s {
 		t.Error("unexpected result")
 	}
-	if !configLoaded {
-		loadConfig(t)
-	}
+	SetupTestHelpers(t)
 	if s := IsValidExchange(testExchange); !s {
 		t.Error("unexpected result")
 	}

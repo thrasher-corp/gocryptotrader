@@ -756,7 +756,6 @@ func TestGetWsAuthStreamKey(t *testing.T) {
 	if key == "" {
 		t.Error("Expected key")
 	}
-
 }
 
 func TestMaintainWsAuthStreamKey(t *testing.T) {

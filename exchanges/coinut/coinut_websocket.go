@@ -136,7 +136,7 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		for i := range orders {
-			o, err2 := c.parseOrderContainer(orders[i])
+			o, err2 := c.parseOrderContainer(&orders[i])
 			if err2 != nil {
 				return err2
 			}
@@ -307,7 +307,7 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		o, err := c.parseOrderContainer(orderContainer)
+		o, err := c.parseOrderContainer(&orderContainer)
 		if err != nil {
 			return err
 		}
@@ -334,8 +334,11 @@ func stringToStatus(status string, qty float64) order.Status {
 	return order.UnknownStatus
 }
 
-func (c *COINUT) parseOrderContainer(oContainer wsOrderContainer) (*order.Detail, error) {
+func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detail, error) {
 	oSide, err := order.StringToOrderSide(oContainer.Side)
+	if err != nil {
+		return nil, err
+	}
 	oStatus := stringToStatus(oContainer.Reply, oContainer.OpenQty)
 	if oContainer.Status[0] != "OK" {
 		return nil, fmt.Errorf("%s - Order rejected: %v", c.Name, oContainer.Status)
@@ -601,7 +604,7 @@ func (c *COINUT) wsSubmitOrder(o *WsSubmitOrderParameters) (*order.Detail, error
 		return nil, err
 	}
 	var ord *order.Detail
-	ord, err = c.parseOrderContainer(incoming)
+	ord, err = c.parseOrderContainer(&incoming)
 	if err != nil {
 		return nil, err
 	}
@@ -642,7 +645,7 @@ func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]order.Detai
 		return nil, errs
 	}
 	for i := range incoming {
-		o, err := c.parseOrderContainer(incoming[i])
+		o, err := c.parseOrderContainer(&incoming[i])
 		if err != nil {
 			errs = append(errs, err)
 			continue
