@@ -19,7 +19,7 @@ import (
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
 )
 
-// Event store new Withdrawal event
+// Event write Withdrawal
 func Event(res *withdraw.Response) {
 	if database.DB.SQL == nil {
 		return
@@ -118,7 +118,7 @@ func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err 
 func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err error) {
 	newUUID, errUUID := uuid.NewV4()
 	if errUUID != nil {
-		log.Errorf(log.DatabaseMgr, "Failed to generate UUID: %v", err)
+		log.Errorf(log.DatabaseMgr, "Failed to generate UUID: %v", errUUID)
 		_ = tx.Rollback()
 		return
 	}
@@ -194,8 +194,12 @@ func EventByUUID(id string) (*withdraw.Response, error) {
 		if err != nil {
 			return nil, err
 		}
-		newUUID, _ := uuid.FromString(v.ID)
-		resp.ID = newUUID
+		newUUID, err := uuid.FromString(v.ID)
+		if err != nil {
+			log.Errorf(log.DatabaseMgr, "UUID generation failed with: %v possible data corruption", err)
+		} else {
+			resp.ID = newUUID
+		}
 		resp.Exchange = new(withdraw.ExchangeResponse)
 		resp.Exchange.ID = v.ExchangeID
 		resp.Exchange.Name = v.Exchange
@@ -236,7 +240,7 @@ func EventByUUID(id string) (*withdraw.Response, error) {
 		resp.Exchange.Status = v.Status
 		resp.RequestDetails = new(withdraw.Request)
 		resp.RequestDetails = &withdraw.Request{
-			Currency:    currency.Code{},
+			Currency:    currency.NewCode(v.Currency),
 			Description: v.Description.String,
 			Amount:      v.Amount,
 			Type:        withdraw.RequestType(v.WithdrawType),
@@ -270,7 +274,7 @@ func EventByUUID(id string) (*withdraw.Response, error) {
 	return resp, nil
 }
 
-// EventByExchange return all withdrawal requests by exchange
+// EventByExchange returns all withdrawal requests by exchange
 func EventByExchange(exchange string, limit int) ([]withdraw.Response, error) {
 	if database.DB.SQL == nil {
 		return nil, errors.New("database is nil")

@@ -1063,7 +1063,7 @@ func TestWithdraw(t *testing.T) {
 
 	withdrawCryptoRequest := withdraw.Request{
 		Crypto: &withdraw.CryptoRequest{
-			Address:   "1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB",
+			Address:   core.BitcoinDonationAddress,
 			FeeAmount: 1,
 		},
 		Amount:        -1,

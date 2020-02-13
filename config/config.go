@@ -949,7 +949,8 @@ func (c *Config) CheckExchangeConfigValues() error {
 	return nil
 }
 
-func (c *Config) CheckBankAccountConfig() error {
+// CheckBankAccountConfig checks all bank acconts to see if they are valid
+func (c *Config) CheckBankAccountConfig() {
 	for x := range c.BankAccounts {
 		err := c.BankAccounts[x].Validate()
 		if err != nil {
@@ -958,8 +959,6 @@ func (c *Config) CheckBankAccountConfig() error {
 		}
 	}
 	banking.Accounts = c.BankAccounts
-
-	return nil
 }
 
 // CheckCurrencyConfigValues checks to see if the currency config values are correct or not
@@ -1617,10 +1616,7 @@ func (c *Config) CheckConfig() error {
 	c.CheckConnectionMonitorConfig()
 	c.CheckCommunicationsConfig()
 	c.CheckClientBankAccounts()
-	err = c.CheckBankAccountConfig()
-	if err != nil {
-		log.Errorf(log.ConfigMgr, "Failed to configure Bank Account manager: %v", err)
-	}
+	c.CheckBankAccountConfig()
 	c.CheckRemoteControlConfig()
 
 	err = c.CheckCurrencyConfigValues()

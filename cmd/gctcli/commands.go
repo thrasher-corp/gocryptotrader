@@ -2210,7 +2210,6 @@ var withdrawCryptocurrencyFundsCommand = cli.Command{
 	},
 }
 
-// <exchange> <cryptocurrency> <address> <addresstag> <amount> <fee> <description>
 func withdrawCryptocurrencyFunds(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		cli.ShowCommandHelp(c, "withdrawcryptofunds")
@@ -2297,7 +2296,7 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 var withdrawFiatFundsCommand = cli.Command{
 	Name:      "withdrawfiatfunds",
 	Usage:     "withdraws fiat funds from the desired exchange",
-	ArgsUsage: "<exchange> <currency> <amount> <description> <bank account id>",
+	ArgsUsage: "<exchange> <currency> <description> <amount> <bank account id>",
 	Action:    withdrawFiatFunds,
 	Flags: []cli.Flag{
 		cli.StringFlag{

@@ -34,7 +34,7 @@ type Account struct {
 	SWIFTCode           string  `json:"swiftCode"`
 	IBAN                string  `json:"iban"`
 	BSBNumber           string  `json:"bsbNumber,omitempty"`
-	BankCode            float64 `json:",omitempty"`
+	BankCode            float64 `json:"bank_code,omitempty"`
 	SupportedCurrencies string  `json:"supportedCurrencies"`
 	SupportedExchanges  string  `json:"supportedExchanges,omitempty"`
 }
