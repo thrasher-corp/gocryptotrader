@@ -13,6 +13,10 @@ const (
 	testBTCAddress = "0x1D01TH0R53"
 )
 
+var (
+	portfolioSeeded bool
+)
+
 func TestGetEthereumBalance(t *testing.T) {
 	address := "0xb794f5ea0ba39494ce839613fffba74279579268"
 	nonsenseAddress := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
@@ -517,6 +521,9 @@ func TestIsWhiteListed(t *testing.T) {
 
 func seedPortFolioForTest(t *testing.T) {
 	t.Helper()
+	if portfolioSeeded {
+		return
+	}
 	err := Portfolio.AddAddress(core.BitcoinDonationAddress, "test", currency.BTC, 1500)
 	if err != nil {
 		t.Fatalf("failed to add portfolio address with reason: %v, unable to continue tests", err)
