@@ -6,22 +6,23 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 )
 
-var (
-	trueptr  = func(b bool) *bool { return &b }(true)
-	falseptr = func(b bool) *bool { return &b }(false)
-)
-
-func SetupTest() {
+func TestMain(m *testing.M) {
+	setupTestLoggers()
+	os.Exit(m.Run())
+}
+func setupTestLoggers() {
 	logTest := Config{
-		Enabled: trueptr,
+		Enabled: convert.BoolPtr(true),
 		SubLoggerConfig: SubLoggerConfig{
 			Output: "console",
 			Level:  "INFO|WARN|DEBUG|ERROR",
 		},
 		AdvancedSettings: advancedSettings{
-			ShowLogSystemName: trueptr,
+			ShowLogSystemName: convert.BoolPtr(true),
 			Spacer:            " | ",
 			TimeStampFormat:   timestampFormat,
 			Headers: headers{
@@ -46,7 +47,7 @@ func SetupTest() {
 
 func SetupDisabled() {
 	logTest := Config{
-		Enabled: falseptr,
+		Enabled: convert.BoolPtr(false),
 	}
 
 	GlobalLogConfig = &logTest
@@ -55,8 +56,6 @@ func SetupDisabled() {
 }
 
 func BenchmarkInfo(b *testing.B) {
-	SetupTest()
-
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		Info(Global, "Hello this is an info benchmark")
@@ -101,8 +100,6 @@ func TestRemoveWriter(t *testing.T) {
 }
 
 func TestLevel(t *testing.T) {
-	SetupTest()
-
 	_, err := Level("LOG")
 	if err != nil {
 		t.Errorf("Failed to get log %s levels skipping", err)
@@ -115,8 +112,6 @@ func TestLevel(t *testing.T) {
 }
 
 func TestSetLevel(t *testing.T) {
-	SetupTest()
-
 	newLevel, err := SetLevel("LOG", "ERROR")
 	if err != nil {
 		t.Skipf("Failed to get log %s levels skipping", err)
@@ -155,7 +150,7 @@ func TestCloseLogger(t *testing.T) {
 }
 
 func TestConfigureSubLogger(t *testing.T) {
-	err := configureSubLogger("log", "INFO", os.Stdin)
+	err := configureSubLogger("LOG", "INFO", os.Stdin)
 	if err != nil {
 		t.Skipf("configureSubLogger() returned unexpected error %v", err)
 	}
@@ -195,8 +190,6 @@ func BenchmarkInfoDisabled(b *testing.B) {
 }
 
 func BenchmarkInfof(b *testing.B) {
-	SetupTest()
-
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		Infof(Global, "Hello this is an infof benchmark %v %v %v\n", n, 1, 2)
@@ -204,8 +197,6 @@ func BenchmarkInfof(b *testing.B) {
 }
 
 func BenchmarkInfoln(b *testing.B) {
-	SetupTest()
-
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		Infoln(Global, "Hello this is an infoln benchmark")
@@ -253,7 +244,6 @@ func TestInfo(t *testing.T) {
 }
 
 func TestSubLoggerName(t *testing.T) {
-	SetupTest()
 	w := &bytes.Buffer{}
 	registerNewSubLogger("sublogger")
 	logger.newLogEvent("out", "header", "SUBLOGGER", w)
