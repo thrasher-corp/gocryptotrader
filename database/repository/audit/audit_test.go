@@ -19,7 +19,6 @@ import (
 func TestMain(m *testing.M) {
 	var err error
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
-
 	testhelpers.TempDir, err = ioutil.TempDir("", "gct-temp")
 	if err != nil {
 		fmt.Printf("failed to create temp file: %v", err)
