@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	withdrawal "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
+	withdrawDataStore "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -62,19 +62,19 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 			resp.Exchange.Status = v.Status
 			resp.Exchange.ID = v.ID
 		}
-		withdrawal.Event(resp)
+		withdrawDataStore.Event(resp)
 	}
 	withdraw.Cache.Add(resp.ID, resp)
 	return resp, nil
 }
 
-// WithdrawEventtByID returns a withdrawal request by ID
-func WithdrawEventtByID(id string) (*withdraw.Response, error) {
+// WithdrawEventByID returns a withdrawal request by ID
+func WithdrawEventByID(id string) (*withdraw.Response, error) {
 	v := withdraw.Cache.Get(id)
 	if v != nil {
 		return v.(*withdraw.Response), nil
 	}
-	l, err := withdrawal.EventByUUID(id)
+	l, err := withdrawDataStore.GetEventByUUID(id)
 	if err != nil {
 		return nil, fmt.Errorf(ErrWithdrawRequestNotFound, id)
 	}
@@ -84,7 +84,7 @@ func WithdrawEventtByID(id string) (*withdraw.Response, error) {
 
 // WithdrawEventByExchange returns a withdrawal request by ID
 func WithdrawEventByExchange(exchange string, limit int) ([]withdraw.Response, error) {
-	l, err := withdrawal.EventByExchange(exchange, limit)
+	l, err := withdrawDataStore.GetEventByExchange(exchange, limit)
 	if err != nil {
 		return nil, fmt.Errorf(ErrWithdrawRequestNotFound, exchange)
 	}
@@ -92,11 +92,13 @@ func WithdrawEventByExchange(exchange string, limit int) ([]withdraw.Response, e
 }
 
 // WithdrawEventByDate returns a withdrawal request by ID
+// TODO: impelment method
 func WithdrawEventByDate(start, end time.Time) ([]withdraw.Response, error) {
 	return nil, nil
 }
 
 // WithdrawEventByExchangeID returns a withdrawal request by Exchange ID
+// TODO: impelment method
 func WithdrawEventByExchangeID(id string) (*withdraw.Response, error) {
 	return nil, nil
 }

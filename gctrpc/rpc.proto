@@ -465,13 +465,11 @@ message WithdrawalEventByIDRequest {
 }
 
 message WithdrawalEventByIDResponse {
-    string status = 1;
     WithdrawalEventResponse event = 2;
 }
 
 
 message WithdrawalEventByExchangeResponse {
-    string status = 1;
     repeated WithdrawalEventResponse event = 2;
 }
 
@@ -896,14 +894,21 @@ service GoCryptoTrader {
     rpc GetCryptocurrencyDepositAddress(GetCryptocurrencyDepositAddressRequest) returns (GetCryptocurrencyDepositAddressResponse) {
         option (google.api.http) = {
             post: "/v1/getcryptodepositaddress"
-            body: "*"Uuid
             body: "*"
         };
     }
 
+
     rpc WithdrawFiatFunds(WithdrawFiatRequest) returns (WithdrawResponse) {
         option (google.api.http) = {
             post: "/v1/withdrawfiatfunds"
+            body: "*"
+        };
+    }
+
+    rpc WithdrawCryptocurrencyFunds(WithdrawCryptoRequest) returns (WithdrawResponse) {
+        option (google.api.http) = {
+            post: "/v1/withdrawithdrawcryptofundswfiatfunds"
             body: "*"
         };
     }

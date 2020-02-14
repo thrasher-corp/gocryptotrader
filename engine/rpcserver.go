@@ -992,13 +992,12 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 
 // WithdrawalEventByID returns previous withdrawal request details
 func (s *RPCServer) WithdrawalEventByID(ctx context.Context, r *gctrpc.WithdrawalEventByIDRequest) (*gctrpc.WithdrawalEventByIDResponse, error) {
-	v, err := WithdrawEventtByID(r.Id)
+	v, err := WithdrawEventByID(r.Id)
 	if err != nil {
 		return nil, err
 	}
 
 	resp := &gctrpc.WithdrawalEventByIDResponse{
-		Status: "ok",
 		Event: &gctrpc.WithdrawalEventResponse{
 			Id: v.ID.String(),
 			Exchange: &gctrpc.WithdrawlExchangeEvent{

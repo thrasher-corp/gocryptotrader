@@ -98,14 +98,23 @@ func TestSubmitWithdrawal(t *testing.T) {
 }
 
 func TestWithdrawEventtByID(t *testing.T) {
-	tempResp := withdraw.Response{
+	tempResp := &withdraw.Response{
 		ID: withdraw.DryRunID,
 	}
-	_, err := WithdrawEventtByID(withdraw.DryRunID.String())
+	_, err := WithdrawEventByID(withdraw.DryRunID.String())
 	if err != nil {
-		if err != fmt.Errorf(ErrWithdrawRequestNotFound, withdraw.DryRunID.String()) {
-			t.Log(err)
+		if err.Error() != fmt.Errorf(ErrWithdrawRequestNotFound, withdraw.DryRunID.String()).Error() {
+			t.Fatal(err)
 		}
 	}
-	withdraw.Cache.Add(withdraw.DryRunID, tempResp)
+	withdraw.Cache.Add(withdraw.DryRunID.String(), tempResp)
+	v, err := WithdrawEventByID(withdraw.DryRunID.String())
+	if err != nil {
+		if err != fmt.Errorf(ErrWithdrawRequestNotFound, withdraw.DryRunID.String()) {
+			t.Fatal(err)
+		}
+	}
+	if v == nil {
+		t.Fatal("expected WithdrawEventByID() to return data from cache")
+	}
 }

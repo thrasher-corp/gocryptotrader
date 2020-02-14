@@ -1438,32 +1438,6 @@
         ]
       }
     },
-    "/v1/withdrawcryptofunds": {
-      "post": {
-        "operationId": "WithdrawCryptocurrencyFunds",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcWithdrawResponse"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/gctrpcWithdrawCryptoRequest"
-            }
-          }
-        ],
-        "tags": [
-          "GoCryptoTrader"
-        ]
-      }
-    },
     "/v1/withdrawfiatfunds": {
       "post": {
         "operationId": "WithdrawFiatFunds",
@@ -1482,6 +1456,32 @@
             "required": true,
             "schema": {
               "$ref": "#/definitions/gctrpcWithdrawFiatRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/withdrawithdrawcryptofundswfiatfunds": {
+      "post": {
+        "operationId": "WithdrawCryptocurrencyFunds",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcWithdrawResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcWithdrawCryptoRequest"
             }
           }
         ],
@@ -2898,9 +2898,6 @@
     "gctrpcWithdrawalEventByExchangeResponse": {
       "type": "object",
       "properties": {
-        "status": {
-          "type": "string"
-        },
         "event": {
           "type": "array",
           "items": {
@@ -2920,9 +2917,6 @@
     "gctrpcWithdrawalEventByIDResponse": {
       "type": "object",
       "properties": {
-        "status": {
-          "type": "string"
-        },
         "event": {
           "$ref": "#/definitions/gctrpcWithdrawalEventResponse"
         }

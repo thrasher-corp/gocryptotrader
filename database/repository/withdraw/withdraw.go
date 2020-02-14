@@ -19,7 +19,7 @@ import (
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
 )
 
-// Event write Withdrawal
+// Event stores Withdrawal Response details in database
 func Event(res *withdraw.Response) {
 	if database.DB.SQL == nil {
 		return
@@ -180,8 +180,8 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 
 // TODO: optimize these queries
 
-// EventByUUID return requested withdraw information by ID
-func EventByUUID(id string) (*withdraw.Response, error) {
+// GetEventByUUID return requested withdraw information by ID
+func GetEventByUUID(id string) (*withdraw.Response, error) {
 	if database.DB.SQL == nil {
 		return nil, errors.New("database is nil")
 	}
@@ -274,8 +274,8 @@ func EventByUUID(id string) (*withdraw.Response, error) {
 	return resp, nil
 }
 
-// EventByExchange returns all withdrawal requests by exchange
-func EventByExchange(exchange string, limit int) ([]withdraw.Response, error) {
+// GetEventByExchange returns all withdrawal requests by exchange
+func GetEventByExchange(exchange string, limit int) ([]withdraw.Response, error) {
 	if database.DB.SQL == nil {
 		return nil, errors.New("database is nil")
 	}

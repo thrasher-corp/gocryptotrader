@@ -20,7 +20,7 @@ func TestWithdraw(t *testing.T) {
 	testCases := []struct {
 		name   string
 		config *database.Config
-		runner func(t *testing.T)
+		runner func()
 		closer func(t *testing.T, dbConn *database.Db) error
 		output interface{}
 	}{
@@ -30,8 +30,7 @@ func TestWithdraw(t *testing.T) {
 				Driver:            database.DBSQLite3,
 				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
 			},
-
-			writeAudit,
+			writeWithdraw,
 			closeDatabase,
 			nil,
 		},
@@ -42,21 +41,21 @@ func TestWithdraw(t *testing.T) {
 				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
 			},
 
-			readHelper,
+			readWithdrawHelper,
 			closeDatabase,
 			nil,
 		},
 		{
 			"Postgres-Write",
 			postgresTestDatabase,
-			writeAudit,
+			writeWithdraw,
 			nil,
 			nil,
 		},
 		{
 			"Postgres-Read",
 			postgresTestDatabase,
-			readHelper,
+			readWithdrawHelper,
 			nil,
 			nil,
 		},
@@ -82,7 +81,7 @@ func TestWithdraw(t *testing.T) {
 			}
 
 			if test.runner != nil {
-				test.runner(t)
+				test.runner()
 			}
 
 			if test.closer != nil {
@@ -95,8 +94,7 @@ func TestWithdraw(t *testing.T) {
 	}
 }
 
-func writeWithdraw(t *testing.T) {
-	t.Helper()
+func writeWithdraw() {
 	var wg sync.WaitGroup
 
 	for x := 0; x < 20; x++ {
@@ -141,7 +139,6 @@ func writeWithdraw(t *testing.T) {
 	wg.Wait()
 }
 
-func readWithdrawHelper(t *testing.T) {
-	t.Helper()
+func readWithdrawHelper() {
 	// TODO: implement read to read first result and confirm data was written
 }
