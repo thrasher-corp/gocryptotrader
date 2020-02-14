@@ -14,6 +14,7 @@ func TestMain(m *testing.M) {
 	setupTestLoggers()
 	os.Exit(m.Run())
 }
+
 func setupTestLoggers() {
 	logTest := Config{
 		Enabled: convert.BoolPtr(true),
