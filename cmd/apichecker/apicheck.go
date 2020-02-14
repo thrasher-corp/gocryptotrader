@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"golang.org/x/net/html"
 )
 
@@ -193,7 +194,7 @@ func getSha(repoPath string) (ShaResponse, error) {
 	if verbose {
 		log.Printf("Getting SHA of this path: %v\n", path)
 	}
-	return resp, common.SendHTTPGetRequest(path, true, verbose, &resp)
+	return resp, SendGetReq(path, &resp)
 }
 
 // CheckExistingExchanges checks if the given exchange exists
@@ -1196,16 +1197,6 @@ func HTMLScrapeLocalBitcoins(htmlData *HTMLScrapingData) ([]string, error) {
 	return resp, nil
 }
 
-// TrelloGetListsData gets required data for all the lists on the given trello board
-func TrelloGetListsData(idBoard string) ([]ListData, error) {
-	var resp []ListData
-	err := common.SendHTTPGetRequest(pathGetAllLists+idBoard+apiKey+apiToken, true, verbose, &resp)
-	if err != nil {
-		return resp, err
-	}
-	return resp, nil
-}
-
 // TrelloCreateNewCard creates a new card on the list specified on trello
 func TrelloCreateNewCard(fillData *CardFill) error {
 	params := url.Values{}
@@ -1250,7 +1241,7 @@ func TrelloCreateNewCheck(newCheck string) error {
 func TrelloGetChecklistItems() (ChecklistItemData, error) {
 	var resp ChecklistItemData
 	path := fmt.Sprintf(pathChecklistItems, trelloChecklistID, configData.Key, configData.Token)
-	return resp, common.SendHTTPGetRequest(path, true, verbose, &resp)
+	return resp, SendGetReq(path, &resp)
 }
 
 // NameStateChanges returns the appropriate update name & state for trello (assumes single digit updates pending)
@@ -1316,4 +1307,16 @@ func UpdateFile(confData *Config, name string) error {
 		return err
 	}
 	return ioutil.WriteFile(name, file, 0770)
+}
+
+// SendGetReq sends get req
+func SendGetReq(path string, result interface{}) error {
+	requester := request.New("Apichecker",
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		request.NewBasicRateLimit(time.Hour, 60))
+	return requester.SendPayload(&request.Item{
+		Method:  http.MethodGet,
+		Path:    path,
+		Result:  result,
+		Verbose: verbose})
 }

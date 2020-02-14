@@ -19,6 +19,7 @@ const (
 )
 
 func TestMain(m *testing.M) {
+	SetAuthVars()
 	apiKey = testAPIKey
 	apiToken = testAPIToken
 	trelloCardID = testCardID
@@ -376,17 +377,6 @@ func TestHTMLScrapeOk(t *testing.T) {
 	}
 }
 
-func TestTrelloGetListsData(t *testing.T) {
-	t.Parallel()
-	if !CanUpdateTrello() {
-		t.Skip()
-	}
-	_, err := TrelloGetListsData(trelloBoardID)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestCreateNewCard(t *testing.T) {
 	t.Parallel()
 	if !CanUpdateTrello() {
@@ -504,7 +494,8 @@ func TestReadFileData(t *testing.T) {
 
 func TestGetSha(t *testing.T) {
 	t.Parallel()
-	_, err := getSha("binance-exchange/binance-official-api-docs")
+	a, err := getSha("binance-exchange/binance-official-api-docs")
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}

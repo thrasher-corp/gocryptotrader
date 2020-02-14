@@ -4,6 +4,7 @@
 
 + Checks for API updates
 + Can automatically update Trello checklist for the updates required
++ Supports trello integration
 
 ## Usage
 
@@ -39,6 +40,36 @@ func TestAdd(t *testing.T) {
 	if err != nil {
 		t.Error(err)
     }
+}
+```
+
++ If all the authentication variables for trello are set trello checklist will be automatically updated with the format of 'Exchange Name (integer of how many updates have been released since the exhange API was last worked on):
+```go
+func NameStateChanges(currentName, currentState string) (string, error) {
+	r, err := regexp.Compile(`[\s\S]* \d{1}$`) // nolint: gocritic
+	if err != nil {
+		return "", err
+	}
+	var tempNumber int64
+	var finalNumber string
+	if r.MatchString(currentName) {
+		stringNum := string(currentName[len(currentName)-1])
+		tempNumber, err = strconv.ParseInt(stringNum, 10, 64)
+		if err != nil {
+			return "", err
+		}
+		if tempNumber != 1 || currentState != complete {
+			tempNumber++
+		} else {
+			tempNumber = 1
+		}
+		finalNumber = strconv.FormatInt(tempNumber, 10)
+	}
+	byteNumber := []byte(finalNumber)
+	byteName := []byte(currentName)
+	byteName = byteName[:len(byteName)-1]
+	byteName = append(byteName, byteNumber[0])
+	return string(byteName), nil
 }
 ```
 
