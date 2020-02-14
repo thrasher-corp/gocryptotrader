@@ -108,7 +108,7 @@ type OrderInsert struct {
 	AvgPx                 float64 `json:"avgPx"`
 	Commission            float64 `json:"commission"`
 	CumQty                float64 `json:"cumQty"`
-	DisplayQty            float64 `json:"displayQty"`
+	DisplayQuantity       float64 `json:"displayQty"`
 	ExecComm              float64 `json:"execComm"`
 	ExecCost              float64 `json:"execCost"`
 	ForeignNotional       float64 `json:"foreignNotional"`
@@ -256,7 +256,7 @@ type wsExecutionData struct {
 	AvgPx                 float64 `json:"avgPx"`
 	Commission            float64 `json:"commission"`
 	CumQty                float64 `json:"cumQty"`
-	DisplayQty            float64 `json:"displayQty"`
+	DisplayQuantity       float64 `json:"displayQty"`
 	ExecComm              float64 `json:"execComm"`
 	ExecCost              float64 `json:"execCost"`
 	ForeignNotional       float64 `json:"foreignNotional"`

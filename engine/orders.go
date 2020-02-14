@@ -18,7 +18,7 @@ import (
 var (
 	OrderManagerDelay      = time.Second * 10
 	ErrOrdersAlreadyExists = errors.New("order already exists")
-	ErrOrderFourOhFour     = errors.New("order does not exist")
+	ErrOrderNotFound       = errors.New("order does not exist")
 )
 
 // get returns all orders for all exchanges
@@ -35,7 +35,7 @@ func (o *orderStore) GetByExchangeAndID(exchange, id string) (*order.Detail, err
 	defer o.m.Unlock()
 	r, ok := o.Orders[exchange]
 	if !ok {
-		return nil, ErrOrderFourOhFour
+		return nil, ErrExchangeNotFound
 	}
 
 	for x := range r {
@@ -43,7 +43,18 @@ func (o *orderStore) GetByExchangeAndID(exchange, id string) (*order.Detail, err
 			return r[x], nil
 		}
 	}
-	return nil, ErrOrderFourOhFour
+	return nil, ErrOrderNotFound
+}
+
+// GetByExchangeAndID returns a specific order
+func (o *orderStore) GetByExchange(exchange string) ([]*order.Detail, error) {
+	o.m.Lock()
+	defer o.m.Unlock()
+	r, ok := o.Orders[exchange]
+	if !ok {
+		return nil, ErrExchangeNotFound
+	}
+	return r, nil
 }
 
 // GetByInternalOrderID will search all orders for our internal orderID
@@ -58,7 +69,7 @@ func (o *orderStore) GetByInternalOrderID(internalOrderID string) (*order.Detail
 			}
 		}
 	}
-	return nil, ErrOrderFourOhFour
+	return nil, ErrOrderNotFound
 }
 
 func (o *orderStore) exists(order *order.Detail) bool {
@@ -111,8 +122,9 @@ func (o *orderStore) Add(order *order.Detail, lock bool) error {
 			log.Warnf(log.OrderMgr,
 				"Order manager: Unable to generate UUID. Err: %s",
 				err)
+		} else {
+			order.InternalOrderID = id.String()
 		}
-		order.InternalOrderID = id.String()
 	}
 	orders := o.Orders[order.Exchange]
 	orders = append(orders, order)
@@ -222,7 +234,7 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 				Pair:          v[y].Pair,
 			})
 			if err != nil {
-				log.Debugln(log.OrderBook, err)
+				log.Debugln(log.OrderMgr, err)
 				Bot.CommsManager.PushEvent(base.Event{
 					Type:    "order",
 					Message: err.Error(),
@@ -232,7 +244,7 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 
 			msg := fmt.Sprintf("Order manager: Exchange %s order ID=%v cancelled.",
 				k, v[y].ID)
-			log.Debugln(log.OrderBook, msg)
+			log.Debugln(log.OrderMgr, msg)
 			Bot.CommsManager.PushEvent(base.Event{
 				Type:    "order",
 				Message: msg,

@@ -70,7 +70,7 @@ type Execution struct {
 	ContingencyType       string  `json:"contingencyType"`
 	CumQty                int64   `json:"cumQty"`
 	Currency              string  `json:"currency"`
-	DisplayQty            int64   `json:"displayQty"`
+	DisplayQuantity       int64   `json:"displayQty"`
 	ExDestination         string  `json:"exDestination"`
 	ExecComm              int64   `json:"execComm"`
 	ExecCost              int64   `json:"execCost"`
@@ -293,7 +293,7 @@ type Order struct {
 	ContingencyType       string  `json:"contingencyType"`
 	CumQty                int64   `json:"cumQty"`
 	Currency              string  `json:"currency"`
-	DisplayQty            int64   `json:"displayQty"`
+	DisplayQuantity       int64   `json:"displayQty"`
 	ExDestination         string  `json:"exDestination"`
 	ExecInst              string  `json:"execInst"`
 	LeavesQty             int64   `json:"leavesQty"`

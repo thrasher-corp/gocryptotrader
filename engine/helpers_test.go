@@ -52,8 +52,10 @@ func SetupTestHelpers(t *testing.T) {
 			t.Errorf("SetupTest: Failed to load exchange: %s", err)
 		}
 	}
+	if GetExchangeByName(fakePassExchange) == nil {
+		addPassingFakeExchange()
+	}
 
-	addPassingFakeExchange()
 }
 
 func TestGetExchangeOTPs(t *testing.T) {
@@ -129,7 +131,6 @@ func TestGetAuthAPISupportedExchanges(t *testing.T) {
 }
 
 func TestIsOnline(t *testing.T) {
-	t.Skip()
 	SetupTestHelpers(t)
 	if r := IsOnline(); r {
 		t.Fatal("Unexpected result")

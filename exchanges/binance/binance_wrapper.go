@@ -100,6 +100,8 @@ func (b *Binance) SetDefaults() {
 				TickerFetching:    true,
 				KlineFetching:     true,
 				OrderbookFetching: true,
+				AccountInfo:       true,
+				GetOrder:          true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,

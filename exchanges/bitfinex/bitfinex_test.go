@@ -200,7 +200,6 @@ func TestNewDeposit(t *testing.T) {
 		t.SkipNow()
 	}
 	t.Parallel()
-	b.Verbose = true
 	_, err := b.NewDeposit("blabla", "testwallet", 0)
 	if err == nil {
 		t.Error("NewDeposit() Expected error")

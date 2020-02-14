@@ -86,8 +86,57 @@ func TestGetByInternalOrderID(t *testing.T) {
 	}
 
 	_, err = Bot.OrderManager.orderStore.GetByInternalOrderID("NoOrder")
-	if err != ErrOrderFourOhFour {
+	if err != ErrOrderNotFound {
 		t.Error(err)
+	}
+}
+
+func TestGetByExchange(t *testing.T) {
+	OrdersSetup(t)
+	err := Bot.OrderManager.orderStore.Add(&order.Detail{
+		Exchange:        testExchange,
+		ID:              "TestGetByExchange",
+		InternalOrderID: "internalTest",
+	}, true)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = Bot.OrderManager.orderStore.Add(&order.Detail{
+		Exchange:        testExchange,
+		ID:              "TestGetByExchange2",
+		InternalOrderID: "internalTest2",
+	}, true)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = Bot.OrderManager.orderStore.Add(&order.Detail{
+		Exchange:        fakePassExchange,
+		ID:              "TestGetByExchange3",
+		InternalOrderID: "internalTest3",
+	}, true)
+	if err != nil {
+		t.Error(err)
+	}
+	var o []*order.Detail
+	o, err = Bot.OrderManager.orderStore.GetByExchange(testExchange)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(o) != 2 {
+		t.Error("Expected 2 orders from the exchange")
+	}
+
+	_, err = Bot.OrderManager.orderStore.GetByInternalOrderID("NoOrder")
+	if err != ErrOrderNotFound {
+		t.Error(err)
+	}
+	err = Bot.OrderManager.orderStore.Add(&order.Detail{
+		Exchange: "thisWillFail",
+	}, true)
+	if err == nil {
+		t.Error("Expected exchange not found error")
 	}
 }
 
@@ -110,12 +159,12 @@ func TestGetByExchangeAndID(t *testing.T) {
 	}
 
 	_, err = Bot.OrderManager.orderStore.GetByExchangeAndID("", "TestGetByExchangeAndID")
-	if err != ErrOrderFourOhFour {
+	if err != ErrOrderNotFound {
 		t.Error(err)
 	}
 
 	_, err = Bot.OrderManager.orderStore.GetByExchangeAndID(testExchange, "")
-	if err != ErrOrderFourOhFour {
+	if err != ErrOrderNotFound {
 		t.Error(err)
 	}
 }

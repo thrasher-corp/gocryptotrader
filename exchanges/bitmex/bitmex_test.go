@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Bitmex setup error", err)
 	}
-	b.CurrencyPairs.AssetTypes = asset.Items{asset.Spot}
+	b.CurrencyPairs.AssetTypes = asset.Items{asset.PerpetualSwap}
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Enabled: currency.Pairs{
