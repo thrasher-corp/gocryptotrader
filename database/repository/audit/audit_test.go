@@ -90,7 +90,6 @@ func TestAudit(t *testing.T) {
 			}
 
 			dbConn, err := testhelpers.ConnectToDatabase(test.config)
-
 			if err != nil {
 				t.Fatal(err)
 			}
