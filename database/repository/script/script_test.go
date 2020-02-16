@@ -66,7 +66,6 @@ func TestScript(t *testing.T) {
 
 	for _, tests := range testCases {
 		test := tests
-
 		t.Run(test.name, func(t *testing.T) {
 			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
 				t.Skip("database not configured skipping test")
@@ -76,6 +75,7 @@ func TestScript(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			path := filepath.Join("..", "..", "migrations")
 			err = goose.Run("up", dbConn.SQL, repository.GetSQLDialect(), path, "")
 			if err != nil {
