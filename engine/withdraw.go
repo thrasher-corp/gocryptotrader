@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	withdrawDataStore "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -94,7 +95,7 @@ func WithdrawEventByExchange(exchange string, limit int) ([]withdraw.Response, e
 // WithdrawEventByDate returns a withdrawal request by ID
 // TODO: impelment method
 func WithdrawEventByDate(start, end time.Time) ([]withdraw.Response, error) {
-	return nil, nil
+	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawEventByExchangeID returns a withdrawal request by Exchange ID

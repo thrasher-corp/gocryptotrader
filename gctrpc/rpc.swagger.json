@@ -1414,12 +1414,12 @@
     },
     "/v1/withdrawaleventbyid": {
       "post": {
-        "operationId": "WithdrawalEventByExchange",
+        "operationId": "WithdrawalEventsByExchange",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcWithdrawalEventByExchangeResponse"
+              "$ref": "#/definitions/gctrpcWithdrawalEventsByExchangeResponse"
             }
           }
         },
@@ -1429,7 +1429,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/gctrpcWithdrawalEventByIDRequest"
+              "$ref": "#/definitions/gctrpcWithdrawalEventsByExchangeRequest"
             }
           }
         ],
@@ -2895,17 +2895,6 @@
         }
       }
     },
-    "gctrpcWithdrawalEventByExchangeResponse": {
-      "type": "object",
-      "properties": {
-        "event": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/gctrpcWithdrawalEventResponse"
-          }
-        }
-      }
-    },
     "gctrpcWithdrawalEventByIDRequest": {
       "type": "object",
       "properties": {
@@ -2941,6 +2930,32 @@
         "updated_at": {
           "type": "string",
           "format": "date-time"
+        }
+      }
+    },
+    "gctrpcWithdrawalEventsByExchangeRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "gctrpcWithdrawalEventsByExchangeResponse": {
+      "type": "object",
+      "properties": {
+        "event": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcWithdrawalEventResponse"
+          }
         }
       }
     },

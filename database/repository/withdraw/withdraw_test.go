@@ -3,6 +3,7 @@ package withdraw
 import (
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"sync"
@@ -61,7 +62,6 @@ func TestWithdraw(t *testing.T) {
 				Driver:            database.DBSQLite3,
 				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
 			},
-
 			readWithdrawHelper,
 			testhelpers.CloseDatabase,
 			nil,
@@ -84,17 +84,16 @@ func TestWithdraw(t *testing.T) {
 
 	for _, tests := range testCases {
 		test := tests
-
 		t.Run(test.name, func(t *testing.T) {
 			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
 				t.Skip("database not configured skipping test")
 			}
 
 			dbConn, err := testhelpers.ConnectToDatabase(test.config)
-
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			path := filepath.Join("..", "..", "migrations")
 			err = goose.Run("up", dbConn.SQL, repository.GetSQLDialect(), path, "")
 			if err != nil {
@@ -132,25 +131,23 @@ func writeWithdraw() {
 				},
 				RequestDetails: &withdraw.Request{
 					Exchange:    test,
-					Currency:    currency.AUD,
 					Description: test,
 					Amount:      1.0,
-					Type:        1,
-					Fiat: &withdraw.FiatRequest{
-						Bank: &banking.Account{
-							BankName:       test,
-							BankAddress:    test,
-							BankPostalCode: test,
-							BankPostalCity: test,
-							BankCountry:    test,
-							AccountName:    test,
-							AccountNumber:  test,
-							SWIFTCode:      test,
-							IBAN:           test,
-							BSBNumber:      test,
-						},
-					},
 				},
+			}
+			rnd := rand.Intn(2)
+			if rnd == 0 {
+				resp.RequestDetails.Currency = currency.AUD
+				resp.RequestDetails.Type = 1
+				resp.RequestDetails.Fiat = new(withdraw.FiatRequest)
+				resp.RequestDetails.Fiat.Bank = new(banking.Account)
+			} else {
+				resp.RequestDetails.Currency = currency.BTC
+				resp.RequestDetails.Type = 0
+				resp.RequestDetails.Crypto = new(withdraw.CryptoRequest)
+				resp.RequestDetails.Crypto.Address = test
+				resp.RequestDetails.Crypto.FeeAmount = 0
+				resp.RequestDetails.Crypto.AddressTag = test
 			}
 			Event(resp)
 		}(x)

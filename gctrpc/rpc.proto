@@ -468,8 +468,13 @@ message WithdrawalEventByIDResponse {
     WithdrawalEventResponse event = 2;
 }
 
+message WithdrawalEventsByExchangeRequest {
+    string exchange = 1;
+    string id = 2;
+    int32 limit = 3;
+}
 
-message WithdrawalEventByExchangeResponse {
+message WithdrawalEventsByExchangeResponse {
     repeated WithdrawalEventResponse event = 2;
 }
 
@@ -920,7 +925,7 @@ service GoCryptoTrader {
         };
     }
 
-    rpc WithdrawalEventByExchange(WithdrawalEventByIDRequest) returns (WithdrawalEventByExchangeResponse) {
+    rpc WithdrawalEventsByExchange(WithdrawalEventsByExchangeRequest) returns (WithdrawalEventsByExchangeResponse) {
         option (google.api.http) = {
             post: "/v1/withdrawaleventbyid"
             body: "*"

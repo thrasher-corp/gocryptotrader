@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -181,118 +180,27 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 
 // GetEventByUUID return requested withdraw information by ID
 func GetEventByUUID(id string) (*withdraw.Response, error) {
-	return getSingleaByColumn("id", id)
+	resp, err := getByColumns([]string{"id"}, []string{id}, 1)
+	if err != nil {
+		return nil, err
+	}
+	return &resp[0], err
 }
 
 // GetEventsByExchange returns all withdrawal requests by exchange
 func GetEventsByExchange(exchange string, limit int) ([]withdraw.Response, error) {
-	return getMultipleByColumn("exchange", exchange, limit)
+	return getByColumns([]string{"exchange"}, []string{exchange}, 1)
 }
 
 // GetEventByExchangeID return requested withdraw information by Exchange ID
 func GetEventByExchangeID(exchange, id string, limit int) (*withdraw.Response, error) {
-	resp, err := getMultipleByColumns([]string{"exchange", "exchange_id"}, []string{exchange, id}, 1)
+	resp, err := getByColumns([]string{"exchange", "exchange_id"}, []string{exchange, id}, 1)
 	if err != nil {
 		return nil, err
 	}
 	return &resp[0], nil
 }
-
-func getSingleaByColumn(column, id string) (*withdraw.Response, error) {
-	if database.DB.SQL == nil {
-		return nil, errors.New("database is nil")
-	}
-
-	var resp = &withdraw.Response{}
-	var ctx = context.Background()
-	queryWhere := qm.Where(column+" = ?", id)
-
-	if repository.GetSQLDialect() == database.DBSQLite3 {
-		v, err := modelSQLite.WithdrawalHistories(queryWhere).One(ctx, database.DB.SQL)
-		if err != nil {
-			return nil, err
-		}
-		newUUID, err := uuid.FromString(v.ID)
-		if err != nil {
-			log.Errorf(log.DatabaseMgr, "UUID generation failed with: %v possible data corruption", err)
-		} else {
-			resp.ID = newUUID
-		}
-		resp.Exchange = new(withdraw.ExchangeResponse)
-		resp.Exchange.ID = v.ExchangeID
-		resp.Exchange.Name = v.Exchange
-		resp.Exchange.Status = v.Status
-		resp.RequestDetails = new(withdraw.Request)
-		resp.RequestDetails = &withdraw.Request{
-			Currency:    currency.Code{},
-			Description: v.Description.String,
-			Amount:      v.Amount,
-			Type:        withdraw.RequestType(v.WithdrawType),
-		}
-
-		createdAtTime, err := time.Parse("2006-01-02T15:04:05Z", v.CreatedAt)
-		if err != nil {
-			log.Errorf(log.DatabaseMgr, "time conversion error defaulting to empty time: %v", err)
-			resp.CreatedAt = time.Time{}
-		} else {
-			resp.CreatedAt = createdAtTime.UTC()
-		}
-		updatedAtTime, err := time.Parse("2006-01-02T15:04:05Z", v.UpdatedAt)
-		if err != nil {
-			log.Errorf(log.DatabaseMgr, "time conversion error defaulting to empty time: %v", err)
-			resp.UpdatedAt = time.Time{}
-		} else {
-			resp.UpdatedAt = updatedAtTime.UTC()
-		}
-	} else {
-		v, err := modelPSQL.WithdrawalHistories(queryWhere).One(ctx, database.DB.SQL)
-		if err != nil {
-			return nil, err
-		}
-
-		newUUID, _ := uuid.FromString(v.ID)
-		resp.ID = newUUID
-		resp.Exchange = new(withdraw.ExchangeResponse)
-		resp.Exchange.ID = v.ExchangeID
-		resp.Exchange.Name = v.Exchange
-		resp.Exchange.Status = v.Status
-		resp.RequestDetails = new(withdraw.Request)
-		resp.RequestDetails = &withdraw.Request{
-			Currency:    currency.NewCode(v.Currency),
-			Description: v.Description.String,
-			Amount:      v.Amount,
-			Type:        withdraw.RequestType(v.WithdrawType),
-		}
-		resp.CreatedAt = v.CreatedAt
-		resp.UpdatedAt = v.UpdatedAt
-
-		if withdraw.RequestType(v.WithdrawType) == withdraw.Crypto {
-			resp.RequestDetails.Crypto = new(withdraw.CryptoRequest)
-			x, err := v.WithdrawalCryptoWithdrawalCryptos().One(ctx, database.DB.SQL)
-			if err != nil {
-				return nil, err
-			}
-			resp.RequestDetails.Crypto.Address = x.Address
-			resp.RequestDetails.Crypto.AddressTag = x.AddressTag.String
-			resp.RequestDetails.Crypto.FeeAmount = x.Fee
-		} else {
-			resp.RequestDetails.Fiat = new(withdraw.FiatRequest)
-			x, err := v.WithdrawalFiatWithdrawalFiats().One(ctx, database.DB.SQL)
-			if err != nil {
-				return nil, err
-			}
-			resp.RequestDetails.Fiat.Bank = new(banking.Account)
-			resp.RequestDetails.Fiat.Bank.AccountName = x.BankAccountName
-			resp.RequestDetails.Fiat.Bank.AccountNumber = x.BankAccountNumber
-			resp.RequestDetails.Fiat.Bank.IBAN = x.Iban
-			resp.RequestDetails.Fiat.Bank.SWIFTCode = x.SwiftCode
-			resp.RequestDetails.Fiat.Bank.BSBNumber = x.BSB
-		}
-	}
-	return resp, nil
-}
-
-func getMultipleByColumns(columns, id []string, limit int) ([]withdraw.Response, error) {
+func getByColumns(columns, id []string, limit int) ([]withdraw.Response, error) {
 	if database.DB.SQL == nil {
 		return nil, errors.New("database is nil")
 	}
@@ -311,13 +219,6 @@ func getMultipleByColumns(columns, id []string, limit int) ([]withdraw.Response,
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println(v)
-	} else {
-		v, err := modelPSQL.WithdrawalHistories(queries...).All(ctx, database.DB.SQL)
-		if err != nil {
-			return nil, err
-		}
-
 		for x := range v {
 			var tempResp = withdraw.Response{}
 			newUUID, _ := uuid.FromString(v[x].ID)
@@ -333,24 +234,35 @@ func getMultipleByColumns(columns, id []string, limit int) ([]withdraw.Response,
 				Amount:      v[x].Amount,
 				Type:        withdraw.RequestType(v[x].WithdrawType),
 			}
-			tempResp.CreatedAt = v[x].CreatedAt
-			tempResp.UpdatedAt = v[x].UpdatedAt
-
+			createdAtTime, err := time.Parse("2006-01-02T15:04:05Z", v[x].CreatedAt)
+			if err != nil {
+				log.Errorf(log.DatabaseMgr, "time conversion error defaulting to empty time: %v", err)
+				tempResp.CreatedAt = time.Time{}
+			} else {
+				tempResp.CreatedAt = createdAtTime.UTC()
+			}
+			updatedAtTime, err := time.Parse("2006-01-02T15:04:05Z", v[x].UpdatedAt)
+			if err != nil {
+				log.Errorf(log.DatabaseMgr, "time conversion error defaulting to empty time: %v", err)
+				tempResp.UpdatedAt = time.Time{}
+			} else {
+				tempResp.UpdatedAt = updatedAtTime.UTC()
+			}
 			if withdraw.RequestType(v[x].WithdrawType) == withdraw.Crypto {
-				tempResp.RequestDetails.Crypto = new(withdraw.CryptoRequest)
-				x, err := v[x].WithdrawalCryptoWithdrawalCryptos().One(ctx, database.DB.SQL)
+				x, err := v[x].WithdrawalCryptos().One(ctx, database.DB.SQL)
 				if err != nil {
 					return nil, err
 				}
+				tempResp.RequestDetails.Crypto = new(withdraw.CryptoRequest)
 				tempResp.RequestDetails.Crypto.Address = x.Address
 				tempResp.RequestDetails.Crypto.AddressTag = x.AddressTag.String
 				tempResp.RequestDetails.Crypto.FeeAmount = x.Fee
-			} else if withdraw.RequestType(v[x].WithdrawType) == withdraw.Fiat {
-				tempResp.RequestDetails.Fiat = new(withdraw.FiatRequest)
-				x, err := v[x].WithdrawalFiatWithdrawalFiats().One(ctx, database.DB.SQL)
+			} else {
+				x, err := v[x].WithdrawalFiats().One(ctx, database.DB.SQL)
 				if err != nil {
 					return nil, err
 				}
+				tempResp.RequestDetails.Fiat = new(withdraw.FiatRequest)
 				tempResp.RequestDetails.Fiat.Bank = new(banking.Account)
 				tempResp.RequestDetails.Fiat.Bank.AccountName = x.BankAccountName
 				tempResp.RequestDetails.Fiat.Bank.AccountNumber = x.BankAccountNumber
@@ -360,28 +272,8 @@ func getMultipleByColumns(columns, id []string, limit int) ([]withdraw.Response,
 			}
 			resp = append(resp, tempResp)
 		}
-	}
-	return resp, nil
-}
-
-func getMultipleByColumn(column, id string, limit int) ([]withdraw.Response, error) {
-	if database.DB.SQL == nil {
-		return nil, errors.New("database is nil")
-	}
-
-	var resp []withdraw.Response
-	var ctx = context.Background()
-
-	queryWhere := qm.Where(column+" = ?", id)
-	queryLimit := qm.Limit(limit)
-	if repository.GetSQLDialect() == database.DBSQLite3 {
-		v, err := modelSQLite.WithdrawalHistories(queryWhere, queryLimit).All(ctx, database.DB.SQL)
-		if err != nil {
-			return nil, err
-		}
-		fmt.Println(v)
 	} else {
-		v, err := modelPSQL.WithdrawalHistories(queryWhere, queryLimit).All(ctx, database.DB.SQL)
+		v, err := modelPSQL.WithdrawalHistories(queries...).All(ctx, database.DB.SQL)
 		if err != nil {
 			return nil, err
 		}
