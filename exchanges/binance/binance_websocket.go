@@ -301,7 +301,8 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						Pair: currency.NewPairFromFormattedPairs(t.Symbol, b.GetEnabledPairs(asset.Spot),
 							b.GetPairFormat(asset.Spot, true)),
 					}
-				case "kline_1m":
+				case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
+					"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
 					var kline KlineStream
 					err := json.Unmarshal(rawData, &kline)
 					if err != nil {

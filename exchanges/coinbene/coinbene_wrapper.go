@@ -536,18 +536,13 @@ func (c *Coinbene) GetOrderInfo(orderID string) (order.Detail, error) {
 	if err != nil {
 		return resp, err
 	}
-	var t time.Time
 	resp.Exchange = c.Name
 	resp.ID = orderID
 	resp.Pair = currency.NewPairWithDelimiter(tempResp.BaseAsset,
 		"/",
 		tempResp.QuoteAsset)
-	t, err = time.Parse(time.RFC3339, tempResp.OrderTime)
-	if err != nil {
-		return resp, err
-	}
 	resp.Price = tempResp.OrderPrice
-	resp.Date = t
+	resp.Date = tempResp.OrderTime
 	resp.ExecutedAmount = tempResp.FilledAmount
 	resp.Fee = tempResp.TotalFee
 	return resp, nil
@@ -616,14 +611,7 @@ func (c *Coinbene) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]
 			if strings.EqualFold(tempData[y].OrderType, order.Sell.String()) {
 				tempResp.Side = order.Sell
 			}
-
-			var t time.Time
-			t, err = time.Parse(time.RFC3339, tempData[y].OrderTime)
-			if err != nil {
-				return nil, err
-			}
-
-			tempResp.Date = t
+			tempResp.Date = tempData[y].OrderTime
 			tempResp.Status = order.Status(tempData[y].OrderStatus)
 			tempResp.Price = tempData[y].OrderPrice
 			tempResp.Amount = tempData[y].Amount
@@ -673,14 +661,7 @@ func (c *Coinbene) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]
 			if strings.EqualFold(tempData[y].OrderType, order.Sell.String()) {
 				tempResp.Side = order.Sell
 			}
-
-			var t time.Time
-			t, err = time.Parse(time.RFC3339, tempData[y].OrderTime)
-			if err != nil {
-				return nil, err
-			}
-
-			tempResp.Date = t
+			tempResp.Date = tempData[y].OrderTime
 			tempResp.Status = order.Status(tempData[y].OrderStatus)
 			tempResp.Price = tempData[y].OrderPrice
 			tempResp.Amount = tempData[y].Amount

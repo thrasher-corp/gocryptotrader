@@ -290,14 +290,6 @@ func (o *OKGroup) WsHandleData(respRaw []byte) error {
 	var errorResponse WebsocketErrorResponse
 	err = json.Unmarshal(respRaw, &errorResponse)
 	if err == nil && errorResponse.ErrorCode > 0 {
-		if o.Verbose {
-			log.Debugf(log.ExchangeSys,
-				"WS Error Event: %v Message: %v for %s",
-				errorResponse.Event,
-				errorResponse.Message,
-				o.Name)
-		}
-
 		return fmt.Errorf("%v error - %v message: %s ",
 			o.Name,
 			errorResponse.ErrorCode,
@@ -310,11 +302,8 @@ func (o *OKGroup) WsHandleData(respRaw []byte) error {
 			o.Websocket.SetCanUseAuthenticatedEndpoints(eventResponse.Success)
 		}
 		if o.Verbose {
-			log.Debugf(log.ExchangeSys,
-				"WS Event: %v on Channel: %v for %s",
-				eventResponse.Event,
-				eventResponse.Channel,
-				o.Name)
+			log.Debug(log.ExchangeSys,
+				o.Name+" - "+eventResponse.Event+" on channel: "+eventResponse.Channel)
 		}
 	}
 	return nil
@@ -412,11 +401,6 @@ func (o *OKGroup) wsProcessTickers(respRaw []byte) error {
 			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
 			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
 		}
-		lastUpdated, err := time.Parse(time.RFC3339, response.Data[i].Timestamp)
-		if err != nil {
-			return err
-		}
-
 		o.Websocket.DataHandler <- &ticker.Price{
 			ExchangeName: o.Name,
 			Open:         response.Data[i].Open24h,
@@ -430,7 +414,7 @@ func (o *OKGroup) wsProcessTickers(respRaw []byte) error {
 			Last:         response.Data[i].Last,
 			AssetType:    o.GetAssetTypeFromTableName(response.Table),
 			Pair:         c,
-			LastUpdated:  lastUpdated,
+			LastUpdated:  response.Data[i].Timestamp,
 		}
 	}
 	return nil

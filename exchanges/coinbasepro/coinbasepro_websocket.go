@@ -229,10 +229,8 @@ func statusToStandardStatus(stat string) order.Status {
 		return order.Filled
 	case "match":
 		return order.PartiallyFilled
-	case "change":
+	case "change", "activate":
 		return order.Active
-	case "activate":
-		return order.Rejected
 	default:
 		return order.UnknownStatus
 	}

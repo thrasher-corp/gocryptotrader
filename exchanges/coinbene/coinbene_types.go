@@ -85,20 +85,20 @@ type CancelOrdersResponse struct {
 
 // OrderInfo stores order info
 type OrderInfo struct {
-	OrderID      string  `json:"orderId"`
-	BaseAsset    string  `json:"baseAsset"`
-	QuoteAsset   string  `json:"quoteAsset"`
-	OrderType    string  `json:"orderDirection"`
-	Quantity     float64 `json:"quntity,string"`
-	Amount       float64 `json:"amout,string"`
-	FilledAmount float64 `json:"filledAmount"`
-	TakerRate    float64 `json:"takerFeeRate,string"`
-	MakerRate    float64 `json:"makerFeeRate,string"`
-	AvgPrice     float64 `json:"avgPrice,string"`
-	OrderPrice   float64 `json:"orderPrice,string"`
-	OrderStatus  string  `json:"orderStatus"`
-	OrderTime    string  `json:"orderTime"`
-	TotalFee     float64 `json:"totalFee"`
+	OrderID      string    `json:"orderId"`
+	BaseAsset    string    `json:"baseAsset"`
+	QuoteAsset   string    `json:"quoteAsset"`
+	OrderType    string    `json:"orderDirection"`
+	Quantity     float64   `json:"quntity,string"`
+	Amount       float64   `json:"amout,string"`
+	FilledAmount float64   `json:"filledAmount"`
+	TakerRate    float64   `json:"takerFeeRate,string"`
+	MakerRate    float64   `json:"makerFeeRate,string"`
+	AvgPrice     float64   `json:"avgPrice,string"`
+	OrderPrice   float64   `json:"orderPrice,string"`
+	OrderStatus  string    `json:"orderStatus"`
+	OrderTime    time.Time `json:"orderTime"`
+	TotalFee     float64   `json:"totalFee"`
 }
 
 // OrderFills stores the fill info
@@ -193,22 +193,22 @@ type WsPosition struct {
 
 // WsOrderData stores websocket user order data
 type WsOrderData struct {
-	OrderID          string  `json:"orderId"`
-	Direction        string  `json:"direction"`
-	Leverage         string  `json:"leverage"`
-	Symbol           string  `json:"symbol"`
-	OrderType        string  `json:"orderType"`
-	Quantity         float64 `json:"quantity,string"`
-	OrderPrice       float64 `json:"orderPrice,string"`
-	OrderValue       float64 `json:"orderValue,string"`
-	Fee              float64 `json:"fee,string"`
-	FilledQuantity   float64 `json:"filledQuantity,string"`
-	AveragePrice     float64 `json:"averagePrice,string"`
-	OrderTime        string  `json:"orderTime"`
-	Status           string  `json:"status"`
-	LastFillQuantity float64 `json:"lastFillQuantity,string"`
-	LastFillPrice    float64 `json:"lastFillPrice,string"`
-	LastFillTime     string  `json:"lastFillTime"`
+	OrderID          string    `json:"orderId"`
+	Direction        string    `json:"direction"`
+	Leverage         string    `json:"leverage"`
+	Symbol           string    `json:"symbol"`
+	OrderType        string    `json:"orderType"`
+	Quantity         float64   `json:"quantity,string"`
+	OrderPrice       float64   `json:"orderPrice,string"`
+	OrderValue       float64   `json:"orderValue,string"`
+	Fee              float64   `json:"fee,string"`
+	FilledQuantity   float64   `json:"filledQuantity,string"`
+	AveragePrice     float64   `json:"averagePrice,string"`
+	OrderTime        time.Time `json:"orderTime"`
+	Status           string    `json:"status"`
+	LastFillQuantity float64   `json:"lastFillQuantity,string"`
+	LastFillPrice    float64   `json:"lastFillPrice,string"`
+	LastFillTime     string    `json:"lastFillTime"`
 }
 
 // WsUserOrders stores websocket user orders' data
@@ -264,12 +264,12 @@ type SwapTrades []SwapTrade
 
 // SwapAccountInfo returns the swap account balance info
 type SwapAccountInfo struct {
-	AvailableBalance float64 `json:"availableBalance,string"`
-	FrozenBalance    float64 `json:"frozenBalance,string"`
-	MarginBalance    float64 `json:"marginBalance,string"`
-	MarginRate       float64 `json:"marginRate,string"`
-	Balance          float64 `json:"balance,string"`
-	UnrealisedPNL    float64 `json:"unrealisedPnl,string"`
+	AvailableBalance        float64 `json:"availableBalance,string"`
+	FrozenBalance           float64 `json:"frozenBalance,string"`
+	MarginBalance           float64 `json:"marginBalance,string"`
+	MarginRate              float64 `json:"marginRate,string"`
+	Balance                 float64 `json:"balance,string"`
+	UnrealisedProfitAndLoss float64 `json:"unrealisedPnl,string"`
 }
 
 // SwapPosition stores a single swap position's data
@@ -305,7 +305,7 @@ type SwapOrder struct {
 	Direction      string    `json:"direction"`
 	Leverage       int       `json:"leverage,string"`
 	OrderType      string    `json:"orderType"`
-	Quantitity     float64   `json:"quantity,string"`
+	Quantity       float64   `json:"quantity,string"`
 	OrderPrice     float64   `json:"orderPrice,string"`
 	OrderValue     float64   `json:"orderValue,string"`
 	Fee            float64   `json:"fee"`

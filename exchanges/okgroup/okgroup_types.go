@@ -1315,19 +1315,19 @@ type WebsocketDataResponse struct {
 type WebsocketTickerData struct {
 	Table string `json:"table"`
 	Data  []struct {
-		BaseVolume24h  float64 `json:"base_volume_24h,string"`
-		BestAsk        float64 `json:"best_ask,string"`
-		BestAskSize    float64 `json:"best_ask_size,string"`
-		BestBid        float64 `json:"best_bid,string"`
-		BestBidSize    float64 `json:"best_bid_size,string"`
-		High24h        float64 `json:"high_24h,string"`
-		InstrumentID   string  `json:"instrument_id"`
-		Last           float64 `json:"last,string"`
-		LastQty        float64 `json:"last_qty,string"`
-		Low24h         float64 `json:"low_24h,string"`
-		Open24h        float64 `json:"open_24h,string"`
-		QuoteVolume24h float64 `json:"quote_volume_24h,string"`
-		Timestamp      string  `json:"timestamp"`
+		BaseVolume24h  float64   `json:"base_volume_24h,string"`
+		BestAsk        float64   `json:"best_ask,string"`
+		BestAskSize    float64   `json:"best_ask_size,string"`
+		BestBid        float64   `json:"best_bid,string"`
+		BestBidSize    float64   `json:"best_bid_size,string"`
+		High24h        float64   `json:"high_24h,string"`
+		InstrumentID   string    `json:"instrument_id"`
+		Last           float64   `json:"last,string"`
+		LastQty        float64   `json:"last_qty,string"`
+		Low24h         float64   `json:"low_24h,string"`
+		Open24h        float64   `json:"open_24h,string"`
+		QuoteVolume24h float64   `json:"quote_volume_24h,string"`
+		Timestamp      time.Time `json:"timestamp"`
 	} `json:"data"`
 }
 
@@ -1393,25 +1393,25 @@ type WebsocketUserSwapPositionHoldingData struct {
 type WebsocketSpotOrderResponse struct {
 	Table string `json:"table"`
 	Data  []struct {
-		ClientOid      string `json:"client_oid"`
-		CreatedAt      string `json:"created_at"`
-		FilledNotional string `json:"filled_notional"`
-		FilledSize     string `json:"filled_size"`
-		InstrumentID   string `json:"instrument_id"`
-		LastFillPx     string `json:"last_fill_px"`
-		LastFillQty    string `json:"last_fill_qty"`
-		LastFillTime   string `json:"last_fill_time"`
-		MarginTrading  string `json:"margin_trading"`
-		Notional       string `json:"notional"`
-		OrderID        string `json:"order_id"`
-		OrderType      string `json:"order_type"`
-		Price          string `json:"price"`
-		Side           string `json:"side"`
-		Size           string `json:"size"`
-		State          string `json:"state"`
-		Status         string `json:"status"`
-		Timestamp      string `json:"timestamp"`
-		Type           string `json:"type"`
+		ClientOid      string    `json:"client_oid"`
+		CreatedAt      string    `json:"created_at"`
+		FilledNotional string    `json:"filled_notional"`
+		FilledSize     string    `json:"filled_size"`
+		InstrumentID   string    `json:"instrument_id"`
+		LastFillPx     string    `json:"last_fill_px"`
+		LastFillQty    string    `json:"last_fill_qty"`
+		LastFillTime   string    `json:"last_fill_time"`
+		MarginTrading  string    `json:"margin_trading"`
+		Notional       string    `json:"notional"`
+		OrderID        string    `json:"order_id"`
+		OrderType      string    `json:"order_type"`
+		Price          string    `json:"price"`
+		Side           string    `json:"side"`
+		Size           string    `json:"size"`
+		State          string    `json:"state"`
+		Status         string    `json:"status"`
+		Timestamp      time.Time `json:"timestamp"`
+		Type           string    `json:"type"`
 	} `json:"data"`
 }
 

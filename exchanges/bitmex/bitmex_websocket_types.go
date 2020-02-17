@@ -1,5 +1,7 @@
 package bitmex
 
+import "time"
+
 // WebsocketRequest is the main request type
 type WebsocketRequest struct {
 	Command   string        `json:"op"`
@@ -103,53 +105,53 @@ type WsOrderResponse struct {
 
 // OrderInsert
 type OrderInsert struct {
-	WorkingIndicator      bool    `json:"workingIndicator"`
-	Account               int64   `json:"account"`
-	AvgPx                 float64 `json:"avgPx"`
-	Commission            float64 `json:"commission"`
-	CumQty                float64 `json:"cumQty"`
-	DisplayQuantity       float64 `json:"displayQty"`
-	ExecComm              float64 `json:"execComm"`
-	ExecCost              float64 `json:"execCost"`
-	ForeignNotional       float64 `json:"foreignNotional"`
-	HomeNotional          float64 `json:"homeNotional"`
-	LastPx                float64 `json:"lastPx"`
-	LastQty               float64 `json:"lastQty"`
-	LeavesQty             float64 `json:"leavesQty"`
-	OrderQty              float64 `json:"orderQty"`
-	PegOffsetValue        float64 `json:"pegOffsetValue"`
-	Price                 float64 `json:"price"`
-	SimpleCumQty          float64 `json:"simpleCumQty"`
-	SimpleLeavesQty       float64 `json:"simpleLeavesQty"`
-	SimpleOrderQty        float64 `json:"simpleOrderQty"`
-	StopPx                float64 `json:"stopPx"`
-	ExDestination         string  `json:"exDestination"`
-	ContingencyType       string  `json:"contingencyType"`
-	Currency              string  `json:"currency"`
-	ExecID                string  `json:"execID"`
-	ExecInst              string  `json:"execInst"`
-	ExecType              string  `json:"execType"`
-	LastLiquidityInd      string  `json:"lastLiquidityInd"`
-	LastMkt               string  `json:"lastMkt"`
-	UnderlyingLastPx      float64 `json:"underlyingLastPx"`
-	MultiLegReportingType string  `json:"multiLegReportingType"`
-	OrdRejReason          string  `json:"ordRejReason"`
-	OrdStatus             string  `json:"ordStatus"`
-	OrdType               string  `json:"ordType"`
-	OrderID               string  `json:"orderID"`
-	PegPriceType          string  `json:"pegPriceType"`
-	ClOrdID               string  `json:"clOrdID"`
-	ClOrdLinkID           string  `json:"clOrdLinkID"`
-	Symbol                string  `json:"symbol"`
-	Text                  string  `json:"text"`
-	TimeInForce           string  `json:"timeInForce"`
-	Timestamp             string  `json:"timestamp"`
-	TradePublishIndicator string  `json:"tradePublishIndicator"`
-	TransactTime          string  `json:"transactTime"`
-	TrdMatchID            string  `json:"trdMatchID"`
-	Triggered             string  `json:"triggered"`
-	SettlCurrency         string  `json:"settlCurrency"`
-	Side                  string  `json:"side"`
+	WorkingIndicator      bool      `json:"workingIndicator"`
+	Account               int64     `json:"account"`
+	AveragePrice          float64   `json:"avgPx"`
+	Commission            float64   `json:"commission"`
+	FilledQuantity        float64   `json:"cumQty"`
+	DisplayQuantity       float64   `json:"displayQty"`
+	ExecComm              float64   `json:"execComm"`
+	ExecCost              float64   `json:"execCost"`
+	ForeignNotional       float64   `json:"foreignNotional"`
+	HomeNotional          float64   `json:"homeNotional"`
+	LastPrice             float64   `json:"lastPx"`
+	LastQuantity          float64   `json:"lastQty"`
+	LeavesQuantity        float64   `json:"leavesQty"`
+	OrderQuantity         float64   `json:"orderQty"`
+	PegOffsetValue        float64   `json:"pegOffsetValue"`
+	Price                 float64   `json:"price"`
+	SimpleFilledQuantity  float64   `json:"simpleCumQty"`
+	SimpleLeavesQuantity  float64   `json:"simpleLeavesQty"`
+	SimpleOrderQuantity   float64   `json:"simpleOrderQty"`
+	StopPrice             float64   `json:"stopPx"`
+	ExDestination         string    `json:"exDestination"`
+	ContingencyType       string    `json:"contingencyType"`
+	Currency              string    `json:"currency"`
+	ExecutionID           string    `json:"execID"`
+	ExecutionInstance     string    `json:"execInst"`
+	ExecutionType         string    `json:"execType"`
+	LastLiquidityInd      string    `json:"lastLiquidityInd"`
+	LastMkt               string    `json:"lastMkt"`
+	UnderlyingLastPrice   float64   `json:"underlyingLastPx"`
+	MultiLegReportingType string    `json:"multiLegReportingType"`
+	OrderRejectedReason   string    `json:"ordRejReason"`
+	OrderStatus           string    `json:"ordStatus"`
+	OrderType             string    `json:"ordType"`
+	OrderID               string    `json:"orderID"`
+	PegPriceType          string    `json:"pegPriceType"`
+	ClientOrderID         string    `json:"clOrdID"`
+	ClientOrderLinkID     string    `json:"clOrdLinkID"`
+	Symbol                string    `json:"symbol"`
+	Text                  string    `json:"text"`
+	TimeInForce           string    `json:"timeInForce"`
+	Timestamp             time.Time `json:"timestamp"`
+	TradePublishIndicator string    `json:"tradePublishIndicator"`
+	TransactTime          time.Time `json:"transactTime"`
+	TradingMatchID        string    `json:"trdMatchID"`
+	Triggered             string    `json:"triggered"`
+	SettleCurrency        string    `json:"settlCurrency"`
+	Side                  string    `json:"side"`
 }
 
 // WsOrderResponseAttributes private api data
@@ -183,8 +185,8 @@ type WsTransactResponse struct {
 
 // WsTransactResponseAttributes private api data
 type WsTransactResponseAttributes struct {
-	TransactID   string `json:"transactID"`
-	TransactTime string `json:"transactTime"`
+	TransactID   string    `json:"transactID"`
+	TransactTime time.Time `json:"transactTime"`
 }
 
 // WsTransactResponseFilter private api data
@@ -216,7 +218,7 @@ type WsWalletResponseData struct {
 	PrevTransferIn   float64       `json:"prevTransferIn"`
 	PrevTransferOut  float64       `json:"prevTransferOut"`
 	PrevAmount       float64       `json:"prevAmount"`
-	PrevTimestamp    string        `json:"prevTimestamp"`
+	PrevTimestamp    time.Time     `json:"prevTimestamp"`
 	DeltaDeposited   float64       `json:"deltaDeposited"`
 	DeltaWithdrawn   float64       `json:"deltaWithdrawn"`
 	DeltaTransferIn  float64       `json:"deltaTransferIn"`
@@ -230,7 +232,7 @@ type WsWalletResponseData struct {
 	PendingCredit    float64       `json:"pendingCredit"`
 	PendingDebit     float64       `json:"pendingDebit"`
 	ConfirmedDebit   int64         `json:"confirmedDebit"`
-	Timestamp        string        `json:"timestamp"`
+	Timestamp        time.Time     `json:"timestamp"`
 	Addr             string        `json:"addr"`
 	Script           string        `json:"script"`
 	WithdrawalLock   []interface{} `json:"withdrawalLock"`
@@ -251,61 +253,61 @@ type WsExecutionResponse struct {
 }
 
 type wsExecutionData struct {
-	WorkingIndicator      bool    `json:"workingIndicator"`
-	Account               int64   `json:"account"`
-	AvgPx                 float64 `json:"avgPx"`
-	Commission            float64 `json:"commission"`
-	CumQty                float64 `json:"cumQty"`
-	DisplayQuantity       float64 `json:"displayQty"`
-	ExecComm              float64 `json:"execComm"`
-	ExecCost              float64 `json:"execCost"`
-	ForeignNotional       float64 `json:"foreignNotional"`
-	HomeNotional          float64 `json:"homeNotional"`
-	LastPx                float64 `json:"lastPx"`
-	LastQty               float64 `json:"lastQty"`
-	LeavesQty             float64 `json:"leavesQty"`
-	OrderQty              float64 `json:"orderQty"`
-	PegOffsetValue        float64 `json:"pegOffsetValue"`
-	Price                 float64 `json:"price"`
-	SimpleCumQty          float64 `json:"simpleCumQty"`
-	SimpleLeavesQty       float64 `json:"simpleLeavesQty"`
-	SimpleOrderQty        float64 `json:"simpleOrderQty"`
-	StopPx                float64 `json:"stopPx"`
-	UnderlyingLastPx      float64 `json:"underlyingLastPx"`
-	PegPriceType          string  `json:"pegPriceType"`
-	Symbol                string  `json:"symbol"`
-	Text                  string  `json:"text"`
-	TimeInForce           string  `json:"timeInForce"`
-	Timestamp             string  `json:"timestamp"`
-	TradePublishIndicator string  `json:"tradePublishIndicator"`
-	TransactTime          string  `json:"transactTime"`
-	TrdMatchID            string  `json:"trdMatchID"`
-	Triggered             string  `json:"triggered"`
-	ClOrdID               string  `json:"clOrdID"`
-	ClOrdLinkID           string  `json:"clOrdLinkID"`
-	SettlCurrency         string  `json:"settlCurrency"`
-	Side                  string  `json:"side"`
-	MultiLegReportingType string  `json:"multiLegReportingType"`
-	OrdRejReason          string  `json:"ordRejReason"`
-	OrdStatus             string  `json:"ordStatus"`
-	OrdType               string  `json:"ordType"`
-	OrderID               string  `json:"orderID"`
-	LastLiquidityInd      string  `json:"lastLiquidityInd"`
-	LastMkt               string  `json:"lastMkt"`
-	ExecID                string  `json:"execID"`
-	ExecInst              string  `json:"execInst"`
-	ExecType              string  `json:"execType"`
-	ExDestination         string  `json:"exDestination"`
-	Currency              string  `json:"currency"`
-	ContingencyType       string  `json:"contingencyType"`
+	WorkingIndicator      bool      `json:"workingIndicator"`
+	Account               int64     `json:"account"`
+	AvgPx                 float64   `json:"avgPx"`
+	Commission            float64   `json:"commission"`
+	FilledQuantity        float64   `json:"cumQty"`
+	DisplayQuantity       float64   `json:"displayQty"`
+	ExecComm              float64   `json:"execComm"`
+	ExecCost              float64   `json:"execCost"`
+	ForeignNotional       float64   `json:"foreignNotional"`
+	HomeNotional          float64   `json:"homeNotional"`
+	LastPx                float64   `json:"lastPx"`
+	LastQuantity          float64   `json:"lastQty"`
+	LeavesQuantity        float64   `json:"leavesQty"`
+	OrderQuantity         float64   `json:"orderQty"`
+	PegOffsetValue        float64   `json:"pegOffsetValue"`
+	Price                 float64   `json:"price"`
+	SimpleFilledQuantity  float64   `json:"simpleCumQty"`
+	SimpleLeavesQuantity  float64   `json:"simpleLeavesQty"`
+	SimpleOrderQuantity   float64   `json:"simpleOrderQty"`
+	StopPx                float64   `json:"stopPx"`
+	UnderlyingLastPx      float64   `json:"underlyingLastPx"`
+	PegPriceType          string    `json:"pegPriceType"`
+	Symbol                string    `json:"symbol"`
+	Text                  string    `json:"text"`
+	TimeInForce           string    `json:"timeInForce"`
+	Timestamp             time.Time `json:"timestamp"`
+	TradePublishIndicator string    `json:"tradePublishIndicator"`
+	TransactTime          time.Time `json:"transactTime"`
+	TrdMatchID            string    `json:"trdMatchID"`
+	Triggered             string    `json:"triggered"`
+	ClOrdID               string    `json:"clOrdID"`
+	ClOrdLinkID           string    `json:"clOrdLinkID"`
+	SettlCurrency         string    `json:"settlCurrency"`
+	Side                  string    `json:"side"`
+	MultiLegReportingType string    `json:"multiLegReportingType"`
+	OrdRejReason          string    `json:"ordRejReason"`
+	OrdStatus             string    `json:"ordStatus"`
+	OrdType               string    `json:"ordType"`
+	OrderID               string    `json:"orderID"`
+	LastLiquidityInd      string    `json:"lastLiquidityInd"`
+	LastMkt               string    `json:"lastMkt"`
+	ExecID                string    `json:"execID"`
+	ExecInst              string    `json:"execInst"`
+	ExecType              string    `json:"execType"`
+	ExDestination         string    `json:"exDestination"`
+	Currency              string    `json:"currency"`
+	ContingencyType       string    `json:"contingencyType"`
 }
 
 // WsExecutionResponseAttributes private api data
 type WsExecutionResponseAttributes struct {
-	ExecID       string `json:"execID"`
-	Account      string `json:"account"`
-	ExecType     string `json:"execType"`
-	TransactTime string `json:"transactTime"`
+	ExecID       string    `json:"execID"`
+	Account      string    `json:"account"`
+	ExecType     string    `json:"execType"`
+	TransactTime time.Time `json:"transactTime"`
 }
 
 // WsExecutionResponseFilter private api data
@@ -384,7 +386,7 @@ type WsMarginResponseData struct {
 	ExcessMarginPcnt   float64     `json:"excessMarginPcnt"`
 	AvailableMargin    float64     `json:"availableMargin"`
 	WithdrawableMargin float64     `json:"withdrawableMargin"`
-	Timestamp          string      `json:"timestamp"`
+	Timestamp          time.Time   `json:"timestamp"`
 	GrossLastValue     float64     `json:"grossLastValue"`
 	Commission         interface{} `json:"commission"`
 }
@@ -404,54 +406,54 @@ type WsPositionResponse struct {
 }
 
 type wsPositionData struct {
-	IsOpen               bool    `json:"isOpen"`
-	Account              int64   `json:"account"`
-	CurrentQty           float64 `json:"currentQty"`
-	HomeNotional         float64 `json:"homeNotional"`
-	LiquidationPrice     float64 `json:"liquidationPrice"`
-	MaintMargin          float64 `json:"maintMargin"`
-	MarkPrice            float64 `json:"markPrice"`
-	MarkValue            float64 `json:"markValue"`
-	RiskValue            float64 `json:"riskValue"`
-	SimpleQty            float64 `json:"simpleQty"`
-	UnrealisedGrossPnl   float64 `json:"unrealisedGrossPnl"`
-	UnrealisedPnl        float64 `json:"unrealisedPnl"`
-	UnrealisedPnlPcnt    float64 `json:"unrealisedPnlPcnt"`
-	UnrealisedRoePcnt    float64 `json:"unrealisedRoePcnt"`
-	BankruptPrice        float64 `json:"bankruptPrice"`
-	AvgCostPrice         float64 `json:"avgCostPrice"`
-	AvgEntryPrice        float64 `json:"avgEntryPrice"`
-	BreakEvenPrice       float64 `json:"breakEvenPrice"`
-	CurrentComm          float64 `json:"currentComm"`
-	CurrentCost          float64 `json:"currentCost"`
-	DeleveragePercentile float64 `json:"deleveragePercentile"`
-	ExecComm             float64 `json:"execComm"`
-	ExecCost             float64 `json:"execCost"`
-	ExecQty              float64 `json:"execQty"`
-	ExecSellCost         float64 `json:"execSellCost"`
-	ExecSellQty          float64 `json:"execSellQty"`
-	ForeignNotional      float64 `json:"foreignNotional"`
-	GrossExecCost        float64 `json:"grossExecCost"`
-	MarginCallPrice      float64 `json:"marginCallPrice"`
-	PosComm              float64 `json:"posComm"`
-	PosCost              float64 `json:"posCost"`
-	PosCost2             float64 `json:"posCost2"`
-	PosInit              float64 `json:"posInit"`
-	PosMaint             float64 `json:"posMaint"`
-	PosMargin            float64 `json:"posMargin"`
-	PrevRealisedPnl      float64 `json:"prevRealisedPnl"`
-	RealisedCost         float64 `json:"realisedCost"`
-	RealisedGrossPnl     float64 `json:"realisedGrossPnl"`
-	RealisedPnl          float64 `json:"realisedPnl"`
-	RebalancedPnl        float64 `json:"rebalancedPnl"`
-	SimpleCost           float64 `json:"simpleCost"`
-	SimpleValue          float64 `json:"simpleValue"`
-	UnrealisedCost       float64 `json:"unrealisedCost"`
-	Currency             string  `json:"currency"`
-	CurrentTimestamp     string  `json:"currentTimestamp"`
-	Symbol               string  `json:"symbol"`
-	Timestamp            string  `json:"timestamp"`
-	PosState             string  `json:"posState"`
+	IsOpen               bool      `json:"isOpen"`
+	Account              int64     `json:"account"`
+	CurrentQuantity      float64   `json:"currentQty"`
+	HomeNotional         float64   `json:"homeNotional"`
+	LiquidationPrice     float64   `json:"liquidationPrice"`
+	MaintMargin          float64   `json:"maintMargin"`
+	MarkPrice            float64   `json:"markPrice"`
+	MarkValue            float64   `json:"markValue"`
+	RiskValue            float64   `json:"riskValue"`
+	SimpleQuantity       float64   `json:"simpleQty"`
+	UnrealisedGrossPnl   float64   `json:"unrealisedGrossPnl"`
+	UnrealisedPnl        float64   `json:"unrealisedPnl"`
+	UnrealisedPnlPcnt    float64   `json:"unrealisedPnlPcnt"`
+	UnrealisedRoePcnt    float64   `json:"unrealisedRoePcnt"`
+	BankruptPrice        float64   `json:"bankruptPrice"`
+	AvgCostPrice         float64   `json:"avgCostPrice"`
+	AvgEntryPrice        float64   `json:"avgEntryPrice"`
+	BreakEvenPrice       float64   `json:"breakEvenPrice"`
+	CurrentComm          float64   `json:"currentComm"`
+	CurrentCost          float64   `json:"currentCost"`
+	DeleveragePercentile float64   `json:"deleveragePercentile"`
+	ExecComm             float64   `json:"execComm"`
+	ExecCost             float64   `json:"execCost"`
+	ExecQuantity         float64   `json:"execQty"`
+	ExecSellCost         float64   `json:"execSellCost"`
+	ExecSellQuantity     float64   `json:"execSellQty"`
+	ForeignNotional      float64   `json:"foreignNotional"`
+	GrossExecCost        float64   `json:"grossExecCost"`
+	MarginCallPrice      float64   `json:"marginCallPrice"`
+	PosComm              float64   `json:"posComm"`
+	PosCost              float64   `json:"posCost"`
+	PosCost2             float64   `json:"posCost2"`
+	PosInit              float64   `json:"posInit"`
+	PosMaint             float64   `json:"posMaint"`
+	PosMargin            float64   `json:"posMargin"`
+	PrevRealisedPnl      float64   `json:"prevRealisedPnl"`
+	RealisedCost         float64   `json:"realisedCost"`
+	RealisedGrossPnl     float64   `json:"realisedGrossPnl"`
+	RealisedPnl          float64   `json:"realisedPnl"`
+	RebalancedPnl        float64   `json:"rebalancedPnl"`
+	SimpleCost           float64   `json:"simpleCost"`
+	SimpleValue          float64   `json:"simpleValue"`
+	UnrealisedCost       float64   `json:"unrealisedCost"`
+	Currency             string    `json:"currency"`
+	CurrentTimestamp     time.Time `json:"currentTimestamp"`
+	Symbol               string    `json:"symbol"`
+	Timestamp            time.Time `json:"timestamp"`
+	PosState             string    `json:"posState"`
 }
 
 // WsPositionResponseAttributes private api data

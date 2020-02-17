@@ -27,6 +27,7 @@ const (
 	hitbtcWebsocketAddress = "wss://api.hitbtc.com/api/2/ws"
 	rpcVersion             = "2.0"
 	rateLimit              = 20
+	errAuthFailed          = 1002
 )
 
 var requestID nonce.Nonce
@@ -86,7 +87,7 @@ func (h *HitBTC) wsGetTableName(respRaw []byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if init.Error.Code == 1002 {
+	if init.Error.Code == errAuthFailed {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	if init.ID > 0 {
@@ -146,10 +147,6 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		ts, err := time.Parse(time.RFC3339, wsTicker.Params.Timestamp)
-		if err != nil {
-			return err
-		}
 		h.Websocket.DataHandler <- &ticker.Price{
 			ExchangeName: h.Name,
 			Open:         wsTicker.Params.Open,
@@ -160,7 +157,7 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 			Bid:          wsTicker.Params.Bid,
 			Ask:          wsTicker.Params.Ask,
 			Last:         wsTicker.Params.Last,
-			LastUpdated:  ts,
+			LastUpdated:  wsTicker.Params.Timestamp,
 			AssetType:    asset.Spot,
 			Pair: currency.NewPairFromFormattedPairs(wsTicker.Params.Symbol,
 				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),

@@ -117,7 +117,7 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 	}
 	if data, ok := result.([]interface{}); ok {
 		if len(data) == 0 {
-			return errors.New("c'mon man, no data")
+			return nil
 		}
 		if len(data) == 1 {
 			// heartbeat

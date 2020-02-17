@@ -435,10 +435,10 @@ func (b *Bitmex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 
 	var orderNewParams = OrderNewParams{
-		OrdType:  s.Side.String(),
-		Symbol:   s.Pair.String(),
-		OrderQty: s.Amount,
-		Side:     s.Side.String(),
+		OrderType:     s.Side.String(),
+		Symbol:        s.Pair.String(),
+		OrderQuantity: s.Amount,
+		Side:          s.Side.String(),
 	}
 
 	if s.Type == order.Limit {

@@ -216,7 +216,7 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		}
 		for k, v := range instList.Spot {
 			for _, v2 := range v {
-				c.instrumentMap.Seed(k, v2.InstID)
+				c.instrumentMap.Seed(k, v2.InstrumentID)
 			}
 		}
 	case "inst_tick":
@@ -349,7 +349,7 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 		}
 	}
 
-	oStatus := stringToStatus(oContainer.Reply, oContainer.OpenQty)
+	oStatus := stringToStatus(oContainer.Reply, oContainer.OpenQuantity)
 	if oContainer.Status[0] != "OK" {
 		return nil, fmt.Errorf("%s - Order rejected: %v", c.Name, oContainer.Status)
 	}
@@ -358,9 +358,9 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 	}
 	o := &order.Detail{
 		Price:           oContainer.Price,
-		Amount:          oContainer.Qty,
-		ExecutedAmount:  oContainer.FillQty,
-		RemainingAmount: oContainer.OpenQty,
+		Amount:          oContainer.Quantity,
+		ExecutedAmount:  oContainer.FillQuantity,
+		RemainingAmount: oContainer.OpenQuantity,
 		Exchange:        c.Name,
 		ID:              strconv.FormatInt(oContainer.OrderID, 10),
 		Side:            oSide,
@@ -374,23 +374,23 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 		if err != nil {
 			return nil, err
 		}
-		o.RemainingAmount = oContainer.Order.OpenQty
-		o.Amount = oContainer.Order.Qty
+		o.RemainingAmount = oContainer.Order.OpenQuantity
+		o.Amount = oContainer.Order.Quantity
 		o.ID = strconv.FormatInt(oContainer.Order.OrderID, 10)
 		o.LastUpdated = time.Unix(0, oContainer.Timestamp)
-		o.Pair = currency.NewPairFromString(c.instrumentMap.LookupInstrument(oContainer.Order.InstID))
+		o.Pair = currency.NewPairFromString(c.instrumentMap.LookupInstrument(oContainer.Order.InstrumentID))
 		o.Trades = []order.TradeHistory{
 			{
 				Price:     oContainer.FillPrice,
-				Amount:    oContainer.FillQty,
+				Amount:    oContainer.FillQuantity,
 				Exchange:  c.Name,
-				TID:       strconv.FormatInt(oContainer.TransID, 10),
+				TID:       strconv.FormatInt(oContainer.TransactionID, 10),
 				Side:      oSide,
 				Timestamp: time.Unix(0, oContainer.Timestamp),
 			},
 		}
 	} else {
-		o.Pair = currency.NewPairFromString(c.instrumentMap.LookupInstrument(oContainer.InstID))
+		o.Pair = currency.NewPairFromString(c.instrumentMap.LookupInstrument(oContainer.InstrumentID))
 	}
 	return o, nil
 }
@@ -399,9 +399,9 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 func (c *COINUT) WsGetInstruments() (Instruments, error) {
 	var list Instruments
 	request := wsRequest{
-		Request: "inst_list",
-		SecType: strings.ToUpper(asset.Spot.String()),
-		Nonce:   getNonce(),
+		Request:      "inst_list",
+		SecurityType: strings.ToUpper(asset.Spot.String()),
+		Nonce:        getNonce(),
 	}
 	resp, err := c.WebsocketConn.SendMessageReturnResponse(request.Nonce, request)
 	if err != nil {
@@ -412,7 +412,7 @@ func (c *COINUT) WsGetInstruments() (Instruments, error) {
 		return list, err
 	}
 	for curr, data := range list.Instruments {
-		c.instrumentMap.Seed(curr, data[0].InstID)
+		c.instrumentMap.Seed(curr, data[0].InstrumentID)
 	}
 	if len(c.instrumentMap.GetInstrumentIDs()) == 0 {
 		return list, errors.New("instrument list failed to populate")
@@ -492,7 +492,7 @@ func (c *COINUT) GenerateDefaultSubscriptions() {
 func (c *COINUT) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	subscribe := wsRequest{
 		Request: channelToSubscribe.Channel,
-		InstID: c.instrumentMap.LookupID(c.FormatExchangeCurrency(channelToSubscribe.Currency,
+		InstrumentID: c.instrumentMap.LookupID(c.FormatExchangeCurrency(channelToSubscribe.Currency,
 			asset.Spot).String()),
 		Subscribe: true,
 		Nonce:     getNonce(),
@@ -504,7 +504,7 @@ func (c *COINUT) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 func (c *COINUT) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	subscribe := wsRequest{
 		Request: channelToSubscribe.Channel,
-		InstID: c.instrumentMap.LookupID(c.FormatExchangeCurrency(channelToSubscribe.Currency,
+		InstrumentID: c.instrumentMap.LookupID(c.FormatExchangeCurrency(channelToSubscribe.Currency,
 			asset.Spot).String()),
 		Subscribe: false,
 		Nonce:     getNonce(),
@@ -596,8 +596,8 @@ func (c *COINUT) wsSubmitOrder(o *WsSubmitOrderParameters) (*order.Detail, error
 	var orderSubmissionRequest WsSubmitOrderRequest
 	orderSubmissionRequest.Request = "new_order"
 	orderSubmissionRequest.Nonce = getNonce()
-	orderSubmissionRequest.InstID = c.instrumentMap.LookupID(curr)
-	orderSubmissionRequest.Qty = o.Amount
+	orderSubmissionRequest.InstrumentID = c.instrumentMap.LookupID(curr)
+	orderSubmissionRequest.Quantity = o.Amount
 	orderSubmissionRequest.Price = o.Price
 	orderSubmissionRequest.Side = string(o.Side)
 
@@ -633,11 +633,11 @@ func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]order.Detai
 		curr := c.FormatExchangeCurrency(orders[i].Currency, asset.Spot).String()
 		orderRequest.Orders = append(orderRequest.Orders,
 			WsSubmitOrdersRequestData{
-				Qty:         orders[i].Amount,
-				Price:       orders[i].Price,
-				Side:        string(orders[i].Side),
-				InstID:      c.instrumentMap.LookupID(curr),
-				ClientOrdID: i + 1,
+				Quantity:      orders[i].Amount,
+				Price:         orders[i].Price,
+				Side:          string(orders[i].Side),
+				InstrumentID:  c.instrumentMap.LookupID(curr),
+				ClientOrderID: i + 1,
 			})
 	}
 
@@ -674,7 +674,7 @@ func (c *COINUT) wsGetOpenOrders(curr string) (*WsUserOpenOrdersResponse, error)
 	var openOrdersRequest WsGetOpenOrdersRequest
 	openOrdersRequest.Request = "user_open_orders"
 	openOrdersRequest.Nonce = getNonce()
-	openOrdersRequest.InstID = c.instrumentMap.LookupID(curr)
+	openOrdersRequest.InstrumentID = c.instrumentMap.LookupID(curr)
 
 	resp, err := c.WebsocketConn.SendMessageReturnResponse(openOrdersRequest.Nonce, openOrdersRequest)
 	if err != nil {
@@ -700,7 +700,7 @@ func (c *COINUT) wsCancelOrder(cancellation *WsCancelOrderParameters) (*CancelOr
 	curr := c.FormatExchangeCurrency(cancellation.Currency, asset.Spot).String()
 	var cancellationRequest WsCancelOrderRequest
 	cancellationRequest.Request = "cancel_order"
-	cancellationRequest.InstID = c.instrumentMap.LookupID(curr)
+	cancellationRequest.InstrumentID = c.instrumentMap.LookupID(curr)
 	cancellationRequest.OrderID = cancellation.OrderID
 	cancellationRequest.Nonce = getNonce()
 

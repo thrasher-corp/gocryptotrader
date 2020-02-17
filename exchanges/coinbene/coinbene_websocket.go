@@ -333,10 +333,6 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			tm, err := time.Parse(time.RFC3339, orders.Data[i].OrderTime)
-			if err != nil {
-				return err
-			}
 			c.Websocket.DataHandler <- &order.Detail{
 				Price:           orders.Data[i].OrderPrice,
 				Amount:          orders.Data[i].Quantity,
@@ -348,7 +344,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				Type:            oType,
 				Status:          oStatus,
 				AssetType:       asset.PerpetualSwap,
-				Date:            tm,
+				Date:            orders.Data[i].OrderTime,
 				Leverage:        orders.Data[i].Leverage,
 				Pair:            currency.NewPairFromString(orders.Data[i].Symbol),
 			}

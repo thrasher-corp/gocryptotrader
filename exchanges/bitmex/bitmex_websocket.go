@@ -215,14 +215,10 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			}
 
 			for i := range trades.Data {
-				var timestamp time.Time
-				timestamp, err = time.Parse(time.RFC3339, trades.Data[i].Timestamp)
-				if err != nil {
-					return err
-				}
 				// TODO: update this to support multiple asset types
 				b.Websocket.DataHandler <- wshandler.TradeData{
-					Timestamp:    timestamp,
+
+					Timestamp:    trades.Data[i].Timestamp,
 					Price:        trades.Data[i].Price,
 					Amount:       float64(trades.Data[i].Size),
 					CurrencyPair: currency.NewPairFromString(trades.Data[i].Symbol),
@@ -278,11 +274,6 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 				if err != nil {
 					return err
 				}
-				var ts time.Time
-				ts, err = time.Parse(time.RFC3339, response.Data[i].Timestamp)
-				if err != nil {
-					return err
-				}
 				b.Websocket.DataHandler <- &order.Modify{
 					Exchange:  b.Name,
 					ID:        response.Data[i].OrderID,
@@ -292,15 +283,13 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 					Status:    oStatus,
 					Trades: []order.TradeHistory{
 						{
-							Price:       response.Data[i].Price,
-							Amount:      response.Data[i].OrderQty,
-							Exchange:    b.Name,
-							TID:         response.Data[i].ExecID,
-							Description: "",
-							Type:        "",
-							Side:        oSide,
-							Timestamp:   ts,
-							IsMaker:     false,
+							Price:     response.Data[i].Price,
+							Amount:    response.Data[i].OrderQuantity,
+							Exchange:  b.Name,
+							TID:       response.Data[i].ExecID,
+							Side:      oSide,
+							Timestamp: response.Data[i].Timestamp,
+							IsMaker:   false,
 						},
 					},
 				}
@@ -320,29 +309,24 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 					if err != nil {
 						return err
 					}
-					var ts time.Time
-					ts, err = time.Parse(time.RFC3339, response.Data[x].TransactTime)
-					if err != nil {
-						return err
-					}
 					var oSide order.Side
 					oSide, err = order.StringToOrderSide(response.Data[x].Side)
 					if err != nil {
 						b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert orderside: " + response.Data[x].Side)
 					}
 					var oType order.Type
-					oType, err = order.StringToOrderType(response.Data[x].OrdType)
+					oType, err = order.StringToOrderType(response.Data[x].OrderType)
 					if err != nil {
-						b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert ordertype: " + response.Data[x].OrdType)
+						b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert ordertype: " + response.Data[x].OrderType)
 					}
 					var oStatus order.Status
-					oStatus, err = order.StringToOrderStatus(response.Data[x].OrdStatus)
+					oStatus, err = order.StringToOrderStatus(response.Data[x].OrderStatus)
 					if err != nil {
 						return err
 					}
 					b.Websocket.DataHandler <- &order.Detail{
 						Price:     response.Data[x].Price,
-						Amount:    response.Data[x].OrderQty,
+						Amount:    response.Data[x].OrderQuantity,
 						Exchange:  b.Name,
 						ID:        response.Data[x].OrderID,
 						AccountID: strconv.FormatInt(response.Data[x].Account, 10),
@@ -350,7 +334,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 						Side:      oSide,
 						Status:    oStatus,
 						AssetType: a,
-						Date:      ts,
+						Date:      response.Data[x].TransactTime,
 						Pair:      p,
 					}
 				}
@@ -362,29 +346,24 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 					if err != nil {
 						return err
 					}
-					var ts time.Time
-					ts, err = time.Parse(time.RFC3339, response.Data[x].TransactTime)
-					if err != nil {
-						return err
-					}
 					var oSide order.Side
 					oSide, err = order.StringToOrderSide(response.Data[x].Side)
 					if err != nil {
 						b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert orderside: " + response.Data[x].Side)
 					}
 					var oType order.Type
-					oType, err = order.StringToOrderType(response.Data[x].OrdType)
+					oType, err = order.StringToOrderType(response.Data[x].OrderType)
 					if err != nil {
-						b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert ordertype: " + response.Data[x].OrdType)
+						b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert ordertype: " + response.Data[x].OrderType)
 					}
 					var oStatus order.Status
-					oStatus, err = order.StringToOrderStatus(response.Data[x].OrdStatus)
+					oStatus, err = order.StringToOrderStatus(response.Data[x].OrderStatus)
 					if err != nil {
 						return err
 					}
 					b.Websocket.DataHandler <- &order.Cancel{
 						Price:     response.Data[x].Price,
-						Amount:    response.Data[x].OrderQty,
+						Amount:    response.Data[x].OrderQuantity,
 						Exchange:  b.Name,
 						ID:        response.Data[x].OrderID,
 						AccountID: strconv.FormatInt(response.Data[x].Account, 10),
@@ -392,7 +371,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 						Side:      oSide,
 						Status:    oStatus,
 						AssetType: a,
-						Date:      ts,
+						Date:      response.Data[x].TransactTime,
 						Pair:      p,
 					}
 				}
@@ -528,7 +507,7 @@ func (b *Bitmex) GenerateDefaultSubscriptions() {
 		}
 	}
 
-	channels := []string{bitmexWSOrderbookL2, bitmexWSTrade}
+	channels := []string{ /*bitmexWSOrderbookL2, */ bitmexWSTrade}
 	subscriptions := []wshandler.WebsocketChannelSubscription{
 		{
 			Channel: bitmexWSAnnouncement,

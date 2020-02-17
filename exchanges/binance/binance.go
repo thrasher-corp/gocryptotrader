@@ -723,7 +723,6 @@ func (b *Binance) MaintainWsAuthStreamKey() error {
 	path = common.EncodeURLValues(path, params)
 	headers := make(map[string]string)
 	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
-	b.Verbose = true
 	return b.SendPayload(&request.Item{
 		Method:        http.MethodPut,
 		Path:          path,

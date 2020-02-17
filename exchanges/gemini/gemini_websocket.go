@@ -303,7 +303,7 @@ func responseToStatus(response string) order.Status {
 		return order.New
 	case "booked":
 		return order.Active
-	case "filled":
+	case "fill":
 		return order.Filled
 	case "cancelled":
 		return order.Cancelled

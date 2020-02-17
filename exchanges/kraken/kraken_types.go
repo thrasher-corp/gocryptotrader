@@ -469,7 +469,7 @@ type WsTokenResponse struct {
 }
 
 type wsSystemStatus struct {
-	ConnectionID int    `json:"connectionID"`
+	ConnectionID int64    `json:"connectionID"`
 	Event        string `json:"event"`
 	Status       string `json:"status"`
 	Version      string `json:"version"`

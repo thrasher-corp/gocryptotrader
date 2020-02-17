@@ -748,7 +748,7 @@ func TestWsPong(t *testing.T) {
 
 func TestWsSystemStatus(t *testing.T) {
 	pressXToJSON := []byte(`{
-  "connectionID": 1333337,
+  "connectionID": 8628615390848610000,
   "event": "systemStatus",
   "status": "online",
   "version": "1.0.0"

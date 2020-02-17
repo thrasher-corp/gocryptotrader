@@ -242,7 +242,7 @@ func (c *COINUT) FetchTradablePairs(asset asset.Item) ([]string, error) {
 	instruments = resp.Instruments
 	var pairs []string
 	for i := range instruments {
-		c.instrumentMap.Seed(instruments[i][0].Base+instruments[i][0].Quote, instruments[i][0].InstID)
+		c.instrumentMap.Seed(instruments[i][0].Base+instruments[i][0].Quote, instruments[i][0].InstrumentID)
 		p := instruments[i][0].Base + c.GetPairFormat(asset, false).Delimiter + instruments[i][0].Quote
 		pairs = append(pairs, p)
 	}
@@ -599,7 +599,7 @@ func (c *COINUT) CancelAllOrders(details *order.Cancel) (order.CancelAllResponse
 		}
 		var ordersToCancel []WsCancelOrderParameters
 		for i := range openOrders.Orders {
-			if openOrders.Orders[i].InstID == c.instrumentMap.LookupID(c.FormatExchangeCurrency(details.Pair, asset.Spot).String()) {
+			if openOrders.Orders[i].InstrumentID == c.instrumentMap.LookupID(c.FormatExchangeCurrency(details.Pair, asset.Spot).String()) {
 				ordersToCancel = append(ordersToCancel, WsCancelOrderParameters{
 					Currency: details.Pair,
 					OrderID:  openOrders.Orders[i].OrderID,
@@ -728,9 +728,9 @@ func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 					Date:            time.Unix(0, openOrders.Orders[i].Timestamp),
 					Status:          order.Active,
 					Price:           openOrders.Orders[i].Price,
-					Amount:          openOrders.Orders[i].Qty,
-					ExecutedAmount:  openOrders.Orders[i].Qty - openOrders.Orders[i].OpenQty,
-					RemainingAmount: openOrders.Orders[i].OpenQty,
+					Amount:          openOrders.Orders[i].Quantity,
+					ExecutedAmount:  openOrders.Orders[i].Quantity - openOrders.Orders[i].OpenQuantity,
+					RemainingAmount: openOrders.Orders[i].OpenQuantity,
 				})
 			}
 		}
@@ -797,7 +797,7 @@ func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 					return allOrders, err
 				}
 				for x := range trades.Trades {
-					curr := c.instrumentMap.LookupInstrument(trades.Trades[x].InstID)
+					curr := c.instrumentMap.LookupInstrument(trades.Trades[x].InstrumentID)
 					allOrders = append(allOrders, order.Detail{
 						Exchange:        c.Name,
 						ID:              strconv.FormatInt(trades.Trades[x].OrderID, 10),
@@ -806,9 +806,9 @@ func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 						Date:            time.Unix(0, trades.Trades[x].Timestamp),
 						Status:          order.Filled,
 						Price:           trades.Trades[x].Price,
-						Amount:          trades.Trades[x].Qty,
-						ExecutedAmount:  trades.Trades[x].Qty,
-						RemainingAmount: trades.Trades[x].OpenQty,
+						Amount:          trades.Trades[x].Quantity,
+						ExecutedAmount:  trades.Trades[x].Quantity,
+						RemainingAmount: trades.Trades[x].OpenQuantity,
 					})
 				}
 				if len(trades.Trades) < 100 {

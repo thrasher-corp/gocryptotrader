@@ -94,6 +94,9 @@ func (g *Gemini) SetDefaults() {
 				TradeFetching:          true,
 				AuthenticatedEndpoints: true,
 				MessageSequenceNumbers: true,
+				Subscribe:              true,
+				Unsubscribe:            true,
+				KlineFetching:          true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.AutoWithdrawCryptoWithSetup |
