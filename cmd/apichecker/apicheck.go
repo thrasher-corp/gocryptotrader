@@ -1219,7 +1219,7 @@ func TrelloCreateNewCard(fillData *CardFill) error {
 	if fillData.LabelsID != "" {
 		params.Set("idLabels", fillData.LabelsID)
 	}
-	_, err := common.SendHTTPRequest(http.MethodPost,
+	err := SendAuthReq(http.MethodPost,
 		pathNewCard+params.Encode()+apiKey+apiToken,
 		nil,
 		nil)
@@ -1230,7 +1230,7 @@ func TrelloCreateNewCard(fillData *CardFill) error {
 func TrelloCreateNewCheck(newCheck string) error {
 	params := url.Values{}
 	params.Set("name", newCheck)
-	_, err := common.SendHTTPRequest(http.MethodPost,
+	err := SendAuthReq(http.MethodPost,
 		pathChecklists+trelloChecklistID+params.Encode()+apiKey+apiToken,
 		nil,
 		nil)
@@ -1282,7 +1282,7 @@ func TrelloUpdateCheckItem(checkItemID, name, state string) error {
 	params.Set("name", newName)
 	params.Set("state", incomplete)
 	path := fmt.Sprintf(pathUpdateItems, trelloCardID, checkItemID, params.Encode(), configData.Key, configData.Token)
-	_, err = common.SendHTTPRequest(http.MethodPut, path, nil, nil)
+	err = SendAuthReq(http.MethodPut, path, nil, nil)
 	return err
 }
 
@@ -1311,11 +1311,30 @@ func UpdateFile(confData *Config, name string) error {
 
 // SendGetReq sends get req
 func SendGetReq(path string, result interface{}) error {
-	requester := request.New("Apichecker",
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.NewBasicRateLimit(time.Hour, 60))
+	var requester *request.Requester
+	if strings.Contains(path, "github") {
+		requester = request.New("Apichecker",
+			common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+			request.NewBasicRateLimit(time.Hour, 60))
+	} else {
+		requester = request.New("Apichecker",
+			common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+			request.NewBasicRateLimit(time.Second*10, 100))
+	}
 	return requester.SendPayload(&request.Item{
 		Method:  http.MethodGet,
+		Path:    path,
+		Result:  result,
+		Verbose: verbose})
+}
+
+// SendAuthReq sends auth req
+func SendAuthReq(method, path string, data, result interface{}) error {
+	requester := request.New("Apichecker",
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		request.NewBasicRateLimit(time.Second*10, 100))
+	return requester.SendPayload(&request.Item{
+		Method:  method,
 		Path:    path,
 		Result:  result,
 		Verbose: verbose})
