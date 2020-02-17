@@ -1,7 +1,9 @@
-package tests
+package audit
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -10,16 +12,35 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
-	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
+	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
 	"github.com/thrasher-corp/goose"
 )
+
+func TestMain(m *testing.M) {
+	var err error
+	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
+	testhelpers.TempDir, err = ioutil.TempDir("", "gct-temp")
+	if err != nil {
+		fmt.Printf("failed to create temp file: %v", err)
+		os.Exit(1)
+	}
+
+	t := m.Run()
+
+	err = os.RemoveAll(testhelpers.TempDir)
+	if err != nil {
+		fmt.Printf("Failed to remove temp db file: %v", err)
+	}
+
+	os.Exit(t)
+}
 
 func TestAudit(t *testing.T) {
 	testCases := []struct {
 		name   string
 		config *database.Config
 		runner func(t *testing.T)
-		closer func(t *testing.T, dbConn *database.Db) error
+		closer func(dbConn *database.Db) error
 		output interface{}
 	}{
 		{
@@ -30,7 +51,7 @@ func TestAudit(t *testing.T) {
 			},
 
 			writeAudit,
-			closeDatabase,
+			testhelpers.CloseDatabase,
 			nil,
 		},
 		{
@@ -41,19 +62,19 @@ func TestAudit(t *testing.T) {
 			},
 
 			readHelper,
-			closeDatabase,
+			testhelpers.CloseDatabase,
 			nil,
 		},
 		{
 			"Postgres-Write",
-			postgresTestDatabase,
+			testhelpers.PostgresTestDatabase,
 			writeAudit,
 			nil,
 			nil,
 		},
 		{
 			"Postgres-Read",
-			postgresTestDatabase,
+			testhelpers.PostgresTestDatabase,
 			readHelper,
 			nil,
 			nil,
@@ -62,18 +83,17 @@ func TestAudit(t *testing.T) {
 
 	for _, tests := range testCases {
 		test := tests
-
 		t.Run(test.name, func(t *testing.T) {
-			if !checkValidConfig(t, &test.config.ConnectionDetails) {
+			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := connectToDatabase(t, test.config)
-
+			dbConn, err := testhelpers.ConnectToDatabase(test.config)
 			if err != nil {
 				t.Fatal(err)
 			}
-			path := filepath.Join("..", "migrations")
+
+			path := filepath.Join("..", "..", "migrations")
 			err = goose.Run("up", dbConn.SQL, repository.GetSQLDialect(), path, "")
 			if err != nil {
 				t.Fatalf("failed to run migrations %v", err)
@@ -84,7 +104,7 @@ func TestAudit(t *testing.T) {
 			}
 
 			if test.closer != nil {
-				err = test.closer(t, dbConn)
+				err = test.closer(dbConn)
 				if err != nil {
 					t.Log(err)
 				}
@@ -103,7 +123,7 @@ func writeAudit(t *testing.T) {
 		go func(x int) {
 			defer wg.Done()
 			test := fmt.Sprintf("test-%v", x)
-			audit.Event(test, test, test)
+			Event(test, test, test)
 		}(x)
 	}
 
@@ -113,7 +133,7 @@ func writeAudit(t *testing.T) {
 func readHelper(t *testing.T) {
 	t.Helper()
 
-	_, err := audit.GetEvent(time.Now().Add(-time.Hour*60), time.Now(), "asc", 1)
+	_, err := GetEvent(time.Now().Add(-time.Hour*60), time.Now(), "asc", 1)
 	if err != nil {
 		t.Error(err)
 	}
