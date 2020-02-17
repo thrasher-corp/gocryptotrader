@@ -767,3 +767,24 @@ func TestMaintainWsAuthStreamKey(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestExecutionTypeToOrderStatus(t *testing.T) {
+	type TestCases struct {
+		Case   string
+		Result order.Status
+	}
+	testCases := []TestCases{
+		{Case: "NEW", Result: order.New},
+		{Case: "CANCELLED", Result: order.Cancelled},
+		{Case: "REJECTED", Result: order.Rejected},
+		{Case: "TRADE", Result: order.PartiallyFilled},
+		{Case: "EXPIRED", Result: order.Expired},
+		{Case: "LOL", Result: order.UnknownStatus},
+	}
+	for i := range testCases {
+		result := executionTypeToOrderStatus(testCases[i].Case)
+		if result != testCases[i].Result {
+			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
+		}
+	}
+}

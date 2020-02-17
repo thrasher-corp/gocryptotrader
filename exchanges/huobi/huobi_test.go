@@ -976,3 +976,23 @@ func TestWsOrdersUpdate(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetStatus(t *testing.T) {
+	type TestCases struct {
+		Case   string
+		Result order.Status
+	}
+	testCases := []TestCases{
+		{Case: "submitted", Result: order.New},
+		{Case: "canceled", Result: order.Cancelled},
+		{Case: "partial-filled", Result: order.PartiallyFilled},
+		{Case: "partial-canceled", Result: order.PartiallyCancelled},
+		{Case: "LOL", Result: order.UnknownStatus},
+	}
+	for i := range testCases {
+		result := getStatus(testCases[i].Case)
+		if result != testCases[i].Result {
+			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
+		}
+	}
+}

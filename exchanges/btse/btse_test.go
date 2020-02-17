@@ -387,3 +387,27 @@ func TestWsOrderNotification(t *testing.T) {
 		}
 	}
 }
+
+func TestStatusToStandardStatus(t *testing.T) {
+	type TestCases struct {
+		Case   string
+		Result order.Status
+	}
+	testCases := []TestCases{
+		{Case: "ORDER_INSERTED", Result: order.New},
+		{Case: "TRIGGER_INSERTED", Result: order.New},
+		{Case: "ORDER_CANCELLED", Result: order.Cancelled},
+		{Case: "ORDER_FULL_TRANSACTED", Result: order.Filled},
+		{Case: "ORDER_PARTIALLY_TRANSACTED", Result: order.PartiallyFilled},
+		{Case: "TRIGGER_ACTIVATED", Result: order.Active},
+		{Case: "INSUFFICIENT_BALANCE", Result: order.Rejected},
+		{Case: "MARKET_UNAVAILABLE", Result: order.Rejected},
+		{Case: "LOL", Result: order.UnknownStatus},
+	}
+	for i := range testCases {
+		result := statusToStandardStatus(testCases[i].Case)
+		if result != testCases[i].Result {
+			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
+		}
+	}
+}

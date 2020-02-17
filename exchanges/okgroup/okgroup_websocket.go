@@ -309,7 +309,7 @@ func (o *OKGroup) WsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func stringToOrderStatus(num string) order.Status {
+func StringToOrderStatus(num string) order.Status {
 	switch num {
 	case "-2":
 		return order.Rejected
@@ -374,7 +374,7 @@ func (o *OKGroup) wsProcessOrder(respRaw []byte) error {
 			ID:                resp.Data[i].OrderID,
 			Type:              oType,
 			Side:              oSide,
-			Status:            stringToOrderStatus(resp.Data[i].State),
+			Status:            StringToOrderStatus(resp.Data[i].State),
 			AssetType:         o.GetAssetTypeFromTableName(resp.Table),
 			Date:              createdAt,
 			Pair:              currency.NewPairFromString(resp.Data[i].InstrumentID),

@@ -1107,3 +1107,24 @@ func TestWsOrderHistory(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestStringToStatus(t *testing.T) {
+	type TestCases struct {
+		Case     string
+		Quantity float64
+		Result   order.Status
+	}
+	testCases := []TestCases{
+		{Case: "order_accepted", Result: order.Active},
+		{Case: "order_filled", Quantity: 1, Result: order.PartiallyFilled},
+		{Case: "order_rejected", Result: order.Rejected},
+		{Case: "order_filled", Result: order.Filled},
+		{Case: "LOL", Result: order.UnknownStatus},
+	}
+	for i := range testCases {
+		result := stringToStatus(testCases[i].Case, testCases[i].Quantity)
+		if result != testCases[i].Result {
+			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
+		}
+	}
+}

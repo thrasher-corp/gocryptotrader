@@ -319,19 +319,20 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func stringToStatus(status string, qty float64) order.Status {
+func stringToStatus(status string, quantity float64) order.Status {
 	switch status {
 	case "order_accepted":
 		return order.Active
 	case "order_filled":
-		if qty > 0 {
+		if quantity > 0 {
 			return order.PartiallyFilled
 		}
 		return order.Filled
 	case "order_rejected":
 		return order.Rejected
+	default:
+		return order.UnknownStatus
 	}
-	return order.UnknownStatus
 }
 
 func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detail, error) {
