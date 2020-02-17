@@ -183,8 +183,12 @@ func TestGetByExchangeAndID(t *testing.T) {
 
 func TestExistsWithLock(t *testing.T) {
 	OrdersSetup(t)
-	Bot.OrderManager.orderStore.exists(nil)
-	Bot.OrderManager.orderStore.existsWithLock(nil)
+	if Bot.OrderManager.orderStore.exists(nil) {
+		t.Error("Expected false")
+	}
+	if Bot.OrderManager.orderStore.existsWithLock(nil) {
+		t.Error("Expected false")
+	}
 	o := &order.Detail{
 		Exchange: testExchange,
 		ID:       "TestExistsWithLock",
@@ -210,12 +214,12 @@ func TestCancelOrder(t *testing.T) {
 	OrdersSetup(t)
 	err := Bot.OrderManager.Cancel(nil)
 	if err == nil {
-		t.Error("Expected error due to nil cancel")
+		t.Error("Expected error due to empty order")
 	}
 
 	err = Bot.OrderManager.Cancel(&order.Cancel{})
 	if err == nil {
-		t.Error("Expected error due to nil cancel")
+		t.Error("Expected error due to empty order")
 	}
 
 	err = Bot.OrderManager.Cancel(&order.Cancel{

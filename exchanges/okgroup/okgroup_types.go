@@ -1335,12 +1335,12 @@ type WebsocketTickerData struct {
 type WebsocketTradeResponse struct {
 	Table string `json:"table"`
 	Data  []struct {
-		Price        float64 `json:"price,string"`
-		Size         float64 `json:"size,string"`
-		InstrumentID string  `json:"instrument_id"`
-		Side         string  `json:"side"`
-		Timestamp    string  `json:"timestamp"`
-		TradeID      string  `json:"trade_id"`
+		Price        float64   `json:"price,string"`
+		Size         float64   `json:"size,string"`
+		InstrumentID string    `json:"instrument_id"`
+		Side         string    `json:"side"`
+		Timestamp    time.Time `json:"timestamp"`
+		TradeID      string    `json:"trade_id"`
 	} `json:"data"`
 }
 

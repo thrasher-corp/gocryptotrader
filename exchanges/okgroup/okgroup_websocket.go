@@ -438,10 +438,6 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
 			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
 		}
-		ts, err := time.Parse("2006-01-02T15:04:05Z", response.Data[i].Timestamp)
-		if err != nil {
-			return err
-		}
 		o.Websocket.DataHandler <- wshandler.TradeData{
 			Amount:       response.Data[i].Size,
 			AssetType:    o.GetAssetTypeFromTableName(response.Table),
@@ -449,7 +445,7 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 			Exchange:     o.Name,
 			Price:        response.Data[i].Price,
 			Side:         response.Data[i].Side,
-			Timestamp:    ts,
+			Timestamp:    response.Data[i].Timestamp,
 		}
 	}
 	return nil

@@ -3,7 +3,6 @@ package engine
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -173,8 +172,7 @@ func (o *orderManager) Stop() error {
 func (o *orderManager) gracefulShutdown() {
 	if o.cfg.CancelOrdersOnShutdown {
 		log.Debugln(log.OrderMgr, "Order manager: Cancelling any open orders...")
-
-		o.CancelAllOrders(nil)
+		o.CancelAllOrders(Bot.Config.GetEnabledExchanges())
 	}
 }
 
@@ -200,7 +198,6 @@ func (o *orderManager) run() {
 }
 
 // CancelAllOrders iterates and cancels all orders
-// for all exchanges if exchangeNames nil
 func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 	orders := o.orderStore.get()
 	if orders == nil {
@@ -209,13 +206,7 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 	for k, v := range orders {
 		log.Debugf(log.OrderMgr, "Order manager: Cancelling order(s) for exchange %s.", k)
 		if len(exchangeNames) > 0 {
-			var found bool
-			for i := range exchangeNames {
-				if strings.EqualFold(k, exchangeNames[i]) {
-					found = true
-				}
-			}
-			if !found {
+			if !common.StringDataCompareInsensitive(exchangeNames, k) {
 				continue
 			}
 		}
@@ -234,7 +225,7 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 				Pair:          v[y].Pair,
 			})
 			if err != nil {
-				log.Debugln(log.OrderMgr, err)
+				log.Error(log.OrderMgr, err)
 				Bot.CommsManager.PushEvent(base.Event{
 					Type:    "order",
 					Message: err.Error(),
