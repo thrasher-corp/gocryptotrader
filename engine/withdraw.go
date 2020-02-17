@@ -84,7 +84,7 @@ func WithdrawEventByID(id string) (*withdraw.Response, error) {
 
 // WithdrawEventByExchange returns a withdrawal request by ID
 func WithdrawEventByExchange(exchange string, limit int) ([]withdraw.Response, error) {
-	l, err := withdrawDataStore.GetEventByExchange(exchange, limit)
+	l, err := withdrawDataStore.GetEventsByExchange(exchange, limit)
 	if err != nil {
 		return nil, fmt.Errorf(ErrWithdrawRequestNotFound, exchange)
 	}
@@ -99,6 +99,10 @@ func WithdrawEventByDate(start, end time.Time) ([]withdraw.Response, error) {
 
 // WithdrawEventByExchangeID returns a withdrawal request by Exchange ID
 // TODO: impelment method
-func WithdrawEventByExchangeID(id string) (*withdraw.Response, error) {
-	return nil, nil
+func WithdrawEventByExchangeID(exchange, id string) (*withdraw.Response, error) {
+	l, err := withdrawDataStore.GetEventByExchangeID(exchange, id, 1)
+	if err != nil {
+		return nil, fmt.Errorf(ErrWithdrawRequestNotFound, exchange)
+	}
+	return l, nil
 }

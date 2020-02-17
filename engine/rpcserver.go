@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpcruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -992,55 +991,55 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 
 // WithdrawalEventByID returns previous withdrawal request details
 func (s *RPCServer) WithdrawalEventByID(ctx context.Context, r *gctrpc.WithdrawalEventByIDRequest) (*gctrpc.WithdrawalEventByIDResponse, error) {
-	v, err := WithdrawEventByID(r.Id)
+	_, err := WithdrawEventByID(r.Id)
 	if err != nil {
 		return nil, err
 	}
 
 	resp := &gctrpc.WithdrawalEventByIDResponse{
-		Event: &gctrpc.WithdrawalEventResponse{
-			Id: v.ID.String(),
-			Exchange: &gctrpc.WithdrawlExchangeEvent{
-				Name:   v.Exchange.Name,
-				Id:     v.Exchange.Name,
-				Status: v.Exchange.Status,
-			},
-			Request: &gctrpc.WithdrawalRequestEvent{
-				Currency:    v.RequestDetails.Currency.String(),
-				Description: v.RequestDetails.Description,
-				Amount:      v.RequestDetails.Amount,
-				Type:        int32(v.RequestDetails.Type),
-			},
-			CreatedAt: &timestamp.Timestamp{
-				Seconds: int64(v.CreatedAt.Second()),
-				Nanos:   int32(v.CreatedAt.Nanosecond()),
-			},
-			UpdatedAt: &timestamp.Timestamp{
-				Seconds: int64(v.UpdatedAt.Second()),
-				Nanos:   int32(v.UpdatedAt.Nanosecond()),
-			},
-		},
-	}
+		// 	Event: &gctrpc.WithdrawalEventResponse{
+		// 		Id: v.ID.String(),
+		// 		Exchange: &gctrpc.WithdrawlExchangeEvent{
+		// 			Name:   v.Exchange.Name,
+		// 			Id:     v.Exchange.Name,
+		// 			Status: v.Exchange.Status,
+		// 		},
+		// 		Request: &gctrpc.WithdrawalRequestEvent{
+		// 			Currency:    v.RequestDetails.Currency.String(),
+		// 			Description: v.RequestDetails.Description,
+		// 			Amount:      v.RequestDetails.Amount,
+		// 			Type:        int32(v.RequestDetails.Type),
+		// 		},
+		// 		CreatedAt: &timestamp.Timestamp{
+		// 			Seconds: int64(v.CreatedAt.Second()),
+		// 			Nanos:   int32(v.CreatedAt.Nanosecond()),
+		// 		},
+		// 		UpdatedAt: &timestamp.Timestamp{
+		// 			Seconds: int64(v.UpdatedAt.Second()),
+		// 			Nanos:   int32(v.UpdatedAt.Nanosecond()),
+		// 		},
+		// 	},
+		// }
 
-	if v.RequestDetails.Type == withdraw.Crypto {
-		resp.Event.Request.Crypto = new(gctrpc.CryptoWithdrawalEvent)
-		resp.Event.Request.Crypto = &gctrpc.CryptoWithdrawalEvent{
-			Address:    v.RequestDetails.Crypto.Address,
-			AddressTag: v.RequestDetails.Crypto.AddressTag,
-			Fee:        v.RequestDetails.Crypto.FeeAmount,
-		}
-	} else if v.RequestDetails.Type == withdraw.Fiat {
-		if v.RequestDetails.Fiat != nil {
-			resp.Event.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
-			resp.Event.Request.Fiat = &gctrpc.FiatWithdrawalEvent{
-				BankName:      v.RequestDetails.Fiat.Bank.BankName,
-				AccountName:   v.RequestDetails.Fiat.Bank.AccountName,
-				AccountNumber: v.RequestDetails.Fiat.Bank.AccountNumber,
-				Bsb:           v.RequestDetails.Fiat.Bank.BSBNumber,
-				Swift:         v.RequestDetails.Fiat.Bank.SWIFTCode,
-				Iban:          v.RequestDetails.Fiat.Bank.IBAN,
-			}
-		}
+		// if v.RequestDetails.Type == withdraw.Crypto {
+		// 	resp.Event.Request.Crypto = new(gctrpc.CryptoWithdrawalEvent)
+		// 	resp.Event.Request.Crypto = &gctrpc.CryptoWithdrawalEvent{
+		// 		Address:    v.RequestDetails.Crypto.Address,
+		// 		AddressTag: v.RequestDetails.Crypto.AddressTag,
+		// 		Fee:        v.RequestDetails.Crypto.FeeAmount,
+		// 	}
+		// } else if v.RequestDetails.Type == withdraw.Fiat {
+		// 	if v.RequestDetails.Fiat != nil {
+		// 		resp.Event.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
+		// 		resp.Event.Request.Fiat = &gctrpc.FiatWithdrawalEvent{
+		// 			BankName:      v.RequestDetails.Fiat.Bank.BankName,
+		// 			AccountName:   v.RequestDetails.Fiat.Bank.AccountName,
+		// 			AccountNumber: v.RequestDetails.Fiat.Bank.AccountNumber,
+		// 			Bsb:           v.RequestDetails.Fiat.Bank.BSBNumber,
+		// 			Swift:         v.RequestDetails.Fiat.Bank.SWIFTCode,
+		// 			Iban:          v.RequestDetails.Fiat.Bank.IBAN,
+		// 		}
+		// 	}
 	}
 
 	return resp, nil
