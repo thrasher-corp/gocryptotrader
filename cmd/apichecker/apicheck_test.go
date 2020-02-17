@@ -9,23 +9,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
 
-const (
-	testAPIKey      = ""
-	testAPIToken    = ""
-	testCardID      = ""
-	testChecklistID = ""
-	testListID      = ""
-	testBoardID     = ""
-)
-
 func TestMain(m *testing.M) {
-	SetAuthVars()
-	apiKey = testAPIKey
-	apiToken = testAPIToken
-	trelloCardID = testCardID
-	trelloChecklistID = testChecklistID
-	trelloListID = testListID
-	trelloBoardID = testBoardID
 	var err error
 	configData, err = ReadFileData(jsonFile)
 	if err != nil {
