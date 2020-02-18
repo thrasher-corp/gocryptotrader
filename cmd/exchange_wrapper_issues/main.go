@@ -710,7 +710,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   r22,
 		})
 
-		var r23 string
+		var r23 *withdraw.ExchangeResponse
 		r23, err = e.WithdrawFiatFundsToInternationalBank(&withdrawRequestFiat)
 		msg = ""
 		if err != nil {
