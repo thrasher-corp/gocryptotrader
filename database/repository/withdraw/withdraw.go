@@ -68,9 +68,11 @@ func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err 
 		Amount:       res.RequestDetails.Amount,
 		WithdrawType: int(res.RequestDetails.Type),
 	}
+
 	if res.RequestDetails.Description != "" {
 		tempEvent.Description.SetValid(res.RequestDetails.Description)
 	}
+
 	err = tempEvent.Insert(ctx, tx, boil.Infer())
 	if err != nil {
 		log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
@@ -80,6 +82,7 @@ func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err 
 		}
 		return
 	}
+
 	if res.RequestDetails.Type == withdraw.Fiat {
 		fiatEvent := &modelPSQL.WithdrawalFiat{
 			BankName:          res.RequestDetails.Fiat.Bank.BankName,
@@ -100,6 +103,7 @@ func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err 
 			return
 		}
 	}
+
 	if res.RequestDetails.Type == withdraw.Crypto {
 		cryptoEvent := &modelPSQL.WithdrawalCrypto{
 			Address: res.RequestDetails.Crypto.Address,
@@ -118,6 +122,7 @@ func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err 
 			return
 		}
 	}
+
 	realID, _ := uuid.FromString(tempEvent.ID)
 	res.ID = realID
 
@@ -144,9 +149,11 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 		Amount:       res.RequestDetails.Amount,
 		WithdrawType: int64(res.RequestDetails.Type),
 	}
+
 	if res.RequestDetails.Description != "" {
 		tempEvent.Description.SetValid(res.RequestDetails.Description)
 	}
+
 	err = tempEvent.Insert(ctx, tx, boil.Infer())
 	if err != nil {
 		log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
@@ -167,6 +174,7 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 			SwiftCode:         res.RequestDetails.Fiat.Bank.SWIFTCode,
 			Iban:              res.RequestDetails.Fiat.Bank.IBAN,
 		}
+
 		err = tempEvent.AddWithdrawalFiats(ctx, tx, true, fiatEvent)
 		if err != nil {
 			log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
@@ -177,14 +185,17 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 			return
 		}
 	}
+
 	if res.RequestDetails.Type == withdraw.Crypto {
 		cryptoEvent := &modelSQLite.WithdrawalCrypto{
 			Address: res.RequestDetails.Crypto.Address,
 			Fee:     res.RequestDetails.Crypto.FeeAmount,
 		}
+
 		if res.RequestDetails.Crypto.AddressTag != "" {
 			cryptoEvent.AddressTag.SetValid(res.RequestDetails.Crypto.AddressTag)
 		}
+
 		err = tempEvent.AddWithdrawalCryptos(ctx, tx, true, cryptoEvent)
 		if err != nil {
 			log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
@@ -195,6 +206,7 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 			return
 		}
 	}
+
 	res.ID = newUUID
 	return nil
 }
@@ -229,13 +241,12 @@ func getByColumns(columns, id []string, limit int) ([]*withdraw.Response, error)
 
 	var resp []*withdraw.Response
 	var ctx = context.Background()
+	queries := []qm.QueryMod{qm.Limit(limit)}
 
-	var queries []qm.QueryMod
 	for x := range columns {
 		queries = append(queries, qm.Where(columns[x]+"= ?", id[x]))
 	}
 
-	queries = append(queries, qm.Limit(limit))
 	if repository.GetSQLDialect() == database.DBSQLite3 {
 		v, err := modelSQLite.WithdrawalHistories(queries...).All(ctx, database.DB.SQL)
 		if err != nil {
@@ -264,6 +275,7 @@ func getByColumns(columns, id []string, limit int) ([]*withdraw.Response, error)
 			} else {
 				tempResp.CreatedAt = createdAtTime.UTC()
 			}
+
 			updatedAtTime, err := time.Parse("2006-01-02T15:04:05Z", v[x].UpdatedAt)
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "%v incorrect time format - defaulting to empty time: %v", tempResp.UpdatedAt, err)
@@ -271,6 +283,7 @@ func getByColumns(columns, id []string, limit int) ([]*withdraw.Response, error)
 			} else {
 				tempResp.UpdatedAt = updatedAtTime.UTC()
 			}
+
 			if withdraw.RequestType(v[x].WithdrawType) == withdraw.Crypto {
 				x, err := v[x].WithdrawalCryptos().One(ctx, database.DB.SQL)
 				if err != nil {
@@ -344,5 +357,6 @@ func getByColumns(columns, id []string, limit int) ([]*withdraw.Response, error)
 			resp = append(resp, tempResp)
 		}
 	}
+
 	return resp, nil
 }

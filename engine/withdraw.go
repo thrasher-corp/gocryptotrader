@@ -23,13 +23,16 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 	if req == nil {
 		return nil, errors.New(ErrRequestCannotbeNil)
 	}
+
 	if req.Exchange == "" {
 		req.Exchange = exchName
 	}
+
 	err := withdraw.Validate(req)
 	if err != nil {
 		return nil, err
 	}
+
 	exch := GetExchangeByName(exchName)
 	if exch == nil {
 		return nil, ErrExchangeNotFound
@@ -65,6 +68,7 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 		}
 		withdrawDataStore.Event(resp)
 	}
+
 	withdraw.Cache.Add(resp.ID, resp)
 	return resp, nil
 }
@@ -75,6 +79,7 @@ func WithdrawEventByID(id string) (*withdraw.Response, error) {
 	if v != nil {
 		return v.(*withdraw.Response), nil
 	}
+
 	l, err := withdrawDataStore.GetEventByUUID(id)
 	if err != nil {
 		return nil, fmt.Errorf(ErrWithdrawRequestNotFound, id)
@@ -99,7 +104,6 @@ func WithdrawEventByDate(start, end time.Time) ([]*withdraw.Response, error) {
 }
 
 // WithdrawEventByExchangeID returns a withdrawal request by Exchange ID
-// TODO: impelment method
 func WithdrawEventByExchangeID(exchange, id string) ([]*withdraw.Response, error) {
 	l, err := withdrawDataStore.GetEventByExchangeID(exchange, id, 1)
 	if err != nil {
