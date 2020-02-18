@@ -114,7 +114,10 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 	}
 
 	if result.ID > 0 {
-		g.WebsocketConn.AddResponseWithID(result.ID, respRaw)
+		if g.WebsocketConn.IsIDWaitingForResponse(result.ID) {
+			g.WebsocketConn.SetResponseIDAndData(result.ID, respRaw)
+			return nil
+		}
 	}
 
 	if result.Error.Code != 0 {

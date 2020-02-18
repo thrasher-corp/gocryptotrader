@@ -48,11 +48,12 @@ func (o *orderStore) GetByExchangeAndID(exchange, id string) (*order.Detail, err
 // GetByExchangeAndID returns a specific order
 func (o *orderStore) GetByExchange(exchange string) ([]*order.Detail, error) {
 	o.m.Lock()
-	defer o.m.Unlock()
 	r, ok := o.Orders[exchange]
 	if !ok {
+		o.m.Unlock()
 		return nil, ErrExchangeNotFound
 	}
+	o.m.Unlock()
 	return r, nil
 }
 
@@ -60,14 +61,15 @@ func (o *orderStore) GetByExchange(exchange string) ([]*order.Detail, error) {
 // and return the order
 func (o *orderStore) GetByInternalOrderID(internalOrderID string) (*order.Detail, error) {
 	o.m.Lock()
-	defer o.m.Unlock()
 	for _, v := range o.Orders {
 		for x := range v {
 			if v[x].InternalOrderID == internalOrderID {
+				o.m.Unlock()
 				return v[x], nil
 			}
 		}
 	}
+	o.m.Unlock()
 	return nil, ErrOrderNotFound
 }
 
@@ -75,30 +77,25 @@ func (o *orderStore) exists(order *order.Detail) bool {
 	if order == nil {
 		return false
 	}
+	o.m.Lock()
 	r, ok := o.Orders[order.Exchange]
 	if !ok {
+		o.m.Unlock()
 		return false
 	}
 
 	for x := range r {
 		if r[x].ID == order.ID {
+			o.m.Unlock()
 			return true
 		}
 	}
-
+	o.m.Unlock()
 	return false
 }
 
-func (o *orderStore) existsWithLock(order *order.Detail) bool {
-	o.m.Lock()
-	defer o.m.Unlock()
-	return o.exists(order)
-}
-
 // Adds an order to the orderStore for tracking the lifecycle
-// lock is toggle-able in the event that you have already used
-// orderStore's lock. Most cases should be true
-func (o *orderStore) Add(order *order.Detail, lock bool) error {
+func (o *orderStore) Add(order *order.Detail) error {
 	if order == nil {
 		return errors.New("order store: Order is nil")
 	}
@@ -106,14 +103,9 @@ func (o *orderStore) Add(order *order.Detail, lock bool) error {
 	if exch == nil {
 		return errors.New("unable to get exchange by name")
 	}
-	if lock {
-		o.m.Lock()
-		defer o.m.Unlock()
-	}
 	if o.exists(order) {
 		return ErrOrdersAlreadyExists
 	}
-
 	// Untracked websocket orders will not have internalIDs yet
 	if order.InternalOrderID == "" {
 		id, err := uuid.NewV4()
@@ -125,9 +117,12 @@ func (o *orderStore) Add(order *order.Detail, lock bool) error {
 			order.InternalOrderID = id.String()
 		}
 	}
+	o.m.Lock()
 	orders := o.Orders[order.Exchange]
 	orders = append(orders, order)
 	o.Orders[order.Exchange] = orders
+	o.m.Unlock()
+
 	return nil
 }
 
@@ -197,18 +192,17 @@ func (o *orderManager) run() {
 	}
 }
 
-// CancelAllOrders iterates and cancels all orders
+// CancelAllOrders iterates and cancels all orders for each exchange provided
 func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 	orders := o.orderStore.get()
 	if orders == nil {
 		return
 	}
+
 	for k, v := range orders {
 		log.Debugf(log.OrderMgr, "Order manager: Cancelling order(s) for exchange %s.", k)
-		if len(exchangeNames) > 0 {
-			if !common.StringDataCompareInsensitive(exchangeNames, k) {
-				continue
-			}
+		if !common.StringDataCompareInsensitive(exchangeNames, k) {
+			continue
 		}
 
 		for y := range v {
@@ -320,10 +314,6 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 	if exch == nil {
 		return nil, errors.New("unable to get exchange by name")
 	}
-	// Lock at this point to ensure wrapper + websocket order submissions return
-	// before any routines.go order submission competes and this returns an error
-	o.orderStore.m.Lock()
-	defer o.orderStore.m.Unlock()
 	result, err := exch.SubmitOrder(newOrder)
 	if err != nil {
 		return nil, err
@@ -386,7 +376,7 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 		Date:              time.Now(),
 		LastUpdated:       time.Now(),
 		Pair:              newOrder.Pair,
-	}, false)
+	})
 	if err != nil {
 		return nil, fmt.Errorf("order manager: Unable to add %v order %v to orderStore: %s", newOrder.Exchange, result.OrderID, err)
 	}
@@ -416,7 +406,7 @@ func (o *orderManager) processOrders() {
 
 		for x := range result {
 			ord := &result[x]
-			result := o.orderStore.Add(ord, true)
+			result := o.orderStore.Add(ord)
 			if result != ErrOrdersAlreadyExists {
 				msg := fmt.Sprintf("Order manager: Exchange %s added order ID=%v pair=%v price=%v amount=%v side=%v type=%v.",
 					ord.Exchange, ord.ID, ord.Pair, ord.Price, ord.Amount, ord.Side, ord.Type)

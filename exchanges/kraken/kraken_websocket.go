@@ -203,7 +203,10 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 					return fmt.Errorf("%s - err %s unable to parse subscription response: %s", k.Name, err, respRaw)
 				}
 				if sub.RequestID > 0 {
-					k.WebsocketConn.AddResponseWithID(sub.RequestID, respRaw)
+					if k.WebsocketConn.IsIDWaitingForResponse(sub.RequestID) {
+						k.WebsocketConn.SetResponseIDAndData(sub.RequestID, respRaw)
+						return nil
+					}
 				}
 				if sub.Status != "subscribed" && sub.Status != "unsubscribed" {
 					return fmt.Errorf("%v %v %v", k.Name, sub.RequestID, sub.ErrorMessage)

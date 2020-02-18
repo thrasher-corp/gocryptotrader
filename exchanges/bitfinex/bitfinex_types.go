@@ -511,10 +511,17 @@ const (
 	wsOrderNew                             = "on"
 	wsOrderUpdate                          = "ou"
 	wsOrderCancel                          = "oc"
+	wsRequest                              = "-req"
+	wsOrderNewRequest                      = wsOrderNew + wsRequest
+	wsOrderUpdateRequest                   = wsOrderUpdate + wsRequest
+	wsOrderCancelRequest                   = wsOrderCancel + wsRequest
 	wsFundingOrderSnapshot                 = "fos"
 	wsFundingOrderNew                      = "fon"
 	wsFundingOrderUpdate                   = "fou"
 	wsFundingOrderCancel                   = "foc"
+	wsFundingOrderNewRequest               = wsFundingOrderNew + wsRequest
+	wsFundingOrderUpdateRequest            = wsFundingOrderUpdate + wsRequest
+	wsFundingOrderCancelRequest            = wsFundingOrderCancel + wsRequest
 	wsCancelMultipleOrders                 = "oc_multi"
 	wsBook                                 = "book"
 	wsCandles                              = "candles"
@@ -535,22 +542,22 @@ type WsAuthRequest struct {
 
 // WsFundingOffer funding offer received via websocket
 type WsFundingOffer struct {
-	ID         int64
-	Symbol     string
-	Created    int64
-	Updated    int64
-	Amount     float64
-	AmountOrig float64
-	Type       string
-	Flags      interface{}
-	Status     string
-	Rate       float64
-	Period     int64
-	Notify     bool
-	Hidden     bool
-	Insure     bool
-	Renew      bool
-	RateReal   float64
+	ID             int64
+	Symbol         string
+	Created        int64
+	Updated        int64
+	Amount         float64
+	OriginalAmount float64
+	Type           string
+	Flags          interface{}
+	Status         string
+	Rate           float64
+	Period         int64
+	Notify         bool
+	Hidden         bool
+	Insure         bool
+	Renew          bool
+	RateReal       float64
 }
 
 // WsCredit credit details received via websocket

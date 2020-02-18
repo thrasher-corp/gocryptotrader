@@ -197,7 +197,10 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 		return errors.New(h.Name + " - invalid credentials. Authenticated requests disabled")
 	}
 	if init.ClientID > 0 {
-		h.AuthenticatedWebsocketConn.AddResponseWithID(init.ClientID, respRaw)
+		if h.WebsocketConn.IsIDWaitingForResponse(init.ClientID) {
+			h.WebsocketConn.SetResponseIDAndData(init.ClientID, respRaw)
+			return nil
+		}
 	}
 
 	switch {

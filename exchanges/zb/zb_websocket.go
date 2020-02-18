@@ -80,7 +80,10 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 		return err
 	}
 	if result.No > 0 {
-		z.WebsocketConn.AddResponseWithID(result.No, fixedJSON)
+		if z.WebsocketConn.IsIDWaitingForResponse(result.No) {
+			z.WebsocketConn.SetResponseIDAndData(result.No, respRaw)
+			return nil
+		}
 	}
 	if result.Code > 0 && result.Code != 1000 {
 		return fmt.Errorf("%v request failed, message: %v, error code: %v", z.Name, result.Message, wsErrCodes[result.Code])

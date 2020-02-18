@@ -1161,3 +1161,17 @@ func TestWsOrderSnapshot(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestWsNotifications(t *testing.T) {
+	pressXToJSON := `[0,"n",[1575282446099,"fon-req",null,null,[41238905,null,null,null,-1000,null,null,null,null,null,null,null,null,null,0.002,2,null,null,null,null,null],null,"SUCCESS","Submitting funding bid of 1000.0 USD at 0.2000 for 2 days."]]`
+	err := b.wsHandleData([]byte(pressXToJSON))
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = `[0,"n",[1575287438.515,"on-req",null,null,[1185815098,null,1575287436979,"tETHUSD",1575287438515,1575287438515,-2.5,-2.5,"LIMIT",null,null,null,0,"ACTIVE",null,null,230,0,0,0,null,null,null,0,null,null,null,null,"API>BFX",null,null,null],null,"SUCCESS","Submitting limit sell order for -2.5 ETH."]]`
+	err = b.wsHandleData([]byte(pressXToJSON))
+	if err != nil {
+		t.Error(err)
+	}
+}

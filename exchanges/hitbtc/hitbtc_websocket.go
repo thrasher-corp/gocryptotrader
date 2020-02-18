@@ -91,7 +91,10 @@ func (h *HitBTC) wsGetTableName(respRaw []byte) (string, error) {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	if init.ID > 0 {
-		h.WebsocketConn.AddResponseWithID(init.ID, respRaw)
+		if h.WebsocketConn.IsIDWaitingForResponse(init.ID) {
+			h.WebsocketConn.SetResponseIDAndData(init.ID, respRaw)
+			return "", nil
+		}
 	}
 	if init.Error.Message != "" || init.Error.Code != 0 {
 		return "", fmt.Errorf("hitbtc.go error - Code: %d, Message: %s",

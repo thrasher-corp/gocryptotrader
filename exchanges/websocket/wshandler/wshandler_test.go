@@ -695,11 +695,33 @@ func TestParseBinaryResponse(t *testing.T) {
 	}
 }
 
-// TestAddResponseWithID logic test
-func TestAddResponseWithID(t *testing.T) {
+// TestSetResponseIDAndData logic test
+func TestSetResponseIDAndData(t *testing.T) {
 	wc.IDResponses = nil
-	wc.AddResponseWithID(0, []byte("hi"))
-	wc.AddResponseWithID(1, []byte("hi"))
+	wc.SetResponseIDAndData(0, nil)
+	wc.SetResponseIDAndData(1, []byte("hi"))
+	if len(wc.IDResponses) != 2 {
+		t.Error("Expected 2 entries")
+	}
+}
+
+// TestIsIDWaitingForResponse logic test
+func TestIsIDWaitingForResponse(t *testing.T) {
+	wc.IDResponses = nil
+	wc.SetResponseIDAndData(0, nil)
+	wc.SetResponseIDAndData(1, []byte("hi"))
+	if len(wc.IDResponses) != 2 {
+		t.Error("Expected 2 entries")
+	}
+	if !wc.IsIDWaitingForResponse(0) {
+		t.Error("Expected true")
+	}
+	if wc.IsIDWaitingForResponse(2) {
+		t.Error("Expected false")
+	}
+	if wc.IsIDWaitingForResponse(1337) {
+		t.Error("Expected false")
+	}
 }
 
 // readMessages helper func
@@ -722,7 +744,7 @@ func readMessages(wc *WebsocketConnection, t *testing.T) {
 				return
 			}
 			if incoming.RequestID > 0 {
-				wc.AddResponseWithID(incoming.RequestID, resp.Raw)
+				wc.SetResponseIDAndData(incoming.RequestID, resp.Raw)
 				return
 			}
 		}

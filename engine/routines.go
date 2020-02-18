@@ -337,8 +337,8 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 				d.Asset)
 		}
 	case *order.Detail:
-		if !Bot.OrderManager.orderStore.existsWithLock(d) {
-			err := Bot.OrderManager.orderStore.Add(d, true)
+		if !Bot.OrderManager.orderStore.exists(d) {
+			err := Bot.OrderManager.orderStore.Add(d)
 			if err != nil {
 				return err
 			}

@@ -98,8 +98,10 @@ func (c *COINUT) wsReadData() {
 				}
 				for i := range incoming {
 					if incoming[i].Nonce > 0 {
-						c.WebsocketConn.AddResponseWithID(incoming[i].Nonce, resp.Raw)
-						break
+						if c.WebsocketConn.IsIDWaitingForResponse(incoming[i].Nonce) {
+							c.WebsocketConn.SetResponseIDAndData(incoming[i].Nonce, resp.Raw)
+							break
+						}
 					}
 					var individualJSON []byte
 					individualJSON, err = json.Marshal(incoming[i])
@@ -144,13 +146,17 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		}
 		return nil
 	}
+
 	var incoming wsResponse
 	err := json.Unmarshal(respRaw, &incoming)
 	if err != nil {
 		return err
 	}
 	if strings.Contains(string(respRaw), "client_ord_id") {
-		c.WebsocketConn.AddResponseWithID(incoming.Nonce, respRaw)
+		if c.WebsocketConn.IsIDWaitingForResponse(incoming.Nonce) {
+			c.WebsocketConn.SetResponseIDAndData(incoming.Nonce, respRaw)
+			return nil
+		}
 	}
 	switch incoming.Reply {
 	case "hb":
