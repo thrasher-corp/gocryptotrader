@@ -56,15 +56,15 @@ func (i *ItBit) SetDefaults() {
 	i.API.CredentialsValidator.RequiresSecret = true
 
 	i.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
 		},
 	}
 
@@ -454,10 +454,15 @@ func (i *ItBit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 		allOrders = append(allOrders, resp...)
 	}
 
+	format, err := i.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for j := range allOrders {
 		symbol := currency.NewPairDelimiter(allOrders[j].Instrument,
-			i.GetPairFormat(asset.Spot, false).Delimiter)
+			format.Delimiter)
 		side := order.Side(strings.ToUpper(allOrders[j].Side))
 		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
@@ -504,6 +509,11 @@ func (i *ItBit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 		allOrders = append(allOrders, resp...)
 	}
 
+	format, err := i.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for j := range allOrders {
 		if allOrders[j].Type == "open" {
@@ -511,7 +521,7 @@ func (i *ItBit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 		}
 
 		symbol := currency.NewPairDelimiter(allOrders[j].Instrument,
-			i.GetPairFormat(asset.Spot, false).Delimiter)
+			format.Delimiter)
 		side := order.Side(strings.ToUpper(allOrders[j].Side))
 		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {

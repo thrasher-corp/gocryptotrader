@@ -56,16 +56,15 @@ func (l *LakeBTC) SetDefaults() {
 	l.API.CredentialsValidator.RequiresSecret = true
 
 	l.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
-
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
 		},
 	}
 
@@ -476,10 +475,15 @@ func (l *LakeBTC) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 		return nil, err
 	}
 
+	format, err := l.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for i := range resp {
 		symbol := currency.NewPairDelimiter(resp[i].Symbol,
-			l.GetPairFormat(asset.Spot, false).Delimiter)
+			format.Delimiter)
 		orderDate := time.Unix(resp[i].At, 0)
 		side := order.Side(strings.ToUpper(resp[i].Type))
 
@@ -509,14 +513,18 @@ func (l *LakeBTC) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 		return nil, err
 	}
 
+	format, err := l.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for i := range resp {
 		if resp[i].State == "active" {
 			continue
 		}
 
-		symbol := currency.NewPairDelimiter(resp[i].Symbol,
-			l.GetPairFormat(asset.Spot, false).Delimiter)
+		symbol := currency.NewPairDelimiter(resp[i].Symbol, format.Delimiter)
 		orderDate := time.Unix(resp[i].At, 0)
 		side := order.Side(strings.ToUpper(resp[i].Type))
 

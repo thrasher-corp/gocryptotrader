@@ -55,9 +55,6 @@ func (h *HitBTC) SetDefaults() {
 	h.API.CredentialsValidator.RequiresSecret = true
 
 	h.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
@@ -65,6 +62,9 @@ func (h *HitBTC) SetDefaults() {
 		ConfigFormat: &currency.PairFormat{
 			Delimiter: "-",
 			Uppercase: true,
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
 		},
 	}
 
@@ -191,7 +191,14 @@ func (h *HitBTC) Run() {
 	}
 
 	forceUpdate := false
-	delim := h.GetPairFormat(asset.Spot, false).Delimiter
+	format, err := h.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			h.Name,
+			err)
+		return
+	}
 	enabled, err := h.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
@@ -201,9 +208,9 @@ func (h *HitBTC) Run() {
 		return
 	}
 
-	if !common.StringDataContains(enabled.Strings(), delim) ||
-		!common.StringDataContains(h.GetAvailablePairs(asset.Spot).Strings(), delim) {
-		enabledPairs := []string{currency.BTC.String() + delim + currency.USD.String()}
+	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
+		!common.StringDataContains(h.GetAvailablePairs(asset.Spot).Strings(), format.Delimiter) {
+		enabledPairs := []string{currency.BTC.String() + format.Delimiter + currency.USD.String()}
 		log.Warn(log.ExchangeSys,
 			"Available pairs for HitBTC reset due to config upgrade, please enable the ones you would like again.")
 		forceUpdate = true
@@ -243,10 +250,16 @@ func (h *HitBTC) FetchTradablePairs(asset asset.Item) ([]string, error) {
 		return nil, err
 	}
 
+	format, err := h.GetPairFormat(asset, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var pairs []string
 	for x := range symbols {
 		pairs = append(pairs, symbols[x].BaseCurrency+
-			h.GetPairFormat(asset, false).Delimiter+symbols[x].QuoteCurrency)
+			format.Delimiter+
+			symbols[x].QuoteCurrency)
 	}
 	return pairs, nil
 }
@@ -559,10 +572,15 @@ func (h *HitBTC) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 		allOrders = append(allOrders, resp...)
 	}
 
+	format, err := h.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for i := range allOrders {
 		symbol := currency.NewPairDelimiter(allOrders[i].Symbol,
-			h.GetPairFormat(asset.Spot, false).Delimiter)
+			format.Delimiter)
 		side := order.Side(strings.ToUpper(allOrders[i].Side))
 		orders = append(orders, order.Detail{
 			ID:           allOrders[i].ID,
@@ -596,10 +614,15 @@ func (h *HitBTC) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 		allOrders = append(allOrders, resp...)
 	}
 
+	format, err := h.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for i := range allOrders {
 		symbol := currency.NewPairDelimiter(allOrders[i].Symbol,
-			h.GetPairFormat(asset.Spot, false).Delimiter)
+			format.Delimiter)
 		side := order.Side(strings.ToUpper(allOrders[i].Side))
 		orders = append(orders, order.Detail{
 			ID:           allOrders[i].ID,

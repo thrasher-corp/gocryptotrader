@@ -53,13 +53,7 @@ func (b *Bitmex) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
-	b.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.PerpetualContract,
-			asset.Futures,
-			asset.Index,
-		},
-	}
+	b.CurrencyPairs = currency.PairsManager{}
 
 	// Same format used for perpetual contracts and futures
 	fmt1 := currency.PairStore{
@@ -601,6 +595,11 @@ func (b *Bitmex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 		return nil, err
 	}
 
+	format, err := b.GetPairFormat(asset.PerpetualContract, false)
+	if err != nil {
+		return nil, err
+	}
+
 	for i := range resp {
 		orderSide := orderSideMap[resp[i].Side]
 		orderType := orderTypeMap[resp[i].OrdType]
@@ -618,7 +617,7 @@ func (b *Bitmex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 			Status:    order.Status(resp[i].OrdStatus),
 			CurrencyPair: currency.NewPairWithDelimiter(resp[i].Symbol,
 				resp[i].SettlCurrency,
-				b.GetPairFormat(asset.PerpetualContract, false).Delimiter),
+				format.Delimiter),
 		}
 
 		orders = append(orders, orderDetail)
@@ -642,6 +641,11 @@ func (b *Bitmex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 		return nil, err
 	}
 
+	format, err := b.GetPairFormat(asset.PerpetualContract, false)
+	if err != nil {
+		return nil, err
+	}
+
 	for i := range resp {
 		orderSide := orderSideMap[resp[i].Side]
 		orderType := orderTypeMap[resp[i].OrdType]
@@ -659,7 +663,7 @@ func (b *Bitmex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 			Status:    order.Status(resp[i].OrdStatus),
 			CurrencyPair: currency.NewPairWithDelimiter(resp[i].Symbol,
 				resp[i].SettlCurrency,
-				b.GetPairFormat(asset.PerpetualContract, false).Delimiter),
+				format.Delimiter),
 		}
 
 		orders = append(orders, orderDetail)

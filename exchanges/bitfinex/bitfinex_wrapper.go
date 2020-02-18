@@ -55,13 +55,7 @@ func (b *Bitfinex) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
-	b.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-			asset.Margin,
-			asset.MarginFunding,
-		},
-	}
+	b.CurrencyPairs = currency.PairsManager{}
 
 	fmt1 := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
@@ -282,8 +276,9 @@ func (b *Bitfinex) FetchTradablePairs(a asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (b *Bitfinex) UpdateTradablePairs(forceUpdate bool) error {
-	for i := range b.CurrencyPairs.AssetTypes {
-		pairs, err := b.FetchTradablePairs(b.CurrencyPairs.AssetTypes[i])
+	assets := b.CurrencyPairs.GetAssetTypes()
+	for i := range assets {
+		pairs, err := b.FetchTradablePairs(assets[i])
 		if err != nil {
 			return err
 		}
@@ -293,7 +288,7 @@ func (b *Bitfinex) UpdateTradablePairs(forceUpdate bool) error {
 			return err
 		}
 
-		err = b.UpdatePairs(p, b.CurrencyPairs.AssetTypes[i], false, forceUpdate)
+		err = b.UpdatePairs(p, assets[i], false, forceUpdate)
 		if err != nil {
 			return err
 		}

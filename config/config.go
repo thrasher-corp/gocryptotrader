@@ -353,7 +353,12 @@ func (c *Config) GetExchangeAssetTypes(exchName string) (asset.Items, error) {
 		return nil, fmt.Errorf("exchange %s currency pairs is nil", exchName)
 	}
 
-	return exchCfg.CurrencyPairs.AssetTypes, nil
+	var items asset.Items
+	for key := range exchCfg.CurrencyPairs.Pairs {
+		items = append(items, key)
+	}
+
+	return items, nil
 }
 
 // SupportsExchangeAssetType returns whether or not the exchange supports the supplied asset type
@@ -373,36 +378,12 @@ func (c *Config) SupportsExchangeAssetType(exchName string, assetType asset.Item
 			assetType)
 	}
 
-	if !exchCfg.CurrencyPairs.AssetTypes.Contains(assetType) {
+	if _, ok := exchCfg.CurrencyPairs.Pairs[assetType]; !ok {
 		return fmt.Errorf("exchange %s unsupported asset type %s",
 			exchName,
 			assetType)
 	}
 	return nil
-}
-
-// CheckExchangeAssetsConsistency checks the exchanges supported assets compared to the stored
-// entries and removes any non supported
-func (c *Config) CheckExchangeAssetsConsistency(exchName string) {
-	exchCfg, err := c.GetExchangeConfig(exchName)
-	if err != nil {
-		return
-	}
-
-	exchangeAssetTypes, err := c.GetExchangeAssetTypes(exchName)
-	if err != nil {
-		return
-	}
-
-	storedAssetTypes := exchCfg.CurrencyPairs.GetAssetTypes()
-	for x := range storedAssetTypes {
-		if !exchangeAssetTypes.Contains(storedAssetTypes[x]) {
-			log.Warnf(log.ConfigMgr,
-				"%s has non-needed stored asset type %v. Removing..\n",
-				exchName, storedAssetTypes[x])
-			exchCfg.CurrencyPairs.Delete(storedAssetTypes[x])
-		}
-	}
 }
 
 // SetPairs sets the exchanges currency pairs
@@ -433,7 +414,7 @@ func (c *Config) GetCurrencyPairConfig(exchName string, assetType asset.Item) (*
 		return nil, err
 	}
 
-	return exchCfg.CurrencyPairs.Get(assetType), nil
+	return exchCfg.CurrencyPairs.Get(assetType)
 }
 
 // CheckPairConfigFormats checks to see if the pair config format is valid
@@ -592,10 +573,22 @@ func (c *Config) GetPairFormat(exchName string, assetType asset.Item) (currency.
 		return *exchCfg.CurrencyPairs.ConfigFormat, nil
 	}
 
-	p := exchCfg.CurrencyPairs.Get(assetType)
+	p, err := exchCfg.CurrencyPairs.Get(assetType)
+	if err != nil {
+		return currency.PairFormat{}, err
+	}
+
 	if p == nil {
 		return currency.PairFormat{},
-			fmt.Errorf("exchange %s pair store for asset type %s is nil", exchName,
+			fmt.Errorf("exchange %s pair store for asset type %s is nil",
+				exchName,
+				assetType)
+	}
+
+	if p.ConfigFormat == nil {
+		return currency.PairFormat{},
+			fmt.Errorf("exchange %s pair config format for asset type %s is nil",
+				exchName,
 				assetType)
 	}
 
@@ -857,15 +850,15 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].CurrencyPairs.ConfigFormat = c.Exchanges[i].ConfigCurrencyPairFormat
 			c.Exchanges[i].CurrencyPairs.RequestFormat = c.Exchanges[i].RequestCurrencyPairFormat
 
-			if c.Exchanges[i].AssetTypes == nil {
-				c.Exchanges[i].CurrencyPairs.AssetTypes = asset.Items{
-					asset.Spot,
-				}
-			} else {
-				c.Exchanges[i].CurrencyPairs.AssetTypes = asset.New(
-					strings.ToLower(*c.Exchanges[i].AssetTypes),
-				)
-			}
+			// if c.Exchanges[i].AssetTypes == nil {
+			// 	c.Exchanges[i].CurrencyPairs.AssetTypes = asset.Items{
+			// 		asset.Spot,
+			// 	}
+			// } else {
+			// 	c.Exchanges[i].CurrencyPairs.AssetTypes = asset.New(
+			// 		strings.ToLower(*c.Exchanges[i].AssetTypes),
+			// 	)
+			// }
 
 			var availPairs, enabledPairs currency.Pairs
 			if c.Exchanges[i].AvailablePairs != nil {
@@ -958,8 +951,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 				c.Exchanges[i].Enabled = false
 				continue
 			}
-
-			c.CheckExchangeAssetsConsistency(c.Exchanges[i].Name)
 
 			for x := range c.Exchanges[i].BankAccounts {
 				if !c.Exchanges[i].BankAccounts[x].Enabled {

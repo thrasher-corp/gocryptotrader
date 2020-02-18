@@ -53,9 +53,6 @@ func (b *Bittrex) SetDefaults() {
 	b.API.CredentialsValidator.RequiresSecret = true
 
 	b.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Delimiter: "-",
@@ -64,6 +61,9 @@ func (b *Bittrex) SetDefaults() {
 		ConfigFormat: &currency.PairFormat{
 			Delimiter: "-",
 			Uppercase: true,
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
 		},
 	}
 
@@ -131,7 +131,15 @@ func (b *Bittrex) Run() {
 	}
 
 	forceUpdate := false
-	delim := b.GetPairFormat(asset.Spot, false).Delimiter
+	format, err := b.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update currencies. Err: %s\n",
+			b.Name,
+			err)
+		return
+	}
+
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
@@ -141,13 +149,13 @@ func (b *Bittrex) Run() {
 		return
 	}
 
-	if !common.StringDataContains(pairs.Strings(), delim) ||
-		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), delim) {
+	if !common.StringDataContains(pairs.Strings(), format.Delimiter) ||
+		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), format.Delimiter) {
 		forceUpdate = true
 		log.Warn(log.ExchangeSys, "Available pairs for Bittrex reset due to config upgrade, please enable the ones you would like again")
 
 		pairs, err := currency.NewPairsFromStrings([]string{currency.USDT.String() +
-			delim +
+			format.Delimiter +
 			currency.BTC.String()})
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
@@ -488,6 +496,11 @@ func (b *Bittrex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 		currPair = req.Currencies[0].String()
 	}
 
+	format, err := b.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	resp, err := b.GetOpenOrders(currPair)
 	if err != nil {
 		return nil, err
@@ -506,7 +519,7 @@ func (b *Bittrex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 		}
 
 		pair := currency.NewPairDelimiter(resp.Result[i].Exchange,
-			b.GetPairFormat(asset.Spot, false).Delimiter)
+			format.Delimiter)
 		orderType := order.Type(strings.ToUpper(resp.Result[i].Type))
 
 		orders = append(orders, order.Detail{
@@ -535,6 +548,11 @@ func (b *Bittrex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 		currPair = req.Currencies[0].String()
 	}
 
+	format, err := b.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	resp, err := b.GetOrderHistoryForCurrency(currPair)
 	if err != nil {
 		return nil, err
@@ -553,7 +571,7 @@ func (b *Bittrex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 		}
 
 		pair := currency.NewPairDelimiter(resp.Result[i].Exchange,
-			b.GetPairFormat(asset.Spot, false).Delimiter)
+			format.Delimiter)
 		orderType := order.Type(strings.ToUpper(resp.Result[i].Type))
 
 		orders = append(orders, order.Detail{

@@ -56,10 +56,6 @@ func (z *ZB) SetDefaults() {
 	z.API.CredentialsValidator.RequiresSecret = true
 
 	z.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
-
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Delimiter: "_",
@@ -587,10 +583,15 @@ func (z *ZB) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error
 		}
 	}
 
+	format, err := z.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for i := range allOrders {
 		symbol := currency.NewPairDelimiter(allOrders[i].Currency,
-			z.GetPairFormat(asset.Spot, false).Delimiter)
+			format.Delimiter)
 		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
 		orderSide := orderSideMap[allOrders[i].Type]
 		orders = append(orders, order.Detail{
@@ -655,9 +656,14 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 		}
 	}
 
+	format, err := z.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	for i := range allOrders {
 		symbol := currency.NewPairDelimiter(allOrders[i].Currency,
-			z.GetPairFormat(asset.Spot, false).Delimiter)
+			format.Delimiter)
 		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
 		orderSide := orderSideMap[allOrders[i].Type]
 		orders = append(orders, order.Detail{

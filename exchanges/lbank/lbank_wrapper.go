@@ -55,16 +55,15 @@ func (l *Lbank) SetDefaults() {
 	l.API.CredentialsValidator.RequiresSecret = true
 
 	l.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
-
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Delimiter: "_",
 		},
 		ConfigFormat: &currency.PairFormat{
 			Delimiter: "_",
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
 		},
 	}
 

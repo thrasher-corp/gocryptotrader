@@ -360,10 +360,16 @@ func (o *OKGroup) GetOrderInfo(orderID string) (resp order.Detail, err error) {
 	if err != nil {
 		return
 	}
+
+	format, err := o.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return resp, err
+	}
+
 	resp = order.Detail{
 		Amount: mOrder.Size,
 		CurrencyPair: currency.NewPairDelimiter(mOrder.InstrumentID,
-			o.GetPairFormat(asset.Spot, false).Delimiter),
+			format.Delimiter),
 		Exchange:       o.Name,
 		OrderDate:      mOrder.Timestamp,
 		ExecutedAmount: mOrder.FilledSize,

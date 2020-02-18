@@ -53,12 +53,7 @@ func (c *Coinbene) SetDefaults() {
 	c.API.CredentialsValidator.RequiresKey = true
 	c.API.CredentialsValidator.RequiresSecret = true
 
-	c.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-			asset.PerpetualSwap,
-		},
-	}
+	c.CurrencyPairs = currency.PairsManager{}
 
 	c.CurrencyPairs.Store(asset.Spot, currency.PairStore{
 		RequestFormat: &currency.PairFormat{
@@ -231,6 +226,11 @@ func (c *Coinbene) FetchTradablePairs(a asset.Item) ([]string, error) {
 			currencies = append(currencies, pairs[x].Symbol)
 		}
 	case asset.PerpetualSwap:
+		format, err := c.GetPairFormat(a, false)
+		if err != nil {
+			return nil, err
+		}
+
 		tickers, err := c.GetSwapTickers()
 		if err != nil {
 			return nil, err
@@ -242,7 +242,7 @@ func (c *Coinbene) FetchTradablePairs(a asset.Item) ([]string, error) {
 					fmt.Errorf("%s SWAP currency does not contain USDT", c.Name)
 			}
 			currencies = append(currencies,
-				t[0:idx]+c.GetPairFormat(a, false).Delimiter+t[idx:])
+				t[0:idx]+format.Delimiter+t[idx:])
 		}
 	}
 	return currencies, nil

@@ -57,9 +57,6 @@ func (c *CoinbasePro) SetDefaults() {
 	c.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 
 	c.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Delimiter: "-",
@@ -68,6 +65,9 @@ func (c *CoinbasePro) SetDefaults() {
 		ConfigFormat: &currency.PairFormat{
 			Delimiter: "-",
 			Uppercase: true,
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
 		},
 	}
 
@@ -198,7 +198,14 @@ func (c *CoinbasePro) Run() {
 	}
 
 	forceUpdate := false
-	delim := c.GetPairFormat(asset.Spot, false).Delimiter
+	format, err := c.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update currencies. Err: %s\n",
+			c.Name,
+			err)
+		return
+	}
 	enabled, err := c.CurrencyPairs.GetPairs(asset.Spot, true)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
@@ -217,10 +224,10 @@ func (c *CoinbasePro) Run() {
 		return
 	}
 
-	if !common.StringDataContains(enabled.Strings(), delim) ||
-		!common.StringDataContains(avail.Strings(), delim) {
+	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
+		!common.StringDataContains(avail.Strings(), format.Delimiter) {
 		p, err := currency.NewPairsFromStrings([]string{currency.BTC.String() +
-			delim +
+			format.Delimiter +
 			currency.USD.String()})
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
@@ -259,10 +266,15 @@ func (c *CoinbasePro) FetchTradablePairs(asset asset.Item) ([]string, error) {
 		return nil, err
 	}
 
+	format, err := c.GetPairFormat(asset, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var products []string
 	for x := range pairs {
 		products = append(products, pairs[x].BaseCurrency+
-			c.GetPairFormat(asset, false).Delimiter+
+			format.Delimiter+
 			pairs[x].QuoteCurrency)
 	}
 
@@ -557,10 +569,15 @@ func (c *CoinbasePro) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Deta
 		respOrders = append(respOrders, resp...)
 	}
 
+	format, err := c.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for i := range respOrders {
 		curr := currency.NewPairDelimiter(respOrders[i].ProductID,
-			c.GetPairFormat(asset.Spot, false).Delimiter)
+			format.Delimiter)
 		orderSide := order.Side(strings.ToUpper(respOrders[i].Side))
 		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
 		orderDate, err := time.Parse(time.RFC3339, respOrders[i].CreatedAt)
@@ -604,10 +621,15 @@ func (c *CoinbasePro) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Deta
 		respOrders = append(respOrders, resp...)
 	}
 
+	format, err := c.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for i := range respOrders {
 		curr := currency.NewPairDelimiter(respOrders[i].ProductID,
-			c.GetPairFormat(asset.Spot, false).Delimiter)
+			format.Delimiter)
 		orderSide := order.Side(strings.ToUpper(respOrders[i].Side))
 		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
 		orderDate, err := time.Parse(time.RFC3339, respOrders[i].CreatedAt)

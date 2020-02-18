@@ -58,9 +58,6 @@ func (b *BTCMarkets) SetDefaults() {
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
 
 	b.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Delimiter: "-",
@@ -69,6 +66,9 @@ func (b *BTCMarkets) SetDefaults() {
 		ConfigFormat: &currency.PairFormat{
 			Delimiter: "-",
 			Uppercase: true,
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
 		},
 	}
 
@@ -191,9 +191,15 @@ func (b *BTCMarkets) Run() {
 			err)
 		return
 	}
-	delim := b.GetPairFormat(asset.Spot, false).Delimiter
-	if !common.StringDataContains(pairs.Strings(), delim) ||
-		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), delim) {
+	format, err := b.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s Failed to update enabled currencies.\n",
+			b.Name)
+		return
+	}
+	if !common.StringDataContains(pairs.Strings(), format.Delimiter) ||
+		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), format.Delimiter) {
 		log.Warnln(log.ExchangeSys, "Available pairs for BTC Markets reset due to config upgrade, please enable the pairs you would like again.")
 		forceUpdate = true
 	}
@@ -201,7 +207,7 @@ func (b *BTCMarkets) Run() {
 		enabledPairs := currency.Pairs{currency.Pair{
 			Base:      currency.BTC.Lower(),
 			Quote:     currency.AUD.Lower(),
-			Delimiter: delim,
+			Delimiter: format.Delimiter,
 		},
 		}
 		err := b.UpdatePairs(enabledPairs, asset.Spot, true, true)

@@ -68,7 +68,6 @@ func (a Items) Contains(i Item) bool {
 			return true
 		}
 	}
-
 	return false
 }
 

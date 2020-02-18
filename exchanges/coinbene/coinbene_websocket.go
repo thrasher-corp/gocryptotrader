@@ -140,6 +140,12 @@ func (c *Coinbene) WsDataHandler() {
 				continue
 			}
 
+			format, err := c.GetPairFormat(asset.PerpetualSwap, true)
+			if err != nil {
+				c.Websocket.DataHandler <- err
+				continue
+			}
+
 			switch {
 			case strings.Contains(result[topic].(string), "ticker"):
 				var wsTicker WsTicker
@@ -151,7 +157,7 @@ func (c *Coinbene) WsDataHandler() {
 				for x := range wsTicker.Data {
 					p, err := currency.NewPairFromFormattedPairs(wsTicker.Data[x].Symbol,
 						enabledSwap,
-						c.GetPairFormat(asset.PerpetualSwap, true))
+						format)
 					if err != nil {
 						c.Websocket.DataHandler <- err
 						continue
@@ -195,7 +201,7 @@ func (c *Coinbene) WsDataHandler() {
 				p := strings.Replace(tradeList.Topic, "tradeList.", "", 1)
 				newPair, err := currency.NewPairFromFormattedPairs(p,
 					enabledSwap,
-					c.GetPairFormat(asset.PerpetualSwap, true))
+					format)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
@@ -228,7 +234,7 @@ func (c *Coinbene) WsDataHandler() {
 				p := strings.Replace(orderBook.Topic, "orderBook.", "", 1)
 				cp, err := currency.NewPairFromFormattedPairs(p,
 					enabledSwap,
-					c.GetPairFormat(asset.PerpetualSwap, true))
+					format)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
@@ -322,7 +328,7 @@ func (c *Coinbene) WsDataHandler() {
 				}
 				p, err := currency.NewPairFromFormattedPairs(kline.Data[0][0].(string),
 					enabledSwap,
-					c.GetPairFormat(asset.PerpetualSwap, true))
+					format)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue

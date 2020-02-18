@@ -56,15 +56,15 @@ func (g *Gemini) SetDefaults() {
 	g.API.CredentialsValidator.RequiresSecret = true
 
 	g.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
 		},
 	}
 
@@ -462,10 +462,14 @@ func (g *Gemini) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 		return nil, err
 	}
 
+	format, err := g.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for i := range resp {
-		symbol := currency.NewPairDelimiter(resp[i].Symbol,
-			g.GetPairFormat(asset.Spot, false).Delimiter)
+		symbol := currency.NewPairDelimiter(resp[i].Symbol, format.Delimiter)
 		var orderType order.Type
 		if resp[i].Type == "exchange limit" {
 			orderType = order.Limit
@@ -520,6 +524,11 @@ func (g *Gemini) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 		}
 	}
 
+	format, err := g.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for i := range trades {
 		side := order.Side(strings.ToUpper(trades[i].Type))
@@ -535,7 +544,7 @@ func (g *Gemini) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 			Price:     trades[i].Price,
 			CurrencyPair: currency.NewPairWithDelimiter(trades[i].BaseCurrency,
 				trades[i].QuoteCurrency,
-				g.GetPairFormat(asset.Spot, false).Delimiter),
+				format.Delimiter),
 		})
 	}
 

@@ -56,10 +56,6 @@ func (h *HUOBI) SetDefaults() {
 	h.API.CredentialsValidator.RequiresSecret = true
 
 	h.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
-
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Uppercase: false,
@@ -67,6 +63,9 @@ func (h *HUOBI) SetDefaults() {
 		ConfigFormat: &currency.PairFormat{
 			Delimiter: "-",
 			Uppercase: true,
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
 		},
 	}
 
@@ -234,16 +233,24 @@ func (h *HUOBI) Run() {
 	}
 
 	if forceUpdate {
+		format, err := h.GetPairFormat(asset.Spot, false)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to get exchange config. %s\n",
+				h.Name,
+				err)
+			return
+		}
 		enabledPairs := currency.Pairs{currency.Pair{
 			Base:      currency.BTC.Lower(),
 			Quote:     currency.USDT.Lower(),
-			Delimiter: h.GetPairFormat(asset.Spot, false).Delimiter,
+			Delimiter: format.Delimiter,
 		},
 		}
 		log.Warn(log.ExchangeSys,
 			"Available and enabled pairs for Huobi reset due to config upgrade, please enable the ones you would like again")
 
-		err := h.UpdatePairs(enabledPairs, asset.Spot, true, true)
+		err = h.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s Failed to update enabled currencies. Err:%s\n",
@@ -272,13 +279,18 @@ func (h *HUOBI) FetchTradablePairs(asset asset.Item) ([]string, error) {
 		return nil, err
 	}
 
+	format, err := h.GetPairFormat(asset, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var pairs []string
 	for x := range symbols {
 		if symbols[x].State != "online" {
 			continue
 		}
 		pairs = append(pairs, symbols[x].BaseCurrency+
-			h.GetPairFormat(asset, false).Delimiter+
+			format.Delimiter+
 			symbols[x].QuoteCurrency)
 	}
 

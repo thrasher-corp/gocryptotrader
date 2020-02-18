@@ -56,10 +56,6 @@ func (b *Bithumb) SetDefaults() {
 	b.API.CredentialsValidator.RequiresSecret = true
 
 	b.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
-
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
@@ -67,6 +63,9 @@ func (b *Bithumb) SetDefaults() {
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
 			Index:     "KRW",
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
 		},
 	}
 
@@ -494,6 +493,11 @@ func (b *Bithumb) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 		return nil, err
 	}
 
+	format, err := b.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	for i := range resp.Data {
 		if resp.Data[i].Status != "placed" {
 			continue
@@ -510,7 +514,7 @@ func (b *Bithumb) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 			Status:          order.Active,
 			CurrencyPair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
 				resp.Data[i].PaymentCurrency,
-				b.GetPairFormat(asset.Spot, false).Delimiter),
+				format.Delimiter),
 		}
 
 		if resp.Data[i].Type == "bid" {
@@ -537,6 +541,11 @@ func (b *Bithumb) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 		return nil, err
 	}
 
+	format, err := b.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	for i := range resp.Data {
 		if resp.Data[i].Status == "placed" {
 			continue
@@ -552,7 +561,7 @@ func (b *Bithumb) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 			RemainingAmount: resp.Data[i].UnitsRemaining,
 			CurrencyPair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
 				resp.Data[i].PaymentCurrency,
-				b.GetPairFormat(asset.Spot, false).Delimiter),
+				format.Delimiter),
 		}
 
 		if resp.Data[i].Type == "bid" {

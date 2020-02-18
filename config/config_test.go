@@ -432,9 +432,9 @@ func TestGetExchangeAssetTypes(t *testing.T) {
 		ExchangeConfig{
 			Name: testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{
-				AssetTypes: asset.Items{
-					asset.Spot,
-					asset.Futures,
+				Pairs: map[asset.Item]*currency.PairStore{
+					asset.Spot:    new(currency.PairStore),
+					asset.Futures: new(currency.PairStore),
 				},
 			},
 		},
@@ -469,9 +469,8 @@ func TestSupportsExchangeAssetType(t *testing.T) {
 		ExchangeConfig{
 			Name: testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{
-				AssetTypes: asset.Items{
-					asset.Spot,
-					asset.Futures,
+				Pairs: map[asset.Item]*currency.PairStore{
+					asset.Spot: new(currency.PairStore),
 				},
 			},
 		},
@@ -491,40 +490,6 @@ func TestSupportsExchangeAssetType(t *testing.T) {
 	err = c.SupportsExchangeAssetType(testFakeExchangeName, asset.Spot)
 	if err == nil {
 		t.Error("Expected error from nil pair manager")
-	}
-}
-
-func TestCheckExchangeAssetsConsistency(t *testing.T) {
-	t.Parallel()
-	var c Config
-	// Test for non-existent exchange
-	c.CheckExchangeAssetsConsistency("void")
-
-	c.Exchanges = append(c.Exchanges,
-		ExchangeConfig{
-			Name: testFakeExchangeName,
-		},
-	)
-
-	// Tests for nil currency pairs store but valid exchange name
-	c.CheckExchangeAssetsConsistency(testFakeExchangeName)
-
-	// Simulate testing a diff between stored asset types (config loading)
-	// and pair store
-	c.Exchanges[0].CurrencyPairs = &currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-			asset.Futures,
-			asset.Index,
-		},
-	}
-	c.Exchanges[0].CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.PerpetualContract] = &currency.PairStore{}
-	c.CheckExchangeAssetsConsistency(testFakeExchangeName)
-
-	err := c.SupportsExchangeAssetType(testFakeExchangeName, asset.PerpetualContract)
-	if err != nil {
-		t.Error(err)
 	}
 }
 
@@ -559,9 +524,8 @@ func TestSetPairs(t *testing.T) {
 	}
 
 	c.Exchanges[0].CurrencyPairs = &currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-			asset.Futures,
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
 		},
 	}
 
@@ -597,10 +561,6 @@ func TestGetCurrencyPairConfig(t *testing.T) {
 	}
 
 	pm := &currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-			asset.Futures,
-		},
 		Pairs: map[asset.Item]*currency.PairStore{
 			asset.Spot: {
 				RequestFormat: &currency.PairFormat{
@@ -645,11 +605,6 @@ func TestCheckPairConfigFormats(t *testing.T) {
 	c.Exchanges = append(c.Exchanges,
 		ExchangeConfig{
 			Name: testFakeExchangeName,
-			CurrencyPairs: &currency.PairsManager{
-				AssetTypes: asset.Items{
-					asset.Item("wrong"),
-				},
-			},
 		},
 	)
 
@@ -657,15 +612,16 @@ func TestCheckPairConfigFormats(t *testing.T) {
 		t.Error("nil pair store should return an error")
 	}
 
-	c.Exchanges[0].CurrencyPairs.AssetTypes = asset.Items{asset.Spot}
-	c.Exchanges[0].CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{
-		asset.Spot: {
-			RequestFormat: &currency.PairFormat{},
-			ConfigFormat:  &currency.PairFormat{},
-		},
-		asset.Futures: {
-			RequestFormat: &currency.PairFormat{},
-			ConfigFormat:  &currency.PairFormat{},
+	c.Exchanges[0].CurrencyPairs = &currency.PairsManager{
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: {
+				RequestFormat: &currency.PairFormat{},
+				ConfigFormat:  &currency.PairFormat{},
+			},
+			asset.Futures: {
+				RequestFormat: &currency.PairFormat{},
+				ConfigFormat:  &currency.PairFormat{},
+			},
 		},
 	}
 	if err := c.CheckPairConfigFormats(testFakeExchangeName); err != nil {
@@ -673,7 +629,6 @@ func TestCheckPairConfigFormats(t *testing.T) {
 	}
 
 	// Test having a pair index and delimiter set at the same time throws an error
-	c.Exchanges[0].CurrencyPairs.AssetTypes = asset.Items{asset.Spot}
 	c.Exchanges[0].CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{
 		asset.Spot: {
 			RequestFormat: &currency.PairFormat{
@@ -733,11 +688,6 @@ func TestCheckPairConsistency(t *testing.T) {
 	c.Exchanges = append(c.Exchanges,
 		ExchangeConfig{
 			Name: testFakeExchangeName,
-			CurrencyPairs: &currency.PairsManager{
-				AssetTypes: asset.Items{
-					asset.Spot,
-				},
-			},
 		},
 	)
 
@@ -746,18 +696,20 @@ func TestCheckPairConsistency(t *testing.T) {
 		t.Error("nil pair store should return an error")
 	}
 
-	c.Exchanges[0].CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{
-		asset.Spot: {
-			RequestFormat: &currency.PairFormat{
-				Uppercase: false,
-				Delimiter: "_",
-			},
-			ConfigFormat: &currency.PairFormat{
-				Uppercase: true,
-				Delimiter: "_",
-			},
-			Enabled: currency.Pairs{
-				currency.NewPairDelimiter("BTC_USD", "_"),
+	c.Exchanges[0].CurrencyPairs = &currency.PairsManager{
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: {
+				RequestFormat: &currency.PairFormat{
+					Uppercase: false,
+					Delimiter: "_",
+				},
+				ConfigFormat: &currency.PairFormat{
+					Uppercase: true,
+					Delimiter: "_",
+				},
+				Enabled: currency.Pairs{
+					currency.NewPairDelimiter("BTC_USD", "_"),
+				},
 			},
 		},
 	}
@@ -844,7 +796,6 @@ func TestGetPairFormat(t *testing.T) {
 	}
 
 	c.Exchanges[0].CurrencyPairs = &currency.PairsManager{
-		AssetTypes:      asset.Items{asset.Spot},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Uppercase: false,
@@ -853,6 +804,9 @@ func TestGetPairFormat(t *testing.T) {
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
 			Delimiter: "_",
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
 		},
 	}
 	_, err = c.GetPairFormat(testFakeExchangeName, asset.Item("invalid"))
@@ -911,12 +865,8 @@ func TestGetAvailablePairs(t *testing.T) {
 
 	c.Exchanges = append(c.Exchanges,
 		ExchangeConfig{
-			Name: testFakeExchangeName,
-			CurrencyPairs: &currency.PairsManager{
-				AssetTypes: asset.Items{
-					asset.Spot,
-				},
-			},
+			Name:          testFakeExchangeName,
+			CurrencyPairs: &currency.PairsManager{},
 		},
 	)
 
@@ -958,12 +908,8 @@ func TestGetEnabledPairs(t *testing.T) {
 
 	c.Exchanges = append(c.Exchanges,
 		ExchangeConfig{
-			Name: testFakeExchangeName,
-			CurrencyPairs: &currency.PairsManager{
-				AssetTypes: asset.Items{
-					asset.Spot,
-				},
-			},
+			Name:          testFakeExchangeName,
+			CurrencyPairs: &currency.PairsManager{},
 		},
 	)
 
@@ -988,6 +934,11 @@ func TestGetEnabledPairs(t *testing.T) {
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{
 		currency.NewPair(currency.BTC, currency.USD),
 	}
+
+	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Available = currency.Pairs{
+		currency.NewPair(currency.BTC, currency.USD),
+	}
+
 	_, err = c.GetEnabledPairs(testFakeExchangeName, asset.Spot)
 	if err != nil {
 		t.Error(err)
@@ -1340,7 +1291,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		t.Error("unexpected request format values")
 	}
 
-	if cfg.Exchanges[0].CurrencyPairs.AssetTypes.JoinToString(",") != "spot" ||
+	if !cfg.Exchanges[0].CurrencyPairs.GetAssetTypes().Contains(asset.Spot) ||
 		!cfg.Exchanges[0].CurrencyPairs.UseGlobalFormat {
 		t.Error("unexpected results")
 	}
@@ -1377,24 +1328,10 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	cfg.Exchanges[0].Features.Supports.RESTCapabilities.AutoPairUpdates = false
 	cfg.Exchanges[0].Features.Supports.WebsocketCapabilities.AutoPairUpdates = false
 	cfg.Exchanges[0].CurrencyPairs.LastUpdated = 0
-	cfg.CheckExchangeConfigValues()
-
-	// Test exchange pair consistency error
-	cfg.Exchanges[0].CurrencyPairs.UseGlobalFormat = false
-	backup := cfg.Exchanges[0].CurrencyPairs.Pairs[asset.Spot]
-	cfg.Exchanges[0].CurrencyPairs.Pairs[asset.Spot] = nil
 	err = cfg.CheckExchangeConfigValues()
 	if err != nil {
 		t.Error(err)
 	}
-	if cfg.Exchanges[0].Enabled {
-		t.Error("exchange should have been disabled")
-	}
-
-	// Restore to previous state
-	cfg.Exchanges[0].Enabled = true
-	cfg.Exchanges[0].CurrencyPairs.UseGlobalFormat = true
-	cfg.Exchanges[0].CurrencyPairs.Pairs[asset.Spot] = backup
 
 	// Test websocket and HTTP timeout values
 	cfg.Exchanges[0].WebsocketResponseMaxLimit = 0

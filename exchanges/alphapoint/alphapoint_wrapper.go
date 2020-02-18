@@ -35,10 +35,6 @@ func (a *Alphapoint) SetDefaults() {
 	a.API.CredentialsValidator.RequiresKey = true
 	a.API.CredentialsValidator.RequiresSecret = true
 
-	a.CurrencyPairs.AssetTypes = asset.Items{
-		asset.Spot,
-	}
-
 	a.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,

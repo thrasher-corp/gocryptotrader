@@ -51,11 +51,6 @@ func (o *OKCoin) SetDefaults() {
 	o.API.CredentialsValidator.RequiresClientID = true
 
 	o.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-			asset.Margin,
-		},
-
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
@@ -65,6 +60,10 @@ func (o *OKCoin) SetDefaults() {
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
 			Delimiter: "-",
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot:   new(currency.PairStore),
+			asset.Margin: new(currency.PairStore),
 		},
 	}
 
@@ -148,7 +147,14 @@ func (o *OKCoin) Run() {
 	}
 
 	forceUpdate := false
-	delim := o.GetPairFormat(asset.Spot, false).Delimiter
+	format, err := o.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update currencies. Err: %s\n",
+			o.Name,
+			err)
+		return
+	}
 	enabled, err := o.CurrencyPairs.GetPairs(asset.Spot, true)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
@@ -167,10 +173,10 @@ func (o *OKCoin) Run() {
 		return
 	}
 
-	if !common.StringDataContains(enabled.Strings(), delim) ||
-		!common.StringDataContains(avail.Strings(), delim) {
+	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
+		!common.StringDataContains(avail.Strings(), format.Delimiter) {
 		p, err := currency.NewPairsFromStrings([]string{currency.BTC.String() +
-			delim +
+			format.Delimiter +
 			currency.USD.String()})
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
@@ -213,10 +219,15 @@ func (o *OKCoin) FetchTradablePairs(asset asset.Item) ([]string, error) {
 		return nil, err
 	}
 
+	format, err := o.GetPairFormat(asset, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var pairs []string
 	for x := range prods {
 		pairs = append(pairs, prods[x].BaseCurrency+
-			o.GetPairFormat(asset, false).Delimiter+
+			format.Delimiter+
 			prods[x].QuoteCurrency)
 	}
 

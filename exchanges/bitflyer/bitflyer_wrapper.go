@@ -52,10 +52,6 @@ func (b *Bitflyer) SetDefaults() {
 	b.API.CredentialsValidator.RequiresSecret = true
 
 	b.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-			asset.Futures,
-		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Delimiter: "_",
@@ -64,6 +60,10 @@ func (b *Bitflyer) SetDefaults() {
 		ConfigFormat: &currency.PairFormat{
 			Delimiter: "_",
 			Uppercase: true,
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Futures: new(currency.PairStore),
+			asset.Spot:    new(currency.PairStore),
 		},
 	}
 
@@ -138,6 +138,11 @@ func (b *Bitflyer) FetchTradablePairs(assetType asset.Item) ([]string, error) {
 		return nil, err
 	}
 
+	format, err := b.GetPairFormat(assetType, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var products []string
 	for i := range pairs {
 		if pairs[i].Alias != "" && assetType == asset.Futures {
@@ -145,7 +150,7 @@ func (b *Bitflyer) FetchTradablePairs(assetType asset.Item) ([]string, error) {
 		} else if pairs[i].Alias == "" &&
 			assetType == asset.Spot &&
 			strings.Contains(pairs[i].ProductCode,
-				b.GetPairFormat(assetType, false).Delimiter) {
+				format.Delimiter) {
 			products = append(products, pairs[i].ProductCode)
 		}
 	}
@@ -155,9 +160,9 @@ func (b *Bitflyer) FetchTradablePairs(assetType asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (b *Bitflyer) UpdateTradablePairs(forceUpdate bool) error {
-	for x := range b.CurrencyPairs.AssetTypes {
-		a := b.CurrencyPairs.AssetTypes[x]
-		pairs, err := b.FetchTradablePairs(a)
+	assets := b.CurrencyPairs.GetAssetTypes()
+	for x := range assets {
+		pairs, err := b.FetchTradablePairs(assets[x])
 		if err != nil {
 			return err
 		}
@@ -167,7 +172,7 @@ func (b *Bitflyer) UpdateTradablePairs(forceUpdate bool) error {
 			return err
 		}
 
-		err = b.UpdatePairs(p, a, false, forceUpdate)
+		err = b.UpdatePairs(p, assets[x], false, forceUpdate)
 		if err != nil {
 			return err
 		}

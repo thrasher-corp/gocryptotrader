@@ -57,9 +57,6 @@ func (g *Gateio) SetDefaults() {
 	g.API.CredentialsValidator.RequiresSecret = true
 
 	g.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Delimiter: "_",
@@ -67,6 +64,9 @@ func (g *Gateio) SetDefaults() {
 		ConfigFormat: &currency.PairFormat{
 			Delimiter: "_",
 			Uppercase: true,
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
 		},
 	}
 
@@ -506,6 +506,12 @@ func (g *Gateio) GetOrderInfo(orderID string) (order.Detail, error) {
 	if err != nil {
 		return orderDetail, errors.New("failed to get open orders")
 	}
+
+	format, err := g.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return orderDetail, err
+	}
+
 	for x := range orders.Orders {
 		if orders.Orders[x].OrderNumber != orderID {
 			continue
@@ -519,7 +525,7 @@ func (g *Gateio) GetOrderInfo(orderID string) (order.Detail, error) {
 		orderDetail.Status = order.Status(orders.Orders[x].Status)
 		orderDetail.Price = orders.Orders[x].Rate
 		orderDetail.CurrencyPair = currency.NewPairDelimiter(orders.Orders[x].CurrencyPair,
-			g.GetPairFormat(asset.Spot, false).Delimiter)
+			format.Delimiter)
 		if strings.EqualFold(orders.Orders[x].Type, order.Ask.String()) {
 			orderDetail.OrderSide = order.Ask
 		} else if strings.EqualFold(orders.Orders[x].Type, order.Bid.String()) {
@@ -635,13 +641,18 @@ func (g *Gateio) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 			return nil, err
 		}
 
+		format, err := g.GetPairFormat(asset.Spot, false)
+		if err != nil {
+			return nil, err
+		}
+
 		for i := range resp.Orders {
 			if resp.Orders[i].Status != "open" {
 				continue
 			}
 
 			symbol := currency.NewPairDelimiter(resp.Orders[i].CurrencyPair,
-				g.GetPairFormat(asset.Spot, false).Delimiter)
+				format.Delimiter)
 			side := order.Side(strings.ToUpper(resp.Orders[i].Type))
 			orderDate := time.Unix(resp.Orders[i].Timestamp, 0)
 			orders = append(orders, order.Detail{
@@ -674,10 +685,14 @@ func (g *Gateio) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 		trades = append(trades, resp.Trades...)
 	}
 
+	format, err := g.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for _, trade := range trades {
-		symbol := currency.NewPairDelimiter(trade.Pair,
-			g.GetPairFormat(asset.Spot, false).Delimiter)
+		symbol := currency.NewPairDelimiter(trade.Pair, format.Delimiter)
 		side := order.Side(strings.ToUpper(trade.Type))
 		orderDate := time.Unix(trade.TimeUnix, 0)
 		orders = append(orders, order.Detail{

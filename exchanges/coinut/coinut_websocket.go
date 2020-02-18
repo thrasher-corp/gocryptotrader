@@ -130,6 +130,13 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		c.Websocket.DataHandler <- err
 		return
 	}
+
+	format, err := c.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		c.Websocket.DataHandler <- err
+		return
+	}
+
 	switch incoming.Reply {
 	case "hb":
 		channels["hb"] <- resp
@@ -148,7 +155,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		currencyPair := c.instrumentMap.LookupInstrument(wsTicker.InstID)
 		p, err := currency.NewPairFromFormattedPairs(currencyPair,
 			pairs,
-			c.GetPairFormat(asset.Spot, true))
+			format)
 		if err != nil {
 			c.Websocket.DataHandler <- err
 			return
@@ -188,7 +195,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		currencyPair := c.instrumentMap.LookupInstrument(orderbooksnapshot.InstID)
 		p, err := currency.NewPairFromFormattedPairs(currencyPair,
 			pairs,
-			c.GetPairFormat(asset.Spot, true))
+			format)
 		if err != nil {
 			c.Websocket.DataHandler <- err
 			return
@@ -219,7 +226,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		currencyPair := c.instrumentMap.LookupInstrument(orderbookUpdate.InstID)
 		p, err := currency.NewPairFromFormattedPairs(currencyPair,
 			pairs,
-			c.GetPairFormat(asset.Spot, true))
+			format)
 		if err != nil {
 			c.Websocket.DataHandler <- err
 			return
@@ -253,7 +260,7 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 		currencyPair := c.instrumentMap.LookupInstrument(tradeUpdate.InstID)
 		p, err := currency.NewPairFromFormattedPairs(currencyPair,
 			pairs,
-			c.GetPairFormat(asset.Spot, true))
+			format)
 		if err != nil {
 			c.Websocket.DataHandler <- err
 			return
@@ -338,11 +345,15 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 		return err
 	}
 
+	format, err := c.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return err
+	}
+
 	newOrderBook.Pair, err = currency.NewPairFromFormattedPairs(
 		c.instrumentMap.LookupInstrument(ob.InstID),
 		pairs,
-		c.GetPairFormat(asset.Spot, true),
-	)
+		format)
 	if err != nil {
 		return err
 	}
@@ -360,10 +371,15 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 		return err
 	}
 
+	format, err := c.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return err
+	}
+
 	p, err := currency.NewPairFromFormattedPairs(
 		c.instrumentMap.LookupInstrument(update.InstID),
 		pairs,
-		c.GetPairFormat(asset.Spot, true))
+		format)
 	if err != nil {
 		return err
 	}

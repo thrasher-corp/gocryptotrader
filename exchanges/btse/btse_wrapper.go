@@ -54,12 +54,7 @@ func (b *BTSE) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
-	b.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-			asset.Futures,
-		},
-	}
+	b.CurrencyPairs = currency.PairsManager{}
 
 	fmt1 := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
@@ -450,13 +445,18 @@ func (b *BTSE) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAll
 		return resp, err
 	}
 
+	format, err := b.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return resp, err
+	}
+
 	resp.Status = make(map[string]string)
 	for x := range markets {
 		strPair := b.FormatExchangeCurrency(orderCancellation.CurrencyPair,
 			orderCancellation.AssetType).String()
 		checkPair := currency.NewPairWithDelimiter(markets[x].BaseCurrency,
 			markets[x].QuoteCurrency,
-			b.GetPairFormat(asset.Spot, false).Delimiter).String()
+			format.Delimiter).String()
 		if strPair != "" && strPair != checkPair {
 			continue
 		} else {
@@ -489,6 +489,11 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 		return od, errors.New("no orders found")
 	}
 
+	format, err := b.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return order.Detail{}, err
+	}
+
 	for i := range o {
 		if o[i].ID != orderID {
 			continue
@@ -500,7 +505,7 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 		}
 
 		od.CurrencyPair = currency.NewPairDelimiter(o[i].Symbol,
-			b.GetPairFormat(asset.Spot, false).Delimiter)
+			format.Delimiter)
 		od.Exchange = b.Name
 		od.Amount = o[i].Amount
 		od.ID = o[i].ID
@@ -576,6 +581,11 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 		return nil, err
 	}
 
+	format, err := b.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for i := range resp {
 		var side = order.Buy
@@ -593,7 +603,7 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 
 		openOrder := order.Detail{
 			CurrencyPair: currency.NewPairDelimiter(resp[i].Symbol,
-				b.GetPairFormat(asset.Spot, false).Delimiter),
+				format.Delimiter),
 			Exchange:  b.Name,
 			Amount:    resp[i].Amount,
 			ID:        resp[i].ID,

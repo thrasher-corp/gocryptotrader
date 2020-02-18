@@ -281,11 +281,16 @@ func (s *RPCServer) GetExchangeInfo(ctx context.Context, r *gctrpc.GenericExchan
 	}
 
 	resp.SupportedAssets = make(map[string]*gctrpc.PairsSupported)
-	for x := range exchCfg.CurrencyPairs.AssetTypes {
-		a := exchCfg.CurrencyPairs.AssetTypes[x]
-		resp.SupportedAssets[a.String()] = &gctrpc.PairsSupported{
-			EnabledPairs:   exchCfg.CurrencyPairs.Get(a).Enabled.Join(),
-			AvailablePairs: exchCfg.CurrencyPairs.Get(a).Available.Join(),
+	assets := exchCfg.CurrencyPairs.GetAssetTypes()
+	for i := range assets {
+		ps, err := exchCfg.CurrencyPairs.Get(assets[i])
+		if err != nil {
+			return nil, err
+		}
+
+		resp.SupportedAssets[assets[i].String()] = &gctrpc.PairsSupported{
+			EnabledPairs:   ps.Enabled.Join(),
+			AvailablePairs: ps.Available.Join(),
 		}
 	}
 	return resp, nil
@@ -991,13 +996,18 @@ func (s *RPCServer) GetExchangePairs(ctx context.Context, r *gctrpc.GetExchangeP
 	resp.SupportedAssets = make(map[string]*gctrpc.PairsSupported)
 	assetTypes := exchCfg.CurrencyPairs.GetAssetTypes()
 	for x := range assetTypes {
-		a := assetTypes[x]
-		if r.Asset != "" && !strings.EqualFold(a.String(), r.Asset) {
+		if r.Asset != "" && !strings.EqualFold(assetTypes[x].String(), r.Asset) {
 			continue
 		}
-		resp.SupportedAssets[a.String()] = &gctrpc.PairsSupported{
-			AvailablePairs: exchCfg.CurrencyPairs.Get(a).Available.Join(),
-			EnabledPairs:   exchCfg.CurrencyPairs.Get(a).Enabled.Join(),
+
+		ps, err := exchCfg.CurrencyPairs.Get(assetTypes[x])
+		if err != nil {
+			return nil, err
+		}
+
+		resp.SupportedAssets[assetTypes[x].String()] = &gctrpc.PairsSupported{
+			AvailablePairs: ps.Available.Join(),
+			EnabledPairs:   ps.Enabled.Join(),
 		}
 	}
 	return &resp, nil

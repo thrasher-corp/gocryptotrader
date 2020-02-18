@@ -57,10 +57,6 @@ func (k *Kraken) SetDefaults() {
 	k.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 
 	k.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
-
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
@@ -70,6 +66,9 @@ func (k *Kraken) SetDefaults() {
 			Uppercase: true,
 			Delimiter: "-",
 			Separator: ",",
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
 		},
 	}
 
@@ -211,7 +210,14 @@ func (k *Kraken) Run() {
 	}
 
 	forceUpdate := false
-	delim := k.GetPairFormat(asset.Spot, false).Delimiter
+	format, err := k.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			k.Name,
+			err)
+		return
+	}
 	enabled, err := k.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
@@ -220,10 +226,10 @@ func (k *Kraken) Run() {
 			err)
 		return
 	}
-	if !common.StringDataContains(enabled.Strings(), delim) ||
-		!common.StringDataContains(k.GetAvailablePairs(asset.Spot).Strings(), delim) {
+	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
+		!common.StringDataContains(k.GetAvailablePairs(asset.Spot).Strings(), format.Delimiter) {
 		p, err := currency.NewPairsFromStrings([]string{currency.XBT.String() +
-			delim +
+			format.Delimiter +
 			currency.USD.String()})
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
@@ -264,6 +270,11 @@ func (k *Kraken) FetchTradablePairs(asset asset.Item) ([]string, error) {
 		return nil, err
 	}
 
+	format, err := k.GetPairFormat(asset, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var products []string
 	for i := range pairs {
 		v := pairs[i]
@@ -279,7 +290,7 @@ func (k *Kraken) FetchTradablePairs(asset asset.Item) ([]string, error) {
 			v.Quote = v.Quote[1:]
 		}
 		products = append(products, v.Base+
-			k.GetPairFormat(asset, false).Delimiter+
+			format.Delimiter+
 			v.Quote)
 	}
 	return products, nil

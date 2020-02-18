@@ -55,12 +55,7 @@ func (b *Binance) SetDefaults() {
 	b.API.CredentialsValidator.RequiresSecret = true
 	b.SetValues()
 
-	b.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-			asset.Margin,
-		},
-	}
+	b.CurrencyPairs = currency.PairsManager{}
 
 	fmt1 := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
@@ -196,7 +191,13 @@ func (b *Binance) Run() {
 	}
 
 	forceUpdate := false
-	delim := b.GetPairFormat(asset.Spot, false).Delimiter
+	format, err := b.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
+			b.Name,
+			err)
+		return
+	}
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
@@ -204,11 +205,11 @@ func (b *Binance) Run() {
 			err)
 		return
 	}
-	if !common.StringDataContains(pairs.Strings(), delim) ||
-		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), delim) {
+	if !common.StringDataContains(pairs.Strings(), format.Delimiter) ||
+		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), format.Delimiter) {
 		enabledPairs, err := currency.NewPairsFromStrings([]string{
 			currency.BTC.String() +
-				delim +
+				format.Delimiter +
 				currency.USDT.String()})
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err %s\n",
@@ -249,11 +250,16 @@ func (b *Binance) FetchTradablePairs(a asset.Item) ([]string, error) {
 		return nil, err
 	}
 
+	format, err := b.GetPairFormat(a, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var pairs []string
 	for x := range info.Symbols {
 		if info.Symbols[x].Status == "TRADING" {
 			pair := info.Symbols[x].BaseAsset +
-				b.GetPairFormat(a, false).Delimiter +
+				format.Delimiter +
 				info.Symbols[x].QuoteAsset
 			if a == asset.Spot && info.Symbols[x].IsSpotTradingAllowed {
 				pairs = append(pairs, pair)

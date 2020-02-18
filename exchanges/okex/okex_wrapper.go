@@ -57,14 +57,7 @@ func (o *OKEX) SetDefaults() {
 	o.API.CredentialsValidator.RequiresSecret = true
 	o.API.CredentialsValidator.RequiresClientID = true
 
-	o.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-			asset.Futures,
-			asset.PerpetualSwap,
-			asset.Index,
-		},
-	}
+	o.CurrencyPairs = currency.PairsManager{}
 	// Same format used for perpetual swap and futures
 	fmt1 := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
@@ -181,7 +174,15 @@ func (o *OKEX) Run() {
 			o.API.Endpoints.WebsocketURL)
 	}
 
-	delim := o.GetPairFormat(asset.Spot, false).Delimiter
+	format, err := o.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			o.Name,
+			err)
+		return
+	}
+
 	forceUpdate := false
 	enabled, err := o.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -191,11 +192,11 @@ func (o *OKEX) Run() {
 			err)
 		return
 	}
-	if !common.StringDataContains(enabled.Strings(), delim) ||
-		!common.StringDataContains(o.GetAvailablePairs(asset.Spot).Strings(), delim) {
+	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
+		!common.StringDataContains(o.GetAvailablePairs(asset.Spot).Strings(), format.Delimiter) {
 		forceUpdate = true
 		p, err := currency.NewPairsFromStrings([]string{currency.BTC.String() +
-			delim +
+			format.Delimiter +
 			currency.USDT.String()})
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
@@ -232,6 +233,12 @@ func (o *OKEX) Run() {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 	var pairs []string
+
+	format, err := o.GetPairFormat(i, false)
+	if err != nil {
+		return nil, err
+	}
+
 	switch i {
 	case asset.Spot:
 		prods, err := o.GetSpotTokenPairDetails()
@@ -243,7 +250,7 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 			pairs = append(pairs,
 				currency.NewPairWithDelimiter(prods[x].BaseCurrency,
 					prods[x].QuoteCurrency,
-					o.GetPairFormat(i, false).Delimiter).String())
+					format.Delimiter).String())
 		}
 		return pairs, nil
 	case asset.Futures:
@@ -254,8 +261,7 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 
 		for x := range prods {
 			p := strings.Split(prods[x].InstrumentID, delimiterDash)
-			pairs = append(pairs,
-				p[0]+delimiterDash+p[1]+o.GetPairFormat(i, false).Delimiter+p[2])
+			pairs = append(pairs, p[0]+delimiterDash+p[1]+format.Delimiter+p[2])
 		}
 		return pairs, nil
 
@@ -270,7 +276,7 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 				prods[x].UnderlyingIndex+
 					delimiterDash+
 					prods[x].QuoteCurrency+
-					o.GetPairFormat(i, false).Delimiter+
+					format.Delimiter+
 					"SWAP")
 		}
 		return pairs, nil
@@ -285,18 +291,19 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
-	for x := range o.CurrencyPairs.AssetTypes {
-		if o.CurrencyPairs.AssetTypes[x] == asset.Index {
+	assets := o.CurrencyPairs.GetAssetTypes()
+	for x := range assets {
+		if assets[x] == asset.Index {
 			// Update from futures
 			continue
 		}
 
-		pairs, err := o.FetchTradablePairs(o.CurrencyPairs.AssetTypes[x])
+		pairs, err := o.FetchTradablePairs(assets[x])
 		if err != nil {
 			return err
 		}
 
-		if o.CurrencyPairs.AssetTypes[x] == asset.Futures {
+		if assets[x] == asset.Futures {
 			var indexPairs []string
 			for i := range pairs {
 				item := strings.Split(pairs[i], delimiterUnderscore)[0]
@@ -322,8 +329,7 @@ func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
 			return err
 		}
 
-		err = o.UpdatePairs(p,
-			o.CurrencyPairs.AssetTypes[x], false, forceUpdate)
+		err = o.UpdatePairs(p, assets[x], false, forceUpdate)
 		if err != nil {
 			return err
 		}

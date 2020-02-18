@@ -220,6 +220,12 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 		return
 	}
 
+	format, err := h.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		h.sendPingResponse(init.Ping)
+		return
+	}
+
 	switch {
 	case strings.Contains(init.Channel, "depth"):
 		var depth WsDepth
@@ -251,7 +257,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 		}
 		p, err := currency.NewPairFromFormattedPairs(data[1],
 			pairs,
-			h.GetPairFormat(asset.Spot, true))
+			format)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 			return
@@ -278,7 +284,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 		pairs, err := h.GetEnabledPairs(asset.Spot)
 		p, err := currency.NewPairFromFormattedPairs(data[1],
 			pairs,
-			h.GetPairFormat(asset.Spot, true))
+			format)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 			return
@@ -304,7 +310,7 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 		}
 		p, err := currency.NewPairFromFormattedPairs(data[1],
 			pairs,
-			h.GetPairFormat(asset.Spot, true))
+			format)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 			return
@@ -337,9 +343,15 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 	if err != nil {
 		return err
 	}
+
+	format, err := h.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return err
+	}
+
 	p, err := currency.NewPairFromFormattedPairs(symbol,
 		pairs,
-		h.GetPairFormat(asset.Spot, true))
+		format)
 	if err != nil {
 		return err
 	}

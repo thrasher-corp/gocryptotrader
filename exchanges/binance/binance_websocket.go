@@ -112,6 +112,13 @@ func (b *Binance) WsHandleData() {
 					read.Raw)
 				continue
 			}
+			format, err := b.GetPairFormat(asset.Spot, true)
+			if err != nil {
+				b.Websocket.DataHandler <- fmt.Errorf("%v - get pair format error: %s",
+					b.Name,
+					err)
+				continue
+			}
 			streamType := strings.Split(multiStreamData.Stream, "@")
 			switch streamType[1] {
 			case "trade":
@@ -150,7 +157,7 @@ func (b *Binance) WsHandleData() {
 
 				p, err := currency.NewPairFromFormattedPairs(trade.Symbol,
 					pair,
-					b.GetPairFormat(asset.Spot, true))
+					format)
 				if err != nil {
 					b.Websocket.DataHandler <- fmt.Errorf("%v - %s",
 						b.Name,
@@ -186,7 +193,7 @@ func (b *Binance) WsHandleData() {
 
 				p, err := currency.NewPairFromFormattedPairs(t.Symbol,
 					pairs,
-					b.GetPairFormat(asset.Spot, true))
+					format)
 				if err != nil {
 					b.Websocket.DataHandler <- fmt.Errorf("%v - %s",
 						b.Name,
@@ -229,7 +236,7 @@ func (b *Binance) WsHandleData() {
 
 				p, err := currency.NewPairFromFormattedPairs(kline.Symbol,
 					pairs,
-					b.GetPairFormat(asset.Spot, true))
+					format)
 				if err != nil {
 					b.Websocket.DataHandler <- fmt.Errorf("%v - %s",
 						b.Name,
@@ -278,7 +285,7 @@ func (b *Binance) WsHandleData() {
 
 				p, err := currency.NewPairFromFormattedPairs(depth.Pair,
 					pairs,
-					b.GetPairFormat(asset.Spot, true))
+					format)
 				if err != nil {
 					b.Websocket.DataHandler <- fmt.Errorf("%v - %s",
 						b.Name,
@@ -363,9 +370,12 @@ func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
 		return err
 	}
 
-	p, err := currency.NewPairFromFormattedPairs(wsdp.Pair,
-		pairs,
-		b.GetPairFormat(asset.Spot, true))
+	format, err := b.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return err
+	}
+
+	p, err := currency.NewPairFromFormattedPairs(wsdp.Pair, pairs, format)
 	if err != nil {
 		return err
 	}

@@ -56,9 +56,6 @@ func (e *EXMO) SetDefaults() {
 	e.API.CredentialsValidator.RequiresSecret = true
 
 	e.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Delimiter: "_",
@@ -68,6 +65,9 @@ func (e *EXMO) SetDefaults() {
 		ConfigFormat: &currency.PairFormat{
 			Delimiter: "_",
 			Uppercase: true,
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
 		},
 	}
 

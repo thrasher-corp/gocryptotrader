@@ -57,16 +57,15 @@ func (l *LocalBitcoins) SetDefaults() {
 	l.API.CredentialsValidator.RequiresSecret = true
 
 	l.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
-
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
 		},
 	}
 
@@ -458,6 +457,11 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest
 		return nil, err
 	}
 
+	format, err := l.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for i := range resp {
 		orderDate, err := time.Parse(time.RFC3339, resp[i].Data.CreatedAt)
@@ -485,7 +489,7 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest
 			OrderSide: side,
 			CurrencyPair: currency.NewPairWithDelimiter(currency.BTC.String(),
 				resp[i].Data.Currency,
-				l.GetPairFormat(asset.Spot, false).Delimiter),
+				format.Delimiter),
 			Exchange: l.Name,
 		})
 	}
@@ -518,6 +522,11 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest
 		return nil, err
 	}
 	allTrades = append(allTrades, resp...)
+
+	format, err := l.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
 
 	var orders []order.Detail
 	for i := range allTrades {
@@ -562,7 +571,7 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest
 			Status:    order.Status(status),
 			CurrencyPair: currency.NewPairWithDelimiter(currency.BTC.String(),
 				allTrades[i].Data.Currency,
-				l.GetPairFormat(asset.Spot, false).Delimiter),
+				format.Delimiter),
 			Exchange: l.Name,
 		})
 	}

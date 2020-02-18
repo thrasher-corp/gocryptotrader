@@ -56,9 +56,6 @@ func (y *Yobit) SetDefaults() {
 	y.API.CredentialsValidator.RequiresSecret = true
 
 	y.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Delimiter: "_",
@@ -68,6 +65,9 @@ func (y *Yobit) SetDefaults() {
 		ConfigFormat: &currency.PairFormat{
 			Delimiter: "_",
 			Uppercase: true,
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
 		},
 	}
 
@@ -472,6 +472,12 @@ func (y *Yobit) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 // GetActiveOrders retrieves any orders that are active/open
 func (y *Yobit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var orders []order.Detail
+
+	format, err := y.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	for x := range req.Currencies {
 		fCurr := y.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String()
 		resp, err := y.GetOpenOrders(fCurr)
@@ -480,8 +486,7 @@ func (y *Yobit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 		}
 
 		for id := range resp {
-			symbol := currency.NewPairDelimiter(resp[id].Pair,
-				y.GetPairFormat(asset.Spot, false).Delimiter)
+			symbol := currency.NewPairDelimiter(resp[id].Pair, format.Delimiter)
 			orderDate := time.Unix(int64(resp[id].TimestampCreated), 0)
 			side := order.Side(strings.ToUpper(resp[id].Type))
 			orders = append(orders, order.Detail{
@@ -522,10 +527,14 @@ func (y *Yobit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 		}
 	}
 
+	format, err := y.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for i := range allOrders {
-		symbol := currency.NewPairDelimiter(allOrders[i].Pair,
-			y.GetPairFormat(asset.Spot, false).Delimiter)
+		symbol := currency.NewPairDelimiter(allOrders[i].Pair, format.Delimiter)
 		orderDate := time.Unix(int64(allOrders[i].Timestamp), 0)
 		side := order.Side(strings.ToUpper(allOrders[i].Type))
 		orders = append(orders, order.Detail{

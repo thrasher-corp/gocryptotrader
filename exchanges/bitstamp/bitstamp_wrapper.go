@@ -56,15 +56,15 @@ func (b *Bitstamp) SetDefaults() {
 	b.API.CredentialsValidator.RequiresClientID = true
 
 	b.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
 		},
 	}
 
@@ -582,6 +582,12 @@ func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 	if len(req.Currencies) == 1 {
 		currPair = req.Currencies[0].String()
 	}
+
+	format, err := b.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	resp, err := b.GetUserTransactions(currPair)
 	if err != nil {
 		return nil, err
@@ -622,7 +628,7 @@ func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 		if quoteCurrency.String() != "" && baseCurrency.String() != "" {
 			currPair = currency.NewPairWithDelimiter(baseCurrency.String(),
 				quoteCurrency.String(),
-				b.GetPairFormat(asset.Spot, false).Delimiter)
+				format.Delimiter)
 		}
 
 		tm, err := parseTime(resp[i].Date)

@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 const (
@@ -118,9 +117,6 @@ func main() {
 	newExchConfig.API.Credentials.Key = "Key"
 	newExchConfig.API.Credentials.Secret = "Secret"
 	newExchConfig.CurrencyPairs = &currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,

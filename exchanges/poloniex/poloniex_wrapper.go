@@ -55,9 +55,6 @@ func (p *Poloniex) SetDefaults() {
 	p.API.CredentialsValidator.RequiresSecret = true
 
 	p.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Delimiter: delimiterUnderscore,
@@ -66,6 +63,9 @@ func (p *Poloniex) SetDefaults() {
 		ConfigFormat: &currency.PairFormat{
 			Delimiter: delimiterUnderscore,
 			Uppercase: true,
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
 		},
 	}
 
@@ -525,11 +525,14 @@ func (p *Poloniex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 		return nil, err
 	}
 
+	format, err := p.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for key := range resp.Data {
-		symbol := currency.NewPairDelimiter(key,
-			p.GetPairFormat(asset.Spot, false).Delimiter)
-
+		symbol := currency.NewPairDelimiter(key, format.Delimiter)
 		for i := range resp.Data[key] {
 			orderSide := order.Side(strings.ToUpper(resp.Data[key][i].Type))
 			orderDate, err := time.Parse(poloniexDateLayout, resp.Data[key][i].Date)
@@ -571,11 +574,13 @@ func (p *Poloniex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 		return nil, err
 	}
 
+	format, err := p.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for key := range resp.Data {
-		symbol := currency.NewPairDelimiter(key,
-			p.GetPairFormat(asset.Spot, false).Delimiter)
-
 		for i := range resp.Data[key] {
 			orderSide := order.Side(strings.ToUpper(resp.Data[key][i].Type))
 			orderDate, err := time.Parse(poloniexDateLayout,
@@ -595,7 +600,7 @@ func (p *Poloniex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 				Amount:       resp.Data[key][i].Amount,
 				OrderDate:    orderDate,
 				Price:        resp.Data[key][i].Rate,
-				CurrencyPair: symbol,
+				CurrencyPair: currency.NewPairDelimiter(key, format.Delimiter),
 				Exchange:     p.Name,
 			})
 		}

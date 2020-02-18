@@ -415,7 +415,7 @@ func (b *Bitmex) GenerateDefaultSubscriptions() {
 		if err != nil {
 			log.Errorf(log.WebsocketMgr,
 				"%s could not generate default subscriptions Err: %s",
-				b.GetName,
+				b.Name,
 				err)
 			return
 		}
@@ -451,7 +451,7 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() {
 	if err != nil {
 		log.Errorf(log.WebsocketMgr,
 			"%s could not generate auth subscriptions Err: %s",
-			b.GetName,
+			b.Name,
 			err)
 		return
 	}

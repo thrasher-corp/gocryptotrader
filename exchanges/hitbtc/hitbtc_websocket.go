@@ -124,9 +124,15 @@ func (h *HitBTC) handleSubscriptionUpdates(resp wshandler.WebsocketResponse, ini
 			return
 		}
 
+		format, err := h.GetPairFormat(asset.Spot, true)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+			return
+		}
+
 		p, err := currency.NewPairFromFormattedPairs(wsTicker.Params.Symbol,
 			pairs,
-			h.GetPairFormat(asset.Spot, true))
+			format)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 			return
@@ -268,9 +274,14 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 		return err
 	}
 
+	format, err := h.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return err
+	}
+
 	p, err := currency.NewPairFromFormattedPairs(ob.Params.Symbol,
 		pairs,
-		h.GetPairFormat(asset.Spot, true))
+		format)
 	if err != nil {
 		h.Websocket.DataHandler <- err
 		return err
@@ -319,9 +330,14 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update WsOrderbook) error {
 		return err
 	}
 
+	format, err := h.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return err
+	}
+
 	p, err := currency.NewPairFromFormattedPairs(update.Params.Symbol,
 		pairs,
-		h.GetPairFormat(asset.Spot, true))
+		format)
 	if err != nil {
 		return err
 	}

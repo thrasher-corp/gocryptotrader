@@ -56,9 +56,6 @@ func (c *COINUT) SetDefaults() {
 	c.API.CredentialsValidator.RequiresClientID = true
 
 	c.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
@@ -66,6 +63,9 @@ func (c *COINUT) SetDefaults() {
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
 			Delimiter: "-",
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
 		},
 	}
 
@@ -193,7 +193,14 @@ func (c *COINUT) Run() {
 	}
 
 	forceUpdate := false
-	delim := c.GetPairFormat(asset.Spot, false).Delimiter
+	format, err := c.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update currencies. Err: %s\n",
+			c.Name,
+			err)
+		return
+	}
 
 	enabled, err := c.CurrencyPairs.GetPairs(asset.Spot, true)
 	if err != nil {
@@ -212,10 +219,10 @@ func (c *COINUT) Run() {
 		return
 	}
 
-	if !common.StringDataContains(enabled.Strings(), delim) ||
-		!common.StringDataContains(avail.Strings(), delim) {
+	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
+		!common.StringDataContains(avail.Strings(), format.Delimiter) {
 		p, err := currency.NewPairsFromStrings([]string{currency.LTC.String() +
-			delim +
+			format.Delimiter +
 			currency.USDT.String()})
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
@@ -263,11 +270,17 @@ func (c *COINUT) FetchTradablePairs(asset asset.Item) ([]string, error) {
 			return nil, err
 		}
 	}
+
+	format, err := c.GetPairFormat(asset, false)
+	if err != nil {
+		return nil, err
+	}
+
 	instruments = resp.Instruments
 	var pairs []string
 	for i := range instruments {
 		c.instrumentMap.Seed(instruments[i][0].Base+instruments[i][0].Quote, instruments[i][0].InstID)
-		p := instruments[i][0].Base + c.GetPairFormat(asset, false).Delimiter + instruments[i][0].Quote
+		p := instruments[i][0].Base + format.Delimiter + instruments[i][0].Quote
 		pairs = append(pairs, p)
 	}
 
@@ -788,6 +801,11 @@ func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 			return nil, err
 		}
 
+		format, err := c.GetPairFormat(asset.Spot, true)
+		if err != nil {
+			return nil, err
+		}
+
 		for x := range instrumentsToUse {
 			openOrders, err := c.GetOpenOrders(instrumentsToUse[x])
 			if err != nil {
@@ -797,7 +815,7 @@ func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 				curr := c.instrumentMap.LookupInstrument(instrumentsToUse[x])
 				p, err := currency.NewPairFromFormattedPairs(curr,
 					pairs,
-					c.GetPairFormat(asset.Spot, true))
+					format)
 				if err != nil {
 					return nil, err
 				}
@@ -886,6 +904,11 @@ func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 			return nil, err
 		}
 
+		format, err := c.GetPairFormat(asset.Spot, true)
+		if err != nil {
+			return nil, err
+		}
+
 		for x := range instrumentsToUse {
 			orders, err := c.GetTradeHistory(instrumentsToUse[x], -1, -1)
 			if err != nil {
@@ -895,7 +918,7 @@ func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 				curr := c.instrumentMap.LookupInstrument(instrumentsToUse[x])
 				p, err := currency.NewPairFromFormattedPairs(curr,
 					pairs,
-					c.GetPairFormat(asset.Spot, true))
+					format)
 				if err != nil {
 					return nil, err
 				}

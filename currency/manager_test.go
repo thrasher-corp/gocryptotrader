@@ -50,11 +50,13 @@ func TestGetAssetTypes(t *testing.T) {
 func TestGet(t *testing.T) {
 	initTest(t)
 
-	if p.Get(asset.Spot) == nil {
+	_, err := p.Get(asset.Spot)
+	if err == nil {
 		t.Error("Spot assets shouldn't be nil")
 	}
 
-	if p.Get(asset.Futures) != nil {
+	_, err = p.Get(asset.Spot)
+	if err == nil {
 		t.Error("Futures should be nil")
 	}
 }
@@ -84,7 +86,12 @@ func TestStore(t *testing.T) {
 		},
 	)
 
-	if p.Get(asset.Futures) == nil {
+	f, err := p.Get(asset.Futures)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if f == nil {
 		t.Error("Futures assets shouldn't be nil")
 	}
 }
@@ -103,12 +110,18 @@ func TestDelete(t *testing.T) {
 	})
 
 	p.Delete(asset.UpsideProfitContract)
-	if p.Get(asset.Spot) == nil {
+	spotPS, err := p.Get(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if spotPS == nil {
 		t.Error("AssetTypeSpot should exist")
 	}
 
 	p.Delete(asset.Spot)
-	if p.Get(asset.Spot) != nil {
+
+	if _, err := p.Get(asset.Spot); err != nil {
 		t.Error("Delete should have deleted AssetTypeSpot")
 	}
 }
@@ -187,6 +200,7 @@ func TestStorePairs(t *testing.T) {
 	}
 
 	p.StorePairs(asset.Futures, ethkrwPairs, true)
+	p.StorePairs(asset.Futures, ethkrwPairs, false)
 	pairs, err = p.GetPairs(asset.Futures, true)
 	if err != nil {
 		t.Fatal(err)
