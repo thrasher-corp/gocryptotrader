@@ -49,7 +49,7 @@ var (
 	// ErrInvalidRequest message to return when a request type is invalid
 	ErrInvalidRequest = errors.New("invalid request type")
 	// CacheSize cache size to use for withdrawal request history
-	CacheSize uint64 = 50
+	CacheSize uint64 = 25
 	// Cache LRU cache for recent requests
 	Cache = cache.New(CacheSize)
 	// DryRunID uuid to use for dryruns
