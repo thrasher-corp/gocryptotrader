@@ -1048,12 +1048,67 @@ func (s *RPCServer) WithdrawalEventByID(ctx context.Context, r *gctrpc.Withdrawa
 
 // WithdrawalEventsByExchange returns previous withdrawal request details by exchange
 func (s *RPCServer) WithdrawalEventsByExchange(ctx context.Context, r *gctrpc.WithdrawalEventsByExchangeRequest) (*gctrpc.WithdrawalEventsByExchangeResponse, error) {
-	v, err := WithdrawEventByExchange(r.Exchange, int(r.Limit))
-	if err != nil {
-		return nil, err
+	var ret []*withdraw.Response
+	var err error
+	if r.Id == "" {
+		ret, err = WithdrawEventByExchange(r.Exchange, int(r.Limit))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		ret, err = WithdrawEventByExchangeID(r.Exchange, r.Id)
+		if err != nil {
+			return nil, err
+		}
 	}
-	fmt.Println(v)
-	return nil, nil
+
+	v := &gctrpc.WithdrawalEventsByExchangeResponse{}
+	for x := range ret {
+		tempEvent := &gctrpc.WithdrawalEventResponse{
+			Id: ret[x].ID.String(),
+			Exchange: &gctrpc.WithdrawlExchangeEvent{
+				Name:   ret[x].Exchange.Name,
+				Id:     ret[x].Exchange.Name,
+				Status: ret[x].Exchange.Status,
+			},
+			Request: &gctrpc.WithdrawalRequestEvent{
+				Currency:    ret[x].RequestDetails.Currency.String(),
+				Description: ret[x].RequestDetails.Description,
+				Amount:      ret[x].RequestDetails.Amount,
+				Type:        int32(ret[x].RequestDetails.Type),
+			},
+			CreatedAt: &timestamp.Timestamp{
+				Seconds: int64(ret[x].CreatedAt.Second()),
+				Nanos:   int32(ret[x].CreatedAt.Nanosecond()),
+			},
+			UpdatedAt: &timestamp.Timestamp{
+				Seconds: int64(ret[x].UpdatedAt.Second()),
+				Nanos:   int32(ret[x].UpdatedAt.Nanosecond()),
+			},
+		}
+		if ret[x].RequestDetails.Type == withdraw.Crypto {
+			tempEvent.Request.Crypto = new(gctrpc.CryptoWithdrawalEvent)
+			tempEvent.Request.Crypto = &gctrpc.CryptoWithdrawalEvent{
+				Address:    ret[x].RequestDetails.Crypto.Address,
+				AddressTag: ret[x].RequestDetails.Crypto.AddressTag,
+				Fee:        ret[x].RequestDetails.Crypto.FeeAmount,
+			}
+		} else if ret[x].RequestDetails.Type == withdraw.Fiat {
+			if ret[x].RequestDetails.Fiat != nil {
+				tempEvent.Request.Fiat = new(gctrpc.FiatWithdrawalEvent)
+				tempEvent.Request.Fiat = &gctrpc.FiatWithdrawalEvent{
+					BankName:      ret[x].RequestDetails.Fiat.Bank.BankName,
+					AccountName:   ret[x].RequestDetails.Fiat.Bank.AccountName,
+					AccountNumber: ret[x].RequestDetails.Fiat.Bank.AccountNumber,
+					Bsb:           ret[x].RequestDetails.Fiat.Bank.BSBNumber,
+					Swift:         ret[x].RequestDetails.Fiat.Bank.SWIFTCode,
+					Iban:          ret[x].RequestDetails.Fiat.Bank.IBAN,
+				}
+			}
+		}
+		v.Event = append(v.Event, tempEvent)
+	}
+	return v, nil
 }
 
 // GetLoggerDetails returns a loggers details

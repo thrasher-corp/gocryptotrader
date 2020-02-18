@@ -74,7 +74,10 @@ func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err 
 	err = tempEvent.Insert(ctx, tx, boil.Infer())
 	if err != nil {
 		log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
-		_ = tx.Rollback()
+		err = tx.Rollback()
+		if err != nil {
+			log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
+		}
 		return
 	}
 	if res.RequestDetails.Type == withdraw.Fiat {
@@ -90,7 +93,10 @@ func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err 
 		err = tempEvent.SetWithdrawalFiatWithdrawalFiats(ctx, tx, true, fiatEvent)
 		if err != nil {
 			log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
-			_ = tx.Rollback()
+			err = tx.Rollback()
+			if err != nil {
+				log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
+			}
 			return
 		}
 	}
@@ -105,7 +111,10 @@ func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err 
 		err = tempEvent.AddWithdrawalCryptoWithdrawalCryptos(ctx, tx, true, cryptoEvent)
 		if err != nil {
 			log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
-			_ = tx.Rollback()
+			err = tx.Rollback()
+			if err != nil {
+				log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
+			}
 			return
 		}
 	}
@@ -119,7 +128,10 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 	newUUID, errUUID := uuid.NewV4()
 	if errUUID != nil {
 		log.Errorf(log.DatabaseMgr, "Failed to generate UUID: %v", errUUID)
-		_ = tx.Rollback()
+		err = tx.Rollback()
+		if err != nil {
+			log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
+		}
 		return
 	}
 
@@ -138,7 +150,10 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 	err = tempEvent.Insert(ctx, tx, boil.Infer())
 	if err != nil {
 		log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
-		_ = tx.Rollback()
+		err = tx.Rollback()
+		if err != nil {
+			log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
+		}
 		return
 	}
 
@@ -155,7 +170,10 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 		err = tempEvent.AddWithdrawalFiats(ctx, tx, true, fiatEvent)
 		if err != nil {
 			log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
-			_ = tx.Rollback()
+			err = tx.Rollback()
+			if err != nil {
+				log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
+			}
 			return
 		}
 	}
@@ -170,7 +188,10 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 		err = tempEvent.AddWithdrawalCryptos(ctx, tx, true, cryptoEvent)
 		if err != nil {
 			log.Errorf(log.DatabaseMgr, "Event Insert failed: %v", err)
-			_ = tx.Rollback()
+			err = tx.Rollback()
+			if err != nil {
+				log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
+			}
 			return
 		}
 	}
@@ -184,29 +205,29 @@ func GetEventByUUID(id string) (*withdraw.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &resp[0], err
+	return resp[0], err
 }
 
 // GetEventsByExchange returns all withdrawal requests by exchange
-func GetEventsByExchange(exchange string, limit int) ([]withdraw.Response, error) {
-	return getByColumns([]string{"exchange"}, []string{exchange}, 1)
+func GetEventsByExchange(exchange string, limit int) ([]*withdraw.Response, error) {
+	return getByColumns([]string{"exchange"}, []string{exchange}, limit)
 }
 
 // GetEventByExchangeID return requested withdraw information by Exchange ID
-func GetEventByExchangeID(exchange, id string, limit int) (*withdraw.Response, error) {
+func GetEventByExchangeID(exchange, id string, limit int) ([]*withdraw.Response, error) {
 	resp, err := getByColumns([]string{"exchange", "exchange_id"}, []string{exchange, id}, 1)
 	if err != nil {
 		return nil, err
 	}
-	return &resp[0], nil
+	return resp, nil
 }
 
-func getByColumns(columns, id []string, limit int) ([]withdraw.Response, error) {
+func getByColumns(columns, id []string, limit int) ([]*withdraw.Response, error) {
 	if database.DB.SQL == nil {
 		return nil, errors.New("database is nil")
 	}
 
-	var resp []withdraw.Response
+	var resp []*withdraw.Response
 	var ctx = context.Background()
 
 	var queries []qm.QueryMod
@@ -221,7 +242,7 @@ func getByColumns(columns, id []string, limit int) ([]withdraw.Response, error) 
 			return nil, err
 		}
 		for x := range v {
-			var tempResp = withdraw.Response{}
+			var tempResp = &withdraw.Response{}
 			newUUID, _ := uuid.FromString(v[x].ID)
 			tempResp.ID = newUUID
 			tempResp.Exchange = new(withdraw.ExchangeResponse)
@@ -230,21 +251,22 @@ func getByColumns(columns, id []string, limit int) ([]withdraw.Response, error) 
 			tempResp.Exchange.Status = v[x].Status
 			tempResp.RequestDetails = new(withdraw.Request)
 			tempResp.RequestDetails = &withdraw.Request{
-				Currency:    currency.Code{},
+				Currency:    currency.NewCode(v[x].Currency),
 				Description: v[x].Description.String,
 				Amount:      v[x].Amount,
 				Type:        withdraw.RequestType(v[x].WithdrawType),
 			}
+
 			createdAtTime, err := time.Parse("2006-01-02T15:04:05Z", v[x].CreatedAt)
 			if err != nil {
-				log.Errorf(log.DatabaseMgr, "time conversion error defaulting to empty time: %v", err)
+				log.Errorf(log.DatabaseMgr, "%v incorrect time format - defaulting to empty time: %v", tempResp.CreatedAt, err)
 				tempResp.CreatedAt = time.Time{}
 			} else {
 				tempResp.CreatedAt = createdAtTime.UTC()
 			}
 			updatedAtTime, err := time.Parse("2006-01-02T15:04:05Z", v[x].UpdatedAt)
 			if err != nil {
-				log.Errorf(log.DatabaseMgr, "time conversion error defaulting to empty time: %v", err)
+				log.Errorf(log.DatabaseMgr, "%v incorrect time format - defaulting to empty time: %v", tempResp.UpdatedAt, err)
 				tempResp.UpdatedAt = time.Time{}
 			} else {
 				tempResp.UpdatedAt = updatedAtTime.UTC()
@@ -280,7 +302,7 @@ func getByColumns(columns, id []string, limit int) ([]withdraw.Response, error) 
 		}
 
 		for x := range v {
-			var tempResp = withdraw.Response{}
+			var tempResp = &withdraw.Response{}
 			newUUID, _ := uuid.FromString(v[x].ID)
 			tempResp.ID = newUUID
 			tempResp.Exchange = new(withdraw.ExchangeResponse)
@@ -289,7 +311,7 @@ func getByColumns(columns, id []string, limit int) ([]withdraw.Response, error) 
 			tempResp.Exchange.Status = v[x].Status
 			tempResp.RequestDetails = new(withdraw.Request)
 			tempResp.RequestDetails = &withdraw.Request{
-				Currency:    currency.Code{},
+				Currency:    currency.NewCode(v[x].Currency),
 				Description: v[x].Description.String,
 				Amount:      v[x].Amount,
 				Type:        withdraw.RequestType(v[x].WithdrawType),

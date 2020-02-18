@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -2389,23 +2390,61 @@ func withdrawFiatFunds(c *cli.Context) error {
 	return nil
 }
 
-var withdrawlRequestByIDCommand = cli.Command{
-	Name:      "withdrawlrequestbyid",
-	ShortName: "wid",
-	UsageText: "retrieve previous withdrawal request details",
-	ArgsUsage: "<id>",
-	Action:    withdrawlRequestByID,
-	Flags: []cli.Flag{
-		cli.StringFlag{
-			Name:  "id",
-			Usage: "event id",
+var withdrawlRequestCommand = cli.Command{
+	Name:      "withdrawlrequesthistory",
+	Usage:     "retrieve previous withdrawal request details",
+	ArgsUsage: "<type> <args>",
+	Subcommands: []cli.Command{
+		{
+			Name:      "byid",
+			Usage:     "byid id",
+			ArgsUsage: "<id>",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "id",
+					Usage: "<id>",
+				},
+			},
+			Action: withdrawlRequestByID,
+		},
+		{
+			Name:      "byexchangeid",
+			Usage:     "byexchangeid exchange id",
+			ArgsUsage: "<id>",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "exchange",
+					Usage: "<exchange>",
+				},
+				cli.StringFlag{
+					Name:  "id",
+					Usage: "<id>",
+				},
+			},
+			Action: withdrawlRequestByExchangeID,
+		},
+		{
+			Name:      "byexchange",
+			Usage:     "byexchange exchange",
+			ArgsUsage: "<id>",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "exchange",
+					Usage: "<exchange>",
+				},
+				cli.Int64Flag{
+					Name:  "limit",
+					Usage: "<limit>",
+				},
+			},
+			Action: withdrawlRequestByExchangeID,
 		},
 	},
 }
 
 func withdrawlRequestByID(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "withdrawlrequestbyid")
+		cli.ShowSubcommandHelp(c)
 		return nil
 	}
 
@@ -2431,6 +2470,69 @@ func withdrawlRequestByID(c *cli.Context) error {
 	result, err := client.WithdrawalEventByID(context.Background(),
 		&gctrpc.WithdrawalEventByIDRequest{
 			Id: ID,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}
+
+func withdrawlRequestByExchangeID(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowSubcommandHelp(c)
+		return nil
+	}
+
+	var exchange string
+	if c.IsSet("exchange") {
+		exchange = c.String("exchange")
+	} else {
+		exchange = c.Args().First()
+	}
+
+	var limit, limitStr int64
+	var ID string
+	var err error
+	if c.Command.Name == "byexchangeid" {
+		if c.IsSet("id") {
+			ID = c.String("id")
+		} else {
+			ID = c.Args().Get(1)
+		}
+		if ID == "" {
+			return errors.New("a ID must be specified")
+		}
+		limit = 1
+	} else {
+		if c.IsSet("limit") {
+			limit = c.Int64("limit")
+		} else {
+			limitStr, err = strconv.ParseInt(c.Args().Get(1), 10, 64)
+			if err != nil {
+				return err
+			}
+			if limitStr > math.MaxInt32 {
+				return fmt.Errorf("limit greater than max size: %v", math.MaxInt32)
+			}
+			limit = limitStr
+		}
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	result, err := client.WithdrawalEventsByExchange(context.Background(),
+		&gctrpc.WithdrawalEventsByExchangeRequest{
+			Exchange: exchange,
+			Id:       ID,
+			Limit:    int32(limit),
 		},
 	)
 	if err != nil {

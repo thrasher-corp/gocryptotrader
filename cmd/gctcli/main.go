@@ -124,7 +124,7 @@ func main() {
 		getCryptocurrencyDepositAddressCommand,
 		withdrawCryptocurrencyFundsCommand,
 		withdrawFiatFundsCommand,
-		withdrawlRequestByIDCommand,
+		withdrawlRequestCommand,
 		getLoggerDetailsCommand,
 		setLoggerDetailsCommand,
 		getExchangePairsCommand,
