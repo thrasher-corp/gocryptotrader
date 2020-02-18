@@ -442,7 +442,7 @@ func TestUpdateCheckItem(t *testing.T) {
 
 func TestNameUpdates(t *testing.T) {
 	t.Parallel()
-	_, err := NameStateChanges("Gemini 2", "complete")
+	_, err := NameStateChanges("Gemini 24", "complete")
 	if err != nil {
 		t.Error(err)
 	}
@@ -478,8 +478,7 @@ func TestReadFileData(t *testing.T) {
 
 func TestGetSha(t *testing.T) {
 	t.Parallel()
-	a, err := getSha("binance-exchange/binance-official-api-docs")
-	t.Log(a)
+	_, err := getSha("binance-exchange/binance-official-api-docs")
 	if err != nil {
 		t.Error(err)
 	}

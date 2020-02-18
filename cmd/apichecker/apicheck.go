@@ -69,18 +69,29 @@ type Config struct {
 }
 
 var (
-	verbose                                                                        bool
-	apiKey, apiToken, trelloBoardID, trelloListID, trelloChecklistID, trelloCardID string
-	configData, testConfigData                                                     Config
+	verbose, add                                                                                                                                                                                     bool
+	apiKey, apiToken, trelloBoardID, trelloListID, trelloChecklistID, trelloCardID, exchangeName, checkType, tokenData, key, val, tokenDataEnd, textTokenData, dateFormat, regExp, checkString, path string
+	configData, testConfigData                                                                                                                                                                       Config
 )
 
 func main() {
-	flag.StringVar(&apiKey, "key", "", "sets API key for Trello board interaction")
-	flag.StringVar(&apiToken, "token", "", "sets API token for Trello board interaction")
-	flag.StringVar(&trelloChecklistID, "checklistid", "", "sets checklist ID for Trello board interaction")
-	flag.StringVar(&trelloCardID, "cardid", "", "sets card ID for Trello board interaction")
-	flag.StringVar(&trelloListID, "listid", "", "sets list ID for Trello board interaction")
-	flag.StringVar(&trelloBoardID, "boardid", "", "sets board ID for Trello board interaction")
+	flag.StringVar(&apiKey, "key", "", "sets the API key for Trello board interaction")
+	flag.StringVar(&apiToken, "token", "", "sets the API token for Trello board interaction")
+	flag.StringVar(&trelloChecklistID, "checklistid", "", "sets the checklist ID for Trello board interaction")
+	flag.StringVar(&trelloCardID, "cardid", "", "sets the card ID for Trello board interaction")
+	flag.StringVar(&trelloListID, "listid", "", "sets the list ID for Trello board interaction")
+	flag.StringVar(&trelloBoardID, "boardid", "", "sets the board ID for Trello board interaction")
+	flag.StringVar(&exchangeName, "exchangeName", "", "sets the exchangeName for the new exchange")
+	flag.StringVar(&checkType, "checkType", "", "sets the checkType for the new exchange")
+	flag.StringVar(&tokenData, "tokendata", "", "sets the tokenData for adding a new exchange")
+	flag.StringVar(&key, "key", "", "sets the key for adding a new exchange")
+	flag.StringVar(&val, "val", "", "sets the val for adding a new exchange")
+	flag.StringVar(&tokenDataEnd, "tokenDataEnd", "", "sets the tokenDataEnd for adding a new exchange")
+	flag.StringVar(&textTokenData, "textTokenData", "", "sets the textTokenData for adding a new exchange")
+	flag.StringVar(&regExp, "regExp", "", "sets the regExp for adding a new exchange")
+	flag.StringVar(&dateFormat, "dateFormat", "", "sets the dateFormat for adding a new exchange")
+	flag.StringVar(&path, "path", "", "sets the path for adding a new exchange")
+	flag.BoolVar(&add, "add", false, "used as a trigger to add a new exchange from command line")
 	flag.BoolVar(&verbose, "verbose", false, "increases logging verbosity for API Update Checker")
 	flag.Parse()
 	var err error
@@ -91,6 +102,21 @@ func main() {
 	configData, err = ReadFileData(jsonFile)
 	if err != nil {
 		log.Fatal(err)
+	}
+	if add {
+		var data HTMLScrapingData
+		data.TokenData = tokenData
+		data.Key = key
+		data.Val = val
+		data.TokenDataEnd = tokenDataEnd
+		data.TextTokenData = textTokenData
+		data.DateFormat = dateFormat
+		data.RegExp = regExp
+		data.Path = path
+		err := Add(exchangeName, checkType, path, data, false, &configData)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	if CanUpdateTrello() {
 		SetAuthVars()
@@ -114,40 +140,34 @@ func main() {
 
 // SetAuthVars checks if the cmdline vars are set and sets them onto config file and vice versa
 func SetAuthVars() {
-	switch {
-	case true:
+	if apiKey == "" {
 		apiKey = configData.Key
-	case false:
+	} else {
 		configData.Key = apiKey
 	}
-	switch apiToken == "" {
-	case true:
+	if apiToken == "" {
 		apiToken = configData.Token
-	case false:
+	} else {
 		configData.Token = apiToken
 	}
-	switch trelloCardID == "" {
-	case true:
+	if trelloCardID == "" {
 		trelloCardID = configData.CardID
-	case false:
+	} else {
 		configData.CardID = trelloCardID
 	}
-	switch trelloChecklistID == "" {
-	case true:
+	if trelloChecklistID == "" {
 		trelloChecklistID = configData.ChecklistID
-	case false:
+	} else {
 		configData.ChecklistID = trelloChecklistID
 	}
-	switch trelloListID == "" {
-	case true:
+	if trelloListID == "" {
 		trelloListID = configData.ListID
-	case false:
+	} else {
 		configData.ListID = trelloListID
 	}
-	switch trelloBoardID == "" {
-	case true:
+	if trelloBoardID == "" {
 		trelloBoardID = configData.BoardID
-	case false:
+	} else {
 		configData.BoardID = trelloBoardID
 	}
 }
@@ -164,18 +184,12 @@ func RemoveTestAuthVars(confData *Config) {
 
 // CanUpdateTrello checks if all the data necessary for updating trello is available
 func CanUpdateTrello() bool {
-	if AreAPIKeysSet() && IsTrelloBoardDataSet() {
-		return true
-	}
-	return false
+	return (AreAPIKeysSet() && IsTrelloBoardDataSet())
 }
 
 // AreAPIKeysSet checks if api keys and tokens are set
 func AreAPIKeysSet() bool {
-	if (apiKey != "" && apiToken != "") || (configData.Key != "" && configData.Token != "") {
-		return true
-	}
-	return false
+	return (apiKey != "" && apiToken != "") || (configData.Key != "" && configData.Token != "")
 }
 
 // IsTrelloBoardDataSet checks if data required to update trello board is set
@@ -260,7 +274,7 @@ func CheckUpdates(fileName string, confData *Config) error {
 				m.Unlock()
 				sha, err := getSha(repoPath)
 				m.Lock()
-				if err != nil {
+				if err != nil && sha.ShaResp != "" {
 					errMap[e.Name] = err
 				}
 				if sha.ShaResp != e.Data.GitHubData.Sha {
@@ -1221,7 +1235,6 @@ func TrelloCreateNewCard(fillData *CardFill) error {
 	}
 	err := SendAuthReq(http.MethodPost,
 		pathNewCard+params.Encode()+apiKey+apiToken,
-		nil,
 		nil)
 	return err
 }
@@ -1232,7 +1245,6 @@ func TrelloCreateNewCheck(newCheck string) error {
 	params.Set("name", newCheck)
 	err := SendAuthReq(http.MethodPost,
 		pathChecklists+trelloChecklistID+params.Encode()+apiKey+apiToken,
-		nil,
 		nil)
 	return err
 }
@@ -1247,11 +1259,13 @@ func TrelloGetChecklistItems() (ChecklistItemData, error) {
 // NameStateChanges returns the appropriate update name & state for trello (assumes single digit updates pending)
 func NameStateChanges(currentName, currentState string) (string, error) {
 	r, err := regexp.Compile(`[\s\S]* \d{1}$`) // nolint: gocritic
+	s, err := regexp.Compile(`[\s\S]* \d{2}$`) // nolint: gocritic
 	if err != nil {
 		return "", err
 	}
 	var tempNumber int64
 	var finalNumber string
+	var byteNumber, byteName []byte
 	if r.MatchString(currentName) {
 		stringNum := string(currentName[len(currentName)-1])
 		tempNumber, err = strconv.ParseInt(stringNum, 10, 64)
@@ -1264,12 +1278,33 @@ func NameStateChanges(currentName, currentState string) (string, error) {
 			tempNumber = 1
 		}
 		finalNumber = strconv.FormatInt(tempNumber, 10)
+		byteNumber = []byte(finalNumber)
+		byteName = []byte(currentName)
+		byteName = byteName[:len(byteName)-1]
+		byteName = append(byteName, byteNumber[0])
+		return string(byteName), nil
 	}
-	byteNumber := []byte(finalNumber)
-	byteName := []byte(currentName)
-	byteName = byteName[:len(byteName)-1]
-	byteName = append(byteName, byteNumber[0])
-	return string(byteName), nil
+	if s.MatchString(currentName) {
+		stringNumTens := string(currentName[len(currentName)-2])
+		stringNumZeros := string(currentName[len(currentName)-1])
+		tempTens, err := strconv.ParseInt(stringNumTens, 10, 64)
+		if err != nil {
+			return "", err
+		}
+		tempZeros, err := strconv.ParseInt(stringNumZeros, 10, 64)
+		if err != nil {
+			return "", err
+		}
+		tempNumber = tempTens*10 + tempZeros + 1
+		finalNumber = strconv.FormatInt(tempNumber, 10)
+		byteNumber = []byte(finalNumber)
+		byteName = []byte(currentName)
+		byteName = byteName[:len(byteName)-2]
+		byteName = append(byteName, byteNumber[0])
+		byteName = append(byteName, byteNumber[1])
+		return string(byteName), nil
+	}
+	return "", errors.New("invalid currentName or pending updates has exceeded 99")
 }
 
 // TrelloUpdateCheckItem updates a check item for trello
@@ -1282,7 +1317,7 @@ func TrelloUpdateCheckItem(checkItemID, name, state string) error {
 	params.Set("name", newName)
 	params.Set("state", incomplete)
 	path := fmt.Sprintf(pathUpdateItems, trelloCardID, checkItemID, params.Encode(), configData.Key, configData.Token)
-	err = SendAuthReq(http.MethodPut, path, nil, nil)
+	err = SendAuthReq(http.MethodPut, path, nil)
 	return err
 }
 
@@ -1329,7 +1364,7 @@ func SendGetReq(path string, result interface{}) error {
 }
 
 // SendAuthReq sends auth req
-func SendAuthReq(method, path string, data, result interface{}) error {
+func SendAuthReq(method, path string, result interface{}) error {
 	requester := request.New("Apichecker",
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.NewBasicRateLimit(time.Second*10, 100))

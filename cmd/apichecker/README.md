@@ -33,29 +33,54 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 ## Usage
 
 + To run a real check for updates, parse Trello API info as flags or add them to the updates.json file and use the following command from apichecker folder in GCT:
+
+###### Linux/OSX
+GoCryptoTrader is built using [Go Modules](https://github.com/golang/go/wiki/Modules) and requires Go 1.11 or above
+Using Go Modules you now clone this repository **outside** your GOPATH
+
 ```bash
-go build && apichecker.exe --verbose
+git clone https://github.com/thrasher-corp/gocryptotrader.git
+cd gocryptotrader
+cd cmd
+cd apichecker
+go build
+./apichecker
+```
+
+###### Windows
+
+```bash
+git clone https://github.com/thrasher-corp/gocryptotrader.git
+cd gocryptotrader
+cd cmd
+cd apichecker
+go build && apichecker.exe
 ```
 
 + Upon addition of a new exchange, to update Trello checklist and to add the exchange to updates.json the following would need to be done:
 
-#### HTML Scraping method:
+###### HTML Scraping method:
+HTMLScrapingData is a struct which contains the necessary information to scrape data from the given path website. Not all the elements of HTMLScrapingData are necessary, its all dependant on site where information is being extracted from. Regexp is used to capture necessary bits of data using r.FindString() where r is the declared regular expression. If update dates data is available, DateFormat is used to convert the dates to a more standard format which can then be used for further comparisons of which update is most recent.
 ```go
 func TestAdd(t *testing.T) {
 	t.Parallel()
-	data := HTMLScrapingData{TokenData: "div",
-		Key:    "class",
-		Val:    "col-md-12",
-		RegExp: "col-md-12([\\s\\S]*?)clearfix",
-		Path:   "https://localbitcoins.com/api-docs/"}
-	err := Add("LocalBitcoins", htmlScrape, data.Path, data, true, &testConfigData)
+	data := HTMLScrapingData{TokenData: "h1",
+		Key:           "id",
+		Val:           "revision-history",
+		TokenDataEnd:  "table",
+		TextTokenData: "td",
+		DateFormat:    "2006/01/02",
+		RegExp:        "^20(\\d){2}/(\\d){2}/(\\d){2}$",
+		CheckString:   "2019/11/15",
+		Path:          "https://docs.gemini.com/rest-api/#revision-history"}
+	err := Add("Gemini", htmlScrape, data.Path, data, true, &testConfigData)
 	if err != nil {
 		t.Error(err)
     }
 }
 ```
 
-#### Github SHA Check Method:
+###### Github SHA Check Method:
 ```go
 func TestAdd(t *testing.T) {
 	t.Parallel()
@@ -71,11 +96,13 @@ func TestAdd(t *testing.T) {
 ```go
 func NameStateChanges(currentName, currentState string) (string, error) {
 	r, err := regexp.Compile(`[\s\S]* \d{1}$`) // nolint: gocritic
+	s, err := regexp.Compile(`[\s\S]* \d{2}$`) // nolint: gocritic
 	if err != nil {
 		return "", err
 	}
 	var tempNumber int64
 	var finalNumber string
+	var byteNumber, byteName []byte
 	if r.MatchString(currentName) {
 		stringNum := string(currentName[len(currentName)-1])
 		tempNumber, err = strconv.ParseInt(stringNum, 10, 64)
@@ -88,12 +115,33 @@ func NameStateChanges(currentName, currentState string) (string, error) {
 			tempNumber = 1
 		}
 		finalNumber = strconv.FormatInt(tempNumber, 10)
+		byteNumber = []byte(finalNumber)
+		byteName = []byte(currentName)
+		byteName = byteName[:len(byteName)-1]
+		byteName = append(byteName, byteNumber[0])
+		return string(byteName), nil
 	}
-	byteNumber := []byte(finalNumber)
-	byteName := []byte(currentName)
-	byteName = byteName[:len(byteName)-1]
-	byteName = append(byteName, byteNumber[0])
-	return string(byteName), nil
+	if s.MatchString(currentName) {
+		stringNumTens := string(currentName[len(currentName)-2])
+		stringNumZeros := string(currentName[len(currentName)-1])
+		tempTens, err := strconv.ParseInt(stringNumTens, 10, 64)
+		if err != nil {
+			return "", err
+		}
+		tempZeros, err := strconv.ParseInt(stringNumZeros, 10, 64)
+		if err != nil {
+			return "", err
+		}
+		tempNumber = tempTens*10 + tempZeros + 1
+		finalNumber = strconv.FormatInt(tempNumber, 10)
+		byteNumber = []byte(finalNumber)
+		byteName = []byte(currentName)
+		byteName = byteName[:len(byteName)-2]
+		byteName = append(byteName, byteNumber[0])
+		byteName = append(byteName, byteNumber[1])
+		return string(byteName), nil
+	}
+	return "", errors.New("invalid currentName or pending updates has exceeded 99")
 }
 ```
 
