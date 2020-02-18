@@ -462,8 +462,8 @@ func (b *Bithumb) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdra
 }
 
 // WithdrawFiatFundsToInternationalBank is not supported as Bithumb only withdraws KRW to South Korean banks
-func (b *Bithumb) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
-	return "", common.ErrFunctionNotSupported
+func (b *Bithumb) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

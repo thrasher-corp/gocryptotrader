@@ -447,8 +447,8 @@ func (b *Bittrex) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdra
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Bittrex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
-	return "", common.ErrFunctionNotSupported
+func (b *Bittrex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

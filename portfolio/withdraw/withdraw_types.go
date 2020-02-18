@@ -48,8 +48,10 @@ var (
 	ErrRequestCannotBeNil = errors.New("request cannot be nil")
 	// ErrInvalidRequest message to return when a request type is invalid
 	ErrInvalidRequest = errors.New("invalid request type")
+	// CacheSize cache size to use for withdrawal request history
+	CacheSize uint64 = 50
 	// Cache LRU cache for recent requests
-	Cache = cache.New(50)
+	Cache = cache.New(CacheSize)
 	// DryRunID uuid to use for dryruns
 	DryRunID, _ = uuid.FromString("3e7e2c25-5a0b-429b-95a1-0960079dce56")
 )

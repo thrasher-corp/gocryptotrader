@@ -582,12 +582,15 @@ func (b *Bitfinex) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdr
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is submitted
 // Returns comma delimited withdrawal IDs
-func (b *Bitfinex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
+func (b *Bitfinex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	v, err := b.WithdrawFiatFunds(withdrawRequest)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return v.Status, err
+	return &withdraw.ExchangeResponse{
+		ID:     v.ID,
+		Status: v.Status,
+	}, nil
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

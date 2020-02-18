@@ -200,6 +200,7 @@ func GetEventByExchangeID(exchange, id string, limit int) (*withdraw.Response, e
 	}
 	return &resp[0], nil
 }
+
 func getByColumns(columns, id []string, limit int) ([]withdraw.Response, error) {
 	if database.DB.SQL == nil {
 		return nil, errors.New("database is nil")

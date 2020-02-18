@@ -496,8 +496,8 @@ func (p *Poloniex) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdr
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (p *Poloniex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
-	return "", common.ErrFunctionNotSupported
+func (p *Poloniex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

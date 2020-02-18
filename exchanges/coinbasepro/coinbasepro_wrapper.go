@@ -504,12 +504,15 @@ func (c *CoinbasePro) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*wit
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (c *CoinbasePro) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
+func (c *CoinbasePro) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	v, err := c.WithdrawFiatFunds(withdrawRequest)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return v.ID, err
+	return &withdraw.ExchangeResponse{
+		ID:     v.ID,
+		Status: v.Status,
+	}, nil
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

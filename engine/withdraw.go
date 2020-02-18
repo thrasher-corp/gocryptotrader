@@ -14,14 +14,14 @@ import (
 const (
 	// ErrWithdrawRequestNotFound message to display when no record is found
 	ErrWithdrawRequestNotFound = "%v not found"
-	// ErrRequestCannotbeNill message to display when request is nil
-	ErrRequestCannotbeNill = "request cannot be nil"
+	// ErrRequestCannotbeNil message to display when request is nil
+	ErrRequestCannotbeNil = "request cannot be nil"
 )
 
 // SubmitWithdrawal preforms validation and submits a new withdraw request to exchange
 func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Response, error) {
 	if req == nil {
-		return nil, errors.New(ErrRequestCannotbeNill)
+		return nil, errors.New(ErrRequestCannotbeNil)
 	}
 	if req.Exchange == "" {
 		req.Exchange = exchName

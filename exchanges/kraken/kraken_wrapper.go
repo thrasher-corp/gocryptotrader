@@ -611,8 +611,14 @@ func (k *Kraken) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (k *Kraken) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
-	return k.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.TradePassword, withdrawRequest.Amount)
+func (k *Kraken) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	v, err := k.Withdraw(withdrawRequest.Currency.String(), withdrawRequest.TradePassword, withdrawRequest.Amount)
+	if err != nil {
+		return nil, err
+	}
+	return &withdraw.ExchangeResponse{
+		Status: v,
+	}, nil
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

@@ -491,7 +491,7 @@ func (b *Bitstamp) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdr
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
+func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	resp, err := b.OpenInternationalBankWithdrawal(withdrawRequest.Amount,
 		withdrawRequest.Currency.String(),
 		withdrawRequest.Fiat.Bank.AccountName,
@@ -510,17 +510,20 @@ func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdra
 		withdrawRequest.Description,
 		internationalWithdrawal)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if resp.Status == errStr {
 		var details strings.Builder
 		for x := range resp.Reason {
 			details.WriteString(strings.Join(resp.Reason[x], ""))
 		}
-		return "", errors.New(details.String())
+		return nil, errors.New(details.String())
 	}
 
-	return resp.ID, nil
+	return &withdraw.ExchangeResponse{
+		ID:     resp.ID,
+		Status: resp.Status,
+	}, nil
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

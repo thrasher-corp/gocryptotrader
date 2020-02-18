@@ -56,7 +56,7 @@ type IBotExchange interface {
 	GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error)
 	WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
-	WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error)
+	WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	SetHTTPClientUserAgent(ua string)
 	GetHTTPClientUserAgent() string
 	SetClientProxyAddress(addr string) error

@@ -331,8 +331,8 @@ func (b *Bitflyer) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdr
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Bitflyer) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (b *Bitflyer) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
