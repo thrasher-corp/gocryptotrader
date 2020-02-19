@@ -502,16 +502,7 @@
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "type": "object",
-              "properties": {
-                "result": {
-                  "$ref": "#/definitions/gctrpcGetAccountInfoResponse"
-                },
-                "error": {
-                  "$ref": "#/definitions/runtimeStreamError"
-                }
-              },
-              "title": "Stream result of gctrpcGetAccountInfoResponse"
+              "$ref": "#/x-stream-definitions/gctrpcGetAccountInfoResponse"
             }
           }
         },
@@ -709,16 +700,7 @@
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "type": "object",
-              "properties": {
-                "result": {
-                  "$ref": "#/definitions/gctrpcOrderbookResponse"
-                },
-                "error": {
-                  "$ref": "#/definitions/runtimeStreamError"
-                }
-              },
-              "title": "Stream result of gctrpcOrderbookResponse"
+              "$ref": "#/x-stream-definitions/gctrpcOrderbookResponse"
             }
           }
         },
@@ -833,16 +815,7 @@
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "type": "object",
-              "properties": {
-                "result": {
-                  "$ref": "#/definitions/gctrpcTickerResponse"
-                },
-                "error": {
-                  "$ref": "#/definitions/runtimeStreamError"
-                }
-              },
-              "title": "Stream result of gctrpcTickerResponse"
+              "$ref": "#/x-stream-definitions/gctrpcTickerResponse"
             }
           }
         },
@@ -1062,16 +1035,7 @@
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "type": "object",
-              "properties": {
-                "result": {
-                  "$ref": "#/definitions/gctrpcOrderbookResponse"
-                },
-                "error": {
-                  "$ref": "#/definitions/runtimeStreamError"
-                }
-              },
-              "title": "Stream result of gctrpcOrderbookResponse"
+              "$ref": "#/x-stream-definitions/gctrpcOrderbookResponse"
             }
           }
         },
@@ -1251,16 +1215,7 @@
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "type": "object",
-              "properties": {
-                "result": {
-                  "$ref": "#/definitions/gctrpcTickerResponse"
-                },
-                "error": {
-                  "$ref": "#/definitions/runtimeStreamError"
-                }
-              },
-              "title": "Stream result of gctrpcTickerResponse"
+              "$ref": "#/x-stream-definitions/gctrpcTickerResponse"
             }
           }
         },
@@ -2501,6 +2456,16 @@
         "open_volume": {
           "type": "number",
           "format": "double"
+        },
+        "fee": {
+          "type": "number",
+          "format": "double"
+        },
+        "trades": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcTradeHistory"
+          }
         }
       }
     },
@@ -2791,6 +2756,39 @@
         }
       }
     },
+    "gctrpcTradeHistory": {
+      "type": "object",
+      "properties": {
+        "creation_time": {
+          "type": "string",
+          "format": "int64"
+        },
+        "id": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number",
+          "format": "double"
+        },
+        "amount": {
+          "type": "number",
+          "format": "double"
+        },
+        "exchange": {
+          "type": "string"
+        },
+        "asset_type": {
+          "type": "string"
+        },
+        "order_side": {
+          "type": "string"
+        },
+        "fee": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
     "gctrpcWhaleBombRequest": {
       "type": "object",
       "properties": {
@@ -2912,6 +2910,44 @@
           }
         }
       }
+    }
+  },
+  "x-stream-definitions": {
+    "gctrpcGetAccountInfoResponse": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "$ref": "#/definitions/gctrpcGetAccountInfoResponse"
+        },
+        "error": {
+          "$ref": "#/definitions/runtimeStreamError"
+        }
+      },
+      "title": "Stream result of gctrpcGetAccountInfoResponse"
+    },
+    "gctrpcOrderbookResponse": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "$ref": "#/definitions/gctrpcOrderbookResponse"
+        },
+        "error": {
+          "$ref": "#/definitions/runtimeStreamError"
+        }
+      },
+      "title": "Stream result of gctrpcOrderbookResponse"
+    },
+    "gctrpcTickerResponse": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "$ref": "#/definitions/gctrpcTickerResponse"
+        },
+        "error": {
+          "$ref": "#/definitions/runtimeStreamError"
+        }
+      },
+      "title": "Stream result of gctrpcTickerResponse"
     }
   }
 }

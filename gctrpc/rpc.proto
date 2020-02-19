@@ -298,6 +298,19 @@ message OrderDetails {
     double price = 10;
     double amount = 11;
     double open_volume = 12;
+    double fee = 13;
+    repeated TradeHistory trades = 14;
+}
+
+message TradeHistory {
+	int64   creation_time = 1;
+	string id = 2;
+    double price = 3;
+	double amount = 4;
+	string exchange = 5;
+	string asset_type = 6;
+	string order_side = 7;
+	double fee = 8;
 }
 
 message GetOrdersRequest {
