@@ -25,10 +25,8 @@ func TestMain(m *testing.M) {
 
 func TestCheckExistingExchanges(t *testing.T) {
 	t.Parallel()
-	a := CheckExistingExchanges("Kraken", &testConfigData)
-	if a != true {
-		t.Log("Kraken data not found")
-		t.Fail()
+	if !CheckExistingExchanges("Kraken", &testConfigData) {
+		t.Fatal("Kraken data not found")
 	}
 }
 

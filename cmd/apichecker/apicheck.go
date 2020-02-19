@@ -333,6 +333,7 @@ func CheckUpdates(fileName string, confData *Config) error {
 		unsup := CheckMissingExchanges(&configData)
 		log.Printf("The following exchanges are not supported by apichecker: %v\n", unsup)
 	}
+	log.Printf("Saving the updates to the following file: %s\n", fileName)
 	return ioutil.WriteFile(fileName, file, 0770)
 }
 

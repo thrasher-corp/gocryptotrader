@@ -29,6 +29,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 + Checks for API updates
 + Can automatically update Trello checklist for the updates required
++ Supports trello integration
 
 ## Usage
 
