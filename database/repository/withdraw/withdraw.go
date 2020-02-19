@@ -214,7 +214,10 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 // GetEventByUUID return requested withdraw information by ID
 func GetEventByUUID(id string) (*withdraw.Response, error) {
 	resp, err := getByColumns(generateWhereQuery([]string{"id"}, []string{id}, 1))
-	return resp[0], err
+	if err != nil {
+		return nil, err
+	}
+	return resp[0], nil
 }
 
 // GetEventsByExchange returns all withdrawal requests by exchange
@@ -225,6 +228,9 @@ func GetEventsByExchange(exchange string, limit int) ([]*withdraw.Response, erro
 // GetEventByExchangeID return requested withdraw information by Exchange ID
 func GetEventByExchangeID(exchange, id string, limit int) (*withdraw.Response, error) {
 	resp, err := getByColumns(generateWhereQuery([]string{"exchange", "exchange_id"}, []string{exchange, id}, 1))
+	if err != nil {
+		return nil, err
+	}
 	return resp[0], err
 }
 

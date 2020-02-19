@@ -95,7 +95,6 @@ func WithdrawalEventByExchange(exchange string, limit int) ([]*withdraw.Response
 }
 
 // WithdrawEventByDate returns a withdrawal request by ID
-// TODO: impelment method
 func WithdrawEventByDate(exchange string, start, end time.Time, limit int) ([]*withdraw.Response, error) {
 	return withdrawDataStore.GetEventsByDate(exchange, start, end, limit)
 }
