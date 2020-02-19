@@ -2177,7 +2177,7 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 var withdrawCryptocurrencyFundsCommand = cli.Command{
 	Name:      "withdrawcryptofunds",
 	Usage:     "withdraws cryptocurrency funds from the desired exchange",
-	ArgsUsage: "<exchange> <cryptocurrency> <address> <addresstag> <amount> <fee> <description>",
+	ArgsUsage: "<exchange> <currency>  <amount> <address> <addresstag> <fee> <description>",
 	Action:    withdrawCryptocurrencyFunds,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -2185,7 +2185,7 @@ var withdrawCryptocurrencyFundsCommand = cli.Command{
 			Usage: "the exchange to withdraw from",
 		},
 		cli.StringFlag{
-			Name:  "cryptocurrency",
+			Name:  "currency",
 			Usage: "the cryptocurrency to withdraw funds from",
 		},
 		cli.StringFlag{
@@ -2211,61 +2211,66 @@ var withdrawCryptocurrencyFundsCommand = cli.Command{
 	},
 }
 
+// <exchange> <currency>  <amount> <address> <addresstag> <fee> <description>
 func withdrawCryptocurrencyFunds(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		cli.ShowCommandHelp(c, "withdrawcryptofunds")
 		return nil
 	}
 
-	var exchange, cur, address, addresstag, description string
+	var exchange, cur, address, addressTag, description string
 	var amount, fee float64
 
-	if !c.IsSet("exchange") {
-		if c.Args().Get(0) != "" {
-			exchange = c.Args().Get(0)
-		}
+	if c.IsSet("exchange") {
+		exchange = c.String("exchange")
+	} else if c.Args().Get(0) != "" {
+		exchange = c.Args().Get(0)
 	}
 
-	if !c.IsSet("cryptocurrency") {
-		if c.Args().Get(1) != "" {
-			cur = c.Args().Get(1)
+	if !validExchange(exchange) {
+		return errInvalidExchange
+	}
+
+	if c.IsSet("currency") {
+		cur = c.String("currency")
+	} else if c.Args().Get(1) != "" {
+		cur = c.Args().Get(1)
+	}
+
+	if c.IsSet("amount") {
+		amount = c.Float64("amount")
+	} else if c.Args().Get(2) != "" {
+		amountStr, err := strconv.ParseFloat(c.Args().Get(2), 64)
+		if err == nil {
+			amount = amountStr
 		}
 	}
 
 	if !c.IsSet("address") {
-		if c.Args().Get(2) != "" {
-			address = c.Args().Get(2)
+		address = c.String("address")
+	} else if c.Args().Get(3) != "" {
+		address = c.Args().Get(3)
+	}
+
+	if c.IsSet("addresstag") {
+		addressTag = c.String("addresstag")
+	} else if c.Args().Get(4) != "" {
+		addressTag = c.Args().Get(4)
+	}
+
+	if c.IsSet("fee") {
+		fee = c.Float64("fee")
+	} else if c.Args().Get(5) != "" {
+		feeStr, err := strconv.ParseFloat(c.Args().Get(5), 64)
+		if err == nil {
+			fee = feeStr
 		}
 	}
 
-	if !c.IsSet("addresstag") {
-		if c.Args().Get(3) != "" {
-			addresstag = c.Args().Get(3)
-		}
-	}
-
-	if !c.IsSet("amount") {
-		if c.Args().Get(4) != "" {
-			amountStr, err := strconv.ParseFloat(c.Args().Get(4), 64)
-			if err == nil {
-				amount = amountStr
-			}
-		}
-	}
-
-	if !c.IsSet("fee") {
-		if c.Args().Get(5) != "" {
-			feeStr, err := strconv.ParseFloat(c.Args().Get(5), 64)
-			if err == nil {
-				fee = feeStr
-			}
-		}
-	}
-
-	if !c.IsSet("description") {
-		if c.Args().Get(6) != "" {
-			description = c.Args().Get(6)
-		}
+	if c.IsSet("description") {
+		description = c.String("description")
+	} else if c.Args().Get(6) != "" {
+		description = c.Args().Get(6)
 	}
 
 	conn, err := setupClient()
@@ -2281,7 +2286,7 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 			Exchange:    exchange,
 			Currency:    cur,
 			Address:     address,
-			AddressTag:  addresstag,
+			AddressTag:  addressTag,
 			Amount:      amount,
 			Fee:         fee,
 			Description: description,
@@ -2297,7 +2302,7 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 var withdrawFiatFundsCommand = cli.Command{
 	Name:      "withdrawfiatfunds",
 	Usage:     "withdraws fiat funds from the desired exchange",
-	ArgsUsage: "<exchange> <currency> <description> <amount> <bankaccount id>",
+	ArgsUsage: "<exchange> <currency> <amount> <bankaccount id> <description>",
 	Action:    withdrawFiatFunds,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -2308,18 +2313,17 @@ var withdrawFiatFundsCommand = cli.Command{
 			Name:  "currency",
 			Usage: "the fiat currency to withdraw funds from",
 		},
-		cli.StringFlag{
-			Name:  "description",
-			Usage: "description to submit with request",
-		},
 		cli.Float64Flag{
 			Name:  "amount",
 			Usage: "amount of funds to withdraw",
 		},
-
 		cli.StringFlag{
 			Name:  "bankaccountid",
 			Usage: "ID of bank account to use",
+		},
+		cli.StringFlag{
+			Name:  "description",
+			Usage: "description to submit with request",
 		},
 	},
 }
@@ -2333,10 +2337,14 @@ func withdrawFiatFunds(c *cli.Context) error {
 	var exchange, cur, description, bankAccountID string
 	var amount float64
 
-	if !c.IsSet("exchange") {
-		if c.Args().Get(0) != "" {
-			exchange = c.Args().Get(0)
-		}
+	if c.IsSet("exchange") {
+		exchange = c.String("exchange")
+	} else if c.Args().Get(0) != "" {
+		exchange = c.Args().Get(0)
+	}
+
+	if !validExchange(exchange) {
+		return errInvalidExchange
 	}
 
 	if !c.IsSet("currency") {
@@ -2345,15 +2353,9 @@ func withdrawFiatFunds(c *cli.Context) error {
 		}
 	}
 
-	if !c.IsSet("description") {
-		if c.Args().Get(2) != "" {
-			description = c.Args().Get(2)
-		}
-	}
-
 	if !c.IsSet("amount") {
-		if c.Args().Get(3) != "" {
-			amountStr, err := strconv.ParseFloat(c.Args().Get(3), 64)
+		if c.Args().Get(2) != "" {
+			amountStr, err := strconv.ParseFloat(c.Args().Get(2), 64)
 			if err == nil {
 				amount = amountStr
 			}
@@ -2361,9 +2363,15 @@ func withdrawFiatFunds(c *cli.Context) error {
 	}
 
 	if !c.IsSet("bankaccountid") {
-		if c.Args().Get(4) != "" {
-			bankAccountID = c.Args().Get(4)
+		if c.Args().Get(3) != "" {
+			bankAccountID = c.Args().Get(3)
 		}
+	}
+
+	if c.IsSet("description") {
+		description = c.String("description")
+	} else if c.Args().Get(4) != "" {
+		description = c.Args().Get(4)
 	}
 
 	conn, err := setupClient()
@@ -2373,7 +2381,6 @@ func withdrawFiatFunds(c *cli.Context) error {
 	defer conn.Close()
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-
 	result, err := client.WithdrawFiatFunds(context.Background(),
 		&gctrpc.WithdrawFiatRequest{
 			Exchange:      exchange,
@@ -2397,7 +2404,7 @@ var withdrawlRequestCommand = cli.Command{
 	Subcommands: []cli.Command{
 		{
 			Name:      "byid",
-			Usage:     "byid id",
+			Usage:     "id",
 			ArgsUsage: "<id>",
 			Flags: []cli.Flag{
 				cli.StringFlag{
@@ -2409,7 +2416,7 @@ var withdrawlRequestCommand = cli.Command{
 		},
 		{
 			Name:      "byexchangeid",
-			Usage:     "byexchangeid exchange id",
+			Usage:     "exchange id",
 			ArgsUsage: "<id>",
 			Flags: []cli.Flag{
 				cli.StringFlag{
@@ -2425,7 +2432,7 @@ var withdrawlRequestCommand = cli.Command{
 		},
 		{
 			Name:      "byexchange",
-			Usage:     "byexchange exchange",
+			Usage:     "exchange limit",
 			ArgsUsage: "<id>",
 			Flags: []cli.Flag{
 				cli.StringFlag{
@@ -2441,8 +2448,8 @@ var withdrawlRequestCommand = cli.Command{
 		},
 		{
 			Name:      "bydate",
-			Usage:     "bydate exchange start end limit",
-			ArgsUsage: "<id>",
+			Usage:     "exchange start end limit",
+			ArgsUsage: "<exchange> <start> <end> <limit>",
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "exchange",
@@ -2532,7 +2539,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 	} else {
 		if c.IsSet("limit") {
 			limit = c.Int64("limit")
-		} else {
+		} else if c.Args().Get(1) != "" {
 			limitStr, err = strconv.ParseInt(c.Args().Get(1), 10, 64)
 			if err != nil {
 				return err
@@ -2595,7 +2602,7 @@ func withdrawlRequestByDate(c *cli.Context) error {
 
 	if c.IsSet("limit") {
 		limit = c.Int64("limit")
-	} else {
+	} else if c.Args().Get(3) != "" {
 		limitStr, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
 		if err != nil {
 			return err

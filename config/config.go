@@ -949,13 +949,15 @@ func (c *Config) CheckExchangeConfigValues() error {
 	return nil
 }
 
-// CheckBankAccountConfig checks all bank acconts to see if they are valid
+// CheckBankAccountConfig checks all bank accounts to see if they are valid
 func (c *Config) CheckBankAccountConfig() {
 	for x := range c.BankAccounts {
-		err := c.BankAccounts[x].Validate()
-		if err != nil {
-			c.BankAccounts[x].Enabled = false
-			log.Warn(log.ConfigMgr, err.Error())
+		if c.BankAccounts[x].Enabled {
+			err := c.BankAccounts[x].Validate()
+			if err != nil {
+				c.BankAccounts[x].Enabled = false
+				log.Warn(log.ConfigMgr, err.Error())
+			}
 		}
 	}
 	banking.Accounts = c.BankAccounts

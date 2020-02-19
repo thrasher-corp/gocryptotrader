@@ -240,11 +240,14 @@ func GetEventsByDate(exchange string, start, end time.Time, limit int) ([]*withd
 	if exchange == "" {
 		return getByColumns(betweenQuery)
 	}
-	return getByColumns(append(generateWhereQuery([]string{"exchange"}, []string{exchange}, limit), betweenQuery...))
+	return getByColumns(append(generateWhereQuery([]string{"exchange"}, []string{exchange}, 0), betweenQuery...))
 }
 
 func generateWhereQuery(columns, id []string, limit int) []qm.QueryMod {
-	queries := []qm.QueryMod{qm.Limit(limit)}
+	var queries []qm.QueryMod
+	if limit > 0 {
+		queries = append(queries, qm.Limit(limit))
+	}
 	for x := range columns {
 		queries = append(queries, qm.Where(columns[x]+"= ?", id[x]))
 	}
@@ -260,7 +263,7 @@ func generateWhereBetweenQuery(column string, start, end interface{}, limit int)
 
 func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 	if database.DB.SQL == nil {
-		return nil, errors.New("database is nil")
+		return nil, database.ErrDatabaseSupportDisabled
 	}
 
 	var resp []*withdraw.Response
@@ -288,7 +291,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 
 			createdAtTime, err := time.Parse("2006-01-02T15:04:05Z", v[x].CreatedAt)
 			if err != nil {
-				log.Errorf(log.DatabaseMgr, "%v incorrect time format - defaulting to empty time: %v", tempResp.CreatedAt, err)
+				log.Errorf(log.DatabaseMgr, "record: %v has an incorrect time format ( %v ) - defaulting to empty time: %v", tempResp.ID, tempResp.CreatedAt, err)
 				tempResp.CreatedAt = time.Time{}
 			} else {
 				tempResp.CreatedAt = createdAtTime.UTC()
@@ -296,7 +299,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 
 			updatedAtTime, err := time.Parse("2006-01-02T15:04:05Z", v[x].UpdatedAt)
 			if err != nil {
-				log.Errorf(log.DatabaseMgr, "%v incorrect time format - defaulting to empty time: %v", tempResp.UpdatedAt, err)
+				log.Errorf(log.DatabaseMgr, "record: %v has an incorrect time format (  %v ) - defaulting to empty time: %v", tempResp.ID, tempResp.UpdatedAt, err)
 				tempResp.UpdatedAt = time.Time{}
 			} else {
 				tempResp.UpdatedAt = updatedAtTime.UTC()
@@ -375,6 +378,8 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			resp = append(resp, tempResp)
 		}
 	}
-
+	if len(resp) == 0 {
+		return nil, errors.New("no results found")
+	}
 	return resp, nil
 }
