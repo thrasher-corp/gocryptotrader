@@ -276,7 +276,6 @@ func (s *Storage) SeedCurrencyAnalysisData() error {
 		if err != nil {
 			return s.WriteCurrencyDataToFile(s.path, false)
 		}
-
 		return s.WriteCurrencyDataToFile(s.path, true)
 	}
 

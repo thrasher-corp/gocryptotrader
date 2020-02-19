@@ -472,7 +472,6 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 
 	e.HTTPDebugging = exch.HTTPDebugging
 	e.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-	// e.SetAssetTypes()
 	e.SetCurrencyPairFormat()
 	e.SetConfigPairs()
 	e.SetFeatureDefaults()

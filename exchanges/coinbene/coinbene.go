@@ -163,8 +163,6 @@ func (c *Coinbene) GetTickers() ([]TickerData, error) {
 		TickerData []TickerData `json:"data"`
 	}{}
 
-	fmt.Println("FREAKIN CATS")
-
 	path := c.API.Endpoints.URL + coinbeneAPIVersion + coinbeneGetTickersSpot
 	return resp.TickerData, c.SendHTTPRequest(path, spotTickerList, &resp)
 }

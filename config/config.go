@@ -850,16 +850,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].CurrencyPairs.ConfigFormat = c.Exchanges[i].ConfigCurrencyPairFormat
 			c.Exchanges[i].CurrencyPairs.RequestFormat = c.Exchanges[i].RequestCurrencyPairFormat
 
-			// if c.Exchanges[i].AssetTypes == nil {
-			// 	c.Exchanges[i].CurrencyPairs.AssetTypes = asset.Items{
-			// 		asset.Spot,
-			// 	}
-			// } else {
-			// 	c.Exchanges[i].CurrencyPairs.AssetTypes = asset.New(
-			// 		strings.ToLower(*c.Exchanges[i].AssetTypes),
-			// 	)
-			// }
-
 			var availPairs, enabledPairs currency.Pairs
 			if c.Exchanges[i].AvailablePairs != nil {
 				availPairs = *c.Exchanges[i].AvailablePairs

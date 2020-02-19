@@ -190,13 +190,11 @@ func (b *BaseCodes) UpdateToken(fullName, symbol, assocBlockchain string, id int
 
 		if b.Items[i].Role != Unset {
 			if b.Items[i].Role != Token {
-				if b.Items[i].FullName != "" {
-					if b.Items[i].FullName != fullName {
-						// multiple symbols found, break this and add the
-						// full context - this most likely won't occur for
-						// fiat but could occur for contracts.
-						break
-					}
+				if b.Items[i].FullName != fullName {
+					// multiple symbols found, break this and add the
+					// full context - this most likely won't occur for
+					// fiat but could occur for contracts.
+					break
 				}
 				return fmt.Errorf("role already defined in token %s as [%s]",
 					b.Items[i].Symbol,
