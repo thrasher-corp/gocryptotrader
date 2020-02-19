@@ -271,10 +271,10 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			}
 
 			for i := range trades {
-				side := order.Buy.String()
+				side := order.Buy
 				newAmount := trades[i].Amount
 				if newAmount < 0 {
-					side = order.Sell.String()
+					side = order.Sell
 					newAmount *= -1
 				}
 

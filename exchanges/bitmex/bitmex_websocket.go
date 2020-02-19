@@ -215,16 +215,26 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			}
 
 			for i := range trades.Data {
-				// TODO: update this to support multiple asset types
-				b.Websocket.DataHandler <- wshandler.TradeData{
+				var a asset.Item
+				p := currency.NewPairFromString(trades.Data[i].Symbol)
+				a, err = b.GetPairAssetType(p)
+				if err != nil {
+					return err
+				}
+				var oSide order.Side
+				oSide, err = order.StringToOrderSide(trades.Data[i].Side)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+				}
 
+				b.Websocket.DataHandler <- wshandler.TradeData{
 					Timestamp:    trades.Data[i].Timestamp,
 					Price:        trades.Data[i].Price,
 					Amount:       float64(trades.Data[i].Size),
-					CurrencyPair: currency.NewPairFromString(trades.Data[i].Symbol),
+					CurrencyPair: p,
 					Exchange:     b.Name,
-					AssetType:    "CONTRACT",
-					Side:         trades.Data[i].Side,
+					AssetType:    a,
+					Side:         oSide,
 				}
 			}
 

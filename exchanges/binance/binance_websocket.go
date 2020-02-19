@@ -274,7 +274,6 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						Amount:    amount,
 						Exchange:  b.Name,
 						AssetType: asset.Spot,
-						Side:      trade.EventType,
 					}
 				case "ticker":
 					var t TickerStream

@@ -53,9 +53,11 @@ func SetupTestHelpers(t *testing.T) {
 		}
 	}
 	if GetExchangeByName(fakePassExchange) == nil {
-		addPassingFakeExchange()
+		err := addPassingFakeExchange(testExchange)
+		if err != nil {
+			t.Errorf("SetupTest: Failed to load exchange: %s", err)
+		}
 	}
-
 }
 
 func TestGetExchangeOTPs(t *testing.T) {

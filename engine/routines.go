@@ -270,6 +270,8 @@ func WebsocketDataReceiver(ws *wshandler.Websocket) {
 	}
 }
 
+// WebsocketDataHandler is a central point for exchange websocket implementations to send
+// processed data. WebsocketDataHandler will then pass that to an appropriate handler
 func WebsocketDataHandler(exchName string, data interface{}) error {
 	if data == nil {
 		return fmt.Errorf("routines.go - exchange %s nil data sent to websocket",
@@ -294,6 +296,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 				d.AssetType,
 				d)
 		}
+		return nil
 	case wshandler.FundingData:
 		if Bot.Settings.Verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",
@@ -302,6 +305,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 				d.AssetType,
 				d)
 		}
+		return nil
 	case *ticker.Price:
 		if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
 			Bot.ExchangeCurrencyPairManager.update(exchName,
@@ -312,6 +316,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		}
 		err := ticker.ProcessTicker(exchName, d, d.AssetType)
 		printTickerSummary(d, d.Pair, d.AssetType, exchName, "websocket", err)
+		return nil
 	case wshandler.KlineData:
 		if Bot.Settings.Verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
@@ -320,6 +325,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 				d.AssetType,
 				d)
 		}
+		return nil
 	case wshandler.WebsocketOrderbookUpdate:
 		if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
 			Bot.ExchangeCurrencyPairManager.update(exchName,
@@ -336,6 +342,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 				FormatCurrency(d.Pair),
 				d.Asset)
 		}
+		return nil
 	case *order.Detail:
 		if !Bot.OrderManager.orderStore.exists(d) {
 			err := Bot.OrderManager.orderStore.Add(d)
@@ -349,17 +356,20 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 			}
 			od.UpdateOrderFromDetail(d)
 		}
+		return nil
 	case *order.Cancel:
 		err := Bot.OrderManager.Cancel(d)
 		if err != nil {
 			return err
 		}
+		return nil
 	case *order.Modify:
 		od, err := Bot.OrderManager.orderStore.GetByExchangeAndID(d.Exchange, d.ID)
 		if err != nil {
 			return err
 		}
 		od.UpdateOrderFromModify(d)
+		return nil
 	case wshandler.UnhandledMessageWarning:
 		log.Warn(log.WebsocketMgr, d.Message)
 	default:

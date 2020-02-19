@@ -328,7 +328,6 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 						if dataL3[2].(float64) != 1 {
 							side = order.Sell
 						}
-						trade.Side = side.Lower()
 						trade.Volume, err = strconv.ParseFloat(dataL3[3].(string), 64)
 						if err != nil {
 							return err
@@ -338,10 +337,11 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							return err
 						}
 						trade.Timestamp = int64(dataL3[5].(float64))
+
 						p.Websocket.DataHandler <- wshandler.TradeData{
 							Timestamp:    time.Unix(trade.Timestamp, 0),
 							CurrencyPair: currency.NewPairFromString(currencyPair),
-							Side:         trade.Side,
+							Side:         side,
 							Amount:       trade.Volume,
 							Price:        trade.Price,
 						}

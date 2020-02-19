@@ -168,6 +168,11 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		}
 
 		for i := range trades {
+			var tSide order.Side
+			tSide, err = order.StringToOrderSide(trades[i].Type)
+			if err != nil {
+				g.Websocket.DataHandler <- err
+			}
 			g.Websocket.DataHandler <- wshandler.TradeData{
 				Timestamp:    time.Now(),
 				CurrencyPair: currency.NewPairFromString(c),
@@ -175,7 +180,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 				Exchange:     g.Name,
 				Price:        trades[i].Price,
 				Amount:       trades[i].Amount,
-				Side:         trades[i].Type,
+				Side:         tSide,
 			}
 		}
 	case strings.Contains(result.Method, "balance.update"):

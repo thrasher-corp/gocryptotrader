@@ -605,6 +605,8 @@ type WithdrawResponse struct {
 	ID      string `json:"id"`
 }
 
+// UserAccountStream contains a key to maintain an authorised
+// websocket connection
 type UserAccountStream struct {
 	ListenKey string `json:"listenKey"`
 }

@@ -163,9 +163,9 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		for x := range tradeHistory.Data {
-			side := order.Buy.String()
+			side := order.Buy
 			if tradeHistory.Data[x].Gain == -1 {
-				side = order.Sell.String()
+				side = order.Sell
 			}
 			b.Websocket.DataHandler <- wshandler.TradeData{
 				Timestamp:    time.Unix(0, tradeHistory.Data[x].TransactionTime*int64(time.Millisecond)),

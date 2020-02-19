@@ -10,8 +10,7 @@ import (
 )
 
 const (
-	testExchange     = "Bitstamp"
-	fakePassExchange = "FakePassExchange"
+	testExchange = "Bitstamp"
 )
 
 func addValidEvent() (int64, error) {

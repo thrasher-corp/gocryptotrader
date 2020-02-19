@@ -2,6 +2,7 @@ package order
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -246,3 +247,12 @@ type ByDate []Detail
 
 // ByOrderSide used for sorting orders by order side (buy sell)
 type ByOrderSide []Detail
+
+type OrderClassificationError struct {
+	StatusCode int
+	Err        error
+}
+
+func (r *RequestError) Error() string {
+	return fmt.Sprintf("status %d: err %v", r.StatusCode, r.Err)
+}

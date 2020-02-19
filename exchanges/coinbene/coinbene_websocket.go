@@ -178,6 +178,10 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		p := strings.Replace(tradeList.Topic, "tradeList.", "", 1)
+		var tSide = order.Buy
+		if tradeList.Data[0][1] == "s" {
+			tSide = order.Sell
+		}
 		c.Websocket.DataHandler <- wshandler.TradeData{
 			CurrencyPair: currency.NewPairFromFormattedPairs(p,
 				c.GetEnabledPairs(asset.PerpetualSwap),
@@ -187,7 +191,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			Amount:    amount,
 			Exchange:  c.Name,
 			AssetType: asset.PerpetualSwap,
-			Side:      tradeList.Data[0][1],
+			Side:      tSide,
 		}
 	case strings.Contains(result[topic].(string), "orderBook"):
 		orderBook := struct {

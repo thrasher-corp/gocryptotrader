@@ -297,6 +297,10 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		currencyPair := c.instrumentMap.LookupInstrument(tradeUpdate.InstID)
+		tSide, err := order.StringToOrderSide(tradeUpdate.Side)
+		if err != nil {
+			return err
+		}
 		c.Websocket.DataHandler <- wshandler.TradeData{
 			Timestamp: time.Unix(tradeUpdate.Timestamp, 0),
 			CurrencyPair: currency.NewPairFromFormattedPairs(currencyPair,
@@ -305,7 +309,7 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 			AssetType: asset.Spot,
 			Exchange:  c.Name,
 			Price:     tradeUpdate.Price,
-			Side:      tradeUpdate.Side,
+			Side:      tSide,
 		}
 	case "order_filled", "order_rejected", "order_accepted":
 		var orderContainer wsOrderContainer

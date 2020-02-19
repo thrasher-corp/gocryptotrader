@@ -202,7 +202,7 @@ type websocketTradeData struct {
 	SellOrderID    int64   `json:"sell_order_id"`
 	AmountStr      string  `json:"amount_str"`
 	PriceStr       string  `json:"price_str"`
-	Timestamp      string  `json:"timestamp"`
+	Timestamp      int64   `json:"timestamp,string"`
 	Price          float64 `json:"price"`
 	Type           int     `json:"type"`
 	ID             int     `json:"id"`

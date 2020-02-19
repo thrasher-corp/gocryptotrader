@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -109,12 +110,19 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 		}
 		currencyPair := strings.Split(wsResponse.Channel, "_")
 		p := currency.NewPairFromString(strings.ToUpper(currencyPair[2]))
+		side := order.Buy
+		if wsTradeTemp.Data.Type == -1 {
+			side = order.Sell
+		}
 		b.Websocket.DataHandler <- wshandler.TradeData{
+			Timestamp:    time.Unix(wsTradeTemp.Data.Timestamp, 0),
+			CurrencyPair: p,
+			AssetType:    asset.Spot,
+			Exchange:     b.Name,
+			EventType:    order.UnknownType,
 			Price:        wsTradeTemp.Data.Price,
 			Amount:       wsTradeTemp.Data.Amount,
-			CurrencyPair: p,
-			Exchange:     b.Name,
-			AssetType:    asset.Spot,
+			Side:         side,
 		}
 	case "order_created", "order_deleted", "order_changed":
 		if b.Verbose {

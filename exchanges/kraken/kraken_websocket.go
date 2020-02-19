@@ -509,7 +509,10 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 			k.Websocket.DataHandler <- err
 			return
 		}
-
+		var tSide = order.Buy
+		if trade[3].(string) == "s" {
+			tSide = order.Sell
+		}
 		k.Websocket.DataHandler <- wshandler.TradeData{
 			AssetType:    asset.Spot,
 			CurrencyPair: channelData.Pair,
@@ -517,7 +520,7 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 			Price:        price,
 			Amount:       amount,
 			Timestamp:    timeUnix,
-			Side:         trade[3].(string),
+			Side:         tSide,
 		}
 	}
 }

@@ -205,6 +205,10 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 
 		channelInfo := strings.Split(result.Channel, "_")
 		cPair := currency.NewPairFromString(channelInfo[0])
+		tSide, err := order.StringToOrderSide(t.TradeType)
+		if err != nil {
+			z.Websocket.DataHandler <- err
+		}
 		z.Websocket.DataHandler <- wshandler.TradeData{
 			Timestamp:    time.Unix(t.Date, 0),
 			CurrencyPair: cPair,
@@ -212,7 +216,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 			Exchange:     z.Name,
 			Price:        t.Price,
 			Amount:       t.Amount,
-			Side:         t.TradeType,
+			Side:         tSide,
 		}
 	default:
 		z.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: z.Name + wshandler.UnhandledMessage + string(respRaw)}

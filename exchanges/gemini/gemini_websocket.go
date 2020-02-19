@@ -368,6 +368,10 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 		for i := range result.Events {
 			switch result.Events[i].Type {
 			case "trade":
+				tSide, err := order.StringToOrderSide(result.Events[i].MakerSide)
+				if err != nil {
+					g.Websocket.DataHandler <- err
+				}
 				g.Websocket.DataHandler <- wshandler.TradeData{
 					Timestamp:    time.Unix(0, result.Timestamp),
 					CurrencyPair: pair,
@@ -375,7 +379,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 					Exchange:     g.Name,
 					Price:        result.Events[i].Price,
 					Amount:       result.Events[i].Amount,
-					Side:         result.Events[i].MakerSide,
+					Side:         tSide,
 				}
 			case "change":
 				item := orderbook.Item{
