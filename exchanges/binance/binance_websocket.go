@@ -305,7 +305,7 @@ func (b *Binance) WsHandleData() {
 }
 
 // SeedLocalCache seeds depth data
-func (b *Binance) SeedLocalCache(p currency.Pair) error {
+func (b *Binance) SeedLocalCache(p *currency.Pair) error {
 	var newOrderBook orderbook.Base
 	orderbookNew, err := b.GetOrderBook(
 		OrderBookDataRequestParams{

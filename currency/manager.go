@@ -112,7 +112,7 @@ func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) {
 }
 
 // DisablePair removes the pair from the enabled pairs list if found
-func (p *PairsManager) DisablePair(a asset.Item, pair Pair) error {
+func (p *PairsManager) DisablePair(a asset.Item, pair *Pair) error {
 	p.m.Lock()
 	defer p.m.Unlock()
 
@@ -139,7 +139,7 @@ func (p *PairsManager) DisablePair(a asset.Item, pair Pair) error {
 
 // EnablePair adds a pair to the list of enabled pairs if it exists in the list
 // of available pairs and isn't already added
-func (p *PairsManager) EnablePair(a asset.Item, pair Pair) error {
+func (p *PairsManager) EnablePair(a asset.Item, pair *Pair) error {
 	p.m.Lock()
 	defer p.m.Unlock()
 

@@ -21,9 +21,11 @@ func TestLower(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if actual != expected.Lower() {
+
+	if actual.String() != expected.Lower().String() {
 		t.Errorf("Lower(): %s was not equal to expected value: %s",
-			actual, expected)
+			actual,
+			expected.Lower())
 	}
 }
 
@@ -38,7 +40,7 @@ func TestUpper(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if actual != expected {
+	if actual.String() != expected.String() {
 		t.Errorf("Upper(): %s was not equal to expected value: %s",
 			actual, expected)
 	}
@@ -513,7 +515,7 @@ func TestCopyPairFormat(t *testing.T) {
 	pairOne := NewPair(BTC, USD)
 	pairOne.Delimiter = "-"
 
-	var pairs []Pair
+	var pairs []*Pair
 	pairs = append(pairs, pairOne, NewPair(LTC, USD))
 
 	testPair := NewPair(BTC, USD)
@@ -524,7 +526,8 @@ func TestCopyPairFormat(t *testing.T) {
 		t.Error("TestCopyPairFormat: Expected pair was not found")
 	}
 
-	result = CopyPairFormat(NewPair(ETH, USD), pairs, true)
+	np := NewPair(ETH, USD)
+	result = CopyPairFormat(np, pairs, true)
 	if result.String() != "" {
 		t.Error("TestCopyPairFormat: Unexpected non empty pair returned")
 	}

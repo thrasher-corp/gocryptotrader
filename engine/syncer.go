@@ -62,7 +62,7 @@ func NewCurrencyPairSyncer(c CurrencyPairSyncerConfig) (*ExchangeCurrencyPairSyn
 	return &s, nil
 }
 
-func (e *ExchangeCurrencyPairSyncer) get(exchangeName string, p currency.Pair, a asset.Item) (*CurrencyPairSyncAgent, error) {
+func (e *ExchangeCurrencyPairSyncer) get(exchangeName string, p *currency.Pair, a asset.Item) (*CurrencyPairSyncAgent, error) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
@@ -77,7 +77,7 @@ func (e *ExchangeCurrencyPairSyncer) get(exchangeName string, p currency.Pair, a
 	return nil, errors.New("exchange currency pair syncer not found")
 }
 
-func (e *ExchangeCurrencyPairSyncer) exists(exchangeName string, p currency.Pair, a asset.Item) bool {
+func (e *ExchangeCurrencyPairSyncer) exists(exchangeName string, p *currency.Pair, a asset.Item) bool {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
@@ -152,7 +152,7 @@ func (e *ExchangeCurrencyPairSyncer) remove(c *CurrencyPairSyncAgent) {
 	}
 }
 
-func (e *ExchangeCurrencyPairSyncer) isProcessing(exchangeName string, p currency.Pair, a asset.Item, syncType int) bool {
+func (e *ExchangeCurrencyPairSyncer) isProcessing(exchangeName string, p *currency.Pair, a asset.Item, syncType int) bool {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
@@ -174,7 +174,7 @@ func (e *ExchangeCurrencyPairSyncer) isProcessing(exchangeName string, p currenc
 	return false
 }
 
-func (e *ExchangeCurrencyPairSyncer) setProcessing(exchangeName string, p currency.Pair, a asset.Item, syncType int, processing bool) {
+func (e *ExchangeCurrencyPairSyncer) setProcessing(exchangeName string, p *currency.Pair, a asset.Item, syncType int, processing bool) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
@@ -194,7 +194,7 @@ func (e *ExchangeCurrencyPairSyncer) setProcessing(exchangeName string, p curren
 	}
 }
 
-func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair, a asset.Item, syncType int, err error) {
+func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p *currency.Pair, a asset.Item, syncType int, err error) {
 	if atomic.LoadInt32(&e.initSyncStarted) != 1 {
 		return
 	}
@@ -420,7 +420,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 									} else {
 										result, err = exchanges[x].UpdateTicker(c.Pair, c.AssetType)
 									}
-									printTickerSummary(result, c.Pair, c.AssetType, exchangeName, "REST", err)
+									printTickerSummary(result, "REST", err)
 									if err == nil {
 										//nolint:gocritic Bot.CommsRelayer.StageTickerData(exchangeName, c.AssetType, result)
 										if Bot.Config.RemoteControl.WebsocketRPC.Enabled {
@@ -460,7 +460,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 
 								e.setProcessing(c.Exchange, c.Pair, c.AssetType, SyncItemOrderbook, true)
 								result, err := exchanges[x].UpdateOrderbook(c.Pair, c.AssetType)
-								printOrderbookSummary(result, c.Pair, c.AssetType, exchangeName, "REST", err)
+								printOrderbookSummary(result, "REST", err)
 								if err == nil {
 									//nolint:gocritic Bot.CommsRelayer.StageOrderbookData(exchangeName, c.AssetType, result)
 									if Bot.Config.RemoteControl.WebsocketRPC.Enabled {

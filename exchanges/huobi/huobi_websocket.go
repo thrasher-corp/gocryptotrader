@@ -282,6 +282,10 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 		}
 		data := strings.Split(trade.Channel, ".")
 		pairs, err := h.GetEnabledPairs(asset.Spot)
+		if err != nil {
+			h.Websocket.DataHandler <- err
+			return
+		}
 		p, err := currency.NewPairFromFormattedPairs(data[1],
 			pairs,
 			format)

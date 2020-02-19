@@ -195,6 +195,7 @@ func (o *OKEX) Run() {
 	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
 		!common.StringDataContains(o.GetAvailablePairs(asset.Spot).Strings(), format.Delimiter) {
 		forceUpdate = true
+		var p currency.Pairs
 		p, err := currency.NewPairsFromStrings([]string{currency.BTC.String() +
 			format.Delimiter +
 			currency.USDT.String()})
@@ -312,8 +313,8 @@ func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
 				}
 				indexPairs = append(indexPairs, item)
 			}
-
-			p, err := currency.NewPairsFromStrings(indexPairs)
+			var p currency.Pairs
+			p, err = currency.NewPairsFromStrings(indexPairs)
 			if err != nil {
 				return err
 			}
@@ -338,7 +339,7 @@ func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (o *OKEX) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerPrice := new(ticker.Price)
 	switch assetType {
 	case asset.Spot:
@@ -452,7 +453,7 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (o *OKEX) FetchTicker(p currency.Pair, assetType asset.Item) (tickerData *ticker.Price, err error) {
+func (o *OKEX) FetchTicker(p *currency.Pair, assetType asset.Item) (tickerData *ticker.Price, err error) {
 	if assetType == asset.Index {
 		return tickerData, errors.New("ticker fetching not supported for index")
 	}

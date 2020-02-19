@@ -10,4 +10,4 @@ type Pair struct {
 }
 
 // Pairs defines a list of pairs
-type Pairs []Pair
+type Pairs []*Pair

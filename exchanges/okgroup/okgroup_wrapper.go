@@ -72,7 +72,7 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (o *OKGroup) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (o *OKGroup) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(o.Name, p, assetType)
 	if err != nil {
 		return o.UpdateOrderbook(p, assetType)

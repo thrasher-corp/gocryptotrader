@@ -186,7 +186,8 @@ func (b *Bitmex) wsHandleIncomingData() {
 						continue
 					}
 
-					p, err := currency.NewPairFromString(orderbooks.Data[0].Symbol)
+					var p *currency.Pair
+					p, err = currency.NewPairFromString(orderbooks.Data[0].Symbol)
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue
@@ -228,7 +229,8 @@ func (b *Bitmex) wsHandleIncomingData() {
 							continue
 						}
 
-						pair, err := currency.NewPairFromString(trades.Data[i].Symbol)
+						var pair *currency.Pair
+						pair, err = currency.NewPairFromString(trades.Data[i].Symbol)
 						if err != nil {
 							b.Websocket.DataHandler <- err
 							continue
@@ -332,7 +334,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 }
 
 // ProcessOrderbook processes orderbook updates
-func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPair currency.Pair, assetType asset.Item) error { // nolint: unparam
+func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p *currency.Pair, a asset.Item) error { // nolint: unparam
 	if len(data) < 1 {
 		return errors.New("bitmex_websocket.go error - no orderbook data")
 	}
@@ -355,8 +357,8 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 				ID:     data[i].ID,
 			})
 		}
-		newOrderBook.AssetType = assetType
-		newOrderBook.Pair = currencyPair
+		newOrderBook.AssetType = a
+		newOrderBook.Pair = p
 		newOrderBook.ExchangeName = b.Name
 
 		err := b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
@@ -365,8 +367,8 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 				err)
 		}
 		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Pair:     currencyPair,
-			Asset:    assetType,
+			Pair:     p,
+			Asset:    a,
 			Exchange: b.Name,
 		}
 	default:
@@ -388,8 +390,8 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 		err := b.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
 			Bids:   bids,
 			Asks:   asks,
-			Pair:   currencyPair,
-			Asset:  assetType,
+			Pair:   p,
+			Asset:  a,
 			Action: action,
 		})
 		if err != nil {
@@ -397,8 +399,8 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, currencyPai
 		}
 
 		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Pair:     currencyPair,
-			Asset:    assetType,
+			Pair:     p,
+			Asset:    a,
 			Exchange: b.Name,
 		}
 	}

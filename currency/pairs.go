@@ -113,7 +113,7 @@ func (p Pairs) Upper() Pairs {
 
 // Contains checks to see if a specified pair exists inside a currency pair
 // array
-func (p Pairs) Contains(check Pair, exact bool) bool {
+func (p Pairs) Contains(check *Pair, exact bool) bool {
 	for i := range p {
 		if exact {
 			if p[i].Equal(check) {
@@ -142,7 +142,7 @@ func (p Pairs) RemovePairsByFilter(filter Code) Pairs {
 }
 
 // Remove removes the specified pair from the list of pairs if it exists
-func (p Pairs) Remove(pair Pair) Pairs {
+func (p Pairs) Remove(pair *Pair) Pairs {
 	var pairs Pairs
 	for x := range p {
 		if p[x].Equal(pair) {
@@ -154,7 +154,7 @@ func (p Pairs) Remove(pair Pair) Pairs {
 }
 
 // Add adds a specified pair to the list of pairs if it doesn't exist
-func (p Pairs) Add(pair Pair) Pairs {
+func (p Pairs) Add(pair *Pair) Pairs {
 	if p.Contains(pair, true) {
 		return p
 	}
@@ -184,11 +184,11 @@ func (p Pairs) FindDifferences(pairs Pairs) (newPairs, removedPairs Pairs) {
 }
 
 // GetRandomPair returns a random pair from a list of pairs
-func (p Pairs) GetRandomPair() Pair {
+func (p Pairs) GetRandomPair() *Pair {
 	pairsLen := len(p)
 
 	if pairsLen == 0 {
-		return Pair{Base: NewCode(""), Quote: NewCode("")}
+		return &Pair{Base: NewCode(""), Quote: NewCode("")}
 	}
 
 	return p[rand.Intn(pairsLen)]

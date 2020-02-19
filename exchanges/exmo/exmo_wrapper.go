@@ -180,7 +180,7 @@ func (e *EXMO) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (e *EXMO) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (e *EXMO) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	result, err := e.GetTicker()
 	if err != nil {
 		return nil, err
@@ -217,7 +217,7 @@ func (e *EXMO) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (e *EXMO) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (e *EXMO) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := ticker.GetTicker(e.Name, p, assetType)
 	if err != nil {
 		return e.UpdateTicker(p, assetType)
@@ -226,7 +226,7 @@ func (e *EXMO) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price
 }
 
 // FetchOrderbook returns the orderbook for a currency pair
-func (e *EXMO) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (e *EXMO) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(e.Name, p, assetType)
 	if err != nil {
 		return e.UpdateOrderbook(p, assetType)
@@ -235,7 +235,7 @@ func (e *EXMO) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (e *EXMO) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 
 	enabledPairs, err := e.GetEnabledPairs(assetType)
@@ -262,12 +262,13 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 
 		var obItems []orderbook.Item
 		for y := range data.Ask {
-			z := data.Ask[y]
-			price, err := strconv.ParseFloat(z[0], 64)
+			var price float64
+			price, err = strconv.ParseFloat(data.Ask[y][0], 64)
 			if err != nil {
 				return nil, err
 			}
-			amount, err := strconv.ParseFloat(z[1], 64)
+			var amount float64
+			amount, err = strconv.ParseFloat(data.Ask[y][1], 64)
 			if err != nil {
 				return nil, err
 			}
@@ -278,12 +279,13 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 		orderBook.Asks = obItems
 		obItems = []orderbook.Item{}
 		for y := range data.Bid {
-			z := data.Bid[y]
-			price, err := strconv.ParseFloat(z[0], 64)
+			var price float64
+			price, err = strconv.ParseFloat(data.Bid[y][0], 64)
 			if err != nil {
 				return nil, err
 			}
-			amount, err := strconv.ParseFloat(z[1], 64)
+			var amount float64
+			amount, err = strconv.ParseFloat(data.Bid[y][1], 64)
 			if err != nil {
 				return nil, err
 			}
@@ -507,13 +509,13 @@ func (e *EXMO) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 		orderDate := time.Unix(resp[i].Created, 0)
 		orderSide := order.Side(strings.ToUpper(resp[i].Type))
 		orders = append(orders, order.Detail{
-			ID:           strconv.FormatInt(resp[i].OrderID, 10),
-			Amount:       resp[i].Quantity,
-			OrderDate:    orderDate,
-			Price:        resp[i].Price,
-			OrderSide:    orderSide,
-			Exchange:     e.Name,
-			CurrencyPair: symbol,
+			ID:        strconv.FormatInt(resp[i].OrderID, 10),
+			Amount:    resp[i].Quantity,
+			OrderDate: orderDate,
+			Price:     resp[i].Price,
+			OrderSide: orderSide,
+			Exchange:  e.Name,
+			Pair:      symbol,
 		})
 	}
 
@@ -546,13 +548,13 @@ func (e *EXMO) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, err
 		orderDate := time.Unix(allTrades[i].Date, 0)
 		orderSide := order.Side(strings.ToUpper(allTrades[i].Type))
 		orders = append(orders, order.Detail{
-			ID:           strconv.FormatInt(allTrades[i].TradeID, 10),
-			Amount:       allTrades[i].Quantity,
-			OrderDate:    orderDate,
-			Price:        allTrades[i].Price,
-			OrderSide:    orderSide,
-			Exchange:     e.Name,
-			CurrencyPair: symbol,
+			ID:        strconv.FormatInt(allTrades[i].TradeID, 10),
+			Amount:    allTrades[i].Quantity,
+			OrderDate: orderDate,
+			Price:     allTrades[i].Price,
+			OrderSide: orderSide,
+			Exchange:  e.Name,
+			Pair:      symbol,
 		})
 	}
 

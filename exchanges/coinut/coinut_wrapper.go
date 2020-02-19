@@ -221,7 +221,8 @@ func (c *COINUT) Run() {
 
 	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
 		!common.StringDataContains(avail.Strings(), format.Delimiter) {
-		p, err := currency.NewPairsFromStrings([]string{currency.LTC.String() +
+		var p currency.Pairs
+		p, err = currency.NewPairsFromStrings([]string{currency.LTC.String() +
 			format.Delimiter +
 			currency.USDT.String()})
 		if err != nil {
@@ -404,7 +405,7 @@ func (c *COINUT) FetchAccountInfo() (account.Holdings, error) {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (c *COINUT) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (c *COINUT) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	err := c.loadInstrumentsIfNotLoaded()
 	if err != nil {
 		return nil, err
@@ -440,7 +441,7 @@ func (c *COINUT) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (c *COINUT) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (c *COINUT) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(c.Name, p, assetType)
 	if err != nil {
 		return c.UpdateTicker(p, assetType)
@@ -449,7 +450,7 @@ func (c *COINUT) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (c *COINUT) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (c *COINUT) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(c.Name, p, assetType)
 	if err != nil {
 		return c.UpdateOrderbook(p, assetType)
@@ -458,7 +459,7 @@ func (c *COINUT) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (c *COINUT) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (c *COINUT) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 	err := c.loadInstrumentsIfNotLoaded()
 	if err != nil {
@@ -596,13 +597,13 @@ func (c *COINUT) CancelOrder(o *order.Cancel) error {
 	}
 
 	currencyID := c.instrumentMap.LookupID(c.FormatExchangeCurrency(
-		o.CurrencyPair,
+		o.Pair,
 		asset.Spot).String(),
 	)
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var resp *CancelOrdersResponse
 		resp, err = c.wsCancelOrder(&WsCancelOrderParameters{
-			Currency: o.CurrencyPair,
+			Currency: o.Pair,
 			OrderID:  orderIDInt,
 		})
 		if err != nil {
@@ -633,15 +634,15 @@ func (c *COINUT) CancelAllOrders(details *order.Cancel) (order.CancelAllResponse
 	}
 	cancelAllOrdersResponse.Status = make(map[string]string)
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		openOrders, err := c.wsGetOpenOrders(details.CurrencyPair.String())
+		openOrders, err := c.wsGetOpenOrders(details.Pair.String())
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
 		var ordersToCancel []WsCancelOrderParameters
 		for i := range openOrders.Orders {
-			if openOrders.Orders[i].InstID == c.instrumentMap.LookupID(c.FormatExchangeCurrency(details.CurrencyPair, asset.Spot).String()) {
+			if openOrders.Orders[i].InstID == c.instrumentMap.LookupID(c.FormatExchangeCurrency(details.Pair, asset.Spot).String()) {
 				ordersToCancel = append(ordersToCancel, WsCancelOrderParameters{
-					Currency: details.CurrencyPair,
+					Currency: details.Pair,
 					OrderID:  openOrders.Orders[i].OrderID,
 				})
 			}
@@ -659,7 +660,7 @@ func (c *COINUT) CancelAllOrders(details *order.Cancel) (order.CancelAllResponse
 		var allTheOrders []OrderResponse
 		ids := c.instrumentMap.GetInstrumentIDs()
 		for x := range ids {
-			if ids[x] == c.instrumentMap.LookupID(c.FormatExchangeCurrency(details.CurrencyPair, asset.Spot).String()) {
+			if ids[x] == c.instrumentMap.LookupID(c.FormatExchangeCurrency(details.Pair, asset.Spot).String()) {
 				openOrders, err := c.GetOpenOrders(ids[x])
 				if err != nil {
 					return cancelAllOrdersResponse, err
@@ -768,7 +769,7 @@ func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 				orders = append(orders, order.Detail{
 					Exchange:        c.Name,
 					ID:              strconv.FormatInt(openOrders.Orders[i].OrderID, 10),
-					CurrencyPair:    c.FormatExchangeCurrency(p, asset.Spot),
+					Pair:            c.FormatExchangeCurrency(p, asset.Spot),
 					OrderSide:       order.Side(openOrders.Orders[i].Side),
 					OrderDate:       time.Unix(0, openOrders.Orders[i].Timestamp),
 					Status:          order.Active,
@@ -823,13 +824,13 @@ func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 				orderSide := order.Side(strings.ToUpper(openOrders.Orders[y].Side))
 				orderDate := time.Unix(openOrders.Orders[y].Timestamp, 0)
 				orders = append(orders, order.Detail{
-					ID:           strconv.FormatInt(openOrders.Orders[y].OrderID, 10),
-					Amount:       openOrders.Orders[y].Quantity,
-					Price:        openOrders.Orders[y].Price,
-					Exchange:     c.Name,
-					OrderSide:    orderSide,
-					OrderDate:    orderDate,
-					CurrencyPair: p,
+					ID:        strconv.FormatInt(openOrders.Orders[y].OrderID, 10),
+					Amount:    openOrders.Orders[y].Quantity,
+					Price:     openOrders.Orders[y].Price,
+					Exchange:  c.Name,
+					OrderSide: orderSide,
+					OrderDate: orderDate,
+					Pair:      p,
 				})
 			}
 		}
@@ -865,7 +866,7 @@ func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 					allOrders = append(allOrders, order.Detail{
 						Exchange:        c.Name,
 						ID:              strconv.FormatInt(trades.Trades[x].OrderID, 10),
-						CurrencyPair:    p,
+						Pair:            p,
 						OrderSide:       order.Side(trades.Trades[x].Side),
 						OrderDate:       time.Unix(0, trades.Trades[x].Timestamp),
 						Status:          order.Filled,
@@ -926,13 +927,13 @@ func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 				orderSide := order.Side(strings.ToUpper(orders.Trades[y].Order.Side))
 				orderDate := time.Unix(orders.Trades[y].Order.Timestamp, 0)
 				allOrders = append(allOrders, order.Detail{
-					ID:           strconv.FormatInt(orders.Trades[y].Order.OrderID, 10),
-					Amount:       orders.Trades[y].Order.Quantity,
-					Price:        orders.Trades[y].Order.Price,
-					Exchange:     c.Name,
-					OrderSide:    orderSide,
-					OrderDate:    orderDate,
-					CurrencyPair: p,
+					ID:        strconv.FormatInt(orders.Trades[y].Order.OrderID, 10),
+					Amount:    orders.Trades[y].Order.Quantity,
+					Price:     orders.Trades[y].Order.Price,
+					Exchange:  c.Name,
+					OrderSide: orderSide,
+					OrderDate: orderDate,
+					Pair:      p,
 				})
 			}
 		}

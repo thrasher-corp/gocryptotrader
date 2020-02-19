@@ -791,6 +791,9 @@ func TestGetAvailablePairs(t *testing.T) {
 	}
 
 	dogePairs, err := currency.NewPairsFromStrings([]string{"BTCDOGE"})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	b.CurrencyPairs.StorePairs(asset.Spot, dogePairs, false)
 	format.Index = currency.BTC.String()

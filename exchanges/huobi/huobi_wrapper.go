@@ -217,7 +217,8 @@ func (h *HUOBI) Run() {
 
 	if common.StringDataContains(h.BaseCurrencies.Strings(), currency.CNY.String()) {
 		cfg := config.GetConfig()
-		exchCfg, err := cfg.GetExchangeConfig(h.Name)
+		var exchCfg *config.ExchangeConfig
+		exchCfg, err = cfg.GetExchangeConfig(h.Name)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s failed to get exchange config. %s\n",
@@ -230,7 +231,8 @@ func (h *HUOBI) Run() {
 	}
 
 	if forceUpdate {
-		format, err := h.GetPairFormat(asset.Spot, false)
+		var format currency.PairFormat
+		format, err = h.GetPairFormat(asset.Spot, false)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s failed to get exchange config. %s\n",
@@ -310,7 +312,7 @@ func (h *HUOBI) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (h *HUOBI) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickers, err := h.GetTickers()
 	if err != nil {
 		return nil, err
@@ -345,7 +347,7 @@ func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (h *HUOBI) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (h *HUOBI) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(h.Name, p, assetType)
 	if err != nil {
 		return h.UpdateTicker(p, assetType)
@@ -354,7 +356,7 @@ func (h *HUOBI) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (h *HUOBI) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (h *HUOBI) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(h.Name, p, assetType)
 	if err != nil {
 		return h.UpdateOrderbook(p, assetType)
@@ -363,7 +365,7 @@ func (h *HUOBI) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (h *HUOBI) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 	orderbookNew, err := h.GetDepth(OrderBookDataRequestParams{
 		Symbol: h.FormatExchangeCurrency(p, assetType).String(),

@@ -252,7 +252,7 @@ func (b *BTSE) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *BTSE) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	t, err := b.GetTicker(b.FormatExchangeCurrency(p,
 		assetType).String())
 	if err != nil {
@@ -283,7 +283,7 @@ func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *BTSE) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *BTSE) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -292,7 +292,7 @@ func (b *BTSE) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (b *BTSE) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *BTSE) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -301,7 +301,7 @@ func (b *BTSE) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *BTSE) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 	a, err := b.FetchOrderBook(b.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
@@ -419,7 +419,7 @@ func (b *BTSE) ModifyOrder(action *order.Modify) (string, error) {
 // CancelOrder cancels an order by its corresponding ID number
 func (b *BTSE) CancelOrder(order *order.Cancel) error {
 	r, err := b.CancelExistingOrder(order.OrderID,
-		b.FormatExchangeCurrency(order.CurrencyPair,
+		b.FormatExchangeCurrency(order.Pair,
 			asset.Spot).String())
 	if err != nil {
 		return err
@@ -452,7 +452,7 @@ func (b *BTSE) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAll
 
 	resp.Status = make(map[string]string)
 	for x := range markets {
-		strPair := b.FormatExchangeCurrency(orderCancellation.CurrencyPair,
+		strPair := b.FormatExchangeCurrency(orderCancellation.Pair,
 			orderCancellation.AssetType).String()
 		checkPair := currency.NewPairWithDelimiter(markets[x].BaseCurrency,
 			markets[x].QuoteCurrency,
@@ -504,7 +504,7 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 			side = order.Sell
 		}
 
-		od.CurrencyPair = currency.NewPairDelimiter(o[i].Symbol,
+		od.Pair = currency.NewPairDelimiter(o[i].Symbol,
 			format.Delimiter)
 		od.Exchange = b.Name
 		od.Amount = o[i].Amount
@@ -602,7 +602,7 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 		}
 
 		openOrder := order.Detail{
-			CurrencyPair: currency.NewPairDelimiter(resp[i].Symbol,
+			Pair: currency.NewPairDelimiter(resp[i].Symbol,
 				format.Delimiter),
 			Exchange:  b.Name,
 			Amount:    resp[i].Amount,

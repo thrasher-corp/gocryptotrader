@@ -376,7 +376,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
-		Pair: currency.Pair{
+		Pair: &currency.Pair{
 			Base:  currency.BTC,
 			Quote: currency.USD,
 		},

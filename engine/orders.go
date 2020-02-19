@@ -269,7 +269,13 @@ func (o *orderManager) processOrders() {
 			result := o.orderStore.Add(ord)
 			if result != ErrOrdersAlreadyExists {
 				msg := fmt.Sprintf("Order manager: Exchange %s added order ID=%v pair=%v price=%v amount=%v side=%v type=%v.",
-					ord.Exchange, ord.ID, ord.CurrencyPair, ord.Price, ord.Amount, ord.OrderSide, ord.OrderType)
+					ord.Exchange,
+					ord.ID,
+					ord.Pair,
+					ord.Price,
+					ord.Amount,
+					ord.OrderSide,
+					ord.OrderType)
 				log.Debugf(log.OrderMgr, "%v\n", msg)
 				Bot.CommsManager.PushEvent(base.Event{
 					Type:    "order",

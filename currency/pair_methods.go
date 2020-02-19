@@ -11,8 +11,8 @@ func (p Pair) String() string {
 }
 
 // Lower converts the pair object to lowercase
-func (p Pair) Lower() Pair {
-	return Pair{
+func (p Pair) Lower() *Pair {
+	return &Pair{
 		Delimiter: p.Delimiter,
 		Base:      p.Base.Lower(),
 		Quote:     p.Quote.Lower(),
@@ -20,8 +20,8 @@ func (p Pair) Lower() Pair {
 }
 
 // Upper converts the pair object to uppercase
-func (p Pair) Upper() Pair {
-	return Pair{
+func (p Pair) Upper() *Pair {
+	return &Pair{
 		Delimiter: p.Delimiter,
 		Base:      p.Base.Upper(),
 		Quote:     p.Quote.Upper(),
@@ -41,7 +41,9 @@ func (p *Pair) UnmarshalJSON(d []byte) error {
 		return err
 	}
 
-	*p = newPair
+	p.Base = newPair.Base
+	p.Quote = newPair.Quote
+	p.Delimiter = newPair.Delimiter
 	return nil
 }
 
@@ -52,7 +54,7 @@ func (p Pair) MarshalJSON() ([]byte, error) {
 
 // Format changes the currency based on user preferences overriding the default
 // String() display
-func (p Pair) Format(delimiter string, uppercase bool) Pair {
+func (p Pair) Format(delimiter string, uppercase bool) *Pair {
 	p.Delimiter = delimiter
 
 	if uppercase {
@@ -62,14 +64,14 @@ func (p Pair) Format(delimiter string, uppercase bool) Pair {
 }
 
 // Equal compares two currency pairs and returns whether or not they are equal
-func (p Pair) Equal(cPair Pair) bool {
+func (p Pair) Equal(cPair *Pair) bool {
 	return strings.EqualFold(p.Base.String(), cPair.Base.String()) &&
 		strings.EqualFold(p.Quote.String(), cPair.Quote.String())
 }
 
 // EqualIncludeReciprocal compares two currency pairs and returns whether or not
 // they are the same including reciprocal currencies.
-func (p Pair) EqualIncludeReciprocal(cPair Pair) bool {
+func (p Pair) EqualIncludeReciprocal(cPair *Pair) bool {
 	if p.Base.Item == cPair.Base.Item &&
 		p.Quote.Item == cPair.Quote.Item ||
 		p.Base.Item == cPair.Quote.Item &&
@@ -104,9 +106,9 @@ func (p Pair) IsInvalid() bool {
 }
 
 // Swap turns the currency pair into its reciprocal
-func (p Pair) Swap() Pair {
+func (p Pair) Swap() *Pair {
 	p.Base, p.Quote = p.Quote, p.Base
-	return p
+	return &p
 }
 
 // IsEmpty returns whether or not the pair is empty or is missing a currency

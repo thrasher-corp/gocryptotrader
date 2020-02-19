@@ -309,7 +309,7 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Error("Expected: 'At least one currency is required to fetch order history'. received nil")
 	}
 
-	getOrdersRequest.Currencies = []currency.Pair{
+	getOrdersRequest.Currencies = []*currency.Pair{
 		currency.NewPair(currency.LTC, currency.BTC),
 	}
 
@@ -336,7 +336,7 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Error("Expected: 'At least one currency is required to fetch order history'. received nil")
 	}
 
-	getOrdersRequest.Currencies = []currency.Pair{
+	getOrdersRequest.Currencies = []*currency.Pair{
 		currency.NewPair(currency.LTC,
 			currency.BTC)}
 
@@ -362,7 +362,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
-		Pair: currency.Pair{
+		Pair: &currency.Pair{
 			Delimiter: "_",
 			Base:      currency.LTC,
 			Quote:     currency.BTC,
@@ -395,7 +395,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currency.NewPair(currency.LTC, currency.BTC),
+		Pair:          currency.NewPair(currency.LTC, currency.BTC),
 	}
 
 	err := b.CancelOrder(orderCancellation)
@@ -419,7 +419,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currency.NewPair(currency.LTC, currency.BTC),
+		Pair:          currency.NewPair(currency.LTC, currency.BTC),
 	}
 
 	_, err := b.CancelAllOrders(orderCancellation)

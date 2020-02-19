@@ -21,7 +21,7 @@ func init() {
 
 // SubscribeTicker subcribes to a ticker and returns a communication channel to
 // stream new ticker updates
-func SubscribeTicker(exchange string, p currency.Pair, a asset.Item) (dispatch.Pipe, error) {
+func SubscribeTicker(exchange string, p *currency.Pair, a asset.Item) (dispatch.Pipe, error) {
 	exchange = strings.ToLower(exchange)
 	service.RLock()
 	defer service.RUnlock()
@@ -52,7 +52,7 @@ func SubscribeToExchangeTickers(exchange string) (dispatch.Pipe, error) {
 }
 
 // GetTicker checks and returns a requested ticker if it exists
-func GetTicker(exchange string, p currency.Pair, tickerType asset.Item) (*Price, error) {
+func GetTicker(exchange string, p *currency.Pair, tickerType asset.Item) (*Price, error) {
 	exchange = strings.ToLower(exchange)
 	service.RLock()
 	defer service.RUnlock()

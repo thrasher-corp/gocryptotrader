@@ -125,8 +125,8 @@ type OrderResponse struct {
 
 // Commission holds trade commission structure
 type Commission struct {
-	Currency currency.Pair `json:"currency"`
-	Amount   float64       `json:"amount,string"`
+	Currency *currency.Pair `json:"currency"`
+	Amount   float64        `json:"amount,string"`
 }
 
 // OrderFilledResponse contains order filled response
@@ -413,7 +413,7 @@ type WsCancelOrdersRequestEntry struct {
 
 // WsCancelOrderParameters ws request parameters
 type WsCancelOrderParameters struct {
-	Currency currency.Pair
+	Currency *currency.Pair
 	OrderID  int64
 }
 
@@ -482,7 +482,7 @@ type WsSubmitOrderRequest struct {
 
 // WsSubmitOrderParameters ws request parameters
 type WsSubmitOrderParameters struct {
-	Currency      currency.Pair
+	Currency      *currency.Pair
 	Side          order.Side
 	Amount, Price float64
 	OrderID       int64
@@ -548,8 +548,8 @@ type WsOrderData struct {
 
 // WsOrderFilledCommissionData ws response data
 type WsOrderFilledCommissionData struct {
-	Amount   float64       `json:"amount,string"`
-	Currency currency.Pair `json:"currency"`
+	Amount   float64        `json:"amount,string"`
+	Currency *currency.Pair `json:"currency"`
 }
 
 // WsOrderRejectedResponse ws response
@@ -585,7 +585,7 @@ type WsStandardOrderResponse struct {
 	Timestamp          int64
 	OrderType          string
 	CommissionAmount   float64
-	CommissionCurrency currency.Pair
+	CommissionCurrency *currency.Pair
 }
 
 // WsUserOpenOrdersResponse ws response
@@ -607,8 +607,8 @@ type WsTradeHistoryResponse struct {
 
 // WsTradeHistoryCommissionData ws response data
 type WsTradeHistoryCommissionData struct {
-	Amount   float64       `json:"amount,string"`
-	Currency currency.Pair `json:"currency"`
+	Amount   float64        `json:"amount,string"`
+	Currency *currency.Pair `json:"currency"`
 }
 
 // WsTradeHistoryTradeData ws response data

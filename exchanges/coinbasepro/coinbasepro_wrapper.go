@@ -226,7 +226,8 @@ func (c *CoinbasePro) Run() {
 
 	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
 		!common.StringDataContains(avail.Strings(), format.Delimiter) {
-		p, err := currency.NewPairsFromStrings([]string{currency.BTC.String() +
+		var p currency.Pairs
+		p, err = currency.NewPairsFromStrings([]string{currency.BTC.String() +
 			format.Delimiter +
 			currency.USD.String()})
 		if err != nil {
@@ -340,7 +341,7 @@ func (c *CoinbasePro) FetchAccountInfo() (account.Holdings, error) {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (c *CoinbasePro) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (c *CoinbasePro) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := c.GetTicker(c.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
 		return nil, err
@@ -370,7 +371,7 @@ func (c *CoinbasePro) UpdateTicker(p currency.Pair, assetType asset.Item) (*tick
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (c *CoinbasePro) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (c *CoinbasePro) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(c.Name, p, assetType)
 	if err != nil {
 		return c.UpdateTicker(p, assetType)
@@ -379,7 +380,7 @@ func (c *CoinbasePro) FetchTicker(p currency.Pair, assetType asset.Item) (*ticke
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (c *CoinbasePro) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (c *CoinbasePro) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(c.Name, p, assetType)
 	if err != nil {
 		return c.UpdateOrderbook(p, assetType)
@@ -388,7 +389,7 @@ func (c *CoinbasePro) FetchOrderbook(p currency.Pair, assetType asset.Item) (*or
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (c *CoinbasePro) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (c *CoinbasePro) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 	orderbookNew, err := c.GetOrderbook(c.FormatExchangeCurrency(p,
 		assetType).String(), 2)
@@ -597,7 +598,7 @@ func (c *CoinbasePro) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Deta
 			OrderType:      orderType,
 			OrderDate:      orderDate,
 			OrderSide:      orderSide,
-			CurrencyPair:   curr,
+			Pair:           curr,
 			Exchange:       c.Name,
 		})
 	}
@@ -649,7 +650,7 @@ func (c *CoinbasePro) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Deta
 			OrderType:      orderType,
 			OrderDate:      orderDate,
 			OrderSide:      orderSide,
-			CurrencyPair:   curr,
+			Pair:           curr,
 			Exchange:       c.Name,
 		})
 	}

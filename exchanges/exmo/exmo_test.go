@@ -279,7 +279,7 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 	currPair := currency.NewPair(currency.BTC, currency.USD)
 	currPair.Delimiter = "_"
-	getOrdersRequest.Currencies = []currency.Pair{currPair}
+	getOrdersRequest.Currencies = []*currency.Pair{currPair}
 
 	_, err := e.GetOrderHistory(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
@@ -301,7 +301,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
-		Pair: currency.Pair{
+		Pair: &currency.Pair{
 			Delimiter: "_",
 			Base:      currency.BTC,
 			Quote:     currency.USD,
@@ -330,7 +330,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	err := e.CancelOrder(orderCancellation)
@@ -352,7 +352,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	resp, err := e.CancelAllOrders(orderCancellation)

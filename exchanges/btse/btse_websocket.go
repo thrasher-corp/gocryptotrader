@@ -84,7 +84,8 @@ func (b *BTSE) WsHandleData() {
 					if tradeHistory.Data[x].Gain == -1 {
 						side = order.Sell.String()
 					}
-					p, err := currency.NewPairFromString(strings.Replace(tradeHistory.Topic, "tradeHistory:", "", 1))
+					var p currency.Pair
+					p, err = currency.NewPairFromString(strings.Replace(tradeHistory.Topic, "tradeHistory:", "", 1))
 					if err != nil {
 						b.Websocket.DataHandler <- err
 						continue

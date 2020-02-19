@@ -207,7 +207,8 @@ func (b *Binance) Run() {
 	}
 	if !common.StringDataContains(pairs.Strings(), format.Delimiter) ||
 		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), format.Delimiter) {
-		enabledPairs, err := currency.NewPairsFromStrings([]string{
+		var enabledPairs currency.Pairs
+		enabledPairs, err = currency.NewPairsFromStrings([]string{
 			currency.BTC.String() +
 				format.Delimiter +
 				currency.USDT.String()})
@@ -295,7 +296,7 @@ func (b *Binance) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *Binance) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := b.GetTickers()
 	if err != nil {
 		return nil, err
@@ -336,7 +337,7 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *Binance) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *Binance) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -345,7 +346,7 @@ func (b *Binance) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (b *Binance) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Binance) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -354,7 +355,7 @@ func (b *Binance) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Binance) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 	orderbookNew, err := b.GetOrderBook(OrderBookDataRequestParams{Symbol: b.FormatExchangeCurrency(p,
 		assetType).String(), Limit: 1000})
@@ -514,7 +515,7 @@ func (b *Binance) CancelOrder(order *order.Cancel) error {
 		return err
 	}
 
-	_, err = b.CancelExistingOrder(b.FormatExchangeCurrency(order.CurrencyPair,
+	_, err = b.CancelExistingOrder(b.FormatExchangeCurrency(order.Pair,
 		order.AssetType).String(),
 		orderIDInt,
 		order.AccountID)
@@ -615,15 +616,15 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 			}
 
 			orders = append(orders, order.Detail{
-				Amount:       resp[i].OrigQty,
-				OrderDate:    orderDate,
-				Exchange:     b.Name,
-				ID:           strconv.FormatInt(resp[i].OrderID, 10),
-				OrderSide:    orderSide,
-				OrderType:    orderType,
-				Price:        resp[i].Price,
-				Status:       order.Status(resp[i].Status),
-				CurrencyPair: pair,
+				Amount:    resp[i].OrigQty,
+				OrderDate: orderDate,
+				Exchange:  b.Name,
+				ID:        strconv.FormatInt(resp[i].OrderID, 10),
+				OrderSide: orderSide,
+				OrderType: orderType,
+				Price:     resp[i].Price,
+				Status:    order.Status(resp[i].Status),
+				Pair:      pair,
 			})
 		}
 	}
@@ -666,15 +667,15 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 			}
 
 			orders = append(orders, order.Detail{
-				Amount:       resp[i].OrigQty,
-				OrderDate:    orderDate,
-				Exchange:     b.Name,
-				ID:           strconv.FormatInt(resp[i].OrderID, 10),
-				OrderSide:    orderSide,
-				OrderType:    orderType,
-				Price:        resp[i].Price,
-				CurrencyPair: pair,
-				Status:       order.Status(resp[i].Status),
+				Amount:    resp[i].OrigQty,
+				OrderDate: orderDate,
+				Exchange:  b.Name,
+				ID:        strconv.FormatInt(resp[i].OrderID, 10),
+				OrderSide: orderSide,
+				OrderType: orderType,
+				Price:     resp[i].Price,
+				Pair:      pair,
+				Status:    order.Status(resp[i].Status),
 			})
 		}
 	}

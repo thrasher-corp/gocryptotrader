@@ -224,7 +224,7 @@ func (g *Gateio) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (g *Gateio) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (g *Gateio) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	result, err := g.GetTickers()
 	if err != nil {
 		return nil, err
@@ -260,7 +260,7 @@ func (g *Gateio) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (g *Gateio) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (g *Gateio) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(g.Name, p, assetType)
 	if err != nil {
 		return g.UpdateTicker(p, assetType)
@@ -269,7 +269,7 @@ func (g *Gateio) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (g *Gateio) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (g *Gateio) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(g.Name, p, assetType)
 	if err != nil {
 		return g.UpdateOrderbook(p, assetType)
@@ -278,7 +278,7 @@ func (g *Gateio) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (g *Gateio) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (g *Gateio) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 	curr := g.FormatExchangeCurrency(p, assetType).String()
 
@@ -470,7 +470,7 @@ func (g *Gateio) CancelOrder(order *order.Cancel) error {
 		return err
 	}
 	_, err = g.CancelExistingOrder(orderIDInt,
-		g.FormatExchangeCurrency(order.CurrencyPair, order.AssetType).String())
+		g.FormatExchangeCurrency(order.Pair, order.AssetType).String())
 	return err
 }
 
@@ -524,7 +524,7 @@ func (g *Gateio) GetOrderInfo(orderID string) (order.Detail, error) {
 		orderDetail.OrderDate = time.Unix(orders.Orders[x].Timestamp, 0)
 		orderDetail.Status = order.Status(orders.Orders[x].Status)
 		orderDetail.Price = orders.Orders[x].Rate
-		orderDetail.CurrencyPair = currency.NewPairDelimiter(orders.Orders[x].CurrencyPair,
+		orderDetail.Pair = currency.NewPairDelimiter(orders.Orders[x].CurrencyPair,
 			format.Delimiter)
 		if strings.EqualFold(orders.Orders[x].Type, order.Ask.String()) {
 			orderDetail.OrderSide = order.Ask
@@ -620,7 +620,7 @@ func (g *Gateio) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 					Exchange:        g.Name,
 					AccountID:       strconv.FormatInt(resp.WebSocketOrderQueryRecords[j].User, 10),
 					ID:              strconv.FormatInt(resp.WebSocketOrderQueryRecords[j].ID, 10),
-					CurrencyPair:    p,
+					Pair:            p,
 					OrderSide:       orderSide,
 					OrderType:       orderType,
 					OrderDate:       orderDate,
@@ -663,7 +663,7 @@ func (g *Gateio) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 				OrderDate:       orderDate,
 				OrderSide:       side,
 				Exchange:        g.Name,
-				CurrencyPair:    symbol,
+				Pair:            symbol,
 				Status:          order.Status(resp.Orders[i].Status),
 			})
 		}
@@ -691,18 +691,18 @@ func (g *Gateio) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 	}
 
 	var orders []order.Detail
-	for _, trade := range trades {
-		symbol := currency.NewPairDelimiter(trade.Pair, format.Delimiter)
-		side := order.Side(strings.ToUpper(trade.Type))
-		orderDate := time.Unix(trade.TimeUnix, 0)
+	for i := range trades {
+		symbol := currency.NewPairDelimiter(trades[i].Pair, format.Delimiter)
+		side := order.Side(strings.ToUpper(trades[i].Type))
+		orderDate := time.Unix(trades[i].TimeUnix, 0)
 		orders = append(orders, order.Detail{
-			ID:           strconv.FormatInt(trade.OrderID, 10),
-			Amount:       trade.Amount,
-			Price:        trade.Rate,
-			OrderDate:    orderDate,
-			OrderSide:    side,
-			Exchange:     g.Name,
-			CurrencyPair: symbol,
+			ID:        strconv.FormatInt(trades[i].OrderID, 10),
+			Amount:    trades[i].Amount,
+			Price:     trades[i].Rate,
+			OrderDate: orderDate,
+			OrderSide: side,
+			Exchange:  g.Name,
+			Pair:      symbol,
 		})
 	}
 

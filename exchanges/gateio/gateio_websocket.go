@@ -136,7 +136,8 @@ func (g *Gateio) WsHandleData() {
 					continue
 				}
 
-				p, err := currency.NewPairFromString(c)
+				var p currency.Pair
+				p, err = currency.NewPairFromString(c)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
@@ -170,7 +171,8 @@ func (g *Gateio) WsHandleData() {
 					continue
 				}
 
-				p, err := currency.NewPairFromString(c)
+				var p currency.Pair
+				p, err = currency.NewPairFromString(c)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue
@@ -231,12 +233,14 @@ func (g *Gateio) WsHandleData() {
 
 				bidData, bidOk := data["bids"]
 				for i := range bidData {
-					amount, err := strconv.ParseFloat(bidData[i][1], 64)
+					var amount float64
+					amount, err = strconv.ParseFloat(bidData[i][1], 64)
 					if err != nil {
 						g.Websocket.DataHandler <- err
 						continue
 					}
-					price, err := strconv.ParseFloat(bidData[i][0], 64)
+					var price float64
+					price, err = strconv.ParseFloat(bidData[i][0], 64)
 					if err != nil {
 						g.Websocket.DataHandler <- err
 						continue
@@ -250,8 +254,8 @@ func (g *Gateio) WsHandleData() {
 				if !askOk && !bidOk {
 					g.Websocket.DataHandler <- errors.New("gatio websocket error - cannot access ask or bid data")
 				}
-
-				p, err := currency.NewPairFromString(c)
+				var p currency.Pair
+				p, err = currency.NewPairFromString(c)
 				if err != nil {
 					g.Websocket.DataHandler <- err
 					continue

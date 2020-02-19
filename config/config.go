@@ -548,7 +548,7 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 
 // SupportsPair returns true or not whether the exchange supports the supplied
 // pair
-func (c *Config) SupportsPair(exchName string, p currency.Pair, assetType asset.Item) (bool, error) {
+func (c *Config) SupportsPair(exchName string, p *currency.Pair, assetType asset.Item) (bool, error) {
 	pairs, err := c.GetAvailablePairs(exchName, assetType)
 	if err != nil {
 		return false, err
@@ -1113,7 +1113,7 @@ func (c *Config) RetrieveConfigCurrencyPairs(enabledOnly bool, assetType asset.I
 			continue
 		}
 
-		var pairs []currency.Pair
+		var pairs []*currency.Pair
 		if !c.Exchanges[x].Enabled && enabledOnly {
 			pairs, err = c.GetEnabledPairs(c.Exchanges[x].Name, assetType)
 		} else {

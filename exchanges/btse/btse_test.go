@@ -303,7 +303,7 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	var orderSubmission = &order.Submit{
-		Pair: currency.Pair{
+		Pair: &currency.Pair{
 			Base:  currency.BTC,
 			Quote: currency.USD,
 		},
@@ -333,7 +333,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		OrderID:       "b334ecef-2b42-4998-b8a4-b6b14f6d2671",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 	err := b.CancelOrder(orderCancellation)
 	if err != nil {
@@ -353,7 +353,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 	resp, err := b.CancelAllOrders(orderCancellation)
 

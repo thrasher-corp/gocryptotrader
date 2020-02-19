@@ -142,7 +142,7 @@ func TestCheckFXString(t *testing.T) {
 
 func TestFetchTicker(t *testing.T) {
 	t.Parallel()
-	var p currency.Pair
+	var p *currency.Pair
 
 	currencies := b.GetAvailablePairs(asset.Spot)
 	for _, pair := range currencies {
@@ -304,7 +304,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
-		Pair: currency.Pair{
+		Pair: &currency.Pair{
 			Base:  currency.BTC,
 			Quote: currency.LTC,
 		},
@@ -331,7 +331,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	err := b.CancelOrder(orderCancellation)
@@ -352,7 +352,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	_, err := b.CancelAllOrders(orderCancellation)

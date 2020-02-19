@@ -51,11 +51,11 @@ func TestGet(t *testing.T) {
 	initTest(t)
 
 	_, err := p.Get(asset.Spot)
-	if err == nil {
-		t.Error("Spot assets shouldn't be nil")
+	if err != nil {
+		t.Error(err)
 	}
 
-	_, err = p.Get(asset.Spot)
+	_, err = p.Get(asset.Futures)
 	if err == nil {
 		t.Error("Futures should be nil")
 	}
@@ -121,7 +121,7 @@ func TestDelete(t *testing.T) {
 
 	p.Delete(asset.Spot)
 
-	if _, err := p.Get(asset.Spot); err != nil {
+	if _, err := p.Get(asset.Spot); err == nil {
 		t.Error("Delete should have deleted AssetTypeSpot")
 	}
 }
@@ -229,13 +229,13 @@ func TestDisablePair(t *testing.T) {
 
 	// Test asset type which doesn't exist
 	initTest(t)
-	if err := p.DisablePair(asset.Futures, Pair{}); err == nil {
+	if err := p.DisablePair(asset.Futures, &Pair{}); err == nil {
 		t.Error("unexpected result")
 	}
 
 	// Test asset type which has an empty pair store
 	p.Pairs[asset.Spot] = nil
-	if err := p.DisablePair(asset.Spot, Pair{}); err == nil {
+	if err := p.DisablePair(asset.Spot, &Pair{}); err == nil {
 		t.Error("unexpected result")
 	}
 
@@ -260,13 +260,13 @@ func TestEnablePair(t *testing.T) {
 
 	// Test asset type which doesn't exist
 	initTest(t)
-	if err := p.EnablePair(asset.Futures, Pair{}); err == nil {
+	if err := p.EnablePair(asset.Futures, &Pair{}); err == nil {
 		t.Error("unexpected result")
 	}
 
 	// Test asset type which has an empty pair store
 	p.Pairs[asset.Spot] = nil
-	if err := p.EnablePair(asset.Spot, Pair{}); err == nil {
+	if err := p.EnablePair(asset.Spot, &Pair{}); err == nil {
 		t.Error("unexpected result")
 	}
 

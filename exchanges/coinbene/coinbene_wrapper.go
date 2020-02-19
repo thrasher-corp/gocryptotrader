@@ -272,7 +272,7 @@ func (c *Coinbene) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (c *Coinbene) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (c *Coinbene) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	if !c.SupportsAsset(assetType) {
 		return nil,
 			fmt.Errorf("%s does not support asset type %s", c.Name, assetType)
@@ -291,7 +291,8 @@ func (c *Coinbene) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 		}
 
 		for i := range tickers {
-			p, err := currency.NewPairFromString(tickers[i].Symbol)
+			var p *currency.Pair
+			p, err = currency.NewPairFromString(tickers[i].Symbol)
 			if err != nil {
 				return nil, err
 			}
@@ -350,7 +351,7 @@ func (c *Coinbene) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (c *Coinbene) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (c *Coinbene) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	if !c.SupportsAsset(assetType) {
 		return nil,
 			fmt.Errorf("%s does not support asset type %s", c.Name, assetType)
@@ -364,21 +365,21 @@ func (c *Coinbene) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (c *Coinbene) FetchOrderbook(currency currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (c *Coinbene) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	if !c.SupportsAsset(assetType) {
 		return nil,
 			fmt.Errorf("%s does not support asset type %s", c.Name, assetType)
 	}
 
-	ob, err := orderbook.Get(c.Name, currency, assetType)
+	ob, err := orderbook.Get(c.Name, p, assetType)
 	if err != nil {
-		return c.UpdateOrderbook(currency, assetType)
+		return c.UpdateOrderbook(p, assetType)
 	}
 	return ob, nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (c *Coinbene) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	resp := new(orderbook.Base)
 	if !c.SupportsAsset(assetType) {
 		return nil,
@@ -532,7 +533,7 @@ func (c *Coinbene) CancelOrder(order *order.Cancel) error {
 func (c *Coinbene) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
 	orders, err := c.FetchOpenSpotOrders(
-		c.FormatExchangeCurrency(orderCancellation.CurrencyPair,
+		c.FormatExchangeCurrency(orderCancellation.Pair,
 			asset.Spot).String(),
 	)
 	if err != nil {
@@ -561,7 +562,7 @@ func (c *Coinbene) GetOrderInfo(orderID string) (order.Detail, error) {
 	var t time.Time
 	resp.Exchange = c.Name
 	resp.ID = orderID
-	resp.CurrencyPair = currency.NewPairWithDelimiter(tempResp.BaseAsset,
+	resp.Pair = currency.NewPairWithDelimiter(tempResp.BaseAsset,
 		"/",
 		tempResp.QuoteAsset)
 	t, err = time.Parse(time.RFC3339, tempResp.OrderTime)
@@ -636,7 +637,7 @@ func (c *Coinbene) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]
 		for y := range tempData {
 			var tempResp order.Detail
 			tempResp.Exchange = c.Name
-			tempResp.CurrencyPair = getOrdersRequest.Currencies[x]
+			tempResp.Pair = getOrdersRequest.Currencies[x]
 			tempResp.OrderSide = order.Buy
 			if strings.EqualFold(tempData[y].OrderType, order.Sell.String()) {
 				tempResp.OrderSide = order.Sell
@@ -697,7 +698,7 @@ func (c *Coinbene) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]
 		for y := range tempData {
 			var tempResp order.Detail
 			tempResp.Exchange = c.Name
-			tempResp.CurrencyPair = getOrdersRequest.Currencies[x]
+			tempResp.Pair = getOrdersRequest.Currencies[x]
 			tempResp.OrderSide = order.Buy
 			if strings.EqualFold(tempData[y].OrderType, order.Sell.String()) {
 				tempResp.OrderSide = order.Sell

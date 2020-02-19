@@ -97,7 +97,7 @@ type InternationalBankTransactionType uint8
 type FeeBuilder struct {
 	FeeType FeeType
 	// Used for calculating crypto trading fees, deposits & withdrawals
-	Pair    currency.Pair
+	Pair    *currency.Pair
 	IsMaker bool
 	// Fiat currency used for bank deposits & withdrawals
 	FiatCurrency        currency.Code

@@ -161,8 +161,8 @@ func (p *Poloniex) WsHandleData() {
 									p.Websocket.DataHandler <- err
 									continue
 								}
-
-								pair, err := currency.NewPairFromString(currencyPair)
+								var pair currency.Pair
+								pair, err = currency.NewPairFromString(currencyPair)
 								if err != nil {
 									p.Websocket.DataHandler <- err
 									continue
@@ -182,8 +182,8 @@ func (p *Poloniex) WsHandleData() {
 									p.Websocket.DataHandler <- err
 									continue
 								}
-
-								pair, err := currency.NewPairFromString(currencyPair)
+								var pair currency.Pair
+								pair, err = currency.NewPairFromString(currencyPair)
 								if err != nil {
 									p.Websocket.DataHandler <- err
 									continue

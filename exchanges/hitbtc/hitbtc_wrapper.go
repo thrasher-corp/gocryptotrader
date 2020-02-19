@@ -214,7 +214,8 @@ func (h *HitBTC) Run() {
 		log.Warn(log.ExchangeSys,
 			"Available pairs for HitBTC reset due to config upgrade, please enable the ones you would like again.")
 		forceUpdate = true
-		p, err := currency.NewPairsFromStrings(enabledPairs)
+		var p currency.Pairs
+		p, err = currency.NewPairsFromStrings(enabledPairs)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s failed to update tradable pairs. Err: %s",
@@ -326,7 +327,7 @@ func (h *HitBTC) UpdateTicker(currencyPair currency.Pair, assetType asset.Item) 
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (h *HitBTC) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (h *HitBTC) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(h.Name, p, assetType)
 	if err != nil {
 		return h.UpdateTicker(p, assetType)
@@ -335,7 +336,7 @@ func (h *HitBTC) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (h *HitBTC) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (h *HitBTC) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(h.Name, p, assetType)
 	if err != nil {
 		return h.UpdateOrderbook(p, assetType)

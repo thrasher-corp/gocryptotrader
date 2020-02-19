@@ -199,7 +199,7 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTradablePairs(forceUpdate bool) err
 
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
   	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
 	/*
 	tickerPrice := new(ticker.Price)
@@ -225,7 +225,7 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(p currency.Pair, assetType a
 }
 
 // FetchTicker returns the ticker for a currency pair
-func ({{.Variable}} *{{.CapitalName}}) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func ({{.Variable}} *{{.CapitalName}}) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker({{.Variable}}.Name, p, assetType)
 	if err != nil {
 		return {{.Variable}}.UpdateTicker(p, assetType)
@@ -243,7 +243,7 @@ func ({{.Variable}} *{{.CapitalName}}) FetchOrderbook(currency currency.Pair, as
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
     // NOTE: UPDATE ORDERBOOK EXAMPLE
 	/* 

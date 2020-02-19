@@ -176,7 +176,7 @@ func (l *Lbank) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (l *Lbank) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (l *Lbank) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerInfo, err := l.GetTickers()
 	if err != nil {
 		return nil, err
@@ -209,7 +209,7 @@ func (l *Lbank) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (l *Lbank) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (l *Lbank) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(l.Name,
 		l.FormatExchangeCurrency(p, assetType), assetType)
 	if err != nil {
@@ -228,7 +228,7 @@ func (l *Lbank) FetchOrderbook(currency currency.Pair, assetType asset.Item) (*o
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (l *Lbank) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 	a, err := l.GetMarketDepths(l.FormatExchangeCurrency(p, assetType).String(), "60", "1")
 	if err != nil {

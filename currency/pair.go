@@ -7,9 +7,9 @@ import (
 
 // NewPairDelimiter splits the desired currency string at delimeter, the returns
 // a Pair struct
-func NewPairDelimiter(currencyPair, delimiter string) Pair {
+func NewPairDelimiter(currencyPair, delimiter string) *Pair {
 	result := strings.Split(currencyPair, delimiter)
-	return Pair{
+	return &Pair{
 		Delimiter: delimiter,
 		Base:      NewCode(result[0]),
 		Quote:     NewCode(result[1]),
@@ -17,33 +17,33 @@ func NewPairDelimiter(currencyPair, delimiter string) Pair {
 }
 
 // NewPairFromStrings returns a CurrencyPair without a delimiter
-func NewPairFromStrings(base, quote string) (Pair, error) {
+func NewPairFromStrings(base, quote string) (*Pair, error) {
 	if strings.Contains(base, " ") {
-		return Pair{},
+		return nil,
 			fmt.Errorf("cannot create pair invalid base currency string [%s]",
 				base)
 	}
 
 	if strings.Contains(quote, " ") {
-		return Pair{},
+		return nil,
 			fmt.Errorf("cannot create pair invalid quote currency string [%s]",
 				quote)
 	}
 
-	return Pair{Base: NewCode(base), Quote: NewCode(quote)}, nil
+	return &Pair{Base: NewCode(base), Quote: NewCode(quote)}, nil
 }
 
 // NewPair returns a currency pair from currency codes
-func NewPair(baseCurrency, quoteCurrency Code) Pair {
-	return Pair{
+func NewPair(baseCurrency, quoteCurrency Code) *Pair {
+	return &Pair{
 		Base:  baseCurrency,
 		Quote: quoteCurrency,
 	}
 }
 
 // NewPairWithDelimiter returns a CurrencyPair with a delimiter
-func NewPairWithDelimiter(base, quote, delimiter string) Pair {
-	return Pair{
+func NewPairWithDelimiter(base, quote, delimiter string) *Pair {
+	return &Pair{
 		Base:      NewCode(base),
 		Quote:     NewCode(quote),
 		Delimiter: delimiter,
@@ -52,10 +52,10 @@ func NewPairWithDelimiter(base, quote, delimiter string) Pair {
 
 // NewPairFromIndex returns a CurrencyPair via a currency string and specific
 // index
-func NewPairFromIndex(currencyPair, index string) (Pair, error) {
+func NewPairFromIndex(currencyPair, index string) (*Pair, error) {
 	i := strings.Index(currencyPair, index)
 	if i == -1 {
-		return Pair{},
+		return nil,
 			fmt.Errorf("index %s not found in currency pair string", index)
 	}
 	if i == 0 {
@@ -67,14 +67,14 @@ func NewPairFromIndex(currencyPair, index string) (Pair, error) {
 
 // NewPairFromString converts currency string into a new CurrencyPair
 // with or without delimeter
-func NewPairFromString(currencyPair string) (Pair, error) {
+func NewPairFromString(currencyPair string) (*Pair, error) {
 	for x := range delimiters {
 		if strings.Contains(currencyPair, delimiters[x]) {
 			return NewPairDelimiter(currencyPair, delimiters[x]), nil
 		}
 	}
 	if len(currencyPair) < 3 {
-		return Pair{},
+		return nil,
 			fmt.Errorf("cannot produce a currency pair from %s string",
 				currencyPair)
 	}
@@ -85,7 +85,7 @@ func NewPairFromString(currencyPair string) (Pair, error) {
 // with a specific format. This is helpful for exchanges which
 // provide currency pairs with no delimiter so we can match it with a list and
 // apply the same format
-func NewPairFromFormattedPairs(currencyPair string, pairs Pairs, pairFmt PairFormat) (Pair, error) {
+func NewPairFromFormattedPairs(currencyPair string, pairs Pairs, pairFmt PairFormat) (*Pair, error) {
 	for x := range pairs {
 		if strings.EqualFold(pairs[x].Format(pairFmt.Delimiter,
 			pairFmt.Uppercase).String(), currencyPair) {

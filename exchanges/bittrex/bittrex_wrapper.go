@@ -153,8 +153,7 @@ func (b *Bittrex) Run() {
 		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), format.Delimiter) {
 		forceUpdate = true
 		log.Warn(log.ExchangeSys, "Available pairs for Bittrex reset due to config upgrade, please enable the ones you would like again")
-
-		pairs, err := currency.NewPairsFromStrings([]string{currency.USDT.String() +
+		pairs, err = currency.NewPairsFromStrings([]string{currency.USDT.String() +
 			format.Delimiter +
 			currency.BTC.String()})
 		if err != nil {
@@ -261,7 +260,7 @@ func (b *Bittrex) FetchAccountInfo() (account.Holdings, error) {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bittrex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *Bittrex) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	ticks, err := b.GetMarketSummaries()
 	if err != nil {
 		return nil, err
@@ -305,7 +304,7 @@ func (b *Bittrex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *Bittrex) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *Bittrex) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -314,7 +313,7 @@ func (b *Bittrex) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 }
 
 // FetchOrderbook returns the orderbook for a currency pair
-func (b *Bittrex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Bittrex) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -323,7 +322,7 @@ func (b *Bittrex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bittrex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Bittrex) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 	orderbookNew, err := b.GetOrderbook(b.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
@@ -530,7 +529,7 @@ func (b *Bittrex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 			ID:              resp.Result[i].OrderUUID,
 			Exchange:        b.Name,
 			OrderType:       orderType,
-			CurrencyPair:    pair,
+			Pair:            pair,
 		})
 	}
 
@@ -583,7 +582,7 @@ func (b *Bittrex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 			Exchange:        b.Name,
 			OrderType:       orderType,
 			Fee:             resp.Result[i].Commission,
-			CurrencyPair:    pair,
+			Pair:            pair,
 		})
 	}
 

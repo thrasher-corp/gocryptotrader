@@ -176,7 +176,7 @@ func (b *Bithumb) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bithumb) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *Bithumb) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickers, err := b.GetAllTickers()
 	if err != nil {
 		return nil, err
@@ -211,7 +211,7 @@ func (b *Bithumb) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *Bithumb) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *Bithumb) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -220,7 +220,7 @@ func (b *Bithumb) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (b *Bithumb) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Bithumb) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -229,7 +229,7 @@ func (b *Bithumb) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bithumb) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Bithumb) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 	curr := p.Base.String()
 
@@ -378,7 +378,7 @@ func (b *Bithumb) ModifyOrder(action *order.Modify) (string, error) {
 func (b *Bithumb) CancelOrder(order *order.Cancel) error {
 	_, err := b.CancelTrade(order.Side.String(),
 		order.OrderID,
-		order.CurrencyPair.Base.String())
+		order.Pair.Base.String())
 	return err
 }
 
@@ -409,7 +409,7 @@ func (b *Bithumb) CancelAllOrders(orderCancellation *order.Cancel) (order.Cancel
 	for i := range allOrders {
 		_, err := b.CancelTrade(orderCancellation.Side.String(),
 			allOrders[i].OrderID,
-			orderCancellation.CurrencyPair.Base.String())
+			orderCancellation.Pair.Base.String())
 		if err != nil {
 			cancelAllOrdersResponse.Status[allOrders[i].OrderID] = err.Error()
 		}
@@ -512,7 +512,7 @@ func (b *Bithumb) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 			Price:           resp.Data[i].Price,
 			RemainingAmount: resp.Data[i].UnitsRemaining,
 			Status:          order.Active,
-			CurrencyPair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
+			Pair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
 				resp.Data[i].PaymentCurrency,
 				format.Delimiter),
 		}
@@ -559,7 +559,7 @@ func (b *Bithumb) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 			OrderDate:       orderDate,
 			Price:           resp.Data[i].Price,
 			RemainingAmount: resp.Data[i].UnitsRemaining,
-			CurrencyPair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
+			Pair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
 				resp.Data[i].PaymentCurrency,
 				format.Delimiter),
 		}

@@ -175,7 +175,8 @@ func (o *OKCoin) Run() {
 
 	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
 		!common.StringDataContains(avail.Strings(), format.Delimiter) {
-		p, err := currency.NewPairsFromStrings([]string{currency.BTC.String() +
+		var p currency.Pars
+		p, err = currency.NewPairsFromStrings([]string{currency.BTC.String() +
 			format.Delimiter +
 			currency.USD.String()})
 		if err != nil {
@@ -249,7 +250,7 @@ func (o *OKCoin) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (o *OKCoin) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (o *OKCoin) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	if assetType == asset.Spot {
 		resp, err := o.GetSpotAllTokenPairsInformation()
 		if err != nil {
@@ -288,7 +289,7 @@ func (o *OKCoin) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (o *OKCoin) FetchTicker(p currency.Pair, assetType asset.Item) (tickerData *ticker.Price, err error) {
+func (o *OKCoin) FetchTicker(p *currency.Pair, assetType asset.Item) (tickerData *ticker.Price, err error) {
 	tickerData, err = ticker.GetTicker(o.Name, p, assetType)
 	if err != nil {
 		return o.UpdateTicker(p, assetType)

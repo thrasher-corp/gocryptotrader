@@ -37,7 +37,7 @@ var (
 
 // Submit contains the order submission data
 type Submit struct {
-	Pair         currency.Pair
+	Pair         *currency.Pair
 	OrderType    Type
 	OrderSide    Side
 	TriggerPrice float64
@@ -63,7 +63,7 @@ type Modify struct {
 	Amount            float64
 	LimitPriceUpper   float64
 	LimitPriceLower   float64
-	CurrencyPair      currency.Pair
+	CurrencyPair      *currency.Pair
 	ImmediateOrCancel bool
 	HiddenOrder       bool
 	FillOrKill        bool
@@ -113,7 +113,7 @@ type Detail struct {
 	Exchange        string
 	AccountID       string
 	ID              string
-	CurrencyPair    currency.Pair
+	Pair            *currency.Pair
 	OrderSide       Side
 	OrderType       Type
 	OrderDate       time.Time
@@ -143,7 +143,7 @@ type TradeHistory struct {
 type Cancel struct {
 	AccountID     string
 	OrderID       string
-	CurrencyPair  currency.Pair
+	Pair          *currency.Pair
 	AssetType     asset.Item
 	WalletAddress string
 	Side          Side
@@ -157,7 +157,7 @@ type GetOrdersRequest struct {
 	EndTicks   time.Time
 	// Currencies Empty array = all currencies. Some endpoints only support
 	// singular currency enquiries
-	Currencies []currency.Pair
+	Currencies []*currency.Pair
 }
 
 // Status defines order status types

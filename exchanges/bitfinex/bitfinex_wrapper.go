@@ -297,7 +297,7 @@ func (b *Bitfinex) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *Bitfinex) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	enabledPairs, err := b.GetEnabledPairs(assetType)
 	if err != nil {
 		return nil, err
@@ -336,8 +336,8 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *Bitfinex) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	b.appendOptionalDelimiter(&p)
+func (b *Bitfinex) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	b.appendOptionalDelimiter(p)
 	tick, err := ticker.GetTicker(b.Name, p, asset.Spot)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -346,8 +346,8 @@ func (b *Bitfinex) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 }
 
 // FetchOrderbook returns the orderbook for a currency pair
-func (b *Bitfinex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	b.appendOptionalDelimiter(&p)
+func (b *Bitfinex) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	b.appendOptionalDelimiter(p)
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -356,8 +356,8 @@ func (b *Bitfinex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*order
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bitfinex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	b.appendOptionalDelimiter(&p)
+func (b *Bitfinex) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	b.appendOptionalDelimiter(p)
 	var prefix = "t"
 	if assetType == asset.MarginFunding {
 		prefix = "f"
@@ -478,7 +478,7 @@ func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 	} else {
 		var response Order
 		isBuying := o.OrderSide == order.Buy
-		b.appendOptionalDelimiter(&o.Pair)
+		b.appendOptionalDelimiter(o.Pair)
 		response, err = b.NewOrder(o.Pair.String(),
 			o.OrderType.String(),
 			o.Amount,
@@ -652,7 +652,7 @@ func (b *Bitfinex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 			OrderSide:       orderSide,
 			Price:           resp[i].Price,
 			RemainingAmount: resp[i].RemainingAmount,
-			CurrencyPair:    pair,
+			Pair:            pair,
 			ExecutedAmount:  resp[i].ExecutedAmount,
 		}
 
@@ -717,7 +717,7 @@ func (b *Bitfinex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 			Price:           resp[i].Price,
 			RemainingAmount: resp[i].RemainingAmount,
 			ExecutedAmount:  resp[i].ExecutedAmount,
-			CurrencyPair:    pair,
+			Pair:            pair,
 		}
 
 		switch {
@@ -747,7 +747,7 @@ func (b *Bitfinex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 	order.FilterOrdersByType(&orders, req.OrderType)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	for i := range req.Currencies {
-		b.appendOptionalDelimiter(&req.Currencies[i])
+		b.appendOptionalDelimiter(req.Currencies[i])
 	}
 	order.FilterOrdersByCurrencies(&orders, req.Currencies)
 	return orders, nil
@@ -757,7 +757,7 @@ func (b *Bitfinex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 // which lets websocket.manageSubscriptions handle subscribing
 func (b *Bitfinex) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	for i := range channels {
-		b.appendOptionalDelimiter(&channels[i].Currency)
+		b.appendOptionalDelimiter(channels[i].Currency)
 	}
 	b.Websocket.SubscribeToChannels(channels)
 	return nil
@@ -767,7 +767,7 @@ func (b *Bitfinex) SubscribeToWebsocketChannels(channels []wshandler.WebsocketCh
 // which lets websocket.manageSubscriptions handle unsubscribing
 func (b *Bitfinex) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
 	for i := range channels {
-		b.appendOptionalDelimiter(&channels[i].Currency)
+		b.appendOptionalDelimiter(channels[i].Currency)
 	}
 	b.Websocket.RemoveSubscribedChannels(channels)
 	return nil

@@ -142,7 +142,7 @@ func (i *ItBit) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (i *ItBit) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (i *ItBit) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := i.GetTicker(i.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
 		return nil, err
@@ -168,7 +168,7 @@ func (i *ItBit) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (i *ItBit) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (i *ItBit) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(i.Name, p, assetType)
 	if err != nil {
 		return i.UpdateTicker(p, assetType)
@@ -177,7 +177,7 @@ func (i *ItBit) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (i *ItBit) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (i *ItBit) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(i.Name, p, assetType)
 	if err != nil {
 		return i.UpdateOrderbook(p, assetType)
@@ -186,7 +186,7 @@ func (i *ItBit) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (i *ItBit) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 	orderbookNew, err := i.GetOrderbook(i.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {
@@ -447,7 +447,8 @@ func (i *ItBit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 
 	var allOrders []Order
 	for x := range wallets {
-		resp, err := i.GetOrders(wallets[x].ID, "", "open", 0, 0)
+		var resp Order
+		resp, err = i.GetOrders(wallets[x].ID, "", "open", 0, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -502,7 +503,8 @@ func (i *ItBit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 
 	var allOrders []Order
 	for x := range wallets {
-		resp, err := i.GetOrders(wallets[x].ID, "", "", 0, 0)
+		var resp Order
+		resp, err = i.GetOrders(wallets[x].ID, "", "", 0, 0)
 		if err != nil {
 			return nil, err
 		}

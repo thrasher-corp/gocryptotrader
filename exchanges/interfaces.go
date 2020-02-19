@@ -24,10 +24,10 @@ type IBotExchange interface {
 	IsEnabled() bool
 	SetEnabled(bool)
 	ValidateCredentials() error
-	FetchTicker(currency currency.Pair, assetType asset.Item) (*ticker.Price, error)
-	UpdateTicker(currency currency.Pair, assetType asset.Item) (*ticker.Price, error)
-	FetchOrderbook(currency currency.Pair, assetType asset.Item) (*orderbook.Base, error)
-	UpdateOrderbook(currency currency.Pair, assetType asset.Item) (*orderbook.Base, error)
+	FetchTicker(currency *currency.Pair, assetType asset.Item) (*ticker.Price, error)
+	UpdateTicker(currency *currency.Pair, assetType asset.Item) (*ticker.Price, error)
+	FetchOrderbook(currency *currency.Pair, assetType asset.Item) (*orderbook.Base, error)
+	UpdateOrderbook(currency *currency.Pair, assetType asset.Item) (*orderbook.Base, error)
 	FetchTradablePairs(assetType asset.Item) ([]string, error)
 	UpdateTradablePairs(forceUpdate bool) error
 	GetEnabledPairs(assetType asset.Item) (currency.Pairs, error)
@@ -37,7 +37,7 @@ type IBotExchange interface {
 	GetAuthenticatedAPISupport(endpoint uint8) bool
 	SetPairs(pairs currency.Pairs, assetType asset.Item, enabled bool) error
 	GetAssetTypes() asset.Items
-	GetExchangeHistory(currencyPair currency.Pair, assetType asset.Item) ([]TradeHistory, error)
+	GetExchangeHistory(currencyPair *currency.Pair, assetType asset.Item) ([]TradeHistory, error)
 	SupportsAutoPairUpdates() bool
 	SupportsRESTTickerBatchUpdates() bool
 	GetFeeByType(feeBuilder *FeeBuilder) (float64, error)
@@ -71,7 +71,7 @@ type IBotExchange interface {
 	GetDefaultConfig() (*config.ExchangeConfig, error)
 	GetBase() *Base
 	SupportsAsset(assetType asset.Item) bool
-	GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]Candle, error)
+	GetHistoricCandles(pair *currency.Pair, rangesize, granularity int64) ([]Candle, error)
 	DisableRateLimiter() error
 	EnableRateLimiter() error
 }

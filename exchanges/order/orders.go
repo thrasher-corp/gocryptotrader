@@ -175,7 +175,7 @@ func FilterOrdersByTickRange(orders *[]Detail, startTicks, endTicks time.Time) {
 // FilterOrdersByCurrencies removes any order details that do not match the
 // provided currency list. It is forgiving in that the provided currencies can
 // match quote or base currencies
-func FilterOrdersByCurrencies(orders *[]Detail, currencies []currency.Pair) {
+func FilterOrdersByCurrencies(orders *[]Detail, currencies []*currency.Pair) {
 	if len(currencies) == 0 {
 		return
 	}
@@ -184,7 +184,7 @@ func FilterOrdersByCurrencies(orders *[]Detail, currencies []currency.Pair) {
 	for i := range *orders {
 		matchFound := false
 		for _, c := range currencies {
-			if !matchFound && (*orders)[i].CurrencyPair.EqualIncludeReciprocal(c) {
+			if !matchFound && (*orders)[i].Pair.EqualIncludeReciprocal(c) {
 				matchFound = true
 			}
 		}
@@ -244,7 +244,7 @@ func (b ByCurrency) Len() int {
 }
 
 func (b ByCurrency) Less(i, j int) bool {
-	return b[i].CurrencyPair.String() < b[j].CurrencyPair.String()
+	return b[i].Pair.String() < b[j].Pair.String()
 }
 
 func (b ByCurrency) Swap(i, j int) {

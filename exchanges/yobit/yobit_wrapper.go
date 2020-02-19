@@ -180,7 +180,7 @@ func (y *Yobit) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (y *Yobit) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (y *Yobit) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	enabledPairs, err := y.GetEnabledPairs(assetType)
 	if err != nil {
 		return nil, err
@@ -221,7 +221,7 @@ func (y *Yobit) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (y *Yobit) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (y *Yobit) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := ticker.GetTicker(y.Name, p, assetType)
 	if err != nil {
 		return y.UpdateTicker(p, assetType)
@@ -230,7 +230,7 @@ func (y *Yobit) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 }
 
 // FetchOrderbook returns the orderbook for a currency pair
-func (y *Yobit) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (y *Yobit) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(y.Name, p, assetType)
 	if err != nil {
 		return y.UpdateOrderbook(p, assetType)
@@ -239,7 +239,7 @@ func (y *Yobit) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (y *Yobit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (y *Yobit) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 	orderbookNew, err := y.GetDepth(y.FormatExchangeCurrency(p, assetType).String())
 	if err != nil {

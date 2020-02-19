@@ -199,7 +199,8 @@ func (c *Coinbene) WsDataHandler() {
 					continue
 				}
 				p := strings.Replace(tradeList.Topic, "tradeList.", "", 1)
-				newPair, err := currency.NewPairFromFormattedPairs(p,
+				var newPair *currency.Pair
+				newPair, err = currency.NewPairFromFormattedPairs(p,
 					enabledSwap,
 					format)
 				if err != nil {
@@ -232,7 +233,8 @@ func (c *Coinbene) WsDataHandler() {
 					continue
 				}
 				p := strings.Replace(orderBook.Topic, "orderBook.", "", 1)
-				cp, err := currency.NewPairFromFormattedPairs(p,
+				var cp *currency.Pair
+				cp, err = currency.NewPairFromFormattedPairs(p,
 					enabledSwap,
 					format)
 				if err != nil {
@@ -326,7 +328,8 @@ func (c *Coinbene) WsDataHandler() {
 					}
 					tempKline = append(tempKline, tempFloat)
 				}
-				p, err := currency.NewPairFromFormattedPairs(kline.Data[0][0].(string),
+				var p *currency.Pair
+				p, err = currency.NewPairFromFormattedPairs(kline.Data[0][0].(string),
 					enabledSwap,
 					format)
 				if err != nil {

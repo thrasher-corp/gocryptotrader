@@ -12,7 +12,7 @@ import (
 func TestValidate(t *testing.T) {
 	testPair := currency.NewPair(currency.BTC, currency.LTC)
 	tester := []struct {
-		Pair currency.Pair
+		Pair *currency.Pair
 		Side
 		Type
 		Amount      float64
@@ -208,17 +208,17 @@ func TestFilterOrdersByCurrencies(t *testing.T) {
 
 	var orders = []Detail{
 		{
-			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
+			Pair: currency.NewPair(currency.BTC, currency.USD),
 		},
 		{
-			CurrencyPair: currency.NewPair(currency.LTC, currency.EUR),
+			Pair: currency.NewPair(currency.LTC, currency.EUR),
 		},
 		{
-			CurrencyPair: currency.NewPair(currency.DOGE, currency.RUB),
+			Pair: currency.NewPair(currency.DOGE, currency.RUB),
 		},
 	}
 
-	currencies := []currency.Pair{currency.NewPair(currency.BTC, currency.USD),
+	currencies := []*currency.Pair{currency.NewPair(currency.BTC, currency.USD),
 		currency.NewPair(currency.LTC, currency.EUR),
 		currency.NewPair(currency.DOGE, currency.RUB)}
 	FilterOrdersByCurrencies(&orders, currencies)
@@ -226,20 +226,20 @@ func TestFilterOrdersByCurrencies(t *testing.T) {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 3, len(orders))
 	}
 
-	currencies = []currency.Pair{currency.NewPair(currency.BTC, currency.USD),
+	currencies = []*currency.Pair{currency.NewPair(currency.BTC, currency.USD),
 		currency.NewPair(currency.LTC, currency.EUR)}
 	FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
 	}
 
-	currencies = []currency.Pair{currency.NewPair(currency.BTC, currency.USD)}
+	currencies = []*currency.Pair{currency.NewPair(currency.BTC, currency.USD)}
 	FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 	}
 
-	currencies = []currency.Pair{}
+	currencies = []*currency.Pair{}
 	FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
@@ -303,40 +303,40 @@ func TestSortOrdersByCurrency(t *testing.T) {
 
 	orders := []Detail{
 		{
-			CurrencyPair: currency.NewPairWithDelimiter(currency.BTC.String(),
+			Pair: currency.NewPairWithDelimiter(currency.BTC.String(),
 				currency.USD.String(),
 				"-"),
 		}, {
-			CurrencyPair: currency.NewPairWithDelimiter(currency.DOGE.String(),
+			Pair: currency.NewPairWithDelimiter(currency.DOGE.String(),
 				currency.USD.String(),
 				"-"),
 		}, {
-			CurrencyPair: currency.NewPairWithDelimiter(currency.BTC.String(),
+			Pair: currency.NewPairWithDelimiter(currency.BTC.String(),
 				currency.RUB.String(),
 				"-"),
 		}, {
-			CurrencyPair: currency.NewPairWithDelimiter(currency.LTC.String(),
+			Pair: currency.NewPairWithDelimiter(currency.LTC.String(),
 				currency.EUR.String(),
 				"-"),
 		}, {
-			CurrencyPair: currency.NewPairWithDelimiter(currency.LTC.String(),
+			Pair: currency.NewPairWithDelimiter(currency.LTC.String(),
 				currency.AUD.String(),
 				"-"),
 		},
 	}
 
 	SortOrdersByCurrency(&orders, false)
-	if orders[0].CurrencyPair.String() != currency.BTC.String()+"-"+currency.RUB.String() {
+	if orders[0].Pair.String() != currency.BTC.String()+"-"+currency.RUB.String() {
 		t.Errorf("Expected: '%v', received: '%v'",
 			currency.BTC.String()+"-"+currency.RUB.String(),
-			orders[0].CurrencyPair.String())
+			orders[0].Pair.String())
 	}
 
 	SortOrdersByCurrency(&orders, true)
-	if orders[0].CurrencyPair.String() != currency.LTC.String()+"-"+currency.EUR.String() {
+	if orders[0].Pair.String() != currency.LTC.String()+"-"+currency.EUR.String() {
 		t.Errorf("Expected: '%v', received: '%v'",
 			currency.LTC.String()+"-"+currency.EUR.String(),
-			orders[0].CurrencyPair.String())
+			orders[0].Pair.String())
 	}
 }
 

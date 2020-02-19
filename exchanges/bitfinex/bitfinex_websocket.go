@@ -661,7 +661,7 @@ func (b *Bitfinex) WsDataHandler() {
 
 // WsInsertSnapshot add the initial orderbook snapshot when subscribed to a
 // channel
-func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books []WebsocketBook) error {
+func (b *Bitfinex) WsInsertSnapshot(p *currency.Pair, assetType asset.Item, books []WebsocketBook) error {
 	if len(books) == 0 {
 		return errors.New("bitfinex.go error - no orderbooks submitted")
 	}
@@ -699,7 +699,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 
 // WsUpdateOrderbook updates the orderbook list, removing and adding to the
 // orderbook sides
-func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book []WebsocketBook) error {
+func (b *Bitfinex) WsUpdateOrderbook(p *currency.Pair, assetType asset.Item, book []WebsocketBook) error {
 	orderbookUpdate := wsorderbook.WebsocketOrderbookUpdate{
 		Asset: assetType,
 		Pair:  p,
@@ -771,7 +771,6 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() {
 
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	for i := range channels {
-
 		for j := range enabledPairs {
 			if strings.HasPrefix(enabledPairs[j].Base.String(), "f") {
 				log.Warnf(log.WebsocketMgr,
@@ -780,7 +779,7 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() {
 					enabledPairs[j])
 				continue
 			}
-			b.appendOptionalDelimiter(&enabledPairs[j])
+			b.appendOptionalDelimiter(enabledPairs[j])
 			params := make(map[string]interface{})
 			if channels[i] == wsBook {
 				params["prec"] = "R0"
