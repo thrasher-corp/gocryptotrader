@@ -381,7 +381,6 @@ func CheckChangeLog(htmlData *HTMLScrapingData) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	switch {
 	case len(dataStrings) == 1:
 		return dataStrings[0], nil
