@@ -2297,7 +2297,7 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 var withdrawFiatFundsCommand = cli.Command{
 	Name:      "withdrawfiatfunds",
 	Usage:     "withdraws fiat funds from the desired exchange",
-	ArgsUsage: "<exchange> <currency> <description> <amount> <bank account id>",
+	ArgsUsage: "<exchange> <currency> <description> <amount> <bankaccount id>",
 	Action:    withdrawFiatFunds,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -2439,6 +2439,30 @@ var withdrawlRequestCommand = cli.Command{
 			},
 			Action: withdrawlRequestByExchangeID,
 		},
+		{
+			Name:      "bydate",
+			Usage:     "bydate exchange start end limit",
+			ArgsUsage: "<id>",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "exchange",
+					Usage: "<exchange>",
+				},
+				cli.StringFlag{
+					Name:  "start",
+					Usage: "<start>",
+				},
+				cli.StringFlag{
+					Name:  "end",
+					Usage: "<end>",
+				},
+				cli.Int64Flag{
+					Name:  "limit",
+					Usage: "<limit>",
+				},
+			},
+			Action: withdrawlRequestByDate,
+		},
 	},
 }
 
@@ -2532,6 +2556,85 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 		&gctrpc.WithdrawalEventsByExchangeRequest{
 			Exchange: exchange,
 			Id:       ID,
+			Limit:    int32(limit),
+		},
+	)
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}
+
+func withdrawlRequestByDate(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowSubcommandHelp(c)
+		return nil
+	}
+
+	var exchange, start, end string
+	var limit, limitStr int64
+	var err error
+	if c.IsSet("exchange") {
+		exchange = c.String("exchange")
+	} else {
+		exchange = c.Args().First()
+	}
+
+	if c.IsSet("start") {
+		start = c.String("start")
+	} else {
+		start = c.Args().Get(1)
+	}
+
+	if c.IsSet("end") {
+		end = c.String("end")
+	} else {
+		end = c.Args().Get(2)
+	}
+
+	if c.IsSet("limit") {
+		limit = c.Int64("limit")
+	} else {
+		limitStr, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
+		if err != nil {
+			return err
+		}
+		if limitStr > math.MaxInt32 {
+			return fmt.Errorf("limit greater than max size: %v", math.MaxInt32)
+		}
+		limit = limitStr
+	}
+
+	s, err := time.Parse(timeFormat, start)
+	if err != nil {
+		return fmt.Errorf("invalid time format for start: %v", err)
+	}
+
+	e, err := time.Parse(timeFormat, end)
+	if err != nil {
+		return fmt.Errorf("invalid time format for end: %v", err)
+	}
+
+	if e.Before(s) {
+		return errors.New("start cannot be after before")
+	}
+
+	_, offset := time.Now().Zone()
+	loc := time.FixedZone("", -offset)
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.WithdrawalEventsByDate(context.Background(),
+		&gctrpc.WithdrawalEventsByDateRequest{
+			Exchange: exchange,
+			Start:    s.In(loc).Format(timeFormat),
+			End:      e.In(loc).Format(timeFormat),
 			Limit:    int32(limit),
 		},
 	)

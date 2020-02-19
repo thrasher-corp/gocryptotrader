@@ -213,42 +213,54 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 
 // GetEventByUUID return requested withdraw information by ID
 func GetEventByUUID(id string) (*withdraw.Response, error) {
-	resp, err := getByColumns([]string{"id"}, []string{id}, 1)
-	if err != nil {
-		return nil, err
-	}
+	resp, err := getByColumns(generateWhereQuery([]string{"id"}, []string{id}, 1))
 	return resp[0], err
 }
 
 // GetEventsByExchange returns all withdrawal requests by exchange
 func GetEventsByExchange(exchange string, limit int) ([]*withdraw.Response, error) {
-	return getByColumns([]string{"exchange"}, []string{exchange}, limit)
+	return getByColumns(generateWhereQuery([]string{"exchange"}, []string{exchange}, limit))
 }
 
 // GetEventByExchangeID return requested withdraw information by Exchange ID
-func GetEventByExchangeID(exchange, id string, limit int) ([]*withdraw.Response, error) {
-	resp, err := getByColumns([]string{"exchange", "exchange_id"}, []string{exchange, id}, 1)
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
+func GetEventByExchangeID(exchange, id string, limit int) (*withdraw.Response, error) {
+	resp, err := getByColumns(generateWhereQuery([]string{"exchange", "exchange_id"}, []string{exchange, id}, 1))
+	return resp[0], err
 }
 
-func getByColumns(columns, id []string, limit int) ([]*withdraw.Response, error) {
+// GetEventsByDate returns requested withdraw information by date range
+func GetEventsByDate(exchange string, start, end time.Time, limit int) ([]*withdraw.Response, error) {
+	betweenQuery := generateWhereBetweenQuery("created_at", start, end, limit)
+	if exchange == "" {
+		return getByColumns(betweenQuery)
+	}
+	return getByColumns(append(generateWhereQuery([]string{"exchange"}, []string{exchange}, limit), betweenQuery...))
+}
+
+func generateWhereQuery(columns, id []string, limit int) []qm.QueryMod {
+	queries := []qm.QueryMod{qm.Limit(limit)}
+	for x := range columns {
+		queries = append(queries, qm.Where(columns[x]+"= ?", id[x]))
+	}
+	return queries
+}
+
+func generateWhereBetweenQuery(column string, start, end interface{}, limit int) []qm.QueryMod {
+	return []qm.QueryMod{
+		qm.Limit(limit),
+		qm.Where(column+" BETWEEN ? AND ?", start, end),
+	}
+}
+
+func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 	if database.DB.SQL == nil {
 		return nil, errors.New("database is nil")
 	}
 
 	var resp []*withdraw.Response
 	var ctx = context.Background()
-	queries := []qm.QueryMod{qm.Limit(limit)}
-
-	for x := range columns {
-		queries = append(queries, qm.Where(columns[x]+"= ?", id[x]))
-	}
-
 	if repository.GetSQLDialect() == database.DBSQLite3 {
-		v, err := modelSQLite.WithdrawalHistories(queries...).All(ctx, database.DB.SQL)
+		v, err := modelSQLite.WithdrawalHistories(q...).All(ctx, database.DB.SQL)
 		if err != nil {
 			return nil, err
 		}
@@ -309,7 +321,7 @@ func getByColumns(columns, id []string, limit int) ([]*withdraw.Response, error)
 			resp = append(resp, tempResp)
 		}
 	} else {
-		v, err := modelPSQL.WithdrawalHistories(queries...).All(ctx, database.DB.SQL)
+		v, err := modelPSQL.WithdrawalHistories(q...).All(ctx, database.DB.SQL)
 		if err != nil {
 			return nil, err
 		}

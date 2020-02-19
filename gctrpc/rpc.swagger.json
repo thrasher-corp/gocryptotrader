@@ -1412,6 +1412,32 @@
         ]
       }
     },
+    "/v1/withdrawaleventbydate": {
+      "post": {
+        "operationId": "WithdrawalEventsByDate",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcWithdrawalEventsByExchangeResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcWithdrawalEventsByDateRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/withdrawaleventbyid": {
       "post": {
         "operationId": "WithdrawalEventsByExchange",
@@ -2930,6 +2956,24 @@
         "updated_at": {
           "type": "string",
           "format": "date-time"
+        }
+      }
+    },
+    "gctrpcWithdrawalEventsByDateRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "start": {
+          "type": "string"
+        },
+        "end": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     },

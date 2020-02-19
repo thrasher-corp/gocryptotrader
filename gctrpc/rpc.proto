@@ -474,6 +474,13 @@ message WithdrawalEventsByExchangeRequest {
     int32 limit = 3;
 }
 
+message WithdrawalEventsByDateRequest {
+    string exchange = 1;
+    string start = 2;
+    string end = 3;
+    int32 limit = 4;
+}
+
 message WithdrawalEventsByExchangeResponse {
     repeated WithdrawalEventResponse event = 2;
 }
@@ -928,6 +935,13 @@ service GoCryptoTrader {
     rpc WithdrawalEventsByExchange(WithdrawalEventsByExchangeRequest) returns (WithdrawalEventsByExchangeResponse) {
         option (google.api.http) = {
             post: "/v1/withdrawaleventbyid"
+            body: "*"
+        };rpcse
+    }
+
+    rpc WithdrawalEventsByDate(WithdrawalEventsByDateRequest) returns (WithdrawalEventsByExchangeResponse) {
+        option (google.api.http) = {
+            post: "/v1/withdrawaleventbydate"
             body: "*"
         };
     }

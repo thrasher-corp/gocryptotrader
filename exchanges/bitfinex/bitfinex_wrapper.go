@@ -551,10 +551,6 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request
 		return nil, err
 	}
 
-	if resp.WithdrawalID >= 0 {
-		return nil, errors.New("no withdrawID returned. Check order status")
-	}
-
 	return &withdraw.ExchangeResponse{
 		ID:     strconv.FormatInt(resp.WithdrawalID, 10),
 		Status: resp.Status,
