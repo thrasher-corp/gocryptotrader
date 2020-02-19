@@ -356,6 +356,8 @@ func StringToOrderStatus(status string) (Status, error) {
 		return PartiallyFilled, nil
 	case strings.EqualFold(status, Filled.String()):
 		return Filled, nil
+	case strings.EqualFold(status, Open.String()):
+		return Open, nil
 	case strings.EqualFold(status, Cancelled.String()):
 		return Cancelled, nil
 	case strings.EqualFold(status, PendingCancel.String()):

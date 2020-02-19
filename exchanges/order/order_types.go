@@ -171,6 +171,7 @@ const (
 	PartiallyCancelled Status = "PARTIALLY_CANCELLED"
 	PartiallyFilled    Status = "PARTIALLY_FILLED"
 	Filled             Status = "FILLED"
+	Open               Status = "OPEN"
 	Cancelled          Status = "CANCELLED"
 	PendingCancel      Status = "PENDING_CANCEL"
 	Rejected           Status = "REJECTED"

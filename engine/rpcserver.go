@@ -742,7 +742,42 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 
 // GetOrder returns order information based on exchange and order ID
 func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*gctrpc.OrderDetails, error) {
-	return &gctrpc.OrderDetails{}, common.ErrNotYetImplemented
+	exch := GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errors.New("exchange is not loaded/doesn't exist")
+	}
+	result, err := exch.GetOrderInfo(r.OrderId)
+	var trades []*gctrpc.TradeHistory
+	if result.Trades != nil {
+		for _, t := range result.Trades {
+			trades = append(trades, &gctrpc.TradeHistory{
+				CreationTime:         t.Timestamp.Unix(),
+				Id:                   t.TID,
+				Price:                t.Price,
+				Amount:               t.Amount,
+				Exchange:             t.Exchange,
+				AssetType:             t.Type.String(),
+				OrderSide:            t.Side.String(),
+				Fee:                  t.Fee,
+			})
+		}
+	}
+	return &gctrpc.OrderDetails{
+		Exchange:      result.Exchange,
+		Id:            result.ID,
+		BaseCurrency:  result.CurrencyPair.Base.String(),
+		QuoteCurrency: result.CurrencyPair.Quote.String(),
+		AssetType:     asset.Spot.String(),
+		OrderSide:     result.OrderSide.String(),
+		OrderType:     result.OrderType.String(),
+		CreationTime:  result.OrderDate.Unix(),
+		Status:        result.Status.String(),
+		Price:         result.Price,
+		Amount:        result.Amount,
+		OpenVolume:    result.RemainingAmount,
+		Fee:           result.Fee,
+		Trades:        trades,
+	}, err
 }
 
 // SubmitOrder submits an order specified by exchange, currency pair and asset
