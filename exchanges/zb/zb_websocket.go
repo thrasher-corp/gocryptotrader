@@ -207,7 +207,10 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 		cPair := currency.NewPairFromString(channelInfo[0])
 		tSide, err := order.StringToOrderSide(t.TradeType)
 		if err != nil {
-			z.Websocket.DataHandler <- err
+			z.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: z.Name,
+				Err:      err,
+			}
 		}
 		z.Websocket.DataHandler <- wshandler.TradeData{
 			Timestamp:    time.Unix(t.Date, 0),

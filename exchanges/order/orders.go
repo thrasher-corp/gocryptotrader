@@ -1,7 +1,7 @@
 package order
 
 import (
-	"fmt"
+	"errors"
 	"sort"
 	"strings"
 	"time"
@@ -564,7 +564,7 @@ func StringToOrderSide(side string) (Side, error) {
 	case strings.EqualFold(side, AnySide.String()):
 		return AnySide, nil
 	default:
-		return UnknownSide, fmt.Errorf("%s not recognised as side type", side)
+		return UnknownSide, errors.New(side + " not recognised as order side")
 	}
 }
 
@@ -589,7 +589,7 @@ func StringToOrderType(oType string) (Type, error) {
 	case strings.EqualFold(oType, AnyType.String()):
 		return AnyType, nil
 	default:
-		return UnknownType, fmt.Errorf("%s not recognised as order type", oType)
+		return UnknownType, errors.New(oType + " not recognised as order type")
 	}
 }
 
@@ -627,7 +627,11 @@ func StringToOrderStatus(status string) (Status, error) {
 		return Expired, nil
 	case strings.EqualFold(status, Hidden.String()):
 		return Hidden, nil
+	case strings.EqualFold(status, InsufficientBalance.String()):
+		return InsufficientBalance, nil
+	case strings.EqualFold(status, MarketUnavailable.String()):
+		return MarketUnavailable, nil
 	default:
-		return UnknownStatus, fmt.Errorf("%s not recognised as order STATUS", status)
+		return UnknownStatus, errors.New(status + " not recognised as order status")
 	}
 }

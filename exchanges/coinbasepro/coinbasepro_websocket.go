@@ -212,7 +212,10 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 		}
 		oSide, err := order.StringToOrderSide(wsOrder.Side)
 		if err != nil {
-			c.Websocket.DataHandler <- err
+			c.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: c.Name,
+				Err:      err,
+			}
 		}
 		c.Websocket.DataHandler <- &order.Detail{
 			ID: wsOrder.OrderID,

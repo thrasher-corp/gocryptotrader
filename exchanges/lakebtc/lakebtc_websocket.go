@@ -149,7 +149,10 @@ func (l *LakeBTC) processTrades(data, channel string) error {
 	for i := range tradeData.Trades {
 		tSide, err := order.StringToOrderSide(tradeData.Trades[i].Type)
 		if err != nil {
-			return err
+			l.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: l.Name,
+				Err:      err,
+			}
 		}
 		l.Websocket.DataHandler <- wshandler.TradeData{
 			Timestamp:    time.Unix(tradeData.Trades[i].Date, 0),

@@ -616,23 +616,50 @@ func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
 	if respData.ID == 0 {
 		return orderDetail, fmt.Errorf("%s - order not found for orderid %s", h.Name, orderID)
 	}
-
+	var responseID = strconv.FormatInt(respData.ID, 10)
+	if responseID != orderID {
+		return orderDetail, errors.New(h.Name + " - GetOrderInfo orderID mismatch. Expected: " + orderID + " Received: " + responseID)
+	}
 	typeDetails := strings.Split(respData.Type, "-")
 	orderSide, err := order.StringToOrderSide(typeDetails[0])
 	if err != nil {
-		return orderDetail, err
+		if h.Websocket.IsConnected() {
+			h.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: h.Name,
+				OrderID:  orderID,
+				Err:      err,
+			}
+		} else {
+			return orderDetail, err
+		}
 	}
 	orderType, err := order.StringToOrderType(typeDetails[1])
 	if err != nil {
-		return orderDetail, err
+		if h.Websocket.IsConnected() {
+			h.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: h.Name,
+				OrderID:  orderID,
+				Err:      err,
+			}
+		} else {
+			return orderDetail, err
+		}
 	}
 	orderStatus, err := order.StringToOrderStatus(respData.State)
 	if err != nil {
-		return orderDetail, err
+		if h.Websocket.IsConnected() {
+			h.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: h.Name,
+				OrderID:  orderID,
+				Err:      err,
+			}
+		} else {
+			return orderDetail, err
+		}
 	}
 	orderDetail = order.Detail{
 		Exchange:       h.Name,
-		ID:             strconv.FormatInt(respData.ID, 10),
+		ID:             orderID,
 		AccountID:      strconv.FormatInt(respData.AccountID, 10),
 		Pair:           currency.NewPairFromString(respData.Symbol),
 		Type:           orderType,
@@ -715,22 +742,35 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 			for j := range resp.Data {
 				sideData := strings.Split(resp.Data[j].OrderState, "-")
 				side = sideData[0]
+				var orderID = strconv.FormatInt(resp.Data[j].OrderID, 10)
 				orderSide, err := order.StringToOrderSide(side)
 				if err != nil {
-					return orders, err
+					h.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: h.Name,
+						OrderID:  orderID,
+						Err:      err,
+					}
 				}
 				orderType, err := order.StringToOrderType(sideData[1])
 				if err != nil {
-					return orders, err
+					h.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: h.Name,
+						OrderID:  orderID,
+						Err:      err,
+					}
 				}
 				orderStatus, err := order.StringToOrderStatus(resp.Data[j].OrderState)
 				if err != nil {
-					return orders, err
+					h.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: h.Name,
+						OrderID:  orderID,
+						Err:      err,
+					}
 				}
 				orders = append(orders, order.Detail{
 					Exchange:        h.Name,
 					AccountID:       strconv.FormatInt(resp.Data[j].AccountID, 10),
-					ID:              strconv.FormatInt(resp.Data[j].OrderID, 10),
+					ID:              orderID,
 					Pair:            req.Pairs[i],
 					Type:            orderType,
 					Side:            orderSide,

@@ -420,7 +420,7 @@ var stringsToOrderSide = []struct {
 	{"any", AnySide, nil},
 	{"ANY", AnySide, nil},
 	{"aNy", AnySide, nil},
-	{"woahMan", Buy, errors.New("woahMan not recognised as side type")},
+	{"woahMan", Buy, errors.New("woahMan not recognised as order side")},
 }
 
 func TestStringToOrderSide(t *testing.T) {
@@ -518,7 +518,13 @@ var stringsToOrderStatus = []struct {
 	{"hidden", Hidden, nil},
 	{"HIDDEN", Hidden, nil},
 	{"hIdDeN", Hidden, nil},
-	{"woahMan", UnknownStatus, errors.New("woahMan not recognised as order STATUS")},
+	{"market_unavailable", MarketUnavailable, nil},
+	{"MARKET_UNAVAILABLE", MarketUnavailable, nil},
+	{"mArKeT_uNaVaIlAbLe", MarketUnavailable, nil},
+	{"insufficient_balance", InsufficientBalance, nil},
+	{"INSUFFICIENT_BALANCE", InsufficientBalance, nil},
+	{"iNsUfFiCiEnT_bAlAnCe", InsufficientBalance, nil},
+	{"woahMan", UnknownStatus, errors.New("woahMan not recognised as order status")},
 }
 
 func TestStringToOrderStatus(t *testing.T) {

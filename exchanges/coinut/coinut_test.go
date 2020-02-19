@@ -1122,7 +1122,7 @@ func TestStringToStatus(t *testing.T) {
 		{Case: "LOL", Result: order.UnknownStatus},
 	}
 	for i := range testCases {
-		result := stringToStatus(testCases[i].Case, testCases[i].Quantity)
+		result, _ := stringToOrderStatus(testCases[i].Case, testCases[i].Quantity)
 		if result != testCases[i].Result {
 			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
 		}

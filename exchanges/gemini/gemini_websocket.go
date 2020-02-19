@@ -183,7 +183,11 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 		for i := range result {
 			oSide, err := order.StringToOrderSide(result[i].Side)
 			if err != nil {
-				g.Websocket.DataHandler <- err
+				g.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: g.Name,
+					OrderID:  result[i].OrderID,
+					Err:      err,
+				}
 			}
 			g.Websocket.DataHandler <- &order.Detail{
 				HiddenOrder:     result[i].IsHidden,
@@ -370,7 +374,10 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 			case "trade":
 				tSide, err := order.StringToOrderSide(result.Events[i].MakerSide)
 				if err != nil {
-					g.Websocket.DataHandler <- err
+					g.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: g.Name,
+						Err:      err,
+					}
 				}
 				g.Websocket.DataHandler <- wshandler.TradeData{
 					Timestamp:    time.Unix(0, result.Timestamp),

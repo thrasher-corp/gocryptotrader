@@ -171,7 +171,10 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			var tSide order.Side
 			tSide, err = order.StringToOrderSide(trades[i].Type)
 			if err != nil {
-				g.Websocket.DataHandler <- err
+				g.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: g.Name,
+					Err:      err,
+				}
 			}
 			g.Websocket.DataHandler <- wshandler.TradeData{
 				Timestamp:    time.Now(),

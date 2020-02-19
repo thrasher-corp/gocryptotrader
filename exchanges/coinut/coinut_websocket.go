@@ -299,7 +299,10 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		currencyPair := c.instrumentMap.LookupInstrument(tradeUpdate.InstID)
 		tSide, err := order.StringToOrderSide(tradeUpdate.Side)
 		if err != nil {
-			return err
+			c.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: c.Name,
+				Err:      err,
+			}
 		}
 		c.Websocket.DataHandler <- wshandler.TradeData{
 			Timestamp: time.Unix(tradeUpdate.Timestamp, 0),
@@ -329,38 +332,55 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func stringToStatus(status string, quantity float64) order.Status {
+func stringToOrderStatus(status string, quantity float64) (order.Status, error) {
 	switch status {
 	case "order_accepted":
-		return order.Active
+		return order.Active, nil
 	case "order_filled":
 		if quantity > 0 {
-			return order.PartiallyFilled
+			return order.PartiallyFilled, nil
 		}
-		return order.Filled
+		return order.Filled, nil
 	case "order_rejected":
-		return order.Rejected
+		return order.Rejected, nil
 	default:
-		return order.UnknownStatus
+		return order.UnknownStatus, errors.New(status + " not recognised as order status")
 	}
 }
 
 func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detail, error) {
 	var oSide order.Side
+	var oStatus order.Status
 	var err error
+	var orderID = strconv.FormatInt(oContainer.OrderID, 10)
 	if oContainer.Side != "" {
 		oSide, err = order.StringToOrderSide(oContainer.Side)
 		if err != nil {
-			return nil, err
+			c.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: c.Name,
+				OrderID:  orderID,
+				Err:      err,
+			}
 		}
 	} else if oContainer.Order.Side != "" {
 		oSide, err = order.StringToOrderSide(oContainer.Order.Side)
 		if err != nil {
-			return nil, err
+			c.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: c.Name,
+				OrderID:  orderID,
+				Err:      err,
+			}
 		}
 	}
 
-	oStatus := stringToStatus(oContainer.Reply, oContainer.OpenQuantity)
+	oStatus, err = stringToOrderStatus(oContainer.Reply, oContainer.OpenQuantity)
+	if err != nil {
+		c.Websocket.DataHandler <- order.ClassificationError{
+			Exchange: c.Name,
+			OrderID:  orderID,
+			Err:      err,
+		}
+	}
 	if oContainer.Status[0] != "OK" {
 		return nil, fmt.Errorf("%s - Order rejected: %v", c.Name, oContainer.Status)
 	}
@@ -373,7 +393,7 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 		ExecutedAmount:  oContainer.FillQuantity,
 		RemainingAmount: oContainer.OpenQuantity,
 		Exchange:        c.Name,
-		ID:              strconv.FormatInt(oContainer.OrderID, 10),
+		ID:              orderID,
 		Side:            oSide,
 		Status:          oStatus,
 		AssetType:       asset.Spot,
@@ -383,7 +403,11 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 	if oContainer.Reply == "order_filled" {
 		o.Side, err = order.StringToOrderSide(oContainer.Order.Side)
 		if err != nil {
-			return nil, err
+			c.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: c.Name,
+				OrderID:  orderID,
+				Err:      err,
+			}
 		}
 		o.RemainingAmount = oContainer.Order.OpenQuantity
 		o.Amount = oContainer.Order.Quantity

@@ -309,24 +309,24 @@ func (o *OKGroup) WsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func StringToOrderStatus(num string) order.Status {
+func StringToOrderStatus(num string) (order.Status, error) {
 	switch num {
 	case "-2":
-		return order.Rejected
+		return order.Rejected, nil
 	case "-1":
-		return order.Cancelled
+		return order.Cancelled, nil
 	case "0":
-		return order.Active
+		return order.Active, nil
 	case "1":
-		return order.PartiallyFilled
+		return order.PartiallyFilled, nil
 	case "2":
-		return order.Filled
+		return order.Filled, nil
 	case "3":
-		return order.New
+		return order.New, nil
 	case "4":
-		return order.PendingCancel
+		return order.PendingCancel, nil
 	default:
-		return order.UnknownStatus
+		return order.UnknownStatus, errors.New(num + " not recognised as order status")
 	}
 }
 
@@ -337,12 +337,15 @@ func (o *OKGroup) wsProcessOrder(respRaw []byte) error {
 		return err
 	}
 	for i := range resp.Data {
+		var oType order.Type
+		var oSide order.Side
+		var oStatus order.Status
 		createdAt, err := time.Parse(time.RFC3339, resp.Data[i].CreatedAt)
 		if err != nil {
 			o.Websocket.DataHandler <- err
 			createdAt = time.Now()
 		}
-		oType, err := order.StringToOrderType(resp.Data[i].Type)
+		oType, err = order.StringToOrderType(resp.Data[i].Type)
 		if err != nil {
 			o.Websocket.DataHandler <- order.ClassificationError{
 				Exchange: o.Name,
@@ -350,7 +353,15 @@ func (o *OKGroup) wsProcessOrder(respRaw []byte) error {
 				Err:      err,
 			}
 		}
-		oSide, err := order.StringToOrderSide(resp.Data[i].Side)
+		oSide, err = order.StringToOrderSide(resp.Data[i].Side)
+		if err != nil {
+			o.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: o.Name,
+				OrderID:  resp.Data[i].OrderID,
+				Err:      err,
+			}
+		}
+		oStatus, err = StringToOrderStatus(resp.Data[i].State)
 		if err != nil {
 			o.Websocket.DataHandler <- order.ClassificationError{
 				Exchange: o.Name,
@@ -382,7 +393,7 @@ func (o *OKGroup) wsProcessOrder(respRaw []byte) error {
 			ID:                resp.Data[i].OrderID,
 			Type:              oType,
 			Side:              oSide,
-			Status:            StringToOrderStatus(resp.Data[i].State),
+			Status:            oStatus,
 			AssetType:         o.GetAssetTypeFromTableName(resp.Table),
 			Date:              createdAt,
 			Pair:              currency.NewPairFromString(resp.Data[i].InstrumentID),
@@ -448,7 +459,10 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 		}
 		tSide, err := order.StringToOrderSide(response.Data[i].Side)
 		if err != nil {
-			o.Websocket.DataHandler <- err
+			o.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: o.Name,
+				Err:      err,
+			}
 		}
 		o.Websocket.DataHandler <- wshandler.TradeData{
 			Amount:       response.Data[i].Size,

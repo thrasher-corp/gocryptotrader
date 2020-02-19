@@ -2090,7 +2090,7 @@ func TestStringToOrderStatus(t *testing.T) {
 		{Case: "5", Result: order.UnknownStatus},
 	}
 	for i := range testCases {
-		result := okgroup.StringToOrderStatus(testCases[i].Case)
+		result, _ := okgroup.StringToOrderStatus(testCases[i].Case)
 		if result != testCases[i].Result {
 			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
 		}

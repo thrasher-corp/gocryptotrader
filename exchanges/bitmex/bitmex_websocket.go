@@ -224,7 +224,10 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 				var oSide order.Side
 				oSide, err = order.StringToOrderSide(trades.Data[i].Side)
 				if err != nil {
-					b.Websocket.DataHandler <- err
+					b.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: b.Name,
+						Err:      err,
+					}
 				}
 
 				b.Websocket.DataHandler <- wshandler.TradeData{

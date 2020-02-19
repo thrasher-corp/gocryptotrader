@@ -960,7 +960,7 @@ func TestStatusToStandardStatus(t *testing.T) {
 		{Case: "LOL", Result: order.UnknownStatus},
 	}
 	for i := range testCases {
-		result := statusToStandardStatus(testCases[i].Case)
+		result, _ := statusToStandardStatus(testCases[i].Case)
 		if result != testCases[i].Result {
 			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
 		}

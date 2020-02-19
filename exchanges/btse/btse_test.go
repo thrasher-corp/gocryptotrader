@@ -400,12 +400,12 @@ func TestStatusToStandardStatus(t *testing.T) {
 		{Case: "ORDER_FULL_TRANSACTED", Result: order.Filled},
 		{Case: "ORDER_PARTIALLY_TRANSACTED", Result: order.PartiallyFilled},
 		{Case: "TRIGGER_ACTIVATED", Result: order.Active},
-		{Case: "INSUFFICIENT_BALANCE", Result: order.Rejected},
-		{Case: "MARKET_UNAVAILABLE", Result: order.Rejected},
+		{Case: "INSUFFICIENT_BALANCE", Result: order.InsufficientBalance},
+		{Case: "MARKET_UNAVAILABLE", Result: order.MarketUnavailable},
 		{Case: "LOL", Result: order.UnknownStatus},
 	}
 	for i := range testCases {
-		result := statusToStandardStatus(testCases[i].Case)
+		result, _ := stringToOrderStatus(testCases[i].Case)
 		if result != testCases[i].Result {
 			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
 		}

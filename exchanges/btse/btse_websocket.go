@@ -69,22 +69,24 @@ func (b *BTSE) WsAuthenticate() error {
 	return b.WebsocketConn.SendJSONMessage(req)
 }
 
-func statusToStandardStatus(stat string) order.Status {
-	switch stat {
+func stringToOrderStatus(status string) (order.Status, error) {
+	switch status {
 	case "ORDER_INSERTED", "TRIGGER_INSERTED":
-		return order.New
+		return order.New, nil
 	case "ORDER_CANCELLED":
-		return order.Cancelled
+		return order.Cancelled, nil
 	case "ORDER_FULL_TRANSACTED":
-		return order.Filled
+		return order.Filled, nil
 	case "ORDER_PARTIALLY_TRANSACTED":
-		return order.PartiallyFilled
+		return order.PartiallyFilled, nil
 	case "TRIGGER_ACTIVATED":
-		return order.Active
-	case "INSUFFICIENT_BALANCE", "MARKET_UNAVAILABLE":
-		return order.Rejected
+		return order.Active, nil
+	case "INSUFFICIENT_BALANCE":
+		return order.InsufficientBalance, nil
+	case "MARKET_UNAVAILABLE":
+		return order.MarketUnavailable, nil
 	default:
-		return order.UnknownStatus
+		return order.UnknownStatus, errors.New(status + " not recognised as order status")
 	}
 }
 
@@ -131,9 +133,10 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		for i := range notification.Data {
-			var orderType order.Type
-			var orderSide order.Side
-			orderType, err = order.StringToOrderType(notification.Data[i].Type)
+			var oType order.Type
+			var oSide order.Side
+			var oStatus order.Status
+			oType, err = order.StringToOrderType(notification.Data[i].Type)
 			if err != nil {
 				b.Websocket.DataHandler <- order.ClassificationError{
 					Exchange: b.Name,
@@ -141,7 +144,15 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 					Err:      err,
 				}
 			}
-			orderSide, err = order.StringToOrderSide(notification.Data[i].OrderMode)
+			oSide, err = order.StringToOrderSide(notification.Data[i].OrderMode)
+			if err != nil {
+				b.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: b.Name,
+					OrderID:  notification.Data[i].OrderID,
+					Err:      err,
+				}
+			}
+			oStatus, err = stringToOrderStatus(notification.Data[i].Status)
 			if err != nil {
 				b.Websocket.DataHandler <- order.ClassificationError{
 					Exchange: b.Name,
@@ -155,9 +166,9 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				TriggerPrice: notification.Data[i].TriggerPrice,
 				Exchange:     b.Name,
 				ID:           notification.Data[i].OrderID,
-				Type:         orderType,
-				Side:         orderSide,
-				Status:       statusToStandardStatus(notification.Data[i].Status),
+				Type:         oType,
+				Side:         oSide,
+				Status:       oStatus,
 				AssetType:    asset.Spot,
 				Date:         time.Unix(0, notification.Data[i].Timestamp*int64(time.Millisecond)),
 				Pair:         currency.NewPairFromString(notification.Data[i].Symbol),

@@ -192,18 +192,20 @@ type Status string
 
 // All order status types
 const (
-	AnyStatus          Status = "ANY"
-	New                Status = "NEW"
-	Active             Status = "ACTIVE"
-	PartiallyCancelled Status = "PARTIALLY_CANCELLED"
-	PartiallyFilled    Status = "PARTIALLY_FILLED"
-	Filled             Status = "FILLED"
-	Cancelled          Status = "CANCELLED"
-	PendingCancel      Status = "PENDING_CANCEL"
-	Rejected           Status = "REJECTED"
-	Expired            Status = "EXPIRED"
-	Hidden             Status = "HIDDEN"
-	UnknownStatus      Status = "UNKNOWN"
+	AnyStatus           Status = "ANY"
+	New                 Status = "NEW"
+	Active              Status = "ACTIVE"
+	PartiallyCancelled  Status = "PARTIALLY_CANCELLED"
+	PartiallyFilled     Status = "PARTIALLY_FILLED"
+	Filled              Status = "FILLED"
+	Cancelled           Status = "CANCELLED"
+	PendingCancel       Status = "PENDING_CANCEL"
+	InsufficientBalance Status = "INSUFFICIENT_BALANCE"
+	MarketUnavailable   Status = "MARKET_UNAVAILABLE"
+	Rejected            Status = "REJECTED"
+	Expired             Status = "EXPIRED"
+	Hidden              Status = "HIDDEN"
+	UnknownStatus       Status = "UNKNOWN"
 )
 
 // Type enforces a standard for order types across the code base
@@ -257,8 +259,13 @@ type ClassificationError struct {
 }
 
 func (o *ClassificationError) Error() string {
-	return fmt.Sprintf("%s - OrderID: %s err: %v",
+	if o.OrderID != "" {
+		return fmt.Sprintf("%s - OrderID: %s classification error: %v",
+			o.Exchange,
+			o.OrderID,
+			o.Err)
+	}
+	return fmt.Sprintf("%s - classification error: %v",
 		o.Exchange,
-		o.OrderID,
 		o.Err)
 }
