@@ -1551,8 +1551,7 @@
     },
     "credentials": {
      "key": "Key",
-     "secret": "Secret",
-     "pemKey": "-----BEGIN EC PRIVATE KEY-----\nJUSTADUMMY\n-----END EC PRIVATE KEY-----\n"
+     "secret": "Secret"
     },
     "credentialsValidator": {
      "requiresKey": true,

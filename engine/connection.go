@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 
 	"github.com/thrasher-corp/gocryptotrader/connchecker"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // connectionManager manages the connchecker

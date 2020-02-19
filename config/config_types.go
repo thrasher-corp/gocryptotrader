@@ -7,11 +7,10 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
 )
 
@@ -291,7 +290,7 @@ type BankTransaction struct {
 
 // CurrencyConfig holds all the information needed for currency related manipulation
 type CurrencyConfig struct {
-	ForexProviders                []base.Settings           `json:"forexProviders"`
+	ForexProviders                []currency.FXSettings     `json:"forexProviders"`
 	CryptocurrencyProvider        CryptocurrencyProvider    `json:"cryptocurrencyProvider"`
 	Cryptocurrencies              currency.Currencies       `json:"cryptocurrencies"`
 	CurrencyPairFormat            *CurrencyPairFormatConfig `json:"currencyPairFormat"`

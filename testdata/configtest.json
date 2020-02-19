@@ -1432,8 +1432,7 @@
     },
     "credentials": {
      "key": "Key",
-     "secret": "Secret",
-     "pemKey": "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIPVSj8YkpXibCAL9HwpGkDNSEXR9jcpiCthdikJqipNooAoGCCqGSM49\nAwEHoUQDQgAEHiB7q/HCqUrCNqPeTtRmKjyi2T+2O2JgoU8Mjx2R4z1h81uOZHCk\nxbsDg1fb7ACRMpKWPs59QWpQxhqMQrNw8w==\n-----END EC PRIVATE KEY-----\n"
+     "secret": "Secret"
     },
     "credentialsValidator": {
      "requiresKey": true,

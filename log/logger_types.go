@@ -1,4 +1,4 @@
-package logger
+package log
 
 import (
 	"io"
@@ -23,7 +23,7 @@ var (
 
 	eventPool = &sync.Pool{
 		New: func() interface{} {
-			return &LogEvent{
+			return &Event{
 				data: make([]byte, 0, 80),
 			}
 		},
@@ -88,8 +88,8 @@ type subLogger struct {
 	output io.Writer
 }
 
-// LogEvent holds the data sent to the log and which multiwriter to send to
-type LogEvent struct {
+// Event holds the data sent to the log and which multiwriter to send to
+type Event struct {
 	data   []byte
 	output io.Writer
 }
