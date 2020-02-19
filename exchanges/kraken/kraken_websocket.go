@@ -290,11 +290,19 @@ func (k *Kraken) wsProcessOwnTrades(ownOrders interface{}) error {
 			for key, val := range result {
 				oSide, err := order.StringToOrderSide(val.Type)
 				if err != nil {
-					k.Websocket.DataHandler <- errors.New(k.Name + " Unable to convert orderside: " + val.Type)
+					k.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: k.Name,
+						OrderID:  key,
+						Err:      err,
+					}
 				}
 				oType, err := order.StringToOrderType(val.OrderType)
 				if err != nil {
-					k.Websocket.DataHandler <- errors.New(k.Name + " Unable to convert orderside: " + val.OrderType)
+					k.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: k.Name,
+						OrderID:  key,
+						Err:      err,
+					}
 				}
 				txTime, txTimeNano, err := convert.SplitFloatDecimals(val.Time)
 				if err != nil {
@@ -338,7 +346,11 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 				var oStatus order.Status
 				oStatus, err = order.StringToOrderStatus(val.Status)
 				if err != nil {
-					k.Websocket.DataHandler <- errors.New(k.Name + " Unable to convert status: " + val.Status)
+					k.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: k.Name,
+						OrderID:  key,
+						Err:      err,
+					}
 				}
 				if val.Description.Price > 0 {
 					startTime, startTimeNano, err := convert.SplitFloatDecimals(val.StartTime)
@@ -347,14 +359,22 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 					}
 					oSide, err := order.StringToOrderSide(val.Description.Type)
 					if err != nil {
-						k.Websocket.DataHandler <- errors.New(k.Name + " Unable to convert orderside: " + val.Description.Type)
+						k.Websocket.DataHandler <- order.ClassificationError{
+							Exchange: k.Name,
+							OrderID:  key,
+							Err:      err,
+						}
 					}
 					if strings.Contains(val.Description.Order, "sell") {
 						oSide = order.Sell
 					}
 					oType, err := order.StringToOrderType(val.Description.Type)
 					if err != nil {
-						k.Websocket.DataHandler <- errors.New(k.Name + " Unable to convert ordertype: " + val.Description.Type)
+						k.Websocket.DataHandler <- order.ClassificationError{
+							Exchange: k.Name,
+							OrderID:  key,
+							Err:      err,
+						}
 					}
 					k.Websocket.DataHandler <- &order.Modify{
 						Leverage:        val.Description.Leverage,

@@ -3,6 +3,7 @@ package coinbasepro
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -149,15 +150,33 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			c.Websocket.DataHandler <- err
 			createdDate = time.Now()
 		}
-		oType, err := order.StringToOrderType(wsOrder.OrderType)
+		var oType order.Type
+		var oSide order.Side
+		var oStatus order.Status
+		oType, err = order.StringToOrderType(wsOrder.OrderType)
 		if err != nil {
-			c.Websocket.DataHandler <- err
+			c.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: c.Name,
+				OrderID:  wsOrder.OrderID,
+				Err:      err,
+			}
 		}
-		oSide, err := order.StringToOrderSide(wsOrder.Side)
+		oSide, err = order.StringToOrderSide(wsOrder.Side)
 		if err != nil {
-			c.Websocket.DataHandler <- err
+			c.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: c.Name,
+				OrderID:  wsOrder.OrderID,
+				Err:      err,
+			}
 		}
-		oStatus := statusToStandardStatus(wsOrder.Type)
+		oStatus, err = statusToStandardStatus(wsOrder.Type)
+		if err != nil {
+			c.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: c.Name,
+				OrderID:  wsOrder.OrderID,
+				Err:      err,
+			}
+		}
 		if wsOrder.Reason == "canceled" {
 			oStatus = order.Cancelled
 		}
@@ -165,10 +184,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			HiddenOrder:     wsOrder.Private,
 			Price:           wsOrder.Price,
 			Amount:          wsOrder.Size,
-			LimitPriceUpper: 0,
-			LimitPriceLower: 0,
 			TriggerPrice:    wsOrder.StopPrice,
-			TargetAmount:    0,
 			ExecutedAmount:  wsOrder.Size - wsOrder.RemainingSize,
 			RemainingAmount: wsOrder.RemainingSize,
 			Fee:             wsOrder.TakerFeeRate,
@@ -219,20 +235,20 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func statusToStandardStatus(stat string) order.Status {
+func statusToStandardStatus(stat string) (order.Status, error) {
 	switch stat {
 	case "received":
-		return order.New
+		return order.New, nil
 	case "open":
-		return order.Active
+		return order.Active, nil
 	case "done":
-		return order.Filled
+		return order.Filled, nil
 	case "match":
-		return order.PartiallyFilled
+		return order.PartiallyFilled, nil
 	case "change", "activate":
-		return order.Active
+		return order.Active, nil
 	default:
-		return order.UnknownStatus
+		return order.UnknownStatus, fmt.Errorf("%s not recognised as status type", stat)
 	}
 }
 

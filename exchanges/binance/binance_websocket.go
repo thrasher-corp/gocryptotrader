@@ -195,14 +195,23 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					b.Name,
 					err)
 			}
+			var orderID = strconv.FormatInt(data.OrderID, 10)
 			oType, err := order.StringToOrderType(data.OrderType)
 			if err != nil {
-				b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert order type: " + data.OrderType)
+				b.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: b.Name,
+					OrderID:  orderID,
+					Err:      err,
+				}
 			}
 			var oSide order.Side
 			oSide, err = order.StringToOrderSide(data.Side)
 			if err != nil {
-				return err
+				b.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: b.Name,
+					OrderID:  orderID,
+					Err:      err,
+				}
 			}
 			ts := time.Unix(data.OrderCreationTime, 0)
 
@@ -212,7 +221,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				ExecutedAmount:  data.CumulativeFilledQuantity,
 				RemainingAmount: data.Quantity - data.CumulativeFilledQuantity,
 				Exchange:        b.Name,
-				ID:              strconv.FormatInt(data.OrderID, 10),
+				ID:              orderID,
 				Type:            oType,
 				Side:            oSide,
 				Status:          executionTypeToOrderStatus(data.CurrentExecutionType),

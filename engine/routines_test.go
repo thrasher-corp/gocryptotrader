@@ -110,4 +110,22 @@ func TestHandleData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	err = WebsocketDataHandler(exchName, wshandler.UnhandledMessageWarning{Message: "there's an issue here's a tissue"})
+	if err != nil {
+		t.Error(err)
+	}
+
+	classificationError := order.ClassificationError{
+		Exchange: "test",
+		OrderID:  "one",
+		Err:      errors.New("lol"),
+	}
+	err = WebsocketDataHandler(exchName, classificationError)
+	if err == nil {
+		t.Error("Expected error")
+	}
+	if err.Error() != classificationError.Error() {
+		t.Errorf("Problem formatting error. Expected %v Received %v", classificationError.Error(), err.Error())
+	}
 }

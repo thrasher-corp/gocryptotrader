@@ -331,11 +331,19 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 		for i := range orders.Data {
 			oType, err := order.StringToOrderType(orders.Data[i].OrderType)
 			if err != nil {
-				return err
+				c.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: c.Name,
+					OrderID:  orders.Data[i].OrderID,
+					Err:      err,
+				}
 			}
 			oStatus, err := order.StringToOrderStatus(orders.Data[i].Status)
 			if err != nil {
-				return err
+				c.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: c.Name,
+					OrderID:  orders.Data[i].OrderID,
+					Err:      err,
+				}
 			}
 			c.Websocket.DataHandler <- &order.Detail{
 				Price:           orders.Data[i].OrderPrice,

@@ -135,11 +135,19 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			var orderSide order.Side
 			orderType, err = order.StringToOrderType(notification.Data[i].Type)
 			if err != nil {
-				b.Websocket.DataHandler <- err
+				b.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: b.Name,
+					OrderID:  notification.Data[i].OrderID,
+					Err:      err,
+				}
 			}
 			orderSide, err = order.StringToOrderSide(notification.Data[i].OrderMode)
 			if err != nil {
-				b.Websocket.DataHandler <- err
+				b.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: b.Name,
+					OrderID:  notification.Data[i].OrderID,
+					Err:      err,
+				}
 			}
 			b.Websocket.DataHandler <- &order.Detail{
 				Price:        notification.Data[i].Price,

@@ -313,16 +313,28 @@ func (h *HitBTC) wsHandleOrderData(o *wsOrderData) error {
 	}
 	oType, err := order.StringToOrderType(o.Type)
 	if err != nil {
-		return err
+		h.Websocket.DataHandler <- order.ClassificationError{
+			Exchange: h.Name,
+			OrderID:  o.ID,
+			Err:      err,
+		}
 	}
 	o.Status = strings.Replace(o.Status, "canceled", "cancelled", 1)
 	oStatus, err := order.StringToOrderStatus(o.Status)
 	if err != nil {
-		return err
+		h.Websocket.DataHandler <- order.ClassificationError{
+			Exchange: h.Name,
+			OrderID:  o.ID,
+			Err:      err,
+		}
 	}
 	oSide, err := order.StringToOrderSide(o.Side)
 	if err != nil {
-		return err
+		h.Websocket.DataHandler <- order.ClassificationError{
+			Exchange: h.Name,
+			OrderID:  o.ID,
+			Err:      err,
+		}
 	}
 
 	h.Websocket.DataHandler <- &order.Detail{

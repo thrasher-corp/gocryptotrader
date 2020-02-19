@@ -277,12 +277,20 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 				var oStatus order.Status
 				oStatus, err = order.StringToOrderStatus(response.Data[i].OrdStatus)
 				if err != nil {
-					return err
+					b.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: b.Name,
+						OrderID:  response.Data[i].OrderID,
+						Err:      err,
+					}
 				}
 				var oSide order.Side
 				oSide, err = order.StringToOrderSide(response.Data[i].Side)
 				if err != nil {
-					return err
+					b.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: b.Name,
+						OrderID:  response.Data[i].OrderID,
+						Err:      err,
+					}
 				}
 				b.Websocket.DataHandler <- &order.Modify{
 					Exchange:  b.Name,
@@ -322,17 +330,29 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 					var oSide order.Side
 					oSide, err = order.StringToOrderSide(response.Data[x].Side)
 					if err != nil {
-						b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert orderside: " + response.Data[x].Side)
+						b.Websocket.DataHandler <- order.ClassificationError{
+							Exchange: b.Name,
+							OrderID:  response.Data[x].OrderID,
+							Err:      err,
+						}
 					}
 					var oType order.Type
 					oType, err = order.StringToOrderType(response.Data[x].OrderType)
 					if err != nil {
-						b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert ordertype: " + response.Data[x].OrderType)
+						b.Websocket.DataHandler <- order.ClassificationError{
+							Exchange: b.Name,
+							OrderID:  response.Data[x].OrderID,
+							Err:      err,
+						}
 					}
 					var oStatus order.Status
 					oStatus, err = order.StringToOrderStatus(response.Data[x].OrderStatus)
 					if err != nil {
-						return err
+						b.Websocket.DataHandler <- order.ClassificationError{
+							Exchange: b.Name,
+							OrderID:  response.Data[x].OrderID,
+							Err:      err,
+						}
 					}
 					b.Websocket.DataHandler <- &order.Detail{
 						Price:     response.Data[x].Price,
@@ -359,17 +379,29 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 					var oSide order.Side
 					oSide, err = order.StringToOrderSide(response.Data[x].Side)
 					if err != nil {
-						b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert orderside: " + response.Data[x].Side)
+						b.Websocket.DataHandler <- order.ClassificationError{
+							Exchange: b.Name,
+							OrderID:  response.Data[x].OrderID,
+							Err:      err,
+						}
 					}
 					var oType order.Type
 					oType, err = order.StringToOrderType(response.Data[x].OrderType)
 					if err != nil {
-						b.Websocket.DataHandler <- errors.New(b.Name + " Unable to convert ordertype: " + response.Data[x].OrderType)
+						b.Websocket.DataHandler <- order.ClassificationError{
+							Exchange: b.Name,
+							OrderID:  response.Data[x].OrderID,
+							Err:      err,
+						}
 					}
 					var oStatus order.Status
 					oStatus, err = order.StringToOrderStatus(response.Data[x].OrderStatus)
 					if err != nil {
-						return err
+						b.Websocket.DataHandler <- order.ClassificationError{
+							Exchange: b.Name,
+							OrderID:  response.Data[x].OrderID,
+							Err:      err,
+						}
 					}
 					b.Websocket.DataHandler <- &order.Cancel{
 						Price:     response.Data[x].Price,

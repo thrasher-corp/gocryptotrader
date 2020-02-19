@@ -730,14 +730,22 @@ func (b *Bitfinex) wsHandleOrder(data []interface{}) {
 	if data[8] != nil {
 		oType, err := order.StringToOrderType(data[8].(string))
 		if err != nil {
-			b.Websocket.DataHandler <- err
+			b.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: b.Name,
+				OrderID:  od.ID,
+				Err:      err,
+			}
 		}
 		od.Type = oType
 	}
 	if data[13] != nil {
 		oStatus, err := order.StringToOrderStatus(data[13].(string))
 		if err != nil {
-			b.Websocket.DataHandler <- err
+			b.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: b.Name,
+				OrderID:  od.ID,
+				Err:      err,
+			}
 		}
 		od.Status = oStatus
 	}

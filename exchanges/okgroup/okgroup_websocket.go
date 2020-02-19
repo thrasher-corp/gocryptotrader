@@ -344,11 +344,19 @@ func (o *OKGroup) wsProcessOrder(respRaw []byte) error {
 		}
 		oType, err := order.StringToOrderType(resp.Data[i].Type)
 		if err != nil {
-			return errors.New(o.Name + " - Unidentified order side: " + err.Error())
+			o.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: o.Name,
+				OrderID:  resp.Data[i].OrderID,
+				Err:      err,
+			}
 		}
 		oSide, err := order.StringToOrderSide(resp.Data[i].Side)
 		if err != nil {
-			return errors.New(o.Name + " - Unidentified order side: " + err.Error())
+			o.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: o.Name,
+				OrderID:  resp.Data[i].OrderID,
+				Err:      err,
+			}
 		}
 		price, err := strconv.ParseFloat(resp.Data[i].Price, 64)
 		if err != nil {

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -370,6 +371,8 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		}
 		od.UpdateOrderFromModify(d)
 		return nil
+	case order.ClassificationError:
+		return errors.New(d.Error())
 	case wshandler.UnhandledMessageWarning:
 		log.Warn(log.WebsocketMgr, d.Message)
 	default:

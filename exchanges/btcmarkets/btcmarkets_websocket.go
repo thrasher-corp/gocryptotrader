@@ -193,6 +193,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		originalAmount := orderData.OpenVolume
 		var price float64
 		var trades []order.TradeHistory
+		var orderID = strconv.FormatInt(orderData.OrderID, 10)
 		for x := range orderData.Trades {
 			var isMaker bool
 			if strings.Contains(orderData.Trades[x].LiquidityType, "maker") {
@@ -211,22 +212,34 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		}
 		oType, err := order.StringToOrderType(orderData.OrderType)
 		if err != nil {
-			return err
+			b.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: b.Name,
+				OrderID:  orderID,
+				Err:      err,
+			}
 		}
 		oSide, err := order.StringToOrderSide(orderData.Side)
 		if err != nil {
-			return err
+			b.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: b.Name,
+				OrderID:  orderID,
+				Err:      err,
+			}
 		}
 		oStatus, err := order.StringToOrderStatus(orderData.Status)
 		if err != nil {
-			return err
+			b.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: b.Name,
+				OrderID:  orderID,
+				Err:      err,
+			}
 		}
 		b.Websocket.DataHandler <- &order.Detail{
 			Price:           price,
 			Amount:          originalAmount,
 			RemainingAmount: orderData.OpenVolume,
 			Exchange:        b.Name,
-			ID:              strconv.FormatInt(orderData.OrderID, 10),
+			ID:              orderID,
 			ClientID:        b.API.Credentials.ClientID,
 			Type:            oType,
 			Side:            oSide,

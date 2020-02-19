@@ -248,11 +248,17 @@ type ByDate []Detail
 // ByOrderSide used for sorting orders by order side (buy sell)
 type ByOrderSide []Detail
 
-type OrderClassificationError struct {
-	StatusCode int
-	Err        error
+// ClassificationError returned when an order status
+// side or type cannot be recognised
+type ClassificationError struct {
+	Exchange string
+	OrderID  string
+	Err      error
 }
 
-func (r *RequestError) Error() string {
-	return fmt.Sprintf("status %d: err %v", r.StatusCode, r.Err)
+func (o *ClassificationError) Error() string {
+	return fmt.Sprintf("%s - OrderID: %s err: %v",
+		o.Exchange,
+		o.OrderID,
+		o.Err)
 }
