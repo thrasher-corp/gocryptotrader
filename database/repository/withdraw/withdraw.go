@@ -230,7 +230,7 @@ func GetEventsByExchange(exchange string, limit int) ([]*withdraw.Response, erro
 }
 
 // GetEventByExchangeID return requested withdraw information by Exchange ID
-func GetEventByExchangeID(exchange, id string, limit int) (*withdraw.Response, error) {
+func GetEventByExchangeID(exchange, id string) (*withdraw.Response, error) {
 	resp, err := getByColumns(generateWhereQuery([]string{"exchange", "exchange_id"}, []string{exchange, id}, 1))
 	if err != nil {
 		return nil, err

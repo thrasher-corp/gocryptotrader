@@ -150,7 +150,7 @@ func withdrawHelper(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = GetEventByExchangeID("test-1", "test-1", 10)
+	_, err = GetEventByExchangeID("test-1", "test-1")
 	if err != nil {
 		t.Fatal(err)
 	}

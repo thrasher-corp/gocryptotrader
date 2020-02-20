@@ -101,7 +101,7 @@ func WithdrawEventByDate(exchange string, start, end time.Time, limit int) ([]*w
 
 // WithdrawalEventByExchangeID returns a withdrawal request by Exchange ID
 func WithdrawalEventByExchangeID(exchange, id string) (*withdraw.Response, error) {
-	return withdrawDataStore.GetEventByExchangeID(exchange, id, 1)
+	return withdrawDataStore.GetEventByExchangeID(exchange, id)
 }
 
 func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExchangeResponse {
