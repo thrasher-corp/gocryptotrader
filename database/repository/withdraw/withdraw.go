@@ -19,6 +19,10 @@ import (
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
 )
 
+var (
+	ErrNoResults = errors.New("no results found")
+)
+
 // Event stores Withdrawal Response details in database
 func Event(res *withdraw.Response) {
 	if database.DB.SQL == nil {
@@ -379,7 +383,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 		}
 	}
 	if len(resp) == 0 {
-		return nil, errors.New("no results found")
+		return nil, ErrNoResults
 	}
 	return resp, nil
 }

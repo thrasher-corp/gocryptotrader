@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
@@ -116,5 +118,74 @@ func TestWithdrawEventByID(t *testing.T) {
 	}
 	if v == nil {
 		t.Fatal("expected WithdrawalEventByID() to return data from cache")
+	}
+}
+
+func TestWithdrawalEventByExchange(t *testing.T) {
+	_, err := WithdrawalEventByExchange(exchangeName, 1)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWithdrawEventByDate(t *testing.T) {
+	_, err := WithdrawEventByDate(exchangeName, time.Now(), time.Now(), 1)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWithdrawalEventByExchangeID(t *testing.T) {
+	_, err := WithdrawalEventByExchangeID(exchangeName, exchangeName)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
+func TestParseEvents(t *testing.T) {
+	var testData []*withdraw.Response
+	for x := 0; x < 5; x++ {
+		test := fmt.Sprintf("test-%v", x)
+		resp := &withdraw.Response{
+			ID: withdraw.DryRunID,
+			Exchange: &withdraw.ExchangeResponse{
+				Name:   test,
+				ID:     test,
+				Status: test,
+			},
+			RequestDetails: &withdraw.Request{
+				Exchange:    test,
+				Description: test,
+				Amount:      1.0,
+			},
+		}
+		if x%2 == 0 {
+			resp.RequestDetails.Currency = currency.AUD
+			resp.RequestDetails.Type = 1
+			resp.RequestDetails.Fiat = new(withdraw.FiatRequest)
+			resp.RequestDetails.Fiat.Bank = new(banking.Account)
+		} else {
+			resp.RequestDetails.Currency = currency.BTC
+			resp.RequestDetails.Type = 0
+			resp.RequestDetails.Crypto = new(withdraw.CryptoRequest)
+			resp.RequestDetails.Crypto.Address = test
+			resp.RequestDetails.Crypto.FeeAmount = 0
+			resp.RequestDetails.Crypto.AddressTag = test
+		}
+		testData = append(testData, resp)
+	}
+	v := parseMultipleEvents(testData)
+	if reflect.TypeOf(v).String() != "*gctrpc.WithdrawalEventsByExchangeResponse" {
+		t.Fatal("expected type to be *gctrpc.WithdrawalEventsByExchangeResponse")
+	}
+
+	v = parseSingleEvents(testData[0])
+	if reflect.TypeOf(v).String() != "*gctrpc.WithdrawalEventsByExchangeResponse" {
+		t.Fatal("expected type to be *gctrpc.WithdrawalEventsByExchangeResponse")
+	}
+
+	v = parseSingleEvents(testData[1])
+	if v.Event[0].Request.Type != 0 {
+		t.Fatal("Expected second entry in slice to return a Request.Type of Crypto")
 	}
 }

@@ -1,6 +1,7 @@
 package withdraw
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -8,6 +9,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -42,7 +44,7 @@ func TestWithdraw(t *testing.T) {
 	testCases := []struct {
 		name   string
 		config *database.Config
-		runner func()
+		runner func(t *testing.T)
 		closer func(dbConn *database.Db) error
 		output interface{}
 	}{
@@ -52,31 +54,14 @@ func TestWithdraw(t *testing.T) {
 				Driver:            database.DBSQLite3,
 				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
 			},
-			writeWithdraw,
-			testhelpers.CloseDatabase,
-			nil,
-		},
-		{
-			"SQLite-Read",
-			&database.Config{
-				Driver:            database.DBSQLite3,
-				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
-			},
-			readWithdrawHelper,
+			withdrawHelper,
 			testhelpers.CloseDatabase,
 			nil,
 		},
 		{
 			"Postgres-Write",
 			testhelpers.PostgresTestDatabase,
-			writeWithdraw,
-			nil,
-			nil,
-		},
-		{
-			"Postgres-Read",
-			testhelpers.PostgresTestDatabase,
-			readWithdrawHelper,
+			withdrawHelper,
 			nil,
 			nil,
 		},
@@ -101,7 +86,7 @@ func TestWithdraw(t *testing.T) {
 			}
 
 			if test.runner != nil {
-				test.runner()
+				test.runner(t)
 			}
 
 			if test.closer != nil {
@@ -114,16 +99,15 @@ func TestWithdraw(t *testing.T) {
 	}
 }
 
-func writeWithdraw() {
+func withdrawHelper(t *testing.T) {
+	t.Helper()
 	var wg sync.WaitGroup
-
 	for x := 0; x < 20; x++ {
 		wg.Add(1)
 		go func(x int) {
 			defer wg.Done()
 			test := fmt.Sprintf("test-%v", x)
 			resp := &withdraw.Response{
-				ID: withdraw.DryRunID,
 				Exchange: &withdraw.ExchangeResponse{
 					Name:   test,
 					ID:     test,
@@ -154,8 +138,23 @@ func writeWithdraw() {
 	}
 
 	wg.Wait()
-}
+	_, err := GetEventByUUID(withdraw.DryRunID.String())
+	if err == nil {
+		if !errors.Is(err, ErrNoResults) {
+			t.Fatal(err)
+		}
+	}
+	_, err = GetEventByExchangeID("test-1", "test-1", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = GetEventsByExchange("test-1", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-func readWithdrawHelper() {
-	// TODO: implement read to read first result and confirm data was written
+	_, err = GetEventsByDate("test-1", time.Now().UTC().Add(-time.Minute), time.Now().UTC(), 5)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
