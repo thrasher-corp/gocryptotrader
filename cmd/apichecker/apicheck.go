@@ -403,7 +403,6 @@ func CheckChangeLog(htmlData *HTMLScrapingData) (string, error) {
 		default:
 			return "", errors.New("two or more updates were done on the same day, please check manually")
 		}
-	default:
 	}
 	return "", errors.New("no response found")
 }
