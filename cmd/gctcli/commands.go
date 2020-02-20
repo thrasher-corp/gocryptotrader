@@ -2397,8 +2397,8 @@ func withdrawFiatFunds(c *cli.Context) error {
 	return nil
 }
 
-var withdrawlRequestCommand = cli.Command{
-	Name:      "withdrawlrequesthistory",
+var withdrawalRequestCommand = cli.Command{
+	Name:      "withdrawalrequesthistory",
 	Usage:     "retrieve previous withdrawal request details",
 	ArgsUsage: "<type> <args>",
 	Subcommands: []cli.Command{

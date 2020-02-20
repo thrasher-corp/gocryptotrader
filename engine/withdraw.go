@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/golang/protobuf/ptypes"
 	withdrawDataStore "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -120,15 +120,20 @@ func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExc
 				Amount:      ret[x].RequestDetails.Amount,
 				Type:        int32(ret[x].RequestDetails.Type),
 			},
-			CreatedAt: &timestamp.Timestamp{
-				Seconds: int64(ret[x].CreatedAt.Second()),
-				Nanos:   int32(ret[x].CreatedAt.Nanosecond()),
-			},
-			UpdatedAt: &timestamp.Timestamp{
-				Seconds: int64(ret[x].UpdatedAt.Second()),
-				Nanos:   int32(ret[x].UpdatedAt.Nanosecond()),
-			},
 		}
+
+		createdAtPtype, err := ptypes.TimestampProto(ret[x].CreatedAt)
+		if err != nil {
+			log.Errorf(log.Global, "failed to convert time: %v", err)
+		}
+		tempEvent.CreatedAt = createdAtPtype
+
+		updatedAtPtype, err := ptypes.TimestampProto(ret[x].UpdatedAt)
+		if err != nil {
+			log.Errorf(log.Global, "failed to convert time: %v", err)
+		}
+		tempEvent.UpdatedAt = updatedAtPtype
+
 		if ret[x].RequestDetails.Type == withdraw.Crypto {
 			tempEvent.Request.Crypto = new(gctrpc.CryptoWithdrawalEvent)
 			tempEvent.Request.Crypto = &gctrpc.CryptoWithdrawalEvent{
@@ -168,15 +173,19 @@ func parseSingleEvents(ret *withdraw.Response) *gctrpc.WithdrawalEventsByExchang
 			Amount:      ret.RequestDetails.Amount,
 			Type:        int32(ret.RequestDetails.Type),
 		},
-		CreatedAt: &timestamp.Timestamp{
-			Seconds: int64(ret.CreatedAt.Second()),
-			Nanos:   int32(ret.CreatedAt.Nanosecond()),
-		},
-		UpdatedAt: &timestamp.Timestamp{
-			Seconds: int64(ret.UpdatedAt.Second()),
-			Nanos:   int32(ret.UpdatedAt.Nanosecond()),
-		},
 	}
+	createdAtPtype, err := ptypes.TimestampProto(ret.CreatedAt)
+	if err != nil {
+		log.Errorf(log.Global, "failed to convert time: %v", err)
+	}
+	tempEvent.CreatedAt = createdAtPtype
+
+	updatedAtPtype, err := ptypes.TimestampProto(ret.UpdatedAt)
+	if err != nil {
+		log.Errorf(log.Global, "failed to convert time: %v", err)
+	}
+	tempEvent.UpdatedAt = updatedAtPtype
+
 	if ret.RequestDetails.Type == withdraw.Crypto {
 		tempEvent.Request.Crypto = new(gctrpc.CryptoWithdrawalEvent)
 		tempEvent.Request.Crypto = &gctrpc.CryptoWithdrawalEvent{

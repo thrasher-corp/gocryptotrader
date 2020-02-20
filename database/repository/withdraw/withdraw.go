@@ -152,6 +152,8 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 		Currency:     res.RequestDetails.Currency.String(),
 		Amount:       res.RequestDetails.Amount,
 		WithdrawType: int64(res.RequestDetails.Type),
+		CreatedAt:  time.Now().UTC().String(),
+		UpdatedAt:  time.Now().UTC().String(),
 	}
 
 	if res.RequestDetails.Description != "" {
@@ -295,18 +297,18 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 
 			createdAtTime, err := time.Parse("2006-01-02T15:04:05Z", v[x].CreatedAt)
 			if err != nil {
-				log.Errorf(log.DatabaseMgr, "record: %v has an incorrect time format ( %v ) - defaulting to empty time: %v", tempResp.ID, tempResp.CreatedAt, err)
+				log.Errorf(log.DatabaseMgr, "record: %v has an incorrect time format ( %v ) - defaulting to empty time: %v", tempResp.ID, v[x].CreatedAt, err)
 				tempResp.CreatedAt = time.Time{}
 			} else {
-				tempResp.CreatedAt = createdAtTime.UTC()
+				tempResp.CreatedAt = createdAtTime
 			}
 
 			updatedAtTime, err := time.Parse("2006-01-02T15:04:05Z", v[x].UpdatedAt)
 			if err != nil {
-				log.Errorf(log.DatabaseMgr, "record: %v has an incorrect time format ( %v ) - defaulting to empty time: %v", tempResp.ID, tempResp.UpdatedAt, err)
+				log.Errorf(log.DatabaseMgr, "record: %v has an incorrect time format ( %v ) - defaulting to empty time: %v", tempResp.ID, v[x].UpdatedAt, err)
 				tempResp.UpdatedAt = time.Time{}
 			} else {
-				tempResp.UpdatedAt = updatedAtTime.UTC()
+				tempResp.UpdatedAt = updatedAtTime
 			}
 
 			if withdraw.RequestType(v[x].WithdrawType) == withdraw.Crypto {
