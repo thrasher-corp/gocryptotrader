@@ -390,7 +390,7 @@ func (z *ZB) wsCreateSubUserKey(assetPerm, entrustPerm, leverPerm, moneyPerm boo
 	return &response, nil
 }
 
-func (z *ZB) wsSubmitOrder(pair currency.Pair, amount, price float64, tradeType int64) (*WsSubmitOrderResponse, error) {
+func (z *ZB) wsSubmitOrder(pair *currency.Pair, amount, price float64, tradeType int64) (*WsSubmitOrderResponse, error) {
 	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		return nil, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
@@ -420,7 +420,7 @@ func (z *ZB) wsSubmitOrder(pair currency.Pair, amount, price float64, tradeType 
 	return &response, nil
 }
 
-func (z *ZB) wsCancelOrder(pair currency.Pair, orderID int64) (*WsCancelOrderResponse, error) {
+func (z *ZB) wsCancelOrder(pair *currency.Pair, orderID int64) (*WsCancelOrderResponse, error) {
 	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		return nil, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
@@ -448,7 +448,7 @@ func (z *ZB) wsCancelOrder(pair currency.Pair, orderID int64) (*WsCancelOrderRes
 	return &response, nil
 }
 
-func (z *ZB) wsGetOrder(pair currency.Pair, orderID int64) (*WsGetOrderResponse, error) {
+func (z *ZB) wsGetOrder(pair *currency.Pair, orderID int64) (*WsGetOrderResponse, error) {
 	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		return nil, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
@@ -476,7 +476,7 @@ func (z *ZB) wsGetOrder(pair currency.Pair, orderID int64) (*WsGetOrderResponse,
 	return &response, nil
 }
 
-func (z *ZB) wsGetOrders(pair currency.Pair, pageIndex, tradeType int64) (*WsGetOrdersResponse, error) {
+func (z *ZB) wsGetOrders(pair *currency.Pair, pageIndex, tradeType int64) (*WsGetOrdersResponse, error) {
 	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		return nil, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}
@@ -504,7 +504,7 @@ func (z *ZB) wsGetOrders(pair currency.Pair, pageIndex, tradeType int64) (*WsGet
 	return &response, nil
 }
 
-func (z *ZB) wsGetOrdersIgnoreTradeType(pair currency.Pair, pageIndex, pageSize int64) (*WsGetOrdersIgnoreTradeTypeResponse, error) {
+func (z *ZB) wsGetOrdersIgnoreTradeType(pair *currency.Pair, pageIndex, pageSize int64) (*WsGetOrdersIgnoreTradeTypeResponse, error) {
 	if !z.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		return nil, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", z.Name)
 	}

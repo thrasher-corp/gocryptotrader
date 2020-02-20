@@ -311,7 +311,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
-		Pair: currency.Pair{
+		Pair: &currency.Pair{
 			Base:      currency.BTC,
 			Quote:     currency.USDT,
 			Delimiter: "_",
@@ -337,7 +337,7 @@ func TestCancelOrder(t *testing.T) {
 	}
 	cp := currency.NewPairWithDelimiter(currency.ETH.String(), currency.BTC.String(), "_")
 	var a order.Cancel
-	a.CurrencyPair = cp
+	a.Pair = cp
 	a.OrderID = "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23"
 	err := l.CancelOrder(&a)
 	if err != nil {

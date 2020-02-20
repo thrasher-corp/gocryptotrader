@@ -183,9 +183,9 @@ func ExchangePairs(args ...objects.Object) (objects.Object, error) {
 	}
 
 	r := objects.Array{}
-	pew := *(*[]currency.Pair)(rtnValue)
-	for x := range pew {
-		r.Value = append(r.Value, &objects.String{Value: pew[x].String()})
+	pairs := *(*[]*currency.Pair)(rtnValue)
+	for x := range pairs {
+		r.Value = append(r.Value, &objects.String{Value: pairs[x].String()})
 	}
 	return &r, nil
 }
@@ -261,7 +261,7 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 	data["exchange"] = &objects.String{Value: orderDetails.Exchange}
 	data["id"] = &objects.String{Value: orderDetails.ID}
 	data["accountid"] = &objects.String{Value: orderDetails.AccountID}
-	data["currencypair"] = &objects.String{Value: orderDetails.CurrencyPair.String()}
+	data["currencypair"] = &objects.String{Value: orderDetails.Pair.String()}
 	data["price"] = &objects.Float{Value: orderDetails.Price}
 	data["amount"] = &objects.Float{Value: orderDetails.Amount}
 	data["amountexecuted"] = &objects.Float{Value: orderDetails.ExecutedAmount}

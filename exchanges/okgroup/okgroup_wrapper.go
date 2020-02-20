@@ -81,7 +81,7 @@ func (o *OKGroup) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*order
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error) {
+func (o *OKGroup) UpdateOrderbook(p *currency.Pair, a asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 	if a == asset.Index {
 		return orderBook, errors.New("no orderbooks for index")
@@ -262,7 +262,7 @@ func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (o *OKGroup) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (o *OKGroup) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -310,7 +310,7 @@ func (o *OKGroup) CancelOrder(orderCancellation *order.Cancel) (err error) {
 		return
 	}
 	orderCancellationResponse, err := o.CancelSpotOrder(CancelSpotOrderRequest{
-		InstrumentID: o.FormatExchangeCurrency(orderCancellation.CurrencyPair,
+		InstrumentID: o.FormatExchangeCurrency(orderCancellation.Pair,
 			asset.Spot).String(),
 		OrderID: orderID,
 	})
@@ -337,7 +337,7 @@ func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (resp order.C
 	}
 
 	cancelOrdersResponse, err := o.CancelMultipleSpotOrders(CancelMultipleSpotOrdersRequest{
-		InstrumentID: o.FormatExchangeCurrency(orderCancellation.CurrencyPair,
+		InstrumentID: o.FormatExchangeCurrency(orderCancellation.Pair,
 			asset.Spot).String(),
 		OrderIDs: orderIDNumbers,
 	})
@@ -368,7 +368,7 @@ func (o *OKGroup) GetOrderInfo(orderID string) (resp order.Detail, err error) {
 
 	resp = order.Detail{
 		Amount: mOrder.Size,
-		CurrencyPair: currency.NewPairDelimiter(mOrder.InstrumentID,
+		Pair: currency.NewPairDelimiter(mOrder.InstrumentID,
 			format.Delimiter),
 		Exchange:       o.Name,
 		OrderDate:      mOrder.Timestamp,
@@ -439,7 +439,7 @@ func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Det
 				ID:             spotOpenOrders[i].OrderID,
 				Price:          spotOpenOrders[i].Price,
 				Amount:         spotOpenOrders[i].Size,
-				CurrencyPair:   req.Currencies[x],
+				Pair:           req.Currencies[x],
 				Exchange:       o.Name,
 				OrderSide:      order.Side(spotOpenOrders[i].Side),
 				OrderType:      order.Type(spotOpenOrders[i].Type),
@@ -470,7 +470,7 @@ func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Det
 				ID:             spotOpenOrders[i].OrderID,
 				Price:          spotOpenOrders[i].Price,
 				Amount:         spotOpenOrders[i].Size,
-				CurrencyPair:   req.Currencies[x],
+				Pair:           req.Currencies[x],
 				Exchange:       o.Name,
 				OrderSide:      order.Side(spotOpenOrders[i].Side),
 				OrderType:      order.Type(spotOpenOrders[i].Type),

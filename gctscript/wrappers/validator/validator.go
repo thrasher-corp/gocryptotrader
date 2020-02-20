@@ -33,7 +33,7 @@ func (w Wrapper) IsEnabled(exch string) (v bool) {
 }
 
 // Orderbook validator for test execution/scripts
-func (w Wrapper) Orderbook(exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error) {
+func (w Wrapper) Orderbook(exch string, pair *currency.Pair, item asset.Item) (*orderbook.Base, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
 	}
@@ -58,7 +58,7 @@ func (w Wrapper) Orderbook(exch string, pair currency.Pair, item asset.Item) (*o
 }
 
 // Ticker validator for test execution/scripts
-func (w Wrapper) Ticker(exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error) {
+func (w Wrapper) Ticker(exch string, pair *currency.Pair, item asset.Item) (*ticker.Price, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
 	}
@@ -101,7 +101,7 @@ func (w Wrapper) QueryOrder(exch, _ string) (*order.Detail, error) {
 		return nil, errTestFailed
 	}
 
-	pairs, err := currency.NewPairFromString("BTCAUD")
+	pair, err := currency.NewPairFromString("BTCAUD")
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +110,7 @@ func (w Wrapper) QueryOrder(exch, _ string) (*order.Detail, error) {
 		Exchange:        exch,
 		AccountID:       "hello",
 		ID:              "1",
-		CurrencyPair:    pairs,
+		Pair:            pair,
 		OrderSide:       "ask",
 		OrderType:       "limit",
 		OrderDate:       time.Now(),

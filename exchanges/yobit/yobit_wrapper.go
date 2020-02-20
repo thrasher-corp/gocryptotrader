@@ -196,7 +196,11 @@ func (y *Yobit) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Pr
 	}
 
 	for i := range enabledPairs {
-		curr := y.FormatExchangeCurrency(enabledPairs[i], assetType).Lower().String()
+		fpair, err := y.FormatExchangeCurrency(enabledPairs[i], assetType)
+		if err != nil {
+			return nil, err
+		}
+		curr := fpair.Lower().String()
 		if _, ok := result[curr]; !ok {
 			continue
 		}
@@ -241,7 +245,11 @@ func (y *Yobit) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbo
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (y *Yobit) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
-	orderbookNew, err := y.GetDepth(y.FormatExchangeCurrency(p, assetType).String())
+	fpair, err := y.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	orderbookNew, err := y.GetDepth(fpair.String())
 	if err != nil {
 		return orderBook, err
 	}
@@ -328,7 +336,7 @@ func (y *Yobit) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (y *Yobit) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (y *Yobit) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -387,8 +395,11 @@ func (y *Yobit) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error
 		return cancelAllOrdersResponse, err
 	}
 	for i := range enabledPairs {
-		fCurr := y.FormatExchangeCurrency(enabledPairs[i], asset.Spot).String()
-		activeOrdersForPair, err := y.GetOpenOrders(fCurr)
+		fCurr, err := y.FormatExchangeCurrency(enabledPairs[i], asset.Spot)
+		if err != nil {
+			return cancelAllOrdersResponse, err
+		}
+		activeOrdersForPair, err := y.GetOpenOrders(fCurr.String())
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
@@ -479,8 +490,11 @@ func (y *Yobit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 	}
 
 	for x := range req.Currencies {
-		fCurr := y.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String()
-		resp, err := y.GetOpenOrders(fCurr)
+		fCurr, err := y.FormatExchangeCurrency(req.Currencies[x], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := y.GetOpenOrders(fCurr.String())
 		if err != nil {
 			return nil, err
 		}
@@ -490,13 +504,13 @@ func (y *Yobit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 			orderDate := time.Unix(int64(resp[id].TimestampCreated), 0)
 			side := order.Side(strings.ToUpper(resp[id].Type))
 			orders = append(orders, order.Detail{
-				ID:           id,
-				Amount:       resp[id].Amount,
-				Price:        resp[id].Rate,
-				OrderSide:    side,
-				OrderDate:    orderDate,
-				CurrencyPair: symbol,
-				Exchange:     y.Name,
+				ID:        id,
+				Amount:    resp[id].Amount,
+				Price:     resp[id].Rate,
+				OrderSide: side,
+				OrderDate: orderDate,
+				Pair:      symbol,
+				Exchange:  y.Name,
 			})
 		}
 	}
@@ -511,13 +525,17 @@ func (y *Yobit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 func (y *Yobit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var allOrders []TradeHistory
 	for x := range req.Currencies {
+		fpair, err := y.FormatExchangeCurrency(req.Currencies[x], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
 		resp, err := y.GetTradeHistory(0,
 			10000,
 			math.MaxInt64,
 			req.StartTicks.Unix(),
 			req.EndTicks.Unix(),
 			"DESC",
-			y.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String())
+			fpair.String())
 		if err != nil {
 			return nil, err
 		}
@@ -538,13 +556,13 @@ func (y *Yobit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 		orderDate := time.Unix(int64(allOrders[i].Timestamp), 0)
 		side := order.Side(strings.ToUpper(allOrders[i].Type))
 		orders = append(orders, order.Detail{
-			ID:           strconv.FormatFloat(allOrders[i].OrderID, 'f', -1, 64),
-			Amount:       allOrders[i].Amount,
-			Price:        allOrders[i].Rate,
-			OrderSide:    side,
-			OrderDate:    orderDate,
-			CurrencyPair: symbol,
-			Exchange:     y.Name,
+			ID:        strconv.FormatFloat(allOrders[i].OrderID, 'f', -1, 64),
+			Amount:    allOrders[i].Amount,
+			Price:     allOrders[i].Rate,
+			OrderSide: side,
+			OrderDate: orderDate,
+			Pair:      symbol,
+			Exchange:  y.Name,
 		})
 	}
 

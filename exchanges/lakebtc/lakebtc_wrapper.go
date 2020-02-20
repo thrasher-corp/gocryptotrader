@@ -345,7 +345,7 @@ func (l *LakeBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (l *LakeBTC) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (l *LakeBTC) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -488,13 +488,13 @@ func (l *LakeBTC) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 		side := order.Side(strings.ToUpper(resp[i].Type))
 
 		orders = append(orders, order.Detail{
-			Amount:       resp[i].Amount,
-			ID:           strconv.FormatInt(resp[i].ID, 10),
-			Price:        resp[i].Price,
-			OrderSide:    side,
-			OrderDate:    orderDate,
-			CurrencyPair: symbol,
-			Exchange:     l.Name,
+			Amount:    resp[i].Amount,
+			ID:        strconv.FormatInt(resp[i].ID, 10),
+			Price:     resp[i].Price,
+			OrderSide: side,
+			OrderDate: orderDate,
+			Pair:      symbol,
+			Exchange:  l.Name,
 		})
 	}
 
@@ -529,13 +529,13 @@ func (l *LakeBTC) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 		side := order.Side(strings.ToUpper(resp[i].Type))
 
 		orders = append(orders, order.Detail{
-			Amount:       resp[i].Amount,
-			ID:           strconv.FormatInt(resp[i].ID, 10),
-			Price:        resp[i].Price,
-			OrderSide:    side,
-			OrderDate:    orderDate,
-			CurrencyPair: symbol,
-			Exchange:     l.Name,
+			Amount:    resp[i].Amount,
+			ID:        strconv.FormatInt(resp[i].ID, 10),
+			Price:     resp[i].Price,
+			OrderSide: side,
+			OrderDate: orderDate,
+			Pair:      symbol,
+			Exchange:  l.Name,
 		})
 	}
 

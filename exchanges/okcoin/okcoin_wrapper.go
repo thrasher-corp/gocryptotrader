@@ -175,7 +175,7 @@ func (o *OKCoin) Run() {
 
 	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
 		!common.StringDataContains(avail.Strings(), format.Delimiter) {
-		var p currency.Pars
+		var p currency.Pairs
 		p, err = currency.NewPairsFromStrings([]string{currency.BTC.String() +
 			format.Delimiter +
 			currency.USD.String()})

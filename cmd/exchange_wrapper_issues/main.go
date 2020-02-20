@@ -284,7 +284,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 	}
 	for i := range assetTypes {
 		var msg string
-		var p currency.Pair
+		var p *currency.Pair
 		log.Printf("%v %v", base.GetName(), assetTypes[i])
 		if _, ok := base.Config.CurrencyPairs.Pairs[assetTypes[i]]; !ok {
 			continue
@@ -310,8 +310,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		}
 
 		responseContainer := ExchangeAssetPairResponses{
-			AssetType:    assetTypes[i],
-			CurrencyPair: p,
+			AssetType: assetTypes[i],
+			Pair:      p,
 		}
 
 		log.Printf("Setup config for %v %v %v", base.GetName(), assetTypes[i], p)
@@ -511,9 +511,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 		// r13
 		cancelRequest := order.Cancel{
-			Side:         testOrderSide,
-			CurrencyPair: p,
-			OrderID:      config.OrderSubmission.OrderID,
+			Side:    testOrderSide,
+			Pair:    p,
+			OrderID: config.OrderSubmission.OrderID,
 		}
 		err = e.CancelOrder(&cancelRequest)
 		msg = ""
@@ -559,7 +559,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		historyRequest := order.GetOrdersRequest{
 			OrderType:  testOrderType,
 			OrderSide:  testOrderSide,
-			Currencies: []currency.Pair{p},
+			Currencies: []*currency.Pair{p},
 		}
 		var r16 []order.Detail
 		r16, err = e.GetOrderHistory(&historyRequest)
@@ -578,7 +578,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		orderRequest := order.GetOrdersRequest{
 			OrderType:  testOrderType,
 			OrderSide:  testOrderSide,
-			Currencies: []currency.Pair{p},
+			Currencies: []*currency.Pair{p},
 		}
 		var r17 []order.Detail
 		r17, err = e.GetActiveOrders(&orderRequest)
@@ -829,7 +829,7 @@ func outputToConsole(exchangeResponses []ExchangeResponses) {
 				log.Printf("%v Result: %v", exchangeResponses[i].ExchangeName, k)
 				log.Printf("Function:\t%v", exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].Function)
 				log.Printf("AssetType:\t%v", exchangeResponses[i].AssetPairResponses[j].AssetType)
-				log.Printf("Currency:\t%v\n", exchangeResponses[i].AssetPairResponses[j].CurrencyPair)
+				log.Printf("Currency:\t%v\n", exchangeResponses[i].AssetPairResponses[j].Pair)
 				log.Printf("Wrapper Params:\t%s\n", exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].SentParams)
 				if exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].Error != "" {
 					totalErrors++

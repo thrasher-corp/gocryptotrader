@@ -10,7 +10,7 @@ import (
 // Item holds various fields for storing currency pair stats
 type Item struct {
 	Exchange  string
-	Pair      *currency.Pair
+	Pair      currency.Pair
 	AssetType asset.Item
 	Price     float64
 	Volume    float64
@@ -66,7 +66,7 @@ func Add(exchange string, p *currency.Pair, a asset.Item, price, volume float64)
 		if err != nil {
 			return err
 		}
-		Append(exchange, newPair, a, price, volume)
+		Append(exchange, *newPair, a, price, volume)
 	}
 
 	if p.Quote == currency.USDT {
@@ -74,16 +74,16 @@ func Add(exchange string, p *currency.Pair, a asset.Item, price, volume float64)
 		if err != nil {
 			return err
 		}
-		Append(exchange, newPair, a, price, volume)
+		Append(exchange, *newPair, a, price, volume)
 	}
 
-	Append(exchange, p, a, price, volume)
+	Append(exchange, *p, a, price, volume)
 	return nil
 }
 
 // Append adds or updates the item stats for a specific
 // currency pair and asset type
-func Append(exchange string, p *currency.Pair, a asset.Item, price, volume float64) {
+func Append(exchange string, p currency.Pair, a asset.Item, price, volume float64) {
 	if AlreadyExists(exchange, p, a, price, volume) {
 		return
 	}
@@ -101,10 +101,10 @@ func Append(exchange string, p *currency.Pair, a asset.Item, price, volume float
 
 // AlreadyExists checks to see if item info already exists
 // for a specific currency pair and asset type
-func AlreadyExists(exchange string, p *currency.Pair, assetType asset.Item, price, volume float64) bool {
+func AlreadyExists(exchange string, p currency.Pair, assetType asset.Item, price, volume float64) bool {
 	for i := range Items {
 		if Items[i].Exchange == exchange &&
-			Items[i].Pair.EqualIncludeReciprocal(p) &&
+			Items[i].Pair.EqualIncludeReciprocal(&p) &&
 			Items[i].AssetType == assetType {
 			Items[i].Price, Items[i].Volume = price, volume
 			return true

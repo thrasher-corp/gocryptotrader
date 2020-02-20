@@ -27,8 +27,7 @@ func (p *PairsManager) Get(a asset.Item) (*PairStore, error) {
 		return nil,
 			fmt.Errorf("cannot get pair store, asset type %s not supported", a)
 	}
-	cpy := *c
-	return &cpy, nil
+	return c, nil
 }
 
 // Store stores a new currency pair config based on its asset type
@@ -73,7 +72,6 @@ func (p *PairsManager) GetPairs(a asset.Item, enabled bool) (Pairs, error) {
 
 	var pairs Pairs
 	if enabled {
-		pairs = c.Enabled
 		for i := range pairs {
 			if !c.Available.Contains(pairs[i], true) {
 				return c.Enabled,
@@ -81,11 +79,9 @@ func (p *PairsManager) GetPairs(a asset.Item, enabled bool) (Pairs, error) {
 						pairs[i])
 			}
 		}
-	} else {
-		pairs = c.Available
+		return c.Enabled, nil
 	}
-
-	return pairs, nil
+	return c.Available, nil
 }
 
 // StorePairs stores a list of pairs based on the asset type and whether

@@ -64,6 +64,9 @@ func (z *ZB) SetDefaults() {
 			Delimiter: "_",
 			Uppercase: true,
 		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
+		},
 	}
 
 	z.Features = exchange.Features{
@@ -273,9 +276,12 @@ func (z *ZB) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (z *ZB) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
-	curr := z.FormatExchangeCurrency(p, assetType).String()
+	currFormat, err := z.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
 
-	orderbookNew, err := z.GetOrderbook(curr)
+	orderbookNew, err := z.GetOrderbook(currFormat.String())
 	if err != nil {
 		return orderBook, err
 	}
@@ -374,7 +380,7 @@ func (z *ZB) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (z *ZB) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (z *ZB) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -443,7 +449,7 @@ func (z *ZB) CancelOrder(o *order.Cancel) error {
 
 	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var response *WsCancelOrderResponse
-		response, err = z.wsCancelOrder(o.CurrencyPair, orderIDInt)
+		response, err = z.wsCancelOrder(o.Pair, orderIDInt)
 		if err != nil {
 			return err
 		}
@@ -452,8 +458,11 @@ func (z *ZB) CancelOrder(o *order.Cancel) error {
 		}
 		return nil
 	}
-	return z.CancelExistingOrder(orderIDInt, z.FormatExchangeCurrency(o.CurrencyPair,
-		o.AssetType).String())
+	fpair, err := z.FormatExchangeCurrency(o.Pair, o.AssetType)
+	if err != nil {
+		return err
+	}
+	return z.CancelExistingOrder(orderIDInt, fpair.String())
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -466,10 +475,14 @@ func (z *ZB) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
+
 	for x := range enabledPairs {
-		fPair := z.FormatExchangeCurrency(enabledPairs[x], asset.Spot).String()
+		fPair, err := z.FormatExchangeCurrency(enabledPairs[x], asset.Spot)
+		if err != nil {
+			return cancelAllOrdersResponse, err
+		}
 		for y := int64(1); ; y++ {
-			openOrders, err := z.GetUnfinishedOrdersIgnoreTradeType(fPair, y, 10)
+			openOrders, err := z.GetUnfinishedOrdersIgnoreTradeType(fPair.String(), y, 10)
 			if err != nil {
 				if strings.Contains(err.Error(), "3001") {
 					break
@@ -497,8 +510,8 @@ func (z *ZB) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 		}
 
 		err = z.CancelOrder(&order.Cancel{
-			OrderID:      strconv.FormatInt(allOpenOrders[i].ID, 10),
-			CurrencyPair: p,
+			OrderID: strconv.FormatInt(allOpenOrders[i].ID, 10),
+			Pair:    p,
 		})
 		if err != nil {
 			cancelAllOrdersResponse.Status[strconv.FormatInt(allOpenOrders[i].ID, 10)] = err.Error()
@@ -562,8 +575,11 @@ func (z *ZB) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error
 	var allOrders []Order
 	for x := range req.Currencies {
 		for i := int64(1); ; i++ {
-			fPair := z.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String()
-			resp, err := z.GetUnfinishedOrdersIgnoreTradeType(fPair, i, 10)
+			fPair, err := z.FormatExchangeCurrency(req.Currencies[x], asset.Spot)
+			if err != nil {
+				return nil, err
+			}
+			resp, err := z.GetUnfinishedOrdersIgnoreTradeType(fPair.String(), i, 10)
 			if err != nil {
 				if strings.Contains(err.Error(), "3001") {
 					break
@@ -595,13 +611,13 @@ func (z *ZB) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error
 		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
 		orderSide := orderSideMap[allOrders[i].Type]
 		orders = append(orders, order.Detail{
-			ID:           strconv.FormatInt(allOrders[i].ID, 10),
-			Amount:       allOrders[i].TotalAmount,
-			Exchange:     z.Name,
-			OrderDate:    orderDate,
-			Price:        allOrders[i].Price,
-			OrderSide:    orderSide,
-			CurrencyPair: symbol,
+			ID:        strconv.FormatInt(allOrders[i].ID, 10),
+			Amount:    allOrders[i].TotalAmount,
+			Exchange:  z.Name,
+			OrderDate: orderDate,
+			Price:     allOrders[i].Price,
+			OrderSide: orderSide,
+			Pair:      symbol,
 		})
 	}
 
@@ -640,8 +656,11 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 		}
 		for x := range req.Currencies {
 			for y := int64(1); ; y++ {
-				fPair := z.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String()
-				resp, err := z.GetOrders(fPair, y, side)
+				fPair, err := z.FormatExchangeCurrency(req.Currencies[x], asset.Spot)
+				if err != nil {
+					return nil, err
+				}
+				resp, err := z.GetOrders(fPair.String(), y, side)
 				if err != nil {
 					return nil, err
 				}
@@ -667,13 +686,13 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
 		orderSide := orderSideMap[allOrders[i].Type]
 		orders = append(orders, order.Detail{
-			ID:           strconv.FormatInt(allOrders[i].ID, 10),
-			Amount:       allOrders[i].TotalAmount,
-			Exchange:     z.Name,
-			OrderDate:    orderDate,
-			Price:        allOrders[i].Price,
-			OrderSide:    orderSide,
-			CurrencyPair: symbol,
+			ID:        strconv.FormatInt(allOrders[i].ID, 10),
+			Amount:    allOrders[i].TotalAmount,
+			Exchange:  z.Name,
+			OrderDate: orderDate,
+			Price:     allOrders[i].Price,
+			OrderSide: orderSide,
+			Pair:      symbol,
 		})
 	}
 

@@ -293,7 +293,7 @@ func (l *LocalBitcoins) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (l *LocalBitcoins) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (l *LocalBitcoins) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -487,7 +487,7 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest
 			OrderDate: orderDate,
 			Fee:       resp[i].Data.FeeBTC,
 			OrderSide: side,
-			CurrencyPair: currency.NewPairWithDelimiter(currency.BTC.String(),
+			Pair: currency.NewPairWithDelimiter(currency.BTC.String(),
 				resp[i].Data.Currency,
 				format.Delimiter),
 			Exchange: l.Name,
@@ -569,7 +569,7 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest
 			Fee:       allTrades[i].Data.FeeBTC,
 			OrderSide: side,
 			Status:    order.Status(status),
-			CurrencyPair: currency.NewPairWithDelimiter(currency.BTC.String(),
+			Pair: currency.NewPairWithDelimiter(currency.BTC.String(),
 				allTrades[i].Data.Currency,
 				format.Delimiter),
 			Exchange: l.Name,

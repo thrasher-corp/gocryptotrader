@@ -426,7 +426,7 @@ func (c *CoinbasePro) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (c *CoinbasePro) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (c *CoinbasePro) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -686,7 +686,7 @@ func (c *CoinbasePro) AuthenticateWebsocket() error {
 }
 
 // GetHistoricCandles Allows to retrieve an amount of candles back in time starting from now up to rangesize * granularity, where granularity is the trade period covered by each candle
-func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
+func (c *CoinbasePro) GetHistoricCandles(p *currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
 	end := time.Now().UTC()
 	b := granularity * rangesize
 	start := time.Now().UTC().Add(-time.Second * time.Duration(b))

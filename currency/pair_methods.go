@@ -6,7 +6,10 @@ import (
 )
 
 // String returns a currency pair string
-func (p Pair) String() string {
+func (p *Pair) String() string {
+	if p == nil {
+		return ""
+	}
 	return p.Base.String() + p.Delimiter + p.Quote.String()
 }
 
@@ -113,7 +116,10 @@ func (p Pair) Swap() *Pair {
 
 // IsEmpty returns whether or not the pair is empty or is missing a currency
 // code
-func (p Pair) IsEmpty() bool {
+func (p *Pair) IsEmpty() bool {
+	if p == nil {
+		return true
+	}
 	return p.Base.IsEmpty() && p.Quote.IsEmpty()
 }
 

@@ -281,18 +281,18 @@ func (h *HitBTC) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (h *HitBTC) UpdateTicker(currencyPair currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (h *HitBTC) UpdateTicker(p *currency.Pair, a asset.Item) (*ticker.Price, error) {
 	tick, err := h.GetTickers()
 	if err != nil {
 		return nil, err
 	}
-	pairs, err := h.GetEnabledPairs(assetType)
+	pairs, err := h.GetEnabledPairs(a)
 	if err != nil {
 		return nil, err
 	}
 	for i := range pairs {
 		for j := range tick {
-			pairFmt := h.FormatExchangeCurrency(pairs[i], assetType).String()
+			pairFmt := h.FormatExchangeCurrency(pairs[i], a).String()
 			if tick[j].Symbol != pairFmt {
 				found := false
 				if strings.Contains(tick[j].Symbol, "USDT") {
@@ -317,13 +317,13 @@ func (h *HitBTC) UpdateTicker(currencyPair currency.Pair, assetType asset.Item) 
 				Pair:         pairs[i],
 				LastUpdated:  tick[j].Timestamp,
 				ExchangeName: h.Name,
-				AssetType:    assetType})
+				AssetType:    a})
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
-	return ticker.GetTicker(h.Name, currencyPair, assetType)
+	return ticker.GetTicker(h.Name, p, a)
 }
 
 // FetchTicker returns the ticker for a currency pair
@@ -345,9 +345,9 @@ func (h *HitBTC) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderb
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (h *HitBTC) UpdateOrderbook(currencyPair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (h *HitBTC) UpdateOrderbook(c *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
-	orderbookNew, err := h.GetOrderbook(h.FormatExchangeCurrency(currencyPair, assetType).String(), 1000)
+	orderbookNew, err := h.GetOrderbook(h.FormatExchangeCurrency(c, assetType).String(), 1000)
 	if err != nil {
 		return orderBook, err
 	}
@@ -366,7 +366,7 @@ func (h *HitBTC) UpdateOrderbook(currencyPair currency.Pair, assetType asset.Ite
 		})
 	}
 
-	orderBook.Pair = currencyPair
+	orderBook.Pair = c
 	orderBook.ExchangeName = h.Name
 	orderBook.AssetType = assetType
 
@@ -375,7 +375,7 @@ func (h *HitBTC) UpdateOrderbook(currencyPair currency.Pair, assetType asset.Ite
 		return orderBook, err
 	}
 
-	return orderbook.Get(h.Name, currencyPair, assetType)
+	return orderbook.Get(h.Name, c, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
@@ -426,7 +426,7 @@ func (h *HitBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (h *HitBTC) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (h *HitBTC) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -584,13 +584,13 @@ func (h *HitBTC) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 			format.Delimiter)
 		side := order.Side(strings.ToUpper(allOrders[i].Side))
 		orders = append(orders, order.Detail{
-			ID:           allOrders[i].ID,
-			Amount:       allOrders[i].Quantity,
-			Exchange:     h.Name,
-			Price:        allOrders[i].Price,
-			OrderDate:    allOrders[i].CreatedAt,
-			OrderSide:    side,
-			CurrencyPair: symbol,
+			ID:        allOrders[i].ID,
+			Amount:    allOrders[i].Quantity,
+			Exchange:  h.Name,
+			Price:     allOrders[i].Price,
+			OrderDate: allOrders[i].CreatedAt,
+			OrderSide: side,
+			Pair:      symbol,
 		})
 	}
 
@@ -626,13 +626,13 @@ func (h *HitBTC) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 			format.Delimiter)
 		side := order.Side(strings.ToUpper(allOrders[i].Side))
 		orders = append(orders, order.Detail{
-			ID:           allOrders[i].ID,
-			Amount:       allOrders[i].Quantity,
-			Exchange:     h.Name,
-			Price:        allOrders[i].Price,
-			OrderDate:    allOrders[i].CreatedAt,
-			OrderSide:    side,
-			CurrencyPair: symbol,
+			ID:        allOrders[i].ID,
+			Amount:    allOrders[i].Quantity,
+			Exchange:  h.Name,
+			Price:     allOrders[i].Price,
+			OrderDate: allOrders[i].CreatedAt,
+			OrderSide: side,
+			Pair:      symbol,
 		})
 	}
 

@@ -19,7 +19,7 @@ func TestLenByPrice(t *testing.T) {
 	Items = []Item{
 		{
 			Exchange:  testExchange,
-			Pair:      p,
+			Pair:      *p,
 			AssetType: asset.Spot,
 			Price:     1200,
 			Volume:    5,
@@ -39,14 +39,14 @@ func TestLessByPrice(t *testing.T) {
 	Items = []Item{
 		{
 			Exchange:  "alphapoint",
-			Pair:      p,
+			Pair:      *p,
 			AssetType: asset.Spot,
 			Price:     1200,
 			Volume:    5,
 		},
 		{
 			Exchange:  "bitfinex",
-			Pair:      p,
+			Pair:      *p,
 			AssetType: asset.Spot,
 			Price:     1198,
 			Volume:    20,
@@ -69,14 +69,14 @@ func TestSwapByPrice(t *testing.T) {
 	Items = []Item{
 		{
 			Exchange:  "bitstamp",
-			Pair:      p,
+			Pair:      *p,
 			AssetType: asset.Spot,
 			Price:     1324,
 			Volume:    5,
 		},
 		{
 			Exchange:  "bitfinex",
-			Pair:      p,
+			Pair:      *p,
 			AssetType: asset.Spot,
 			Price:     7863,
 			Volume:    20,
@@ -118,20 +118,29 @@ func TestAdd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	Add(testExchange, p, asset.Spot, 1200, 42)
+	err = Add(testExchange, p, asset.Spot, 1200, 42)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if len(Items) < 1 {
 		t.Error("stats Add did not add exchange info.")
 	}
 
-	Add("", p, "", 0, 0)
+	err = Add("", p, "", 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if len(Items) != 1 {
 		t.Error("stats Add did not add exchange info.")
 	}
 
 	p.Base = currency.XBT
-	Add(testExchange, p, asset.Spot, 1201, 43)
+	err = Add(testExchange, p, asset.Spot, 1201, 43)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if Items[1].Pair.String() != "XBTUSD" {
 		t.Fatal("stats Add did not add exchange info.")
@@ -153,12 +162,12 @@ func TestAppend(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	Append("sillyexchange", p, asset.Spot, 1234, 45)
+	Append("sillyexchange", *p, asset.Spot, 1234, 45)
 	if len(Items) < 2 {
 		t.Error("stats Append did not add exchange values.")
 	}
 
-	Append("sillyexchange", p, asset.Spot, 1234, 45)
+	Append("sillyexchange", *p, asset.Spot, 1234, 45)
 	if len(Items) == 3 {
 		t.Error("stats Append added exchange values")
 	}
@@ -169,11 +178,11 @@ func TestAlreadyExists(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !AlreadyExists(testExchange, p, asset.Spot, 1200, 42) {
+	if !AlreadyExists(testExchange, *p, asset.Spot, 1200, 42) {
 		t.Error("stats AlreadyExists exchange does not exist.")
 	}
 	p.Base = currency.NewCode("dii")
-	if AlreadyExists("bla", p, asset.Spot, 1234, 123) {
+	if AlreadyExists("bla", *p, asset.Spot, 1234, 123) {
 		t.Error("stats AlreadyExists found incorrect exchange.")
 	}
 }

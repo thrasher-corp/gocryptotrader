@@ -28,7 +28,7 @@ func TestMain(m *testing.M) {
 var cpyMux *dispatch.Mux
 
 func TestSubscribeTicker(t *testing.T) {
-	_, err := SubscribeTicker("", currency.Pair{}, asset.Item(""))
+	_, err := SubscribeTicker("", &currency.Pair{}, asset.Item(""))
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
@@ -290,7 +290,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 	type quick struct {
 		Name string
-		P    currency.Pair
+		P    *currency.Pair
 		TP   Price
 	}
 

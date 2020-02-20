@@ -262,25 +262,28 @@ func (e *Base) SetCurrencyPairFormat() {
 }
 
 // SetConfigPairs sets the exchanges currency pairs to the pairs set in the config
-func (e *Base) SetConfigPairs() {
-	// e.CurrencyPairs = e.Config.CurrencyPairs
+func (e *Base) SetConfigPairs() error {
 	assetTypes := e.Config.CurrencyPairs.GetAssetTypes()
 	for x := range assetTypes {
 		cfgPS, err := e.Config.CurrencyPairs.Get(assetTypes[x])
 		if err != nil {
-			continue
+			return err
 		}
 		if e.Config.CurrencyPairs.UseGlobalFormat {
 			e.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
 			e.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true)
 			continue
 		}
-		exchPS, _ := e.CurrencyPairs.Get(assetTypes[x])
+		exchPS, err := e.CurrencyPairs.Get(assetTypes[x])
+		if err != nil {
+			return err
+		}
 		cfgPS.ConfigFormat = exchPS.ConfigFormat
 		cfgPS.RequestFormat = exchPS.RequestFormat
 		e.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Available, false)
 		e.CurrencyPairs.StorePairs(assetTypes[x], cfgPS.Enabled, true)
 	}
+	return nil
 }
 
 // GetAuthenticatedAPISupport returns whether the exchange supports
@@ -394,7 +397,11 @@ func (e *Base) FormatExchangeCurrencies(pairs []*currency.Pair, assetType asset.
 	}
 
 	for x := range pairs {
-		currencyItems.WriteString(e.FormatExchangeCurrency(pairs[x], assetType).String())
+		format, err := e.FormatExchangeCurrency(pairs[x], assetType)
+		if err != nil {
+			return "", err
+		}
+		currencyItems.WriteString(format.String())
 		if x == len(pairs)-1 {
 			continue
 		}
@@ -409,9 +416,12 @@ func (e *Base) FormatExchangeCurrencies(pairs []*currency.Pair, assetType asset.
 
 // FormatExchangeCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
-func (e *Base) FormatExchangeCurrency(p *currency.Pair, assetType asset.Item) *currency.Pair {
-	pairFmt, _ := e.GetPairFormat(assetType, true)
-	return p.Format(pairFmt.Delimiter, pairFmt.Uppercase)
+func (e *Base) FormatExchangeCurrency(p *currency.Pair, assetType asset.Item) (*currency.Pair, error) {
+	pairFmt, err := e.GetPairFormat(assetType, true)
+	if err != nil {
+		return nil, err
+	}
+	return p.Format(pairFmt.Delimiter, pairFmt.Uppercase), nil
 }
 
 // SetEnabled is a method that sets if the exchange is enabled

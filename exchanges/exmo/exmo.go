@@ -52,7 +52,7 @@ type EXMO struct {
 }
 
 // GetHistoricCandles returns rangesize number of candles for the given granularity and pair starting from the latest available
-func (e *EXMO) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
+func (e *EXMO) GetHistoricCandles(pair *currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

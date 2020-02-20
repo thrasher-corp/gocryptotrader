@@ -299,7 +299,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
-		Pair: currency.Pair{
+		Pair: &currency.Pair{
 			Base:  currency.BTC,
 			Quote: currency.EUR,
 		},
@@ -327,7 +327,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	err := l.CancelOrder(orderCancellation)
@@ -349,7 +349,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	resp, err := l.CancelAllOrders(orderCancellation)
@@ -481,7 +481,8 @@ func TestGetCurrencyFromChannel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if curr != result {
+
+	if !curr.Equal(result) {
 		t.Errorf("currency result is not equal. Expected  %v", curr)
 	}
 }

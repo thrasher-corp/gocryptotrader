@@ -45,12 +45,12 @@ func (e Exchange) IsEnabled(exch string) bool {
 }
 
 // Orderbook returns current orderbook requested exchange, pair and asset
-func (e Exchange) Orderbook(exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error) {
+func (e Exchange) Orderbook(exch string, pair *currency.Pair, item asset.Item) (*orderbook.Base, error) {
 	return engine.GetSpecificOrderbook(pair, exch, item)
 }
 
 // Ticker returns ticker for provided currency pair & asset type
-func (e Exchange) Ticker(exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error) {
+func (e Exchange) Ticker(exch string, pair *currency.Pair, item asset.Item) (*ticker.Price, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return nil, err
@@ -110,10 +110,10 @@ func (e Exchange) CancelOrder(exch, orderID string) (bool, error) {
 	}
 
 	cancel := &order.Cancel{
-		AccountID:    orderDetails.AccountID,
-		OrderID:      orderDetails.ID,
-		CurrencyPair: orderDetails.CurrencyPair,
-		Side:         orderDetails.OrderSide,
+		AccountID: orderDetails.AccountID,
+		OrderID:   orderDetails.ID,
+		Pair:      orderDetails.Pair,
+		Side:      orderDetails.OrderSide,
 	}
 
 	err = engine.Bot.OrderManager.Cancel(exch, cancel)

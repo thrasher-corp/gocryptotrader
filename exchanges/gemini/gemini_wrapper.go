@@ -332,7 +332,7 @@ func (g *Gemini) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (g *Gemini) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (g *Gemini) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -489,7 +489,7 @@ func (g *Gemini) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 			OrderType:       orderType,
 			OrderSide:       side,
 			Price:           resp[i].Price,
-			CurrencyPair:    symbol,
+			Pair:            symbol,
 			OrderDate:       orderDate,
 		})
 	}
@@ -542,7 +542,7 @@ func (g *Gemini) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 			OrderSide: side,
 			Fee:       trades[i].FeeAmount,
 			Price:     trades[i].Price,
-			CurrencyPair: currency.NewPairWithDelimiter(trades[i].BaseCurrency,
+			Pair: currency.NewPairWithDelimiter(trades[i].BaseCurrency,
 				trades[i].QuoteCurrency,
 				format.Delimiter),
 		})

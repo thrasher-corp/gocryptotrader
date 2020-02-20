@@ -383,8 +383,8 @@ func TestLoadConfigPairs(t *testing.T) {
 	t.Parallel()
 
 	pairs := currency.Pairs{
-		currency.Pair{Base: currency.BTC, Quote: currency.USD},
-		currency.Pair{Base: currency.LTC, Quote: currency.USD},
+		&currency.Pair{Base: currency.BTC, Quote: currency.USD},
+		&currency.Pair{Base: currency.LTC, Quote: currency.USD},
 	}
 
 	b := Base{
@@ -455,8 +455,13 @@ func TestLoadConfigPairs(t *testing.T) {
 	if p != "BTC^USD" {
 		t.Errorf("incorrect value, expected BTC^USD")
 	}
-	p = b.FormatExchangeCurrency(b.GetAvailablePairs(asset.Spot)[0],
-		asset.Spot).String()
+
+	format, err := b.FormatExchangeCurrency(b.GetAvailablePairs(asset.Spot)[0], asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p = format.String()
 	if p != "btc>usd" {
 		t.Error("incorrect value, expected btc>usd")
 	}
@@ -476,7 +481,7 @@ func TestLoadConfigPairs(t *testing.T) {
 	exchPS.RequestFormat.Uppercase = false
 	exchPS.ConfigFormat.Delimiter = "/"
 	exchPS.ConfigFormat.Uppercase = false
-	pairs = append(pairs, currency.Pair{Base: currency.XRP, Quote: currency.USD})
+	pairs = append(pairs, &currency.Pair{Base: currency.XRP, Quote: currency.USD})
 	b.Config.CurrencyPairs.StorePairs(asset.Spot, pairs, false)
 	b.Config.CurrencyPairs.StorePairs(asset.Spot, pairs, true)
 	b.Config.CurrencyPairs.UseGlobalFormat = false
@@ -500,8 +505,12 @@ func TestLoadConfigPairs(t *testing.T) {
 	if p != "xrp/usd" {
 		t.Error("incorrect value, expected xrp/usd")
 	}
-	p = b.FormatExchangeCurrency(b.GetAvailablePairs(asset.Spot)[2],
-		asset.Spot).String()
+
+	format, err = b.FormatExchangeCurrency(b.GetAvailablePairs(asset.Spot)[2], asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p = format.String()
 	if p != "xrp~usd" {
 		t.Error("incorrect value, expected xrp~usd")
 	}
@@ -908,7 +917,7 @@ func TestFormatExchangeCurrencies(t *testing.T) {
 		},
 	}
 
-	var pairs = []currency.Pair{
+	var pairs = []*currency.Pair{
 		currency.NewPairDelimiter("BTC_USD", "_"),
 		currency.NewPairDelimiter("LTC_BTC", "_"),
 	}
@@ -941,7 +950,10 @@ func TestFormatExchangeCurrency(t *testing.T) {
 
 	p := currency.NewPair(currency.BTC, currency.USD)
 	expected := defaultTestCurrencyPair
-	actual := b.FormatExchangeCurrency(p, asset.Spot)
+	actual, err := b.FormatExchangeCurrency(p, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if actual.String() != expected {
 		t.Errorf("Exchange TestFormatExchangeCurrency %s != %s",
@@ -1309,7 +1321,7 @@ func TestUpdatePairs(t *testing.T) {
 	// Test empty pair
 	p := currency.NewPairDelimiter(defaultTestCurrencyPair, "-")
 	pairs := currency.Pairs{
-		currency.Pair{},
+		&currency.Pair{},
 		p,
 	}
 	err = UAC.UpdatePairs(pairs, asset.Spot, true, true)

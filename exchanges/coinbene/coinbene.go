@@ -1200,6 +1200,6 @@ func (c *Coinbene) SendAuthHTTPRequest(method, path, epPath string, isSwap bool,
 }
 
 // GetHistoricCandles returns rangesize number of candles for the given granularity and pair starting from the latest available
-func (c *Coinbene) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
+func (c *Coinbene) GetHistoricCandles(pair *currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
 	return nil, common.ErrFunctionNotSupported
 }

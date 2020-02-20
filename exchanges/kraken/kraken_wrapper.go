@@ -454,7 +454,7 @@ func (k *Kraken) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (k *Kraken) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (k *Kraken) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -584,7 +584,7 @@ func (k *Kraken) GetOrderInfo(orderID string) (order.Detail, error) {
 		orderDetail = order.Detail{
 			Exchange:        k.Name,
 			ID:              orderID,
-			CurrencyPair:    p,
+			Pair:            p,
 			OrderSide:       side,
 			OrderType:       oType,
 			OrderDate:       time.Unix(firstNum, decNum),
@@ -682,7 +682,7 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 			Price:           resp.Open[i].Description.Price,
 			OrderSide:       side,
 			OrderType:       orderType,
-			CurrencyPair:    symbol,
+			Pair:            symbol,
 		})
 	}
 
@@ -729,7 +729,7 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 			Price:           resp.Closed[i].Description.Price,
 			OrderSide:       side,
 			OrderType:       orderType,
-			CurrencyPair:    symbol,
+			Pair:            symbol,
 		})
 	}
 

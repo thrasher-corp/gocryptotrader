@@ -492,16 +492,17 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 	}
 
 	for x := range assetTypes {
-		enabledPairs, _ := c.GetEnabledPairs(exchName, assetTypes[x])
-		availPairs, _ := c.GetAvailablePairs(exchName, assetTypes[x])
+		enabledPairs, err := c.GetEnabledPairs(exchName, assetTypes[x])
+		if err != nil {
+			return err
+		}
+
+		availPairs, err := c.GetAvailablePairs(exchName, assetTypes[x])
+		if err != nil {
+			return err
+		}
 
 		if len(availPairs) == 0 {
-			if len(enabledPairs) != 0 {
-				err := c.SetPairs(exchName, assetTypes[x], true, currency.Pairs{})
-				if err != nil {
-					return err
-				}
-			}
 			continue
 		}
 
@@ -754,6 +755,8 @@ func (c *Config) CheckExchangeConfigValues() error {
 		return errors.New("no exchange configs found")
 	}
 
+	// fmt.Printf("Ver Amzig before %+v\n", c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot])
+
 	exchanges := 0
 	for i := range c.Exchanges {
 		if strings.EqualFold(c.Exchanges[i].Name, "GDAX") {
@@ -839,6 +842,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 
 		// Check if see if the new currency pairs format is empty and flesh it out if so
 		if c.Exchanges[i].CurrencyPairs == nil {
+			fmt.Println("NIL TIMES!!!")
 			c.Exchanges[i].CurrencyPairs = new(currency.PairsManager)
 			c.Exchanges[i].CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 
@@ -858,6 +862,9 @@ func (c *Config) CheckExchangeConfigValues() error {
 				enabledPairs = *c.Exchanges[i].EnabledPairs
 			}
 
+			// fmt.Println("avail", availPairs)
+			// fmt.Println("enabled", enabledPairs)
+
 			c.Exchanges[i].CurrencyPairs.UseGlobalFormat = true
 			c.Exchanges[i].CurrencyPairs.Store(asset.Spot,
 				currency.PairStore{
@@ -866,6 +873,8 @@ func (c *Config) CheckExchangeConfigValues() error {
 				},
 			)
 
+			// fmt.Println("MEOW", c.Exchanges[i].CurrencyPairs.Pairs[asset.Spot])
+
 			// flush old values
 			c.Exchanges[i].PairsLastUpdated = nil
 			c.Exchanges[i].ConfigCurrencyPairFormat = nil
@@ -873,7 +882,13 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].AssetTypes = nil
 			c.Exchanges[i].AvailablePairs = nil
 			c.Exchanges[i].EnabledPairs = nil
+
+			// fmt.Println("MEOW2", c.Exchanges[i].CurrencyPairs.Pairs[asset.Spot])
 		}
+
+		// if c.Exchanges[i].Name == "CoinbasePro" {
+		// 	fmt.Println("MEOW3", c.Exchanges[i].CurrencyPairs.Pairs[asset.Spot])
+		// }
 
 		if c.Exchanges[i].Enabled {
 			if c.Exchanges[i].Name == "" {
@@ -881,17 +896,21 @@ func (c *Config) CheckExchangeConfigValues() error {
 				c.Exchanges[i].Enabled = false
 				continue
 			}
-			if (c.Exchanges[i].API.AuthenticatedSupport || c.Exchanges[i].API.AuthenticatedWebsocketSupport) && c.Exchanges[i].API.CredentialsValidator != nil {
+			if (c.Exchanges[i].API.AuthenticatedSupport || c.Exchanges[i].API.AuthenticatedWebsocketSupport) &&
+				c.Exchanges[i].API.CredentialsValidator != nil {
 				var failed bool
-				if c.Exchanges[i].API.CredentialsValidator.RequiresKey && (c.Exchanges[i].API.Credentials.Key == "" || c.Exchanges[i].API.Credentials.Key == DefaultAPIKey) {
+				if c.Exchanges[i].API.CredentialsValidator.RequiresKey &&
+					(c.Exchanges[i].API.Credentials.Key == "" || c.Exchanges[i].API.Credentials.Key == DefaultAPIKey) {
 					failed = true
 				}
 
-				if c.Exchanges[i].API.CredentialsValidator.RequiresSecret && (c.Exchanges[i].API.Credentials.Secret == "" || c.Exchanges[i].API.Credentials.Secret == DefaultAPISecret) {
+				if c.Exchanges[i].API.CredentialsValidator.RequiresSecret &&
+					(c.Exchanges[i].API.Credentials.Secret == "" || c.Exchanges[i].API.Credentials.Secret == DefaultAPISecret) {
 					failed = true
 				}
 
-				if c.Exchanges[i].API.CredentialsValidator.RequiresClientID && (c.Exchanges[i].API.Credentials.ClientID == DefaultAPIClientID || c.Exchanges[i].API.Credentials.ClientID == "") {
+				if c.Exchanges[i].API.CredentialsValidator.RequiresClientID &&
+					(c.Exchanges[i].API.Credentials.ClientID == DefaultAPIClientID || c.Exchanges[i].API.Credentials.ClientID == "") {
 					failed = true
 				}
 
@@ -901,45 +920,72 @@ func (c *Config) CheckExchangeConfigValues() error {
 					log.Warnf(log.ExchangeSys, WarningExchangeAuthAPIDefaultOrEmptyValues, c.Exchanges[i].Name)
 				}
 			}
-			if !c.Exchanges[i].Features.Supports.RESTCapabilities.AutoPairUpdates && !c.Exchanges[i].Features.Supports.WebsocketCapabilities.AutoPairUpdates {
+			if !c.Exchanges[i].Features.Supports.RESTCapabilities.AutoPairUpdates &&
+				!c.Exchanges[i].Features.Supports.WebsocketCapabilities.AutoPairUpdates {
 				lastUpdated := convert.UnixTimestampToTime(c.Exchanges[i].CurrencyPairs.LastUpdated)
 				lastUpdated = lastUpdated.AddDate(0, 0, pairsLastUpdatedWarningThreshold)
 				if lastUpdated.Unix() <= time.Now().Unix() {
-					log.Warnf(log.ExchangeSys, WarningPairsLastUpdatedThresholdExceeded, c.Exchanges[i].Name, pairsLastUpdatedWarningThreshold)
+					log.Warnf(log.ExchangeSys,
+						WarningPairsLastUpdatedThresholdExceeded,
+						c.Exchanges[i].Name,
+						pairsLastUpdatedWarningThreshold)
 				}
 			}
 			if c.Exchanges[i].HTTPTimeout <= 0 {
-				log.Warnf(log.ExchangeSys, "Exchange %s HTTP Timeout value not set, defaulting to %v.\n", c.Exchanges[i].Name, defaultHTTPTimeout)
+				log.Warnf(log.ExchangeSys,
+					"Exchange %s HTTP Timeout value not set, defaulting to %v.\n",
+					c.Exchanges[i].Name,
+					defaultHTTPTimeout)
 				c.Exchanges[i].HTTPTimeout = defaultHTTPTimeout
 			}
 
 			if c.Exchanges[i].WebsocketResponseCheckTimeout <= 0 {
-				log.Warnf(log.ExchangeSys, "Exchange %s Websocket response check timeout value not set, defaulting to %v.",
-					c.Exchanges[i].Name, defaultWebsocketResponseCheckTimeout)
+				log.Warnf(log.ExchangeSys,
+					"Exchange %s Websocket response check timeout value not set, defaulting to %v.",
+					c.Exchanges[i].Name,
+					defaultWebsocketResponseCheckTimeout)
 				c.Exchanges[i].WebsocketResponseCheckTimeout = defaultWebsocketResponseCheckTimeout
 			}
 
 			if c.Exchanges[i].WebsocketResponseMaxLimit <= 0 {
-				log.Warnf(log.ExchangeSys, "Exchange %s Websocket response max limit value not set, defaulting to %v.",
-					c.Exchanges[i].Name, defaultWebsocketResponseMaxLimit)
+				log.Warnf(log.ExchangeSys,
+					"Exchange %s Websocket response max limit value not set, defaulting to %v.",
+					c.Exchanges[i].Name,
+					defaultWebsocketResponseMaxLimit)
 				c.Exchanges[i].WebsocketResponseMaxLimit = defaultWebsocketResponseMaxLimit
 			}
 			if c.Exchanges[i].WebsocketTrafficTimeout <= 0 {
-				log.Warnf(log.ExchangeSys, "Exchange %s Websocket response traffic timeout value not set, defaulting to %v.",
-					c.Exchanges[i].Name, defaultWebsocketTrafficTimeout)
+				log.Warnf(log.ExchangeSys,
+					"Exchange %s Websocket response traffic timeout value not set, defaulting to %v.",
+					c.Exchanges[i].Name,
+					defaultWebsocketTrafficTimeout)
 				c.Exchanges[i].WebsocketTrafficTimeout = defaultWebsocketTrafficTimeout
 			}
 			if c.Exchanges[i].WebsocketOrderbookBufferLimit <= 0 {
-				log.Warnf(log.ExchangeSys, "Exchange %s Websocket orderbook buffer limit value not set, defaulting to %v.",
-					c.Exchanges[i].Name, defaultWebsocketOrderbookBufferLimit)
+				log.Warnf(log.ExchangeSys,
+					"Exchange %s Websocket orderbook buffer limit value not set, defaulting to %v.",
+					c.Exchanges[i].Name,
+					defaultWebsocketOrderbookBufferLimit)
 				c.Exchanges[i].WebsocketOrderbookBufferLimit = defaultWebsocketOrderbookBufferLimit
 			}
+			// if c.Exchanges[i].Name == "CoinbasePro" {
+			// 	fmt.Printf("Ver Amzig %+v\n", c.Exchanges[i].CurrencyPairs.Pairs[asset.Spot])
+			// }
 			err := c.CheckPairConsistency(c.Exchanges[i].Name)
 			if err != nil {
-				log.Errorf(log.ExchangeSys, "Exchange %s: CheckPairConsistency error: %s\n", c.Exchanges[i].Name, err)
+				log.Errorf(log.ExchangeSys,
+					"Exchange %s: CheckPairConsistency error: %s\n",
+					c.Exchanges[i].Name,
+					err)
 				c.Exchanges[i].Enabled = false
 				continue
 			}
+			// if c.Exchanges[i].Name == "CoinbasePro" {
+			// 	fmt.Printf("Ver Amzig after %+v\n", c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot])
+			// }
+			// // if c.Exchanges[i].Name == "CoinbasePro" {
+			// 	fmt.Println("MEOW4", c.Exchanges[i].CurrencyPairs.Pairs[asset.Spot])
+			// }
 
 			for x := range c.Exchanges[i].BankAccounts {
 				if !c.Exchanges[i].BankAccounts[x].Enabled {
@@ -954,6 +1000,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 			exchanges++
 		}
 	}
+
 	if exchanges == 0 {
 		return errors.New(ErrNoEnabledExchanges)
 	}
@@ -1457,10 +1504,13 @@ func (c *Config) ReadConfig(configPath string, dryrun bool) error {
 	}
 
 	if !ConfirmECS(fileData) {
-		err = ConfirmConfigJSON(fileData, &c)
+		err = json.Unmarshal(fileData, c)
 		if err != nil {
 			return err
 		}
+
+		// fmt.Printf("%+v \n", c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot])
+		// os.Exit(1)
 
 		if c.EncryptConfig == fileEncryptionDisabled {
 			return nil
@@ -1475,38 +1525,39 @@ func (c *Config) ReadConfig(configPath string, dryrun bool) error {
 				return c.SaveConfig(defaultPath, dryrun)
 			}
 		}
-	} else {
-		errCounter := 0
-		for {
-			if errCounter >= maxAuthFailures {
-				return errors.New("failed to decrypt config after 3 attempts")
-			}
-			key, err := PromptForConfigKey(IsInitialSetup)
-			if err != nil {
-				log.Errorf(log.ConfigMgr, "PromptForConfigKey err: %s", err)
-				errCounter++
-				continue
-			}
+		return nil
+	}
 
-			var f []byte
-			f = append(f, fileData...)
-			data, err := DecryptConfigFile(f, key)
-			if err != nil {
-				log.Errorf(log.ConfigMgr, "DecryptConfigFile err: %s", err)
-				errCounter++
-				continue
-			}
-
-			err = ConfirmConfigJSON(data, &c)
-			if err != nil {
-				if errCounter < maxAuthFailures {
-					log.Error(log.ConfigMgr, "Invalid password.")
-				}
-				errCounter++
-				continue
-			}
-			break
+	errCounter := 0
+	for {
+		if errCounter >= maxAuthFailures {
+			return errors.New("failed to decrypt config after 3 attempts")
 		}
+		key, err := PromptForConfigKey(IsInitialSetup)
+		if err != nil {
+			log.Errorf(log.ConfigMgr, "PromptForConfigKey err: %s", err)
+			errCounter++
+			continue
+		}
+
+		var f []byte
+		f = append(f, fileData...)
+		data, err := DecryptConfigFile(f, key)
+		if err != nil {
+			log.Errorf(log.ConfigMgr, "DecryptConfigFile err: %s", err)
+			errCounter++
+			continue
+		}
+
+		err = json.Unmarshal(data, c)
+		if err != nil {
+			if errCounter < maxAuthFailures {
+				log.Error(log.ConfigMgr, "Invalid password.")
+			}
+			errCounter++
+			continue
+		}
+		break
 	}
 	return nil
 }

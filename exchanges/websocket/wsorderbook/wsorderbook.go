@@ -32,7 +32,7 @@ func (w *WebsocketOrderbookLocal) Update(u *WebsocketOrderbookUpdate) error {
 	}
 	w.m.Lock()
 	defer w.m.Unlock()
-	obLookup, ok := w.ob[u.Pair][u.Asset]
+	obLookup, ok := w.ob[*u.Pair][u.Asset]
 	if !ok {
 		return fmt.Errorf("ob.Base could not be found for Exchange %s CurrencyPair: %s AssetType: %s",
 			w.exchangeName,
@@ -54,7 +54,7 @@ func (w *WebsocketOrderbookLocal) Update(u *WebsocketOrderbookUpdate) error {
 	}
 	if w.bufferEnabled {
 		// Reset the buffer
-		w.buffer[u.Pair][u.Asset] = nil
+		w.buffer[*u.Pair][u.Asset] = nil
 	}
 	return nil
 }
@@ -63,14 +63,14 @@ func (w *WebsocketOrderbookLocal) processBufferUpdate(o *orderbook.Base, u *Webs
 	if w.buffer == nil {
 		w.buffer = make(map[currency.Pair]map[asset.Item][]*WebsocketOrderbookUpdate)
 	}
-	if w.buffer[u.Pair] == nil {
-		w.buffer[u.Pair] = make(map[asset.Item][]*WebsocketOrderbookUpdate)
+	if w.buffer[*u.Pair] == nil {
+		w.buffer[*u.Pair] = make(map[asset.Item][]*WebsocketOrderbookUpdate)
 	}
-	bufferLookup := w.buffer[u.Pair][u.Asset]
+	bufferLookup := w.buffer[*u.Pair][u.Asset]
 	if len(bufferLookup) <= w.obBufferLimit {
 		bufferLookup = append(bufferLookup, u)
 		if len(bufferLookup) < w.obBufferLimit {
-			w.buffer[u.Pair][u.Asset] = bufferLookup
+			w.buffer[*u.Pair][u.Asset] = bufferLookup
 			return false
 		}
 	}
@@ -89,7 +89,7 @@ func (w *WebsocketOrderbookLocal) processBufferUpdate(o *orderbook.Base, u *Webs
 	for i := range bufferLookup {
 		w.processObUpdate(o, bufferLookup[i])
 	}
-	w.buffer[u.Pair][u.Asset] = bufferLookup
+	w.buffer[*u.Pair][u.Asset] = bufferLookup
 	return true
 }
 
@@ -247,20 +247,20 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base) err
 	if w.ob == nil {
 		w.ob = make(map[currency.Pair]map[asset.Item]*orderbook.Base)
 	}
-	if w.ob[newOrderbook.Pair] == nil {
-		w.ob[newOrderbook.Pair] = make(map[asset.Item]*orderbook.Base)
+	if w.ob[*newOrderbook.Pair] == nil {
+		w.ob[*newOrderbook.Pair] = make(map[asset.Item]*orderbook.Base)
 	}
 
-	w.ob[newOrderbook.Pair][newOrderbook.AssetType] = newOrderbook
+	w.ob[*newOrderbook.Pair][newOrderbook.AssetType] = newOrderbook
 	return newOrderbook.Process()
 }
 
 // GetOrderbook use sparingly. Modifying anything here will ruin hash
 // calculation and cause problems
-func (w *WebsocketOrderbookLocal) GetOrderbook(p currency.Pair, a asset.Item) *orderbook.Base {
+func (w *WebsocketOrderbookLocal) GetOrderbook(p *currency.Pair, a asset.Item) *orderbook.Base {
 	w.m.Lock()
 	defer w.m.Unlock()
-	return w.ob[p][a]
+	return w.ob[*p][a]
 }
 
 // FlushCache flushes w.ob data to be garbage collected and refreshed when a

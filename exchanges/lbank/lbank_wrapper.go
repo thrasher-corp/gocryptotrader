@@ -219,7 +219,7 @@ func (l *Lbank) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Pri
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (l *Lbank) FetchOrderbook(currency currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (l *Lbank) FetchOrderbook(currency *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(l.Name, currency, assetType)
 	if err != nil {
 		return l.UpdateOrderbook(currency, assetType)
@@ -311,7 +311,7 @@ func (l *Lbank) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (l *Lbank) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (l *Lbank) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -351,7 +351,7 @@ func (l *Lbank) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (l *Lbank) CancelOrder(order *order.Cancel) error {
-	_, err := l.RemoveOrder(l.FormatExchangeCurrency(order.CurrencyPair,
+	_, err := l.RemoveOrder(l.FormatExchangeCurrency(order.Pair,
 		order.AssetType).String(), order.OrderID)
 	return err
 }
@@ -365,7 +365,7 @@ func (l *Lbank) CancelAllOrders(orders *order.Cancel) (order.CancelAllResponse, 
 	}
 
 	for key := range orderIDs {
-		if key != orders.CurrencyPair.String() {
+		if key != orders.Pair.String() {
 			continue
 		}
 		var x, y = 0, 0
@@ -431,7 +431,7 @@ func (l *Lbank) GetOrderInfo(orderID string) (order.Detail, error) {
 				return resp, err
 			}
 			resp.Exchange = l.Name
-			resp.CurrencyPair, err = currency.NewPairFromString(key)
+			resp.Pair, err = currency.NewPairFromString(key)
 			if err != nil {
 				return order.Detail{}, err
 			}
@@ -519,7 +519,7 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]ord
 				return finalResp, err
 			}
 			resp.Exchange = l.Name
-			resp.CurrencyPair, err = currency.NewPairFromString(key)
+			resp.Pair, err = currency.NewPairFromString(key)
 			if err != nil {
 				return nil, err
 			}
@@ -603,7 +603,7 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]ord
 			}
 			for x := 0; x < len(tempResp.Orders); x++ {
 				resp.Exchange = l.Name
-				resp.CurrencyPair, err = currency.NewPairFromString(tempResp.Orders[x].Symbol)
+				resp.Pair, err = currency.NewPairFromString(tempResp.Orders[x].Symbol)
 				if err != nil {
 					return nil, err
 				}

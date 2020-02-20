@@ -771,7 +771,7 @@ func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) (*Cance
 	return response, err
 }
 
-func (c *COINUT) wsGetTradeHistory(p currency.Pair, start, limit int64) (*WsTradeHistoryResponse, error) {
+func (c *COINUT) wsGetTradeHistory(p *currency.Pair, start, limit int64) (*WsTradeHistoryResponse, error) {
 	var response *WsTradeHistoryResponse
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return response, fmt.Errorf("%v not authorised to get trade history", c.Name)

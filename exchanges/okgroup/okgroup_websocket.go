@@ -357,7 +357,7 @@ func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 		if err != nil {
 			for i := range response.Data {
 				a := o.GetAssetTypeFromTableName(response.Table)
-				var c currency.Pair
+				var c *currency.Pair
 				switch a {
 				case asset.Futures, asset.PerpetualSwap:
 					f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
@@ -401,7 +401,7 @@ func logDataResponse(response *WebsocketDataResponse, exchangeName string) {
 func (o *OKGroup) wsProcessTickers(response *WebsocketDataResponse) {
 	for i := range response.Data {
 		a := o.GetAssetTypeFromTableName(response.Table)
-		var c currency.Pair
+		var c *currency.Pair
 		switch a {
 		case asset.Futures, asset.PerpetualSwap:
 			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
@@ -433,7 +433,7 @@ func (o *OKGroup) wsProcessTickers(response *WebsocketDataResponse) {
 func (o *OKGroup) wsProcessTrades(response *WebsocketDataResponse) {
 	for i := range response.Data {
 		a := o.GetAssetTypeFromTableName(response.Table)
-		var c currency.Pair
+		var c *currency.Pair
 		switch a {
 		case asset.Futures, asset.PerpetualSwap:
 			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
@@ -459,7 +459,7 @@ func (o *OKGroup) wsProcessTrades(response *WebsocketDataResponse) {
 func (o *OKGroup) wsProcessCandles(response *WebsocketDataResponse) {
 	for i := range response.Data {
 		a := o.GetAssetTypeFromTableName(response.Table)
-		var c currency.Pair
+		var c *currency.Pair
 		switch a {
 		case asset.Futures, asset.PerpetualSwap:
 			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
@@ -526,7 +526,7 @@ func (o *OKGroup) wsProcessCandles(response *WebsocketDataResponse) {
 func (o *OKGroup) WsProcessOrderBook(response *WebsocketDataResponse) (err error) {
 	for i := range response.Data {
 		a := o.GetAssetTypeFromTableName(response.Table)
-		var c currency.Pair
+		var c *currency.Pair
 		switch a {
 		case asset.Futures, asset.PerpetualSwap:
 			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
@@ -573,7 +573,7 @@ func (o *OKGroup) AppendWsOrderbookItems(entries [][]interface{}) ([]orderbook.I
 
 // WsProcessPartialOrderBook takes websocket orderbook data and creates an orderbook
 // Calculates checksum to ensure it is valid
-func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, instrument currency.Pair, a asset.Item) error {
+func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, instrument *currency.Pair, a asset.Item) error {
 	signedChecksum := o.CalculatePartialOrderbookChecksum(wsEventData)
 	if signedChecksum != wsEventData.Checksum {
 		return fmt.Errorf("%s channel: %s. Orderbook partial for %v checksum invalid",
@@ -622,7 +622,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, i
 
 // WsProcessUpdateOrderbook updates an existing orderbook using websocket data
 // After merging WS data, it will sort, validate and finally update the existing orderbook
-func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, instrument currency.Pair, a asset.Item) error {
+func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, instrument *currency.Pair, a asset.Item) error {
 	update := wsorderbook.WebsocketOrderbookUpdate{
 		Asset:      a,
 		Pair:       instrument,
@@ -733,12 +733,20 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 		switch assets[x] {
 		case asset.Spot:
 			for i := range enabledCurrencies {
+				fpair, err := o.FormatExchangeCurrency(enabledCurrencies[i],
+					asset.Spot)
+				if err != nil {
+					log.Errorf(log.WebsocketMgr,
+						"%s could not generate default subscriptions Err: %s",
+						o.Name,
+						err)
+					return
+				}
 				for y := range defaultSpotSubscribedChannels {
 					subscriptions = append(subscriptions,
 						wshandler.WebsocketChannelSubscription{
-							Channel: defaultSpotSubscribedChannels[y],
-							Currency: o.FormatExchangeCurrency(enabledCurrencies[i],
-								asset.Spot),
+							Channel:  defaultSpotSubscribedChannels[y],
+							Currency: fpair,
 						})
 				}
 			}
@@ -757,12 +765,20 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 			}
 		case asset.Futures:
 			for i := range enabledCurrencies {
+				fpair, err := o.FormatExchangeCurrency(enabledCurrencies[i],
+					asset.Futures)
+				if err != nil {
+					log.Errorf(log.WebsocketMgr,
+						"%s could not generate default subscriptions Err: %s",
+						o.Name,
+						err)
+					return
+				}
 				for y := range defaultFuturesSubscribedChannels {
 					subscriptions = append(subscriptions,
 						wshandler.WebsocketChannelSubscription{
-							Channel: defaultFuturesSubscribedChannels[y],
-							Currency: o.FormatExchangeCurrency(enabledCurrencies[i],
-								asset.Futures),
+							Channel:  defaultFuturesSubscribedChannels[y],
+							Currency: fpair,
 						})
 				}
 			}
@@ -781,12 +797,20 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 			}
 		case asset.PerpetualSwap:
 			for i := range enabledCurrencies {
+				fpair, err := o.FormatExchangeCurrency(enabledCurrencies[i],
+					asset.PerpetualSwap)
+				if err != nil {
+					log.Errorf(log.WebsocketMgr,
+						"%s could not generate default subscriptions Err: %s",
+						o.Name,
+						err)
+					return
+				}
 				for y := range defaultSwapSubscribedChannels {
 					subscriptions = append(subscriptions,
 						wshandler.WebsocketChannelSubscription{
-							Channel: defaultSwapSubscribedChannels[y],
-							Currency: o.FormatExchangeCurrency(enabledCurrencies[i],
-								asset.PerpetualSwap),
+							Channel:  defaultSwapSubscribedChannels[y],
+							Currency: fpair,
 						})
 				}
 			}
@@ -805,11 +829,20 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 			}
 		case asset.Index:
 			for i := range enabledCurrencies {
+				fpair, err := o.FormatExchangeCurrency(enabledCurrencies[i],
+					asset.Index)
+				if err != nil {
+					log.Errorf(log.WebsocketMgr,
+						"%s could not generate default subscriptions Err: %s",
+						o.Name,
+						err)
+					return
+				}
 				for y := range defaultIndexSubscribedChannels {
 					subscriptions = append(subscriptions,
 						wshandler.WebsocketChannelSubscription{
 							Channel:  defaultIndexSubscribedChannels[y],
-							Currency: o.FormatExchangeCurrency(enabledCurrencies[i], asset.Index),
+							Currency: fpair,
 						})
 				}
 			}

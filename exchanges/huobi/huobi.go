@@ -67,7 +67,7 @@ type HUOBI struct {
 }
 
 // GetHistoricCandles returns rangesize number of candles for the given granularity and pair starting from the latest available
-func (h *HUOBI) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
+func (h *HUOBI) GetHistoricCandles(pair *currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -817,7 +817,7 @@ func (h *HUOBI) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return fee, nil
 }
 
-func calculateTradingFee(c currency.Pair, price, amount float64) float64 {
+func calculateTradingFee(c *currency.Pair, price, amount float64) float64 {
 	if c.IsCryptoFiatPair() {
 		return 0.001 * price * amount
 	}

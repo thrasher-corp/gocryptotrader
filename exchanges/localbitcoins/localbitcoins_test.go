@@ -249,7 +249,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
-		Pair: currency.Pair{
+		Pair: &currency.Pair{
 			Base:  currency.BTC,
 			Quote: currency.EUR,
 		},
@@ -280,7 +280,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currency.NewPair(currency.LTC, currency.BTC),
+		Pair:          currency.NewPair(currency.LTC, currency.BTC),
 	}
 
 	err := l.CancelOrder(orderCancellation)
@@ -304,7 +304,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currency.NewPair(currency.LTC, currency.BTC),
+		Pair:          currency.NewPair(currency.LTC, currency.BTC),
 	}
 
 	resp, err := l.CancelAllOrders(orderCancellation)

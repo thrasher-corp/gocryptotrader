@@ -350,7 +350,7 @@ func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
-		Currencies: []currency.Pair{
+		Currencies: []*currency.Pair{
 			currency.NewPair(currency.LTC, currency.BTC),
 		},
 	}
@@ -370,7 +370,7 @@ func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType:  order.AnyType,
-		Currencies: []currency.Pair{currency.NewPair(currency.LTC, currency.BTC)},
+		Currencies: []*currency.Pair{currency.NewPair(currency.LTC, currency.BTC)},
 	}
 
 	_, err := g.GetOrderHistory(&getOrdersRequest)
@@ -397,7 +397,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
-		Pair: currency.Pair{
+		Pair: &currency.Pair{
 			Delimiter: "_",
 			Base:      currency.LTC,
 			Quote:     currency.BTC,
@@ -451,7 +451,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	resp, err := g.CancelAllOrders(orderCancellation)

@@ -240,7 +240,7 @@ func (h *HUOBI) Run() {
 				err)
 			return
 		}
-		enabledPairs := currency.Pairs{currency.Pair{
+		enabledPairs := currency.Pairs{&currency.Pair{
 			Base:      currency.BTC.Lower(),
 			Quote:     currency.USDT.Lower(),
 			Delimiter: format.Delimiter,
@@ -523,7 +523,7 @@ func (h *HUOBI) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (h *HUOBI) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (h *HUOBI) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -667,7 +667,7 @@ func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
 		Exchange:       h.Name,
 		ID:             strconv.FormatInt(respData.ID, 10),
 		AccountID:      strconv.FormatInt(respData.AccountID, 10),
-		CurrencyPair:   p,
+		Pair:           p,
 		OrderType:      orderType,
 		OrderSide:      orderSide,
 		OrderDate:      time.Unix(0, respData.CreatedAt*int64(time.Millisecond)),
@@ -759,7 +759,7 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 					Exchange:        h.Name,
 					AccountID:       strconv.FormatInt(resp.Data[j].AccountID, 10),
 					ID:              strconv.FormatInt(resp.Data[j].OrderID, 10),
-					CurrencyPair:    req.Currencies[i],
+					Pair:            req.Currencies[i],
 					OrderType:       orderType,
 					OrderSide:       orderSide,
 					OrderDate:       time.Unix(0, resp.Data[j].CreatedAt*int64(time.Millisecond)),
@@ -787,7 +787,7 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 					ID:             strconv.FormatInt(resp[i].ID, 10),
 					Price:          resp[i].Price,
 					Amount:         resp[i].Amount,
-					CurrencyPair:   req.Currencies[i],
+					Pair:           req.Currencies[i],
 					Exchange:       h.Name,
 					ExecutedAmount: resp[i].FilledAmount,
 					OrderDate:      time.Unix(0, resp[i].CreatedAt*int64(time.Millisecond)),
@@ -834,7 +834,7 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 				ID:             strconv.FormatInt(resp[i].ID, 10),
 				Price:          resp[i].Price,
 				Amount:         resp[i].Amount,
-				CurrencyPair:   req.Currencies[i],
+				Pair:           req.Currencies[i],
 				Exchange:       h.Name,
 				ExecutedAmount: resp[i].FilledAmount,
 				OrderDate:      time.Unix(0, resp[i].CreatedAt*int64(time.Millisecond)),

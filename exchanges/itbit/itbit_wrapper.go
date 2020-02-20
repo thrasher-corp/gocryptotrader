@@ -305,7 +305,7 @@ func (i *ItBit) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (i *ItBit) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (i *ItBit) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -447,7 +447,7 @@ func (i *ItBit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 
 	var allOrders []Order
 	for x := range wallets {
-		var resp Order
+		var resp []Order
 		resp, err = i.GetOrders(wallets[x].ID, "", "open", 0, 0)
 		if err != nil {
 			return nil, err
@@ -483,7 +483,7 @@ func (i *ItBit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 			RemainingAmount: (allOrders[j].Amount - allOrders[j].AmountFilled),
 			Exchange:        i.Name,
 			OrderDate:       orderDate,
-			CurrencyPair:    symbol,
+			Pair:            symbol,
 		})
 	}
 
@@ -503,7 +503,7 @@ func (i *ItBit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 
 	var allOrders []Order
 	for x := range wallets {
-		var resp Order
+		var resp []Order
 		resp, err = i.GetOrders(wallets[x].ID, "", "", 0, 0)
 		if err != nil {
 			return nil, err
@@ -543,7 +543,7 @@ func (i *ItBit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 			RemainingAmount: (allOrders[j].Amount - allOrders[j].AmountFilled),
 			Exchange:        i.Name,
 			OrderDate:       orderDate,
-			CurrencyPair:    symbol,
+			Pair:            symbol,
 		})
 	}
 
