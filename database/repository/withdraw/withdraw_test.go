@@ -139,18 +139,29 @@ func withdrawHelper(t *testing.T) {
 
 	wg.Wait()
 	_, err := GetEventByUUID(withdraw.DryRunID.String())
-	if err == nil {
+	if err != nil {
 		if !errors.Is(err, ErrNoResults) {
 			t.Fatal(err)
 		}
 	}
-	_, err = GetEventByExchangeID("test-1", "test-1", 1)
+
+	v, err := GetEventsByExchange("test-1", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = GetEventsByExchange("test-1", 10)
+
+	_, err = GetEventByExchangeID("test-1", "test-1", 10)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if len(v) > 0 {
+		_, err = GetEventByUUID(v[0].ID.String())
+		if err != nil {
+			if !errors.Is(err, ErrNoResults) {
+				t.Fatal(err)
+			}
+		}
 	}
 
 	_, err = GetEventsByDate("test-1", time.Now().UTC().Add(-time.Minute), time.Now().UTC(), 5)

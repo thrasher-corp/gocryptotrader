@@ -303,7 +303,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 
 			updatedAtTime, err := time.Parse("2006-01-02T15:04:05Z", v[x].UpdatedAt)
 			if err != nil {
-				log.Errorf(log.DatabaseMgr, "record: %v has an incorrect time format (  %v ) - defaulting to empty time: %v", tempResp.ID, tempResp.UpdatedAt, err)
+				log.Errorf(log.DatabaseMgr, "record: %v has an incorrect time format ( %v ) - defaulting to empty time: %v", tempResp.ID, tempResp.UpdatedAt, err)
 				tempResp.UpdatedAt = time.Time{}
 			} else {
 				tempResp.UpdatedAt = updatedAtTime.UTC()
