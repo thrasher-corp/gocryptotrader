@@ -152,8 +152,8 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 		Currency:     res.RequestDetails.Currency.String(),
 		Amount:       res.RequestDetails.Amount,
 		WithdrawType: int64(res.RequestDetails.Type),
-		CreatedAt:  time.Now().UTC().String(),
-		UpdatedAt:  time.Now().UTC().String(),
+		CreatedAt:    time.Now().UTC().String(),
+		UpdatedAt:    time.Now().UTC().String(),
 	}
 
 	if res.RequestDetails.Description != "" {
