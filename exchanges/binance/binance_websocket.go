@@ -35,9 +35,12 @@ func (b *Binance) WsConnect() error {
 
 	var dialer websocket.Dialer
 	var err error
-	listenKey, err = b.GetWsAuthStreamKey()
-	if err != nil {
-		b.Websocket.DataHandler <- err
+	if b.Websocket.CanUseAuthenticatedEndpoints() {
+		listenKey, err = b.GetWsAuthStreamKey()
+		if err != nil {
+			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			log.Errorf(log.ExchangeSys, "%v unable to connect to authenticated Websocket. Error: %s", b.Name, err)
+		}
 	}
 
 	pairs := b.GetEnabledPairs(asset.Spot).Strings()
@@ -150,16 +153,16 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	if _, ok := multiStreamData["method"]; ok {
-		if strings.EqualFold(multiStreamData["method"].(string), "subscribe") {
+	if method, ok := multiStreamData["method"].(string); ok {
+		if strings.EqualFold(method, "subscribe") {
 			return nil
 		}
-		if strings.EqualFold(multiStreamData["method"].(string), "unsubscribe") {
+		if strings.EqualFold(method, "unsubscribe") {
 			return nil
 		}
 	}
-	if _, ok := multiStreamData["e"]; ok {
-		switch multiStreamData["e"].(string) {
+	if e, ok := multiStreamData["e"].(string); ok {
+		switch e {
 		case "outboundAccountInfo":
 			var data wsAccountInfo
 			err := json.Unmarshal(respRaw, &data)
@@ -213,8 +216,15 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					Err:      err,
 				}
 			}
-			ts := time.Unix(data.OrderCreationTime, 0)
-
+			var oStatus order.Status
+			oStatus, err = stringToOrderStatus(data.CurrentExecutionType)
+			if err != nil {
+				b.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: b.Name,
+					OrderID:  orderID,
+					Err:      err,
+				}
+			}
 			b.Websocket.DataHandler <- &order.Detail{
 				Price:           data.Price,
 				Amount:          data.Quantity,
@@ -224,9 +234,9 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				ID:              orderID,
 				Type:            oType,
 				Side:            oSide,
-				Status:          executionTypeToOrderStatus(data.CurrentExecutionType),
+				Status:          oStatus,
 				AssetType:       asset.Spot,
-				Date:            ts,
+				Date:            time.Unix(0, data.OrderCreationTime*int64(time.Millisecond)),
 				Pair:            currency.NewPairFromString(data.Symbol),
 			}
 		case "listStatus":
@@ -243,11 +253,11 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 			return nil
 		}
 	}
-	if _, ok := multiStreamData["stream"]; ok {
-		streamType := strings.Split(multiStreamData["stream"].(string), "@")
+	if stream, ok := multiStreamData["stream"].(string); ok {
+		streamType := strings.Split(stream, "@")
 		if len(streamType) > 1 {
-			if _, ok := multiStreamData["data"]; ok {
-				rawData, err := json.Marshal(multiStreamData["data"])
+			if data, ok := multiStreamData["data"]; ok {
+				rawData, err := json.Marshal(data)
 				if err != nil {
 					return err
 				}
@@ -366,20 +376,20 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func executionTypeToOrderStatus(executionType string) order.Status {
-	switch executionType {
+func stringToOrderStatus(status string) (order.Status, error) {
+	switch status {
 	case "NEW":
-		return order.New
+		return order.New, nil
 	case "CANCELLED":
-		return order.Cancelled
+		return order.Cancelled, nil
 	case "REJECTED":
-		return order.Rejected
+		return order.Rejected, nil
 	case "TRADE":
-		return order.PartiallyFilled
+		return order.PartiallyFilled, nil
 	case "EXPIRED":
-		return order.Expired
+		return order.Expired, nil
 	default:
-		return order.UnknownStatus
+		return order.UnknownStatus, errors.New(status + " not recognised as order status")
 	}
 }
 

@@ -713,9 +713,7 @@ func (b *Binance) MaintainWsAuthStreamKey() error {
 	var err error
 	if listenKey == "" {
 		listenKey, err = b.GetWsAuthStreamKey()
-		if err != nil {
-			return err
-		}
+		return err
 	}
 	path := b.API.Endpoints.URL + userAccountStream
 	params := url.Values{}

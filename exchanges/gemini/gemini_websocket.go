@@ -189,6 +189,24 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 					Err:      err,
 				}
 			}
+			var oType order.Type
+			oType, err = stringToOrderType(result[i].OrderType)
+			if err != nil {
+				g.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: g.Name,
+					OrderID:  result[i].OrderID,
+					Err:      err,
+				}
+			}
+			var oStatus order.Status
+			oStatus, err = stringToOrderStatus(result[i].Type)
+			if err != nil {
+				g.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: g.Name,
+					OrderID:  result[i].OrderID,
+					Err:      err,
+				}
+			}
 			g.Websocket.DataHandler <- &order.Detail{
 				HiddenOrder:     result[i].IsHidden,
 				Price:           result[i].Price,
@@ -197,9 +215,9 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 				RemainingAmount: result[i].RemainingAmount,
 				Exchange:        g.Name,
 				ID:              result[i].OrderID,
-				Type:            responseToOrderType(result[i].OrderType),
+				Type:            oType,
 				Side:            oSide,
-				Status:          responseToStatus(result[i].Type),
+				Status:          oStatus,
 				AssetType:       asset.Spot,
 				Date:            time.Unix(0, result[i].Timestampms*int64(time.Millisecond)),
 				Pair:            currency.NewPairFromString(result[i].Symbol),
@@ -301,34 +319,34 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 	return nil
 }
 
-func responseToStatus(response string) order.Status {
-	switch response {
+func stringToOrderStatus(status string) (order.Status, error) {
+	switch status {
 	case "accepted":
-		return order.New
+		return order.New, nil
 	case "booked":
-		return order.Active
+		return order.Active, nil
 	case "fill":
-		return order.Filled
+		return order.Filled, nil
 	case "cancelled":
-		return order.Cancelled
+		return order.Cancelled, nil
 	case "cancel_rejected":
-		return order.Rejected
+		return order.Rejected, nil
 	case "closed":
-		return order.Filled
+		return order.Filled, nil
 	default:
-		return order.UnknownStatus
+		return order.UnknownStatus, errors.New(status + " not recognised as order status")
 	}
 }
 
-func responseToOrderType(response string) order.Type {
-	switch response {
+func stringToOrderType(oType string) (order.Type, error) {
+	switch oType {
 	case "exchange limit", "auction-only limit", "indication-of-interest limit":
-		return order.Limit
+		return order.Limit, nil
 		// block trades are conducted off order-book, so their type is market, but would be considered a hidden trade
 	case "market buy", "market sell", "block_trade":
-		return order.Market
+		return order.Market, nil
 	default:
-		return order.UnknownType
+		return order.UnknownType, errors.New(oType + " not recognised as order type")
 	}
 }
 

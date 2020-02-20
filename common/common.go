@@ -42,6 +42,9 @@ const (
 	WeiPerEther    = 1000000000000000000
 )
 
+// SimpleTimeFormat a common, but non-implemented time format in golang
+const SimpleTimeFormat = "2006-01-02 15:04:05"
+
 func initialiseHTTPClient() {
 	// If the HTTPClient isn't set, start a new client with a default timeout of 15 seconds
 	if HTTPClient == nil {

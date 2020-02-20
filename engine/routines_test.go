@@ -28,11 +28,7 @@ func TestHandleData(t *testing.T) {
 	OrdersSetup(t)
 	var exchName = "exch"
 	var orderID = "testOrder.Detail"
-	err := WebsocketDataHandler(exchName, wshandler.WebsocketNotEnabled)
-	if err == nil {
-		t.Error("Expected error")
-	}
-	err = WebsocketDataHandler(exchName, errors.New("error"))
+	err := WebsocketDataHandler(exchName, errors.New("error"))
 	if err == nil {
 		t.Error("Error not handled correctly")
 	}

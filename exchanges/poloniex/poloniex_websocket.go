@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -166,7 +167,7 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 									p.Websocket.DataHandler <- response
 								case "n":
 									var timeParse time.Time
-									timeParse, err = time.Parse("2006-01-02 15:04:05", notification[6].(string))
+									timeParse, err = time.Parse(common.SimpleTimeFormat, notification[6].(string))
 									if err != nil {
 										return err
 									}
@@ -225,7 +226,7 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 									p.Websocket.DataHandler <- response
 								case "t":
 									var timeParse time.Time
-									timeParse, err = time.Parse("2006-01-02 15:04:05", notification[8].(string))
+									timeParse, err = time.Parse(common.SimpleTimeFormat, notification[8].(string))
 									if err != nil {
 										return err
 									}
@@ -323,7 +324,10 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 						var trade WsTrade
 						trade.Symbol = currencyIDMap[channelID]
 						dataL3 := dataL2.([]interface{})
-						trade.TradeID, _ = strconv.ParseInt(dataL3[1].(string), 10, 64)
+						trade.TradeID, err = strconv.ParseInt(dataL3[1].(string), 10, 64)
+						if err != nil {
+							return err
+						}
 						side := order.Buy
 						if dataL3[2].(float64) != 1 {
 							side = order.Sell

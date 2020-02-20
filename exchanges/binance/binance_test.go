@@ -782,7 +782,7 @@ func TestExecutionTypeToOrderStatus(t *testing.T) {
 		{Case: "LOL", Result: order.UnknownStatus},
 	}
 	for i := range testCases {
-		result := executionTypeToOrderStatus(testCases[i].Case)
+		result, _ := stringToOrderStatus(testCases[i].Case)
 		if result != testCases[i].Result {
 			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
 		}

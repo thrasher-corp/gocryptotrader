@@ -281,9 +281,6 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 	switch d := data.(type) {
 	case string:
 		switch d {
-		case wshandler.WebsocketNotEnabled:
-			return fmt.Errorf("routines.go - exchange %s websocket not enabled",
-				exchName)
 		default:
 			log.Info(log.WebsocketMgr, d)
 		}

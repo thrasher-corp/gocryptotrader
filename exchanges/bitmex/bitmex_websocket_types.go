@@ -185,8 +185,8 @@ type WsTransactResponse struct {
 
 // WsTransactResponseAttributes private api data
 type WsTransactResponseAttributes struct {
-	TransactID   string    `json:"transactID"`
-	TransactTime time.Time `json:"transactTime"`
+	TransactID   string `json:"transactID"`
+	TransactTime string `json:"transactTime"`
 }
 
 // WsTransactResponseFilter private api data
@@ -218,7 +218,7 @@ type WsWalletResponseData struct {
 	PrevTransferIn   float64       `json:"prevTransferIn"`
 	PrevTransferOut  float64       `json:"prevTransferOut"`
 	PrevAmount       float64       `json:"prevAmount"`
-	PrevTimestamp    time.Time     `json:"prevTimestamp"`
+	PrevTimestamp    string        `json:"prevTimestamp"`
 	DeltaDeposited   float64       `json:"deltaDeposited"`
 	DeltaWithdrawn   float64       `json:"deltaWithdrawn"`
 	DeltaTransferIn  float64       `json:"deltaTransferIn"`
@@ -232,7 +232,7 @@ type WsWalletResponseData struct {
 	PendingCredit    float64       `json:"pendingCredit"`
 	PendingDebit     float64       `json:"pendingDebit"`
 	ConfirmedDebit   int64         `json:"confirmedDebit"`
-	Timestamp        time.Time     `json:"timestamp"`
+	Timestamp        string        `json:"timestamp"`
 	Addr             string        `json:"addr"`
 	Script           string        `json:"script"`
 	WithdrawalLock   []interface{} `json:"withdrawalLock"`
@@ -304,10 +304,10 @@ type wsExecutionData struct {
 
 // WsExecutionResponseAttributes private api data
 type WsExecutionResponseAttributes struct {
-	ExecID       string    `json:"execID"`
-	Account      string    `json:"account"`
-	ExecType     string    `json:"execType"`
-	TransactTime time.Time `json:"transactTime"`
+	ExecID       string `json:"execID"`
+	Account      string `json:"account"`
+	ExecType     string `json:"execType"`
+	TransactTime string `json:"transactTime"`
 }
 
 // WsExecutionResponseFilter private api data

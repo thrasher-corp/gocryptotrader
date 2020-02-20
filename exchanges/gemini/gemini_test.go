@@ -1033,7 +1033,7 @@ func TestResponseToStatus(t *testing.T) {
 		{Case: "LOL", Result: order.UnknownStatus},
 	}
 	for i := range testCases {
-		result := responseToStatus(testCases[i].Case)
+		result, _ := stringToOrderStatus(testCases[i].Case)
 		if result != testCases[i].Result {
 			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
 		}
@@ -1055,7 +1055,7 @@ func TestResponseToOrderType(t *testing.T) {
 		{Case: "LOL", Result: order.UnknownType},
 	}
 	for i := range testCases {
-		result := responseToOrderType(testCases[i].Case)
+		result, _ := stringToOrderType(testCases[i].Case)
 		if result != testCases[i].Result {
 			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
 		}

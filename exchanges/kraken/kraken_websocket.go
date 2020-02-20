@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -29,7 +28,7 @@ const (
 	krakenWSURL              = "wss://ws.kraken.com"
 	krakenAuthWSURL          = "wss://ws-auth.kraken.com"
 	krakenWSSandboxURL       = "wss://sandbox.kraken.com"
-	krakenWSSupportedVersion = "0.3.0"
+	krakenWSSupportedVersion = "1.0.0"
 	// WS endpoints
 	krakenWsHeartbeat          = "heartbeat"
 	krakenWsSystemStatus       = "systemStatus"
@@ -202,16 +201,16 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 				if err != nil {
 					return fmt.Errorf("%s - err %s unable to parse subscription response: %s", k.Name, err, respRaw)
 				}
+				if sub.Status != "subscribed" && sub.Status != "unsubscribed" {
+					return fmt.Errorf("%v %v %v", k.Name, sub.RequestID, sub.ErrorMessage)
+				}
+				k.addNewSubscriptionChannelData(&sub)
 				if sub.RequestID > 0 {
 					if k.WebsocketConn.IsIDWaitingForResponse(sub.RequestID) {
 						k.WebsocketConn.SetResponseIDAndData(sub.RequestID, respRaw)
 						return nil
 					}
 				}
-				if sub.Status != "subscribed" && sub.Status != "unsubscribed" {
-					return fmt.Errorf("%v %v %v", k.Name, sub.RequestID, sub.ErrorMessage)
-				}
-				k.addNewSubscriptionChannelData(&sub)
 			default:
 				k.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: k.Name + wshandler.UnhandledMessage + string(respRaw)}
 			}
