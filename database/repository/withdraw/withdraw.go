@@ -295,7 +295,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 				Type:        withdraw.RequestType(v[x].WithdrawType),
 			}
 
-			createdAtTime, err := time.Parse("2006-01-02T15:04:05Z", v[x].CreatedAt)
+			createdAtTime, err := time.Parse(time.RFC3339, v[x].CreatedAt)
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "record: %v has an incorrect time format ( %v ) - defaulting to empty time: %v", tempResp.ID, v[x].CreatedAt, err)
 				tempResp.CreatedAt = time.Time{}
@@ -303,7 +303,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 				tempResp.CreatedAt = createdAtTime
 			}
 
-			updatedAtTime, err := time.Parse("2006-01-02T15:04:05Z", v[x].UpdatedAt)
+			updatedAtTime, err := time.Parse(time.RFC3339, v[x].UpdatedAt)
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "record: %v has an incorrect time format ( %v ) - defaulting to empty time: %v", tempResp.ID, v[x].UpdatedAt, err)
 				tempResp.UpdatedAt = time.Time{}
