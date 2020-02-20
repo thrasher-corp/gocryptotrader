@@ -2347,25 +2347,25 @@ func withdrawFiatFunds(c *cli.Context) error {
 		return errInvalidExchange
 	}
 
-	if !c.IsSet("currency") {
-		if c.Args().Get(1) != "" {
-			cur = c.Args().Get(1)
+	if c.IsSet("currency") {
+		cur = c.String("currency")
+	} else if c.Args().Get(1) != "" {
+		cur = c.Args().Get(1)
+	}
+
+	if c.IsSet("amount") {
+		amount = c.Float64("amount")
+	} else if c.Args().Get(2) != "" {
+		amountStr, err := strconv.ParseFloat(c.Args().Get(2), 64)
+		if err == nil {
+			amount = amountStr
 		}
 	}
 
-	if !c.IsSet("amount") {
-		if c.Args().Get(2) != "" {
-			amountStr, err := strconv.ParseFloat(c.Args().Get(2), 64)
-			if err == nil {
-				amount = amountStr
-			}
-		}
-	}
-
-	if !c.IsSet("bankaccountid") {
-		if c.Args().Get(3) != "" {
-			bankAccountID = c.Args().Get(3)
-		}
+	if c.IsSet("bankaccountid") {
+		bankAccountID = c.String("bankaccountid")
+	} else if c.Args().Get(3) != "" {
+		bankAccountID = c.Args().Get(3)
 	}
 
 	if c.IsSet("description") {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
@@ -23,12 +24,7 @@ func GetBankAccountByID(id string) (*Account, error) {
 // ExchangeSupported Checks if exchange is supported by bank account
 func (b *Account) ExchangeSupported(exchange string) bool {
 	exchList := strings.Split(b.SupportedExchanges, ",")
-	for x := range exchList {
-		if exchList[x] == exchange {
-			return true
-		}
-	}
-	return false
+	return common.StringDataCompareInsensitive(exchList, exchange)
 }
 
 // Validate validates bank account settings
