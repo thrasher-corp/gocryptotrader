@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/golang/protobuf/ptypes"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpcruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -1015,16 +1015,19 @@ func (s *RPCServer) WithdrawalEventByID(ctx context.Context, r *gctrpc.Withdrawa
 				Amount:      v.RequestDetails.Amount,
 				Type:        int32(v.RequestDetails.Type),
 			},
-			CreatedAt: &timestamp.Timestamp{
-				Seconds: int64(v.CreatedAt.Second()),
-				Nanos:   int32(v.CreatedAt.Nanosecond()),
-			},
-			UpdatedAt: &timestamp.Timestamp{
-				Seconds: int64(v.UpdatedAt.Second()),
-				Nanos:   int32(v.UpdatedAt.Nanosecond()),
-			},
 		},
 	}
+	createdAtPtype, err := ptypes.TimestampProto(v.CreatedAt)
+	if err != nil {
+		log.Errorf(log.Global, "failed to convert time: %v", err)
+	}
+	resp.Event.CreatedAt = createdAtPtype
+
+	updatedAtPtype, err := ptypes.TimestampProto(v.UpdatedAt)
+	if err != nil {
+		log.Errorf(log.Global, "failed to convert time: %v", err)
+	}
+	resp.Event.UpdatedAt = updatedAtPtype
 
 	if v.RequestDetails.Type == withdraw.Crypto {
 		resp.Event.Request.Crypto = new(gctrpc.CryptoWithdrawalEvent)
