@@ -940,7 +940,7 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 	request := &withdraw.Request{
 		Amount:      r.Amount,
 		Currency:    currency.NewCode(r.Currency),
-		Type:        withdraw.Fiat,
+		Type:        withdraw.Crypto,
 		Description: r.Description,
 		Crypto: &withdraw.CryptoRequest{
 			Address:    r.Address,
@@ -948,6 +948,7 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 			FeeAmount:  r.Fee,
 		},
 	}
+
 	resp, err := SubmitWithdrawal(r.Exchange, request)
 	if err != nil {
 		return nil, err

@@ -2246,7 +2246,7 @@ func withdrawCryptocurrencyFunds(c *cli.Context) error {
 		}
 	}
 
-	if !c.IsSet("address") {
+	if c.IsSet("address") {
 		address = c.String("address")
 	} else if c.Args().Get(3) != "" {
 		address = c.Args().Get(3)
