@@ -19,8 +19,33 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	a := m.Run()
-	os.Exit(a)
+	os.Exit(m.Run())
+}
+
+func TestCheckUpdates(t *testing.T) {
+	err := CheckUpdates(testJSONFile, &configData)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateFile(t *testing.T) {
+	err := UpdateFile(&configData, testJSONFile)
+	if err != nil {
+		t.Error(err)
+	}
+	realConf, err := ReadFileData(jsonFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	testConf, err := ReadFileData(testJSONFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if !reflect.DeepEqual(realConf, testConf) {
+		t.Log("test file update failed")
+		t.Fail()
+	}
 }
 
 func TestCheckExistingExchanges(t *testing.T) {
@@ -56,14 +81,6 @@ func TestAdd(t *testing.T) {
 	err := Add("WrongExch", htmlScrape, data2.Path, data2, false, &configData)
 	if err == nil {
 		t.Log("expected an error due to invalid path being parsed in")
-	}
-}
-
-func TestCheckUpdates(t *testing.T) {
-	t.Parallel()
-	err := CheckUpdates(testJSONFile, &configData)
-	if err != nil {
-		t.Error(err)
 	}
 }
 
@@ -443,26 +460,6 @@ func TestNameUpdates(t *testing.T) {
 	_, err := NameStateChanges("Gemini 24", "complete")
 	if err != nil {
 		t.Error(err)
-	}
-}
-
-func TestUpdateFile(t *testing.T) {
-	t.Parallel()
-	err := UpdateFile(&configData, testJSONFile)
-	if err != nil {
-		t.Error(err)
-	}
-	realConf, err := ReadFileData(jsonFile)
-	if err != nil {
-		log.Fatal(err)
-	}
-	testConf, err := ReadFileData(testJSONFile)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if !reflect.DeepEqual(realConf, testConf) {
-		t.Log("test file update failed")
-		t.Fail()
 	}
 }
 
