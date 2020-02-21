@@ -115,7 +115,7 @@ func main() {
 		data.DateFormat = dateFormat
 		data.RegExp = regExp
 		data.Path = path
-		err := Add(exchangeName, checkType, path, data, false, &configData)
+		err = Add(exchangeName, checkType, path, data, false, &configData)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -304,8 +304,9 @@ func CheckUpdates(fileName string, confData *Config) error {
 	if err != nil {
 		return err
 	}
+	var check bool
 	if AreAPIKeysSet() {
-		check, err := TrelloCheckBoardID(trelloUsername)
+		check, err = TrelloCheckBoardID(trelloUsername)
 		if err != nil {
 			return err
 		}
@@ -1288,6 +1289,9 @@ func TrelloGetChecklistItems() (ChecklistItemData, error) {
 // NameStateChanges returns the appropriate update name & state for trello (assumes single digit updates pending)
 func NameStateChanges(currentName, currentState string) (string, error) {
 	r, err := regexp.Compile(`[\s\S]* \d{1}$`) // nolint: gocritic
+	if err != nil {
+		return "", err
+	}
 	s, err := regexp.Compile(`[\s\S]* \d{2}$`) // nolint: gocritic
 	if err != nil {
 		return "", err
@@ -1329,8 +1333,7 @@ func NameStateChanges(currentName, currentState string) (string, error) {
 		byteNumber = []byte(finalNumber)
 		byteName = []byte(currentName)
 		byteName = byteName[:len(byteName)-2]
-		byteName = append(byteName, byteNumber[0])
-		byteName = append(byteName, byteNumber[1])
+		byteName = append(byteName, byteNumber[0], byteNumber[1])
 		return string(byteName), nil
 	}
 	return "", errors.New("invalid currentName or pending updates has exceeded 99")
