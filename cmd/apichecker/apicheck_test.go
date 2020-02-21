@@ -491,3 +491,14 @@ func TestSetAuthVars(t *testing.T) {
 		t.Errorf("incorrect key and token values")
 	}
 }
+
+func TestCheckBoardID(t *testing.T) {
+	t.Parallel()
+	if !AreAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := TrelloCheckBoardID("username")
+	if err != nil {
+		t.Error(err)
+	}
+}

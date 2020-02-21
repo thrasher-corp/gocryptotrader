@@ -53,6 +53,7 @@ const (
 	pathChecklists     = "https://api.trello.com/1/checklists/%s/checkItems?%s&key=%s&token=%s"
 	pathChecklistItems = "https://api.trello.com/1/checklists/%s?fields=name&cards=all&card_fields=name&key=%s&token=%s"
 	pathUpdateItems    = "https://api.trello.com/1/cards/%s/checkItem/%s?%s&key=%s&token=%s"
+	pathCheckBoardID   = "https://api.trello.com/1/members/%s/boards?key=%s&token=%s"
 	complete           = "complete"
 	incomplete         = "incomplete"
 )
@@ -69,9 +70,9 @@ type Config struct {
 }
 
 var (
-	verbose, add                                                                                                                                                                                     bool
-	apiKey, apiToken, trelloBoardID, trelloListID, trelloChecklistID, trelloCardID, exchangeName, checkType, tokenData, key, val, tokenDataEnd, textTokenData, dateFormat, regExp, checkString, path string
-	configData, testConfigData                                                                                                                                                                       Config
+	verbose, add                                                                                                                                                                                                     bool
+	apiKey, apiToken, trelloUsername, trelloBoardID, trelloListID, trelloChecklistID, trelloCardID, exchangeName, checkType, tokenData, key, val, tokenDataEnd, textTokenData, dateFormat, regExp, checkString, path string
+	configData, testConfigData                                                                                                                                                                                       Config
 )
 
 func main() {
@@ -81,6 +82,7 @@ func main() {
 	flag.StringVar(&trelloCardID, "cardid", "", "sets the card ID for Trello board interaction")
 	flag.StringVar(&trelloListID, "listid", "", "sets the list ID for Trello board interaction")
 	flag.StringVar(&trelloBoardID, "boardid", "", "sets the board ID for Trello board interaction")
+	flag.StringVar(&trelloUsername, "trelloUsername", "", "sets the username for Trello board interaction")
 	flag.StringVar(&exchangeName, "exchangeName", "", "sets the exchangeName for the new exchange")
 	flag.StringVar(&checkType, "checkType", "", "sets the checkType for the new exchange")
 	flag.StringVar(&tokenData, "tokendata", "", "sets the tokenData for adding a new exchange")
@@ -303,6 +305,13 @@ func CheckUpdates(fileName string, confData *Config) error {
 		return err
 	}
 	if AreAPIKeysSet() {
+		check, err := TrelloCheckBoardID(trelloUsername)
+		if err != nil {
+			return err
+		}
+		if !check {
+			return errors.New("incorrect boardID or api info")
+		}
 		var a ChecklistItemData
 		for y := range resp {
 			a, err = TrelloGetChecklistItems()
@@ -327,8 +336,8 @@ func CheckUpdates(fileName string, confData *Config) error {
 		fileName = testJSONFile
 		log.Println("Updating test file, main file & trello will not be automatically updated since API key & token are not set")
 	}
+	log.Printf("The following exchanges need an update: %v\n", resp)
 	if verbose {
-		log.Printf("The following exchanges need an update: %v\n", resp)
 		log.Printf("Errors: %v", errMap)
 		unsup := CheckMissingExchanges(&configData)
 		log.Printf("The following exchanges are not supported by apichecker: %v\n", unsup)
@@ -1247,6 +1256,26 @@ func TrelloCreateNewCheck(newCheck string) error {
 		pathChecklists+trelloChecklistID+params.Encode()+apiKey+apiToken,
 		nil)
 	return err
+}
+
+// TrelloCheckBoardID gets board id of the trello boards for a user which can be used for checking if a given board exists
+func TrelloCheckBoardID(username string) (bool, error) {
+	var data []MembersData
+	err := SendAuthReq(http.MethodGet,
+		fmt.Sprintf(pathCheckBoardID, username, apiKey, apiToken),
+		&data)
+	if err != nil {
+		return false, err
+	}
+	if data == nil {
+		return false, errors.New("no trello boards available for the given apikey and token")
+	}
+	for x := range data {
+		if trelloBoardID == data[x].ID {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // TrelloGetChecklistItems get info on all the items on a given checklist from trello

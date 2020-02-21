@@ -71,3 +71,9 @@ type ChecklistItemData struct {
 	Name       string     `json:"name"`
 	CheckItems []ItemData `json:"checkItems"`
 }
+
+// MembersData saves member's data which includes the boards accessible
+type MembersData struct {
+	Name string `json:"name"`
+	ID   string `json:"shortlink"`
+}
