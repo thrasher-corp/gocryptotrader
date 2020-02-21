@@ -17,6 +17,8 @@ const (
 	ErrWithdrawRequestNotFound = "%v not found"
 	// ErrRequestCannotbeNil message to display when request is nil
 	ErrRequestCannotbeNil = "request cannot be nil"
+	// StatusError const for for "error" string
+	StatusError = "error"
 )
 
 // SubmitWithdrawal preforms validation and submits a new withdraw request to exchange
@@ -25,11 +27,13 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 		return nil, errors.New(ErrRequestCannotbeNil)
 	}
 
+	var err error
+	var ret *withdraw.ExchangeResponse
 	if req.Exchange == "" {
 		req.Exchange = exchName
 	}
 
-	err := withdraw.Validate(req)
+	err = withdraw.Validate(req)
 	if err != nil {
 		return nil, err
 	}
@@ -53,24 +57,29 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 		resp.Exchange.ID = withdraw.DryRunID.String()
 	} else {
 		if req.Type == withdraw.Fiat {
-			v, errFiat := exch.WithdrawFiatFunds(req)
-			if errFiat != nil {
-				return nil, errFiat
-			}
-			resp.Exchange.Status = v.Status
-			resp.Exchange.ID = v.ID
-		} else if req.Type == withdraw.Crypto {
-			v, err := exch.WithdrawCryptocurrencyFunds(req)
+			ret, err = exch.WithdrawFiatFunds(req)
 			if err != nil {
-				return nil, err
+				resp.Exchange.ID = StatusError
+				resp.Exchange.Status = err.Error()
 			}
-			resp.Exchange.Status = v.Status
-			resp.Exchange.ID = v.ID
+			resp.Exchange.Status = ret.Status
+			resp.Exchange.ID = ret.ID
+		} else if req.Type == withdraw.Crypto {
+			ret, err = exch.WithdrawCryptocurrencyFunds(req)
+			if err != nil {
+				resp.Exchange.ID = StatusError
+				resp.Exchange.Status = err.Error()
+			} else {
+				resp.Exchange.Status = ret.Status
+				resp.Exchange.ID = ret.ID
+			}
 		}
 		withdrawDataStore.Event(resp)
 	}
 
-	withdraw.Cache.Add(resp.ID, resp)
+	if err == nil {
+		withdraw.Cache.Add(resp.ID, resp)
+	}
 	return resp, nil
 }
 
