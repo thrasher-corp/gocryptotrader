@@ -19,6 +19,11 @@ import (
 	"github.com/urfave/cli"
 )
 
+const timeFormat = "2006-01-02 15:04:05"
+
+var startTime, endTime, order string
+var limit int
+
 var getInfoCommand = cli.Command{
 	Name:   "getinfo",
 	Usage:  "gets GoCryptoTrader info",
@@ -2455,12 +2460,16 @@ var withdrawalRequestCommand = cli.Command{
 					Usage: "<exchange>",
 				},
 				cli.StringFlag{
-					Name:  "start",
-					Usage: "<start>",
+					Name:        "start",
+					Usage:       "<start>",
+					Value:       time.Now().Add(-time.Hour).Format(timeFormat),
+					Destination: &startTime,
 				},
 				cli.StringFlag{
-					Name:  "end",
-					Usage: "<end>",
+					Name:        "end",
+					Usage:       "<end>",
+					Value:       time.Now().Format(timeFormat),
+					Destination: &endTime,
 				},
 				cli.Int64Flag{
 					Name:  "limit",
@@ -2578,7 +2587,7 @@ func withdrawlRequestByDate(c *cli.Context) error {
 		return nil
 	}
 
-	var exchange, start, end string
+	var exchange string
 	var limit, limitStr int64
 	var err error
 	if c.IsSet("exchange") {
@@ -2587,16 +2596,16 @@ func withdrawlRequestByDate(c *cli.Context) error {
 		exchange = c.Args().First()
 	}
 
-	if c.IsSet("start") {
-		start = c.String("start")
-	} else {
-		start = c.Args().Get(1)
+	if !c.IsSet("start") {
+		if c.Args().Get(0) != "" {
+			startTime = c.Args().Get(1)
+		}
 	}
 
-	if c.IsSet("end") {
-		end = c.String("end")
-	} else {
-		end = c.Args().Get(2)
+	if !c.IsSet("end") {
+		if c.Args().Get(1) != "" {
+			endTime = c.Args().Get(2)
+		}
 	}
 
 	if c.IsSet("limit") {
@@ -2612,12 +2621,12 @@ func withdrawlRequestByDate(c *cli.Context) error {
 		limit = limitStr
 	}
 
-	s, err := time.Parse(timeFormat, start)
+	s, err := time.Parse(timeFormat, startTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
 
-	e, err := time.Parse(timeFormat, end)
+	e, err := time.Parse(timeFormat, endTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -3414,11 +3423,6 @@ func clearScreen() error {
 		return cmd.Run()
 	}
 }
-
-const timeFormat = "2006-01-02 15:04:05"
-
-var startTime, endTime, order string
-var limit int
 
 var getAuditEventCommand = cli.Command{
 	Name:      "getauditevent",
