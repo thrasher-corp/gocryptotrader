@@ -280,10 +280,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 	}
 	switch d := data.(type) {
 	case string:
-		switch d {
-		default:
-			log.Info(log.WebsocketMgr, d)
-		}
+		log.Info(log.WebsocketMgr, d)
 	case error:
 		return fmt.Errorf("routines.go exchange %s websocket error - %s", exchName, data)
 	case wshandler.TradeData:

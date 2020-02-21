@@ -31,7 +31,7 @@ type FakePassingExchange struct {
 func addPassingFakeExchange(baseExchangeName string) error {
 	testExch := GetExchangeByName(baseExchangeName)
 	if testExch == nil {
-
+		return ErrExchangeNotFound
 	}
 	base := testExch.GetBase()
 	Bot.Config.Exchanges = append(Bot.Config.Exchanges, config.ExchangeConfig{

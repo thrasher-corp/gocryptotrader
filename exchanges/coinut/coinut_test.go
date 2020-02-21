@@ -861,7 +861,7 @@ func TestWsOrder(t *testing.T) {
       ],
       "order_id":1,
       "open_qty": "0.01",
-      "inst_id":1,
+      "inst_id": 490590,
       "qty":"0.01",
       "client_ord_id": 1345,
       "order_price":"750.581",
@@ -884,7 +884,7 @@ func TestWsOrder(t *testing.T) {
     "nonce": 956475,
     "order": {
       "client_ord_id": 12345,
-      "inst_id": 1,
+      "inst_id": 490590,
       "open_qty": "0.00000000",
       "order_id": 721923,
       "price": "748.00000000",
@@ -912,7 +912,7 @@ func TestWsOrder(t *testing.T) {
     "order_id": 7171,
     "open_qty": "100000.00000000",
     "price": "750.60000000",
-    "inst_id": 1,
+    "inst_id": 490590,
     "reasons": [
         "NOT_ENOUGH_BALANCE"
     ],
@@ -939,7 +939,7 @@ func TestWsOrders(t *testing.T) {
     "order_id": 331,
     "open_qty": "0.01000000",
     "price": "750.58100000",
-    "inst_id": 1,
+    "inst_id": 490590,
     "client_ord_id": 1345,
     "timestamp": 1490713990542441,
     "reply": "order_accepted",
@@ -955,7 +955,7 @@ func TestWsOrders(t *testing.T) {
     "order_id": 332,
     "open_qty": "0.01000000",
     "price": "750.32100000",
-    "inst_id": 1,
+    "inst_id": 490590,
     "client_ord_id": 50001346,
     "timestamp": 1490713990542441,
     "reply": "order_accepted",
@@ -982,7 +982,7 @@ func TestWsOpenOrders(t *testing.T) {
             "order_id": 35,
             "open_qty": "0.01000000",
             "price": "750.58200000",
-            "inst_id": 1,
+            "inst_id": 490590,
             "client_ord_id": 4,
             "timestamp": 1481138766081720,
             "qty": "0.01000000",
@@ -992,7 +992,7 @@ func TestWsOpenOrders(t *testing.T) {
             "order_id": 30,
             "open_qty": "0.01000000",
             "price": "750.58100000",
-            "inst_id": 1,
+            "inst_id": 490590,
             "client_ord_id": 5,
             "timestamp": 1481137697919617,
             "qty": "0.01000000",
@@ -1033,13 +1033,13 @@ func TestWsCancelOrders(t *testing.T) {
     {
       "order_id": 329,
       "status": "OK",
-      "inst_id": 1,
+      "inst_id": 490590,
       "client_ord_id": 13561
     },
     {
       "order_id": 332,
       "status": "OK",
-      "inst_id": 1,
+      "inst_id": 490590,
       "client_ord_id": 13562
     }
   ],
@@ -1067,7 +1067,7 @@ func TestWsOrderHistory(t *testing.T) {
       },
       "order": {
         "client_ord_id": 297125564,
-        "inst_id": 1,
+        "inst_id": 490590,
         "open_qty": "0.00000000",
         "order_id": 721327,
         "price": "1.00000000",
@@ -1087,7 +1087,7 @@ func TestWsOrderHistory(t *testing.T) {
       },
       "order": {
         "client_ord_id": 297118937,
-        "inst_id": 1,
+        "inst_id": 490590,
         "open_qty": "0.00000000",
         "order_id": 721326,
         "price": "1.00000000",
