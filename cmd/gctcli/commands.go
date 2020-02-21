@@ -2211,7 +2211,6 @@ var withdrawCryptocurrencyFundsCommand = cli.Command{
 	},
 }
 
-// <exchange> <currency>  <amount> <address> <addresstag> <fee> <description>
 func withdrawCryptocurrencyFunds(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		cli.ShowCommandHelp(c, "withdrawcryptofunds")

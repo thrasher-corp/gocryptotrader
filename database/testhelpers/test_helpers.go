@@ -26,7 +26,7 @@ func GetConnectionDetails() *database.Config {
 			Driver:  "postgres",
 			ConnectionDetails: drivers.ConnectionDetails{
 				Host:     "localhost",
-				Port:     5432,
+				Port:     5432,<exchange> <currency>  <amount> <address> <addresstag> <fee> <description>
 				Username: "postgres",
 				Password: "",
 				Database: "gct_dev_ci",
@@ -52,8 +52,8 @@ func GetConnectionDetails() *database.Config {
 	}
 
 	return &database.Config{
-		Enabled: true,
-		Driver:  "postgres",
+		Enabled:           true,
+		Driver:            "postgres",
 		ConnectionDetails: drivers.ConnectionDetails{
 			// Host:     "",
 			// Port:     5432,
