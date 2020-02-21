@@ -253,14 +253,17 @@ func (b *BTSE) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTSE) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	t, err := b.GetTicker(b.FormatExchangeCurrency(p,
-		assetType).String())
+	fpair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
 
-	s, err := b.GetMarketStatistics(b.FormatExchangeCurrency(p,
-		assetType).String())
+	t, err := b.GetTicker(fpair.String())
+	if err != nil {
+		return nil, err
+	}
+
+	s, err := b.GetMarketStatistics(fpair.String())
 	if err != nil {
 		return nil, err
 	}
@@ -302,11 +305,16 @@ func (b *BTSE) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderboo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTSE) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
-	a, err := b.FetchOrderBook(b.FormatExchangeCurrency(p, assetType).String())
+	fpair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
+	a, err := b.FetchOrderBook(fpair.String())
+	if err != nil {
+		return nil, err
+	}
+
+	orderBook := new(orderbook.Base)
 	for x := range a.BuyQuote {
 		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
 			Price:  a.BuyQuote[x].Price,
@@ -389,11 +397,16 @@ func (b *BTSE) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return resp, err
 	}
 
+	fpair, err := b.FormatExchangeCurrency(s.Pair, asset.Spot)
+	if err != nil {
+		return resp, err
+	}
+
 	r, err := b.CreateOrder(s.Amount,
 		s.Price,
 		s.OrderSide.String(),
 		s.OrderType.String(),
-		b.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
+		fpair.String(),
 		goodTillCancel,
 		s.ClientID)
 	if err != nil {
@@ -418,9 +431,10 @@ func (b *BTSE) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (b *BTSE) CancelOrder(order *order.Cancel) error {
-	r, err := b.CancelExistingOrder(order.OrderID,
-		b.FormatExchangeCurrency(order.Pair,
-			asset.Spot).String())
+	fpair, err := b.FormatExchangeCurrency(order.Pair,
+		asset.Spot)
+
+	r, err := b.CancelExistingOrder(order.OrderID, fpair.String())
 	if err != nil {
 		return err
 	}
@@ -452,12 +466,16 @@ func (b *BTSE) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAll
 
 	resp.Status = make(map[string]string)
 	for x := range markets {
-		strPair := b.FormatExchangeCurrency(orderCancellation.Pair,
-			orderCancellation.AssetType).String()
+		fair, err := b.FormatExchangeCurrency(orderCancellation.Pair,
+			orderCancellation.AssetType)
+		if err != nil {
+			return resp, err
+		}
+
 		checkPair := currency.NewPairWithDelimiter(markets[x].BaseCurrency,
 			markets[x].QuoteCurrency,
 			format.Delimiter).String()
-		if strPair != "" && strPair != checkPair {
+		if fair.String() != "" && fair.String() != checkPair {
 			continue
 		} else {
 			orders, err := b.GetOrders(checkPair)

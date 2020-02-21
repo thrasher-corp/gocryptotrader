@@ -394,22 +394,24 @@ func (h *HitBTC) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 	subscribe := WsNotification{
 		Method: channelToSubscribe.Channel,
 	}
+	fpair, err := h.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot)
+	if err != nil {
+		return err
+	}
+
 	if channelToSubscribe.Currency.String() != "" {
 		subscribe.Params = params{
-			Symbol: h.FormatExchangeCurrency(channelToSubscribe.Currency,
-				asset.Spot).String(),
+			Symbol: fpair.String(),
 		}
 	}
 	if strings.EqualFold(channelToSubscribe.Channel, "subscribeTrades") {
 		subscribe.Params = params{
-			Symbol: h.FormatExchangeCurrency(channelToSubscribe.Currency,
-				asset.Spot).String(),
-			Limit: 100,
+			Symbol: fpair.String(),
+			Limit:  100,
 		}
 	} else if strings.EqualFold(channelToSubscribe.Channel, "subscribeCandles") {
 		subscribe.Params = params{
-			Symbol: h.FormatExchangeCurrency(channelToSubscribe.Currency,
-				asset.Spot).String(),
+			Symbol: fpair.String(),
 			Period: "M30",
 			Limit:  100,
 		}
@@ -421,24 +423,27 @@ func (h *HitBTC) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (h *HitBTC) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	unsubscribeChannel := strings.Replace(channelToSubscribe.Channel, "subscribe", "unsubscribe", 1)
+
+	fpair, err := h.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot)
+	if err != nil {
+		return err
+	}
+
 	subscribe := WsNotification{
 		JSONRPCVersion: rpcVersion,
 		Method:         unsubscribeChannel,
 		Params: params{
-			Symbol: h.FormatExchangeCurrency(channelToSubscribe.Currency,
-				asset.Spot).String(),
+			Symbol: fpair.String(),
 		},
 	}
 	if strings.EqualFold(unsubscribeChannel, "unsubscribeTrades") {
 		subscribe.Params = params{
-			Symbol: h.FormatExchangeCurrency(channelToSubscribe.Currency,
-				asset.Spot).String(),
-			Limit: 100,
+			Symbol: fpair.String(),
+			Limit:  100,
 		}
 	} else if strings.EqualFold(unsubscribeChannel, "unsubscribeCandles") {
 		subscribe.Params = params{
-			Symbol: h.FormatExchangeCurrency(channelToSubscribe.Currency,
-				asset.Spot).String(),
+			Symbol: fpair.String(),
 			Period: "M30",
 			Limit:  100,
 		}
@@ -478,12 +483,18 @@ func (h *HitBTC) wsPlaceOrder(pair *currency.Pair, side string, price, quantity 
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
+
 	id := h.WebsocketConn.GenerateMessageID(false)
+	fpair, err := h.FormatExchangeCurrency(pair, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+
 	request := WsSubmitOrderRequest{
 		Method: "newOrder",
 		Params: WsSubmitOrderRequestData{
 			ClientOrderID: id,
-			Symbol:        h.FormatExchangeCurrency(pair, asset.Spot).String(),
+			Symbol:        fpair.String(),
 			Side:          strings.ToLower(side),
 			Price:         price,
 			Quantity:      quantity,
@@ -638,10 +649,15 @@ func (h *HitBTC) wsGetCurrencies(currencyItem currency.Code) (*WsGetCurrenciesRe
 
 // wsGetSymbols sends a websocket message to get trading balance
 func (h *HitBTC) wsGetSymbols(c *currency.Pair) (*WsGetSymbolsResponse, error) {
+	fpair, err := h.FormatExchangeCurrency(c, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+
 	request := WsGetSymbolsRequest{
 		Method: "getSymbol",
 		Params: WsGetSymbolsRequestParameters{
-			Symbol: h.FormatExchangeCurrency(c, asset.Spot).String(),
+			Symbol: fpair.String(),
 		},
 		ID: h.WebsocketConn.GenerateMessageID(false),
 	}
@@ -662,10 +678,15 @@ func (h *HitBTC) wsGetSymbols(c *currency.Pair) (*WsGetSymbolsResponse, error) {
 
 // wsGetSymbols sends a websocket message to get trading balance
 func (h *HitBTC) wsGetTrades(c *currency.Pair, limit int64, sort, by string) (*WsGetTradesResponse, error) {
+	fpair, err := h.FormatExchangeCurrency(c, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+
 	request := WsGetTradesRequest{
 		Method: "getTrades",
 		Params: WsGetTradesRequestParameters{
-			Symbol: h.FormatExchangeCurrency(c, asset.Spot).String(),
+			Symbol: fpair.String(),
 			Limit:  limit,
 			Sort:   sort,
 			By:     by,

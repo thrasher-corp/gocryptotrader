@@ -348,8 +348,12 @@ func (g *Gemini) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			errors.New("only limit orders are enabled through this exchange")
 	}
 
-	response, err := g.NewOrder(
-		g.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
+	fpair, err := g.FormatExchangeCurrency(s.Pair, asset.Spot)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
+	response, err := g.NewOrder(fpair.String(),
 		s.Amount,
 		s.Price,
 		s.OrderSide.String(),
@@ -510,9 +514,12 @@ func (g *Gemini) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 
 	var trades []TradeHistory
 	for j := range req.Currencies {
-		resp, err := g.GetTradeHistory(g.FormatExchangeCurrency(req.Currencies[j],
-			asset.Spot).String(),
-			req.StartTicks.Unix())
+		fpair, err := g.FormatExchangeCurrency(req.Currencies[j], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+
+		resp, err := g.GetTradeHistory(fpair.String(), req.StartTicks.Unix())
 		if err != nil {
 			return nil, err
 		}

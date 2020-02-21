@@ -329,14 +329,17 @@ func (k *Kraken) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.P
 
 	for i := range pairs {
 		for c, t := range tickers {
-			pairFmt := k.FormatExchangeCurrency(pairs[i], assetType).String()
-			if !strings.EqualFold(pairFmt, c) {
+			pairFmt, err := k.FormatExchangeCurrency(pairs[i], assetType)
+			if err != nil {
+				return nil, err
+			}
+			if !strings.EqualFold(pairFmt.String(), c) {
 				altCurrency, ok := assetPairMap[c]
 				if !ok {
 					continue
 				}
-				if !strings.EqualFold(pairFmt, altCurrency) {
-					continue
+				if !strings.EqualFold(pairFmt.String(), altCurrency) {
+					continue // This looks dodge
 				}
 			}
 
@@ -379,13 +382,13 @@ func (k *Kraken) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderb
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (k *Kraken) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
-	orderbookNew, err := k.GetDepth(k.FormatExchangeCurrency(p,
-		assetType).String())
+	fpair, err := k.FormatExchangeCurrency(p, assetType)
+	orderbookNew, err := k.GetDepth(fpair.String())
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
 
+	var orderBook *orderbook.Base
 	for x := range orderbookNew.Bids {
 		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: orderbookNew.Bids[x].Amount, Price: orderbookNew.Bids[x].Price})
 	}

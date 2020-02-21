@@ -292,11 +292,15 @@ func (h *HitBTC) UpdateTicker(p *currency.Pair, a asset.Item) (*ticker.Price, er
 	}
 	for i := range pairs {
 		for j := range tick {
-			pairFmt := h.FormatExchangeCurrency(pairs[i], a).String()
-			if tick[j].Symbol != pairFmt {
+			pairFmt, err := h.FormatExchangeCurrency(pairs[i], a)
+			if err != nil {
+				return nil, err
+			}
+
+			if tick[j].Symbol != pairFmt.String() {
 				found := false
 				if strings.Contains(tick[j].Symbol, "USDT") {
-					if pairFmt == tick[j].Symbol[0:len(tick[j].Symbol)-1] {
+					if pairFmt.String() == tick[j].Symbol[0:len(tick[j].Symbol)-1] {
 						found = true
 					}
 				}
@@ -346,12 +350,17 @@ func (h *HitBTC) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderb
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (h *HitBTC) UpdateOrderbook(c *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
-	orderbookNew, err := h.GetOrderbook(h.FormatExchangeCurrency(c, assetType).String(), 1000)
+	fpair, err := h.FormatExchangeCurrency(c, assetType)
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
 
+	orderbookNew, err := h.GetOrderbook(fpair.String(), 1000)
+	if err != nil {
+		return nil, err
+	}
+
+	orderBook := new(orderbook.Base)
 	for x := range orderbookNew.Bids {
 		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
 			Amount: orderbookNew.Bids[x].Amount,

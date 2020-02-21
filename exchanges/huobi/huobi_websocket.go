@@ -525,6 +525,12 @@ func (h *HUOBI) wsGetOrdersList(accountID int64, pair *currency.Pair) (*WsAuthen
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated cannot get orders list", h.Name)
 	}
+
+	fpair, err := h.FormatExchangeCurrency(pair, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	request := WsAuthenticatedOrdersListRequest{
 		Op:               requestOp,
@@ -534,16 +540,19 @@ func (h *HUOBI) wsGetOrdersList(accountID int64, pair *currency.Pair) (*WsAuthen
 		Timestamp:        timestamp,
 		Topic:            wsOrdersList,
 		AccountID:        accountID,
-		Symbol:           h.FormatExchangeCurrency(pair, asset.Spot).String(),
+		Symbol:           fpair.String(),
 		States:           "submitted,partial-filled",
 	}
+
 	hmac := h.wsGenerateSignature(timestamp, wsOrdersListEndpoint)
 	request.Signature = crypto.Base64Encode(hmac)
 	request.ClientID = h.AuthenticatedWebsocketConn.GenerateMessageID(true)
+
 	resp, err := h.AuthenticatedWebsocketConn.SendMessageReturnResponse(request.ClientID, request)
 	if err != nil {
 		return nil, err
 	}
+
 	var response WsAuthenticatedOrdersResponse
 	err = json.Unmarshal(resp, &response)
 	return &response, err

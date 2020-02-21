@@ -464,11 +464,17 @@ func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 	if err != nil {
 		return submitOrderResponse, err
 	}
+
+	fpair, err := b.FormatExchangeCurrency(o.Pair, asset.Spot)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		submitOrderResponse.OrderID, err = b.WsNewOrder(&WsNewOrderRequest{
 			CustomID: b.AuthenticatedWebsocketConn.GenerateMessageID(false),
 			Type:     o.OrderType.String(),
-			Symbol:   b.FormatExchangeCurrency(o.Pair, asset.Spot).String(),
+			Symbol:   fpair.String(),
 			Amount:   o.Amount,
 			Price:    o.Price,
 		})

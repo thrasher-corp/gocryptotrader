@@ -342,11 +342,16 @@ func (c *CoinbasePro) FetchAccountInfo() (account.Holdings, error) {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (c *CoinbasePro) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tick, err := c.GetTicker(c.FormatExchangeCurrency(p, assetType).String())
+	fpair, err := c.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
-	stats, err := c.GetStats(c.FormatExchangeCurrency(p, assetType).String())
+
+	tick, err := c.GetTicker(fpair.String())
+	if err != nil {
+		return nil, err
+	}
+	stats, err := c.GetStats(fpair.String())
 	if err != nil {
 		return nil, err
 	}
@@ -390,15 +395,18 @@ func (c *CoinbasePro) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*o
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (c *CoinbasePro) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
-	orderbookNew, err := c.GetOrderbook(c.FormatExchangeCurrency(p,
-		assetType).String(), 2)
+	fpair, err := c.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return orderBook, err
+		return nil, err
+	}
+
+	orderbookNew, err := c.GetOrderbook(fpair.String(), 2)
+	if err != nil {
+		return nil, err
 	}
 
 	obNew := orderbookNew.(OrderbookL1L2)
-
+	orderBook := new(orderbook.Base)
 	for x := range obNew.Bids {
 		orderBook.Bids = append(orderBook.Bids, orderbook.Item{Amount: obNew.Bids[x].Amount, Price: obNew.Bids[x].Price})
 	}
@@ -437,15 +445,19 @@ func (c *CoinbasePro) SubmitOrder(s *order.Submit) (order.SubmitResponse, error)
 		return submitOrderResponse, err
 	}
 
+	fpair, err := c.FormatExchangeCurrency(s.Pair, asset.Spot)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	var response string
-	var err error
 	switch s.OrderType {
 	case order.Market:
 		response, err = c.PlaceMarketOrder("",
 			s.Amount,
 			s.Amount,
 			s.OrderSide.String(),
-			c.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
+			fpair.String(),
 			"")
 	case order.Limit:
 		response, err = c.PlaceLimitOrder("",
@@ -454,7 +466,7 @@ func (c *CoinbasePro) SubmitOrder(s *order.Submit) (order.SubmitResponse, error)
 			s.OrderSide.String(),
 			"",
 			"",
-			c.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
+			fpair.String(),
 			"",
 			false)
 	default:
@@ -562,8 +574,13 @@ func (c *CoinbasePro) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, er
 func (c *CoinbasePro) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var respOrders []GeneralizedOrderResponse
 	for i := range req.Currencies {
+		fpair, err := c.FormatExchangeCurrency(req.Currencies[i], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+
 		resp, err := c.GetOrders([]string{"open", "pending", "active"},
-			c.FormatExchangeCurrency(req.Currencies[i], asset.Spot).String())
+			fpair.String())
 		if err != nil {
 			return nil, err
 		}
@@ -614,8 +631,12 @@ func (c *CoinbasePro) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Deta
 func (c *CoinbasePro) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var respOrders []GeneralizedOrderResponse
 	for i := range req.Currencies {
+		fpair, err := c.FormatExchangeCurrency(req.Currencies[i], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
 		resp, err := c.GetOrders([]string{"done", "settled"},
-			c.FormatExchangeCurrency(req.Currencies[i], asset.Spot).String())
+			fpair.String())
 		if err != nil {
 			return nil, err
 		}

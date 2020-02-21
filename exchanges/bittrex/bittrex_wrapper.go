@@ -323,12 +323,17 @@ func (b *Bittrex) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*order
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bittrex) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
-	orderbookNew, err := b.GetOrderbook(b.FormatExchangeCurrency(p, assetType).String())
+	fpair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
 
+	orderbookNew, err := b.GetOrderbook(fpair.String())
+	if err != nil {
+		return nil, err
+	}
+
+	orderBook := new(orderbook.Base)
 	for x := range orderbookNew.Result.Buy {
 		orderBook.Bids = append(orderBook.Bids,
 			orderbook.Item{

@@ -350,25 +350,31 @@ func (b *Bitmex) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*order
 	if assetType == asset.Index {
 		return nil, common.ErrFunctionNotSupported
 	}
-	orderBook := new(orderbook.Base)
 
-	orderbookNew, err := b.GetOrderbook(OrderBookGetL2Params{
-		Symbol: b.FormatExchangeCurrency(p, assetType).String(),
-		Depth:  500})
+	fpair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
 
-	for _, ob := range orderbookNew {
-		if strings.EqualFold(ob.Side, order.Sell.String()) {
-			orderBook.Asks = append(orderBook.Asks,
-				orderbook.Item{Amount: float64(ob.Size), Price: ob.Price})
+	orderbookNew, err := b.GetOrderbook(OrderBookGetL2Params{
+		Symbol: fpair.String(),
+		Depth:  500})
+	if err != nil {
+		return nil, err
+	}
+
+	orderBook := new(orderbook.Base)
+	for i := range orderbookNew {
+		if strings.EqualFold(orderbookNew[i].Side, order.Sell.String()) {
+			orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+				Amount: float64(orderbookNew[i].Size),
+				Price:  orderbookNew[i].Price})
 			continue
 		}
-		if strings.EqualFold(ob.Side, order.Buy.String()) {
-			orderBook.Bids = append(orderBook.Bids,
-				orderbook.Item{Amount: float64(ob.Size), Price: ob.Price})
-			continue
+		if strings.EqualFold(orderbookNew[i].Side, order.Buy.String()) {
+			orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+				Amount: float64(orderbookNew[i].Size),
+				Price:  orderbookNew[i].Price})
 		}
 	}
 

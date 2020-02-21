@@ -320,11 +320,17 @@ func (b *BTCMarkets) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*or
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTCMarkets) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
-	tempResp, err := b.GetOrderbook(b.FormatExchangeCurrency(p, assetType).String(), 2)
+	fpair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
+
+	tempResp, err := b.GetOrderbook(fpair.String(), 2)
+	if err != nil {
+		return nil, err
+	}
+
+	orderBook := new(orderbook.Base)
 	for x := range tempResp.Bids {
 		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
 			Amount: tempResp.Bids[x].Volume,
@@ -408,7 +414,12 @@ func (b *BTCMarkets) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) 
 		s.OrderSide = order.Bid
 	}
 
-	tempResp, err := b.NewOrder(b.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
+	fpair, err := b.FormatExchangeCurrency(s.Pair, asset.Spot)
+	if err != nil {
+		return resp, err
+	}
+
+	tempResp, err := b.NewOrder(fpair.String(),
 		s.Price,
 		s.Amount,
 		s.OrderType.String(),
@@ -605,7 +616,11 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 
 	var resp []order.Detail
 	for x := range req.Currencies {
-		tempData, err := b.GetOrders(b.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String(), -1, -1, -1, true)
+		fpair, err := b.FormatExchangeCurrency(req.Currencies[x], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		tempData, err := b.GetOrders(fpair.String(), -1, -1, -1, true)
 		if err != nil {
 			return resp, err
 		}
@@ -676,7 +691,12 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 		}
 	}
 	for y := range req.Currencies {
-		orders, err := b.GetOrders(b.FormatExchangeCurrency(req.Currencies[y], asset.Spot).String(), -1, -1, -1, false)
+		fpair, err := b.FormatExchangeCurrency(req.Currencies[y], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+
+		orders, err := b.GetOrders(fpair.String(), -1, -1, -1, false)
 		if err != nil {
 			return resp, err
 		}

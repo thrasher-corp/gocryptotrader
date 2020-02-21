@@ -322,8 +322,13 @@ func (c *Coinbene) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker
 		}
 
 		for x := range allPairs {
-			tick, ok := tickers[c.FormatExchangeCurrency(allPairs[x],
-				assetType).String()]
+			fpair, err := c.FormatExchangeCurrency(allPairs[x],
+				assetType)
+			if err != nil {
+				return nil, err
+			}
+
+			tick, ok := tickers[fpair.String()]
 			if !ok {
 				log.Warnf(log.ExchangeSys,
 					"%s SWAP ticker item was not found",
@@ -386,18 +391,19 @@ func (c *Coinbene) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*ord
 			fmt.Errorf("%s does not support asset type %s", c.Name, assetType)
 	}
 
-	var tempResp Orderbook
-	var err error
+	fpair, err := c.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
 
+	var tempResp Orderbook
 	switch assetType {
 	case asset.Spot:
-		tempResp, err = c.GetOrderbook(
-			c.FormatExchangeCurrency(p, assetType).String(),
+		tempResp, err = c.GetOrderbook(fpair.String(),
 			100, // TO-DO: Update this once we support configurable orderbook depth
 		)
 	case asset.PerpetualSwap:
-		tempResp, err = c.GetSwapOrderbook(
-			c.FormatExchangeCurrency(p, assetType).String(),
+		tempResp, err = c.GetSwapOrderbook(fpair.String(),
 			100, // TO-DO: Update this once we support configurable orderbook depth
 		)
 	}
@@ -502,9 +508,14 @@ func (c *Coinbene) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return resp, fmt.Errorf("only limit order is supported by this exchange")
 	}
 
+	fpair, err := c.FormatExchangeCurrency(s.Pair, asset.Spot)
+	if err != nil {
+		return resp, err
+	}
+
 	tempResp, err := c.PlaceSpotOrder(s.Price,
 		s.Amount,
-		c.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
+		fpair.String(),
 		s.OrderSide.String(),
 		s.OrderType.String(),
 		s.ClientID,
@@ -532,13 +543,17 @@ func (c *Coinbene) CancelOrder(order *order.Cancel) error {
 // CancelAllOrders cancels all orders associated with a currency pair
 func (c *Coinbene) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
-	orders, err := c.FetchOpenSpotOrders(
-		c.FormatExchangeCurrency(orderCancellation.Pair,
-			asset.Spot).String(),
-	)
+	fpair, err := c.FormatExchangeCurrency(orderCancellation.Pair,
+		asset.Spot)
 	if err != nil {
 		return resp, err
 	}
+
+	orders, err := c.FetchOpenSpotOrders(fpair.String())
+	if err != nil {
+		return resp, err
+	}
+
 	tempMap := make(map[string]string)
 	for x := range orders {
 		_, err := c.CancelSpotOrder(orders[x].OrderID)
@@ -620,16 +635,16 @@ func (c *Coinbene) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]
 		}
 	}
 
-	var err error
 	var resp []order.Detail
-
 	for x := range getOrdersRequest.Currencies {
+		fpair, err := c.FormatExchangeCurrency(getOrdersRequest.Currencies[x],
+			asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+
 		var tempData OrdersInfo
-		tempData, err = c.FetchOpenSpotOrders(
-			c.FormatExchangeCurrency(
-				getOrdersRequest.Currencies[x],
-				asset.Spot).String(),
-		)
+		tempData, err = c.FetchOpenSpotOrders(fpair.String())
 		if err != nil {
 			return nil, err
 		}
@@ -682,15 +697,14 @@ func (c *Coinbene) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]
 
 	var resp []order.Detail
 	var tempData OrdersInfo
-	var err error
-
 	for x := range getOrdersRequest.Currencies {
-		tempData, err = c.FetchClosedOrders(
-			c.FormatExchangeCurrency(
-				getOrdersRequest.Currencies[x],
-				asset.Spot).String(),
-			"",
-		)
+		fpair, err := c.FormatExchangeCurrency(getOrdersRequest.Currencies[x],
+			asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+
+		tempData, err = c.FetchClosedOrders(fpair.String(), "")
 		if err != nil {
 			return nil, err
 		}
@@ -725,21 +739,20 @@ func (c *Coinbene) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (c *Coinbene) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	var fee float64
-	tempData, err := c.GetPairInfo(
-		c.FormatExchangeCurrency(
-			feeBuilder.Pair, asset.Spot).String(),
-	)
+	fpair, err := c.FormatExchangeCurrency(feeBuilder.Pair, asset.Spot)
 	if err != nil {
-		return fee, err
+		return 0, err
 	}
-	switch feeBuilder.IsMaker {
-	case true:
-		fee = feeBuilder.PurchasePrice * feeBuilder.Amount * tempData.MakerFeeRate
-	case false:
-		fee = feeBuilder.PurchasePrice * feeBuilder.Amount * tempData.TakerFeeRate
+
+	tempData, err := c.GetPairInfo(fpair.String())
+	if err != nil {
+		return 0, err
 	}
-	return fee, nil
+
+	if feeBuilder.IsMaker {
+		return feeBuilder.PurchasePrice * feeBuilder.Amount * tempData.MakerFeeRate, nil
+	}
+	return feeBuilder.PurchasePrice * feeBuilder.Amount * tempData.TakerFeeRate, nil
 }
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe

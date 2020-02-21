@@ -280,9 +280,12 @@ func (g *Gateio) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderb
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (g *Gateio) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
-	curr := g.FormatExchangeCurrency(p, assetType).String()
+	curr, err := g.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
 
-	orderbookNew, err := g.GetOrderbook(curr)
+	orderbookNew, err := g.GetOrderbook(curr.String())
 	if err != nil {
 		return orderBook, err
 	}
@@ -469,8 +472,13 @@ func (g *Gateio) CancelOrder(order *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	_, err = g.CancelExistingOrder(orderIDInt,
-		g.FormatExchangeCurrency(order.Pair, order.AssetType).String())
+
+	fpair, err := g.FormatExchangeCurrency(order.Pair, order.AssetType)
+	if err != nil {
+		return err
+	}
+
+	_, err = g.CancelExistingOrder(orderIDInt, fpair.String())
 	return err
 }
 

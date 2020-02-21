@@ -309,8 +309,12 @@ func (b *Binance) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.
 
 	for i := range pairs {
 		for y := range tick {
-			pairFmt := b.FormatExchangeCurrency(pairs[i], assetType).String()
-			if tick[y].Symbol != pairFmt {
+			pairFmt, err := b.FormatExchangeCurrency(pairs[i], assetType)
+			if err != nil {
+				return nil, err
+			}
+
+			if tick[y].Symbol != pairFmt.String() {
 				continue
 			}
 
@@ -356,13 +360,19 @@ func (b *Binance) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*order
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Binance) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
-	orderbookNew, err := b.GetOrderBook(OrderBookDataRequestParams{Symbol: b.FormatExchangeCurrency(p,
-		assetType).String(), Limit: 1000})
+	fpair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
 
+	orderbookNew, err := b.GetOrderBook(OrderBookDataRequestParams{
+		Symbol: fpair.String(),
+		Limit:  1000})
+	if err != nil {
+		return nil, err
+	}
+
+	orderBook := new(orderbook.Base)
 	for x := range orderbookNew.Bids {
 		orderBook.Bids = append(orderBook.Bids,
 			orderbook.Item{
@@ -515,8 +525,12 @@ func (b *Binance) CancelOrder(order *order.Cancel) error {
 		return err
 	}
 
-	_, err = b.CancelExistingOrder(b.FormatExchangeCurrency(order.Pair,
-		order.AssetType).String(),
+	fpair, err := b.FormatExchangeCurrency(order.Pair, order.AssetType)
+	if err != nil {
+		return err
+	}
+
+	_, err = b.CancelExistingOrder(fpair.String(),
 		orderIDInt,
 		order.AccountID)
 	return err
@@ -599,8 +613,13 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 
 	var orders []order.Detail
 	for x := range req.Currencies {
-		resp, err := b.OpenOrders(b.FormatExchangeCurrency(req.Currencies[x],
-			asset.Spot).String())
+		fpair, err := b.FormatExchangeCurrency(req.Currencies[x],
+			asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+
+		resp, err := b.OpenOrders(fpair.String())
 		if err != nil {
 			return nil, err
 		}
@@ -644,8 +663,11 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 
 	var orders []order.Detail
 	for x := range req.Currencies {
-		resp, err := b.AllOrders(b.FormatExchangeCurrency(req.Currencies[x],
-			asset.Spot).String(),
+		fpair, err := b.FormatExchangeCurrency(req.Currencies[x], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := b.AllOrders(fpair.String(),
 			"",
 			"1000")
 		if err != nil {

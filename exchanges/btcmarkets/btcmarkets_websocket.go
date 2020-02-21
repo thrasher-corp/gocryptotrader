@@ -253,10 +253,15 @@ var authChannels = []string{fundChange, heartbeat, orderChange}
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *BTCMarkets) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+	fpair, err := b.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot)
+	if err != nil {
+		return err
+	}
+
 	switch {
 	case common.StringDataCompare(unauthChannels, channelToSubscribe.Channel):
 		req := WsSubscribe{
-			MarketIDs:   []string{b.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot).String()},
+			MarketIDs:   []string{fpair.String()},
 			Channels:    []string{channelToSubscribe.Channel},
 			MessageType: subscribe,
 		}
@@ -312,11 +317,20 @@ func (b *BTCMarkets) createChannels() {
 	}
 	for y := range tempChannels {
 		for x := range pairArray {
+			fpair, err := b.FormatExchangeCurrency(pairArray[x], asset.Spot)
+			if err != nil {
+				log.Errorf(log.WebsocketMgr,
+					"%s could not create channels Err: %s",
+					b.Name,
+					err)
+				return
+			}
+
 			var authSub WsAuthSubscribe
 			var channel wshandler.WebsocketChannelSubscription
 			channel.Params = make(map[string]interface{})
 			channel.Channel = tempChannels[y]
-			authSub.MarketIDs = append(authSub.MarketIDs, b.FormatExchangeCurrency(pairArray[x], asset.Spot).String())
+			authSub.MarketIDs = append(authSub.MarketIDs, fpair.String())
 			authSub.MessageType = subscribe
 			channel.Params["AuthSub"] = authSub
 			wsChannels = append(wsChannels, channel)

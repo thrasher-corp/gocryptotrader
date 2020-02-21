@@ -411,8 +411,12 @@ func (c *COINUT) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.P
 		return nil, err
 	}
 
-	instID := c.instrumentMap.LookupID(c.FormatExchangeCurrency(p,
-		assetType).String())
+	fpair, err := c.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	instID := c.instrumentMap.LookupID(fpair.String())
 	if instID == 0 {
 		return nil, errors.New("unable to lookup instrument ID")
 	}
@@ -466,8 +470,12 @@ func (c *COINUT) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*order
 		return orderBook, err
 	}
 
-	instID := c.instrumentMap.LookupID(c.FormatExchangeCurrency(p,
-		assetType).String())
+	fpair, err := c.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	instID := c.instrumentMap.LookupID(fpair.String())
 	if instID == 0 {
 		return orderBook, errLookupInstrumentID
 	}
@@ -540,8 +548,12 @@ func (c *COINUT) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			return submitOrderResponse, err
 		}
 
-		currencyID := c.instrumentMap.LookupID(c.FormatExchangeCurrency(o.Pair,
-			asset.Spot).String())
+		fpair, err := c.FormatExchangeCurrency(o.Pair, asset.Spot)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+
+		currencyID := c.instrumentMap.LookupID(fpair.String())
 		if currencyID == 0 {
 			return submitOrderResponse, errLookupInstrumentID
 		}
@@ -596,10 +608,13 @@ func (c *COINUT) CancelOrder(o *order.Cancel) error {
 		return err
 	}
 
-	currencyID := c.instrumentMap.LookupID(c.FormatExchangeCurrency(
-		o.Pair,
-		asset.Spot).String(),
-	)
+	fpair, err := c.FormatExchangeCurrency(o.Pair, asset.Spot)
+	if err != nil {
+		return err
+	}
+
+	currencyID := c.instrumentMap.LookupID(fpair.String())
+
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var resp *CancelOrdersResponse
 		resp, err = c.wsCancelOrder(&WsCancelOrderParameters{
@@ -640,7 +655,11 @@ func (c *COINUT) CancelAllOrders(details *order.Cancel) (order.CancelAllResponse
 		}
 		var ordersToCancel []WsCancelOrderParameters
 		for i := range openOrders.Orders {
-			if openOrders.Orders[i].InstID == c.instrumentMap.LookupID(c.FormatExchangeCurrency(details.Pair, asset.Spot).String()) {
+			fpair, err := c.FormatExchangeCurrency(details.Pair, asset.Spot)
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+			if openOrders.Orders[i].InstID == c.instrumentMap.LookupID(fpair.String()) {
 				ordersToCancel = append(ordersToCancel, WsCancelOrderParameters{
 					Currency: details.Pair,
 					OrderID:  openOrders.Orders[i].OrderID,
@@ -660,7 +679,11 @@ func (c *COINUT) CancelAllOrders(details *order.Cancel) (order.CancelAllResponse
 		var allTheOrders []OrderResponse
 		ids := c.instrumentMap.GetInstrumentIDs()
 		for x := range ids {
-			if ids[x] == c.instrumentMap.LookupID(c.FormatExchangeCurrency(details.Pair, asset.Spot).String()) {
+			fpair, err := c.FormatExchangeCurrency(details.Pair, asset.Spot)
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+			if ids[x] == c.instrumentMap.LookupID(fpair.String()) {
 				openOrders, err := c.GetOpenOrders(ids[x])
 				if err != nil {
 					return cancelAllOrdersResponse, err
@@ -747,7 +770,11 @@ func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 	var currenciesToCheck []string
 	if len(req.Currencies) == 0 {
 		for i := range req.Currencies {
-			currenciesToCheck = append(currenciesToCheck, c.FormatExchangeCurrency(req.Currencies[i], asset.Spot).String())
+			fpair, err := c.FormatExchangeCurrency(req.Currencies[i], asset.Spot)
+			if err != nil {
+				return nil, err
+			}
+			currenciesToCheck = append(currenciesToCheck, fpair.String())
 		}
 	} else {
 		for k := range c.instrumentMap.Instruments {
@@ -766,10 +793,15 @@ func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 					return nil, err
 				}
 
+				fpair, err := c.FormatExchangeCurrency(p, asset.Spot)
+				if err != nil {
+					return nil, err
+				}
+
 				orders = append(orders, order.Detail{
 					Exchange:        c.Name,
 					ID:              strconv.FormatInt(openOrders.Orders[i].OrderID, 10),
-					Pair:            c.FormatExchangeCurrency(p, asset.Spot),
+					Pair:            fpair,
 					OrderSide:       order.Side(openOrders.Orders[i].Side),
 					OrderDate:       time.Unix(0, openOrders.Orders[i].Timestamp),
 					Status:          order.Active,
@@ -784,10 +816,13 @@ func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 		var instrumentsToUse []int64
 		if len(req.Currencies) > 0 {
 			for x := range req.Currencies {
-				curr := c.FormatExchangeCurrency(req.Currencies[x],
-					asset.Spot).String()
+				curr, err := c.FormatExchangeCurrency(req.Currencies[x],
+					asset.Spot)
+				if err != nil {
+					return nil, err
+				}
 				instrumentsToUse = append(instrumentsToUse,
-					c.instrumentMap.LookupID(curr))
+					c.instrumentMap.LookupID(curr.String()))
 			}
 		} else {
 			instrumentsToUse = c.instrumentMap.GetInstrumentIDs()
@@ -885,9 +920,13 @@ func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 		var instrumentsToUse []int64
 		if len(req.Currencies) > 0 {
 			for x := range req.Currencies {
-				curr := c.FormatExchangeCurrency(req.Currencies[x],
-					asset.Spot).String()
-				instrumentID := c.instrumentMap.LookupID(curr)
+				curr, err := c.FormatExchangeCurrency(req.Currencies[x],
+					asset.Spot)
+				if err != nil {
+					return nil, err
+				}
+
+				instrumentID := c.instrumentMap.LookupID(curr.String())
 				if instrumentID > 0 {
 					instrumentsToUse = append(instrumentsToUse, instrumentID)
 				}

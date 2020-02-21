@@ -210,8 +210,12 @@ func (l *Lbank) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Pr
 
 // FetchTicker returns the ticker for a currency pair
 func (l *Lbank) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(l.Name,
-		l.FormatExchangeCurrency(p, assetType), assetType)
+	fpair, err := l.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	tickerNew, err := ticker.GetTicker(l.Name, fpair, assetType)
 	if err != nil {
 		return l.UpdateTicker(p, assetType)
 	}
@@ -230,7 +234,11 @@ func (l *Lbank) FetchOrderbook(currency *currency.Pair, assetType asset.Item) (*
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (l *Lbank) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
-	a, err := l.GetMarketDepths(l.FormatExchangeCurrency(p, assetType).String(), "60", "1")
+	fpair, err := l.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	a, err := l.GetMarketDepths(fpair.String(), "60", "1")
 	if err != nil {
 		return orderBook, err
 	}
@@ -327,8 +335,14 @@ func (l *Lbank) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			fmt.Errorf("%s order side is not supported by the exchange",
 				s.OrderSide)
 	}
+
+	fpair, err := l.FormatExchangeCurrency(s.Pair, asset.Spot)
+	if err != nil {
+		return resp, err
+	}
+
 	tempResp, err := l.CreateOrder(
-		l.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
+		fpair.String(),
 		s.OrderSide.String(),
 		s.Amount,
 		s.Price)
@@ -351,8 +365,11 @@ func (l *Lbank) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (l *Lbank) CancelOrder(order *order.Cancel) error {
-	_, err := l.RemoveOrder(l.FormatExchangeCurrency(order.Pair,
-		order.AssetType).String(), order.OrderID)
+	fpair, err := l.FormatExchangeCurrency(order.Pair, order.AssetType)
+	if err != nil {
+		return err
+	}
+	_, err = l.RemoveOrder(fpair.String(), order.OrderID)
 	return err
 }
 
@@ -590,14 +607,18 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]ord
 		tempCurr = getOrdersRequest.Currencies
 	}
 	for a := range tempCurr {
-		p := l.FormatExchangeCurrency(tempCurr[a], asset.Spot).String()
+		fpair, err := l.FormatExchangeCurrency(tempCurr[a], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+
 		b := int64(1)
-		tempResp, err := l.QueryOrderHistory(p, strconv.FormatInt(b, 10), "200")
+		tempResp, err := l.QueryOrderHistory(fpair.String(), strconv.FormatInt(b, 10), "200")
 		if err != nil {
 			return finalResp, err
 		}
 		for len(tempResp.Orders) != 0 {
-			tempResp, err = l.QueryOrderHistory(p, strconv.FormatInt(b, 10), "200")
+			tempResp, err = l.QueryOrderHistory(fpair.String(), strconv.FormatInt(b, 10), "200")
 			if err != nil {
 				return finalResp, err
 			}
@@ -682,15 +703,22 @@ func (l *Lbank) getAllOpenOrderID() (map[string][]string, error) {
 	}
 	resp := make(map[string][]string)
 	for a := range allPairs {
-		p := l.FormatExchangeCurrency(allPairs[a], asset.Spot).String()
+		fpair, err := l.FormatExchangeCurrency(allPairs[a], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
 		b := int64(1)
-		tempResp, err := l.GetOpenOrders(p, strconv.FormatInt(b, 10), "200")
+		tempResp, err := l.GetOpenOrders(fpair.String(),
+			strconv.FormatInt(b, 10),
+			"200")
 		if err != nil {
 			return resp, err
 		}
 		tempData := len(tempResp.Orders)
 		for tempData != 0 {
-			tempResp, err = l.GetOpenOrders(p, strconv.FormatInt(b, 10), "200")
+			tempResp, err = l.GetOpenOrders(fpair.String(),
+				strconv.FormatInt(b, 10),
+				"200")
 			if err != nil {
 				return resp, err
 			}
@@ -700,7 +728,8 @@ func (l *Lbank) getAllOpenOrderID() (map[string][]string, error) {
 			}
 
 			for c := 0; c < tempData; c++ {
-				resp[p] = append(resp[p], tempResp.Orders[c].OrderID)
+				resp[fpair.String()] = append(resp[fpair.String()],
+					tempResp.Orders[c].OrderID)
 			}
 			tempData = len(tempResp.Orders)
 			b++

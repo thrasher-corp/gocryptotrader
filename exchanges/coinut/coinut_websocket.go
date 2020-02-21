@@ -421,10 +421,14 @@ func (c *COINUT) GenerateDefaultSubscriptions() {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (c *COINUT) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+	fpair, err := c.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot)
+	if err != nil {
+		return err
+	}
+
 	subscribe := wsRequest{
-		Request: channelToSubscribe.Channel,
-		InstID: c.instrumentMap.LookupID(c.FormatExchangeCurrency(channelToSubscribe.Currency,
-			asset.Spot).String()),
+		Request:   channelToSubscribe.Channel,
+		InstID:    c.instrumentMap.LookupID(fpair.String()),
 		Subscribe: true,
 		Nonce:     c.WebsocketConn.GenerateMessageID(false),
 	}
@@ -433,10 +437,14 @@ func (c *COINUT) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (c *COINUT) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+	fpair, err := c.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot)
+	if err != nil {
+		return err
+	}
+
 	subscribe := wsRequest{
-		Request: channelToSubscribe.Channel,
-		InstID: c.instrumentMap.LookupID(c.FormatExchangeCurrency(channelToSubscribe.Currency,
-			asset.Spot).String()),
+		Request:   channelToSubscribe.Channel,
+		InstID:    c.instrumentMap.LookupID(fpair.String()),
 		Subscribe: false,
 		Nonce:     c.WebsocketConn.GenerateMessageID(false),
 	}
@@ -523,11 +531,16 @@ func (c *COINUT) wsSubmitOrder(o *WsSubmitOrderParameters) (*WsStandardOrderResp
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authorised to submit order", c.Name)
 	}
-	curr := c.FormatExchangeCurrency(o.Currency, asset.Spot).String()
+
+	curr, err := c.FormatExchangeCurrency(o.Currency, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+
 	var orderSubmissionRequest WsSubmitOrderRequest
 	orderSubmissionRequest.Request = "new_order"
 	orderSubmissionRequest.Nonce = c.WebsocketConn.GenerateMessageID(false)
-	orderSubmissionRequest.InstID = c.instrumentMap.LookupID(curr)
+	orderSubmissionRequest.InstID = c.instrumentMap.LookupID(curr.String())
 	orderSubmissionRequest.Qty = o.Amount
 	orderSubmissionRequest.Price = o.Price
 	orderSubmissionRequest.Side = string(o.Side)
@@ -627,18 +640,22 @@ func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]WsStandardO
 	var errors []error
 	var ordersResponse []WsStandardOrderResponse
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
-		errors = append(errors, fmt.Errorf("%v not authorised to submit orders", c.Name))
-		return nil, errors
+		return nil,
+			[]error{fmt.Errorf("%v not authorised to submit orders", c.Name)}
 	}
 	orderRequest := WsSubmitOrdersRequest{}
 	for i := range orders {
-		curr := c.FormatExchangeCurrency(orders[i].Currency, asset.Spot).String()
+		curr, err := c.FormatExchangeCurrency(orders[i].Currency, asset.Spot)
+		if err != nil {
+			return nil, []error{err}
+		}
+
 		orderRequest.Orders = append(orderRequest.Orders,
 			WsSubmitOrdersRequestData{
 				Qty:         orders[i].Amount,
 				Price:       orders[i].Price,
 				Side:        string(orders[i].Side),
-				InstID:      c.instrumentMap.LookupID(curr),
+				InstID:      c.instrumentMap.LookupID(curr.String()),
 				ClientOrdID: i + 1,
 			})
 	}
@@ -718,10 +735,15 @@ func (c *COINUT) wsCancelOrder(cancellation *WsCancelOrderParameters) (*CancelOr
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return response, fmt.Errorf("%v not authorised to cancel order", c.Name)
 	}
-	curr := c.FormatExchangeCurrency(cancellation.Currency, asset.Spot).String()
+
+	curr, err := c.FormatExchangeCurrency(cancellation.Currency, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+
 	var cancellationRequest WsCancelOrderRequest
 	cancellationRequest.Request = "cancel_order"
-	cancellationRequest.InstID = c.instrumentMap.LookupID(curr)
+	cancellationRequest.InstID = c.instrumentMap.LookupID(curr.String())
 	cancellationRequest.OrderID = cancellation.OrderID
 	cancellationRequest.Nonce = c.WebsocketConn.GenerateMessageID(false)
 
@@ -751,9 +773,12 @@ func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) (*Cance
 	}
 	var cancelOrderRequest WsCancelOrdersRequest
 	for i := range cancellations {
-		curr := c.FormatExchangeCurrency(cancellations[i].Currency, asset.Spot).String()
+		curr, err := c.FormatExchangeCurrency(cancellations[i].Currency, asset.Spot)
+		if err != nil {
+			return nil, err
+		}
 		cancelOrderRequest.Entries = append(cancelOrderRequest.Entries, WsCancelOrdersRequestEntry{
-			InstID:  c.instrumentMap.LookupID(curr),
+			InstID:  c.instrumentMap.LookupID(curr.String()),
 			OrderID: cancellations[i].OrderID,
 		})
 	}
@@ -776,10 +801,15 @@ func (c *COINUT) wsGetTradeHistory(p *currency.Pair, start, limit int64) (*WsTra
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return response, fmt.Errorf("%v not authorised to get trade history", c.Name)
 	}
-	curr := c.FormatExchangeCurrency(p, asset.Spot).String()
+
+	curr, err := c.FormatExchangeCurrency(p, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+
 	var request WsTradeHistoryRequest
 	request.Request = "trade_history"
-	request.InstID = c.instrumentMap.LookupID(curr)
+	request.InstID = c.instrumentMap.LookupID(curr.String())
 	request.Nonce = c.WebsocketConn.GenerateMessageID(false)
 	request.Start = start
 	request.Limit = limit

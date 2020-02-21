@@ -303,10 +303,18 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 			continue
 		}
 		for j := range enabledCurrencies {
+			fpair, err := c.FormatExchangeCurrency(enabledCurrencies[j],
+				asset.Spot)
+			if err != nil {
+				log.Errorf(log.WebsocketMgr,
+					"%s could not generate default subscriptions Err: %s\n",
+					c.Name,
+					err)
+				return
+			}
 			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
-				Channel: channels[i],
-				Currency: c.FormatExchangeCurrency(enabledCurrencies[j],
-					asset.Spot),
+				Channel:  channels[i],
+				Currency: fpair,
 			})
 		}
 	}
@@ -315,14 +323,19 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (c *CoinbasePro) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+	fpair, err := c.FormatExchangeCurrency(channelToSubscribe.Currency,
+		asset.Spot)
+	if err != nil {
+		return err
+	}
+
 	subscribe := WebsocketSubscribe{
 		Type: "subscribe",
 		Channels: []WsChannels{
 			{
 				Name: channelToSubscribe.Channel,
 				ProductIDs: []string{
-					c.FormatExchangeCurrency(channelToSubscribe.Currency,
-						asset.Spot).String(),
+					fpair.String(),
 				},
 			},
 		},
@@ -342,14 +355,19 @@ func (c *CoinbasePro) Subscribe(channelToSubscribe wshandler.WebsocketChannelSub
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (c *CoinbasePro) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+	fpair, err := c.FormatExchangeCurrency(channelToSubscribe.Currency,
+		asset.Spot)
+	if err != nil {
+		return err
+	}
+
 	subscribe := WebsocketSubscribe{
 		Type: "unsubscribe",
 		Channels: []WsChannels{
 			{
 				Name: channelToSubscribe.Channel,
 				ProductIDs: []string{
-					c.FormatExchangeCurrency(channelToSubscribe.Currency,
-						asset.Spot).String(),
+					fpair.String(),
 				},
 			},
 		},

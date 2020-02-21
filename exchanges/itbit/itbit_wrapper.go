@@ -143,7 +143,12 @@ func (i *ItBit) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (i *ItBit) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tick, err := i.GetTicker(i.FormatExchangeCurrency(p, assetType).String())
+	fpair, err := i.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	tick, err := i.GetTicker(fpair.String())
 	if err != nil {
 		return nil, err
 	}
@@ -187,12 +192,17 @@ func (i *ItBit) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (i *ItBit) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
-	orderbookNew, err := i.GetOrderbook(i.FormatExchangeCurrency(p, assetType).String())
+	fpair, err := i.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
 
+	orderbookNew, err := i.GetOrderbook(fpair.String())
+	if err != nil {
+		return nil, err
+	}
+
+	orderBook := new(orderbook.Base)
 	for x := range orderbookNew.Bids {
 		var price, amount float64
 		price, err = strconv.ParseFloat(orderbookNew.Bids[x][0], 64)

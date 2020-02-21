@@ -306,16 +306,20 @@ func (b *Binance) WsHandleData() {
 
 // SeedLocalCache seeds depth data
 func (b *Binance) SeedLocalCache(p *currency.Pair) error {
-	var newOrderBook orderbook.Base
-	orderbookNew, err := b.GetOrderBook(
-		OrderBookDataRequestParams{
-			Symbol: b.FormatExchangeCurrency(p, asset.Spot).String(),
-			Limit:  1000,
-		})
+	fpair, err := b.FormatExchangeCurrency(p, asset.Spot)
 	if err != nil {
 		return err
 	}
 
+	orderbookNew, err := b.GetOrderBook(OrderBookDataRequestParams{
+		Symbol: fpair.String(),
+		Limit:  1000,
+	})
+	if err != nil {
+		return err
+	}
+
+	var newOrderBook orderbook.Base
 	for i := range orderbookNew.Bids {
 		newOrderBook.Bids = append(newOrderBook.Bids, orderbook.Item{
 			Amount: orderbookNew.Bids[i].Quantity,

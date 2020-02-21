@@ -58,11 +58,8 @@ func printConvertCurrencyFormat(origCurrency currency.Code, origPrice float64) s
 
 func printTickerSummary(result *ticker.Price, protocol string, err error) {
 	if err != nil {
-		log.Errorf(log.Ticker, "Failed to get %s %s %s %s ticker. Error: %s\n",
-			result.ExchangeName,
+		log.Errorf(log.Ticker, "Failed to get %s ticker. Error: %s\n",
 			protocol,
-			result.Pair,
-			result.AssetType,
 			err)
 		return
 	}
@@ -114,11 +111,8 @@ func printTickerSummary(result *ticker.Price, protocol string, err error) {
 
 func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 	if err != nil {
-		log.Errorf(log.OrderBook, "Failed to get %s %s %s orderbook of type %s. Error: %s\n",
-			result.ExchangeName,
+		log.Errorf(log.OrderBook, "Failed to get %s orderbook. Error: %s\n",
 			protocol,
-			result.Pair,
-			result.AssetType,
 			err)
 		return
 	}

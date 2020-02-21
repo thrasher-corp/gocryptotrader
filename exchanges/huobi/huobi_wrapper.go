@@ -323,8 +323,12 @@ func (h *HUOBI) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Pr
 	}
 	for i := range pairs {
 		for j := range tickers.Data {
-			pairFmt := h.FormatExchangeCurrency(pairs[i], assetType).String()
-			if pairFmt != tickers.Data[j].Symbol {
+			pairFmt, err := h.FormatExchangeCurrency(pairs[i], assetType)
+			if err != nil {
+				return nil, err
+			}
+
+			if pairFmt.String() != tickers.Data[j].Symbol {
 				continue
 			}
 
@@ -366,15 +370,19 @@ func (h *HUOBI) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (h *HUOBI) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
+	fpair, err := h.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
 	orderbookNew, err := h.GetDepth(OrderBookDataRequestParams{
-		Symbol: h.FormatExchangeCurrency(p, assetType).String(),
+		Symbol: fpair.String(),
 		Type:   OrderBookDataRequestParamsTypeStep0,
 	})
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
 
+	orderBook := new(orderbook.Base)
 	for x := range orderbookNew.Bids {
 		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
 			Amount: orderbookNew.Bids[x][1],
@@ -601,8 +609,13 @@ func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 		return cancelAllOrdersResponse, err
 	}
 	for i := range enabledPairs {
+		fpair, err := h.FormatExchangeCurrency(enabledPairs[i], asset.Spot)
+		if err != nil {
+			return cancelAllOrdersResponse, err
+		}
+
 		resp, err := h.CancelOpenOrdersBatch(orderCancellation.AccountID,
-			h.FormatExchangeCurrency(enabledPairs[i], asset.Spot).String())
+			fpair.String())
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}

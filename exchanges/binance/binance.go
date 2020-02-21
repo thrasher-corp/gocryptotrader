@@ -548,7 +548,11 @@ func (b *Binance) CheckLimit(limit int) error {
 func (b *Binance) CheckSymbol(symbol string, assetType asset.Item) error {
 	enPairs := b.GetAvailablePairs(assetType)
 	for x := range enPairs {
-		if b.FormatExchangeCurrency(enPairs[x], assetType).String() == symbol {
+		fpair, err := b.FormatExchangeCurrency(enPairs[x], assetType)
+		if err != nil {
+			return err
+		}
+		if fpair.String() == symbol {
 			return nil
 		}
 	}
