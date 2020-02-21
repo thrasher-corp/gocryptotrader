@@ -160,6 +160,12 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 					Err:      err,
 				}
 			}
+			p := currency.NewPairFromString(notification.Data[i].Symbol)
+			var a asset.Item
+			a, err = b.GetPairAssetType(p)
+			if err != nil {
+				return err
+			}
 			b.Websocket.DataHandler <- &order.Detail{
 				Price:        notification.Data[i].Price,
 				Amount:       notification.Data[i].Size,
@@ -169,9 +175,9 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				Type:         oType,
 				Side:         oSide,
 				Status:       oStatus,
-				AssetType:    asset.Spot,
+				AssetType:    a,
 				Date:         time.Unix(0, notification.Data[i].Timestamp*int64(time.Millisecond)),
-				Pair:         currency.NewPairFromString(notification.Data[i].Symbol),
+				Pair:         p,
 			}
 		}
 
@@ -186,10 +192,16 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if tradeHistory.Data[x].Gain == -1 {
 				side = order.Sell
 			}
+			p := currency.NewPairFromString(strings.Replace(tradeHistory.Topic, "tradeHistory:", "", 1))
+			var a asset.Item
+			a, err = b.GetPairAssetType(p)
+			if err != nil {
+				return err
+			}
 			b.Websocket.DataHandler <- wshandler.TradeData{
 				Timestamp:    time.Unix(0, tradeHistory.Data[x].TransactionTime*int64(time.Millisecond)),
-				CurrencyPair: currency.NewPairFromString(strings.Replace(tradeHistory.Topic, "tradeHistory:", "", 1)),
-				AssetType:    asset.Spot,
+				CurrencyPair: p,
+				AssetType:    a,
 				Exchange:     b.Name,
 				Price:        tradeHistory.Data[x].Price,
 				Amount:       tradeHistory.Data[x].Amount,
@@ -236,15 +248,21 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				Amount: amount,
 			})
 		}
-		newOB.AssetType = asset.Spot
-		newOB.Pair = currency.NewPairFromString(t.Topic[strings.Index(t.Topic, ":")+1 : strings.Index(t.Topic, "_")])
+		p := currency.NewPairFromString(t.Topic[strings.Index(t.Topic, ":")+1 : strings.Index(t.Topic, "_")])
+		var a asset.Item
+		a, err = b.GetPairAssetType(p)
+		if err != nil {
+			return err
+		}
+		newOB.Pair = p
+		newOB.AssetType = a
 		newOB.ExchangeName = b.Name
 		err = b.Websocket.Orderbook.LoadSnapshot(&newOB)
 		if err != nil {
 			return err
 		}
 		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: newOB.Pair,
-			Asset:    asset.Spot,
+			Asset:    a,
 			Exchange: b.Name}
 	default:
 		b.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: b.Name + wshandler.UnhandledMessage + string(respRaw)}

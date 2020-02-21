@@ -375,6 +375,12 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 							Err:      err,
 						}
 					}
+					p := currency.NewPairFromString(val.Description.Pair)
+					var a asset.Item
+					a, err = k.GetPairAssetType(p)
+					if err != nil {
+						return err
+					}
 					k.Websocket.DataHandler <- &order.Modify{
 						Leverage:        val.Description.Leverage,
 						Price:           val.Price,
@@ -388,9 +394,9 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 						Type:            oType,
 						Side:            oSide,
 						Status:          oStatus,
-						AssetType:       asset.Spot,
+						AssetType:       a,
 						Date:            time.Unix(startTime, startTimeNano),
-						Pair:            currency.NewPairFromString(val.Description.Pair),
+						Pair:            p,
 					}
 				} else {
 					k.Websocket.DataHandler <- &order.Modify{

@@ -661,7 +661,7 @@ func TestWsUserOrder(t *testing.T) {
       "orderId": "580721369818955776", 
       "direction": "openLong", 
       "leverage": "20", 
-      "symbol": "ETHUSDT", 
+      "symbol": "BTCUSDT", 
       "orderType": "limit", 
       "quantity": "7", 
       "orderPrice": "146.30", 

@@ -138,41 +138,41 @@ func (h *HUOBI) wsReadData() {
 	}
 }
 
-func getStatus(status string) order.Status {
+func stringToOrderStatus(status string) (order.Status, error) {
 	switch status {
 	case "submitted":
-		return order.New
+		return order.New, nil
 	case "canceled":
-		return order.Cancelled
+		return order.Cancelled, nil
 	case "partial-filled":
-		return order.PartiallyFilled
+		return order.PartiallyFilled, nil
 	case "partial-canceled":
-		return order.PartiallyCancelled
+		return order.PartiallyCancelled, nil
 	default:
-		return order.UnknownStatus
+		return order.UnknownStatus, errors.New(status + " not recognised as order status")
 	}
 }
 
-func getSideType(sideType string) (order.Side, order.Type) {
-	var oSide order.Side
-	var oType order.Type
+func stringToOrderSide(side string) (order.Side, error) {
 	switch {
-	case strings.Contains(sideType, "buy"):
-		oSide = order.Buy
-	case strings.Contains(sideType, "sell"):
-		oSide = order.Sell
-	default:
-		oSide = order.UnknownSide
+	case strings.Contains(side, "buy"):
+		return order.Buy, nil
+	case strings.Contains(side, "sell"):
+		return order.Sell, nil
 	}
+
+	return order.UnknownSide, errors.New(side + " not recognised as order side")
+}
+
+func stringToOrderType(oType string) (order.Type, error) {
 	switch {
-	case strings.Contains(sideType, "limit"):
-		oType = order.Limit
-	case strings.Contains(sideType, "market"):
-		oType = order.Market
-	default:
-		oType = order.UnknownType
+	case strings.Contains(oType, "limit"):
+		return order.Limit, nil
+	case strings.Contains(oType, "market"):
+		return order.Market, nil
 	}
-	return oSide, oType
+
+	return order.UnknownType, errors.New(oType + " not recognised as order type")
 }
 
 func (h *HUOBI) wsHandleData(respRaw []byte) error {
@@ -231,20 +231,53 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 		if len(data) < 2 {
 			return errors.New(h.Name + " - currency could not be extracted from response")
 		}
-		oSide, oType := getSideType(response.Data.OrderType)
+		orderID := strconv.FormatInt(response.Data.OrderID, 10)
+		var oSide order.Side
+		oSide, err = stringToOrderSide(response.Data.OrderType)
+		if err != nil {
+			h.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: h.Name,
+				OrderID:  orderID,
+				Err:      err,
+			}
+		}
+		var oType order.Type
+		oType, err = stringToOrderType(response.Data.OrderType)
+		if err != nil {
+			h.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: h.Name,
+				OrderID:  orderID,
+				Err:      err,
+			}
+		}
+		var oStatus order.Status
+		oStatus, err = stringToOrderStatus(response.Data.OrderState)
+		if err != nil {
+			h.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: h.Name,
+				OrderID:  orderID,
+				Err:      err,
+			}
+		}
+		p := currency.NewPairFromString(data[1])
+		var a asset.Item
+		a, err = h.GetPairAssetType(p)
+		if err != nil {
+			return err
+		}
 		h.Websocket.DataHandler <- &order.Detail{
 			Price:           response.Data.Price,
 			Amount:          response.Data.UnfilledAmount + response.Data.FilledAmount,
 			ExecutedAmount:  response.Data.FilledAmount,
 			RemainingAmount: response.Data.UnfilledAmount,
 			Exchange:        h.Name,
-			ID:              strconv.FormatInt(response.Data.OrderID, 10),
+			ID:              orderID,
 			Type:            oType,
 			Side:            oSide,
-			Status:          getStatus(response.Data.OrderState),
-			AssetType:       asset.Spot,
+			Status:          oStatus,
+			AssetType:       a,
 			LastUpdated:     time.Unix(response.TS*1000, 0),
-			Pair:            currency.NewPairFromString(data[1]),
+			Pair:            p,
 		}
 
 	case strings.Contains(init.Topic, "orders"):

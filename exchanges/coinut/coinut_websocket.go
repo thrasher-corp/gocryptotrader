@@ -387,6 +387,7 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 	if len(oContainer.Reasons) > 0 {
 		return nil, fmt.Errorf("%s - Order rejected: %v", c.Name, oContainer.Reasons)
 	}
+
 	o := &order.Detail{
 		Price:           oContainer.Price,
 		Amount:          oContainer.Quantity,
@@ -396,7 +397,6 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 		ID:              orderID,
 		Side:            oSide,
 		Status:          oStatus,
-		AssetType:       asset.Spot,
 		Date:            time.Unix(0, oContainer.Timestamp),
 		Trades:          nil,
 	}
@@ -427,6 +427,12 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 	} else {
 		o.Pair = currency.NewPairFromString(c.instrumentMap.LookupInstrument(oContainer.InstrumentID))
 	}
+	var a asset.Item
+	a, err = c.GetPairAssetType(o.Pair)
+	if err != nil {
+		return o, err
+	}
+	o.AssetType = a
 	return o, nil
 }
 

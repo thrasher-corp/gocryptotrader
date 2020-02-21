@@ -114,10 +114,15 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 		if wsTradeTemp.Data.Type == -1 {
 			side = order.Sell
 		}
+		var a asset.Item
+		a, err = b.GetPairAssetType(p)
+		if err != nil {
+			return err
+		}
 		b.Websocket.DataHandler <- wshandler.TradeData{
 			Timestamp:    time.Unix(wsTradeTemp.Data.Timestamp, 0),
 			CurrencyPair: p,
-			AssetType:    asset.Spot,
+			AssetType:    a,
 			Exchange:     b.Name,
 			EventType:    order.UnknownType,
 			Price:        wsTradeTemp.Data.Price,

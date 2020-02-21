@@ -95,6 +95,8 @@ func (b *BTSE) SetDefaults() {
 				TradeFetching:     true,
 				Subscribe:         true,
 				Unsubscribe:       true,
+				GetOrders:         true,
+				GetOrder:          true,
 			},
 			WithdrawPermissions: exchange.NoAPIWithdrawalMethods,
 		},

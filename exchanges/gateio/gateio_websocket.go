@@ -253,7 +253,12 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-
+		p := currency.NewPairFromString(invalidJSON["market"].(string))
+		var a asset.Item
+		a, err = g.GetPairAssetType(p)
+		if err != nil {
+			return err
+		}
 		g.Websocket.DataHandler <- &order.Detail{
 			Price:           price,
 			Amount:          amount,
@@ -265,10 +270,10 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			Type:            oType,
 			Side:            oSide,
 			Status:          oStatus,
-			AssetType:       asset.Spot,
+			AssetType:       a,
 			Date:            time.Unix(cTime, cTimeDec),
 			LastUpdated:     time.Unix(mTime, mTimeDec),
-			Pair:            currency.NewPairFromString(invalidJSON["market"].(string)),
+			Pair:            p,
 		}
 	case strings.Contains(result.Method, "depth"):
 		var IsSnapshot bool

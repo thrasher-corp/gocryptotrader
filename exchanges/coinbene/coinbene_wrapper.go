@@ -108,6 +108,8 @@ func (c *Coinbene) SetDefaults() {
 				Subscribe:              true,
 				Unsubscribe:            true,
 				AuthenticatedEndpoints: true,
+				GetOrders:              true,
+				GetOrder:               true,
 			},
 			WithdrawPermissions: exchange.NoFiatWithdrawals |
 				exchange.WithdrawCryptoViaWebsiteOnly,

@@ -336,7 +336,12 @@ func (h *HitBTC) wsHandleOrderData(o *wsOrderData) error {
 			Err:      err,
 		}
 	}
-
+	p := currency.NewPairFromString(o.Symbol)
+	var a asset.Item
+	a, err = h.GetPairAssetType(p)
+	if err != nil {
+		return err
+	}
 	h.Websocket.DataHandler <- &order.Detail{
 		Price:           o.Price,
 		Amount:          o.Quantity,
@@ -347,10 +352,10 @@ func (h *HitBTC) wsHandleOrderData(o *wsOrderData) error {
 		Type:            oType,
 		Side:            oSide,
 		Status:          oStatus,
-		AssetType:       asset.Spot,
+		AssetType:       a,
 		Date:            o.CreatedAt,
 		LastUpdated:     o.UpdatedAt,
-		Pair:            currency.NewPairFromString(o.Symbol),
+		Pair:            p,
 		Trades:          trades,
 	}
 	return nil

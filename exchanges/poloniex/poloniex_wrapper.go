@@ -101,6 +101,8 @@ func (p *Poloniex) SetDefaults() {
 				Subscribe:              true,
 				Unsubscribe:            true,
 				AuthenticatedEndpoints: true,
+				GetOrders:              true,
+				GetOrder:               true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.NoFiatWithdrawals,

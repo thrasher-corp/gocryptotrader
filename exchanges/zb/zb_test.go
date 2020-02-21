@@ -675,7 +675,7 @@ func TestWsTrades(t *testing.T) {
 }
 
 func TestWsPlaceOrderJSON(t *testing.T) {
-	pressXToJSON := []byte(`{"message":"操作成功。","no":"1337","data":"{"entrustId":201711133673}","code":1000,"channel":"ltcbtc_order","success":true}`)
+	pressXToJSON := []byte(`{"message":"操作成功。","no":"1337","data":"{"entrustId":201711133673}","code":1000,"channel":"btcusdt_order","success":true}`)
 	err := z.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)

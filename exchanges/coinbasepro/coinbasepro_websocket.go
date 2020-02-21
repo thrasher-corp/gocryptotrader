@@ -179,6 +179,12 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 		if wsOrder.Reason == "canceled" {
 			oStatus = order.Cancelled
 		}
+		p := currency.NewPairFromString(wsOrder.ProductID)
+		var a asset.Item
+		a, err = c.GetPairAssetType(p)
+		if err != nil {
+			return err
+		}
 		c.Websocket.DataHandler <- &order.Detail{
 			HiddenOrder:     wsOrder.Private,
 			Price:           wsOrder.Price,
@@ -194,9 +200,9 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			Type:            oType,
 			Side:            oSide,
 			Status:          oStatus,
-			AssetType:       asset.Spot,
+			AssetType:       a,
 			Date:            createdDate,
-			Pair:            currency.NewPairFromString(wsOrder.ProductID),
+			Pair:            p,
 		}
 	case "match":
 		var wsOrder wsOrderReceived

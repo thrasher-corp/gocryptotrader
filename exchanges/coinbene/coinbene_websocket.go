@@ -345,6 +345,12 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 					Err:      err,
 				}
 			}
+			p := currency.NewPairFromString(orders.Data[i].Symbol)
+			var a asset.Item
+			a, err = c.GetPairAssetType(p)
+			if err != nil {
+				return err
+			}
 			c.Websocket.DataHandler <- &order.Detail{
 				Price:           orders.Data[i].OrderPrice,
 				Amount:          orders.Data[i].Quantity,
@@ -355,10 +361,10 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				ID:              orders.Data[i].OrderID,
 				Type:            oType,
 				Status:          oStatus,
-				AssetType:       asset.PerpetualSwap,
+				AssetType:       a,
 				Date:            orders.Data[i].OrderTime,
 				Leverage:        orders.Data[i].Leverage,
-				Pair:            currency.NewPairFromString(orders.Data[i].Symbol),
+				Pair:            p,
 			}
 		}
 	default:

@@ -100,6 +100,8 @@ func (z *ZB) SetDefaults() {
 				CancelOrder:            true,
 				SubmitOrder:            true,
 				MessageCorrelation:     true,
+				GetOrders:              true,
+				GetOrder:               true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,

@@ -527,7 +527,7 @@ func TestWsGetActiveOrdersJSON(t *testing.T) {
     {
       "id": "4345613661",
       "clientOrderId": "57d5525562c945448e3cbd559bd068c3",
-      "symbol": "BCCBTC",
+      "symbol": "BTCUSD",
       "side": "sell",
       "status": "new",
       "type": "limit",
@@ -607,7 +607,7 @@ func TestWsTicker(t *testing.T) {
     "volume": "33068.346",
     "volumeQuote": "1832.687530809",
     "timestamp": "2017-10-19T15:45:44.941Z",
-    "symbol": "ETHBTC"
+    "symbol": "BTCUSD"
   }
 }`)
 	err := h.wsHandleData(pressXToJSON)
@@ -649,7 +649,7 @@ func TestWsOrderbook(t *testing.T) {
         "size": "7.725"
       }
     ],
-    "symbol": "ETHBTC",
+    "symbol": "BTCUSD",
     "sequence": 8073827,    
     "timestamp": "2018-11-19T05:00:28.193Z"
   }
@@ -679,7 +679,7 @@ func TestWsOrderbook(t *testing.T) {
          "size": "0.000"
       }
     ],
-    "symbol": "ETHBTC",
+    "symbol": "BTCUSD",
     "sequence": 8073830,
     "timestamp": "2018-11-19T05:00:28.700Z"
   }
@@ -697,7 +697,7 @@ func TestWsOrderNotification(t *testing.T) {
   "params": {
     "id": "4345697765",
     "clientOrderId": "53b7cf917963464a811a4af426102c19",
-    "symbol": "ETHBTC",
+    "symbol": "BTCUSD",
     "side": "sell",
     "status": "filled",
     "type": "limit",
@@ -727,7 +727,7 @@ func TestWsSubmitOrderJSON(t *testing.T) {
   "result": {
     "id": "4345947689",
     "clientOrderId": "57d5525562c945448e3cbd559bd068c4",
-    "symbol": "ETHBTC",
+    "symbol": "BTCUSD",
     "side": "sell",
     "status": "new",
     "type": "limit",
@@ -754,7 +754,7 @@ func TestWsCancelOrderJSON(t *testing.T) {
   "result": {
     "id": "4345947689",
     "clientOrderId": "57d5525562c945448e3cbd559bd068c4",
-    "symbol": "ETHBTC",
+    "symbol": "BTCUSD",
     "side": "sell",
     "status": "canceled",
     "type": "limit",
@@ -781,7 +781,7 @@ func TestWsCancelReplaceJSON(t *testing.T) {
   "result": {
     "id": "4346371528",
     "clientOrderId": "9cbe79cb6f864b71a811402a48d4b5b2",
-    "symbol": "ETHBTC",
+    "symbol": "BTCUSD",
     "side": "sell",
     "status": "new",
     "type": "limit",
@@ -838,7 +838,7 @@ func TestWsGetActiveOrdersRequestJSON(t *testing.T) {
     {
       "id": "4346371528",
       "clientOrderId": "9cbe79cb6f864b71a811402a48d4b5b2",
-      "symbol": "ETHBTC",
+      "symbol": "BTCUSD",
       "side": "sell",
       "status": "new",
       "type": "limit",
@@ -889,7 +889,7 @@ func TestWsTrades(t *testing.T) {
         "timestamp": "2017-10-19T16:34:13.288Z"
       }
     ],
-    "symbol": "ETHBTC"
+    "symbol": "BTCUSD"
   }
 }`)
 	err := h.wsHandleData(pressXToJSON)
@@ -910,7 +910,7 @@ func TestWsTrades(t *testing.T) {
         "timestamp": "2017-10-19T16:34:25.041Z"
       }
     ],
-    "symbol": "ETHBTC"
+    "symbol": "BTCUSD"
   }
 }    `)
 	err = h.wsHandleData(pressXToJSON)

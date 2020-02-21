@@ -122,6 +122,8 @@ func (b *Bitmex) SetDefaults() {
 				AuthenticatedEndpoints: true,
 				AccountInfo:            true,
 				DeadMansSwitch:         true,
+				GetOrders:              true,
+				GetOrder:               true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.WithdrawCryptoWithEmail |

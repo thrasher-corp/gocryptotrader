@@ -113,6 +113,8 @@ func (b *Bitfinex) SetDefaults() {
 				AuthenticatedEndpoints: true,
 				MessageCorrelation:     true,
 				DeadMansSwitch:         true,
+				GetOrders:              true,
+				GetOrder:               true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.AutoWithdrawFiatWithAPIPermission,

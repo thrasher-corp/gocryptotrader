@@ -103,6 +103,8 @@ func (o *OKCoin) SetDefaults() {
 				Unsubscribe:            true,
 				AuthenticatedEndpoints: true,
 				MessageCorrelation:     true,
+				GetOrders:              true,
+				GetOrder:               true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,

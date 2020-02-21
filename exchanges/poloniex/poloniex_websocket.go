@@ -198,6 +198,11 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 											notification[1].(float64))
 										currPair = currency.NewPairFromString(strconv.FormatFloat(notification[1].(float64), 'f', -1, 64))
 									}
+									var a asset.Item
+									a, err = p.GetPairAssetType(currPair)
+									if err != nil {
+										return err
+									}
 									response := &order.Detail{
 										Price:     rate,
 										Amount:    amount,
@@ -206,7 +211,7 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 										Type:      order.Limit,
 										Side:      buySell,
 										Status:    order.New,
-										AssetType: asset.Spot,
+										AssetType: a,
 										Date:      timeParse,
 										Pair:      currPair,
 									}

@@ -604,7 +604,7 @@ func TestWsTicker(t *testing.T) {
     "method": "ticker.update", 
     "params": 
         [
-            "BOT_USDT", 
+            "BTC_USDT", 
                 {
                     "period": 86400, 
                     "open": "0",
@@ -630,7 +630,7 @@ func TestWsTrade(t *testing.T) {
     "method": "trades.update",
     "params": 
         [
-             "ETH_USDT", 
+             "BTC_USDT", 
              [
                  {
                  "id": 7172173,
@@ -669,7 +669,7 @@ func TestWsDepth(t *testing.T) {
                 ]                
             ]
          }, 
-         "EOS_USDT"
+         "BTC_USDT"
     ],
     "id": null
  }`)
@@ -710,7 +710,7 @@ func TestWsOrderUpdate(t *testing.T) {
     3,
     {
       "id": 34628963,
-      "market": "EOS_USDT",
+      "market": "BTC_USDT",
       "orderType": 1,
       "type": 2,
       "user": 602123,

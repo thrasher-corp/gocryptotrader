@@ -926,7 +926,7 @@ func TestWsOrderStuff(t *testing.T) {
 	}
 	pressXToJSON = []byte(`{
   "type": "activate",
-  "product_id": "test-product",
+  "product_id": "BTC-USD",
   "timestamp": "1483736448.299000",
   "user_id": "12",
   "profile_id": "30000727-d308-cf50-7b1c-c06deb1934fc",

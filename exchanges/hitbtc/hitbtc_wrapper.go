@@ -102,6 +102,8 @@ func (h *HitBTC) SetDefaults() {
 				SubmitOrder:            true,
 				CancelOrder:            true,
 				MessageSequenceNumbers: true,
+				GetOrders:              true,
+				GetOrder:               true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,

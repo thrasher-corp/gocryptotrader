@@ -101,6 +101,8 @@ func (b *BTCMarkets) SetDefaults() {
 				AccountInfo:            true,
 				Subscribe:              true,
 				AuthenticatedEndpoints: true,
+				GetOrders:              true,
+				GetOrder:               true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,

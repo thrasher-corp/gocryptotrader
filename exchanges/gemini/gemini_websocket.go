@@ -207,6 +207,12 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 					Err:      err,
 				}
 			}
+			p := currency.NewPairFromString(result[i].Symbol)
+			var a asset.Item
+			a, err = g.GetPairAssetType(p)
+			if err != nil {
+				return err
+			}
 			g.Websocket.DataHandler <- &order.Detail{
 				HiddenOrder:     result[i].IsHidden,
 				Price:           result[i].Price,
@@ -218,9 +224,9 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 				Type:            oType,
 				Side:            oSide,
 				Status:          oStatus,
-				AssetType:       asset.Spot,
+				AssetType:       a,
 				Date:            time.Unix(0, result[i].Timestampms*int64(time.Millisecond)),
-				Pair:            currency.NewPairFromString(result[i].Symbol),
+				Pair:            p,
 			}
 		}
 		return nil

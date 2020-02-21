@@ -106,6 +106,8 @@ func (c *CoinbasePro) SetDefaults() {
 				Unsubscribe:            true,
 				AuthenticatedEndpoints: true,
 				MessageSequenceNumbers: true,
+				GetOrders:              true,
+				GetOrder:               true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.AutoWithdrawFiatWithAPIPermission,

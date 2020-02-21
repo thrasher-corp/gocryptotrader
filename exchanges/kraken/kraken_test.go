@@ -1113,7 +1113,7 @@ func TestWsOwnTrades(t *testing.T) {
         "margin": "0.00000",
         "ordertxid": "TDLH43-DVQXD-2KHVYY",
         "ordertype": "limit",
-        "pair": "XBT/EUR",
+        "pair": "XBT/USD",
         "postxid": "OGTT3Y-C6I3P-XRI6HX",
         "price": "100000.00000",
         "time": "1560516023.070651",
@@ -1128,7 +1128,7 @@ func TestWsOwnTrades(t *testing.T) {
         "margin": "0.00000",
         "ordertxid": "TDLH43-DVQXD-2KHVYY",
         "ordertype": "limit",
-        "pair": "XBT/EUR",
+        "pair": "XBT/USD",
         "postxid": "OGTT3Y-C6I3P-XRI6HX",
         "price": "100000.00000",
         "time": "1560516023.070658",
@@ -1143,7 +1143,7 @@ func TestWsOwnTrades(t *testing.T) {
         "margin": "0.00000",
         "ordertxid": "TDLH43-DVQXD-2KHVYY",
         "ordertype": "limit",
-        "pair": "XBT/EUR",
+        "pair": "XBT/USD",
         "postxid": "OGTT3Y-C6I3P-XRI6HX",
         "price": "100000.00000",
         "time": "1560520332.914657",
@@ -1158,7 +1158,7 @@ func TestWsOwnTrades(t *testing.T) {
         "margin": "0.00000",
         "ordertxid": "TDLH43-DVQXD-2KHVYY",
         "ordertype": "limit",
-        "pair": "XBT/EUR",
+        "pair": "XBT/USD",
         "postxid": "OGTT3Y-C6I3P-XRI6HX",
         "price": "100000.00000",
         "time": "1560520332.914664",
@@ -1184,9 +1184,9 @@ func TestWsOpenOrders(t *testing.T) {
         "descr": {
           "close": "",
           "leverage": "0:1",
-          "order": "sell 10.00345345 XBT/EUR @ limit 34.50000 with 0:1 leverage",
+          "order": "sell 10.00345345 XBT/USD @ limit 34.50000 with 0:1 leverage",
           "ordertype": "limit",
-          "pair": "XBT/EUR",
+          "pair": "XBT/USD",
           "price": "34.50000",
           "price2": "0.00000",
           "type": "sell"
@@ -1213,9 +1213,9 @@ func TestWsOpenOrders(t *testing.T) {
         "descr": {
           "close": "",
           "leverage": "0:1",
-          "order": "sell 0.00000010 XBT/EUR @ limit 5334.60000 with 0:1 leverage",
+          "order": "sell 0.00000010 XBT/USD @ limit 5334.60000 with 0:1 leverage",
           "ordertype": "limit",
-          "pair": "XBT/EUR",
+          "pair": "XBT/USD",
           "price": "5334.60000",
           "price2": "0.00000",
           "type": "sell"
@@ -1242,9 +1242,9 @@ func TestWsOpenOrders(t *testing.T) {
         "descr": {
           "close": "",
           "leverage": "0:1",
-          "order": "sell 0.00001000 XBT/EUR @ limit 90.40000 with 0:1 leverage",
+          "order": "sell 0.00001000 XBT/USD @ limit 90.40000 with 0:1 leverage",
           "ordertype": "limit",
-          "pair": "XBT/EUR",
+          "pair": "XBT/USD",
           "price": "90.40000",
           "price2": "0.00000",
           "type": "sell"
@@ -1271,9 +1271,9 @@ func TestWsOpenOrders(t *testing.T) {
         "descr": {
           "close": "",
           "leverage": "0:1",
-          "order": "sell 0.00001000 XBT/EUR @ limit 9.00000 with 0:1 leverage",
+          "order": "sell 0.00001000 XBT/USD @ limit 9.00000 with 0:1 leverage",
           "ordertype": "limit",
-          "pair": "XBT/EUR",
+          "pair": "XBT/USD",
           "price": "9.00000",
           "price2": "0.00000",
           "type": "sell"

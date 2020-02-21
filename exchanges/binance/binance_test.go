@@ -550,7 +550,7 @@ func TestWsOrderUpdateHandling(t *testing.T) {
 	pressXToJSON := []byte(`{
 	  "e": "executionReport",        
 	  "E": 1499405658658,            
-	  "s": "ETHBTC",                 
+	  "s": "BTCUSDT",                 
 	  "c": "mUvoqJxFIILMdfAW5iGSOW", 
 	  "S": "BUY",                    
 	  "o": "LIMIT",                  

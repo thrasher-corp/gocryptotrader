@@ -170,10 +170,17 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 		if !o.Success {
 			return fmt.Errorf("%s - Order %v failed to be placed. %s", z.Name, o.Data.EntrustID, respRaw)
 		}
+		p := currency.NewPairFromString(cPair[0])
+		var a asset.Item
+		a, err = z.GetPairAssetType(p)
+		if err != nil {
+			return err
+		}
 		z.Websocket.DataHandler <- &order.Detail{
-			Exchange: z.Name,
-			ID:       strconv.FormatInt(o.Data.EntrustID, 10),
-			Pair:     currency.NewPairFromString(cPair[0]),
+			Exchange:  z.Name,
+			ID:        strconv.FormatInt(o.Data.EntrustID, 10),
+			Pair:      p,
+			AssetType: a,
 		}
 	case strings.Contains(result.Channel, "_cancelorder"):
 		cPair := strings.Split(result.Channel, "_")

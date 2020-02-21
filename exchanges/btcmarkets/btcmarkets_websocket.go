@@ -234,6 +234,12 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 				Err:      err,
 			}
 		}
+		p := currency.NewPairFromString(orderData.MarketID)
+		var a asset.Item
+		a, err = b.GetPairAssetType(p)
+		if err != nil {
+			return err
+		}
 		b.Websocket.DataHandler <- &order.Detail{
 			Price:           price,
 			Amount:          originalAmount,
@@ -244,9 +250,10 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			Type:            oType,
 			Side:            oSide,
 			Status:          oStatus,
-			AssetType:       asset.Spot,
+			AssetType:       a,
 			Date:            orderData.Timestamp,
 			Trades:          trades,
+			Pair:            p,
 		}
 	case "error":
 		var wsErr WsError

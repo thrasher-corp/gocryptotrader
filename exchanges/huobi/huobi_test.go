@@ -862,7 +862,7 @@ func TestWsOrderUpdate(t *testing.T) {
   "data": {
     "seq-id": 94984,
     "order-id": 2039498445,
-    "symbol": "htusdt",
+    "symbol": "btcusdt",
     "account-id": 100077,
     "order-amount": "5000.000000000000000000",
     "order-price": "1.662100000000000000",
@@ -956,13 +956,13 @@ func TestWsOrdersUpdate(t *testing.T) {
 	pressXToJSON := []byte(`{
 		"op": "notify",
 		"ts": 1522856623232,
-		"topic": "orders.htusdt.update",
+		"topic": "orders.btcusdt.update",
 		"data": {
 		"unfilled-amount": "0.000000000000000000",
 			"filled-amount": "5000.000000000000000000",
 			"price": "1.662100000000000000",
 			"order-id": 2039498445,
-			"symbol": "htusdt",
+			"symbol": "btcusdt",
 			"match-id": 94984,
 			"filled-cash-amount": "8301.357280000000000000",
 			"role": "taker|maker",
@@ -977,7 +977,7 @@ func TestWsOrdersUpdate(t *testing.T) {
 	}
 }
 
-func TestGetStatus(t *testing.T) {
+func TestStringToOrderStatus(t *testing.T) {
 	type TestCases struct {
 		Case   string
 		Result order.Status
@@ -990,7 +990,43 @@ func TestGetStatus(t *testing.T) {
 		{Case: "LOL", Result: order.UnknownStatus},
 	}
 	for i := range testCases {
-		result := getStatus(testCases[i].Case)
+		result, _ := stringToOrderStatus(testCases[i].Case)
+		if result != testCases[i].Result {
+			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
+		}
+	}
+}
+
+func TestStringToOrderSide(t *testing.T) {
+	type TestCases struct {
+		Case   string
+		Result order.Side
+	}
+	testCases := []TestCases{
+		{Case: "buy-limit", Result: order.Buy},
+		{Case: "sell-limit", Result: order.Sell},
+		{Case: "woah-nelly", Result: order.UnknownSide},
+	}
+	for i := range testCases {
+		result, _ := stringToOrderSide(testCases[i].Case)
+		if result != testCases[i].Result {
+			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
+		}
+	}
+}
+
+func TestStringToOrderType(t *testing.T) {
+	type TestCases struct {
+		Case   string
+		Result order.Type
+	}
+	testCases := []TestCases{
+		{Case: "buy-limit", Result: order.Limit},
+		{Case: "sell-market", Result: order.Market},
+		{Case: "woah-nelly", Result: order.UnknownType},
+	}
+	for i := range testCases {
+		result, _ := stringToOrderType(testCases[i].Case)
 		if result != testCases[i].Result {
 			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
 		}

@@ -225,6 +225,12 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					Err:      err,
 				}
 			}
+			p := currency.NewPairFromString(data.Symbol)
+			var a asset.Item
+			a, err = b.GetPairAssetType(p)
+			if err != nil {
+				return err
+			}
 			b.Websocket.DataHandler <- &order.Detail{
 				Price:           data.Price,
 				Amount:          data.Quantity,
@@ -235,9 +241,9 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				Type:            oType,
 				Side:            oSide,
 				Status:          oStatus,
-				AssetType:       asset.Spot,
+				AssetType:       a,
 				Date:            time.Unix(0, data.OrderCreationTime*int64(time.Millisecond)),
-				Pair:            currency.NewPairFromString(data.Symbol),
+				Pair:            p,
 			}
 		case "listStatus":
 			var data wsListStauts

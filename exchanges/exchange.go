@@ -213,9 +213,10 @@ func (e *Base) GetAssetTypes() asset.Items {
 
 // GetPairAssetType returns the associated asset type for the currency pair
 func (e *Base) GetPairAssetType(c currency.Pair) (asset.Item, error) {
-	for i := range e.GetAssetTypes() {
-		if e.GetEnabledPairs(e.GetAssetTypes()[i]).Contains(c, true) {
-			return e.GetAssetTypes()[i], nil
+	assetTypes := e.GetAssetTypes()
+	for i := range assetTypes {
+		if e.GetEnabledPairs(assetTypes[i]).Contains(c, true) {
+			return assetTypes[i], nil
 		}
 	}
 	return "", errors.New("asset type not associated with currency pair")
