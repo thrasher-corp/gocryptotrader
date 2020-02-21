@@ -5,6 +5,7 @@
   "BoardID": "",
   "Key": "",
   "Token": "",
+  "Username": "",
   "Exchanges": [
    {
     "Name": "Gemini",

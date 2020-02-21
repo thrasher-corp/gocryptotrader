@@ -23,7 +23,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestCheckUpdates(t *testing.T) {
-	err := CheckUpdates(testJSONFile, &configData)
+	err := CheckUpdates(testJSONFile, &testConfigData)
 	if err != nil {
 		t.Error(err)
 	}
