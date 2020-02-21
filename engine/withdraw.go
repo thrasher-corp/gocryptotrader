@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
-	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 	withdrawDataStore "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -81,7 +80,6 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 	if err == nil {
 		withdraw.Cache.Add(resp.ID, resp)
 	}
-	audit.Event(resp.ID.String(), "withdrawal", "withdrawal request created")
 	return resp, nil
 }
 

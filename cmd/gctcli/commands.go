@@ -3433,7 +3433,7 @@ var getAuditEventCommand = cli.Command{
 		cli.StringFlag{
 			Name:        "start, s",
 			Usage:       "start date to search",
-			Value:       time.Now().Add(-time.Hour).Format(timeFormat),
+			Value:       time.Now().AddDate(0, -1, 0).Format(timeFormat),
 			Destination: &startTime,
 		},
 		cli.StringFlag{
