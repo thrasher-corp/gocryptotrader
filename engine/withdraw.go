@@ -61,9 +61,10 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 			if err != nil {
 				resp.Exchange.ID = StatusError
 				resp.Exchange.Status = err.Error()
+			} else {
+				resp.Exchange.Status = ret.Status
+				resp.Exchange.ID = ret.ID
 			}
-			resp.Exchange.Status = ret.Status
-			resp.Exchange.ID = ret.ID
 		} else if req.Type == withdraw.Crypto {
 			ret, err = exch.WithdrawCryptocurrencyFunds(req)
 			if err != nil {

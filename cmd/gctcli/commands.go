@@ -2495,7 +2495,7 @@ func withdrawlRequestByID(c *cli.Context) error {
 	}
 
 	if ID == "" {
-		return errors.New("a ID must be specified")
+		return errors.New("an ID must be specified")
 	}
 
 	conn, err := setupClient()
@@ -2541,7 +2541,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 			ID = c.Args().Get(1)
 		}
 		if ID == "" {
-			return errors.New("a ID must be specified")
+			return errors.New("an ID must be specified")
 		}
 		limit = 1
 	} else {
@@ -2597,13 +2597,13 @@ func withdrawlRequestByDate(c *cli.Context) error {
 	}
 
 	if !c.IsSet("start") {
-		if c.Args().Get(0) != "" {
+		if c.Args().Get(1) != "" {
 			startTime = c.Args().Get(1)
 		}
 	}
 
 	if !c.IsSet("end") {
-		if c.Args().Get(1) != "" {
+		if c.Args().Get(2) != "" {
 			endTime = c.Args().Get(2)
 		}
 	}
