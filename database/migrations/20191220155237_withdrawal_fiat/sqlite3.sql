@@ -12,8 +12,8 @@ CREATE TABLE IF NOT EXISTS "withdrawal_fiat"
     iban                      text not null,
     bank_code                 real not null,
     withdrawal_history_id  text NOT NULL,
-    FOREIGN KEY(withdrawal_history_id) REFERENCES withdrawal_history(id)
+    FOREIGN KEY(withdrawal_history_id) REFERENCES withdrawal_history(id) ON DELETE RESTRICT
 );
 -- +goose Down
 -- SQL in this section is executed when the migration is rolled back.
-DROP TABLE IF EXISTS  withdrawal_fiat
+DROP TABLE IF EXISTS  withdrawal_fiat;
