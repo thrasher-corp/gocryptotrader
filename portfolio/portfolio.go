@@ -452,9 +452,7 @@ func IsExchangeSupported(exchange, address string) (ret bool) {
 			continue
 		}
 		exchangeList := strings.Split(Portfolio.Addresses[x].SupportedExchanges, ",")
-		if common.StringDataContainsInsensitive(exchangeList, exchange) {
-			return true
-		}
+		return common.StringDataContainsInsensitive(exchangeList, exchange)
 	}
 	return
 }

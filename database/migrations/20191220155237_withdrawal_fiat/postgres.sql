@@ -3,7 +3,7 @@
 CREATE TABLE IF NOT EXISTS withdrawal_fiat
 (
     id bigserial PRIMARY KEY NOT NULL,
-    withdrawal_fiat_id        uuid REFERENCES withdrawal_history(id) ON DELETE CASCADE,
+    withdrawal_fiat_id        uuid REFERENCES withdrawal_history(id) ON DELETE RESTRICT,
     bank_name                 text not null,
     bank_address              text not null,
     bank_account_name         text not null,
@@ -15,4 +15,4 @@ CREATE TABLE IF NOT EXISTS withdrawal_fiat
 );
 -- +goose Down
 -- SQL in this section is executed when the migration is rolled back.
-DROP TABLE IF EXISTS  withdrawal_fiat
+DROP TABLE IF EXISTS  withdrawal_fiat;

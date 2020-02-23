@@ -28,20 +28,16 @@ func Validate(request *Request) (err error) {
 		if request.Fiat == nil {
 			return ErrInvalidRequest
 		}
-		if (request.Currency != currency.Code{}) {
-			if !request.Currency.IsFiatCurrency() {
-				allErrors = append(allErrors, ErrStrCurrencyNotFiat)
-			}
+		if (request.Currency != currency.Code{}) && !request.Currency.IsFiatCurrency() {
+			allErrors = append(allErrors, ErrStrCurrencyNotFiat)
 		}
 		allErrors = append(allErrors, validateFiat(request)...)
 	case Crypto:
 		if request.Crypto == nil {
 			return ErrInvalidRequest
 		}
-		if (request.Currency != currency.Code{}) {
-			if !request.Currency.IsCryptocurrency() {
-				allErrors = append(allErrors, ErrStrCurrencyNotCrypto)
-			}
+		if (request.Currency != currency.Code{}) && !request.Currency.IsCryptocurrency() {
+			allErrors = append(allErrors, ErrStrCurrencyNotCrypto)
 		}
 		allErrors = append(allErrors, validateCrypto(request)...)
 	default:

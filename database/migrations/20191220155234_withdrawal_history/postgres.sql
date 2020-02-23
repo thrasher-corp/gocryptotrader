@@ -16,4 +16,4 @@ CREATE TABLE IF NOT EXISTS withdrawal_history
 );
 -- +goose Down
 -- SQL in this section is executed when the migration is rolled back.
-DROP TABLE IF EXISTS  withdrawal_history
+DROP TABLE IF EXISTS  withdrawal_history;

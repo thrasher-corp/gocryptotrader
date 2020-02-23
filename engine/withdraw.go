@@ -77,7 +77,6 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 		}
 		withdrawDataStore.Event(resp)
 	}
-
 	if err == nil {
 		withdraw.Cache.Add(resp.ID, resp)
 	}
