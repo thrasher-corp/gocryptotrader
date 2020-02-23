@@ -58,18 +58,6 @@ const (
 	incomplete         = "incomplete"
 )
 
-// Config is a format for storing update data
-type Config struct {
-	CardID      string         `json:"CardID"`
-	ChecklistID string         `json:"ChecklistID"`
-	ListID      string         `json:"ListID"`
-	BoardID     string         `json:"BoardID"`
-	Key         string         `json:"Key"`
-	Token       string         `json:"Token"`
-	Username    string         `json:"Username"`
-	Exchanges   []ExchangeInfo `json:"Exchanges"`
-}
-
 var (
 	verbose, add                                                                                                                                                                                                     bool
 	apiKey, apiToken, trelloUsername, trelloBoardID, trelloListID, trelloChecklistID, trelloCardID, exchangeName, checkType, tokenData, key, val, tokenDataEnd, textTokenData, dateFormat, regExp, checkString, path string
@@ -77,8 +65,8 @@ var (
 )
 
 func main() {
-	flag.StringVar(&apiKey, "key", "", "sets the API key for Trello board interaction")
-	flag.StringVar(&apiToken, "token", "", "sets the API token for Trello board interaction")
+	flag.StringVar(&apiKey, "apiKey", "", "sets the API key for Trello board interaction")
+	flag.StringVar(&apiToken, "apiToken", "", "sets the API token for Trello board interaction")
 	flag.StringVar(&trelloChecklistID, "checklistid", "", "sets the checklist ID for Trello board interaction")
 	flag.StringVar(&trelloCardID, "cardid", "", "sets the card ID for Trello board interaction")
 	flag.StringVar(&trelloListID, "listid", "", "sets the list ID for Trello board interaction")
