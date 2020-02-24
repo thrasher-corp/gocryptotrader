@@ -177,12 +177,11 @@ func (w Wrapper) AccountInformation(exch string) (account.Holdings, error) {
 					{
 						CurrencyName: currency.Code{
 							Item: &currency.Item{
-								ID:            0,
-								FullName:      "Bitcoin",
-								Symbol:        "BTC",
-								Role:          1,
-								AssocChain:    "",
-								AssocExchange: nil,
+								ID:         0,
+								FullName:   "Bitcoin",
+								Symbol:     "BTC",
+								Role:       1,
+								AssocChain: "",
 							},
 						},
 						TotalValue: 100,

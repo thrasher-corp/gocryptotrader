@@ -176,41 +176,50 @@ func TestBaseCode(t *testing.T) {
 			false)
 	}
 
-	err := main.UpdateContract("Bitcoin Perpetual", "XBTUSD", "Bitmex")
+	main.Register("XBTUSD")
+
+	err := main.UpdateCurrency("Bitcoin Perpetual",
+		"XBTUSD",
+		"",
+		0,
+		Contract)
+	if err != nil {
+		t.Fatal("BaseCode UpdateContract error", err)
+	}
+
+	main.Register("BTC")
+	err = main.UpdateCurrency("Bitcoin", "BTC", "", 1337, Cryptocurrency)
 	if err != nil {
 		t.Error("BaseCode UpdateContract error", err)
 	}
 
-	err = main.UpdateCryptocurrency("Bitcoin", "BTC", 1337)
+	main.Register("AUD")
+	err = main.UpdateCurrency("Unreal Dollar", "AUD", "", 1111, Fiat)
 	if err != nil {
-		t.Error("BaseCode UpdateContract error", err)
-	}
-
-	err = main.UpdateFiatCurrency("Unreal Dollar", "AUD", 1111)
-	if err != nil {
-		t.Error("BaseCode UpdateContract error", err)
+		t.Fatal("BaseCode UpdateContract error", err)
 	}
 	if main.Items[5].FullName != "Unreal Dollar" {
 		t.Error("Expected fullname to update for AUD")
 	}
 
-	err = main.UpdateFiatCurrency("Australian Dollar", "AUD", 1336)
+	err = main.UpdateCurrency("Australian Dollar", "AUD", "", 1336, Fiat)
 	if err != nil {
-		t.Error("BaseCode UpdateContract error", err)
+		t.Fatal("BaseCode UpdateContract error", err)
 	}
 
 	main.Items[5].Role = Unset
-	err = main.UpdateFiatCurrency("Australian Dollar", "AUD", 1336)
+	err = main.UpdateCurrency("Australian Dollar", "AUD", "", 1336, Fiat)
 	if err != nil {
-		t.Error("BaseCode UpdateContract error", err)
+		t.Fatal("BaseCode UpdateContract error", err)
 	}
 	if main.Items[5].Role != Fiat {
 		t.Error("Expected role to change to Fiat")
 	}
 
-	err = main.UpdateToken("Populous", "PPT", "ETH", 1335)
+	main.Register("PPT")
+	err = main.UpdateCurrency("Populous", "PPT", "ETH", 1335, Token)
 	if err != nil {
-		t.Error("BaseCode UpdateContract error", err)
+		t.Fatal("BaseCode UpdateContract error", err)
 	}
 
 	contract := main.Register("XBTUSD")
@@ -295,40 +304,36 @@ func TestBaseCode(t *testing.T) {
 	}
 
 	main.Items[0].FullName = "Hello"
-	err = main.UpdateCryptocurrency("MEWOW", "CATS", 1338)
+	err = main.UpdateCurrency("MEWOW", "CATS", "", 1338, Unset)
 	if err != nil {
 		t.Error("BaseCode UpdateContract error", err)
 	}
 	if main.Items[0].FullName != "MEWOW" {
 		t.Error("Fullname not updated")
 	}
-	err = main.UpdateCryptocurrency("MEWOW", "CATS", 1338)
+	err = main.UpdateCurrency("MEWOW", "CATS", "", 1338, Unset)
 	if err != nil {
 		t.Error("BaseCode UpdateContract error", err)
 	}
 
 	main.Items[0].Role = Cryptocurrency
-	err = main.UpdateCryptocurrency("MEWOW", "CATS", 3)
+	err = main.UpdateCurrency("MEWOW", "CATS", "", 3, Unset)
 	if err != nil {
 		t.Error("BaseCode UpdateContract error", err)
 	}
-	if main.Items[0].ID != 3 {
+	// Creates a new item under a different currency role
+	if main.Items[8].ID != 3 {
 		t.Error("ID not updated")
 	}
 
 	main.Items[0].Role = Unset
-	err = main.UpdateCryptocurrency("MEWOW", "CATS", 1338)
+	err = main.UpdateCurrency("MEWOW", "CATS", "", 1338, Unset)
 	if err != nil {
 		t.Error("BaseCode UpdateContract error", err)
 	}
+
 	if main.Items[0].ID != 1338 {
 		t.Error("ID not updated")
-	}
-
-	main.Items[0].Role = Token
-	err = main.UpdateCryptocurrency("MEWOW", "CATS", 3)
-	if err == nil {
-		t.Error("Expecting cryptocurrency to already exist")
 	}
 }
 

@@ -110,22 +110,14 @@ func (c *ConversionRates) Update(m map[string]float64) error {
 	var list []Code // Verification list, cross check all currencies coming in
 
 	var mainBaseCurrency Code
-
 	for key, val := range m {
-		code1, err := storage.ValidateFiatCode(key[:3])
-		if err != nil {
-			return err
-		}
+		code1 := storage.ValidateFiatCode(key[:3])
 
 		if mainBaseCurrency == (Code{}) {
 			mainBaseCurrency = code1
 		}
 
-		code2, err := storage.ValidateFiatCode(key[3:])
-		if err != nil {
-			return err
-		}
-
+		code2 := storage.ValidateFiatCode(key[3:])
 		if code1 == code2 { // Get rid of same conversions
 			continue
 		}

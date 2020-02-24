@@ -755,8 +755,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 		return errors.New("no exchange configs found")
 	}
 
-	// fmt.Printf("Ver Amzig before %+v\n", c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot])
-
 	exchanges := 0
 	for i := range c.Exchanges {
 		if strings.EqualFold(c.Exchanges[i].Name, "GDAX") {
@@ -842,7 +840,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 
 		// Check if see if the new currency pairs format is empty and flesh it out if so
 		if c.Exchanges[i].CurrencyPairs == nil {
-			fmt.Println("NIL TIMES!!!")
 			c.Exchanges[i].CurrencyPairs = new(currency.PairsManager)
 			c.Exchanges[i].CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 
@@ -862,9 +859,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 				enabledPairs = *c.Exchanges[i].EnabledPairs
 			}
 
-			// fmt.Println("avail", availPairs)
-			// fmt.Println("enabled", enabledPairs)
-
 			c.Exchanges[i].CurrencyPairs.UseGlobalFormat = true
 			c.Exchanges[i].CurrencyPairs.Store(asset.Spot,
 				currency.PairStore{
@@ -873,8 +867,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 				},
 			)
 
-			// fmt.Println("MEOW", c.Exchanges[i].CurrencyPairs.Pairs[asset.Spot])
-
 			// flush old values
 			c.Exchanges[i].PairsLastUpdated = nil
 			c.Exchanges[i].ConfigCurrencyPairFormat = nil
@@ -882,13 +874,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].AssetTypes = nil
 			c.Exchanges[i].AvailablePairs = nil
 			c.Exchanges[i].EnabledPairs = nil
-
-			// fmt.Println("MEOW2", c.Exchanges[i].CurrencyPairs.Pairs[asset.Spot])
 		}
-
-		// if c.Exchanges[i].Name == "CoinbasePro" {
-		// 	fmt.Println("MEOW3", c.Exchanges[i].CurrencyPairs.Pairs[asset.Spot])
-		// }
 
 		if c.Exchanges[i].Enabled {
 			if c.Exchanges[i].Name == "" {
@@ -968,9 +954,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 					defaultWebsocketOrderbookBufferLimit)
 				c.Exchanges[i].WebsocketOrderbookBufferLimit = defaultWebsocketOrderbookBufferLimit
 			}
-			// if c.Exchanges[i].Name == "CoinbasePro" {
-			// 	fmt.Printf("Ver Amzig %+v\n", c.Exchanges[i].CurrencyPairs.Pairs[asset.Spot])
-			// }
 			err := c.CheckPairConsistency(c.Exchanges[i].Name)
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
@@ -980,13 +963,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 				c.Exchanges[i].Enabled = false
 				continue
 			}
-			// if c.Exchanges[i].Name == "CoinbasePro" {
-			// 	fmt.Printf("Ver Amzig after %+v\n", c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot])
-			// }
-			// // if c.Exchanges[i].Name == "CoinbasePro" {
-			// 	fmt.Println("MEOW4", c.Exchanges[i].CurrencyPairs.Pairs[asset.Spot])
-			// }
-
 			for x := range c.Exchanges[i].BankAccounts {
 				if !c.Exchanges[i].BankAccounts[x].Enabled {
 					continue
@@ -1508,9 +1484,6 @@ func (c *Config) ReadConfig(configPath string, dryrun bool) error {
 		if err != nil {
 			return err
 		}
-
-		// fmt.Printf("%+v \n", c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot])
-		// os.Exit(1)
 
 		if c.EncryptConfig == fileEncryptionDisabled {
 			return nil

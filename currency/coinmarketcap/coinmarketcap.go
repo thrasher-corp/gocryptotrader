@@ -695,6 +695,8 @@ func (c *Coinmarketcap) CheckAccountPlan(minAllowable uint8) error {
 // SetAccountPlan sets account plan
 func (c *Coinmarketcap) SetAccountPlan(s string) error {
 	switch s {
+	case "basic":
+		c.Plan = Basic
 	case "hobbyist":
 		c.Plan = Hobbyist
 	case "startup":

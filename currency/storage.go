@@ -48,17 +48,17 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration
 	}
 	s.baseCurrency = settings.FiatDisplayCurrency
 	log.Debugf(log.Global,
-		"Fiat display currency: %s.\n", s.baseCurrency)
+		"Fiat display currency: %s.\n",
+		s.baseCurrency)
 
 	if settings.CryptocurrencyProvider.Enabled {
-		log.Debugln(
-			log.Global,
+		log.Debugln(log.Global,
 			"Setting up currency analysis system with Coinmarketcap...")
 		c := &coinmarketcap.Coinmarketcap{}
 		c.SetDefaults()
 		err := c.Setup(coinmarketcap.Settings{
 			Name:        settings.CryptocurrencyProvider.Name,
-			Enabled:     true,
+			Enabled:     settings.CryptocurrencyProvider.Enabled,
 			AccountPlan: settings.CryptocurrencyProvider.AccountPlan,
 			APIkey:      settings.CryptocurrencyProvider.APIkey,
 			Verbose:     settings.CryptocurrencyProvider.Verbose,
@@ -354,7 +354,6 @@ func (s *Storage) LoadFileCurrencyData(f *File) error {
 	}
 
 	s.currencyCodes.LastMainUpdate = f.LastMainUpdate
-
 	return nil
 }
 
@@ -371,19 +370,22 @@ func (s *Storage) UpdateCurrencies() error {
 		}
 
 		if m[x].Platform.Symbol != "" {
-			err := s.currencyCodes.UpdateToken(m[x].Name,
+			err := s.currencyCodes.UpdateCurrency(m[x].Name,
 				m[x].Symbol,
 				m[x].Platform.Symbol,
-				m[x].ID)
+				m[x].ID,
+				Token)
 			if err != nil {
 				return err
 			}
 			continue
 		}
 
-		err := s.currencyCodes.UpdateCryptocurrency(m[x].Name,
+		err := s.currencyCodes.UpdateCurrency(m[x].Name,
 			m[x].Symbol,
-			m[x].ID)
+			"",
+			m[x].ID,
+			Unset)
 		if err != nil {
 			return err
 		}
@@ -501,9 +503,9 @@ func (s *Storage) GetTotalMarketCryptocurrencies() (Currencies, error) {
 
 // IsDefaultCurrency returns if a currency is a default currency
 func (s *Storage) IsDefaultCurrency(c Code) bool {
-	t, _ := GetTranslation(c)
 	for i := range s.defaultFiatCurrencies {
-		if s.defaultFiatCurrencies[i].Match(c) || s.defaultFiatCurrencies[i].Match(t) {
+		if s.defaultFiatCurrencies[i].Match(c) ||
+			s.defaultFiatCurrencies[i].Match(GetTranslation(c)) {
 			return true
 		}
 	}
@@ -513,9 +515,9 @@ func (s *Storage) IsDefaultCurrency(c Code) bool {
 // IsDefaultCryptocurrency returns if a cryptocurrency is a default
 // cryptocurrency
 func (s *Storage) IsDefaultCryptocurrency(c Code) bool {
-	t, _ := GetTranslation(c)
-	for _, d := range s.defaultCryptoCurrencies {
-		if d.Match(c) || d.Match(t) {
+	for i := range s.defaultCryptoCurrencies {
+		if s.defaultCryptoCurrencies[i].Match(c) ||
+			s.defaultCryptoCurrencies[i].Match(GetTranslation(c)) {
 			return true
 		}
 	}
@@ -533,9 +535,9 @@ func (s *Storage) IsFiatCurrency(c Code) bool {
 		return false
 	}
 
-	t, _ := GetTranslation(c)
-	for _, d := range s.fiatCurrencies {
-		if d.Match(c) || d.Match(t) {
+	for i := range s.fiatCurrencies {
+		if s.fiatCurrencies[i].Match(c) ||
+			s.fiatCurrencies[i].Match(GetTranslation(c)) {
 			return true
 		}
 	}
@@ -554,9 +556,9 @@ func (s *Storage) IsCryptocurrency(c Code) bool {
 		return false
 	}
 
-	t, _ := GetTranslation(c)
-	for _, d := range s.cryptocurrencies {
-		if d.Match(c) || d.Match(t) {
+	for i := range s.cryptocurrencies {
+		if s.cryptocurrencies[i].Match(c) ||
+			s.cryptocurrencies[i].Match(GetTranslation(c)) {
 			return true
 		}
 	}
@@ -572,15 +574,12 @@ func (s *Storage) ValidateCode(newCode string) Code {
 
 // ValidateFiatCode validates a fiat currency string and returns a currency
 // code
-func (s *Storage) ValidateFiatCode(newCode string) (Code, error) {
-	c, err := s.currencyCodes.RegisterFiat(newCode)
-	if err != nil {
-		return c, err
-	}
+func (s *Storage) ValidateFiatCode(newCode string) Code {
+	c := s.currencyCodes.RegisterFiat(newCode)
 	if !s.fiatCurrencies.Contains(c) {
 		s.fiatCurrencies = append(s.fiatCurrencies, c)
 	}
-	return c, nil
+	return c
 }
 
 // ValidateCryptoCode validates a cryptocurrency string and returns a currency
@@ -636,9 +635,9 @@ func (s *Storage) GetBaseCurrency() Code {
 // UpdateEnabledCryptoCurrencies appends new cryptocurrencies to the enabled
 // currency list
 func (s *Storage) UpdateEnabledCryptoCurrencies(c Currencies) {
-	for _, i := range c {
-		if !s.cryptocurrencies.Contains(i) {
-			s.cryptocurrencies = append(s.cryptocurrencies, i)
+	for i := range c {
+		if !s.cryptocurrencies.Contains(c[i]) {
+			s.cryptocurrencies = append(s.cryptocurrencies, c[i])
 		}
 	}
 }
@@ -646,9 +645,10 @@ func (s *Storage) UpdateEnabledCryptoCurrencies(c Currencies) {
 // UpdateEnabledFiatCurrencies appends new fiat currencies to the enabled
 // currency list
 func (s *Storage) UpdateEnabledFiatCurrencies(c Currencies) {
-	for _, i := range c {
-		if !s.fiatCurrencies.Contains(i) && !s.cryptocurrencies.Contains(i) {
-			s.fiatCurrencies = append(s.fiatCurrencies, i)
+	for i := range c {
+		if !s.fiatCurrencies.Contains(c[i]) &&
+			!s.cryptocurrencies.Contains(c[i]) {
+			s.fiatCurrencies = append(s.fiatCurrencies, c[i])
 		}
 	}
 }

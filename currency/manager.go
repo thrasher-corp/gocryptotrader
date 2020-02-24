@@ -47,12 +47,6 @@ func (p *PairsManager) Delete(a asset.Item) {
 	if p.Pairs == nil {
 		return
 	}
-
-	_, ok := p.Pairs[a]
-	if !ok {
-		return
-	}
-
 	delete(p.Pairs, a)
 }
 
