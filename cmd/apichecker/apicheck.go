@@ -94,21 +94,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if add {
-		var data HTMLScrapingData
-		data.TokenData = tokenData
-		data.Key = key
-		data.Val = val
-		data.TokenDataEnd = tokenDataEnd
-		data.TextTokenData = textTokenData
-		data.DateFormat = dateFormat
-		data.RegExp = regExp
-		data.Path = path
-		err = Add(exchangeName, checkType, path, data, false, &configData)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
 	if CanUpdateTrello() {
 		SetAuthVars()
 		err = UpdateFile(&configData, backupFile)
@@ -126,6 +111,37 @@ func main() {
 			log.Fatal(err)
 		}
 		log.Printf("API update check completed successfully")
+	}
+	if add {
+		switch checkType {
+		case github:
+		case htmlScrape:
+			log.Printf("EHLLLLLLLLLO IM HERE \n\n\n\n")
+			var data HTMLScrapingData
+			data.TokenData = tokenData
+			data.Key = key
+			data.Val = val
+			data.TokenDataEnd = tokenDataEnd
+			data.TextTokenData = textTokenData
+			data.DateFormat = dateFormat
+			data.RegExp = regExp
+			data.Path = path
+			log.Printf("%+v", data)
+			var z string
+			z, err = CheckChangeLog(&data)
+			log.Println(z)
+			r := "^20(\\d){2}/(\\d){2}/(\\d){2}$"
+			if data.RegExp != r {
+				log.Println("WTF IS GOING ON")
+			}
+			if err != nil {
+				log.Fatal(err)
+			}
+			err = Add(exchangeName, checkType, path, data, false, &configData)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
 	}
 }
 
@@ -318,13 +334,15 @@ func CheckUpdates(fileName string, confData *Config) error {
 			}
 		}
 	}
-	if verbose && !AreAPIKeysSet() {
+	if !AreAPIKeysSet() {
 		err = UpdateFile(confData, testJSONFile)
 		if err != nil {
 			return err
 		}
 		fileName = testJSONFile
-		log.Println("Updating test file; main file & trello will not be automatically updated since API key & token are not set")
+		if verbose {
+			log.Println("Updating test file; main file & trello will not be automatically updated since API key & token are not set")
+		}
 	}
 	log.Printf("The following exchanges need an update: %v\n", resp)
 	if verbose {
@@ -1375,7 +1393,7 @@ func SendGetReq(path string, result interface{}) error {
 	} else {
 		requester = request.New("Apichecker",
 			common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-			request.NewBasicRateLimit(time.Second*10, 100))
+			request.NewBasicRateLimit(time.Second, 100))
 	}
 	return requester.SendPayload(&request.Item{
 		Method:  http.MethodGet,

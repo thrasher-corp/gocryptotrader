@@ -57,14 +57,17 @@ func TestCheckExistingExchanges(t *testing.T) {
 
 func TestCheckChangeLog(t *testing.T) {
 	t.Parallel()
-	data := HTMLScrapingData{TokenData: "a",
-		Key:          "href",
-		Val:          "./#change-change",
-		TokenDataEnd: "./#change-",
-		RegExp:       "./#change-\\d{8}",
-		CheckString:  "20200229",
-		Path:         "https://www.okex.com/docs/en/#change-change"}
-	_, err := CheckChangeLog(&data)
+	data := HTMLScrapingData{TokenData: "h1",
+		Key:           "id",
+		Val:           "revision-history",
+		TokenDataEnd:  "table",
+		TextTokenData: "td",
+		DateFormat:    "2006/01/02",
+		RegExp:        `^20(\d){2}/(\d){2}/(\d){2}$`,
+		Path:          "https://docs.gemini.com/rest-api/#revision-history"}
+	a, err := CheckChangeLog(&data)
+	t.Log(a)
+	t.Log(data.RegExp)
 	if err != nil {
 		t.Error(err)
 	}
@@ -95,7 +98,8 @@ func TestHTMLScrapeGemini(t *testing.T) {
 		RegExp:        "^20(\\d){2}/(\\d){2}/(\\d){2}$",
 		CheckString:   "2019/11/15",
 		Path:          "https://docs.gemini.com/rest-api/#revision-history"}
-	_, err := HTMLScrapeDefault(&data)
+	a, err := HTMLScrapeDefault(&data)
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}

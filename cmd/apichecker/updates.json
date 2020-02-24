@@ -8,24 +8,6 @@
   "Username": "",
   "Exchanges": [
    {
-    "Name": "Gemini",
-    "CheckType": "HTML String Check",
-    "Data": {
-     "HTMLData": {
-      "TokenData": "h1",
-      "Key": "id",
-      "Val": "revision-history",
-      "TokenDataEnd": "table",
-      "TextTokenData": "td",
-      "DateFormat": "2006/01/02",
-      "RegExp": "^20(\\d){2}/(\\d){2}/(\\d){2}$",
-      "CheckString": "2019/11/18",
-      "Path": "https://docs.gemini.com/rest-api/#revision-history"
-     }
-    },
-    "Err": null
-   },
-   {
     "Name": "Huobi",
     "CheckType": "HTML String Check",
     "Data": {
@@ -418,7 +400,7 @@
       "Val": "./#change-change",
       "TokenDataEnd": "./#change-",
       "RegExp": "./#change-\\d{8}",
-      "CheckString": "20200229",
+      "CheckString": "2020229",
       "Path": "https://www.okex.com/docs/en/#change-change"
      }
     },
