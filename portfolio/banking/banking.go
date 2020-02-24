@@ -78,7 +78,11 @@ func (b *Account) ValidateForWithdrawal(exchange string, cur currency.Code) (err
 		err = append(err, ErrAccountCannotBeEmpty)
 	}
 
-	if cur == currency.AUD {
+	if !common.StringDataCompareInsensitive(strings.Split(b.SupportedCurrencies, ","), cur.String()) {
+		err = append(err, ErrCurrencyNotSupportedByAccount)
+	}
+
+	if cur.Upper() == currency.AUD {
 		if b.BSBNumber == "" {
 			err = append(err, ErrBSBRequiredforAUD)
 		}

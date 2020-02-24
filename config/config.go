@@ -42,7 +42,7 @@ func (c *Config) GetExchangeBankAccounts(exchangeName, id, depositingCurrency st
 		if strings.EqualFold(c.Exchanges[x].Name, exchangeName) {
 			for y := range c.Exchanges[x].BankAccounts {
 				if strings.EqualFold(c.Exchanges[x].BankAccounts[y].ID, id) {
-					if strings.Contains(c.Exchanges[x].BankAccounts[y].SupportedCurrencies,
+					if strings.EqualFold(c.Exchanges[x].BankAccounts[y].SupportedCurrencies,
 						depositingCurrency) {
 						return &c.Exchanges[x].BankAccounts[y], nil
 					}

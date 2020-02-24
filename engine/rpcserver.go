@@ -939,7 +939,7 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 
 	request := &withdraw.Request{
 		Amount:      r.Amount,
-		Currency:    currency.NewCode(r.Currency),
+		Currency:    currency.NewCode(strings.ToUpper(r.Currency)),
 		Type:        withdraw.Crypto,
 		Description: r.Description,
 		Crypto: &withdraw.CryptoRequest{
@@ -979,7 +979,7 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 
 	request := &withdraw.Request{
 		Amount:      r.Amount,
-		Currency:    currency.NewCode(r.Currency),
+		Currency:    currency.NewCode(strings.ToUpper(r.Currency)),
 		Type:        withdraw.Fiat,
 		Description: r.Description,
 		Fiat: &withdraw.FiatRequest{
