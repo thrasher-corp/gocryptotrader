@@ -962,14 +962,19 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 
 // WithdrawFiatFunds withdraws fiat funds specified by exchange
 func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFiatRequest) (*gctrpc.WithdrawResponse, error) {
-	bankAccount, err := banking.GetBankAccountByID(r.BankAccountId)
-	if err != nil {
-		return nil, err
-	}
-
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errors.New("exchange is not loaded/doesn't exist")
+	}
+
+	var bankAccount *banking.Account
+
+	bankAccount, err := banking.GetBankAccountByID(r.BankAccountId)
+	if err != nil {
+		bankAccount, err = exch.GetBase().GetExchangeBankAccounts(r.BankAccountId, r.Currency)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	request := &withdraw.Request{

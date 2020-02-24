@@ -38,11 +38,11 @@ func TestGetExchangeBankAccounts(t *testing.T) {
 	if err != nil {
 		t.Error("GetExchangeBankAccounts LoadConfig error", err)
 	}
-	_, err = cfg.GetExchangeBankAccounts("Bitfinex", "USD")
+	_, err = cfg.GetExchangeBankAccounts("Bitfinex", "", "USD")
 	if err != nil {
 		t.Error("GetExchangeBankAccounts error", err)
 	}
-	_, err = cfg.GetExchangeBankAccounts("Not an exchange", "Not a currency")
+	_, err = cfg.GetExchangeBankAccounts("Not an exchange", "", "Not a currency")
 	if err == nil {
 		t.Error("GetExchangeBankAccounts, no error returned for invalid exchange")
 	}

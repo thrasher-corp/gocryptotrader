@@ -230,9 +230,9 @@ func (e *Base) GetClientBankAccounts(exchangeName, withdrawalCurrency string) (b
 
 // GetExchangeBankAccounts returns banking details associated with an
 // exchange for funding purposes
-func (e *Base) GetExchangeBankAccounts(exchangeName, depositCurrency string) (banking.Account, error) {
+func (e *Base) GetExchangeBankAccounts(id, depositCurrency string) (*banking.Account, error) {
 	cfg := config.GetConfig()
-	return cfg.GetExchangeBankAccounts(exchangeName, depositCurrency)
+	return cfg.GetExchangeBankAccounts(e.Name, id, depositCurrency)
 }
 
 // SetCurrencyPairFormat checks the exchange request and config currency pair

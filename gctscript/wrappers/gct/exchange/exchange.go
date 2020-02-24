@@ -149,9 +149,13 @@ func (e Exchange) WithdrawalFiatFunds(exch, bankAccountID string, request *withd
 	if err != nil {
 		return "", err
 	}
-	v, err := banking.GetBankAccountByID(bankAccountID)
+	var v *banking.Account
+	v, err = banking.GetBankAccountByID(bankAccountID)
 	if err != nil {
-		return "", err
+		v, err = ex.GetBase().GetExchangeBankAccounts(bankAccountID, request.Currency.String())
+		if err != nil {
+			return "", err
+		}
 	}
 
 	otp, err := engine.GetExchangeoOTPByName(exch)

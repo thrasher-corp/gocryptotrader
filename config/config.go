@@ -34,21 +34,23 @@ func (c *Config) GetCurrencyConfig() CurrencyConfig {
 
 // GetExchangeBankAccounts returns banking details associated with an exchange
 // for depositing funds
-func (c *Config) GetExchangeBankAccounts(exchangeName, depositingCurrency string) (banking.Account, error) {
+func (c *Config) GetExchangeBankAccounts(exchangeName, id, depositingCurrency string) (*banking.Account, error) {
 	m.Lock()
 	defer m.Unlock()
 
 	for x := range c.Exchanges {
 		if strings.EqualFold(c.Exchanges[x].Name, exchangeName) {
 			for y := range c.Exchanges[x].BankAccounts {
-				if strings.Contains(c.Exchanges[x].BankAccounts[y].SupportedCurrencies,
-					depositingCurrency) {
-					return c.Exchanges[x].BankAccounts[y], nil
+				if strings.EqualFold(c.Exchanges[x].BankAccounts[y].ID, id) {
+					if strings.Contains(c.Exchanges[x].BankAccounts[y].SupportedCurrencies,
+						depositingCurrency) {
+						return &c.Exchanges[x].BankAccounts[y], nil
+					}
 				}
 			}
 		}
 	}
-	return banking.Account{}, fmt.Errorf("exchange %s bank details not found for %s",
+	return nil, fmt.Errorf("exchange %s bank details not found for %s",
 		exchangeName,
 		depositingCurrency)
 }
