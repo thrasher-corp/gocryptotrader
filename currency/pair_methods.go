@@ -51,7 +51,7 @@ func (p *Pair) UnmarshalJSON(d []byte) error {
 }
 
 // MarshalJSON conforms type to the marshaler interface
-func (p Pair) MarshalJSON() ([]byte, error) {
+func (p *Pair) MarshalJSON() ([]byte, error) {
 	return json.Marshal(p.String())
 }
 
@@ -123,6 +123,6 @@ func (p *Pair) IsEmpty() bool {
 }
 
 // ContainsCurrency checks to see if a pair contains a specific currency
-func (p Pair) ContainsCurrency(c Code) bool {
+func (p *Pair) ContainsCurrency(c Code) bool {
 	return p.Base.Item == c.Item || p.Quote.Item == c.Item
 }

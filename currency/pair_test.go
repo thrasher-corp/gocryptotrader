@@ -73,9 +73,9 @@ func TestPairUnmarshalJSON(t *testing.T) {
 
 func TestPairMarshalJSON(t *testing.T) {
 	quickstruct := struct {
-		Pair Pair `json:"superPair"`
+		Pair *Pair `json:"superPair"`
 	}{
-		Pair{Base: BTC, Quote: USD, Delimiter: "-"},
+		&Pair{Base: BTC, Quote: USD, Delimiter: "-"},
 	}
 
 	encoded, err := json.Marshal(quickstruct)
