@@ -290,18 +290,18 @@ func (c *Coinbene) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker
 		}
 
 		for i := range tickers {
-			var p *currency.Pair
-			p, err = currency.NewPairFromString(tickers[i].Symbol)
+			var newP *currency.Pair
+			newP, err = currency.NewPairFromString(tickers[i].Symbol)
 			if err != nil {
 				return nil, err
 			}
 
-			if !allPairs.Contains(p, true) {
+			if !allPairs.Contains(newP, true) {
 				continue
 			}
 
 			err = ticker.ProcessTicker(&ticker.Price{
-				Pair:         p,
+				Pair:         newP,
 				Last:         tickers[i].LatestPrice,
 				High:         tickers[i].DailyHigh,
 				Low:          tickers[i].DailyLow,

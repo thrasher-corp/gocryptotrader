@@ -1537,7 +1537,7 @@ func TestSupportsAsset(t *testing.T) {
 	t.Parallel()
 	var b Base
 	b.CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{
-		asset.Spot: &currency.PairStore{},
+		asset.Spot: {},
 	}
 	if !b.SupportsAsset(asset.Spot) {
 		t.Error("spot should be supported")
