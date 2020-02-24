@@ -196,7 +196,7 @@ func (o *OKEX) Run() {
 		!common.StringDataContains(o.GetAvailablePairs(asset.Spot).Strings(), format.Delimiter) {
 		forceUpdate = true
 		var p currency.Pairs
-		p, err := currency.NewPairsFromStrings([]string{currency.BTC.String() +
+		p, err = currency.NewPairsFromStrings([]string{currency.BTC.String() +
 			format.Delimiter +
 			currency.USDT.String()})
 		if err != nil {

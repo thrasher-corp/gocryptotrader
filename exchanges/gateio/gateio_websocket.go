@@ -215,16 +215,20 @@ func (g *Gateio) WsHandleData() {
 				var asks, bids []orderbook.Item
 				askData, askOk := data["asks"]
 				for i := range askData {
-					amount, err := strconv.ParseFloat(askData[i][1], 64)
+					var amount float64
+					amount, err = strconv.ParseFloat(askData[i][1], 64)
 					if err != nil {
 						g.Websocket.DataHandler <- err
 						continue
 					}
-					price, err := strconv.ParseFloat(askData[i][0], 64)
+
+					var price float64
+					price, err = strconv.ParseFloat(askData[i][0], 64)
 					if err != nil {
 						g.Websocket.DataHandler <- err
 						continue
 					}
+
 					asks = append(asks, orderbook.Item{
 						Amount: amount,
 						Price:  price,

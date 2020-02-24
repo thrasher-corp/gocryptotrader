@@ -272,15 +272,15 @@ func (o *OKGroup) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]
 }
 
 // SubmitOrder submits a new order
-func (o *OKGroup) SubmitOrder(s *order.Submit) (resp order.SubmitResponse, err error) {
-	err = s.Validate()
+func (o *OKGroup) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	err := s.Validate()
 	if err != nil {
-		return resp, err
+		return order.SubmitResponse{}, err
 	}
 
 	fpair, err := o.FormatExchangeCurrency(s.Pair, asset.Spot)
 	if err != nil {
-		return resp, err
+		return order.SubmitResponse{}, err
 	}
 
 	request := PlaceOrderRequest{
@@ -296,15 +296,17 @@ func (o *OKGroup) SubmitOrder(s *order.Submit) (resp order.SubmitResponse, err e
 
 	orderResponse, err := o.PlaceSpotOrder(&request)
 	if err != nil {
-		return
+		return order.SubmitResponse{}, err
 	}
 
+	var resp order.SubmitResponse
 	resp.IsOrderPlaced = orderResponse.Result
 	resp.OrderID = orderResponse.OrderID
 	if s.OrderType == order.Market {
 		resp.FullyMatched = true
 	}
-	return
+
+	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -339,14 +341,15 @@ func (o *OKGroup) CancelOrder(orderCancellation *order.Cancel) (err error) {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (resp order.CancelAllResponse, err error) {
+func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	orderIDs := strings.Split(orderCancellation.OrderID, ",")
+	resp := order.CancelAllResponse{}
 	resp.Status = make(map[string]string)
 	var orderIDNumbers []int64
 	for i := range orderIDs {
-		orderIDNumber, strConvErr := strconv.ParseInt(orderIDs[i], 10, 64)
-		if strConvErr != nil {
-			resp.Status[orderIDs[i]] = strConvErr.Error()
+		orderIDNumber, err := strconv.ParseInt(orderIDs[i], 10, 64)
+		if err != nil {
+			resp.Status[orderIDs[i]] = err.Error()
 			continue
 		}
 		orderIDNumbers = append(orderIDNumbers, orderIDNumber)
@@ -362,7 +365,7 @@ func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (resp order.C
 		OrderIDs:     orderIDNumbers,
 	})
 	if err != nil {
-		return
+		return resp, err
 	}
 
 	for x := range cancelOrdersResponse {
@@ -371,7 +374,7 @@ func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (resp order.C
 		}
 	}
 
-	return
+	return resp, err
 }
 
 // GetOrderInfo returns information on a current open order

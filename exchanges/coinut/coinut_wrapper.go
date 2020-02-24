@@ -655,7 +655,8 @@ func (c *COINUT) CancelAllOrders(details *order.Cancel) (order.CancelAllResponse
 		}
 		var ordersToCancel []WsCancelOrderParameters
 		for i := range openOrders.Orders {
-			fpair, err := c.FormatExchangeCurrency(details.Pair, asset.Spot)
+			var fpair *currency.Pair
+			fpair, err = c.FormatExchangeCurrency(details.Pair, asset.Spot)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}

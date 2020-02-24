@@ -433,6 +433,9 @@ func (b *BTSE) ModifyOrder(action *order.Modify) (string, error) {
 func (b *BTSE) CancelOrder(order *order.Cancel) error {
 	fpair, err := b.FormatExchangeCurrency(order.Pair,
 		asset.Spot)
+	if err != nil {
+		return err
+	}
 
 	r, err := b.CancelExistingOrder(order.OrderID, fpair.String())
 	if err != nil {

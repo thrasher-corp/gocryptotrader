@@ -773,7 +773,8 @@ func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) (*Cance
 	}
 	var cancelOrderRequest WsCancelOrdersRequest
 	for i := range cancellations {
-		curr, err := c.FormatExchangeCurrency(cancellations[i].Currency, asset.Spot)
+		var curr *currency.Pair
+		curr, err = c.FormatExchangeCurrency(cancellations[i].Currency, asset.Spot)
 		if err != nil {
 			return nil, err
 		}

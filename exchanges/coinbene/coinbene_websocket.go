@@ -155,7 +155,8 @@ func (c *Coinbene) WsDataHandler() {
 					continue
 				}
 				for x := range wsTicker.Data {
-					p, err := currency.NewPairFromFormattedPairs(wsTicker.Data[x].Symbol,
+					var p *currency.Pair
+					p, err = currency.NewPairFromFormattedPairs(wsTicker.Data[x].Symbol,
 						enabledSwap,
 						format)
 					if err != nil {

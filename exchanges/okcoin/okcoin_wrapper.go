@@ -189,7 +189,7 @@ func (o *OKCoin) Run() {
 				o.Name)
 			forceUpdate = true
 
-			err := o.UpdatePairs(p, asset.Spot, true, true)
+			err = o.UpdatePairs(p, asset.Spot, true, true)
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
 					"%s failed to update currencies. Err: %s\n",

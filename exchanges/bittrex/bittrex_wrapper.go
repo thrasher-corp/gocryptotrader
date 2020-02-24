@@ -162,7 +162,7 @@ func (b *Bittrex) Run() {
 				b.Name,
 				err)
 		} else {
-			err := b.UpdatePairs(pairs, asset.Spot, true, true)
+			err = b.UpdatePairs(pairs, asset.Spot, true, true)
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
 					"%s failed to update currencies. Err: %s\n",

@@ -433,7 +433,9 @@ func TestNewPairFromFormattedPairs(t *testing.T) {
 		NewPairDelimiter("LTC-USD", "-"),
 	}
 
-	p, err := NewPairFromFormattedPairs("BTCUSDT", pairs, PairFormat{Uppercase: true})
+	p, err := NewPairFromFormattedPairs("BTCUSDT", pairs, PairFormat{
+		Uppercase: true,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -275,14 +275,14 @@ func (b *BTCMarkets) UpdateTicker(p *currency.Pair, assetType asset.Item) (*tick
 		return nil, err
 	}
 	for x := range tickers {
-		var p *currency.Pair
-		p, err = currency.NewPairFromString(tickers[x].MarketID)
+		var newP *currency.Pair
+		newP, err = currency.NewPairFromString(tickers[x].MarketID)
 		if err != nil {
 			return nil, err
 		}
 
 		err = ticker.ProcessTicker(&ticker.Price{
-			Pair:         p,
+			Pair:         newP,
 			Last:         tickers[x].LastPrice,
 			High:         tickers[x].High24h,
 			Low:          tickers[x].Low24h,

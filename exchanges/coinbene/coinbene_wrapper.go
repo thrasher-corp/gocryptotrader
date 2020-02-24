@@ -163,8 +163,7 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}
 
-	c.Websocket.Orderbook.Setup(
-		exch.WebsocketOrderbookBufferLimit,
+	c.Websocket.Orderbook.Setup(exch.WebsocketOrderbookBufferLimit,
 		true,
 		true,
 		false,
