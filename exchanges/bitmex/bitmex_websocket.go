@@ -552,7 +552,7 @@ func (b *Bitmex) GenerateDefaultSubscriptions() {
 		}
 	}
 
-	channels := []string{ /*bitmexWSOrderbookL2, */ bitmexWSTrade}
+	channels := []string{bitmexWSOrderbookL2, bitmexWSTrade}
 	subscriptions := []wshandler.WebsocketChannelSubscription{
 		{
 			Channel: bitmexWSAnnouncement,

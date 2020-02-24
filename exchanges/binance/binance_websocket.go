@@ -225,7 +225,8 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					Err:      err,
 				}
 			}
-			p := currency.NewPairFromString(data.Symbol)
+			p := currency.NewPairFromFormattedPairs(data.Symbol, b.GetEnabledPairs(asset.Spot),
+				b.GetPairFormat(asset.Spot, true))
 			var a asset.Item
 			a, err = b.GetPairAssetType(p)
 			if err != nil {

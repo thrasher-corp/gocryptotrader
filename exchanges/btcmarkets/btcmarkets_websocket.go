@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
+
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -196,7 +196,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		var orderID = strconv.FormatInt(orderData.OrderID, 10)
 		for x := range orderData.Trades {
 			var isMaker bool
-			if strings.Contains(orderData.Trades[x].LiquidityType, "maker") {
+			if orderData.Trades[x].LiquidityType == "Maker" {
 				isMaker = true
 			}
 			trades = append(trades, order.TradeHistory{

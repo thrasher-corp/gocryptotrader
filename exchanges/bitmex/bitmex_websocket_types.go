@@ -100,11 +100,11 @@ type WsOrderResponse struct {
 	ForeignKeys WsOrderResponseForeignKeys `json:"foreignKeys"`
 	Attributes  WsOrderResponseAttributes  `json:"attributes"`
 	Filter      WsOrderResponseFilter      `json:"filter"`
-	Data        []OrderInsert              `json:"data"`
+	Data        []OrderInsertData          `json:"data"`
 }
 
-// OrderInsert
-type OrderInsert struct {
+// OrderInsertData holds order data from an order response
+type OrderInsertData struct {
 	WorkingIndicator      bool      `json:"workingIndicator"`
 	Account               int64     `json:"account"`
 	AveragePrice          float64   `json:"avgPx"`

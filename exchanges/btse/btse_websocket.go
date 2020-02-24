@@ -52,7 +52,7 @@ func (b *BTSE) WsConnect() error {
 	return nil
 }
 
-// Send an authentication message to receive auth data
+// WsAuthenticate Send an authentication message to receive auth data
 func (b *BTSE) WsAuthenticate() error {
 	nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
 	path := "/spotWS" + nonce

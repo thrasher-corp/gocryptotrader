@@ -529,7 +529,7 @@ type WsAuthenticatedOrdersResponse struct {
 	Data []WsAuthenticatedOrdersResponseData `json:"data"`
 }
 
-// WsAuthenticatedOrdersResponse response from Orders authenticated subscription
+// WsOldOrderUpdate response from Orders authenticated subscription
 type WsOldOrderUpdate struct {
 	WsResponse
 	Data WsAuthenticatedOrdersResponseData `json:"data"`

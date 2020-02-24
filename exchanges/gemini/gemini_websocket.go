@@ -348,8 +348,8 @@ func stringToOrderType(oType string) (order.Type, error) {
 	switch oType {
 	case "exchange limit", "auction-only limit", "indication-of-interest limit":
 		return order.Limit, nil
-		// block trades are conducted off order-book, so their type is market, but would be considered a hidden trade
 	case "market buy", "market sell", "block_trade":
+		// block trades are conducted off order-book, so their type is market, but would be considered a hidden trade
 		return order.Market, nil
 	default:
 		return order.UnknownType, errors.New(oType + " not recognised as order type")

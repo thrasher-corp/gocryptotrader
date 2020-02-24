@@ -353,11 +353,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		}
 		return nil
 	case *order.Cancel:
-		err := Bot.OrderManager.Cancel(d)
-		if err != nil {
-			return err
-		}
-		return nil
+		return Bot.OrderManager.Cancel(d)
 	case *order.Modify:
 		od, err := Bot.OrderManager.orderStore.GetByExchangeAndID(d.Exchange, d.ID)
 		if err != nil {

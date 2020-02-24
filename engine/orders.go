@@ -48,12 +48,11 @@ func (o *orderStore) GetByExchangeAndID(exchange, id string) (*order.Detail, err
 // GetByExchangeAndID returns a specific order
 func (o *orderStore) GetByExchange(exchange string) ([]*order.Detail, error) {
 	o.m.Lock()
+	defer o.m.Unlock()
 	r, ok := o.Orders[exchange]
 	if !ok {
-		o.m.Unlock()
 		return nil, ErrExchangeNotFound
 	}
-	o.m.Unlock()
 	return r, nil
 }
 
@@ -101,7 +100,7 @@ func (o *orderStore) Add(order *order.Detail) error {
 	}
 	exch := GetExchangeByName(order.Exchange)
 	if exch == nil {
-		return errors.New("unable to get exchange by name")
+		return ErrExchangeNotFound
 	}
 	if o.exists(order) {
 		return ErrOrdersAlreadyExists
@@ -206,7 +205,7 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 		}
 
 		for y := range v {
-			log.Debugf(log.OrderMgr, "order manager: Cancelling order ID %v [%v]",
+			log.Debugf(log.OrderMgr, "Order manager: Cancelling order ID %v [%v]",
 				v[y].ID, v[y])
 			err := o.Cancel(&order.Cancel{
 				Exchange:      k,
@@ -255,7 +254,7 @@ func (o *orderManager) Cancel(cancel *order.Cancel) error {
 
 	exch := GetExchangeByName(cancel.Exchange)
 	if exch == nil {
-		return errors.New("unable to get exchange by name")
+		return ErrExchangeNotFound
 	}
 
 	if cancel.AssetType.String() != "" && !exch.GetAssetTypes().Contains(cancel.AssetType) {
@@ -312,7 +311,7 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 
 	exch := GetExchangeByName(newOrder.Exchange)
 	if exch == nil {
-		return nil, errors.New("unable to get exchange by name")
+		return nil, ErrExchangeNotFound
 	}
 	result, err := exch.SubmitOrder(newOrder)
 	if err != nil {
@@ -378,7 +377,7 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 		Pair:              newOrder.Pair,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("order manager: Unable to add %v order %v to orderStore: %s", newOrder.Exchange, result.OrderID, err)
+		return nil, fmt.Errorf("unable to add %v order %v to orderStore: %s", newOrder.Exchange, result.OrderID, err)
 	}
 
 	return &orderSubmitResponse{

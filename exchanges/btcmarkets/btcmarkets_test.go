@@ -503,3 +503,14 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestWsOrderNotification(t *testing.T) {
+	status := []string{"ORDER_INSERTED", "ORDER_CANCELLED", "TRIGGER_INSERTED", "ORDER_FULL_TRANSACTED", "ORDER_PARTIALLY_TRANSACTED", "INSUFFICIENT_BALANCE", "TRIGGER_ACTIVATED", "MARKET_UNAVAILABLE"}
+	for i := range status {
+		pressXToJSON := []byte(`{"topic": "notificationApi","data": [{"symbol": "BTC-USD","orderID": "1234","orderMode": "MODE_BUY","orderType": "TYPE_LIMIT","price": "1","size": "1","status": "` + status[i] + `","timestamp": "1580349090693","type": "STOP","triggerPrice": "1"}]}`)
+		err := b.wsHandleData(pressXToJSON)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}

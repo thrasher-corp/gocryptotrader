@@ -297,8 +297,15 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		var asks, bids []orderbook.Item
 		askData, askOk := data["asks"]
 		for i := range askData {
-			amount, _ := strconv.ParseFloat(askData[i][1], 64)
-			price, _ := strconv.ParseFloat(askData[i][0], 64)
+			var amount, price float64
+			amount, err = strconv.ParseFloat(askData[i][1], 64)
+			if err != nil {
+				return err
+			}
+			price, err = strconv.ParseFloat(askData[i][0], 64)
+			if err != nil {
+				return err
+			}
 			asks = append(asks, orderbook.Item{
 				Amount: amount,
 				Price:  price,
@@ -307,8 +314,15 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 
 		bidData, bidOk := data["bids"]
 		for i := range bidData {
-			amount, _ := strconv.ParseFloat(bidData[i][1], 64)
-			price, _ := strconv.ParseFloat(bidData[i][0], 64)
+			var amount, price float64
+			amount, err = strconv.ParseFloat(bidData[i][1], 64)
+			if err != nil {
+				return err
+			}
+			price, err = strconv.ParseFloat(bidData[i][0], 64)
+			if err != nil {
+				return err
+			}
 			bids = append(bids, orderbook.Item{
 				Amount: amount,
 				Price:  price,
