@@ -125,7 +125,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Printf("api update check completed successfully")
+		log.Printf("API update check completed successfully")
 	}
 }
 
@@ -324,7 +324,7 @@ func CheckUpdates(fileName string, confData *Config) error {
 			return err
 		}
 		fileName = testJSONFile
-		log.Println("Updating test file, main file & trello will not be automatically updated since API key & token are not set")
+		log.Println("Updating test file; main file & trello will not be automatically updated since API key & token are not set")
 	}
 	log.Printf("The following exchanges need an update: %v\n", resp)
 	if verbose {
