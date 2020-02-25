@@ -452,25 +452,25 @@ func (c *CoinbasePro) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse,
 
 // GetOrderInfo returns information on a current open order
 func (c *CoinbasePro) GetOrderInfo(orderID string) (order.Detail, error) {
-	genOrderDetail, error := c.GetOrder(orderID)
-	if error != nil {
-		return order.Detail{}, error
+	genOrderDetail, errGo := c.GetOrder(orderID)
+	if errGo != nil {
+		return order.Detail{}, fmt.Errorf("error retrieving order %s : %s", orderID, errGo)
 	}
 	od, errOd := time.Parse(time.RFC3339, genOrderDetail.DoneAt)
 	if errOd != nil {
-		fmt.Errorf("error parsing order done at time: %s", errOd)
+		return order.Detail{}, fmt.Errorf("error parsing order done at time: %s", errOd)
 	}
 	os, errOs := order.StringToOrderStatus(genOrderDetail.Status)
 	if errOs != nil {
-		fmt.Errorf("error parsing order status: %s", errOs)
+		return order.Detail{}, fmt.Errorf("error parsing order status: %s", errOs)
 	}
 	tt, errOt := order.StringToOrderType(genOrderDetail.Type)
 	if errOt != nil {
-		fmt.Errorf("error parsing order type: %s", errOt)
+		return order.Detail{}, fmt.Errorf("error parsing order type: %s", errOt)
 	}
 	ss, errOss := order.StringToOrderSide(genOrderDetail.Side)
 	if errOss != nil {
-		fmt.Errorf("error parsing order type: %s", errOss)
+		return order.Detail{}, fmt.Errorf("error parsing order type: %s", errOss)
 	}
 	response := order.Detail{
 		Exchange:        c.GetName(),
@@ -493,6 +493,7 @@ func (c *CoinbasePro) GetOrderInfo(orderID string) (order.Detail, error) {
 		return response, nil
 	}
 	trades := make([]order.TradeHistory, 0, len(fillResponse))
+	response.Trades = trades
 	for i, t := range fillResponse {
 		trades[i].TID = string(t.TradeID)
 		trades[i].Price = t.Price
@@ -501,18 +502,16 @@ func (c *CoinbasePro) GetOrderInfo(orderID string) (order.Detail, error) {
 		trades[i].Exchange = c.GetName()
 		td, errTd := time.Parse(time.RFC3339, t.CreatedAt)
 		if errTd != nil {
-			fmt.Errorf("error parsing trade created time: %s", errTd)
+			return response, fmt.Errorf("error parsing trade created time: %s", errTd)
 		}
 		trades[i].Timestamp = td // "2014-11-07T22:19:28.578544Z"
 		trades[i].Fee = t.Fee
 		trSi, errTSi := order.StringToOrderSide(t.Side)
 		if errTSi != nil {
-			fmt.Errorf("error parsinf order Side: %s", errTSi)
-		} else {
-			trades[i].Side = trSi
+			return response, fmt.Errorf("error parsinf order Side: %s", errTSi)
 		}
+		trades[i].Side = trSi
 	}
-	response.Trades = trades
 	return response, nil
 }
 
