@@ -3,6 +3,7 @@ config.dat
 node_modules
 lib
 .vscode
+timestamp.json
 
 testdata/dump
 testdata/preengine_config.json
