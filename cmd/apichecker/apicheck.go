@@ -94,6 +94,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Println("overwriting test file with the main file data")
 	if add {
 		switch checkType {
 		case github:
