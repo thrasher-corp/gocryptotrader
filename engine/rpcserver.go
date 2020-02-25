@@ -756,7 +756,7 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 				Price:                t.Price,
 				Amount:               t.Amount,
 				Exchange:             t.Exchange,
-				AssetType:             t.Type.String(),
+				AssetType:            t.Type.String(),
 				OrderSide:            t.Side.String(),
 				Fee:                  t.Fee,
 			})
