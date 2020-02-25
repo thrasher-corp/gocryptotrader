@@ -312,7 +312,7 @@ func TestGetClientBankAccounts(t *testing.T) {
 	}
 
 	var b Base
-	var r banking.Account
+	var r *banking.Account
 	r, err = b.GetClientBankAccounts("Kraken", "USD")
 	if err != nil {
 		t.Error(err)

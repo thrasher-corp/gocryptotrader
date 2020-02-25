@@ -74,7 +74,7 @@ func (c *Config) UpdateExchangeBankAccounts(exchangeName string, bankCfg []banki
 
 // GetClientBankAccounts returns banking details used for a given exchange
 // and currency
-func (c *Config) GetClientBankAccounts(exchangeName, targetCurrency string) (banking.Account, error) {
+func (c *Config) GetClientBankAccounts(exchangeName, targetCurrency string) (*banking.Account, error) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -82,10 +82,10 @@ func (c *Config) GetClientBankAccounts(exchangeName, targetCurrency string) (ban
 		if (strings.Contains(c.BankAccounts[x].SupportedExchanges, exchangeName) ||
 			c.BankAccounts[x].SupportedExchanges == "ALL") &&
 			strings.Contains(c.BankAccounts[x].SupportedCurrencies, targetCurrency) {
-			return c.BankAccounts[x], nil
+			return &c.BankAccounts[x], nil
 		}
 	}
-	return banking.Account{}, fmt.Errorf("client banking details not found for %s and currency %s",
+	return nil, fmt.Errorf("client banking details not found for %s and currency %s",
 		exchangeName,
 		targetCurrency)
 }
