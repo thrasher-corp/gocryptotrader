@@ -205,11 +205,11 @@ func IsTrelloBoardDataSet() bool {
 // getSha gets the sha of the latest commit
 func getSha(repoPath string) (ShaResponse, error) {
 	var resp ShaResponse
-	path := fmt.Sprintf(githubPath, repoPath)
+	getPath := fmt.Sprintf(githubPath, repoPath)
 	if verbose {
 		log.Printf("Getting SHA of this path: %v\n", path)
 	}
-	return resp, SendGetReq(path, &resp)
+	return resp, SendGetReq(getPath, &resp)
 }
 
 // CheckExistingExchanges checks if the given exchange exists
