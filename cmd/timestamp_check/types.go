@@ -91,6 +91,5 @@ type Report struct {
 
 var (
 	verbose bool
-	check   bool
 	configs map[string]*TimestampConfiguration
 )

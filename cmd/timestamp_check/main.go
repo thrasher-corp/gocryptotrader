@@ -1,4 +1,4 @@
-// This tool will initiaite an authenticated request generating an initial
+// This tool will initiate an authenticated request generating an initial
 // nonce/timestamp across all supported exchanges and then sleep for 1 minute
 // which will allow us to determine if there are any timestamp issues.
 package main
@@ -96,11 +96,11 @@ func main() {
 		}(&wg, SupportedExchanges[i], cfg)
 	}
 
-	interupted := make(chan struct{})
+	interrupted := make(chan struct{})
 	go func(ch chan struct{}) {
 		signaler.WaitForInterrupt()
 		ch <- struct{}{}
-	}(interupted)
+	}(interrupted)
 
 	finished := make(chan struct{})
 	go func(ch chan struct{}, wg *sync.WaitGroup) {
@@ -109,21 +109,22 @@ func main() {
 	}(finished, &wg)
 
 	select {
-	case <-interupted:
+	case <-interrupted:
 		log.Println("Interruption caught, shutting down...")
 	case <-finished:
 	}
+
 	log.Println()
 	log.Println("Report:")
 	for key, val := range configs {
 		if val.Report != nil {
 			if val.Report.Error != nil {
-				log.Printf("%s has FAILED authentication validation: %s",
+				log.Printf("%s has [FAILED] authentication validation: %s",
 					key,
 					val.Report.Error)
 				continue
 			}
-			log.Printf("%s has PASSED authentication validation", key)
+			log.Printf("%s has [PASSED] authentication validation", key)
 			continue
 		}
 		log.Printf("%s was not able to test authentication validation", key)
