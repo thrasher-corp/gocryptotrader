@@ -68,6 +68,11 @@ func TestAdd(t *testing.T) {
 }
 ```
 
+###### Add using flags:
+```bash
+apichecker.exe -add=true -key=id -val=revision-history -tokendata=h1 -tokendataend=table -texttokendata=td -dateformat=2006/01/02 -checktype="HTML String Check" -regexp="^20(\d){2}/(\d){2}/(\d){2}$" -path="https://docs.gemini.com/rest-api/#revision-history" -exchangename=Gemini
+```
+
 + If all the authentication variables for trello are set trello checklist will be automatically updated with the format of 'Exchange Name (integer of how many updates have been released since the exhange API was last worked on):
 ```go
 func NameStateChanges(currentName, currentState string) (string, error) {
