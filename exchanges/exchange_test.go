@@ -322,7 +322,7 @@ func TestGetClientBankAccounts(t *testing.T) {
 		t.Error("incorrect bank name")
 	}
 
-	r, err = b.GetClientBankAccounts("MEOW", "USD")
+	_, err = b.GetClientBankAccounts("MEOW", "USD")
 	if err == nil {
 		t.Error("an error should have been thrown for a non-existent exchange")
 	}
