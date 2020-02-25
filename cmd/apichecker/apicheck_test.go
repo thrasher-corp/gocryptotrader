@@ -15,28 +15,25 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	testConfigData, err = ReadFileData(testJSONFile)
-	if err != nil {
-		log.Fatal(err)
-	}
 	os.Exit(m.Run())
 }
 
 func TestCheckUpdates(t *testing.T) {
-	err := CheckUpdates(testJSONFile, &testConfigData)
+	err := CheckUpdates(testJSONFile)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestUpdateFile(t *testing.T) {
-	err := UpdateFile(&configData, testJSONFile)
-	if err != nil {
-		t.Error(err)
-	}
 	realConf, err := ReadFileData(jsonFile)
 	if err != nil {
 		log.Fatal(err)
+	}
+	configData = realConf
+	err = UpdateFile(testJSONFile)
+	if err != nil {
+		t.Error(err)
 	}
 	testConf, err := ReadFileData(testJSONFile)
 	if err != nil {
@@ -50,7 +47,7 @@ func TestUpdateFile(t *testing.T) {
 
 func TestCheckExistingExchanges(t *testing.T) {
 	t.Parallel()
-	if !CheckExistingExchanges("Kraken", &testConfigData) {
+	if !CheckExistingExchanges("Kraken") {
 		t.Fatal("Kraken data not found")
 	}
 }
@@ -65,9 +62,7 @@ func TestCheckChangeLog(t *testing.T) {
 		DateFormat:    "2006/01/02",
 		RegExp:        `^20(\d){2}/(\d){2}/(\d){2}$`,
 		Path:          "https://docs.gemini.com/rest-api/#revision-history"}
-	a, err := CheckChangeLog(&data)
-	t.Log(a)
-	t.Log(data.RegExp)
+	_, err := CheckChangeLog(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -81,7 +76,7 @@ func TestAdd(t *testing.T) {
 		TokenDataEnd: "./#change-",
 		RegExp:       `./#change-\d{8}`,
 		Path:         "wrongpath"}
-	err := Add("WrongExch", htmlScrape, data2.Path, data2, false, &configData)
+	err := Add("WrongExch", htmlScrape, data2, false)
 	if err == nil {
 		t.Log("expected an error due to invalid path being parsed in")
 	}
@@ -98,8 +93,7 @@ func TestHTMLScrapeGemini(t *testing.T) {
 		RegExp:        "^20(\\d){2}/(\\d){2}/(\\d){2}$",
 		CheckString:   "2019/11/15",
 		Path:          "https://docs.gemini.com/rest-api/#revision-history"}
-	a, err := HTMLScrapeDefault(&data)
-	t.Log(a)
+	_, err := HTMLScrapeDefault(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -407,9 +401,9 @@ func TestCreateNewCheck(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 	var exchCheck, updatedExch HTMLScrapingData
-	for x := range testConfigData.Exchanges {
-		if testConfigData.Exchanges[x].Name == "Exmo" {
-			exchCheck = *testConfigData.Exchanges[x].Data.HTMLData
+	for x := range configData.Exchanges {
+		if configData.Exchanges[x].Name == "Exmo" {
+			exchCheck = *configData.Exchanges[x].Data.HTMLData
 		}
 	}
 	info := ExchangeInfo{Name: "Exmo",
@@ -418,7 +412,7 @@ func TestUpdate(t *testing.T) {
 			Path: "https://exmo.com/en/api/"},
 		},
 	}
-	updatedExchs := Update("Exmo", testConfigData.Exchanges, info)
+	updatedExchs := Update("Exmo", configData.Exchanges, info)
 	for y := range updatedExchs {
 		if updatedExchs[y].Name == "Exmo" {
 			updatedExch = *updatedExchs[y].Data.HTMLData
@@ -431,7 +425,7 @@ func TestUpdate(t *testing.T) {
 
 func TestCheckMissingExchanges(t *testing.T) {
 	t.Parallel()
-	a := CheckMissingExchanges(&testConfigData)
+	a := CheckMissingExchanges()
 	if len(a) > len(exchange.Exchanges) {
 		log.Println("invalid response")
 	}
