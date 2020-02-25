@@ -22,7 +22,7 @@ var (
 			SWIFTCode:           "91272837",
 			BSBNumber:           "123456",
 			IBAN:                "98218738671897",
-			SupportedCurrencies: "USD",
+			SupportedCurrencies: "AUD,USD",
 			SupportedExchanges:  "test-exchange",
 		},
 		{
@@ -94,7 +94,7 @@ func TestAccount_Validate(t *testing.T) {
 	invalid = testBankAccounts[0]
 	invalid.SWIFTCode = ""
 	invalid.IBAN = ""
-
+	invalid.SupportedCurrencies = "USD"
 	if err = invalid.Validate(); err == nil {
 		t.Error("Expected error when no Swift/IBAN set")
 	}

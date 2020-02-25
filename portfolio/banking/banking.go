@@ -53,14 +53,14 @@ func (b *Account) Validate() error {
 				"banking details for %s is enabled but BSB/SWIFT values not set",
 				b.BankName)
 		}
-	} else {
-		// Either IBAN or SWIFT code is OK
-		if b.IBAN == "" && b.SWIFTCode == "" {
-			return fmt.Errorf(
-				"banking details for %s is enabled but SWIFT/IBAN values not set",
-				b.BankName)
-		}
 	}
+
+	if b.IBAN == "" && b.SWIFTCode == "" {
+		return fmt.Errorf(
+			"banking details for %s is enabled but SWIFT/IBAN values not set",
+			b.BankName)
+	}
+
 	return nil
 }
 
