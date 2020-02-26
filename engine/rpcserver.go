@@ -1081,12 +1081,12 @@ func (s *RPCServer) WithdrawalEventsByExchange(ctx context.Context, r *gctrpc.Wi
 
 // WithdrawalEventsByDate returns previous withdrawal request details by exchange
 func (s *RPCServer) WithdrawalEventsByDate(ctx context.Context, r *gctrpc.WithdrawalEventsByDateRequest) (*gctrpc.WithdrawalEventsByExchangeResponse, error) {
-	UTCStartTime, err := time.Parse(audit.TableTimeFormat, r.Start)
+	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.Start)
 	if err != nil {
 		return nil, err
 	}
 
-	UTCSEndTime, err := time.Parse(audit.TableTimeFormat, r.End)
+	UTCSEndTime, err := time.Parse(common.SimpleTimeFormat, r.End)
 	if err != nil {
 		return nil, err
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"io/ioutil"
 	"math"
 	"os"
@@ -2461,7 +2462,7 @@ var withdrawalRequestCommand = cli.Command{
 				cli.StringFlag{
 					Name:        "start",
 					Usage:       "<start>",
-					Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
+					Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat), 
 					Destination: &startTime,
 				},
 				cli.StringFlag{
@@ -3422,9 +3423,6 @@ func clearScreen() error {
 		return cmd.Run()
 	}
 }
-
-var startTime, endTime, order string
-var limit int
 
 var getAuditEventCommand = cli.Command{
 	Name:      "getauditevent",

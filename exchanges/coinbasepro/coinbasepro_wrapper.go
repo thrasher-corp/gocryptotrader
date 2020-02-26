@@ -403,14 +403,14 @@ func (c *CoinbasePro) SubmitOrder(s *order.Submit) (order.SubmitResponse, error)
 		response, err = c.PlaceMarketOrder("",
 			s.Amount,
 			s.Amount,
-			s.OrderSide.Lower(),
+			s.Side.Lower(),
 			c.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
 			"")
 	case order.Limit:
 		response, err = c.PlaceLimitOrder("",
 			s.Price,
 			s.Amount,
-			s.OrderSide.Lower(),
+			s.Side.Lower(),
 			"",
 			"",
 			c.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
