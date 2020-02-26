@@ -211,7 +211,7 @@ func getSha(repoPath string) (ShaResponse, error) {
 	var resp ShaResponse
 	getPath := fmt.Sprintf(githubPath, repoPath)
 	if verbose {
-		log.Printf("Getting SHA of this path: %v\n", path)
+		log.Printf("Getting SHA of this path: %v\n", getPath)
 	}
 	return resp, SendGetReq(getPath, &resp)
 }
@@ -281,9 +281,13 @@ func CheckUpdates(fileName string) error {
 				m.Lock()
 				if err != nil {
 					errMap[e.Name] = err
+					m.Unlock()
+					return
 				}
 				if sha.ShaResp == "" {
 					errMap[e.Name] = errors.New("invalid sha")
+					m.Unlock()
+					return
 				}
 				if sha.ShaResp != e.Data.GitHubData.Sha {
 					resp = append(resp, e.Name)
@@ -295,6 +299,8 @@ func CheckUpdates(fileName string) error {
 				m.Lock()
 				if err != nil {
 					errMap[e.Name] = err
+					m.Unlock()
+					return
 				}
 				if checkStr != e.Data.HTMLData.CheckString {
 					resp = append(resp, e.Name)
