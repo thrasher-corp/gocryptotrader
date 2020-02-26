@@ -381,9 +381,10 @@ type WsTrade struct {
 type WsOrderbook struct {
 	Currency    string     `json:"marketId"`
 	Timestamp   time.Time  `json:"timestamp"`
-	Bids        [][]string `json:"bids"`
-	Asks        [][]string `json:"asks"`
+	Bids        [][]interface{} `json:"bids"`
+	Asks        [][]interface{} `json:"asks"`
 	MessageType string     `json:"messageType"`
+	Snapshot bool     `json:"snapshot"`
 }
 
 // WsFundTransfer stores fund transfer data for websocket

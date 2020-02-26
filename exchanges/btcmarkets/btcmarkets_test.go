@@ -504,13 +504,214 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 }
 
-func TestWsOrderNotification(t *testing.T) {
-	status := []string{"ORDER_INSERTED", "ORDER_CANCELLED", "TRIGGER_INSERTED", "ORDER_FULL_TRANSACTED", "ORDER_PARTIALLY_TRANSACTED", "INSUFFICIENT_BALANCE", "TRIGGER_ACTIVATED", "MARKET_UNAVAILABLE"}
-	for i := range status {
-		pressXToJSON := []byte(`{"topic": "notificationApi","data": [{"symbol": "BTC-USD","orderID": "1234","orderMode": "MODE_BUY","orderType": "TYPE_LIMIT","price": "1","size": "1","status": "` + status[i] + `","timestamp": "1580349090693","type": "STOP","triggerPrice": "1"}]}`)
-		err := b.wsHandleData(pressXToJSON)
-		if err != nil {
-			t.Error(err)
-		}
+func TestWsTicker(t *testing.T) {
+	pressXToJSON := []byte(`{ "marketId": "BTC-AUD",
+    "timestamp": "2019-04-08T18:56:17.405Z",
+    "bestBid": "7309.12",
+    "bestAsk": "7326.88",
+    "lastPrice": "7316.81",
+    "volume24h": "299.12936654",
+    "messageType": "tick"
+  }`)
+	err := b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsTrade(t *testing.T) {
+	pressXToJSON := []byte(` { "marketId": "BTC-AUD",
+    "timestamp": "2019-04-08T20:54:27.632Z",
+    "tradeId": 3153171493,
+    "price": "7370.11",
+    "volume": "0.10901605",
+    "side": "Ask",
+    "messageType": "trade"
+  }`)
+	err := b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsFundChange(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "fundtransferId": 276811,
+  "type": "Deposit",
+  "status": "Complete",
+  "timestamp": "2019-04-16T01:38:02.931Z",
+  "amount": "0.001",
+  "currency": "BTC",
+  "fee": "0",
+  "messageType": "fundChange"
+}`)
+	err := b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsOrderbookUpdate(t *testing.T) {
+	pressXToJSON := []byte(`{ "marketId": "LTC-AUD",
+    "snapshot": true,
+    "timestamp": "2020-01-08T19:47:13.986Z",
+    "snapshotId": 1578512833978000,
+      "bids":
+      [ [ "99.57", "0.55", 1 ],
+        [ "97.62", "3.20", 2 ],
+        [ "97.07", "0.9", 1 ],
+        [ "96.7", "1.9", 1 ],
+        [ "95.8", "7.0", 1 ] ],
+      "asks":
+        [ [ "100", "3.79", 3 ],
+          [ "101", "6.32", 2 ] ],
+      "messageType": "orderbookUpdate"
+  }`)
+	err := b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(`  { "marketId": "LTC-AUD",
+    "timestamp": "2020-01-08T19:47:24.054Z",
+    "snapshotId": 1578512844045000,
+    "bids":  [ ["99.81", "1.2", 1 ], ["95.8", "0", 0 ]],
+    "asks": [ ["100", "3.2", 2 ] ],
+    "messageType": "orderbookUpdate"
+  }`)
+	err = b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsHeartbeats(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "messageType": "error",
+  "code": 3,
+  "message": "invalid channel names"
+}`)
+	err := b.wsHandleData(pressXToJSON)
+	if err == nil {
+		t.Error("expected error")
+	}
+
+	pressXToJSON = []byte(`{ 
+"messageType": "error",
+"code": 3,
+"message": "invalid marketIds"
+}`)
+	err = b.wsHandleData(pressXToJSON)
+	if err == nil {
+		t.Error("expected error")
+	}
+
+	pressXToJSON = []byte(`{ 
+"messageType": "error",
+"code": 1,
+"message": "authentication failed. invalid key"
+}`)
+	err = b.wsHandleData(pressXToJSON)
+	if err == nil {
+		t.Error("expected error")
+	}
+}
+
+func TestWsOrders(t *testing.T) {
+	pressXToJSON := []byte(`{ 
+	"orderId": 79003,
+    "marketId": "BTC-AUD",
+    "side": "Bid",
+    "type": "Limit",
+    "openVolume": "1",
+    "status": "Placed",
+    "triggerStatus": "",
+    "trades": [],
+    "timestamp": "2019-04-08T20:41:19.339Z",
+    "messageType": "orderChange"
+  }`)
+	err := b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(` { 
+	"orderId": 79033,
+    "marketId": "BTC-AUD",
+    "side": "Bid",
+    "type": "Limit",
+    "openVolume": "0",
+    "status": "Fully Matched",
+    "triggerStatus": "",
+    "trades": [{
+               "tradeId":31727,
+               "price":"0.1634",
+               "volume":"10",
+               "fee":"0.001",
+               "liquidityType":"Taker"
+             }],
+    "timestamp": "2019-04-08T20:50:39.658Z",
+    "messageType": "orderChange"
+  }`)
+	err = b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(` { 
+	"orderId": 79003,
+    "marketId": "BTC-AUD",
+    "side": "Bid",
+    "type": "Limit",
+    "openVolume": "1",
+    "status": "Cancelled",
+    "triggerStatus": "",
+    "trades": [],
+    "timestamp": "2019-04-08T20:41:41.857Z",
+    "messageType": "orderChange"
+  }`)
+	err = b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(`  { 
+	"orderId": 79003,
+    "marketId": "BTC-AUD",
+    "side": "Bid",
+    "type": "Limit",
+    "openVolume": "1",
+    "status": "Partially Matched",
+    "triggerStatus": "",
+    "trades": [{
+               "tradeId":31927,
+               "price":"0.1634",
+               "volume":"5",
+               "fee":"0.001",
+               "liquidityType":"Taker"
+             }],
+	"timestamp": "2019-04-08T20:41:41.857Z",
+    "messageType": "orderChange"
+  }`)
+	err = b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(` { 
+	"orderId": 7903,
+    "marketId": "BTC-AUD",
+    "side": "Bid",
+    "type": "Limit",
+    "openVolume": "1.2",
+    "status": "Placed",
+    "triggerStatus": "Triggered",
+    "trades": [],
+    "timestamp": "2019-04-08T20:41:41.857Z",
+    "messageType": "orderChange"
+  }`)
+	err = b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
 	}
 }

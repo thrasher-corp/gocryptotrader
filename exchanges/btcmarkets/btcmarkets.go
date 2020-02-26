@@ -70,7 +70,7 @@ const (
 	orderChange = "orderChange"
 	heartbeat   = "heartbeat"
 	tick        = "tick"
-	wsOB        = "orderbook"
+	wsOB        = "orderbookUpdate"
 	trade       = "trade"
 )
 

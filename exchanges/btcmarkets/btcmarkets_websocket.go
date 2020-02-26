@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -19,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -95,42 +95,55 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		var bids, asks []orderbook.Item
 		for x := range ob.Bids {
 			var price, amount float64
-			price, err = strconv.ParseFloat(ob.Bids[x][0], 64)
+			price, err = strconv.ParseFloat(ob.Bids[x][0].(string), 64)
 			if err != nil {
 				return err
 			}
-			amount, err = strconv.ParseFloat(ob.Bids[x][1], 64)
+			amount, err = strconv.ParseFloat(ob.Bids[x][1].(string), 64)
 			if err != nil {
 				return err
 			}
 			bids = append(bids, orderbook.Item{
 				Amount: amount,
 				Price:  price,
+				OrderCount:        int64(ob.Bids[x][2].(float64)),
 			})
 		}
 		for x := range ob.Asks {
 			var price, amount float64
-			price, err = strconv.ParseFloat(ob.Asks[x][0], 64)
+			price, err = strconv.ParseFloat(ob.Asks[x][0].(string), 64)
 			if err != nil {
 				return err
 			}
-			amount, err = strconv.ParseFloat(ob.Asks[x][1], 64)
+			amount, err = strconv.ParseFloat(ob.Asks[x][1].(string), 64)
 			if err != nil {
 				return err
 			}
 			asks = append(asks, orderbook.Item{
-				Amount: amount,
-				Price:  price,
+				Amount:            amount,
+				Price:             price,
+				OrderCount:        int64(ob.Asks[x][2].(float64)),
 			})
 		}
-		err = b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-			Pair:         p,
-			Bids:         bids,
-			Asks:         asks,
-			LastUpdated:  ob.Timestamp,
-			AssetType:    asset.Spot,
-			ExchangeName: b.Name,
-		})
+		if ob.Snapshot {
+			err = b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+				Pair:         p,
+				Bids:         bids,
+				Asks:         asks,
+				LastUpdated:  ob.Timestamp,
+				AssetType:    asset.Spot,
+				ExchangeName: b.Name,
+			})
+		} else {
+			err = b.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+				UpdateTime: ob.Timestamp,
+				Asset:    asset.Spot,
+				Bids:       bids,
+				Asks:       asks,
+				Pair:       p,
+			})
+		}
+
 		if err != nil {
 			return err
 		}
