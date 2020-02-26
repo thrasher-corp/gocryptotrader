@@ -8,9 +8,9 @@ CREATE TABLE IF NOT EXISTS withdrawal_fiat
     bank_address              text not null,
     bank_account_name         text not null,
     bank_account_number       text not null,
-    bsb                       text not null,
-    swift_code                text not null,
-    iban                      text not null,
+    bsb                       text not null DEFAULT '',
+    swift_code                text not null DEFAULT '',
+    iban                      text not null DEFAULT '',
     bank_code                 DOUBLE PRECISION not null
 );
 -- +goose Down
