@@ -12,13 +12,6 @@
 
 This apichecker package is part of the GoCryptoTrader codebase.
 
-#### This tool tracks changes in exchange API documentation
-#### Keeps track of all the updates using the GoCryptoTrader trello board
-
-Be aware, this tool will:
-- Automatically update the live trello board if API keys and trello information are provided.
-- Automatically update the main json updates file, however a backup of the copy before the updates will be stored.
-
 ## This is still in active development
 
 You can track ideas, planned features and what's in progresss on this Trello board: [https://trello.com/b/ZAhMhpOy/gocryptotrader](https://trello.com/b/ZAhMhpOy/gocryptotrader).
@@ -30,6 +23,13 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + Checks for API updates
 + Can automatically update Trello checklist for the updates required
 + Supports trello integration
+
+#### This tool tracks changes in exchange API documentation
+#### Keeps track of all the updates using the GoCryptoTrader trello board
+
+Be aware, this tool will:
+- Automatically update the live trello board if API keys and trello information are provided.
+- Automatically update the main json updates file, however a backup of the copy before the updates will be stored.
 
 ## Usage
 
@@ -170,4 +170,4 @@ When submitting a PR, please abide by our coding guidelines:
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
-******
+***bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc***

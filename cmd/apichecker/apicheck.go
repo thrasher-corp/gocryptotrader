@@ -276,8 +276,11 @@ func CheckUpdates(fileName string) error {
 				m.Unlock()
 				sha, err := getSha(repoPath)
 				m.Lock()
-				if err != nil && sha.ShaResp != "" {
+				if err != nil {
 					errMap[e.Name] = err
+				}
+				if sha.ShaResp == "" {
+					errMap[e.Name] = errors.New("invalid sha")
 				}
 				if sha.ShaResp != e.Data.GitHubData.Sha {
 					resp = append(resp, e.Name)
@@ -340,11 +343,9 @@ func CheckUpdates(fileName string) error {
 		}
 	}
 	log.Printf("The following exchanges need an update: %v\n", resp)
-	if verbose {
-		log.Printf("Errors: %v", errMap)
-		unsup := CheckMissingExchanges()
-		log.Printf("The following exchanges are not supported by apichecker: %v\n", unsup)
-	}
+	log.Printf("Errors: %v", errMap)
+	unsup := CheckMissingExchanges()
+	log.Printf("The following exchanges are not supported by apichecker: %v\n", unsup)
 	log.Printf("Saving the updates to the following file: %s\n", fileName)
 	return ioutil.WriteFile(fileName, file, 0770)
 }

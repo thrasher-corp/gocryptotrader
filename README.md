@@ -138,12 +138,12 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 631 |
+| [thrasher-](https://github.com/thrasher-) | 632 |
 | [shazbert](https://github.com/shazbert) | 187 |
 | [gloriousCode](https://github.com/gloriousCode) | 166 |
-| [xtda](https://github.com/xtda) | 38 |
+| [xtda](https://github.com/xtda) | 40 |
+| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 17 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
-| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 13 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
@@ -153,6 +153,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [crackcomm](https://github.com/crackcomm) | 3 |
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [bretep](https://github.com/bretep) | 2 |
+| [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
 | [woshidama323](https://github.com/woshidama323) | 2 |
 | [gam-phon](https://github.com/gam-phon) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |
@@ -161,7 +162,6 @@ Binaries will be published once the codebase reaches a stable condition.
 | [soxipy](https://github.com/soxipy) | 2 |
 | [herenow](https://github.com/herenow) | 2 |
 | [blombard](https://github.com/blombard) | 1 |
-| [Christian-Achilli](https://github.com/Christian-Achilli) | 1 |
 | [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
 | [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |
 | [Daanikus](https://github.com/Daanikus) | 1 |

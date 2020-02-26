@@ -427,7 +427,7 @@ func TestCheckMissingExchanges(t *testing.T) {
 	t.Parallel()
 	a := CheckMissingExchanges()
 	if len(a) > len(exchange.Exchanges) {
-		log.Println("invalid response")
+		t.Fatal("invalid response")
 	}
 }
 
