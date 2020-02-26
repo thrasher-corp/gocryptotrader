@@ -1353,13 +1353,14 @@ type WebsocketCandleResponse struct {
 	} `json:"data"`
 }
 
-// WebsocketOrderBooksData contains orderbook data from  WebsocketOrderBooksResponse
+// WebsocketOrderBooksData is the full websocket response containing orderbook data
 type WebsocketOrderBooksData struct {
 	Table  string               `json:"table"`
 	Action string               `json:"action"`
 	Data   []WebsocketOrderBook `json:"data"`
 }
 
+// WebsocketOrderBook holds orderbook data
 type WebsocketOrderBook struct {
 	Checksum     int32           `json:"checksum,omitempty"`
 	InstrumentID string          `json:"instrument_id"`

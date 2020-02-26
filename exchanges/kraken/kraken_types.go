@@ -490,6 +490,7 @@ type wsSubscription struct {
 	} `json:"subscription"`
 }
 
+// WsOpenOrder contains all open order data from ws feed
 type WsOpenOrder struct {
 	UserReferenceID int64   `json:"userref"`
 	ExpireTime      float64 `json:"expiretm,string"`

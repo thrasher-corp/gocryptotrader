@@ -28,7 +28,7 @@ func (o *orderStore) get() map[string][]*order.Detail {
 	return o.Orders
 }
 
-// GetByExchangeAndID returns a specific order
+// GetByExchangeAndID returns a specific order by exchange and id
 func (o *orderStore) GetByExchangeAndID(exchange, id string) (*order.Detail, error) {
 	o.m.Lock()
 	defer o.m.Unlock()
@@ -45,7 +45,7 @@ func (o *orderStore) GetByExchangeAndID(exchange, id string) (*order.Detail, err
 	return nil, ErrOrderNotFound
 }
 
-// GetByExchangeAndID returns a specific order
+// GetByExchange returns orders by exchange
 func (o *orderStore) GetByExchange(exchange string) ([]*order.Detail, error) {
 	o.m.Lock()
 	defer o.m.Unlock()
@@ -93,7 +93,7 @@ func (o *orderStore) exists(order *order.Detail) bool {
 	return false
 }
 
-// Adds an order to the orderStore for tracking the lifecycle
+// Add Adds an order to the orderStore for tracking the lifecycle
 func (o *orderStore) Add(order *order.Detail) error {
 	if order == nil {
 		return errors.New("order store: Order is nil")
@@ -112,6 +112,7 @@ func (o *orderStore) Add(order *order.Detail) error {
 			log.Warnf(log.OrderMgr,
 				"Order manager: Unable to generate UUID. Err: %s",
 				err)
+
 		} else {
 			order.InternalOrderID = id.String()
 		}

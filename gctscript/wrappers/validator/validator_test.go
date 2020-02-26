@@ -154,13 +154,14 @@ func TestWrapper_SubmitOrder(t *testing.T) {
 		Price:        orderPrice,
 		Amount:       orderAmount,
 		ClientID:     orderClientID,
+		Exchange:     "true",
 	}
-	_, err := testWrapper.SubmitOrder("true", tempOrder)
+	_, err := testWrapper.SubmitOrder(tempOrder)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = testWrapper.SubmitOrder(exchError.String(), nil)
+	_, err = testWrapper.SubmitOrder(nil)
 	if err == nil {
 		t.Fatal("expected SubmitOrder to return error with invalid name")
 	}

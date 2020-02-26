@@ -150,8 +150,9 @@ func TestExchange_SubmitOrder(t *testing.T) {
 		Price:        orderPrice,
 		Amount:       orderAmount,
 		ClientID:     orderClientID,
+		Exchange:     exchName,
 	}
-	_, err := exchangeTest.SubmitOrder(exchName, tempOrder)
+	_, err := exchangeTest.SubmitOrder(tempOrder)
 	if err != nil {
 		t.Fatal(err)
 	}

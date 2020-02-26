@@ -233,7 +233,7 @@ func (o *OKGroup) WsLogin() error {
 	return nil
 }
 
-// wsReadData receives and passes on websocket messages for processing
+// WsReadData receives and passes on websocket messages for processing
 func (o *OKGroup) WsReadData(wg *sync.WaitGroup) {
 	o.Websocket.Wg.Add(1)
 	defer func() {
@@ -309,6 +309,7 @@ func (o *OKGroup) WsHandleData(respRaw []byte) error {
 	return nil
 }
 
+// StringToOrderStatus converts order status IDs to internal types
 func StringToOrderStatus(num string) (order.Status, error) {
 	switch num {
 	case "-2":

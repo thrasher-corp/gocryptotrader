@@ -357,7 +357,7 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 		return nil, err
 	}
 
-	rtn, err := wrappers.GetWrapper().SubmitOrder(exchangeName, tempSubmit)
+	rtn, err := wrappers.GetWrapper().SubmitOrder(tempSubmit)
 	if err != nil {
 		return nil, err
 	}
