@@ -12,6 +12,7 @@ import (
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/ntpclient"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
 const (
@@ -37,11 +38,11 @@ func TestGetExchangeBankAccounts(t *testing.T) {
 	if err != nil {
 		t.Error("GetExchangeBankAccounts LoadConfig error", err)
 	}
-	_, err = cfg.GetExchangeBankAccounts("Bitfinex", "USD")
+	_, err = cfg.GetExchangeBankAccounts("Bitfinex", "", "USD")
 	if err != nil {
 		t.Error("GetExchangeBankAccounts error", err)
 	}
-	_, err = cfg.GetExchangeBankAccounts("Not an exchange", "Not a currency")
+	_, err = cfg.GetExchangeBankAccounts("Not an exchange", "", "Not a currency")
 	if err == nil {
 		t.Error("GetExchangeBankAccounts, no error returned for invalid exchange")
 	}
@@ -54,7 +55,7 @@ func TestUpdateExchangeBankAccounts(t *testing.T) {
 		t.Error("UpdateExchangeBankAccounts LoadConfig error", err)
 	}
 
-	b := []BankAccount{{Enabled: false}}
+	b := []banking.Account{{Enabled: false}}
 	err = cfg.UpdateExchangeBankAccounts("Bitfinex", b)
 	if err != nil {
 		t.Error("UpdateExchangeBankAccounts error", err)
@@ -77,39 +78,19 @@ func TestUpdateExchangeBankAccounts(t *testing.T) {
 	}
 }
 
-func TestGetClientBankAccounts(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Error("GetClientBankAccounts LoadConfig error", err)
-	}
-	_, err = cfg.GetClientBankAccounts("Kraken", "USD")
-	if err != nil {
-		t.Error("GetClientBankAccounts error", err)
-	}
-	_, err = cfg.GetClientBankAccounts("Bla", "USD")
-	if err == nil {
-		t.Error("GetClientBankAccounts error")
-	}
-	_, err = cfg.GetClientBankAccounts("Kraken", "JPY")
-	if err == nil {
-		t.Error("GetClientBankAccounts Expected error")
-	}
-}
-
 func TestUpdateClientBankAccounts(t *testing.T) {
 	cfg := GetConfig()
 	err := cfg.LoadConfig(TestFile, true)
 	if err != nil {
 		t.Error("UpdateClientBankAccounts LoadConfig error", err)
 	}
-	b := BankAccount{Enabled: false, BankName: "test", AccountNumber: "0234"}
+	b := banking.Account{Enabled: false, BankName: "test", AccountNumber: "0234"}
 	err = cfg.UpdateClientBankAccounts(&b)
 	if err != nil {
 		t.Error("UpdateClientBankAccounts error", err)
 	}
 
-	err = cfg.UpdateClientBankAccounts(&BankAccount{})
+	err = cfg.UpdateClientBankAccounts(&banking.Account{})
 	if err == nil {
 		t.Error("UpdateClientBankAccounts error")
 	}
@@ -141,7 +122,7 @@ func TestCheckClientBankAccounts(t *testing.T) {
 	}
 
 	cfg.BankAccounts = nil
-	cfg.BankAccounts = []BankAccount{
+	cfg.BankAccounts = []banking.Account{
 		{
 			Enabled: true,
 		},
@@ -152,7 +133,7 @@ func TestCheckClientBankAccounts(t *testing.T) {
 		t.Error("unexpected result")
 	}
 
-	b := BankAccount{
+	b := banking.Account{
 		Enabled:             true,
 		BankName:            "Commonwealth Bank of Awesome",
 		BankAddress:         "123 Fake Street",
@@ -163,7 +144,7 @@ func TestCheckClientBankAccounts(t *testing.T) {
 		AccountNumber:       "1231006505",
 		SupportedCurrencies: "USD",
 	}
-	cfg.BankAccounts = []BankAccount{b}
+	cfg.BankAccounts = []banking.Account{b}
 	cfg.CheckClientBankAccounts()
 	if cfg.BankAccounts[0].Enabled ||
 		cfg.BankAccounts[0].SupportedExchanges != "ALL" {
@@ -174,7 +155,7 @@ func TestCheckClientBankAccounts(t *testing.T) {
 	// transfers)
 	b.SupportedCurrencies = "AUD"
 	b.SWIFTCode = "BACXSI22"
-	cfg.BankAccounts = []BankAccount{b}
+	cfg.BankAccounts = []banking.Account{b}
 	cfg.CheckClientBankAccounts()
 	if cfg.BankAccounts[0].Enabled {
 		t.Error("unexpected result")
@@ -182,7 +163,7 @@ func TestCheckClientBankAccounts(t *testing.T) {
 
 	// Valid AU bank
 	b.BSBNumber = "061337"
-	cfg.BankAccounts = []BankAccount{b}
+	cfg.BankAccounts = []banking.Account{b}
 	cfg.CheckClientBankAccounts()
 	if !cfg.BankAccounts[0].Enabled {
 		t.Error("unexpected result")
@@ -192,34 +173,10 @@ func TestCheckClientBankAccounts(t *testing.T) {
 	b.Enabled = true
 	b.IBAN = "SI56290000170073837"
 	b.SWIFTCode = "BACXSI22"
-	cfg.BankAccounts = []BankAccount{b}
+	cfg.BankAccounts = []banking.Account{b}
 	cfg.CheckClientBankAccounts()
 	if !cfg.BankAccounts[0].Enabled {
 		t.Error("unexpected result")
-	}
-}
-
-func TestGetBankAccountByID(t *testing.T) {
-	cfg := GetConfig()
-	err := cfg.LoadConfig(TestFile, true)
-	if err != nil {
-		t.Error("CheckClientBankAccounts LoadConfig error", err)
-	}
-
-	cfg.BankAccounts = nil
-	cfg.CheckClientBankAccounts()
-	if len(cfg.BankAccounts) == 0 {
-		t.Error("CheckClientBankAccounts error:", err)
-	}
-
-	_, err = cfg.GetBankAccountByID("test-bank-01")
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = cfg.GetBankAccountByID("invalid-test-bank-01")
-	if err == nil {
-		t.Error("error expected for invalid account received nil")
 	}
 }
 
@@ -1462,25 +1419,6 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		!cfg.Exchanges[0].API.AuthenticatedWebsocketSupport {
 		t.Error("Expected AuthenticatedAPISupport and AuthenticatedWebsocketAPISupport to be false from invalid API keys")
 	}
-
-	// Test exchage bank accounts
-	b := BankAccount{
-		Enabled:             true,
-		BankName:            "Commonwealth Bank of Awesome",
-		BankAddress:         "123 Fake Street",
-		BankPostalCode:      "1337",
-		BankPostalCity:      "Satoshiville",
-		BankCountry:         "Genesis",
-		AccountName:         "Satoshi Nakamoto",
-		AccountNumber:       "1231006505",
-		SupportedCurrencies: "USD",
-	}
-	cfg.Exchanges[0].BankAccounts = []BankAccount{b}
-	cfg.CheckExchangeConfigValues()
-	if cfg.Exchanges[0].BankAccounts[0].Enabled {
-		t.Error("unexpected result")
-	}
-
 	// Test empty exchange name for an enabled exchange
 	cfg.Exchanges[0].Enabled = true
 	cfg.Exchanges[0].Name = ""

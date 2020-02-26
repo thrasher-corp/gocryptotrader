@@ -499,8 +499,8 @@ func (p *Poloniex) MoveOrder(orderID int64, rate, amount float64, postOnly, imme
 }
 
 // Withdraw withdraws a currency to a specific delegated address
-func (p *Poloniex) Withdraw(currency, address string, amount float64) (bool, error) {
-	result := Withdraw{}
+func (p *Poloniex) Withdraw(currency, address string, amount float64) (*Withdraw, error) {
+	result := &Withdraw{}
 	values := url.Values{}
 
 	values.Set("currency", currency)
@@ -509,14 +509,14 @@ func (p *Poloniex) Withdraw(currency, address string, amount float64) (bool, err
 
 	err := p.SendAuthenticatedHTTPRequest(http.MethodPost, poloniexWithdraw, values, &result)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	if result.Error != "" {
-		return false, errors.New(result.Error)
+		return nil, errors.New(result.Error)
 	}
 
-	return true, nil
+	return result, nil
 }
 
 // GetFeeInfo returns fee information

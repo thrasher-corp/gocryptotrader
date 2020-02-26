@@ -20,6 +20,7 @@ import (
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/utils"
 )
 
@@ -121,6 +122,7 @@ func ValidateSettings(b *Engine, s *Settings) {
 	b.Settings.MaxVirtualMachines = s.MaxVirtualMachines
 	b.Settings.EnableDispatcher = s.EnableDispatcher
 	b.Settings.EnablePortfolioManager = s.EnablePortfolioManager
+	b.Settings.WithdrawCacheSize = s.WithdrawCacheSize
 	if b.Settings.EnablePortfolioManager {
 		if b.Settings.PortfolioManagerDelay != time.Duration(0) && s.PortfolioManagerDelay > 0 {
 			b.Settings.PortfolioManagerDelay = s.PortfolioManagerDelay
@@ -159,6 +161,10 @@ func ValidateSettings(b *Engine, s *Settings) {
 
 	if flagSet["maxvirtualmachines"] {
 		gctscript.GCTScriptConfig.MaxVirtualMachines = uint8(s.MaxVirtualMachines)
+	}
+
+	if flagSet["withdrawcachesize"] {
+		withdraw.CacheSize = s.WithdrawCacheSize
 	}
 
 	b.Settings.EnableCommsRelayer = s.EnableCommsRelayer
@@ -287,6 +293,8 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "- GCTSCRIPT SETTINGS: ")
 	gctlog.Debugf(gctlog.Global, "\t Enable GCTScript manager: %v", s.EnableGCTScriptManager)
 	gctlog.Debugf(gctlog.Global, "\t GCTScript max virtual machines: %v", s.MaxVirtualMachines)
+	gctlog.Debugf(gctlog.Global, "- WITHDRAW SETTINGS: ")
+	gctlog.Debugf(gctlog.Global, "\t Withdraw Cache size: %v", s.WithdrawCacheSize)
 	gctlog.Debugf(gctlog.Global, "- COMMON SETTINGS:")
 	gctlog.Debugf(gctlog.Global, "\t Global HTTP timeout: %v", s.GlobalHTTPTimeout)
 	gctlog.Debugf(gctlog.Global, "\t Global HTTP user agent: %v", s.GlobalHTTPUserAgent)

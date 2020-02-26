@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
 const (
@@ -222,16 +223,16 @@ func (e *Base) GetPairAssetType(c currency.Pair) (asset.Item, error) {
 
 // GetClientBankAccounts returns banking details associated with
 // a client for withdrawal purposes
-func (e *Base) GetClientBankAccounts(exchangeName, withdrawalCurrency string) (config.BankAccount, error) {
+func (e *Base) GetClientBankAccounts(exchangeName, withdrawalCurrency string) (*banking.Account, error) {
 	cfg := config.GetConfig()
 	return cfg.GetClientBankAccounts(exchangeName, withdrawalCurrency)
 }
 
 // GetExchangeBankAccounts returns banking details associated with an
 // exchange for funding purposes
-func (e *Base) GetExchangeBankAccounts(exchangeName, depositCurrency string) (config.BankAccount, error) {
+func (e *Base) GetExchangeBankAccounts(id, depositCurrency string) (*banking.Account, error) {
 	cfg := config.GetConfig()
-	return cfg.GetExchangeBankAccounts(exchangeName, depositCurrency)
+	return cfg.GetExchangeBankAccounts(e.Name, id, depositCurrency)
 }
 
 // SetCurrencyPairFormat checks the exchange request and config currency pair

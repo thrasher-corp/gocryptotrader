@@ -13,7 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // Exchange implements all required methods for Wrapper
@@ -143,14 +144,18 @@ func (e Exchange) DepositAddress(exch string, currencyCode currency.Code) (out s
 }
 
 // WithdrawalFiatFunds withdraw funds from exchange to requested fiat source
-func (e Exchange) WithdrawalFiatFunds(exch, bankaccountid string, request *withdraw.FiatRequest) (string, error) {
+func (e Exchange) WithdrawalFiatFunds(exch, bankAccountID string, request *withdraw.Request) (string, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return "", err
 	}
-	v, err := engine.Bot.Config.GetBankAccountByID(bankaccountid)
+	var v *banking.Account
+	v, err = banking.GetBankAccountByID(bankAccountID)
 	if err != nil {
-		return "", err
+		v, err = ex.GetBase().GetExchangeBankAccounts(bankAccountID, request.Currency.String())
+		if err != nil {
+			return "", err
+		}
 	}
 
 	otp, err := engine.GetExchangeoOTPByName(exch)
@@ -159,29 +164,29 @@ func (e Exchange) WithdrawalFiatFunds(exch, bankaccountid string, request *withd
 		if errParse != nil {
 			return "", errors.New("failed to generate OTP unable to continue")
 		}
-		request.GenericInfo.OneTimePassword = otpValue
+		request.OneTimePassword = otpValue
 	}
-	request.BankAccountName = v.AccountName
-	request.BankAccountNumber = v.AccountNumber
-	request.BankName = v.BankName
-	request.BankAddress = v.BankAddress
-	request.BankCity = v.BankPostalCity
-	request.BankCountry = v.BankCountry
-	request.BankPostalCode = v.BankPostalCode
-	request.BSB = v.BSBNumber
-	request.SwiftCode = v.SWIFTCode
-	request.IBAN = v.IBAN
+	request.Exchange = exch
+	request.Fiat.Bank.AccountName = v.AccountName
+	request.Fiat.Bank.AccountNumber = v.AccountNumber
+	request.Fiat.Bank.BankName = v.BankName
+	request.Fiat.Bank.BankAddress = v.BankAddress
+	request.Fiat.Bank.BankPostalCity = v.BankPostalCity
+	request.Fiat.Bank.BankCountry = v.BankCountry
+	request.Fiat.Bank.BankPostalCode = v.BankPostalCode
+	request.Fiat.Bank.BSBNumber = v.BSBNumber
+	request.Fiat.Bank.SWIFTCode = v.SWIFTCode
+	request.Fiat.Bank.IBAN = v.IBAN
 
-	err = withdraw.Valid(request)
+	resp, err := engine.SubmitWithdrawal(ex.GetName(), request)
 	if err != nil {
 		return "", err
 	}
-
-	return ex.WithdrawFiatFunds(request)
+	return resp.Exchange.ID, nil
 }
 
 // WithdrawalCryptoFunds withdraw funds from exchange to requested Crypto source
-func (e Exchange) WithdrawalCryptoFunds(exch string, request *withdraw.CryptoRequest) (out string, err error) {
+func (e Exchange) WithdrawalCryptoFunds(exch string, request *withdraw.Request) (out string, err error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return "", err
@@ -193,12 +198,12 @@ func (e Exchange) WithdrawalCryptoFunds(exch string, request *withdraw.CryptoReq
 		if errParse != nil {
 			return "", errors.New("failed to generate OTP unable to continue")
 		}
-		request.GenericInfo.OneTimePassword = v
+		request.OneTimePassword = v
 	}
 
-	err = withdraw.Valid(request)
+	resp, err := engine.SubmitWithdrawal(ex.GetName(), request)
 	if err != nil {
 		return "", err
 	}
-	return ex.WithdrawCryptocurrencyFunds(request)
+	return resp.Exchange.ID, nil
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,11 +14,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/urfave/cli"
 )
+
+const timeFormat = "2006-01-02 15:04:05"
+
+var startTime, endTime, order string
+var limit int
 
 var getInfoCommand = cli.Command{
 	Name:   "getinfo",
@@ -903,7 +908,7 @@ func getPortfolioSummary(_ *cli.Context) error {
 var addPortfolioAddressCommand = cli.Command{
 	Name:      "addportfolioaddress",
 	Usage:     "adds an address to the portfolio",
-	ArgsUsage: "<address> <coin_type> <description> <balance>",
+	ArgsUsage: "<address> <coin_type> <description> <balance> <cold_storage> <supported_exchanges> ",
 	Action:    addPortfolioAddress,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -921,6 +926,14 @@ var addPortfolioAddressCommand = cli.Command{
 		cli.Float64Flag{
 			Name:  "balance",
 			Usage: "balance of the address",
+		},
+		cli.BoolFlag{
+			Name:  "cold_storage",
+			Usage: "true/false if address is cold storage",
+		},
+		cli.StringFlag{
+			Name:  "supported_exchanges",
+			Usage: "common separated list of exchanges supported by this address for withdrawals",
 		},
 	},
 }
@@ -941,6 +954,8 @@ func addPortfolioAddress(c *cli.Context) error {
 	var coinType string
 	var description string
 	var balance float64
+	var supportedExchanges string
+	var coldstorage bool
 
 	if c.IsSet("address") {
 		address = c.String("address")
@@ -969,13 +984,30 @@ func addPortfolioAddress(c *cli.Context) error {
 		}
 	}
 
+	if c.IsSet("cold_storage") {
+		coldstorage = c.Bool("cold_storage")
+	} else {
+		tv, errBool := strconv.ParseBool(c.Args().Get(4))
+		if errBool == nil {
+			coldstorage = tv
+		}
+	}
+
+	if c.IsSet("supported_exchanges") {
+		supportedExchanges = c.String("supported_exchanges")
+	} else {
+		supportedExchanges = c.Args().Get(5)
+	}
+
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.AddPortfolioAddress(context.Background(),
 		&gctrpc.AddPortfolioAddressRequest{
-			Address:     address,
-			CoinType:    coinType,
-			Description: description,
-			Balance:     balance,
+			Address:            address,
+			CoinType:           coinType,
+			Description:        description,
+			Balance:            balance,
+			SupportedExchanges: supportedExchanges,
+			ColdStorage:        coldstorage,
 		},
 	)
 
@@ -2148,9 +2180,9 @@ func getCryptocurrencyDepositAddress(c *cli.Context) error {
 }
 
 var withdrawCryptocurrencyFundsCommand = cli.Command{
-	Name:      "withdrawcryptocurrencyfunds",
+	Name:      "withdrawcryptofunds",
 	Usage:     "withdraws cryptocurrency funds from the desired exchange",
-	ArgsUsage: "<exchange> <cryptocurrency>",
+	ArgsUsage: "<exchange> <currency>  <amount> <address> <addresstag> <fee> <description>",
 	Action:    withdrawCryptocurrencyFunds,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -2158,20 +2190,123 @@ var withdrawCryptocurrencyFundsCommand = cli.Command{
 			Usage: "the exchange to withdraw from",
 		},
 		cli.StringFlag{
-			Name:  "cryptocurrency",
+			Name:  "currency",
 			Usage: "the cryptocurrency to withdraw funds from",
+		},
+		cli.StringFlag{
+			Name:  "address",
+			Usage: "address to withdraw to",
+		},
+		cli.StringFlag{
+			Name:  "addresstag",
+			Usage: "address tag/memo",
+		},
+		cli.Float64Flag{
+			Name:  "amount",
+			Usage: "amount of funds to withdraw",
+		},
+		cli.Float64Flag{
+			Name:  "fee",
+			Usage: "fee to submit with request",
+		},
+		cli.StringFlag{
+			Name:  "description",
+			Usage: "description to submit with request",
 		},
 	},
 }
 
-func withdrawCryptocurrencyFunds(_ *cli.Context) error {
-	return common.ErrNotYetImplemented
+func withdrawCryptocurrencyFunds(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "withdrawcryptofunds")
+		return nil
+	}
+
+	var exchange, cur, address, addressTag, description string
+	var amount, fee float64
+
+	if c.IsSet("exchange") {
+		exchange = c.String("exchange")
+	} else if c.Args().Get(0) != "" {
+		exchange = c.Args().Get(0)
+	}
+
+	if !validExchange(exchange) {
+		return errInvalidExchange
+	}
+
+	if c.IsSet("currency") {
+		cur = c.String("currency")
+	} else if c.Args().Get(1) != "" {
+		cur = c.Args().Get(1)
+	}
+
+	if c.IsSet("amount") {
+		amount = c.Float64("amount")
+	} else if c.Args().Get(2) != "" {
+		amountStr, err := strconv.ParseFloat(c.Args().Get(2), 64)
+		if err == nil {
+			amount = amountStr
+		}
+	}
+
+	if c.IsSet("address") {
+		address = c.String("address")
+	} else if c.Args().Get(3) != "" {
+		address = c.Args().Get(3)
+	}
+
+	if c.IsSet("addresstag") {
+		addressTag = c.String("addresstag")
+	} else if c.Args().Get(4) != "" {
+		addressTag = c.Args().Get(4)
+	}
+
+	if c.IsSet("fee") {
+		fee = c.Float64("fee")
+	} else if c.Args().Get(5) != "" {
+		feeStr, err := strconv.ParseFloat(c.Args().Get(5), 64)
+		if err == nil {
+			fee = feeStr
+		}
+	}
+
+	if c.IsSet("description") {
+		description = c.String("description")
+	} else if c.Args().Get(6) != "" {
+		description = c.Args().Get(6)
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	result, err := client.WithdrawCryptocurrencyFunds(context.Background(),
+		&gctrpc.WithdrawCryptoRequest{
+			Exchange:    exchange,
+			Currency:    cur,
+			Address:     address,
+			AddressTag:  addressTag,
+			Amount:      amount,
+			Fee:         fee,
+			Description: description,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
 }
 
 var withdrawFiatFundsCommand = cli.Command{
 	Name:      "withdrawfiatfunds",
 	Usage:     "withdraws fiat funds from the desired exchange",
-	ArgsUsage: "<exchange> <fiat_currency>",
+	ArgsUsage: "<exchange> <currency> <amount> <bankaccount id> <description>",
 	Action:    withdrawFiatFunds,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -2179,14 +2314,350 @@ var withdrawFiatFundsCommand = cli.Command{
 			Usage: "the exchange to withdraw from",
 		},
 		cli.StringFlag{
-			Name:  "fiat_currency",
+			Name:  "currency",
 			Usage: "the fiat currency to withdraw funds from",
+		},
+		cli.Float64Flag{
+			Name:  "amount",
+			Usage: "amount of funds to withdraw",
+		},
+		cli.StringFlag{
+			Name:  "bankaccountid",
+			Usage: "ID of bank account to use",
+		},
+		cli.StringFlag{
+			Name:  "description",
+			Usage: "description to submit with request",
 		},
 	},
 }
 
-func withdrawFiatFunds(_ *cli.Context) error {
-	return common.ErrNotYetImplemented
+func withdrawFiatFunds(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowCommandHelp(c, "withdrawfiatfunds")
+		return nil
+	}
+
+	var exchange, cur, description, bankAccountID string
+	var amount float64
+
+	if c.IsSet("exchange") {
+		exchange = c.String("exchange")
+	} else if c.Args().Get(0) != "" {
+		exchange = c.Args().Get(0)
+	}
+
+	if !validExchange(exchange) {
+		return errInvalidExchange
+	}
+
+	if c.IsSet("currency") {
+		cur = c.String("currency")
+	} else if c.Args().Get(1) != "" {
+		cur = c.Args().Get(1)
+	}
+
+	if c.IsSet("amount") {
+		amount = c.Float64("amount")
+	} else if c.Args().Get(2) != "" {
+		amountStr, err := strconv.ParseFloat(c.Args().Get(2), 64)
+		if err == nil {
+			amount = amountStr
+		}
+	}
+
+	if c.IsSet("bankaccountid") {
+		bankAccountID = c.String("bankaccountid")
+	} else if c.Args().Get(3) != "" {
+		bankAccountID = c.Args().Get(3)
+	}
+
+	if c.IsSet("description") {
+		description = c.String("description")
+	} else if c.Args().Get(4) != "" {
+		description = c.Args().Get(4)
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.WithdrawFiatFunds(context.Background(),
+		&gctrpc.WithdrawFiatRequest{
+			Exchange:      exchange,
+			Currency:      cur,
+			Amount:        amount,
+			Description:   description,
+			BankAccountId: bankAccountID,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}
+
+var withdrawalRequestCommand = cli.Command{
+	Name:      "withdrawalrequesthistory",
+	Usage:     "retrieve previous withdrawal request details",
+	ArgsUsage: "<type> <args>",
+	Subcommands: []cli.Command{
+		{
+			Name:      "byid",
+			Usage:     "id",
+			ArgsUsage: "<id>",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "id",
+					Usage: "<id>",
+				},
+			},
+			Action: withdrawlRequestByID,
+		},
+		{
+			Name:      "byexchangeid",
+			Usage:     "exchange id",
+			ArgsUsage: "<id>",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "exchange",
+					Usage: "<exchange>",
+				},
+				cli.StringFlag{
+					Name:  "id",
+					Usage: "<id>",
+				},
+			},
+			Action: withdrawlRequestByExchangeID,
+		},
+		{
+			Name:      "byexchange",
+			Usage:     "exchange limit",
+			ArgsUsage: "<id>",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "exchange",
+					Usage: "<exchange>",
+				},
+				cli.Int64Flag{
+					Name:  "limit",
+					Usage: "<limit>",
+				},
+			},
+			Action: withdrawlRequestByExchangeID,
+		},
+		{
+			Name:      "bydate",
+			Usage:     "exchange start end limit",
+			ArgsUsage: "<exchange> <start> <end> <limit>",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "exchange",
+					Usage: "<exchange>",
+				},
+				cli.StringFlag{
+					Name:        "start",
+					Usage:       "<start>",
+					Value:       time.Now().AddDate(0, -1, 0).Format(timeFormat),
+					Destination: &startTime,
+				},
+				cli.StringFlag{
+					Name:        "end",
+					Usage:       "<end>",
+					Value:       time.Now().Format(timeFormat),
+					Destination: &endTime,
+				},
+				cli.Int64Flag{
+					Name:  "limit",
+					Usage: "<limit>",
+				},
+			},
+			Action: withdrawlRequestByDate,
+		},
+	},
+}
+
+func withdrawlRequestByID(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowSubcommandHelp(c)
+		return nil
+	}
+
+	var ID string
+	if c.IsSet("id") {
+		ID = c.String("id")
+	} else {
+		ID = c.Args().First()
+	}
+
+	if ID == "" {
+		return errors.New("an ID must be specified")
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	result, err := client.WithdrawalEventByID(context.Background(),
+		&gctrpc.WithdrawalEventByIDRequest{
+			Id: ID,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}
+
+func withdrawlRequestByExchangeID(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowSubcommandHelp(c)
+		return nil
+	}
+
+	var exchange string
+	if c.IsSet("exchange") {
+		exchange = c.String("exchange")
+	} else {
+		exchange = c.Args().First()
+	}
+
+	var limit, limitStr int64
+	var ID string
+	var err error
+	if c.Command.Name == "byexchangeid" {
+		if c.IsSet("id") {
+			ID = c.String("id")
+		} else {
+			ID = c.Args().Get(1)
+		}
+		if ID == "" {
+			return errors.New("an ID must be specified")
+		}
+		limit = 1
+	} else {
+		if c.IsSet("limit") {
+			limit = c.Int64("limit")
+		} else if c.Args().Get(1) != "" {
+			limitStr, err = strconv.ParseInt(c.Args().Get(1), 10, 64)
+			if err != nil {
+				return err
+			}
+			if limitStr > math.MaxInt32 {
+				return fmt.Errorf("limit greater than max size: %v", math.MaxInt32)
+			}
+			limit = limitStr
+		}
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+
+	result, err := client.WithdrawalEventsByExchange(context.Background(),
+		&gctrpc.WithdrawalEventsByExchangeRequest{
+			Exchange: exchange,
+			Id:       ID,
+			Limit:    int32(limit),
+		},
+	)
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}
+
+func withdrawlRequestByDate(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		cli.ShowSubcommandHelp(c)
+		return nil
+	}
+
+	var exchange string
+	var limit, limitStr int64
+	var err error
+	if c.IsSet("exchange") {
+		exchange = c.String("exchange")
+	} else {
+		exchange = c.Args().First()
+	}
+
+	if !c.IsSet("start") {
+		if c.Args().Get(1) != "" {
+			startTime = c.Args().Get(1)
+		}
+	}
+
+	if !c.IsSet("end") {
+		if c.Args().Get(2) != "" {
+			endTime = c.Args().Get(2)
+		}
+	}
+
+	if c.IsSet("limit") {
+		limit = c.Int64("limit")
+	} else if c.Args().Get(3) != "" {
+		limitStr, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
+		if err != nil {
+			return err
+		}
+		if limitStr > math.MaxInt32 {
+			return fmt.Errorf("limit greater than max size: %v", math.MaxInt32)
+		}
+		limit = limitStr
+	}
+
+	s, err := time.Parse(timeFormat, startTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for start: %v", err)
+	}
+
+	e, err := time.Parse(timeFormat, endTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for end: %v", err)
+	}
+
+	if e.Before(s) {
+		return errors.New("start cannot be after before")
+	}
+
+	_, offset := time.Now().Zone()
+	loc := time.FixedZone("", -offset)
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.WithdrawalEventsByDate(context.Background(),
+		&gctrpc.WithdrawalEventsByDateRequest{
+			Exchange: exchange,
+			Start:    s.In(loc).Format(timeFormat),
+			End:      e.In(loc).Format(timeFormat),
+			Limit:    int32(limit),
+		},
+	)
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
 }
 
 var getLoggerDetailsCommand = cli.Command{
@@ -2952,11 +3423,6 @@ func clearScreen() error {
 		return cmd.Run()
 	}
 }
-
-const timeFormat = "2006-01-02 15:04:05"
-
-var startTime, endTime, order string
-var limit int
 
 var getAuditEventCommand = cli.Command{
 	Name:      "getauditevent",

@@ -502,16 +502,7 @@
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "type": "object",
-              "properties": {
-                "result": {
-                  "$ref": "#/definitions/gctrpcGetAccountInfoResponse"
-                },
-                "error": {
-                  "$ref": "#/definitions/runtimeStreamError"
-                }
-              },
-              "title": "Stream result of gctrpcGetAccountInfoResponse"
+              "$ref": "#/x-stream-definitions/gctrpcGetAccountInfoResponse"
             }
           }
         },
@@ -709,16 +700,7 @@
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "type": "object",
-              "properties": {
-                "result": {
-                  "$ref": "#/definitions/gctrpcOrderbookResponse"
-                },
-                "error": {
-                  "$ref": "#/definitions/runtimeStreamError"
-                }
-              },
-              "title": "Stream result of gctrpcOrderbookResponse"
+              "$ref": "#/x-stream-definitions/gctrpcOrderbookResponse"
             }
           }
         },
@@ -833,16 +815,7 @@
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "type": "object",
-              "properties": {
-                "result": {
-                  "$ref": "#/definitions/gctrpcTickerResponse"
-                },
-                "error": {
-                  "$ref": "#/definitions/runtimeStreamError"
-                }
-              },
-              "title": "Stream result of gctrpcTickerResponse"
+              "$ref": "#/x-stream-definitions/gctrpcTickerResponse"
             }
           }
         },
@@ -1062,16 +1035,7 @@
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "type": "object",
-              "properties": {
-                "result": {
-                  "$ref": "#/definitions/gctrpcOrderbookResponse"
-                },
-                "error": {
-                  "$ref": "#/definitions/runtimeStreamError"
-                }
-              },
-              "title": "Stream result of gctrpcOrderbookResponse"
+              "$ref": "#/x-stream-definitions/gctrpcOrderbookResponse"
             }
           }
         },
@@ -1251,16 +1215,7 @@
           "200": {
             "description": "A successful response.(streaming responses)",
             "schema": {
-              "type": "object",
-              "properties": {
-                "result": {
-                  "$ref": "#/definitions/gctrpcTickerResponse"
-                },
-                "error": {
-                  "$ref": "#/definitions/runtimeStreamError"
-                }
-              },
-              "title": "Stream result of gctrpcTickerResponse"
+              "$ref": "#/x-stream-definitions/gctrpcTickerResponse"
             }
           }
         },
@@ -1457,14 +1412,14 @@
         ]
       }
     },
-    "/v1/withdrawcryptofunds": {
+    "/v1/withdrawaleventbydate": {
       "post": {
-        "operationId": "WithdrawCryptocurrencyFunds",
+        "operationId": "WithdrawalEventsByDate",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcWithdrawResponse"
+              "$ref": "#/definitions/gctrpcWithdrawalEventsByExchangeResponse"
             }
           }
         },
@@ -1474,7 +1429,33 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/gctrpcWithdrawCurrencyRequest"
+              "$ref": "#/definitions/gctrpcWithdrawalEventsByDateRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/withdrawaleventbyid": {
+      "post": {
+        "operationId": "WithdrawalEventsByExchange",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcWithdrawalEventsByExchangeResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcWithdrawalEventsByExchangeRequest"
             }
           }
         ],
@@ -1500,7 +1481,33 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/gctrpcWithdrawCurrencyRequest"
+              "$ref": "#/definitions/gctrpcWithdrawFiatRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/withdrawithdrawcryptofundswfiatfunds": {
+      "post": {
+        "operationId": "WithdrawCryptocurrencyFunds",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcWithdrawResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gctrpcWithdrawCryptoRequest"
             }
           }
         ],
@@ -1602,6 +1609,13 @@
         "balance": {
           "type": "number",
           "format": "double"
+        },
+        "supported_exchanges": {
+          "type": "string"
+        },
+        "cold_storage": {
+          "type": "boolean",
+          "format": "boolean"
         }
       }
     },
@@ -1758,6 +1772,21 @@
         }
       }
     },
+    "gctrpcCryptoWithdrawalEvent": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "address_tag": {
+          "type": "string"
+        },
+        "fee": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
     "gctrpcCurrencyPair": {
       "type": "object",
       "properties": {
@@ -1783,6 +1812,29 @@
         },
         "pair": {
           "$ref": "#/definitions/gctrpcCurrencyPair"
+        }
+      }
+    },
+    "gctrpcFiatWithdrawalEvent": {
+      "type": "object",
+      "properties": {
+        "bank_name": {
+          "type": "string"
+        },
+        "account_name": {
+          "type": "string"
+        },
+        "account_number": {
+          "type": "string"
+        },
+        "bsb": {
+          "type": "string"
+        },
+        "swift": {
+          "type": "string"
+        },
+        "iban": {
+          "type": "string"
         }
       }
     },
@@ -2809,29 +2861,10 @@
         }
       }
     },
-    "gctrpcWithdrawCurrencyRequest": {
+    "gctrpcWithdrawCryptoRequest": {
       "type": "object",
       "properties": {
         "exchange": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "one_time_password": {
-          "type": "string"
-        },
-        "account_id": {
-          "type": "string"
-        },
-        "pin": {
-          "type": "string",
-          "format": "int64"
-        },
-        "trade_password": {
-          "type": "string"
-        },
-        "currency": {
           "type": "string"
         },
         "address": {
@@ -2840,30 +2873,39 @@
         "address_tag": {
           "type": "string"
         },
+        "currency": {
+          "type": "string"
+        },
         "amount": {
           "type": "number",
           "format": "double"
         },
-        "fee_amount": {
+        "fee": {
           "type": "number",
           "format": "double"
         },
-        "bank_name": {
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcWithdrawFiatRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
           "type": "string"
         },
-        "bank_address": {
+        "currency": {
           "type": "string"
         },
-        "bank_city": {
+        "amount": {
+          "type": "number",
+          "format": "double"
+        },
+        "description": {
           "type": "string"
         },
-        "bank_country": {
-          "type": "string"
-        },
-        "swife_code": {
-          "type": "string"
-        },
-        "wire_currency": {
+        "bank_account_id": {
           "type": "string"
         }
       }
@@ -2871,7 +2913,131 @@
     "gctrpcWithdrawResponse": {
       "type": "object",
       "properties": {
-        "result": {
+        "id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcWithdrawalEventByIDRequest": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcWithdrawalEventByIDResponse": {
+      "type": "object",
+      "properties": {
+        "event": {
+          "$ref": "#/definitions/gctrpcWithdrawalEventResponse"
+        }
+      }
+    },
+    "gctrpcWithdrawalEventResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "exchange": {
+          "$ref": "#/definitions/gctrpcWithdrawlExchangeEvent"
+        },
+        "request": {
+          "$ref": "#/definitions/gctrpcWithdrawalRequestEvent"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "gctrpcWithdrawalEventsByDateRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "start": {
+          "type": "string"
+        },
+        "end": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "gctrpcWithdrawalEventsByExchangeRequest": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "gctrpcWithdrawalEventsByExchangeResponse": {
+      "type": "object",
+      "properties": {
+        "event": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcWithdrawalEventResponse"
+          }
+        }
+      }
+    },
+    "gctrpcWithdrawalRequestEvent": {
+      "type": "object",
+      "properties": {
+        "currency": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number",
+          "format": "double"
+        },
+        "type": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "fiat": {
+          "$ref": "#/definitions/gctrpcFiatWithdrawalEvent"
+        },
+        "crypto": {
+          "$ref": "#/definitions/gctrpcCryptoWithdrawalEvent"
+        }
+      }
+    },
+    "gctrpcWithdrawlExchangeEvent": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "status": {
           "type": "string"
         }
       }
@@ -2912,6 +3078,44 @@
           }
         }
       }
+    }
+  },
+  "x-stream-definitions": {
+    "gctrpcGetAccountInfoResponse": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "$ref": "#/definitions/gctrpcGetAccountInfoResponse"
+        },
+        "error": {
+          "$ref": "#/definitions/runtimeStreamError"
+        }
+      },
+      "title": "Stream result of gctrpcGetAccountInfoResponse"
+    },
+    "gctrpcOrderbookResponse": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "$ref": "#/definitions/gctrpcOrderbookResponse"
+        },
+        "error": {
+          "$ref": "#/definitions/runtimeStreamError"
+        }
+      },
+      "title": "Stream result of gctrpcOrderbookResponse"
+    },
+    "gctrpcTickerResponse": {
+      "type": "object",
+      "properties": {
+        "result": {
+          "$ref": "#/definitions/gctrpcTickerResponse"
+        },
+        "error": {
+          "$ref": "#/definitions/runtimeStreamError"
+        }
+      },
+      "title": "Stream result of gctrpcTickerResponse"
     }
   }
 }

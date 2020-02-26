@@ -1,8 +1,6 @@
 package config
 
 import (
-	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -12,6 +10,7 @@ import (
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
 // Constants declared here are filename strings and test strings
@@ -49,7 +48,6 @@ const (
 	ErrFailureOpeningConfig                    = "fatal error opening %s file. Error: %s"
 	ErrCheckingConfigValues                    = "fatal error checking config values. Error: %s"
 	ErrSavingConfigBytesMismatch               = "config file %q bytes comparison doesn't match, read %s expected %s"
-	ErrBankAccountNotFound                     = "bank account ID: %v not found"
 	WarningWebserverCredentialValuesEmpty      = "webserver support disabled due to empty Username/Password values"
 	WarningWebserverListenAddressInvalid       = "webserver support disabled due to invalid listen address"
 	WarningExchangeAuthAPIDefaultOrEmptyValues = "exchange %s authenticated API support disabled due to default/empty APIKey/Secret/ClientID values"
@@ -93,7 +91,7 @@ type Config struct {
 	RemoteControl     RemoteControlConfig     `json:"remoteControl"`
 	Portfolio         portfolio.Base          `json:"portfolioAddresses"`
 	Exchanges         []ExchangeConfig        `json:"exchanges"`
-	BankAccounts      []BankAccount           `json:"bankAccounts"`
+	BankAccounts      []banking.Account       `json:"bankAccounts"`
 
 	// Deprecated config settings, will be removed at a future date
 	Webserver           *WebserverConfig          `json:"webserver,omitempty"`
@@ -129,7 +127,7 @@ type ExchangeConfig struct {
 	CurrencyPairs                 *currency.PairsManager `json:"currencyPairs"`
 	API                           APIConfig              `json:"api"`
 	Features                      *FeaturesConfig        `json:"features"`
-	BankAccounts                  []BankAccount          `json:"bankAccounts,omitempty"`
+	BankAccounts                  []banking.Account      `json:"bankAccounts,omitempty"`
 
 	// Deprecated settings which will be removed in a future update
 	AvailablePairs                   *currency.Pairs      `json:"availablePairs,omitempty"`
@@ -222,63 +220,6 @@ type CurrencyPairFormatConfig struct {
 	Delimiter string `json:"delimiter,omitempty"`
 	Separator string `json:"separator,omitempty"`
 	Index     string `json:"index,omitempty"`
-}
-
-// BankAccount holds differing bank account details by supported funding
-// currency
-type BankAccount struct {
-	Enabled             bool   `json:"enabled"`
-	ID                  string `json:"id,omitempty"`
-	BankName            string `json:"bankName"`
-	BankAddress         string `json:"bankAddress"`
-	BankPostalCode      string `json:"bankPostalCode"`
-	BankPostalCity      string `json:"bankPostalCity"`
-	BankCountry         string `json:"bankCountry"`
-	AccountName         string `json:"accountName"`
-	AccountNumber       string `json:"accountNumber"`
-	SWIFTCode           string `json:"swiftCode"`
-	IBAN                string `json:"iban"`
-	BSBNumber           string `json:"bsbNumber,omitempty"`
-	SupportedCurrencies string `json:"supportedCurrencies"`
-	SupportedExchanges  string `json:"supportedExchanges,omitempty"`
-}
-
-// Validate validates bank account settings
-func (b *BankAccount) Validate() error {
-	if b.BankName == "" ||
-		b.BankAddress == "" ||
-		b.BankPostalCode == "" ||
-		b.BankPostalCity == "" ||
-		b.BankCountry == "" ||
-		b.AccountName == "" ||
-		b.SupportedCurrencies == "" {
-		return fmt.Errorf(
-			"banking details for %s is enabled but variables not set correctly",
-			b.BankName)
-	}
-
-	if b.SupportedExchanges == "" {
-		b.SupportedExchanges = "ALL"
-	}
-
-	if strings.Contains(strings.ToUpper(
-		b.SupportedCurrencies),
-		currency.AUD.String()) {
-		if b.BSBNumber == "" ||
-			b.SWIFTCode == "" {
-			return fmt.Errorf(
-				"banking details for %s is enabled but BSB/SWIFT values not set",
-				b.BankName)
-		}
-	} else {
-		// Either IBAN or SWIFT code is OK
-		if b.IBAN == "" && b.SWIFTCode == "" {
-			return fmt.Errorf(
-				"banking details for %s is enabled but SWIFT/IBAN values not set",
-				b.BankName)
-		}
-	}
-	return nil
 }
 
 // BankTransaction defines a related banking transaction
