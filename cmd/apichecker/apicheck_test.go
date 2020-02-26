@@ -15,6 +15,14 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	testConfigData, err = ReadFileData(testJSONFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	usageData = testConfigData
+	if CanUpdateTrello() {
+		usageData = configData
+	}
 	os.Exit(m.Run())
 }
 

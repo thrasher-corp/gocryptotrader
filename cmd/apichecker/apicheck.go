@@ -61,7 +61,7 @@ const (
 var (
 	verbose, add                                                                                                                                                                                                     bool
 	apiKey, apiToken, trelloUsername, trelloBoardID, trelloListID, trelloChecklistID, trelloCardID, exchangeName, checkType, tokenData, key, val, tokenDataEnd, textTokenData, dateFormat, regExp, checkString, path string
-	configData                                                                                                                                                                                                       Config
+	configData, testConfigData, usageData                                                                                                                                                                            Config
 )
 
 func main() {
@@ -90,11 +90,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = UpdateFile(testJSONFile)
+	testConfigData, err = ReadFileData(testJSONFile)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println("overwriting test file with the main file data")
+	usageData = testConfigData
+	if CanUpdateTrello() {
+		usageData = configData
+	}
 	if add {
 		switch checkType {
 		case github:
@@ -176,12 +179,12 @@ func SetAuthVars() {
 
 // RemoveTestAuthVars removes authenticated variables when the test file is overwritten with the main jsonfile data
 func RemoveTestAuthVars() {
-	configData.BoardID = ""
-	configData.CardID = ""
-	configData.ChecklistID = ""
-	configData.ListID = ""
-	configData.Key = ""
-	configData.Token = ""
+	usageData.BoardID = ""
+	usageData.CardID = ""
+	usageData.ChecklistID = ""
+	usageData.ListID = ""
+	usageData.Key = ""
+	usageData.Token = ""
 }
 
 // CanUpdateTrello checks if all the data necessary for updating trello is available
@@ -215,8 +218,8 @@ func getSha(repoPath string) (ShaResponse, error) {
 
 // CheckExistingExchanges checks if the given exchange exists
 func CheckExistingExchanges(exchName string) bool {
-	for x := range configData.Exchanges {
-		if configData.Exchanges[x].Name == exchName {
+	for x := range usageData.Exchanges {
+		if usageData.Exchanges[x].Name == exchName {
 			return true
 		}
 	}
@@ -226,8 +229,8 @@ func CheckExistingExchanges(exchName string) bool {
 // CheckMissingExchanges checks if any supported exchanges are missing api checker functionality
 func CheckMissingExchanges() []string {
 	var tempArray []string
-	for x := range configData.Exchanges {
-		tempArray = append(tempArray, configData.Exchanges[x].Name)
+	for x := range usageData.Exchanges {
+		tempArray = append(tempArray, usageData.Exchanges[x].Name)
 	}
 	supportedExchs := exchange.Exchanges
 	for z := 0; z < len(supportedExchs); {
@@ -265,7 +268,7 @@ func CheckUpdates(fileName string) error {
 	errMap := make(map[string]error)
 	var wg sync.WaitGroup
 	var m sync.Mutex
-	allExchangeData := configData.Exchanges
+	allExchangeData := usageData.Exchanges
 	for x := range allExchangeData {
 		wg.Add(1)
 		go func(e ExchangeInfo) {
@@ -303,7 +306,7 @@ func CheckUpdates(fileName string) error {
 		}(allExchangeData[x])
 	}
 	wg.Wait()
-	file, err := json.MarshalIndent(&configData, "", " ")
+	file, err := json.MarshalIndent(&usageData, "", " ")
 	if err != nil {
 		return err
 	}
@@ -333,10 +336,6 @@ func CheckUpdates(fileName string) error {
 		}
 	}
 	if !AreAPIKeysSet() {
-		err = UpdateFile(testJSONFile)
-		if err != nil {
-			return err
-		}
 		fileName = testJSONFile
 		if verbose {
 			log.Println("Updating test file; main file & trello will not be automatically updated since API key & token are not set")
@@ -432,8 +431,8 @@ func Add(exchName, checkType string, data interface{}, update bool) error {
 		if err != nil {
 			return err
 		}
-		configData.Exchanges = append(configData.Exchanges, exchangeData)
-		file, err = json.MarshalIndent(&configData, "", " ")
+		usageData.Exchanges = append(usageData.Exchanges, exchangeData)
+		file, err = json.MarshalIndent(&usageData, "", " ")
 		if err != nil {
 			return err
 		}
@@ -442,9 +441,9 @@ func Add(exchName, checkType string, data interface{}, update bool) error {
 		if err != nil {
 			return err
 		}
-		allExchData := Update(exchName, configData.Exchanges, info)
-		configData.Exchanges = allExchData
-		file, err = json.MarshalIndent(&configData, "", " ")
+		allExchData := Update(exchName, usageData.Exchanges, info)
+		usageData.Exchanges = allExchData
+		file, err = json.MarshalIndent(&usageData, "", " ")
 		if err != nil {
 			return err
 		}
@@ -1285,7 +1284,7 @@ func TrelloCheckBoardID(username string) (bool, error) {
 // TrelloGetChecklistItems get info on all the items on a given checklist from trello
 func TrelloGetChecklistItems() (ChecklistItemData, error) {
 	var resp ChecklistItemData
-	path := fmt.Sprintf(pathChecklistItems, trelloChecklistID, configData.Key, configData.Token)
+	path := fmt.Sprintf(pathChecklistItems, trelloChecklistID, usageData.Key, usageData.Token)
 	return resp, SendGetReq(path, &resp)
 }
 
@@ -1351,7 +1350,7 @@ func TrelloUpdateCheckItem(checkItemID, name, state string) error {
 	}
 	params.Set("name", newName)
 	params.Set("state", incomplete)
-	path := fmt.Sprintf(pathUpdateItems, trelloCardID, checkItemID, params.Encode(), configData.Key, configData.Token)
+	path := fmt.Sprintf(pathUpdateItems, trelloCardID, checkItemID, params.Encode(), usageData.Key, usageData.Token)
 	err = SendAuthReq(http.MethodPut, path, nil)
 	return err
 }
