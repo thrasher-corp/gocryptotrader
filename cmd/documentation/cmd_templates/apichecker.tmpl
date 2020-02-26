@@ -6,6 +6,13 @@
 + Can automatically update Trello checklist for the updates required
 + Supports trello integration
 
+#### This tool tracks changes in exchange API documentation
+#### Keeps track of all the updates using the GoCryptoTrader trello board
+
+Be aware, this tool will:
+- Automatically update the live trello board if API keys and trello information are provided.
+- Automatically update the main json updates file, however a backup of the copy before the updates will be stored.
+
 ## Usage
 
 + To run a real check for updates, parse Trello API info as flags or add them to the updates.json file and use the following command from apichecker folder in GCT:
@@ -128,5 +135,5 @@ func NameStateChanges(currentName, currentState string) (string, error) {
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 {{template "contributions"}}
-{{template "donations"}}
+{{template "donations" .}}
 {{end}}
