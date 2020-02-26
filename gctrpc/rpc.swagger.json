@@ -928,14 +928,27 @@
             "type": "string"
           },
           {
-            "name": "rangesize",
+            "name": "asset_type",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "timestamp_start",
             "in": "query",
             "required": false,
             "type": "string",
             "format": "int64"
           },
           {
-            "name": "granularity",
+            "name": "timestamp_end",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "time_interval",
             "in": "query",
             "required": false,
             "type": "string",

@@ -13,6 +13,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -632,19 +633,60 @@ func (c *CoinbasePro) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
 }
 
-// GetHistoricCandles Allows to retrieve an amount of candles back in time starting from now up to rangesize * granularity, where granularity is the trade period covered by each candle
-func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
-	end := time.Now().UTC()
-	b := granularity * rangesize
-	start := time.Now().UTC().Add(-time.Second * time.Duration(b))
-	history, err := c.GetHistoricRates(p.String(), start.Format(time.RFC3339), end.Format(time.RFC3339), granularity)
-	if err != nil {
-		return nil, err
+// checkInterval checks allowable interval and if it exceeds 300 possible return
+// entries will throw an error
+func checkInterval(i time.Duration, start, end time.Time) (int64, error) {
+	var counter int
+	for newstart := start.Truncate(i); newstart.Before(end.Truncate(i)); newstart = newstart.Add(i) {
+		counter++
 	}
-	var candles []exchange.Candle
+
+	if counter > 300 {
+		return 0, errors.New("potential candles exceed 300 please reduce time between start and end")
+	}
+
+	switch i.Seconds() {
+	case 60:
+		return 60, nil
+	case 300:
+		return 300, nil
+	case 900:
+		return 900, nil
+	case 3600:
+		return 3600, nil
+	case 21600:
+		return 21600, nil
+	case 86400.00:
+		return 86400, nil
+	}
+	return 0, fmt.Errorf("interval not allowed %v %v", i.Seconds(), i)
+}
+
+// GetHistoricCandles returns a set of candle between two time periods for a
+// designated time period
+func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
+	i, err := checkInterval(interval, start, end)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	history, err := c.GetHistoricRates(c.FormatExchangeCurrency(p, a).String(),
+		start.Format(time.RFC3339),
+		end.Format(time.RFC3339),
+		i)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	var candles kline.Item
+	candles.Asset = a
+	candles.Exchange = c.Name
+	candles.Interval = interval
+	candles.Pair = p
+
 	for x := range history {
-		candles = append(candles, exchange.Candle{
-			Time:   history[x].Time,
+		candles.Candles = append(candles.Candles, kline.Candle{
+			Time:   time.Unix(history[x].Time, 0),
 			Low:    history[x].Low,
 			High:   history[x].High,
 			Open:   history[x].Open,

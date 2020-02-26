@@ -3499,7 +3499,7 @@ var candleRangeSize, candleGranularity int64
 var getHistoricCandlesCommand = cli.Command{
 	Name:      "gethistoriccandles",
 	Usage:     "gets historical candles for the specified granularity up to range size time from now.",
-	ArgsUsage: "<exchange> <pair> <rangesize> <granularity>",
+	ArgsUsage: "<exchange> <pair> <asset> <rangesize> <granularity>",
 	Action:    getHistoricCandles,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -3509,6 +3509,10 @@ var getHistoricCandlesCommand = cli.Command{
 		cli.StringFlag{
 			Name:  "pair",
 			Usage: "the currency pair to get the candles for",
+		},
+		cli.StringFlag{
+			Name:  "asset",
+			Usage: "the asset type of the currency pair",
 		},
 		cli.Int64Flag{
 			Name:        "rangesize, r",
@@ -3552,11 +3556,18 @@ func getHistoricCandles(c *cli.Context) error {
 	}
 	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
 
+	var assetType string
+	if c.IsSet("asset") {
+		currencyPair = c.String("asset")
+	} else {
+		currencyPair = c.Args().Get(2)
+	}
+
 	if c.IsSet("rangesize") {
 		candleRangeSize = c.Int64("rangesize")
-	} else if c.Args().Get(2) != "" {
+	} else if c.Args().Get(3) != "" {
 		var err error
-		candleRangeSize, err = strconv.ParseInt(c.Args().Get(2), 10, 64)
+		candleRangeSize, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
 		if err != nil {
 			return err
 		}
@@ -3564,9 +3575,9 @@ func getHistoricCandles(c *cli.Context) error {
 
 	if c.IsSet("granularity") {
 		candleGranularity = c.Int64("granularity")
-	} else if c.Args().Get(3) != "" {
+	} else if c.Args().Get(4) != "" {
 		var err error
-		candleGranularity, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
+		candleGranularity, err = strconv.ParseInt(c.Args().Get(4), 10, 64)
 		if err != nil {
 			return err
 		}
@@ -3578,6 +3589,11 @@ func getHistoricCandles(c *cli.Context) error {
 	}
 	defer conn.Close()
 
+	candleInterval := time.Duration(candleGranularity) * time.Second
+
+	end := time.Now().UTC().Truncate(time.Duration(candleInterval))
+	start := end.Add(-time.Duration(candleInterval) * time.Duration(candleRangeSize))
+
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetHistoricCandles(context.Background(),
 		&gctrpc.GetHistoricCandlesRequest{
@@ -3587,10 +3603,11 @@ func getHistoricCandles(c *cli.Context) error {
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
-			Rangesize:   candleRangeSize,
-			Granularity: candleGranularity,
+			AssetType:      assetType,
+			TimestampStart: start.Unix(),
+			TimestampEnd:   end.Unix(),
+			TimeInterval:   int64(candleInterval),
 		})
-
 	if err != nil {
 		return err
 	}

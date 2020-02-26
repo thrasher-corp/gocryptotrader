@@ -2,11 +2,13 @@ package exchange
 
 import (
 	"sync"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -24,23 +26,23 @@ type IBotExchange interface {
 	IsEnabled() bool
 	SetEnabled(bool)
 	ValidateCredentials() error
-	FetchTicker(currency currency.Pair, assetType asset.Item) (*ticker.Price, error)
-	UpdateTicker(currency currency.Pair, assetType asset.Item) (*ticker.Price, error)
-	FetchOrderbook(currency currency.Pair, assetType asset.Item) (*orderbook.Base, error)
-	UpdateOrderbook(currency currency.Pair, assetType asset.Item) (*orderbook.Base, error)
-	FetchTradablePairs(assetType asset.Item) ([]string, error)
+	FetchTicker(p currency.Pair, a asset.Item) (*ticker.Price, error)
+	UpdateTicker(p currency.Pair, a asset.Item) (*ticker.Price, error)
+	FetchOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error)
+	UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error)
+	FetchTradablePairs(a asset.Item) ([]string, error)
 	UpdateTradablePairs(forceUpdate bool) error
-	GetEnabledPairs(assetType asset.Item) currency.Pairs
-	GetAvailablePairs(assetType asset.Item) currency.Pairs
+	GetEnabledPairs(a asset.Item) currency.Pairs
+	GetAvailablePairs(a asset.Item) currency.Pairs
 	FetchAccountInfo() (account.Holdings, error)
 	UpdateAccountInfo() (account.Holdings, error)
 	GetAuthenticatedAPISupport(endpoint uint8) bool
-	SetPairs(pairs currency.Pairs, assetType asset.Item, enabled bool) error
+	SetPairs(pairs currency.Pairs, a asset.Item, enabled bool) error
 	GetAssetTypes() asset.Items
-	GetExchangeHistory(currencyPair currency.Pair, assetType asset.Item) ([]TradeHistory, error)
+	GetExchangeHistory(p currency.Pair, a asset.Item) ([]TradeHistory, error)
 	SupportsAutoPairUpdates() bool
 	SupportsRESTTickerBatchUpdates() bool
-	GetFeeByType(feeBuilder *FeeBuilder) (float64, error)
+	GetFeeByType(f *FeeBuilder) (float64, error)
 	GetLastPairsUpdateTime() int64
 	GetWithdrawPermissions() uint32
 	FormatWithdrawPermissions() string
@@ -71,7 +73,7 @@ type IBotExchange interface {
 	GetDefaultConfig() (*config.ExchangeConfig, error)
 	GetBase() *Base
 	SupportsAsset(assetType asset.Item) bool
-	GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]Candle, error)
+	GetHistoricCandles(p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval time.Duration) (kline.Item, error)
 	DisableRateLimiter() error
 	EnableRateLimiter() error
 }
