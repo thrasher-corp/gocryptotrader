@@ -470,7 +470,7 @@ func (c *CoinbasePro) GetOrderInfo(orderID string) (order.Detail, error) {
 	}
 	ss, errOss := order.StringToOrderSide(genOrderDetail.Side)
 	if errOss != nil {
-		return order.Detail{}, fmt.Errorf("error parsing order type: %s", errOss)
+		return order.Detail{}, fmt.Errorf("error parsing order side: %s", errOss)
 	}
 	response := order.Detail{
 		Exchange:        c.GetName(),
@@ -482,9 +482,9 @@ func (c *CoinbasePro) GetOrderInfo(orderID string) (order.Detail, error) {
 		OrderDate:       od,
 		Status:          os,
 		Price:           genOrderDetail.Price,
-		Amount:          genOrderDetail.SpecifiedFunds,
-		ExecutedAmount:  genOrderDetail.FilledSize,
-		RemainingAmount: genOrderDetail.Size - genOrderDetail.ExecutedValue,
+		Amount:          genOrderDetail.Size,
+		ExecutedAmount:  genOrderDetail.ExecutedValue,
+		RemainingAmount: genOrderDetail.Size - genOrderDetail.FilledSize,
 		Fee:             genOrderDetail.FillFees,
 		Trades:          nil,
 	}
