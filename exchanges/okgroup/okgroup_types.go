@@ -1395,21 +1395,21 @@ type WebsocketSpotOrderResponse struct {
 	Table string `json:"table"`
 	Data  []struct {
 		ClientOid      string    `json:"client_oid"`
-		CreatedAt      string    `json:"created_at"`
-		FilledNotional string    `json:"filled_notional"`
-		FilledSize     string    `json:"filled_size"`
+		CreatedAt      time.Time `json:"created_at"`
+		FilledNotional float64   `json:"filled_notional,string"`
+		FilledSize     float64   `json:"filled_size,string"`
 		InstrumentID   string    `json:"instrument_id"`
-		LastFillPx     string    `json:"last_fill_px"`
-		LastFillQty    string    `json:"last_fill_qty"`
-		LastFillTime   string    `json:"last_fill_time"`
-		MarginTrading  string    `json:"margin_trading"`
+		LastFillPx     float64   `json:"last_fill_px,string"`
+		LastFillQty    float64   `json:"last_fill_qty,string"`
+		LastFillTime   time.Time `json:"last_fill_time"`
+		MarginTrading  int64     `json:"margin_trading,string"`
 		Notional       string    `json:"notional"`
 		OrderID        string    `json:"order_id"`
-		OrderType      string    `json:"order_type"`
-		Price          string    `json:"price"`
+		OrderType      int64     `json:"order_type,string"`
+		Price          float64   `json:"price,string"`
 		Side           string    `json:"side"`
-		Size           string    `json:"size"`
-		State          string    `json:"state"`
+		Size           float64   `json:"size,string"`
+		State          int64     `json:"state,string"`
 		Status         string    `json:"status"`
 		Timestamp      time.Time `json:"timestamp"`
 		Type           string    `json:"type"`

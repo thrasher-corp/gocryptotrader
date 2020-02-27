@@ -2076,18 +2076,18 @@ func TestWsDepthByTick(t *testing.T) {
 
 func TestStringToOrderStatus(t *testing.T) {
 	type TestCases struct {
-		Case   string
+		Case   int64
 		Result order.Status
 	}
 	testCases := []TestCases{
-		{Case: "-2", Result: order.Rejected},
-		{Case: "-1", Result: order.Cancelled},
-		{Case: "0", Result: order.Active},
-		{Case: "1", Result: order.PartiallyFilled},
-		{Case: "2", Result: order.Filled},
-		{Case: "3", Result: order.New},
-		{Case: "4", Result: order.PendingCancel},
-		{Case: "5", Result: order.UnknownStatus},
+		{Case: -2, Result: order.Rejected},
+		{Case: -1, Result: order.Cancelled},
+		{Case: 0, Result: order.Active},
+		{Case: 1, Result: order.PartiallyFilled},
+		{Case: 2, Result: order.Filled},
+		{Case: 3, Result: order.New},
+		{Case: 4, Result: order.PendingCancel},
+		{Case: 5, Result: order.UnknownStatus},
 	}
 	for i := range testCases {
 		result, _ := okgroup.StringToOrderStatus(testCases[i].Case)
