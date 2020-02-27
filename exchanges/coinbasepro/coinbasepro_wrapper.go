@@ -474,7 +474,6 @@ func (c *CoinbasePro) GetOrderInfo(orderID string) (order.Detail, error) {
 	}
 	response := order.Detail{
 		Exchange:        c.GetName(),
-		AccountID:       "",
 		ID:              genOrderDetail.ID,
 		CurrencyPair:    currency.NewPairDelimiter(genOrderDetail.ProductID, "-"),
 		OrderSide:       ss,
@@ -486,7 +485,6 @@ func (c *CoinbasePro) GetOrderInfo(orderID string) (order.Detail, error) {
 		ExecutedAmount:  genOrderDetail.ExecutedValue,
 		RemainingAmount: genOrderDetail.Size - genOrderDetail.FilledSize,
 		Fee:             genOrderDetail.FillFees,
-		Trades:          nil,
 	}
 	fillResponse, errGF := c.GetFills(orderID, genOrderDetail.ProductID)
 	if errGF != nil { // Trades would be nil but the other info would still be valid
