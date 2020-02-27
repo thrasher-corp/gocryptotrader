@@ -755,19 +755,17 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 	}
 	result, err := exch.GetOrderInfo(r.OrderId)
 	var trades []*gctrpc.TradeHistory
-	if result.Trades != nil {
-		for i := range result.Trades {
-			trades = append(trades, &gctrpc.TradeHistory{
-				CreationTime: result.Trades[i].Timestamp.Unix(),
-				Id:           result.Trades[i].TID,
-				Price:        result.Trades[i].Price,
-				Amount:       result.Trades[i].Amount,
-				Exchange:     result.Trades[i].Exchange,
-				AssetType:    result.Trades[i].Type.String(),
-				OrderSide:    result.Trades[i].Side.String(),
-				Fee:          result.Trades[i].Fee,
-			})
-		}
+	for i := range result.Trades {
+		trades = append(trades, &gctrpc.TradeHistory{
+			CreationTime: result.Trades[i].Timestamp.Unix(),
+			Id:           result.Trades[i].TID,
+			Price:        result.Trades[i].Price,
+			Amount:       result.Trades[i].Amount,
+			Exchange:     result.Trades[i].Exchange,
+			AssetType:    result.Trades[i].Type.String(),
+			OrderSide:    result.Trades[i].Side.String(),
+			Fee:          result.Trades[i].Fee,
+		})
 	}
 	return &gctrpc.OrderDetails{
 		Exchange:      result.Exchange,
