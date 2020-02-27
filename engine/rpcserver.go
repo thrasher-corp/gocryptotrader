@@ -754,6 +754,9 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 		return nil, errors.New("exchange is not loaded/doesn't exist")
 	}
 	result, err := exch.GetOrderInfo(r.OrderId)
+	if err != nil {
+		return nil, fmt.Errorf("error whilst trying to retrieve info for order %s: %s", r.OrderId, err)
+	}
 	var trades []*gctrpc.TradeHistory
 	for i := range result.Trades {
 		trades = append(trades, &gctrpc.TradeHistory{

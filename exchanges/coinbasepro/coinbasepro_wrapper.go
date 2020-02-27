@@ -487,7 +487,7 @@ func (c *CoinbasePro) GetOrderInfo(orderID string) (order.Detail, error) {
 		Fee:             genOrderDetail.FillFees,
 	}
 	fillResponse, errGF := c.GetFills(orderID, genOrderDetail.ProductID)
-	if errGF != nil { // Trades would be nil but the other info would still be valid
+	if errGF != nil {
 		return response, fmt.Errorf("error retrieving the order fills: %s", errGF)
 	}
 	trades := make([]order.TradeHistory, 0, len(fillResponse))
