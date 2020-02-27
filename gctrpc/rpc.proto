@@ -949,7 +949,7 @@ service GoCryptoTrader {
         option (google.api.http) = {
             post: "/v1/withdrawaleventbyid"
             body: "*"
-        };rpcse
+        };
     }
 
     rpc WithdrawalEventsByDate(WithdrawalEventsByDateRequest) returns (WithdrawalEventsByExchangeResponse) {
