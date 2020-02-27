@@ -810,7 +810,7 @@ func (b *Bitfinex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 	if channelToSubscribe.Currency.String() != "" {
 		if channelToSubscribe.Channel == wsCandles {
 			// TODO: Add ability to select timescale
-			req["key"] = fmt.Sprintf("trade:1D:%v", fpair.String())
+			req["key"] = "trade:1D:" + fpair.String()
 		} else {
 			req["symbol"] = fpair.String()
 		}

@@ -128,7 +128,7 @@ func (e *Event) ExecuteAction() bool {
 			if action[1] == "ALL" {
 				Bot.CommsManager.PushEvent(base.Event{
 					Type:    "event",
-					Message: fmt.Sprintf("Event triggered: %s\n", e.String()),
+					Message: "Event triggered: " + e.String(),
 				})
 			}
 		}
