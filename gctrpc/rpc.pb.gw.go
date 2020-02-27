@@ -1069,42 +1069,8 @@ func local_request_GoCryptoTrader_GetCryptocurrencyDepositAddress_0(ctx context.
 
 }
 
-func request_GoCryptoTrader_WithdrawCryptocurrencyFunds_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq WithdrawCurrencyRequest
-	var metadata runtime.ServerMetadata
-
-	newReader, berr := utilities.IOReaderFactory(req.Body)
-	if berr != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
-	}
-	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-
-	msg, err := client.WithdrawCryptocurrencyFunds(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
-	return msg, metadata, err
-
-}
-
-func local_request_GoCryptoTrader_WithdrawCryptocurrencyFunds_0(ctx context.Context, marshaler runtime.Marshaler, server GoCryptoTraderServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq WithdrawCurrencyRequest
-	var metadata runtime.ServerMetadata
-
-	newReader, berr := utilities.IOReaderFactory(req.Body)
-	if berr != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
-	}
-	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-
-	msg, err := server.WithdrawCryptocurrencyFunds(ctx, &protoReq)
-	return msg, metadata, err
-
-}
-
 func request_GoCryptoTrader_WithdrawFiatFunds_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq WithdrawCurrencyRequest
+	var protoReq WithdrawFiatRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -1121,7 +1087,7 @@ func request_GoCryptoTrader_WithdrawFiatFunds_0(ctx context.Context, marshaler r
 }
 
 func local_request_GoCryptoTrader_WithdrawFiatFunds_0(ctx context.Context, marshaler runtime.Marshaler, server GoCryptoTraderServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq WithdrawCurrencyRequest
+	var protoReq WithdrawFiatRequest
 	var metadata runtime.ServerMetadata
 
 	newReader, berr := utilities.IOReaderFactory(req.Body)
@@ -1133,6 +1099,142 @@ func local_request_GoCryptoTrader_WithdrawFiatFunds_0(ctx context.Context, marsh
 	}
 
 	msg, err := server.WithdrawFiatFunds(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
+func request_GoCryptoTrader_WithdrawCryptocurrencyFunds_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq WithdrawCryptoRequest
+	var metadata runtime.ServerMetadata
+
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := client.WithdrawCryptocurrencyFunds(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_GoCryptoTrader_WithdrawCryptocurrencyFunds_0(ctx context.Context, marshaler runtime.Marshaler, server GoCryptoTraderServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq WithdrawCryptoRequest
+	var metadata runtime.ServerMetadata
+
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := server.WithdrawCryptocurrencyFunds(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
+func request_GoCryptoTrader_WithdrawalEventByID_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq WithdrawalEventByIDRequest
+	var metadata runtime.ServerMetadata
+
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := client.WithdrawalEventByID(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_GoCryptoTrader_WithdrawalEventByID_0(ctx context.Context, marshaler runtime.Marshaler, server GoCryptoTraderServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq WithdrawalEventByIDRequest
+	var metadata runtime.ServerMetadata
+
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := server.WithdrawalEventByID(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
+func request_GoCryptoTrader_WithdrawalEventsByExchange_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq WithdrawalEventsByExchangeRequest
+	var metadata runtime.ServerMetadata
+
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := client.WithdrawalEventsByExchange(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_GoCryptoTrader_WithdrawalEventsByExchange_0(ctx context.Context, marshaler runtime.Marshaler, server GoCryptoTraderServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq WithdrawalEventsByExchangeRequest
+	var metadata runtime.ServerMetadata
+
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := server.WithdrawalEventsByExchange(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
+func request_GoCryptoTrader_WithdrawalEventsByDate_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq WithdrawalEventsByDateRequest
+	var metadata runtime.ServerMetadata
+
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := client.WithdrawalEventsByDate(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_GoCryptoTrader_WithdrawalEventsByDate_0(ctx context.Context, marshaler runtime.Marshaler, server GoCryptoTraderServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq WithdrawalEventsByDateRequest
+	var metadata runtime.ServerMetadata
+
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := server.WithdrawalEventsByDate(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -2504,6 +2606,26 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 
 	})
 
+	mux.Handle("POST", pattern_GoCryptoTrader_WithdrawFiatFunds_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_GoCryptoTrader_WithdrawFiatFunds_0(rctx, inboundMarshaler, server, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_GoCryptoTrader_WithdrawFiatFunds_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
 	mux.Handle("POST", pattern_GoCryptoTrader_WithdrawCryptocurrencyFunds_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -2524,7 +2646,7 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("POST", pattern_GoCryptoTrader_WithdrawFiatFunds_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_GoCryptoTrader_WithdrawalEventByID_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -2533,14 +2655,54 @@ func RegisterGoCryptoTraderHandlerServer(ctx context.Context, mux *runtime.Serve
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_GoCryptoTrader_WithdrawFiatFunds_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_GoCryptoTrader_WithdrawalEventByID_0(rctx, inboundMarshaler, server, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_GoCryptoTrader_WithdrawFiatFunds_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_GoCryptoTrader_WithdrawalEventByID_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("POST", pattern_GoCryptoTrader_WithdrawalEventsByExchange_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_GoCryptoTrader_WithdrawalEventsByExchange_0(rctx, inboundMarshaler, server, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_GoCryptoTrader_WithdrawalEventsByExchange_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("POST", pattern_GoCryptoTrader_WithdrawalEventsByDate_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_GoCryptoTrader_WithdrawalEventsByDate_0(rctx, inboundMarshaler, server, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_GoCryptoTrader_WithdrawalEventsByDate_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -3673,6 +3835,26 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 
 	})
 
+	mux.Handle("POST", pattern_GoCryptoTrader_WithdrawFiatFunds_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_GoCryptoTrader_WithdrawFiatFunds_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_GoCryptoTrader_WithdrawFiatFunds_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
 	mux.Handle("POST", pattern_GoCryptoTrader_WithdrawCryptocurrencyFunds_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -3693,7 +3875,7 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("POST", pattern_GoCryptoTrader_WithdrawFiatFunds_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("POST", pattern_GoCryptoTrader_WithdrawalEventByID_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -3702,14 +3884,54 @@ func RegisterGoCryptoTraderHandlerClient(ctx context.Context, mux *runtime.Serve
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_GoCryptoTrader_WithdrawFiatFunds_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_GoCryptoTrader_WithdrawalEventByID_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_GoCryptoTrader_WithdrawFiatFunds_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_GoCryptoTrader_WithdrawalEventByID_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("POST", pattern_GoCryptoTrader_WithdrawalEventsByExchange_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_GoCryptoTrader_WithdrawalEventsByExchange_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_GoCryptoTrader_WithdrawalEventsByExchange_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("POST", pattern_GoCryptoTrader_WithdrawalEventsByDate_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_GoCryptoTrader_WithdrawalEventsByDate_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_GoCryptoTrader_WithdrawalEventsByDate_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -4191,9 +4413,15 @@ var (
 
 	pattern_GoCryptoTrader_GetCryptocurrencyDepositAddress_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getcryptodepositaddress"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_GoCryptoTrader_WithdrawCryptocurrencyFunds_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "withdrawcryptofunds"}, "", runtime.AssumeColonVerbOpt(true)))
-
 	pattern_GoCryptoTrader_WithdrawFiatFunds_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "withdrawfiatfunds"}, "", runtime.AssumeColonVerbOpt(true)))
+
+	pattern_GoCryptoTrader_WithdrawCryptocurrencyFunds_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "withdrawithdrawcryptofundswfiatfunds"}, "", runtime.AssumeColonVerbOpt(true)))
+
+	pattern_GoCryptoTrader_WithdrawalEventByID_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "withdrawaleventbyid"}, "", runtime.AssumeColonVerbOpt(true)))
+
+	pattern_GoCryptoTrader_WithdrawalEventsByExchange_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "withdrawaleventbyid"}, "", runtime.AssumeColonVerbOpt(true)))
+
+	pattern_GoCryptoTrader_WithdrawalEventsByDate_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "withdrawaleventbydate"}, "", runtime.AssumeColonVerbOpt(true)))
 
 	pattern_GoCryptoTrader_GetLoggerDetails_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getloggerdetails"}, "", runtime.AssumeColonVerbOpt(true)))
 
@@ -4311,9 +4539,15 @@ var (
 
 	forward_GoCryptoTrader_GetCryptocurrencyDepositAddress_0 = runtime.ForwardResponseMessage
 
+	forward_GoCryptoTrader_WithdrawFiatFunds_0 = runtime.ForwardResponseMessage
+
 	forward_GoCryptoTrader_WithdrawCryptocurrencyFunds_0 = runtime.ForwardResponseMessage
 
-	forward_GoCryptoTrader_WithdrawFiatFunds_0 = runtime.ForwardResponseMessage
+	forward_GoCryptoTrader_WithdrawalEventByID_0 = runtime.ForwardResponseMessage
+
+	forward_GoCryptoTrader_WithdrawalEventsByExchange_0 = runtime.ForwardResponseMessage
+
+	forward_GoCryptoTrader_WithdrawalEventsByDate_0 = runtime.ForwardResponseMessage
 
 	forward_GoCryptoTrader_GetLoggerDetails_0 = runtime.ForwardResponseMessage
 

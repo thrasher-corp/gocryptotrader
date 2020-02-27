@@ -7,7 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // Wrapper instance of GCT to use for modules
@@ -30,8 +30,8 @@ type Exchange interface {
 	CancelOrder(exch, orderid string) (bool, error)
 	AccountInformation(exch string) (account.Holdings, error)
 	DepositAddress(exch string, currencyCode currency.Code) (string, error)
-	WithdrawalFiatFunds(exch, bankaccountid string, request *withdraw.FiatRequest) (out string, err error)
-	WithdrawalCryptoFunds(exch string, request *withdraw.CryptoRequest) (out string, err error)
+	WithdrawalFiatFunds(exch, bankAccountID string, request *withdraw.Request) (out string, err error)
+	WithdrawalCryptoFunds(exch string, request *withdraw.Request) (out string, err error)
 }
 
 // SetModuleWrapper link the wrapper and interface to use for modules

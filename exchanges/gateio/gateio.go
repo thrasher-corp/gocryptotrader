@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 const (
@@ -497,7 +498,7 @@ func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
 }
 
 // WithdrawCrypto withdraws cryptocurrency to your selected wallet
-func (g *Gateio) WithdrawCrypto(currency, address string, amount float64) (string, error) {
+func (g *Gateio) WithdrawCrypto(currency, address string, amount float64) (*withdraw.ExchangeResponse, error) {
 	type response struct {
 		Result  bool   `json:"result"`
 		Message string `json:"message"`
@@ -512,13 +513,15 @@ func (g *Gateio) WithdrawCrypto(currency, address string, amount float64) (strin
 	)
 	err := g.SendAuthenticatedHTTPRequest(http.MethodPost, gateioWithdraw, params, &result)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if !result.Result {
-		return "", fmt.Errorf("code:%d message:%s", result.Code, result.Message)
+		return nil, fmt.Errorf("code:%d message:%s", result.Code, result.Message)
 	}
 
-	return result.Message, nil
+	return &withdraw.ExchangeResponse{
+		Status: result.Message,
+	}, nil
 }
 
 // GetCryptoDepositAddress returns a deposit address for a cryptocurrency

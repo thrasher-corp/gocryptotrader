@@ -444,3 +444,37 @@ func StartPortfolioWatcher() {
 func GetPortfolio() *Base {
 	return &Portfolio
 }
+
+// IsExchangeSupported checks if exchange is supported by portfolio address
+func IsExchangeSupported(exchange, address string) (ret bool) {
+	for x := range Portfolio.Addresses {
+		if Portfolio.Addresses[x].Address != address {
+			continue
+		}
+		exchangeList := strings.Split(Portfolio.Addresses[x].SupportedExchanges, ",")
+		return common.StringDataContainsInsensitive(exchangeList, exchange)
+	}
+	return
+}
+
+// IsColdStorage checks if address is a cold storage wallet
+func IsColdStorage(address string) (ret bool) {
+	for x := range Portfolio.Addresses {
+		if Portfolio.Addresses[x].Address != address {
+			continue
+		}
+		return Portfolio.Addresses[x].ColdStorage
+	}
+	return
+}
+
+// IsWhiteListed checks if address is whitelisted for withdraw transfers
+func IsWhiteListed(address string) (ret bool) {
+	for x := range Portfolio.Addresses {
+		if Portfolio.Addresses[x].Address != address {
+			continue
+		}
+		return Portfolio.Addresses[x].WhiteListed
+	}
+	return
+}

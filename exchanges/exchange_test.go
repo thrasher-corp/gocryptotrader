@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
 const (
@@ -280,7 +281,7 @@ func TestGetClientBankAccounts(t *testing.T) {
 	}
 
 	var b Base
-	var r config.BankAccount
+	var r *banking.Account
 	r, err = b.GetClientBankAccounts("Kraken", "USD")
 	if err != nil {
 		t.Error(err)
@@ -290,31 +291,7 @@ func TestGetClientBankAccounts(t *testing.T) {
 		t.Error("incorrect bank name")
 	}
 
-	r, err = b.GetClientBankAccounts("MEOW", "USD")
-	if err == nil {
-		t.Error("an error should have been thrown for a non-existent exchange")
-	}
-}
-
-func TestGetExchangeBankAccounts(t *testing.T) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.TestFile, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var b Base
-	var r config.BankAccount
-	r, err = b.GetExchangeBankAccounts("Bitfinex", "USD")
-	if err != nil {
-		t.Error(err)
-	}
-
-	if r.BankName != "Deutsche Bank Privat Und Geschaeftskunden AG" {
-		t.Error("incorrect bank name")
-	}
-
-	_, err = b.GetExchangeBankAccounts("MEOW", "USD")
+	_, err = b.GetClientBankAccounts("MEOW", "USD")
 	if err == nil {
 		t.Error("an error should have been thrown for a non-existent exchange")
 	}

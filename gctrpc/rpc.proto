@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
 
 package gctrpc;
 
@@ -244,6 +245,8 @@ message AddPortfolioAddressRequest {
     string coin_type = 2;
     string description = 3;
     double balance = 4;
+    string supported_exchanges = 5;
+    bool cold_storage = 6;
 }
 
 message AddPortfolioAddressResponse {}
@@ -434,28 +437,90 @@ message GetCryptocurrencyDepositAddressResponse {
     string address = 1;
 }
 
-message WithdrawCurrencyRequest {
+message WithdrawFiatRequest {
     string exchange = 1;
-    string description = 2;
-    string one_time_password = 3;
-    string account_id = 4;
-    int64 pin = 5;
-    string trade_password = 6;
-    string currency = 7;
-    string address = 8;
-    string address_tag = 9;
-    double amount = 10;
-    double fee_amount = 11;
-    string bank_name = 12;
-    string bank_address = 13;
-    string bank_city = 14;
-    string bank_country = 15;
-    string swife_code = 16;
-    string wire_currency = 17;
+    string currency = 2;
+    double amount = 3;
+    string description = 4;
+    string bank_account_id = 5;
+}
+
+message WithdrawCryptoRequest {
+    string exchange = 1;
+    string address = 2;
+    string address_tag  = 3;
+    string currency = 4;
+    double amount = 5;
+    double fee = 6;
+    string description = 7;
 }
 
 message WithdrawResponse {
-    string result = 1;
+    string id = 1;
+    string status = 2;
+}
+
+message WithdrawalEventByIDRequest {
+    string id = 1;
+}
+
+message WithdrawalEventByIDResponse {
+    WithdrawalEventResponse event = 2;
+}
+
+message WithdrawalEventsByExchangeRequest {
+    string exchange = 1;
+    string id = 2;
+    int32 limit = 3;
+}
+
+message WithdrawalEventsByDateRequest {
+    string exchange = 1;
+    string start = 2;
+    string end = 3;
+    int32 limit = 4;
+}
+
+message WithdrawalEventsByExchangeResponse {
+    repeated WithdrawalEventResponse event = 2;
+}
+
+message WithdrawalEventResponse {
+    string id = 2;
+    WithdrawlExchangeEvent exchange = 3;
+    WithdrawalRequestEvent request = 4;
+    google.protobuf.Timestamp created_at = 5;
+    google.protobuf.Timestamp updated_at = 6;
+}
+
+message WithdrawlExchangeEvent {
+    string name = 1;
+    string id = 2;
+    string status = 3;
+}
+
+message WithdrawalRequestEvent {
+    string currency = 2;
+    string description = 3;
+    double amount = 4;
+    int32 type = 5;
+    FiatWithdrawalEvent fiat = 6;
+    CryptoWithdrawalEvent crypto = 7;
+}
+
+message FiatWithdrawalEvent {
+    string bank_name = 1;
+    string account_name = 2;
+    string account_number = 3;
+    string bsb = 4;
+    string swift = 5;
+    string iban = 6;
+}
+
+message CryptoWithdrawalEvent {
+    string address = 1;
+    string address_tag = 2;
+    double fee = 3;
 }
 
 message GetLoggerDetailsRequest {
@@ -845,16 +910,38 @@ service GoCryptoTrader {
         };
     }
 
-    rpc WithdrawCryptocurrencyFunds(WithdrawCurrencyRequest) returns (WithdrawResponse) {
+
+    rpc WithdrawFiatFunds(WithdrawFiatRequest) returns (WithdrawResponse) {
         option (google.api.http) = {
-            post: "/v1/withdrawcryptofunds"
+            post: "/v1/withdrawfiatfunds"
             body: "*"
         };
     }
 
-    rpc WithdrawFiatFunds(WithdrawCurrencyRequest) returns (WithdrawResponse) {
+    rpc WithdrawCryptocurrencyFunds(WithdrawCryptoRequest) returns (WithdrawResponse) {
         option (google.api.http) = {
-            post: "/v1/withdrawfiatfunds"
+            post: "/v1/withdrawithdrawcryptofundswfiatfunds"
+            body: "*"
+        };
+    }
+
+    rpc WithdrawalEventByID(WithdrawalEventByIDRequest) returns (WithdrawalEventByIDResponse) {
+        option (google.api.http) = {
+            post: "/v1/withdrawaleventbyid"
+            body: "*"
+        };
+    }
+
+    rpc WithdrawalEventsByExchange(WithdrawalEventsByExchangeRequest) returns (WithdrawalEventsByExchangeResponse) {
+        option (google.api.http) = {
+            post: "/v1/withdrawaleventbyid"
+            body: "*"
+        };rpcse
+    }
+
+    rpc WithdrawalEventsByDate(WithdrawalEventsByDateRequest) returns (WithdrawalEventsByExchangeResponse) {
+        option (google.api.http) = {
+            post: "/v1/withdrawaleventbydate"
             body: "*"
         };
     }
