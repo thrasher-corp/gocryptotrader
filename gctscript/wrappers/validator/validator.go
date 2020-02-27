@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // Exchanges validator for test execution/scripts
@@ -193,7 +193,7 @@ func (w Wrapper) DepositAddress(exch string, _ currency.Code) (string, error) {
 }
 
 // WithdrawalCryptoFunds validator for test execution/scripts
-func (w Wrapper) WithdrawalCryptoFunds(exch string, _ *withdraw.CryptoRequest) (out string, err error) {
+func (w Wrapper) WithdrawalCryptoFunds(exch string, _ *withdraw.Request) (out string, err error) {
 	if exch == exchError.String() {
 		return exch, errTestFailed
 	}
@@ -202,7 +202,7 @@ func (w Wrapper) WithdrawalCryptoFunds(exch string, _ *withdraw.CryptoRequest) (
 }
 
 // WithdrawalFiatFunds validator for test execution/scripts
-func (w Wrapper) WithdrawalFiatFunds(exch, _ string, _ *withdraw.FiatRequest) (out string, err error) {
+func (w Wrapper) WithdrawalFiatFunds(exch, _ string, _ *withdraw.Request) (out string, err error) {
 	if exch == exchError.String() {
 		return exch, errTestFailed
 	}

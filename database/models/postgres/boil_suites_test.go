@@ -14,56 +14,67 @@ import "testing"
 func TestParent(t *testing.T) {
 	t.Run("AuditEvents", testAuditEvents)
 	t.Run("Scripts", testScripts)
+	t.Run("WithdrawalHistories", testWithdrawalHistories)
 }
 
 func TestDelete(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsDelete)
 	t.Run("Scripts", testScriptsDelete)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesDelete)
 }
 
 func TestQueryDeleteAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsQueryDeleteAll)
 	t.Run("Scripts", testScriptsQueryDeleteAll)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesQueryDeleteAll)
 }
 
 func TestSliceDeleteAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSliceDeleteAll)
 	t.Run("Scripts", testScriptsSliceDeleteAll)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesSliceDeleteAll)
 }
 
 func TestExists(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsExists)
 	t.Run("Scripts", testScriptsExists)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesExists)
 }
 
 func TestFind(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsFind)
 	t.Run("Scripts", testScriptsFind)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesFind)
 }
 
 func TestBind(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsBind)
 	t.Run("Scripts", testScriptsBind)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesBind)
 }
 
 func TestOne(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsOne)
 	t.Run("Scripts", testScriptsOne)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesOne)
 }
 
 func TestAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsAll)
 	t.Run("Scripts", testScriptsAll)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesAll)
 }
 
 func TestCount(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsCount)
 	t.Run("Scripts", testScriptsCount)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesCount)
 }
 
 func TestHooks(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsHooks)
 	t.Run("Scripts", testScriptsHooks)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesHooks)
 }
 
 func TestInsert(t *testing.T) {
@@ -71,6 +82,8 @@ func TestInsert(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsInsertWhitelist)
 	t.Run("Scripts", testScriptsInsert)
 	t.Run("Scripts", testScriptsInsertWhitelist)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesInsert)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesInsertWhitelist)
 }
 
 // TestToOne tests cannot be run in parallel
@@ -116,24 +129,29 @@ func TestToManyRemove(t *testing.T) {}
 func TestReload(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsReload)
 	t.Run("Scripts", testScriptsReload)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesReload)
 }
 
 func TestReloadAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsReloadAll)
 	t.Run("Scripts", testScriptsReloadAll)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesReloadAll)
 }
 
 func TestSelect(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSelect)
 	t.Run("Scripts", testScriptsSelect)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesSelect)
 }
 
 func TestUpdate(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsUpdate)
 	t.Run("Scripts", testScriptsUpdate)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesUpdate)
 }
 
 func TestSliceUpdateAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSliceUpdateAll)
 	t.Run("Scripts", testScriptsSliceUpdateAll)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesSliceUpdateAll)
 }

@@ -19,8 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -436,86 +436,94 @@ func (b *Bitstamp) GetDepositAddress(cryptocurrency currency.Code, _ string) (st
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (b *Bitstamp) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error) {
+func (b *Bitstamp) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	resp, err := b.CryptoWithdrawal(withdrawRequest.Amount,
-		withdrawRequest.Address,
+		withdrawRequest.Crypto.Address,
 		withdrawRequest.Currency.String(),
-		withdrawRequest.AddressTag,
+		withdrawRequest.Crypto.AddressTag,
 		true)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if len(resp.Error) != 0 {
 		var details strings.Builder
 		for x := range resp.Error {
 			details.WriteString(strings.Join(resp.Error[x], ""))
 		}
-		return "", errors.New(details.String())
+		return nil, errors.New(details.String())
 	}
 
-	return resp.ID, nil
+	return &withdraw.ExchangeResponse{
+		ID: resp.ID,
+	}, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Bitstamp) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (b *Bitstamp) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	resp, err := b.OpenBankWithdrawal(withdrawRequest.Amount,
 		withdrawRequest.Currency.String(),
-		withdrawRequest.BankAccountName,
-		withdrawRequest.IBAN,
-		withdrawRequest.SwiftCode,
-		withdrawRequest.BankAddress,
-		withdrawRequest.BankPostalCode,
-		withdrawRequest.BankCity,
-		withdrawRequest.BankCountry,
+		withdrawRequest.Fiat.Bank.AccountName,
+		withdrawRequest.Fiat.Bank.IBAN,
+		withdrawRequest.Fiat.Bank.SWIFTCode,
+		withdrawRequest.Fiat.Bank.BankAddress,
+		withdrawRequest.Fiat.Bank.BankPostalCode,
+		withdrawRequest.Fiat.Bank.BankPostalCity,
+		withdrawRequest.Fiat.Bank.BankCountry,
 		withdrawRequest.Description,
 		sepaWithdrawal)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if resp.Status == errStr {
 		var details strings.Builder
 		for x := range resp.Reason {
 			details.WriteString(strings.Join(resp.Reason[x], ""))
 		}
-		return "", errors.New(details.String())
+		return nil, errors.New(details.String())
 	}
 
-	return resp.ID, nil
+	return &withdraw.ExchangeResponse{
+		ID:     resp.ID,
+		Status: resp.Status,
+	}, nil
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	resp, err := b.OpenInternationalBankWithdrawal(withdrawRequest.Amount,
 		withdrawRequest.Currency.String(),
-		withdrawRequest.BankAccountName,
-		withdrawRequest.IBAN,
-		withdrawRequest.SwiftCode,
-		withdrawRequest.BankAddress,
-		withdrawRequest.BankPostalCode,
-		withdrawRequest.BankCity,
-		withdrawRequest.BankCountry,
-		withdrawRequest.IntermediaryBankName,
-		withdrawRequest.IntermediaryBankAddress,
-		withdrawRequest.IntermediaryBankPostalCode,
-		withdrawRequest.IntermediaryBankCity,
-		withdrawRequest.IntermediaryBankCountry,
-		withdrawRequest.WireCurrency,
+		withdrawRequest.Fiat.Bank.AccountName,
+		withdrawRequest.Fiat.Bank.IBAN,
+		withdrawRequest.Fiat.Bank.SWIFTCode,
+		withdrawRequest.Fiat.Bank.BankAddress,
+		withdrawRequest.Fiat.Bank.BankPostalCode,
+		withdrawRequest.Fiat.Bank.BankPostalCity,
+		withdrawRequest.Fiat.Bank.BankCountry,
+		withdrawRequest.Fiat.IntermediaryBankName,
+		withdrawRequest.Fiat.IntermediaryBankAddress,
+		withdrawRequest.Fiat.IntermediaryBankPostalCode,
+		withdrawRequest.Fiat.IntermediaryBankCity,
+		withdrawRequest.Fiat.IntermediaryBankCountry,
+		withdrawRequest.Fiat.WireCurrency,
 		withdrawRequest.Description,
 		internationalWithdrawal)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if resp.Status == errStr {
 		var details strings.Builder
 		for x := range resp.Reason {
 			details.WriteString(strings.Join(resp.Reason[x], ""))
 		}
-		return "", errors.New(details.String())
+		return nil, errors.New(details.String())
 	}
 
-	return resp.ID, nil
+	return &withdraw.ExchangeResponse{
+		ID:     resp.ID,
+		Status: resp.Status,
+	}, nil
 }
 
 // GetWebsocket returns a pointer to the exchange websocket

@@ -8,8 +8,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 var exchangeModule = map[string]objects.Object{
@@ -435,15 +435,15 @@ func ExchangeWithdrawCrypto(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, description)
 	}
 
-	withdrawRequest := &withdraw.CryptoRequest{
-		GenericInfo: withdraw.GenericInfo{
-			Currency:    currency.NewCode(cur),
-			Description: description,
-			Amount:      amount,
+	withdrawRequest := &withdraw.Request{
+		Crypto: &withdraw.CryptoRequest{
+			Address:    address,
+			AddressTag: addressTag,
+			FeeAmount:  feeAmount,
 		},
-		Address:    address,
-		AddressTag: addressTag,
-		FeeAmount:  feeAmount,
+		Currency:    currency.NewCode(cur),
+		Description: description,
+		Amount:      amount,
 	}
 
 	rtn, err := wrappers.GetWrapper().WithdrawalCryptoFunds(exchangeName, withdrawRequest)
@@ -481,12 +481,10 @@ func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, bankAccountID)
 	}
 
-	withdrawRequest := &withdraw.FiatRequest{
-		GenericInfo: withdraw.GenericInfo{
-			Currency:    currency.NewCode(cur),
-			Description: description,
-			Amount:      amount,
-		},
+	withdrawRequest := &withdraw.Request{
+		Currency:    currency.NewCode(cur),
+		Description: description,
+		Amount:      amount,
 	}
 
 	rtn, err := wrappers.GetWrapper().WithdrawalFiatFunds(exchangeName, bankAccountID, withdrawRequest)

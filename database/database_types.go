@@ -37,6 +37,9 @@ var (
 	// ErrNoDatabaseProvided error to display when no database is provided
 	ErrNoDatabaseProvided = errors.New("no database provided")
 
+	// ErrDatabaseSupportDisabled error to display when no database is provided
+	ErrDatabaseSupportDisabled = errors.New("database support is disabled")
+
 	// SupportedDrivers slice of supported database driver types
 	SupportedDrivers = []string{DBSQLite, DBSQLite3, DBPostgreSQL}
 

@@ -15,66 +15,99 @@ func TestParent(t *testing.T) {
 	t.Run("AuditEvents", testAuditEvents)
 	t.Run("Scripts", testScripts)
 	t.Run("ScriptExecutions", testScriptExecutions)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptos)
+	t.Run("WithdrawalFiats", testWithdrawalFiats)
+	t.Run("WithdrawalHistories", testWithdrawalHistories)
 }
 
 func TestDelete(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsDelete)
 	t.Run("Scripts", testScriptsDelete)
 	t.Run("ScriptExecutions", testScriptExecutionsDelete)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosDelete)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsDelete)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesDelete)
 }
 
 func TestQueryDeleteAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsQueryDeleteAll)
 	t.Run("Scripts", testScriptsQueryDeleteAll)
 	t.Run("ScriptExecutions", testScriptExecutionsQueryDeleteAll)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosQueryDeleteAll)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsQueryDeleteAll)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesQueryDeleteAll)
 }
 
 func TestSliceDeleteAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSliceDeleteAll)
 	t.Run("Scripts", testScriptsSliceDeleteAll)
 	t.Run("ScriptExecutions", testScriptExecutionsSliceDeleteAll)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosSliceDeleteAll)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsSliceDeleteAll)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesSliceDeleteAll)
 }
 
 func TestExists(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsExists)
 	t.Run("Scripts", testScriptsExists)
 	t.Run("ScriptExecutions", testScriptExecutionsExists)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosExists)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsExists)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesExists)
 }
 
 func TestFind(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsFind)
 	t.Run("Scripts", testScriptsFind)
 	t.Run("ScriptExecutions", testScriptExecutionsFind)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosFind)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsFind)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesFind)
 }
 
 func TestBind(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsBind)
 	t.Run("Scripts", testScriptsBind)
 	t.Run("ScriptExecutions", testScriptExecutionsBind)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosBind)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsBind)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesBind)
 }
 
 func TestOne(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsOne)
 	t.Run("Scripts", testScriptsOne)
 	t.Run("ScriptExecutions", testScriptExecutionsOne)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosOne)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsOne)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesOne)
 }
 
 func TestAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsAll)
 	t.Run("Scripts", testScriptsAll)
 	t.Run("ScriptExecutions", testScriptExecutionsAll)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosAll)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsAll)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesAll)
 }
 
 func TestCount(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsCount)
 	t.Run("Scripts", testScriptsCount)
 	t.Run("ScriptExecutions", testScriptExecutionsCount)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosCount)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsCount)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesCount)
 }
 
 func TestHooks(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsHooks)
 	t.Run("Scripts", testScriptsHooks)
 	t.Run("ScriptExecutions", testScriptExecutionsHooks)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosHooks)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsHooks)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesHooks)
 }
 
 func TestInsert(t *testing.T) {
@@ -84,12 +117,20 @@ func TestInsert(t *testing.T) {
 	t.Run("Scripts", testScriptsInsertWhitelist)
 	t.Run("ScriptExecutions", testScriptExecutionsInsert)
 	t.Run("ScriptExecutions", testScriptExecutionsInsertWhitelist)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosInsert)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosInsertWhitelist)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsInsert)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsInsertWhitelist)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesInsert)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesInsertWhitelist)
 }
 
 // TestToOne tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToOne(t *testing.T) {
 	t.Run("ScriptExecutionToScriptUsingScript", testScriptExecutionToOneScriptUsingScript)
+	t.Run("WithdrawalCryptoToWithdrawalHistoryUsingWithdrawalHistory", testWithdrawalCryptoToOneWithdrawalHistoryUsingWithdrawalHistory)
+	t.Run("WithdrawalFiatToWithdrawalHistoryUsingWithdrawalHistory", testWithdrawalFiatToOneWithdrawalHistoryUsingWithdrawalHistory)
 }
 
 // TestOneToOne tests cannot be run in parallel
@@ -100,12 +141,16 @@ func TestOneToOne(t *testing.T) {}
 // or deadlocks can occur.
 func TestToMany(t *testing.T) {
 	t.Run("ScriptToScriptExecutions", testScriptToManyScriptExecutions)
+	t.Run("WithdrawalHistoryToWithdrawalCryptos", testWithdrawalHistoryToManyWithdrawalCryptos)
+	t.Run("WithdrawalHistoryToWithdrawalFiats", testWithdrawalHistoryToManyWithdrawalFiats)
 }
 
 // TestToOneSet tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToOneSet(t *testing.T) {
 	t.Run("ScriptExecutionToScriptUsingScriptExecutions", testScriptExecutionToOneSetOpScriptUsingScript)
+	t.Run("WithdrawalCryptoToWithdrawalHistoryUsingWithdrawalCryptos", testWithdrawalCryptoToOneSetOpWithdrawalHistoryUsingWithdrawalHistory)
+	t.Run("WithdrawalFiatToWithdrawalHistoryUsingWithdrawalFiats", testWithdrawalFiatToOneSetOpWithdrawalHistoryUsingWithdrawalHistory)
 }
 
 // TestToOneRemove tests cannot be run in parallel
@@ -124,6 +169,8 @@ func TestOneToOneRemove(t *testing.T) {}
 // or deadlocks can occur.
 func TestToManyAdd(t *testing.T) {
 	t.Run("ScriptToScriptExecutions", testScriptToManyAddOpScriptExecutions)
+	t.Run("WithdrawalHistoryToWithdrawalCryptos", testWithdrawalHistoryToManyAddOpWithdrawalCryptos)
+	t.Run("WithdrawalHistoryToWithdrawalFiats", testWithdrawalHistoryToManyAddOpWithdrawalFiats)
 }
 
 // TestToManySet tests cannot be run in parallel
@@ -138,28 +185,43 @@ func TestReload(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsReload)
 	t.Run("Scripts", testScriptsReload)
 	t.Run("ScriptExecutions", testScriptExecutionsReload)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosReload)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsReload)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesReload)
 }
 
 func TestReloadAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsReloadAll)
 	t.Run("Scripts", testScriptsReloadAll)
 	t.Run("ScriptExecutions", testScriptExecutionsReloadAll)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosReloadAll)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsReloadAll)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesReloadAll)
 }
 
 func TestSelect(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSelect)
 	t.Run("Scripts", testScriptsSelect)
 	t.Run("ScriptExecutions", testScriptExecutionsSelect)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosSelect)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsSelect)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesSelect)
 }
 
 func TestUpdate(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsUpdate)
 	t.Run("Scripts", testScriptsUpdate)
 	t.Run("ScriptExecutions", testScriptExecutionsUpdate)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosUpdate)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsUpdate)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesUpdate)
 }
 
 func TestSliceUpdateAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSliceUpdateAll)
 	t.Run("Scripts", testScriptsSliceUpdateAll)
 	t.Run("ScriptExecutions", testScriptExecutionsSliceUpdateAll)
+	t.Run("WithdrawalCryptos", testWithdrawalCryptosSliceUpdateAll)
+	t.Run("WithdrawalFiats", testWithdrawalFiatsSliceUpdateAll)
+	t.Run("WithdrawalHistories", testWithdrawalHistoriesSliceUpdateAll)
 }

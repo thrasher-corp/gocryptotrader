@@ -50,7 +50,6 @@ func TestScript(t *testing.T) {
 				Driver:            database.DBSQLite3,
 				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
 			},
-
 			writeScript,
 			testhelpers.CloseDatabase,
 			nil,

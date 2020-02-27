@@ -5,7 +5,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+)
+
+const (
+	testBTCAddress = "0x1D01TH0R53"
+)
+
+var (
+	portfolioSeeded bool
 )
 
 func TestGetEthereumBalance(t *testing.T) {
@@ -437,6 +446,50 @@ func TestSeed(t *testing.T) {
 	}
 }
 
+func TestIsExchangeSupported(t *testing.T) {
+	seedPortFolioForTest(t)
+	ret := IsExchangeSupported("BTC Markets", core.BitcoinDonationAddress)
+	if !ret {
+		t.Fatal("expected IsExchangeSupported() to return true")
+	}
+	ret = IsExchangeSupported("Kraken", core.BitcoinDonationAddress)
+	if ret {
+		t.Fatal("expected IsExchangeSupported() to return false")
+	}
+}
+
+func TestIsColdStorage(t *testing.T) {
+	seedPortFolioForTest(t)
+	ret := IsColdStorage(core.BitcoinDonationAddress)
+	if !ret {
+		t.Fatal("expected IsColdStorage() to return true")
+	}
+	ret = IsColdStorage(testBTCAddress)
+	if ret {
+		t.Fatal("expected IsColdStorage() to return false")
+	}
+	ret = IsColdStorage("hello")
+	if ret {
+		t.Fatal("expected IsColdStorage() to return false")
+	}
+}
+
+func TestIsWhiteListed(t *testing.T) {
+	seedPortFolioForTest(t)
+	ret := IsWhiteListed(core.BitcoinDonationAddress)
+	if !ret {
+		t.Fatal("expected IsWhiteListed() to return true")
+	}
+	ret = IsWhiteListed(testBTCAddress)
+	if ret {
+		t.Fatal("expected IsWhiteListed() to return false")
+	}
+	ret = IsWhiteListed("hello")
+	if ret {
+		t.Fatal("expected IsWhiteListed() to return false")
+	}
+}
+
 func TestStartPortfolioWatcher(t *testing.T) {
 	newBase := Base{}
 	newBase.AddAddress("LX2LMYXtuv5tiYEMztSSoEZcafFPYJFRK1",
@@ -464,4 +517,28 @@ func TestGetPortfolio(t *testing.T) {
 	if reflect.TypeOf(ptrBASE).String() != "*portfolio.Base" {
 		t.Error("portfolio_test.go - GetoPortfolio error")
 	}
+}
+
+func seedPortFolioForTest(t *testing.T) {
+	t.Helper()
+	if portfolioSeeded {
+		return
+	}
+	newBase := Base{}
+
+	err := newBase.AddAddress(core.BitcoinDonationAddress, "test", currency.BTC, 1500)
+	if err != nil {
+		t.Fatalf("failed to add portfolio address with reason: %v, unable to continue tests", err)
+	}
+	newBase.Addresses[0].WhiteListed = true
+	newBase.Addresses[0].ColdStorage = true
+	newBase.Addresses[0].SupportedExchanges = "BTC Markets,Binance"
+
+	err = newBase.AddAddress(testBTCAddress, "test", currency.BTC, 1500)
+	if err != nil {
+		t.Fatalf("failed to add portfolio address with reason: %v, unable to continue tests", err)
+	}
+	newBase.Addresses[1].SupportedExchanges = "BTC Markets,Binance"
+	portfolio := GetPortfolio()
+	portfolio.Seed(newBase)
 }

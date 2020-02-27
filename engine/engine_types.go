@@ -78,6 +78,9 @@ type Settings struct {
 
 	// GCTscript settings
 	MaxVirtualMachines uint
+
+	// Withdraw settings
+	WithdrawCacheSize uint64
 }
 
 const (
