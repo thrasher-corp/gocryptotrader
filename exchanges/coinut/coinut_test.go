@@ -35,21 +35,21 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Coinut load config error", err)
 	}
-	bConfig, err := cfg.GetExchangeConfig("COINUT")
+	coinutCfg, err := cfg.GetExchangeConfig("COINUT")
 	if err != nil {
 		log.Fatal("Coinut Setup() init error")
 	}
-	bConfig.API.AuthenticatedSupport = true
-	bConfig.API.AuthenticatedWebsocketSupport = true
-	bConfig.API.Credentials.Key = apiKey
-	bConfig.API.Credentials.ClientID = clientID
-	err = c.Setup(bConfig)
+	coinutCfg.API.AuthenticatedSupport = true
+	coinutCfg.API.AuthenticatedWebsocketSupport = true
+	coinutCfg.API.Credentials.Key = apiKey
+	coinutCfg.API.Credentials.ClientID = clientID
+	err = c.Setup(coinutCfg)
 	if err != nil {
 		log.Fatal("Coinut setup error", err)
 	}
 	err = c.SeedInstruments()
 	if err != nil {
-		log.Fatal("Coinut setup error", err)
+		log.Fatal("Coinut setup error ", err)
 	}
 	c.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	c.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()

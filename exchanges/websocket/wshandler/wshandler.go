@@ -623,11 +623,11 @@ func (w *Websocket) CanUseAuthenticatedEndpoints() bool {
 // SetResponseIDAndData adds data to IDResponses with locks and a nil check
 func (w *WebsocketConnection) SetResponseIDAndData(id int64, data []byte) {
 	w.Lock()
+	defer w.Unlock()
 	if w.IDResponses == nil {
 		w.IDResponses = make(map[int64][]byte)
 	}
 	w.IDResponses[id] = data
-	w.Unlock()
 }
 
 // Dial sets proxy urls and then connects to the websocket
@@ -754,13 +754,12 @@ func (w *WebsocketConnection) SendMessageReturnResponse(id int64, request interf
 // the data, and instead will be processed by the wrapper function
 func (w *WebsocketConnection) IsIDWaitingForResponse(id int64) bool {
 	w.Lock()
+	defer w.Unlock()
 	for k := range w.IDResponses {
 		if k == id && w.IDResponses[k] == nil {
-			w.Unlock()
 			return true
 		}
 	}
-	w.Unlock()
 	return false
 }
 

@@ -698,8 +698,8 @@ func (b *Bitfinex) wsHandleFundingOffer(data []interface{}) {
 
 func (b *Bitfinex) wsHandleOrder(data []interface{}) {
 	var od order.Detail
+	var err error
 	od.Exchange = b.Name
-	od.AssetType = asset.Spot
 	if data[0] != nil {
 		od.ID = strconv.FormatFloat(data[0].(float64), 'f', -1, 64)
 	}
@@ -722,7 +722,11 @@ func (b *Bitfinex) wsHandleOrder(data []interface{}) {
 		od.LastUpdated = time.Unix(int64(data[5].(float64))*1000, 0)
 	}
 	if data[2] != nil {
-		od.Pair = currency.NewPairFromString(data[3].(string)[1:])
+		od.Pair, od.AssetType, err = b.GetRequestFormattedPairAndAssetType(data[3].(string)[1:])
+		if err != nil {
+			b.Websocket.DataHandler <- err
+			return
+		}
 	}
 	if data[8] != nil {
 		oType, err := order.StringToOrderType(data[8].(string))

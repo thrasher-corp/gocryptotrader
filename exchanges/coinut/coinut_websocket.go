@@ -413,7 +413,10 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 		o.Amount = oContainer.Order.Quantity
 		o.ID = strconv.FormatInt(oContainer.Order.OrderID, 10)
 		o.LastUpdated = time.Unix(0, oContainer.Timestamp)
-		o.Pair = currency.NewPairFromString(c.instrumentMap.LookupInstrument(oContainer.Order.InstrumentID))
+		o.Pair, o.AssetType, err = c.GetRequestFormattedPairAndAssetType(c.instrumentMap.LookupInstrument(oContainer.Order.InstrumentID))
+		if err != nil {
+			return nil, err
+		}
 		o.Trades = []order.TradeHistory{
 			{
 				Price:     oContainer.FillPrice,
@@ -425,14 +428,11 @@ func (c *COINUT) parseOrderContainer(oContainer *wsOrderContainer) (*order.Detai
 			},
 		}
 	} else {
-		o.Pair = currency.NewPairFromString(c.instrumentMap.LookupInstrument(oContainer.InstrumentID))
+		o.Pair, o.AssetType, err = c.GetRequestFormattedPairAndAssetType(c.instrumentMap.LookupInstrument(oContainer.InstrumentID))
+		if err != nil {
+			return nil, err
+		}
 	}
-	var a asset.Item
-	a, err = c.GetPairAssetType(o.Pair)
-	if err != nil {
-		return o, err
-	}
-	o.AssetType = a
 	return o, nil
 }
 

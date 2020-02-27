@@ -104,9 +104,9 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 				return err
 			}
 			bids = append(bids, orderbook.Item{
-				Amount: amount,
-				Price:  price,
-				OrderCount:        int64(ob.Bids[x][2].(float64)),
+				Amount:     amount,
+				Price:      price,
+				OrderCount: int64(ob.Bids[x][2].(float64)),
 			})
 		}
 		for x := range ob.Asks {
@@ -120,9 +120,9 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 				return err
 			}
 			asks = append(asks, orderbook.Item{
-				Amount:            amount,
-				Price:             price,
-				OrderCount:        int64(ob.Asks[x][2].(float64)),
+				Amount:     amount,
+				Price:      price,
+				OrderCount: int64(ob.Asks[x][2].(float64)),
 			})
 		}
 		if ob.Snapshot {
@@ -137,7 +137,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		} else {
 			err = b.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
 				UpdateTime: ob.Timestamp,
-				Asset:    asset.Spot,
+				Asset:      asset.Spot,
 				Bids:       bids,
 				Asks:       asks,
 				Pair:       p,

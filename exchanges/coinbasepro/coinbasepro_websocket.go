@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -144,11 +145,6 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		createdDate, err := time.Parse(wsOrder.Time, time.RFC3339)
-		if err != nil {
-			c.Websocket.DataHandler <- err
-			createdDate = time.Now()
-		}
 		var oType order.Type
 		var oSide order.Side
 		var oStatus order.Status
@@ -179,9 +175,19 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 		if wsOrder.Reason == "canceled" {
 			oStatus = order.Cancelled
 		}
-		p := currency.NewPairFromString(wsOrder.ProductID)
+		ts := wsOrder.Time
+		if wsOrder.Type == "activate" {
+			var one, two int64
+			one, two, err = convert.SplitFloatDecimals(wsOrder.Timestamp)
+			if err != nil {
+				return err
+			}
+			ts = time.Unix(one, two)
+		}
+
+		var p currency.Pair
 		var a asset.Item
-		a, err = c.GetPairAssetType(p)
+		p, a, err = c.GetRequestFormattedPairAndAssetType(wsOrder.ProductID)
 		if err != nil {
 			return err
 		}
@@ -201,7 +207,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			Side:            oSide,
 			Status:          oStatus,
 			AssetType:       a,
-			Date:            createdDate,
+			Date:            ts,
 			Pair:            p,
 		}
 	case "match":
@@ -209,11 +215,6 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 		err := json.Unmarshal(respRaw, &wsOrder)
 		if err != nil {
 			return err
-		}
-		createdDate, err := time.Parse(wsOrder.Time, time.RFC3339)
-		if err != nil {
-			c.Websocket.DataHandler <- err
-			createdDate = time.Now()
 		}
 		oSide, err := order.StringToOrderSide(wsOrder.Side)
 		if err != nil {
@@ -231,7 +232,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 					Exchange:  c.Name,
 					TID:       strconv.FormatInt(wsOrder.TradeID, 10),
 					Side:      oSide,
-					Timestamp: createdDate,
+					Timestamp: wsOrder.Time,
 					IsMaker:   wsOrder.TakerUserID == "",
 				},
 			},

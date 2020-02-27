@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"sync"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 const (
@@ -181,6 +181,12 @@ func (h *FakePassingExchange) GetHistoricCandles(_ currency.Pair, _, _ int64) ([
 }
 func (h *FakePassingExchange) DisableRateLimiter() error { return nil }
 func (h *FakePassingExchange) EnableRateLimiter() error  { return nil }
-func (h *FakePassingExchange) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {	return nil, nil }
-func (h *FakePassingExchange) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {	return nil, nil }
-func (h *FakePassingExchange) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {	return nil, nil }
+func (h *FakePassingExchange) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	return nil, nil
+}
+func (h *FakePassingExchange) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	return nil, nil
+}
+func (h *FakePassingExchange) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	return nil, nil
+}

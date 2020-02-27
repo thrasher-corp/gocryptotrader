@@ -259,9 +259,9 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 				Err:      err,
 			}
 		}
-		p := currency.NewPairFromString(data[1])
+		var p currency.Pair
 		var a asset.Item
-		a, err = h.GetPairAssetType(p)
+		p, a, err = h.GetRequestFormattedPairAndAssetType(data[1])
 		if err != nil {
 			return err
 		}

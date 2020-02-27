@@ -310,24 +310,24 @@ func (o *OKGroup) WsHandleData(respRaw []byte) error {
 }
 
 // StringToOrderStatus converts order status IDs to internal types
-func StringToOrderStatus(num string) (order.Status, error) {
+func StringToOrderStatus(num int64) (order.Status, error) {
 	switch num {
-	case "-2":
+	case -2:
 		return order.Rejected, nil
-	case "-1":
+	case -1:
 		return order.Cancelled, nil
-	case "0":
+	case 0:
 		return order.Active, nil
-	case "1":
+	case 1:
 		return order.PartiallyFilled, nil
-	case "2":
+	case 2:
 		return order.Filled, nil
-	case "3":
+	case 3:
 		return order.New, nil
-	case "4":
+	case 4:
 		return order.PendingCancel, nil
 	default:
-		return order.UnknownStatus, errors.New(num + " not recognised as order status")
+		return order.UnknownStatus, fmt.Errorf("%v not recognised as order status", num)
 	}
 }
 
@@ -341,11 +341,6 @@ func (o *OKGroup) wsProcessOrder(respRaw []byte) error {
 		var oType order.Type
 		var oSide order.Side
 		var oStatus order.Status
-		createdAt, err := time.Parse(time.RFC3339, resp.Data[i].CreatedAt)
-		if err != nil {
-			o.Websocket.DataHandler <- err
-			createdAt = time.Now()
-		}
 		oType, err = order.StringToOrderType(resp.Data[i].Type)
 		if err != nil {
 			o.Websocket.DataHandler <- order.ClassificationError{
@@ -370,33 +365,21 @@ func (o *OKGroup) wsProcessOrder(respRaw []byte) error {
 				Err:      err,
 			}
 		}
-		price, err := strconv.ParseFloat(resp.Data[i].Price, 64)
-		if err != nil {
-			return err
-		}
-		amount, err := strconv.ParseFloat(resp.Data[i].Size, 64)
-		if err != nil {
-			return err
-		}
-		executedAmount, err := strconv.ParseFloat(resp.Data[i].LastFillQty, 64)
-		if err != nil {
-			return err
-		}
 		o.Websocket.DataHandler <- &order.Detail{
-			ImmediateOrCancel: resp.Data[i].OrderType == "3",
-			FillOrKill:        resp.Data[i].OrderType == "2",
-			PostOnly:          resp.Data[i].OrderType == "1",
-			Price:             price,
-			Amount:            amount,
-			ExecutedAmount:    executedAmount,
-			RemainingAmount:   amount - executedAmount,
+			ImmediateOrCancel: resp.Data[i].OrderType == 3,
+			FillOrKill:        resp.Data[i].OrderType == 2,
+			PostOnly:          resp.Data[i].OrderType == 1,
+			Price:             resp.Data[i].Price,
+			Amount:            resp.Data[i].Size,
+			ExecutedAmount:    resp.Data[i].LastFillQty,
+			RemainingAmount:   resp.Data[i].Size - resp.Data[i].LastFillQty,
 			Exchange:          o.Name,
 			ID:                resp.Data[i].OrderID,
 			Type:              oType,
 			Side:              oSide,
 			Status:            oStatus,
 			AssetType:         o.GetAssetTypeFromTableName(resp.Table),
-			Date:              createdAt,
+			Date:              resp.Data[i].CreatedAt,
 			Pair:              currency.NewPairFromString(resp.Data[i].InstrumentID),
 		}
 	}
@@ -553,6 +536,7 @@ func (o *OKGroup) WsProcessOrderBook(respRaw []byte) error {
 		return err
 	}
 	orderbookMutex.Lock()
+	defer orderbookMutex.Unlock()
 	for i := range response.Data {
 		a := o.GetAssetTypeFromTableName(response.Table)
 		var c currency.Pair
@@ -582,7 +566,6 @@ func (o *OKGroup) WsProcessOrderBook(respRaw []byte) error {
 			}
 		}
 	}
-	orderbookMutex.Unlock()
 	return nil
 }
 

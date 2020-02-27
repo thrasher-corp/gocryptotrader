@@ -784,7 +784,7 @@ func TestWsTicker(t *testing.T) {
 	}
 }
 
-func TestWsOrderbookSchneeSchnaaSchnappy(t *testing.T) {
+func TestWsOrderbook(t *testing.T) {
 	pressXToJSON := []byte(`{
     "type": "snapshot",
     "product_id": "BTC-USD",
@@ -814,7 +814,7 @@ func TestWsOrderbookSchneeSchnaaSchnappy(t *testing.T) {
 	}
 }
 
-func TestWsOrderStuff(t *testing.T) {
+func TestWsOrders(t *testing.T) {
 	pressXToJSON := []byte(`{
     "type": "received",
     "time": "2014-11-07T08:19:27.028459Z",

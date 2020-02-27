@@ -112,7 +112,6 @@ func (o *orderStore) Add(order *order.Detail) error {
 			log.Warnf(log.OrderMgr,
 				"Order manager: Unable to generate UUID. Err: %s",
 				err)
-
 		} else {
 			order.InternalOrderID = id.String()
 		}

@@ -345,9 +345,9 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 					Err:      err,
 				}
 			}
-			p := currency.NewPairFromString(orders.Data[i].Symbol)
+			var p currency.Pair
 			var a asset.Item
-			a, err = c.GetPairAssetType(p)
+			p, a, err = c.GetRequestFormattedPairAndAssetType(orders.Data[i].Symbol)
 			if err != nil {
 				return err
 			}

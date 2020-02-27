@@ -324,9 +324,9 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			switch response.Action {
 			case "update", "insert":
 				for x := range response.Data {
-					p := currency.NewPairFromString(response.Data[x].Symbol)
+					var p currency.Pair
 					var a asset.Item
-					a, err = b.GetPairAssetType(p)
+					p, a, err = b.GetRequestFormattedPairAndAssetType(response.Data[x].Symbol)
 					if err != nil {
 						return err
 					}
@@ -373,9 +373,9 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 				}
 			case "delete":
 				for x := range response.Data {
-					p := currency.NewPairFromString(response.Data[x].Symbol)
+					var p currency.Pair
 					var a asset.Item
-					a, err = b.GetPairAssetType(p)
+					p, a, err = b.GetRequestFormattedPairAndAssetType(response.Data[x].Symbol)
 					if err != nil {
 						return err
 					}

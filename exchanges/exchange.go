@@ -341,6 +341,24 @@ func (e *Base) GetEnabledPairs(assetType asset.Item) currency.Pairs {
 	return pairs.Format(format.Delimiter, format.Index, format.Uppercase)
 }
 
+// GetRequestFormattedPairAndAssetType is a method that returns the enabled currency pair of
+// along with its asset type
+func (e *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, asset.Item, error) {
+	assetTypes := e.GetAssetTypes()
+	var response currency.Pair
+	for i := range assetTypes {
+		format := e.GetPairFormat(assetTypes[i], true)
+		pairs := e.CurrencyPairs.GetPairs(assetTypes[i], true)
+		for j := range pairs {
+			formattedPair := pairs[j].Format(format.Delimiter, format.Uppercase)
+			if strings.EqualFold(formattedPair.String(), p) {
+				return formattedPair, assetTypes[i], nil
+			}
+		}
+	}
+	return response, "", errors.New("Pair not found: " + p)
+}
+
 // GetAvailablePairs is a method that returns the available currency pairs
 // of the exchange by asset type
 func (e *Base) GetAvailablePairs(assetType asset.Item) currency.Pairs {
