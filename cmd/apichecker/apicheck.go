@@ -348,7 +348,9 @@ func CheckUpdates(fileName string) error {
 		}
 	}
 	log.Printf("The following exchanges need an update: %v\n", resp)
-	log.Printf("Errors: %v", errMap)
+	for k := range errMap {
+		log.Printf("Error: %v\n", errMap[k])
+	}
 	unsup := CheckMissingExchanges()
 	log.Printf("The following exchanges are not supported by apichecker: %v\n", unsup)
 	log.Printf("Saving the updates to the following file: %s\n", fileName)
