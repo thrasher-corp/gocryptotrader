@@ -272,6 +272,7 @@ func CheckUpdates(fileName string) error {
 	for x := range allExchangeData {
 		wg.Add(1)
 		go func(e ExchangeInfo) {
+			defer wg.Done()
 			switch e.CheckType {
 			case github:
 				m.Lock()
@@ -308,7 +309,6 @@ func CheckUpdates(fileName string) error {
 				}
 				m.Unlock()
 			}
-			wg.Done()
 		}(allExchangeData[x])
 	}
 	wg.Wait()
