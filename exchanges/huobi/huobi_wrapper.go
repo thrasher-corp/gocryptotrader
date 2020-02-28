@@ -102,6 +102,7 @@ func (h *HUOBI) SetDefaults() {
 				MessageCorrelation:     true,
 				GetOrder:               true,
 				GetOrders:              true,
+				TickerFetching:         true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
 				exchange.NoFiatWithdrawals,
@@ -657,11 +658,18 @@ func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
 			return orderDetail, err
 		}
 	}
+	var p currency.Pair
+	var a asset.Item
+	p, a, err = h.GetRequestFormattedPairAndAssetType(respData.Symbol)
+	if err != nil {
+		return orderDetail, err
+	}
+
 	orderDetail = order.Detail{
 		Exchange:       h.Name,
 		ID:             orderID,
 		AccountID:      strconv.FormatInt(respData.AccountID, 10),
-		Pair:           currency.NewPairFromString(respData.Symbol),
+		Pair:           p,
 		Type:           orderType,
 		Side:           orderSide,
 		Date:           time.Unix(0, respData.CreatedAt*int64(time.Millisecond)),
@@ -670,6 +678,7 @@ func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
 		Amount:         respData.Amount,
 		ExecutedAmount: respData.FilledAmount,
 		Fee:            respData.FilledFees,
+		AssetType:      a,
 	}
 	return orderDetail, nil
 }

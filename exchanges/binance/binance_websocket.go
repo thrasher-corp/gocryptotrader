@@ -154,6 +154,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 		return err
 	}
 	if method, ok := multiStreamData["method"].(string); ok {
+		// TODO handle subscription handling
 		if strings.EqualFold(method, "subscribe") {
 			return nil
 		}
@@ -335,21 +336,21 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 							err)
 					}
 
-					var wsKline wshandler.KlineData
-					wsKline.Timestamp = time.Unix(0, kline.EventTime*int64(time.Millisecond))
-					wsKline.Pair = currency.NewPairFromFormattedPairs(kline.Symbol, b.GetEnabledPairs(asset.Spot),
-						b.GetPairFormat(asset.Spot, true))
-					wsKline.AssetType = asset.Spot
-					wsKline.Exchange = b.Name
-					wsKline.StartTime = time.Unix(0, kline.Kline.StartTime*int64(time.Millisecond))
-					wsKline.CloseTime = time.Unix(0, kline.Kline.CloseTime*int64(time.Millisecond))
-					wsKline.Interval = kline.Kline.Interval
-					wsKline.OpenPrice, _ = strconv.ParseFloat(kline.Kline.OpenPrice, 64)
-					wsKline.ClosePrice, _ = strconv.ParseFloat(kline.Kline.ClosePrice, 64)
-					wsKline.HighPrice, _ = strconv.ParseFloat(kline.Kline.HighPrice, 64)
-					wsKline.LowPrice, _ = strconv.ParseFloat(kline.Kline.LowPrice, 64)
-					wsKline.Volume, _ = strconv.ParseFloat(kline.Kline.Volume, 64)
-					b.Websocket.DataHandler <- wsKline
+					b.Websocket.DataHandler <- wshandler.KlineData{
+						Timestamp: time.Unix(0, kline.EventTime*int64(time.Millisecond)),
+						Pair: currency.NewPairFromFormattedPairs(kline.Symbol, b.GetEnabledPairs(asset.Spot),
+							b.GetPairFormat(asset.Spot, true)),
+						AssetType:  asset.Spot,
+						Exchange:   b.Name,
+						StartTime:  time.Unix(0, kline.Kline.StartTime*int64(time.Millisecond)),
+						CloseTime:  time.Unix(0, kline.Kline.CloseTime*int64(time.Millisecond)),
+						Interval:   kline.Kline.Interval,
+						OpenPrice:  kline.Kline.OpenPrice,
+						ClosePrice: kline.Kline.ClosePrice,
+						HighPrice:  kline.Kline.HighPrice,
+						LowPrice:   kline.Kline.LowPrice,
+						Volume:     kline.Kline.Volume,
+					}
 				case "depth":
 					var depth WebsocketDepthStream
 					err := json.Unmarshal(rawData, &depth)

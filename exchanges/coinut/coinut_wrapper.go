@@ -736,19 +736,14 @@ func (c *COINUT) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 		}
 	} else {
 		var instrumentsToUse []int64
-		if len(req.Pairs) > 0 {
-			for x := range req.Pairs {
-				curr := c.FormatExchangeCurrency(req.Pairs[x],
-					asset.Spot).String()
-				instrumentsToUse = append(instrumentsToUse,
-					c.instrumentMap.LookupID(curr))
-			}
-		} else {
-			instrumentsToUse = c.instrumentMap.GetInstrumentIDs()
+		for x := range req.Pairs {
+			curr := c.FormatExchangeCurrency(req.Pairs[x],
+				asset.Spot).String()
+			instrumentsToUse = append(instrumentsToUse,
+				c.instrumentMap.LookupID(curr))
 		}
-
 		if len(instrumentsToUse) == 0 {
-			return nil, errors.New("no instrument IDs to use")
+			instrumentsToUse = c.instrumentMap.GetInstrumentIDs()
 		}
 
 		for x := range instrumentsToUse {
@@ -818,21 +813,16 @@ func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 		}
 	} else {
 		var instrumentsToUse []int64
-		if len(req.Pairs) > 0 {
-			for x := range req.Pairs {
-				curr := c.FormatExchangeCurrency(req.Pairs[x],
-					asset.Spot).String()
-				instrumentID := c.instrumentMap.LookupID(curr)
-				if instrumentID > 0 {
-					instrumentsToUse = append(instrumentsToUse, instrumentID)
-				}
+		for x := range req.Pairs {
+			curr := c.FormatExchangeCurrency(req.Pairs[x],
+				asset.Spot).String()
+			instrumentID := c.instrumentMap.LookupID(curr)
+			if instrumentID > 0 {
+				instrumentsToUse = append(instrumentsToUse, instrumentID)
 			}
-		} else {
-			instrumentsToUse = c.instrumentMap.GetInstrumentIDs()
 		}
-
 		if len(instrumentsToUse) == 0 {
-			return nil, errors.New("no instrument IDs to use")
+			instrumentsToUse = c.instrumentMap.GetInstrumentIDs()
 		}
 		for x := range instrumentsToUse {
 			orders, err := c.GetTradeHistory(instrumentsToUse[x], -1, -1)

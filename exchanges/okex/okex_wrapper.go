@@ -139,6 +139,7 @@ func (o *OKEX) SetDefaults() {
 				MessageCorrelation:     true,
 				GetOrders:              true,
 				GetOrder:               true,
+				AccountBalance:         true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,

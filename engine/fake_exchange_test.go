@@ -181,12 +181,12 @@ func (h *FakePassingExchange) GetHistoricCandles(_ currency.Pair, _, _ int64) ([
 }
 func (h *FakePassingExchange) DisableRateLimiter() error { return nil }
 func (h *FakePassingExchange) EnableRateLimiter() error  { return nil }
-func (h *FakePassingExchange) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (h *FakePassingExchange) WithdrawCryptocurrencyFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, nil
 }
-func (h *FakePassingExchange) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (h *FakePassingExchange) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, nil
 }
-func (h *FakePassingExchange) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (h *FakePassingExchange) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, nil
 }

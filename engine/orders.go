@@ -23,15 +23,15 @@ var (
 // get returns all orders for all exchanges
 // should not be exported as it can have large impact if used improperly
 func (o *orderStore) get() map[string][]*order.Detail {
-	o.m.Lock()
-	defer o.m.Unlock()
+	o.m.RLock()
+	defer o.m.RUnlock()
 	return o.Orders
 }
 
 // GetByExchangeAndID returns a specific order by exchange and id
 func (o *orderStore) GetByExchangeAndID(exchange, id string) (*order.Detail, error) {
-	o.m.Lock()
-	defer o.m.Unlock()
+	o.m.RLock()
+	defer o.m.RUnlock()
 	r, ok := o.Orders[exchange]
 	if !ok {
 		return nil, ErrExchangeNotFound
@@ -47,8 +47,8 @@ func (o *orderStore) GetByExchangeAndID(exchange, id string) (*order.Detail, err
 
 // GetByExchange returns orders by exchange
 func (o *orderStore) GetByExchange(exchange string) ([]*order.Detail, error) {
-	o.m.Lock()
-	defer o.m.Unlock()
+	o.m.RLock()
+	defer o.m.RUnlock()
 	r, ok := o.Orders[exchange]
 	if !ok {
 		return nil, ErrExchangeNotFound
@@ -59,16 +59,15 @@ func (o *orderStore) GetByExchange(exchange string) ([]*order.Detail, error) {
 // GetByInternalOrderID will search all orders for our internal orderID
 // and return the order
 func (o *orderStore) GetByInternalOrderID(internalOrderID string) (*order.Detail, error) {
-	o.m.Lock()
+	o.m.RLock()
+	defer o.m.RUnlock()
 	for _, v := range o.Orders {
 		for x := range v {
 			if v[x].InternalOrderID == internalOrderID {
-				o.m.Unlock()
 				return v[x], nil
 			}
 		}
 	}
-	o.m.Unlock()
 	return nil, ErrOrderNotFound
 }
 
@@ -76,20 +75,18 @@ func (o *orderStore) exists(order *order.Detail) bool {
 	if order == nil {
 		return false
 	}
-	o.m.Lock()
+	o.m.RLock()
+	defer o.m.RUnlock()
 	r, ok := o.Orders[order.Exchange]
 	if !ok {
-		o.m.Unlock()
 		return false
 	}
 
 	for x := range r {
 		if r[x].ID == order.ID {
-			o.m.Unlock()
 			return true
 		}
 	}
-	o.m.Unlock()
 	return false
 }
 
@@ -117,10 +114,10 @@ func (o *orderStore) Add(order *order.Detail) error {
 		}
 	}
 	o.m.Lock()
+	defer o.m.Unlock()
 	orders := o.Orders[order.Exchange]
 	orders = append(orders, order)
 	o.Orders[order.Exchange] = orders
-	o.m.Unlock()
 
 	return nil
 }

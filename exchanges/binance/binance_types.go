@@ -138,22 +138,22 @@ type KlineStream struct {
 	EventTime int64  `json:"E"`
 	Symbol    string `json:"s"`
 	Kline     struct {
-		StartTime                int64  `json:"t"`
-		CloseTime                int64  `json:"T"`
-		Symbol                   string `json:"s"`
-		Interval                 string `json:"i"`
-		FirstTradeID             int64  `json:"f"`
-		LastTradeID              int64  `json:"L"`
-		OpenPrice                string `json:"o"`
-		ClosePrice               string `json:"c"`
-		HighPrice                string `json:"h"`
-		LowPrice                 string `json:"l"`
-		Volume                   string `json:"v"`
-		NumberOfTrades           int64  `json:"n"`
-		KlineClosed              bool   `json:"x"`
-		Quote                    string `json:"q"`
-		TakerBuyBaseAssetVolume  string `json:"V"`
-		TakerBuyQuoteAssetVolume string `json:"Q"`
+		StartTime                int64   `json:"t"`
+		CloseTime                int64   `json:"T"`
+		Symbol                   string  `json:"s"`
+		Interval                 string  `json:"i"`
+		FirstTradeID             int64   `json:"f"`
+		LastTradeID              int64   `json:"L"`
+		OpenPrice                float64 `json:"o,string"`
+		ClosePrice               float64 `json:"c,string"`
+		HighPrice                float64 `json:"h,string"`
+		LowPrice                 float64 `json:"l,string"`
+		Volume                   float64 `json:"v,string"`
+		NumberOfTrades           int64   `json:"n"`
+		KlineClosed              bool    `json:"x"`
+		Quote                    float64 `json:"q,string"`
+		TakerBuyBaseAssetVolume  float64 `json:"V,string"`
+		TakerBuyQuoteAssetVolume float64 `json:"Q,string"`
 	} `json:"k"`
 }
 

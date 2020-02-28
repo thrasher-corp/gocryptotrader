@@ -291,7 +291,6 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 				d.AssetType,
 				d)
 		}
-		return nil
 	case wshandler.FundingData:
 		if Bot.Settings.Verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",
@@ -300,7 +299,6 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 				d.AssetType,
 				d)
 		}
-		return nil
 	case *ticker.Price:
 		if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
 			Bot.ExchangeCurrencyPairManager.update(exchName,
@@ -311,7 +309,6 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		}
 		err := ticker.ProcessTicker(exchName, d, d.AssetType)
 		printTickerSummary(d, d.Pair, d.AssetType, exchName, "websocket", err)
-		return nil
 	case wshandler.KlineData:
 		if Bot.Settings.Verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
@@ -320,7 +317,6 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 				d.AssetType,
 				d)
 		}
-		return nil
 	case wshandler.WebsocketOrderbookUpdate:
 		if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
 			Bot.ExchangeCurrencyPairManager.update(exchName,
@@ -337,7 +333,6 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 				FormatCurrency(d.Pair),
 				d.Asset)
 		}
-		return nil
 	case *order.Detail:
 		if !Bot.OrderManager.orderStore.exists(d) {
 			err := Bot.OrderManager.orderStore.Add(d)
@@ -351,7 +346,6 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 			}
 			od.UpdateOrderFromDetail(d)
 		}
-		return nil
 	case *order.Cancel:
 		return Bot.OrderManager.Cancel(d)
 	case *order.Modify:
@@ -360,7 +354,6 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 			return err
 		}
 		od.UpdateOrderFromModify(d)
-		return nil
 	case order.ClassificationError:
 		return errors.New(d.Error())
 	case wshandler.UnhandledMessageWarning:

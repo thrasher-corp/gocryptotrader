@@ -450,26 +450,26 @@ type wsStatus struct {
 		ConvertibleTo []string    `json:"convertible_to"`
 		Details       struct{}    `json:"details"`
 		ID            string      `json:"id"`
-		MaxPrecision  string      `json:"max_precision"`
-		MinSize       string      `json:"min_size"`
+		MaxPrecision  float64     `json:"max_precision,string"`
+		MinSize       float64     `json:"min_size,string"`
 		Name          string      `json:"name"`
 		Status        string      `json:"status"`
 		StatusMessage interface{} `json:"status_message"`
 	} `json:"currencies"`
 	Products []struct {
 		BaseCurrency   string      `json:"base_currency"`
-		BaseIncrement  string      `json:"base_increment"`
-		BaseMaxSize    string      `json:"base_max_size"`
-		BaseMinSize    string      `json:"base_min_size"`
+		BaseIncrement  float64     `json:"base_increment,string"`
+		BaseMaxSize    float64     `json:"base_max_size,string"`
+		BaseMinSize    float64     `json:"base_min_size,string"`
 		CancelOnly     bool        `json:"cancel_only"`
 		DisplayName    string      `json:"display_name"`
 		ID             string      `json:"id"`
 		LimitOnly      bool        `json:"limit_only"`
-		MaxMarketFunds string      `json:"max_market_funds"`
-		MinMarketFunds string      `json:"min_market_funds"`
+		MaxMarketFunds float64     `json:"max_market_funds,string"`
+		MinMarketFunds float64     `json:"min_market_funds,string"`
 		PostOnly       bool        `json:"post_only"`
 		QuoteCurrency  string      `json:"quote_currency"`
-		QuoteIncrement string      `json:"quote_increment"`
+		QuoteIncrement float64     `json:"quote_increment,string"`
 		Status         string      `json:"status"`
 		StatusMessage  interface{} `json:"status_message"`
 	} `json:"products"`

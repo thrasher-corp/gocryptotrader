@@ -49,13 +49,13 @@ func SetupTestHelpers(t *testing.T) {
 	if GetExchangeByName(testExchange) == nil {
 		err := LoadExchange(testExchange, false, nil)
 		if err != nil {
-			t.Errorf("SetupTest: Failed to load exchange: %s", err)
+			t.Fatalf("SetupTest: Failed to load exchange: %s", err)
 		}
 	}
 	if GetExchangeByName(fakePassExchange) == nil {
 		err := addPassingFakeExchange(testExchange)
 		if err != nil {
-			t.Errorf("SetupTest: Failed to load exchange: %s", err)
+			t.Fatalf("SetupTest: Failed to load exchange: %s", err)
 		}
 	}
 }

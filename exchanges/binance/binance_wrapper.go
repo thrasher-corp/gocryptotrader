@@ -104,6 +104,8 @@ func (b *Binance) SetDefaults() {
 				AccountInfo:            true,
 				GetOrder:               true,
 				GetOrders:              true,
+				Subscribe:              true,
+				Unsubscribe:            true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,

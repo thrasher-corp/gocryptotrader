@@ -129,7 +129,7 @@ func TestUnloadExchange(t *testing.T) {
 
 	err = UnloadExchange(fakePassExchange)
 	if err != nil {
-		t.Errorf("TestUnloadExchange: Failed to get exchange. %s",
+		t.Errorf("TestUnloadExchange: Failed to unload exchange. %s",
 			err)
 	}
 

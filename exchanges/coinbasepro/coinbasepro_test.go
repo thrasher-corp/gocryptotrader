@@ -751,7 +751,7 @@ func TestWsStatus(t *testing.T) {
         {
             "id": "BTC",
             "name": "Bitcoin",
-            "min_size":" 0.00000001",
+            "min_size": "0.00000001",
             "status": "online",
             "status_message": null,
             "max_precision": "0.00000001",

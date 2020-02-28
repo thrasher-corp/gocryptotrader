@@ -342,7 +342,7 @@ func (e *Base) GetEnabledPairs(assetType asset.Item) currency.Pairs {
 }
 
 // GetRequestFormattedPairAndAssetType is a method that returns the enabled currency pair of
-// along with its asset type
+// along with its asset type. Only use when there is no chance of the same name crossing over
 func (e *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, asset.Item, error) {
 	assetTypes := e.GetAssetTypes()
 	var response currency.Pair
@@ -356,7 +356,7 @@ func (e *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, ass
 			}
 		}
 	}
-	return response, "", errors.New("Pair not found: " + p)
+	return response, "", errors.New("pair not found: " + p)
 }
 
 // GetAvailablePairs is a method that returns the available currency pairs
