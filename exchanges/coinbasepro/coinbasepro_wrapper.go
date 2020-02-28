@@ -482,7 +482,7 @@ func (c *CoinbasePro) GetOrderInfo(orderID string) (order.Detail, error) {
 		Status:          os,
 		Price:           genOrderDetail.Price,
 		Amount:          genOrderDetail.Size,
-		ExecutedAmount:  genOrderDetail.ExecutedValue,
+		ExecutedAmount:  genOrderDetail.FilledSize,
 		RemainingAmount: genOrderDetail.Size - genOrderDetail.FilledSize,
 		Fee:             genOrderDetail.FillFees,
 	}
