@@ -746,13 +746,14 @@ func TestWsOCO(t *testing.T) {
 
 func TestGetWsAuthStreamKey(t *testing.T) {
 	key, err := b.GetWsAuthStreamKey()
-	if mockTests && err != nil {
+	switch {
+	case mockTests && err != nil,
+		!mockTests && areTestAPIKeysSet() && err != nil:
 		t.Fatal(err)
-	} else if !mockTests && !areTestAPIKeysSet() && err == nil {
+	case !mockTests && !areTestAPIKeysSet() && err == nil:
 		t.Fatal("Expected error")
-	} else if !mockTests && areTestAPIKeysSet() && err != nil {
-		t.Fatal(err)
 	}
+
 	if key == "" {
 		t.Error("Expected key")
 	}
@@ -760,12 +761,12 @@ func TestGetWsAuthStreamKey(t *testing.T) {
 
 func TestMaintainWsAuthStreamKey(t *testing.T) {
 	err := b.MaintainWsAuthStreamKey()
-	if mockTests && err != nil {
+	switch {
+	case mockTests && err != nil,
+		!mockTests && areTestAPIKeysSet() && err != nil:
 		t.Fatal(err)
-	} else if !mockTests && !areTestAPIKeysSet() && err == nil {
+	case !mockTests && !areTestAPIKeysSet() && err == nil:
 		t.Fatal("Expected error")
-	} else if !mockTests && areTestAPIKeysSet() && err != nil {
-		t.Fatal(err)
 	}
 }
 
