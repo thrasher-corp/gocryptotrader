@@ -112,5 +112,4 @@ func TestCreateKline(t *testing.T) {
 	if len(c.Candles) == 0 {
 		t.Fatal("no data returned, expecting a lot.")
 	}
-
 }

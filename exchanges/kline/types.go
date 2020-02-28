@@ -42,9 +42,3 @@ type Candle struct {
 	Close  float64
 	Volume float64
 }
-
-// HeartBeat denotes open and close times on a chart respective to time period
-type HeartBeat struct {
-	Open  time.Time
-	Close time.Time
-}

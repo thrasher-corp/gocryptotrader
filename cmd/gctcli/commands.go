@@ -3591,8 +3591,8 @@ func getHistoricCandles(c *cli.Context) error {
 
 	candleInterval := time.Duration(candleGranularity) * time.Second
 
-	end := time.Now().UTC().Truncate(time.Duration(candleInterval))
-	start := end.Add(-time.Duration(candleInterval) * time.Duration(candleRangeSize))
+	end := time.Now().UTC().Truncate(candleInterval)
+	start := end.Add(-candleInterval * time.Duration(candleRangeSize))
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetHistoricCandles(context.Background(),

@@ -27,7 +27,7 @@ func CreateKline(trades []order.TradeHistory, interval time.Duration, p currency
 
 	// Adds time interval buffer zones
 	var timeIntervalCache [][]order.TradeHistory
-	var OpenClose []HeartBeat
+	var candleStart []time.Time
 
 	for t := timeIntervalStart; t.Before(timeIntervalEnd); t = t.Add(interval) {
 		timeBufferEnd := t.Add(interval)
@@ -47,13 +47,13 @@ func CreateKline(trades []order.TradeHistory, interval time.Duration, p currency
 			break
 		}
 
+		candleStart = append(candleStart, t)
+
 		// Insert dummy in time period when there is no price action
 		if insertionCount == 0 {
-			OpenClose = append(OpenClose, HeartBeat{Open: t, Close: timeBufferEnd})
 			timeIntervalCache = append(timeIntervalCache, []order.TradeHistory{})
 			continue
 		}
-		OpenClose = append(OpenClose, HeartBeat{Open: t, Close: timeBufferEnd})
 		timeIntervalCache = append(timeIntervalCache, zonedTradeHistory)
 	}
 
@@ -68,7 +68,7 @@ func CreateKline(trades []order.TradeHistory, interval time.Duration, p currency
 	for x := range timeIntervalCache {
 		if len(timeIntervalCache[x]) == 0 {
 			candles.Candles = append(candles.Candles, Candle{
-				Time:  OpenClose[x].Open,
+				Time:  candleStart[x],
 				High:  closePriceOfLast,
 				Low:   closePriceOfLast,
 				Close: closePriceOfLast,
@@ -80,7 +80,7 @@ func CreateKline(trades []order.TradeHistory, interval time.Duration, p currency
 		for y := range timeIntervalCache[x] {
 			if y == 0 {
 				newCandle.Open = timeIntervalCache[x][y].Price
-				newCandle.Time = OpenClose[x].Open
+				newCandle.Time = candleStart[x]
 			}
 			if y == len(timeIntervalCache[x])-1 {
 				newCandle.Close = timeIntervalCache[x][y].Price

@@ -633,18 +633,8 @@ func (c *CoinbasePro) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
 }
 
-// checkInterval checks allowable interval and if it exceeds 300 possible return
-// entries will throw an error
+// checkInterval checks allowable interval
 func checkInterval(i time.Duration, start, end time.Time) (int64, error) {
-	var counter int
-	for newstart := start.Truncate(i); newstart.Before(end.Truncate(i)); newstart = newstart.Add(i) {
-		counter++
-	}
-
-	if counter > 300 {
-		return 0, errors.New("potential candles exceed 300 please reduce time between start and end")
-	}
-
 	switch i.Seconds() {
 	case 60:
 		return 60, nil
@@ -656,7 +646,7 @@ func checkInterval(i time.Duration, start, end time.Time) (int64, error) {
 		return 3600, nil
 	case 21600:
 		return 21600, nil
-	case 86400.00:
+	case 86400:
 		return 86400, nil
 	}
 	return 0, fmt.Errorf("interval not allowed %v %v", i.Seconds(), i)
