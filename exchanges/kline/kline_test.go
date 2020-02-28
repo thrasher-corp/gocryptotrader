@@ -101,7 +101,7 @@ func TestCreateKline(t *testing.T) {
 	}
 
 	c, err = CreateKline(trades,
-		time.Duration(OneMin),
+		OneMin,
 		currency.NewPair(currency.BTC, currency.USD),
 		asset.Spot,
 		"Binance")

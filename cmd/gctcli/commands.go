@@ -4024,9 +4024,9 @@ func getHistoricCandles(c *cli.Context) error {
 
 	var assetType string
 	if c.IsSet("asset") {
-		currencyPair = c.String("asset")
+		assetType = c.String("asset")
 	} else {
-		currencyPair = c.Args().Get(2)
+		assetType = c.Args().Get(2)
 	}
 
 	if c.IsSet("rangesize") {

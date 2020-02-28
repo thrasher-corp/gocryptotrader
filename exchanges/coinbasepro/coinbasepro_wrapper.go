@@ -648,7 +648,7 @@ func (c *CoinbasePro) AuthenticateWebsocket() error {
 }
 
 // checkInterval checks allowable interval
-func checkInterval(i time.Duration, start, end time.Time) (int64, error) {
+func checkInterval(i time.Duration) (int64, error) {
 	switch i.Seconds() {
 	case 60:
 		return 60, nil
@@ -669,7 +669,7 @@ func checkInterval(i time.Duration, start, end time.Time) (int64, error) {
 // GetHistoricCandles returns a set of candle between two time periods for a
 // designated time period
 func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
-	i, err := checkInterval(interval, start, end)
+	i, err := checkInterval(interval)
 	if err != nil {
 		return kline.Item{}, err
 	}
