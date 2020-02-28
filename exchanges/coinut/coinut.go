@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
@@ -40,6 +41,7 @@ const (
 	coinutPositionOpen    = "user_open_positions"
 
 	coinutStatusOK = "OK"
+	coinutMaxNonce = 16777215 // See https://github.com/coinut/api/wiki/Websocket-API#nonce
 )
 
 var (
@@ -269,12 +271,11 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, c.Name)
 	}
 
-	n := c.Requester.GetNonce(false)
-
 	if params == nil {
 		params = map[string]interface{}{}
 	}
-	params["nonce"] = n
+
+	params["nonce"] = getNonce()
 	params["request"] = apiRequest
 
 	payload, err := json.Marshal(params)
@@ -302,7 +303,6 @@ func (c *COINUT) SendHTTPRequest(apiRequest string, params map[string]interface{
 		Body:          bytes.NewBuffer(payload),
 		Result:        &rawMsg,
 		AuthRequest:   authenticated,
-		NonceEnabled:  true,
 		Verbose:       c.Verbose,
 		HTTPDebugging: c.HTTPDebugging,
 		HTTPRecording: c.HTTPRecording,
@@ -494,4 +494,8 @@ func (i *instrumentMap) GetInstrumentIDs() []int64 {
 		instruments = append(instruments, x)
 	}
 	return instruments
+}
+
+func getNonce() int64 {
+	return rand.Int63n(coinutMaxNonce-1) + 1
 }

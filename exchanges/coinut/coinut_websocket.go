@@ -233,24 +233,13 @@ func (c *COINUT) wsProcessResponse(resp []byte) {
 	}
 }
 
-// GetNonce returns a nonce for a required request
-func (c *COINUT) GetNonce() int64 {
-	if c.Nonce.Get() == 0 {
-		c.Nonce.Set(time.Now().Unix())
-	} else {
-		c.Nonce.Inc()
-	}
-
-	return int64(c.Nonce.Get())
-}
-
 // WsGetInstruments fetches instrument list and propagates a local cache
 func (c *COINUT) WsGetInstruments() (Instruments, error) {
 	var list Instruments
 	request := wsRequest{
 		Request: "inst_list",
 		SecType: strings.ToUpper(asset.Spot.String()),
-		Nonce:   c.WebsocketConn.GenerateMessageID(false),
+		Nonce:   getNonce(),
 	}
 	resp, err := c.WebsocketConn.SendMessageReturnResponse(request.Nonce, request)
 	if err != nil {
@@ -344,7 +333,7 @@ func (c *COINUT) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 		InstID: c.instrumentMap.LookupID(c.FormatExchangeCurrency(channelToSubscribe.Currency,
 			asset.Spot).String()),
 		Subscribe: true,
-		Nonce:     c.WebsocketConn.GenerateMessageID(false),
+		Nonce:     getNonce(),
 	}
 	return c.WebsocketConn.SendJSONMessage(subscribe)
 }
@@ -356,7 +345,7 @@ func (c *COINUT) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 		InstID: c.instrumentMap.LookupID(c.FormatExchangeCurrency(channelToSubscribe.Currency,
 			asset.Spot).String()),
 		Subscribe: false,
-		Nonce:     c.WebsocketConn.GenerateMessageID(false),
+		Nonce:     getNonce(),
 	}
 	resp, err := c.WebsocketConn.SendMessageReturnResponse(subscribe.Nonce, subscribe)
 	if err != nil {
@@ -378,7 +367,7 @@ func (c *COINUT) wsAuthenticate() error {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", c.Name)
 	}
 	timestamp := time.Now().Unix()
-	nonce := c.WebsocketConn.GenerateMessageID(false)
+	nonce := getNonce()
 	payload := c.API.Credentials.ClientID + "|" +
 		strconv.FormatInt(timestamp, 10) + "|" +
 		strconv.FormatInt(nonce, 10)
@@ -420,7 +409,7 @@ func (c *COINUT) wsGetAccountBalance() (*UserBalance, error) {
 	}
 	accBalance := wsRequest{
 		Request: "user_balance",
-		Nonce:   c.WebsocketConn.GenerateMessageID(false),
+		Nonce:   getNonce(),
 	}
 	resp, err := c.WebsocketConn.SendMessageReturnResponse(accBalance.Nonce, accBalance)
 	if err != nil {
@@ -444,7 +433,7 @@ func (c *COINUT) wsSubmitOrder(o *WsSubmitOrderParameters) (*WsStandardOrderResp
 	curr := c.FormatExchangeCurrency(o.Currency, asset.Spot).String()
 	var orderSubmissionRequest WsSubmitOrderRequest
 	orderSubmissionRequest.Request = "new_order"
-	orderSubmissionRequest.Nonce = c.WebsocketConn.GenerateMessageID(false)
+	orderSubmissionRequest.Nonce = getNonce()
 	orderSubmissionRequest.InstID = c.instrumentMap.LookupID(curr)
 	orderSubmissionRequest.Qty = o.Amount
 	orderSubmissionRequest.Price = o.Price
@@ -561,7 +550,7 @@ func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]WsStandardO
 			})
 	}
 
-	orderRequest.Nonce = c.WebsocketConn.GenerateMessageID(false)
+	orderRequest.Nonce = getNonce()
 	orderRequest.Request = "new_orders"
 	resp, err := c.WebsocketConn.SendMessageReturnResponse(orderRequest.Nonce, orderRequest)
 	if err != nil {
@@ -612,7 +601,7 @@ func (c *COINUT) wsGetOpenOrders(curr string) (*WsUserOpenOrdersResponse, error)
 	}
 	var openOrdersRequest WsGetOpenOrdersRequest
 	openOrdersRequest.Request = "user_open_orders"
-	openOrdersRequest.Nonce = c.WebsocketConn.GenerateMessageID(false)
+	openOrdersRequest.Nonce = getNonce()
 	openOrdersRequest.InstID = c.instrumentMap.LookupID(curr)
 
 	resp, err := c.WebsocketConn.SendMessageReturnResponse(openOrdersRequest.Nonce, openOrdersRequest)
@@ -641,7 +630,7 @@ func (c *COINUT) wsCancelOrder(cancellation *WsCancelOrderParameters) (*CancelOr
 	cancellationRequest.Request = "cancel_order"
 	cancellationRequest.InstID = c.instrumentMap.LookupID(curr)
 	cancellationRequest.OrderID = cancellation.OrderID
-	cancellationRequest.Nonce = c.WebsocketConn.GenerateMessageID(false)
+	cancellationRequest.Nonce = getNonce()
 
 	resp, err := c.WebsocketConn.SendMessageReturnResponse(cancellationRequest.Nonce, cancellationRequest)
 	if err != nil {
@@ -677,7 +666,7 @@ func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) (*Cance
 	}
 
 	cancelOrderRequest.Request = "cancel_orders"
-	cancelOrderRequest.Nonce = c.WebsocketConn.GenerateMessageID(false)
+	cancelOrderRequest.Nonce = getNonce()
 	resp, err := c.WebsocketConn.SendMessageReturnResponse(cancelOrderRequest.Nonce, cancelOrderRequest)
 	if err != nil {
 		return response, err
@@ -698,7 +687,7 @@ func (c *COINUT) wsGetTradeHistory(p currency.Pair, start, limit int64) (*WsTrad
 	var request WsTradeHistoryRequest
 	request.Request = "trade_history"
 	request.InstID = c.instrumentMap.LookupID(curr)
-	request.Nonce = c.WebsocketConn.GenerateMessageID(false)
+	request.Nonce = getNonce()
 	request.Start = start
 	request.Limit = limit
 
