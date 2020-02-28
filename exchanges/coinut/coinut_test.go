@@ -640,3 +640,12 @@ func TestCurrencyMapInstrumentIDs(t *testing.T) {
 		t.Error("unexpected result")
 	}
 }
+
+func TestGetNonce(t *testing.T) {
+	result := getNonce()
+	for x := 0; x < 100000; x++ {
+		if result <= 0 || result > coinutMaxNonce {
+			t.Fatal("invalid nonce value")
+		}
+	}
+}
