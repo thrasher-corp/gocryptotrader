@@ -6,12 +6,14 @@ package gctrpc
 import (
 	context "context"
 	fmt "fmt"
+	math "math"
+
 	proto "github.com/golang/protobuf/proto"
+	timestamp "github.com/golang/protobuf/ptypes/timestamp"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -2356,6 +2358,8 @@ type AddPortfolioAddressRequest struct {
 	CoinType             string   `protobuf:"bytes,2,opt,name=coin_type,json=coinType,proto3" json:"coin_type,omitempty"`
 	Description          string   `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	Balance              float64  `protobuf:"fixed64,4,opt,name=balance,proto3" json:"balance,omitempty"`
+	SupportedExchanges   string   `protobuf:"bytes,5,opt,name=supported_exchanges,json=supportedExchanges,proto3" json:"supported_exchanges,omitempty"`
+	ColdStorage          bool     `protobuf:"varint,6,opt,name=cold_storage,json=coldStorage,proto3" json:"cold_storage,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -2412,6 +2416,20 @@ func (m *AddPortfolioAddressRequest) GetBalance() float64 {
 		return m.Balance
 	}
 	return 0
+}
+
+func (m *AddPortfolioAddressRequest) GetSupportedExchanges() string {
+	if m != nil {
+		return m.SupportedExchanges
+	}
+	return ""
+}
+
+func (m *AddPortfolioAddressRequest) GetColdStorage() bool {
+	if m != nil {
+		return m.ColdStorage
+	}
+	return false
 }
 
 type AddPortfolioAddressResponse struct {
@@ -4220,175 +4238,167 @@ func (m *GetCryptocurrencyDepositAddressResponse) GetAddress() string {
 	return ""
 }
 
-type WithdrawCurrencyRequest struct {
+type WithdrawFiatRequest struct {
 	Exchange             string   `protobuf:"bytes,1,opt,name=exchange,proto3" json:"exchange,omitempty"`
-	Description          string   `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
-	OneTimePassword      string   `protobuf:"bytes,3,opt,name=one_time_password,json=oneTimePassword,proto3" json:"one_time_password,omitempty"`
-	AccountId            string   `protobuf:"bytes,4,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Pin                  int64    `protobuf:"varint,5,opt,name=pin,proto3" json:"pin,omitempty"`
-	TradePassword        string   `protobuf:"bytes,6,opt,name=trade_password,json=tradePassword,proto3" json:"trade_password,omitempty"`
-	Currency             string   `protobuf:"bytes,7,opt,name=currency,proto3" json:"currency,omitempty"`
-	Address              string   `protobuf:"bytes,8,opt,name=address,proto3" json:"address,omitempty"`
-	AddressTag           string   `protobuf:"bytes,9,opt,name=address_tag,json=addressTag,proto3" json:"address_tag,omitempty"`
-	Amount               float64  `protobuf:"fixed64,10,opt,name=amount,proto3" json:"amount,omitempty"`
-	FeeAmount            float64  `protobuf:"fixed64,11,opt,name=fee_amount,json=feeAmount,proto3" json:"fee_amount,omitempty"`
-	BankName             string   `protobuf:"bytes,12,opt,name=bank_name,json=bankName,proto3" json:"bank_name,omitempty"`
-	BankAddress          string   `protobuf:"bytes,13,opt,name=bank_address,json=bankAddress,proto3" json:"bank_address,omitempty"`
-	BankCity             string   `protobuf:"bytes,14,opt,name=bank_city,json=bankCity,proto3" json:"bank_city,omitempty"`
-	BankCountry          string   `protobuf:"bytes,15,opt,name=bank_country,json=bankCountry,proto3" json:"bank_country,omitempty"`
-	SwifeCode            string   `protobuf:"bytes,16,opt,name=swife_code,json=swifeCode,proto3" json:"swife_code,omitempty"`
-	WireCurrency         string   `protobuf:"bytes,17,opt,name=wire_currency,json=wireCurrency,proto3" json:"wire_currency,omitempty"`
+	Currency             string   `protobuf:"bytes,2,opt,name=currency,proto3" json:"currency,omitempty"`
+	Amount               float64  `protobuf:"fixed64,3,opt,name=amount,proto3" json:"amount,omitempty"`
+	Description          string   `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	BankAccountId        string   `protobuf:"bytes,5,opt,name=bank_account_id,json=bankAccountId,proto3" json:"bank_account_id,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *WithdrawCurrencyRequest) Reset()         { *m = WithdrawCurrencyRequest{} }
-func (m *WithdrawCurrencyRequest) String() string { return proto.CompactTextString(m) }
-func (*WithdrawCurrencyRequest) ProtoMessage()    {}
-func (*WithdrawCurrencyRequest) Descriptor() ([]byte, []int) {
+func (m *WithdrawFiatRequest) Reset()         { *m = WithdrawFiatRequest{} }
+func (m *WithdrawFiatRequest) String() string { return proto.CompactTextString(m) }
+func (*WithdrawFiatRequest) ProtoMessage()    {}
+func (*WithdrawFiatRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_77a6da22d6a3feb1, []int{84}
 }
 
-func (m *WithdrawCurrencyRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_WithdrawCurrencyRequest.Unmarshal(m, b)
+func (m *WithdrawFiatRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WithdrawFiatRequest.Unmarshal(m, b)
 }
-func (m *WithdrawCurrencyRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_WithdrawCurrencyRequest.Marshal(b, m, deterministic)
+func (m *WithdrawFiatRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WithdrawFiatRequest.Marshal(b, m, deterministic)
 }
-func (m *WithdrawCurrencyRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_WithdrawCurrencyRequest.Merge(m, src)
+func (m *WithdrawFiatRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WithdrawFiatRequest.Merge(m, src)
 }
-func (m *WithdrawCurrencyRequest) XXX_Size() int {
-	return xxx_messageInfo_WithdrawCurrencyRequest.Size(m)
+func (m *WithdrawFiatRequest) XXX_Size() int {
+	return xxx_messageInfo_WithdrawFiatRequest.Size(m)
 }
-func (m *WithdrawCurrencyRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_WithdrawCurrencyRequest.DiscardUnknown(m)
+func (m *WithdrawFiatRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_WithdrawFiatRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_WithdrawCurrencyRequest proto.InternalMessageInfo
+var xxx_messageInfo_WithdrawFiatRequest proto.InternalMessageInfo
 
-func (m *WithdrawCurrencyRequest) GetExchange() string {
+func (m *WithdrawFiatRequest) GetExchange() string {
 	if m != nil {
 		return m.Exchange
 	}
 	return ""
 }
 
-func (m *WithdrawCurrencyRequest) GetDescription() string {
-	if m != nil {
-		return m.Description
-	}
-	return ""
-}
-
-func (m *WithdrawCurrencyRequest) GetOneTimePassword() string {
-	if m != nil {
-		return m.OneTimePassword
-	}
-	return ""
-}
-
-func (m *WithdrawCurrencyRequest) GetAccountId() string {
-	if m != nil {
-		return m.AccountId
-	}
-	return ""
-}
-
-func (m *WithdrawCurrencyRequest) GetPin() int64 {
-	if m != nil {
-		return m.Pin
-	}
-	return 0
-}
-
-func (m *WithdrawCurrencyRequest) GetTradePassword() string {
-	if m != nil {
-		return m.TradePassword
-	}
-	return ""
-}
-
-func (m *WithdrawCurrencyRequest) GetCurrency() string {
+func (m *WithdrawFiatRequest) GetCurrency() string {
 	if m != nil {
 		return m.Currency
 	}
 	return ""
 }
 
-func (m *WithdrawCurrencyRequest) GetAddress() string {
-	if m != nil {
-		return m.Address
-	}
-	return ""
-}
-
-func (m *WithdrawCurrencyRequest) GetAddressTag() string {
-	if m != nil {
-		return m.AddressTag
-	}
-	return ""
-}
-
-func (m *WithdrawCurrencyRequest) GetAmount() float64 {
+func (m *WithdrawFiatRequest) GetAmount() float64 {
 	if m != nil {
 		return m.Amount
 	}
 	return 0
 }
 
-func (m *WithdrawCurrencyRequest) GetFeeAmount() float64 {
+func (m *WithdrawFiatRequest) GetDescription() string {
 	if m != nil {
-		return m.FeeAmount
+		return m.Description
+	}
+	return ""
+}
+
+func (m *WithdrawFiatRequest) GetBankAccountId() string {
+	if m != nil {
+		return m.BankAccountId
+	}
+	return ""
+}
+
+type WithdrawCryptoRequest struct {
+	Exchange             string   `protobuf:"bytes,1,opt,name=exchange,proto3" json:"exchange,omitempty"`
+	Address              string   `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
+	AddressTag           string   `protobuf:"bytes,3,opt,name=address_tag,json=addressTag,proto3" json:"address_tag,omitempty"`
+	Currency             string   `protobuf:"bytes,4,opt,name=currency,proto3" json:"currency,omitempty"`
+	Amount               float64  `protobuf:"fixed64,5,opt,name=amount,proto3" json:"amount,omitempty"`
+	Fee                  float64  `protobuf:"fixed64,6,opt,name=fee,proto3" json:"fee,omitempty"`
+	Description          string   `protobuf:"bytes,7,opt,name=description,proto3" json:"description,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *WithdrawCryptoRequest) Reset()         { *m = WithdrawCryptoRequest{} }
+func (m *WithdrawCryptoRequest) String() string { return proto.CompactTextString(m) }
+func (*WithdrawCryptoRequest) ProtoMessage()    {}
+func (*WithdrawCryptoRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{85}
+}
+
+func (m *WithdrawCryptoRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WithdrawCryptoRequest.Unmarshal(m, b)
+}
+func (m *WithdrawCryptoRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WithdrawCryptoRequest.Marshal(b, m, deterministic)
+}
+func (m *WithdrawCryptoRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WithdrawCryptoRequest.Merge(m, src)
+}
+func (m *WithdrawCryptoRequest) XXX_Size() int {
+	return xxx_messageInfo_WithdrawCryptoRequest.Size(m)
+}
+func (m *WithdrawCryptoRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_WithdrawCryptoRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WithdrawCryptoRequest proto.InternalMessageInfo
+
+func (m *WithdrawCryptoRequest) GetExchange() string {
+	if m != nil {
+		return m.Exchange
+	}
+	return ""
+}
+
+func (m *WithdrawCryptoRequest) GetAddress() string {
+	if m != nil {
+		return m.Address
+	}
+	return ""
+}
+
+func (m *WithdrawCryptoRequest) GetAddressTag() string {
+	if m != nil {
+		return m.AddressTag
+	}
+	return ""
+}
+
+func (m *WithdrawCryptoRequest) GetCurrency() string {
+	if m != nil {
+		return m.Currency
+	}
+	return ""
+}
+
+func (m *WithdrawCryptoRequest) GetAmount() float64 {
+	if m != nil {
+		return m.Amount
 	}
 	return 0
 }
 
-func (m *WithdrawCurrencyRequest) GetBankName() string {
+func (m *WithdrawCryptoRequest) GetFee() float64 {
 	if m != nil {
-		return m.BankName
+		return m.Fee
 	}
-	return ""
+	return 0
 }
 
-func (m *WithdrawCurrencyRequest) GetBankAddress() string {
+func (m *WithdrawCryptoRequest) GetDescription() string {
 	if m != nil {
-		return m.BankAddress
-	}
-	return ""
-}
-
-func (m *WithdrawCurrencyRequest) GetBankCity() string {
-	if m != nil {
-		return m.BankCity
-	}
-	return ""
-}
-
-func (m *WithdrawCurrencyRequest) GetBankCountry() string {
-	if m != nil {
-		return m.BankCountry
-	}
-	return ""
-}
-
-func (m *WithdrawCurrencyRequest) GetSwifeCode() string {
-	if m != nil {
-		return m.SwifeCode
-	}
-	return ""
-}
-
-func (m *WithdrawCurrencyRequest) GetWireCurrency() string {
-	if m != nil {
-		return m.WireCurrency
+		return m.Description
 	}
 	return ""
 }
 
 type WithdrawResponse struct {
-	Result               string   `protobuf:"bytes,1,opt,name=result,proto3" json:"result,omitempty"`
+	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Status               string   `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -4398,7 +4408,7 @@ func (m *WithdrawResponse) Reset()         { *m = WithdrawResponse{} }
 func (m *WithdrawResponse) String() string { return proto.CompactTextString(m) }
 func (*WithdrawResponse) ProtoMessage()    {}
 func (*WithdrawResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{85}
+	return fileDescriptor_77a6da22d6a3feb1, []int{86}
 }
 
 func (m *WithdrawResponse) XXX_Unmarshal(b []byte) error {
@@ -4419,11 +4429,592 @@ func (m *WithdrawResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_WithdrawResponse proto.InternalMessageInfo
 
-func (m *WithdrawResponse) GetResult() string {
+func (m *WithdrawResponse) GetId() string {
 	if m != nil {
-		return m.Result
+		return m.Id
 	}
 	return ""
+}
+
+func (m *WithdrawResponse) GetStatus() string {
+	if m != nil {
+		return m.Status
+	}
+	return ""
+}
+
+type WithdrawalEventByIDRequest struct {
+	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *WithdrawalEventByIDRequest) Reset()         { *m = WithdrawalEventByIDRequest{} }
+func (m *WithdrawalEventByIDRequest) String() string { return proto.CompactTextString(m) }
+func (*WithdrawalEventByIDRequest) ProtoMessage()    {}
+func (*WithdrawalEventByIDRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{87}
+}
+
+func (m *WithdrawalEventByIDRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WithdrawalEventByIDRequest.Unmarshal(m, b)
+}
+func (m *WithdrawalEventByIDRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WithdrawalEventByIDRequest.Marshal(b, m, deterministic)
+}
+func (m *WithdrawalEventByIDRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WithdrawalEventByIDRequest.Merge(m, src)
+}
+func (m *WithdrawalEventByIDRequest) XXX_Size() int {
+	return xxx_messageInfo_WithdrawalEventByIDRequest.Size(m)
+}
+func (m *WithdrawalEventByIDRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_WithdrawalEventByIDRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WithdrawalEventByIDRequest proto.InternalMessageInfo
+
+func (m *WithdrawalEventByIDRequest) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
+type WithdrawalEventByIDResponse struct {
+	Event                *WithdrawalEventResponse `protobuf:"bytes,2,opt,name=event,proto3" json:"event,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                 `json:"-"`
+	XXX_unrecognized     []byte                   `json:"-"`
+	XXX_sizecache        int32                    `json:"-"`
+}
+
+func (m *WithdrawalEventByIDResponse) Reset()         { *m = WithdrawalEventByIDResponse{} }
+func (m *WithdrawalEventByIDResponse) String() string { return proto.CompactTextString(m) }
+func (*WithdrawalEventByIDResponse) ProtoMessage()    {}
+func (*WithdrawalEventByIDResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{88}
+}
+
+func (m *WithdrawalEventByIDResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WithdrawalEventByIDResponse.Unmarshal(m, b)
+}
+func (m *WithdrawalEventByIDResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WithdrawalEventByIDResponse.Marshal(b, m, deterministic)
+}
+func (m *WithdrawalEventByIDResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WithdrawalEventByIDResponse.Merge(m, src)
+}
+func (m *WithdrawalEventByIDResponse) XXX_Size() int {
+	return xxx_messageInfo_WithdrawalEventByIDResponse.Size(m)
+}
+func (m *WithdrawalEventByIDResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_WithdrawalEventByIDResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WithdrawalEventByIDResponse proto.InternalMessageInfo
+
+func (m *WithdrawalEventByIDResponse) GetEvent() *WithdrawalEventResponse {
+	if m != nil {
+		return m.Event
+	}
+	return nil
+}
+
+type WithdrawalEventsByExchangeRequest struct {
+	Exchange             string   `protobuf:"bytes,1,opt,name=exchange,proto3" json:"exchange,omitempty"`
+	Id                   string   `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Limit                int32    `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *WithdrawalEventsByExchangeRequest) Reset()         { *m = WithdrawalEventsByExchangeRequest{} }
+func (m *WithdrawalEventsByExchangeRequest) String() string { return proto.CompactTextString(m) }
+func (*WithdrawalEventsByExchangeRequest) ProtoMessage()    {}
+func (*WithdrawalEventsByExchangeRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{89}
+}
+
+func (m *WithdrawalEventsByExchangeRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WithdrawalEventsByExchangeRequest.Unmarshal(m, b)
+}
+func (m *WithdrawalEventsByExchangeRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WithdrawalEventsByExchangeRequest.Marshal(b, m, deterministic)
+}
+func (m *WithdrawalEventsByExchangeRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WithdrawalEventsByExchangeRequest.Merge(m, src)
+}
+func (m *WithdrawalEventsByExchangeRequest) XXX_Size() int {
+	return xxx_messageInfo_WithdrawalEventsByExchangeRequest.Size(m)
+}
+func (m *WithdrawalEventsByExchangeRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_WithdrawalEventsByExchangeRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WithdrawalEventsByExchangeRequest proto.InternalMessageInfo
+
+func (m *WithdrawalEventsByExchangeRequest) GetExchange() string {
+	if m != nil {
+		return m.Exchange
+	}
+	return ""
+}
+
+func (m *WithdrawalEventsByExchangeRequest) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
+func (m *WithdrawalEventsByExchangeRequest) GetLimit() int32 {
+	if m != nil {
+		return m.Limit
+	}
+	return 0
+}
+
+type WithdrawalEventsByDateRequest struct {
+	Exchange             string   `protobuf:"bytes,1,opt,name=exchange,proto3" json:"exchange,omitempty"`
+	Start                string   `protobuf:"bytes,2,opt,name=start,proto3" json:"start,omitempty"`
+	End                  string   `protobuf:"bytes,3,opt,name=end,proto3" json:"end,omitempty"`
+	Limit                int32    `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *WithdrawalEventsByDateRequest) Reset()         { *m = WithdrawalEventsByDateRequest{} }
+func (m *WithdrawalEventsByDateRequest) String() string { return proto.CompactTextString(m) }
+func (*WithdrawalEventsByDateRequest) ProtoMessage()    {}
+func (*WithdrawalEventsByDateRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{90}
+}
+
+func (m *WithdrawalEventsByDateRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WithdrawalEventsByDateRequest.Unmarshal(m, b)
+}
+func (m *WithdrawalEventsByDateRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WithdrawalEventsByDateRequest.Marshal(b, m, deterministic)
+}
+func (m *WithdrawalEventsByDateRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WithdrawalEventsByDateRequest.Merge(m, src)
+}
+func (m *WithdrawalEventsByDateRequest) XXX_Size() int {
+	return xxx_messageInfo_WithdrawalEventsByDateRequest.Size(m)
+}
+func (m *WithdrawalEventsByDateRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_WithdrawalEventsByDateRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WithdrawalEventsByDateRequest proto.InternalMessageInfo
+
+func (m *WithdrawalEventsByDateRequest) GetExchange() string {
+	if m != nil {
+		return m.Exchange
+	}
+	return ""
+}
+
+func (m *WithdrawalEventsByDateRequest) GetStart() string {
+	if m != nil {
+		return m.Start
+	}
+	return ""
+}
+
+func (m *WithdrawalEventsByDateRequest) GetEnd() string {
+	if m != nil {
+		return m.End
+	}
+	return ""
+}
+
+func (m *WithdrawalEventsByDateRequest) GetLimit() int32 {
+	if m != nil {
+		return m.Limit
+	}
+	return 0
+}
+
+type WithdrawalEventsByExchangeResponse struct {
+	Event                []*WithdrawalEventResponse `protobuf:"bytes,2,rep,name=event,proto3" json:"event,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                   `json:"-"`
+	XXX_unrecognized     []byte                     `json:"-"`
+	XXX_sizecache        int32                      `json:"-"`
+}
+
+func (m *WithdrawalEventsByExchangeResponse) Reset()         { *m = WithdrawalEventsByExchangeResponse{} }
+func (m *WithdrawalEventsByExchangeResponse) String() string { return proto.CompactTextString(m) }
+func (*WithdrawalEventsByExchangeResponse) ProtoMessage()    {}
+func (*WithdrawalEventsByExchangeResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{91}
+}
+
+func (m *WithdrawalEventsByExchangeResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WithdrawalEventsByExchangeResponse.Unmarshal(m, b)
+}
+func (m *WithdrawalEventsByExchangeResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WithdrawalEventsByExchangeResponse.Marshal(b, m, deterministic)
+}
+func (m *WithdrawalEventsByExchangeResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WithdrawalEventsByExchangeResponse.Merge(m, src)
+}
+func (m *WithdrawalEventsByExchangeResponse) XXX_Size() int {
+	return xxx_messageInfo_WithdrawalEventsByExchangeResponse.Size(m)
+}
+func (m *WithdrawalEventsByExchangeResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_WithdrawalEventsByExchangeResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WithdrawalEventsByExchangeResponse proto.InternalMessageInfo
+
+func (m *WithdrawalEventsByExchangeResponse) GetEvent() []*WithdrawalEventResponse {
+	if m != nil {
+		return m.Event
+	}
+	return nil
+}
+
+type WithdrawalEventResponse struct {
+	Id                   string                  `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Exchange             *WithdrawlExchangeEvent `protobuf:"bytes,3,opt,name=exchange,proto3" json:"exchange,omitempty"`
+	Request              *WithdrawalRequestEvent `protobuf:"bytes,4,opt,name=request,proto3" json:"request,omitempty"`
+	CreatedAt            *timestamp.Timestamp    `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt            *timestamp.Timestamp    `protobuf:"bytes,6,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                `json:"-"`
+	XXX_unrecognized     []byte                  `json:"-"`
+	XXX_sizecache        int32                   `json:"-"`
+}
+
+func (m *WithdrawalEventResponse) Reset()         { *m = WithdrawalEventResponse{} }
+func (m *WithdrawalEventResponse) String() string { return proto.CompactTextString(m) }
+func (*WithdrawalEventResponse) ProtoMessage()    {}
+func (*WithdrawalEventResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{92}
+}
+
+func (m *WithdrawalEventResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WithdrawalEventResponse.Unmarshal(m, b)
+}
+func (m *WithdrawalEventResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WithdrawalEventResponse.Marshal(b, m, deterministic)
+}
+func (m *WithdrawalEventResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WithdrawalEventResponse.Merge(m, src)
+}
+func (m *WithdrawalEventResponse) XXX_Size() int {
+	return xxx_messageInfo_WithdrawalEventResponse.Size(m)
+}
+func (m *WithdrawalEventResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_WithdrawalEventResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WithdrawalEventResponse proto.InternalMessageInfo
+
+func (m *WithdrawalEventResponse) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
+func (m *WithdrawalEventResponse) GetExchange() *WithdrawlExchangeEvent {
+	if m != nil {
+		return m.Exchange
+	}
+	return nil
+}
+
+func (m *WithdrawalEventResponse) GetRequest() *WithdrawalRequestEvent {
+	if m != nil {
+		return m.Request
+	}
+	return nil
+}
+
+func (m *WithdrawalEventResponse) GetCreatedAt() *timestamp.Timestamp {
+	if m != nil {
+		return m.CreatedAt
+	}
+	return nil
+}
+
+func (m *WithdrawalEventResponse) GetUpdatedAt() *timestamp.Timestamp {
+	if m != nil {
+		return m.UpdatedAt
+	}
+	return nil
+}
+
+type WithdrawlExchangeEvent struct {
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Id                   string   `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Status               string   `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *WithdrawlExchangeEvent) Reset()         { *m = WithdrawlExchangeEvent{} }
+func (m *WithdrawlExchangeEvent) String() string { return proto.CompactTextString(m) }
+func (*WithdrawlExchangeEvent) ProtoMessage()    {}
+func (*WithdrawlExchangeEvent) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{93}
+}
+
+func (m *WithdrawlExchangeEvent) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WithdrawlExchangeEvent.Unmarshal(m, b)
+}
+func (m *WithdrawlExchangeEvent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WithdrawlExchangeEvent.Marshal(b, m, deterministic)
+}
+func (m *WithdrawlExchangeEvent) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WithdrawlExchangeEvent.Merge(m, src)
+}
+func (m *WithdrawlExchangeEvent) XXX_Size() int {
+	return xxx_messageInfo_WithdrawlExchangeEvent.Size(m)
+}
+func (m *WithdrawlExchangeEvent) XXX_DiscardUnknown() {
+	xxx_messageInfo_WithdrawlExchangeEvent.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WithdrawlExchangeEvent proto.InternalMessageInfo
+
+func (m *WithdrawlExchangeEvent) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *WithdrawlExchangeEvent) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
+func (m *WithdrawlExchangeEvent) GetStatus() string {
+	if m != nil {
+		return m.Status
+	}
+	return ""
+}
+
+type WithdrawalRequestEvent struct {
+	Currency             string                 `protobuf:"bytes,2,opt,name=currency,proto3" json:"currency,omitempty"`
+	Description          string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Amount               float64                `protobuf:"fixed64,4,opt,name=amount,proto3" json:"amount,omitempty"`
+	Type                 int32                  `protobuf:"varint,5,opt,name=type,proto3" json:"type,omitempty"`
+	Fiat                 *FiatWithdrawalEvent   `protobuf:"bytes,6,opt,name=fiat,proto3" json:"fiat,omitempty"`
+	Crypto               *CryptoWithdrawalEvent `protobuf:"bytes,7,opt,name=crypto,proto3" json:"crypto,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
+	XXX_unrecognized     []byte                 `json:"-"`
+	XXX_sizecache        int32                  `json:"-"`
+}
+
+func (m *WithdrawalRequestEvent) Reset()         { *m = WithdrawalRequestEvent{} }
+func (m *WithdrawalRequestEvent) String() string { return proto.CompactTextString(m) }
+func (*WithdrawalRequestEvent) ProtoMessage()    {}
+func (*WithdrawalRequestEvent) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{94}
+}
+
+func (m *WithdrawalRequestEvent) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WithdrawalRequestEvent.Unmarshal(m, b)
+}
+func (m *WithdrawalRequestEvent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WithdrawalRequestEvent.Marshal(b, m, deterministic)
+}
+func (m *WithdrawalRequestEvent) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WithdrawalRequestEvent.Merge(m, src)
+}
+func (m *WithdrawalRequestEvent) XXX_Size() int {
+	return xxx_messageInfo_WithdrawalRequestEvent.Size(m)
+}
+func (m *WithdrawalRequestEvent) XXX_DiscardUnknown() {
+	xxx_messageInfo_WithdrawalRequestEvent.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WithdrawalRequestEvent proto.InternalMessageInfo
+
+func (m *WithdrawalRequestEvent) GetCurrency() string {
+	if m != nil {
+		return m.Currency
+	}
+	return ""
+}
+
+func (m *WithdrawalRequestEvent) GetDescription() string {
+	if m != nil {
+		return m.Description
+	}
+	return ""
+}
+
+func (m *WithdrawalRequestEvent) GetAmount() float64 {
+	if m != nil {
+		return m.Amount
+	}
+	return 0
+}
+
+func (m *WithdrawalRequestEvent) GetType() int32 {
+	if m != nil {
+		return m.Type
+	}
+	return 0
+}
+
+func (m *WithdrawalRequestEvent) GetFiat() *FiatWithdrawalEvent {
+	if m != nil {
+		return m.Fiat
+	}
+	return nil
+}
+
+func (m *WithdrawalRequestEvent) GetCrypto() *CryptoWithdrawalEvent {
+	if m != nil {
+		return m.Crypto
+	}
+	return nil
+}
+
+type FiatWithdrawalEvent struct {
+	BankName             string   `protobuf:"bytes,1,opt,name=bank_name,json=bankName,proto3" json:"bank_name,omitempty"`
+	AccountName          string   `protobuf:"bytes,2,opt,name=account_name,json=accountName,proto3" json:"account_name,omitempty"`
+	AccountNumber        string   `protobuf:"bytes,3,opt,name=account_number,json=accountNumber,proto3" json:"account_number,omitempty"`
+	Bsb                  string   `protobuf:"bytes,4,opt,name=bsb,proto3" json:"bsb,omitempty"`
+	Swift                string   `protobuf:"bytes,5,opt,name=swift,proto3" json:"swift,omitempty"`
+	Iban                 string   `protobuf:"bytes,6,opt,name=iban,proto3" json:"iban,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *FiatWithdrawalEvent) Reset()         { *m = FiatWithdrawalEvent{} }
+func (m *FiatWithdrawalEvent) String() string { return proto.CompactTextString(m) }
+func (*FiatWithdrawalEvent) ProtoMessage()    {}
+func (*FiatWithdrawalEvent) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{95}
+}
+
+func (m *FiatWithdrawalEvent) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_FiatWithdrawalEvent.Unmarshal(m, b)
+}
+func (m *FiatWithdrawalEvent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_FiatWithdrawalEvent.Marshal(b, m, deterministic)
+}
+func (m *FiatWithdrawalEvent) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_FiatWithdrawalEvent.Merge(m, src)
+}
+func (m *FiatWithdrawalEvent) XXX_Size() int {
+	return xxx_messageInfo_FiatWithdrawalEvent.Size(m)
+}
+func (m *FiatWithdrawalEvent) XXX_DiscardUnknown() {
+	xxx_messageInfo_FiatWithdrawalEvent.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_FiatWithdrawalEvent proto.InternalMessageInfo
+
+func (m *FiatWithdrawalEvent) GetBankName() string {
+	if m != nil {
+		return m.BankName
+	}
+	return ""
+}
+
+func (m *FiatWithdrawalEvent) GetAccountName() string {
+	if m != nil {
+		return m.AccountName
+	}
+	return ""
+}
+
+func (m *FiatWithdrawalEvent) GetAccountNumber() string {
+	if m != nil {
+		return m.AccountNumber
+	}
+	return ""
+}
+
+func (m *FiatWithdrawalEvent) GetBsb() string {
+	if m != nil {
+		return m.Bsb
+	}
+	return ""
+}
+
+func (m *FiatWithdrawalEvent) GetSwift() string {
+	if m != nil {
+		return m.Swift
+	}
+	return ""
+}
+
+func (m *FiatWithdrawalEvent) GetIban() string {
+	if m != nil {
+		return m.Iban
+	}
+	return ""
+}
+
+type CryptoWithdrawalEvent struct {
+	Address              string   `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
+	AddressTag           string   `protobuf:"bytes,2,opt,name=address_tag,json=addressTag,proto3" json:"address_tag,omitempty"`
+	Fee                  float64  `protobuf:"fixed64,3,opt,name=fee,proto3" json:"fee,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *CryptoWithdrawalEvent) Reset()         { *m = CryptoWithdrawalEvent{} }
+func (m *CryptoWithdrawalEvent) String() string { return proto.CompactTextString(m) }
+func (*CryptoWithdrawalEvent) ProtoMessage()    {}
+func (*CryptoWithdrawalEvent) Descriptor() ([]byte, []int) {
+	return fileDescriptor_77a6da22d6a3feb1, []int{96}
+}
+
+func (m *CryptoWithdrawalEvent) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CryptoWithdrawalEvent.Unmarshal(m, b)
+}
+func (m *CryptoWithdrawalEvent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CryptoWithdrawalEvent.Marshal(b, m, deterministic)
+}
+func (m *CryptoWithdrawalEvent) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CryptoWithdrawalEvent.Merge(m, src)
+}
+func (m *CryptoWithdrawalEvent) XXX_Size() int {
+	return xxx_messageInfo_CryptoWithdrawalEvent.Size(m)
+}
+func (m *CryptoWithdrawalEvent) XXX_DiscardUnknown() {
+	xxx_messageInfo_CryptoWithdrawalEvent.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CryptoWithdrawalEvent proto.InternalMessageInfo
+
+func (m *CryptoWithdrawalEvent) GetAddress() string {
+	if m != nil {
+		return m.Address
+	}
+	return ""
+}
+
+func (m *CryptoWithdrawalEvent) GetAddressTag() string {
+	if m != nil {
+		return m.AddressTag
+	}
+	return ""
+}
+
+func (m *CryptoWithdrawalEvent) GetFee() float64 {
+	if m != nil {
+		return m.Fee
+	}
+	return 0
 }
 
 type GetLoggerDetailsRequest struct {
@@ -4437,7 +5028,7 @@ func (m *GetLoggerDetailsRequest) Reset()         { *m = GetLoggerDetailsRequest
 func (m *GetLoggerDetailsRequest) String() string { return proto.CompactTextString(m) }
 func (*GetLoggerDetailsRequest) ProtoMessage()    {}
 func (*GetLoggerDetailsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{86}
+	return fileDescriptor_77a6da22d6a3feb1, []int{97}
 }
 
 func (m *GetLoggerDetailsRequest) XXX_Unmarshal(b []byte) error {
@@ -4479,7 +5070,7 @@ func (m *GetLoggerDetailsResponse) Reset()         { *m = GetLoggerDetailsRespon
 func (m *GetLoggerDetailsResponse) String() string { return proto.CompactTextString(m) }
 func (*GetLoggerDetailsResponse) ProtoMessage()    {}
 func (*GetLoggerDetailsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{87}
+	return fileDescriptor_77a6da22d6a3feb1, []int{98}
 }
 
 func (m *GetLoggerDetailsResponse) XXX_Unmarshal(b []byte) error {
@@ -4540,7 +5131,7 @@ func (m *SetLoggerDetailsRequest) Reset()         { *m = SetLoggerDetailsRequest
 func (m *SetLoggerDetailsRequest) String() string { return proto.CompactTextString(m) }
 func (*SetLoggerDetailsRequest) ProtoMessage()    {}
 func (*SetLoggerDetailsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{88}
+	return fileDescriptor_77a6da22d6a3feb1, []int{99}
 }
 
 func (m *SetLoggerDetailsRequest) XXX_Unmarshal(b []byte) error {
@@ -4587,7 +5178,7 @@ func (m *GetExchangePairsRequest) Reset()         { *m = GetExchangePairsRequest
 func (m *GetExchangePairsRequest) String() string { return proto.CompactTextString(m) }
 func (*GetExchangePairsRequest) ProtoMessage()    {}
 func (*GetExchangePairsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{89}
+	return fileDescriptor_77a6da22d6a3feb1, []int{100}
 }
 
 func (m *GetExchangePairsRequest) XXX_Unmarshal(b []byte) error {
@@ -4633,7 +5224,7 @@ func (m *GetExchangePairsResponse) Reset()         { *m = GetExchangePairsRespon
 func (m *GetExchangePairsResponse) String() string { return proto.CompactTextString(m) }
 func (*GetExchangePairsResponse) ProtoMessage()    {}
 func (*GetExchangePairsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{90}
+	return fileDescriptor_77a6da22d6a3feb1, []int{101}
 }
 
 func (m *GetExchangePairsResponse) XXX_Unmarshal(b []byte) error {
@@ -4674,7 +5265,7 @@ func (m *ExchangePairRequest) Reset()         { *m = ExchangePairRequest{} }
 func (m *ExchangePairRequest) String() string { return proto.CompactTextString(m) }
 func (*ExchangePairRequest) ProtoMessage()    {}
 func (*ExchangePairRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{91}
+	return fileDescriptor_77a6da22d6a3feb1, []int{102}
 }
 
 func (m *ExchangePairRequest) XXX_Unmarshal(b []byte) error {
@@ -4729,7 +5320,7 @@ func (m *GetOrderbookStreamRequest) Reset()         { *m = GetOrderbookStreamReq
 func (m *GetOrderbookStreamRequest) String() string { return proto.CompactTextString(m) }
 func (*GetOrderbookStreamRequest) ProtoMessage()    {}
 func (*GetOrderbookStreamRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{92}
+	return fileDescriptor_77a6da22d6a3feb1, []int{103}
 }
 
 func (m *GetOrderbookStreamRequest) XXX_Unmarshal(b []byte) error {
@@ -4782,7 +5373,7 @@ func (m *GetExchangeOrderbookStreamRequest) Reset()         { *m = GetExchangeOr
 func (m *GetExchangeOrderbookStreamRequest) String() string { return proto.CompactTextString(m) }
 func (*GetExchangeOrderbookStreamRequest) ProtoMessage()    {}
 func (*GetExchangeOrderbookStreamRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{93}
+	return fileDescriptor_77a6da22d6a3feb1, []int{104}
 }
 
 func (m *GetExchangeOrderbookStreamRequest) XXX_Unmarshal(b []byte) error {
@@ -4823,7 +5414,7 @@ func (m *GetTickerStreamRequest) Reset()         { *m = GetTickerStreamRequest{}
 func (m *GetTickerStreamRequest) String() string { return proto.CompactTextString(m) }
 func (*GetTickerStreamRequest) ProtoMessage()    {}
 func (*GetTickerStreamRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{94}
+	return fileDescriptor_77a6da22d6a3feb1, []int{105}
 }
 
 func (m *GetTickerStreamRequest) XXX_Unmarshal(b []byte) error {
@@ -4876,7 +5467,7 @@ func (m *GetExchangeTickerStreamRequest) Reset()         { *m = GetExchangeTicke
 func (m *GetExchangeTickerStreamRequest) String() string { return proto.CompactTextString(m) }
 func (*GetExchangeTickerStreamRequest) ProtoMessage()    {}
 func (*GetExchangeTickerStreamRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{95}
+	return fileDescriptor_77a6da22d6a3feb1, []int{106}
 }
 
 func (m *GetExchangeTickerStreamRequest) XXX_Unmarshal(b []byte) error {
@@ -4919,7 +5510,7 @@ func (m *GetAuditEventRequest) Reset()         { *m = GetAuditEventRequest{} }
 func (m *GetAuditEventRequest) String() string { return proto.CompactTextString(m) }
 func (*GetAuditEventRequest) ProtoMessage()    {}
 func (*GetAuditEventRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{96}
+	return fileDescriptor_77a6da22d6a3feb1, []int{107}
 }
 
 func (m *GetAuditEventRequest) XXX_Unmarshal(b []byte) error {
@@ -4986,7 +5577,7 @@ func (m *GetAuditEventResponse) Reset()         { *m = GetAuditEventResponse{} }
 func (m *GetAuditEventResponse) String() string { return proto.CompactTextString(m) }
 func (*GetAuditEventResponse) ProtoMessage()    {}
 func (*GetAuditEventResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{97}
+	return fileDescriptor_77a6da22d6a3feb1, []int{108}
 }
 
 func (m *GetAuditEventResponse) XXX_Unmarshal(b []byte) error {
@@ -5030,7 +5621,7 @@ func (m *GetHistoricCandlesRequest) Reset()         { *m = GetHistoricCandlesReq
 func (m *GetHistoricCandlesRequest) String() string { return proto.CompactTextString(m) }
 func (*GetHistoricCandlesRequest) ProtoMessage()    {}
 func (*GetHistoricCandlesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{98}
+	return fileDescriptor_77a6da22d6a3feb1, []int{109}
 }
 
 func (m *GetHistoricCandlesRequest) XXX_Unmarshal(b []byte) error {
@@ -5104,7 +5695,7 @@ func (m *GetHistoricCandlesResponse) Reset()         { *m = GetHistoricCandlesRe
 func (m *GetHistoricCandlesResponse) String() string { return proto.CompactTextString(m) }
 func (*GetHistoricCandlesResponse) ProtoMessage()    {}
 func (*GetHistoricCandlesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{99}
+	return fileDescriptor_77a6da22d6a3feb1, []int{110}
 }
 
 func (m *GetHistoricCandlesResponse) XXX_Unmarshal(b []byte) error {
@@ -5148,7 +5739,7 @@ func (m *Candle) Reset()         { *m = Candle{} }
 func (m *Candle) String() string { return proto.CompactTextString(m) }
 func (*Candle) ProtoMessage()    {}
 func (*Candle) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{100}
+	return fileDescriptor_77a6da22d6a3feb1, []int{111}
 }
 
 func (m *Candle) XXX_Unmarshal(b []byte) error {
@@ -5225,7 +5816,7 @@ func (m *AuditEvent) Reset()         { *m = AuditEvent{} }
 func (m *AuditEvent) String() string { return proto.CompactTextString(m) }
 func (*AuditEvent) ProtoMessage()    {}
 func (*AuditEvent) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{101}
+	return fileDescriptor_77a6da22d6a3feb1, []int{112}
 }
 
 func (m *AuditEvent) XXX_Unmarshal(b []byte) error {
@@ -5288,7 +5879,7 @@ func (m *GCTScript) Reset()         { *m = GCTScript{} }
 func (m *GCTScript) String() string { return proto.CompactTextString(m) }
 func (*GCTScript) ProtoMessage()    {}
 func (*GCTScript) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{102}
+	return fileDescriptor_77a6da22d6a3feb1, []int{113}
 }
 
 func (m *GCTScript) XXX_Unmarshal(b []byte) error {
@@ -5348,7 +5939,7 @@ func (m *GCTScriptExecuteRequest) Reset()         { *m = GCTScriptExecuteRequest
 func (m *GCTScriptExecuteRequest) String() string { return proto.CompactTextString(m) }
 func (*GCTScriptExecuteRequest) ProtoMessage()    {}
 func (*GCTScriptExecuteRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{103}
+	return fileDescriptor_77a6da22d6a3feb1, []int{114}
 }
 
 func (m *GCTScriptExecuteRequest) XXX_Unmarshal(b []byte) error {
@@ -5387,7 +5978,7 @@ func (m *GCTScriptStopRequest) Reset()         { *m = GCTScriptStopRequest{} }
 func (m *GCTScriptStopRequest) String() string { return proto.CompactTextString(m) }
 func (*GCTScriptStopRequest) ProtoMessage()    {}
 func (*GCTScriptStopRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{104}
+	return fileDescriptor_77a6da22d6a3feb1, []int{115}
 }
 
 func (m *GCTScriptStopRequest) XXX_Unmarshal(b []byte) error {
@@ -5425,7 +6016,7 @@ func (m *GCTScriptStopAllRequest) Reset()         { *m = GCTScriptStopAllRequest
 func (m *GCTScriptStopAllRequest) String() string { return proto.CompactTextString(m) }
 func (*GCTScriptStopAllRequest) ProtoMessage()    {}
 func (*GCTScriptStopAllRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{105}
+	return fileDescriptor_77a6da22d6a3feb1, []int{116}
 }
 
 func (m *GCTScriptStopAllRequest) XXX_Unmarshal(b []byte) error {
@@ -5456,7 +6047,7 @@ func (m *GCTScriptStatusRequest) Reset()         { *m = GCTScriptStatusRequest{}
 func (m *GCTScriptStatusRequest) String() string { return proto.CompactTextString(m) }
 func (*GCTScriptStatusRequest) ProtoMessage()    {}
 func (*GCTScriptStatusRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{106}
+	return fileDescriptor_77a6da22d6a3feb1, []int{117}
 }
 
 func (m *GCTScriptStatusRequest) XXX_Unmarshal(b []byte) error {
@@ -5487,7 +6078,7 @@ func (m *GCTScriptListAllRequest) Reset()         { *m = GCTScriptListAllRequest
 func (m *GCTScriptListAllRequest) String() string { return proto.CompactTextString(m) }
 func (*GCTScriptListAllRequest) ProtoMessage()    {}
 func (*GCTScriptListAllRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{107}
+	return fileDescriptor_77a6da22d6a3feb1, []int{118}
 }
 
 func (m *GCTScriptListAllRequest) XXX_Unmarshal(b []byte) error {
@@ -5523,7 +6114,7 @@ func (m *GCTScriptUploadRequest) Reset()         { *m = GCTScriptUploadRequest{}
 func (m *GCTScriptUploadRequest) String() string { return proto.CompactTextString(m) }
 func (*GCTScriptUploadRequest) ProtoMessage()    {}
 func (*GCTScriptUploadRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{108}
+	return fileDescriptor_77a6da22d6a3feb1, []int{119}
 }
 
 func (m *GCTScriptUploadRequest) XXX_Unmarshal(b []byte) error {
@@ -5590,7 +6181,7 @@ func (m *GCTScriptReadScriptRequest) Reset()         { *m = GCTScriptReadScriptR
 func (m *GCTScriptReadScriptRequest) String() string { return proto.CompactTextString(m) }
 func (*GCTScriptReadScriptRequest) ProtoMessage()    {}
 func (*GCTScriptReadScriptRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{109}
+	return fileDescriptor_77a6da22d6a3feb1, []int{120}
 }
 
 func (m *GCTScriptReadScriptRequest) XXX_Unmarshal(b []byte) error {
@@ -5629,7 +6220,7 @@ func (m *GCTScriptQueryRequest) Reset()         { *m = GCTScriptQueryRequest{} }
 func (m *GCTScriptQueryRequest) String() string { return proto.CompactTextString(m) }
 func (*GCTScriptQueryRequest) ProtoMessage()    {}
 func (*GCTScriptQueryRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{110}
+	return fileDescriptor_77a6da22d6a3feb1, []int{121}
 }
 
 func (m *GCTScriptQueryRequest) XXX_Unmarshal(b []byte) error {
@@ -5669,7 +6260,7 @@ func (m *GCTScriptAutoLoadRequest) Reset()         { *m = GCTScriptAutoLoadReque
 func (m *GCTScriptAutoLoadRequest) String() string { return proto.CompactTextString(m) }
 func (*GCTScriptAutoLoadRequest) ProtoMessage()    {}
 func (*GCTScriptAutoLoadRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{111}
+	return fileDescriptor_77a6da22d6a3feb1, []int{122}
 }
 
 func (m *GCTScriptAutoLoadRequest) XXX_Unmarshal(b []byte) error {
@@ -5716,7 +6307,7 @@ func (m *GCTScriptStatusResponse) Reset()         { *m = GCTScriptStatusResponse
 func (m *GCTScriptStatusResponse) String() string { return proto.CompactTextString(m) }
 func (*GCTScriptStatusResponse) ProtoMessage()    {}
 func (*GCTScriptStatusResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{112}
+	return fileDescriptor_77a6da22d6a3feb1, []int{123}
 }
 
 func (m *GCTScriptStatusResponse) XXX_Unmarshal(b []byte) error {
@@ -5764,7 +6355,7 @@ func (m *GCTScriptQueryResponse) Reset()         { *m = GCTScriptQueryResponse{}
 func (m *GCTScriptQueryResponse) String() string { return proto.CompactTextString(m) }
 func (*GCTScriptQueryResponse) ProtoMessage()    {}
 func (*GCTScriptQueryResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{113}
+	return fileDescriptor_77a6da22d6a3feb1, []int{124}
 }
 
 func (m *GCTScriptQueryResponse) XXX_Unmarshal(b []byte) error {
@@ -5818,7 +6409,7 @@ func (m *GCTScriptGenericResponse) Reset()         { *m = GCTScriptGenericRespon
 func (m *GCTScriptGenericResponse) String() string { return proto.CompactTextString(m) }
 func (*GCTScriptGenericResponse) ProtoMessage()    {}
 func (*GCTScriptGenericResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_77a6da22d6a3feb1, []int{114}
+	return fileDescriptor_77a6da22d6a3feb1, []int{125}
 }
 
 func (m *GCTScriptGenericResponse) XXX_Unmarshal(b []byte) error {
@@ -5951,8 +6542,19 @@ func init() {
 	proto.RegisterMapType((map[string]string)(nil), "gctrpc.GetCryptocurrencyDepositAddressesResponse.AddressesEntry")
 	proto.RegisterType((*GetCryptocurrencyDepositAddressRequest)(nil), "gctrpc.GetCryptocurrencyDepositAddressRequest")
 	proto.RegisterType((*GetCryptocurrencyDepositAddressResponse)(nil), "gctrpc.GetCryptocurrencyDepositAddressResponse")
-	proto.RegisterType((*WithdrawCurrencyRequest)(nil), "gctrpc.WithdrawCurrencyRequest")
+	proto.RegisterType((*WithdrawFiatRequest)(nil), "gctrpc.WithdrawFiatRequest")
+	proto.RegisterType((*WithdrawCryptoRequest)(nil), "gctrpc.WithdrawCryptoRequest")
 	proto.RegisterType((*WithdrawResponse)(nil), "gctrpc.WithdrawResponse")
+	proto.RegisterType((*WithdrawalEventByIDRequest)(nil), "gctrpc.WithdrawalEventByIDRequest")
+	proto.RegisterType((*WithdrawalEventByIDResponse)(nil), "gctrpc.WithdrawalEventByIDResponse")
+	proto.RegisterType((*WithdrawalEventsByExchangeRequest)(nil), "gctrpc.WithdrawalEventsByExchangeRequest")
+	proto.RegisterType((*WithdrawalEventsByDateRequest)(nil), "gctrpc.WithdrawalEventsByDateRequest")
+	proto.RegisterType((*WithdrawalEventsByExchangeResponse)(nil), "gctrpc.WithdrawalEventsByExchangeResponse")
+	proto.RegisterType((*WithdrawalEventResponse)(nil), "gctrpc.WithdrawalEventResponse")
+	proto.RegisterType((*WithdrawlExchangeEvent)(nil), "gctrpc.WithdrawlExchangeEvent")
+	proto.RegisterType((*WithdrawalRequestEvent)(nil), "gctrpc.WithdrawalRequestEvent")
+	proto.RegisterType((*FiatWithdrawalEvent)(nil), "gctrpc.FiatWithdrawalEvent")
+	proto.RegisterType((*CryptoWithdrawalEvent)(nil), "gctrpc.CryptoWithdrawalEvent")
 	proto.RegisterType((*GetLoggerDetailsRequest)(nil), "gctrpc.GetLoggerDetailsRequest")
 	proto.RegisterType((*GetLoggerDetailsResponse)(nil), "gctrpc.GetLoggerDetailsResponse")
 	proto.RegisterType((*SetLoggerDetailsRequest)(nil), "gctrpc.SetLoggerDetailsRequest")
@@ -6385,8 +6987,11 @@ type GoCryptoTraderClient interface {
 	RemoveEvent(ctx context.Context, in *RemoveEventRequest, opts ...grpc.CallOption) (*RemoveEventResponse, error)
 	GetCryptocurrencyDepositAddresses(ctx context.Context, in *GetCryptocurrencyDepositAddressesRequest, opts ...grpc.CallOption) (*GetCryptocurrencyDepositAddressesResponse, error)
 	GetCryptocurrencyDepositAddress(ctx context.Context, in *GetCryptocurrencyDepositAddressRequest, opts ...grpc.CallOption) (*GetCryptocurrencyDepositAddressResponse, error)
-	WithdrawCryptocurrencyFunds(ctx context.Context, in *WithdrawCurrencyRequest, opts ...grpc.CallOption) (*WithdrawResponse, error)
-	WithdrawFiatFunds(ctx context.Context, in *WithdrawCurrencyRequest, opts ...grpc.CallOption) (*WithdrawResponse, error)
+	WithdrawFiatFunds(ctx context.Context, in *WithdrawFiatRequest, opts ...grpc.CallOption) (*WithdrawResponse, error)
+	WithdrawCryptocurrencyFunds(ctx context.Context, in *WithdrawCryptoRequest, opts ...grpc.CallOption) (*WithdrawResponse, error)
+	WithdrawalEventByID(ctx context.Context, in *WithdrawalEventByIDRequest, opts ...grpc.CallOption) (*WithdrawalEventByIDResponse, error)
+	WithdrawalEventsByExchange(ctx context.Context, in *WithdrawalEventsByExchangeRequest, opts ...grpc.CallOption) (*WithdrawalEventsByExchangeResponse, error)
+	WithdrawalEventsByDate(ctx context.Context, in *WithdrawalEventsByDateRequest, opts ...grpc.CallOption) (*WithdrawalEventsByExchangeResponse, error)
 	GetLoggerDetails(ctx context.Context, in *GetLoggerDetailsRequest, opts ...grpc.CallOption) (*GetLoggerDetailsResponse, error)
 	SetLoggerDetails(ctx context.Context, in *SetLoggerDetailsRequest, opts ...grpc.CallOption) (*GetLoggerDetailsResponse, error)
 	GetExchangePairs(ctx context.Context, in *GetExchangePairsRequest, opts ...grpc.CallOption) (*GetExchangePairsResponse, error)
@@ -6773,7 +7378,16 @@ func (c *goCryptoTraderClient) GetCryptocurrencyDepositAddress(ctx context.Conte
 	return out, nil
 }
 
-func (c *goCryptoTraderClient) WithdrawCryptocurrencyFunds(ctx context.Context, in *WithdrawCurrencyRequest, opts ...grpc.CallOption) (*WithdrawResponse, error) {
+func (c *goCryptoTraderClient) WithdrawFiatFunds(ctx context.Context, in *WithdrawFiatRequest, opts ...grpc.CallOption) (*WithdrawResponse, error) {
+	out := new(WithdrawResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/WithdrawFiatFunds", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderClient) WithdrawCryptocurrencyFunds(ctx context.Context, in *WithdrawCryptoRequest, opts ...grpc.CallOption) (*WithdrawResponse, error) {
 	out := new(WithdrawResponse)
 	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/WithdrawCryptocurrencyFunds", in, out, opts...)
 	if err != nil {
@@ -6782,9 +7396,27 @@ func (c *goCryptoTraderClient) WithdrawCryptocurrencyFunds(ctx context.Context, 
 	return out, nil
 }
 
-func (c *goCryptoTraderClient) WithdrawFiatFunds(ctx context.Context, in *WithdrawCurrencyRequest, opts ...grpc.CallOption) (*WithdrawResponse, error) {
-	out := new(WithdrawResponse)
-	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/WithdrawFiatFunds", in, out, opts...)
+func (c *goCryptoTraderClient) WithdrawalEventByID(ctx context.Context, in *WithdrawalEventByIDRequest, opts ...grpc.CallOption) (*WithdrawalEventByIDResponse, error) {
+	out := new(WithdrawalEventByIDResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/WithdrawalEventByID", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderClient) WithdrawalEventsByExchange(ctx context.Context, in *WithdrawalEventsByExchangeRequest, opts ...grpc.CallOption) (*WithdrawalEventsByExchangeResponse, error) {
+	out := new(WithdrawalEventsByExchangeResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/WithdrawalEventsByExchange", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderClient) WithdrawalEventsByDate(ctx context.Context, in *WithdrawalEventsByDateRequest, opts ...grpc.CallOption) (*WithdrawalEventsByExchangeResponse, error) {
+	out := new(WithdrawalEventsByExchangeResponse)
+	err := c.cc.Invoke(ctx, "/gctrpc.GoCryptoTrader/WithdrawalEventsByDate", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -7102,8 +7734,11 @@ type GoCryptoTraderServer interface {
 	RemoveEvent(context.Context, *RemoveEventRequest) (*RemoveEventResponse, error)
 	GetCryptocurrencyDepositAddresses(context.Context, *GetCryptocurrencyDepositAddressesRequest) (*GetCryptocurrencyDepositAddressesResponse, error)
 	GetCryptocurrencyDepositAddress(context.Context, *GetCryptocurrencyDepositAddressRequest) (*GetCryptocurrencyDepositAddressResponse, error)
-	WithdrawCryptocurrencyFunds(context.Context, *WithdrawCurrencyRequest) (*WithdrawResponse, error)
-	WithdrawFiatFunds(context.Context, *WithdrawCurrencyRequest) (*WithdrawResponse, error)
+	WithdrawFiatFunds(context.Context, *WithdrawFiatRequest) (*WithdrawResponse, error)
+	WithdrawCryptocurrencyFunds(context.Context, *WithdrawCryptoRequest) (*WithdrawResponse, error)
+	WithdrawalEventByID(context.Context, *WithdrawalEventByIDRequest) (*WithdrawalEventByIDResponse, error)
+	WithdrawalEventsByExchange(context.Context, *WithdrawalEventsByExchangeRequest) (*WithdrawalEventsByExchangeResponse, error)
+	WithdrawalEventsByDate(context.Context, *WithdrawalEventsByDateRequest) (*WithdrawalEventsByExchangeResponse, error)
 	GetLoggerDetails(context.Context, *GetLoggerDetailsRequest) (*GetLoggerDetailsResponse, error)
 	SetLoggerDetails(context.Context, *SetLoggerDetailsRequest) (*GetLoggerDetailsResponse, error)
 	GetExchangePairs(context.Context, *GetExchangePairsRequest) (*GetExchangePairsResponse, error)
@@ -7241,11 +7876,20 @@ func (*UnimplementedGoCryptoTraderServer) GetCryptocurrencyDepositAddresses(ctx 
 func (*UnimplementedGoCryptoTraderServer) GetCryptocurrencyDepositAddress(ctx context.Context, req *GetCryptocurrencyDepositAddressRequest) (*GetCryptocurrencyDepositAddressResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCryptocurrencyDepositAddress not implemented")
 }
-func (*UnimplementedGoCryptoTraderServer) WithdrawCryptocurrencyFunds(ctx context.Context, req *WithdrawCurrencyRequest) (*WithdrawResponse, error) {
+func (*UnimplementedGoCryptoTraderServer) WithdrawFiatFunds(ctx context.Context, req *WithdrawFiatRequest) (*WithdrawResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method WithdrawFiatFunds not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) WithdrawCryptocurrencyFunds(ctx context.Context, req *WithdrawCryptoRequest) (*WithdrawResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method WithdrawCryptocurrencyFunds not implemented")
 }
-func (*UnimplementedGoCryptoTraderServer) WithdrawFiatFunds(ctx context.Context, req *WithdrawCurrencyRequest) (*WithdrawResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method WithdrawFiatFunds not implemented")
+func (*UnimplementedGoCryptoTraderServer) WithdrawalEventByID(ctx context.Context, req *WithdrawalEventByIDRequest) (*WithdrawalEventByIDResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method WithdrawalEventByID not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) WithdrawalEventsByExchange(ctx context.Context, req *WithdrawalEventsByExchangeRequest) (*WithdrawalEventsByExchangeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method WithdrawalEventsByExchange not implemented")
+}
+func (*UnimplementedGoCryptoTraderServer) WithdrawalEventsByDate(ctx context.Context, req *WithdrawalEventsByDateRequest) (*WithdrawalEventsByExchangeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method WithdrawalEventsByDate not implemented")
 }
 func (*UnimplementedGoCryptoTraderServer) GetLoggerDetails(ctx context.Context, req *GetLoggerDetailsRequest) (*GetLoggerDetailsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetLoggerDetails not implemented")
@@ -7981,26 +8625,8 @@ func _GoCryptoTrader_GetCryptocurrencyDepositAddress_Handler(srv interface{}, ct
 	return interceptor(ctx, in, info, handler)
 }
 
-func _GoCryptoTrader_WithdrawCryptocurrencyFunds_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(WithdrawCurrencyRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(GoCryptoTraderServer).WithdrawCryptocurrencyFunds(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/gctrpc.GoCryptoTrader/WithdrawCryptocurrencyFunds",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GoCryptoTraderServer).WithdrawCryptocurrencyFunds(ctx, req.(*WithdrawCurrencyRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _GoCryptoTrader_WithdrawFiatFunds_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(WithdrawCurrencyRequest)
+	in := new(WithdrawFiatRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -8012,7 +8638,79 @@ func _GoCryptoTrader_WithdrawFiatFunds_Handler(srv interface{}, ctx context.Cont
 		FullMethod: "/gctrpc.GoCryptoTrader/WithdrawFiatFunds",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GoCryptoTraderServer).WithdrawFiatFunds(ctx, req.(*WithdrawCurrencyRequest))
+		return srv.(GoCryptoTraderServer).WithdrawFiatFunds(ctx, req.(*WithdrawFiatRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTrader_WithdrawCryptocurrencyFunds_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WithdrawCryptoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).WithdrawCryptocurrencyFunds(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/WithdrawCryptocurrencyFunds",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).WithdrawCryptocurrencyFunds(ctx, req.(*WithdrawCryptoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTrader_WithdrawalEventByID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WithdrawalEventByIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).WithdrawalEventByID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/WithdrawalEventByID",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).WithdrawalEventByID(ctx, req.(*WithdrawalEventByIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTrader_WithdrawalEventsByExchange_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WithdrawalEventsByExchangeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).WithdrawalEventsByExchange(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/WithdrawalEventsByExchange",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).WithdrawalEventsByExchange(ctx, req.(*WithdrawalEventsByExchangeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTrader_WithdrawalEventsByDate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WithdrawalEventsByDateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServer).WithdrawalEventsByDate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/gctrpc.GoCryptoTrader/WithdrawalEventsByDate",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServer).WithdrawalEventsByDate(ctx, req.(*WithdrawalEventsByDateRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -8538,12 +9236,24 @@ var _GoCryptoTrader_serviceDesc = grpc.ServiceDesc{
 			Handler:    _GoCryptoTrader_GetCryptocurrencyDepositAddress_Handler,
 		},
 		{
+			MethodName: "WithdrawFiatFunds",
+			Handler:    _GoCryptoTrader_WithdrawFiatFunds_Handler,
+		},
+		{
 			MethodName: "WithdrawCryptocurrencyFunds",
 			Handler:    _GoCryptoTrader_WithdrawCryptocurrencyFunds_Handler,
 		},
 		{
-			MethodName: "WithdrawFiatFunds",
-			Handler:    _GoCryptoTrader_WithdrawFiatFunds_Handler,
+			MethodName: "WithdrawalEventByID",
+			Handler:    _GoCryptoTrader_WithdrawalEventByID_Handler,
+		},
+		{
+			MethodName: "WithdrawalEventsByExchange",
+			Handler:    _GoCryptoTrader_WithdrawalEventsByExchange_Handler,
+		},
+		{
+			MethodName: "WithdrawalEventsByDate",
+			Handler:    _GoCryptoTrader_WithdrawalEventsByDate_Handler,
 		},
 		{
 			MethodName: "GetLoggerDetails",

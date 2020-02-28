@@ -2410,6 +2410,7 @@
  "bankAccounts": [
   {
    "enabled": false,
+   "id": "test-account-01",
    "bankName": "test",
    "bankAddress": "test",
    "bankPostalCode": "",

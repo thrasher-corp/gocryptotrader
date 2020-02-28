@@ -28,7 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
@@ -688,20 +687,6 @@ func GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]string {
 		result[exchName] = cryptoAddr
 	}
 	return result
-}
-
-// WithdrawCryptocurrencyFundsByExchange withdraws the desired cryptocurrency and amount to a desired cryptocurrency address
-func WithdrawCryptocurrencyFundsByExchange(exchName string, req *withdraw.CryptoRequest) (string, error) {
-	if req == nil {
-		return "", errors.New("crypto withdraw request param is nil")
-	}
-
-	exch := GetExchangeByName(exchName)
-	if exch == nil {
-		return "", ErrExchangeNotFound
-	}
-
-	return exch.WithdrawCryptocurrencyFunds(req)
 }
 
 // FormatCurrency is a method that formats and returns a currency pair

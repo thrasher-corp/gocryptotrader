@@ -23,7 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // Please supply you own test keys here for due diligence testing.
@@ -1753,15 +1753,15 @@ func TestModifyOrder(t *testing.T) {
 func TestWithdraw(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	withdrawCryptoRequest := withdraw.CryptoRequest{
-		GenericInfo: withdraw.GenericInfo{
-			Amount:        -1,
-			Currency:      currency.BTC,
-			Description:   "WITHDRAW IT ALL",
-			TradePassword: "Password",
+	withdrawCryptoRequest := withdraw.Request{
+		Crypto: &withdraw.CryptoRequest{
+			Address:   core.BitcoinDonationAddress,
+			FeeAmount: 1,
 		},
-		Address:   core.BitcoinDonationAddress,
-		FeeAmount: 1,
+		Amount:        -1,
+		Currency:      currency.BTC,
+		Description:   "WITHDRAW IT ALL",
+		TradePassword: "Password",
 	}
 	_, err := o.WithdrawCryptocurrencyFunds(&withdrawCryptoRequest)
 	testStandardErrorHandling(t, err)
@@ -1771,7 +1771,7 @@ func TestWithdraw(t *testing.T) {
 func TestWithdrawFiat(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	var withdrawFiatRequest = withdraw.FiatRequest{}
+	var withdrawFiatRequest = withdraw.Request{}
 	_, err := o.WithdrawFiatFunds(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'",
@@ -1784,7 +1784,7 @@ func TestWithdrawFiat(t *testing.T) {
 func TestWithdrawInternationalBank(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	var withdrawFiatRequest = withdraw.FiatRequest{}
+	var withdrawFiatRequest = withdraw.Request{}
 	_, err := o.WithdrawFiatFundsToInternationalBank(&withdrawFiatRequest)
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'",
