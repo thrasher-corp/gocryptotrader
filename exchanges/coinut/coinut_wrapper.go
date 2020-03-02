@@ -3,6 +3,7 @@ package coinut
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
@@ -125,6 +126,7 @@ func (c *COINUT) SetDefaults() {
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+	rand.Seed(time.Now().UnixNano())
 }
 
 // Setup sets the current exchange configuration

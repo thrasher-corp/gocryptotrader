@@ -6682,7 +6682,9 @@ func init() {
 	proto.RegisterType((*GCTScriptGenericResponse)(nil), "gctrpc.GCTScriptGenericResponse")
 }
 
-func init() { proto.RegisterFile("rpc.proto", fileDescriptor_77a6da22d6a3feb1) }
+func init() {
+	proto.RegisterFile("rpc.proto", fileDescriptor_77a6da22d6a3feb1)
+}
 
 var fileDescriptor_77a6da22d6a3feb1 = []byte{
 	// 5955 bytes of a gzipped FileDescriptorProto
@@ -7063,11 +7065,11 @@ var fileDescriptor_77a6da22d6a3feb1 = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConn
+var _ grpc.ClientConnInterface
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
+const _ = grpc.SupportPackageIsVersion6
 
 // GoCryptoTraderClient is the client API for GoCryptoTrader service.
 //
@@ -7138,10 +7140,10 @@ type GoCryptoTraderClient interface {
 }
 
 type goCryptoTraderClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewGoCryptoTraderClient(cc *grpc.ClientConn) GoCryptoTraderClient {
+func NewGoCryptoTraderClient(cc grpc.ClientConnInterface) GoCryptoTraderClient {
 	return &goCryptoTraderClient{cc}
 }
 
