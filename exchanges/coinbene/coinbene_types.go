@@ -173,7 +173,7 @@ type WsUserInfo struct {
 type WsPositionData struct {
 	AvailableQuantity float64   `json:"availableQuantity,string"`
 	AveragePrice      float64   `json:"avgPrice,string"`
-	Leverage          float64   `json:"leverage,string"`
+	Leverage          int64     `json:"leverage,string"`
 	LiquidationPrice  float64   `json:"liquidationPrice,string"`
 	MarkPrice         float64   `json:"markPrice,string"`
 	PositionMargin    float64   `json:"positionMargin,string"`
@@ -195,7 +195,7 @@ type WsPosition struct {
 type WsOrderData struct {
 	OrderID          string    `json:"orderId"`
 	Direction        string    `json:"direction"`
-	Leverage         string    `json:"leverage"`
+	Leverage         int64     `json:"leverage,string"`
 	Symbol           string    `json:"symbol"`
 	OrderType        string    `json:"orderType"`
 	Quantity         float64   `json:"quantity,string"`
@@ -277,8 +277,8 @@ type SwapPosition struct {
 	AvailableQuantity       float64   `json:"availableQuantity,string"`
 	AveragePrice            float64   `json:"averagePrice,string"`
 	CreateTime              time.Time `json:"createTime"`
-	DeleveragePercentile    int       `json:"deleveragePercentile,string"`
-	Leverage                int       `json:"leverage,string"`
+	DeleveragePercentile    int64     `json:"deleveragePercentile,string"`
+	Leverage                int64     `json:"leverage,string"`
 	LiquidationPrice        float64   `json:"liquidationPrice,string"`
 	MarkPrice               float64   `json:"markPrice,string"`
 	PositionMargin          float64   `json:"positionMargin,string"`
@@ -303,7 +303,7 @@ type SwapPlaceOrderResponse struct {
 type SwapOrder struct {
 	OrderID        string    `json:"orderId"`
 	Direction      string    `json:"direction"`
-	Leverage       int       `json:"leverage,string"`
+	Leverage       int64     `json:"leverage,string"`
 	OrderType      string    `json:"orderType"`
 	Quantity       float64   `json:"quantity,string"`
 	OrderPrice     float64   `json:"orderPrice,string"`

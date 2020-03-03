@@ -101,7 +101,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		d.Pair = m.Pair
 		updated = true
 	}
-	if m.Leverage != "" && m.Leverage != d.Leverage {
+	if m.Leverage > 0 && m.Leverage != d.Leverage {
 		d.Leverage = m.Leverage
 		updated = true
 	}
@@ -250,7 +250,7 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		d.Pair = m.Pair
 		updated = true
 	}
-	if m.Leverage != "" && m.Leverage != d.Leverage {
+	if m.Leverage > 0 && m.Leverage != d.Leverage {
 		d.Leverage = m.Leverage
 		updated = true
 	}
