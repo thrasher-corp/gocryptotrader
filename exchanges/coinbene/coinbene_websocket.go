@@ -357,7 +357,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				Status:          oStatus,
 				AssetType:       asset.PerpetualSwap,
 				Date:            orders.Data[i].OrderTime,
-				Leverage:        orders.Data[i].Leverage,
+				Leverage:        strconv.FormatInt(orders.Data[i].Leverage, 10),
 				Pair: currency.NewPairFromFormattedPairs(orders.Data[i].Symbol,
 					c.GetEnabledPairs(asset.PerpetualSwap),
 					c.GetPairFormat(asset.PerpetualSwap, true)),

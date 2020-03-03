@@ -550,6 +550,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 		HiddenOrder:       false,
 		FillOrKill:        false,
 		PostOnly:          false,
+		Leverage:          "",
 		Price:             0,
 		Amount:            0,
 		LimitPriceUpper:   0,
@@ -579,7 +580,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 		HiddenOrder:       true,
 		FillOrKill:        true,
 		PostOnly:          true,
-		Leverage:          1,
+		Leverage:          "1",
 		Price:             1,
 		Amount:            1,
 		LimitPriceUpper:   1,
@@ -620,7 +621,7 @@ func TestUpdateOrderFromModify(t *testing.T) {
 	if !od.PostOnly {
 		t.Error("Failed to update")
 	}
-	if od.Leverage != 1 {
+	if od.Leverage != "1" {
 		t.Error("Failed to update")
 	}
 	if od.Price != 1 {
@@ -735,6 +736,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		HiddenOrder:       false,
 		FillOrKill:        false,
 		PostOnly:          false,
+		Leverage:          "",
 		Price:             0,
 		Amount:            0,
 		LimitPriceUpper:   0,
@@ -764,7 +766,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		HiddenOrder:       true,
 		FillOrKill:        true,
 		PostOnly:          true,
-		Leverage:          1,
+		Leverage:          "1",
 		Price:             1,
 		Amount:            1,
 		LimitPriceUpper:   1,
@@ -805,7 +807,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	if !od.PostOnly {
 		t.Error("Failed to update")
 	}
-	if od.Leverage != 1 {
+	if od.Leverage != "1" {
 		t.Error("Failed to update")
 	}
 	if od.Price != 1 {
