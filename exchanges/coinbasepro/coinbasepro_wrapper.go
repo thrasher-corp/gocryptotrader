@@ -492,8 +492,6 @@ func (c *CoinbasePro) GetOrderInfo(orderID string) (order.Detail, error) {
 	if errGF != nil {
 		return response, fmt.Errorf("error retrieving the order fills: %s", errGF)
 	}
-	trades := make([]order.TradeHistory, 0, len(fillResponse))
-	response.Trades = trades
 	for i := range fillResponse {
 		trSi, errTSi := order.StringToOrderSide(fillResponse[i].Side)
 		if errTSi != nil {
