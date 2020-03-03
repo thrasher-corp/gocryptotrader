@@ -773,12 +773,12 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 	return &gctrpc.OrderDetails{
 		Exchange:      result.Exchange,
 		Id:            result.ID,
-		BaseCurrency:  result.CurrencyPair.Base.String(),
-		QuoteCurrency: result.CurrencyPair.Quote.String(),
-		AssetType:     asset.Spot.String(), //TODO change to exch.GetPairAssetType(result.CurrencyPair) once GloriousCOde #446 PR is done
-		OrderSide:     result.OrderSide.String(),
-		OrderType:     result.OrderType.String(),
-		CreationTime:  result.OrderDate.Unix(),
+		BaseCurrency:  result.Pair.Base.String(),
+		QuoteCurrency: result.Pair.Quote.String(),
+		AssetType:     result.AssetType.String(),
+		OrderSide:     result.Side.String(),
+		OrderType:     result.Type.String(),
+		CreationTime:  result.Date.Unix(),
 		Status:        result.Status.String(),
 		Price:         result.Price,
 		Amount:        result.Amount,

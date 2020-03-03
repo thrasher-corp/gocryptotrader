@@ -477,10 +477,10 @@ func (c *CoinbasePro) GetOrderInfo(orderID string) (order.Detail, error) {
 	response := order.Detail{
 		Exchange:        c.GetName(),
 		ID:              genOrderDetail.ID,
-		CurrencyPair:    currency.NewPairDelimiter(genOrderDetail.ProductID, "-"),
-		OrderSide:       ss,
-		OrderType:       tt,
-		OrderDate:       od,
+		Pair:            currency.NewPairDelimiter(genOrderDetail.ProductID, "-"),
+		Side:            ss,
+		Type:            tt,
+		Date:            od,
 		Status:          os,
 		Price:           genOrderDetail.Price,
 		Amount:          genOrderDetail.Size,
@@ -504,14 +504,14 @@ func (c *CoinbasePro) GetOrderInfo(orderID string) (order.Detail, error) {
 			return response, fmt.Errorf("error parsing trade created time: %s", errTd)
 		}
 		response.Trades = append(response.Trades, order.TradeHistory{
-			Timestamp:   td,
-			TID:         string(fill.TradeID),
-			Price:       fill.Price,
-			Amount:      fill.Size,
-			Exchange:    c.GetName(),
-			Type:        tt,
-			Side:        trSi,
-			Fee:         fill.Fee,
+			Timestamp: td,
+			TID:       string(fill.TradeID),
+			Price:     fill.Price,
+			Amount:    fill.Size,
+			Exchange:  c.GetName(),
+			Type:      tt,
+			Side:      trSi,
+			Fee:       fill.Fee,
 		})
 	}
 	return response, nil
