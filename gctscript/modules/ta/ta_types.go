@@ -8,6 +8,6 @@ import (
 // Modules map of all loadable modules
 var Modules = map[string]map[string]tengo.Object{
 	"rsi":            indicators.RsiModule,
-	"moving_average": indicators.MovingAverageModule,
+	"moving-average": indicators.MovingAverageModule,
 	"index":          indicators.IndexModule,
 }
