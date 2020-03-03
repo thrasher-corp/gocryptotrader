@@ -10,6 +10,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	// ErrParameterConvertFailed error to return when type conversion fails
+	ErrParameterConvertFailed = "%v failed conversion"
+)
+
 // Wrapper instance of GCT to use for modules
 var Wrapper GCT
 

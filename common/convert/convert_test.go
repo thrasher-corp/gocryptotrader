@@ -216,3 +216,25 @@ func TestBoolPtr(t *testing.T) {
 		t.Fatal("false expected received true")
 	}
 }
+
+func TestStripSpaceBuilder(t *testing.T) {
+	v := StripSpaceBuilder("he ll o")
+	if v != "hello" {
+		t.Fatalf("unexpected result: %v", v)
+	}
+
+	v = StripSpaceBuilder("he llo")
+	if v != "hello" {
+		t.Fatalf("unexpected result: %v", v)
+	}
+
+	v = StripSpaceBuilder(" hello")
+	if v != "hello" {
+		t.Fatalf("unexpected result: %v", v)
+	}
+
+	v = StripSpaceBuilder("hello")
+	if v != "hello" {
+		t.Fatalf("unexpected result: %v", v)
+	}
+}
