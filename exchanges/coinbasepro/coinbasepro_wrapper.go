@@ -494,24 +494,24 @@ func (c *CoinbasePro) GetOrderInfo(orderID string) (order.Detail, error) {
 	}
 	trades := make([]order.TradeHistory, 0, len(fillResponse))
 	response.Trades = trades
-	for _, fill := range fillResponse {
-		trSi, errTSi := order.StringToOrderSide(fill.Side)
+	for i := range fillResponse {
+		trSi, errTSi := order.StringToOrderSide(fillResponse[i].Side)
 		if errTSi != nil {
 			return response, fmt.Errorf("error parsinf order Side: %s", errTSi)
 		}
-		td, errTd := time.Parse(time.RFC3339, fill.CreatedAt)
+		td, errTd := time.Parse(time.RFC3339, fillResponse[i].CreatedAt)
 		if errTd != nil {
 			return response, fmt.Errorf("error parsing trade created time: %s", errTd)
 		}
 		response.Trades = append(response.Trades, order.TradeHistory{
 			Timestamp: td,
-			TID:       string(fill.TradeID),
-			Price:     fill.Price,
-			Amount:    fill.Size,
+			TID:       string(fillResponse[i].TradeID),
+			Price:     fillResponse[i].Price,
+			Amount:    fillResponse[i].Size,
 			Exchange:  c.GetName(),
 			Type:      tt,
 			Side:      trSi,
-			Fee:       fill.Fee,
+			Fee:       fillResponse[i].Fee,
 		})
 	}
 	return response, nil
