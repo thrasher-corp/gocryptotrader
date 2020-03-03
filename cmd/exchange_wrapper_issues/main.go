@@ -262,8 +262,8 @@ func parseOrderType(orderType string) order.Type {
 		return order.Stop
 	case order.TrailingStop.String():
 		return order.TrailingStop
-	case order.Unknown.String():
-		return order.Unknown
+	case order.UnknownType.String():
+		return order.UnknownType
 	default:
 		log.Printf("OrderType '%v' not recognised, defaulting to LIMIT",
 			orderTypeOverride)
@@ -462,12 +462,12 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		s := &order.Submit{
-			Pair:      p,
-			OrderSide: testOrderSide,
-			OrderType: testOrderType,
-			Amount:    config.OrderSubmission.Amount,
-			Price:     config.OrderSubmission.Price,
-			ClientID:  config.OrderSubmission.OrderID,
+			Pair:     p,
+			Side:     testOrderSide,
+			Type:     testOrderType,
+			Amount:   config.OrderSubmission.Amount,
+			Price:    config.OrderSubmission.Price,
+			ClientID: config.OrderSubmission.OrderID,
 		}
 		var r11 order.SubmitResponse
 		r11, err = e.SubmitOrder(s)
@@ -484,12 +484,12 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		modifyRequest := order.Modify{
-			OrderID:      config.OrderSubmission.OrderID,
-			Type:         testOrderType,
-			Side:         testOrderSide,
-			CurrencyPair: p,
-			Price:        config.OrderSubmission.Price,
-			Amount:       config.OrderSubmission.Amount,
+			ID:     config.OrderSubmission.OrderID,
+			Type:   testOrderType,
+			Side:   testOrderSide,
+			Pair:   p,
+			Price:  config.OrderSubmission.Price,
+			Amount: config.OrderSubmission.Amount,
 		}
 		var r12 string
 		r12, err = e.ModifyOrder(&modifyRequest)
@@ -506,9 +506,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 		// r13
 		cancelRequest := order.Cancel{
-			Side:         testOrderSide,
-			CurrencyPair: p,
-			OrderID:      config.OrderSubmission.OrderID,
+			Side: testOrderSide,
+			Pair: p,
+			ID:   config.OrderSubmission.OrderID,
 		}
 		err = e.CancelOrder(&cancelRequest)
 		msg = ""
@@ -552,9 +552,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		historyRequest := order.GetOrdersRequest{
-			OrderType:  testOrderType,
-			OrderSide:  testOrderSide,
-			Currencies: []currency.Pair{p},
+			Type:  testOrderType,
+			Side:  testOrderSide,
+			Pairs: []currency.Pair{p},
 		}
 		var r16 []order.Detail
 		r16, err = e.GetOrderHistory(&historyRequest)
@@ -571,9 +571,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		orderRequest := order.GetOrdersRequest{
-			OrderType:  testOrderType,
-			OrderSide:  testOrderSide,
-			Currencies: []currency.Pair{p},
+			Type:  testOrderType,
+			Side:  testOrderSide,
+			Pairs: []currency.Pair{p},
 		}
 		var r17 []order.Detail
 		r17, err = e.GetActiveOrders(&orderRequest)

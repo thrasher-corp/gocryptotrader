@@ -325,14 +325,14 @@ func (b *Bithumb) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 	var orderID string
 	var err error
-	if s.OrderSide == order.Buy {
+	if s.Side == order.Buy {
 		var result MarketBuy
 		result, err = b.MarketBuyOrder(s.Pair.Base.String(), s.Amount)
 		if err != nil {
 			return submitOrderResponse, err
 		}
 		orderID = result.OrderID
-	} else if s.OrderSide == order.Sell {
+	} else if s.Side == order.Sell {
 		var result MarketSell
 		result, err = b.MarketSellOrder(s.Pair.Base.String(), s.Amount)
 		if err != nil {
@@ -352,8 +352,8 @@ func (b *Bithumb) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (b *Bithumb) ModifyOrder(action *order.Modify) (string, error) {
-	order, err := b.ModifyTrade(action.OrderID,
-		action.CurrencyPair.Base.String(),
+	order, err := b.ModifyTrade(action.ID,
+		action.Pair.Base.String(),
 		action.Side.Lower(),
 		action.Amount,
 		int64(action.Price))
@@ -368,8 +368,8 @@ func (b *Bithumb) ModifyOrder(action *order.Modify) (string, error) {
 // CancelOrder cancels an order by its corresponding ID number
 func (b *Bithumb) CancelOrder(order *order.Cancel) error {
 	_, err := b.CancelTrade(order.Side.String(),
-		order.OrderID,
-		order.CurrencyPair.Base.String())
+		order.ID,
+		order.Pair.Base.String())
 	return err
 }
 
@@ -396,7 +396,7 @@ func (b *Bithumb) CancelAllOrders(orderCancellation *order.Cancel) (order.Cancel
 	for i := range allOrders {
 		_, err := b.CancelTrade(orderCancellation.Side.String(),
 			allOrders[i].OrderID,
-			orderCancellation.CurrencyPair.Base.String())
+			orderCancellation.Pair.Base.String())
 		if err != nil {
 			cancelAllOrdersResponse.Status[allOrders[i].OrderID] = err.Error()
 		}
@@ -498,27 +498,27 @@ func (b *Bithumb) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 			Amount:          resp.Data[i].Units,
 			Exchange:        b.Name,
 			ID:              resp.Data[i].OrderID,
-			OrderDate:       orderDate,
+			Date:            orderDate,
 			Price:           resp.Data[i].Price,
 			RemainingAmount: resp.Data[i].UnitsRemaining,
 			Status:          order.Active,
-			CurrencyPair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
+			Pair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
 				resp.Data[i].PaymentCurrency,
 				b.GetPairFormat(asset.Spot, false).Delimiter),
 		}
 
 		if resp.Data[i].Type == "bid" {
-			orderDetail.OrderSide = order.Buy
+			orderDetail.Side = order.Buy
 		} else if resp.Data[i].Type == "ask" {
-			orderDetail.OrderSide = order.Sell
+			orderDetail.Side = order.Sell
 		}
 
 		orders = append(orders, orderDetail)
 	}
 
-	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersByCurrencies(&orders, req.Currencies)
+	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -541,26 +541,26 @@ func (b *Bithumb) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 			Amount:          resp.Data[i].Units,
 			Exchange:        b.Name,
 			ID:              resp.Data[i].OrderID,
-			OrderDate:       orderDate,
+			Date:            orderDate,
 			Price:           resp.Data[i].Price,
 			RemainingAmount: resp.Data[i].UnitsRemaining,
-			CurrencyPair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
+			Pair: currency.NewPairWithDelimiter(resp.Data[i].OrderCurrency,
 				resp.Data[i].PaymentCurrency,
 				b.GetPairFormat(asset.Spot, false).Delimiter),
 		}
 
 		if resp.Data[i].Type == "bid" {
-			orderDetail.OrderSide = order.Buy
+			orderDetail.Side = order.Buy
 		} else if resp.Data[i].Type == "ask" {
-			orderDetail.OrderSide = order.Sell
+			orderDetail.Side = order.Sell
 		}
 
 		orders = append(orders, orderDetail)
 	}
 
-	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersByCurrencies(&orders, req.Currencies)
+	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
 }
 

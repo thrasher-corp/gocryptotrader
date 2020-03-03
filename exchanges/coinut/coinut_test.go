@@ -35,21 +35,24 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Coinut load config error", err)
 	}
-	bConfig, err := cfg.GetExchangeConfig("COINUT")
+	coinutCfg, err := cfg.GetExchangeConfig("COINUT")
 	if err != nil {
 		log.Fatal("Coinut Setup() init error")
 	}
-	bConfig.API.AuthenticatedSupport = true
-	bConfig.API.AuthenticatedWebsocketSupport = true
-	bConfig.API.Credentials.Key = apiKey
-	bConfig.API.Credentials.ClientID = clientID
-	err = c.Setup(bConfig)
+	coinutCfg.API.AuthenticatedSupport = true
+	coinutCfg.API.AuthenticatedWebsocketSupport = true
+	coinutCfg.API.Credentials.Key = apiKey
+	coinutCfg.API.Credentials.ClientID = clientID
+	err = c.Setup(coinutCfg)
 	if err != nil {
 		log.Fatal("Coinut setup error", err)
 	}
-
-	c.SeedInstruments()
-
+	err = c.SeedInstruments()
+	if err != nil {
+		log.Fatal("Coinut setup error ", err)
+	}
+	c.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	c.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -80,7 +83,7 @@ func setupWSTestAuth(t *testing.T) {
 	}
 	c.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	c.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	go c.WsHandleData()
+	go c.wsReadData()
 	err = c.wsAuthenticate()
 	if err != nil {
 		t.Error(err)
@@ -259,7 +262,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
+		Type: order.AnyType,
 	}
 	_, err := c.GetActiveOrders(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
@@ -270,8 +273,8 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistoryWrapper(t *testing.T) {
 	setupWSTestAuth(t)
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
-		Currencies: []currency.Pair{currency.NewPair(currency.BTC,
+		Type: order.AnyType,
+		Pairs: []currency.Pair{currency.NewPair(currency.BTC,
 			currency.USD)},
 	}
 
@@ -297,11 +300,11 @@ func TestSubmitOrder(t *testing.T) {
 			Base:  currency.BTC,
 			Quote: currency.USD,
 		},
-		OrderSide: order.Buy,
-		OrderType: order.Limit,
-		Price:     1,
-		Amount:    1,
-		ClientID:  "123",
+		Side:     order.Buy,
+		Type:     order.Limit,
+		Price:    1,
+		Amount:   1,
+		ClientID: "123",
 	}
 	response, err := c.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -317,10 +320,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 	currencyPair := currency.NewPair(currency.BTC, currency.USD)
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	err := c.CancelOrder(orderCancellation)
@@ -339,10 +342,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	resp, err := c.CancelAllOrders(orderCancellation)
@@ -520,7 +523,7 @@ func TestWsAuthCancelOrdersWrapper(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	orderDetails := order.Cancel{
-		CurrencyPair: currency.NewPair(currency.LTC, currency.BTC),
+		Pair: currency.NewPair(currency.LTC, currency.BTC),
 	}
 	_, err := c.CancelAllOrders(&orderDetails)
 	if err != nil {
@@ -646,6 +649,482 @@ func TestGetNonce(t *testing.T) {
 	for x := 0; x < 100000; x++ {
 		if result <= 0 || result > coinutMaxNonce {
 			t.Fatal("invalid nonce value")
+		}
+	}
+}
+
+func TestWsOrderbook(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "buy":
+   [ { "count": 7, "price": "750.00000000", "qty": "0.07000000" },
+     { "count": 1, "price": "751.00000000", "qty": "0.01000000" },
+     { "count": 1, "price": "751.34500000", "qty": "0.01000000" } ],
+  "sell":
+   [ { "count": 6, "price": "750.58100000", "qty": "0.06000000" },
+     { "count": 1, "price": "750.58200000", "qty": "0.01000000" },
+     { "count": 1, "price": "750.58300000", "qty": "0.01000000" } ],
+  "inst_id": 1,
+  "nonce": 704114,
+  "total_buy": "67.52345000",
+  "total_sell": "0.08000000",
+  "reply": "inst_order_book",
+  "status": [ "OK" ]
+}`)
+	err := c.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(`{ "count": 7,
+  "inst_id": 1,
+  "price": "750.58100000",
+  "qty": "0.07000000",
+  "total_buy": "120.06412000",
+  "reply": "inst_order_book_update",
+  "side": "BUY",
+  "trans_id": 169384
+}`)
+	err = c.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsTicker(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "highest_buy": "750.58100000",
+  "inst_id": 1,
+  "last": "752.00000000",
+  "lowest_sell": "752.00000000",
+  "reply": "inst_tick",
+  "timestamp": 1481355058109705,
+  "trans_id": 170064,
+  "volume": "0.07650000",
+  "volume24": "56.07650000"
+}`)
+	err := c.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsGetInstruments(t *testing.T) {
+	pressXToJSON := []byte(`{
+   "SPOT":{
+      "LTCBTC":[
+         {
+            "base":"LTC",
+            "inst_id":1,
+            "decimal_places":5,
+            "quote":"BTC"
+         }
+      ],
+      "ETHBTC":[
+         {
+            "quote":"BTC",
+            "base":"ETH",
+            "decimal_places":5,
+            "inst_id":2
+         }
+      ]
+   },
+   "nonce":39116,
+   "reply":"inst_list",
+   "status":[
+      "OK"
+   ]
+}`)
+	err := c.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+	if c.instrumentMap.LookupID("ETHBTC") != 2 {
+		t.Error("Expected id to load")
+	}
+}
+
+func TestWsTrades(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "nonce": 450319,
+  "reply": "inst_trade",
+  "status": [
+    "OK"
+  ],
+  "trades": [
+    {
+      "price": "750.00000000",
+      "qty": "0.01000000",
+      "side": "BUY",
+      "timestamp": 1481193563288963,
+      "trans_id": 169514
+    },
+    {
+      "price": "750.00000000",
+      "qty": "0.01000000",
+      "side": "BUY",
+      "timestamp": 1481193345279104,
+      "trans_id": 169510
+    },
+    {
+      "price": "750.00000000",
+      "qty": "0.01000000",
+      "side": "BUY",
+      "timestamp": 1481193333272230,
+      "trans_id": 169506
+    },
+    {
+      "price": "750.00000000",
+      "qty": "0.01000000",
+      "side": "BUY",
+      "timestamp": 1481193007342874,
+      "trans_id": 169502
+    }]
+}`)
+	err := c.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(`{
+  "inst_id": 1,
+  "price": "750.58300000",
+  "reply": "inst_trade_update",
+  "side": "BUY",
+  "timestamp": 0,
+  "trans_id": 169478
+}`)
+	err = c.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsLogin(t *testing.T) {
+	pressXToJSON := []byte(`{
+   "api_key":"b46e658f-d4c4-433c-b032-093423b1aaa4",
+   "country":"NA",
+   "email":"tester@test.com",
+   "failed_times":0,
+   "lang":"en_US",
+   "nonce":829055,
+   "otp_enabled":false,
+   "products_enabled":[
+      "SPOT",
+      "FUTURE",
+      "BINARY_OPTION",
+      "OPTION"
+   ],
+   "reply":"login",
+   "session_id":"f8833081-af69-4266-904d-eea088cdcc52",
+   "status":[
+      "OK"
+   ],
+   "timezone":"Asia/Singapore",
+   "unverified_email":"",
+   "username":"test"
+}`)
+	err := c.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsAccountBalance(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "nonce": 306254,
+  "status": [
+    "OK"
+  ],
+  "BTC": "192.46630415",
+  "LTC": "6000.00000000",
+  "ETC": "800.00000000",
+  "ETH": "496.99938000",
+  "floating_pl": "0.00000000",
+  "initial_margin": "0.00000000",
+  "realized_pl": "0.00000000",
+  "maintenance_margin": "0.00000000",
+  "equity": "192.46630415",
+  "reply": "user_balance",
+  "trans_id": 15159032
+}`)
+	err := c.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsOrder(t *testing.T) {
+	pressXToJSON := []byte(`{
+      "nonce":956475,
+      "status":[
+         "OK"
+      ],
+      "order_id":1,
+      "open_qty": "0.01",
+      "inst_id": 490590,
+      "qty":"0.01",
+      "client_ord_id": 1345,
+      "order_price":"750.581",
+      "reply":"order_accepted",
+      "side":"SELL",
+      "trans_id":127303
+   }`)
+	err := c.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(` {
+    "commission": {
+      "amount": "0.00799000",
+      "currency": "USD"
+    },
+    "fill_price": "799.00000000",
+    "fill_qty": "0.01000000",
+    "nonce": 956475,
+    "order": {
+      "client_ord_id": 12345,
+      "inst_id": 490590,
+      "open_qty": "0.00000000",
+      "order_id": 721923,
+      "price": "748.00000000",
+      "qty": "0.01000000",
+      "side": "SELL",
+      "timestamp": 1482903034617491
+    },
+    "reply": "order_filled",
+    "status": [
+      "OK"
+    ],
+    "timestamp": 1482903034617491,
+    "trans_id": 20859252
+  }`)
+	err = c.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(` {
+    "nonce": 275825,
+    "status": [
+        "OK"
+    ],
+    "order_id": 7171,
+    "open_qty": "100000.00000000",
+    "price": "750.60000000",
+    "inst_id": 490590,
+    "reasons": [
+        "NOT_ENOUGH_BALANCE"
+    ],
+    "client_ord_id": 4,
+    "timestamp": 1482080535098689,
+    "reply": "order_rejected",
+    "qty": "100000.00000000",
+    "side": "BUY",
+    "trans_id": 3282993
+}`)
+	err = c.wsHandleData(pressXToJSON)
+	if err == nil {
+		t.Error("Expected not enough balance error")
+	}
+}
+
+func TestWsOrders(t *testing.T) {
+	pressXToJSON := []byte(`[
+  {
+    "nonce": 621701,
+    "status": [
+      "OK"
+    ],
+    "order_id": 331,
+    "open_qty": "0.01000000",
+    "price": "750.58100000",
+    "inst_id": 490590,
+    "client_ord_id": 1345,
+    "timestamp": 1490713990542441,
+    "reply": "order_accepted",
+    "qty": "0.01000000",
+    "side": "SELL",
+    "trans_id": 15155495
+  },
+  {
+    "nonce": 621701,
+    "status": [
+      "OK"
+    ],
+    "order_id": 332,
+    "open_qty": "0.01000000",
+    "price": "750.32100000",
+    "inst_id": 490590,
+    "client_ord_id": 50001346,
+    "timestamp": 1490713990542441,
+    "reply": "order_accepted",
+    "qty": "0.01000000",
+    "side": "BUY",
+    "trans_id": 15155497
+  }
+]`)
+	err := c.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsOpenOrders(t *testing.T) {
+	pressXToJSON := []byte(`{
+    "nonce": 1234,
+    "reply": "user_open_orders",
+    "status": [
+        "OK"
+    ],
+    "orders": [
+        {
+            "order_id": 35,
+            "open_qty": "0.01000000",
+            "price": "750.58200000",
+            "inst_id": 490590,
+            "client_ord_id": 4,
+            "timestamp": 1481138766081720,
+            "qty": "0.01000000",
+            "side": "BUY"
+        },
+        {
+            "order_id": 30,
+            "open_qty": "0.01000000",
+            "price": "750.58100000",
+            "inst_id": 490590,
+            "client_ord_id": 5,
+            "timestamp": 1481137697919617,
+            "qty": "0.01000000",
+            "side": "BUY"
+        }
+    ]
+}`)
+	err := c.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsCancelOrder(t *testing.T) {
+	pressXToJSON := []byte(` {
+    "nonce": 547201,
+    "reply": "cancel_order",
+    "order_id": 1,
+    "client_ord_id": 13556,
+    "status": [
+      "OK"
+    ]
+  }`)
+	err := c.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsCancelOrders(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "nonce": 547201,
+  "reply": "cancel_orders",
+  "status": [
+    "OK"
+  ],
+  "results": [
+    {
+      "order_id": 329,
+      "status": "OK",
+      "inst_id": 490590,
+      "client_ord_id": 13561
+    },
+    {
+      "order_id": 332,
+      "status": "OK",
+      "inst_id": 490590,
+      "client_ord_id": 13562
+    }
+  ],
+  "trans_id": 15166063
+}`)
+	err := c.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsOrderHistory(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "nonce": 326181,
+  "reply": "trade_history",
+  "status": [
+    "OK"
+  ],
+  "total_number": 261,
+  "trades": [
+    {
+      "commission": {
+        "amount": "0.00000100",
+        "currency": "BTC"
+      },
+      "order": {
+        "client_ord_id": 297125564,
+        "inst_id": 490590,
+        "open_qty": "0.00000000",
+        "order_id": 721327,
+        "price": "1.00000000",
+        "qty": "0.00100000",
+        "side": "SELL",
+        "timestamp": 1482490337560987
+      },
+      "fill_price": "1.00000000",
+      "fill_qty": "0.00100000",
+      "timestamp": 1482490337560987,
+      "trans_id": 10020695
+    },
+    {
+      "commission": {
+        "amount": "0.00000100",
+        "currency": "BTC"
+      },
+      "order": {
+        "client_ord_id": 297118937,
+        "inst_id": 490590,
+        "open_qty": "0.00000000",
+        "order_id": 721326,
+        "price": "1.00000000",
+        "qty": "0.00100000",
+        "side": "SELL",
+        "timestamp": 1482490330557949
+      },
+      "fill_price": "1.00000000",
+      "fill_qty": "0.00100000",
+      "timestamp": 1482490330557949,
+      "trans_id": 10020514
+    }
+  ]
+}`)
+	err := c.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestStringToStatus(t *testing.T) {
+	type TestCases struct {
+		Case     string
+		Quantity float64
+		Result   order.Status
+	}
+	testCases := []TestCases{
+		{Case: "order_accepted", Result: order.Active},
+		{Case: "order_filled", Quantity: 1, Result: order.PartiallyFilled},
+		{Case: "order_rejected", Result: order.Rejected},
+		{Case: "order_filled", Result: order.Filled},
+		{Case: "LOL", Result: order.UnknownStatus},
+	}
+	for i := range testCases {
+		result, _ := stringToOrderStatus(testCases[i].Case, testCases[i].Quantity)
+		if result != testCases[i].Result {
+			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
 		}
 	}
 }

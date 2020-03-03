@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 )
@@ -21,6 +22,7 @@ const (
 	WebsocketNotAuthenticatedUsingRest = "%v - Websocket not authenticated, using REST"
 	Ping                               = "ping"
 	Pong                               = "pong"
+	UnhandledMessage                   = " - Unhandled websocket message: "
 )
 
 // Websocket defines a return type for websocket connections via the interface
@@ -105,10 +107,10 @@ type TradeData struct {
 	CurrencyPair currency.Pair
 	AssetType    asset.Item
 	Exchange     string
-	EventType    string
+	EventType    order.Type
 	Price        float64
 	Amount       float64
-	Side         string
+	Side         order.Side
 }
 
 // FundingData defines funding data
@@ -120,7 +122,7 @@ type FundingData struct {
 	Amount       float64
 	Rate         float64
 	Period       int64
-	Side         string
+	Side         order.Side
 }
 
 // KlineData defines kline feed
@@ -173,4 +175,8 @@ type WebsocketPingHandler struct {
 	MessageType       int
 	Message           []byte
 	Delay             time.Duration
+}
+
+type UnhandledMessageWarning struct {
+	Message string
 }

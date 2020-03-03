@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 
 	b.HTTPClient = newClient
 	b.API.Endpoints.URL = serverDetails
-
+	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	log.Printf(sharedtestvalues.MockTesting, b.Name, b.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

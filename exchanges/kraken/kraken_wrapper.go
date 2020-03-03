@@ -111,6 +111,8 @@ func (k *Kraken) SetDefaults() {
 				SubmitOrder:        true,
 				CancelOrder:        true,
 				CancelOrders:       true,
+				GetOrders:          true,
+				GetOrder:           true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
 				exchange.WithdrawCryptoWith2FA |
@@ -436,8 +438,8 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var resp string
 		resp, err = k.wsAddOrder(&WsAddOrderRequest{
-			OrderType: s.OrderType.String(),
-			OrderSide: s.OrderSide.String(),
+			OrderType: s.Type.String(),
+			OrderSide: s.Side.String(),
 			Pair:      s.Pair.String(),
 			Price:     s.Price,
 			Volume:    s.Amount,
@@ -450,8 +452,8 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	} else {
 		var response AddOrderResponse
 		response, err = k.AddOrder(s.Pair.String(),
-			s.OrderSide.String(),
-			s.OrderType.String(),
+			s.Side.String(),
+			s.Type.String(),
 			s.Amount,
 			s.Price,
 			0,
@@ -464,7 +466,7 @@ func (k *Kraken) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			submitOrderResponse.OrderID = strings.Join(response.TransactionIds, ", ")
 		}
 	}
-	if s.OrderType == order.Market {
+	if s.Type == order.Market {
 		submitOrderResponse.FullyMatched = true
 	}
 	submitOrderResponse.IsOrderPlaced = true
@@ -480,9 +482,9 @@ func (k *Kraken) ModifyOrder(action *order.Modify) (string, error) {
 // CancelOrder cancels an order by its corresponding ID number
 func (k *Kraken) CancelOrder(order *order.Cancel) error {
 	if k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		return k.wsCancelOrders([]string{order.OrderID})
+		return k.wsCancelOrders([]string{order.ID})
 	}
-	_, err := k.CancelExistingOrder(order.OrderID)
+	_, err := k.CancelExistingOrder(order.ID)
 
 	return err
 }
@@ -547,10 +549,10 @@ func (k *Kraken) GetOrderInfo(orderID string) (order.Detail, error) {
 		orderDetail = order.Detail{
 			Exchange:        k.Name,
 			ID:              orderID,
-			CurrencyPair:    currency.NewPairFromString(orderInfo.Description.Pair),
-			OrderSide:       side,
-			OrderType:       oType,
-			OrderDate:       time.Unix(firstNum, decNum),
+			Pair:            currency.NewPairFromString(orderInfo.Description.Pair),
+			Side:            side,
+			Type:            oType,
+			Date:            time.Unix(firstNum, decNum),
 			Status:          status,
 			Price:           orderInfo.Price,
 			Amount:          orderInfo.Volume,
@@ -655,17 +657,17 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 			RemainingAmount: (resp.Open[i].Volume - resp.Open[i].VolumeExecuted),
 			ExecutedAmount:  resp.Open[i].VolumeExecuted,
 			Exchange:        k.Name,
-			OrderDate:       orderDate,
+			Date:            orderDate,
 			Price:           resp.Open[i].Description.Price,
-			OrderSide:       side,
-			OrderType:       orderType,
-			CurrencyPair:    symbol,
+			Side:            side,
+			Type:            orderType,
+			Pair:            symbol,
 		})
 	}
 
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersBySide(&orders, req.OrderSide)
-	order.FilterOrdersByCurrencies(&orders, req.Currencies)
+	order.FilterOrdersBySide(&orders, req.Side)
+	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -698,16 +700,16 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 			RemainingAmount: (resp.Closed[i].Volume - resp.Closed[i].VolumeExecuted),
 			ExecutedAmount:  resp.Closed[i].VolumeExecuted,
 			Exchange:        k.Name,
-			OrderDate:       orderDate,
+			Date:            orderDate,
 			Price:           resp.Closed[i].Description.Price,
-			OrderSide:       side,
-			OrderType:       orderType,
-			CurrencyPair:    symbol,
+			Side:            side,
+			Type:            orderType,
+			Pair:            symbol,
 		})
 	}
 
-	order.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
+	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
+	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Pairs)
 	return orders, nil
 }
 

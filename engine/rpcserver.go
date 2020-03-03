@@ -718,7 +718,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 	}
 
 	resp, err := exch.GetActiveOrders(&order.GetOrdersRequest{
-		Currencies: []currency.Pair{
+		Pairs: []currency.Pair{
 			currency.NewPairWithDelimiter(r.Pair.Base,
 				r.Pair.Quote, r.Pair.Delimiter),
 		},
@@ -732,12 +732,12 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 		orders = append(orders, &gctrpc.OrderDetails{
 			Exchange:      r.Exchange,
 			Id:            resp[x].ID,
-			BaseCurrency:  resp[x].CurrencyPair.Base.String(),
-			QuoteCurrency: resp[x].CurrencyPair.Quote.String(),
+			BaseCurrency:  resp[x].Pair.Base.String(),
+			QuoteCurrency: resp[x].Pair.Quote.String(),
 			AssetType:     asset.Spot.String(),
-			OrderType:     resp[x].OrderType.String(),
-			OrderSide:     resp[x].OrderSide.String(),
-			CreationTime:  resp[x].OrderDate.Unix(),
+			OrderType:     resp[x].Type.String(),
+			OrderSide:     resp[x].Side.String(),
+			CreationTime:  resp[x].Date.Unix(),
 			Status:        resp[x].Status.String(),
 			Price:         resp[x].Price,
 			Amount:        resp[x].Amount,
@@ -761,18 +761,17 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 	}
 
 	p := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
-	submission := &order.Submit{
-		Pair:      p,
-		OrderSide: order.Side(r.Side),
-		OrderType: order.Type(r.OrderType),
-		Amount:    r.Amount,
-		Price:     r.Price,
-		ClientID:  r.ClientId,
-	}
-	result, err := exch.SubmitOrder(submission)
+	resp, err := Bot.OrderManager.Submit(&order.Submit{
+		Pair:     p,
+		Side:     order.Side(r.Side),
+		Type:     order.Type(r.OrderType),
+		Amount:   r.Amount,
+		Price:    r.Price,
+		ClientID: r.ClientId,
+	})
 	return &gctrpc.SubmitOrderResponse{
-		OrderId:     result.OrderID,
-		OrderPlaced: result.IsOrderPlaced,
+		OrderId:     resp.OrderID,
+		OrderPlaced: resp.IsOrderPlaced,
 	}, err
 }
 
@@ -860,7 +859,7 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 
 	err := exch.CancelOrder(&order.Cancel{
 		AccountID:     r.AccountId,
-		OrderID:       r.OrderId,
+		ID:            r.OrderId,
 		Side:          order.Side(r.Side),
 		WalletAddress: r.WalletAddress,
 	})
@@ -1082,12 +1081,12 @@ func (s *RPCServer) WithdrawalEventsByExchange(ctx context.Context, r *gctrpc.Wi
 
 // WithdrawalEventsByDate returns previous withdrawal request details by exchange
 func (s *RPCServer) WithdrawalEventsByDate(ctx context.Context, r *gctrpc.WithdrawalEventsByDateRequest) (*gctrpc.WithdrawalEventsByExchangeResponse, error) {
-	UTCStartTime, err := time.Parse(audit.TableTimeFormat, r.Start)
+	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.Start)
 	if err != nil {
 		return nil, err
 	}
 
-	UTCSEndTime, err := time.Parse(audit.TableTimeFormat, r.End)
+	UTCSEndTime, err := time.Parse(common.SimpleTimeFormat, r.End)
 	if err != nil {
 		return nil, err
 	}
@@ -1423,12 +1422,12 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 
 // GetAuditEvent returns matching audit events from database
 func (s *RPCServer) GetAuditEvent(ctx context.Context, r *gctrpc.GetAuditEventRequest) (*gctrpc.GetAuditEventResponse, error) {
-	UTCStartTime, err := time.Parse(audit.TableTimeFormat, r.StartDate)
+	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.StartDate)
 	if err != nil {
 		return nil, err
 	}
 
-	UTCSEndTime, err := time.Parse(audit.TableTimeFormat, r.EndDate)
+	UTCSEndTime, err := time.Parse(common.SimpleTimeFormat, r.EndDate)
 	if err != nil {
 		return nil, err
 	}
@@ -1449,7 +1448,7 @@ func (s *RPCServer) GetAuditEvent(ctx context.Context, r *gctrpc.GetAuditEventRe
 				Type:       v[x].Type,
 				Identifier: v[x].Identifier,
 				Message:    v[x].Message,
-				Timestamp:  v[x].CreatedAt.In(loc).Format(audit.TableTimeFormat),
+				Timestamp:  v[x].CreatedAt.In(loc).Format(common.SimpleTimeFormat),
 			}
 
 			resp.Events = append(resp.Events, tempEvent)

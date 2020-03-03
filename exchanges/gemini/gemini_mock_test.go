@@ -45,7 +45,8 @@ func TestMain(m *testing.M) {
 
 	g.HTTPClient = newClient
 	g.API.Endpoints.URL = serverDetails
-
+	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	log.Printf(sharedtestvalues.MockTesting, g.Name, g.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

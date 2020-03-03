@@ -225,8 +225,8 @@ func (a *Alphapoint) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) 
 	}
 
 	response, err := a.CreateOrder(s.Pair.String(),
-		s.OrderSide.String(),
-		s.OrderSide.String(),
+		s.Side.String(),
+		s.Type.String(),
 		s.Amount,
 		s.Price)
 	if err != nil {
@@ -235,7 +235,7 @@ func (a *Alphapoint) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) 
 	if response > 0 {
 		submitOrderResponse.OrderID = strconv.FormatInt(response, 10)
 	}
-	if s.OrderType == order.Market {
+	if s.Type == order.Market {
 		submitOrderResponse.FullyMatched = true
 	}
 	submitOrderResponse.IsOrderPlaced = true
@@ -251,7 +251,7 @@ func (a *Alphapoint) ModifyOrder(_ *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (a *Alphapoint) CancelOrder(order *order.Cancel) error {
-	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -348,19 +348,19 @@ func (a *Alphapoint) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 				RemainingAmount: resp[x].OpenOrders[y].QtyRemaining,
 			}
 
-			orderDetail.OrderSide = orderSideMap[resp[x].OpenOrders[y].Side]
-			orderDetail.OrderDate = time.Unix(resp[x].OpenOrders[y].ReceiveTime, 0)
-			orderDetail.OrderType = orderTypeMap[resp[x].OpenOrders[y].OrderType]
-			if orderDetail.OrderType == "" {
-				orderDetail.OrderType = order.Unknown
+			orderDetail.Side = orderSideMap[resp[x].OpenOrders[y].Side]
+			orderDetail.Date = time.Unix(resp[x].OpenOrders[y].ReceiveTime, 0)
+			orderDetail.Type = orderTypeMap[resp[x].OpenOrders[y].OrderType]
+			if orderDetail.Type == "" {
+				orderDetail.Type = order.UnknownType
 			}
 
 			orders = append(orders, orderDetail)
 		}
 	}
 
-	order.FilterOrdersByType(&orders, req.OrderType)
-	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByType(&orders, req.Type)
+	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	return orders, nil
 }
@@ -390,19 +390,19 @@ func (a *Alphapoint) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 				RemainingAmount: resp[x].OpenOrders[y].QtyRemaining,
 			}
 
-			orderDetail.OrderSide = orderSideMap[resp[x].OpenOrders[y].Side]
-			orderDetail.OrderDate = time.Unix(resp[x].OpenOrders[y].ReceiveTime, 0)
-			orderDetail.OrderType = orderTypeMap[resp[x].OpenOrders[y].OrderType]
-			if orderDetail.OrderType == "" {
-				orderDetail.OrderType = order.Unknown
+			orderDetail.Side = orderSideMap[resp[x].OpenOrders[y].Side]
+			orderDetail.Date = time.Unix(resp[x].OpenOrders[y].ReceiveTime, 0)
+			orderDetail.Type = orderTypeMap[resp[x].OpenOrders[y].OrderType]
+			if orderDetail.Type == "" {
+				orderDetail.Type = order.UnknownType
 			}
 
 			orders = append(orders, orderDetail)
 		}
 	}
 
-	order.FilterOrdersByType(&orders, req.OrderType)
-	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByType(&orders, req.Type)
+	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	return orders, nil
 }

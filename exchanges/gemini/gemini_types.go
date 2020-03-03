@@ -275,87 +275,29 @@ type WsHeartbeatResponse struct {
 	SocketSequence int64  `json:"socket_sequence"`
 }
 
-// WsActiveOrdersResponse contains active orders
-type WsActiveOrdersResponse struct {
-	Type              string        `json:"type"`
-	OrderID           string        `json:"order_id"`
-	APISession        string        `json:"api_session"`
-	Symbol            currency.Pair `json:"symbol"`
-	Side              string        `json:"side"`
-	OrderType         string        `json:"order_type"`
-	Timestamp         string        `json:"timestamp"`
-	Timestampms       int64         `json:"timestampms"`
-	IsLive            bool          `json:"is_live"`
-	IsCancelled       bool          `json:"is_cancelled"`
-	IsHidden          bool          `json:"is_hidden"`
-	AvgExecutionPrice float64       `json:"avg_execution_price,string"`
-	ExecutedAmount    float64       `json:"executed_amount,string"`
-	RemainingAmount   float64       `json:"remaining_amount,string"`
-	OriginalAmount    float64       `json:"original_amount,string"`
-	Price             float64       `json:"price,string"`
-	SocketSequence    int64         `json:"socket_sequence"`
-}
-
-// WsOrderRejectedResponse ws response
-type WsOrderRejectedResponse struct {
-	Type           string        `json:"type"`
-	OrderID        string        `json:"order_id"`
-	EventID        string        `json:"event_id"`
-	Reason         string        `json:"reason"`
-	APISession     string        `json:"api_session"`
-	Symbol         currency.Pair `json:"symbol"`
-	Side           string        `json:"side"`
-	OrderType      string        `json:"order_type"`
-	Timestamp      string        `json:"timestamp"`
-	Timestampms    int64         `json:"timestampms"`
-	IsLive         bool          `json:"is_live"`
-	OriginalAmount float64       `json:"original_amount,string"`
-	Price          float64       `json:"price,string"`
-	SocketSequence int64         `json:"socket_sequence"`
-}
-
-// WsOrderBookedResponse ws response
-type WsOrderBookedResponse struct {
-	Type              string        `json:"type"`
-	OrderID           string        `json:"order_id"`
-	EventID           string        `json:"event_id"`
-	APISession        string        `json:"api_session"`
-	Symbol            currency.Pair `json:"symbol"`
-	Side              string        `json:"side"`
-	OrderType         string        `json:"order_type"`
-	Timestamp         string        `json:"timestamp"`
-	Timestampms       int64         `json:"timestampms"`
-	IsLive            bool          `json:"is_live"`
-	IsCancelled       bool          `json:"is_cancelled"`
-	IsHidden          bool          `json:"is_hidden"`
-	AvgExecutionPrice float64       `json:"avg_execution_price,string"`
-	ExecutedAmount    float64       `json:"executed_amount,string"`
-	RemainingAmount   float64       `json:"remaining_amount,string"`
-	OriginalAmount    float64       `json:"original_amount,string"`
-	Price             float64       `json:"price,string"`
-	SocketSequence    int64         `json:"socket_sequence"`
-}
-
-// WsOrderFilledResponse ws response
-type WsOrderFilledResponse struct {
-	Type              string            `json:"type"`
-	OrderID           string            `json:"order_id"`
-	APISession        string            `json:"api_session"`
-	Symbol            currency.Pair     `json:"symbol"`
-	Side              string            `json:"side"`
-	OrderType         string            `json:"order_type"`
-	Timestamp         string            `json:"timestamp"`
-	Timestampms       int64             `json:"timestampms"`
+// WsOrderResponse contains active orders
+type WsOrderResponse struct {
 	IsLive            bool              `json:"is_live"`
 	IsCancelled       bool              `json:"is_cancelled"`
 	IsHidden          bool              `json:"is_hidden"`
+	SocketSequence    int64             `json:"socket_sequence"`
+	Timestampms       int64             `json:"timestampms"`
 	AvgExecutionPrice float64           `json:"avg_execution_price,string"`
 	ExecutedAmount    float64           `json:"executed_amount,string"`
 	RemainingAmount   float64           `json:"remaining_amount,string"`
 	OriginalAmount    float64           `json:"original_amount,string"`
 	Price             float64           `json:"price,string"`
+	EventID           string            `json:"event_id"`
+	CancelCommandID   string            `json:"cancel_command_id"`
+	Reason            string            `json:"reason"`
+	Type              string            `json:"type"`
+	OrderID           string            `json:"order_id"`
+	APISession        string            `json:"api_session"`
+	Symbol            string            `json:"symbol"`
+	Side              string            `json:"side"`
+	OrderType         string            `json:"order_type"`
+	Timestamp         string            `json:"timestamp"`
 	Fill              WsOrderFilledData `json:"fill"`
-	SocketSequence    int64             `json:"socket_sequence"`
 }
 
 // WsOrderFilledData ws response data
@@ -368,72 +310,16 @@ type WsOrderFilledData struct {
 	FeeCurrency string  `json:"fee_currency"`
 }
 
-// WsOrderCancelledResponse ws response
-type WsOrderCancelledResponse struct {
-	Type              string        `json:"type"`
-	OrderID           string        `json:"order_id"`
-	EventID           string        `json:"event_id"`
-	CancelCommandID   string        `json:"cancel_command_id,omitempty"`
-	Reason            string        `json:"reason"`
-	APISession        string        `json:"api_session"`
-	Symbol            currency.Pair `json:"symbol"`
-	Side              string        `json:"side"`
-	OrderType         string        `json:"order_type"`
-	Timestamp         string        `json:"timestamp"`
-	Timestampms       int64         `json:"timestampms"`
-	IsLive            bool          `json:"is_live"`
-	IsCancelled       bool          `json:"is_cancelled"`
-	IsHidden          bool          `json:"is_hidden"`
-	AvgExecutionPrice float64       `json:"avg_execution_price,string"`
-	ExecutedAmount    float64       `json:"executed_amount,string"`
-	RemainingAmount   float64       `json:"remaining_amount,string"`
-	OriginalAmount    float64       `json:"original_amount,string"`
-	Price             float64       `json:"price,string"`
-	SocketSequence    int64         `json:"socket_sequence"`
+type wsUnsubscribeResponse struct {
+	Type          string `json:"type"`
+	Subscriptions []struct {
+		Name    string   `json:"name"`
+		Symbols []string `json:"symbols"`
+	} `json:"subscriptions"`
 }
 
-// WsOrderCancellationRejectedResponse ws response
-type WsOrderCancellationRejectedResponse struct {
-	Type              string        `json:"type"`
-	OrderID           string        `json:"order_id"`
-	EventID           string        `json:"event_id"`
-	CancelCommandID   string        `json:"cancel_command_id"`
-	Reason            string        `json:"reason"`
-	APISession        string        `json:"api_session"`
-	Symbol            currency.Pair `json:"symbol"`
-	Side              string        `json:"side"`
-	OrderType         string        `json:"order_type"`
-	Timestamp         string        `json:"timestamp"`
-	Timestampms       int64         `json:"timestampms"`
-	IsLive            bool          `json:"is_live"`
-	IsCancelled       bool          `json:"is_cancelled"`
-	IsHidden          bool          `json:"is_hidden"`
-	AvgExecutionPrice float64       `json:"avg_execution_price,string"`
-	ExecutedAmount    float64       `json:"executed_amount,string"`
-	RemainingAmount   float64       `json:"remaining_amount,string"`
-	OriginalAmount    float64       `json:"original_amount,string"`
-	Price             float64       `json:"price,string"`
-	SocketSequence    int64         `json:"socket_sequence"`
-}
-
-// WsOrderClosedResponse ws response
-type WsOrderClosedResponse struct {
-	Type              string        `json:"type"`
-	OrderID           string        `json:"order_id"`
-	EventID           string        `json:"event_id"`
-	APISession        string        `json:"api_session"`
-	Symbol            currency.Pair `json:"symbol"`
-	Side              string        `json:"side"`
-	OrderType         string        `json:"order_type"`
-	Timestamp         string        `json:"timestamp"`
-	Timestampms       int64         `json:"timestampms"`
-	IsLive            bool          `json:"is_live"`
-	IsCancelled       bool          `json:"is_cancelled"`
-	IsHidden          bool          `json:"is_hidden"`
-	AvgExecutionPrice float64       `json:"avg_execution_price,string"`
-	ExecutedAmount    float64       `json:"executed_amount,string"`
-	RemainingAmount   float64       `json:"remaining_amount,string"`
-	OriginalAmount    float64       `json:"original_amount,string"`
-	Price             float64       `json:"price,string"`
-	SocketSequence    int64         `json:"socket_sequence"`
+type wsCandleResponse struct {
+	Type    string      `json:"type"`
+	Symbol  string      `json:"symbol"`
+	Changes [][]float64 `json:"changes"`
 }

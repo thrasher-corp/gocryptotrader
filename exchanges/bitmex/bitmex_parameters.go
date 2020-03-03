@@ -258,38 +258,38 @@ func (p LeaderboardGetParams) IsNil() bool {
 
 // OrderNewParams contains all the parameters to send to the API endpoint
 type OrderNewParams struct {
-	// ClOrdID - [Optional] Client Order ID. This clOrdID will come back on the
+	// ClientOrderID - [Optional] Client Order ID. This clOrdID will come back on the
 	// order and any related executions.
-	ClOrdID string `json:"clOrdID,omitempty"`
+	ClientOrderID string `json:"clOrdID,omitempty"`
 
-	// ClOrdLinkID - [Optional] Client Order Link ID for contingent orders.
-	ClOrdLinkID string `json:"clOrdLinkID,omitempty"`
+	// ClientOrderLinkID - [Optional] Client Order Link ID for contingent orders.
+	ClientOrderLinkID string `json:"clOrdLinkID,omitempty"`
 
 	// ContingencyType - [Optional] contingency type for use with `clOrdLinkID`.
 	// Valid options: OneCancelsTheOther, OneTriggersTheOther,
 	// OneUpdatesTheOtherAbsolute, OneUpdatesTheOtherProportional.
 	ContingencyType string `json:"contingencyType,omitempty"`
 
-	// DisplayQty - [Optional] quantity to display in the book. Use 0 for a fully
+	// DisplayQuantity- [Optional] quantity to display in the book. Use 0 for a fully
 	// hidden order.
-	DisplayQty float64 `json:"displayQty,omitempty"`
+	DisplayQuantity float64 `json:"displayQty,omitempty"`
 
-	// ExecInst - [Optional] execution instructions. Valid options:
+	// ExecutionInstance - [Optional] execution instructions. Valid options:
 	// ParticipateDoNotInitiate, AllOrNone, MarkPrice, IndexPrice, LastPrice,
 	// Close, ReduceOnly, Fixed. 'AllOrNone' instruction requires `displayQty`
 	// to be 0. 'MarkPrice', 'IndexPrice' or 'LastPrice' instruction valid for
 	// 'Stop', 'StopLimit', 'MarketIfTouched', and 'LimitIfTouched' orders.
 	ExecInst string `json:"execInst,omitempty"`
 
-	// OrdType - Order type. Valid options: Market, Limit, Stop, StopLimit,
+	// OrderType - Order type. Valid options: Market, Limit, Stop, StopLimit,
 	// MarketIfTouched, LimitIfTouched, MarketWithLeftOverAsLimit, Pegged.
 	// Defaults to 'Limit' when `price` is specified. Defaults to 'Stop' when
 	// `stopPx` is specified. Defaults to 'StopLimit' when `price` and `stopPx`
 	// are specified.
-	OrdType string `json:"ordType,omitempty"`
+	OrderType string `json:"ordType,omitempty"`
 
-	// OrderQty Order quantity in units of the instrument (i.e. contracts).
-	OrderQty float64 `json:"orderQty,omitempty"`
+	// OrderQuantity Order quantity in units of the instrument (i.e. contracts).
+	OrderQuantity float64 `json:"orderQty,omitempty"`
 
 	// PegOffsetValue - [Optional] trailing offset from the current price for
 	// 'Stop', 'StopLimit', 'MarketIfTouched', and 'LimitIfTouched' orders; use a
@@ -309,11 +309,11 @@ type OrderNewParams struct {
 	// `orderQty` or `simpleOrderQty` is negative.
 	Side string `json:"side,omitempty"`
 
-	// SimpleOrderQty - Order quantity in units of the underlying instrument
+	// SimpleOrderQuantity - Order quantity in units of the underlying instrument
 	// (i.e. Bitcoin).
-	SimpleOrderQty float64 `json:"simpleOrderQty,omitempty"`
+	SimpleOrderQuantity float64 `json:"simpleOrderQty,omitempty"`
 
-	// StopPx - [Optional] trigger price for 'Stop', 'StopLimit',
+	// StopPrice - [Optional] trigger price for 'Stop', 'StopLimit',
 	// 'MarketIfTouched', and 'LimitIfTouched' orders. Use a price below the
 	// current price for stop-sell orders and buy-if-touched orders. Use
 	// `execInst` of 'MarkPrice' or 'LastPrice' to define the current price used
@@ -351,16 +351,16 @@ func (p *OrderNewParams) IsNil() bool {
 // OrderAmendParams contains all the parameters to send to the API endpoint
 // for the order amend operation
 type OrderAmendParams struct {
-	// ClOrdID - [Optional] new Client Order ID, requires `origClOrdID`.
-	ClOrdID string `json:"clOrdID,omitempty"`
+	// ClientOrderID - [Optional] new Client Order ID, requires `origClOrdID`.
+	ClientOrderID string `json:"clOrdID,omitempty"`
 
-	// LeavesQty - [Optional] leaves quantity in units of the instrument
+	// LeavesQuantity - [Optional] leaves quantity in units of the instrument
 	// (i.e. contracts). Useful for amending partially filled orders.
-	LeavesQty int32 `json:"leavesQty,omitempty"`
+	LeavesQuantity int32 `json:"leavesQty,omitempty"`
 
 	OrderID string `json:"orderID,omitempty"`
 
-	// OrderQty - [Optional] order quantity in units of the instrument
+	// OrderQuantity - [Optional] order quantity in units of the instrument
 	// (i.e. contracts).
 	OrderQty int32 `json:"orderQty,omitempty"`
 
@@ -377,15 +377,15 @@ type OrderAmendParams struct {
 	// 'LimitIfTouched' orders.
 	Price float64 `json:"price,omitempty"`
 
-	// SimpleLeavesQty - [Optional] leaves quantity in units of the underlying
+	// SimpleLeavesQuantity - [Optional] leaves quantity in units of the underlying
 	// instrument (i.e. Bitcoin). Useful for amending partially filled orders.
-	SimpleLeavesQty float64 `json:"simpleLeavesQty,omitempty"`
+	SimpleLeavesQuantity float64 `json:"simpleLeavesQty,omitempty"`
 
-	// SimpleOrderQty - [Optional] order quantity in units of the underlying
+	// SimpleOrderQuantity - [Optional] order quantity in units of the underlying
 	// instrument (i.e. Bitcoin).
-	SimpleOrderQty float64 `json:"simpleOrderQty,omitempty"`
+	SimpleOrderQuantity float64 `json:"simpleOrderQty,omitempty"`
 
-	// StopPx - [Optional] trigger price for 'Stop', 'StopLimit',
+	// StopPrice - [Optional] trigger price for 'Stop', 'StopLimit',
 	// 'MarketIfTouched', and 'LimitIfTouched' orders. Use a price below the
 	// current price for stop-sell orders and buy-if-touched orders.
 	StopPx float64 `json:"stopPx,omitempty"`
@@ -397,7 +397,7 @@ type OrderAmendParams struct {
 // VerifyData verifies outgoing data sets
 func (p *OrderAmendParams) VerifyData() error {
 	if p.OrderID == "" {
-		return errors.New("verifydata() OrderNewParams error - OrderID not set")
+		return errors.New("verifydata() OrderNewParams error - ID not set")
 	}
 	return nil
 }
@@ -415,8 +415,8 @@ func (p *OrderAmendParams) IsNil() bool {
 
 // OrderCancelParams contains all the parameters to send to the API endpoint
 type OrderCancelParams struct {
-	// ClOrdID - Client Order ID(s). See POST /order.
-	ClOrdID string `json:"clOrdID,omitempty"`
+	// ClientOrderID - Client Order ID(s). See POST /order.
+	ClientOrderID string `json:"clOrdID,omitempty"`
 
 	// OrderID - Order ID(s).
 	OrderID string `json:"orderID,omitempty"`

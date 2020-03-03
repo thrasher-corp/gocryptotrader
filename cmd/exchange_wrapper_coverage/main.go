@@ -128,12 +128,12 @@ func testWrappers(e exchange.IBotExchange) []string {
 	}
 
 	s := &order.Submit{
-		Pair:      p,
-		OrderSide: order.Buy,
-		OrderType: order.Limit,
-		Amount:    1000000,
-		Price:     10000000000,
-		ClientID:  "meow",
+		Pair:     p,
+		Side:     order.Buy,
+		Type:     order.Limit,
+		Amount:   1000000,
+		Price:    10000000000,
+		ClientID: "meow",
 	}
 	_, err = e.SubmitOrder(s)
 	if err == common.ErrNotYetImplemented {

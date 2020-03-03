@@ -34,6 +34,8 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Bitstamp setup error", err)
 	}
+	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	log.Printf(sharedtestvalues.LiveTesting, b.Name, b.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

@@ -316,11 +316,11 @@ func TestSubmitOrder(t *testing.T) {
 			Quote:     currency.USDT,
 			Delimiter: "_",
 		},
-		OrderSide: order.Buy,
-		OrderType: order.Limit,
-		Price:     1,
-		Amount:    1,
-		ClientID:  "meowOrder",
+		Side:     order.Buy,
+		Type:     order.Limit,
+		Price:    1,
+		Amount:   1,
+		ClientID: "meowOrder",
 	}
 	response, err := l.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -337,8 +337,8 @@ func TestCancelOrder(t *testing.T) {
 	}
 	cp := currency.NewPairWithDelimiter(currency.ETH.String(), currency.BTC.String(), "_")
 	var a order.Cancel
-	a.CurrencyPair = cp
-	a.OrderID = "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23"
+	a.Pair = cp
+	a.ID = "24f7ce27-af1d-4dca-a8c1-ef1cbeec1b23"
 	err := l.CancelOrder(&a)
 	if err != nil {
 		t.Error(err)
@@ -400,7 +400,7 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Skip("API keys required but not set, skipping test")
 	}
 	var input order.GetOrdersRequest
-	input.OrderSide = order.Buy
+	input.Side = order.Buy
 	_, err := l.GetOrderHistory(&input)
 	if err != nil {
 		t.Error(err)

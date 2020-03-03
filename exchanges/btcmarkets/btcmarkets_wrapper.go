@@ -101,6 +101,8 @@ func (b *BTCMarkets) SetDefaults() {
 				AccountInfo:            true,
 				Subscribe:              true,
 				AuthenticatedEndpoints: true,
+				GetOrders:              true,
+				GetOrder:               true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
@@ -158,6 +160,14 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}
+
+	b.Websocket.Orderbook.Setup(
+		exch.WebsocketOrderbookBufferLimit,
+		true,
+		true,
+		false,
+		false,
+		exch.Name)
 
 	return nil
 }
@@ -370,18 +380,18 @@ func (b *BTCMarkets) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) 
 		return resp, err
 	}
 
-	if s.OrderSide == order.Sell {
-		s.OrderSide = order.Ask
+	if s.Side == order.Sell {
+		s.Side = order.Ask
 	}
-	if s.OrderSide == order.Buy {
-		s.OrderSide = order.Bid
+	if s.Side == order.Buy {
+		s.Side = order.Bid
 	}
 
 	tempResp, err := b.NewOrder(b.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
 		s.Price,
 		s.Amount,
-		s.OrderType.String(),
-		s.OrderSide.String(),
+		s.Type.String(),
+		s.Side.String(),
 		s.TriggerPrice,
 		s.TargetAmount,
 		"",
@@ -404,7 +414,7 @@ func (b *BTCMarkets) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (b *BTCMarkets) CancelOrder(o *order.Cancel) error {
-	_, err := b.RemoveOrder(o.OrderID)
+	_, err := b.RemoveOrder(o.ID)
 	return err
 }
 
@@ -446,27 +456,27 @@ func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
 	}
 	resp.Exchange = b.Name
 	resp.ID = orderID
-	resp.CurrencyPair = currency.NewPairFromString(o.MarketID)
+	resp.Pair = currency.NewPairFromString(o.MarketID)
 	resp.Price = o.Price
-	resp.OrderDate = o.CreationTime
+	resp.Date = o.CreationTime
 	resp.ExecutedAmount = o.Amount - o.OpenAmount
-	resp.OrderSide = order.Bid
+	resp.Side = order.Bid
 	if o.Side == ask {
-		resp.OrderSide = order.Ask
+		resp.Side = order.Ask
 	}
 	switch o.Type {
 	case limit:
-		resp.OrderType = order.Limit
+		resp.Type = order.Limit
 	case market:
-		resp.OrderType = order.Market
+		resp.Type = order.Market
 	case stopLimit:
-		resp.OrderType = order.Stop
+		resp.Type = order.Stop
 	case stop:
-		resp.OrderType = order.Stop
+		resp.Type = order.Stop
 	case takeProfit:
-		resp.OrderType = order.ImmediateOrCancel
+		resp.Type = order.ImmediateOrCancel
 	default:
-		resp.OrderType = order.Unknown
+		resp.Type = order.UnknownType
 	}
 	resp.RemainingAmount = o.OpenAmount
 	switch o.Status {
@@ -561,42 +571,42 @@ func (b *BTCMarkets) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, err
 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if len(req.Currencies) == 0 {
+	if len(req.Pairs) == 0 {
 		allPairs := b.GetEnabledPairs(asset.Spot)
 		for a := range allPairs {
-			req.Currencies = append(req.Currencies,
+			req.Pairs = append(req.Pairs,
 				allPairs[a])
 		}
 	}
 
 	var resp []order.Detail
-	for x := range req.Currencies {
-		tempData, err := b.GetOrders(b.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String(), -1, -1, -1, true)
+	for x := range req.Pairs {
+		tempData, err := b.GetOrders(b.FormatExchangeCurrency(req.Pairs[x], asset.Spot).String(), -1, -1, -1, true)
 		if err != nil {
 			return resp, err
 		}
 		for y := range tempData {
 			var tempResp order.Detail
 			tempResp.Exchange = b.Name
-			tempResp.CurrencyPair = req.Currencies[x]
+			tempResp.Pair = req.Pairs[x]
 			tempResp.ID = tempData[y].OrderID
-			tempResp.OrderSide = order.Bid
+			tempResp.Side = order.Bid
 			if tempData[y].Side == ask {
-				tempResp.OrderSide = order.Ask
+				tempResp.Side = order.Ask
 			}
-			tempResp.OrderDate = tempData[y].CreationTime
+			tempResp.Date = tempData[y].CreationTime
 
 			switch tempData[y].Type {
 			case limit:
-				tempResp.OrderType = order.Limit
+				tempResp.Type = order.Limit
 			case market:
-				tempResp.OrderType = order.Market
+				tempResp.Type = order.Market
 			default:
 				log.Errorf(log.ExchangeSys,
 					"%s unknown order type %s getting order",
 					b.Name,
 					tempData[y].Type)
-				tempResp.OrderType = order.Unknown
+				tempResp.Type = order.UnknownType
 			}
 			switch tempData[y].Status {
 			case orderAccepted:
@@ -620,9 +630,9 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 			resp = append(resp, tempResp)
 		}
 	}
-	order.FilterOrdersByType(&resp, req.OrderType)
+	order.FilterOrdersByType(&resp, req.Type)
 	order.FilterOrdersByTickRange(&resp, req.StartTicks, req.EndTicks)
-	order.FilterOrdersBySide(&resp, req.OrderSide)
+	order.FilterOrdersBySide(&resp, req.Side)
 	return resp, nil
 }
 
@@ -632,7 +642,7 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 	var resp []order.Detail
 	var tempResp order.Detail
 	var tempArray []string
-	if len(req.Currencies) == 0 {
+	if len(req.Pairs) == 0 {
 		orders, err := b.GetOrders("", -1, -1, -1, false)
 		if err != nil {
 			return resp, err
@@ -641,8 +651,8 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 			tempArray = append(tempArray, orders[x].OrderID)
 		}
 	}
-	for y := range req.Currencies {
-		orders, err := b.GetOrders(b.FormatExchangeCurrency(req.Currencies[y], asset.Spot).String(), -1, -1, -1, false)
+	for y := range req.Pairs {
+		orders, err := b.GetOrders(b.FormatExchangeCurrency(req.Pairs[y], asset.Spot).String(), -1, -1, -1, false)
 		if err != nil {
 			return resp, err
 		}
@@ -674,13 +684,13 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 				continue
 			}
 			tempResp.Exchange = b.Name
-			tempResp.CurrencyPair = currency.NewPairFromString(tempData.Orders[c].MarketID)
-			tempResp.OrderSide = order.Bid
+			tempResp.Pair = currency.NewPairFromString(tempData.Orders[c].MarketID)
+			tempResp.Side = order.Bid
 			if tempData.Orders[c].Side == ask {
-				tempResp.OrderSide = order.Ask
+				tempResp.Side = order.Ask
 			}
 			tempResp.ID = tempData.Orders[c].OrderID
-			tempResp.OrderDate = tempData.Orders[c].CreationTime
+			tempResp.Date = tempData.Orders[c].CreationTime
 			tempResp.Price = tempData.Orders[c].Price
 			tempResp.ExecutedAmount = tempData.Orders[c].Amount
 			resp = append(resp, tempResp)

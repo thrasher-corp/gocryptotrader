@@ -113,6 +113,8 @@ func (b *Bitfinex) SetDefaults() {
 				AuthenticatedEndpoints: true,
 				MessageCorrelation:     true,
 				DeadMansSwitch:         true,
+				GetOrders:              true,
+				GetOrder:               true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.AutoWithdrawFiatWithAPIPermission,
@@ -436,7 +438,7 @@ func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		submitOrderResponse.OrderID, err = b.WsNewOrder(&WsNewOrderRequest{
 			CustomID: b.AuthenticatedWebsocketConn.GenerateMessageID(false),
-			Type:     o.OrderType.String(),
+			Type:     o.Type.String(),
 			Symbol:   b.FormatExchangeCurrency(o.Pair, asset.Spot).String(),
 			Amount:   o.Amount,
 			Price:    o.Price,
@@ -446,10 +448,10 @@ func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 		}
 	} else {
 		var response Order
-		isBuying := o.OrderSide == order.Buy
+		isBuying := o.Side == order.Buy
 		b.appendOptionalDelimiter(&o.Pair)
 		response, err = b.NewOrder(o.Pair.String(),
-			o.OrderType.String(),
+			o.Type.String(),
 			o.Amount,
 			o.Price,
 			false,
@@ -472,9 +474,9 @@ func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (b *Bitfinex) ModifyOrder(action *order.Modify) (string, error) {
-	orderIDInt, err := strconv.ParseInt(action.OrderID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(action.ID, 10, 64)
 	if err != nil {
-		return action.OrderID, err
+		return action.ID, err
 	}
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		if action.Side == order.Sell && action.Amount > 0 {
@@ -485,14 +487,14 @@ func (b *Bitfinex) ModifyOrder(action *order.Modify) (string, error) {
 			Price:   action.Price,
 			Amount:  action.Amount,
 		})
-		return action.OrderID, err
+		return action.ID, err
 	}
 	return "", common.ErrNotYetImplemented
 }
 
 // CancelOrder cancels an order by its corresponding ID number
 func (b *Bitfinex) CancelOrder(order *order.Cancel) error {
-	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -623,13 +625,13 @@ func (b *Bitfinex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 
 		orderDetail := order.Detail{
 			Amount:          resp[i].OriginalAmount,
-			OrderDate:       orderDate,
+			Date:            orderDate,
 			Exchange:        b.Name,
 			ID:              strconv.FormatInt(resp[i].OrderID, 10),
-			OrderSide:       orderSide,
+			Side:            orderSide,
 			Price:           resp[i].Price,
 			RemainingAmount: resp[i].RemainingAmount,
-			CurrencyPair:    currency.NewPairFromString(resp[i].Symbol),
+			Pair:            currency.NewPairFromString(resp[i].Symbol),
 			ExecutedAmount:  resp[i].ExecutedAmount,
 		}
 
@@ -648,18 +650,18 @@ func (b *Bitfinex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 		// Return type suggests “market” / “limit” / “stop” / “trailing-stop”
 		orderType := strings.Replace(resp[i].Type, "exchange ", "", 1)
 		if orderType == "trailing-stop" {
-			orderDetail.OrderType = order.TrailingStop
+			orderDetail.Type = order.TrailingStop
 		} else {
-			orderDetail.OrderType = order.Type(strings.ToUpper(orderType))
+			orderDetail.Type = order.Type(strings.ToUpper(orderType))
 		}
 
 		orders = append(orders, orderDetail)
 	}
 
-	order.FilterOrdersBySide(&orders, req.OrderSide)
-	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersBySide(&orders, req.Side)
+	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersByCurrencies(&orders, req.Currencies)
+	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -682,14 +684,14 @@ func (b *Bitfinex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 
 		orderDetail := order.Detail{
 			Amount:          resp[i].OriginalAmount,
-			OrderDate:       orderDate,
+			Date:            orderDate,
 			Exchange:        b.Name,
 			ID:              strconv.FormatInt(resp[i].OrderID, 10),
-			OrderSide:       orderSide,
+			Side:            orderSide,
 			Price:           resp[i].Price,
 			RemainingAmount: resp[i].RemainingAmount,
 			ExecutedAmount:  resp[i].ExecutedAmount,
-			CurrencyPair:    currency.NewPairFromString(resp[i].Symbol),
+			Pair:            currency.NewPairFromString(resp[i].Symbol),
 		}
 
 		switch {
@@ -707,21 +709,21 @@ func (b *Bitfinex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 		// Return type suggests “market” / “limit” / “stop” / “trailing-stop”
 		orderType := strings.Replace(resp[i].Type, "exchange ", "", 1)
 		if orderType == "trailing-stop" {
-			orderDetail.OrderType = order.TrailingStop
+			orderDetail.Type = order.TrailingStop
 		} else {
-			orderDetail.OrderType = order.Type(strings.ToUpper(orderType))
+			orderDetail.Type = order.Type(strings.ToUpper(orderType))
 		}
 
 		orders = append(orders, orderDetail)
 	}
 
-	order.FilterOrdersBySide(&orders, req.OrderSide)
-	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersBySide(&orders, req.Side)
+	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	for i := range req.Currencies {
-		b.appendOptionalDelimiter(&req.Currencies[i])
+	for i := range req.Pairs {
+		b.appendOptionalDelimiter(&req.Pairs[i])
 	}
-	order.FilterOrdersByCurrencies(&orders, req.Currencies)
+	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
 }
 
