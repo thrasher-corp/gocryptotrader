@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -72,7 +74,7 @@ func (h *HUOBI) WsConnect() error {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 
-	go h.WsHandleData()
+	go h.wsReadData()
 	h.GenerateDefaultSubscriptions()
 
 	return nil
@@ -83,7 +85,7 @@ func (h *HUOBI) wsDial(dialer *websocket.Dialer) error {
 	if err != nil {
 		return err
 	}
-	go h.wsMultiConnectionFunnel(h.WebsocketConn, wsMarketURL)
+	go h.wsFunnelConnectionData(h.WebsocketConn, wsMarketURL)
 	return nil
 }
 
@@ -95,12 +97,12 @@ func (h *HUOBI) wsAuthenticatedDial(dialer *websocket.Dialer) error {
 	if err != nil {
 		return err
 	}
-	go h.wsMultiConnectionFunnel(h.AuthenticatedWebsocketConn, wsAccountsOrdersURL)
+	go h.wsFunnelConnectionData(h.AuthenticatedWebsocketConn, wsAccountsOrdersURL)
 	return nil
 }
 
-// wsMultiConnectionFunnel manages data from multiple endpoints and passes it to a channel
-func (h *HUOBI) wsMultiConnectionFunnel(ws *wshandler.WebsocketConnection, url string) {
+// wsFunnelConnectionData manages data from multiple endpoints and passes it to a channel
+func (h *HUOBI) wsFunnelConnectionData(ws *wshandler.WebsocketConnection, url string) {
 	h.Websocket.Wg.Add(1)
 	defer h.Websocket.Wg.Done()
 	for {
@@ -119,8 +121,8 @@ func (h *HUOBI) wsMultiConnectionFunnel(ws *wshandler.WebsocketConnection, url s
 	}
 }
 
-// WsHandleData handles data read from the websocket connection
-func (h *HUOBI) WsHandleData() {
+// wsReadData receives and passes on websocket messages for processing
+func (h *HUOBI) wsReadData() {
 	h.Websocket.Wg.Add(1)
 	defer h.Websocket.Wg.Done()
 	for {
@@ -128,120 +130,201 @@ func (h *HUOBI) WsHandleData() {
 		case <-h.Websocket.ShutdownC:
 			return
 		case resp := <-comms:
-			switch resp.URL {
-			case wsMarketURL:
-				h.wsHandleMarketData(resp)
-			case wsAccountsOrdersURL:
-				h.wsHandleAuthenticatedData(resp)
+			err := h.wsHandleData(resp.Raw)
+			if err != nil {
+				h.Websocket.DataHandler <- err
 			}
 		}
 	}
 }
 
-func (h *HUOBI) wsHandleAuthenticatedData(resp WsMessage) {
-	var init WsAuthenticatedDataResponse
-	err := json.Unmarshal(resp.Raw, &init)
+func stringToOrderStatus(status string) (order.Status, error) {
+	switch status {
+	case "submitted":
+		return order.New, nil
+	case "canceled":
+		return order.Cancelled, nil
+	case "partial-filled":
+		return order.PartiallyFilled, nil
+	case "partial-canceled":
+		return order.PartiallyCancelled, nil
+	default:
+		return order.UnknownStatus, errors.New(status + " not recognised as order status")
+	}
+}
+
+func stringToOrderSide(side string) (order.Side, error) {
+	switch {
+	case strings.Contains(side, "buy"):
+		return order.Buy, nil
+	case strings.Contains(side, "sell"):
+		return order.Sell, nil
+	}
+
+	return order.UnknownSide, errors.New(side + " not recognised as order side")
+}
+
+func stringToOrderType(oType string) (order.Type, error) {
+	switch {
+	case strings.Contains(oType, "limit"):
+		return order.Limit, nil
+	case strings.Contains(oType, "market"):
+		return order.Market, nil
+	}
+
+	return order.UnknownType, errors.New(oType + " not recognised as order type")
+}
+
+func (h *HUOBI) wsHandleData(respRaw []byte) error {
+	var init WsResponse
+	err := json.Unmarshal(respRaw, &init)
 	if err != nil {
-		h.Websocket.DataHandler <- err
-		return
+		return err
+	}
+	if init.Subscribed != "" ||
+		init.UnSubscribed != "" ||
+		init.Op == "sub" ||
+		init.Op == "unsub" {
+		// TODO handle subs
+		return nil
 	}
 	if init.Ping != 0 {
 		h.sendPingResponse(init.Ping)
-		return
+		return nil
 	}
 	if init.ErrorMessage == "api-signature-not-valid" {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	}
-	if init.Op == "sub" {
-		if h.Verbose {
-			log.Debugf(log.ExchangeSys, "%v: %v: Successfully subscribed to %v", h.Name, resp.URL, init.Topic)
-		}
-		return
+		return errors.New(h.Name + " - invalid credentials. Authenticated requests disabled")
 	}
 	if init.ClientID > 0 {
-		h.AuthenticatedWebsocketConn.AddResponseWithID(init.ClientID, resp.Raw)
-		return
+		if h.WebsocketConn.IsIDWaitingForResponse(init.ClientID) {
+			h.WebsocketConn.SetResponseIDAndData(init.ClientID, respRaw)
+			return nil
+		}
 	}
 
 	switch {
 	case strings.EqualFold(init.Op, authOp):
 		h.Websocket.SetCanUseAuthenticatedEndpoints(true)
-		var response WsAuthenticatedDataResponse
-		err := json.Unmarshal(resp.Raw, &response)
+		err := json.Unmarshal(respRaw, &init)
 		if err != nil {
-			h.Websocket.DataHandler <- err
+			return err
 		}
-		h.Websocket.DataHandler <- response
+		h.Websocket.DataHandler <- init
+
 	case strings.EqualFold(init.Topic, "accounts"):
 		var response WsAuthenticatedAccountsResponse
-		err := json.Unmarshal(resp.Raw, &response)
+		err := json.Unmarshal(respRaw, &response)
 		if err != nil {
-			h.Websocket.DataHandler <- err
+			return err
 		}
 		h.Websocket.DataHandler <- response
+
 	case strings.Contains(init.Topic, "orders") &&
 		strings.Contains(init.Topic, "update"):
 		var response WsAuthenticatedOrdersUpdateResponse
-		err := json.Unmarshal(resp.Raw, &response)
+		err := json.Unmarshal(respRaw, &response)
 		if err != nil {
-			h.Websocket.DataHandler <- err
+			return err
 		}
-		h.Websocket.DataHandler <- response
+		data := strings.Split(response.Topic, ".")
+		if len(data) < 2 {
+			return errors.New(h.Name + " - currency could not be extracted from response")
+		}
+		orderID := strconv.FormatInt(response.Data.OrderID, 10)
+		var oSide order.Side
+		oSide, err = stringToOrderSide(response.Data.OrderType)
+		if err != nil {
+			h.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: h.Name,
+				OrderID:  orderID,
+				Err:      err,
+			}
+		}
+		var oType order.Type
+		oType, err = stringToOrderType(response.Data.OrderType)
+		if err != nil {
+			h.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: h.Name,
+				OrderID:  orderID,
+				Err:      err,
+			}
+		}
+		var oStatus order.Status
+		oStatus, err = stringToOrderStatus(response.Data.OrderState)
+		if err != nil {
+			h.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: h.Name,
+				OrderID:  orderID,
+				Err:      err,
+			}
+		}
+		var p currency.Pair
+		var a asset.Item
+		p, a, err = h.GetRequestFormattedPairAndAssetType(data[1])
+		if err != nil {
+			return err
+		}
+		h.Websocket.DataHandler <- &order.Detail{
+			Price:           response.Data.Price,
+			Amount:          response.Data.UnfilledAmount + response.Data.FilledAmount,
+			ExecutedAmount:  response.Data.FilledAmount,
+			RemainingAmount: response.Data.UnfilledAmount,
+			Exchange:        h.Name,
+			ID:              orderID,
+			Type:            oType,
+			Side:            oSide,
+			Status:          oStatus,
+			AssetType:       a,
+			LastUpdated:     time.Unix(response.TS*1000, 0),
+			Pair:            p,
+		}
+
 	case strings.Contains(init.Topic, "orders"):
-		var response WsAuthenticatedOrdersResponse
-		err := json.Unmarshal(resp.Raw, &response)
+		var response WsOldOrderUpdate
+		err := json.Unmarshal(respRaw, &response)
 		if err != nil {
-			h.Websocket.DataHandler <- err
+			return err
 		}
 		h.Websocket.DataHandler <- response
-	}
-}
-
-func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
-	var init WsResponse
-	err := json.Unmarshal(resp.Raw, &init)
-	if err != nil {
-		h.Websocket.DataHandler <- err
-		return
-	}
-	if init.Status == "error" {
-		h.Websocket.DataHandler <- fmt.Errorf("%v %v Websocket error %s %s",
-			h.Name,
-			resp.URL,
-			init.ErrorCode,
-			init.ErrorMessage)
-		return
-	}
-	if init.Subscribed != "" {
-		return
-	}
-	if init.Ping != 0 {
-		h.sendPingResponse(init.Ping)
-		return
-	}
-
-	switch {
 	case strings.Contains(init.Channel, "depth"):
 		var depth WsDepth
-		err := json.Unmarshal(resp.Raw, &depth)
+		err := json.Unmarshal(respRaw, &depth)
 		if err != nil {
-			h.Websocket.DataHandler <- err
-			return
+			return err
 		}
 
 		data := strings.Split(depth.Channel, ".")
 		err = h.WsProcessOrderbook(&depth, data[1])
 		if err != nil {
-			h.Websocket.DataHandler <- err
-			return
+			return err
 		}
-
+	case strings.Contains(init.Rep, "kline"):
+		var kline wsKLineResponseThing
+		err := json.Unmarshal(respRaw, &kline)
+		if err != nil {
+			return err
+		}
+		var curr = strings.Split(init.Rep, ".")
+		for i := range kline.Data {
+			h.Websocket.DataHandler <- wshandler.KlineData{
+				Timestamp: time.Now(),
+				Exchange:  h.Name,
+				AssetType: asset.Spot,
+				Pair: currency.NewPairFromFormattedPairs(curr[1],
+					h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
+				OpenPrice:  kline.Data[i].Open,
+				ClosePrice: kline.Data[i].Close,
+				HighPrice:  kline.Data[i].High,
+				LowPrice:   kline.Data[i].Low,
+				Volume:     kline.Data[i].Volume,
+			}
+		}
 	case strings.Contains(init.Channel, "kline"):
 		var kline WsKline
-		err := json.Unmarshal(resp.Raw, &kline)
+		err := json.Unmarshal(respRaw, &kline)
 		if err != nil {
-			h.Websocket.DataHandler <- err
-			return
+			return err
 		}
 		data := strings.Split(kline.Channel, ".")
 		h.Websocket.DataHandler <- wshandler.KlineData{
@@ -258,10 +341,9 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 		}
 	case strings.Contains(init.Channel, "trade.detail"):
 		var trade WsTrade
-		err := json.Unmarshal(resp.Raw, &trade)
+		err := json.Unmarshal(respRaw, &trade)
 		if err != nil {
-			h.Websocket.DataHandler <- err
-			return
+			return err
 		}
 		data := strings.Split(trade.Channel, ".")
 		h.Websocket.DataHandler <- wshandler.TradeData{
@@ -271,14 +353,20 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
 			Timestamp: time.Unix(0, trade.Tick.Timestamp*int64(time.Millisecond)),
 		}
-	case strings.Contains(init.Channel, "detail"):
+	case strings.Contains(init.Channel, "detail"),
+		strings.Contains(init.Rep, "detail"):
 		var wsTicker WsTick
-		err := json.Unmarshal(resp.Raw, &wsTicker)
+		err := json.Unmarshal(respRaw, &wsTicker)
 		if err != nil {
-			h.Websocket.DataHandler <- err
-			return
+			return err
 		}
-		data := strings.Split(wsTicker.Channel, ".")
+		var data []string
+		if wsTicker.Channel != "" {
+			data = strings.Split(wsTicker.Channel, ".")
+		}
+		if wsTicker.Rep != "" {
+			data = strings.Split(wsTicker.Rep, ".")
+		}
 		h.Websocket.DataHandler <- &ticker.Price{
 			ExchangeName: h.Name,
 			Open:         wsTicker.Tick.Open,
@@ -292,7 +380,11 @@ func (h *HUOBI) wsHandleMarketData(resp WsMessage) {
 			Pair: currency.NewPairFromFormattedPairs(data[1],
 				h.GetEnabledPairs(asset.Spot), h.GetPairFormat(asset.Spot, true)),
 		}
+	default:
+		h.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: h.Name + wshandler.UnhandledMessage + string(respRaw)}
+		return nil
 	}
+	return nil
 }
 
 func (h *HUOBI) sendPingResponse(pong int64) {

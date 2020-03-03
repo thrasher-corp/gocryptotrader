@@ -94,6 +94,9 @@ func (g *Gemini) SetDefaults() {
 				TradeFetching:          true,
 				AuthenticatedEndpoints: true,
 				MessageSequenceNumbers: true,
+				Subscribe:              true,
+				Unsubscribe:            true,
+				KlineFetching:          true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.AutoWithdrawCryptoWithSetup |
@@ -338,7 +341,7 @@ func (g *Gemini) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
-	if s.OrderType != order.Limit {
+	if s.Type != order.Limit {
 		return submitOrderResponse,
 			errors.New("only limit orders are enabled through this exchange")
 	}
@@ -347,7 +350,7 @@ func (g *Gemini) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		g.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
 		s.Amount,
 		s.Price,
-		s.OrderSide.String(),
+		s.Side.String(),
 		"exchange limit")
 	if err != nil {
 		return submitOrderResponse, err
@@ -369,7 +372,7 @@ func (g *Gemini) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (g *Gemini) CancelOrder(order *order.Cancel) error {
-	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -479,31 +482,31 @@ func (g *Gemini) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 			ID:              strconv.FormatInt(resp[i].OrderID, 10),
 			ExecutedAmount:  resp[i].ExecutedAmount,
 			Exchange:        g.Name,
-			OrderType:       orderType,
-			OrderSide:       side,
+			Type:            orderType,
+			Side:            side,
 			Price:           resp[i].Price,
-			CurrencyPair:    symbol,
-			OrderDate:       orderDate,
+			Pair:            symbol,
+			Date:            orderDate,
 		})
 	}
 
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersBySide(&orders, req.OrderSide)
-	order.FilterOrdersByType(&orders, req.OrderType)
-	order.FilterOrdersByCurrencies(&orders, req.Currencies)
+	order.FilterOrdersBySide(&orders, req.Side)
+	order.FilterOrdersByType(&orders, req.Type)
+	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (g *Gemini) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if len(req.Currencies) == 0 {
+	if len(req.Pairs) == 0 {
 		return nil, errors.New("currency must be supplied")
 	}
 
 	var trades []TradeHistory
-	for j := range req.Currencies {
-		resp, err := g.GetTradeHistory(g.FormatExchangeCurrency(req.Currencies[j],
+	for j := range req.Pairs {
+		resp, err := g.GetTradeHistory(g.FormatExchangeCurrency(req.Pairs[j],
 			asset.Spot).String(),
 			req.StartTicks.Unix())
 		if err != nil {
@@ -511,8 +514,8 @@ func (g *Gemini) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 		}
 
 		for i := range resp {
-			resp[i].BaseCurrency = req.Currencies[j].Base.String()
-			resp[i].QuoteCurrency = req.Currencies[j].Quote.String()
+			resp[i].BaseCurrency = req.Pairs[j].Base.String()
+			resp[i].QuoteCurrency = req.Pairs[j].Quote.String()
 			trades = append(trades, resp[i])
 		}
 	}
@@ -523,21 +526,21 @@ func (g *Gemini) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 		orderDate := time.Unix(trades[i].Timestamp, 0)
 
 		orders = append(orders, order.Detail{
-			Amount:    trades[i].Amount,
-			ID:        strconv.FormatInt(trades[i].OrderID, 10),
-			Exchange:  g.Name,
-			OrderDate: orderDate,
-			OrderSide: side,
-			Fee:       trades[i].FeeAmount,
-			Price:     trades[i].Price,
-			CurrencyPair: currency.NewPairWithDelimiter(trades[i].BaseCurrency,
+			Amount:   trades[i].Amount,
+			ID:       strconv.FormatInt(trades[i].OrderID, 10),
+			Exchange: g.Name,
+			Date:     orderDate,
+			Side:     side,
+			Fee:      trades[i].FeeAmount,
+			Price:    trades[i].Price,
+			Pair: currency.NewPairWithDelimiter(trades[i].BaseCurrency,
 				trades[i].QuoteCurrency,
 				g.GetPairFormat(asset.Spot, false).Delimiter),
 		})
 	}
 
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
 

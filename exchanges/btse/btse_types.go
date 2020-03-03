@@ -165,3 +165,23 @@ type wsTradeHistory struct {
 	Topic string        `json:"topic"`
 	Data  []wsTradeData `json:"data"`
 }
+
+type wsNotification struct {
+	Topic string          `json:"topic"`
+	Data  []wsOrderUpdate `json:"data"`
+}
+
+type wsOrderUpdate struct {
+	OrderID           string  `json:"orderID"`
+	OrderMode         string  `json:"orderMode"`
+	OrderType         string  `json:"orderType"`
+	PegPriceDeviation string  `json:"pegPriceDeviation"`
+	Price             float64 `json:"price,string"`
+	Size              float64 `json:"size,string"`
+	Status            string  `json:"status"`
+	Stealth           string  `json:"stealth"`
+	Symbol            string  `json:"symbol"`
+	Timestamp         int64   `json:"timestamp,string"`
+	TriggerPrice      float64 `json:"triggerPrice,string"`
+	Type              string  `json:"type"`
+}

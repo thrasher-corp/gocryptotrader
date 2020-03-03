@@ -334,12 +334,12 @@ func (y *Yobit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
-	if s.OrderType != order.Limit {
+	if s.Type != order.Limit {
 		return submitOrderResponse, errors.New("only limit orders are allowed")
 	}
 
 	response, err := y.Trade(s.Pair.String(),
-		s.OrderSide.String(),
+		s.Side.String(),
 		s.Amount,
 		s.Price)
 	if err != nil {
@@ -361,7 +361,7 @@ func (y *Yobit) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (y *Yobit) CancelOrder(order *order.Cancel) error {
-	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -463,8 +463,8 @@ func (y *Yobit) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 // GetActiveOrders retrieves any orders that are active/open
 func (y *Yobit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var orders []order.Detail
-	for x := range req.Currencies {
-		fCurr := y.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String()
+	for x := range req.Pairs {
+		fCurr := y.FormatExchangeCurrency(req.Pairs[x], asset.Spot).String()
 		resp, err := y.GetOpenOrders(fCurr)
 		if err != nil {
 			return nil, err
@@ -476,19 +476,19 @@ func (y *Yobit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 			orderDate := time.Unix(int64(resp[id].TimestampCreated), 0)
 			side := order.Side(strings.ToUpper(resp[id].Type))
 			orders = append(orders, order.Detail{
-				ID:           id,
-				Amount:       resp[id].Amount,
-				Price:        resp[id].Rate,
-				OrderSide:    side,
-				OrderDate:    orderDate,
-				CurrencyPair: symbol,
-				Exchange:     y.Name,
+				ID:       id,
+				Amount:   resp[id].Amount,
+				Price:    resp[id].Rate,
+				Side:     side,
+				Date:     orderDate,
+				Pair:     symbol,
+				Exchange: y.Name,
 			})
 		}
 	}
 
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
 
@@ -496,14 +496,14 @@ func (y *Yobit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 // Can Limit response to specific order status
 func (y *Yobit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var allOrders []TradeHistory
-	for x := range req.Currencies {
+	for x := range req.Pairs {
 		resp, err := y.GetTradeHistory(0,
 			10000,
 			math.MaxInt64,
 			req.StartTicks.Unix(),
 			req.EndTicks.Unix(),
 			"DESC",
-			y.FormatExchangeCurrency(req.Currencies[x], asset.Spot).String())
+			y.FormatExchangeCurrency(req.Pairs[x], asset.Spot).String())
 		if err != nil {
 			return nil, err
 		}
@@ -520,17 +520,17 @@ func (y *Yobit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 		orderDate := time.Unix(int64(allOrders[i].Timestamp), 0)
 		side := order.Side(strings.ToUpper(allOrders[i].Type))
 		orders = append(orders, order.Detail{
-			ID:           strconv.FormatFloat(allOrders[i].OrderID, 'f', -1, 64),
-			Amount:       allOrders[i].Amount,
-			Price:        allOrders[i].Rate,
-			OrderSide:    side,
-			OrderDate:    orderDate,
-			CurrencyPair: symbol,
-			Exchange:     y.Name,
+			ID:       strconv.FormatFloat(allOrders[i].OrderID, 'f', -1, 64),
+			Amount:   allOrders[i].Amount,
+			Price:    allOrders[i].Rate,
+			Side:     side,
+			Date:     orderDate,
+			Pair:     symbol,
+			Exchange: y.Name,
 		})
 	}
 
-	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersBySide(&orders, req.Side)
 
 	return orders, nil
 }

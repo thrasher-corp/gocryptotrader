@@ -96,10 +96,16 @@ func (b *Binance) SetDefaults() {
 				CryptoWithdrawalFee: true,
 			},
 			WebsocketCapabilities: protocol.Features{
-				TradeFetching:     true,
-				TickerFetching:    true,
-				KlineFetching:     true,
-				OrderbookFetching: true,
+				TradeFetching:          true,
+				TickerFetching:         true,
+				KlineFetching:          true,
+				OrderbookFetching:      true,
+				AuthenticatedEndpoints: true,
+				AccountInfo:            true,
+				GetOrder:               true,
+				GetOrders:              true,
+				Subscribe:              true,
+				Unsubscribe:            true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
@@ -415,14 +421,14 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 
 	var sideType string
-	if s.OrderSide == order.Buy {
+	if s.Side == order.Buy {
 		sideType = order.Buy.String()
 	} else {
 		sideType = order.Sell.String()
 	}
 
 	var requestParamsOrderType RequestParamsOrderType
-	switch s.OrderType {
+	switch s.Type {
 	case order.Market:
 		requestParamsOrderType = BinanceRequestParamsOrderMarket
 	case order.Limit:
@@ -464,12 +470,12 @@ func (b *Binance) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (b *Binance) CancelOrder(order *order.Cancel) error {
-	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
 	if err != nil {
 		return err
 	}
 
-	_, err = b.CancelExistingOrder(b.FormatExchangeCurrency(order.CurrencyPair,
+	_, err = b.CancelExistingOrder(b.FormatExchangeCurrency(order.Pair,
 		order.AssetType).String(),
 		orderIDInt,
 		order.AccountID)
@@ -553,13 +559,13 @@ func (b *Binance) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if len(req.Currencies) == 0 {
+	if len(req.Pairs) == 0 {
 		return nil, errors.New("at least one currency is required to fetch order history")
 	}
 
 	var orders []order.Detail
-	for x := range req.Currencies {
-		resp, err := b.OpenOrders(b.FormatExchangeCurrency(req.Currencies[x],
+	for x := range req.Pairs {
+		resp, err := b.OpenOrders(b.FormatExchangeCurrency(req.Pairs[x],
 			asset.Spot).String())
 		if err != nil {
 			return nil, err
@@ -571,21 +577,21 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 			orderDate := time.Unix(0, int64(resp[i].Time)*int64(time.Millisecond))
 
 			orders = append(orders, order.Detail{
-				Amount:       resp[i].OrigQty,
-				OrderDate:    orderDate,
-				Exchange:     b.Name,
-				ID:           strconv.FormatInt(resp[i].OrderID, 10),
-				OrderSide:    orderSide,
-				OrderType:    orderType,
-				Price:        resp[i].Price,
-				Status:       order.Status(resp[i].Status),
-				CurrencyPair: currency.NewPairFromString(resp[i].Symbol),
+				Amount:   resp[i].OrigQty,
+				Date:     orderDate,
+				Exchange: b.Name,
+				ID:       strconv.FormatInt(resp[i].OrderID, 10),
+				Side:     orderSide,
+				Type:     orderType,
+				Price:    resp[i].Price,
+				Status:   order.Status(resp[i].Status),
+				Pair:     currency.NewPairFromString(resp[i].Symbol),
 			})
 		}
 	}
 
-	order.FilterOrdersByType(&orders, req.OrderType)
-	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByType(&orders, req.Type)
+	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	return orders, nil
 }
@@ -593,13 +599,13 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if len(req.Currencies) == 0 {
+	if len(req.Pairs) == 0 {
 		return nil, errors.New("at least one currency is required to fetch order history")
 	}
 
 	var orders []order.Detail
-	for x := range req.Currencies {
-		resp, err := b.AllOrders(b.FormatExchangeCurrency(req.Currencies[x],
+	for x := range req.Pairs {
+		resp, err := b.AllOrders(b.FormatExchangeCurrency(req.Pairs[x],
 			asset.Spot).String(),
 			"",
 			"1000")
@@ -617,21 +623,21 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 			}
 
 			orders = append(orders, order.Detail{
-				Amount:       resp[i].OrigQty,
-				OrderDate:    orderDate,
-				Exchange:     b.Name,
-				ID:           strconv.FormatInt(resp[i].OrderID, 10),
-				OrderSide:    orderSide,
-				OrderType:    orderType,
-				Price:        resp[i].Price,
-				CurrencyPair: currency.NewPairFromString(resp[i].Symbol),
-				Status:       order.Status(resp[i].Status),
+				Amount:   resp[i].OrigQty,
+				Date:     orderDate,
+				Exchange: b.Name,
+				ID:       strconv.FormatInt(resp[i].OrderID, 10),
+				Side:     orderSide,
+				Type:     orderType,
+				Price:    resp[i].Price,
+				Pair:     currency.NewPairFromString(resp[i].Symbol),
+				Status:   order.Status(resp[i].Status),
 			})
 		}
 	}
 
-	order.FilterOrdersByType(&orders, req.OrderType)
-	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByType(&orders, req.Type)
+	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	return orders, nil
 }

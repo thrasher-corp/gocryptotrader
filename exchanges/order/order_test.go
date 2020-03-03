@@ -71,11 +71,11 @@ func TestValidate(t *testing.T) {
 
 	for x := range tester {
 		s := Submit{
-			Pair:      tester[x].Pair,
-			OrderSide: tester[x].Side,
-			OrderType: tester[x].Type,
-			Amount:    tester[x].Amount,
-			Price:     tester[x].Price,
+			Pair:   tester[x].Pair,
+			Side:   tester[x].Side,
+			Type:   tester[x].Type,
+			Amount: tester[x].Amount,
+			Price:  tester[x].Price,
 		}
 		if err := s.Validate(); err != tester[x].ExpectedErr {
 			t.Errorf("Unexpected result. Got: %s, want: %s", err, tester[x].ExpectedErr)
@@ -115,10 +115,10 @@ func TestFilterOrdersByType(t *testing.T) {
 
 	var orders = []Detail{
 		{
-			OrderType: ImmediateOrCancel,
+			Type: ImmediateOrCancel,
 		},
 		{
-			OrderType: Limit,
+			Type: Limit,
 		},
 	}
 
@@ -143,10 +143,10 @@ func TestFilterOrdersBySide(t *testing.T) {
 
 	var orders = []Detail{
 		{
-			OrderSide: Buy,
+			Side: Buy,
 		},
 		{
-			OrderSide: Sell,
+			Side: Sell,
 		},
 		{},
 	}
@@ -172,13 +172,13 @@ func TestFilterOrdersByTickRange(t *testing.T) {
 
 	var orders = []Detail{
 		{
-			OrderDate: time.Unix(100, 0),
+			Date: time.Unix(100, 0),
 		},
 		{
-			OrderDate: time.Unix(110, 0),
+			Date: time.Unix(110, 0),
 		},
 		{
-			OrderDate: time.Unix(111, 0),
+			Date: time.Unix(111, 0),
 		},
 	}
 
@@ -208,13 +208,13 @@ func TestFilterOrdersByCurrencies(t *testing.T) {
 
 	var orders = []Detail{
 		{
-			CurrencyPair: currency.NewPair(currency.BTC, currency.USD),
+			Pair: currency.NewPair(currency.BTC, currency.USD),
 		},
 		{
-			CurrencyPair: currency.NewPair(currency.LTC, currency.EUR),
+			Pair: currency.NewPair(currency.LTC, currency.EUR),
 		},
 		{
-			CurrencyPair: currency.NewPair(currency.DOGE, currency.RUB),
+			Pair: currency.NewPair(currency.DOGE, currency.RUB),
 		},
 	}
 
@@ -275,26 +275,26 @@ func TestSortOrdersByDate(t *testing.T) {
 
 	orders := []Detail{
 		{
-			OrderDate: time.Unix(0, 0),
+			Date: time.Unix(0, 0),
 		}, {
-			OrderDate: time.Unix(1, 0),
+			Date: time.Unix(1, 0),
 		}, {
-			OrderDate: time.Unix(2, 0),
+			Date: time.Unix(2, 0),
 		},
 	}
 
 	SortOrdersByDate(&orders, false)
-	if orders[0].OrderDate.Unix() != time.Unix(0, 0).Unix() {
+	if orders[0].Date.Unix() != time.Unix(0, 0).Unix() {
 		t.Errorf("Expected: '%v', received: '%v'",
 			time.Unix(0, 0).Unix(),
-			orders[0].OrderDate.Unix())
+			orders[0].Date.Unix())
 	}
 
 	SortOrdersByDate(&orders, true)
-	if orders[0].OrderDate.Unix() != time.Unix(2, 0).Unix() {
+	if orders[0].Date.Unix() != time.Unix(2, 0).Unix() {
 		t.Errorf("Expected: '%v', received: '%v'",
 			time.Unix(2, 0).Unix(),
-			orders[0].OrderDate.Unix())
+			orders[0].Date.Unix())
 	}
 }
 
@@ -303,40 +303,40 @@ func TestSortOrdersByCurrency(t *testing.T) {
 
 	orders := []Detail{
 		{
-			CurrencyPair: currency.NewPairWithDelimiter(currency.BTC.String(),
+			Pair: currency.NewPairWithDelimiter(currency.BTC.String(),
 				currency.USD.String(),
 				"-"),
 		}, {
-			CurrencyPair: currency.NewPairWithDelimiter(currency.DOGE.String(),
+			Pair: currency.NewPairWithDelimiter(currency.DOGE.String(),
 				currency.USD.String(),
 				"-"),
 		}, {
-			CurrencyPair: currency.NewPairWithDelimiter(currency.BTC.String(),
+			Pair: currency.NewPairWithDelimiter(currency.BTC.String(),
 				currency.RUB.String(),
 				"-"),
 		}, {
-			CurrencyPair: currency.NewPairWithDelimiter(currency.LTC.String(),
+			Pair: currency.NewPairWithDelimiter(currency.LTC.String(),
 				currency.EUR.String(),
 				"-"),
 		}, {
-			CurrencyPair: currency.NewPairWithDelimiter(currency.LTC.String(),
+			Pair: currency.NewPairWithDelimiter(currency.LTC.String(),
 				currency.AUD.String(),
 				"-"),
 		},
 	}
 
 	SortOrdersByCurrency(&orders, false)
-	if orders[0].CurrencyPair.String() != currency.BTC.String()+"-"+currency.RUB.String() {
+	if orders[0].Pair.String() != currency.BTC.String()+"-"+currency.RUB.String() {
 		t.Errorf("Expected: '%v', received: '%v'",
 			currency.BTC.String()+"-"+currency.RUB.String(),
-			orders[0].CurrencyPair.String())
+			orders[0].Pair.String())
 	}
 
 	SortOrdersByCurrency(&orders, true)
-	if orders[0].CurrencyPair.String() != currency.LTC.String()+"-"+currency.EUR.String() {
+	if orders[0].Pair.String() != currency.LTC.String()+"-"+currency.EUR.String() {
 		t.Errorf("Expected: '%v', received: '%v'",
 			currency.LTC.String()+"-"+currency.EUR.String(),
-			orders[0].CurrencyPair.String())
+			orders[0].Pair.String())
 	}
 }
 
@@ -345,28 +345,28 @@ func TestSortOrdersByOrderSide(t *testing.T) {
 
 	orders := []Detail{
 		{
-			OrderSide: Buy,
+			Side: Buy,
 		}, {
-			OrderSide: Sell,
+			Side: Sell,
 		}, {
-			OrderSide: Sell,
+			Side: Sell,
 		}, {
-			OrderSide: Buy,
+			Side: Buy,
 		},
 	}
 
 	SortOrdersBySide(&orders, false)
-	if !strings.EqualFold(orders[0].OrderSide.String(), Buy.String()) {
+	if !strings.EqualFold(orders[0].Side.String(), Buy.String()) {
 		t.Errorf("Expected: '%v', received: '%v'",
 			Buy,
-			orders[0].OrderSide)
+			orders[0].Side)
 	}
 
 	SortOrdersBySide(&orders, true)
-	if !strings.EqualFold(orders[0].OrderSide.String(), Sell.String()) {
+	if !strings.EqualFold(orders[0].Side.String(), Sell.String()) {
 		t.Errorf("Expected: '%v', received: '%v'",
 			Sell,
-			orders[0].OrderSide)
+			orders[0].Side)
 	}
 }
 
@@ -375,28 +375,28 @@ func TestSortOrdersByOrderType(t *testing.T) {
 
 	orders := []Detail{
 		{
-			OrderType: Market,
+			Type: Market,
 		}, {
-			OrderType: Limit,
+			Type: Limit,
 		}, {
-			OrderType: ImmediateOrCancel,
+			Type: ImmediateOrCancel,
 		}, {
-			OrderType: TrailingStop,
+			Type: TrailingStop,
 		},
 	}
 
 	SortOrdersByType(&orders, false)
-	if !strings.EqualFold(orders[0].OrderType.String(), ImmediateOrCancel.String()) {
+	if !strings.EqualFold(orders[0].Type.String(), ImmediateOrCancel.String()) {
 		t.Errorf("Expected: '%v', received: '%v'",
 			ImmediateOrCancel,
-			orders[0].OrderType)
+			orders[0].Type)
 	}
 
 	SortOrdersByType(&orders, true)
-	if !strings.EqualFold(orders[0].OrderType.String(), TrailingStop.String()) {
+	if !strings.EqualFold(orders[0].Type.String(), TrailingStop.String()) {
 		t.Errorf("Expected: '%v', received: '%v'",
 			TrailingStop,
-			orders[0].OrderType)
+			orders[0].Type)
 	}
 }
 
@@ -420,7 +420,7 @@ var stringsToOrderSide = []struct {
 	{"any", AnySide, nil},
 	{"ANY", AnySide, nil},
 	{"aNy", AnySide, nil},
-	{"woahMan", Buy, errors.New("woahMan not recognised as side type")},
+	{"woahMan", Buy, errors.New("woahMan not recognised as order side")},
 }
 
 func TestStringToOrderSide(t *testing.T) {
@@ -453,16 +453,18 @@ var stringsToOrderType = []struct {
 	{"immediate_or_cancel", ImmediateOrCancel, nil},
 	{"IMMEDIATE_OR_CANCEL", ImmediateOrCancel, nil},
 	{"iMmEdIaTe_Or_CaNcEl", ImmediateOrCancel, nil},
+	{"iMmEdIaTe Or CaNcEl", ImmediateOrCancel, nil},
 	{"stop", Stop, nil},
 	{"STOP", Stop, nil},
 	{"sToP", Stop, nil},
-	{"trailingstop", TrailingStop, nil},
-	{"TRAILINGSTOP", TrailingStop, nil},
-	{"tRaIlInGsToP", TrailingStop, nil},
+	{"trailing_stop", TrailingStop, nil},
+	{"TRAILING_STOP", TrailingStop, nil},
+	{"tRaIlInG_sToP", TrailingStop, nil},
+	{"tRaIlInG sToP", TrailingStop, nil},
 	{"any", AnyType, nil},
 	{"ANY", AnyType, nil},
 	{"aNy", AnyType, nil},
-	{"woahMan", Unknown, errors.New("woahMan not recognised as order type")},
+	{"woahMan", UnknownType, errors.New("woahMan not recognised as order type")},
 }
 
 func TestStringToOrderType(t *testing.T) {
@@ -516,7 +518,13 @@ var stringsToOrderStatus = []struct {
 	{"hidden", Hidden, nil},
 	{"HIDDEN", Hidden, nil},
 	{"hIdDeN", Hidden, nil},
-	{"woahMan", UnknownStatus, errors.New("woahMan not recognised as order STATUS")},
+	{"market_unavailable", MarketUnavailable, nil},
+	{"MARKET_UNAVAILABLE", MarketUnavailable, nil},
+	{"mArKeT_uNaVaIlAbLe", MarketUnavailable, nil},
+	{"insufficient_balance", InsufficientBalance, nil},
+	{"INSUFFICIENT_BALANCE", InsufficientBalance, nil},
+	{"iNsUfFiCiEnT_bAlAnCe", InsufficientBalance, nil},
+	{"woahMan", UnknownStatus, errors.New("woahMan not recognised as order status")},
 }
 
 func TestStringToOrderStatus(t *testing.T) {
@@ -532,5 +540,377 @@ func TestStringToOrderStatus(t *testing.T) {
 				t.Errorf("Unexpected output %v. Expected %v", out, testData.out)
 			}
 		})
+	}
+}
+
+func TestUpdateOrderFromModify(t *testing.T) {
+	var leet = "1337"
+	od := Detail{
+		ImmediateOrCancel: false,
+		HiddenOrder:       false,
+		FillOrKill:        false,
+		PostOnly:          false,
+		Leverage:          "",
+		Price:             0,
+		Amount:            0,
+		LimitPriceUpper:   0,
+		LimitPriceLower:   0,
+		TriggerPrice:      0,
+		TargetAmount:      0,
+		ExecutedAmount:    0,
+		RemainingAmount:   0,
+		Fee:               0,
+		Exchange:          "",
+		ID:                "1",
+		AccountID:         "",
+		ClientID:          "",
+		WalletAddress:     "",
+		Type:              "",
+		Side:              "",
+		Status:            "",
+		AssetType:         "",
+		Date:              time.Time{},
+		LastUpdated:       time.Time{},
+		Pair:              currency.Pair{},
+		Trades:            nil,
+	}
+	updated := time.Now()
+	om := Modify{
+		ImmediateOrCancel: true,
+		HiddenOrder:       true,
+		FillOrKill:        true,
+		PostOnly:          true,
+		Leverage:          "1",
+		Price:             1,
+		Amount:            1,
+		LimitPriceUpper:   1,
+		LimitPriceLower:   1,
+		TriggerPrice:      1,
+		TargetAmount:      1,
+		ExecutedAmount:    1,
+		RemainingAmount:   1,
+		Fee:               1,
+		Exchange:          "1",
+		InternalOrderID:   "1",
+		ID:                "1",
+		AccountID:         "1",
+		ClientID:          "1",
+		WalletAddress:     "1",
+		Type:              "1",
+		Side:              "1",
+		Status:            "1",
+		AssetType:         "1",
+		LastUpdated:       updated,
+		Pair:              currency.NewPairFromString("BTCUSD"),
+		Trades:            []TradeHistory{},
+	}
+
+	od.UpdateOrderFromModify(&om)
+	if od.InternalOrderID == "1" {
+		t.Error("Should not be able to update the internal order ID")
+	}
+	if !od.ImmediateOrCancel {
+		t.Error("Failed to update")
+	}
+	if !od.HiddenOrder {
+		t.Error("Failed to update")
+	}
+	if !od.FillOrKill {
+		t.Error("Failed to update")
+	}
+	if !od.PostOnly {
+		t.Error("Failed to update")
+	}
+	if od.Leverage != "1" {
+		t.Error("Failed to update")
+	}
+	if od.Price != 1 {
+		t.Error("Failed to update")
+	}
+	if od.Amount != 1 {
+		t.Error("Failed to update")
+	}
+	if od.LimitPriceLower != 1 {
+		t.Error("Failed to update")
+	}
+	if od.LimitPriceUpper != 1 {
+		t.Error("Failed to update")
+	}
+	if od.TriggerPrice != 1 {
+		t.Error("Failed to update")
+	}
+	if od.TargetAmount != 1 {
+		t.Error("Failed to update")
+	}
+	if od.ExecutedAmount != 1 {
+		t.Error("Failed to update")
+	}
+	if od.RemainingAmount != 1 {
+		t.Error("Failed to update")
+	}
+	if od.Fee != 1 {
+		t.Error("Failed to update")
+	}
+	if od.Exchange != "" {
+		t.Error("Should not be able to update exchange via modify")
+	}
+	if od.ID != "1" {
+		t.Error("Failed to update")
+	}
+	if od.ClientID != "1" {
+		t.Error("Failed to update")
+	}
+	if od.WalletAddress != "1" {
+		t.Error("Failed to update")
+	}
+	if od.Type != "1" {
+		t.Error("Failed to update")
+	}
+	if od.Side != "1" {
+		t.Error("Failed to update")
+	}
+	if od.Status != "1" {
+		t.Error("Failed to update")
+	}
+	if od.AssetType != "1" {
+		t.Error("Failed to update")
+	}
+	if od.LastUpdated != updated {
+		t.Error("Failed to update")
+	}
+	if od.Pair.String() != "BTCUSD" {
+		t.Error("Failed to update")
+	}
+	if od.Trades != nil {
+		t.Error("Failed to update")
+	}
+
+	om.Trades = append(om.Trades, TradeHistory{TID: "1"}, TradeHistory{TID: "2"})
+	od.UpdateOrderFromModify(&om)
+	if len(od.Trades) != 2 {
+		t.Error("Failed to add trades")
+	}
+	om.Trades[0].Exchange = leet
+	om.Trades[0].Price = 1337
+	om.Trades[0].Fee = 1337
+	om.Trades[0].IsMaker = true
+	om.Trades[0].Timestamp = updated
+	om.Trades[0].Description = leet
+	om.Trades[0].Side = UnknownSide
+	om.Trades[0].Type = UnknownType
+	om.Trades[0].Amount = 1337
+	od.UpdateOrderFromModify(&om)
+	if od.Trades[0].Exchange == leet {
+		t.Error("Should not be able to update exchange from update")
+	}
+	if od.Trades[0].Price != 1337 {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Fee != 1337 {
+		t.Error("Failed to update trades")
+	}
+	if !od.Trades[0].IsMaker {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Timestamp != updated {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Description != leet {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Side != UnknownSide {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Type != UnknownType {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Amount != 1337 {
+		t.Error("Failed to update trades")
+	}
+}
+
+func TestUpdateOrderFromDetail(t *testing.T) {
+	var leet = "1337"
+	od := Detail{
+		ImmediateOrCancel: false,
+		HiddenOrder:       false,
+		FillOrKill:        false,
+		PostOnly:          false,
+		Leverage:          "",
+		Price:             0,
+		Amount:            0,
+		LimitPriceUpper:   0,
+		LimitPriceLower:   0,
+		TriggerPrice:      0,
+		TargetAmount:      0,
+		ExecutedAmount:    0,
+		RemainingAmount:   0,
+		Fee:               0,
+		Exchange:          "",
+		ID:                "1",
+		AccountID:         "",
+		ClientID:          "",
+		WalletAddress:     "",
+		Type:              "",
+		Side:              "",
+		Status:            "",
+		AssetType:         "",
+		Date:              time.Time{},
+		LastUpdated:       time.Time{},
+		Pair:              currency.Pair{},
+		Trades:            nil,
+	}
+	updated := time.Now()
+	om := Detail{
+		ImmediateOrCancel: true,
+		HiddenOrder:       true,
+		FillOrKill:        true,
+		PostOnly:          true,
+		Leverage:          "1",
+		Price:             1,
+		Amount:            1,
+		LimitPriceUpper:   1,
+		LimitPriceLower:   1,
+		TriggerPrice:      1,
+		TargetAmount:      1,
+		ExecutedAmount:    1,
+		RemainingAmount:   1,
+		Fee:               1,
+		Exchange:          "1",
+		InternalOrderID:   "1",
+		ID:                "1",
+		AccountID:         "1",
+		ClientID:          "1",
+		WalletAddress:     "1",
+		Type:              "1",
+		Side:              "1",
+		Status:            "1",
+		AssetType:         "1",
+		LastUpdated:       updated,
+		Pair:              currency.NewPairFromString("BTCUSD"),
+		Trades:            []TradeHistory{},
+	}
+
+	od.UpdateOrderFromDetail(&om)
+	if od.InternalOrderID == "1" {
+		t.Error("Should not be able to update the internal order ID")
+	}
+	if !od.ImmediateOrCancel {
+		t.Error("Failed to update")
+	}
+	if !od.HiddenOrder {
+		t.Error("Failed to update")
+	}
+	if !od.FillOrKill {
+		t.Error("Failed to update")
+	}
+	if !od.PostOnly {
+		t.Error("Failed to update")
+	}
+	if od.Leverage != "1" {
+		t.Error("Failed to update")
+	}
+	if od.Price != 1 {
+		t.Error("Failed to update")
+	}
+	if od.Amount != 1 {
+		t.Error("Failed to update")
+	}
+	if od.LimitPriceLower != 1 {
+		t.Error("Failed to update")
+	}
+	if od.LimitPriceUpper != 1 {
+		t.Error("Failed to update")
+	}
+	if od.TriggerPrice != 1 {
+		t.Error("Failed to update")
+	}
+	if od.TargetAmount != 1 {
+		t.Error("Failed to update")
+	}
+	if od.ExecutedAmount != 1 {
+		t.Error("Failed to update")
+	}
+	if od.RemainingAmount != 1 {
+		t.Error("Failed to update")
+	}
+	if od.Fee != 1 {
+		t.Error("Failed to update")
+	}
+	if od.Exchange != "" {
+		t.Error("Should not be able to update exchange via modify")
+	}
+	if od.ID != "1" {
+		t.Error("Failed to update")
+	}
+	if od.ClientID != "1" {
+		t.Error("Failed to update")
+	}
+	if od.WalletAddress != "1" {
+		t.Error("Failed to update")
+	}
+	if od.Type != "1" {
+		t.Error("Failed to update")
+	}
+	if od.Side != "1" {
+		t.Error("Failed to update")
+	}
+	if od.Status != "1" {
+		t.Error("Failed to update")
+	}
+	if od.AssetType != "1" {
+		t.Error("Failed to update")
+	}
+	if od.LastUpdated != updated {
+		t.Error("Failed to update")
+	}
+	if od.Pair.String() != "BTCUSD" {
+		t.Error("Failed to update")
+	}
+	if od.Trades != nil {
+		t.Error("Failed to update")
+	}
+
+	om.Trades = append(om.Trades, TradeHistory{TID: "1"}, TradeHistory{TID: "2"})
+	od.UpdateOrderFromDetail(&om)
+	if len(od.Trades) != 2 {
+		t.Error("Failed to add trades")
+	}
+	om.Trades[0].Exchange = leet
+	om.Trades[0].Price = 1337
+	om.Trades[0].Fee = 1337
+	om.Trades[0].IsMaker = true
+	om.Trades[0].Timestamp = updated
+	om.Trades[0].Description = leet
+	om.Trades[0].Side = UnknownSide
+	om.Trades[0].Type = UnknownType
+	om.Trades[0].Amount = 1337
+	od.UpdateOrderFromDetail(&om)
+	if od.Trades[0].Exchange == leet {
+		t.Error("Should not be able to update exchange from update")
+	}
+	if od.Trades[0].Price != 1337 {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Fee != 1337 {
+		t.Error("Failed to update trades")
+	}
+	if !od.Trades[0].IsMaker {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Timestamp != updated {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Description != leet {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Side != UnknownSide {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Type != UnknownType {
+		t.Error("Failed to update trades")
+	}
+	if od.Trades[0].Amount != 1337 {
+		t.Error("Failed to update trades")
 	}
 }

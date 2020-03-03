@@ -69,7 +69,7 @@ func (c *COINUT) SeedInstruments() error {
 	}
 
 	for _, y := range i.Instruments {
-		c.instrumentMap.Seed(y[0].Base+y[0].Quote, y[0].InstID)
+		c.instrumentMap.Seed(y[0].Base+y[0].Quote, y[0].InstrumentID)
 	}
 	return nil
 }

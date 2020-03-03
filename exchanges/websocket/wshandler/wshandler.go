@@ -620,8 +620,8 @@ func (w *Websocket) CanUseAuthenticatedEndpoints() bool {
 	return w.canUseAuthenticatedEndpoints
 }
 
-// AddResponseWithID adds data to IDResponses with locks and a nil check
-func (w *WebsocketConnection) AddResponseWithID(id int64, data []byte) {
+// SetResponseIDAndData adds data to IDResponses with locks and a nil check
+func (w *WebsocketConnection) SetResponseIDAndData(id int64, data []byte) {
 	w.Lock()
 	defer w.Unlock()
 	if w.IDResponses == nil {
@@ -734,6 +734,7 @@ func (w *WebsocketConnection) SendMessageReturnResponse(id int64, request interf
 	if err != nil {
 		return nil, err
 	}
+	w.SetResponseIDAndData(id, nil)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go w.WaitForResult(id, &wg)
@@ -748,6 +749,20 @@ func (w *WebsocketConnection) SendMessageReturnResponse(id int64, request interf
 	return w.IDResponses[id], nil
 }
 
+// IsIDWaitingForResponse will verify whether the websocket is awaiting
+// a response with a correlating ID. If true, the datahandler won't process
+// the data, and instead will be processed by the wrapper function
+func (w *WebsocketConnection) IsIDWaitingForResponse(id int64) bool {
+	w.Lock()
+	defer w.Unlock()
+	for k := range w.IDResponses {
+		if k == id && w.IDResponses[k] == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // WaitForResult will keep checking w.IDResponses for a response ID
 // If the timer expires, it will return without
 func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
@@ -760,7 +775,7 @@ func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
 		default:
 			w.Lock()
 			for k := range w.IDResponses {
-				if k == id {
+				if k == id && w.IDResponses[k] != nil {
 					w.Unlock()
 					if !timer.Stop() {
 						select {
