@@ -41,9 +41,7 @@ Using Go Modules you now clone this repository **outside** your GOPATH
 
 ```bash
 git clone https://github.com/thrasher-corp/gocryptotrader.git
-cd gocryptotrader
-cd cmd
-cd apichecker
+cd gocryptotrader/cmd/apichecker
 go build
 ./apichecker
 ```
@@ -52,9 +50,7 @@ go build
 
 ```bash
 git clone https://github.com/thrasher-corp/gocryptotrader.git
-cd gocryptotrader
-cd cmd
-cd apichecker
+cd gocryptotrader\cmd\apichecker
 go build && apichecker.exe
 ```
 
@@ -99,6 +95,9 @@ apichecker.exe -add=true -key=id -val=revision-history -tokendata=h1 -tokendatae
 ```
 
 + If all the authentication variables for trello are set trello checklist will be automatically updated with the format of 'Exchange Name (integer of how many updates have been released since the exhange API was last worked on):
+
+- To acquire your trello key and access token please login into trello using the following link and follow the steps: https://trello.com/app-key
+
 ```go
 func NameStateChanges(currentName, currentState string) (string, error) {
 	r, err := regexp.Compile(`[\s\S]* \d{1}$`) // nolint: gocritic

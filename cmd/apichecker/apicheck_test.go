@@ -11,39 +11,39 @@ import (
 
 func TestMain(m *testing.M) {
 	var err error
-	configData, err = ReadFileData(jsonFile)
+	configData, err = readFileData(jsonFile)
 	if err != nil {
 		log.Fatal(err)
 	}
-	testConfigData, err = ReadFileData(testJSONFile)
+	testConfigData, err = readFileData(testJSONFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	usageData = testConfigData
-	if CanUpdateTrello() {
+	if canUpdateTrello() {
 		usageData = configData
 	}
 	os.Exit(m.Run())
 }
 
 func TestCheckUpdates(t *testing.T) {
-	err := CheckUpdates(testJSONFile)
+	err := checkUpdates(testJSONFile)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestUpdateFile(t *testing.T) {
-	realConf, err := ReadFileData(jsonFile)
+	realConf, err := readFileData(jsonFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	configData = realConf
-	err = UpdateFile(testJSONFile)
+	err = updateFile(testJSONFile)
 	if err != nil {
 		t.Error(err)
 	}
-	testConf, err := ReadFileData(testJSONFile)
+	testConf, err := readFileData(testJSONFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestUpdateFile(t *testing.T) {
 
 func TestCheckExistingExchanges(t *testing.T) {
 	t.Parallel()
-	if !CheckExistingExchanges("Kraken") {
+	if !checkExistingExchanges("Kraken") {
 		t.Fatal("Kraken data not found")
 	}
 }
@@ -70,7 +70,7 @@ func TestCheckChangeLog(t *testing.T) {
 		DateFormat:    "2006/01/02",
 		RegExp:        `^20(\d){2}/(\d){2}/(\d){2}$`,
 		Path:          "https://docs.gemini.com/rest-api/#revision-history"}
-	_, err := CheckChangeLog(&data)
+	_, err := checkChangeLog(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -84,7 +84,7 @@ func TestAdd(t *testing.T) {
 		TokenDataEnd: "./#change-",
 		RegExp:       `./#change-\d{8}`,
 		Path:         "wrongpath"}
-	err := Add("WrongExch", htmlScrape, data2, false)
+	err := addExch("WrongExch", htmlScrape, data2, false)
 	if err == nil {
 		t.Log("expected an error due to invalid path being parsed in")
 	}
@@ -101,7 +101,7 @@ func TestHTMLScrapeGemini(t *testing.T) {
 		RegExp:        "^20(\\d){2}/(\\d){2}/(\\d){2}$",
 		CheckString:   "2019/11/15",
 		Path:          "https://docs.gemini.com/rest-api/#revision-history"}
-	_, err := HTMLScrapeDefault(&data)
+	_, err := htmlScrapeDefault(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -118,7 +118,7 @@ func TestHTMLScrapeHuobi(t *testing.T) {
 		RegExp:        "^20(\\d){2}.(\\d){2}.(\\d){2} (\\d){2}:(\\d){2}$",
 		CheckString:   "2019.12.27 19:00",
 		Path:          "https://huobiapi.github.io/docs/spot/v1/en/#change-log"}
-	_, err := HTMLScrapeDefault(&data)
+	_, err := htmlScrapeDefault(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -135,7 +135,7 @@ func TestHTMLScrapeCoinbasepro(t *testing.T) {
 		RegExp:        "^(\\d){1,2}/(\\d){1,2}/(\\d){2}$",
 		CheckString:   "12/16/19",
 		Path:          "https://docs.pro.coinbase.com/#changelog"}
-	_, err := HTMLScrapeDefault(&data)
+	_, err := htmlScrapeDefault(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -146,7 +146,7 @@ func TestHTMLScrapeBitfinex(t *testing.T) {
 	data := HTMLScrapingData{DateFormat: "2006-01-02",
 		RegExp: `section-v-(2\d{3}-\d{1,2}-\d{1,2})`,
 		Path:   "https://docs.bitfinex.com/docs/changelog"}
-	_, err := HTMLScrapeBitfinex(&data)
+	_, err := htmlScrapeBitfinex(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -162,7 +162,7 @@ func TestHTMLScrapeBitmex(t *testing.T) {
 		DateFormat:    "Jan-2-2006",
 		RegExp:        `([A-Z]{1}[a-z]{2}-\d{1,2}-2\d{3})`,
 		Path:          "https://www.bitmex.com/static/md/en-US/apiChangelog"}
-	_, err := HTMLScrapeBitmex(&data)
+	_, err := htmlScrapeBitmex(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -172,7 +172,7 @@ func TestHTMLScrapeHitBTC(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{RegExp: `newest version \d{1}.\d{1}`,
 		Path: "https://api.hitbtc.com/"}
-	_, err := HTMLScrapeHitBTC(&data)
+	_, err := htmlScrapeHitBTC(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -189,7 +189,7 @@ func TestHTMLScrapeDefault(t *testing.T) {
 		RegExp:        "(2\\d{3}-\\d{1,2}-\\d{1,2})",
 		CheckString:   "2019-04-28",
 		Path:          "https://www.okcoin.com/docs/en/#change-change"}
-	_, err := HTMLScrapeDefault(&data)
+	_, err := htmlScrapeDefault(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -199,7 +199,7 @@ func TestHTMLScrapeBTSE(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{RegExp: `^version: \d{1}.\d{1}.\d{1}`,
 		Path: "https://api.btcmarkets.net/openapi/info/index.yaml"}
-	_, err := HTMLScrapeBTSE(&data)
+	_, err := htmlScrapeBTSE(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -209,7 +209,7 @@ func TestHTMLScrapeBTCMarkets(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{RegExp: `^version: \d{1}.\d{1}.\d{1}`,
 		Path: "https://api.btcmarkets.net/openapi/info/index.yaml"}
-	_, err := HTMLScrapeBTCMarkets(&data)
+	_, err := htmlScrapeBTCMarkets(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -225,7 +225,7 @@ func TestHTMLScrapeBitflyer(t *testing.T) {
 		DateFormat:    "",
 		RegExp:        `^https://api.bitflyer.com/v\d{1}/$`,
 		Path:          "https://lightning.bitflyer.com/docs?lang=en"}
-	_, err := HTMLScrapeBitflyer(&data)
+	_, err := htmlScrapeBitflyer(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -235,7 +235,7 @@ func TestHTMLScrapeANX(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{RegExp: `ANX Exchange API v\d{1}`,
 		Path: "https://anxv3.docs.apiary.io/#reference/quickstart-catalog"}
-	_, err := HTMLScrapeANX(&data)
+	_, err := htmlScrapeANX(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -251,7 +251,7 @@ func TestHTMLPoloniex(t *testing.T) {
 		DateFormat:    "2006-01-02",
 		RegExp:        `(2\d{3}-\d{1,2}-\d{1,2})`,
 		Path:          "https://docs.poloniex.com/#changelog"}
-	_, err := HTMLScrapePoloniex(&data)
+	_, err := htmlScrapePoloniex(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -267,7 +267,7 @@ func TestHTMLItBit(t *testing.T) {
 		DateFormat:    "2006-01-02",
 		RegExp:        `^https://api.itbit.com/v\d{1}/$`,
 		Path:          "https://api.itbit.com/docs"}
-	_, err := HTMLScrapeItBit(&data)
+	_, err := htmlScrapeItBit(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -283,7 +283,7 @@ func TestHTMLLakeBTC(t *testing.T) {
 		DateFormat:    "",
 		RegExp:        `APIv\d{1}`,
 		Path:          "https://www.lakebtc.com/s/api_v2"}
-	_, err := HTMLScrapeLakeBTC(&data)
+	_, err := htmlScrapeLakeBTC(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -293,7 +293,7 @@ func TestHTMLScrapeExmo(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{RegExp: `Last updated on [\s\S]*, 20\d{2}`,
 		Path: "https://exmo.com/en/api/"}
-	_, err := HTMLScrapeExmo(&data)
+	_, err := htmlScrapeExmo(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -303,7 +303,7 @@ func TestHTMLBitstamp(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{RegExp: `refer to the v\d{1} API for future references.`,
 		Path: "https://www.bitstamp.net/api/"}
-	_, err := HTMLScrapeBitstamp(&data)
+	_, err := htmlScrapeBitstamp(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -319,7 +319,7 @@ func TestHTMLKraken(t *testing.T) {
 		DateFormat:    "",
 		RegExp:        `URL: https://api.kraken.com/\d{1}/private/Balance`,
 		Path:          "https://www.kraken.com/features/api"}
-	_, err := HTMLScrapeKraken(&data)
+	_, err := htmlScrapeKraken(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -335,7 +335,7 @@ func TestHTMLAlphaPoint(t *testing.T) {
 		DateFormat:    "",
 		RegExp:        `revised-calls-\d{1}-\d{1}-\d{1}-gt-\d{1}-\d{1}-\d{1}`,
 		Path:          "https://alphapoint.github.io/slate/#introduction"}
-	_, err := HTMLScrapeAlphaPoint(&data)
+	_, err := htmlScrapeAlphaPoint(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -346,7 +346,7 @@ func TestHTMLYobit(t *testing.T) {
 	data := HTMLScrapingData{TokenData: "h2",
 		Key:  "id",
 		Path: "https://www.yobit.net/en/api/"}
-	_, err := HTMLScrapeYobit(&data)
+	_, err := htmlScrapeYobit(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -362,7 +362,7 @@ func TestHTMLScrapeLocalBitcoins(t *testing.T) {
 		DateFormat:    "",
 		RegExp:        `col-md-12([\s\S]*?)clearfix`,
 		Path:          "https://localbitcoins.com/api-docs/"}
-	_, err := HTMLScrapeLocalBitcoins(&data)
+	_, err := htmlScrapeLocalBitcoins(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -376,7 +376,7 @@ func TestHTMLScrapeOk(t *testing.T) {
 		TokenDataEnd: "./#change-",
 		RegExp:       `./#change-\d{8}`,
 		Path:         "https://www.okex.com/docs/en/"}
-	_, err := HTMLScrapeOk(&data)
+	_, err := htmlScrapeOk(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -384,12 +384,12 @@ func TestHTMLScrapeOk(t *testing.T) {
 
 func TestCreateNewCard(t *testing.T) {
 	t.Parallel()
-	if !CanUpdateTrello() {
+	if !canUpdateTrello() {
 		t.Skip()
 	}
 	fillData := CardFill{ListID: trelloListID,
 		Name: "Exchange Updates"}
-	err := TrelloCreateNewCard(&fillData)
+	err := trelloCreateNewCard(&fillData)
 	if err != nil {
 		t.Error(err)
 	}
@@ -397,10 +397,10 @@ func TestCreateNewCard(t *testing.T) {
 
 func TestCreateNewCheck(t *testing.T) {
 	t.Parallel()
-	if !CanUpdateTrello() {
+	if !canUpdateTrello() {
 		t.Skip()
 	}
-	err := TrelloCreateNewCheck("Gemini")
+	err := trelloCreateNewCheck("Gemini")
 	if err != nil {
 		t.Error(err)
 	}
@@ -420,7 +420,7 @@ func TestUpdate(t *testing.T) {
 			Path: "https://exmo.com/en/api/"},
 		},
 	}
-	updatedExchs := Update("Exmo", configData.Exchanges, info)
+	updatedExchs := update("Exmo", configData.Exchanges, info)
 	for y := range updatedExchs {
 		if updatedExchs[y].Name == "Exmo" {
 			updatedExch = *updatedExchs[y].Data.HTMLData
@@ -433,7 +433,7 @@ func TestUpdate(t *testing.T) {
 
 func TestCheckMissingExchanges(t *testing.T) {
 	t.Parallel()
-	a := CheckMissingExchanges()
+	a := checkMissingExchanges()
 	if len(a) > len(exchange.Exchanges) {
 		t.Fatal("invalid response")
 	}
@@ -441,10 +441,10 @@ func TestCheckMissingExchanges(t *testing.T) {
 
 func TestGetChecklistItems(t *testing.T) {
 	t.Parallel()
-	if !CanUpdateTrello() {
+	if !canUpdateTrello() {
 		t.Skip()
 	}
-	_, err := TrelloGetChecklistItems()
+	_, err := trelloGetChecklistItems()
 	if err != nil {
 		t.Error(err)
 	}
@@ -452,10 +452,10 @@ func TestGetChecklistItems(t *testing.T) {
 
 func TestUpdateCheckItem(t *testing.T) {
 	t.Parallel()
-	if !CanUpdateTrello() {
+	if !canUpdateTrello() {
 		t.Skip()
 	}
-	err := TrelloUpdateCheckItem(trelloListID, "Gemini 1", "incomplete")
+	err := trelloUpdateCheckItem(trelloListID, "Gemini 1", "incomplete")
 	if err != nil {
 		t.Error(err)
 	}
@@ -463,7 +463,8 @@ func TestUpdateCheckItem(t *testing.T) {
 
 func TestNameUpdates(t *testing.T) {
 	t.Parallel()
-	_, err := NameStateChanges("Gemini 24", "complete")
+	a, err := nameStateChanges("Gemini 3", "complete")
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -471,7 +472,7 @@ func TestNameUpdates(t *testing.T) {
 
 func TestReadFileData(t *testing.T) {
 	t.Parallel()
-	_, err := ReadFileData(testJSONFile)
+	_, err := readFileData(testJSONFile)
 	if err != nil {
 		t.Error(err)
 	}
@@ -489,7 +490,7 @@ func TestSetAuthVars(t *testing.T) {
 	t.Parallel()
 	apiKey = ""
 	apiToken = ""
-	SetAuthVars()
+	setAuthVars()
 	if configData.Key != "" && configData.Token != "" {
 		t.Errorf("incorrect key and token values")
 	}
@@ -497,10 +498,10 @@ func TestSetAuthVars(t *testing.T) {
 
 func TestCheckBoardID(t *testing.T) {
 	t.Parallel()
-	if !AreAPIKeysSet() {
+	if !areAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := TrelloCheckBoardID("username")
+	_, err := trelloCheckBoardID()
 	if err != nil {
 		t.Error(err)
 	}

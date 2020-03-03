@@ -53,15 +53,15 @@ const (
 	pathChecklists     = "https://api.trello.com/1/checklists/%s/checkItems?%s&key=%s&token=%s"
 	pathChecklistItems = "https://api.trello.com/1/checklists/%s?fields=name&cards=all&card_fields=name&key=%s&token=%s"
 	pathUpdateItems    = "https://api.trello.com/1/cards/%s/checkItem/%s?%s&key=%s&token=%s"
-	pathCheckBoardID   = "https://api.trello.com/1/members/%s/boards?key=%s&token=%s"
+	pathCheckBoardID   = "https://api.trello.com/1/members/me/boards?key=%s&token=%s"
 	complete           = "complete"
 	incomplete         = "incomplete"
 )
 
 var (
-	verbose, add                                                                                                                                                                                                     bool
-	apiKey, apiToken, trelloUsername, trelloBoardID, trelloListID, trelloChecklistID, trelloCardID, exchangeName, checkType, tokenData, key, val, tokenDataEnd, textTokenData, dateFormat, regExp, checkString, path string
-	configData, testConfigData, usageData                                                                                                                                                                            Config
+	verbose, add                                                                                                                                                                                                      bool
+	apiKey, apiToken, trelloBoardID, trelloBoardName, trelloListID, trelloChecklistID, trelloCardID, exchangeName, checkType, tokenData, key, val, tokenDataEnd, textTokenData, dateFormat, regExp, checkString, path string
+	configData, testConfigData, usageData                                                                                                                                                                             Config
 )
 
 func main() {
@@ -71,7 +71,7 @@ func main() {
 	flag.StringVar(&trelloCardID, "cardid", "", "sets the card ID for Trello board interaction")
 	flag.StringVar(&trelloListID, "listid", "", "sets the list ID for Trello board interaction")
 	flag.StringVar(&trelloBoardID, "boardid", "", "sets the board ID for Trello board interaction")
-	flag.StringVar(&trelloUsername, "trellousername", "", "sets the username for Trello board interaction")
+	flag.StringVar(&trelloBoardName, "boardname", "", "sets the board name for Trello board interaction")
 	flag.StringVar(&exchangeName, "exchangename", "", "sets the exchangeName for the new exchange")
 	flag.StringVar(&checkType, "checktype", "", "sets the checkType for the new exchange")
 	flag.StringVar(&tokenData, "tokendata", "", "sets the tokenData for adding a new exchange")
@@ -86,16 +86,16 @@ func main() {
 	flag.BoolVar(&verbose, "verbose", false, "increases logging verbosity for API Update Checker")
 	flag.Parse()
 	var err error
-	configData, err = ReadFileData(jsonFile)
+	configData, err = readFileData(jsonFile)
 	if err != nil {
 		log.Fatal(err)
 	}
-	testConfigData, err = ReadFileData(testJSONFile)
+	testConfigData, err = readFileData(testJSONFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	usageData = testConfigData
-	if CanUpdateTrello() {
+	if canUpdateTrello() {
 		usageData = configData
 	}
 	if add {
@@ -103,7 +103,7 @@ func main() {
 		case github:
 			var data GithubData
 			data.Repo = path
-			err = Add(exchangeName, checkType, data, false)
+			err = addExch(exchangeName, checkType, data, false)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -117,25 +117,25 @@ func main() {
 			data.DateFormat = dateFormat
 			data.RegExp = regExp
 			data.Path = path
-			err = Add(exchangeName, checkType, data, false)
+			err = addExch(exchangeName, checkType, data, false)
 			if err != nil {
 				log.Fatal(err)
 			}
 		}
 	}
-	if CanUpdateTrello() {
-		SetAuthVars()
-		err = UpdateFile(backupFile)
+	if canUpdateTrello() {
+		setAuthVars()
+		err = updateFile(backupFile)
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = CheckUpdates(jsonFile)
+		err = checkUpdates(jsonFile)
 		if err != nil {
 			log.Fatal(err)
 		}
 	} else {
 		log.Printf("This is a test update since API keys are not set.\n")
-		err := CheckUpdates(testJSONFile)
+		err := checkUpdates(testJSONFile)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -143,8 +143,8 @@ func main() {
 	}
 }
 
-// SetAuthVars checks if the cmdline vars are set and sets them onto config file and vice versa
-func SetAuthVars() {
+// setAuthVars checks if the cmdline vars are set and sets them onto config file and vice versa
+func setAuthVars() {
 	if apiKey == "" {
 		apiKey = configData.Key
 	} else {
@@ -177,28 +177,18 @@ func SetAuthVars() {
 	}
 }
 
-// RemoveTestAuthVars removes authenticated variables when the test file is overwritten with the main jsonfile data
-func RemoveTestAuthVars() {
-	usageData.BoardID = ""
-	usageData.CardID = ""
-	usageData.ChecklistID = ""
-	usageData.ListID = ""
-	usageData.Key = ""
-	usageData.Token = ""
+// canUpdateTrello checks if all the data necessary for updating trello is available
+func canUpdateTrello() bool {
+	return (areAPIKeysSet() && isTrelloBoardDataSet())
 }
 
-// CanUpdateTrello checks if all the data necessary for updating trello is available
-func CanUpdateTrello() bool {
-	return (AreAPIKeysSet() && IsTrelloBoardDataSet())
-}
-
-// AreAPIKeysSet checks if api keys and tokens are set
-func AreAPIKeysSet() bool {
+// areAPIKeysSet checks if api keys and tokens are set
+func areAPIKeysSet() bool {
 	return (apiKey != "" && apiToken != "") || (configData.Key != "" && configData.Token != "")
 }
 
-// IsTrelloBoardDataSet checks if data required to update trello board is set
-func IsTrelloBoardDataSet() bool {
+// isTrelloBoardDataSet checks if data required to update trello board is set
+func isTrelloBoardDataSet() bool {
 	if (trelloBoardID != "" && trelloListID != "" && trelloChecklistID != "" && trelloCardID != "") ||
 		(configData.CardID != "" && configData.ChecklistID != "" && configData.BoardID != "" && configData.ListID != "") {
 		return true
@@ -213,11 +203,11 @@ func getSha(repoPath string) (ShaResponse, error) {
 	if verbose {
 		log.Printf("Getting SHA of this path: %v\n", getPath)
 	}
-	return resp, SendGetReq(getPath, &resp)
+	return resp, sendGetReq(getPath, &resp)
 }
 
-// CheckExistingExchanges checks if the given exchange exists
-func CheckExistingExchanges(exchName string) bool {
+// checkExistingExchanges checks if the given exchange exists
+func checkExistingExchanges(exchName string) bool {
 	for x := range usageData.Exchanges {
 		if usageData.Exchanges[x].Name == exchName {
 			return true
@@ -226,8 +216,8 @@ func CheckExistingExchanges(exchName string) bool {
 	return false
 }
 
-// CheckMissingExchanges checks if any supported exchanges are missing api checker functionality
-func CheckMissingExchanges() []string {
+// checkMissingExchanges checks if any supported exchanges are missing api checker functionality
+func checkMissingExchanges() []string {
 	var tempArray []string
 	for x := range usageData.Exchanges {
 		tempArray = append(tempArray, usageData.Exchanges[x].Name)
@@ -243,8 +233,8 @@ func CheckMissingExchanges() []string {
 	return supportedExchs
 }
 
-// ReadFileData reads the file data from the given json file
-func ReadFileData(fileName string) (Config, error) {
+// readFileData reads the file data from the given json file
+func readFileData(fileName string) (Config, error) {
 	var c Config
 	file, err := os.Open(fileName)
 	if err != nil {
@@ -262,8 +252,8 @@ func ReadFileData(fileName string) (Config, error) {
 	return c, nil
 }
 
-// CheckUpdates checks updates.json for all the existing exchanges
-func CheckUpdates(fileName string) error {
+// checkUpdates checks updates.json for all the existing exchanges
+func checkUpdates(fileName string) error {
 	var resp []string
 	errMap := make(map[string]error)
 	var wg sync.WaitGroup
@@ -296,7 +286,7 @@ func CheckUpdates(fileName string) error {
 				}
 				m.Unlock()
 			case htmlScrape:
-				checkStr, err := CheckChangeLog(e.Data.HTMLData)
+				checkStr, err := checkChangeLog(e.Data.HTMLData)
 				m.Lock()
 				if err != nil {
 					errMap[e.Name] = err
@@ -317,8 +307,8 @@ func CheckUpdates(fileName string) error {
 		return err
 	}
 	var check bool
-	if AreAPIKeysSet() {
-		check, err = TrelloCheckBoardID(trelloUsername)
+	if areAPIKeysSet() {
+		check, err = trelloCheckBoardID()
 		if err != nil {
 			return err
 		}
@@ -327,13 +317,13 @@ func CheckUpdates(fileName string) error {
 		}
 		var a ChecklistItemData
 		for y := range resp {
-			a, err = TrelloGetChecklistItems()
+			a, err = trelloGetChecklistItems()
 			if err != nil {
 				return err
 			}
 			for z := range a.CheckItems {
 				if strings.Contains(a.CheckItems[z].Name, resp[y]) {
-					err = TrelloUpdateCheckItem(a.CheckItems[z].ID, a.CheckItems[z].Name, a.CheckItems[z].State)
+					err = trelloUpdateCheckItem(a.CheckItems[z].ID, a.CheckItems[z].Name, a.CheckItems[z].State)
 					if err != nil {
 						return err
 					}
@@ -341,7 +331,7 @@ func CheckUpdates(fileName string) error {
 			}
 		}
 	}
-	if !AreAPIKeysSet() {
+	if !areAPIKeysSet() {
 		fileName = testJSONFile
 		if verbose {
 			log.Println("Updating test file; main file & trello will not be automatically updated since API key & token are not set")
@@ -351,53 +341,53 @@ func CheckUpdates(fileName string) error {
 	for k := range errMap {
 		log.Printf("Error: %v\n", errMap[k])
 	}
-	unsup := CheckMissingExchanges()
+	unsup := checkMissingExchanges()
 	log.Printf("The following exchanges are not supported by apichecker: %v\n", unsup)
 	log.Printf("Saving the updates to the following file: %s\n", fileName)
 	return ioutil.WriteFile(fileName, file, 0770)
 }
 
-// CheckChangeLog checks the exchanges which support changelog updates.json
-func CheckChangeLog(htmlData *HTMLScrapingData) (string, error) {
+// checkChangeLog checks the exchanges which support changelog updates.json
+func checkChangeLog(htmlData *HTMLScrapingData) (string, error) {
 	var dataStrings []string
 	var err error
 	switch htmlData.Path {
 	case pathBTSE:
-		dataStrings, err = HTMLScrapeBTSE(htmlData)
+		dataStrings, err = htmlScrapeBTSE(htmlData)
 	case pathBitfinex:
-		dataStrings, err = HTMLScrapeBitfinex(htmlData)
+		dataStrings, err = htmlScrapeBitfinex(htmlData)
 	case pathBitmex:
-		dataStrings, err = HTMLScrapeBitmex(htmlData)
+		dataStrings, err = htmlScrapeBitmex(htmlData)
 	case pathANX:
-		dataStrings, err = HTMLScrapeANX(htmlData)
+		dataStrings, err = htmlScrapeANX(htmlData)
 	case pathPoloniex:
-		dataStrings, err = HTMLScrapePoloniex(htmlData)
+		dataStrings, err = htmlScrapePoloniex(htmlData)
 	case pathIbBit:
-		dataStrings, err = HTMLScrapeItBit(htmlData)
+		dataStrings, err = htmlScrapeItBit(htmlData)
 	case pathBTCMarkets:
-		dataStrings, err = HTMLScrapeBTCMarkets(htmlData)
+		dataStrings, err = htmlScrapeBTCMarkets(htmlData)
 	case pathEXMO:
-		dataStrings, err = HTMLScrapeExmo(htmlData)
+		dataStrings, err = htmlScrapeExmo(htmlData)
 	case pathBitstamp:
-		dataStrings, err = HTMLScrapeBitstamp(htmlData)
+		dataStrings, err = htmlScrapeBitstamp(htmlData)
 	case pathHitBTC:
-		dataStrings, err = HTMLScrapeHitBTC(htmlData)
+		dataStrings, err = htmlScrapeHitBTC(htmlData)
 	case pathBitflyer:
-		dataStrings, err = HTMLScrapeBitflyer(htmlData)
+		dataStrings, err = htmlScrapeBitflyer(htmlData)
 	case pathLakeBTC:
-		dataStrings, err = HTMLScrapeLakeBTC(htmlData)
+		dataStrings, err = htmlScrapeLakeBTC(htmlData)
 	case pathKraken:
-		dataStrings, err = HTMLScrapeKraken(htmlData)
+		dataStrings, err = htmlScrapeKraken(htmlData)
 	case pathAlphaPoint:
-		dataStrings, err = HTMLScrapeAlphaPoint(htmlData)
+		dataStrings, err = htmlScrapeAlphaPoint(htmlData)
 	case pathYobit:
-		dataStrings, err = HTMLScrapeYobit(htmlData)
+		dataStrings, err = htmlScrapeYobit(htmlData)
 	case pathLocalBitcoins:
-		dataStrings, err = HTMLScrapeLocalBitcoins(htmlData)
+		dataStrings, err = htmlScrapeLocalBitcoins(htmlData)
 	case pathOkCoin, pathOkex:
-		dataStrings, err = HTMLScrapeOk(htmlData)
+		dataStrings, err = htmlScrapeOk(htmlData)
 	default:
-		dataStrings, err = HTMLScrapeDefault(htmlData)
+		dataStrings, err = htmlScrapeDefault(htmlData)
 	}
 	if err != nil {
 		return "", err
@@ -428,14 +418,14 @@ func CheckChangeLog(htmlData *HTMLScrapingData) (string, error) {
 }
 
 // Add appends exchange data to updates.json for future api checks
-func Add(exchName, checkType string, data interface{}, update bool) error {
+func addExch(exchName, checkType string, data interface{}, isUpdate bool) error {
 	var file []byte
-	if !update {
-		if CheckExistingExchanges(exchName) {
+	if !isUpdate {
+		if checkExistingExchanges(exchName) {
 			log.Printf("%v exchange already exists\n", exchName)
 			return nil
 		}
-		exchangeData, err := FillData(exchName, checkType, data)
+		exchangeData, err := fillData(exchName, checkType, data)
 		if err != nil {
 			return err
 		}
@@ -445,20 +435,20 @@ func Add(exchName, checkType string, data interface{}, update bool) error {
 			return err
 		}
 	} else {
-		info, err := FillData(exchName, checkType, data)
+		info, err := fillData(exchName, checkType, data)
 		if err != nil {
 			return err
 		}
-		allExchData := Update(exchName, usageData.Exchanges, info)
+		allExchData := update(exchName, usageData.Exchanges, info)
 		usageData.Exchanges = allExchData
 		file, err = json.MarshalIndent(&usageData, "", " ")
 		if err != nil {
 			return err
 		}
 	}
-	if CanUpdateTrello() {
-		if !update {
-			err := TrelloCreateNewCheck(fmt.Sprintf("%s 1", exchName))
+	if canUpdateTrello() {
+		if !isUpdate {
+			err := trelloCreateNewCheck(fmt.Sprintf("%s 1", exchName))
 			if err != nil {
 				return err
 			}
@@ -468,8 +458,8 @@ func Add(exchName, checkType string, data interface{}, update bool) error {
 	return ioutil.WriteFile(testJSONFile, file, 0770)
 }
 
-// FillData fills exchange data based on the given checkType
-func FillData(exchName, checkType string, data interface{}) (ExchangeInfo, error) {
+// fillData fills exchange data based on the given checkType
+func fillData(exchName, checkType string, data interface{}) (ExchangeInfo, error) {
 	switch checkType {
 	case github:
 		tempData := data.(GithubData)
@@ -487,7 +477,7 @@ func FillData(exchName, checkType string, data interface{}) (ExchangeInfo, error
 		}, nil
 	case htmlScrape:
 		tempData := data.(HTMLScrapingData)
-		checkStr, err := CheckChangeLog(&tempData)
+		checkStr, err := checkChangeLog(&tempData)
 		if err != nil {
 			return ExchangeInfo{}, err
 		}
@@ -512,8 +502,8 @@ func FillData(exchName, checkType string, data interface{}) (ExchangeInfo, error
 	}
 }
 
-// HTMLScrapeDefault gets check string data for the default cases
-func HTMLScrapeDefault(htmlData *HTMLScrapingData) ([]string, error) {
+// htmlScrapeDefault gets check string data for the default cases
+func htmlScrapeDefault(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
 	temp, err := http.Get(htmlData.Path)
 	if err != nil {
@@ -567,8 +557,8 @@ loop:
 	return resp, nil
 }
 
-// HTMLScrapeBTSE gets the check string for BTSE exchange
-func HTMLScrapeBTSE(htmlData *HTMLScrapingData) ([]string, error) {
+// htmlScrapeBTSE gets the check string for BTSE exchange
+func htmlScrapeBTSE(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
 	temp, err := http.Get(htmlData.Path)
 	if err != nil {
@@ -598,8 +588,8 @@ loop:
 	return resp, nil
 }
 
-// HTMLScrapeBitfinex gets the check string for Bitfinex exchange
-func HTMLScrapeBitfinex(htmlData *HTMLScrapingData) ([]string, error) {
+// htmlScrapeBitfinex gets the check string for Bitfinex exchange
+func htmlScrapeBitfinex(htmlData *HTMLScrapingData) ([]string, error) {
 	temp, err := http.Get(htmlData.Path)
 	if err != nil {
 		return nil, err
@@ -630,8 +620,8 @@ func HTMLScrapeBitfinex(htmlData *HTMLScrapingData) ([]string, error) {
 	return resp, nil
 }
 
-// HTMLScrapeBitmex gets the check string for Bitmex exchange
-func HTMLScrapeBitmex(htmlData *HTMLScrapingData) ([]string, error) {
+// htmlScrapeBitmex gets the check string for Bitmex exchange
+func htmlScrapeBitmex(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
 	temp, err := http.Get(htmlData.Path)
 	if err != nil {
@@ -668,8 +658,8 @@ loop:
 	return resp, nil
 }
 
-// HTMLScrapeHitBTC gets the check string for HitBTC Exchange
-func HTMLScrapeHitBTC(htmlData *HTMLScrapingData) ([]string, error) {
+// htmlScrapeHitBTC gets the check string for HitBTC Exchange
+func htmlScrapeHitBTC(htmlData *HTMLScrapingData) ([]string, error) {
 	temp, err := http.Get(htmlData.Path)
 	if err != nil {
 		return nil, err
@@ -701,8 +691,8 @@ func HTMLScrapeHitBTC(htmlData *HTMLScrapingData) ([]string, error) {
 	return resp, nil
 }
 
-// HTMLScrapeBTCMarkets gets the check string for BTCMarkets exchange
-func HTMLScrapeBTCMarkets(htmlData *HTMLScrapingData) ([]string, error) {
+// htmlScrapeBTCMarkets gets the check string for BTCMarkets exchange
+func htmlScrapeBTCMarkets(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
 	temp, err := http.Get(htmlData.Path)
 	if err != nil {
@@ -721,8 +711,8 @@ func HTMLScrapeBTCMarkets(htmlData *HTMLScrapingData) ([]string, error) {
 	return resp, nil
 }
 
-// HTMLScrapeBitflyer gets the check string for BTCMarkets exchange
-func HTMLScrapeBitflyer(htmlData *HTMLScrapingData) ([]string, error) {
+// htmlScrapeBitflyer gets the check string for BTCMarkets exchange
+func htmlScrapeBitflyer(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
 	var tempArray []string
 	temp, err := http.Get(htmlData.Path)
@@ -773,8 +763,8 @@ loop:
 	return resp, nil
 }
 
-// HTMLScrapeOk gets the check string for Okex
-func HTMLScrapeOk(htmlData *HTMLScrapingData) ([]string, error) {
+// htmlScrapeOk gets the check string for Okex
+func htmlScrapeOk(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
 	temp, err := http.Get(htmlData.Path)
 	if err != nil {
@@ -827,8 +817,8 @@ loop:
 	return resp, nil
 }
 
-// HTMLScrapeANX gets the check string for BTCMarkets exchange
-func HTMLScrapeANX(htmlData *HTMLScrapingData) ([]string, error) {
+// htmlScrapeANX gets the check string for BTCMarkets exchange
+func htmlScrapeANX(htmlData *HTMLScrapingData) ([]string, error) {
 	temp, err := http.Get(htmlData.Path)
 	if err != nil {
 		return nil, err
@@ -860,8 +850,8 @@ func HTMLScrapeANX(htmlData *HTMLScrapingData) ([]string, error) {
 	return resp, nil
 }
 
-// HTMLScrapeExmo gets the check string for Exmo Exchange
-func HTMLScrapeExmo(htmlData *HTMLScrapingData) ([]string, error) {
+// htmlScrapeExmo gets the check string for Exmo Exchange
+func htmlScrapeExmo(htmlData *HTMLScrapingData) ([]string, error) {
 	temp, err := http.NewRequest(http.MethodGet, htmlData.Path, nil)
 	if err != nil {
 		return nil, err
@@ -885,8 +875,8 @@ func HTMLScrapeExmo(htmlData *HTMLScrapingData) ([]string, error) {
 	return resp, nil
 }
 
-// HTMLScrapePoloniex gets the check string for Poloniex Exchange
-func HTMLScrapePoloniex(htmlData *HTMLScrapingData) ([]string, error) {
+// htmlScrapePoloniex gets the check string for Poloniex Exchange
+func htmlScrapePoloniex(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
 	temp, err := http.Get(htmlData.Path)
 	if err != nil {
@@ -937,8 +927,8 @@ loop:
 	return resp, nil
 }
 
-// HTMLScrapeItBit gets the check string for ItBit Exchange
-func HTMLScrapeItBit(htmlData *HTMLScrapingData) ([]string, error) {
+// htmlScrapeItBit gets the check string for ItBit Exchange
+func htmlScrapeItBit(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
 	temp, err := http.Get(htmlData.Path)
 	if err != nil {
@@ -971,8 +961,8 @@ loop:
 	return resp, nil
 }
 
-// HTMLScrapeLakeBTC gets the check string for LakeBTC Exchange
-func HTMLScrapeLakeBTC(htmlData *HTMLScrapingData) ([]string, error) {
+// htmlScrapeLakeBTC gets the check string for LakeBTC Exchange
+func htmlScrapeLakeBTC(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
 	temp, err := http.Get(htmlData.Path)
 	if err != nil {
@@ -1024,8 +1014,8 @@ loop:
 	return resp, nil
 }
 
-// HTMLScrapeBitstamp gets the check string for Bitstamp Exchange
-func HTMLScrapeBitstamp(htmlData *HTMLScrapingData) ([]string, error) {
+// htmlScrapeBitstamp gets the check string for Bitstamp Exchange
+func htmlScrapeBitstamp(htmlData *HTMLScrapingData) ([]string, error) {
 	temp, err := http.Get(htmlData.Path)
 	if err != nil {
 		return nil, err
@@ -1043,8 +1033,8 @@ func HTMLScrapeBitstamp(htmlData *HTMLScrapingData) ([]string, error) {
 	return resp, nil
 }
 
-// HTMLScrapeKraken gets the check string for Kraken Exchange
-func HTMLScrapeKraken(htmlData *HTMLScrapingData) ([]string, error) {
+// htmlScrapeKraken gets the check string for Kraken Exchange
+func htmlScrapeKraken(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
 	temp, err := http.Get(htmlData.Path)
 	if err != nil {
@@ -1098,8 +1088,8 @@ loop:
 	return resp, nil
 }
 
-// HTMLScrapeAlphaPoint gets the check string for Kraken Exchange
-func HTMLScrapeAlphaPoint(htmlData *HTMLScrapingData) ([]string, error) {
+// htmlScrapeAlphaPoint gets the check string for Kraken Exchange
+func htmlScrapeAlphaPoint(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
 	temp, err := http.Get(htmlData.Path)
 	if err != nil {
@@ -1152,8 +1142,8 @@ loop:
 	return resp, nil
 }
 
-// HTMLScrapeYobit gets the check string for Yobit Exchange
-func HTMLScrapeYobit(htmlData *HTMLScrapingData) ([]string, error) {
+// htmlScrapeYobit gets the check string for Yobit Exchange
+func htmlScrapeYobit(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
 	temp, err := http.Get(htmlData.Path)
 	if err != nil {
@@ -1210,8 +1200,8 @@ loop:
 	return resp, nil
 }
 
-// HTMLScrapeLocalBitcoins gets the check string for Yobit Exchange
-func HTMLScrapeLocalBitcoins(htmlData *HTMLScrapingData) ([]string, error) {
+// htmlScrapeLocalBitcoins gets the check string for Yobit Exchange
+func htmlScrapeLocalBitcoins(htmlData *HTMLScrapingData) ([]string, error) {
 	temp, err := http.Get(htmlData.Path)
 	if err != nil {
 		return nil, err
@@ -1231,8 +1221,8 @@ func HTMLScrapeLocalBitcoins(htmlData *HTMLScrapingData) ([]string, error) {
 	return resp, nil
 }
 
-// TrelloCreateNewCard creates a new card on the list specified on trello
-func TrelloCreateNewCard(fillData *CardFill) error {
+// trelloCreateNewCard creates a new card on the list specified on trello
+func trelloCreateNewCard(fillData *CardFill) error {
 	params := url.Values{}
 	params.Set("idList", fillData.ListID)
 	if fillData.Name != "" {
@@ -1253,27 +1243,27 @@ func TrelloCreateNewCard(fillData *CardFill) error {
 	if fillData.LabelsID != "" {
 		params.Set("idLabels", fillData.LabelsID)
 	}
-	err := SendAuthReq(http.MethodPost,
-		pathNewCard+params.Encode()+apiKey+apiToken,
+	err := sendAuthReq(http.MethodPost,
+		fmt.Sprintf(pathNewCard, params.Encode(), apiKey, apiToken),
 		nil)
 	return err
 }
 
-// TrelloCreateNewCheck creates a new checklist item within a given checklist from trello
-func TrelloCreateNewCheck(newCheck string) error {
+// trelloCreateNewCheck creates a new checklist item within a given checklist from trello
+func trelloCreateNewCheck(newCheck string) error {
 	params := url.Values{}
 	params.Set("name", newCheck)
-	err := SendAuthReq(http.MethodPost,
-		pathChecklists+trelloChecklistID+params.Encode()+apiKey+apiToken,
+	err := sendAuthReq(http.MethodPost,
+		fmt.Sprintf(pathChecklists, trelloChecklistID, params.Encode(), apiKey, apiToken),
 		nil)
 	return err
 }
 
-// TrelloCheckBoardID gets board id of the trello boards for a user which can be used for checking if a given board exists
-func TrelloCheckBoardID(username string) (bool, error) {
+// trelloCheckBoardID gets board id of the trello boards for a user which can be used for checking if a given board exists
+func trelloCheckBoardID() (bool, error) {
 	var data []MembersData
-	err := SendAuthReq(http.MethodGet,
-		fmt.Sprintf(pathCheckBoardID, username, apiKey, apiToken),
+	err := sendAuthReq(http.MethodGet,
+		fmt.Sprintf(pathCheckBoardID, apiKey, apiToken),
 		&data)
 	if err != nil {
 		return false, err
@@ -1282,89 +1272,65 @@ func TrelloCheckBoardID(username string) (bool, error) {
 		return false, errors.New("no trello boards available for the given apikey and token")
 	}
 	for x := range data {
-		if trelloBoardID == data[x].ID {
+		if (trelloBoardID == data[x].ID) || (trelloBoardName == data[x].Name) {
 			return true, nil
 		}
 	}
 	return false, nil
 }
 
-// TrelloGetChecklistItems get info on all the items on a given checklist from trello
-func TrelloGetChecklistItems() (ChecklistItemData, error) {
+// trelloGetChecklistItems get info on all the items on a given checklist from trello
+func trelloGetChecklistItems() (ChecklistItemData, error) {
 	var resp ChecklistItemData
 	path := fmt.Sprintf(pathChecklistItems, trelloChecklistID, usageData.Key, usageData.Token)
-	return resp, SendGetReq(path, &resp)
+	return resp, sendGetReq(path, &resp)
 }
 
-// NameStateChanges returns the appropriate update name & state for trello (assumes single digit updates pending)
-func NameStateChanges(currentName, currentState string) (string, error) {
-	r, err := regexp.Compile(`[\s\S]* \d{1}$`) // nolint: gocritic
+// nameStateChanges returns the appropriate update name & state for trello (updates pending can only be up to 99)
+func nameStateChanges(currentName, currentState string) (string, error) {
+	name := currentName
+	exists := false
+	if strings.Index(currentName, " ") != -1 {
+		exists = true
+		name = strings.Split(currentName, " ")[0]
+	}
+	if !exchange.IsSupported(name) {
+		return "", errors.New("exchange not found")
+	}
+	if !exists {
+		return fmt.Sprintf("%s 1", name), nil
+	}
+
+	num, err := strconv.ParseInt(strings.Split(currentName, " ")[1], 10, 64)
 	if err != nil {
 		return "", err
 	}
-	s, err := regexp.Compile(`[\s\S]* \d{2}$`) // nolint: gocritic
-	if err != nil {
-		return "", err
+
+	newNum := num
+	if currentState == complete {
+		newNum = 1
+	} else {
+		newNum++
 	}
-	var tempNumber int64
-	var finalNumber string
-	var byteNumber, byteName []byte
-	if r.MatchString(currentName) {
-		stringNum := string(currentName[len(currentName)-1])
-		tempNumber, err = strconv.ParseInt(stringNum, 10, 64)
-		if err != nil {
-			return "", err
-		}
-		if tempNumber != 1 || currentState != complete {
-			tempNumber++
-		} else {
-			tempNumber = 1
-		}
-		finalNumber = strconv.FormatInt(tempNumber, 10)
-		byteNumber = []byte(finalNumber)
-		byteName = []byte(currentName)
-		byteName = byteName[:len(byteName)-1]
-		byteName = append(byteName, byteNumber[0])
-		return string(byteName), nil
-	}
-	if s.MatchString(currentName) {
-		stringNumTens := string(currentName[len(currentName)-2])
-		stringNumZeros := string(currentName[len(currentName)-1])
-		tempTens, err := strconv.ParseInt(stringNumTens, 10, 64)
-		if err != nil {
-			return "", err
-		}
-		tempZeros, err := strconv.ParseInt(stringNumZeros, 10, 64)
-		if err != nil {
-			return "", err
-		}
-		tempNumber = tempTens*10 + tempZeros + 1
-		finalNumber = strconv.FormatInt(tempNumber, 10)
-		byteNumber = []byte(finalNumber)
-		byteName = []byte(currentName)
-		byteName = byteName[:len(byteName)-2]
-		byteName = append(byteName, byteNumber[0], byteNumber[1])
-		return string(byteName), nil
-	}
-	return "", errors.New("invalid currentName or pending updates has exceeded 99")
+	return fmt.Sprintf("%s %d", name, newNum), nil
 }
 
-// TrelloUpdateCheckItem updates a check item for trello
-func TrelloUpdateCheckItem(checkItemID, name, state string) error {
+// trelloUpdateCheckItem updates a check item for trello
+func trelloUpdateCheckItem(checkItemID, name, state string) error {
 	params := url.Values{}
-	newName, err := NameStateChanges(name, state)
+	newName, err := nameStateChanges(name, state)
 	if err != nil {
 		return err
 	}
 	params.Set("name", newName)
 	params.Set("state", incomplete)
 	path := fmt.Sprintf(pathUpdateItems, trelloCardID, checkItemID, params.Encode(), usageData.Key, usageData.Token)
-	err = SendAuthReq(http.MethodPut, path, nil)
+	err = sendAuthReq(http.MethodPut, path, nil)
 	return err
 }
 
-// Update updates the exchange data
-func Update(currentName string, info []ExchangeInfo, updatedInfo ExchangeInfo) []ExchangeInfo {
+// update updates the exchange data
+func update(currentName string, info []ExchangeInfo, updatedInfo ExchangeInfo) []ExchangeInfo {
 	for x := range info {
 		if info[x].Name == currentName {
 			if info[x].CheckType == updatedInfo.CheckType {
@@ -1378,7 +1344,7 @@ func Update(currentName string, info []ExchangeInfo, updatedInfo ExchangeInfo) [
 }
 
 // UpdateFile updates the given file to match updates.json
-func UpdateFile(name string) error {
+func updateFile(name string) error {
 	file, err := json.MarshalIndent(&configData, "", " ")
 	if err != nil {
 		return err
@@ -1387,7 +1353,7 @@ func UpdateFile(name string) error {
 }
 
 // SendGetReq sends get req
-func SendGetReq(path string, result interface{}) error {
+func sendGetReq(path string, result interface{}) error {
 	var requester *request.Requester
 	if strings.Contains(path, "github") {
 		requester = request.New("Apichecker",
@@ -1405,8 +1371,8 @@ func SendGetReq(path string, result interface{}) error {
 		Verbose: verbose})
 }
 
-// SendAuthReq sends auth req
-func SendAuthReq(method, path string, result interface{}) error {
+// sendAuthReq sends auth req
+func sendAuthReq(method, path string, result interface{}) error {
 	requester := request.New("Apichecker",
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.NewBasicRateLimit(time.Second*10, 100))
