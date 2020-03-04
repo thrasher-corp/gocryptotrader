@@ -1294,10 +1294,6 @@ func nameStateChanges(currentName, currentState string) (string, error) {
 		exists = true
 		name = strings.Split(currentName, " ")[0]
 	}
-	if !exchange.IsSupported(name) {
-		log.Println(name)
-		return "", errors.New("exchange not found")
-	}
 	if !exists {
 		return fmt.Sprintf("%s 1", name), nil
 	}
