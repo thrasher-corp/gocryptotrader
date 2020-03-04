@@ -2,12 +2,10 @@ package indicators
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
+	"reflect"
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/go-talib/indicators"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
@@ -23,15 +21,16 @@ func macd(args ...objects.Object) (objects.Object, error) {
 	}
 
 	ohlcData := objects.ToInterface(args[0])
-	strNoWhiteSpace := convert.StripSpaceBuilder(ohlcData.(string))
-	str := strings.Split(strNoWhiteSpace, ",")
-	var tempOHLCSlice = make([]float64, len(str))
-	for x := range str {
-		v, err := strconv.ParseFloat(str[x], 64)
-		if err != nil {
-			return nil, err
+	var ohlcCloseData []float64
+	val := ohlcData.([]interface{})
+	for x := range val {
+		if reflect.TypeOf(val[x]).Kind() == reflect.Float64 {
+			ohlcCloseData = append(ohlcCloseData, val[x].(float64))
+		} else if reflect.TypeOf(val[x]).Kind() == reflect.Int64 {
+			ohlcCloseData = append(ohlcCloseData, float64(val[x].(int64)))
+		}else {
+			return nil, fmt.Errorf(modules.ErrParameterWithPositionConvertFailed, val[x], x)
 		}
-		tempOHLCSlice[x] = v
 	}
 
 	inFastPeriod, ok := objects.ToInt(args[1])
@@ -47,7 +46,7 @@ func macd(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeroid)
 	}
 
-	macd, macdSignal, macdHist := indicators.Macd(tempOHLCSlice, inFastPeriod, inSlowPeriod, inTimePeroid)
+	macd, macdSignal, macdHist := indicators.Macd(ohlcCloseData, inFastPeriod, inSlowPeriod, inTimePeroid)
 
 	retMACD := &objects.Array{}
 	for x := range macd {
@@ -75,23 +74,24 @@ func ema(args ...objects.Object) (objects.Object, error) {
 	}
 
 	ohlcData := objects.ToInterface(args[0])
+	var ohlcCloseData []float64
+	val := ohlcData.([]interface{})
+	for x := range val {
+		if reflect.TypeOf(val[x]).Kind() == reflect.Float64 {
+			ohlcCloseData = append(ohlcCloseData, val[x].(float64))
+		} else if reflect.TypeOf(val[x]).Kind() == reflect.Int64 {
+			ohlcCloseData = append(ohlcCloseData, float64(val[x].(int64)))
+		}else {
+			return nil, fmt.Errorf(modules.ErrParameterWithPositionConvertFailed, val[x], x)
+		}
+	}
+
 	inTimePeroid, ok := objects.ToInt(args[1])
 	if !ok {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeroid)
 	}
 
-	strNoWhiteSpace := convert.StripSpaceBuilder(ohlcData.(string))
-	str := strings.Split(strNoWhiteSpace, ",")
-	var tempOHLCSlice = make([]float64, len(str))
-	for x := range str {
-		v, err := strconv.ParseFloat(str[x], 64)
-		if err != nil {
-			return nil, err
-		}
-		tempOHLCSlice[x] = v
-	}
-	ret := indicators.Ma(tempOHLCSlice, inTimePeroid, indicators.EMA)
-
+	ret := indicators.Ma(ohlcCloseData, inTimePeroid, indicators.EMA)
 	r := &objects.Array{}
 	for x := range ret {
 		r.Value = append(r.Value, &objects.Float{Value: ret[x]})
@@ -106,23 +106,25 @@ func sma(args ...objects.Object) (objects.Object, error) {
 	}
 
 	ohlcData := objects.ToInterface(args[0])
+	var ohlcCloseData []float64
+	val := ohlcData.([]interface{})
+	for x := range val {
+		if reflect.TypeOf(val[x]).Kind() == reflect.Float64 {
+			ohlcCloseData = append(ohlcCloseData, val[x].(float64))
+		} else if reflect.TypeOf(val[x]).Kind() == reflect.Int64 {
+			ohlcCloseData = append(ohlcCloseData, float64(val[x].(int64)))
+		}else {
+			return nil, fmt.Errorf(modules.ErrParameterWithPositionConvertFailed, val[x], x)
+		}
+	}
+
 	inTimePeroid, ok := objects.ToInt(args[1])
 	if !ok {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeroid)
 	}
 
-	strNoWhiteSpace := convert.StripSpaceBuilder(ohlcData.(string))
-	str := strings.Split(strNoWhiteSpace, ",")
-	var tempOHLCSlice = make([]float64, len(str))
-	for x := range str {
-		v, err := strconv.ParseFloat(str[x], 64)
-		if err != nil {
-			return nil, err
-		}
-		tempOHLCSlice[x] = v
-	}
-	ret := indicators.Ma(tempOHLCSlice, inTimePeroid, indicators.SMA)
 
+	ret := indicators.Ma(ohlcCloseData, inTimePeroid, indicators.SMA)
 	r := &objects.Array{}
 	for x := range ret {
 		r.Value = append(r.Value, &objects.Float{Value: ret[x]})

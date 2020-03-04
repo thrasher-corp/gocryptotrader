@@ -2,12 +2,10 @@ package indicators
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
+	"reflect"
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/go-talib/indicators"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
@@ -20,52 +18,56 @@ func mfi(args ...objects.Object) (objects.Object, error) {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	ohlcHigh := objects.ToInterface(args[0])
-	strNoWhiteSpace := convert.StripSpaceBuilder(ohlcHigh.(string))
-	str := strings.Split(strNoWhiteSpace, ",")
-	var ohlcHighSlice = make([]float64, len(str))
-	for x := range str {
-		v, err := strconv.ParseFloat(str[x], 64)
-		if err != nil {
-			return nil, err
+	ohlcData := objects.ToInterface(args[0])
+	var ohlcHighData []float64
+	val := ohlcData.([]interface{})
+	for x := range val {
+		if reflect.TypeOf(val[x]).Kind() == reflect.Float64 {
+			ohlcHighData = append(ohlcHighData, val[x].(float64))
+		} else if reflect.TypeOf(val[x]).Kind() == reflect.Int64 {
+			ohlcHighData = append(ohlcHighData, float64(val[x].(int64)))
+		} else {
+			return nil, fmt.Errorf(modules.ErrParameterWithPositionConvertFailed, val[x], x)
 		}
-		ohlcHighSlice[x] = v
 	}
 
-	ohlcLow := objects.ToInterface(args[1])
-	strNoWhiteSpace = convert.StripSpaceBuilder(ohlcLow.(string))
-	str = strings.Split(strNoWhiteSpace, ",")
-	var ohlcLowSlice = make([]float64, len(str))
-	for x := range str {
-		v, err := strconv.ParseFloat(str[x], 64)
-		if err != nil {
-			return nil, err
+	ohlcData = objects.ToInterface(args[1])
+	var ohlcLowData []float64
+	val = ohlcData.([]interface{})
+	for x := range val {
+		if reflect.TypeOf(val[x]).Kind() == reflect.Float64 {
+			ohlcLowData = append(ohlcLowData, val[x].(float64))
+		} else if reflect.TypeOf(val[x]).Kind() == reflect.Int64 {
+			ohlcLowData = append(ohlcLowData, float64(val[x].(int64)))
+		} else {
+			return nil, fmt.Errorf(modules.ErrParameterWithPositionConvertFailed, val[x], x)
 		}
-		ohlcLowSlice[x] = v
 	}
 
-	ohlcClose := objects.ToInterface(args[2])
-	strNoWhiteSpace = convert.StripSpaceBuilder(ohlcClose.(string))
-	str = strings.Split(strNoWhiteSpace, ",")
-	var ohlcCloseSlice = make([]float64, len(str))
-	for x := range str {
-		v, err := strconv.ParseFloat(str[x], 64)
-		if err != nil {
-			return nil, err
+	ohlcData = objects.ToInterface(args[2])
+	var ohlcCloseData []float64
+	val = ohlcData.([]interface{})
+	for x := range val {
+		if reflect.TypeOf(val[x]).Kind() == reflect.Float64 {
+			ohlcCloseData = append(ohlcCloseData, val[x].(float64))
+		} else if reflect.TypeOf(val[x]).Kind() == reflect.Int64 {
+			ohlcCloseData = append(ohlcCloseData, float64(val[x].(int64)))
+		}else {
+			return nil, fmt.Errorf(modules.ErrParameterWithPositionConvertFailed, val[x], x)
 		}
-		ohlcCloseSlice[x] = v
 	}
 
-	ohlcVol := objects.ToInterface(args[3])
-	strNoWhiteSpace = convert.StripSpaceBuilder(ohlcVol.(string))
-	str = strings.Split(strNoWhiteSpace, ",")
-	var ohlcVolSlice = make([]float64, len(str))
-	for x := range str {
-		v, err := strconv.ParseFloat(str[x], 64)
-		if err != nil {
-			return nil, err
+	ohlcData = objects.ToInterface(args[3])
+	var ohlcVolData []float64
+	val = ohlcData.([]interface{})
+	for x := range val {
+		if reflect.TypeOf(val[x]).Kind() == reflect.Float64 {
+			ohlcVolData = append(ohlcVolData, val[x].(float64))
+		} else if reflect.TypeOf(val[x]).Kind() == reflect.Int64 {
+			ohlcVolData = append(ohlcVolData, float64(val[x].(int64)))
+		} else {
+			return nil, fmt.Errorf(modules.ErrParameterWithPositionConvertFailed, val[x], x)
 		}
-		ohlcVolSlice[x] = v
 	}
 
 	inTimePeroid, ok := objects.ToInt(args[4])
@@ -73,7 +75,7 @@ func mfi(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeroid)
 	}
 
-	ret := indicators.Mfi(ohlcHighSlice, ohlcLowSlice, ohlcCloseSlice, ohlcVolSlice, inTimePeroid)
+	ret := indicators.Mfi(ohlcHighData, ohlcLowData, ohlcCloseData, ohlcVolData, inTimePeroid)
 	r := &objects.Array{}
 	for x := range ret {
 		r.Value = append(r.Value, &objects.Float{Value: ret[x]})
