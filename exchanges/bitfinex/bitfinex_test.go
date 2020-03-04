@@ -159,6 +159,41 @@ func TestGetCandles(t *testing.T) {
 	}
 }
 
+func TestGetLeaderboard(t *testing.T) {
+	t.Parallel()
+	// Test invalid key
+	_, err := b.GetLeaderboard("", "", "", 0, 0, "", "")
+	if err == nil {
+		t.Error("an error should have been thrown for an invalid key")
+	}
+	// Test default
+	_, err = b.GetLeaderboard(LeaderboardUnrealisedProfitInception,
+		"1M",
+		"tGLOBAL:USD",
+		0,
+		0,
+		"",
+		"")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Test params
+	var result []LeaderboardEntry
+	result, err = b.GetLeaderboard(LeaderboardUnrealisedProfitInception,
+		"1M",
+		"tGLOBAL:USD",
+		-1,
+		1000,
+		"1582695181661",
+		"1583299981661")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result) == 0 {
+		t.Error("should have retrieved leaderboard data")
+	}
+}
+
 func TestGetAccountFees(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
