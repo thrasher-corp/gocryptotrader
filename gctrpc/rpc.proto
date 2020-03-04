@@ -308,7 +308,7 @@ message OrderDetails {
 message TradeHistory {
 	int64  creation_time = 1;
 	string id = 2;
-    double price = 3;
+        double price = 3;
 	double amount = 4;
 	string exchange = 5;
 	string asset_type = 6;
