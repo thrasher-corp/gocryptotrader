@@ -615,6 +615,8 @@ func StringToOrderStatus(status string) (Status, error) {
 	case strings.EqualFold(status, PartiallyCancelled.String()),
 		strings.EqualFold(status, "partially cancelled"):
 		return PartiallyCancelled, nil
+	case strings.EqualFold(status, Open.String()):
+		return Open, nil
 	case strings.EqualFold(status, Cancelled.String()):
 		return Cancelled, nil
 	case strings.EqualFold(status, PendingCancel.String()),

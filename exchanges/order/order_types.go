@@ -206,6 +206,7 @@ const (
 	Expired             Status = "EXPIRED"
 	Hidden              Status = "HIDDEN"
 	UnknownStatus       Status = "UNKNOWN"
+	Open                Status = "OPEN"
 )
 
 // Type enforces a standard for order types across the code base
