@@ -306,7 +306,7 @@ message OrderDetails {
 }
 
 message TradeHistory {
-	int64   creation_time = 1;
+	int64  creation_time = 1;
 	string id = 2;
     double price = 3;
 	double amount = 4;

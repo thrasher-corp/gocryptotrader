@@ -495,7 +495,7 @@ func (c *CoinbasePro) GetOrderInfo(orderID string) (order.Detail, error) {
 	for i := range fillResponse {
 		trSi, errTSi := order.StringToOrderSide(fillResponse[i].Side)
 		if errTSi != nil {
-			return response, fmt.Errorf("error parsinf order Side: %s", errTSi)
+			return response, fmt.Errorf("error parsing order Side: %s", errTSi)
 		}
 		td, errTd := time.Parse(time.RFC3339, fillResponse[i].CreatedAt)
 		if errTd != nil {
