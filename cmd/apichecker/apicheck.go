@@ -1290,7 +1290,7 @@ func trelloGetChecklistItems() (ChecklistItemData, error) {
 func nameStateChanges(currentName, currentState string) (string, error) {
 	name := currentName
 	exists := false
-	if strings.Index(currentName, " ") != -1 {
+	if strings.Contains(currentName, " ") {
 		exists = true
 		name = strings.Split(currentName, " ")[0]
 	}
