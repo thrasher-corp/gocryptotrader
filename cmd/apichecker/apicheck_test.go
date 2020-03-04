@@ -463,7 +463,7 @@ func TestUpdateCheckItem(t *testing.T) {
 
 func TestNameUpdates(t *testing.T) {
 	t.Parallel()
-	a, err := nameStateChanges("Gemini 3", "complete")
+	_, err := nameStateChanges("Gemini 3", "complete")
 	if err != nil {
 		t.Error(err)
 	}
