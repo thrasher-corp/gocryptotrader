@@ -60,7 +60,7 @@
    "Data": {
     "GitHubData": {
      "Repo": "bithumb-pro/bithumb.pro-official-api-docs",
-     "Sha": "9c5662dc0b62feee95a2a13c150bee57ed18495c"
+     "Sha": "c19789841432d91fd833e2530298197bd34c8c69"
     }
    },
    "Err": null
@@ -82,7 +82,7 @@
    "Data": {
     "GitHubData": {
      "Repo": "Coinbene/API-SPOT-v2-Documents",
-     "Sha": "88f30f5b587f7024e4ad8eb5b433cb5b2cea0ef1"
+     "Sha": "f8b446cc2c98b1059d7e5e706bd90868749b94fe"
     }
    },
    "Err": null
@@ -368,7 +368,7 @@
      "Key": "class",
      "Val": "col-md-12",
      "RegExp": "col-md-12([\\s\\S]*?)clearfix",
-     "CheckString": "d60e4f097b9d933a377d6be92d1e634dc2e2952375e9a5e7103cbd5885641953",
+     "CheckString": "08e15a735912740f4adf0ab2e13d3a9bd3f61b2d0bee20b1ce0651579f0e509b",
      "Path": "https://localbitcoins.com/api-docs/"
     }
    },
@@ -400,7 +400,7 @@
      "Val": "./#change-change",
      "TokenDataEnd": "./#change-",
      "RegExp": "./#change-\\d{8}",
-     "CheckString": "20200229",
+     "CheckString": "20200331",
      "Path": "https://www.okex.com/docs/en/#change-change"
     }
    },

@@ -414,7 +414,7 @@ func checkChangeLog(htmlData *HTMLScrapingData) (string, error) {
 			return "", errors.New("two or more updates were done on the same day, please check manually")
 		}
 	}
-	return "", errors.New("no response found")
+	return "", fmt.Errorf("no response found for the following path: %s", htmlData.Path)
 }
 
 // Add appends exchange data to updates.json for future api checks
@@ -1295,6 +1295,7 @@ func nameStateChanges(currentName, currentState string) (string, error) {
 		name = strings.Split(currentName, " ")[0]
 	}
 	if !exchange.IsSupported(name) {
+		log.Println(name)
 		return "", errors.New("exchange not found")
 	}
 	if !exists {
