@@ -1,5 +1,7 @@
 package bitfinex
 
+import "time"
+
 // AcceptedOrderType defines the accepted market types, exchange strings denote
 // non-contract order types.
 var AcceptedOrderType = []string{"market", "limit", "stop", "trailing-stop",
@@ -392,6 +394,23 @@ type Candle struct {
 	High      float64
 	Low       float64
 	Volume    float64
+}
+
+// Leaderboard keys
+const (
+	LeaderboardUnrealisedProfitPeriodDelta = "plu_diff"
+	LeaderboardUnrealisedProfitInception   = "plu"
+	LeaderboardVolume                      = "vol"
+	LeaderbookRealisedProfit               = "plr"
+)
+
+// LeaderboardEntry holds leaderboard data
+type LeaderboardEntry struct {
+	Timestamp     time.Time
+	Username      string
+	Ranking       int
+	Value         float64
+	TwitterHandle string
 }
 
 // WebsocketTicker holds ticker information

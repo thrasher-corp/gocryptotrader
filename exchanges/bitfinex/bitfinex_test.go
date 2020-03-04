@@ -159,6 +159,14 @@ func TestGetCandles(t *testing.T) {
 	}
 }
 
+func TestGetLeaderboard(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetLeaderboard(LeaderboardUnrealisedProfitInception, "1M", "tGLOBAL:USD", 0, 100, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestGetAccountFees(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.SkipNow()
