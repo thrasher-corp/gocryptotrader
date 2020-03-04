@@ -164,7 +164,7 @@ func TestGetLeaderboard(t *testing.T) {
 	// Test invalid key
 	_, err := b.GetLeaderboard("", "", "", 0, 0, "", "")
 	if err == nil {
-		t.Error("error should of been thrown for an invalid key")
+		t.Error("an error should have been thrown for an invalid key")
 	}
 	// Test default
 	_, err = b.GetLeaderboard(LeaderboardUnrealisedProfitInception,
