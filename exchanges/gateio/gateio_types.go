@@ -488,3 +488,15 @@ type WsGetBalanceResponseData struct {
 	Available float64 `json:"available,string"`
 	Freeze    float64 `json:"freeze,string"`
 }
+
+type wsBalanceSubscription struct {
+	Method     string                                `json:"method"`
+	Parameters []map[string]WsGetBalanceResponseData `json:"params"`
+	ID         int64                                 `json:"id"`
+}
+
+type wsOrderUpdate struct {
+	ID     int64         `json:"id"`
+	Method string        `json:"method"`
+	Params []interface{} `json:"params"`
+}

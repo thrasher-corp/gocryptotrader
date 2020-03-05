@@ -26,17 +26,18 @@ const (
 	apiURL = "https://api.binance.com"
 
 	// Public endpoints
-	exchangeInfo     = "/api/v1/exchangeInfo"
-	orderBookDepth   = "/api/v1/depth"
-	recentTrades     = "/api/v1/trades"
-	historicalTrades = "/api/v1/historicalTrades"
-	aggregatedTrades = "/api/v1/aggTrades"
-	candleStick      = "/api/v1/klines"
-	averagePrice     = "/api/v3/avgPrice"
-	priceChange      = "/api/v1/ticker/24hr"
-	symbolPrice      = "/api/v3/ticker/price"
-	bestPrice        = "/api/v3/ticker/bookTicker"
-	accountInfo      = "/api/v3/account"
+	exchangeInfo      = "/api/v1/exchangeInfo"
+	orderBookDepth    = "/api/v1/depth"
+	recentTrades      = "/api/v1/trades"
+	historicalTrades  = "/api/v1/historicalTrades"
+	aggregatedTrades  = "/api/v1/aggTrades"
+	candleStick       = "/api/v1/klines"
+	averagePrice      = "/api/v3/avgPrice"
+	priceChange       = "/api/v1/ticker/24hr"
+	symbolPrice       = "/api/v3/ticker/price"
+	bestPrice         = "/api/v3/ticker/bookTicker"
+	accountInfo       = "/api/v3/account"
+	userAccountStream = "/api/v3/userDataStream"
 
 	// Authenticated endpoints
 	newOrderTest = "/api/v3/order/test"
@@ -682,4 +683,52 @@ func (b *Binance) GetDepositAddressForCurrency(currency string) (string, error) 
 
 	return resp.Address,
 		b.SendAuthHTTPRequest(http.MethodGet, path, params, request.Unset, &resp)
+}
+
+// GetWsAuthStreamKey will retrieve a key to use for authorised WS streaming
+func (b *Binance) GetWsAuthStreamKey() (string, error) {
+	var resp UserAccountStream
+	path := b.API.Endpoints.URL + userAccountStream
+	headers := make(map[string]string)
+	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
+	err := b.SendPayload(&request.Item{
+		Method:        http.MethodPost,
+		Path:          path,
+		Headers:       headers,
+		Body:          bytes.NewBuffer(nil),
+		Result:        &resp,
+		AuthRequest:   true,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+	})
+	if err != nil {
+		return "", err
+	}
+	return resp.ListenKey, nil
+}
+
+// MaintainWsAuthStreamKey will keep the key alive
+func (b *Binance) MaintainWsAuthStreamKey() error {
+	var err error
+	if listenKey == "" {
+		listenKey, err = b.GetWsAuthStreamKey()
+		return err
+	}
+	path := b.API.Endpoints.URL + userAccountStream
+	params := url.Values{}
+	params.Set("listenKey", listenKey)
+	path = common.EncodeURLValues(path, params)
+	headers := make(map[string]string)
+	headers["X-MBX-APIKEY"] = b.API.Credentials.Key
+	return b.SendPayload(&request.Item{
+		Method:        http.MethodPut,
+		Path:          path,
+		Headers:       headers,
+		Body:          bytes.NewBuffer(nil),
+		AuthRequest:   true,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+	})
 }

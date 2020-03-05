@@ -51,6 +51,8 @@ func TestMain(m *testing.M) {
 		log.Fatal("HitBTC setup error", err)
 	}
 
+	h.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	h.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -225,8 +227,8 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType:  order.AnyType,
-		Currencies: []currency.Pair{currency.NewPair(currency.ETH, currency.BTC)},
+		Type:  order.AnyType,
+		Pairs: []currency.Pair{currency.NewPair(currency.ETH, currency.BTC)},
 	}
 
 	_, err := h.GetActiveOrders(&getOrdersRequest)
@@ -239,8 +241,8 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType:  order.AnyType,
-		Currencies: []currency.Pair{currency.NewPair(currency.ETH, currency.BTC)},
+		Type:  order.AnyType,
+		Pairs: []currency.Pair{currency.NewPair(currency.ETH, currency.BTC)},
 	}
 
 	_, err := h.GetOrderHistory(&getOrdersRequest)
@@ -267,11 +269,11 @@ func TestSubmitOrder(t *testing.T) {
 			Base:  currency.DGD,
 			Quote: currency.BTC,
 		},
-		OrderSide: order.Buy,
-		OrderType: order.Limit,
-		Price:     1,
-		Amount:    1,
-		ClientID:  "meowOrder",
+		Side:     order.Buy,
+		Type:     order.Limit,
+		Price:    1,
+		Amount:   1,
+		ClientID: "meowOrder",
 	}
 	response, err := h.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -288,10 +290,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	err := h.CancelOrder(orderCancellation)
@@ -310,10 +312,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	resp, err := h.CancelAllOrders(orderCancellation)
@@ -421,7 +423,7 @@ func setupWsAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	go h.WsHandleData()
+	go h.wsReadData()
 	h.wsLogin()
 	timer := time.NewTimer(time.Second)
 	select {
@@ -508,11 +510,411 @@ func TestWsGetSymbols(t *testing.T) {
 	}
 }
 
-// TestWsGetTradingBalance dials websocket, sends get trading balance request.
-func TestSsGetCurrencies(t *testing.T) {
+// TestWsGetCurrencies dials websocket, sends get trading balance request.
+func TestWsGetCurrencies(t *testing.T) {
 	setupWsAuth(t)
 	_, err := h.wsGetCurrencies(currency.BTC)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestWsGetActiveOrdersJSON(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "jsonrpc": "2.0",
+  "method": "activeOrders",
+  "params": [
+    {
+      "id": "4345613661",
+      "clientOrderId": "57d5525562c945448e3cbd559bd068c3",
+      "symbol": "BTCUSD",
+      "side": "sell",
+      "status": "new",
+      "type": "limit",
+      "timeInForce": "GTC",
+      "quantity": "0.013",
+      "price": "0.100000",
+      "cumQuantity": "0.000",
+      "postOnly": false,
+      "createdAt": "2017-10-20T12:17:12.245Z",
+      "updatedAt": "2017-10-20T12:17:12.245Z",
+      "reportType": "status"
+    }
+  ]
+}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsGetCurrenciesJSON(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "jsonrpc": "2.0",
+  "result": {
+    "id": "ETH",
+    "fullName": "Ethereum",
+    "crypto": true,
+    "payinEnabled": true,
+    "payinPaymentId": false,
+    "payinConfirmations": 2,
+    "payoutEnabled": true,
+    "payoutIsPaymentId": false,
+    "transferEnabled": true,
+    "delisted": false,
+    "payoutFee": "0.001"
+  },
+  "id": 123
+}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsGetSymbolsJSON(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "jsonrpc": "2.0",
+  "result": {
+    "id": "ETHBTC",
+    "baseCurrency": "ETH",
+    "quoteCurrency": "BTC",
+    "quantityIncrement": "0.001",
+    "tickSize": "0.000001",
+    "takeLiquidityRate": "0.001",
+    "provideLiquidityRate": "-0.0001",
+    "feeCurrency": "BTC"
+  },
+  "id": 123
+}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsTicker(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "jsonrpc": "2.0",
+  "method": "ticker",
+  "params": {
+    "ask": "0.054464",
+    "bid": "0.054463",
+    "last": "0.054463",
+    "open": "0.057133",
+    "low": "0.053615",
+    "high": "0.057559",
+    "volume": "33068.346",
+    "volumeQuote": "1832.687530809",
+    "timestamp": "2017-10-19T15:45:44.941Z",
+    "symbol": "BTCUSD"
+  }
+}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsOrderbook(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "jsonrpc": "2.0",
+  "method": "snapshotOrderbook",
+  "params": {
+    "ask": [
+      {
+        "price": "0.054588",
+        "size": "0.245"
+      },
+      {
+        "price": "0.054590",
+        "size": "0.000"
+      },
+      {
+        "price": "0.054591",
+        "size": "2.784"
+      }
+    ],
+    "bid": [
+      {
+        "price": "0.054558",
+        "size": "0.500"
+      },
+      {
+        "price": "0.054557",
+        "size": "0.076"
+      },
+      {
+        "price": "0.054524",
+        "size": "7.725"
+      }
+    ],
+    "symbol": "BTCUSD",
+    "sequence": 8073827,    
+    "timestamp": "2018-11-19T05:00:28.193Z"
+  }
+}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(`{
+  "jsonrpc": "2.0",
+  "method": "updateOrderbook",
+  "params": {    
+    "ask": [
+      {
+        "price": "0.054590",
+        "size": "0.000"
+      },
+      {
+        "price": "0.054591",
+        "size": "0.000"
+      }
+    ],
+    "bid": [
+      {
+        "price": "0.054504",
+         "size": "0.000"
+      }
+    ],
+    "symbol": "BTCUSD",
+    "sequence": 8073830,
+    "timestamp": "2018-11-19T05:00:28.700Z"
+  }
+}`)
+	err = h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsOrderNotification(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "jsonrpc": "2.0",
+  "method": "report",
+  "params": {
+    "id": "4345697765",
+    "clientOrderId": "53b7cf917963464a811a4af426102c19",
+    "symbol": "BTCUSD",
+    "side": "sell",
+    "status": "filled",
+    "type": "limit",
+    "timeInForce": "GTC",
+    "quantity": "0.001",
+    "price": "0.053868",
+    "cumQuantity": "0.001",
+    "postOnly": false,
+    "createdAt": "2017-10-20T12:20:05.952Z",
+    "updatedAt": "2017-10-20T12:20:38.708Z",
+    "reportType": "trade",
+    "tradeQuantity": "0.001",
+    "tradePrice": "0.053868",
+    "tradeId": 55051694,
+    "tradeFee": "-0.000000005"
+  }
+}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsSubmitOrderJSON(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "jsonrpc": "2.0",
+  "result": {
+    "id": "4345947689",
+    "clientOrderId": "57d5525562c945448e3cbd559bd068c4",
+    "symbol": "BTCUSD",
+    "side": "sell",
+    "status": "new",
+    "type": "limit",
+    "timeInForce": "GTC",
+    "quantity": "0.001",
+    "price": "0.093837",
+    "cumQuantity": "0.000",
+    "postOnly": false,
+    "createdAt": "2017-10-20T12:29:43.166Z",
+    "updatedAt": "2017-10-20T12:29:43.166Z",
+    "reportType": "new"
+  },
+  "id": 123
+}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsCancelOrderJSON(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "jsonrpc": "2.0",
+  "result": {
+    "id": "4345947689",
+    "clientOrderId": "57d5525562c945448e3cbd559bd068c4",
+    "symbol": "BTCUSD",
+    "side": "sell",
+    "status": "canceled",
+    "type": "limit",
+    "timeInForce": "GTC",
+    "quantity": "0.001",
+    "price": "0.093837",
+    "cumQuantity": "0.000",
+    "postOnly": false,
+    "createdAt": "2017-10-20T12:29:43.166Z",
+    "updatedAt": "2017-10-20T12:31:26.174Z",
+    "reportType": "canceled"
+  },
+  "id": 123
+}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsCancelReplaceJSON(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "jsonrpc": "2.0",
+  "result": {
+    "id": "4346371528",
+    "clientOrderId": "9cbe79cb6f864b71a811402a48d4b5b2",
+    "symbol": "BTCUSD",
+    "side": "sell",
+    "status": "new",
+    "type": "limit",
+    "timeInForce": "GTC",
+    "quantity": "0.002",
+    "price": "0.083837",
+    "cumQuantity": "0.000",
+    "postOnly": false,
+    "createdAt": "2017-10-20T12:47:07.942Z",
+    "updatedAt": "2017-10-20T12:50:34.488Z",
+    "reportType": "replaced",
+    "originalRequestClientOrderId": "9cbe79cb6f864b71a811402a48d4b5b1"
+  },
+  "id": 123
+}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsGetTradesRequestResponse(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "jsonrpc": "2.0",
+  "result": [
+    {
+      "currency": "BCN",
+      "available": "100.000000000",
+      "reserved": "0"
+    },
+    {
+      "currency": "BTC",
+      "available": "0.013634021",
+      "reserved": "0"
+    },
+    {
+      "currency": "ETH",
+      "available": "0",
+      "reserved": "0.00200000"
+    }
+  ],
+  "id": 123
+}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsGetActiveOrdersRequestJSON(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "jsonrpc": "2.0",
+  "result": [
+    {
+      "id": "4346371528",
+      "clientOrderId": "9cbe79cb6f864b71a811402a48d4b5b2",
+      "symbol": "BTCUSD",
+      "side": "sell",
+      "status": "new",
+      "type": "limit",
+      "timeInForce": "GTC",
+      "quantity": "0.002",
+      "price": "0.083837",
+      "cumQuantity": "0.000",
+      "postOnly": false,
+      "createdAt": "2017-10-20T12:47:07.942Z",
+      "updatedAt": "2017-10-20T12:50:34.488Z",
+      "reportType": "replaced",
+      "originalRequestClientOrderId": "9cbe79cb6f864b71a811402a48d4b5b1"
+    }
+  ],
+  "id": 123
+}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsTrades(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "jsonrpc": "2.0",
+  "method": "snapshotTrades",
+  "params": {
+    "data": [
+      {
+        "id": 54469456,
+        "price": "0.054656",
+        "quantity": "0.057",
+        "side": "buy",
+        "timestamp": "2017-10-19T16:33:42.821Z"
+      },
+      {
+        "id": 54469497,
+        "price": "0.054656",
+        "quantity": "0.092",
+        "side": "buy",
+        "timestamp": "2017-10-19T16:33:48.754Z"
+      },
+      {
+        "id": 54469697,
+        "price": "0.054669",
+        "quantity": "0.002",
+        "side": "buy",
+        "timestamp": "2017-10-19T16:34:13.288Z"
+      }
+    ],
+    "symbol": "BTCUSD"
+  }
+}`)
+	err := h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+
+	pressXToJSON = []byte(`{
+  "jsonrpc": "2.0",
+  "method": "updateTrades",
+  "params": {
+    "data": [
+      {
+        "id": 54469813,
+        "price": "0.054670",
+        "quantity": "0.183",
+        "side": "buy",
+        "timestamp": "2017-10-19T16:34:25.041Z"
+      }
+    ],
+    "symbol": "BTCUSD"
+  }
+}    `)
+	err = h.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
 	}
 }

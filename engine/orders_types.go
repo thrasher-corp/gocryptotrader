@@ -18,8 +18,8 @@ type orderManagerConfig struct {
 }
 
 type orderStore struct {
-	m      sync.Mutex
-	Orders map[string][]order.Detail
+	m      sync.RWMutex
+	Orders map[string][]*order.Detail
 }
 
 type orderManager struct {
@@ -32,5 +32,5 @@ type orderManager struct {
 
 type orderSubmitResponse struct {
 	order.SubmitResponse
-	OurOrderID string
+	InternalOrderID string
 }

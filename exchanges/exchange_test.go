@@ -1445,3 +1445,39 @@ func TestGetAssetType(t *testing.T) {
 		t.Error("should be spot but is", a)
 	}
 }
+
+func TestGetFormattedPairAndAssetType(t *testing.T) {
+	t.Parallel()
+	b := Base{
+		Config: &config.ExchangeConfig{},
+	}
+	b.SetCurrencyPairFormat()
+	b.Config.CurrencyPairs.UseGlobalFormat = true
+	b.CurrencyPairs.UseGlobalFormat = true
+	pFmt := &currency.PairFormat{
+		Delimiter: "#",
+	}
+	b.CurrencyPairs.RequestFormat = pFmt
+	b.CurrencyPairs.ConfigFormat = pFmt
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		Enabled: currency.Pairs{
+			currency.NewPair(currency.BTC, currency.USD),
+		},
+	}
+	b.CurrencyPairs.AssetTypes = asset.Items{asset.Spot}
+	p, a, err := b.GetRequestFormattedPairAndAssetType("btc#usd")
+	if err != nil {
+		t.Error(err)
+	}
+	if p.String() != "btc#usd" {
+		t.Error("Expected pair to match")
+	}
+	if a != asset.Spot {
+		t.Error("Expected spot asset")
+	}
+	_, _, err = b.GetRequestFormattedPairAndAssetType("btcusd")
+	if err == nil {
+		t.Error("Expected error")
+	}
+}

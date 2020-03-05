@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -45,12 +46,12 @@ func TestMain(m *testing.M) {
 	zbConfig.API.AuthenticatedWebsocketSupport = true
 	zbConfig.API.Credentials.Key = apiKey
 	zbConfig.API.Credentials.Secret = apiSecret
-
 	err = z.Setup(zbConfig)
 	if err != nil {
 		log.Fatal("ZB setup error", err)
 	}
-
+	z.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	z.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -75,7 +76,7 @@ func setupWsAuth(t *testing.T) {
 	}
 	z.Websocket.DataHandler = make(chan interface{}, 11)
 	z.Websocket.TrafficAlert = make(chan struct{}, 11)
-	go z.WsHandleData()
+	go z.wsReadData()
 	wsSetupRan = true
 }
 
@@ -279,8 +280,8 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
-		Currencies: []currency.Pair{currency.NewPair(currency.XRP,
+		Type: order.AnyType,
+		Pairs: []currency.Pair{currency.NewPair(currency.XRP,
 			currency.USDT)},
 	}
 
@@ -294,9 +295,9 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
-		OrderSide: order.Buy,
-		Currencies: []currency.Pair{currency.NewPair(currency.LTC,
+		Type: order.AnyType,
+		Side: order.Buy,
+		Pairs: []currency.Pair{currency.NewPair(currency.LTC,
 			currency.BTC)},
 	}
 
@@ -327,11 +328,11 @@ func TestSubmitOrder(t *testing.T) {
 			Base:      currency.XRP,
 			Quote:     currency.USDT,
 		},
-		OrderSide: order.Buy,
-		OrderType: order.Limit,
-		Price:     1,
-		Amount:    1,
-		ClientID:  "meowOrder",
+		Side:     order.Buy,
+		Type:     order.Limit,
+		Price:    1,
+		Amount:   1,
+		ClientID: "meowOrder",
 	}
 	response, err := z.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -348,10 +349,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.XRP, currency.USDT)
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	err := z.CancelOrder(orderCancellation)
@@ -370,10 +371,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.XRP, currency.USDT)
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	resp, err := z.CancelAllOrders(orderCancellation)
@@ -596,5 +597,244 @@ func TestWsGetOrdersIgnoreTradeType(t *testing.T) {
 	_, err := z.wsGetOrdersIgnoreTradeType(currency.NewPairWithDelimiter(currency.LTC.String(), currency.BTC.String(), "").Lower(), 1, 1)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestWsMarketConfig(t *testing.T) {
+	pressXToJSON := []byte(`{
+    "code":1000,
+    "data":{
+        "btc_usdt":{
+            "amountScale":4,
+            "priceScale":2
+            },
+        "bcc_usdt":{
+            "amountScale":3,
+            "priceScale":2
+            }
+    },
+    "success":true,
+    "channel":"markets",
+    "message":"操作成功。"
+}`)
+	err := z.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsTicker(t *testing.T) {
+	pressXToJSON := []byte(`{
+    "channel": "ltcbtc_ticker",
+    "date": "1472800466093",
+    "no": "1337",
+    "ticker": {
+        "buy": "3826.94",
+        "high": "3838.22",
+        "last": "3826.94",
+        "low": "3802.0",
+        "sell": "3828.25",
+        "vol": "90151.83"
+    }
+}`)
+	err := z.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsOrderbook(t *testing.T) {
+	pressXToJSON := []byte(`{
+    "asks": [
+        [
+            3846.94,
+            0.659
+        ]
+    ],
+    "bids": [
+        [
+            3826.94,
+            4.843
+        ]
+    ],
+    "channel": "ltcbtc_depth",
+    "no": "1337"
+}`)
+	err := z.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsTrades(t *testing.T) {
+	pressXToJSON := []byte(`{"data":[{"date":1581473835,"amount":"13.620","price":"242.89","trade_type":"bid","type":"buy","tid":703896035},{"date":1581473835,"amount":"0.156","price":"242.89","trade_type":"bid","type":"buy","tid":703896036}],"dataType":"trades","channel":"ethusdt_trades"}`)
+	err := z.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsPlaceOrderJSON(t *testing.T) {
+	pressXToJSON := []byte(`{"message":"操作成功。","no":"1337","data":"{"entrustId":201711133673}","code":1000,"channel":"btcusdt_order","success":true}`)
+	err := z.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsCancelOrderJSON(t *testing.T) {
+	pressXToJSON := []byte(`{
+    "success": true,
+    "code": 1000,
+    "channel": "ltcbtc_cancelorder",
+    "message": "操作成功。",
+    "no": "1337"
+}`)
+	err := z.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsGetOrderJSON(t *testing.T) {
+	pressXToJSON := []byte(`{
+    "success": true,
+    "code": 1000,
+    "data": {
+        "currency": "ltc_btc",
+        "id": "20160902387645980",
+        "price": 100,
+        "status": 0,
+        "total_amount": 0.01,
+        "trade_amount": 0,
+        "trade_date": 1472814905567,
+        "trade_money": 0,
+        "type": 1
+    },
+    "channel": "ltcbtc_getorder",
+    "message": "操作成功。",
+    "no": "1337"
+}`)
+	err := z.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsGetOrdersJSON(t *testing.T) {
+	pressXToJSON := []byte(`{
+    "success": true,
+    "code": 1000,
+    "data": [
+        {
+           "currency": "ltc_btc",
+           "id": "20160901385862136",
+           "price": 3700,
+           "status": 0,
+           "total_amount": 1.845,
+           "trade_amount": 0,
+           "trade_date": 1472706387742,
+           "trade_money": 0,
+           "type": 1
+        }
+    ],
+    "channel": "ltcbtc_getorders",
+    "message": "操作成功。",
+    "no": "1337"
+}`)
+	err := z.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsGetOrderIgnoreTypeJSON(t *testing.T) {
+	pressXToJSON := []byte(`{
+    "success": true,
+    "code": 1000,
+    "data": [
+        {
+            "currency": "ltc_btc",
+            "id": "20160901385862136",
+            "price": 3700,
+            "status": 0,
+            "total_amount": 1.845,
+            "trade_amount": 0,
+            "trade_date": 1472706387742,
+            "trade_money": 0,
+            "type": 1
+        }
+    ],
+    "channel": "ltcbtc_getordersignoretradetype",
+    "message": "操作成功。",
+    "no": "1337"
+}`)
+	err := z.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsGetUserInfo(t *testing.T) {
+	pressXToJSON := []byte(`{
+    "message": "操作成功",
+    "no": "15207605119",
+    "data": {
+        "coins": [
+            {
+                "freez": "1.35828369",
+                "enName": "BTC",
+                "unitDecimal": 8,
+                "cnName": "BTC",
+                "unitTag": "฿",
+                "available": "0.72771906",
+                "key": "btc"
+            },
+            {
+                "freez": "0.011",
+                "enName": "LTC",
+                "unitDecimal": 8,
+                "cnName": "LTC",
+                "unitTag": "Ł",
+                "available": "3.51859814",
+                "key": "ltc"
+            }
+        ],
+        "base": {
+            "username": "15207605119",
+            "trade_password_enabled": true,
+            "auth_google_enabled": true,
+            "auth_mobile_enabled": true
+        }
+    },
+    "code": 1000,
+    "channel": "getaccountinfo",
+    "success": true
+}`)
+	err := z.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsGetSubUsersResponse(t *testing.T) {
+	pressXToJSON := []byte(`{"success": true,"code": 1000,"channel": "getSubUserList","message": "[{"isOpenApi": false,"memo": "1","userName": "15914665280@1","userId": 110980,"isFreez": false}, {"isOpenApi": false,"memo": "2","userName": "15914665280@2","userId": 110984,"isFreez": false}, {"isOpenApi": false,"memo": "test3","userName": "15914665280@3","userId": 111014,"isFreez": false}]","no": "0"}`)
+	err := z.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsCreateSubUserResponse(t *testing.T) {
+	pressXToJSON := []byte(`{
+	"success": true,
+	"code": 1000,
+	"channel": "createSubUserKey",
+	"message": "{"apiKey ":"41 bf75f9 - 525e-4876 - 8257 - b880a938d4d2 ","apiSecret ":"046 b4706fe88b5728991274962d7fc46b4779c0c"}",
+	"no": "1337"
+}`)
+	err := z.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
 	}
 }

@@ -8,14 +8,14 @@ import (
 
 // Ticker holds ticker data
 type Ticker struct {
-	ID            int     `json:"id"`
+	ID            float64 `json:"id"`
 	Last          float64 `json:"last,string"`
 	LowestAsk     float64 `json:"lowestAsk,string"`
 	HighestBid    float64 `json:"highestBid,string"`
 	PercentChange float64 `json:"percentChange,string"`
 	BaseVolume    float64 `json:"baseVolume,string"`
 	QuoteVolume   float64 `json:"quoteVolume,string"`
-	IsFrozen      int     `json:"isFrozen,string"`
+	IsFrozen      int64   `json:"isFrozen,string"`
 	High24Hr      float64 `json:"high24hr,string"`
 	Low24Hr       float64 `json:"low24hr,string"`
 }
@@ -68,7 +68,7 @@ type TradeHistory struct {
 
 // ChartData holds kline data
 type ChartData struct {
-	Date            int     `json:"date"`
+	Date            int64   `json:"date"`
 	High            float64 `json:"high"`
 	Low             float64 `json:"low"`
 	Open            float64 `json:"open"`
@@ -81,23 +81,23 @@ type ChartData struct {
 
 // Currencies contains currency information
 type Currencies struct {
-	ID                 int         `json:"id"`
+	ID                 float64     `json:"id"`
 	Name               string      `json:"name"`
 	MaxDailyWithdrawal string      `json:"maxDailyWithdrawal"`
 	TxFee              float64     `json:"txFee,string"`
-	MinConfirmations   int         `json:"minConf"`
+	MinConfirmations   int64       `json:"minConf"`
 	DepositAddresses   interface{} `json:"depositAddress"`
-	Disabled           int         `json:"disabled"`
-	Delisted           int         `json:"delisted"`
-	Frozen             int         `json:"frozen"`
+	Disabled           int64       `json:"disabled"`
+	Delisted           int64       `json:"delisted"`
+	Frozen             int64       `json:"frozen"`
 }
 
 // LoanOrder holds loan order information
 type LoanOrder struct {
 	Rate     float64 `json:"rate,string"`
 	Amount   float64 `json:"amount,string"`
-	RangeMin int     `json:"rangeMin"`
-	RangeMax int     `json:"rangeMax"`
+	RangeMin int64   `json:"rangeMin"`
+	RangeMax int64   `json:"rangeMax"`
 }
 
 // LoanOrders holds loan order information range
@@ -129,7 +129,7 @@ type DepositsWithdrawals struct {
 		Currency      string  `json:"currency"`
 		Address       string  `json:"address"`
 		Amount        float64 `json:"amount,string"`
-		Confirmations int     `json:"confirmations"`
+		Confirmations int64   `json:"confirmations"`
 		TransactionID string  `json:"txid"`
 		Timestamp     int64   `json:"timestamp"`
 		Status        string  `json:"status"`
@@ -139,7 +139,7 @@ type DepositsWithdrawals struct {
 		Currency         string  `json:"currency"`
 		Address          string  `json:"address"`
 		Amount           float64 `json:"amount,string"`
-		Confirmations    int     `json:"confirmations"`
+		Confirmations    int64   `json:"confirmations"`
 		TransactionID    string  `json:"txid"`
 		Timestamp        int64   `json:"timestamp"`
 		Status           string  `json:"status"`
@@ -210,13 +210,13 @@ type OrderResponse struct {
 
 // GenericResponse is a response type for exchange generic responses
 type GenericResponse struct {
-	Success int    `json:"success"`
+	Success int64  `json:"success"`
 	Error   string `json:"error"`
 }
 
 // MoveOrderResponse is a response type for move order trades
 type MoveOrderResponse struct {
-	Success     int                          `json:"success"`
+	Success     int64                        `json:"success"`
 	Error       string                       `json:"error"`
 	OrderNumber int64                        `json:"orderNumber,string"`
 	Trades      map[string][]ResultingTrades `json:"resultingTrades"`
@@ -247,13 +247,13 @@ type Margin struct {
 
 // MarginPosition holds margin positional information
 type MarginPosition struct {
-	Amount            float64 `json:"amount,string"`
-	Total             float64 `json:"total,string"`
-	BasePrice         float64 `json:"basePrice,string"`
-	LiquidiationPrice float64 `json:"liquidiationPrice"`
-	ProfitLoss        float64 `json:"pl,string"`
-	LendingFees       float64 `json:"lendingFees,string"`
-	Type              string  `json:"type"`
+	Amount           float64 `json:"amount,string"`
+	Total            float64 `json:"total,string"`
+	BasePrice        float64 `json:"basePrice,string"`
+	LiquidationPrice float64 `json:"liquidationPrice"`
+	ProfitLoss       float64 `json:"pl,string"`
+	LendingFees      float64 `json:"lendingFees,string"`
+	Type             string  `json:"type"`
 }
 
 // LoanOffer holds loan offer information
@@ -261,7 +261,7 @@ type LoanOffer struct {
 	ID        int64   `json:"id"`
 	Rate      float64 `json:"rate,string"`
 	Amount    float64 `json:"amount,string"`
-	Duration  int     `json:"duration"`
+	Duration  int64   `json:"duration"`
 	AutoRenew bool    `json:"autoRenew"`
 	Date      string  `json:"date"`
 }
@@ -412,16 +412,6 @@ type WsAccountBalanceUpdateResponse struct {
 	currencyID float64
 	wallet     string
 	amount     float64
-}
-
-// WsNewLimitOrderResponse Authenticated Ws Account data
-type WsNewLimitOrderResponse struct {
-	currencyID  float64
-	orderNumber float64
-	orderType   float64
-	rate        float64
-	amount      float64
-	date        time.Time
 }
 
 // WsOrderUpdateResponse Authenticated Ws Account data

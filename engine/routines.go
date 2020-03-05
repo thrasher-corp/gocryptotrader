@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -232,7 +232,7 @@ func WebsocketRoutine() {
 					}
 
 					// Data handler routine
-					go WebsocketDataHandler(ws)
+					go WebsocketDataReceiver(ws)
 
 					err = ws.Connect()
 					if err != nil {
@@ -252,35 +252,9 @@ func WebsocketRoutine() {
 var shutdowner = make(chan struct{}, 1)
 var wg sync.WaitGroup
 
-// Websocketshutdown shuts down the exchange routines and then shuts down
-// governing routines
-func Websocketshutdown(ws *wshandler.Websocket) error {
-	err := ws.Shutdown() // shutdown routines on the exchange
-	if err != nil {
-		log.Errorf(log.WebsocketMgr, "routines.go error - failed to shutdown %s\n", err)
-	}
-
-	timer := time.NewTimer(5 * time.Second)
-	c := make(chan struct{}, 1)
-
-	go func(c chan struct{}) {
-		close(shutdowner)
-		wg.Wait()
-		c <- struct{}{}
-	}(c)
-
-	select {
-	case <-timer.C:
-		return errors.New("routines.go error - failed to shutdown routines")
-
-	case <-c:
-		return nil
-	}
-}
-
-// WebsocketDataHandler handles websocket data coming from a websocket feed
+// WebsocketDataReceiver handles websocket data coming from a websocket feed
 // associated with an exchange
-func WebsocketDataHandler(ws *wshandler.Websocket) {
+func WebsocketDataReceiver(ws *wshandler.Websocket) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -288,85 +262,109 @@ func WebsocketDataHandler(ws *wshandler.Websocket) {
 		select {
 		case <-shutdowner:
 			return
-
 		case data := <-ws.DataHandler:
-			switch d := data.(type) {
-			case string:
-				switch d {
-				case wshandler.WebsocketNotEnabled:
-					if Bot.Settings.Verbose {
-						log.Warnf(log.WebsocketMgr, "routines.go warning - exchange %s websocket not enabled\n",
-							ws.GetName())
-					}
-				default:
-					log.Info(log.WebsocketMgr, d)
-				}
-			case error:
-				log.Errorf(log.WebsocketMgr, "routines.go exchange %s websocket error - %s", ws.GetName(), data)
-			case wshandler.TradeData:
-				// Websocket Trade Data
-				if Bot.Settings.Verbose {
-					log.Infof(log.WebsocketMgr, "%s websocket %s %s trade updated %+v\n",
-						ws.GetName(),
-						FormatCurrency(d.CurrencyPair),
-						d.AssetType,
-						d)
-				}
-			case wshandler.FundingData:
-				// Websocket Funding Data
-				if Bot.Settings.Verbose {
-					log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v\n",
-						ws.GetName(),
-						FormatCurrency(d.CurrencyPair),
-						d.AssetType,
-						d)
-				}
-			case *ticker.Price:
-				// Websocket Ticker Data
-				if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
-					Bot.ExchangeCurrencyPairManager.update(ws.GetName(),
-						d.Pair,
-						d.AssetType,
-						SyncItemTicker,
-						nil)
-				}
-				err := ticker.ProcessTicker(ws.GetName(), d, d.AssetType)
-				printTickerSummary(d, d.Pair, d.AssetType, ws.GetName(), "websocket", err)
-			case wshandler.KlineData:
-				// Websocket Kline Data
-				if Bot.Settings.Verbose {
-					log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v\n",
-						ws.GetName(),
-						FormatCurrency(d.Pair),
-						d.AssetType,
-						d)
-				}
-			case wshandler.WebsocketOrderbookUpdate:
-				// Websocket Orderbook Data
-				result := data.(wshandler.WebsocketOrderbookUpdate)
-				if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
-					Bot.ExchangeCurrencyPairManager.update(ws.GetName(),
-						result.Pair,
-						result.Asset,
-						SyncItemOrderbook,
-						nil)
-				}
-
-				if Bot.Settings.Verbose {
-					log.Infof(log.WebsocketMgr,
-						"%s websocket %s %s orderbook updated\n",
-						ws.GetName(),
-						FormatCurrency(result.Pair),
-						d.Asset)
-				}
-			default:
-				if Bot.Settings.Verbose {
-					log.Warnf(log.WebsocketMgr,
-						"%s websocket Unknown type: %+v\n",
-						ws.GetName(),
-						d)
-				}
+			err := WebsocketDataHandler(ws.GetName(), data)
+			if err != nil {
+				log.Error(log.WebsocketMgr, err)
 			}
 		}
 	}
+}
+
+// WebsocketDataHandler is a central point for exchange websocket implementations to send
+// processed data. WebsocketDataHandler will then pass that to an appropriate handler
+func WebsocketDataHandler(exchName string, data interface{}) error {
+	if data == nil {
+		return fmt.Errorf("routines.go - exchange %s nil data sent to websocket",
+			exchName)
+	}
+	switch d := data.(type) {
+	case string:
+		log.Info(log.WebsocketMgr, d)
+	case error:
+		return fmt.Errorf("routines.go exchange %s websocket error - %s", exchName, data)
+	case wshandler.TradeData:
+		if Bot.Settings.Verbose {
+			log.Infof(log.WebsocketMgr, "%s websocket %s %s trade updated %+v",
+				exchName,
+				FormatCurrency(d.CurrencyPair),
+				d.AssetType,
+				d)
+		}
+	case wshandler.FundingData:
+		if Bot.Settings.Verbose {
+			log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",
+				exchName,
+				FormatCurrency(d.CurrencyPair),
+				d.AssetType,
+				d)
+		}
+	case *ticker.Price:
+		if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
+			Bot.ExchangeCurrencyPairManager.update(exchName,
+				d.Pair,
+				d.AssetType,
+				SyncItemTicker,
+				nil)
+		}
+		err := ticker.ProcessTicker(exchName, d, d.AssetType)
+		printTickerSummary(d, d.Pair, d.AssetType, exchName, "websocket", err)
+	case wshandler.KlineData:
+		if Bot.Settings.Verbose {
+			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
+				exchName,
+				FormatCurrency(d.Pair),
+				d.AssetType,
+				d)
+		}
+	case wshandler.WebsocketOrderbookUpdate:
+		if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
+			Bot.ExchangeCurrencyPairManager.update(exchName,
+				d.Pair,
+				d.Asset,
+				SyncItemOrderbook,
+				nil)
+		}
+
+		if Bot.Settings.Verbose {
+			log.Infof(log.WebsocketMgr,
+				"%s websocket %s %s orderbook updated",
+				exchName,
+				FormatCurrency(d.Pair),
+				d.Asset)
+		}
+	case *order.Detail:
+		if !Bot.OrderManager.orderStore.exists(d) {
+			err := Bot.OrderManager.orderStore.Add(d)
+			if err != nil {
+				return err
+			}
+		} else {
+			od, err := Bot.OrderManager.orderStore.GetByExchangeAndID(d.Exchange, d.ID)
+			if err != nil {
+				return err
+			}
+			od.UpdateOrderFromDetail(d)
+		}
+	case *order.Cancel:
+		return Bot.OrderManager.Cancel(d)
+	case *order.Modify:
+		od, err := Bot.OrderManager.orderStore.GetByExchangeAndID(d.Exchange, d.ID)
+		if err != nil {
+			return err
+		}
+		od.UpdateOrderFromModify(d)
+	case order.ClassificationError:
+		return errors.New(d.Error())
+	case wshandler.UnhandledMessageWarning:
+		log.Warn(log.WebsocketMgr, d.Message)
+	default:
+		if Bot.Settings.Verbose {
+			log.Warnf(log.WebsocketMgr,
+				"%s websocket Unknown type: %+v",
+				exchName,
+				d)
+		}
+	}
+	return nil
 }

@@ -422,7 +422,7 @@ func (g *Gateio) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 
 	var orderTypeFormat string
-	if s.OrderSide == order.Buy {
+	if s.Side == order.Buy {
 		orderTypeFormat = order.Buy.Lower()
 	} else {
 		orderTypeFormat = order.Sell.Lower()
@@ -458,12 +458,12 @@ func (g *Gateio) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (g *Gateio) CancelOrder(order *order.Cancel) error {
-	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
 	if err != nil {
 		return err
 	}
 	_, err = g.CancelExistingOrder(orderIDInt,
-		g.FormatExchangeCurrency(order.CurrencyPair, order.AssetType).String())
+		g.FormatExchangeCurrency(order.Pair, order.AssetType).String())
 	return err
 }
 
@@ -508,15 +508,15 @@ func (g *Gateio) GetOrderInfo(orderID string) (order.Detail, error) {
 		orderDetail.RemainingAmount = orders.Orders[x].InitialAmount - orders.Orders[x].FilledAmount
 		orderDetail.ExecutedAmount = orders.Orders[x].FilledAmount
 		orderDetail.Amount = orders.Orders[x].InitialAmount
-		orderDetail.OrderDate = time.Unix(orders.Orders[x].Timestamp, 0)
+		orderDetail.Date = time.Unix(orders.Orders[x].Timestamp, 0)
 		orderDetail.Status = order.Status(orders.Orders[x].Status)
 		orderDetail.Price = orders.Orders[x].Rate
-		orderDetail.CurrencyPair = currency.NewPairDelimiter(orders.Orders[x].CurrencyPair,
+		orderDetail.Pair = currency.NewPairDelimiter(orders.Orders[x].CurrencyPair,
 			g.GetPairFormat(asset.Spot, false).Delimiter)
 		if strings.EqualFold(orders.Orders[x].Type, order.Ask.String()) {
-			orderDetail.OrderSide = order.Ask
+			orderDetail.Side = order.Ask
 		} else if strings.EqualFold(orders.Orders[x].Type, order.Bid.String()) {
-			orderDetail.OrderSide = order.Buy
+			orderDetail.Side = order.Buy
 		}
 		return orderDetail, nil
 	}
@@ -573,12 +573,12 @@ func (g *Gateio) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 func (g *Gateio) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var orders []order.Detail
 	var currPair string
-	if len(req.Currencies) == 1 {
-		currPair = req.Currencies[0].String()
+	if len(req.Pairs) == 1 {
+		currPair = req.Pairs[0].String()
 	}
 	if g.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for i := 0; ; i += 100 {
-			resp, err := g.wsGetOrderInfo(req.OrderType.String(), i, 100)
+			resp, err := g.wsGetOrderInfo(req.Type.String(), i, 100)
 			if err != nil {
 				return orders, err
 			}
@@ -601,10 +601,10 @@ func (g *Gateio) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 					Exchange:        g.Name,
 					AccountID:       strconv.FormatInt(resp.WebSocketOrderQueryRecords[j].User, 10),
 					ID:              strconv.FormatInt(resp.WebSocketOrderQueryRecords[j].ID, 10),
-					CurrencyPair:    currency.NewPairFromString(resp.WebSocketOrderQueryRecords[j].Market),
-					OrderSide:       orderSide,
-					OrderType:       orderType,
-					OrderDate:       orderDate,
+					Pair:            currency.NewPairFromString(resp.WebSocketOrderQueryRecords[j].Market),
+					Side:            orderSide,
+					Type:            orderType,
+					Date:            orderDate,
 					Price:           resp.WebSocketOrderQueryRecords[j].Price,
 					Amount:          resp.WebSocketOrderQueryRecords[j].Amount,
 					ExecutedAmount:  resp.WebSocketOrderQueryRecords[j].FilledAmount,
@@ -636,16 +636,16 @@ func (g *Gateio) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 				Amount:          resp.Orders[i].Amount,
 				Price:           resp.Orders[i].Rate,
 				RemainingAmount: resp.Orders[i].FilledAmount,
-				OrderDate:       orderDate,
-				OrderSide:       side,
+				Date:            orderDate,
+				Side:            side,
 				Exchange:        g.Name,
-				CurrencyPair:    symbol,
+				Pair:            symbol,
 				Status:          order.Status(resp.Orders[i].Status),
 			})
 		}
 	}
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
 
@@ -653,8 +653,8 @@ func (g *Gateio) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 // Can Limit response to specific order status
 func (g *Gateio) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var trades []TradesResponse
-	for i := range req.Currencies {
-		resp, err := g.GetTradeHistory(req.Currencies[i].String())
+	for i := range req.Pairs {
+		resp, err := g.GetTradeHistory(req.Pairs[i].String())
 		if err != nil {
 			return nil, err
 		}
@@ -668,18 +668,18 @@ func (g *Gateio) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 		side := order.Side(strings.ToUpper(trade.Type))
 		orderDate := time.Unix(trade.TimeUnix, 0)
 		orders = append(orders, order.Detail{
-			ID:           strconv.FormatInt(trade.OrderID, 10),
-			Amount:       trade.Amount,
-			Price:        trade.Rate,
-			OrderDate:    orderDate,
-			OrderSide:    side,
-			Exchange:     g.Name,
-			CurrencyPair: symbol,
+			ID:       strconv.FormatInt(trade.OrderID, 10),
+			Amount:   trade.Amount,
+			Price:    trade.Rate,
+			Date:     orderDate,
+			Side:     side,
+			Exchange: g.Name,
+			Pair:     symbol,
 		})
 	}
 
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
 
