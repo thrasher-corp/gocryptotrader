@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -17,9 +16,11 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"golang.org/x/net/html"
 )
 
@@ -86,13 +87,18 @@ func main() {
 	flag.BoolVar(&verbose, "verbose", false, "increases logging verbosity for API Update Checker")
 	flag.Parse()
 	var err error
+	c := log.GenDefaultSettings()
+	c.Enabled = convert.BoolPtr(false)
+	log.GlobalLogConfig = &c
 	configData, err = readFileData(jsonFile)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(log.Global, err)
+		os.Exit(1)
 	}
 	testConfigData, err = readFileData(testJSONFile)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(log.Global, err)
+		os.Exit(1)
 	}
 	usageData = testConfigData
 	if canUpdateTrello() {
@@ -105,7 +111,8 @@ func main() {
 			data.Repo = path
 			err = addExch(exchangeName, checkType, data, false)
 			if err != nil {
-				log.Fatal(err)
+				log.Error(log.Global, err)
+				os.Exit(1)
 			}
 		case htmlScrape:
 			var data HTMLScrapingData
@@ -119,7 +126,8 @@ func main() {
 			data.Path = path
 			err = addExch(exchangeName, checkType, data, false)
 			if err != nil {
-				log.Fatal(err)
+				log.Error(log.Global, err)
+				os.Exit(1)
 			}
 		}
 	}
@@ -127,19 +135,22 @@ func main() {
 		setAuthVars()
 		err = updateFile(backupFile)
 		if err != nil {
-			log.Fatal(err)
+			log.Error(log.Global, err)
+			os.Exit(1)
 		}
 		err = checkUpdates(jsonFile)
 		if err != nil {
-			log.Fatal(err)
+			log.Error(log.Global, err)
+			os.Exit(1)
 		}
 	} else {
-		log.Printf("This is a test update since API keys are not set.\n")
+		log.Warnf(log.Global, "This is a test update since API keys are not set.\n")
 		err := checkUpdates(testJSONFile)
 		if err != nil {
-			log.Fatal(err)
+			log.Error(log.Global, err)
+			os.Exit(1)
 		}
-		log.Printf("API update check completed successfully")
+		log.Warnln(log.Global, "API update check completed successfully")
 	}
 }
 
@@ -201,7 +212,7 @@ func getSha(repoPath string) (ShaResponse, error) {
 	var resp ShaResponse
 	getPath := fmt.Sprintf(githubPath, repoPath)
 	if verbose {
-		log.Printf("Getting SHA of this path: %v\n", getPath)
+		log.Debugf(log.Global, "Getting SHA of this path: %v\n", getPath)
 	}
 	return resp, sendGetReq(getPath, &resp)
 }
@@ -334,16 +345,16 @@ func checkUpdates(fileName string) error {
 	if !areAPIKeysSet() {
 		fileName = testJSONFile
 		if verbose {
-			log.Println("Updating test file; main file & trello will not be automatically updated since API key & token are not set")
+			log.Warnln(log.Global, "Updating test file; main file & trello will not be automatically updated since API key & token are not set")
 		}
 	}
-	log.Printf("The following exchanges need an update: %v\n", resp)
+	log.Warnf(log.Global, "The following exchanges need an update: %v\n", resp)
 	for k := range errMap {
-		log.Printf("Error: %v\n", errMap[k])
+		log.Warnf(log.Global, "Error: %v\n", errMap[k])
 	}
 	unsup := checkMissingExchanges()
-	log.Printf("The following exchanges are not supported by apichecker: %v\n", unsup)
-	log.Printf("Saving the updates to the following file: %s\n", fileName)
+	log.Warnf(log.Global, "The following exchanges are not supported by apichecker: %v\n", unsup)
+	log.Debugf(log.Global, "Saving the updates to the following file: %s\n", fileName)
 	return ioutil.WriteFile(fileName, file, 0770)
 }
 
@@ -422,7 +433,7 @@ func addExch(exchName, checkType string, data interface{}, isUpdate bool) error 
 	var file []byte
 	if !isUpdate {
 		if checkExistingExchanges(exchName) {
-			log.Printf("%v exchange already exists\n", exchName)
+			log.Debugf(log.Global, "%v exchange already exists\n", exchName)
 			return nil
 		}
 		exchangeData, err := fillData(exchName, checkType, data)
@@ -1286,7 +1297,7 @@ func trelloGetChecklistItems() (ChecklistItemData, error) {
 	return resp, sendGetReq(path, &resp)
 }
 
-// nameStateChanges returns the appropriate update name & state for trello (updates pending can only be up to 99)
+// nameStateChanges returns the appropriate update name & state for trello
 func nameStateChanges(currentName, currentState string) (string, error) {
 	name := currentName
 	exists := false

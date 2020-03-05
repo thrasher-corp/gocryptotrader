@@ -138,11 +138,11 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 632 |
+| [thrasher-](https://github.com/thrasher-) | 636 |
 | [shazbert](https://github.com/shazbert) | 187 |
-| [gloriousCode](https://github.com/gloriousCode) | 166 |
-| [xtda](https://github.com/xtda) | 40 |
-| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 17 |
+| [gloriousCode](https://github.com/gloriousCode) | 167 |
+| [xtda](https://github.com/xtda) | 41 |
+| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 18 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [140am](https://github.com/140am) | 8 |
@@ -166,8 +166,8 @@ Binaries will be published once the codebase reaches a stable condition.
 | [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |
 | [Daanikus](https://github.com/Daanikus) | 1 |
 | [daniel-cohen](https://github.com/daniel-cohen) | 1 |
+| [merkeld](https://github.com/merkeld) | 1 |
 | [DirectX](https://github.com/DirectX) | 1 |
-| [frankzougc](https://github.com/frankzougc) | 1 |
 | [idoall](https://github.com/idoall) | 1 |
 | [mattkanwisher](https://github.com/mattkanwisher) | 1 |
 | [mKurrels](https://github.com/mKurrels) | 1 |

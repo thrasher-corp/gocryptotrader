@@ -9,7 +9,18 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
 
+var (
+	testAPIKey      = ""
+	testAPIToken    = ""
+	testChecklistID = ""
+	testCardID      = ""
+	testListID      = ""
+	testBoardID     = ""
+	testBoardName   = ""
+)
+
 func TestMain(m *testing.M) {
+	SetTestVars()
 	var err error
 	configData, err = readFileData(jsonFile)
 	if err != nil {
@@ -20,10 +31,28 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 	usageData = testConfigData
-	if canUpdateTrello() {
-		usageData = configData
-	}
+	SetTestVars()
 	os.Exit(m.Run())
+}
+
+func SetTestVars() {
+	if !canUpdateTrello() {
+		apiKey = testAPIKey
+		apiToken = testAPIToken
+		trelloChecklistID = testChecklistID
+		trelloCardID = testCardID
+		trelloListID = testListID
+		trelloBoardID = testBoardID
+		trelloBoardName = testBoardName
+		setAuthVars()
+	}
+}
+
+func canTestTrello() bool {
+	if testAPIKey != "" && testAPIToken != "" && testChecklistID != "" && testCardID != "" && testListID != "" && testBoardID != "" && testBoardName != "" {
+		return true
+	}
+	return false
 }
 
 func TestCheckUpdates(t *testing.T) {
@@ -384,7 +413,7 @@ func TestHTMLScrapeOk(t *testing.T) {
 
 func TestCreateNewCard(t *testing.T) {
 	t.Parallel()
-	if !canUpdateTrello() {
+	if !canTestTrello() {
 		t.Skip()
 	}
 	fillData := CardFill{ListID: trelloListID,
@@ -397,7 +426,7 @@ func TestCreateNewCard(t *testing.T) {
 
 func TestCreateNewCheck(t *testing.T) {
 	t.Parallel()
-	if !canUpdateTrello() {
+	if !canTestTrello() {
 		t.Skip()
 	}
 	err := trelloCreateNewCheck("Gemini")
@@ -441,7 +470,7 @@ func TestCheckMissingExchanges(t *testing.T) {
 
 func TestGetChecklistItems(t *testing.T) {
 	t.Parallel()
-	if !canUpdateTrello() {
+	if !canTestTrello() {
 		t.Skip()
 	}
 	_, err := trelloGetChecklistItems()
@@ -452,7 +481,7 @@ func TestGetChecklistItems(t *testing.T) {
 
 func TestUpdateCheckItem(t *testing.T) {
 	t.Parallel()
-	if !canUpdateTrello() {
+	if !canTestTrello() {
 		t.Skip()
 	}
 	err := trelloUpdateCheckItem(trelloListID, "Gemini 1", "incomplete")
@@ -463,9 +492,54 @@ func TestUpdateCheckItem(t *testing.T) {
 
 func TestNameUpdates(t *testing.T) {
 	t.Parallel()
-	_, err := nameStateChanges("Gemini 3", "complete")
-	if err != nil {
-		t.Error(err)
+	tester := []struct {
+		Name          string
+		Status        string
+		ExpectedName  string
+		ErrorExpected bool
+	}{
+		{
+			Name:          "incorrectname",
+			Status:        "incomplete",
+			ErrorExpected: true,
+		},
+		{
+			Name:          "Gemini 2 2",
+			Status:        "incomplete",
+			ErrorExpected: false,
+		},
+		{
+			Name:          " Gemini 23",
+			Status:        "incomplete",
+			ErrorExpected: true,
+		},
+		{
+			Name:          "Gemini 123",
+			Status:        "complete",
+			ExpectedName:  "Gemini 1",
+			ErrorExpected: false,
+		},
+		{
+			Name:          "Gemini",
+			Status:        "complete",
+			ExpectedName:  "Gemini 1",
+			ErrorExpected: false,
+		},
+		{
+			Name:          "Gemini 24 ",
+			Status:        "incomplete",
+			ErrorExpected: false,
+		},
+	}
+	for x := range tester {
+		r, err := nameStateChanges(tester[x].Name, tester[x].Status)
+		if r != tester[x].ExpectedName && err != nil && !tester[x].ErrorExpected {
+			t.Errorf("%d failed, expected %v, %v, got: %v, %v\n", x,
+				tester[x].ExpectedName,
+				tester[x].ErrorExpected,
+				r,
+				err)
+		}
 	}
 }
 
