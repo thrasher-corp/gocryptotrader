@@ -88,7 +88,7 @@ func main() {
 	flag.Parse()
 	var err error
 	c := log.GenDefaultSettings()
-	c.Enabled = convert.BoolPtr(false)
+	c.Enabled = convert.BoolPtr(true)
 	log.GlobalLogConfig = &c
 	configData, err = readFileData(jsonFile)
 	if err != nil {

@@ -1,12 +1,13 @@
 package main
 
 import (
-	"log"
 	"os"
 	"reflect"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var (
@@ -21,14 +22,19 @@ var (
 
 func TestMain(m *testing.M) {
 	SetTestVars()
+	c := log.GenDefaultSettings()
+	c.Enabled = convert.BoolPtr(false)
+	log.GlobalLogConfig = &c
 	var err error
 	configData, err = readFileData(jsonFile)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(log.Global, err)
+		os.Exit(1)
 	}
 	testConfigData, err = readFileData(testJSONFile)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(log.Global, err)
+		os.Exit(1)
 	}
 	usageData = testConfigData
 	SetTestVars()
@@ -65,7 +71,8 @@ func TestCheckUpdates(t *testing.T) {
 func TestUpdateFile(t *testing.T) {
 	realConf, err := readFileData(jsonFile)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(log.Global, err)
+		os.Exit(1)
 	}
 	configData = realConf
 	err = updateFile(testJSONFile)
@@ -74,7 +81,8 @@ func TestUpdateFile(t *testing.T) {
 	}
 	testConf, err := readFileData(testJSONFile)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(log.Global, err)
+		os.Exit(1)
 	}
 	if !reflect.DeepEqual(realConf, testConf) {
 		t.Log("test file update failed")
