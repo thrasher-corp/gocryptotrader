@@ -144,13 +144,13 @@ func main() {
 			os.Exit(1)
 		}
 	} else {
-		log.Warnf(log.Global, "This is a test update since API keys are not set.\n")
+		log.Warnln(log.Global, "This is a test update since API keys are not set.")
 		err := checkUpdates(testJSONFile)
 		if err != nil {
 			log.Error(log.Global, err)
 			os.Exit(1)
 		}
-		log.Warnln(log.Global, "API update check completed successfully")
+		log.Infoln(log.Global, "API update check completed successfully")
 	}
 }
 

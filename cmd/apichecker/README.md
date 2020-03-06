@@ -41,7 +41,9 @@ Using Go Modules you now clone this repository **outside** your GOPATH
 
 ```bash
 git clone https://github.com/thrasher-corp/gocryptotrader.git
-cd gocryptotrader/cmd/apichecker
+cd gocryptotrader
+cd cmd
+cd apichecker
 go build
 ./apichecker
 ```
@@ -50,7 +52,9 @@ go build
 
 ```bash
 git clone https://github.com/thrasher-corp/gocryptotrader.git
-cd gocryptotrader\cmd\apichecker
+cd gocryptotrader
+cd cmd
+cd apichecker
 go build && apichecker.exe
 ```
 

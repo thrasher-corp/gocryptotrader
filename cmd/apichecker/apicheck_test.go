@@ -64,28 +64,26 @@ func canTestTrello() bool {
 func TestCheckUpdates(t *testing.T) {
 	err := checkUpdates(testJSONFile)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 }
 
 func TestUpdateFile(t *testing.T) {
 	realConf, err := readFileData(jsonFile)
 	if err != nil {
-		log.Error(log.Global, err)
-		os.Exit(1)
+		t.Fatal(err)
 	}
 	configData = realConf
 	err = updateFile(testJSONFile)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	testConf, err := readFileData(testJSONFile)
 	if err != nil {
-		log.Error(log.Global, err)
-		os.Exit(1)
+		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(realConf, testConf) {
-		t.Log("test file update failed")
+		t.Error("test file update failed")
 		t.Fail()
 	}
 }
@@ -582,8 +580,11 @@ func TestCheckBoardID(t *testing.T) {
 	if !areAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := trelloCheckBoardID()
+	a, err := trelloCheckBoardID()
 	if err != nil {
 		t.Error(err)
+	}
+	if a != true {
+		t.Error("no match found for the given boardID")
 	}
 }
