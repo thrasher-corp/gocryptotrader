@@ -84,57 +84,9 @@ apichecker.exe -add=true -key=id -val=revision-history -tokendata=h1 -tokendatae
 
 - To acquire your trello key and access token please login into trello using the following link and follow the steps: https://trello.com/app-key
 
-```go
-func NameStateChanges(currentName, currentState string) (string, error) {
-	r, err := regexp.Compile(`[\s\S]* \d{1}$`) // nolint: gocritic
-	s, err := regexp.Compile(`[\s\S]* \d{2}$`) // nolint: gocritic
-	if err != nil {
-		return "", err
-	}
-	var tempNumber int64
-	var finalNumber string
-	var byteNumber, byteName []byte
-	if r.MatchString(currentName) {
-		stringNum := string(currentName[len(currentName)-1])
-		tempNumber, err = strconv.ParseInt(stringNum, 10, 64)
-		if err != nil {
-			return "", err
-		}
-		if tempNumber != 1 || currentState != complete {
-			tempNumber++
-		} else {
-			tempNumber = 1
-		}
-		finalNumber = strconv.FormatInt(tempNumber, 10)
-		byteNumber = []byte(finalNumber)
-		byteName = []byte(currentName)
-		byteName = byteName[:len(byteName)-1]
-		byteName = append(byteName, byteNumber[0])
-		return string(byteName), nil
-	}
-	if s.MatchString(currentName) {
-		stringNumTens := string(currentName[len(currentName)-2])
-		stringNumZeros := string(currentName[len(currentName)-1])
-		tempTens, err := strconv.ParseInt(stringNumTens, 10, 64)
-		if err != nil {
-			return "", err
-		}
-		tempZeros, err := strconv.ParseInt(stringNumZeros, 10, 64)
-		if err != nil {
-			return "", err
-		}
-		tempNumber = tempTens*10 + tempZeros + 1
-		finalNumber = strconv.FormatInt(tempNumber, 10)
-		byteNumber = []byte(finalNumber)
-		byteName = []byte(currentName)
-		byteName = byteName[:len(byteName)-2]
-		byteName = append(byteName, byteNumber[0])
-		byteName = append(byteName, byteNumber[1])
-		return string(byteName), nil
-	}
-	return "", errors.New("invalid currentName or pending updates has exceeded 99")
-}
-```
+- To acquire BoardID, ListID, CardID and ChecklistID the trello api docs can be used: https://developers.trello.com/reference/#api-key-tokens
+
+- To create a new check within a checklist, an inbuilt function within apichecker can be used: trelloCreateNewCheck
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 {{template "contributions"}}
