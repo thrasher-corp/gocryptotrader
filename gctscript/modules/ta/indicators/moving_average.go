@@ -2,7 +2,6 @@ package indicators
 
 import (
 	"fmt"
-	"reflect"
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/go-talib/indicators"
@@ -15,22 +14,17 @@ var MovingAverageModule = map[string]objects.Object{
 	"sma":  &objects.UserFunction{Name: "sma", Value: sma},
 }
 
+
+
 func macd(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 4 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
 	ohlcData := objects.ToInterface(args[0])
-	var ohlcCloseData []float64
-	val := ohlcData.([]interface{})
-	for x := range val {
-		if reflect.TypeOf(val[x]).Kind() == reflect.Float64 {
-			ohlcCloseData = append(ohlcCloseData, val[x].(float64))
-		} else if reflect.TypeOf(val[x]).Kind() == reflect.Int64 {
-			ohlcCloseData = append(ohlcCloseData, float64(val[x].(int64)))
-		}else {
-			return nil, fmt.Errorf(modules.ErrParameterWithPositionConvertFailed, val[x], x)
-		}
+	ohlcCloseData, err := appendData(ohlcData.([]interface{}))
+	if err != nil {
+		return nil, err
 	}
 
 	inFastPeriod, ok := objects.ToInt(args[1])
@@ -74,16 +68,9 @@ func ema(args ...objects.Object) (objects.Object, error) {
 	}
 
 	ohlcData := objects.ToInterface(args[0])
-	var ohlcCloseData []float64
-	val := ohlcData.([]interface{})
-	for x := range val {
-		if reflect.TypeOf(val[x]).Kind() == reflect.Float64 {
-			ohlcCloseData = append(ohlcCloseData, val[x].(float64))
-		} else if reflect.TypeOf(val[x]).Kind() == reflect.Int64 {
-			ohlcCloseData = append(ohlcCloseData, float64(val[x].(int64)))
-		}else {
-			return nil, fmt.Errorf(modules.ErrParameterWithPositionConvertFailed, val[x], x)
-		}
+	ohlcCloseData, err := appendData(ohlcData.([]interface{}))
+	if err != nil {
+		return nil, err
 	}
 
 	inTimePeroid, ok := objects.ToInt(args[1])
@@ -106,23 +93,15 @@ func sma(args ...objects.Object) (objects.Object, error) {
 	}
 
 	ohlcData := objects.ToInterface(args[0])
-	var ohlcCloseData []float64
-	val := ohlcData.([]interface{})
-	for x := range val {
-		if reflect.TypeOf(val[x]).Kind() == reflect.Float64 {
-			ohlcCloseData = append(ohlcCloseData, val[x].(float64))
-		} else if reflect.TypeOf(val[x]).Kind() == reflect.Int64 {
-			ohlcCloseData = append(ohlcCloseData, float64(val[x].(int64)))
-		}else {
-			return nil, fmt.Errorf(modules.ErrParameterWithPositionConvertFailed, val[x], x)
-		}
+	ohlcCloseData, err := appendData(ohlcData.([]interface{}))
+	if err != nil {
+		return nil, err
 	}
 
 	inTimePeroid, ok := objects.ToInt(args[1])
 	if !ok {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeroid)
 	}
-
 
 	ret := indicators.Ma(ohlcCloseData, inTimePeroid, indicators.SMA)
 	r := &objects.Array{}

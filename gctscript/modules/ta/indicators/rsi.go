@@ -2,7 +2,6 @@ package indicators
 
 import (
 	"fmt"
-	"reflect"
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/go-talib/indicators"
@@ -19,14 +18,9 @@ func rsi(args ...objects.Object) (objects.Object, error) {
 	}
 
 	ohlcData := objects.ToInterface(args[0])
-	var ohlcCloseData []float64
-	val := ohlcData.([]interface{})
-	for x := range val {
-		if reflect.TypeOf(val[x]).Kind() == reflect.Float64 {
-				ohlcCloseData = append(ohlcCloseData, val[x].(float64))
-		} else {
-			return nil, fmt.Errorf(modules.ErrParameterWithPositionConvertFailed, val[x], x)
-		}
+	ohlcCloseData, err := appendData(ohlcData.([]interface{}))
+	if err != nil {
+		return nil, err
 	}
 
 	inTimePeroid, ok := objects.ToInt(args[1])

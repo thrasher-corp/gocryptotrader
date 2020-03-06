@@ -2,12 +2,9 @@ package indicators
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/go-talib/indicators"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
@@ -20,40 +17,23 @@ func atr(args ...objects.Object) (objects.Object, error) {
 		return nil, objects.ErrWrongNumArguments
 	}
 
+
 	ohlcData := objects.ToInterface(args[0])
-	strNoWhiteSpace := convert.StripSpaceBuilder(ohlcData.(string))
-	str := strings.Split(strNoWhiteSpace, ",")
-	var tempOHLCSlice = make([]float64, len(str))
-	for x := range str {
-		v, err := strconv.ParseFloat(str[x], 64)
-		if err != nil {
-			return nil, fmt.Errorf(modules.ErrParameterConvertFailed,  v)
-		}
-		tempOHLCSlice[x] = v
+	tempOHLCSlice, err := appendData(ohlcData.([]interface{}))
+	if err != nil {
+		return nil, err
 	}
 
 	ohlcData = objects.ToInterface(args[1])
-	strNoWhiteSpace = convert.StripSpaceBuilder(ohlcData.(string))
-	str = strings.Split(strNoWhiteSpace, ",")
-	var tempOHLCVolSlice = make([]float64, len(str))
-	for x := range str {
-		v, err := strconv.ParseFloat(str[x], 64)
-		if err != nil {
-			return nil, fmt.Errorf(modules.ErrParameterConvertFailed,  v)
-		}
-		tempOHLCVolSlice[x] = v
+	tempOHLCVolSlice, err := appendData(ohlcData.([]interface{}))
+	if err != nil {
+		return nil, err
 	}
 
 	ohlcData = objects.ToInterface(args[2])
-	strNoWhiteSpace = convert.StripSpaceBuilder(ohlcData.(string))
-	str = strings.Split(strNoWhiteSpace, ",")
-	var tempOHLCCloseSlice = make([]float64, len(str))
-	for x := range str {
-		v, err := strconv.ParseFloat(str[x], 64)
-		if err != nil {
-			return nil, fmt.Errorf(modules.ErrParameterConvertFailed,  v)
-		}
-		tempOHLCCloseSlice[x] = v
+	tempOHLCCloseSlice, err := appendData(ohlcData.([]interface{}))
+	if err != nil {
+		return nil, err
 	}
 
 	inTimePeroid, ok := objects.ToInt(args[3])

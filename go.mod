@@ -34,5 +34,3 @@ require (
 	google.golang.org/genproto v0.0.0-20200304201815-d429ff31ee6c
 	google.golang.org/grpc v1.27.1
 )
-
-replace github.com/thrasher-corp/go-talib => ../go-talib

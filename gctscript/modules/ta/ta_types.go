@@ -10,6 +10,6 @@ var Modules = map[string]map[string]tengo.Object{
 	"indicator/rsi":            indicators.RsiModule,
 	"indicator/moving-average": indicators.MovingAverageModule,
 	"indicator/index":          indicators.IndexModule,
-	"indicator/volume":		 	indicators.VolumeModule,
-	"indicator/range":			indicators.RangeModule,
+	"indicator/volume":         indicators.VolumeModule,
+	"indicator/range":          indicators.RangeModule,
 }

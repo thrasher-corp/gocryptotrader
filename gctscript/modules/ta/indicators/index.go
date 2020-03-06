@@ -52,7 +52,7 @@ func mfi(args ...objects.Object) (objects.Object, error) {
 			ohlcCloseData = append(ohlcCloseData, val[x].(float64))
 		} else if reflect.TypeOf(val[x]).Kind() == reflect.Int64 {
 			ohlcCloseData = append(ohlcCloseData, float64(val[x].(int64)))
-		}else {
+		} else {
 			return nil, fmt.Errorf(modules.ErrParameterWithPositionConvertFailed, val[x], x)
 		}
 	}
