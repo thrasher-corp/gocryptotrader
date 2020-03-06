@@ -175,55 +175,17 @@ func TestYesOrNo(t *testing.T) {
 }
 
 func TestSendHTTPRequest(t *testing.T) {
-	methodPost := "pOst"
-	methodGet := "GeT"
-	methodDelete := "dEleTe"
-	methodGarbage := "ding"
+	methodGet := "GET"
 
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
 	_, err := SendHTTPRequest(
-		methodGarbage, "https://www.google.com", headers,
-		strings.NewReader(""),
-	)
-	if err == nil {
-		t.Error("Expected error 'invalid HTTP method specified'")
-	}
-	_, err = SendHTTPRequest(
-		methodPost, "https://www.google.com", headers,
-		strings.NewReader(""),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = SendHTTPRequest(
 		methodGet, "https://www.google.com", headers,
 		strings.NewReader(""),
 	)
 	if err != nil {
 		t.Error(err)
-	}
-	_, err = SendHTTPRequest(
-		methodDelete, "https://www.google.com", headers,
-		strings.NewReader(""),
-	)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = SendHTTPRequest(
-		methodGet, ":missingprotocolscheme", headers,
-		strings.NewReader(""),
-	)
-	if err == nil {
-		t.Error("Common HTTPRequest accepted missing protocol")
-	}
-	_, err = SendHTTPRequest(
-		methodGet, "test://unsupportedprotocolscheme", headers,
-		strings.NewReader(""),
-	)
-	if err == nil {
-		t.Error("Common HTTPRequest accepted invalid protocol")
 	}
 }
 
