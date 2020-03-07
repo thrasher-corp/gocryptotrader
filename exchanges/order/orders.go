@@ -349,6 +349,7 @@ func (t Type) Lower() string {
 	return strings.ToLower(string(t))
 }
 
+// Title returns the type titleized, eg "Limit"
 func (t Type) Title() string {
 	return strings.Title(strings.ToLower(string(t)))
 }
@@ -363,6 +364,7 @@ func (s Side) Lower() string {
 	return strings.ToLower(string(s))
 }
 
+// Title returns the side titleized, eg "Buy"
 func (s Side) Title() string {
 	return strings.Title(strings.ToLower(string(s)))
 }
