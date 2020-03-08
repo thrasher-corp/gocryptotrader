@@ -84,7 +84,6 @@ func TestUpdateFile(t *testing.T) {
 	}
 	if !reflect.DeepEqual(realConf, testConf) {
 		t.Error("test file update failed")
-		t.Fail()
 	}
 }
 
