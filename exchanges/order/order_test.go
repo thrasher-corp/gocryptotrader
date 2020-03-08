@@ -113,7 +113,7 @@ func TestOrderTypes(t *testing.T) {
 		t.Errorf("unexpected string %s", ot.Lower())
 	}
 
-	if ot.Title() != "Mo'money" {
+	if ot.Title() != "Mo'Money" {
 		t.Errorf("unexpected string %s", ot.Title())
 	}
 }
