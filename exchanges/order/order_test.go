@@ -92,7 +92,11 @@ func TestOrderSides(t *testing.T) {
 	}
 
 	if os.Lower() != "buy" {
-		t.Errorf("unexpected string %s", os.String())
+		t.Errorf("unexpected string %s", os.Lower())
+	}
+
+	if os.Title() != "Buy" {
+		t.Errorf("unexpected string %s", os.Title())
 	}
 }
 
@@ -107,6 +111,10 @@ func TestOrderTypes(t *testing.T) {
 
 	if ot.Lower() != "mo'money" {
 		t.Errorf("unexpected string %s", ot.Lower())
+	}
+
+	if ot.Title() != "Mo'Money" {
+		t.Errorf("unexpected string %s", ot.Title())
 	}
 }
 
