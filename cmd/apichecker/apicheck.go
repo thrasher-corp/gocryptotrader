@@ -60,7 +60,7 @@ const (
 )
 
 var (
-	verbose, add                                                                                                                                                                                                      bool
+	verbose, add, enableLakeBTC                                                                                                                                                                                       bool
 	apiKey, apiToken, trelloBoardID, trelloBoardName, trelloListID, trelloChecklistID, trelloCardID, exchangeName, checkType, tokenData, key, val, tokenDataEnd, textTokenData, dateFormat, regExp, checkString, path string
 	configData, testConfigData, usageData                                                                                                                                                                             Config
 )
@@ -85,6 +85,7 @@ func main() {
 	flag.StringVar(&path, "path", "", "sets the path for adding a new exchange")
 	flag.BoolVar(&add, "add", false, "used as a trigger to add a new exchange from command line")
 	flag.BoolVar(&verbose, "verbose", false, "increases logging verbosity for API Update Checker")
+	flag.BoolVar(&enableLakeBTC, "enablelakebtc", false, "specifies whether LakeBTC will be checked for API updates")
 	flag.Parse()
 	var err error
 	c := log.GenDefaultSettings()
@@ -386,6 +387,10 @@ func checkChangeLog(htmlData *HTMLScrapingData) (string, error) {
 	case pathBitflyer:
 		dataStrings, err = htmlScrapeBitflyer(htmlData)
 	case pathLakeBTC:
+		if !enableLakeBTC {
+			log.Warnf(log.Global, "LakeBTC API check is disabled by default due to IP blacklisting issues. To enable set enableLakeBTC value to true\n")
+			return "", nil
+		}
 		dataStrings, err = htmlScrapeLakeBTC(htmlData)
 	case pathKraken:
 		dataStrings, err = htmlScrapeKraken(htmlData)

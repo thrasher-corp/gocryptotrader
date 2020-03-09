@@ -309,6 +309,9 @@ func TestHTMLItBit(t *testing.T) {
 
 func TestHTMLLakeBTC(t *testing.T) {
 	t.Parallel()
+	if !enableLakeBTC {
+		t.Skip()
+	}
 	data := HTMLScrapingData{TokenData: "div",
 		Key:           "class",
 		Val:           "flash-message",
