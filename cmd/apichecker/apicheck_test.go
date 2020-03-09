@@ -23,8 +23,9 @@ var (
 func TestMain(m *testing.M) {
 	SetTestVars()
 	c := log.GenDefaultSettings()
-	c.Enabled = convert.BoolPtr(false)
+	c.Enabled = convert.BoolPtr(true)
 	log.GlobalLogConfig = &c
+	log.Infoln(log.Global, "set verbose to true for more detailed output")
 	var err error
 	configData, err = readFileData(jsonFile)
 	if err != nil {
@@ -419,24 +420,11 @@ func TestHTMLScrapeOk(t *testing.T) {
 	}
 }
 
-func TestCreateNewCard(t *testing.T) {
-	t.Parallel()
-	if !canTestTrello() {
-		t.Skip()
-	}
-	fillData := CardFill{ListID: trelloListID,
-		Name: "Exchange Updates"}
-	err := trelloCreateNewCard(&fillData)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestCreateNewCheck(t *testing.T) {
 	t.Parallel()
-	if !canTestTrello() {
-		t.Skip()
-	}
+	// if !canTestTrello() {
+	// 	t.Skip()
+	// }
 	err := trelloCreateNewCheck("Gemini")
 	if err != nil {
 		t.Error(err)
@@ -489,9 +477,9 @@ func TestGetChecklistItems(t *testing.T) {
 
 func TestUpdateCheckItem(t *testing.T) {
 	t.Parallel()
-	if !canTestTrello() {
-		t.Skip()
-	}
+	// if !canTestTrello() {
+	// 	t.Skip()
+	// }
 	err := trelloUpdateCheckItem(trelloListID, "Gemini 1", "incomplete")
 	if err != nil {
 		t.Error(err)
@@ -588,5 +576,75 @@ func TestCheckBoardID(t *testing.T) {
 	}
 	if a != true {
 		t.Error("no match found for the given boardID")
+	}
+}
+
+func TestTrelloGetLists(t *testing.T) {
+	if !areAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := trelloGetLists()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateNewList(t *testing.T) {
+	if !areAPIKeysSet() {
+		t.Skip()
+	}
+	err := trelloCreateNewList()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAllCards(t *testing.T) {
+	if !areAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := trelloGetAllCards()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestTrelloCreateNewCard(t *testing.T) {
+	if !areAPIKeysSet() {
+		t.Skip()
+	}
+	err := trelloCreateNewCard()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAllChecklists(t *testing.T) {
+	if !areAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := trelloGetAllChecklists()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateNewChecklist(t *testing.T) {
+	if !areAPIKeysSet() {
+		t.Skip()
+	}
+	err := trelloCreateNewChecklist()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestTrelloGetAllBoards(t *testing.T) {
+	if !areAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := trelloGetBoardID()
+	if err != nil {
+		t.Error(err)
 	}
 }

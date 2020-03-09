@@ -14,7 +14,7 @@ This apichecker package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
-You can track ideas, planned features and what's in progresss on this Trello board: [https://trello.com/b/ZAhMhpOy/gocryptotrader](https://trello.com/b/ZAhMhpOy/gocryptotrader).
+You can track ideas, planned features and what's in progress on this Trello board: [https://trello.com/b/ZAhMhpOy/gocryptotrader](https://trello.com/b/ZAhMhpOy/gocryptotrader).
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
@@ -94,7 +94,7 @@ func TestAdd(t *testing.T) {
 apichecker.exe -add=true -key=id -val=revision-history -tokendata=h1 -tokendataend=table -texttokendata=td -dateformat=2006/01/02 -checktype="HTML String Check" -regexp="^20(\d){2}/(\d){2}/(\d){2}$" -path="https://docs.gemini.com/rest-api/#revision-history" -exchangename=Gemini
 ```
 
-+ If all the authentication variables for trello are set trello checklist will be automatically updated with the format of 'Exchange Name (integer of how many updates have been released since the exhange API was last worked on):
++ If all the authentication variables for trello are set trello checklist will be automatically updated with the format of 'Exchange Name (integer of how many updates have been released since the exchange API was last worked on):
 
 - To acquire your trello key and access token please login into trello using the following link and follow the steps: https://trello.com/app-key
 

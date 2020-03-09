@@ -50,24 +50,33 @@ const (
 	pathYobit          = "https://www.yobit.net/en/api/"
 	pathLocalBitcoins  = "https://localbitcoins.com/api-docs/"
 	pathGetAllLists    = "https://api.trello.com/1/boards/%s/lists?cards=none&card_fields=all&filter=open&fields=all&key=%s&token=%s"
-	pathNewCard        = "https://api.trello.com/1/cards?%s&key=%s&token=%s"
+	pathNewCard        = "https://api.trello.com/1/cards?idList=%s&name=%s&key=%s&token=%s"
 	pathChecklists     = "https://api.trello.com/1/checklists/%s/checkItems?%s&key=%s&token=%s"
 	pathChecklistItems = "https://api.trello.com/1/checklists/%s?fields=name&cards=all&card_fields=name&key=%s&token=%s"
 	pathUpdateItems    = "https://api.trello.com/1/cards/%s/checkItem/%s?%s&key=%s&token=%s"
 	pathCheckBoardID   = "https://api.trello.com/1/members/me/boards?key=%s&token=%s"
+	pathNewChecklist   = "https://api.trello.com/1/checklists?idCard=%s&name=%s&key=%s&token=%s"
+	pathNewBoard       = "https://api.trello.com/1/boards/?name=%s&key=%s&token=%s"
+	pathNewList        = "https://api.trello.com/1/lists?name=%s&idBoard=%s&key=%s&token=%s"
+	pathGetLists       = "https://api.trello.com/1/boards/%s/lists?key=%s&token=%s"
+	pathGetCards       = "https://api.trello.com/1/lists/%s/cards?key=%s&token=%s"
+	pathGetChecklists  = "https://api.trello.com/1/cards/%s/checklists?&key=%s&token=%s"
 	complete           = "complete"
 	incomplete         = "incomplete"
+	createList         = "UpdatesList"
+	createCard         = "UpdatesCard"
+	createChecklist    = "UpdatesChecklist"
 )
 
 var (
-	verbose, add, enableLakeBTC                                                                                                                                                                                       bool
-	apiKey, apiToken, trelloBoardID, trelloBoardName, trelloListID, trelloChecklistID, trelloCardID, exchangeName, checkType, tokenData, key, val, tokenDataEnd, textTokenData, dateFormat, regExp, checkString, path string
-	configData, testConfigData, usageData                                                                                                                                                                             Config
+	verbose, add, enableLakeBTC, create, firstRun                                                                                                                                                                                   bool
+	apiKey, apiToken, newBoardName, trelloBoardID, trelloBoardName, trelloListID, trelloChecklistID, trelloCardID, exchangeName, checkType, tokenData, key, val, tokenDataEnd, textTokenData, dateFormat, regExp, checkString, path string
+	configData, testConfigData, usageData                                                                                                                                                                                           Config
 )
 
 func main() {
 	flag.StringVar(&apiKey, "apikey", "", "sets the API key for Trello board interaction")
-	flag.StringVar(&apiToken, "apikoken", "", "sets the API token for Trello board interaction")
+	flag.StringVar(&apiToken, "apitoken", "", "sets the API token for Trello board interaction")
 	flag.StringVar(&trelloChecklistID, "checklistid", "", "sets the checklist ID for Trello board interaction")
 	flag.StringVar(&trelloCardID, "cardid", "", "sets the card ID for Trello board interaction")
 	flag.StringVar(&trelloListID, "listid", "", "sets the list ID for Trello board interaction")
@@ -86,6 +95,8 @@ func main() {
 	flag.BoolVar(&add, "add", false, "used as a trigger to add a new exchange from command line")
 	flag.BoolVar(&verbose, "verbose", false, "increases logging verbosity for API Update Checker")
 	flag.BoolVar(&enableLakeBTC, "enablelakebtc", false, "specifies whether LakeBTC will be checked for API updates")
+	flag.BoolVar(&create, "create", false, "specifies whether to automatically create trello list, card and checklist in a given board")
+	flag.BoolVar(&firstRun, "firstrun", false, "specifies whether its the first time using the application on trello so all the exchanges are added to trello checklist")
 	flag.Parse()
 	var err error
 	c := log.GenDefaultSettings()
@@ -132,8 +143,29 @@ func main() {
 			}
 		}
 	}
-	if canUpdateTrello() {
-		setAuthVars()
+	if canUpdateTrello() || create {
+		if trelloBoardName != "" {
+			a, err := trelloGetBoardID()
+			if err != nil {
+				log.Error(log.Global, err)
+				os.Exit(1)
+			}
+			trelloBoardID = a
+		}
+		if create {
+			createAndSet()
+			if firstRun {
+				for f := range usageData.Exchanges {
+					err = trelloCreateNewCheck(usageData.Exchanges[f].Name)
+					if err != nil {
+						log.Error(log.Global, err)
+						os.Exit(1)
+					}
+				}
+			}
+		}
+		if canUpdateTrello() {
+		}
 		err = updateFile(backupFile)
 		if err != nil {
 			log.Error(log.Global, err)
@@ -153,6 +185,25 @@ func main() {
 		}
 		log.Infoln(log.Global, "API update check completed successfully")
 	}
+}
+
+// createAndSet creates and sets the necessary trello board items and sets the authenticated variables accordingly
+func createAndSet() error {
+	var err error
+	err = trelloCreateNewList()
+	if err != nil {
+		return err
+	}
+	err = trelloCreateNewCard()
+	if err != nil {
+		return err
+	}
+	err = trelloCreateNewChecklist()
+	if err != nil {
+		return err
+	}
+	setAuthVars()
+	return nil
 }
 
 // setAuthVars checks if the cmdline vars are set and sets them onto config file and vice versa
@@ -191,7 +242,7 @@ func setAuthVars() {
 
 // canUpdateTrello checks if all the data necessary for updating trello is available
 func canUpdateTrello() bool {
-	return (areAPIKeysSet() && isTrelloBoardDataSet())
+	return areAPIKeysSet() && isTrelloBoardDataSet()
 }
 
 // areAPIKeysSet checks if api keys and tokens are set
@@ -320,6 +371,7 @@ func checkUpdates(fileName string) error {
 	}
 	var check bool
 	if areAPIKeysSet() {
+
 		check, err = trelloCheckBoardID()
 		if err != nil {
 			return err
@@ -433,7 +485,7 @@ func checkChangeLog(htmlData *HTMLScrapingData) (string, error) {
 	return "", fmt.Errorf("no response found for the following path: %s", htmlData.Path)
 }
 
-// Add appends exchange data to updates.json for future api checks
+// addExch appends exchange data to updates.json for future api checks
 func addExch(exchName, checkType string, data interface{}, isUpdate bool) error {
 	var file []byte
 	if !isUpdate {
@@ -684,12 +736,12 @@ func htmlScrapeHitBTC(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	abody := string(a)
+	aBody := string(a)
 	r, err := regexp.Compile(htmlData.RegExp)
 	if err != nil {
 		return nil, err
 	}
-	str := r.FindAllString(abody, -1)
+	str := r.FindAllString(aBody, -1)
 	var resp []string
 	for x := range str {
 		tempStr := strings.Replace(str[x], "section-v-", "", 1)
@@ -843,12 +895,12 @@ func htmlScrapeANX(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	abody := string(a)
+	aBody := string(a)
 	r, err := regexp.Compile(htmlData.RegExp)
 	if err != nil {
 		return nil, err
 	}
-	str := r.FindAllString(abody, -1)
+	str := r.FindAllString(aBody, -1)
 	var resp []string
 	for x := range str {
 		tempStr := strings.Replace(str[x], "section-v-", "", 1)
@@ -882,12 +934,12 @@ func htmlScrapeExmo(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	abody := string(a)
+	aBody := string(a)
 	r, err := regexp.Compile(htmlData.RegExp)
 	if err != nil {
 		return nil, err
 	}
-	resp := r.FindAllString(abody, -1)
+	resp := r.FindAllString(aBody, -1)
 	return resp, nil
 }
 
@@ -1040,12 +1092,12 @@ func htmlScrapeBitstamp(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	abody := string(a)
+	aBody := string(a)
 	r, err := regexp.Compile(htmlData.RegExp)
 	if err != nil {
 		return nil, err
 	}
-	resp := r.FindAllString(abody, -1)
+	resp := r.FindAllString(aBody, -1)
 	return resp, nil
 }
 
@@ -1237,42 +1289,18 @@ func htmlScrapeLocalBitcoins(htmlData *HTMLScrapingData) ([]string, error) {
 	return resp, nil
 }
 
-// trelloCreateNewCard creates a new card on the list specified on trello
-func trelloCreateNewCard(fillData *CardFill) error {
-	params := url.Values{}
-	params.Set("idList", fillData.ListID)
-	if fillData.Name != "" {
-		params.Set("name", fillData.Name)
-	}
-	if fillData.Desc != "" {
-		params.Set("desc", fillData.Desc)
-	}
-	if fillData.Pos != "" {
-		params.Set("pos", fillData.Pos)
-	}
-	if fillData.Due != "" {
-		params.Set("due", fillData.Due)
-	}
-	if fillData.MembersID != "" {
-		params.Set("idMembers", fillData.MembersID)
-	}
-	if fillData.LabelsID != "" {
-		params.Set("idLabels", fillData.LabelsID)
-	}
-	err := sendAuthReq(http.MethodPost,
-		fmt.Sprintf(pathNewCard, params.Encode(), apiKey, apiToken),
-		nil)
-	return err
-}
-
 // trelloCreateNewCheck creates a new checklist item within a given checklist from trello
-func trelloCreateNewCheck(newCheck string) error {
+func trelloCreateNewCheck(newCheckName string) error {
+	newName, err := nameStateChanges(newCheckName, "")
+	if err != nil {
+		return err
+	}
+	var resp interface{}
 	params := url.Values{}
-	params.Set("name", newCheck)
-	err := sendAuthReq(http.MethodPost,
+	params.Set("name", newName)
+	return sendAuthReq(http.MethodPost,
 		fmt.Sprintf(pathChecklists, trelloChecklistID, params.Encode(), apiKey, apiToken),
-		nil)
-	return err
+		&resp)
 }
 
 // trelloCheckBoardID gets board id of the trello boards for a user which can be used for checking if a given board exists
@@ -1288,7 +1316,7 @@ func trelloCheckBoardID() (bool, error) {
 		return false, errors.New("no trello boards available for the given apikey and token")
 	}
 	for x := range data {
-		if (trelloBoardID == data[x].ID) || (trelloBoardName == data[x].Name) {
+		if (trelloBoardID == data[x].ShortID) || (trelloBoardID == data[x].ID) || (trelloBoardName == data[x].Name) {
 			return true, nil
 		}
 	}
@@ -1298,7 +1326,7 @@ func trelloCheckBoardID() (bool, error) {
 // trelloGetChecklistItems get info on all the items on a given checklist from trello
 func trelloGetChecklistItems() (ChecklistItemData, error) {
 	var resp ChecklistItemData
-	path := fmt.Sprintf(pathChecklistItems, trelloChecklistID, usageData.Key, usageData.Token)
+	path := fmt.Sprintf(pathChecklistItems, trelloChecklistID, apiKey, apiToken)
 	return resp, sendGetReq(path, &resp)
 }
 
@@ -1330,6 +1358,7 @@ func nameStateChanges(currentName, currentState string) (string, error) {
 
 // trelloUpdateCheckItem updates a check item for trello
 func trelloUpdateCheckItem(checkItemID, name, state string) error {
+	var resp interface{}
 	params := url.Values{}
 	newName, err := nameStateChanges(name, state)
 	if err != nil {
@@ -1337,8 +1366,8 @@ func trelloUpdateCheckItem(checkItemID, name, state string) error {
 	}
 	params.Set("name", newName)
 	params.Set("state", incomplete)
-	path := fmt.Sprintf(pathUpdateItems, trelloCardID, checkItemID, params.Encode(), usageData.Key, usageData.Token)
-	err = sendAuthReq(http.MethodPut, path, nil)
+	path := fmt.Sprintf(pathUpdateItems, trelloCardID, checkItemID, params.Encode(), apiKey, apiToken)
+	err = sendAuthReq(http.MethodPut, path, &resp)
 	return err
 }
 
@@ -1394,4 +1423,104 @@ func sendAuthReq(method, path string, result interface{}) error {
 		Path:    path,
 		Result:  result,
 		Verbose: verbose})
+}
+
+// trelloGetBoardID gets all board ids on trello for a given user
+func trelloGetBoardID() (string, error) {
+	if trelloBoardName == "" {
+		return "", errors.New("trelloBoardName not set, cannot find the trelloBoard")
+	}
+	var resp []TrelloData
+	err := sendGetReq(fmt.Sprintf(pathCheckBoardID, apiKey, apiToken),
+		&resp)
+	for x := range resp {
+		if resp[x].Name == trelloBoardName {
+			return resp[x].ID, err
+		}
+	}
+	return "", errors.New("boardID not found")
+}
+
+// trelloGetLists gets all lists from a given board
+func trelloGetLists() ([]TrelloData, error) {
+	var resp []TrelloData
+	return resp, sendGetReq(fmt.Sprintf(pathGetAllLists, trelloBoardID, apiKey, apiToken), &resp)
+}
+
+// trelloNewList creates a new list on a specified boards on trello
+func trelloCreateNewList() error {
+	if trelloBoardID == "" {
+		return errors.New("trelloBoardID not set, cannot create a new list")
+	}
+	var resp interface{}
+	err := sendAuthReq(http.MethodPost,
+		fmt.Sprintf(pathNewList, createList, trelloBoardID, apiKey, apiToken),
+		&resp)
+	if err != nil {
+		return err
+	}
+	lists, err := trelloGetLists()
+	for x := range lists {
+		if lists[x].Name == createList {
+			trelloListID = lists[x].ID
+			return nil
+		}
+	}
+	return nil
+}
+
+// trelloGetAllCards gets all cards from a given list
+func trelloGetAllCards() ([]TrelloData, error) {
+	var resp []TrelloData
+	return resp, sendGetReq(fmt.Sprintf(pathGetCards, trelloListID, apiKey, apiToken), &resp)
+}
+
+// trelloCreateNewCard creates a new card on the list specified on trello
+func trelloCreateNewCard() error {
+	if trelloListID == "" {
+		return errors.New("trelloListID not set, cannot create a new checklist")
+	}
+	var resp interface{}
+	err := sendAuthReq(http.MethodPost,
+		fmt.Sprintf(pathNewCard, trelloListID, createCard, apiKey, apiToken),
+		&resp)
+	if err != nil {
+		return err
+	}
+	cards, err := trelloGetAllCards()
+	for x := range cards {
+		if cards[x].Name == createCard {
+			trelloCardID = cards[x].ID
+			return nil
+		}
+	}
+	return errors.New("card id and name not found, list creation failed")
+}
+
+// trelloGetAllChecklists gets all checklists from a card on trello
+func trelloGetAllChecklists() ([]TrelloData, error) {
+	var resp []TrelloData
+	return resp, sendGetReq(fmt.Sprintf(pathGetChecklists, trelloCardID, apiKey, apiToken), &resp)
+}
+
+// trelloCreateNewChecklist creates a new checklist on a specified card on trello
+func trelloCreateNewChecklist() error {
+	if !areAPIKeysSet() || (trelloCardID == "") {
+		return errors.New("apikeys or trelloCardID not set, cannot create a new checklist")
+	}
+	var resp interface{}
+	err := sendAuthReq(http.MethodPost,
+		fmt.Sprintf(pathNewChecklist, trelloCardID, createChecklist, apiKey, apiToken),
+		&resp)
+	if err != nil {
+		return err
+	}
+	checklists, err := trelloGetAllChecklists()
+	for x := range checklists {
+		if checklists[x].Name == createChecklist {
+			trelloChecklistID = checklists[x].ID
+			return nil
+		}
+	}
+	return errors.New("checklist id and name not found, checklist creation failed")
 }

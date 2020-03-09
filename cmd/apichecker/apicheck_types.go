@@ -74,8 +74,9 @@ type ChecklistItemData struct {
 
 // MembersData saves member's data which includes the boards accessible
 type MembersData struct {
-	Name string `json:"name"`
-	ID   string `json:"shortlink"`
+	Name    string `json:"name"`
+	ShortID string `json:"shortlink"`
+	ID      string `json:"id"`
 }
 
 // Config is a format for storing update data
@@ -88,4 +89,10 @@ type Config struct {
 	Token       string         `json:"Token"`
 	Username    string         `json:"Username"`
 	Exchanges   []ExchangeInfo `json:"Exchanges"`
+}
+
+// TrelloData stores data on a given item (board, list, card)
+type TrelloData struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }

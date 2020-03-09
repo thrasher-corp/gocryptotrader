@@ -161,6 +161,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [lozdog245](https://github.com/lozdog245) | 2 |
 | [soxipy](https://github.com/soxipy) | 2 |
 | [herenow](https://github.com/herenow) | 2 |
+| [azhang](https://github.com/azhang) | 1 |
 | [blombard](https://github.com/blombard) | 1 |
 | [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
 | [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |
