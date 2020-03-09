@@ -349,6 +349,11 @@ func (t Type) Lower() string {
 	return strings.ToLower(string(t))
 }
 
+// Title returns the type titleized, eg "Limit"
+func (t Type) Title() string {
+	return strings.Title(strings.ToLower(string(t)))
+}
+
 // String implements the stringer interface
 func (s Side) String() string {
 	return string(s)
@@ -357,6 +362,11 @@ func (s Side) String() string {
 // Lower returns the side lower case string
 func (s Side) Lower() string {
 	return strings.ToLower(string(s))
+}
+
+// Title returns the side titleized, eg "Buy"
+func (s Side) Title() string {
+	return strings.Title(strings.ToLower(string(s)))
 }
 
 // String implements the stringer interface
