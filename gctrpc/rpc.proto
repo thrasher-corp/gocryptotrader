@@ -590,8 +590,8 @@ message GetHistoricCandlesRequest {
     string exchange = 1;
     CurrencyPair pair = 2;
     string asset_type = 3;
-    int64 timestamp_start = 4;
-    int64 timestamp_end = 5;
+    int64 start = 4;
+    int64 end = 5;
     int64 time_interval = 6;
 }
 
@@ -938,7 +938,7 @@ service GoCryptoTrader {
         option (google.api.http) = {
             post: "/v1/withdrawaleventbyid"
             body: "*"
-        };rpcse
+        };
     }
 
     rpc WithdrawalEventsByDate(WithdrawalEventsByDateRequest) returns (WithdrawalEventsByExchangeResponse) {

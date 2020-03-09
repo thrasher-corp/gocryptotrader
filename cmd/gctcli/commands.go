@@ -4029,6 +4029,10 @@ func getHistoricCandles(c *cli.Context) error {
 		assetType = c.Args().Get(2)
 	}
 
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
 	if c.IsSet("rangesize") {
 		candleRangeSize = c.Int64("rangesize")
 	} else if c.Args().Get(3) != "" {
@@ -4069,10 +4073,10 @@ func getHistoricCandles(c *cli.Context) error {
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
-			AssetType:      assetType,
-			TimestampStart: start.Unix(),
-			TimestampEnd:   end.Unix(),
-			TimeInterval:   int64(candleInterval),
+			AssetType:    assetType,
+			Start:        start.Unix(),
+			End:          end.Unix(),
+			TimeInterval: int64(candleInterval),
 		})
 	if err != nil {
 		return err

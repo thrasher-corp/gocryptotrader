@@ -1490,8 +1490,8 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHisto
 		Quote:     currency.NewCode(req.Pair.Quote),
 	},
 		asset.Item(req.AssetType),
-		time.Unix(req.TimestampStart, 0),
-		time.Unix(req.TimestampEnd, 0),
+		time.Unix(req.Start, 0),
+		time.Unix(req.End, 0),
 		time.Duration(req.TimeInterval))
 	if err != nil {
 		return nil, err

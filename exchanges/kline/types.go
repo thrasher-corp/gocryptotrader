@@ -24,7 +24,7 @@ const (
 	OneWeek    = time.Hour * 168
 )
 
-// Item holds all the relavent information for internal kline elements
+// Item holds all the relevant information for internal kline elements
 type Item struct {
 	Exchange string
 	Pair     currency.Pair
