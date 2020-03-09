@@ -99,10 +99,10 @@ func (w Wrapper) QueryOrder(exch, _ string) (*order.Detail, error) {
 		Exchange:        exch,
 		AccountID:       "hello",
 		ID:              "1",
-		CurrencyPair:    currency.NewPairFromString("BTCAUD"),
-		OrderSide:       "ask",
-		OrderType:       "limit",
-		OrderDate:       time.Now(),
+		Pair:            currency.NewPairFromString("BTCAUD"),
+		Side:            "ask",
+		Type:            "limit",
+		Date:            time.Now(),
 		Status:          "cancelled",
 		Price:           1,
 		Amount:          2,
@@ -126,17 +126,20 @@ func (w Wrapper) QueryOrder(exch, _ string) (*order.Detail, error) {
 }
 
 // SubmitOrder validator for test execution/scripts
-func (w Wrapper) SubmitOrder(exch string, _ *order.Submit) (*order.SubmitResponse, error) {
-	if exch == exchError.String() {
+func (w Wrapper) SubmitOrder(o *order.Submit) (*order.SubmitResponse, error) {
+	if o == nil {
+		return nil, errTestFailed
+	}
+	if o.Exchange == exchError.String() {
 		return nil, errTestFailed
 	}
 
 	tempOrder := &order.SubmitResponse{
 		IsOrderPlaced: false,
-		OrderID:       exch,
+		OrderID:       o.Exchange,
 	}
 
-	if exch == "true" {
+	if o.Exchange == "true" {
 		tempOrder.IsOrderPlaced = true
 	}
 

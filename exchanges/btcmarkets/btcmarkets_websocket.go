@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -38,20 +39,16 @@ func (b *BTCMarkets) WsConnect() error {
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
 	}
-	go b.WsHandleData()
+	go b.wsReadData()
 	if b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		b.createChannels()
-		if err != nil {
-			b.Websocket.DataHandler <- err
-			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
 	}
 	b.generateDefaultSubscriptions()
 	return nil
 }
 
-// WsHandleData handles websocket data from WsReadData
-func (b *BTCMarkets) WsHandleData() {
+// wsReadData receives and passes on websocket messages for processing
+func (b *BTCMarkets) wsReadData() {
 	b.Websocket.Wg.Add(1)
 	defer func() {
 		b.Websocket.Wg.Done()
@@ -68,147 +65,221 @@ func (b *BTCMarkets) WsHandleData() {
 				return
 			}
 			b.Websocket.TrafficAlert <- struct{}{}
-			var wsResponse WsMessageType
-			err = json.Unmarshal(resp.Raw, &wsResponse)
+			err = b.wsHandleData(resp.Raw)
 			if err != nil {
 				b.Websocket.DataHandler <- err
-				continue
-			}
-			switch wsResponse.MessageType {
-			case heartbeat:
-				if b.Verbose {
-					log.Debugf(log.ExchangeSys, "%v - Websocket heartbeat received %s", b.Name, resp.Raw)
-				}
-			case wsOB:
-				var ob WsOrderbook
-				err := json.Unmarshal(resp.Raw, &ob)
-				if err != nil {
-					b.Websocket.DataHandler <- err
-					continue
-				}
-
-				p := currency.NewPairFromString(ob.Currency)
-				var bids, asks []orderbook.Item
-				for x := range ob.Bids {
-					var price, amount float64
-					price, err = strconv.ParseFloat(ob.Bids[x][0], 64)
-					if err != nil {
-						b.Websocket.DataHandler <- err
-						continue
-					}
-					amount, err = strconv.ParseFloat(ob.Bids[x][1], 64)
-					if err != nil {
-						b.Websocket.DataHandler <- err
-						continue
-					}
-					bids = append(bids, orderbook.Item{
-						Amount: amount,
-						Price:  price,
-					})
-				}
-				for x := range ob.Asks {
-					var price, amount float64
-					price, err = strconv.ParseFloat(ob.Asks[x][0], 64)
-					if err != nil {
-						b.Websocket.DataHandler <- err
-						continue
-					}
-					amount, err = strconv.ParseFloat(ob.Asks[x][1], 64)
-					if err != nil {
-						b.Websocket.DataHandler <- err
-						continue
-					}
-					asks = append(asks, orderbook.Item{
-						Amount: amount,
-						Price:  price,
-					})
-				}
-				err = b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-					Pair:         p,
-					Bids:         bids,
-					Asks:         asks,
-					LastUpdated:  ob.Timestamp,
-					AssetType:    asset.Spot,
-					ExchangeName: b.Name,
-				})
-				if err != nil {
-					b.Websocket.DataHandler <- err
-					continue
-				}
-				b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-					Pair:     p,
-					Asset:    asset.Spot,
-					Exchange: b.Name,
-				}
-			case trade:
-				var trade WsTrade
-				err := json.Unmarshal(resp.Raw, &trade)
-				if err != nil {
-					b.Websocket.DataHandler <- err
-					continue
-				}
-				p := currency.NewPairFromString(trade.Currency)
-				b.Websocket.DataHandler <- wshandler.TradeData{
-					Timestamp:    trade.Timestamp,
-					CurrencyPair: p,
-					AssetType:    asset.Spot,
-					Exchange:     b.Name,
-					Price:        trade.Price,
-					Amount:       trade.Volume,
-					Side:         order.SideUnknown.String(),
-					EventType:    order.Unknown.String(),
-				}
-			case tick:
-				var tick WsTick
-				err := json.Unmarshal(resp.Raw, &tick)
-				if err != nil {
-					b.Websocket.DataHandler <- err
-					continue
-				}
-
-				p := currency.NewPairFromString(tick.Currency)
-
-				b.Websocket.DataHandler <- &ticker.Price{
-					ExchangeName: b.Name,
-					Volume:       tick.Volume,
-					High:         tick.High24,
-					Low:          tick.Low24h,
-					Bid:          tick.Bid,
-					Ask:          tick.Ask,
-					Last:         tick.Last,
-					LastUpdated:  tick.Timestamp,
-					AssetType:    asset.Spot,
-					Pair:         p,
-				}
-			case fundChange:
-				var transferData WsFundTransfer
-				err := json.Unmarshal(resp.Raw, &transferData)
-				if err != nil {
-					b.Websocket.DataHandler <- err
-					continue
-				}
-				b.Websocket.DataHandler <- transferData
-			case orderChange:
-				var orderData WsOrderChange
-				err := json.Unmarshal(resp.Raw, &orderData)
-				if err != nil {
-					b.Websocket.DataHandler <- err
-					continue
-				}
-				b.Websocket.DataHandler <- orderData
-			case "error":
-				var wsErr WsError
-				err := json.Unmarshal(resp.Raw, &wsErr)
-				if err != nil {
-					b.Websocket.DataHandler <- err
-					continue
-				}
-				b.Websocket.DataHandler <- fmt.Errorf("%v websocket error. Code: %v Message: %v", b.Name, wsErr.Code, wsErr.Message)
-			default:
-				b.Websocket.DataHandler <- fmt.Errorf("%v Unhandled websocket message %s", b.Name, resp.Raw)
 			}
 		}
 	}
+}
+
+func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
+	var wsResponse WsMessageType
+	err := json.Unmarshal(respRaw, &wsResponse)
+	if err != nil {
+		return err
+	}
+	switch wsResponse.MessageType {
+	case heartbeat:
+		if b.Verbose {
+			log.Debugf(log.ExchangeSys, "%v - Websocket heartbeat received %s", b.Name, respRaw)
+		}
+	case wsOB:
+		var ob WsOrderbook
+		err := json.Unmarshal(respRaw, &ob)
+		if err != nil {
+			return err
+		}
+
+		p := currency.NewPairFromString(ob.Currency)
+		var bids, asks []orderbook.Item
+		for x := range ob.Bids {
+			var price, amount float64
+			price, err = strconv.ParseFloat(ob.Bids[x][0].(string), 64)
+			if err != nil {
+				return err
+			}
+			amount, err = strconv.ParseFloat(ob.Bids[x][1].(string), 64)
+			if err != nil {
+				return err
+			}
+			bids = append(bids, orderbook.Item{
+				Amount:     amount,
+				Price:      price,
+				OrderCount: int64(ob.Bids[x][2].(float64)),
+			})
+		}
+		for x := range ob.Asks {
+			var price, amount float64
+			price, err = strconv.ParseFloat(ob.Asks[x][0].(string), 64)
+			if err != nil {
+				return err
+			}
+			amount, err = strconv.ParseFloat(ob.Asks[x][1].(string), 64)
+			if err != nil {
+				return err
+			}
+			asks = append(asks, orderbook.Item{
+				Amount:     amount,
+				Price:      price,
+				OrderCount: int64(ob.Asks[x][2].(float64)),
+			})
+		}
+		if ob.Snapshot {
+			err = b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+				Pair:         p,
+				Bids:         bids,
+				Asks:         asks,
+				LastUpdated:  ob.Timestamp,
+				AssetType:    asset.Spot,
+				ExchangeName: b.Name,
+			})
+		} else {
+			err = b.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+				UpdateTime: ob.Timestamp,
+				Asset:      asset.Spot,
+				Bids:       bids,
+				Asks:       asks,
+				Pair:       p,
+			})
+		}
+
+		if err != nil {
+			return err
+		}
+		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+			Pair:     p,
+			Asset:    asset.Spot,
+			Exchange: b.Name,
+		}
+	case trade:
+		var trade WsTrade
+		err := json.Unmarshal(respRaw, &trade)
+		if err != nil {
+			return err
+		}
+		p := currency.NewPairFromString(trade.Currency)
+		b.Websocket.DataHandler <- wshandler.TradeData{
+			Timestamp:    trade.Timestamp,
+			CurrencyPair: p,
+			AssetType:    asset.Spot,
+			Exchange:     b.Name,
+			Price:        trade.Price,
+			Amount:       trade.Volume,
+			Side:         order.UnknownSide,
+			EventType:    order.UnknownType,
+		}
+	case tick:
+		var tick WsTick
+		err := json.Unmarshal(respRaw, &tick)
+		if err != nil {
+			return err
+		}
+
+		p := currency.NewPairFromString(tick.Currency)
+
+		b.Websocket.DataHandler <- &ticker.Price{
+			ExchangeName: b.Name,
+			Volume:       tick.Volume,
+			High:         tick.High24,
+			Low:          tick.Low24h,
+			Bid:          tick.Bid,
+			Ask:          tick.Ask,
+			Last:         tick.Last,
+			LastUpdated:  tick.Timestamp,
+			AssetType:    asset.Spot,
+			Pair:         p,
+		}
+	case fundChange:
+		var transferData WsFundTransfer
+		err := json.Unmarshal(respRaw, &transferData)
+		if err != nil {
+			return err
+		}
+		b.Websocket.DataHandler <- transferData
+	case orderChange:
+		var orderData WsOrderChange
+		err := json.Unmarshal(respRaw, &orderData)
+		if err != nil {
+			return err
+		}
+		originalAmount := orderData.OpenVolume
+		var price float64
+		var trades []order.TradeHistory
+		var orderID = strconv.FormatInt(orderData.OrderID, 10)
+		for x := range orderData.Trades {
+			var isMaker bool
+			if orderData.Trades[x].LiquidityType == "Maker" {
+				isMaker = true
+			}
+			trades = append(trades, order.TradeHistory{
+				Price:    orderData.Trades[x].Price,
+				Amount:   orderData.Trades[x].Volume,
+				Fee:      orderData.Trades[x].Fee,
+				Exchange: b.Name,
+				TID:      strconv.FormatInt(orderData.Trades[x].TradeID, 10),
+				IsMaker:  isMaker,
+			})
+			price = orderData.Trades[x].Price
+			originalAmount += orderData.Trades[x].Volume
+		}
+		oType, err := order.StringToOrderType(orderData.OrderType)
+		if err != nil {
+			b.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: b.Name,
+				OrderID:  orderID,
+				Err:      err,
+			}
+		}
+		oSide, err := order.StringToOrderSide(orderData.Side)
+		if err != nil {
+			b.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: b.Name,
+				OrderID:  orderID,
+				Err:      err,
+			}
+		}
+		oStatus, err := order.StringToOrderStatus(orderData.Status)
+		if err != nil {
+			b.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: b.Name,
+				OrderID:  orderID,
+				Err:      err,
+			}
+		}
+		p := currency.NewPairFromString(orderData.MarketID)
+		var a asset.Item
+		a, err = b.GetPairAssetType(p)
+		if err != nil {
+			return err
+		}
+		b.Websocket.DataHandler <- &order.Detail{
+			Price:           price,
+			Amount:          originalAmount,
+			RemainingAmount: orderData.OpenVolume,
+			Exchange:        b.Name,
+			ID:              orderID,
+			ClientID:        b.API.Credentials.ClientID,
+			Type:            oType,
+			Side:            oSide,
+			Status:          oStatus,
+			AssetType:       a,
+			Date:            orderData.Timestamp,
+			Trades:          trades,
+			Pair:            p,
+		}
+	case "error":
+		var wsErr WsError
+		err := json.Unmarshal(respRaw, &wsErr)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("%v websocket error. Code: %v Message: %v", b.Name, wsErr.Code, wsErr.Message)
+	default:
+		b.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: b.Name + wshandler.UnhandledMessage + string(respRaw)}
+		return nil
+	}
+	return nil
 }
 
 func (b *BTCMarkets) generateDefaultSubscriptions() {

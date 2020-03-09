@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -37,17 +39,16 @@ func (z *ZB) WsConnect() error {
 		return err
 	}
 
-	go z.WsHandleData()
+	go z.wsReadData()
 	z.GenerateDefaultSubscriptions()
 
 	return nil
 }
 
-// WsHandleData handles all the websocket data coming from the websocket
+// wsReadData handles all the websocket data coming from the websocket
 // connection
-func (z *ZB) WsHandleData() {
+func (z *ZB) wsReadData() {
 	z.Websocket.Wg.Add(1)
-
 	defer func() {
 		z.Websocket.Wg.Done()
 	}()
@@ -63,128 +64,175 @@ func (z *ZB) WsHandleData() {
 				return
 			}
 			z.Websocket.TrafficAlert <- struct{}{}
-			fixedJSON := z.wsFixInvalidJSON(resp.Raw)
-			var result Generic
-			err = json.Unmarshal(fixedJSON, &result)
+			err = z.wsHandleData(resp.Raw)
 			if err != nil {
 				z.Websocket.DataHandler <- err
-				continue
-			}
-			if result.No > 0 {
-				z.WebsocketConn.AddResponseWithID(result.No, fixedJSON)
-				continue
-			}
-			if result.Code > 0 && result.Code != 1000 {
-				z.Websocket.DataHandler <- fmt.Errorf("%v request failed, message: %v, error code: %v", z.Name, result.Message, wsErrCodes[result.Code])
-				continue
-			}
-			switch {
-			case strings.Contains(result.Channel, "markets"):
-				var markets Markets
-				err := json.Unmarshal(result.Data, &markets)
-				if err != nil {
-					z.Websocket.DataHandler <- err
-					continue
-				}
-
-			case strings.Contains(result.Channel, "ticker"):
-				cPair := strings.Split(result.Channel, "_")
-				var wsTicker WsTicker
-				err := json.Unmarshal(fixedJSON, &wsTicker)
-				if err != nil {
-					z.Websocket.DataHandler <- err
-					continue
-				}
-
-				z.Websocket.DataHandler <- &ticker.Price{
-					ExchangeName: z.Name,
-					Close:        wsTicker.Data.Last,
-					Volume:       wsTicker.Data.Volume24Hr,
-					High:         wsTicker.Data.High,
-					Low:          wsTicker.Data.Low,
-					Last:         wsTicker.Data.Last,
-					Bid:          wsTicker.Data.Buy,
-					Ask:          wsTicker.Data.Sell,
-					LastUpdated:  time.Unix(0, wsTicker.Date*int64(time.Millisecond)),
-					AssetType:    asset.Spot,
-					Pair:         currency.NewPairFromString(cPair[0]),
-				}
-
-			case strings.Contains(result.Channel, "depth"):
-				var depth WsDepth
-				err := json.Unmarshal(fixedJSON, &depth)
-				if err != nil {
-					z.Websocket.DataHandler <- err
-					continue
-				}
-
-				var asks []orderbook.Item
-				for i := range depth.Asks {
-					asks = append(asks, orderbook.Item{
-						Amount: depth.Asks[i][1].(float64),
-						Price:  depth.Asks[i][0].(float64),
-					})
-				}
-
-				var bids []orderbook.Item
-				for i := range depth.Bids {
-					bids = append(bids, orderbook.Item{
-						Amount: depth.Bids[i][1].(float64),
-						Price:  depth.Bids[i][0].(float64),
-					})
-				}
-
-				channelInfo := strings.Split(result.Channel, "_")
-				cPair := currency.NewPairFromString(channelInfo[0])
-				var newOrderBook orderbook.Base
-				newOrderBook.Asks = asks
-				newOrderBook.Bids = bids
-				newOrderBook.AssetType = asset.Spot
-				newOrderBook.Pair = cPair
-				newOrderBook.ExchangeName = z.Name
-
-				err = z.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
-				if err != nil {
-					z.Websocket.DataHandler <- err
-					continue
-				}
-
-				z.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-					Pair:     cPair,
-					Asset:    asset.Spot,
-					Exchange: z.Name,
-				}
-
-			case strings.Contains(result.Channel, "trades"):
-				var trades WsTrades
-				err := json.Unmarshal(fixedJSON, &trades)
-				if err != nil {
-					z.Websocket.DataHandler <- err
-					continue
-				}
-				// Most up to date trade
-				if len(trades.Data) == 0 {
-					continue
-				}
-				t := trades.Data[len(trades.Data)-1]
-
-				channelInfo := strings.Split(result.Channel, "_")
-				cPair := currency.NewPairFromString(channelInfo[0])
-				z.Websocket.DataHandler <- wshandler.TradeData{
-					Timestamp:    time.Unix(t.Date, 0),
-					CurrencyPair: cPair,
-					AssetType:    asset.Spot,
-					Exchange:     z.Name,
-					Price:        t.Price,
-					Amount:       t.Amount,
-					Side:         t.TradeType,
-				}
-			default:
-				z.Websocket.DataHandler <- errors.New("zb_websocket.go error - unhandled websocket response")
-				continue
 			}
 		}
 	}
+}
+
+func (z *ZB) wsHandleData(respRaw []byte) error {
+	fixedJSON := z.wsFixInvalidJSON(respRaw)
+	var result Generic
+	err := json.Unmarshal(fixedJSON, &result)
+	if err != nil {
+		return err
+	}
+	if result.No > 0 {
+		if z.WebsocketConn.IsIDWaitingForResponse(result.No) {
+			z.WebsocketConn.SetResponseIDAndData(result.No, respRaw)
+			return nil
+		}
+	}
+	if result.Code > 0 && result.Code != 1000 {
+		return fmt.Errorf("%v request failed, message: %v, error code: %v", z.Name, result.Message, wsErrCodes[result.Code])
+	}
+	switch {
+	case strings.Contains(result.Channel, "markets"):
+		var markets Markets
+		err := json.Unmarshal(result.Data, &markets)
+		if err != nil {
+			return err
+		}
+
+	case strings.Contains(result.Channel, "ticker"):
+		cPair := strings.Split(result.Channel, "_")
+		var wsTicker WsTicker
+		err := json.Unmarshal(fixedJSON, &wsTicker)
+		if err != nil {
+			return err
+		}
+
+		z.Websocket.DataHandler <- &ticker.Price{
+			ExchangeName: z.Name,
+			Close:        wsTicker.Data.Last,
+			Volume:       wsTicker.Data.Volume24Hr,
+			High:         wsTicker.Data.High,
+			Low:          wsTicker.Data.Low,
+			Last:         wsTicker.Data.Last,
+			Bid:          wsTicker.Data.Buy,
+			Ask:          wsTicker.Data.Sell,
+			LastUpdated:  time.Unix(0, wsTicker.Date*int64(time.Millisecond)),
+			AssetType:    asset.Spot,
+			Pair:         currency.NewPairFromString(cPair[0]),
+		}
+
+	case strings.Contains(result.Channel, "depth"):
+		var depth WsDepth
+		err := json.Unmarshal(fixedJSON, &depth)
+		if err != nil {
+			return err
+		}
+
+		var asks []orderbook.Item
+		for i := range depth.Asks {
+			asks = append(asks, orderbook.Item{
+				Amount: depth.Asks[i][1].(float64),
+				Price:  depth.Asks[i][0].(float64),
+			})
+		}
+
+		var bids []orderbook.Item
+		for i := range depth.Bids {
+			bids = append(bids, orderbook.Item{
+				Amount: depth.Bids[i][1].(float64),
+				Price:  depth.Bids[i][0].(float64),
+			})
+		}
+
+		channelInfo := strings.Split(result.Channel, "_")
+		cPair := currency.NewPairFromString(channelInfo[0])
+		var newOrderBook orderbook.Base
+		newOrderBook.Asks = asks
+		newOrderBook.Bids = bids
+		newOrderBook.AssetType = asset.Spot
+		newOrderBook.Pair = cPair
+		newOrderBook.ExchangeName = z.Name
+
+		err = z.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+		if err != nil {
+			return err
+		}
+
+		z.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+			Pair:     cPair,
+			Asset:    asset.Spot,
+			Exchange: z.Name,
+		}
+	case strings.Contains(result.Channel, "_order"):
+		cPair := strings.Split(result.Channel, "_")
+		var o WsSubmitOrderResponse
+		err := json.Unmarshal(fixedJSON, &o)
+		if err != nil {
+			return err
+		}
+		if !o.Success {
+			return fmt.Errorf("%s - Order %v failed to be placed. %s", z.Name, o.Data.EntrustID, respRaw)
+		}
+		p := currency.NewPairFromString(cPair[0])
+		var a asset.Item
+		a, err = z.GetPairAssetType(p)
+		if err != nil {
+			return err
+		}
+		z.Websocket.DataHandler <- &order.Detail{
+			Exchange:  z.Name,
+			ID:        strconv.FormatInt(o.Data.EntrustID, 10),
+			Pair:      p,
+			AssetType: a,
+		}
+	case strings.Contains(result.Channel, "_cancelorder"):
+		cPair := strings.Split(result.Channel, "_")
+		var o WsSubmitOrderResponse
+		err := json.Unmarshal(fixedJSON, &o)
+		if err != nil {
+			return err
+		}
+		if !o.Success {
+			return fmt.Errorf("%s - Order %v failed to be cancelled. %s", z.Name, o.Data.EntrustID, respRaw)
+		}
+		z.Websocket.DataHandler <- &order.Modify{
+			Exchange: z.Name,
+			ID:       strconv.FormatInt(o.Data.EntrustID, 10),
+			Pair:     currency.NewPairFromString(cPair[0]),
+			Status:   order.Cancelled,
+		}
+	case strings.Contains(result.Channel, "trades"):
+		var trades WsTrades
+		err := json.Unmarshal(fixedJSON, &trades)
+		if err != nil {
+			return err
+		}
+		// Most up to date trade
+		if len(trades.Data) == 0 {
+			return errors.New(z.Name + " - Empty websocket trade data received: " + string(fixedJSON))
+		}
+		t := trades.Data[len(trades.Data)-1]
+
+		channelInfo := strings.Split(result.Channel, "_")
+		cPair := currency.NewPairFromString(channelInfo[0])
+		tSide, err := order.StringToOrderSide(t.TradeType)
+		if err != nil {
+			z.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: z.Name,
+				Err:      err,
+			}
+		}
+		z.Websocket.DataHandler <- wshandler.TradeData{
+			Timestamp:    time.Unix(t.Date, 0),
+			CurrencyPair: cPair,
+			AssetType:    asset.Spot,
+			Exchange:     z.Name,
+			Price:        t.Price,
+			Amount:       t.Amount,
+			Side:         tSide,
+		}
+	default:
+		z.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: z.Name + wshandler.UnhandledMessage + string(respRaw)}
+		return nil
+	}
+	return nil
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()

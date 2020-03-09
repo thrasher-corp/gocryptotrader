@@ -274,7 +274,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
+		Type: order.AnyType,
 	}
 
 	_, err := g.GetActiveOrders(&getOrdersRequest)
@@ -287,12 +287,12 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
+		Type: order.AnyType,
 	}
 
 	currPair := currency.NewPair(currency.LTC, currency.BTC)
 	currPair.Delimiter = "_"
-	getOrdersRequest.Currencies = []currency.Pair{currPair}
+	getOrdersRequest.Pairs = []currency.Pair{currPair}
 
 	_, err := g.GetOrderHistory(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
@@ -319,11 +319,11 @@ func TestSubmitOrder(t *testing.T) {
 			Base:      currency.LTC,
 			Quote:     currency.BTC,
 		},
-		OrderSide: order.Buy,
-		OrderType: order.Limit,
-		Price:     1,
-		Amount:    1,
-		ClientID:  "meowOrder",
+		Side:     order.Buy,
+		Type:     order.Limit,
+		Price:    1,
+		Amount:   1,
+		ClientID: "meowOrder",
 	}
 	response, err := g.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -340,10 +340,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	err := g.CancelOrder(orderCancellation)
@@ -362,10 +362,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
-		CurrencyPair:  currencyPair,
+		Pair:          currencyPair,
 	}
 
 	resp, err := g.CancelAllOrders(orderCancellation)
@@ -497,9 +497,7 @@ func TestWsGetBalance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	go g.WsHandleData()
-	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	go g.wsReadData()
 	resp, err := g.wsServerSignIn()
 	if err != nil {
 		t.Fatal(err)
@@ -535,9 +533,7 @@ func TestWsGetOrderInfo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	go g.WsHandleData()
-	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	go g.wsReadData()
 	resp, err := g.wsServerSignIn()
 	if err != nil {
 		t.Fatal(err)
@@ -568,13 +564,27 @@ func setupWSTestAuth(t *testing.T) {
 	}
 	var dialer websocket.Dialer
 	err := g.WebsocketConn.Dial(&dialer, http.Header{})
+
+	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	if err != nil {
 		t.Fatal(err)
 	}
-	go g.WsHandleData()
-	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	go g.wsReadData()
 	wsSetupRan = true
+}
+
+// TestWsUnsubscribe dials websocket, sends an unsubscribe request.
+func TestWsUnsubscribe(t *testing.T) {
+	setupWSTestAuth(t)
+	g.Verbose = true
+	err := g.Unsubscribe(wshandler.WebsocketChannelSubscription{
+		Channel:  "ticker.subscribe",
+		Currency: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_"),
+	})
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 // TestWsSubscribe dials websocket, sends a subscribe request.
@@ -589,13 +599,146 @@ func TestWsSubscribe(t *testing.T) {
 	}
 }
 
-// TestWsUnsubscribe dials websocket, sends an unsubscribe request.
-func TestWsUnsubscribe(t *testing.T) {
-	setupWSTestAuth(t)
-	err := g.Unsubscribe(wshandler.WebsocketChannelSubscription{
-		Channel:  "ticker.subscribe",
-		Currency: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_"),
-	})
+func TestWsTicker(t *testing.T) {
+	pressXToJSON := []byte(`{
+    "method": "ticker.update", 
+    "params": 
+        [
+            "BTC_USDT", 
+                {
+                    "period": 86400, 
+                    "open": "0",
+                    "close": "0",
+                    "high": "0",
+                    "low": "0",
+                    "last": "0.2844",
+                    "change": "0",
+                    "quoteVolume": "0",
+                    "baseVolume": "0"
+                }
+     ],
+     "id": null
+}`)
+	err := g.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsTrade(t *testing.T) {
+	pressXToJSON := []byte(`{
+    "method": "trades.update",
+    "params": 
+        [
+             "BTC_USDT", 
+             [
+                 {
+                 "id": 7172173,
+                 "time": 1523339279.761838,
+                 "price": "398.59",
+                 "amount": "0.027",
+                 "type": "buy"
+                 }
+             ]
+         ],
+     "id": null
+ }
+`)
+	err := g.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsDepth(t *testing.T) {
+	pressXToJSON := []byte(`{
+    "method": "depth.update", 
+    "params": [
+        true, 
+        {
+            "asks": [
+                [                    
+                    "8000.00",
+                    "9.6250"
+                ]
+            ],
+            "bids": [                
+                [                    
+                    "8000.00",
+                    "9.6250"
+                ]                
+            ]
+         }, 
+         "BTC_USDT"
+    ],
+    "id": null
+ }`)
+	err := g.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsKLine(t *testing.T) {
+	pressXToJSON := []byte(`{
+    "method": "kline.update",
+    "params":
+        [
+            [
+                1492358400,
+                "7000.00",
+                "8000.0",
+                "8100.00",
+                "6800.00",
+                "1000.00",
+                "123456.00",
+                "BTC_USDT"
+            ]
+        ],
+    "id": null
+}`)
+	err := g.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsOrderUpdate(t *testing.T) {
+	pressXToJSON := []byte(`{
+  "method": "order.update",
+  "params": [
+    3,
+    {
+      "id": 34628963,
+      "market": "BTC_USDT",
+      "orderType": 1,
+      "type": 2,
+      "user": 602123,
+      "ctime": 1523013969.6271579,
+      "mtime": 1523013969.6271579,
+      "price": "0.1",
+      "amount": "1000",
+      "left": "1000",
+      "filledAmount": "0",
+      "filledTotal": "0",
+      "dealFee": "0"
+    }
+  ],
+  "id": null
+}`)
+	err := g.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsBalanceUpdate(t *testing.T) {
+	pressXToJSON := []byte(`{
+    "method": "balance.update", 
+    "params": [{"EOS": {"available": "96.765323611874", "freeze": "11"}}],
+    "id": 1234
+}`)
+	err := g.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}

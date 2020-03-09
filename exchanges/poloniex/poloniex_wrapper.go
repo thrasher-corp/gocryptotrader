@@ -102,6 +102,8 @@ func (p *Poloniex) SetDefaults() {
 				Subscribe:              true,
 				Unsubscribe:            true,
 				AuthenticatedEndpoints: true,
+				GetOrders:              true,
+				GetOrder:               true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.NoFiatWithdrawals,
@@ -380,8 +382,8 @@ func (p *Poloniex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
-	fillOrKill := s.OrderType == order.Market
-	isBuyOrder := s.OrderSide == order.Buy
+	fillOrKill := s.Type == order.Market
+	isBuyOrder := s.Side == order.Buy
 	response, err := p.PlaceOrder(s.Pair.String(),
 		s.Price,
 		s.Amount,
@@ -396,7 +398,7 @@ func (p *Poloniex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 
 	submitOrderResponse.IsOrderPlaced = true
-	if s.OrderType == order.Market {
+	if s.Type == order.Market {
 		submitOrderResponse.FullyMatched = true
 	}
 	return submitOrderResponse, nil
@@ -405,7 +407,7 @@ func (p *Poloniex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (p *Poloniex) ModifyOrder(action *order.Modify) (string, error) {
-	oID, err := strconv.ParseInt(action.OrderID, 10, 64)
+	oID, err := strconv.ParseInt(action.ID, 10, 64)
 	if err != nil {
 		return "", err
 	}
@@ -424,7 +426,7 @@ func (p *Poloniex) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (p *Poloniex) CancelOrder(order *order.Cancel) error {
-	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -529,7 +531,7 @@ func (p *Poloniex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 
 		for i := range resp.Data[key] {
 			orderSide := order.Side(strings.ToUpper(resp.Data[key][i].Type))
-			orderDate, err := time.Parse(poloniexDateLayout, resp.Data[key][i].Date)
+			orderDate, err := time.Parse(common.SimpleTimeFormat, resp.Data[key][i].Date)
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
 					"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
@@ -540,20 +542,20 @@ func (p *Poloniex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 			}
 
 			orders = append(orders, order.Detail{
-				ID:           strconv.FormatInt(resp.Data[key][i].OrderNumber, 10),
-				OrderSide:    orderSide,
-				Amount:       resp.Data[key][i].Amount,
-				OrderDate:    orderDate,
-				Price:        resp.Data[key][i].Rate,
-				CurrencyPair: symbol,
-				Exchange:     p.Name,
+				ID:       strconv.FormatInt(resp.Data[key][i].OrderNumber, 10),
+				Side:     orderSide,
+				Amount:   resp.Data[key][i].Amount,
+				Date:     orderDate,
+				Price:    resp.Data[key][i].Rate,
+				Pair:     symbol,
+				Exchange: p.Name,
 			})
 		}
 	}
 
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersByCurrencies(&orders, req.Currencies)
-	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	order.FilterOrdersBySide(&orders, req.Side)
 
 	return orders, nil
 }
@@ -575,7 +577,7 @@ func (p *Poloniex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 
 		for i := range resp.Data[key] {
 			orderSide := order.Side(strings.ToUpper(resp.Data[key][i].Type))
-			orderDate, err := time.Parse(poloniexDateLayout,
+			orderDate, err := time.Parse(common.SimpleTimeFormat,
 				resp.Data[key][i].Date)
 			if err != nil {
 				log.Errorf(log.ExchangeSys,
@@ -587,19 +589,19 @@ func (p *Poloniex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 			}
 
 			orders = append(orders, order.Detail{
-				ID:           strconv.FormatInt(resp.Data[key][i].GlobalTradeID, 10),
-				OrderSide:    orderSide,
-				Amount:       resp.Data[key][i].Amount,
-				OrderDate:    orderDate,
-				Price:        resp.Data[key][i].Rate,
-				CurrencyPair: symbol,
-				Exchange:     p.Name,
+				ID:       strconv.FormatInt(resp.Data[key][i].GlobalTradeID, 10),
+				Side:     orderSide,
+				Amount:   resp.Data[key][i].Amount,
+				Date:     orderDate,
+				Price:    resp.Data[key][i].Rate,
+				Pair:     symbol,
+				Exchange: p.Name,
 			})
 		}
 	}
 
-	order.FilterOrdersByCurrencies(&orders, req.Currencies)
-	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersByCurrencies(&orders, req.Pairs)
+	order.FilterOrdersBySide(&orders, req.Side)
 
 	return orders, nil
 }

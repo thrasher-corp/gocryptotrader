@@ -57,6 +57,7 @@ const (
 	bitfinexMarginClose        = "funding/close"
 	bitfinexLendbook           = "lendbook/"
 	bitfinexLends              = "lends/"
+	bitfinexLeaderboard        = "rankings"
 
 	// Version 2 API endpoints
 	bitfinexAPIVersion2    = "/v2/"
@@ -501,11 +502,73 @@ func (b *Bitfinex) GetLiquidationFeed() error {
 	return common.ErrNotYetImplemented
 }
 
-// GetLeaderBoard returns leaderboard standings for unrealized
-// profit (period delta), unrealized profit (inception), volume, and realized
-//  profit.
-func (b *Bitfinex) GetLeaderBoard() error {
-	return common.ErrNotYetImplemented
+// GetLeaderboard returns leaderboard standings for unrealized profit (period
+// delta), unrealized profit (inception), volume, and realized profit.
+// Allowed key values: "plu_diff" for unrealized profit (period delta), "plu"
+// for unrealized profit (inception); "vol" for volume; "plr" for realized
+// profit
+// Allowed time frames are 3h, 1w and 1M
+// Allowed symbols are trading pairs (e.g. tBTCUSD, tETHUSD and tGLOBAL:USD)
+func (b *Bitfinex) GetLeaderboard(key, timeframe, symbol string, sort, limit int, start, end string) ([]LeaderboardEntry, error) {
+	validLeaderboardKey := func(input string) bool {
+		switch input {
+		case LeaderboardUnrealisedProfitPeriodDelta,
+			LeaderboardUnrealisedProfitInception,
+			LeaderboardVolume,
+			LeaderbookRealisedProfit:
+			return true
+		default:
+			return false
+		}
+	}
+
+	if !validLeaderboardKey(key) {
+		return nil, errors.New("invalid leaderboard key")
+	}
+
+	path := fmt.Sprintf("%s/%s:%s:%s/hist", b.API.Endpoints.URL+bitfinexAPIVersion2+bitfinexLeaderboard,
+		key,
+		timeframe,
+		symbol)
+	vals := url.Values{}
+	if sort != 0 {
+		vals.Set("sort", strconv.Itoa(sort))
+	}
+	if limit != 0 {
+		vals.Set("limit", strconv.Itoa(limit))
+	}
+	if start != "" {
+		vals.Set("start", start)
+	}
+	if end != "" {
+		vals.Set("end", end)
+	}
+	path = common.EncodeURLValues(path, vals)
+	var resp []interface{}
+	if err := b.SendHTTPRequest(path, &resp, leaderBoardReqRate); err != nil {
+		return nil, err
+	}
+
+	parseTwitterHandle := func(i interface{}) string {
+		r, ok := i.(string)
+		if !ok {
+			return ""
+		}
+		return r
+	}
+
+	var result []LeaderboardEntry
+	for x := range resp {
+		r := resp[x].([]interface{})
+		result = append(result, LeaderboardEntry{
+			Timestamp:     time.Unix(0, int64(r[0].(float64))*int64(time.Millisecond)),
+			Username:      r[2].(string),
+			Ranking:       int(r[3].(float64)),
+			Value:         r[6].(float64),
+			TwitterHandle: parseTwitterHandle(r[9]),
+		})
+	}
+	return result, nil
 }
 
 // GetMarketAveragePrice calculates the average execution price for Trading or

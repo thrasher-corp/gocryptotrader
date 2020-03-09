@@ -3,11 +3,13 @@ package coinbasepro
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -35,13 +37,13 @@ func (c *CoinbasePro) WsConnect() error {
 	}
 
 	c.GenerateDefaultSubscriptions()
-	go c.WsHandleData()
+	go c.wsReadData()
 
 	return nil
 }
 
-// WsHandleData handles read data from websocket connection
-func (c *CoinbasePro) WsHandleData() {
+// wsReadData receives and passes on websocket messages for processing
+func (c *CoinbasePro) wsReadData() {
 	c.Websocket.Wg.Add(1)
 
 	defer func() {
@@ -59,124 +61,203 @@ func (c *CoinbasePro) WsHandleData() {
 				return
 			}
 			c.Websocket.TrafficAlert <- struct{}{}
-
-			type MsgType struct {
-				Type      string `json:"type"`
-				Sequence  int64  `json:"sequence"`
-				ProductID string `json:"product_id"`
-			}
-
-			msgType := MsgType{}
-			err = json.Unmarshal(resp.Raw, &msgType)
+			err = c.wsHandleData(resp.Raw)
 			if err != nil {
 				c.Websocket.DataHandler <- err
-				continue
-			}
-
-			if msgType.Type == "subscriptions" || msgType.Type == "heartbeat" {
-				continue
-			}
-
-			switch msgType.Type {
-			case "error":
-				c.Websocket.DataHandler <- errors.New(string(resp.Raw))
-
-			case "ticker":
-				wsTicker := WebsocketTicker{}
-				err := json.Unmarshal(resp.Raw, &wsTicker)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-
-				c.Websocket.DataHandler <- &ticker.Price{
-					LastUpdated:  wsTicker.Time,
-					Pair:         wsTicker.ProductID,
-					AssetType:    asset.Spot,
-					ExchangeName: c.Name,
-					Open:         wsTicker.Open24H,
-					High:         wsTicker.High24H,
-					Low:          wsTicker.Low24H,
-					Last:         wsTicker.Price,
-					Volume:       wsTicker.Volume24H,
-					Bid:          wsTicker.BestBid,
-					Ask:          wsTicker.BestAsk,
-				}
-
-			case "snapshot":
-				snapshot := WebsocketOrderbookSnapshot{}
-				err := json.Unmarshal(resp.Raw, &snapshot)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-
-				err = c.ProcessSnapshot(&snapshot)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-
-			case "l2update":
-				update := WebsocketL2Update{}
-				err := json.Unmarshal(resp.Raw, &update)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-
-				err = c.ProcessUpdate(update)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-			case "received":
-				// We currently use l2update to calculate orderbook changes
-				received := WebsocketReceived{}
-				err := json.Unmarshal(resp.Raw, &received)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-				c.Websocket.DataHandler <- received
-			case "open":
-				// We currently use l2update to calculate orderbook changes
-				open := WebsocketOpen{}
-				err := json.Unmarshal(resp.Raw, &open)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-				c.Websocket.DataHandler <- open
-			case "done":
-				// We currently use l2update to calculate orderbook changes
-				done := WebsocketDone{}
-				err := json.Unmarshal(resp.Raw, &done)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-				c.Websocket.DataHandler <- done
-			case "change":
-				// We currently use l2update to calculate orderbook changes
-				change := WebsocketChange{}
-				err := json.Unmarshal(resp.Raw, &change)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-				c.Websocket.DataHandler <- change
-			case "activate":
-				// We currently use l2update to calculate orderbook changes
-				activate := WebsocketActivate{}
-				err := json.Unmarshal(resp.Raw, &activate)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-				c.Websocket.DataHandler <- activate
 			}
 		}
+	}
+}
+
+func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
+	msgType := wsMsgType{}
+	err := json.Unmarshal(respRaw, &msgType)
+	if err != nil {
+		return err
+	}
+
+	if msgType.Type == "subscriptions" || msgType.Type == "heartbeat" {
+		return nil
+	}
+
+	switch msgType.Type {
+	case "status":
+		var status wsStatus
+		err = json.Unmarshal(respRaw, &status)
+		if err != nil {
+			return err
+		}
+		c.Websocket.DataHandler <- status
+	case "error":
+		c.Websocket.DataHandler <- errors.New(string(respRaw))
+	case "ticker":
+		wsTicker := WebsocketTicker{}
+		err := json.Unmarshal(respRaw, &wsTicker)
+		if err != nil {
+			return err
+		}
+
+		c.Websocket.DataHandler <- &ticker.Price{
+			LastUpdated:  wsTicker.Time,
+			Pair:         wsTicker.ProductID,
+			AssetType:    asset.Spot,
+			ExchangeName: c.Name,
+			Open:         wsTicker.Open24H,
+			High:         wsTicker.High24H,
+			Low:          wsTicker.Low24H,
+			Last:         wsTicker.Price,
+			Volume:       wsTicker.Volume24H,
+			Bid:          wsTicker.BestBid,
+			Ask:          wsTicker.BestAsk,
+		}
+
+	case "snapshot":
+		snapshot := WebsocketOrderbookSnapshot{}
+		err := json.Unmarshal(respRaw, &snapshot)
+		if err != nil {
+			return err
+		}
+
+		err = c.ProcessSnapshot(&snapshot)
+		if err != nil {
+			return err
+		}
+
+	case "l2update":
+		update := WebsocketL2Update{}
+		err := json.Unmarshal(respRaw, &update)
+		if err != nil {
+			return err
+		}
+
+		err = c.ProcessUpdate(update)
+		if err != nil {
+			return err
+		}
+		// the following cases contains data to synchronise authenticated orders
+		// subscribing to the "full" channel will consider ALL cbp orders as
+		// personal orders
+		// remove sending &order.Detail to the datahandler if you wish to subscribe to the
+		// "full" channel
+	case "received", "open", "done", "change", "activate":
+		var wsOrder wsOrderReceived
+		err := json.Unmarshal(respRaw, &wsOrder)
+		if err != nil {
+			return err
+		}
+		var oType order.Type
+		var oSide order.Side
+		var oStatus order.Status
+		oType, err = order.StringToOrderType(wsOrder.OrderType)
+		if err != nil {
+			c.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: c.Name,
+				OrderID:  wsOrder.OrderID,
+				Err:      err,
+			}
+		}
+		oSide, err = order.StringToOrderSide(wsOrder.Side)
+		if err != nil {
+			c.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: c.Name,
+				OrderID:  wsOrder.OrderID,
+				Err:      err,
+			}
+		}
+		oStatus, err = statusToStandardStatus(wsOrder.Type)
+		if err != nil {
+			c.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: c.Name,
+				OrderID:  wsOrder.OrderID,
+				Err:      err,
+			}
+		}
+		if wsOrder.Reason == "canceled" {
+			oStatus = order.Cancelled
+		}
+		ts := wsOrder.Time
+		if wsOrder.Type == "activate" {
+			var one, two int64
+			one, two, err = convert.SplitFloatDecimals(wsOrder.Timestamp)
+			if err != nil {
+				return err
+			}
+			ts = time.Unix(one, two)
+		}
+
+		var p currency.Pair
+		var a asset.Item
+		p, a, err = c.GetRequestFormattedPairAndAssetType(wsOrder.ProductID)
+		if err != nil {
+			return err
+		}
+		c.Websocket.DataHandler <- &order.Detail{
+			HiddenOrder:     wsOrder.Private,
+			Price:           wsOrder.Price,
+			Amount:          wsOrder.Size,
+			TriggerPrice:    wsOrder.StopPrice,
+			ExecutedAmount:  wsOrder.Size - wsOrder.RemainingSize,
+			RemainingAmount: wsOrder.RemainingSize,
+			Fee:             wsOrder.TakerFeeRate,
+			Exchange:        c.Name,
+			ID:              wsOrder.OrderID,
+			AccountID:       wsOrder.ProfileID,
+			ClientID:        c.API.Credentials.ClientID,
+			Type:            oType,
+			Side:            oSide,
+			Status:          oStatus,
+			AssetType:       a,
+			Date:            ts,
+			Pair:            p,
+		}
+	case "match":
+		var wsOrder wsOrderReceived
+		err := json.Unmarshal(respRaw, &wsOrder)
+		if err != nil {
+			return err
+		}
+		oSide, err := order.StringToOrderSide(wsOrder.Side)
+		if err != nil {
+			c.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: c.Name,
+				Err:      err,
+			}
+		}
+		c.Websocket.DataHandler <- &order.Detail{
+			ID: wsOrder.OrderID,
+			Trades: []order.TradeHistory{
+				{
+					Price:     wsOrder.Price,
+					Amount:    wsOrder.Size,
+					Exchange:  c.Name,
+					TID:       strconv.FormatInt(wsOrder.TradeID, 10),
+					Side:      oSide,
+					Timestamp: wsOrder.Time,
+					IsMaker:   wsOrder.TakerUserID == "",
+				},
+			},
+		}
+	default:
+		c.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: c.Name + wshandler.UnhandledMessage + string(respRaw)}
+		return nil
+	}
+	return nil
+}
+
+func statusToStandardStatus(stat string) (order.Status, error) {
+	switch stat {
+	case "received":
+		return order.New, nil
+	case "open":
+		return order.Active, nil
+	case "done":
+		return order.Filled, nil
+	case "match":
+		return order.PartiallyFilled, nil
+	case "change", "activate":
+		return order.Active, nil
+	default:
+		return order.UnknownStatus, fmt.Errorf("%s not recognised as status type", stat)
 	}
 }
 

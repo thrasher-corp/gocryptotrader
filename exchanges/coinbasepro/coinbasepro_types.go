@@ -365,70 +365,34 @@ type WsChannels struct {
 	ProductIDs []string `json:"product_ids"`
 }
 
-// WebsocketReceived holds websocket received values
-type WebsocketReceived struct {
-	Type      string  `json:"type"`
-	OrderID   string  `json:"order_id"`
-	OrderType string  `json:"order_type"`
-	Size      float64 `json:"size,string"`
-	Price     float64 `json:"price,omitempty,string"`
-	Funds     float64 `json:"funds,omitempty,string"`
-	Side      string  `json:"side"`
-	ClientOID string  `json:"client_oid"`
-	ProductID string  `json:"product_id"`
-	Sequence  int64   `json:"sequence"`
-	Time      string  `json:"time"`
-}
-
-// WebsocketOpen collates open orders
-type WebsocketOpen struct {
-	Type          string  `json:"type"`
-	Side          string  `json:"side"`
-	Price         float64 `json:"price,string"`
-	OrderID       string  `json:"order_id"`
-	RemainingSize float64 `json:"remaining_size,string"`
-	ProductID     string  `json:"product_id"`
-	Sequence      int64   `json:"sequence"`
-	Time          string  `json:"time"`
-}
-
-// WebsocketDone holds finished order information
-type WebsocketDone struct {
-	Type          string  `json:"type"`
-	Side          string  `json:"side"`
-	OrderID       string  `json:"order_id"`
-	Reason        string  `json:"reason"`
-	ProductID     string  `json:"product_id"`
-	Price         float64 `json:"price,string"`
-	RemainingSize float64 `json:"remaining_size,string"`
-	Sequence      int64   `json:"sequence"`
-	Time          string  `json:"time"`
-}
-
-// WebsocketMatch holds match information
-type WebsocketMatch struct {
-	Type         string  `json:"type"`
-	TradeID      int     `json:"trade_id"`
-	MakerOrderID string  `json:"maker_order_id"`
-	TakerOrderID string  `json:"taker_order_id"`
-	Side         string  `json:"side"`
-	Size         float64 `json:"size,string"`
-	Price        float64 `json:"price,string"`
-	ProductID    string  `json:"product_id"`
-	Sequence     int64   `json:"sequence"`
-	Time         string  `json:"time"`
-}
-
-// WebsocketChange holds change information
-type WebsocketChange struct {
-	Type     string  `json:"type"`
-	Time     string  `json:"time"`
-	Sequence int     `json:"sequence"`
-	OrderID  string  `json:"order_id"`
-	NewSize  float64 `json:"new_size,string"`
-	OldSize  float64 `json:"old_size,string"`
-	Price    float64 `json:"price,string"`
-	Side     string  `json:"side"`
+// wsOrderReceived holds websocket received values
+type wsOrderReceived struct {
+	Type          string    `json:"type"`
+	OrderID       string    `json:"order_id"`
+	OrderType     string    `json:"order_type"`
+	Size          float64   `json:"size,string"`
+	Price         float64   `json:"price,omitempty,string"`
+	Funds         float64   `json:"funds,omitempty,string"`
+	Side          string    `json:"side"`
+	ClientOID     string    `json:"client_oid"`
+	ProductID     string    `json:"product_id"`
+	Sequence      int64     `json:"sequence"`
+	Time          time.Time `json:"time"`
+	RemainingSize float64   `json:"remaining_size,string"`
+	NewSize       float64   `json:"new_size,string"`
+	OldSize       float64   `json:"old_size,string"`
+	Reason        string    `json:"reason"`
+	Timestamp     float64   `json:"timestamp,string"`
+	UserID        string    `json:"user_id"`
+	ProfileID     string    `json:"profile_id"`
+	StopType      string    `json:"stop_type"`
+	StopPrice     float64   `json:"stop_price,string"`
+	TakerFeeRate  float64   `json:"taker_fee_rate,string"`
+	Private       bool      `json:"private"`
+	TradeID       int64     `json:"trade_id"`
+	MakerOrderID  string    `json:"maker_order_id"`
+	TakerOrderID  string    `json:"taker_order_id"`
+	TakerUserID   string    `json:"taker_user_id"`
 }
 
 // WebsocketHeartBeat defines JSON response for a heart beat message
@@ -475,19 +439,39 @@ type WebsocketL2Update struct {
 	Changes   [][]interface{} `json:"changes"`
 }
 
-// WebsocketActivate an activate message is sent when a stop order is placed
-type WebsocketActivate struct {
-	Type         string  `json:"type"`
-	ProductID    string  `json:"product_id"`
-	Timestamp    string  `json:"timestamp"`
-	UserID       string  `json:"user_id"`
-	ProfileID    string  `json:"profile_id"`
-	OrderID      string  `json:"order_id"`
-	StopType     string  `json:"stop_type"`
-	Side         string  `json:"side"`
-	StopPrice    float64 `json:"stop_price,string"`
-	Size         float64 `json:"size,string"`
-	Funds        float64 `json:"funds,string"`
-	TakerFeeRate float64 `json:"taker_fee_rate,string"`
-	Private      bool    `json:"private"`
+type wsMsgType struct {
+	Type      string `json:"type"`
+	Sequence  int64  `json:"sequence"`
+	ProductID string `json:"product_id"`
+}
+
+type wsStatus struct {
+	Currencies []struct {
+		ConvertibleTo []string    `json:"convertible_to"`
+		Details       struct{}    `json:"details"`
+		ID            string      `json:"id"`
+		MaxPrecision  float64     `json:"max_precision,string"`
+		MinSize       float64     `json:"min_size,string"`
+		Name          string      `json:"name"`
+		Status        string      `json:"status"`
+		StatusMessage interface{} `json:"status_message"`
+	} `json:"currencies"`
+	Products []struct {
+		BaseCurrency   string      `json:"base_currency"`
+		BaseIncrement  float64     `json:"base_increment,string"`
+		BaseMaxSize    float64     `json:"base_max_size,string"`
+		BaseMinSize    float64     `json:"base_min_size,string"`
+		CancelOnly     bool        `json:"cancel_only"`
+		DisplayName    string      `json:"display_name"`
+		ID             string      `json:"id"`
+		LimitOnly      bool        `json:"limit_only"`
+		MaxMarketFunds float64     `json:"max_market_funds,string"`
+		MinMarketFunds float64     `json:"min_market_funds,string"`
+		PostOnly       bool        `json:"post_only"`
+		QuoteCurrency  string      `json:"quote_currency"`
+		QuoteIncrement float64     `json:"quote_increment,string"`
+		Status         string      `json:"status"`
+		StatusMessage  interface{} `json:"status_message"`
+	} `json:"products"`
+	Type string `json:"type"`
 }

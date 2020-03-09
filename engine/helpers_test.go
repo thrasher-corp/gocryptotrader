@@ -31,22 +31,32 @@ var (
 
 func SetupTestHelpers(t *testing.T) {
 	if !helperTestLoaded {
-		if !testSetup {
-			if Bot == nil {
-				Bot = new(Engine)
-			}
-			Bot.Config = &config.Cfg
-			err := Bot.Config.LoadConfig(config.TestFile, true)
-			if err != nil {
-				t.Fatalf("SetupTest: Failed to load config: %s", err)
-			}
-			testSetup = true
+		if Bot == nil {
+			Bot = new(Engine)
 		}
-		err := Bot.Config.RetrieveConfigCurrencyPairs(true, asset.Spot)
+		Bot.Config = &config.Cfg
+		err := Bot.Config.LoadConfig(config.TestFile, true)
+		if err != nil {
+			t.Fatalf("SetupTest: Failed to load config: %s", err)
+		}
+		err = Bot.Config.RetrieveConfigCurrencyPairs(true, asset.Spot)
 		if err != nil {
 			t.Fatalf("Failed to retrieve config currency pairs. %s", err)
 		}
 		helperTestLoaded = true
+	}
+
+	if GetExchangeByName(testExchange) == nil {
+		err := LoadExchange(testExchange, false, nil)
+		if err != nil {
+			t.Fatalf("SetupTest: Failed to load exchange: %s", err)
+		}
+	}
+	if GetExchangeByName(fakePassExchange) == nil {
+		err := addPassingFakeExchange(testExchange)
+		if err != nil {
+			t.Fatalf("SetupTest: Failed to load exchange: %s", err)
+		}
 	}
 }
 
@@ -117,8 +127,8 @@ func TestGetExchangeoOTPByName(t *testing.T) {
 
 func TestGetAuthAPISupportedExchanges(t *testing.T) {
 	SetupTestHelpers(t)
-	if result := GetAuthAPISupportedExchanges(); result != nil {
-		t.Fatal("Unexpected result")
+	if result := GetAuthAPISupportedExchanges(); len(result) != 1 {
+		t.Fatal("Unexpected result", result)
 	}
 }
 
@@ -571,7 +581,7 @@ func TestGetCryptocurrenciesByExchange(t *testing.T) {
 }
 
 func TestGetExchangeNames(t *testing.T) {
-	SetupTest(t)
+	SetupTestHelpers(t)
 	if e := GetExchangeNames(true); len(e) == 0 {
 		t.Error("exchange names should be populated")
 	}
@@ -581,8 +591,8 @@ func TestGetExchangeNames(t *testing.T) {
 	if e := GetExchangeNames(true); common.StringDataCompare(e, testExchange) {
 		t.Error("Bitstamp should be missing")
 	}
-	if e := GetExchangeNames(false); len(e) != 27 {
-		t.Error("len should be all available exchanges")
+	if e := GetExchangeNames(false); len(e) != len(Bot.Config.Exchanges) {
+		t.Errorf("Expected %v Received %v", len(e), len(Bot.Config.Exchanges))
 	}
 }
 

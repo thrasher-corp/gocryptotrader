@@ -1,8 +1,6 @@
 package binance
 
 import (
-	"encoding/json"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
@@ -119,12 +117,6 @@ type RecentTrade struct {
 	IsBestMatch  bool    `json:"isBestMatch"`
 }
 
-// MultiStreamData holds stream data
-type MultiStreamData struct {
-	Stream string          `json:"stream"`
-	Data   json.RawMessage `json:"data"`
-}
-
 // TradeStream holds the trade stream data
 type TradeStream struct {
 	EventType      string `json:"e"`
@@ -146,22 +138,22 @@ type KlineStream struct {
 	EventTime int64  `json:"E"`
 	Symbol    string `json:"s"`
 	Kline     struct {
-		StartTime                int64  `json:"t"`
-		CloseTime                int64  `json:"T"`
-		Symbol                   string `json:"s"`
-		Interval                 string `json:"i"`
-		FirstTradeID             int64  `json:"f"`
-		LastTradeID              int64  `json:"L"`
-		OpenPrice                string `json:"o"`
-		ClosePrice               string `json:"c"`
-		HighPrice                string `json:"h"`
-		LowPrice                 string `json:"l"`
-		Volume                   string `json:"v"`
-		NumberOfTrades           int64  `json:"n"`
-		KlineClosed              bool   `json:"x"`
-		Quote                    string `json:"q"`
-		TakerBuyBaseAssetVolume  string `json:"V"`
-		TakerBuyQuoteAssetVolume string `json:"Q"`
+		StartTime                int64   `json:"t"`
+		CloseTime                int64   `json:"T"`
+		Symbol                   string  `json:"s"`
+		Interval                 string  `json:"i"`
+		FirstTradeID             int64   `json:"f"`
+		LastTradeID              int64   `json:"L"`
+		OpenPrice                float64 `json:"o,string"`
+		ClosePrice               float64 `json:"c,string"`
+		HighPrice                float64 `json:"h,string"`
+		LowPrice                 float64 `json:"l,string"`
+		Volume                   float64 `json:"v,string"`
+		NumberOfTrades           int64   `json:"n"`
+		KlineClosed              bool    `json:"x"`
+		Quote                    float64 `json:"q,string"`
+		TakerBuyBaseAssetVolume  float64 `json:"V,string"`
+		TakerBuyQuoteAssetVolume float64 `json:"Q,string"`
 	} `json:"k"`
 }
 
@@ -611,4 +603,98 @@ type WithdrawResponse struct {
 	Success bool   `json:"success"`
 	Msg     string `json:"msg"`
 	ID      string `json:"id"`
+}
+
+// UserAccountStream contains a key to maintain an authorised
+// websocket connection
+type UserAccountStream struct {
+	ListenKey string `json:"listenKey"`
+}
+
+type wsAccountInfo struct {
+	CanDeposit       bool    `json:"D"`
+	CanTrade         bool    `json:"T"`
+	CanWithdraw      bool    `json:"W"`
+	EventTime        int64   `json:"E"`
+	LastUpdated      int64   `json:"u"`
+	BuyerCommission  float64 `json:"b"`
+	MakerCommission  float64 `json:"m"`
+	SellerCommission float64 `json:"s"`
+	TakerCommission  float64 `json:"t"`
+	EventType        string  `json:"e"`
+	Currencies       []struct {
+		Asset     string  `json:"a"`
+		Available float64 `json:"f,string"`
+		Locked    float64 `json:"l,string"`
+	} `json:"B"`
+}
+
+type wsAccountPosition struct {
+	Currencies []struct {
+		Asset     string  `json:"a"`
+		Available float64 `json:"f,string"`
+		Locked    float64 `json:"l,string"`
+	} `json:"B"`
+	EventTime   int64  `json:"E"`
+	LastUpdated int64  `json:"u"`
+	EventType   string `json:"e"`
+}
+
+type wsBalanceUpdate struct {
+	EventTime    int64   `json:"E"`
+	ClearTime    int64   `json:"T"`
+	BalanceDelta float64 `json:"d,string"`
+	Asset        string  `json:"a"`
+	EventType    string  `json:"e"`
+}
+
+type wsOrderUpdate struct {
+	ClientOrderID                     string  `json:"C"`
+	EventTime                         int64   `json:"E"`
+	IcebergQuantity                   float64 `json:"F,string"`
+	LastExecutedPrice                 float64 `json:"L,string"`
+	CommissionAsset                   float64 `json:"N"`
+	OrderCreationTime                 int64   `json:"O"`
+	StopPrice                         float64 `json:"P,string"`
+	QuoteOrderQuantity                float64 `json:"Q,string"`
+	Side                              string  `json:"S"`
+	TransactionTime                   int64   `json:"T"`
+	OrderStatus                       string  `json:"X"`
+	LastQuoteAssetTransactedQuantity  float64 `json:"Y,string"`
+	CumulativeQuoteTransactedQuantity float64 `json:"Z,string"`
+	CancelledClientOrderID            string  `json:"c"`
+	EventType                         string  `json:"e"`
+	TimeInForce                       string  `json:"f"`
+	OrderListID                       int64   `json:"g"`
+	OrderID                           int64   `json:"i"`
+	LastExecutedQuantity              float64 `json:"l,string"`
+	IsMaker                           bool    `json:"m"`
+	Commission                        float64 `json:"n,string"`
+	OrderType                         string  `json:"o"`
+	Price                             float64 `json:"p,string"`
+	Quantity                          float64 `json:"q,string"`
+	RejectionReason                   string  `json:"r"`
+	Symbol                            string  `json:"s"`
+	TradeID                           int64   `json:"t"`
+	IsOnOrderBook                     bool    `json:"w"`
+	CurrentExecutionType              string  `json:"x"`
+	CumulativeFilledQuantity          float64 `json:"z,string"`
+}
+
+type wsListStauts struct {
+	ListClientOrderID string `json:"C"`
+	EventTime         int64  `json:"E"`
+	ListOrderStatus   string `json:"L"`
+	Orders            []struct {
+		ClientOrderID string `json:"c"`
+		OrderID       int64  `json:"i"`
+		Symbol        string `json:"s"`
+	} `json:"O"`
+	TransactionTime int64  `json:"T"`
+	ContingencyType string `json:"c"`
+	EventType       string `json:"e"`
+	OrderListID     int64  `json:"g"`
+	ListStatusType  string `json:"l"`
+	RejectionReason string `json:"r"`
+	Symbol          string `json:"s"`
 }

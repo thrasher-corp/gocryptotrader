@@ -14,12 +14,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/urfave/cli"
 )
-
-const timeFormat = "2006-01-02 15:04:05"
 
 var startTime, endTime, order string
 var limit int
@@ -2462,13 +2461,13 @@ var withdrawalRequestCommand = cli.Command{
 				cli.StringFlag{
 					Name:        "start",
 					Usage:       "<start>",
-					Value:       time.Now().AddDate(0, -1, 0).Format(timeFormat),
+					Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
 					Destination: &startTime,
 				},
 				cli.StringFlag{
 					Name:        "end",
 					Usage:       "<end>",
-					Value:       time.Now().Format(timeFormat),
+					Value:       time.Now().Format(common.SimpleTimeFormat),
 					Destination: &endTime,
 				},
 				cli.Int64Flag{
@@ -2621,12 +2620,12 @@ func withdrawlRequestByDate(c *cli.Context) error {
 		limit = limitStr
 	}
 
-	s, err := time.Parse(timeFormat, startTime)
+	s, err := time.Parse(common.SimpleTimeFormat, startTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
 
-	e, err := time.Parse(timeFormat, endTime)
+	e, err := time.Parse(common.SimpleTimeFormat, endTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -2648,8 +2647,8 @@ func withdrawlRequestByDate(c *cli.Context) error {
 	result, err := client.WithdrawalEventsByDate(context.Background(),
 		&gctrpc.WithdrawalEventsByDateRequest{
 			Exchange: exchange,
-			Start:    s.In(loc).Format(timeFormat),
-			End:      e.In(loc).Format(timeFormat),
+			Start:    s.In(loc).Format(common.SimpleTimeFormat),
+			End:      e.In(loc).Format(common.SimpleTimeFormat),
 			Limit:    int32(limit),
 		},
 	)
@@ -3433,13 +3432,13 @@ var getAuditEventCommand = cli.Command{
 		cli.StringFlag{
 			Name:        "start, s",
 			Usage:       "start date to search",
-			Value:       time.Now().Add(-time.Hour).Format(timeFormat),
+			Value:       time.Now().Add(-time.Hour).Format(common.SimpleTimeFormat),
 			Destination: &startTime,
 		},
 		cli.StringFlag{
 			Name:        "end, e",
 			Usage:       "end time to search",
-			Value:       time.Now().Format(timeFormat),
+			Value:       time.Now().Format(common.SimpleTimeFormat),
 			Destination: &endTime,
 		},
 		cli.StringFlag{
@@ -3485,12 +3484,12 @@ func getAuditEvent(c *cli.Context) error {
 		}
 	}
 
-	s, err := time.Parse(timeFormat, startTime)
+	s, err := time.Parse(common.SimpleTimeFormat, startTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %v", err)
 	}
 
-	e, err := time.Parse(timeFormat, endTime)
+	e, err := time.Parse(common.SimpleTimeFormat, endTime)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
@@ -3513,8 +3512,8 @@ func getAuditEvent(c *cli.Context) error {
 
 	result, err := client.GetAuditEvent(context.Background(),
 		&gctrpc.GetAuditEventRequest{
-			StartDate: s.In(loc).Format(timeFormat),
-			EndDate:   e.In(loc).Format(timeFormat),
+			StartDate: s.In(loc).Format(common.SimpleTimeFormat),
+			EndDate:   e.In(loc).Format(common.SimpleTimeFormat),
 			Limit:     int32(limit),
 			OrderBy:   order,
 			Offset:    int32(offset),

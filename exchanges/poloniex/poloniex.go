@@ -47,8 +47,6 @@ const (
 	poloniexActiveLoans          = "returnActiveLoans"
 	poloniexLendingHistory       = "returnLendingHistory"
 	poloniexAutoRenew            = "toggleAutoRenew"
-
-	poloniexDateLayout = "2006-01-02 15:04:05"
 )
 
 // Poloniex is the overarching type across the poloniex package

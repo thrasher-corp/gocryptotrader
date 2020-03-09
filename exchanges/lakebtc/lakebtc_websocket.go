@@ -147,15 +147,22 @@ func (l *LakeBTC) processTrades(data, channel string) error {
 	}
 	curr := l.getCurrencyFromChannel(channel)
 	for i := range tradeData.Trades {
+		tSide, err := order.StringToOrderSide(tradeData.Trades[i].Type)
+		if err != nil {
+			l.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: l.Name,
+				Err:      err,
+			}
+		}
 		l.Websocket.DataHandler <- wshandler.TradeData{
 			Timestamp:    time.Unix(tradeData.Trades[i].Date, 0),
 			CurrencyPair: curr,
 			AssetType:    asset.Spot,
 			Exchange:     l.Name,
-			EventType:    asset.Spot.String(),
+			EventType:    order.UnknownType,
 			Price:        tradeData.Trades[i].Price,
 			Amount:       tradeData.Trades[i].Amount,
-			Side:         tradeData.Trades[i].Type,
+			Side:         tSide,
 		}
 	}
 	return nil

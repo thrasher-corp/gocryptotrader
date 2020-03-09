@@ -2611,6 +2611,16 @@
         "open_volume": {
           "type": "number",
           "format": "double"
+        },
+        "fee": {
+          "type": "number",
+          "format": "double"
+        },
+        "trades": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcTradeHistory"
+          }
         }
       }
     },
@@ -2898,6 +2908,39 @@
           "items": {
             "$ref": "#/definitions/gctrpcTickerResponse"
           }
+        }
+      }
+    },
+    "gctrpcTradeHistory": {
+      "type": "object",
+      "properties": {
+        "creation_time": {
+          "type": "string",
+          "format": "int64"
+        },
+        "id": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number",
+          "format": "double"
+        },
+        "amount": {
+          "type": "number",
+          "format": "double"
+        },
+        "exchange": {
+          "type": "string"
+        },
+        "asset_type": {
+          "type": "string"
+        },
+        "order_side": {
+          "type": "string"
+        },
+        "fee": {
+          "type": "number",
+          "format": "double"
         }
       }
     },

@@ -6,45 +6,29 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 )
 
-var testSetup = false
-
-func SetupTest(t *testing.T) {
-	if !testSetup {
-		var err error
-		Bot, err = New()
-		if err != nil {
-			t.Fatal(err)
-		}
-		testSetup = true
-	}
-
-	if GetExchangeByName(testExchange) != nil {
-		return
-	}
-	err := LoadExchange(testExchange, false, nil)
-	if err != nil {
-		t.Errorf("SetupTest: Failed to load exchange: %s", err)
-	}
-}
-
 func CleanupTest(t *testing.T) {
-	if GetExchangeByName(testExchange) == nil {
-		return
+	if GetExchangeByName(testExchange) != nil {
+		err := UnloadExchange(testExchange)
+		if err != nil {
+			t.Fatalf("CleanupTest: Failed to unload exchange: %s",
+				err)
+		}
 	}
-
-	err := UnloadExchange(testExchange)
-	if err != nil {
-		t.Fatalf("CleanupTest: Failed to unload exchange: %s",
-			err)
+	if GetExchangeByName(fakePassExchange) != nil {
+		err := UnloadExchange(fakePassExchange)
+		if err != nil {
+			t.Fatalf("CleanupTest: Failed to unload exchange: %s",
+				err)
+		}
 	}
 }
 
 func TestExchangeManagerAdd(t *testing.T) {
 	t.Parallel()
 	var e exchangeManager
-	bitfinex := new(bitfinex.Bitfinex)
-	bitfinex.SetDefaults()
-	e.add(bitfinex)
+	b := new(bitfinex.Bitfinex)
+	b.SetDefaults()
+	e.add(b)
 	if exch := e.getExchanges(); exch[0].GetName() != "Bitfinex" {
 		t.Error("unexpected exchange name")
 	}
@@ -56,9 +40,9 @@ func TestExchangeManagerGetExchanges(t *testing.T) {
 	if exchanges := e.getExchanges(); exchanges != nil {
 		t.Error("unexpected value")
 	}
-	bitfinex := new(bitfinex.Bitfinex)
-	bitfinex.SetDefaults()
-	e.add(bitfinex)
+	b := new(bitfinex.Bitfinex)
+	b.SetDefaults()
+	e.add(b)
 	if exch := e.getExchanges(); exch[0].GetName() != "Bitfinex" {
 		t.Error("unexpected exchange name")
 	}
@@ -70,9 +54,9 @@ func TestExchangeManagerRemoveExchange(t *testing.T) {
 	if err := e.removeExchange("Bitfinex"); err != ErrNoExchangesLoaded {
 		t.Error("no exchanges should be loaded")
 	}
-	bitfinex := new(bitfinex.Bitfinex)
-	bitfinex.SetDefaults()
-	e.add(bitfinex)
+	b := new(bitfinex.Bitfinex)
+	b.SetDefaults()
+	e.add(b)
 	if err := e.removeExchange(testExchange); err != ErrExchangeNotFound {
 		t.Error("Bitstamp exchange should return an error")
 	}
@@ -85,7 +69,7 @@ func TestExchangeManagerRemoveExchange(t *testing.T) {
 }
 
 func TestCheckExchangeExists(t *testing.T) {
-	SetupTest(t)
+	SetupTestHelpers(t)
 
 	if GetExchangeByName(testExchange) == nil {
 		t.Errorf("TestGetExchangeExists: Unable to find exchange")
@@ -99,7 +83,7 @@ func TestCheckExchangeExists(t *testing.T) {
 }
 
 func TestGetExchangeByName(t *testing.T) {
-	SetupTest(t)
+	SetupTestHelpers(t)
 
 	exch := GetExchangeByName(testExchange)
 	if exch == nil {
@@ -129,7 +113,7 @@ func TestGetExchangeByName(t *testing.T) {
 }
 
 func TestUnloadExchange(t *testing.T) {
-	SetupTest(t)
+	SetupTestHelpers(t)
 
 	err := UnloadExchange("asdf")
 	if err.Error() != "exchange asdf not found" {
@@ -143,6 +127,12 @@ func TestUnloadExchange(t *testing.T) {
 			err)
 	}
 
+	err = UnloadExchange(fakePassExchange)
+	if err != nil {
+		t.Errorf("TestUnloadExchange: Failed to unload exchange. %s",
+			err)
+	}
+
 	err = UnloadExchange(testExchange)
 	if err != ErrNoExchangesLoaded {
 		t.Errorf("TestUnloadExchange: Incorrect result: %s",
@@ -153,7 +143,7 @@ func TestUnloadExchange(t *testing.T) {
 }
 
 func TestDryRunParamInteraction(t *testing.T) {
-	SetupTest(t)
+	SetupTestHelpers(t)
 
 	// Load bot as per normal, dry run and verbose for Bitfinex should be
 	// disabled

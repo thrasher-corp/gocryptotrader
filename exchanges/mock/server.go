@@ -123,7 +123,7 @@ func RegisterHandler(pattern string, mock map[string][]HTTPResponse, mux *http.S
 			MessageWriteJSON(w, http.StatusOK, payload)
 			return
 
-		case http.MethodPost:
+		case http.MethodPost, http.MethodPut:
 			switch r.Header.Get(contentType) {
 			case applicationURLEncoded:
 				readBody, err := ioutil.ReadAll(r.Body)

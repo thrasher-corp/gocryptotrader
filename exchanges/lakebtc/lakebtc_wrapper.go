@@ -348,7 +348,7 @@ func (l *LakeBTC) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
-	isBuyOrder := s.OrderSide == order.Buy
+	isBuyOrder := s.Side == order.Buy
 	response, err := l.Trade(isBuyOrder, s.Amount, s.Price,
 		s.Pair.Lower().String())
 	if err != nil {
@@ -359,7 +359,7 @@ func (l *LakeBTC) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 
 	submitOrderResponse.IsOrderPlaced = true
-	if s.OrderType == order.Market {
+	if s.Type == order.Market {
 		submitOrderResponse.FullyMatched = true
 	}
 	return submitOrderResponse, nil
@@ -373,7 +373,7 @@ func (l *LakeBTC) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (l *LakeBTC) CancelOrder(order *order.Cancel) error {
-	orderIDInt, err := strconv.ParseInt(order.OrderID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
 
 	if err != nil {
 		return err
@@ -477,19 +477,19 @@ func (l *LakeBTC) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 		side := order.Side(strings.ToUpper(resp[i].Type))
 
 		orders = append(orders, order.Detail{
-			Amount:       resp[i].Amount,
-			ID:           strconv.FormatInt(resp[i].ID, 10),
-			Price:        resp[i].Price,
-			OrderSide:    side,
-			OrderDate:    orderDate,
-			CurrencyPair: symbol,
-			Exchange:     l.Name,
+			Amount:   resp[i].Amount,
+			ID:       strconv.FormatInt(resp[i].ID, 10),
+			Price:    resp[i].Price,
+			Side:     side,
+			Date:     orderDate,
+			Pair:     symbol,
+			Exchange: l.Name,
 		})
 	}
 
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersBySide(&orders, req.OrderSide)
-	order.FilterOrdersByCurrencies(&orders, req.Currencies)
+	order.FilterOrdersBySide(&orders, req.Side)
+	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 
 	return orders, nil
 }
@@ -514,19 +514,19 @@ func (l *LakeBTC) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 		side := order.Side(strings.ToUpper(resp[i].Type))
 
 		orders = append(orders, order.Detail{
-			Amount:       resp[i].Amount,
-			ID:           strconv.FormatInt(resp[i].ID, 10),
-			Price:        resp[i].Price,
-			OrderSide:    side,
-			OrderDate:    orderDate,
-			CurrencyPair: symbol,
-			Exchange:     l.Name,
+			Amount:   resp[i].Amount,
+			ID:       strconv.FormatInt(resp[i].ID, 10),
+			Price:    resp[i].Price,
+			Side:     side,
+			Date:     orderDate,
+			Pair:     symbol,
+			Exchange: l.Name,
 		})
 	}
 
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersBySide(&orders, req.OrderSide)
-	order.FilterOrdersByCurrencies(&orders, req.Currencies)
+	order.FilterOrdersBySide(&orders, req.Side)
+	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 
 	return orders, nil
 }

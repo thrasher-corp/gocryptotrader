@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	exchangeName  = "BTC Markets"
 	bankAccountID = "test-bank-01"
 )
 
@@ -30,14 +29,6 @@ var (
 	}
 )
 
-func setupEngine() (err error) {
-	Bot, err = NewFromSettings(&settings)
-	if err != nil {
-		return err
-	}
-	return Bot.Start()
-}
-
 func cleanup() {
 	err := os.RemoveAll(settings.DataDir)
 	if err != nil {
@@ -46,11 +37,7 @@ func cleanup() {
 }
 
 func TestSubmitWithdrawal(t *testing.T) {
-	err := setupEngine()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	SetupTestHelpers(t)
 	banking.Accounts = append(banking.Accounts,
 		banking.Account{
 			Enabled:             true,
@@ -66,7 +53,7 @@ func TestSubmitWithdrawal(t *testing.T) {
 			SWIFTCode:           "91272837",
 			IBAN:                "98218738671897",
 			SupportedCurrencies: "AUD,USD",
-			SupportedExchanges:  exchangeName,
+			SupportedExchanges:  testExchange,
 		},
 	)
 
@@ -75,9 +62,9 @@ func TestSubmitWithdrawal(t *testing.T) {
 		t.Fatal(err)
 	}
 	req := &withdraw.Request{
-		Exchange:    exchangeName,
+		Exchange:    testExchange,
 		Currency:    currency.AUD,
-		Description: exchangeName,
+		Description: testExchange,
 		Amount:      1.0,
 		Type:        1,
 		Fiat: &withdraw.FiatRequest{
@@ -85,12 +72,12 @@ func TestSubmitWithdrawal(t *testing.T) {
 		},
 	}
 
-	_, err = SubmitWithdrawal(exchangeName, req)
+	_, err = SubmitWithdrawal(testExchange, req)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = SubmitWithdrawal(exchangeName, nil)
+	_, err = SubmitWithdrawal(testExchange, nil)
 	if err != nil {
 		if err.Error() != withdraw.ErrRequestCannotBeNil.Error() {
 			t.Fatal(err)
@@ -122,21 +109,21 @@ func TestWithdrawEventByID(t *testing.T) {
 }
 
 func TestWithdrawalEventByExchange(t *testing.T) {
-	_, err := WithdrawalEventByExchange(exchangeName, 1)
+	_, err := WithdrawalEventByExchange(testExchange, 1)
 	if err == nil {
 		t.Fatal(err)
 	}
 }
 
 func TestWithdrawEventByDate(t *testing.T) {
-	_, err := WithdrawEventByDate(exchangeName, time.Now(), time.Now(), 1)
+	_, err := WithdrawEventByDate(testExchange, time.Now(), time.Now(), 1)
 	if err == nil {
 		t.Fatal(err)
 	}
 }
 
 func TestWithdrawalEventByExchangeID(t *testing.T) {
-	_, err := WithdrawalEventByExchangeID(exchangeName, exchangeName)
+	_, err := WithdrawalEventByExchangeID(testExchange, testExchange)
 	if err == nil {
 		t.Fatal(err)
 	}
