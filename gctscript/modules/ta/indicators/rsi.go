@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
+// RsiModule relative strength index indicator commands
 var RsiModule = map[string]objects.Object{
 	"rsi": &objects.UserFunction{Name: "rsi", Value: rsi},
 }

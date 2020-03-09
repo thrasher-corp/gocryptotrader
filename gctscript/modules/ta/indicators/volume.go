@@ -5,6 +5,7 @@ import (
 	"github.com/thrasher-corp/go-talib/indicators"
 )
 
+// VolumeModule volume indicator commands
 var VolumeModule = map[string]objects.Object{
 	"obv": &objects.UserFunction{Name: "obv", Value: obv},
 }

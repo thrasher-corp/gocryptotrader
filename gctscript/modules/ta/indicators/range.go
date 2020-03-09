@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
+// RangeModule range indicator commands
 var RangeModule = map[string]objects.Object{
 	"atr": &objects.UserFunction{Name: "atr", Value: atr},
 }
@@ -16,7 +17,6 @@ func atr(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 4 {
 		return nil, objects.ErrWrongNumArguments
 	}
-
 
 	ohlcData := objects.ToInterface(args[0])
 	tempOHLCSlice, err := appendData(ohlcData.([]interface{}))

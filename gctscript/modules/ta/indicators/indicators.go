@@ -6,22 +6,20 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
-func appendData(data []interface{}) ([]float64, error) {
-	var appendTo []float64
-
+func appendData(data []interface{}) (appendTo []float64, err error) {
 	for x := range data {
-		switch data[x].(type) {
+		switch d := data[x].(type) {
 		case float64:
-			appendTo = append(appendTo, data[x].(float64))
+			appendTo = append(appendTo, d)
 		case int64:
-			appendTo = append(appendTo, float64(data[x].(int64)))
+			appendTo = append(appendTo, float64(d))
 		case int:
-			appendTo = append(appendTo, float64(data[x].(int)))
+			appendTo = append(appendTo, float64(d))
 		case int32:
-			appendTo = append(appendTo, float64(data[x].(int32)))
+			appendTo = append(appendTo, float64(d))
 		default:
-			return nil, fmt.Errorf(modules.ErrParameterWithPositionConvertFailed, data[x], x)
+			return nil, fmt.Errorf(modules.ErrParameterWithPositionConvertFailed, d, x)
 		}
 	}
-	return appendTo, nil
+	return
 }

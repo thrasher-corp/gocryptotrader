@@ -8,13 +8,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
+// MovingAverageModule moving average indicator commands
 var MovingAverageModule = map[string]objects.Object{
 	"macd": &objects.UserFunction{Name: "macd", Value: macd},
 	"ema":  &objects.UserFunction{Name: "ema", Value: ema},
 	"sma":  &objects.UserFunction{Name: "sma", Value: sma},
 }
-
-
 
 func macd(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 4 {
