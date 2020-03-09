@@ -168,6 +168,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [daniel-cohen](https://github.com/daniel-cohen) | 1 |
 | [merkeld](https://github.com/merkeld) | 1 |
 | [DirectX](https://github.com/DirectX) | 1 |
+| [frankzougc](https://github.com/frankzougc) | 1 |
 | [idoall](https://github.com/idoall) | 1 |
 | [mattkanwisher](https://github.com/mattkanwisher) | 1 |
 | [mKurrels](https://github.com/mKurrels) | 1 |
