@@ -220,6 +220,8 @@ github.com/thrasher-corp/go-talib v0.0.0-20190307022042-cd53a9264d70 h1:xnYG63+j
 github.com/thrasher-corp/go-talib v0.0.0-20190307022042-cd53a9264d70/go.mod h1:zQPGdHGCqI1szRVy2u/jvBJj7ry7FPW+OH1ZzSm66hY=
 github.com/thrasher-corp/go-talib v0.0.0-20200309045235-2e00ec869409 h1:KcknDELYZIiG1En6rnAnu2hq0PNeqzlJTuZpPmt8Eq8=
 github.com/thrasher-corp/go-talib v0.0.0-20200309045235-2e00ec869409/go.mod h1:jwTxzL6Ut3hbFyiMQWpPSvFBTyqIXFgDntD93A5pCiI=
+github.com/thrasher-corp/go-talib v0.0.0-20200310034222-5247764b720a h1:9puQih8t4Tngz6i5JfMgEoqLtanChrWaUlLMM3ZqoDI=
+github.com/thrasher-corp/go-talib v0.0.0-20200310034222-5247764b720a/go.mod h1:jwTxzL6Ut3hbFyiMQWpPSvFBTyqIXFgDntD93A5pCiI=
 github.com/thrasher-corp/goose v2.7.0-rc4.0.20191002032028-0f2c2a27abdb+incompatible h1:SPqQlzFu3g4P9wK2iwJaWVLJWcQ5rYc43rvXBJ8RSCY=
 github.com/thrasher-corp/goose v2.7.0-rc4.0.20191002032028-0f2c2a27abdb+incompatible/go.mod h1:2Bb/y0SpnUWOlPU5kDz+ctvb3w/mzuAVqxy7JPfBzgw=
 github.com/thrasher-corp/sqlboiler v1.0.0 h1:cijoO75SYpuIP92Hd8WmliMu7Fskf6hEyqt92Zx1/JI=
