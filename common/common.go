@@ -154,6 +154,15 @@ func YesOrNo(input string) bool {
 // SendHTTPRequest sends a request using the http package and returns a response
 // as a string and an error
 func SendHTTPRequest(method, urlPath string, headers map[string]string, body io.Reader) (string, error) {
+	result := strings.ToUpper(method)
+
+	if result != http.MethodOptions && result != http.MethodGet &&
+		result != http.MethodHead && result != http.MethodPost &&
+		result != http.MethodPut && result != http.MethodDelete &&
+		result != http.MethodTrace && result != http.MethodConnect {
+		return "", errors.New("invalid HTTP method specified")
+	}
+
 	initialiseHTTPClient()
 
 	req, err := http.NewRequest(method, urlPath, body)
