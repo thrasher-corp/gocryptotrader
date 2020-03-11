@@ -904,6 +904,8 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 		ID:            r.OrderId,
 		Side:          order.Side(r.Side),
 		WalletAddress: r.WalletAddress,
+		Pair : r.Pair,
+
 	})
 
 	return &gctrpc.CancelOrderResponse{}, err
