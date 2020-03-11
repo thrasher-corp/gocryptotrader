@@ -76,12 +76,12 @@ func CreateKline(trades []order.TradeHistory, interval time.Duration, p currency
 			continue
 		}
 
-		var newCandle Candle
+		var newCandle = Candle{
+			Open: timeIntervalCache[x][0].Price,
+			Time: candleStart[x],
+		}
+
 		for y := range timeIntervalCache[x] {
-			if y == 0 {
-				newCandle.Open = timeIntervalCache[x][y].Price
-				newCandle.Time = candleStart[x]
-			}
 			if y == len(timeIntervalCache[x])-1 {
 				newCandle.Close = timeIntervalCache[x][y].Price
 				closePriceOfLast = timeIntervalCache[x][y].Price
