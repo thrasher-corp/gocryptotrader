@@ -804,6 +804,7 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		Amount:   r.Amount,
 		Price:    r.Price,
 		ClientID: r.ClientId,
+		Exchange: r.Exchange,
 	})
 
 	if err != nil {
