@@ -806,10 +806,10 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		ClientID: r.ClientId,
 	})
 
-	if err == nil {
+	if err != nil {
 		return &gctrpc.SubmitOrderResponse{}, err
 	}
-	
+
 	return &gctrpc.SubmitOrderResponse{
 		OrderId:     resp.OrderID,
 		OrderPlaced: resp.IsOrderPlaced,
