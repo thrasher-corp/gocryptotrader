@@ -805,6 +805,11 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		Price:    r.Price,
 		ClientID: r.ClientId,
 	})
+
+	if err == nil {
+		return &gctrpc.SubmitOrderResponse{}, err
+	}
+	
 	return &gctrpc.SubmitOrderResponse{
 		OrderId:     resp.OrderID,
 		OrderPlaced: resp.IsOrderPlaced,
