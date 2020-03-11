@@ -722,7 +722,7 @@ func checkInterval(i time.Duration) (int64, error) {
 	case 86400:
 		return 86400, nil
 	}
-	return 0, fmt.Errorf("interval not allowed %v %v", i.Seconds(), i)
+	return 0, fmt.Errorf("interval not allowed %v", i.Seconds())
 }
 
 // GetHistoricCandles returns a set of candle between two time periods for a
