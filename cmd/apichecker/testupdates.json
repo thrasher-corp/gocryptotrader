@@ -37,7 +37,7 @@
      "TextTokenData": "strong",
      "DateFormat": "01/02/06",
      "RegExp": "^(\\d){1,2}/(\\d){1,2}/(\\d){2}$",
-     "CheckString": "2/10/20",
+     "CheckString": "2/20/20",
      "Path": "https://docs.pro.coinbase.com/#changelog"
     }
    },
@@ -49,7 +49,7 @@
    "Data": {
     "GitHubData": {
      "Repo": "binance-exchange/binance-official-api-docs",
-     "Sha": "5176ea0857cb327594783388a4306748a4e1e556"
+     "Sha": "58d1858922b324aaa43bbb4a43f036a4b5b4e636"
     }
    },
    "Err": null
@@ -82,7 +82,7 @@
    "Data": {
     "GitHubData": {
      "Repo": "Coinbene/API-SPOT-v2-Documents",
-     "Sha": "f8b446cc2c98b1059d7e5e706bd90868749b94fe"
+     "Sha": "a530a10df57499f67addc313f664b29279a170bd"
     }
    },
    "Err": null
@@ -93,7 +93,7 @@
    "Data": {
     "GitHubData": {
      "Repo": "Coinbene/API-SWAP-Documents",
-     "Sha": "f11012ea36c21959499f2143cb4d123d84655eed"
+     "Sha": "dd1827e27bf257de33535369be83af80a5037ebf"
     }
    },
    "Err": null
@@ -189,7 +189,7 @@
      "TextTokenData": "h2",
      "DateFormat": "2006-01-02",
      "RegExp": "(2\\d{3}-\\d{1,2}-\\d{1,2})",
-     "CheckString": "2020-02-13",
+     "CheckString": "2020-03-05",
      "Path": "https://docs.poloniex.com/#changelog"
     }
    },
@@ -279,7 +279,6 @@
      "TokenDataEnd": "h2",
      "TextTokenData": "h1",
      "RegExp": "APIv\\d{1}",
-     "CheckString": "APIv2",
      "Path": "https://www.lakebtc.com/s/api_v2"
     }
    },
@@ -368,7 +367,7 @@
      "Key": "class",
      "Val": "col-md-12",
      "RegExp": "col-md-12([\\s\\S]*?)clearfix",
-     "CheckString": "08e15a735912740f4adf0ab2e13d3a9bd3f61b2d0bee20b1ce0651579f0e509b",
+     "CheckString": "37a144dc619776b87c098da5a88bef7fed6c8a7cea2d4b9a38c96750726c93ff",
      "Path": "https://localbitcoins.com/api-docs/"
     }
    },
@@ -418,7 +417,7 @@
      "TextTokenData": "td",
      "DateFormat": "2006/01/02",
      "RegExp": "^20(\\d){2}/(\\d){2}/(\\d){2}$",
-     "CheckString": "2019/11/18",
+     "CheckString": "2020/03/05",
      "Path": "https://docs.gemini.com/rest-api/#revision-history"
     }
    },

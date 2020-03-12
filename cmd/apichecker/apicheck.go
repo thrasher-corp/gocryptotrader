@@ -145,9 +145,10 @@ func main() {
 			}
 		}
 	}
+	var a string
 	if canUpdateTrello() || create {
 		if trelloBoardName != "" {
-			a, err := trelloGetBoardID()
+			a, err = trelloGetBoardID()
 			if err != nil {
 				log.Error(log.Global, err)
 				os.Exit(1)
@@ -165,8 +166,6 @@ func main() {
 					}
 				}
 			}
-		}
-		if canUpdateTrello() {
 		}
 		err = updateFile(backupFile)
 		if err != nil {
