@@ -1303,19 +1303,22 @@ func nameStateChanges(currentName, currentState string) (string, error) {
 	exists := false
 	var num int64
 	var err error
-	if strings.Contains(currentName, " ") {
-		exists = true
-		switch currentName {
-		case btcMarkets, okcoin:
-			name = fmt.Sprintf("%s %s", strings.Split(currentName, " ")[0], strings.Split(currentName, " ")[1])
-			if !exists {
-				return fmt.Sprintf("%s 1", name), nil
-			}
-			num, err = strconv.ParseInt(strings.Split(currentName, " ")[2], 10, 64)
-			if err != nil {
-				return "", err
-			}
-		default:
+	switch currentName {
+	case btcMarkets, okcoin:
+		if strings.Count(currentName, " ") == 2 {
+			exists = true
+		}
+		name = fmt.Sprintf("%s %s", strings.Split(currentName, " ")[0], strings.Split(currentName, " ")[1])
+		if !exists {
+			return fmt.Sprintf("%s 1", name), nil
+		}
+		num, err = strconv.ParseInt(strings.Split(currentName, " ")[2], 10, 64)
+		if err != nil {
+			return "", err
+		}
+	default:
+		if strings.Contains(currentName, " ") {
+			exists = true
 			name = strings.Split(currentName, " ")[0]
 			if !exists {
 				return fmt.Sprintf("%s 1", name), nil
@@ -1324,6 +1327,9 @@ func nameStateChanges(currentName, currentState string) (string, error) {
 			if err != nil {
 				return "", err
 			}
+		}
+		if !exists {
+			return fmt.Sprintf("%s 1", name), nil
 		}
 	}
 
