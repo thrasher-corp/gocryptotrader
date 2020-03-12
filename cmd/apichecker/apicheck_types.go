@@ -10,7 +10,7 @@ type ExchangeInfo struct {
 	Name      string
 	CheckType string
 	Data      *CheckData `json:",omitempty"`
-	Err       error
+	Disabled  bool
 }
 
 // CheckData is the necessary data required for checking updates

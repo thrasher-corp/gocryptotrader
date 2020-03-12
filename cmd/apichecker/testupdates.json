@@ -23,7 +23,7 @@
      "Path": "https://huobiapi.github.io/docs/spot/v1/en/#change-log"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "Coinbasepro",
@@ -41,7 +41,7 @@
      "Path": "https://docs.pro.coinbase.com/#changelog"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "Binance",
@@ -52,7 +52,7 @@
      "Sha": "58d1858922b324aaa43bbb4a43f036a4b5b4e636"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "Bithumb",
@@ -63,7 +63,7 @@
      "Sha": "c19789841432d91fd833e2530298197bd34c8c69"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "Bittrex",
@@ -74,7 +74,7 @@
      "Sha": "fc1ea9c10c48aa82c4dc2c6be74887ef61b5b31b"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "CoinbeneSpot",
@@ -85,7 +85,7 @@
      "Sha": "a530a10df57499f67addc313f664b29279a170bd"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "CoinbeneSwap",
@@ -96,7 +96,7 @@
      "Sha": "dd1827e27bf257de33535369be83af80a5037ebf"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "Coinut",
@@ -107,7 +107,7 @@
      "Sha": "6936dab4d2beba3c8245a603aebf3f545ebcf3f9"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "Gateio",
@@ -118,7 +118,7 @@
      "Sha": "5a6c4c73eb1d558ab2fbecf10c990e360883a080"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "Lbank",
@@ -129,7 +129,7 @@
      "Sha": "85e7bb83f03d4239c3aad26cabb997a1a2bbb3d1"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "BTSE",
@@ -146,7 +146,7 @@
      "Path": "https://www.btse.com/apiexplorer/spot/#btse-spot-api"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "Bitfinex",
@@ -163,7 +163,7 @@
      "Path": "https://docs.bitfinex.com/docs/changelog"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "ANX",
@@ -175,7 +175,7 @@
      "Path": "https://anxv3.docs.apiary.io/"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "Poloniex",
@@ -193,7 +193,7 @@
      "Path": "https://docs.poloniex.com/#changelog"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "ItBit",
@@ -207,7 +207,7 @@
      "Path": "https://api.itbit.com/docs"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "Bitmex",
@@ -222,7 +222,7 @@
      "Path": "https://www.bitmex.com/static/md/en-US/apiChangelog"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "HitBTC",
@@ -239,7 +239,7 @@
      "Path": "https://api.hitbtc.com/"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "BTC Markets",
@@ -251,7 +251,7 @@
      "Path": "https://api.btcmarkets.net/openapi/info/index.yaml"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "Bitflyer",
@@ -266,7 +266,7 @@
      "Path": "https://lightning.bitflyer.com/docs?lang=en"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "LakeBTC",
@@ -279,10 +279,11 @@
      "TokenDataEnd": "h2",
      "TextTokenData": "h1",
      "RegExp": "APIv\\d{1}",
+     "CheckString": "de2491b95ef1f6ea334247b13f0f14f6816fb5961cc63acc0542b07fc0336dd8",
      "Path": "https://www.lakebtc.com/s/api_v2"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "Exmo",
@@ -294,7 +295,7 @@
      "Path": "https://exmo.com/en/api/"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "Kraken",
@@ -309,7 +310,7 @@
      "Path": "https://www.kraken.com/features/api"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "Bitstamp",
@@ -326,7 +327,7 @@
      "Path": "https://www.bitstamp.net/api/"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "AlphaPoint",
@@ -343,7 +344,7 @@
      "Path": "https://alphapoint.github.io/slate/#introduction"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "Yobit",
@@ -356,7 +357,7 @@
      "Path": "https://www.yobit.net/en/api/"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "LocalBitcoins",
@@ -371,7 +372,7 @@
      "Path": "https://localbitcoins.com/api-docs/"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "OkCoin International",
@@ -387,7 +388,7 @@
      "Path": "https://www.okcoin.com/docs/en/#change-change"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "Okex",
@@ -403,7 +404,7 @@
      "Path": "https://www.okex.com/docs/en/#change-change"
     }
    },
-   "Err": null
+   "Disabled": false
   },
   {
    "Name": "Gemini",
@@ -421,7 +422,7 @@
      "Path": "https://docs.gemini.com/rest-api/#revision-history"
     }
    },
-   "Err": null
+   "Disabled": false
   }
  ]
 }

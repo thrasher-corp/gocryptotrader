@@ -71,7 +71,7 @@ const (
 )
 
 var (
-	verbose, add, enableLakeBTC, create, firstRun                                                                                                                                                                                   bool
+	verbose, add, create, firstRun                                                                                                                                                                                                  bool
 	apiKey, apiToken, newBoardName, trelloBoardID, trelloBoardName, trelloListID, trelloChecklistID, trelloCardID, exchangeName, checkType, tokenData, key, val, tokenDataEnd, textTokenData, dateFormat, regExp, checkString, path string
 	configData, testConfigData, usageData                                                                                                                                                                                           Config
 )
@@ -96,7 +96,6 @@ func main() {
 	flag.StringVar(&path, "path", "", "sets the path for adding a new exchange")
 	flag.BoolVar(&add, "add", false, "used as a trigger to add a new exchange from command line")
 	flag.BoolVar(&verbose, "verbose", false, "increases logging verbosity for API Update Checker")
-	flag.BoolVar(&enableLakeBTC, "enablelakebtc", false, "specifies whether LakeBTC will be checked for API updates")
 	flag.BoolVar(&create, "create", false, "specifies whether to automatically create trello list, card and checklist in a given board")
 	flag.BoolVar(&firstRun, "firstrun", false, "specifies whether its the first time using the application on trello so all the exchanges are added to trello checklist")
 	flag.Parse()
@@ -104,6 +103,7 @@ func main() {
 	c := log.GenDefaultSettings()
 	c.Enabled = convert.BoolPtr(true)
 	log.GlobalLogConfig = &c
+	log.SetupGlobalLogger()
 	configData, err = readFileData(jsonFile)
 	if err != nil {
 		log.Error(log.Global, err)
@@ -324,6 +324,9 @@ func checkUpdates(fileName string) error {
 	var m sync.Mutex
 	allExchangeData := usageData.Exchanges
 	for x := range allExchangeData {
+		if allExchangeData[x].Disabled {
+			continue
+		}
 		wg.Add(1)
 		go func(e ExchangeInfo) {
 			defer wg.Done()
@@ -439,10 +442,6 @@ func checkChangeLog(htmlData *HTMLScrapingData) (string, error) {
 	case pathBitflyer:
 		dataStrings, err = htmlScrapeBitflyer(htmlData)
 	case pathLakeBTC:
-		if !enableLakeBTC {
-			log.Warnf(log.Global, "LakeBTC API check is disabled by default due to IP blacklisting issues. To enable set enableLakeBTC value to true\n")
-			return "", nil
-		}
 		dataStrings, err = htmlScrapeLakeBTC(htmlData)
 	case pathKraken:
 		dataStrings, err = htmlScrapeKraken(htmlData)
@@ -1031,54 +1030,22 @@ loop:
 
 // htmlScrapeLakeBTC gets the check string for LakeBTC Exchange
 func htmlScrapeLakeBTC(htmlData *HTMLScrapingData) ([]string, error) {
-	var resp []string
 	temp, err := http.Get(htmlData.Path)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	tokenizer := html.NewTokenizer(temp.Body)
-loop:
-	for {
-		next := tokenizer.Next()
-		switch next {
-		case html.ErrorToken:
-			break loop
-		case html.StartTagToken:
-			token := tokenizer.Token()
-			if token.Data == htmlData.TokenData {
-				for _, z := range token.Attr {
-					if z.Key == htmlData.Key && z.Val == htmlData.Val {
-					loop2:
-						for {
-							nextToken := tokenizer.Next()
-							switch nextToken {
-							case html.EndTagToken:
-								t := tokenizer.Token()
-								if t.Data == htmlData.TokenDataEnd {
-									break loop2
-								}
-							case html.StartTagToken:
-								t := tokenizer.Token()
-								if t.Data == htmlData.TextTokenData {
-									inner := tokenizer.Next()
-									if inner == html.TextToken {
-										tempStr := string(tokenizer.Text())
-										r, err := regexp.Compile(htmlData.RegExp)
-										if err != nil {
-											return resp, err
-										}
-										if r.MatchString(tempStr) {
-											resp = append(resp, tempStr)
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
+	a, err := ioutil.ReadAll(temp.Body)
+	if err != nil {
+		return nil, err
 	}
+	r, err := regexp.Compile(htmlData.RegExp)
+	if err != nil {
+		return nil, err
+	}
+	str := r.FindString(string(a))
+	sha := crypto.GetSHA256([]byte(str))
+	var resp []string
+	resp = append(resp, crypto.HexEncodeToString(sha))
 	return resp, nil
 }
 
