@@ -425,7 +425,7 @@ type WebsocketSubscriptionData struct {
 type WebsocketEventResponse struct {
 	WebsocketBaseEventRequest
 	Status       string                            `json:"status"`
-	Pair         *currency.Pair                    `json:"pair,omitempty"`
+	Pair         currency.Pair                     `json:"pair,omitempty"`
 	RequestID    int64                             `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
 	Subscription WebsocketSubscriptionResponseData `json:"subscription,omitempty"`
 	ChannelName  string                            `json:"channelName,omitempty"`
@@ -462,7 +462,7 @@ type WebsocketErrorResponse struct {
 // doing
 type WebsocketChannelData struct {
 	Subscription string
-	Pair         *currency.Pair
+	Pair         currency.Pair
 	ChannelID    int64
 }
 

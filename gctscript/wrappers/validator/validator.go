@@ -33,7 +33,7 @@ func (w Wrapper) IsEnabled(exch string) (v bool) {
 }
 
 // Orderbook validator for test execution/scripts
-func (w Wrapper) Orderbook(exch string, pair *currency.Pair, item asset.Item) (*orderbook.Base, error) {
+func (w Wrapper) Orderbook(exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
 	}
@@ -58,7 +58,7 @@ func (w Wrapper) Orderbook(exch string, pair *currency.Pair, item asset.Item) (*
 }
 
 // Ticker validator for test execution/scripts
-func (w Wrapper) Ticker(exch string, pair *currency.Pair, item asset.Item) (*ticker.Price, error) {
+func (w Wrapper) Ticker(exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
 	}

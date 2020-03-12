@@ -247,7 +247,7 @@ type Event struct {
 // ReadData defines read data from the websocket connection
 type ReadData struct {
 	Raw      []byte
-	Currency *currency.Pair
+	Currency currency.Pair
 }
 
 // WsRequestPayload Request info to subscribe to a WS enpoint

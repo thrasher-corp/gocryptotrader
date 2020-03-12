@@ -357,7 +357,7 @@ func (o *OKGroup) WsHandleDataResponse(response *WebsocketDataResponse) {
 		if err != nil {
 			for i := range response.Data {
 				a := o.GetAssetTypeFromTableName(response.Table)
-				var c *currency.Pair
+				var c currency.Pair
 				switch a {
 				case asset.Futures, asset.PerpetualSwap:
 					f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
@@ -401,7 +401,7 @@ func logDataResponse(response *WebsocketDataResponse, exchangeName string) {
 func (o *OKGroup) wsProcessTickers(response *WebsocketDataResponse) {
 	for i := range response.Data {
 		a := o.GetAssetTypeFromTableName(response.Table)
-		var c *currency.Pair
+		var c currency.Pair
 		switch a {
 		case asset.Futures, asset.PerpetualSwap:
 			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
@@ -433,7 +433,7 @@ func (o *OKGroup) wsProcessTickers(response *WebsocketDataResponse) {
 func (o *OKGroup) wsProcessTrades(response *WebsocketDataResponse) {
 	for i := range response.Data {
 		a := o.GetAssetTypeFromTableName(response.Table)
-		var c *currency.Pair
+		var c currency.Pair
 		switch a {
 		case asset.Futures, asset.PerpetualSwap:
 			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
@@ -459,7 +459,7 @@ func (o *OKGroup) wsProcessTrades(response *WebsocketDataResponse) {
 func (o *OKGroup) wsProcessCandles(response *WebsocketDataResponse) {
 	for i := range response.Data {
 		a := o.GetAssetTypeFromTableName(response.Table)
-		var c *currency.Pair
+		var c currency.Pair
 		switch a {
 		case asset.Futures, asset.PerpetualSwap:
 			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
@@ -526,7 +526,7 @@ func (o *OKGroup) wsProcessCandles(response *WebsocketDataResponse) {
 func (o *OKGroup) WsProcessOrderBook(response *WebsocketDataResponse) (err error) {
 	for i := range response.Data {
 		a := o.GetAssetTypeFromTableName(response.Table)
-		var c *currency.Pair
+		var c currency.Pair
 		switch a {
 		case asset.Futures, asset.PerpetualSwap:
 			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
@@ -573,7 +573,7 @@ func (o *OKGroup) AppendWsOrderbookItems(entries [][]interface{}) ([]orderbook.I
 
 // WsProcessPartialOrderBook takes websocket orderbook data and creates an orderbook
 // Calculates checksum to ensure it is valid
-func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, instrument *currency.Pair, a asset.Item) error {
+func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, instrument currency.Pair, a asset.Item) error {
 	signedChecksum := o.CalculatePartialOrderbookChecksum(wsEventData)
 	if signedChecksum != wsEventData.Checksum {
 		return fmt.Errorf("%s channel: %s. Orderbook partial for %v checksum invalid",
@@ -622,7 +622,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketDataWrapper, i
 
 // WsProcessUpdateOrderbook updates an existing orderbook using websocket data
 // After merging WS data, it will sort, validate and finally update the existing orderbook
-func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, instrument *currency.Pair, a asset.Item) error {
+func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketDataWrapper, instrument currency.Pair, a asset.Item) error {
 	update := wsorderbook.WebsocketOrderbookUpdate{
 		Asset:      a,
 		Pair:       instrument,

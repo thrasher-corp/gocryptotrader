@@ -285,7 +285,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 	}
 	for i := range assetTypes {
 		var msg string
-		var p *currency.Pair
+		var p currency.Pair
 		log.Printf("%v %v", base.GetName(), assetTypes[i])
 		if _, ok := base.Config.CurrencyPairs.Pairs[assetTypes[i]]; !ok {
 			continue
@@ -560,7 +560,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		historyRequest := order.GetOrdersRequest{
 			OrderType:  testOrderType,
 			OrderSide:  testOrderSide,
-			Currencies: []*currency.Pair{p},
+			Currencies: []currency.Pair{p},
 		}
 		var r16 []order.Detail
 		r16, err = e.GetOrderHistory(&historyRequest)
@@ -579,7 +579,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		orderRequest := order.GetOrdersRequest{
 			OrderType:  testOrderType,
 			OrderSide:  testOrderSide,
-			Currencies: []*currency.Pair{p},
+			Currencies: []currency.Pair{p},
 		}
 		var r17 []order.Detail
 		r17, err = e.GetActiveOrders(&orderRequest)

@@ -773,7 +773,7 @@ func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) (*Cance
 	}
 	var cancelOrderRequest WsCancelOrdersRequest
 	for i := range cancellations {
-		var curr *currency.Pair
+		var curr currency.Pair
 		curr, err = c.FormatExchangeCurrency(cancellations[i].Currency, asset.Spot)
 		if err != nil {
 			return nil, err
@@ -797,7 +797,7 @@ func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) (*Cance
 	return response, err
 }
 
-func (c *COINUT) wsGetTradeHistory(p *currency.Pair, start, limit int64) (*WsTradeHistoryResponse, error) {
+func (c *COINUT) wsGetTradeHistory(p currency.Pair, start, limit int64) (*WsTradeHistoryResponse, error) {
 	var response *WsTradeHistoryResponse
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return response, fmt.Errorf("%v not authorised to get trade history", c.Name)

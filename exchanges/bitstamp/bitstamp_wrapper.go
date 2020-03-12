@@ -232,7 +232,7 @@ func (b *Bitstamp) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bitstamp) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *Bitstamp) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := b.GetTicker(p.String(), false)
 	if err != nil {
 		return nil, err
@@ -258,7 +258,7 @@ func (b *Bitstamp) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *Bitstamp) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *Bitstamp) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -276,7 +276,7 @@ func (b *Bitstamp) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error
 }
 
 // FetchOrderbook returns the orderbook for a currency pair
-func (b *Bitstamp) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Bitstamp) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -285,7 +285,7 @@ func (b *Bitstamp) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orde
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bitstamp) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Bitstamp) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 	orderbookNew, err := b.GetOrderbook(p.String())
 	if err != nil {
@@ -365,7 +365,7 @@ func (b *Bitstamp) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bitstamp) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (b *Bitstamp) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -632,7 +632,7 @@ func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 				resp[i].OrderID)
 		}
 
-		var currPair *currency.Pair
+		var currPair currency.Pair
 		if quoteCurrency.String() != "" && baseCurrency.String() != "" {
 			currPair = currency.NewPairWithDelimiter(baseCurrency.String(),
 				quoteCurrency.String(),

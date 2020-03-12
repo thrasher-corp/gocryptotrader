@@ -54,7 +54,7 @@ type CurrencyPairSyncAgent struct {
 	Created   time.Time
 	Exchange  string
 	AssetType asset.Item
-	Pair      *currency.Pair
+	Pair      currency.Pair
 	Ticker    SyncBase
 	Orderbook SyncBase
 	Trade     SyncBase

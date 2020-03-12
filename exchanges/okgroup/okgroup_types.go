@@ -300,16 +300,16 @@ type GetOrderBookResponse struct {
 
 // GetSpotTokenPairsInformationResponse response data for GetSpotTokenPairsInformation
 type GetSpotTokenPairsInformationResponse struct {
-	BaseVolume24h  float64        `json:"base_volume_24h,string"`  // 24 trading volume of the base currency
-	BestAsk        float64        `json:"best_ask,string"`         // best ask price
-	BestBid        float64        `json:"best_bid,string"`         // best bid price
-	High24h        float64        `json:"high_24h,string"`         // 24 hour high
-	InstrumentID   *currency.Pair `json:"instrument_id"`           // trading pair
-	Last           float64        `json:"last,string"`             // last traded price
-	Low24h         float64        `json:"low_24h,string"`          // 24 hour low
-	Open24h        float64        `json:"open_24h,string"`         // 24 hour open
-	QuoteVolume24h float64        `json:"quote_volume_24h,string"` // 24 trading volume of the quote currency
-	Timestamp      time.Time      `json:"timestamp"`
+	BaseVolume24h  float64       `json:"base_volume_24h,string"`  // 24 trading volume of the base currency
+	BestAsk        float64       `json:"best_ask,string"`         // best ask price
+	BestBid        float64       `json:"best_bid,string"`         // best bid price
+	High24h        float64       `json:"high_24h,string"`         // 24 hour high
+	InstrumentID   currency.Pair `json:"instrument_id"`           // trading pair
+	Last           float64       `json:"last,string"`             // last traded price
+	Low24h         float64       `json:"low_24h,string"`          // 24 hour low
+	Open24h        float64       `json:"open_24h,string"`         // 24 hour open
+	QuoteVolume24h float64       `json:"quote_volume_24h,string"` // 24 trading volume of the quote currency
+	Timestamp      time.Time     `json:"timestamp"`
 }
 
 // GetSpotFilledOrdersInformationRequest request data for GetSpotFilledOrdersInformation

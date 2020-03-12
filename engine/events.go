@@ -60,7 +60,7 @@ type Event struct {
 	Exchange  string
 	Item      string
 	Condition EventConditionParams
-	Pair      *currency.Pair
+	Pair      currency.Pair
 	Asset     asset.Item
 	Action    string
 	Executed  bool
@@ -72,7 +72,7 @@ var Events []*Event
 
 // Add adds an event to the Events chain and returns an index/eventID
 // and an error
-func Add(exchange, item string, condition EventConditionParams, p *currency.Pair, a asset.Item, action string) (int64, error) {
+func Add(exchange, item string, condition EventConditionParams, p currency.Pair, a asset.Item, action string) (int64, error) {
 	err := IsValidEvent(exchange, item, condition, action)
 	if err != nil {
 		return 0, err

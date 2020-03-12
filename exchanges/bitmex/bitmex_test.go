@@ -492,7 +492,7 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
-		Currencies: []*currency.Pair{currency.NewPair(currency.LTC,
+		Currencies: []currency.Pair{currency.NewPair(currency.LTC,
 			currency.BTC)},
 	}
 
@@ -516,7 +516,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
-		Pair: &currency.Pair{
+		Pair: currency.Pair{
 			Base:  currency.XBT,
 			Quote: currency.USD,
 		},

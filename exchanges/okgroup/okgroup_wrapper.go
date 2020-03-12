@@ -72,7 +72,7 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (o *OKGroup) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (o *OKGroup) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(o.Name, p, assetType)
 	if err != nil {
 		return o.UpdateOrderbook(p, assetType)
@@ -81,7 +81,7 @@ func (o *OKGroup) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*order
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (o *OKGroup) UpdateOrderbook(p *currency.Pair, a asset.Item) (*orderbook.Base, error) {
+func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 	if a == asset.Index {
 		return orderBook, errors.New("no orderbooks for index")
@@ -267,7 +267,7 @@ func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (o *OKGroup) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (o *OKGroup) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

@@ -252,7 +252,7 @@ func (b *BTSE) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *BTSE) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	fpair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
@@ -286,7 +286,7 @@ func (b *BTSE) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Pri
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *BTSE) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *BTSE) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -295,7 +295,7 @@ func (b *BTSE) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Pric
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (b *BTSE) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *BTSE) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -304,7 +304,7 @@ func (b *BTSE) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderboo
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *BTSE) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	fpair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
@@ -386,7 +386,7 @@ func (b *BTSE) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *BTSE) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (b *BTSE) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

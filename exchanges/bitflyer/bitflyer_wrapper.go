@@ -181,7 +181,7 @@ func (b *Bitflyer) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bitflyer) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *Bitflyer) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	p = b.CheckFXString(p)
 	tickerNew, err := b.GetTicker(p.String())
 	if err != nil {
@@ -204,7 +204,7 @@ func (b *Bitflyer) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *Bitflyer) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *Bitflyer) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -213,7 +213,7 @@ func (b *Bitflyer) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.
 }
 
 // CheckFXString upgrades currency pair if needed
-func (b *Bitflyer) CheckFXString(p *currency.Pair) *currency.Pair {
+func (b *Bitflyer) CheckFXString(p currency.Pair) currency.Pair {
 	if strings.Contains(p.Base.String(), "FX") {
 		p.Base = currency.FX_BTC
 		return p
@@ -222,7 +222,7 @@ func (b *Bitflyer) CheckFXString(p *currency.Pair) *currency.Pair {
 }
 
 // FetchOrderbook returns the orderbook for a currency pair
-func (b *Bitflyer) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Bitflyer) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -231,7 +231,7 @@ func (b *Bitflyer) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orde
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bitflyer) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Bitflyer) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 
 	p = b.CheckFXString(p)
@@ -284,7 +284,7 @@ func (b *Bitflyer) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bitflyer) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (b *Bitflyer) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

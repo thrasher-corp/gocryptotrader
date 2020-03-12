@@ -155,7 +155,7 @@ func (c *Coinbene) WsDataHandler() {
 					continue
 				}
 				for x := range wsTicker.Data {
-					var p *currency.Pair
+					var p currency.Pair
 					p, err = currency.NewPairFromFormattedPairs(wsTicker.Data[x].Symbol,
 						enabledSwap,
 						format)
@@ -200,7 +200,7 @@ func (c *Coinbene) WsDataHandler() {
 					continue
 				}
 				p := strings.Replace(tradeList.Topic, "tradeList.", "", 1)
-				var newPair *currency.Pair
+				var newPair currency.Pair
 				newPair, err = currency.NewPairFromFormattedPairs(p,
 					enabledSwap,
 					format)
@@ -234,7 +234,7 @@ func (c *Coinbene) WsDataHandler() {
 					continue
 				}
 				p := strings.Replace(orderBook.Topic, "orderBook.", "", 1)
-				var cp *currency.Pair
+				var cp currency.Pair
 				cp, err = currency.NewPairFromFormattedPairs(p,
 					enabledSwap,
 					format)
@@ -329,7 +329,7 @@ func (c *Coinbene) WsDataHandler() {
 					}
 					tempKline = append(tempKline, tempFloat)
 				}
-				var p *currency.Pair
+				var p currency.Pair
 				p, err = currency.NewPairFromFormattedPairs(kline.Data[0][0].(string),
 					enabledSwap,
 					format)

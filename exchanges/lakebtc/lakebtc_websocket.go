@@ -241,7 +241,7 @@ func (l *LakeBTC) processOrderbook(obUpdate, channel string) error {
 	return nil
 }
 
-func (l *LakeBTC) getCurrencyFromChannel(channel string) (*currency.Pair, error) {
+func (l *LakeBTC) getCurrencyFromChannel(channel string) (currency.Pair, error) {
 	curr := strings.Replace(channel, marketSubstring, "", 1)
 	curr = strings.Replace(curr, globalSubstring, "", 1)
 	return currency.NewPairFromString(curr)

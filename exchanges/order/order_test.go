@@ -12,7 +12,7 @@ import (
 func TestValidate(t *testing.T) {
 	testPair := currency.NewPair(currency.BTC, currency.LTC)
 	tester := []struct {
-		Pair *currency.Pair
+		Pair currency.Pair
 		Side
 		Type
 		Amount      float64
@@ -218,7 +218,7 @@ func TestFilterOrdersByCurrencies(t *testing.T) {
 		},
 	}
 
-	currencies := []*currency.Pair{currency.NewPair(currency.BTC, currency.USD),
+	currencies := []currency.Pair{currency.NewPair(currency.BTC, currency.USD),
 		currency.NewPair(currency.LTC, currency.EUR),
 		currency.NewPair(currency.DOGE, currency.RUB)}
 	FilterOrdersByCurrencies(&orders, currencies)
@@ -226,20 +226,20 @@ func TestFilterOrdersByCurrencies(t *testing.T) {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 3, len(orders))
 	}
 
-	currencies = []*currency.Pair{currency.NewPair(currency.BTC, currency.USD),
+	currencies = []currency.Pair{currency.NewPair(currency.BTC, currency.USD),
 		currency.NewPair(currency.LTC, currency.EUR)}
 	FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 2 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 2, len(orders))
 	}
 
-	currencies = []*currency.Pair{currency.NewPair(currency.BTC, currency.USD)}
+	currencies = []currency.Pair{currency.NewPair(currency.BTC, currency.USD)}
 	FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))
 	}
 
-	currencies = []*currency.Pair{}
+	currencies = []currency.Pair{}
 	FilterOrdersByCurrencies(&orders, currencies)
 	if len(orders) != 1 {
 		t.Errorf("Orders failed to be filtered. Expected %v, received %v", 1, len(orders))

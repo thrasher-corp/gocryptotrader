@@ -240,11 +240,12 @@ func (h *HUOBI) Run() {
 				err)
 			return
 		}
-		enabledPairs := currency.Pairs{&currency.Pair{
-			Base:      currency.BTC.Lower(),
-			Quote:     currency.USDT.Lower(),
-			Delimiter: format.Delimiter,
-		},
+		enabledPairs := currency.Pairs{
+			currency.Pair{
+				Base:      currency.BTC.Lower(),
+				Quote:     currency.USDT.Lower(),
+				Delimiter: format.Delimiter,
+			},
 		}
 		log.Warn(log.ExchangeSys,
 			"Available and enabled pairs for Huobi reset due to config upgrade, please enable the ones you would like again")
@@ -312,7 +313,7 @@ func (h *HUOBI) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (h *HUOBI) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickers, err := h.GetTickers()
 	if err != nil {
 		return nil, err
@@ -351,7 +352,7 @@ func (h *HUOBI) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Pr
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (h *HUOBI) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (h *HUOBI) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(h.Name, p, assetType)
 	if err != nil {
 		return h.UpdateTicker(p, assetType)
@@ -360,7 +361,7 @@ func (h *HUOBI) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Pri
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (h *HUOBI) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (h *HUOBI) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(h.Name, p, assetType)
 	if err != nil {
 		return h.UpdateOrderbook(p, assetType)
@@ -369,7 +370,7 @@ func (h *HUOBI) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbo
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (h *HUOBI) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	fpair, err := h.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
@@ -531,7 +532,7 @@ func (h *HUOBI) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (h *HUOBI) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (h *HUOBI) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

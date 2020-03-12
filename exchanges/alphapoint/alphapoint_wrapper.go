@@ -125,7 +125,7 @@ func (a *Alphapoint) FetchAccountInfo() (account.Holdings, error) {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (a *Alphapoint) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (a *Alphapoint) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := a.GetTicker(p.String())
 	if err != nil {
 		return nil, err
@@ -150,7 +150,7 @@ func (a *Alphapoint) UpdateTicker(p *currency.Pair, assetType asset.Item) (*tick
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (a *Alphapoint) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (a *Alphapoint) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := ticker.GetTicker(a.Name, p, assetType)
 	if err != nil {
 		return a.UpdateTicker(p, assetType)
@@ -159,7 +159,7 @@ func (a *Alphapoint) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticke
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (a *Alphapoint) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (a *Alphapoint) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 	orderbookNew, err := a.GetOrderbook(p.String())
 	if err != nil {
@@ -193,7 +193,7 @@ func (a *Alphapoint) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*o
 }
 
 // FetchOrderbook returns the orderbook for a currency pair
-func (a *Alphapoint) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (a *Alphapoint) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(a.Name, p, assetType)
 	if err != nil {
 		return a.UpdateOrderbook(p, assetType)
@@ -209,7 +209,7 @@ func (a *Alphapoint) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (a *Alphapoint) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (a *Alphapoint) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

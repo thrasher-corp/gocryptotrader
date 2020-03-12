@@ -210,7 +210,7 @@ func (l *LakeBTC) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (l *LakeBTC) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (l *LakeBTC) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	ticks, err := l.GetTicker()
 	if err != nil {
 		return nil, err
@@ -252,7 +252,7 @@ func (l *LakeBTC) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (l *LakeBTC) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (l *LakeBTC) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(l.Name, p, assetType)
 	if err != nil {
 		return l.UpdateTicker(p, assetType)
@@ -261,7 +261,7 @@ func (l *LakeBTC) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.P
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (l *LakeBTC) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (l *LakeBTC) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(l.Name, p, assetType)
 	if err != nil {
 		return l.UpdateOrderbook(p, assetType)
@@ -270,7 +270,7 @@ func (l *LakeBTC) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*order
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (l *LakeBTC) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (l *LakeBTC) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 	orderbookNew, err := l.GetOrderBook(p.String())
 	if err != nil {
@@ -350,7 +350,7 @@ func (l *LakeBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (l *LakeBTC) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (l *LakeBTC) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

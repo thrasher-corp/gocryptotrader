@@ -176,7 +176,7 @@ func (l *Lbank) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (l *Lbank) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (l *Lbank) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerInfo, err := l.GetTickers()
 	if err != nil {
 		return nil, err
@@ -209,7 +209,7 @@ func (l *Lbank) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Pr
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (l *Lbank) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (l *Lbank) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	fpair, err := l.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
@@ -223,7 +223,7 @@ func (l *Lbank) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Pri
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (l *Lbank) FetchOrderbook(currency *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (l *Lbank) FetchOrderbook(currency currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(l.Name, currency, assetType)
 	if err != nil {
 		return l.UpdateOrderbook(currency, assetType)
@@ -232,7 +232,7 @@ func (l *Lbank) FetchOrderbook(currency *currency.Pair, assetType asset.Item) (*
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (l *Lbank) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 	fpair, err := l.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -319,7 +319,7 @@ func (l *Lbank) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (l *Lbank) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (l *Lbank) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

@@ -327,7 +327,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 func TestGetActiveOrders(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
-		Currencies: []*currency.Pair{currency.NewPair(currency.LTC,
+		Currencies: []currency.Pair{currency.NewPair(currency.LTC,
 			currency.BTC)},
 	}
 
@@ -342,7 +342,7 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
-		Currencies: []*currency.Pair{currency.NewPair(currency.LTC,
+		Currencies: []currency.Pair{currency.NewPair(currency.LTC,
 			currency.BTC)},
 		StartTicks: time.Unix(0, 0),
 		EndTicks:   time.Unix(math.MaxInt64, 0),
@@ -368,7 +368,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
-		Pair: &currency.Pair{
+		Pair: currency.Pair{
 			Delimiter: "_",
 			Base:      currency.BTC,
 			Quote:     currency.USD,

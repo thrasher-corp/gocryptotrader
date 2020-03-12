@@ -18,9 +18,9 @@ type Ticker struct {
 
 // TickerResponse stores the ticker price data and timestamp for a currency pair
 type TickerResponse struct {
-	Symbol    *currency.Pair `json:"symbol"`
-	Timestamp int64          `json:"timestamp"`
-	Ticker    Ticker         `json:"ticker"`
+	Symbol    currency.Pair `json:"symbol"`
+	Timestamp int64         `json:"timestamp"`
+	Ticker    Ticker        `json:"ticker"`
 }
 
 // MarketDepthResponse stores arrays for asks, bids and a timestamp for a currecy pair

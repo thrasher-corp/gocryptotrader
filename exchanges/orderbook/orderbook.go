@@ -15,7 +15,7 @@ import (
 
 // Get checks and returns the orderbook given an exchange name and currency pair
 // if it exists
-func Get(exchange string, p *currency.Pair, a asset.Item) (*Base, error) {
+func Get(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
 	o, err := service.Retrieve(exchange, p, a)
 	if err != nil {
 		return nil, err
@@ -25,7 +25,7 @@ func Get(exchange string, p *currency.Pair, a asset.Item) (*Base, error) {
 
 // SubscribeOrderbook subcribes to an orderbook and returns a communication
 // channel to stream orderbook data updates
-func SubscribeOrderbook(exchange string, p *currency.Pair, a asset.Item) (dispatch.Pipe, error) {
+func SubscribeOrderbook(exchange string, p currency.Pair, a asset.Item) (dispatch.Pipe, error) {
 	exchange = strings.ToLower(exchange)
 	service.RLock()
 	defer service.RUnlock()
@@ -155,7 +155,7 @@ func (s *Service) GetAssociations(b *Base) ([]uuid.UUID, error) {
 }
 
 // Retrieve gets orderbook data from the slice
-func (s *Service) Retrieve(exchange string, p *currency.Pair, a asset.Item) (*Base, error) {
+func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
 	exchange = strings.ToLower(exchange)
 	s.RLock()
 	defer s.RUnlock()

@@ -360,8 +360,8 @@ func TestLoadConfigPairs(t *testing.T) {
 	t.Parallel()
 
 	pairs := currency.Pairs{
-		&currency.Pair{Base: currency.BTC, Quote: currency.USD},
-		&currency.Pair{Base: currency.LTC, Quote: currency.USD},
+		currency.Pair{Base: currency.BTC, Quote: currency.USD},
+		currency.Pair{Base: currency.LTC, Quote: currency.USD},
 	}
 
 	b := Base{
@@ -458,7 +458,7 @@ func TestLoadConfigPairs(t *testing.T) {
 	exchPS.RequestFormat.Uppercase = false
 	exchPS.ConfigFormat.Delimiter = "/"
 	exchPS.ConfigFormat.Uppercase = false
-	pairs = append(pairs, &currency.Pair{Base: currency.XRP, Quote: currency.USD})
+	pairs = append(pairs, currency.Pair{Base: currency.XRP, Quote: currency.USD})
 	b.Config.CurrencyPairs.StorePairs(asset.Spot, pairs, false)
 	b.Config.CurrencyPairs.StorePairs(asset.Spot, pairs, true)
 	b.Config.CurrencyPairs.UseGlobalFormat = false
@@ -894,7 +894,7 @@ func TestFormatExchangeCurrencies(t *testing.T) {
 		},
 	}
 
-	var pairs = []*currency.Pair{
+	var pairs = []currency.Pair{
 		currency.NewPairDelimiter("BTC_USD", "_"),
 		currency.NewPairDelimiter("LTC_BTC", "_"),
 	}
@@ -1298,7 +1298,7 @@ func TestUpdatePairs(t *testing.T) {
 	// Test empty pair
 	p := currency.NewPairDelimiter(defaultTestCurrencyPair, "-")
 	pairs := currency.Pairs{
-		&currency.Pair{},
+		currency.Pair{},
 		p,
 	}
 	err = UAC.UpdatePairs(pairs, asset.Spot, true, true)

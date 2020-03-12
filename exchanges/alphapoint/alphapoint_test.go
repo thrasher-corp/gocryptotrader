@@ -474,7 +474,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
-		Pair: &currency.Pair{
+		Pair: currency.Pair{
 			Delimiter: "_",
 			Base:      currency.BTC,
 			Quote:     currency.USD,

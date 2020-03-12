@@ -77,7 +77,7 @@ func RunStorageUpdater(o BotOverrides, m *MainConfiguration, filepath string, v 
 }
 
 // CopyPairFormat copies the pair format from a list of pairs once matched
-func CopyPairFormat(p *Pair, pairs []*Pair, exact bool) *Pair {
+func CopyPairFormat(p Pair, pairs []Pair, exact bool) Pair {
 	for x := range pairs {
 		if exact {
 			if p.Equal(pairs[x]) {
@@ -88,7 +88,7 @@ func CopyPairFormat(p *Pair, pairs []*Pair, exact bool) *Pair {
 			return pairs[x]
 		}
 	}
-	return &Pair{Base: NewCode(""), Quote: NewCode("")}
+	return Pair{Base: NewCode(""), Quote: NewCode("")}
 }
 
 // FormatPairs formats a string array to a list of currency pairs with the
@@ -99,7 +99,7 @@ func FormatPairs(pairs []string, delimiter, index string) (Pairs, error) {
 		if pairs[x] == "" {
 			continue
 		}
-		var p *Pair
+		var p Pair
 		if delimiter != "" {
 			p = NewPairDelimiter(pairs[x], delimiter)
 		} else {

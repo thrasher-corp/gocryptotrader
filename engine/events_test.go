@@ -31,7 +31,7 @@ func TestAdd(t *testing.T) {
 		loadConfig(t)
 	}
 
-	_, err := Add("", "", EventConditionParams{}, &currency.Pair{}, "", "")
+	_, err := Add("", "", EventConditionParams{}, currency.Pair{}, "", "")
 	if err == nil {
 		t.Error("should err on invalid params")
 	}

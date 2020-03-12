@@ -10,7 +10,7 @@ import (
 // Item holds various fields for storing currency pair stats
 type Item struct {
 	Exchange  string
-	Pair      *currency.Pair
+	Pair      currency.Pair
 	AssetType asset.Item
 	Price     float64
 	Volume    float64
@@ -50,7 +50,7 @@ func (b ByVolume) Swap(i, j int) {
 }
 
 // Add adds or updates the item stats
-func Add(exchange string, p *currency.Pair, a asset.Item, price, volume float64) error {
+func Add(exchange string, p currency.Pair, a asset.Item, price, volume float64) error {
 	if exchange == "" ||
 		a == "" ||
 		price == 0 ||
@@ -83,16 +83,14 @@ func Add(exchange string, p *currency.Pair, a asset.Item, price, volume float64)
 
 // Append adds or updates the item stats for a specific
 // currency pair and asset type
-func Append(exchange string, p *currency.Pair, a asset.Item, price, volume float64) {
+func Append(exchange string, p currency.Pair, a asset.Item, price, volume float64) {
 	if AlreadyExists(exchange, p, a, price, volume) {
 		return
 	}
 
-	cpy := *p
-
 	i := Item{
 		Exchange:  exchange,
-		Pair:      &cpy,
+		Pair:      p,
 		AssetType: a,
 		Price:     price,
 		Volume:    volume,
@@ -103,7 +101,7 @@ func Append(exchange string, p *currency.Pair, a asset.Item, price, volume float
 
 // AlreadyExists checks to see if item info already exists
 // for a specific currency pair and asset type
-func AlreadyExists(exchange string, p *currency.Pair, assetType asset.Item, price, volume float64) bool {
+func AlreadyExists(exchange string, p currency.Pair, assetType asset.Item, price, volume float64) bool {
 	for i := range Items {
 		if Items[i].Exchange == exchange &&
 			Items[i].Pair.EqualIncludeReciprocal(p) &&
@@ -118,7 +116,7 @@ func AlreadyExists(exchange string, p *currency.Pair, assetType asset.Item, pric
 // SortExchangesByVolume sorts item info by volume for a specific
 // currency pair and asset type. Reverse will reverse the order from lowest to
 // highest
-func SortExchangesByVolume(p *currency.Pair, assetType asset.Item, reverse bool) []Item {
+func SortExchangesByVolume(p currency.Pair, assetType asset.Item, reverse bool) []Item {
 	var result []Item
 	for x := range Items {
 		if Items[x].Pair.EqualIncludeReciprocal(p) &&
@@ -138,7 +136,7 @@ func SortExchangesByVolume(p *currency.Pair, assetType asset.Item, reverse bool)
 // SortExchangesByPrice sorts item info by volume for a specific
 // currency pair and asset type. Reverse will reverse the order from lowest to
 // highest
-func SortExchangesByPrice(p *currency.Pair, assetType asset.Item, reverse bool) []Item {
+func SortExchangesByPrice(p currency.Pair, assetType asset.Item, reverse bool) []Item {
 	var result []Item
 	for x := range Items {
 		if Items[x].Pair.EqualIncludeReciprocal(p) &&

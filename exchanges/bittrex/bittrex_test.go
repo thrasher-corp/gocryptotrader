@@ -350,7 +350,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType:  order.AnyType,
-		Currencies: []*currency.Pair{p},
+		Currencies: []currency.Pair{p},
 	}
 
 	getOrdersRequest.Currencies[0].Delimiter = "-"
@@ -388,7 +388,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
-		Pair: &currency.Pair{
+		Pair: currency.Pair{
 			Delimiter: "-",
 			Base:      currency.BTC,
 			Quote:     currency.LTC,

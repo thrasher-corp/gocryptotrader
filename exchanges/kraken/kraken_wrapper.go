@@ -313,7 +313,7 @@ func (k *Kraken) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (k *Kraken) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	pairs, err := k.GetEnabledPairs(assetType)
 	if err != nil {
 		return nil, err
@@ -363,7 +363,7 @@ func (k *Kraken) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.P
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (k *Kraken) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (k *Kraken) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(k.Name, p, assetType)
 	if err != nil {
 		return k.UpdateTicker(p, assetType)
@@ -372,7 +372,7 @@ func (k *Kraken) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Pr
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (k *Kraken) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (k *Kraken) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(k.Name, p, assetType)
 	if err != nil {
 		return k.UpdateOrderbook(p, assetType)
@@ -381,7 +381,7 @@ func (k *Kraken) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderb
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (k *Kraken) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (k *Kraken) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	fpair, err := k.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
@@ -461,7 +461,7 @@ func (k *Kraken) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (k *Kraken) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (k *Kraken) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

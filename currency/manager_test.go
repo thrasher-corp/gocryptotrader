@@ -229,13 +229,13 @@ func TestDisablePair(t *testing.T) {
 
 	// Test asset type which doesn't exist
 	initTest(t)
-	if err := p.DisablePair(asset.Futures, &Pair{}); err == nil {
+	if err := p.DisablePair(asset.Futures, Pair{}); err == nil {
 		t.Error("unexpected result")
 	}
 
 	// Test asset type which has an empty pair store
 	p.Pairs[asset.Spot] = nil
-	if err := p.DisablePair(asset.Spot, &Pair{}); err == nil {
+	if err := p.DisablePair(asset.Spot, Pair{}); err == nil {
 		t.Error("unexpected result")
 	}
 
@@ -260,13 +260,13 @@ func TestEnablePair(t *testing.T) {
 
 	// Test asset type which doesn't exist
 	initTest(t)
-	if err := p.EnablePair(asset.Futures, &Pair{}); err == nil {
+	if err := p.EnablePair(asset.Futures, Pair{}); err == nil {
 		t.Error("unexpected result")
 	}
 
 	// Test asset type which has an empty pair store
 	p.Pairs[asset.Spot] = nil
-	if err := p.EnablePair(asset.Spot, &Pair{}); err == nil {
+	if err := p.EnablePair(asset.Spot, Pair{}); err == nil {
 		t.Error("unexpected result")
 	}
 

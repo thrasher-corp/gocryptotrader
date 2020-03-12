@@ -81,7 +81,7 @@ type WebsocketSetup struct {
 // Currently only a one at a time thing to avoid complexity
 type WebsocketChannelSubscription struct {
 	Channel  string
-	Currency *currency.Pair
+	Currency currency.Pair
 	Params   map[string]interface{}
 }
 
@@ -94,7 +94,7 @@ type WebsocketResponse struct {
 // WebsocketOrderbookUpdate defines a websocket event in which the orderbook
 // has been updated in the orderbook package
 type WebsocketOrderbookUpdate struct {
-	Pair     *currency.Pair
+	Pair     currency.Pair
 	Asset    asset.Item
 	Exchange string
 }
@@ -102,7 +102,7 @@ type WebsocketOrderbookUpdate struct {
 // TradeData defines trade data
 type TradeData struct {
 	Timestamp    time.Time
-	CurrencyPair *currency.Pair
+	CurrencyPair currency.Pair
 	AssetType    asset.Item
 	Exchange     string
 	EventType    string
@@ -114,7 +114,7 @@ type TradeData struct {
 // FundingData defines funding data
 type FundingData struct {
 	Timestamp    time.Time
-	CurrencyPair *currency.Pair
+	CurrencyPair currency.Pair
 	AssetType    asset.Item
 	Exchange     string
 	Amount       float64
@@ -126,7 +126,7 @@ type FundingData struct {
 // KlineData defines kline feed
 type KlineData struct {
 	Timestamp  time.Time
-	Pair       *currency.Pair
+	Pair       currency.Pair
 	AssetType  asset.Item
 	Exchange   string
 	StartTime  time.Time
@@ -142,7 +142,7 @@ type KlineData struct {
 // WebsocketPositionUpdated reflects a change in orders/contracts on an exchange
 type WebsocketPositionUpdated struct {
 	Timestamp time.Time
-	Pair      *currency.Pair
+	Pair      currency.Pair
 	AssetType asset.Item
 	Exchange  string
 }

@@ -33,19 +33,19 @@ type Service struct {
 
 // Price struct stores the currency pair and pricing information
 type Price struct {
-	Last         float64        `json:"Last"`
-	High         float64        `json:"High"`
-	Low          float64        `json:"Low"`
-	Bid          float64        `json:"Bid"`
-	Ask          float64        `json:"Ask"`
-	Volume       float64        `json:"Volume"`
-	QuoteVolume  float64        `json:"QuoteVolume"`
-	PriceATH     float64        `json:"PriceATH"`
-	Open         float64        `json:"Open"`
-	Close        float64        `json:"Close"`
-	Pair         *currency.Pair `json:"Pair"`
-	ExchangeName string         `json:"exchangeName"`
-	AssetType    asset.Item     `json:"assetType"`
+	Last         float64       `json:"Last"`
+	High         float64       `json:"High"`
+	Low          float64       `json:"Low"`
+	Bid          float64       `json:"Bid"`
+	Ask          float64       `json:"Ask"`
+	Volume       float64       `json:"Volume"`
+	QuoteVolume  float64       `json:"QuoteVolume"`
+	PriceATH     float64       `json:"PriceATH"`
+	Open         float64       `json:"Open"`
+	Close        float64       `json:"Close"`
+	Pair         currency.Pair `json:"Pair"`
+	ExchangeName string        `json:"exchangeName"`
+	AssetType    asset.Item    `json:"assetType"`
 	LastUpdated  time.Time
 }
 

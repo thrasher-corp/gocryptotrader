@@ -31,5 +31,5 @@ type WebsocketOrderbookUpdate struct {
 	Action     string // Used in conjunction with UpdateEntriesByID
 	Bids       []orderbook.Item
 	Asks       []orderbook.Item
-	Pair       *currency.Pair
+	Pair       currency.Pair
 }

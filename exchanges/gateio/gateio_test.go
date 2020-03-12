@@ -292,7 +292,7 @@ func TestGetOrderHistory(t *testing.T) {
 
 	currPair := currency.NewPair(currency.LTC, currency.BTC)
 	currPair.Delimiter = "_"
-	getOrdersRequest.Currencies = []*currency.Pair{currPair}
+	getOrdersRequest.Currencies = []currency.Pair{currPair}
 
 	_, err := g.GetOrderHistory(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
@@ -314,7 +314,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
-		Pair: &currency.Pair{
+		Pair: currency.Pair{
 			Delimiter: "_",
 			Base:      currency.LTC,
 			Quote:     currency.BTC,

@@ -517,7 +517,7 @@ func TestCopyPairFormat(t *testing.T) {
 	pairOne := NewPair(BTC, USD)
 	pairOne.Delimiter = "-"
 
-	var pairs []*Pair
+	var pairs []Pair
 	pairs = append(pairs, pairOne, NewPair(LTC, USD))
 
 	testPair := NewPair(BTC, USD)

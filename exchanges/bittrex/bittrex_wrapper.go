@@ -260,7 +260,7 @@ func (b *Bittrex) FetchAccountInfo() (account.Holdings, error) {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bittrex) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *Bittrex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	ticks, err := b.GetMarketSummaries()
 	if err != nil {
 		return nil, err
@@ -304,7 +304,7 @@ func (b *Bittrex) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *Bittrex) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *Bittrex) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -313,7 +313,7 @@ func (b *Bittrex) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.P
 }
 
 // FetchOrderbook returns the orderbook for a currency pair
-func (b *Bittrex) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Bittrex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -322,7 +322,7 @@ func (b *Bittrex) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*order
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bittrex) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Bittrex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	fpair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
@@ -371,7 +371,7 @@ func (b *Bittrex) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bittrex) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (b *Bittrex) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

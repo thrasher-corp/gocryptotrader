@@ -580,6 +580,6 @@ func (l *Lbank) SendAuthHTTPRequest(method, endpoint string, vals url.Values, re
 }
 
 // GetHistoricCandles returns rangesize number of candles for the given granularity and pair starting from the latest available
-func (l *Lbank) GetHistoricCandles(pair *currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
+func (l *Lbank) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
 	return nil, common.ErrFunctionNotSupported
 }

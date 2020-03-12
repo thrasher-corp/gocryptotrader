@@ -202,7 +202,7 @@ func (e *Base) GetAssetTypes() asset.Items {
 }
 
 // GetPairAssetType returns the associated asset type for the currency pair
-func (e *Base) GetPairAssetType(c *currency.Pair) (asset.Item, error) {
+func (e *Base) GetPairAssetType(c currency.Pair) (asset.Item, error) {
 	for i := range e.GetAssetTypes() {
 		pairs, err := e.GetEnabledPairs(e.GetAssetTypes()[i])
 		if err != nil {
@@ -377,7 +377,7 @@ func (e *Base) GetAvailablePairs(assetType asset.Item) currency.Pairs {
 
 // SupportsPair returns true or not whether a currency pair exists in the
 // exchange available currencies or not
-func (e *Base) SupportsPair(p *currency.Pair, enabledPairs bool, assetType asset.Item) bool {
+func (e *Base) SupportsPair(p currency.Pair, enabledPairs bool, assetType asset.Item) bool {
 	if enabledPairs {
 		pairs, err := e.GetEnabledPairs(assetType)
 		if err != nil {
@@ -390,7 +390,7 @@ func (e *Base) SupportsPair(p *currency.Pair, enabledPairs bool, assetType asset
 
 // FormatExchangeCurrencies returns a string containing
 // the exchanges formatted currency pairs
-func (e *Base) FormatExchangeCurrencies(pairs []*currency.Pair, assetType asset.Item) (string, error) {
+func (e *Base) FormatExchangeCurrencies(pairs []currency.Pair, assetType asset.Item) (string, error) {
 	var currencyItems strings.Builder
 	pairFmt, err := e.GetPairFormat(assetType, true)
 	if err != nil {
@@ -417,10 +417,10 @@ func (e *Base) FormatExchangeCurrencies(pairs []*currency.Pair, assetType asset.
 
 // FormatExchangeCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
-func (e *Base) FormatExchangeCurrency(p *currency.Pair, assetType asset.Item) (*currency.Pair, error) {
+func (e *Base) FormatExchangeCurrency(p currency.Pair, assetType asset.Item) (currency.Pair, error) {
 	pairFmt, err := e.GetPairFormat(assetType, true)
 	if err != nil {
-		return nil, err
+		return currency.Pair{}, err
 	}
 	return p.Format(pairFmt.Delimiter, pairFmt.Uppercase), nil
 }

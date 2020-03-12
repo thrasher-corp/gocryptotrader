@@ -186,7 +186,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 						continue
 					}
 
-					var p *currency.Pair
+					var p currency.Pair
 					p, err = currency.NewPairFromString(orderbooks.Data[0].Symbol)
 					if err != nil {
 						b.Websocket.DataHandler <- err
@@ -229,7 +229,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 							continue
 						}
 
-						var pair *currency.Pair
+						var pair currency.Pair
 						pair, err = currency.NewPairFromString(trades.Data[i].Symbol)
 						if err != nil {
 							b.Websocket.DataHandler <- err
@@ -334,7 +334,7 @@ func (b *Bitmex) wsHandleIncomingData() {
 }
 
 // ProcessOrderbook processes orderbook updates
-func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p *currency.Pair, a asset.Item) error { // nolint: unparam
+func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.Pair, a asset.Item) error { // nolint: unparam
 	if len(data) < 1 {
 		return errors.New("bitmex_websocket.go error - no orderbook data")
 	}

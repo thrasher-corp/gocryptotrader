@@ -290,7 +290,7 @@ func (b *Bitmex) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (b *Bitmex) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *Bitmex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := b.GetActiveAndIndexInstruments()
 	if err != nil {
 		return nil, err
@@ -303,7 +303,7 @@ func (b *Bitmex) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.P
 
 	for i := range pairs {
 		for j := range tick {
-			if !pairs[i].Equal(&tick[j].Symbol) {
+			if !pairs[i].Equal(tick[j].Symbol) {
 				continue
 			}
 
@@ -315,7 +315,7 @@ func (b *Bitmex) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.P
 				Ask:          tick[j].AskPrice,
 				Volume:       tick[j].Volume24h,
 				Close:        tick[j].PrevClosePrice,
-				Pair:         &tick[j].Symbol,
+				Pair:         tick[j].Symbol,
 				LastUpdated:  tick[j].Timestamp,
 				ExchangeName: b.Name,
 				AssetType:    assetType})
@@ -328,7 +328,7 @@ func (b *Bitmex) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.P
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (b *Bitmex) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *Bitmex) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
@@ -337,7 +337,7 @@ func (b *Bitmex) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Pr
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (b *Bitmex) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Bitmex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
@@ -346,7 +346,7 @@ func (b *Bitmex) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderb
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (b *Bitmex) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	if assetType == asset.Index {
 		return nil, common.ErrFunctionNotSupported
 	}
@@ -439,7 +439,7 @@ func (b *Bitmex) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bitmex) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (b *Bitmex) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

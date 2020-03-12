@@ -1746,7 +1746,7 @@ func cancelOrder(c *cli.Context) error {
 	}
 
 	// pair is optional, but if it's set, do a validity check
-	var p *currency.Pair
+	var p currency.Pair
 	if len(currencyPair) > 0 {
 		if !validPair(currencyPair) {
 			return errInvalidPair

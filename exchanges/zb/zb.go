@@ -50,7 +50,7 @@ type ZB struct {
 }
 
 // GetHistoricCandles returns rangesize number of candles for the given granularity and pair starting from the latest available
-func (z *ZB) GetHistoricCandles(pair *currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
+func (z *ZB) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

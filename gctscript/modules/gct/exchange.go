@@ -183,7 +183,7 @@ func ExchangePairs(args ...objects.Object) (objects.Object, error) {
 	}
 
 	r := objects.Array{}
-	pairs := *(*[]*currency.Pair)(rtnValue)
+	pairs := *(*[]currency.Pair)(rtnValue)
 	for x := range pairs {
 		r.Value = append(r.Value, &objects.String{Value: pairs[x].String()})
 	}

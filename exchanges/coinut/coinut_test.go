@@ -271,7 +271,7 @@ func TestGetOrderHistoryWrapper(t *testing.T) {
 	setupWSTestAuth(t)
 	var getOrdersRequest = order.GetOrdersRequest{
 		OrderType: order.AnyType,
-		Currencies: []*currency.Pair{currency.NewPair(currency.BTC,
+		Currencies: []currency.Pair{currency.NewPair(currency.BTC,
 			currency.USD)},
 	}
 
@@ -293,7 +293,7 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	var orderSubmission = &order.Submit{
-		Pair: &currency.Pair{
+		Pair: currency.Pair{
 			Base:  currency.BTC,
 			Quote: currency.USD,
 		},

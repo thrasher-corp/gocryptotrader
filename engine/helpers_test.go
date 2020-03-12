@@ -465,7 +465,7 @@ func TestGetRelatableFiatCurrencies(t *testing.T) {
 func TestMapCurrenciesByExchange(t *testing.T) {
 	SetupTestHelpers(t)
 
-	var pairs = []*currency.Pair{
+	var pairs = []currency.Pair{
 		currency.NewPair(currency.BTC, currency.USD),
 		currency.NewPair(currency.BTC, currency.EUR),
 	}

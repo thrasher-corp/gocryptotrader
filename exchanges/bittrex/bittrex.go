@@ -65,7 +65,7 @@ type Bittrex struct {
 }
 
 // GetHistoricCandles returns rangesize number of candles for the given granularity and pair starting from the latest available
-func (b *Bittrex) GetHistoricCandles(pair *currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
+func (b *Bittrex) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

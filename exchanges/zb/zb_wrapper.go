@@ -219,7 +219,7 @@ func (z *ZB) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (z *ZB) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (z *ZB) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	result, err := z.GetTickers()
 	if err != nil {
 		return nil, err
@@ -256,7 +256,7 @@ func (z *ZB) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (z *ZB) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (z *ZB) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(z.Name, p, assetType)
 	if err != nil {
 		return z.UpdateTicker(p, assetType)
@@ -265,7 +265,7 @@ func (z *ZB) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price,
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (z *ZB) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (z *ZB) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(z.Name, p, assetType)
 	if err != nil {
 		return z.UpdateOrderbook(p, assetType)
@@ -274,7 +274,7 @@ func (z *ZB) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (z *ZB) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (z *ZB) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 	currFormat, err := z.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -380,7 +380,7 @@ func (z *ZB) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (z *ZB) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (z *ZB) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

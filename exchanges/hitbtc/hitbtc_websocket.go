@@ -479,7 +479,7 @@ func (h *HitBTC) wsLogin() error {
 }
 
 // wsPlaceOrder sends a websocket message to submit an order
-func (h *HitBTC) wsPlaceOrder(pair *currency.Pair, side string, price, quantity float64) (*WsSubmitOrderSuccessResponse, error) {
+func (h *HitBTC) wsPlaceOrder(pair currency.Pair, side string, price, quantity float64) (*WsSubmitOrderSuccessResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
 	}
@@ -648,7 +648,7 @@ func (h *HitBTC) wsGetCurrencies(currencyItem currency.Code) (*WsGetCurrenciesRe
 }
 
 // wsGetSymbols sends a websocket message to get trading balance
-func (h *HitBTC) wsGetSymbols(c *currency.Pair) (*WsGetSymbolsResponse, error) {
+func (h *HitBTC) wsGetSymbols(c currency.Pair) (*WsGetSymbolsResponse, error) {
 	fpair, err := h.FormatExchangeCurrency(c, asset.Spot)
 	if err != nil {
 		return nil, err
@@ -677,7 +677,7 @@ func (h *HitBTC) wsGetSymbols(c *currency.Pair) (*WsGetSymbolsResponse, error) {
 }
 
 // wsGetSymbols sends a websocket message to get trading balance
-func (h *HitBTC) wsGetTrades(c *currency.Pair, limit int64, sort, by string) (*WsGetTradesResponse, error) {
+func (h *HitBTC) wsGetTrades(c currency.Pair, limit int64, sort, by string) (*WsGetTradesResponse, error) {
 	fpair, err := h.FormatExchangeCurrency(c, asset.Spot)
 	if err != nil {
 		return nil, err

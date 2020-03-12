@@ -271,7 +271,7 @@ func (c *Coinbene) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (c *Coinbene) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (c *Coinbene) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	if !c.SupportsAsset(assetType) {
 		return nil,
 			fmt.Errorf("%s does not support asset type %s", c.Name, assetType)
@@ -290,7 +290,7 @@ func (c *Coinbene) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker
 		}
 
 		for i := range tickers {
-			var newP *currency.Pair
+			var newP currency.Pair
 			newP, err = currency.NewPairFromString(tickers[i].Symbol)
 			if err != nil {
 				return nil, err
@@ -355,7 +355,7 @@ func (c *Coinbene) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (c *Coinbene) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (c *Coinbene) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	if !c.SupportsAsset(assetType) {
 		return nil,
 			fmt.Errorf("%s does not support asset type %s", c.Name, assetType)
@@ -369,7 +369,7 @@ func (c *Coinbene) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (c *Coinbene) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (c *Coinbene) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	if !c.SupportsAsset(assetType) {
 		return nil,
 			fmt.Errorf("%s does not support asset type %s", c.Name, assetType)
@@ -383,7 +383,7 @@ func (c *Coinbene) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orde
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (c *Coinbene) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	resp := new(orderbook.Base)
 	if !c.SupportsAsset(assetType) {
 		return nil,
@@ -487,7 +487,7 @@ func (c *Coinbene) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (c *Coinbene) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (c *Coinbene) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

@@ -66,7 +66,7 @@ func TestAppendOptionalDelimiter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b.appendOptionalDelimiter(curr1)
+	b.appendOptionalDelimiter(&curr1)
 	if curr1.Delimiter != "" {
 		t.Errorf("Expected no delimiter, received %v", curr1.Delimiter)
 	}
@@ -76,7 +76,7 @@ func TestAppendOptionalDelimiter(t *testing.T) {
 	}
 
 	curr2.Delimiter = ""
-	b.appendOptionalDelimiter(curr2)
+	b.appendOptionalDelimiter(&curr2)
 	if curr2.Delimiter != ":" {
 		t.Errorf("Expected \"-\" as a delimiter, received %v", curr2.Delimiter)
 	}
@@ -735,7 +735,7 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	var orderSubmission = &order.Submit{
-		Pair: &currency.Pair{
+		Pair: currency.Pair{
 			Delimiter: "_",
 			Base:      currency.BTC,
 			Quote:     currency.USD,

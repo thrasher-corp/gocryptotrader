@@ -58,12 +58,12 @@ type Item struct {
 
 // Base holds the fields for the orderbook base
 type Base struct {
-	Pair         *currency.Pair `json:"pair"`
-	Bids         []Item         `json:"bids"`
-	Asks         []Item         `json:"asks"`
-	LastUpdated  time.Time      `json:"lastUpdated"`
-	AssetType    asset.Item     `json:"assetType"`
-	ExchangeName string         `json:"exchangeName"`
+	Pair         currency.Pair `json:"pair"`
+	Bids         []Item        `json:"bids"`
+	Asks         []Item        `json:"asks"`
+	LastUpdated  time.Time     `json:"lastUpdated"`
+	AssetType    asset.Item    `json:"assetType"`
+	ExchangeName string        `json:"exchangeName"`
 }
 
 type byOBPrice []Item

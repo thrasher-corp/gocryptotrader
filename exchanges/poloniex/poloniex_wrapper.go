@@ -235,7 +235,7 @@ func (p *Poloniex) UpdateTradablePairs(forceUpgrade bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (p *Poloniex) UpdateTicker(currencyPair *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (p *Poloniex) UpdateTicker(currencyPair currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := p.GetTicker()
 	if err != nil {
 		return nil, err
@@ -274,7 +274,7 @@ func (p *Poloniex) UpdateTicker(currencyPair *currency.Pair, assetType asset.Ite
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (p *Poloniex) FetchTicker(currencyPair *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (p *Poloniex) FetchTicker(currencyPair currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(p.Name, currencyPair, assetType)
 	if err != nil {
 		return p.UpdateTicker(currencyPair, assetType)
@@ -283,7 +283,7 @@ func (p *Poloniex) FetchTicker(currencyPair *currency.Pair, assetType asset.Item
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (p *Poloniex) FetchOrderbook(currencyPair *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (p *Poloniex) FetchOrderbook(currencyPair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(p.Name, currencyPair, assetType)
 	if err != nil {
 		return p.UpdateOrderbook(currencyPair, assetType)
@@ -292,7 +292,7 @@ func (p *Poloniex) FetchOrderbook(currencyPair *currency.Pair, assetType asset.I
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (p *Poloniex) UpdateOrderbook(currencyPair *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (p *Poloniex) UpdateOrderbook(currencyPair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 	orderbookNew, err := p.GetOrderbook("", 1000)
 	if err != nil {
@@ -385,7 +385,7 @@ func (p *Poloniex) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (p *Poloniex) GetExchangeHistory(currencyPair *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (p *Poloniex) GetExchangeHistory(currencyPair currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

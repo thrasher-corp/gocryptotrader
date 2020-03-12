@@ -168,7 +168,7 @@ func (l *LocalBitcoins) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (l *LocalBitcoins) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (l *LocalBitcoins) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tick, err := l.GetTicker()
 	if err != nil {
 		return nil, err
@@ -200,7 +200,7 @@ func (l *LocalBitcoins) UpdateTicker(p *currency.Pair, assetType asset.Item) (*t
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (l *LocalBitcoins) FetchTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (l *LocalBitcoins) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerNew, err := ticker.GetTicker(l.Name, p, assetType)
 	if err != nil {
 		return l.UpdateTicker(p, assetType)
@@ -209,7 +209,7 @@ func (l *LocalBitcoins) FetchTicker(p *currency.Pair, assetType asset.Item) (*ti
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
-func (l *LocalBitcoins) FetchOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (l *LocalBitcoins) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(l.Name, p, assetType)
 	if err != nil {
 		return l.UpdateOrderbook(p, assetType)
@@ -218,7 +218,7 @@ func (l *LocalBitcoins) FetchOrderbook(p *currency.Pair, assetType asset.Item) (
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
-func (l *LocalBitcoins) UpdateOrderbook(p *currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 	orderbookNew, err := l.GetOrderbook(p.Quote.String())
 	if err != nil {
@@ -293,7 +293,7 @@ func (l *LocalBitcoins) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (l *LocalBitcoins) GetExchangeHistory(p *currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (l *LocalBitcoins) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

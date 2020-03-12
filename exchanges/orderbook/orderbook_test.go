@@ -28,7 +28,7 @@ func TestMain(m *testing.M) {
 var cpyMux *dispatch.Mux
 
 func TestSubscribeOrderbook(t *testing.T) {
-	_, err := SubscribeOrderbook("", &currency.Pair{}, asset.Item(""))
+	_, err := SubscribeOrderbook("", currency.Pair{}, asset.Item(""))
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
@@ -334,7 +334,7 @@ func TestProcessOrderbook(t *testing.T) {
 	}
 
 	// test for empty pair
-	base.Pair = &currency.Pair{}
+	base.Pair = currency.Pair{}
 	err = base.Process()
 	if err == nil {
 		t.Error("empty pair should throw an err")
@@ -433,7 +433,7 @@ func TestProcessOrderbook(t *testing.T) {
 
 	type quick struct {
 		Name string
-		P    *currency.Pair
+		P    currency.Pair
 		Bids []Item
 		Asks []Item
 	}

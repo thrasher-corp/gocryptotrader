@@ -129,13 +129,13 @@ func (g *Gemini) WsSecureSubscribe(dialer *websocket.Dialer, url string) error {
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", g.Name, endpoint, err)
 	}
-	go g.WsReadData(g.AuthenticatedWebsocketConn, &currency.Pair{})
+	go g.WsReadData(g.AuthenticatedWebsocketConn, currency.Pair{})
 	return nil
 }
 
 // WsReadData reads from the websocket connection and returns the websocket
 // response
-func (g *Gemini) WsReadData(ws *wshandler.WebsocketConnection, c *currency.Pair) {
+func (g *Gemini) WsReadData(ws *wshandler.WebsocketConnection, c currency.Pair) {
 	g.Websocket.Wg.Add(1)
 	defer g.Websocket.Wg.Done()
 	for {
@@ -261,7 +261,7 @@ func (g *Gemini) WsHandleData() {
 }
 
 // wsProcessUpdate handles order book data
-func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair *currency.Pair) {
+func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pair) {
 	if result.Timestamp == 0 && result.TimestampMS == 0 {
 		var bids, asks []orderbook.Item
 		for i := range result.Events {

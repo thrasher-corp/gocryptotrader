@@ -303,7 +303,7 @@ func TestSubmitOrder(t *testing.T) {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	var orderSubmission = &order.Submit{
-		Pair: &currency.Pair{
+		Pair: currency.Pair{
 			Base:  currency.BTC,
 			Quote: currency.USD,
 		},

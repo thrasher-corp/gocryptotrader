@@ -303,7 +303,7 @@ func (s *RPCServer) GetExchangeInfo(ctx context.Context, r *gctrpc.GenericExchan
 // GetTicker returns the ticker for a specified exchange, currency pair and
 // asset type
 func (s *RPCServer) GetTicker(ctx context.Context, r *gctrpc.GetTickerRequest) (*gctrpc.TickerResponse, error) {
-	t, err := GetSpecificTicker(&currency.Pair{
+	t, err := GetSpecificTicker(currency.Pair{
 		Delimiter: r.Pair.Delimiter,
 		Base:      currency.NewCode(r.Pair.Base),
 		Quote:     currency.NewCode(r.Pair.Quote),
@@ -366,7 +366,7 @@ func (s *RPCServer) GetTickers(ctx context.Context, r *gctrpc.GetTickersRequest)
 // GetOrderbook returns an orderbook for a specific exchange, currency pair
 // and asset type
 func (s *RPCServer) GetOrderbook(ctx context.Context, r *gctrpc.GetOrderbookRequest) (*gctrpc.OrderbookResponse, error) {
-	ob, err := GetSpecificOrderbook(&currency.Pair{
+	ob, err := GetSpecificOrderbook(currency.Pair{
 		Delimiter: r.Pair.Delimiter,
 		Base:      currency.NewCode(r.Pair.Base),
 		Quote:     currency.NewCode(r.Pair.Quote),
@@ -721,7 +721,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 	}
 
 	resp, err := exch.GetActiveOrders(&order.GetOrdersRequest{
-		Currencies: []*currency.Pair{
+		Currencies: []currency.Pair{
 			currency.NewPairWithDelimiter(r.Pair.Base,
 				r.Pair.Quote, r.Pair.Delimiter),
 		},
@@ -1518,7 +1518,7 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHisto
 		return nil, errors.New("Exchange " + req.Exchange + " not found")
 	}
 
-	candles, err := exchange.GetHistoricCandles(&currency.Pair{
+	candles, err := exchange.GetHistoricCandles(currency.Pair{
 		Delimiter: req.Pair.Delimiter,
 		Base:      currency.NewCode(req.Pair.Base),
 		Quote:     currency.NewCode(req.Pair.Quote),

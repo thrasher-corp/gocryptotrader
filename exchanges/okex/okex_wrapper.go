@@ -339,7 +339,7 @@ func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (o *OKEX) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	tickerPrice := new(ticker.Price)
 	switch assetType {
 	case asset.Spot:
@@ -453,7 +453,7 @@ func (o *OKEX) UpdateTicker(p *currency.Pair, assetType asset.Item) (*ticker.Pri
 }
 
 // FetchTicker returns the ticker for a currency pair
-func (o *OKEX) FetchTicker(p *currency.Pair, assetType asset.Item) (tickerData *ticker.Price, err error) {
+func (o *OKEX) FetchTicker(p currency.Pair, assetType asset.Item) (tickerData *ticker.Price, err error) {
 	if assetType == asset.Index {
 		return tickerData, errors.New("ticker fetching not supported for index")
 	}

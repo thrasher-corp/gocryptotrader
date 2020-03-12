@@ -267,7 +267,7 @@ func GetSpecificAvailablePairs(enabledExchangesOnly, fiatPairs, includeUSDT, cry
 }
 
 // IsRelatablePairs checks to see if the two pairs are relatable
-func IsRelatablePairs(p1, p2 *currency.Pair, includeUSDT bool) bool {
+func IsRelatablePairs(p1, p2 currency.Pair, includeUSDT bool) bool {
 	if p1.EqualIncludeReciprocal(p2) {
 		return true
 	}
@@ -299,7 +299,7 @@ func MapCurrenciesByExchange(p currency.Pairs, enabledExchangesOnly bool, assetT
 
 			result, ok := currencyExchange[exchName]
 			if !ok {
-				var pairs []*currency.Pair
+				var pairs []currency.Pair
 				pairs = append(pairs, p[x])
 				currencyExchange[exchName] = pairs
 			} else {
@@ -316,7 +316,7 @@ func MapCurrenciesByExchange(p currency.Pairs, enabledExchangesOnly bool, assetT
 
 // GetExchangeNamesByCurrency returns a list of exchanges supporting
 // a currency pair based on whether the exchange is enabled or not
-func GetExchangeNamesByCurrency(p *currency.Pair, enabled bool, assetType asset.Item) []string {
+func GetExchangeNamesByCurrency(p currency.Pair, enabled bool, assetType asset.Item) []string {
 	var exchanges []string
 	for x := range Bot.Config.Exchanges {
 		if enabled != Bot.Config.Exchanges[x].Enabled {
@@ -338,7 +338,7 @@ func GetExchangeNamesByCurrency(p *currency.Pair, enabled bool, assetType asset.
 
 // GetRelatableCryptocurrencies returns a list of currency pairs if it can find
 // any relatable currencies (e.g ETHBTC -> ETHLTC -> ETHUSDT -> ETHREP)
-func GetRelatableCryptocurrencies(p *currency.Pair) currency.Pairs {
+func GetRelatableCryptocurrencies(p currency.Pair) currency.Pairs {
 	var pairs currency.Pairs
 	cryptocurrencies := currency.GetCryptocurrencies()
 
@@ -363,7 +363,7 @@ func GetRelatableCryptocurrencies(p *currency.Pair) currency.Pairs {
 
 // GetRelatableFiatCurrencies returns a list of currency pairs if it can find
 // any relatable currencies (e.g ETHUSD -> ETHAUD -> ETHGBP -> ETHJPY)
-func GetRelatableFiatCurrencies(p *currency.Pair) currency.Pairs {
+func GetRelatableFiatCurrencies(p currency.Pair) currency.Pairs {
 	var pairs currency.Pairs
 	fiatCurrencies := currency.GetFiatCurrencies()
 
@@ -389,17 +389,17 @@ func GetRelatableFiatCurrencies(p *currency.Pair) currency.Pairs {
 // GetRelatableCurrencies returns a list of currency pairs if it can find
 // any relatable currencies (e.g BTCUSD -> BTC USDT -> XBT USDT -> XBT USD)
 // incOrig includes the supplied pair if desired
-func GetRelatableCurrencies(p *currency.Pair, incOrig, incUSDT bool) currency.Pairs {
+func GetRelatableCurrencies(p currency.Pair, incOrig, incUSDT bool) currency.Pairs {
 	var pairs currency.Pairs
 
-	addPair := func(p *currency.Pair) {
+	addPair := func(p currency.Pair) {
 		if pairs.Contains(p, true) {
 			return
 		}
 		pairs = append(pairs, p)
 	}
 
-	buildPairs := func(p *currency.Pair, incOrig bool) {
+	buildPairs := func(p currency.Pair, incOrig bool) {
 		if incOrig {
 			addPair(p)
 		}
@@ -432,7 +432,7 @@ func GetRelatableCurrencies(p *currency.Pair, incOrig, incUSDT bool) currency.Pa
 
 // GetSpecificOrderbook returns a specific orderbook given the currency,
 // exchangeName and assetType
-func GetSpecificOrderbook(p *currency.Pair, exchangeName string, assetType asset.Item) (*orderbook.Base, error) {
+func GetSpecificOrderbook(p currency.Pair, exchangeName string, assetType asset.Item) (*orderbook.Base, error) {
 	exch := GetExchangeByName(exchangeName)
 	if exch == nil {
 		return nil, ErrExchangeNotFound
@@ -442,7 +442,7 @@ func GetSpecificOrderbook(p *currency.Pair, exchangeName string, assetType asset
 
 // GetSpecificTicker returns a specific ticker given the currency,
 // exchangeName and assetType
-func GetSpecificTicker(p *currency.Pair, exchangeName string, assetType asset.Item) (*ticker.Price, error) {
+func GetSpecificTicker(p currency.Pair, exchangeName string, assetType asset.Item) (*ticker.Price, error) {
 	exch := GetExchangeByName(exchangeName)
 	if exch == nil {
 		return nil, ErrExchangeNotFound
@@ -482,7 +482,7 @@ func GetCollatedExchangeAccountInfoByCoin(accounts []account.Holdings) map[curre
 
 // GetExchangeHighestPriceByCurrencyPair returns the exchange with the highest
 // price for a given currency pair and asset type
-func GetExchangeHighestPriceByCurrencyPair(p *currency.Pair, a asset.Item) (string, error) {
+func GetExchangeHighestPriceByCurrencyPair(p currency.Pair, a asset.Item) (string, error) {
 	result := stats.SortExchangesByPrice(p, a, true)
 	if len(result) == 0 {
 		return "", fmt.Errorf("no stats for supplied currency pair and asset type")
@@ -493,7 +493,7 @@ func GetExchangeHighestPriceByCurrencyPair(p *currency.Pair, a asset.Item) (stri
 
 // GetExchangeLowestPriceByCurrencyPair returns the exchange with the lowest
 // price for a given currency pair and asset type
-func GetExchangeLowestPriceByCurrencyPair(p *currency.Pair, assetType asset.Item) (string, error) {
+func GetExchangeLowestPriceByCurrencyPair(p currency.Pair, assetType asset.Item) (string, error) {
 	result := stats.SortExchangesByPrice(p, assetType, false)
 	if len(result) == 0 {
 		return "", fmt.Errorf("no stats for supplied currency pair and asset type")
@@ -598,7 +598,7 @@ func GetCryptocurrenciesByExchange(exchangeName string, enabledExchangesOnly, en
 		}
 
 		var err error
-		var pairs []*currency.Pair
+		var pairs []currency.Pair
 		if enabledPairs {
 			pairs, err = Bot.Config.GetEnabledPairs(exchangeName, assetType)
 			if err != nil {
@@ -690,7 +690,7 @@ func GetExchangeCryptocurrencyDepositAddresses() map[string]map[string]string {
 
 // FormatCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
-func FormatCurrency(p *currency.Pair) *currency.Pair {
+func FormatCurrency(p currency.Pair) currency.Pair {
 	return p.Format(Bot.Config.Currency.CurrencyPairFormat.Delimiter,
 		Bot.Config.Currency.CurrencyPairFormat.Uppercase)
 }

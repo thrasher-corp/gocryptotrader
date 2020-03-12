@@ -521,7 +521,7 @@ func (h *HUOBI) wsGetAccountsList() (*WsAuthenticatedAccountsListResponse, error
 	return &response, err
 }
 
-func (h *HUOBI) wsGetOrdersList(accountID int64, pair *currency.Pair) (*WsAuthenticatedOrdersResponse, error) {
+func (h *HUOBI) wsGetOrdersList(accountID int64, pair currency.Pair) (*WsAuthenticatedOrdersResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authenticated cannot get orders list", h.Name)
 	}
