@@ -77,7 +77,7 @@ func TestRsi(t *testing.T) {
 
 func TestEMA(t *testing.T) {
 	t.Parallel()
-	_, err := rsi()
+	_, err := ema()
 	if err != nil {
 		if !errors.Is(err, objects.ErrWrongNumArguments) {
 			t.Error(err)
@@ -85,7 +85,7 @@ func TestEMA(t *testing.T) {
 	}
 
 	v := &objects.String{Value: "Hello"}
-	_, err = rsi(testClose, v)
+	_, err = ema(testClose, v)
 	if err != nil {
 		if err.Error() != "0 failed conversion" {
 			t.Error(err)
@@ -100,7 +100,7 @@ func TestEMA(t *testing.T) {
 
 func TestSMA(t *testing.T) {
 	t.Parallel()
-	_, err := rsi()
+	_, err := sma()
 	if err != nil {
 		if !errors.Is(err, objects.ErrWrongNumArguments) {
 			t.Error(err)
@@ -108,7 +108,7 @@ func TestSMA(t *testing.T) {
 	}
 
 	v := &objects.String{Value: "Hello"}
-	_, err = rsi(testClose, v)
+	_, err = sma(testClose, v)
 	if err != nil {
 		if err.Error() != "0 failed conversion" {
 			t.Error(err)
@@ -123,7 +123,7 @@ func TestSMA(t *testing.T) {
 
 func TestMACD(t *testing.T) {
 	t.Parallel()
-	_, err := rsi()
+	_, err := macd()
 	if err != nil {
 		if !errors.Is(err, objects.ErrWrongNumArguments) {
 			t.Error(err)
@@ -131,7 +131,7 @@ func TestMACD(t *testing.T) {
 	}
 
 	v := &objects.String{Value: "Hello"}
-	_, err = rsi(testClose, v)
+	_, err = macd(testClose, &objects.Int{Value: 12}, &objects.Int{Value: 26}, v)
 	if err != nil {
 		if err.Error() != "0 failed conversion" {
 			t.Error(err)

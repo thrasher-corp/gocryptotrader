@@ -36,7 +36,7 @@ func mfi(args ...objects.Object) (objects.Object, error) {
 		return nil, err
 	}
 
-	ohlcData = objects.ToInterface(args[2])
+	ohlcData = objects.ToInterface(args[3])
 	ohlcVolData, err := appendData(ohlcData.([]interface{}))
 	if err != nil {
 		return nil, err

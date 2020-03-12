@@ -21,7 +21,7 @@ func obv(args ...objects.Object) (objects.Object, error) {
 		return nil, err
 	}
 
-	ohlcData = objects.ToInterface(args[0])
+	ohlcData = objects.ToInterface(args[1])
 	ohlcVolData, err := appendData(ohlcData.([]interface{}))
 	if err != nil {
 		return nil, err
