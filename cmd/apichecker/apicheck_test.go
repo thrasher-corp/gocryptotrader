@@ -422,9 +422,9 @@ func TestHTMLScrapeOk(t *testing.T) {
 
 func TestCreateNewCheck(t *testing.T) {
 	t.Parallel()
-	// if !canTestTrello() {
-	// 	t.Skip()
-	// }
+	if !canTestTrello() {
+		t.Skip()
+	}
 	err := trelloCreateNewCheck("Gemini")
 	if err != nil {
 		t.Error(err)
@@ -477,9 +477,9 @@ func TestGetChecklistItems(t *testing.T) {
 
 func TestUpdateCheckItem(t *testing.T) {
 	t.Parallel()
-	// if !canTestTrello() {
-	// 	t.Skip()
-	// }
+	if !canTestTrello() {
+		t.Skip()
+	}
 	err := trelloUpdateCheckItem(trelloListID, "Gemini 1", "incomplete")
 	if err != nil {
 		t.Error(err)

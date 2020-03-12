@@ -373,7 +373,6 @@ func checkUpdates(fileName string) error {
 	}
 	var check bool
 	if areAPIKeysSet() {
-
 		check, err = trelloCheckBoardID()
 		if err != nil {
 			return err
@@ -1475,6 +1474,9 @@ func trelloCreateNewList() error {
 		return err
 	}
 	lists, err := trelloGetLists()
+	if err != nil {
+		return err
+	}
 	for x := range lists {
 		if lists[x].Name == createList {
 			trelloListID = lists[x].ID
@@ -1503,6 +1505,9 @@ func trelloCreateNewCard() error {
 		return err
 	}
 	cards, err := trelloGetAllCards()
+	if err != nil {
+		return err
+	}
 	for x := range cards {
 		if cards[x].Name == createCard {
 			trelloCardID = cards[x].ID
@@ -1531,6 +1536,9 @@ func trelloCreateNewChecklist() error {
 		return err
 	}
 	checklists, err := trelloGetAllChecklists()
+	if err != nil {
+		return err
+	}
 	for x := range checklists {
 		if checklists[x].Name == createChecklist {
 			trelloChecklistID = checklists[x].ID
