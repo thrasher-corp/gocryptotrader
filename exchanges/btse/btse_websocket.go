@@ -161,15 +161,19 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 					Err:      err,
 				}
 			}
-			p, err := currency.NewPairFromString(notification.Data[i].Symbol)
+
+			var p currency.Pair
+			p, err = currency.NewPairFromString(notification.Data[i].Symbol)
 			if err != nil {
 				return err
 			}
+
 			var a asset.Item
 			a, err = b.GetPairAssetType(p)
 			if err != nil {
 				return err
 			}
+
 			b.Websocket.DataHandler <- &order.Detail{
 				Price:        notification.Data[i].Price,
 				Amount:       notification.Data[i].Size,
@@ -196,7 +200,9 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if tradeHistory.Data[x].Gain == -1 {
 				side = order.Sell
 			}
-			p, err := currency.NewPairFromString(strings.Replace(tradeHistory.Topic,
+
+			var p currency.Pair
+			p, err = currency.NewPairFromString(strings.Replace(tradeHistory.Topic,
 				"tradeHistory:",
 				"",
 				1))

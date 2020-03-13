@@ -148,18 +148,22 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		format, err := c.GetPairFormat(asset.PerpetualSwap, true)
+
+		var format currency.PairFormat
+		format, err = c.GetPairFormat(asset.PerpetualSwap, true)
 		if err != nil {
 			return err
 		}
 
-		pairs, err := c.GetEnabledPairs(asset.PerpetualSwap)
+		var pairs currency.Pairs
+		pairs, err = c.GetEnabledPairs(asset.PerpetualSwap)
 		if err != nil {
 			return err
 		}
 
 		for x := range wsTicker.Data {
-			p, err := currency.NewPairFromFormattedPairs(wsTicker.Data[x].Symbol,
+			var p currency.Pair
+			p, err = currency.NewPairFromFormattedPairs(wsTicker.Data[x].Symbol,
 				pairs,
 				format)
 			if err != nil {
@@ -204,17 +208,20 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			tSide = order.Sell
 		}
 
-		format, err := c.GetPairFormat(asset.PerpetualSwap, true)
+		var format currency.PairFormat
+		format, err = c.GetPairFormat(asset.PerpetualSwap, true)
 		if err != nil {
 			return err
 		}
 
-		pairs, err := c.GetEnabledPairs(asset.PerpetualSwap)
+		var pairs currency.Pairs
+		pairs, err = c.GetEnabledPairs(asset.PerpetualSwap)
 		if err != nil {
 			return err
 		}
 
-		newP, err := currency.NewPairFromFormattedPairs(p, pairs, format)
+		var newP currency.Pair
+		newP, err = currency.NewPairFromFormattedPairs(p, pairs, format)
 		if err != nil {
 			return err
 		}
@@ -245,17 +252,20 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 		}
 		p := strings.Replace(orderBook.Topic, "orderBook.", "", 1)
 
-		format, err := c.GetPairFormat(asset.PerpetualSwap, true)
+		var format currency.PairFormat
+		format, err = c.GetPairFormat(asset.PerpetualSwap, true)
 		if err != nil {
 			return err
 		}
 
-		pairs, err := c.GetEnabledPairs(asset.PerpetualSwap)
+		var pairs currency.Pairs
+		pairs, err = c.GetEnabledPairs(asset.PerpetualSwap)
 		if err != nil {
 			return err
 		}
 
-		newP, err := currency.NewPairFromFormattedPairs(p, pairs, format)
+		var newP currency.Pair
+		newP, err = currency.NewPairFromFormattedPairs(p, pairs, format)
 		if err != nil {
 			return err
 		}
@@ -340,17 +350,20 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			tempKline = append(tempKline, tempFloat)
 		}
 
-		format, err := c.GetPairFormat(asset.PerpetualSwap, true)
+		var format currency.PairFormat
+		format, err = c.GetPairFormat(asset.PerpetualSwap, true)
 		if err != nil {
 			return err
 		}
 
-		pairs, err := c.GetEnabledPairs(asset.PerpetualSwap)
+		var pairs currency.Pairs
+		pairs, err = c.GetEnabledPairs(asset.PerpetualSwap)
 		if err != nil {
 			return err
 		}
 
-		newP, err := currency.NewPairFromFormattedPairs(kline.Data[0][0].(string),
+		var newP currency.Pair
+		newP, err = currency.NewPairFromFormattedPairs(kline.Data[0][0].(string),
 			pairs,
 			format)
 		if err != nil {

@@ -188,7 +188,8 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			if len(orderbooks.Data) == 0 {
 				return fmt.Errorf("%s - Empty orderbook data received: %s", b.Name, respRaw)
 			}
-			p, err := currency.NewPairFromString(orderbooks.Data[0].Symbol)
+			var p currency.Pair
+			p, err = currency.NewPairFromString(orderbooks.Data[0].Symbol)
 			if err != nil {
 				return err
 			}
@@ -219,12 +220,13 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			}
 
 			for i := range trades.Data {
-				var a asset.Item
-				p, err := currency.NewPairFromString(trades.Data[i].Symbol)
+				var p currency.Pair
+				p, err = currency.NewPairFromString(trades.Data[i].Symbol)
 				if err != nil {
 					return err
 				}
 
+				var a asset.Item
 				a, err = b.GetPairAssetType(p)
 				if err != nil {
 					return err

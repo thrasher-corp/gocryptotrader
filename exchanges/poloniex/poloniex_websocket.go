@@ -311,7 +311,8 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							return err
 						}
 
-						pair, err := currency.NewPairFromString(currencyPair)
+						var pair currency.Pair
+						pair, err = currency.NewPairFromString(currencyPair)
 						if err != nil {
 							return err
 						}
@@ -331,7 +332,8 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							return err
 						}
 
-						pair, err := currency.NewPairFromString(currencyPair)
+						var pair currency.Pair
+						pair, err = currency.NewPairFromString(currencyPair)
 						if err != nil {
 							return err
 						}

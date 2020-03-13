@@ -142,7 +142,8 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		p, err := currency.NewPairFromString(c)
+		var p currency.Pair
+		p, err = currency.NewPairFromString(c)
 		if err != nil {
 			return err
 		}
@@ -172,7 +173,8 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		p, err := currency.NewPairFromString(c)
+		var p currency.Pair
+		p, err = currency.NewPairFromString(c)
 		if err != nil {
 			return err
 		}
@@ -264,7 +266,8 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		p, err := currency.NewPairFromString(invalidJSON["market"].(string))
+		var p currency.Pair
+		p, err = currency.NewPairFromString(invalidJSON["market"].(string))
 		if err != nil {
 			return err
 		}
@@ -348,7 +351,8 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			g.Websocket.DataHandler <- errors.New("gatio websocket error - cannot access ask or bid data")
 		}
 
-		p, err := currency.NewPairFromString(c)
+		var p currency.Pair
+		p, err = currency.NewPairFromString(c)
 		if err != nil {
 			return err
 		}
