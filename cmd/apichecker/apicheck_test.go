@@ -18,6 +18,7 @@ var (
 	testListID      = ""
 	testBoardID     = ""
 	testBoardName   = ""
+	canTestMainFile = false
 )
 
 func TestMain(m *testing.M) {
@@ -643,5 +644,15 @@ func TestTrelloGetAllBoards(t *testing.T) {
 	_, err := trelloGetBoardID()
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestWriteAuthVars(t *testing.T) {
+	if canTestMainFile {
+		trelloCardID = "jdsfl"
+		err := writeAuthVars()
+		if err != nil {
+			t.Log(err)
+		}
 	}
 }

@@ -241,6 +241,16 @@ func setAuthVars() {
 	}
 }
 
+// writeAuthVars writes the new authentication variables to the updates.json file
+func writeAuthVars() error {
+	setAuthVars()
+	err := updateFile(jsonFile)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // canUpdateTrello checks if all the data necessary for updating trello is available
 func canUpdateTrello() bool {
 	return areAPIKeysSet() && isTrelloBoardDataSet()
@@ -1452,6 +1462,10 @@ func trelloCreateNewList() error {
 	for x := range lists {
 		if lists[x].Name == createList {
 			trelloListID = lists[x].ID
+			err = writeAuthVars()
+			if err != nil {
+				return err
+			}
 			return nil
 		}
 	}
@@ -1483,6 +1497,10 @@ func trelloCreateNewCard() error {
 	for x := range cards {
 		if cards[x].Name == createCard {
 			trelloCardID = cards[x].ID
+			err = writeAuthVars()
+			if err != nil {
+				return err
+			}
 			return nil
 		}
 	}
@@ -1514,6 +1532,10 @@ func trelloCreateNewChecklist() error {
 	for x := range checklists {
 		if checklists[x].Name == createChecklist {
 			trelloChecklistID = checklists[x].ID
+			err = writeAuthVars()
+			if err != nil {
+				return err
+			}
 			return nil
 		}
 	}

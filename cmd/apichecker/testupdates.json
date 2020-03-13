@@ -37,7 +37,7 @@
      "TextTokenData": "strong",
      "DateFormat": "01/02/06",
      "RegExp": "^(\\d){1,2}/(\\d){1,2}/(\\d){2}$",
-     "CheckString": "2/20/20",
+     "CheckString": "2/10/20",
      "Path": "https://docs.pro.coinbase.com/#changelog"
     }
    },
@@ -49,7 +49,7 @@
    "Data": {
     "GitHubData": {
      "Repo": "binance-exchange/binance-official-api-docs",
-     "Sha": "58d1858922b324aaa43bbb4a43f036a4b5b4e636"
+     "Sha": "b5d8ac6c1bb6c9f8e2b40261cbfd4b87d2f62295"
     }
    },
    "Disabled": false
@@ -60,7 +60,7 @@
    "Data": {
     "GitHubData": {
      "Repo": "bithumb-pro/bithumb.pro-official-api-docs",
-     "Sha": "c19789841432d91fd833e2530298197bd34c8c69"
+     "Sha": "8207addce33dc6305497e0e6af1d707f73069b5a"
     }
    },
    "Disabled": false
@@ -82,7 +82,7 @@
    "Data": {
     "GitHubData": {
      "Repo": "Coinbene/API-SPOT-v2-Documents",
-     "Sha": "a530a10df57499f67addc313f664b29279a170bd"
+     "Sha": "88f30f5b587f7024e4ad8eb5b433cb5b2cea0ef1"
     }
    },
    "Disabled": false
@@ -93,7 +93,7 @@
    "Data": {
     "GitHubData": {
      "Repo": "Coinbene/API-SWAP-Documents",
-     "Sha": "dd1827e27bf257de33535369be83af80a5037ebf"
+     "Sha": "f11012ea36c21959499f2143cb4d123d84655eed"
     }
    },
    "Disabled": false
@@ -115,7 +115,7 @@
    "Data": {
     "GitHubData": {
      "Repo": "gateio/gateapi-go",
-     "Sha": "5a6c4c73eb1d558ab2fbecf10c990e360883a080"
+     "Sha": "fe964d6ee64d27d7f7ef3cf3a54e502119710384"
     }
    },
    "Disabled": false
@@ -189,7 +189,7 @@
      "TextTokenData": "h2",
      "DateFormat": "2006-01-02",
      "RegExp": "(2\\d{3}-\\d{1,2}-\\d{1,2})",
-     "CheckString": "2020-03-05",
+     "CheckString": "2020-02-06",
      "Path": "https://docs.poloniex.com/#changelog"
     }
    },
@@ -279,7 +279,7 @@
      "TokenDataEnd": "h2",
      "TextTokenData": "h1",
      "RegExp": "APIv\\d{1}",
-     "CheckString": "de2491b95ef1f6ea334247b13f0f14f6816fb5961cc63acc0542b07fc0336dd8",
+     "CheckString": "APIv2",
      "Path": "https://www.lakebtc.com/s/api_v2"
     }
    },
@@ -368,7 +368,7 @@
      "Key": "class",
      "Val": "col-md-12",
      "RegExp": "col-md-12([\\s\\S]*?)clearfix",
-     "CheckString": "37a144dc619776b87c098da5a88bef7fed6c8a7cea2d4b9a38c96750726c93ff",
+     "CheckString": "d60e4f097b9d933a377d6be92d1e634dc2e2952375e9a5e7103cbd5885641953",
      "Path": "https://localbitcoins.com/api-docs/"
     }
    },
@@ -400,7 +400,7 @@
      "Val": "./#change-change",
      "TokenDataEnd": "./#change-",
      "RegExp": "./#change-\\d{8}",
-     "CheckString": "20200331",
+     "CheckString": "2020229",
      "Path": "https://www.okex.com/docs/en/#change-change"
     }
    },
@@ -418,7 +418,7 @@
      "TextTokenData": "td",
      "DateFormat": "2006/01/02",
      "RegExp": "^20(\\d){2}/(\\d){2}/(\\d){2}$",
-     "CheckString": "2020/03/05",
+     "CheckString": "2019/11/18",
      "Path": "https://docs.gemini.com/rest-api/#revision-history"
     }
    },
