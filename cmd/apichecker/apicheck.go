@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -101,7 +100,6 @@ func main() {
 	flag.Parse()
 	var err error
 	c := log.GenDefaultSettings()
-	c.Enabled = convert.BoolPtr(true)
 	log.GlobalLogConfig = &c
 	log.SetupGlobalLogger()
 	configData, err = readFileData(jsonFile)
@@ -115,7 +113,7 @@ func main() {
 		os.Exit(1)
 	}
 	usageData = testConfigData
-	if canUpdateTrello() {
+	if canUpdateTrello() || (create && areAPIKeysSet()) {
 		usageData = configData
 	}
 	if add {
@@ -211,33 +209,45 @@ func createAndSet() error {
 func setAuthVars() {
 	if apiKey == "" {
 		apiKey = configData.Key
+		usageData.Key = configData.Key
 	} else {
 		configData.Key = apiKey
+		usageData.Key = apiKey
 	}
 	if apiToken == "" {
 		apiToken = configData.Token
+		usageData.Token = configData.Token
 	} else {
 		configData.Token = apiToken
+		usageData.Token = apiToken
 	}
 	if trelloCardID == "" {
 		trelloCardID = configData.CardID
+		usageData.CardID = configData.CardID
 	} else {
 		configData.CardID = trelloCardID
+		usageData.CardID = trelloCardID
 	}
 	if trelloChecklistID == "" {
 		trelloChecklistID = configData.ChecklistID
+		usageData.ChecklistID = configData.ChecklistID
 	} else {
 		configData.ChecklistID = trelloChecklistID
+		usageData.ChecklistID = trelloChecklistID
 	}
 	if trelloListID == "" {
 		trelloListID = configData.ListID
+		usageData.ListID = configData.ListID
 	} else {
 		configData.ListID = trelloListID
+		usageData.ListID = trelloListID
 	}
 	if trelloBoardID == "" {
 		trelloBoardID = configData.BoardID
+		usageData.BoardID = configData.BoardID
 	} else {
 		configData.BoardID = trelloBoardID
+		usageData.BoardID = trelloBoardID
 	}
 }
 
@@ -1462,6 +1472,7 @@ func trelloCreateNewList() error {
 	for x := range lists {
 		if lists[x].Name == createList {
 			trelloListID = lists[x].ID
+			usageData.ListID = lists[x].ID
 			err = writeAuthVars()
 			if err != nil {
 				return err
@@ -1497,6 +1508,7 @@ func trelloCreateNewCard() error {
 	for x := range cards {
 		if cards[x].Name == createCard {
 			trelloCardID = cards[x].ID
+			usageData.CardID = cards[x].ID
 			err = writeAuthVars()
 			if err != nil {
 				return err
@@ -1532,6 +1544,7 @@ func trelloCreateNewChecklist() error {
 	for x := range checklists {
 		if checklists[x].Name == createChecklist {
 			trelloChecklistID = checklists[x].ID
+			usageData.ChecklistID = checklists[x].ID
 			err = writeAuthVars()
 			if err != nil {
 				return err
