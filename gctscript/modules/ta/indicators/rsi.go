@@ -4,8 +4,6 @@ import (
 	"fmt"
 
 	objects "github.com/d5/tengo/v2"
-	"github.com/thrasher-corp/go-talib/indicators"
-	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
 // RsiModule relative strength index indicator commands
@@ -19,21 +17,25 @@ func rsi(args ...objects.Object) (objects.Object, error) {
 	}
 
 	ohlcData := objects.ToInterface(args[0])
-	ohlcCloseData, err := appendData(ohlcData.([]interface{}))
-	if err != nil {
-		return nil, err
+	switch t := ohlcData.(type) {
+	case []interface{}:
+		fmt.Println(t)
 	}
+	// ohlcCloseData, err := appendData(ohlcData.([]interface{}))
+	// if err != nil {
+	// 	return nil, err
+	// }
+	//
+	// inTimePeroid, ok := objects.ToInt(args[1])
+	// if !ok {
+	// 	return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeroid)
+	// }
 
-	inTimePeroid, ok := objects.ToInt(args[1])
-	if !ok {
-		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeroid)
-	}
-
-	ret := indicators.Rsi(ohlcCloseData, inTimePeroid)
+	// ret := indicators.Rsi(ohlcCloseData, inTimePeroid)
 	r := &objects.Array{}
-	for x := range ret {
-		r.Value = append(r.Value, &objects.Float{Value: ret[x]})
-	}
+	// for x := range ret {
+	// 	r.Value = append(r.Value, &objects.Float{Value: ret[x]})
+	// }
 
 	return r, nil
 }
