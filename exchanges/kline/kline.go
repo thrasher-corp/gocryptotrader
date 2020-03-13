@@ -57,6 +57,10 @@ func CreateKline(trades []order.TradeHistory, interval time.Duration, p currency
 		timeIntervalCache = append(timeIntervalCache, zonedTradeHistory)
 	}
 
+	if candleStart == nil {
+		return Item{}, errors.New("candle start cannot be nil")
+	}
+
 	var candles = Item{
 		Exchange: exchange,
 		Pair:     p,
