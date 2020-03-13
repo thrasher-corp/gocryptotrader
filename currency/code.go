@@ -180,7 +180,6 @@ func (b *BaseCodes) RegisterFiat(c string) Code {
 		if b.Items[i].Symbol == c {
 			if b.Items[i].Role == Unset {
 				b.Items[i].Role = Fiat
-				return Code{Item: b.Items[i], UpperCase: true}
 			}
 
 			if b.Items[i].Role != Fiat {
