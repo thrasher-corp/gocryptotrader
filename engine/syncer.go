@@ -517,7 +517,7 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 			}
 
 			if !ws.IsConnected() && !ws.IsConnecting() {
-				go WebsocketDataHandler(ws)
+				go WebsocketDataReceiver(ws)
 
 				err = ws.Connect()
 				if err != nil {

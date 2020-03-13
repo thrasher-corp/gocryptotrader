@@ -99,6 +99,8 @@ func (z *ZB) SetDefaults() {
 				CancelOrder:            true,
 				SubmitOrder:            true,
 				MessageCorrelation:     true,
+				GetOrders:              true,
+				GetOrder:               true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
@@ -393,7 +395,7 @@ func (z *ZB) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 	}
 	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		var isBuyOrder int64
-		if o.OrderSide == order.Buy {
+		if o.Side == order.Buy {
 			isBuyOrder = 1
 		} else {
 			isBuyOrder = 0
@@ -406,7 +408,7 @@ func (z *ZB) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 		submitOrderResponse.OrderID = strconv.FormatInt(response.Data.EntrustID, 10)
 	} else {
 		var oT SpotNewOrderRequestParamsType
-		if o.OrderSide == order.Buy {
+		if o.Side == order.Buy {
 			oT = SpotNewOrderRequestParamsTypeBuy
 		} else {
 			oT = SpotNewOrderRequestParamsTypeSell
@@ -428,7 +430,7 @@ func (z *ZB) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 		}
 	}
 	submitOrderResponse.IsOrderPlaced = true
-	if o.OrderType == order.Market {
+	if o.Type == order.Market {
 		submitOrderResponse.FullyMatched = true
 	}
 	return submitOrderResponse, nil
@@ -442,7 +444,7 @@ func (z *ZB) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (z *ZB) CancelOrder(o *order.Cancel) error {
-	orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
+	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
 	if err != nil {
 		return err
 	}
@@ -454,7 +456,7 @@ func (z *ZB) CancelOrder(o *order.Cancel) error {
 			return err
 		}
 		if !response.Success {
-			return fmt.Errorf("%v - Could not cancel order %v", z.Name, o.OrderID)
+			return fmt.Errorf("%v - Could not cancel order %v", z.Name, o.ID)
 		}
 		return nil
 	}
@@ -510,8 +512,8 @@ func (z *ZB) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 		}
 
 		err = z.CancelOrder(&order.Cancel{
-			OrderID: strconv.FormatInt(allOpenOrders[i].ID, 10),
-			Pair:    p,
+			ID:   strconv.FormatInt(allOpenOrders[i].ID, 10),
+			Pair: p,
 		})
 		if err != nil {
 			cancelAllOrdersResponse.Status[strconv.FormatInt(allOpenOrders[i].ID, 10)] = err.Error()
@@ -579,9 +581,9 @@ func (z *ZB) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 // This function is not concurrency safe due to orderSide/orderType maps
 func (z *ZB) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var allOrders []Order
-	for x := range req.Currencies {
+	for x := range req.Pairs {
 		for i := int64(1); ; i++ {
-			fPair, err := z.FormatExchangeCurrency(req.Currencies[x], asset.Spot)
+			fPair, err := z.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 			if err != nil {
 				return nil, err
 			}
@@ -617,18 +619,18 @@ func (z *ZB) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error
 		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
 		orderSide := orderSideMap[allOrders[i].Type]
 		orders = append(orders, order.Detail{
-			ID:        strconv.FormatInt(allOrders[i].ID, 10),
-			Amount:    allOrders[i].TotalAmount,
-			Exchange:  z.Name,
-			OrderDate: orderDate,
-			Price:     allOrders[i].Price,
-			OrderSide: orderSide,
-			Pair:      symbol,
+			ID:       strconv.FormatInt(allOrders[i].ID, 10),
+			Amount:   allOrders[i].TotalAmount,
+			Exchange: z.Name,
+			Date:     orderDate,
+			Price:    allOrders[i].Price,
+			Side:     orderSide,
+			Pair:     symbol,
 		})
 	}
 
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
 
@@ -636,7 +638,7 @@ func (z *ZB) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error
 // Can Limit response to specific order status
 // This function is not concurrency safe due to orderSide/orderType maps
 func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
-	if req.OrderSide == order.AnySide || req.OrderSide == "" {
+	if req.Side == order.AnySide || req.Side == "" {
 		return nil, errors.New("specific order side is required")
 	}
 	var allOrders []Order
@@ -644,9 +646,9 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 	var side int64
 
 	if z.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		for x := range req.Currencies {
+		for x := range req.Pairs {
 			for y := int64(1); ; y++ {
-				resp, err := z.wsGetOrdersIgnoreTradeType(req.Currencies[x], y, 10)
+				resp, err := z.wsGetOrdersIgnoreTradeType(req.Pairs[x], y, 10)
 				if err != nil {
 					return nil, err
 				}
@@ -657,12 +659,12 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 			}
 		}
 	} else {
-		if req.OrderSide == order.Buy {
+		if req.Side == order.Buy {
 			side = 1
 		}
-		for x := range req.Currencies {
+		for x := range req.Pairs {
 			for y := int64(1); ; y++ {
-				fPair, err := z.FormatExchangeCurrency(req.Currencies[x], asset.Spot)
+				fPair, err := z.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 				if err != nil {
 					return nil, err
 				}
@@ -692,13 +694,13 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
 		orderSide := orderSideMap[allOrders[i].Type]
 		orders = append(orders, order.Detail{
-			ID:        strconv.FormatInt(allOrders[i].ID, 10),
-			Amount:    allOrders[i].TotalAmount,
-			Exchange:  z.Name,
-			OrderDate: orderDate,
-			Price:     allOrders[i].Price,
-			OrderSide: orderSide,
-			Pair:      symbol,
+			ID:       strconv.FormatInt(allOrders[i].ID, 10),
+			Amount:   allOrders[i].TotalAmount,
+			Exchange: z.Name,
+			Date:     orderDate,
+			Price:    allOrders[i].Price,
+			Side:     orderSide,
+			Pair:     symbol,
 		})
 	}
 

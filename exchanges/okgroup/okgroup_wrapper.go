@@ -286,11 +286,11 @@ func (o *OKGroup) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	request := PlaceOrderRequest{
 		ClientOID:    s.ClientID,
 		InstrumentID: fpair.String(),
-		Side:         s.OrderSide.Lower(),
-		Type:         s.OrderType.Lower(),
+		Side:         s.Side.Lower(),
+		Type:         s.Type.Lower(),
 		Size:         strconv.FormatFloat(s.Amount, 'f', -1, 64),
 	}
-	if s.OrderType == order.Limit {
+	if s.Type == order.Limit {
 		request.Price = strconv.FormatFloat(s.Price, 'f', -1, 64)
 	}
 
@@ -302,7 +302,7 @@ func (o *OKGroup) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	var resp order.SubmitResponse
 	resp.IsOrderPlaced = orderResponse.Result
 	resp.OrderID = orderResponse.OrderID
-	if s.OrderType == order.Market {
+	if s.Type == order.Market {
 		resp.FullyMatched = true
 	}
 
@@ -317,7 +317,7 @@ func (o *OKGroup) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (o *OKGroup) CancelOrder(orderCancellation *order.Cancel) (err error) {
-	orderID, err := strconv.ParseInt(orderCancellation.OrderID, 10, 64)
+	orderID, err := strconv.ParseInt(orderCancellation.ID, 10, 64)
 	if err != nil {
 		return
 	}
@@ -342,7 +342,7 @@ func (o *OKGroup) CancelOrder(orderCancellation *order.Cancel) (err error) {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
-	orderIDs := strings.Split(orderCancellation.OrderID, ",")
+	orderIDs := strings.Split(orderCancellation.ID, ",")
 	resp := order.CancelAllResponse{}
 	resp.Status = make(map[string]string)
 	var orderIDNumbers []int64
@@ -390,14 +390,13 @@ func (o *OKGroup) GetOrderInfo(orderID string) (resp order.Detail, err error) {
 	}
 
 	resp = order.Detail{
-		Amount: mOrder.Size,
-		Pair: currency.NewPairDelimiter(mOrder.InstrumentID,
-			format.Delimiter),
+		Amount:         mOrder.Size,
+		Pair:           currency.NewPairDelimiter(mOrder.InstrumentID, format.Delimiter),
 		Exchange:       o.Name,
-		OrderDate:      mOrder.Timestamp,
+		Date:           mOrder.Timestamp,
 		ExecutedAmount: mOrder.FilledSize,
 		Status:         order.Status(mOrder.Status),
-		OrderSide:      order.Side(mOrder.Side),
+		Side:           order.Side(mOrder.Side),
 	}
 	return
 }
@@ -451,8 +450,8 @@ func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw
 
 // GetActiveOrders retrieves any orders that are active/open
 func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Detail, err error) {
-	for x := range req.Currencies {
-		fpair, err := o.FormatExchangeCurrency(req.Currencies[x], asset.Spot)
+	for x := range req.Pairs {
+		fpair, err := o.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
@@ -467,12 +466,12 @@ func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Det
 				ID:             spotOpenOrders[i].OrderID,
 				Price:          spotOpenOrders[i].Price,
 				Amount:         spotOpenOrders[i].Size,
-				Pair:           req.Currencies[x],
+				Pair:           req.Pairs[x],
 				Exchange:       o.Name,
-				OrderSide:      order.Side(spotOpenOrders[i].Side),
-				OrderType:      order.Type(spotOpenOrders[i].Type),
+				Side:           order.Side(spotOpenOrders[i].Side),
+				Type:           order.Type(spotOpenOrders[i].Type),
 				ExecutedAmount: spotOpenOrders[i].FilledSize,
-				OrderDate:      spotOpenOrders[i].Timestamp,
+				Date:           spotOpenOrders[i].Timestamp,
 				Status:         order.Status(spotOpenOrders[i].Status),
 			})
 		}
@@ -484,8 +483,8 @@ func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Det
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Detail, err error) {
-	for x := range req.Currencies {
-		fpair, err := o.FormatExchangeCurrency(req.Currencies[x], asset.Spot)
+	for x := range req.Pairs {
+		fpair, err := o.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
@@ -501,12 +500,12 @@ func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Det
 				ID:             spotOpenOrders[i].OrderID,
 				Price:          spotOpenOrders[i].Price,
 				Amount:         spotOpenOrders[i].Size,
-				Pair:           req.Currencies[x],
+				Pair:           req.Pairs[x],
 				Exchange:       o.Name,
-				OrderSide:      order.Side(spotOpenOrders[i].Side),
-				OrderType:      order.Type(spotOpenOrders[i].Type),
+				Side:           order.Side(spotOpenOrders[i].Side),
+				Type:           order.Type(spotOpenOrders[i].Type),
 				ExecutedAmount: spotOpenOrders[i].FilledSize,
-				OrderDate:      spotOpenOrders[i].Timestamp,
+				Date:           spotOpenOrders[i].Timestamp,
 				Status:         order.Status(spotOpenOrders[i].Status),
 			})
 		}

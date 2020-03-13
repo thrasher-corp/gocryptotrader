@@ -94,8 +94,8 @@ func (e Exchange) QueryOrder(exch, orderID string) (*order.Detail, error) {
 }
 
 // SubmitOrder submit new order on exchange
-func (e Exchange) SubmitOrder(exch string, submit *order.Submit) (*order.SubmitResponse, error) {
-	r, err := engine.Bot.OrderManager.Submit(exch, submit)
+func (e Exchange) SubmitOrder(submit *order.Submit) (*order.SubmitResponse, error) {
+	r, err := engine.Bot.OrderManager.Submit(submit)
 	if err != nil {
 		return nil, err
 	}
@@ -112,12 +112,12 @@ func (e Exchange) CancelOrder(exch, orderID string) (bool, error) {
 
 	cancel := &order.Cancel{
 		AccountID: orderDetails.AccountID,
-		OrderID:   orderDetails.ID,
+		ID:        orderDetails.ID,
 		Pair:      orderDetails.Pair,
-		Side:      orderDetails.OrderSide,
+		Side:      orderDetails.Side,
 	}
 
-	err = engine.Bot.OrderManager.Cancel(exch, cancel)
+	err = engine.Bot.OrderManager.Cancel(cancel)
 	if err != nil {
 		return false, err
 	}

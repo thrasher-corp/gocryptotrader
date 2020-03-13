@@ -308,8 +308,8 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
-		OrderSide: order.Sell,
+		Type: order.AnyType,
+		Side: order.Sell,
 	}
 
 	_, err := b.GetActiveOrders(&getOrdersRequest)
@@ -323,7 +323,7 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
+		Type: order.AnyType,
 	}
 
 	_, err := b.GetOrderHistory(&getOrdersRequest)
@@ -351,11 +351,11 @@ func TestSubmitOrder(t *testing.T) {
 			Base:  currency.BTC,
 			Quote: currency.LTC,
 		},
-		OrderSide: order.Buy,
-		OrderType: order.Limit,
-		Price:     1,
-		Amount:    1,
-		ClientID:  "meowOrder",
+		Side:     order.Buy,
+		Type:     order.Limit,
+		Price:    1,
+		Amount:   1,
+		ClientID: "meowOrder",
 	}
 	response, err := b.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -373,7 +373,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
@@ -396,7 +396,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
@@ -438,11 +438,11 @@ func TestModifyOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = b.ModifyOrder(&order.Modify{
-		OrderID:      "1337",
-		Price:        100,
-		Amount:       1000,
-		Side:         order.Sell,
-		CurrencyPair: curr})
+		ID:     "1337",
+		Price:  100,
+		Amount: 1000,
+		Side:   order.Sell,
+		Pair:   curr})
 	if err == nil {
 		t.Error("ModifyOrder() Expected error")
 	}

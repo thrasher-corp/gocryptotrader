@@ -110,7 +110,7 @@ type FeeBuilder struct {
 // TradeHistory holds exchange history data
 type TradeHistory struct {
 	Timestamp   time.Time
-	TID         int64
+	TID         string
 	Price       float64
 	Amount      float64
 	Exchange    string

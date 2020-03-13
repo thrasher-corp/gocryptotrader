@@ -382,8 +382,8 @@ func (b *Bittrex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
-	buy := s.OrderSide == order.Buy
-	if s.OrderType != order.Limit {
+	buy := s.Side == order.Buy
+	if s.Type != order.Limit {
 		return submitOrderResponse,
 			errors.New("limit orders only supported on exchange")
 	}
@@ -419,7 +419,7 @@ func (b *Bittrex) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (b *Bittrex) CancelOrder(order *order.Cancel) error {
-	_, err := b.CancelExistingOrder(order.OrderID)
+	_, err := b.CancelExistingOrder(order.ID)
 
 	return err
 }
@@ -501,8 +501,8 @@ func (b *Bittrex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Bittrex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var currPair string
-	if len(req.Currencies) == 1 {
-		currPair = req.Currencies[0].String()
+	if len(req.Pairs) == 1 {
+		currPair = req.Pairs[0].String()
 	}
 
 	format, err := b.GetPairFormat(asset.Spot, false)
@@ -535,17 +535,17 @@ func (b *Bittrex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 			Amount:          resp.Result[i].Quantity,
 			RemainingAmount: resp.Result[i].QuantityRemaining,
 			Price:           resp.Result[i].Price,
-			OrderDate:       orderDate,
+			Date:            orderDate,
 			ID:              resp.Result[i].OrderUUID,
 			Exchange:        b.Name,
-			OrderType:       orderType,
+			Type:            orderType,
 			Pair:            pair,
 		})
 	}
 
-	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersByCurrencies(&orders, req.Currencies)
+	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -553,8 +553,8 @@ func (b *Bittrex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 // Can Limit response to specific order status
 func (b *Bittrex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var currPair string
-	if len(req.Currencies) == 1 {
-		currPair = req.Currencies[0].String()
+	if len(req.Pairs) == 1 {
+		currPair = req.Pairs[0].String()
 	}
 
 	format, err := b.GetPairFormat(asset.Spot, false)
@@ -587,18 +587,18 @@ func (b *Bittrex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 			Amount:          resp.Result[i].Quantity,
 			RemainingAmount: resp.Result[i].QuantityRemaining,
 			Price:           resp.Result[i].Price,
-			OrderDate:       orderDate,
+			Date:            orderDate,
 			ID:              resp.Result[i].OrderUUID,
 			Exchange:        b.Name,
-			OrderType:       orderType,
+			Type:            orderType,
 			Fee:             resp.Result[i].Commission,
 			Pair:            pair,
 		})
 	}
 
-	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersByCurrencies(&orders, req.Currencies)
+	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
 }
 

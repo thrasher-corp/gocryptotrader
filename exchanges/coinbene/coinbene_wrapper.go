@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -103,6 +102,8 @@ func (c *Coinbene) SetDefaults() {
 				Subscribe:              true,
 				Unsubscribe:            true,
 				AuthenticatedEndpoints: true,
+				GetOrders:              true,
+				GetOrder:               true,
 			},
 			WithdrawPermissions: exchange.NoFiatWithdrawals |
 				exchange.WithdrawCryptoViaWebsiteOnly,
@@ -117,7 +118,7 @@ func (c *Coinbene) SetDefaults() {
 
 	c.API.Endpoints.URLDefault = coinbeneAPIURL
 	c.API.Endpoints.URL = c.API.Endpoints.URLDefault
-	c.API.Endpoints.WebsocketURL = coinbeneWsURL
+	c.API.Endpoints.WebsocketURL = wsContractURL
 	c.Websocket = wshandler.New()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -142,7 +143,7 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 			Verbose:                          exch.Verbose,
 			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
 			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-			DefaultURL:                       coinbeneWsURL,
+			DefaultURL:                       wsContractURL,
 			ExchangeName:                     exch.Name,
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        c.WsConnect,
@@ -498,12 +499,12 @@ func (c *Coinbene) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return resp, err
 	}
 
-	if s.OrderSide != order.Buy && s.OrderSide != order.Sell {
+	if s.Side != order.Buy && s.Side != order.Sell {
 		return resp,
 			fmt.Errorf("%s orderside is not supported by this exchange",
-				s.OrderSide)
+				s.Side)
 	}
-	if s.OrderType != order.Limit {
+	if s.Type != order.Limit {
 		return resp, fmt.Errorf("only limit order is supported by this exchange")
 	}
 
@@ -515,8 +516,8 @@ func (c *Coinbene) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	tempResp, err := c.PlaceSpotOrder(s.Price,
 		s.Amount,
 		fpair.String(),
-		s.OrderSide.String(),
-		s.OrderType.String(),
+		s.Side.String(),
+		s.Type.String(),
 		s.ClientID,
 		0)
 	if err != nil {
@@ -535,7 +536,7 @@ func (c *Coinbene) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (c *Coinbene) CancelOrder(order *order.Cancel) error {
-	_, err := c.CancelSpotOrder(order.OrderID)
+	_, err := c.CancelSpotOrder(order.ID)
 	return err
 }
 
@@ -573,18 +574,13 @@ func (c *Coinbene) GetOrderInfo(orderID string) (order.Detail, error) {
 	if err != nil {
 		return resp, err
 	}
-	var t time.Time
 	resp.Exchange = c.Name
 	resp.ID = orderID
 	resp.Pair = currency.NewPairWithDelimiter(tempResp.BaseAsset,
 		"/",
 		tempResp.QuoteAsset)
-	t, err = time.Parse(time.RFC3339, tempResp.OrderTime)
-	if err != nil {
-		return resp, err
-	}
 	resp.Price = tempResp.OrderPrice
-	resp.OrderDate = t
+	resp.Date = tempResp.OrderTime
 	resp.ExecutedAmount = tempResp.FilledAmount
 	resp.Fee = tempResp.TotalFee
 	return resp, nil
@@ -620,7 +616,7 @@ func (c *Coinbene) GetWebsocket() (*wshandler.Websocket, error) {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (c *Coinbene) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if len(getOrdersRequest.Currencies) == 0 {
+	if len(getOrdersRequest.Pairs) == 0 {
 		allPairs, err := c.GetAllPairs()
 		if err != nil {
 			return nil, err
@@ -630,13 +626,13 @@ func (c *Coinbene) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]
 			if err != nil {
 				return nil, err
 			}
-			getOrdersRequest.Currencies = append(getOrdersRequest.Currencies, p)
+			getOrdersRequest.Pairs = append(getOrdersRequest.Pairs, p)
 		}
 	}
 
 	var resp []order.Detail
-	for x := range getOrdersRequest.Currencies {
-		fpair, err := c.FormatExchangeCurrency(getOrdersRequest.Currencies[x],
+	for x := range getOrdersRequest.Pairs {
+		fpair, err := c.FormatExchangeCurrency(getOrdersRequest.Pairs[x],
 			asset.Spot)
 		if err != nil {
 			return nil, err
@@ -651,19 +647,12 @@ func (c *Coinbene) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]
 		for y := range tempData {
 			var tempResp order.Detail
 			tempResp.Exchange = c.Name
-			tempResp.Pair = getOrdersRequest.Currencies[x]
-			tempResp.OrderSide = order.Buy
+			tempResp.Pair = getOrdersRequest.Pairs[x]
+			tempResp.Side = order.Buy
 			if strings.EqualFold(tempData[y].OrderType, order.Sell.String()) {
-				tempResp.OrderSide = order.Sell
+				tempResp.Side = order.Sell
 			}
-
-			var t time.Time
-			t, err = time.Parse(time.RFC3339, tempData[y].OrderTime)
-			if err != nil {
-				return nil, err
-			}
-
-			tempResp.OrderDate = t
+			tempResp.Date = tempData[y].OrderTime
 			tempResp.Status = order.Status(tempData[y].OrderStatus)
 			tempResp.Price = tempData[y].OrderPrice
 			tempResp.Amount = tempData[y].Amount
@@ -679,7 +668,7 @@ func (c *Coinbene) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (c *Coinbene) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	if len(getOrdersRequest.Currencies) == 0 {
+	if len(getOrdersRequest.Pairs) == 0 {
 		allPairs, err := c.GetAllPairs()
 		if err != nil {
 			return nil, err
@@ -690,14 +679,14 @@ func (c *Coinbene) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]
 			if err != nil {
 				return nil, err
 			}
-			getOrdersRequest.Currencies = append(getOrdersRequest.Currencies, p)
+			getOrdersRequest.Pairs = append(getOrdersRequest.Pairs, p)
 		}
 	}
 
 	var resp []order.Detail
 	var tempData OrdersInfo
-	for x := range getOrdersRequest.Currencies {
-		fpair, err := c.FormatExchangeCurrency(getOrdersRequest.Currencies[x],
+	for x := range getOrdersRequest.Pairs {
+		fpair, err := c.FormatExchangeCurrency(getOrdersRequest.Pairs[x],
 			asset.Spot)
 		if err != nil {
 			return nil, err
@@ -711,19 +700,12 @@ func (c *Coinbene) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]
 		for y := range tempData {
 			var tempResp order.Detail
 			tempResp.Exchange = c.Name
-			tempResp.Pair = getOrdersRequest.Currencies[x]
-			tempResp.OrderSide = order.Buy
+			tempResp.Pair = getOrdersRequest.Pairs[x]
+			tempResp.Side = order.Buy
 			if strings.EqualFold(tempData[y].OrderType, order.Sell.String()) {
-				tempResp.OrderSide = order.Sell
+				tempResp.Side = order.Sell
 			}
-
-			var t time.Time
-			t, err = time.Parse(time.RFC3339, tempData[y].OrderTime)
-			if err != nil {
-				return nil, err
-			}
-
-			tempResp.OrderDate = t
+			tempResp.Date = tempData[y].OrderTime
 			tempResp.Status = order.Status(tempData[y].OrderStatus)
 			tempResp.Price = tempData[y].OrderPrice
 			tempResp.Amount = tempData[y].Amount

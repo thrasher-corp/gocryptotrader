@@ -26,7 +26,7 @@ const (
 	// DefaultHTTPTimeout is the default HTTP/HTTPS Timeout for exchange requests
 	DefaultHTTPTimeout = time.Second * 15
 	// DefaultWebsocketResponseCheckTimeout is the default delay in checking for an expected websocket response
-	DefaultWebsocketResponseCheckTimeout = time.Millisecond * 30
+	DefaultWebsocketResponseCheckTimeout = time.Millisecond * 50
 	// DefaultWebsocketResponseMaxLimit is the default max wait for an expected websocket response before a timeout
 	DefaultWebsocketResponseMaxLimit = time.Second * 7
 	// DefaultWebsocketOrderbookBufferLimit is the maximum number of orderbook updates that get stored before being applied
@@ -203,13 +203,14 @@ func (e *Base) GetAssetTypes() asset.Items {
 
 // GetPairAssetType returns the associated asset type for the currency pair
 func (e *Base) GetPairAssetType(c currency.Pair) (asset.Item, error) {
-	for i := range e.GetAssetTypes() {
-		pairs, err := e.GetEnabledPairs(e.GetAssetTypes()[i])
+	assets := e.GetAssetTypes()
+	for i := range assets {
+		pairs, err := e.GetEnabledPairs(assets[i])
 		if err != nil {
 			return "", err
 		}
 		if pairs.Contains(c, true) {
-			return e.GetAssetTypes()[i], nil
+			return assets[i], nil
 		}
 	}
 	return "", errors.New("asset type not associated with currency pair")
@@ -365,6 +366,32 @@ func (e *Base) GetEnabledPairs(assetType asset.Item) (currency.Pairs, error) {
 		return nil, err
 	}
 	return enabledpairs.Format(format.Delimiter, format.Index, format.Uppercase), nil
+}
+
+// GetRequestFormattedPairAndAssetType is a method that returns the enabled currency pair of
+// along with its asset type. Only use when there is no chance of the same name crossing over
+func (e *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, asset.Item, error) {
+	assetTypes := e.GetAssetTypes()
+	var response currency.Pair
+	for i := range assetTypes {
+		format, err := e.GetPairFormat(assetTypes[i], true)
+		if err != nil {
+			return response, assetTypes[i], err
+		}
+
+		pairs, err := e.CurrencyPairs.GetPairs(assetTypes[i], true)
+		if err != nil {
+			return response, assetTypes[i], err
+		}
+
+		for j := range pairs {
+			formattedPair := pairs[j].Format(format.Delimiter, format.Uppercase)
+			if strings.EqualFold(formattedPair.String(), p) {
+				return formattedPair, assetTypes[i], nil
+			}
+		}
+	}
+	return response, "", errors.New("pair not found: " + p)
 }
 
 // GetAvailablePairs is a method that returns the available currency pairs

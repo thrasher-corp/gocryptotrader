@@ -130,6 +130,9 @@ func (o *OKEX) SetDefaults() {
 				Unsubscribe:            true,
 				AuthenticatedEndpoints: true,
 				MessageCorrelation:     true,
+				GetOrders:              true,
+				GetOrder:               true,
+				AccountBalance:         true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,

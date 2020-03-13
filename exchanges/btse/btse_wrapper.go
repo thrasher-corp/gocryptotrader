@@ -104,6 +104,8 @@ func (b *BTSE) SetDefaults() {
 				TradeFetching:     true,
 				Subscribe:         true,
 				Unsubscribe:       true,
+				GetOrders:         true,
+				GetOrder:          true,
 			},
 			WithdrawPermissions: exchange.NoAPIWithdrawalMethods,
 		},
@@ -404,8 +406,8 @@ func (b *BTSE) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 	r, err := b.CreateOrder(s.Amount,
 		s.Price,
-		s.OrderSide.String(),
-		s.OrderType.String(),
+		s.Side.String(),
+		s.Type.String(),
 		fpair.String(),
 		goodTillCancel,
 		s.ClientID)
@@ -417,7 +419,7 @@ func (b *BTSE) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		resp.IsOrderPlaced = true
 		resp.OrderID = *r
 	}
-	if s.OrderType == order.Market {
+	if s.Type == order.Market {
 		resp.FullyMatched = true
 	}
 	return resp, nil
@@ -437,7 +439,7 @@ func (b *BTSE) CancelOrder(order *order.Cancel) error {
 		return err
 	}
 
-	r, err := b.CancelExistingOrder(order.OrderID, fpair.String())
+	r, err := b.CancelExistingOrder(order.ID, fpair.String())
 	if err != nil {
 		return err
 	}
@@ -530,13 +532,13 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 		od.Exchange = b.Name
 		od.Amount = o[i].Amount
 		od.ID = o[i].ID
-		od.OrderDate, err = parseOrderTime(o[i].CreatedAt)
+		od.Date, err = parseOrderTime(o[i].CreatedAt)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s GetOrderInfo unable to parse time: %s\n", b.Name, err)
 		}
-		od.OrderSide = side
-		od.OrderType = order.Type(strings.ToUpper(o[i].Type))
+		od.Side = side
+		od.Type = order.Type(strings.ToUpper(o[i].Type))
 		od.Price = o[i].Price
 		od.Status = order.Status(o[i].Status)
 
@@ -625,14 +627,14 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 		openOrder := order.Detail{
 			Pair: currency.NewPairDelimiter(resp[i].Symbol,
 				format.Delimiter),
-			Exchange:  b.Name,
-			Amount:    resp[i].Amount,
-			ID:        resp[i].ID,
-			OrderDate: tm,
-			OrderSide: side,
-			OrderType: order.Type(strings.ToUpper(resp[i].Type)),
-			Price:     resp[i].Price,
-			Status:    order.Status(resp[i].Status),
+			Exchange: b.Name,
+			Amount:   resp[i].Amount,
+			ID:       resp[i].ID,
+			Date:     tm,
+			Side:     side,
+			Type:     order.Type(strings.ToUpper(resp[i].Type)),
+			Price:    resp[i].Price,
+			Status:   order.Status(resp[i].Status),
 		}
 
 		fills, err := b.GetFills(resp[i].ID, "", "", "", "", "")
@@ -665,9 +667,9 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 		orders = append(orders, openOrder)
 	}
 
-	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersBySide(&orders, req.OrderSide)
+	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
 

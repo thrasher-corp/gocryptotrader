@@ -116,6 +116,8 @@ func (b *Bitmex) SetDefaults() {
 				AuthenticatedEndpoints: true,
 				AccountInfo:            true,
 				DeadMansSwitch:         true,
+				GetOrders:              true,
+				GetOrder:               true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.WithdrawCryptoWithEmail |
@@ -456,13 +458,13 @@ func (b *Bitmex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 
 	var orderNewParams = OrderNewParams{
-		OrdType:  s.OrderSide.String(),
-		Symbol:   s.Pair.String(),
-		OrderQty: s.Amount,
-		Side:     s.OrderSide.String(),
+		OrderType:     s.Type.Title(),
+		Symbol:        s.Pair.String(),
+		OrderQuantity: s.Amount,
+		Side:          s.Side.Title(),
 	}
 
-	if s.OrderType == order.Limit {
+	if s.Type == order.Limit {
 		orderNewParams.Price = s.Price
 	}
 
@@ -473,7 +475,7 @@ func (b *Bitmex) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	if response.OrderID != "" {
 		submitOrderResponse.OrderID = response.OrderID
 	}
-	if s.OrderType == order.Market {
+	if s.Type == order.Market {
 		submitOrderResponse.FullyMatched = true
 	}
 	submitOrderResponse.IsOrderPlaced = true
@@ -490,7 +492,7 @@ func (b *Bitmex) ModifyOrder(action *order.Modify) (string, error) {
 		return "", errors.New("contract amount can not have decimals")
 	}
 
-	params.OrderID = action.OrderID
+	params.OrderID = action.ID
 	params.OrderQty = int32(action.Amount)
 	params.Price = action.Price
 
@@ -505,7 +507,7 @@ func (b *Bitmex) ModifyOrder(action *order.Modify) (string, error) {
 // CancelOrder cancels an order by its corresponding ID number
 func (b *Bitmex) CancelOrder(order *order.Cancel) error {
 	var params = OrderCancelParams{
-		OrderID: order.OrderID,
+		OrderID: order.ID,
 	}
 	_, err := b.CancelOrders(&params)
 	return err
@@ -613,17 +615,17 @@ func (b *Bitmex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 		orderSide := orderSideMap[resp[i].Side]
 		orderType := orderTypeMap[resp[i].OrdType]
 		if orderType == "" {
-			orderType = order.Unknown
+			orderType = order.UnknownType
 		}
 
 		orderDetail := order.Detail{
-			Price:     resp[i].Price,
-			Amount:    float64(resp[i].OrderQty),
-			Exchange:  b.Name,
-			ID:        resp[i].OrderID,
-			OrderSide: orderSide,
-			OrderType: orderType,
-			Status:    order.Status(resp[i].OrdStatus),
+			Price:    resp[i].Price,
+			Amount:   float64(resp[i].OrderQty),
+			Exchange: b.Name,
+			ID:       resp[i].OrderID,
+			Side:     orderSide,
+			Type:     orderType,
+			Status:   order.Status(resp[i].OrdStatus),
 			Pair: currency.NewPairWithDelimiter(resp[i].Symbol,
 				resp[i].SettlCurrency,
 				format.Delimiter),
@@ -632,10 +634,10 @@ func (b *Bitmex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 		orders = append(orders, orderDetail)
 	}
 
-	order.FilterOrdersBySide(&orders, req.OrderSide)
-	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersBySide(&orders, req.Side)
+	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersByCurrencies(&orders, req.Currencies)
+	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -659,17 +661,17 @@ func (b *Bitmex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 		orderSide := orderSideMap[resp[i].Side]
 		orderType := orderTypeMap[resp[i].OrdType]
 		if orderType == "" {
-			orderType = order.Unknown
+			orderType = order.UnknownType
 		}
 
 		orderDetail := order.Detail{
-			Price:     resp[i].Price,
-			Amount:    float64(resp[i].OrderQty),
-			Exchange:  b.Name,
-			ID:        resp[i].OrderID,
-			OrderSide: orderSide,
-			OrderType: orderType,
-			Status:    order.Status(resp[i].OrdStatus),
+			Price:    resp[i].Price,
+			Amount:   float64(resp[i].OrderQty),
+			Exchange: b.Name,
+			ID:       resp[i].OrderID,
+			Side:     orderSide,
+			Type:     orderType,
+			Status:   order.Status(resp[i].OrdStatus),
 			Pair: currency.NewPairWithDelimiter(resp[i].Symbol,
 				resp[i].SettlCurrency,
 				format.Delimiter),
@@ -678,10 +680,10 @@ func (b *Bitmex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 		orders = append(orders, orderDetail)
 	}
 
-	order.FilterOrdersBySide(&orders, req.OrderSide)
-	order.FilterOrdersByType(&orders, req.OrderType)
+	order.FilterOrdersBySide(&orders, req.Side)
+	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersByCurrencies(&orders, req.Currencies)
+	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
 }
 

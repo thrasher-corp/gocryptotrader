@@ -85,20 +85,20 @@ type CancelOrdersResponse struct {
 
 // OrderInfo stores order info
 type OrderInfo struct {
-	OrderID      string  `json:"orderId"`
-	BaseAsset    string  `json:"baseAsset"`
-	QuoteAsset   string  `json:"quoteAsset"`
-	OrderType    string  `json:"orderDirection"`
-	Quantity     float64 `json:"quntity,string"`
-	Amount       float64 `json:"amout,string"`
-	FilledAmount float64 `json:"filledAmount"`
-	TakerRate    float64 `json:"takerFeeRate,string"`
-	MakerRate    float64 `json:"makerFeeRate,string"`
-	AvgPrice     float64 `json:"avgPrice,string"`
-	OrderPrice   float64 `json:"orderPrice,string"`
-	OrderStatus  string  `json:"orderStatus"`
-	OrderTime    string  `json:"orderTime"`
-	TotalFee     float64 `json:"totalFee"`
+	OrderID      string    `json:"orderId"`
+	BaseAsset    string    `json:"baseAsset"`
+	QuoteAsset   string    `json:"quoteAsset"`
+	OrderType    string    `json:"orderDirection"`
+	Quantity     float64   `json:"quntity,string"`
+	Amount       float64   `json:"amout,string"`
+	FilledAmount float64   `json:"filledAmount"`
+	TakerRate    float64   `json:"takerFeeRate,string"`
+	MakerRate    float64   `json:"makerFeeRate,string"`
+	AvgPrice     float64   `json:"avgPrice,string"`
+	OrderPrice   float64   `json:"orderPrice,string"`
+	OrderStatus  string    `json:"orderStatus"`
+	OrderTime    time.Time `json:"orderTime"`
+	TotalFee     float64   `json:"totalFee"`
 }
 
 // OrderFills stores the fill info
@@ -157,9 +157,9 @@ type WsKline struct {
 // WsUserData stores websocket user data
 type WsUserData struct {
 	Asset     string    `json:"string"`
-	Available float64   `json:"availableBalance"`
-	Locked    float64   `json:"frozenBalance"`
-	Total     float64   `json:"balance"`
+	Available float64   `json:"availableBalance,string"`
+	Locked    float64   `json:"frozenBalance,string"`
+	Total     float64   `json:"balance,string"`
 	Timestamp time.Time `json:"timestamp"`
 }
 
@@ -171,17 +171,17 @@ type WsUserInfo struct {
 
 // WsPositionData stores websocket info on user's position
 type WsPositionData struct {
-	AvailableQuantity float64   `json:"availableQuantity"`
-	AveragePrice      float64   `json:"avgPrice"`
-	Leverage          float64   `json:"leverage"`
-	LiquidationPrice  float64   `json:"liquidationPrice"`
-	MarkPrice         float64   `json:"markPrice"`
-	PositionMargin    float64   `json:"positionMargin"`
-	Quantity          float64   `json:"quantity"`
-	RealisedPNL       float64   `json:"realisedPnl"`
+	AvailableQuantity float64   `json:"availableQuantity,string"`
+	AveragePrice      float64   `json:"avgPrice,string"`
+	Leverage          int64     `json:"leverage,string"`
+	LiquidationPrice  float64   `json:"liquidationPrice,string"`
+	MarkPrice         float64   `json:"markPrice,string"`
+	PositionMargin    float64   `json:"positionMargin,string"`
+	Quantity          float64   `json:"quantity,string"`
+	RealisedPNL       float64   `json:"realisedPnl,string"`
 	Side              string    `json:"side"`
 	Symbol            string    `json:"symbol"`
-	MarginMode        int64     `json:"marginMode"`
+	MarginMode        int64     `json:"marginMode,string"`
 	CreateTime        time.Time `json:"createTime"`
 }
 
@@ -195,20 +195,20 @@ type WsPosition struct {
 type WsOrderData struct {
 	OrderID          string    `json:"orderId"`
 	Direction        string    `json:"direction"`
-	Leverage         float64   `json:"leverage"`
+	Leverage         int64     `json:"leverage,string"`
 	Symbol           string    `json:"symbol"`
 	OrderType        string    `json:"orderType"`
-	Quantity         float64   `json:"quantity"`
-	OrderPrice       float64   `json:"orderPrice"`
-	OrderValue       float64   `json:"orderValue"`
-	Fee              float64   `json:"fee"`
-	FilledQuantity   float64   `json:"filledQuantity"`
-	AveragePrice     float64   `json:"averagePrice"`
+	Quantity         float64   `json:"quantity,string"`
+	OrderPrice       float64   `json:"orderPrice,string"`
+	OrderValue       float64   `json:"orderValue,string"`
+	Fee              float64   `json:"fee,string"`
+	FilledQuantity   float64   `json:"filledQuantity,string"`
+	AveragePrice     float64   `json:"averagePrice,string"`
 	OrderTime        time.Time `json:"orderTime"`
 	Status           string    `json:"status"`
-	LastFillQuantity float64   `json:"lastFillQuantity"`
-	LastFillPrice    float64   `json:"lastFillPrice"`
-	LastFillTime     time.Time `json:"lastFillTime"`
+	LastFillQuantity float64   `json:"lastFillQuantity,string"`
+	LastFillPrice    float64   `json:"lastFillPrice,string"`
+	LastFillTime     string    `json:"lastFillTime"`
 }
 
 // WsUserOrders stores websocket user orders' data
@@ -264,12 +264,12 @@ type SwapTrades []SwapTrade
 
 // SwapAccountInfo returns the swap account balance info
 type SwapAccountInfo struct {
-	AvailableBalance float64 `json:"availableBalance,string"`
-	FrozenBalance    float64 `json:"frozenBalance,string"`
-	MarginBalance    float64 `json:"marginBalance,string"`
-	MarginRate       float64 `json:"marginRate,string"`
-	Balance          float64 `json:"balance,string"`
-	UnrealisedPNL    float64 `json:"unrealisedPnl,string"`
+	AvailableBalance        float64 `json:"availableBalance,string"`
+	FrozenBalance           float64 `json:"frozenBalance,string"`
+	MarginBalance           float64 `json:"marginBalance,string"`
+	MarginRate              float64 `json:"marginRate,string"`
+	Balance                 float64 `json:"balance,string"`
+	UnrealisedProfitAndLoss float64 `json:"unrealisedPnl,string"`
 }
 
 // SwapPosition stores a single swap position's data
@@ -277,8 +277,8 @@ type SwapPosition struct {
 	AvailableQuantity       float64   `json:"availableQuantity,string"`
 	AveragePrice            float64   `json:"averagePrice,string"`
 	CreateTime              time.Time `json:"createTime"`
-	DeleveragePercentile    int       `json:"deleveragePercentile,string"`
-	Leverage                int       `json:"leverage,string"`
+	DeleveragePercentile    int64     `json:"deleveragePercentile,string"`
+	Leverage                int64     `json:"leverage,string"`
 	LiquidationPrice        float64   `json:"liquidationPrice,string"`
 	MarkPrice               float64   `json:"markPrice,string"`
 	PositionMargin          float64   `json:"positionMargin,string"`
@@ -303,9 +303,9 @@ type SwapPlaceOrderResponse struct {
 type SwapOrder struct {
 	OrderID        string    `json:"orderId"`
 	Direction      string    `json:"direction"`
-	Leverage       int       `json:"leverage,string"`
+	Leverage       int64     `json:"leverage,string"`
 	OrderType      string    `json:"orderType"`
-	Quantitity     float64   `json:"quantity,string"`
+	Quantity       float64   `json:"quantity,string"`
 	OrderPrice     float64   `json:"orderPrice,string"`
 	OrderValue     float64   `json:"orderValue,string"`
 	Fee            float64   `json:"fee"`

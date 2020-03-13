@@ -203,7 +203,7 @@ func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
+		Type: order.AnyType,
 	}
 
 	_, err := l.GetActiveOrders(&getOrdersRequest)
@@ -221,7 +221,7 @@ func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 
 	var getOrdersRequest = order.GetOrdersRequest{
-		OrderType: order.AnyType,
+		Type: order.AnyType,
 	}
 
 	_, err := l.GetOrderHistory(&getOrdersRequest)
@@ -253,11 +253,11 @@ func TestSubmitOrder(t *testing.T) {
 			Base:  currency.BTC,
 			Quote: currency.EUR,
 		},
-		OrderSide: order.Buy,
-		OrderType: order.Limit,
-		Price:     1,
-		Amount:    1,
-		ClientID:  "meowOrder",
+		Side:     order.Buy,
+		Type:     order.Limit,
+		Price:    1,
+		Amount:   1,
+		ClientID: "meowOrder",
 	}
 	response, err := l.SubmitOrder(orderSubmission)
 	switch {
@@ -277,7 +277,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currency.NewPair(currency.LTC, currency.BTC),
@@ -301,7 +301,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
+		ID:            "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currency.NewPair(currency.LTC, currency.BTC),

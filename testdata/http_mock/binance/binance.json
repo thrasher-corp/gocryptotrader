@@ -45420,6 +45420,34 @@
     }
    ]
   },
+  "/api/v3/userDataStream": {
+   "POST": [
+    {
+     "data": {
+      "listenKey": "LOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLO"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ],
+   "PUT": [
+    {
+     "data": null,
+     "queryString": "listenKey=LOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLO",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
   "/wapi/v3/depositAddress.html": {
    "GET": [
     {

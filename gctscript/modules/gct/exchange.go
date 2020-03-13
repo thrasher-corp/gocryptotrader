@@ -267,9 +267,9 @@ func ExchangeOrderQuery(args ...objects.Object) (objects.Object, error) {
 	data["amountexecuted"] = &objects.Float{Value: orderDetails.ExecutedAmount}
 	data["amountremaining"] = &objects.Float{Value: orderDetails.RemainingAmount}
 	data["fee"] = &objects.Float{Value: orderDetails.Fee}
-	data["side"] = &objects.String{Value: orderDetails.OrderSide.String()}
-	data["type"] = &objects.String{Value: orderDetails.OrderType.String()}
-	data["date"] = &objects.String{Value: orderDetails.OrderDate.String()}
+	data["side"] = &objects.String{Value: orderDetails.Side.String()}
+	data["type"] = &objects.String{Value: orderDetails.Type.String()}
+	data["date"] = &objects.String{Value: orderDetails.Date.String()}
 	data["status"] = &objects.String{Value: orderDetails.Status.String()}
 	data["trades"] = &tradeHistory
 
@@ -345,12 +345,12 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 	pair := currency.NewPairDelimiter(currencyPair, delimiter)
 
 	tempSubmit := &order.Submit{
-		Pair:      pair,
-		OrderType: order.Type(orderType),
-		OrderSide: order.Side(orderSide),
-		Price:     orderPrice,
-		Amount:    orderAmount,
-		ClientID:  orderClientID,
+		Pair:     pair,
+		Type:     order.Type(orderType),
+		Side:     order.Side(orderSide),
+		Price:    orderPrice,
+		Amount:   orderAmount,
+		ClientID: orderClientID,
 	}
 
 	err := tempSubmit.Validate()
@@ -358,7 +358,7 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 		return nil, err
 	}
 
-	rtn, err := wrappers.GetWrapper().SubmitOrder(exchangeName, tempSubmit)
+	rtn, err := wrappers.GetWrapper().SubmitOrder(tempSubmit)
 	if err != nil {
 		return nil, err
 	}

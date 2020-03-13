@@ -350,8 +350,8 @@ func (i *ItBit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 
 	response, err := i.PlaceOrder(wallet,
-		s.OrderSide.String(),
-		s.OrderType.String(),
+		s.Side.String(),
+		s.Type.String(),
 		s.Pair.Base.String(),
 		s.Amount,
 		s.Price,
@@ -379,7 +379,7 @@ func (i *ItBit) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (i *ItBit) CancelOrder(order *order.Cancel) error {
-	return i.CancelExistingOrder(order.WalletAddress, order.OrderID)
+	return i.CancelExistingOrder(order.WalletAddress, order.ID)
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -487,19 +487,19 @@ func (i *ItBit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 
 		orders = append(orders, order.Detail{
 			ID:              allOrders[j].ID,
-			OrderSide:       side,
+			Side:            side,
 			Amount:          allOrders[j].Amount,
 			ExecutedAmount:  allOrders[j].AmountFilled,
 			RemainingAmount: (allOrders[j].Amount - allOrders[j].AmountFilled),
 			Exchange:        i.Name,
-			OrderDate:       orderDate,
+			Date:            orderDate,
 			Pair:            symbol,
 		})
 	}
 
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersBySide(&orders, req.OrderSide)
-	order.FilterOrdersByCurrencies(&orders, req.Currencies)
+	order.FilterOrdersBySide(&orders, req.Side)
+	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
 }
 
@@ -547,19 +547,19 @@ func (i *ItBit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 
 		orders = append(orders, order.Detail{
 			ID:              allOrders[j].ID,
-			OrderSide:       side,
+			Side:            side,
 			Amount:          allOrders[j].Amount,
 			ExecutedAmount:  allOrders[j].AmountFilled,
 			RemainingAmount: (allOrders[j].Amount - allOrders[j].AmountFilled),
 			Exchange:        i.Name,
-			OrderDate:       orderDate,
+			Date:            orderDate,
 			Pair:            symbol,
 		})
 	}
 
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
-	order.FilterOrdersBySide(&orders, req.OrderSide)
-	order.FilterOrdersByCurrencies(&orders, req.Currencies)
+	order.FilterOrdersBySide(&orders, req.Side)
+	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
 }
 

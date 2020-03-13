@@ -330,10 +330,10 @@ func (l *Lbank) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return resp, err
 	}
 
-	if s.OrderSide != order.Buy && s.OrderSide != order.Sell {
+	if s.Side != order.Buy && s.Side != order.Sell {
 		return resp,
 			fmt.Errorf("%s order side is not supported by the exchange",
-				s.OrderSide)
+				s.Side)
 	}
 
 	fpair, err := l.FormatExchangeCurrency(s.Pair, asset.Spot)
@@ -343,7 +343,7 @@ func (l *Lbank) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 
 	tempResp, err := l.CreateOrder(
 		fpair.String(),
-		s.OrderSide.String(),
+		s.Side.String(),
 		s.Amount,
 		s.Price)
 	if err != nil {
@@ -351,7 +351,7 @@ func (l *Lbank) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	}
 	resp.IsOrderPlaced = true
 	resp.OrderID = tempResp.OrderID
-	if s.OrderType == order.Market {
+	if s.Type == order.Market {
 		resp.FullyMatched = true
 	}
 	return resp, nil
@@ -369,7 +369,7 @@ func (l *Lbank) CancelOrder(order *order.Cancel) error {
 	if err != nil {
 		return err
 	}
-	_, err = l.RemoveOrder(fpair.String(), order.OrderID)
+	_, err = l.RemoveOrder(fpair.String(), order.ID)
 	return err
 }
 
@@ -454,9 +454,9 @@ func (l *Lbank) GetOrderInfo(orderID string) (order.Detail, error) {
 			}
 
 			if strings.EqualFold(tempResp.Orders[0].Type, order.Buy.String()) {
-				resp.OrderSide = order.Buy
+				resp.Side = order.Buy
 			} else {
-				resp.OrderSide = order.Sell
+				resp.Side = order.Sell
 			}
 			z := tempResp.Orders[0].Status
 			switch {
@@ -547,9 +547,9 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]ord
 			}
 
 			if strings.EqualFold(tempResp.Orders[0].Type, order.Buy.String()) {
-				resp.OrderSide = order.Buy
+				resp.Side = order.Buy
 			} else {
-				resp.OrderSide = order.Sell
+				resp.Side = order.Sell
 			}
 			z := tempResp.Orders[0].Status
 			switch {
@@ -568,7 +568,7 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]ord
 			}
 			resp.Price = tempResp.Orders[0].Price
 			resp.Amount = tempResp.Orders[0].Amount
-			resp.OrderDate = time.Unix(tempResp.Orders[0].CreateTime, 9)
+			resp.Date = time.Unix(tempResp.Orders[0].CreateTime, 9)
 			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
 			resp.RemainingAmount = tempResp.Orders[0].Amount - tempResp.Orders[0].DealAmount
 			resp.Fee, err = l.GetFeeByType(&exchange.FeeBuilder{
@@ -578,15 +578,15 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]ord
 			if err != nil {
 				resp.Fee = lbankFeeNotFound
 			}
-			for y := int(0); y < len(getOrdersRequest.Currencies); y++ {
-				if getOrdersRequest.Currencies[y].String() != key {
+			for y := int(0); y < len(getOrdersRequest.Pairs); y++ {
+				if getOrdersRequest.Pairs[y].String() != key {
 					continue
 				}
-				if getOrdersRequest.OrderSide == "ANY" {
+				if getOrdersRequest.Side == "ANY" {
 					finalResp = append(finalResp, resp)
 					continue
 				}
-				if strings.EqualFold(getOrdersRequest.OrderSide.String(),
+				if strings.EqualFold(getOrdersRequest.Side.String(),
 					tempResp.Orders[0].Type) {
 					finalResp = append(finalResp, resp)
 				}
@@ -602,14 +602,14 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]ord
 	var finalResp []order.Detail
 	var resp order.Detail
 	var tempCurr currency.Pairs
-	if len(getOrdersRequest.Currencies) == 0 {
+	if len(getOrdersRequest.Pairs) == 0 {
 		var err error
 		tempCurr, err = l.GetEnabledPairs(asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		tempCurr = getOrdersRequest.Currencies
+		tempCurr = getOrdersRequest.Pairs
 	}
 	for a := range tempCurr {
 		fpair, err := l.FormatExchangeCurrency(tempCurr[a], asset.Spot)
@@ -635,9 +635,9 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]ord
 				}
 
 				if strings.EqualFold(tempResp.Orders[x].Type, order.Buy.String()) {
-					resp.OrderSide = order.Buy
+					resp.Side = order.Buy
 				} else {
-					resp.OrderSide = order.Sell
+					resp.Side = order.Sell
 				}
 				z := tempResp.Orders[x].Status
 				switch {
@@ -656,7 +656,7 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]ord
 				}
 				resp.Price = tempResp.Orders[x].Price
 				resp.Amount = tempResp.Orders[x].Amount
-				resp.OrderDate = time.Unix(tempResp.Orders[x].CreateTime, 9)
+				resp.Date = time.Unix(tempResp.Orders[x].CreateTime, 9)
 				resp.ExecutedAmount = tempResp.Orders[x].DealAmount
 				resp.RemainingAmount = tempResp.Orders[x].Price - tempResp.Orders[x].DealAmount
 				resp.Fee, err = l.GetFeeByType(&exchange.FeeBuilder{
