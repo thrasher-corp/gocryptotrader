@@ -5,12 +5,12 @@ go 1.12
 require (
 	github.com/d5/tengo/v2 v2.1.1
 	github.com/gofrs/uuid v3.2.0+incompatible
-	github.com/golang/protobuf v1.3.4
+	github.com/golang/protobuf v1.3.5
 	github.com/google/go-querystring v1.0.0
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.0
-	github.com/grpc-ecosystem/grpc-gateway v1.14.1
+	github.com/grpc-ecosystem/grpc-gateway v1.14.3
 	github.com/kat-co/vala v0.0.0-20170210184112-42e1d8b61f12
 	github.com/lib/pq v1.3.0
 	github.com/mattn/go-sqlite3 v1.13.0
@@ -25,6 +25,7 @@ require (
 	golang.org/x/crypto v0.0.0-20190605123033-f99c8df09eb5
 	golang.org/x/sys v0.0.0-20191003212358-c178f38b412c // indirect
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
-	google.golang.org/genproto v0.0.0-20191002211648-c459b9ce5143
+	google.golang.org/genproto v0.0.0-20200312145019-da6875a35672
 	google.golang.org/grpc v1.27.1
+	gopkg.in/yaml.v2 v2.2.8 // indirect
 )
