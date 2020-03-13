@@ -3987,7 +3987,7 @@ var getHistoricCandlesCommand = cli.Command{
 		},
 		cli.Int64Flag{
 			Name:        "granularity, g",
-			Usage:       "value is in seconds and can be one of the following {60 (1 Minute), 300 (5 Minute), 900 (15 Minute), 3600 (1 Hour), 21600 (6 Hour), 86400 (1 Day)}",
+			Usage:       "example values are in seconds and can be one of the following {60 (1 Minute), 300 (5 Minute), 900 (15 Minute), 3600 (1 Hour), 21600 (6 Hour), 86400 (1 Day)}",
 			Value:       86400,
 			Destination: &candleGranularity,
 		},
