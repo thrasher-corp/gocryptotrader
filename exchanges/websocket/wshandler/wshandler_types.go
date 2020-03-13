@@ -47,8 +47,8 @@ type Websocket struct {
 	connector                    func() error
 	subscribedChannels           []WebsocketChannelSubscription
 	channelsToSubscribe          []WebsocketChannelSubscription
-	channelSubscriber            func(channelToSubscribe WebsocketChannelSubscription) error
-	channelUnsubscriber          func(channelToUnsubscribe WebsocketChannelSubscription) error
+	channelSubscriber            func(channelToSubscribe *WebsocketChannelSubscription) error
+	channelUnsubscriber          func(channelToUnsubscribe *WebsocketChannelSubscription) error
 	DataHandler                  chan interface{}
 	// ShutdownC is the main shutdown channel which controls all websocket go funcs
 	ShutdownC chan struct{}
@@ -74,8 +74,8 @@ type WebsocketSetup struct {
 	ExchangeName                     string
 	RunningURL                       string
 	Connector                        func() error
-	Subscriber                       func(channelToSubscribe WebsocketChannelSubscription) error
-	UnSubscriber                     func(channelToUnsubscribe WebsocketChannelSubscription) error
+	Subscriber                       func(channelToSubscribe *WebsocketChannelSubscription) error
+	UnSubscriber                     func(channelToUnsubscribe *WebsocketChannelSubscription) error
 	Features                         *protocol.Features
 }
 

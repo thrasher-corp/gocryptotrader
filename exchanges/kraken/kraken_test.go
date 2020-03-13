@@ -691,7 +691,7 @@ func setupWsTests(t *testing.T) {
 // TestWebsocketSubscribe tests returning a message with an id
 func TestWebsocketSubscribe(t *testing.T) {
 	setupWsTests(t)
-	err := k.Subscribe(wshandler.WebsocketChannelSubscription{
+	err := k.Subscribe(&wshandler.WebsocketChannelSubscription{
 		Channel:  defaultSubscribedChannels[0],
 		Currency: currency.NewPairWithDelimiter("XBT", "USD", "/"),
 	})

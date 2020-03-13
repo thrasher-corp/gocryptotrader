@@ -579,7 +579,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (p *Poloniex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (p *Poloniex) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	subscriptionRequest := WsCommand{
 		Command: "subscribe",
 	}
@@ -595,7 +595,7 @@ func (p *Poloniex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (p *Poloniex) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (p *Poloniex) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	unsubscriptionRequest := WsCommand{
 		Command: "unsubscribe",
 	}

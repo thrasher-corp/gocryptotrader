@@ -414,12 +414,12 @@ func (w *Websocket) GetName() string {
 }
 
 // SetChannelSubscriber sets the function to use the base subscribe func
-func (w *Websocket) SetChannelSubscriber(subscriber func(channelToSubscribe WebsocketChannelSubscription) error) {
+func (w *Websocket) SetChannelSubscriber(subscriber func(channelToSubscribe *WebsocketChannelSubscription) error) {
 	w.channelSubscriber = subscriber
 }
 
 // SetChannelUnsubscriber sets the function to use the base unsubscribe func
-func (w *Websocket) SetChannelUnsubscriber(unsubscriber func(channelToUnsubscribe WebsocketChannelSubscription) error) {
+func (w *Websocket) SetChannelUnsubscriber(unsubscriber func(channelToUnsubscribe *WebsocketChannelSubscription) error) {
 	w.channelUnsubscriber = unsubscriber
 }
 
@@ -491,7 +491,7 @@ func (w *Websocket) appendSubscribedChannels() error {
 			if w.verbose {
 				log.Debugf(log.WebsocketMgr, "%v Subscribing to %v %v", w.exchangeName, w.channelsToSubscribe[i].Channel, w.channelsToSubscribe[i].Currency.String())
 			}
-			err := w.channelSubscriber(w.channelsToSubscribe[i])
+			err := w.channelSubscriber(&w.channelsToSubscribe[i])
 			if err != nil {
 				return err
 			}
@@ -515,7 +515,7 @@ func (w *Websocket) unsubscribeToChannels() error {
 			}
 		}
 		if !subscriptionFound {
-			err := w.channelUnsubscriber(w.subscribedChannels[i])
+			err := w.channelUnsubscriber(&w.subscribedChannels[i])
 			if err != nil {
 				return err
 			}
@@ -530,19 +530,19 @@ func (w *Websocket) unsubscribeToChannels() error {
 // RemoveSubscribedChannels removes supplied channels from channelsToSubscribe
 func (w *Websocket) RemoveSubscribedChannels(channels []WebsocketChannelSubscription) {
 	for i := range channels {
-		w.removeChannelToSubscribe(channels[i])
+		w.removeChannelToSubscribe(&channels[i])
 	}
 }
 
 // removeChannelToSubscribe removes an entry from w.channelsToSubscribe
 // so an unsubscribe event can be triggered
-func (w *Websocket) removeChannelToSubscribe(subscribedChannel WebsocketChannelSubscription) {
+func (w *Websocket) removeChannelToSubscribe(subscribedChannel *WebsocketChannelSubscription) {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
 	channelLength := len(w.channelsToSubscribe)
 	i := 0
 	for j := 0; j < len(w.channelsToSubscribe); j++ {
-		if !w.channelsToSubscribe[j].Equal(&subscribedChannel) {
+		if !w.channelsToSubscribe[j].Equal(subscribedChannel) {
 			w.channelsToSubscribe[i] = w.channelsToSubscribe[j]
 			i++
 		}
@@ -558,7 +558,7 @@ func (w *Websocket) removeChannelToSubscribe(subscribedChannel WebsocketChannelS
 
 // ResubscribeToChannel calls unsubscribe func and
 // removes it from subscribedChannels to trigger a subscribe event
-func (w *Websocket) ResubscribeToChannel(subscribedChannel WebsocketChannelSubscription) {
+func (w *Websocket) ResubscribeToChannel(subscribedChannel *WebsocketChannelSubscription) {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
 	err := w.channelUnsubscriber(subscribedChannel)
@@ -569,7 +569,7 @@ func (w *Websocket) ResubscribeToChannel(subscribedChannel WebsocketChannelSubsc
 	// ManageSubscriptions will automatically resubscribe
 	i := 0
 	for j := 0; j < len(w.subscribedChannels); j++ {
-		if !w.subscribedChannels[j].Equal(&subscribedChannel) {
+		if !w.subscribedChannels[j].Equal(subscribedChannel) {
 			w.subscribedChannels[i] = w.subscribedChannels[j]
 			i++
 		}

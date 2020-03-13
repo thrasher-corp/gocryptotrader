@@ -578,7 +578,7 @@ func setupWSTestAuth(t *testing.T) {
 func TestWsUnsubscribe(t *testing.T) {
 	setupWSTestAuth(t)
 	g.Verbose = true
-	err := g.Unsubscribe(wshandler.WebsocketChannelSubscription{
+	err := g.Unsubscribe(&wshandler.WebsocketChannelSubscription{
 		Channel:  "ticker.subscribe",
 		Currency: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_"),
 	})
@@ -590,7 +590,7 @@ func TestWsUnsubscribe(t *testing.T) {
 // TestWsSubscribe dials websocket, sends a subscribe request.
 func TestWsSubscribe(t *testing.T) {
 	setupWSTestAuth(t)
-	err := g.Subscribe(wshandler.WebsocketChannelSubscription{
+	err := g.Subscribe(&wshandler.WebsocketChannelSubscription{
 		Channel:  "ticker.subscribe",
 		Currency: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_"),
 	})

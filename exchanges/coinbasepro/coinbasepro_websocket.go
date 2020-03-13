@@ -403,7 +403,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *CoinbasePro) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (c *CoinbasePro) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	fpair, err := c.FormatExchangeCurrency(channelToSubscribe.Currency,
 		asset.Spot)
 	if err != nil {
@@ -435,7 +435,7 @@ func (c *CoinbasePro) Subscribe(channelToSubscribe wshandler.WebsocketChannelSub
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *CoinbasePro) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (c *CoinbasePro) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	fpair, err := c.FormatExchangeCurrency(channelToSubscribe.Currency,
 		asset.Spot)
 	if err != nil {

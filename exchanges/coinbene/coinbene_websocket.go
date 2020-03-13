@@ -464,7 +464,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *Coinbene) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (c *Coinbene) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	var sub WsSub
 	sub.Operation = "subscribe"
 	sub.Arguments = []string{channelToSubscribe.Channel}
@@ -472,7 +472,7 @@ func (c *Coinbene) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 }
 
 // Unsubscribe sends a websocket message to receive data from the channel
-func (c *Coinbene) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (c *Coinbene) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	var sub WsSub
 	sub.Operation = "unsubscribe"
 	sub.Arguments = []string{channelToSubscribe.Channel}

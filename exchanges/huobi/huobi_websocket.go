@@ -504,7 +504,7 @@ func (h *HUOBI) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (h *HUOBI) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (h *HUOBI) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	if strings.Contains(channelToSubscribe.Channel, "orders.") ||
 		strings.Contains(channelToSubscribe.Channel, "accounts") {
 		return h.wsAuthenticatedSubscribe("sub", wsAccountsOrdersEndPoint+channelToSubscribe.Channel, channelToSubscribe.Channel)
@@ -513,7 +513,7 @@ func (h *HUOBI) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscript
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (h *HUOBI) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (h *HUOBI) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	if strings.Contains(channelToSubscribe.Channel, "orders.") ||
 		strings.Contains(channelToSubscribe.Channel, "accounts") {
 		return h.wsAuthenticatedSubscribe("unsub", wsAccountsOrdersEndPoint+channelToSubscribe.Channel, channelToSubscribe.Channel)

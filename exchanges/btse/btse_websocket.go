@@ -320,7 +320,7 @@ func (b *BTSE) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *BTSE) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (b *BTSE) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	var sub wsSub
 	sub.Operation = "subscribe"
 	sub.Arguments = []string{channelToSubscribe.Channel}
@@ -329,7 +329,7 @@ func (b *BTSE) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscripti
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *BTSE) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (b *BTSE) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	var unSub wsSub
 	unSub.Operation = "unsubscribe"
 	unSub.Arguments = []string{channelToSubscribe.Channel}

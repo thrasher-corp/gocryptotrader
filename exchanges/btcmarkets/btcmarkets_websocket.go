@@ -326,7 +326,7 @@ var unauthChannels = []string{tick, trade, wsOB}
 var authChannels = []string{fundChange, heartbeat, orderChange}
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *BTCMarkets) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (b *BTCMarkets) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	fpair, err := b.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot)
 	if err != nil {
 		return err

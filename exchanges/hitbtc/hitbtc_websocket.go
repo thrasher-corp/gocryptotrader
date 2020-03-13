@@ -488,7 +488,7 @@ func (h *HitBTC) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (h *HitBTC) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (h *HitBTC) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	subscribe := WsNotification{
 		Method: channelToSubscribe.Channel,
 	}
@@ -519,7 +519,7 @@ func (h *HitBTC) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (h *HitBTC) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (h *HitBTC) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	unsubscribeChannel := strings.Replace(channelToSubscribe.Channel, "subscribe", "unsubscribe", 1)
 
 	fpair, err := h.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot)

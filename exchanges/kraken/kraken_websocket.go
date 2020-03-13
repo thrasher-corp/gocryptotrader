@@ -581,7 +581,7 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[
 			defer k.wsRequestMtx.Unlock()
 			err := k.wsProcessOrderBookUpdate(channelData, askData, bidData)
 			if err != nil {
-				subscriptionToRemove := wshandler.WebsocketChannelSubscription{
+				subscriptionToRemove := &wshandler.WebsocketChannelSubscription{
 					Channel:  krakenWsOrderbook,
 					Currency: channelData.Pair,
 				}
@@ -841,7 +841,7 @@ func (k *Kraken) GenerateAuthenticatedSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (k *Kraken) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (k *Kraken) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	resp := WebsocketSubscriptionEventRequest{
 		Event: krakenWsSubscribe,
 		Subscription: WebsocketSubscriptionData{
@@ -865,7 +865,7 @@ func (k *Kraken) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (k *Kraken) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (k *Kraken) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	resp := WebsocketSubscriptionEventRequest{
 		Event: krakenWsUnsubscribe,
 		Pairs: []string{channelToSubscribe.Currency.String()},

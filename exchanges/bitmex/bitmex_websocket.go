@@ -639,7 +639,7 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() {
 }
 
 // Subscribe subscribes to a websocket channel
-func (b *Bitmex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (b *Bitmex) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	var subscriber WebsocketRequest
 	subscriber.Command = "subscribe"
 	subscriber.Arguments = append(subscriber.Arguments, channelToSubscribe.Channel)
@@ -647,7 +647,7 @@ func (b *Bitmex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitmex) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (b *Bitmex) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	var subscriber WebsocketRequest
 	subscriber.Command = "unsubscribe"
 	subscriber.Arguments = append(subscriber.Arguments,

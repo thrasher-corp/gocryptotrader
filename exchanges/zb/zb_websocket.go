@@ -289,7 +289,7 @@ func (z *ZB) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (z *ZB) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (z *ZB) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	subscriptionRequest := Subscription{
 		Event:   zWebsocketAddChannel,
 		Channel: channelToSubscribe.Channel,

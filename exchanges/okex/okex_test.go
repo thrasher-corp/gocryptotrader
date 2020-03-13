@@ -1453,7 +1453,7 @@ func TestSendWsMessages(t *testing.T) {
 	go o.WsReadData(&wg)
 	wg.Wait()
 
-	subscription := wshandler.WebsocketChannelSubscription{
+	subscription := &wshandler.WebsocketChannelSubscription{
 		Channel: "badChannel",
 	}
 	o.Subscribe(subscription)

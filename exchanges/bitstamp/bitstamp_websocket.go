@@ -170,7 +170,7 @@ func (b *Bitstamp) generateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *Bitstamp) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (b *Bitstamp) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	req := websocketEventRequest{
 		Event: "bts:subscribe",
 		Data: websocketData{
@@ -181,7 +181,7 @@ func (b *Bitstamp) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitstamp) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (b *Bitstamp) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	req := websocketEventRequest{
 		Event: "bts:unsubscribe",
 		Data: websocketData{

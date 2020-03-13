@@ -648,7 +648,7 @@ func TestWsAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = c.Subscribe(wshandler.WebsocketChannelSubscription{
+	err = c.Subscribe(&wshandler.WebsocketChannelSubscription{
 		Channel:  "user",
 		Currency: p,
 	})

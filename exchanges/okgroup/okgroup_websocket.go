@@ -592,7 +592,7 @@ func (o *OKGroup) wsResubscribeToOrderbook(response *WebsocketOrderBooksData) {
 			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
 		}
 
-		channelToResubscribe := wshandler.WebsocketChannelSubscription{
+		channelToResubscribe := &wshandler.WebsocketChannelSubscription{
 			Channel:  response.Table,
 			Currency: c,
 		}
@@ -901,7 +901,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (o *OKGroup) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (o *OKGroup) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	c := channelToSubscribe.Currency.String()
 	request := WebsocketEventRequest{
 		Operation: "subscribe",
@@ -917,7 +917,7 @@ func (o *OKGroup) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscri
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (o *OKGroup) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (o *OKGroup) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	request := WebsocketEventRequest{
 		Operation: "unsubscribe",
 		Arguments: []string{channelToSubscribe.Channel +

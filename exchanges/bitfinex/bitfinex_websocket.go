@@ -910,7 +910,7 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *Bitfinex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (b *Bitfinex) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	req := make(map[string]interface{})
 	req["event"] = "subscribe"
 	req["channel"] = channelToSubscribe.Channel
@@ -939,7 +939,7 @@ func (b *Bitfinex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitfinex) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (b *Bitfinex) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	req := make(map[string]interface{})
 	req["event"] = "unsubscribe"
 	req["channel"] = channelToSubscribe.Channel

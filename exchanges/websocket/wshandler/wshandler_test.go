@@ -30,8 +30,8 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 			ExchangeName:                     "exchangeName",
 			RunningURL:                       "testRunningURL",
 			Connector:                        func() error { return nil },
-			Subscriber:                       func(test WebsocketChannelSubscription) error { return nil },
-			UnSubscriber:                     func(test WebsocketChannelSubscription) error { return nil },
+			Subscriber:                       func(test *WebsocketChannelSubscription) error { return nil },
+			UnSubscriber:                     func(test *WebsocketChannelSubscription) error { return nil },
 		})
 	if err != nil {
 		t.Error(err)
@@ -140,8 +140,8 @@ func TestWebsocket(t *testing.T) {
 			ExchangeName:                     "exchangeName",
 			RunningURL:                       "testRunningURL",
 			Connector:                        func() error { return nil },
-			Subscriber:                       func(test WebsocketChannelSubscription) error { return nil },
-			UnSubscriber:                     func(test WebsocketChannelSubscription) error { return nil },
+			Subscriber:                       func(test *WebsocketChannelSubscription) error { return nil },
+			UnSubscriber:                     func(test *WebsocketChannelSubscription) error { return nil },
 			Features:                         &protocol.Features{},
 		})
 	if err != nil {
@@ -207,7 +207,7 @@ func TestWebsocket(t *testing.T) {
 }
 
 // placeholderSubscriber basic function to test subscriptions
-func placeholderSubscriber(channelToSubscribe WebsocketChannelSubscription) error {
+func placeholderSubscriber(_ *WebsocketChannelSubscription) error {
 	return nil
 }
 
@@ -368,12 +368,12 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 
 // TestRemoveChannelToSubscribe logic test
 func TestRemoveChannelToSubscribe(t *testing.T) {
-	subscription := WebsocketChannelSubscription{
+	subscription := &WebsocketChannelSubscription{
 		Channel: "hello",
 	}
 	w := Websocket{
 		channelsToSubscribe: []WebsocketChannelSubscription{
-			subscription,
+			*subscription,
 		},
 	}
 	w.SetChannelUnsubscriber(placeholderSubscriber)
@@ -385,7 +385,7 @@ func TestRemoveChannelToSubscribe(t *testing.T) {
 
 // TestRemoveChannelToSubscribeWithNoSubscription logic test
 func TestRemoveChannelToSubscribeWithNoSubscription(t *testing.T) {
-	subscription := WebsocketChannelSubscription{
+	subscription := &WebsocketChannelSubscription{
 		Channel: "hello",
 	}
 	w := Websocket{
@@ -402,7 +402,7 @@ func TestRemoveChannelToSubscribeWithNoSubscription(t *testing.T) {
 
 // TestResubscribeToChannel logic test
 func TestResubscribeToChannel(t *testing.T) {
-	subscription := WebsocketChannelSubscription{
+	subscription := &WebsocketChannelSubscription{
 		Channel: "hello",
 	}
 	w := Websocket{

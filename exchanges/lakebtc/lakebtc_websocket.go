@@ -97,7 +97,7 @@ func (l *LakeBTC) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (l *LakeBTC) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (l *LakeBTC) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	return l.WebsocketConn.Client.Subscribe(channelToSubscribe.Channel)
 }
 

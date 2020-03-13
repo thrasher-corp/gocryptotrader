@@ -506,7 +506,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (g *Gateio) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (g *Gateio) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	fpair, err := g.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot)
 	if err != nil {
 		return err
@@ -540,7 +540,7 @@ func (g *Gateio) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscrip
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (g *Gateio) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
 	unsbuscribeText := strings.Replace(channelToSubscribe.Channel, "subscribe", "unsubscribe", 1)
 	fpair, err := g.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot)
 	if err != nil {
