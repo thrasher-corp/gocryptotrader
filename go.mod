@@ -3,7 +3,7 @@ module github.com/thrasher-corp/gocryptotrader
 go 1.12
 
 require (
-	github.com/d5/tengo/v2 v2.1.1
+	github.com/d5/tengo/v2 v2.1.2
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/golang/protobuf v1.3.5
 	github.com/google/go-querystring v1.0.0
@@ -20,12 +20,11 @@ require (
 	github.com/thrasher-corp/goose v2.7.0-rc4.0.20191002032028-0f2c2a27abdb+incompatible
 	github.com/thrasher-corp/sqlboiler v1.0.1-0.20191001234224-71e17f37a85e
 	github.com/toorop/go-pusher v0.0.0-20180521062818-4521e2eb39fb
-	github.com/urfave/cli v1.22.2
+	github.com/urfave/cli v1.22.3
 	github.com/volatiletech/null v8.0.0+incompatible
 	golang.org/x/crypto v0.0.0-20190605123033-f99c8df09eb5
 	golang.org/x/sys v0.0.0-20191003212358-c178f38b412c // indirect
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
-	google.golang.org/genproto v0.0.0-20200312145019-da6875a35672
-	google.golang.org/grpc v1.27.1
-	gopkg.in/yaml.v2 v2.2.8 // indirect
+	google.golang.org/genproto v0.0.0-20191002211648-c459b9ce5143
+	google.golang.org/grpc v1.28.0
 )
