@@ -87,7 +87,6 @@ type Config struct {
 	BoardID     string         `json:"BoardID"`
 	Key         string         `json:"Key"`
 	Token       string         `json:"Token"`
-	Username    string         `json:"Username"`
 	Exchanges   []ExchangeInfo `json:"Exchanges"`
 }
 

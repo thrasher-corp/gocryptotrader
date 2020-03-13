@@ -145,6 +145,7 @@ func main() {
 	}
 	var a string
 	if canUpdateTrello() || create {
+		setAuthVars()
 		if trelloBoardName != "" {
 			a, err = trelloGetBoardID()
 			if err != nil {
