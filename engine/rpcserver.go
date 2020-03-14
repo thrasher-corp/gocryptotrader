@@ -804,7 +804,13 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		Amount:   r.Amount,
 		Price:    r.Price,
 		ClientID: r.ClientId,
+		Exchange: r.Exchange,
 	})
+
+	if err != nil {
+		return &gctrpc.SubmitOrderResponse{}, err
+	}
+
 	return &gctrpc.SubmitOrderResponse{
 		OrderId:     resp.OrderID,
 		OrderPlaced: resp.IsOrderPlaced,
@@ -898,6 +904,7 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 		ID:            r.OrderId,
 		Side:          order.Side(r.Side),
 		WalletAddress: r.WalletAddress,
+		Pair:          currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote),
 	})
 
 	return &gctrpc.CancelOrderResponse{}, err
