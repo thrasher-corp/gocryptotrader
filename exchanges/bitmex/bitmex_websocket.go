@@ -281,7 +281,8 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			}
 
 			for i := range response.Data {
-				p, err := currency.NewPairFromString(response.Data[i].Symbol)
+				var p currency.Pair
+				p, err = currency.NewPairFromString(response.Data[i].Symbol)
 				if err != nil {
 					return err
 				}
