@@ -811,8 +811,14 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		Amount:   r.Amount,
 		Price:    r.Price,
 		ClientID: r.ClientId,
+		Exchange: r.Exchange,
 	}
+
 	resp, err := exch.SubmitOrder(submission)
+	if err != nil {
+		return &gctrpc.SubmitOrderResponse{}, err
+	}
+
 	return &gctrpc.SubmitOrderResponse{
 		OrderId:     resp.OrderID,
 		OrderPlaced: resp.IsOrderPlaced,
@@ -909,11 +915,17 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 		return nil, errors.New("exchange is not loaded/doesn't exist")
 	}
 
-	err := exch.CancelOrder(&order.Cancel{
+	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return nil, err
+	}
+
+	err = exch.CancelOrder(&order.Cancel{
 		AccountID:     r.AccountId,
 		ID:            r.OrderId,
 		Side:          order.Side(r.Side),
 		WalletAddress: r.WalletAddress,
+		Pair:          p,
 	})
 
 	return &gctrpc.CancelOrderResponse{}, err
