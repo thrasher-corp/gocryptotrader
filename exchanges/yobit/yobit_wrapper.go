@@ -14,6 +14,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -562,4 +563,9 @@ func (y *Yobit) AuthenticateWebsocket() error {
 func (y *Yobit) ValidateCredentials() error {
 	_, err := y.UpdateAccountInfo()
 	return y.CheckTransientError(err)
+}
+
+// GetHistoricCandles returns candles between a time period for a set time interval
+func (y *Yobit) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
+	return kline.Item{}, common.ErrNotYetImplemented
 }

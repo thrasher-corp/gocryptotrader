@@ -1530,21 +1530,24 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHisto
 		Delimiter: req.Pair.Delimiter,
 		Base:      currency.NewCode(req.Pair.Base),
 		Quote:     currency.NewCode(req.Pair.Quote),
-	}, req.Rangesize, req.Granularity)
+	},
+		asset.Item(req.AssetType),
+		time.Unix(req.Start, 0),
+		time.Unix(req.End, 0),
+		time.Duration(req.TimeInterval))
 	if err != nil {
 		return nil, err
 	}
 	resp := gctrpc.GetHistoricCandlesResponse{}
-	for _, candle := range candles {
-		tempCandle := &gctrpc.Candle{
-			Time:   candle.Time,
-			Low:    candle.Low,
-			High:   candle.High,
-			Open:   candle.Open,
-			Close:  candle.Close,
-			Volume: candle.Volume,
-		}
-		resp.Candle = append(resp.Candle, tempCandle)
+	for i := range candles.Candles {
+		resp.Candle = append(resp.Candle, &gctrpc.Candle{
+			Time:   candles.Candles[i].Time.Unix(),
+			Low:    candles.Candles[i].Low,
+			High:   candles.Candles[i].High,
+			Open:   candles.Candles[i].Open,
+			Close:  candles.Candles[i].Close,
+			Volume: candles.Candles[i].Volume,
+		})
 	}
 	return &resp, nil
 }

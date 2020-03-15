@@ -11,7 +11,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -110,11 +109,6 @@ var (
 // LocalBitcoins is the overarching type across the localbitcoins package
 type LocalBitcoins struct {
 	exchange.Base
-}
-
-// GetHistoricCandles returns rangesize number of candles for the given granularity and pair starting from the latest available
-func (l *LocalBitcoins) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
 }
 
 // GetAccountInformation lets you retrieve the public user information on a

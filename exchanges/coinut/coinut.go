@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -54,11 +53,6 @@ type COINUT struct {
 	exchange.Base
 	WebsocketConn *wshandler.WebsocketConnection
 	instrumentMap instrumentMap
-}
-
-// GetHistoricCandles returns rangesize number of candles for the given granularity and pair starting from the latest available
-func (c *COINUT) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
-	return nil, common.ErrNotYetImplemented
 }
 
 // SeedInstruments seeds the instrument map

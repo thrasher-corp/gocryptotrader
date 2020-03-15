@@ -69,11 +69,6 @@ type Binance struct {
 	validIntervals []TimeInterval
 }
 
-// GetHistoricCandles returns rangesize number of candles for the given granularity and pair starting from the latest available
-func (b *Binance) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
 // GetExchangeInfo returns exchange information. Check binance_types for more
 // information
 func (b *Binance) GetExchangeInfo() (ExchangeInfo, error) {

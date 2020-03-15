@@ -38,11 +38,6 @@ type ItBit struct {
 	exchange.Base
 }
 
-// GetHistoricCandles returns rangesize number of candles for the given granularity and pair starting from the latest available
-func (i *ItBit) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
 // GetTicker returns ticker info for a specified market.
 // currencyPair - example "XBTUSD" "XBTSGD" "XBTEUR"
 func (i *ItBit) GetTicker(currencyPair string) (Ticker, error) {

@@ -9,6 +9,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -176,8 +177,8 @@ func (h *FakePassingExchange) GetSubscriptions() ([]wshandler.WebsocketChannelSu
 func (h *FakePassingExchange) GetDefaultConfig() (*config.ExchangeConfig, error) { return nil, nil }
 func (h *FakePassingExchange) GetBase() *exchange.Base                           { return nil }
 func (h *FakePassingExchange) SupportsAsset(_ asset.Item) bool                   { return true }
-func (h *FakePassingExchange) GetHistoricCandles(_ currency.Pair, _, _ int64) ([]exchange.Candle, error) {
-	return []exchange.Candle{}, nil
+func (h *FakePassingExchange) GetHistoricCandles(_ currency.Pair, _ asset.Item, _, _ time.Time, _ time.Duration) (kline.Item, error) {
+	return kline.Item{}, nil
 }
 func (h *FakePassingExchange) DisableRateLimiter() error { return nil }
 func (h *FakePassingExchange) EnableRateLimiter() error  { return nil }
