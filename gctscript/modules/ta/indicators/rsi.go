@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	objects "github.com/d5/tengo/v2"
+	"github.com/thrasher-corp/go-talib/indicators"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
 // RsiModule relative strength index indicator commands
@@ -16,26 +18,30 @@ func rsi(args ...objects.Object) (objects.Object, error) {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	ohlcData := objects.ToInterface(args[0])
-	switch t := ohlcData.(type) {
-	case []interface{}:
-		fmt.Println(t)
-	}
-	// ohlcCloseData, err := appendData(ohlcData.([]interface{}))
-	// if err != nil {
-	// 	return nil, err
-	// }
-	//
-	// inTimePeroid, ok := objects.ToInt(args[1])
-	// if !ok {
-	// 	return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeroid)
-	// }
+	ohlcvInput := objects.ToInterface(args[0])
+	ohlcvData := ohlcvInput.([]interface{})
 
-	// ret := indicators.Rsi(ohlcCloseData, inTimePeroid)
+	var ohlcvClose []float64
+	for x := range ohlcvData {
+		switch t := ohlcvData[x].(type) {
+		case []interface{}:
+			value, err := toFloat64(t[4])
+			if err != nil {
+				return nil, err
+			}
+			ohlcvClose = append(ohlcvClose, value)
+		}
+	}
+	inTimePeroid, ok := objects.ToInt(args[1])
+	if !ok {
+		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeroid)
+	}
+
+	ret := indicators.Rsi(ohlcvClose, inTimePeroid)
 	r := &objects.Array{}
-	// for x := range ret {
-	// 	r.Value = append(r.Value, &objects.Float{Value: ret[x]})
-	// }
+	for x := range ret {
+		r.Value = append(r.Value, &objects.Float{Value: ret[x]})
+	}
 
 	return r, nil
 }
