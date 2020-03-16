@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
 )
 
@@ -46,11 +44,6 @@ const (
 // OKEX bases all account, spot and margin methods off okgroup implementation
 type OKEX struct {
 	okgroup.OKGroup
-}
-
-// GetHistoricCandles returns rangesize number of candles for the given granularity and pair starting from the latest available
-func (o *OKEX) GetHistoricCandles(pair currency.Pair, rangesize, granularity int64) ([]exchange.Candle, error) {
-	return nil, common.ErrFunctionNotSupported
 }
 
 // GetFuturesPostions Get the information of all holding positions in futures trading.

@@ -119,16 +119,6 @@ type TradeHistory struct {
 	Description string
 }
 
-// Candle holds historic rate information. Modelled after the Coinbase historic rate structure
-type Candle struct {
-	Time   int64
-	Low    float64
-	High   float64
-	Open   float64
-	Close  float64
-	Volume float64
-}
-
 // FundHistory holds exchange funding history data
 type FundHistory struct {
 	ExchangeName      string
