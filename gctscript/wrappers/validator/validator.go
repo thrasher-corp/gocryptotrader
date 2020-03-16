@@ -6,6 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -211,4 +212,11 @@ func (w Wrapper) WithdrawalFiatFunds(exch, _ string, _ *withdraw.Request) (out s
 	}
 
 	return "123", nil
+}
+
+func (w Wrapper) OHLCV(exch string, _ currency.Pair, _ asset.Item, _, _ time.Time, _ time.Duration) (kline.Item, error) {
+	if exch == exchError.String() {
+		return kline.Item{}, errTestFailed
+	}
+	return kline.Item{}, nil
 }

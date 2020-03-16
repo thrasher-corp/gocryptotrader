@@ -1,9 +1,12 @@
 package modules
 
 import (
+	"time"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -38,6 +41,7 @@ type Exchange interface {
 	DepositAddress(exch string, currencyCode currency.Code) (string, error)
 	WithdrawalFiatFunds(exch, bankAccountID string, request *withdraw.Request) (out string, err error)
 	WithdrawalCryptoFunds(exch string, request *withdraw.Request) (out string, err error)
+	OHLCV(exch string, pair currency.Pair, item asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error)
 }
 
 // SetModuleWrapper link the wrapper and interface to use for modules
