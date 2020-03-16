@@ -1471,15 +1471,16 @@ func trelloCreateNewList() error {
 		return err
 	}
 	for x := range lists {
-		if lists[x].Name == createList {
-			trelloListID = lists[x].ID
-			usageData.ListID = lists[x].ID
-			err = writeAuthVars()
-			if err != nil {
-				return err
-			}
-			return nil
+		if lists[x].Name != createList {
+			continue
 		}
+		trelloListID = lists[x].ID
+		usageData.ListID = lists[x].ID
+		err = writeAuthVars()
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 	return nil
 }
@@ -1507,15 +1508,16 @@ func trelloCreateNewCard() error {
 		return err
 	}
 	for x := range cards {
-		if cards[x].Name == createCard {
-			trelloCardID = cards[x].ID
-			usageData.CardID = cards[x].ID
-			err = writeAuthVars()
-			if err != nil {
-				return err
-			}
-			return nil
+		if cards[x].Name != createCard {
+			continue
 		}
+		trelloCardID = cards[x].ID
+		usageData.CardID = cards[x].ID
+		err = writeAuthVars()
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 	return errors.New("card id and name not found, list creation failed")
 }
@@ -1543,15 +1545,16 @@ func trelloCreateNewChecklist() error {
 		return err
 	}
 	for x := range checklists {
-		if checklists[x].Name == createChecklist {
-			trelloChecklistID = checklists[x].ID
-			usageData.ChecklistID = checklists[x].ID
-			err = writeAuthVars()
-			if err != nil {
-				return err
-			}
-			return nil
+		if checklists[x].Name != createChecklist {
+			continue
 		}
+		trelloChecklistID = checklists[x].ID
+		usageData.ChecklistID = checklists[x].ID
+		err = writeAuthVars()
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 	return errors.New("checklist id and name not found, checklist creation failed")
 }
