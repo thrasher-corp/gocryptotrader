@@ -36,7 +36,7 @@
      "TextTokenData": "strong",
      "DateFormat": "01/02/06",
      "RegExp": "^(\\d){1,2}/(\\d){1,2}/(\\d){2}$",
-     "CheckString": "2/20/20",
+     "CheckString": "2/10/20",
      "Path": "https://docs.pro.coinbase.com/#changelog"
     }
    },
