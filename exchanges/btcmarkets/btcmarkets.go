@@ -186,10 +186,10 @@ func (b *BTCMarkets) GetMarketCandles(marketID string, timeWindow time.Duration,
 		params.Set("timeWindow", intervalStr)
 	}
 	if !from.IsZero() {
-		params.Set("from", from.Format(time.RFC3339))
+		params.Set("from", from.UTC().Format(time.RFC3339))
 	}
 	if !to.IsZero() {
-		params.Set("to", to.Format(time.RFC3339))
+		params.Set("to", to.UTC().Format(time.RFC3339))
 	}
 	if before > 0 {
 		params.Set("before", strconv.FormatInt(before, 10))
