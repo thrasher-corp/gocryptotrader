@@ -36,7 +36,7 @@
      "TextTokenData": "strong",
      "DateFormat": "01/02/06",
      "RegExp": "^(\\d){1,2}/(\\d){1,2}/(\\d){2}$",
-     "CheckString": "2/10/20",
+     "CheckString": "2/20/20",
      "Path": "https://docs.pro.coinbase.com/#changelog"
     }
    },
@@ -59,7 +59,7 @@
    "Data": {
     "GitHubData": {
      "Repo": "bithumb-pro/bithumb.pro-official-api-docs",
-     "Sha": "c19789841432d91fd833e2530298197bd34c8c69"
+     "Sha": "2707ead100877356b3b2f0a783c269818f92d378"
     }
    },
    "Disabled": false
