@@ -804,7 +804,13 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		Amount:   r.Amount,
 		Price:    r.Price,
 		ClientID: r.ClientId,
+		Exchange: r.Exchange,
 	})
+
+	if err != nil {
+		return &gctrpc.SubmitOrderResponse{}, err
+	}
+
 	return &gctrpc.SubmitOrderResponse{
 		OrderId:     resp.OrderID,
 		OrderPlaced: resp.IsOrderPlaced,
@@ -898,6 +904,7 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 		ID:            r.OrderId,
 		Side:          order.Side(r.Side),
 		WalletAddress: r.WalletAddress,
+		Pair:          currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote),
 	})
 
 	return &gctrpc.CancelOrderResponse{}, err
@@ -1523,21 +1530,24 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHisto
 		Delimiter: req.Pair.Delimiter,
 		Base:      currency.NewCode(req.Pair.Base),
 		Quote:     currency.NewCode(req.Pair.Quote),
-	}, req.Rangesize, req.Granularity)
+	},
+		asset.Item(req.AssetType),
+		time.Unix(req.Start, 0),
+		time.Unix(req.End, 0),
+		time.Duration(req.TimeInterval))
 	if err != nil {
 		return nil, err
 	}
 	resp := gctrpc.GetHistoricCandlesResponse{}
-	for _, candle := range candles {
-		tempCandle := &gctrpc.Candle{
-			Time:   candle.Time,
-			Low:    candle.Low,
-			High:   candle.High,
-			Open:   candle.Open,
-			Close:  candle.Close,
-			Volume: candle.Volume,
-		}
-		resp.Candle = append(resp.Candle, tempCandle)
+	for i := range candles.Candles {
+		resp.Candle = append(resp.Candle, &gctrpc.Candle{
+			Time:   candles.Candles[i].Time.Unix(),
+			Low:    candles.Candles[i].Low,
+			High:   candles.Candles[i].High,
+			Open:   candles.Candles[i].Open,
+			Close:  candles.Candles[i].Close,
+			Volume: candles.Candles[i].Volume,
+		})
 	}
 	return &resp, nil
 }
