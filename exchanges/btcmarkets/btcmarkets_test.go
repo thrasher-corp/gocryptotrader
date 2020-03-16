@@ -1,14 +1,17 @@
 package btcmarkets
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
@@ -97,7 +100,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetMarketCandles(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetMarketCandles(BTCAUD, "", "", "", 0, 0, 5)
+	_, err := b.GetMarketCandles(BTCAUD, kline.OneHour, time.Now().UTC().Add(-time.Hour*24), time.Now().UTC(), -1, -1, -1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -713,5 +716,19 @@ func TestWsOrders(t *testing.T) {
 	err = b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestBTCMarkets_GetHistoricCandles(t *testing.T) {
+	p := currency.NewPairFromString(BTCAUD)
+	_, err := b.GetHistoricCandles(p, asset.Spot, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC(), kline.OneHour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetHistoricCandles(p, asset.Spot, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC(), kline.FifteenMin)
+	if err != nil {
+		if !errors.Is(err, errInvalidTimeInterval) {
+			t.Fatal(err)
+		}
 	}
 }

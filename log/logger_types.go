@@ -31,6 +31,9 @@ var (
 
 	// LogPath system path to store log files in
 	LogPath string
+
+	// RWM read/write mutex for logger
+	RWM = &sync.RWMutex{}
 )
 
 // Config holds configuration settings loaded from bot config
