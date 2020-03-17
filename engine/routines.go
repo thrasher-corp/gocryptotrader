@@ -387,14 +387,8 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		log.Info(log.WebsocketMgr, d)
 	case error:
 		return fmt.Errorf("routines.go exchange %s websocket error - %s", exchName, data)
-	case order.TradeHistory:
-		if Bot.Settings.Verbose {
-			log.Infof(log.WebsocketMgr, "%s websocket %s %s trade updated %+v",
-				exchName,
-				FormatCurrency(d.Pair),
-				d.AssetType,
-				d)
-		}
+	case []order.TradeHistory, *orderbook.Base:
+		Bot.SyncManager.StreamUpdate(d)
 	case wshandler.FundingData:
 		if Bot.Settings.Verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",
@@ -404,40 +398,13 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 				d)
 		}
 	case *ticker.Price:
-		// if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
-		// 	Bot.ExchangeCurrencyPairManager.update(exchName,
-		// 		d.Pair,
-		// 		d.AssetType,
-		// 		SyncItemTicker,
-		// 		nil)
-		// }
 		err := ticker.ProcessTicker(exchName, d, d.AssetType)
-		printTickerSummary(d, Websocket, err)
-	case kline.Item:
-		if Bot.Settings.Verbose {
-			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
-				exchName,
-				FormatCurrency(d.Pair),
-				d.Asset,
-				d)
+		if err != nil {
+			fmt.Println(err)
 		}
-	case *orderbook.Base:
-		// if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
-		// 	Bot.ExchangeCurrencyPairManager.update(exchName,
-		// 		d.Pair,
-		// 		d.Asset,
-		// 		SyncItemOrderbook,
-		// 		nil)
-		// }
-
-		// if Bot.Settings.Verbose {
-		// 	log.Infof(log.WebsocketMgr,
-		// 		"%s websocket %s %s orderbook updated",
-		// 		exchName,
-		// 		FormatCurrency(d.Pair),
-		// 		d.Asset)
-		// }
-		fmt.Println("ORDERBOOK MAN")
+		Bot.SyncManager.StreamUpdate(d)
+	case *kline.Item:
+		printKlineSummary(d, Websocket)
 	case *order.Detail:
 		if !Bot.OrderManager.orderStore.exists(d) {
 			err := Bot.OrderManager.orderStore.Add(d)
