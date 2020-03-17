@@ -3,10 +3,12 @@ package gct
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -24,6 +26,7 @@ var exchangeModule = map[string]objects.Object{
 	"ordersubmit":    &objects.UserFunction{Name: "ordersubmit", Value: ExchangeOrderSubmit},
 	"withdrawcrypto": &objects.UserFunction{Name: "withdrawcrypto", Value: ExchangeWithdrawCrypto},
 	"withdrawfiat":   &objects.UserFunction{Name: "withdrawfiat", Value: ExchangeWithdrawFiat},
+	"ohlcv":  		  &objects.UserFunction{Name: "ohlcv", Value: exchangeOHLCV},
 }
 
 // ExchangeOrderbook returns orderbook for requested exchange & currencypair
@@ -493,4 +496,58 @@ func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
 	}
 
 	return &objects.String{Value: rtn}, nil
+}
+
+func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
+	if len(args) != 7 {
+		return nil, objects.ErrWrongNumArguments
+	}
+
+	exchangeName, ok := objects.ToString(args[0])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+	}
+	currencyPair, ok := objects.ToString(args[1])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPair)
+	}
+	delimiter, ok := objects.ToString(args[2])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, delimiter)
+	}
+	assetTypeParam, ok := objects.ToString(args[3])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeParam)
+	}
+
+	pairs := currency.NewPairDelimiter(currencyPair, delimiter)
+	assetType := asset.Item(assetTypeParam)
+
+	ret, err := wrappers.GetWrapper().OHLCV(exchangeName, pairs, assetType, time.Now().Add(-time.Hour*24*30), time.Now(),kline.OneDay )
+	if err != nil {
+		return nil, err
+	}
+	var candles objects.Array
+
+	for x := range ret.Candles {
+		temp := make(map[string]objects.Object, 2)
+		temp["open"] = &objects.Float{Value: ret.Candles[x].Open}
+		temp["high"] = &objects.Float{Value: ret.Candles[x].High}
+		temp["low"] = &objects.Float{Value: ret.Candles[x].Low}
+		temp["close"] = &objects.Float{Value: ret.Candles[x].Close}
+		temp["vol"] = &objects.Float{Value: ret.Candles[x].Volume}
+
+		candles.Value = append(candles.Value, &objects.Map{Value: temp})
+	}
+
+	retValue := make(map[string]objects.Object, 4)
+	retValue["exchange"] = &objects.String{ Value: ret.Exchange }
+	retValue["pair"] = &objects.String{ Value: ret.Pair.String() }
+	retValue["asset"] = &objects.String{ Value: ret.Asset.String() }
+	retValue["intervals"] = &objects.String{ Value: ret.Interval.String() }
+	retValue["candles"] = &candles
+
+	return &objects.Map{
+		Value: retValue,
+	}, nil
 }
