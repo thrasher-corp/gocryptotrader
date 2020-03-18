@@ -1,8 +1,11 @@
 package indicators
 
 import (
+	"fmt"
+
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/go-talib/indicators"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
 // VolumeModule volume indicator commands
@@ -15,19 +18,61 @@ func obv(args ...objects.Object) (objects.Object, error) {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	ohlcData := objects.ToInterface(args[0])
-	ohlcInData, err := appendData(ohlcData.([]interface{}))
-	if err != nil {
-		return nil, err
+	ohlcIndicatorType, ok := objects.ToString(args[0])
+	if !ok {
+		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, ohlcIndicatorType)
 	}
 
-	ohlcData = objects.ToInterface(args[1])
-	ohlcVolData, err := appendData(ohlcData.([]interface{}))
-	if err != nil {
-		return nil, err
+	var selector int
+	switch ohlcIndicatorType {
+	case "open":
+		selector = 1
+	case "high":
+		selector = 2
+	case "low":
+		selector = 3
+	case "close":
+		selector = 4
+	case "vol":
+		selector = 5
 	}
 
-	ret := indicators.Obv(ohlcInData, ohlcVolData)
+	ohlcvInput := objects.ToInterface(args[1])
+	ohlcvInputData := ohlcvInput.([]interface{})
+	ohclvData := make([][]float64, 6)
+
+	for x := range ohlcvInputData {
+		switch t := ohlcvInputData[x].(type) {
+		case []interface{}:
+			value, err := toFloat64(t[2])
+			if err != nil {
+				return nil, err
+			}
+			ohclvData[2] = append(ohclvData[2], value)
+
+			value, err = toFloat64(t[3])
+			if err != nil {
+				return nil, err
+			}
+			ohclvData[3] = append(ohclvData[3], value)
+
+			value, err = toFloat64(t[4])
+			if err != nil {
+				return nil, err
+			}
+			ohclvData[4] = append(ohclvData[4], value)
+
+			value, err = toFloat64(t[5])
+			if err != nil {
+				return nil, err
+			}
+			ohclvData[5] = append(ohclvData[5], value)
+		default:
+			return nil, fmt.Errorf(modules.ErrParameterConvertFailed, "OHLCV")
+		}
+	}
+
+	ret := indicators.Obv(ohclvData[selector], ohclvData[5])
 	r := &objects.Array{}
 	for x := range ret {
 		temp := &objects.Float{Value: ret[x]}

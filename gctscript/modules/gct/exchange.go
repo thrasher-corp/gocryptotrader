@@ -2,13 +2,13 @@ package gct
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -26,7 +26,7 @@ var exchangeModule = map[string]objects.Object{
 	"ordersubmit":    &objects.UserFunction{Name: "ordersubmit", Value: ExchangeOrderSubmit},
 	"withdrawcrypto": &objects.UserFunction{Name: "withdrawcrypto", Value: ExchangeWithdrawCrypto},
 	"withdrawfiat":   &objects.UserFunction{Name: "withdrawfiat", Value: ExchangeWithdrawFiat},
-	"ohlcv":  		  &objects.UserFunction{Name: "ohlcv", Value: exchangeOHLCV},
+	"ohlcv":          &objects.UserFunction{Name: "ohlcv", Value: exchangeOHLCV},
 }
 
 // ExchangeOrderbook returns orderbook for requested exchange & currencypair
@@ -520,31 +520,52 @@ func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeParam)
 	}
 
-	pairs := currency.NewPairDelimiter(currencyPair, delimiter)
-	assetType := asset.Item(assetTypeParam)
+	startTime, ok := objects.ToTime(args[4])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, startTime)
+	}
 
-	ret, err := wrappers.GetWrapper().OHLCV(exchangeName, pairs, assetType, time.Now().Add(-time.Hour*24*30), time.Now(),kline.OneDay )
+	endTime, ok := objects.ToTime(args[5])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, endTime)
+	}
+
+	intervalStr, ok := objects.ToString(args[6])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, endTime)
+	}
+	interval, err := strconv.ParseInt(intervalStr, 10, 64)
 	if err != nil {
 		return nil, err
 	}
+
+	pairs := currency.NewPairDelimiter(currencyPair, delimiter)
+	assetType := asset.Item(assetTypeParam)
+
+	ret, err := wrappers.GetWrapper().OHLCV(exchangeName, pairs, assetType, startTime, endTime, time.Duration(interval))
+	if err != nil {
+		return nil, err
+	}
+
 	var candles objects.Array
-
 	for x := range ret.Candles {
-		temp := make(map[string]objects.Object, 2)
-		temp["open"] = &objects.Float{Value: ret.Candles[x].Open}
-		temp["high"] = &objects.Float{Value: ret.Candles[x].High}
-		temp["low"] = &objects.Float{Value: ret.Candles[x].Low}
-		temp["close"] = &objects.Float{Value: ret.Candles[x].Close}
-		temp["vol"] = &objects.Float{Value: ret.Candles[x].Volume}
+		candle := &objects.Array{}
+		candle.Value = append(candle.Value, &objects.Time{Value: ret.Candles[x].Time},
+			&objects.Float{Value: ret.Candles[x].Open},
+			&objects.Float{Value: ret.Candles[x].High},
+			&objects.Float{Value: ret.Candles[x].Low},
+			&objects.Float{Value: ret.Candles[x].Close},
+			&objects.Float{Value: ret.Candles[x].Volume},
+		)
 
-		candles.Value = append(candles.Value, &objects.Map{Value: temp})
+		candles.Value = append(candles.Value, candle)
 	}
 
 	retValue := make(map[string]objects.Object, 4)
-	retValue["exchange"] = &objects.String{ Value: ret.Exchange }
-	retValue["pair"] = &objects.String{ Value: ret.Pair.String() }
-	retValue["asset"] = &objects.String{ Value: ret.Asset.String() }
-	retValue["intervals"] = &objects.String{ Value: ret.Interval.String() }
+	retValue["exchange"] = &objects.String{Value: ret.Exchange}
+	retValue["pair"] = &objects.String{Value: ret.Pair.String()}
+	retValue["asset"] = &objects.String{Value: ret.Asset.String()}
+	retValue["intervals"] = &objects.String{Value: ret.Interval.String()}
 	retValue["candles"] = &candles
 
 	return &objects.Map{

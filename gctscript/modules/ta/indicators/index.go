@@ -14,40 +14,51 @@ var IndexModule = map[string]objects.Object{
 }
 
 func mfi(args ...objects.Object) (objects.Object, error) {
-	if len(args) != 5 {
+	if len(args) != 2 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	ohlcData := objects.ToInterface(args[0])
-	ohlcHighData, err := appendData(ohlcData.([]interface{}))
-	if err != nil {
-		return nil, err
+	ohlcvInput := objects.ToInterface(args[0])
+	ohlcvInputData := ohlcvInput.([]interface{})
+	ohclvData := make([][]float64, 6)
+
+	for x := range ohlcvInputData {
+		switch t := ohlcvInputData[x].(type) {
+		case []interface{}:
+			value, err := toFloat64(t[2])
+			if err != nil {
+				return nil, err
+			}
+			ohclvData[2] = append(ohclvData[2], value)
+
+			value, err = toFloat64(t[3])
+			if err != nil {
+				return nil, err
+			}
+			ohclvData[3] = append(ohclvData[3], value)
+
+			value, err = toFloat64(t[4])
+			if err != nil {
+				return nil, err
+			}
+			ohclvData[4] = append(ohclvData[4], value)
+
+			value, err = toFloat64(t[5])
+			if err != nil {
+				return nil, err
+			}
+			ohclvData[5] = append(ohclvData[5], value)
+		default:
+			return nil, fmt.Errorf(modules.ErrParameterConvertFailed, "OHLCV")
+		}
 	}
 
-	ohlcData = objects.ToInterface(args[1])
-	ohlcLowData, err := appendData(ohlcData.([]interface{}))
-	if err != nil {
-		return nil, err
-	}
-
-	ohlcData = objects.ToInterface(args[2])
-	ohlcCloseData, err := appendData(ohlcData.([]interface{}))
-	if err != nil {
-		return nil, err
-	}
-
-	ohlcData = objects.ToInterface(args[3])
-	ohlcVolData, err := appendData(ohlcData.([]interface{}))
-	if err != nil {
-		return nil, err
-	}
-
-	inTimePeroid, ok := objects.ToInt(args[4])
+	inTimePeroid, ok := objects.ToInt(args[1])
 	if !ok {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeroid)
 	}
 
-	ret := indicators.Mfi(ohlcHighData, ohlcLowData, ohlcCloseData, ohlcVolData, inTimePeroid)
+	ret := indicators.Mfi(ohclvData[2], ohclvData[3], ohclvData[4], ohclvData[5], inTimePeroid)
 	r := &objects.Array{}
 	for x := range ret {
 		r.Value = append(r.Value, &objects.Float{Value: ret[x]})

@@ -1,10 +1,12 @@
 fmt := import("fmt")
 exch := import("exchange")
+t := import("times")
 ind := import("indicator/rsi")
 
 load := func() {
-   ohlcvData := exch.ohlcv("BTC Markets", "BTC-AUD", "-", "a", "a", "a","a")
-   ind.rsi(ohlcvData.candles, 10)
+   start := t.add(t.now(), -t.hour*24*30)
+   ohlcvData := exch.ohlcv("BTC Markets", "BTC-AUD", "-", "", start, t.now(), t.hour*24)
+   fmt.println(ohlcvData)
 }
 
 load()
