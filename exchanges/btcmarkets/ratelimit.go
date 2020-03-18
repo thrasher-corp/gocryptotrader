@@ -10,8 +10,7 @@ import (
 // BTCMarkets Rate limit consts
 const (
 	btcmarketsRateInterval         = time.Second * 10
-	btcmarketsAuthLimit            = 50
-	btcmarketsUnauthLimit          = 50
+	btcmarketsGeneralLimit         = 50
 	btcmarketsOrderLimit           = 30
 	btcmarketsBatchOrderLimit      = 5
 	btcmarketsWithdrawLimit        = 10
@@ -26,8 +25,7 @@ const (
 
 // RateLimit implements the request.Limiter interface
 type RateLimit struct {
-	Auth            *rate.Limiter
-	UnAuth          *rate.Limiter
+	General         *rate.Limiter
 	OrderPlacement  *rate.Limiter
 	BatchOrders     *rate.Limiter
 	WithdrawRequest *rate.Limiter
@@ -37,8 +35,6 @@ type RateLimit struct {
 // Limit limits the outbound requests
 func (r *RateLimit) Limit(f request.EndpointLimit) error {
 	switch f {
-	case request.Auth:
-		time.Sleep(r.Auth.Reserve().Delay())
 	case orderFunc:
 		time.Sleep(r.OrderPlacement.Reserve().Delay())
 	case batchFunc:
@@ -48,7 +44,7 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 	case newReportFunc:
 		time.Sleep(r.CreateNewReport.Reserve().Delay())
 	default:
-		time.Sleep(r.UnAuth.Reserve().Delay())
+		time.Sleep(r.General.Reserve().Delay())
 	}
 	return nil
 }
@@ -56,8 +52,7 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 // SetRateLimit returns the rate limit for the exchange
 func SetRateLimit() *RateLimit {
 	return &RateLimit{
-		Auth:            request.NewRateLimit(btcmarketsRateInterval, btcmarketsAuthLimit),
-		UnAuth:          request.NewRateLimit(btcmarketsRateInterval, btcmarketsUnauthLimit),
+		General:         request.NewRateLimit(btcmarketsRateInterval, btcmarketsGeneralLimit),
 		OrderPlacement:  request.NewRateLimit(btcmarketsRateInterval, btcmarketsOrderLimit),
 		BatchOrders:     request.NewRateLimit(btcmarketsRateInterval, btcmarketsBatchOrderLimit),
 		WithdrawRequest: request.NewRateLimit(btcmarketsRateInterval, btcmarketsWithdrawLimit),

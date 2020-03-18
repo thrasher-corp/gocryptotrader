@@ -46,6 +46,11 @@ type Synchroniser interface {
 	EnableREST()
 	GetExchangeName() string
 	GetAgentName() string
+	Lock()
+	Unlock()
+	Cancel()
+	Clear()
+	IsCancelled() bool
 }
 
 // SyncConfig stores the currency pair config
@@ -68,8 +73,9 @@ type SyncManager struct {
 	pipe     chan SyncUpdate
 	synchro  chan struct{}
 	syncComm chan time.Time
-	sync.Mutex
-	wg sync.WaitGroup
+	sync.RWMutex
+	jobBuffer map[string]chan Synchroniser
+	wg        sync.WaitGroup
 }
 
 // SyncUpdate wraps updates for concurrent processing
@@ -87,12 +93,14 @@ type Agent struct {
 	Name            string
 	Exchange        exchange.IBotExchange
 	Processing      bool
+	Cancelled       bool
 	NextUpdate      time.Time
 	LastUpdated     time.Time
 	RestUpdateDelay time.Duration
 	Pipe            chan SyncUpdate
 	Wg              *sync.WaitGroup
 	Disabled        bool
+	mtx             sync.Mutex
 }
 
 // TickerAgent synchronises the exchange currency pair ticker

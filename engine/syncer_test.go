@@ -1,38 +1,41 @@
 package engine
 
-// func TestNewCurrencyPairSyncer(t *testing.T) {
-// 	t.Skip()
+import (
+	"testing"
+)
 
-// 	if Bot == nil {
-// 		Bot = new(Engine)
-// 	}
-// 	Bot.Config = &config.Cfg
-// 	err := Bot.Config.LoadConfig("", true)
-// 	if err != nil {
-// 		t.Fatalf("TestNewExchangeSyncer: Failed to load config: %s", err)
-// 	}
+func TestNewSyncManager(t *testing.T) {
+	SetupTestHelpers(t)
 
-// 	Bot.Settings.DisableExchangeAutoPairUpdates = true
-// 	Bot.Settings.Verbose = true
-// 	Bot.Settings.EnableExchangeWebsocketSupport = true
+	_, err := NewSyncManager(SyncConfig{})
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
 
-// 	SetupExchanges()
+	sm, err := NewSyncManager(SyncConfig{AccountBalance: true})
+	if err != nil {
+		t.Error(err)
+	}
 
-// 	if err != nil {
-// 		t.Log("failed to start exchange syncer")
-// 	}
+	if err = sm.Stop(); err == nil {
+		t.Fatal("error cannot be nil")
+	}
 
-// 	Bot.ExchangeCurrencyPairManager, err = NewCurrencyPairSyncer(CurrencyPairSyncerConfig{
-// 		SyncTicker:       true,
-// 		SyncOrderbook:    false,
-// 		SyncTrades:       false,
-// 		SyncContinuously: false,
-// 	})
-// 	if err != nil {
-// 		t.Errorf("NewCurrencyPairSyncer failed: err %s", err)
-// 	}
+	if err = sm.Start(); err != nil {
+		t.Fatal(err)
+	}
 
-// 	Bot.ExchangeCurrencyPairManager.Start()
-// 	time.Sleep(time.Second * 15)
-// 	Bot.ExchangeCurrencyPairManager.Stop()
-// }
+	if err = sm.Start(); err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	if err = sm.Stop(); err != nil {
+		t.Fatal(err)
+	}
+
+	Bot.ServicesWG.Wait()
+
+	if err = sm.Start(); err != nil {
+		t.Fatal(err)
+	}
+}

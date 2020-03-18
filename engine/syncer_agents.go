@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"os"
 	"strings"
 	"time"
 
@@ -10,7 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // GetLastUpdated returns when the agent was last update
@@ -27,11 +25,6 @@ func (a *Agent) GetNextUpdate() time.Time {
 // update time for REST protocol
 func (a *Agent) SetNewUpdate() {
 	a.LastUpdated = time.Now()
-	if a.RestUpdateDelay == 0 {
-		// TODO: Address
-		log.Errorf(log.SyncMgr, "%s item RestUpdateDelay not set", a.Name)
-		os.Exit(1)
-	}
 	a.NextUpdate = a.LastUpdated.Add(a.RestUpdateDelay)
 }
 
@@ -73,6 +66,32 @@ func (a *Agent) GetExchangeName() string {
 // GetAgentName returns the name of the agent
 func (a *Agent) GetAgentName() string {
 	return a.Name
+}
+
+// Lock mtx locks the agent
+func (a *Agent) Lock() {
+	a.mtx.Lock()
+}
+
+// Unlock mtx unlocks the agent
+func (a *Agent) Unlock() {
+	a.mtx.Unlock()
+}
+
+// Cancel cancels REST component
+func (a *Agent) Cancel() {
+	a.Cancelled = true
+}
+
+// Clear resets cancelled REST component
+func (a *Agent) Clear() {
+	a.Cancelled = false
+}
+
+// IsCancelled returns if the agent item has been cancelled thus reducing REST
+// calls
+func (a *Agent) IsCancelled() bool {
+	return a.Cancelled
 }
 
 // Execute gets the ticker from the REST protocol

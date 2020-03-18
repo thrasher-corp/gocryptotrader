@@ -26,8 +26,9 @@ func NewSyncManager(cfg SyncConfig) (*SyncManager, error) {
 		SyncConfig: cfg,
 		shutdown:   make(chan struct{}),
 		synchro:    make(chan struct{}),
-		pipe:       make(chan SyncUpdate),
+		pipe:       make(chan SyncUpdate, 1000),
 		syncComm:   make(chan time.Time),
+		jobBuffer:  make(map[string]chan Synchroniser),
 	}, nil
 }
 
@@ -38,7 +39,7 @@ func (e *SyncManager) Started() bool {
 
 // Start starts the synchronisation manager
 func (e *SyncManager) Start() error {
-	if atomic.AddInt32(&e.started, 1) != 1 {
+	if !atomic.CompareAndSwapInt32(&e.started, 0, 1) {
 		return errors.New("synchronisation manager already started")
 	}
 
@@ -51,25 +52,29 @@ func (e *SyncManager) Start() error {
 				continue
 			}
 
+			exchName := exchanges[x].GetName()
+
 			if !exchanges[x].SupportsREST() &&
 				!exchanges[x].SupportsWebsocket() {
 				log.Warnf(log.SyncMgr,
 					"Loaded exchange %s does not support REST or Websocket.\n",
-					exchanges[x].GetName())
+					exchName)
 				continue
 			}
 
 			// Initial synchronisation count and waitgroup
 			var exchangeSyncItems int
-			var wg sync.WaitGroup
 
 			auth := exchanges[x].GetBase().API.AuthenticatedSupport
-
 			if !auth && (e.AccountBalance || e.AccountOrders) {
 				log.Warnf(log.SyncMgr,
 					"Loaded exchange %s cannot sync account specific items as functionality is disabled.\n",
-					exchanges[x].GetName())
+					exchName)
 			}
+
+			e.jobBuffer[exchName] = make(chan Synchroniser)
+
+			var exchangeWG sync.WaitGroup
 
 			if auth {
 				// Fetches account balance for the exchange
@@ -80,7 +85,7 @@ func (e *SyncManager) Start() error {
 							Exchange:        exchanges[x],
 							RestUpdateDelay: defaultSyncDelay,
 							Pipe:            e.pipe,
-							Wg:              &wg,
+							Wg:              &exchangeWG,
 						},
 					})
 					exchangeSyncItems++
@@ -97,7 +102,7 @@ func (e *SyncManager) Start() error {
 						RestUpdateDelay: defaultExchangeSupportedPairDelay,
 						NextUpdate:      time.Now().Add(defaultExchangeSupportedPairDelay),
 						Pipe:            e.pipe,
-						Wg:              &wg,
+						Wg:              &exchangeWG,
 					},
 				})
 			}
@@ -117,7 +122,7 @@ func (e *SyncManager) Start() error {
 								RestUpdateDelay: defaultSyncDelay,
 								Exchange:        exchanges[x],
 								Pipe:            e.pipe,
-								Wg:              &wg,
+								Wg:              &exchangeWG,
 							},
 						})
 						exchangeSyncItems++
@@ -134,7 +139,7 @@ func (e *SyncManager) Start() error {
 								RestUpdateDelay: defaultSyncDelay,
 								Exchange:        exchanges[x],
 								Pipe:            e.pipe,
-								Wg:              &wg,
+								Wg:              &exchangeWG,
 							},
 						})
 						exchangeSyncItems++
@@ -151,7 +156,7 @@ func (e *SyncManager) Start() error {
 								RestUpdateDelay: defaultSyncDelay,
 								Exchange:        exchanges[x],
 								Pipe:            e.pipe,
-								Wg:              &wg,
+								Wg:              &exchangeWG,
 							},
 						})
 						exchangeSyncItems++
@@ -167,7 +172,7 @@ func (e *SyncManager) Start() error {
 								Exchange:        exchanges[x],
 								RestUpdateDelay: defaultSyncDelay,
 								Pipe:            e.pipe,
-								Wg:              &wg,
+								Wg:              &exchangeWG,
 							},
 						})
 						exchangeSyncItems++
@@ -175,19 +180,37 @@ func (e *SyncManager) Start() error {
 				}
 			}
 
-			go func(exch string, count int, wg *sync.WaitGroup) {
+			go func(exchName string, count int, wg *sync.WaitGroup) {
+				if count == 0 {
+					log.Warnf(log.SyncMgr,
+						"Initial sync cannot start for %s as no sync items available",
+						exchName)
+					return
+				}
+
 				wg.Add(count)
-				log.Debugf(log.SyncMgr, "Initial sync started for %s with [%d] ---------------------------- \n", exch, count)
+				log.Debugf(log.SyncMgr,
+					"Initial sync started for %s with [%d] ---------------------------- \n",
+					exchName,
+					count)
 				start := time.Now()
 				wg.Wait()
 				end := time.Now()
-				log.Debugf(log.SyncMgr, "Initial sync finished for %s in [%s] ----------------------------- \n", exch, end.Sub(start))
-			}(exchanges[x].GetName(), exchangeSyncItems, &wg)
+				log.Debugf(log.SyncMgr,
+					"Initial sync finished for %s in [%s] ----------------------------- \n",
+					exchName,
+					end.Sub(start))
+			}(exchName, exchangeSyncItems, &exchangeWG)
+		}
+
+		for _, channel := range e.jobBuffer {
+			e.wg.Add(1)
+			go e.executor(channel)
 		}
 
 		e.wg.Add(3)
-		go e.Monitor()
-		go e.Worker()
+		go e.monitor()
+		go e.worker()
 		go e.Processor()
 	}()
 	return nil
@@ -199,15 +222,18 @@ func (e *SyncManager) Stop() error {
 		return errors.New("synchronisation manager has not started")
 	}
 
-	if atomic.AddInt32(&e.stopped, 1) != 1 {
+	if !atomic.CompareAndSwapInt32(&e.stopped, 0, 1) {
 		return errors.New("synchronisation manager has already stopped")
 	}
 
 	log.Debugln(log.SyncMgr, "Synchronisation manager shutting down...")
 	close(e.shutdown)
 	e.wg.Wait()
-	atomic.CompareAndSwapInt32(&e.stopped, 1, 0)
-	atomic.CompareAndSwapInt32(&e.started, 1, 0)
+
+	if !atomic.CompareAndSwapInt32(&e.started, 1, 0) {
+		fmt.Println(e.started)
+		return errors.New("value started not swapped")
+	}
 	Bot.ServicesWG.Done()
 	log.Debugln(log.SyncMgr, "Synchronisation manager has shutdown.")
 	return nil
@@ -215,16 +241,17 @@ func (e *SyncManager) Stop() error {
 
 // Worker iterates across the full agent list and initiates an update by
 // detatching in a routine which directly interacts with a work manager.
-// The routine generated *should* block until an update has occured then
-// it will interact with the processor routine keeping a record of last updated
-// and when a new update should occur to keep it in optimal synchronisation on
-// the REST protocol.
-func (e *SyncManager) Worker() {
+// The routine generated will block until an update has occured then it will
+// interact with the processor routine keeping a record of last updated and when
+// a new update should occur to keep it in optimal synchronisation on the main
+// fall-back REST protocol.
+func (e *SyncManager) worker() {
 	go func() { e.synchro <- struct{}{} }() // Pre-load switch
 	for {
 		select {
 		case <-e.shutdown:
 			e.wg.Done()
+			fmt.Println("worker shutting down")
 			return
 		case <-e.synchro: // Synchro chan is switched by the Monitor routine
 			// This sleep variable will keep track on the next update time on
@@ -235,9 +262,11 @@ func (e *SyncManager) Worker() {
 					"Synchronisation worker has fired -- Checking agent list for updates...")
 			}
 			var sleep time.Time
-			e.Lock() // TODO: re-structure locks
+			e.RLock()
 			for i := range e.Agents {
+				e.Agents[i].Lock()
 				if e.Agents[i].IsRESTDisabled() {
+					e.Agents[i].Unlock()
 					continue
 				}
 				nextUpdate := e.Agents[i].GetNextUpdate()
@@ -245,7 +274,11 @@ func (e *SyncManager) Worker() {
 					if !e.Agents[i].IsProcessing() {
 						e.Agents[i].SetProcessing(true)
 						go func(s Synchroniser) {
-							s.Execute()
+							s.Clear()
+							select {
+							case e.jobBuffer[s.GetExchangeName()] <- s:
+							case <-e.shutdown:
+							}
 						}(e.Agents[i])
 					}
 				} else {
@@ -253,8 +286,9 @@ func (e *SyncManager) Worker() {
 						sleep = nextUpdate
 					}
 				}
+				e.Agents[i].Unlock()
 			}
-			e.Unlock()
+			e.RUnlock()
 
 			if sleep != (time.Time{}) {
 				// Passes the sleep time to the Monitor routine which interdicts
@@ -266,8 +300,25 @@ func (e *SyncManager) Worker() {
 	}
 }
 
+// executor monitors job buffer to not exceed max request jobs
+func (e *SyncManager) executor(sc chan Synchroniser) {
+	fmt.Println("Super impressive executor")
+	for {
+		select {
+		case <-e.shutdown:
+			e.wg.Done()
+			fmt.Println("executor shutting down")
+			return
+		case s := <-sc:
+			if !s.IsCancelled() {
+				s.Execute()
+			}
+		}
+	}
+}
+
 // Monitor monitors the last updated to initiate an agent check for the worker
-func (e *SyncManager) Monitor() {
+func (e *SyncManager) monitor() {
 	var sleep time.Time
 	c := make(chan struct{}) // Main communications within this routine
 	i := make(chan struct{}) // Interdiction channel to disregard update
@@ -277,6 +328,7 @@ func (e *SyncManager) Monitor() {
 		select {
 		case <-e.shutdown:
 			e.wg.Done()
+			fmt.Println("monitor shutting down")
 			return
 		case <-c:
 			e.synchro <- struct{}{} // Wakes up worker routine
@@ -318,11 +370,12 @@ func (e *SyncManager) Processor() {
 		select {
 		case <-e.shutdown:
 			e.wg.Done()
+			fmt.Println("processor shutting down")
 			return
 		case u := <-e.pipe:
-			e.Lock()
 			if u.Err == nil {
 				// Check for last updated
+				u.Agent.Lock()
 				lastUpdated := u.Agent.GetLastUpdated()
 				if lastUpdated != (time.Time{}) {
 					if Bot.Settings.Verbose {
@@ -330,7 +383,7 @@ func (e *SyncManager) Processor() {
 							time.Now().Sub(lastUpdated))
 					}
 				} else {
-					// Set initial sync complete on agent
+					// Set initial sync completed on agent
 					u.Agent.InitialSyncComplete()
 				}
 
@@ -340,6 +393,7 @@ func (e *SyncManager) Processor() {
 
 				// Send items next update time to the Monitor routine for check
 				e.syncComm <- u.Agent.GetNextUpdate()
+				u.Agent.Unlock()
 
 				switch p := u.Payload.(type) {
 				case *ticker.Price:
@@ -348,22 +402,23 @@ func (e *SyncManager) Processor() {
 					printOrderbookSummary(p, u.Protocol, u.Err)
 				case *account.Holdings:
 					printAccountSummary(p, u.Protocol)
-				case []order.TradeHistory:
+				case []order.TradeHistory: // from REST
 					printTradeSummary(p, u.Protocol)
+				case order.TradeHistory: // from websocket
+					printTradeSummary([]order.TradeHistory{p}, u.Protocol)
 				case *kline.Item:
 					printKlineSummary(p, u.Protocol)
 				case []order.Detail:
 					printOrderSummary(p, u.Protocol)
-				case nil:
 				default:
 					log.Warnf(log.SyncMgr,
 						"Unexpected payload found %T but cannot print summary",
 						u.Payload)
 				}
-				e.Unlock()
 				continue
 			}
 
+			u.Agent.Lock()
 			if u.Err == common.ErrNotYetImplemented ||
 				u.Err == common.ErrFunctionNotSupported {
 				u.Agent.DisableREST()
@@ -380,7 +435,7 @@ func (e *SyncManager) Processor() {
 					u.Protocol,
 					u.Err)
 			}
-			e.Unlock()
+			u.Agent.Unlock()
 		}
 	}
 }
@@ -413,14 +468,14 @@ func (e *SyncManager) StreamUpdate(payload interface{}) {
 			}
 			return
 		}
-	case []order.Detail:
-		if !e.ExchangeTrades {
-			if Bot.Settings.Verbose {
-				log.Warnln(log.SyncMgr, "Cannot process order stream, currently turned off")
-			}
-			return
-		}
-	case []order.TradeHistory:
+	// case []order.Detail:
+	// 	if !e.ExchangeTrades {
+	// 		if Bot.Settings.Verbose {
+	// 			log.Warnln(log.SyncMgr, "Cannot process order stream, currently turned off")
+	// 		}
+	// 		return
+	// 	}
+	case order.TradeHistory:
 		if !e.ExchangeTrades {
 			if Bot.Settings.Verbose {
 				log.Warnln(log.SyncMgr, "Cannot process trade stream, currently turned off")
@@ -434,21 +489,26 @@ func (e *SyncManager) StreamUpdate(payload interface{}) {
 		return
 	}
 
-	e.Lock()
+	e.RLock()
 	for i := range e.Agents {
+		e.Agents[i].Lock()
 		if agent := e.Agents[i].Stream(payload); agent != nil {
-			go func(s Synchroniser, payload interface{}) {
-				e.pipe <- SyncUpdate{
-					Agent:    agent,
-					Payload:  payload,
-					Protocol: Websocket,
-				}
-			}(agent, payload)
-			e.Unlock()
+			if agent.IsProcessing() {
+				agent.Cancel()
+			}
+
+			e.pipe <- SyncUpdate{
+				Agent:    agent,
+				Payload:  payload,
+				Protocol: Websocket,
+			}
+			e.Agents[i].Unlock()
+			e.RUnlock()
 			return
 		}
+		e.Agents[i].Unlock()
 	}
-	e.Unlock()
+	e.RUnlock()
 	log.Errorf(log.SyncMgr,
 		"Cannot match payload %T with agent",
 		payload)

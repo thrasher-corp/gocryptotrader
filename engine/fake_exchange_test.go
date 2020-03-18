@@ -175,7 +175,7 @@ func (h *FakePassingExchange) GetSubscriptions() ([]wshandler.WebsocketChannelSu
 	return nil, nil
 }
 func (h *FakePassingExchange) GetDefaultConfig() (*config.ExchangeConfig, error) { return nil, nil }
-func (h *FakePassingExchange) GetBase() *exchange.Base                           { return nil }
+func (h *FakePassingExchange) GetBase() *exchange.Base                           { return &exchange.Base{} }
 func (h *FakePassingExchange) SupportsAsset(_ asset.Item) bool                   { return true }
 func (h *FakePassingExchange) GetHistoricCandles(_ currency.Pair, _ asset.Item, _, _ time.Time, _ time.Duration) (kline.Item, error) {
 	return kline.Item{}, nil

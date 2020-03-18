@@ -232,18 +232,17 @@ func printAccountSummary(ai *account.Holdings, protocol string) {
 }
 
 func printTradeSummary(t []order.TradeHistory, protocol string) {
-	if len(t) != 0 {
-		i := len(t) - 1 // Temp stop spam
+	if len(t) != 0 { // Temp get most recent
 		log.Infof(log.Global,
 			"%s %s: TRADE: Pair:%s Asset:%s Price:%f Amount:%f TradeID:%s Executed @ %s",
-			t[i].Exchange,
+			t[0].Exchange,
 			protocol,
-			t[i].Pair,
-			t[i].AssetType,
-			t[i].Price,
-			t[i].Amount,
-			t[i].TID,
-			t[i].Timestamp.Format(time.RFC822))
+			t[0].Pair,
+			t[0].AssetType,
+			t[0].Price,
+			t[0].Amount,
+			t[0].TID,
+			t[0].Timestamp.Local().Format(time.RFC822))
 	}
 }
 
@@ -362,12 +361,13 @@ func WebsocketDataReceiver(ws *wshandler.Websocket) {
 	wg.Add(1)
 	defer wg.Done()
 
+	exchangeName := ws.GetName()
 	for {
 		select {
 		case <-shutdowner:
 			return
 		case data := <-ws.DataHandler:
-			err := WebsocketDataHandler(ws.GetName(), data)
+			err := WebsocketDataHandler(exchangeName, data)
 			if err != nil {
 				log.Error(log.WebsocketMgr, err)
 			}
@@ -382,12 +382,13 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		return fmt.Errorf("routines.go - exchange %s nil data sent to websocket",
 			exchName)
 	}
+
 	switch d := data.(type) {
 	case string:
 		log.Info(log.WebsocketMgr, d)
 	case error:
 		return fmt.Errorf("routines.go exchange %s websocket error - %s", exchName, data)
-	case []order.TradeHistory, *orderbook.Base:
+	case *orderbook.Base, order.TradeHistory:
 		Bot.SyncManager.StreamUpdate(d)
 	case wshandler.FundingData:
 		if Bot.Settings.Verbose {
