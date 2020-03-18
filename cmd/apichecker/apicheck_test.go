@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -556,8 +555,6 @@ func TestSetAuthVars(t *testing.T) {
 	configData.Token = ""
 	setAuthVars()
 	if usageData.Key != "" && usageData.Token != "" {
-		fmt.Println(usageData.Key)
-		fmt.Println(usageData.Token)
 		t.Errorf("incorrect key and token values")
 	}
 }
@@ -580,9 +577,7 @@ func TestTrelloGetLists(t *testing.T) {
 	if !areAPIKeysSet() {
 		t.Skip()
 	}
-	b, err := trelloGetLists()
-	t.Log(b)
-	fmt.Println(b)
+	_, err := trelloGetLists()
 	if err != nil {
 		t.Error(err)
 	}
@@ -592,9 +587,7 @@ func TestGetAllCards(t *testing.T) {
 	if !areAPIKeysSet() {
 		t.Skip()
 	}
-	fmt.Printf("HELO")
-	a, err := trelloGetAllCards()
-	t.Log(a)
+	_, err := trelloGetAllCards()
 	if err != nil {
 		t.Error(err)
 	}
@@ -604,9 +597,7 @@ func TestGetAllChecklists(t *testing.T) {
 	if !areAPIKeysSet() {
 		t.Skip()
 	}
-	fmt.Printf("HELO")
-	a, err := trelloGetAllChecklists()
-	t.Log(a)
+	_, err := trelloGetAllChecklists()
 	if err != nil {
 		t.Error(err)
 	}
@@ -667,7 +658,6 @@ func TestCreateNewCheck(t *testing.T) {
 	if !canTestTrello() {
 		t.Skip()
 	}
-	fmt.Printf("HELO")
 	err := trelloCreateNewCheck("Gemini")
 	if err != nil {
 		t.Error(err)
