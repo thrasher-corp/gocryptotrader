@@ -152,7 +152,7 @@ func TestToFloat64(t *testing.T) {
 		t.Fatal(err)
 	}
 	if reflect.TypeOf(v).Kind() != reflect.Float64 {
-		t.Fatalf("expected toFloat to return kind float64 received: %v",  reflect.TypeOf(v).Kind())
+		t.Fatalf("expected toFloat to return kind float64 received: %v", reflect.TypeOf(v).Kind())
 	}
 
 	v, err = toFloat64(int(value))
@@ -160,7 +160,7 @@ func TestToFloat64(t *testing.T) {
 		t.Fatal(err)
 	}
 	if reflect.TypeOf(v).Kind() != reflect.Float64 {
-		t.Fatalf("expected toFloat to return kind float64 received: %v",  reflect.TypeOf(v).Kind())
+		t.Fatalf("expected toFloat to return kind float64 received: %v", reflect.TypeOf(v).Kind())
 	}
 
 	v, err = toFloat64(int32(value))
@@ -168,7 +168,7 @@ func TestToFloat64(t *testing.T) {
 		t.Fatal(err)
 	}
 	if reflect.TypeOf(v).Kind() != reflect.Float64 {
-		t.Fatalf("expected toFloat to return kind float64 received: %v",  reflect.TypeOf(v).Kind())
+		t.Fatalf("expected toFloat to return kind float64 received: %v", reflect.TypeOf(v).Kind())
 	}
 
 	v, err = toFloat64(int64(value))
@@ -176,12 +176,11 @@ func TestToFloat64(t *testing.T) {
 		t.Fatal(err)
 	}
 	if reflect.TypeOf(v).Kind() != reflect.Float64 {
-		t.Fatalf("expected toFloat to return kind float64 received: %v",  reflect.TypeOf(v).Kind())
+		t.Fatalf("expected toFloat to return kind float64 received: %v", reflect.TypeOf(v).Kind())
 	}
 
 	v, err = toFloat64("54")
 	if err == nil {
 		t.Fatalf("attempting to convert a string should fail but test passed")
 	}
-
 }
