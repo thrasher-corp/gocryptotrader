@@ -5,7 +5,6 @@
  "BoardID": "",
  "Key": "",
  "Token": "",
- "Username": "",
  "Exchanges": [
   {
    "Name": "Huobi",
@@ -60,7 +59,7 @@
    "Data": {
     "GitHubData": {
      "Repo": "bithumb-pro/bithumb.pro-official-api-docs",
-     "Sha": "c19789841432d91fd833e2530298197bd34c8c69"
+     "Sha": "2707ead100877356b3b2f0a783c269818f92d378"
     }
    },
    "Disabled": false
@@ -82,7 +81,7 @@
    "Data": {
     "GitHubData": {
      "Repo": "Coinbene/API-SPOT-v2-Documents",
-     "Sha": "a530a10df57499f67addc313f664b29279a170bd"
+     "Sha": "e9135a782ba6016bcf008778be368882ad7c784d"
     }
    },
    "Disabled": false
@@ -93,7 +92,7 @@
    "Data": {
     "GitHubData": {
      "Repo": "Coinbene/API-SWAP-Documents",
-     "Sha": "dd1827e27bf257de33535369be83af80a5037ebf"
+     "Sha": "6b7871dae4d2af028a33dde956fbce101e2f9acd"
     }
    },
    "Disabled": false
@@ -142,7 +141,7 @@
      "TokenDataEnd": "blockquote",
      "TextTokenData": "h1",
      "RegExp": "^BTSE Spot API v(\\d){1}.(\\d){1}$",
-     "CheckString": "BTSE Spot API v3.0.1",
+     "CheckString": "BTSE Spot API v3.0.2",
      "Path": "https://www.btse.com/apiexplorer/spot/#btse-spot-api"
     }
    },
@@ -189,7 +188,7 @@
      "TextTokenData": "h2",
      "DateFormat": "2006-01-02",
      "RegExp": "(2\\d{3}-\\d{1,2}-\\d{1,2})",
-     "CheckString": "2020-03-05",
+     "CheckString": "2020-03-12",
      "Path": "https://docs.poloniex.com/#changelog"
     }
    },

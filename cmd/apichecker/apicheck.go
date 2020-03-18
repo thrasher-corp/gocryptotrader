@@ -57,7 +57,6 @@ const (
 	pathNewChecklist   = "https://api.trello.com/1/checklists?idCard=%s&name=%s&key=%s&token=%s"
 	pathNewBoard       = "https://api.trello.com/1/boards/?name=%s&key=%s&token=%s"
 	pathNewList        = "https://api.trello.com/1/lists?name=%s&idBoard=%s&key=%s&token=%s"
-	pathGetLists       = "https://api.trello.com/1/boards/%s/lists?key=%s&token=%s"
 	pathGetCards       = "https://api.trello.com/1/lists/%s/cards?key=%s&token=%s"
 	pathGetChecklists  = "https://api.trello.com/1/cards/%s/checklists?&key=%s&token=%s"
 	complete           = "complete"
@@ -70,9 +69,9 @@ const (
 )
 
 var (
-	verbose, add, create, firstRun                                                                                                                                                                                                  bool
-	apiKey, apiToken, newBoardName, trelloBoardID, trelloBoardName, trelloListID, trelloChecklistID, trelloCardID, exchangeName, checkType, tokenData, key, val, tokenDataEnd, textTokenData, dateFormat, regExp, checkString, path string
-	configData, testConfigData, usageData                                                                                                                                                                                           Config
+	verbose, add, create, firstRun, testMode                                                                                                                                                                          bool
+	apiKey, apiToken, trelloBoardID, trelloBoardName, trelloListID, trelloChecklistID, trelloCardID, exchangeName, checkType, tokenData, key, val, tokenDataEnd, textTokenData, dateFormat, regExp, checkString, path string
+	configData, testConfigData, usageData                                                                                                                                                                             Config
 )
 
 func main() {
@@ -253,9 +252,14 @@ func setAuthVars() {
 }
 
 // writeAuthVars writes the new authentication variables to the updates.json file
-func writeAuthVars() error {
+func writeAuthVars(testMode bool) error {
 	setAuthVars()
-	err := updateFile(jsonFile)
+	var err error
+	if testMode {
+		err = updateFile(testJSONFile)
+	} else {
+		err = updateFile(jsonFile)
+	}
 	if err != nil {
 		return err
 	}
@@ -1476,7 +1480,7 @@ func trelloCreateNewList() error {
 		}
 		trelloListID = lists[x].ID
 		usageData.ListID = lists[x].ID
-		err = writeAuthVars()
+		err = writeAuthVars(testMode)
 		if err != nil {
 			return err
 		}
@@ -1513,7 +1517,7 @@ func trelloCreateNewCard() error {
 		}
 		trelloCardID = cards[x].ID
 		usageData.CardID = cards[x].ID
-		err = writeAuthVars()
+		err = writeAuthVars(testMode)
 		if err != nil {
 			return err
 		}
@@ -1550,7 +1554,7 @@ func trelloCreateNewChecklist() error {
 		}
 		trelloChecklistID = checklists[x].ID
 		usageData.ChecklistID = checklists[x].ID
-		err = writeAuthVars()
+		err = writeAuthVars(testMode)
 		if err != nil {
 			return err
 		}

@@ -1,6 +1,9 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
@@ -22,7 +25,8 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	SetTestVars()
+	setTestVars()
+	testMode = true
 	c := log.GenDefaultSettings()
 	c.Enabled = convert.BoolPtr(true)
 	log.GlobalLogConfig = &c
@@ -39,11 +43,18 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	usageData = testConfigData
-	SetTestVars()
-	os.Exit(m.Run())
+	setTestVars()
+	defer os.Exit(m.Run())
+	defer func() {
+		err := removeTestFileVars()
+		if err != nil {
+			log.Error(log.Global, err)
+			os.Exit(1)
+		}
+	}()
 }
 
-func SetTestVars() {
+func setTestVars() {
 	if !canUpdateTrello() {
 		apiKey = testAPIKey
 		apiToken = testAPIToken
@@ -52,8 +63,25 @@ func SetTestVars() {
 		trelloListID = testListID
 		trelloBoardID = testBoardID
 		trelloBoardName = testBoardName
-		setAuthVars()
 	}
+}
+
+func removeTestFileVars() error {
+	a, err := readFileData(testJSONFile)
+	if err != nil {
+		return err
+	}
+	a.BoardID = ""
+	a.CardID = ""
+	a.ChecklistID = ""
+	a.Key = ""
+	a.ListID = ""
+	a.Token = ""
+	file, err := json.MarshalIndent(&a, "", " ")
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(testJSONFile, file, 0770)
 }
 
 func canTestTrello() bool {
@@ -418,17 +446,6 @@ func TestHTMLScrapeOk(t *testing.T) {
 	}
 }
 
-func TestCreateNewCheck(t *testing.T) {
-	t.Parallel()
-	if !canTestTrello() {
-		t.Skip()
-	}
-	err := trelloCreateNewCheck("Gemini")
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 	var exchCheck, updatedExch HTMLScrapingData
@@ -459,28 +476,6 @@ func TestCheckMissingExchanges(t *testing.T) {
 	a := checkMissingExchanges()
 	if len(a) > len(exchange.Exchanges) {
 		t.Fatal("invalid response")
-	}
-}
-
-func TestGetChecklistItems(t *testing.T) {
-	t.Parallel()
-	if !canTestTrello() {
-		t.Skip()
-	}
-	_, err := trelloGetChecklistItems()
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestUpdateCheckItem(t *testing.T) {
-	t.Parallel()
-	if !canTestTrello() {
-		t.Skip()
-	}
-	err := trelloUpdateCheckItem(trelloListID, "Gemini 1", "incomplete")
-	if err != nil {
-		t.Error(err)
 	}
 }
 
@@ -556,9 +551,13 @@ func TestGetSha(t *testing.T) {
 func TestSetAuthVars(t *testing.T) {
 	t.Parallel()
 	apiKey = ""
+	configData.Key = ""
 	apiToken = ""
+	configData.Token = ""
 	setAuthVars()
-	if configData.Key != "" && configData.Token != "" {
+	if usageData.Key != "" && usageData.Token != "" {
+		fmt.Println(usageData.Key)
+		fmt.Println(usageData.Token)
 		t.Errorf("incorrect key and token values")
 	}
 }
@@ -581,17 +580,9 @@ func TestTrelloGetLists(t *testing.T) {
 	if !areAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := trelloGetLists()
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCreateNewList(t *testing.T) {
-	if !areAPIKeysSet() {
-		t.Skip()
-	}
-	err := trelloCreateNewList()
+	b, err := trelloGetLists()
+	t.Log(b)
+	fmt.Println(b)
 	if err != nil {
 		t.Error(err)
 	}
@@ -601,17 +592,9 @@ func TestGetAllCards(t *testing.T) {
 	if !areAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := trelloGetAllCards()
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestTrelloCreateNewCard(t *testing.T) {
-	if !areAPIKeysSet() {
-		t.Skip()
-	}
-	err := trelloCreateNewCard()
+	fmt.Printf("HELO")
+	a, err := trelloGetAllCards()
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -621,17 +604,9 @@ func TestGetAllChecklists(t *testing.T) {
 	if !areAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := trelloGetAllChecklists()
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestCreateNewChecklist(t *testing.T) {
-	if !areAPIKeysSet() {
-		t.Skip()
-	}
-	err := trelloCreateNewChecklist()
+	fmt.Printf("HELO")
+	a, err := trelloGetAllChecklists()
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -647,12 +622,76 @@ func TestTrelloGetAllBoards(t *testing.T) {
 	}
 }
 
+func TestCreateNewList(t *testing.T) {
+	if !areAPIKeysSet() {
+		t.Skip()
+	}
+	err := trelloCreateNewList()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestTrelloCreateNewCard(t *testing.T) {
+	if !areAPIKeysSet() {
+		t.Skip()
+	}
+	err := trelloCreateNewCard()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateNewChecklist(t *testing.T) {
+	if !areAPIKeysSet() {
+		t.Skip()
+	}
+	err := trelloCreateNewChecklist()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestWriteAuthVars(t *testing.T) {
 	if canTestMainFile {
 		trelloCardID = "jdsfl"
-		err := writeAuthVars()
+		err := writeAuthVars(testMode)
 		if err != nil {
 			t.Log(err)
 		}
+	}
+}
+
+func TestCreateNewCheck(t *testing.T) {
+	t.Parallel()
+	if !canTestTrello() {
+		t.Skip()
+	}
+	fmt.Printf("HELO")
+	err := trelloCreateNewCheck("Gemini")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateCheckItem(t *testing.T) {
+	t.Parallel()
+	if !canTestTrello() {
+		t.Skip()
+	}
+	err := trelloUpdateCheckItem(trelloListID, "Gemini 1", "incomplete")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetChecklistItems(t *testing.T) {
+	t.Parallel()
+	if !canTestTrello() {
+		t.Skip()
+	}
+	_, err := trelloGetChecklistItems()
+	if err != nil {
+		t.Error(err)
 	}
 }
