@@ -55,7 +55,6 @@ const (
 	pathUpdateItems    = "https://api.trello.com/1/cards/%s/checkItem/%s?%s&key=%s&token=%s"
 	pathCheckBoardID   = "https://api.trello.com/1/members/me/boards?key=%s&token=%s"
 	pathNewChecklist   = "https://api.trello.com/1/checklists?idCard=%s&name=%s&key=%s&token=%s"
-	pathNewBoard       = "https://api.trello.com/1/boards/?name=%s&key=%s&token=%s"
 	pathNewList        = "https://api.trello.com/1/lists?name=%s&idBoard=%s&key=%s&token=%s"
 	pathGetCards       = "https://api.trello.com/1/lists/%s/cards?key=%s&token=%s"
 	pathGetChecklists  = "https://api.trello.com/1/cards/%s/checklists?&key=%s&token=%s"
