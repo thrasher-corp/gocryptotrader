@@ -453,16 +453,37 @@ func (e *SyncManager) Processor() {
 					u.Agent.GetAgentName(),
 					u.Protocol,
 					u.Err)
+				u.Agent.Unlock()
+				err := e.DeRegister(u.Agent)
+				if err != nil {
+					log.Errorln(log.SyncMgr, err)
+				}
 			} else {
 				log.Errorf(log.SyncMgr, "%s %s %s error %s",
 					u.Agent.GetExchangeName(),
 					u.Agent.GetAgentName(),
 					u.Protocol,
 					u.Err)
+				u.Agent.Unlock()
 			}
-			u.Agent.Unlock()
 		}
 	}
+}
+
+// DeRegister removes agent from list
+func (e *SyncManager) DeRegister(s Synchroniser) error {
+	e.Lock()
+	for i := range e.Agents {
+		if s == e.Agents[i] {
+			e.Agents[i] = e.Agents[len(e.Agents)-1]
+			e.Agents[len(e.Agents)-1] = nil
+			e.Agents = e.Agents[:len(e.Agents)-1]
+			e.Unlock()
+			return nil
+		}
+	}
+	e.Unlock()
+	return fmt.Errorf("agent %s not found", s)
 }
 
 // StreamUpdate passes in a stream object to be processed and matched with
