@@ -10,7 +10,7 @@ import (
 // BTCMarkets Rate limit consts
 const (
 	btcmarketsRateInterval         = time.Second * 10
-	btcmarketsGeneralLimit         = 50
+	btcmarketsGeneralLimit         = 25
 	btcmarketsOrderLimit           = 30
 	btcmarketsBatchOrderLimit      = 5
 	btcmarketsWithdrawLimit        = 10

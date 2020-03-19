@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -71,8 +72,6 @@ func (e *SyncManager) Start() error {
 					"Loaded exchange %s cannot sync account specific items as functionality is disabled.\n",
 					exchName)
 			}
-
-			e.jobBuffer[exchName] = make(chan Synchroniser)
 
 			var exchangeWG sync.WaitGroup
 
@@ -161,46 +160,33 @@ func (e *SyncManager) Start() error {
 						})
 						exchangeSyncItems++
 					}
-
-					if e.AccountOrders && auth {
-						// Fetches account active orders
-						e.Agents = append(e.Agents, &OrderAgent{
-							Pair:  enabledPairs[z],
-							Asset: assetTypes[y],
-							Agent: Agent{
-								Name:            "AccountOrderAgent",
-								Exchange:        exchanges[x],
-								RestUpdateDelay: defaultSyncDelay,
-								Pipe:            e.pipe,
-								Wg:              &exchangeWG,
-							},
-						})
-						exchangeSyncItems++
-					}
 				}
 			}
 
-			go func(exchName string, count int, wg *sync.WaitGroup) {
-				if count == 0 {
-					log.Warnf(log.SyncMgr,
-						"Initial sync cannot start for %s as no sync items available",
-						exchName)
-					return
-				}
+			if exchangeSyncItems != 0 {
+				// This is linked up with an executor, which limits the outbound
+				// REST requests to not exceed the requester MaxRequestJobs variable
+				e.jobBuffer[exchName] = make(chan Synchroniser, exchangeSyncItems)
 
-				wg.Add(count)
-				log.Debugf(log.SyncMgr,
-					"Initial sync started for %s with [%d] ---------------------------- \n",
-					exchName,
-					count)
-				start := time.Now()
-				wg.Wait()
-				end := time.Now()
-				log.Debugf(log.SyncMgr,
-					"Initial sync finished for %s in [%s] ----------------------------- \n",
-					exchName,
-					end.Sub(start))
-			}(exchName, exchangeSyncItems, &exchangeWG)
+				go func(exchName string, count int, wg *sync.WaitGroup) {
+					wg.Add(count)
+					log.Debugf(log.SyncMgr,
+						"Initial sync started for %s with [%d] ---------------------------- \n",
+						exchName,
+						count)
+					start := time.Now()
+					wg.Wait()
+					end := time.Now()
+					log.Debugf(log.SyncMgr,
+						"Initial sync finished for %s in [%s] ----------------------------- \n",
+						exchName,
+						end.Sub(start))
+				}(exchName, exchangeSyncItems, &exchangeWG)
+			} else {
+				log.Warnf(log.SyncMgr,
+					"Initial sync cannot start for %s as no sync items available",
+					exchName)
+			}
 		}
 
 		for _, channel := range e.jobBuffer {
@@ -251,7 +237,6 @@ func (e *SyncManager) worker() {
 		select {
 		case <-e.shutdown:
 			e.wg.Done()
-			fmt.Println("worker shutting down")
 			return
 		case <-e.synchro: // Synchro chan is switched by the Monitor routine
 			// This sleep variable will keep track on the next update time on
@@ -273,13 +258,17 @@ func (e *SyncManager) worker() {
 				if nextUpdate.Before(time.Now()) || nextUpdate == (time.Time{}) {
 					if !e.Agents[i].IsProcessing() {
 						e.Agents[i].SetProcessing(true)
-						go func(s Synchroniser) {
-							s.Clear()
-							select {
-							case e.jobBuffer[s.GetExchangeName()] <- s:
-							case <-e.shutdown:
-							}
-						}(e.Agents[i])
+						e.Agents[i].Clear()
+						select {
+						case e.jobBuffer[e.Agents[i].GetExchangeName()] <- e.Agents[i]:
+						default:
+							log.Warnf(log.SyncMgr,
+								"extreme back log detected shunting %s execution to routine\n",
+								e.Agents[i].GetAgentName())
+							go func(s Synchroniser) {
+								e.jobBuffer[e.Agents[i].GetExchangeName()] <- e.Agents[i]
+							}(e.Agents[i])
+						}
 					}
 				} else {
 					if nextUpdate.Before(sleep) || sleep == (time.Time{}) {
@@ -301,17 +290,54 @@ func (e *SyncManager) worker() {
 }
 
 // executor monitors job buffer to not exceed max request jobs
+// WARNING: This is a temporary WIP work manager, TODO: This will be a
+// centralised service that will monitor all outbound calls to not exceed any
+// requester limitations.
 func (e *SyncManager) executor(sc chan Synchroniser) {
-	fmt.Println("Super impressive executor")
+	var wg sync.WaitGroup
+	var count int32
+	var mtx sync.Mutex
+
+	// This is a temp reduction on this system to allow for other outbound
+	// requests currently not linked up with this system.
+	var tempReduction = int32(5)
+
 	for {
 		select {
 		case <-e.shutdown:
 			e.wg.Done()
-			fmt.Println("executor shutting down")
 			return
 		case s := <-sc:
 			if !s.IsCancelled() {
-				s.Execute()
+				wg.Wait()
+				mtx.Lock()
+				if count+tempReduction >= request.MaxRequestJobs {
+					count++
+					mtx.Unlock()
+					wg.Add(1)
+					go func(wg *sync.WaitGroup, count *int32, mtx *sync.Mutex) {
+						s.Execute()
+						mtx.Lock()
+						*count--
+						mtx.Unlock()
+						wg.Done()
+					}(&wg, &count, &mtx)
+				} else {
+					count++
+					mtx.Unlock()
+					go func(count *int32, mtx *sync.Mutex) {
+						s.Execute()
+						mtx.Lock()
+						*count--
+						mtx.Unlock()
+					}(&count, &mtx)
+				}
+			} else {
+				if Bot.Settings.Verbose {
+					log.Debugf(log.SyncMgr,
+						"%s successfully cancelled due to already updated by stream process\n",
+						s.GetAgentName())
+				}
 			}
 		}
 	}
@@ -328,7 +354,6 @@ func (e *SyncManager) monitor() {
 		select {
 		case <-e.shutdown:
 			e.wg.Done()
-			fmt.Println("monitor shutting down")
 			return
 		case <-c:
 			e.synchro <- struct{}{} // Wakes up worker routine
@@ -370,7 +395,6 @@ func (e *SyncManager) Processor() {
 		select {
 		case <-e.shutdown:
 			e.wg.Done()
-			fmt.Println("processor shutting down")
 			return
 		case u := <-e.pipe:
 			if u.Err == nil {
@@ -468,13 +492,6 @@ func (e *SyncManager) StreamUpdate(payload interface{}) {
 			}
 			return
 		}
-	// case []order.Detail:
-	// 	if !e.ExchangeTrades {
-	// 		if Bot.Settings.Verbose {
-	// 			log.Warnln(log.SyncMgr, "Cannot process order stream, currently turned off")
-	// 		}
-	// 		return
-	// 	}
 	case order.TradeHistory:
 		if !e.ExchangeTrades {
 			if Bot.Settings.Verbose {
@@ -495,6 +512,13 @@ func (e *SyncManager) StreamUpdate(payload interface{}) {
 		if agent := e.Agents[i].Stream(payload); agent != nil {
 			if agent.IsProcessing() {
 				agent.Cancel()
+				if Bot.Settings.Verbose {
+					log.Debugf(log.SyncMgr,
+						"%s updated via websocket cancelling REST request on stack",
+						agent.GetAgentName())
+				}
+			} else {
+				agent.SetProcessing(true)
 			}
 
 			e.pipe <- SyncUpdate{

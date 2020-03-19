@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -18,13 +17,10 @@ const (
 
 	// default REST sync delays
 	defaultSyncDelay                  = 10 * time.Second
-	defaultExchangeTradeHistoryDelay  = time.Minute
 	defaultExchangeSupportedPairDelay = 30 * time.Minute
-	defaultDepositAddressDelay        = 5 * time.Minute
 )
 
 var (
-	syncManagerUUID, _ = uuid.NewV4()
 	// ErrInvalidItems alerts of no sync items enabled
 	ErrInvalidItems = errors.New("no sync items enabled")
 )
@@ -127,13 +123,6 @@ type TradeAgent struct {
 // AccountBalanceAgent synchronises the exchange account balances
 type AccountBalanceAgent struct {
 	Agent
-}
-
-// OrderAgent synchronises the exchange account orders
-type OrderAgent struct {
-	Agent
-	Pair  currency.Pair
-	Asset asset.Item
 }
 
 // SupportedPairsAgent synchronises the exchange supported currency pairs

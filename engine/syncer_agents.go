@@ -4,7 +4,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -188,32 +187,6 @@ func (a *AccountBalanceAgent) Stream(payload interface{}) Synchroniser {
 	}
 
 	if strings.EqualFold(a.Exchange.GetName(), acc.Exchange) {
-		return a
-	}
-
-	return nil
-}
-
-// Execute gets the account orders from the REST protocol
-func (a *OrderAgent) Execute() {
-	o, err := a.Exchange.GetActiveOrders(&order.GetOrdersRequest{
-		Pairs: []currency.Pair{a.Pair},
-	})
-	a.Pipe <- SyncUpdate{
-		Agent:    a,
-		Payload:  o,
-		Protocol: REST,
-		Err:      err}
-}
-
-// Stream couples agent with incoming stream data
-func (a *OrderAgent) Stream(payload interface{}) Synchroniser {
-	o, ok := payload.([]order.Detail)
-	if !ok {
-		return nil
-	}
-
-	if strings.EqualFold(a.Exchange.GetName(), o[0].Exchange) {
 		return a
 	}
 
