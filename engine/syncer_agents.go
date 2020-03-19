@@ -157,12 +157,13 @@ func (a *TradeAgent) Execute() {
 
 // Stream couples agent with incoming stream data
 func (a *TradeAgent) Stream(payload interface{}) Synchroniser {
-	t, ok := payload.([]order.TradeHistory)
+	t, ok := payload.(order.TradeHistory)
 	if !ok {
 		return nil
 	}
 
-	if strings.EqualFold(a.Exchange.GetName(), t[0].Exchange) {
+	if strings.EqualFold(a.Exchange.GetName(), t.Exchange) &&
+		a.Pair.Equal(t.Pair) && a.AssetType == t.AssetType {
 		return a
 	}
 

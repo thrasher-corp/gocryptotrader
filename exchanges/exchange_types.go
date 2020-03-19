@@ -215,7 +215,6 @@ type Base struct {
 	API                           API
 	BaseCurrencies                currency.Currencies
 	CurrencyPairs                 currency.PairsManager
-	DepositCurrencies             currency.Currencies
 	Features                      Features
 	HTTPTimeout                   time.Duration
 	HTTPUserAgent                 string

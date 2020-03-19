@@ -63,7 +63,6 @@ func main() {
 	settings.SyncerSettings.EnableExchangeOrderbook = true
 	settings.SyncerSettings.EnableExchangeSupportedPairs = true
 	settings.SyncerSettings.EnableExchangeTicker = true
-	settings.SyncerSettings.EnableAccountOrders = true
 
 	// Forex provider settings
 	flag.BoolVar(&settings.EnableCurrencyConverter, "currencyconverter", false, "overrides config and sets up foreign exchange Currency Converter")

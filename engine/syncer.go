@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -447,6 +448,7 @@ func (e *SyncManager) Processor() {
 				u.Err == common.ErrFunctionNotSupported {
 				u.Agent.DisableREST()
 				u.Agent.SetProcessing(false)
+				u.Agent.SetNewUpdate()
 				u.Agent.InitialSyncComplete()
 				log.Warnf(log.SyncMgr, "%s %s %s disabling functionality: %s",
 					u.Agent.GetExchangeName(),
@@ -454,10 +456,6 @@ func (e *SyncManager) Processor() {
 					u.Protocol,
 					u.Err)
 				u.Agent.Unlock()
-				err := e.DeRegister(u.Agent)
-				if err != nil {
-					log.Errorln(log.SyncMgr, err)
-				}
 			} else {
 				log.Errorf(log.SyncMgr, "%s %s %s error %s",
 					u.Agent.GetExchangeName(),
@@ -556,6 +554,11 @@ func (e *SyncManager) StreamUpdate(payload interface{}) {
 	}
 	e.RUnlock()
 	log.Errorf(log.SyncMgr,
-		"Cannot match payload %T with agent",
+		"Cannot match payload %+v with agent",
 		payload)
+	for i := range e.Agents {
+		log.Debugln(log.SyncMgr, e.Agents[i])
+	}
+
+	os.Exit(1)
 }
