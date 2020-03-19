@@ -62,7 +62,16 @@ func setTestVars() {
 		trelloListID = testListID
 		trelloBoardID = testBoardID
 		trelloBoardName = testBoardName
+		return
 	}
+	setAuthVars()
+	testAPIKey = apiKey
+	testAPIToken = apiToken
+	testChecklistID = trelloChecklistID
+	testCardID = trelloCardID
+	testListID = trelloListID
+	testBoardID = trelloBoardID
+	testBoardName = trelloBoardName
 }
 
 func removeTestFileVars() error {
