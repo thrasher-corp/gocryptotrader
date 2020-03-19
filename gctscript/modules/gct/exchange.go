@@ -2,14 +2,13 @@ package gct
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
-	"time"
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	indicators2 "github.com/thrasher-corp/gocryptotrader/gctscript/modules/ta/indicators"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -534,15 +533,15 @@ func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, endTime)
 	}
-	interval, err := strconv.ParseInt(intervalStr, 10, 64)
+	interval, err := indicators2.ParseInterval(intervalStr)
 	if err != nil {
+		fmt.Println("hello")
 		return nil, err
 	}
-
 	pairs := currency.NewPairDelimiter(currencyPair, delimiter)
 	assetType := asset.Item(assetTypeParam)
 
-	ret, err := wrappers.GetWrapper().OHLCV(exchangeName, pairs, assetType, startTime, endTime, time.Duration(interval))
+	ret, err := wrappers.GetWrapper().OHLCV(exchangeName, pairs, assetType, startTime, endTime, interval)
 	if err != nil {
 		return nil, err
 	}

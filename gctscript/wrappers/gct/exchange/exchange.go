@@ -215,6 +215,5 @@ func (e Exchange) OHLCV(exch string, pair currency.Pair, item asset.Item, start,
 	if err != nil {
 		return kline.Item{}, err
 	}
-
 	return ex.GetHistoricCandles(pair, item, start, end, interval)
 }
