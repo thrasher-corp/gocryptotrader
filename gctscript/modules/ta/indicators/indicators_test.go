@@ -179,7 +179,7 @@ func TestToFloat64(t *testing.T) {
 		t.Fatalf("expected toFloat to return kind float64 received: %v", reflect.TypeOf(v).Kind())
 	}
 
-	v, err = toFloat64("54")
+	_, err = toFloat64("54")
 	if err == nil {
 		t.Fatalf("attempting to convert a string should fail but test passed")
 	}
