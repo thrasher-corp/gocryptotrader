@@ -84,7 +84,7 @@ func removeTestFileVars() error {
 }
 
 func canTestTrello() bool {
-	if testAPIKey != "" && testAPIToken != "" && testChecklistID != "" && testCardID != "" && testListID != "" && testBoardID != "" && testBoardName != "" {
+	if testAPIKey != "" && testAPIToken != "" && testChecklistID != "" && testCardID != "" && testListID != "" && (testBoardID != "" || testBoardName != "") {
 		return true
 	}
 	return false
@@ -281,11 +281,8 @@ func TestHTMLScrapeBTCMarkets(t *testing.T) {
 func TestHTMLScrapeBitflyer(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{TokenData: "p",
-		Key:           "",
-		Val:           "",
 		TokenDataEnd:  "h3",
 		TextTokenData: "code",
-		DateFormat:    "",
 		RegExp:        `^https://api.bitflyer.com/v\d{1}/$`,
 		Path:          "https://lightning.bitflyer.com/docs?lang=en"}
 	_, err := htmlScrapeBitflyer(&data)
@@ -375,11 +372,8 @@ func TestHTMLBitstamp(t *testing.T) {
 func TestHTMLKraken(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{TokenData: "h3",
-		Key:           "",
-		Val:           "",
 		TokenDataEnd:  "p",
 		TextTokenData: "p",
-		DateFormat:    "",
 		RegExp:        `URL: https://api.kraken.com/\d{1}/private/Balance`,
 		Path:          "https://www.kraken.com/features/api"}
 	_, err := htmlScrapeKraken(&data)
@@ -395,7 +389,6 @@ func TestHTMLAlphaPoint(t *testing.T) {
 		Val:           "introduction",
 		TokenDataEnd:  "blockquote",
 		TextTokenData: "h3",
-		DateFormat:    "",
 		RegExp:        `revised-calls-\d{1}-\d{1}-\d{1}-gt-\d{1}-\d{1}-\d{1}`,
 		Path:          "https://alphapoint.github.io/slate/#introduction"}
 	_, err := htmlScrapeAlphaPoint(&data)
@@ -418,13 +411,10 @@ func TestHTMLYobit(t *testing.T) {
 func TestHTMLScrapeLocalBitcoins(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{TokenData: "div",
-		Key:           "class",
-		Val:           "col-md-12",
-		TokenDataEnd:  "",
-		TextTokenData: "",
-		DateFormat:    "",
-		RegExp:        `col-md-12([\s\S]*?)clearfix`,
-		Path:          "https://localbitcoins.com/api-docs/"}
+		Key:    "class",
+		Val:    "col-md-12",
+		RegExp: `col-md-12([\s\S]*?)clearfix`,
+		Path:   "https://localbitcoins.com/api-docs/"}
 	_, err := htmlScrapeLocalBitcoins(&data)
 	if err != nil {
 		t.Error(err)
@@ -547,20 +537,7 @@ func TestGetSha(t *testing.T) {
 	}
 }
 
-func TestSetAuthVars(t *testing.T) {
-	t.Parallel()
-	apiKey = ""
-	configData.Key = ""
-	apiToken = ""
-	configData.Token = ""
-	setAuthVars()
-	if usageData.Key != "" && usageData.Token != "" {
-		t.Errorf("incorrect key and token values")
-	}
-}
-
 func TestCheckBoardID(t *testing.T) {
-	t.Parallel()
 	if !areAPIKeysSet() {
 		t.Skip()
 	}
@@ -654,7 +631,6 @@ func TestWriteAuthVars(t *testing.T) {
 }
 
 func TestCreateNewCheck(t *testing.T) {
-	t.Parallel()
 	if !canTestTrello() {
 		t.Skip()
 	}
@@ -665,23 +641,43 @@ func TestCreateNewCheck(t *testing.T) {
 }
 
 func TestUpdateCheckItem(t *testing.T) {
-	t.Parallel()
 	if !canTestTrello() {
 		t.Skip()
 	}
-	err := trelloUpdateCheckItem(trelloListID, "Gemini 1", "incomplete")
+	a, err := trelloGetChecklistItems()
+	if err != nil {
+		t.Error(err)
+	}
+	var checkID string
+	for x := range a.CheckItems {
+		if a.CheckItems[x].Name == "Gemini 1" {
+			checkID = a.CheckItems[x].ID
+		}
+	}
+	err = trelloUpdateCheckItem(checkID, "Gemini 1", "incomplete")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetChecklistItems(t *testing.T) {
-	t.Parallel()
 	if !canTestTrello() {
 		t.Skip()
 	}
 	_, err := trelloGetChecklistItems()
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestSetAuthVars(t *testing.T) {
+	t.Parallel()
+	apiKey = ""
+	configData.Key = ""
+	apiToken = ""
+	configData.Token = ""
+	setAuthVars()
+	if usageData.Key != "" && usageData.Token != "" {
+		t.Errorf("incorrect key and token values")
 	}
 }
