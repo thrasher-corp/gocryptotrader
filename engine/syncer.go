@@ -67,7 +67,7 @@ func (e *SyncManager) Start() error {
 			var exchangeSyncItems int
 
 			auth := exchanges[x].GetBase().API.AuthenticatedSupport
-			if !auth && (e.AccountBalance || e.AccountOrders) {
+			if !auth && e.AccountBalance {
 				log.Warnf(log.SyncMgr,
 					"Loaded exchange %s cannot sync account specific items as functionality is disabled.\n",
 					exchName)

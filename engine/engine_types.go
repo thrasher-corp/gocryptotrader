@@ -119,7 +119,6 @@ type SynchronisationSettings struct {
 	EnableExchangeTrade          bool
 	EnableExchangeSupportedPairs bool
 	EnableAccountBalance         bool
-	EnableAccountOrders          bool
 }
 
 // String method returns a string
@@ -141,8 +140,6 @@ func (i *SynchronisationSettings) Set(value string) error {
 			i.EnableExchangeSupportedPairs = false
 		case "ticker":
 			i.EnableExchangeTicker = false
-		case "order":
-			i.EnableAccountOrders = false
 		default:
 			return fmt.Errorf("cannot disable sync agent value: %s not found ",
 				vals[x])

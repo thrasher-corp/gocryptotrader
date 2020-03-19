@@ -184,7 +184,6 @@ func ValidateSettings(b *Engine, s *Settings) {
 	b.Settings.EnableExchangeSyncManager = s.EnableExchangeSyncManager
 
 	b.Settings.SyncerSettings.EnableAccountBalance = s.SyncerSettings.EnableAccountBalance
-	b.Settings.SyncerSettings.EnableAccountOrders = s.SyncerSettings.EnableAccountOrders
 	b.Settings.SyncerSettings.EnableExchangeTrade = s.SyncerSettings.EnableExchangeTrade
 	b.Settings.SyncerSettings.EnableExchangeOrderbook = s.SyncerSettings.EnableExchangeOrderbook
 	b.Settings.SyncerSettings.EnableExchangeSupportedPairs = s.SyncerSettings.EnableExchangeSupportedPairs
@@ -270,7 +269,6 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Dispatch package jobs limit: %d", s.DispatchJobsLimit)
 	gctlog.Debugf(gctlog.Global, "- EXCHANGE SYNCER SETTINGS:\n")
 	gctlog.Debugf(gctlog.Global, "\t Enable account balance syncing: %v\n", s.SyncerSettings.EnableAccountBalance)
-	gctlog.Debugf(gctlog.Global, "\t Enable account orders syncing: %v\n", s.SyncerSettings.EnableAccountOrders)
 	gctlog.Debugf(gctlog.Global, "\t Enable exchange trade syncing: %v\n", s.SyncerSettings.EnableExchangeTrade)
 	gctlog.Debugf(gctlog.Global, "\t Enable exchange orderbook syncing: %v\n", s.SyncerSettings.EnableExchangeOrderbook)
 	gctlog.Debugf(gctlog.Global, "\t Enable exchange ticker syncing: %v\n", s.SyncerSettings.EnableExchangeTicker)
@@ -426,7 +424,6 @@ func (e *Engine) Start() error {
 	if e.Settings.EnableExchangeSyncManager {
 		e.SyncManager, err = NewSyncManager(SyncConfig{
 			AccountBalance:         e.Settings.SyncerSettings.EnableAccountBalance,
-			AccountOrders:          e.Settings.SyncerSettings.EnableAccountOrders,
 			ExchangeTrades:         e.Settings.SyncerSettings.EnableExchangeTrade,
 			ExchangeOrderbook:      e.Settings.SyncerSettings.EnableExchangeOrderbook,
 			ExchangeSupportedPairs: e.Settings.SyncerSettings.EnableExchangeSupportedPairs,

@@ -52,7 +52,6 @@ type Synchroniser interface {
 // SyncConfig stores the currency pair config
 type SyncConfig struct {
 	AccountBalance         bool
-	AccountOrders          bool
 	ExchangeTrades         bool
 	ExchangeOrderbook      bool
 	ExchangeSupportedPairs bool
