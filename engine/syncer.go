@@ -447,6 +447,7 @@ func (e *SyncManager) Processor() {
 				u.Err == common.ErrFunctionNotSupported {
 				u.Agent.DisableREST()
 				u.Agent.SetProcessing(false)
+				u.Agent.InitialSyncComplete()
 				log.Warnf(log.SyncMgr, "%s %s %s disabling functionality: %s",
 					u.Agent.GetExchangeName(),
 					u.Agent.GetAgentName(),
