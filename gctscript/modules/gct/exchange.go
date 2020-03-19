@@ -535,7 +535,6 @@ func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 	}
 	interval, err := indicators2.ParseInterval(intervalStr)
 	if err != nil {
-		fmt.Println("hello")
 		return nil, err
 	}
 	pairs := currency.NewPairDelimiter(currencyPair, delimiter)

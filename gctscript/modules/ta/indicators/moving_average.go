@@ -33,7 +33,7 @@ func macd(args ...objects.Object) (objects.Object, error) {
 			}
 			ohlcvClose = append(ohlcvClose, value)
 		default:
-			return nil, fmt.Errorf(modules.ErrParameterConvertFailed, "OHLCV")
+			return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
 		}
 	}
 
@@ -90,7 +90,7 @@ func ema(args ...objects.Object) (objects.Object, error) {
 			}
 			ohlcvClose = append(ohlcvClose, value)
 		default:
-			return nil, fmt.Errorf(modules.ErrParameterConvertFailed, "OHLCV")
+			return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
 		}
 	}
 
@@ -126,7 +126,7 @@ func sma(args ...objects.Object) (objects.Object, error) {
 			}
 			ohlcvClose = append(ohlcvClose, value)
 		default:
-			return nil, fmt.Errorf(modules.ErrParameterConvertFailed, "OHLCV")
+			return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
 		}
 	}
 

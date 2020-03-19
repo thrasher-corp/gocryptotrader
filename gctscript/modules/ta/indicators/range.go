@@ -49,7 +49,7 @@ func atr(args ...objects.Object) (objects.Object, error) {
 			}
 			ohclvData[5] = append(ohclvData[5], value)
 		default:
-			return nil, fmt.Errorf(modules.ErrParameterConvertFailed, "OHLCV")
+			return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
 		}
 	}
 

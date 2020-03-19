@@ -5,7 +5,7 @@ ind := import("indicator/volume")
 
 load := func() {
     start := t.add(t.now(), -t.hour*24*100)
-    ohlcvData := exch.ohlcv("BTC Markets", "BTC-AUD", "-", "", start, t.now(), t.hour*24)
+    ohlcvData := exch.ohlcv("BTC Markets", "BTC-AUD", "-", "", start, t.now(), "1d")
 
     ret := ind.obv("close", ohlcvData.candles)
     fmt.println(ret)

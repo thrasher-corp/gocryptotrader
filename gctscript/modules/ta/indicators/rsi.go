@@ -31,7 +31,7 @@ func rsi(args ...objects.Object) (objects.Object, error) {
 			}
 			ohlcvClose = append(ohlcvClose, value)
 		default:
-			return nil, fmt.Errorf(modules.ErrParameterConvertFailed, "OHLCV")
+			return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
 		}
 	}
 
