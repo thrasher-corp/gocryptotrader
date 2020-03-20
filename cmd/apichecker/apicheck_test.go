@@ -53,6 +53,10 @@ func TestMain(m *testing.M) {
 	}()
 }
 
+func areTestAPIKeysSet() bool {
+	return (testAPIKey != "" && testAPIToken != "")
+}
+
 func setTestVars() {
 	if !canUpdateTrello() {
 		apiKey = testAPIKey
@@ -64,14 +68,6 @@ func setTestVars() {
 		trelloBoardName = testBoardName
 		return
 	}
-	setAuthVars()
-	testAPIKey = apiKey
-	testAPIToken = apiToken
-	testChecklistID = trelloChecklistID
-	testCardID = trelloCardID
-	testListID = trelloListID
-	testBoardID = trelloBoardID
-	testBoardName = trelloBoardName
 }
 
 func removeTestFileVars() error {
@@ -100,6 +96,9 @@ func canTestTrello() bool {
 }
 
 func TestCheckUpdates(t *testing.T) {
+	if !canUpdateTrello() || !canTestTrello() {
+		t.Skip()
+	}
 	err := checkUpdates(testJSONFile)
 	if err != nil {
 		t.Fatal(err)
@@ -547,7 +546,7 @@ func TestGetSha(t *testing.T) {
 }
 
 func TestCheckBoardID(t *testing.T) {
-	if !areAPIKeysSet() {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	a, err := trelloCheckBoardID()
@@ -560,7 +559,7 @@ func TestCheckBoardID(t *testing.T) {
 }
 
 func TestTrelloGetLists(t *testing.T) {
-	if !areAPIKeysSet() {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	_, err := trelloGetLists()
@@ -570,7 +569,7 @@ func TestTrelloGetLists(t *testing.T) {
 }
 
 func TestGetAllCards(t *testing.T) {
-	if !areAPIKeysSet() {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	_, err := trelloGetAllCards()
@@ -580,7 +579,7 @@ func TestGetAllCards(t *testing.T) {
 }
 
 func TestGetAllChecklists(t *testing.T) {
-	if !areAPIKeysSet() {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	_, err := trelloGetAllChecklists()
@@ -590,7 +589,10 @@ func TestGetAllChecklists(t *testing.T) {
 }
 
 func TestTrelloGetAllBoards(t *testing.T) {
-	if !areAPIKeysSet() {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	if trelloBoardID != "" || testBoardName != "" {
 		t.Skip()
 	}
 	_, err := trelloGetBoardID()
@@ -600,7 +602,7 @@ func TestTrelloGetAllBoards(t *testing.T) {
 }
 
 func TestCreateNewList(t *testing.T) {
-	if !areAPIKeysSet() {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	err := trelloCreateNewList()
@@ -610,7 +612,7 @@ func TestCreateNewList(t *testing.T) {
 }
 
 func TestTrelloCreateNewCard(t *testing.T) {
-	if !areAPIKeysSet() {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	err := trelloCreateNewCard()
@@ -620,7 +622,7 @@ func TestTrelloCreateNewCard(t *testing.T) {
 }
 
 func TestCreateNewChecklist(t *testing.T) {
-	if !areAPIKeysSet() {
+	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
 	err := trelloCreateNewChecklist()
