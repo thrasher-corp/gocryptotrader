@@ -386,8 +386,7 @@ func (e *Engine) Start() error {
 			CurrencyDelay:          e.Config.Currency.CurrencyFileUpdateDuration,
 			FxRateDelay:            e.Config.Currency.ForeignExchangeUpdateDuration,
 		},
-		e.Settings.DataDir,
-		e.Settings.Verbose)
+		e.Settings.DataDir)
 	if err != nil {
 		gctlog.Errorf(gctlog.Global, "Currency updater system failed to start %v", err)
 	}

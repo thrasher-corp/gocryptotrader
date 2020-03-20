@@ -212,8 +212,17 @@ func (h *HUOBI) Run() {
 			h.Name,
 			err)
 	}
+
+	avail, err := h.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s Failed to update enabled currencies. Err:%s\n",
+			h.Name,
+			err)
+	}
+
 	if common.StringDataContains(enabled.Strings(), currency.CNY.String()) ||
-		common.StringDataContains(h.GetAvailablePairs(asset.Spot).Strings(), currency.CNY.String()) {
+		common.StringDataContains(avail.Strings(), currency.CNY.String()) {
 		forceUpdate = true
 	}
 

@@ -229,8 +229,18 @@ func (k *Kraken) Run() {
 			err)
 		return
 	}
+
+	avail, err := k.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			k.Name,
+			err)
+		return
+	}
+
 	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-		!common.StringDataContains(k.GetAvailablePairs(asset.Spot).Strings(), format.Delimiter) {
+		!common.StringDataContains(avail.Strings(), format.Delimiter) {
 		var p currency.Pairs
 		p, err = currency.NewPairsFromStrings([]string{currency.XBT.String() +
 			format.Delimiter +

@@ -55,8 +55,7 @@ func (p Pair) MarshalJSON() ([]byte, error) {
 // Format changes the currency based on user preferences overriding the default
 // String() display
 func (p Pair) Format(delimiter string, uppercase bool) Pair {
-	newP := Pair{Base: p.Base, Quote: p.Quote}
-	newP.Delimiter = delimiter
+	newP := Pair{Base: p.Base, Quote: p.Quote, Delimiter: delimiter}
 	if uppercase {
 		return newP.Upper()
 	}
@@ -72,10 +71,8 @@ func (p Pair) Equal(cPair Pair) bool {
 // EqualIncludeReciprocal compares two currency pairs and returns whether or not
 // they are the same including reciprocal currencies.
 func (p Pair) EqualIncludeReciprocal(cPair Pair) bool {
-	if p.Base.Item == cPair.Base.Item &&
-		p.Quote.Item == cPair.Quote.Item ||
-		p.Base.Item == cPair.Quote.Item &&
-			p.Quote.Item == cPair.Base.Item {
+	if (p.Base.Item == cPair.Base.Item && p.Quote.Item == cPair.Quote.Item) ||
+		(p.Base.Item == cPair.Quote.Item && p.Quote.Item == cPair.Base.Item) {
 		return true
 	}
 	return false
@@ -89,10 +86,8 @@ func (p Pair) IsCryptoPair() bool {
 
 // IsCryptoFiatPair checks to see if the pair is a crypto fiat pair e.g. BTCUSD
 func (p Pair) IsCryptoFiatPair() bool {
-	return storage.IsCryptocurrency(p.Base) &&
-		storage.IsFiatCurrency(p.Quote) ||
-		storage.IsFiatCurrency(p.Base) &&
-			storage.IsCryptocurrency(p.Quote)
+	return (storage.IsCryptocurrency(p.Base) && storage.IsFiatCurrency(p.Quote)) ||
+		(storage.IsFiatCurrency(p.Base) && storage.IsCryptocurrency(p.Quote))
 }
 
 // IsFiatPair checks to see if the pair is a fiat pair e.g. EURUSD

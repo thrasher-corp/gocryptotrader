@@ -197,8 +197,18 @@ func (o *OKEX) Run() {
 			err)
 		return
 	}
+
+	avail, err := o.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			o.Name,
+			err)
+		return
+	}
+
 	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-		!common.StringDataContains(o.GetAvailablePairs(asset.Spot).Strings(), format.Delimiter) {
+		!common.StringDataContains(avail.Strings(), format.Delimiter) {
 		forceUpdate = true
 		var p currency.Pairs
 		p, err = currency.NewPairsFromStrings([]string{currency.BTC.String() +

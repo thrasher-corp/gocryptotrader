@@ -48,18 +48,19 @@ func (b *Binance) WsConnect() error {
 		return err
 	}
 
+	pairsStr := pairs.Strings()
 	tick := strings.ToLower(
 		strings.Replace(
-			strings.Join(pairs.Strings(), "@ticker/"), "-", "", -1)) + "@ticker"
+			strings.Join(pairsStr, "@ticker/"), "-", "", -1)) + "@ticker"
 	trade := strings.ToLower(
 		strings.Replace(
-			strings.Join(pairs.Strings(), "@trade/"), "-", "", -1)) + "@trade"
+			strings.Join(pairsStr, "@trade/"), "-", "", -1)) + "@trade"
 	kline := strings.ToLower(
 		strings.Replace(
-			strings.Join(pairs.Strings(), "@kline_1m/"), "-", "", -1)) + "@kline_1m"
+			strings.Join(pairsStr, "@kline_1m/"), "-", "", -1)) + "@kline_1m"
 	depth := strings.ToLower(
 		strings.Replace(
-			strings.Join(pairs.Strings(), "@depth/"), "-", "", -1)) + "@depth"
+			strings.Join(pairsStr, "@depth/"), "-", "", -1)) + "@depth"
 
 	wsurl := b.Websocket.GetWebsocketURL() +
 		"/stream?streams=" +

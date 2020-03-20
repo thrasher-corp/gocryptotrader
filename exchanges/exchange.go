@@ -396,23 +396,40 @@ func (e *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, ass
 
 // GetAvailablePairs is a method that returns the available currency pairs
 // of the exchange by asset type
-func (e *Base) GetAvailablePairs(assetType asset.Item) currency.Pairs {
-	format, _ := e.GetPairFormat(assetType, false)
-	pairs, _ := e.CurrencyPairs.GetPairs(assetType, false)
-	return pairs.Format(format.Delimiter, format.Index, format.Uppercase)
+func (e *Base) GetAvailablePairs(assetType asset.Item) (currency.Pairs, error) {
+	format, err := e.GetPairFormat(assetType, false)
+	if err != nil {
+		return nil, err
+	}
+	pairs, err := e.CurrencyPairs.GetPairs(assetType, false)
+	if err != nil {
+		return nil, err
+	}
+	return pairs.Format(format.Delimiter, format.Index, format.Uppercase), nil
 }
 
 // SupportsPair returns true or not whether a currency pair exists in the
 // exchange available currencies or not
-func (e *Base) SupportsPair(p currency.Pair, enabledPairs bool, assetType asset.Item) bool {
+func (e *Base) SupportsPair(p currency.Pair, enabledPairs bool, assetType asset.Item) error {
 	if enabledPairs {
 		pairs, err := e.GetEnabledPairs(assetType)
 		if err != nil {
-			return false
+			return err
 		}
-		return pairs.Contains(p, false)
+		if pairs.Contains(p, false) {
+			return nil
+		}
+		return errors.New("pair not supported")
 	}
-	return e.GetAvailablePairs(assetType).Contains(p, false)
+
+	avail, err := e.GetAvailablePairs(assetType)
+	if err != nil {
+		return err
+	}
+	if avail.Contains(p, false) {
+		return nil
+	}
+	return errors.New("pair not supported")
 }
 
 // FormatExchangeCurrencies returns a string containing

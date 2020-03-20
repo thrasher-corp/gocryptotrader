@@ -218,13 +218,16 @@ func (b *BTSE) FetchTradablePairs(a asset.Item) ([]string, error) {
 			}
 			currencies = append(currencies, m[x].Symbol)
 		}
-	} else {
+	} else if a == asset.Futures {
 		m, err := b.GetFuturesMarkets()
 		if err != nil {
 			return nil, err
 		}
 
 		for x := range m {
+			if !m[x].Active {
+				continue
+			}
 			currencies = append(currencies, m[x].Symbol)
 		}
 	}
@@ -482,7 +485,7 @@ func (b *BTSE) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAll
 		checkPair := currency.NewPairWithDelimiter(markets[x].BaseCurrency,
 			markets[x].QuoteCurrency,
 			format.Delimiter).String()
-		if fair.String() != "" && fair.String() != checkPair {
+		if fair.String() != checkPair {
 			continue
 		} else {
 			orders, err := b.GetOrders(checkPair)

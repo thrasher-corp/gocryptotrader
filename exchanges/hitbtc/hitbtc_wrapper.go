@@ -212,8 +212,17 @@ func (h *HitBTC) Run() {
 		return
 	}
 
+	avail, err := h.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			h.Name,
+			err)
+		return
+	}
+
 	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-		!common.StringDataContains(h.GetAvailablePairs(asset.Spot).Strings(), format.Delimiter) {
+		!common.StringDataContains(avail.Strings(), format.Delimiter) {
 		enabledPairs := []string{currency.BTC.String() + format.Delimiter + currency.USD.String()}
 		log.Warn(log.ExchangeSys,
 			"Available pairs for HitBTC reset due to config upgrade, please enable the ones you would like again.")

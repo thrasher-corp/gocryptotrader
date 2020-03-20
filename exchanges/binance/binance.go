@@ -542,9 +542,13 @@ func (b *Binance) CheckLimit(limit int) error {
 
 // CheckSymbol checks value against a variable list
 func (b *Binance) CheckSymbol(symbol string, assetType asset.Item) error {
-	enPairs := b.GetAvailablePairs(assetType)
-	for x := range enPairs {
-		fpair, err := b.FormatExchangeCurrency(enPairs[x], assetType)
+	avail, err := b.GetAvailablePairs(assetType)
+	if err != nil {
+		return err
+	}
+
+	for x := range avail {
+		fpair, err := b.FormatExchangeCurrency(avail[x], assetType)
 		if err != nil {
 			return err
 		}

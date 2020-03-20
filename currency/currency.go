@@ -72,8 +72,8 @@ func GetTotalMarketCryptocurrencies() ([]Code, error) {
 }
 
 // RunStorageUpdater  runs a new foreign exchange updater instance
-func RunStorageUpdater(o BotOverrides, m *MainConfiguration, filepath string, v bool) error {
-	return storage.RunUpdater(o, m, filepath, v)
+func RunStorageUpdater(o BotOverrides, m *MainConfiguration, filepath string) error {
+	return storage.RunUpdater(o, m, filepath)
 }
 
 // CopyPairFormat copies the pair format from a list of pairs once matched

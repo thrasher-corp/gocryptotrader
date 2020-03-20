@@ -540,12 +540,15 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 
 // SupportsPair returns true or not whether the exchange supports the supplied
 // pair
-func (c *Config) SupportsPair(exchName string, p currency.Pair, assetType asset.Item) (bool, error) {
+func (c *Config) SupportsPair(exchName string, p currency.Pair, assetType asset.Item) error {
 	pairs, err := c.GetAvailablePairs(exchName, assetType)
 	if err != nil {
-		return false, err
+		return err
 	}
-	return pairs.Contains(p, false), nil
+	if pairs.Contains(p, false) {
+		return nil
+	}
+	return errors.New("not supported")
 }
 
 // GetPairFormat returns the exchanges pair config storage format

@@ -401,7 +401,12 @@ func (p *Poloniex) wsHandleTickerData(data []interface{}) error {
 	}
 
 	if !enabled.Contains(currencyPair, true) {
-		if !p.GetAvailablePairs(asset.Spot).Contains(currencyPair, true) {
+		avail, err := p.GetAvailablePairs(asset.Spot)
+		if err != nil {
+			return err
+		}
+
+		if !avail.Contains(currencyPair, true) {
 			return fmt.Errorf("currency pair %s not found in available pair list",
 				currencyPair)
 		}

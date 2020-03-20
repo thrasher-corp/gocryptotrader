@@ -212,8 +212,17 @@ func (b *Binance) Run() {
 			err)
 		return
 	}
+
+	avail, err := b.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s failed to get available currencies. Err %s\n",
+			b.Name,
+			err)
+		return
+	}
+
 	if !common.StringDataContains(pairs.Strings(), format.Delimiter) ||
-		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), format.Delimiter) {
+		!common.StringDataContains(avail.Strings(), format.Delimiter) {
 		var enabledPairs currency.Pairs
 		enabledPairs, err = currency.NewPairsFromStrings([]string{
 			currency.BTC.String() +

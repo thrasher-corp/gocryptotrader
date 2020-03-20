@@ -716,7 +716,7 @@ func TestSupportsPair(t *testing.T) {
 	}
 
 	assetType := asset.Spot
-	_, err = cfg.SupportsPair("asdf",
+	err = cfg.SupportsPair("asdf",
 		currency.NewPair(currency.BTC, currency.USD), assetType)
 	if err == nil {
 		t.Error(
@@ -724,7 +724,7 @@ func TestSupportsPair(t *testing.T) {
 		)
 	}
 
-	_, err = cfg.SupportsPair("Bitfinex",
+	err = cfg.SupportsPair("Bitfinex",
 		currency.NewPair(currency.BTC, currency.USD), assetType)
 	if err != nil {
 		t.Errorf(

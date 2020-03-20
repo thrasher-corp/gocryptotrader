@@ -33,7 +33,7 @@ type IBotExchange interface {
 	FetchTradablePairs(a asset.Item) ([]string, error)
 	UpdateTradablePairs(forceUpdate bool) error
 	GetEnabledPairs(a asset.Item) (currency.Pairs, error)
-	GetAvailablePairs(a asset.Item) currency.Pairs
+	GetAvailablePairs(a asset.Item) (currency.Pairs, error)
 	FetchAccountInfo() (account.Holdings, error)
 	UpdateAccountInfo() (account.Holdings, error)
 	GetAuthenticatedAPISupport(endpoint uint8) bool

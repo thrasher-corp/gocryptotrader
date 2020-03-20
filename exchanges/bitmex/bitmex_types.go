@@ -687,19 +687,3 @@ var orderSideMap = map[int64]order.Side{
 	1: order.Buy,
 	2: order.Sell,
 }
-
-// monthcode holds contract month codes
-var monthcode = map[string]string{
-	"F": "Jan",
-	"G": "Feb",
-	"H": "Mar",
-	"J": "Apr",
-	"K": "May",
-	"M": "Jun",
-	"N": "Jul",
-	"Q": "Aug",
-	"U": "Sep",
-	"V": "Oct",
-	"X": "Nov",
-	"Z": "Dec",
-}

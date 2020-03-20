@@ -278,7 +278,7 @@ func (o *OKGroup) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return order.SubmitResponse{}, err
 	}
 
-	fpair, err := o.FormatExchangeCurrency(s.Pair, asset.Spot)
+	fpair, err := o.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
 		return order.SubmitResponse{}, err
 	}
@@ -322,7 +322,8 @@ func (o *OKGroup) CancelOrder(orderCancellation *order.Cancel) (err error) {
 		return
 	}
 
-	fpair, err := o.FormatExchangeCurrency(orderCancellation.Pair, asset.Spot)
+	fpair, err := o.FormatExchangeCurrency(orderCancellation.Pair,
+		orderCancellation.AssetType)
 	if err != nil {
 		return
 	}
@@ -355,7 +356,8 @@ func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (order.Cancel
 		orderIDNumbers = append(orderIDNumbers, orderIDNumber)
 	}
 
-	fpair, err := o.FormatExchangeCurrency(orderCancellation.Pair, asset.Spot)
+	fpair, err := o.FormatExchangeCurrency(orderCancellation.Pair,
+		orderCancellation.AssetType)
 	if err != nil {
 		return resp, err
 	}

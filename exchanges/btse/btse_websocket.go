@@ -290,10 +290,9 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-var channels = []string{"orderBookApi:%s_0", "tradeHistory:%s"}
-
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *BTSE) GenerateDefaultSubscriptions() {
+	var channels = []string{"orderBookApi:%s_0", "tradeHistory:%s"}
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		log.Errorf(log.WebsocketMgr,

@@ -147,9 +147,8 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-var channels = []string{"live_trades_", "order_book_"}
-
 func (b *Bitstamp) generateDefaultSubscriptions() {
+	var channels = []string{"live_trades_", "order_book_"}
 	enabledCurrencies, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		log.Errorf(log.WebsocketMgr,

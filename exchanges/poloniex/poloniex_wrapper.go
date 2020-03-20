@@ -192,7 +192,14 @@ func (p *Poloniex) Run() {
 	}
 
 	forceUpdate := false
-	if common.StringDataCompare(p.GetAvailablePairs(asset.Spot).Strings(), "BTC_USDT") {
+
+	avail, err := p.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", p.Name, err)
+		return
+	}
+
+	if common.StringDataCompare(avail.Strings(), "BTC_USDT") {
 		log.Warnf(log.ExchangeSys, "%s contains invalid pair, forcing upgrade of available currencies.\n",
 			p.Name)
 		forceUpdate = true
@@ -202,7 +209,7 @@ func (p *Poloniex) Run() {
 		return
 	}
 
-	err := p.UpdateTradablePairs(forceUpdate)
+	err = p.UpdateTradablePairs(forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", p.Name, err)
 	}

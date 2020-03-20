@@ -292,8 +292,8 @@ func MapCurrenciesByExchange(p currency.Pairs, enabledExchangesOnly bool, assetT
 				continue
 			}
 			exchName := Bot.Config.Exchanges[y].Name
-			success, err := Bot.Config.SupportsPair(exchName, p[x], assetType)
-			if err != nil || !success {
+			err := Bot.Config.SupportsPair(exchName, p[x], assetType)
+			if err != nil {
 				continue
 			}
 
@@ -324,14 +324,11 @@ func GetExchangeNamesByCurrency(p currency.Pair, enabled bool, assetType asset.I
 		}
 
 		exchName := Bot.Config.Exchanges[x].Name
-		success, err := Bot.Config.SupportsPair(exchName, p, assetType)
+		err := Bot.Config.SupportsPair(exchName, p, assetType)
 		if err != nil {
 			continue
 		}
-
-		if success {
-			exchanges = append(exchanges, exchName)
-		}
+		exchanges = append(exchanges, exchName)
 	}
 	return exchanges
 }

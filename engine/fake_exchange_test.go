@@ -92,8 +92,8 @@ func (h *FakePassingExchange) UpdateTradablePairs(_ bool) error { return nil }
 func (h *FakePassingExchange) GetEnabledPairs(_ asset.Item) (currency.Pairs, error) {
 	return currency.Pairs{}, nil
 }
-func (h *FakePassingExchange) GetAvailablePairs(_ asset.Item) currency.Pairs {
-	return currency.Pairs{}
+func (h *FakePassingExchange) GetAvailablePairs(_ asset.Item) (currency.Pairs, error) {
+	return currency.Pairs{}, nil
 }
 func (h *FakePassingExchange) FetchAccountInfo() (account.Holdings, error) {
 	return account.Holdings{}, nil

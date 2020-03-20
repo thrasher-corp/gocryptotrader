@@ -151,8 +151,17 @@ func (b *Bittrex) Run() {
 		return
 	}
 
+	avail, err := b.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update currencies. Err: %s\n",
+			b.Name,
+			err)
+		return
+	}
+
 	if !common.StringDataContains(pairs.Strings(), format.Delimiter) ||
-		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), format.Delimiter) {
+		!common.StringDataContains(avail.Strings(), format.Delimiter) {
 		forceUpdate = true
 		log.Warn(log.ExchangeSys, "Available pairs for Bittrex reset due to config upgrade, please enable the ones you would like again")
 		pairs, err = currency.NewPairsFromStrings([]string{currency.USDT.String() +
