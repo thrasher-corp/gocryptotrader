@@ -19,11 +19,14 @@ func rsi(args ...objects.Object) (objects.Object, error) {
 	}
 
 	ohlcvInput := objects.ToInterface(args[0])
-	ohlcvData := ohlcvInput.([]interface{})
+	ohlcvInputData, valid := ohlcvInput.([]interface{})
+	if !valid {
+		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
+	}
 
 	var ohlcvClose []float64
-	for x := range ohlcvData {
-		switch t := ohlcvData[x].(type) {
+	for x := range ohlcvInputData {
+		switch t := ohlcvInputData[x].(type) {
 		case []interface{}:
 			value, err := toFloat64(t[4])
 			if err != nil {
@@ -35,12 +38,12 @@ func rsi(args ...objects.Object) (objects.Object, error) {
 		}
 	}
 
-	inTimePeroid, ok := objects.ToInt(args[1])
+	inTimePeriod, ok := objects.ToInt(args[1])
 	if !ok {
-		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeroid)
+		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeriod)
 	}
 
-	ret := indicators.Rsi(ohlcvClose, inTimePeroid)
+	ret := indicators.Rsi(ohlcvClose, inTimePeriod)
 	r := &objects.Array{}
 	for x := range ret {
 		r.Value = append(r.Value, &objects.Float{Value: ret[x]})

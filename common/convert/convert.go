@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 )
 
 // FloatFromString format
@@ -113,16 +112,4 @@ func SplitFloatDecimals(input float64) (baseNum, decimalNum int64, err error) {
 func BoolPtr(condition bool) *bool {
 	b := condition
 	return &b
-}
-
-// StripSpaceBuilder removes spaces from string using string builder
-func StripSpaceBuilder(str string) string {
-	var b strings.Builder
-	b.Grow(len(str))
-	for _, ch := range str {
-		if !unicode.IsSpace(ch) {
-			b.WriteRune(ch)
-		}
-	}
-	return b.String()
 }

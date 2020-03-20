@@ -19,7 +19,10 @@ func atr(args ...objects.Object) (objects.Object, error) {
 	}
 
 	ohlcvInput := objects.ToInterface(args[0])
-	ohlcvInputData := ohlcvInput.([]interface{})
+	ohlcvInputData, valid := ohlcvInput.([]interface{})
+	if !valid {
+		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
+	}
 	ohclvData := make([][]float64, 6)
 
 	for x := range ohlcvInputData {
@@ -53,12 +56,12 @@ func atr(args ...objects.Object) (objects.Object, error) {
 		}
 	}
 
-	inTimePeroid, ok := objects.ToInt(args[1])
+	inTimePeriod, ok := objects.ToInt(args[1])
 	if !ok {
-		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeroid)
+		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeriod)
 	}
 
-	ret := indicators.Atr(ohclvData[2], ohclvData[5], ohclvData[4], inTimePeroid)
+	ret := indicators.Atr(ohclvData[2], ohclvData[5], ohclvData[4], inTimePeriod)
 
 	r := &objects.Array{}
 	for x := range ret {

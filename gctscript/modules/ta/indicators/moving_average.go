@@ -21,11 +21,14 @@ func macd(args ...objects.Object) (objects.Object, error) {
 	}
 
 	ohlcvInput := objects.ToInterface(args[0])
-	ohlcvData := ohlcvInput.([]interface{})
+	ohlcvInputData, valid := ohlcvInput.([]interface{})
+	if !valid {
+		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
+	}
 
 	var ohlcvClose []float64
-	for x := range ohlcvData {
-		switch t := ohlcvData[x].(type) {
+	for x := range ohlcvInputData {
+		switch t := ohlcvInputData[x].(type) {
 		case []interface{}:
 			value, err := toFloat64(t[4])
 			if err != nil {
@@ -45,12 +48,12 @@ func macd(args ...objects.Object) (objects.Object, error) {
 	if !ok {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inSlowPeriod)
 	}
-	inTimePeroid, ok := objects.ToInt(args[3])
+	inTimePeriod, ok := objects.ToInt(args[3])
 	if !ok {
-		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeroid)
+		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeriod)
 	}
 
-	macd, macdSignal, macdHist := indicators.Macd(ohlcvClose, inFastPeriod, inSlowPeriod, inTimePeroid)
+	macd, macdSignal, macdHist := indicators.Macd(ohlcvClose, inFastPeriod, inSlowPeriod, inTimePeriod)
 
 	retMACD := &objects.Array{}
 	for x := range macd {
@@ -78,11 +81,14 @@ func ema(args ...objects.Object) (objects.Object, error) {
 	}
 
 	ohlcvInput := objects.ToInterface(args[0])
-	ohlcvData := ohlcvInput.([]interface{})
+	ohlcvInputData, valid := ohlcvInput.([]interface{})
+	if !valid {
+		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
+	}
 
 	var ohlcvClose []float64
-	for x := range ohlcvData {
-		switch t := ohlcvData[x].(type) {
+	for x := range ohlcvInputData {
+		switch t := ohlcvInputData[x].(type) {
 		case []interface{}:
 			value, err := toFloat64(t[4])
 			if err != nil {
@@ -94,12 +100,12 @@ func ema(args ...objects.Object) (objects.Object, error) {
 		}
 	}
 
-	inTimePeroid, ok := objects.ToInt(args[1])
+	inTimePeriod, ok := objects.ToInt(args[1])
 	if !ok {
-		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeroid)
+		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeriod)
 	}
 
-	ret := indicators.Ma(ohlcvClose, inTimePeroid, indicators.EMA)
+	ret := indicators.Ma(ohlcvClose, inTimePeriod, indicators.EMA)
 	r := &objects.Array{}
 	for x := range ret {
 		r.Value = append(r.Value, &objects.Float{Value: ret[x]})
@@ -114,11 +120,14 @@ func sma(args ...objects.Object) (objects.Object, error) {
 	}
 
 	ohlcvInput := objects.ToInterface(args[0])
-	ohlcvData := ohlcvInput.([]interface{})
+	ohlcvInputData, valid := ohlcvInput.([]interface{})
+	if !valid {
+		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
+	}
 
 	var ohlcvClose []float64
-	for x := range ohlcvData {
-		switch t := ohlcvData[x].(type) {
+	for x := range ohlcvInputData {
+		switch t := ohlcvInputData[x].(type) {
 		case []interface{}:
 			value, err := toFloat64(t[4])
 			if err != nil {
@@ -130,12 +139,12 @@ func sma(args ...objects.Object) (objects.Object, error) {
 		}
 	}
 
-	inTimePeroid, ok := objects.ToInt(args[1])
+	inTimePeriod, ok := objects.ToInt(args[1])
 	if !ok {
-		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeroid)
+		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeriod)
 	}
 
-	ret := indicators.Ma(ohlcvClose, inTimePeroid, indicators.SMA)
+	ret := indicators.Ma(ohlcvClose, inTimePeriod, indicators.SMA)
 	r := &objects.Array{}
 	for x := range ret {
 		r.Value = append(r.Value, &objects.Float{Value: ret[x]})

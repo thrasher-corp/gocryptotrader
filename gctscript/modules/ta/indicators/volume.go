@@ -1,6 +1,7 @@
 package indicators
 
 import (
+	"errors"
 	"fmt"
 
 	objects "github.com/d5/tengo/v2"
@@ -35,10 +36,15 @@ func obv(args ...objects.Object) (objects.Object, error) {
 		selector = 4
 	case "vol":
 		selector = 5
+	default:
+		return nil, errors.New("invalid selection")
 	}
 
 	ohlcvInput := objects.ToInterface(args[1])
-	ohlcvInputData := ohlcvInput.([]interface{})
+	ohlcvInputData, valid := ohlcvInput.([]interface{})
+	if !valid {
+		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
+	}
 	ohclvData := make([][]float64, 6)
 
 	for x := range ohlcvInputData {

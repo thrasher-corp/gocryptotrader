@@ -11,7 +11,7 @@ load := func() {
     fmt.println(ret)
 
     ret = ind.sma(ohlcvData.candles, 100)
-    // fmt.println(ret)
+    fmt.println(ret)
 }
 
 load()
