@@ -8,9 +8,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
-// IndexModule index indicator commands
-var IndexModule = map[string]objects.Object{
-	"mfi": &objects.UserFunction{Name: "mfi", Value: mfi},
+// MfiModule index indicator commands
+var MfiModule = map[string]objects.Object{
+	"calculate": &objects.UserFunction{Name: "calculate", Value: mfi},
 }
 
 func mfi(args ...objects.Object) (objects.Object, error) {

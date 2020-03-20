@@ -9,9 +9,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
-// VolumeModule volume indicator commands
-var VolumeModule = map[string]objects.Object{
-	"obv": &objects.UserFunction{Name: "obv", Value: obv},
+// ObvModule volume indicator commands
+var ObvModule = map[string]objects.Object{
+	"calculate": &objects.UserFunction{Name: "calculate", Value: obv},
 }
 
 func obv(args ...objects.Object) (objects.Object, error) {

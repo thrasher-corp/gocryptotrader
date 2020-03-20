@@ -7,9 +7,11 @@ import (
 
 // Modules map of all loadable modules
 var Modules = map[string]map[string]tengo.Object{
-	"indicator/rsi":            indicators.RsiModule,
-	"indicator/moving-average": indicators.MovingAverageModule,
-	"indicator/index":          indicators.IndexModule,
-	"indicator/volume":         indicators.VolumeModule,
-	"indicator/range":          indicators.RangeModule,
+	"indicator/macd": indicators.MACDModule,
+	"indicator/ema":  indicators.EMAModule,
+	"indicator/sma":  indicators.SMAModule,
+	"indicator/rsi":  indicators.RsiModule,
+	"indicator/obv": indicators.ObvModule,
+	"indicator/mfi":  indicators.MfiModule,
+	"indicator/atr":  indicators.AtrModule,
 }

@@ -1,16 +1,17 @@
 fmt := import("fmt")
 exch := import("exchange")
 t := import("times")
-ind := import("indicator/moving-average")
+sma := import("indicator/sma")
+ema := import("indicator/ema")
 
 load := func() {
     start := t.add(t.now(), -t.hour*24*100)
     ohlcvData := exch.ohlcv("BTC Markets", "BTC-AUD", "-", "", start, t.now(), "1d")
 
-    ret := ind.ema(ohlcvData.candles, 100)
+    ret := ema.calculate(ohlcvData.candles, 100)
     fmt.println(ret)
 
-    ret = ind.sma(ohlcvData.candles, 100)
+    ret = sma.calculate(ohlcvData.candles, 100)
     fmt.println(ret)
 }
 

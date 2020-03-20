@@ -8,12 +8,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
-// RsiModule relative strength index indicator commands
-var RsiModule = map[string]objects.Object{
-	"calculate": &objects.UserFunction{Name: "calculate", Value: rsi},
+var SMAModule = map[string]objects.Object{
+	"calculate": &objects.UserFunction{Name: "calculate", Value: sma},
 }
 
-func rsi(args ...objects.Object) (objects.Object, error) {
+func sma(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 2 {
 		return nil, objects.ErrWrongNumArguments
 	}
@@ -43,7 +42,7 @@ func rsi(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeriod)
 	}
 
-	ret := indicators.Rsi(ohlcvClose, inTimePeriod)
+	ret := indicators.Ma(ohlcvClose, inTimePeriod, indicators.SMA)
 	r := &objects.Array{}
 	for x := range ret {
 		r.Value = append(r.Value, &objects.Float{Value: ret[x]})

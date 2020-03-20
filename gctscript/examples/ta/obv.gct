@@ -1,13 +1,13 @@
 fmt := import("fmt")
 exch := import("exchange")
 t := import("times")
-ind := import("indicator/volume")
+obv := import("indicator/obv")
 
 load := func() {
     start := t.add(t.now(), -t.hour*24*100)
     ohlcvData := exch.ohlcv("BTC Markets", "BTC-AUD", "-", "", start, t.now(), "1d")
 
-    ret := ind.obv("close", ohlcvData.candles)
+    ret := obv.calculate("close", ohlcvData.candles)
     fmt.println(ret)
 }
 

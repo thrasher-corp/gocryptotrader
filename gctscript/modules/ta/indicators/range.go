@@ -8,9 +8,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
-// RangeModule range indicator commands
-var RangeModule = map[string]objects.Object{
-	"atr": &objects.UserFunction{Name: "atr", Value: atr},
+// AtrModule range indicator commands
+var AtrModule = map[string]objects.Object{
+	"calculate": &objects.UserFunction{Name: "calculate", Value: atr},
 }
 
 func atr(args ...objects.Object) (objects.Object, error) {

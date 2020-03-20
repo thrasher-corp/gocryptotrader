@@ -214,6 +214,7 @@ func (w Wrapper) WithdrawalFiatFunds(exch, _ string, _ *withdraw.Request) (out s
 	return "123", nil
 }
 
+// OHLCV returns open high low close volume candles for requested exchange/pair/asset/start & end time
 func (w Wrapper) OHLCV(exch string, _ currency.Pair, _ asset.Item, _, _ time.Time, _ time.Duration) (kline.Item, error) {
 	if exch == exchError.String() {
 		return kline.Item{}, errTestFailed
