@@ -153,7 +153,11 @@ func main() {
 			trelloBoardID = a
 		}
 		if create {
-			createAndSet()
+			err = createAndSet()
+			if err != nil {
+				log.Error(log.Global, err)
+				os.Exit(1)
+			}
 			if firstRun {
 				for f := range usageData.Exchanges {
 					err = trelloCreateNewCheck(usageData.Exchanges[f].Name)
