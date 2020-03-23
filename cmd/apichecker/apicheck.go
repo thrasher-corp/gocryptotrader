@@ -257,16 +257,10 @@ func setAuthVars() {
 // writeAuthVars writes the new authentication variables to the updates.json file
 func writeAuthVars(testMode bool) error {
 	setAuthVars()
-	var err error
 	if testMode {
-		err = updateFile(testJSONFile)
-	} else {
-		err = updateFile(jsonFile)
+		return updateFile(testJSONFile)
 	}
-	if err != nil {
-		return err
-	}
-	return nil
+	return updateFile(jsonFile)
 }
 
 // canUpdateTrello checks if all the data necessary for updating trello is available
@@ -1293,6 +1287,7 @@ func trelloCreateNewCheck(newCheckName string) error {
 	var resp interface{}
 	params := url.Values{}
 	params.Set("name", newName)
+	params.Set("checked", "true")
 	return sendAuthReq(http.MethodPost,
 		fmt.Sprintf(pathChecklists, trelloChecklistID, params.Encode(), apiKey, apiToken),
 		&resp)
