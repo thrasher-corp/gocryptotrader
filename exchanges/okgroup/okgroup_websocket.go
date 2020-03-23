@@ -491,12 +491,40 @@ func (o *OKGroup) wsProcessCandles(respRaw []byte) error {
 				response.Data[i].Candle[0])
 		}
 
-		// candleIndex := strings.LastIndex(response.Table, okGroupWsCandle)
-		// secondIndex := strings.LastIndex(response.Table, "0s")
-		// // candleInterval := ""
-		// // if candleIndex > 0 || secondIndex > 0 {
-		// // 	candleInterval = response.Table[candleIndex+len(okGroupWsCandle) : secondIndex]
-		// // }
+		candleIndex := strings.LastIndex(response.Table, okGroupWsCandle)
+		secondIndex := strings.LastIndex(response.Table, "0s")
+		var candleInterval time.Duration
+		if candleIndex > 0 || secondIndex > 0 {
+			switch response.Table[candleIndex+len(okGroupWsCandle) : secondIndex] {
+			case "60s":
+				candleInterval = kline.OneMin
+			case "180s":
+				candleInterval = kline.ThreeMin
+			case "300s":
+				candleInterval = kline.FiveMin
+			case "900s":
+				candleInterval = kline.FifteenMin
+			case "1800s":
+				candleInterval = kline.ThirtyMin
+			case "3600s":
+				candleInterval = kline.OneHour
+			case "7200s":
+				candleInterval = kline.TwoHour
+			case "14400s":
+				candleInterval = kline.FourHour
+			case "21600s":
+				candleInterval = kline.SixHour
+			case "43200s":
+				candleInterval = kline.TwelveHour
+			case "86400s":
+				candleInterval = kline.OneDay
+			case "604800s":
+				candleInterval = kline.OneWeek
+			default:
+				return fmt.Errorf("%s candle interval not handled",
+					response.Table[candleIndex+len(okGroupWsCandle):secondIndex])
+			}
+		}
 
 		openPrice, err := strconv.ParseFloat(response.Data[i].Candle[1], 64)
 		if err != nil {
@@ -523,8 +551,7 @@ func (o *OKGroup) wsProcessCandles(respRaw []byte) error {
 			Asset:    o.GetAssetTypeFromTableName(response.Table),
 			Pair:     c,
 			Exchange: o.Name,
-			// TODO: Convert
-			// Interval:  candleInterval,
+			Interval: candleInterval,
 			Candles: []kline.Candle{
 				{
 					Time:   timeData,

@@ -430,11 +430,13 @@ func (e *Engine) Start() error {
 			ExchangeTicker:         e.Settings.SyncerSettings.EnableExchangeTicker,
 		})
 		if err != nil {
-			gctlog.Warnf(gctlog.Global, "Unable to initialise synchronisation manager. Err: %s", err)
-		} else {
-			if err = e.SyncManager.Start(); err != nil {
-				gctlog.Errorf(gctlog.Global, "Synchronisation manager unable to start: %v", err)
-			}
+			gctlog.Warnf(gctlog.Global,
+				"Unable to initialise synchronisation manager. Err: %s",
+				err)
+		} else if err := e.SyncManager.Start(); err != nil {
+			gctlog.Errorf(gctlog.Global,
+				"Synchronisation manager unable to start: %v",
+				err)
 		}
 	}
 

@@ -93,7 +93,7 @@ func (e *SyncManager) Start() error {
 			}
 
 			if e.ExchangeSupportedPairs {
-				// Periodically checks supported pairs list for a persistant bot
+				// Periodically checks supported pairs list for a persistent bot
 				// instance
 				e.Agents = append(e.Agents, &SupportedPairsAgent{
 					Agent: Agent{
@@ -166,11 +166,11 @@ func (e *SyncManager) Start() error {
 
 			if exchangeSyncItems != 0 {
 				// This is linked up with an executor, which limits the outbound
-				// REST requests to not exceed the requester MaxRequestJobs variable
+				// REST requests to not exceed the requester MaxRequestJobs
+				// variable
 				e.jobBuffer[exchName] = make(chan Synchroniser, exchangeSyncItems)
-
+				exchangeWG.Add(exchangeSyncItems)
 				go func(exchName string, count int, wg *sync.WaitGroup) {
-					wg.Add(count)
 					log.Debugf(log.SyncMgr,
 						"Initial sync started for %s with [%d] ---------------------------- \n",
 						exchName,
@@ -228,7 +228,7 @@ func (e *SyncManager) Stop() error {
 
 // Worker iterates across the full agent list and initiates an update by
 // detatching in a routine which directly interacts with a work manager.
-// The routine generated will block until an update has occured then it will
+// The routine generated will block until an update has occurred then it will
 // interact with the processor routine keeping a record of last updated and when
 // a new update should occur to keep it in optimal synchronisation on the main
 // fall-back REST protocol.
@@ -267,7 +267,7 @@ func (e *SyncManager) worker() {
 								"extreme back log detected shunting %s execution to routine\n",
 								e.Agents[i].GetAgentName())
 							go func(s Synchroniser) {
-								e.jobBuffer[e.Agents[i].GetExchangeName()] <- e.Agents[i]
+								e.jobBuffer[s.GetExchangeName()] <- s
 							}(e.Agents[i])
 						}
 					}
@@ -333,12 +333,10 @@ func (e *SyncManager) executor(sc chan Synchroniser) {
 						mtx.Unlock()
 					}(&count, &mtx)
 				}
-			} else {
-				if Bot.Settings.Verbose {
-					log.Debugf(log.SyncMgr,
-						"%s successfully cancelled due to already updated by stream process\n",
-						s.GetAgentName())
-				}
+			} else if Bot.Settings.Verbose {
+				log.Debugf(log.SyncMgr,
+					"%s successfully cancelled due to already updated by stream process\n",
+					s.GetAgentName())
 			}
 		}
 	}
@@ -384,7 +382,7 @@ func (e *SyncManager) monitor() {
 						c <- struct{}{}
 					}
 					wg.Done()
-				}(t.Sub(time.Now()), &wg)
+				}(time.Until(t), &wg)
 			}
 		}
 	}
@@ -404,8 +402,9 @@ func (e *SyncManager) Processor() {
 				lastUpdated := u.Agent.GetLastUpdated()
 				if lastUpdated != (time.Time{}) {
 					if Bot.Settings.Verbose {
-						log.Debugf(log.SyncMgr, "Agent last updated %s ago",
-							time.Now().Sub(lastUpdated))
+						log.Debugf(log.SyncMgr,
+							"Agent last updated %s ago",
+							time.Since(lastUpdated))
 					}
 				} else {
 					// Set initial sync completed on agent
@@ -472,13 +471,14 @@ func (e *SyncManager) Processor() {
 func (e *SyncManager) DeRegister(s Synchroniser) error {
 	e.Lock()
 	for i := range e.Agents {
-		if s == e.Agents[i] {
-			e.Agents[i] = e.Agents[len(e.Agents)-1]
-			e.Agents[len(e.Agents)-1] = nil
-			e.Agents = e.Agents[:len(e.Agents)-1]
-			e.Unlock()
-			return nil
+		if s != e.Agents[i] {
+			continue
 		}
+		e.Agents[i] = e.Agents[len(e.Agents)-1]
+		e.Agents[len(e.Agents)-1] = nil
+		e.Agents = e.Agents[:len(e.Agents)-1]
+		e.Unlock()
+		return nil
 	}
 	e.Unlock()
 	return fmt.Errorf("agent %s not found", s)
