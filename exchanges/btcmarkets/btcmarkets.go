@@ -205,9 +205,15 @@ func (b *BTCMarkets) GetMarketCandles(marketID string, timeWindow time.Duration,
 	if err != nil {
 		return kline.Item{}, err
 	}
+
+	p, err := currency.NewPairFromString(marketID)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
 	ret := kline.Item{
 		Exchange: b.Name,
-		Pair:     currency.NewPairFromString(marketID),
+		Pair:     p,
 		Asset:    asset.Spot,
 		Interval: timeWindow,
 	}
