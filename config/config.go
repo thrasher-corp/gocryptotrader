@@ -1200,8 +1200,9 @@ func (c *Config) CheckLoggerConfig() error {
 		}
 		log.FileLoggingConfiguredCorrectly = true
 	}
-
+	log.RWM.Lock()
 	log.GlobalLogConfig = &c.Logging
+	log.RWM.Unlock()
 
 	logPath := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "logs")
 	err := common.CreateDir(logPath)

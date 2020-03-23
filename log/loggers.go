@@ -168,6 +168,8 @@ func displayError(err error) {
 }
 
 func enabled() bool {
+	RWM.RLock()
+	defer RWM.RUnlock()
 	if GlobalLogConfig.Enabled == nil {
 		return false
 	}
