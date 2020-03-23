@@ -6,6 +6,7 @@ import (
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/go-talib/indicators"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )
 
 var EMAModule = map[string]objects.Object{
@@ -42,7 +43,10 @@ func ema(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeriod)
 	}
 
-	ret := indicators.Ma(ohlcvClose, inTimePeriod, indicators.EMA)
+	var ret []float64
+	if validator.IsTestExecution.Load() != true {
+		ret = indicators.Ma(ohlcvClose, inTimePeriod, indicators.EMA)
+	}
 	r := &objects.Array{}
 	for x := range ret {
 		r.Value = append(r.Value, &objects.Float{Value: ret[x]})

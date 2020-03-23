@@ -6,6 +6,7 @@ import (
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/go-talib/indicators"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )
 
 // MfiModule index indicator commands
@@ -60,8 +61,10 @@ func mfi(args ...objects.Object) (objects.Object, error) {
 	if !ok {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeriod)
 	}
-
-	ret := indicators.Mfi(ohclvData[2], ohclvData[3], ohclvData[4], ohclvData[5], inTimePeriod)
+	var ret []float64
+	if validator.IsTestExecution.Load() != true {
+		ret = indicators.Mfi(ohclvData[2], ohclvData[3], ohclvData[4], ohclvData[5], inTimePeriod)
+	}
 	r := &objects.Array{}
 	for x := range ret {
 		r.Value = append(r.Value, &objects.Float{Value: ret[x]})

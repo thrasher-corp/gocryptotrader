@@ -6,6 +6,7 @@ import (
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/go-talib/indicators"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )
 
 // RsiModule relative strength index indicator commands
@@ -43,7 +44,10 @@ func rsi(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeriod)
 	}
 
-	ret := indicators.Rsi(ohlcvClose, inTimePeriod)
+	var ret []float64
+	if validator.IsTestExecution.Load() != true {
+		ret = indicators.Rsi(ohlcvClose, inTimePeriod)
+	}
 	r := &objects.Array{}
 	for x := range ret {
 		r.Value = append(r.Value, &objects.Float{Value: ret[x]})

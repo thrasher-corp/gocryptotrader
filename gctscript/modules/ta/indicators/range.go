@@ -6,6 +6,7 @@ import (
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/go-talib/indicators"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )
 
 // AtrModule range indicator commands
@@ -61,7 +62,10 @@ func atr(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeriod)
 	}
 
-	ret := indicators.Atr(ohclvData[2], ohclvData[5], ohclvData[4], inTimePeriod)
+	var ret []float64
+	if validator.IsTestExecution.Load() != true {
+		ret = indicators.Atr(ohclvData[2], ohclvData[5], ohclvData[4], inTimePeriod)
+	}
 
 	r := &objects.Array{}
 	for x := range ret {

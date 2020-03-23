@@ -7,6 +7,7 @@ import (
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/go-talib/indicators"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )
 
 // ObvModule volume indicator commands
@@ -77,8 +78,10 @@ func obv(args ...objects.Object) (objects.Object, error) {
 			return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
 		}
 	}
-
-	ret := indicators.Obv(ohclvData[selector], ohclvData[5])
+	var ret []float64
+	if validator.IsTestExecution.Load() != true {
+		ret = indicators.Obv(ohclvData[selector], ohclvData[5])
+	}
 	r := &objects.Array{}
 	for x := range ret {
 		temp := &objects.Float{Value: ret[x]}

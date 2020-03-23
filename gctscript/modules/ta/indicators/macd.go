@@ -6,6 +6,7 @@ import (
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/go-talib/indicators"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )
 
 var MACDModule = map[string]objects.Object{
@@ -50,8 +51,10 @@ func macd(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeriod)
 	}
 
-	macd, macdSignal, macdHist := indicators.Macd(ohlcvClose, inFastPeriod, inSlowPeriod, inTimePeriod)
-
+	var macd, macdSignal, macdHist []float64
+	if validator.IsTestExecution.Load() != true {
+		macd, macdSignal, macdHist = indicators.Macd(ohlcvClose, inFastPeriod, inSlowPeriod, inTimePeriod)
+	}
 	retMACD := &objects.Array{}
 	for x := range macd {
 		retMACD.Value = append(retMACD.Value, &objects.Float{Value: macd[x]})
