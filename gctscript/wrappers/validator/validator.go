@@ -16,10 +16,10 @@ import (
 
 const (
 	validatorOpen  float64 = 5000
-	validatorHigh          = 6000
-	validatorLow           = 5500
-	validatorClose         = 5700
-	validatorVol           = 10
+	validatorHigh  float64 = 6000
+	validatorLow   float64 = 5500
+	validatorClose float64 = 5700
+	validatorVol   float64 = 10
 )
 
 // Exchanges validator for test execution/scripts
