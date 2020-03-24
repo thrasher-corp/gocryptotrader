@@ -250,9 +250,10 @@ func (s *Storage) ForeignExchangeUpdater() {
 func (s *Storage) SeedCurrencyAnalysisData() error {
 	b, err := ioutil.ReadFile(s.path)
 	if err != nil {
+		fmt.Println("wow:", err)
 		err = s.FetchCurrencyAnalysisData()
 		if err != nil {
-			return s.WriteCurrencyDataToFile(s.path, false)
+			return err
 		}
 
 		return s.WriteCurrencyDataToFile(s.path, true)
@@ -385,7 +386,7 @@ func (s *Storage) UpdateCurrencies() error {
 			m[x].Symbol,
 			"",
 			m[x].ID,
-			Unset)
+			Cryptocurrency)
 		if err != nil {
 			return err
 		}

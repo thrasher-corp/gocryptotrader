@@ -141,7 +141,15 @@ func (b *BaseCodes) UpdateCurrency(fullName, symbol, blockchain string, id int, 
 		return nil
 	}
 
-	return fmt.Errorf("cannot update currency, %s not found", symbol)
+	b.Items = append(b.Items, &Item{
+		Symbol:     symbol,
+		FullName:   fullName,
+		Role:       r,
+		AssocChain: blockchain,
+		ID:         id,
+	})
+
+	return nil
 }
 
 // Register registers a currency from a string and returns a currency code
