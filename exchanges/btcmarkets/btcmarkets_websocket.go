@@ -374,10 +374,9 @@ func (b *BTCMarkets) generateAuthSubscriptions() WsAuthSubscribe {
 	return authSubInfo
 }
 
-var tempChannels = []string{orderChange, fundChange}
-
 // createChannels creates channels that need to be
 func (b *BTCMarkets) createChannels() {
+	var tempChannels = []string{orderChange, fundChange}
 	var wsChannels []wshandler.WebsocketChannelSubscription
 	pairArray, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
