@@ -296,7 +296,7 @@ func (b *BTSE) GenerateDefaultSubscriptions() {
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		log.Errorf(log.WebsocketMgr,
-			"%s could not generate default subscriptions Err: %s\n",
+			"%s could not generate default subscriptions. Err: %s\n",
 			b.Name,
 			err)
 		return

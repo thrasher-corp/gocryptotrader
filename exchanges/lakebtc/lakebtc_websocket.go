@@ -76,7 +76,7 @@ func (l *LakeBTC) GenerateDefaultSubscriptions() {
 	enabledCurrencies, err := l.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		log.Errorf(log.WebsocketMgr,
-			"%s could not generate default subscriptions Err: %s",
+			"%s could not generate default subscriptions. Err: %s",
 			l.Name,
 			err)
 		return

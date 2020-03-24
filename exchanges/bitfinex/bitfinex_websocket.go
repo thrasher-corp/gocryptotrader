@@ -876,7 +876,7 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() {
 	enabledPairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		log.Errorf(log.WebsocketMgr,
-			"%v - Websocket cannot generate default subscriptions Err: %v",
+			"%v - Websocket cannot generate default subscriptions. Err: %v",
 			b.Name,
 			err)
 		return

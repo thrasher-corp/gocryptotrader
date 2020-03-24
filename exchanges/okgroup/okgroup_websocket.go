@@ -767,7 +767,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 		enabledCurrencies, err := o.GetEnabledPairs(assets[x])
 		if err != nil {
 			log.Errorf(log.WebsocketMgr,
-				"%s could not generate default subscriptions Err: %s",
+				"%s could not generate default subscriptions. Err: %s",
 				o.Name,
 				err)
 			return
@@ -783,7 +783,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 					asset.Spot)
 				if err != nil {
 					log.Errorf(log.WebsocketMgr,
-						"%s could not generate default subscriptions Err: %s",
+						"%s could not generate default subscriptions. Err: %s",
 						o.Name,
 						err)
 					return
@@ -815,7 +815,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 					asset.Futures)
 				if err != nil {
 					log.Errorf(log.WebsocketMgr,
-						"%s could not generate default subscriptions Err: %s",
+						"%s could not generate default subscriptions. Err: %s",
 						o.Name,
 						err)
 					return
@@ -847,7 +847,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 					asset.PerpetualSwap)
 				if err != nil {
 					log.Errorf(log.WebsocketMgr,
-						"%s could not generate default subscriptions Err: %s",
+						"%s could not generate default subscriptions. Err: %s",
 						o.Name,
 						err)
 					return
@@ -879,7 +879,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 					asset.Index)
 				if err != nil {
 					log.Errorf(log.WebsocketMgr,
-						"%s could not generate default subscriptions Err: %s",
+						"%s could not generate default subscriptions. Err: %s",
 						o.Name,
 						err)
 					return

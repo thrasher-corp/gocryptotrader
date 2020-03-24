@@ -564,7 +564,7 @@ func (b *Bitmex) GenerateDefaultSubscriptions() {
 		contracts, err := b.GetEnabledPairs(assets[x])
 		if err != nil {
 			log.Errorf(log.WebsocketMgr,
-				"%s could not generate default subscriptions Err: %s",
+				"%s could not generate default subscriptions. Err: %s",
 				b.Name,
 				err)
 			return
@@ -600,7 +600,7 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() {
 	contracts, err := b.GetEnabledPairs(asset.PerpetualContract)
 	if err != nil {
 		log.Errorf(log.WebsocketMgr,
-			"%s could not generate auth subscriptions Err: %s",
+			"%s could not generate auth subscriptions. Err: %s",
 			b.Name,
 			err)
 		return

@@ -52,7 +52,7 @@ func main() {
 		var result interface{}
 		errf := json.Unmarshal(fileData, &result)
 		if errf != nil {
-			log.Fatal("File isn't in JSON format")
+			log.Fatal(errf)
 		}
 		log.Println("File is already decrypted. Encrypting..")
 		encrypt = true

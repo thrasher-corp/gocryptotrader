@@ -152,7 +152,7 @@ func (b *Bitstamp) generateDefaultSubscriptions() {
 	enabledCurrencies, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		log.Errorf(log.WebsocketMgr,
-			"%s could not generate default subscriptions Err: %s",
+			"%s could not generate default subscriptions. Err: %s",
 			b.Name,
 			err)
 		return

@@ -259,19 +259,11 @@ func (b *Bitmex) UpdateTradablePairs(forceUpdate bool) error {
 		}
 
 		if strings.Contains(pairs[x], "USD") {
-			assetPairs[asset.PerpetualContract] = append(assetPairs[asset.PerpetualContract], pairs[x])
+			assetPairs[asset.PerpetualContract] = append(assetPairs[asset.PerpetualContract],
+				pairs[x])
 			continue
 		}
 
-		if strings.Contains(pairs[x], "_D") {
-			assetPairs[asset.DownsideProfitContract] = append(assetPairs[asset.DownsideProfitContract], pairs[x])
-			continue
-		}
-
-		if strings.Contains(pairs[x], "_U") {
-			assetPairs[asset.UpsideProfitContract] = append(assetPairs[asset.UpsideProfitContract], pairs[x])
-			continue
-		}
 		assetPairs[asset.Futures] = append(assetPairs[asset.Futures], pairs[x])
 	}
 

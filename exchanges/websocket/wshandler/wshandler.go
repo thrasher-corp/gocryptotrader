@@ -718,7 +718,9 @@ func (w *WebsocketConnection) SetupPingHandler(handler WebsocketPingHandler) {
 				err := w.SendRawMessage(handler.MessageType, handler.Message)
 				if err != nil {
 					log.Errorf(log.WebsocketMgr,
-						"%v failed to send message to websocket %s", w.ExchangeName, handler.Message)
+						"%v failed to send message to websocket %s",
+						w.ExchangeName,
+						handler.Message)
 					return
 				}
 			}

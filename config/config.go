@@ -368,7 +368,7 @@ func (c *Config) SupportsExchangeAssetType(exchName string, assetType asset.Item
 			assetType)
 	}
 
-	if _, ok := exchCfg.CurrencyPairs.Pairs[assetType]; !ok {
+	if !exchCfg.CurrencyPairs.GetAssetTypes().Contains(assetType) {
 		return fmt.Errorf("exchange %s unsupported asset type %s",
 			exchName,
 			assetType)

@@ -271,7 +271,7 @@ func (z *ZB) GenerateDefaultSubscriptions() {
 	enabledCurrencies, err := z.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		log.Errorf(log.WebsocketMgr,
-			"%s could not generate default subscriptions Err: %s",
+			"%s could not generate default subscriptions. Err: %s",
 			z.Name,
 			err)
 		return

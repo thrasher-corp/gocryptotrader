@@ -569,7 +569,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() {
 	enabledCurrencies, err := p.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		log.Errorf(log.WebsocketMgr,
-			"%s could not generate default subscriptions Err: %s",
+			"%s could not generate default subscriptions. Err: %s",
 			p.Name,
 			err)
 		return

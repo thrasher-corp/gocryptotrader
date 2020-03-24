@@ -456,7 +456,7 @@ func (g *Gateio) GenerateAuthenticatedSubscriptions() {
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	enabledCurrencies, err := g.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.WebsocketMgr, "%s could not generate authenticated subscriptions Err: %s",
+		log.Errorf(log.WebsocketMgr, "%s could not generate authenticated subscriptions. Err: %s",
 			g.Name,
 			err)
 		return
@@ -481,7 +481,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() {
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	enabledCurrencies, err := g.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.WebsocketMgr, "%s could not generate default subscriptions Err: %s",
+		log.Errorf(log.WebsocketMgr, "%s could not generate default subscriptions. Err: %s",
 			g.Name,
 			err)
 		return

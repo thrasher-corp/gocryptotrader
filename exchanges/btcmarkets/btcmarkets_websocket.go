@@ -304,7 +304,7 @@ func (b *BTCMarkets) generateDefaultSubscriptions() {
 	enabledCurrencies, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		log.Errorf(log.WebsocketMgr,
-			"%s could not generate default subscriptions Err: %s",
+			"%s could not generate default subscriptions. Err: %s",
 			b.Name,
 			err)
 		return
@@ -383,7 +383,7 @@ func (b *BTCMarkets) createChannels() {
 	pairArray, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		log.Errorf(log.WebsocketMgr,
-			"%s could not create channels Err: %s",
+			"%s could not create channels. Err: %s",
 			b.Name,
 			err)
 		return
@@ -393,7 +393,7 @@ func (b *BTCMarkets) createChannels() {
 			fpair, err := b.FormatExchangeCurrency(pairArray[x], asset.Spot)
 			if err != nil {
 				log.Errorf(log.WebsocketMgr,
-					"%s could not create channels Err: %s",
+					"%s could not create channels. Err: %s",
 					b.Name,
 					err)
 				return

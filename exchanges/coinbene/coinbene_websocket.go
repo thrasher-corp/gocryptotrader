@@ -60,7 +60,7 @@ func (c *Coinbene) GenerateDefaultSubscriptions() {
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	pairs, err := c.GetEnabledPairs(asset.PerpetualSwap)
 	if err != nil {
-		log.Errorf(log.WebsocketMgr, "%s could not generate default subscriptions Err: %s",
+		log.Errorf(log.WebsocketMgr, "%s could not generate default subscriptions. Err: %s",
 			c.Name,
 			err)
 		return

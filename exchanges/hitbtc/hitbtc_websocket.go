@@ -470,7 +470,7 @@ func (h *HitBTC) GenerateDefaultSubscriptions() {
 	}
 	enabledCurrencies, err := h.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.WebsocketMgr, "%s could not generate default subscriptions Err: %s",
+		log.Errorf(log.WebsocketMgr, "%s could not generate default subscriptions. Err: %s",
 			h.Name,
 			err)
 		return

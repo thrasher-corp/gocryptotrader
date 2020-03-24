@@ -20,13 +20,13 @@ func NewPairDelimiter(currencyPair, delimiter string) Pair {
 func NewPairFromStrings(base, quote string) (Pair, error) {
 	if strings.Contains(base, " ") {
 		return Pair{},
-			fmt.Errorf("cannot create pair invalid base currency string [%s]",
+			fmt.Errorf("cannot create pair, invalid base currency string [%s]",
 				base)
 	}
 
 	if strings.Contains(quote, " ") {
 		return Pair{},
-			fmt.Errorf("cannot create pair invalid quote currency string [%s]",
+			fmt.Errorf("cannot create pair, invalid quote currency string [%s]",
 				quote)
 	}
 
@@ -75,7 +75,7 @@ func NewPairFromString(currencyPair string) (Pair, error) {
 	}
 	if len(currencyPair) < 3 {
 		return Pair{},
-			fmt.Errorf("cannot produce a currency pair from %s string",
+			fmt.Errorf("cannot create pair from %s string",
 				currencyPair)
 	}
 	return NewPairFromStrings(currencyPair[0:3], currencyPair[3:])

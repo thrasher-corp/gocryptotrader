@@ -372,7 +372,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 	enabledCurrencies, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		log.Errorf(log.WebsocketMgr,
-			"%s could not generate default subscriptions Err: %s\n",
+			"%s could not generate default subscriptions. Err: %s\n",
 			c.Name,
 			err)
 		return
@@ -387,7 +387,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 				asset.Spot)
 			if err != nil {
 				log.Errorf(log.WebsocketMgr,
-					"%s could not generate default subscriptions Err: %s\n",
+					"%s could not generate default subscriptions. Err: %s\n",
 					c.Name,
 					err)
 				return

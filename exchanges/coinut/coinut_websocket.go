@@ -589,7 +589,7 @@ func (c *COINUT) GenerateDefaultSubscriptions() {
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	enabledCurrencies, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.WebsocketMgr, "%s could not generate default subscriptions Err: %s",
+		log.Errorf(log.WebsocketMgr, "%s could not generate default subscriptions. Err: %s",
 			c.Name,
 			err)
 		return

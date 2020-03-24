@@ -61,8 +61,8 @@ func (c *Coinmarketcap) GetCryptocurrencyInfo(currencyID ...int64) (CryptoCurren
 	}
 
 	var currStr []string
-	for _, d := range currencyID {
-		currStr = append(currStr, strconv.FormatInt(d, 10))
+	for i := range currencyID {
+		currStr = append(currStr, strconv.FormatInt(currencyID[i], 10))
 	}
 
 	val := url.Values{}
@@ -708,7 +708,7 @@ func (c *Coinmarketcap) SetAccountPlan(s string) error {
 	case "enterprise":
 		c.Plan = Enterprise
 	default:
-		log.Warnf(log.Global, "account plan %s not found defaulting to basic", s)
+		log.Warnf(log.Global, "account plan %s not found, defaulting to basic", s)
 		c.Plan = Basic
 	}
 	return nil

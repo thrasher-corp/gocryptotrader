@@ -809,7 +809,7 @@ func (k *Kraken) GenerateDefaultSubscriptions() {
 	enabledCurrencies, err := k.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		log.Errorf(log.WebsocketMgr,
-			"%s could not generate default subscriptions Err: %s",
+			"%s could not generate default subscriptions. Err: %s",
 			k.Name,
 			err)
 		return
