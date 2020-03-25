@@ -55,22 +55,19 @@ func macd(args ...objects.Object) (objects.Object, error) {
 	if validator.IsTestExecution.Load() != true {
 		macd, macdSignal, macdHist = indicators.Macd(ohlcvClose, inFastPeriod, inSlowPeriod, inTimePeriod)
 	}
-	retMACD := &objects.Array{}
+
+	var MACDRet objects.Array
 	for x := range macd {
-		retMACD.Value = append(retMACD.Value, &objects.Float{Value: macd[x]})
+		tempMACD := &objects.Array{}
+		tempMACD.Value = append(tempMACD.Value, &objects.Float{Value: macd[x]})
+		if macdSignal != nil {
+			tempMACD.Value = append(tempMACD.Value, &objects.Float{Value: macdSignal[x]})
+		}
+		if macdHist != nil {
+			tempMACD.Value = append(tempMACD.Value, &objects.Float{Value: macdHist[x]})
+		}
+		MACDRet.Value = append(MACDRet.Value, tempMACD)
 	}
 
-	retMACDSignal := &objects.Array{}
-	for x := range macdSignal {
-		retMACDSignal.Value = append(retMACDSignal.Value, &objects.Float{Value: macdSignal[x]})
-	}
-
-	retMACDHist := &objects.Array{}
-	for x := range macdHist {
-		retMACDHist.Value = append(retMACDHist.Value, &objects.Float{Value: macdHist[x]})
-	}
-
-	ret := &objects.Array{}
-	ret.Value = append(ret.Value, retMACD, retMACDSignal, retMACDSignal)
-	return ret, nil
+	return &MACDRet, nil
 }
