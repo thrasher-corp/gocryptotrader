@@ -24,51 +24,52 @@ import (
 )
 
 const (
-	githubPath         = "https://api.github.com/repos/%s/commits/master"
-	jsonFile           = "updates.json"
-	testJSONFile       = "testupdates.json"
-	backupFile         = "backup.json"
-	github             = "GitHub Sha Check"
-	htmlScrape         = "HTML String Check"
-	pathOkCoin         = "https://www.okcoin.com/docs/en/#change-change"
-	pathOkex           = "https://www.okex.com/docs/en/#change-change"
-	pathBTSE           = "https://www.btse.com/apiexplorer/spot/#btse-spot-api"
-	pathBitfinex       = "https://docs.bitfinex.com/docs/changelog"
-	pathBitmex         = "https://www.bitmex.com/static/md/en-US/apiChangelog"
-	pathANX            = "https://anxv3.docs.apiary.io/"
-	pathPoloniex       = "https://docs.poloniex.com/#changelog"
-	pathIbBit          = "https://api.itbit.com/docs"
-	pathBTCMarkets     = "https://api.btcmarkets.net/openapi/info/index.yaml"
-	pathEXMO           = "https://exmo.com/en/api/"
-	pathBitstamp       = "https://www.bitstamp.net/api/"
-	pathHitBTC         = "https://api.hitbtc.com/"
-	pathBitflyer       = "https://lightning.bitflyer.com/docs?lang=en"
-	pathLakeBTC        = "https://www.lakebtc.com/s/api_v2"
-	pathKraken         = "https://www.kraken.com/features/api"
-	pathAlphaPoint     = "https://alphapoint.github.io/slate/#introduction"
-	pathYobit          = "https://www.yobit.net/en/api/"
-	pathLocalBitcoins  = "https://localbitcoins.com/api-docs/"
-	pathGetAllLists    = "https://api.trello.com/1/boards/%s/lists?cards=none&card_fields=all&filter=open&fields=all&key=%s&token=%s"
-	pathNewCard        = "https://api.trello.com/1/cards?idList=%s&name=%s&key=%s&token=%s"
-	pathChecklists     = "https://api.trello.com/1/checklists/%s/checkItems?%s&key=%s&token=%s"
-	pathChecklistItems = "https://api.trello.com/1/checklists/%s?fields=name&cards=all&card_fields=name&key=%s&token=%s"
-	pathUpdateItems    = "https://api.trello.com/1/cards/%s/checkItem/%s?%s&key=%s&token=%s"
-	pathCheckBoardID   = "https://api.trello.com/1/members/me/boards?key=%s&token=%s"
-	pathNewChecklist   = "https://api.trello.com/1/checklists?idCard=%s&name=%s&key=%s&token=%s"
-	pathNewList        = "https://api.trello.com/1/lists?name=%s&idBoard=%s&key=%s&token=%s"
-	pathGetCards       = "https://api.trello.com/1/lists/%s/cards?key=%s&token=%s"
-	pathGetChecklists  = "https://api.trello.com/1/cards/%s/checklists?&key=%s&token=%s"
-	complete           = "complete"
-	incomplete         = "incomplete"
-	createList         = "UpdatesList"
-	createCard         = "UpdatesCard"
-	createChecklist    = "UpdatesChecklist"
-	btcMarkets         = "BTC Markets"
-	okcoin             = "OkCoin International"
+	githubPath           = "https://api.github.com/repos/%s/commits/master"
+	jsonFile             = "updates.json"
+	testJSONFile         = "testupdates.json"
+	backupFile           = "backup.json"
+	github               = "GitHub Sha Check"
+	htmlScrape           = "HTML String Check"
+	pathOkCoin           = "https://www.okcoin.com/docs/en/#change-change"
+	pathOkex             = "https://www.okex.com/docs/en/#change-change"
+	pathBTSE             = "https://www.btse.com/apiexplorer/spot/#btse-spot-api"
+	pathBitfinex         = "https://docs.bitfinex.com/docs/changelog"
+	pathBitmex           = "https://www.bitmex.com/static/md/en-US/apiChangelog"
+	pathANX              = "https://anxv3.docs.apiary.io/"
+	pathPoloniex         = "https://docs.poloniex.com/#changelog"
+	pathIbBit            = "https://api.itbit.com/docs"
+	pathBTCMarkets       = "https://api.btcmarkets.net/openapi/info/index.yaml"
+	pathEXMO             = "https://exmo.com/en/api/"
+	pathBitstamp         = "https://www.bitstamp.net/api/"
+	pathHitBTC           = "https://api.hitbtc.com/"
+	pathBitflyer         = "https://lightning.bitflyer.com/docs?lang=en"
+	pathLakeBTC          = "https://www.lakebtc.com/s/api_v2"
+	pathKraken           = "https://www.kraken.com/features/api"
+	pathAlphaPoint       = "https://alphapoint.github.io/slate/#introduction"
+	pathYobit            = "https://www.yobit.net/en/api/"
+	pathLocalBitcoins    = "https://localbitcoins.com/api-docs/"
+	pathGetAllLists      = "https://api.trello.com/1/boards/%s/lists?cards=none&card_fields=all&filter=open&fields=all&key=%s&token=%s"
+	pathNewCard          = "https://api.trello.com/1/cards?idList=%s&name=%s&key=%s&token=%s"
+	pathChecklists       = "https://api.trello.com/1/checklists/%s/checkItems?%s&key=%s&token=%s"
+	pathChecklistItems   = "https://api.trello.com/1/checklists/%s?fields=name&cards=all&card_fields=name&key=%s&token=%s"
+	pathUpdateItems      = "https://api.trello.com/1/cards/%s/checkItem/%s?%s&key=%s&token=%s"
+	pathCheckBoardID     = "https://api.trello.com/1/members/me/boards?key=%s&token=%s"
+	pathNewChecklist     = "https://api.trello.com/1/checklists?idCard=%s&name=%s&key=%s&token=%s"
+	pathNewList          = "https://api.trello.com/1/lists?name=%s&idBoard=%s&key=%s&token=%s"
+	pathGetCards         = "https://api.trello.com/1/lists/%s/cards?key=%s&token=%s"
+	pathGetChecklists    = "https://api.trello.com/1/cards/%s/checklists?&key=%s&token=%s"
+	pathDeleteCheckitems = "https://api.trello.com/1/checklists/%s/checkItems/%s?key=%s&token=%s"
+	complete             = "complete"
+	incomplete           = "incomplete"
+	createList           = "UpdatesList"
+	createCard           = "UpdatesCard"
+	createChecklist      = "UpdatesChecklist"
+	btcMarkets           = "BTC Markets"
+	okcoin               = "OkCoin International"
 )
 
 var (
-	verbose, add, create, firstRun, testMode                                                                                                                                                                          bool
+	verbose, add, create, testMode                                                                                                                                                                                    bool
 	apiKey, apiToken, trelloBoardID, trelloBoardName, trelloListID, trelloChecklistID, trelloCardID, exchangeName, checkType, tokenData, key, val, tokenDataEnd, textTokenData, dateFormat, regExp, checkString, path string
 	configData, testConfigData, usageData                                                                                                                                                                             Config
 )
@@ -94,7 +95,6 @@ func main() {
 	flag.BoolVar(&add, "add", false, "used as a trigger to add a new exchange from command line")
 	flag.BoolVar(&verbose, "verbose", false, "increases logging verbosity for API Update Checker")
 	flag.BoolVar(&create, "create", false, "specifies whether to automatically create trello list, card and checklist in a given board")
-	flag.BoolVar(&firstRun, "firstrun", false, "specifies whether its the first time using the application on trello so all the exchanges are added to trello checklist")
 	flag.Parse()
 	var err error
 	c := log.GenDefaultSettings()
@@ -157,15 +157,6 @@ func main() {
 			if err != nil {
 				log.Error(log.Global, err)
 				os.Exit(1)
-			}
-			if firstRun {
-				for f := range usageData.Exchanges {
-					err = trelloCreateNewCheck(usageData.Exchanges[f].Name)
-					if err != nil {
-						log.Error(log.Global, err)
-						os.Exit(1)
-					}
-				}
 			}
 		}
 		err = updateFile(backupFile)
@@ -410,12 +401,32 @@ func checkUpdates(fileName string) error {
 			if err != nil {
 				return err
 			}
+			var contains bool
 			for z := range a.CheckItems {
 				if strings.Contains(a.CheckItems[z].Name, resp[y]) {
 					err = trelloUpdateCheckItem(a.CheckItems[z].ID, a.CheckItems[z].Name, a.CheckItems[z].State)
 					if err != nil {
 						return err
 					}
+					contains = true
+				}
+			}
+			if !contains {
+				err = trelloCreateNewCheck(resp[y])
+				if err != nil {
+					return err
+				}
+			}
+		}
+		a, err = trelloGetChecklistItems()
+		if err != nil {
+			return err
+		}
+		for l := range a.CheckItems {
+			if a.CheckItems[l].State == complete {
+				err = trelloDeleteCheckItem(a.CheckItems[l].ID)
+				if err != nil {
+					return err
 				}
 			}
 		}
@@ -1287,7 +1298,6 @@ func trelloCreateNewCheck(newCheckName string) error {
 	var resp interface{}
 	params := url.Values{}
 	params.Set("name", newName)
-	params.Set("checked", "true")
 	return sendAuthReq(http.MethodPost,
 		fmt.Sprintf(pathChecklists, trelloChecklistID, params.Encode(), apiKey, apiToken),
 		&resp)
@@ -1485,6 +1495,17 @@ func trelloCreateNewList() error {
 		return nil
 	}
 	return nil
+}
+
+// trelloDeleteCheckItem deletes check item from a checklist
+func trelloDeleteCheckItem(checkitemID string) error {
+	if checkitemID == "" {
+		return errors.New("checkitemID cannot be empty")
+	}
+	var resp interface{}
+	return sendAuthReq(http.MethodDelete,
+		fmt.Sprintf(pathDeleteCheckitems, trelloChecklistID, checkitemID, apiKey, apiToken),
+		&resp)
 }
 
 // trelloGetAllCards gets all cards from a given list

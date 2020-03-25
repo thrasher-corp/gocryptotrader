@@ -100,13 +100,13 @@ apichecker.exe -add=true -key=id -val=revision-history -tokendata=h1 -tokendatae
 
 - To acquire BoardID, ListID, CardID and ChecklistID inbuilt functions can be used such as trelloGetAllLists()
 
-- To create a new list, card and checklist and to populate all the current existing exchanges within the checklist --firstrun flag can be used.
+- To create a new list, card, checklist, and to populate the the checklist --create flag can be used.
 
 - To create a new check within a checklist, an inbuilt function within apichecker can be used: trelloCreateNewCheck
 
-- For the first time running the application or to create a list, card and checklist use the following:
+- For the first time running the application & to create a list, card and checklist use the following:
 ```bash
-apichecker.exe --create -apikey="insertkeyhere" -apitoken="inserttokenhere" -boardname="insertboardnamehere" --firstrun
+apichecker.exe --create -apikey="insertkeyhere" -apitoken="inserttokenhere" -boardname="insertboardnamehere"
 ```
 
 

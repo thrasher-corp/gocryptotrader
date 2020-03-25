@@ -48,7 +48,7 @@
    "Data": {
     "GitHubData": {
      "Repo": "binance-exchange/binance-official-api-docs",
-     "Sha": "58d1858922b324aaa43bbb4a43f036a4b5b4e636"
+     "Sha": "4878d48adc007566ba85033b0e2d40c2876cf56"
     }
    },
    "Disabled": false
@@ -59,7 +59,7 @@
    "Data": {
     "GitHubData": {
      "Repo": "bithumb-pro/bithumb.pro-official-api-docs",
-     "Sha": "6293502c7736ab4971491978225ef4d104bdff31"
+     "Sha": "62935027736ab4971491978225ef4d104bdff31"
     }
    },
    "Disabled": false
@@ -114,7 +114,7 @@
    "Data": {
     "GitHubData": {
      "Repo": "gateio/gateapi-go",
-     "Sha": "5a0ba96a98049d9022ce9b616a35c063b8b3a091"
+     "Sha": "81e2f1bb92c5406853139ae054bbda599483e127"
     }
    },
    "Disabled": false
@@ -188,7 +188,7 @@
      "TextTokenData": "h2",
      "DateFormat": "2006-01-02",
      "RegExp": "(2\\d{3}-\\d{1,2}-\\d{1,2})",
-     "CheckString": "2020-03-12",
+     "CheckString": "2020-03-24",
      "Path": "https://docs.poloniex.com/#changelog"
     }
    },

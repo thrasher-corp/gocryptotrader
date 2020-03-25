@@ -692,3 +692,13 @@ func TestSetAuthVars(t *testing.T) {
 		t.Errorf("incorrect key and token values")
 	}
 }
+
+func TestTrelloDeleteCheckItems(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	err := trelloDeleteCheckItem("")
+	if err != nil {
+		t.Error(err)
+	}
+}
