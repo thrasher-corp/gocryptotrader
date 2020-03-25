@@ -239,10 +239,10 @@ func (w Wrapper) OHLCV(exch string, p currency.Pair, a asset.Item, start, end ti
 		Volume: validatorVol,
 	})
 
-	for x := 0; x < 200; x++ {
+	for x := 1; x < 200; x++ {
 		r := validatorLow + rand.Float64()*(validatorHigh-validatorLow)
 		candle := kline.Candle{
-			Time:   start.Add(i),
+			Time:   candles[x-1].Time.Add(-i),
 			Open:   r,
 			High:   r,
 			Low:    r,
