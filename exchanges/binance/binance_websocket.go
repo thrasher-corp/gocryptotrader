@@ -72,16 +72,18 @@ func (b *Binance) WsConnect() error {
 			listenKey
 	}
 
-	enabledPairs := b.GetEnabledPairs(asset.Spot)
-	for i := range enabledPairs {
-		err = b.SeedLocalCache(enabledPairs[i])
-		if err != nil {
-			return err
-		}
-	}
+	// enabledPairs := b.GetEnabledPairs(asset.Spot)
+	// for i := range enabledPairs {
+	// 	err = b.SeedLocalCache(enabledPairs[i])
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// }
 
 	b.WebsocketConn.URL = wsurl
 	b.WebsocketConn.Verbose = b.Verbose
+
+	go b.wsReadData()
 
 	err = b.WebsocketConn.Dial(&dialer, http.Header{})
 	if err != nil {
@@ -94,7 +96,7 @@ func (b *Binance) WsConnect() error {
 		MessageType:       websocket.PongMessage,
 		Delay:             pingDelay,
 	})
-	go b.wsReadData()
+
 	go b.KeepAuthKeyAlive()
 	return nil
 }
@@ -139,7 +141,6 @@ func (b *Binance) wsReadData() {
 				b.Websocket.ReadMessageErrors <- err
 				return
 			}
-			b.Websocket.TrafficAlert <- struct{}{}
 			err = b.wsHandleData(resp.Raw)
 			if err != nil {
 				b.Websocket.DataHandler <- err
@@ -470,6 +471,9 @@ func (b *Binance) SeedLocalCache(p currency.Pair) error {
 
 // UpdateLocalCache updates and returns the most recent iteration of the orderbook
 func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
+	currencyPair := currency.NewPairFromFormattedPairs(wsdp.Pair,
+		b.GetEnabledPairs(asset.Spot),
+		b.GetPairFormat(asset.Spot, true))
 	var updateBid, updateAsk []orderbook.Item
 	for i := range wsdp.UpdateBids {
 		p, err := strconv.ParseFloat(wsdp.UpdateBids[i][0].(string), 64)
@@ -496,13 +500,24 @@ func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
 
 		updateAsk = append(updateAsk, orderbook.Item{Price: p, Amount: a})
 	}
-	currencyPair := currency.NewPairFromFormattedPairs(wsdp.Pair, b.GetEnabledPairs(asset.Spot),
-		b.GetPairFormat(asset.Spot, true))
-	return b.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+
+	err := b.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
 		Bids:     updateBid,
 		Asks:     updateAsk,
 		Pair:     currencyPair,
 		UpdateID: wsdp.LastUpdateID,
 		Asset:    asset.Spot,
 	})
+	if err != nil {
+		if strings.Contains(err.Error(), "ob.Base could not be found") {
+			ob, err2 := orderbook.Get(b.Name, currencyPair, asset.Spot)
+			if err2 != nil {
+				// Can't find initial snapshot to update
+				return nil
+			}
+			return b.Websocket.Orderbook.LoadSnapshot(ob)
+		}
+		return err
+	}
+	return nil
 }

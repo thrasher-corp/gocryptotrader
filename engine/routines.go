@@ -366,7 +366,7 @@ func WebsocketDataReceiver(ws *wshandler.Websocket) {
 		select {
 		case <-shutdowner:
 			return
-		case data := <-ws.DataHandler:
+		case data := <-ws.ToProcessor:
 			err := WebsocketDataHandler(exchangeName, data)
 			if err != nil {
 				log.Error(log.WebsocketMgr, err)

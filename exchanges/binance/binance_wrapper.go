@@ -166,6 +166,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 		Verbose:              b.Verbose,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		TrafficAlert:         b.Websocket.TrafficAlert,
 	}
 
 	b.Websocket.Orderbook.Setup(

@@ -32,8 +32,9 @@ func New() *Websocket {
 
 // Setup sets main variables for websocket connection
 func (w *Websocket) Setup(setupData *WebsocketSetup) error {
-	w.DataHandler = make(chan interface{}, 1)
-	w.TrafficAlert = make(chan struct{}, 1)
+	w.DataHandler = make(chan interface{})
+	w.ToProcessor = make(chan interface{}, 1000)
+	w.TrafficAlert = make(chan struct{})
 	w.verbose = setupData.Verbose
 	w.SetChannelSubscriber(setupData.Subscriber)
 	w.SetChannelUnsubscriber(setupData.UnSubscriber)
@@ -67,8 +68,15 @@ func (w *Websocket) Connect() error {
 			w.exchangeName)
 	}
 	w.setConnectingStatus(true)
-	w.ShutdownC = make(chan struct{}, 1)
+	w.ShutdownC = make(chan struct{})
 	w.ReadMessageErrors = make(chan error, 1)
+
+	go w.processor()
+	var anotherWG sync.WaitGroup
+	anotherWG.Add(1)
+	go w.trafficMonitor(&anotherWG)
+	anotherWG.Wait()
+
 	err := w.connector()
 	if err != nil {
 		w.setConnectingStatus(false)
@@ -80,10 +88,6 @@ func (w *Websocket) Connect() error {
 	w.setConnectingStatus(false)
 	w.setInit(true)
 
-	var anotherWG sync.WaitGroup
-	anotherWG.Add(1)
-	go w.trafficMonitor(&anotherWG)
-	anotherWG.Wait()
 	if !w.IsConnectionMonitorRunning() {
 		go w.connectionMonitor()
 	}
@@ -112,7 +116,8 @@ func (w *Websocket) connectionMonitor() {
 		}
 		w.setConnectionMonitorRunning(false)
 		if w.verbose {
-			log.Debugf(log.WebsocketMgr, "%v websocket connection monitor exiting",
+			log.Debugf(log.WebsocketMgr,
+				"%v websocket connection monitor exiting",
 				w.exchangeName)
 		}
 	}()
@@ -124,7 +129,9 @@ func (w *Websocket) connectionMonitor() {
 		}
 		if !w.IsEnabled() {
 			if w.verbose {
-				log.Debugf(log.WebsocketMgr, "%v connectionMonitor: websocket disabled, shutting down", w.exchangeName)
+				log.Debugf(log.WebsocketMgr,
+					"%v connectionMonitor: websocket disabled, shutting down",
+					w.exchangeName)
 			}
 			if w.IsConnected() {
 				err := w.Shutdown()
@@ -133,7 +140,8 @@ func (w *Websocket) connectionMonitor() {
 				}
 			}
 			if w.verbose {
-				log.Debugf(log.WebsocketMgr, "%v websocket connection monitor exiting",
+				log.Debugf(log.WebsocketMgr,
+					"%v websocket connection monitor exiting",
 					w.exchangeName)
 			}
 			return
@@ -146,7 +154,8 @@ func (w *Websocket) connectionMonitor() {
 				w.setConnectingStatus(false)
 				w.setInit(false)
 				if w.verbose {
-					log.Debugf(log.WebsocketMgr, "%v websocket has been disconnected. Reason: %v",
+					log.Debugf(log.WebsocketMgr,
+						"%v websocket has been disconnected. Reason: %v",
 						w.exchangeName, err)
 				}
 				err = w.Connect()
@@ -184,17 +193,22 @@ func (w *Websocket) Shutdown() error {
 		w.m.Unlock()
 	}()
 	if !w.IsConnected() {
-		return fmt.Errorf("%v cannot shutdown a disconnected websocket", w.exchangeName)
+		return fmt.Errorf("%v cannot shutdown a disconnected websocket",
+			w.exchangeName)
 	}
 	if w.verbose {
-		log.Debugf(log.WebsocketMgr, "%v shutting down websocket channels", w.exchangeName)
+		log.Debugf(log.WebsocketMgr,
+			"%v shutting down websocket channels",
+			w.exchangeName)
 	}
 	close(w.ShutdownC)
 	w.Wg.Wait()
 	w.setConnectedStatus(false)
 	w.setConnectingStatus(false)
 	if w.verbose {
-		log.Debugf(log.WebsocketMgr, "%v completed websocket channel shutdown", w.exchangeName)
+		log.Debugf(log.WebsocketMgr,
+			"%v completed websocket channel shutdown",
+			w.exchangeName)
 	}
 	return nil
 }
@@ -224,7 +238,9 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 		select {
 		case <-w.ShutdownC:
 			if w.verbose {
-				log.Debugf(log.WebsocketMgr, "%v trafficMonitor shutdown message received", w.exchangeName)
+				log.Debugf(log.WebsocketMgr,
+					"%v trafficMonitor shutdown message received",
+					w.exchangeName)
 			}
 			return
 		case <-w.TrafficAlert:
@@ -237,7 +253,10 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 			trafficTimer.Reset(w.trafficTimeout)
 		case <-trafficTimer.C: // Falls through when timer runs out
 			if w.verbose {
-				log.Warnf(log.WebsocketMgr, "%v has not received a traffic alert in %v. Reconnecting", w.exchangeName, w.trafficTimeout)
+				log.Warnf(log.WebsocketMgr,
+					"%v has not received a traffic alert in %v. Reconnecting",
+					w.exchangeName,
+					w.trafficTimeout)
 			}
 			go w.Shutdown()
 		}
@@ -328,7 +347,9 @@ func (w *Websocket) CanUseAuthenticatedWebsocketForWrapper() bool {
 	if w.IsConnected() && w.CanUseAuthenticatedEndpoints() {
 		return true
 	} else if w.IsConnected() && !w.CanUseAuthenticatedEndpoints() {
-		log.Infof(log.WebsocketMgr, WebsocketNotAuthenticatedUsingRest, w.exchangeName)
+		log.Infof(log.WebsocketMgr,
+			WebsocketNotAuthenticatedUsingRest,
+			w.exchangeName)
 	}
 	return false
 }
@@ -363,7 +384,9 @@ func (w *Websocket) Initialise() error {
 // SetProxyAddress sets websocket proxy address
 func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 	if w.proxyAddr == proxyAddr {
-		return fmt.Errorf("%v Cannot set proxy address to the same address '%v'", w.exchangeName, w.proxyAddr)
+		return fmt.Errorf("%v Cannot set proxy address to the same address '%v'",
+			w.exchangeName,
+			w.proxyAddr)
 	}
 
 	w.proxyAddr = proxyAddr
@@ -422,12 +445,15 @@ func (w *Websocket) SetChannelUnsubscriber(unsubscriber func(channelToUnsubscrib
 // ManageSubscriptions ensures the subscriptions specified continue to be subscribed to
 func (w *Websocket) manageSubscriptions() {
 	if !w.features.Subscribe && !w.features.Unsubscribe {
-		w.DataHandler <- fmt.Errorf("%v does not support channel subscriptions, exiting ManageSubscriptions()", w.exchangeName)
+		w.DataHandler <- fmt.Errorf("%v does not support channel subscriptions, exiting ManageSubscriptions()",
+			w.exchangeName)
 		return
 	}
 	defer func() {
 		if w.verbose {
-			log.Debugf(log.WebsocketMgr, "%v ManageSubscriptions exiting", w.exchangeName)
+			log.Debugf(log.WebsocketMgr,
+				"%v ManageSubscriptions exiting",
+				w.exchangeName)
 		}
 		w.Wg.Done()
 	}()
@@ -438,7 +464,9 @@ func (w *Websocket) manageSubscriptions() {
 			w.subscribedChannels = []WebsocketChannelSubscription{}
 			w.subscriptionMutex.Unlock()
 			if w.verbose {
-				log.Debugf(log.WebsocketMgr, "%v shutdown manageSubscriptions", w.exchangeName)
+				log.Debugf(log.WebsocketMgr,
+					"%v shutdown manageSubscriptions",
+					w.exchangeName)
 			}
 			return
 		default:
@@ -451,7 +479,9 @@ func (w *Websocket) manageSubscriptions() {
 				continue
 			}
 			if w.verbose {
-				log.Debugf(log.WebsocketMgr, "%v checking subscriptions", w.exchangeName)
+				log.Debugf(log.WebsocketMgr,
+					"%v checking subscriptions",
+					w.exchangeName)
 			}
 			// Subscribe to channels Pending a subscription
 			if w.features.Subscribe {
@@ -485,13 +515,18 @@ func (w *Websocket) appendSubscribedChannels() error {
 		}
 		if !channelIsSubscribed {
 			if w.verbose {
-				log.Debugf(log.WebsocketMgr, "%v Subscribing to %v %v", w.exchangeName, w.channelsToSubscribe[i].Channel, w.channelsToSubscribe[i].Currency.String())
+				log.Debugf(log.WebsocketMgr,
+					"%v Subscribing to %v %v",
+					w.exchangeName,
+					w.channelsToSubscribe[i].Channel,
+					w.channelsToSubscribe[i].Currency.String())
 			}
 			err := w.channelSubscriber(w.channelsToSubscribe[i])
 			if err != nil {
 				return err
 			}
-			w.subscribedChannels = append(w.subscribedChannels, w.channelsToSubscribe[i])
+			w.subscribedChannels = append(w.subscribedChannels,
+				w.channelsToSubscribe[i])
 		}
 	}
 	return nil
@@ -616,6 +651,28 @@ func (w *Websocket) CanUseAuthenticatedEndpoints() bool {
 	return w.canUseAuthenticatedEndpoints
 }
 
+// processor sends data to be processed in a websocket data handler, this is
+// middleware to monitor data throughput, if buffer is exceeded it will log an
+// error alerting potential program contention.
+func (w *Websocket) processor() {
+	for {
+		data := <-w.DataHandler
+		select {
+		case w.ToProcessor <- data:
+		case <-w.ShutdownC:
+			return
+		default:
+			log.Errorf(log.WebsocketMgr,
+				"%s websocket processing buffer limit exceeded",
+				w.exchangeName)
+			select {
+			case w.ToProcessor <- data:
+			case <-w.ShutdownC:
+			}
+		}
+	}
+}
+
 // SetResponseIDAndData adds data to IDResponses with locks and a nil check
 func (w *WebsocketConnection) SetResponseIDAndData(id int64, data []byte) {
 	w.Lock()
@@ -628,6 +685,10 @@ func (w *WebsocketConnection) SetResponseIDAndData(id int64, data []byte) {
 
 // Dial sets proxy urls and then connects to the websocket
 func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header) error {
+	if w.TrafficAlert == nil {
+		return errors.New("traffic alert system not linked with connection")
+	}
+
 	if w.ProxyURL != "" {
 		proxy, err := url.Parse(w.ProxyURL)
 		if err != nil {
@@ -640,12 +701,19 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)
 	if err != nil {
 		if conStatus != nil {
-			return fmt.Errorf("%v %v %v Error: %v", w.URL, conStatus, conStatus.StatusCode, err)
+			return fmt.Errorf("%v %v %v Error: %v",
+				w.URL,
+				conStatus,
+				conStatus.StatusCode,
+				err)
 		}
 		return fmt.Errorf("%v Error: %v", w.URL, err)
 	}
 	if w.Verbose {
-		log.Infof(log.WebsocketMgr, "%v Websocket connected to %s", w.ExchangeName, w.URL)
+		log.Infof(log.WebsocketMgr,
+			"%v Websocket connected to %s",
+			w.ExchangeName,
+			w.URL)
 	}
 	w.setConnectedStatus(true)
 	return nil
@@ -656,7 +724,8 @@ func (w *WebsocketConnection) SendJSONMessage(data interface{}) error {
 	w.Lock()
 	defer w.Unlock()
 	if !w.IsConnected() {
-		return fmt.Errorf("%v cannot send message to a disconnected websocket", w.ExchangeName)
+		return fmt.Errorf("%v cannot send message to a disconnected websocket",
+			w.ExchangeName)
 	}
 	if w.Verbose {
 		log.Debugf(log.WebsocketMgr,
@@ -673,7 +742,8 @@ func (w *WebsocketConnection) SendRawMessage(messageType int, message []byte) er
 	w.Lock()
 	defer w.Unlock()
 	if !w.IsConnected() {
-		return fmt.Errorf("%v cannot send message to a disconnected websocket", w.ExchangeName)
+		return fmt.Errorf("%v cannot send message to a disconnected websocket",
+			w.ExchangeName)
 	}
 	if w.Verbose {
 		log.Debugf(log.WebsocketMgr,
@@ -690,7 +760,9 @@ func (w *WebsocketConnection) SendRawMessage(messageType int, message []byte) er
 func (w *WebsocketConnection) SetupPingHandler(handler WebsocketPingHandler) {
 	if handler.UseGorillaHandler {
 		h := func(msg string) error {
-			err := w.Connection.WriteControl(handler.MessageType, []byte(msg), time.Now().Add(handler.Delay))
+			err := w.Connection.WriteControl(handler.MessageType,
+				[]byte(msg),
+				time.Now().Add(handler.Delay))
 			if err == websocket.ErrCloseSent {
 				return nil
 			} else if e, ok := err.(net.Error); ok && e.Temporary() {
@@ -714,7 +786,9 @@ func (w *WebsocketConnection) SetupPingHandler(handler WebsocketPingHandler) {
 				err := w.SendRawMessage(handler.MessageType, handler.Message)
 				if err != nil {
 					log.Errorf(log.WebsocketMgr,
-						"%v failed to send message to websocket %s", w.ExchangeName, handler.Message)
+						"%v failed to send message to websocket %s",
+						w.ExchangeName,
+						handler.Message)
 					return
 				}
 			}
@@ -810,6 +884,20 @@ func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
 		}
 		return WebsocketResponse{}, err
 	}
+
+	select {
+	case w.TrafficAlert <- struct{}{}:
+	default:
+		// Still processing last traffic alert, bypass need to alert.
+		// Not a system critical issue, bypassing allows uninterrupted
+		// processing in high loads.
+		if w.Verbose {
+			log.Warnf(log.WebsocketMgr,
+				"%s websocket error, contention found in traffic alert system",
+				w.ExchangeName)
+		}
+	}
+
 	var standardMessage []byte
 	switch mType {
 	case websocket.TextMessage:

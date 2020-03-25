@@ -130,6 +130,8 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 			return err
 		}
 
+		fmt.Println(req.URL.String())
+
 		resp, err := r.HTTPClient.Do(req)
 		if err != nil {
 			if timeoutErr, ok := err.(net.Error); ok && timeoutErr.Timeout() {
@@ -144,6 +146,9 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 			}
 			return err
 		}
+
+		fmt.Println(resp.Status)
+		fmt.Println(resp.Header)
 
 		contents, err := ioutil.ReadAll(resp.Body)
 		if err != nil {

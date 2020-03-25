@@ -111,7 +111,7 @@ func (e *SyncManager) Start() error {
 			for y := range assetTypes {
 				enabledPairs := exchanges[x].GetEnabledPairs(assetTypes[y])
 				for z := range enabledPairs {
-					if e.ExchangeTicker {
+					if !e.ExchangeTicker {
 						e.Agents = append(e.Agents, &TickerAgent{
 							AssetType: assetTypes[y],
 							Pair:      enabledPairs[z],
@@ -145,7 +145,7 @@ func (e *SyncManager) Start() error {
 						exchangeSyncItems++
 					}
 
-					if e.ExchangeTrades {
+					if !e.ExchangeTrades {
 						e.Agents = append(e.Agents, &TradeAgent{
 							AssetType: assetTypes[y],
 							Pair:      enabledPairs[z],
@@ -306,6 +306,7 @@ func (e *SyncManager) executor(sc chan Synchroniser) {
 	for {
 		select {
 		case <-e.shutdown:
+			fmt.Println("PEW PEW")
 			e.wg.Done()
 			return
 		case s := <-sc:

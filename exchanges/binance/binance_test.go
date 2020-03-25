@@ -1,6 +1,7 @@
 package binance
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -788,5 +789,17 @@ func TestExecutionTypeToOrderStatus(t *testing.T) {
 		if result != testCases[i].Result {
 			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
 		}
+	}
+}
+
+func TestSomething(t *testing.T) {
+	b.Verbose = true
+	wow, err := b.GetExchangeInfo()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i := range wow.RateLimits {
+		fmt.Println(wow.RateLimits[i])
 	}
 }

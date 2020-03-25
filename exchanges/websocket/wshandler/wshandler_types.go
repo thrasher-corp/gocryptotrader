@@ -50,6 +50,7 @@ type Websocket struct {
 	channelSubscriber            func(channelToSubscribe WebsocketChannelSubscription) error
 	channelUnsubscriber          func(channelToUnsubscribe WebsocketChannelSubscription) error
 	DataHandler                  chan interface{}
+	ToProcessor                  chan interface{}
 	// ShutdownC is the main shutdown channel which controls all websocket go funcs
 	ShutdownC chan struct{}
 	// Orderbook is a local cache of orderbooks
@@ -127,6 +128,7 @@ type WebsocketConnection struct {
 	Wg              sync.WaitGroup
 	Connection      *websocket.Conn
 	Shutdown        chan struct{}
+	TrafficAlert    chan struct{}
 	// These are the request IDs and the corresponding response JSON
 	IDResponses          map[int64][]byte
 	ResponseCheckTimeout time.Duration
