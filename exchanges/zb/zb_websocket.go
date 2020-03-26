@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	zbWebsocketAPI       = "wss://api.zb.cn:9999/websocket"
+	zbWebsocketAPI       = "wss://api.zb.live/websocket"
 	zWebsocketAddChannel = "addChannel"
 	zbWebsocketRateLimit = 20
 )
