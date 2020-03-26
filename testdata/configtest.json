@@ -21,9 +21,11 @@
   "output": "console",
   "fileSettings": {
    "filename": "log.txt",
-   "rotate": false
+   "rotate": false,
+   "maxsize": 100
   },
   "advancedSettings": {
+   "showLogSystemName": false,
    "spacer": " | ",
    "timeStampFormat": " 02/01/2006 15:04:05 ",
    "headers": {
@@ -60,6 +62,14 @@
   ],
   "allowedDifference": 50000000,
   "allowedNegativeDifference": 50000000
+ },
+ "gctscript": {
+  "enabled": false,
+  "timeout": 30000000000,
+  "max_virtual_machines": 10,
+  "allow_imports": false,
+  "auto_load": null,
+  "verbose": false
  },
  "currencyConfig": {
   "forexProviders": [
@@ -2408,6 +2418,44 @@
      "supportedCurrencies": ""
     }
    ]
+  },
+  {
+   "name": "Ftx",
+   "enabled": true,
+   "verbose": false,
+   "httpTimeout": 0,
+   "websocketResponseCheckTimeout": 0,
+   "websocketResponseMaxLimit": 0,
+   "websocketTrafficTimeout": 0,
+   "websocketOrderbookBufferLimit": 0,
+   "baseCurrencies": "",
+   "currencyPairs": {
+    "requestFormat": {
+     "uppercase": true
+    },
+    "configFormat": {
+     "uppercase": true
+    },
+    "useGlobalFormat": true,
+    "assetTypes": [
+     "spot"
+    ],
+    "pairs": null
+   },
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "endpoints": {
+     "url": "",
+     "urlSecondary": "",
+     "websocketURL": ""
+    },
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    }
+   },
+   "features": null
   }
  ],
  "bankAccounts": [
