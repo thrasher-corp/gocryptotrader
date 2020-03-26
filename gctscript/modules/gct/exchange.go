@@ -3,12 +3,13 @@ package gct
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	objects "github.com/d5/tengo/v2"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	indicators2 "github.com/thrasher-corp/gocryptotrader/gctscript/modules/ta/indicators"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -533,7 +534,7 @@ func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, endTime)
 	}
-	interval, err := indicators2.ParseInterval(intervalStr)
+	interval, err := parseInterval(intervalStr)
 	if err != nil {
 		return nil, err
 	}
@@ -569,4 +570,20 @@ func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 	return &objects.Map{
 		Value: retValue,
 	}, nil
+}
+
+// parseInterval will parse the interval param of indictors that have them and convert to time.Duration
+func parseInterval(in string) (time.Duration, error) {
+	if !common.StringDataContainsInsensitive(supportedDurations, in) {
+		return time.Nanosecond, errInvalidInterval
+	}
+	switch in {
+	case "1d":
+		in = "24h"
+	case "3d":
+		in = "72h"
+	case "1w":
+		in = "168h"
+	}
+	return time.ParseDuration(in)
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )
 
+// SMAModule simple moving average indicator commands
 var SMAModule = map[string]objects.Object{
 	"calculate": &objects.UserFunction{Name: "calculate", Value: sma},
 }

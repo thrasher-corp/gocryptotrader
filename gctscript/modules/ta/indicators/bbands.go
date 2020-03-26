@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
+// BBandsModule bollinger bands indicator commands
 var BBandsModule = map[string]objects.Object{
 	"calculate": &objects.UserFunction{Name: "calculate", Value: bbands},
 }

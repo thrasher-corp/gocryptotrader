@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )
 
+// MACDModule MACD indicator commands
 var MACDModule = map[string]objects.Object{
 	"calculate": &objects.UserFunction{Name: "calculate", Value: macd},
 }

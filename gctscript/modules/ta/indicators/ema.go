@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )
 
+// EMAModule EMA indicator commands
 var EMAModule = map[string]objects.Object{
 	"calculate": &objects.UserFunction{Name: "calculate", Value: ema},
 }
