@@ -52,7 +52,6 @@ func TestMain(m *testing.M) {
 	}
 	z.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	z.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	z.Verbose = true
 	os.Exit(m.Run())
 }
 
