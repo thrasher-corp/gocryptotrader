@@ -19,13 +19,14 @@ import (
 )
 
 // New returns a new Requester
-func New(name string, httpRequester *http.Client, l Limiter) *Requester {
+func New(name string, httpRequester *http.Client, l *Limit) *Requester {
 	return &Requester{
 		HTTPClient:           httpRequester,
-		Limiter:              l,
+		Limit:                l,
 		Name:                 name,
 		timeoutRetryAttempts: TimeoutRetryAttempts,
 		timedLock:            timedmutex.NewTimedMutex(DefaultMutexLockTimeout),
+		shutdown:             make(chan struct{}),
 	}
 }
 
@@ -124,13 +125,17 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 
 	var timeoutError error
 	for i := 0; i < r.timeoutRetryAttempts+1; i++ {
-		// Initiate a rate limit reservation and sleep on requested endpoint
-		err := r.InitiateRateLimit(p.Endpoint)
+		err := r.Limit.Initiate(p.Endpoint)
 		if err != nil {
 			return err
 		}
 
 		fmt.Println(req.URL.String())
+
+		select {
+		case <-r.shutdown:
+		default:
+		}
 
 		resp, err := r.HTTPClient.Do(req)
 		if err != nil {
@@ -147,8 +152,8 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 			return err
 		}
 
-		fmt.Println(resp.Status)
-		fmt.Println(resp.Header)
+		// fmt.Println(resp.Status)
+		// fmt.Println(resp.Header)
 
 		contents, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
@@ -165,10 +170,32 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 
 		if resp.StatusCode < http.StatusOK ||
 			resp.StatusCode > http.StatusAccepted {
-			return fmt.Errorf("%s unsuccessful HTTP status code: %d  raw response: %s",
-				r.Name,
-				resp.StatusCode,
-				string(contents))
+			if resp.StatusCode == http.StatusTooManyRequests {
+				r.Limit.Lock()
+				fmt.Println("429 received, time to slow this party down!")
+				fmt.Println(resp.Header)
+				fmt.Printf("%s unsuccessful HTTP status code: %d  raw response: %s",
+					r.Name,
+					resp.StatusCode,
+					string(contents))
+				time.Sleep(10 * time.Second)
+				r.Limit.Unlock()
+			} else if resp.StatusCode == http.StatusTeapot {
+				r.Limit.Lock()
+				fmt.Println(resp.Header)
+				fmt.Printf("%s unsuccessful HTTP status code: %d  raw response: %s",
+					r.Name,
+					resp.StatusCode,
+					string(contents))
+				time.Sleep(10 * time.Second)
+				fmt.Println("You are a teapot; do not pass go, do not collect 200 bitcoin")
+				r.Limit.Unlock()
+			} else {
+				return fmt.Errorf("%s unsuccessful HTTP status code: %d  raw response: %s",
+					r.Name,
+					resp.StatusCode,
+					string(contents))
+			}
 		}
 
 		if p.HTTPDebugging {
@@ -241,4 +268,19 @@ func (r *Requester) SetProxy(p *url.URL) error {
 		TLSHandshakeTimeout: proxyTLSTimeout,
 	}
 	return nil
+}
+
+// DisableRateLimiter disables the rate limiting system for the service
+func (r *Requester) DisableRateLimiter() error {
+	return r.Limit.DisableRateLimiter()
+}
+
+// EnableRateLimiter enables the rate limiting system for the service
+func (r *Requester) EnableRateLimiter() error {
+	return r.Limit.EnableRateLimiter()
+}
+
+// Shutdown disables outbound services
+func (r *Requester) Shutdown() {
+	close(r.shutdown)
 }

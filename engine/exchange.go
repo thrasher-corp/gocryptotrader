@@ -97,6 +97,12 @@ func (e *exchangeManager) removeExchange(exchName string) error {
 	}
 	e.m.Lock()
 	defer e.m.Unlock()
+	if err := exch.Shutdown(); err != nil {
+		log.Debugf(log.ExchangeSys,
+			"%s failed to cleanly shutdown service. Err: %s",
+			exch.GetName(),
+			err)
+	}
 	delete(e.exchanges, strings.ToLower(exchName))
 	log.Infof(log.ExchangeSys, "%s exchange unloaded successfully.\n", exchName)
 	return nil

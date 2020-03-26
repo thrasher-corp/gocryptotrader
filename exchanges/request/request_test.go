@@ -147,23 +147,31 @@ type GlobalLimitTest struct {
 	UnAuth *rate.Limiter
 }
 
-func (g *GlobalLimitTest) Limit(e EndpointLimit) error {
+func (g *GlobalLimitTest) Limit(e EndpointLimit) <-chan error {
+	ch := make(chan error, 1)
 	switch e {
 	case Auth:
 		if g.Auth == nil {
-			return errors.New("auth rate not set")
+			ch <- errors.New("auth rate not set")
+			break
 		}
-		time.Sleep(g.Auth.Reserve().Delay())
-		return nil
+		go func(ch chan error) {
+			time.Sleep(g.Auth.Reserve().Delay())
+			ch <- nil
+		}(ch)
 	case UnAuth:
 		if g.UnAuth == nil {
-			return errors.New("unauth rate not set")
+			ch <- errors.New("unauth rate not set")
+			break
 		}
-		time.Sleep(g.UnAuth.Reserve().Delay())
-		return nil
+		go func(ch chan error) {
+			time.Sleep(g.UnAuth.Reserve().Delay())
+			ch <- nil
+		}(ch)
 	default:
-		return fmt.Errorf("cannot execute functionality: %d not found", e)
+		ch <- fmt.Errorf("cannot execute functionality: %d not found", e)
 	}
+	return ch
 }
 
 var globalshell = GlobalLimitTest{
@@ -172,9 +180,7 @@ var globalshell = GlobalLimitTest{
 
 func TestDoRequest(t *testing.T) {
 	t.Parallel()
-	r := New("test",
-		new(http.Client),
-		&globalshell)
+	r := New("test", new(http.Client), NewLimit(&globalshell))
 
 	err := r.SendPayload(&Item{})
 	if err == nil {
@@ -292,9 +298,7 @@ func TestDoRequest(t *testing.T) {
 
 func TestGetNonce(t *testing.T) {
 	t.Parallel()
-	r := New("test",
-		new(http.Client),
-		&globalshell)
+	r := New("test", new(http.Client), NewLimit(&globalshell))
 
 	n1 := r.GetNonce(false)
 	n2 := r.GetNonce(false)
@@ -302,9 +306,7 @@ func TestGetNonce(t *testing.T) {
 		t.Fatal(unexpected)
 	}
 
-	r2 := New("test",
-		new(http.Client),
-		&globalshell)
+	r2 := New("test", new(http.Client), NewLimit(&globalshell))
 	n3 := r2.GetNonce(true)
 	n4 := r2.GetNonce(true)
 	if n3 == n4 {
@@ -314,9 +316,7 @@ func TestGetNonce(t *testing.T) {
 
 func TestGetNonceMillis(t *testing.T) {
 	t.Parallel()
-	r := New("test",
-		new(http.Client),
-		&globalshell)
+	r := New("test", new(http.Client), NewLimit(&globalshell))
 	m1 := r.GetNonceMilli()
 	m2 := r.GetNonceMilli()
 	if m1 == m2 {
@@ -326,9 +326,7 @@ func TestGetNonceMillis(t *testing.T) {
 
 func TestSetProxy(t *testing.T) {
 	t.Parallel()
-	r := New("test",
-		new(http.Client),
-		&globalshell)
+	r := New("test", new(http.Client), NewLimit(&globalshell))
 	u, err := url.Parse("http://www.google.com")
 	if err != nil {
 		t.Fatal(err)

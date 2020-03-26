@@ -52,7 +52,7 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 	// default:
 	// 	return errors.New("unhandled endpoint limit")
 	// }
-	return r.rateLimitMe(int(f))
+	return r.rateLimitMe(10)
 }
 
 func (r *RateLimit) rateLimitMe(weight int) error {

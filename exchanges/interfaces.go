@@ -79,4 +79,5 @@ type IBotExchange interface {
 	FetchTrades(p currency.Pair, assetType asset.Item) ([]order.TradeHistory, error)
 	UpdateTrades(p currency.Pair, assetType asset.Item) ([]order.TradeHistory, error)
 	UpdateSupportedPairs() error
+	Shutdown() error
 }

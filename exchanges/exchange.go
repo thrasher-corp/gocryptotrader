@@ -800,3 +800,9 @@ func (e *Base) DisableRateLimiter() error {
 func (e *Base) EnableRateLimiter() error {
 	return e.Requester.EnableRateLimiter()
 }
+
+// Shutdown shuts down and disconnects all exchange related periphery services
+func (e *Base) Shutdown() error {
+	e.Requester.Shutdown()
+	return nil
+}
