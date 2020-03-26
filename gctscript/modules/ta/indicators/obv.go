@@ -1,7 +1,6 @@
 package indicators
 
 import (
-	"errors"
 	"fmt"
 
 	objects "github.com/d5/tengo/v2"
@@ -25,20 +24,9 @@ func obv(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, ohlcIndicatorType)
 	}
 
-	var selector int
-	switch ohlcIndicatorType {
-	case "open":
-		selector = 1
-	case "high":
-		selector = 2
-	case "low":
-		selector = 3
-	case "close":
-		selector = 4
-	case "vol":
-		selector = 5
-	default:
-		return nil, errors.New("invalid selection")
+	selector, err := ParseIndicatorSelector(ohlcIndicatorType)
+	if err != nil {
+		return nil, err
 	}
 
 	ohlcvInput := objects.ToInterface(args[1])

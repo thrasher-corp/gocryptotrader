@@ -3,8 +3,10 @@ package indicators
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/thrasher-corp/go-talib/indicators"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
@@ -44,4 +46,47 @@ func ParseInterval(in string) (time.Duration, error) {
 		in = "168h"
 	}
 	return time.ParseDuration(in)
+}
+
+func ParseIndicatorSelector(in string) (int, error) {
+	switch in {
+	case "open":
+		return 1, nil
+	case "high":
+		return 2, nil
+	case "low":
+		return 3, nil
+	case "close":
+		return 4, nil
+	case "vol":
+		return 5, nil
+	default:
+		return 0, errors.New("invalid selector")
+	}
+}
+
+func ParseMAType(in string) (indicators.MaType, error) {
+	in = strings.ToLower(in)
+	switch in {
+	case "sma":
+		return indicators.SMA, nil
+	case "ema":
+		return indicators.EMA, nil
+	case "wma":
+		return indicators.WMA, nil
+	case "dema":
+		return indicators.DEMA, nil
+	case "tema":
+		return indicators.TEMA, nil
+	case "trima":
+		return indicators.TRIMA, nil
+	case "kama":
+		return indicators.KAMA, nil
+	case "mama":
+		return indicators.MAMA, nil
+	case "t3ma":
+		return indicators.T3MA, nil
+	default:
+		return 0, errors.New("invalid selector")
+	}
 }
