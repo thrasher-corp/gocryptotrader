@@ -29,7 +29,7 @@ func toFloat64(data interface{}) (float64, error) {
 	}
 }
 
-// ParseIndicatorSelector returns indidcator number from string for slice selection
+// ParseIndicatorSelector returns indicator number from string for slice selection
 func ParseIndicatorSelector(in string) (int, error) {
 	switch in {
 	case "open":

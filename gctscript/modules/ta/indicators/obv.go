@@ -29,6 +29,7 @@ func obv(args ...objects.Object) (objects.Object, error) {
 		return nil, err
 	}
 
+	fmt.Println(selector)
 	ohlcvInput := objects.ToInterface(args[1])
 	ohlcvInputData, valid := ohlcvInput.([]interface{})
 	if !valid {

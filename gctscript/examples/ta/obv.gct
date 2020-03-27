@@ -5,7 +5,7 @@ obv := import("indicator/obv")
 
 load := func() {
     start := t.add(t.now(), -t.hour*24*100)
-    ohlcvData := exch.ohlcv("BTC Markets", "BTC-AUD", "-", "", start, t.now(), "1d")
+    ohlcvData := exch.ohlcv("coinbasepro", "BTC-USD", "-", "", start, t.now(), "1d")
 
     ret := obv.calculate("close", ohlcvData.candles)
     fmt.println(ret)
