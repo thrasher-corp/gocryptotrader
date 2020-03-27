@@ -9,6 +9,7 @@ import (
 	"time"
 
 	objects "github.com/d5/tengo/v2"
+	"github.com/thrasher-corp/go-talib/indicators"
 )
 
 var (
@@ -185,5 +186,133 @@ func TestToFloat64(t *testing.T) {
 	_, err = toFloat64("54")
 	if err == nil {
 		t.Fatalf("attempting to convert a string should fail but test passed")
+	}
+}
+
+func TestParseIndicatorSelector(t *testing.T) {
+	testCases := []struct {
+		name     string
+		expected int
+		err      error
+	}{
+		{
+			"open",
+			1,
+			nil,
+		},
+		{
+			"high",
+			2,
+			nil,
+		},
+		{
+			"low",
+			3,
+			nil,
+		},
+		{
+			"close",
+			4,
+			nil,
+		},
+		{
+			"vol",
+			5,
+			nil,
+		},
+		{
+			"invalid",
+			0,
+			errInvalidSelector,
+		},
+	}
+
+	for _, tests := range testCases {
+		test := tests
+		t.Run(test.name, func(t *testing.T) {
+			v, err := ParseIndicatorSelector(test.name)
+			if err != nil {
+				if err != test.err {
+					t.Fatal(err)
+				}
+			}
+			if v != test.expected {
+				t.Fatalf("expected %v received %v", test.expected, v)
+			}
+		})
+	}
+}
+
+func TestParseMAType(t *testing.T) {
+	testCases := []struct {
+		name     string
+		expected indicators.MaType
+		err      error
+	}{
+		{
+			"sma",
+			indicators.SMA,
+			nil,
+		},
+		{
+			"ema",
+			indicators.EMA,
+			nil,
+		},
+		{
+			"wma",
+			indicators.WMA,
+			nil,
+		},
+		{
+			"dema",
+			indicators.DEMA,
+			nil,
+		},
+		{
+			"tema",
+			indicators.TEMA,
+			nil,
+		},
+		{
+			"trima",
+			indicators.TRIMA,
+			nil,
+		},
+		{
+			"kama",
+			indicators.KAMA,
+			nil,
+		},
+		{
+			"mama",
+			indicators.MAMA,
+			nil,
+		},
+		{
+			"t3ma",
+			indicators.T3MA,
+			nil,
+		},
+		{
+			"no",
+			indicators.SMA,
+			errInvalidSelector,
+		},
+	}
+
+	for _, tests := range testCases {
+		test := tests
+		t.Run(test.name, func(t *testing.T) {
+			v, err := ParseMAType(test.name)
+			if err != nil {
+				if err != test.err {
+					t.Fatal(err)
+				}
+			}
+			if v != test.expected {
+				t.Fatalf("expected %v received %v", test.expected, v)
+			}
+		})
 	}
 }

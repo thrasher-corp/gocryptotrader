@@ -12,6 +12,8 @@ import (
 // OHLCV locale string for OHLCV data conversion failure
 const OHLCV = "OHLCV data"
 
+var errInvalidSelector = errors.New("invalid selector")
+
 func toFloat64(data interface{}) (float64, error) {
 	switch d := data.(type) {
 	case float64:
@@ -41,7 +43,7 @@ func ParseIndicatorSelector(in string) (int, error) {
 	case "vol":
 		return 5, nil
 	default:
-		return 0, errors.New("invalid selector")
+		return 0, errInvalidSelector
 	}
 }
 
@@ -68,6 +70,6 @@ func ParseMAType(in string) (indicators.MaType, error) {
 	case "t3ma":
 		return indicators.T3MA, nil
 	default:
-		return 0, errors.New("invalid selector")
+		return 0, errInvalidSelector
 	}
 }
