@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -35,7 +36,7 @@ const (
 	getFundingRates   = "/funding_rates"
 
 	// Authenticated endpoints
-
+	getAccountInfo  = "/account"
 	ftxRateInterval = time.Minute
 	ftxRequestRate  = 180
 )
@@ -181,9 +182,33 @@ func (f *Ftx) SendHTTPRequest(path string, result interface{}) error {
 	})
 }
 
+// GetAccountInfo gets account info
+func (f *Ftx) GetAccountInfo() (AccountData, error) {
+	var resp AccountData
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, ftxAPIURL+getAccountInfo, nil, &resp)
+}
+
 // SendAuthHTTPRequest sends an authenticated request
-func (f *Ftx) SendAuthHTTPRequest() error {
-	ts := int64(time.Now().UnixNano() * 1000)
+func (f *Ftx) SendAuthHTTPRequest(method, path string, data, result interface{}) error {
+	ts := strconv.FormatInt(int64(time.Now().UnixNano()/1000000), 10)
+	sigPayload := ts + method
+	log.Println(sigPayload)
+	hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
+	headers := make(map[string]string)
+	headers["FTX-KEY"] = f.API.Credentials.Key
+	headers["FTX-SIGN"] = crypto.HexEncodeToString(hmac)
+	headers["FTX-TS"] = ts
 	log.Println(ts)
-	return nil
+	return f.SendPayload(&request.Item{
+		Method:        method,
+		Path:          ftxAPIURL + path,
+		Headers:       headers,
+		Body:          nil,
+		Result:        result,
+		AuthRequest:   true,
+		NonceEnabled:  false,
+		Verbose:       f.Verbose,
+		HTTPDebugging: f.HTTPDebugging,
+		HTTPRecording: f.HTTPRecording,
+	})
 }

@@ -121,8 +121,9 @@ func TestGetFundingRates(t *testing.T) {
 	}
 }
 
-func TestSendAuthHTTPRequest(t *testing.T) {
-	err := f.SendAuthHTTPRequest()
+func TestGetAccountInfo(t *testing.T) {
+	a, err := f.GetAccountInfo()
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
