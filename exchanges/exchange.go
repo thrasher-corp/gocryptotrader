@@ -911,7 +911,7 @@ func (e *Base) StoreAssetPairFormat(a asset.Item, fmt currency.PairStore) {
 
 	if fmt.RequestFormat == nil || fmt.ConfigFormat == nil {
 		log.Errorf(log.ExchangeSys,
-			"cannot add to pairs manager, request pair format not provided",
+			"%s cannot add to pairs manager, request pair format not provided",
 			e.Name)
 		return
 	}
