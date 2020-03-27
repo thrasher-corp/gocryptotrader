@@ -43,9 +43,9 @@ const (
 // Start implementing public and private exchange API funcs below
 
 // GetMarkets gets market data
-func (f *Ftx) GetMarkets() ([]MarketData, error) {
-	var response Response
-	return response.Result.([]MarketData), f.SendHTTPRequest(ftxAPIURL+getMarkets, &response)
+func (f *Ftx) GetMarkets() (Markets, error) {
+	var resp Markets
+	return resp, f.SendHTTPRequest(ftxAPIURL+getMarkets, &resp)
 }
 
 // GetMarket gets market data for a provided asset type

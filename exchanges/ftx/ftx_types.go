@@ -1,11 +1,5 @@
 package ftx
 
-// Response stores a generic response
-type Response struct {
-	Success bool        `json:"success"`
-	Result  interface{} `json:"result"`
-}
-
 // MarketData stores market data
 type MarketData struct {
 	Name           string  `json:"name"`

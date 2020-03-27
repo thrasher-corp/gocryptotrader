@@ -81,13 +81,15 @@ func (f *Ftx) SetDefaults() {
 			AutoPairUpdates: true,
 		},
 	}
-
 	f.Requester = request.New(f.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.NewBasicRateLimit(ftxRateInterval, ftxRequestRate))
-
+		nil)
 	f.API.Endpoints.URLDefault = ftxAPIURL
 	f.API.Endpoints.URL = f.API.Endpoints.URLDefault
+	f.Websocket = wshandler.New()
+	f.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	f.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	f.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -327,19 +329,21 @@ func (f *Ftx) GetDepositAddress(cryptocurrency currency.Code, accountID string) 
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (f *Ftx) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.CryptoRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (f *Ftx) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	var resp *withdraw.ExchangeResponse
+	return resp, common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (f *Ftx) WithdrawFiatFunds(withdrawRequest *withdraw.FiatRequest) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (f *Ftx) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	var resp *withdraw.ExchangeResponse
+	return resp, common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (f *Ftx) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.FiatRequest) (string, error) {
+func (f *Ftx) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
