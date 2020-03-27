@@ -44,7 +44,7 @@ type Item struct {
 	ID         int    `json:"id,omitempty"`
 	FullName   string `json:"fullName,omitempty"`
 	Symbol     string `json:"symbol"`
-	Role       Role   `json:"role,omitempty"`
+	Role       Role   `json:"-"`
 	AssocChain string `json:"associatedBlockchain,omitempty"`
 }
 

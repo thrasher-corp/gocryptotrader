@@ -175,6 +175,12 @@ func (s *Storage) SetupConversionRates() {
 // SetDefaultFiatCurrencies assigns the default fiat currency list and adds it
 // to the running list
 func (s *Storage) SetDefaultFiatCurrencies(c ...Code) {
+	for i := range c {
+		err := s.currencyCodes.UpdateCurrency("", c[i].String(), "", 0, Fiat)
+		if err != nil {
+			log.Errorln(log.Global, err)
+		}
+	}
 	s.defaultFiatCurrencies = append(s.defaultFiatCurrencies, c...)
 	s.fiatCurrencies = append(s.fiatCurrencies, c...)
 }
@@ -182,6 +188,16 @@ func (s *Storage) SetDefaultFiatCurrencies(c ...Code) {
 // SetDefaultCryptocurrencies assigns the default cryptocurrency list and adds
 // it to the running list
 func (s *Storage) SetDefaultCryptocurrencies(c ...Code) {
+	for i := range c {
+		err := s.currencyCodes.UpdateCurrency("",
+			c[i].String(),
+			"",
+			0,
+			Cryptocurrency)
+		if err != nil {
+			log.Errorln(log.Global, err)
+		}
+	}
 	s.defaultCryptoCurrencies = append(s.defaultCryptoCurrencies, c...)
 	s.cryptocurrencies = append(s.cryptocurrencies, c...)
 }
@@ -251,11 +267,11 @@ func (s *Storage) SeedCurrencyAnalysisData() error {
 	b, err := ioutil.ReadFile(s.path)
 	if err != nil {
 		err = s.FetchCurrencyAnalysisData()
-		if err != nil {
-			return err
+		writeError := s.WriteCurrencyDataToFile(s.path, err == nil)
+		if writeError != nil {
+			return writeError
 		}
-
-		return s.WriteCurrencyDataToFile(s.path, true)
+		return err
 	}
 
 	var fromFile File
@@ -319,35 +335,45 @@ func (s *Storage) WriteCurrencyDataToFile(path string, mainUpdate bool) error {
 // LoadFileCurrencyData loads currencies into the currency codes
 func (s *Storage) LoadFileCurrencyData(f *File) error {
 	for i := range f.Contracts {
-		err := s.currencyCodes.LoadItem(&f.Contracts[i])
+		contract := f.Contracts[i]
+		contract.Role = Contract
+		err := s.currencyCodes.LoadItem(&contract)
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := range f.Cryptocurrency {
-		err := s.currencyCodes.LoadItem(&f.Cryptocurrency[i])
+		crypto := f.Cryptocurrency[i]
+		crypto.Role = Cryptocurrency
+		err := s.currencyCodes.LoadItem(&crypto)
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := range f.Token {
-		err := s.currencyCodes.LoadItem(&f.Token[i])
+		token := f.Token[i]
+		token.Role = Token
+		err := s.currencyCodes.LoadItem(&token)
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := range f.FiatCurrency {
-		err := s.currencyCodes.LoadItem(&f.FiatCurrency[i])
+		fiat := f.FiatCurrency[i]
+		fiat.Role = Fiat
+		err := s.currencyCodes.LoadItem(&fiat)
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := range f.UnsetCurrency {
-		err := s.currencyCodes.LoadItem(&f.UnsetCurrency[i])
+		unset := f.UnsetCurrency[i]
+		unset.Role = Unset
+		err := s.currencyCodes.LoadItem(&unset)
 		if err != nil {
 			return err
 		}
