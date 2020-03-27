@@ -511,20 +511,6 @@ func TestWsTransferFunds(t *testing.T) {
 	}
 }
 
-// TestWsCreateSuUserKey ws test
-func TestWsCreateSuUserKey(t *testing.T) {
-	setupWsAuth(t)
-	subUsers, err := z.wsGetSubUserList()
-	if err != nil {
-		t.Fatal(err)
-	}
-	userID := subUsers.Message[0].UserID
-	_, err = z.wsCreateSubUserKey(true, true, true, true, "subu", strconv.FormatInt(userID, 10))
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
 // TestGetSubUserList ws test
 func TestGetSubUserList(t *testing.T) {
 	setupWsAuth(t)
@@ -538,6 +524,23 @@ func TestGetSubUserList(t *testing.T) {
 func TestAddSubUser(t *testing.T) {
 	setupWsAuth(t)
 	_, err := z.wsAddSubUser("1", "123456789101112aA!")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestWsCreateSuUserKey ws test
+func TestWsCreateSuUserKey(t *testing.T) {
+	setupWsAuth(t)
+	subUsers, err := z.wsGetSubUserList()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(subUsers.Message) == 0 {
+		t.Skip("User ID required for test to continue. Create a subuser first")
+	}
+	userID := subUsers.Message[0].UserID
+	_, err = z.wsCreateSubUserKey(true, true, true, true, "subu", strconv.FormatInt(userID, 10))
 	if err != nil {
 		t.Fatal(err)
 	}
