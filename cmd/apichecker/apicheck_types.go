@@ -81,13 +81,16 @@ type MembersData struct {
 
 // Config is a format for storing update data
 type Config struct {
-	CardID      string         `json:"CardID"`
-	ChecklistID string         `json:"ChecklistID"`
-	ListID      string         `json:"ListID"`
-	BoardID     string         `json:"BoardID"`
-	Key         string         `json:"Key"`
-	Token       string         `json:"Token"`
-	Exchanges   []ExchangeInfo `json:"Exchanges"`
+	CardID              string `json:"CardID"`
+	ChecklistID         string `json:"ChecklistID"`
+	ListID              string `json:"ListID"`
+	BoardID             string `json:"BoardID"`
+	Key                 string `json:"Key"`
+	Token               string `json:"Token"`
+	CreateCardName      string
+	CreateListName      string
+	CreateChecklistName string
+	Exchanges           []ExchangeInfo `json:"Exchanges"`
 }
 
 // TrelloData stores data on a given item (board, list, card)

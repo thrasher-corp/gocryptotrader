@@ -1472,8 +1472,12 @@ func trelloCreateNewList() error {
 		return errors.New("trelloBoardID not set, cannot create a new list")
 	}
 	var resp interface{}
+	listName := createList
+	if configData.CreateListName != "" {
+		listName = configData.CreateListName
+	}
 	err := sendAuthReq(http.MethodPost,
-		fmt.Sprintf(pathNewList, createList, trelloBoardID, apiKey, apiToken),
+		fmt.Sprintf(pathNewList, listName, trelloBoardID, apiKey, apiToken),
 		&resp)
 	if err != nil {
 		return err
@@ -1483,7 +1487,7 @@ func trelloCreateNewList() error {
 		return err
 	}
 	for x := range lists {
-		if lists[x].Name != createList {
+		if lists[x].Name != listName {
 			continue
 		}
 		trelloListID = lists[x].ID
@@ -1520,8 +1524,12 @@ func trelloCreateNewCard() error {
 		return errors.New("trelloListID not set, cannot create a new checklist")
 	}
 	var resp interface{}
+	cardName := createCard
+	if configData.CreateCardName != "" {
+		cardName = configData.CreateCardName
+	}
 	err := sendAuthReq(http.MethodPost,
-		fmt.Sprintf(pathNewCard, trelloListID, createCard, apiKey, apiToken),
+		fmt.Sprintf(pathNewCard, trelloListID, cardName, apiKey, apiToken),
 		&resp)
 	if err != nil {
 		return err
@@ -1531,7 +1539,7 @@ func trelloCreateNewCard() error {
 		return err
 	}
 	for x := range cards {
-		if cards[x].Name != createCard {
+		if cards[x].Name != cardName {
 			continue
 		}
 		trelloCardID = cards[x].ID
@@ -1557,8 +1565,12 @@ func trelloCreateNewChecklist() error {
 		return errors.New("apikeys or trelloCardID not set, cannot create a new checklist")
 	}
 	var resp interface{}
+	checklistName := createChecklist
+	if configData.CreateChecklistName != "" {
+		checklistName = configData.CreateChecklistName
+	}
 	err := sendAuthReq(http.MethodPost,
-		fmt.Sprintf(pathNewChecklist, trelloCardID, createChecklist, apiKey, apiToken),
+		fmt.Sprintf(pathNewChecklist, trelloCardID, checklistName, apiKey, apiToken),
 		&resp)
 	if err != nil {
 		return err
@@ -1568,7 +1580,7 @@ func trelloCreateNewChecklist() error {
 		return err
 	}
 	for x := range checklists {
-		if checklists[x].Name != createChecklist {
+		if checklists[x].Name != checklistName {
 			continue
 		}
 		trelloChecklistID = checklists[x].ID

@@ -5,6 +5,9 @@
  "BoardID": "",
  "Key": "",
  "Token": "",
+ "CreateCardName": "",
+ "CreateListName": "",
+ "CreateChecklistName": "",
  "Exchanges": [
   {
    "Name": "Huobi",
@@ -48,7 +51,7 @@
    "Data": {
     "GitHubData": {
      "Repo": "binance-exchange/binance-official-api-docs",
-     "Sha": "58d1858922b324aaa43bbb4a43f036a4b5b4e636"
+     "Sha": "4878d48adc0075669ba85033b0e2d40c2876cf56"
     }
    },
    "Disabled": false
@@ -114,7 +117,7 @@
    "Data": {
     "GitHubData": {
      "Repo": "gateio/gateapi-go",
-     "Sha": "5a6c4c73eb1d558ab2fbecf10c990e360883a080"
+     "Sha": "81e2f1bb92c5406853139ae054bbda599483e127"
     }
    },
    "Disabled": false
@@ -188,7 +191,7 @@
      "TextTokenData": "h2",
      "DateFormat": "2006-01-02",
      "RegExp": "(2\\d{3}-\\d{1,2}-\\d{1,2})",
-     "CheckString": "2020-03-12",
+     "CheckString": "2020-03-24",
      "Path": "https://docs.poloniex.com/#changelog"
     }
    },

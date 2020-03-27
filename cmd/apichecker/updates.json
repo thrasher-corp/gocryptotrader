@@ -5,6 +5,9 @@
  "BoardID": "",
  "Key": "",
  "Token": "",
+ "CreateCardName": "",
+ "CreateListName": "",
+ "CreateChecklistName": "",
  "Exchanges": [
   {
    "Name": "Huobi",
@@ -48,7 +51,7 @@
    "Data": {
     "GitHubData": {
      "Repo": "binance-exchange/binance-official-api-docs",
-     "Sha": "4878d48adc007566ba85033b0e2d40c2876cf56"
+     "Sha": "4878d48adc0075669ba85033b0e2d40c2876cf56"
     }
    },
    "Disabled": false
@@ -59,7 +62,7 @@
    "Data": {
     "GitHubData": {
      "Repo": "bithumb-pro/bithumb.pro-official-api-docs",
-     "Sha": "62935027736ab4971491978225ef4d104bdff31"
+     "Sha": "6293502c7736ab4971491978225ef4d104bdff31"
     }
    },
    "Disabled": false
