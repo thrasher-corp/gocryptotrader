@@ -1452,6 +1452,9 @@ func trelloGetBoardID() (string, error) {
 	var resp []TrelloData
 	err := sendGetReq(fmt.Sprintf(pathCheckBoardID, apiKey, apiToken),
 		&resp)
+	if err != nil {
+		return "", err
+	}
 	for x := range resp {
 		if resp[x].Name == trelloBoardName {
 			return resp[x].ID, err
