@@ -58,20 +58,9 @@ func (b *BTCMarkets) SetDefaults() {
 	b.API.Endpoints.URLDefault = btcMarketsAPIURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
 
-	b.CurrencyPairs = currency.PairsManager{
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Delimiter: "-",
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: "-",
-			Uppercase: true,
-		},
-		Pairs: map[asset.Item]*currency.PairStore{
-			asset.Spot: new(currency.PairStore),
-		},
-	}
+	requestFmt := &currency.PairFormat{Delimiter: currency.Dash, Uppercase: true}
+	configFmt := &currency.PairFormat{Delimiter: currency.Dash, Uppercase: true}
+	b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

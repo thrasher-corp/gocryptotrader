@@ -56,21 +56,16 @@ func (e *EXMO) SetDefaults() {
 	e.API.CredentialsValidator.RequiresKey = true
 	e.API.CredentialsValidator.RequiresSecret = true
 
-	e.CurrencyPairs = currency.PairsManager{
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Delimiter: "_",
-			Uppercase: true,
-			Separator: ",",
-		},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: "_",
-			Uppercase: true,
-		},
-		Pairs: map[asset.Item]*currency.PairStore{
-			asset.Spot: new(currency.PairStore),
-		},
+	requestFmt := &currency.PairFormat{
+		Delimiter: currency.Underscore,
+		Uppercase: true,
+		Separator: ",",
 	}
+	configFmt := &currency.PairFormat{
+		Delimiter: currency.Underscore,
+		Uppercase: true,
+	}
+	e.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 
 	e.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

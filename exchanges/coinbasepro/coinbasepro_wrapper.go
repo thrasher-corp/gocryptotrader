@@ -57,20 +57,9 @@ func (c *CoinbasePro) SetDefaults() {
 	c.API.CredentialsValidator.RequiresClientID = true
 	c.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 
-	c.CurrencyPairs = currency.PairsManager{
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Delimiter: "-",
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: "-",
-			Uppercase: true,
-		},
-		Pairs: map[asset.Item]*currency.PairStore{
-			asset.Spot: new(currency.PairStore),
-		},
-	}
+	requestFmt := &currency.PairFormat{Delimiter: currency.Dash, Uppercase: true}
+	configFmt := &currency.PairFormat{Delimiter: currency.Dash, Uppercase: true}
+	c.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 
 	c.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

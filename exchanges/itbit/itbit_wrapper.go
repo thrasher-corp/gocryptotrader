@@ -56,18 +56,9 @@ func (i *ItBit) SetDefaults() {
 	i.API.CredentialsValidator.RequiresClientID = true
 	i.API.CredentialsValidator.RequiresSecret = true
 
-	i.CurrencyPairs = currency.PairsManager{
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		Pairs: map[asset.Item]*currency.PairStore{
-			asset.Spot: new(currency.PairStore),
-		},
-	}
+	requestFmt := &currency.PairFormat{Uppercase: true}
+	configFmt := &currency.PairFormat{Uppercase: true}
+	i.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 
 	i.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

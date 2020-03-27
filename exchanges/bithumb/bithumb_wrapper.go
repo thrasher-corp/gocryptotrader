@@ -56,19 +56,9 @@ func (b *Bithumb) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
-	b.CurrencyPairs = currency.PairsManager{
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Index:     "KRW",
-		},
-		Pairs: map[asset.Item]*currency.PairStore{
-			asset.Spot: new(currency.PairStore),
-		},
-	}
+	requestFmt := &currency.PairFormat{Uppercase: true}
+	configFmt := &currency.PairFormat{Uppercase: true, Index: "KRW"}
+	b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

@@ -56,19 +56,9 @@ func (z *ZB) SetDefaults() {
 	z.API.CredentialsValidator.RequiresKey = true
 	z.API.CredentialsValidator.RequiresSecret = true
 
-	z.CurrencyPairs = currency.PairsManager{
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Delimiter: "_",
-		},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: "_",
-			Uppercase: true,
-		},
-		Pairs: map[asset.Item]*currency.PairStore{
-			asset.Spot: new(currency.PairStore),
-		},
-	}
+	requestFmt := &currency.PairFormat{Delimiter: currency.Underscore}
+	configFmt := &currency.PairFormat{Delimiter: currency.Underscore, Uppercase: true}
+	z.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 
 	z.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

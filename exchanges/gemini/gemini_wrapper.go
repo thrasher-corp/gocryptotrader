@@ -56,18 +56,9 @@ func (g *Gemini) SetDefaults() {
 	g.API.CredentialsValidator.RequiresKey = true
 	g.API.CredentialsValidator.RequiresSecret = true
 
-	g.CurrencyPairs = currency.PairsManager{
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		Pairs: map[asset.Item]*currency.PairStore{
-			asset.Spot: new(currency.PairStore),
-		},
-	}
+	requestFmt := &currency.PairFormat{Uppercase: true}
+	configFmt := &currency.PairFormat{Uppercase: true}
+	g.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 
 	g.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

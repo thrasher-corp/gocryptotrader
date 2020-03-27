@@ -56,19 +56,9 @@ func (h *HitBTC) SetDefaults() {
 	h.API.CredentialsValidator.RequiresKey = true
 	h.API.CredentialsValidator.RequiresSecret = true
 
-	h.CurrencyPairs = currency.PairsManager{
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: "-",
-			Uppercase: true,
-		},
-		Pairs: map[asset.Item]*currency.PairStore{
-			asset.Spot: new(currency.PairStore),
-		},
-	}
+	requestFmt := &currency.PairFormat{Uppercase: true}
+	configFmt := &currency.PairFormat{Delimiter: currency.Dash, Uppercase: true}
+	h.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 
 	h.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

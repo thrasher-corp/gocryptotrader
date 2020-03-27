@@ -56,18 +56,9 @@ func (l *LakeBTC) SetDefaults() {
 	l.API.CredentialsValidator.RequiresKey = true
 	l.API.CredentialsValidator.RequiresSecret = true
 
-	l.CurrencyPairs = currency.PairsManager{
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		Pairs: map[asset.Item]*currency.PairStore{
-			asset.Spot: new(currency.PairStore),
-		},
-	}
+	requestFmt := &currency.PairFormat{Uppercase: true}
+	configFmt := &currency.PairFormat{Uppercase: true}
+	l.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 
 	l.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

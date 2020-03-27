@@ -55,34 +55,13 @@ func (b *Bitmex) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
-	b.CurrencyPairs = currency.PairsManager{}
-
-	// Same format used for perpetual contracts and futures
-	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-	}
-	b.CurrencyPairs.Store(asset.PerpetualContract, fmt1)
-	b.CurrencyPairs.Store(asset.Futures, fmt1)
-	b.CurrencyPairs.Store(asset.Index, fmt1)
-
-	// Upside and Downside profit contracts use the same format
-	fmt2 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Delimiter: "_",
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: "_",
-			Uppercase: true,
-		},
-	}
-	b.CurrencyPairs.Store(asset.DownsideProfitContract, fmt2)
-	b.CurrencyPairs.Store(asset.UpsideProfitContract, fmt2)
+	requestFmt := &currency.PairFormat{Uppercase: true}
+	configFmt := &currency.PairFormat{Uppercase: true}
+	b.SetGlobalPairsManager(requestFmt,
+		configFmt,
+		asset.PerpetualContract,
+		asset.Futures,
+		asset.Index)
 
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

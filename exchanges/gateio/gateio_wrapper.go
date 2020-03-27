@@ -57,19 +57,9 @@ func (g *Gateio) SetDefaults() {
 	g.API.CredentialsValidator.RequiresKey = true
 	g.API.CredentialsValidator.RequiresSecret = true
 
-	g.CurrencyPairs = currency.PairsManager{
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Delimiter: "_",
-		},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: "_",
-			Uppercase: true,
-		},
-		Pairs: map[asset.Item]*currency.PairStore{
-			asset.Spot: new(currency.PairStore),
-		},
-	}
+	requestFmt := &currency.PairFormat{Delimiter: currency.Underscore}
+	configFmt := &currency.PairFormat{Delimiter: currency.Underscore, Uppercase: true}
+	g.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 
 	g.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

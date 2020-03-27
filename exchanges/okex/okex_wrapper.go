@@ -20,11 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-const (
-	delimiterDash       = "-"
-	delimiterUnderscore = "_"
-)
-
 // GetDefaultConfig returns a default exchange config
 func (o *OKEX) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	o.SetDefaults()
@@ -59,25 +54,24 @@ func (o *OKEX) SetDefaults() {
 	o.API.CredentialsValidator.RequiresSecret = true
 	o.API.CredentialsValidator.RequiresClientID = true
 
-	o.CurrencyPairs = currency.PairsManager{}
 	// Same format used for perpetual swap and futures
 	fmt1 := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: delimiterDash,
+			Delimiter: currency.Dash,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: delimiterUnderscore,
+			Delimiter: currency.Underscore,
 		},
 	}
-	o.CurrencyPairs.Store(asset.PerpetualSwap, fmt1)
-	o.CurrencyPairs.Store(asset.Futures, fmt1)
+	o.StoreAssetPairFormat(asset.PerpetualSwap, fmt1)
+	o.StoreAssetPairFormat(asset.Futures, fmt1)
 
 	index := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: delimiterDash,
+			Delimiter: currency.Dash,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
@@ -87,15 +81,15 @@ func (o *OKEX) SetDefaults() {
 	spot := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: delimiterDash,
+			Delimiter: currency.Dash,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: delimiterDash,
+			Delimiter: currency.Dash,
 		},
 	}
-	o.CurrencyPairs.Store(asset.Spot, spot)
-	o.CurrencyPairs.Store(asset.Index, index)
+	o.StoreAssetPairFormat(asset.Spot, spot)
+	o.StoreAssetPairFormat(asset.Index, index)
 
 	o.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
@@ -276,8 +270,8 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 		}
 
 		for x := range prods {
-			p := strings.Split(prods[x].InstrumentID, delimiterDash)
-			pairs = append(pairs, p[0]+delimiterDash+p[1]+format.Delimiter+p[2])
+			p := strings.Split(prods[x].InstrumentID, currency.Dash)
+			pairs = append(pairs, p[0]+currency.Dash+p[1]+format.Delimiter+p[2])
 		}
 		return pairs, nil
 
@@ -290,7 +284,7 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 		for x := range prods {
 			pairs = append(pairs,
 				prods[x].UnderlyingIndex+
-					delimiterDash+
+					currency.Dash+
 					prods[x].QuoteCurrency+
 					format.Delimiter+
 					"SWAP")
@@ -322,7 +316,7 @@ func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
 		if assets[x] == asset.Futures {
 			var indexPairs []string
 			for i := range pairs {
-				item := strings.Split(pairs[i], delimiterUnderscore)[0]
+				item := strings.Split(pairs[i], currency.Underscore)[0]
 				if common.StringDataContains(indexPairs, item) {
 					continue
 				}
@@ -403,10 +397,10 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 		}
 
 		for j := range resp {
-			p := strings.Split(resp[j].InstrumentID, delimiterDash)
-			nC := currency.NewPairWithDelimiter(p[0]+delimiterDash+p[1],
+			p := strings.Split(resp[j].InstrumentID, currency.Dash)
+			nC := currency.NewPairWithDelimiter(p[0]+currency.Dash+p[1],
 				p[2],
-				delimiterUnderscore)
+				currency.Underscore)
 			if !enabled.Contains(nC, true) {
 				continue
 			}
@@ -439,10 +433,10 @@ func (o *OKEX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pric
 		}
 
 		for j := range resp {
-			p := strings.Split(resp[j].InstrumentID, delimiterDash)
-			nC := currency.NewPairWithDelimiter(p[0]+delimiterDash+p[1],
+			p := strings.Split(resp[j].InstrumentID, currency.Dash)
+			nC := currency.NewPairWithDelimiter(p[0]+currency.Dash+p[1],
 				p[2],
-				delimiterUnderscore)
+				currency.Underscore)
 			if !enabled.Contains(nC, true) {
 				continue
 			}

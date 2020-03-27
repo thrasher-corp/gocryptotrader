@@ -56,20 +56,16 @@ func (b *Binance) SetDefaults() {
 	b.API.CredentialsValidator.RequiresSecret = true
 	b.SetValues()
 
-	b.CurrencyPairs = currency.PairsManager{}
-
 	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
+		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat: &currency.PairFormat{
-			Delimiter: "-",
+			Delimiter: currency.Dash,
 			Uppercase: true,
 		},
 	}
 
-	b.CurrencyPairs.Store(asset.Spot, fmt1)
-	b.CurrencyPairs.Store(asset.Margin, fmt1)
+	b.StoreAssetPairFormat(asset.Spot, fmt1)
+	b.StoreAssetPairFormat(asset.Margin, fmt1)
 
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

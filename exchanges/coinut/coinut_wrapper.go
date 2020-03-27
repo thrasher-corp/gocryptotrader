@@ -57,19 +57,9 @@ func (c *COINUT) SetDefaults() {
 	c.API.CredentialsValidator.RequiresKey = true
 	c.API.CredentialsValidator.RequiresClientID = true
 
-	c.CurrencyPairs = currency.PairsManager{
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: "-",
-		},
-		Pairs: map[asset.Item]*currency.PairStore{
-			asset.Spot: new(currency.PairStore),
-		},
-	}
+	requestFmt := &currency.PairFormat{Uppercase: true}
+	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.Dash}
+	c.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 
 	c.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

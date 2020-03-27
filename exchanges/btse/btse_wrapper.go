@@ -56,8 +56,6 @@ func (b *BTSE) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
-	b.CurrencyPairs = currency.PairsManager{}
-
 	fmt1 := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
@@ -68,7 +66,7 @@ func (b *BTSE) SetDefaults() {
 			Delimiter: "-",
 		},
 	}
-	b.CurrencyPairs.Store(asset.Spot, fmt1)
+	b.StoreAssetPairFormat(asset.Spot, fmt1)
 
 	fmt2 := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
@@ -78,7 +76,7 @@ func (b *BTSE) SetDefaults() {
 			Uppercase: true,
 		},
 	}
-	b.CurrencyPairs.Store(asset.Futures, fmt2)
+	b.StoreAssetPairFormat(asset.Futures, fmt2)
 
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

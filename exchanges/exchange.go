@@ -899,3 +899,68 @@ func (e *Base) DisableRateLimiter() error {
 func (e *Base) EnableRateLimiter() error {
 	return e.Requester.EnableRateLimiter()
 }
+
+// StoreAssetPairFormat initialises and stores a defined asset format
+func (e *Base) StoreAssetPairFormat(a asset.Item, fmt currency.PairStore) {
+	if a.String() == "" {
+		log.Errorf(log.ExchangeSys,
+			"%s cannot add to pairs manager, no asset provided",
+			e.Name)
+		return
+	}
+
+	if fmt.RequestFormat == nil || fmt.ConfigFormat == nil {
+		log.Errorf(log.ExchangeSys,
+			"cannot add to pairs manager, request pair format not provided",
+			e.Name)
+		return
+	}
+
+	if e.CurrencyPairs.Pairs == nil {
+		e.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	}
+
+	e.CurrencyPairs.Pairs[a] = &fmt
+}
+
+// SetGlobalPairsManager sets defined asset and pairs management system with
+// with global formatting
+func (e *Base) SetGlobalPairsManager(request, config *currency.PairFormat, assets ...asset.Item) {
+	if request == nil {
+		log.Errorf(log.ExchangeSys,
+			"%s cannot set pairs manager, request pair format not provided",
+			e.Name)
+		return
+	}
+
+	if config == nil {
+		log.Errorf(log.ExchangeSys,
+			"%scannot set pairs manager, config pair format not provided",
+			e.Name)
+		return
+	}
+
+	if len(assets) == 0 {
+		log.Errorf(log.ExchangeSys,
+			"%scannot set pairs manager, no assets provided",
+			e.Name)
+		return
+	}
+
+	e.CurrencyPairs.UseGlobalFormat = true
+	e.CurrencyPairs.RequestFormat = request
+	e.CurrencyPairs.ConfigFormat = config
+
+	if e.CurrencyPairs.Pairs != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s cannot set pairs manager, pairs already set",
+			e.Name)
+		return
+	}
+
+	e.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+
+	for i := range assets {
+		e.CurrencyPairs.Pairs[assets[i]] = new(currency.PairStore)
+	}
+}

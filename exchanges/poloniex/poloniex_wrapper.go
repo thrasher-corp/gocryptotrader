@@ -55,20 +55,17 @@ func (p *Poloniex) SetDefaults() {
 	p.API.CredentialsValidator.RequiresKey = true
 	p.API.CredentialsValidator.RequiresSecret = true
 
-	p.CurrencyPairs = currency.PairsManager{
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Delimiter: delimiterUnderscore,
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: delimiterUnderscore,
-			Uppercase: true,
-		},
-		Pairs: map[asset.Item]*currency.PairStore{
-			asset.Spot: new(currency.PairStore),
-		},
+	requestFmt := &currency.PairFormat{
+		Delimiter: currency.Underscore,
+		Uppercase: true,
 	}
+
+	configFmt := &currency.PairFormat{
+		Delimiter: currency.Underscore,
+		Uppercase: true,
+	}
+
+	p.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 
 	p.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

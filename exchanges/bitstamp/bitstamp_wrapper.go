@@ -56,18 +56,9 @@ func (b *Bitstamp) SetDefaults() {
 	b.API.CredentialsValidator.RequiresSecret = true
 	b.API.CredentialsValidator.RequiresClientID = true
 
-	b.CurrencyPairs = currency.PairsManager{
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		Pairs: map[asset.Item]*currency.PairStore{
-			asset.Spot: new(currency.PairStore),
-		},
-	}
+	requestFmt := &currency.PairFormat{Uppercase: true}
+	configFmt := &currency.PairFormat{Uppercase: true}
+	b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

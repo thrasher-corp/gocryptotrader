@@ -54,26 +54,24 @@ func (c *Coinbene) SetDefaults() {
 	c.API.CredentialsValidator.RequiresKey = true
 	c.API.CredentialsValidator.RequiresSecret = true
 
-	c.CurrencyPairs = currency.PairsManager{}
-
-	c.CurrencyPairs.Store(asset.Spot, currency.PairStore{
+	c.StoreAssetPairFormat(asset.Spot, currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: "/",
+			Delimiter: currency.ForwardSlash,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: "/",
+			Delimiter: currency.ForwardSlash,
 		},
 	})
 
-	c.CurrencyPairs.Store(asset.PerpetualSwap, currency.PairStore{
+	c.StoreAssetPairFormat(asset.PerpetualSwap, currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: "/",
+			Delimiter: currency.ForwardSlash,
 		},
 	})
 

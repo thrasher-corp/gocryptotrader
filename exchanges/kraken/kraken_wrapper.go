@@ -57,21 +57,16 @@ func (k *Kraken) SetDefaults() {
 	k.API.CredentialsValidator.RequiresSecret = true
 	k.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 
-	k.CurrencyPairs = currency.PairsManager{
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-			Separator: ",",
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: "-",
-			Separator: ",",
-		},
-		Pairs: map[asset.Item]*currency.PairStore{
-			asset.Spot: new(currency.PairStore),
-		},
+	requestFmt := &currency.PairFormat{
+		Uppercase: true,
+		Separator: ",",
 	}
+	configFmt := &currency.PairFormat{
+		Uppercase: true,
+		Delimiter: currency.Dash,
+		Separator: ",",
+	}
+	k.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 
 	k.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

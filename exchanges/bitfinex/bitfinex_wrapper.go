@@ -56,30 +56,19 @@ func (b *Bitfinex) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
-	b.CurrencyPairs = currency.PairsManager{}
-
 	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 	}
 
 	fmt2 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: ":",
-		},
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
 	}
 
-	b.CurrencyPairs.Store(asset.Spot, fmt1)
-	b.CurrencyPairs.Store(asset.Margin, fmt2)
-	b.CurrencyPairs.Store(asset.MarginFunding, fmt1)
+	b.StoreAssetPairFormat(asset.Spot, fmt1)
+	b.StoreAssetPairFormat(asset.Margin, fmt2)
+	b.StoreAssetPairFormat(asset.MarginFunding, fmt1)
 
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

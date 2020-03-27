@@ -29,7 +29,6 @@ const (
 	wsTickerDataID           = 1002
 	ws24HourExchangeVolumeID = 1003
 	wsHeartbeat              = 1010
-	delimiterUnderscore      = "_"
 )
 
 var (
@@ -393,7 +392,7 @@ func (p *Poloniex) wsHandleTickerData(data []interface{}) error {
 	tickerData := data[2].([]interface{})
 	var t WsTicker
 	currencyPair := currency.NewPairDelimiter(currencyIDMap[tickerData[0].(float64)],
-		delimiterUnderscore)
+		currency.Underscore)
 
 	enabled, err := p.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -575,7 +574,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() {
 		return
 	}
 	for j := range enabledCurrencies {
-		enabledCurrencies[j].Delimiter = delimiterUnderscore
+		enabledCurrencies[j].Delimiter = currency.Underscore
 		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
 			Channel:  "orderbook",
 			Currency: enabledCurrencies[j],

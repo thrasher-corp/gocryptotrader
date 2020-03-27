@@ -53,21 +53,15 @@ func (b *Bitflyer) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
-	b.CurrencyPairs = currency.PairsManager{
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Delimiter: "_",
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: "_",
-			Uppercase: true,
-		},
-		Pairs: map[asset.Item]*currency.PairStore{
-			asset.Futures: new(currency.PairStore),
-			asset.Spot:    new(currency.PairStore),
-		},
+	requestFmt := &currency.PairFormat{
+		Delimiter: currency.Underscore,
+		Uppercase: true,
 	}
+	configFmt := &currency.PairFormat{
+		Delimiter: currency.Underscore,
+		Uppercase: true,
+	}
+	b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Futures)
 
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
