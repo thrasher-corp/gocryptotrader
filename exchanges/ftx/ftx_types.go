@@ -157,6 +157,7 @@ type FundingRates struct {
 type PositionData struct {
 	Cost                         float64 `json:"cost"`
 	EntryPrice                   float64 `json:"entryPrice"`
+	EstimatedLiquidationPrice    float64 `json:"estimatedLiquidationPrice"`
 	Future                       string  `json:"future"`
 	InitialMarginRequirement     float64 `json:"initialMarginRequirement"`
 	LongOrderSize                float64 `json:"longOrderSize"`
@@ -166,6 +167,7 @@ type PositionData struct {
 	RealisedPnL                  float64 `json:"realisedPnL"`
 	ShortOrderSide               float64 `json:"shortOrderSide"`
 	Side                         string  `json:"side"`
+	Size                         string  `json:"size"`
 	UnrealisedPnL                float64 `json:"unrealisedPnL"`
 }
 
@@ -192,4 +194,38 @@ type AccountInfoData struct {
 type AccountData struct {
 	Success bool            `json:"success"`
 	Result  AccountInfoData `json:"result"`
+}
+
+// Positions stores data about positions
+type Positions struct {
+	Success bool           `json:"success"`
+	Result  []PositionData `json:"result"`
+}
+
+// WalletCoinsData stores data about wallet coins
+type WalletCoinsData struct {
+	CanDeposit  bool   `json:"canDeposit"`
+	CanWithdraw bool   `json:"canWithdraw"`
+	HasTag      bool   `json:"hasTag"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+}
+
+// WalletCoins stores data about wallet coins
+type WalletCoins struct {
+	Success bool              `json:"success"`
+	Result  []WalletCoinsData `json:"result"`
+}
+
+// BalancesData stores balances data
+type BalancesData struct {
+	Coin  string  `json:"coin"`
+	Free  float64 `json:"free"`
+	Total float64 `json:"total"`
+}
+
+// WalletBalances stores data about wallet's balances
+type WalletBalances struct {
+	Success bool           `json:"success"`
+	Result  []BalancesData `json:"result"`
 }

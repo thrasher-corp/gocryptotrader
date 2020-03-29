@@ -1,8 +1,11 @@
 package ftx
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -37,6 +40,8 @@ const (
 
 	// Authenticated endpoints
 	getAccountInfo  = "/account"
+	getPositions    = "/positions"
+	setLeverage     = "/account/leverage"
 	ftxRateInterval = time.Minute
 	ftxRequestRate  = 180
 )
@@ -185,25 +190,52 @@ func (f *Ftx) SendHTTPRequest(path string, result interface{}) error {
 // GetAccountInfo gets account info
 func (f *Ftx) GetAccountInfo() (AccountData, error) {
 	var resp AccountData
-	return resp, f.SendAuthHTTPRequest(http.MethodGet, ftxAPIURL+getAccountInfo, nil, &resp)
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getAccountInfo, nil, &resp)
+}
+
+// GetPositions gets the users positions
+func (f *Ftx) GetPositions() (Positions, error) {
+	var resp Positions
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getPositions, nil, &resp)
+}
+
+// ChangeAccountLeverage changes default leverage used by account
+func (f *Ftx) ChangeAccountLeverage(leverage float64) error {
+	req := make(map[string]interface{})
+	req["leverage"] = leverage
+	return f.SendAuthHTTPRequest(http.MethodPost, setLeverage, req, nil)
 }
 
 // SendAuthHTTPRequest sends an authenticated request
 func (f *Ftx) SendAuthHTTPRequest(method, path string, data, result interface{}) error {
 	ts := strconv.FormatInt(int64(time.Now().UnixNano()/1000000), 10)
-	sigPayload := ts + method
-	log.Println(sigPayload)
-	hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
+	var body io.Reader
+	var hmac, payload []byte
+	var err error
+	switch data.(type) {
+	case map[string]interface{}, []interface{}:
+		payload, err = json.Marshal(data)
+		if err != nil {
+			return err
+		}
+		body = bytes.NewBuffer(payload)
+		log.Println(string(payload))
+		log.Println(body)
+		sigPayload := ts + method + "/api" + path + string(payload)
+		hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
+	default:
+		sigPayload := ts + method + "/api" + path
+		hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
+	}
 	headers := make(map[string]string)
 	headers["FTX-KEY"] = f.API.Credentials.Key
 	headers["FTX-SIGN"] = crypto.HexEncodeToString(hmac)
 	headers["FTX-TS"] = ts
-	log.Println(ts)
 	return f.SendPayload(&request.Item{
 		Method:        method,
 		Path:          ftxAPIURL + path,
 		Headers:       headers,
-		Body:          nil,
+		Body:          body,
 		Result:        result,
 		AuthRequest:   true,
 		NonceEnabled:  false,

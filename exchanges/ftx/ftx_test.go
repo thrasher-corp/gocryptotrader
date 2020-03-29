@@ -128,3 +128,18 @@ func TestGetAccountInfo(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetPositions(t *testing.T) {
+	a, err := f.GetPositions()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestChangeAccountLeverage(t *testing.T) {
+	err := f.ChangeAccountLeverage(10)
+	if err != nil {
+		t.Error(err)
+	}
+}
