@@ -12,6 +12,8 @@ import (
 	"github.com/thrasher-corp/go-talib/indicators"
 )
 
+const errFailedConversion = "0 failed conversion"
+
 var (
 	ohlcvData = &objects.Array{}
 )
@@ -46,7 +48,7 @@ func TestMfi(t *testing.T) {
 	v := &objects.String{Value: "Hello"}
 	_, err = mfi(ohlcvData, v)
 	if err != nil {
-		if err.Error() != "0 failed conversion" {
+		if err.Error() != errFailedConversion {
 			t.Error(err)
 		}
 	}
@@ -69,7 +71,7 @@ func TestRsi(t *testing.T) {
 	v := &objects.String{Value: "Hello"}
 	_, err = rsi(ohlcvData, v)
 	if err != nil {
-		if err.Error() != "0 failed conversion" {
+		if err.Error() != errFailedConversion {
 			t.Error(err)
 		}
 	}
@@ -92,7 +94,7 @@ func TestEMA(t *testing.T) {
 	v := &objects.String{Value: "Hello"}
 	_, err = ema(ohlcvData, v)
 	if err != nil {
-		if err.Error() != "0 failed conversion" {
+		if err.Error() != errFailedConversion {
 			t.Error(err)
 		}
 	}
@@ -115,7 +117,7 @@ func TestSMA(t *testing.T) {
 	v := &objects.String{Value: "Hello"}
 	_, err = sma(ohlcvData, v)
 	if err != nil {
-		if err.Error() != "0 failed conversion" {
+		if err.Error() != errFailedConversion {
 			t.Error(err)
 		}
 	}
@@ -138,7 +140,7 @@ func TestMACD(t *testing.T) {
 	v := &objects.String{Value: "Hello"}
 	_, err = macd(ohlcvData, &objects.Int{Value: 12}, &objects.Int{Value: 26}, v)
 	if err != nil {
-		if err.Error() != "0 failed conversion" {
+		if err.Error() != errFailedConversion {
 			t.Error(err)
 		}
 	}
@@ -161,7 +163,7 @@ func TestAtr(t *testing.T) {
 	v := &objects.String{Value: "Hello"}
 	_, err = atr(ohlcvData, v)
 	if err != nil {
-		if err.Error() != "0 failed conversion" {
+		if err.Error() != errFailedConversion {
 			t.Error(err)
 		}
 	}
