@@ -331,20 +331,33 @@ func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
 
 		if assets[x] == asset.Futures {
 			var indexPairs []string
+			var futuresContracts []string
 			for i := range pairs {
 				item := strings.Split(pairs[i], currency.Underscore)[0]
+				futuresContracts = append(futuresContracts, pairs[i])
 				if common.StringDataContains(indexPairs, item) {
 					continue
 				}
 				indexPairs = append(indexPairs, item)
 			}
-			var p currency.Pairs
-			p, err = currency.NewPairsFromStrings(indexPairs)
+			var indexPair currency.Pairs
+			indexPair, err = currency.NewPairsFromStrings(indexPairs)
 			if err != nil {
 				return err
 			}
 
-			err = o.UpdatePairs(p, asset.Index, false, forceUpdate)
+			err = o.UpdatePairs(indexPair, asset.Index, false, forceUpdate)
+			if err != nil {
+				return err
+			}
+
+			var futurePairs currency.Pairs
+			for i := range futuresContracts {
+				c := currency.NewPairDelimiter(futuresContracts[i], currency.Underscore)
+				futurePairs = append(futurePairs, c)
+			}
+
+			err = o.UpdatePairs(futurePairs, asset.Futures, false, forceUpdate)
 			if err != nil {
 				return err
 			}
