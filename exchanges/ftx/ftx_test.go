@@ -138,7 +138,43 @@ func TestGetPositions(t *testing.T) {
 }
 
 func TestChangeAccountLeverage(t *testing.T) {
-	err := f.ChangeAccountLeverage(10)
+	f.Verbose = true
+	err := f.ChangeAccountLeverage(50)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCoins(t *testing.T) {
+	a, err := f.GetCoins()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetBalances(t *testing.T) {
+	f.Verbose = true
+	a, err := f.GetBalances()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAllWalletBalances(t *testing.T) {
+	f.Verbose = true
+	a, err := f.GetAllWalletBalances()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFetchDepositAddress(t *testing.T) {
+	f.Verbose = true
+	a, err := f.FetchDepositAddress("")
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}

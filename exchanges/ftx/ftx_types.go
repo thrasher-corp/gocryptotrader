@@ -229,3 +229,27 @@ type WalletBalances struct {
 	Success bool           `json:"success"`
 	Result  []BalancesData `json:"result"`
 }
+
+// AllWalletAccountData stores account data on all WalletCoins
+type AllWalletAccountData struct {
+	Main         []BalancesData `json:"main"`
+	BattleRoyale []BalancesData `json:"Battle Royale"`
+}
+
+// AllWalletBalances stores data about all account balances including sub acconuts
+type AllWalletBalances struct {
+	Success bool                 `json:"success"`
+	Result  AllWalletAccountData `json:"result"`
+}
+
+// DepositData stores deposit address data
+type DepositData struct {
+	Address string `json:"address"`
+	Tag     string `json:"tag"`
+}
+
+// DepositAddress stores deposit address data of a given coin
+type DepositAddress struct {
+	Success bool        `json:"success"`
+	Result  DepositData `json:"result"`
+}

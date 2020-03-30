@@ -28,22 +28,26 @@ const (
 
 	// Public endpoints
 
-	getMarkets        = "/markets"
-	getMarket         = "/markets/%s"
-	getOrderbook      = "/markets/%s/orderbook?depth=%s"
-	getTrades         = "/markets/%s/trades?"
-	getHistoricalData = "/markets/%s/candles?"
-	getFutures        = "/futures"
-	getFuture         = "/futures/%s"
-	getFutureStats    = "/futures/%s/stats"
-	getFundingRates   = "/funding_rates"
+	getMarkets           = "/markets"
+	getMarket            = "/markets/%s"
+	getOrderbook         = "/markets/%s/orderbook?depth=%s"
+	getTrades            = "/markets/%s/trades?"
+	getHistoricalData    = "/markets/%s/candles?"
+	getFutures           = "/futures"
+	getFuture            = "/futures/%s"
+	getFutureStats       = "/futures/%s/stats"
+	getFundingRates      = "/funding_rates"
+	getAllWalletBalances = "/wallet/all_balances"
 
 	// Authenticated endpoints
-	getAccountInfo  = "/account"
-	getPositions    = "/positions"
-	setLeverage     = "/account/leverage"
-	ftxRateInterval = time.Minute
-	ftxRequestRate  = 180
+	getAccountInfo    = "/account"
+	getPositions      = "/positions"
+	setLeverage       = "/account/leverage"
+	getCoins          = "/wallet/coins"
+	getBalances       = "/wallet/balances"
+	getDepositAddress = "/wallet/deposit_address/%s"
+	ftxRateInterval   = time.Minute
+	ftxRequestRate    = 180
 )
 
 // Start implementing public and private exchange API funcs below
@@ -206,6 +210,30 @@ func (f *Ftx) ChangeAccountLeverage(leverage float64) error {
 	return f.SendAuthHTTPRequest(http.MethodPost, setLeverage, req, nil)
 }
 
+// GetCoins gets coins' data in the account wallet
+func (f *Ftx) GetCoins() (WalletCoins, error) {
+	var resp WalletCoins
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getCoins, nil, &resp)
+}
+
+// GetBalances gets balances of the account
+func (f *Ftx) GetBalances() (WalletBalances, error) {
+	var resp WalletBalances
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getBalances, nil, &resp)
+}
+
+// GetAllWalletBalances gets all wallets' balances
+func (f *Ftx) GetAllWalletBalances() (AllWalletBalances, error) {
+	var resp AllWalletBalances
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getAllWalletBalances, nil, &resp)
+}
+
+// FetchDepositAddress gets deposit address for a given coin
+func (f *Ftx) FetchDepositAddress(coin string) (DepositAddress, error) {
+	var resp DepositAddress
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, fmt.Sprintf(getDepositAddress, coin), nil, &resp)
+}
+
 // SendAuthHTTPRequest sends an authenticated request
 func (f *Ftx) SendAuthHTTPRequest(method, path string, data, result interface{}) error {
 	ts := strconv.FormatInt(int64(time.Now().UnixNano()/1000000), 10)
@@ -219,8 +247,6 @@ func (f *Ftx) SendAuthHTTPRequest(method, path string, data, result interface{})
 			return err
 		}
 		body = bytes.NewBuffer(payload)
-		log.Println(string(payload))
-		log.Println(body)
 		sigPayload := ts + method + "/api" + path + string(payload)
 		hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
 	default:
@@ -231,6 +257,7 @@ func (f *Ftx) SendAuthHTTPRequest(method, path string, data, result interface{})
 	headers["FTX-KEY"] = f.API.Credentials.Key
 	headers["FTX-SIGN"] = crypto.HexEncodeToString(hmac)
 	headers["FTX-TS"] = ts
+	headers["Content-Type"] = "application/json"
 	return f.SendPayload(&request.Item{
 		Method:        method,
 		Path:          ftxAPIURL + path,
