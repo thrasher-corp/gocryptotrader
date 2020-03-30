@@ -253,3 +253,35 @@ type DepositAddress struct {
 	Success bool        `json:"success"`
 	Result  DepositData `json:"result"`
 }
+
+// TransactionData stores data about deposit history
+type TransactionData struct {
+	Coin          string  `json:"coin"`
+	Confirmations int64   `json:"conformations"`
+	ConfirmedTime string  `json:"confirmedTime"`
+	Fee           float64 `json:"fee"`
+	ID            int64   `json:"id"`
+	SentTime      string  `json:"sentTime"`
+	Size          float64 `json:"size"`
+	Status        string  `json:"status"`
+	Time          string  `json:"time"`
+	TxID          string  `json:"txid"`
+}
+
+// DepositHistory stores deposit history data
+type DepositHistory struct {
+	Success bool              `json:"success"`
+	Result  []TransactionData `json:"result"`
+}
+
+// WithdrawalHistory stores withdrawal data
+type WithdrawalHistory struct {
+	Success bool              `json:"success"`
+	Result  []TransactionData `json:"result"`
+}
+
+// WithdrawData stores withdraw request data
+type WithdrawData struct {
+	Success bool            `json:"success"`
+	Result  TransactionData `json:"result"`
+}

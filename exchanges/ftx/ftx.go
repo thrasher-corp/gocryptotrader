@@ -40,14 +40,17 @@ const (
 	getAllWalletBalances = "/wallet/all_balances"
 
 	// Authenticated endpoints
-	getAccountInfo    = "/account"
-	getPositions      = "/positions"
-	setLeverage       = "/account/leverage"
-	getCoins          = "/wallet/coins"
-	getBalances       = "/wallet/balances"
-	getDepositAddress = "/wallet/deposit_address/%s"
-	ftxRateInterval   = time.Minute
-	ftxRequestRate    = 180
+	getAccountInfo       = "/account"
+	getPositions         = "/positions"
+	setLeverage          = "/account/leverage"
+	getCoins             = "/wallet/coins"
+	getBalances          = "/wallet/balances"
+	getDepositAddress    = "/wallet/deposit_address/%s"
+	getDepositHistory    = "/wallet/deposits"
+	getWithdrawalHistory = "/wallet/withdrawals"
+	withdrawRequest      = "/wallet/withdrawals"
+	ftxRateInterval      = time.Minute
+	ftxRequestRate       = 180
 )
 
 // Start implementing public and private exchange API funcs below
@@ -232,6 +235,28 @@ func (f *Ftx) GetAllWalletBalances() (AllWalletBalances, error) {
 func (f *Ftx) FetchDepositAddress(coin string) (DepositAddress, error) {
 	var resp DepositAddress
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, fmt.Sprintf(getDepositAddress, coin), nil, &resp)
+}
+
+// FetchDepositHistory gets deposit history
+func (f *Ftx) FetchDepositHistory() (DepositHistory, error) {
+	var resp DepositHistory
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getDepositHistory, nil, &resp)
+}
+
+// FetchWithdrawalHistory gets withdrawal history
+func (f *Ftx) FetchWithdrawalHistory() (WithdrawalHistory, error) {
+	var resp WithdrawalHistory
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getWithdrawalHistory, nil, &resp)
+}
+
+// Withdraw sends a withdrawal request
+func (f *Ftx) Withdraw(coin, address, tag, password string, size float64) (WithdrawData, error) {
+	var resp WithdrawData
+	req := make(map[string]interface{})
+	req["coin"] = coin
+	req["address"] = address
+	req["tag"] = tag
+	return resp, nil
 }
 
 // SendAuthHTTPRequest sends an authenticated request

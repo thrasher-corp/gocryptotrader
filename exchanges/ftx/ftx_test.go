@@ -173,7 +173,25 @@ func TestGetAllWalletBalances(t *testing.T) {
 
 func TestFetchDepositAddress(t *testing.T) {
 	f.Verbose = true
-	a, err := f.FetchDepositAddress("")
+	a, err := f.FetchDepositAddress("TUSD")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFetchDepositHistory(t *testing.T) {
+	f.Verbose = true
+	a, err := f.FetchDepositHistory()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFetchWithdrawalHistory(t *testing.T) {
+	f.Verbose = true
+	a, err := f.FetchWithdrawalHistory()
 	t.Log(a)
 	if err != nil {
 		t.Error(err)
