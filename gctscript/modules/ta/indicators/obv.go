@@ -24,11 +24,6 @@ func obv(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, ohlcIndicatorType)
 	}
 
-	selector, err := ParseIndicatorSelector(ohlcIndicatorType)
-	if err != nil {
-		return nil, err
-	}
-
 	ohlcvInput := objects.ToInterface(args[1])
 	ohlcvInputData, valid := ohlcvInput.([]interface{})
 	if !valid {
@@ -78,7 +73,7 @@ func obv(args ...objects.Object) (objects.Object, error) {
 
 	var ret []float64
 	if validator.IsTestExecution.Load() != true {
-		ret = indicators.OBV(ohclvData, selector, false)
+		ret = indicators.OBV(ohclvData, false)
 	}
 	r := &objects.Array{}
 	for x := range ret {
