@@ -303,6 +303,14 @@ func TestParseInterval(t *testing.T) {
 		t.Fatalf("unexpected value return expected %v received %v", time.Hour*72, v)
 	}
 
+	v, err = parseInterval("4w")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v != time.Hour*672 {
+		t.Fatalf("unexpected value return expected %v received %v", time.Hour*72, v)
+	}
+
 	_, err = parseInterval("6m")
 	if err != nil {
 		if !errors.Is(err, errInvalidInterval) {
