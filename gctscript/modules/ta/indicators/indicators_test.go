@@ -149,6 +149,90 @@ func TestMACD(t *testing.T) {
 	}
 }
 
+func TestAtr(t *testing.T) {
+	t.Parallel()
+	_, err := atr()
+	if err != nil {
+		if !errors.Is(err, objects.ErrWrongNumArguments) {
+			t.Error(err)
+		}
+	}
+
+	v := &objects.String{Value: "Hello"}
+	_, err = atr(ohlcvData, v)
+	if err != nil {
+		if err.Error() != "0 failed conversion" {
+			t.Error(err)
+		}
+	}
+
+	_, err = atr(ohlcvData, &objects.Int{Value: 14})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestBbands(t *testing.T) {
+	t.Parallel()
+	_, err := bbands()
+	if err != nil {
+		if !errors.Is(err, objects.ErrWrongNumArguments) {
+			t.Error(err)
+		}
+	}
+
+	_, err = bbands(&objects.String{Value: "Hello"}, ohlcvData,
+		&objects.Int{Value: 5},
+		&objects.Float{Value: 2.0},
+		&objects.Float{Value: 2.0},
+		&objects.String{Value: "sma"})
+	if err != nil {
+		if err != errInvalidSelector {
+			t.Error(err)
+		}
+	}
+
+	_, err = bbands(&objects.String{Value: "close"}, ohlcvData,
+		&objects.Int{Value: 5},
+		&objects.Float{Value: 2.0},
+		&objects.Float{Value: 2.0},
+		&objects.String{Value: "sma"})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestOBV(t *testing.T) {
+	t.Parallel()
+	_, err := obv()
+	if err != nil {
+		if !errors.Is(err, objects.ErrWrongNumArguments) {
+			t.Error(err)
+		}
+	}
+
+	v := &objects.String{Value: "Hello"}
+	_, err = obv(v, ohlcvData)
+	if err != nil {
+		if err != errInvalidSelector {
+			t.Error(err)
+		}
+	}
+
+	s := &objects.Int{Value: 1}
+	_, err = obv(s, ohlcvData)
+	if err != nil {
+		if err != errInvalidSelector {
+			t.Error(err)
+		}
+	}
+
+	_, err = obv(&objects.String{Value: "close"}, ohlcvData)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestToFloat64(t *testing.T) {
 	value := 54.0
 	v, err := toFloat64(value)

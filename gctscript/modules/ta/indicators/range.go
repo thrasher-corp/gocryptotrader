@@ -64,7 +64,7 @@ func atr(args ...objects.Object) (objects.Object, error) {
 
 	var ret []float64
 	if validator.IsTestExecution.Load() != true {
-		ret = indicators.Atr(ohclvData[2], ohclvData[5], ohclvData[4], inTimePeriod)
+		ret = indicators.Atr(ohclvData[2], ohclvData[4], ohclvData[5], inTimePeriod)
 	}
 
 	r := &objects.Array{}

@@ -29,47 +29,56 @@ func obv(args ...objects.Object) (objects.Object, error) {
 		return nil, err
 	}
 
-	fmt.Println(selector)
 	ohlcvInput := objects.ToInterface(args[1])
 	ohlcvInputData, valid := ohlcvInput.([]interface{})
 	if !valid {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
 	}
-	ohclvData := make([][]float64, 6)
+	ohclvData := make([][]float64, len(ohlcvInputData))
 
 	for x := range ohlcvInputData {
+		ohclvData[x] = make([]float64, 6)
 		switch t := ohlcvInputData[x].(type) {
 		case []interface{}:
-			value, err := toFloat64(t[2])
+			ohclvData[x][0] = 0
+
+			value, err := toFloat64(t[1])
 			if err != nil {
 				return nil, err
 			}
-			ohclvData[2] = append(ohclvData[2], value)
+			ohclvData[x][1] = value
+
+			value, err = toFloat64(t[2])
+			if err != nil {
+				return nil, err
+			}
+			ohclvData[x][2] = value
 
 			value, err = toFloat64(t[3])
 			if err != nil {
 				return nil, err
 			}
-			ohclvData[3] = append(ohclvData[3], value)
+			ohclvData[x][3] = value
 
 			value, err = toFloat64(t[4])
 			if err != nil {
 				return nil, err
 			}
-			ohclvData[4] = append(ohclvData[4], value)
+			ohclvData[x][4] = value
 
 			value, err = toFloat64(t[5])
 			if err != nil {
 				return nil, err
 			}
-			ohclvData[5] = append(ohclvData[5], value)
+			ohclvData[x][5] = value
 		default:
 			return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
 		}
 	}
+
 	var ret []float64
 	if validator.IsTestExecution.Load() != true {
-		ret = indicators.Obv(ohclvData[selector], ohclvData[5])
+		ret = indicators.OBV(ohclvData, selector, false)
 	}
 	r := &objects.Array{}
 	for x := range ret {
