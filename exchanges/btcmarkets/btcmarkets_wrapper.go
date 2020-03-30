@@ -60,7 +60,10 @@ func (b *BTCMarkets) SetDefaults() {
 
 	requestFmt := &currency.PairFormat{Delimiter: currency.Dash, Uppercase: true}
 	configFmt := &currency.PairFormat{Delimiter: currency.Dash, Uppercase: true}
-	b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	err := b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

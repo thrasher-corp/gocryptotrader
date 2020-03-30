@@ -58,7 +58,10 @@ func (b *Bithumb) SetDefaults() {
 
 	requestFmt := &currency.PairFormat{Uppercase: true}
 	configFmt := &currency.PairFormat{Uppercase: true, Index: "KRW"}
-	b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	err := b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

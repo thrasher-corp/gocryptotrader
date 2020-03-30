@@ -58,7 +58,10 @@ func (z *ZB) SetDefaults() {
 
 	requestFmt := &currency.PairFormat{Delimiter: currency.Underscore}
 	configFmt := &currency.PairFormat{Delimiter: currency.Underscore, Uppercase: true}
-	z.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	err := z.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	z.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

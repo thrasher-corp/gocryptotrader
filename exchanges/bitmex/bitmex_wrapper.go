@@ -57,11 +57,14 @@ func (b *Bitmex) SetDefaults() {
 
 	requestFmt := &currency.PairFormat{Uppercase: true}
 	configFmt := &currency.PairFormat{Uppercase: true}
-	b.SetGlobalPairsManager(requestFmt,
+	err := b.SetGlobalPairsManager(requestFmt,
 		configFmt,
 		asset.PerpetualContract,
 		asset.Futures,
 		asset.Index)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

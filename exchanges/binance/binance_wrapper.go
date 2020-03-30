@@ -64,8 +64,14 @@ func (b *Binance) SetDefaults() {
 		},
 	}
 
-	b.StoreAssetPairFormat(asset.Spot, fmt1)
-	b.StoreAssetPairFormat(asset.Margin, fmt1)
+	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = b.StoreAssetPairFormat(asset.Margin, fmt1)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

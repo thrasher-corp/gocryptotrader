@@ -343,12 +343,7 @@ func (c *Config) GetExchangeAssetTypes(exchName string) (asset.Items, error) {
 		return nil, fmt.Errorf("exchange %s currency pairs is nil", exchName)
 	}
 
-	var items asset.Items
-	for key := range exchCfg.CurrencyPairs.Pairs {
-		items = append(items, key)
-	}
-
-	return items, nil
+	return exchCfg.CurrencyPairs.GetAssetTypes(), nil
 }
 
 // SupportsExchangeAssetType returns whether or not the exchange supports the supplied asset type

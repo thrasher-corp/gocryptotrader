@@ -58,7 +58,10 @@ func (g *Gemini) SetDefaults() {
 
 	requestFmt := &currency.PairFormat{Uppercase: true}
 	configFmt := &currency.PairFormat{Uppercase: true}
-	g.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	err := g.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	g.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

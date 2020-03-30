@@ -59,7 +59,10 @@ func (l *LocalBitcoins) SetDefaults() {
 
 	requestFmt := &currency.PairFormat{Uppercase: true}
 	configFmt := &currency.PairFormat{Uppercase: true}
-	l.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	err := l.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	l.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

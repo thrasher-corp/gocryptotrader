@@ -65,7 +65,10 @@ func (e *EXMO) SetDefaults() {
 		Delimiter: currency.Underscore,
 		Uppercase: true,
 	}
-	e.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	err := e.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	e.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

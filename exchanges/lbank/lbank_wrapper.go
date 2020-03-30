@@ -57,7 +57,10 @@ func (l *Lbank) SetDefaults() {
 
 	requestFmt := &currency.PairFormat{Delimiter: currency.Underscore}
 	configFmt := &currency.PairFormat{Delimiter: currency.Underscore}
-	l.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	err := l.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	l.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

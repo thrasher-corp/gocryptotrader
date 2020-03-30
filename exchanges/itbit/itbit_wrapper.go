@@ -58,7 +58,10 @@ func (i *ItBit) SetDefaults() {
 
 	requestFmt := &currency.PairFormat{Uppercase: true}
 	configFmt := &currency.PairFormat{Uppercase: true}
-	i.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	err := i.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	i.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

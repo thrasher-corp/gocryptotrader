@@ -66,7 +66,10 @@ func (b *BTSE) SetDefaults() {
 			Delimiter: "-",
 		},
 	}
-	b.StoreAssetPairFormat(asset.Spot, fmt1)
+	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	fmt2 := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
@@ -76,7 +79,10 @@ func (b *BTSE) SetDefaults() {
 			Uppercase: true,
 		},
 	}
-	b.StoreAssetPairFormat(asset.Futures, fmt2)
+	err = b.StoreAssetPairFormat(asset.Futures, fmt2)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

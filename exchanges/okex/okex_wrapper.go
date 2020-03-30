@@ -65,8 +65,16 @@ func (o *OKEX) SetDefaults() {
 			Delimiter: currency.Underscore,
 		},
 	}
-	o.StoreAssetPairFormat(asset.PerpetualSwap, fmt1)
-	o.StoreAssetPairFormat(asset.Futures, fmt1)
+
+	err := o.StoreAssetPairFormat(asset.PerpetualSwap, fmt1)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = o.StoreAssetPairFormat(asset.Futures, fmt1)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	index := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
@@ -88,8 +96,16 @@ func (o *OKEX) SetDefaults() {
 			Delimiter: currency.Dash,
 		},
 	}
-	o.StoreAssetPairFormat(asset.Spot, spot)
-	o.StoreAssetPairFormat(asset.Index, index)
+
+	err = o.StoreAssetPairFormat(asset.Spot, spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = o.StoreAssetPairFormat(asset.Index, index)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	o.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

@@ -901,50 +901,46 @@ func (e *Base) EnableRateLimiter() error {
 }
 
 // StoreAssetPairFormat initialises and stores a defined asset format
-func (e *Base) StoreAssetPairFormat(a asset.Item, fmt currency.PairStore) {
+func (e *Base) StoreAssetPairFormat(a asset.Item, f currency.PairStore) error {
 	if a.String() == "" {
-		log.Errorf(log.ExchangeSys,
-			"%s cannot add to pairs manager, no asset provided",
+		return fmt.Errorf("%s cannot add to pairs manager, no asset provided",
 			e.Name)
-		return
 	}
 
-	if fmt.RequestFormat == nil || fmt.ConfigFormat == nil {
-		log.Errorf(log.ExchangeSys,
-			"%s cannot add to pairs manager, request pair format not provided",
+	if f.RequestFormat == nil {
+		return fmt.Errorf("%s cannot add to pairs manager, request pair format not provided",
 			e.Name)
-		return
+	}
+
+	if f.ConfigFormat == nil {
+		return fmt.Errorf("%s cannot add to pairs manager, config pair format not provided",
+			e.Name)
 	}
 
 	if e.CurrencyPairs.Pairs == nil {
 		e.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	}
 
-	e.CurrencyPairs.Pairs[a] = &fmt
+	e.CurrencyPairs.Pairs[a] = &f
+	return nil
 }
 
 // SetGlobalPairsManager sets defined asset and pairs management system with
 // with global formatting
-func (e *Base) SetGlobalPairsManager(request, config *currency.PairFormat, assets ...asset.Item) {
+func (e *Base) SetGlobalPairsManager(request, config *currency.PairFormat, assets ...asset.Item) error {
 	if request == nil {
-		log.Errorf(log.ExchangeSys,
-			"%s cannot set pairs manager, request pair format not provided",
+		return fmt.Errorf("%s cannot set pairs manager, request pair format not provided",
 			e.Name)
-		return
 	}
 
 	if config == nil {
-		log.Errorf(log.ExchangeSys,
-			"%scannot set pairs manager, config pair format not provided",
+		return fmt.Errorf("%s cannot set pairs manager, config pair format not provided",
 			e.Name)
-		return
 	}
 
 	if len(assets) == 0 {
-		log.Errorf(log.ExchangeSys,
-			"%scannot set pairs manager, no assets provided",
+		return fmt.Errorf("%s cannot set pairs manager, no assets provided",
 			e.Name)
-		return
 	}
 
 	e.CurrencyPairs.UseGlobalFormat = true
@@ -952,15 +948,20 @@ func (e *Base) SetGlobalPairsManager(request, config *currency.PairFormat, asset
 	e.CurrencyPairs.ConfigFormat = config
 
 	if e.CurrencyPairs.Pairs != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s cannot set pairs manager, pairs already set",
+		return fmt.Errorf("%s cannot set pairs manager, pairs already set",
 			e.Name)
-		return
 	}
 
 	e.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 
 	for i := range assets {
+		if assets[i].String() == "" {
+			e.CurrencyPairs.Pairs = nil
+			return fmt.Errorf("%s cannot set pairs manager, asset is empty string",
+				e.Name)
+		}
 		e.CurrencyPairs.Pairs[assets[i]] = new(currency.PairStore)
 	}
+
+	return nil
 }

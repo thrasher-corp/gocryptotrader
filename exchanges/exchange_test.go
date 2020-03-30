@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
@@ -19,6 +21,13 @@ const (
 	defaultTestExchange     = "Bitfinex"
 	defaultTestCurrencyPair = "BTC-USD"
 )
+
+func TestMain(m *testing.M) {
+	c := log.GenDefaultSettings()
+	log.GlobalLogConfig = &c
+	log.SetupGlobalLogger()
+	os.Exit(m.Run())
+}
 
 func TestSupportsRESTTickerBatchUpdates(t *testing.T) {
 	t.Parallel()
@@ -1650,5 +1659,85 @@ func TestGetFormattedPairAndAssetType(t *testing.T) {
 	_, _, err = b.GetRequestFormattedPairAndAssetType("btcusd")
 	if err == nil {
 		t.Error("Expected error")
+	}
+}
+
+func TestStoreAssetPairFormat(t *testing.T) {
+	b := Base{
+		Config: &config.ExchangeConfig{Name: "kitties"},
+	}
+
+	err := b.StoreAssetPairFormat(asset.Item(""), currency.PairStore{})
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	err = b.StoreAssetPairFormat(asset.Spot, currency.PairStore{})
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	err = b.StoreAssetPairFormat(asset.Spot, currency.PairStore{
+		RequestFormat: &currency.PairFormat{Uppercase: true}})
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	err = b.StoreAssetPairFormat(asset.Spot, currency.PairStore{
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true}})
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = b.StoreAssetPairFormat(asset.Futures, currency.PairStore{
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true}})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetGlobalPairsManager(t *testing.T) {
+	b := Base{
+		Config: &config.ExchangeConfig{Name: "kitties"},
+	}
+
+	err := b.SetGlobalPairsManager(nil, nil, "")
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true}, nil, "")
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true},
+		&currency.PairFormat{Uppercase: true})
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true},
+		&currency.PairFormat{Uppercase: true}, "")
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true},
+		&currency.PairFormat{Uppercase: true}, asset.Spot, asset.Binary)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !b.SupportsAsset(asset.Binary) || !b.SupportsAsset(asset.Spot) {
+		t.Fatal("global pairs manager not set correctly")
+	}
+
+	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true},
+		&currency.PairFormat{Uppercase: true}, asset.Spot, asset.Binary)
+	if err == nil {
+		t.Error("error cannot be nil")
 	}
 }

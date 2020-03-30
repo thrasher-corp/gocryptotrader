@@ -66,9 +66,18 @@ func (b *Bitfinex) SetDefaults() {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
 	}
 
-	b.StoreAssetPairFormat(asset.Spot, fmt1)
-	b.StoreAssetPairFormat(asset.Margin, fmt2)
-	b.StoreAssetPairFormat(asset.MarginFunding, fmt1)
+	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = b.StoreAssetPairFormat(asset.Margin, fmt2)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = b.StoreAssetPairFormat(asset.MarginFunding, fmt1)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

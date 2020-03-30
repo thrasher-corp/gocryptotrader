@@ -59,7 +59,10 @@ func (c *COINUT) SetDefaults() {
 
 	requestFmt := &currency.PairFormat{Uppercase: true}
 	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.Dash}
-	c.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	err := c.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	c.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

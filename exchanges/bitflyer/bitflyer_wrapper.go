@@ -61,7 +61,13 @@ func (b *Bitflyer) SetDefaults() {
 		Delimiter: currency.Underscore,
 		Uppercase: true,
 	}
-	b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Futures)
+	err := b.SetGlobalPairsManager(requestFmt,
+		configFmt,
+		asset.Spot,
+		asset.Futures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

@@ -58,7 +58,10 @@ func (y *Yobit) SetDefaults() {
 
 	requestFmt := &currency.PairFormat{Delimiter: currency.Underscore, Separator: currency.Dash}
 	configFmt := &currency.PairFormat{Delimiter: currency.Underscore, Uppercase: true}
-	y.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	err := y.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	y.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

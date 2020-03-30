@@ -58,7 +58,10 @@ func (h *HUOBI) SetDefaults() {
 
 	requestFmt := &currency.PairFormat{}
 	configFmt := &currency.PairFormat{Delimiter: currency.Dash, Uppercase: true}
-	h.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	err := h.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	h.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

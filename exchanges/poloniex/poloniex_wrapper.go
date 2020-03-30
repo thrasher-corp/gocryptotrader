@@ -65,7 +65,10 @@ func (p *Poloniex) SetDefaults() {
 		Uppercase: true,
 	}
 
-	p.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	err := p.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	p.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

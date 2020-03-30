@@ -59,7 +59,10 @@ func (g *Gateio) SetDefaults() {
 
 	requestFmt := &currency.PairFormat{Delimiter: currency.Underscore}
 	configFmt := &currency.PairFormat{Delimiter: currency.Underscore, Uppercase: true}
-	g.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	err := g.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	g.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

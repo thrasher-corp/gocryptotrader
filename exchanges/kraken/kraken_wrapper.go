@@ -66,7 +66,10 @@ func (k *Kraken) SetDefaults() {
 		Delimiter: currency.Dash,
 		Separator: ",",
 	}
-	k.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	err := k.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 
 	k.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{

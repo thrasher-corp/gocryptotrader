@@ -81,7 +81,7 @@ func TestAppendOptionalDelimiter(t *testing.T) {
 	curr2.Delimiter = ""
 	b.appendOptionalDelimiter(&curr2)
 	if curr2.Delimiter != ":" {
-		t.Errorf("Expected \"-\" as a delimiter, received %v", curr2.Delimiter)
+		t.Errorf("Expected \":\" as a delimiter, received %v", curr2.Delimiter)
 	}
 }
 
