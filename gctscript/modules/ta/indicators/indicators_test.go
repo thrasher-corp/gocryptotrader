@@ -10,12 +10,15 @@ import (
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/go-talib/indicators"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )
 
 const errFailedConversion = "0 failed conversion"
 
 var (
-	ohlcvData = &objects.Array{}
+	ohlcvData        = &objects.Array{}
+	ohlcvDataInvalid = &objects.Array{}
+	testString       = "1D01TH0R53"
 )
 
 func TestMain(m *testing.M) {
@@ -29,8 +32,19 @@ func TestMain(m *testing.M) {
 			&objects.Float{Value: v},
 			&objects.Float{Value: v},
 		)
-
 		ohlcvData.Value = append(ohlcvData.Value, candle)
+	}
+
+	for x := 0; x < 5; x++ {
+		candle := &objects.Array{}
+		candle.Value = append(candle.Value, &objects.String{Value: testString},
+			&objects.String{Value: testString},
+			&objects.String{Value: testString},
+			&objects.String{Value: testString},
+			&objects.String{Value: testString},
+			&objects.String{Value: testString},
+		)
+		ohlcvDataInvalid.Value = append(ohlcvDataInvalid.Value, candle)
 	}
 
 	os.Exit(m.Run())
@@ -45,7 +59,7 @@ func TestMfi(t *testing.T) {
 		}
 	}
 
-	v := &objects.String{Value: "Hello"}
+	v := &objects.String{Value: testString}
 	_, err = mfi(ohlcvData, v)
 	if err != nil {
 		if err.Error() != errFailedConversion {
@@ -53,10 +67,32 @@ func TestMfi(t *testing.T) {
 		}
 	}
 
+	_, err = mfi(ohlcvDataInvalid, &objects.Int{Value: 14})
+	if err == nil {
+		t.Error("expected conversion failed error")
+	}
+
 	_, err = mfi(ohlcvData, &objects.Int{Value: 14})
 	if err != nil {
 		t.Error(err)
 	}
+
+	_, err = mfi(v, &objects.Int{Value: 14})
+	if err != nil {
+		if err.Error() != "OHLCV data failed conversion" {
+			t.Error(err)
+		}
+	}
+
+	validator.IsTestExecution.Store(true)
+	ret, err := mfi(ohlcvData, &objects.Int{Value: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if (ret == &objects.Array{}) {
+		t.Error("expected empty Array on test execution received data")
+	}
+	validator.IsTestExecution.Store(false)
 }
 
 func TestRsi(t *testing.T) {
@@ -68,7 +104,7 @@ func TestRsi(t *testing.T) {
 		}
 	}
 
-	v := &objects.String{Value: "Hello"}
+	v := &objects.String{Value: testString}
 	_, err = rsi(ohlcvData, v)
 	if err != nil {
 		if err.Error() != errFailedConversion {
@@ -80,6 +116,30 @@ func TestRsi(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	_, err = rsi(v, &objects.Int{Value: 14})
+	if err == nil {
+		if err.Error() != "OHLCV data failed conversion" {
+			t.Error(err)
+		}
+	}
+
+	_, err = rsi(ohlcvDataInvalid, &objects.Int{Value: 14})
+	if err == nil {
+		if err.Error() != "OHLCV data failed conversion" {
+			t.Error(err)
+		}
+	}
+
+	validator.IsTestExecution.Store(true)
+	ret, err := rsi(ohlcvData, &objects.Int{Value: 14})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if (ret == &objects.Array{}) {
+		t.Error("expected empty Array on test execution received data")
+	}
+	validator.IsTestExecution.Store(false)
 }
 
 func TestEMA(t *testing.T) {
@@ -91,7 +151,7 @@ func TestEMA(t *testing.T) {
 		}
 	}
 
-	v := &objects.String{Value: "Hello"}
+	v := &objects.String{Value: testString}
 	_, err = ema(ohlcvData, v)
 	if err != nil {
 		if err.Error() != errFailedConversion {
@@ -103,6 +163,26 @@ func TestEMA(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	_, err = ema(ohlcvDataInvalid, &objects.String{Value: testString})
+	if err == nil {
+		t.Error("expected conversion failed error")
+	}
+
+	_, err = ema(&objects.String{Value: testString}, &objects.String{Value: testString})
+	if err == nil {
+		t.Error("expected conversion failed error")
+	}
+
+	validator.IsTestExecution.Store(true)
+	ret, err := ema(ohlcvData, &objects.Int{Value: 14})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if (ret == &objects.Array{}) {
+		t.Error("expected empty Array on test execution received data")
+	}
+	validator.IsTestExecution.Store(false)
 }
 
 func TestSMA(t *testing.T) {
@@ -114,7 +194,7 @@ func TestSMA(t *testing.T) {
 		}
 	}
 
-	v := &objects.String{Value: "Hello"}
+	v := &objects.String{Value: testString}
 	_, err = sma(ohlcvData, v)
 	if err != nil {
 		if err.Error() != errFailedConversion {
@@ -126,6 +206,26 @@ func TestSMA(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	_, err = sma(ohlcvDataInvalid, &objects.String{Value: testString})
+	if err == nil {
+		t.Error("expected conversion failed error")
+	}
+
+	_, err = sma(&objects.String{Value: testString}, &objects.String{Value: testString})
+	if err == nil {
+		t.Error("expected conversion failed error")
+	}
+
+	validator.IsTestExecution.Store(true)
+	ret, err := sma(ohlcvData, &objects.Int{Value: 14})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if (ret == &objects.Array{}) {
+		t.Error("expected empty Array on test execution received data")
+	}
+	validator.IsTestExecution.Store(false)
 }
 
 func TestMACD(t *testing.T) {
@@ -137,7 +237,7 @@ func TestMACD(t *testing.T) {
 		}
 	}
 
-	v := &objects.String{Value: "Hello"}
+	v := &objects.String{Value: testString}
 	_, err = macd(ohlcvData, &objects.Int{Value: 12}, &objects.Int{Value: 26}, v)
 	if err != nil {
 		if err.Error() != errFailedConversion {
@@ -149,6 +249,32 @@ func TestMACD(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	_, err = macd(ohlcvDataInvalid,
+		&objects.String{Value: testString},
+		&objects.String{Value: testString},
+		&objects.String{Value: testString})
+	if err == nil {
+		t.Error("expected conversion failed error")
+	}
+
+	_, err = macd(&objects.String{Value: testString},
+		&objects.String{Value: testString},
+		&objects.String{Value: testString},
+		&objects.String{Value: testString})
+	if err == nil {
+		t.Error("expected conversion failed error")
+	}
+
+	validator.IsTestExecution.Store(true)
+	ret, err := macd(ohlcvData, &objects.Int{Value: 12}, &objects.Int{Value: 26}, &objects.Int{Value: 9})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if (ret == &objects.Array{}) {
+		t.Error("expected empty Array on test execution received data")
+	}
+	validator.IsTestExecution.Store(false)
 }
 
 func TestAtr(t *testing.T) {
@@ -160,7 +286,7 @@ func TestAtr(t *testing.T) {
 		}
 	}
 
-	v := &objects.String{Value: "Hello"}
+	v := &objects.String{Value: testString}
 	_, err = atr(ohlcvData, v)
 	if err != nil {
 		if err.Error() != errFailedConversion {
@@ -172,6 +298,26 @@ func TestAtr(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	_, err = atr(v, &objects.Int{Value: 14})
+	if err == nil {
+		t.Error("expected conversion failed error")
+	}
+
+	_, err = atr(ohlcvDataInvalid, &objects.Int{Value: 14})
+	if err == nil {
+		t.Error("expected conversion failed error")
+	}
+
+	validator.IsTestExecution.Store(true)
+	ret, err := atr(ohlcvData, &objects.Int{Value: 14})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if (ret == &objects.Array{}) {
+		t.Error("expected empty Array on test execution received data")
+	}
+	validator.IsTestExecution.Store(false)
 }
 
 func TestBbands(t *testing.T) {
@@ -183,7 +329,7 @@ func TestBbands(t *testing.T) {
 		}
 	}
 
-	_, err = bbands(&objects.String{Value: "Hello"}, ohlcvData,
+	_, err = bbands(&objects.String{Value: testString}, ohlcvData,
 		&objects.Int{Value: 5},
 		&objects.Float{Value: 2.0},
 		&objects.Float{Value: 2.0},
@@ -202,6 +348,58 @@ func TestBbands(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	validator.IsTestExecution.Store(true)
+	ret, err := bbands(&objects.String{Value: "close"}, ohlcvData,
+		&objects.Int{Value: 5},
+		&objects.Float{Value: 2.0},
+		&objects.Float{Value: 2.0},
+		&objects.String{Value: "sma"})
+	if err != nil {
+		t.Error(err)
+	}
+	if (ret == &objects.Array{}) {
+		t.Error("expected empty Array on test execution received data")
+	}
+	validator.IsTestExecution.Store(false)
+
+	_, err = bbands(&objects.String{Value: "close"}, ohlcvDataInvalid,
+		&objects.String{Value: testString},
+		&objects.String{Value: testString},
+		&objects.String{Value: testString},
+		objects.UndefinedValue)
+	if err == nil {
+		t.Error("expected conversion failed error")
+	}
+
+	_, err = bbands(&objects.String{Value: "close"}, &objects.String{Value: testString},
+		&objects.String{Value: testString},
+		&objects.String{Value: testString},
+		&objects.String{Value: testString},
+		&objects.String{Value: "ema"})
+	if err == nil {
+		t.Error("expected conversion failed error")
+	}
+
+	_, err = bbands(&objects.String{Value: "close"}, ohlcvData,
+		&objects.Int{Value: 5},
+		&objects.Float{Value: 2.0},
+		&objects.Float{Value: 2.0},
+		&objects.String{Value: testString})
+	if err != nil {
+		if !errors.Is(err, errInvalidSelector) {
+			t.Error(err)
+		}
+	}
+
+	_, err = bbands(objects.UndefinedValue, ohlcvData,
+		&objects.Int{Value: 5},
+		&objects.Float{Value: 2.0},
+		&objects.Float{Value: 2.0},
+		&objects.String{Value: testString})
+	if err == nil {
+		t.Error("expected conversion failed error")
+	}
 }
 
 func TestOBV(t *testing.T) {
@@ -213,26 +411,30 @@ func TestOBV(t *testing.T) {
 		}
 	}
 
-	v := &objects.String{Value: "Hello"}
-	_, err = obv(v, ohlcvData)
-	if err != nil {
-		if err != errInvalidSelector {
-			t.Error(err)
-		}
-	}
-
-	s := &objects.Int{Value: 1}
-	_, err = obv(s, ohlcvData)
-	if err != nil {
-		if err != errInvalidSelector {
-			t.Error(err)
-		}
-	}
-
-	_, err = obv(&objects.String{Value: "close"}, ohlcvData)
+	_, err = obv(ohlcvData)
 	if err != nil {
 		t.Error(err)
 	}
+
+	_, err = obv(ohlcvDataInvalid)
+	if err == nil {
+		t.Error("expected conversion failed error")
+	}
+
+	_, err = obv(&objects.String{Value: testString})
+	if err == nil {
+		t.Error("expected conversion failed error")
+	}
+
+	validator.IsTestExecution.Store(true)
+	ret, err := obv(ohlcvData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if (ret == &objects.Array{}) {
+		t.Error("expected empty Array on test execution received data")
+	}
+	validator.IsTestExecution.Store(false)
 }
 
 func TestToFloat64(t *testing.T) {

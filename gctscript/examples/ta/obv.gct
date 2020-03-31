@@ -7,7 +7,7 @@ load := func() {
     start := t.add(t.now(), -t.hour*24)
     ohlcvData := exch.ohlcv("BTC Markets", "BTC-AUD", "-", "", start, t.now(), "1h")
 
-    ret := obv.calculate("close", ohlcvData.candles)
+    ret := obv.calculate(ohlcvData.candles)
     fmt.println(ret)
 }
 

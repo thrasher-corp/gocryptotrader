@@ -1,7 +1,9 @@
 package indicators
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/go-talib/indicators"
@@ -19,55 +21,56 @@ func atr(args ...objects.Object) (objects.Object, error) {
 		return nil, objects.ErrWrongNumArguments
 	}
 
+	r := &objects.Array{}
+	if validator.IsTestExecution.Load() == true {
+		return r, nil
+	}
+
 	ohlcvInput := objects.ToInterface(args[0])
 	ohlcvInputData, valid := ohlcvInput.([]interface{})
 	if !valid {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
 	}
+
 	ohclvData := make([][]float64, 6)
-
+	var allErrors []string
 	for x := range ohlcvInputData {
-		switch t := ohlcvInputData[x].(type) {
-		case []interface{}:
-			value, err := toFloat64(t[2])
-			if err != nil {
-				return nil, err
-			}
-			ohclvData[2] = append(ohclvData[2], value)
-
-			value, err = toFloat64(t[3])
-			if err != nil {
-				return nil, err
-			}
-			ohclvData[3] = append(ohclvData[3], value)
-
-			value, err = toFloat64(t[4])
-			if err != nil {
-				return nil, err
-			}
-			ohclvData[4] = append(ohclvData[4], value)
-
-			value, err = toFloat64(t[5])
-			if err != nil {
-				return nil, err
-			}
-			ohclvData[5] = append(ohclvData[5], value)
-		default:
-			return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
+		t := ohlcvInputData[x].([]interface{})
+		value, err := toFloat64(t[2])
+		if err != nil {
+			allErrors = append(allErrors, err.Error())
 		}
+		ohclvData[2] = append(ohclvData[2], value)
+
+		value, err = toFloat64(t[3])
+		if err != nil {
+			allErrors = append(allErrors, err.Error())
+		}
+		ohclvData[3] = append(ohclvData[3], value)
+
+		value, err = toFloat64(t[4])
+		if err != nil {
+			allErrors = append(allErrors, err.Error())
+		}
+		ohclvData[4] = append(ohclvData[4], value)
+
+		value, err = toFloat64(t[5])
+		if err != nil {
+			allErrors = append(allErrors, err.Error())
+		}
+		ohclvData[5] = append(ohclvData[5], value)
 	}
 
 	inTimePeriod, ok := objects.ToInt(args[1])
 	if !ok {
-		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeriod)
+		allErrors = append(allErrors, fmt.Sprintf(modules.ErrParameterConvertFailed, inTimePeriod))
 	}
 
-	var ret []float64
-	if validator.IsTestExecution.Load() != true {
-		ret = indicators.Atr(ohclvData[2], ohclvData[4], ohclvData[5], inTimePeriod)
+	if len(allErrors) > 0 {
+		return nil, errors.New(strings.Join(allErrors, ", "))
 	}
 
-	r := &objects.Array{}
+	ret := indicators.Atr(ohclvData[2], ohclvData[4], ohclvData[5], inTimePeriod)
 	for x := range ret {
 		r.Value = append(r.Value, &objects.Float{Value: ret[x]})
 	}

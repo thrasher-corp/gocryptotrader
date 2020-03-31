@@ -1,7 +1,9 @@
 package indicators
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/go-talib/indicators"
@@ -19,6 +21,11 @@ func sma(args ...objects.Object) (objects.Object, error) {
 		return nil, objects.ErrWrongNumArguments
 	}
 
+	r := &objects.Array{}
+	if validator.IsTestExecution.Load() == true {
+		return r, nil
+	}
+
 	ohlcvInput := objects.ToInterface(args[0])
 	ohlcvInputData, valid := ohlcvInput.([]interface{})
 	if !valid {
@@ -26,29 +33,25 @@ func sma(args ...objects.Object) (objects.Object, error) {
 	}
 
 	var ohlcvClose []float64
+	var allErrors []string
 	for x := range ohlcvInputData {
-		switch t := ohlcvInputData[x].(type) {
-		case []interface{}:
-			value, err := toFloat64(t[4])
-			if err != nil {
-				return nil, err
-			}
-			ohlcvClose = append(ohlcvClose, value)
-		default:
-			return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
+		t := ohlcvInputData[x].([]interface{})
+		value, err := toFloat64(t[4])
+		if err != nil {
+			allErrors = append(allErrors, err.Error())
 		}
+		ohlcvClose = append(ohlcvClose, value)
 	}
 
 	inTimePeriod, ok := objects.ToInt(args[1])
 	if !ok {
-		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeriod)
+		allErrors = append(allErrors, fmt.Sprintf(modules.ErrParameterConvertFailed, inTimePeriod))
 	}
 
-	var ret []float64
-	if validator.IsTestExecution.Load() != true {
-		ret = indicators.Ma(ohlcvClose, inTimePeriod, indicators.SMA)
+	if len(allErrors) > 0 {
+		return nil, errors.New(strings.Join(allErrors, ", "))
 	}
-	r := &objects.Array{}
+	ret := indicators.Ma(ohlcvClose, inTimePeriod, indicators.SMA)
 	for x := range ret {
 		r.Value = append(r.Value, &objects.Float{Value: ret[x]})
 	}

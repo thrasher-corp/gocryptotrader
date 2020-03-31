@@ -560,7 +560,7 @@ func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 		candles.Value = append(candles.Value, candle)
 	}
 
-	retValue := make(map[string]objects.Object, 4)
+	retValue := make(map[string]objects.Object, 5)
 	retValue["exchange"] = &objects.String{Value: ret.Exchange}
 	retValue["pair"] = &objects.String{Value: ret.Pair.String()}
 	retValue["asset"] = &objects.String{Value: ret.Asset.String()}

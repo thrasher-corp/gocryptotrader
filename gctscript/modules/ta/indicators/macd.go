@@ -1,7 +1,9 @@
 package indicators
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/go-talib/indicators"
@@ -19,6 +21,11 @@ func macd(args ...objects.Object) (objects.Object, error) {
 		return nil, objects.ErrWrongNumArguments
 	}
 
+	r := &objects.Array{}
+	if validator.IsTestExecution.Load() == true {
+		return r, nil
+	}
+
 	ohlcvInput := objects.ToInterface(args[0])
 	ohlcvInputData, valid := ohlcvInput.([]interface{})
 	if !valid {
@@ -26,38 +33,36 @@ func macd(args ...objects.Object) (objects.Object, error) {
 	}
 
 	var ohlcvClose []float64
+	var allErrors []string
 	for x := range ohlcvInputData {
-		switch t := ohlcvInputData[x].(type) {
-		case []interface{}:
-			value, err := toFloat64(t[4])
-			if err != nil {
-				return nil, err
-			}
-			ohlcvClose = append(ohlcvClose, value)
-		default:
-			return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
+		t := ohlcvInputData[x].([]interface{})
+		value, err := toFloat64(t[4])
+		if err != nil {
+			allErrors = append(allErrors, err.Error())
 		}
+		ohlcvClose = append(ohlcvClose, value)
 	}
 
 	inFastPeriod, ok := objects.ToInt(args[1])
 	if !ok {
-		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inFastPeriod)
+		allErrors = append(allErrors, fmt.Sprintf(modules.ErrParameterConvertFailed, inFastPeriod))
 	}
+
 	inSlowPeriod, ok := objects.ToInt(args[2])
 	if !ok {
-		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inSlowPeriod)
+		allErrors = append(allErrors, fmt.Sprintf(modules.ErrParameterConvertFailed, inSlowPeriod))
 	}
+
 	inTimePeriod, ok := objects.ToInt(args[3])
 	if !ok {
-		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeriod)
+		allErrors = append(allErrors, fmt.Sprintf(modules.ErrParameterConvertFailed, inTimePeriod))
 	}
 
-	var macd, macdSignal, macdHist []float64
-	if validator.IsTestExecution.Load() != true {
-		macd, macdSignal, macdHist = indicators.Macd(ohlcvClose, inFastPeriod, inSlowPeriod, inTimePeriod)
+	if len(allErrors) > 0 {
+		return nil, errors.New(strings.Join(allErrors, ", "))
 	}
 
-	var MACDRet objects.Array
+	macd, macdSignal, macdHist := indicators.Macd(ohlcvClose, inFastPeriod, inSlowPeriod, inTimePeriod)
 	for x := range macd {
 		tempMACD := &objects.Array{}
 		tempMACD.Value = append(tempMACD.Value, &objects.Float{Value: macd[x]})
@@ -67,8 +72,8 @@ func macd(args ...objects.Object) (objects.Object, error) {
 		if macdHist != nil {
 			tempMACD.Value = append(tempMACD.Value, &objects.Float{Value: macdHist[x]})
 		}
-		MACDRet.Value = append(MACDRet.Value, tempMACD)
+		r.Value = append(r.Value, tempMACD)
 	}
 
-	return &MACDRet, nil
+	return r, nil
 }
