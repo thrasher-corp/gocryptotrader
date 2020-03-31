@@ -233,6 +233,86 @@
         ]
       }
     },
+    "/v1/enabledisableallexchangepairs": {
+      "get": {
+        "operationId": "EnableDisableAllExchangePairs",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericSubsystemResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "enable",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/enabledisableexchangeasset": {
+      "get": {
+        "operationId": "EnableDisableExchangeAsset",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericSubsystemResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "enable",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/enableexchange": {
       "post": {
         "operationId": "EnableExchange",
@@ -823,6 +903,36 @@
             }
           }
         },
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
+    "/v1/getexchangeassets": {
+      "get": {
+        "operationId": "GetExchangeAssets",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetExchangeAssetsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
         "tags": [
           "GoCryptoTrader"
         ]
@@ -1768,6 +1878,36 @@
         ]
       }
     },
+    "/v1/updateexchangesupportedpairs": {
+      "get": {
+        "operationId": "UpdateExchangeSupportedPairs",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGenericSubsystemResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTrader"
+        ]
+      }
+    },
     "/v1/whalebomb": {
       "post": {
         "operationId": "WhaleBomb",
@@ -2222,8 +2362,11 @@
         "asset_type": {
           "type": "string"
         },
-        "pair": {
-          "$ref": "#/definitions/gctrpcCurrencyPair"
+        "pairs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcCurrencyPair"
+          }
         }
       }
     },
@@ -2534,6 +2677,14 @@
         "executed": {
           "type": "boolean",
           "format": "boolean"
+        }
+      }
+    },
+    "gctrpcGetExchangeAssetsResponse": {
+      "type": "object",
+      "properties": {
+        "assets": {
+          "type": "string"
         }
       }
     },

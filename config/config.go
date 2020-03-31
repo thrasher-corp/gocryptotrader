@@ -493,33 +493,19 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 		}
 
 		var pairs, pairsRemoved currency.Pairs
-		update := false
-
-		if len(enabledPairs) > 0 {
-			for x := range enabledPairs {
-				if !availPairs.Contains(enabledPairs[x], true) {
-					update = true
-					pairsRemoved = append(pairsRemoved, enabledPairs[x])
-					continue
-				}
-				pairs = append(pairs, enabledPairs[x])
+		for x := range enabledPairs {
+			if !availPairs.Contains(enabledPairs[x], true) {
+				pairsRemoved = append(pairsRemoved, enabledPairs[x])
+				continue
 			}
-		} else {
-			update = true
+			pairs = append(pairs, enabledPairs[x])
 		}
 
-		if !update {
-			continue
-		}
-
-		if len(pairs) == 0 || len(enabledPairs) == 0 {
-			newPair := availPairs.GetRandomPair()
-			err := c.SetPairs(exchName, assetTypes[x], true, currency.Pairs{newPair})
-			if err != nil {
-				return err
-			}
-			log.Warnf(log.ExchangeSys, "Exchange %s: [%v] No enabled pairs found in available pairs, randomly added %v pair.\n",
-				exchName, assetTypes[x], newPair)
+		if len(pairs) == 0 {
+			log.Warnf(log.ExchangeSys,
+				"Exchange %s: [%v] No enabled pairs, synchronisation service will be impeded.\n",
+				exchName,
+				assetTypes[x])
 			continue
 		} else {
 			err := c.SetPairs(exchName, assetTypes[x], true, pairs)
@@ -527,8 +513,13 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 				return err
 			}
 		}
-		log.Warnf(log.ExchangeSys, "Exchange %s: [%v] Removing enabled pair(s) %v from enabled pairs as it isn't an available pair.\n",
-			exchName, assetTypes[x], pairsRemoved.Strings())
+		if len(pairsRemoved) != 0 {
+			log.Warnf(log.ExchangeSys,
+				"Exchange %s: [%v] Removing enabled pair(s) %v from enabled pairs as it isn't an available pair.\n",
+				exchName,
+				assetTypes[x],
+				pairsRemoved.Strings())
+		}
 	}
 	return nil
 }

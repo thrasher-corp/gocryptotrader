@@ -356,12 +356,16 @@ func (e *Base) GetPairFormat(assetType asset.Item, requestFormat bool) (currency
 
 // GetEnabledPairs is a method that returns the enabled currency pairs of
 // the exchange by asset type
-func (e *Base) GetEnabledPairs(assetType asset.Item) (currency.Pairs, error) {
-	format, err := e.GetPairFormat(assetType, false)
+func (e *Base) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
+	err := e.CurrencyPairs.IsAssetEnabled(a)
 	if err != nil {
 		return nil, err
 	}
-	enabledpairs, err := e.CurrencyPairs.GetPairs(assetType, true)
+	format, err := e.GetPairFormat(a, false)
+	if err != nil {
+		return nil, err
+	}
+	enabledpairs, err := e.CurrencyPairs.GetPairs(a, true)
 	if err != nil {
 		return nil, err
 	}
@@ -917,6 +921,8 @@ func (e *Base) StoreAssetPairFormat(a asset.Item, f currency.PairStore) error {
 			e.Name)
 	}
 
+	*f.AssetEnabled = true
+
 	if e.CurrencyPairs.Pairs == nil {
 		e.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	}
@@ -960,8 +966,31 @@ func (e *Base) SetGlobalPairsManager(request, config *currency.PairFormat, asset
 			return fmt.Errorf("%s cannot set pairs manager, asset is empty string",
 				e.Name)
 		}
-		e.CurrencyPairs.Pairs[assets[i]] = new(currency.PairStore)
+		ps := new(currency.PairStore)
+		if ps.AssetEnabled == nil {
+			ps.AssetEnabled = func() *bool { b := true; return &b }()
+		}
+		e.CurrencyPairs.Pairs[assets[i]] = ps
 	}
 
 	return nil
+}
+
+// EnableDisableAssetType enables or disables an exchange asset type
+func (e *Base) EnableDisableAssetType(a asset.Item, enable bool) error {
+	for k, v := range e.CurrencyPairs.Pairs {
+		if k == a {
+			if *v.AssetEnabled == enable {
+				return fmt.Errorf("asset type %s already disabled for exchange %s",
+					a,
+					e.Name)
+			}
+			*v.AssetEnabled = enable
+			return nil
+		}
+	}
+
+	return fmt.Errorf("asset type %s unsupported for exchange %s",
+		a,
+		e.Name)
 }

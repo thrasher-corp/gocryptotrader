@@ -164,7 +164,7 @@ func StartRPCRESTProxy() {
 }
 
 // GetInfo returns info about the current GoCryptoTrader session
-func (s *RPCServer) GetInfo(ctx context.Context, r *gctrpc.GetInfoRequest) (*gctrpc.GetInfoResponse, error) {
+func (s *RPCServer) GetInfo(_ context.Context, r *gctrpc.GetInfoRequest) (*gctrpc.GetInfoResponse, error) {
 	d := time.Since(Bot.Uptime)
 	resp := gctrpc.GetInfoResponse{
 		Uptime:               d.String(),
@@ -186,24 +186,24 @@ func (s *RPCServer) GetInfo(ctx context.Context, r *gctrpc.GetInfoRequest) (*gct
 }
 
 // GetSubsystems returns a list of subsystems and their status
-func (s *RPCServer) GetSubsystems(ctx context.Context, r *gctrpc.GetSubsystemsRequest) (*gctrpc.GetSusbsytemsResponse, error) {
+func (s *RPCServer) GetSubsystems(_ context.Context, r *gctrpc.GetSubsystemsRequest) (*gctrpc.GetSusbsytemsResponse, error) {
 	return &gctrpc.GetSusbsytemsResponse{SubsystemsStatus: GetSubsystemsStatus()}, nil
 }
 
 // EnableSubsystem enables a engine subsytem
-func (s *RPCServer) EnableSubsystem(ctx context.Context, r *gctrpc.GenericSubsystemRequest) (*gctrpc.GenericSubsystemResponse, error) {
+func (s *RPCServer) EnableSubsystem(_ context.Context, r *gctrpc.GenericSubsystemRequest) (*gctrpc.GenericSubsystemResponse, error) {
 	err := SetSubsystem(r.Subsystem, true)
 	return &gctrpc.GenericSubsystemResponse{}, err
 }
 
 // DisableSubsystem disables a engine subsytem
-func (s *RPCServer) DisableSubsystem(ctx context.Context, r *gctrpc.GenericSubsystemRequest) (*gctrpc.GenericSubsystemResponse, error) {
+func (s *RPCServer) DisableSubsystem(_ context.Context, r *gctrpc.GenericSubsystemRequest) (*gctrpc.GenericSubsystemResponse, error) {
 	err := SetSubsystem(r.Subsystem, false)
 	return &gctrpc.GenericSubsystemResponse{}, err
 }
 
 // GetRPCEndpoints returns a list of API endpoints
-func (s *RPCServer) GetRPCEndpoints(ctx context.Context, r *gctrpc.GetRPCEndpointsRequest) (*gctrpc.GetRPCEndpointsResponse, error) {
+func (s *RPCServer) GetRPCEndpoints(_ context.Context, r *gctrpc.GetRPCEndpointsRequest) (*gctrpc.GetRPCEndpointsResponse, error) {
 	endpoints := GetRPCEndpoints()
 	var resp gctrpc.GetRPCEndpointsResponse
 	resp.Endpoints = make(map[string]*gctrpc.RPCEndpoint)
@@ -217,7 +217,7 @@ func (s *RPCServer) GetRPCEndpoints(ctx context.Context, r *gctrpc.GetRPCEndpoin
 }
 
 // GetCommunicationRelayers returns the status of the engines communication relayers
-func (s *RPCServer) GetCommunicationRelayers(ctx context.Context, r *gctrpc.GetCommunicationRelayersRequest) (*gctrpc.GetCommunicationRelayersResponse, error) {
+func (s *RPCServer) GetCommunicationRelayers(_ context.Context, r *gctrpc.GetCommunicationRelayersRequest) (*gctrpc.GetCommunicationRelayersResponse, error) {
 	relayers, err := Bot.CommsManager.GetStatus()
 	if err != nil {
 		return nil, err
@@ -236,38 +236,38 @@ func (s *RPCServer) GetCommunicationRelayers(ctx context.Context, r *gctrpc.GetC
 
 // GetExchanges returns a list of exchanges
 // Param is whether or not you wish to list enabled exchanges
-func (s *RPCServer) GetExchanges(ctx context.Context, r *gctrpc.GetExchangesRequest) (*gctrpc.GetExchangesResponse, error) {
+func (s *RPCServer) GetExchanges(_ context.Context, r *gctrpc.GetExchangesRequest) (*gctrpc.GetExchangesResponse, error) {
 	exchanges := strings.Join(GetExchangeNames(r.Enabled), ",")
 	return &gctrpc.GetExchangesResponse{Exchanges: exchanges}, nil
 }
 
 // DisableExchange disables an exchange
-func (s *RPCServer) DisableExchange(ctx context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GenericExchangeNameResponse, error) {
+func (s *RPCServer) DisableExchange(_ context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GenericExchangeNameResponse, error) {
 	err := UnloadExchange(r.Exchange)
 	return &gctrpc.GenericExchangeNameResponse{}, err
 }
 
 // EnableExchange enables an exchange
-func (s *RPCServer) EnableExchange(ctx context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GenericExchangeNameResponse, error) {
+func (s *RPCServer) EnableExchange(_ context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GenericExchangeNameResponse, error) {
 	err := LoadExchange(r.Exchange, false, nil)
 	return &gctrpc.GenericExchangeNameResponse{}, err
 }
 
 // GetExchangeOTPCode retrieves an exchanges OTP code
-func (s *RPCServer) GetExchangeOTPCode(ctx context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GetExchangeOTPReponse, error) {
+func (s *RPCServer) GetExchangeOTPCode(_ context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GetExchangeOTPReponse, error) {
 	result, err := GetExchangeoOTPByName(r.Exchange)
 	return &gctrpc.GetExchangeOTPReponse{OtpCode: result}, err
 }
 
 // GetExchangeOTPCodes retrieves OTP codes for all exchanges which have an
 // OTP secret installed
-func (s *RPCServer) GetExchangeOTPCodes(ctx context.Context, r *gctrpc.GetExchangeOTPsRequest) (*gctrpc.GetExchangeOTPsResponse, error) {
+func (s *RPCServer) GetExchangeOTPCodes(_ context.Context, r *gctrpc.GetExchangeOTPsRequest) (*gctrpc.GetExchangeOTPsResponse, error) {
 	result, err := GetExchangeOTPs()
 	return &gctrpc.GetExchangeOTPsResponse{OtpCodes: result}, err
 }
 
 // GetExchangeInfo gets info for a specific exchange
-func (s *RPCServer) GetExchangeInfo(ctx context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GetExchangeInfoResponse, error) {
+func (s *RPCServer) GetExchangeInfo(_ context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GetExchangeInfoResponse, error) {
 	exchCfg, err := Bot.Config.GetExchangeConfig(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -302,7 +302,7 @@ func (s *RPCServer) GetExchangeInfo(ctx context.Context, r *gctrpc.GenericExchan
 
 // GetTicker returns the ticker for a specified exchange, currency pair and
 // asset type
-func (s *RPCServer) GetTicker(ctx context.Context, r *gctrpc.GetTickerRequest) (*gctrpc.TickerResponse, error) {
+func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*gctrpc.TickerResponse, error) {
 	t, err := GetSpecificTicker(currency.Pair{
 		Delimiter: r.Pair.Delimiter,
 		Base:      currency.NewCode(r.Pair.Base),
@@ -332,7 +332,7 @@ func (s *RPCServer) GetTicker(ctx context.Context, r *gctrpc.GetTickerRequest) (
 
 // GetTickers returns a list of tickers for all enabled exchanges and all
 // enabled currency pairs
-func (s *RPCServer) GetTickers(ctx context.Context, r *gctrpc.GetTickersRequest) (*gctrpc.GetTickersResponse, error) {
+func (s *RPCServer) GetTickers(_ context.Context, r *gctrpc.GetTickersRequest) (*gctrpc.GetTickersResponse, error) {
 	activeTickers := GetAllActiveTickers()
 	var tickers []*gctrpc.Tickers
 
@@ -365,7 +365,7 @@ func (s *RPCServer) GetTickers(ctx context.Context, r *gctrpc.GetTickersRequest)
 
 // GetOrderbook returns an orderbook for a specific exchange, currency pair
 // and asset type
-func (s *RPCServer) GetOrderbook(ctx context.Context, r *gctrpc.GetOrderbookRequest) (*gctrpc.OrderbookResponse, error) {
+func (s *RPCServer) GetOrderbook(_ context.Context, r *gctrpc.GetOrderbookRequest) (*gctrpc.OrderbookResponse, error) {
 	ob, err := GetSpecificOrderbook(currency.Pair{
 		Delimiter: r.Pair.Delimiter,
 		Base:      currency.NewCode(r.Pair.Base),
@@ -407,7 +407,7 @@ func (s *RPCServer) GetOrderbook(ctx context.Context, r *gctrpc.GetOrderbookRequ
 
 // GetOrderbooks returns a list of orderbooks for all enabled exchanges and all
 // enabled currency pairs
-func (s *RPCServer) GetOrderbooks(ctx context.Context, r *gctrpc.GetOrderbooksRequest) (*gctrpc.GetOrderbooksResponse, error) {
+func (s *RPCServer) GetOrderbooks(_ context.Context, r *gctrpc.GetOrderbooksRequest) (*gctrpc.GetOrderbooksResponse, error) {
 	activeOrderbooks := GetAllActiveOrderbooks()
 	var orderbooks []*gctrpc.Orderbooks
 
@@ -450,7 +450,7 @@ func (s *RPCServer) GetOrderbooks(ctx context.Context, r *gctrpc.GetOrderbooksRe
 }
 
 // GetAccountInfo returns an account balance for a specific exchange
-func (s *RPCServer) GetAccountInfo(ctx context.Context, r *gctrpc.GetAccountInfoRequest) (*gctrpc.GetAccountInfoResponse, error) {
+func (s *RPCServer) GetAccountInfo(_ context.Context, r *gctrpc.GetAccountInfoRequest) (*gctrpc.GetAccountInfoResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errors.New("exchange is not loaded/doesn't exist")
@@ -560,12 +560,12 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 }
 
 // GetConfig returns the bots config
-func (s *RPCServer) GetConfig(ctx context.Context, r *gctrpc.GetConfigRequest) (*gctrpc.GetConfigResponse, error) {
+func (s *RPCServer) GetConfig(_ context.Context, r *gctrpc.GetConfigRequest) (*gctrpc.GetConfigResponse, error) {
 	return &gctrpc.GetConfigResponse{}, common.ErrNotYetImplemented
 }
 
 // GetPortfolio returns the portfolio details
-func (s *RPCServer) GetPortfolio(ctx context.Context, r *gctrpc.GetPortfolioRequest) (*gctrpc.GetPortfolioResponse, error) {
+func (s *RPCServer) GetPortfolio(_ context.Context, r *gctrpc.GetPortfolioRequest) (*gctrpc.GetPortfolioResponse, error) {
 	var addrs []*gctrpc.PortfolioAddress
 	botAddrs := Bot.Portfolio.Addresses
 
@@ -586,7 +586,7 @@ func (s *RPCServer) GetPortfolio(ctx context.Context, r *gctrpc.GetPortfolioRequ
 }
 
 // GetPortfolioSummary returns the portfolio summary
-func (s *RPCServer) GetPortfolioSummary(ctx context.Context, r *gctrpc.GetPortfolioSummaryRequest) (*gctrpc.GetPortfolioSummaryResponse, error) {
+func (s *RPCServer) GetPortfolioSummary(_ context.Context, r *gctrpc.GetPortfolioSummaryRequest) (*gctrpc.GetPortfolioSummaryResponse, error) {
 	result := Bot.Portfolio.GetPortfolioSummary()
 	var resp gctrpc.GetPortfolioSummaryResponse
 
@@ -642,7 +642,7 @@ func (s *RPCServer) GetPortfolioSummary(ctx context.Context, r *gctrpc.GetPortfo
 }
 
 // AddPortfolioAddress adds an address to the portfolio manager
-func (s *RPCServer) AddPortfolioAddress(ctx context.Context, r *gctrpc.AddPortfolioAddressRequest) (*gctrpc.AddPortfolioAddressResponse, error) {
+func (s *RPCServer) AddPortfolioAddress(_ context.Context, r *gctrpc.AddPortfolioAddressRequest) (*gctrpc.AddPortfolioAddressResponse, error) {
 	err := Bot.Portfolio.AddAddress(r.Address, r.Description, currency.NewCode(r.CoinType), r.Balance)
 	if err != nil {
 		return nil, err
@@ -651,13 +651,13 @@ func (s *RPCServer) AddPortfolioAddress(ctx context.Context, r *gctrpc.AddPortfo
 }
 
 // RemovePortfolioAddress removes an address from the portfolio manager
-func (s *RPCServer) RemovePortfolioAddress(ctx context.Context, r *gctrpc.RemovePortfolioAddressRequest) (*gctrpc.RemovePortfolioAddressResponse, error) {
+func (s *RPCServer) RemovePortfolioAddress(_ context.Context, r *gctrpc.RemovePortfolioAddressRequest) (*gctrpc.RemovePortfolioAddressResponse, error) {
 	err := Bot.Portfolio.RemoveAddress(r.Address, r.Description, currency.NewCode(r.CoinType))
 	return &gctrpc.RemovePortfolioAddressResponse{}, err
 }
 
 // GetForexProviders returns a list of available forex providers
-func (s *RPCServer) GetForexProviders(ctx context.Context, r *gctrpc.GetForexProvidersRequest) (*gctrpc.GetForexProvidersResponse, error) {
+func (s *RPCServer) GetForexProviders(_ context.Context, r *gctrpc.GetForexProvidersRequest) (*gctrpc.GetForexProvidersResponse, error) {
 	providers := Bot.Config.GetForexProviders()
 	if len(providers) == 0 {
 		return nil, fmt.Errorf("forex providers is empty")
@@ -679,7 +679,7 @@ func (s *RPCServer) GetForexProviders(ctx context.Context, r *gctrpc.GetForexPro
 }
 
 // GetForexRates returns a list of forex rates
-func (s *RPCServer) GetForexRates(ctx context.Context, r *gctrpc.GetForexRatesRequest) (*gctrpc.GetForexRatesResponse, error) {
+func (s *RPCServer) GetForexRates(_ context.Context, r *gctrpc.GetForexRatesRequest) (*gctrpc.GetForexRatesResponse, error) {
 	rates, err := currency.GetExchangeRates()
 	if err != nil {
 		return nil, err
@@ -714,7 +714,7 @@ func (s *RPCServer) GetForexRates(ctx context.Context, r *gctrpc.GetForexRatesRe
 
 // GetOrders returns all open orders, filtered by exchange, currency pair or
 // asset type
-func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (*gctrpc.GetOrdersResponse, error) {
+func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*gctrpc.GetOrdersResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errors.New("exchange is not loaded/doesn't exist")
@@ -751,7 +751,7 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 }
 
 // GetOrder returns order information based on exchange and order ID
-func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*gctrpc.OrderDetails, error) {
+func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gctrpc.OrderDetails, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errors.New("exchange is not loaded/doesn't exist")
@@ -793,7 +793,7 @@ func (s *RPCServer) GetOrder(ctx context.Context, r *gctrpc.GetOrderRequest) (*g
 
 // SubmitOrder submits an order specified by exchange, currency pair and asset
 // type
-func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderRequest) (*gctrpc.SubmitOrderResponse, error) {
+func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest) (*gctrpc.SubmitOrderResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errors.New("exchange is not loaded/doesn't exist")
@@ -827,7 +827,7 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 
 // SimulateOrder simulates an order specified by exchange, currency pair and asset
 // type
-func (s *RPCServer) SimulateOrder(ctx context.Context, r *gctrpc.SimulateOrderRequest) (*gctrpc.SimulateOrderResponse, error) {
+func (s *RPCServer) SimulateOrder(_ context.Context, r *gctrpc.SimulateOrderRequest) (*gctrpc.SimulateOrderResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errors.New("exchange is not loaded/doesn't exist")
@@ -868,7 +868,7 @@ func (s *RPCServer) SimulateOrder(ctx context.Context, r *gctrpc.SimulateOrderRe
 
 // WhaleBomb finds the amount required to reach a specific price target for a given exchange, pair
 // and asset type
-func (s *RPCServer) WhaleBomb(ctx context.Context, r *gctrpc.WhaleBombRequest) (*gctrpc.SimulateOrderResponse, error) {
+func (s *RPCServer) WhaleBomb(_ context.Context, r *gctrpc.WhaleBombRequest) (*gctrpc.SimulateOrderResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errors.New("exchange is not loaded/doesn't exist")
@@ -909,7 +909,7 @@ func (s *RPCServer) WhaleBomb(ctx context.Context, r *gctrpc.WhaleBombRequest) (
 
 // CancelOrder cancels an order specified by exchange, currency pair and asset
 // type
-func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderRequest) (*gctrpc.CancelOrderResponse, error) {
+func (s *RPCServer) CancelOrder(_ context.Context, r *gctrpc.CancelOrderRequest) (*gctrpc.CancelOrderResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errors.New("exchange is not loaded/doesn't exist")
@@ -932,17 +932,17 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 }
 
 // CancelAllOrders cancels all orders, filterable by exchange
-func (s *RPCServer) CancelAllOrders(ctx context.Context, r *gctrpc.CancelAllOrdersRequest) (*gctrpc.CancelAllOrdersResponse, error) {
+func (s *RPCServer) CancelAllOrders(_ context.Context, r *gctrpc.CancelAllOrdersRequest) (*gctrpc.CancelAllOrdersResponse, error) {
 	return &gctrpc.CancelAllOrdersResponse{}, common.ErrNotYetImplemented
 }
 
 // GetEvents returns the stored events list
-func (s *RPCServer) GetEvents(ctx context.Context, r *gctrpc.GetEventsRequest) (*gctrpc.GetEventsResponse, error) {
+func (s *RPCServer) GetEvents(_ context.Context, r *gctrpc.GetEventsRequest) (*gctrpc.GetEventsResponse, error) {
 	return &gctrpc.GetEventsResponse{}, common.ErrNotYetImplemented
 }
 
 // AddEvent adds an event
-func (s *RPCServer) AddEvent(ctx context.Context, r *gctrpc.AddEventRequest) (*gctrpc.AddEventResponse, error) {
+func (s *RPCServer) AddEvent(_ context.Context, r *gctrpc.AddEventRequest) (*gctrpc.AddEventResponse, error) {
 	evtCondition := EventConditionParams{
 		CheckBids:        r.ConditionParams.CheckBids,
 		CheckBidsAndAsks: r.ConditionParams.CheckBidsAndAsks,
@@ -963,14 +963,14 @@ func (s *RPCServer) AddEvent(ctx context.Context, r *gctrpc.AddEventRequest) (*g
 }
 
 // RemoveEvent removes an event, specified by an event ID
-func (s *RPCServer) RemoveEvent(ctx context.Context, r *gctrpc.RemoveEventRequest) (*gctrpc.RemoveEventResponse, error) {
+func (s *RPCServer) RemoveEvent(_ context.Context, r *gctrpc.RemoveEventRequest) (*gctrpc.RemoveEventResponse, error) {
 	Remove(r.Id)
 	return &gctrpc.RemoveEventResponse{}, nil
 }
 
 // GetCryptocurrencyDepositAddresses returns a list of cryptocurrency deposit
 // addresses specified by an exchange
-func (s *RPCServer) GetCryptocurrencyDepositAddresses(ctx context.Context, r *gctrpc.GetCryptocurrencyDepositAddressesRequest) (*gctrpc.GetCryptocurrencyDepositAddressesResponse, error) {
+func (s *RPCServer) GetCryptocurrencyDepositAddresses(_ context.Context, r *gctrpc.GetCryptocurrencyDepositAddressesRequest) (*gctrpc.GetCryptocurrencyDepositAddressesResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errors.New("exchange is not loaded/doesn't exist")
@@ -982,7 +982,7 @@ func (s *RPCServer) GetCryptocurrencyDepositAddresses(ctx context.Context, r *gc
 
 // GetCryptocurrencyDepositAddress returns a cryptocurrency deposit address
 // specified by exchange and cryptocurrency
-func (s *RPCServer) GetCryptocurrencyDepositAddress(ctx context.Context, r *gctrpc.GetCryptocurrencyDepositAddressRequest) (*gctrpc.GetCryptocurrencyDepositAddressResponse, error) {
+func (s *RPCServer) GetCryptocurrencyDepositAddress(_ context.Context, r *gctrpc.GetCryptocurrencyDepositAddressRequest) (*gctrpc.GetCryptocurrencyDepositAddressResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errors.New("exchange is not loaded/doesn't exist")
@@ -994,7 +994,7 @@ func (s *RPCServer) GetCryptocurrencyDepositAddress(ctx context.Context, r *gctr
 
 // WithdrawCryptocurrencyFunds withdraws cryptocurrency funds specified by
 // exchange
-func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.WithdrawCryptoRequest) (*gctrpc.WithdrawResponse, error) {
+func (s *RPCServer) WithdrawCryptocurrencyFunds(_ context.Context, r *gctrpc.WithdrawCryptoRequest) (*gctrpc.WithdrawResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errors.New("exchange is not loaded/doesn't exist")
@@ -1024,7 +1024,7 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 }
 
 // WithdrawFiatFunds withdraws fiat funds specified by exchange
-func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFiatRequest) (*gctrpc.WithdrawResponse, error) {
+func (s *RPCServer) WithdrawFiatFunds(_ context.Context, r *gctrpc.WithdrawFiatRequest) (*gctrpc.WithdrawResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errors.New("exchange is not loaded/doesn't exist")
@@ -1061,7 +1061,7 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 }
 
 // WithdrawalEventByID returns previous withdrawal request details
-func (s *RPCServer) WithdrawalEventByID(ctx context.Context, r *gctrpc.WithdrawalEventByIDRequest) (*gctrpc.WithdrawalEventByIDResponse, error) {
+func (s *RPCServer) WithdrawalEventByID(_ context.Context, r *gctrpc.WithdrawalEventByIDRequest) (*gctrpc.WithdrawalEventByIDResponse, error) {
 	if !Bot.Config.Database.Enabled {
 		return nil, database.ErrDatabaseSupportDisabled
 	}
@@ -1123,7 +1123,7 @@ func (s *RPCServer) WithdrawalEventByID(ctx context.Context, r *gctrpc.Withdrawa
 }
 
 // WithdrawalEventsByExchange returns previous withdrawal request details by exchange
-func (s *RPCServer) WithdrawalEventsByExchange(ctx context.Context, r *gctrpc.WithdrawalEventsByExchangeRequest) (*gctrpc.WithdrawalEventsByExchangeResponse, error) {
+func (s *RPCServer) WithdrawalEventsByExchange(_ context.Context, r *gctrpc.WithdrawalEventsByExchangeRequest) (*gctrpc.WithdrawalEventsByExchangeResponse, error) {
 	if !Bot.Config.Database.Enabled {
 		return nil, database.ErrDatabaseSupportDisabled
 	}
@@ -1144,7 +1144,7 @@ func (s *RPCServer) WithdrawalEventsByExchange(ctx context.Context, r *gctrpc.Wi
 }
 
 // WithdrawalEventsByDate returns previous withdrawal request details by exchange
-func (s *RPCServer) WithdrawalEventsByDate(ctx context.Context, r *gctrpc.WithdrawalEventsByDateRequest) (*gctrpc.WithdrawalEventsByExchangeResponse, error) {
+func (s *RPCServer) WithdrawalEventsByDate(_ context.Context, r *gctrpc.WithdrawalEventsByDateRequest) (*gctrpc.WithdrawalEventsByExchangeResponse, error) {
 	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.Start)
 	if err != nil {
 		return nil, err
@@ -1163,7 +1163,7 @@ func (s *RPCServer) WithdrawalEventsByDate(ctx context.Context, r *gctrpc.Withdr
 }
 
 // GetLoggerDetails returns a loggers details
-func (s *RPCServer) GetLoggerDetails(ctx context.Context, r *gctrpc.GetLoggerDetailsRequest) (*gctrpc.GetLoggerDetailsResponse, error) {
+func (s *RPCServer) GetLoggerDetails(_ context.Context, r *gctrpc.GetLoggerDetailsRequest) (*gctrpc.GetLoggerDetailsResponse, error) {
 	levels, err := log.Level(r.Logger)
 	if err != nil {
 		return nil, err
@@ -1178,7 +1178,7 @@ func (s *RPCServer) GetLoggerDetails(ctx context.Context, r *gctrpc.GetLoggerDet
 }
 
 // SetLoggerDetails sets a loggers details
-func (s *RPCServer) SetLoggerDetails(ctx context.Context, r *gctrpc.SetLoggerDetailsRequest) (*gctrpc.GetLoggerDetailsResponse, error) {
+func (s *RPCServer) SetLoggerDetails(_ context.Context, r *gctrpc.SetLoggerDetailsRequest) (*gctrpc.GetLoggerDetailsResponse, error) {
 	levels, err := log.SetLevel(r.Logger, r.Level)
 	if err != nil {
 		return nil, err
@@ -1193,7 +1193,7 @@ func (s *RPCServer) SetLoggerDetails(ctx context.Context, r *gctrpc.SetLoggerDet
 }
 
 // GetExchangePairs returns a list of exchange supported assets and related pairs
-func (s *RPCServer) GetExchangePairs(ctx context.Context, r *gctrpc.GetExchangePairsRequest) (*gctrpc.GetExchangePairsResponse, error) {
+func (s *RPCServer) GetExchangePairs(_ context.Context, r *gctrpc.GetExchangePairsRequest) (*gctrpc.GetExchangePairsResponse, error) {
 	exchCfg, err := Bot.Config.GetExchangeConfig(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -1226,7 +1226,7 @@ func (s *RPCServer) GetExchangePairs(ctx context.Context, r *gctrpc.GetExchangeP
 }
 
 // EnableExchangePair enables the specified pair on an exchange
-func (s *RPCServer) EnableExchangePair(ctx context.Context, r *gctrpc.ExchangePairRequest) (*gctrpc.GenericExchangeNameResponse, error) {
+func (s *RPCServer) EnableExchangePair(_ context.Context, r *gctrpc.ExchangePairRequest) (*gctrpc.GenericExchangeNameResponse, error) {
 	exchCfg, err := Bot.Config.GetExchangeConfig(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -1243,28 +1243,43 @@ func (s *RPCServer) EnableExchangePair(ctx context.Context, r *gctrpc.ExchangePa
 		a = asset.Item(r.AssetType)
 	}
 
+	exch := GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errors.New("cannot get exchange by name")
+	}
+
+	base := exch.GetBase()
+	if exch == nil {
+		return nil, errors.New("cannot get exchange base")
+	}
+
 	pairFmt, err := Bot.Config.GetPairFormat(r.Exchange, a)
 	if err != nil {
 		return nil, err
 	}
 
-	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
-	if err != nil {
-		return nil, err
+	for i := range r.Pairs {
+		p, err := currency.NewPairFromStrings(r.Pairs[i].Base, r.Pairs[i].Quote)
+		if err != nil {
+			return nil, err
+		}
+
+		err = exchCfg.CurrencyPairs.EnablePair(a,
+			p.Format(pairFmt.Delimiter, pairFmt.Uppercase))
+		if err != nil {
+			return nil, err
+		}
+		err = base.CurrencyPairs.EnablePair(asset.Item(r.AssetType), p)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	err = exchCfg.CurrencyPairs.EnablePair(a,
-		p.Format(pairFmt.Delimiter, pairFmt.Uppercase))
-	if err != nil {
-		return nil, err
-	}
-	err = GetExchangeByName(r.Exchange).GetBase().CurrencyPairs.EnablePair(
-		asset.Item(r.AssetType), p)
 	return &gctrpc.GenericExchangeNameResponse{}, err
 }
 
 // DisableExchangePair disables the specified pair on an exchange
-func (s *RPCServer) DisableExchangePair(ctx context.Context, r *gctrpc.ExchangePairRequest) (*gctrpc.GenericExchangeNameResponse, error) {
+func (s *RPCServer) DisableExchangePair(_ context.Context, r *gctrpc.ExchangePairRequest) (*gctrpc.GenericExchangeNameResponse, error) {
 	exchCfg, err := Bot.Config.GetExchangeConfig(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -1286,18 +1301,32 @@ func (s *RPCServer) DisableExchangePair(ctx context.Context, r *gctrpc.ExchangeP
 		return nil, err
 	}
 
-	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
-	if err != nil {
-		return nil, err
+	exch := GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errors.New("cannot get exchange by name")
 	}
 
-	err = exchCfg.CurrencyPairs.DisablePair(asset.Item(r.AssetType),
-		p.Format(pairFmt.Delimiter, pairFmt.Uppercase))
-	if err != nil {
-		return nil, err
+	base := exch.GetBase()
+	if base == nil {
+		return nil, errors.New("cannot get exchange base")
 	}
-	err = GetExchangeByName(r.Exchange).GetBase().CurrencyPairs.DisablePair(
-		asset.Item(r.AssetType), p)
+
+	for i := range r.Pairs {
+		p, err := currency.NewPairFromStrings(r.Pairs[i].Base, r.Pairs[i].Quote)
+		if err != nil {
+			return nil, err
+		}
+		err = exchCfg.CurrencyPairs.DisablePair(asset.Item(r.AssetType),
+			p.Format(pairFmt.Delimiter, pairFmt.Uppercase))
+		if err != nil {
+			return nil, err
+		}
+		err = base.CurrencyPairs.DisablePair(asset.Item(r.AssetType), p)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &gctrpc.GenericExchangeNameResponse{}, err
 }
 
@@ -1504,7 +1533,7 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 }
 
 // GetAuditEvent returns matching audit events from database
-func (s *RPCServer) GetAuditEvent(ctx context.Context, r *gctrpc.GetAuditEventRequest) (*gctrpc.GetAuditEventResponse, error) {
+func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequest) (*gctrpc.GetAuditEventResponse, error) {
 	UTCStartTime, err := time.Parse(common.SimpleTimeFormat, r.StartDate)
 	if err != nil {
 		return nil, err
@@ -1552,7 +1581,7 @@ func (s *RPCServer) GetAuditEvent(ctx context.Context, r *gctrpc.GetAuditEventRe
 }
 
 // GetHistoricCandles returns historical candles for a given exchange
-func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
+func (s *RPCServer) GetHistoricCandles(_ context.Context, req *gctrpc.GetHistoricCandlesRequest) (*gctrpc.GetHistoricCandlesResponse, error) {
 	if req.Exchange == "" {
 		return nil, errors.New(errExchangeNameUnset)
 	}
@@ -1593,7 +1622,7 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHisto
 }
 
 // GCTScriptStatus returns a slice of current running scripts that includes next run time and uuid
-func (s *RPCServer) GCTScriptStatus(ctx context.Context, r *gctrpc.GCTScriptStatusRequest) (*gctrpc.GCTScriptStatusResponse, error) {
+func (s *RPCServer) GCTScriptStatus(_ context.Context, r *gctrpc.GCTScriptStatusRequest) (*gctrpc.GCTScriptStatusResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
 		return &gctrpc.GCTScriptStatusResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
@@ -1621,7 +1650,7 @@ func (s *RPCServer) GCTScriptStatus(ctx context.Context, r *gctrpc.GCTScriptStat
 }
 
 // GCTScriptQuery queries a running script and returns script running information
-func (s *RPCServer) GCTScriptQuery(ctx context.Context, r *gctrpc.GCTScriptQueryRequest) (*gctrpc.GCTScriptQueryResponse, error) {
+func (s *RPCServer) GCTScriptQuery(_ context.Context, r *gctrpc.GCTScriptQueryRequest) (*gctrpc.GCTScriptQueryResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
 		return &gctrpc.GCTScriptQueryResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
@@ -1652,7 +1681,7 @@ func (s *RPCServer) GCTScriptQuery(ctx context.Context, r *gctrpc.GCTScriptQuery
 }
 
 // GCTScriptExecute execute a script
-func (s *RPCServer) GCTScriptExecute(ctx context.Context, r *gctrpc.GCTScriptExecuteRequest) (*gctrpc.GCTScriptGenericResponse, error) {
+func (s *RPCServer) GCTScriptExecute(_ context.Context, r *gctrpc.GCTScriptExecuteRequest) (*gctrpc.GCTScriptGenericResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
 		return &gctrpc.GCTScriptGenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
@@ -1684,7 +1713,7 @@ func (s *RPCServer) GCTScriptExecute(ctx context.Context, r *gctrpc.GCTScriptExe
 }
 
 // GCTScriptStop terminate a running script
-func (s *RPCServer) GCTScriptStop(ctx context.Context, r *gctrpc.GCTScriptStopRequest) (*gctrpc.GCTScriptGenericResponse, error) {
+func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequest) (*gctrpc.GCTScriptGenericResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
 		return &gctrpc.GCTScriptGenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
@@ -1706,7 +1735,7 @@ func (s *RPCServer) GCTScriptStop(ctx context.Context, r *gctrpc.GCTScriptStopRe
 }
 
 // GCTScriptUpload upload a new script to ScriptPath
-func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUploadRequest) (*gctrpc.GCTScriptGenericResponse, error) {
+func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUploadRequest) (*gctrpc.GCTScriptGenericResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
 		return &gctrpc.GCTScriptGenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
@@ -1797,7 +1826,7 @@ func (s *RPCServer) GCTScriptUpload(ctx context.Context, r *gctrpc.GCTScriptUplo
 }
 
 // GCTScriptReadScript read a script and return contents
-func (s *RPCServer) GCTScriptReadScript(ctx context.Context, r *gctrpc.GCTScriptReadScriptRequest) (*gctrpc.GCTScriptQueryResponse, error) {
+func (s *RPCServer) GCTScriptReadScript(_ context.Context, r *gctrpc.GCTScriptReadScriptRequest) (*gctrpc.GCTScriptQueryResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
 		return &gctrpc.GCTScriptQueryResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
@@ -1865,7 +1894,7 @@ func (s *RPCServer) GCTScriptStopAll(context.Context, *gctrpc.GCTScriptStopAllRe
 }
 
 // GCTScriptAutoLoadToggle adds or removes an entry to the autoload list
-func (s *RPCServer) GCTScriptAutoLoadToggle(ctx context.Context, r *gctrpc.GCTScriptAutoLoadRequest) (*gctrpc.GCTScriptGenericResponse, error) {
+func (s *RPCServer) GCTScriptAutoLoadToggle(_ context.Context, r *gctrpc.GCTScriptAutoLoadRequest) (*gctrpc.GCTScriptGenericResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
 		return &gctrpc.GCTScriptGenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
@@ -1883,4 +1912,89 @@ func (s *RPCServer) GCTScriptAutoLoadToggle(ctx context.Context, r *gctrpc.GCTSc
 		return &gctrpc.GCTScriptGenericResponse{Status: "error", Data: err.Error()}, nil
 	}
 	return &gctrpc.GCTScriptGenericResponse{Status: "success", Data: "script " + r.Script + " added to autoload list"}, nil
+}
+
+// EnableDisableExchangeAsset enables or disables an exchanges asset type
+func (s *RPCServer) EnableDisableExchangeAsset(_ context.Context, r *gctrpc.ExchangeDisableEnableAssetRequest) (*gctrpc.GenericSubsystemResponse, error) {
+	exch := GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errors.New("exchange is not loaded/doesn't exist")
+	}
+
+	base := exch.GetBase()
+	if exch == nil {
+		return nil, errors.New("cannot get exchange base")
+	}
+
+	a := asset.Spot
+	if r.Asset != "" {
+		a = asset.Item(r.Asset)
+	}
+
+	err := base.EnableDisableAssetType(a, r.Enable)
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.GenericSubsystemResponse{}, nil
+}
+
+// EnableDisableAllExchangePairs enables or disables an exchanges pairs
+func (s *RPCServer) EnableDisableAllExchangePairs(_ context.Context, r *gctrpc.ExchangeDisableEnableAllPairsRequest) (*gctrpc.GenericSubsystemResponse, error) {
+	exch := GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errors.New("exchange is not loaded/doesn't exist")
+	}
+
+	base := exch.GetBase()
+	if exch == nil {
+		return nil, errors.New("cannot get exchange base")
+	}
+
+	assets := base.CurrencyPairs.GetAssetTypes()
+
+	if r.Enable {
+		for i := range assets {
+			pairs, err := base.CurrencyPairs.GetPairs(assets[i], false)
+			if err != nil {
+				return nil, err
+			}
+			base.CurrencyPairs.StorePairs(assets[i], pairs, true)
+		}
+		return &gctrpc.GenericSubsystemResponse{}, nil
+	}
+
+	for i := range assets {
+		base.CurrencyPairs.StorePairs(assets[i], nil, true)
+	}
+
+	return &gctrpc.GenericSubsystemResponse{}, nil
+}
+
+// UpdateExchangeSupportedPairs forces an update of the supported pairs which
+// will update the available pairs list and remove any assets that are disabled
+// by the exchange
+func (s *RPCServer) UpdateExchangeSupportedPairs(_ context.Context, r *gctrpc.UpdateExchangeSupportedPairsRequest) (*gctrpc.GenericSubsystemResponse, error) {
+	// exch := GetExchangeByName(r.Exchange)
+	// if exch == nil {
+	// 	return nil, errors.New("exchange is not loaded/doesn't exist")
+	// }
+
+	// err := exch.UpdateSupportedPairs()
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	return &gctrpc.GenericSubsystemResponse{}, common.ErrNotYetImplemented
+}
+
+// GetExchangeAssets returns the supported asset types
+func (s *RPCServer) GetExchangeAssets(_ context.Context, r *gctrpc.GetExchangeAssetsRequest) (*gctrpc.GetExchangeAssetsResponse, error) {
+	exch := GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errors.New("exchange is not loaded/doesn't exist")
+	}
+
+	return &gctrpc.GetExchangeAssetsResponse{
+		Assets: exch.GetAssetTypes().JoinToString(","),
+	}, nil
 }
