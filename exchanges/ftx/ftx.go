@@ -40,17 +40,22 @@ const (
 	getAllWalletBalances = "/wallet/all_balances"
 
 	// Authenticated endpoints
-	getAccountInfo       = "/account"
-	getPositions         = "/positions"
-	setLeverage          = "/account/leverage"
-	getCoins             = "/wallet/coins"
-	getBalances          = "/wallet/balances"
-	getDepositAddress    = "/wallet/deposit_address/%s"
-	getDepositHistory    = "/wallet/deposits"
-	getWithdrawalHistory = "/wallet/withdrawals"
-	withdrawRequest      = "/wallet/withdrawals"
-	ftxRateInterval      = time.Minute
-	ftxRequestRate       = 180
+	getAccountInfo          = "/account"
+	getPositions            = "/positions"
+	setLeverage             = "/account/leverage"
+	getCoins                = "/wallet/coins"
+	getBalances             = "/wallet/balances"
+	getDepositAddress       = "/wallet/deposit_address/%s"
+	getDepositHistory       = "/wallet/deposits"
+	getWithdrawalHistory    = "/wallet/withdrawals"
+	withdrawRequest         = "/wallet/withdrawals"
+	getOpenOrders           = "/orders?"
+	getOrderHistory         = "/orders/history?"
+	getOpenTriggerOrders    = "/conditional_orders?"
+	getTriggerOrderTriggers = "/conditional_orders/%s/triggers"
+	getTriggerOrderHistory  = "/conditional_orders/history?"
+	ftxRateInterval         = time.Minute
+	ftxRequestRate          = 180
 )
 
 // Start implementing public and private exchange API funcs below
@@ -80,12 +85,12 @@ func (f *Ftx) GetOrderbook(marketName string, depth int64) (OrderbookData, error
 	}
 	resp.MarketName = marketName
 	for x := range tempOB.Result.Asks {
-		resp.Asks = append(resp.Asks, OrderData{Price: tempOB.Result.Asks[x][0],
+		resp.Asks = append(resp.Asks, OData{Price: tempOB.Result.Asks[x][0],
 			Size: tempOB.Result.Bids[x][1],
 		})
 	}
 	for y := range tempOB.Result.Bids {
-		resp.Bids = append(resp.Bids, OrderData{Price: tempOB.Result.Bids[y][0],
+		resp.Bids = append(resp.Bids, OData{Price: tempOB.Result.Bids[y][0],
 			Size: tempOB.Result.Bids[y][1],
 		})
 	}
@@ -250,13 +255,80 @@ func (f *Ftx) FetchWithdrawalHistory() (WithdrawalHistory, error) {
 }
 
 // Withdraw sends a withdrawal request
-func (f *Ftx) Withdraw(coin, address, tag, password string, size float64) (WithdrawData, error) {
+func (f *Ftx) Withdraw(coin, address, tag, password, code string, size float64) (WithdrawData, error) {
 	var resp WithdrawData
 	req := make(map[string]interface{})
 	req["coin"] = coin
 	req["address"] = address
-	req["tag"] = tag
-	return resp, nil
+	req["size"] = size
+	if code != "" {
+		req["code"] = code
+	}
+	if tag != "" {
+		req["tag"] = tag
+	}
+	if password != "" {
+		req["password"] = password
+	}
+	return resp, f.SendAuthHTTPRequest(http.MethodPost, withdrawRequest, req, &resp)
+}
+
+// GetOpenOrders gets open orders
+func (f *Ftx) GetOpenOrders(marketName string) (OpenOrders, error) {
+	var resp OpenOrders
+	params := url.Values{}
+	if marketName != "" {
+		params.Set("market", marketName)
+	}
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getOpenOrders+params.Encode(), nil, &resp)
+}
+
+// FetchOrderHistory gets order history
+func (f *Ftx) FetchOrderHistory(marketName, startTime, endTime, limit string) (OrderHistory, error) {
+	var resp OrderHistory
+	params := url.Values{}
+	if marketName != "" {
+		params.Set("market", marketName)
+	}
+	if startTime != "" {
+		params.Set("start_time", startTime)
+	}
+	if endTime != "" {
+		params.Set("end_time", endTime)
+	}
+	if limit != "" {
+		params.Set("limit", limit)
+	}
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getOrderHistory+params.Encode(), nil, &resp)
+}
+
+// GetOpenTriggerOrders gets trigger orders that are currently open
+func (f *Ftx) GetOpenTriggerOrders(marketName, orderType string) (OpenTriggerOrders, error) {
+	var resp OpenTriggerOrders
+	params := url.Values{}
+	if marketName != "" {
+		params.Set("market", marketName)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getOpenTriggerOrders+params.Encode(), nil, &resp)
+}
+
+// GetTriggerOrderTriggers gets trigger orders that are currently open
+func (f *Ftx) GetTriggerOrderTriggers(orderID string) (Triggers, error) {
+	var resp Triggers
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, fmt.Sprintf(getTriggerOrderTriggers, orderID), nil, &resp)
+}
+
+// GetTriggerOrderHistory gets trigger orders that are currently open
+func (f *Ftx) GetTriggerOrderHistory(marketName string) (TriggerOrderHistory, error) {
+	var resp TriggerOrderHistory
+	params := url.Values{}
+	if marketName != "" {
+		params.Set("market", marketName)
+	}
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getTriggerOrderHistory+params.Encode(), nil, &resp)
 }
 
 // SendAuthHTTPRequest sends an authenticated request

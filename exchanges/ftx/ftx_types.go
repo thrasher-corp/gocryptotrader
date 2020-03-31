@@ -27,8 +27,8 @@ type Market struct {
 	Result  MarketData `json:"result"`
 }
 
-// OrderData stores orderdata in orderbook
-type OrderData struct {
+// OData stores orderdata in orderbook
+type OData struct {
 	Price float64
 	Size  float64
 }
@@ -36,8 +36,8 @@ type OrderData struct {
 // OrderbookData stores orderbook data
 type OrderbookData struct {
 	MarketName string
-	Asks       []OrderData
-	Bids       []OrderData
+	Asks       []OData
+	Bids       []OData
 }
 
 // TempOrderbook stores order book
@@ -284,4 +284,87 @@ type WithdrawalHistory struct {
 type WithdrawData struct {
 	Success bool            `json:"success"`
 	Result  TransactionData `json:"result"`
+}
+
+// OrderData stores open order data
+type OrderData struct {
+	CreatedAt     string  `json:"createdAt"`
+	FilledSize    float64 `json:"filledSize"`
+	Future        string  `json:"future"`
+	ID            int64   `json:"id"`
+	Market        string  `json:"market"`
+	Price         float64 `json:"price"`
+	AvgFillPrice  float64 `json:"avgFillPrice"`
+	RemainingSize float64 `json:"remainingSize"`
+	Side          string  `json:"side"`
+	Size          float64 `json:"size"`
+	Status        string  `json:"status"`
+	OrderType     string  `json:"type"`
+	ReduceOnly    bool    `json:"reduceOnly"`
+	IOC           bool    `json:"ioc"`
+	PostOnly      bool    `json:"postOnly"`
+	ClientID      string  `json:"clientId"`
+}
+
+// OpenOrders stores data of open orders
+type OpenOrders struct {
+	Success bool        `json:"success"`
+	Result  []OrderData `json:"result"`
+}
+
+// OrderHistory stores order history data
+type OrderHistory struct {
+	Success bool        `json:"success"`
+	Result  []OrderData `json:"result"`
+}
+
+// TriggerOrderData stores trigger order data
+type TriggerOrderData struct {
+	CreatedAt        string  `json:"createdAt"`
+	Error            string  `json:"error"`
+	Future           string  `json:"future"`
+	ID               int64   `json:"id"`
+	Market           string  `json:"market"`
+	OrderID          int64   `json:"orderId"`
+	OrderPrice       float64 `json:"orderPrice"`
+	ReduceOnly       bool    `json:"reduceOnly"`
+	Side             string  `json:"side"`
+	Size             float64 `json:"size"`
+	Status           string  `json:"status"`
+	TrailStart       float64 `json:"trailStart"`
+	TrailValue       float64 `json:"trailvalue"`
+	TriggerPrice     float64 `json:"triggerPrice"`
+	TriggeredAt      string  `json:"triggeredAt"`
+	OrderType        string  `json:"type"`
+	MarketOrLimit    string  `json:"orderType"`
+	FilledSize       float64 `json:"filledSize"`
+	AvgFillPrice     float64 `json:"avgFillPrice"`
+	RetryUntilFilled bool    `json:"retryUntilFilled"`
+}
+
+// OpenTriggerOrders stores trigger orders' data that are open
+type OpenTriggerOrders struct {
+	Success bool               `json:"success"`
+	Result  []TriggerOrderData `json:"result"`
+}
+
+// TriggerData stores trigger orders' trigger data
+type TriggerData struct {
+	Error      string  `json:"error"`
+	FilledSize float64 `json:"filledSize"`
+	OrderSize  float64 `json:"orderSize"`
+	OrderID    int64   `json:"orderId"`
+	Time       string  `json:"time"`
+}
+
+// Triggers stores trigger orders' data
+type Triggers struct {
+	Success bool          `json:"success"`
+	Result  []TriggerData `json:"result"`
+}
+
+// TriggerOrderHistory stores trigger orders from past
+type TriggerOrderHistory struct {
+	Success bool               `json:"success"`
+	Result  []TriggerOrderData `json:"result"`
 }

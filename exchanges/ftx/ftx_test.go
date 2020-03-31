@@ -197,3 +197,51 @@ func TestFetchWithdrawalHistory(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestWithdraw(t *testing.T) {
+	a, err := f.Withdraw("BTC", "38eyTMFHvo5UjPR91zwYYKuCtdF2uhtdxS", "", "", "642606", 0.01)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestOpenOrders(t *testing.T) {
+	a, err := f.GetOpenOrders("FTT/BTC")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFetchOrderHistory(t *testing.T) {
+	a, err := f.FetchOrderHistory("FTT/BTC", "", "", "2")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOpenTriggerOrders(t *testing.T) {
+	a, err := f.GetOpenTriggerOrders("FTT/BTC", "")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTriggerOrderTriggers(t *testing.T) {
+	a, err := f.GetTriggerOrderTriggers("alkdjfkajdsf")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTriggerOrderHistory(t *testing.T) {
+	a, err := f.GetTriggerOrderHistory("FTT/BTC")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
