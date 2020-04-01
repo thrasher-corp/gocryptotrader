@@ -422,7 +422,7 @@ func (c *CoinbasePro) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSu
 	}
 	if channelToSubscribe.Channel == "user" || channelToSubscribe.Channel == "full" {
 		n := strconv.FormatInt(time.Now().Unix(), 10)
-		message := n + "GET" + "/users/self/verify"
+		message := n + http.MethodGet + "/users/self/verify"
 		hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(message),
 			[]byte(c.API.Credentials.Secret))
 		subscribe.Signature = crypto.Base64Encode(hmac)
