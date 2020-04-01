@@ -2002,17 +2002,27 @@ func (s *RPCServer) EnableDisableAllExchangePairs(_ context.Context, r *gctrpc.E
 // will update the available pairs list and remove any assets that are disabled
 // by the exchange
 func (s *RPCServer) UpdateExchangeSupportedPairs(_ context.Context, r *gctrpc.UpdateExchangeSupportedPairsRequest) (*gctrpc.GenericSubsystemResponse, error) {
-	// exch := GetExchangeByName(r.Exchange)
-	// if exch == nil {
-	// 	return nil, errors.New("exchange is not loaded/doesn't exist")
-	// }
+	exch := GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errors.New("exchange is not loaded/doesn't exist")
+	}
 
-	// err := exch.UpdateSupportedPairs()
-	// if err != nil {
-	// 	return nil, err
-	// }
+	base := exch.GetBase()
+	if exch == nil {
+		return nil, errors.New("cannot get exchange base")
+	}
 
-	return &gctrpc.GenericSubsystemResponse{}, common.ErrNotYetImplemented
+	if !base.GetEnabledFeatures().AutoPairUpdates {
+		return nil,
+			errors.New("cannot auto pair update for exchange, a manual update is needed")
+	}
+
+	err := exch.UpdateTradablePairs(false)
+	if err != nil {
+		return nil, err
+	}
+
+	return &gctrpc.GenericSubsystemResponse{}, nil
 }
 
 // GetExchangeAssets returns the supported asset types
