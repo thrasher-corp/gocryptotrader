@@ -56,7 +56,9 @@ type Storage struct {
 	foreignExchangeUpdateDelay time.Duration
 	mtx                        sync.Mutex
 	wg                         sync.WaitGroup
-	shutdownC                  chan struct{}
+	shutdown                   chan struct{}
 	updaterRunning             bool
 	Verbose                    bool
+	// Initial loaded file
+	loadedJSON *File
 }

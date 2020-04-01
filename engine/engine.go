@@ -514,6 +514,10 @@ func (e *Engine) Stop() {
 		}
 	}
 
+	if err := currency.ShutdownStorageUpdater(); err != nil {
+		gctlog.Errorf(gctlog.Global, "Currency storage system. Error: %v", err)
+	}
+
 	if !e.Settings.EnableDryRun {
 		err := e.Config.SaveConfig(e.Settings.ConfigFile, false)
 		if err != nil {
