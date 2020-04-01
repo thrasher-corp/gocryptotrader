@@ -1259,7 +1259,8 @@ func (s *RPCServer) EnableExchangePair(_ context.Context, r *gctrpc.ExchangePair
 	}
 
 	for i := range r.Pairs {
-		p, err := currency.NewPairFromStrings(r.Pairs[i].Base, r.Pairs[i].Quote)
+		var p currency.Pair
+		p, err = currency.NewPairFromStrings(r.Pairs[i].Base, r.Pairs[i].Quote)
 		if err != nil {
 			return nil, err
 		}
@@ -1312,7 +1313,8 @@ func (s *RPCServer) DisableExchangePair(_ context.Context, r *gctrpc.ExchangePai
 	}
 
 	for i := range r.Pairs {
-		p, err := currency.NewPairFromStrings(r.Pairs[i].Base, r.Pairs[i].Quote)
+		var p currency.Pair
+		p, err = currency.NewPairFromStrings(r.Pairs[i].Base, r.Pairs[i].Quote)
 		if err != nil {
 			return nil, err
 		}
