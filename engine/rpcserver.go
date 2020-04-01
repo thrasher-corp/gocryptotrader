@@ -1921,6 +1921,11 @@ func (s *RPCServer) EnableDisableExchangeAsset(_ context.Context, r *gctrpc.Exch
 		return nil, errors.New("exchange is not loaded/doesn't exist")
 	}
 
+	exchCfg, err := Bot.Config.GetExchangeConfig(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
 	base := exch.GetBase()
 	if exch == nil {
 		return nil, errors.New("cannot get exchange base")
@@ -1931,10 +1936,26 @@ func (s *RPCServer) EnableDisableExchangeAsset(_ context.Context, r *gctrpc.Exch
 		a = asset.Item(r.Asset)
 	}
 
-	err := base.EnableDisableAssetType(a, r.Enable)
-	if err != nil {
-		return nil, err
+	if r.Enable {
+		err = base.CurrencyPairs.EnableAsset(a)
+		if err != nil {
+			return nil, err
+		}
+		err = exchCfg.CurrencyPairs.EnableAsset(a)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err = base.CurrencyPairs.DisableAsset(a)
+		if err != nil {
+			return nil, err
+		}
+		err = exchCfg.CurrencyPairs.DisableAsset(a)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	return &gctrpc.GenericSubsystemResponse{}, nil
 }
 

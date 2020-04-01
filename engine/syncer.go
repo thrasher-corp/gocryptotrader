@@ -311,6 +311,9 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 			}
 
 			for y := range assetTypes {
+				if exchanges[x].GetBase().CurrencyPairs.IsAssetEnabled(assetTypes[y]) != nil {
+					continue
+				}
 				enabledPairs, err := exchanges[x].GetEnabledPairs(assetTypes[y])
 				if err != nil {
 					log.Errorf(log.SyncMgr,
@@ -537,6 +540,13 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 		}
 
 		for y := range assetTypes {
+			if exchanges[x].GetBase().CurrencyPairs.IsAssetEnabled(assetTypes[y]) != nil {
+				log.Warnf(log.SyncMgr,
+					"%s asset type %s is disabled, fetching enabled pairs is paused",
+					exchangeName,
+					assetTypes[y])
+			}
+
 			enabledPairs, err := exchanges[x].GetEnabledPairs(assetTypes[y])
 			if err != nil {
 				log.Errorf(log.SyncMgr,

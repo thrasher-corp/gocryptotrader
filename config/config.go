@@ -842,8 +842,9 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].CurrencyPairs.UseGlobalFormat = true
 			c.Exchanges[i].CurrencyPairs.Store(asset.Spot,
 				currency.PairStore{
-					Available: availPairs,
-					Enabled:   enabledPairs,
+					AssetEnabled: func() *bool { b := true; return &b }(),
+					Available:    availPairs,
+					Enabled:      enabledPairs,
 				},
 			)
 
@@ -854,6 +855,18 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].AssetTypes = nil
 			c.Exchanges[i].AvailablePairs = nil
 			c.Exchanges[i].EnabledPairs = nil
+		} else {
+			assets := c.Exchanges[i].CurrencyPairs.GetAssetTypes()
+			for index := range assets {
+				err := c.Exchanges[i].CurrencyPairs.IsAssetEnabled(assets[index])
+				if err != nil &&
+					err.Error() == "cannot ascertain if asset is enabled, variable is nil" {
+					err = c.Exchanges[i].CurrencyPairs.SetAssetEnabled(assets[index], true)
+					if err != nil {
+						return err
+					}
+				}
+			}
 		}
 
 		if c.Exchanges[i].Enabled {

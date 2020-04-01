@@ -66,10 +66,6 @@ func (p *PairsManager) GetPairs(a asset.Item, enabled bool) (Pairs, error) {
 
 	var pairs Pairs
 	if enabled {
-		if c.AssetEnabled == nil {
-			c.AssetEnabled = func() *bool { b := true; return &b }()
-		}
-
 		for i := range pairs {
 			if !c.Available.Contains(pairs[i], true) {
 				return c.Enabled,
@@ -181,11 +177,98 @@ func (p *PairsManager) IsAssetEnabled(a asset.Item) error {
 	}
 
 	if c.AssetEnabled == nil {
-		return errors.New("asset enabled nil")
+		return errors.New("cannot ascertain if asset is enabled, variable is nil")
 	}
 
 	if !*c.AssetEnabled {
 		return errors.New("asset not enabled")
 	}
+	return nil
+}
+
+// DisableAsset disables asset
+func (p *PairsManager) DisableAsset(a asset.Item) error {
+	p.m.Lock()
+	defer p.m.Unlock()
+
+	if p.Pairs == nil {
+		return errors.New("pair manager not initialised")
+	}
+
+	c, ok := p.Pairs[a]
+	if !ok {
+		return errors.New("asset type not found")
+	}
+
+	if c == nil {
+		return errors.New("currency store is nil")
+	}
+
+	if c.AssetEnabled == nil {
+		return errors.New("cannot disable asset as it is nil")
+	}
+
+	if !*c.AssetEnabled {
+		return errors.New("asset already disabled")
+	}
+
+	*c.AssetEnabled = false
+	return nil
+}
+
+// EnableAsset enables asset
+func (p *PairsManager) EnableAsset(a asset.Item) error {
+	p.m.Lock()
+	defer p.m.Unlock()
+
+	if p.Pairs == nil {
+		return errors.New("pair manager not initialised")
+	}
+
+	c, ok := p.Pairs[a]
+	if !ok {
+		return errors.New("asset type not found")
+	}
+
+	if c == nil {
+		return errors.New("currency store is nil")
+	}
+
+	if c.AssetEnabled == nil {
+		return errors.New("cannot enabled asset as it is nil")
+	}
+
+	if *c.AssetEnabled {
+		return errors.New("asset already enabled")
+	}
+
+	*c.AssetEnabled = true
+	return nil
+}
+
+// SetAssetEnabled sets if an asset is enabled or disabled for first run
+func (p *PairsManager) SetAssetEnabled(a asset.Item, enabled bool) error {
+	p.m.Lock()
+	defer p.m.Unlock()
+
+	if p.Pairs == nil {
+		return errors.New("pair manager not initialised")
+	}
+
+	c, ok := p.Pairs[a]
+	if !ok {
+		return errors.New("asset type not found")
+	}
+
+	if c == nil {
+		return errors.New("currency store is nil")
+	}
+
+	if c.AssetEnabled == nil {
+		c.AssetEnabled = func() *bool { return &enabled }()
+		return nil
+	}
+
+	*c.AssetEnabled = enabled
 	return nil
 }
