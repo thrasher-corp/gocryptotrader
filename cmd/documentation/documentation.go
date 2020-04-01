@@ -171,6 +171,16 @@ func main() {
 			// idoall's contributors were forked and merged, so his contributions
 			// aren't automatically retrievable
 			{
+				Login:         "DirectX",
+				URL:           "https://github.com/DirectX",
+				Contributions: 1,
+			},
+			{
+				Login:         "frankzougc",
+				URL:           "https://github.com/frankzougc",
+				Contributions: 1,
+			},
+			{
 				Login:         "idoall",
 				URL:           "https://github.com/idoall",
 				Contributions: 1,
