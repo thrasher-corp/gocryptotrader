@@ -1945,6 +1945,11 @@ func (s *RPCServer) EnableDisableAllExchangePairs(_ context.Context, r *gctrpc.E
 		return nil, errors.New("exchange is not loaded/doesn't exist")
 	}
 
+	exchCfg, err := Bot.Config.GetExchangeConfig(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
 	base := exch.GetBase()
 	if exch == nil {
 		return nil, errors.New("cannot get exchange base")
@@ -1958,12 +1963,14 @@ func (s *RPCServer) EnableDisableAllExchangePairs(_ context.Context, r *gctrpc.E
 			if err != nil {
 				return nil, err
 			}
+			exchCfg.CurrencyPairs.StorePairs(assets[i], pairs, true)
 			base.CurrencyPairs.StorePairs(assets[i], pairs, true)
 		}
 		return &gctrpc.GenericSubsystemResponse{}, nil
 	}
 
 	for i := range assets {
+		exchCfg.CurrencyPairs.StorePairs(assets[i], nil, true)
 		base.CurrencyPairs.StorePairs(assets[i], nil, true)
 	}
 
