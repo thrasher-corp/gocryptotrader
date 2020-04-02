@@ -158,8 +158,9 @@ var exchangePairManagerCommand = cli.Command{
 }
 
 func enableDisableExchangePair(c *cli.Context) error {
+	enable := c.BoolT("enable")
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		if c.BoolT("enabled") {
+		if enable {
 			return cli.ShowCommandHelp(c, "enable")
 		}
 
@@ -222,7 +223,7 @@ func enableDisableExchangePair(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
 	var result *gctrpc.GenericExchangeNameResponse
-	if c.BoolT("enabled") {
+	if enable {
 		result, err = client.EnableExchangePair(context.Background(),
 			&gctrpc.ExchangePairRequest{
 				Exchange:  exchange,
@@ -249,7 +250,7 @@ func enableDisableExchangePair(c *cli.Context) error {
 
 func getExchangePairs(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "get")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange string
@@ -392,7 +393,7 @@ func enableDisableAllExchangePairs(c *cli.Context) error {
 
 func updateExchangeSupportedPairs(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "update")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange string
@@ -427,7 +428,7 @@ func updateExchangeSupportedPairs(c *cli.Context) error {
 
 func getExchangeAssets(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowCommandHelp(c, "getassets")
+		return cli.ShowSubcommandHelp(c)
 	}
 
 	var exchange string

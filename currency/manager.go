@@ -9,8 +9,8 @@ import (
 
 // GetAssetTypes returns a list of stored asset types
 func (p *PairsManager) GetAssetTypes() asset.Items {
-	p.m.Lock()
-	defer p.m.Unlock()
+	p.m.RLock()
+	defer p.m.RUnlock()
 	var assetTypes asset.Items
 	for k := range p.Pairs {
 		assetTypes = append(assetTypes, k)
@@ -20,8 +20,8 @@ func (p *PairsManager) GetAssetTypes() asset.Items {
 
 // Get gets the currency pair config based on the asset type
 func (p *PairsManager) Get(a asset.Item) (*PairStore, error) {
-	p.m.Lock()
-	defer p.m.Unlock()
+	p.m.RLock()
+	defer p.m.RUnlock()
 	c, ok := p.Pairs[a]
 	if !ok {
 		return nil,
@@ -53,8 +53,8 @@ func (p *PairsManager) Delete(a asset.Item) {
 // GetPairs gets a list of stored pairs based on the asset type and whether
 // they're enabled or not
 func (p *PairsManager) GetPairs(a asset.Item, enabled bool) (Pairs, error) {
-	p.m.Lock()
-	defer p.m.Unlock()
+	p.m.RLock()
+	defer p.m.RUnlock()
 	if p.Pairs == nil {
 		return nil, nil
 	}
@@ -64,13 +64,12 @@ func (p *PairsManager) GetPairs(a asset.Item, enabled bool) (Pairs, error) {
 		return nil, nil
 	}
 
-	var pairs Pairs
 	if enabled {
-		for i := range pairs {
-			if !c.Available.Contains(pairs[i], true) {
+		for i := range c.Enabled {
+			if !c.Available.Contains(c.Enabled[i], true) {
 				return c.Enabled,
 					fmt.Errorf("enabled pair %s not contained in available list",
-						pairs[i])
+						c.Enabled[i])
 			}
 		}
 		return c.Enabled, nil
@@ -147,11 +146,12 @@ func (p *PairsManager) EnablePair(a asset.Item, pair Pair) error {
 	}
 
 	if !c.Available.Contains(pair, true) {
-		return errors.New("specified pair was not found in the list of available pairs")
+		return fmt.Errorf("%s pair was not found in the list of available pairs",
+			pair)
 	}
 
 	if c.Enabled.Contains(pair, true) {
-		return errors.New("specified pair is already enabled")
+		return fmt.Errorf("%s pair is already enabled", pair)
 	}
 
 	c.Enabled = c.Enabled.Add(pair)
@@ -160,8 +160,8 @@ func (p *PairsManager) EnablePair(a asset.Item, pair Pair) error {
 
 // IsAssetEnabled checks to see if an asset is enabled
 func (p *PairsManager) IsAssetEnabled(a asset.Item) error {
-	p.m.Lock()
-	defer p.m.Unlock()
+	p.m.RLock()
+	defer p.m.RUnlock()
 
 	if p.Pairs == nil {
 		return errors.New("pair manager not initialised")

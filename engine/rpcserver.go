@@ -1225,6 +1225,18 @@ func (s *RPCServer) GetExchangePairs(_ context.Context, r *gctrpc.GetExchangePai
 	return &resp, nil
 }
 
+// Errors defines multiple errors
+type Errors []error
+
+// Error implements error interface
+func (e Errors) Error() string {
+	var r string
+	for i := range e {
+		r += e[i].Error() + ", "
+	}
+	return string(r[:len(r)-2])
+}
+
 // EnableExchangePair enables the specified pair on an exchange
 func (s *RPCServer) EnableExchangePair(_ context.Context, r *gctrpc.ExchangePairRequest) (*gctrpc.GenericExchangeNameResponse, error) {
 	exchCfg, err := Bot.Config.GetExchangeConfig(r.Exchange)
@@ -1258,6 +1270,7 @@ func (s *RPCServer) EnableExchangePair(_ context.Context, r *gctrpc.ExchangePair
 		return nil, err
 	}
 
+	var newErrors Errors
 	for i := range r.Pairs {
 		var p currency.Pair
 		p, err = currency.NewPairFromStrings(r.Pairs[i].Base, r.Pairs[i].Quote)
@@ -1268,15 +1281,16 @@ func (s *RPCServer) EnableExchangePair(_ context.Context, r *gctrpc.ExchangePair
 		err = exchCfg.CurrencyPairs.EnablePair(a,
 			p.Format(pairFmt.Delimiter, pairFmt.Uppercase))
 		if err != nil {
-			return nil, err
+			newErrors = append(newErrors, err)
+			continue
 		}
 		err = base.CurrencyPairs.EnablePair(asset.Item(r.AssetType), p)
 		if err != nil {
-			return nil, err
+			newErrors = append(newErrors, err)
 		}
 	}
 
-	return &gctrpc.GenericExchangeNameResponse{}, err
+	return &gctrpc.GenericExchangeNameResponse{}, newErrors
 }
 
 // DisableExchangePair disables the specified pair on an exchange
@@ -1312,6 +1326,7 @@ func (s *RPCServer) DisableExchangePair(_ context.Context, r *gctrpc.ExchangePai
 		return nil, errors.New("cannot get exchange base")
 	}
 
+	var newErrors Errors
 	for i := range r.Pairs {
 		var p currency.Pair
 		p, err = currency.NewPairFromStrings(r.Pairs[i].Base, r.Pairs[i].Quote)
@@ -1321,15 +1336,16 @@ func (s *RPCServer) DisableExchangePair(_ context.Context, r *gctrpc.ExchangePai
 		err = exchCfg.CurrencyPairs.DisablePair(asset.Item(r.AssetType),
 			p.Format(pairFmt.Delimiter, pairFmt.Uppercase))
 		if err != nil {
-			return nil, err
+			newErrors = append(newErrors, err)
+			continue
 		}
 		err = base.CurrencyPairs.DisablePair(asset.Item(r.AssetType), p)
 		if err != nil {
-			return nil, err
+			newErrors = append(newErrors, err)
 		}
 	}
 
-	return &gctrpc.GenericExchangeNameResponse{}, err
+	return &gctrpc.GenericExchangeNameResponse{}, newErrors
 }
 
 // GetOrderbookStream streams the requested updated orderbook

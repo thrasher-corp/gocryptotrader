@@ -13,7 +13,7 @@ type PairsManager struct {
 	UseGlobalFormat bool                      `json:"useGlobalFormat,omitempty"`
 	LastUpdated     int64                     `json:"lastUpdated,omitempty"`
 	Pairs           map[asset.Item]*PairStore `json:"pairs"`
-	m               sync.Mutex
+	m               sync.RWMutex
 }
 
 // PairStore stores a currency pair store
