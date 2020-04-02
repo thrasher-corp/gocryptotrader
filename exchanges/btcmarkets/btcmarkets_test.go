@@ -720,7 +720,6 @@ func TestWsOrders(t *testing.T) {
 }
 
 func TestBTCMarkets_GetHistoricCandles(t *testing.T) {
-	b.Verbose = true
 	p := currency.NewPairFromString(BTCAUD)
 	_, err := b.GetHistoricCandles(p, asset.Spot, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC(), kline.OneHour)
 	if err != nil {
