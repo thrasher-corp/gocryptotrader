@@ -545,6 +545,7 @@ func (e *ExchangeCurrencyPairSyncer) Start() {
 					"%s asset type %s is disabled, fetching enabled pairs is paused",
 					exchangeName,
 					assetTypes[y])
+				continue
 			}
 
 			enabledPairs, err := exchanges[x].GetEnabledPairs(assetTypes[y])
