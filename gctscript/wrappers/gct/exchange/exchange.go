@@ -3,6 +3,7 @@ package exchange
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"time"
 
@@ -216,5 +217,14 @@ func (e Exchange) OHLCV(exch string, pair currency.Pair, item asset.Item, start,
 	if err != nil {
 		return kline.Item{}, err
 	}
-	return ex.GetHistoricCandles(pair, item, start, end, interval)
+	ret, err := ex.GetHistoricCandles(pair, item, start, end, interval)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	sort.Slice(ret.Candles, func(i, j int) bool {
+		return ret.Candles[i].Time.Before(ret.Candles[j].Time)
+	})
+
+	return ret, nil
 }

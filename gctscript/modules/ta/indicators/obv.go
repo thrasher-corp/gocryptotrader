@@ -38,26 +38,11 @@ func obv(args ...objects.Object) (objects.Object, error) {
 		ohclvData[x] = make([]float64, 6)
 		t := ohlcvInputData[x].([]interface{})
 		ohclvData[x][0] = 0
+		ohclvData[x][1] = 0
+		ohclvData[x][2] = 0
+		ohclvData[x][3] = 0
 
-		value, err := toFloat64(t[1])
-		if err != nil {
-			allErrors = append(allErrors, err.Error())
-		}
-		ohclvData[x][1] = value
-
-		value, err = toFloat64(t[2])
-		if err != nil {
-			allErrors = append(allErrors, err.Error())
-		}
-		ohclvData[x][2] = value
-
-		value, err = toFloat64(t[3])
-		if err != nil {
-			allErrors = append(allErrors, err.Error())
-		}
-		ohclvData[x][3] = value
-
-		value, err = toFloat64(t[4])
+		value, err := toFloat64(t[4])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
@@ -73,6 +58,7 @@ func obv(args ...objects.Object) (objects.Object, error) {
 	if len(allErrors) > 0 {
 		return nil, errors.New(strings.Join(allErrors, ", "))
 	}
+
 	ret := indicators.OBV(ohclvData, false)
 	for x := range ret {
 		temp := &objects.Float{Value: ret[x]}
