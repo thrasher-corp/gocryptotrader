@@ -5,7 +5,7 @@ atr := import("indicator/atr")
 
 load := func() {
     start := t.add(t.now(), -t.hour*24*100)
-    ohlcvData := exch.ohlcv("BTC Markets", "BTC-AUD", "-", "", start, t.now(), "1d")
+    ohlcvData := exch.ohlcv("BTC Markets", "BTC-AUD", "-", "SPOT", start, t.now(), "1d")
 
     ret := atr.calculate(ohlcvData.candles, 14)
     fmt.println(ret)

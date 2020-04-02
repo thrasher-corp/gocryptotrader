@@ -6,7 +6,7 @@ ema := import("indicator/ema")
 
 load := func() {
     start := t.add(t.now(), -t.hour*24*100)
-    ohlcvData := exch.ohlcv("BTC Markets", "BTC-AUD", "-", "", start, t.now(), "1d")
+    ohlcvData := exch.ohlcv("BTC Markets", "BTC-AUD", "-", "SPOT", start, t.now(), "1d")
 
     ret := ema.calculate(ohlcvData.candles, 100)
     fmt.println(ret)

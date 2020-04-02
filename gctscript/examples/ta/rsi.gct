@@ -5,7 +5,7 @@ rsi := import("indicator/rsi")
 
 load := func() {
    start := t.add(t.now(), -t.hour*24)
-   ohlcvData := exch.ohlcv("coinbasepro", "BTC-USD", "-", "", start, t.now(), "1h")
+   ohlcvData := exch.ohlcv("BTC Markets", "BTC-AUD", "-", "SPOT", start, t.now(), "1h")
    ret := rsi.calculate(ohlcvData.candles, 14)
    fmt.println(ret)
 }
