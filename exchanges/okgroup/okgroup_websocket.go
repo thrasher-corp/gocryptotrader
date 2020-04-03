@@ -897,6 +897,8 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 		}
 	}
 
+	fmt.Printf("%+v\n", subscriptions)
+
 	o.Websocket.SubscribeToChannels(subscriptions)
 }
 
@@ -918,12 +920,14 @@ func (o *OKGroup) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscr
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (o *OKGroup) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+	fmt.Printf("UNSUBBING: %+v\n", channelToSubscribe)
 	request := WebsocketEventRequest{
 		Operation: "unsubscribe",
 		Arguments: []string{channelToSubscribe.Channel +
 			delimiterColon +
 			channelToSubscribe.Currency.String()},
 	}
+	fmt.Printf("PAYLOAD: %+v\n", request)
 	return o.WebsocketConn.SendJSONMessage(request)
 }
 

@@ -1230,6 +1230,9 @@ type Errors []error
 
 // Error implements error interface
 func (e Errors) Error() string {
+	if len(e) == 0 {
+		return ""
+	}
 	var r string
 	for i := range e {
 		r += e[i].Error() + ", "
@@ -1290,7 +1293,16 @@ func (s *RPCServer) EnableExchangePair(_ context.Context, r *gctrpc.ExchangePair
 		}
 	}
 
-	return &gctrpc.GenericExchangeNameResponse{}, newErrors
+	err = exch.ResetWebsocketConnection()
+	if err != nil {
+		newErrors = append(newErrors, err)
+	}
+
+	if newErrors != nil {
+		return nil, newErrors
+	}
+
+	return &gctrpc.GenericExchangeNameResponse{}, nil
 }
 
 // DisableExchangePair disables the specified pair on an exchange
@@ -1345,7 +1357,16 @@ func (s *RPCServer) DisableExchangePair(_ context.Context, r *gctrpc.ExchangePai
 		}
 	}
 
-	return &gctrpc.GenericExchangeNameResponse{}, newErrors
+	err = exch.ResetWebsocketConnection()
+	if err != nil {
+		newErrors = append(newErrors, err)
+	}
+
+	if newErrors != nil {
+		return nil, newErrors
+	}
+
+	return &gctrpc.GenericExchangeNameResponse{}, nil
 }
 
 // GetOrderbookStream streams the requested updated orderbook
@@ -2005,12 +2026,23 @@ func (s *RPCServer) EnableDisableAllExchangePairs(_ context.Context, r *gctrpc.E
 			exchCfg.CurrencyPairs.StorePairs(assets[i], pairs, true)
 			base.CurrencyPairs.StorePairs(assets[i], pairs, true)
 		}
+
+		err = exch.ResetWebsocketConnection()
+		if err != nil {
+			return nil, err
+		}
+
 		return &gctrpc.GenericSubsystemResponse{}, nil
 	}
 
 	for i := range assets {
 		exchCfg.CurrencyPairs.StorePairs(assets[i], nil, true)
 		base.CurrencyPairs.StorePairs(assets[i], nil, true)
+	}
+
+	err = exch.ResetWebsocketConnection()
+	if err != nil {
+		return nil, err
 	}
 
 	return &gctrpc.GenericSubsystemResponse{}, nil
@@ -2036,6 +2068,11 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(_ context.Context, r *gctrpc.Up
 	}
 
 	err := exch.UpdateTradablePairs(false)
+	if err != nil {
+		return nil, err
+	}
+
+	err = exch.ResetWebsocketConnection()
 	if err != nil {
 		return nil, err
 	}

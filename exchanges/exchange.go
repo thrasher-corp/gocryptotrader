@@ -362,8 +362,13 @@ func (e *Base) GetPairFormat(assetType asset.Item, requestFormat bool) (currency
 }
 
 // GetEnabledPairs is a method that returns the enabled currency pairs of
-// the exchange by asset type
+// the exchange by asset type, if the asset type is disabled this will return no
+// enabled pairs
 func (e *Base) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
+	err := e.CurrencyPairs.IsAssetEnabled(a)
+	if err != nil {
+		return nil, nil
+	}
 	format, err := e.GetPairFormat(a, false)
 	if err != nil {
 		return nil, err
@@ -372,7 +377,10 @@ func (e *Base) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
 	if err != nil {
 		return nil, err
 	}
-	return enabledpairs.Format(format.Delimiter, format.Index, format.Uppercase), nil
+	return enabledpairs.Format(format.Delimiter,
+			format.Index,
+			format.Uppercase),
+		nil
 }
 
 // GetRequestFormattedPairAndAssetType is a method that returns the enabled currency pair of
@@ -796,6 +804,16 @@ func (e *Base) IsWebsocketEnabled() bool {
 		return e.Websocket.IsEnabled()
 	}
 	return false
+}
+
+// ResetWebsocketConnection refreshes websocket connection
+func (e *Base) ResetWebsocketConnection() error {
+	if e.Websocket != nil {
+		if e.Websocket.IsEnabled() {
+			return e.Websocket.RefreshConnection()
+		}
+	}
+	return nil
 }
 
 // GetWithdrawPermissions passes through the exchange's withdraw permissions

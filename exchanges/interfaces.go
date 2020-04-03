@@ -70,6 +70,7 @@ type IBotExchange interface {
 	UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error
 	AuthenticateWebsocket() error
 	GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error)
+	ResetWebsocketConnection() error
 	GetDefaultConfig() (*config.ExchangeConfig, error)
 	GetBase() *Base
 	SupportsAsset(assetType asset.Item) bool

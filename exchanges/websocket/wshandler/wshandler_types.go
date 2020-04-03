@@ -49,6 +49,7 @@ type Websocket struct {
 	channelsToSubscribe          []WebsocketChannelSubscription
 	channelSubscriber            func(channelToSubscribe *WebsocketChannelSubscription) error
 	channelUnsubscriber          func(channelToUnsubscribe *WebsocketChannelSubscription) error
+	channelGeneratesubs          func()
 	DataHandler                  chan interface{}
 	// ShutdownC is the main shutdown channel which controls all websocket go funcs
 	ShutdownC chan struct{}
@@ -76,6 +77,7 @@ type WebsocketSetup struct {
 	Connector                        func() error
 	Subscriber                       func(channelToSubscribe *WebsocketChannelSubscription) error
 	UnSubscriber                     func(channelToUnsubscribe *WebsocketChannelSubscription) error
+	GenerateSubscriptions            func()
 	Features                         *protocol.Features
 }
 
@@ -177,6 +179,7 @@ type WebsocketPingHandler struct {
 	Delay             time.Duration
 }
 
+// UnhandledMessageWarning defines a container for unhandled message warnings
 type UnhandledMessageWarning struct {
 	Message string
 }

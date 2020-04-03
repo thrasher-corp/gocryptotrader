@@ -55,7 +55,7 @@ func (o *OKEX) SetDefaults() {
 	o.API.CredentialsValidator.RequiresClientID = true
 
 	// Same format used for perpetual swap and futures
-	fmt1 := currency.PairStore{
+	futures := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 			Delimiter: currency.Dash,
@@ -66,12 +66,23 @@ func (o *OKEX) SetDefaults() {
 		},
 	}
 
-	err := o.StoreAssetPairFormat(asset.PerpetualSwap, fmt1)
+	swap := currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: currency.Dash,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: currency.Underscore,
+		},
+	}
+
+	err := o.StoreAssetPairFormat(asset.PerpetualSwap, swap)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	err = o.StoreAssetPairFormat(asset.Futures, fmt1)
+	err = o.StoreAssetPairFormat(asset.Futures, futures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}

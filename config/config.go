@@ -857,14 +857,36 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].EnabledPairs = nil
 		} else {
 			assets := c.Exchanges[i].CurrencyPairs.GetAssetTypes()
+			var atleastOne bool
 			for index := range assets {
 				err := c.Exchanges[i].CurrencyPairs.IsAssetEnabled(assets[index])
-				if err != nil &&
-					err.Error() == "cannot ascertain if asset is enabled, variable is nil" {
-					err = c.Exchanges[i].CurrencyPairs.SetAssetEnabled(assets[index], true)
-					if err != nil {
-						return err
+				if err != nil {
+					if err.Error() == "cannot ascertain if asset is enabled, variable is nil" {
+						err = c.Exchanges[i].CurrencyPairs.SetAssetEnabled(assets[index], true)
+						if err != nil {
+							return err
+						}
+						atleastOne = true
 					}
+					continue
+				}
+				atleastOne = true
+			}
+
+			if !atleastOne {
+				if len(assets) == 0 {
+					return errors.New("no assets found")
+				}
+
+				// randomly turn on an asset if all dissabled
+				log.Warnf(log.ExchangeSys,
+					"%s assets disabled, turning on asset %s",
+					c.Exchanges[i].Name,
+					assets[0])
+
+				err := c.Exchanges[i].CurrencyPairs.SetAssetEnabled(assets[0], true)
+				if err != nil {
+					return err
 				}
 			}
 		}
