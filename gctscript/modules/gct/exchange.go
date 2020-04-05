@@ -584,8 +584,6 @@ func parseInterval(in string) (time.Duration, error) {
 		in = "72h"
 	case "1w":
 		in = "168h"
-	case "4w":
-		in = "672h"
 	}
 	return time.ParseDuration(in)
 }
