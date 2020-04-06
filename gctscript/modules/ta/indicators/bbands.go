@@ -42,7 +42,7 @@ func bbands(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
 	}
 
-	ohclvData := make([][]float64, 6)
+	ohlcvData := make([][]float64, 6)
 	var allErrors []string
 	for x := range ohlcvInputData {
 		t := ohlcvInputData[x].([]interface{})
@@ -50,25 +50,25 @@ func bbands(args ...objects.Object) (objects.Object, error) {
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
-		ohclvData[2] = append(ohclvData[2], value)
+		ohlcvData[2] = append(ohlcvData[2], value)
 
 		value, err = toFloat64(t[3])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
-		ohclvData[3] = append(ohclvData[3], value)
+		ohlcvData[3] = append(ohlcvData[3], value)
 
 		value, err = toFloat64(t[4])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
-		ohclvData[4] = append(ohclvData[4], value)
+		ohlcvData[4] = append(ohlcvData[4], value)
 
 		value, err = toFloat64(t[5])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
-		ohclvData[5] = append(ohclvData[5], value)
+		ohlcvData[5] = append(ohlcvData[5], value)
 	}
 
 	inTimePeriod, ok := objects.ToInt(args[2])
@@ -100,7 +100,7 @@ func bbands(args ...objects.Object) (objects.Object, error) {
 		return nil, err
 	}
 
-	retUpper, retMiddle, retLower := indicators.BBands(ohclvData[selector], inTimePeriod, inNbDevDn, inNbDevDn, MAType)
+	retUpper, retMiddle, retLower := indicators.BBands(ohlcvData[selector], inTimePeriod, inNbDevDn, inNbDevDn, MAType)
 	for x := range retUpper {
 		temp := &objects.Array{}
 		temp.Value = append(temp.Value, &objects.Float{Value: retUpper[x]})

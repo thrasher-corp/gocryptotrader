@@ -31,7 +31,7 @@ func mfi(args ...objects.Object) (objects.Object, error) {
 	if !valid {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
 	}
-	ohclvData := make([][]float64, 6)
+	ohlcvData := make([][]float64, 6)
 	var allErrors []string
 
 	for x := range ohlcvInputData {
@@ -40,25 +40,25 @@ func mfi(args ...objects.Object) (objects.Object, error) {
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
-		ohclvData[2] = append(ohclvData[2], value)
+		ohlcvData[2] = append(ohlcvData[2], value)
 
 		value, err = toFloat64(t[3])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
-		ohclvData[3] = append(ohclvData[3], value)
+		ohlcvData[3] = append(ohlcvData[3], value)
 
 		value, err = toFloat64(t[4])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
-		ohclvData[4] = append(ohclvData[4], value)
+		ohlcvData[4] = append(ohlcvData[4], value)
 
 		value, err = toFloat64(t[5])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
-		ohclvData[5] = append(ohclvData[5], value)
+		ohlcvData[5] = append(ohlcvData[5], value)
 	}
 	if len(allErrors) > 0 {
 		return nil, errors.New(strings.Join(allErrors, ", "))
@@ -68,7 +68,7 @@ func mfi(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, inTimePeriod)
 	}
 
-	ret := indicators.Mfi(ohclvData[2], ohclvData[3], ohclvData[4], ohclvData[5], inTimePeriod)
+	ret := indicators.Mfi(ohlcvData[2], ohlcvData[3], ohlcvData[4], ohlcvData[5], inTimePeriod)
 	for x := range ret {
 		r.Value = append(r.Value, &objects.Float{Value: ret[x]})
 	}

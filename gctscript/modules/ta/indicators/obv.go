@@ -32,34 +32,34 @@ func obv(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
 	}
 
-	ohclvData := make([][]float64, len(ohlcvInputData))
+	ohlcvData := make([][]float64, len(ohlcvInputData))
 	var allErrors []string
 	for x := range ohlcvInputData {
-		ohclvData[x] = make([]float64, 6)
+		ohlcvData[x] = make([]float64, 6)
 		t := ohlcvInputData[x].([]interface{})
-		ohclvData[x][0] = 0
-		ohclvData[x][1] = 0
-		ohclvData[x][2] = 0
-		ohclvData[x][3] = 0
+		ohlcvData[x][0] = 0
+		ohlcvData[x][1] = 0
+		ohlcvData[x][2] = 0
+		ohlcvData[x][3] = 0
 
 		value, err := toFloat64(t[4])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
-		ohclvData[x][4] = value
+		ohlcvData[x][4] = value
 
 		value, err = toFloat64(t[5])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
-		ohclvData[x][5] = value
+		ohlcvData[x][5] = value
 	}
 
 	if len(allErrors) > 0 {
 		return nil, errors.New(strings.Join(allErrors, ", "))
 	}
 
-	ret := indicators.OBV(ohclvData, false)
+	ret := indicators.OBV(ohlcvData, false)
 	for x := range ret {
 		temp := &objects.Float{Value: ret[x]}
 		r.Value = append(r.Value, temp)

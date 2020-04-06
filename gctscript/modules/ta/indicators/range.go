@@ -32,7 +32,7 @@ func atr(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
 	}
 
-	ohclvData := make([][]float64, 6)
+	ohlcvData := make([][]float64, 6)
 	var allErrors []string
 	for x := range ohlcvInputData {
 		t := ohlcvInputData[x].([]interface{})
@@ -40,25 +40,25 @@ func atr(args ...objects.Object) (objects.Object, error) {
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
-		ohclvData[2] = append(ohclvData[2], value)
+		ohlcvData[2] = append(ohlcvData[2], value)
 
 		value, err = toFloat64(t[3])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
-		ohclvData[3] = append(ohclvData[3], value)
+		ohlcvData[3] = append(ohlcvData[3], value)
 
 		value, err = toFloat64(t[4])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
-		ohclvData[4] = append(ohclvData[4], value)
+		ohlcvData[4] = append(ohlcvData[4], value)
 
 		value, err = toFloat64(t[5])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
-		ohclvData[5] = append(ohclvData[5], value)
+		ohlcvData[5] = append(ohlcvData[5], value)
 	}
 
 	inTimePeriod, ok := objects.ToInt(args[1])
@@ -70,7 +70,7 @@ func atr(args ...objects.Object) (objects.Object, error) {
 		return nil, errors.New(strings.Join(allErrors, ", "))
 	}
 
-	ret := indicators.Atr(ohclvData[2], ohclvData[4], ohclvData[5], inTimePeriod)
+	ret := indicators.Atr(ohlcvData[2], ohlcvData[4], ohlcvData[5], inTimePeriod)
 	for x := range ret {
 		r.Value = append(r.Value, &objects.Float{Value: ret[x]})
 	}
