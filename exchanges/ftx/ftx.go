@@ -40,22 +40,37 @@ const (
 	getAllWalletBalances = "/wallet/all_balances"
 
 	// Authenticated endpoints
-	getAccountInfo          = "/account"
-	getPositions            = "/positions"
-	setLeverage             = "/account/leverage"
-	getCoins                = "/wallet/coins"
-	getBalances             = "/wallet/balances"
-	getDepositAddress       = "/wallet/deposit_address/%s"
-	getDepositHistory       = "/wallet/deposits"
-	getWithdrawalHistory    = "/wallet/withdrawals"
-	withdrawRequest         = "/wallet/withdrawals"
-	getOpenOrders           = "/orders?"
-	getOrderHistory         = "/orders/history?"
-	getOpenTriggerOrders    = "/conditional_orders?"
-	getTriggerOrderTriggers = "/conditional_orders/%s/triggers"
-	getTriggerOrderHistory  = "/conditional_orders/history?"
-	ftxRateInterval         = time.Minute
-	ftxRequestRate          = 180
+	getAccountInfo           = "/account"
+	getPositions             = "/positions"
+	setLeverage              = "/account/leverage"
+	getCoins                 = "/wallet/coins"
+	getBalances              = "/wallet/balances"
+	getDepositAddress        = "/wallet/deposit_address/%s"
+	getDepositHistory        = "/wallet/deposits"
+	getWithdrawalHistory     = "/wallet/withdrawals"
+	withdrawRequest          = "/wallet/withdrawals"
+	getOpenOrders            = "/orders?"
+	getOrderHistory          = "/orders/history?"
+	getOpenTriggerOrders     = "/conditional_orders?"
+	getTriggerOrderTriggers  = "/conditional_orders/%s/triggers"
+	getTriggerOrderHistory   = "/conditional_orders/history?"
+	placeOrder               = "/orders"
+	placeTriggerOrder        = "/conditional_orders"
+	modifyOrder              = "/orders/%s/modify"
+	modifyOrderByClientID    = "/orders/by_client_id/%s/modify"
+	modifyTriggerOrder       = "/conditional_orders/%s/modify"
+	getOrderStatus           = "/orders/%s"
+	getOrderStatusByClientID = "/orders/by_client_id/%s"
+	deleteOrder              = "/orders/%s"
+	deleteOrderByClientID    = "/orders/by_client_id/%s"
+	cancelTriggerOrder       = "/conditional_orders/%s"
+	ftxRateInterval          = time.Minute
+	ftxRequestRate           = 180
+
+	// Other Consts
+	stopOrderType         = "stop"
+	trailingStopOrderType = "trailingStop"
+	takeProfitOrderType   = "takeProfit"
 )
 
 // Start implementing public and private exchange API funcs below
@@ -331,6 +346,130 @@ func (f *Ftx) GetTriggerOrderHistory(marketName string) (TriggerOrderHistory, er
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, getTriggerOrderHistory+params.Encode(), nil, &resp)
 }
 
+// Order places an order
+func (f *Ftx) Order(marketName, side, orderType, reduceOnly, ioc, postOnly, clientID string, price, size float64) (PlaceOrder, error) {
+	var resp PlaceOrder
+	req := make(map[string]interface{})
+	req["market"] = marketName
+	req["side"] = side
+	req["price"] = price
+	req["type"] = orderType
+	req["size"] = size
+	if reduceOnly != "" {
+		req["reduceOnly"] = reduceOnly
+	}
+	if ioc != "" {
+		req["ioc"] = ioc
+	}
+	if postOnly != "" {
+		req["postOnly"] = postOnly
+	}
+	if clientID != "" {
+		req["clientID"] = clientID
+	}
+	return resp, f.SendAuthHTTPRequest(http.MethodPost, placeOrder, req, &resp)
+}
+
+// TriggerOrder places an order
+func (f *Ftx) TriggerOrder(marketName, side, orderType, reduceOnly, retryUntilFilled string, size, triggerPrice, orderPrice, trailValue float64) (PlaceTriggerOrder, error) {
+	var resp PlaceTriggerOrder
+	req := make(map[string]interface{})
+	req["market"] = marketName
+	req["side"] = side
+	req["type"] = orderType
+	req["size"] = size
+	if reduceOnly != "" {
+		req["reduceOnly"] = reduceOnly
+	}
+	if retryUntilFilled != "" {
+		req["retryUntilFilled"] = retryUntilFilled
+	}
+	if orderType == stopOrderType || orderType == "" {
+		req["triggerPrice"] = triggerPrice
+		req["orderPrice"] = orderPrice
+	}
+	if orderType == trailingStopOrderType {
+		req["trailValue"] = trailValue
+	}
+	if orderType == takeProfitOrderType {
+		req["triggerPrice"] = triggerPrice
+		req["orderPrice"] = orderPrice
+	}
+	return resp, f.SendAuthHTTPRequest(http.MethodPost, placeTriggerOrder, req, &resp)
+}
+
+// ModifyPlacedOrder modifies a placed order
+func (f *Ftx) ModifyPlacedOrder(orderID, clientID string, price, size float64) (ModifyOrder, error) {
+	var resp ModifyOrder
+	req := make(map[string]interface{})
+	req["price"] = price
+	req["size"] = size
+	if clientID != "" {
+		req["clientID"] = clientID
+	}
+	return resp, f.SendAuthHTTPRequest(http.MethodPost, fmt.Sprintf(modifyOrder, orderID), req, &resp)
+}
+
+// ModifyOrderByClientID modifies a placed order via clientOrderID
+func (f *Ftx) ModifyOrderByClientID(clientOrderID, clientID string, price, size float64) (ModifyOrder, error) {
+	var resp ModifyOrder
+	req := make(map[string]interface{})
+	req["price"] = price
+	req["size"] = size
+	if clientID != "" {
+		req["clientID"] = clientID
+	}
+	return resp, f.SendAuthHTTPRequest(http.MethodPost, fmt.Sprintf(modifyOrder, clientOrderID), req, &resp)
+}
+
+// ModifyTriggerOrder modifies an existing trigger order
+func (f *Ftx) ModifyTriggerOrder(orderID, orderType string, size, triggerPrice, orderPrice, trailValue float64) (ModifyTriggerOrder, error) {
+	var resp ModifyTriggerOrder
+	req := make(map[string]interface{})
+	if orderType == stopOrderType || orderType == "" {
+		req["triggerPrice"] = triggerPrice
+		req["orderPrice"] = orderPrice
+	}
+	if orderType == trailingStopOrderType {
+		req["trailValue"] = trailValue
+	}
+	if orderType == takeProfitOrderType {
+		req["triggerPrice"] = triggerPrice
+		req["orderPrice"] = orderPrice
+	}
+	return resp, f.SendAuthHTTPRequest(http.MethodPost, fmt.Sprintf(modifyTriggerOrder, orderID), req, &resp)
+}
+
+// GetOrderStatus gets the order status of a given orderID
+func (f *Ftx) GetOrderStatus(orderID string) (OrderStatus, error) {
+	var resp OrderStatus
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, fmt.Sprintf(getOrderStatus, orderID), nil, &resp)
+}
+
+// GetOrderStatusByClientID gets the order status of a given clientOrderID
+func (f *Ftx) GetOrderStatusByClientID(clientOrderID string) (OrderStatus, error) {
+	var resp OrderStatus
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, fmt.Sprintf(getOrderStatusByClientID, clientOrderID), nil, &resp)
+}
+
+// DeleteOrder deletes an order
+func (f *Ftx) DeleteOrder(orderID string) (CancelOrderResponse, error) {
+	var resp CancelOrderResponse
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, fmt.Sprintf(deleteOrder, orderID), nil, &resp)
+}
+
+// DeleteOrderByClientID deletes an order
+func (f *Ftx) DeleteOrderByClientID(clientID string) (CancelOrderResponse, error) {
+	var resp CancelOrderResponse
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, fmt.Sprintf(deleteOrderByClientID, clientID), nil, &resp)
+}
+
+// DeleteTriggerOrder deletes an order
+func (f *Ftx) DeleteTriggerOrder(orderID string) (CancelOrderResponse, error) {
+	var resp CancelOrderResponse
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, fmt.Sprintf(cancelTriggerOrder, orderID), nil, &resp)
+}
+
 // SendAuthHTTPRequest sends an authenticated request
 func (f *Ftx) SendAuthHTTPRequest(method, path string, data, result interface{}) error {
 	ts := strconv.FormatInt(int64(time.Now().UnixNano()/1000000), 10)
@@ -350,6 +489,7 @@ func (f *Ftx) SendAuthHTTPRequest(method, path string, data, result interface{})
 		sigPayload := ts + method + "/api" + path
 		hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
 	}
+	log.Println(ftxAPIURL + path)
 	headers := make(map[string]string)
 	headers["FTX-KEY"] = f.API.Credentials.Key
 	headers["FTX-SIGN"] = crypto.HexEncodeToString(hmac)

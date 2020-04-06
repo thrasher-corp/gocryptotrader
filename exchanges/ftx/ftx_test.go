@@ -199,7 +199,7 @@ func TestFetchWithdrawalHistory(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
-	a, err := f.Withdraw("BTC", "38eyTMFHvo5UjPR91zwYYKuCtdF2uhtdxS", "", "", "642606", 0.01)
+	a, err := f.Withdraw("BTC", "38eyTMFHvo5UjPR91zwYYKuCtdF2uhtdxS", "", "", "957378", 0.01)
 	t.Log(a)
 	if err != nil {
 		t.Error(err)
@@ -240,6 +240,46 @@ func TestGetTriggerOrderTriggers(t *testing.T) {
 
 func TestGetTriggerOrderHistory(t *testing.T) {
 	a, err := f.GetTriggerOrderHistory("FTT/BTC")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestOrder(t *testing.T) {
+	a, err := f.Order("FTT/BTC", "buy", "limit", "", "", "", "", 0.0001, 500)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestTriggerOrder(t *testing.T) {
+	a, err := f.TriggerOrder("FTT/BTC", "buy", stopOrderType, "", "", 500, 0.0004, 0.0001, 0)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDeleteOrder(t *testing.T) {
+	a, err := f.DeleteOrder("testing123")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDeleteOrderByClientID(t *testing.T) {
+	a, err := f.DeleteOrderByClientID("clientID123")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDeleteTriggerOrder(t *testing.T) {
+	a, err := f.DeleteTriggerOrder("triggerOrder123")
 	t.Log(a)
 	if err != nil {
 		t.Error(err)

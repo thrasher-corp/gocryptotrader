@@ -368,3 +368,39 @@ type TriggerOrderHistory struct {
 	Success bool               `json:"success"`
 	Result  []TriggerOrderData `json:"result"`
 }
+
+// PlaceOrder stores data of placed orders
+type PlaceOrder struct {
+	Success bool      `json:"success"`
+	Result  OrderData `json:"result"`
+}
+
+// PlaceTriggerOrder stores data of a placed trigger order
+type PlaceTriggerOrder struct {
+	Success bool             `json:"success"`
+	Result  TriggerOrderData `json:"result"`
+}
+
+// ModifyOrder stores modified order data
+type ModifyOrder struct {
+	Success bool      `json:"success"`
+	Result  OrderData `json:"result"`
+}
+
+// ModifyTriggerOrder stores modified trigger order data
+type ModifyTriggerOrder struct {
+	Success bool             `json:"success"`
+	Result  TriggerOrderData `json:"result"`
+}
+
+// OrderStatus stores order status data
+type OrderStatus struct {
+	Success bool      `json:"success"`
+	Result  OrderData `json:"result"`
+}
+
+// CancelOrderResponse stores cancel order response
+type CancelOrderResponse struct {
+	Success bool   `json:"success"`
+	Result  string `json:"result"`
+}
