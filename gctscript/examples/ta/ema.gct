@@ -5,13 +5,13 @@ sma := import("indicator/sma")
 ema := import("indicator/ema")
 
 load := func() {
-    start := t.add(t.now(), -t.hour*24*100)
-    ohlcvData := exch.ohlcv("BTC Markets", "BTC-AUD", "-", "SPOT", start, t.now(), "1d")
+    start := t.add(t.now(), -t.hour*24)
+    ohlcvData := exch.ohlcv("BTC Markets", "BTC-AUD", "-", "SPOT", start, t.now(), "1h")
 
-    ret := ema.calculate(ohlcvData.candles, 100)
+    ret := ema.calculate(ohlcvData.candles, 9)
     fmt.println(ret)
 
-    ret = sma.calculate(ohlcvData.candles, 100)
+    ret = sma.calculate(ohlcvData.candles, 9)
     fmt.println(ret)
 }
 

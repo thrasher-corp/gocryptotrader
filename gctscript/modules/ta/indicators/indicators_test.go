@@ -18,7 +18,7 @@ const errFailedConversion = "0 failed conversion"
 var (
 	ohlcvData        = &objects.Array{}
 	ohlcvDataInvalid = &objects.Array{}
-	testString       = "1D01TH0R53"
+	testString       = "1D10TH0R53"
 )
 
 func TestMain(m *testing.M) {
