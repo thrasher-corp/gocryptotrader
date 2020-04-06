@@ -61,7 +61,6 @@ func (c *CoinbasePro) wsReadData() {
 				c.Websocket.ReadMessageErrors <- err
 				return
 			}
-			c.Websocket.TrafficAlert <- struct{}{}
 			err = c.wsHandleData(resp.Raw)
 			if err != nil {
 				c.Websocket.DataHandler <- err

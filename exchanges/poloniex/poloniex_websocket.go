@@ -101,7 +101,6 @@ func (p *Poloniex) wsReadData() {
 				p.Websocket.ReadMessageErrors <- err
 				return
 			}
-			p.Websocket.TrafficAlert <- struct{}{}
 			err = p.wsHandleData(resp.Raw)
 			if err != nil {
 				p.Websocket.DataHandler <- err

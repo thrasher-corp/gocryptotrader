@@ -111,7 +111,6 @@ func (k *Kraken) wsFunnelConnectionData(ws *wshandler.WebsocketConnection) {
 				k.Websocket.DataHandler <- err
 				return
 			}
-			k.Websocket.TrafficAlert <- struct{}{}
 			comms <- resp
 		}
 	}

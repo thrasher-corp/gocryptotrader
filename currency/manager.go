@@ -146,7 +146,6 @@ func (p *PairsManager) EnablePair(a asset.Item, pair Pair) error {
 	}
 
 	if !c.Available.Contains(pair, true) {
-		fmt.Println("THIS IS CONTAINED:", c.Available[0].Base, c.Available[0].Quote)
 		return fmt.Errorf("%s pair was not found in the list of available pairs",
 			pair)
 	}

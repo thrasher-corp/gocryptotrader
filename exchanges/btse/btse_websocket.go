@@ -110,7 +110,6 @@ func (b *BTSE) wsReadData() {
 				b.Websocket.ReadMessageErrors <- err
 				return
 			}
-			b.Websocket.TrafficAlert <- struct{}{}
 			err = b.wsHandleData(resp.Raw)
 			if err != nil {
 				b.Websocket.DataHandler <- err

@@ -33,19 +33,20 @@ func New() *Websocket {
 // Setup sets main variables for websocket connection
 func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 	w.DataHandler = make(chan interface{}, 1)
-	w.TrafficAlert = make(chan struct{}, 1)
+	w.TrafficAlert = make(chan struct{})
 	w.verbose = setupData.Verbose
 	w.channelSubscriber = setupData.Subscriber
 	w.channelUnsubscriber = setupData.UnSubscriber
 	w.channelGeneratesubs = setupData.GenerateSubscriptions
 	w.enabled = setupData.Enabled
-	w.SetDefaultURL(setupData.DefaultURL)
-	w.SetConnector(setupData.Connector)
-	w.SetWebsocketURL(setupData.RunningURL)
-	w.SetExchangeName(setupData.ExchangeName)
-	w.SetCanUseAuthenticatedEndpoints(setupData.AuthenticatedWebsocketAPISupport)
+	w.defaultURL = setupData.DefaultURL
+	w.connector = setupData.Connector
+	w.exchangeName = setupData.ExchangeName
 	w.trafficTimeout = setupData.WebsocketTimeout
 	w.features = setupData.Features
+
+	w.SetWebsocketURL(setupData.RunningURL)
+	w.SetCanUseAuthenticatedEndpoints(setupData.AuthenticatedWebsocketAPISupport)
 	return w.Initialise()
 }
 
@@ -407,6 +408,7 @@ func (w *Websocket) Initialise() error {
 	return nil
 }
 
+// TODO: specifically link up proxy address
 // SetProxyAddress sets websocket proxy address
 func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 	if w.proxyAddr == proxyAddr {
@@ -433,25 +435,25 @@ func (w *Websocket) GetProxyAddress() string {
 	return w.proxyAddr
 }
 
-// SetDefaultURL sets default websocket URL
-func (w *Websocket) SetDefaultURL(defaultURL string) {
-	w.defaultURL = defaultURL
-}
+// // SetDefaultURL sets default websocket URL
+// func (w *Websocket) SetDefaultURL(defaultURL string) {
+// 	w.defaultURL = defaultURL
+// }
 
-// GetDefaultURL returns the default websocket URL
-func (w *Websocket) GetDefaultURL() string {
-	return w.defaultURL
-}
+// // GetDefaultURL returns the default websocket URL
+// func (w *Websocket) GetDefaultURL() string {
+// 	return w.defaultURL
+// }
 
-// SetConnector sets connection function
-func (w *Websocket) SetConnector(connector func() error) {
-	w.connector = connector
-}
+// // SetConnector sets connection function
+// func (w *Websocket) SetConnector(connector func() error) {
+// 	w.connector = connector
+// }
 
-// SetExchangeName sets exchange name
-func (w *Websocket) SetExchangeName(exchName string) {
-	w.exchangeName = exchName
-}
+// // SetExchangeName sets exchange name
+// func (w *Websocket) SetExchangeName(exchName string) {
+// 	w.exchangeName = exchName
+// }
 
 // GetName returns exchange name
 func (w *Websocket) GetName() string {
@@ -642,24 +644,21 @@ func (w *Websocket) ResubscribeToChannel(subscribedChannel *WebsocketChannelSubs
 
 // SubscribeToChannels appends supplied channels to channelsToSubscribe
 func (w *Websocket) SubscribeToChannels(channels []WebsocketChannelSubscription) {
+channels:
 	for i := range channels {
-		channelFound := false
 		for j := range w.channelsToSubscribe {
 			if w.channelsToSubscribe[j].Equal(&channels[i]) {
-				channelFound = true
+				continue channels
 			}
 		}
-		if !channelFound {
-			w.channelsToSubscribe = append(w.channelsToSubscribe, channels[i])
-		}
+		w.channelsToSubscribe = append(w.channelsToSubscribe, channels[i])
 	}
 }
 
 // Equal two WebsocketChannelSubscription to determine equality
-func (w *WebsocketChannelSubscription) Equal(subscribedChannel *WebsocketChannelSubscription) bool {
-	return strings.EqualFold(w.Channel, subscribedChannel.Channel) &&
-		strings.EqualFold(w.Currency.String(),
-			subscribedChannel.Currency.String())
+func (w *WebsocketChannelSubscription) Equal(s *WebsocketChannelSubscription) bool {
+	return strings.EqualFold(w.Channel, s.Channel) &&
+		w.Currency.Equal(s.Currency)
 }
 
 // GetSubscriptions returns a copied list of subscriptions
@@ -893,6 +892,12 @@ func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
 		}
 		return WebsocketResponse{}, err
 	}
+
+	select {
+	case w.trafic <- struct{}{}:
+	default:
+	}
+
 	var standardMessage []byte
 	switch mType {
 	case websocket.TextMessage:

@@ -114,14 +114,12 @@ func (l *LakeBTC) wsHandleIncomingData() {
 				log.Debugf(log.ExchangeSys,
 					"%v Websocket message received: %v", l.Name, data)
 			}
-			l.Websocket.TrafficAlert <- struct{}{}
 			err := l.processTicker(data.Data)
 			if err != nil {
 				l.Websocket.DataHandler <- err
 				return
 			}
 		case data := <-l.WebsocketConn.Trade:
-			l.Websocket.TrafficAlert <- struct{}{}
 			if l.Verbose {
 				log.Debugf(log.ExchangeSys,
 					"%v Websocket message received: %v", l.Name, data)
@@ -132,7 +130,6 @@ func (l *LakeBTC) wsHandleIncomingData() {
 				return
 			}
 		case data := <-l.WebsocketConn.Orderbook:
-			l.Websocket.TrafficAlert <- struct{}{}
 			if l.Verbose {
 				log.Debugf(log.ExchangeSys,
 					"%v Websocket message received: %v", l.Name, data)

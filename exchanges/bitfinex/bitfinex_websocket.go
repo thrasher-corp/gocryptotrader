@@ -70,7 +70,6 @@ func (b *Bitfinex) wsReadData(ws *wshandler.WebsocketConnection) {
 				b.Websocket.ReadMessageErrors <- err
 				return
 			}
-			b.Websocket.TrafficAlert <- struct{}{}
 			comms <- resp
 		}
 	}

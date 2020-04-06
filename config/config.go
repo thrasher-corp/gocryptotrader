@@ -878,7 +878,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 					return errors.New("no assets found")
 				}
 
-				// randomly turn on an asset if all dissabled
+				// randomly turn on an asset if all disabled
 				log.Warnf(log.ExchangeSys,
 					"%s assets disabled, turning on asset %s",
 					c.Exchanges[i].Name,

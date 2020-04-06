@@ -112,7 +112,6 @@ func (c *Coinbene) wsReadData() {
 }
 
 func (c *Coinbene) wsHandleData(respRaw []byte) error {
-	c.Websocket.TrafficAlert <- struct{}{}
 	if string(respRaw) == wshandler.Ping {
 		err := c.WebsocketConn.SendRawMessage(websocket.TextMessage, []byte(wshandler.Pong))
 		if err != nil {

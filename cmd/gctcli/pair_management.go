@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -213,11 +212,6 @@ func enableDisableExchangePair(c *cli.Context) error {
 		} else {
 			p = currency.NewPairDelimiter(pairList[i], pairDelimiter)
 		}
-		fmt.Println(p)
-
-		fmt.Println(p.Base.String())
-		fmt.Println(p.Quote.String())
-		fmt.Println(p.Delimiter)
 
 		validPairs = append(validPairs, &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,

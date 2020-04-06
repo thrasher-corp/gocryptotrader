@@ -115,7 +115,6 @@ func (h *HUOBI) wsFunnelConnectionData(ws *wshandler.WebsocketConnection, url st
 				h.Websocket.DataHandler <- err
 				return
 			}
-			h.Websocket.TrafficAlert <- struct{}{}
 			comms <- WsMessage{Raw: resp.Raw, URL: url}
 		}
 	}

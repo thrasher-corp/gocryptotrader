@@ -80,7 +80,6 @@ func (b *Bitmex) WsConnect() error {
 		b.Websocket.ReadMessageErrors <- err
 		return err
 	}
-	b.Websocket.TrafficAlert <- struct{}{}
 	var welcomeResp WebsocketWelcome
 	err = json.Unmarshal(p.Raw, &welcomeResp)
 	if err != nil {
@@ -123,7 +122,6 @@ func (b *Bitmex) wsReadData() {
 				b.Websocket.DataHandler <- err
 				return
 			}
-			b.Websocket.TrafficAlert <- struct{}{}
 			err = b.wsHandleData(resp.Raw)
 			if err != nil {
 				b.Websocket.DataHandler <- err

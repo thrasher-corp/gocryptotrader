@@ -42,15 +42,18 @@ type Websocket struct {
 	runningURL                   string
 	exchangeName                 string
 	m                            sync.Mutex
-	subscriptionMutex            sync.Mutex
 	connectionMutex              sync.RWMutex
 	connector                    func() error
-	subscribedChannels           []WebsocketChannelSubscription
-	channelsToSubscribe          []WebsocketChannelSubscription
-	channelSubscriber            func(channelToSubscribe *WebsocketChannelSubscription) error
-	channelUnsubscriber          func(channelToUnsubscribe *WebsocketChannelSubscription) error
-	channelGeneratesubs          func()
-	DataHandler                  chan interface{}
+
+	subscriptionMutex   sync.Mutex
+	subscribedChannels  []WebsocketChannelSubscription
+	channelsToSubscribe []WebsocketChannelSubscription
+	// subscription []WebsocketChannelSubscription
+
+	channelSubscriber   func(channelToSubscribe *WebsocketChannelSubscription) error
+	channelUnsubscriber func(channelToUnsubscribe *WebsocketChannelSubscription) error
+	channelGeneratesubs func()
+	DataHandler         chan interface{}
 	// ShutdownC is the main shutdown channel which controls all websocket go funcs
 	ShutdownC chan struct{}
 	// Orderbook is a local cache of orderbooks
@@ -84,9 +87,10 @@ type WebsocketSetup struct {
 // WebsocketChannelSubscription container for websocket subscriptions
 // Currently only a one at a time thing to avoid complexity
 type WebsocketChannelSubscription struct {
-	Channel  string
-	Currency currency.Pair
-	Params   map[string]interface{}
+	Channel    string
+	Currency   currency.Pair
+	Params     map[string]interface{}
+	subscribed bool
 }
 
 // WebsocketResponse defines generalised data from the websocket connection
@@ -169,6 +173,7 @@ type WebsocketConnection struct {
 	ResponseCheckTimeout time.Duration
 	ResponseMaxLimit     time.Duration
 	TrafficTimeout       time.Duration
+	trafic               chan struct{}
 }
 
 // WebsocketPingHandler container for ping handler settings

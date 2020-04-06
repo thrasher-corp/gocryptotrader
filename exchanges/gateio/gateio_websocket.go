@@ -97,7 +97,6 @@ func (g *Gateio) wsReadData() {
 				g.Websocket.ReadMessageErrors <- err
 				return
 			}
-			g.Websocket.TrafficAlert <- struct{}{}
 			err = g.wsHandleData(resp.Raw)
 			if err != nil {
 				g.Websocket.DataHandler <- err

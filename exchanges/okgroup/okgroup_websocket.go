@@ -251,7 +251,6 @@ func (o *OKGroup) WsReadData(wg *sync.WaitGroup) {
 				o.Websocket.ReadMessageErrors <- err
 				return
 			}
-			o.Websocket.TrafficAlert <- struct{}{}
 			err = o.WsHandleData(resp.Raw)
 			if err != nil {
 				o.Websocket.DataHandler <- err
@@ -761,6 +760,7 @@ func (o *OKGroup) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be
 // handled by ManageSubscriptions()
 func (o *OKGroup) GenerateDefaultSubscriptions() {
+
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	assets := o.GetAssetTypes()
 	for x := range assets {
@@ -896,8 +896,6 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 			o.Websocket.DataHandler <- errors.New("unhandled asset type")
 		}
 	}
-
-	fmt.Printf("%+v\n", subscriptions)
 
 	o.Websocket.SubscribeToChannels(subscriptions)
 }

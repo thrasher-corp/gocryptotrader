@@ -87,7 +87,6 @@ func (c *COINUT) wsReadData() {
 				c.Websocket.ReadMessageErrors <- err
 				return
 			}
-			c.Websocket.TrafficAlert <- struct{}{}
 
 			if strings.HasPrefix(string(resp.Raw), "[") {
 				var incoming []wsResponse

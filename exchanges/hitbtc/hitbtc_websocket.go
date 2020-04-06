@@ -71,7 +71,6 @@ func (h *HitBTC) wsReadData() {
 				h.Websocket.ReadMessageErrors <- err
 				return
 			}
-			h.Websocket.TrafficAlert <- struct{}{}
 
 			err = h.wsHandleData(resp.Raw)
 			if err != nil {

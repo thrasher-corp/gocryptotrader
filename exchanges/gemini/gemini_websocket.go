@@ -147,7 +147,6 @@ func (g *Gemini) wsFunnelConnectionData(ws *wshandler.WebsocketConnection, c cur
 				g.Websocket.DataHandler <- err
 				return
 			}
-			g.Websocket.TrafficAlert <- struct{}{}
 			comms <- ReadData{Raw: resp.Raw, Currency: c}
 		}
 	}
