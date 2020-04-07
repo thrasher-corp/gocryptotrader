@@ -17,9 +17,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -316,18 +316,7 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 	newOrderBook.Pair = p
 	newOrderBook.ExchangeName = h.Name
 
-	err = h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
-	if err != nil {
-		return err
-	}
-
-	h.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Exchange: h.Name,
-		Asset:    asset.Spot,
-		Pair:     p,
-	}
-
-	return nil
+	return h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 
 func (h *HitBTC) wsHandleOrderData(o *wsOrderData) error {
@@ -439,23 +428,13 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update WsOrderbook) error {
 		return err
 	}
 
-	err = h.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+	return h.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
 		Asks:     asks,
 		Bids:     bids,
 		Pair:     p,
 		UpdateID: update.Params.Sequence,
 		Asset:    asset.Spot,
 	})
-	if err != nil {
-		return err
-	}
-
-	h.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Exchange: h.Name,
-		Asset:    asset.Spot,
-		Pair:     p,
-	}
-	return nil
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()

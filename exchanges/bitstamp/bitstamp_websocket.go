@@ -13,7 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -126,7 +127,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		b.Websocket.DataHandler <- wshandler.TradeData{
+		b.Websocket.DataHandler <- stream.TradeData{
 			Timestamp:    time.Unix(wsTradeTemp.Data.Timestamp, 0),
 			CurrencyPair: p,
 			AssetType:    a,
@@ -221,7 +222,7 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 
 		bids = append(bids, orderbook.Item{Price: target, Amount: amount})
 	}
-	err := b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+	return b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 		Bids:         bids,
 		Asks:         asks,
 		Pair:         p,
@@ -229,17 +230,6 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 		AssetType:    asset.Spot,
 		ExchangeName: b.Name,
 	})
-	if err != nil {
-		return err
-	}
-
-	b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Pair:     p,
-		Asset:    assetType,
-		Exchange: b.Name,
-	}
-
-	return nil
 }
 
 func (b *Bitstamp) seedOrderBook() error {
@@ -274,12 +264,6 @@ func (b *Bitstamp) seedOrderBook() error {
 		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {
 			return err
-		}
-
-		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Pair:     p[x],
-			Asset:    asset.Spot,
-			Exchange: b.Name,
 		}
 	}
 	return nil

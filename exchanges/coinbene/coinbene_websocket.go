@@ -16,9 +16,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -225,7 +226,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		c.Websocket.DataHandler <- wshandler.TradeData{
+		c.Websocket.DataHandler <- stream.TradeData{
 			CurrencyPair: newP,
 			Timestamp:    t,
 			Price:        price,
@@ -311,10 +312,6 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: newOB.Pair,
-				Asset:    asset.PerpetualSwap,
-				Exchange: c.Name,
-			}
 		} else if orderBook.Action == "update" {
 			newOB := wsorderbook.WebsocketOrderbookUpdate{
 				Asks:       asks,
@@ -327,10 +324,6 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			err = c.Websocket.Orderbook.Update(&newOB)
 			if err != nil {
 				return err
-			}
-			c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: newOB.Pair,
-				Asset:    asset.PerpetualSwap,
-				Exchange: c.Name,
 			}
 		}
 	case strings.Contains(result[topic].(string), "kline"):
@@ -372,7 +365,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 		if tempKline == nil && len(tempKline) < 5 {
 			return errors.New(c.Name + " - received bad data ")
 		}
-		c.Websocket.DataHandler <- wshandler.KlineData{
+		c.Websocket.DataHandler <- stream.KlineData{
 			Timestamp:  time.Unix(int64(kline.Data[0][1].(float64)), 0),
 			Pair:       newP,
 			AssetType:  asset.PerpetualSwap,

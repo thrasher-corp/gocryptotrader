@@ -14,9 +14,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -263,8 +264,8 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 			return nil
 		}
 	}
-	if stream, ok := multiStreamData["stream"].(string); ok {
-		streamType := strings.Split(stream, "@")
+	if wsStream, ok := multiStreamData["stream"].(string); ok {
+		streamType := strings.Split(wsStream, "@")
 		if len(streamType) > 1 {
 			if data, ok := multiStreamData["data"]; ok {
 				rawData, err := json.Marshal(data)
@@ -311,7 +312,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						return err
 					}
 
-					b.Websocket.DataHandler <- wshandler.TradeData{
+					b.Websocket.DataHandler <- stream.TradeData{
 						CurrencyPair: pair,
 						Timestamp:    time.Unix(0, trade.TimeStamp*int64(time.Millisecond)),
 						Price:        price,
@@ -363,7 +364,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						return err
 					}
 
-					b.Websocket.DataHandler <- wshandler.KlineData{
+					b.Websocket.DataHandler <- stream.KlineData{
 						Timestamp:  time.Unix(0, kline.EventTime*int64(time.Millisecond)),
 						Pair:       pair,
 						AssetType:  asset.Spot,
@@ -391,17 +392,6 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						return fmt.Errorf("%v - UpdateLocalCache error: %s",
 							b.Name,
 							err)
-					}
-
-					pair, err := currency.NewPairFromFormattedPairs(depth.Pair, pairs, format)
-					if err != nil {
-						return err
-					}
-
-					b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-						Pair:     pair,
-						Asset:    asset.Spot,
-						Exchange: b.Name,
 					}
 				default:
 					b.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: b.Name + wshandler.UnhandledMessage + string(respRaw)}

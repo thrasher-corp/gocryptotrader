@@ -16,9 +16,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -303,18 +303,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 	base.Pair = pair
 	base.ExchangeName = c.Name
 
-	err = c.Websocket.Orderbook.LoadSnapshot(&base)
-	if err != nil {
-		return err
-	}
-
-	c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Pair:     pair,
-		Asset:    asset.Spot,
-		Exchange: c.Name,
-	}
-
-	return nil
+	return c.Websocket.Orderbook.LoadSnapshot(&base)
 }
 
 // ProcessUpdate updates the orderbook local cache
@@ -322,8 +311,14 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 	var asks, bids []orderbook.Item
 
 	for i := range update.Changes {
-		price, _ := strconv.ParseFloat(update.Changes[i][1].(string), 64)
-		volume, _ := strconv.ParseFloat(update.Changes[i][2].(string), 64)
+		price, err := strconv.ParseFloat(update.Changes[i][1].(string), 64)
+		if err != nil {
+			return err
+		}
+		volume, err := strconv.ParseFloat(update.Changes[i][2].(string), 64)
+		if err != nil {
+			return err
+		}
 
 		if update.Changes[i][0].(string) == order.Buy.Lower() {
 			bids = append(bids, orderbook.Item{Price: price, Amount: volume})
@@ -345,24 +340,13 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 	if err != nil {
 		return err
 	}
-	err = c.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+	return c.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
 		Bids:       bids,
 		Asks:       asks,
 		Pair:       p,
 		UpdateTime: timestamp,
 		Asset:      asset.Spot,
 	})
-	if err != nil {
-		return err
-	}
-
-	c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Pair:     p,
-		Asset:    asset.Spot,
-		Exchange: c.Name,
-	}
-
-	return nil
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()

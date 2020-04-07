@@ -22,18 +22,14 @@ import (
 // New initialises the websocket struct
 func New() *Websocket {
 	return &Websocket{
-		defaultURL: "",
-		enabled:    false,
-		proxyAddr:  "",
-		runningURL: "",
-		init:       true,
+		init:         true,
+		DataHandler:  make(chan interface{}, 1),
+		TrafficAlert: make(chan struct{}),
 	}
 }
 
 // Setup sets main variables for websocket connection
 func (w *Websocket) Setup(setupData *WebsocketSetup) error {
-	w.DataHandler = make(chan interface{}, 1)
-	w.TrafficAlert = make(chan struct{})
 	w.verbose = setupData.Verbose
 	w.channelSubscriber = setupData.Subscriber
 	w.channelUnsubscriber = setupData.UnSubscriber
@@ -271,6 +267,7 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 			}
 			return
 		case <-w.TrafficAlert:
+			fmt.Println("POOPOOPOOPO")
 			if !trafficTimer.Stop() {
 				select {
 				case <-trafficTimer.C:
@@ -279,12 +276,12 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 			}
 			trafficTimer.Reset(w.trafficTimeout)
 		case <-trafficTimer.C: // Falls through when timer runs out
-			if w.verbose {
-				log.Warnf(log.WebsocketMgr,
-					"%v has not received a traffic alert in %v. Reconnecting",
-					w.exchangeName,
-					w.trafficTimeout)
-			}
+			// if w.verbose {
+			log.Warnf(log.WebsocketMgr,
+				"%v has not received a traffic alert in %v. Reconnecting",
+				w.exchangeName,
+				w.trafficTimeout)
+			// }
 			go w.Shutdown()
 		}
 	}

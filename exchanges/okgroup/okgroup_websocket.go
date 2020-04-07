@@ -18,9 +18,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -457,7 +458,7 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 				Err:      err,
 			}
 		}
-		o.Websocket.DataHandler <- wshandler.TradeData{
+		o.Websocket.DataHandler <- stream.TradeData{
 			Amount:       response.Data[i].Size,
 			AssetType:    o.GetAssetTypeFromTableName(response.Table),
 			CurrencyPair: c,
@@ -504,7 +505,7 @@ func (o *OKGroup) wsProcessCandles(respRaw []byte) error {
 			candleInterval = response.Table[candleIndex+len(okGroupWsCandle) : secondIndex]
 		}
 
-		klineData := wshandler.KlineData{
+		klineData := stream.KlineData{
 			AssetType: o.GetAssetTypeFromTableName(response.Table),
 			Pair:      c,
 			Exchange:  o.Name,
@@ -652,17 +653,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketOrderBook, ins
 		ExchangeName: o.Name,
 	}
 
-	err = o.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
-	if err != nil {
-		return err
-	}
-
-	o.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Exchange: o.Name,
-		Asset:    a,
-		Pair:     instrument,
-	}
-	return nil
+	return o.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 
 // WsProcessUpdateOrderbook updates an existing orderbook using websocket data
@@ -699,13 +690,6 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketOrderBook, inst
 			wsEventData.InstrumentID)
 		return errors.New("checksum failed")
 	}
-
-	o.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Exchange: o.Name,
-		Asset:    a,
-		Pair:     instrument,
-	}
-
 	return nil
 }
 

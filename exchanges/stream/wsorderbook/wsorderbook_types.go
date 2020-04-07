@@ -20,6 +20,7 @@ type WebsocketOrderbookLocal struct {
 	sortBufferByUpdateIDs bool // When timestamps aren't provided, an id can help sort
 	updateEntriesByID     bool // Use the update IDs to match ob entries
 	exchangeName          string
+	dataHandler           chan interface{}
 	m                     sync.Mutex
 }
 

@@ -17,9 +17,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -551,7 +552,7 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 		if trade[3].(string) == "s" {
 			tSide = order.Sell
 		}
-		k.Websocket.DataHandler <- wshandler.TradeData{
+		k.Websocket.DataHandler <- stream.TradeData{
 			AssetType:    asset.Spot,
 			CurrencyPair: channelData.Pair,
 			Exchange:     k.Name,
@@ -653,16 +654,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 	}
 	base.LastUpdated = highestLastUpdate
 	base.ExchangeName = k.Name
-	err := k.Websocket.Orderbook.LoadSnapshot(&base)
-	if err != nil {
-		return err
-	}
-	k.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Exchange: k.Name,
-		Asset:    asset.Spot,
-		Pair:     channelData.Pair,
-	}
-	return nil
+	return k.Websocket.Orderbook.LoadSnapshot(&base)
 }
 
 // wsProcessOrderBookUpdate updates an orderbook entry for a given currency pair
@@ -731,17 +723,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 		}
 	}
 	update.UpdateTime = highestLastUpdate
-	err := k.Websocket.Orderbook.Update(&update)
-	if err != nil {
-		k.Websocket.DataHandler <- err
-		return err
-	}
-	k.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Exchange: k.Name,
-		Asset:    asset.Spot,
-		Pair:     channelData.Pair,
-	}
-	return nil
+	return k.Websocket.Orderbook.Update(&update)
 }
 
 // wsProcessCandles converts candle data and sends it to the data handler
@@ -785,7 +767,7 @@ func (k *Kraken) wsProcessCandles(channelData *WebsocketChannelData, data []inte
 		return err
 	}
 
-	k.Websocket.DataHandler <- wshandler.KlineData{
+	k.Websocket.DataHandler <- stream.KlineData{
 		AssetType: asset.Spot,
 		Pair:      channelData.Pair,
 		Timestamp: time.Now(),

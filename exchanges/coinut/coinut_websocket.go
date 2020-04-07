@@ -16,9 +16,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -271,22 +272,6 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		pairs, err := c.GetEnabledPairs(asset.Spot)
-		if err != nil {
-			return err
-		}
-		currencyPair := c.instrumentMap.LookupInstrument(orderbookSnapshot.InstID)
-		p, err := currency.NewPairFromFormattedPairs(currencyPair,
-			pairs,
-			format)
-		if err != nil {
-			return err
-		}
-		c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Exchange: c.Name,
-			Asset:    asset.Spot,
-			Pair:     p,
-		}
 	case "inst_order_book_update":
 		var orderbookUpdate WsOrderbookUpdate
 		err := json.Unmarshal(respRaw, &orderbookUpdate)
@@ -296,23 +281,6 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		err = c.WsProcessOrderbookUpdate(&orderbookUpdate)
 		if err != nil {
 			return err
-		}
-
-		pairs, err := c.GetEnabledPairs(asset.Spot)
-		if err != nil {
-			return err
-		}
-		currencyPair := c.instrumentMap.LookupInstrument(orderbookUpdate.InstID)
-		p, err := currency.NewPairFromFormattedPairs(currencyPair,
-			pairs,
-			format)
-		if err != nil {
-			return err
-		}
-		c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Exchange: c.Name,
-			Asset:    asset.Spot,
-			Pair:     p,
 		}
 	case "inst_trade":
 		var tradeSnap WsTradeSnapshot
@@ -348,7 +316,7 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 			}
 		}
 
-		c.Websocket.DataHandler <- wshandler.TradeData{
+		c.Websocket.DataHandler <- stream.TradeData{
 			Timestamp:    time.Unix(tradeUpdate.Timestamp, 0),
 			CurrencyPair: p,
 			AssetType:    asset.Spot,

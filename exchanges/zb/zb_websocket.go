@@ -17,8 +17,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -163,12 +164,6 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-
-		z.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Pair:     cPair,
-			Asset:    asset.Spot,
-			Exchange: z.Name,
-		}
 	case strings.Contains(result.Channel, "_order"):
 		cPair := strings.Split(result.Channel, "_")
 		var o WsSubmitOrderResponse
@@ -244,7 +239,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 			}
 		}
 
-		z.Websocket.DataHandler <- wshandler.TradeData{
+		z.Websocket.DataHandler <- stream.TradeData{
 			Timestamp:    time.Unix(t.Date, 0),
 			CurrencyPair: cPair,
 			AssetType:    asset.Spot,

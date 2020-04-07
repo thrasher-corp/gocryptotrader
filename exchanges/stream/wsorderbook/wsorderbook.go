@@ -11,13 +11,14 @@ import (
 )
 
 // Setup sets private variables
-func (w *WebsocketOrderbookLocal) Setup(obBufferLimit int, bufferEnabled, sortBuffer, sortBufferByUpdateIDs, updateEntriesByID bool, exchangeName string) {
+func (w *WebsocketOrderbookLocal) Setup(obBufferLimit int, bufferEnabled, sortBuffer, sortBufferByUpdateIDs, updateEntriesByID bool, exchangeName string, dataHandler chan interface{}) {
 	w.obBufferLimit = obBufferLimit
 	w.bufferEnabled = bufferEnabled
 	w.sortBuffer = sortBuffer
 	w.sortBufferByUpdateIDs = sortBufferByUpdateIDs
 	w.updateEntriesByID = updateEntriesByID
 	w.exchangeName = exchangeName
+	w.dataHandler = dataHandler
 }
 
 // Update updates a local cache using bid targets and ask targets then updates
@@ -52,10 +53,19 @@ func (w *WebsocketOrderbookLocal) Update(u *WebsocketOrderbookUpdate) error {
 	if err != nil {
 		return err
 	}
+
 	if w.bufferEnabled {
 		// Reset the buffer
 		w.buffer[u.Pair][u.Asset] = nil
 	}
+
+	// Process in data handler
+	select {
+	case w.dataHandler <- obLookup:
+	default:
+		return errors.New("routine processing back log")
+	}
+
 	return nil
 }
 
@@ -252,7 +262,17 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base) err
 	}
 
 	w.ob[newOrderbook.Pair][newOrderbook.AssetType] = newOrderbook
-	return newOrderbook.Process()
+	err := newOrderbook.Process()
+	if err != nil {
+		return err
+	}
+
+	select {
+	case w.dataHandler <- newOrderbook:
+	default:
+		return errors.New("routine processing back log")
+	}
+	return nil
 }
 
 // GetOrderbook use sparingly. Modifying anything here will ruin hash

@@ -18,8 +18,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -301,7 +302,7 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 				return err
 			}
 			for i := range candle.Changes {
-				g.Websocket.DataHandler <- wshandler.KlineData{
+				g.Websocket.DataHandler <- stream.KlineData{
 					Timestamp:  time.Unix(int64(candle.Changes[i][0])*1000, 0),
 					Pair:       curr,
 					AssetType:  asset.Spot,
@@ -399,9 +400,6 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 			g.Websocket.DataHandler <- err
 			return
 		}
-		g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: pair,
-			Asset:    asset.Spot,
-			Exchange: g.Name}
 	} else {
 		var asks, bids []orderbook.Item
 		for i := range result.Events {
@@ -414,7 +412,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 						Err:      err,
 					}
 				}
-				g.Websocket.DataHandler <- wshandler.TradeData{
+				g.Websocket.DataHandler <- stream.TradeData{
 					Timestamp:    time.Unix(0, result.Timestamp),
 					CurrencyPair: pair,
 					AssetType:    asset.Spot,
@@ -450,8 +448,5 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 		if err != nil {
 			g.Websocket.DataHandler <- fmt.Errorf("%v %v", g.Name, err)
 		}
-		g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: pair,
-			Asset:    asset.Spot,
-			Exchange: g.Name}
 	}
 }

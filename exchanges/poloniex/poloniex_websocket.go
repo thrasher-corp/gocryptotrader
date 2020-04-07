@@ -17,9 +17,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -308,18 +309,6 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 						if err != nil {
 							return err
 						}
-
-						var pair currency.Pair
-						pair, err = currency.NewPairFromString(currencyPair)
-						if err != nil {
-							return err
-						}
-
-						p.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-							Exchange: p.Name,
-							Asset:    asset.Spot,
-							Pair:     pair,
-						}
 					case "o":
 						currencyPair := currencyIDMap[channelID]
 						dataL3 := dataL2.([]interface{})
@@ -328,18 +317,6 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							currencyPair)
 						if err != nil {
 							return err
-						}
-
-						var pair currency.Pair
-						pair, err = currency.NewPairFromString(currencyPair)
-						if err != nil {
-							return err
-						}
-
-						p.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-							Exchange: p.Name,
-							Asset:    asset.Spot,
-							Pair:     pair,
 						}
 					case "t":
 						currencyPair := currencyIDMap[channelID]
@@ -369,7 +346,7 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							return err
 						}
 
-						p.Websocket.DataHandler <- wshandler.TradeData{
+						p.Websocket.DataHandler <- stream.TradeData{
 							Timestamp:    time.Unix(trade.Timestamp, 0),
 							CurrencyPair: pair,
 							Side:         side,

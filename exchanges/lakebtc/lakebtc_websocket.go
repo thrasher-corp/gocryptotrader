@@ -12,8 +12,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/toorop/go-pusher"
 )
@@ -162,7 +163,7 @@ func (l *LakeBTC) processTrades(data, channel string) error {
 				Err:      err,
 			}
 		}
-		l.Websocket.DataHandler <- wshandler.TradeData{
+		l.Websocket.DataHandler <- stream.TradeData{
 			Timestamp:    time.Unix(tradeData.Trades[i].Date, 0),
 			CurrencyPair: curr,
 			AssetType:    asset.Spot,
@@ -231,18 +232,7 @@ func (l *LakeBTC) processOrderbook(obUpdate, channel string) error {
 		})
 	}
 
-	err = l.Websocket.Orderbook.LoadSnapshot(&book)
-	if err != nil {
-		return err
-	}
-
-	l.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Pair:     p,
-		Asset:    asset.Spot,
-		Exchange: l.Name,
-	}
-
-	return nil
+	return l.Websocket.Orderbook.LoadSnapshot(&book)
 }
 
 func (l *LakeBTC) getCurrencyFromChannel(channel string) (currency.Pair, error) {

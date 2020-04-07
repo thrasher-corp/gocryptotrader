@@ -16,9 +16,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -150,11 +151,6 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Pair:     p,
-			Asset:    asset.Spot,
-			Exchange: b.Name,
-		}
 	case trade:
 		var trade WsTrade
 		err := json.Unmarshal(respRaw, &trade)
@@ -167,7 +163,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		b.Websocket.DataHandler <- wshandler.TradeData{
+		b.Websocket.DataHandler <- stream.TradeData{
 			Timestamp:    trade.Timestamp,
 			CurrencyPair: p,
 			AssetType:    asset.Spot,

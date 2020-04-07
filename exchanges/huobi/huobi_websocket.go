@@ -17,8 +17,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -314,7 +315,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 		}
 
 		for i := range kline.Data {
-			h.Websocket.DataHandler <- wshandler.KlineData{
+			h.Websocket.DataHandler <- stream.KlineData{
 				Timestamp:  time.Now(),
 				Exchange:   h.Name,
 				AssetType:  a,
@@ -339,7 +340,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		h.Websocket.DataHandler <- wshandler.KlineData{
+		h.Websocket.DataHandler <- stream.KlineData{
 			Timestamp:  time.Unix(0, kline.Timestamp*int64(time.Millisecond)),
 			Exchange:   h.Name,
 			AssetType:  a,
@@ -363,7 +364,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		h.Websocket.DataHandler <- wshandler.TradeData{
+		h.Websocket.DataHandler <- stream.TradeData{
 			Exchange:     h.Name,
 			AssetType:    a,
 			CurrencyPair: p,
@@ -458,17 +459,7 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 	newOrderBook.AssetType = asset.Spot
 	newOrderBook.ExchangeName = h.Name
 
-	err = h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
-	if err != nil {
-		return err
-	}
-
-	h.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Pair:     p,
-		Exchange: h.Name,
-		Asset:    asset.Spot,
-	}
-	return nil
+	return h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()

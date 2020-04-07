@@ -11,8 +11,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -276,7 +277,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		log.Info(log.WebsocketMgr, d)
 	case error:
 		return fmt.Errorf("routines.go exchange %s websocket error - %s", exchName, data)
-	case wshandler.TradeData:
+	case stream.TradeData:
 		if Bot.Settings.Verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s trade updated %+v",
 				exchName,
@@ -284,7 +285,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 				d.AssetType,
 				d)
 		}
-	case wshandler.FundingData:
+	case stream.FundingData:
 		if Bot.Settings.Verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",
 				exchName,
@@ -302,7 +303,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		}
 		err := ticker.ProcessTicker(d)
 		printTickerSummary(d, "websocket", err)
-	case wshandler.KlineData:
+	case stream.KlineData:
 		if Bot.Settings.Verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
 				exchName,
@@ -310,11 +311,11 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 				d.AssetType,
 				d)
 		}
-	case wshandler.WebsocketOrderbookUpdate:
+	case *orderbook.Base:
 		if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
 			Bot.ExchangeCurrencyPairManager.update(exchName,
 				d.Pair,
-				d.Asset,
+				d.AssetType,
 				SyncItemOrderbook,
 				nil)
 		}
@@ -324,7 +325,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 				"%s websocket %s %s orderbook updated",
 				exchName,
 				FormatCurrency(d.Pair),
-				d.Asset)
+				d.AssetType)
 		}
 	case *order.Detail:
 		if !Bot.OrderManager.orderStore.exists(d) {

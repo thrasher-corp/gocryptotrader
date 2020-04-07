@@ -16,8 +16,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -238,7 +239,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 					}
 				}
 
-				b.Websocket.DataHandler <- wshandler.TradeData{
+				b.Websocket.DataHandler <- stream.TradeData{
 					Timestamp:    trades.Data[i].Timestamp,
 					Price:        trades.Data[i].Price,
 					Amount:       float64(trades.Data[i].Size),
@@ -512,11 +513,6 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 			return fmt.Errorf("bitmex_websocket.go process orderbook error -  %s",
 				err)
 		}
-		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Pair:     p,
-			Asset:    a,
-			Exchange: b.Name,
-		}
 	default:
 		var asks, bids []orderbook.Item
 		for i := range data {
@@ -542,12 +538,6 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 		})
 		if err != nil {
 			return err
-		}
-
-		b.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Pair:     p,
-			Asset:    a,
-			Exchange: b.Name,
 		}
 	}
 	return nil

@@ -17,9 +17,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -187,7 +188,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 					Err:      err,
 				}
 			}
-			g.Websocket.DataHandler <- wshandler.TradeData{
+			g.Websocket.DataHandler <- stream.TradeData{
 				Timestamp:    time.Now(),
 				CurrencyPair: p,
 				AssetType:    asset.Spot,
@@ -377,25 +378,17 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 				return err
 			}
 		} else {
-			err = g.Websocket.Orderbook.Update(
-				&wsorderbook.WebsocketOrderbookUpdate{
-					Asks:       asks,
-					Bids:       bids,
-					Pair:       p,
-					UpdateTime: time.Now(),
-					Asset:      asset.Spot,
-				})
+			err = g.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+				Asks:       asks,
+				Bids:       bids,
+				Pair:       p,
+				UpdateTime: time.Now(),
+				Asset:      asset.Spot,
+			})
 			if err != nil {
 				return err
 			}
 		}
-
-		g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Pair:     p,
-			Asset:    asset.Spot,
-			Exchange: g.Name,
-		}
-
 	case strings.Contains(result.Method, "kline"):
 		var data []interface{}
 		err = json.Unmarshal(result.Params[0], &data)
@@ -428,7 +421,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		g.Websocket.DataHandler <- wshandler.KlineData{
+		g.Websocket.DataHandler <- stream.KlineData{
 			Timestamp:  time.Now(),
 			Pair:       p,
 			AssetType:  asset.Spot,
