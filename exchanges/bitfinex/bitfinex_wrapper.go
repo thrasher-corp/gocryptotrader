@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -775,5 +776,69 @@ func (b *Bitfinex) ValidateCredentials() error {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+	timeframe, err := parseInterval(interval)
+	if err != nil {
+		return kline.Item{}, err
+	}
+	candles, err := b.GetCandles(fixCasing(pair), timeframe, start.Unix()*1000, end.Unix()*1000, 0, true, false)
+	if err != nil {
+		return kline.Item{}, err
+	}
+	ret := kline.Item{
+		Exchange: b.GetName(),
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	for x := range candles {
+		ret.Candles = append(ret.Candles, kline.Candle{
+			Time:   candles[x].Timestamp,
+			Open:   candles[x].Open,
+			High:   candles[x].Close,
+			Low:    candles[x].Low,
+			Close:  candles[x].Close,
+			Volume: candles[x].Volume,
+		})
+	}
+	return ret, nil
+}
+
+func parseInterval(in time.Duration) (string, error) {
+	switch in {
+	case kline.OneMin, kline.ThreeMin, kline.FiveMin,
+		kline.FifteenMin, kline.ThirtyMin,
+		kline.OneHour, kline.TwoHour,
+		kline.FourHour, kline.SixHour,
+		kline.OneHour * 8, kline.TwelveHour:
+		return parseIntervalDuration(in), nil
+	case kline.OneDay:
+		return "1D", nil
+	case kline.OneWeek:
+		return "7D", nil
+	case kline.OneWeek * 2:
+		return "14D", nil
+	default:
+		return "", errInvalidInterval
+	}
+}
+
+func parseIntervalDuration(d time.Duration) string {
+	s := d.String()
+	if strings.HasSuffix(s, "m0s") {
+		s = s[:len(s)-2]
+	}
+	if strings.HasSuffix(s, "h0m") {
+		s = s[:len(s)-2]
+	}
+	return s
+}
+
+func fixCasing(in currency.Pair) string {
+	out := in.Upper().String()
+	runes := []rune(in.Upper().String())
+	if out[0] == 'T' || out[0] == 'F' {
+		runes[0] = unicode.ToLower(runes[0])
+	}
+	return string(runes)
 }

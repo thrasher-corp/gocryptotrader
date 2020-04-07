@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -153,6 +154,7 @@ func TestGetLends(t *testing.T) {
 
 func TestGetCandles(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	_, err := b.GetCandles("fUSD", "1m", 0, 0, 10, true, false)
 	if err != nil {
 		t.Fatal(err)
@@ -1208,5 +1210,97 @@ func TestWsNotifications(t *testing.T) {
 	err = b.wsHandleData([]byte(pressXToJSON))
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	currencyPair := currency.NewPairFromString("tBTCUSD")
+	startTime := time.Now().Add(-time.Hour * 24)
+	_, err := b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin*1337)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
+func TestFixCasing(t *testing.T) {
+	ret := fixCasing(currency.NewPairFromString("TBTCUSD"))
+	if ret != "tBTCUSD" {
+		t.Fatalf("unexpected result: %v", ret)
+	}
+
+	ret = fixCasing(currency.NewPairFromString("fBTCUSD"))
+	if ret != "fBTCUSD" {
+		t.Fatalf("unexpected result: %v", ret)
+	}
+
+	ret = fixCasing(currency.NewPairFromString("BTCUSD"))
+	if ret != "BTCUSD" {
+		t.Fatalf("unexpected result: %v", ret)
+	}
+}
+
+func TestParseInterval(t *testing.T) {
+	testCases := []struct {
+		name     string
+		interval time.Duration
+		expected string
+		err      error
+	}{
+		{
+			"OneMin",
+			kline.OneMin,
+			"1m",
+			nil,
+		},
+		{
+			"OneHour",
+			kline.OneHour,
+			"1h",
+			nil,
+		},
+		{
+			"OneDay",
+			kline.OneDay,
+			"1D",
+			nil,
+		},
+		{
+			"OneWeek",
+			kline.OneWeek,
+			"7D",
+			nil,
+		},
+		{
+			"TwoWeeks",
+			kline.OneWeek * 2,
+			"14D",
+			nil,
+		},
+		{
+			"default",
+			time.Hour * 1337,
+			"",
+			errInvalidInterval,
+		},
+	}
+	for x := range testCases {
+		test := testCases[x]
+		t.Run(test.name, func(t *testing.T) {
+			v, err := parseInterval(test.interval)
+			if err != nil {
+				if err != test.err {
+					t.Fatal(err)
+				}
+			} else {
+				if v != test.expected {
+					t.Fatalf("%v: received %v expected %v", test.name, v, test.expected)
+				}
+			}
+		})
 	}
 }

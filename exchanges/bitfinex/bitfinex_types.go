@@ -1,6 +1,9 @@
 package bitfinex
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // AcceptedOrderType defines the accepted market types, exchange strings denote
 // non-contract order types.
@@ -14,6 +17,8 @@ var AcceptedWalletNames = []string{"trading", "exchange", "deposit", "margin",
 
 // AcceptableMethods defines a map of currency codes to methods
 var AcceptableMethods = make(map[string]string)
+
+var errInvalidInterval = errors.New("invalid interval")
 
 // Ticker holds ticker information
 type Ticker struct {
@@ -388,7 +393,7 @@ type WebsocketTrade struct {
 
 // Candle holds OHLC data
 type Candle struct {
-	Timestamp int64
+	Timestamp time.Time
 	Open      float64
 	Close     float64
 	High      float64
