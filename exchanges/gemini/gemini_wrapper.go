@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -131,39 +132,34 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 		g.API.Endpoints.URL = geminiSandboxAPIURL
 	}
 
-	err = g.Websocket.Setup(
-		&wshandler.WebsocketSetup{
-			Enabled:                          exch.Features.Enabled.Websocket,
-			Verbose:                          exch.Verbose,
-			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-			DefaultURL:                       geminiWebsocketEndpoint,
-			ExchangeName:                     exch.Name,
-			RunningURL:                       exch.API.Endpoints.WebsocketURL,
-			Connector:                        g.WsConnect,
-			Features:                         &g.Features.Supports.WebsocketCapabilities,
-		})
+	err = g.Websocket.Setup(&wshandler.WebsocketSetup{
+		Enabled:                          exch.Features.Enabled.Websocket,
+		Verbose:                          exch.Verbose,
+		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		DefaultURL:                       geminiWebsocketEndpoint,
+		ExchangeName:                     exch.Name,
+		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		Connector:                        g.WsConnect,
+		Features:                         &g.Features.Supports.WebsocketCapabilities,
+	})
 	if err != nil {
 		return err
 	}
 
-	g.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         g.Name,
-		URL:                  g.Websocket.GetWebsocketURL(),
-		ProxyURL:             g.Websocket.GetProxyAddress(),
-		Verbose:              g.Verbose,
+	g.WebsocketConn, err = g.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	})
+	if err != nil {
+		return err
 	}
 
-	g.Websocket.Orderbook.Setup(
-		exch.WebsocketOrderbookBufferLimit,
-		true,
-		true,
-		false,
-		false,
-		exch.Name)
-	return nil
+	return g.Websocket.SetupLocalOrderbook(wsorderbook.Config{
+		OrderbookBufferLimit: exch.WebsocketOrderbookBufferLimit,
+		BufferEnabled:        true,
+		SortBuffer:           true,
+	})
 }
 
 // Start starts the Gemini go routine

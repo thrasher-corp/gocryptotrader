@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -52,24 +53,18 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	o.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         o.Name,
-		URL:                  o.Websocket.GetWebsocketURL(),
-		ProxyURL:             o.Websocket.GetProxyAddress(),
-		Verbose:              o.Verbose,
+	o.WebsocketConn, err = o.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
 		RateLimit:            okGroupWsRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	})
+	if err != nil {
+		return err
 	}
 
-	o.Websocket.Orderbook.Setup(
-		exch.WebsocketOrderbookBufferLimit,
-		false,
-		false,
-		false,
-		false,
-		exch.Name)
-	return nil
+	return o.Websocket.SetupLocalOrderbook(wsorderbook.Config{
+		OrderbookBufferLimit: exch.WebsocketOrderbookBufferLimit,
+	})
 }
 
 // FetchOrderbook returns orderbook base on the currency pair

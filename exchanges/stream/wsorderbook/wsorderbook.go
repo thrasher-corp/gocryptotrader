@@ -60,12 +60,7 @@ func (w *WebsocketOrderbookLocal) Update(u *WebsocketOrderbookUpdate) error {
 	}
 
 	// Process in data handler
-	select {
-	case w.dataHandler <- obLookup:
-	default:
-		return errors.New("routine processing back log")
-	}
-
+	w.dataHandler <- obLookup
 	return nil
 }
 
@@ -267,11 +262,7 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base) err
 		return err
 	}
 
-	select {
-	case w.dataHandler <- newOrderbook:
-	default:
-		return errors.New("routine processing back log")
-	}
+	w.dataHandler <- newOrderbook
 	return nil
 }
 

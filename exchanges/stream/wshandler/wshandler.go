@@ -16,34 +16,113 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
+
+const defaultJobBuffer = 1000
 
 // New initialises the websocket struct
 func New() *Websocket {
 	return &Websocket{
 		init:         true,
-		DataHandler:  make(chan interface{}, 1),
+		DataHandler:  make(chan interface{}),
+		ToRoutine:    make(chan interface{}, defaultJobBuffer),
 		TrafficAlert: make(chan struct{}),
 	}
 }
 
 // Setup sets main variables for websocket connection
 func (w *Websocket) Setup(setupData *WebsocketSetup) error {
+	if w == nil {
+		return errors.New("websocket is nil")
+	}
 	w.verbose = setupData.Verbose
 	w.channelSubscriber = setupData.Subscriber
 	w.channelUnsubscriber = setupData.UnSubscriber
 	w.channelGeneratesubs = setupData.GenerateSubscriptions
 	w.enabled = setupData.Enabled
+	if setupData.DefaultURL == "" {
+		return errors.New("default url is empty")
+	}
 	w.defaultURL = setupData.DefaultURL
 	w.connector = setupData.Connector
+	if setupData.ExchangeName == "" {
+		return errors.New("exchange name unset")
+	}
 	w.exchangeName = setupData.ExchangeName
 	w.trafficTimeout = setupData.WebsocketTimeout
+	if setupData.Features == nil {
+		return errors.New("feature set is nil")
+	}
 	w.features = setupData.Features
 
 	w.SetWebsocketURL(setupData.RunningURL)
 	w.SetCanUseAuthenticatedEndpoints(setupData.AuthenticatedWebsocketAPISupport)
 	return w.Initialise()
+}
+
+// SetupLocalOrderbook sets up local orderbook buffer for streaming updates and
+// snapshots
+func (w *Websocket) SetupLocalOrderbook(c wsorderbook.Config) error {
+	if w == nil {
+		return errors.New("setting up local orderbook error: websocket not intialised")
+	}
+
+	if c == (wsorderbook.Config{}) {
+		return errors.New("setting up local orderbook error: websocket orderbook configuration empty")
+	}
+
+	if w.exchangeName == "" {
+		return errors.New("setting up local orderbook error: exchange name not set, please call setup first")
+	}
+
+	if w.DataHandler == nil {
+		return errors.New("setting up local orderbook error: data handler not set, please call setup first")
+	}
+
+	w.Orderbook.Setup(c.OrderbookBufferLimit,
+		c.BufferEnabled,
+		c.SortBuffer,
+		c.SortBufferByUpdateIDs,
+		c.UpdateEntriesByID,
+		w.exchangeName,
+		w.DataHandler)
+	return nil
+}
+
+// SetupNewConnection sets up and returns a pointer to an individual websocket
+// connection
+func (w *Websocket) SetupNewConnection(c ConnectionSetup) (*WebsocketConnection, error) {
+	if w == nil {
+		return nil, errors.New("setting up new connection error: websocket is nil")
+	}
+	if c == (ConnectionSetup{}) {
+		return nil, errors.New("setting up new connection error: websocket connection configuration empty")
+	}
+
+	if w.exchangeName == "" {
+		return nil, errors.New("setting up new connection error: exchange name not set, please call setup first")
+	}
+
+	if w.TrafficAlert == nil {
+		return nil, errors.New("setting up new connection error: traffic alert is nil, please call setup first")
+	}
+
+	connectionURL := w.GetWebsocketURL()
+	if c.URL != "" {
+		connectionURL = c.URL
+	}
+
+	return &WebsocketConnection{
+		ExchangeName:         w.exchangeName,
+		URL:                  connectionURL,
+		ProxyURL:             w.GetProxyAddress(),
+		Verbose:              w.verbose,
+		ResponseCheckTimeout: c.ResponseCheckTimeout,
+		ResponseMaxLimit:     c.ResponseMaxLimit,
+		trafic:               w.TrafficAlert,
+	}, nil
 }
 
 // Connect initiates a websocket connection by using a package defined connection
@@ -64,8 +143,11 @@ func (w *Websocket) Connect() error {
 			w.exchangeName)
 	}
 	w.setConnectingStatus(true)
-	w.ShutdownC = make(chan struct{}, 1)
-	w.ReadMessageErrors = make(chan error, 1)
+	w.ShutdownC = make(chan struct{})
+	w.ReadMessageErrors = make(chan error)
+
+	go w.dataMonitor()
+
 	err := w.connector()
 	if err != nil {
 		w.setConnectingStatus(false)
@@ -90,6 +172,41 @@ func (w *Websocket) Connect() error {
 	}
 
 	return nil
+}
+
+// dataMonitor monitors job throughput and logs if there is a back log of data
+func (w *Websocket) dataMonitor() {
+	w.Wg.Add(1)
+	defer func() {
+		w.Wg.Done()
+		go func() {
+			for {
+				// Bleeds data from the websocket connection if needed
+				select {
+				case <-w.DataHandler:
+				default:
+					return
+				}
+			}
+		}()
+	}()
+	for {
+		d := <-w.DataHandler
+		select {
+		case w.ToRoutine <- d:
+		case <-w.ShutdownC:
+			return
+		default:
+			log.Errorf(log.WebsocketMgr,
+				"%s exchange backlog in websocket processing detected",
+				w.exchangeName)
+			select {
+			case w.ToRoutine <- d:
+			case <-w.ShutdownC:
+				return
+			}
+		}
+	}
 }
 
 // connectionMonitor ensures that the WS keeps connecting
@@ -267,7 +384,6 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 			}
 			return
 		case <-w.TrafficAlert:
-			fmt.Println("POOPOOPOOPO")
 			if !trafficTimer.Stop() {
 				select {
 				case <-trafficTimer.C:
@@ -398,14 +514,12 @@ func (w *Websocket) Initialise() error {
 		if w.IsInit() {
 			return nil
 		}
-		return fmt.Errorf("%v Websocket already initialised",
-			w.exchangeName)
+		return fmt.Errorf("%v Websocket already initialised", w.exchangeName)
 	}
 	w.setEnabled(w.enabled)
 	return nil
 }
 
-// TODO: specifically link up proxy address
 // SetProxyAddress sets websocket proxy address
 func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 	if w.proxyAddr == proxyAddr {
@@ -431,26 +545,6 @@ func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 func (w *Websocket) GetProxyAddress() string {
 	return w.proxyAddr
 }
-
-// // SetDefaultURL sets default websocket URL
-// func (w *Websocket) SetDefaultURL(defaultURL string) {
-// 	w.defaultURL = defaultURL
-// }
-
-// // GetDefaultURL returns the default websocket URL
-// func (w *Websocket) GetDefaultURL() string {
-// 	return w.defaultURL
-// }
-
-// // SetConnector sets connection function
-// func (w *Websocket) SetConnector(connector func() error) {
-// 	w.connector = connector
-// }
-
-// // SetExchangeName sets exchange name
-// func (w *Websocket) SetExchangeName(exchName string) {
-// 	w.exchangeName = exchName
-// }
 
 // GetName returns exchange name
 func (w *Websocket) GetName() string {

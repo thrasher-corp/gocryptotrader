@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -133,42 +134,38 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = h.Websocket.Setup(
-		&wshandler.WebsocketSetup{
-			Enabled:                          exch.Features.Enabled.Websocket,
-			Verbose:                          exch.Verbose,
-			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-			DefaultURL:                       hitbtcWebsocketAddress,
-			ExchangeName:                     exch.Name,
-			RunningURL:                       exch.API.Endpoints.WebsocketURL,
-			Connector:                        h.WsConnect,
-			Subscriber:                       h.Subscribe,
-			UnSubscriber:                     h.Unsubscribe,
-			Features:                         &h.Features.Supports.WebsocketCapabilities,
-		})
+	err = h.Websocket.Setup(&wshandler.WebsocketSetup{
+		Enabled:                          exch.Features.Enabled.Websocket,
+		Verbose:                          exch.Verbose,
+		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		DefaultURL:                       hitbtcWebsocketAddress,
+		ExchangeName:                     exch.Name,
+		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		Connector:                        h.WsConnect,
+		Subscriber:                       h.Subscribe,
+		UnSubscriber:                     h.Unsubscribe,
+		Features:                         &h.Features.Supports.WebsocketCapabilities,
+	})
 	if err != nil {
 		return err
 	}
 
-	h.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         h.Name,
-		URL:                  h.Websocket.GetWebsocketURL(),
-		ProxyURL:             h.Websocket.GetProxyAddress(),
-		Verbose:              h.Verbose,
+	h.WebsocketConn, err = h.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
 		RateLimit:            rateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	})
+	if err != nil {
+		return err
 	}
 
-	h.Websocket.Orderbook.Setup(
-		exch.WebsocketOrderbookBufferLimit,
-		true,
-		true,
-		true,
-		false,
-		exch.Name)
-	return nil
+	return h.Websocket.SetupLocalOrderbook(wsorderbook.Config{
+		OrderbookBufferLimit:  exch.WebsocketOrderbookBufferLimit,
+		BufferEnabled:         true,
+		SortBuffer:            true,
+		SortBufferByUpdateIDs: true,
+	})
 }
 
 // Start starts the HitBTC go routine

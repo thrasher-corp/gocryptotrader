@@ -52,6 +52,7 @@ type Websocket struct {
 	channelUnsubscriber func(channelToUnsubscribe *WebsocketChannelSubscription) error
 	channelGeneratesubs func()
 	DataHandler         chan interface{}
+	ToRoutine           chan interface{}
 	// ShutdownC is the main shutdown channel which controls all websocket go funcs
 	ShutdownC chan struct{}
 	// Orderbook is a local cache of orderbooks
@@ -82,6 +83,14 @@ type WebsocketSetup struct {
 	Features                         *protocol.Features
 }
 
+// ConnectionSetup defines variables for an individual websocket connection
+type ConnectionSetup struct {
+	ResponseCheckTimeout time.Duration
+	ResponseMaxLimit     time.Duration
+	RateLimit            int
+	URL                  string
+}
+
 // WebsocketChannelSubscription container for websocket subscriptions
 // Currently only a one at a time thing to avoid complexity
 type WebsocketChannelSubscription struct {
@@ -98,6 +107,7 @@ type WebsocketResponse struct {
 }
 
 // WebsocketConnection contains all the data needed to send a message to a WS
+// connection
 type WebsocketConnection struct {
 	sync.Mutex
 	Verbose         bool

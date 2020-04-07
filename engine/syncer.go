@@ -200,16 +200,18 @@ func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair
 	}
 
 	switch syncType {
-	case SyncItemOrderbook, SyncItemTrade, SyncItemTicker:
-		if !e.Cfg.SyncOrderbook && syncType == SyncItemOrderbook {
+	case SyncItemOrderbook:
+		if !e.Cfg.SyncOrderbook {
 			return
 		}
 
-		if !e.Cfg.SyncTicker && syncType == SyncItemTicker {
+	case SyncItemTicker:
+		if !e.Cfg.SyncTicker {
 			return
 		}
 
-		if !e.Cfg.SyncTrades && syncType == SyncItemTrade {
+	case SyncItemTrade:
+		if !e.Cfg.SyncTrades {
 			return
 		}
 	default:
@@ -236,7 +238,10 @@ func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair
 				if atomic.LoadInt32(&e.initSyncCompleted) != 1 && !origHadData {
 					removedCounter++
 					log.Debugf(log.SyncMgr, "%s ticker sync complete %v [%d/%d].\n",
-						exchangeName, FormatCurrency(p).String(), removedCounter, createdCounter)
+						exchangeName,
+						FormatCurrency(p).String(),
+						removedCounter,
+						createdCounter)
 					e.initSyncWG.Done()
 				}
 
@@ -251,7 +256,10 @@ func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair
 				if atomic.LoadInt32(&e.initSyncCompleted) != 1 && !origHadData {
 					removedCounter++
 					log.Debugf(log.SyncMgr, "%s orderbook sync complete %v [%d/%d].\n",
-						exchangeName, FormatCurrency(p).String(), removedCounter, createdCounter)
+						exchangeName,
+						FormatCurrency(p).String(),
+						removedCounter,
+						createdCounter)
 					e.initSyncWG.Done()
 				}
 
@@ -266,7 +274,10 @@ func (e *ExchangeCurrencyPairSyncer) update(exchangeName string, p currency.Pair
 				if atomic.LoadInt32(&e.initSyncCompleted) != 1 && !origHadData {
 					removedCounter++
 					log.Debugf(log.SyncMgr, "%s trade sync complete %v [%d/%d].\n",
-						exchangeName, FormatCurrency(p).String(), removedCounter, createdCounter)
+						exchangeName,
+						FormatCurrency(p).String(),
+						removedCounter,
+						createdCounter)
 					e.initSyncWG.Done()
 				}
 			}

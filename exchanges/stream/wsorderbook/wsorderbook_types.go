@@ -34,3 +34,12 @@ type WebsocketOrderbookUpdate struct {
 	Asks       []orderbook.Item
 	Pair       currency.Pair
 }
+
+// Config defines the local orderbook configuration for the stream
+type Config struct {
+	OrderbookBufferLimit  int
+	BufferEnabled         bool
+	SortBuffer            bool
+	SortBufferByUpdateIDs bool
+	UpdateEntriesByID     bool
+}

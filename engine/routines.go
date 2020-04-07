@@ -256,7 +256,7 @@ func WebsocketDataReceiver(ws *wshandler.Websocket) {
 		select {
 		case <-shutdowner:
 			return
-		case data := <-ws.DataHandler:
+		case data := <-ws.ToRoutine:
 			err := WebsocketDataHandler(ws.GetName(), data)
 			if err != nil {
 				log.Error(log.WebsocketMgr, err)
@@ -319,14 +319,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 				SyncItemOrderbook,
 				nil)
 		}
-
-		if Bot.Settings.Verbose {
-			log.Infof(log.WebsocketMgr,
-				"%s websocket %s %s orderbook updated",
-				exchName,
-				FormatCurrency(d.Pair),
-				d.AssetType)
-		}
+		printOrderbookSummary(d, "websocket", nil)
 	case *order.Detail:
 		if !Bot.OrderManager.orderStore.exists(d) {
 			err := Bot.OrderManager.orderStore.Add(d)
