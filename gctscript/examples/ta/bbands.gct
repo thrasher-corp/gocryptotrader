@@ -4,10 +4,10 @@ t := import("times")
 bbands := import("indicator/bbands")
 
 load := func() {
-    start := t.add(t.now(), -t.hour*24*100)
-    ohlcvData := exch.ohlcv("BTC Markets", "BTC-AUD", "-", "SPOT", start, t.now(), "1d")
+    start := t.add(t.now(), -t.hour*24)
+    ohlcvData := exch.ohlcv("coinbasepro", "BTC-USD", "-", "SPOT", start, t.now(), "1h")
 
-    ret := bbands.calculate("close", ohlcvData.candles, 5, 2.0, 2.0, "sma")
+    ret := bbands.calculate("close", ohlcvData.candles, 20, 2.0, 2.0, "sma")
     fmt.println(ret)
 }
 
