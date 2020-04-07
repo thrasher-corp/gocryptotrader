@@ -64,6 +64,15 @@ const (
 	deleteOrder              = "/orders/%s"
 	deleteOrderByClientID    = "/orders/by_client_id/%s"
 	cancelTriggerOrder       = "/conditional_orders/%s"
+	getFills                 = "/fills?"
+	getFundingPayments       = "/funding_payments"
+	getLeveragedTokens       = "/lt/tokens"
+	getTokenInfo             = "/lt/%s"
+	getLTBalances            = "/lt/balances"
+	getLTCreations           = "/lt/creations"
+	requestLTCreation        = "/lt/%s/create"
+	getLTRedemptions         = "/lt/redemptions"
+	requestLTRedemption      = "/lt/%s/redeem"
 	ftxRateInterval          = time.Minute
 	ftxRequestRate           = 180
 
@@ -468,6 +477,87 @@ func (f *Ftx) DeleteOrderByClientID(clientID string) (CancelOrderResponse, error
 func (f *Ftx) DeleteTriggerOrder(orderID string) (CancelOrderResponse, error) {
 	var resp CancelOrderResponse
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, fmt.Sprintf(cancelTriggerOrder, orderID), nil, &resp)
+}
+
+// GetFills gets fills' data
+func (f *Ftx) GetFills(market, limit, startTime, endTime string) (Fills, error) {
+	var resp Fills
+	params := url.Values{}
+	if market != "" {
+		params.Set("market", market)
+	}
+	if limit != "" {
+		params.Set("limit", limit)
+	}
+	if startTime != "" {
+		params.Set("start_time", startTime)
+	}
+	if endTime != "" {
+		params.Set("end_time", endTime)
+	}
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getFills+params.Encode(), nil, &resp)
+}
+
+// GetFundingPayments gets funding payments
+func (f *Ftx) GetFundingPayments(startTime, endTime, future string) (FundingPayments, error) {
+	var resp FundingPayments
+	params := url.Values{}
+	if startTime != "" {
+		params.Set("start_time", startTime)
+	}
+	if endTime != "" {
+		params.Set("end_time", endTime)
+	}
+	if future != "" {
+		params.Set("future", future)
+	}
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getFundingPayments+params.Encode(), nil, &resp)
+}
+
+// ListLeveragedTokens lists leveraged tokens
+func (f *Ftx) ListLeveragedTokens() (LeveragedTokens, error) {
+	var resp LeveragedTokens
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getLeveragedTokens, nil, &resp)
+}
+
+// GetTokenInfo gets token info
+func (f *Ftx) GetTokenInfo(tokenName string) (TokenInfo, error) {
+	var resp TokenInfo
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, fmt.Sprintf(getTokenInfo, tokenName), nil, &resp)
+}
+
+// ListLTBalances gets leveraged tokens' balances
+func (f *Ftx) ListLTBalances() (LTBalances, error) {
+	var resp LTBalances
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getLTBalances, nil, &resp)
+}
+
+// ListLTCreations lists the leveraged tokens' creation requests
+func (f *Ftx) ListLTCreations() (LTCreationList, error) {
+	var resp LTCreationList
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getLTCreations, nil, &resp)
+}
+
+// RequestLTCreation sends a request to create a leveraged token
+func (f *Ftx) RequestLTCreation(tokenName string, size float64) (RequestTokenCreation, error) {
+	var resp RequestTokenCreation
+	req := make(map[string]interface{})
+	req["size"] = size
+	return resp, f.SendAuthHTTPRequest(http.MethodPost, fmt.Sprintf(requestLTCreation, tokenName), req, &resp)
+}
+
+// ListLTRedemptions lists the leveraged tokens' redemption requests
+func (f *Ftx) ListLTRedemptions(tokenName string, size float64) (LTRedemptionList, error) {
+	var resp LTRedemptionList
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getLTRedemptions, nil, &resp)
+}
+
+// RequestLTRedemption sends a request to redeem a leveraged token
+func (f *Ftx) RequestLTRedemption(tokenName string, size float64) (LTRedemptionRequest, error) {
+	var resp LTRedemptionRequest
+	req := make(map[string]interface{})
+	req["size"] = size
+	return resp, f.SendAuthHTTPRequest(http.MethodPost, fmt.Sprintf(requestLTRedemption, tokenName), req, &resp)
 }
 
 // SendAuthHTTPRequest sends an authenticated request

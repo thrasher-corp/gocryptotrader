@@ -285,3 +285,67 @@ func TestDeleteTriggerOrder(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetFills(t *testing.T) {
+	a, err := f.GetFills("FTT/BTC", "", "", "")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFundingPayments(t *testing.T) {
+	a, err := f.GetFundingPayments("", "", "")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestListLeveragedTokens(t *testing.T) {
+	a, err := f.ListLeveragedTokens()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTokenInfo(t *testing.T) {
+	a, err := f.GetTokenInfo("ADAMOON")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestListLTBalances(t *testing.T) {
+	a, err := f.ListLTBalances()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestListLTCreations(t *testing.T) {
+	a, err := f.ListLTCreations()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestRequestLTCreation(t *testing.T) {
+	a, err := f.RequestLTCreation("ADAMOON", 1)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestListLTRedemptions(t *testing.T) {
+	a, err := f.ListLTRedemptions("ADAMOON", 5)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}

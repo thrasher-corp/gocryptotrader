@@ -404,3 +404,153 @@ type CancelOrderResponse struct {
 	Success bool   `json:"success"`
 	Result  string `json:"result"`
 }
+
+// FillsData stores fills' data
+type FillsData struct {
+	Fee           float64 `json:"fee"`
+	FeeRate       float64 `json:"feeRate"`
+	Future        string  `json:"future"`
+	ID            string  `json:"id"`
+	Liquidity     string  `json:"liquidity"`
+	Market        string  `json:"market"`
+	BaseCurrency  string  `json:"baseCurrency"`
+	QuoteCurrency string  `json:"quoteCurrency"`
+	OrderID       string  `json:"orderID"`
+	TradeID       string  `json:"tradeID"`
+	Price         float64 `json:"price"`
+	Side          string  `json:"side"`
+	Size          string  `json:"size"`
+	Time          string  `json:"time"`
+	OrderType     string  `json:"type"`
+}
+
+// Fills stores fills' data
+type Fills struct {
+	Success bool        `json:"success"`
+	Result  []FillsData `json:"result"`
+}
+
+// FundingPaymentsData stores funding payments' data
+type FundingPaymentsData struct {
+	Future  string  `json:"future"`
+	ID      string  `json:"id"`
+	Payment float64 `json:"payment"`
+	Time    string  `json:"time"`
+	Rate    float64 `json:"rate"`
+}
+
+// FundingPayments stores funding payments data
+type FundingPayments struct {
+	Success bool                  `json:"success"`
+	Result  []FundingPaymentsData `json:"result"`
+}
+
+// LeveragedTokensData stores data of leveraged tokens
+type LeveragedTokensData struct {
+	Name             string  `json:"name"`
+	Description      string  `json:"description"`
+	Underlying       string  `json:"underlying"`
+	Leverage         float64 `json:"leverage"`
+	Outstanding      float64 `json:"outstanding"`
+	PricePerShare    float64 `json:"pricePerShare"`
+	PositionPerShare float64 `json:"positionPerShare"`
+	UnderlyingMark   float64 `json:"underlyingMark"`
+	ContactAddress   string  `json:"contactAddress"`
+	Change1h         float64 `json:"change1h"`
+	Change24h        float64 `json:"change24h"`
+}
+
+// LeveragedTokens stores data of leveraged tokens
+type LeveragedTokens struct {
+	Success bool                  `json:"success"`
+	Result  []LeveragedTokensData `json:"result"`
+}
+
+// TokenInfo stores token's info
+type TokenInfo struct {
+	Success bool                `json:"success"`
+	Result  LeveragedTokensData `json:"result"`
+}
+
+// LTBalanceData stores balances of leveraged tokens
+type LTBalanceData struct {
+	Token   string  `json:"token"`
+	Balance float64 `json:"balance"`
+}
+
+// LTBalances stores balances of leveraged tokens
+type LTBalances struct {
+	Success bool            `json:"success"`
+	Result  []LTBalanceData `json:"result"`
+}
+
+// LTCreationData stores token creation requests' data
+type LTCreationData struct {
+	ID            string  `json:"id"`
+	Token         string  `json:"token"`
+	RequestedSize float64 `json:"requestedSize"`
+	Pending       bool    `json:"pending"`
+	CreatedSize   float64 `json:"createdize"`
+	Price         float64 `json:"price"`
+	Cost          float64 `json:"cost"`
+	Fee           float64 `json:"fee"`
+	RequestedAt   string  `json:"requestedAt"`
+	FulfilledAt   string  `json:"fulfilledAt"`
+}
+
+// LTCreationList stores token creations requests' data
+type LTCreationList struct {
+	Success bool             `json:"success"`
+	Result  []LTCreationData `json:"result"`
+}
+
+// RequestTokenCreationData stores data of the token creation requested
+type RequestTokenCreationData struct {
+	ID            string  `json:"id"`
+	Token         string  `json:"token"`
+	RequestedSize float64 `json:"requestedSize"`
+	Cost          float64 `json:"cost"`
+	Pending       bool    `json:"pending"`
+	RequestedAt   string  `json:"requestedAt"`
+}
+
+// RequestTokenCreation stores data of the token creation requested
+type RequestTokenCreation struct {
+	Success bool                     `json:"success"`
+	Result  RequestTokenCreationData `json:"result"`
+}
+
+// LTRedemptionData stores data of the token redemption request
+type LTRedemptionData struct {
+	ID          int64   `json:"id"`
+	Token       string  `json:"token"`
+	Size        float64 `json:"size"`
+	Pending     bool    `json:"pending"`
+	Price       float64 `json:"price"`
+	Proceeds    float64 `json:"proceeds"`
+	Fee         float64 `json:"fee"`
+	RequestedAt string  `json:"requestedAt"`
+	FulfilledAt string  `json:"fulfilledAt"`
+}
+
+// LTRedemptionList stores data of token redemption list
+type LTRedemptionList struct {
+	Success bool               `json:"success"`
+	Result  []LTRedemptionData `json:"result"`
+}
+
+// LTRedemptionRequestData stores redemption request data for a leveraged token
+type LTRedemptionRequestData struct {
+	ID                string  `json:"id"`
+	Token             string  `json:"token"`
+	Size              float64 `json:"size"`
+	ProjectedProceeds float64 `json:"projectedProceeds"`
+	Pending           bool    `json:"pending"`
+	RequestedAt       string  `json:"requestedAt"`
+}
+
+// LTRedemptionRequest stores redemption request data of a leveraged token
+type LTRedemptionRequest struct {
+	Success bool                    `json:"success"`
+	Result  LTRedemptionRequestData `json:"result"`
+}
