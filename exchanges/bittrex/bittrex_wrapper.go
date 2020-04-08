@@ -592,5 +592,5 @@ func (b *Bittrex) ValidateCredentials() error {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *Bittrex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+	return kline.Item{}, common.ErrFunctionNotSupported
 }

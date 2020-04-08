@@ -9,6 +9,7 @@ import (
 	"unicode"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -811,7 +812,7 @@ func parseInterval(in time.Duration) (string, error) {
 		kline.OneHour, kline.TwoHour,
 		kline.FourHour, kline.SixHour,
 		kline.OneHour * 8, kline.TwelveHour:
-		return parseIntervalDuration(in), nil
+		return convert.ParseIntervalDuration(in), nil
 	case kline.OneDay:
 		return "1D", nil
 	case kline.OneWeek:
@@ -823,21 +824,9 @@ func parseInterval(in time.Duration) (string, error) {
 	}
 }
 
-func parseIntervalDuration(d time.Duration) string {
-	s := d.String()
-	if strings.HasSuffix(s, "m0s") {
-		s = s[:len(s)-2]
-	}
-	if strings.HasSuffix(s, "h0m") {
-		s = s[:len(s)-2]
-	}
-	return s
-}
-
 func fixCasing(in currency.Pair) string {
-	out := in.Upper().String()
 	runes := []rune(in.Upper().String())
-	if out[0] == 'T' || out[0] == 'F' {
+	if in.Upper().String()[0] == 'T' || in.Upper().String()[0] == 'F' {
 		runes[0] = unicode.ToLower(runes[0])
 	}
 	return string(runes)

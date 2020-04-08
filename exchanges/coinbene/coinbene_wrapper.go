@@ -729,5 +729,5 @@ func (c *Coinbene) ValidateCredentials() error {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (c *Coinbene) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
-	return kline.Item{}, common.ErrFunctionNotSupported
+	return c.GetKlines(pair, start, end, interval)
 }

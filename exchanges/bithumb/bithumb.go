@@ -10,10 +10,13 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -25,6 +28,7 @@ const (
 	publicTicker             = "/public/ticker/"
 	publicOrderBook          = "/public/orderbook/"
 	publicTransactionHistory = "/public/transaction_history/"
+	publicCandleStick        = "/public/candlestick/"
 
 	privateAccInfo     = "/info/account"
 	privateAccBalance  = "/info/balance"
@@ -597,4 +601,43 @@ var errCode = map[string]string{
 	"5500": "Invalid Parameter",
 	"5600": "CUSTOM NOTICE (상황별 에러 메시지 출력) usually means transaction not allowed",
 	"5900": "Unknown Error",
+}
+
+// GetCandleStick returns candle stick data for requested pair
+func (b *Bithumb) GetCandleStick(pair currency.Pair, start, end time.Time, interval time.Duration) (kline.Item, error) {
+	var candle struct {
+		Status string          `json:"status"`
+		Data   [][]interface{} `json:"data"`
+	}
+
+	intervalStr := convert.ParseIntervalDuration(interval)
+	path := b.API.Endpoints.URL + publicCandleStick + pair.String() + "/" + intervalStr
+	err := b.SendHTTPRequest(path, &candle)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	ret := kline.Item{
+		Exchange: b.GetName(),
+		Pair:     pair,
+		Interval: interval,
+	}
+
+	for x := range candle.Data {
+		var tempCandle kline.Candle
+
+		tempTime := candle.Data[x][0].(float64)
+		timestamp := time.Unix(0, int64(tempTime)*int64(time.Millisecond))
+		if timestamp.Before(start) || timestamp.After(end) {
+			continue
+		}
+		tempCandle.Time = timestamp
+		tempCandle.Open, _ = strconv.ParseFloat(candle.Data[x][1].(string), 64)
+		tempCandle.High, _ = strconv.ParseFloat(candle.Data[x][2].(string), 64)
+		tempCandle.Low, _ = strconv.ParseFloat(candle.Data[x][3].(string), 64)
+		tempCandle.Close, _ = strconv.ParseFloat(candle.Data[x][4].(string), 64)
+		tempCandle.Volume, _ = strconv.ParseFloat(candle.Data[x][5].(string), 64)
+		ret.Candles = append(ret.Candles, tempCandle)
+	}
+	return ret, nil
 }

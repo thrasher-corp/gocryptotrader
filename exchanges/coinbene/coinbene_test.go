@@ -4,10 +4,12 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
@@ -281,6 +283,16 @@ func TestGetSwapOrderbook(t *testing.T) {
 	_, err := c.GetSwapOrderbook(swapTestPair, 100)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetKlines(t *testing.T) {
+	c.Verbose = true
+	currencypair := currency.NewPairFromString(spotTestPair)
+	startTime := time.Now().Add(-time.Hour * 1)
+	_, err := c.GetKlines(currencypair, startTime, time.Now(), kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -679,5 +691,14 @@ func TestWsUserOrder(t *testing.T) {
 	err := c.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	currencyPair := currency.NewPairFromString(spotTestPair)
+	startTime := time.Now().Add(-time.Hour * 24)
+	_, err := c.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

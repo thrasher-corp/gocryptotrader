@@ -13,8 +13,11 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -610,6 +613,79 @@ func (c *Coinbene) GetSwapOrderbook(symbol string, size int64) (Orderbook, error
 	s.Time = r.Data.Time
 	s.Symbol = r.Data.Symbol
 	return s, nil
+}
+
+// GetKlines data returns the kline data for a specific symbol
+func (c *Coinbene) GetKlines(pair currency.Pair, start, end time.Time, period time.Duration) (kline.Item, error) {
+	var candle struct {
+		Code    int64           `json:"code"`
+		Message string          `json:"message"`
+		Data    [][]interface{} `json:"data"`
+	}
+
+	intervalStr := convert.ParseIntervalDuration(period)
+
+	v := url.Values{}
+	v.Add("symbol", pair.String())
+	if !start.IsZero() {
+		v.Add("start", strconv.FormatInt(start.Unix(), 10))
+	}
+	if !end.IsZero() {
+		v.Add("end", strconv.FormatInt(end.Unix(), 10))
+	}
+	v.Add("period", intervalStr[:len(intervalStr)-1])
+
+	path := common.EncodeURLValues(coinbeneAPIURL+coinbeneAPIVersion+coinbeneSpotKlines, v)
+	if err := c.SendHTTPRequest(path, contractKline, &candle); err != nil {
+		return kline.Item{}, err
+	}
+
+	if candle.Code != 200 {
+		return kline.Item{}, errors.New(candle.Message)
+	}
+
+	ret := kline.Item{
+		Exchange: c.GetName(),
+		Pair:     pair,
+		Interval: period,
+	}
+
+	for x := range candle.Data {
+		var tempCandle kline.Candle
+
+		tempTime := candle.Data[x][0].(string)
+		timestamp, err := time.Parse(time.RFC3339, tempTime)
+		if err != nil {
+			continue
+		}
+		if timestamp.Before(start) || timestamp.After(end) {
+			continue
+		}
+		tempCandle.Time = timestamp
+		tempCandle.Open, err = strconv.ParseFloat(candle.Data[x][1].(string), 64)
+		if err != nil {
+			continue
+		}
+		tempCandle.High, _ = strconv.ParseFloat(candle.Data[x][2].(string), 64)
+		if err != nil {
+			continue
+		}
+		tempCandle.Low, _ = strconv.ParseFloat(candle.Data[x][3].(string), 64)
+		if err != nil {
+			continue
+		}
+		tempCandle.Close, _ = strconv.ParseFloat(candle.Data[x][4].(string), 64)
+		if err != nil {
+			continue
+		}
+		tempCandle.Volume, _ = strconv.ParseFloat(candle.Data[x][5].(string), 64)
+		if err != nil {
+			continue
+		}
+
+		ret.Candles = append(ret.Candles, tempCandle)
+	}
+	return ret, nil
 }
 
 // GetSwapKlines data returns the kline data for a specific symbol
