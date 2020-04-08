@@ -40,7 +40,7 @@ func TestAudit(t *testing.T) {
 		name   string
 		config *database.Config
 		runner func(t *testing.T)
-		closer func(dbConn *database.Db) error
+		closer func(dbConn *database.Instance) error
 		output interface{}
 	}{
 		{

@@ -419,8 +419,9 @@ func getInternationalBankDepositFee(c currency.Code, amount float64) float64 {
 // IsLoaded returns whether or not the instrument map has been seeded
 func (i *instrumentMap) IsLoaded() bool {
 	i.m.Lock()
-	defer i.m.Unlock()
-	return i.Loaded
+	isLoaded := i.Loaded
+	i.m.Unlock()
+	return isLoaded
 }
 
 // Seed seeds the instrument map

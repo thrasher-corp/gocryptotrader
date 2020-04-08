@@ -3,7 +3,7 @@ package engine
 import (
 	"fmt"
 	"net/http"
-	_ "net/http/pprof" // nolint: gosec
+	"net/http/pprof"
 	"runtime"
 	"strconv"
 	"strings"
@@ -93,7 +93,7 @@ func newRouter(isREST bool) *mux.Router {
 				"HTTP Go performance profiler (pprof) endpoint enabled: http://%s:%d/debug/pprof\n",
 				common.ExtractHost(listenAddr),
 				common.ExtractPort(listenAddr))
-			router.PathPrefix("/debug").Handler(http.DefaultServeMux)
+			router.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
 		}
 	} else {
 		routes = []Route{
