@@ -658,9 +658,6 @@ func (c *Coinbene) GetKlines(pair currency.Pair, start, end time.Time, period ti
 		if err != nil {
 			continue
 		}
-		if timestamp.Before(start) || timestamp.After(end) {
-			continue
-		}
 		tempCandle.Time = timestamp
 		tempCandle.Open, err = strconv.ParseFloat(candle.Data[x][1].(string), 64)
 		if err != nil {

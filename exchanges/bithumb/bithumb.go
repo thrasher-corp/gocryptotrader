@@ -628,8 +628,11 @@ func (b *Bithumb) GetCandleStick(pair currency.Pair, start, end time.Time, inter
 
 		tempTime := candle.Data[x][0].(float64)
 		timestamp := time.Unix(0, int64(tempTime)*int64(time.Millisecond))
-		if timestamp.Before(start) || timestamp.After(end) {
+		if timestamp.Before(start) {
 			continue
+		}
+		if timestamp.After(end) {
+			break
 		}
 		tempCandle.Time = timestamp
 		tempCandle.Open, _ = strconv.ParseFloat(candle.Data[x][1].(string), 64)
