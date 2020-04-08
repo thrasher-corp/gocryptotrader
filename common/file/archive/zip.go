@@ -117,11 +117,12 @@ func Zip(src, dest string) error {
 	if err != nil {
 		return err
 	}
+
 	z := zip.NewWriter(f)
-	defer z.Close()
 
 	err = addFilesToZip(z, src, i.IsDir())
 	if err != nil {
+		z.Close()
 		errCls := f.Close()
 		if errCls != nil {
 			log.Errorf(log.Global, "Failed to close file handle, manual deletion required: %v", errCls)
@@ -133,6 +134,8 @@ func Zip(src, dest string) error {
 		}
 		return err
 	}
+
+	z.Close()
 	f.Close()
 	return nil
 }

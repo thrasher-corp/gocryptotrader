@@ -649,7 +649,9 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 	var err error
 	var conStatus *http.Response
 	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)
-	defer conStatus.Body.Close()
+	if conStatus != nil {
+		conStatus.Body.Close()
+	}
 	if err != nil {
 		if conStatus != nil {
 			return fmt.Errorf("%v %v %v Error: %v", w.URL, conStatus, conStatus.StatusCode, err)
