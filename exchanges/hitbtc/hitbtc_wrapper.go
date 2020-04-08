@@ -151,11 +151,11 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	h.WebsocketConn, err = h.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
+	err = h.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
 		RateLimit:            rateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
+	}, false)
 	if err != nil {
 		return err
 	}

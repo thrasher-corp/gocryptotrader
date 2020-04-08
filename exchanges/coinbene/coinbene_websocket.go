@@ -29,7 +29,7 @@ const (
 	topic         = "topic"
 )
 
-var comms = make(chan wshandler.WebsocketResponse)
+var comms = make(chan stream.Response)
 
 // WsConnect connects to websocket
 func (c *Coinbene) WsConnect() error {
@@ -37,7 +37,7 @@ func (c *Coinbene) WsConnect() error {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := c.WebsocketConn.Dial(&dialer, http.Header{})
+	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -99,7 +99,7 @@ func (c *Coinbene) wsReadData() {
 		case <-c.Websocket.ShutdownC:
 			return
 		default:
-			resp, err := c.WebsocketConn.ReadMessage()
+			resp, err := c.Websocket.Conn.ReadMessage()
 			if err != nil {
 				c.Websocket.ReadMessageErrors <- err
 				return
@@ -114,7 +114,7 @@ func (c *Coinbene) wsReadData() {
 
 func (c *Coinbene) wsHandleData(respRaw []byte) error {
 	if string(respRaw) == wshandler.Ping {
-		err := c.WebsocketConn.SendRawMessage(websocket.TextMessage, []byte(wshandler.Pong))
+		err := c.Websocket.Conn.SendRawMessage(websocket.TextMessage, []byte(wshandler.Pong))
 		if err != nil {
 			return err
 		}
@@ -460,7 +460,7 @@ func (c *Coinbene) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubsc
 	var sub WsSub
 	sub.Operation = "subscribe"
 	sub.Arguments = []string{channelToSubscribe.Channel}
-	return c.WebsocketConn.SendJSONMessage(sub)
+	return c.Websocket.Conn.SendJSONMessage(sub)
 }
 
 // Unsubscribe sends a websocket message to receive data from the channel
@@ -468,7 +468,7 @@ func (c *Coinbene) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSub
 	var sub WsSub
 	sub.Operation = "unsubscribe"
 	sub.Arguments = []string{channelToSubscribe.Channel}
-	return c.WebsocketConn.SendJSONMessage(sub)
+	return c.Websocket.Conn.SendJSONMessage(sub)
 }
 
 // Login logs in
@@ -482,5 +482,5 @@ func (c *Coinbene) Login() error {
 	sign := crypto.HexEncodeToString(tempSign)
 	sub.Operation = "login"
 	sub.Arguments = []string{c.API.Credentials.Key, expTime, sign}
-	return c.WebsocketConn.SendJSONMessage(sub)
+	return c.Websocket.Conn.SendJSONMessage(sub)
 }

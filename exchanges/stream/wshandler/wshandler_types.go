@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
 )
 
@@ -65,6 +66,11 @@ type Websocket struct {
 	// ReadMessageErrors will received all errors from ws.ReadMessage() and verify if its a disconnection
 	ReadMessageErrors chan error
 	features          *protocol.Features
+
+	// Standard stream connection
+	Conn stream.Connection
+	// Authenticated stream connection
+	AuthConn stream.Connection
 }
 
 // WebsocketSetup defines variables for setting up a websocket connection
@@ -100,12 +106,6 @@ type WebsocketChannelSubscription struct {
 	subscribed bool
 }
 
-// WebsocketResponse defines generalised data from the websocket connection
-type WebsocketResponse struct {
-	Type int
-	Raw  []byte
-}
-
 // WebsocketConnection contains all the data needed to send a message to a WS
 // connection
 type WebsocketConnection struct {
@@ -126,14 +126,6 @@ type WebsocketConnection struct {
 	ResponseMaxLimit     time.Duration
 	TrafficTimeout       time.Duration
 	trafic               chan struct{}
-}
-
-// WebsocketPingHandler container for ping handler settings
-type WebsocketPingHandler struct {
-	UseGorillaHandler bool
-	MessageType       int
-	Message           []byte
-	Delay             time.Duration
 }
 
 // UnhandledMessageWarning defines a container for unhandled message warnings

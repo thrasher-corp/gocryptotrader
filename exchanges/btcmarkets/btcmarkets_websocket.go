@@ -33,7 +33,7 @@ func (b *BTCMarkets) WsConnect() error {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := b.WebsocketConn.Dial(&dialer, http.Header{})
+	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -60,7 +60,7 @@ func (b *BTCMarkets) wsReadData() {
 		case <-b.Websocket.ShutdownC:
 			return
 		default:
-			resp, err := b.WebsocketConn.ReadMessage()
+			resp, err := b.Websocket.Conn.ReadMessage()
 			if err != nil {
 				b.Websocket.ReadMessageErrors <- err
 				return
@@ -332,7 +332,7 @@ func (b *BTCMarkets) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSub
 			Channels:    []string{channelToSubscribe.Channel},
 			MessageType: subscribe,
 		}
-		err := b.WebsocketConn.SendJSONMessage(req)
+		err := b.Websocket.Conn.SendJSONMessage(req)
 		if err != nil {
 			return err
 		}
@@ -346,7 +346,7 @@ func (b *BTCMarkets) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSub
 		message.Key = tempAuthData.Key
 		message.Signature = tempAuthData.Signature
 		message.Timestamp = tempAuthData.Timestamp
-		err := b.WebsocketConn.SendJSONMessage(message)
+		err := b.Websocket.Conn.SendJSONMessage(message)
 		if err != nil {
 			return err
 		}

@@ -71,12 +71,12 @@ func (b *Bitmex) WsConnect() error {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := b.WebsocketConn.Dial(&dialer, http.Header{})
+	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 
-	p, err := b.WebsocketConn.ReadMessage()
+	p, err := b.Websocket.Conn.ReadMessage()
 	if err != nil {
 		b.Websocket.ReadMessageErrors <- err
 		return err
@@ -118,7 +118,7 @@ func (b *Bitmex) wsReadData() {
 			return
 
 		default:
-			resp, err := b.WebsocketConn.ReadMessage()
+			resp, err := b.Websocket.Conn.ReadMessage()
 			if err != nil {
 				b.Websocket.DataHandler <- err
 				return
@@ -632,7 +632,7 @@ func (b *Bitmex) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscri
 	var subscriber WebsocketRequest
 	subscriber.Command = "subscribe"
 	subscriber.Arguments = append(subscriber.Arguments, channelToSubscribe.Channel)
-	return b.WebsocketConn.SendJSONMessage(subscriber)
+	return b.Websocket.Conn.SendJSONMessage(subscriber)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -642,7 +642,7 @@ func (b *Bitmex) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubsc
 	subscriber.Arguments = append(subscriber.Arguments,
 		channelToSubscribe.Params["args"],
 		channelToSubscribe.Channel+":"+channelToSubscribe.Currency.String())
-	return b.WebsocketConn.SendJSONMessage(subscriber)
+	return b.Websocket.Conn.SendJSONMessage(subscriber)
 }
 
 // WebsocketSendAuth sends an authenticated subscription
@@ -662,7 +662,7 @@ func (b *Bitmex) websocketSendAuth() error {
 	sendAuth.Command = "authKeyExpires"
 	sendAuth.Arguments = append(sendAuth.Arguments, b.API.Credentials.Key, timestamp,
 		signature)
-	err := b.WebsocketConn.SendJSONMessage(sendAuth)
+	err := b.Websocket.Conn.SendJSONMessage(sendAuth)
 	if err != nil {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err

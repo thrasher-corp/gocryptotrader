@@ -53,11 +53,11 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	o.WebsocketConn, err = o.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
+	err = o.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
 		RateLimit:            okGroupWsRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
+	}, false)
 	if err != nil {
 		return err
 	}

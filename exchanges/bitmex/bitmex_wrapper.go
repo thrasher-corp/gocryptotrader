@@ -156,10 +156,10 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	b.WebsocketConn, err = b.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
+	err = b.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
+	}, false)
 	if err != nil {
 		return err
 	}

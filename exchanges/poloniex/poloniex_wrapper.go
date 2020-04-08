@@ -156,10 +156,10 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	p.WebsocketConn, err = p.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
+	err = p.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
+	}, false)
 	if err != nil {
 		return err
 	}

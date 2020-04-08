@@ -1,8 +1,10 @@
 package stream
 
 import (
+	"net/http"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -23,17 +25,44 @@ type Streamer interface {
 	GetProxy() string
 }
 
-type Manager interface {
-	Connector
-	Disconnector
+// Connection defines a streaming services connection
+type Connection interface {
+	Dial(*websocket.Dialer, http.Header) error
+	ReadMessage() (Response, error)
+	SendJSONMessage(interface{}) error
+	SetupPingHandler(WebsocketPingHandler)
+	IsIDWaitingForResponse(id int64) bool
+	SetResponseIDAndData(id int64, data []byte)
+	GenerateMessageID(useNano bool) int64
+	SendMessageReturnResponse(id int64, request interface{}) ([]byte, error)
+	SendRawMessage(messageType int, message []byte) error
 }
 
-type Connector interface{}
+// Response defines generalised data from the stream connection
+type Response struct {
+	Type int
+	Raw  []byte
+}
 
-type Disconnector interface{}
+// type Manager interface {
+// 	Connector
+// 	Disconnector
+// }
 
-// Websocket defines a websocket connection
-type Websocket struct{}
+// type Connector interface{}
+
+// type Disconnector interface{}
+
+// // Websocket defines a websocket connection
+// type Websocket struct{}
+
+// WebsocketPingHandler container for ping handler settings
+type WebsocketPingHandler struct {
+	UseGorillaHandler bool
+	MessageType       int
+	Message           []byte
+	Delay             time.Duration
+}
 
 // TradeData defines trade data
 type TradeData struct {

@@ -16,6 +16,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -91,22 +92,21 @@ func (w *Websocket) SetupLocalOrderbook(c wsorderbook.Config) error {
 	return nil
 }
 
-// SetupNewConnection sets up and returns a pointer to an individual websocket
-// connection
-func (w *Websocket) SetupNewConnection(c ConnectionSetup) (*WebsocketConnection, error) {
+// SetupNewConnection sets up an auth or unauth streaming connection
+func (w *Websocket) SetupNewConnection(c ConnectionSetup, auth bool) error {
 	if w == nil {
-		return nil, errors.New("setting up new connection error: websocket is nil")
+		return errors.New("setting up new connection error: websocket is nil")
 	}
 	if c == (ConnectionSetup{}) {
-		return nil, errors.New("setting up new connection error: websocket connection configuration empty")
+		return errors.New("setting up new connection error: websocket connection configuration empty")
 	}
 
 	if w.exchangeName == "" {
-		return nil, errors.New("setting up new connection error: exchange name not set, please call setup first")
+		return errors.New("setting up new connection error: exchange name not set, please call setup first")
 	}
 
 	if w.TrafficAlert == nil {
-		return nil, errors.New("setting up new connection error: traffic alert is nil, please call setup first")
+		return errors.New("setting up new connection error: traffic alert is nil, please call setup first")
 	}
 
 	connectionURL := w.GetWebsocketURL()
@@ -114,7 +114,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) (*WebsocketConnection,
 		connectionURL = c.URL
 	}
 
-	return &WebsocketConnection{
+	newConn := &WebsocketConnection{
 		ExchangeName:         w.exchangeName,
 		URL:                  connectionURL,
 		ProxyURL:             w.GetProxyAddress(),
@@ -122,7 +122,15 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) (*WebsocketConnection,
 		ResponseCheckTimeout: c.ResponseCheckTimeout,
 		ResponseMaxLimit:     c.ResponseMaxLimit,
 		trafic:               w.TrafficAlert,
-	}, nil
+	}
+
+	if auth {
+		w.AuthConn = newConn
+	} else {
+		w.Conn = newConn
+	}
+
+	return nil
 }
 
 // Connect initiates a websocket connection by using a package defined connection
@@ -178,17 +186,15 @@ func (w *Websocket) Connect() error {
 func (w *Websocket) dataMonitor() {
 	w.Wg.Add(1)
 	defer func() {
-		w.Wg.Done()
-		go func() {
-			for {
-				// Bleeds data from the websocket connection if needed
-				select {
-				case <-w.DataHandler:
-				default:
-					return
-				}
+		for {
+			// Bleeds data from the websocket connection if needed
+			select {
+			case <-w.DataHandler:
+			default:
+				w.Wg.Done()
+				return
 			}
-		}()
+		}
 	}()
 	for {
 		d := <-w.DataHandler
@@ -856,7 +862,7 @@ func (w *WebsocketConnection) SendRawMessage(messageType int, message []byte) er
 
 // SetupPingHandler will automatically send ping or pong messages based on
 // WebsocketPingHandler configuration
-func (w *WebsocketConnection) SetupPingHandler(handler WebsocketPingHandler) {
+func (w *WebsocketConnection) SetupPingHandler(handler stream.WebsocketPingHandler) {
 	if handler.UseGorillaHandler {
 		h := func(msg string) error {
 			err := w.Connection.WriteControl(handler.MessageType,
@@ -975,13 +981,13 @@ func (w *WebsocketConnection) IsConnected() bool {
 }
 
 // ReadMessage reads messages, can handle text, gzip and binary
-func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
+func (w *WebsocketConnection) ReadMessage() (stream.Response, error) {
 	mType, resp, err := w.Connection.ReadMessage()
 	if err != nil {
 		if isDisconnectionError(err) {
 			w.setConnectedStatus(false)
 		}
-		return WebsocketResponse{}, err
+		return stream.Response{}, err
 	}
 
 	select {
@@ -996,7 +1002,7 @@ func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
 	case websocket.BinaryMessage:
 		standardMessage, err = w.parseBinaryResponse(resp)
 		if err != nil {
-			return WebsocketResponse{}, err
+			return stream.Response{}, err
 		}
 	}
 	if w.Verbose {
@@ -1004,7 +1010,7 @@ func (w *WebsocketConnection) ReadMessage() (WebsocketResponse, error) {
 			w.ExchangeName,
 			string(standardMessage))
 	}
-	return WebsocketResponse{Raw: standardMessage, Type: mType}, nil
+	return stream.Response{Raw: standardMessage, Type: mType}, nil
 }
 
 // parseBinaryResponse parses a websocket binary response into a usable byte array

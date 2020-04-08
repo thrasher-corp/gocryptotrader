@@ -119,23 +119,23 @@ func (g *Gemini) WsSecureSubscribe(dialer *websocket.Dialer, url string) error {
 	headers.Add("X-GEMINI-SIGNATURE", crypto.HexEncodeToString(hmac))
 	headers.Add("Cache-Control", "no-cache")
 
-	g.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
+	g.Websocket.AuthConn = &wshandler.WebsocketConnection{
 		ExchangeName:         g.Name,
 		URL:                  endpoint,
 		Verbose:              g.Verbose,
 		ResponseCheckTimeout: responseCheckTimeout,
 		ResponseMaxLimit:     responseMaxLimit,
 	}
-	err = g.AuthenticatedWebsocketConn.Dial(dialer, headers)
+	err = g.Websocket.AuthConn.Dial(dialer, headers)
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", g.Name, endpoint, err)
 	}
-	go g.wsFunnelConnectionData(g.AuthenticatedWebsocketConn, currency.Pair{})
+	go g.wsFunnelConnectionData(g.Websocket.AuthConn, currency.Pair{})
 	return nil
 }
 
 // wsFunnelConnectionData receives data from multiple connections and passes it to wsReadData
-func (g *Gemini) wsFunnelConnectionData(ws *wshandler.WebsocketConnection, c currency.Pair) {
+func (g *Gemini) wsFunnelConnectionData(ws stream.Connection, c currency.Pair) {
 	g.Websocket.Wg.Add(1)
 	defer g.Websocket.Wg.Done()
 	for {

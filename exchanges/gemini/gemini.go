@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -57,8 +56,6 @@ const (
 // AddSession, if sandbox test is needed append a new session with with the same
 // API keys and change the IsSandbox variable to true.
 type Gemini struct {
-	WebsocketConn              *wshandler.WebsocketConnection
-	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
 	exchange.Base
 	Role              string
 	RequiresHeartBeat bool

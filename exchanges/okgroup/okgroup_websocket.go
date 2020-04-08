@@ -180,7 +180,7 @@ func (o *OKGroup) WsConnect() error {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := o.WebsocketConn.Dial(&dialer, http.Header{})
+	err := o.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -226,7 +226,7 @@ func (o *OKGroup) WsLogin() error {
 			base64,
 		},
 	}
-	err := o.WebsocketConn.SendJSONMessage(request)
+	err := o.Websocket.Conn.SendJSONMessage(request)
 	if err != nil {
 		o.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -247,7 +247,7 @@ func (o *OKGroup) WsReadData(wg *sync.WaitGroup) {
 		case <-o.Websocket.ShutdownC:
 			return
 		default:
-			resp, err := o.WebsocketConn.ReadMessage()
+			resp, err := o.Websocket.Conn.ReadMessage()
 			if err != nil {
 				o.Websocket.ReadMessageErrors <- err
 				return
@@ -897,7 +897,7 @@ func (o *OKGroup) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscr
 			channelToSubscribe.Currency.Base.String()}
 	}
 
-	return o.WebsocketConn.SendJSONMessage(request)
+	return o.Websocket.Conn.SendJSONMessage(request)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -910,7 +910,7 @@ func (o *OKGroup) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubs
 			channelToSubscribe.Currency.String()},
 	}
 	fmt.Printf("PAYLOAD: %+v\n", request)
-	return o.WebsocketConn.SendJSONMessage(request)
+	return o.Websocket.Conn.SendJSONMessage(request)
 }
 
 // GetWsChannelWithoutOrderType takes WebsocketDataResponse.Table and returns

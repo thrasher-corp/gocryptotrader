@@ -161,10 +161,10 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	c.WebsocketConn, err = c.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
+	err = c.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
+	}, false)
 	if err != nil {
 		return err
 	}

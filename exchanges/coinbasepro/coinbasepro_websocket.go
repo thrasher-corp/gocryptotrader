@@ -32,7 +32,7 @@ func (c *CoinbasePro) WsConnect() error {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := c.WebsocketConn.Dial(&dialer, http.Header{})
+	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -56,7 +56,7 @@ func (c *CoinbasePro) wsReadData() {
 		case <-c.Websocket.ShutdownC:
 			return
 		default:
-			resp, err := c.WebsocketConn.ReadMessage()
+			resp, err := c.Websocket.Conn.ReadMessage()
 			if err != nil {
 				c.Websocket.ReadMessageErrors <- err
 				return
@@ -413,7 +413,7 @@ func (c *CoinbasePro) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSu
 		subscribe.Passphrase = c.API.Credentials.ClientID
 		subscribe.Timestamp = n
 	}
-	return c.WebsocketConn.SendJSONMessage(subscribe)
+	return c.Websocket.Conn.SendJSONMessage(subscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -435,5 +435,5 @@ func (c *CoinbasePro) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannel
 			},
 		},
 	}
-	return c.WebsocketConn.SendJSONMessage(subscribe)
+	return c.Websocket.Conn.SendJSONMessage(subscribe)
 }

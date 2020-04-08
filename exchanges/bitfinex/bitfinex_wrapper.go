@@ -179,19 +179,19 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	b.WebsocketConn, err = b.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
+	err = b.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
+	}, false)
 	if err != nil {
 		return err
 	}
 
-	b.AuthenticatedWebsocketConn, err = b.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
+	err = b.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  authenticatedBitfinexWebsocketEndpoint,
-	})
+	}, true)
 	if err != nil {
 		return err
 	}
@@ -470,7 +470,7 @@ func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		submitOrderResponse.OrderID, err = b.WsNewOrder(&WsNewOrderRequest{
-			CustomID: b.AuthenticatedWebsocketConn.GenerateMessageID(false),
+			CustomID: b.Websocket.AuthConn.GenerateMessageID(false),
 			Type:     o.Type.String(),
 			Symbol:   fpair.String(),
 			Amount:   o.Amount,

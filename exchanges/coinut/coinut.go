@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -51,7 +50,6 @@ var (
 // COINUT is the overarching type across the coinut package
 type COINUT struct {
 	exchange.Base
-	WebsocketConn *wshandler.WebsocketConnection
 	instrumentMap instrumentMap
 }
 

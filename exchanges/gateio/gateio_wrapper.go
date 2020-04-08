@@ -152,11 +152,11 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	g.WebsocketConn, err = g.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
+	err = g.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
 		RateLimit:            gateioWebsocketRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
+	}, false)
 	if err != nil {
 		return err
 	}

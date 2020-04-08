@@ -82,11 +82,11 @@ func (h *HUOBI) WsConnect() error {
 }
 
 func (h *HUOBI) wsDial(dialer *websocket.Dialer) error {
-	err := h.WebsocketConn.Dial(dialer, http.Header{})
+	err := h.Websocket.Conn.Dial(dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	go h.wsFunnelConnectionData(h.WebsocketConn, wsMarketURL)
+	go h.wsFunnelConnectionData(h.Websocket.Conn, wsMarketURL)
 	return nil
 }
 
@@ -94,16 +94,16 @@ func (h *HUOBI) wsAuthenticatedDial(dialer *websocket.Dialer) error {
 	if !h.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", h.Name)
 	}
-	err := h.AuthenticatedWebsocketConn.Dial(dialer, http.Header{})
+	err := h.Websocket.AuthConn.Dial(dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	go h.wsFunnelConnectionData(h.AuthenticatedWebsocketConn, wsAccountsOrdersURL)
+	go h.wsFunnelConnectionData(h.Websocket.AuthConn, wsAccountsOrdersURL)
 	return nil
 }
 
 // wsFunnelConnectionData manages data from multiple endpoints and passes it to a channel
-func (h *HUOBI) wsFunnelConnectionData(ws *wshandler.WebsocketConnection, url string) {
+func (h *HUOBI) wsFunnelConnectionData(ws stream.Connection, url string) {
 	h.Websocket.Wg.Add(1)
 	defer h.Websocket.Wg.Done()
 	for {
@@ -197,8 +197,8 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 		return errors.New(h.Name + " - invalid credentials. Authenticated requests disabled")
 	}
 	if init.ClientID > 0 {
-		if h.WebsocketConn.IsIDWaitingForResponse(init.ClientID) {
-			h.WebsocketConn.SetResponseIDAndData(init.ClientID, respRaw)
+		if h.Websocket.Conn.IsIDWaitingForResponse(init.ClientID) {
+			h.Websocket.Conn.SetResponseIDAndData(init.ClientID, respRaw)
 			return nil
 		}
 	}
@@ -412,7 +412,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 }
 
 func (h *HUOBI) sendPingResponse(pong int64) {
-	err := h.WebsocketConn.SendJSONMessage(WsPong{Pong: pong})
+	err := h.Websocket.Conn.SendJSONMessage(WsPong{Pong: pong})
 	if err != nil {
 		log.Error(log.ExchangeSys, err)
 	}
@@ -499,7 +499,7 @@ func (h *HUOBI) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscrip
 		strings.Contains(channelToSubscribe.Channel, "accounts") {
 		return h.wsAuthenticatedSubscribe("sub", wsAccountsOrdersEndPoint+channelToSubscribe.Channel, channelToSubscribe.Channel)
 	}
-	return h.WebsocketConn.SendJSONMessage(WsRequest{Subscribe: channelToSubscribe.Channel})
+	return h.Websocket.Conn.SendJSONMessage(WsRequest{Subscribe: channelToSubscribe.Channel})
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -508,7 +508,7 @@ func (h *HUOBI) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscr
 		strings.Contains(channelToSubscribe.Channel, "accounts") {
 		return h.wsAuthenticatedSubscribe("unsub", wsAccountsOrdersEndPoint+channelToSubscribe.Channel, channelToSubscribe.Channel)
 	}
-	return h.WebsocketConn.SendJSONMessage(WsRequest{Unsubscribe: channelToSubscribe.Channel})
+	return h.Websocket.Conn.SendJSONMessage(WsRequest{Unsubscribe: channelToSubscribe.Channel})
 }
 
 func (h *HUOBI) wsGenerateSignature(timestamp, endpoint string) []byte {
@@ -538,7 +538,7 @@ func (h *HUOBI) wsLogin() error {
 	}
 	hmac := h.wsGenerateSignature(timestamp, wsAccountsOrdersEndPoint)
 	request.Signature = crypto.Base64Encode(hmac)
-	err := h.AuthenticatedWebsocketConn.SendJSONMessage(request)
+	err := h.Websocket.AuthConn.SendJSONMessage(request)
 	if err != nil {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -560,7 +560,7 @@ func (h *HUOBI) wsAuthenticatedSubscribe(operation, endpoint, topic string) erro
 	}
 	hmac := h.wsGenerateSignature(timestamp, endpoint)
 	request.Signature = crypto.Base64Encode(hmac)
-	return h.AuthenticatedWebsocketConn.SendJSONMessage(request)
+	return h.Websocket.AuthConn.SendJSONMessage(request)
 }
 
 func (h *HUOBI) wsGetAccountsList() (*WsAuthenticatedAccountsListResponse, error) {
@@ -578,8 +578,8 @@ func (h *HUOBI) wsGetAccountsList() (*WsAuthenticatedAccountsListResponse, error
 	}
 	hmac := h.wsGenerateSignature(timestamp, wsAccountListEndpoint)
 	request.Signature = crypto.Base64Encode(hmac)
-	request.ClientID = h.AuthenticatedWebsocketConn.GenerateMessageID(true)
-	resp, err := h.AuthenticatedWebsocketConn.SendMessageReturnResponse(request.ClientID, request)
+	request.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
+	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(request.ClientID, request)
 	if err != nil {
 		return nil, err
 	}
@@ -613,9 +613,9 @@ func (h *HUOBI) wsGetOrdersList(accountID int64, pair currency.Pair) (*WsAuthent
 
 	hmac := h.wsGenerateSignature(timestamp, wsOrdersListEndpoint)
 	request.Signature = crypto.Base64Encode(hmac)
-	request.ClientID = h.AuthenticatedWebsocketConn.GenerateMessageID(true)
+	request.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
 
-	resp, err := h.AuthenticatedWebsocketConn.SendMessageReturnResponse(request.ClientID, request)
+	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(request.ClientID, request)
 	if err != nil {
 		return nil, err
 	}
@@ -641,8 +641,8 @@ func (h *HUOBI) wsGetOrderDetails(orderID string) (*WsAuthenticatedOrderDetailRe
 	}
 	hmac := h.wsGenerateSignature(timestamp, wsOrdersDetailEndpoint)
 	request.Signature = crypto.Base64Encode(hmac)
-	request.ClientID = h.AuthenticatedWebsocketConn.GenerateMessageID(true)
-	resp, err := h.AuthenticatedWebsocketConn.SendMessageReturnResponse(request.ClientID, request)
+	request.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
+	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(request.ClientID, request)
 	if err != nil {
 		return nil, err
 	}

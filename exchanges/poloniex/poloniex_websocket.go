@@ -43,7 +43,7 @@ func (p *Poloniex) WsConnect() error {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := p.WebsocketConn.Dial(&dialer, http.Header{})
+	err := p.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -97,7 +97,7 @@ func (p *Poloniex) wsReadData() {
 		case <-p.Websocket.ShutdownC:
 			return
 		default:
-			resp, err := p.WebsocketConn.ReadMessage()
+			resp, err := p.Websocket.Conn.ReadMessage()
 			if err != nil {
 				p.Websocket.ReadMessageErrors <- err
 				return
@@ -572,7 +572,7 @@ func (p *Poloniex) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubsc
 	default:
 		subscriptionRequest.Channel = channelToSubscribe.Currency.String()
 	}
-	return p.WebsocketConn.SendJSONMessage(subscriptionRequest)
+	return p.Websocket.Conn.SendJSONMessage(subscriptionRequest)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -588,7 +588,7 @@ func (p *Poloniex) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSub
 	default:
 		unsubscriptionRequest.Channel = channelToSubscribe.Currency.String()
 	}
-	return p.WebsocketConn.SendJSONMessage(unsubscriptionRequest)
+	return p.Websocket.Conn.SendJSONMessage(unsubscriptionRequest)
 }
 
 func (p *Poloniex) wsSendAuthorisedCommand(command string) error {
@@ -601,5 +601,5 @@ func (p *Poloniex) wsSendAuthorisedCommand(command string) error {
 		Key:     p.API.Credentials.Key,
 		Payload: nonce,
 	}
-	return p.WebsocketConn.SendJSONMessage(request)
+	return p.Websocket.Conn.SendJSONMessage(request)
 }

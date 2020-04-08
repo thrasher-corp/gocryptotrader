@@ -32,11 +32,11 @@ func (b *BTSE) WsConnect() error {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := b.WebsocketConn.Dial(&dialer, http.Header{})
+	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	b.WebsocketConn.SetupPingHandler(wshandler.WebsocketPingHandler{
+	b.Websocket.Conn.SetupPingHandler(stream.WebsocketPingHandler{
 		MessageType: websocket.PingMessage,
 		Delay:       btseWebsocketTimer,
 	})
@@ -68,7 +68,7 @@ func (b *BTSE) WsAuthenticate() error {
 		Operation: "authKeyExpires",
 		Arguments: []string{b.API.Credentials.Key, nonce, sign},
 	}
-	return b.WebsocketConn.SendJSONMessage(req)
+	return b.Websocket.Conn.SendJSONMessage(req)
 }
 
 func stringToOrderStatus(status string) (order.Status, error) {
@@ -106,7 +106,7 @@ func (b *BTSE) wsReadData() {
 			return
 
 		default:
-			resp, err := b.WebsocketConn.ReadMessage()
+			resp, err := b.Websocket.Conn.ReadMessage()
 			if err != nil {
 				b.Websocket.ReadMessageErrors <- err
 				return
@@ -321,7 +321,7 @@ func (b *BTSE) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscript
 	sub.Operation = "subscribe"
 	sub.Arguments = []string{channelToSubscribe.Channel}
 
-	return b.WebsocketConn.SendJSONMessage(sub)
+	return b.Websocket.Conn.SendJSONMessage(sub)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -329,5 +329,5 @@ func (b *BTSE) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscri
 	var unSub wsSub
 	unSub.Operation = "unsubscribe"
 	unSub.Arguments = []string{channelToSubscribe.Channel}
-	return b.WebsocketConn.SendJSONMessage(unSub)
+	return b.Websocket.Conn.SendJSONMessage(unSub)
 }

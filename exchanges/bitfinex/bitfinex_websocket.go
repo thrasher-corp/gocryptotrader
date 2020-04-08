@@ -23,7 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-var comms = make(chan wshandler.WebsocketResponse)
+var comms = make(chan stream.Response)
 
 // WsConnect starts a new websocket connection
 func (b *Bitfinex) WsConnect() error {
@@ -32,19 +32,19 @@ func (b *Bitfinex) WsConnect() error {
 	}
 
 	var dialer websocket.Dialer
-	err := b.WebsocketConn.Dial(&dialer, http.Header{})
+	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v unable to connect to Websocket. Error: %s", b.Name, err)
 	}
-	go b.wsReadData(b.WebsocketConn)
+	go b.wsReadData(b.Websocket.Conn)
 
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		err = b.AuthenticatedWebsocketConn.Dial(&dialer, http.Header{})
+		err = b.Websocket.AuthConn.Dial(&dialer, http.Header{})
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%v unable to connect to authenticated Websocket. Error: %s", b.Name, err)
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
-		go b.wsReadData(b.AuthenticatedWebsocketConn)
+		go b.wsReadData(b.Websocket.AuthConn)
 		err = b.WsSendAuth()
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", b.Name, err)
@@ -58,7 +58,7 @@ func (b *Bitfinex) WsConnect() error {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (b *Bitfinex) wsReadData(ws *wshandler.WebsocketConnection) {
+func (b *Bitfinex) wsReadData(ws stream.Connection) {
 	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 	for {
@@ -334,8 +334,8 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 						strings.Contains(channelName, wsFundingOrderCancelRequest):
 						if data[0] != nil && data[0].(float64) > 0 {
 							id := int64(data[0].(float64))
-							if b.WebsocketConn.IsIDWaitingForResponse(id) {
-								b.AuthenticatedWebsocketConn.SetResponseIDAndData(id, respRaw)
+							if b.Websocket.Conn.IsIDWaitingForResponse(id) {
+								b.Websocket.AuthConn.SetResponseIDAndData(id, respRaw)
 								return nil
 							}
 							b.wsHandleFundingOffer(data)
@@ -345,8 +345,8 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 						strings.Contains(channelName, wsOrderCancelRequest):
 						if data[2] != nil && data[2].(float64) > 0 {
 							id := int64(data[2].(float64))
-							if b.WebsocketConn.IsIDWaitingForResponse(id) {
-								b.AuthenticatedWebsocketConn.SetResponseIDAndData(id, respRaw)
+							if b.Websocket.Conn.IsIDWaitingForResponse(id) {
+								b.Websocket.AuthConn.SetResponseIDAndData(id, respRaw)
 								return nil
 							}
 							b.wsHandleOrder(data)
@@ -919,7 +919,7 @@ func (b *Bitfinex) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubsc
 		}
 	}
 
-	return b.WebsocketConn.SendJSONMessage(req)
+	return b.Websocket.Conn.SendJSONMessage(req)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -933,7 +933,7 @@ func (b *Bitfinex) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSub
 			req[k] = v
 		}
 	}
-	return b.WebsocketConn.SendJSONMessage(req)
+	return b.Websocket.Conn.SendJSONMessage(req)
 }
 
 // WsSendAuth sends a autheticated event payload
@@ -955,7 +955,7 @@ func (b *Bitfinex) WsSendAuth() error {
 		AuthNonce:     nonce,
 		DeadManSwitch: 0,
 	}
-	err := b.AuthenticatedWebsocketConn.SendJSONMessage(request)
+	err := b.Websocket.AuthConn.SendJSONMessage(request)
 	if err != nil {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -980,9 +980,9 @@ func (b *Bitfinex) WsAddSubscriptionChannel(chanID int, channel, pair string) {
 
 // WsNewOrder authenticated new order request
 func (b *Bitfinex) WsNewOrder(data *WsNewOrderRequest) (string, error) {
-	data.CustomID = b.AuthenticatedWebsocketConn.GenerateMessageID(false)
+	data.CustomID = b.Websocket.AuthConn.GenerateMessageID(false)
 	request := makeRequestInterface(wsOrderNew, data)
-	resp, err := b.AuthenticatedWebsocketConn.SendMessageReturnResponse(data.CustomID, request)
+	resp, err := b.Websocket.AuthConn.SendMessageReturnResponse(data.CustomID, request)
 	if err != nil {
 		return "", err
 	}
@@ -1013,7 +1013,7 @@ func (b *Bitfinex) WsNewOrder(data *WsNewOrderRequest) (string, error) {
 // WsModifyOrder authenticated modify order request
 func (b *Bitfinex) WsModifyOrder(data *WsUpdateOrderRequest) error {
 	request := makeRequestInterface(wsOrderUpdate, data)
-	resp, err := b.AuthenticatedWebsocketConn.SendMessageReturnResponse(data.OrderID, request)
+	resp, err := b.Websocket.AuthConn.SendMessageReturnResponse(data.OrderID, request)
 	if err != nil {
 		return err
 	}
@@ -1042,7 +1042,7 @@ func (b *Bitfinex) WsCancelMultiOrders(orderIDs []int64) error {
 		OrderID: orderIDs,
 	}
 	request := makeRequestInterface(wsCancelMultipleOrders, cancel)
-	return b.AuthenticatedWebsocketConn.SendJSONMessage(request)
+	return b.Websocket.AuthConn.SendJSONMessage(request)
 }
 
 // WsCancelOrder authenticated cancel order request
@@ -1051,7 +1051,7 @@ func (b *Bitfinex) WsCancelOrder(orderID int64) error {
 		OrderID: orderID,
 	}
 	request := makeRequestInterface(wsOrderCancel, cancel)
-	resp, err := b.AuthenticatedWebsocketConn.SendMessageReturnResponse(orderID, request)
+	resp, err := b.Websocket.AuthConn.SendMessageReturnResponse(orderID, request)
 	if err != nil {
 		return err
 	}
@@ -1077,13 +1077,13 @@ func (b *Bitfinex) WsCancelOrder(orderID int64) error {
 func (b *Bitfinex) WsCancelAllOrders() error {
 	cancelAll := WsCancelAllOrdersRequest{All: 1}
 	request := makeRequestInterface(wsCancelMultipleOrders, cancelAll)
-	return b.AuthenticatedWebsocketConn.SendJSONMessage(request)
+	return b.Websocket.AuthConn.SendJSONMessage(request)
 }
 
 // WsNewOffer authenticated new offer request
 func (b *Bitfinex) WsNewOffer(data *WsNewOfferRequest) error {
 	request := makeRequestInterface(wsFundingOrderNew, data)
-	return b.AuthenticatedWebsocketConn.SendJSONMessage(request)
+	return b.Websocket.AuthConn.SendJSONMessage(request)
 }
 
 // WsCancelOffer authenticated cancel offer request
@@ -1092,7 +1092,7 @@ func (b *Bitfinex) WsCancelOffer(orderID int64) error {
 		OrderID: orderID,
 	}
 	request := makeRequestInterface(wsFundingOrderCancel, cancel)
-	resp, err := b.AuthenticatedWebsocketConn.SendMessageReturnResponse(orderID, request)
+	resp, err := b.Websocket.AuthConn.SendMessageReturnResponse(orderID, request)
 	if err != nil {
 		return err
 	}

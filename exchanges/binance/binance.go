@@ -18,7 +18,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -62,7 +61,6 @@ const (
 // Binance is the overarching type across the Bithumb package
 type Binance struct {
 	exchange.Base
-	WebsocketConn *wshandler.WebsocketConnection
 
 	// Valid string list that is required by the exchange
 	validLimits    []int

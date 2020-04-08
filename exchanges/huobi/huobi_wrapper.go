@@ -148,21 +148,21 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	h.WebsocketConn, err = h.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
+	err = h.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
 		RateLimit:            rateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
+	}, false)
 	if err != nil {
 		return err
 	}
 
-	h.AuthenticatedWebsocketConn, err = h.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
+	err = h.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
 		RateLimit:            rateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  wsAccountsOrdersURL,
-	})
+	}, true)
 	if err != nil {
 		return err
 	}

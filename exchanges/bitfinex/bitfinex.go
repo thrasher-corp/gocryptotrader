@@ -16,7 +16,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -82,9 +81,7 @@ const (
 // Bitfinex is the overarching type across the bitfinex package
 type Bitfinex struct {
 	exchange.Base
-	WebsocketConn              *wshandler.WebsocketConnection
-	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
-	WebsocketSubdChannels      map[int]WebsocketChanInfo
+	WebsocketSubdChannels map[int]WebsocketChanInfo
 }
 
 // GetPlatformStatus returns the Bifinex platform status

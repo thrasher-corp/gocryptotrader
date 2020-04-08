@@ -53,7 +53,7 @@ const (
 
 // orderbookMutex Ensures if two entries arrive at once, only one can be processed at a time
 var subscriptionChannelPair []WebsocketChannelData
-var comms = make(chan wshandler.WebsocketResponse)
+var comms = make(chan stream.Response)
 var authToken string
 var pingRequest = WebsocketBaseEventRequest{Event: wshandler.Ping}
 
@@ -68,7 +68,7 @@ func (k *Kraken) WsConnect() error {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := k.WebsocketConn.Dial(&dialer, http.Header{})
+	err := k.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -78,16 +78,16 @@ func (k *Kraken) WsConnect() error {
 			k.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", k.Name, err)
 		}
-		err = k.AuthenticatedWebsocketConn.Dial(&dialer, http.Header{})
+		err = k.Websocket.AuthConn.Dial(&dialer, http.Header{})
 		if err != nil {
 			k.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys, "%v - failed to connect to authenticated endpoint: %v\n", k.Name, err)
 		}
-		go k.wsFunnelConnectionData(k.AuthenticatedWebsocketConn)
+		go k.wsFunnelConnectionData(k.Websocket.AuthConn)
 		k.GenerateAuthenticatedSubscriptions()
 	}
 
-	go k.wsFunnelConnectionData(k.WebsocketConn)
+	go k.wsFunnelConnectionData(k.Websocket.AuthConn)
 	go k.wsReadData()
 	err = k.wsPingHandler()
 	if err != nil {
@@ -99,7 +99,7 @@ func (k *Kraken) WsConnect() error {
 }
 
 // wsFunnelConnectionData funnels both auth and public ws data into one manageable place
-func (k *Kraken) wsFunnelConnectionData(ws *wshandler.WebsocketConnection) {
+func (k *Kraken) wsFunnelConnectionData(ws stream.Connection) {
 	k.Websocket.Wg.Add(1)
 	defer k.Websocket.Wg.Done()
 	for {
@@ -206,8 +206,8 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 				}
 				k.addNewSubscriptionChannelData(&sub)
 				if sub.RequestID > 0 {
-					if k.WebsocketConn.IsIDWaitingForResponse(sub.RequestID) {
-						k.WebsocketConn.SetResponseIDAndData(sub.RequestID, respRaw)
+					if k.Websocket.Conn.IsIDWaitingForResponse(sub.RequestID) {
+						k.Websocket.Conn.SetResponseIDAndData(sub.RequestID, respRaw)
 						return nil
 					}
 				}
@@ -226,7 +226,7 @@ func (k *Kraken) wsPingHandler() error {
 	if err != nil {
 		return err
 	}
-	k.WebsocketConn.SetupPingHandler(wshandler.WebsocketPingHandler{
+	k.Websocket.Conn.SetupPingHandler(stream.WebsocketPingHandler{
 		Message:     message,
 		Delay:       krakenWsPingDelay,
 		MessageType: websocket.TextMessage,
@@ -828,7 +828,7 @@ func (k *Kraken) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscri
 		Subscription: WebsocketSubscriptionData{
 			Name: channelToSubscribe.Channel,
 		},
-		RequestID: k.WebsocketConn.GenerateMessageID(false),
+		RequestID: k.Websocket.Conn.GenerateMessageID(false),
 	}
 	if channelToSubscribe.Channel == "book" {
 		// TODO: Add ability to make depth customisable
@@ -841,7 +841,7 @@ func (k *Kraken) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscri
 		resp.Subscription.Token = authToken
 	}
 
-	_, err := k.WebsocketConn.SendMessageReturnResponse(resp.RequestID, resp)
+	_, err := k.Websocket.Conn.SendMessageReturnResponse(resp.RequestID, resp)
 	return err
 }
 
@@ -853,18 +853,18 @@ func (k *Kraken) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubsc
 		Subscription: WebsocketSubscriptionData{
 			Name: channelToSubscribe.Channel,
 		},
-		RequestID: k.WebsocketConn.GenerateMessageID(false),
+		RequestID: k.Websocket.Conn.GenerateMessageID(false),
 	}
-	_, err := k.WebsocketConn.SendMessageReturnResponse(resp.RequestID, resp)
+	_, err := k.Websocket.Conn.SendMessageReturnResponse(resp.RequestID, resp)
 	return err
 }
 
 func (k *Kraken) wsAddOrder(request *WsAddOrderRequest) (string, error) {
-	id := k.AuthenticatedWebsocketConn.GenerateMessageID(false)
+	id := k.Websocket.AuthConn.GenerateMessageID(false)
 	request.UserReferenceID = strconv.FormatInt(id, 10)
 	request.Event = krakenWsAddOrder
 	request.Token = authToken
-	jsonResp, err := k.AuthenticatedWebsocketConn.SendMessageReturnResponse(id, request)
+	jsonResp, err := k.Websocket.AuthConn.SendMessageReturnResponse(id, request)
 	if err != nil {
 		return "", err
 	}
@@ -885,5 +885,5 @@ func (k *Kraken) wsCancelOrders(orderIDs []string) error {
 		Token:          authToken,
 		TransactionIDs: orderIDs,
 	}
-	return k.AuthenticatedWebsocketConn.SendJSONMessage(request)
+	return k.Websocket.AuthConn.SendJSONMessage(request)
 }

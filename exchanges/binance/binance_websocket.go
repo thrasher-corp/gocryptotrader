@@ -84,16 +84,17 @@ func (b *Binance) WsConnect() error {
 		}
 	}
 
-	b.WebsocketConn.URL = wsurl
-	b.WebsocketConn.Verbose = b.Verbose
+	// TODO: Setter methods
+	// b.Websocket.Conn.URL = wsurl
+	// b.Websocket.Conn.Verbose = b.Verbose
 
-	err = b.WebsocketConn.Dial(&dialer, http.Header{})
+	err = b.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
 			b.Name,
 			err)
 	}
-	b.WebsocketConn.SetupPingHandler(wshandler.WebsocketPingHandler{
+	b.Websocket.Conn.SetupPingHandler(stream.WebsocketPingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.PongMessage,
 		Delay:             pingDelay,
@@ -138,7 +139,7 @@ func (b *Binance) wsReadData() {
 			return
 
 		default:
-			resp, err := b.WebsocketConn.ReadMessage()
+			resp, err := b.Websocket.Conn.ReadMessage()
 			if err != nil {
 				b.Websocket.ReadMessageErrors <- err
 				return

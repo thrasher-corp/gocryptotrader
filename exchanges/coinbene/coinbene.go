@@ -17,13 +17,11 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
 )
 
 // Coinbene is the overarching type across this package
 type Coinbene struct {
 	exchange.Base
-	WebsocketConn *wshandler.WebsocketConnection
 }
 
 const (

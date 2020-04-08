@@ -165,21 +165,21 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	k.WebsocketConn, err = k.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
+	err = k.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
 		RateLimit:            krakenWsRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
+	}, false)
 	if err != nil {
 		return err
 	}
 
-	k.AuthenticatedWebsocketConn, err = k.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
+	err = k.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
 		RateLimit:            krakenWsRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  krakenAuthWSURL,
-	})
+	}, true)
 	if err != nil {
 		return err
 	}
