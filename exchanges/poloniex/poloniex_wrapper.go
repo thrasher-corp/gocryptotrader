@@ -1,6 +1,7 @@
 package poloniex
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -33,13 +35,10 @@ func (p *Poloniex) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = p.BaseCurrencies
 
-	err := p.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
+	p.SetupDefaults(exchCfg)
 
 	if p.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = p.UpdateTradablePairs(true)
+		err := p.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -121,7 +120,7 @@ func (p *Poloniex) SetDefaults() {
 	p.API.Endpoints.URLDefault = poloniexAPIURL
 	p.API.Endpoints.URL = p.API.Endpoints.URLDefault
 	p.API.Endpoints.WebsocketURL = poloniexWebsocketAddress
-	p.Websocket = wshandler.New()
+	p.Stream = stream.NewWebsocketService()
 	p.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	p.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	p.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -134,12 +133,9 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	err := p.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+	p.SetupDefaults(exch)
 
-	err = p.Websocket.Setup(&wshandler.WebsocketSetup{
+	err := p.Stream.Setup(&wshandler.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -156,7 +152,7 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = p.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
+	err = p.Stream.SetupNewConnection(wshandler.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}, false)
@@ -164,7 +160,7 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return p.Websocket.SetupLocalOrderbook(wsorderbook.Config{
+	return p.Stream.SetupLocalOrderbook(wsorderbook.Config{
 		OrderbookBufferLimit:  exch.WebsocketOrderbookBufferLimit,
 		SortBuffer:            true,
 		SortBufferByUpdateIDs: true,
@@ -183,7 +179,11 @@ func (p *Poloniex) Start(wg *sync.WaitGroup) {
 // Run implements the Poloniex wrapper
 func (p *Poloniex) Run() {
 	if p.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s (url: %s).\n", p.Name, common.IsEnabled(p.Websocket.IsEnabled()), poloniexWebsocketAddress)
+		log.Debugf(log.ExchangeSys,
+			"%s Websocket: %s (url: %s).\n",
+			p.Name,
+			common.IsEnabled(p.Stream.IsEnabled()),
+			poloniexWebsocketAddress)
 		p.PrintEnabledPairs()
 	}
 
@@ -191,12 +191,16 @@ func (p *Poloniex) Run() {
 
 	avail, err := p.GetAvailablePairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", p.Name, err)
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			p.Name,
+			err)
 		return
 	}
 
 	if common.StringDataCompare(avail.Strings(), "BTC_USDT") {
-		log.Warnf(log.ExchangeSys, "%s contains invalid pair, forcing upgrade of available currencies.\n",
+		log.Warnf(log.ExchangeSys,
+			"%s contains invalid pair, forcing upgrade of available currencies.\n",
 			p.Name)
 		forceUpdate = true
 	}
@@ -207,7 +211,10 @@ func (p *Poloniex) Run() {
 
 	err = p.UpdateTradablePairs(forceUpdate)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", p.Name, err)
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			p.Name,
+			err)
 	}
 }
 
@@ -523,9 +530,12 @@ func (p *Poloniex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdra
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (p *Poloniex) GetWebsocket() (*wshandler.Websocket, error) {
-	return p.Websocket, nil
+// GetStream returns a pointer to the exchange streaming service
+func (p *Poloniex) GetStream() (stream.Manager, error) {
+	if p.Stream == nil {
+		return nil, errors.New("no streaming service found")
+	}
+	return p.Stream, nil
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
@@ -638,21 +648,21 @@ func (p *Poloniex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (p *Poloniex) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	p.Websocket.SubscribeToChannels(channels)
+func (p *Poloniex) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
+	p.Stream.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (p *Poloniex) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	p.Websocket.RemoveSubscribedChannels(channels)
+func (p *Poloniex) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
+	p.Stream.RemoveSubscribedChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (p *Poloniex) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
-	return p.Websocket.GetSubscriptions(), nil
+func (p *Poloniex) GetSubscriptions() ([]stream.ChannelSubscription, error) {
+	return p.Stream.GetSubscriptions(), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

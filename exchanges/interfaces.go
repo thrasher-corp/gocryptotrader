@@ -11,7 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -65,11 +65,11 @@ type IBotExchange interface {
 	SupportsWebsocket() bool
 	SupportsREST() bool
 	IsWebsocketEnabled() bool
-	GetWebsocket() (*wshandler.Websocket, error)
-	SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error
-	UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error
+	GetWebsocket() (stream.Manager, error)
+	SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
+	UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
 	AuthenticateWebsocket() error
-	GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error)
+	GetSubscriptions() ([]stream.ChannelSubscription, error)
 	ResetWebsocketConnection() error
 	GetDefaultConfig() (*config.ExchangeConfig, error)
 	GetBase() *Base

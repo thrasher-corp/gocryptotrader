@@ -8,21 +8,31 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
 )
 
-// Streamer defines functionality for different exchange streaming services
-type Streamer interface {
-	Setup()
-	Connect() error
-	Disconnect() error
-	GenerateAuthSubscriptions()
-	GenerateMarketDataSubscriptions()
-	Subscribe()
-	UnSubscribe()
-	Refresh()
-	GetName() string
+// Manager defines functionality for different exchange streaming services and
+// related connections
+type Manager interface {
+	// Connect() error
+	// Disconnect() error
+	// GenerateAuthSubscriptions()
+	// GenerateMarketDataSubscriptions()
+	// Subscribe()
+	// UnSubscribe()
+	// Refresh()
+	// GetName() string
+	// GetProxy() string
+	Setup(*wshandler.WebsocketSetup) error
+	SetupNewConnection(ConnectionSetup, bool) error
+	SetupLocalOrderbook(wsorderbook.Config) error
+	SubscribeToChannels([]ChannelSubscription)
+	RemoveSubscribedChannels([]ChannelSubscription)
+	GetSubscriptions() []ChannelSubscription
 	SetProxyAddress(string) error
-	GetProxy() string
+	IsEnabled() bool
+	Wrapper
 }
 
 // Connection defines a streaming services connection
@@ -30,7 +40,7 @@ type Connection interface {
 	Dial(*websocket.Dialer, http.Header) error
 	ReadMessage() (Response, error)
 	SendJSONMessage(interface{}) error
-	SetupPingHandler(WebsocketPingHandler)
+	SetupPingHandler(PingHandler)
 	IsIDWaitingForResponse(id int64) bool
 	SetResponseIDAndData(id int64, data []byte)
 	GenerateMessageID(useNano bool) int64
@@ -38,26 +48,37 @@ type Connection interface {
 	SendRawMessage(messageType int, message []byte) error
 }
 
+// Wrapper links websocket endpoint requests for account, positional, order
+// information etc.
+type Wrapper interface{}
+
 // Response defines generalised data from the stream connection
 type Response struct {
 	Type int
 	Raw  []byte
 }
 
-// type Manager interface {
-// 	Connector
-// 	Disconnector
-// }
+// ChannelSubscription container for streaming subscriptions
+// Currently only a one at a time thing to avoid complexity
+// TODO: SUB/UNSUB complete list
+type ChannelSubscription struct {
+	Channel    string
+	Currency   currency.Pair
+	Params     map[string]interface{}
+	subscribed bool
+}
 
-// type Connector interface{}
+// ConnectionSetup defines variables for an individual stream connection
+type ConnectionSetup struct {
+	ResponseCheckTimeout time.Duration
+	ResponseMaxLimit     time.Duration
+	RateLimit            int
+	URL                  string
+}
 
-// type Disconnector interface{}
-
-// // Websocket defines a websocket connection
-// type Websocket struct{}
-
-// WebsocketPingHandler container for ping handler settings
-type WebsocketPingHandler struct {
+// PingHandler container for ping handler settings
+type PingHandler struct {
+	Websocket         bool
 	UseGorillaHandler bool
 	MessageType       int
 	Message           []byte

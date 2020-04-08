@@ -93,11 +93,11 @@ func (w *Websocket) SetupLocalOrderbook(c wsorderbook.Config) error {
 }
 
 // SetupNewConnection sets up an auth or unauth streaming connection
-func (w *Websocket) SetupNewConnection(c ConnectionSetup, auth bool) error {
+func (w *Websocket) SetupNewConnection(c stream.ConnectionSetup, auth bool) error {
 	if w == nil {
 		return errors.New("setting up new connection error: websocket is nil")
 	}
-	if c == (ConnectionSetup{}) {
+	if c == (stream.ConnectionSetup{}) {
 		return errors.New("setting up new connection error: websocket connection configuration empty")
 	}
 
@@ -342,7 +342,7 @@ func (w *Websocket) RefreshConnection() error {
 		}
 
 		w.subscriptionMutex.Lock()
-		w.subscribedChannels = []WebsocketChannelSubscription{}
+		w.subscribedChannels = []stream.ChannelSubscription{}
 		w.subscriptionMutex.Unlock()
 
 		w.channelGeneratesubs()
@@ -580,7 +580,7 @@ func (w *Websocket) manageSubscriptions() {
 		select {
 		case <-w.ShutdownC:
 			w.subscriptionMutex.Lock()
-			w.subscribedChannels = []WebsocketChannelSubscription{}
+			w.subscribedChannels = []stream.ChannelSubscription{}
 			w.subscriptionMutex.Unlock()
 			if w.verbose {
 				log.Debugf(log.WebsocketMgr,
@@ -591,7 +591,7 @@ func (w *Websocket) manageSubscriptions() {
 		case <-t.C:
 			if !w.IsConnected() {
 				w.subscriptionMutex.Lock()
-				w.subscribedChannels = []WebsocketChannelSubscription{}
+				w.subscribedChannels = []stream.ChannelSubscription{}
 				w.subscriptionMutex.Unlock()
 
 				continue
@@ -690,7 +690,7 @@ func (w *Websocket) blindUnsub() error {
 }
 
 // RemoveSubscribedChannels removes supplied channels from channelsToSubscribe
-func (w *Websocket) RemoveSubscribedChannels(channels []WebsocketChannelSubscription) {
+func (w *Websocket) RemoveSubscribedChannels(channels []stream.ChannelSubscription) {
 	for i := range channels {
 		w.removeChannelToSubscribe(&channels[i])
 	}
@@ -698,7 +698,7 @@ func (w *Websocket) RemoveSubscribedChannels(channels []WebsocketChannelSubscrip
 
 // removeChannelToSubscribe removes an entry from w.channelsToSubscribe
 // so an unsubscribe event can be triggered
-func (w *Websocket) removeChannelToSubscribe(subscribedChannel *WebsocketChannelSubscription) {
+func (w *Websocket) removeChannelToSubscribe(subscribedChannel *stream.ChannelSubscription) {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
 	channelLength := len(w.channelsToSubscribe)
@@ -720,7 +720,7 @@ func (w *Websocket) removeChannelToSubscribe(subscribedChannel *WebsocketChannel
 
 // ResubscribeToChannel calls unsubscribe func and
 // removes it from subscribedChannels to trigger a subscribe event
-func (w *Websocket) ResubscribeToChannel(subscribedChannel *WebsocketChannelSubscription) {
+func (w *Websocket) ResubscribeToChannel(subscribedChannel *stream.ChannelSubscription) {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
 	err := w.channelUnsubscriber(subscribedChannel)
@@ -740,7 +740,7 @@ func (w *Websocket) ResubscribeToChannel(subscribedChannel *WebsocketChannelSubs
 }
 
 // SubscribeToChannels appends supplied channels to channelsToSubscribe
-func (w *Websocket) SubscribeToChannels(channels []WebsocketChannelSubscription) {
+func (w *Websocket) SubscribeToChannels(channels []stream.ChannelSubscription) {
 channels:
 	for i := range channels {
 		for j := range w.channelsToSubscribe {
@@ -753,14 +753,14 @@ channels:
 }
 
 // Equal two WebsocketChannelSubscription to determine equality
-func (w *WebsocketChannelSubscription) Equal(s *WebsocketChannelSubscription) bool {
+func (w *stream.ChannelSubscription) Equal(s *stream.ChannelSubscription) bool {
 	return strings.EqualFold(w.Channel, s.Channel) &&
 		w.Currency.Equal(s.Currency)
 }
 
 // GetSubscriptions returns a copied list of subscriptions
 // subscriptions is a private member and cannot be manipulated
-func (w *Websocket) GetSubscriptions() []WebsocketChannelSubscription {
+func (w *Websocket) GetSubscriptions() []stream.ChannelSubscription {
 	return append(w.subscribedChannels[:0:0], w.subscribedChannels...)
 }
 

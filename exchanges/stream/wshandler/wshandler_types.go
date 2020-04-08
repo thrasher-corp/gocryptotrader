@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
@@ -45,12 +44,12 @@ type Websocket struct {
 	connector                    func() error
 
 	subscriptionMutex   sync.Mutex
-	subscribedChannels  []WebsocketChannelSubscription
-	channelsToSubscribe []WebsocketChannelSubscription
+	subscribedChannels  []stream.ChannelSubscription
+	channelsToSubscribe []stream.ChannelSubscription
 	// subscription []WebsocketChannelSubscription
 
-	channelSubscriber   func(channelToSubscribe *WebsocketChannelSubscription) error
-	channelUnsubscriber func(channelToUnsubscribe *WebsocketChannelSubscription) error
+	channelSubscriber   func(channelToSubscribe *stream.ChannelSubscription) error
+	channelUnsubscriber func(channelToUnsubscribe *stream.ChannelSubscription) error
 	channelGeneratesubs func()
 	DataHandler         chan interface{}
 	ToRoutine           chan interface{}
@@ -83,27 +82,10 @@ type WebsocketSetup struct {
 	ExchangeName                     string
 	RunningURL                       string
 	Connector                        func() error
-	Subscriber                       func(channelToSubscribe *WebsocketChannelSubscription) error
-	UnSubscriber                     func(channelToUnsubscribe *WebsocketChannelSubscription) error
+	Subscriber                       func(channelToSubscribe *stream.ChannelSubscription) error
+	UnSubscriber                     func(channelToUnsubscribe *stream.ChannelSubscription) error
 	GenerateSubscriptions            func()
 	Features                         *protocol.Features
-}
-
-// ConnectionSetup defines variables for an individual websocket connection
-type ConnectionSetup struct {
-	ResponseCheckTimeout time.Duration
-	ResponseMaxLimit     time.Duration
-	RateLimit            int
-	URL                  string
-}
-
-// WebsocketChannelSubscription container for websocket subscriptions
-// Currently only a one at a time thing to avoid complexity
-type WebsocketChannelSubscription struct {
-	Channel    string
-	Currency   currency.Pair
-	Params     map[string]interface{}
-	subscribed bool
 }
 
 // WebsocketConnection contains all the data needed to send a message to a WS

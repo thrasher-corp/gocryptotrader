@@ -85,8 +85,8 @@ func (e *Base) SetClientProxyAddress(addr string) error {
 		// string which is already checked above
 		_ = e.Requester.SetProxy(proxy)
 
-		if e.Websocket != nil {
-			err = e.Websocket.SetProxyAddress(addr)
+		if e.Stream != nil {
+			err = e.Stream.SetProxyAddress(addr)
 			if err != nil {
 				return err
 			}
@@ -516,7 +516,7 @@ func (e *Base) SetAPIKeys(apiKey, apiSecret, clientID string) {
 }
 
 // SetupDefaults sets the exchange settings based on the supplied config
-func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
+func (e *Base) SetupDefaults(exch *config.ExchangeConfig) {
 	e.Enabled = true
 	e.LoadedByConfig = true
 	e.Config = exch
@@ -549,11 +549,6 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	e.SetAPICredentialDefaults()
 	e.SetClientProxyAddress(exch.ProxyAddress)
 	e.BaseCurrencies = exch.BaseCurrencies
-
-	if e.Features.Supports.Websocket {
-		return e.Websocket.Initialise()
-	}
-	return nil
 }
 
 // AllowAuthenticatedRequest checks to see if the required fields have been set
@@ -800,21 +795,21 @@ func (e *Base) SupportsREST() bool {
 // IsWebsocketEnabled returns whether or not the exchange has its
 // websocket client enabled
 func (e *Base) IsWebsocketEnabled() bool {
-	if e.Websocket != nil {
-		return e.Websocket.IsEnabled()
+	if e.Stream != nil {
+		return e.Stream.IsEnabled()
 	}
 	return false
 }
 
-// ResetWebsocketConnection refreshes websocket connection
-func (e *Base) ResetWebsocketConnection() error {
-	if e.Websocket != nil {
-		if e.Websocket.IsEnabled() {
-			return e.Websocket.RefreshConnection()
-		}
-	}
-	return nil
-}
+// // ResetWebsocketConnection refreshes websocket connection
+// func (e *Base) ResetWebsocketConnection() error {
+// 	if e.Stream != nil {
+// 		if e.Stream.IsEnabled() {
+// 			return e.Stream.RefreshConnection()
+// 		}
+// 	}
+// 	return nil
+// }
 
 // GetWithdrawPermissions passes through the exchange's withdraw permissions
 func (e *Base) GetWithdrawPermissions() uint32 {
