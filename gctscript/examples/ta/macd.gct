@@ -4,8 +4,9 @@ t := import("times")
 macd := import("indicator/macd")
 
 load := func() {
-    start := t.add(t.now(), -t.hour*100)
-    ohlcvData := exch.ohlcv("coinbasepro", "BTC-USD", "-", "SPOT", start, t.now(), "1h")
+    start := t.date(2019, 1 , 1 , 0 , 0 , 0, 0)
+    end := t.add_date(start, 0, 6 , 0)
+    ohlcvData := exch.ohlcv("coinbasepro", "BTC-USD", "-", "SPOT", start, end, "1d")
 
     ret := macd.calculate(ohlcvData.candles, 12, 26, 9)
     fmt.println(ret)
