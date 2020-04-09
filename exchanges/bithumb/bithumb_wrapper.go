@@ -19,7 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -33,13 +33,10 @@ func (b *Bithumb) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
 
-	err := b.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
+	b.SetupDefaults(exchCfg)
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(true)
+		err := b.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -110,8 +107,8 @@ func (b *Bithumb) Setup(exch *config.ExchangeConfig) error {
 		b.SetEnabled(false)
 		return nil
 	}
-
-	return b.SetupDefaults(exch)
+	b.SetupDefaults(exch)
+	return nil
 }
 
 // Start starts the Bithumb go routine
@@ -474,7 +471,7 @@ func (b *Bithumb) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (b *Bithumb) GetWebsocket() (*wshandler.Websocket, error) {
+func (b *Bithumb) GetWebsocket() (*stream.Websocket, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -583,18 +580,18 @@ func (b *Bithumb) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (b *Bithumb) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (b *Bithumb) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Bithumb) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (b *Bithumb) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (b *Bithumb) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
+func (b *Bithumb) GetSubscriptions() ([]stream.ChannelSubscription, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

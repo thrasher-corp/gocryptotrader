@@ -17,8 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -30,7 +29,7 @@ const (
 // WsConnect connects to a websocket feed
 func (b *BTCMarkets) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
@@ -139,7 +138,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 				ExchangeName: b.Name,
 			})
 		} else {
-			err = b.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+			err = b.Websocket.Orderbook.Update(&cache.Update{
 				UpdateTime: ob.Timestamp,
 				Asset:      asset.Spot,
 				Bids:       bids,
@@ -288,7 +287,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		}
 		return fmt.Errorf("%v websocket error. Code: %v Message: %v", b.Name, wsErr.Code, wsErr.Message)
 	default:
-		b.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: b.Name + wshandler.UnhandledMessage + string(respRaw)}
+		b.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: b.Name + stream.UnhandledMessage + string(respRaw)}
 		return nil
 	}
 	return nil
@@ -304,10 +303,10 @@ func (b *BTCMarkets) generateDefaultSubscriptions() {
 			err)
 		return
 	}
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []stream.ChannelSubscription
 	for i := range channels {
 		for j := range enabledCurrencies {
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -317,7 +316,7 @@ func (b *BTCMarkets) generateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *BTCMarkets) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (b *BTCMarkets) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	var unauthChannels = []string{tick, trade, wsOB}
 	var authChannels = []string{fundChange, heartbeat, orderChange}
 	fpair, err := b.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot)
@@ -372,7 +371,7 @@ func (b *BTCMarkets) generateAuthSubscriptions() WsAuthSubscribe {
 // createChannels creates channels that need to be
 func (b *BTCMarkets) createChannels() {
 	var tempChannels = []string{orderChange, fundChange}
-	var wsChannels []wshandler.WebsocketChannelSubscription
+	var wsChannels []stream.ChannelSubscription
 	pairArray, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		log.Errorf(log.WebsocketMgr,
@@ -393,7 +392,7 @@ func (b *BTCMarkets) createChannels() {
 			}
 
 			var authSub WsAuthSubscribe
-			var channel wshandler.WebsocketChannelSubscription
+			var channel stream.ChannelSubscription
 			channel.Params = make(map[string]interface{})
 			channel.Channel = tempChannels[y]
 			authSub.MarketIDs = append(authSub.MarketIDs, fpair.String())

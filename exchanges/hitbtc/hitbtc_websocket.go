@@ -17,8 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -35,7 +35,7 @@ var requestID nonce.Nonce
 // WsConnect starts a new connection with the websocket API
 func (h *HitBTC) WsConnect() error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := h.Websocket.Conn.Dial(&dialer, http.Header{})
@@ -131,7 +131,7 @@ func (h *HitBTC) wsGetTableName(respRaw []byte) (string, error) {
 			return "trading", nil
 		}
 	}
-	h.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: h.Name + wshandler.UnhandledMessage + string(respRaw)}
+	h.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: h.Name + stream.UnhandledMessage + string(respRaw)}
 	return "", nil
 }
 
@@ -268,7 +268,7 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	default:
-		h.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: h.Name + wshandler.UnhandledMessage + string(respRaw)}
+		h.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: h.Name + stream.UnhandledMessage + string(respRaw)}
 		return nil
 	}
 	return nil
@@ -428,7 +428,7 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update WsOrderbook) error {
 		return err
 	}
 
-	return h.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+	return h.Websocket.Orderbook.Update(&cache.Update{
 		Asks:     asks,
 		Bids:     bids,
 		Pair:     p,
@@ -440,9 +440,9 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update WsOrderbook) error {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (h *HitBTC) GenerateDefaultSubscriptions() {
 	var channels = []string{"subscribeTicker", "subscribeOrderbook", "subscribeTrades", "subscribeCandles"}
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []stream.ChannelSubscription
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
-		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+		subscriptions = append(subscriptions, stream.ChannelSubscription{
 			Channel: "subscribeReports",
 		})
 	}
@@ -456,7 +456,7 @@ func (h *HitBTC) GenerateDefaultSubscriptions() {
 	for i := range channels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = ""
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -466,7 +466,7 @@ func (h *HitBTC) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (h *HitBTC) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (h *HitBTC) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	subscribe := WsNotification{
 		Method: channelToSubscribe.Channel,
 	}
@@ -497,7 +497,7 @@ func (h *HitBTC) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscri
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (h *HitBTC) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (h *HitBTC) Unsubscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	unsubscribeChannel := strings.Replace(channelToSubscribe.Channel, "subscribe", "unsubscribe", 1)
 
 	fpair, err := h.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot)

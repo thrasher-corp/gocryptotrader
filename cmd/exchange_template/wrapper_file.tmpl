@@ -115,7 +115,7 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	{{.Variable}}.API.Endpoints.URLDefault = {{.Name}}APIURL
 	{{.Variable}}.API.Endpoints.URL = {{.Variable}}.API.Endpoints.URLDefault
-	{{.Variable}}.Websocket = wshandler.New()
+	{{.Variable}}.Websocket = stream.New()
 	{{.Variable}}.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	{{.Variable}}.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	{{.Variable}}.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -136,7 +136,7 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.ExchangeConfig) error 
 	// If websocket is supported, please fill out the following
 	/*
 	err = {{.Variable}}.Websocket.Setup(
-		&wshandler.WebsocketSetup{
+		&stream.WebsocketSetup{
 			Enabled:                          exch.Features.Enabled.Websocket,
 			Verbose:                          exch.Verbose,
 			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -153,7 +153,7 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.ExchangeConfig) error 
 		return err
 	}
 
-	{{.Variable}}.WebsocketConn = &wshandler.WebsocketConnection{
+	{{.Variable}}.WebsocketConn = &stream.WebsocketConnection{
 		ExchangeName:         {{.Variable}}.Name,
 		URL:                  {{.Variable}}.Websocket.GetWebsocketURL(),
 		ProxyURL:             {{.Variable}}.Websocket.GetProxyAddress(),
@@ -377,7 +377,7 @@ func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFundsToInternationalBank(with
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func ({{.Variable}} *{{.CapitalName}}) GetWebsocket() (*wshandler.Websocket, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetWebsocket() (*stream.Websocket, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -399,20 +399,20 @@ func ({{.Variable}} *{{.CapitalName}}) GetFeeByType(feeBuilder *exchange.FeeBuil
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func ({{.Variable}} *{{.CapitalName}}) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func ({{.Variable}} *{{.CapitalName}}) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	{{.Variable}}.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func ({{.Variable}} *{{.CapitalName}}) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func ({{.Variable}} *{{.CapitalName}}) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	{{.Variable}}.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func  ({{.Variable}} *{{.CapitalName}}) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
+func  ({{.Variable}} *{{.CapitalName}}) GetSubscriptions() ([]stream.ChannelSubscription, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

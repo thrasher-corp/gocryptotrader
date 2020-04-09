@@ -85,8 +85,8 @@ func (e *Base) SetClientProxyAddress(addr string) error {
 		// string which is already checked above
 		_ = e.Requester.SetProxy(proxy)
 
-		if e.Stream != nil {
-			err = e.Stream.SetProxyAddress(addr)
+		if e.Websocket != nil {
+			err = e.Websocket.SetProxyAddress(addr)
 			if err != nil {
 				return err
 			}
@@ -795,21 +795,21 @@ func (e *Base) SupportsREST() bool {
 // IsWebsocketEnabled returns whether or not the exchange has its
 // websocket client enabled
 func (e *Base) IsWebsocketEnabled() bool {
-	if e.Stream != nil {
-		return e.Stream.IsEnabled()
+	if e.Websocket != nil {
+		return e.Websocket.IsEnabled()
 	}
 	return false
 }
 
-// // ResetWebsocketConnection refreshes websocket connection
-// func (e *Base) ResetWebsocketConnection() error {
-// 	if e.Stream != nil {
-// 		if e.Stream.IsEnabled() {
-// 			return e.Stream.RefreshConnection()
-// 		}
-// 	}
-// 	return nil
-// }
+// ResetWebsocketConnection refreshes websocket connection
+func (e *Base) ResetWebsocketConnection() error {
+	if e.Websocket != nil {
+		if e.Websocket.IsEnabled() {
+			return e.Websocket.RefreshConnection()
+		}
+	}
+	return nil
+}
 
 // GetWithdrawPermissions passes through the exchange's withdraw permissions
 func (e *Base) GetWithdrawPermissions() uint32 {

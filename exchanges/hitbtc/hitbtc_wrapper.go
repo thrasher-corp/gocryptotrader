@@ -19,8 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -34,13 +34,10 @@ func (h *HitBTC) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = h.BaseCurrencies
 
-	err := h.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
+	h.SetupDefaults(exchCfg)
 
 	if h.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = h.UpdateTradablePairs(true)
+		err := h.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -116,7 +113,7 @@ func (h *HitBTC) SetDefaults() {
 	h.API.Endpoints.URLDefault = apiURL
 	h.API.Endpoints.URL = h.API.Endpoints.URLDefault
 	h.API.Endpoints.WebsocketURL = hitbtcWebsocketAddress
-	h.Websocket = wshandler.New()
+	h.Websocket = stream.New()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -129,12 +126,9 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	err := h.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+	h.SetupDefaults(exch)
 
-	err = h.Websocket.Setup(&wshandler.WebsocketSetup{
+	err := h.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -151,7 +145,7 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = h.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
+	err = h.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		RateLimit:            rateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -160,7 +154,7 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return h.Websocket.SetupLocalOrderbook(wsorderbook.Config{
+	return h.Websocket.SetupLocalOrderbook(cache.Config{
 		OrderbookBufferLimit:  exch.WebsocketOrderbookBufferLimit,
 		BufferEnabled:         true,
 		SortBuffer:            true,
@@ -562,7 +556,7 @@ func (h *HitBTC) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (h *HitBTC) GetWebsocket() (*wshandler.Websocket, error) {
+func (h *HitBTC) GetWebsocket() (*stream.Websocket, error) {
 	return h.Websocket, nil
 }
 
@@ -660,20 +654,20 @@ func (h *HitBTC) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (h *HitBTC) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (h *HitBTC) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	h.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (h *HitBTC) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (h *HitBTC) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	h.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (h *HitBTC) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
+func (h *HitBTC) GetSubscriptions() ([]stream.ChannelSubscription, error) {
 	return h.Websocket.GetSubscriptions(), nil
 }
 

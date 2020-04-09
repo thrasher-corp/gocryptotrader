@@ -20,8 +20,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -35,13 +35,10 @@ func (g *Gateio) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = g.BaseCurrencies
 
-	err := g.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
+	g.SetupDefaults(exchCfg)
 
 	if g.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = g.UpdateTradablePairs(true)
+		err := g.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -117,7 +114,7 @@ func (g *Gateio) SetDefaults() {
 	g.API.Endpoints.URLSecondaryDefault = gateioMarketURL
 	g.API.Endpoints.URLSecondary = g.API.Endpoints.URLSecondaryDefault
 	g.API.Endpoints.WebsocketURL = gateioWebsocketEndpoint
-	g.Websocket = wshandler.New()
+	g.Websocket = stream.New()
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	g.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -130,12 +127,9 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	err := g.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+	g.SetupDefaults(exch)
 
-	err = g.Websocket.Setup(&wshandler.WebsocketSetup{
+	err := g.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -152,7 +146,7 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = g.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
+	err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		RateLimit:            gateioWebsocketRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -161,7 +155,7 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return g.Websocket.SetupLocalOrderbook(wsorderbook.Config{
+	return g.Websocket.SetupLocalOrderbook(cache.Config{
 		OrderbookBufferLimit: exch.WebsocketOrderbookBufferLimit,
 		BufferEnabled:        true,
 	})
@@ -566,7 +560,7 @@ func (g *Gateio) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (g *Gateio) GetWebsocket() (*wshandler.Websocket, error) {
+func (g *Gateio) GetWebsocket() (*stream.Websocket, error) {
 	return g.Websocket, nil
 }
 
@@ -710,20 +704,20 @@ func (g *Gateio) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (g *Gateio) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (g *Gateio) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	g.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (g *Gateio) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (g *Gateio) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	g.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (g *Gateio) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
+func (g *Gateio) GetSubscriptions() ([]stream.ChannelSubscription, error) {
 	return g.Websocket.GetSubscriptions(), nil
 }
 

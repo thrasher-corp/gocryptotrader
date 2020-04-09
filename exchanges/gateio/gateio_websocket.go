@@ -18,8 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -32,7 +31,7 @@ const (
 // WsConnect initiates a websocket connection
 func (g *Gateio) WsConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := g.Websocket.Conn.Dial(&dialer, http.Header{})
@@ -378,7 +377,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 				return err
 			}
 		} else {
-			err = g.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+			err = g.Websocket.Orderbook.Update(&cache.Update{
 				Asks:       asks,
 				Bids:       bids,
 				Pair:       p,
@@ -433,7 +432,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			Volume:     volume,
 		}
 	default:
-		g.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: g.Name + wshandler.UnhandledMessage + string(respRaw)}
+		g.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: g.Name + stream.UnhandledMessage + string(respRaw)}
 		return nil
 	}
 	return nil
@@ -445,7 +444,7 @@ func (g *Gateio) GenerateAuthenticatedSubscriptions() {
 		return
 	}
 	var channels = []string{"balance.subscribe", "order.subscribe"}
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []stream.ChannelSubscription
 	enabledCurrencies, err := g.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		log.Errorf(log.WebsocketMgr, "%s could not generate authenticated subscriptions. Err: %s",
@@ -455,7 +454,7 @@ func (g *Gateio) GenerateAuthenticatedSubscriptions() {
 	}
 	for i := range channels {
 		for j := range enabledCurrencies {
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -470,7 +469,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() {
 		"trades.subscribe",
 		"depth.subscribe",
 		"kline.subscribe"}
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []stream.ChannelSubscription
 	enabledCurrencies, err := g.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		log.Errorf(log.WebsocketMgr, "%s could not generate default subscriptions. Err: %s",
@@ -487,7 +486,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() {
 			} else if strings.EqualFold(channels[i], "kline.subscribe") {
 				params["interval"] = 1800
 			}
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 				Params:   params,
@@ -498,7 +497,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (g *Gateio) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (g *Gateio) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	fpair, err := g.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot)
 	if err != nil {
 		return err
@@ -532,7 +531,7 @@ func (g *Gateio) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscri
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (g *Gateio) Unsubscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	unsbuscribeText := strings.Replace(channelToSubscribe.Channel, "subscribe", "unsubscribe", 1)
 	fpair, err := g.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot)
 	if err != nil {

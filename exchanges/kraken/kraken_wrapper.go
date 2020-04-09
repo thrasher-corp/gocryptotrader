@@ -19,8 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -34,13 +34,10 @@ func (k *Kraken) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = k.BaseCurrencies
 
-	err := k.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
+	k.SetupDefaults(exchCfg)
 
 	if k.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = k.UpdateTradablePairs(true)
+		err := k.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -129,7 +126,7 @@ func (k *Kraken) SetDefaults() {
 
 	k.API.Endpoints.URLDefault = krakenAPIURL
 	k.API.Endpoints.URL = k.API.Endpoints.URLDefault
-	k.Websocket = wshandler.New()
+	k.Websocket = stream.New()
 	k.API.Endpoints.WebsocketURL = krakenWSURL
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	k.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -143,12 +140,9 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	err := k.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+	k.SetupDefaults(exch)
 
-	err = k.Websocket.Setup(&wshandler.WebsocketSetup{
+	err := k.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -165,7 +159,7 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = k.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
+	err = k.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		RateLimit:            krakenWsRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -174,7 +168,7 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = k.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
+	err = k.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		RateLimit:            krakenWsRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -184,7 +178,7 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return k.Websocket.SetupLocalOrderbook(wsorderbook.Config{
+	return k.Websocket.SetupLocalOrderbook(cache.Config{
 		OrderbookBufferLimit: exch.WebsocketOrderbookBufferLimit,
 		BufferEnabled:        true,
 		SortBuffer:           true,
@@ -679,7 +673,7 @@ func (k *Kraken) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (k *Kraken) GetWebsocket() (*wshandler.Websocket, error) {
+func (k *Kraken) GetWebsocket() (*stream.Websocket, error) {
 	return k.Websocket, nil
 }
 
@@ -778,20 +772,20 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (k *Kraken) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (k *Kraken) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	k.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (k *Kraken) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (k *Kraken) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	k.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (k *Kraken) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
+func (k *Kraken) GetSubscriptions() ([]stream.ChannelSubscription, error) {
 	return k.Websocket.GetSubscriptions(), nil
 }
 

@@ -1,4 +1,4 @@
-package wshandler
+package stream
 
 import (
 	"sync"
@@ -6,8 +6,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 )
 
 // Websocket functionality list and state consts
@@ -44,19 +43,19 @@ type Websocket struct {
 	connector                    func() error
 
 	subscriptionMutex   sync.Mutex
-	subscribedChannels  []stream.ChannelSubscription
-	channelsToSubscribe []stream.ChannelSubscription
+	subscribedChannels  []ChannelSubscription
+	channelsToSubscribe []ChannelSubscription
 	// subscription []WebsocketChannelSubscription
 
-	channelSubscriber   func(channelToSubscribe *stream.ChannelSubscription) error
-	channelUnsubscriber func(channelToUnsubscribe *stream.ChannelSubscription) error
+	channelSubscriber   func(channelToSubscribe *ChannelSubscription) error
+	channelUnsubscriber func(channelToUnsubscribe *ChannelSubscription) error
 	channelGeneratesubs func()
 	DataHandler         chan interface{}
 	ToRoutine           chan interface{}
 	// ShutdownC is the main shutdown channel which controls all websocket go funcs
 	ShutdownC chan struct{}
 	// Orderbook is a local cache of orderbooks
-	Orderbook wsorderbook.WebsocketOrderbookLocal
+	Orderbook cache.Orderbook
 	// Wg defines a wait group for websocket routines for cleanly shutting down
 	// routines
 	Wg sync.WaitGroup
@@ -67,9 +66,9 @@ type Websocket struct {
 	features          *protocol.Features
 
 	// Standard stream connection
-	Conn stream.Connection
+	Conn Connection
 	// Authenticated stream connection
-	AuthConn stream.Connection
+	AuthConn Connection
 }
 
 // WebsocketSetup defines variables for setting up a websocket connection
@@ -82,8 +81,8 @@ type WebsocketSetup struct {
 	ExchangeName                     string
 	RunningURL                       string
 	Connector                        func() error
-	Subscriber                       func(channelToSubscribe *stream.ChannelSubscription) error
-	UnSubscriber                     func(channelToUnsubscribe *stream.ChannelSubscription) error
+	Subscriber                       func(channelToSubscribe *ChannelSubscription) error
+	UnSubscriber                     func(channelToUnsubscribe *ChannelSubscription) error
 	GenerateSubscriptions            func()
 	Features                         *protocol.Features
 }

@@ -22,7 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1433,10 +1433,10 @@ func TestGetETTSettlementPriceHistory(t *testing.T) {
 // Will log in if credentials are present
 func TestSendWsMessages(t *testing.T) {
 	if !o.Websocket.IsEnabled() && !o.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
-		t.Skip(wshandler.WebsocketNotEnabled)
+		t.Skip(stream.WebsocketNotEnabled)
 	}
 	var ok bool
-	o.WebsocketConn = &wshandler.WebsocketConnection{
+	o.WebsocketConn = &stream.WebsocketConnection{
 		ExchangeName:         o.Name,
 		URL:                  o.Websocket.GetWebsocketURL(),
 		Verbose:              o.Verbose,
@@ -1453,7 +1453,7 @@ func TestSendWsMessages(t *testing.T) {
 	go o.WsReadData(&wg)
 	wg.Wait()
 
-	subscription := &wshandler.WebsocketChannelSubscription{
+	subscription := &stream.ChannelSubscription{
 		Channel: "badChannel",
 	}
 	o.Subscribe(subscription)

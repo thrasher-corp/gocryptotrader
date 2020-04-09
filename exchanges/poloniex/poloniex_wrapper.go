@@ -20,8 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -120,7 +119,7 @@ func (p *Poloniex) SetDefaults() {
 	p.API.Endpoints.URLDefault = poloniexAPIURL
 	p.API.Endpoints.URL = p.API.Endpoints.URLDefault
 	p.API.Endpoints.WebsocketURL = poloniexWebsocketAddress
-	p.Stream = stream.NewWebsocketService()
+	p.Websocket = stream.New()
 	p.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	p.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	p.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -135,7 +134,7 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 
 	p.SetupDefaults(exch)
 
-	err := p.Stream.Setup(&wshandler.WebsocketSetup{
+	err := p.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -152,7 +151,7 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = p.Stream.SetupNewConnection(wshandler.ConnectionSetup{
+	err = p.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}, false)
@@ -160,7 +159,7 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return p.Stream.SetupLocalOrderbook(wsorderbook.Config{
+	return p.Websocket.SetupLocalOrderbook(cache.Config{
 		OrderbookBufferLimit:  exch.WebsocketOrderbookBufferLimit,
 		SortBuffer:            true,
 		SortBufferByUpdateIDs: true,
@@ -182,7 +181,7 @@ func (p *Poloniex) Run() {
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s (url: %s).\n",
 			p.Name,
-			common.IsEnabled(p.Stream.IsEnabled()),
+			common.IsEnabled(p.Websocket.IsEnabled()),
 			poloniexWebsocketAddress)
 		p.PrintEnabledPairs()
 	}
@@ -530,12 +529,12 @@ func (p *Poloniex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdra
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetStream returns a pointer to the exchange streaming service
-func (p *Poloniex) GetStream() (stream.Manager, error) {
-	if p.Stream == nil {
+// GetWebsocket returns a pointer to the exchange streaming service
+func (p *Poloniex) GetWebsocket() (*stream.Websocket, error) {
+	if p.Websocket == nil {
 		return nil, errors.New("no streaming service found")
 	}
-	return p.Stream, nil
+	return p.Websocket, nil
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
@@ -649,20 +648,20 @@ func (p *Poloniex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
 func (p *Poloniex) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	p.Stream.SubscribeToChannels(channels)
+	p.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
 func (p *Poloniex) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	p.Stream.RemoveSubscribedChannels(channels)
+	p.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
 func (p *Poloniex) GetSubscriptions() ([]stream.ChannelSubscription, error) {
-	return p.Stream.GetSubscriptions(), nil
+	return p.Websocket.GetSubscriptions(), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

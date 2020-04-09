@@ -18,8 +18,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -33,13 +33,10 @@ func (b *Bitfinex) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
 
-	err := b.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
+	b.SetupDefaults(exchCfg)
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(true)
+		err := b.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -143,7 +140,7 @@ func (b *Bitfinex) SetDefaults() {
 	b.API.Endpoints.URLDefault = bitfinexAPIURLBase
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
 	b.API.Endpoints.WebsocketURL = publicBitfinexWebsocketEndpoint
-	b.Websocket = wshandler.New()
+	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -156,13 +153,10 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	err := b.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+	b.SetupDefaults(exch)
 
-	err = b.Websocket.Setup(
-		&wshandler.WebsocketSetup{
+	err := b.Websocket.Setup(
+		&stream.WebsocketSetup{
 			Enabled:                          exch.Features.Enabled.Websocket,
 			Verbose:                          exch.Verbose,
 			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -179,7 +173,7 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = b.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
+	err = b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}, false)
@@ -187,7 +181,7 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = b.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
+	err = b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  authenticatedBitfinexWebsocketEndpoint,
@@ -196,7 +190,7 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return b.Websocket.SetupLocalOrderbook(wsorderbook.Config{
+	return b.Websocket.SetupLocalOrderbook(cache.Config{
 		OrderbookBufferLimit: exch.WebsocketOrderbookBufferLimit,
 		UpdateEntriesByID:    true,
 	})
@@ -625,7 +619,7 @@ func (b *Bitfinex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdra
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (b *Bitfinex) GetWebsocket() (*wshandler.Websocket, error) {
+func (b *Bitfinex) GetWebsocket() (*stream.Websocket, error) {
 	return b.Websocket, nil
 }
 
@@ -772,7 +766,7 @@ func (b *Bitfinex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (b *Bitfinex) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (b *Bitfinex) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	for i := range channels {
 		b.appendOptionalDelimiter(&channels[i].Currency)
 	}
@@ -782,7 +776,7 @@ func (b *Bitfinex) SubscribeToWebsocketChannels(channels []wshandler.WebsocketCh
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Bitfinex) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (b *Bitfinex) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	for i := range channels {
 		b.appendOptionalDelimiter(&channels[i].Currency)
 	}
@@ -791,7 +785,7 @@ func (b *Bitfinex) UnsubscribeToWebsocketChannels(channels []wshandler.Websocket
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (b *Bitfinex) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
+func (b *Bitfinex) GetSubscriptions() ([]stream.ChannelSubscription, error) {
 	return b.Websocket.GetSubscriptions(), nil
 }
 

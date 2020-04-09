@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
@@ -108,7 +108,7 @@ func TestSetClientProxyAddress(t *testing.T) {
 		Name:      "rawr",
 		Requester: requester}
 
-	newBase.Websocket = wshandler.New()
+	newBase.Websocket = stream.New()
 	err := newBase.SetClientProxyAddress(":invalid")
 	if err == nil {
 		t.Error("SetClientProxyAddress parsed invalid URL")
@@ -1094,12 +1094,12 @@ func TestSetupDefaults(t *testing.T) {
 	}
 
 	// Test websocket support
-	b.Websocket = wshandler.New()
+	b.Websocket = stream.New()
 	b.Features.Supports.Websocket = true
 	if err := b.SetupDefaults(&cfg); err != nil {
 		t.Error(err)
 	}
-	b.Websocket.Setup(&wshandler.WebsocketSetup{
+	b.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled: true,
 	})
 	if !b.IsWebsocketEnabled() {
@@ -1478,8 +1478,8 @@ func TestIsWebsocketEnabled(t *testing.T) {
 		t.Error("exchange doesn't support websocket")
 	}
 
-	b.Websocket = wshandler.New()
-	err := b.Websocket.Setup(&wshandler.WebsocketSetup{Enabled: true})
+	b.Websocket = stream.New()
+	err := b.Websocket.Setup(&stream.WebsocketSetup{Enabled: true})
 	if err != nil {
 		t.Error(err)
 	}

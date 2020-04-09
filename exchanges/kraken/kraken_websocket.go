@@ -18,8 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -55,7 +54,7 @@ const (
 var subscriptionChannelPair []WebsocketChannelData
 var comms = make(chan stream.Response)
 var authToken string
-var pingRequest = WebsocketBaseEventRequest{Event: wshandler.Ping}
+var pingRequest = WebsocketBaseEventRequest{Event: stream.Ping}
 
 // Channels require a topic and a currency
 // Format [[ticker,but-t4u],[orderbook,nce-btt]]
@@ -65,7 +64,7 @@ var authenticatedChannels = []string{krakenWsOwnTrades, krakenWsOpenOrders}
 // WsConnect initiates a websocket connection
 func (k *Kraken) WsConnect() error {
 	if !k.Websocket.IsEnabled() || !k.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := k.Websocket.Conn.Dial(&dialer, http.Header{})
@@ -165,7 +164,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 		}
 		if event, ok := eventResponse["event"]; ok {
 			switch event {
-			case wshandler.Pong, krakenWsHeartbeat, krakenWsCancelOrderStatus:
+			case stream.Pong, krakenWsHeartbeat, krakenWsCancelOrderStatus:
 				return nil
 			case krakenWsSystemStatus:
 				var systemStatus wsSystemStatus
@@ -212,7 +211,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 					}
 				}
 			default:
-				k.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: k.Name + wshandler.UnhandledMessage + string(respRaw)}
+				k.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: k.Name + stream.UnhandledMessage + string(respRaw)}
 			}
 			return nil
 		}
@@ -226,7 +225,7 @@ func (k *Kraken) wsPingHandler() error {
 	if err != nil {
 		return err
 	}
-	k.Websocket.Conn.SetupPingHandler(stream.WebsocketPingHandler{
+	k.Websocket.Conn.SetupPingHandler(stream.PingHandler{
 		Message:     message,
 		Delay:       krakenWsPingDelay,
 		MessageType: websocket.TextMessage,
@@ -581,7 +580,7 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[
 			defer k.wsRequestMtx.Unlock()
 			err := k.wsProcessOrderBookUpdate(channelData, askData, bidData)
 			if err != nil {
-				subscriptionToRemove := &wshandler.WebsocketChannelSubscription{
+				subscriptionToRemove := &stream.ChannelSubscription{
 					Channel:  krakenWsOrderbook,
 					Currency: channelData.Pair,
 				}
@@ -659,7 +658,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 
 // wsProcessOrderBookUpdate updates an orderbook entry for a given currency pair
 func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, askData, bidData []interface{}) error {
-	update := wsorderbook.WebsocketOrderbookUpdate{
+	update := cache.Update{
 		Asset: asset.Spot,
 		Pair:  channelData.Pair,
 	}
@@ -795,11 +794,11 @@ func (k *Kraken) GenerateDefaultSubscriptions() {
 			err)
 		return
 	}
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []stream.ChannelSubscription
 	for i := range defaultSubscribedChannels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = "/"
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  defaultSubscribedChannels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -810,10 +809,10 @@ func (k *Kraken) GenerateDefaultSubscriptions() {
 
 // GenerateAuthenticatedSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (k *Kraken) GenerateAuthenticatedSubscriptions() {
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []stream.ChannelSubscription
 	for i := range authenticatedChannels {
 		params := make(map[string]interface{})
-		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+		subscriptions = append(subscriptions, stream.ChannelSubscription{
 			Channel: authenticatedChannels[i],
 			Params:  params,
 		})
@@ -822,7 +821,7 @@ func (k *Kraken) GenerateAuthenticatedSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (k *Kraken) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (k *Kraken) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	resp := WebsocketSubscriptionEventRequest{
 		Event: krakenWsSubscribe,
 		Subscription: WebsocketSubscriptionData{
@@ -846,7 +845,7 @@ func (k *Kraken) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscri
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (k *Kraken) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (k *Kraken) Unsubscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	resp := WebsocketSubscriptionEventRequest{
 		Event: krakenWsUnsubscribe,
 		Pairs: []string{channelToSubscribe.Currency.String()},

@@ -19,7 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -33,13 +33,10 @@ func (z *ZB) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = z.BaseCurrencies
 
-	err := z.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
+	z.SetupDefaults(exchCfg)
 
 	if z.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = z.UpdateTradablePairs(true)
+		err := z.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -114,7 +111,7 @@ func (z *ZB) SetDefaults() {
 	z.API.Endpoints.URLSecondaryDefault = zbMarketURL
 	z.API.Endpoints.URLSecondary = z.API.Endpoints.URLSecondaryDefault
 	z.API.Endpoints.WebsocketURL = zbWebsocketAPI
-	z.Websocket = wshandler.New()
+	z.Websocket = stream.New()
 	z.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	z.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
@@ -126,29 +123,25 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	err := z.SetupDefaults(exch)
+	z.SetupDefaults(exch)
+
+	err := z.Websocket.Setup(&stream.WebsocketSetup{
+		Enabled:                          exch.Features.Enabled.Websocket,
+		Verbose:                          exch.Verbose,
+		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		DefaultURL:                       zbWebsocketAPI,
+		ExchangeName:                     exch.Name,
+		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		Connector:                        z.WsConnect,
+		Subscriber:                       z.Subscribe,
+		Features:                         &z.Features.Supports.WebsocketCapabilities,
+	})
 	if err != nil {
 		return err
 	}
 
-	err = z.Websocket.Setup(
-		&wshandler.WebsocketSetup{
-			Enabled:                          exch.Features.Enabled.Websocket,
-			Verbose:                          exch.Verbose,
-			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-			DefaultURL:                       zbWebsocketAPI,
-			ExchangeName:                     exch.Name,
-			RunningURL:                       exch.API.Endpoints.WebsocketURL,
-			Connector:                        z.WsConnect,
-			Subscriber:                       z.Subscribe,
-			Features:                         &z.Features.Supports.WebsocketCapabilities,
-		})
-	if err != nil {
-		return err
-	}
-
-	z.WebsocketConn = &wshandler.WebsocketConnection{
+	z.WebsocketConn = &stream.WebsocketConnection{
 		ExchangeName:         z.Name,
 		URL:                  z.Websocket.GetWebsocketURL(),
 		ProxyURL:             z.Websocket.GetProxyAddress(),
@@ -558,7 +551,7 @@ func (z *ZB) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Requ
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (z *ZB) GetWebsocket() (*wshandler.Websocket, error) {
+func (z *ZB) GetWebsocket() (*stream.Websocket, error) {
 	return z.Websocket, nil
 }
 
@@ -704,19 +697,19 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (z *ZB) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (z *ZB) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	z.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (z *ZB) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (z *ZB) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (z *ZB) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
+func (z *ZB) GetSubscriptions() ([]stream.ChannelSubscription, error) {
 	return z.Websocket.GetSubscriptions(), nil
 }
 

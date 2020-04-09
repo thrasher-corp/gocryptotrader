@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -32,7 +31,7 @@ const (
 // WsConnect initiates a websocket connection
 func (z *ZB) WsConnect() error {
 	if !z.Websocket.IsEnabled() || !z.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := z.WebsocketConn.Dial(&dialer, http.Header{})
@@ -249,7 +248,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 			Side:         tSide,
 		}
 	default:
-		z.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: z.Name + wshandler.UnhandledMessage + string(respRaw)}
+		z.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: z.Name + stream.UnhandledMessage + string(respRaw)}
 		return nil
 	}
 	return nil
@@ -257,9 +256,9 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (z *ZB) GenerateDefaultSubscriptions() {
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []stream.ChannelSubscription
 	// Tickerdata is its own channel
-	subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+	subscriptions = append(subscriptions, stream.ChannelSubscription{
 		Channel: "markets",
 	})
 	channels := []string{"%s_ticker", "%s_depth", "%s_trades"}
@@ -274,7 +273,7 @@ func (z *ZB) GenerateDefaultSubscriptions() {
 	for i := range channels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = ""
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  fmt.Sprintf(channels[i], enabledCurrencies[j].Lower().String()),
 				Currency: enabledCurrencies[j].Lower(),
 			})
@@ -284,7 +283,7 @@ func (z *ZB) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (z *ZB) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (z *ZB) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	subscriptionRequest := Subscription{
 		Event:   zWebsocketAddChannel,
 		Channel: channelToSubscribe.Channel,

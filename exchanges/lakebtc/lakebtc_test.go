@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -440,7 +440,7 @@ func TestGetDepositAddress(t *testing.T) {
 // TestWsConn websocket connection test
 func TestWsConn(t *testing.T) {
 	if !l.Websocket.IsEnabled() {
-		t.Skip(wshandler.WebsocketNotEnabled)
+		t.Skip(stream.WebsocketNotEnabled)
 	}
 	l.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	l.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()

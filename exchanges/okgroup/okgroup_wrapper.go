@@ -14,8 +14,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -30,12 +30,9 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	err := o.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+	o.SetupDefaults(exch)
 
-	err = o.Websocket.Setup(&wshandler.WebsocketSetup{
+	err := o.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -53,7 +50,7 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = o.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
+	err = o.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		RateLimit:            okGroupWsRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -62,7 +59,7 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return o.Websocket.SetupLocalOrderbook(wsorderbook.Config{
+	return o.Websocket.SetupLocalOrderbook(cache.Config{
 		OrderbookBufferLimit: exch.WebsocketOrderbookBufferLimit,
 	})
 }
@@ -513,7 +510,7 @@ func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Det
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (o *OKGroup) GetWebsocket() (*wshandler.Websocket, error) {
+func (o *OKGroup) GetWebsocket() (*stream.Websocket, error) {
 	return o.Websocket, nil
 }
 
@@ -533,20 +530,20 @@ func (o *OKGroup) GetWithdrawCapabilities() uint32 {
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (o *OKGroup) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (o *OKGroup) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	o.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (o *OKGroup) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (o *OKGroup) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	o.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (o *OKGroup) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
+func (o *OKGroup) GetSubscriptions() ([]stream.ChannelSubscription, error) {
 	return o.Websocket.GetSubscriptions(), nil
 }
 

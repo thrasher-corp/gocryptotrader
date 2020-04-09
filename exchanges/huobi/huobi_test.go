@@ -14,7 +14,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -59,20 +59,20 @@ func setupWsTests(t *testing.T) {
 		return
 	}
 	if !h.Websocket.IsEnabled() && !h.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
-		t.Skip(wshandler.WebsocketNotEnabled)
+		t.Skip(stream.WebsocketNotEnabled)
 	}
 	comms = make(chan WsMessage, sharedtestvalues.WebsocketChannelOverrideCapacity)
 	h.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	h.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	go h.wsReadData()
-	h.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
+	h.AuthenticatedWebsocketConn = &stream.WebsocketConnection{
 		ExchangeName:         h.Name,
 		URL:                  wsAccountsOrdersURL,
 		Verbose:              h.Verbose,
 		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
 		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
 	}
-	h.WebsocketConn = &wshandler.WebsocketConnection{
+	h.WebsocketConn = &stream.WebsocketConnection{
 		ExchangeName:         h.Name,
 		URL:                  wsMarketURL,
 		Verbose:              h.Verbose,

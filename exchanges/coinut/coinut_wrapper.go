@@ -20,8 +20,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -35,13 +35,10 @@ func (c *COINUT) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = c.BaseCurrencies
 
-	err := c.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
+	c.SetupDefaults(exchCfg)
 
 	if c.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = c.UpdateTradablePairs(true)
+		err := c.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -117,7 +114,7 @@ func (c *COINUT) SetDefaults() {
 	c.API.Endpoints.URLDefault = coinutAPIURL
 	c.API.Endpoints.URL = c.API.Endpoints.URLDefault
 	c.API.Endpoints.WebsocketURL = coinutWebsocketURL
-	c.Websocket = wshandler.New()
+	c.Websocket = stream.New()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -131,12 +128,9 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	err := c.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+	c.SetupDefaults(exch)
 
-	err = c.Websocket.Setup(&wshandler.WebsocketSetup{
+	err := c.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -153,7 +147,7 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = c.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
+	err = c.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}, false)
@@ -161,7 +155,7 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return c.Websocket.SetupLocalOrderbook(wsorderbook.Config{
+	return c.Websocket.SetupLocalOrderbook(cache.Config{
 		OrderbookBufferLimit:  exch.WebsocketOrderbookBufferLimit,
 		BufferEnabled:         true,
 		SortBuffer:            true,
@@ -741,7 +735,7 @@ func (c *COINUT) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (c *COINUT) GetWebsocket() (*wshandler.Websocket, error) {
+func (c *COINUT) GetWebsocket() (*stream.Websocket, error) {
 	return c.Websocket, nil
 }
 
@@ -969,20 +963,20 @@ func (c *COINUT) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (c *COINUT) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (c *COINUT) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	c.Websocket.SubscribeToChannels(channels)
 	return nil
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (c *COINUT) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (c *COINUT) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	c.Websocket.RemoveSubscribedChannels(channels)
 	return nil
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (c *COINUT) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
+func (c *COINUT) GetSubscriptions() ([]stream.ChannelSubscription, error) {
 	return c.Websocket.GetSubscriptions(), nil
 }
 

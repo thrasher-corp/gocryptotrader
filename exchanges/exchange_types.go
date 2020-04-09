@@ -208,7 +208,7 @@ type Base struct {
 	WebsocketResponseCheckTimeout time.Duration
 	WebsocketResponseMaxLimit     time.Duration
 	WebsocketOrderbookBufferLimit int64
-	Stream                        stream.Manager
+	Websocket                     *stream.Websocket
 	*request.Requester
 	Config *config.ExchangeConfig
 }

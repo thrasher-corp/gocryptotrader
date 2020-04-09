@@ -19,7 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -33,13 +33,10 @@ func (y *Yobit) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = y.BaseCurrencies
 
-	err := y.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
+	y.SetupDefaults(exchCfg)
 
 	if y.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = y.UpdateTradablePairs(true)
+		err := y.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -111,7 +108,9 @@ func (y *Yobit) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	return y.SetupDefaults(exch)
+	y.SetupDefaults(exch)
+
+	return nil
 }
 
 // Start starts the WEX go routine
@@ -459,7 +458,7 @@ func (y *Yobit) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.R
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (y *Yobit) GetWebsocket() (*wshandler.Websocket, error) {
+func (y *Yobit) GetWebsocket() (*stream.Websocket, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -565,18 +564,18 @@ func (y *Yobit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (y *Yobit) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (y *Yobit) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (y *Yobit) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (y *Yobit) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (y *Yobit) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
+func (y *Yobit) GetSubscriptions() ([]stream.ChannelSubscription, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

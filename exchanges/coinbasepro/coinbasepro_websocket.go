@@ -16,8 +16,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -29,7 +29,7 @@ const (
 // WsConnect initiates a websocket connection
 func (c *CoinbasePro) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
@@ -238,7 +238,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			},
 		}
 	default:
-		c.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: c.Name + wshandler.UnhandledMessage + string(respRaw)}
+		c.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: c.Name + stream.UnhandledMessage + string(respRaw)}
 		return nil
 	}
 	return nil
@@ -340,7 +340,7 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 	if err != nil {
 		return err
 	}
-	return c.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+	return c.Websocket.Orderbook.Update(&cache.Update{
 		Bids:       bids,
 		Asks:       asks,
 		Pair:       p,
@@ -360,7 +360,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 			err)
 		return
 	}
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []stream.ChannelSubscription
 	for i := range channels {
 		if (channels[i] == "user" || channels[i] == "full") && !c.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 			continue
@@ -375,7 +375,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 					err)
 				return
 			}
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channels[i],
 				Currency: fpair,
 			})
@@ -385,7 +385,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *CoinbasePro) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (c *CoinbasePro) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	fpair, err := c.FormatExchangeCurrency(channelToSubscribe.Currency,
 		asset.Spot)
 	if err != nil {
@@ -417,7 +417,7 @@ func (c *CoinbasePro) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSu
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *CoinbasePro) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (c *CoinbasePro) Unsubscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	fpair, err := c.FormatExchangeCurrency(channelToSubscribe.Currency,
 		asset.Spot)
 	if err != nil {

@@ -12,7 +12,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -248,7 +247,7 @@ var wg sync.WaitGroup
 
 // WebsocketDataReceiver handles websocket data coming from a websocket feed
 // associated with an exchange
-func WebsocketDataReceiver(ws *wshandler.Websocket) {
+func WebsocketDataReceiver(ws *stream.Websocket) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -343,7 +342,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		od.UpdateOrderFromModify(d)
 	case order.ClassificationError:
 		return errors.New(d.Error())
-	case wshandler.UnhandledMessageWarning:
+	case stream.UnhandledMessageWarning:
 		log.Warn(log.WebsocketMgr, d.Message)
 	default:
 		if Bot.Settings.Verbose {

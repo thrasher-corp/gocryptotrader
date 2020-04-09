@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/toorop/go-pusher"
@@ -34,7 +33,7 @@ const (
 // WsConnect initiates a new websocket connection
 func (l *LakeBTC) WsConnect() error {
 	if !l.Websocket.IsEnabled() || !l.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var err error
 	l.WebsocketConn.Client, err = pusher.NewCustomClient(strings.ToLower(l.Name), lakeBTCWSURL, wssSchem)
@@ -73,7 +72,7 @@ func (l *LakeBTC) listenToEndpoints() error {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (l *LakeBTC) GenerateDefaultSubscriptions() {
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []stream.ChannelSubscription
 	enabledCurrencies, err := l.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		log.Errorf(log.WebsocketMgr,
@@ -89,7 +88,7 @@ func (l *LakeBTC) GenerateDefaultSubscriptions() {
 			enabledCurrencies[j].Lower().String() +
 			globalSubstring
 
-		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+		subscriptions = append(subscriptions, stream.ChannelSubscription{
 			Channel:  channel,
 			Currency: enabledCurrencies[j],
 		})
@@ -98,7 +97,7 @@ func (l *LakeBTC) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (l *LakeBTC) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (l *LakeBTC) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	return l.WebsocketConn.Client.Subscribe(channelToSubscribe.Channel)
 }
 

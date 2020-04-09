@@ -65,7 +65,7 @@ type IBotExchange interface {
 	SupportsWebsocket() bool
 	SupportsREST() bool
 	IsWebsocketEnabled() bool
-	GetWebsocket() (stream.Manager, error)
+	GetWebsocket() (*stream.Websocket, error)
 	SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
 	UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
 	AuthenticateWebsocket() error

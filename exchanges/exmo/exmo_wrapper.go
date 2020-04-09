@@ -19,7 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -33,13 +33,10 @@ func (e *EXMO) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = e.BaseCurrencies
 
-	err := e.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
+	e.SetupDefaults(exchCfg)
 
 	if e.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = e.UpdateTradablePairs(true)
+		err := e.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -118,8 +115,8 @@ func (e *EXMO) Setup(exch *config.ExchangeConfig) error {
 		e.SetEnabled(false)
 		return nil
 	}
-
-	return e.SetupDefaults(exch)
+	e.SetupDefaults(exch)
+	return nil
 }
 
 // Start starts the EXMO go routine
@@ -488,7 +485,7 @@ func (e *EXMO) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Re
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (e *EXMO) GetWebsocket() (*wshandler.Websocket, error) {
+func (e *EXMO) GetWebsocket() (*stream.Websocket, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -575,18 +572,18 @@ func (e *EXMO) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, err
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (e *EXMO) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (e *EXMO) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (e *EXMO) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (e *EXMO) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (e *EXMO) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
+func (e *EXMO) GetSubscriptions() ([]stream.ChannelSubscription, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

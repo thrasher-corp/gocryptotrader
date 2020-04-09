@@ -18,8 +18,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -33,13 +33,10 @@ func (b *Binance) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
 
-	err := b.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
+	b.SetupDefaults(exchCfg)
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(true)
+		err := b.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -125,7 +122,7 @@ func (b *Binance) SetDefaults() {
 
 	b.API.Endpoints.URLDefault = apiURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
-	b.Websocket = wshandler.New()
+	b.Websocket = stream.New()
 	b.API.Endpoints.WebsocketURL = binanceDefaultWebsocketURL
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -139,12 +136,9 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	err := b.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+	b.SetupDefaults(exch)
 
-	err = b.Websocket.Setup(&wshandler.WebsocketSetup{
+	err := b.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -159,7 +153,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = b.Websocket.SetupNewConnection(wshandler.ConnectionSetup{
+	err = b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}, false)
@@ -167,7 +161,7 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return b.Websocket.SetupLocalOrderbook(wsorderbook.Config{
+	return b.Websocket.SetupLocalOrderbook(cache.Config{
 		OrderbookBufferLimit:  exch.WebsocketOrderbookBufferLimit,
 		SortBuffer:            true,
 		SortBufferByUpdateIDs: true,
@@ -611,7 +605,7 @@ func (b *Binance) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (b *Binance) GetWebsocket() (*wshandler.Websocket, error) {
+func (b *Binance) GetWebsocket() (*stream.Websocket, error) {
 	return b.Websocket, nil
 }
 
@@ -729,18 +723,18 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (b *Binance) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (b *Binance) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Binance) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (b *Binance) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (b *Binance) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
+func (b *Binance) GetSubscriptions() ([]stream.ChannelSubscription, error) {
 	return b.Websocket.GetSubscriptions(), nil
 }
 

@@ -17,8 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -40,7 +39,7 @@ var (
 // WsConnect intiates a websocket connection
 func (c *COINUT) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
@@ -336,7 +335,7 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		}
 		c.Websocket.DataHandler <- o
 	default:
-		c.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: c.Name + wshandler.UnhandledMessage + string(respRaw)}
+		c.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: c.Name + stream.UnhandledMessage + string(respRaw)}
 		return nil
 	}
 	return nil
@@ -537,7 +536,7 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 		return err
 	}
 
-	bufferUpdate := &wsorderbook.WebsocketOrderbookUpdate{
+	bufferUpdate := &cache.Update{
 		Pair:     p,
 		UpdateID: update.TransID,
 		Asset:    asset.Spot,
@@ -553,7 +552,7 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *COINUT) GenerateDefaultSubscriptions() {
 	var channels = []string{"inst_tick", "inst_order_book"}
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []stream.ChannelSubscription
 	enabledCurrencies, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		log.Errorf(log.WebsocketMgr, "%s could not generate default subscriptions. Err: %s",
@@ -563,7 +562,7 @@ func (c *COINUT) GenerateDefaultSubscriptions() {
 	}
 	for i := range channels {
 		for j := range enabledCurrencies {
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 			})
@@ -573,7 +572,7 @@ func (c *COINUT) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *COINUT) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (c *COINUT) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	fpair, err := c.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot)
 	if err != nil {
 		return err
@@ -589,7 +588,7 @@ func (c *COINUT) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscri
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *COINUT) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (c *COINUT) Unsubscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	fpair, err := c.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot)
 	if err != nil {
 		return err

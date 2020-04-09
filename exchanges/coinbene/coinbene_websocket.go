@@ -17,8 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -34,7 +33,7 @@ var comms = make(chan stream.Response)
 // WsConnect connects to websocket
 func (c *Coinbene) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
@@ -58,7 +57,7 @@ func (c *Coinbene) WsConnect() error {
 // GenerateDefaultSubscriptions generates stuff
 func (c *Coinbene) GenerateDefaultSubscriptions() {
 	var channels = []string{"orderBook.%s.100", "tradeList.%s", "ticker.%s", "kline.%s"}
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []stream.ChannelSubscription
 	pairs, err := c.GetEnabledPairs(asset.PerpetualSwap)
 	if err != nil {
 		log.Errorf(log.WebsocketMgr, "%s could not generate default subscriptions. Err: %s",
@@ -69,7 +68,7 @@ func (c *Coinbene) GenerateDefaultSubscriptions() {
 	for x := range channels {
 		for y := range pairs {
 			pairs[y].Delimiter = ""
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  fmt.Sprintf(channels[x], pairs[y]),
 				Currency: pairs[y],
 			})
@@ -80,8 +79,8 @@ func (c *Coinbene) GenerateDefaultSubscriptions() {
 
 // GenerateAuthSubs generates auth subs
 func (c *Coinbene) GenerateAuthSubs() {
-	var subscriptions []wshandler.WebsocketChannelSubscription
-	var sub wshandler.WebsocketChannelSubscription
+	var subscriptions []stream.ChannelSubscription
+	var sub stream.ChannelSubscription
 	var userChannels = []string{"user.account", "user.position", "user.order"}
 	for z := range userChannels {
 		sub.Channel = userChannels[z]
@@ -113,8 +112,8 @@ func (c *Coinbene) wsReadData() {
 }
 
 func (c *Coinbene) wsHandleData(respRaw []byte) error {
-	if string(respRaw) == wshandler.Ping {
-		err := c.Websocket.Conn.SendRawMessage(websocket.TextMessage, []byte(wshandler.Pong))
+	if string(respRaw) == stream.Ping {
+		err := c.Websocket.Conn.SendRawMessage(websocket.TextMessage, []byte(stream.Pong))
 		if err != nil {
 			return err
 		}
@@ -313,7 +312,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				return err
 			}
 		} else if orderBook.Action == "update" {
-			newOB := wsorderbook.WebsocketOrderbookUpdate{
+			newOB := cache.Update{
 				Asks:       asks,
 				Bids:       bids,
 				Asset:      asset.PerpetualSwap,
@@ -449,14 +448,14 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			}
 		}
 	default:
-		c.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: c.Name + wshandler.UnhandledMessage + string(respRaw)}
+		c.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: c.Name + stream.UnhandledMessage + string(respRaw)}
 		return nil
 	}
 	return nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *Coinbene) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (c *Coinbene) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	var sub WsSub
 	sub.Operation = "subscribe"
 	sub.Arguments = []string{channelToSubscribe.Channel}
@@ -464,7 +463,7 @@ func (c *Coinbene) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubsc
 }
 
 // Unsubscribe sends a websocket message to receive data from the channel
-func (c *Coinbene) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (c *Coinbene) Unsubscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	var sub WsSub
 	sub.Operation = "unsubscribe"
 	sub.Arguments = []string{channelToSubscribe.Channel}

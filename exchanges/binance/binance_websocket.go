@@ -15,8 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -31,7 +30,7 @@ var listenKey string
 // WsConnect intiates a websocket connection
 func (b *Binance) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(stream.WebsocketNotEnabled)
 	}
 
 	var dialer websocket.Dialer
@@ -94,7 +93,7 @@ func (b *Binance) WsConnect() error {
 			b.Name,
 			err)
 	}
-	b.Websocket.Conn.SetupPingHandler(stream.WebsocketPingHandler{
+	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.PongMessage,
 		Delay:             pingDelay,
@@ -261,7 +260,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 			}
 			b.Websocket.DataHandler <- data
 		default:
-			b.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: b.Name + wshandler.UnhandledMessage + string(respRaw)}
+			b.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: b.Name + stream.UnhandledMessage + string(respRaw)}
 			return nil
 		}
 	}
@@ -395,7 +394,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 							err)
 					}
 				default:
-					b.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: b.Name + wshandler.UnhandledMessage + string(respRaw)}
+					b.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: b.Name + stream.UnhandledMessage + string(respRaw)}
 				}
 			}
 		}
@@ -500,7 +499,7 @@ func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
 		return err
 	}
 
-	return b.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+	return b.Websocket.Orderbook.Update(&cache.Update{
 		Bids:     updateBid,
 		Asks:     updateAsk,
 		Pair:     pair,

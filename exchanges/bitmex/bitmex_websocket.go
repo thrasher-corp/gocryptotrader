@@ -17,8 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -68,7 +67,7 @@ const (
 // WsConnect initiates a new websocket connection
 func (b *Bitmex) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
@@ -473,7 +472,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			}
 			b.Websocket.DataHandler <- response
 		default:
-			b.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: b.Name + wshandler.UnhandledMessage + string(respRaw)}
+			b.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: b.Name + stream.UnhandledMessage + string(respRaw)}
 			return nil
 		}
 	}
@@ -529,7 +528,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 			})
 		}
 
-		err := b.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+		err := b.Websocket.Orderbook.Update(&cache.Update{
 			Bids:   bids,
 			Asks:   asks,
 			Pair:   p,
@@ -563,7 +562,7 @@ func (b *Bitmex) GenerateDefaultSubscriptions() {
 	}
 
 	channels := []string{bitmexWSOrderbookL2, bitmexWSTrade}
-	subscriptions := []wshandler.WebsocketChannelSubscription{
+	subscriptions := []stream.ChannelSubscription{
 		{
 			Channel: bitmexWSAnnouncement,
 		},
@@ -571,7 +570,7 @@ func (b *Bitmex) GenerateDefaultSubscriptions() {
 
 	for i := range channels {
 		for j := range allPairs {
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channels[i] + ":" + allPairs[j].String(),
 				Currency: allPairs[j],
 			})
@@ -596,7 +595,7 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() {
 	channels := []string{bitmexWSExecution,
 		bitmexWSPosition,
 	}
-	subscriptions := []wshandler.WebsocketChannelSubscription{
+	subscriptions := []stream.ChannelSubscription{
 		{
 			Channel: bitmexWSAffiliate,
 		},
@@ -618,7 +617,7 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() {
 	}
 	for i := range channels {
 		for j := range contracts {
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channels[i] + ":" + contracts[j].String(),
 				Currency: contracts[j],
 			})
@@ -628,7 +627,7 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() {
 }
 
 // Subscribe subscribes to a websocket channel
-func (b *Bitmex) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (b *Bitmex) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	var subscriber WebsocketRequest
 	subscriber.Command = "subscribe"
 	subscriber.Arguments = append(subscriber.Arguments, channelToSubscribe.Channel)
@@ -636,7 +635,7 @@ func (b *Bitmex) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscri
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitmex) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (b *Bitmex) Unsubscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	var subscriber WebsocketRequest
 	subscriber.Command = "unsubscribe"
 	subscriber.Arguments = append(subscriber.Arguments,

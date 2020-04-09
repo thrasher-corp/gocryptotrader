@@ -7,13 +7,12 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
 func TestWebsocketDataHandlerProcess(t *testing.T) {
-	ws := wshandler.New()
-	err := ws.Setup(&wshandler.WebsocketSetup{Enabled: true})
+	ws := stream.New()
+	err := ws.Setup(&stream.WebsocketSetup{Enabled: true})
 	if err != nil {
 		t.Error(err)
 	}
@@ -36,11 +35,11 @@ func TestHandleData(t *testing.T) {
 	if err == nil {
 		t.Error("Expected nil data error")
 	}
-	err = WebsocketDataHandler(exchName, wshandler.TradeData{})
+	err = WebsocketDataHandler(exchName, stream.TradeData{})
 	if err != nil {
 		t.Error(err)
 	}
-	err = WebsocketDataHandler(exchName, wshandler.FundingData{})
+	err = WebsocketDataHandler(exchName, stream.FundingData{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -48,11 +47,11 @@ func TestHandleData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = WebsocketDataHandler(exchName, wshandler.KlineData{})
+	err = WebsocketDataHandler(exchName, stream.KlineData{})
 	if err != nil {
 		t.Error(err)
 	}
-	err = WebsocketDataHandler(exchName, wshandler.WebsocketOrderbookUpdate{})
+	err = WebsocketDataHandler(exchName, stream.Update{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -107,7 +106,7 @@ func TestHandleData(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = WebsocketDataHandler(exchName, wshandler.UnhandledMessageWarning{Message: "there's an issue here's a tissue"})
+	err = WebsocketDataHandler(exchName, stream.UnhandledMessageWarning{Message: "there's an issue here's a tissue"})
 	if err != nil {
 		t.Error(err)
 	}

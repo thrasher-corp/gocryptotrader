@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -25,7 +24,7 @@ const (
 // WsConnect connects to a websocket feed
 func (b *Bitstamp) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := b.WebsocketConn.Dial(&dialer, http.Header{})
@@ -142,7 +141,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 			log.Debugf(log.ExchangeSys, "%v - Websocket order acknowledgement", b.Name)
 		}
 	default:
-		b.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: b.Name + wshandler.UnhandledMessage + string(respRaw)}
+		b.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: b.Name + stream.UnhandledMessage + string(respRaw)}
 	}
 	return nil
 }
@@ -157,10 +156,10 @@ func (b *Bitstamp) generateDefaultSubscriptions() {
 			err)
 		return
 	}
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []stream.ChannelSubscription
 	for i := range channels {
 		for j := range enabledCurrencies {
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel: channels[i] + enabledCurrencies[j].Lower().String(),
 			})
 		}
@@ -169,7 +168,7 @@ func (b *Bitstamp) generateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *Bitstamp) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (b *Bitstamp) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	req := websocketEventRequest{
 		Event: "bts:subscribe",
 		Data: websocketData{
@@ -180,7 +179,7 @@ func (b *Bitstamp) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubsc
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitstamp) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (b *Bitstamp) Unsubscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	req := websocketEventRequest{
 		Event: "bts:unsubscribe",
 		Data: websocketData{

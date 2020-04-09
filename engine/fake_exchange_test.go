@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -162,21 +162,21 @@ func (h *FakePassingExchange) GetActiveOrders(_ *order.GetOrdersRequest) ([]orde
 		},
 	}, nil
 }
-func (h *FakePassingExchange) SetHTTPClientUserAgent(_ string)             {}
-func (h *FakePassingExchange) GetHTTPClientUserAgent() string              { return "" }
-func (h *FakePassingExchange) SetClientProxyAddress(_ string) error        { return nil }
-func (h *FakePassingExchange) SupportsWebsocket() bool                     { return true }
-func (h *FakePassingExchange) SupportsREST() bool                          { return true }
-func (h *FakePassingExchange) IsWebsocketEnabled() bool                    { return true }
-func (h *FakePassingExchange) GetWebsocket() (*wshandler.Websocket, error) { return nil, nil }
-func (h *FakePassingExchange) SubscribeToWebsocketChannels(_ []wshandler.WebsocketChannelSubscription) error {
+func (h *FakePassingExchange) SetHTTPClientUserAgent(_ string)          {}
+func (h *FakePassingExchange) GetHTTPClientUserAgent() string           { return "" }
+func (h *FakePassingExchange) SetClientProxyAddress(_ string) error     { return nil }
+func (h *FakePassingExchange) SupportsWebsocket() bool                  { return true }
+func (h *FakePassingExchange) SupportsREST() bool                       { return true }
+func (h *FakePassingExchange) IsWebsocketEnabled() bool                 { return true }
+func (h *FakePassingExchange) GetWebsocket() (*stream.Websocket, error) { return nil, nil }
+func (h *FakePassingExchange) SubscribeToWebsocketChannels(_ []stream.ChannelSubscription) error {
 	return nil
 }
-func (h *FakePassingExchange) UnsubscribeToWebsocketChannels(_ []wshandler.WebsocketChannelSubscription) error {
+func (h *FakePassingExchange) UnsubscribeToWebsocketChannels(_ []stream.ChannelSubscription) error {
 	return nil
 }
 func (h *FakePassingExchange) AuthenticateWebsocket() error { return nil }
-func (h *FakePassingExchange) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
+func (h *FakePassingExchange) GetSubscriptions() ([]stream.ChannelSubscription, error) {
 	return nil, nil
 }
 func (h *FakePassingExchange) GetDefaultConfig() (*config.ExchangeConfig, error) { return nil, nil }

@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -58,7 +57,7 @@ var comms = make(chan WsMessage)
 // WsConnect initiates a new websocket connection
 func (h *HUOBI) WsConnect() error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := h.wsDial(&dialer)
@@ -405,7 +404,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			Pair:         p,
 		}
 	default:
-		h.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: h.Name + wshandler.UnhandledMessage + string(respRaw)}
+		h.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: h.Name + stream.UnhandledMessage + string(respRaw)}
 		return nil
 	}
 	return nil
@@ -465,10 +464,10 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (h *HUOBI) GenerateDefaultSubscriptions() {
 	var channels = []string{wsMarketKline, wsMarketDepth, wsMarketTrade, wsMarketTicker}
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []stream.ChannelSubscription
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
 		channels = append(channels, "orders.%v", "orders.%v.update")
-		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+		subscriptions = append(subscriptions, stream.ChannelSubscription{
 			Channel: "accounts",
 		})
 	}
@@ -484,7 +483,7 @@ func (h *HUOBI) GenerateDefaultSubscriptions() {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = ""
 			channel := fmt.Sprintf(channels[i], enabledCurrencies[j].Lower().String())
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channel,
 				Currency: enabledCurrencies[j],
 			})
@@ -494,7 +493,7 @@ func (h *HUOBI) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (h *HUOBI) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (h *HUOBI) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	if strings.Contains(channelToSubscribe.Channel, "orders.") ||
 		strings.Contains(channelToSubscribe.Channel, "accounts") {
 		return h.wsAuthenticatedSubscribe("sub", wsAccountsOrdersEndPoint+channelToSubscribe.Channel, channelToSubscribe.Channel)
@@ -503,7 +502,7 @@ func (h *HUOBI) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscrip
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (h *HUOBI) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (h *HUOBI) Unsubscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	if strings.Contains(channelToSubscribe.Channel, "orders.") ||
 		strings.Contains(channelToSubscribe.Channel, "accounts") {
 		return h.wsAuthenticatedSubscribe("unsub", wsAccountsOrdersEndPoint+channelToSubscribe.Channel, channelToSubscribe.Channel)

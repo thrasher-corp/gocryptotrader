@@ -8,32 +8,30 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
 )
 
-// Manager defines functionality for different exchange streaming services and
-// related connections
-type Manager interface {
-	// Connect() error
-	// Disconnect() error
-	// GenerateAuthSubscriptions()
-	// GenerateMarketDataSubscriptions()
-	// Subscribe()
-	// UnSubscribe()
-	// Refresh()
-	// GetName() string
-	// GetProxy() string
-	Setup(*wshandler.WebsocketSetup) error
-	SetupNewConnection(ConnectionSetup, bool) error
-	SetupLocalOrderbook(wsorderbook.Config) error
-	SubscribeToChannels([]ChannelSubscription)
-	RemoveSubscribedChannels([]ChannelSubscription)
-	GetSubscriptions() []ChannelSubscription
-	SetProxyAddress(string) error
-	IsEnabled() bool
-	Wrapper
-}
+// // Manager defines functionality for different exchange streaming services and
+// // related connections
+// type Manager interface {
+// 	// Connect() error
+// 	// Disconnect() error
+// 	// GenerateAuthSubscriptions()
+// 	// GenerateMarketDataSubscriptions()
+// 	// Subscribe()
+// 	// UnSubscribe()
+// 	// Refresh()
+// 	// GetName() string
+// 	// GetProxy() string
+// 	Setup(*stream.WebsocketSetup) error
+// 	SetupNewConnection(ConnectionSetup, bool) error
+// 	SetupLocalOrderbook(cache.Config) error
+// 	SubscribeToChannels([]ChannelSubscription)
+// 	RemoveSubscribedChannels([]ChannelSubscription)
+// 	GetSubscriptions() []ChannelSubscription
+// 	SetProxyAddress(string) error
+// 	IsEnabled() bool
+// 	Wrapper
+// }
 
 // Connection defines a streaming services connection
 type Connection interface {

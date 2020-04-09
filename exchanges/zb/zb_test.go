@@ -17,7 +17,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -60,9 +60,9 @@ func setupWsAuth(t *testing.T) {
 		return
 	}
 	if !z.Websocket.IsEnabled() && !z.API.AuthenticatedWebsocketSupport || !z.ValidateAPICredentials() || !canManipulateRealOrders {
-		t.Skip(wshandler.WebsocketNotEnabled)
+		t.Skip(stream.WebsocketNotEnabled)
 	}
-	z.WebsocketConn = &wshandler.WebsocketConnection{
+	z.WebsocketConn = &stream.WebsocketConnection{
 		ExchangeName:         z.Name,
 		URL:                  zbWebsocketAPI,
 		Verbose:              z.Verbose,

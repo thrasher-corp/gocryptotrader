@@ -19,8 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -40,7 +39,7 @@ var responseCheckTimeout time.Duration
 // WsConnect initiates a websocket connection
 func (g *Gemini) WsConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(stream.WebsocketNotEnabled)
 	}
 
 	var dialer websocket.Dialer
@@ -74,7 +73,7 @@ func (g *Gemini) WsSubscribe(dialer *websocket.Dialer) error {
 			geminiWsMarketData,
 			enabledCurrencies[i].String(),
 			val.Encode())
-		connection := &wshandler.WebsocketConnection{
+		connection := &stream.WebsocketConnection{
 			ExchangeName:         g.Name,
 			URL:                  endpoint,
 			Verbose:              g.Verbose,
@@ -119,7 +118,7 @@ func (g *Gemini) WsSecureSubscribe(dialer *websocket.Dialer, url string) error {
 	headers.Add("X-GEMINI-SIGNATURE", crypto.HexEncodeToString(hmac))
 	headers.Add("Cache-Control", "no-cache")
 
-	g.Websocket.AuthConn = &wshandler.WebsocketConnection{
+	g.Websocket.AuthConn = &stream.WebsocketConnection{
 		ExchangeName:         g.Name,
 		URL:                  endpoint,
 		Verbose:              g.Verbose,
@@ -317,7 +316,7 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 			}
 
 		default:
-			g.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: g.Name + wshandler.UnhandledMessage + string(respRaw)}
+			g.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: g.Name + stream.UnhandledMessage + string(respRaw)}
 			return nil
 		}
 	} else if _, ok := result["result"]; ok {
@@ -330,7 +329,7 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 			}
 			return fmt.Errorf("%v Unhandled websocket error %s", g.Name, respRaw)
 		default:
-			g.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: g.Name + wshandler.UnhandledMessage + string(respRaw)}
+			g.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: g.Name + stream.UnhandledMessage + string(respRaw)}
 			return nil
 		}
 	}
@@ -438,7 +437,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 		if len(asks) == 0 && len(bids) == 0 {
 			return
 		}
-		err := g.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+		err := g.Websocket.Orderbook.Update(&cache.Update{
 			Asks:       asks,
 			Bids:       bids,
 			Pair:       pair,

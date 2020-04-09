@@ -17,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -29,14 +28,14 @@ const (
 // WsConnect connects the websocket client
 func (b *BTSE) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	b.Websocket.Conn.SetupPingHandler(stream.WebsocketPingHandler{
+	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.PingMessage,
 		Delay:       btseWebsocketTimer,
 	})
@@ -281,7 +280,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	default:
-		b.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: b.Name + wshandler.UnhandledMessage + string(respRaw)}
+		b.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: b.Name + stream.UnhandledMessage + string(respRaw)}
 		return nil
 	}
 	return nil
@@ -298,15 +297,15 @@ func (b *BTSE) GenerateDefaultSubscriptions() {
 			err)
 		return
 	}
-	var subscriptions []wshandler.WebsocketChannelSubscription
+	var subscriptions []stream.ChannelSubscription
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+		subscriptions = append(subscriptions, stream.ChannelSubscription{
 			Channel: "notificationApi",
 		})
 	}
 	for i := range channels {
 		for j := range pairs {
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  fmt.Sprintf(channels[i], pairs[j]),
 				Currency: pairs[j],
 			})
@@ -316,7 +315,7 @@ func (b *BTSE) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *BTSE) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (b *BTSE) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	var sub wsSub
 	sub.Operation = "subscribe"
 	sub.Arguments = []string{channelToSubscribe.Channel}
@@ -325,7 +324,7 @@ func (b *BTSE) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscript
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *BTSE) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (b *BTSE) Unsubscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	var unSub wsSub
 	unSub.Operation = "unsubscribe"
 	unSub.Arguments = []string{channelToSubscribe.Channel}

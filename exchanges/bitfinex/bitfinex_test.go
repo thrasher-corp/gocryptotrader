@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -956,7 +956,7 @@ func TestGetDepositAddress(t *testing.T) {
 }
 
 func setupWs() {
-	b.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
+	b.AuthenticatedWebsocketConn = &stream.WebsocketConnection{
 		ExchangeName:         b.Name,
 		URL:                  authenticatedBitfinexWebsocketEndpoint,
 		Verbose:              b.Verbose,

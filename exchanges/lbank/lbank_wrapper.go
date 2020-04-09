@@ -18,7 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -32,13 +32,10 @@ func (l *Lbank) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = l.BaseCurrencies
 
-	err := l.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
+	l.SetupDefaults(exchCfg)
 
 	if l.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = l.UpdateTradablePairs(true)
+		err := l.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -106,13 +103,10 @@ func (l *Lbank) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	err := l.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+	l.SetupDefaults(exch)
 
 	if l.API.AuthenticatedSupport {
-		err = l.loadPrivKey()
+		err := l.loadPrivKey()
 		if err != nil {
 			l.API.AuthenticatedSupport = false
 			log.Errorf(log.ExchangeSys, "%s couldn't load private key, setting authenticated support to false", l.Name)
@@ -516,7 +510,7 @@ func (l *Lbank) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.R
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (l *Lbank) GetWebsocket() (*wshandler.Websocket, error) {
+func (l *Lbank) GetWebsocket() (*stream.Websocket, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -740,13 +734,13 @@ func (l *Lbank) getAllOpenOrderID() (map[string][]string, error) {
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (l *Lbank) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (l *Lbank) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	return common.ErrNotYetImplemented
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (l *Lbank) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (l *Lbank) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	return common.ErrNotYetImplemented
 }
 
@@ -756,7 +750,7 @@ func (l *Lbank) AuthenticateWebsocket() error {
 }
 
 // GetSubscriptions gets subscriptions
-func (l *Lbank) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
+func (l *Lbank) GetSubscriptions() ([]stream.ChannelSubscription, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

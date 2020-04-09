@@ -18,8 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -40,7 +39,7 @@ var (
 // WsConnect initiates a websocket connection
 func (p *Poloniex) WsConnect() error {
 	if !p.Websocket.IsEnabled() || !p.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := p.Websocket.Conn.Dial(&dialer, http.Header{})
@@ -354,7 +353,7 @@ func (p *Poloniex) wsHandleData(respRaw []byte) error {
 							Price:        trade.Price,
 						}
 					default:
-						p.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: p.Name + wshandler.UnhandledMessage + string(respRaw)}
+						p.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: p.Name + stream.UnhandledMessage + string(respRaw)}
 						return nil
 					}
 				}
@@ -515,7 +514,7 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber int64, target []inter
 	if err != nil {
 		return err
 	}
-	update := &wsorderbook.WebsocketOrderbookUpdate{
+	update := &cache.Update{
 		Pair:     cP,
 		Asset:    asset.Spot,
 		UpdateID: sequenceNumber,
@@ -530,13 +529,13 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber int64, target []inter
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (p *Poloniex) GenerateDefaultSubscriptions() {
-	var subscriptions []wshandler.WebsocketChannelSubscription
-	subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+	var subscriptions []stream.ChannelSubscription
+	subscriptions = append(subscriptions, stream.ChannelSubscription{
 		Channel: strconv.FormatInt(wsTickerDataID, 10),
 	})
 
 	if p.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+		subscriptions = append(subscriptions, stream.ChannelSubscription{
 			Channel: strconv.FormatInt(wsAccountNotificationID, 10),
 		})
 	}
@@ -551,7 +550,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() {
 	}
 	for j := range enabledCurrencies {
 		enabledCurrencies[j].Delimiter = currency.Underscore
-		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+		subscriptions = append(subscriptions, stream.ChannelSubscription{
 			Channel:  "orderbook",
 			Currency: enabledCurrencies[j],
 		})
@@ -560,7 +559,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (p *Poloniex) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (p *Poloniex) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	subscriptionRequest := WsCommand{
 		Command: "subscribe",
 	}
@@ -576,7 +575,7 @@ func (p *Poloniex) Subscribe(channelToSubscribe *wshandler.WebsocketChannelSubsc
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (p *Poloniex) Unsubscribe(channelToSubscribe *wshandler.WebsocketChannelSubscription) error {
+func (p *Poloniex) Unsubscribe(channelToSubscribe *stream.ChannelSubscription) error {
 	unsubscriptionRequest := WsCommand{
 		Command: "unsubscribe",
 	}

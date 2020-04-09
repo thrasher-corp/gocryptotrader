@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -585,9 +585,9 @@ func TestGetDepositAddress(t *testing.T) {
 // TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
 	if !c.Websocket.IsEnabled() && !c.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
-		t.Skip(wshandler.WebsocketNotEnabled)
+		t.Skip(stream.WebsocketNotEnabled)
 	}
-	c.WebsocketConn = &wshandler.WebsocketConnection{
+	c.WebsocketConn = &stream.WebsocketConnection{
 		ExchangeName:         c.Name,
 		URL:                  c.Websocket.GetWebsocketURL(),
 		Verbose:              c.Verbose,
@@ -607,7 +607,7 @@ func TestWsAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = c.Subscribe(&wshandler.WebsocketChannelSubscription{
+	err = c.Subscribe(&stream.ChannelSubscription{
 		Channel:  "user",
 		Currency: p,
 	})

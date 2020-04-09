@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -28,13 +28,10 @@ func (o *OKEX) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = o.BaseCurrencies
 
-	err := o.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
+	o.SetupDefaults(exchCfg)
 
 	if o.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = o.UpdateTradablePairs(true)
+		err := o.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -174,7 +171,7 @@ func (o *OKEX) SetDefaults() {
 	o.API.Endpoints.URLDefault = okExAPIURL
 	o.API.Endpoints.URL = okExAPIURL
 	o.API.Endpoints.WebsocketURL = OkExWebsocketURL
-	o.Websocket = wshandler.New()
+	o.Websocket = stream.New()
 	o.APIVersion = okExAPIVersion
 	o.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	o.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout

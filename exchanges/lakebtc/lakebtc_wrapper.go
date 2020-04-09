@@ -19,8 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -34,13 +34,10 @@ func (l *LakeBTC) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = l.BaseCurrencies
 
-	err := l.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
+	l.SetupDefaults(exchCfg)
 
 	if l.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = l.UpdateTradablePairs(true)
+		err := l.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -104,7 +101,7 @@ func (l *LakeBTC) SetDefaults() {
 
 	l.API.Endpoints.URLDefault = lakeBTCAPIURL
 	l.API.Endpoints.URL = l.API.Endpoints.URLDefault
-	l.Websocket = wshandler.New()
+	l.Websocket = stream.New()
 	l.API.Endpoints.WebsocketURL = lakeBTCWSURL
 	l.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	l.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -118,12 +115,9 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	err := l.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+	l.SetupDefaults(exch)
 
-	err = l.Websocket.Setup(&wshandler.WebsocketSetup{
+	err := l.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -139,7 +133,7 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return l.Websocket.SetupLocalOrderbook(wsorderbook.Config{
+	return l.Websocket.SetupLocalOrderbook(cache.Config{
 		OrderbookBufferLimit: exch.WebsocketOrderbookBufferLimit,
 	})
 }
@@ -452,7 +446,7 @@ func (l *LakeBTC) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (l *LakeBTC) GetWebsocket() (*wshandler.Websocket, error) {
+func (l *LakeBTC) GetWebsocket() (*stream.Websocket, error) {
 	return l.Websocket, nil
 }
 
@@ -545,18 +539,18 @@ func (l *LakeBTC) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (l *LakeBTC) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (l *LakeBTC) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (l *LakeBTC) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+func (l *LakeBTC) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
 	return common.ErrFunctionNotSupported
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (l *LakeBTC) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
+func (l *LakeBTC) GetSubscriptions() ([]stream.ChannelSubscription, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
