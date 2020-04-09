@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/hex"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"sync/atomic"
 	"time"
@@ -64,20 +63,10 @@ func (vm *VM) Load(file string) error {
 		log.Debugf(log.GCTScriptMgr, "Loading script: %s ID: %v", vm.ShortName(), vm.ID)
 	}
 
-	f, err := os.Open(file)
+	code, err := ioutil.ReadFile(file)
 	if err != nil {
 		return &Error{
-			Action: "Load: Open",
-			Script: file,
-			Cause:  err,
-		}
-	}
-
-	defer f.Close()
-	code, err := ioutil.ReadAll(f)
-	if err != nil {
-		return &Error{
-			Action: "Load: Read",
+			Action: "Load: ReadFile",
 			Script: file,
 			Cause:  err,
 		}

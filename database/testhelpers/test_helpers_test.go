@@ -33,7 +33,7 @@ func TestDatabaseConnect(t *testing.T) {
 	testCases := []struct {
 		name   string
 		config *database.Config
-		closer func(dbConn *database.Db) error
+		closer func(dbConn *database.Instance) error
 		output interface{}
 	}{
 		{

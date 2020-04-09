@@ -27,5 +27,5 @@ require (
 	golang.org/x/sys v0.0.0-20191003212358-c178f38b412c // indirect
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	google.golang.org/genproto v0.0.0-20191002211648-c459b9ce5143
-	google.golang.org/grpc v1.28.0
+	google.golang.org/grpc v1.28.1
 )

@@ -62,10 +62,10 @@ type EthplorerResponse struct {
 		Image          string `json:"image"`
 		Description    string `json:"description"`
 		Price          struct {
-			Rate     int    `json:"rate"`
-			Diff     int    `json:"diff"`
-			Ts       int    `json:"ts"`
-			Currency string `json:"currency"`
+			Rate      int    `json:"rate"`
+			Diff      int    `json:"diff"`
+			Timestamp int64  `json:"ts"`
+			Currency  string `json:"currency"`
 		} `json:"price"`
 	} `json:"tokenInfo"`
 	Error struct {
