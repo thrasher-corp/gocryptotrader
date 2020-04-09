@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -12,6 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -147,16 +150,18 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
+	g.Verbose = true
 
-	_, err := g.GetSpotKline(KlinesRequestParams{
+	v, err := g.GetSpotKline(KlinesRequestParams{
 		Symbol:   "btc_usdt",
-		GroupSec: TimeIntervalFiveMinutes, // 5 minutes or less
-		HourSize: 1,                       // 1 hour data
+		GroupSec: "5", // 5 minutes or less
+		HourSize: 1,   // 1 hour data
 	})
 
 	if err != nil {
 		t.Errorf("Gateio GetSpotKline: %s", err)
 	}
+	t.Log(v)
 }
 
 func setFeeBuilder() *exchange.FeeBuilder {
@@ -742,4 +747,15 @@ func TestWsBalanceUpdate(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	g.Verbose = true
+	currencyPair := currency.NewPairFromString("BTC_USDT")
+	startTime := time.Now().Add(-time.Hour * 6)
+	v, err := g.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(v)
 }
