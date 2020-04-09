@@ -257,8 +257,9 @@ func (w *Websocket) setConnectedStatus(b bool) {
 // IsConnected returns status of connection
 func (w *Websocket) IsConnected() bool {
 	w.connectionMutex.RLock()
-	defer w.connectionMutex.RUnlock()
-	return w.connected
+	isConnected := w.connected
+	w.connectionMutex.RUnlock()
+	return isConnected
 }
 
 func (w *Websocket) setConnectingStatus(b bool) {
@@ -270,8 +271,9 @@ func (w *Websocket) setConnectingStatus(b bool) {
 // IsConnecting returns status of connecting
 func (w *Websocket) IsConnecting() bool {
 	w.connectionMutex.RLock()
-	defer w.connectionMutex.RUnlock()
-	return w.connecting
+	isConnecting := w.connecting
+	w.connectionMutex.RUnlock()
+	return isConnecting
 }
 
 func (w *Websocket) setEnabled(b bool) {
@@ -283,8 +285,9 @@ func (w *Websocket) setEnabled(b bool) {
 // IsEnabled returns status of enabled
 func (w *Websocket) IsEnabled() bool {
 	w.connectionMutex.RLock()
-	defer w.connectionMutex.RUnlock()
-	return w.enabled
+	isEnabled := w.enabled
+	w.connectionMutex.RUnlock()
+	return isEnabled
 }
 
 func (w *Websocket) setInit(b bool) {
@@ -296,8 +299,9 @@ func (w *Websocket) setInit(b bool) {
 // IsInit returns status of init
 func (w *Websocket) IsInit() bool {
 	w.connectionMutex.RLock()
-	defer w.connectionMutex.RUnlock()
-	return w.init
+	isInit := w.init
+	w.connectionMutex.RUnlock()
+	return isInit
 }
 
 func (w *Websocket) setTrafficMonitorRunning(b bool) {
@@ -309,8 +313,9 @@ func (w *Websocket) setTrafficMonitorRunning(b bool) {
 // IsTrafficMonitorRunning returns status of the traffic monitor
 func (w *Websocket) IsTrafficMonitorRunning() bool {
 	w.connectionMutex.RLock()
-	defer w.connectionMutex.RUnlock()
-	return w.trafficMonitorRunning
+	trafficMonRunning := w.trafficMonitorRunning
+	w.connectionMutex.RUnlock()
+	return trafficMonRunning
 }
 
 func (w *Websocket) setConnectionMonitorRunning(b bool) {
@@ -322,8 +327,9 @@ func (w *Websocket) setConnectionMonitorRunning(b bool) {
 // IsConnectionMonitorRunning returns status of connection monitor
 func (w *Websocket) IsConnectionMonitorRunning() bool {
 	w.connectionMutex.RLock()
-	defer w.connectionMutex.RUnlock()
-	return w.connectionMonitorRunning
+	isConnMonRunning := w.connectionMonitorRunning
+	w.connectionMutex.RUnlock()
+	return isConnMonRunning
 }
 
 // CanUseAuthenticatedWebsocketForWrapper Handles a common check to
@@ -616,8 +622,9 @@ func (w *Websocket) SetCanUseAuthenticatedEndpoints(val bool) {
 // a thread safe manner
 func (w *Websocket) CanUseAuthenticatedEndpoints() bool {
 	w.subscriptionMutex.Lock()
-	defer w.subscriptionMutex.Unlock()
-	return w.canUseAuthenticatedEndpoints
+	canUseAuthEndpoints := w.canUseAuthenticatedEndpoints
+	w.subscriptionMutex.Unlock()
+	return canUseAuthEndpoints
 }
 
 // SetResponseIDAndData adds data to IDResponses with locks and a nil check
@@ -642,6 +649,9 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 	var err error
 	var conStatus *http.Response
 	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)
+	if conStatus != nil {
+		conStatus.Body.Close()
+	}
 	if err != nil {
 		if conStatus != nil {
 			return fmt.Errorf("%v %v %v Error: %v", w.URL, conStatus, conStatus.StatusCode, err)
@@ -801,8 +811,9 @@ func (w *WebsocketConnection) setConnectedStatus(b bool) {
 // IsConnected exposes websocket connection status
 func (w *WebsocketConnection) IsConnected() bool {
 	w.connectionMutex.RLock()
-	defer w.connectionMutex.RUnlock()
-	return w.connected
+	isConnected := w.connected
+	w.connectionMutex.RUnlock()
+	return isConnected
 }
 
 // ReadMessage reads messages, can handle text, gzip and binary

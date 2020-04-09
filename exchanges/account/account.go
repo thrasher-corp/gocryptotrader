@@ -53,12 +53,11 @@ func GetHoldings(exch string) (Holdings, error) {
 	exch = strings.ToLower(exch)
 
 	service.Lock()
+	defer service.Unlock()
 	h, ok := service.accounts[exch]
 	if !ok {
-		service.Unlock()
 		return Holdings{}, errors.New("exchange account holdings not found")
 	}
-	defer service.Unlock()
 	return *h.h, nil
 }
 

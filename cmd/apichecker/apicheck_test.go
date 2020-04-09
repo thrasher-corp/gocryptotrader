@@ -43,14 +43,13 @@ func TestMain(m *testing.M) {
 	}
 	usageData = testConfigData
 	setTestVars()
-	defer os.Exit(m.Run())
-	defer func() {
-		err := removeTestFileVars()
-		if err != nil {
-			log.Error(log.Global, err)
-			os.Exit(1)
-		}
-	}()
+	testExitCode := m.Run()
+	err = removeTestFileVars()
+	if err != nil {
+		log.Error(log.Global, err)
+		os.Exit(1)
+	}
+	os.Exit(testExitCode)
 }
 
 func areTestAPIKeysSet() bool {

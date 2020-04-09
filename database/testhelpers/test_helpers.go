@@ -66,7 +66,7 @@ func GetConnectionDetails() *database.Config {
 }
 
 // ConnectToDatabase opens connection to database and returns pointer to instance of database.DB
-func ConnectToDatabase(conn *database.Config) (dbConn *database.Db, err error) {
+func ConnectToDatabase(conn *database.Config) (dbConn *database.Instance, err error) {
 	database.DB.Config = conn
 
 	if conn.Driver == database.DBPostgreSQL {
@@ -87,7 +87,7 @@ func ConnectToDatabase(conn *database.Config) (dbConn *database.Db, err error) {
 }
 
 // CloseDatabase closes database connection
-func CloseDatabase(conn *database.Db) (err error) {
+func CloseDatabase(conn *database.Instance) (err error) {
 	if conn != nil {
 		return conn.SQL.Close()
 	}
