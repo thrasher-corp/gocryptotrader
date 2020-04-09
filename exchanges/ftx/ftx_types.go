@@ -554,3 +554,116 @@ type LTRedemptionRequest struct {
 	Success bool                    `json:"success"`
 	Result  LTRedemptionRequestData `json:"result"`
 }
+
+// OptionData stores options' data
+type OptionData struct {
+	Underlying string  `json:"underlying"`
+	OptionType string  `json:"type"`
+	Strike     float64 `json:"strike"`
+	Expiry     string  `json:"expiry"`
+}
+
+// QuoteRequestData stores option's quote request data
+type QuoteRequestData struct {
+	ID            int64      `json:"id"`
+	Option        OptionData `json:"option"`
+	Side          string     `json:"side"`
+	Size          float64    `json:"size"`
+	Time          string     `json:"time"`
+	RequestExpiry string     `json:"requestExpiry"`
+	Status        string     `json:"status"`
+}
+
+// QuoteRequests stores data of quote requests
+type QuoteRequests struct {
+	Success bool               `json:"success"`
+	Result  []QuoteRequestData `json:"result"`
+}
+
+// QuoteData stores quote's data
+type QuoteData struct {
+	Collateral  float64 `json:"collateral"`
+	ID          int64   `json:"id"`
+	Price       float64 `json:"price"`
+	QuoteExpiry string  `json:"quoteExpiry"`
+	Status      string  `json:"status"`
+	Time        string  `json:"time"`
+}
+
+// PersonalQuotesData stores data of your quotes
+type PersonalQuotesData struct {
+	ID             int64       `json:"id"`
+	Option         OptionData  `json:"option"`
+	Side           string      `json:"side"`
+	Size           float64     `json:"size"`
+	Time           string      `json:"time"`
+	RequestExpiry  string      `json:"requestExpiry"`
+	Status         string      `json:"status"`
+	HideLimitPrice bool        `json:"hideLimitPrice"`
+	LimitPrice     float64     `json:"limitPrice"`
+	Quotes         []QuoteData `json:"quotes"`
+}
+
+// PersonalQuotes stores quote data of your quotes
+type PersonalQuotes struct {
+	Success bool                 `json:"success"`
+	Result  []PersonalQuotesData `json:"result"`
+}
+
+// CreateQuoteRequestData stores quote data of the request sent
+type CreateQuoteRequestData struct {
+	ID            int64   `json:"id"`
+	Expiry        string  `json:"expiry"`
+	Strike        float64 `json:"strike"`
+	OptionType    string  `json:"type"`
+	Underlying    string  `json:"underlying"`
+	RequestExpiry string  `json:"requestExpiry"`
+	Side          string  `json:"side"`
+	Size          float64 `json:"size"`
+	Status        string  `json:"status"`
+	Time          string  `json:"time"`
+}
+
+// CreateQuote stores create quote request data
+type CreateQuote struct {
+	Success bool                   `json:"success"`
+	Result  CreateQuoteRequestData `json:"result"`
+}
+
+// CancelQuoteRequestData stores cancel quote request data
+type CancelQuoteRequestData struct {
+	ID            int64      `json:"id"`
+	Option        OptionData `json:"option"`
+	RequestExpiry string     `json:"requestExpiry"`
+	Side          string     `json:"side"`
+	Size          float64    `json:"size"`
+	Status        string     `json:"status"`
+	Time          string     `json:"time"`
+}
+
+// CancelQuote stores cancel quote request data
+type CancelQuote struct {
+	Success bool                   `json:"success"`
+	Result  CancelQuoteRequestData `json:"result"`
+}
+
+// QuoteForQuoteData gets quote data for your quote
+type QuoteForQuoteData struct {
+	Collateral  float64    `json:"collateral"`
+	ID          int64      `json:"id"`
+	Option      OptionData `json:"option"`
+	Price       float64    `json:"price"`
+	QuoteExpiry string     `json:"quoteExpiry"`
+	QuoterSide  string     `json:"quoterSide"`
+	RequestID   int64      `json:"requestID"`
+	RequestSide string     `json:"requestSide"`
+	Size        float64    `json:"size"`
+	Status      string     `json:"status"`
+	Time        string     `json:"time"`
+}
+
+// QuoteForQuoteResponse stores quote data for another quote
+type QuoteForQuoteResponse struct {
+	Success bool              `json:"success"`
+	Result  QuoteForQuoteData `json:"result"`
+}

@@ -73,6 +73,14 @@ const (
 	requestLTCreation        = "/lt/%s/create"
 	getLTRedemptions         = "/lt/redemptions"
 	requestLTRedemption      = "/lt/%s/redeem"
+	getListQuotes            = "/options/requests"
+	getMyQuotesRequests      = "/options/my_requests"
+	createQuoteRequest       = "/options/requests"
+	deleteQuote              = "/options/requests/%s"
+	getQuotesForQuote        = "/options/requests/%s/quotes"
+	createQuote              = "/options/requests/%s/quotes?"
+	getMyQuotes              = "/options/my_quotes"
+	deleteMyQuote            = "/options/quotes/%s"
 	ftxRateInterval          = time.Minute
 	ftxRequestRate           = 180
 
@@ -558,6 +566,85 @@ func (f *Ftx) RequestLTRedemption(tokenName string, size float64) (LTRedemptionR
 	req := make(map[string]interface{})
 	req["size"] = size
 	return resp, f.SendAuthHTTPRequest(http.MethodPost, fmt.Sprintf(requestLTRedemption, tokenName), req, &resp)
+}
+
+// GetQuoteRequests gets a list of quote requests
+func (f *Ftx) GetQuoteRequests() (QuoteRequests, error) {
+	var resp QuoteRequests
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getListQuotes, nil, &resp)
+}
+
+// GetYourQuoteRequests gets a list of your quote requests
+func (f *Ftx) GetYourQuoteRequests() (PersonalQuotes, error) {
+	var resp PersonalQuotes
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getMyQuotesRequests, nil, &resp)
+}
+
+// CreateQuoteRequest sends a request to create a quote
+func (f *Ftx) CreateQuoteRequest(underlying, optionType, side string, expiry int64, strike, size, limitPrice, requestExpiry, counterParyID float64, hideLimitPrice bool) (CreateQuote, error) {
+	var resp CreateQuote
+	req := make(map[string]interface{})
+	if underlying != "" {
+		req["underlying"] = underlying
+	}
+	if optionType != "" {
+		req["type"] = optionType
+	}
+	if side != "" {
+		req["side"] = side
+	}
+	if strike != 0 {
+		req["strike"] = strike
+	}
+	if expiry != 0 {
+		req["expiry"] = expiry
+	}
+	if size != 0 {
+		req["size"] = size
+	}
+	if limitPrice != 0 {
+		req["limitPrice"] = limitPrice
+	}
+	if requestExpiry != 0 {
+		req["requestExpiry"] = requestExpiry
+	}
+	if counterParyID != 0 {
+		req["counterParyID"] = counterParyID
+	}
+	req["hideLimitPrice"] = hideLimitPrice
+	return resp, f.SendAuthHTTPRequest(http.MethodPost, createQuoteRequest, req, &resp)
+}
+
+// DeleteQuote sends request to cancel a quote
+func (f *Ftx) DeleteQuote(requestID string) (CancelQuote, error) {
+	var resp CancelQuote
+	return resp, f.SendAuthHTTPRequest(http.MethodDelete, fmt.Sprintf(deleteQuote, requestID), nil, &resp)
+}
+
+// GetQuotesForYourQuote gets a list of quotes for your quote
+func (f *Ftx) GetQuotesForYourQuote() (QuoteForQuoteData, error) {
+	var resp QuoteForQuoteData
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getQuotesForQuote, nil, &resp)
+}
+
+// MakeQuote makes a quote for a quote
+func (f *Ftx) MakeQuote(requestID, price string) (QuoteForQuoteResponse, error) {
+	var resp QuoteForQuoteResponse
+	params := url.Values{}
+	params.Set("price", price)
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, fmt.Sprintf(createQuote, requestID), nil, &resp)
+}
+
+// MyQuotes gets a list of my quotes for quotes
+func (f *Ftx) MyQuotes() (QuoteForQuoteResponse, error) {
+	var resp QuoteForQuoteResponse
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getMyQuotes, nil, &resp)
+}
+
+// DeleteMyQuote deletes my quote for quotes
+func (f *Ftx) DeleteMyQuote(quoteID string) (QuoteForQuoteResponse, error) {
+	var resp QuoteForQuoteResponse
+	return resp, f.SendAuthHTTPRequest(http.MethodDelete, fmt.Sprintf(deleteMyQuote, quoteID), nil, &resp)
 }
 
 // SendAuthHTTPRequest sends an authenticated request

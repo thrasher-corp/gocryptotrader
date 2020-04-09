@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
@@ -122,6 +123,9 @@ func TestGetFundingRates(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	a, err := f.GetAccountInfo()
 	t.Log(a)
 	if err != nil {
@@ -130,6 +134,9 @@ func TestGetAccountInfo(t *testing.T) {
 }
 
 func TestGetPositions(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	a, err := f.GetPositions()
 	t.Log(a)
 	if err != nil {
@@ -138,6 +145,9 @@ func TestGetPositions(t *testing.T) {
 }
 
 func TestChangeAccountLeverage(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	f.Verbose = true
 	err := f.ChangeAccountLeverage(50)
 	if err != nil {
@@ -146,6 +156,9 @@ func TestChangeAccountLeverage(t *testing.T) {
 }
 
 func TestGetCoins(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	a, err := f.GetCoins()
 	t.Log(a)
 	if err != nil {
@@ -154,6 +167,9 @@ func TestGetCoins(t *testing.T) {
 }
 
 func TestGetBalances(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	f.Verbose = true
 	a, err := f.GetBalances()
 	t.Log(a)
@@ -163,6 +179,9 @@ func TestGetBalances(t *testing.T) {
 }
 
 func TestGetAllWalletBalances(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	f.Verbose = true
 	a, err := f.GetAllWalletBalances()
 	t.Log(a)
@@ -172,6 +191,9 @@ func TestGetAllWalletBalances(t *testing.T) {
 }
 
 func TestFetchDepositAddress(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	f.Verbose = true
 	a, err := f.FetchDepositAddress("TUSD")
 	t.Log(a)
@@ -181,6 +203,9 @@ func TestFetchDepositAddress(t *testing.T) {
 }
 
 func TestFetchDepositHistory(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	f.Verbose = true
 	a, err := f.FetchDepositHistory()
 	t.Log(a)
@@ -190,6 +215,9 @@ func TestFetchDepositHistory(t *testing.T) {
 }
 
 func TestFetchWithdrawalHistory(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	f.Verbose = true
 	a, err := f.FetchWithdrawalHistory()
 	t.Log(a)
@@ -199,6 +227,9 @@ func TestFetchWithdrawalHistory(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	a, err := f.Withdraw("BTC", "38eyTMFHvo5UjPR91zwYYKuCtdF2uhtdxS", "", "", "957378", 0.01)
 	t.Log(a)
 	if err != nil {
@@ -207,6 +238,9 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestOpenOrders(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	a, err := f.GetOpenOrders("FTT/BTC")
 	t.Log(a)
 	if err != nil {
@@ -215,6 +249,9 @@ func TestOpenOrders(t *testing.T) {
 }
 
 func TestFetchOrderHistory(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	a, err := f.FetchOrderHistory("FTT/BTC", "", "", "2")
 	t.Log(a)
 	if err != nil {
@@ -223,6 +260,9 @@ func TestFetchOrderHistory(t *testing.T) {
 }
 
 func TestGetOpenTriggerOrders(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	a, err := f.GetOpenTriggerOrders("FTT/BTC", "")
 	t.Log(a)
 	if err != nil {
@@ -231,6 +271,9 @@ func TestGetOpenTriggerOrders(t *testing.T) {
 }
 
 func TestGetTriggerOrderTriggers(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	a, err := f.GetTriggerOrderTriggers("alkdjfkajdsf")
 	t.Log(a)
 	if err != nil {
@@ -239,6 +282,9 @@ func TestGetTriggerOrderTriggers(t *testing.T) {
 }
 
 func TestGetTriggerOrderHistory(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	a, err := f.GetTriggerOrderHistory("FTT/BTC")
 	t.Log(a)
 	if err != nil {
@@ -247,6 +293,9 @@ func TestGetTriggerOrderHistory(t *testing.T) {
 }
 
 func TestOrder(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	a, err := f.Order("FTT/BTC", "buy", "limit", "", "", "", "", 0.0001, 500)
 	t.Log(a)
 	if err != nil {
@@ -255,6 +304,9 @@ func TestOrder(t *testing.T) {
 }
 
 func TestTriggerOrder(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	a, err := f.TriggerOrder("FTT/BTC", "buy", stopOrderType, "", "", 500, 0.0004, 0.0001, 0)
 	t.Log(a)
 	if err != nil {
@@ -263,6 +315,9 @@ func TestTriggerOrder(t *testing.T) {
 }
 
 func TestDeleteOrder(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	a, err := f.DeleteOrder("testing123")
 	t.Log(a)
 	if err != nil {
@@ -271,6 +326,9 @@ func TestDeleteOrder(t *testing.T) {
 }
 
 func TestDeleteOrderByClientID(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	a, err := f.DeleteOrderByClientID("clientID123")
 	t.Log(a)
 	if err != nil {
@@ -279,6 +337,9 @@ func TestDeleteOrderByClientID(t *testing.T) {
 }
 
 func TestDeleteTriggerOrder(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	a, err := f.DeleteTriggerOrder("triggerOrder123")
 	t.Log(a)
 	if err != nil {
@@ -287,6 +348,9 @@ func TestDeleteTriggerOrder(t *testing.T) {
 }
 
 func TestGetFills(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	a, err := f.GetFills("FTT/BTC", "", "", "")
 	t.Log(a)
 	if err != nil {
@@ -295,6 +359,9 @@ func TestGetFills(t *testing.T) {
 }
 
 func TestGetFundingPayments(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	a, err := f.GetFundingPayments("", "", "")
 	t.Log(a)
 	if err != nil {
@@ -303,6 +370,9 @@ func TestGetFundingPayments(t *testing.T) {
 }
 
 func TestListLeveragedTokens(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	a, err := f.ListLeveragedTokens()
 	t.Log(a)
 	if err != nil {
@@ -311,6 +381,9 @@ func TestListLeveragedTokens(t *testing.T) {
 }
 
 func TestGetTokenInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	a, err := f.GetTokenInfo("ADAMOON")
 	t.Log(a)
 	if err != nil {
@@ -319,6 +392,9 @@ func TestGetTokenInfo(t *testing.T) {
 }
 
 func TestListLTBalances(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	a, err := f.ListLTBalances()
 	t.Log(a)
 	if err != nil {
@@ -327,6 +403,9 @@ func TestListLTBalances(t *testing.T) {
 }
 
 func TestListLTCreations(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	a, err := f.ListLTCreations()
 	t.Log(a)
 	if err != nil {
@@ -335,6 +414,9 @@ func TestListLTCreations(t *testing.T) {
 }
 
 func TestRequestLTCreation(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	a, err := f.RequestLTCreation("ADAMOON", 1)
 	t.Log(a)
 	if err != nil {
@@ -343,7 +425,98 @@ func TestRequestLTCreation(t *testing.T) {
 }
 
 func TestListLTRedemptions(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
 	a, err := f.ListLTRedemptions("ADAMOON", 5)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetQuoteRequests(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	a, err := f.GetQuoteRequests()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetYourQuoteRequests(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	a, err := f.GetYourQuoteRequests()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateQuoteRequest(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	a, err := f.CreateQuoteRequest("BTC", "call", "buy", int64(time.Now().UnixNano()/1000000), 0.1, 1, 0, 0, 0, false)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDeleteQuote(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	a, err := f.DeleteQuote("testing123")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetQuotesForYourQuote(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	a, err := f.GetQuotesForYourQuote()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestMakeQuote(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	a, err := f.MakeQuote("testing123", "5")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestMyQuotes(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	a, err := f.MyQuotes()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDeleteMyQuote(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	a, err := f.DeleteMyQuote("testing123")
 	t.Log(a)
 	if err != nil {
 		t.Error(err)
