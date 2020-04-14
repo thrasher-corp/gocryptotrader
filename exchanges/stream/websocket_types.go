@@ -42,9 +42,11 @@ type Websocket struct {
 	connectionMutex              sync.RWMutex
 	connector                    func() error
 
-	subscriptionMutex   sync.Mutex
-	subscribedChannels  []ChannelSubscription
-	channelsToSubscribe []ChannelSubscription
+	subscriptionMutex sync.Mutex
+	subscriptions     []ChannelSubscription
+	subscribe         chan []ChannelSubscription
+	unsubscribe       chan []ChannelSubscription
+	// channelsToSubscribe []ChannelSubscription
 
 	channelSubscriber   func(channelsToSubscribe []ChannelSubscription) error
 	channelUnsubscriber func(channelsToUnsubscribe []ChannelSubscription) error

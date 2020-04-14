@@ -63,10 +63,9 @@ type Response struct {
 // Currently only a one at a time thing to avoid complexity
 // TODO: SUB/UNSUB complete list
 type ChannelSubscription struct {
-	Channel    string
-	Currency   currency.Pair
-	Params     map[string]interface{}
-	subscribed bool
+	Channel  string
+	Currency currency.Pair
+	Params   map[string]interface{}
 }
 
 // ConnectionSetup defines variables for an individual stream connection
