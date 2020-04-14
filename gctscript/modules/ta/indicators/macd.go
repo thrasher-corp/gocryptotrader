@@ -63,14 +63,14 @@ func macd(args ...objects.Object) (objects.Object, error) {
 	}
 
 	macd, macdSignal, macdHist := indicators.Macd(ohlcvClose, inFastPeriod, inSlowPeriod, inTimePeriod)
-	for x := range macd {
+	for x := range macdHist {
 		tempMACD := &objects.Array{}
-		tempMACD.Value = append(tempMACD.Value, &objects.Float{Value: macd[x]})
+		tempMACD.Value = append(tempMACD.Value, &objects.Float{Value: macdHist[x]})
+		if macd != nil {
+			tempMACD.Value = append(tempMACD.Value, &objects.Float{Value: macd[x]})
+		}
 		if macdSignal != nil {
 			tempMACD.Value = append(tempMACD.Value, &objects.Float{Value: macdSignal[x]})
-		}
-		if macdHist != nil {
-			tempMACD.Value = append(tempMACD.Value, &objects.Float{Value: macdHist[x]})
 		}
 		r.Value = append(r.Value, tempMACD)
 	}

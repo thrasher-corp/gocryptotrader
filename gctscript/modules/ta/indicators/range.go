@@ -70,7 +70,7 @@ func atr(args ...objects.Object) (objects.Object, error) {
 		return nil, errors.New(strings.Join(allErrors, ", "))
 	}
 
-	ret := indicators.Atr(ohlcvData[2], ohlcvData[4], ohlcvData[5], inTimePeriod)
+	ret := indicators.Atr(ohlcvData[2], ohlcvData[3], ohlcvData[4], inTimePeriod)
 	for x := range ret {
 		r.Value = append(r.Value, &objects.Float{Value: ret[x]})
 	}

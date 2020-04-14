@@ -59,7 +59,7 @@ func obv(args ...objects.Object) (objects.Object, error) {
 		return nil, errors.New(strings.Join(allErrors, ", "))
 	}
 
-	ret := indicators.OBV(ohlcvData, false)
+	ret := indicators.OBV(ohlcvData, true)
 	for x := range ret {
 		temp := &objects.Float{Value: ret[x]}
 		r.Value = append(r.Value, temp)
