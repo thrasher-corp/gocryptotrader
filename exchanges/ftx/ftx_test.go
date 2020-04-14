@@ -522,3 +522,47 @@ func TestDeleteMyQuote(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestAcceptQuote(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	a, err := f.AcceptQuote("testing123")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAccountOptionsInfo(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	a, err := f.GetAccountOptionsInfo()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOptionsPositions(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	a, err := f.GetOptionsPositions()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPublicOptionsTrades(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	a, err := f.GetPublicOptionsTrades("", "", "5")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}

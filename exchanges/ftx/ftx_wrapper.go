@@ -1,12 +1,15 @@
 package ftx
 
 import (
+	"fmt"
+	"strconv"
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -178,9 +181,20 @@ func (f *Ftx) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (f *Ftx) FetchTradablePairs(asset asset.Item) ([]string, error) {
-	// Implement fetching the exchange available pairs if supported
-	return nil, nil
+func (f *Ftx) FetchTradablePairs(a asset.Item) ([]string, error) {
+	if a != asset.Spot {
+		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, f.Name)
+	}
+	markets, err := f.GetMarkets()
+	if err != nil {
+		return nil, err
+	}
+
+	var pairs []string
+	for x := range markets.Result {
+		pairs = append(pairs, markets.Result[x].Name)
+	}
+	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -196,28 +210,29 @@ func (f *Ftx) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (f *Ftx) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
-	/*
-		tickerPrice := new(ticker.Price)
-		tick, err := f.GetTicker(p.String())
-		if err != nil {
-			return tickerPrice, err
-		}
-		tickerPrice = &ticker.Price{
-			High:  tick.High,
-			Low:   tick.Low,
-			Bid:   tick.Bid,
-			Ask:   tick.Ask,
-			Open:  tick.Open,
-			Close: tick.Close,
-			Pair:  p,
-		}
-		err = ticker.ProcessTicker(f.Name, tickerPrice, assetType)
-		if err != nil {
-			return tickerPrice, err
-		}
-	*/
-	return ticker.GetTicker(f.Name, p, assetType)
+	// allPairs := f.GetEnabledPairs(assetType)
+	// markets, err := f.GetMarkets()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// for x := range markets.Result {
+	// 	enabledPairFormat := f.FormatExchangeCurrency(f.Name, markets.Result[x].Name).String()
+	// 	var resp ticker.Price
+	// 	// resp.Pair = currency.NewPairFromString(markets[x].MarketID)
+	// 	// resp.Last = markets[x].LastPrice
+	// 	// resp.High = markets[x].High24h
+	// 	// resp.Low = markets[x].Low24h
+	// 	// resp.Bid = markets[x].BestBID
+	// 	// resp.Ask = markets[x].BestAsk
+	// 	// resp.Volume = markets[x].Volume
+	// 	resp.LastUpdated = time.Now()
+	// 	err = ticker.ProcessTicker(f.Name, &resp, assetType)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// }
+	// return ticker.GetTicker(f.Name, p, assetType)
+	return nil, nil
 }
 
 // FetchTicker returns the ticker for a currency pair
@@ -241,45 +256,67 @@ func (f *Ftx) FetchOrderbook(currency currency.Pair, assetType asset.Item) (*ord
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (f *Ftx) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
-	// NOTE: UPDATE ORDERBOOK EXAMPLE
-	/*
-		orderbookNew, err := f.GetOrderBook(exchange.FormatExchangeCurrency(f.Name, p).String(), 1000)
-		if err != nil {
-			return orderBook, err
-		}
-
-		for x := range orderbookNew.Bids {
-			orderBook.Bids = append(orderBook.Bids, orderbook.Item{
-				Amount: orderbookNew.Bids[x].Quantity,
-				Price: orderbookNew.Bids[x].Price,
-			})
-		}
-
-		for x := range orderbookNew.Asks {
-			orderBook.Asks = append(orderBook.Asks, orderbook.Item{
-				Amount: orderBook.Asks[x].Quantity,
-				Price: orderBook.Asks[x].Price,
-			})
-		}
-	*/
-
-	orderBook.Pair = p
-	orderBook.ExchangeName = f.Name
-	orderBook.AssetType = assetType
-
-	err := orderBook.Process()
+	tempResp, err := f.GetOrderbook(f.FormatExchangeCurrency(p, assetType).String(), 0)
 	if err != nil {
 		return orderBook, err
 	}
-
+	for x := range tempResp.Bids {
+		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+			Amount: tempResp.Bids[x].Size,
+			Price:  tempResp.Bids[x].Price})
+	}
+	for y := range tempResp.Asks {
+		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+			Amount: tempResp.Asks[y].Size,
+			Price:  tempResp.Asks[y].Price})
+	}
+	orderBook.Pair = p
+	orderBook.ExchangeName = f.Name
+	orderBook.AssetType = assetType
+	err = orderBook.Process()
+	if err != nil {
+		return orderBook, err
+	}
 	return orderbook.Get(f.Name, p, assetType)
 }
 
-// // GetAccountInfo retrieves balances for all enabled currencies for the
-// // Ftx exchange
-// func (f *Ftx) GetAccountInfo() (exchange.AccountInfo, error) {
-// 	return exchange.AccountInfo{}, common.ErrNotYetImplemented
-// }
+// UpdateAccountInfo retrieves balances for all enabled currencies
+func (f *Ftx) UpdateAccountInfo() (account.Holdings, error) {
+	var resp account.Holdings
+	data, err := f.GetBalances()
+	if err != nil {
+		return resp, err
+	}
+	var acc account.SubAccount
+	for key := range data.Result {
+		c := currency.NewCode(data.Result[key].Coin)
+		hold := data.Result[key].Total - data.Result[key].Free
+		total := data.Result[key].Total
+		acc.Currencies = append(acc.Currencies,
+			account.Balance{CurrencyName: c,
+				TotalValue: total,
+				Hold:       hold})
+	}
+	resp.Accounts = append(resp.Accounts, acc)
+	resp.Exchange = f.Name
+
+	err = account.Process(&resp)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+
+	return resp, nil
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func (f *Ftx) FetchAccountInfo() (account.Holdings, error) {
+	acc, err := account.GetHoldings(f.Name)
+	if err != nil {
+		return f.UpdateAccountInfo()
+	}
+
+	return acc, nil
+}
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
@@ -294,22 +331,62 @@ func (f *Ftx) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]excha
 
 // SubmitOrder submits a new order
 func (f *Ftx) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
-	var submitOrderResponse order.SubmitResponse
+	var resp order.SubmitResponse
 	if err := s.Validate(); err != nil {
-		return submitOrderResponse, err
+		return resp, err
 	}
-	return submitOrderResponse, common.ErrNotYetImplemented
+
+	if s.Side == order.Sell {
+		s.Side = order.Ask
+	}
+	if s.Side == order.Buy {
+		s.Side = order.Bid
+	}
+
+	tempResp, err := f.Order(f.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
+		s.Side.String(),
+		s.Type.String(),
+		"",
+		"",
+		"",
+		s.ClientID,
+		s.Price,
+		s.Amount)
+	if err != nil {
+		return resp, err
+	}
+	resp.IsOrderPlaced = true
+	resp.OrderID = strconv.FormatInt(tempResp.Result.ID, 10)
+	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
 // market conversion
 func (f *Ftx) ModifyOrder(action *order.Modify) (string, error) {
-	return "", common.ErrNotYetImplemented
+	if action.TriggerPrice != 0 {
+		a, err := f.ModifyTriggerOrder(action.ID,
+			action.Type.String(),
+			action.Amount,
+			action.TriggerPrice,
+			action.Price,
+			0)
+		return strconv.FormatInt(a.Result.ID, 10), err
+	}
+	var o ModifyOrder
+	var err error
+	switch action.ID {
+	case "":
+		o, err = f.ModifyOrderByClientID(action.ClientOrderID, action.ClientID, action.Price, action.Amount)
+	default:
+		o, err = f.ModifyPlacedOrder(action.ID, action.ClientID, action.Price, action.Amount)
+	}
+	return strconv.FormatInt(o.Result.ID, 10), err
 }
 
 // CancelOrder cancels an order by its corresponding ID number
 func (f *Ftx) CancelOrder(order *order.Cancel) error {
-	return common.ErrNotYetImplemented
+	_, err := f.DeleteOrder(order.ID)
+	return err
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

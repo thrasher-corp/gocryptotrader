@@ -81,6 +81,11 @@ const (
 	createQuote              = "/options/requests/%s/quotes?"
 	getMyQuotes              = "/options/my_quotes"
 	deleteMyQuote            = "/options/quotes/%s"
+	acceptQuote              = "/options/quotes/%s/accept"
+	getOptionsInfo           = "/options/account_info"
+	getOptionsPositions      = "/options/positions"
+	getPublicOptionsTrades   = "/options/trades"
+	getOptionsFills          = "/options/fills"
 	ftxRateInterval          = time.Minute
 	ftxRequestRate           = 180
 
@@ -645,6 +650,40 @@ func (f *Ftx) MyQuotes() (QuoteForQuoteResponse, error) {
 func (f *Ftx) DeleteMyQuote(quoteID string) (QuoteForQuoteResponse, error) {
 	var resp QuoteForQuoteResponse
 	return resp, f.SendAuthHTTPRequest(http.MethodDelete, fmt.Sprintf(deleteMyQuote, quoteID), nil, &resp)
+}
+
+// AcceptQuote accepts the quote for quote
+func (f *Ftx) AcceptQuote(quoteID string) (QuoteForQuoteResponse, error) {
+	var resp QuoteForQuoteResponse
+	return resp, f.SendAuthHTTPRequest(http.MethodPost, fmt.Sprintf(acceptQuote, quoteID), nil, &resp)
+}
+
+// GetAccountOptionsInfo gets account's options' info
+func (f *Ftx) GetAccountOptionsInfo() (AccountOptionsInfo, error) {
+	var resp AccountOptionsInfo
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getAccountInfo, nil, &resp)
+}
+
+// GetOptionsPositions gets options' positions
+func (f *Ftx) GetOptionsPositions() (OptionsPositions, error) {
+	var resp OptionsPositions
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getOptionsPositions, nil, &resp)
+}
+
+// GetPublicOptionsTrades gets options' trades from public
+func (f *Ftx) GetPublicOptionsTrades(startTime, endTime, limit string) (PublicOptionsTrades, error) {
+	var resp PublicOptionsTrades
+	req := make(map[string]interface{})
+	if startTime != "" {
+		req["start_time"] = startTime
+	}
+	if endTime != "" {
+		req["end_time"] = endTime
+	}
+	if limit != "" {
+		req["limit"] = limit
+	}
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getOptionsPositions, req, &resp)
 }
 
 // SendAuthHTTPRequest sends an authenticated request

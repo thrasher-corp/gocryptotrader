@@ -667,3 +667,48 @@ type QuoteForQuoteResponse struct {
 	Success bool              `json:"success"`
 	Result  QuoteForQuoteData `json:"result"`
 }
+
+// AccountOptionsInfoData stores account's options' info data
+type AccountOptionsInfoData struct {
+	USDBalance       float64 `json:"usdBalance"`
+	LiquidationPrice float64 `json:"liquidationPrice"`
+	Liquidating      bool    `json:"liquidating"`
+}
+
+// AccountOptionsInfo stores account's options' info data
+type AccountOptionsInfo struct {
+	Success bool                   `json:"success"`
+	Result  AccountOptionsInfoData `json:"result"`
+}
+
+// OptionsPositionsData stores options positions' data
+type OptionsPositionsData struct {
+	EntryPrice            float64    `json:"entryPrice"`
+	NetSize               float64    `json:"netSize"`
+	Option                OptionData `json:"option"`
+	Side                  string     `json:"side"`
+	Size                  float64    `json:"size"`
+	PessimisticValuation  float64    `json:"pessimisticValuation,omitempty"`
+	PessimisticIndexPrice float64    `json:"pessimisticIndexPrice,omitempty"`
+}
+
+// OptionsPositions stores account's options' info data
+type OptionsPositions struct {
+	Success bool                   `json:"success"`
+	Result  []OptionsPositionsData `json:"result"`
+}
+
+// OptionsTradesData stores options' trades' data
+type OptionsTradesData struct {
+	ID     int64      `json:"id"`
+	Option OptionData `json:"option"`
+	Price  float64    `json:"price"`
+	Size   float64    `json:"size"`
+	Time   string     `json:"time"`
+}
+
+// PublicOptionsTrades stores options' trades from public
+type PublicOptionsTrades struct {
+	Success bool                `json:"success"`
+	Result  []OptionsTradesData `json:"result"`
+}

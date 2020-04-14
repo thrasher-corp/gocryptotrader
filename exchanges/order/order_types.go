@@ -83,6 +83,7 @@ type Modify struct {
 	Exchange          string
 	InternalOrderID   string
 	ID                string
+	ClientOrderID     string
 	AccountID         string
 	ClientID          string
 	WalletAddress     string
