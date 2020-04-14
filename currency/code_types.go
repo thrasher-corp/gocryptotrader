@@ -99,7 +99,7 @@ var (
 	BAT        = NewCode("BAT")
 	ETP        = NewCode("ETP")
 	HOT        = NewCode("HOT")
-	STRAT      = NewCode("STRAT") // nolint: misspell
+	STRAT      = NewCode("STRAT") // nolint // Cryptocurrency code
 	GNT        = NewCode("GNT")
 	REP        = NewCode("REP")
 	SNT        = NewCode("SNT")
@@ -356,9 +356,9 @@ var (
 	STQ        = NewCode("STQ")
 	INK        = NewCode("INK")
 	HBZ        = NewCode("HBZ")
-	USDT_ETH   = NewCode("USDT_ETH") // nolint: golint,stylecheck
-	QTUM_ETH   = NewCode("QTUM_ETH") // nolint: golint
-	BTM_ETH    = NewCode("BTM_ETH")  // nolint: golint,stylecheck
+	USDT_ETH   = NewCode("USDT_ETH") // nolint // Cryptocurrency code
+	QTUM_ETH   = NewCode("QTUM_ETH") // nolint // Cryptocurrency code
+	BTM_ETH    = NewCode("BTM_ETH")  // nolint // Cryptocurrency code
 	FIL        = NewCode("FIL")
 	STX        = NewCode("STX")
 	BOT        = NewCode("BOT")
@@ -371,7 +371,7 @@ var (
 	GOD        = NewCode("GOD")
 	SMT        = NewCode("SMT")
 	BTF        = NewCode("BTF")
-	NAS_ETH    = NewCode("NAS_ETH") // nolint: golint,stylecheck
+	NAS_ETH    = NewCode("NAS_ETH") // nolint // Cryptocurrency code
 	TSL        = NewCode("TSL")
 	BIFI       = NewCode("BIFI")
 	BNTY       = NewCode("BNTY")
@@ -397,21 +397,21 @@ var (
 	MOBI       = NewCode("MOBI")
 	LEDU       = NewCode("LEDU")
 	DBC        = NewCode("DBC")
-	MKR_OLD    = NewCode("MKR_OLD") // nolint: golint,stylecheck
+	MKR_OLD    = NewCode("MKR_OLD") // nolint // Cryptocurrency code
 	DPY        = NewCode("DPY")
 	BCDN       = NewCode("BCDN")
-	EOSDAC     = NewCode("EOSDAC") // nolint: golint
+	EOSDAC     = NewCode("EOSDAC")
 	TIPS       = NewCode("TIPS")
 	XMC        = NewCode("XMC")
 	PPS        = NewCode("PPS")
 	BOE        = NewCode("BOE")
 	MEDX       = NewCode("MEDX")
-	SMT_ETH    = NewCode("SMT_ETH") // nolint: golint,stylecheck
+	SMT_ETH    = NewCode("SMT_ETH") // nolint // Cryptocurrency code
 	CS         = NewCode("CS")
 	MAN        = NewCode("MAN")
 	REM        = NewCode("REM")
 	LYM        = NewCode("LYM")
-	INSTAR     = NewCode("INSTAR") // nolint: golint
+	INSTAR     = NewCode("INSTAR")
 	BFT        = NewCode("BFT")
 	IHT        = NewCode("IHT")
 	SENC       = NewCode("SENC")
@@ -426,7 +426,7 @@ var (
 	SWTH       = NewCode("SWTH")
 	NKN        = NewCode("NKN")
 	SOUL       = NewCode("SOUL")
-	GALA_NEO   = NewCode("GALA_NEO") // nolint: golint,stylecheck
+	GALA_NEO   = NewCode("GALA_NEO") // nolint // Cryptocurrency code
 	LRN        = NewCode("LRN")
 	GSE        = NewCode("GSE")
 	RATING     = NewCode("RATING")
@@ -1651,5 +1651,5 @@ var (
 	YER        = NewCode("YER")
 	ZWD        = NewCode("ZWD")
 	XETH       = NewCode("XETH")
-	FX_BTC     = NewCode("FX_BTC") // nolint: golint,stylecheck
+	FX_BTC     = NewCode("FX_BTC") // nolint // Cryptocurrency code
 )

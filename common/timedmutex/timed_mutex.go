@@ -61,8 +61,9 @@ func (t *TimedMutex) stopTimer() bool {
 // isTimerNil safely read locks to detect nil
 func (t *TimedMutex) isTimerNil() bool {
 	t.timerLock.RLock()
-	defer t.timerLock.RUnlock()
-	return t.timer == nil
+	isNil := t.timer == nil
+	t.timerLock.RUnlock()
+	return isNil
 }
 
 // setTimer safely locks and sets a timer

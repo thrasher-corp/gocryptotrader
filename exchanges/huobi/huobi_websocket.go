@@ -485,7 +485,7 @@ func (h *HUOBI) wsGenerateSignature(timestamp, endpoint string) []byte {
 	values.Set("Timestamp", timestamp)
 	host := "api.huobi.pro"
 	payload := fmt.Sprintf("%s\n%s\n%s\n%s",
-		"GET", host, endpoint, values.Encode())
+		http.MethodGet, host, endpoint, values.Encode())
 	return crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(h.API.Credentials.Secret))
 }
 
