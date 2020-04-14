@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -195,7 +194,7 @@ func (b *Binance) GetAggregatedTrades(symbol string, limit int) ([]AggregatedTra
 // endTime: endTime filter for the kline data
 func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 	var resp interface{}
-	var kline []CandleStick
+	var klineData []CandleStick
 
 	params := url.Values{}
 	params.Set("symbol", arg.Symbol)
@@ -213,7 +212,7 @@ func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, candleStick, params.Encode())
 
 	if err := b.SendHTTPRequest(path, &resp); err != nil {
-		return kline, err
+		return klineData, err
 	}
 
 	for _, responseData := range resp.([]interface{}) {
@@ -222,8 +221,11 @@ func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 			switch i {
 			case 0:
 				tempTime := individualData.(float64)
-				sec, dec := math.Modf(tempTime)
-				candle.OpenTime = time.Unix(int64(sec), int64(dec*(1e9)))
+				var err error
+				candle.OpenTime, err = convert.TimeFromUnixTimestampFloat(tempTime)
+				if err != nil {
+					return klineData, err
+				}
 			case 1:
 				candle.Open, _ = strconv.ParseFloat(individualData.(string), 64)
 			case 2:
@@ -236,8 +238,11 @@ func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 				candle.Volume, _ = strconv.ParseFloat(individualData.(string), 64)
 			case 6:
 				tempTime := individualData.(float64)
-				sec, dec := math.Modf(tempTime)
-				candle.CloseTime = time.Unix(int64(sec), int64(dec*(1e9)))
+				var err error
+				candle.CloseTime, err = convert.TimeFromUnixTimestampFloat(tempTime)
+				if err != nil {
+					return klineData, err
+				}
 			case 7:
 				candle.QuoteAssetVolume, _ = strconv.ParseFloat(individualData.(string), 64)
 			case 8:
@@ -248,9 +253,9 @@ func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 				candle.TakerBuyQuoteAssetVolume, _ = strconv.ParseFloat(individualData.(string), 64)
 			}
 		}
-		kline = append(kline, candle)
+		klineData = append(klineData, candle)
 	}
-	return kline, nil
+	return klineData, nil
 }
 
 // GetAveragePrice returns current average price for a symbol.
