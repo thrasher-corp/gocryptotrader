@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -53,7 +52,12 @@ func (p *Poloniex) WsConnect() error {
 	}
 
 	go p.wsReadData()
-	p.GenerateDefaultSubscriptions()
+	subs, err := p.GenerateDefaultSubscriptions()
+	if err != nil {
+		return err
+	}
+
+	p.Websocket.SubscribeToChannels(subs)
 
 	return nil
 }
@@ -528,7 +532,8 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber int64, target []inter
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (p *Poloniex) GenerateDefaultSubscriptions() {
+func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+	fmt.Println("gen default subs")
 	var subscriptions []stream.ChannelSubscription
 	subscriptions = append(subscriptions, stream.ChannelSubscription{
 		Channel: strconv.FormatInt(wsTickerDataID, 10),
@@ -542,11 +547,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() {
 
 	enabledCurrencies, err := p.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.WebsocketMgr,
-			"%s could not generate default subscriptions. Err: %s",
-			p.Name,
-			err)
-		return
+		return nil, err
 	}
 	for j := range enabledCurrencies {
 		enabledCurrencies[j].Delimiter = currency.Underscore
@@ -555,44 +556,65 @@ func (p *Poloniex) GenerateDefaultSubscriptions() {
 			Currency: enabledCurrencies[j],
 		})
 	}
-	p.Websocket.SubscribeToChannels(subscriptions)
+	return subscriptions, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (p *Poloniex) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
-	subscriptionRequest := WsCommand{
-		Command: "subscribe",
+func (p *Poloniex) Subscribe(sub []stream.ChannelSubscription) error {
+	fmt.Printf("sub called: %+v\n", sub)
+
+	for i := range sub {
+		subscriptionRequest := WsCommand{
+			Command: "subscribe",
+		}
+		switch {
+		case strings.EqualFold(strconv.FormatInt(wsAccountNotificationID, 10),
+			sub[i].Channel):
+			err := p.wsSendAuthorisedCommand("subscribe")
+			if err != nil {
+				return err
+			}
+		case strings.EqualFold(strconv.FormatInt(wsTickerDataID, 10),
+			sub[i].Channel):
+			subscriptionRequest.Channel = wsTickerDataID
+		default:
+			subscriptionRequest.Channel = sub[i].Currency.String()
+		}
+		err := p.Websocket.Conn.SendJSONMessage(subscriptionRequest)
+		if err != nil {
+			return err
+		}
 	}
-	switch {
-	case strings.EqualFold(strconv.FormatInt(wsAccountNotificationID, 10), channelToSubscribe.Channel):
-		return p.wsSendAuthorisedCommand("subscribe")
-	case strings.EqualFold(strconv.FormatInt(wsTickerDataID, 10), channelToSubscribe.Channel):
-		subscriptionRequest.Channel = wsTickerDataID
-	default:
-		subscriptionRequest.Channel = channelToSubscribe.Currency.String()
-	}
-	return p.Websocket.Conn.SendJSONMessage(subscriptionRequest)
+	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (p *Poloniex) Unsubscribe(channelToSubscribe *stream.ChannelSubscription) error {
-	unsubscriptionRequest := WsCommand{
-		Command: "unsubscribe",
+func (p *Poloniex) Unsubscribe(unsub []stream.ChannelSubscription) error {
+	fmt.Printf("unsub called: %+v\n", unsub)
+	for i := range unsub {
+		unsubscriptionRequest := WsCommand{
+			Command: "unsubscribe",
+		}
+		switch {
+		case strings.EqualFold(strconv.FormatInt(wsAccountNotificationID, 10),
+			unsub[i].Channel):
+			return p.wsSendAuthorisedCommand("unsubscribe")
+		case strings.EqualFold(strconv.FormatInt(wsTickerDataID, 10),
+			unsub[i].Channel):
+			unsubscriptionRequest.Channel = wsTickerDataID
+		default:
+			unsubscriptionRequest.Channel = unsub[i].Currency.String()
+		}
+		return p.Websocket.Conn.SendJSONMessage(unsubscriptionRequest)
 	}
-	switch {
-	case strings.EqualFold(strconv.FormatInt(wsAccountNotificationID, 10), channelToSubscribe.Channel):
-		return p.wsSendAuthorisedCommand("unsubscribe")
-	case strings.EqualFold(strconv.FormatInt(wsTickerDataID, 10), channelToSubscribe.Channel):
-		unsubscriptionRequest.Channel = wsTickerDataID
-	default:
-		unsubscriptionRequest.Channel = channelToSubscribe.Currency.String()
-	}
-	return p.Websocket.Conn.SendJSONMessage(unsubscriptionRequest)
+	return nil
 }
 
 func (p *Poloniex) wsSendAuthorisedCommand(command string) error {
 	nonce := fmt.Sprintf("nonce=%v", time.Now().UnixNano())
-	hmac := crypto.GetHMAC(crypto.HashSHA512, []byte(nonce), []byte(p.API.Credentials.Secret))
+	hmac := crypto.GetHMAC(crypto.HashSHA512,
+		[]byte(nonce),
+		[]byte(p.API.Credentials.Secret))
 	request := WsAuthorisationRequest{
 		Command: command,
 		Channel: 1000,

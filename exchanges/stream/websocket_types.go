@@ -45,11 +45,10 @@ type Websocket struct {
 	subscriptionMutex   sync.Mutex
 	subscribedChannels  []ChannelSubscription
 	channelsToSubscribe []ChannelSubscription
-	// subscription []WebsocketChannelSubscription
 
-	channelSubscriber   func(channelToSubscribe *ChannelSubscription) error
-	channelUnsubscriber func(channelToUnsubscribe *ChannelSubscription) error
-	channelGeneratesubs func()
+	channelSubscriber   func(channelsToSubscribe []ChannelSubscription) error
+	channelUnsubscriber func(channelsToUnsubscribe []ChannelSubscription) error
+	channelGeneratesubs func() ([]ChannelSubscription, error)
 	DataHandler         chan interface{}
 	ToRoutine           chan interface{}
 	// ShutdownC is the main shutdown channel which controls all websocket go funcs
@@ -81,9 +80,9 @@ type WebsocketSetup struct {
 	ExchangeName                     string
 	RunningURL                       string
 	Connector                        func() error
-	Subscriber                       func(channelToSubscribe *ChannelSubscription) error
-	UnSubscriber                     func(channelToUnsubscribe *ChannelSubscription) error
-	GenerateSubscriptions            func()
+	Subscriber                       func(channelsToSubscribe []ChannelSubscription) error
+	UnSubscriber                     func(channelsToUnsubscribe []ChannelSubscription) error
+	GenerateSubscriptions            func() ([]ChannelSubscription, error)
 	Features                         *protocol.Features
 }
 

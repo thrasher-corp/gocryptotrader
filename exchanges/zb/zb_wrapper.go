@@ -134,8 +134,8 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        z.WsConnect,
-		Subscriber:                       z.Subscribe,
-		Features:                         &z.Features.Supports.WebsocketCapabilities,
+		// Subscriber:                       z.Subscribe,
+		Features: &z.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

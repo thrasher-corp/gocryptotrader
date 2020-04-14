@@ -46,6 +46,9 @@ type Connection interface {
 	SendRawMessage(messageType int, message []byte) error
 }
 
+// SubscriptionManager handles streaming subscription streaming
+type SubscriptionManager interface{}
+
 // Wrapper links websocket endpoint requests for account, positional, order
 // information etc.
 type Wrapper interface{}

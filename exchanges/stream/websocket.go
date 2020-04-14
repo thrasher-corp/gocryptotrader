@@ -38,9 +38,22 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 		return errors.New("websocket is nil")
 	}
 	w.verbose = setupData.Verbose
+
+	if setupData.Subscriber == nil {
+		return errors.New("channel subscriber is not set")
+	}
 	w.channelSubscriber = setupData.Subscriber
+
+	if setupData.UnSubscriber == nil {
+		return errors.New("channel unsubscriber is not set")
+	}
 	w.channelUnsubscriber = setupData.UnSubscriber
+
+	if setupData.GenerateSubscriptions == nil {
+		return errors.New("channel GenerateSubscriptions is not set")
+	}
 	w.channelGeneratesubs = setupData.GenerateSubscriptions
+
 	w.enabled = setupData.Enabled
 	if setupData.DefaultURL == "" {
 		return errors.New("default url is empty")
@@ -335,16 +348,25 @@ func (w *Websocket) RefreshConnection() error {
 	defer func() { w.verbose = false }()
 	if w.features.Subscribe && w.features.Unsubscribe {
 		fmt.Println("FLUSHING SUBS MATE")
-		err := w.blindUnsub()
+
+		newsubs, err := w.channelGeneratesubs()
 		if err != nil {
 			return err
 		}
 
-		w.subscriptionMutex.Lock()
-		w.subscribedChannels = []ChannelSubscription{}
-		w.subscriptionMutex.Unlock()
+		subs, unsubs := w.GetChannelDifference(newsubs)
 
-		w.channelGeneratesubs()
+		fmt.Println("SUB!", subs)
+		fmt.Println("UNSUB!", unsubs)
+
+		if len(unsubs) != 0 {
+			w.RemoveSubscribedChannels(unsubs)
+		}
+
+		if len(subs) != 0 {
+			w.SubscribeToChannels(subs)
+		}
+
 		fmt.Println("FINISHED FLUSHING SUBS MATE")
 		return nil
 	}
@@ -622,6 +644,7 @@ func (w *Websocket) manageSubscriptions() {
 func (w *Websocket) appendSubscribedChannels() error {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
+	var subme []ChannelSubscription
 	for i := range w.channelsToSubscribe {
 		channelIsSubscribed := false
 		for j := 0; j < len(w.subscribedChannels); j++ {
@@ -638,15 +661,47 @@ func (w *Websocket) appendSubscribedChannels() error {
 					w.channelsToSubscribe[i].Channel,
 					w.channelsToSubscribe[i].Currency.String())
 			}
-			err := w.channelSubscriber(&w.channelsToSubscribe[i])
-			if err != nil {
-				return err
-			}
-			w.subscribedChannels = append(w.subscribedChannels,
-				w.channelsToSubscribe[i])
+
+			subme = append(subme, w.channelsToSubscribe[i])
 		}
 	}
+
+	if len(subme) != 0 {
+		err := w.channelSubscriber(subme)
+		if err != nil {
+			return err
+		}
+		w.subscribedChannels = append(w.subscribedChannels, subme...)
+	}
 	return nil
+}
+
+// GetChannelDifference finds the difference between the subscribed channels
+// and the new subscription list when pairs are disabled or enabled.
+func (w *Websocket) GetChannelDifference(genSubs []ChannelSubscription) (sub []ChannelSubscription, unsub []ChannelSubscription) {
+	w.subscriptionMutex.Lock()
+	defer w.subscriptionMutex.Unlock()
+
+oldsubs:
+	for x := range w.subscribedChannels {
+		for y := range genSubs {
+			if w.subscribedChannels[x].Equal(&genSubs[y]) {
+				continue oldsubs
+			}
+		}
+		unsub = append(unsub, w.subscribedChannels[x])
+	}
+
+newsubs:
+	for x := range genSubs {
+		for y := range w.subscribedChannels {
+			if genSubs[x].Equal(&w.subscribedChannels[y]) {
+				continue newsubs
+			}
+		}
+		sub = append(sub, genSubs[x])
+	}
+	return
 }
 
 // unsubscribeToChannels compares subscribedChannels to channelsToSubscribe
@@ -654,6 +709,7 @@ func (w *Websocket) appendSubscribedChannels() error {
 func (w *Websocket) unsubscribeToChannels() error {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
+	var unsub []ChannelSubscription
 	for i := range w.subscribedChannels {
 		subscriptionFound := false
 		for j := 0; j < len(w.channelsToSubscribe); j++ {
@@ -663,30 +719,37 @@ func (w *Websocket) unsubscribeToChannels() error {
 			}
 		}
 		if !subscriptionFound {
-			err := w.channelUnsubscriber(&w.subscribedChannels[i])
-			if err != nil {
-				return err
-			}
+			unsub = append(unsub, w.subscribedChannels[i])
 		}
 	}
-	// Now that the slices should match, assign rather than looping and appending the differences
-	w.subscribedChannels = append(w.channelsToSubscribe[:0:0], w.channelsToSubscribe...) //nolint:gocritic
 
-	return nil
-}
-
-// blindUnsub blinding unsubs everything in the subscribed list
-func (w *Websocket) blindUnsub() error {
-	w.subscriptionMutex.Lock()
-	defer w.subscriptionMutex.Unlock()
-	for i := range w.subscribedChannels {
-		err := w.channelUnsubscriber(&w.subscribedChannels[i])
+	if len(unsub) != 0 {
+		err := w.channelUnsubscriber(unsub)
 		if err != nil {
 			return err
 		}
+
+		// Now that the slices should match, assign rather than looping and
+		// appending the differences
+		w.subscribedChannels = append(w.channelsToSubscribe[:0:0],
+			w.channelsToSubscribe...) //nolint:gocritic
 	}
+
 	return nil
 }
+
+// // blindUnsub blinding unsubs everything in the subscribed list
+// func (w *Websocket) blindUnsub() error {
+// 	w.subscriptionMutex.Lock()
+// 	defer w.subscriptionMutex.Unlock()
+// 	for i := range w.subscribedChannels {
+// 		err := w.channelUnsubscriber(&w.subscribedChannels[i])
+// 		if err != nil {
+// 			return err
+// 		}
+// 	}
+// 	return nil
+// }
 
 // RemoveSubscribedChannels removes supplied channels from channelsToSubscribe
 func (w *Websocket) RemoveSubscribedChannels(channels []ChannelSubscription) {
@@ -722,7 +785,7 @@ func (w *Websocket) removeChannelToSubscribe(subscribedChannel *ChannelSubscript
 func (w *Websocket) ResubscribeToChannel(subscribedChannel *ChannelSubscription) {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
-	err := w.channelUnsubscriber(subscribedChannel)
+	err := w.channelUnsubscriber([]ChannelSubscription{*subscribedChannel})
 	if err != nil {
 		w.DataHandler <- err
 	}

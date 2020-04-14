@@ -139,9 +139,9 @@ func (c *CoinbasePro) Setup(exch *config.ExchangeConfig) error {
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        c.WsConnect,
-		Subscriber:                       c.Subscribe,
-		UnSubscriber:                     c.Unsubscribe,
-		Features:                         &c.Features.Supports.WebsocketCapabilities,
+		// Subscriber:                       c.Subscribe,
+		// UnSubscriber:                     c.Unsubscribe,
+		Features: &c.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

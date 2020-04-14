@@ -151,9 +151,9 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        k.WsConnect,
-		Subscriber:                       k.Subscribe,
-		UnSubscriber:                     k.Unsubscribe,
-		Features:                         &k.Features.Supports.WebsocketCapabilities,
+		// Subscriber:                       k.Subscribe,
+		// UnSubscriber:                     k.Unsubscribe,
+		Features: &k.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
