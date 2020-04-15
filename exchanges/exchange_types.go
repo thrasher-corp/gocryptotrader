@@ -147,7 +147,8 @@ type Features struct {
 
 // FeaturesEnabled stores the exchange enabled features
 type FeaturesEnabled struct {
-	AutoPairUpdates bool
+	AutoPairUpdates   bool
+	KlineCapabilities kline.ExchangeCapabilities
 }
 
 // FeaturesSupported stores the exchanges supported features

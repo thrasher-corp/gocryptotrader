@@ -197,7 +197,7 @@ func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 
 	params := url.Values{}
 	params.Set("symbol", arg.Symbol)
-	params.Set("interval", string(arg.Interval))
+	params.Set("interval", arg.Interval)
 	if arg.Limit != 0 {
 		params.Set("limit", strconv.Itoa(arg.Limit))
 	}

@@ -218,12 +218,12 @@ func TestBoolPtr(t *testing.T) {
 }
 
 func TestParseIntervalDuration(t *testing.T) {
-	ret := ParseIntervalDuration(time.Second * 60)
+	ret := ParseIntervalDuration(time.Second*60, false)
 	if ret != "1m" {
 		t.Fatalf("unexpected result received %v expected 1m", ret)
 	}
 
-	ret = ParseIntervalDuration(time.Hour * 60)
+	ret = ParseIntervalDuration(time.Hour*60, false)
 	if ret != "60h" {
 		t.Fatalf("unexpected result received %v expected 60h", ret)
 	}

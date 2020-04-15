@@ -834,3 +834,35 @@ func (e *Base) KlineIntervalSupported(in time.Duration) bool {
 		return false
 	}
 }
+func (e *Base) KlineIntervalEnabled(in time.Duration) bool {
+	switch in {
+	case kline.OneMin:
+		return e.Features.Enabled.KlineCapabilities.Intervals.OneMin
+	case kline.ThreeMin:
+		return e.Features.Enabled.KlineCapabilities.Intervals.ThreeMin
+	case kline.FiveMin:
+		return e.Features.Enabled.KlineCapabilities.Intervals.FiveMin
+	case kline.FifteenMin:
+		return e.Features.Enabled.KlineCapabilities.Intervals.FifteenMin
+	case kline.ThirtyMin:
+		return e.Features.Enabled.KlineCapabilities.Intervals.ThirtyMin
+	case kline.OneHour:
+		return e.Features.Enabled.KlineCapabilities.Intervals.OneHour
+	case kline.TwoHour:
+		return e.Features.Enabled.KlineCapabilities.Intervals.TwoHour
+	case kline.FourHour:
+		return e.Features.Enabled.KlineCapabilities.Intervals.FourHour
+	case kline.SixHour:
+		return e.Features.Enabled.KlineCapabilities.Intervals.SixHour
+	case kline.TwelveHour:
+		return e.Features.Enabled.KlineCapabilities.Intervals.TwelveHour
+	case kline.OneDay:
+		return e.Features.Enabled.KlineCapabilities.Intervals.OneDay
+	case kline.ThreeDay:
+		return e.Features.Enabled.KlineCapabilities.Intervals.ThreeDay
+	case kline.OneWeek:
+		return e.Features.Enabled.KlineCapabilities.Intervals.OneWeek
+	default:
+		return false
+	}
+}

@@ -806,9 +806,8 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), time.Hour * 7)
+	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), time.Hour*7)
 	if err == nil {
 		t.Fatal("unexpected result")
 	}
 }
-

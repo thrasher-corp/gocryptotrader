@@ -405,9 +405,9 @@ var (
 
 // KlinesRequestParams represents Klines request data.
 type KlinesRequestParams struct {
-	Symbol    string       // Required field; example LTCBTC, BTCUSDT
+	Symbol    string // Required field; example LTCBTC, BTCUSDT
 	Interval  string // Time interval period
-	Limit     int          // Default 500; max 500.
+	Limit     int    // Default 500; max 500.
 	StartTime int64
 	EndTime   int64
 }

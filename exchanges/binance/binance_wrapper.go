@@ -693,12 +693,7 @@ func (b *Binance) ValidateCredentials() error {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
-	// intervalToString, err := parseInterval(interval)
-	// if err != nil {
-	// 	return kline.Item{}, err
-	// }
-	//
-	if !b.KlineIntervalSupported(interval) {
+	if !b.KlineIntervalEnabled(interval) {
 		return kline.Item{}, fmt.Errorf(kline.ErrUnsupportedInterval, interval)
 	}
 
