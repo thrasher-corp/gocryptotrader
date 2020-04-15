@@ -3,6 +3,7 @@ package indicators
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	objects "github.com/d5/tengo/v2"
@@ -101,14 +102,14 @@ func bbands(args ...objects.Object) (objects.Object, error) {
 	}
 
 	retUpper, retMiddle, retLower := indicators.BBands(ohlcvData[selector], inTimePeriod, inNbDevDn, inNbDevDn, MAType)
-	for x := range retUpper {
+	for x := range retMiddle {
 		temp := &objects.Array{}
-		temp.Value = append(temp.Value, &objects.Float{Value: retUpper[x]})
-		if retMiddle != nil {
-			temp.Value = append(temp.Value, &objects.Float{Value: retMiddle[x]})
+		temp.Value = append(temp.Value, &objects.Float{Value: math.Round(retMiddle[x]*100) / 100})
+		if retUpper != nil {
+			temp.Value = append(temp.Value, &objects.Float{Value: math.Round(retUpper[x]*100) / 100})
 		}
 		if retLower != nil {
-			temp.Value = append(temp.Value, &objects.Float{Value: retLower[x]})
+			temp.Value = append(temp.Value, &objects.Float{Value: math.Round(retLower[x]*100) / 100})
 		}
 		ret.Value = append(ret.Value, temp)
 	}

@@ -3,6 +3,7 @@ package indicators
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	objects "github.com/d5/tengo/v2"
@@ -72,7 +73,7 @@ func atr(args ...objects.Object) (objects.Object, error) {
 
 	ret := indicators.Atr(ohlcvData[2], ohlcvData[3], ohlcvData[4], inTimePeriod)
 	for x := range ret {
-		r.Value = append(r.Value, &objects.Float{Value: ret[x]})
+		r.Value = append(r.Value, &objects.Float{Value: math.Round(ret[x]*100) / 100})
 	}
 
 	return r, nil
