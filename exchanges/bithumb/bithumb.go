@@ -610,7 +610,7 @@ func (b *Bithumb) GetCandleStick(pair currency.Pair, start, end time.Time, inter
 		Data   [][]interface{} `json:"data"`
 	}
 
-	intervalStr := convert.ParseIntervalDuration(interval)
+	intervalStr := convert.ParseIntervalDuration(interval, false)
 	path := b.API.Endpoints.URL + publicCandleStick + pair.String() + "/" + intervalStr
 	err := b.SendHTTPRequest(path, &candle)
 	if err != nil {

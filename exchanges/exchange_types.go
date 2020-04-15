@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -156,6 +157,7 @@ type FeaturesSupported struct {
 	Websocket             bool
 	WebsocketCapabilities protocol.Features
 	WithdrawPermissions   uint32
+	KlineCapabilities     kline.ExchangeCapabilities
 }
 
 // API stores the exchange API settings

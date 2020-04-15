@@ -2,12 +2,14 @@ package binance
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -110,6 +112,23 @@ func (b *Binance) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
+			KlineCapabilities: kline.ExchangeCapabilities{
+				Intervals: kline.SupportedIntervals{
+					OneMin:     true,
+					ThreeMin:   true,
+					FiveMin:    true,
+					FifteenMin: true,
+					ThirtyMin:  true,
+					OneHour:    true,
+					TwoHour:    true,
+					FourHour:   true,
+					SixHour:    true,
+					TwelveHour: true,
+					OneDay:     true,
+					ThreeDay:   true,
+					OneWeek:    true,
+				},
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
@@ -674,12 +693,17 @@ func (b *Binance) ValidateCredentials() error {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
-	intervalToString, err := parseInterval(interval)
-	if err != nil {
-		return kline.Item{}, err
+	// intervalToString, err := parseInterval(interval)
+	// if err != nil {
+	// 	return kline.Item{}, err
+	// }
+	//
+	if !b.KlineIntervalSupported(interval) {
+		return kline.Item{}, fmt.Errorf(kline.ErrUnsupportedInterval, interval)
 	}
+
 	klineParams := KlinesRequestParams{
-		Interval:  intervalToString,
+		Interval:  convert.ParseIntervalDuration(interval, false),
 		Symbol:    pair.Format("", true).String(),
 		StartTime: start.Unix() * 1000,
 		EndTime:   end.Unix() * 1000,

@@ -812,7 +812,7 @@ func parseInterval(in time.Duration) (string, error) {
 		kline.OneHour, kline.TwoHour,
 		kline.FourHour, kline.SixHour,
 		kline.OneHour * 8, kline.TwelveHour:
-		return convert.ParseIntervalDuration(in), nil
+		return convert.ParseIntervalDuration(in, false), nil
 	case kline.OneDay:
 		return "1D", nil
 	case kline.OneWeek:

@@ -116,7 +116,11 @@ func BoolPtr(condition bool) *bool {
 
 // ParseIntervalDuration takes in a time.Duration and returns short string version of it
 // e.g 1m0s > 1m
-func ParseIntervalDuration(d time.Duration) string {
+func ParseIntervalDuration(d time.Duration, strip bool) string {
+	if strip {
+		return d.String()
+	}
+
 	s := d.String()
 	if strings.HasSuffix(s, "m0s") {
 		s = s[:len(s)-2]

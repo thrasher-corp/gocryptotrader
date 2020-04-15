@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -799,4 +800,37 @@ func (e *Base) DisableRateLimiter() error {
 // EnableRateLimiter enables the rate limiting system for the exchange
 func (e *Base) EnableRateLimiter() error {
 	return e.Requester.EnableRateLimiter()
+}
+
+func (e *Base) KlineIntervalSupported(in time.Duration) bool {
+	switch in {
+	case kline.OneMin:
+		return e.Features.Supports.KlineCapabilities.Intervals.OneMin
+	case kline.ThreeMin:
+		return e.Features.Supports.KlineCapabilities.Intervals.ThreeMin
+	case kline.FiveMin:
+		return e.Features.Supports.KlineCapabilities.Intervals.FiveMin
+	case kline.FifteenMin:
+		return e.Features.Supports.KlineCapabilities.Intervals.FifteenMin
+	case kline.ThirtyMin:
+		return e.Features.Supports.KlineCapabilities.Intervals.ThirtyMin
+	case kline.OneHour:
+		return e.Features.Supports.KlineCapabilities.Intervals.OneHour
+	case kline.TwoHour:
+		return e.Features.Supports.KlineCapabilities.Intervals.TwoHour
+	case kline.FourHour:
+		return e.Features.Supports.KlineCapabilities.Intervals.FourHour
+	case kline.SixHour:
+		return e.Features.Supports.KlineCapabilities.Intervals.SixHour
+	case kline.TwelveHour:
+		return e.Features.Supports.KlineCapabilities.Intervals.TwelveHour
+	case kline.OneDay:
+		return e.Features.Supports.KlineCapabilities.Intervals.OneDay
+	case kline.ThreeDay:
+		return e.Features.Supports.KlineCapabilities.Intervals.ThreeDay
+	case kline.OneWeek:
+		return e.Features.Supports.KlineCapabilities.Intervals.OneWeek
+	default:
+		return false
+	}
 }

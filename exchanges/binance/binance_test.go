@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -105,7 +106,7 @@ func TestGetSpotKline(t *testing.T) {
 
 	_, err := b.GetSpotKline(KlinesRequestParams{
 		Symbol:   "BTCUSDT",
-		Interval: TimeIntervalFiveMinutes,
+		Interval: convert.ParseIntervalDuration(kline.FiveMin, false),
 		Limit:    24,
 	})
 	if err != nil {
@@ -797,126 +798,17 @@ func TestGetHistoricCandles(t *testing.T) {
 	if mockTests {
 		t.Skip("skipping test under mock as its covered by GetSpotKlines()")
 	}
+	b.Verbose = true
 	currencyPair := currency.NewPairFromString("BTCUSDT")
 	startTime := time.Now().Add(-time.Hour * 1)
 	_, err := b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
 	}
-}
 
-func TestParseInterval(t *testing.T) {
-	testCases := []struct {
-		name     string
-		interval time.Duration
-		expected TimeInterval
-		err      error
-	}{
-		{
-			"OneMin",
-			kline.OneMin,
-			TimeIntervalMinute,
-			nil,
-		},
-		{
-			"ThreeMin",
-			kline.ThreeMin,
-			TimeIntervalThreeMinutes,
-			nil,
-		},
-		{
-			"FiveMin",
-			kline.FiveMin,
-			TimeIntervalFiveMinutes,
-			nil,
-		},
-		{
-			"FifteenMin",
-			kline.FifteenMin,
-			TimeIntervalFifteenMinutes,
-			nil,
-		},
-		{
-			"ThirtyMin",
-			kline.ThirtyMin,
-			TimeIntervalThirtyMinutes,
-			nil,
-		},
-		{
-			"OneHour",
-			kline.OneHour,
-			TimeIntervalHour,
-			nil,
-		},
-		{
-			"TwoHour",
-			kline.TwoHour,
-			TimeIntervalTwoHours,
-			nil,
-		},
-		{
-			"FourHour",
-			kline.FourHour,
-			TimeIntervalFourHours,
-			nil,
-		},
-		{
-			"SixHour",
-			kline.SixHour,
-			TimeIntervalSixHours,
-			nil,
-		},
-		{
-			"EightHour",
-			kline.OneHour * 8,
-			TimeIntervalEightHours,
-			nil,
-		},
-		{
-			"TwelveHour",
-			kline.TwelveHour,
-			TimeIntervalTwelveHours,
-			nil,
-		},
-		{
-			"OneDay",
-			kline.OneDay,
-			TimeIntervalDay,
-			nil,
-		},
-		{
-			"ThreeDay",
-			kline.ThreeDay,
-			TimeIntervalThreeDays,
-			nil,
-		},
-		{
-			"OneWeek",
-			kline.OneWeek,
-			TimeIntervalWeek,
-			nil,
-		},
-		{
-			"default",
-			time.Hour * 1337,
-			TimeIntervalHour,
-			errInvalidInterval,
-		},
-	}
-
-	for x := range testCases {
-		test := testCases[x]
-		t.Run(test.name, func(t *testing.T) {
-			v, err := parseInterval(test.interval)
-			if err != nil {
-				if err != test.err {
-					t.Fatal(err)
-				}
-			} else {
-				if v != test.expected {
-					t.Fatalf("%v: received %v expected %v", test.name, v, test.expected)
-				}
-			}
-		})
+	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), time.Hour * 7)
+	if err == nil {
+		t.Fatal("unexpected result")
 	}
 }
+

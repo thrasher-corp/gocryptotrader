@@ -24,6 +24,8 @@ const (
 	OneWeek    = 168 * time.Hour
 )
 
+const ErrUnsupportedInterval = "%s interval unsupported by exchange"
+
 // Item holds all the relevant information for internal kline elements
 type Item struct {
 	Exchange string
@@ -41,4 +43,24 @@ type Candle struct {
 	Low    float64
 	Close  float64
 	Volume float64
+}
+
+type ExchangeCapabilities struct {
+	Intervals SupportedIntervals
+}
+
+type SupportedIntervals struct {
+	OneMin     bool
+	ThreeMin   bool
+	FiveMin    bool
+	FifteenMin bool
+	ThirtyMin  bool
+	OneHour    bool
+	TwoHour    bool
+	FourHour   bool
+	SixHour    bool
+	TwelveHour bool
+	OneDay     bool
+	ThreeDay   bool
+	OneWeek    bool
 }

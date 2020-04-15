@@ -623,7 +623,7 @@ func (c *Coinbene) GetKlines(pair currency.Pair, start, end time.Time, period ti
 		Data    [][]interface{} `json:"data"`
 	}
 
-	intervalStr := convert.ParseIntervalDuration(period)
+	intervalStr := convert.ParseIntervalDuration(period, false)
 
 	v := url.Values{}
 	v.Add("symbol", pair.String())
