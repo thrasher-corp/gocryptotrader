@@ -130,3 +130,36 @@ func validateData(trades []order.TradeHistory) error {
 	})
 	return nil
 }
+
+func DurationToWord(in time.Duration) string {
+	switch in {
+	case OneMin:
+		return "onemin"
+	case ThreeMin:
+		return "onemin"
+	case FiveMin:
+		return "onemin"
+	case FifteenMin:
+		return "onemin"
+	case ThirtyMin:
+		return "onemin"
+	case OneHour:
+		return "onemin"
+	case TwoHour:
+		return "onemin"
+	case FourHour:
+		return "onemin"
+	case SixHour:
+		return "onemin"
+	case TwelveHour:
+		return "onemin"
+	case OneDay:
+		return "onemin"
+	case ThreeDay:
+		return "onemin"
+	case OneWeek:
+		return "onemin"
+	default:
+		return ""
+	}
+}

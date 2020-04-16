@@ -46,21 +46,19 @@ type Candle struct {
 }
 
 type ExchangeCapabilities struct {
-	Intervals SupportedIntervals
+	Intervals map[string]bool `json:"intervals,omitempty"`
+	SupportsDateRange bool
+	Limit uint32
 }
 
-type SupportedIntervals struct {
-	OneMin     bool
-	ThreeMin   bool
-	FiveMin    bool
-	FifteenMin bool
-	ThirtyMin  bool
-	OneHour    bool
-	TwoHour    bool
-	FourHour   bool
-	SixHour    bool
-	TwelveHour bool
-	OneDay     bool
-	ThreeDay   bool
-	OneWeek    bool
+const (
+	OneMinStr string = "OneMin"
+)
+
+var supportedIntervals = []string{
+	"onemin", "threemin", "fivemin", "fifteenmin", "thirtymin",
+	"onehour", "twohour", "fourhour", "sixhour", "twelvehour",
+	"oneday", "threeday",
+	"oneweek",
 }
+
