@@ -288,12 +288,19 @@ func CheckJSON(data interface{}, excluded *Exclusion) (interface{}, error) {
 	if reflect.TypeOf(data).String() == "[]interface {}" {
 		var sData []interface{}
 		for i := range data.([]interface{}) {
-			checkedData, err := CheckJSON(data.([]interface{})[i], excluded)
-			if err != nil {
-				return nil, err
-			}
+			v := data.([]interface{})[i]
+			switch v.(type) {
+			case map[string]interface{}, []interface{}:
+				checkedData, err := CheckJSON(v, excluded)
+				if err != nil {
+					return nil, err
+				}
 
-			sData = append(sData, checkedData)
+				sData = append(sData, checkedData)
+			default:
+				// Primitive value doesn't need exclusions applied, e.g. float64 or string
+				sData = append(sData, v)
+			}
 		}
 		return sData, nil
 	}
