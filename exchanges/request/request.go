@@ -160,7 +160,7 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 
 		if resp.StatusCode < http.StatusOK ||
 			resp.StatusCode > http.StatusAccepted {
-			return fmt.Errorf("%s unsuccessful HTTP status code: %d  raw response: %s",
+			return fmt.Errorf("%s unsuccessful HTTP status code: %d raw response: %s",
 				r.Name,
 				resp.StatusCode,
 				string(contents))
