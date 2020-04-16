@@ -680,7 +680,7 @@ func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 	}
 	klineParams := KlinesRequestParams{
 		Interval:  intervalToString,
-		Symbol:    pair.Format("", true).String(),
+		Symbol:    b.FormatExchangeCurrency(pair, a).String(),
 		StartTime: start.Unix() * 1000,
 		EndTime:   end.Unix() * 1000,
 	}

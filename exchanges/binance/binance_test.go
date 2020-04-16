@@ -103,7 +103,7 @@ func TestGetAggregatedTrades(t *testing.T) {
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
 
-	v, err := b.GetSpotKline(KlinesRequestParams{
+	_, err := b.GetSpotKline(KlinesRequestParams{
 		Symbol:   "BTCUSDT",
 		Interval: TimeIntervalFiveMinutes,
 		Limit:    24,
@@ -111,7 +111,6 @@ func TestGetSpotKline(t *testing.T) {
 	if err != nil {
 		t.Error("Binance GetSpotKline() error", err)
 	}
-	t.Log(v[0])
 }
 
 func TestGetAveragePrice(t *testing.T) {
