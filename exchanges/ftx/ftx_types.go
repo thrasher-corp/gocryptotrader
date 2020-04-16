@@ -1,5 +1,7 @@
 package ftx
 
+import "time"
+
 // MarketData stores market data
 type MarketData struct {
 	Name           string  `json:"name"`
@@ -54,12 +56,12 @@ type TempOBData struct {
 
 // TradeData stores data from trades
 type TradeData struct {
-	ID          int64   `json:"id"`
-	Liquidation bool    `json:"liquidation"`
-	Price       float64 `json:"price"`
-	Side        string  `json:"side"`
-	Size        float64 `json:"size"`
-	Time        string  `json:"time"`
+	ID          int64     `json:"id"`
+	Liquidation bool      `json:"liquidation"`
+	Price       float64   `json:"price"`
+	Side        string    `json:"side"`
+	Size        float64   `json:"size"`
+	Time        time.Time `json:"time"`
 }
 
 // Trades stores data for multiple trades
@@ -70,12 +72,12 @@ type Trades struct {
 
 // OHLCVData stores historical OHLCV data
 type OHLCVData struct {
-	Close     float64 `json:"close"`
-	High      float64 `json:"high"`
-	Low       float64 `json:"low"`
-	Open      float64 `json:"open"`
-	StartTime string  `json:"startTime"`
-	Volume    float64 `json:"volume"`
+	Close     float64   `json:"close"`
+	High      float64   `json:"high"`
+	Low       float64   `json:"low"`
+	Open      float64   `json:"open"`
+	StartTime time.Time `json:"startTime"`
+	Volume    float64   `json:"volume"`
 }
 
 // HistoricalData stores historical OHLCVData
@@ -125,13 +127,13 @@ type Future struct {
 
 // FutureStatsData stores data on futures stats
 type FutureStatsData struct {
-	Volume                   float64 `json:"volume"`
-	NextFundingRate          float64 `json:"nextFundingRate"`
-	NextFundingTime          string  `json:"nextFundingTime"`
-	ExpirationPrice          float64 `json:"expirationPrice"`
-	PredictedExpirationPrice float64 `json:"predictedExpirationPrice"`
-	OpenInterest             float64 `json:"openInterest"`
-	StrikePrice              float64 `json:"strikePrice"`
+	Volume                   float64   `json:"volume"`
+	NextFundingRate          float64   `json:"nextFundingRate"`
+	NextFundingTime          time.Time `json:"nextFundingTime"`
+	ExpirationPrice          float64   `json:"expirationPrice"`
+	PredictedExpirationPrice float64   `json:"predictedExpirationPrice"`
+	OpenInterest             float64   `json:"openInterest"`
+	StrikePrice              float64   `json:"strikePrice"`
 }
 
 // FutureStats stores future stats
@@ -142,9 +144,9 @@ type FutureStats struct {
 
 // FundingRatesData stores data on funding rates
 type FundingRatesData struct {
-	Future string  `json:"future"`
-	Rate   float64 `json:"rate"`
-	Time   string  `json:"time"`
+	Future string    `json:"future"`
+	Rate   float64   `json:"rate"`
+	Time   time.Time `json:"time"`
 }
 
 // FundingRates stores data on funding rates
@@ -256,16 +258,16 @@ type DepositAddress struct {
 
 // TransactionData stores data about deposit history
 type TransactionData struct {
-	Coin          string  `json:"coin"`
-	Confirmations int64   `json:"conformations"`
-	ConfirmedTime string  `json:"confirmedTime"`
-	Fee           float64 `json:"fee"`
-	ID            int64   `json:"id"`
-	SentTime      string  `json:"sentTime"`
-	Size          float64 `json:"size"`
-	Status        string  `json:"status"`
-	Time          string  `json:"time"`
-	TxID          string  `json:"txid"`
+	Coin          string    `json:"coin"`
+	Confirmations int64     `json:"conformations"`
+	ConfirmedTime time.Time `json:"confirmedTime"`
+	Fee           float64   `json:"fee"`
+	ID            int64     `json:"id"`
+	SentTime      time.Time `json:"sentTime"`
+	Size          float64   `json:"size"`
+	Status        string    `json:"status"`
+	Time          time.Time `json:"time"`
+	TxID          string    `json:"txid"`
 }
 
 // DepositHistory stores deposit history data
@@ -288,22 +290,22 @@ type WithdrawData struct {
 
 // OrderData stores open order data
 type OrderData struct {
-	CreatedAt     string  `json:"createdAt"`
-	FilledSize    float64 `json:"filledSize"`
-	Future        string  `json:"future"`
-	ID            int64   `json:"id"`
-	Market        string  `json:"market"`
-	Price         float64 `json:"price"`
-	AvgFillPrice  float64 `json:"avgFillPrice"`
-	RemainingSize float64 `json:"remainingSize"`
-	Side          string  `json:"side"`
-	Size          float64 `json:"size"`
-	Status        string  `json:"status"`
-	OrderType     string  `json:"type"`
-	ReduceOnly    bool    `json:"reduceOnly"`
-	IOC           bool    `json:"ioc"`
-	PostOnly      bool    `json:"postOnly"`
-	ClientID      string  `json:"clientId"`
+	CreatedAt     time.Time `json:"createdAt"`
+	FilledSize    float64   `json:"filledSize"`
+	Future        string    `json:"future"`
+	ID            int64     `json:"id"`
+	Market        string    `json:"market"`
+	Price         float64   `json:"price"`
+	AvgFillPrice  float64   `json:"avgFillPrice"`
+	RemainingSize float64   `json:"remainingSize"`
+	Side          string    `json:"side"`
+	Size          float64   `json:"size"`
+	Status        string    `json:"status"`
+	OrderType     string    `json:"type"`
+	ReduceOnly    bool      `json:"reduceOnly"`
+	IOC           bool      `json:"ioc"`
+	PostOnly      bool      `json:"postOnly"`
+	ClientID      string    `json:"clientId"`
 }
 
 // OpenOrders stores data of open orders
@@ -320,26 +322,26 @@ type OrderHistory struct {
 
 // TriggerOrderData stores trigger order data
 type TriggerOrderData struct {
-	CreatedAt        string  `json:"createdAt"`
-	Error            string  `json:"error"`
-	Future           string  `json:"future"`
-	ID               int64   `json:"id"`
-	Market           string  `json:"market"`
-	OrderID          int64   `json:"orderId"`
-	OrderPrice       float64 `json:"orderPrice"`
-	ReduceOnly       bool    `json:"reduceOnly"`
-	Side             string  `json:"side"`
-	Size             float64 `json:"size"`
-	Status           string  `json:"status"`
-	TrailStart       float64 `json:"trailStart"`
-	TrailValue       float64 `json:"trailvalue"`
-	TriggerPrice     float64 `json:"triggerPrice"`
-	TriggeredAt      string  `json:"triggeredAt"`
-	OrderType        string  `json:"type"`
-	MarketOrLimit    string  `json:"orderType"`
-	FilledSize       float64 `json:"filledSize"`
-	AvgFillPrice     float64 `json:"avgFillPrice"`
-	RetryUntilFilled bool    `json:"retryUntilFilled"`
+	CreatedAt        time.Time `json:"createdAt"`
+	Error            string    `json:"error"`
+	Future           string    `json:"future"`
+	ID               int64     `json:"id"`
+	Market           string    `json:"market"`
+	OrderID          int64     `json:"orderId"`
+	OrderPrice       float64   `json:"orderPrice"`
+	ReduceOnly       bool      `json:"reduceOnly"`
+	Side             string    `json:"side"`
+	Size             float64   `json:"size"`
+	Status           string    `json:"status"`
+	TrailStart       float64   `json:"trailStart"`
+	TrailValue       float64   `json:"trailvalue"`
+	TriggerPrice     float64   `json:"triggerPrice"`
+	TriggeredAt      string    `json:"triggeredAt"`
+	OrderType        string    `json:"type"`
+	MarketOrLimit    string    `json:"orderType"`
+	FilledSize       float64   `json:"filledSize"`
+	AvgFillPrice     float64   `json:"avgFillPrice"`
+	RetryUntilFilled bool      `json:"retryUntilFilled"`
 }
 
 // OpenTriggerOrders stores trigger orders' data that are open
@@ -350,11 +352,11 @@ type OpenTriggerOrders struct {
 
 // TriggerData stores trigger orders' trigger data
 type TriggerData struct {
-	Error      string  `json:"error"`
-	FilledSize float64 `json:"filledSize"`
-	OrderSize  float64 `json:"orderSize"`
-	OrderID    int64   `json:"orderId"`
-	Time       string  `json:"time"`
+	Error      string    `json:"error"`
+	FilledSize float64   `json:"filledSize"`
+	OrderSize  float64   `json:"orderSize"`
+	OrderID    int64     `json:"orderId"`
+	Time       time.Time `json:"time"`
 }
 
 // Triggers stores trigger orders' data
@@ -407,21 +409,21 @@ type CancelOrderResponse struct {
 
 // FillsData stores fills' data
 type FillsData struct {
-	Fee           float64 `json:"fee"`
-	FeeRate       float64 `json:"feeRate"`
-	Future        string  `json:"future"`
-	ID            string  `json:"id"`
-	Liquidity     string  `json:"liquidity"`
-	Market        string  `json:"market"`
-	BaseCurrency  string  `json:"baseCurrency"`
-	QuoteCurrency string  `json:"quoteCurrency"`
-	OrderID       string  `json:"orderID"`
-	TradeID       string  `json:"tradeID"`
-	Price         float64 `json:"price"`
-	Side          string  `json:"side"`
-	Size          string  `json:"size"`
-	Time          string  `json:"time"`
-	OrderType     string  `json:"type"`
+	Fee           float64   `json:"fee"`
+	FeeRate       float64   `json:"feeRate"`
+	Future        string    `json:"future"`
+	ID            string    `json:"id"`
+	Liquidity     string    `json:"liquidity"`
+	Market        string    `json:"market"`
+	BaseCurrency  string    `json:"baseCurrency"`
+	QuoteCurrency string    `json:"quoteCurrency"`
+	OrderID       string    `json:"orderID"`
+	TradeID       string    `json:"tradeID"`
+	Price         float64   `json:"price"`
+	Side          string    `json:"side"`
+	Size          string    `json:"size"`
+	Time          time.Time `json:"time"`
+	OrderType     string    `json:"type"`
 }
 
 // Fills stores fills' data
@@ -432,11 +434,11 @@ type Fills struct {
 
 // FundingPaymentsData stores funding payments' data
 type FundingPaymentsData struct {
-	Future  string  `json:"future"`
-	ID      string  `json:"id"`
-	Payment float64 `json:"payment"`
-	Time    string  `json:"time"`
-	Rate    float64 `json:"rate"`
+	Future  string    `json:"future"`
+	ID      string    `json:"id"`
+	Payment float64   `json:"payment"`
+	Time    time.Time `json:"time"`
+	Rate    float64   `json:"rate"`
 }
 
 // FundingPayments stores funding payments data
@@ -569,7 +571,7 @@ type QuoteRequestData struct {
 	Option        OptionData `json:"option"`
 	Side          string     `json:"side"`
 	Size          float64    `json:"size"`
-	Time          string     `json:"time"`
+	Time          time.Time  `json:"time"`
 	RequestExpiry string     `json:"requestExpiry"`
 	Status        string     `json:"status"`
 }
@@ -582,12 +584,12 @@ type QuoteRequests struct {
 
 // QuoteData stores quote's data
 type QuoteData struct {
-	Collateral  float64 `json:"collateral"`
-	ID          int64   `json:"id"`
-	Price       float64 `json:"price"`
-	QuoteExpiry string  `json:"quoteExpiry"`
-	Status      string  `json:"status"`
-	Time        string  `json:"time"`
+	Collateral  float64   `json:"collateral"`
+	ID          int64     `json:"id"`
+	Price       float64   `json:"price"`
+	QuoteExpiry string    `json:"quoteExpiry"`
+	Status      string    `json:"status"`
+	Time        time.Time `json:"time"`
 }
 
 // PersonalQuotesData stores data of your quotes
@@ -596,7 +598,7 @@ type PersonalQuotesData struct {
 	Option         OptionData  `json:"option"`
 	Side           string      `json:"side"`
 	Size           float64     `json:"size"`
-	Time           string      `json:"time"`
+	Time           time.Time   `json:"time"`
 	RequestExpiry  string      `json:"requestExpiry"`
 	Status         string      `json:"status"`
 	HideLimitPrice bool        `json:"hideLimitPrice"`
@@ -612,16 +614,16 @@ type PersonalQuotes struct {
 
 // CreateQuoteRequestData stores quote data of the request sent
 type CreateQuoteRequestData struct {
-	ID            int64   `json:"id"`
-	Expiry        string  `json:"expiry"`
-	Strike        float64 `json:"strike"`
-	OptionType    string  `json:"type"`
-	Underlying    string  `json:"underlying"`
-	RequestExpiry string  `json:"requestExpiry"`
-	Side          string  `json:"side"`
-	Size          float64 `json:"size"`
-	Status        string  `json:"status"`
-	Time          string  `json:"time"`
+	ID            int64     `json:"id"`
+	Expiry        string    `json:"expiry"`
+	Strike        float64   `json:"strike"`
+	OptionType    string    `json:"type"`
+	Underlying    string    `json:"underlying"`
+	RequestExpiry string    `json:"requestExpiry"`
+	Side          string    `json:"side"`
+	Size          float64   `json:"size"`
+	Status        string    `json:"status"`
+	Time          time.Time `json:"time"`
 }
 
 // CreateQuote stores create quote request data
@@ -638,7 +640,7 @@ type CancelQuoteRequestData struct {
 	Side          string     `json:"side"`
 	Size          float64    `json:"size"`
 	Status        string     `json:"status"`
-	Time          string     `json:"time"`
+	Time          time.Time  `json:"time"`
 }
 
 // CancelQuote stores cancel quote request data
@@ -659,7 +661,7 @@ type QuoteForQuoteData struct {
 	RequestSide string     `json:"requestSide"`
 	Size        float64    `json:"size"`
 	Status      string     `json:"status"`
-	Time        string     `json:"time"`
+	Time        time.Time  `json:"time"`
 }
 
 // QuoteForQuoteResponse stores quote data for another quote
@@ -704,7 +706,7 @@ type OptionsTradesData struct {
 	Option OptionData `json:"option"`
 	Price  float64    `json:"price"`
 	Size   float64    `json:"size"`
-	Time   string     `json:"time"`
+	Time   time.Time  `json:"time"`
 }
 
 // PublicOptionsTrades stores options' trades from public

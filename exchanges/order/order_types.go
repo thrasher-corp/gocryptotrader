@@ -145,6 +145,7 @@ type Cancel struct {
 	Amount        float64
 	Exchange      string
 	ID            string
+	ClientOrderID string
 	AccountID     string
 	ClientID      string
 	WalletAddress string

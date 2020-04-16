@@ -145,8 +145,8 @@ func TestGetPositions(t *testing.T) {
 }
 
 func TestChangeAccountLeverage(t *testing.T) {
-	if !areTestAPIKeysSet() {
-		t.Skip()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	f.Verbose = true
 	err := f.ChangeAccountLeverage(50)
@@ -227,8 +227,8 @@ func TestFetchWithdrawalHistory(t *testing.T) {
 }
 
 func TestWithdraw(t *testing.T) {
-	if !areTestAPIKeysSet() {
-		t.Skip()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	a, err := f.Withdraw("BTC", "38eyTMFHvo5UjPR91zwYYKuCtdF2uhtdxS", "", "", "957378", 0.01)
 	t.Log(a)
@@ -237,7 +237,7 @@ func TestWithdraw(t *testing.T) {
 	}
 }
 
-func TestOpenOrders(t *testing.T) {
+func TestGetOpenOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
@@ -293,8 +293,8 @@ func TestGetTriggerOrderHistory(t *testing.T) {
 }
 
 func TestOrder(t *testing.T) {
-	if !areTestAPIKeysSet() {
-		t.Skip()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	a, err := f.Order("FTT/BTC", "buy", "limit", "", "", "", "", 0.0001, 500)
 	t.Log(a)
@@ -304,8 +304,8 @@ func TestOrder(t *testing.T) {
 }
 
 func TestTriggerOrder(t *testing.T) {
-	if !areTestAPIKeysSet() {
-		t.Skip()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	a, err := f.TriggerOrder("FTT/BTC", "buy", stopOrderType, "", "", 500, 0.0004, 0.0001, 0)
 	t.Log(a)
@@ -315,8 +315,8 @@ func TestTriggerOrder(t *testing.T) {
 }
 
 func TestDeleteOrder(t *testing.T) {
-	if !areTestAPIKeysSet() {
-		t.Skip()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	a, err := f.DeleteOrder("testing123")
 	t.Log(a)
@@ -326,8 +326,8 @@ func TestDeleteOrder(t *testing.T) {
 }
 
 func TestDeleteOrderByClientID(t *testing.T) {
-	if !areTestAPIKeysSet() {
-		t.Skip()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	a, err := f.DeleteOrderByClientID("clientID123")
 	t.Log(a)
@@ -337,8 +337,8 @@ func TestDeleteOrderByClientID(t *testing.T) {
 }
 
 func TestDeleteTriggerOrder(t *testing.T) {
-	if !areTestAPIKeysSet() {
-		t.Skip()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	a, err := f.DeleteTriggerOrder("triggerOrder123")
 	t.Log(a)

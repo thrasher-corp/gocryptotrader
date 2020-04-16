@@ -391,7 +391,22 @@ func (f *Ftx) CancelOrder(order *order.Cancel) error {
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (f *Ftx) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
-	return order.CancelAllResponse{}, common.ErrNotYetImplemented
+	var resp order.CancelAllResponse
+	tempMap := make(map[string]string)
+	orders, err := f.GetOpenOrders(f.FormatExchangeCurrency(orderCancellation.Pair, asset.Spot).String())
+	if err != nil {
+		return resp, err
+	}
+	for x := range orders.Result {
+		_, err := f.DeleteOrder(strconv.FormatInt(orders.Result[x].ID, 10))
+		if err != nil {
+			tempMap[strconv.FormatInt(orders.Result[x].ID, 10)] = "Cancellation Failed"
+			continue
+		}
+		tempMap[strconv.FormatInt(orders.Result[x].ID, 10)] = "Success"
+	}
+	resp.Status = tempMap
+	return resp, nil
 }
 
 // GetOrderInfo returns information on a current open order
@@ -431,7 +446,32 @@ func (f *Ftx) GetWebsocket() (*wshandler.Websocket, error) {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (f *Ftx) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	return nil, common.ErrNotYetImplemented
+	var resp []order.Detail
+	for x := range getOrdersRequest.Pairs {
+		var tempResp order.Detail
+		orderData, err := f.GetOpenOrders(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], asset.Spot).String())
+		if err != nil {
+			return resp, err
+		}
+		for y := range orderData.Result {
+			tempResp.ID = strconv.FormatInt(orderData.Result[y].ID, 10)
+			tempResp.Amount = orderData.Result[y].Size
+			tempResp.AssetType = asset.Spot
+			tempResp.ClientID = orderData.Result[y].ClientID
+			tempResp.Date = orderData.Result[y].CreatedAt
+			tempResp.Exchange = f.Name
+			tempResp.ExecutedAmount = orderData.Result[y].Size - orderData.Result[y].RemainingSize
+			// tempResp.Fee = Fee
+			tempResp.Pair = currency.NewPairFromString(orderData.Result[y].Market)
+			tempResp.Price = orderData.Result[y].Price
+			tempResp.RemainingAmount = orderData.Result[y].RemainingSize
+			// tempResp.Side = orderData.Result[y].Side
+			// tempResp.Status = orderData.Result[y].Status
+			// tempResp.Type = orderData.Result[y].OrderType
+			resp = append(resp, tempResp)
+		}
+	}
+	return resp, common.ErrNotYetImplemented
 }
 
 // GetOrderHistory retrieves account order information
