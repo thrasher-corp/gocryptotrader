@@ -93,6 +93,14 @@ const (
 	stopOrderType         = "stop"
 	trailingStopOrderType = "trailingStop"
 	takeProfitOrderType   = "takeProfit"
+	buy                   = "buy"
+	sell                  = "sell"
+	newStatus             = "new"
+	openStatus            = "open"
+	closedStatus          = "closed"
+	limitOrder            = "limit"
+	marketOrder           = "market"
+	defaultTime           = "0001-01-01 00:00:00 +0000 UTC"
 )
 
 // Start implementing public and private exchange API funcs below
@@ -327,10 +335,10 @@ func (f *Ftx) FetchOrderHistory(marketName, startTime, endTime, limit string) (O
 	if marketName != "" {
 		params.Set("market", marketName)
 	}
-	if startTime != "" {
+	if startTime != "" && startTime != defaultTime {
 		params.Set("start_time", startTime)
 	}
-	if endTime != "" {
+	if endTime != "" && endTime != defaultTime {
 		params.Set("end_time", endTime)
 	}
 	if limit != "" {
@@ -359,11 +367,26 @@ func (f *Ftx) GetTriggerOrderTriggers(orderID string) (Triggers, error) {
 }
 
 // GetTriggerOrderHistory gets trigger orders that are currently open
-func (f *Ftx) GetTriggerOrderHistory(marketName string) (TriggerOrderHistory, error) {
+func (f *Ftx) GetTriggerOrderHistory(marketName, startTime, endTime, side, orderType, limit string) (TriggerOrderHistory, error) {
 	var resp TriggerOrderHistory
 	params := url.Values{}
 	if marketName != "" {
 		params.Set("market", marketName)
+	}
+	if startTime != "" && startTime != defaultTime {
+		params.Set("start_time", startTime)
+	}
+	if endTime != "" && endTime != defaultTime {
+		params.Set("end_time", endTime)
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if limit != "" {
+		params.Set("limit", limit)
 	}
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, getTriggerOrderHistory+params.Encode(), nil, &resp)
 }
@@ -586,31 +609,19 @@ func (f *Ftx) GetYourQuoteRequests() (PersonalQuotes, error) {
 }
 
 // CreateQuoteRequest sends a request to create a quote
-func (f *Ftx) CreateQuoteRequest(underlying, optionType, side string, expiry int64, strike, size, limitPrice, requestExpiry, counterParyID float64, hideLimitPrice bool) (CreateQuote, error) {
+func (f *Ftx) CreateQuoteRequest(underlying, optionType, side, expiry, requestExpiry string, strike, size, limitPrice, counterParyID float64, hideLimitPrice bool) (CreateQuote, error) {
 	var resp CreateQuote
 	req := make(map[string]interface{})
-	if underlying != "" {
-		req["underlying"] = underlying
-	}
-	if optionType != "" {
-		req["type"] = optionType
-	}
-	if side != "" {
-		req["side"] = side
-	}
-	if strike != 0 {
-		req["strike"] = strike
-	}
-	if expiry != 0 {
-		req["expiry"] = expiry
-	}
-	if size != 0 {
-		req["size"] = size
-	}
+	req["underlying"] = underlying
+	req["type"] = optionType
+	req["side"] = side
+	req["strike"] = strike
+	req["expiry"] = expiry
+	req["size"] = size
 	if limitPrice != 0 {
 		req["limitPrice"] = limitPrice
 	}
-	if requestExpiry != 0 {
+	if requestExpiry != "" {
 		req["requestExpiry"] = requestExpiry
 	}
 	if counterParyID != 0 {
@@ -627,9 +638,9 @@ func (f *Ftx) DeleteQuote(requestID string) (CancelQuote, error) {
 }
 
 // GetQuotesForYourQuote gets a list of quotes for your quote
-func (f *Ftx) GetQuotesForYourQuote() (QuoteForQuoteData, error) {
+func (f *Ftx) GetQuotesForYourQuote(requestID string) (QuoteForQuoteData, error) {
 	var resp QuoteForQuoteData
-	return resp, f.SendAuthHTTPRequest(http.MethodGet, getQuotesForQuote, nil, &resp)
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, fmt.Sprintf(getQuotesForQuote, requestID), nil, &resp)
 }
 
 // MakeQuote makes a quote for a quote

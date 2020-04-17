@@ -3,17 +3,21 @@ package ftx
 import (
 	"log"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = false
+	canManipulateRealOrders = true
 )
 
 var f Ftx
@@ -285,7 +289,7 @@ func TestGetTriggerOrderHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	a, err := f.GetTriggerOrderHistory("FTT/BTC")
+	a, err := f.GetTriggerOrderHistory("FTT/BTC", "", "", "buy", "limit", "5")
 	t.Log(a)
 	if err != nil {
 		t.Error(err)
@@ -461,7 +465,8 @@ func TestCreateQuoteRequest(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	a, err := f.CreateQuoteRequest("BTC", "call", "buy", int64(time.Now().UnixNano()/1000000), 0.1, 1, 0, 0, 0, false)
+	log.Println(time.Now().AddDate(0, 0, 3).UnixNano())
+	a, err := f.CreateQuoteRequest("BTC", "call", "buy", strconv.FormatInt(int64(time.Now().AddDate(0, 0, 3).UnixNano()/1000000), 10), "", 0.1, 10, 5, 0, false)
 	t.Log(a)
 	if err != nil {
 		t.Error(err)
@@ -483,7 +488,7 @@ func TestGetQuotesForYourQuote(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	a, err := f.GetQuotesForYourQuote()
+	a, err := f.GetQuotesForYourQuote("testing123")
 	t.Log(a)
 	if err != nil {
 		t.Error(err)
@@ -561,6 +566,84 @@ func TestGetPublicOptionsTrades(t *testing.T) {
 		t.Skip()
 	}
 	a, err := f.GetPublicOptionsTrades("", "", "5")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateOrderbook(t *testing.T) {
+	t.Parallel()
+	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "/")
+	a, err := f.UpdateOrderbook(cp, asset.Spot)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
+	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "/")
+	a, err := f.UpdateTicker(cp, asset.Spot)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	f.Verbose = true
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
+	var orderReq order.GetOrdersRequest
+	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "/")
+	orderReq.Pairs = append(orderReq.Pairs, cp)
+	a, err := f.GetActiveOrders(&orderReq)
+	t.Log(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetOrderHistory(t *testing.T) {
+	f.Verbose = true
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
+	var orderReq order.GetOrdersRequest
+	cp := currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "/")
+	orderReq.Pairs = append(orderReq.Pairs, cp)
+	a, err := f.GetOrderHistory(&orderReq)
+	t.Log(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUpdateAccountHoldings(t *testing.T) {
+	f.Verbose = true
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
+	a, err := f.UpdateAccountInfo()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFetchAccountInfo(t *testing.T) {
+	f.Verbose = true
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
+	a, err := f.FetchAccountInfo()
 	t.Log(a)
 	if err != nil {
 		t.Error(err)

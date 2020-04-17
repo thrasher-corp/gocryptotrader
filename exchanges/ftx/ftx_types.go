@@ -666,8 +666,8 @@ type QuoteForQuoteData struct {
 
 // QuoteForQuoteResponse stores quote data for another quote
 type QuoteForQuoteResponse struct {
-	Success bool              `json:"success"`
-	Result  QuoteForQuoteData `json:"result"`
+	Success bool                `json:"success"`
+	Result  []QuoteForQuoteData `json:"result"`
 }
 
 // AccountOptionsInfoData stores account's options' info data

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -57,11 +58,11 @@ func (f *Ftx) SetDefaults() {
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: "-",
+			Delimiter: "/",
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: "-",
+			Delimiter: "/",
 		},
 	}
 	// Fill out the capabilities/features that the exchange supports
@@ -210,29 +211,32 @@ func (f *Ftx) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (f *Ftx) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	// allPairs := f.GetEnabledPairs(assetType)
-	// markets, err := f.GetMarkets()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// for x := range markets.Result {
-	// 	enabledPairFormat := f.FormatExchangeCurrency(f.Name, markets.Result[x].Name).String()
-	// 	var resp ticker.Price
-	// 	// resp.Pair = currency.NewPairFromString(markets[x].MarketID)
-	// 	// resp.Last = markets[x].LastPrice
-	// 	// resp.High = markets[x].High24h
-	// 	// resp.Low = markets[x].Low24h
-	// 	// resp.Bid = markets[x].BestBID
-	// 	// resp.Ask = markets[x].BestAsk
-	// 	// resp.Volume = markets[x].Volume
-	// 	resp.LastUpdated = time.Now()
-	// 	err = ticker.ProcessTicker(f.Name, &resp, assetType)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// }
-	// return ticker.GetTicker(f.Name, p, assetType)
-	return nil, nil
+	var marketNames []string
+	allPairs := f.GetEnabledPairs(assetType)
+	for a := range allPairs {
+		marketNames = append(marketNames, f.FormatExchangeCurrency(allPairs[a], asset.Spot).String())
+	}
+	markets, err := f.GetMarkets()
+	if err != nil {
+		return nil, err
+	}
+	for x := range markets.Result {
+		marketName := currency.NewPairFromString(markets.Result[x].Name)
+		if common.StringDataCompareInsensitive(marketNames, marketName.String()) {
+			continue
+		}
+		var resp ticker.Price
+		resp.Pair = marketName
+		resp.Last = markets.Result[x].Last
+		resp.Bid = markets.Result[x].Bid
+		resp.Ask = markets.Result[x].Ask
+		resp.LastUpdated = time.Now()
+		err = ticker.ProcessTicker(f.Name, &resp, assetType)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return ticker.GetTicker(f.Name, p, assetType)
 }
 
 // FetchTicker returns the ticker for a currency pair
@@ -465,19 +469,190 @@ func (f *Ftx) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Pair = currency.NewPairFromString(orderData.Result[y].Market)
 			tempResp.Price = orderData.Result[y].Price
 			tempResp.RemainingAmount = orderData.Result[y].RemainingSize
-			// tempResp.Side = orderData.Result[y].Side
-			// tempResp.Status = orderData.Result[y].Status
-			// tempResp.Type = orderData.Result[y].OrderType
+			switch orderData.Result[y].Side {
+			case buy:
+				tempResp.Side = order.Buy
+			case sell:
+				tempResp.Side = order.Sell
+			}
+			switch orderData.Result[y].Status {
+			case newStatus:
+				tempResp.Status = order.New
+			case openStatus:
+				tempResp.Status = order.Open
+			case closedStatus:
+				if orderData.Result[y].FilledSize != 0 && orderData.Result[y].FilledSize != orderData.Result[y].Size {
+					tempResp.Status = order.PartiallyCancelled
+				}
+				if orderData.Result[y].FilledSize == 0 {
+					tempResp.Status = order.Cancelled
+				}
+				if orderData.Result[y].FilledSize == orderData.Result[y].Size {
+					tempResp.Status = order.Filled
+				}
+			}
+			switch orderData.Result[y].OrderType {
+			case marketOrder:
+				tempResp.Type = order.Market
+			case limitOrder:
+				tempResp.Type = order.Limit
+			}
+			resp = append(resp, tempResp)
+		}
+		triggerOrderData, err := f.GetOpenTriggerOrders(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], asset.Spot).String(), getOrdersRequest.Type.String())
+		if err != nil {
+			return resp, err
+		}
+		for z := range triggerOrderData.Result {
+			tempResp.ID = strconv.FormatInt(triggerOrderData.Result[z].ID, 10)
+			tempResp.Amount = triggerOrderData.Result[z].Size
+			tempResp.AssetType = asset.Spot
+			tempResp.Date = triggerOrderData.Result[z].CreatedAt
+			tempResp.Exchange = f.Name
+			tempResp.ExecutedAmount = triggerOrderData.Result[z].FilledSize
+			// tempResp.Fee = Fee
+			tempResp.Pair = currency.NewPairFromString(triggerOrderData.Result[z].Market)
+			tempResp.Price = triggerOrderData.Result[z].AvgFillPrice
+			tempResp.RemainingAmount = triggerOrderData.Result[z].Size - triggerOrderData.Result[z].FilledSize
+			tempResp.TriggerPrice = triggerOrderData.Result[z].TriggerPrice
+			switch triggerOrderData.Result[z].Side {
+			case buy:
+				tempResp.Side = order.Buy
+			case sell:
+				tempResp.Side = order.Sell
+			}
+			switch orderData.Result[z].Status {
+			case newStatus:
+				tempResp.Status = order.New
+			case openStatus:
+				tempResp.Status = order.Open
+			case closedStatus:
+				if triggerOrderData.Result[z].FilledSize != 0 && triggerOrderData.Result[z].FilledSize != triggerOrderData.Result[z].Size {
+					tempResp.Status = order.PartiallyCancelled
+				}
+				if triggerOrderData.Result[z].FilledSize == 0 {
+					tempResp.Status = order.Cancelled
+				}
+				if triggerOrderData.Result[z].FilledSize == triggerOrderData.Result[z].Size {
+					tempResp.Status = order.Filled
+				}
+			}
+			switch triggerOrderData.Result[z].OrderType {
+			case marketOrder:
+				tempResp.Type = order.Market
+			case limitOrder:
+				tempResp.Type = order.Limit
+			}
 			resp = append(resp, tempResp)
 		}
 	}
-	return resp, common.ErrNotYetImplemented
+	return resp, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (f *Ftx) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
-	return nil, common.ErrNotYetImplemented
+	var resp []order.Detail
+	for x := range getOrdersRequest.Pairs {
+		var tempResp order.Detail
+		fmt.Println(getOrdersRequest.EndTicks.String())
+		fmt.Println(getOrdersRequest.StartTicks.String())
+		orderData, err := f.FetchOrderHistory(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], asset.Spot).String(),
+			getOrdersRequest.StartTicks.String(), getOrdersRequest.EndTicks.String(), "")
+		if err != nil {
+			return resp, err
+		}
+		for y := range orderData.Result {
+			tempResp.ID = strconv.FormatInt(orderData.Result[y].ID, 10)
+			tempResp.Amount = orderData.Result[y].Size
+			tempResp.AssetType = asset.Spot
+			tempResp.ClientID = orderData.Result[y].ClientID
+			tempResp.Date = orderData.Result[y].CreatedAt
+			tempResp.Exchange = f.Name
+			tempResp.ExecutedAmount = orderData.Result[y].Size - orderData.Result[y].RemainingSize
+			// tempResp.Fee = Fee
+			tempResp.Pair = currency.NewPairFromString(orderData.Result[y].Market)
+			tempResp.Price = orderData.Result[y].Price
+			tempResp.RemainingAmount = orderData.Result[y].RemainingSize
+			switch orderData.Result[y].Side {
+			case buy:
+				tempResp.Side = order.Buy
+			case sell:
+				tempResp.Side = order.Sell
+			}
+			switch orderData.Result[y].Status {
+			case newStatus:
+				tempResp.Status = order.New
+			case openStatus:
+				tempResp.Status = order.Open
+			case closedStatus:
+				if orderData.Result[y].FilledSize != 0 && orderData.Result[y].FilledSize != orderData.Result[y].Size {
+					tempResp.Status = order.PartiallyCancelled
+				}
+				if orderData.Result[y].FilledSize == 0 {
+					tempResp.Status = order.Cancelled
+				}
+				if orderData.Result[y].FilledSize == orderData.Result[y].Size {
+					tempResp.Status = order.Filled
+				}
+			}
+			switch orderData.Result[y].OrderType {
+			case marketOrder:
+				tempResp.Type = order.Market
+			case limitOrder:
+				tempResp.Type = order.Limit
+			}
+			resp = append(resp, tempResp)
+		}
+		triggerOrderData, err := f.GetTriggerOrderHistory(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], asset.Spot).String(),
+			getOrdersRequest.StartTicks.String(), getOrdersRequest.EndTicks.String(), getOrdersRequest.Side.String(), getOrdersRequest.Type.String(), "")
+		if err != nil {
+			return resp, err
+		}
+		for z := range triggerOrderData.Result {
+			tempResp.ID = strconv.FormatInt(triggerOrderData.Result[z].ID, 10)
+			tempResp.Amount = triggerOrderData.Result[z].Size
+			tempResp.AssetType = asset.Spot
+			tempResp.Date = triggerOrderData.Result[z].CreatedAt
+			tempResp.Exchange = f.Name
+			tempResp.ExecutedAmount = triggerOrderData.Result[z].FilledSize
+			// tempResp.Fee = Fee
+			tempResp.Pair = currency.NewPairFromString(triggerOrderData.Result[z].Market)
+			tempResp.Price = triggerOrderData.Result[z].AvgFillPrice
+			tempResp.RemainingAmount = triggerOrderData.Result[z].Size - triggerOrderData.Result[z].FilledSize
+			tempResp.TriggerPrice = triggerOrderData.Result[z].TriggerPrice
+			switch triggerOrderData.Result[z].Side {
+			case buy:
+				tempResp.Side = order.Buy
+			case sell:
+				tempResp.Side = order.Sell
+			}
+			switch orderData.Result[z].Status {
+			case newStatus:
+				tempResp.Status = order.New
+			case openStatus:
+				tempResp.Status = order.Open
+			case closedStatus:
+				if triggerOrderData.Result[z].FilledSize != 0 && triggerOrderData.Result[z].FilledSize != triggerOrderData.Result[z].Size {
+					tempResp.Status = order.PartiallyCancelled
+				}
+				if triggerOrderData.Result[z].FilledSize == 0 {
+					tempResp.Status = order.Cancelled
+				}
+				if triggerOrderData.Result[z].FilledSize == triggerOrderData.Result[z].Size {
+					tempResp.Status = order.Filled
+				}
+			}
+			switch triggerOrderData.Result[z].OrderType {
+			case marketOrder:
+				tempResp.Type = order.Market
+			case limitOrder:
+				tempResp.Type = order.Limit
+			}
+			resp = append(resp, tempResp)
+		}
+	}
+	return resp, nil
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
