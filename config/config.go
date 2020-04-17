@@ -477,6 +477,7 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 		return err
 	}
 
+	var atLeastOneEnabled bool
 	for x := range assetTypes {
 		enabledPairs, err := c.GetEnabledPairs(exchName, assetTypes[x])
 		if err != nil {
@@ -508,6 +509,7 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 				assetTypes[x])
 			continue
 		} else {
+			atLeastOneEnabled = true
 			err := c.SetPairs(exchName, assetTypes[x], true, pairs)
 			if err != nil {
 				return err
@@ -519,6 +521,22 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 				exchName,
 				assetTypes[x],
 				pairsRemoved.Strings())
+		}
+	}
+	// If no pair is enabled across the entire range of assets, then atleast
+	// enable one and turn on the asset type
+	if !atLeastOneEnabled {
+		avail, err := c.GetAvailablePairs(exchName, assetTypes[0])
+		if err != nil {
+			return err
+		}
+
+		err = c.SetPairs(exchName,
+			assetTypes[0],
+			true,
+			currency.Pairs{avail.GetRandomPair()})
+		if err != nil {
+			return err
 		}
 	}
 	return nil

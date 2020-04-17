@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -134,23 +135,28 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        z.WsConnect,
-		// Subscriber:                       z.Subscribe,
-		Features: &z.Features.Supports.WebsocketCapabilities,
+		GenerateSubscriptions:            z.GenerateDefaultSubscriptions,
+		Subscriber:                       z.Subscribe,
+		Features:                         &z.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
 	}
 
-	z.WebsocketConn = &stream.WebsocketConnection{
-		ExchangeName:         z.Name,
+	err = z.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  z.Websocket.GetWebsocketURL(),
-		ProxyURL:             z.Websocket.GetProxyAddress(),
-		Verbose:              z.Verbose,
 		RateLimit:            zbWebsocketRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	}, false)
+	if err != nil {
+		return err
 	}
-	return nil
+
+	return z.Websocket.SetupLocalOrderbook(cache.Config{
+		OrderbookBufferLimit: 1,
+		BufferEnabled:        false,
+	})
 }
 
 // Start starts the OKEX go routine

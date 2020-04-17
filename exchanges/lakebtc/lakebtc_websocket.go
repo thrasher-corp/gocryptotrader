@@ -107,8 +107,8 @@ func (l *LakeBTC) wsHandleIncomingData() {
 	defer l.Websocket.Wg.Done()
 	for {
 		select {
-		case <-l.Websocket.ShutdownC:
-			return
+		// case <-l.Websocket.ShutdownC:
+		// 	return
 		case data := <-l.WebsocketConn.Ticker:
 			if l.Verbose {
 				log.Debugf(log.ExchangeSys,

@@ -62,20 +62,14 @@ func (h *HitBTC) wsReadData() {
 	}()
 
 	for {
-		select {
-		case <-h.Websocket.ShutdownC:
+		resp, err := h.Websocket.Conn.ReadMessage()
+		if err != nil {
 			return
-		default:
-			resp, err := h.Websocket.Conn.ReadMessage()
-			if err != nil {
-				h.Websocket.ReadMessageErrors <- err
-				return
-			}
+		}
 
-			err = h.wsHandleData(resp.Raw)
-			if err != nil {
-				h.Websocket.DataHandler <- err
-			}
+		err = h.wsHandleData(resp.Raw)
+		if err != nil {
+			h.Websocket.DataHandler <- err
 		}
 	}
 }

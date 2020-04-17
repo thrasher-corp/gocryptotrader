@@ -61,17 +61,11 @@ func (b *Bitfinex) wsReadData(ws stream.Connection) {
 	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 	for {
-		select {
-		case <-b.Websocket.ShutdownC:
+		resp, err := ws.ReadMessage()
+		if err != nil {
 			return
-		default:
-			resp, err := ws.ReadMessage()
-			if err != nil {
-				b.Websocket.ReadMessageErrors <- err
-				return
-			}
-			comms <- resp
 		}
+		comms <- resp
 	}
 }
 
@@ -80,15 +74,11 @@ func (b *Bitfinex) WsDataHandler() {
 	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 	for {
-		select {
-		case <-b.Websocket.ShutdownC:
-			return
-		case resp := <-comms:
-			if resp.Type == websocket.TextMessage {
-				err := b.wsHandleData(resp.Raw)
-				if err != nil {
-					b.Websocket.DataHandler <- err
-				}
+		resp := <-comms
+		if resp.Type == websocket.TextMessage {
+			err := b.wsHandleData(resp.Raw)
+			if err != nil {
+				b.Websocket.DataHandler <- err
 			}
 		}
 	}

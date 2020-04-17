@@ -102,17 +102,12 @@ func (k *Kraken) wsFunnelConnectionData(ws stream.Connection) {
 	k.Websocket.Wg.Add(1)
 	defer k.Websocket.Wg.Done()
 	for {
-		select {
-		case <-k.Websocket.ShutdownC:
+		resp, err := ws.ReadMessage()
+		if err != nil {
+			k.Websocket.DataHandler <- err
 			return
-		default:
-			resp, err := ws.ReadMessage()
-			if err != nil {
-				k.Websocket.DataHandler <- err
-				return
-			}
-			comms <- resp
 		}
+		comms <- resp
 	}
 }
 
@@ -124,15 +119,10 @@ func (k *Kraken) wsReadData() {
 	}()
 
 	for {
-		select {
-		case <-k.Websocket.ShutdownC:
-			return
-		default:
-			resp := <-comms
-			err := k.wsHandleData(resp.Raw)
-			if err != nil {
-				k.Websocket.DataHandler <- fmt.Errorf("%s - unhandled websocket data: %v", k.Name, err)
-			}
+		resp := <-comms
+		err := k.wsHandleData(resp.Raw)
+		if err != nil {
+			k.Websocket.DataHandler <- fmt.Errorf("%s - unhandled websocket data: %v", k.Name, err)
 		}
 	}
 }

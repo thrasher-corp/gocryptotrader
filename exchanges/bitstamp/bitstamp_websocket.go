@@ -51,19 +51,13 @@ func (b *Bitstamp) wsReadData() {
 		b.Websocket.Wg.Done()
 	}()
 	for {
-		select {
-		case <-b.Websocket.ShutdownC:
+		resp, err := b.WebsocketConn.ReadMessage()
+		if err != nil {
 			return
-		default:
-			resp, err := b.WebsocketConn.ReadMessage()
-			if err != nil {
-				b.Websocket.ReadMessageErrors <- err
-				return
-			}
-			err = b.wsHandleData(resp.Raw)
-			if err != nil {
-				b.Websocket.DataHandler <- err
-			}
+		}
+		err = b.wsHandleData(resp.Raw)
+		if err != nil {
+			b.Websocket.DataHandler <- err
 		}
 	}
 }

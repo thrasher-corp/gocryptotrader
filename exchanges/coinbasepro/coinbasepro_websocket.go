@@ -52,19 +52,13 @@ func (c *CoinbasePro) wsReadData() {
 	}()
 
 	for {
-		select {
-		case <-c.Websocket.ShutdownC:
+		resp, err := c.Websocket.Conn.ReadMessage()
+		if err != nil {
 			return
-		default:
-			resp, err := c.Websocket.Conn.ReadMessage()
-			if err != nil {
-				c.Websocket.ReadMessageErrors <- err
-				return
-			}
-			err = c.wsHandleData(resp.Raw)
-			if err != nil {
-				c.Websocket.DataHandler <- err
-			}
+		}
+		err = c.wsHandleData(resp.Raw)
+		if err != nil {
+			c.Websocket.DataHandler <- err
 		}
 	}
 }

@@ -44,6 +44,7 @@ type Connection interface {
 	GenerateMessageID(useNano bool) int64
 	SendMessageReturnResponse(id int64, request interface{}) ([]byte, error)
 	SendRawMessage(messageType int, message []byte) error
+	Shutdown() error
 }
 
 // SubscriptionManager handles streaming subscription streaming

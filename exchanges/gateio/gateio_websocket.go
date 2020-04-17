@@ -87,20 +87,13 @@ func (g *Gateio) wsReadData() {
 	}()
 
 	for {
-		select {
-		case <-g.Websocket.ShutdownC:
+		resp, err := g.Websocket.Conn.ReadMessage()
+		if err != nil {
 			return
-
-		default:
-			resp, err := g.Websocket.Conn.ReadMessage()
-			if err != nil {
-				g.Websocket.ReadMessageErrors <- err
-				return
-			}
-			err = g.wsHandleData(resp.Raw)
-			if err != nil {
-				g.Websocket.DataHandler <- err
-			}
+		}
+		err = g.wsHandleData(resp.Raw)
+		if err != nil {
+			g.Websocket.DataHandler <- err
 		}
 	}
 }

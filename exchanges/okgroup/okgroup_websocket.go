@@ -242,19 +242,13 @@ func (o *OKGroup) WsReadData(wg *sync.WaitGroup) {
 	wg.Done()
 
 	for {
-		select {
-		case <-o.Websocket.ShutdownC:
+		resp, err := o.Websocket.Conn.ReadMessage()
+		if err != nil {
 			return
-		default:
-			resp, err := o.Websocket.Conn.ReadMessage()
-			if err != nil {
-				o.Websocket.ReadMessageErrors <- err
-				return
-			}
-			err = o.WsHandleData(resp.Raw)
-			if err != nil {
-				o.Websocket.DataHandler <- err
-			}
+		}
+		err = o.WsHandleData(resp.Raw)
+		if err != nil {
+			o.Websocket.DataHandler <- err
 		}
 	}
 }

@@ -113,9 +113,9 @@ func (b *Binance) KeepAuthKeyAlive() {
 	ticks := time.NewTicker(time.Minute * 30)
 	for {
 		select {
-		case <-b.Websocket.ShutdownC:
-			ticks.Stop()
-			return
+		// case <-b.Websocket.ShutdownC:
+		// 	ticks.Stop()
+		// 	return
 		case <-ticks.C:
 			err := b.MaintainWsAuthStreamKey()
 			if err != nil {
@@ -133,20 +133,13 @@ func (b *Binance) wsReadData() {
 		b.Websocket.Wg.Done()
 	}()
 	for {
-		select {
-		case <-b.Websocket.ShutdownC:
+		resp, err := b.Websocket.Conn.ReadMessage()
+		if err != nil {
 			return
-
-		default:
-			resp, err := b.Websocket.Conn.ReadMessage()
-			if err != nil {
-				b.Websocket.ReadMessageErrors <- err
-				return
-			}
-			err = b.wsHandleData(resp.Raw)
-			if err != nil {
-				b.Websocket.DataHandler <- err
-			}
+		}
+		err = b.wsHandleData(resp.Raw)
+		if err != nil {
+			b.Websocket.DataHandler <- err
 		}
 	}
 }

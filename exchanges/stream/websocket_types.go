@@ -46,24 +46,26 @@ type Websocket struct {
 	subscriptions     []ChannelSubscription
 	subscribe         chan []ChannelSubscription
 	unsubscribe       chan []ChannelSubscription
-	// channelsToSubscribe []ChannelSubscription
 
-	channelSubscriber   func(channelsToSubscribe []ChannelSubscription) error
-	channelUnsubscriber func(channelsToUnsubscribe []ChannelSubscription) error
+	channelSubscriber   func([]ChannelSubscription) error
+	channelUnsubscriber func([]ChannelSubscription) error
 	channelGeneratesubs func() ([]ChannelSubscription, error)
-	DataHandler         chan interface{}
-	ToRoutine           chan interface{}
-	// ShutdownC is the main shutdown channel which controls all websocket go funcs
-	ShutdownC chan struct{}
+
+	DataHandler chan interface{}
+	ToRoutine   chan interface{}
+
+	// shutdown synchronises shutdown event across routines
+	shutdown chan struct{}
+	Wg       sync.WaitGroup
+
 	// Orderbook is a local cache of orderbooks
 	Orderbook cache.Orderbook
-	// Wg defines a wait group for websocket routines for cleanly shutting down
-	// routines
-	Wg sync.WaitGroup
-	// TrafficAlert monitors if there is a halt in traffic throughput
-	TrafficAlert chan struct{}
-	// ReadMessageErrors will received all errors from ws.ReadMessage() and verify if its a disconnection
-	ReadMessageErrors chan error
+
+	// trafficAlert monitors if there is a halt in traffic throughput
+	trafficAlert chan struct{}
+	// ReadMessageErrors will received all errors from ws.ReadMessage() and
+	// verify if its a disconnection
+	readMessageErrors chan error
 	features          *protocol.Features
 
 	// Standard stream connection
@@ -82,8 +84,8 @@ type WebsocketSetup struct {
 	ExchangeName                     string
 	RunningURL                       string
 	Connector                        func() error
-	Subscriber                       func(channelsToSubscribe []ChannelSubscription) error
-	UnSubscriber                     func(channelsToUnsubscribe []ChannelSubscription) error
+	Subscriber                       func([]ChannelSubscription) error
+	UnSubscriber                     func([]ChannelSubscription) error
 	GenerateSubscriptions            func() ([]ChannelSubscription, error)
 	Features                         *protocol.Features
 }
@@ -101,13 +103,14 @@ type WebsocketConnection struct {
 	ProxyURL        string
 	Wg              sync.WaitGroup
 	Connection      *websocket.Conn
-	Shutdown        chan struct{}
+	shutdown        chan struct{}
 	// These are the request IDs and the corresponding response JSON
 	IDResponses          map[int64][]byte
 	ResponseCheckTimeout time.Duration
 	ResponseMaxLimit     time.Duration
 	TrafficTimeout       time.Duration
-	trafic               chan struct{}
+	traffic              chan struct{}
+	readMessageErrors    chan error
 }
 
 // UnhandledMessageWarning defines a container for unhandled message warnings

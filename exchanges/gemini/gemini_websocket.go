@@ -138,17 +138,12 @@ func (g *Gemini) wsFunnelConnectionData(ws stream.Connection, c currency.Pair) {
 	g.Websocket.Wg.Add(1)
 	defer g.Websocket.Wg.Done()
 	for {
-		select {
-		case <-g.Websocket.ShutdownC:
+		resp, err := ws.ReadMessage()
+		if err != nil {
+			g.Websocket.DataHandler <- err
 			return
-		default:
-			resp, err := ws.ReadMessage()
-			if err != nil {
-				g.Websocket.DataHandler <- err
-				return
-			}
-			comms <- ReadData{Raw: resp.Raw, Currency: c}
 		}
+		comms <- ReadData{Raw: resp.Raw, Currency: c}
 	}
 }
 
@@ -157,18 +152,14 @@ func (g *Gemini) wsReadData() {
 	g.Websocket.Wg.Add(1)
 	defer g.Websocket.Wg.Done()
 	for {
-		select {
-		case <-g.Websocket.ShutdownC:
-			return
-		case resp := <-comms:
-			// Gemini likes to send empty arrays
-			if string(resp.Raw) == "[]" {
-				continue
-			}
-			err := g.wsHandleData(resp.Raw, resp.Currency)
-			if err != nil {
-				g.Websocket.DataHandler <- err
-			}
+		resp := <-comms
+		// Gemini likes to send empty arrays
+		if string(resp.Raw) == "[]" {
+			continue
+		}
+		err := g.wsHandleData(resp.Raw, resp.Currency)
+		if err != nil {
+			g.Websocket.DataHandler <- err
 		}
 	}
 }

@@ -96,19 +96,13 @@ func (p *Poloniex) wsReadData() {
 	}()
 
 	for {
-		select {
-		case <-p.Websocket.ShutdownC:
+		resp, err := p.Websocket.Conn.ReadMessage()
+		if err != nil {
 			return
-		default:
-			resp, err := p.Websocket.Conn.ReadMessage()
-			if err != nil {
-				p.Websocket.ReadMessageErrors <- err
-				return
-			}
-			err = p.wsHandleData(resp.Raw)
-			if err != nil {
-				p.Websocket.DataHandler <- err
-			}
+		}
+		err = p.wsHandleData(resp.Raw)
+		if err != nil {
+			p.Websocket.DataHandler <- err
 		}
 	}
 }

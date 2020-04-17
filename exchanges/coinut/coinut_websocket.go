@@ -77,53 +77,46 @@ func (c *COINUT) wsReadData() {
 	}()
 
 	for {
-		select {
-		case <-c.Websocket.ShutdownC:
+		resp, err := c.Websocket.Conn.ReadMessage()
+		if err != nil {
 			return
+		}
 
-		default:
-			resp, err := c.Websocket.Conn.ReadMessage()
+		if strings.HasPrefix(string(resp.Raw), "[") {
+			var incoming []wsResponse
+			err = json.Unmarshal(resp.Raw, &incoming)
 			if err != nil {
-				c.Websocket.ReadMessageErrors <- err
-				return
+				c.Websocket.DataHandler <- err
+				continue
 			}
-
-			if strings.HasPrefix(string(resp.Raw), "[") {
-				var incoming []wsResponse
-				err = json.Unmarshal(resp.Raw, &incoming)
+			for i := range incoming {
+				if incoming[i].Nonce > 0 {
+					if c.Websocket.Conn.IsIDWaitingForResponse(incoming[i].Nonce) {
+						c.Websocket.Conn.SetResponseIDAndData(incoming[i].Nonce, resp.Raw)
+						break
+					}
+				}
+				var individualJSON []byte
+				individualJSON, err = json.Marshal(incoming[i])
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
 				}
-				for i := range incoming {
-					if incoming[i].Nonce > 0 {
-						if c.Websocket.Conn.IsIDWaitingForResponse(incoming[i].Nonce) {
-							c.Websocket.Conn.SetResponseIDAndData(incoming[i].Nonce, resp.Raw)
-							break
-						}
-					}
-					var individualJSON []byte
-					individualJSON, err = json.Marshal(incoming[i])
-					if err != nil {
-						c.Websocket.DataHandler <- err
-						continue
-					}
-					err = c.wsHandleData(individualJSON)
-					if err != nil {
-						c.Websocket.DataHandler <- err
-					}
-				}
-			} else {
-				var incoming wsResponse
-				err = json.Unmarshal(resp.Raw, &incoming)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-				err = c.wsHandleData(resp.Raw)
+				err = c.wsHandleData(individualJSON)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 				}
+			}
+		} else {
+			var incoming wsResponse
+			err = json.Unmarshal(resp.Raw, &incoming)
+			if err != nil {
+				c.Websocket.DataHandler <- err
+				continue
+			}
+			err = c.wsHandleData(resp.Raw)
+			if err != nil {
+				c.Websocket.DataHandler <- err
 			}
 		}
 	}

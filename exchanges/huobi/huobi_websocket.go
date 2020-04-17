@@ -106,17 +106,12 @@ func (h *HUOBI) wsFunnelConnectionData(ws stream.Connection, url string) {
 	h.Websocket.Wg.Add(1)
 	defer h.Websocket.Wg.Done()
 	for {
-		select {
-		case <-h.Websocket.ShutdownC:
+		resp, err := ws.ReadMessage()
+		if err != nil {
+			h.Websocket.DataHandler <- err
 			return
-		default:
-			resp, err := ws.ReadMessage()
-			if err != nil {
-				h.Websocket.DataHandler <- err
-				return
-			}
-			comms <- WsMessage{Raw: resp.Raw, URL: url}
 		}
+		comms <- WsMessage{Raw: resp.Raw, URL: url}
 	}
 }
 
@@ -125,14 +120,10 @@ func (h *HUOBI) wsReadData() {
 	h.Websocket.Wg.Add(1)
 	defer h.Websocket.Wg.Done()
 	for {
-		select {
-		case <-h.Websocket.ShutdownC:
-			return
-		case resp := <-comms:
-			err := h.wsHandleData(resp.Raw)
-			if err != nil {
-				h.Websocket.DataHandler <- err
-			}
+		resp := <-comms
+		err := h.wsHandleData(resp.Raw)
+		if err != nil {
+			h.Websocket.DataHandler <- err
 		}
 	}
 }
