@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	objects "github.com/d5/tengo/v2"
-	"github.com/thrasher-corp/go-talib/indicators"
+	"github.com/thrasher-corp/gct-ta/pkg/indicators"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )
@@ -63,7 +63,7 @@ func macd(args ...objects.Object) (objects.Object, error) {
 		return nil, errors.New(strings.Join(allErrors, ", "))
 	}
 
-	macd, macdSignal, macdHist := indicators.Macd(ohlcvClose, inFastPeriod, inSlowPeriod, inTimePeriod)
+	macd, macdSignal, macdHist := indicators.MACD(ohlcvClose, inFastPeriod, inSlowPeriod, inTimePeriod)
 	for x := range macdHist {
 		tempMACD := &objects.Array{}
 		tempMACD.Value = append(tempMACD.Value, &objects.Float{Value: math.Round(macdHist[x]*100) / 100})

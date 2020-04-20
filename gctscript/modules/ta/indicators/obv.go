@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	objects "github.com/d5/tengo/v2"
-	"github.com/thrasher-corp/go-talib/indicators"
+	"github.com/thrasher-corp/gct-ta/pkg/indicators"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )
@@ -33,34 +33,40 @@ func obv(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(modules.ErrParameterConvertFailed, OHLCV)
 	}
 
-	ohlcvData := make([][]float64, len(ohlcvInputData))
+	ohlcvData := make([][]float64, 6)
 	var allErrors []string
 	for x := range ohlcvInputData {
-		ohlcvData[x] = make([]float64, 6)
 		t := ohlcvInputData[x].([]interface{})
-		ohlcvData[x][0] = 0
-		ohlcvData[x][1] = 0
-		ohlcvData[x][2] = 0
-		ohlcvData[x][3] = 0
-
-		value, err := toFloat64(t[4])
+		value, err := toFloat64(t[2])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
-		ohlcvData[x][4] = value
+		ohlcvData[2] = append(ohlcvData[2], value)
+
+		value, err = toFloat64(t[3])
+		if err != nil {
+			allErrors = append(allErrors, err.Error())
+		}
+		ohlcvData[3] = append(ohlcvData[3], value)
+
+		value, err = toFloat64(t[4])
+		if err != nil {
+			allErrors = append(allErrors, err.Error())
+		}
+		ohlcvData[4] = append(ohlcvData[4], value)
 
 		value, err = toFloat64(t[5])
 		if err != nil {
 			allErrors = append(allErrors, err.Error())
 		}
-		ohlcvData[x][5] = value
+		ohlcvData[5] = append(ohlcvData[5], value)
 	}
 
 	if len(allErrors) > 0 {
 		return nil, errors.New(strings.Join(allErrors, ", "))
 	}
 
-	ret := indicators.OBV(ohlcvData, true)
+	ret := indicators.OBV(ohlcvData[4], ohlcvData[5])
 	for x := range ret {
 		temp := &objects.Float{Value: math.Round(ret[x]*100) / 100}
 		r.Value = append(r.Value, temp)

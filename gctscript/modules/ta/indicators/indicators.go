@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/thrasher-corp/go-talib/indicators"
+	"github.com/thrasher-corp/gct-ta/pkg/indicators"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 )
 
@@ -52,23 +52,9 @@ func ParseMAType(in string) (indicators.MaType, error) {
 	in = strings.ToLower(in)
 	switch in {
 	case "sma":
-		return indicators.SMA, nil
+		return indicators.Sma, nil
 	case "ema":
-		return indicators.EMA, nil
-	case "wma":
-		return indicators.WMA, nil
-	case "dema":
-		return indicators.DEMA, nil
-	case "tema":
-		return indicators.TEMA, nil
-	case "trima":
-		return indicators.TRIMA, nil
-	case "kama":
-		return indicators.KAMA, nil
-	case "mama":
-		return indicators.MAMA, nil
-	case "t3ma":
-		return indicators.T3MA, nil
+		return indicators.Ema, nil
 	default:
 		return 0, errInvalidSelector
 	}

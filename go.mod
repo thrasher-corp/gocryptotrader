@@ -17,6 +17,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/pquerna/otp v1.2.0
 	github.com/spf13/viper v1.6.3
+	github.com/thrasher-corp/gct-ta v0.0.0-20200420055234-0cabcbeba0d8
 	github.com/thrasher-corp/go-talib v0.0.0-20200414052647-6972116eea68
 	github.com/thrasher-corp/goose v2.7.0-rc4.0.20191002032028-0f2c2a27abdb+incompatible
 	github.com/thrasher-corp/sqlboiler v1.0.1-0.20191001234224-71e17f37a85e

@@ -192,8 +192,6 @@ github.com/spf13/pflag v1.0.5/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An
 github.com/spf13/viper v1.3.2/go.mod h1:ZiWeW+zYFKm7srdB9IoDzzZXaJaI5eL9QjNiN/DMA2s=
 github.com/spf13/viper v1.4.0 h1:yXHLWeravcrgGyFSyCgdYpXQ9dR9c/WED3pg1RhxqEU=
 github.com/spf13/viper v1.4.0/go.mod h1:PTJ7Z/lr49W6bUbkmS1V3by4uWynFiR9p7+dSq/yZzE=
-github.com/spf13/viper v1.6.2 h1:7aKfF+e8/k68gda3LOjo5RxiUqddoFxVq4BKBPrxk5E=
-github.com/spf13/viper v1.6.2/go.mod h1:t3iDnF5Jlj76alVNuyFBk5oUMCvsrkbvZK0WQdfDi5k=
 github.com/spf13/viper v1.6.3 h1:pDDu1OyEDTKzpJwdq4TiuLyMsUgRa/BT5cn5O62NoHs=
 github.com/spf13/viper v1.6.3/go.mod h1:jUMtyi0/lB5yZH/FjyGAoH7IMNrIhlBf6pXZmbMDvzw=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
@@ -207,12 +205,8 @@ github.com/stretchr/testify v1.5.1 h1:nOGnQDM7FYENwehXlg/kFVnos3rEvtKTjRvOWSzb6H
 github.com/stretchr/testify v1.5.1/go.mod h1:5W2xD1RspED5o8YsWQXVCued0rvSQ+mT+I5cxcmMvtA=
 github.com/subosito/gotenv v1.2.0 h1:Slr1R9HxAlEKefgq5jn9U+DnETlIUa6HfgEzj0g5d7s=
 github.com/subosito/gotenv v1.2.0/go.mod h1:N0PQaV/YGNqwC0u51sEeR/aUtSLEXKX9iv69rRypqCw=
-github.com/thrasher-corp/go-talib v0.0.0-20200310034222-5247764b720a h1:9puQih8t4Tngz6i5JfMgEoqLtanChrWaUlLMM3ZqoDI=
-github.com/thrasher-corp/go-talib v0.0.0-20200310034222-5247764b720a/go.mod h1:jwTxzL6Ut3hbFyiMQWpPSvFBTyqIXFgDntD93A5pCiI=
-github.com/thrasher-corp/go-talib v0.0.0-20200330020140-f0e81a4e8ff0 h1:z8XI2ge2UtgoLblYJ/oBvOhL7IY1ckUFBGSeMlA0CEE=
-github.com/thrasher-corp/go-talib v0.0.0-20200330020140-f0e81a4e8ff0/go.mod h1:jwTxzL6Ut3hbFyiMQWpPSvFBTyqIXFgDntD93A5pCiI=
-github.com/thrasher-corp/go-talib v0.0.0-20200330223241-c887f631d8d3 h1:MqoyfNw0XZG9PTdtQWTM7qRJpB41Wlw315yG3DKTQBc=
-github.com/thrasher-corp/go-talib v0.0.0-20200330223241-c887f631d8d3/go.mod h1:jwTxzL6Ut3hbFyiMQWpPSvFBTyqIXFgDntD93A5pCiI=
+github.com/thrasher-corp/gct-ta v0.0.0-20200420055234-0cabcbeba0d8 h1:ggs4H2N9nla1K4dyUiABfTCy4CiB/cdB477aa2iJF0I=
+github.com/thrasher-corp/gct-ta v0.0.0-20200420055234-0cabcbeba0d8/go.mod h1:z51vdK6i7okTmwu9tPh9+W8nqPWv80B/nMZUCX17fwY=
 github.com/thrasher-corp/go-talib v0.0.0-20200414052647-6972116eea68 h1:xDxDVHZVyWTV+rYDhJ/9A3aJM+HlWp4e6/dCJsweyUQ=
 github.com/thrasher-corp/go-talib v0.0.0-20200414052647-6972116eea68/go.mod h1:jwTxzL6Ut3hbFyiMQWpPSvFBTyqIXFgDntD93A5pCiI=
 github.com/thrasher-corp/goose v2.7.0-rc4.0.20191002032028-0f2c2a27abdb+incompatible h1:SPqQlzFu3g4P9wK2iwJaWVLJWcQ5rYc43rvXBJ8RSCY=

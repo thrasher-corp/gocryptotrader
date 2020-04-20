@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	objects "github.com/d5/tengo/v2"
-	"github.com/thrasher-corp/go-talib/indicators"
+	"github.com/thrasher-corp/gct-ta/pkg/indicators"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )
@@ -101,7 +101,7 @@ func bbands(args ...objects.Object) (objects.Object, error) {
 		return nil, err
 	}
 
-	retUpper, retMiddle, retLower := indicators.BBands(ohlcvData[selector], inTimePeriod, inNbDevDn, inNbDevDn, MAType)
+	retUpper, retMiddle, retLower := indicators.BBANDS(ohlcvData[selector], inTimePeriod, inNbDevDn, inNbDevDn, MAType)
 	for x := range retMiddle {
 		temp := &objects.Array{}
 		temp.Value = append(temp.Value, &objects.Float{Value: math.Round(retMiddle[x]*100) / 100})

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	objects "github.com/d5/tengo/v2"
-	"github.com/thrasher-corp/go-talib/indicators"
+	"github.com/thrasher-corp/gct-ta/pkg/indicators"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )
@@ -54,7 +54,7 @@ func rsi(args ...objects.Object) (objects.Object, error) {
 		return nil, errors.New(strings.Join(allErrors, ", "))
 	}
 
-	ret := indicators.Rsi(ohlcvClose, inTimePeriod)
+	ret := indicators.RSI(ohlcvClose, inTimePeriod)
 	for x := range ret {
 		r.Value = append(r.Value, &objects.Float{Value: math.Round(ret[x]*100) / 100})
 	}
