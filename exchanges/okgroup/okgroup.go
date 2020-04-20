@@ -2,6 +2,7 @@ package okgroup
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -562,7 +563,8 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 			o.Name)
 	}
 
-	utcTime := time.Now().UTC().Format(time.RFC3339)
+	now := time.Now()
+	utcTime := now.UTC().Format(time.RFC3339)
 	payload := []byte("")
 
 	if data != nil {
@@ -595,6 +597,9 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 		headers["OK-ACCESS-PASSPHRASE"] = o.API.Credentials.ClientID
 	}
 
+	// Requests that have a 30+ second difference between the timestamp and the API service time will be considered expired or rejected
+	ctx, cancel := context.WithDeadline(context.Background(), now.Add(30*time.Second))
+	defer cancel()
 	var intermediary json.RawMessage
 	type errCapFormat struct {
 		Error        int64  `json:"error_code,omitempty"`
@@ -604,7 +609,7 @@ func (o *OKGroup) SendHTTPRequest(httpMethod, requestType, requestPath string, d
 
 	errCap := errCapFormat{}
 	errCap.Result = true
-	err = o.SendPayload(&request.Item{
+	err = o.SendPayload(ctx, &request.Item{
 		Method:        strings.ToUpper(httpMethod),
 		Path:          path,
 		Headers:       headers,

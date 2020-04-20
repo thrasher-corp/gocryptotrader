@@ -84,9 +84,8 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 		},
 	}
 	{{.Variable}}.Requester = request.New({{.Variable}}.Name,
-		request.NewRateLimit(time.Second, 0),
-		request.NewRateLimit(time.Second, 0),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		request.WithLimiter(request.NewRateLimit(time.Second, 0)))
 	{{.Variable}}.API.Endpoints.URLDefault = {{.Name}}APIURL
 	{{.Variable}}.API.Endpoints.URL = {{.Variable}}.API.Endpoints.URLDefault
 	{{.Variable}}.Websocket = wshandler.New()

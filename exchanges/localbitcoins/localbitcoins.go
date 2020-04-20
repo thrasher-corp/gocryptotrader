@@ -2,6 +2,7 @@ package localbitcoins
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -730,7 +731,7 @@ func (l *LocalBitcoins) GetOrderbook(currency string) (Orderbook, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (l *LocalBitcoins) SendHTTPRequest(path string, result interface{}) error {
-	return l.SendPayload(&request.Item{
+	return l.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,
@@ -767,7 +768,7 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(method, path string, params
 		path += "?" + encoded
 	}
 
-	return l.SendPayload(&request.Item{
+	return l.SendPayload(context.Background(), &request.Item{
 		Method:        method,
 		Path:          l.API.Endpoints.URL + path,
 		Headers:       headers,

@@ -98,8 +98,7 @@ func (i *ItBit) SetDefaults() {
 	}
 
 	i.Requester = request.New(i.Name,
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		nil)
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 
 	i.API.Endpoints.URLDefault = itbitAPIURL
 	i.API.Endpoints.URL = i.API.Endpoints.URLDefault

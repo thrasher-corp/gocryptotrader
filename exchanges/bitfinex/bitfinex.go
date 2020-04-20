@@ -1,6 +1,7 @@
 package bitfinex
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1126,7 +1127,7 @@ func (b *Bitfinex) CloseMarginFunding(swapID int64) (Offer, error) {
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Bitfinex) SendHTTPRequest(path string, result interface{}, e request.EndpointLimit) error {
-	return b.SendPayload(&request.Item{
+	return b.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,
@@ -1171,7 +1172,7 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 	headers["X-BFX-PAYLOAD"] = PayloadBase64
 	headers["X-BFX-SIGNATURE"] = crypto.HexEncodeToString(hmac)
 
-	return b.SendPayload(&request.Item{
+	return b.SendPayload(context.Background(), &request.Item{
 		Method:        method,
 		Path:          b.API.Endpoints.URL + bitfinexAPIVersion + path,
 		Headers:       headers,

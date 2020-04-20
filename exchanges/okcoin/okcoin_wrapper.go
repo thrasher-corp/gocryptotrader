@@ -120,7 +120,7 @@ func (o *OKCoin) SetDefaults() {
 	o.Requester = request.New(o.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		// TODO: Specify each individual endpoint rate limits as per docs
-		request.NewBasicRateLimit(okCoinRateInterval, okCoinStandardRequestRate),
+		request.WithLimiter(request.NewBasicRateLimit(okCoinRateInterval, okCoinStandardRequestRate)),
 	)
 
 	o.API.Endpoints.URLDefault = okCoinAPIURL
