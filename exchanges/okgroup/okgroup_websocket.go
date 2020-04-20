@@ -200,7 +200,12 @@ func (o *OKGroup) WsConnect() error {
 		}
 	}
 
-	o.GenerateDefaultSubscriptions()
+	subs, err := o.GenerateDefaultSubscriptions()
+	if err != nil {
+		return err
+	}
+	o.Websocket.SubscribeToChannels(subs)
+
 	// Ensures that we start the routines and we dont race when shutdown occurs
 	wg.Wait()
 	return nil
@@ -736,18 +741,13 @@ func (o *OKGroup) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be
 // handled by ManageSubscriptions()
-func (o *OKGroup) GenerateDefaultSubscriptions() {
-
+func (o *OKGroup) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
 	assets := o.GetAssetTypes()
 	for x := range assets {
 		enabledCurrencies, err := o.GetEnabledPairs(assets[x])
 		if err != nil {
-			log.Errorf(log.WebsocketMgr,
-				"%s could not generate default subscriptions. Err: %s",
-				o.Name,
-				err)
-			return
+			return nil, err
 		}
 		if len(enabledCurrencies) == 0 {
 			continue
@@ -759,11 +759,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 				fpair, err := o.FormatExchangeCurrency(enabledCurrencies[i],
 					asset.Spot)
 				if err != nil {
-					log.Errorf(log.WebsocketMgr,
-						"%s could not generate default subscriptions. Err: %s",
-						o.Name,
-						err)
-					return
+					return nil, err
 				}
 				for y := range defaultSpotSubscribedChannels {
 					subscriptions = append(subscriptions,
@@ -791,11 +787,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 				fpair, err := o.FormatExchangeCurrency(enabledCurrencies[i],
 					asset.Futures)
 				if err != nil {
-					log.Errorf(log.WebsocketMgr,
-						"%s could not generate default subscriptions. Err: %s",
-						o.Name,
-						err)
-					return
+					return nil, err
 				}
 				for y := range defaultFuturesSubscribedChannels {
 					subscriptions = append(subscriptions,
@@ -823,11 +815,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 				fpair, err := o.FormatExchangeCurrency(enabledCurrencies[i],
 					asset.PerpetualSwap)
 				if err != nil {
-					log.Errorf(log.WebsocketMgr,
-						"%s could not generate default subscriptions. Err: %s",
-						o.Name,
-						err)
-					return
+					return nil, err
 				}
 				for y := range defaultSwapSubscribedChannels {
 					subscriptions = append(subscriptions,
@@ -855,11 +843,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 				fpair, err := o.FormatExchangeCurrency(enabledCurrencies[i],
 					asset.Index)
 				if err != nil {
-					log.Errorf(log.WebsocketMgr,
-						"%s could not generate default subscriptions. Err: %s",
-						o.Name,
-						err)
-					return
+					return nil, err
 				}
 				for y := range defaultIndexSubscribedChannels {
 					subscriptions = append(subscriptions,
@@ -873,37 +857,45 @@ func (o *OKGroup) GenerateDefaultSubscriptions() {
 			o.Websocket.DataHandler <- errors.New("unhandled asset type")
 		}
 	}
-
-	o.Websocket.SubscribeToChannels(subscriptions)
+	return subscriptions, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (o *OKGroup) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
-	c := channelToSubscribe.Currency.String()
-	request := WebsocketEventRequest{
-		Operation: "subscribe",
-		Arguments: []string{channelToSubscribe.Channel + delimiterColon + c},
+func (o *OKGroup) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	for i := range channelsToSubscribe {
+		c := channelsToSubscribe[i].Currency.String()
+		request := WebsocketEventRequest{
+			Operation: "subscribe",
+			Arguments: []string{channelsToSubscribe[i].Channel + delimiterColon + c},
+		}
+		if strings.EqualFold(channelsToSubscribe[i].Channel, okGroupWsSpotAccount) {
+			request.Arguments = []string{channelsToSubscribe[i].Channel +
+				delimiterColon +
+				channelsToSubscribe[i].Currency.Base.String()}
+		}
+		err := o.Websocket.Conn.SendJSONMessage(request)
+		if err != nil {
+			return err
+		}
 	}
-	if strings.EqualFold(channelToSubscribe.Channel, okGroupWsSpotAccount) {
-		request.Arguments = []string{channelToSubscribe.Channel +
-			delimiterColon +
-			channelToSubscribe.Currency.Base.String()}
-	}
-
-	return o.Websocket.Conn.SendJSONMessage(request)
+	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (o *OKGroup) Unsubscribe(channelToSubscribe *stream.ChannelSubscription) error {
-	fmt.Printf("UNSUBBING: %+v\n", channelToSubscribe)
-	request := WebsocketEventRequest{
-		Operation: "unsubscribe",
-		Arguments: []string{channelToSubscribe.Channel +
-			delimiterColon +
-			channelToSubscribe.Currency.String()},
+func (o *OKGroup) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	for i := range channelsToUnsubscribe {
+		request := WebsocketEventRequest{
+			Operation: "unsubscribe",
+			Arguments: []string{channelsToUnsubscribe[i].Channel +
+				delimiterColon +
+				channelsToUnsubscribe[i].Currency.String()},
+		}
+		err := o.Websocket.Conn.SendJSONMessage(request)
+		if err != nil {
+			return err
+		}
 	}
-	fmt.Printf("PAYLOAD: %+v\n", request)
-	return o.Websocket.Conn.SendJSONMessage(request)
+	return nil
 }
 
 // GetWsChannelWithoutOrderType takes WebsocketDataResponse.Table and returns

@@ -527,7 +527,6 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber int64, target []inter
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	fmt.Println("gen default subs")
 	var subscriptions []stream.ChannelSubscription
 	subscriptions = append(subscriptions, stream.ChannelSubscription{
 		Channel: strconv.FormatInt(wsTickerDataID, 10),
@@ -555,8 +554,6 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 
 // Subscribe sends a websocket message to receive data from the channel
 func (p *Poloniex) Subscribe(sub []stream.ChannelSubscription) error {
-	fmt.Printf("sub called: %+v\n", sub)
-
 	for i := range sub {
 		subscriptionRequest := WsCommand{
 			Command: "subscribe",
@@ -584,7 +581,6 @@ func (p *Poloniex) Subscribe(sub []stream.ChannelSubscription) error {
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (p *Poloniex) Unsubscribe(unsub []stream.ChannelSubscription) error {
-	fmt.Printf("unsub called: %+v\n", unsub)
 	for i := range unsub {
 		unsubscriptionRequest := WsCommand{
 			Command: "unsubscribe",

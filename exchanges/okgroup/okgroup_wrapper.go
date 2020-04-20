@@ -41,10 +41,10 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        o.WsConnect,
-		// Subscriber:                       o.Subscribe,
-		// UnSubscriber:                     o.Unsubscribe,
-		// GenerateSubscriptions:            o.GenerateDefaultSubscriptions,
-		Features: &o.Features.Supports.WebsocketCapabilities,
+		Subscriber:                       o.Subscribe,
+		UnSubscriber:                     o.Unsubscribe,
+		GenerateSubscriptions:            o.GenerateDefaultSubscriptions,
+		Features:                         &o.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
