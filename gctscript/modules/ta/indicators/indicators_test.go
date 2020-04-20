@@ -9,7 +9,7 @@ import (
 	"time"
 
 	objects "github.com/d5/tengo/v2"
-	"github.com/thrasher-corp/go-talib/indicators"
+	"github.com/thrasher-corp/gct-ta/pkg/indicators"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
 )
 
@@ -539,52 +539,17 @@ func TestParseMAType(t *testing.T) {
 	}{
 		{
 			"sma",
-			indicators.SMA,
+			indicators.Sma,
 			nil,
 		},
 		{
 			"ema",
-			indicators.EMA,
-			nil,
-		},
-		{
-			"wma",
-			indicators.WMA,
-			nil,
-		},
-		{
-			"dema",
-			indicators.DEMA,
-			nil,
-		},
-		{
-			"tema",
-			indicators.TEMA,
-			nil,
-		},
-		{
-			"trima",
-			indicators.TRIMA,
-			nil,
-		},
-		{
-			"kama",
-			indicators.KAMA,
-			nil,
-		},
-		{
-			"mama",
-			indicators.MAMA,
-			nil,
-		},
-		{
-			"t3ma",
-			indicators.T3MA,
+			indicators.Ema,
 			nil,
 		},
 		{
 			"no",
-			indicators.SMA,
+			indicators.Sma,
 			errInvalidSelector,
 		},
 	}
