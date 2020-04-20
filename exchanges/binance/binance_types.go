@@ -112,8 +112,6 @@ type RecentTradeRequestParams struct {
 
 // RecentTrade holds recent trade data
 type RecentTrade struct {
-	Code         int     `json:"code"`
-	Msg          string  `json:"msg"`
 	ID           int64   `json:"id"`
 	Price        float64 `json:"price,string"`
 	Quantity     float64 `json:"qty,string"`
@@ -252,7 +250,7 @@ type PriceChangeStats struct {
 	QuoteVolume        float64 `json:"quoteVolume,string"`
 	OpenTime           int64   `json:"openTime"`
 	CloseTime          int64   `json:"closeTime"`
-	FirstID            int64   `json:"fristId"`
+	FirstID            int64   `json:"firstId"`
 	LastID             int64   `json:"lastId"`
 	Count              int64   `json:"count"`
 }

@@ -64,10 +64,11 @@ func TestCheckResponsePayload(t *testing.T) {
 }
 
 type TestStructLevel0 struct {
-	StringVal string           `json:"stringVal"`
-	FloatVal  float64          `json:"floatVal"`
-	IntVal    int64            `json:"intVal"`
-	StructVal TestStructLevel1 `json:"structVal"`
+	StringVal  string           `json:"stringVal"`
+	FloatVal   float64          `json:"floatVal"`
+	IntVal     int64            `json:"intVal"`
+	StructVal  TestStructLevel1 `json:"structVal"`
+	MixedSlice []interface{}    `json:"mixedSlice"`
 }
 
 type TestStructLevel1 struct {
@@ -117,11 +118,17 @@ func TestCheckJSON(t *testing.T) {
 		OtherData: level2,
 	}
 
+	sliceOfPrimitives := []interface{}{
+		[]interface{}{float64(1586994000000), "6615.23000000"},
+		[]interface{}{float64(1586994300000), "6624.74000000"},
+	}
+
 	testVal := TestStructLevel0{
-		StringVal: "somestringstuff",
-		FloatVal:  3.14,
-		IntVal:    1337,
-		StructVal: level1,
+		StringVal:  "somestringstuff",
+		FloatVal:   3.14,
+		IntVal:     1337,
+		StructVal:  level1,
+		MixedSlice: sliceOfPrimitives,
 	}
 
 	exclusionList, err := GetExcludedItems()
@@ -167,6 +174,22 @@ func TestCheckJSON(t *testing.T) {
 
 	if newStruct.StructVal.OtherData.OtherData.BadVal2 != "" {
 		t.Error("Value not wiped correctly")
+	}
+
+	vals, err = CheckJSON(sliceOfPrimitives, &exclusionList)
+	if err != nil {
+		t.Error("Check JSON error", err)
+	}
+
+	payload, err = json.Marshal(vals)
+	if err != nil {
+		t.Fatal("json marshal error", err)
+	}
+
+	var newSlice []interface{}
+	err = json.Unmarshal(payload, &newSlice)
+	if err != nil {
+		t.Fatal("Unmarshal error", err)
 	}
 }
 
