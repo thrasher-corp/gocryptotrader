@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -114,7 +113,6 @@ func (f *Ftx) GetMarkets() (Markets, error) {
 // GetMarket gets market data for a provided asset type
 func (f *Ftx) GetMarket(marketName string) (Market, error) {
 	var market Market
-	log.Println(fmt.Sprintf(ftxAPIURL+getMarket, marketName))
 	return market, f.SendHTTPRequest(fmt.Sprintf(ftxAPIURL+getMarket, marketName),
 		&market)
 }
@@ -169,7 +167,6 @@ func (f *Ftx) GetTrades(marketName, startTime, endTime string, limit int64) (Tra
 			return resp, errors.New("startTime cannot be bigger than endTime")
 		}
 	}
-	log.Println(fmt.Sprintf(ftxAPIURL+getTrades, marketName) + params.Encode())
 	return resp, f.SendHTTPRequest((fmt.Sprintf(ftxAPIURL+getTrades, marketName) + params.Encode()),
 		&resp)
 }
@@ -716,7 +713,6 @@ func (f *Ftx) SendAuthHTTPRequest(method, path string, data, result interface{})
 		sigPayload := ts + method + "/api" + path
 		hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
 	}
-	log.Println(ftxAPIURL + path)
 	headers := make(map[string]string)
 	headers["FTX-KEY"] = f.API.Credentials.Key
 	headers["FTX-SIGN"] = crypto.HexEncodeToString(hmac)
@@ -734,4 +730,36 @@ func (f *Ftx) SendAuthHTTPRequest(method, path string, data, result interface{})
 		HTTPDebugging: f.HTTPDebugging,
 		HTTPRecording: f.HTTPRecording,
 	})
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (f *Ftx) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	feeData, err := f.GetAccountInfo()
+	if err != nil {
+		return 0, err
+	}
+	switch feeBuilder.FeeType {
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder)
+	default:
+		switch feeBuilder.IsMaker {
+		case true:
+			fee = feeData.Result.MakerFee * feeBuilder.Amount * feeBuilder.PurchasePrice
+		case false:
+			fee = feeData.Result.TakerFee * feeBuilder.Amount * feeBuilder.PurchasePrice
+		}
+		if fee < 0 {
+			fee = 0
+		}
+	}
+	return fee, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(feeBuilder *exchange.FeeBuilder) float64 {
+	if feeBuilder.IsMaker {
+		return 0.0002 * feeBuilder.PurchasePrice * feeBuilder.Amount
+	}
+	return 0.0007 * feeBuilder.PurchasePrice * feeBuilder.Amount
 }

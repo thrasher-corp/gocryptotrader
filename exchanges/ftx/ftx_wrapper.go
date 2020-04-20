@@ -415,6 +415,60 @@ func (f *Ftx) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllR
 
 // GetOrderInfo returns information on a current open order
 func (f *Ftx) GetOrderInfo(orderID string) (order.Detail, error) {
+	var resp order.Detail
+	orderData, err := f.GetOrderStatus(orderID)
+	if err != nil {
+		return resp, err
+	}
+	resp.ID = strconv.FormatInt(orderData.Result.ID, 10)
+	resp.Amount = orderData.Result.Size
+	resp.AssetType = asset.Spot
+	resp.ClientID = orderData.Result.ClientID
+	resp.Date = orderData.Result.CreatedAt
+	resp.Exchange = f.Name
+	resp.ExecutedAmount = orderData.Result.Size - orderData.Result.RemainingSize
+	// tempResp.Fee = Fee
+	resp.Pair = currency.NewPairFromString(orderData.Result.Market)
+	resp.Price = orderData.Result.Price
+	resp.RemainingAmount = orderData.Result.RemainingSize
+	switch orderData.Result.Side {
+	case buy:
+		resp.Side = order.Buy
+	case sell:
+		resp.Side = order.Sell
+	}
+	switch orderData.Result.Status {
+	case newStatus:
+		resp.Status = order.New
+	case openStatus:
+		resp.Status = order.Open
+	case closedStatus:
+		if orderData.Result.FilledSize != 0 && orderData.Result.FilledSize != orderData.Result.Size {
+			resp.Status = order.PartiallyCancelled
+		}
+		if orderData.Result.FilledSize == 0 {
+			resp.Status = order.Cancelled
+		}
+		if orderData.Result.FilledSize == orderData.Result.Size {
+			resp.Status = order.Filled
+		}
+	}
+	var feeBuilder exchange.FeeBuilder
+	feeBuilder.PurchasePrice = orderData.Result.Price
+	feeBuilder.Amount = orderData.Result.Size
+	switch orderData.Result.OrderType {
+	case marketOrder:
+		resp.Type = order.Market
+		feeBuilder.IsMaker = false
+	case limitOrder:
+		resp.Type = order.Limit
+		feeBuilder.IsMaker = true
+	}
+	fee, err := f.GetFee(&feeBuilder)
+	if err != nil {
+		return resp, err
+	}
+	resp.Fee = fee
 	return order.Detail{}, common.ErrNotYetImplemented
 }
 
@@ -491,12 +545,22 @@ func (f *Ftx) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 					tempResp.Status = order.Filled
 				}
 			}
+			var feeBuilder exchange.FeeBuilder
+			feeBuilder.PurchasePrice = orderData.Result[y].Price
+			feeBuilder.Amount = orderData.Result[y].Size
 			switch orderData.Result[y].OrderType {
 			case marketOrder:
 				tempResp.Type = order.Market
+				feeBuilder.IsMaker = false
 			case limitOrder:
 				tempResp.Type = order.Limit
+				feeBuilder.IsMaker = true
 			}
+			fee, err := f.GetFee(&feeBuilder)
+			if err != nil {
+				return resp, err
+			}
+			tempResp.Fee = fee
 			resp = append(resp, tempResp)
 		}
 		triggerOrderData, err := f.GetOpenTriggerOrders(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], asset.Spot).String(), getOrdersRequest.Type.String())
@@ -537,12 +601,22 @@ func (f *Ftx) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 					tempResp.Status = order.Filled
 				}
 			}
+			var feeBuilder exchange.FeeBuilder
+			feeBuilder.PurchasePrice = triggerOrderData.Result[z].AvgFillPrice
+			feeBuilder.Amount = triggerOrderData.Result[z].Size
 			switch triggerOrderData.Result[z].OrderType {
 			case marketOrder:
 				tempResp.Type = order.Market
+				feeBuilder.IsMaker = false
 			case limitOrder:
 				tempResp.Type = order.Limit
+				feeBuilder.IsMaker = true
 			}
+			fee, err := f.GetFee(&feeBuilder)
+			if err != nil {
+				return resp, err
+			}
+			tempResp.Fee = fee
 			resp = append(resp, tempResp)
 		}
 	}
@@ -555,8 +629,6 @@ func (f *Ftx) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 	var resp []order.Detail
 	for x := range getOrdersRequest.Pairs {
 		var tempResp order.Detail
-		fmt.Println(getOrdersRequest.EndTicks.String())
-		fmt.Println(getOrdersRequest.StartTicks.String())
 		orderData, err := f.FetchOrderHistory(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], asset.Spot).String(),
 			getOrdersRequest.StartTicks.String(), getOrdersRequest.EndTicks.String(), "")
 		if err != nil {
@@ -570,7 +642,6 @@ func (f *Ftx) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Date = orderData.Result[y].CreatedAt
 			tempResp.Exchange = f.Name
 			tempResp.ExecutedAmount = orderData.Result[y].Size - orderData.Result[y].RemainingSize
-			// tempResp.Fee = Fee
 			tempResp.Pair = currency.NewPairFromString(orderData.Result[y].Market)
 			tempResp.Price = orderData.Result[y].Price
 			tempResp.RemainingAmount = orderData.Result[y].RemainingSize
@@ -596,12 +667,22 @@ func (f *Ftx) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 					tempResp.Status = order.Filled
 				}
 			}
+			var feeBuilder exchange.FeeBuilder
+			feeBuilder.PurchasePrice = orderData.Result[y].Price
+			feeBuilder.Amount = orderData.Result[y].Size
 			switch orderData.Result[y].OrderType {
 			case marketOrder:
 				tempResp.Type = order.Market
+				feeBuilder.IsMaker = false
 			case limitOrder:
 				tempResp.Type = order.Limit
+				feeBuilder.IsMaker = true
 			}
+			fee, err := f.GetFee(&feeBuilder)
+			if err != nil {
+				return resp, err
+			}
+			tempResp.Fee = fee
 			resp = append(resp, tempResp)
 		}
 		triggerOrderData, err := f.GetTriggerOrderHistory(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], asset.Spot).String(),
@@ -616,7 +697,6 @@ func (f *Ftx) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Date = triggerOrderData.Result[z].CreatedAt
 			tempResp.Exchange = f.Name
 			tempResp.ExecutedAmount = triggerOrderData.Result[z].FilledSize
-			// tempResp.Fee = Fee
 			tempResp.Pair = currency.NewPairFromString(triggerOrderData.Result[z].Market)
 			tempResp.Price = triggerOrderData.Result[z].AvgFillPrice
 			tempResp.RemainingAmount = triggerOrderData.Result[z].Size - triggerOrderData.Result[z].FilledSize
@@ -643,12 +723,22 @@ func (f *Ftx) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 					tempResp.Status = order.Filled
 				}
 			}
+			var feeBuilder exchange.FeeBuilder
+			feeBuilder.PurchasePrice = triggerOrderData.Result[z].AvgFillPrice
+			feeBuilder.Amount = triggerOrderData.Result[z].Size
 			switch triggerOrderData.Result[z].OrderType {
 			case marketOrder:
 				tempResp.Type = order.Market
+				feeBuilder.IsMaker = false
 			case limitOrder:
 				tempResp.Type = order.Limit
+				feeBuilder.IsMaker = true
 			}
+			fee, err := f.GetFee(&feeBuilder)
+			if err != nil {
+				return resp, err
+			}
+			tempResp.Fee = fee
 			resp = append(resp, tempResp)
 		}
 	}
@@ -657,7 +747,7 @@ func (f *Ftx) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (f *Ftx) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	return 0, common.ErrNotYetImplemented
+	return f.GetFee(feeBuilder)
 }
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
