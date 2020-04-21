@@ -287,7 +287,7 @@ func TestGetTriggerOrderHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetTriggerOrderHistory("FTT/BTC", "", "", "buy", "stop", "5")
+	_, err := f.GetTriggerOrderHistory("FTT/BTC", "", "", "buy", "stop", "1")
 	if err != nil {
 		t.Error(err)
 	}
@@ -563,6 +563,17 @@ func TestGetPublicOptionsTrades(t *testing.T) {
 		t.Skip()
 	}
 	_, err := f.GetPublicOptionsTrades("", "", "5")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOptionsFills(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip()
+	}
+	_, err := f.GetOptionsFills("", "", "5")
 	if err != nil {
 		t.Error(err)
 	}

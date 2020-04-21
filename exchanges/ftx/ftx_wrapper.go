@@ -108,44 +108,41 @@ func (f *Ftx) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	// If websocket is supported, please fill out the following
-	/*
-		err = f.Websocket.Setup(
-			&wshandler.WebsocketSetup{
-				Enabled:                          exch.Features.Enabled.Websocket,
-				Verbose:                          exch.Verbose,
-				AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-				WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-				DefaultURL:                       ftxWSURL,
-				ExchangeName:                     exch.Name,
-				RunningURL:                       exch.API.Endpoints.WebsocketURL,
-				Connector:                        f.WsConnect,
-				Subscriber:                       f.Subscribe,
-				UnSubscriber:                     f.Unsubscribe,
-				Features:                         &f.Features.Supports.WebsocketCapabilities,
-			})
-		if err != nil {
-			return err
-		}
+	err = f.Websocket.Setup(
+		&wshandler.WebsocketSetup{
+			Enabled:                          exch.Features.Enabled.Websocket,
+			Verbose:                          exch.Verbose,
+			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+			DefaultURL:                       ftxWSURL,
+			ExchangeName:                     exch.Name,
+			RunningURL:                       exch.API.Endpoints.WebsocketURL,
+			Connector:                        f.WsConnect,
+			// Subscriber:                       f.Subscribe,
+			// UnSubscriber:                     f.Unsubscribe,
+			Features: &f.Features.Supports.WebsocketCapabilities,
+		})
+	if err != nil {
+		return err
+	}
 
-		f.WebsocketConn = &wshandler.WebsocketConnection{
-			ExchangeName:         f.Name,
-			URL:                  f.Websocket.GetWebsocketURL(),
-			ProxyURL:             f.Websocket.GetProxyAddress(),
-			Verbose:              f.Verbose,
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		}
+	f.WebsocketConn = &wshandler.WebsocketConnection{
+		ExchangeName:         f.Name,
+		URL:                  f.Websocket.GetWebsocketURL(),
+		ProxyURL:             f.Websocket.GetProxyAddress(),
+		Verbose:              f.Verbose,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	}
 
-		// NOTE: PLEASE ENSURE YOU SET THE ORDERBOOK BUFFER SETTINGS CORRECTLY
-		f.Websocket.Orderbook.Setup(
-			exch.WebsocketOrderbookBufferLimit,
-			true,
-			true,
-			false,
-			false,
-			exch.Name)
-	*/
+	// NOTE: PLEASE ENSURE YOU SET THE ORDERBOOK BUFFER SETTINGS CORRECTLY
+	f.Websocket.Orderbook.Setup(
+		exch.WebsocketOrderbookBufferLimit,
+		true,
+		true,
+		false,
+		false,
+		exch.Name)
 	return nil
 }
 

@@ -14,11 +14,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 // Ftx is the overarching type across this package
 type Ftx struct {
 	exchange.Base
+	WebsocketConn *wshandler.WebsocketConnection
 }
 
 const (
@@ -692,6 +694,22 @@ func (f *Ftx) GetPublicOptionsTrades(startTime, endTime, limit string) (PublicOp
 		req["limit"] = limit
 	}
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, getOptionsPositions, req, &resp)
+}
+
+// GetOptionsFills gets fills data for options
+func (f *Ftx) GetOptionsFills(startTime, endTime, limit string) (OptionsFills, error) {
+	var resp OptionsFills
+	req := make(map[string]interface{})
+	if startTime != "" {
+		req["start_time"] = startTime
+	}
+	if endTime != "" {
+		req["end_time"] = endTime
+	}
+	if limit != "" {
+		req["limit"] = limit
+	}
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getOptionsFills, req, &resp)
 }
 
 // SendAuthHTTPRequest sends an authenticated request

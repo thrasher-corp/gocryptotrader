@@ -709,8 +709,72 @@ type OptionsTradesData struct {
 	Time   time.Time  `json:"time"`
 }
 
+// OptionFillsData stores option's fills data
+type OptionFillsData struct {
+	Fee       float64    `json:"fee"`
+	FeeRate   float64    `json:"feeRate"`
+	ID        int64      `json:"id"`
+	Liquidity string     `json:"liquidity"`
+	Option    OptionData `json:"option"`
+	Price     float64    `json:"price"`
+	QuoteID   int64      `json:"quoteId"`
+	Side      string     `json:"side"`
+	Size      float64    `json:"size"`
+	Time      string     `json:"time"`
+}
+
+// OptionsFills gets options' fills data
+type OptionsFills struct {
+	Success bool              `json:"success"`
+	Result  []OptionFillsData `json:"result"`
+}
+
 // PublicOptionsTrades stores options' trades from public
 type PublicOptionsTrades struct {
 	Success bool                `json:"success"`
 	Result  []OptionsTradesData `json:"result"`
+}
+
+// AuthenticationData stores authentication variables required
+type AuthenticationData struct {
+	Key  string `json:"key"`
+	Sign string `json:"signature"`
+	Time string `json:"time"`
+}
+
+// Authenticate stores authentication variables required
+type Authenticate struct {
+	Operation string             `json:"operation"`
+	Args      AuthenticationData `json:"args"`
+}
+
+// WsTickerData stores ws ticker data
+type WsTickerData struct {
+	Bid  float64   `json:"bid"`
+	Ask  float64   `json:"ask"`
+	Last float64   `json:"last"`
+	Time time.Time `json:"time"`
+}
+
+// WsTradeData stores ws trade data
+type WsTradeData struct {
+	Price       float64   `json:"price"`
+	Size        float64   `json:"size"`
+	Side        string    `json:"side"`
+	Liquidation bool      `json:"liquidation"`
+	Time        time.Time `json:"time"`
+}
+
+// WsOrderbookData stores ws orderbook data
+type WsOrderbookData struct {
+	Action string       `json:"action"`
+	Bids   [][2]float64 `json:"bids"`
+	Asks   [][2]float64 `json:"asks"`
+}
+
+// WsSub has the data used to subscribe to a channel
+type WsSub struct {
+	Operation string `json:"op"`
+	Channel   string `json:"channel"`
+	Market    string `json:"market"`
 }
