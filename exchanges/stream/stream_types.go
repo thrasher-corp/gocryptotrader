@@ -44,6 +44,7 @@ type Connection interface {
 	GenerateMessageID(useNano bool) int64
 	SendMessageReturnResponse(id int64, request interface{}) ([]byte, error)
 	SendRawMessage(messageType int, message []byte) error
+	GetShutdownChannel() chan struct{}
 	Shutdown() error
 }
 

@@ -154,6 +154,22 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup, auth bool) error {
 	return nil
 }
 
+// SetupNewCustomConnection sets up an auth or unauth custom streaming
+// connection
+func (w *Websocket) SetupNewCustomConnection(c Connection, auth bool) error {
+	if c == nil {
+		return errors.New("connection is nil")
+	}
+
+	if auth {
+		w.AuthConn = c
+	} else {
+		w.Conn = c
+	}
+
+	return nil
+}
+
 // Connect initiates a websocket connection by using a package defined connection
 // function
 func (w *Websocket) Connect() error {
@@ -378,7 +394,9 @@ func (w *Websocket) Shutdown() error {
 
 // RefreshConnection disconnects and reconnects websocket
 func (w *Websocket) RefreshConnection() error {
+	fmt.Println("refresh connection called")
 	if w.features.Subscribe {
+		fmt.Println("features subscribe enabled")
 		newsubs, err := w.channelGeneratesubs()
 		if err != nil {
 			return err
@@ -386,6 +404,7 @@ func (w *Websocket) RefreshConnection() error {
 
 		subs, unsubs := w.GetChannelDifference(newsubs)
 		if w.features.Unsubscribe {
+			fmt.Println("features unsubscribe enabled")
 			if len(unsubs) != 0 {
 				err := w.RemoveSubscribedChannels(unsubs)
 				if err != nil {
@@ -399,12 +418,15 @@ func (w *Websocket) RefreshConnection() error {
 
 			return nil
 		} else if len(unsubs) == 0 {
+			fmt.Println("features unsubscribe not enabled")
 			if len(subs) != 0 {
 				w.SubscribeToChannels(subs)
 			}
 			return nil
 		}
 	}
+
+	fmt.Println("feature subscribe and unsubscribe not enabled for exchange closing connection")
 
 	err := w.Shutdown()
 	if err != nil {
@@ -986,7 +1008,8 @@ func (w *WebsocketConnection) ReadMessage() (Response, error) {
 		}
 	}
 	if w.Verbose {
-		log.Debugf(log.WebsocketMgr, "%v Websocket message received: %v",
+		log.Debugf(log.WebsocketMgr,
+			"%v Websocket message received: %v",
 			w.ExchangeName,
 			string(standardMessage))
 	}
@@ -1033,6 +1056,11 @@ func (w *WebsocketConnection) GenerateMessageID(useNano bool) int64 {
 		return time.Now().UnixNano()
 	}
 	return time.Now().Unix()
+}
+
+// GetShutdownChannel returns the underlying shutdown mechanism
+func (w *WebsocketConnection) GetShutdownChannel() chan struct{} {
+	return w.shutdown
 }
 
 // Shutdown shuts down and closes specific connection

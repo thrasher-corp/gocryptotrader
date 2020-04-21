@@ -138,9 +138,10 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        g.WsConnect,
-		// Subscriber:                       g.Subscribe,
-		// UnSubscriber:                     g.Unsubscribe,
-		Features: &g.Features.Supports.WebsocketCapabilities,
+		Subscriber:                       g.Subscribe,
+		UnSubscriber:                     g.Unsubscribe,
+		GenerateSubscriptions:            g.GenerateDefaultSubscriptions,
+		Features:                         &g.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

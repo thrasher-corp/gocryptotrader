@@ -108,6 +108,9 @@ func (l *LakeBTC) SetDefaults() {
 	l.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
+// StreamConn defines a type that has all the stream connection details
+type StreamConn stream.WebsocketConnection
+
 // Setup sets exchange configuration profile
 func (l *LakeBTC) Setup(exch *config.ExchangeConfig) error {
 	if !exch.Enabled {
@@ -126,12 +129,15 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) error {
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        l.WsConnect,
-		// Subscriber:                       l.Subscribe,
-		Features: &l.Features.Supports.WebsocketCapabilities,
+		Subscriber:                       l.Subscribe,
+		GenerateSubscriptions:            l.GenerateDefaultSubscriptions,
+		Features:                         &l.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
 	}
+
+	// err = stream.SetupNewCustomConnection()
 
 	return l.Websocket.SetupLocalOrderbook(cache.Config{
 		OrderbookBufferLimit: exch.WebsocketOrderbookBufferLimit,

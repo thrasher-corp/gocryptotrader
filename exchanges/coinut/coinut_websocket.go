@@ -59,7 +59,11 @@ func (c *COINUT) WsConnect() error {
 		c.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		log.Error(log.WebsocketMgr, err)
 	}
-	c.GenerateDefaultSubscriptions()
+	subs, err := c.GenerateDefaultSubscriptions()
+	if err != nil {
+		return err
+	}
+	c.Websocket.SubscribeToChannels(subs)
 
 	// define bi-directional communication
 	channels = make(map[string]chan []byte)
@@ -543,15 +547,12 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (c *COINUT) GenerateDefaultSubscriptions() {
+func (c *COINUT) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var channels = []string{"inst_tick", "inst_order_book"}
 	var subscriptions []stream.ChannelSubscription
 	enabledCurrencies, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.WebsocketMgr, "%s could not generate default subscriptions. Err: %s",
-			c.Name,
-			err)
-		return
+		return nil, err
 	}
 	for i := range channels {
 		for j := range enabledCurrencies {
@@ -561,49 +562,60 @@ func (c *COINUT) GenerateDefaultSubscriptions() {
 			})
 		}
 	}
-	c.Websocket.SubscribeToChannels(subscriptions)
+	return subscriptions, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *COINUT) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
-	fpair, err := c.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot)
-	if err != nil {
-		return err
-	}
+func (c *COINUT) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	for i := range channelsToSubscribe {
+		fpair, err := c.FormatExchangeCurrency(channelsToSubscribe[i].Currency, asset.Spot)
+		if err != nil {
+			return err
+		}
 
-	subscribe := wsRequest{
-		Request:      channelToSubscribe.Channel,
-		InstrumentID: c.instrumentMap.LookupID(fpair.String()),
-		Subscribe:    true,
-		Nonce:        getNonce(),
+		subscribe := wsRequest{
+			Request:      channelsToSubscribe[i].Channel,
+			InstrumentID: c.instrumentMap.LookupID(fpair.String()),
+			Subscribe:    true,
+			Nonce:        getNonce(),
+		}
+		err = c.Websocket.Conn.SendJSONMessage(subscribe)
+		if err != nil {
+			return err
+		}
 	}
-	return c.Websocket.Conn.SendJSONMessage(subscribe)
+	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *COINUT) Unsubscribe(channelToSubscribe *stream.ChannelSubscription) error {
-	fpair, err := c.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot)
-	if err != nil {
-		return err
-	}
+func (c *COINUT) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription) error {
+	for i := range channelToUnsubscribe {
+		fpair, err := c.FormatExchangeCurrency(channelToUnsubscribe[i].Currency, asset.Spot)
+		if err != nil {
+			return err
+		}
 
-	subscribe := wsRequest{
-		Request:      channelToSubscribe.Channel,
-		InstrumentID: c.instrumentMap.LookupID(fpair.String()),
-		Subscribe:    false,
-		Nonce:        getNonce(),
-	}
-	resp, err := c.Websocket.Conn.SendMessageReturnResponse(subscribe.Nonce, subscribe)
-	if err != nil {
-		return err
-	}
-	var response map[string]interface{}
-	err = json.Unmarshal(resp, &response)
-	if err != nil {
-		return err
-	}
-	if response["status"].([]interface{})[0] != "OK" {
-		return fmt.Errorf("%v unsubscribe failed for channel %v", c.Name, channelToSubscribe.Channel)
+		subscribe := wsRequest{
+			Request:      channelToUnsubscribe[i].Channel,
+			InstrumentID: c.instrumentMap.LookupID(fpair.String()),
+			Subscribe:    false,
+			Nonce:        getNonce(),
+		}
+		resp, err := c.Websocket.Conn.SendMessageReturnResponse(subscribe.Nonce,
+			subscribe)
+		if err != nil {
+			return err
+		}
+		var response map[string]interface{}
+		err = json.Unmarshal(resp, &response)
+		if err != nil {
+			return err
+		}
+		if response["status"].([]interface{})[0] != "OK" {
+			return fmt.Errorf("%v unsubscribe failed for channel %v",
+				c.Name,
+				channelToUnsubscribe[i].Channel)
+		}
 	}
 	return nil
 }

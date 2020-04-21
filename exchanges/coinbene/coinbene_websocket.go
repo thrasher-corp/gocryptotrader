@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -49,21 +48,22 @@ func (c *Coinbene) WsConnect() error {
 			c.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	c.GenerateDefaultSubscriptions()
+	subs, err := c.GenerateDefaultSubscriptions()
+	if err != nil {
+		return err
+	}
+	c.Websocket.SubscribeToChannels(subs)
 
 	return nil
 }
 
 // GenerateDefaultSubscriptions generates stuff
-func (c *Coinbene) GenerateDefaultSubscriptions() {
+func (c *Coinbene) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var channels = []string{"orderBook.%s.100", "tradeList.%s", "ticker.%s", "kline.%s"}
 	var subscriptions []stream.ChannelSubscription
 	pairs, err := c.GetEnabledPairs(asset.PerpetualSwap)
 	if err != nil {
-		log.Errorf(log.WebsocketMgr, "%s could not generate default subscriptions. Err: %s",
-			c.Name,
-			err)
-		return
+		return nil, err
 	}
 	for x := range channels {
 		for y := range pairs {
@@ -74,11 +74,11 @@ func (c *Coinbene) GenerateDefaultSubscriptions() {
 			})
 		}
 	}
-	c.Websocket.SubscribeToChannels(subscriptions)
+	return subscriptions, nil
 }
 
 // GenerateAuthSubs generates auth subs
-func (c *Coinbene) GenerateAuthSubs() {
+func (c *Coinbene) GenerateAuthSubs() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
 	var sub stream.ChannelSubscription
 	var userChannels = []string{"user.account", "user.position", "user.order"}
@@ -86,7 +86,7 @@ func (c *Coinbene) GenerateAuthSubs() {
 		sub.Channel = userChannels[z]
 		subscriptions = append(subscriptions, sub)
 	}
-	c.Websocket.SubscribeToChannels(subscriptions)
+	return subscriptions, nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
@@ -128,7 +128,11 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 	if ok && strings.Contains(result[event].(string), "login") {
 		if result["success"].(bool) {
 			c.Websocket.SetCanUseAuthenticatedEndpoints(true)
-			c.GenerateAuthSubs()
+			authsubs, err := c.GenerateAuthSubs()
+			if err != nil {
+				return err
+			}
+			c.Websocket.SubscribeToChannels(authsubs)
 			return nil
 		}
 		c.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -442,26 +446,42 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			}
 		}
 	default:
-		c.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: c.Name + stream.UnhandledMessage + string(respRaw)}
+		c.Websocket.DataHandler <- stream.UnhandledMessageWarning{
+			Message: c.Name + stream.UnhandledMessage + string(respRaw),
+		}
 		return nil
 	}
 	return nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *Coinbene) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
-	var sub WsSub
-	sub.Operation = "subscribe"
-	sub.Arguments = []string{channelToSubscribe.Channel}
-	return c.Websocket.Conn.SendJSONMessage(sub)
+func (c *Coinbene) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	for i := range channelsToSubscribe {
+		var sub WsSub
+		sub.Operation = "subscribe"
+		sub.Arguments = []string{channelsToSubscribe[i].Channel}
+		fmt.Println("SUB:", sub)
+		err := c.Websocket.Conn.SendJSONMessage(sub)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Unsubscribe sends a websocket message to receive data from the channel
-func (c *Coinbene) Unsubscribe(channelToSubscribe *stream.ChannelSubscription) error {
-	var sub WsSub
-	sub.Operation = "unsubscribe"
-	sub.Arguments = []string{channelToSubscribe.Channel}
-	return c.Websocket.Conn.SendJSONMessage(sub)
+func (c *Coinbene) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription) error {
+	for i := range channelToUnsubscribe {
+		var sub WsSub
+		sub.Operation = "unsubscribe"
+		sub.Arguments = []string{channelToUnsubscribe[i].Channel}
+		fmt.Println("UNSUB:", sub)
+		err := c.Websocket.Conn.SendJSONMessage(sub)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Login logs in

@@ -41,11 +41,23 @@ func (g *Gateio) WsConnect() error {
 	go g.wsReadData()
 	_, err = g.wsServerSignIn()
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", g.Name, err)
+		log.Errorf(log.ExchangeSys,
+			"%v - authentication failed: %v\n",
+			g.Name,
+			err)
 		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
-	g.GenerateAuthenticatedSubscriptions()
-	g.GenerateDefaultSubscriptions()
+	authsubs, err := g.GenerateAuthenticatedSubscriptions()
+	if err != nil {
+		return err
+	}
+	g.Websocket.SubscribeToChannels(authsubs)
+
+	subs, err := g.GenerateDefaultSubscriptions()
+	if err != nil {
+		return err
+	}
+	g.Websocket.SubscribeToChannels(subs)
 	return nil
 }
 
@@ -432,18 +444,15 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 }
 
 // GenerateAuthenticatedSubscriptions Adds authenticated subscriptions to websocket to be handled by ManageSubscriptions()
-func (g *Gateio) GenerateAuthenticatedSubscriptions() {
+func (g *Gateio) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscription, error) {
 	if !g.Websocket.CanUseAuthenticatedEndpoints() {
-		return
+		return nil, nil
 	}
 	var channels = []string{"balance.subscribe", "order.subscribe"}
 	var subscriptions []stream.ChannelSubscription
 	enabledCurrencies, err := g.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.WebsocketMgr, "%s could not generate authenticated subscriptions. Err: %s",
-			g.Name,
-			err)
-		return
+		return nil, err
 	}
 	for i := range channels {
 		for j := range enabledCurrencies {
@@ -453,11 +462,11 @@ func (g *Gateio) GenerateAuthenticatedSubscriptions() {
 			})
 		}
 	}
-	g.Websocket.SubscribeToChannels(subscriptions)
+	return subscriptions, nil
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (g *Gateio) GenerateDefaultSubscriptions() {
+func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var channels = []string{"ticker.subscribe",
 		"trades.subscribe",
 		"depth.subscribe",
@@ -465,10 +474,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() {
 	var subscriptions []stream.ChannelSubscription
 	enabledCurrencies, err := g.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.WebsocketMgr, "%s could not generate default subscriptions. Err: %s",
-			g.Name,
-			err)
-		return
+		return nil, err
 	}
 	for i := range channels {
 		for j := range enabledCurrencies {
@@ -486,67 +492,80 @@ func (g *Gateio) GenerateDefaultSubscriptions() {
 			})
 		}
 	}
-	g.Websocket.SubscribeToChannels(subscriptions)
+	return subscriptions, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (g *Gateio) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
-	fpair, err := g.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot)
-	if err != nil {
-		return err
-	}
+func (g *Gateio) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	for i := range channelsToSubscribe {
+		fpair, err := g.FormatExchangeCurrency(channelsToSubscribe[i].Currency, asset.Spot)
+		if err != nil {
+			return err
+		}
 
-	params := []interface{}{fpair.Upper()}
+		params := []interface{}{fpair.Upper()}
 
-	for i := range channelToSubscribe.Params {
-		params = append(params, channelToSubscribe.Params[i])
-	}
+		for j := range channelsToSubscribe[i].Params {
+			params = append(params, channelsToSubscribe[i].Params[j])
+		}
 
-	subscribe := WebsocketRequest{
-		ID:     g.Websocket.Conn.GenerateMessageID(true),
-		Method: channelToSubscribe.Channel,
-		Params: params,
-	}
+		subscribe := WebsocketRequest{
+			ID:     g.Websocket.Conn.GenerateMessageID(true),
+			Method: channelsToSubscribe[i].Channel,
+			Params: params,
+		}
 
-	resp, err := g.Websocket.Conn.SendMessageReturnResponse(subscribe.ID, subscribe)
-	if err != nil {
-		return err
-	}
-	var response WebsocketAuthenticationResponse
-	err = json.Unmarshal(resp, &response)
-	if err != nil {
-		return err
-	}
-	if response.Result.Status != "success" {
-		return fmt.Errorf("%v could not subscribe to %v", g.Name, channelToSubscribe.Channel)
+		resp, err := g.Websocket.Conn.SendMessageReturnResponse(subscribe.ID, subscribe)
+		if err != nil {
+			return err
+		}
+		var response WebsocketAuthenticationResponse
+		err = json.Unmarshal(resp, &response)
+		if err != nil {
+			return err
+		}
+		if response.Result.Status != "success" {
+			return fmt.Errorf("%v could not subscribe to %v",
+				g.Name,
+				channelsToSubscribe[i].Channel)
+		}
 	}
 	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Unsubscribe(channelToSubscribe *stream.ChannelSubscription) error {
-	unsbuscribeText := strings.Replace(channelToSubscribe.Channel, "subscribe", "unsubscribe", 1)
-	fpair, err := g.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot)
-	if err != nil {
-		return err
-	}
+func (g *Gateio) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	for i := range channelsToUnsubscribe {
+		unsbuscribeText := strings.Replace(channelsToUnsubscribe[i].Channel,
+			"subscribe",
+			"unsubscribe",
+			1)
+		fpair, err := g.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency,
+			asset.Spot)
+		if err != nil {
+			return err
+		}
 
-	subscribe := WebsocketRequest{
-		ID:     g.Websocket.Conn.GenerateMessageID(true),
-		Method: unsbuscribeText,
-		Params: []interface{}{fpair.Upper(), 1800},
-	}
-	resp, err := g.Websocket.Conn.SendMessageReturnResponse(subscribe.ID, subscribe)
-	if err != nil {
-		return err
-	}
-	var response WebsocketAuthenticationResponse
-	err = json.Unmarshal(resp, &response)
-	if err != nil {
-		return err
-	}
-	if response.Result.Status != "success" {
-		return fmt.Errorf("%v could not subscribe to %v", g.Name, channelToSubscribe.Channel)
+		subscribe := WebsocketRequest{
+			ID:     g.Websocket.Conn.GenerateMessageID(true),
+			Method: unsbuscribeText,
+			Params: []interface{}{fpair.Upper(), 1800},
+		}
+		resp, err := g.Websocket.Conn.SendMessageReturnResponse(subscribe.ID,
+			subscribe)
+		if err != nil {
+			return err
+		}
+		var response WebsocketAuthenticationResponse
+		err = json.Unmarshal(resp, &response)
+		if err != nil {
+			return err
+		}
+		if response.Result.Status != "success" {
+			return fmt.Errorf("%v could not subscribe to %v",
+				g.Name,
+				channelsToUnsubscribe[i].Channel)
+		}
 	}
 	return nil
 }

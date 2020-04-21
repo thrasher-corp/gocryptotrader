@@ -137,9 +137,10 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 		ExchangeName:                     exch.Name,
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        h.WsConnect,
-		// Subscriber:                       h.Subscribe,
-		// UnSubscriber:                     h.Unsubscribe,
-		Features: &h.Features.Supports.WebsocketCapabilities,
+		Subscriber:                       h.Subscribe,
+		UnSubscriber:                     h.Unsubscribe,
+		GenerateSubscriptions:            h.GenerateDefaultSubscriptions,
+		Features:                         &h.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
