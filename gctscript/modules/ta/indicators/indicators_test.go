@@ -51,7 +51,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestMfi(t *testing.T) {
-	t.Parallel()
 	_, err := mfi()
 	if err != nil {
 		if !errors.Is(err, objects.ErrWrongNumArguments) {
@@ -96,7 +95,6 @@ func TestMfi(t *testing.T) {
 }
 
 func TestRsi(t *testing.T) {
-	t.Parallel()
 	_, err := rsi()
 	if err != nil {
 		if !errors.Is(err, objects.ErrWrongNumArguments) {
@@ -143,7 +141,6 @@ func TestRsi(t *testing.T) {
 }
 
 func TestEMA(t *testing.T) {
-	t.Parallel()
 	_, err := ema()
 	if err != nil {
 		if !errors.Is(err, objects.ErrWrongNumArguments) {
@@ -186,7 +183,6 @@ func TestEMA(t *testing.T) {
 }
 
 func TestSMA(t *testing.T) {
-	t.Parallel()
 	_, err := sma()
 	if err != nil {
 		if !errors.Is(err, objects.ErrWrongNumArguments) {
@@ -229,7 +225,6 @@ func TestSMA(t *testing.T) {
 }
 
 func TestMACD(t *testing.T) {
-	t.Parallel()
 	_, err := macd()
 	if err != nil {
 		if !errors.Is(err, objects.ErrWrongNumArguments) {
@@ -278,7 +273,6 @@ func TestMACD(t *testing.T) {
 }
 
 func TestAtr(t *testing.T) {
-	t.Parallel()
 	_, err := atr()
 	if err != nil {
 		if !errors.Is(err, objects.ErrWrongNumArguments) {
@@ -321,7 +315,6 @@ func TestAtr(t *testing.T) {
 }
 
 func TestBbands(t *testing.T) {
-	t.Parallel()
 	_, err := bbands()
 	if err != nil {
 		if !errors.Is(err, objects.ErrWrongNumArguments) {
@@ -403,7 +396,6 @@ func TestBbands(t *testing.T) {
 }
 
 func TestOBV(t *testing.T) {
-	t.Parallel()
 	_, err := obv()
 	if err != nil {
 		if !errors.Is(err, objects.ErrWrongNumArguments) {
