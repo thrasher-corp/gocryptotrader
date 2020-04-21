@@ -462,6 +462,10 @@ func (e *Engine) Start() error {
 
 // Stop correctly shuts down engine saving configuration files
 func (e *Engine) Stop() {
+	if e == nil {
+		return
+	}
+
 	gctlog.Debugln(gctlog.Global, "Engine shutting down..")
 
 	if len(portfolio.Portfolio.Addresses) != 0 {
