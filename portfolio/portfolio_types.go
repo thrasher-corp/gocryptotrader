@@ -1,6 +1,10 @@
 package portfolio
 
-import "github.com/thrasher-corp/gocryptotrader/currency"
+import (
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+)
 
 // Base holds the portfolio base addresses
 type Base struct {
@@ -119,4 +123,40 @@ type Summary struct {
 	OfflineSummary map[currency.Code][]OfflineCoinSummary         `json:"offline_summary"`
 	Online         []Coin                                         `json:"coins_online"`
 	OnlineSummary  map[string]map[currency.Code]OnlineCoinSummary `json:"online_summary"`
+}
+
+// XRPScanAccount defines the return type for account data
+type XRPScanAccount struct {
+	Sequence                                  int     `json:"sequence"`
+	XrpBalance                                float64 `json:"xrpBalance,string"`
+	OwnerCount                                int     `json:"ownerCount"`
+	PreviousAffectingTransactionID            string  `json:"previousAffectingTransactionID"`
+	PreviousAffectingTransactionLedgerVersion int     `json:"previousAffectingTransactionLedgerVersion"`
+	Settings                                  struct {
+		RequireDestinationTag bool   `json:"requireDestinationTag"`
+		EmailHash             string `json:"emailHash"`
+		Domain                string `json:"domain"`
+	} `json:"settings"`
+	Account        string    `json:"account"`
+	Parent         string    `json:"parent"`
+	InitialBalance float64   `json:"initial_balance"`
+	Inception      time.Time `json:"inception"`
+	LedgerIndex    int       `json:"ledger_index"`
+	TxHash         string    `json:"tx_hash"`
+	AccountName    struct {
+		Name     string `json:"name"`
+		Account  string `json:"account"`
+		Domain   string `json:"domain"`
+		Twitter  string `json:"twitter"`
+		Verified bool   `json:"verified"`
+	} `json:"accountName"`
+	ParentName struct {
+		Name     string `json:"name"`
+		Desc     string `json:"desc"`
+		Account  string `json:"account"`
+		Domain   string `json:"domain"`
+		Twitter  string `json:"twitter"`
+		Verified bool   `json:"verified"`
+	} `json:"parentName"`
+	Advisory interface{} `json:"advisory"`
 }
