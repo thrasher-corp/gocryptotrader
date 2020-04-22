@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -803,6 +804,9 @@ func (e *Base) EnableRateLimiter() error {
 }
 
 func (e *Base) KlineIntervalEnabled(in kline.Interval) bool {
-	intervalString := kline.DurationToWord(in)
-	return e.Features.Enabled.KlineCapabilities.Intervals[intervalString]
+	return e.Features.Enabled.KlineCapabilities.Intervals[in.Word()]
+}
+
+func (e *Base) KlineConvertToExchangeStandardString(in kline.Interval) (string, error) {
+	return kline.OneHour.String(), common.ErrNotYetImplemented
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -131,6 +132,29 @@ func validateData(trades []order.TradeHistory) error {
 	return nil
 }
 
+func (k Interval) String() string {
+	return k.Duration().String()
+}
+
+func (k Interval) Word() string {
+	return DurationToWord(k)
+}
+
+func (k Interval) Duration() time.Duration {
+	return time.Duration(k)
+}
+
+func (k Interval) Short() string {
+	s := k.String()
+	if strings.HasSuffix(s, "m0s") {
+		s = s[:len(s)-2]
+	}
+	if strings.HasSuffix(s, "h0m") {
+		s = s[:len(s)-2]
+	}
+	return s
+}
+
 func DurationToWord(in Interval) string {
 	switch in {
 	case OneMin:
@@ -139,6 +163,8 @@ func DurationToWord(in Interval) string {
 		return "threemin"
 	case FiveMin:
 		return "fivemin"
+	case TenMin:
+		return "tenmin"
 	case FifteenMin:
 		return "fifteenmin"
 	case ThirtyMin:

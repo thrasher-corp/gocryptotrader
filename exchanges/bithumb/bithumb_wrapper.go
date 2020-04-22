@@ -64,6 +64,7 @@ func (b *Bithumb) SetDefaults() {
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
+			Delimiter: "_",
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
@@ -98,12 +99,28 @@ func (b *Bithumb) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
+			KlineCapabilities: kline.ExchangeCapabilities{
+				SupportsIntervals: true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			KlineCapabilities: kline.ExchangeCapabilities{
+				Intervals: map[string]bool{
+					"onemin":     true,
+					"threemin":   true,
+					"fivemin":    true,
+					"tenmin":     true,
+					"thirtymin":  true,
+					"onehour":    true,
+					"sixhour":    true,
+					"twelvehour": true,
+					"oneday":     true,
+				},
+			},
 		},
 	}
-
+	//  24h {1m, 3m, 5m, 10m, 30m, 1h, 6h, 12h, 24h available}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		SetRateLimit())

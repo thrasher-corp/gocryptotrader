@@ -65,8 +65,7 @@ type Binance struct {
 	WebsocketConn *wshandler.WebsocketConnection
 
 	// Valid string list that is required by the exchange
-	validLimits    []int
-	validIntervals []TimeInterval
+	validLimits []int
 }
 
 // GetExchangeInfo returns exchange information. Check binance_types for more
@@ -562,36 +561,9 @@ func (b *Binance) CheckSymbol(symbol string, assetType asset.Item) error {
 	return errors.New("incorrect symbol values - please check available pairs in configuration")
 }
 
-// CheckIntervals checks value against a variable list
-func (b *Binance) CheckIntervals(interval string) error {
-	for x := range b.validIntervals {
-		if TimeInterval(interval) == b.validIntervals[x] {
-			return nil
-		}
-	}
-	return errors.New(`incorrect interval values - valid values are "1m","3m","5m","15m","30m","1h","2h","4h","6h","8h","12h","1d","3d","1w","1M"`)
-}
-
 // SetValues sets the default valid values
 func (b *Binance) SetValues() {
 	b.validLimits = []int{5, 10, 20, 50, 100, 500, 1000, 5000}
-	b.validIntervals = []TimeInterval{
-		TimeIntervalMinute,
-		TimeIntervalThreeMinutes,
-		TimeIntervalFiveMinutes,
-		TimeIntervalFifteenMinutes,
-		TimeIntervalThirtyMinutes,
-		TimeIntervalHour,
-		TimeIntervalTwoHours,
-		TimeIntervalFourHours,
-		TimeIntervalSixHours,
-		TimeIntervalEightHours,
-		TimeIntervalTwelveHours,
-		TimeIntervalDay,
-		TimeIntervalThreeDays,
-		TimeIntervalWeek,
-		TimeIntervalMonth,
-	}
 }
 
 // GetFee returns an estimate of fee based on type of transaction

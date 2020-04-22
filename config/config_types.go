@@ -6,7 +6,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -322,18 +321,18 @@ type TelegramConfig struct {
 
 // FeaturesSupportedConfig stores the exchanges supported features
 type FeaturesSupportedConfig struct {
-	REST                  bool                       `json:"restAPI"`
-	RESTCapabilities      protocol.Features          `json:"restCapabilities,omitempty"`
-	Websocket             bool                       `json:"websocketAPI"`
-	WebsocketCapabilities protocol.Features          `json:"websocketCapabilities,omitempty"`
-	KlineCapabilities     kline.ExchangeCapabilities `json:"klineCapabilities,omitempty"`
+	REST                  bool              `json:"restAPI"`
+	RESTCapabilities      protocol.Features `json:"restCapabilities,omitempty"`
+	Websocket             bool              `json:"websocketAPI"`
+	WebsocketCapabilities protocol.Features `json:"websocketCapabilities,omitempty"`
+	// KlineCapabilities     kline.ExchangeCapabilities `json:"klineCapabilities,omitempty"`
 }
 
 // FeaturesEnabledConfig stores the exchanges enabled features
 type FeaturesEnabledConfig struct {
-	AutoPairUpdates   bool                       `json:"autoPairUpdates"`
-	Websocket         bool                       `json:"websocketAPI"`
-	KlineCapabilities kline.ExchangeCapabilities `json:"klineCapabilities,omitempty"`
+	AutoPairUpdates bool `json:"autoPairUpdates"`
+	Websocket       bool `json:"websocketAPI"`
+	// KlineCapabilities kline.ExchangeCapabilities `json:"klineCapabilities,omitempty"`
 }
 
 // FeaturesConfig stores the exchanges supported and enabled features

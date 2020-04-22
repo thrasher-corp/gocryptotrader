@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -603,15 +603,22 @@ var errCode = map[string]string{
 	"5900": "Unknown Error",
 }
 
+func (b *Bithumb) KlineConvertToExchangeStandardString(in kline.Interval) string {
+	return in.Short()
+}
+
 // GetCandleStick returns candle stick data for requested pair
 func (b *Bithumb) GetCandleStick(pair currency.Pair, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !b.KlineIntervalEnabled(interval) {
+		return kline.Item{}, fmt.Errorf(kline.ErrUnsupportedInterval, interval)
+	}
+
 	var candle struct {
 		Status string          `json:"status"`
 		Data   [][]interface{} `json:"data"`
 	}
 
-	intervalStr := convert.ParseIntervalDuration(interval.Duration(), false)
-	path := b.API.Endpoints.URL + publicCandleStick + pair.String() + "/" + intervalStr
+	path := b.API.Endpoints.URL + publicCandleStick + b.FormatExchangeCurrency(pair, asset.Spot).String() + "/" + b.KlineConvertToExchangeStandardString(interval)
 	err := b.SendHTTPRequest(path, &candle)
 	if err != nil {
 		return kline.Item{}, err

@@ -1,7 +1,6 @@
 package kline
 
 import (
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -10,19 +9,21 @@ import (
 
 // Consts here define basic time intervals
 const (
-	OneMin     = Interval(time.Minute)
-	ThreeMin   = Interval(3 * time.Minute)
-	FiveMin    = Interval(5 * time.Minute)
-	FifteenMin = Interval(15 * time.Minute)
-	ThirtyMin  = Interval(30 * time.Minute)
-	OneHour    = Interval(1 * time.Hour)
-	TwoHour    = Interval(2 * time.Hour)
-	FourHour   = Interval(4 * time.Hour)
-	SixHour    = Interval(6 * time.Hour)
-	TwelveHour = Interval(12 * time.Hour)
-	OneDay     = Interval(24 * time.Hour)
-	ThreeDay   = Interval(72 * time.Hour)
-	OneWeek    = Interval(168 * time.Hour)
+	OneMin         = Interval(time.Minute)
+	ThreeMin       = Interval(3 * time.Minute)
+	FiveMin        = Interval(5 * time.Minute)
+	TenMin         = Interval(10 * time.Minute)
+	FifteenMin     = Interval(15 * time.Minute)
+	ThirtyMin      = Interval(30 * time.Minute)
+	OneHour        = Interval(1 * time.Hour)
+	TwoHour        = Interval(2 * time.Hour)
+	FourHour       = Interval(4 * time.Hour)
+	SixHour        = Interval(6 * time.Hour)
+	TwelveHour     = Interval(12 * time.Hour)
+	TwentyFourHour = Interval(24 * time.Hour)
+	OneDay         = TwentyFourHour
+	ThreeDay       = Interval(72 * time.Hour)
+	OneWeek        = Interval(168 * time.Hour)
 )
 
 // const (
@@ -71,26 +72,3 @@ type ExchangeCapabilities struct {
 }
 
 type Interval time.Duration
-
-func (k Interval) String() string {
-	return k.Duration().String()
-}
-
-func (k Interval) Word() string {
-	return DurationToWord(k)
-}
-
-func (k Interval) Duration() time.Duration {
-	return time.Duration(k)
-}
-
-func (k Interval) Short() string {
-	s := k.String()
-	if strings.HasSuffix(s, "m0s") {
-		s = s[:len(s)-2]
-	}
-	if strings.HasSuffix(s, "h0m") {
-		s = s[:len(s)-2]
-	}
-	return s
-}

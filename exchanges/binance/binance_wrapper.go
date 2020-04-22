@@ -694,7 +694,7 @@ func (b *Binance) ValidateCredentials() error {
 	return b.CheckTransientError(err)
 }
 
-func convertInterval(in kline.Interval) string {
+func (b *Binance) KlineConvertToExchangeStandardString(in kline.Interval) string {
 	if in == kline.OneDay {
 		return "1d"
 	}
@@ -708,7 +708,7 @@ func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 	}
 
 	klineParams := KlinesRequestParams{
-		Interval:  convertInterval(interval),
+		Interval:  b.KlineConvertToExchangeStandardString(interval),
 		Symbol:    b.FormatExchangeCurrency(pair, a).String(),
 		StartTime: start.Unix() * 1000,
 		EndTime:   end.Unix() * 1000,
