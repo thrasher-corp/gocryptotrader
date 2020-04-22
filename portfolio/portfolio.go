@@ -74,7 +74,7 @@ func GetRippleBalance(address string) (float64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return result.XrpBalance, nil
+	return result.XRPBalance, nil
 }
 
 // GetAddressBalance acceses the portfolio base and returns the balance by passed

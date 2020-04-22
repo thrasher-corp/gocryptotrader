@@ -326,6 +326,21 @@ func TestUpdatePortfolio(t *testing.T) {
 	if err != nil {
 		t.Error("portfolio_test.go - UpdatePortfolio error", err)
 	}
+
+	err = portfolio.UpdatePortfolio([]string{
+		"r962iS5subzbVeXZN8MTzyEuuaQKo5qksh"},
+		currency.XRP)
+	if err != nil {
+		t.Error("portfolio_test.go - UpdatePortfolio error", err)
+	}
+
+	err = portfolio.UpdatePortfolio([]string{
+		"r962iS5subzbVeXZN8MTzyEuuaQKo5qksh",
+		"TESTY"},
+		currency.XRP)
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
 }
 
 func TestGetPortfolioByExchange(t *testing.T) {

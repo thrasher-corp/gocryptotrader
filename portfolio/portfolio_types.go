@@ -128,7 +128,7 @@ type Summary struct {
 // XRPScanAccount defines the return type for account data
 type XRPScanAccount struct {
 	Sequence                                  int     `json:"sequence"`
-	XrpBalance                                float64 `json:"xrpBalance,string"`
+	XRPBalance                                float64 `json:"xrpBalance,string"`
 	OwnerCount                                int     `json:"ownerCount"`
 	PreviousAffectingTransactionID            string  `json:"previousAffectingTransactionID"`
 	PreviousAffectingTransactionLedgerVersion int     `json:"previousAffectingTransactionLedgerVersion"`
