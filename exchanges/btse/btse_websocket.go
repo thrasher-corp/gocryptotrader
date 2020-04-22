@@ -17,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -49,7 +48,11 @@ func (b *BTSE) WsConnect() error {
 		}
 	}
 
-	b.GenerateDefaultSubscriptions()
+	subs, err := b.GenerateDefaultSubscriptions()
+	if err != nil {
+		return err
+	}
+	b.Websocket.SubscribeToChannels(subs)
 	return nil
 }
 
@@ -280,15 +283,11 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *BTSE) GenerateDefaultSubscriptions() {
+func (b *BTSE) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var channels = []string{"orderBookApi:%s_0", "tradeHistory:%s"}
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.WebsocketMgr,
-			"%s could not generate default subscriptions. Err: %s\n",
-			b.Name,
-			err)
-		return
+		return nil, err
 	}
 	var subscriptions []stream.ChannelSubscription
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
@@ -304,22 +303,34 @@ func (b *BTSE) GenerateDefaultSubscriptions() {
 			})
 		}
 	}
-	b.Websocket.SubscribeToChannels(subscriptions)
+	return subscriptions, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *BTSE) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
-	var sub wsSub
-	sub.Operation = "subscribe"
-	sub.Arguments = []string{channelToSubscribe.Channel}
+func (b *BTSE) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	for i := range channelsToSubscribe {
+		var sub wsSub
+		sub.Operation = "subscribe"
+		sub.Arguments = []string{channelsToSubscribe[i].Channel}
 
-	return b.Websocket.Conn.SendJSONMessage(sub)
+		err := b.Websocket.Conn.SendJSONMessage(sub)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *BTSE) Unsubscribe(channelToSubscribe *stream.ChannelSubscription) error {
-	var unSub wsSub
-	unSub.Operation = "unsubscribe"
-	unSub.Arguments = []string{channelToSubscribe.Channel}
-	return b.Websocket.Conn.SendJSONMessage(unSub)
+func (b *BTSE) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	for i := range channelsToUnsubscribe {
+		var unSub wsSub
+		unSub.Operation = "unsubscribe"
+		unSub.Arguments = []string{channelsToUnsubscribe[i].Channel}
+		err := b.Websocket.Conn.SendJSONMessage(unSub)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

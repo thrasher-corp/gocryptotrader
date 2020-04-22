@@ -165,9 +165,10 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 			ExchangeName:                     exch.Name,
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        b.WsConnect,
-			// Subscriber:                       b.Subscribe,
-			// UnSubscriber:                     b.Unsubscribe,
-			Features: &b.Features.Supports.WebsocketCapabilities,
+			Subscriber:                       b.Subscribe,
+			UnSubscriber:                     b.Unsubscribe,
+			GenerateSubscriptions:            b.GenerateDefaultSubscriptions,
+			Features:                         &b.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err

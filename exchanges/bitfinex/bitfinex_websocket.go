@@ -33,26 +33,39 @@ func (b *Bitfinex) WsConnect() error {
 	var dialer websocket.Dialer
 	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
-		return fmt.Errorf("%v unable to connect to Websocket. Error: %s", b.Name, err)
+		return fmt.Errorf("%v unable to connect to Websocket. Error: %s",
+			b.Name,
+			err)
 	}
 	go b.wsReadData(b.Websocket.Conn)
 
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
 		err = b.Websocket.AuthConn.Dial(&dialer, http.Header{})
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%v unable to connect to authenticated Websocket. Error: %s", b.Name, err)
+			log.Errorf(log.ExchangeSys,
+				"%v unable to connect to authenticated Websocket. Error: %s",
+				b.Name,
+				err)
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 		go b.wsReadData(b.Websocket.AuthConn)
 		err = b.WsSendAuth()
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", b.Name, err)
+			log.Errorf(log.ExchangeSys,
+				"%v - authentication failed: %v\n",
+				b.Name,
+				err)
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
 
-	b.GenerateDefaultSubscriptions()
+	subs, err := b.GenerateDefaultSubscriptions()
+	if err != nil {
+		return err
+	}
 	go b.WsDataHandler()
+	b.Websocket.SubscribeToChannels(subs)
+
 	return nil
 }
 
@@ -838,7 +851,7 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *Bitfinex) GenerateDefaultSubscriptions() {
+func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var channels = []string{
 		wsBook,
 		wsTrades,
@@ -848,11 +861,7 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() {
 
 	enabledPairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.WebsocketMgr,
-			"%v - Websocket cannot generate default subscriptions. Err: %v",
-			b.Name,
-			err)
-		return
+		return nil, err
 	}
 
 	var subscriptions []stream.ChannelSubscription
@@ -879,50 +888,76 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() {
 			})
 		}
 	}
-	b.Websocket.SubscribeToChannels(subscriptions)
+	return subscriptions, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *Bitfinex) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
-	req := make(map[string]interface{})
-	req["event"] = "subscribe"
-	req["channel"] = channelToSubscribe.Channel
+func (b *Bitfinex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	for i := range channelsToSubscribe {
+		req := make(map[string]interface{})
+		req["event"] = "subscribe"
+		req["channel"] = channelsToSubscribe[i].Channel
 
-	fpair, err := b.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot)
-	if err != nil {
-		return err
-	}
-
-	if channelToSubscribe.Currency.String() != "" {
-		if channelToSubscribe.Channel == wsCandles {
-			// TODO: Add ability to select timescale
-			req["key"] = "trade:1D:" + fpair.String()
-		} else {
-			req["symbol"] = fpair.String()
+		fpair, err := b.FormatExchangeCurrency(channelsToSubscribe[i].Currency,
+			asset.Spot)
+		if err != nil {
+			return err
 		}
-	}
 
-	if len(channelToSubscribe.Params) > 0 {
-		for k, v := range channelToSubscribe.Params {
+		if channelsToSubscribe[i].Currency.String() != "" {
+			if channelsToSubscribe[i].Channel == wsCandles {
+				// TODO: Add ability to select timescale
+				req["key"] = "trade:1D:" + fpair.String()
+			} else {
+				req["symbol"] = fpair.String()
+			}
+		}
+
+		for k, v := range channelsToSubscribe[i].Params {
 			req[k] = v
 		}
-	}
 
-	return b.Websocket.Conn.SendJSONMessage(req)
+		err = b.Websocket.Conn.SendJSONMessage(req)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitfinex) Unsubscribe(channelToSubscribe *stream.ChannelSubscription) error {
-	req := make(map[string]interface{})
-	req["event"] = "unsubscribe"
-	req["channel"] = channelToSubscribe.Channel
+func (b *Bitfinex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
 
-	if len(channelToSubscribe.Params) > 0 {
-		for k, v := range channelToSubscribe.Params {
+	for i := range channelsToUnsubscribe {
+		req := make(map[string]interface{})
+		req["event"] = "unsubscribe"
+		req["channel"] = channelsToUnsubscribe[i].Channel
+
+		fpair, err := b.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency,
+			asset.Spot)
+		if err != nil {
+			return err
+		}
+
+		if channelsToUnsubscribe[i].Currency.String() != "" {
+			if channelsToUnsubscribe[i].Channel == wsCandles {
+				// TODO: Add ability to select timescale
+				req["key"] = "trade:1D:" + fpair.String()
+			} else {
+				req["symbol"] = fpair.String()
+			}
+		}
+
+		for k, v := range channelsToUnsubscribe[i].Params {
 			req[k] = v
 		}
+
+		err = b.Websocket.Conn.SendJSONMessage(req)
+		if err != nil {
+			return err
+		}
 	}
-	return b.Websocket.Conn.SendJSONMessage(req)
+	return nil
 }
 
 // WsSendAuth sends a autheticated event payload
@@ -936,11 +971,9 @@ func (b *Bitfinex) WsSendAuth() error {
 		Event:       "auth",
 		APIKey:      b.API.Credentials.Key,
 		AuthPayload: payload,
-		AuthSig: crypto.HexEncodeToString(
-			crypto.GetHMAC(
-				crypto.HashSHA512_384,
-				[]byte(payload),
-				[]byte(b.API.Credentials.Secret))),
+		AuthSig: crypto.HexEncodeToString(crypto.GetHMAC(crypto.HashSHA512_384,
+			[]byte(payload),
+			[]byte(b.API.Credentials.Secret))),
 		AuthNonce:     nonce,
 		DeadManSwitch: 0,
 	}

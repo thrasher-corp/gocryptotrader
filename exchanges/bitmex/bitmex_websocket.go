@@ -86,19 +86,32 @@ func (b *Bitmex) WsConnect() error {
 	}
 
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "Successfully connected to Bitmex %s at time: %s Limit: %d",
+		log.Debugf(log.ExchangeSys,
+			"Successfully connected to Bitmex %s at time: %s Limit: %d",
 			welcomeResp.Info,
 			welcomeResp.Timestamp,
 			welcomeResp.Limit.Remaining)
 	}
 
 	go b.wsReadData()
-	b.GenerateDefaultSubscriptions()
+	subs, err := b.GenerateDefaultSubscriptions()
+	if err != nil {
+		return err
+	}
+	b.Websocket.SubscribeToChannels(subs)
 	err = b.websocketSendAuth()
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", b.Name, err)
+		log.Errorf(log.ExchangeSys,
+			"%v - authentication failed: %v\n",
+			b.Name,
+			err)
+	} else {
+		authsubs, err := b.GenerateAuthenticatedSubscriptions()
+		if err != nil {
+			return err
+		}
+		b.Websocket.SubscribeToChannels(authsubs)
 	}
-	b.GenerateAuthenticatedSubscriptions()
 	return nil
 }
 
@@ -113,9 +126,11 @@ func (b *Bitmex) wsReadData() {
 	for {
 		resp, err := b.Websocket.Conn.ReadMessage()
 		if err != nil {
+			fmt.Println("MOOO")
 			b.Websocket.DataHandler <- err
 			return
 		}
+		fmt.Println(string(resp.Raw))
 		err = b.wsHandleData(resp.Raw)
 		if err != nil {
 			b.Websocket.DataHandler <- err
@@ -536,18 +551,14 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *Bitmex) GenerateDefaultSubscriptions() {
+func (b *Bitmex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	assets := b.GetAssetTypes()
 	var allPairs currency.Pairs
 
 	for x := range assets {
 		contracts, err := b.GetEnabledPairs(assets[x])
 		if err != nil {
-			log.Errorf(log.WebsocketMgr,
-				"%s could not generate default subscriptions. Err: %s",
-				b.Name,
-				err)
-			return
+			return nil, err
 		}
 		for y := range contracts {
 			allPairs = allPairs.Add(contracts[y])
@@ -569,21 +580,19 @@ func (b *Bitmex) GenerateDefaultSubscriptions() {
 			})
 		}
 	}
-	b.Websocket.SubscribeToChannels(subscriptions)
+
+	fmt.Println("generated subs:", subscriptions)
+	return subscriptions, nil
 }
 
 // GenerateAuthenticatedSubscriptions Adds authenticated subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *Bitmex) GenerateAuthenticatedSubscriptions() {
+func (b *Bitmex) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscription, error) {
 	if !b.Websocket.CanUseAuthenticatedEndpoints() {
-		return
+		return nil, nil
 	}
 	contracts, err := b.GetEnabledPairs(asset.PerpetualContract)
 	if err != nil {
-		log.Errorf(log.WebsocketMgr,
-			"%s could not generate auth subscriptions. Err: %s",
-			b.Name,
-			err)
-		return
+		return nil, err
 	}
 	channels := []string{bitmexWSExecution,
 		bitmexWSPosition,
@@ -616,25 +625,40 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() {
 			})
 		}
 	}
-	b.Websocket.SubscribeToChannels(subscriptions)
+	return subscriptions, nil
 }
 
 // Subscribe subscribes to a websocket channel
-func (b *Bitmex) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
-	var subscriber WebsocketRequest
-	subscriber.Command = "subscribe"
-	subscriber.Arguments = append(subscriber.Arguments, channelToSubscribe.Channel)
-	return b.Websocket.Conn.SendJSONMessage(subscriber)
+func (b *Bitmex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	fmt.Println("SUBS:", channelsToSubscribe)
+	for i := range channelsToSubscribe {
+		var subscriber WebsocketRequest
+		subscriber.Command = "subscribe"
+		subscriber.Arguments = append(subscriber.Arguments, channelsToSubscribe[i].Channel)
+		err := b.Websocket.Conn.SendJSONMessage(subscriber)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitmex) Unsubscribe(channelToSubscribe *stream.ChannelSubscription) error {
-	var subscriber WebsocketRequest
-	subscriber.Command = "unsubscribe"
-	subscriber.Arguments = append(subscriber.Arguments,
-		channelToSubscribe.Params["args"],
-		channelToSubscribe.Channel+":"+channelToSubscribe.Currency.String())
-	return b.Websocket.Conn.SendJSONMessage(subscriber)
+func (b *Bitmex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	fmt.Println("UNSUBS:", channelsToUnsubscribe)
+	for i := range channelsToUnsubscribe {
+		var subscriber WebsocketRequest
+		subscriber.Command = "unsubscribe"
+		subscriber.Arguments = append(subscriber.Arguments,
+			channelsToUnsubscribe[i].Params["args"],
+			channelsToUnsubscribe[i].Channel+
+				":"+channelsToUnsubscribe[i].Currency.String())
+		err := b.Websocket.Conn.SendJSONMessage(subscriber)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // WebsocketSendAuth sends an authenticated subscription

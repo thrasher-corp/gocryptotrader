@@ -53,7 +53,6 @@ func (c *Coinbene) WsConnect() error {
 		return err
 	}
 	c.Websocket.SubscribeToChannels(subs)
-
 	return nil
 }
 

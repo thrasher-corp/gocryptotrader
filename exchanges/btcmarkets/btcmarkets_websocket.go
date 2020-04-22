@@ -43,7 +43,11 @@ func (b *BTCMarkets) WsConnect() error {
 	if b.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		b.createChannels()
 	}
-	b.generateDefaultSubscriptions()
+	subs, err := b.generateDefaultSubscriptions()
+	if err != nil {
+		return err
+	}
+	b.Websocket.SubscribeToChannels(subs)
 	return nil
 }
 
@@ -287,15 +291,11 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func (b *BTCMarkets) generateDefaultSubscriptions() {
+func (b *BTCMarkets) generateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var channels = []string{tick, trade, wsOB}
 	enabledCurrencies, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		log.Errorf(log.WebsocketMgr,
-			"%s could not generate default subscriptions. Err: %s",
-			b.Name,
-			err)
-		return
+		return nil, err
 	}
 	var subscriptions []stream.ChannelSubscription
 	for i := range channels {
@@ -306,42 +306,50 @@ func (b *BTCMarkets) generateDefaultSubscriptions() {
 			})
 		}
 	}
-	b.Websocket.SubscribeToChannels(subscriptions)
+	return subscriptions, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *BTCMarkets) Subscribe(channelToSubscribe *stream.ChannelSubscription) error {
+func (b *BTCMarkets) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 	var unauthChannels = []string{tick, trade, wsOB}
 	var authChannels = []string{fundChange, heartbeat, orderChange}
-	fpair, err := b.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot)
-	if err != nil {
-		return err
-	}
 
-	switch {
-	case common.StringDataCompare(unauthChannels, channelToSubscribe.Channel):
-		req := WsSubscribe{
-			MarketIDs:   []string{fpair.String()},
-			Channels:    []string{channelToSubscribe.Channel},
-			MessageType: subscribe,
-		}
-		err := b.Websocket.Conn.SendJSONMessage(req)
+	fmt.Println("SUBS:", channelsToSubscribe)
+
+	for i := range channelsToSubscribe {
+		fpair, err := b.FormatExchangeCurrency(channelsToSubscribe[i].Currency, asset.Spot)
 		if err != nil {
 			return err
 		}
-	case common.StringDataCompare(authChannels, channelToSubscribe.Channel):
-		message, ok := channelToSubscribe.Params["AuthSub"].(WsAuthSubscribe)
-		if !ok {
-			return errors.New("invalid params data")
-		}
-		tempAuthData := b.generateAuthSubscriptions()
-		message.Channels = append(message.Channels, channelToSubscribe.Channel, heartbeat)
-		message.Key = tempAuthData.Key
-		message.Signature = tempAuthData.Signature
-		message.Timestamp = tempAuthData.Timestamp
-		err := b.Websocket.Conn.SendJSONMessage(message)
-		if err != nil {
-			return err
+
+		switch {
+		case common.StringDataCompare(unauthChannels, channelsToSubscribe[i].Channel):
+			req := WsSubscribe{
+				MarketIDs:   []string{fpair.String()},
+				Channels:    []string{channelsToSubscribe[i].Channel},
+				MessageType: subscribe,
+			}
+			fmt.Println("INDV SUBS:", req)
+			err := b.Websocket.Conn.SendJSONMessage(req)
+			if err != nil {
+				return err
+			}
+		case common.StringDataCompare(authChannels, channelsToSubscribe[i].Channel):
+			message, ok := channelsToSubscribe[i].Params["AuthSub"].(WsAuthSubscribe)
+			if !ok {
+				return errors.New("invalid params data")
+			}
+			tempAuthData := b.generateAuthSubscriptions()
+			message.Channels = append(message.Channels,
+				channelsToSubscribe[i].Channel,
+				heartbeat)
+			message.Key = tempAuthData.Key
+			message.Signature = tempAuthData.Signature
+			message.Timestamp = tempAuthData.Timestamp
+			err := b.Websocket.Conn.SendJSONMessage(message)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

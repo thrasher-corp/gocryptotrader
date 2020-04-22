@@ -72,8 +72,7 @@ func (b *Binance) WsConnect() error {
 		"/" +
 		depth
 	if listenKey != "" {
-		wsurl += "/" +
-			listenKey
+		wsurl += "/" + listenKey
 	}
 
 	for i := range pairs {
