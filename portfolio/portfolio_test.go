@@ -74,6 +74,20 @@ func TestGetAddressBalance(t *testing.T) {
 	}
 }
 
+func TestGetRippleBalance(t *testing.T) {
+	nonsenseAddress := "Wigwham"
+	_, err := GetRippleBalance(nonsenseAddress)
+	if err == nil {
+		t.Error("error cannot be nil on a bad address")
+	}
+
+	rippleAddress := "r962iS5subzbVeXZN8MTzyEuuaQKo5qksh"
+	_, err = GetRippleBalance(rippleAddress)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestExchangeExists(t *testing.T) {
 	newBase := Base{}
 	newBase.AddAddress("someaddress",
@@ -275,8 +289,9 @@ func TestUpdatePortfolio(t *testing.T) {
 	if err == nil {
 		t.Error("portfolio_test.go - UpdatePortfolio error cannot be nil")
 	}
-	err = portfolio.UpdatePortfolio(
-		[]string{"LdP8Qox1VAhCzLJNqrr74YovaWYyNBUWvL", "LVa8wZ983PvWtdwXZ8viK6SocMENLCXkEy"},
+	err = portfolio.UpdatePortfolio([]string{
+		"LdP8Qox1VAhCzLJNqrr74YovaWYyNBUWvL",
+		"LVa8wZ983PvWtdwXZ8viK6SocMENLCXkEy"},
 		currency.LTC,
 	)
 	if err != nil {
@@ -290,25 +305,41 @@ func TestUpdatePortfolio(t *testing.T) {
 	}
 
 	time.Sleep(time.Second * 5)
-	err = portfolio.UpdatePortfolio(
-		[]string{"0xb794f5ea0ba39494ce839613fffba74279579268",
-			"0xe853c56864a2ebe4576a807d26fdc4a0ada51919"}, currency.ETH,
-	)
-	if err == nil { // eth support seems to have been dropped for cryptoid
-		t.Error("portfolio_test.go - UpdatePortfolio error cannot be nil")
+	err = portfolio.UpdatePortfolio([]string{
+		"0xb794f5ea0ba39494ce839613fffba74279579268",
+		"0xe853c56864a2ebe4576a807d26fdc4a0ada51919"},
+		currency.ETH)
+	if err != nil {
+		t.Error(err)
 	}
-	err = portfolio.UpdatePortfolio(
-		[]string{"0xb794f5ea0ba39494ce839613fffba74279579268", "TESTY"}, currency.ETH,
-	)
+	err = portfolio.UpdatePortfolio([]string{
+		"0xb794f5ea0ba39494ce839613fffba74279579268",
+		"TESTY"},
+		currency.ETH)
 	if err == nil {
 		t.Error("portfolio_test.go - UpdatePortfolio error cannot be nil")
 	}
 
-	err = portfolio.UpdatePortfolio(
-		[]string{PortfolioAddressExchange, PortfolioAddressPersonal}, currency.LTC)
-
+	err = portfolio.UpdatePortfolio([]string{PortfolioAddressExchange,
+		PortfolioAddressPersonal},
+		currency.LTC)
 	if err != nil {
 		t.Error("portfolio_test.go - UpdatePortfolio error", err)
+	}
+
+	err = portfolio.UpdatePortfolio([]string{
+		"r962iS5subzbVeXZN8MTzyEuuaQKo5qksh"},
+		currency.XRP)
+	if err != nil {
+		t.Error("portfolio_test.go - UpdatePortfolio error", err)
+	}
+
+	err = portfolio.UpdatePortfolio([]string{
+		"r962iS5subzbVeXZN8MTzyEuuaQKo5qksh",
+		"TESTY"},
+		currency.XRP)
+	if err == nil {
+		t.Error("error cannot be nil")
 	}
 }
 

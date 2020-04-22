@@ -13,6 +13,7 @@ import (
 
 const (
 	cryptoIDAPIURL = "https://chainz.cryptoid.info"
+	xrpScanAPIURL  = "https://api.xrpscan.com/api/v1/account/"
 
 	ethplorerAPIURL      = "https://api.ethplorer.io"
 	ethplorerAddressInfo = "getAddressInfo"
@@ -64,6 +65,16 @@ func GetCryptoIDAddress(address string, coinType currency.Code) (float64, error)
 		return 0, err
 	}
 	return result.(float64), nil
+}
+
+// GetRippleBalance returns the value for a ripple address
+func GetRippleBalance(address string) (float64, error) {
+	var result XRPScanAccount
+	err := common.SendHTTPGetRequest(xrpScanAPIURL+address, true, Verbose, &result)
+	if err != nil {
+		return 0, err
+	}
+	return result.XRPBalance, nil
 }
 
 // GetAddressBalance acceses the portfolio base and returns the balance by passed
@@ -210,7 +221,8 @@ func (p *Base) UpdatePortfolio(addresses []string, coinType currency.Code) error
 		return nil
 	}
 
-	if coinType == currency.ETH {
+	switch coinType {
+	case currency.ETH:
 		for x := range addresses {
 			result, err := GetEthereumBalance(addresses[x])
 			if err != nil {
@@ -221,21 +233,42 @@ func (p *Base) UpdatePortfolio(addresses []string, coinType currency.Code) error
 				return errors.New(result.Error.Message)
 			}
 
-			p.AddAddress(addresses[x],
+			err = p.AddAddress(addresses[x],
 				PortfolioAddressPersonal,
 				coinType,
 				result.ETH.Balance)
+			if err != nil {
+				return err
+			}
 		}
-	}
-	for x := range addresses {
-		result, err := GetCryptoIDAddress(addresses[x], coinType)
-		if err != nil {
-			return err
+	case currency.XRP:
+		for x := range addresses {
+			result, err := GetRippleBalance(addresses[x])
+			if err != nil {
+				return err
+			}
+			err = p.AddAddress(addresses[x],
+				PortfolioAddressPersonal,
+				coinType,
+				result)
+			if err != nil {
+				return err
+			}
 		}
-		p.AddAddress(addresses[x],
-			PortfolioAddressPersonal,
-			coinType,
-			result)
+	default:
+		for x := range addresses {
+			result, err := GetCryptoIDAddress(addresses[x], coinType)
+			if err != nil {
+				return err
+			}
+			err = p.AddAddress(addresses[x],
+				PortfolioAddressPersonal,
+				coinType,
+				result)
+			if err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -425,9 +458,10 @@ func StartPortfolioWatcher() {
 			err := Portfolio.UpdatePortfolio(value, key)
 			if err != nil {
 				log.Errorf(log.PortfolioMgr,
-					"PortfolioWatcher error %s for currency %s\n",
+					"PortfolioWatcher error %s for currency %s, val %v\n",
 					err,
-					key)
+					key,
+					value)
 				continue
 			}
 
