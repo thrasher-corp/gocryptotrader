@@ -263,6 +263,6 @@ func (o *OKCoin) FetchTicker(p currency.Pair, assetType asset.Item) (tickerData 
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (o *OKCoin) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
+func (o *OKCoin) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
 }

@@ -71,7 +71,7 @@ func TestValidateData(t *testing.T) {
 
 func TestCreateKline(t *testing.T) {
 	c, err := CreateKline(nil,
-		time.Minute,
+		OneMin,
 		currency.NewPair(currency.BTC, currency.USD),
 		asset.Spot,
 		"Binance")

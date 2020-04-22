@@ -744,6 +744,6 @@ func (b *BTCMarkets) ValidateCredentials() error {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (b *BTCMarkets) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
+func (b *BTCMarkets) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return b.GetMarketCandles(pair.String(), interval, start, end, -1, -1, 0)
 }

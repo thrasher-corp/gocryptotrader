@@ -26,14 +26,14 @@ const (
 	apiURL = "https://api.binance.com"
 
 	// Public endpoints
-	exchangeInfo      = "/api/v1/exchangeInfo"
-	orderBookDepth    = "/api/v1/depth"
-	recentTrades      = "/api/v1/trades"
-	historicalTrades  = "/api/v1/historicalTrades"
-	aggregatedTrades  = "/api/v1/aggTrades"
-	candleStick       = "/api/v1/klines"
+	exchangeInfo      = "/api/v3/exchangeInfo"
+	orderBookDepth    = "/api/v3/depth"
+	recentTrades      = "/api/v3/trades"
+	historicalTrades  = "/api/v3/historicalTrades"
+	aggregatedTrades  = "/api/v3/aggTrades"
+	candleStick       = "/api/v3/klines"
 	averagePrice      = "/api/v3/avgPrice"
-	priceChange       = "/api/v1/ticker/24hr"
+	priceChange       = "/api/v3/ticker/24hr"
 	symbolPrice       = "/api/v3/ticker/price"
 	bestPrice         = "/api/v3/ticker/bookTicker"
 	accountInfo       = "/api/v3/account"
@@ -75,7 +75,7 @@ func (b *Binance) GetExchangeInfo() (ExchangeInfo, error) {
 	var resp ExchangeInfo
 	path := b.API.Endpoints.URL + exchangeInfo
 
-	return resp, b.SendHTTPRequest(path, &resp)
+	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
 }
 
 // GetOrderBook returns full orderbook information
@@ -95,7 +95,7 @@ func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error
 
 	var resp OrderBookData
 	path := common.EncodeURLValues(b.API.Endpoints.URL+orderBookDepth, params)
-	if err := b.SendHTTPRequest(path, &resp); err != nil {
+	if err := b.SendHTTPRequest(path, orderbookLimit(obd.Limit), &resp); err != nil {
 		return orderbook, err
 	}
 
@@ -148,7 +148,7 @@ func (b *Binance) GetRecentTrades(rtr RecentTradeRequestParams) ([]RecentTrade, 
 
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, recentTrades, params.Encode())
 
-	return resp, b.SendHTTPRequest(path, &resp)
+	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
 }
 
 // GetHistoricalTrades returns historical trade activity
@@ -180,7 +180,7 @@ func (b *Binance) GetAggregatedTrades(symbol string, limit int) ([]AggregatedTra
 
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, aggregatedTrades, params.Encode())
 
-	return resp, b.SendHTTPRequest(path, &resp)
+	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
 }
 
 // GetSpotKline returns kline data
@@ -210,7 +210,7 @@ func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, candleStick, params.Encode())
 
-	if err := b.SendHTTPRequest(path, &resp); err != nil {
+	if err := b.SendHTTPRequest(path, limitDefault, &resp); err != nil {
 		return klineData, err
 	}
 
@@ -267,7 +267,7 @@ func (b *Binance) GetAveragePrice(symbol string) (AveragePrice, error) {
 
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, averagePrice, params.Encode())
 
-	return resp, b.SendHTTPRequest(path, &resp)
+	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
 }
 
 // GetPriceChangeStats returns price change statistics for the last 24 hours
@@ -280,14 +280,14 @@ func (b *Binance) GetPriceChangeStats(symbol string) (PriceChangeStats, error) {
 
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, priceChange, params.Encode())
 
-	return resp, b.SendHTTPRequest(path, &resp)
+	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
 }
 
 // GetTickers returns the ticker data for the last 24 hrs
 func (b *Binance) GetTickers() ([]PriceChangeStats, error) {
 	var resp []PriceChangeStats
 	path := b.API.Endpoints.URL + priceChange
-	return resp, b.SendHTTPRequest(path, &resp)
+	return resp, b.SendHTTPRequest(path, limitPriceChangeAll, &resp)
 }
 
 // GetLatestSpotPrice returns latest spot price of symbol
@@ -300,7 +300,7 @@ func (b *Binance) GetLatestSpotPrice(symbol string) (SymbolPrice, error) {
 
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, symbolPrice, params.Encode())
 
-	return resp, b.SendHTTPRequest(path, &resp)
+	return resp, b.SendHTTPRequest(path, symbolPriceLimit(symbol), &resp)
 }
 
 // GetBestPrice returns the latest best price for symbol
@@ -313,7 +313,7 @@ func (b *Binance) GetBestPrice(symbol string) (BestPrice, error) {
 
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, bestPrice, params.Encode())
 
-	return resp, b.SendHTTPRequest(path, &resp)
+	return resp, b.SendHTTPRequest(path, bestPriceLimit(symbol), &resp)
 }
 
 // NewOrder sends a new order to Binance
@@ -350,7 +350,7 @@ func (b *Binance) NewOrder(o *NewOrderRequest) (NewOrderResponse, error) {
 		params.Set("newOrderRespType", o.NewOrderRespType)
 	}
 
-	if err := b.SendAuthHTTPRequest(http.MethodPost, path, params, request.Auth, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(http.MethodPost, path, params, limitOrder, &resp); err != nil {
 		return resp, err
 	}
 
@@ -377,12 +377,12 @@ func (b *Binance) CancelExistingOrder(symbol string, orderID int64, origClientOr
 		params.Set("origClientOrderId", origClientOrderID)
 	}
 
-	return resp, b.SendAuthHTTPRequest(http.MethodDelete, path, params, request.Auth, &resp)
+	return resp, b.SendAuthHTTPRequest(http.MethodDelete, path, params, limitOrder, &resp)
 }
 
 // OpenOrders Current open orders. Get all open orders on a symbol.
 // Careful when accessing this with no symbol: The number of requests counted against the rate limiter
-// is equal to the number of symbols currently trading on the exchange.
+// is significantly higher
 func (b *Binance) OpenOrders(symbol string) ([]QueryOrderData, error) {
 	var resp []QueryOrderData
 
@@ -394,7 +394,7 @@ func (b *Binance) OpenOrders(symbol string) ([]QueryOrderData, error) {
 		params.Set("symbol", strings.ToUpper(symbol))
 	}
 
-	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, request.Auth, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, openOrdersLimit(symbol), &resp); err != nil {
 		return resp, err
 	}
 
@@ -417,7 +417,7 @@ func (b *Binance) AllOrders(symbol, orderID, limit string) ([]QueryOrderData, er
 	if limit != "" {
 		params.Set("limit", limit)
 	}
-	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, request.Auth, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, limitOrdersAll, &resp); err != nil {
 		return resp, err
 	}
 
@@ -439,7 +439,7 @@ func (b *Binance) QueryOrder(symbol, origClientOrderID string, orderID int64) (Q
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
 
-	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, request.Auth, &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, limitOrder, &resp); err != nil {
 		return resp, err
 	}
 
@@ -473,14 +473,15 @@ func (b *Binance) GetAccount() (*Account, error) {
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (b *Binance) SendHTTPRequest(path string, result interface{}) error {
+func (b *Binance) SendHTTPRequest(path string, f request.EndpointLimit, result interface{}) error {
 	return b.SendPayload(&request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording})
+		HTTPRecording: b.HTTPRecording,
+		Endpoint:      f})
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
@@ -573,7 +574,7 @@ func (b *Binance) CheckIntervals(interval string) error {
 
 // SetValues sets the default valid values
 func (b *Binance) SetValues() {
-	b.validLimits = []int{5, 10, 20, 50, 100, 500, 1000}
+	b.validLimits = []int{5, 10, 20, 50, 100, 500, 1000, 5000}
 	b.validIntervals = []TimeInterval{
 		TimeIntervalMinute,
 		TimeIntervalThreeMinutes,

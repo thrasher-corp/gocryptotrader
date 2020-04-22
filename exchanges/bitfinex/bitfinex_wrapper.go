@@ -776,7 +776,7 @@ func (b *Bitfinex) ValidateCredentials() error {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
+func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	timeframe, err := parseInterval(interval)
 	if err != nil {
 		return kline.Item{}, err
@@ -805,14 +805,14 @@ func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 	return ret, nil
 }
 
-func parseInterval(in time.Duration) (string, error) {
+func parseInterval(in kline.Interval) (string, error) {
 	switch in {
 	case kline.OneMin, kline.ThreeMin, kline.FiveMin,
 		kline.FifteenMin, kline.ThirtyMin,
 		kline.OneHour, kline.TwoHour,
 		kline.FourHour, kline.SixHour,
 		kline.OneHour * 8, kline.TwelveHour:
-		return convert.ParseIntervalDuration(in, false), nil
+		return convert.ParseIntervalDuration(in.Duration(), false), nil
 	case kline.OneDay:
 		return "1D", nil
 	case kline.OneWeek:

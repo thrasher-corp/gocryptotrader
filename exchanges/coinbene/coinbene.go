@@ -616,14 +616,14 @@ func (c *Coinbene) GetSwapOrderbook(symbol string, size int64) (Orderbook, error
 }
 
 // GetKlines data returns the kline data for a specific symbol
-func (c *Coinbene) GetKlines(pair currency.Pair, start, end time.Time, period time.Duration) (kline.Item, error) {
+func (c *Coinbene) GetKlines(pair currency.Pair, start, end time.Time, period kline.Interval) (kline.Item, error) {
 	var candle struct {
 		Code    int64           `json:"code"`
 		Message string          `json:"message"`
 		Data    [][]interface{} `json:"data"`
 	}
 
-	intervalStr := convert.ParseIntervalDuration(period, false)
+	intervalStr := convert.ParseIntervalDuration(period.Duration(), false)
 
 	v := url.Values{}
 	v.Add("symbol", pair.String())

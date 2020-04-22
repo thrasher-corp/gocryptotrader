@@ -12,8 +12,8 @@ import (
 )
 
 // CreateKline creates candles out of trade history data for a set time interval
-func CreateKline(trades []order.TradeHistory, interval time.Duration, p currency.Pair, a asset.Item, exchange string) (Item, error) {
-	if interval < time.Minute {
+func CreateKline(trades []order.TradeHistory, interval Interval, p currency.Pair, a asset.Item, exchange string) (Item, error) {
+	if interval.Duration() < time.Minute {
 		return Item{}, fmt.Errorf("invalid time interval: [%s]", interval)
 	}
 
@@ -22,15 +22,15 @@ func CreateKline(trades []order.TradeHistory, interval time.Duration, p currency
 		return Item{}, err
 	}
 
-	timeIntervalStart := trades[0].Timestamp.Truncate(interval)
+	timeIntervalStart := trades[0].Timestamp.Truncate(interval.Duration())
 	timeIntervalEnd := trades[len(trades)-1].Timestamp
 
 	// Adds time interval buffer zones
 	var timeIntervalCache [][]order.TradeHistory
 	var candleStart []time.Time
 
-	for t := timeIntervalStart; t.Before(timeIntervalEnd); t = t.Add(interval) {
-		timeBufferEnd := t.Add(interval)
+	for t := timeIntervalStart; t.Before(timeIntervalEnd); t = t.Add(interval.Duration()) {
+		timeBufferEnd := t.Add(interval.Duration())
 		insertionCount := 0
 
 		var zonedTradeHistory []order.TradeHistory
@@ -131,34 +131,34 @@ func validateData(trades []order.TradeHistory) error {
 	return nil
 }
 
-func DurationToWord(in time.Duration) string {
+func DurationToWord(in Interval) string {
 	switch in {
 	case OneMin:
 		return "onemin"
 	case ThreeMin:
-		return "onemin"
+		return "threemin"
 	case FiveMin:
-		return "onemin"
+		return "fivemin"
 	case FifteenMin:
-		return "onemin"
+		return "fifteenmin"
 	case ThirtyMin:
-		return "onemin"
+		return "thirtymin"
 	case OneHour:
-		return "onemin"
+		return "onehour"
 	case TwoHour:
-		return "onemin"
+		return "twohour"
 	case FourHour:
-		return "onemin"
+		return "fourhour"
 	case SixHour:
-		return "onemin"
+		return "sixhour"
 	case TwelveHour:
-		return "onemin"
+		return "twelvehour"
 	case OneDay:
-		return "onemin"
+		return "oneday"
 	case ThreeDay:
-		return "onemin"
+		return "threeday"
 	case OneWeek:
-		return "onemin"
+		return "oneweek"
 	default:
 		return ""
 	}

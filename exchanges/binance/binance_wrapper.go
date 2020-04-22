@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -113,40 +112,27 @@ func (b *Binance) SetDefaults() {
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
 			KlineCapabilities: kline.ExchangeCapabilities{
-				Intervals: map[string]bool{
-					"onemin": true,
-					"threemin": true,
-					"fivemin": true,
-					"fifteenmin": true,
-					"thirtymin": true,
-					"onehour": true,
-					"twohour": true,
-					"fourhour": true,
-					"sixhour": true,
-					"twelvehour": true,
-					"oneday": true,
-					"threeday": true,
-					"oneweek": true,
-				},
+				SupportsDateRange: true,
+				SupportsIntervals: true,
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			KlineCapabilities: kline.ExchangeCapabilities{
 				Intervals: map[string]bool{
-					"onemin": true,
-					"threemin": true,
-					"fivemin": true,
+					"onemin":     true,
+					"threemin":   true,
+					"fivemin":    true,
 					"fifteenmin": true,
-					"thirtymin": true,
-					"onehour": true,
-					"twohour": true,
-					"fourhour": true,
-					"sixhour": true,
+					"thirtymin":  true,
+					"onehour":    true,
+					"twohour":    true,
+					"fourhour":   true,
+					"sixhour":    true,
 					"twelvehour": true,
-					"oneday": true,
-					"threeday": true,
-					"oneweek": true,
+					"oneday":     true,
+					"threeday":   true,
+					"oneweek":    true,
 				},
 			},
 		},
@@ -708,19 +694,27 @@ func (b *Binance) ValidateCredentials() error {
 	return b.CheckTransientError(err)
 }
 
+func convertInterval(in kline.Interval) string {
+	if in == kline.OneDay {
+		return "1d"
+	}
+	return in.Short()
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
+func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if !b.KlineIntervalEnabled(interval) {
 		return kline.Item{}, fmt.Errorf(kline.ErrUnsupportedInterval, interval)
 	}
 
 	klineParams := KlinesRequestParams{
-		Interval:  convert.ParseIntervalDuration(interval, false),
-		Symbol:    pair.Format("", true).String(),
+		Interval:  convertInterval(interval),
+		Symbol:    b.FormatExchangeCurrency(pair, a).String(),
 		StartTime: start.Unix() * 1000,
 		EndTime:   end.Unix() * 1000,
 	}
 
+	fmt.Println(klineParams)
 	candles, err := b.GetSpotKline(klineParams)
 	if err != nil {
 		return kline.Item{}, err

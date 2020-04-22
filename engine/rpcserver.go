@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -1525,7 +1526,6 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHisto
 	if exchange == nil {
 		return nil, errors.New("Exchange " + req.Exchange + " not found")
 	}
-
 	candles, err := exchange.GetHistoricCandles(currency.Pair{
 		Delimiter: req.Pair.Delimiter,
 		Base:      currency.NewCode(req.Pair.Base),
@@ -1534,7 +1534,7 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHisto
 		asset.Item(req.AssetType),
 		time.Unix(req.Start, 0),
 		time.Unix(req.End, 0),
-		time.Duration(req.TimeInterval))
+		kline.Interval(req.TimeInterval))
 	if err != nil {
 		return nil, err
 	}

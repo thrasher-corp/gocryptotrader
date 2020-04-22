@@ -802,7 +802,7 @@ func (e *Base) EnableRateLimiter() error {
 	return e.Requester.EnableRateLimiter()
 }
 
-func (e *Base) KlineIntervalEnabled(in time.Duration) bool {
+func (e *Base) KlineIntervalEnabled(in kline.Interval) bool {
 	intervalString := kline.DurationToWord(in)
 	return e.Features.Enabled.KlineCapabilities.Intervals[intervalString]
 }

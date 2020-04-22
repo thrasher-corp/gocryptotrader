@@ -163,7 +163,7 @@ func (b *BTCMarkets) GetOrderbook(marketID string, level int64) (Orderbook, erro
 }
 
 // GetMarketCandles gets candles for specified currency pair
-func (b *BTCMarkets) GetMarketCandles(marketID string, timeWindow time.Duration, from, to time.Time, before, after, limit int64) (kline.Item, error) {
+func (b *BTCMarkets) GetMarketCandles(marketID string, timeWindow kline.Interval, from, to time.Time, before, after, limit int64) (kline.Item, error) {
 	if (before > 0) && (after >= 0) {
 		return kline.Item{}, errors.New("BTCMarkets only supports either before or after, not both")
 	}

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -103,10 +102,10 @@ func TestGetAggregatedTrades(t *testing.T) {
 
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
-
+	b.Verbose = true
 	_, err := b.GetSpotKline(KlinesRequestParams{
 		Symbol:   "BTCUSDT",
-		Interval: convert.ParseIntervalDuration(kline.FiveMin, false),
+		Interval: kline.FiveMin.Short(),
 		Limit:    24,
 	})
 	if err != nil {
@@ -806,7 +805,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), time.Hour*7)
+	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.Interval(time.Hour*7))
 	if err == nil {
 		t.Fatal("unexpected result")
 	}

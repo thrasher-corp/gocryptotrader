@@ -727,8 +727,8 @@ func checkInterval(i time.Duration) (int64, error) {
 
 // GetHistoricCandles returns a set of candle between two time periods for a
 // designated time period
-func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
-	i, err := checkInterval(interval)
+func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	i, err := checkInterval(interval.Duration())
 	if err != nil {
 		return kline.Item{}, err
 	}

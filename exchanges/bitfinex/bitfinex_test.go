@@ -1247,7 +1247,7 @@ func TestFixCasing(t *testing.T) {
 func TestParseInterval(t *testing.T) {
 	testCases := []struct {
 		name     string
-		interval time.Duration
+		interval kline.Interval
 		expected string
 		err      error
 	}{
@@ -1283,7 +1283,7 @@ func TestParseInterval(t *testing.T) {
 		},
 		{
 			"default",
-			time.Hour * 1337,
+			kline.OneHour * 1337,
 			"",
 			errInvalidInterval,
 		},

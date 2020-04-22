@@ -604,13 +604,13 @@ var errCode = map[string]string{
 }
 
 // GetCandleStick returns candle stick data for requested pair
-func (b *Bithumb) GetCandleStick(pair currency.Pair, start, end time.Time, interval time.Duration) (kline.Item, error) {
+func (b *Bithumb) GetCandleStick(pair currency.Pair, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	var candle struct {
 		Status string          `json:"status"`
 		Data   [][]interface{} `json:"data"`
 	}
 
-	intervalStr := convert.ParseIntervalDuration(interval, false)
+	intervalStr := convert.ParseIntervalDuration(interval.Duration(), false)
 	path := b.API.Endpoints.URL + publicCandleStick + pair.String() + "/" + intervalStr
 	err := b.SendHTTPRequest(path, &candle)
 	if err != nil {
