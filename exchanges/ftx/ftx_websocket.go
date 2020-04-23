@@ -1,6 +1,7 @@
 package ftx
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -77,6 +78,72 @@ func (f *Ftx) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscriptio
 }
 
 // GenerateDefaultSubscription generates default subscription
-func GenerateDefaultSubscription() {
+func (f *Ftx) GenerateDefaultSubscription() {
+	var channels = []string{"ticker", "trades", "orderbook"}
+	pairs := f.GetEnabledPairs(asset.Spot)
+	var subscriptions []wshandler.WebsocketChannelSubscription
+	if f.Websocket.CanUseAuthenticatedEndpoints() {
+		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			Channel: "notificationApi",
+		})
+	}
+	for x := range channels {
+		for y := range pairs {
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+				Channel:  channels[x],
+				Currency: pairs[y],
+			})
+		}
+	}
+	f.SubscribeToWebsocketChannels(subscriptions)
+}
 
+// // wsReadData gets and passes on websocket messages for processing
+// func (f *Ftx) wsReadData() {
+// 	f.Websocket.Wg.Add(1)
+
+// 	defer func() {
+// 		f.Websocket.Wg.Done()
+// 	}()
+
+// 	for {
+// 		select {
+// 		case <-f.Websocket.ShutdownC:
+// 			return
+
+// 		default:
+// 			resp, err := f.WebsocketConn.ReadMessage()
+// 			if err != nil {
+// 				f.Websocket.ReadMessageErrors <- err
+// 				return
+// 			}
+// 			f.Websocket.TrafficAlert <- struct{}{}
+// 			err = f.wsHandleData(resp.Raw)
+// 			if err != nil {
+// 				f.Websocket.DataHandler <- err
+// 			}
+// 		}
+// 	}
+// }
+
+func (f *Ftx) wsHandleData(respRaw []byte) error {
+	type Result map[string]interface{}
+	var result Result
+	err := json.Unmarshal(respRaw, &result)
+	if err != nil {
+		return err
+	}
+	if result["type"] == "subscribed" {
+		switch {
+		case result["channel"] == "ticker":
+			var tickerData WsTickerData
+			err := json.Unmarshal(respRaw, &tickerData)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("HELOOOOOOOOOOOO\n\n\n\n\n")
+			fmt.Println(tickerData)
+		}
+	}
+	return nil
 }

@@ -118,7 +118,7 @@ func (f *Ftx) Setup(exch *config.ExchangeConfig) error {
 			ExchangeName:                     exch.Name,
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        f.WsConnect,
-			// Subscriber:                       f.Subscribe,
+			Subscriber:                       f.Subscribe,
 			// UnSubscriber:                     f.Unsubscribe,
 			Features: &f.Features.Supports.WebsocketCapabilities,
 		})
