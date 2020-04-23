@@ -702,3 +702,10 @@ type wsListStauts struct {
 	RejectionReason string `json:"r"`
 	Symbol          string `json:"s"`
 }
+
+// WsPayload defines the payload through the websocket connection
+type WsPayload struct {
+	Method string   `json:"method"`
+	Params []string `json:"params"`
+	ID     int64    `json:"id"`
+}

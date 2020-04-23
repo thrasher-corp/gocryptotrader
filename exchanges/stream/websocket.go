@@ -47,9 +47,6 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 	}
 	w.channelSubscriber = setupData.Subscriber
 
-	// if setupData.UnSubscriber == nil {
-	// 	return errors.New("channel unsubscriber is not set")
-	// }
 	w.channelUnsubscriber = setupData.UnSubscriber
 
 	if setupData.GenerateSubscriptions == nil {
@@ -994,7 +991,7 @@ func (w *WebsocketConnection) ReadMessage() (Response, error) {
 
 	select {
 	case w.traffic <- struct{}{}:
-	default: // causes contention, just bypass if there is no handover.
+	default: // causes contention, just bypass if there is no receiver.
 	}
 
 	var standardMessage []byte

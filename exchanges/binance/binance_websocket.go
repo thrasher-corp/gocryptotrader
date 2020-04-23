@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	binanceDefaultWebsocketURL = "wss://stream.binance.com:9443"
+	binanceDefaultWebsocketURL = "wss://stream.binance.com:9443/stream"
 	pingDelay                  = time.Minute * 9
 )
 
@@ -41,38 +41,13 @@ func (b *Binance) WsConnect() error {
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys, "%v unable to connect to authenticated Websocket. Error: %s", b.Name, err)
 		}
+
+		b.Websocket.SetWebsocketURL(binanceDefaultWebsocketURL + "/" + listenKey)
 	}
 
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return err
-	}
-
-	pairsStr := pairs.Strings()
-	tick := strings.ToLower(
-		strings.Replace(
-			strings.Join(pairsStr, "@ticker/"), "-", "", -1)) + "@ticker"
-	trade := strings.ToLower(
-		strings.Replace(
-			strings.Join(pairsStr, "@trade/"), "-", "", -1)) + "@trade"
-	kline := strings.ToLower(
-		strings.Replace(
-			strings.Join(pairsStr, "@kline_1m/"), "-", "", -1)) + "@kline_1m"
-	depth := strings.ToLower(
-		strings.Replace(
-			strings.Join(pairsStr, "@depth/"), "-", "", -1)) + "@depth"
-
-	wsurl := b.Websocket.GetWebsocketURL() +
-		"/stream?streams=" +
-		tick +
-		"/" +
-		trade +
-		"/" +
-		kline +
-		"/" +
-		depth
-	if listenKey != "" {
-		wsurl += "/" + listenKey
 	}
 
 	for i := range pairs {
@@ -81,10 +56,6 @@ func (b *Binance) WsConnect() error {
 			return err
 		}
 	}
-
-	// TODO: Setter methods
-	// b.Websocket.Conn.URL = wsurl
-	// b.Websocket.Conn.Verbose = b.Verbose
 
 	err = b.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
@@ -97,8 +68,15 @@ func (b *Binance) WsConnect() error {
 		MessageType:       websocket.PongMessage,
 		Delay:             pingDelay,
 	})
+
 	go b.wsReadData()
 	go b.KeepAuthKeyAlive()
+
+	subs, err := b.GenerateSubscriptions()
+	if err != nil {
+		return err
+	}
+	b.Websocket.SubscribeToChannels(subs)
 	return nil
 }
 
@@ -498,4 +476,53 @@ func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
 		UpdateID: wsdp.LastUpdateID,
 		Asset:    asset.Spot,
 	})
+}
+
+// GenerateSubscriptions generates the default subscription set
+func (b *Binance) GenerateSubscriptions() ([]stream.ChannelSubscription, error) {
+	var channels = []string{"@ticker", "@trade", "@kline_1m", "@depth"}
+	var subscriptions []stream.ChannelSubscription
+
+	assets := b.GetAssetTypes()
+	for x := range assets {
+		pairs, err := b.GetEnabledPairs(assets[x])
+		if err != nil {
+			return nil, err
+		}
+
+		for y := range pairs {
+			for z := range channels {
+				lp := pairs[y].Lower()
+				lp.Delimiter = ""
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Channel:  lp.String() + channels[z],
+					Currency: pairs[y],
+				})
+			}
+		}
+	}
+	return subscriptions, nil
+}
+
+// Subscribe subscribes to a set of channels
+func (b *Binance) Subscribe(ChannelsToSubscribe []stream.ChannelSubscription) error {
+	payload := WsPayload{
+		Method: "SUBSCRIBE",
+	}
+
+	for i := range ChannelsToSubscribe {
+		payload.Params = append(payload.Params, ChannelsToSubscribe[i].Channel)
+	}
+	return b.Websocket.Conn.SendJSONMessage(payload)
+}
+
+// Unsubscribe unsubscribes from a set of channels
+func (b *Binance) Unsubscribe(ChannelsToUnsubscribe []stream.ChannelSubscription) error {
+	payload := WsPayload{
+		Method: "UNSUBSCRIBE",
+	}
+	for i := range ChannelsToUnsubscribe {
+		payload.Params = append(payload.Params, ChannelsToUnsubscribe[i].Channel)
+	}
+	return b.Websocket.Conn.SendJSONMessage(payload)
 }
