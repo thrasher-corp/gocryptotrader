@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -44,7 +43,7 @@ func TestMain(m *testing.M) {
 	gConf.API.AuthenticatedWebsocketSupport = true
 	gConf.API.Credentials.Key = apiKey
 	gConf.API.Credentials.Secret = apiSecret
-
+	g.Websocket = stream.NewTestWebsocket()
 	err = g.Setup(gConf)
 	if err != nil {
 		log.Fatal("GateIO setup error", err)
@@ -484,16 +483,8 @@ func TestWsGetBalance(t *testing.T) {
 	if !g.Websocket.IsEnabled() && !g.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
-	g.WebsocketConn = &stream.WebsocketConnection{
-		ExchangeName:         g.Name,
-		URL:                  gateioWebsocketEndpoint,
-		Verbose:              g.Verbose,
-		RateLimit:            gateioWebsocketRateLimit,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
-	}
 	var dialer websocket.Dialer
-	err := g.WebsocketConn.Dial(&dialer, http.Header{})
+	err := g.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -520,16 +511,8 @@ func TestWsGetOrderInfo(t *testing.T) {
 	if !g.Websocket.IsEnabled() && !g.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
-	g.WebsocketConn = &stream.WebsocketConnection{
-		ExchangeName:         g.Name,
-		URL:                  gateioWebsocketEndpoint,
-		Verbose:              g.Verbose,
-		RateLimit:            gateioWebsocketRateLimit,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
-	}
 	var dialer websocket.Dialer
-	err := g.WebsocketConn.Dial(&dialer, http.Header{})
+	err := g.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -554,19 +537,9 @@ func setupWSTestAuth(t *testing.T) {
 	if !g.Websocket.IsEnabled() && !g.API.AuthenticatedWebsocketSupport {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
-	g.WebsocketConn = &stream.WebsocketConnection{
-		ExchangeName:         g.Name,
-		URL:                  gateioWebsocketEndpoint,
-		Verbose:              g.Verbose,
-		RateLimit:            gateioWebsocketRateLimit,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
-	}
 	var dialer websocket.Dialer
-	err := g.WebsocketConn.Dial(&dialer, http.Header{})
+	err := g.Websocket.Conn.Dial(&dialer, http.Header{})
 
-	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -578,9 +551,11 @@ func setupWSTestAuth(t *testing.T) {
 func TestWsUnsubscribe(t *testing.T) {
 	setupWSTestAuth(t)
 	g.Verbose = true
-	err := g.Unsubscribe(&stream.ChannelSubscription{
-		Channel:  "ticker.subscribe",
-		Currency: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_"),
+	err := g.Unsubscribe([]stream.ChannelSubscription{
+		{
+			Channel:  "ticker.subscribe",
+			Currency: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_"),
+		},
 	})
 	if err != nil {
 		t.Error(err)
@@ -590,9 +565,11 @@ func TestWsUnsubscribe(t *testing.T) {
 // TestWsSubscribe dials websocket, sends a subscribe request.
 func TestWsSubscribe(t *testing.T) {
 	setupWSTestAuth(t)
-	err := g.Subscribe(&stream.ChannelSubscription{
-		Channel:  "ticker.subscribe",
-		Currency: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_"),
+	err := g.Subscribe([]stream.ChannelSubscription{
+		{
+			Channel:  "ticker.subscribe",
+			Currency: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_"),
+		},
 	})
 	if err != nil {
 		t.Error(err)

@@ -26,7 +26,7 @@ const (
 	exchangeName = "exchangeTest"
 )
 
-func createSnapshot() (obl *WebsocketOrderbookLocal, asks, bids []orderbook.Item, err error) {
+func createSnapshot() (obl *Orderbook, asks, bids []orderbook.Item, err error) {
 	var snapShot1 orderbook.Base
 	snapShot1.ExchangeName = exchangeName
 	asks = []orderbook.Item{
@@ -39,7 +39,7 @@ func createSnapshot() (obl *WebsocketOrderbookLocal, asks, bids []orderbook.Item
 	snapShot1.Bids = bids
 	snapShot1.AssetType = asset.Spot
 	snapShot1.Pair = cp
-	obl = &WebsocketOrderbookLocal{exchangeName: exchangeName}
+	obl = &Orderbook{exchangeName: exchangeName, dataHandler: make(chan interface{}, 100)}
 	err = obl.LoadSnapshot(&snapShot1)
 	return
 }
@@ -69,7 +69,7 @@ func BenchmarkUpdateBidsByPrice(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		bidAsks := bidAskGenerator()
-		update := &WebsocketOrderbookUpdate{
+		update := &Update{
 			Bids:       bidAsks,
 			Asks:       bidAsks,
 			Pair:       cp,
@@ -88,7 +88,7 @@ func BenchmarkUpdateAsksByPrice(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		bidAsks := bidAskGenerator()
-		update := &WebsocketOrderbookUpdate{
+		update := &Update{
 			Bids:       bidAsks,
 			Asks:       bidAsks,
 			Pair:       cp,
@@ -115,7 +115,7 @@ func BenchmarkBufferPerformance(b *testing.B) {
 		ID:     1337,
 	}
 	obl.ob[cp][asset.Spot].Bids = append(obl.ob[cp][asset.Spot].Bids, dummyItem)
-	update := &WebsocketOrderbookUpdate{
+	update := &Update{
 		Bids:       bids,
 		Asks:       asks,
 		Pair:       cp,
@@ -150,7 +150,7 @@ func BenchmarkBufferSortingPerformance(b *testing.B) {
 		ID:     1337,
 	}
 	obl.ob[cp][asset.Spot].Bids = append(obl.ob[cp][asset.Spot].Bids, dummyItem)
-	update := &WebsocketOrderbookUpdate{
+	update := &Update{
 		Bids:       bids,
 		Asks:       asks,
 		Pair:       cp,
@@ -186,7 +186,7 @@ func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
 		ID:     1337,
 	}
 	obl.ob[cp][asset.Spot].Bids = append(obl.ob[cp][asset.Spot].Bids, dummyItem)
-	update := &WebsocketOrderbookUpdate{
+	update := &Update{
 		Bids:       bids,
 		Asks:       asks,
 		Pair:       cp,
@@ -220,7 +220,7 @@ func BenchmarkNoBufferPerformance(b *testing.B) {
 		ID:     1337,
 	}
 	obl.ob[cp][asset.Spot].Bids = append(obl.ob[cp][asset.Spot].Bids, dummyItem)
-	update := &WebsocketOrderbookUpdate{
+	update := &Update{
 		Bids:       bids,
 		Asks:       asks,
 		Pair:       cp,
@@ -245,7 +245,7 @@ func TestUpdates(t *testing.T) {
 		t.Error(err)
 	}
 
-	obl.updateAsksByPrice(obl.ob[cp][asset.Spot], &WebsocketOrderbookUpdate{
+	obl.updateAsksByPrice(obl.ob[cp][asset.Spot], &Update{
 		Bids:       itemArray[5],
 		Asks:       itemArray[5],
 		Pair:       cp,
@@ -256,7 +256,7 @@ func TestUpdates(t *testing.T) {
 		t.Error(err)
 	}
 
-	obl.updateAsksByPrice(obl.ob[cp][asset.Spot], &WebsocketOrderbookUpdate{
+	obl.updateAsksByPrice(obl.ob[cp][asset.Spot], &Update{
 		Bids:       itemArray[0],
 		Asks:       itemArray[0],
 		Pair:       cp,
@@ -283,7 +283,7 @@ func TestHittingTheBuffer(t *testing.T) {
 	for i := range itemArray {
 		asks := itemArray[i]
 		bids := itemArray[i]
-		err = obl.Update(&WebsocketOrderbookUpdate{
+		err = obl.Update(&Update{
 			Bids:       bids,
 			Asks:       asks,
 			Pair:       cp,
@@ -317,7 +317,7 @@ func TestInsertWithIDs(t *testing.T) {
 	for i := range itemArray {
 		asks := itemArray[i]
 		bids := itemArray[i]
-		err = obl.Update(&WebsocketOrderbookUpdate{
+		err = obl.Update(&Update{
 			Bids:       bids,
 			Asks:       asks,
 			Pair:       cp,
@@ -352,7 +352,7 @@ func TestSortIDs(t *testing.T) {
 	for i := range itemArray {
 		asks := itemArray[i]
 		bids := itemArray[i]
-		err = obl.Update(&WebsocketOrderbookUpdate{
+		err = obl.Update(&Update{
 			Bids:     bids,
 			Asks:     asks,
 			Pair:     cp,
@@ -397,7 +397,7 @@ func TestDeleteWithIDs(t *testing.T) {
 	for i := range itemArray {
 		asks := itemArray[i]
 		bids := itemArray[i]
-		err = obl.Update(&WebsocketOrderbookUpdate{
+		err = obl.Update(&Update{
 			Bids:       bids,
 			Asks:       asks,
 			Pair:       cp,
@@ -430,7 +430,7 @@ func TestUpdateWithIDs(t *testing.T) {
 	for i := range itemArray {
 		asks := itemArray[i]
 		bids := itemArray[i]
-		err = obl.Update(&WebsocketOrderbookUpdate{
+		err = obl.Update(&Update{
 			Bids:       bids,
 			Asks:       asks,
 			Pair:       cp,
@@ -469,7 +469,7 @@ func TestOutOfOrderIDs(t *testing.T) {
 	obl.obBufferLimit = 5
 	for i := range itemArray {
 		asks := itemArray[i]
-		err = obl.Update(&WebsocketOrderbookUpdate{
+		err = obl.Update(&Update{
 			Asks:     asks,
 			Pair:     cp,
 			UpdateID: outOFOrderIDs[i],
@@ -488,7 +488,7 @@ func TestOutOfOrderIDs(t *testing.T) {
 
 // TestRunUpdateWithoutSnapshot logic test
 func TestRunUpdateWithoutSnapshot(t *testing.T) {
-	var obl WebsocketOrderbookLocal
+	var obl Orderbook
 	var snapShot1 orderbook.Base
 	asks := []orderbook.Item{
 		{Price: 4000, Amount: 1, ID: 8},
@@ -502,7 +502,7 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 	snapShot1.AssetType = asset.Spot
 	snapShot1.Pair = cp
 	obl.exchangeName = exchangeName
-	err := obl.Update(&WebsocketOrderbookUpdate{
+	err := obl.Update(&Update{
 		Bids:       bids,
 		Asks:       asks,
 		Pair:       cp,
@@ -519,14 +519,14 @@ func TestRunUpdateWithoutSnapshot(t *testing.T) {
 
 // TestRunUpdateWithoutAnyUpdates logic test
 func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
-	var obl WebsocketOrderbookLocal
+	var obl Orderbook
 	var snapShot1 orderbook.Base
 	snapShot1.Asks = []orderbook.Item{}
 	snapShot1.Bids = []orderbook.Item{}
 	snapShot1.AssetType = asset.Spot
 	snapShot1.Pair = cp
 	obl.exchangeName = exchangeName
-	err := obl.Update(&WebsocketOrderbookUpdate{
+	err := obl.Update(&Update{
 		Bids:       snapShot1.Asks,
 		Asks:       snapShot1.Bids,
 		Pair:       cp,
@@ -544,7 +544,7 @@ func TestRunUpdateWithoutAnyUpdates(t *testing.T) {
 
 // TestRunSnapshotWithNoData logic test
 func TestRunSnapshotWithNoData(t *testing.T) {
-	var obl WebsocketOrderbookLocal
+	var obl Orderbook
 	var snapShot1 orderbook.Base
 	snapShot1.Asks = []orderbook.Item{}
 	snapShot1.Bids = []orderbook.Item{}
@@ -563,7 +563,8 @@ func TestRunSnapshotWithNoData(t *testing.T) {
 
 // TestLoadSnapshot logic test
 func TestLoadSnapshot(t *testing.T) {
-	var obl WebsocketOrderbookLocal
+	var obl Orderbook
+	obl.dataHandler = make(chan interface{}, 100)
 	var snapShot1 orderbook.Base
 	snapShot1.ExchangeName = "SnapshotWithOverride"
 	asks := []orderbook.Item{
@@ -599,7 +600,8 @@ func TestFlushCache(t *testing.T) {
 
 // TestInsertingSnapShots logic test
 func TestInsertingSnapShots(t *testing.T) {
-	var obl WebsocketOrderbookLocal
+	var obl Orderbook
+	obl.dataHandler = make(chan interface{}, 100)
 	var snapShot1 orderbook.Base
 	snapShot1.ExchangeName = "WSORDERBOOKTEST1"
 	asks := []orderbook.Item{
@@ -749,8 +751,8 @@ func TestGetOrderbook(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
-	w := WebsocketOrderbookLocal{}
-	w.Setup(1, true, true, true, true, "hi")
+	w := Orderbook{}
+	w.Setup(1, true, true, true, true, "hi", make(chan interface{}))
 	if w.obBufferLimit != 1 ||
 		!w.bufferEnabled ||
 		!w.sortBuffer ||
@@ -768,7 +770,7 @@ func TestEnsureMultipleUpdatesViaPrice(t *testing.T) {
 	}
 
 	asks := bidAskGenerator()
-	obl.updateAsksByPrice(obl.ob[cp][asset.Spot], &WebsocketOrderbookUpdate{
+	obl.updateAsksByPrice(obl.ob[cp][asset.Spot], &Update{
 		Bids:       asks,
 		Asks:       asks,
 		Pair:       cp,

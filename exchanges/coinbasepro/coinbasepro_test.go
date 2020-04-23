@@ -47,12 +47,11 @@ func TestMain(m *testing.M) {
 	gdxConfig.API.Credentials.ClientID = clientID
 	gdxConfig.API.AuthenticatedSupport = true
 	gdxConfig.API.AuthenticatedWebsocketSupport = true
+	c.Websocket = stream.NewTestWebsocket()
 	err = c.Setup(gdxConfig)
 	if err != nil {
 		log.Fatal("CoinbasePro setup error", err)
 	}
-	c.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	c.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -587,29 +586,22 @@ func TestWsAuth(t *testing.T) {
 	if !c.Websocket.IsEnabled() && !c.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
-	c.WebsocketConn = &stream.WebsocketConnection{
-		ExchangeName:         c.Name,
-		URL:                  c.Websocket.GetWebsocketURL(),
-		Verbose:              c.Verbose,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
-	}
 	var dialer websocket.Dialer
-	err := c.WebsocketConn.Dial(&dialer, http.Header{})
+	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	c.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	go c.wsReadData()
 
 	p, err := currency.NewPairFromString(testPair)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = c.Subscribe(&stream.ChannelSubscription{
-		Channel:  "user",
-		Currency: p,
+	err = c.Subscribe([]stream.ChannelSubscription{
+		{
+			Channel:  "user",
+			Currency: p,
+		},
 	})
 	if err != nil {
 		t.Error(err)

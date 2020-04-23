@@ -44,13 +44,11 @@ func TestMain(m *testing.M) {
 	hConfig.API.AuthenticatedWebsocketSupport = true
 	hConfig.API.Credentials.Key = apiKey
 	hConfig.API.Credentials.Secret = apiSecret
-
+	h.Websocket = stream.NewTestWebsocket()
 	err = h.Setup(hConfig)
 	if err != nil {
 		log.Fatal("Huobi setup error", err)
 	}
-	h.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	h.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -62,23 +60,7 @@ func setupWsTests(t *testing.T) {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
 	comms = make(chan WsMessage, sharedtestvalues.WebsocketChannelOverrideCapacity)
-	h.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	h.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	go h.wsReadData()
-	h.AuthenticatedWebsocketConn = &stream.WebsocketConnection{
-		ExchangeName:         h.Name,
-		URL:                  wsAccountsOrdersURL,
-		Verbose:              h.Verbose,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
-	}
-	h.WebsocketConn = &stream.WebsocketConnection{
-		ExchangeName:         h.Name,
-		URL:                  wsMarketURL,
-		Verbose:              h.Verbose,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
-	}
 	var dialer websocket.Dialer
 	err := h.wsAuthenticatedDial(&dialer)
 	if err != nil {

@@ -41,6 +41,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Bitfinex Setup() init error")
 	}
+	b.Websocket = stream.NewTestWebsocket()
 	err = b.Setup(bfxConfig)
 	if err != nil {
 		log.Fatal("Bitfinex setup error", err)
@@ -57,8 +58,6 @@ func TestMain(m *testing.M) {
 		b.API.AuthenticatedWebsocketSupport = true
 	}
 	b.WebsocketSubdChannels = make(map[int]WebsocketChanInfo)
-	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -956,21 +955,12 @@ func TestGetDepositAddress(t *testing.T) {
 }
 
 func setupWs() {
-	b.AuthenticatedWebsocketConn = &stream.WebsocketConnection{
-		ExchangeName:         b.Name,
-		URL:                  authenticatedBitfinexWebsocketEndpoint,
-		Verbose:              b.Verbose,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
-	}
 	var dialer websocket.Dialer
-	err := b.AuthenticatedWebsocketConn.Dial(&dialer, http.Header{})
+	err := b.Websocket.AuthConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		log.Fatal(err)
 	}
-	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	go b.wsReadData(b.AuthenticatedWebsocketConn)
+	go b.wsReadData(b.Websocket.AuthConn)
 	go b.WsDataHandler()
 }
 

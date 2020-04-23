@@ -45,13 +45,11 @@ func TestMain(m *testing.M) {
 	bitmexConfig.API.AuthenticatedWebsocketSupport = true
 	bitmexConfig.API.Credentials.Key = apiKey
 	bitmexConfig.API.Credentials.Secret = apiSecret
-
+	b.Websocket = stream.NewTestWebsocket()
 	err = b.Setup(bitmexConfig)
 	if err != nil {
 		log.Fatal("Bitmex setup error", err)
 	}
-	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -326,6 +324,7 @@ func TestTransferMargin(t *testing.T) {
 }
 
 func TestGetQuotesByBuckets(t *testing.T) {
+	b.Verbose = true
 	_, err := b.GetQuotesByBuckets(&QuoteGetBucketedParams{})
 	if err == nil {
 		t.Error("GetQuotesByBuckets() Expected error")
@@ -676,15 +675,8 @@ func TestWsAuth(t *testing.T) {
 	if !b.Websocket.IsEnabled() && !b.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
-	b.WebsocketConn = &stream.WebsocketConnection{
-		ExchangeName:         b.Name,
-		URL:                  b.Websocket.GetWebsocketURL(),
-		Verbose:              b.Verbose,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
-	}
 	var dialer websocket.Dialer
-	err := b.WebsocketConn.Dial(&dialer, http.Header{})
+	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -803,7 +795,6 @@ func TestWSPositionUpdateHandling(t *testing.T) {
 }
 
 func TestWSOrderbookHandling(t *testing.T) {
-	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	pressXToJSON := []byte(`{
       "table":"orderBookL2_25",
       "keys":["symbol","id","side"],
@@ -874,7 +865,6 @@ func TestWSOrderbookHandling(t *testing.T) {
 }
 
 func TestWSDeleveragePositionUpdateHandling(t *testing.T) {
-	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	pressXToJSON := []byte(`{"table":"position",
    "action":"update",
    "data":[{

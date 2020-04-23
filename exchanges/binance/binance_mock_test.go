@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 const mockfile = "../../testdata/http_mock/binance/binance.json"
@@ -33,6 +34,7 @@ func TestMain(m *testing.M) {
 	binanceConfig.API.Credentials.Key = apiKey
 	binanceConfig.API.Credentials.Secret = apiSecret
 	b.SetDefaults()
+	b.Websocket = stream.NewTestWebsocket()
 	err = b.Setup(binanceConfig)
 	if err != nil {
 		log.Fatal("Binance setup error", err)
@@ -45,7 +47,6 @@ func TestMain(m *testing.M) {
 
 	b.HTTPClient = newClient
 	b.API.Endpoints.URL = serverDetails
-	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	log.Printf(sharedtestvalues.MockTesting, b.Name, b.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

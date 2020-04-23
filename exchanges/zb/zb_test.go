@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -46,12 +45,11 @@ func TestMain(m *testing.M) {
 	zbConfig.API.AuthenticatedWebsocketSupport = true
 	zbConfig.API.Credentials.Key = apiKey
 	zbConfig.API.Credentials.Secret = apiSecret
+	z.Websocket = stream.NewTestWebsocket()
 	err = z.Setup(zbConfig)
 	if err != nil {
 		log.Fatal("ZB setup error", err)
 	}
-	z.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	z.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -62,20 +60,12 @@ func setupWsAuth(t *testing.T) {
 	if !z.Websocket.IsEnabled() && !z.API.AuthenticatedWebsocketSupport || !z.ValidateAPICredentials() || !canManipulateRealOrders {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
-	z.WebsocketConn = &stream.WebsocketConnection{
-		ExchangeName:         z.Name,
-		URL:                  zbWebsocketAPI,
-		Verbose:              z.Verbose,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
-	}
 	var dialer websocket.Dialer
-	err := z.WebsocketConn.Dial(&dialer, http.Header{})
+	err := z.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	z.Websocket.DataHandler = make(chan interface{}, 11)
-	z.Websocket.TrafficAlert = make(chan struct{}, 11)
+	// z.Websocket.DataHandler = make(chan interface{}, 11)
 	go z.wsReadData()
 	wsSetupRan = true
 }

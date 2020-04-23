@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -45,12 +45,11 @@ func TestMain(m *testing.M) {
 	krakenConfig.API.Credentials.Secret = apiSecret
 	krakenConfig.API.Credentials.ClientID = clientID
 	krakenConfig.API.Endpoints.WebsocketURL = k.API.Endpoints.WebsocketURL
+	k.Websocket = stream.NewTestWebsocket()
 	err = k.Setup(krakenConfig)
 	if err != nil {
 		log.Fatal("Kraken setup error", err)
 	}
-	k.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	k.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -647,29 +646,12 @@ func setupWsTests(t *testing.T) {
 	if !k.Websocket.IsEnabled() && !k.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
-	k.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	comms = make(chan stream.WebsocketResponse, sharedtestvalues.WebsocketChannelOverrideCapacity)
-	k.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	k.WebsocketConn = &stream.WebsocketConnection{
-		ExchangeName:         k.Name,
-		URL:                  krakenWSURL,
-		Verbose:              k.Verbose,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
-	}
-	k.AuthenticatedWebsocketConn = &stream.WebsocketConnection{
-		ExchangeName:         k.Name,
-		URL:                  krakenAuthWSURL,
-		Verbose:              k.Verbose,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
-	}
 	var dialer websocket.Dialer
-	err := k.WebsocketConn.Dial(&dialer, http.Header{})
+	err := k.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = k.AuthenticatedWebsocketConn.Dial(&dialer, http.Header{})
+	err = k.Websocket.AuthConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -680,8 +662,8 @@ func setupWsTests(t *testing.T) {
 	}
 	authToken = token
 
-	go k.wsFunnelConnectionData(k.WebsocketConn)
-	go k.wsFunnelConnectionData(k.AuthenticatedWebsocketConn)
+	go k.wsFunnelConnectionData(k.Websocket.Conn)
+	go k.wsFunnelConnectionData(k.Websocket.AuthConn)
 	go k.wsReadData()
 	go k.wsPingHandler()
 	wsSetupRan = true
@@ -690,9 +672,11 @@ func setupWsTests(t *testing.T) {
 // TestWebsocketSubscribe tests returning a message with an id
 func TestWebsocketSubscribe(t *testing.T) {
 	setupWsTests(t)
-	err := k.Subscribe(&stream.ChannelSubscription{
-		Channel:  defaultSubscribedChannels[0],
-		Currency: currency.NewPairWithDelimiter("XBT", "USD", "/"),
+	err := k.Subscribe([]stream.ChannelSubscription{
+		{
+			Channel:  defaultSubscribedChannels[0],
+			Currency: currency.NewPairWithDelimiter("XBT", "USD", "/"),
+		},
 	})
 	if err != nil {
 		t.Error(err)

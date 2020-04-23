@@ -153,7 +153,9 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	return z.Websocket.SetupLocalOrderbook(cache.Config{})
+	return z.Websocket.SetupLocalOrderbook(cache.Config{
+		OrderbookBufferLimit: exch.WebsocketOrderbookBufferLimit,
+	})
 }
 
 // Start starts the OKEX go routine

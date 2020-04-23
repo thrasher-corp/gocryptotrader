@@ -35,6 +35,19 @@ func New() *Websocket {
 	}
 }
 
+// NewTestWebsocket returns a test websocket object
+func NewTestWebsocket() *Websocket {
+	return &Websocket{
+		init:              true,
+		DataHandler:       make(chan interface{}, 75),
+		ToRoutine:         make(chan interface{}, defaultJobBuffer),
+		trafficAlert:      make(chan struct{}),
+		readMessageErrors: make(chan error),
+		subscribe:         make(chan []ChannelSubscription, 10),
+		unsubscribe:       make(chan []ChannelSubscription, 10),
+	}
+}
+
 // Setup sets main variables for websocket connection
 func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 	if w == nil {

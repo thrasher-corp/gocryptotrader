@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -68,14 +67,12 @@ func TestMain(m *testing.M) {
 	okcoinConfig.API.Credentials.Secret = apiSecret
 	okcoinConfig.API.Credentials.ClientID = passphrase
 	okcoinConfig.API.Endpoints.WebsocketURL = o.API.Endpoints.WebsocketURL
+	o.Websocket = stream.NewTestWebsocket()
 	err = o.Setup(okcoinConfig)
 	if err != nil {
 		log.Fatal("OKCoin setup error", err)
 	}
 	testSetupRan = true
-	o.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	o.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-
 	os.Exit(m.Run())
 }
 
@@ -753,15 +750,8 @@ func TestSendWsMessages(t *testing.T) {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
 	var ok bool
-	o.WebsocketConn = &stream.WebsocketConnection{
-		ExchangeName:         o.Name,
-		URL:                  o.Websocket.GetWebsocketURL(),
-		Verbose:              o.Verbose,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
-	}
 	var dialer websocket.Dialer
-	err := o.WebsocketConn.Dial(&dialer, http.Header{})
+	err := o.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -770,13 +760,18 @@ func TestSendWsMessages(t *testing.T) {
 	go o.WsReadData(&wg)
 	wg.Wait()
 
-	subscription := &stream.ChannelSubscription{
-		Channel: "badChannel",
+	subscriptions := []stream.ChannelSubscription{
+		{
+			Channel: "badChannel",
+		},
 	}
-	o.Subscribe(subscription)
+	err = o.Subscribe(subscriptions)
+	if err != nil {
+		t.Fatal(err)
+	}
 	response := <-o.Websocket.DataHandler
 	if err, ok = response.(error); ok && err != nil {
-		if !strings.Contains(response.(error).Error(), subscription.Channel) {
+		if !strings.Contains(response.(error).Error(), subscriptions[0].Channel) {
 			t.Error("Expecting OKEX error - 30040 message: Channel badChannel doesn't exist")
 		}
 	}

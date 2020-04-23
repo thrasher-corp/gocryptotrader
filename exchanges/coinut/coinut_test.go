@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -43,6 +42,7 @@ func TestMain(m *testing.M) {
 	coinutCfg.API.AuthenticatedWebsocketSupport = true
 	coinutCfg.API.Credentials.Key = apiKey
 	coinutCfg.API.Credentials.ClientID = clientID
+	c.Websocket = stream.NewTestWebsocket()
 	err = c.Setup(coinutCfg)
 	if err != nil {
 		log.Fatal("Coinut setup error", err)
@@ -51,8 +51,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Coinut setup error ", err)
 	}
-	c.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	c.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -67,22 +65,12 @@ func setupWSTestAuth(t *testing.T) {
 	if areTestAPIKeysSet() {
 		c.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
-	c.WebsocketConn = &stream.WebsocketConnection{
-		ExchangeName:         c.Name,
-		URL:                  coinutWebsocketURL,
-		Verbose:              c.Verbose,
-		RateLimit:            coinutWebsocketRateLimit,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
-	}
 
 	var dialer websocket.Dialer
-	err := c.WebsocketConn.Dial(&dialer, http.Header{})
+	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	c.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	go c.wsReadData()
 	err = c.wsAuthenticate()
 	if err != nil {

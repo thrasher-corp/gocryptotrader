@@ -656,6 +656,11 @@ func TestGetEnabledPairs(t *testing.T) {
 		Uppercase: true,
 	}
 
+	err = b.CurrencyPairs.SetAssetEnabled(asset.Spot, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	b.CurrencyPairs.UseGlobalFormat = true
 	b.CurrencyPairs.RequestFormat = &format
 	b.CurrencyPairs.ConfigFormat = &format
@@ -664,6 +669,7 @@ func TestGetEnabledPairs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if c[0].String() != defaultTestCurrencyPair {
 		t.Error("Exchange GetAvailablePairs() incorrect string")
 	}
@@ -1057,18 +1063,14 @@ func TestSetupDefaults(t *testing.T) {
 			AuthenticatedSupport: true,
 		},
 	}
-	if err := b.SetupDefaults(&cfg); err != nil {
-		t.Error(err)
-	}
+	b.SetupDefaults(&cfg)
 	if cfg.HTTPTimeout.String() != "15s" {
 		t.Error("HTTP timeout should be set to 15s")
 	}
 
 	// Test custom HTTP timeout is set
 	cfg.HTTPTimeout = time.Second * 30
-	if err := b.SetupDefaults(&cfg); err != nil {
-		t.Error(err)
-	}
+	b.SetupDefaults(&cfg)
 	if cfg.HTTPTimeout.String() != "30s" {
 		t.Error("HTTP timeout should be set to 30s")
 	}
@@ -1082,9 +1084,7 @@ func TestSetupDefaults(t *testing.T) {
 			},
 		},
 	)
-	if err := b.SetupDefaults(&cfg); err != nil {
-		t.Error(err)
-	}
+	b.SetupDefaults(&cfg)
 	ps, err := cfg.CurrencyPairs.Get(asset.Spot)
 	if err != nil {
 		t.Fatal(err)
@@ -1096,9 +1096,7 @@ func TestSetupDefaults(t *testing.T) {
 	// Test websocket support
 	b.Websocket = stream.New()
 	b.Features.Supports.Websocket = true
-	if err := b.SetupDefaults(&cfg); err != nil {
-		t.Error(err)
-	}
+	b.SetupDefaults(&cfg)
 	b.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled: true,
 	})

@@ -11,6 +11,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 var mockTests = false
@@ -30,12 +31,11 @@ func TestMain(m *testing.M) {
 	bitstampConfig.API.Credentials.Secret = apiSecret
 	bitstampConfig.API.Credentials.ClientID = customerID
 	b.SetDefaults()
+	b.Websocket = stream.NewTestWebsocket()
 	err = b.Setup(bitstampConfig)
 	if err != nil {
 		log.Fatal("Bitstamp setup error", err)
 	}
-	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	log.Printf(sharedtestvalues.LiveTesting, b.Name, b.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

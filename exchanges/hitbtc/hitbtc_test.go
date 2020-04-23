@@ -15,7 +15,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -45,14 +44,11 @@ func TestMain(m *testing.M) {
 	hitbtcConfig.API.AuthenticatedWebsocketSupport = true
 	hitbtcConfig.API.Credentials.Key = apiKey
 	hitbtcConfig.API.Credentials.Secret = apiSecret
-
+	h.Websocket = stream.NewTestWebsocket()
 	err = h.Setup(hitbtcConfig)
 	if err != nil {
 		log.Fatal("HitBTC setup error", err)
 	}
-
-	h.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	h.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -413,17 +409,9 @@ func setupWsAuth(t *testing.T) {
 	if !h.Websocket.IsEnabled() && !h.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
-	h.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	h.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	h.WebsocketConn = &stream.WebsocketConnection{
-		ExchangeName:         h.Name,
-		URL:                  hitbtcWebsocketAddress,
-		Verbose:              h.Verbose,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
-	}
+
 	var dialer websocket.Dialer
-	err := h.WebsocketConn.Dial(&dialer, http.Header{})
+	err := h.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
