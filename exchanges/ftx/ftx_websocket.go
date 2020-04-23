@@ -22,7 +22,7 @@ const (
 )
 
 // WsConnect connects to a websocket feed
-func (f *Ftx) WsConnect() error {
+func (f *FTX) WsConnect() error {
 	if !f.Websocket.IsEnabled() || !f.IsEnabled() {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
@@ -51,7 +51,7 @@ func (f *Ftx) WsConnect() error {
 }
 
 // WsAuth sends an authentication message to receive auth data
-func (f *Ftx) WsAuth() error {
+func (f *FTX) WsAuth() error {
 	nonce := strconv.FormatInt(int64(time.Now().UnixNano()/1000000), 10)
 	hmac := crypto.GetHMAC(
 		crypto.HashSHA256,
@@ -69,7 +69,7 @@ func (f *Ftx) WsAuth() error {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (f *Ftx) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+func (f *FTX) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	var sub WsSub
 	sub.Operation = "subscribe"
 	sub.Channel = channelToSubscribe.Channel
@@ -78,7 +78,7 @@ func (f *Ftx) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscriptio
 }
 
 // GenerateDefaultSubscription generates default subscription
-func (f *Ftx) GenerateDefaultSubscription() {
+func (f *FTX) GenerateDefaultSubscription() {
 	var channels = []string{"ticker", "trades", "orderbook"}
 	pairs := f.GetEnabledPairs(asset.Spot)
 	var subscriptions []wshandler.WebsocketChannelSubscription
@@ -98,35 +98,35 @@ func (f *Ftx) GenerateDefaultSubscription() {
 	f.SubscribeToWebsocketChannels(subscriptions)
 }
 
-// // wsReadData gets and passes on websocket messages for processing
-// func (f *Ftx) wsReadData() {
-// 	f.Websocket.Wg.Add(1)
+// wsReadData gets and passes on websocket messages for processing
+func (f *FTX) wsReadData() {
+	f.Websocket.Wg.Add(1)
 
-// 	defer func() {
-// 		f.Websocket.Wg.Done()
-// 	}()
+	defer func() {
+		f.Websocket.Wg.Done()
+	}()
 
-// 	for {
-// 		select {
-// 		case <-f.Websocket.ShutdownC:
-// 			return
+	for {
+		select {
+		case <-f.Websocket.ShutdownC:
+			return
 
-// 		default:
-// 			resp, err := f.WebsocketConn.ReadMessage()
-// 			if err != nil {
-// 				f.Websocket.ReadMessageErrors <- err
-// 				return
-// 			}
-// 			f.Websocket.TrafficAlert <- struct{}{}
-// 			err = f.wsHandleData(resp.Raw)
-// 			if err != nil {
-// 				f.Websocket.DataHandler <- err
-// 			}
-// 		}
-// 	}
-// }
+		default:
+			resp, err := f.WebsocketConn.ReadMessage()
+			if err != nil {
+				f.Websocket.ReadMessageErrors <- err
+				return
+			}
+			f.Websocket.TrafficAlert <- struct{}{}
+			err = f.wsHandleData(resp.Raw)
+			if err != nil {
+				f.Websocket.DataHandler <- err
+			}
+		}
+	}
+}
 
-func (f *Ftx) wsHandleData(respRaw []byte) error {
+func (f *FTX) wsHandleData(respRaw []byte) error {
 	type Result map[string]interface{}
 	var result Result
 	err := json.Unmarshal(respRaw, &result)

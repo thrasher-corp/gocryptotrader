@@ -21,7 +21,7 @@ const (
 	canManipulateRealOrders = false
 )
 
-var f Ftx
+var f FTX
 
 func TestMain(m *testing.M) {
 	f.SetDefaults()
@@ -31,7 +31,7 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
-	exchCfg, err := cfg.GetExchangeConfig("Ftx")
+	exchCfg, err := cfg.GetExchangeConfig("FTX")
 	if err != nil {
 		log.Fatal(err)
 	}
