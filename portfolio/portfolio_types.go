@@ -137,26 +137,23 @@ type XRPScanAccount struct {
 		EmailHash             string `json:"emailHash"`
 		Domain                string `json:"domain"`
 	} `json:"settings"`
-	Account        string    `json:"account"`
-	Parent         string    `json:"parent"`
-	InitialBalance float64   `json:"initial_balance"`
-	Inception      time.Time `json:"inception"`
-	LedgerIndex    int       `json:"ledger_index"`
-	TxHash         string    `json:"tx_hash"`
-	AccountName    struct {
-		Name     string `json:"name"`
-		Account  string `json:"account"`
-		Domain   string `json:"domain"`
-		Twitter  string `json:"twitter"`
-		Verified bool   `json:"verified"`
-	} `json:"accountName"`
-	ParentName struct {
-		Name     string `json:"name"`
-		Desc     string `json:"desc"`
-		Account  string `json:"account"`
-		Domain   string `json:"domain"`
-		Twitter  string `json:"twitter"`
-		Verified bool   `json:"verified"`
-	} `json:"parentName"`
-	Advisory interface{} `json:"advisory"`
+	Account        string      `json:"account"`
+	Parent         string      `json:"parent"`
+	InitialBalance float64     `json:"initial_balance"`
+	Inception      time.Time   `json:"inception"`
+	LedgerIndex    int         `json:"ledger_index"`
+	TxHash         string      `json:"tx_hash"`
+	AccountName    AccountInfo `json:"accountName"`
+	ParentName     AccountInfo `json:"parentName"`
+	Advisory       interface{} `json:"advisory"`
+}
+
+// AccountInfo is a XRPScan subtype for account associations
+type AccountInfo struct {
+	Name        string `json:"name"`
+	Description string `json:"desc"`
+	Account     string `json:"account"`
+	Domain      string `json:"domain"`
+	Twitter     string `json:"twitter"`
+	Verified    bool   `json:"verified"`
 }
