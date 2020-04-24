@@ -1,15 +1,25 @@
 package validator
 
 import (
+	"math/rand"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+)
+
+const (
+	validatorOpen  float64 = 5000
+	validatorHigh  float64 = 6000
+	validatorLow   float64 = 5500
+	validatorClose float64 = 5700
+	validatorVol   float64 = 10
 )
 
 // Exchanges validator for test execution/scripts
@@ -211,4 +221,42 @@ func (w Wrapper) WithdrawalFiatFunds(exch, _ string, _ *withdraw.Request) (out s
 	}
 
 	return "123", nil
+}
+
+// OHLCV returns open high low close volume candles for requested exchange/pair/asset/start & end time
+func (w Wrapper) OHLCV(exch string, p currency.Pair, a asset.Item, start, end time.Time, i time.Duration) (kline.Item, error) {
+	if exch == exchError.String() {
+		return kline.Item{}, errTestFailed
+	}
+	var candles []kline.Candle
+
+	candles = append(candles, kline.Candle{
+		Time:   start,
+		Open:   validatorOpen,
+		High:   validatorHigh,
+		Low:    validatorLow,
+		Close:  validatorClose,
+		Volume: validatorVol,
+	})
+
+	for x := 1; x < 200; x++ {
+		r := validatorLow + rand.Float64()*(validatorHigh-validatorLow)
+		candle := kline.Candle{
+			Time:   candles[x-1].Time.Add(-i),
+			Open:   r,
+			High:   r,
+			Low:    r,
+			Close:  r,
+			Volume: r,
+		}
+		candles = append(candles, candle)
+	}
+
+	return kline.Item{
+		Exchange: exch,
+		Pair:     p,
+		Asset:    a,
+		Interval: i,
+		Candles:  candles,
+	}, nil
 }

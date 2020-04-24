@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -193,7 +194,7 @@ func (b *Binance) GetAggregatedTrades(symbol string, limit int) ([]AggregatedTra
 // endTime: endTime filter for the kline data
 func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 	var resp interface{}
-	var kline []CandleStick
+	var klineData []CandleStick
 
 	params := url.Values{}
 	params.Set("symbol", arg.Symbol)
@@ -211,7 +212,7 @@ func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, candleStick, params.Encode())
 
 	if err := b.SendHTTPRequest(path, limitDefault, &resp); err != nil {
-		return kline, err
+		return klineData, err
 	}
 
 	for _, responseData := range resp.([]interface{}) {
@@ -219,7 +220,12 @@ func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 		for i, individualData := range responseData.([]interface{}) {
 			switch i {
 			case 0:
-				candle.OpenTime = individualData.(float64)
+				tempTime := individualData.(float64)
+				var err error
+				candle.OpenTime, err = convert.TimeFromUnixTimestampFloat(tempTime)
+				if err != nil {
+					return klineData, err
+				}
 			case 1:
 				candle.Open, _ = strconv.ParseFloat(individualData.(string), 64)
 			case 2:
@@ -231,7 +237,12 @@ func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 			case 5:
 				candle.Volume, _ = strconv.ParseFloat(individualData.(string), 64)
 			case 6:
-				candle.CloseTime = individualData.(float64)
+				tempTime := individualData.(float64)
+				var err error
+				candle.CloseTime, err = convert.TimeFromUnixTimestampFloat(tempTime)
+				if err != nil {
+					return klineData, err
+				}
 			case 7:
 				candle.QuoteAssetVolume, _ = strconv.ParseFloat(individualData.(string), 64)
 			case 8:
@@ -242,9 +253,9 @@ func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 				candle.TakerBuyQuoteAssetVolume, _ = strconv.ParseFloat(individualData.(string), 64)
 			}
 		}
-		kline = append(kline, candle)
+		klineData = append(klineData, candle)
 	}
-	return kline, nil
+	return klineData, nil
 }
 
 // GetAveragePrice returns current average price for a symbol.
@@ -727,4 +738,39 @@ func (b *Binance) MaintainWsAuthStreamKey() error {
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
 	})
+}
+
+func parseInterval(in time.Duration) (TimeInterval, error) {
+	switch in {
+	case kline.OneMin:
+		return TimeIntervalMinute, nil
+	case kline.ThreeMin:
+		return TimeIntervalThreeMinutes, nil
+	case kline.FiveMin:
+		return TimeIntervalFiveMinutes, nil
+	case kline.FifteenMin:
+		return TimeIntervalFifteenMinutes, nil
+	case kline.ThirtyMin:
+		return TimeIntervalThirtyMinutes, nil
+	case kline.OneHour:
+		return TimeIntervalHour, nil
+	case kline.TwoHour:
+		return TimeIntervalTwoHours, nil
+	case kline.FourHour:
+		return TimeIntervalFourHours, nil
+	case kline.SixHour:
+		return TimeIntervalSixHours, nil
+	case kline.OneHour * 8:
+		return TimeIntervalEightHours, nil
+	case kline.TwelveHour:
+		return TimeIntervalTwelveHours, nil
+	case kline.OneDay:
+		return TimeIntervalDay, nil
+	case kline.ThreeDay:
+		return TimeIntervalThreeDays, nil
+	case kline.OneWeek:
+		return TimeIntervalWeek, nil
+	default:
+		return TimeIntervalMinute, errInvalidInterval
+	}
 }

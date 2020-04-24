@@ -1,13 +1,22 @@
 package modules
 
 import (
+	"time"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+)
+
+const (
+	// ErrParameterConvertFailed error to return when type conversion fails
+	ErrParameterConvertFailed             = "%v failed conversion"
+	ErrParameterWithPositionConvertFailed = "%v at position %v failed conversion"
 )
 
 // Wrapper instance of GCT to use for modules
@@ -32,6 +41,7 @@ type Exchange interface {
 	DepositAddress(exch string, currencyCode currency.Code) (string, error)
 	WithdrawalFiatFunds(exch, bankAccountID string, request *withdraw.Request) (out string, err error)
 	WithdrawalCryptoFunds(exch string, request *withdraw.Request) (out string, err error)
+	OHLCV(exch string, pair currency.Pair, item asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error)
 }
 
 // SetModuleWrapper link the wrapper and interface to use for modules

@@ -1,0 +1,15 @@
+fmt := import("fmt")
+exch := import("exchange")
+t := import("times")
+macd := import("indicator/macd")
+
+load := func() {
+    start := t.date(2017, 8 , 17 , 0 , 0 , 0, 0)
+    end := t.add_date(start, 0, 6 , 0)
+    ohlcvData := exch.ohlcv("binance", "BTC-USDT", "-", "SPOT", start, end, "1d")
+
+    ret := macd.calculate(ohlcvData.candles, 12, 26, 9)
+    fmt.println(ret)
+}
+
+load()
