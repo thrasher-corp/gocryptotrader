@@ -114,9 +114,30 @@ func (c *Coinbene) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.NoFiatWithdrawals |
 				exchange.WithdrawCryptoViaWebsiteOnly,
+			KlineCapabilities: kline.ExchangeCapabilities{
+				SupportsDateRange: true,
+				SupportsIntervals: true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			KlineCapabilities: kline.ExchangeCapabilities{
+				Intervals: map[string]bool{
+					"onemin":     true,
+					"threemin":   true,
+					"fivemin":    true,
+					"fifteenmin": true,
+					"thirtymin":  true,
+					"onehour":    true,
+					"twohour":    true,
+					"fourhour":   true,
+					"sixhour":    true,
+					"twelvehour": true,
+					"oneday":     true,
+					"threeday":   true,
+					"oneweek":    true,
+				},
+			},
 		},
 	}
 	c.Requester = request.New(c.Name,
