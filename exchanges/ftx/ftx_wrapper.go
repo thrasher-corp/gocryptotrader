@@ -497,7 +497,7 @@ func (f *FTX) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Req
 
 // GetWebsocket returns a pointer to the exchange websocket
 func (f *FTX) GetWebsocket() (*wshandler.Websocket, error) {
-	return nil, common.ErrNotYetImplemented
+	return f.Websocket, nil
 }
 
 // GetActiveOrders retrieves any orders that are active/open

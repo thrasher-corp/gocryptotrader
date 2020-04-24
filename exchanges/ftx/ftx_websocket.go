@@ -10,7 +10,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -33,19 +32,19 @@ func (f *FTX) WsConnect() error {
 	}
 	f.WebsocketConn.SetupPingHandler(wshandler.WebsocketPingHandler{
 		MessageType: websocket.PingMessage,
-		Delay:       ftxWebsocketTimer,
+		Delay:       ftxWebsocketTimer * time.Second,
 	})
 	if f.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", f.Name)
 	}
 	go f.wsReadData()
-	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		err := f.WsAuth()
-		if err != nil {
-			f.Websocket.DataHandler <- err
-			f.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
-	}
+	// if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+	// 	err := f.WsAuth()
+	// 	if err != nil {
+	// 		f.Websocket.DataHandler <- err
+	// 		f.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	// 	}
+	// }
 	f.GenerateDefaultSubscriptions()
 	return nil
 }
@@ -80,7 +79,7 @@ func (f *FTX) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscriptio
 // GenerateDefaultSubscriptions generates default subscription
 func (f *FTX) GenerateDefaultSubscriptions() {
 	var channels = []string{"ticker", "trades", "orderbook"}
-	pairs := f.GetEnabledPairs(asset.Spot)
+	pairs := f.GetEnabledPairs(asset.Futures)
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	if f.Websocket.CanUseAuthenticatedEndpoints() {
 		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
@@ -133,6 +132,8 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println(result)
+	fmt.Printf("HELOOOOOOOOO\n\n\n\n")
 	if result["type"] == "subscribed" {
 		switch {
 		case result["channel"] == "ticker":
@@ -141,8 +142,11 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			fmt.Printf("HELOOOOOOOOOOOO\n\n\n\n\n")
-			fmt.Println(tickerData)
+			f.Websocket.DataHandler <- tickerData
+		case result["channel"] == "orderbook":
+			fmt.Printf("HOORAYYYYYYYY\n\n\n\n")
+		case result["channel"] == "trades":
+			fmt.Printf("HIYAAAAAAAAAAA\n\n\n\n")
 		}
 	}
 	return nil

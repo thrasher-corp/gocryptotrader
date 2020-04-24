@@ -744,7 +744,7 @@ type AuthenticationData struct {
 
 // Authenticate stores authentication variables required
 type Authenticate struct {
-	Operation string             `json:"operation"`
+	Operation string             `json:"op"`
 	Args      AuthenticationData `json:"args"`
 }
 
