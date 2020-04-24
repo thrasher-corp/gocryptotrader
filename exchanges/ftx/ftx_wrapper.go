@@ -764,7 +764,7 @@ func (f *FTX) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChann
 
 // GetSubscriptions returns a copied list of subscriptions
 func (f *FTX) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
-	return nil, common.ErrNotYetImplemented
+	return f.Websocket.GetSubscriptions(), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

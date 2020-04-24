@@ -57,6 +57,7 @@ func areTestAPIKeysSet() bool {
 
 func TestGetMarkets(t *testing.T) {
 	t.Parallel()
+	f.Verbose = true
 	_, err := f.GetMarkets()
 	if err != nil {
 		t.Error(err)

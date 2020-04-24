@@ -38,7 +38,7 @@ func (f *FTX) WsConnect() error {
 	if f.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", f.Name)
 	}
-	// go f.wsReadData()
+	go f.wsReadData()
 	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err := f.WsAuth()
 		if err != nil {
@@ -46,7 +46,7 @@ func (f *FTX) WsConnect() error {
 			f.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	fmt.Printf("generate default subscriptions here \n\n\n")
+	f.GenerateDefaultSubscriptions()
 	return nil
 }
 
@@ -77,8 +77,8 @@ func (f *FTX) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscriptio
 	return f.WebsocketConn.SendJSONMessage(sub)
 }
 
-// GenerateDefaultSubscription generates default subscription
-func (f *FTX) GenerateDefaultSubscription() {
+// GenerateDefaultSubscriptions generates default subscription
+func (f *FTX) GenerateDefaultSubscriptions() {
 	var channels = []string{"ticker", "trades", "orderbook"}
 	pairs := f.GetEnabledPairs(asset.Spot)
 	var subscriptions []wshandler.WebsocketChannelSubscription
