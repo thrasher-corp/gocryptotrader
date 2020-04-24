@@ -16,7 +16,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -85,33 +84,16 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 
 	w.SetWebsocketURL(setupData.RunningURL)
 	w.SetCanUseAuthenticatedEndpoints(setupData.AuthenticatedWebsocketAPISupport)
-	return w.Initialise()
-}
-
-// SetupLocalOrderbook sets up local orderbook buffer for streaming updates and
-// snapshots
-func (w *Websocket) SetupLocalOrderbook(c cache.Config) error {
-	if w == nil {
-		return errors.New("setting up local orderbook error: websocket not initialised")
+	err := w.Initialise()
+	if err != nil {
+		return err
 	}
 
-	if c == (cache.Config{}) {
-		return errors.New("setting up local orderbook error: websocket orderbook configuration empty")
-	}
-
-	if w.exchangeName == "" {
-		return errors.New("setting up local orderbook error: exchange name not set, please call setup first")
-	}
-
-	if w.DataHandler == nil {
-		return errors.New("setting up local orderbook error: data handler not set, please call setup first")
-	}
-
-	w.Orderbook.Setup(c.OrderbookBufferLimit,
-		c.BufferEnabled,
-		c.SortBuffer,
-		c.SortBufferByUpdateIDs,
-		c.UpdateEntriesByID,
+	w.Orderbook.Setup(setupData.OrderbookBufferLimit,
+		setupData.BufferEnabled,
+		setupData.SortBuffer,
+		setupData.SortBufferByUpdateIDs,
+		setupData.UpdateEntriesByID,
 		w.exchangeName,
 		w.DataHandler)
 	return nil

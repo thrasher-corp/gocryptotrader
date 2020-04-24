@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -147,24 +146,18 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 		UnSubscriber:                     p.Unsubscribe,
 		GenerateSubscriptions:            p.GenerateDefaultSubscriptions,
 		Features:                         &p.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+		SortBuffer:                       true,
+		SortBufferByUpdateIDs:            true,
 	})
 	if err != nil {
 		return err
 	}
 
-	err = p.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return p.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}, false)
-	if err != nil {
-		return err
-	}
-
-	return p.Websocket.SetupLocalOrderbook(cache.Config{
-		OrderbookBufferLimit:  exch.WebsocketOrderbookBufferLimit,
-		SortBuffer:            true,
-		SortBufferByUpdateIDs: true,
-	})
 }
 
 // Start starts the Poloniex go routine

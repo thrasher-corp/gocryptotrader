@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -136,20 +135,17 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) error {
 		UnSubscriber:                     b.Unsubscribe,
 		GenerateSubscriptions:            b.generateDefaultSubscriptions,
 		Features:                         &b.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 	})
 	if err != nil {
 		return err
 	}
 
-	b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  b.Websocket.GetWebsocketURL(),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}, false)
-
-	return b.Websocket.SetupLocalOrderbook(cache.Config{
-		OrderbookBufferLimit: exch.WebsocketOrderbookBufferLimit,
-	})
 }
 
 // Start starts the Bitstamp go routine

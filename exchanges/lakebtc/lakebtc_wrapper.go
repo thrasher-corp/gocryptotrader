@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -120,7 +119,7 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) error {
 
 	l.SetupDefaults(exch)
 
-	err := l.Websocket.Setup(&stream.WebsocketSetup{
+	return l.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -132,15 +131,7 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) error {
 		Subscriber:                       l.Subscribe,
 		GenerateSubscriptions:            l.GenerateDefaultSubscriptions,
 		Features:                         &l.Features.Supports.WebsocketCapabilities,
-	})
-	if err != nil {
-		return err
-	}
-
-	// err = stream.SetupNewCustomConnection()
-
-	return l.Websocket.SetupLocalOrderbook(cache.Config{
-		OrderbookBufferLimit: exch.WebsocketOrderbookBufferLimit,
+		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 	})
 }
 

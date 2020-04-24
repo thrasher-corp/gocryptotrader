@@ -19,25 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 )
 
-// import (
-// 	"bytes"
-// 	"compress/flate"
-// 	"compress/gzip"
-// 	"encoding/json"
-// 	"errors"
-// 	"net"
-// 	"net/http"
-// 	"os"
-// 	"strings"
-// 	"sync"
-// 	"testing"
-// 	"time"
-
-// 	"github.com/gorilla/websocket"
-// 	"github.com/thrasher-corp/gocryptotrader/currency"
-// 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-// )
-
 func TestTrafficMonitorTimeout(t *testing.T) {
 	ws := New()
 	err := ws.Setup(

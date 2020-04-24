@@ -21,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -143,25 +142,19 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 		UnSubscriber:                     c.Unsubscribe,
 		GenerateSubscriptions:            c.GenerateDefaultSubscriptions,
 		Features:                         &c.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+		BufferEnabled:                    true,
+		SortBuffer:                       true,
+		SortBufferByUpdateIDs:            true,
 	})
 	if err != nil {
 		return err
 	}
 
-	err = c.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return c.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}, false)
-	if err != nil {
-		return err
-	}
-
-	return c.Websocket.SetupLocalOrderbook(cache.Config{
-		OrderbookBufferLimit:  exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:         true,
-		SortBuffer:            true,
-		SortBufferByUpdateIDs: true,
-	})
 }
 
 // Start starts the COINUT go routine
