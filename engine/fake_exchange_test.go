@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -107,7 +108,7 @@ func (h *FakePassingExchange) SetPairs(_ currency.Pairs, _ asset.Item, _ bool) e
 	return nil
 }
 func (h *FakePassingExchange) GetAssetTypes() asset.Items { return asset.Items{asset.Spot} }
-func (h *FakePassingExchange) GetExchangeHistory(_ currency.Pair, _ asset.Item) ([]exchange.TradeHistory, error) {
+func (h *FakePassingExchange) GetExchangeHistory(_ *trade.HistoryRequest) ([]trade.History, error) {
 	return nil, nil
 }
 func (h *FakePassingExchange) SupportsAutoPairUpdates() bool        { return true }

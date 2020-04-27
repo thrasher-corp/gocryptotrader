@@ -67,13 +67,13 @@ const (
 	stop       = "Stop"
 	takeProfit = "Take Profit"
 
-	subscribe   = "subscribe"
-	fundChange  = "fundChange"
-	orderChange = "orderChange"
-	heartbeat   = "heartbeat"
-	tick        = "tick"
-	wsOB        = "orderbookUpdate"
-	trade       = "trade"
+	subscribe     = "subscribe"
+	fundChange    = "fundChange"
+	orderChange   = "orderChange"
+	heartbeat     = "heartbeat"
+	tick          = "tick"
+	wsOB          = "orderbookUpdate"
+	tradeEndPoint = "tradeEndPoint"
 )
 
 // BTCMarkets is the overarching type across the BTCMarkets package
@@ -329,7 +329,7 @@ func (b *BTCMarkets) GetTradingFees() (TradingFeeResponse, error) {
 		request.Auth)
 }
 
-// GetTradeHistory returns trade history
+// GetTradeHistory returns tradeEndPoint history
 func (b *BTCMarkets) GetTradeHistory(marketID, orderID string, before, after, limit int64) ([]TradeHistoryData, error) {
 	if (before > 0) && (after >= 0) {
 		return nil, errors.New("BTCMarkets only supports either before or after, not both")
@@ -358,7 +358,7 @@ func (b *BTCMarkets) GetTradeHistory(marketID, orderID string, before, after, li
 		request.Auth)
 }
 
-// GetTradeByID returns the singular trade of the ID given
+// GetTradeByID returns the singular tradeEndPoint of the ID given
 func (b *BTCMarkets) GetTradeByID(id string) (TradeHistoryData, error) {
 	var resp TradeHistoryData
 	return resp, b.SendAuthenticatedRequest(http.MethodGet,

@@ -31,7 +31,7 @@ type Ticker struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// Trade holds trade information
+// Trade holds tradeEndPoint information
 type Trade struct {
 	TradeID   string    `json:"id"`
 	Amount    float64   `json:"amount,string"`
@@ -76,7 +76,7 @@ type TimeResp struct {
 	Time time.Time `json:"timestamp"`
 }
 
-// TradingFee 30 day trade volume
+// TradingFee 30 day tradeEndPoint volume
 type TradingFee struct {
 	Success        bool    `json:"success"`
 	ErrorCode      int     `json:"errorCode"`
@@ -113,7 +113,7 @@ type Order struct {
 	Trades          []TradeResponse `json:"trades"`
 }
 
-// TradeResponse holds trade information
+// TradeResponse holds tradeEndPoint information
 type TradeResponse struct {
 	ID           int64     `json:"id"`
 	CreationTime time.Time `json:"creationTime"`
@@ -372,7 +372,7 @@ type WsTick struct {
 	MessageType string    `json:"messageType"`
 }
 
-// WsTrade message received for trade data
+// WsTrade message received for tradeEndPoint data
 type WsTrade struct {
 	Currency    string    `json:"marketId"`
 	Timestamp   time.Time `json:"timestamp"`
@@ -404,7 +404,7 @@ type WsFundTransfer struct {
 	MessageType    string    `json:"messageType"`
 }
 
-// WsTradeData stores trade data for websocket
+// WsTradeData stores tradeEndPoint data for websocket
 type WsTradeData struct {
 	TradeID       int64   `json:"tradeId"`
 	Price         float64 `json:"price,string"`

@@ -132,18 +132,22 @@ func validateData(trades []order.TradeHistory) error {
 	return nil
 }
 
+// String returns numeric string
 func (k Interval) String() string {
 	return k.Duration().String()
 }
 
+// Word returns text version of Interval
 func (k Interval) Word() string {
 	return DurationToWord(k)
 }
 
+// Duration returns interval casted as time.Duration for compatibility
 func (k Interval) Duration() time.Duration {
 	return time.Duration(k)
 }
 
+// Short returns short string version of interval
 func (k Interval) Short() string {
 	s := k.String()
 	if strings.HasSuffix(s, "m0s") {
@@ -155,6 +159,7 @@ func (k Interval) Short() string {
 	return s
 }
 
+// DurationToWord returns english version of interval
 func DurationToWord(in Interval) string {
 	switch in {
 	case OneMin:

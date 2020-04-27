@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -91,10 +92,24 @@ func TestGetHistoricalTrades(t *testing.T) {
 	}
 }
 
+func TestExchangeHistory(t *testing.T) {
+	t.Parallel()
+	b.Verbose = true
+	req := &trade.HistoryRequest{
+		Pair:           currency.NewPairFromString("BTCUSDT"),
+		TimestampStart: time.Now(),
+	}
+	v, err := b.GetExchangeHistory(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(v)
+}
+
 func TestGetAggregatedTrades(t *testing.T) {
 	t.Parallel()
-
-	_, err := b.GetAggregatedTrades("BTCUSDT", 5)
+	b.Verbose = true
+	_, err := b.GetAggregatedTrades("BTCUSDT", 5, time.Now().Add(-5*time.Minute), time.Now())
 	if err != nil {
 		t.Error("Binance GetAggregatedTrades() error", err)
 	}

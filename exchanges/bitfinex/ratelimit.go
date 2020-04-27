@@ -95,7 +95,7 @@ const (
 	platformStatus request.EndpointLimit = iota
 	tickerBatch
 	tickerFunction
-	trade
+	tradeRateLimit
 	orderbookFunction
 	stats
 	candle
@@ -262,7 +262,7 @@ func (r *RateLimit) Limit(f request.EndpointLimit) error {
 		time.Sleep(r.TickerBatch.Reserve().Delay())
 	case tickerFunction:
 		time.Sleep(r.Ticker.Reserve().Delay())
-	case trade:
+	case tradeRateLimit:
 		time.Sleep(r.Trade.Reserve().Delay())
 	case orderbookFunction:
 		time.Sleep(r.Orderbook.Reserve().Delay())

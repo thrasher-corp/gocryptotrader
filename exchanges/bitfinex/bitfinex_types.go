@@ -311,7 +311,7 @@ type MovementHistory struct {
 	Fee              float64 `json:"fee"`
 }
 
-// TradeHistory holds trade history data
+// TradeHistory holds tradeRateLimit history data
 type TradeHistory struct {
 	Price       float64 `json:"price,string"`
 	Amount      float64 `json:"amount,string"`
@@ -379,13 +379,13 @@ type WebsocketBook struct {
 	Amount float64
 }
 
-// WebsocketTrade holds trade information
+// WebsocketTrade holds tradeRateLimit information
 type WebsocketTrade struct {
 	ID        int64
 	Timestamp int64
 	Price     float64
 	Amount    float64
-	// Funding rate of the trade
+	// Funding rate of the tradeRateLimit
 	Rate float64
 	// Funding offer period in days
 	Period int64
@@ -466,7 +466,7 @@ type WebsocketOrder struct {
 	Notify     int
 }
 
-// WebsocketTradeExecuted holds executed trade data
+// WebsocketTradeExecuted holds executed tradeRateLimit data
 type WebsocketTradeExecuted struct {
 	TradeID        int64
 	Pair           string
@@ -476,7 +476,7 @@ type WebsocketTradeExecuted struct {
 	PriceExecuted  float64
 }
 
-// WebsocketTradeData holds executed trade data
+// WebsocketTradeData holds executed tradeRateLimit data
 type WebsocketTradeData struct {
 	TradeID        int64
 	Pair           string

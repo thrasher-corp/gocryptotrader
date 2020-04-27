@@ -68,7 +68,7 @@ const (
 	bitfinexTrades         = "trades/"
 	bitfinexOrderbook      = "book/"
 	bitfinexStatistics     = "stats1/"
-	bitfinexCandles        = "candles/trade"
+	bitfinexCandles        = "candles/tradeRateLimit"
 	bitfinexKeyPermissions = "key_info"
 	bitfinexMarginInfo     = "margin_infos"
 	bitfinexDepositMethod  = "conf/pub:map:currency:label"
@@ -240,7 +240,7 @@ func (b *Bitfinex) GetTrades(currencyPair string, limit, timestampStart, timesta
 		v.Encode()
 
 	var resp [][]interface{}
-	err := b.SendHTTPRequest(path, &resp, trade)
+	err := b.SendHTTPRequest(path, &resp, tradeRateLimit)
 	if err != nil {
 		return nil, err
 	}

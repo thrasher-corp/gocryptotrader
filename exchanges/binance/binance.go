@@ -166,7 +166,7 @@ func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([
 //
 // symbol: string of currency pair
 // limit: Optional. Default 500; max 1000.
-func (b *Binance) GetAggregatedTrades(symbol string, limit int) ([]AggregatedTrade, error) {
+func (b *Binance) GetAggregatedTrades(symbol string, limit int, start, end time.Time) ([]AggregatedTrade, error) {
 	var resp []AggregatedTrade
 
 	if err := b.CheckLimit(limit); err != nil {
@@ -175,10 +175,24 @@ func (b *Binance) GetAggregatedTrades(symbol string, limit int) ([]AggregatedTra
 
 	params := url.Values{}
 	params.Set("symbol", strings.ToUpper(symbol))
-	params.Set("limit", strconv.Itoa(limit))
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
 
-	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, aggregatedTrades, params.Encode())
+	if end.Sub(start) > time.Hour {
+		return resp, errors.New("start and end cannot be greater than 1 hour")
+	}
 
+	if !start.IsZero() {
+		params.Set("startTime", strconv.FormatInt(start.UnixNano(), 10))
+	}
+	if !end.IsZero() {
+		params.Set("endTime", strconv.FormatInt(end.UnixNano(), 10))
+	}
+
+	fmt.Println(start)
+	fmt.Println(end)
+	path := b.API.Endpoints.URL + aggregatedTrades + "?" + params.Encode()
 	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
 }
 

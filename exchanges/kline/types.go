@@ -42,6 +42,7 @@ const (
 // 	OneWeekStr    string = "oneweeks"
 // )
 
+// ErrUnsupportedInterval locacle for an unsupported interval
 const ErrUnsupportedInterval = "%s interval unsupported by exchange"
 
 // Item holds all the relevant information for internal kline elements

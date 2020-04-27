@@ -23,6 +23,7 @@ require (
 	github.com/toorop/go-pusher v0.0.0-20180521062818-4521e2eb39fb
 	github.com/urfave/cli v1.22.4
 	github.com/volatiletech/null v8.0.0+incompatible
+	golang.org/dl v0.0.0-20200414231856-f86334ee252a // indirect
 	golang.org/x/crypto v0.0.0-20190605123033-f99c8df09eb5
 	golang.org/x/net v0.0.0-20191002035440-2ec189313ef0
 	golang.org/x/sys v0.0.0-20191003212358-c178f38b412c // indirect
