@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -45,6 +46,7 @@ func (f *FTX) WsConnect() error {
 	// 		f.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	// 	}
 	// }
+	fmt.Printf("WTFFFFFFFFFFFF")
 	f.GenerateDefaultSubscriptions()
 	return nil
 }
@@ -58,10 +60,10 @@ func (f *FTX) WsAuth() error {
 		[]byte(f.API.Credentials.Secret),
 	)
 	sign := crypto.HexEncodeToString(hmac)
-	req := Authenticate{Operation: "login",
-		Args: AuthenticationData{Key: f.API.Credentials.Key,
-			Sign: sign,
-			Time: nonce,
+	req := Authenticate{op: "login",
+		args: AuthenticationData{key: f.API.Credentials.Key,
+			sign: sign,
+			time: nonce,
 		},
 	}
 	return f.WebsocketConn.SendJSONMessage(req)
@@ -70,9 +72,10 @@ func (f *FTX) WsAuth() error {
 // Subscribe sends a websocket message to receive data from the channel
 func (f *FTX) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	var sub WsSub
-	sub.Operation = "subscribe"
-	sub.Channel = channelToSubscribe.Channel
-	sub.Market = f.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot).String()
+	fmt.Printf("WHY GOD")
+	sub.op = "subscribe"
+	sub.channel = channelToSubscribe.Channel
+	sub.market = f.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Futures).String()
 	return f.WebsocketConn.SendJSONMessage(sub)
 }
 
@@ -80,21 +83,16 @@ func (f *FTX) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscriptio
 func (f *FTX) GenerateDefaultSubscriptions() {
 	var channels = []string{"ticker", "trades", "orderbook"}
 	pairs := f.GetEnabledPairs(asset.Futures)
+	newPair := currency.NewPairWithDelimiter(pairs[0].Base.String(), pairs[0].Quote.String(), "-")
+	fmt.Println(newPair)
 	var subscriptions []wshandler.WebsocketChannelSubscription
-	if f.Websocket.CanUseAuthenticatedEndpoints() {
+	for x := range channels {
 		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
-			Channel: "notificationApi",
+			Channel:  channels[x],
+			Currency: newPair,
 		})
 	}
-	for x := range channels {
-		for y := range pairs {
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
-				Channel:  channels[x],
-				Currency: pairs[y],
-			})
-		}
-	}
-	f.SubscribeToWebsocketChannels(subscriptions)
+	f.Websocket.SubscribeToChannels(subscriptions)
 }
 
 // wsReadData gets and passes on websocket messages for processing
@@ -133,7 +131,6 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 		return err
 	}
 	fmt.Println(result)
-	fmt.Printf("HELOOOOOOOOO\n\n\n\n")
 	if result["type"] == "subscribed" {
 		switch {
 		case result["channel"] == "ticker":

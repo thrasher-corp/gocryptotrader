@@ -102,6 +102,8 @@ const (
 	limitOrder            = "limit"
 	marketOrder           = "market"
 	defaultTime           = "0001-01-01 00:00:00 +0000 UTC"
+	spotString            = "spot"
+	futuresString         = "future"
 )
 
 // Start implementing public and private exchange API funcs below

@@ -177,6 +177,7 @@ type WebsocketPingHandler struct {
 	Delay             time.Duration
 }
 
+// UnhandledMessageWarning gives a warning for unhandled messages
 type UnhandledMessageWarning struct {
 	Message string
 }

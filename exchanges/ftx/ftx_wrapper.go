@@ -55,8 +55,10 @@ func (f *FTX) SetDefaults() {
 	f.CurrencyPairs = currency.PairsManager{
 		AssetTypes: asset.Items{
 			asset.Spot,
+			asset.Futures,
 		},
-		UseGlobalFormat: true,
+	}
+	spot := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 			Delimiter: "/",
@@ -66,26 +68,55 @@ func (f *FTX) SetDefaults() {
 			Delimiter: "/",
 		},
 	}
+	futures := currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: "-",
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: "-",
+		},
+	}
+	f.CurrencyPairs.Store(asset.Spot, spot)
+	f.CurrencyPairs.Store(asset.Futures, futures)
 	// Fill out the capabilities/features that the exchange supports
 	f.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerFetching:    true,
-				OrderbookFetching: true,
+				TickerFetching:      true,
+				KlineFetching:       true,
+				TradeFetching:       true,
+				OrderbookFetching:   true,
+				AutoPairUpdates:     true,
+				AccountInfo:         true,
+				GetOrder:            true,
+				GetOrders:           true,
+				CancelOrders:        true,
+				CancelOrder:         true,
+				SubmitOrder:         true,
+				TradeFee:            true,
+				FiatDepositFee:      true,
+				FiatWithdrawalFee:   true,
+				CryptoWithdrawalFee: true,
 			},
 			WebsocketCapabilities: protocol.Features{
-				TickerFetching:    true,
 				OrderbookFetching: true,
+				TradeFetching:     true,
+				Subscribe:         true,
+				Unsubscribe:       true,
+				GetOrders:         true,
+				GetOrder:          true,
 			},
-			WithdrawPermissions: exchange.AutoWithdrawCrypto |
-				exchange.AutoWithdrawFiat,
+			WithdrawPermissions: exchange.NoAPIWithdrawalMethods,
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 		},
 	}
+
 	f.Requester = request.New(f.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		nil)
@@ -120,7 +151,7 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        f.WsConnect,
 			Subscriber:                       f.Subscribe,
-			// UnSubscriber:                     f.Unsubscribe,
+			// UnSubscriber:                     b.Unsubscribe,
 			Features: &f.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
@@ -139,8 +170,8 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 	// NOTE: PLEASE ENSURE YOU SET THE ORDERBOOK BUFFER SETTINGS CORRECTLY
 	f.Websocket.Orderbook.Setup(
 		exch.WebsocketOrderbookBufferLimit,
-		true,
-		true,
+		false,
+		false,
 		false,
 		false,
 		exch.Name)
@@ -181,17 +212,27 @@ func (f *FTX) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (f *FTX) FetchTradablePairs(a asset.Item) ([]string, error) {
-	if a != asset.Spot {
+	if a != asset.Spot && a != asset.Futures {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, f.Name)
 	}
 	markets, err := f.GetMarkets()
 	if err != nil {
 		return nil, err
 	}
-
 	var pairs []string
-	for x := range markets.Result {
-		pairs = append(pairs, markets.Result[x].Name)
+	switch a {
+	case asset.Spot:
+		for x := range markets.Result {
+			if markets.Result[x].MarketType == spotString {
+				pairs = append(pairs, markets.Result[x].Name)
+			}
+		}
+	case asset.Futures:
+		for x := range markets.Result {
+			if markets.Result[x].MarketType == futuresString {
+				pairs = append(pairs, markets.Result[x].Name)
+			}
+		}
 	}
 	return pairs, nil
 }
@@ -203,8 +244,16 @@ func (f *FTX) UpdateTradablePairs(forceUpdate bool) error {
 	if err != nil {
 		return err
 	}
-	return f.UpdatePairs(currency.NewPairsFromStrings(pairs),
+	err = f.UpdatePairs(currency.NewPairsFromStrings(pairs),
 		asset.Spot, false, forceUpdate)
+	if err != nil {
+		return err
+	}
+	futuresPairs, err := f.FetchTradablePairs(asset.Futures)
+	if err != nil {
+		return err
+	}
+	return f.UpdatePairs(currency.NewPairsFromStrings(futuresPairs), asset.Futures, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
