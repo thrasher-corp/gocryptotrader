@@ -27,7 +27,7 @@ func New() *Websocket {
 		init:              true,
 		DataHandler:       make(chan interface{}),
 		ToRoutine:         make(chan interface{}, defaultJobBuffer),
-		trafficAlert:      make(chan struct{}),
+		TrafficAlert:      make(chan struct{}),
 		readMessageErrors: make(chan error),
 		subscribe:         make(chan []ChannelSubscription),
 		unsubscribe:       make(chan []ChannelSubscription),
@@ -40,7 +40,7 @@ func NewTestWebsocket() *Websocket {
 		init:              true,
 		DataHandler:       make(chan interface{}, 75),
 		ToRoutine:         make(chan interface{}, defaultJobBuffer),
-		trafficAlert:      make(chan struct{}),
+		TrafficAlert:      make(chan struct{}),
 		readMessageErrors: make(chan error),
 		subscribe:         make(chan []ChannelSubscription, 10),
 		unsubscribe:       make(chan []ChannelSubscription, 10),
@@ -112,7 +112,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup, auth bool) error {
 		return errors.New("setting up new connection error: exchange name not set, please call setup first")
 	}
 
-	if w.trafficAlert == nil {
+	if w.TrafficAlert == nil {
 		return errors.New("setting up new connection error: traffic alert is nil, please call setup first")
 	}
 
@@ -132,7 +132,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup, auth bool) error {
 		Verbose:              w.verbose,
 		ResponseCheckTimeout: c.ResponseCheckTimeout,
 		ResponseMaxLimit:     c.ResponseMaxLimit,
-		traffic:              w.trafficAlert,
+		traffic:              w.TrafficAlert,
 		readMessageErrors:    w.readMessageErrors,
 		shutdown:             make(chan struct{}),
 	}
@@ -180,7 +180,7 @@ func (w *Websocket) Connect() error {
 			w.exchangeName)
 	}
 	w.setConnectingStatus(true)
-	w.shutdown = make(chan struct{})
+	w.ShutdownC = make(chan struct{})
 
 	go w.dataMonitor()
 
@@ -227,12 +227,12 @@ func (w *Websocket) dataMonitor() {
 	}()
 	for {
 		select {
-		case <-w.shutdown:
+		case <-w.ShutdownC:
 			return
 		case d := <-w.DataHandler:
 			select {
 			case w.ToRoutine <- d:
-			case <-w.shutdown:
+			case <-w.ShutdownC:
 				return
 			default:
 				log.Errorf(log.WebsocketMgr,
@@ -240,7 +240,7 @@ func (w *Websocket) dataMonitor() {
 					w.exchangeName)
 				select {
 				case w.ToRoutine <- d:
-				case <-w.shutdown:
+				case <-w.ShutdownC:
 					return
 				}
 			}
@@ -265,11 +265,11 @@ func (w *Websocket) connectionMonitor() {
 			}
 		}
 		w.setConnectionMonitorRunning(false)
-		// if w.verbose {
-		log.Debugf(log.WebsocketMgr,
-			"%v websocket connection monitor exiting",
-			w.exchangeName)
-		// }
+		if w.verbose {
+			log.Debugf(log.WebsocketMgr,
+				"%v websocket connection monitor exiting",
+				w.exchangeName)
+		}
 	}()
 
 	for {
@@ -372,7 +372,7 @@ func (w *Websocket) Shutdown() error {
 		}
 	}
 
-	close(w.shutdown)
+	close(w.ShutdownC)
 	w.Wg.Wait()
 	w.setConnectedStatus(false)
 	w.setConnectingStatus(false)
@@ -451,14 +451,14 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 	w.setTrafficMonitorRunning(true)
 	for {
 		select {
-		case <-w.shutdown:
+		case <-w.ShutdownC:
 			// if w.verbose {
 			log.Debugf(log.WebsocketMgr,
 				"%v trafficMonitor shutdown message received",
 				w.exchangeName)
 			// }
 			return
-		case <-w.trafficAlert:
+		case <-w.TrafficAlert:
 			if !trafficTimer.Stop() {
 				select {
 				case <-trafficTimer.C:
@@ -632,7 +632,7 @@ func (w *Websocket) manageSubscriptions() {
 
 	for {
 		select {
-		case <-w.shutdown:
+		case <-w.ShutdownC:
 			w.subscriptionMutex.Lock()
 			w.subscriptions = nil
 			w.subscriptionMutex.Unlock()

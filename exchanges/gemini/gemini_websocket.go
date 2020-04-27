@@ -152,14 +152,18 @@ func (g *Gemini) wsReadData() {
 	g.Websocket.Wg.Add(1)
 	defer g.Websocket.Wg.Done()
 	for {
-		resp := <-comms
-		// Gemini likes to send empty arrays
-		if string(resp.Raw) == "[]" {
-			continue
-		}
-		err := g.wsHandleData(resp.Raw, resp.Currency)
-		if err != nil {
-			g.Websocket.DataHandler <- err
+		select {
+		case <-g.Websocket.ShutdownC:
+			return
+			case resp := <-comms
+			// Gemini likes to send empty arrays
+			if string(resp.Raw) == "[]" {
+				continue
+			}
+			err := g.wsHandleData(resp.Raw, resp.Currency)
+			if err != nil {
+				g.Websocket.DataHandler <- err
+			}
 		}
 	}
 }

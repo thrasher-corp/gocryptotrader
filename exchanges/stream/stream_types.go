@@ -10,29 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// // Manager defines functionality for different exchange streaming services and
-// // related connections
-// type Manager interface {
-// 	// Connect() error
-// 	// Disconnect() error
-// 	// GenerateAuthSubscriptions()
-// 	// GenerateMarketDataSubscriptions()
-// 	// Subscribe()
-// 	// UnSubscribe()
-// 	// Refresh()
-// 	// GetName() string
-// 	// GetProxy() string
-// 	Setup(*stream.WebsocketSetup) error
-// 	SetupNewConnection(ConnectionSetup, bool) error
-// 	SetupLocalOrderbook(cache.Config) error
-// 	SubscribeToChannels([]ChannelSubscription)
-// 	RemoveSubscribedChannels([]ChannelSubscription)
-// 	GetSubscriptions() []ChannelSubscription
-// 	SetProxyAddress(string) error
-// 	IsEnabled() bool
-// 	Wrapper
-// }
-
 // Connection defines a streaming services connection
 type Connection interface {
 	Dial(*websocket.Dialer, http.Header) error
@@ -48,13 +25,6 @@ type Connection interface {
 	Shutdown() error
 }
 
-// SubscriptionManager handles streaming subscription streaming
-type SubscriptionManager interface{}
-
-// Wrapper links websocket endpoint requests for account, positional, order
-// information etc.
-type Wrapper interface{}
-
 // Response defines generalised data from the stream connection
 type Response struct {
 	Type int
@@ -62,8 +32,6 @@ type Response struct {
 }
 
 // ChannelSubscription container for streaming subscriptions
-// Currently only a one at a time thing to avoid complexity
-// TODO: SUB/UNSUB complete list
 type ChannelSubscription struct {
 	Channel  string
 	Currency currency.Pair

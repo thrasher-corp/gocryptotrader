@@ -55,14 +55,14 @@ type Websocket struct {
 	ToRoutine   chan interface{}
 
 	// shutdown synchronises shutdown event across routines
-	shutdown chan struct{}
-	Wg       sync.WaitGroup
+	ShutdownC chan struct{}
+	Wg        sync.WaitGroup
 
 	// Orderbook is a local cache of orderbooks
 	Orderbook cache.Orderbook
 
 	// trafficAlert monitors if there is a halt in traffic throughput
-	trafficAlert chan struct{}
+	TrafficAlert chan struct{}
 	// ReadMessageErrors will received all errors from ws.ReadMessage() and
 	// verify if its a disconnection
 	readMessageErrors chan error

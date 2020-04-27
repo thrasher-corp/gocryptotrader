@@ -36,7 +36,9 @@ func (l *LakeBTC) WsConnect() error {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var err error
-	l.WebsocketConn.Client, err = pusher.NewCustomClient(strings.ToLower(l.Name), lakeBTCWSURL, wssSchem)
+	l.WebsocketConn.Client, err = pusher.NewCustomClient(strings.ToLower(l.Name),
+		lakeBTCWSURL,
+		wssSchem)
 	if err != nil {
 		return err
 	}
@@ -113,10 +115,11 @@ func (l *LakeBTC) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 func (l *LakeBTC) wsHandleIncomingData() {
 	l.Websocket.Wg.Add(1)
 	defer l.Websocket.Wg.Done()
+
 	for {
 		select {
-		// case <-l.Websocket.ShutdownC:
-		// 	return
+		case <-l.Websocket.ShutdownC:
+			return
 		case data := <-l.WebsocketConn.Ticker:
 			if l.Verbose {
 				log.Debugf(log.ExchangeSys,
@@ -147,6 +150,10 @@ func (l *LakeBTC) wsHandleIncomingData() {
 				l.Websocket.DataHandler <- err
 				return
 			}
+		}
+		select {
+		case l.Websocket.TrafficAlert <- struct{}{}:
+		default:
 		}
 	}
 }
@@ -207,13 +214,11 @@ func (l *LakeBTC) processOrderbook(obUpdate, channel string) error {
 		var amount, price float64
 		amount, err = strconv.ParseFloat(update.Asks[i][1], 64)
 		if err != nil {
-			l.Websocket.DataHandler <- fmt.Errorf("%v error parsing ticker data 'low' %v", l.Name, update.Asks[i])
-			continue
+			return err
 		}
 		price, err = strconv.ParseFloat(update.Asks[i][0], 64)
 		if err != nil {
-			l.Websocket.DataHandler <- fmt.Errorf("%v error parsing orderbook price %v", l.Name, update.Asks[i])
-			continue
+			return err
 		}
 		book.Asks = append(book.Asks, orderbook.Item{
 			Amount: amount,
@@ -225,13 +230,11 @@ func (l *LakeBTC) processOrderbook(obUpdate, channel string) error {
 		var amount, price float64
 		amount, err = strconv.ParseFloat(update.Bids[i][1], 64)
 		if err != nil {
-			l.Websocket.DataHandler <- fmt.Errorf("%v error parsing ticker data 'low' %v", l.Name, update.Bids[i])
-			continue
+			return err
 		}
 		price, err = strconv.ParseFloat(update.Bids[i][0], 64)
 		if err != nil {
-			l.Websocket.DataHandler <- fmt.Errorf("%v error parsing orderbook price %v", l.Name, update.Bids[i])
-			continue
+			return err
 		}
 		book.Bids = append(book.Bids, orderbook.Item{
 			Amount: amount,
