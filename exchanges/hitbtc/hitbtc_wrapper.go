@@ -388,8 +388,43 @@ func (h *HitBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (h *HitBTC) GetExchangeHistory(*trade.HistoryRequest) ([]trade.History, error) {
-	return nil, common.ErrNotYetImplemented
+func (h *HitBTC) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
+	var resp []trade.History
+
+	if req.TimestampStart.Unix() == 0 {
+		req.TimestampStart = time.Now().AddDate(0, -3, 0) // 3 months prior to now
+	}
+	timestampEnd := req.TimestampStart.AddDate(0, 0, 1) // add 24 hrs
+
+	formattedPair := h.FormatExchangeCurrency(req.Pair, req.Asset)
+
+	trades, err := h.GetTrades(formattedPair.String(),
+		strconv.FormatInt(req.TimestampStart.Unix(), 10),
+		strconv.FormatInt(timestampEnd.Unix(), 10),
+		"1000",
+		"",
+		"timestamp",
+		"")
+	if err != nil {
+		return resp, err
+	}
+
+	for i := range trades {
+		side := order.Sell
+		if trades[i].Side == "buy" {
+			side = order.Buy
+		}
+
+		resp = append(resp, trade.History{
+			Timestamp: trades[i].Timestamp,
+			TID:       strconv.FormatInt(trades[i].ID, 10),
+			Price:     trades[i].Price,
+			Amount:    trades[i].Quantity,
+			Exchange:  h.GetName(),
+			Side:      side,
+		})
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

@@ -2,6 +2,7 @@ package bittrex
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -341,8 +342,37 @@ func (b *Bittrex) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bittrex) GetExchangeHistory(*trade.HistoryRequest) ([]trade.History, error) {
-	return nil, common.ErrNotYetImplemented
+func (b *Bittrex) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
+	var resp []trade.History
+	trades, err := b.GetMarketHistory(b.FormatExchangeCurrency(req.Pair, req.Asset).String())
+	if err != nil {
+		return resp, err
+	}
+
+	for i := range trades.Result {
+		t, err := time.Parse(time.RFC3339, trades.Result[i].Timestamp+"Z")
+		if err != nil {
+			return resp, err
+		}
+
+		var side order.Side
+		if trades.Result[i].OrderType == "BUY" {
+			side = order.Buy
+		} else {
+			side = order.Sell
+		}
+
+		resp = append(resp, trade.History{
+			Timestamp: t,
+			TID:       strconv.FormatInt(trades.Result[i].ID, 10),
+			Price:     trades.Result[i].Price,
+			Amount:    trades.Result[i].Quantity,
+			Exchange:  b.Name,
+			Side:      side,
+			FillType:  trades.Result[i].FillType,
+		})
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

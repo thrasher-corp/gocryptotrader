@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -332,8 +333,39 @@ func (g *Gemini) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (g *Gemini) GetExchangeHistory(*trade.HistoryRequest) ([]trade.History, error) {
-	return nil, common.ErrNotYetImplemented
+func (g *Gemini) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
+	var resp []trade.History
+
+	if req.TimestampStart.Unix() == 0 {
+		// 7 calender days earlier, any longer and the exchange returns an error
+		req.TimestampStart = time.Now().AddDate(0, 0, -7)
+	}
+
+	v := url.Values{}
+	v.Set("since", strconv.FormatInt(convert.UnixMillis(req.TimestampStart), 10))
+	v.Set("limit_trades", "500")
+
+	trades, err := g.GetTrades(g.FormatExchangeCurrency(req.Pair, req.Asset).String(), v)
+	if err != nil {
+		return resp, err
+	}
+
+	for i := range trades {
+		t := convert.UnixMillisToNano(trades[i].Timestampms)
+		side := order.Sell
+		if trades[i].Side == "buy" {
+			side = order.Buy
+		}
+		resp = append(resp, trade.History{
+			Timestamp: time.Unix(0, t),
+			TID:       strconv.FormatInt(trades[i].TID, 10),
+			Price:     trades[i].Price,
+			Amount:    trades[i].Amount,
+			Exchange:  g.Name,
+			Side:      side,
+		})
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order
