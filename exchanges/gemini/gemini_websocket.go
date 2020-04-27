@@ -155,7 +155,7 @@ func (g *Gemini) wsReadData() {
 		select {
 		case <-g.Websocket.ShutdownC:
 			return
-			case resp := <-comms
+		case resp := <-comms:
 			// Gemini likes to send empty arrays
 			if string(resp.Raw) == "[]" {
 				continue
