@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -39,43 +39,45 @@ func (f *FTX) WsConnect() error {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", f.Name)
 	}
 	go f.wsReadData()
-	// if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-	// 	err := f.WsAuth()
-	// 	if err != nil {
-	// 		f.Websocket.DataHandler <- err
-	// 		f.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	// 	}
-	// }
-	fmt.Printf("WTFFFFFFFFFFFF")
+	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		err := f.WsAuth()
+		if err != nil {
+			f.Websocket.DataHandler <- err
+			f.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		}
+	}
 	f.GenerateDefaultSubscriptions()
 	return nil
 }
 
 // WsAuth sends an authentication message to receive auth data
 func (f *FTX) WsAuth() error {
-	nonce := strconv.FormatInt(int64(time.Now().UnixNano()/1000000), 10)
+	// nonce := strconv.FormatInt(int64(time.Now().UnixNano()/1000000), 10)
+	nonce := "1557246346499"
 	hmac := crypto.GetHMAC(
 		crypto.HashSHA256,
 		[]byte(nonce+"websocket_login"),
-		[]byte(f.API.Credentials.Secret),
+		[]byte("Y2QTHI23f23f23jfjas23f23To0RfUwX3H42fvN-"),
 	)
 	sign := crypto.HexEncodeToString(hmac)
-	req := Authenticate{op: "login",
-		args: AuthenticationData{key: f.API.Credentials.Key,
-			sign: sign,
-			time: nonce,
+	req := Authenticate{Operation: "login",
+		Args: AuthenticationData{Key: f.API.Credentials.Key,
+			Sign: sign,
+			Time: nonce,
 		},
 	}
-	return f.WebsocketConn.SendJSONMessage(req)
+	fmt.Println(req)
+	return nil
+	// return f.WebsocketConn.SendJSONMessage(req)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
 func (f *FTX) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	var sub WsSub
 	fmt.Printf("WHY GOD")
-	sub.op = "subscribe"
-	sub.channel = channelToSubscribe.Channel
-	sub.market = f.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Futures).String()
+	sub.Operation = "subscribe"
+	sub.Channel = channelToSubscribe.Channel
+	sub.Market = f.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Futures).String()
 	return f.WebsocketConn.SendJSONMessage(sub)
 }
 
@@ -141,9 +143,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			}
 			f.Websocket.DataHandler <- tickerData
 		case result["channel"] == "orderbook":
-			fmt.Printf("HOORAYYYYYYYY\n\n\n\n")
 		case result["channel"] == "trades":
-			fmt.Printf("HIYAAAAAAAAAAA\n\n\n\n")
 		}
 	}
 	return nil

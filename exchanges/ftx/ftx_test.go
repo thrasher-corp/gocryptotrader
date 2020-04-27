@@ -701,3 +701,10 @@ func TestGetOfflineTradingFee(t *testing.T) {
 		t.Errorf("incorrect offline taker fee")
 	}
 }
+
+func TestWSAuth(t *testing.T) {
+	err := f.WsAuth()
+	if err != nil {
+		t.Error(err)
+	}
+}
