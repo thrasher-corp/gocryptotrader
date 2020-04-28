@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -71,10 +72,21 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetChartCandles(t *testing.T) {
-	_, err := h.GetCandles("BTCUSD", "", "")
+	h.Verbose = true
+	_, err := h.GetCandles("BTCUSD", "", "D1", time.Now().Add(-24*time.Hour).Format(time.RFC3339), time.Now().Format(time.RFC3339))
 	if err != nil {
 		t.Error("Test faild - HitBTC GetChartData() error", err)
 	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	h.Verbose = true
+	pair := currency.NewPairFromString("BTCUSD")
+	v, err := h.GetHistoricCandles(pair, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(v)
 }
 
 func TestGetCurrencies(t *testing.T) {

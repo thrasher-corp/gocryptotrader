@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -12,6 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -96,11 +99,25 @@ func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
 	_, err := h.GetSpotKline(KlinesRequestParams{
 		Symbol: testSymbol,
-		Period: TimeIntervalHour,
+		Period: kline.OneMin.String(),
 		Size:   0,
 	})
 	if err != nil {
 		t.Errorf("Huobi TestGetSpotKline: %s", err)
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	currencyPair := currency.NewPairFromString("BTCUSDT")
+	startTime := time.Now().Add(-time.Hour * 1)
+	_, err := h.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = h.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
 	}
 }
 

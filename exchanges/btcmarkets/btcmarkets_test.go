@@ -727,7 +727,8 @@ func TestBTCMarkets_GetHistoricCandles(t *testing.T) {
 	}
 	_, err = b.GetHistoricCandles(p, asset.Spot, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC(), kline.FifteenMin)
 	if err != nil {
-		if !errors.Is(err, errInvalidTimeInterval) {
+		t.Log(err)
+		if !errors.As(err, &kline.ErrorKline{}) {
 			t.Fatal(err)
 		}
 	}

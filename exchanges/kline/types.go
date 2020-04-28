@@ -1,6 +1,7 @@
 package kline
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -10,20 +11,22 @@ import (
 // Consts here define basic time intervals
 const (
 	OneMin         = Interval(time.Minute)
-	ThreeMin       = Interval(3 * time.Minute)
-	FiveMin        = Interval(5 * time.Minute)
-	TenMin         = Interval(10 * time.Minute)
-	FifteenMin     = Interval(15 * time.Minute)
-	ThirtyMin      = Interval(30 * time.Minute)
+	ThreeMin       = 3 * OneMin
+	FiveMin        = 5 * OneMin
+	TenMin         = 10 * OneMin
+	FifteenMin     = 15 * OneMin
+	ThirtyMin      = 30 * OneMin
 	OneHour        = Interval(1 * time.Hour)
-	TwoHour        = Interval(2 * time.Hour)
-	FourHour       = Interval(4 * time.Hour)
-	SixHour        = Interval(6 * time.Hour)
-	TwelveHour     = Interval(12 * time.Hour)
-	TwentyFourHour = Interval(24 * time.Hour)
+	TwoHour        = 2 * OneHour
+	FourHour       = 4 * OneHour
+	SixHour        = 6 * OneHour
+	TwelveHour     = 12 * OneHour
+	TwentyFourHour = 24 * OneHour
 	OneDay         = TwentyFourHour
-	ThreeDay       = Interval(72 * time.Hour)
-	OneWeek        = Interval(168 * time.Hour)
+	ThreeDay       = 3 * OneDay
+	SevenDay       = 7 * OneDay
+	OneWeek        = 7 * OneDay
+	TwoWeek        = 2 * OneWeek
 )
 
 // const (
@@ -73,3 +76,15 @@ type ExchangeCapabilities struct {
 }
 
 type Interval time.Duration
+
+type ErrorKline struct {
+	Interval Interval
+}
+
+func (k ErrorKline) Error() string {
+	return fmt.Sprintf(ErrUnsupportedInterval, k.Interval.Short())
+}
+
+func (k *ErrorKline) Unwrap() error {
+	return fmt.Errorf(ErrUnsupportedInterval, k.Interval)
+}

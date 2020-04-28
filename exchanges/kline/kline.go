@@ -190,6 +190,8 @@ func DurationToWord(in Interval) string {
 		return "threeday"
 	case OneWeek:
 		return "oneweek"
+	case TwoWeek:
+		return "twoweek"
 	default:
 		return ""
 	}

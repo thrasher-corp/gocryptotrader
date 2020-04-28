@@ -97,6 +97,7 @@ func (b *Bithumb) SetDefaults() {
 				FiatWithdrawalFee:   true,
 				CryptoDepositFee:    true,
 				CryptoWithdrawalFee: true,
+				KlineFetching:       true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,

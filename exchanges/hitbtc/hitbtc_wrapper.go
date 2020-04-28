@@ -110,9 +110,18 @@ func (h *HitBTC) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
+			KlineCapabilities: kline.ExchangeCapabilities{
+				SupportsIntervals: true,
+				SupportsDateRange: true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			KlineCapabilities: kline.ExchangeCapabilities{
+				Intervals: map[string]bool{
+					"onemin": true,
+				},
+			},
 		},
 	}
 
@@ -664,7 +673,50 @@ func (h *HitBTC) ValidateCredentials() error {
 	return h.CheckTransientError(err)
 }
 
+func (h *HitBTC) KlineConvertToExchangeStandardString(in kline.Interval) string {
+	switch in {
+	case kline.OneMin, kline.ThreeMin,
+		kline.FiveMin, kline.FifteenMin, kline.ThirtyMin:
+		return "M" + in.Short()[:len(in.Short())-1]
+	case kline.OneDay:
+		return "D1"
+	case kline.SevenDay:
+		return "D7"
+	}
+	return in.Short()
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (h *HitBTC) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+	if !h.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+	data, err := h.GetCandles(h.FormatExchangeCurrency(pair, a).String(), "1000",
+		h.KlineConvertToExchangeStandardString(interval),
+		start.Format(time.RFC3339), end.Format(time.RFC3339))
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	fmt.Println(data)
+
+	ret := kline.Item{
+		Exchange: h.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+	for x := range data {
+		ret.Candles = append(ret.Candles, kline.Candle{
+			Time:   data[x].Timestamp,
+			Open:   data[x].Open,
+			High:   data[x].Max,
+			Low:    data[x].Min,
+			Close:  data[x].Close,
+			Volume: data[x].Volume,
+		})
+	}
+	return ret, nil
 }

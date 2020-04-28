@@ -96,6 +96,20 @@ func (l *Lbank) SetDefaults() {
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			KlineCapabilities: kline.ExchangeCapabilities{
+				Intervals: map[string]bool{
+					"onemin":     true,
+					"fivemin":    true,
+					"fifteenmin": true,
+					"thirtymin":  true,
+					"onehour":    true,
+					"fourhour":   true,
+					"eighthour":  true,
+					"twelvehour": true,
+					"oneday":     true,
+					"oneweek":    true,
+				},
+			},
 		},
 	}
 
@@ -720,7 +734,51 @@ func (l *Lbank) ValidateCredentials() error {
 	return l.CheckTransientError(err)
 }
 
+func (l *Lbank) KlineConvertToExchangeStandardString(in kline.Interval) string {
+	switch in {
+	case kline.OneMin, kline.ThreeMin,
+		kline.FiveMin, kline.FifteenMin, kline.ThirtyMin:
+		return "minute" + in.Short()[:len(in.Short())-1]
+	case kline.OneDay:
+		return "day1"
+	case kline.OneWeek:
+		return "week1"
+	}
+	return in.Short()
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (l *Lbank) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrFunctionNotSupported
+	if !l.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	data, err := l.GetKlines(l.FormatExchangeCurrency(pair, a).String(),
+		"2880", l.KlineConvertToExchangeStandardString(interval),
+		strconv.FormatInt(start.Unix(), 10))
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	ret := kline.Item{
+		Exchange: l.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	for x := range data {
+		ret.Candles = append(ret.Candles, kline.Candle{
+			Time:   time.Unix(data[x].TimeStamp, 0),
+			Open:   data[x].OpenPrice,
+			High:   data[x].HigestPrice,
+			Low:    data[x].LowestPrice,
+			Close:  data[x].ClosePrice,
+			Volume: data[x].TradingVolume,
+		})
+	}
+
+	return ret, nil
 }

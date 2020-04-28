@@ -68,7 +68,7 @@ const (
 	bitfinexTrades         = "trades/"
 	bitfinexOrderbook      = "book/"
 	bitfinexStatistics     = "stats1/"
-	bitfinexCandles        = "candles/tradeRateLimit"
+	bitfinexCandles        = "candles/trade"
 	bitfinexKeyPermissions = "key_info"
 	bitfinexMarginInfo     = "margin_infos"
 	bitfinexDepositMethod  = "conf/pub:map:currency:label"

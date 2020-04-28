@@ -1526,6 +1526,12 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHisto
 	if exchange == nil {
 		return nil, errors.New("Exchange " + req.Exchange + " not found")
 	}
+
+	if !exchange.GetBase().Features.Supports.RESTCapabilities.KlineFetching ||
+		!exchange.GetBase().Features.Supports.WebsocketCapabilities.KlineFetching {
+		return nil, errors.New("retrieving historic candles is not supported by " + req.Exchange)
+	}
+
 	candles, err := exchange.GetHistoricCandles(currency.Pair{
 		Delimiter: req.Pair.Delimiter,
 		Base:      currency.NewCode(req.Pair.Base),

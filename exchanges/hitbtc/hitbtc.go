@@ -200,7 +200,7 @@ func (h *HitBTC) GetOrderbook(currencyPair string, limit int) (Orderbook, error)
 
 // GetCandles returns candles which is used for OHLC a specific currency.
 // Note: Result contain candles only with non zero volume.
-func (h *HitBTC) GetCandles(currencyPair, limit, period string) ([]ChartData, error) {
+func (h *HitBTC) GetCandles(currencyPair, limit, period, start, end string) ([]ChartData, error) {
 	// limit   Limit of candles, default 100.
 	// period  One of: M1 (one minute), M3, M5, M15, M30, H1, H4, D1, D7, 1M (one month). Default is M30 (30 minutes).
 	vals := url.Values{}
@@ -211,6 +211,13 @@ func (h *HitBTC) GetCandles(currencyPair, limit, period string) ([]ChartData, er
 
 	if period != "" {
 		vals.Set("period", period)
+	}
+
+	if start != "" {
+		vals.Set("from", start)
+	}
+	if end != "" {
+		vals.Set("till", end)
 	}
 
 	var resp []ChartData

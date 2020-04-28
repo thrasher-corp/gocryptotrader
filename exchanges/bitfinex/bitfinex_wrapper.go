@@ -9,7 +9,6 @@ import (
 	"unicode"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -122,9 +121,30 @@ func (b *Bitfinex) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.AutoWithdrawFiatWithAPIPermission,
+			KlineCapabilities: kline.ExchangeCapabilities{
+				SupportsDateRange: true,
+				SupportsIntervals: true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			KlineCapabilities: kline.ExchangeCapabilities{
+				Intervals: map[string]bool{
+					"onemin":     true,
+					"threemin":   true,
+					"fivemin":    true,
+					"fifteenmin": true,
+					"thirtymin":  true,
+					"onehour":    true,
+					"twohour":    true,
+					"fourhour":   true,
+					"sixhour":    true,
+					"twelvehour": true,
+					"oneday":     true,
+					"oneweek":    true,
+					"twoweek":    true,
+				},
+			},
 		},
 	}
 
@@ -776,13 +796,28 @@ func (b *Bitfinex) ValidateCredentials() error {
 	return b.CheckTransientError(err)
 }
 
+func (b *Bitfinex) KlineConvertToExchangeStandardString(in kline.Interval) string {
+	switch in {
+	case kline.OneDay:
+		return "1D"
+	case kline.OneWeek:
+		return "7D"
+	case kline.OneWeek * 2:
+		return "14D"
+	default:
+		return in.Short()
+	}
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	timeframe, err := parseInterval(interval)
-	if err != nil {
-		return kline.Item{}, err
+	if !b.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
 	}
-	candles, err := b.GetCandles(fixCasing(pair), timeframe, start.Unix()*1000, end.Unix()*1000, 0, true, false)
+
+	candles, err := b.GetCandles(fixCasing(pair), b.KlineConvertToExchangeStandardString(interval), start.Unix()*1000, end.Unix()*1000, 0, true, false)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -804,25 +839,6 @@ func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		})
 	}
 	return ret, nil
-}
-
-func parseInterval(in kline.Interval) (string, error) {
-	switch in {
-	case kline.OneMin, kline.ThreeMin, kline.FiveMin,
-		kline.FifteenMin, kline.ThirtyMin,
-		kline.OneHour, kline.TwoHour,
-		kline.FourHour, kline.SixHour,
-		kline.OneHour * 8, kline.TwelveHour:
-		return convert.ParseIntervalDuration(in.Duration(), false), nil
-	case kline.OneDay:
-		return "1D", nil
-	case kline.OneWeek:
-		return "7D", nil
-	case kline.OneWeek * 2:
-		return "14D", nil
-	default:
-		return "", errInvalidInterval
-	}
 }
 
 func fixCasing(in currency.Pair) string {

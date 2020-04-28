@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -404,5 +405,14 @@ func TestGetOrderHistory(t *testing.T) {
 	_, err := l.GetOrderHistory(&input)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	t.Parallel()
+	pair := currency.NewPairFromString(testCurrencyPair)
+	_, err := l.GetHistoricCandles(pair, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

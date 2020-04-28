@@ -2,7 +2,6 @@ package binance
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -737,7 +736,9 @@ func (b *Binance) KlineConvertToExchangeStandardString(in kline.Interval) string
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if !b.KlineIntervalEnabled(interval) {
-		return kline.Item{}, fmt.Errorf(kline.ErrUnsupportedInterval, interval)
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
 	}
 
 	klineParams := KlinesRequestParams{
@@ -747,7 +748,6 @@ func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 		EndTime:   end.Unix() * 1000,
 	}
 
-	fmt.Println(klineParams)
 	candles, err := b.GetSpotKline(klineParams)
 	if err != nil {
 		return kline.Item{}, err

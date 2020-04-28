@@ -803,10 +803,17 @@ func (e *Base) EnableRateLimiter() error {
 	return e.Requester.EnableRateLimiter()
 }
 
+// KlineIntervalEnabled returns if requested interval is enabled on exchange
 func (e *Base) KlineIntervalEnabled(in kline.Interval) bool {
 	return e.Features.Enabled.KlineCapabilities.Intervals[in.Word()]
 }
 
-func (e *Base) KlineConvertToExchangeStandardString(in kline.Interval) (string, error) {
-	return kline.OneHour.String(), common.ErrNotYetImplemented
+func (e *Base) KlineValidFeatures() bool {
+	return false
+}
+
+// KlineConvertToExchangeStandardString returns Interval to string
+// Exchanges can override this if they require custom formatting
+func (e *Base) KlineConvertToExchangeStandardString(in kline.Interval) string {
+	return common.ErrNotYetImplemented.Error()
 }

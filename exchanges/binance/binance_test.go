@@ -812,7 +812,6 @@ func TestGetHistoricCandles(t *testing.T) {
 	if mockTests {
 		t.Skip("skipping test under mock as its covered by GetSpotKlines()")
 	}
-	b.Verbose = true
 	currencyPair := currency.NewPairFromString("BTCUSDT")
 	startTime := time.Now().Add(-time.Hour * 1)
 	_, err := b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)

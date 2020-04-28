@@ -162,28 +162,29 @@ func (b *BTCMarkets) GetOrderbook(marketID string, level int64) (Orderbook, erro
 	return orderbook, nil
 }
 
+func (b *BTCMarkets) KlineConvertToExchangeStandardString(in kline.Interval) string {
+	if in == kline.OneDay || in == kline.TwentyFourHour {
+		return "1d"
+	}
+	return in.Short()
+}
+
 // GetMarketCandles gets candles for specified currency pair
 func (b *BTCMarkets) GetMarketCandles(marketID string, timeWindow kline.Interval, from, to time.Time, before, after, limit int64) (kline.Item, error) {
+	if !b.KlineIntervalEnabled(timeWindow) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: timeWindow,
+		}
+	}
+
 	if (before > 0) && (after >= 0) {
 		return kline.Item{}, errors.New("BTCMarkets only supports either before or after, not both")
 	}
 	var temp [][]string
 	params := url.Values{}
 
-	var intervalStr string
-	switch timeWindow {
-	case kline.OneMin:
-		intervalStr = "1m"
-	case kline.OneHour:
-		intervalStr = "1h"
-	case kline.OneDay:
-		intervalStr = "1d"
-	default:
-		return kline.Item{}, errInvalidTimeInterval
-	}
-
 	if timeWindow != 0 {
-		params.Set("timeWindow", intervalStr)
+		params.Set("timeWindow", b.KlineConvertToExchangeStandardString(timeWindow))
 	}
 	if !from.IsZero() {
 		params.Set("from", from.UTC().Format(time.RFC3339))

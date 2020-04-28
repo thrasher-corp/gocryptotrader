@@ -183,15 +183,6 @@ func (b *Binance) GetAggregatedTrades(symbol string, limit int, start, end time.
 		return resp, errors.New("start and end cannot be greater than 1 hour")
 	}
 
-	if !start.IsZero() {
-		params.Set("startTime", strconv.FormatInt(start.UnixNano(), 10))
-	}
-	if !end.IsZero() {
-		params.Set("endTime", strconv.FormatInt(end.UnixNano(), 10))
-	}
-
-	fmt.Println(start)
-	fmt.Println(end)
 	path := b.API.Endpoints.URL + aggregatedTrades + "?" + params.Encode()
 	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
 }

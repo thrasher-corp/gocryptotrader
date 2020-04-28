@@ -1214,6 +1214,7 @@ func TestWsNotifications(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
+	b.Verbose = true
 	currencyPair := currency.NewPairFromString("tBTCUSD")
 	startTime := time.Now().Add(-time.Hour * 24)
 	_, err := b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
@@ -1241,66 +1242,5 @@ func TestFixCasing(t *testing.T) {
 	ret = fixCasing(currency.NewPairFromString("BTCUSD"))
 	if ret != "BTCUSD" {
 		t.Fatalf("unexpected result: %v", ret)
-	}
-}
-
-func TestParseInterval(t *testing.T) {
-	testCases := []struct {
-		name     string
-		interval kline.Interval
-		expected string
-		err      error
-	}{
-		{
-			"OneMin",
-			kline.OneMin,
-			"1m",
-			nil,
-		},
-		{
-			"OneHour",
-			kline.OneHour,
-			"1h",
-			nil,
-		},
-		{
-			"OneDay",
-			kline.OneDay,
-			"1D",
-			nil,
-		},
-		{
-			"OneWeek",
-			kline.OneWeek,
-			"7D",
-			nil,
-		},
-		{
-			"TwoWeeks",
-			kline.OneWeek * 2,
-			"14D",
-			nil,
-		},
-		{
-			"default",
-			kline.OneHour * 1337,
-			"",
-			errInvalidInterval,
-		},
-	}
-	for x := range testCases {
-		test := testCases[x]
-		t.Run(test.name, func(t *testing.T) {
-			v, err := parseInterval(test.interval)
-			if err != nil {
-				if err != test.err {
-					t.Fatal(err)
-				}
-			} else {
-				if v != test.expected {
-					t.Fatalf("%v: received %v expected %v", test.name, v, test.expected)
-				}
-			}
-		})
 	}
 }

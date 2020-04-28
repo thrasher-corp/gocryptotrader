@@ -299,26 +299,10 @@ var (
 
 // KlinesRequestParams represents Klines request data.
 type KlinesRequestParams struct {
-	Symbol string       // Symbol to be used; example btcusdt, bccbtc......
-	Period TimeInterval // Kline time interval; 1min, 5min, 15min......
-	Size   int          // Size; [1-2000]
+	Symbol string // Symbol to be used; example btcusdt, bccbtc......
+	Period string // Kline time interval; 1min, 5min, 15min......
+	Size   int    // Size; [1-2000]
 }
-
-// TimeInterval base type
-type TimeInterval string
-
-// TimeInterval vars
-var (
-	TimeIntervalMinute         = TimeInterval("1min")
-	TimeIntervalFiveMinutes    = TimeInterval("5min")
-	TimeIntervalFifteenMinutes = TimeInterval("15min")
-	TimeIntervalThirtyMinutes  = TimeInterval("30min")
-	TimeIntervalHour           = TimeInterval("60min")
-	TimeIntervalDay            = TimeInterval("1day")
-	TimeIntervalWeek           = TimeInterval("1week")
-	TimeIntervalMohth          = TimeInterval("1mon")
-	TimeIntervalYear           = TimeInterval("1year")
-)
 
 // WsRequest defines a request data structure
 type WsRequest struct {
