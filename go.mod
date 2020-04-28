@@ -12,7 +12,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.14.4
 	github.com/kat-co/vala v0.0.0-20170210184112-42e1d8b61f12
-	github.com/lib/pq v1.3.0
+	github.com/lib/pq v1.4.0
 	github.com/mattn/go-sqlite3 v1.13.0
 	github.com/pkg/errors v0.9.1
 	github.com/pquerna/otp v1.2.0
@@ -29,5 +29,5 @@ require (
 	golang.org/x/sys v0.0.0-20191003212358-c178f38b412c // indirect
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	google.golang.org/genproto v0.0.0-20191002211648-c459b9ce5143
-	google.golang.org/grpc v1.28.1
+	google.golang.org/grpc v1.29.1
 )
