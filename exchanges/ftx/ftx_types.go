@@ -739,7 +739,7 @@ type PublicOptionsTrades struct {
 type AuthenticationData struct {
 	Key  string `json:"key"`
 	Sign string `json:"sign"`
-	Time string `json:"time"`
+	Time int64  `json:"time"`
 }
 
 // Authenticate stores authentication variables required
@@ -748,12 +748,22 @@ type Authenticate struct {
 	Operation string             `json:"op"`
 }
 
+// WsResponseData stores basic ws response data on being subscribed to a channel successfully
+type WsResponseData struct {
+	ResponseType string      `json:"type"`
+	Channel      string      `json:"channel"`
+	Market       string      `json:"market"`
+	Data         interface{} `json:"data"`
+}
+
 // WsTickerData stores ws ticker data
 type WsTickerData struct {
-	Bid  float64   `json:"bid"`
-	Ask  float64   `json:"ask"`
-	Last float64   `json:"last"`
-	Time time.Time `json:"time"`
+	Bid     float64   `json:"bid"`
+	Ask     float64   `json:"ask"`
+	BidSize float64   `json:"bidSize"`
+	AskSize float64   `json:"askSize"`
+	Last    float64   `json:"last"`
+	Time    time.Time `json:"time"`
 }
 
 // WsTradeData stores ws trade data

@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -58,17 +59,18 @@ func (f *FTX) WsConnect() error {
 
 // WsAuth sends an authentication message to receive auth data
 func (f *FTX) WsAuth() error {
-	nonce := strconv.FormatInt(int64(time.Now().UnixNano()/1000000), 10)
+	intNonce := int64(time.Now().UnixNano() / 1000000)
+	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac := crypto.GetHMAC(
 		crypto.HashSHA256,
-		[]byte(nonce+"websocket_login"),
+		[]byte(strNonce+"websocket_login"),
 		[]byte(f.API.Credentials.Secret),
 	)
 	sign := crypto.HexEncodeToString(hmac)
 	req := Authenticate{Operation: "login",
 		Args: AuthenticationData{Key: f.API.Credentials.Key,
 			Sign: sign,
-			Time: nonce,
+			Time: intNonce,
 		},
 	}
 	return f.WebsocketConn.SendJSONMessage(req)
@@ -140,19 +142,36 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(result)
-	if result["type"] == "subscribed" {
+	switch result["type"] {
+	case "subscribed":
 		switch {
 		case result["channel"] == "ticker":
-			var tickerData WsTickerData
-			err := json.Unmarshal(respRaw, &tickerData)
-			if err != nil {
-				return err
+			resultData := result["data"].(WsTickerData)
+			f.Websocket.DataHandler <- &ticker.Price{
+				ExchangeName: f.Name,
+				Bid:          resultData.Bid,
+				Ask:          resultData.Ask,
+				Last:         resultData.Last,
+				LastUpdated:  resultData.Time,
+				Pair:         currency.NewPairFromString(result["market"].(string)),
 			}
-			f.Websocket.DataHandler <- tickerData
 		case result["channel"] == "orderbook":
+			resultData := result["data"].(WsOrderbookData)
 		case result["channel"] == "trades":
+		default:
+			f.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: f.Name + wshandler.UnhandledMessage + string(respRaw)}
+			return nil
 		}
+	case "error":
+		f.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: f.Name + wshandler.UnhandledMessage + string(respRaw)}
 	}
 	return nil
+}
+
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (f *FTX) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+	var unSub WsSub
+	unSub.Operation = "unsubscribe"
+	unSub.Channel = channelToSubscribe.Channel
+	return f.WebsocketConn.SendJSONMessage(unSub)
 }

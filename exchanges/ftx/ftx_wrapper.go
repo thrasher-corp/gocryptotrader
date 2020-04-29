@@ -151,8 +151,8 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 			RunningURL:                       exch.API.Endpoints.WebsocketURL,
 			Connector:                        f.WsConnect,
 			Subscriber:                       f.Subscribe,
-			// UnSubscriber:                     b.Unsubscribe,
-			Features: &f.Features.Supports.WebsocketCapabilities,
+			UnSubscriber:                     f.Unsubscribe,
+			Features:                         &f.Features.Supports.WebsocketCapabilities,
 		})
 	if err != nil {
 		return err
