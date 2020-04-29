@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -541,7 +542,7 @@ func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 	pairs := currency.NewPairDelimiter(currencyPair, delimiter)
 	assetType := asset.Item(assetTypeParam)
 
-	ret, err := wrappers.GetWrapper().OHLCV(exchangeName, pairs, assetType, startTime, endTime, interval)
+	ret, err := wrappers.GetWrapper().OHLCV(exchangeName, pairs, assetType, startTime, endTime, kline.Interval(interval))
 	if err != nil {
 		return nil, err
 	}

@@ -3,6 +3,8 @@ package bitfinex
 import (
 	"errors"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // AcceptedOrderType defines the accepted market types, exchange strings denote
@@ -76,6 +78,7 @@ type Trade struct {
 	Rate      float64
 	Period    int64
 	Type      string
+	Side      order.Side
 }
 
 // Lendbook holds most recent funding data for a relevant currency

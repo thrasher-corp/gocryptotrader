@@ -135,3 +135,9 @@ func ParseIntervalDuration(d time.Duration, strip bool) string {
 func UnixMillisToNano(milli int64) int64 {
 	return milli * int64(time.Millisecond)
 }
+
+func TimeStringToRFC3339(timestamp string) (time.Time, error) {
+	split := strings.Split(timestamp, " ")
+	join := strings.Join(split, "T")
+	return time.Parse(time.RFC3339, join+"Z")
+}

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -372,8 +373,42 @@ func (p *Poloniex) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (p *Poloniex) GetExchangeHistory(history *trade.HistoryRequest) ([]trade.History, error) {
-	return nil, common.ErrNotYetImplemented
+func (p *Poloniex) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
+	if req.TimestampStart.Unix() == 0 {
+		req.TimestampStart = time.Now().AddDate(0, -3, 0) // 3 months prior to now
+	}
+	timestampEnd := req.TimestampStart.AddDate(0, 0, 1) // add 24 hours
+
+	fPair := p.FormatExchangeCurrency(req.Pair, req.Asset)
+	t, err := p.GetTradeHistory(fPair.String(),
+		req.TimestampStart.String(),
+		timestampEnd.String())
+	if err != nil {
+		return nil, err
+	}
+
+	var resp []trade.History
+	for i := range t {
+		cTime, err := convert.TimeStringToRFC3339(t[i].Date)
+		if err != nil {
+			return resp, err
+		}
+
+		side := order.Sell
+		if t[i].Type == "buy" {
+			side = order.Buy
+		}
+
+		resp = append(resp, trade.History{
+			Timestamp: cTime,
+			TID:       strconv.FormatInt(t[i].TradeID, 10),
+			Price:     t[i].Rate,
+			Amount:    t[i].Amount,
+			Exchange:  p.GetName(),
+			Side:      side,
+		})
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

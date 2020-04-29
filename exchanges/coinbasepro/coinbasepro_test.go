@@ -1,6 +1,7 @@
 package coinbasepro
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -79,14 +80,15 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetHistoricRatesGranularityCheck(t *testing.T) {
-	end := time.Now().UTC()
-	start := end.Add(-time.Hour * 24)
+	c.Verbose = true
+	end := time.Now()
+	start := end.Add(-time.Hour * 24 * 365)
 	p := currency.NewPair(currency.BTC, currency.USD)
-
-	_, err := c.GetHistoricCandles(p, asset.Spot, start, end, kline.OneMin)
+	v, err := c.GetHistoricCandles(p, asset.Spot, start, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
+	fmt.Println(v)
 }
 
 func TestGetStats(t *testing.T) {
@@ -926,3 +928,28 @@ func TestStatusToStandardStatus(t *testing.T) {
 		}
 	}
 }
+
+func TestCalcNextDates(t *testing.T) {
+	start := time.Now().AddDate(0,-6,0)
+	end := time.Now()
+	interval := kline.OneDay
+
+	total := calcTotalCandles(start, end, interval)
+	v1, v2, v3 := calcNextDates(start, end, interval, total)
+	t.Log(v1)
+	t.Log(v2)
+	t.Log(v3)
+
+	var s1, s2, p1, p2 time.Time
+	p1 = start
+	p2 = end
+	for x := 0 ; x < 10 ;x++ {
+		total := calcTotalCandles(start, end, interval)
+		s1, s2, _ = calcNextDates(p1, p2, interval, total)
+		t.Log(s1)
+		t.Log(s2)
+		p1 = s2
+		//p2 = s2
+	}
+}
+

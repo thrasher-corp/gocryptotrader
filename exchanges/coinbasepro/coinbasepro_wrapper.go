@@ -113,9 +113,23 @@ func (c *CoinbasePro) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.AutoWithdrawFiatWithAPIPermission,
+			KlineCapabilities: kline.ExchangeCapabilities{
+				SupportsDateRange: true,
+				SupportsIntervals: true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			KlineCapabilities: kline.ExchangeCapabilities{
+				Intervals: map[string]bool{
+					"onemin":     true,
+					"fivemin":    true,
+					"fifteenmin": true,
+					"onehour":    true,
+					"sixhour":    true,
+					"oneday":     true,
+				},
+			},
 		},
 	}
 
@@ -726,38 +740,81 @@ func checkInterval(i time.Duration) (int64, error) {
 	return 0, fmt.Errorf("interval not allowed %v", i.Seconds())
 }
 
+func calcNextDates(start, end time.Time, interval kline.Interval, previousRequest int64) (nextStart, nextEnd time.Time, total int64) {
+	var addVal time.Duration
+	switch interval {
+	case kline.OneMin:
+		sub := end.Sub(start)
+		addVal = (time.Duration(sub.Minutes()/300)) * time.Minute
+		previousRequest -= int64(addVal.Minutes())
+	case kline.OneDay:
+		sub := end.Sub(start)
+		addVal = (time.Duration(sub.Hours()/300)) * time.Hour*24
+		previousRequest -= int64(addVal.Hours()*24)
+	}
+	nextStart = start.Add(addVal)
+	nextEnd = nextStart.Add(addVal)
+	total = previousRequest
+	//fmt.Printf("calcNextDates() Start: %v | End: %v\n", nextStart, nextEnd)
+	return
+}
+
+func calcTotalCandles(start, end time.Time, interval kline.Interval) (out int64) {
+	switch interval {
+	case kline.OneMin:
+		out = int64(end.Sub(start).Minutes())
+	case kline.OneDay:
+		out = int64(end.Sub(start).Hours()*24)
+	}
+	return
+}
+
 // GetHistoricCandles returns a set of candle between two time periods for a
 // designated time period
 func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	i, err := checkInterval(interval.Duration())
-	if err != nil {
-		return kline.Item{}, err
+	if !c.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
 	}
 
-	history, err := c.GetHistoricRates(c.FormatExchangeCurrency(p, a).String(),
-		start.Format(time.RFC3339),
-		end.Format(time.RFC3339),
-		i)
-	if err != nil {
-		return kline.Item{}, err
+	candles := kline.Item{
+		Exchange: c.Name,
+		Pair: p,
+		Asset: a,
+		Interval: interval,
 	}
 
-	var candles kline.Item
-	candles.Asset = a
-	candles.Exchange = c.Name
-	candles.Interval = interval
-	candles.Pair = p
+	var s1, s2, p1, p2 time.Time
+	p1 = start
+	p2 = end
+	totalCandles := calcTotalCandles(start, end, interval)
+	var remaining int64
+	for totalCandles != 0 {
+		s1, s2, remaining = calcNextDates(p1, p2, interval, totalCandles)
+		history, err := c.GetHistoricRates(c.FormatExchangeCurrency(p, a).String(),
+			s1.Format(time.RFC3339),
+			s2.Format(time.RFC3339),
+			int64(interval.Duration().Seconds()))
+		if err != nil {
+			return kline.Item{}, err
+		}
 
-	for x := range history {
-		candles.Candles = append(candles.Candles, kline.Candle{
-			Time:   time.Unix(history[x].Time, 0),
-			Low:    history[x].Low,
-			High:   history[x].High,
-			Open:   history[x].Open,
-			Close:  history[x].Close,
-			Volume: history[x].Volume,
-		})
+		for x := range history {
+			candles.Candles = append(candles.Candles, kline.Candle{
+				Time:   time.Unix(history[x].Time, 0),
+				Low:    history[x].Low,
+				High:   history[x].High,
+				Open:   history[x].Open,
+				Close:  history[x].Close,
+				Volume: history[x].Volume,
+			})
+		}
+		p1 = s2
+		p2 = s2
+		totalCandles -= totalCandles-remaining
 	}
+
 	return candles, nil
 }
 
