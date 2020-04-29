@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -19,6 +20,11 @@ import (
 const (
 	ftxWSURL          = "wss://ftx.com/ws/"
 	ftxWebsocketTimer = 13
+	wsTicker          = "ticker"
+	wsTrades          = "trades"
+	wsOrderbook       = "orderbook"
+	wsFills           = "fills"
+	wsOrders          = "orders"
 )
 
 // WsConnect connects to a websocket feed
@@ -52,12 +58,11 @@ func (f *FTX) WsConnect() error {
 
 // WsAuth sends an authentication message to receive auth data
 func (f *FTX) WsAuth() error {
-	// nonce := strconv.FormatInt(int64(time.Now().UnixNano()/1000000), 10)
-	nonce := "1557246346499"
+	nonce := strconv.FormatInt(int64(time.Now().UnixNano()/1000000), 10)
 	hmac := crypto.GetHMAC(
 		crypto.HashSHA256,
 		[]byte(nonce+"websocket_login"),
-		[]byte("Y2QTHI23f23f23jfjas23f23To0RfUwX3H42fvN-"),
+		[]byte(f.API.Credentials.Secret),
 	)
 	sign := crypto.HexEncodeToString(hmac)
 	req := Authenticate{Operation: "login",
@@ -66,24 +71,27 @@ func (f *FTX) WsAuth() error {
 			Time: nonce,
 		},
 	}
-	fmt.Println(req)
-	return nil
-	// return f.WebsocketConn.SendJSONMessage(req)
+	return f.WebsocketConn.SendJSONMessage(req)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
 func (f *FTX) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	var sub WsSub
-	fmt.Printf("WHY GOD")
-	sub.Operation = "subscribe"
-	sub.Channel = channelToSubscribe.Channel
-	sub.Market = f.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Futures).String()
+	switch channelToSubscribe.Channel {
+	case wsFills, wsOrders:
+		sub.Operation = "subscribe"
+		sub.Channel = channelToSubscribe.Channel
+	default:
+		sub.Operation = "subscribe"
+		sub.Channel = channelToSubscribe.Channel
+		sub.Market = f.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Futures).String()
+	}
 	return f.WebsocketConn.SendJSONMessage(sub)
 }
 
 // GenerateDefaultSubscriptions generates default subscription
 func (f *FTX) GenerateDefaultSubscriptions() {
-	var channels = []string{"ticker", "trades", "orderbook"}
+	var channels = []string{wsTicker, wsTrades, wsOrderbook, wsFills, wsOrders}
 	pairs := f.GetEnabledPairs(asset.Futures)
 	newPair := currency.NewPairWithDelimiter(pairs[0].Base.String(), pairs[0].Quote.String(), "-")
 	fmt.Println(newPair)

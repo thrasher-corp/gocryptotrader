@@ -744,8 +744,8 @@ type AuthenticationData struct {
 
 // Authenticate stores authentication variables required
 type Authenticate struct {
-	Operation string             `json:"op"`
 	Args      AuthenticationData `json:"args"`
+	Operation string             `json:"op"`
 }
 
 // WsTickerData stores ws ticker data
@@ -774,7 +774,7 @@ type WsOrderbookData struct {
 
 // WsSub has the data used to subscribe to a channel
 type WsSub struct {
-	Channel   string `json:"channel"`
-	Market    string `json:"market"`
-	Operation string `json:"op"`
+	Channel   string `json:"channel,omitempty"`
+	Market    string `json:"market,omitempty"`
+	Operation string `json:"op,omitempty"`
 }
