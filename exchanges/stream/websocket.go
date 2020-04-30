@@ -569,13 +569,18 @@ func (w *Websocket) CanUseAuthenticatedWebsocketForWrapper() bool {
 	return false
 }
 
-// SetWebsocketURL sets websocket URL
-func (w *Websocket) SetWebsocketURL(websocketURL string) {
+// SetWebsocketURL sets websocket URL and updates the underlying stream
+// connection details
+func (w *Websocket) SetWebsocketURL(websocketURL string, c ...Connection) {
 	if websocketURL == "" || websocketURL == config.WebsocketURLNonDefaultMessage {
 		w.runningURL = w.defaultURL
 		return
 	}
 	w.runningURL = websocketURL
+
+	for i := range c {
+		c[i].SetURL(websocketURL)
+	}
 }
 
 // GetWebsocketURL returns the running websocket URL
@@ -1057,9 +1062,14 @@ func (w *WebsocketConnection) GetShutdownChannel() chan struct{} {
 
 // Shutdown shuts down and closes specific connection
 func (w *WebsocketConnection) Shutdown() error {
-	close(w.shutdown)
 	w.Wg.Wait()
 	return w.Connection.UnderlyingConn().Close()
+}
+
+// SetURL sets connection URL
+func (w *WebsocketConnection) SetURL(url string) {
+	w.URL = url
+	return
 }
 
 // isDisconnectionError Determines if the error sent over chan ReadMessageErrors is a disconnection error

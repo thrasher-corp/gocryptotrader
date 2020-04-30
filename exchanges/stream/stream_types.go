@@ -22,6 +22,7 @@ type Connection interface {
 	SendMessageReturnResponse(id int64, request interface{}) ([]byte, error)
 	SendRawMessage(messageType int, message []byte) error
 	GetShutdownChannel() chan struct{}
+	SetURL(string)
 	Shutdown() error
 }
 

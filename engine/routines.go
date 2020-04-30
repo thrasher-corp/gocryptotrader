@@ -277,21 +277,21 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 	case error:
 		return fmt.Errorf("routines.go exchange %s websocket error - %s", exchName, data)
 	case stream.TradeData:
-		if Bot.Settings.Verbose {
-			log.Infof(log.WebsocketMgr, "%s websocket %s %s trade updated %+v",
-				exchName,
-				FormatCurrency(d.CurrencyPair),
-				d.AssetType,
-				d)
-		}
+		// if Bot.Settings.Verbose {
+		log.Infof(log.WebsocketMgr, "%s websocket %s %s trade updated %+v",
+			exchName,
+			FormatCurrency(d.CurrencyPair),
+			d.AssetType,
+			d)
+		// }
 	case stream.FundingData:
-		if Bot.Settings.Verbose {
-			log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",
-				exchName,
-				FormatCurrency(d.CurrencyPair),
-				d.AssetType,
-				d)
-		}
+		// if Bot.Settings.Verbose {
+		log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",
+			exchName,
+			FormatCurrency(d.CurrencyPair),
+			d.AssetType,
+			d)
+		// }
 	case *ticker.Price:
 		if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
 			Bot.ExchangeCurrencyPairManager.update(exchName,
@@ -303,13 +303,13 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		err := ticker.ProcessTicker(d)
 		printTickerSummary(d, "websocket", err)
 	case stream.KlineData:
-		if Bot.Settings.Verbose {
-			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
-				exchName,
-				FormatCurrency(d.Pair),
-				d.AssetType,
-				d)
-		}
+		// if Bot.Settings.Verbose {
+		log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
+			exchName,
+			FormatCurrency(d.Pair),
+			d.AssetType,
+			d)
+		// }
 	case *orderbook.Base:
 		if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
 			Bot.ExchangeCurrencyPairManager.update(exchName,
@@ -321,11 +321,19 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		printOrderbookSummary(d, "websocket", nil)
 	case *order.Detail:
 		if !Bot.OrderManager.orderStore.exists(d) {
+			fmt.Printf("Adding order for %s with ID %s for pair %s\n",
+				d.Exchange,
+				d.ID,
+				d.Pair)
 			err := Bot.OrderManager.orderStore.Add(d)
 			if err != nil {
 				return err
 			}
 		} else {
+			fmt.Printf("Updating order for %s with ID %s for pair %s\n",
+				d.Exchange,
+				d.ID,
+				d.Pair)
 			od, err := Bot.OrderManager.orderStore.GetByExchangeAndID(d.Exchange, d.ID)
 			if err != nil {
 				return err
@@ -345,12 +353,12 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 	case stream.UnhandledMessageWarning:
 		log.Warn(log.WebsocketMgr, d.Message)
 	default:
-		if Bot.Settings.Verbose {
-			log.Warnf(log.WebsocketMgr,
-				"%s websocket Unknown type: %+v",
-				exchName,
-				d)
-		}
+		// if Bot.Settings.Verbose {
+		log.Warnf(log.WebsocketMgr,
+			"%s websocket Unknown type: %+v",
+			exchName,
+			d)
+		// }
 	}
 	return nil
 }
