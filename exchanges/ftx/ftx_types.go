@@ -758,16 +758,17 @@ type WsResponseData struct {
 
 // WsTickerData stores ws ticker data
 type WsTickerData struct {
-	Bid     float64   `json:"bid"`
-	Ask     float64   `json:"ask"`
-	BidSize float64   `json:"bidSize"`
-	AskSize float64   `json:"askSize"`
-	Last    float64   `json:"last"`
-	Time    time.Time `json:"time"`
+	Bid     float64 `json:"bid"`
+	Ask     float64 `json:"ask"`
+	BidSize float64 `json:"bidSize"`
+	AskSize float64 `json:"askSize"`
+	Last    float64 `json:"last"`
+	Time    float64 `json:"time"`
 }
 
 // WsTradeData stores ws trade data
 type WsTradeData struct {
+	ID          int64     `json:"id"`
 	Price       float64   `json:"price"`
 	Size        float64   `json:"size"`
 	Side        string    `json:"side"`
@@ -787,4 +788,28 @@ type WsSub struct {
 	Channel   string `json:"channel,omitempty"`
 	Market    string `json:"market,omitempty"`
 	Operation string `json:"op,omitempty"`
+}
+
+// WsTickerDataStore stores ws ticker data
+type WsTickerDataStore struct {
+	Channel     string       `json:"channel"`
+	Market      string       `json:"market"`
+	MessageType string       `json:"type"`
+	Ticker      WsTickerData `json:"data"`
+}
+
+// WsOrderbookDataStore stores ws orderbook data
+type WsOrderbookDataStore struct {
+	Channel     string          `json:"channel"`
+	Market      string          `json:"market"`
+	MessageType string          `json:"type"`
+	OBData      WsOrderbookData `json:"data"`
+}
+
+// WsTradeDataStore stores ws trades' data
+type WsTradeDataStore struct {
+	Channel     string        `json:"channel"`
+	Market      string        `json:"market"`
+	MessageType string        `json:"type"`
+	TradeData   []WsTradeData `json:"data"`
 }

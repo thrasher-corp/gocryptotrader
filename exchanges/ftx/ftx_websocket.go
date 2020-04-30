@@ -13,6 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -135,6 +137,12 @@ func (f *FTX) wsReadData() {
 	}
 }
 
+func timestampFromFloat64(ts float64) time.Time {
+	secs := int64(ts)
+	nsecs := int64((ts - float64(secs)) * 1e9)
+	return time.Unix(secs, nsecs)
+}
+
 func (f *FTX) wsHandleData(respRaw []byte) error {
 	type Result map[string]interface{}
 	var result Result
@@ -143,21 +151,80 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 		return err
 	}
 	switch result["type"] {
-	case "subscribed":
+	case "update":
+		p := currency.NewPairFromString(result["market"].(string))
+		a, err := f.GetPairAssetType(p)
+		fmt.Println(a)
+		if err != nil {
+			return err
+		}
 		switch {
 		case result["channel"] == "ticker":
-			resultData := result["data"].(WsTickerData)
+			var resultData WsTickerDataStore
+			err = json.Unmarshal(respRaw, &resultData)
+			if err != nil {
+				return err
+			}
 			f.Websocket.DataHandler <- &ticker.Price{
 				ExchangeName: f.Name,
-				Bid:          resultData.Bid,
-				Ask:          resultData.Ask,
-				Last:         resultData.Last,
-				LastUpdated:  resultData.Time,
-				Pair:         currency.NewPairFromString(result["market"].(string)),
+				Bid:          resultData.Ticker.Bid,
+				Ask:          resultData.Ticker.Ask,
+				Last:         resultData.Ticker.Last,
+				LastUpdated:  timestampFromFloat64(resultData.Ticker.Time),
+				Pair:         p,
+				AssetType:    a,
 			}
 		case result["channel"] == "orderbook":
-			resultData := result["data"].(WsOrderbookData)
+			var resultData WsOrderbookDataStore
+			err = json.Unmarshal(respRaw, &resultData)
+			if err != nil {
+				return err
+			}
+			var newOB orderbook.Base
+			for x := range resultData.OBData.Asks {
+				newOB.Asks = append(newOB.Asks, orderbook.Item{Price: resultData.OBData.Asks[x][0],
+					Amount: resultData.OBData.Asks[x][1],
+				})
+			}
+			for y := range resultData.OBData.Bids {
+				newOB.Bids = append(newOB.Bids, orderbook.Item{Price: resultData.OBData.Bids[y][0],
+					Amount: resultData.OBData.Bids[y][1],
+				})
+			}
+			newOB.Pair = p
+			newOB.AssetType = a
+			newOB.ExchangeName = f.Name
+			err = f.Websocket.Orderbook.LoadSnapshot(&newOB)
+			if err != nil {
+				return err
+			}
+			f.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: newOB.Pair,
+				Asset:    a,
+				Exchange: f.Name}
 		case result["channel"] == "trades":
+			var resultData WsTradeDataStore
+			err = json.Unmarshal(respRaw, &resultData)
+			if err != nil {
+				return err
+			}
+			for z := range resultData.TradeData {
+				oSide, err := order.StringToOrderSide(resultData.TradeData[z].Side)
+				if err != nil {
+					f.Websocket.DataHandler <- order.ClassificationError{
+						Exchange: f.Name,
+						Err:      err,
+					}
+				}
+				f.Websocket.DataHandler <- wshandler.TradeData{Timestamp: resultData.TradeData[z].Time,
+					CurrencyPair: p,
+					AssetType:    a,
+					Exchange:     f.Name,
+					Price:        resultData.TradeData[z].Price,
+					Amount:       resultData.TradeData[z].Size,
+					Side:         oSide,
+				}
+			}
+		case result["channel"] == "orders":
 		default:
 			f.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: f.Name + wshandler.UnhandledMessage + string(respRaw)}
 			return nil
