@@ -82,9 +82,9 @@ func TestGetTrades(t *testing.T) {
 func TestGetHistoricRatesGranularityCheck(t *testing.T) {
 	c.Verbose = true
 	end := time.Now()
-	start := end.Add(-time.Hour * 24 * 365)
+	start := end.Add(-time.Hour * 24 * 7)
 	p := currency.NewPair(currency.BTC, currency.USD)
-	v, err := c.GetHistoricCandles(p, asset.Spot, start, end, kline.OneDay)
+	v, err := c.GetHistoricCandles(p, asset.Spot, start, end, kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -929,27 +929,20 @@ func TestStatusToStandardStatus(t *testing.T) {
 	}
 }
 
-func TestCalcNextDates(t *testing.T) {
-	start := time.Now().AddDate(0,-6,0)
+func TestCalcTotalCandles(t *testing.T) {
+	start := time.Now().AddDate(0, -6, 0)
+	end := time.Now()
+	interval := kline.OneDay
+	ret := calcTotalCandles(start, end, interval)
+	t.Log(ret)
+}
+
+func TestCalcDateIntervals(t *testing.T) {
+	start := time.Now().AddDate(-1, -6, 0)
 	end := time.Now()
 	interval := kline.OneDay
 
-	total := calcTotalCandles(start, end, interval)
-	v1, v2, v3 := calcNextDates(start, end, interval, total)
-	t.Log(v1)
-	t.Log(v2)
-	t.Log(v3)
-
-	var s1, s2, p1, p2 time.Time
-	p1 = start
-	p2 = end
-	for x := 0 ; x < 10 ;x++ {
-		total := calcTotalCandles(start, end, interval)
-		s1, s2, _ = calcNextDates(p1, p2, interval, total)
-		t.Log(s1)
-		t.Log(s2)
-		p1 = s2
-		//p2 = s2
-	}
+	ret := calcDateIntervals(start, end, interval)
+	t.Log(ret)
 }
 

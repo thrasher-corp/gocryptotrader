@@ -745,12 +745,12 @@ func calcNextDates(start, end time.Time, interval kline.Interval, previousReques
 	switch interval {
 	case kline.OneMin:
 		sub := end.Sub(start)
-		addVal = (time.Duration(sub.Minutes()/300)) * time.Minute
-		previousRequest -= int64(addVal.Minutes())
+		addVal = (time.Duration(sub / 300)) * time.Minute
+		previousRequest -= int64(addVal)
 	case kline.OneDay:
 		sub := end.Sub(start)
-		addVal = (time.Duration(sub.Hours()/300)) * time.Hour*24
-		previousRequest -= int64(addVal.Hours()*24)
+		addVal = (time.Duration(sub / 300)) * time.Hour * 24
+		previousRequest -= int64(addVal * 24)
 	}
 	nextStart = start.Add(addVal)
 	nextEnd = nextStart.Add(addVal)
@@ -759,12 +759,53 @@ func calcNextDates(start, end time.Time, interval kline.Interval, previousReques
 	return
 }
 
+type candleDates struct {
+	start time.Time
+	end time.Time
+}
+
+func calcDateIntervals(start, end time.Time, interval kline.Interval) (out []candleDates) {
+	var addVal time.Duration
+	switch interval {
+	case kline.OneMin:
+		addVal = time.Minute
+	case kline.OneDay:
+		addVal = time.Hour*24
+	}
+	for d := start; d.After(end) == false; d = d.Add(addVal) {
+		fmt.Println(d.Format("2006-01-02"))
+	}
+
+	return
+}
+
+
+
+func calcNextDate(previousStart, previousEnd *time.Time, interval kline.Interval) (nextStart, nextEnd time.Time){
+	fmt.Printf("previousStart: %v | previousEnd: %v\n", previousStart, previousEnd)
+	totalCandles := calcTotalCandles(*previousStart, *previousEnd, interval)
+	if totalCandles <= 300 {
+		return *previousStart, *previousEnd
+	}
+	var addVal time.Duration
+	sub := previousEnd.Sub(*previousStart)
+	switch interval {
+	case kline.OneMin:
+		addVal = (sub * time.Minute )/300
+	case kline.OneDay:
+		addVal = (sub * time.Hour )/300
+	}
+	nextStart = previousStart.Add(addVal)
+	nextEnd = nextStart.Add(addVal)
+	return
+}
+
 func calcTotalCandles(start, end time.Time, interval kline.Interval) (out int64) {
 	switch interval {
 	case kline.OneMin:
 		out = int64(end.Sub(start).Minutes())
 	case kline.OneDay:
-		out = int64(end.Sub(start).Hours()*24)
+		out = int64(end.Sub(start).Hours() / 24)
 	}
 	return
 }
@@ -780,8 +821,8 @@ func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, e
 
 	candles := kline.Item{
 		Exchange: c.Name,
-		Pair: p,
-		Asset: a,
+		Pair:     p,
+		Asset:    a,
 		Interval: interval,
 	}
 
@@ -812,7 +853,7 @@ func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, e
 		}
 		p1 = s2
 		p2 = s2
-		totalCandles -= totalCandles-remaining
+		totalCandles -= totalCandles - remaining
 	}
 
 	return candles, nil

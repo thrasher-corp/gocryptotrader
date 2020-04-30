@@ -99,11 +99,10 @@ func TestExchangeHistory(t *testing.T) {
 		Pair:           currency.NewPairFromString("BTCUSDT"),
 		TimestampStart: time.Now(),
 	}
-	v, err := b.GetExchangeHistory(req)
+	_, err := b.GetExchangeHistory(req)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(v)
 }
 
 func TestGetAggregatedTrades(t *testing.T) {

@@ -476,8 +476,7 @@ func (b *Bitfinex) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.Histor
 			Asset:     req.Asset,
 		})
 	}
-
-
+	return resp, nil
 }
 
 // SubmitOrder submits a new order
