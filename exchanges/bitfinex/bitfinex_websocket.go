@@ -931,7 +931,6 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 
 		for j := range channels {
 			for k := range enabledPairs {
-				// b.appendOptionalDelimiter(&enabledPairs[k])
 				params := make(map[string]interface{})
 				if channels[j] == wsBook {
 					params["prec"] = "R0"
