@@ -36,6 +36,7 @@ type Response struct {
 type ChannelSubscription struct {
 	Channel  string
 	Currency currency.Pair
+	Asset    asset.Item
 	Params   map[string]interface{}
 }
 
