@@ -265,8 +265,7 @@ func TestGetOpenTriggerOrders(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	a, err := f.GetOpenTriggerOrders("FTT/BTC", "")
-	t.Log(a)
+	_, err := f.GetOpenTriggerOrders("FTT/BTC", "")
 	if err != nil {
 		t.Error(err)
 	}

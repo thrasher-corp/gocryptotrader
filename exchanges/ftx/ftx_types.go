@@ -783,6 +783,41 @@ type WsOrderbookData struct {
 	Asks   [][2]float64 `json:"asks"`
 }
 
+// WsOrders stores ws orders' data
+type WsOrders struct {
+	ID            int64   `json:"id"`
+	ClientID      string  `json:"clientId"`
+	Market        string  `json:"market"`
+	OrderType     string  `json:"type"`
+	Side          string  `json:"side"`
+	Size          float64 `json:"size"`
+	Price         float64 `json:"price"`
+	ReduceOnly    bool    `json:"reduceOnly"`
+	IOC           bool    `json:"ioc"`
+	PostOnly      bool    `json:"postOnly"`
+	Status        string  `json:"status"`
+	FilledSize    float64 `json:"filedSize"`
+	RemainingSize float64 `json:"remainingSize"`
+	AvgFillPrice  float64 `json:"avgFillPrice"`
+}
+
+// WsFills stores websocket fills' data
+type WsFills struct {
+	Fee       float64   `json:"fee"`
+	FeeRate   float64   `json:"feeRate"`
+	Future    string    `json:"future"`
+	ID        int64     `json:"id"`
+	Liquidity string    `json:"liquidity"`
+	Market    string    `json:"market"`
+	OrderID   int64     `json:"int64"`
+	TradeID   int64     `json:"tradeID"`
+	Price     float64   `json:"price"`
+	Side      string    `json:"side"`
+	Size      float64   `json:"size"`
+	Time      time.Time `json:"time"`
+	OrderType string    `json:"orderType"`
+}
+
 // WsSub has the data used to subscribe to a channel
 type WsSub struct {
 	Channel   string `json:"channel,omitempty"`
@@ -812,4 +847,18 @@ type WsTradeDataStore struct {
 	Market      string        `json:"market"`
 	MessageType string        `json:"type"`
 	TradeData   []WsTradeData `json:"data"`
+}
+
+// WsOrderDataStore stores ws orders' data
+type WsOrderDataStore struct {
+	Channel     string   `json:"channel"`
+	MessageType string   `json:"type"`
+	OrderData   WsOrders `json:"data"`
+}
+
+// WsFillsDataStore stores ws fills' data
+type WsFillsDataStore struct {
+	Channel     string  `json:"channel"`
+	MessageType string  `json:"type"`
+	FillsData   WsFills `json:"fills"`
 }
