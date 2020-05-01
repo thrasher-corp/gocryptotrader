@@ -5,6 +5,7 @@ import (
 	"os"
 	"reflect"
 	"testing"
+	"time"
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
@@ -266,5 +267,46 @@ func TestExchangeWithdrawFiat(t *testing.T) {
 	_, err = ExchangeWithdrawFiat(exch, currCode, desc, amount, bankID)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestParseInterval(t *testing.T) {
+	v, err := parseInterval("1h")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v != time.Hour {
+		t.Fatalf("unexpected value return expected %v received %v", time.Hour, v)
+	}
+
+	v, err = parseInterval("1d")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v != time.Hour*24 {
+		t.Fatalf("unexpected value return expected %v received %v", time.Hour*24, v)
+	}
+
+	v, err = parseInterval("3d")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v != time.Hour*72 {
+		t.Fatalf("unexpected value return expected %v received %v", time.Hour*72, v)
+	}
+
+	v, err = parseInterval("1w")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v != time.Hour*168 {
+		t.Fatalf("unexpected value return expected %v received %v", time.Hour*168, v)
+	}
+
+	_, err = parseInterval("6m")
+	if err != nil {
+		if !errors.Is(err, errInvalidInterval) {
+			t.Fatal(err)
+		}
 	}
 }

@@ -3,8 +3,10 @@ package gct
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	objects "github.com/d5/tengo/v2"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -24,6 +26,7 @@ var exchangeModule = map[string]objects.Object{
 	"ordersubmit":    &objects.UserFunction{Name: "ordersubmit", Value: ExchangeOrderSubmit},
 	"withdrawcrypto": &objects.UserFunction{Name: "withdrawcrypto", Value: ExchangeWithdrawCrypto},
 	"withdrawfiat":   &objects.UserFunction{Name: "withdrawfiat", Value: ExchangeWithdrawFiat},
+	"ohlcv":          &objects.UserFunction{Name: "ohlcv", Value: exchangeOHLCV},
 }
 
 // ExchangeOrderbook returns orderbook for requested exchange & currencypair
@@ -493,4 +496,94 @@ func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
 	}
 
 	return &objects.String{Value: rtn}, nil
+}
+
+func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
+	if len(args) != 7 {
+		return nil, objects.ErrWrongNumArguments
+	}
+
+	exchangeName, ok := objects.ToString(args[0])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, exchangeName)
+	}
+	currencyPair, ok := objects.ToString(args[1])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, currencyPair)
+	}
+	delimiter, ok := objects.ToString(args[2])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, delimiter)
+	}
+	assetTypeParam, ok := objects.ToString(args[3])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeParam)
+	}
+
+	startTime, ok := objects.ToTime(args[4])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, startTime)
+	}
+
+	endTime, ok := objects.ToTime(args[5])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, endTime)
+	}
+
+	intervalStr, ok := objects.ToString(args[6])
+	if !ok {
+		return nil, fmt.Errorf(ErrParameterConvertFailed, endTime)
+	}
+	interval, err := parseInterval(intervalStr)
+	if err != nil {
+		return nil, err
+	}
+	pairs := currency.NewPairDelimiter(currencyPair, delimiter)
+	assetType := asset.Item(assetTypeParam)
+
+	ret, err := wrappers.GetWrapper().OHLCV(exchangeName, pairs, assetType, startTime, endTime, interval)
+	if err != nil {
+		return nil, err
+	}
+
+	var candles objects.Array
+	for x := range ret.Candles {
+		candle := &objects.Array{}
+		candle.Value = append(candle.Value, &objects.Time{Value: ret.Candles[x].Time},
+			&objects.Float{Value: ret.Candles[x].Open},
+			&objects.Float{Value: ret.Candles[x].High},
+			&objects.Float{Value: ret.Candles[x].Low},
+			&objects.Float{Value: ret.Candles[x].Close},
+			&objects.Float{Value: ret.Candles[x].Volume},
+		)
+
+		candles.Value = append(candles.Value, candle)
+	}
+
+	retValue := make(map[string]objects.Object, 5)
+	retValue["exchange"] = &objects.String{Value: ret.Exchange}
+	retValue["pair"] = &objects.String{Value: ret.Pair.String()}
+	retValue["asset"] = &objects.String{Value: ret.Asset.String()}
+	retValue["intervals"] = &objects.String{Value: ret.Interval.String()}
+	retValue["candles"] = &candles
+
+	return &objects.Map{
+		Value: retValue,
+	}, nil
+}
+
+// parseInterval will parse the interval param of indictors that have them and convert to time.Duration
+func parseInterval(in string) (time.Duration, error) {
+	if !common.StringDataContainsInsensitive(supportedDurations, in) {
+		return time.Nanosecond, errInvalidInterval
+	}
+	switch in {
+	case "1d":
+		in = "24h"
+	case "3d":
+		in = "72h"
+	case "1w":
+		in = "168h"
+	}
+	return time.ParseDuration(in)
 }

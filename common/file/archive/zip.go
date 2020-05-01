@@ -32,8 +32,9 @@ func UnZip(src, dest string) (fileList []string, err error) {
 	}
 
 	for x := range z.File {
-		fPath := filepath.Join(dest, z.File[x].Name) // nolint:gosec
-		// We ignore gosec linter above because the code below files the file traversal bug when extracting archives
+		fPath := filepath.Join(dest, z.File[x].Name) // nolint // We ignore
+		// gosec linter above because the code below files the file traversal
+		// bug when extracting archives
 		if !strings.HasPrefix(fPath, filepath.Clean(dest)+string(os.PathSeparator)) {
 			err = z.Close()
 			if err != nil {
@@ -116,13 +117,12 @@ func Zip(src, dest string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
 	z := zip.NewWriter(f)
-	defer z.Close()
 
 	err = addFilesToZip(z, src, i.IsDir())
 	if err != nil {
+		z.Close()
 		errCls := f.Close()
 		if errCls != nil {
 			log.Errorf(log.Global, "Failed to close file handle, manual deletion required: %v", errCls)
@@ -134,6 +134,9 @@ func Zip(src, dest string) error {
 		}
 		return err
 	}
+
+	z.Close()
+	f.Close()
 	return nil
 }
 

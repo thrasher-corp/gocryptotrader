@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/core"
 )
 
@@ -171,6 +172,16 @@ func main() {
 			// idoall's contributors were forked and merged, so his contributions
 			// aren't automatically retrievable
 			{
+				Login:         "DirectX",
+				URL:           "https://github.com/DirectX",
+				Contributions: 1,
+			},
+			{
+				Login:         "frankzougc",
+				URL:           "https://github.com/frankzougc",
+				Contributions: 1,
+			},
+			{
 				Login:         "idoall",
 				URL:           "https://github.com/idoall",
 				Contributions: 1,
@@ -257,48 +268,42 @@ func main() {
 // GetConfiguration retrieves the documentation configuration
 func GetConfiguration() (Config, error) {
 	var c Config
-	configFilePath := filepath.Join([]string{toolDir, "config.json"}...)
-	file, err := os.OpenFile(configFilePath, os.O_RDWR, os.ModePerm)
-	if err != nil {
-		fmt.Println("Creating configuration file, please check to add a different github repository path and change preferences")
+	configFilePath := filepath.Join(toolDir, "config.json")
 
-		file, err = os.Create(configFilePath)
+	if file.Exists(configFilePath) {
+		config, err := ioutil.ReadFile(configFilePath)
 		if err != nil {
 			return c, err
 		}
 
-		// Set default params for configuration
-		c.GithubRepo = DefaultRepo
-		c.ContributorFile = true
-		c.LicenseFile = true
-		c.RootReadme = true
-		c.Exclusions.Directories = DefaultExcludedDirectories
-
-		data, mErr := json.MarshalIndent(c, "", " ")
-		if mErr != nil {
-			return c, mErr
-		}
-
-		_, err = file.WriteAt(data, 0)
+		err = json.Unmarshal(config, &c)
 		if err != nil {
 			return c, err
 		}
+
+		if c.GithubRepo == "" {
+			return c, errors.New("repository not set in config.json file, please change")
+		}
+
+		return c, nil
 	}
 
-	defer file.Close()
+	fmt.Println("Creating configuration file, please check to add a different github repository path and change preferences")
 
-	config, err := ioutil.ReadAll(file)
+	// Set default params for configuration
+	c.GithubRepo = DefaultRepo
+	c.ContributorFile = true
+	c.LicenseFile = true
+	c.RootReadme = true
+	c.Exclusions.Directories = DefaultExcludedDirectories
+
+	data, err := json.MarshalIndent(c, "", " ")
 	if err != nil {
 		return c, err
 	}
 
-	err = json.Unmarshal(config, &c)
-	if err != nil {
+	if err := ioutil.WriteFile(configFilePath, data, 0770); err != nil {
 		return c, err
-	}
-
-	if c.GithubRepo == "" {
-		return c, errors.New("repository not set in config.json file, please change")
 	}
 
 	return c, nil

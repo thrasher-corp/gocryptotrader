@@ -1,8 +1,13 @@
 package binance
 
 import (
+	"errors"
+	"time"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
+
+var errInvalidInterval = errors.New("invalid interval")
 
 // Response holds basic binance api response data
 type Response struct {
@@ -107,8 +112,6 @@ type RecentTradeRequestParams struct {
 
 // RecentTrade holds recent trade data
 type RecentTrade struct {
-	Code         int     `json:"code"`
-	Msg          string  `json:"msg"`
 	ID           int64   `json:"id"`
 	Price        float64 `json:"price,string"`
 	Quantity     float64 `json:"qty,string"`
@@ -210,13 +213,13 @@ type AggregatedTrade struct {
 
 // CandleStick holds kline data
 type CandleStick struct {
-	OpenTime                 float64
+	OpenTime                 time.Time
 	Open                     float64
 	High                     float64
 	Low                      float64
 	Close                    float64
 	Volume                   float64
-	CloseTime                float64
+	CloseTime                time.Time
 	QuoteAssetVolume         float64
 	TradeCount               float64
 	TakerBuyAssetVolume      float64
@@ -247,7 +250,7 @@ type PriceChangeStats struct {
 	QuoteVolume        float64 `json:"quoteVolume,string"`
 	OpenTime           int64   `json:"openTime"`
 	CloseTime          int64   `json:"closeTime"`
-	FirstID            int64   `json:"fristId"`
+	FirstID            int64   `json:"firstId"`
 	LastID             int64   `json:"lastId"`
 	Count              int64   `json:"count"`
 }

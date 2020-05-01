@@ -26,7 +26,7 @@ environment:
   PSQL_SSLMODE: disable
   PSQL_SKIPSQLCMD: true
   PSQL_TESTDBNAME: gct_dev_ci
-stack: go 1.13.x
+stack: go 1.14.x
 
 services:
   - postgresql96
@@ -49,7 +49,7 @@ before_test:
 
 test_script:
   # test back-end
-  - go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.20.1
+  - go get github.com/golangci/golangci-lint/cmd/golangci-lint@v1.24.0
   - '%GOPATH%\bin\golangci-lint.exe run --verbose'
   - ps: >-
       if($env:APPVEYOR_SCHEDULED_BUILD -eq 'true') {

@@ -50,7 +50,7 @@ type AccountInfo struct {
 	Profile struct {
 		Email             string `json:"email"`
 		UID               string `json:"uid"`
-		BTCDepositAddress string `json:"btc_deposit_addres"` // nolint: misspell
+		BTCDepositAddress string `json:"btc_deposit_addres"` // nolint // API misspelling
 	} `json:"profile"`
 }
 

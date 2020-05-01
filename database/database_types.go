@@ -9,12 +9,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 )
 
-// Db holds all information for a database instance
-type Db struct {
-	SQL      *sql.DB
-	DataPath string
-	Config   *Config
-
+// Instance holds all information for a database instance
+type Instance struct {
+	SQL       *sql.DB
+	DataPath  string
+	Config    *Config
 	Connected bool
 	Mu        sync.RWMutex
 }
@@ -29,7 +28,7 @@ type Config struct {
 
 var (
 	// DB Global Database Connection
-	DB = &Db{}
+	DB = &Instance{}
 
 	// MigrationDir which folder to look in for current migrations
 	MigrationDir = filepath.Join("..", "..", "database", "migrations")
