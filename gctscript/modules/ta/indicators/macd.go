@@ -17,12 +17,26 @@ var MACDModule = map[string]objects.Object{
 	"calculate": &objects.UserFunction{Name: "calculate", Value: macd},
 }
 
+// MovingAverageConvergenceDivergence is the string constant
+const MovingAverageConvergenceDivergence = "Moving Average Convergence Divergence"
+
+// MACD defines a custom Moving Average Convergence Divergence tengo indicator
+// object type
+type MACD struct {
+	objects.Array
+}
+
+// TypeName returns the name of the custom type.
+func (o *MACD) TypeName() string {
+	return ExponentialMovingAverage
+}
+
 func macd(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 4 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	r := &objects.Array{}
+	r := new(MACD)
 	if validator.IsTestExecution.Load() == true {
 		return r, nil
 	}

@@ -17,12 +17,25 @@ var EMAModule = map[string]objects.Object{
 	"calculate": &objects.UserFunction{Name: "calculate", Value: ema},
 }
 
+// ExponentialMovingAverage is the string constant
+const ExponentialMovingAverage = "Exponential Moving Average"
+
+// EMA defines a custom Exponential Moving Average indicator tengo object
+type EMA struct {
+	objects.Array
+}
+
+// TypeName returns the name of the custom type.
+func (o *EMA) TypeName() string {
+	return ExponentialMovingAverage
+}
+
 func ema(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 2 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	r := &objects.Array{}
+	r := new(EMA)
 	if validator.IsTestExecution.Load() == true {
 		return r, nil
 	}

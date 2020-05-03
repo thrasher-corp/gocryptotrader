@@ -3,6 +3,7 @@ package file
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -123,5 +124,70 @@ func TestExists(t *testing.T) {
 	}
 	if err := os.Remove(tmpFile); err != nil {
 		t.Errorf("unable to remove %s, manual deletion is required", tmpFile)
+	}
+}
+
+func TestWriteAsCSV(t *testing.T) {
+	tester := func(in string, data [][]string) error {
+		err := WriteAsCSV(in, data)
+		if err != nil {
+			return err
+		}
+		return os.Remove(in)
+	}
+
+	type testTable struct {
+		InFile      string
+		Payload     [][]string
+		ErrExpected bool
+	}
+
+	records := [][]string{
+		{"title", "first_name", "last_name"},
+		{"King", "Robert", "Baratheon"},
+		{"Lord Regent of the Seven Kingdoms", "Eddard", "Stark"},
+		{"Lord of Baelish Castle", "Petyr", "Baelish"},
+	}
+
+	missAligned := [][]string{
+		{"first_name", "last_name", "username"},
+		{"Sup", "bra"},
+	}
+
+	var tests []testTable
+	tempDir := filepath.Join(os.TempDir(), "gct-csv-temp")
+	testFile := filepath.Join(tempDir, "gct-csv-test.csv")
+	switch runtime.GOOS {
+	case "windows":
+		tests = []testTable{
+			{InFile: "*", Payload: [][]string{}, ErrExpected: true},
+			{InFile: "*", Payload: nil, ErrExpected: true},
+			{InFile: testFile, Payload: nil, ErrExpected: true},
+			{InFile: testFile, Payload: records, ErrExpected: false},
+			{InFile: testFile, Payload: missAligned, ErrExpected: true},
+		}
+	default:
+		tests = []testTable{
+			{InFile: "", Payload: [][]string{}, ErrExpected: true},
+			{InFile: "", Payload: nil, ErrExpected: true},
+			{InFile: testFile, Payload: nil, ErrExpected: true},
+			{InFile: testFile, Payload: records, ErrExpected: false},
+			{InFile: testFile, Payload: missAligned, ErrExpected: true},
+		}
+	}
+
+	for x := range tests {
+		fmt.Println(tests[x])
+		err := tester(tests[x].InFile, tests[x].Payload)
+		if err != nil {
+			log.Println(err)
+		}
+		if err != nil && !tests[x].ErrExpected {
+			t.Errorf("Test %d failed, unexpected err %s\n", x, err)
+		}
+	}
+
+	if err := os.RemoveAll(tempDir); err != nil {
+		t.Errorf("unable to remove temp test dir %s, manual deletion required", tempDir)
 	}
 }

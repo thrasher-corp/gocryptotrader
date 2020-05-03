@@ -1,9 +1,9 @@
-fmt := import("fmt")
+log := import("log")
 exch := import("exchange")
 
 load := func() {
    info := exch.orderquery("BTC Markets", "4491600698")
-   fmt.print(info)
+   log.debugln(info)
 }
 
 load()

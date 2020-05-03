@@ -17,12 +17,25 @@ var ObvModule = map[string]objects.Object{
 	"calculate": &objects.UserFunction{Name: "calculate", Value: obv},
 }
 
+// OnBalanceVolume is the string constant
+const OnBalanceVolume = "On Balance Volume"
+
+// OBV defines a custom On Balance Volume tengo indicator object type
+type OBV struct {
+	objects.Array
+}
+
+// TypeName returns the name of the custom type.
+func (o *OBV) TypeName() string {
+	return OnBalanceVolume
+}
+
 func obv(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 1 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	r := &objects.Array{}
+	r := new(OBV)
 	if validator.IsTestExecution.Load() == true {
 		return r, nil
 	}

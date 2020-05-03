@@ -17,12 +17,25 @@ var SMAModule = map[string]objects.Object{
 	"calculate": &objects.UserFunction{Name: "calculate", Value: sma},
 }
 
+// SimpleMovingAverage is the string constant
+const SimpleMovingAverage = "Simple Moving Average"
+
+// SMA defines a custom Simple Moving Average indicator tengo object type
+type SMA struct {
+	objects.Array
+}
+
+// TypeName returns the name of the custom type.
+func (o *SMA) TypeName() string {
+	return SimpleMovingAverage
+}
+
 func sma(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 2 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	r := &objects.Array{}
+	r := new(SMA)
 	if validator.IsTestExecution.Load() == true {
 		return r, nil
 	}

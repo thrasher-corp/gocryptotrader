@@ -10,6 +10,7 @@ import (
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers/validator"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var (
@@ -39,6 +40,7 @@ var (
 
 func TestMain(m *testing.M) {
 	modules.SetModuleWrapper(validator.Wrapper{})
+	log.SetupSubLoggers(log.GenDefaultSettings().SubLoggers)
 	os.Exit(m.Run())
 }
 
