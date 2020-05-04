@@ -18,7 +18,7 @@ import (
 const (
 	// Default number of enabled exchanges. Modify this whenever an exchange is
 	// added or removed
-	defaultEnabledExchanges = 27
+	defaultEnabledExchanges = 28
 	testFakeExchangeName    = "Stampbit"
 	testPair                = "BTC-USD"
 )

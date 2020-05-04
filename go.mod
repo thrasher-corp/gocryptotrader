@@ -6,6 +6,7 @@ require (
 	github.com/d5/tengo/v2 v2.1.2
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/golang/protobuf v1.4.0
+	github.com/golangci/golangci-lint v1.26.0 // indirect
 	github.com/google/go-querystring v1.0.0
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.2
@@ -17,16 +18,14 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/pquerna/otp v1.2.0
 	github.com/spf13/viper v1.6.3
-	github.com/stretchr/testify v1.5.1 // indirect
 	github.com/thrasher-corp/gct-ta v0.0.0-20200423101437-dc6b098dc762
 	github.com/thrasher-corp/goose v2.7.0-rc4.0.20191002032028-0f2c2a27abdb+incompatible
 	github.com/thrasher-corp/sqlboiler v1.0.1-0.20191001234224-71e17f37a85e
 	github.com/toorop/go-pusher v0.0.0-20180521062818-4521e2eb39fb
 	github.com/urfave/cli v1.22.4
 	github.com/volatiletech/null v8.0.0+incompatible
-	golang.org/x/crypto v0.0.0-20190605123033-f99c8df09eb5
-	golang.org/x/net v0.0.0-20191002035440-2ec189313ef0
-	golang.org/x/sys v0.0.0-20191003212358-c178f38b412c // indirect
+	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
+	golang.org/x/net v0.0.0-20200226121028-0de0cce0169b
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	google.golang.org/genproto v0.0.0-20191002211648-c459b9ce5143
 	google.golang.org/grpc v1.29.1
