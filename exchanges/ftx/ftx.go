@@ -716,7 +716,7 @@ func (f *FTX) GetOptionsFills(startTime, endTime, limit string) (OptionsFills, e
 
 // SendAuthHTTPRequest sends an authenticated request
 func (f *FTX) SendAuthHTTPRequest(method, path string, data, result interface{}) error {
-	ts := strconv.FormatInt(int64(time.Now().UnixNano()/1000000), 10)
+	ts := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
 	var body io.Reader
 	var hmac, payload []byte
 	var err error
@@ -755,14 +755,14 @@ func (f *FTX) SendAuthHTTPRequest(method, path string, data, result interface{})
 // GetFee returns an estimate of fee based on type of transaction
 func (f *FTX) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
-	feeData, err := f.GetAccountInfo()
-	if err != nil {
-		return 0, err
-	}
 	switch feeBuilder.FeeType {
 	case exchange.OfflineTradeFee:
 		fee = getOfflineTradeFee(feeBuilder)
 	default:
+		feeData, err := f.GetAccountInfo()
+		if err != nil {
+			return 0, err
+		}
 		switch feeBuilder.IsMaker {
 		case true:
 			fee = feeData.Result.MakerFee * feeBuilder.Amount * feeBuilder.PurchasePrice

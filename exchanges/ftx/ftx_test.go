@@ -462,7 +462,7 @@ func TestCreateQuoteRequest(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.CreateQuoteRequest("BTC", "call", "buy", strconv.FormatInt(int64(time.Now().AddDate(0, 0, 3).UnixNano()/1000000), 10), "", 0.1, 10, 5, 0, false)
+	_, err := f.CreateQuoteRequest("BTC", "call", "buy", strconv.FormatInt(time.Now().AddDate(0, 0, 3).UnixNano()/1000000, 10), "", 0.1, 10, 5, 0, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -651,20 +651,26 @@ func TestGetFee(t *testing.T) {
 	x.PurchasePrice = 10
 	x.Amount = 1
 	x.IsMaker = true
-	a, err := f.GetFee(&x)
-	if err != nil {
-		t.Error(err)
-	}
-	if a != 0.0039 {
-		t.Errorf("incorrect maker fee value")
+	var a float64
+	var err error
+	if areTestAPIKeysSet() {
+		a, err = f.GetFee(&x)
+		if err != nil {
+			t.Error(err)
+		}
+		if a != 0.0039 {
+			t.Errorf("incorrect maker fee value")
+		}
 	}
 	x.IsMaker = false
-	a, err = f.GetFee(&x)
-	if err != nil {
-		t.Error(err)
-	}
-	if a != 0.00865 {
-		t.Errorf("incorrect taker fee value")
+	if areTestAPIKeysSet() {
+		a, err = f.GetFee(&x)
+		if err != nil {
+			t.Error(err)
+		}
+		if a != 0.00865 {
+			t.Errorf("incorrect taker fee value")
+		}
 	}
 	x.FeeType = exchange.OfflineTradeFee
 	a, err = f.GetFee(&x)
@@ -697,12 +703,5 @@ func TestGetOfflineTradingFee(t *testing.T) {
 	fee = getOfflineTradeFee(&f)
 	if fee != 0.007 {
 		t.Errorf("incorrect offline taker fee")
-	}
-}
-
-func TestWSAuth(t *testing.T) {
-	err := f.WsAuth()
-	if err != nil {
-		t.Error(err)
 	}
 }

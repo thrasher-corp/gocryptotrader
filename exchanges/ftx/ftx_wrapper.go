@@ -474,7 +474,6 @@ func (f *FTX) GetOrderInfo(orderID string) (order.Detail, error) {
 	resp.Date = orderData.Result.CreatedAt
 	resp.Exchange = f.Name
 	resp.ExecutedAmount = orderData.Result.Size - orderData.Result.RemainingSize
-	// tempResp.Fee = Fee
 	resp.Pair = currency.NewPairFromString(orderData.Result.Market)
 	resp.Price = orderData.Result.Price
 	resp.RemainingAmount = orderData.Result.RemainingSize
@@ -566,7 +565,6 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Date = orderData.Result[y].CreatedAt
 			tempResp.Exchange = f.Name
 			tempResp.ExecutedAmount = orderData.Result[y].Size - orderData.Result[y].RemainingSize
-			// tempResp.Fee = Fee
 			tempResp.Pair = currency.NewPairFromString(orderData.Result[y].Market)
 			tempResp.Price = orderData.Result[y].Price
 			tempResp.RemainingAmount = orderData.Result[y].RemainingSize
@@ -603,7 +601,8 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 				tempResp.Type = order.Limit
 				feeBuilder.IsMaker = true
 			}
-			fee, err := f.GetFee(&feeBuilder)
+			var fee float64
+			fee, err = f.GetFee(&feeBuilder)
 			if err != nil {
 				return resp, err
 			}
@@ -621,7 +620,6 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Date = triggerOrderData.Result[z].CreatedAt
 			tempResp.Exchange = f.Name
 			tempResp.ExecutedAmount = triggerOrderData.Result[z].FilledSize
-			// tempResp.Fee = Fee
 			tempResp.Pair = currency.NewPairFromString(triggerOrderData.Result[z].Market)
 			tempResp.Price = triggerOrderData.Result[z].AvgFillPrice
 			tempResp.RemainingAmount = triggerOrderData.Result[z].Size - triggerOrderData.Result[z].FilledSize
@@ -725,7 +723,8 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 				tempResp.Type = order.Limit
 				feeBuilder.IsMaker = true
 			}
-			fee, err := f.GetFee(&feeBuilder)
+			var fee float64
+			fee, err = f.GetFee(&feeBuilder)
 			if err != nil {
 				return resp, err
 			}

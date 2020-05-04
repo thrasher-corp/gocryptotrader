@@ -61,7 +61,7 @@ func (f *FTX) WsConnect() error {
 
 // WsAuth sends an authentication message to receive auth data
 func (f *FTX) WsAuth() error {
-	intNonce := int64(time.Now().UnixNano() / 1000000)
+	intNonce := time.Now().UnixNano() / 1000000
 	strNonce := strconv.FormatInt(intNonce, 10)
 	hmac := crypto.GetHMAC(
 		crypto.HashSHA256,
@@ -202,11 +202,19 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			newOB.AssetType = a
 			newOB.ExchangeName = f.Name
 			err = f.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
-				Asset: asset.Spot,
+				Asset: newOB.AssetType,
 				Bids:  newOB.Bids,
 				Asks:  newOB.Asks,
 				Pair:  p,
 			})
+			if err != nil {
+				return err
+			}
+			f.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+				Pair:     p,
+				Asset:    a,
+				Exchange: f.Name,
+			}
 		case "trades":
 			var resultData WsTradeDataStore
 			err = json.Unmarshal(respRaw, &resultData)
@@ -214,7 +222,8 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 				return err
 			}
 			for z := range resultData.TradeData {
-				oSide, err := order.StringToOrderSide(resultData.TradeData[z].Side)
+				var oSide order.Side
+				oSide, err = order.StringToOrderSide(resultData.TradeData[z].Side)
 				if err != nil {
 					f.Websocket.DataHandler <- order.ClassificationError{
 						Exchange: f.Name,
@@ -241,7 +250,8 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			oSide, err := order.StringToOrderSide(resultData.OrderData.Side)
+			var oSide order.Side
+			oSide, err = order.StringToOrderSide(resultData.OrderData.Side)
 			if err != nil {
 				f.Websocket.DataHandler <- order.ClassificationError{
 					Exchange: f.Name,
