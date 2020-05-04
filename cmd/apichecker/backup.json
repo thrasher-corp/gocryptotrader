@@ -1,13 +1,13 @@
 {
- "CardID": "5e7d78e91740041dc9321ce6",
- "ChecklistID": "5e7d78eacd23115db5e04818",
- "ListID": "5e7d78e92cdc4d1d308b2bb5",
- "BoardID": "5e670187ff3c178ea11f203c",
- "Key": "f4736f6d4dbcd22276cb6669898728a4",
- "Token": "fbde6d3743494bb6296da003d2612a7d59089fa0542d376aae005295bf140817",
- "CreateCardName": "hiya",
- "CreateListName": "hi",
- "CreateChecklistName": "heyo",
+ "CardID": "",
+ "ChecklistID": "",
+ "ListID": "",
+ "BoardID": "",
+ "Key": "",
+ "Token": "",
+ "CreateCardName": "",
+ "CreateListName": "",
+ "CreateChecklistName": "",
  "Exchanges": [
   {
    "Name": "Huobi",
