@@ -740,6 +740,7 @@ func checkInterval(i time.Duration) (int64, error) {
 	return 0, fmt.Errorf("interval not allowed %v", i.Seconds())
 }
 
+// this is broken please fix :D
 func calcNextDates(start, end time.Time, interval kline.Interval, previousRequest int64) (nextStart, nextEnd time.Time, total int64) {
 	var addVal time.Duration
 	switch interval {
