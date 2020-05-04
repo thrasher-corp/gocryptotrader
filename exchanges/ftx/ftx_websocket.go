@@ -246,7 +246,8 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 				return err
 			}
 			pair := currency.NewPairFromString(resultData.OrderData.Market)
-			assetType, err := f.GetPairAssetType(pair)
+			var assetType asset.Item
+			assetType, err = f.GetPairAssetType(pair)
 			if err != nil {
 				return err
 			}

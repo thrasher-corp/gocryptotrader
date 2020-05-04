@@ -123,9 +123,9 @@ func (f *FTX) GetMarket(marketName string) (Market, error) {
 
 // GetOrderbook gets orderbook for a given market with a given depth (default depth 20)
 func (f *FTX) GetOrderbook(marketName string, depth int64) (OrderbookData, error) {
+	strDepth := strconv.FormatInt(depth, 10)
 	var resp OrderbookData
 	var tempOB TempOrderbook
-	strDepth := strconv.FormatInt(depth, 10)
 	err := f.SendHTTPRequest(fmt.Sprintf(ftxAPIURL+getOrderbook, marketName, strDepth), &tempOB)
 	if err != nil {
 		return resp, err
@@ -146,12 +146,12 @@ func (f *FTX) GetOrderbook(marketName string, depth int64) (OrderbookData, error
 
 // GetTrades gets trades based on the conditions specified
 func (f *FTX) GetTrades(marketName, startTime, endTime string, limit int64) (Trades, error) {
-	var resp Trades
-	var sTime, eTime int64
-	var err error
 	strLimit := strconv.FormatInt(limit, 10)
 	params := url.Values{}
 	params.Set("limit", strLimit)
+	var sTime, eTime int64
+	var err error
+	var resp Trades
 	if startTime != "" {
 		sTime, err = strconv.ParseInt(startTime, 10, 64)
 		if err != nil {
@@ -302,7 +302,6 @@ func (f *FTX) FetchWithdrawalHistory() (WithdrawalHistory, error) {
 
 // Withdraw sends a withdrawal request
 func (f *FTX) Withdraw(coin, address, tag, password, code string, size float64) (WithdrawData, error) {
-	var resp WithdrawData
 	req := make(map[string]interface{})
 	req["coin"] = coin
 	req["address"] = address
@@ -316,22 +315,22 @@ func (f *FTX) Withdraw(coin, address, tag, password, code string, size float64) 
 	if password != "" {
 		req["password"] = password
 	}
+	var resp WithdrawData
 	return resp, f.SendAuthHTTPRequest(http.MethodPost, withdrawRequest, req, &resp)
 }
 
 // GetOpenOrders gets open orders
 func (f *FTX) GetOpenOrders(marketName string) (OpenOrders, error) {
-	var resp OpenOrders
 	params := url.Values{}
 	if marketName != "" {
 		params.Set("market", marketName)
 	}
+	var resp OpenOrders
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, getOpenOrders+params.Encode(), nil, &resp)
 }
 
 // FetchOrderHistory gets order history
 func (f *FTX) FetchOrderHistory(marketName, startTime, endTime, limit string) (OrderHistory, error) {
-	var resp OrderHistory
 	params := url.Values{}
 	if marketName != "" {
 		params.Set("market", marketName)
@@ -345,12 +344,12 @@ func (f *FTX) FetchOrderHistory(marketName, startTime, endTime, limit string) (O
 	if limit != "" {
 		params.Set("limit", limit)
 	}
+	var resp OrderHistory
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, getOrderHistory+params.Encode(), nil, &resp)
 }
 
 // GetOpenTriggerOrders gets trigger orders that are currently open
 func (f *FTX) GetOpenTriggerOrders(marketName, orderType string) (OpenTriggerOrders, error) {
-	var resp OpenTriggerOrders
 	params := url.Values{}
 	if marketName != "" {
 		params.Set("market", marketName)
@@ -358,6 +357,7 @@ func (f *FTX) GetOpenTriggerOrders(marketName, orderType string) (OpenTriggerOrd
 	if orderType != "" {
 		params.Set("type", orderType)
 	}
+	var resp OpenTriggerOrders
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, getOpenTriggerOrders+params.Encode(), nil, &resp)
 }
 
@@ -369,7 +369,6 @@ func (f *FTX) GetTriggerOrderTriggers(orderID string) (Triggers, error) {
 
 // GetTriggerOrderHistory gets trigger orders that are currently open
 func (f *FTX) GetTriggerOrderHistory(marketName, startTime, endTime, side, orderType, limit string) (TriggerOrderHistory, error) {
-	var resp TriggerOrderHistory
 	params := url.Values{}
 	if marketName != "" {
 		params.Set("market", marketName)
@@ -389,12 +388,12 @@ func (f *FTX) GetTriggerOrderHistory(marketName, startTime, endTime, side, order
 	if limit != "" {
 		params.Set("limit", limit)
 	}
+	var resp TriggerOrderHistory
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, getTriggerOrderHistory+params.Encode(), nil, &resp)
 }
 
 // Order places an order
 func (f *FTX) Order(marketName, side, orderType, reduceOnly, ioc, postOnly, clientID string, price, size float64) (PlaceOrder, error) {
-	var resp PlaceOrder
 	req := make(map[string]interface{})
 	req["market"] = marketName
 	req["side"] = side
@@ -413,12 +412,12 @@ func (f *FTX) Order(marketName, side, orderType, reduceOnly, ioc, postOnly, clie
 	if clientID != "" {
 		req["clientID"] = clientID
 	}
+	var resp PlaceOrder
 	return resp, f.SendAuthHTTPRequest(http.MethodPost, placeOrder, req, &resp)
 }
 
 // TriggerOrder places an order
 func (f *FTX) TriggerOrder(marketName, side, orderType, reduceOnly, retryUntilFilled string, size, triggerPrice, orderPrice, trailValue float64) (PlaceTriggerOrder, error) {
-	var resp PlaceTriggerOrder
 	req := make(map[string]interface{})
 	req["market"] = marketName
 	req["side"] = side
@@ -441,36 +440,36 @@ func (f *FTX) TriggerOrder(marketName, side, orderType, reduceOnly, retryUntilFi
 		req["triggerPrice"] = triggerPrice
 		req["orderPrice"] = orderPrice
 	}
+	var resp PlaceTriggerOrder
 	return resp, f.SendAuthHTTPRequest(http.MethodPost, placeTriggerOrder, req, &resp)
 }
 
 // ModifyPlacedOrder modifies a placed order
 func (f *FTX) ModifyPlacedOrder(orderID, clientID string, price, size float64) (ModifyOrder, error) {
-	var resp ModifyOrder
 	req := make(map[string]interface{})
 	req["price"] = price
 	req["size"] = size
 	if clientID != "" {
 		req["clientID"] = clientID
 	}
+	var resp ModifyOrder
 	return resp, f.SendAuthHTTPRequest(http.MethodPost, fmt.Sprintf(modifyOrder, orderID), req, &resp)
 }
 
 // ModifyOrderByClientID modifies a placed order via clientOrderID
 func (f *FTX) ModifyOrderByClientID(clientOrderID, clientID string, price, size float64) (ModifyOrder, error) {
-	var resp ModifyOrder
 	req := make(map[string]interface{})
 	req["price"] = price
 	req["size"] = size
 	if clientID != "" {
 		req["clientID"] = clientID
 	}
+	var resp ModifyOrder
 	return resp, f.SendAuthHTTPRequest(http.MethodPost, fmt.Sprintf(modifyOrder, clientOrderID), req, &resp)
 }
 
 // ModifyTriggerOrder modifies an existing trigger order
 func (f *FTX) ModifyTriggerOrder(orderID, orderType string, size, triggerPrice, orderPrice, trailValue float64) (ModifyTriggerOrder, error) {
-	var resp ModifyTriggerOrder
 	req := make(map[string]interface{})
 	if orderType == stopOrderType || orderType == "" {
 		req["triggerPrice"] = triggerPrice
@@ -483,6 +482,7 @@ func (f *FTX) ModifyTriggerOrder(orderID, orderType string, size, triggerPrice, 
 		req["triggerPrice"] = triggerPrice
 		req["orderPrice"] = orderPrice
 	}
+	var resp ModifyTriggerOrder
 	return resp, f.SendAuthHTTPRequest(http.MethodPost, fmt.Sprintf(modifyTriggerOrder, orderID), req, &resp)
 }
 
@@ -518,7 +518,6 @@ func (f *FTX) DeleteTriggerOrder(orderID string) (CancelOrderResponse, error) {
 
 // GetFills gets fills' data
 func (f *FTX) GetFills(market, limit, startTime, endTime string) (Fills, error) {
-	var resp Fills
 	params := url.Values{}
 	if market != "" {
 		params.Set("market", market)
@@ -532,12 +531,12 @@ func (f *FTX) GetFills(market, limit, startTime, endTime string) (Fills, error) 
 	if endTime != "" {
 		params.Set("end_time", endTime)
 	}
+	var resp Fills
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, getFills+params.Encode(), nil, &resp)
 }
 
 // GetFundingPayments gets funding payments
 func (f *FTX) GetFundingPayments(startTime, endTime, future string) (FundingPayments, error) {
-	var resp FundingPayments
 	params := url.Values{}
 	if startTime != "" {
 		params.Set("start_time", startTime)
@@ -548,6 +547,7 @@ func (f *FTX) GetFundingPayments(startTime, endTime, future string) (FundingPaym
 	if future != "" {
 		params.Set("future", future)
 	}
+	var resp FundingPayments
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, getFundingPayments+params.Encode(), nil, &resp)
 }
 
@@ -577,9 +577,9 @@ func (f *FTX) ListLTCreations() (LTCreationList, error) {
 
 // RequestLTCreation sends a request to create a leveraged token
 func (f *FTX) RequestLTCreation(tokenName string, size float64) (RequestTokenCreation, error) {
-	var resp RequestTokenCreation
 	req := make(map[string]interface{})
 	req["size"] = size
+	var resp RequestTokenCreation
 	return resp, f.SendAuthHTTPRequest(http.MethodPost, fmt.Sprintf(requestLTCreation, tokenName), req, &resp)
 }
 
@@ -591,9 +591,9 @@ func (f *FTX) ListLTRedemptions(tokenName string, size float64) (LTRedemptionLis
 
 // RequestLTRedemption sends a request to redeem a leveraged token
 func (f *FTX) RequestLTRedemption(tokenName string, size float64) (LTRedemptionRequest, error) {
-	var resp LTRedemptionRequest
 	req := make(map[string]interface{})
 	req["size"] = size
+	var resp LTRedemptionRequest
 	return resp, f.SendAuthHTTPRequest(http.MethodPost, fmt.Sprintf(requestLTRedemption, tokenName), req, &resp)
 }
 
@@ -611,7 +611,6 @@ func (f *FTX) GetYourQuoteRequests() (PersonalQuotes, error) {
 
 // CreateQuoteRequest sends a request to create a quote
 func (f *FTX) CreateQuoteRequest(underlying, optionType, side, expiry, requestExpiry string, strike, size, limitPrice, counterParyID float64, hideLimitPrice bool) (CreateQuote, error) {
-	var resp CreateQuote
 	req := make(map[string]interface{})
 	req["underlying"] = underlying
 	req["type"] = optionType
@@ -629,6 +628,7 @@ func (f *FTX) CreateQuoteRequest(underlying, optionType, side, expiry, requestEx
 		req["counterParyID"] = counterParyID
 	}
 	req["hideLimitPrice"] = hideLimitPrice
+	var resp CreateQuote
 	return resp, f.SendAuthHTTPRequest(http.MethodPost, createQuoteRequest, req, &resp)
 }
 
@@ -646,9 +646,9 @@ func (f *FTX) GetQuotesForYourQuote(requestID string) (QuoteForQuoteData, error)
 
 // MakeQuote makes a quote for a quote
 func (f *FTX) MakeQuote(requestID, price string) (QuoteForQuoteResponse, error) {
-	var resp QuoteForQuoteResponse
 	params := url.Values{}
 	params.Set("price", price)
+	var resp QuoteForQuoteResponse
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, fmt.Sprintf(createQuote, requestID), nil, &resp)
 }
 
@@ -684,7 +684,6 @@ func (f *FTX) GetOptionsPositions() (OptionsPositions, error) {
 
 // GetPublicOptionsTrades gets options' trades from public
 func (f *FTX) GetPublicOptionsTrades(startTime, endTime, limit string) (PublicOptionsTrades, error) {
-	var resp PublicOptionsTrades
 	req := make(map[string]interface{})
 	if startTime != "" {
 		req["start_time"] = startTime
@@ -695,12 +694,12 @@ func (f *FTX) GetPublicOptionsTrades(startTime, endTime, limit string) (PublicOp
 	if limit != "" {
 		req["limit"] = limit
 	}
+	var resp PublicOptionsTrades
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, getOptionsPositions, req, &resp)
 }
 
 // GetOptionsFills gets fills data for options
 func (f *FTX) GetOptionsFills(startTime, endTime, limit string) (OptionsFills, error) {
-	var resp OptionsFills
 	req := make(map[string]interface{})
 	if startTime != "" {
 		req["start_time"] = startTime
@@ -711,6 +710,7 @@ func (f *FTX) GetOptionsFills(startTime, endTime, limit string) (OptionsFills, e
 	if limit != "" {
 		req["limit"] = limit
 	}
+	var resp OptionsFills
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, getOptionsFills, req, &resp)
 }
 
