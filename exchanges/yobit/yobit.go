@@ -88,13 +88,11 @@ func (y *Yobit) GetTrades(symbol string, start int64, sortAsc bool) ([]Trades, e
 	} else {
 		v.Set("order", "DESC")
 	}
-
 	if start != 0 {
 		v.Set("since", strconv.FormatInt(start, 10))
 	}
 
 	var response Response
-
 	path := y.API.Endpoints.URL + "/" + apiPublicVersion + "/" + publicTrades + "/" + symbol + "?" + v.Encode()
 	return response.Data[symbol], y.SendHTTPRequest(path, &response.Data)
 }
