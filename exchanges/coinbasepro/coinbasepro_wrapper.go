@@ -741,75 +741,35 @@ func checkInterval(i time.Duration) (int64, error) {
 }
 
 // this is broken please fix :D
-func calcNextDates(start, end time.Time, interval kline.Interval, previousRequest int64) (nextStart, nextEnd time.Time, total int64) {
-	var addVal time.Duration
-	switch interval {
-	case kline.OneMin:
-		sub := end.Sub(start)
-		addVal = (time.Duration(sub / 300)) * time.Minute
-		previousRequest -= int64(addVal)
-	case kline.OneDay:
-		sub := end.Sub(start)
-		addVal = (time.Duration(sub / 300)) * time.Hour * 24
-		previousRequest -= int64(addVal * 24)
-	}
-	nextStart = start.Add(addVal)
-	nextEnd = nextStart.Add(addVal)
-	total = previousRequest
-	//fmt.Printf("calcNextDates() Start: %v | End: %v\n", nextStart, nextEnd)
-	return
-}
-
-type candleDates struct {
-	start time.Time
-	end time.Time
-}
-
-func calcDateIntervals(start, end time.Time, interval kline.Interval) (out []candleDates) {
-	var addVal time.Duration
-	switch interval {
-	case kline.OneMin:
-		addVal = time.Minute
-	case kline.OneDay:
-		addVal = time.Hour*24
-	}
-	for d := start; d.After(end) == false; d = d.Add(addVal) {
-		fmt.Println(d.Format("2006-01-02"))
-	}
-
-	return
-}
-
-
-
-func calcNextDate(previousStart, previousEnd *time.Time, interval kline.Interval) (nextStart, nextEnd time.Time){
-	fmt.Printf("previousStart: %v | previousEnd: %v\n", previousStart, previousEnd)
-	totalCandles := calcTotalCandles(*previousStart, *previousEnd, interval)
-	if totalCandles <= 300 {
-		return *previousStart, *previousEnd
-	}
-	var addVal time.Duration
-	sub := previousEnd.Sub(*previousStart)
-	switch interval {
-	case kline.OneMin:
-		addVal = (sub * time.Minute )/300
-	case kline.OneDay:
-		addVal = (sub * time.Hour )/300
-	}
-	nextStart = previousStart.Add(addVal)
-	nextEnd = nextStart.Add(addVal)
-	return
-}
-
-func calcTotalCandles(start, end time.Time, interval kline.Interval) (out int64) {
-	switch interval {
-	case kline.OneMin:
-		out = int64(end.Sub(start).Minutes())
-	case kline.OneDay:
-		out = int64(end.Sub(start).Hours() / 24)
-	}
-	return
-}
+// type candleDates struct {
+// 	// start time.Time
+// 	// end   time.Time
+// }
+//
+// func calcDateIntervals(start, end time.Time, interval kline.Interval) (out []candleDates) {
+// 	var addVal time.Duration
+// 	switch interval {
+// 	case kline.OneMin:
+// 		addVal = time.Minute
+// 	case kline.OneDay:
+// 		addVal = time.Hour * 24
+// 	}
+// 	for d := start; d.After(end) == false; d = d.Add(addVal) {
+// 		fmt.Println(d.Format("2006-01-02"))
+// 	}
+//
+// 	return
+// }
+//
+// func calcTotalCandles(start, end time.Time, interval kline.Interval) (out int64) {
+// 	switch interval {
+// 	case kline.OneMin:
+// 		out = int64(end.Sub(start).Minutes())
+// 	case kline.OneDay:
+// 		out = int64(end.Sub(start).Hours() / 24)
+// 	}
+// 	return
+// }
 
 // GetHistoricCandles returns a set of candle between two time periods for a
 // designated time period
@@ -827,34 +787,23 @@ func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, e
 		Interval: interval,
 	}
 
-	var s1, s2, p1, p2 time.Time
-	p1 = start
-	p2 = end
-	totalCandles := calcTotalCandles(start, end, interval)
-	var remaining int64
-	for totalCandles != 0 {
-		s1, s2, remaining = calcNextDates(p1, p2, interval, totalCandles)
-		history, err := c.GetHistoricRates(c.FormatExchangeCurrency(p, a).String(),
-			s1.Format(time.RFC3339),
-			s2.Format(time.RFC3339),
-			int64(interval.Duration().Seconds()))
-		if err != nil {
-			return kline.Item{}, err
-		}
+	history, err := c.GetHistoricRates(c.FormatExchangeCurrency(p, a).String(),
+		start.Format(time.RFC3339),
+		end.Format(time.RFC3339),
+		int64(interval.Duration().Seconds()))
+	if err != nil {
+		return kline.Item{}, err
+	}
 
-		for x := range history {
-			candles.Candles = append(candles.Candles, kline.Candle{
-				Time:   time.Unix(history[x].Time, 0),
-				Low:    history[x].Low,
-				High:   history[x].High,
-				Open:   history[x].Open,
-				Close:  history[x].Close,
-				Volume: history[x].Volume,
-			})
-		}
-		p1 = s2
-		p2 = s2
-		totalCandles -= totalCandles - remaining
+	for x := range history {
+		candles.Candles = append(candles.Candles, kline.Candle{
+			Time:   time.Unix(history[x].Time, 0),
+			Low:    history[x].Low,
+			High:   history[x].High,
+			Open:   history[x].Open,
+			Close:  history[x].Close,
+			Volume: history[x].Volume,
+		})
 	}
 
 	return candles, nil

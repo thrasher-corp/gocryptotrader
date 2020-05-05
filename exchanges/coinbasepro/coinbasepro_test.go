@@ -929,20 +929,19 @@ func TestStatusToStandardStatus(t *testing.T) {
 	}
 }
 
-func TestCalcTotalCandles(t *testing.T) {
-	start := time.Now().AddDate(0, -6, 0)
-	end := time.Now()
-	interval := kline.OneDay
-	ret := calcTotalCandles(start, end, interval)
-	t.Log(ret)
-}
-
-func TestCalcDateIntervals(t *testing.T) {
-	start := time.Now().AddDate(-1, -6, 0)
-	end := time.Now()
-	interval := kline.OneDay
-
-	ret := calcDateIntervals(start, end, interval)
-	t.Log(ret)
-}
-
+// func TestCalcTotalCandles(t *testing.T) {
+// 	start := time.Now().AddDate(0, -6, 0)
+// 	end := time.Now()
+// 	interval := kline.OneDay
+// 	ret := calcTotalCandles(start, end, interval)
+// 	t.Log(ret)
+// }
+//
+// func TestCalcDateIntervals(t *testing.T) {
+// 	start := time.Now().AddDate(-1, -6, 0)
+// 	end := time.Now()
+// 	interval := kline.OneDay
+//
+// 	ret := calcDateIntervals(start, end, interval)
+// 	t.Log(ret)
+// }
