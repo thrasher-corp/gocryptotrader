@@ -107,9 +107,29 @@ func (z *ZB) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
+			KlineCapabilities: kline.ExchangeCapabilities{
+				SupportsIntervals: true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			KlineCapabilities: kline.ExchangeCapabilities{
+				Intervals: map[string]bool{
+					"onemin":     true,
+					"threemin":   true,
+					"fivemin":    true,
+					"fifteenmin": true,
+					"thirtymin":  true,
+					"onehour":    true,
+					"twohour":    true,
+					"fourhour":   true,
+					"sixhour":    true,
+					"twelvehour": true,
+					"oneday":     true,
+					"threeday":   true,
+					"oneweek":    true,
+				},
+			},
 		},
 	}
 
@@ -700,7 +720,57 @@ func (z *ZB) ValidateCredentials() error {
 	return z.CheckTransientError(err)
 }
 
+func (z *ZB) KlineConvertToExchangeStandardString(in kline.Interval) string {
+	switch in {
+	case kline.OneMin, kline.ThreeMin,
+		kline.FiveMin, kline.FifteenMin, kline.ThirtyMin:
+		return in.Short() + "in"
+	case kline.OneHour, kline.TwoHour, kline.FourHour, kline.SixHour, kline.TwelveHour:
+		return in.Short()[:len(in.Short())-1] + "hour"
+	case kline.OneDay:
+		return "1day"
+	case kline.ThreeDay:
+		return "3day"
+	case kline.OneWeek:
+		return in.Short()[:len(in.Short())-1] + "week"
+	}
+	return in.Short()
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (z *ZB) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+	if !z.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	klineParams := KlinesRequestParams{
+		Type:   z.KlineConvertToExchangeStandardString(interval),
+		Symbol: z.FormatExchangeCurrency(pair, a).String(),
+	}
+
+	candles, err := z.GetSpotKline(klineParams)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	ret := kline.Item{
+		Exchange: z.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	for x := range candles.Data {
+		ret.Candles = append(ret.Candles, kline.Candle{
+			Time:   candles.Data[x].KlineTime,
+			Open:   candles.Data[x].Open,
+			High:   candles.Data[x].Close,
+			Low:    candles.Data[x].Low,
+			Close:  candles.Data[x].Close,
+			Volume: candles.Data[x].Volume,
+		})
+	}
+	return ret, nil
 }

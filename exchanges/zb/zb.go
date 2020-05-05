@@ -213,10 +213,10 @@ func (z *ZB) GetOrderbook(symbol string) (OrderbookResponse, error) {
 // GetSpotKline returns Kline data
 func (z *ZB) GetSpotKline(arg KlinesRequestParams) (KLineResponse, error) {
 	vals := url.Values{}
-	vals.Set("type", string(arg.Type))
+	vals.Set("type", arg.Type)
 	vals.Set("market", arg.Symbol)
-	if arg.Since != "" {
-		vals.Set("since", arg.Since)
+	if arg.Since > 0 {
+		vals.Set("since", strconv.FormatInt(arg.Since, 10))
 	}
 	if arg.Size != 0 {
 		vals.Set("size", fmt.Sprintf("%d", arg.Size))

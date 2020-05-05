@@ -112,10 +112,10 @@ type SpotNewOrderResponse struct {
 
 // KlinesRequestParams represents Klines request data.
 type KlinesRequestParams struct {
-	Symbol string       // 交易对, zb_qc,zb_usdt,zb_btc...
-	Type   TimeInterval // K线类型, 1min, 3min, 15min, 30min, 1hour......
-	Since  string       // 从这个时间戳之后的
-	Size   int          // 返回数据的条数限制(默认为1000，如果返回数据多于1000条，那么只返回1000条)
+	Symbol string // 交易对, zb_qc,zb_usdt,zb_btc...
+	Type   string // K线类型, 1min, 3min, 15min, 30min, 1hour......
+	Since  int64  // 从这个时间戳之后的
+	Size   int    // 返回数据的条数限制(默认为1000，如果返回数据多于1000条，那么只返回1000条)
 }
 
 // KLineResponseData Kline Data
@@ -148,26 +148,6 @@ type UserAddress struct {
 		} `json:"datas"`
 	} `json:"message"`
 }
-
-// TimeInterval represents interval enum.
-type TimeInterval string
-
-// TimeInterval vars
-var (
-	TimeIntervalMinute         = TimeInterval("1min")
-	TimeIntervalThreeMinutes   = TimeInterval("3min")
-	TimeIntervalFiveMinutes    = TimeInterval("5min")
-	TimeIntervalFifteenMinutes = TimeInterval("15min")
-	TimeIntervalThirtyMinutes  = TimeInterval("30min")
-	TimeIntervalHour           = TimeInterval("1hour")
-	TimeIntervalTwoHours       = TimeInterval("2hour")
-	TimeIntervalFourHours      = TimeInterval("4hour")
-	TimeIntervalSixHours       = TimeInterval("6hour")
-	TimeIntervalTwelveHours    = TimeInterval("12hour")
-	TimeIntervalDay            = TimeInterval("1day")
-	TimeIntervalThreeDays      = TimeInterval("3day")
-	TimeIntervalWeek           = TimeInterval("1week")
-)
 
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change, using highest value

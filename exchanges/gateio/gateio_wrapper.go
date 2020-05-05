@@ -718,12 +718,16 @@ func (g *Gateio) ValidateCredentials() error {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (g *Gateio) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	intervalStr := convert.ParseIntervalDuration(interval.Duration(), false)
-	hours := end.Sub(start).Hours()
+	if !g.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
 
+	hours := end.Sub(start).Hours()
 	params := KlinesRequestParams{
 		Symbol:   pair.String(),
-		GroupSec: intervalStr[:len(intervalStr)-1],
+		GroupSec: interval.Short()[:len(interval.Short())-1],
 		HourSize: int(hours),
 	}
 

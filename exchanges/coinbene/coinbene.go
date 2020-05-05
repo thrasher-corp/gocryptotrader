@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -618,13 +617,17 @@ func (c *Coinbene) GetSwapOrderbook(symbol string, size int64) (Orderbook, error
 
 // GetKlines data returns the kline data for a specific symbol
 func (c *Coinbene) GetKlines(pair currency.Pair, start, end time.Time, period kline.Interval) (kline.Item, error) {
+	if !c.KlineIntervalEnabled(period) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: period,
+		}
+	}
+
 	var candle struct {
 		Code    int64           `json:"code"`
 		Message string          `json:"message"`
 		Data    [][]interface{} `json:"data"`
 	}
-
-	intervalStr := convert.ParseIntervalDuration(period.Duration(), false)
 
 	v := url.Values{}
 	v.Add("symbol", pair.String())
@@ -634,7 +637,7 @@ func (c *Coinbene) GetKlines(pair currency.Pair, start, end time.Time, period kl
 	if !end.IsZero() {
 		v.Add("end", strconv.FormatInt(end.Unix(), 10))
 	}
-	v.Add("period", intervalStr[:len(intervalStr)-1])
+	v.Add("period", period.Short()[:len(period.Short())-1])
 
 	path := common.EncodeURLValues(coinbeneAPIURL+coinbeneAPIVersion+coinbeneSpotKlines, v)
 	if err := c.SendHTTPRequest(path, contractKline, &candle); err != nil {

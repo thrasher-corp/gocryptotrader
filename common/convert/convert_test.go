@@ -217,14 +217,16 @@ func TestBoolPtr(t *testing.T) {
 	}
 }
 
-func TestParseIntervalDuration(t *testing.T) {
-	ret := ParseIntervalDuration(time.Second*60, false)
-	if ret != "1m" {
-		t.Fatalf("unexpected result received %v expected 1m", ret)
+func TestUnixMillisToNano(t *testing.T) {
+	v := UnixMillisToNano(1588653603424)
+	if v != 1588653603424000000 {
+		t.Fatalf("unexpected result received %v", v)
 	}
+}
 
-	ret = ParseIntervalDuration(time.Hour*60, false)
-	if ret != "60h" {
-		t.Fatalf("unexpected result received %v expected 60h", ret)
+func TestTimeStringToRFC3339(t *testing.T) {
+	_, err := TimeStringToRFC3339("2020-05-05T14:42:45")
+	if err != nil {
+		t.Fatal(err)
 	}
 }

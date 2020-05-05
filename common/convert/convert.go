@@ -114,28 +114,12 @@ func BoolPtr(condition bool) *bool {
 	return &b
 }
 
-// ParseIntervalDuration takes in a time.Duration and returns short string version of it
-// e.g 1m0s > 1m
-func ParseIntervalDuration(d time.Duration, strip bool) string {
-	if strip {
-		return d.String()
-	}
-
-	s := d.String()
-	if strings.HasSuffix(s, "m0s") {
-		s = s[:len(s)-2]
-	}
-	if strings.HasSuffix(s, "h0m") {
-		s = s[:len(s)-2]
-	}
-	return s
-}
-
 // UnixMillisToNano converts Unix milli time to UnixNano
 func UnixMillisToNano(milli int64) int64 {
 	return milli * int64(time.Millisecond)
 }
 
+// TimeStringToRFC3339 returns string to RFC3399 formatted time.Time
 func TimeStringToRFC3339(timestamp string) (time.Time, error) {
 	split := strings.Split(timestamp, " ")
 	join := strings.Join(split, "T")

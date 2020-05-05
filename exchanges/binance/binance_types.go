@@ -410,28 +410,6 @@ type KlinesRequestParams struct {
 	EndTime   int64
 }
 
-// TimeInterval represents interval enum.
-type TimeInterval string
-
-// Vars related to time intervals
-var (
-	TimeIntervalMinute         = TimeInterval("1m")
-	TimeIntervalThreeMinutes   = TimeInterval("3m")
-	TimeIntervalFiveMinutes    = TimeInterval("5m")
-	TimeIntervalFifteenMinutes = TimeInterval("15m")
-	TimeIntervalThirtyMinutes  = TimeInterval("30m")
-	TimeIntervalHour           = TimeInterval("1h")
-	TimeIntervalTwoHours       = TimeInterval("2h")
-	TimeIntervalFourHours      = TimeInterval("4h")
-	TimeIntervalSixHours       = TimeInterval("6h")
-	TimeIntervalEightHours     = TimeInterval("8h")
-	TimeIntervalTwelveHours    = TimeInterval("12h")
-	TimeIntervalDay            = TimeInterval("1d")
-	TimeIntervalThreeDays      = TimeInterval("3d")
-	TimeIntervalWeek           = TimeInterval("1w")
-	TimeIntervalMonth          = TimeInterval("1M")
-)
-
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change
 var WithdrawalFees = map[currency.Code]float64{

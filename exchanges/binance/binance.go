@@ -719,38 +719,3 @@ func (b *Binance) MaintainWsAuthStreamKey() error {
 		HTTPRecording: b.HTTPRecording,
 	})
 }
-
-// func parseInterval(in time.Duration) (string, error) {
-// 	switch in {
-// 	case kline.OneMin:
-// 		return convert.ParseIntervalDuration(in), nil
-// 	case kline.ThreeMin:
-// 		return TimeIntervalThreeMinutes, nil
-// 	case kline.FiveMin:
-// 		return TimeIntervalFiveMinutes, nil
-// 	case kline.FifteenMin:
-// 		return TimeIntervalFifteenMinutes, nil
-// 	case kline.ThirtyMin:
-// 		return TimeIntervalThirtyMinutes, nil
-// 	case kline.OneHour:
-// 		return TimeIntervalHour, nil
-// 	case kline.TwoHour:
-// 		return TimeIntervalTwoHours, nil
-// 	case kline.FourHour:
-// 		return TimeIntervalFourHours, nil
-// 	case kline.SixHour:
-// 		return TimeIntervalSixHours, nil
-// 	case kline.OneHour * 8:
-// 		return TimeIntervalEightHours, nil
-// 	case kline.TwelveHour:
-// 		return TimeIntervalTwelveHours, nil
-// 	case kline.OneDay:
-// 		return TimeIntervalDay, nil
-// 	case kline.ThreeDay:
-// 		return TimeIntervalThreeDays, nil
-// 	case kline.OneWeek:
-// 		return TimeIntervalWeek, nil
-// 	default:
-// 		return TimeIntervalMinute, errInvalidInterval
-// 	}
-// }

@@ -94,7 +94,6 @@ func TestGetHistoricalTrades(t *testing.T) {
 
 func TestExchangeHistory(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	req := &trade.HistoryRequest{
 		Pair:           currency.NewPairFromString("BTCUSDT"),
 		TimestampStart: time.Now(),
@@ -107,7 +106,6 @@ func TestExchangeHistory(t *testing.T) {
 
 func TestGetAggregatedTrades(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	_, err := b.GetAggregatedTrades("BTCUSDT", 5, time.Now().Add(-5*time.Minute), time.Now())
 	if err != nil {
 		t.Error("Binance GetAggregatedTrades() error", err)
