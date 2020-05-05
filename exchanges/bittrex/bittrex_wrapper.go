@@ -101,7 +101,7 @@ func (b *Bittrex) SetDefaults() {
 
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.NewBasicRateLimit(bittrexRateInterval, bittrexRequestRate))
+		request.WithLimiter(request.NewBasicRateLimit(bittrexRateInterval, bittrexRequestRate)))
 
 	b.API.Endpoints.URLDefault = bittrexAPIURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault

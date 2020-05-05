@@ -115,7 +115,7 @@ func (p *Poloniex) SetDefaults() {
 
 	p.Requester = request.New(p.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		SetRateLimit())
+		request.WithLimiter(SetRateLimit()))
 
 	p.API.Endpoints.URLDefault = poloniexAPIURL
 	p.API.Endpoints.URL = p.API.Endpoints.URLDefault

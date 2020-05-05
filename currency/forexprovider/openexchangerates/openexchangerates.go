@@ -9,6 +9,7 @@
 package openexchangerates
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -38,8 +39,7 @@ func (o *OXR) Setup(config base.Settings) error {
 	o.Verbose = config.Verbose
 	o.PrimaryProvider = config.PrimaryProvider
 	o.Requester = request.New(o.Name,
-		common.NewHTTPClientWithTimeout(base.DefaultTimeOut),
-		nil)
+		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
 	return nil
 }
 
@@ -218,7 +218,7 @@ func (o *OXR) SendHTTPRequest(endpoint string, values url.Values, result interfa
 	headers["Authorization"] = "Token " + o.APIKey
 	path := APIURL + endpoint + "?" + values.Encode()
 
-	return o.Requester.SendPayload(&request.Item{
+	return o.Requester.SendPayload(context.Background(), &request.Item{
 		Method:  http.MethodGet,
 		Path:    path,
 		Result:  result,

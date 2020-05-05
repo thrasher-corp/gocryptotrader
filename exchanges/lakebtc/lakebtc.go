@@ -1,6 +1,7 @@
 package lakebtc
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -268,7 +269,7 @@ func (l *LakeBTC) CreateWithdraw(amount float64, accountID string) (Withdraw, er
 
 // SendHTTPRequest sends an unauthenticated http request
 func (l *LakeBTC) SendHTTPRequest(path string, result interface{}) error {
-	return l.SendPayload(&request.Item{
+	return l.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,
@@ -308,7 +309,7 @@ func (l *LakeBTC) SendAuthenticatedHTTPRequest(method, params string, result int
 	headers["Authorization"] = "Basic " + crypto.Base64Encode([]byte(l.API.Credentials.Key+":"+crypto.HexEncodeToString(hmac)))
 	headers["Content-Type"] = "application/json-rpc"
 
-	return l.SendPayload(&request.Item{
+	return l.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodPost,
 		Path:          l.API.Endpoints.URL,
 		Headers:       headers,

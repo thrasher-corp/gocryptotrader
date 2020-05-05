@@ -59,7 +59,7 @@ type Settings struct {
 	EnableExchangeRESTSupport      bool
 	EnableExchangeWebsocketSupport bool
 	MaxHTTPRequestJobsLimit        int
-	RequestTimeoutRetryAttempts    int
+	RequestMaxRetryAttempts        int
 
 	// Global HTTP related settings
 	GlobalHTTPTimeout   time.Duration
@@ -67,9 +67,9 @@ type Settings struct {
 	GlobalHTTPProxy     string
 
 	// Exchange HTTP related settings
-	ExchangeHTTPTimeout   time.Duration
-	ExchangeHTTPUserAgent string
-	ExchangeHTTPProxy     string
+	HTTPTimeout   time.Duration
+	HTTPUserAgent string
+	HTTPProxy     string
 
 	// Dispatch system settings
 	EnableDispatcher        bool

@@ -154,7 +154,7 @@ func (o *OKEX) SetDefaults() {
 	o.Requester = request.New(o.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		// TODO: Specify each individual endpoint rate limits as per docs
-		request.NewBasicRateLimit(okExRateInterval, okExRequestRate),
+		request.WithLimiter(request.NewBasicRateLimit(okExRateInterval, okExRequestRate)),
 	)
 
 	o.API.Endpoints.URLDefault = okExAPIURL

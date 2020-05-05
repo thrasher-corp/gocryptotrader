@@ -36,8 +36,7 @@ const (
 func (e *Base) checkAndInitRequester() {
 	if e.Requester == nil {
 		e.Requester = request.New(e.Name,
-			new(http.Client),
-			nil)
+			new(http.Client))
 	}
 }
 
