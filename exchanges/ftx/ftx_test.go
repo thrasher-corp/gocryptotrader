@@ -705,3 +705,24 @@ func TestGetOfflineTradingFee(t *testing.T) {
 		t.Errorf("incorrect offline taker fee")
 	}
 }
+
+func TestGetOrderStatus(t *testing.T) {
+	_, err := f.GetOrderStatus("testID")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderStatusByClientID(t *testing.T) {
+	_, err := f.GetOrderStatusByClientID("testID")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestRequestLTRedemption(t *testing.T) {
+	_, err := f.RequestLTRedemption("ADA-PERP", 5)
+	if err != nil {
+		t.Error(err)
+	}
+}

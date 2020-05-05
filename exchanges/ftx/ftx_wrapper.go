@@ -261,7 +261,7 @@ func (f *FTX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price
 	var marketNames []string
 	allPairs := f.GetEnabledPairs(assetType)
 	for a := range allPairs {
-		marketNames = append(marketNames, f.FormatExchangeCurrency(allPairs[a], asset.Spot).String())
+		marketNames = append(marketNames, f.FormatExchangeCurrency(allPairs[a], assetType).String())
 	}
 	markets, err := f.GetMarkets()
 	if err != nil {
@@ -817,7 +817,7 @@ func (f *FTX) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, erro
 
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (f *FTX) AuthenticateWebsocket() error {
-	return common.ErrNotYetImplemented
+	return f.WsAuth()
 }
 
 // ValidateCredentials validates current credentials used for wrapper
