@@ -14,6 +14,7 @@
 package currencylayer
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
@@ -44,8 +45,7 @@ func (c *CurrencyLayer) Setup(config base.Settings) error {
 	c.PrimaryProvider = config.PrimaryProvider
 	// Rate limit is based off a monthly counter - Open limit used.
 	c.Requester = request.New(c.Name,
-		common.NewHTTPClientWithTimeout(base.DefaultTimeOut),
-		nil)
+		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
 
 	return nil
 }
@@ -207,7 +207,7 @@ func (c *CurrencyLayer) SendHTTPRequest(endPoint string, values url.Values, resu
 	}
 	path += values.Encode()
 
-	return c.Requester.SendPayload(&request.Item{
+	return c.Requester.SendPayload(context.Background(), &request.Item{
 		Method:      http.MethodGet,
 		Path:        path,
 		Result:      &result,

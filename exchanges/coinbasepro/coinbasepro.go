@@ -2,6 +2,7 @@ package coinbasepro
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -720,7 +721,7 @@ func (c *CoinbasePro) GetTrailingVolume() ([]Volume, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (c *CoinbasePro) SendHTTPRequest(path string, result interface{}) error {
-	return c.SendPayload(&request.Item{
+	return c.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,
@@ -750,7 +751,8 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params m
 		}
 	}
 
-	n := strconv.FormatInt(time.Now().Unix(), 10)
+	now := time.Now()
+	n := strconv.FormatInt(now.Unix(), 10)
 	message := n + method + "/" + path + string(payload)
 	hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(message), []byte(c.API.Credentials.Secret))
 	headers := make(map[string]string)
@@ -760,7 +762,10 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(method, path string, params m
 	headers["CB-ACCESS-PASSPHRASE"] = c.API.Credentials.ClientID
 	headers["Content-Type"] = "application/json"
 
-	return c.SendPayload(&request.Item{
+	// Timestamp must be within 30 seconds of the api service time
+	ctx, cancel := context.WithDeadline(context.Background(), now.Add(30*time.Second))
+	defer cancel()
+	return c.SendPayload(ctx, &request.Item{
 		Method:        method,
 		Path:          c.API.Endpoints.URL + path,
 		Headers:       headers,

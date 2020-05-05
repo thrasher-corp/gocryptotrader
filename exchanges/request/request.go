@@ -1,9 +1,11 @@
 package request
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -19,23 +21,30 @@ import (
 )
 
 // New returns a new Requester
-func New(name string, httpRequester *http.Client, l Limiter) *Requester {
-	return &Requester{
-		HTTPClient:           httpRequester,
-		Limiter:              l,
-		Name:                 name,
-		timeoutRetryAttempts: TimeoutRetryAttempts,
-		timedLock:            timedmutex.NewTimedMutex(DefaultMutexLockTimeout),
+func New(name string, httpRequester *http.Client, opts ...RequesterOption) *Requester {
+	r := &Requester{
+		HTTPClient:  httpRequester,
+		Name:        name,
+		backoff:     DefaultBackoff(),
+		retryPolicy: DefaultRetryPolicy,
+		maxRetries:  MaxRetryAttempts,
+		timedLock:   timedmutex.NewTimedMutex(DefaultMutexLockTimeout),
 	}
+
+	for _, o := range opts {
+		o(r)
+	}
+
+	return r
 }
 
 // SendPayload handles sending HTTP/HTTPS requests
-func (r *Requester) SendPayload(i *Item) error {
+func (r *Requester) SendPayload(ctx context.Context, i *Item) error {
 	if !i.NonceEnabled {
 		r.timedLock.LockForDuration()
 	}
 
-	req, err := i.validateRequest(r)
+	req, err := i.validateRequest(ctx, r)
 	if err != nil {
 		r.timedLock.UnlockIfLocked()
 		return err
@@ -61,7 +70,7 @@ func (r *Requester) SendPayload(i *Item) error {
 }
 
 // validateRequest validates the requester item fields
-func (i *Item) validateRequest(r *Requester) (*http.Request, error) {
+func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request, error) {
 	if r == nil || r.Name == "" {
 		return nil, errors.New("not initialised, SetDefaults() called before making request?")
 	}
@@ -74,7 +83,7 @@ func (i *Item) validateRequest(r *Requester) (*http.Request, error) {
 		return nil, errors.New("invalid path")
 	}
 
-	req, err := http.NewRequest(i.Method, i.Path, i.Body)
+	req, err := http.NewRequestWithContext(ctx, i.Method, i.Path, i.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -122,8 +131,7 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 		}
 	}
 
-	var timeoutError error
-	for i := 0; i < r.timeoutRetryAttempts+1; i++ {
+	for attempt := 1; ; attempt++ {
 		// Initiate a rate limit reservation and sleep on requested endpoint
 		err := r.InitiateRateLimit(p.Endpoint)
 		if err != nil {
@@ -131,18 +139,52 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 		}
 
 		resp, err := r.HTTPClient.Do(req)
-		if err != nil {
-			if timeoutErr, ok := err.(net.Error); ok && timeoutErr.Timeout() {
-				if p.Verbose {
-					log.Errorf(log.RequestSys,
-						"%s request has timed-out retrying request, count %d",
-						r.Name,
-						i)
-				}
-				timeoutError = err
-				continue
+		if retry, checkErr := r.retryPolicy(resp, err); checkErr != nil {
+			return checkErr
+		} else if retry {
+			if err == nil {
+				// If the body isn't fully read, the connection cannot be re-used
+				r.drainBody(resp.Body)
 			}
-			return err
+
+			// Can't currently regenerate nonce and signatures with fresh values for retries, so for now, we must not retry
+			if p.NonceEnabled {
+				if timeoutErr, ok := err.(net.Error); !ok || !timeoutErr.Timeout() {
+					return fmt.Errorf("request.go error - unable to retry request using nonce, err: %v", err)
+				}
+			}
+
+			if attempt > r.maxRetries {
+				if err != nil {
+					return fmt.Errorf("request.go error - failed to retry request, err: %v", err)
+				}
+				return fmt.Errorf("request.go error - failed to retry request, status: %s", resp.Status)
+			}
+
+			after := RetryAfter(resp, time.Now())
+			backoff := r.backoff(attempt)
+			delay := backoff
+			if after > backoff {
+				delay = after
+			}
+
+			if d, ok := req.Context().Deadline(); ok && d.After(time.Now().Add(delay)) {
+				if err != nil {
+					return fmt.Errorf("request.go error - deadline would be exceeded by retry, err: %v", err)
+				}
+				return fmt.Errorf("request.go error - deadline would be exceeded by retry, status: %s", resp.Status)
+			}
+
+			if p.Verbose {
+				log.Errorf(log.RequestSys,
+					"%s request has failed. Retrying request in %s, attempt %d",
+					r.Name,
+					delay,
+					attempt)
+			}
+
+			time.Sleep(delay)
+			continue
 		}
 
 		contents, err := ioutil.ReadAll(resp.Body)
@@ -193,8 +235,6 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 		}
 		return nil
 	}
-	return fmt.Errorf("request.go error - failed to retry request %s",
-		timeoutError)
 }
 
 // GetNonce returns a nonce for requests. This locks and enforces concurrent
@@ -236,4 +276,14 @@ func (r *Requester) SetProxy(p *url.URL) error {
 		TLSHandshakeTimeout: proxyTLSTimeout,
 	}
 	return nil
+}
+
+func (r *Requester) drainBody(body io.ReadCloser) {
+	defer body.Close()
+	if _, err := io.Copy(ioutil.Discard, io.LimitReader(body, drainBodyLimit)); err != nil {
+		log.Errorf(log.RequestSys,
+			"%s failed to drain request body %s",
+			r.Name,
+			err)
+	}
 }

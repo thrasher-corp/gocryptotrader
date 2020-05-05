@@ -125,7 +125,7 @@ func (b *Bithumb) SetDefaults() {
 	//  24h {1m, 3m, 5m, 10m, 30m, 1h, 6h, 12h, 24h available}
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		SetRateLimit())
+		request.WithLimiter(SetRateLimit()))
 
 	b.API.Endpoints.URLDefault = apiURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault

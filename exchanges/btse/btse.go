@@ -2,6 +2,7 @@ package btse
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -188,7 +189,7 @@ func (b *BTSE) GetFills(orderID, symbol, before, after, limit, username string) 
 
 // SendHTTPRequest sends an HTTP request to the desired endpoint
 func (b *BTSE) SendHTTPRequest(method, endpoint string, result interface{}) error {
-	return b.SendPayload(&request.Item{
+	return b.SendPayload(context.Background(), &request.Item{
 		Method:        method,
 		Path:          b.API.Endpoints.URL + btseAPIPath + endpoint,
 		Result:        result,
@@ -238,13 +239,14 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[str
 			b.Name, method, path, string(payload))
 	}
 
-	return b.SendPayload(&request.Item{
+	return b.SendPayload(context.Background(), &request.Item{
 		Method:        method,
 		Path:          b.API.Endpoints.URL + path,
 		Headers:       headers,
 		Body:          body,
 		Result:        result,
 		AuthRequest:   true,
+		NonceEnabled:  true,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,

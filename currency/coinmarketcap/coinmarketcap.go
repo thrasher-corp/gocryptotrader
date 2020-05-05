@@ -6,6 +6,7 @@
 package coinmarketcap
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -27,7 +28,7 @@ func (c *Coinmarketcap) SetDefaults() {
 	c.APIVersion = version
 	c.Requester = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(defaultTimeOut),
-		request.NewBasicRateLimit(RateInterval, BasicRequestRate),
+		request.WithLimiter(request.NewBasicRateLimit(RateInterval, BasicRequestRate)),
 	)
 }
 
@@ -674,7 +675,7 @@ func (c *Coinmarketcap) SendHTTPRequest(method, endpoint string, v url.Values, r
 		path = path + "?" + v.Encode()
 	}
 
-	return c.Requester.SendPayload(&request.Item{
+	return c.Requester.SendPayload(context.Background(), &request.Item{
 		Method:  method,
 		Path:    path,
 		Headers: headers,

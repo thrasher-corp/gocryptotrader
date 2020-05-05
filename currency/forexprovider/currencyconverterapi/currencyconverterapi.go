@@ -3,6 +3,7 @@
 package currencyconverter
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -25,7 +26,7 @@ func (c *CurrencyConverter) Setup(config base.Settings) error {
 	c.PrimaryProvider = config.PrimaryProvider
 	c.Requester = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut),
-		request.NewBasicRateLimit(rateInterval, requestRate))
+		request.WithLimiter(request.NewBasicRateLimit(rateInterval, requestRate)))
 	return nil
 }
 
@@ -161,7 +162,7 @@ func (c *CurrencyConverter) SendHTTPRequest(endPoint string, values url.Values, 
 	}
 	path += values.Encode()
 
-	err := c.Requester.SendPayload(&request.Item{
+	err := c.Requester.SendPayload(context.Background(), &request.Item{
 		Method:      path,
 		Result:      result,
 		AuthRequest: auth,
