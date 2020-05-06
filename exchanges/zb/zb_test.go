@@ -157,6 +157,7 @@ func TestGetMarkets(t *testing.T) {
 
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
+	z.Verbose = true
 	arg := KlinesRequestParams{
 		Symbol: "btc_usdt",
 		Type:   kline.OneMin.Short() + "in",
