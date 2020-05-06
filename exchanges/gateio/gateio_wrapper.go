@@ -109,12 +109,30 @@ func (g *Gateio) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
+			KlineCapabilities: kline.ExchangeCapabilities{
+				SupportsIntervals: true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			KlineCapabilities: kline.ExchangeCapabilities{
+				Intervals: map[string]bool{
+					"onemin":     true,
+					"threemin":   true,
+					"fivemin":    true,
+					"fifteenmin": true,
+					"thirtymin":  true,
+					"onehour":    true,
+					"twohour":    true,
+					"fourhour":   true,
+					"sixhour":    true,
+					"twelvehour": true,
+					"oneday":     true,
+				},
+			},
+
 		},
 	}
-
 	g.Requester = request.New(g.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 
@@ -716,6 +734,10 @@ func (g *Gateio) ValidateCredentials() error {
 	return g.CheckTransientError(err)
 }
 
+func (g *Gateio) FormatExchangeKlineInterval(in kline.Interval) string {
+	return in.Short()[:len(in.Short())-1]
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (g *Gateio) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if !g.KlineIntervalEnabled(interval) {
@@ -727,7 +749,7 @@ func (g *Gateio) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 	hours := end.Sub(start).Hours()
 	params := KlinesRequestParams{
 		Symbol:   pair.String(),
-		GroupSec: interval.Short()[:len(interval.Short())-1],
+		GroupSec: g.FormatExchangeKlineInterval(interval),
 		HourSize: int(hours),
 	}
 
