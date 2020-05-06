@@ -24,6 +24,22 @@ const MovingAverageConvergenceDivergence = "Moving Average Convergence Divergenc
 // object type
 type MACD struct {
 	objects.Array
+	Period, PeriodSlow, PeriodFast int
+}
+
+// GetPeriod returns indicator period
+func (o *MACD) GetPeriod() int {
+	return o.Period
+}
+
+// GetFastPeriod returns indicator fast period
+func (o *MACD) GetFastPeriod() int {
+	return o.PeriodFast
+}
+
+// GetSlowPeriod returns indicator slow period
+func (o *MACD) GetSlowPeriod() int {
+	return o.PeriodSlow
 }
 
 // TypeName returns the name of the custom type.
@@ -76,6 +92,10 @@ func macd(args ...objects.Object) (objects.Object, error) {
 	if len(allErrors) > 0 {
 		return nil, errors.New(strings.Join(allErrors, ", "))
 	}
+
+	r.Period = inTimePeriod
+	r.PeriodFast = inFastPeriod
+	r.PeriodSlow = inSlowPeriod
 
 	macd, macdSignal, macdHist := indicators.MACD(ohlcvClose, inFastPeriod, inSlowPeriod, inTimePeriod)
 	for x := range macdHist {

@@ -23,11 +23,17 @@ const SimpleMovingAverage = "Simple Moving Average"
 // SMA defines a custom Simple Moving Average indicator tengo object type
 type SMA struct {
 	objects.Array
+	Period int
 }
 
 // TypeName returns the name of the custom type.
 func (o *SMA) TypeName() string {
 	return SimpleMovingAverage
+}
+
+// GetPeriod returns indicator period
+func (o *SMA) GetPeriod() int {
+	return o.Period
 }
 
 func sma(args ...objects.Object) (objects.Object, error) {
@@ -65,6 +71,7 @@ func sma(args ...objects.Object) (objects.Object, error) {
 	if len(allErrors) > 0 {
 		return nil, errors.New(strings.Join(allErrors, ", "))
 	}
+	r.Period = inTimePeriod
 	ret := indicators.SMA(ohlcvClose, inTimePeriod)
 	for x := range ret {
 		r.Value = append(r.Value, &objects.Float{Value: math.Round(ret[x]*100) / 100})

@@ -23,11 +23,34 @@ const BollingerBands = "Bollinger Bands"
 // BBands defines a custom Bollinger Bands indicator tengo object
 type BBands struct {
 	objects.Array
+	Period               int
+	STDDevUp, STDDevDown float64
+	MAType               indicators.MaType
 }
 
 // TypeName returns the name of the custom type.
 func (o *BBands) TypeName() string {
 	return BollingerBands
+}
+
+// GetPeriod returns indicator period
+func (o *BBands) GetPeriod() int {
+	return o.Period
+}
+
+// GetNBDevDn returns std deviation multiple for lower band
+func (o *BBands) GetNBDevDn() float64 {
+	return o.STDDevDown
+}
+
+// GetNBDevUp returns std deviation multiple for lower band
+func (o *BBands) GetNBDevUp() float64 {
+	return o.STDDevUp
+}
+
+// GetMovingAverageType returns indicator moving average type either SMA or EMA
+func (o *BBands) GetMovingAverageType() indicators.MaType {
+	return o.MAType
 }
 
 func bbands(args ...objects.Object) (objects.Object, error) {
@@ -113,6 +136,11 @@ func bbands(args ...objects.Object) (objects.Object, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	r.Period = inTimePeriod
+	r.STDDevDown = inNbDevDn
+	r.STDDevUp = inNbDevUp
+	r.MAType = MAType
 
 	retUpper, retMiddle, retLower := indicators.BBANDS(ohlcvData[selector], inTimePeriod, inNbDevDn, inNbDevDn, MAType)
 	for x := range retMiddle {

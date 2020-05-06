@@ -85,18 +85,18 @@ func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
 }
 
 func convertATR(a objects.Object) ([][]string, error) {
+	obj, ok := objects.ToInterface(a).(*indicators.ATR)
+	if !ok {
+		return nil, errors.New("casting failure")
+	}
+
 	var bucket = [][]string{
 		{
 			indicators.AverageTrueRange,
 		},
 		{
-			"",
+			fmt.Sprintf("Period:%d", obj.GetPeriod()),
 		},
-	}
-
-	obj, ok := objects.ToInterface(a).(*indicators.ATR)
-	if !ok {
-		return nil, errors.New("casting failure")
 	}
 
 	var val string
@@ -112,18 +112,27 @@ func convertATR(a objects.Object) ([][]string, error) {
 }
 
 func convertBollingerBands(a objects.Object) ([][]string, error) {
-	var bucket = [][]string{
-		{
-			indicators.BollingerBands, "", "",
-		},
-		{
-			"Upper_Band", "Middle_Band", "Lower_band",
-		},
-	}
 
 	obj, ok := objects.ToInterface(a).(*indicators.BBands)
 	if !ok {
 		return nil, errors.New("casting failure")
+	}
+
+	upperS := fmt.Sprintf("Upper_Band (NBDevUp:%f)", obj.GetNBDevUp())
+	lowerS := fmt.Sprintf("Lower_band(NBDevDown:%f)", obj.GetNBDevDn())
+	middleS := fmt.Sprintf("Middle_Band (Period:%d)", obj.GetPeriod())
+	MAType := "MA_TYPE:SMA"
+	if obj.GetMovingAverageType() != 0 {
+		MAType = "MA_TYPE:EMA"
+	}
+
+	var bucket = [][]string{
+		{
+			indicators.BollingerBands, "", MAType,
+		},
+		{
+			upperS, middleS, lowerS,
+		},
 	}
 
 	for x := range obj.Value {
@@ -154,18 +163,18 @@ func convertBollingerBands(a objects.Object) ([][]string, error) {
 }
 
 func convertEMA(a objects.Object) ([][]string, error) {
+	obj, ok := objects.ToInterface(a).(*indicators.EMA)
+	if !ok {
+		return nil, errors.New("casting failure")
+	}
+
 	var bucket = [][]string{
 		{
 			indicators.ExponentialMovingAverage,
 		},
 		{
-			"",
+			fmt.Sprintf("Period:%d", obj.GetPeriod()),
 		},
-	}
-
-	obj, ok := objects.ToInterface(a).(*indicators.EMA)
-	if !ok {
-		return nil, errors.New("casting failure")
 	}
 
 	var val string
@@ -180,18 +189,23 @@ func convertEMA(a objects.Object) ([][]string, error) {
 }
 
 func convertMACD(a objects.Object) ([][]string, error) {
+	obj, ok := objects.ToInterface(a).(*indicators.MACD)
+	if !ok {
+		return nil, errors.New("casting failure")
+	}
+
 	var bucket = [][]string{
 		{
-			indicators.MovingAverageConvergenceDivergence, "", "",
+			indicators.MovingAverageConvergenceDivergence,
+			fmt.Sprintf("Period:%d Fast:%d Slow:%d",
+				obj.GetPeriod(),
+				obj.GetFastPeriod(),
+				obj.GetSlowPeriod()),
+			"",
 		},
 		{
 			"MACD", "Signal", "Histogram",
 		},
-	}
-
-	obj, ok := objects.ToInterface(a).(*indicators.MACD)
-	if !ok {
-		return nil, errors.New("casting failure")
 	}
 
 	for x := range obj.Value {
@@ -222,18 +236,18 @@ func convertMACD(a objects.Object) ([][]string, error) {
 }
 
 func convertMFI(a objects.Object) ([][]string, error) {
+	obj, ok := objects.ToInterface(a).(*indicators.MFI)
+	if !ok {
+		return nil, errors.New("casting failure")
+	}
+
 	var bucket = [][]string{
 		{
 			indicators.MoneyFlowIndex,
 		},
 		{
-			"",
+			fmt.Sprintf("Period:%d", obj.GetPeriod()),
 		},
-	}
-
-	obj, ok := objects.ToInterface(a).(*indicators.MFI)
-	if !ok {
-		return nil, errors.New("casting failure")
 	}
 
 	var val string
@@ -274,18 +288,18 @@ func convertOBV(a objects.Object) ([][]string, error) {
 }
 
 func convertRSI(a objects.Object) ([][]string, error) {
+	obj, ok := objects.ToInterface(a).(*indicators.RSI)
+	if !ok {
+		return nil, errors.New("casting failure")
+	}
+
 	var bucket = [][]string{
 		{
 			indicators.RelativeStrengthIndex,
 		},
 		{
-			"",
+			fmt.Sprintf("Period:%d", obj.GetPeriod()),
 		},
-	}
-
-	obj, ok := objects.ToInterface(a).(*indicators.RSI)
-	if !ok {
-		return nil, errors.New("casting failure")
 	}
 
 	var val string
@@ -300,18 +314,18 @@ func convertRSI(a objects.Object) ([][]string, error) {
 }
 
 func convertSMA(a objects.Object) ([][]string, error) {
+	obj, ok := objects.ToInterface(a).(*indicators.SMA)
+	if !ok {
+		return nil, errors.New("casting failure")
+	}
+
 	var bucket = [][]string{
 		{
 			indicators.SimpleMovingAverage,
 		},
 		{
-			"",
+			fmt.Sprintf("Period:%d", obj.GetPeriod()),
 		},
-	}
-
-	obj, ok := objects.ToInterface(a).(*indicators.SMA)
-	if !ok {
-		return nil, errors.New("casting failure")
 	}
 
 	var val string

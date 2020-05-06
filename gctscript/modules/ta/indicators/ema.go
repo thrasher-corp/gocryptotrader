@@ -23,11 +23,17 @@ const ExponentialMovingAverage = "Exponential Moving Average"
 // EMA defines a custom Exponential Moving Average indicator tengo object
 type EMA struct {
 	objects.Array
+	Period int
 }
 
 // TypeName returns the name of the custom type.
 func (o *EMA) TypeName() string {
 	return ExponentialMovingAverage
+}
+
+// GetPeriod returns indicator period
+func (o *EMA) GetPeriod() int {
+	return o.Period
 }
 
 func ema(args ...objects.Object) (objects.Object, error) {
@@ -66,6 +72,8 @@ func ema(args ...objects.Object) (objects.Object, error) {
 	if len(allErrors) > 0 {
 		return nil, errors.New(strings.Join(allErrors, ", "))
 	}
+
+	r.Period = inTimePeriod
 
 	ret := indicators.EMA(ohlcvClose, inTimePeriod)
 	for x := range ret {
