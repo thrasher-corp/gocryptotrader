@@ -97,9 +97,10 @@ func setupWsTests(t *testing.T) {
 
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
+	h.Verbose = true
 	_, err := h.GetSpotKline(KlinesRequestParams{
 		Symbol: testSymbol,
-		Period: kline.OneMin.String(),
+		Period: "1min",
 		Size:   0,
 	})
 	if err != nil {

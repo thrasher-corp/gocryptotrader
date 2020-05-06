@@ -1,7 +1,6 @@
 package coinbasepro
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -82,13 +81,12 @@ func TestGetTrades(t *testing.T) {
 func TestGetHistoricRatesGranularityCheck(t *testing.T) {
 	c.Verbose = true
 	end := time.Now()
-	start := end.Add(-time.Hour * 24 * 7)
+	start := end.Add(-time.Hour * 24)
 	p := currency.NewPair(currency.BTC, currency.USD)
-	v, err := c.GetHistoricCandles(p, asset.Spot, start, end, kline.OneMin)
+	_, err := c.GetHistoricCandles(p, asset.Spot, start, end, kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println(v)
 }
 
 func TestGetStats(t *testing.T) {
