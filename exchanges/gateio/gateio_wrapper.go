@@ -130,7 +130,6 @@ func (g *Gateio) SetDefaults() {
 					"oneday":     true,
 				},
 			},
-
 		},
 	}
 	g.Requester = request.New(g.Name,

@@ -65,7 +65,6 @@ func TestGetTradeHistory(t *testing.T) {
 
 func TestGetChartData(t *testing.T) {
 	t.Parallel()
-	p.HTTPRecording = true
 	_, err := p.GetChartData("BTC_XMR",
 		time.Unix(1405699200, 0), time.Unix(1405699400, 0), "300")
 	if err != nil {
@@ -535,14 +534,8 @@ func TestWsHandleAccountData(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	p.HTTPRecording = true
-	p.Verbose = true
 	currencyPair := currency.NewPairFromString("BTCLTC")
-	_, err := p.GetChartData(p.FormatExchangeCurrency(currencyPair, asset.Spot).String(), time.Unix(1588741402, 0), time.Unix(1588745003, 0), "300")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = p.GetHistoricCandles(currencyPair, asset.Spot, time.Unix(1588741402, 0), time.Unix(1588745003, 0), kline.FiveMin)
+	_, err := p.GetHistoricCandles(currencyPair, asset.Spot, time.Unix(1588741402, 0), time.Unix(1588745003, 0), kline.FiveMin)
 	if err != nil {
 		t.Fatal(err)
 	}
