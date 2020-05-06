@@ -154,7 +154,6 @@ func TestGetLends(t *testing.T) {
 
 func TestGetCandles(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	_, err := b.GetCandles("fUSD", "1m", 0, 0, 10, true, false)
 	if err != nil {
 		t.Fatal(err)
@@ -1214,7 +1213,6 @@ func TestWsNotifications(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	b.Verbose = true
 	currencyPair := currency.NewPairFromString("tBTCUSD")
 	startTime := time.Now().Add(-time.Hour * 24)
 	_, err := b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)

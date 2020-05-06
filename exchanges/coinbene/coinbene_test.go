@@ -287,7 +287,6 @@ func TestGetSwapOrderbook(t *testing.T) {
 }
 
 func TestGetKlines(t *testing.T) {
-	c.Verbose = true
 	currencypair := currency.NewPairFromString(spotTestPair)
 	startTime := time.Now().Add(-time.Hour * 1)
 	_, err := c.GetKlines(currencypair, startTime, time.Now(), kline.OneMin)

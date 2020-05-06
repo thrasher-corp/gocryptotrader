@@ -72,7 +72,6 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetChartCandles(t *testing.T) {
-	h.Verbose = true
 	_, err := h.GetCandles("BTCUSD", "", "D1", time.Now().Add(-24*time.Hour).Format(time.RFC3339), time.Now().Format(time.RFC3339))
 	if err != nil {
 		t.Error("Test faild - HitBTC GetChartData() error", err)
@@ -80,7 +79,6 @@ func TestGetChartCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	h.Verbose = true
 	pair := currency.NewPairFromString("BTCUSD")
 	v, err := h.GetHistoricCandles(pair, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneMin)
 	if err != nil {

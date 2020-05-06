@@ -371,8 +371,6 @@ func TestGetTrade(t *testing.T) {
 }
 
 func TestGetPreviousTrades(t *testing.T) {
-	b.Verbose = true
-
 	v, err := b.GetPreviousTrades(&TradeGetBucketedParams{
 		Symbol:  "XBTBTC",
 		Start:   int32(time.Now().Add(-time.Hour * 24).Unix()),

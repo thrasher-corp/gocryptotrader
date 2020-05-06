@@ -580,7 +580,6 @@ func setupWSTestAuth(t *testing.T) {
 // TestWsUnsubscribe dials websocket, sends an unsubscribe request.
 func TestWsUnsubscribe(t *testing.T) {
 	setupWSTestAuth(t)
-	g.Verbose = true
 	err := g.Unsubscribe(wshandler.WebsocketChannelSubscription{
 		Channel:  "ticker.subscribe",
 		Currency: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_"),
@@ -748,7 +747,6 @@ func TestWsBalanceUpdate(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	g.Verbose = true
 	currencyPair := currency.NewPairFromString("BTC_USDT")
 	startTime := time.Now().Add(-time.Hour * 6)
 	v, err := g.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)

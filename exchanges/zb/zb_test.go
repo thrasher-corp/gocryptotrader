@@ -842,7 +842,6 @@ func TestWsCreateSubUserResponse(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	z.Verbose = true
 	currencyPair := currency.NewPairFromString("btc_usdt")
 	startTime := time.Now().Add(-time.Hour * 1)
 	_, err := z.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)

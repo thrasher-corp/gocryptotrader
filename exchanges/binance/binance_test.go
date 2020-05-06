@@ -114,7 +114,6 @@ func TestGetAggregatedTrades(t *testing.T) {
 
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
 	_, err := b.GetSpotKline(KlinesRequestParams{
 		Symbol:   "BTCUSDT",
 		Interval: kline.FiveMin.Short(),

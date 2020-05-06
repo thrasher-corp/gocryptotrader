@@ -537,7 +537,6 @@ func TestGetCandleStick(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	b.Verbose = true
 	currencyPair := currency.NewPairFromString("BTC_KRW")
 	startTime := time.Now().Add(-time.Hour * 24)
 	_, err := b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneDay)
