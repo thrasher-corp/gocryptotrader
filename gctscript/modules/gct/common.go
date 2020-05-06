@@ -9,10 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/ta/indicators"
 )
 
-const defaultFile = "test.csv"
-
-var scriptfile = defaultFile
-
 var commonModule = map[string]objects.Object{
 	"writeascsv": &objects.UserFunction{Name: "writeascsv", Value: WriteAsCSV},
 }
@@ -25,8 +21,11 @@ func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
 
 	var bucket [][]string
 	var err error
-
+	var target string
 	for i := range args {
+		if args[i] == nil {
+			return nil, errors.New("data is nil")
+		}
 		var front bool
 		var temp [][]string
 		switch args[i].TypeName() {
@@ -49,6 +48,12 @@ func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
 		case indicators.OHLCV:
 			temp, err = convertOHLCV(args[i])
 			front = true
+		case "string":
+			var ok bool
+			target, ok = objects.ToString(args[i])
+			if !ok {
+				return nil, errors.New("failed to convert incoming output to string")
+			}
 		default:
 			err = fmt.Errorf("%s type is not handled", args[i].TypeName())
 		}
@@ -76,7 +81,7 @@ func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
 			}
 		}
 	}
-	return nil, file.WriteAsCSV(scriptfile, bucket)
+	return nil, file.WriteAsCSV(target+".csv", bucket)
 }
 
 func convertATR(a objects.Object) ([][]string, error) {
@@ -94,11 +99,13 @@ func convertATR(a objects.Object) ([][]string, error) {
 		return nil, errors.New("casting failure")
 	}
 
+	var val string
 	for i := range obj.Value {
-		val, ok := objects.ToString(obj.Value[i])
+		val, ok = objects.ToString(obj.Value[i])
 		if !ok {
 			return nil, errors.New("cannot convert object to string")
 		}
+
 		bucket = append(bucket, []string{val})
 	}
 	return bucket, nil
@@ -120,23 +127,22 @@ func convertBollingerBands(a objects.Object) ([][]string, error) {
 	}
 
 	for x := range obj.Value {
-		bro := obj.Value[x].Iterate()
-
+		element := obj.Value[x].Iterate()
 		var upper, middle, lower string
-		for i := 0; bro.Next(); i++ {
+		for i := 0; element.Next(); i++ {
 			switch i {
 			case 0:
-				upper, ok = objects.ToString(bro.Value())
+				upper, ok = objects.ToString(element.Value())
 				if !ok {
 					return nil, errors.New("cannot convert object to string")
 				}
 			case 1:
-				middle, ok = objects.ToString(bro.Value())
+				middle, ok = objects.ToString(element.Value())
 				if !ok {
 					return nil, errors.New("cannot convert object to string")
 				}
 			case 2:
-				lower, ok = objects.ToString(bro.Value())
+				lower, ok = objects.ToString(element.Value())
 				if !ok {
 					return nil, errors.New("cannot convert object to string")
 				}
@@ -162,8 +168,9 @@ func convertEMA(a objects.Object) ([][]string, error) {
 		return nil, errors.New("casting failure")
 	}
 
+	var val string
 	for i := range obj.Value {
-		val, ok := objects.ToString(obj.Value[i])
+		val, ok = objects.ToString(obj.Value[i])
 		if !ok {
 			return nil, errors.New("cannot convert object to string")
 		}
@@ -175,7 +182,7 @@ func convertEMA(a objects.Object) ([][]string, error) {
 func convertMACD(a objects.Object) ([][]string, error) {
 	var bucket = [][]string{
 		{
-			indicators.MovingAverageConvergenceDivergence,
+			indicators.MovingAverageConvergenceDivergence, "", "",
 		},
 		{
 			"MACD", "Signal", "Histogram",
@@ -188,23 +195,22 @@ func convertMACD(a objects.Object) ([][]string, error) {
 	}
 
 	for x := range obj.Value {
-		bro := obj.Value[x].Iterate()
-
+		element := obj.Value[x].Iterate()
 		var macd, signal, hist string
-		for i := 0; bro.Next(); i++ {
+		for i := 0; element.Next(); i++ {
 			switch i {
 			case 0:
-				macd, ok = objects.ToString(bro.Value())
+				macd, ok = objects.ToString(element.Value())
 				if !ok {
 					return nil, errors.New("cannot convert object to string")
 				}
 			case 1:
-				signal, ok = objects.ToString(bro.Value())
+				signal, ok = objects.ToString(element.Value())
 				if !ok {
 					return nil, errors.New("cannot convert object to string")
 				}
 			case 2:
-				hist, ok = objects.ToString(bro.Value())
+				hist, ok = objects.ToString(element.Value())
 				if !ok {
 					return nil, errors.New("cannot convert object to string")
 				}
@@ -230,8 +236,9 @@ func convertMFI(a objects.Object) ([][]string, error) {
 		return nil, errors.New("casting failure")
 	}
 
+	var val string
 	for i := range obj.Value {
-		val, ok := objects.ToString(obj.Value[i])
+		val, ok = objects.ToString(obj.Value[i])
 		if !ok {
 			return nil, errors.New("cannot convert object to string")
 		}
@@ -255,8 +262,9 @@ func convertOBV(a objects.Object) ([][]string, error) {
 		return nil, errors.New("casting failure")
 	}
 
+	var val string
 	for i := range obj.Value {
-		val, ok := objects.ToString(obj.Value[i])
+		val, ok = objects.ToString(obj.Value[i])
 		if !ok {
 			return nil, errors.New("cannot convert object to string")
 		}
@@ -280,8 +288,9 @@ func convertRSI(a objects.Object) ([][]string, error) {
 		return nil, errors.New("casting failure")
 	}
 
+	var val string
 	for i := range obj.Value {
-		val, ok := objects.ToString(obj.Value[i])
+		val, ok = objects.ToString(obj.Value[i])
 		if !ok {
 			return nil, errors.New("cannot convert object to string")
 		}
@@ -305,8 +314,9 @@ func convertSMA(a objects.Object) ([][]string, error) {
 		return nil, errors.New("casting failure")
 	}
 
+	var val string
 	for i := range obj.Value {
-		val, ok := objects.ToString(obj.Value[i])
+		val, ok = objects.ToString(obj.Value[i])
 		if !ok {
 			return nil, errors.New("cannot convert object to string")
 		}
@@ -358,7 +368,7 @@ func convertOHLCV(a objects.Object) ([][]string, error) {
 	data := candles.Iterate()
 
 	for data.Next() {
-		var date, open, high, low, close, volume string
+		var date, open, high, low, closed, volume string
 		candle := data.Value().Iterate()
 		for i := 0; candle.Next(); i++ {
 			switch i {
@@ -371,7 +381,7 @@ func convertOHLCV(a objects.Object) ([][]string, error) {
 			case 3:
 				low, ok = objects.ToString(candle.Value())
 			case 4:
-				close, ok = objects.ToString(candle.Value())
+				closed, ok = objects.ToString(candle.Value())
 			case 5:
 				volume, ok = objects.ToString(candle.Value())
 			}
@@ -379,7 +389,7 @@ func convertOHLCV(a objects.Object) ([][]string, error) {
 				return nil, errors.New("failed to convert")
 			}
 		}
-		bucket = append(bucket, []string{date, open, high, low, close, volume})
+		bucket = append(bucket, []string{date, volume, open, high, low, closed})
 	}
 	return bucket, nil
 }

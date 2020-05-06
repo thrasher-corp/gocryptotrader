@@ -1,9 +1,9 @@
-log := import("log")
+fmt := import("fmt")
 exch := import("exchange")
 
 load := func() {
     info := exch.pairs("BTC Markets", false, "SPOT")
-    log.debug(info)
+    fmt.println(info)
 }
 
 load()

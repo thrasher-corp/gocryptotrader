@@ -75,6 +75,15 @@ func (vm *VM) Load(file string) error {
 	vm.File = file
 	vm.Path = filepath.Dir(file)
 	vm.Script = tengo.NewScript(code)
+	output := filepath.Join(vm.Path, "output", vm.ShortName()) +
+		"-" +
+		vm.ID.String() +
+		"-output"
+	err = vm.Script.Add("output", output)
+	if err != nil {
+		return err
+	}
+
 	vm.Script.SetImports(loader.GetModuleMap())
 	vm.Hash = vm.getHash()
 

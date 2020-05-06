@@ -1,5 +1,5 @@
-// import gct logger package
-log := import("log")
+// import fmt package
+fmt := import("fmt")
 // import exchange package
 exch := import("exchange")
 
@@ -7,7 +7,7 @@ load := func() {
    // retrieve account information from exchange and store in info variable
    info := exch.accountinfo("BTC Markets")
    // print out info
-   log.debugln(info)
+   fmt.println(info)
 }
 
 load()

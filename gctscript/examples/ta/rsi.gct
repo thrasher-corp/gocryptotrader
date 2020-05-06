@@ -1,4 +1,4 @@
-log := import("log")
+fmt := import("fmt")
 exch := import("exchange")
 t := import("times")
 rsi := import("indicator/rsi")
@@ -9,7 +9,7 @@ load := func() {
     ohlcvData := exch.ohlcv("binance", "BTC-USDT", "-", "SPOT", start, end, "1d")
 
    ret := rsi.calculate(ohlcvData.candles, 14)
-   log.debugln(ret)
+   fmt.println(ret)
 }
 
 load()

@@ -1,65 +1,146 @@
 package gct
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	objects "github.com/d5/tengo/v2"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/ta/indicators"
 )
 
-var matrix = &objects.Array{
-	Value: []objects.Object{
-		&objects.Array{
-			Value: []objects.Object{
-				&objects.String{Value: "hello"},
-				&objects.String{Value: "world"},
-			},
-		},
-		&objects.Array{
-			Value: []objects.Object{
-				&objects.String{Value: "one"},
-				&objects.String{Value: "two"},
-			},
-		},
-		&objects.Array{
-			Value: []objects.Object{
-				&objects.String{Value: "3"},
-				&objects.String{Value: "4"},
-			},
-		},
-	},
-}
+var (
+	atrPayload    = &indicators.ATR{Array: oneElement}
+	bbandsPayload = &indicators.BBands{Array: threeElement}
+	emaPayload    = &indicators.EMA{Array: oneElement}
+	macdPayload   = &indicators.MACD{Array: threeElement}
+	mfiPayload    = &indicators.MFI{Array: oneElement}
+	obvPayload    = &indicators.OBV{Array: oneElement}
+	rsiPayload    = &indicators.RSI{Array: oneElement}
+	smaPayload    = &indicators.SMA{Array: oneElement}
+	ohlcPayload   = &OHLCV{Map: ohlcdata}
 
-var badMatrix = &objects.Array{
-	Value: []objects.Object{
-		&objects.Array{
-			Value: []objects.Object{
-				&objects.String{Value: "hello"},
-				&objects.String{Value: "world"},
+	oneElement = objects.Array{
+		Value: []objects.Object{
+			&objects.Float{Value: 1},
+			&objects.Float{Value: 2},
+			&objects.Float{Value: 3},
+			&objects.Float{Value: 4},
+			&objects.Float{Value: 5},
+		},
+	}
+
+	threeElement = objects.Array{
+		Value: []objects.Object{
+			&objects.Array{
+				Value: []objects.Object{
+					&objects.Float{Value: 11},
+					&objects.Float{Value: 12},
+					&objects.Float{Value: 13},
+				},
+			},
+			&objects.Array{
+				Value: []objects.Object{
+					&objects.Float{Value: 21},
+					&objects.Float{Value: 22},
+					&objects.Float{Value: 23},
+				},
+			},
+			&objects.Array{
+				Value: []objects.Object{
+					&objects.Float{Value: 31},
+					&objects.Float{Value: 32},
+					&objects.Float{Value: 33},
+				},
+			},
+			&objects.Array{
+				Value: []objects.Object{
+					&objects.Float{Value: 41},
+					&objects.Float{Value: 42},
+					&objects.Float{Value: 43},
+				},
+			},
+			&objects.Array{
+				Value: []objects.Object{
+					&objects.Float{Value: 51},
+					&objects.Float{Value: 52},
+					&objects.Float{Value: 53},
+				},
 			},
 		},
-		&objects.Array{
-			Value: []objects.Object{
-				&objects.String{Value: "one"},
-				&objects.String{Value: "two"},
+	}
+
+	ohlcv = []objects.Object{
+		&objects.Time{Value: time.Now()},
+		&objects.Float{Value: 100},
+		&objects.Float{Value: 100},
+		&objects.Float{Value: 100},
+		&objects.Float{Value: 100},
+		&objects.Float{Value: 1},
+	}
+
+	ohlcdata = objects.Map{
+		Value: map[string]objects.Object{
+			"exchange":  &objects.String{Value: "exchange"},
+			"pair":      &objects.String{Value: "BTC-USD"},
+			"asset":     &objects.String{Value: asset.Spot.String()},
+			"intervals": &objects.String{Value: time.Duration(time.Minute).String()},
+			"candles": &objects.Array{
+				Value: []objects.Object{
+					&objects.Array{
+						Value: ohlcv,
+					},
+					&objects.Array{
+						Value: ohlcv,
+					},
+					&objects.Array{
+						Value: ohlcv,
+					},
+					&objects.Array{
+						Value: ohlcv,
+					},
+					&objects.Array{
+						Value: ohlcv,
+					},
+				},
 			},
 		},
-		&objects.Array{
-			Value: []objects.Object{
-				&objects.String{Value: "3"},
-				&objects.String{Value: "4"},
-				&objects.String{Value: "LOLOLOLOLOL"},
-			},
-		},
-	},
-}
+	}
+)
 
 func TestCommonWriteToCSV(t *testing.T) {
 	t.Parallel()
 
-	// tempDir := filepath.Join(os.TempDir(), "script-temp")
-	// testFile := filepath.Join(tempDir, "script-test.csv")
+	tempDir := filepath.Join(os.TempDir(), "script-temp")
+	testFile := filepath.Join(tempDir, "script-test")
 
-	_, err := WriteAsCSV(matrix)
+	_, err := WriteAsCSV()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	_, err = WriteAsCSV(nil)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	_, err = WriteAsCSV(&objects.String{Value: testFile},
+		atrPayload,
+		bbandsPayload,
+		emaPayload,
+		macdPayload,
+		mfiPayload,
+		obvPayload,
+		rsiPayload,
+		smaPayload,
+		ohlcPayload)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.RemoveAll(tempDir)
 	if err != nil {
 		t.Fatal(err)
 	}

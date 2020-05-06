@@ -1,9 +1,9 @@
-log := import("log")
+fmt := import("fmt")
 exch := import("exchange")
 
 load := func() {
    info := exch.depositaddress("BTC Markets", "BTC", "")
-   log.debugln(info)
+   fmt.println(info)
 }
 
 load()

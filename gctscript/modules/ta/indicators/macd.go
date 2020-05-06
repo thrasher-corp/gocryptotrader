@@ -28,7 +28,7 @@ type MACD struct {
 
 // TypeName returns the name of the custom type.
 func (o *MACD) TypeName() string {
-	return ExponentialMovingAverage
+	return MovingAverageConvergenceDivergence
 }
 
 func macd(args ...objects.Object) (objects.Object, error) {
