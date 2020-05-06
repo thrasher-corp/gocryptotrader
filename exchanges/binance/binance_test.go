@@ -106,7 +106,9 @@ func TestExchangeHistory(t *testing.T) {
 
 func TestGetAggregatedTrades(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetAggregatedTrades("BTCUSDT", 5, time.Now().Add(-5*time.Minute), time.Now())
+	startTime := time.Unix(1588636800, 0)
+	endTime := time.Unix(1588640400, 0)
+	_, err := b.GetAggregatedTrades("BTCUSDT", 5, startTime, endTime)
 	if err != nil {
 		t.Error("Binance GetAggregatedTrades() error", err)
 	}
@@ -115,9 +117,11 @@ func TestGetAggregatedTrades(t *testing.T) {
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetSpotKline(KlinesRequestParams{
-		Symbol:   "BTCUSDT",
-		Interval: kline.FiveMin.Short(),
-		Limit:    24,
+		Symbol:    "BTCUSDT",
+		Interval:  kline.FiveMin.Short(),
+		Limit:     24,
+		StartTime: time.Unix(1577836800, 0).Unix() * 1000,
+		EndTime:   time.Unix(1580515200, 0).Unix() * 1000,
 	})
 	if err != nil {
 		t.Error("Binance GetSpotKline() error", err)
@@ -471,7 +475,6 @@ func TestModifyOrder(t *testing.T) {
 
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -806,13 +809,15 @@ func TestExecutionTypeToOrderStatus(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	currencyPair := currency.NewPairFromString("BTCUSDT")
-	startTime := time.Now().Add(-time.Hour * 1)
-	_, err := b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	startTime := time.Unix(1588636800, 0)
+	end := time.Unix(1588636800, 0)
+
+	_, err := b.GetHistoricCandles(currencyPair, asset.Spot, startTime, end, kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.Interval(time.Hour*7))
+	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, startTime, end, kline.Interval(time.Hour*7))
 	if err == nil {
 		t.Fatal("unexpected result")
 	}
