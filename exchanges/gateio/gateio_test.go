@@ -150,8 +150,6 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
-	g.Verbose = true
-
 	v, err := g.GetSpotKline(KlinesRequestParams{
 		Symbol:   "btc_usdt",
 		GroupSec: "5", // 5 minutes or less
