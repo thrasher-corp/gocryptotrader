@@ -499,7 +499,7 @@ func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
 	return &objects.String{Value: rtn}, nil
 }
 
-// OHLCV defines a custom Average True Range indicator tengo object
+// OHLCV defines a custom Open High Low Close Volume tengo object
 type OHLCV struct {
 	objects.Map
 }
