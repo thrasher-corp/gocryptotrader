@@ -86,7 +86,7 @@ var (
 			"exchange":  &objects.String{Value: "exchange"},
 			"pair":      &objects.String{Value: "BTC-USD"},
 			"asset":     &objects.String{Value: asset.Spot.String()},
-			"intervals": &objects.String{Value: time.Duration(time.Minute).String()},
+			"intervals": &objects.String{Value: time.Minute.String()},
 			"candles": &objects.Array{
 				Value: []objects.Object{
 					&objects.Array{
