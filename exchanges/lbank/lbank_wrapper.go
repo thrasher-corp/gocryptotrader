@@ -99,8 +99,7 @@ func (l *Lbank) SetDefaults() {
 	}
 
 	l.Requester = request.New(l.Name,
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		nil)
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 
 	l.API.Endpoints.URLDefault = lbankAPIURL
 	l.API.Endpoints.URL = l.API.Endpoints.URLDefault

@@ -2,6 +2,7 @@ package bithumb
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -451,7 +452,7 @@ func (b *Bithumb) MarketSellOrder(currency string, units float64) (MarketSell, e
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bithumb) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(&request.Item{
+	return b.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,
@@ -494,7 +495,7 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(path string, params url.Values, r
 		Message string `json:"message"`
 	}{}
 
-	err := b.SendPayload(&request.Item{
+	err := b.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodPost,
 		Path:          b.API.Endpoints.URL + path,
 		Headers:       headers,

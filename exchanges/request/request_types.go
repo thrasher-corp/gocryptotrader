@@ -11,30 +11,33 @@ import (
 
 // Const vars for rate limiter
 const (
-	DefaultMaxRequestJobs       int32 = 50
-	DefaultTimeoutRetryAttempts       = 3
-	DefaultMutexLockTimeout           = 50 * time.Millisecond
-	proxyTLSTimeout                   = 15 * time.Second
-	userAgent                         = "User-Agent"
+	DefaultMaxRequestJobs   int32 = 50
+	DefaultMaxRetryAttempts       = 3
+	DefaultMutexLockTimeout       = 50 * time.Millisecond
+	drainBodyLimit                = 100000
+	proxyTLSTimeout               = 15 * time.Second
+	userAgent                     = "User-Agent"
 )
 
 // Vars for rate limiter
 var (
-	MaxRequestJobs       = DefaultMaxRequestJobs
-	TimeoutRetryAttempts = DefaultTimeoutRetryAttempts
+	MaxRequestJobs   = DefaultMaxRequestJobs
+	MaxRetryAttempts = DefaultMaxRetryAttempts
 )
 
 // Requester struct for the request client
 type Requester struct {
-	HTTPClient           *http.Client
-	Limiter              Limiter
-	Name                 string
-	UserAgent            string
-	timeoutRetryAttempts int
-	jobs                 int32
-	Nonce                nonce.Nonce
-	disableRateLimiter   int32
-	timedLock            *timedmutex.TimedMutex
+	HTTPClient         *http.Client
+	limiter            Limiter
+	Name               string
+	UserAgent          string
+	maxRetries         int
+	jobs               int32
+	Nonce              nonce.Nonce
+	disableRateLimiter int32
+	backoff            Backoff
+	retryPolicy        RetryPolicy
+	timedLock          *timedmutex.TimedMutex
 }
 
 // Item is a temp item for requests
@@ -52,3 +55,12 @@ type Item struct {
 	IsReserved    bool
 	Endpoint      EndpointLimit
 }
+
+// Backoff determines how long to wait between request attempts.
+type Backoff func(n int) time.Duration
+
+// RetryPolicy determines whether the request should be retried.
+type RetryPolicy func(resp *http.Response, err error) (bool, error)
+
+// RequesterOption is a function option that can be applied to configure a Requester when creating it.
+type RequesterOption func(*Requester)

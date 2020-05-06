@@ -66,8 +66,7 @@ func TestHTTPClient(t *testing.T) {
 
 	b := Base{Name: "RAWR"}
 	b.Requester = request.New(b.Name,
-		new(http.Client),
-		nil)
+		new(http.Client))
 
 	b.SetHTTPClientTimeout(time.Second * 5)
 	if b.GetHTTPClient().Timeout != time.Second*5 {
@@ -92,8 +91,7 @@ func TestSetClientProxyAddress(t *testing.T) {
 	t.Parallel()
 
 	requester := request.New("rawr",
-		&http.Client{},
-		nil)
+		&http.Client{})
 
 	newBase := Base{
 		Name:      "rawr",

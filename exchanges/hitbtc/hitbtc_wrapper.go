@@ -117,7 +117,7 @@ func (h *HitBTC) SetDefaults() {
 
 	h.Requester = request.New(h.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		SetRateLimit())
+		request.WithLimiter(SetRateLimit()))
 
 	h.API.Endpoints.URLDefault = apiURL
 	h.API.Endpoints.URL = h.API.Endpoints.URLDefault

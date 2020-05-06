@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -1432,13 +1433,13 @@ func sendGetReq(path string, result interface{}) error {
 	if strings.Contains(path, "github") {
 		requester = request.New("Apichecker",
 			common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-			request.NewBasicRateLimit(time.Hour, 60))
+			request.WithLimiter(request.NewBasicRateLimit(time.Hour, 60)))
 	} else {
 		requester = request.New("Apichecker",
 			common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-			request.NewBasicRateLimit(time.Second, 100))
+			request.WithLimiter(request.NewBasicRateLimit(time.Second, 100)))
 	}
-	return requester.SendPayload(&request.Item{
+	return requester.SendPayload(context.Background(), &request.Item{
 		Method:  http.MethodGet,
 		Path:    path,
 		Result:  result,
@@ -1449,8 +1450,8 @@ func sendGetReq(path string, result interface{}) error {
 func sendAuthReq(method, path string, result interface{}) error {
 	requester := request.New("Apichecker",
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.NewBasicRateLimit(time.Second*10, 100))
-	return requester.SendPayload(&request.Item{
+		request.WithLimiter(request.NewBasicRateLimit(time.Second*10, 100)))
+	return requester.SendPayload(context.Background(), &request.Item{
 		Method:  method,
 		Path:    path,
 		Result:  result,

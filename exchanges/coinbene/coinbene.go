@@ -2,6 +2,7 @@ package coinbene
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1096,7 +1097,7 @@ func (c *Coinbene) SendHTTPRequest(path string, f request.EndpointLimit, result 
 		Message string `json:"message"`
 	}{}
 
-	if err := c.SendPayload(&request.Item{
+	if err := c.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        &resp,
@@ -1128,7 +1129,8 @@ func (c *Coinbene) SendAuthHTTPRequest(method, path, epPath string, isSwap bool,
 	if isSwap {
 		authPath = coinbeneSwapAuthPath
 	}
-	timestamp := time.Now().UTC().Format("2006-01-02T15:04:05.999Z")
+	now := time.Now()
+	timestamp := now.UTC().Format("2006-01-02T15:04:05.999Z")
 	var finalBody io.Reader
 	var preSign string
 	switch {
@@ -1175,7 +1177,10 @@ func (c *Coinbene) SendAuthHTTPRequest(method, path, epPath string, isSwap bool,
 		Message string `json:"message"`
 	}{}
 
-	if err := c.SendPayload(&request.Item{
+	// Expiry of timestamp doesn't appear to be documented, so making a reasonable assumption
+	ctx, cancel := context.WithDeadline(context.Background(), now.Add(15*time.Second))
+	defer cancel()
+	if err := c.SendPayload(ctx, &request.Item{
 		Method:        method,
 		Path:          path,
 		Headers:       headers,

@@ -108,8 +108,7 @@ func (b *BTSE) SetDefaults() {
 	}
 
 	b.Requester = request.New(b.Name,
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		nil)
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 
 	b.API.Endpoints.URLDefault = btseAPIURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault

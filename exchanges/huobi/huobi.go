@@ -2,6 +2,7 @@ package huobi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -710,7 +711,7 @@ func (h *HUOBI) QueryWithdrawQuotas(cryptocurrency string) (WithdrawQuota, error
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (h *HUOBI) SendHTTPRequest(path string, result interface{}) error {
-	return h.SendPayload(&request.Item{
+	return h.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,
@@ -730,10 +731,11 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 		values = url.Values{}
 	}
 
+	now := time.Now()
 	values.Set("AccessKeyId", h.API.Credentials.Key)
 	values.Set("SignatureMethod", "HmacSHA256")
 	values.Set("SignatureVersion", "2")
-	values.Set("Timestamp", time.Now().UTC().Format("2006-01-02T15:04:05"))
+	values.Set("Timestamp", now.UTC().Format("2006-01-02T15:04:05"))
 
 	if isVersion2API {
 		endpoint = fmt.Sprintf("/v%s/%s", huobiAPIVersion2, endpoint)
@@ -765,8 +767,11 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(method, endpoint string, values url
 		body = encoded
 	}
 
+	// Time difference between your timestamp and standard should be less than 1 minute.
+	ctx, cancel := context.WithDeadline(context.Background(), now.Add(time.Minute))
+	defer cancel()
 	interim := json.RawMessage{}
-	err := h.SendPayload(&request.Item{
+	err := h.SendPayload(ctx, &request.Item{
 		Method:        method,
 		Path:          urlPath,
 		Headers:       headers,

@@ -91,7 +91,7 @@ func (b *Bitflyer) SetDefaults() {
 
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		SetRateLimit())
+		request.WithLimiter(SetRateLimit()))
 
 	b.API.Endpoints.URLDefault = japanURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault

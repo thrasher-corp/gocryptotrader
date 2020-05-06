@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -859,7 +860,7 @@ func GetError(apiErrors []string) error {
 
 // SendHTTPRequest sends an unauthenticated HTTP requests
 func (k *Kraken) SendHTTPRequest(path string, result interface{}) error {
-	return k.SendPayload(&request.Item{
+	return k.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,
@@ -895,7 +896,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(method string, params url.Values, 
 	headers["API-Key"] = k.API.Credentials.Key
 	headers["API-Sign"] = signature
 
-	return k.SendPayload(&request.Item{
+	return k.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodPost,
 		Path:          k.API.Endpoints.URL + path,
 		Headers:       headers,

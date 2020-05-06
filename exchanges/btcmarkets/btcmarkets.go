@@ -2,6 +2,7 @@ package btcmarkets
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -740,7 +741,7 @@ func (b *BTCMarkets) CancelBatchOrders(ids []string) (BatchCancelResponse, error
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *BTCMarkets) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(&request.Item{
+	return b.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,
@@ -757,7 +758,8 @@ func (b *BTCMarkets) SendAuthenticatedRequest(method, path string, data, result 
 			b.Name)
 	}
 
-	strTime := strconv.FormatInt(time.Now().UTC().UnixNano()/1000000, 10)
+	now := time.Now()
+	strTime := strconv.FormatInt(now.UTC().UnixNano()/1000000, 10)
 
 	var body io.Reader
 	var payload, hmac []byte
@@ -786,7 +788,10 @@ func (b *BTCMarkets) SendAuthenticatedRequest(method, path string, data, result 
 	headers["BM-AUTH-TIMESTAMP"] = strTime
 	headers["BM-AUTH-SIGNATURE"] = crypto.Base64Encode(hmac)
 
-	return b.SendPayload(&request.Item{
+	// The timestamp included with an authenticated request must be within +/- 30 seconds of the server timestamp
+	ctx, cancel := context.WithDeadline(context.Background(), now.Add(30*time.Second))
+	defer cancel()
+	return b.SendPayload(ctx, &request.Item{
 		Method:        method,
 		Path:          btcMarketsAPIURL + btcMarketsAPIVersion + path,
 		Headers:       headers,

@@ -2,6 +2,7 @@ package hitbtc
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -524,7 +525,7 @@ func (h *HitBTC) TransferBalance(currency, from, to string, amount float64) (boo
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (h *HitBTC) SendHTTPRequest(path string, result interface{}) error {
-	return h.SendPayload(&request.Item{
+	return h.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,
@@ -546,7 +547,7 @@ func (h *HitBTC) SendAuthenticatedHTTPRequest(method, endpoint string, values ur
 
 	path := fmt.Sprintf("%s/%s", h.API.Endpoints.URL, endpoint)
 
-	return h.SendPayload(&request.Item{
+	return h.SendPayload(context.Background(), &request.Item{
 		Method:        method,
 		Path:          path,
 		Headers:       headers,
