@@ -112,7 +112,6 @@ func convertATR(a objects.Object) ([][]string, error) {
 }
 
 func convertBollingerBands(a objects.Object) ([][]string, error) {
-
 	obj, ok := objects.ToInterface(a).(*indicators.BBands)
 	if !ok {
 		return nil, errors.New("casting failure")
