@@ -3,7 +3,6 @@ package file
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -154,34 +153,29 @@ func TestWriteAsCSV(t *testing.T) {
 		{"Sup", "bra"},
 	}
 
-	var tests []testTable
 	tempDir := filepath.Join(os.TempDir(), "gct-csv-temp")
 	testFile := filepath.Join(tempDir, "gct-csv-test.csv")
+
+	tests := []testTable{
+		{InFile: testFile, Payload: nil, ErrExpected: true},
+		{InFile: testFile, Payload: records, ErrExpected: false},
+		{InFile: testFile, Payload: missAligned, ErrExpected: true},
+	}
 	switch runtime.GOOS {
 	case "windows":
-		tests = []testTable{
-			{InFile: "*", Payload: [][]string{}, ErrExpected: true},
-			{InFile: "*", Payload: nil, ErrExpected: true},
-			{InFile: testFile, Payload: nil, ErrExpected: true},
-			{InFile: testFile, Payload: records, ErrExpected: false},
-			{InFile: testFile, Payload: missAligned, ErrExpected: true},
-		}
+		tests = append(tests,
+			testTable{InFile: "*", Payload: [][]string{}, ErrExpected: true},
+			testTable{InFile: "*", Payload: nil, ErrExpected: true},
+		)
 	default:
-		tests = []testTable{
-			{InFile: "", Payload: [][]string{}, ErrExpected: true},
-			{InFile: "", Payload: nil, ErrExpected: true},
-			{InFile: testFile, Payload: nil, ErrExpected: true},
-			{InFile: testFile, Payload: records, ErrExpected: false},
-			{InFile: testFile, Payload: missAligned, ErrExpected: true},
-		}
+		tests = append(tests,
+			testTable{InFile: "", Payload: [][]string{}, ErrExpected: true},
+			testTable{InFile: "", Payload: nil, ErrExpected: true},
+		)
 	}
 
 	for x := range tests {
-		fmt.Println(tests[x])
 		err := tester(tests[x].InFile, tests[x].Payload)
-		if err != nil {
-			log.Println(err)
-		}
 		if err != nil && !tests[x].ErrExpected {
 			t.Errorf("Test %d failed, unexpected err %s\n", x, err)
 		}
