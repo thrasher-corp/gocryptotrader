@@ -10,6 +10,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -63,7 +65,9 @@ func TestGetTradeHistory(t *testing.T) {
 
 func TestGetChartData(t *testing.T) {
 	t.Parallel()
-	_, err := p.GetChartData("BTC_XMR", "1405699200", "1405699400", "300")
+	p.Verbose = true
+	_, err := p.GetChartData("BTC_XMR",
+		time.Unix(1405699200, 0), time.Unix(1405699400, 0), "300")
 	if err != nil {
 		t.Error("Test faild - Poloniex GetChartData() error", err)
 	}
@@ -528,5 +532,20 @@ func TestWsHandleAccountData(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	p.Verbose = true
+	currencyPair := currency.NewPairFromString("BTCLTC")
+	startTime := time.Now().Add(-time.Hour * 1)
+	v, err := p.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.FiveMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(v)
+	_, err = p.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
 	}
 }

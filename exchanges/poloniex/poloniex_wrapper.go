@@ -109,9 +109,22 @@ func (p *Poloniex) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.NoFiatWithdrawals,
+			KlineCapabilities: kline.ExchangeCapabilities{
+				SupportsIntervals: true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			KlineCapabilities: kline.ExchangeCapabilities{
+				Intervals: map[string]bool{
+					"fivemin":    true,
+					"fifteenmin": true,
+					"thirtymin":  true,
+					"twohour":    true,
+					"fourhour":   true,
+					"oneday":     true,
+				},
+			},
 		},
 	}
 
@@ -673,7 +686,41 @@ func (p *Poloniex) ValidateCredentials() error {
 	return p.CheckTransientError(err)
 }
 
+func (p *Poloniex) KlineConvertToExchangeStandardString(in kline.Interval) string {
+	return strconv.FormatFloat(in.Duration().Seconds(), 'f', 0, 64)
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (p *Poloniex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+	if !p.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	candles, err := p.GetChartData(p.FormatExchangeCurrency(pair, a).String(),
+		start, end,
+		p.KlineConvertToExchangeStandardString(interval))
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	ret := kline.Item{
+		Exchange: p.Name,
+		Interval: interval,
+		Pair:     pair,
+		Asset:    a,
+	}
+
+	for x := range candles {
+		ret.Candles = append(ret.Candles, kline.Candle{
+			Time:   time.Unix(candles[x].Date, 0),
+			Open:   candles[x].Open,
+			High:   candles[x].Close,
+			Low:    candles[x].Low,
+			Close:  candles[x].Close,
+			Volume: candles[x].Volume,
+		})
+	}
+	return ret, nil
 }
