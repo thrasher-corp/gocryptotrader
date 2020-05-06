@@ -823,7 +823,7 @@ func (b *Bitfinex) ValidateCredentials() error {
 	return b.CheckTransientError(err)
 }
 
-func (b *Bitfinex) KlineConvertToExchangeStandardString(in kline.Interval) string {
+func (b *Bitfinex) FormatExchangeKlineInterval(in kline.Interval) string {
 	switch in {
 	case kline.OneDay:
 		return "1D"
@@ -844,7 +844,7 @@ func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		}
 	}
 
-	candles, err := b.GetCandles(fixCasing(pair), b.KlineConvertToExchangeStandardString(interval), start.Unix()*1000, end.Unix()*1000, 0, true, false)
+	candles, err := b.GetCandles(fixCasing(pair), b.FormatExchangeKlineInterval(interval), start.Unix()*1000, end.Unix()*1000, 0, true, false)
 	if err != nil {
 		return kline.Item{}, err
 	}

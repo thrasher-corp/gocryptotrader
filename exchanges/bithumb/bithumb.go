@@ -604,7 +604,7 @@ var errCode = map[string]string{
 	"5900": "Unknown Error",
 }
 
-func (b *Bithumb) KlineConvertToExchangeStandardString(in kline.Interval) string {
+func (b *Bithumb) FormatExchangeKlineInterval(in kline.Interval) string {
 	return in.Short()
 }
 
@@ -621,7 +621,7 @@ func (b *Bithumb) GetCandleStick(pair currency.Pair, start, end time.Time, inter
 		Data   [][]interface{} `json:"data"`
 	}
 
-	path := b.API.Endpoints.URL + publicCandleStick + b.FormatExchangeCurrency(pair, asset.Spot).String() + "/" + b.KlineConvertToExchangeStandardString(interval)
+	path := b.API.Endpoints.URL + publicCandleStick + b.FormatExchangeCurrency(pair, asset.Spot).String() + "/" + b.FormatExchangeKlineInterval(interval)
 	err := b.SendHTTPRequest(path, &candle)
 	if err != nil {
 		return kline.Item{}, err

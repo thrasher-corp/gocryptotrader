@@ -811,8 +811,8 @@ func (e *Base) KlineValidFeatures() bool {
 	return false
 }
 
-// KlineConvertToExchangeStandardString returns Interval to string
+// FormatExchangeKlineInterval returns Interval to string
 // Exchanges can override this if they require custom formatting
-func (e *Base) KlineConvertToExchangeStandardString(in kline.Interval) string {
+func (e *Base) FormatExchangeKlineInterval(in kline.Interval) string {
 	return common.ErrNotYetImplemented.Error()
 }

@@ -720,7 +720,7 @@ func (z *ZB) ValidateCredentials() error {
 	return z.CheckTransientError(err)
 }
 
-func (z *ZB) KlineConvertToExchangeStandardString(in kline.Interval) string {
+func (z *ZB) FormatExchangeKlineInterval(in kline.Interval) string {
 	switch in {
 	case kline.OneMin, kline.ThreeMin,
 		kline.FiveMin, kline.FifteenMin, kline.ThirtyMin:
@@ -746,7 +746,7 @@ func (z *ZB) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end tim
 	}
 
 	klineParams := KlinesRequestParams{
-		Type:   z.KlineConvertToExchangeStandardString(interval),
+		Type:   z.FormatExchangeKlineInterval(interval),
 		Symbol: z.FormatExchangeCurrency(pair, a).String(),
 	}
 

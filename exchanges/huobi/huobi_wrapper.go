@@ -939,7 +939,7 @@ func (h *HUOBI) ValidateCredentials() error {
 	return h.CheckTransientError(err)
 }
 
-func (h *HUOBI) KlineConvertToExchangeStandardString(in kline.Interval) string {
+func (h *HUOBI) FormatExchangeKlineInterval(in kline.Interval) string {
 	switch in {
 	case kline.OneMin, kline.FiveMin, kline.FifteenMin, kline.ThirtyMin:
 		return in.Short() + "in"
@@ -956,7 +956,7 @@ func (h *HUOBI) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end 
 	}
 
 	klineParams := KlinesRequestParams{
-		Period: h.KlineConvertToExchangeStandardString(interval),
+		Period: h.FormatExchangeKlineInterval(interval),
 		Symbol: h.FormatExchangeCurrency(pair, a).String(),
 	}
 

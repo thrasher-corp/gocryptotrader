@@ -536,14 +536,15 @@ func TestWsHandleAccountData(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	p.Verbose = true
+	if mockTests {
+		t.Skip("skipping test under mock as its covered by GetSpotKlines()")
+	}
 	currencyPair := currency.NewPairFromString("BTCLTC")
 	startTime := time.Now().Add(-time.Hour * 1)
-	v, err := p.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.FiveMin)
+	_, err := p.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.FiveMin)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(v)
 	_, err = p.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.Interval(time.Hour*7))
 	if err == nil {
 		t.Fatal("unexpected result")

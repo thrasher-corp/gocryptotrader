@@ -673,7 +673,7 @@ func (h *HitBTC) ValidateCredentials() error {
 	return h.CheckTransientError(err)
 }
 
-func (h *HitBTC) KlineConvertToExchangeStandardString(in kline.Interval) string {
+func (h *HitBTC) FormatExchangeKlineInterval(in kline.Interval) string {
 	switch in {
 	case kline.OneMin, kline.ThreeMin,
 		kline.FiveMin, kline.FifteenMin, kline.ThirtyMin:
@@ -694,7 +694,7 @@ func (h *HitBTC) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 		}
 	}
 	data, err := h.GetCandles(h.FormatExchangeCurrency(pair, a).String(), "1000",
-		h.KlineConvertToExchangeStandardString(interval),
+		h.FormatExchangeKlineInterval(interval),
 		start.Format(time.RFC3339), end.Format(time.RFC3339))
 	if err != nil {
 		return kline.Item{}, err

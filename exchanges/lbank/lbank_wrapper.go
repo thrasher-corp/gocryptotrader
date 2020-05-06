@@ -733,7 +733,7 @@ func (l *Lbank) ValidateCredentials() error {
 	return l.CheckTransientError(err)
 }
 
-func (l *Lbank) KlineConvertToExchangeStandardString(in kline.Interval) string {
+func (l *Lbank) FormatExchangeKlineInterval(in kline.Interval) string {
 	switch in {
 	case kline.OneMin, kline.ThreeMin,
 		kline.FiveMin, kline.FifteenMin, kline.ThirtyMin:
@@ -755,7 +755,7 @@ func (l *Lbank) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end 
 	}
 
 	data, err := l.GetKlines(l.FormatExchangeCurrency(pair, a).String(),
-		"2880", l.KlineConvertToExchangeStandardString(interval),
+		"2880", l.FormatExchangeKlineInterval(interval),
 		strconv.FormatInt(start.Unix(), 10))
 	if err != nil {
 		return kline.Item{}, err

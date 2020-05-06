@@ -686,7 +686,7 @@ func (p *Poloniex) ValidateCredentials() error {
 	return p.CheckTransientError(err)
 }
 
-func (p *Poloniex) KlineConvertToExchangeStandardString(in kline.Interval) string {
+func (p *Poloniex) FormatExchangeKlineInterval(in kline.Interval) string {
 	return strconv.FormatFloat(in.Duration().Seconds(), 'f', 0, 64)
 }
 
@@ -700,7 +700,7 @@ func (p *Poloniex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 
 	candles, err := p.GetChartData(p.FormatExchangeCurrency(pair, a).String(),
 		start, end,
-		p.KlineConvertToExchangeStandardString(interval))
+		p.FormatExchangeKlineInterval(interval))
 	if err != nil {
 		return kline.Item{}, err
 	}

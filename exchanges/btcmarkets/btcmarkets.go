@@ -163,7 +163,7 @@ func (b *BTCMarkets) GetOrderbook(marketID string, level int64) (Orderbook, erro
 	return orderbook, nil
 }
 
-func (b *BTCMarkets) KlineConvertToExchangeStandardString(in kline.Interval) string {
+func (b *BTCMarkets) FormatExchangeKlineInterval(in kline.Interval) string {
 	if in == kline.OneDay || in == kline.TwentyFourHour {
 		return "1d"
 	}
@@ -185,7 +185,7 @@ func (b *BTCMarkets) GetMarketCandles(marketID string, timeWindow kline.Interval
 	params := url.Values{}
 
 	if timeWindow != 0 {
-		params.Set("timeWindow", b.KlineConvertToExchangeStandardString(timeWindow))
+		params.Set("timeWindow", b.FormatExchangeKlineInterval(timeWindow))
 	}
 	if !from.IsZero() {
 		params.Set("from", from.UTC().Format(time.RFC3339))

@@ -29,22 +29,6 @@ const (
 	TwoWeek        = 2 * OneWeek
 )
 
-// const (
-// 	OneMinStr     string = "onemin"
-// 	ThreeMinStr   string = "threemin"
-// 	FiveMinStr    string = "fivemin"
-// 	FifteenMinStr string = "fifteenmin"
-// 	ThirtyMinStr  string = "thirtymin"
-// 	OneHourStr    string = "onehour"
-// 	TwoHourStr    string = "twohour"
-// 	FourHourStr   string = "fourhour"
-// 	SixhourStr    string = "sixhour"
-// 	TwelveHourStr string = "twelvehour"
-// 	OneDayStr     string = "oneday"
-// 	ThreeDayStr   string = "threeday"
-// 	OneWeekStr    string = "oneweeks"
-// )
-
 // ErrUnsupportedInterval locacle for an unsupported interval
 const ErrUnsupportedInterval = "%s interval unsupported by exchange"
 
