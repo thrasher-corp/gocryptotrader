@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/d5/tengo/v2 v2.2.0
-	github.com/gofrs/uuid v3.2.0+incompatible
+	github.com/gofrs/uuid v3.3.0+incompatible
 	github.com/golang/protobuf v1.4.1
 	github.com/google/go-querystring v1.0.0
 	github.com/gorilla/mux v1.7.4
