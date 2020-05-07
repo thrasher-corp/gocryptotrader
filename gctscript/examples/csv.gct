@@ -4,6 +4,7 @@ t := import("times")
 atr := import("indicator/atr")
 sma := import("indicator/sma")
 ema := import("indicator/ema")
+common := import("common")
 
 load := func() {
     // define your start and end within reason.
@@ -18,11 +19,10 @@ load := func() {
     simma := sma.calculate(ohlcvData.candles, 9)
     expma := ema.calculate(ohlcvData.candles, 9)
     
-    // 'output' is already defined when we construct our bytecode from file. 
-    // It points to our default output file in the scripts folder.
-    // Input the rest of the fields, any order, doesn't matter. Once the script
-    // is executed it will save as csv and you can open in excel.
-    common.writeascsv(output, ohlcvData, avgtr, simma, expma)
+    // 'ctx' is already defined when we construct our bytecode from file. 
+    // It contains script ID and shortname of file as save details to default
+    // script output directory.
+    common.writeascsv(ctx, ohlcvData, avgtr, simma, expma)
 }
 
 load()

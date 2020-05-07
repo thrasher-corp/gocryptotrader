@@ -3,15 +3,21 @@ package gct
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
+	"strings"
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/ta/indicators"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var commonModule = map[string]objects.Object{
 	"writeascsv": &objects.UserFunction{Name: "writeascsv", Value: WriteAsCSV},
 }
+
+// OutputDir is the default script output directory
+var OutputDir string
 
 // WriteAsCSV takes in a slice matrix to save to file
 func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
@@ -54,6 +60,17 @@ func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
 			if !ok {
 				return nil, errors.New("failed to convert incoming output to string")
 			}
+
+			if target == "" {
+				return nil, errors.New("script context details not specified")
+			}
+
+			// default context, any other will assume filename inside default
+			// script output directory to be client defined ie hello.something
+			// as .gct will be a script file.
+			if !strings.Contains(target, ".csv") && strings.Contains(target, ".gct") {
+				target += ".csv"
+			}
 		default:
 			err = fmt.Errorf("%s type is not handled", args[i].TypeName())
 		}
@@ -81,7 +98,22 @@ func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
 			}
 		}
 	}
-	return nil, file.WriteAsCSV(target+".csv", bucket)
+
+	if target == "" {
+		return nil, errors.New("filename unset please set in writeascsv as ctx or client defined")
+	}
+
+	// Removes file transversal
+	savePoint := filepath.Join(OutputDir, filepath.Base(target))
+	err = file.WriteAsCSV(savePoint, bucket)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Infof(log.GCTScriptMgr,
+		"CSV file successfully saved to: %s",
+		savePoint)
+	return nil, nil
 }
 
 func convertATR(a objects.Object) ([][]string, error) {

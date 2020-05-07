@@ -42,6 +42,11 @@ func NewVM() (vm *VM) {
 	return
 }
 
+// SetDefaultScriptOutput sets default output file for scripts
+func SetDefaultScriptOutput() {
+	loader.SetDefaultScriptOutput(filepath.Join(ScriptPath, "output"))
+}
+
 // Load parses and creates a new instance of tengo script vm
 func (vm *VM) Load(file string) error {
 	if vm == nil {
@@ -75,11 +80,8 @@ func (vm *VM) Load(file string) error {
 	vm.File = file
 	vm.Path = filepath.Dir(file)
 	vm.Script = tengo.NewScript(code)
-	output := filepath.Join(vm.Path, "output", vm.ShortName()) +
-		"-" +
-		vm.ID.String() +
-		"-output"
-	err = vm.Script.Add("output", output)
+	scriptctx := vm.ShortName() + "-" + vm.ID.String()
+	err = vm.Script.Add("ctx", scriptctx)
 	if err != nil {
 		return err
 	}

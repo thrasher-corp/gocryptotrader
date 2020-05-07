@@ -21,6 +21,7 @@ var (
 	rsiPayload    = &indicators.RSI{Array: oneElement}
 	smaPayload    = &indicators.SMA{Array: oneElement}
 	ohlcPayload   = &OHLCV{Map: ohlcdata}
+	unhandled     = &objects.Array{}
 
 	oneElement = objects.Array{
 		Value: []objects.Object{
@@ -113,8 +114,7 @@ var (
 func TestCommonWriteToCSV(t *testing.T) {
 	t.Parallel()
 
-	tempDir := filepath.Join(os.TempDir(), "script-temp")
-	testFile := filepath.Join(tempDir, "script-test")
+	OutputDir = filepath.Join(os.TempDir(), "script-temp")
 
 	_, err := WriteAsCSV()
 	if err == nil {
@@ -126,7 +126,17 @@ func TestCommonWriteToCSV(t *testing.T) {
 		t.Fatal("error cannot be nil")
 	}
 
-	_, err = WriteAsCSV(&objects.String{Value: testFile},
+	_, err = WriteAsCSV(&objects.String{Value: ""})
+	if err == nil {
+		t.Fatal(err)
+	}
+
+	_, err = WriteAsCSV(&objects.String{Value: "script-temp.csv"}, unhandled)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	_, err = WriteAsCSV(&objects.String{Value: "script-temp.csv"},
 		atrPayload,
 		bbandsPayload,
 		emaPayload,
@@ -140,7 +150,13 @@ func TestCommonWriteToCSV(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = os.RemoveAll(tempDir)
+	_, err = WriteAsCSV(&objects.String{Value: "test.gct-script-temp2"},
+		atrPayload)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.RemoveAll(OutputDir)
 	if err != nil {
 		t.Fatal(err)
 	}

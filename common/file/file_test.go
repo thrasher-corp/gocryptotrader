@@ -153,13 +153,17 @@ func TestWriteAsCSV(t *testing.T) {
 		{"Sup", "bra"},
 	}
 
-	tempDir := filepath.Join(os.TempDir(), "gct-csv-temp")
-	testFile := filepath.Join(tempDir, "gct-csv-test.csv")
+	testFile, err := ioutil.TempFile(os.TempDir(), "gct-csv-test.*.csv")
+	if err != nil {
+		t.Fatalf("failed to create testFile: %v", err)
+	}
+	testFile.Close()
+	defer os.Remove(testFile.Name())
 
 	tests := []testTable{
-		{InFile: testFile, Payload: nil, ErrExpected: true},
-		{InFile: testFile, Payload: records, ErrExpected: false},
-		{InFile: testFile, Payload: missAligned, ErrExpected: true},
+		{InFile: testFile.Name(), Payload: nil, ErrExpected: true},
+		{InFile: testFile.Name(), Payload: records, ErrExpected: false},
+		{InFile: testFile.Name(), Payload: missAligned, ErrExpected: true},
 	}
 	switch runtime.GOOS {
 	case "windows":
@@ -179,9 +183,5 @@ func TestWriteAsCSV(t *testing.T) {
 		if err != nil && !tests[x].ErrExpected {
 			t.Errorf("Test %d failed, unexpected err %s\n", x, err)
 		}
-	}
-
-	if err := os.RemoveAll(tempDir); err != nil {
-		t.Errorf("unable to remove temp test dir %s, manual deletion required", tempDir)
 	}
 }

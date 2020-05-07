@@ -37,3 +37,8 @@ func GetModuleMap() *tengo.ModuleMap {
 	}
 	return modules
 }
+
+// SetDefaultScriptOutput sets the output folder
+func SetDefaultScriptOutput(path string) {
+	gct.OutputDir = path
+}
