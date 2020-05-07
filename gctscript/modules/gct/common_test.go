@@ -126,7 +126,13 @@ func TestCommonWriteToCSV(t *testing.T) {
 		t.Fatal("error cannot be nil")
 	}
 
-	_, err = WriteAsCSV(&objects.String{Value: ""})
+	_, err = WriteAsCSV(&objects.String{Value: "something.txt"})
+	if err == nil {
+		t.Fatal(err)
+	}
+
+	_, err = WriteAsCSV(&objects.String{Value: "something.txt"},
+		&objects.String{Value: "extra string"})
 	if err == nil {
 		t.Fatal(err)
 	}
@@ -147,6 +153,11 @@ func TestCommonWriteToCSV(t *testing.T) {
 		smaPayload,
 		ohlcPayload)
 	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = WriteAsCSV(atrPayload)
+	if err == nil {
 		t.Fatal(err)
 	}
 

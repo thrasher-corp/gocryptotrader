@@ -55,6 +55,9 @@ func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
 			temp, err = convertOHLCV(args[i])
 			front = true
 		case "string":
+			if target != "" {
+				return nil, errors.New("filename already set, extra string cannot be processed")
+			}
 			var ok bool
 			target, ok = objects.ToString(args[i])
 			if !ok {
@@ -65,9 +68,8 @@ func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
 				return nil, errors.New("script context details not specified")
 			}
 
-			// default context, any other will assume filename inside default
-			// script output directory to be client defined ie hello.something
-			// as .gct will be a script file.
+			// checks to see if file is context defined, if not it will allow
+			// a client defined filename and extension
 			if !strings.Contains(target, ".csv") && strings.Contains(target, ".gct") {
 				target += ".csv"
 			}
