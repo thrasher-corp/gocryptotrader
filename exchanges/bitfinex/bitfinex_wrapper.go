@@ -448,7 +448,7 @@ func (b *Bitfinex) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic tradeRateLimit data since exchange opening.
+// GetExchangeHistory returns historic trade data since exchange opening.
 func (b *Bitfinex) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
 	var resp []trade.History
 	if req.TimestampStart.Unix() == 0 {
@@ -823,6 +823,7 @@ func (b *Bitfinex) ValidateCredentials() error {
 	return b.CheckTransientError(err)
 }
 
+// FormatExchangeKlineInterval returns Interval to exchange formatted string
 func (b *Bitfinex) FormatExchangeKlineInterval(in kline.Interval) string {
 	switch in {
 	case kline.OneDay:

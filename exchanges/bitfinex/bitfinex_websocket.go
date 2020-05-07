@@ -254,7 +254,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			case 3:
 				if d[1].(string) == wsTradeExecutionUpdate ||
 					d[1].(string) == wsFundingTradeUpdate {
-					// "(f)te - tradeRateLimit executed" && "(f)tu - tradeRateLimit updated"
+					// "(f)te - trade executed" && "(f)tu - trade updated"
 					// contain the same amount of data
 					// "(f)te" gets sent first so we can drop "(f)tu"
 					return nil
@@ -889,7 +889,7 @@ func (b *Bitfinex) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscr
 	if channelToSubscribe.Currency.String() != "" {
 		if channelToSubscribe.Channel == wsCandles {
 			// TODO: Add ability to select timescale
-			req["key"] = fmt.Sprintf("tradeRateLimit:1D:%v",
+			req["key"] = fmt.Sprintf("trade:1D:%v",
 				b.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Spot).String())
 		} else {
 			req["symbol"] = b.FormatExchangeCurrency(channelToSubscribe.Currency,

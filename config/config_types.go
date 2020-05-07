@@ -325,14 +325,12 @@ type FeaturesSupportedConfig struct {
 	RESTCapabilities      protocol.Features `json:"restCapabilities,omitempty"`
 	Websocket             bool              `json:"websocketAPI"`
 	WebsocketCapabilities protocol.Features `json:"websocketCapabilities,omitempty"`
-	// KlineCapabilities     kline.ExchangeCapabilities `json:"klineCapabilities,omitempty"`
 }
 
 // FeaturesEnabledConfig stores the exchanges enabled features
 type FeaturesEnabledConfig struct {
 	AutoPairUpdates bool `json:"autoPairUpdates"`
 	Websocket       bool `json:"websocketAPI"`
-	// KlineCapabilities kline.ExchangeCapabilities `json:"klineCapabilities,omitempty"`
 }
 
 // FeaturesConfig stores the exchanges supported and enabled features

@@ -314,7 +314,7 @@ type MovementHistory struct {
 	Fee              float64 `json:"fee"`
 }
 
-// TradeHistory holds tradeRateLimit history data
+// TradeHistory holds trade history data
 type TradeHistory struct {
 	Price       float64 `json:"price,string"`
 	Amount      float64 `json:"amount,string"`

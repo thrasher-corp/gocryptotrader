@@ -163,6 +163,7 @@ func (b *BTCMarkets) GetOrderbook(marketID string, level int64) (Orderbook, erro
 	return orderbook, nil
 }
 
+// FormatExchangeKlineInterval returns Interval to exchange formatted string
 func (b *BTCMarkets) FormatExchangeKlineInterval(in kline.Interval) string {
 	if in == kline.OneDay || in == kline.TwentyFourHour {
 		return "1d"
@@ -331,7 +332,7 @@ func (b *BTCMarkets) GetTradingFees() (TradingFeeResponse, error) {
 		request.Auth)
 }
 
-// GetTradeHistory returns tradeEndPoint history
+// GetTradeHistory returns trade history
 func (b *BTCMarkets) GetTradeHistory(marketID, orderID string, before, after, limit int64) ([]TradeHistoryData, error) {
 	if (before > 0) && (after >= 0) {
 		return nil, errors.New("BTCMarkets only supports either before or after, not both")
@@ -360,7 +361,7 @@ func (b *BTCMarkets) GetTradeHistory(marketID, orderID string, before, after, li
 		request.Auth)
 }
 
-// GetTradeByID returns the singular tradeEndPoint of the ID given
+// GetTradeByID returns the singular trade of the ID given
 func (b *BTCMarkets) GetTradeByID(id string) (TradeHistoryData, error) {
 	var resp TradeHistoryData
 	return resp, b.SendAuthenticatedRequest(http.MethodGet,

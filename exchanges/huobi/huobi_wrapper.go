@@ -939,6 +939,7 @@ func (h *HUOBI) ValidateCredentials() error {
 	return h.CheckTransientError(err)
 }
 
+// FormatExchangeKlineInterval returns Interval to exchange formatted string
 func (h *HUOBI) FormatExchangeKlineInterval(in kline.Interval) string {
 	switch in {
 	case kline.OneMin, kline.FiveMin, kline.FifteenMin, kline.ThirtyMin:

@@ -779,7 +779,6 @@ func (b *Bitmex) SendHTTPRequest(path string, params Parameter, result interface
 				HTTPRecording: b.HTTPRecording,
 			})
 			if err != nil {
-				fmt.Println(err)
 				return err
 			}
 			return b.CaptureError(respCheck, result)

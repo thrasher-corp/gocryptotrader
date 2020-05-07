@@ -733,6 +733,7 @@ func (l *Lbank) ValidateCredentials() error {
 	return l.CheckTransientError(err)
 }
 
+// FormatExchangeKlineInterval returns Interval to exchange formatted string
 func (l *Lbank) FormatExchangeKlineInterval(in kline.Interval) string {
 	switch in {
 	case kline.OneMin, kline.ThreeMin,

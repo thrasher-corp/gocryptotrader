@@ -371,7 +371,7 @@ func TestGetTrade(t *testing.T) {
 }
 
 func TestGetPreviousTrades(t *testing.T) {
-	v, err := b.GetPreviousTrades(&TradeGetBucketedParams{
+	_, err := b.GetPreviousTrades(&TradeGetBucketedParams{
 		Symbol:  "XBTBTC",
 		Start:   int32(time.Now().Add(-time.Hour * 24).Unix()),
 		Columns: "open,high,low,close,volume",
@@ -379,7 +379,6 @@ func TestGetPreviousTrades(t *testing.T) {
 	if err == nil {
 		t.Error("GetPreviousTrades() Expected error")
 	}
-	t.Log(v)
 }
 
 func setFeeBuilder() *exchange.FeeBuilder {

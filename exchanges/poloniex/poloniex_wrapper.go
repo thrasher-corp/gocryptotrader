@@ -686,6 +686,7 @@ func (p *Poloniex) ValidateCredentials() error {
 	return p.CheckTransientError(err)
 }
 
+// FormatExchangeKlineInterval returns Interval to exchange formatted string
 func (p *Poloniex) FormatExchangeKlineInterval(in kline.Interval) string {
 	return strconv.FormatFloat(in.Duration().Seconds(), 'f', 0, 64)
 }

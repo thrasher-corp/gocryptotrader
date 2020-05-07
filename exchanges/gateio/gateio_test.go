@@ -150,7 +150,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
-	v, err := g.GetSpotKline(KlinesRequestParams{
+	_, err := g.GetSpotKline(KlinesRequestParams{
 		Symbol:   "btc_usdt",
 		GroupSec: "5", // 5 minutes or less
 		HourSize: 1,   // 1 hour data
@@ -159,7 +159,6 @@ func TestGetSpotKline(t *testing.T) {
 	if err != nil {
 		t.Errorf("Gateio GetSpotKline: %s", err)
 	}
-	t.Log(v)
 }
 
 func setFeeBuilder() *exchange.FeeBuilder {

@@ -726,6 +726,7 @@ func (b *Binance) ValidateCredentials() error {
 	return b.CheckTransientError(err)
 }
 
+// FormatExchangeKlineInterval returns Interval to exchange formatted string
 func (b *Binance) FormatExchangeKlineInterval(in kline.Interval) string {
 	if in == kline.OneDay {
 		return "1d"

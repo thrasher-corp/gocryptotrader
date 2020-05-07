@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -392,6 +393,16 @@ func  ({{.Variable}} *{{.CapitalName}}) GetSubscriptions() ([]wshandler.Websocke
 // AuthenticateWebsocket sends an authentication message to the websocket
 func  ({{.Variable}} *{{.CapitalName}}) AuthenticateWebsocket() error {
 	return common.ErrNotYetImplemented
+}
+
+// GetHistoricCandles returns candles between a time period for a set time interval
+func ({{.Variable}} *{{.CapitalName}}) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+    if !({{.Variable}}.KlineIntervalEnabled(interval) {
+        return kline.Item{}, kline.ErrorKline{
+            Interval: interval,
+        }
+    }
+	return nil, common.ErrNotYetImplementel
 }
 
 {{end}}

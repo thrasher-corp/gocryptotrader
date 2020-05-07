@@ -733,6 +733,7 @@ func (g *Gateio) ValidateCredentials() error {
 	return g.CheckTransientError(err)
 }
 
+// FormatExchangeKlineInterval returns Interval to exchange formatted string
 func (g *Gateio) FormatExchangeKlineInterval(in kline.Interval) string {
 	return in.Short()[:len(in.Short())-1]
 }

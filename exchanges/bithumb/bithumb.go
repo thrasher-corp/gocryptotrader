@@ -604,6 +604,7 @@ var errCode = map[string]string{
 	"5900": "Unknown Error",
 }
 
+// FormatExchangeKlineInterval returns Interval to exchange formatted string
 func (b *Bithumb) FormatExchangeKlineInterval(in kline.Interval) string {
 	return in.Short()
 }

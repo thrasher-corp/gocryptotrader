@@ -667,19 +667,19 @@ func (c *Coinbene) GetKlines(pair currency.Pair, start, end time.Time, period kl
 		if err != nil {
 			continue
 		}
-		tempCandle.High, _ = strconv.ParseFloat(candle.Data[x][2].(string), 64)
+		tempCandle.High, err = strconv.ParseFloat(candle.Data[x][2].(string), 64)
 		if err != nil {
 			continue
 		}
-		tempCandle.Low, _ = strconv.ParseFloat(candle.Data[x][3].(string), 64)
+		tempCandle.Low, err = strconv.ParseFloat(candle.Data[x][3].(string), 64)
 		if err != nil {
 			continue
 		}
-		tempCandle.Close, _ = strconv.ParseFloat(candle.Data[x][4].(string), 64)
+		tempCandle.Close, err = strconv.ParseFloat(candle.Data[x][4].(string), 64)
 		if err != nil {
 			continue
 		}
-		tempCandle.Volume, _ = strconv.ParseFloat(candle.Data[x][5].(string), 64)
+		tempCandle.Volume, err = strconv.ParseFloat(candle.Data[x][5].(string), 64)
 		if err != nil {
 			continue
 		}

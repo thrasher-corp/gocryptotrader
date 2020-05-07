@@ -529,7 +529,7 @@ func TestWsTrade(t *testing.T) {
     "price": "7370.11",
     "volume": "0.10901605",
     "side": "Ask",
-    "messageType": "tradeEndPoint"
+    "messageType": "trade"
   }`)
 	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
