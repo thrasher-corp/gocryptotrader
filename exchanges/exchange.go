@@ -807,10 +807,6 @@ func (e *Base) KlineIntervalEnabled(in kline.Interval) bool {
 	return e.Features.Enabled.KlineCapabilities.Intervals[in.Word()]
 }
 
-func (e *Base) KlineValidFeatures() bool {
-	return false
-}
-
 // FormatExchangeKlineInterval returns Interval to string
 // Exchanges can override this if they require custom formatting
 func (e *Base) FormatExchangeKlineInterval(in kline.Interval) string {

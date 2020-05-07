@@ -29,7 +29,7 @@ const (
 	TwoWeek        = 2 * OneWeek
 )
 
-// ErrUnsupportedInterval locacle for an unsupported interval
+// ErrUnsupportedInterval loacle for an unsupported interval
 const ErrUnsupportedInterval = "%s interval unsupported by exchange"
 
 // Item holds all the relevant information for internal kline elements
@@ -51,7 +51,7 @@ type Candle struct {
 	Volume float64
 }
 
-// ExchangeCapabilities all kline related exchane supported options
+// ExchangeCapabilities all kline related exchange supported options
 type ExchangeCapabilities struct {
 	SupportsIntervals bool
 	Intervals         map[string]bool `json:"intervals,omitempty"`
@@ -59,16 +59,20 @@ type ExchangeCapabilities struct {
 	Limit             uint32
 }
 
+// Interval type for kline Interval usage
 type Interval time.Duration
 
+// ErrorKline struct to hold kline interval errors
 type ErrorKline struct {
 	Interval Interval
 }
 
+// Error returns short interval unsupported message
 func (k ErrorKline) Error() string {
 	return fmt.Sprintf(ErrUnsupportedInterval, k.Interval.Short())
 }
 
+// Unwrap returns interval unsupported message
 func (k *ErrorKline) Unwrap() error {
 	return fmt.Errorf(ErrUnsupportedInterval, k.Interval)
 }

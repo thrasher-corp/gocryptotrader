@@ -646,11 +646,26 @@ func (b *Bithumb) GetCandleStick(pair currency.Pair, start, end time.Time, inter
 			break
 		}
 		tempCandle.Time = timestamp
-		tempCandle.Open, _ = strconv.ParseFloat(candle.Data[x][1].(string), 64)
-		tempCandle.High, _ = strconv.ParseFloat(candle.Data[x][2].(string), 64)
-		tempCandle.Low, _ = strconv.ParseFloat(candle.Data[x][3].(string), 64)
-		tempCandle.Close, _ = strconv.ParseFloat(candle.Data[x][4].(string), 64)
-		tempCandle.Volume, _ = strconv.ParseFloat(candle.Data[x][5].(string), 64)
+		tempCandle.Open, err = strconv.ParseFloat(candle.Data[x][1].(string), 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		tempCandle.High, err = strconv.ParseFloat(candle.Data[x][2].(string), 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		tempCandle.Low, err = strconv.ParseFloat(candle.Data[x][3].(string), 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		tempCandle.Close, err = strconv.ParseFloat(candle.Data[x][4].(string), 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		tempCandle.Volume, err = strconv.ParseFloat(candle.Data[x][5].(string), 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
 		ret.Candles = append(ret.Candles, tempCandle)
 	}
 	return ret, nil

@@ -701,8 +701,6 @@ func (h *HitBTC) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 		return kline.Item{}, err
 	}
 
-	fmt.Println(data)
-
 	ret := kline.Item{
 		Exchange: h.Name,
 		Pair:     pair,

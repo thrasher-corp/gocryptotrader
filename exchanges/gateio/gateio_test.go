@@ -748,9 +748,8 @@ func TestWsBalanceUpdate(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	currencyPair := currency.NewPairFromString("BTC_USDT")
 	startTime := time.Now().Add(-time.Hour * 6)
-	v, err := g.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	_, err := g.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(v)
 }
