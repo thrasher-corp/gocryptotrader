@@ -3,7 +3,6 @@ package bitstamp
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -24,7 +23,6 @@ const (
 
 // WsConnect connects to a websocket feed
 func (b *Bitstamp) WsConnect() error {
-	fmt.Println("MEOW")
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -146,7 +144,6 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 }
 
 func (b *Bitstamp) generateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	fmt.Println("WOW")
 	var channels = []string{"live_trades_", "order_book_"}
 	enabledCurrencies, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -165,7 +162,6 @@ func (b *Bitstamp) generateDefaultSubscriptions() ([]stream.ChannelSubscription,
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *Bitstamp) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	fmt.Println("SUB:", channelsToSubscribe)
 	for i := range channelsToSubscribe {
 		req := websocketEventRequest{
 			Event: "bts:subscribe",
@@ -183,7 +179,6 @@ func (b *Bitstamp) Subscribe(channelsToSubscribe []stream.ChannelSubscription) e
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (b *Bitstamp) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	fmt.Println("UNSUB:", channelsToUnsubscribe)
 	for i := range channelsToUnsubscribe {
 		req := websocketEventRequest{
 			Event: "bts:unsubscribe",
