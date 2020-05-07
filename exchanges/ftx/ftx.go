@@ -13,6 +13,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
@@ -27,7 +28,6 @@ const (
 	ftxAPIURL = "https://ftx.com/api"
 
 	// Public endpoints
-
 	getMarkets           = "/markets"
 	getMarket            = "/markets/"
 	getOrderbook         = "/markets/%s/orderbook?depth=%s"
@@ -90,16 +90,9 @@ const (
 	ftxRequestRate           = 180
 
 	// Other Consts
-	stopOrderType         = "stop"
 	trailingStopOrderType = "trailingStop"
 	takeProfitOrderType   = "takeProfit"
-	buy                   = "buy"
-	sell                  = "sell"
-	newStatus             = "new"
-	openStatus            = "open"
 	closedStatus          = "closed"
-	limitOrder            = "limit"
-	marketOrder           = "market"
 	defaultTime           = "0001-01-01 00:00:00 +0000 UTC"
 	spotString            = "spot"
 	futuresString         = "future"
@@ -132,7 +125,7 @@ func (f *FTX) GetOrderbook(marketName string, depth int64) (OrderbookData, error
 	resp.MarketName = marketName
 	for x := range tempOB.Result.Asks {
 		resp.Asks = append(resp.Asks, OData{Price: tempOB.Result.Asks[x][0],
-			Size: tempOB.Result.Bids[x][1],
+			Size: tempOB.Result.Asks[x][1],
 		})
 	}
 	for y := range tempOB.Result.Bids {
@@ -144,64 +137,36 @@ func (f *FTX) GetOrderbook(marketName string, depth int64) (OrderbookData, error
 }
 
 // GetTrades gets trades based on the conditions specified
-func (f *FTX) GetTrades(marketName, startTime, endTime string, limit int64) (Trades, error) {
+func (f *FTX) GetTrades(marketName string, startTime, endTime time.Time, limit int64) (Trades, error) {
 	strLimit := strconv.FormatInt(limit, 10)
 	params := url.Values{}
 	params.Set("limit", strLimit)
-	var sTime, eTime int64
-	var err error
 	var resp Trades
-	if startTime != "" {
-		sTime, err = strconv.ParseInt(startTime, 10, 64)
-		if err != nil {
-			return resp, err
-		}
-		params.Set("start_time", startTime)
-	}
-	if endTime != "" {
-		eTime, err = strconv.ParseInt(endTime, 10, 64)
-		if err != nil {
-			return resp, err
-		}
-		params.Set("end_time", endTime)
-	}
-	if startTime != "" && endTime != "" {
-		if sTime > eTime {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		if !startTime.Before(endTime) {
 			return resp, errors.New("startTime cannot be bigger than endTime")
 		}
 	}
-	return resp, f.SendHTTPRequest((fmt.Sprintf(ftxAPIURL+getTrades, marketName) + params.Encode()),
+	return resp, f.SendHTTPRequest(fmt.Sprintf(ftxAPIURL+getTrades, marketName)+params.Encode(),
 		&resp)
 }
 
 // GetHistoricalData gets historical OHLCV data for a given market pair
-func (f *FTX) GetHistoricalData(marketName, timeInterval, limit, startTime, endTime string) (HistoricalData, error) {
+func (f *FTX) GetHistoricalData(marketName, timeInterval, limit string, startTime, endTime time.Time) (HistoricalData, error) {
 	var resp HistoricalData
 	params := url.Values{}
 	params.Set("resolution", timeInterval)
 	if limit != "" {
 		params.Set("limit", limit)
 	}
-	if startTime != "" && endTime != "" {
-		var sTime, eTime int64
-		var err error
-		sTime, err = strconv.ParseInt(startTime, 10, 64)
-		if err != nil {
-			return resp, err
-		}
-		eTime, err = strconv.ParseInt(endTime, 10, 64)
-		if err != nil {
-			return resp, err
-		}
-		if sTime > eTime {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		if !startTime.Before(endTime) {
 			return resp, errors.New("startTime cannot be bigger than endTime")
 		}
-	}
-	if startTime != "" {
-		params.Set("start_time", startTime)
-	}
-	if endTime != "" {
-		params.Set("end_time", endTime)
 	}
 	return resp, f.SendHTTPRequest(fmt.Sprintf(ftxAPIURL+getHistoricalData, marketName)+params.Encode(), &resp)
 }
@@ -327,21 +292,22 @@ func (f *FTX) GetOpenOrders(marketName string) (OpenOrders, error) {
 }
 
 // FetchOrderHistory gets order history
-func (f *FTX) FetchOrderHistory(marketName, startTime, endTime, limit string) (OrderHistory, error) {
+func (f *FTX) FetchOrderHistory(marketName string, startTime, endTime time.Time, limit string) (OrderHistory, error) {
+	var resp OrderHistory
 	params := url.Values{}
 	if marketName != "" {
 		params.Set("market", marketName)
 	}
-	if startTime != "" && startTime != defaultTime {
-		params.Set("start_time", startTime)
-	}
-	if endTime != "" && endTime != defaultTime {
-		params.Set("end_time", endTime)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		if !startTime.Before(endTime) {
+			return resp, errors.New("startTime cannot be bigger than endTime")
+		}
 	}
 	if limit != "" {
 		params.Set("limit", limit)
 	}
-	var resp OrderHistory
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, getOrderHistory+params.Encode(), nil, &resp)
 }
 
@@ -365,16 +331,18 @@ func (f *FTX) GetTriggerOrderTriggers(orderID string) (Triggers, error) {
 }
 
 // GetTriggerOrderHistory gets trigger orders that are currently open
-func (f *FTX) GetTriggerOrderHistory(marketName, startTime, endTime, side, orderType, limit string) (TriggerOrderHistory, error) {
+func (f *FTX) GetTriggerOrderHistory(marketName string, startTime, endTime time.Time, side, orderType, limit string) (TriggerOrderHistory, error) {
+	var resp TriggerOrderHistory
 	params := url.Values{}
 	if marketName != "" {
 		params.Set("market", marketName)
 	}
-	if startTime != "" && startTime != defaultTime {
-		params.Set("start_time", startTime)
-	}
-	if endTime != "" && endTime != defaultTime {
-		params.Set("end_time", endTime)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		if !startTime.Before(endTime) {
+			return resp, errors.New("startTime cannot be bigger than endTime")
+		}
 	}
 	if side != "" {
 		params.Set("side", side)
@@ -385,7 +353,6 @@ func (f *FTX) GetTriggerOrderHistory(marketName, startTime, endTime, side, order
 	if limit != "" {
 		params.Set("limit", limit)
 	}
-	var resp TriggerOrderHistory
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, getTriggerOrderHistory+params.Encode(), nil, &resp)
 }
 
@@ -426,7 +393,7 @@ func (f *FTX) TriggerOrder(marketName, side, orderType, reduceOnly, retryUntilFi
 	if retryUntilFilled != "" {
 		req["retryUntilFilled"] = retryUntilFilled
 	}
-	if orderType == stopOrderType || orderType == "" {
+	if orderType == order.Stop.Lower() || orderType == "" {
 		req["triggerPrice"] = triggerPrice
 		req["orderPrice"] = orderPrice
 	}
@@ -468,7 +435,7 @@ func (f *FTX) ModifyOrderByClientID(clientOrderID, clientID string, price, size 
 // ModifyTriggerOrder modifies an existing trigger order
 func (f *FTX) ModifyTriggerOrder(orderID, orderType string, size, triggerPrice, orderPrice, trailValue float64) (ModifyTriggerOrder, error) {
 	req := make(map[string]interface{})
-	if orderType == stopOrderType || orderType == "" {
+	if orderType == order.Stop.Lower() || orderType == "" {
 		req["triggerPrice"] = triggerPrice
 		req["orderPrice"] = orderPrice
 	}
@@ -514,7 +481,8 @@ func (f *FTX) DeleteTriggerOrder(orderID string) (CancelOrderResponse, error) {
 }
 
 // GetFills gets fills' data
-func (f *FTX) GetFills(market, limit, startTime, endTime string) (Fills, error) {
+func (f *FTX) GetFills(market, limit string, startTime, endTime time.Time) (Fills, error) {
+	var resp Fills
 	params := url.Values{}
 	if market != "" {
 		params.Set("market", market)
@@ -522,29 +490,30 @@ func (f *FTX) GetFills(market, limit, startTime, endTime string) (Fills, error) 
 	if limit != "" {
 		params.Set("limit", limit)
 	}
-	if startTime != "" {
-		params.Set("start_time", startTime)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		if !startTime.Before(endTime) {
+			return resp, errors.New("startTime cannot be bigger than endTime")
+		}
 	}
-	if endTime != "" {
-		params.Set("end_time", endTime)
-	}
-	var resp Fills
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, getFills+params.Encode(), nil, &resp)
 }
 
 // GetFundingPayments gets funding payments
-func (f *FTX) GetFundingPayments(startTime, endTime, future string) (FundingPayments, error) {
+func (f *FTX) GetFundingPayments(startTime, endTime time.Time, future string) (FundingPayments, error) {
+	var resp FundingPayments
 	params := url.Values{}
-	if startTime != "" {
-		params.Set("start_time", startTime)
-	}
-	if endTime != "" {
-		params.Set("end_time", endTime)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+		if !startTime.Before(endTime) {
+			return resp, errors.New("startTime cannot be bigger than endTime")
+		}
 	}
 	if future != "" {
 		params.Set("future", future)
 	}
-	var resp FundingPayments
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, getFundingPayments+params.Encode(), nil, &resp)
 }
 
@@ -680,34 +649,36 @@ func (f *FTX) GetOptionsPositions() (OptionsPositions, error) {
 }
 
 // GetPublicOptionsTrades gets options' trades from public
-func (f *FTX) GetPublicOptionsTrades(startTime, endTime, limit string) (PublicOptionsTrades, error) {
+func (f *FTX) GetPublicOptionsTrades(startTime, endTime time.Time, limit string) (PublicOptionsTrades, error) {
+	var resp PublicOptionsTrades
 	req := make(map[string]interface{})
-	if startTime != "" {
-		req["start_time"] = startTime
-	}
-	if endTime != "" {
-		req["end_time"] = endTime
+	if !startTime.IsZero() && !endTime.IsZero() {
+		req["start_time"] = strconv.FormatInt(startTime.Unix(), 10)
+		req["end_time"] = strconv.FormatInt(endTime.Unix(), 10)
+		if !startTime.Before(endTime) {
+			return resp, errors.New("startTime cannot be bigger than endTime")
+		}
 	}
 	if limit != "" {
 		req["limit"] = limit
 	}
-	var resp PublicOptionsTrades
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, getPublicOptionsTrades, req, &resp)
 }
 
 // GetOptionsFills gets fills data for options
-func (f *FTX) GetOptionsFills(startTime, endTime, limit string) (OptionsFills, error) {
+func (f *FTX) GetOptionsFills(startTime, endTime time.Time, limit string) (OptionsFills, error) {
+	var resp OptionsFills
 	req := make(map[string]interface{})
-	if startTime != "" {
-		req["start_time"] = startTime
-	}
-	if endTime != "" {
-		req["end_time"] = endTime
+	if !startTime.IsZero() && !endTime.IsZero() {
+		req["start_time"] = strconv.FormatInt(startTime.Unix(), 10)
+		req["end_time"] = strconv.FormatInt(endTime.Unix(), 10)
+		if !startTime.Before(endTime) {
+			return resp, errors.New("startTime cannot be bigger than endTime")
+		}
 	}
 	if limit != "" {
 		req["limit"] = limit
 	}
-	var resp OptionsFills
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, getOptionsFills, req, &resp)
 }
 

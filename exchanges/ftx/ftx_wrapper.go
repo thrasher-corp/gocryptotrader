@@ -3,6 +3,7 @@ package ftx
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -394,7 +395,7 @@ func (f *FTX) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		s.Side = order.Bid
 	}
 
-	tempResp, err := f.Order(f.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
+	tempResp, err := f.Order(f.FormatExchangeCurrency(s.Pair, s.AssetType).String(),
 		s.Side.String(),
 		s.Type.String(),
 		"",
@@ -444,7 +445,7 @@ func (f *FTX) CancelOrder(order *order.Cancel) error {
 func (f *FTX) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
 	tempMap := make(map[string]string)
-	orders, err := f.GetOpenOrders(f.FormatExchangeCurrency(orderCancellation.Pair, asset.Spot).String())
+	orders, err := f.GetOpenOrders(f.FormatExchangeCurrency(orderCancellation.Pair, orderCancellation.AssetType).String())
 	if err != nil {
 		return resp, err
 	}
@@ -478,15 +479,15 @@ func (f *FTX) GetOrderInfo(orderID string) (order.Detail, error) {
 	resp.Price = orderData.Result.Price
 	resp.RemainingAmount = orderData.Result.RemainingSize
 	switch orderData.Result.Side {
-	case buy:
+	case order.Buy.Lower():
 		resp.Side = order.Buy
-	case sell:
+	case order.Sell.Lower():
 		resp.Side = order.Sell
 	}
 	switch orderData.Result.Status {
-	case newStatus:
+	case strings.ToLower(order.New.String()):
 		resp.Status = order.New
-	case openStatus:
+	case strings.ToLower(order.Open.String()):
 		resp.Status = order.Open
 	case closedStatus:
 		if orderData.Result.FilledSize != 0 && orderData.Result.FilledSize != orderData.Result.Size {
@@ -503,10 +504,10 @@ func (f *FTX) GetOrderInfo(orderID string) (order.Detail, error) {
 	feeBuilder.PurchasePrice = orderData.Result.Price
 	feeBuilder.Amount = orderData.Result.Size
 	switch orderData.Result.OrderType {
-	case marketOrder:
+	case strings.ToLower(order.Market.String()):
 		resp.Type = order.Market
 		feeBuilder.IsMaker = false
-	case limitOrder:
+	case strings.ToLower(order.Limit.String()):
 		resp.Type = order.Limit
 		feeBuilder.IsMaker = true
 	}
@@ -569,15 +570,15 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Price = orderData.Result[y].Price
 			tempResp.RemainingAmount = orderData.Result[y].RemainingSize
 			switch orderData.Result[y].Side {
-			case buy:
+			case order.Buy.Lower():
 				tempResp.Side = order.Buy
-			case sell:
+			case order.Sell.Lower():
 				tempResp.Side = order.Sell
 			}
 			switch orderData.Result[y].Status {
-			case newStatus:
+			case strings.ToLower(order.New.String()):
 				tempResp.Status = order.New
-			case openStatus:
+			case strings.ToLower(order.Open.String()):
 				tempResp.Status = order.Open
 			case closedStatus:
 				if orderData.Result[y].FilledSize != 0 && orderData.Result[y].FilledSize != orderData.Result[y].Size {
@@ -594,10 +595,10 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 			feeBuilder.PurchasePrice = orderData.Result[y].Price
 			feeBuilder.Amount = orderData.Result[y].Size
 			switch orderData.Result[y].OrderType {
-			case marketOrder:
+			case strings.ToLower(order.Market.String()):
 				tempResp.Type = order.Market
 				feeBuilder.IsMaker = false
-			case limitOrder:
+			case strings.ToLower(order.Limit.String()):
 				tempResp.Type = order.Limit
 				feeBuilder.IsMaker = true
 			}
@@ -625,15 +626,15 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.RemainingAmount = triggerOrderData.Result[z].Size - triggerOrderData.Result[z].FilledSize
 			tempResp.TriggerPrice = triggerOrderData.Result[z].TriggerPrice
 			switch triggerOrderData.Result[z].Side {
-			case buy:
+			case order.Buy.Lower():
 				tempResp.Side = order.Buy
-			case sell:
+			case order.Sell.Lower():
 				tempResp.Side = order.Sell
 			}
 			switch orderData.Result[z].Status {
-			case newStatus:
+			case strings.ToLower(order.New.String()):
 				tempResp.Status = order.New
-			case openStatus:
+			case strings.ToLower(order.Open.String()):
 				tempResp.Status = order.Open
 			case closedStatus:
 				if triggerOrderData.Result[z].FilledSize != 0 && triggerOrderData.Result[z].FilledSize != triggerOrderData.Result[z].Size {
@@ -650,10 +651,10 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 			feeBuilder.PurchasePrice = triggerOrderData.Result[z].AvgFillPrice
 			feeBuilder.Amount = triggerOrderData.Result[z].Size
 			switch triggerOrderData.Result[z].OrderType {
-			case marketOrder:
+			case strings.ToLower(order.Market.String()):
 				tempResp.Type = order.Market
 				feeBuilder.IsMaker = false
-			case limitOrder:
+			case strings.ToLower(order.Limit.String()):
 				tempResp.Type = order.Limit
 				feeBuilder.IsMaker = true
 			}
@@ -675,7 +676,7 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 	for x := range getOrdersRequest.Pairs {
 		var tempResp order.Detail
 		orderData, err := f.FetchOrderHistory(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], asset.Spot).String(),
-			getOrdersRequest.StartTicks.String(), getOrdersRequest.EndTicks.String(), "")
+			getOrdersRequest.StartTicks, getOrdersRequest.EndTicks, "")
 		if err != nil {
 			return resp, err
 		}
@@ -691,15 +692,15 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Price = orderData.Result[y].Price
 			tempResp.RemainingAmount = orderData.Result[y].RemainingSize
 			switch orderData.Result[y].Side {
-			case buy:
+			case order.Buy.Lower():
 				tempResp.Side = order.Buy
-			case sell:
+			case order.Sell.Lower():
 				tempResp.Side = order.Sell
 			}
 			switch orderData.Result[y].Status {
-			case newStatus:
+			case strings.ToLower(order.New.String()):
 				tempResp.Status = order.New
-			case openStatus:
+			case strings.ToLower(order.Open.String()):
 				tempResp.Status = order.Open
 			case closedStatus:
 				if orderData.Result[y].FilledSize != 0 && orderData.Result[y].FilledSize != orderData.Result[y].Size {
@@ -716,10 +717,10 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			feeBuilder.PurchasePrice = orderData.Result[y].Price
 			feeBuilder.Amount = orderData.Result[y].Size
 			switch orderData.Result[y].OrderType {
-			case marketOrder:
+			case strings.ToLower(order.Market.String()):
 				tempResp.Type = order.Market
 				feeBuilder.IsMaker = false
-			case limitOrder:
+			case strings.ToLower(order.Limit.String()):
 				tempResp.Type = order.Limit
 				feeBuilder.IsMaker = true
 			}
@@ -732,7 +733,7 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			resp = append(resp, tempResp)
 		}
 		triggerOrderData, err := f.GetTriggerOrderHistory(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], asset.Spot).String(),
-			getOrdersRequest.StartTicks.String(), getOrdersRequest.EndTicks.String(), getOrdersRequest.Side.String(), getOrdersRequest.Type.String(), "")
+			getOrdersRequest.StartTicks, getOrdersRequest.EndTicks, getOrdersRequest.Side.String(), getOrdersRequest.Type.String(), "")
 		if err != nil {
 			return resp, err
 		}
@@ -748,15 +749,15 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.RemainingAmount = triggerOrderData.Result[z].Size - triggerOrderData.Result[z].FilledSize
 			tempResp.TriggerPrice = triggerOrderData.Result[z].TriggerPrice
 			switch triggerOrderData.Result[z].Side {
-			case buy:
+			case order.Buy.Lower():
 				tempResp.Side = order.Buy
-			case sell:
+			case order.Sell.Lower():
 				tempResp.Side = order.Sell
 			}
 			switch orderData.Result[z].Status {
-			case newStatus:
+			case strings.ToLower(order.New.String()):
 				tempResp.Status = order.New
-			case openStatus:
+			case strings.ToLower(order.Open.String()):
 				tempResp.Status = order.Open
 			case closedStatus:
 				if triggerOrderData.Result[z].FilledSize != 0 && triggerOrderData.Result[z].FilledSize != triggerOrderData.Result[z].Size {
@@ -773,10 +774,10 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			feeBuilder.PurchasePrice = triggerOrderData.Result[z].AvgFillPrice
 			feeBuilder.Amount = triggerOrderData.Result[z].Size
 			switch triggerOrderData.Result[z].OrderType {
-			case marketOrder:
+			case strings.ToLower(order.Market.String()):
 				tempResp.Type = order.Market
 				feeBuilder.IsMaker = false
-			case limitOrder:
+			case strings.ToLower(order.Limit.String()):
 				tempResp.Type = order.Limit
 				feeBuilder.IsMaker = true
 			}

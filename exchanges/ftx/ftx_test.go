@@ -81,16 +81,32 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetTrades("FTT/BTC", "10234032", "5234343433", 5)
+	_, err := f.GetTrades("FTT/BTC", time.Time{}, time.Time{}, 5)
 	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetTrades("FTT/BTC", time.Unix(1559881511, 0), time.Unix(1559901511, 0), 5)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetTrades("FTT/BTC", time.Unix(1559901511, 0), time.Unix(1559881511, 0), 5)
+	if err == nil {
 		t.Error(err)
 	}
 }
 
 func TestGetHistoricalData(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetHistoricalData("FTT/BTC", "86400", "5", "", "")
+	_, err := f.GetHistoricalData("FTT/BTC", "86400", "5", time.Time{}, time.Time{})
 	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetHistoricalData("FTT/BTC", "86400", "5", time.Unix(1559881511, 0), time.Unix(1559901511, 0))
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetHistoricalData("FTT/BTC", "86400", "5", time.Unix(1559901511, 0), time.Unix(1559881511, 0))
+	if err == nil {
 		t.Error(err)
 	}
 }
@@ -253,8 +269,16 @@ func TestFetchOrderHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.FetchOrderHistory("FTT/BTC", "", "", "2")
+	_, err := f.FetchOrderHistory("FTT/BTC", time.Time{}, time.Time{}, "2")
 	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.FetchOrderHistory("FTT/BTC", time.Unix(1559881511, 0), time.Unix(1559901511, 0), "2")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.FetchOrderHistory("FTT/BTC", time.Unix(1559901511, 0), time.Unix(1559881511, 0), "2")
+	if err == nil {
 		t.Error(err)
 	}
 }
@@ -286,8 +310,16 @@ func TestGetTriggerOrderHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetTriggerOrderHistory("FTT/BTC", "", "", "buy", "stop", "1")
+	_, err := f.GetTriggerOrderHistory("FTT/BTC", time.Time{}, time.Time{}, order.Buy.Lower(), "stop", "1")
 	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetTriggerOrderHistory("FTT/BTC", time.Unix(1559881511, 0), time.Unix(1559901511, 0), order.Buy.Lower(), "stop", "1")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetTriggerOrderHistory("FTT/BTC", time.Unix(1559901511, 0), time.Unix(1559881511, 0), order.Buy.Lower(), "stop", "1")
+	if err == nil {
 		t.Error(err)
 	}
 }
@@ -297,7 +329,7 @@ func TestOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := f.Order("FTT/BTC", "buy", "limit", "", "", "", "", 0.0001, 500)
+	_, err := f.Order("FTT/BTC", order.Buy.Lower(), "limit", "", "", "", "", 0.0001, 500)
 	if err != nil {
 		t.Error(err)
 	}
@@ -308,7 +340,7 @@ func TestTriggerOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := f.TriggerOrder("FTT/BTC", "buy", stopOrderType, "", "", 500, 0.0004, 0.0001, 0)
+	_, err := f.TriggerOrder("FTT/BTC", order.Buy.Lower(), order.Stop.Lower(), "", "", 500, 0.0004, 0.0001, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -352,8 +384,16 @@ func TestGetFills(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetFills("FTT/BTC", "", "", "")
+	_, err := f.GetFills("FTT/BTC", "", time.Time{}, time.Time{})
 	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetFills("FTT/BTC", "", time.Unix(1559881511, 0), time.Unix(1559901511, 0))
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetFills("FTT/BTC", "", time.Unix(1559901511, 0), time.Unix(1559881511, 0))
+	if err == nil {
 		t.Error(err)
 	}
 }
@@ -363,8 +403,16 @@ func TestGetFundingPayments(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetFundingPayments("", "", "")
+	_, err := f.GetFundingPayments(time.Time{}, time.Time{}, "")
 	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetFundingPayments(time.Unix(1559881511, 0), time.Unix(1559901511, 0), "")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetFundingPayments(time.Unix(1559901511, 0), time.Unix(1559881511, 0), "")
+	if err == nil {
 		t.Error(err)
 	}
 }
@@ -462,7 +510,7 @@ func TestCreateQuoteRequest(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.CreateQuoteRequest("BTC", "call", "buy", strconv.FormatInt(time.Now().AddDate(0, 0, 3).UnixNano()/1000000, 10), "", 0.1, 10, 5, 0, false)
+	_, err := f.CreateQuoteRequest("BTC", "call", order.Buy.Lower(), strconv.FormatInt(time.Now().AddDate(0, 0, 3).UnixNano()/1000000, 10), "", 0.1, 10, 5, 0, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -561,8 +609,16 @@ func TestGetPublicOptionsTrades(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetPublicOptionsTrades("", "", "5")
+	_, err := f.GetPublicOptionsTrades(time.Time{}, time.Time{}, "5")
 	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetPublicOptionsTrades(time.Unix(1559881511, 0), time.Unix(1559901511, 0), "5")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetPublicOptionsTrades(time.Unix(1559901511, 0), time.Unix(1559881511, 0), "5")
+	if err == nil {
 		t.Error(err)
 	}
 }
@@ -572,8 +628,16 @@ func TestGetOptionsFills(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetOptionsFills("", "", "5")
+	_, err := f.GetOptionsFills(time.Time{}, time.Time{}, "5")
 	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetOptionsFills(time.Unix(1559881511, 0), time.Unix(1559901511, 0), "5")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetOptionsFills(time.Unix(1559901511, 0), time.Unix(1559881511, 0), "5")
+	if err == nil {
 		t.Error(err)
 	}
 }
