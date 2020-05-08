@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
 	objects "github.com/d5/tengo/v2"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -56,7 +58,7 @@ func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
 			front = true
 		case "string":
 			if target != "" {
-				return nil, errors.New("filename already set, extra string cannot be processed")
+				return nil, fmt.Errorf("filename already set, extra string %v cannot be processed", args[i])
 			}
 			var ok bool
 			target, ok = objects.ToString(args[i])
@@ -68,11 +70,25 @@ func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
 				return nil, errors.New("script context details not specified")
 			}
 
+			// Removes file transversal
+			target = filepath.Base(target)
+
 			// checks to see if file is context defined, if not it will allow
-			// a client defined filename and extension
-			if !strings.Contains(target, ".csv") && strings.Contains(target, ".gct") {
+			// a client defined filename and append a date, forces the use of
+			// .csv file extension
+			if !strings.HasSuffix(target, ".csv") && strings.Contains(target, ".gct") {
 				target += ".csv"
+			} else if strings.HasSuffix(target, ".csv") {
+				s := strings.Split(target, ".")
+				if len(s) == 2 {
+					target = s[0] + "-" + strconv.FormatInt(time.Now().UnixNano(), 10) + ".csv"
+				}
+			} else {
+				target += "-" + strconv.FormatInt(time.Now().UnixNano(), 10) + ".csv"
 			}
+
+			target = filepath.Join(OutputDir, target)
+
 		default:
 			err = fmt.Errorf("%s type is not handled", args[i].TypeName())
 		}
@@ -102,19 +118,17 @@ func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
 	}
 
 	if target == "" {
-		return nil, errors.New("filename unset please set in writeascsv as ctx or client defined")
+		return nil, errors.New("filename unset please set in writeascsv as ctx or client defined filename")
 	}
 
-	// Removes file transversal
-	savePoint := filepath.Join(OutputDir, filepath.Base(target))
-	err = file.WriteAsCSV(savePoint, bucket)
+	err = file.WriteAsCSV(target, bucket)
 	if err != nil {
 		return nil, err
 	}
 
 	log.Infof(log.GCTScriptMgr,
 		"CSV file successfully saved to: %s",
-		savePoint)
+		target)
 	return nil, nil
 }
 
