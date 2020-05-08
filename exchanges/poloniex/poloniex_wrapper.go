@@ -117,12 +117,12 @@ func (p *Poloniex) SetDefaults() {
 			AutoPairUpdates: true,
 			KlineCapabilities: kline.ExchangeCapabilities{
 				Intervals: map[string]bool{
-					"fivemin":    true,
-					"fifteenmin": true,
-					"thirtymin":  true,
-					"twohour":    true,
-					"fourhour":   true,
-					"oneday":     true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.ThirtyMin.Word():  true,
+					kline.TwoHour.Word():    true,
+					kline.fourhour.Word():   true,
+					kline.OneDay.Word():     true,
 				},
 			},
 		},

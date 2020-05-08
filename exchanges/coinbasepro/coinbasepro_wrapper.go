@@ -122,12 +122,12 @@ func (c *CoinbasePro) SetDefaults() {
 			AutoPairUpdates: true,
 			KlineCapabilities: kline.ExchangeCapabilities{
 				Intervals: map[string]bool{
-					"onemin":     true,
-					"fivemin":    true,
-					"fifteenmin": true,
-					"onehour":    true,
-					"sixhour":    true,
-					"oneday":     true,
+					kline.OneMin.Word():     true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.OneHour.Word():    true,
+					kline.SixHour.Word():    true,
+					kline.OneDay.Word():     true,
 				},
 			},
 		},

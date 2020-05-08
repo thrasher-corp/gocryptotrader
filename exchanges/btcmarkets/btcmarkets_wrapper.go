@@ -119,9 +119,9 @@ func (b *BTCMarkets) SetDefaults() {
 
 			KlineCapabilities: kline.ExchangeCapabilities{
 				Intervals: map[string]bool{
-					"onemin":  true,
-					"onehour": true,
-					"oneday":  true,
+					kline.OneMin.Word():  true,
+					kline.OneHour.Word(): true,
+					kline.OneDay.Word():  true,
 				},
 			},
 		},

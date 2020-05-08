@@ -119,7 +119,7 @@ func (h *HitBTC) SetDefaults() {
 			AutoPairUpdates: true,
 			KlineCapabilities: kline.ExchangeCapabilities{
 				Intervals: map[string]bool{
-					"onemin": true,
+					kline.OneMin.Word(): true,
 				},
 			},
 		},
