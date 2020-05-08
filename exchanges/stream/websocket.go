@@ -189,6 +189,10 @@ func (w *Websocket) Connect() error {
 		go w.manageSubscriptions()
 	}
 
+	var anotherWG sync.WaitGroup
+	anotherWG.Add(1)
+	go w.trafficMonitor(&anotherWG)
+
 	err := w.connector()
 	if err != nil {
 		w.setConnectingStatus(false)
@@ -200,9 +204,6 @@ func (w *Websocket) Connect() error {
 	w.setConnectingStatus(false)
 	w.setInit(true)
 
-	var anotherWG sync.WaitGroup
-	anotherWG.Add(1)
-	go w.trafficMonitor(&anotherWG)
 	anotherWG.Wait()
 	if !w.IsConnectionMonitorRunning() {
 		go w.connectionMonitor()
@@ -301,6 +302,7 @@ func (w *Websocket) connectionMonitor() {
 		case err := <-w.readMessageErrors:
 			// check if this error is a disconnection error
 			if isDisconnectionError(err) {
+				fmt.Println("disoconnection error")
 				w.setConnectedStatus(false)
 				w.setConnectingStatus(false)
 				w.setInit(false)
@@ -374,6 +376,7 @@ func (w *Websocket) Shutdown() error {
 
 	close(w.ShutdownC)
 	w.Wg.Wait()
+	fmt.Println("shutdown called")
 	w.setConnectedStatus(false)
 	w.setConnectingStatus(false)
 	if w.verbose {
@@ -465,6 +468,7 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 				default:
 				}
 			}
+			w.setConnectedStatus(true)
 			trafficTimer.Reset(w.trafficTimeout)
 		case <-trafficTimer.C: // Falls through when timer runs out
 			// if w.verbose {
@@ -649,9 +653,12 @@ func (w *Websocket) manageSubscriptions() {
 			return
 		case sub := <-w.subscribe:
 			if !w.IsConnected() {
+				fmt.Println("not connected gee")
+				fmt.Println("LOCK")
 				w.subscriptionMutex.Lock()
 				w.subscriptions = nil
 				w.subscriptionMutex.Unlock()
+				fmt.Println("UNLOCK")
 				continue
 			}
 			if w.verbose {
@@ -743,8 +750,8 @@ func (w *Websocket) ResubscribeToChannel(subscribedChannel *ChannelSubscription)
 
 // SubscribeToChannels appends supplied channels to channelsToSubscribe
 func (w *Websocket) SubscribeToChannels(channels []ChannelSubscription) {
-	w.subscriptionMutex.Lock()
 	w.subscribe <- channels
+	w.subscriptionMutex.Lock()
 	w.subscriptions = append(w.subscriptions, channels...)
 	w.subscriptionMutex.Unlock()
 }
@@ -800,6 +807,7 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 	var conStatus *http.Response
 	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)
 	if err != nil {
+		fmt.Println("NOT CONNECTED")
 		if conStatus != nil {
 			return fmt.Errorf("%v %v %v Error: %v",
 				w.URL,
@@ -815,6 +823,7 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 			w.ExchangeName,
 			w.URL)
 	}
+	w.traffic <- struct{}{}
 	w.setConnectedStatus(true)
 	return nil
 }
@@ -966,6 +975,9 @@ func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
 }
 
 func (w *WebsocketConnection) setConnectedStatus(b bool) {
+	if !b {
+		fmt.Println("WOWOWOWOWOWOWOWO")
+	}
 	w.connectionMutex.Lock()
 	w.connected = b
 	w.connectionMutex.Unlock()
@@ -983,6 +995,7 @@ func (w *WebsocketConnection) ReadMessage() (Response, error) {
 	mType, resp, err := w.Connection.ReadMessage()
 	if err != nil {
 		if isDisconnectionError(err) {
+			fmt.Println("connection false")
 			w.setConnectedStatus(false)
 			w.readMessageErrors <- err
 		}

@@ -336,21 +336,14 @@ type TradingFeeResponse struct {
 	FeeByMarkets  []TradingFeeData `json:"FeeByMarkets"`
 }
 
-// WsSubscribe message sent via ws to subscribe
+// WsSubscribe message sent via login to subscribe
 type WsSubscribe struct {
 	MarketIDs   []string `json:"marketIds,omitempty"`
-	Channels    []string `json:"channels"`
-	MessageType string   `json:"messageType"`
-}
-
-// WsAuthSubscribe message sent via login to subscribe
-type WsAuthSubscribe struct {
-	MarketIDs   []string `json:"marketIds,omitempty"`
-	Channels    []string `json:"channels"`
-	Key         string   `json:"key"`
-	Signature   string   `json:"signature"`
-	Timestamp   string   `json:"timestamp"`
-	MessageType string   `json:"messageType"`
+	Channels    []string `json:"channels,omitempty"`
+	Key         string   `json:"key,omitempty"`
+	Signature   string   `json:"signature,omitempty"`
+	Timestamp   string   `json:"timestamp,omitempty"`
+	MessageType string   `json:"messageType,omitempty"`
 }
 
 // WsMessageType message sent via ws to determine type
