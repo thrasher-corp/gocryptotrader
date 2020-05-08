@@ -76,14 +76,15 @@ func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
 			// checks to see if file is context defined, if not it will allow
 			// a client defined filename and append a date, forces the use of
 			// .csv file extension
-			if !strings.HasSuffix(target, ".csv") && strings.Contains(target, ".gct") {
+			switch {
+			case !strings.HasSuffix(target, ".csv") && strings.Contains(target, ".gct"):
 				target += ".csv"
-			} else if strings.HasSuffix(target, ".csv") {
+			case strings.HasSuffix(target, ".csv"):
 				s := strings.Split(target, ".")
 				if len(s) == 2 {
 					target = s[0] + "-" + strconv.FormatInt(time.Now().UnixNano(), 10) + ".csv"
 				}
-			} else {
+			default:
 				target += "-" + strconv.FormatInt(time.Now().UnixNano(), 10) + ".csv"
 			}
 
