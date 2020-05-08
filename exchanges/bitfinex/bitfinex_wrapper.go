@@ -138,7 +138,7 @@ func (b *Bitfinex) SetDefaults() {
 					kline.ThirtyMin.Word():  true,
 					kline.OneHour.Word():    true,
 					kline.TwoHour.Word():    true,
-					kline.fourhour.Word():   true,
+					kline.FourHour.Word():   true,
 					kline.SixHour.Word():    true,
 					kline.TwelveHour.Word(): true,
 					kline.OneDay.Word():     true,

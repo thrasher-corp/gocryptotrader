@@ -103,7 +103,7 @@ func (l *Lbank) SetDefaults() {
 					kline.FifteenMin.Word(): true,
 					kline.ThirtyMin.Word():  true,
 					kline.OneHour.Word():    true,
-					kline.fourhour.Word():   true,
+					kline.FourHour.Word():   true,
 					"eighthour":             true,
 					kline.TwelveHour.Word(): true,
 					kline.OneDay.Word():     true,

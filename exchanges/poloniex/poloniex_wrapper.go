@@ -121,7 +121,7 @@ func (p *Poloniex) SetDefaults() {
 					kline.FifteenMin.Word(): true,
 					kline.ThirtyMin.Word():  true,
 					kline.TwoHour.Word():    true,
-					kline.fourhour.Word():   true,
+					kline.FourHour.Word():   true,
 					kline.OneDay.Word():     true,
 				},
 			},

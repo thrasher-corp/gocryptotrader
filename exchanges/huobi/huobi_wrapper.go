@@ -121,7 +121,7 @@ func (h *HUOBI) SetDefaults() {
 					kline.FifteenMin.Word(): true,
 					kline.ThirtyMin.Word():  true,
 					kline.OneHour.Word():    true,
-					kline.fourhour.Word():   true,
+					kline.FourHour.Word():   true,
 					kline.OneDay.Word():     true,
 					kline.OneWeek.Word():    true,
 				},
