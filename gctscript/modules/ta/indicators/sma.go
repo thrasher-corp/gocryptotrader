@@ -31,11 +31,6 @@ func (o *SMA) TypeName() string {
 	return SimpleMovingAverage
 }
 
-// GetPeriod returns indicator period
-func (o *SMA) GetPeriod() int {
-	return o.Period
-}
-
 func sma(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 2 {
 		return nil, objects.ErrWrongNumArguments

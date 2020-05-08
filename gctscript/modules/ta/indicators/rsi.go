@@ -31,11 +31,6 @@ func (o *RSI) TypeName() string {
 	return RelativeStrengthIndex
 }
 
-// GetPeriod returns indicator period
-func (o *RSI) GetPeriod() int {
-	return o.Period
-}
-
 func rsi(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 2 {
 		return nil, objects.ErrWrongNumArguments

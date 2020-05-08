@@ -31,11 +31,6 @@ func (o *EMA) TypeName() string {
 	return ExponentialMovingAverage
 }
 
-// GetPeriod returns indicator period
-func (o *EMA) GetPeriod() int {
-	return o.Period
-}
-
 func ema(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 2 {
 		return nil, objects.ErrWrongNumArguments

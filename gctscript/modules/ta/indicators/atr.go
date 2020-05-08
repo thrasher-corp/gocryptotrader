@@ -31,11 +31,6 @@ func (o *ATR) TypeName() string {
 	return AverageTrueRange
 }
 
-// GetPeriod returns indicator period
-func (o *ATR) GetPeriod() int {
-	return o.Period
-}
-
 func atr(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 2 {
 		return nil, objects.ErrWrongNumArguments

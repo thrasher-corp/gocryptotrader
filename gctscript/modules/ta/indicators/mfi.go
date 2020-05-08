@@ -31,11 +31,6 @@ func (o *MFI) TypeName() string {
 	return MoneyFlowIndex
 }
 
-// GetPeriod returns indicator period
-func (o *MFI) GetPeriod() int {
-	return o.Period
-}
-
 func mfi(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 2 {
 		return nil, objects.ErrWrongNumArguments

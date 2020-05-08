@@ -33,26 +33,6 @@ func (o *BBands) TypeName() string {
 	return BollingerBands
 }
 
-// GetPeriod returns indicator period
-func (o *BBands) GetPeriod() int {
-	return o.Period
-}
-
-// GetNBDevDn returns std deviation multiple for lower band
-func (o *BBands) GetNBDevDn() float64 {
-	return o.STDDevDown
-}
-
-// GetNBDevUp returns std deviation multiple for lower band
-func (o *BBands) GetNBDevUp() float64 {
-	return o.STDDevUp
-}
-
-// GetMovingAverageType returns indicator moving average type either SMA or EMA
-func (o *BBands) GetMovingAverageType() indicators.MaType {
-	return o.MAType
-}
-
 func bbands(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 6 {
 		return nil, objects.ErrWrongNumArguments

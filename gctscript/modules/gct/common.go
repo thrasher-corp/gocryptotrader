@@ -144,7 +144,7 @@ func convertATR(a objects.Object) ([][]string, error) {
 			indicators.AverageTrueRange,
 		},
 		{
-			fmt.Sprintf("Period:%d", obj.GetPeriod()),
+			fmt.Sprintf("Period:%d", obj.Period),
 		},
 	}
 
@@ -166,11 +166,11 @@ func convertBollingerBands(a objects.Object) ([][]string, error) {
 		return nil, errors.New("casting failure")
 	}
 
-	upperS := fmt.Sprintf("Upper_Band (NBDevUp:%f)", obj.GetNBDevUp())
-	lowerS := fmt.Sprintf("Lower_band(NBDevDown:%f)", obj.GetNBDevDn())
-	middleS := fmt.Sprintf("Middle_Band (Period:%d)", obj.GetPeriod())
+	upperS := fmt.Sprintf("Upper_Band (NBDevUp:%f)", obj.STDDevUp)
+	lowerS := fmt.Sprintf("Lower_band(NBDevDown:%f)", obj.STDDevDown)
+	middleS := fmt.Sprintf("Middle_Band (Period:%d)", obj.Period)
 	MAType := "MA_TYPE:SMA"
-	if obj.GetMovingAverageType() != 0 {
+	if obj.MAType != 0 {
 		MAType = "MA_TYPE:EMA"
 	}
 
@@ -221,7 +221,7 @@ func convertEMA(a objects.Object) ([][]string, error) {
 			indicators.ExponentialMovingAverage,
 		},
 		{
-			fmt.Sprintf("Period:%d", obj.GetPeriod()),
+			fmt.Sprintf("Period:%d", obj.Period),
 		},
 	}
 
@@ -246,9 +246,9 @@ func convertMACD(a objects.Object) ([][]string, error) {
 		{
 			indicators.MovingAverageConvergenceDivergence,
 			fmt.Sprintf("Period:%d Fast:%d Slow:%d",
-				obj.GetPeriod(),
-				obj.GetFastPeriod(),
-				obj.GetSlowPeriod()),
+				obj.Period,
+				obj.PeriodFast,
+				obj.PeriodSlow),
 			"",
 		},
 		{
@@ -294,7 +294,7 @@ func convertMFI(a objects.Object) ([][]string, error) {
 			indicators.MoneyFlowIndex,
 		},
 		{
-			fmt.Sprintf("Period:%d", obj.GetPeriod()),
+			fmt.Sprintf("Period:%d", obj.Period),
 		},
 	}
 
@@ -346,7 +346,7 @@ func convertRSI(a objects.Object) ([][]string, error) {
 			indicators.RelativeStrengthIndex,
 		},
 		{
-			fmt.Sprintf("Period:%d", obj.GetPeriod()),
+			fmt.Sprintf("Period:%d", obj.Period),
 		},
 	}
 
@@ -372,7 +372,7 @@ func convertSMA(a objects.Object) ([][]string, error) {
 			indicators.SimpleMovingAverage,
 		},
 		{
-			fmt.Sprintf("Period:%d", obj.GetPeriod()),
+			fmt.Sprintf("Period:%d", obj.Period),
 		},
 	}
 

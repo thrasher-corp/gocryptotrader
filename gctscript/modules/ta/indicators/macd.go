@@ -27,21 +27,6 @@ type MACD struct {
 	Period, PeriodSlow, PeriodFast int
 }
 
-// GetPeriod returns indicator period
-func (o *MACD) GetPeriod() int {
-	return o.Period
-}
-
-// GetFastPeriod returns indicator fast period
-func (o *MACD) GetFastPeriod() int {
-	return o.PeriodFast
-}
-
-// GetSlowPeriod returns indicator slow period
-func (o *MACD) GetSlowPeriod() int {
-	return o.PeriodSlow
-}
-
 // TypeName returns the name of the custom type.
 func (o *MACD) TypeName() string {
 	return MovingAverageConvergenceDivergence
