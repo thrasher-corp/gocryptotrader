@@ -417,7 +417,7 @@ func convertOHLCV(a objects.Object) ([][]string, error) {
 			indicators.OHLCV, "Exchange:" + exchange, pair, asset, interval, "",
 		},
 		{
-			"Date", "Open", "High", "Low", "Close", "Volume",
+			"Date", "Volume", "Open", "High", "Low", "Close",
 		},
 	}
 
