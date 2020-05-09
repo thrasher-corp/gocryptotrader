@@ -213,7 +213,7 @@ func (f *FTX) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (f *FTX) FetchTradablePairs(a asset.Item) ([]string, error) {
-	if a != asset.Spot && a != asset.Futures {
+	if !f.SupportsAsset(a) {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, f.Name)
 	}
 	markets, err := f.GetMarkets()
@@ -241,20 +241,18 @@ func (f *FTX) FetchTradablePairs(a asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (f *FTX) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := f.FetchTradablePairs(asset.Spot)
-	if err != nil {
-		return err
+	for x := range f.CurrencyPairs.AssetTypes {
+		pairs, err := f.FetchTradablePairs(f.CurrencyPairs.AssetTypes[x])
+		if err != nil {
+			return err
+		}
+		err = f.UpdatePairs(currency.NewPairsFromStrings(pairs),
+			f.CurrencyPairs.AssetTypes[x], false, forceUpdate)
+		if err != nil {
+			return err
+		}
 	}
-	err = f.UpdatePairs(currency.NewPairsFromStrings(pairs),
-		asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-	futuresPairs, err := f.FetchTradablePairs(asset.Futures)
-	if err != nil {
-		return err
-	}
-	return f.UpdatePairs(currency.NewPairsFromStrings(futuresPairs), asset.Futures, false, forceUpdate)
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -516,7 +514,7 @@ func (f *FTX) GetOrderInfo(orderID string) (order.Detail, error) {
 		return resp, err
 	}
 	resp.Fee = fee
-	return order.Detail{}, common.ErrNotYetImplemented
+	return resp, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency

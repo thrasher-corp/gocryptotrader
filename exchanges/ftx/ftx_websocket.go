@@ -22,7 +22,7 @@ import (
 
 const (
 	ftxWSURL          = "wss://ftx.com/ws/"
-	ftxWebsocketTimer = 13
+	ftxWebsocketTimer = 13 * time.Second
 	wsTicker          = "ticker"
 	wsTrades          = "trades"
 	wsOrderbook       = "orderbook"
@@ -42,7 +42,7 @@ func (f *FTX) WsConnect() error {
 	}
 	f.WebsocketConn.SetupPingHandler(wshandler.WebsocketPingHandler{
 		MessageType: websocket.PingMessage,
-		Delay:       ftxWebsocketTimer * time.Second,
+		Delay:       ftxWebsocketTimer,
 	})
 	if f.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", f.Name)
@@ -70,7 +70,8 @@ func (f *FTX) WsAuth() error {
 	)
 	sign := crypto.HexEncodeToString(hmac)
 	req := Authenticate{Operation: "login",
-		Args: AuthenticationData{Key: f.API.Credentials.Key,
+		Args: AuthenticationData{
+			Key:  f.API.Credentials.Key,
 			Sign: sign,
 			Time: intNonce,
 		},
@@ -112,9 +113,7 @@ func (f *FTX) GenerateDefaultSubscriptions() {
 func (f *FTX) wsReadData() {
 	f.Websocket.Wg.Add(1)
 
-	defer func() {
-		f.Websocket.Wg.Done()
-	}()
+	defer f.Websocket.Wg.Done()
 
 	for {
 		select {
@@ -143,8 +142,7 @@ func timestampFromFloat64(ts float64) time.Time {
 }
 
 func (f *FTX) wsHandleData(respRaw []byte) error {
-	type Result map[string]interface{}
-	var result Result
+	var result map[string]interface{}
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
 		return err
@@ -184,19 +182,15 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 				return err
 			}
 			var newOB orderbook.Base
-			if len(resultData.OBData.Asks) != 0 {
-				for x := range resultData.OBData.Asks {
-					newOB.Asks = append(newOB.Asks, orderbook.Item{Price: resultData.OBData.Asks[x][0],
-						Amount: resultData.OBData.Asks[x][1],
-					})
-				}
+			for x := range resultData.OBData.Asks {
+				newOB.Asks = append(newOB.Asks, orderbook.Item{Price: resultData.OBData.Asks[x][0],
+					Amount: resultData.OBData.Asks[x][1],
+				})
 			}
-			if len(resultData.OBData.Bids) != 0 {
-				for y := range resultData.OBData.Bids {
-					newOB.Bids = append(newOB.Bids, orderbook.Item{Price: resultData.OBData.Bids[y][0],
-						Amount: resultData.OBData.Bids[y][1],
-					})
-				}
+			for y := range resultData.OBData.Bids {
+				newOB.Bids = append(newOB.Bids, orderbook.Item{Price: resultData.OBData.Bids[y][0],
+					Amount: resultData.OBData.Bids[y][1],
+				})
 			}
 			newOB.Pair = p
 			newOB.AssetType = a
@@ -230,7 +224,8 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 						Err:      err,
 					}
 				}
-				f.Websocket.DataHandler <- wshandler.TradeData{Timestamp: resultData.TradeData[z].Time,
+				f.Websocket.DataHandler <- wshandler.TradeData{
+					Timestamp:    resultData.TradeData[z].Time,
 					CurrencyPair: p,
 					AssetType:    a,
 					Exchange:     f.Name,

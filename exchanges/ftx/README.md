@@ -23,6 +23,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 ### Current Features
 
 + REST Support
++ Websocket Support
 
 ### How to enable
 
