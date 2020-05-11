@@ -62,7 +62,7 @@ func Exists(name string) bool {
 	return !os.IsNotExist(err)
 }
 
-// WriteAsCSV dumps file as CSV
+// WriteAsCSV takes a table of records and writes it as CSV
 func WriteAsCSV(filename string, records [][]string) error {
 	if len(records) == 0 {
 		return errors.New("no records in matrix")
