@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -146,16 +147,27 @@ func TestCheckChangeLog(t *testing.T) {
 	}
 }
 
+// func TestAdd(t *testing.T) {
+// 	t.Parallel()
+// 	data2 := HTMLScrapingData{TokenData: "a",
+// 		Key:          "href",
+// 		Val:          "./#change-change",
+// 		TokenDataEnd: "./#change-",
+// 		RegExp:       `./#change-\d{8}`,
+// 		Path:         "wrongpath"}
+// 	err := addExch("WrongExch", htmlScrape, data2, false)
+// 	if err == nil {
+// 		t.Log("expected an error due to invalid path being parsed in")
+// 	}
+// }
+
 func TestAdd(t *testing.T) {
 	t.Parallel()
-	data2 := HTMLScrapingData{TokenData: "a",
-		Key:          "href",
-		Val:          "./#change-change",
-		TokenDataEnd: "./#change-",
-		RegExp:       `./#change-\d{8}`,
-		Path:         "wrongpath"}
-	err := addExch("WrongExch", htmlScrape, data2, false)
-	if err == nil {
+	data2 := HTMLScrapingData{
+		Path: "https://docs.ftx.com/#overview",
+	}
+	err := addExch("FTX", htmlScrape, data2, false)
+	if err != nil {
 		t.Log("expected an error due to invalid path being parsed in")
 	}
 }
@@ -418,11 +430,21 @@ func TestHTMLYobit(t *testing.T) {
 func TestHTMLScrapeLocalBitcoins(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{TokenData: "div",
-		Key:    "class",
-		Val:    "col-md-12",
 		RegExp: `col-md-12([\s\S]*?)clearfix`,
 		Path:   "https://localbitcoins.com/api-docs/"}
-	_, err := htmlScrapeLocalBitcoins(&data)
+	a, err := htmlScrapeLocalBitcoins(&data)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestHTMLScrapeFTX(t *testing.T) {
+	data := HTMLScrapingData{RegExp: `<a href="#overview"([\s\S]*?)orders&#39;}</code>.</p>`,
+		Path: "https://docs.ftx.com/#overview"}
+	a, err := htmlScrapeFTX(&data)
+	fmt.Println("d")
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}

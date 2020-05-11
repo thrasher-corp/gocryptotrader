@@ -371,7 +371,40 @@ func (f *FTX) FetchAccountInfo() (account.Holdings, error) {
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (f *FTX) GetFundingHistory() ([]exchange.FundHistory, error) {
-	return nil, common.ErrNotYetImplemented
+	var resp []exchange.FundHistory
+	depositData, err := f.FetchDepositHistory()
+	if err != nil {
+		return resp, err
+	}
+	for x := range depositData.Result {
+		var tempData exchange.FundHistory
+		tempData.Fee = depositData.Result[x].Fee
+		tempData.Timestamp = depositData.Result[x].Time
+		tempData.ExchangeName = f.Name
+		tempData.CryptoTxID = depositData.Result[x].TxID
+		tempData.Status = depositData.Result[x].Status
+		tempData.Amount = depositData.Result[x].Size
+		tempData.Currency = depositData.Result[x].Coin
+		tempData.TransferID = strconv.FormatInt(depositData.Result[x].ID, 10)
+		resp = append(resp, tempData)
+	}
+	withdrawalData, err := f.FetchWithdrawalHistory()
+	if err != nil {
+		return resp, err
+	}
+	for y := range withdrawalData.Result {
+		var tempData exchange.FundHistory
+		tempData.Fee = depositData.Result[y].Fee
+		tempData.Timestamp = depositData.Result[y].Time
+		tempData.ExchangeName = f.Name
+		tempData.CryptoTxID = depositData.Result[y].TxID
+		tempData.Status = depositData.Result[y].Status
+		tempData.Amount = depositData.Result[y].Size
+		tempData.Currency = depositData.Result[y].Coin
+		tempData.TransferID = strconv.FormatInt(depositData.Result[y].ID, 10)
+		resp = append(resp, tempData)
+	}
+	return resp, nil
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
@@ -399,7 +432,7 @@ func (f *FTX) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		"",
 		"",
 		"",
-		s.ClientID,
+		s.ClientOrderID,
 		s.Price,
 		s.Amount)
 	if err != nil {
@@ -426,9 +459,9 @@ func (f *FTX) ModifyOrder(action *order.Modify) (string, error) {
 	var err error
 	switch action.ID {
 	case "":
-		o, err = f.ModifyOrderByClientID(action.ClientOrderID, action.ClientID, action.Price, action.Amount)
+		o, err = f.ModifyOrderByClientID(action.ClientOrderID, action.ClientOrderID, action.Price, action.Amount)
 	default:
-		o, err = f.ModifyPlacedOrder(action.ID, action.ClientID, action.Price, action.Amount)
+		o, err = f.ModifyPlacedOrder(action.ID, action.ClientOrderID, action.Price, action.Amount)
 	}
 	return strconv.FormatInt(o.Result.ID, 10), err
 }
@@ -469,7 +502,7 @@ func (f *FTX) GetOrderInfo(orderID string) (order.Detail, error) {
 	resp.ID = strconv.FormatInt(orderData.Result.ID, 10)
 	resp.Amount = orderData.Result.Size
 	resp.AssetType = asset.Spot
-	resp.ClientID = orderData.Result.ClientID
+	resp.ClientOrderID = orderData.Result.ClientID
 	resp.Date = orderData.Result.CreatedAt
 	resp.Exchange = f.Name
 	resp.ExecutedAmount = orderData.Result.Size - orderData.Result.RemainingSize
@@ -519,13 +552,28 @@ func (f *FTX) GetOrderInfo(orderID string) (order.Detail, error) {
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (f *FTX) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
-	return "", common.ErrNotYetImplemented
+	a, err := f.FetchDepositAddress(cryptocurrency.String())
+	if err != nil {
+		return "", err
+	}
+	return a.Result.Address, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (f *FTX) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	var resp *withdraw.ExchangeResponse
+	a, err := f.Withdraw(withdrawRequest.Currency.String(),
+		withdrawRequest.Crypto.Address,
+		withdrawRequest.Crypto.AddressTag,
+		withdrawRequest.TradePassword,
+		strconv.FormatInt(withdrawRequest.OneTimePassword, 10),
+		withdrawRequest.Amount)
+	if err != nil {
+		return resp, err
+	}
+	resp.ID = strconv.FormatInt(a.Result.ID, 10)
+	resp.Status = a.Result.Status
 	return resp, common.ErrNotYetImplemented
 }
 
@@ -560,7 +608,7 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.ID = strconv.FormatInt(orderData.Result[y].ID, 10)
 			tempResp.Amount = orderData.Result[y].Size
 			tempResp.AssetType = asset.Spot
-			tempResp.ClientID = orderData.Result[y].ClientID
+			tempResp.ClientOrderID = orderData.Result[y].ClientID
 			tempResp.Date = orderData.Result[y].CreatedAt
 			tempResp.Exchange = f.Name
 			tempResp.ExecutedAmount = orderData.Result[y].Size - orderData.Result[y].RemainingSize
@@ -682,7 +730,7 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.ID = strconv.FormatInt(orderData.Result[y].ID, 10)
 			tempResp.Amount = orderData.Result[y].Size
 			tempResp.AssetType = asset.Spot
-			tempResp.ClientID = orderData.Result[y].ClientID
+			tempResp.ClientOrderID = orderData.Result[y].ClientID
 			tempResp.Date = orderData.Result[y].CreatedAt
 			tempResp.Exchange = f.Name
 			tempResp.ExecutedAmount = orderData.Result[y].Size - orderData.Result[y].RemainingSize

@@ -43,6 +43,7 @@ type Submit struct {
 	ID                string
 	AccountID         string
 	ClientID          string
+	ClientOrderID     string
 	WalletAddress     string
 	Type              Type
 	Side              Side
@@ -123,6 +124,7 @@ type Detail struct {
 	Exchange          string
 	InternalOrderID   string
 	ID                string
+	ClientOrderID     string
 	AccountID         string
 	ClientID          string
 	WalletAddress     string

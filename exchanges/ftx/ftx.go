@@ -712,7 +712,6 @@ func (f *FTX) SendAuthHTTPRequest(method, path string, data, result interface{})
 		Body:          body,
 		Result:        result,
 		AuthRequest:   true,
-		NonceEnabled:  false,
 		Verbose:       f.Verbose,
 		HTTPDebugging: f.HTTPDebugging,
 		HTTPRecording: f.HTTPRecording,

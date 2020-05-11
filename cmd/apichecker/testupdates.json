@@ -425,6 +425,17 @@
     }
    },
    "Disabled": false
+  },
+  {
+   "Name": "FTX",
+   "CheckType": "HTML String Check",
+   "Data": {
+    "HTMLData": {
+     "CheckString": "713d959203c4d69ea50d3f543c4216fa3b9a68b3097a1a6304110383ab725bd4",
+     "Path": "https://docs.ftx.com/#overview"
+    }
+   },
+   "Disabled": false
   }
  ]
 }

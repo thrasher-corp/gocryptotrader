@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -20,6 +22,8 @@ const (
 	apiSecret               = ""
 	canManipulateRealOrders = false
 	spotPair                = "FTT/BTC"
+	futuresPair             = "LEO-0327"
+	testToken               = "ADAMOON"
 )
 
 var f FTX
@@ -122,7 +126,7 @@ func TestGetFutures(t *testing.T) {
 
 func TestGetFuture(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetFuture("LEO-0327")
+	_, err := f.GetFuture(futuresPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -130,7 +134,7 @@ func TestGetFuture(t *testing.T) {
 
 func TestGetFutureStats(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetFutureStats("LEO-0327")
+	_, err := f.GetFutureStats(futuresPair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -430,11 +434,12 @@ func TestListLeveragedTokens(t *testing.T) {
 }
 
 func TestGetTokenInfo(t *testing.T) {
+	f.Verbose = true
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetTokenInfo("ADAMOON")
+	_, err := f.GetTokenInfo("")
 	if err != nil {
 		t.Error(err)
 	}
@@ -467,7 +472,7 @@ func TestRequestLTCreation(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.RequestLTCreation("ADAMOON", 1)
+	_, err := f.RequestLTCreation(testToken, 1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -478,7 +483,7 @@ func TestListLTRedemptions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.ListLTRedemptions("ADAMOON", 5)
+	_, err := f.ListLTRedemptions(testToken, 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -511,7 +516,7 @@ func TestCreateQuoteRequest(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.CreateQuoteRequest("BTC", "call", order.Buy.Lower(), strconv.FormatInt(time.Now().AddDate(0, 0, 3).UnixNano()/1000000, 10), "", 0.1, 10, 5, 0, false)
+	_, err := f.CreateQuoteRequest(strings.ToUpper(currency.BTC.String()), "call", order.Buy.Lower(), strconv.FormatInt(time.Now().AddDate(0, 0, 3).UnixNano()/1000000, 10), "", 0.1, 10, 5, 0, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -787,6 +792,42 @@ func TestGetOrderStatusByClientID(t *testing.T) {
 
 func TestRequestLTRedemption(t *testing.T) {
 	_, err := f.RequestLTRedemption("ADA-PERP", 5)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWithdrawCryptocurrencyFunds(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
+	var request withdraw.Request
+	request.Amount = 5
+	request.Currency = currency.NewCode("FTT")
+	request.Crypto.Address = "testaddress123"
+	request.Crypto.AddressTag = "testtag123"
+	request.OneTimePassword = 123456
+	request.TradePassword = "incorrectTradePassword"
+	_, err := f.WithdrawCryptocurrencyFunds(&request)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetDepositAddress(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
+	_, err := f.GetDepositAddress(currency.NewCode("FTT"), "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFundingHistory(t *testing.T) {
+	_, err := f.GetFundingHistory()
 	if err != nil {
 		t.Error(err)
 	}

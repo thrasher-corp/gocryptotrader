@@ -32,6 +32,7 @@ const (
 	htmlScrape           = "HTML String Check"
 	pathOkCoin           = "https://www.okcoin.com/docs/en/#change-change"
 	pathOkex             = "https://www.okex.com/docs/en/#change-change"
+	pathFTX              = "https://docs.ftx.com/#overview"
 	pathBTSE             = "https://www.btse.com/apiexplorer/spot/#btse-spot-api"
 	pathBitfinex         = "https://docs.bitfinex.com/docs/changelog"
 	pathBitmex           = "https://www.bitmex.com/static/md/en-US/apiChangelog"
@@ -449,6 +450,8 @@ func checkChangeLog(htmlData *HTMLScrapingData) (string, error) {
 	switch htmlData.Path {
 	case pathBTSE:
 		dataStrings, err = htmlScrapeBTSE(htmlData)
+	case pathFTX:
+		dataStrings, err = htmlScrapeFTX(htmlData)
 	case pathBitfinex:
 		dataStrings, err = htmlScrapeBitfinex(htmlData)
 	case pathBitmex:
@@ -650,6 +653,28 @@ loop:
 			}
 		}
 	}
+	return resp, nil
+}
+
+// htmlScrapeFTX gets the check string for FTX exchange
+func htmlScrapeFTX(htmlData *HTMLScrapingData) ([]string, error) {
+	temp, err := http.Get(htmlData.Path)
+	if err != nil {
+		return nil, err
+	}
+	defer temp.Body.Close()
+	a, err := ioutil.ReadAll(temp.Body)
+	if err != nil {
+		return nil, err
+	}
+	r, err := regexp.Compile(htmlData.RegExp)
+	if err != nil {
+		return nil, err
+	}
+	str := r.FindString(string(a))
+	sha := crypto.GetSHA256([]byte(str))
+	var resp []string
+	resp = append(resp, crypto.HexEncodeToString(sha))
 	return resp, nil
 }
 
