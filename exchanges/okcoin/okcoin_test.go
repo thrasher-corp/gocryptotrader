@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -485,7 +486,7 @@ func TestGetSpotFilledOrdersInformation(t *testing.T) {
 func TestGetSpotMarketData(t *testing.T) {
 	request := okgroup.GetSpotMarketDataRequest{
 		InstrumentID: spotCurrency,
-		Granularity:  604800,
+		Granularity:  "604800",
 	}
 	_, err := o.GetSpotMarketData(request)
 	if err != nil {
@@ -1093,5 +1094,15 @@ func TestGetOrderbook(t *testing.T) {
 		asset.PerpetualSwap)
 	if err == nil {
 		t.Error("error cannot be nil")
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	o.Verbose = true
+	currencyPair := currency.NewPairFromString("BTCUSDT")
+	startTime := time.Unix(1588636800, 0)
+	_, err := o.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

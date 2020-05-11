@@ -333,7 +333,7 @@ type GetSpotFilledOrdersInformationResponse struct {
 type GetSpotMarketDataRequest struct {
 	Start        string `url:"start,omitempty"` // [optional] start time in ISO 8601
 	End          string `url:"end,omitempty"`   // [optional] end time in ISO 8601
-	Granularity  int64  `url:"granularity"`     // The granularity field must be one of the following values: {60, 180, 300, 900, 1800, 3600, 7200, 14400, 43200, 86400, 604800}.
+	Granularity  string `url:"granularity"`     // The granularity field must be one of the following values: {60, 180, 300, 900, 1800, 3600, 7200, 14400, 43200, 86400, 604800}.
 	InstrumentID string `url:"-"`               // [required] trading pairs
 }
 

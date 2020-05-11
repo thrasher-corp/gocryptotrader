@@ -1,15 +1,19 @@
 package okcoin
 
 import (
+	"errors"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -111,9 +115,30 @@ func (o *OKCoin) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
+			KlineCapabilities: kline.ExchangeCapabilities{
+				SupportsDateRange: true,
+				SupportsIntervals: true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			KlineCapabilities: kline.ExchangeCapabilities{
+				Intervals: map[string]bool{
+					kline.OneMin.Word():     true,
+					kline.ThreeMin.Word():   true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.ThirtyMin.Word():  true,
+					kline.OneHour.Word():    true,
+					kline.TwoHour.Word():    true,
+					kline.FourHour.Word():   true,
+					kline.SixHour.Word():    true,
+					kline.TwelveHour.Word(): true,
+					kline.OneDay.Word():     true,
+					kline.ThreeDay.Word():   true,
+					kline.OneWeek.Word():    true,
+				},
+			},
 		},
 	}
 
@@ -262,7 +287,73 @@ func (o *OKCoin) FetchTicker(p currency.Pair, assetType asset.Item) (tickerData 
 	return
 }
 
+// FormatExchangeKlineInterval returns Interval to exchange formatted string
+func (o *OKCoin) FormatExchangeKlineInterval(in kline.Interval) string {
+	return fmt.Sprintf("%v", in.Duration().Seconds())
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (o *OKCoin) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrFunctionNotSupported
+	if !o.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	req := okgroup.GetSpotMarketDataRequest{
+		Start:        start.UTC().Format(time.RFC3339),
+		End:          end.UTC().Format(time.RFC3339),
+		Granularity:  o.FormatExchangeKlineInterval(interval),
+		InstrumentID: o.FormatExchangeCurrency(pair, a).String(),
+	}
+
+	candles, err := o.GetSpotMarketData(req)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	ret := kline.Item{
+		Exchange: o.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	for x := range candles {
+		t := candles[x].([]interface{})
+		tempCandle := kline.Candle{}
+		v, ok := t[0].(string)
+		if !ok {
+			return kline.Item{}, errors.New("unexpected value receved")
+		}
+		tempCandle.Time, err = time.Parse(time.RFC3339, v)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		tempCandle.Open, err = convert.FloatFromString(t[1])
+		if err != nil {
+			return kline.Item{}, err
+		}
+		tempCandle.High, err = convert.FloatFromString(t[2])
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		tempCandle.Low, err = convert.FloatFromString(t[3])
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		tempCandle.Close, err = convert.FloatFromString(t[4])
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		tempCandle.Volume, err = convert.FloatFromString(t[5])
+		if err != nil {
+			return kline.Item{}, err
+		}
+		ret.Candles = append(ret.Candles, tempCandle)
+	}
+	return ret, nil
 }

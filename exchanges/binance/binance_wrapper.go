@@ -755,7 +755,7 @@ func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 	}
 
 	ret := kline.Item{
-		Exchange: b.GetName(),
+		Exchange: b.Name,
 		Pair:     pair,
 		Asset:    a,
 		Interval: interval,
