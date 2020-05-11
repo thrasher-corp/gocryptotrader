@@ -115,7 +115,7 @@ func (z *ZB) SetDefaults() {
 	z.Requester = request.New(z.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		// TODO: Implement full rate limit for endpoints
-		request.NewBasicRateLimit(zbRateInterval, zbReqRate))
+		request.WithLimiter(request.NewBasicRateLimit(zbRateInterval, zbReqRate)))
 
 	z.API.Endpoints.URLDefault = zbTradeURL
 	z.API.Endpoints.URL = z.API.Endpoints.URLDefault

@@ -1,6 +1,7 @@
 package bitflyer
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -304,7 +305,7 @@ func (b *Bitflyer) GetTradingCommission() {
 
 // SendHTTPRequest sends an unauthenticated request
 func (b *Bitflyer) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(&request.Item{
+	return b.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,

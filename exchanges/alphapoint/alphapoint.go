@@ -2,6 +2,7 @@ package alphapoint
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -520,7 +521,7 @@ func (a *Alphapoint) SendHTTPRequest(method, path string, data map[string]interf
 		return errors.New("unable to JSON request")
 	}
 
-	return a.SendPayload(&request.Item{
+	return a.SendPayload(context.Background(), &request.Item{
 		Method:        method,
 		Path:          path,
 		Headers:       headers,
@@ -554,7 +555,7 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(method, path string, data map[
 		return errors.New("unable to JSON request")
 	}
 
-	return a.SendPayload(&request.Item{
+	return a.SendPayload(context.Background(), &request.Item{
 		Method:        method,
 		Path:          path,
 		Headers:       headers,

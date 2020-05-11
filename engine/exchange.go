@@ -275,19 +275,19 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 		}
 	}
 
-	if Bot.Settings.ExchangeHTTPUserAgent != "" {
-		dryrunParamInteraction("exchangehttpuseragent")
-		exchCfg.HTTPUserAgent = Bot.Settings.ExchangeHTTPUserAgent
+	if Bot.Settings.HTTPUserAgent != "" {
+		dryrunParamInteraction("httpuseragent")
+		exchCfg.HTTPUserAgent = Bot.Settings.HTTPUserAgent
 	}
 
-	if Bot.Settings.ExchangeHTTPProxy != "" {
-		dryrunParamInteraction("exchangehttpproxy")
-		exchCfg.ProxyAddress = Bot.Settings.ExchangeHTTPProxy
+	if Bot.Settings.HTTPProxy != "" {
+		dryrunParamInteraction("httpproxy")
+		exchCfg.ProxyAddress = Bot.Settings.HTTPProxy
 	}
 
-	if Bot.Settings.ExchangeHTTPTimeout != exchange.DefaultHTTPTimeout {
-		dryrunParamInteraction("exchangehttptimeout")
-		exchCfg.HTTPTimeout = Bot.Settings.ExchangeHTTPTimeout
+	if Bot.Settings.HTTPTimeout != exchange.DefaultHTTPTimeout {
+		dryrunParamInteraction("httptimeout")
+		exchCfg.HTTPTimeout = Bot.Settings.HTTPTimeout
 	}
 
 	if Bot.Settings.EnableExchangeHTTPDebugging {

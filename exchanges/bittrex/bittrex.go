@@ -1,6 +1,7 @@
 package bittrex
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -430,7 +431,7 @@ func (b *Bittrex) GetDepositHistory(currency string) (DepositHistory, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bittrex) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(&request.Item{
+	return b.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,
@@ -458,7 +459,7 @@ func (b *Bittrex) SendAuthenticatedHTTPRequest(path string, values url.Values, r
 	headers := make(map[string]string)
 	headers["apisign"] = crypto.HexEncodeToString(hmac)
 
-	return b.SendPayload(&request.Item{
+	return b.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          rawQuery,
 		Headers:       headers,
