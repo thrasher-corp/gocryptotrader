@@ -16,7 +16,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.13.0
 	github.com/pkg/errors v0.9.1
 	github.com/pquerna/otp v1.2.0
-	github.com/spf13/viper v1.6.3
+	github.com/spf13/viper v1.7.0
 	github.com/stretchr/testify v1.5.1 // indirect
 	github.com/thrasher-corp/gct-ta v0.0.0-20200423101437-dc6b098dc762
 	github.com/thrasher-corp/goose v2.7.0-rc4.0.20191002032028-0f2c2a27abdb+incompatible
