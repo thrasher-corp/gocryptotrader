@@ -570,8 +570,6 @@ func (b *Bitmex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			})
 		}
 	}
-
-	fmt.Println("generated subs:", subscriptions)
 	return subscriptions, nil
 }
 

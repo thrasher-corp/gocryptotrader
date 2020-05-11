@@ -21,7 +21,7 @@ import (
 
 const (
 	btseWebsocket      = "wss://ws.btse.com/spotWS"
-	btseWebsocketTimer = 57 * time.Second
+	btseWebsocketTimer = time.Minute
 )
 
 // WsConnect connects the websocket client
@@ -60,9 +60,8 @@ func (b *BTSE) WsConnect() error {
 func (b *BTSE) WsAuthenticate() error {
 	nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
 	path := "/spotWS" + nonce
-	hmac := crypto.GetHMAC(
-		crypto.HashSHA512_384,
-		[]byte((path + nonce)),
+	hmac := crypto.GetHMAC(crypto.HashSHA512_384,
+		[]byte((path)),
 		[]byte(b.API.Credentials.Secret),
 	)
 	sign := crypto.HexEncodeToString(hmac)
@@ -119,6 +118,13 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 	var result Result
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
+		if strings.Contains(string(respRaw), "UNLOGIN_USER connect success") ||
+			strings.Contains(string(respRaw), "authenticated successfully") {
+			return nil
+		} else if strings.Contains(string(respRaw), "AUTHENTICATE ERROR") {
+			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			return errors.New("Authentication failure")
+		}
 		return err
 	}
 	switch {
@@ -308,29 +314,21 @@ func (b *BTSE) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *BTSE) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	var sub wsSub
+	sub.Operation = "subscribe"
 	for i := range channelsToSubscribe {
-		var sub wsSub
-		sub.Operation = "subscribe"
-		sub.Arguments = []string{channelsToSubscribe[i].Channel}
-
-		err := b.Websocket.Conn.SendJSONMessage(sub)
-		if err != nil {
-			return err
-		}
+		sub.Arguments = append(sub.Arguments, channelsToSubscribe[i].Channel)
 	}
-	return nil
+	return b.Websocket.Conn.SendJSONMessage(sub)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (b *BTSE) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	var unSub wsSub
+	unSub.Operation = "unsubscribe"
 	for i := range channelsToUnsubscribe {
-		var unSub wsSub
-		unSub.Operation = "unsubscribe"
-		unSub.Arguments = []string{channelsToUnsubscribe[i].Channel}
-		err := b.Websocket.Conn.SendJSONMessage(unSub)
-		if err != nil {
-			return err
-		}
+		unSub.Arguments = append(unSub.Arguments,
+			channelsToUnsubscribe[i].Channel)
 	}
-	return nil
+	return b.Websocket.Conn.SendJSONMessage(unSub)
 }
