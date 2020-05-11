@@ -2,6 +2,7 @@ package kraken
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -120,9 +121,27 @@ func (k *Kraken) SetDefaults() {
 				exchange.WithdrawCryptoWith2FA |
 				exchange.AutoWithdrawFiatWithSetup |
 				exchange.WithdrawFiatWith2FA,
+			KlineCapabilities: kline.ExchangeCapabilities{
+				SupportsDateRange: true,
+				SupportsIntervals: true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			KlineCapabilities: kline.ExchangeCapabilities{
+				Intervals: map[string]bool{
+					kline.OneMin.Word():     true,
+					kline.ThreeMin.Word():   true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.ThirtyMin.Word():  true,
+					kline.OneHour.Word():    true,
+					kline.FourHour.Word():   true,
+					kline.OneDay.Word():     true,
+					kline.Fifteenday.Word(): true,
+					kline.OneWeek.Word():    true,
+				},
+			},
 		},
 	}
 
@@ -750,7 +769,43 @@ func (k *Kraken) ValidateCredentials() error {
 	return k.CheckTransientError(err)
 }
 
+// FormatExchangeKlineInterval returns Interval to exchange formatted string
+func (k *Kraken) FormatExchangeKlineInterval(in kline.Interval) string {
+	return fmt.Sprintf("%v", in.Duration().Minutes())
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (k *Kraken) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+	if !k.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	ret := kline.Item{
+		Exchange: k.GetName(),
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	candles, err := k.GetOHLC(k.FormatExchangeCurrency(pair, a).String(), k.FormatExchangeKlineInterval(interval))
+	if err != nil {
+		return kline.Item{}, err
+	}
+	for x := range candles {
+		timeValue, err := convert.TimeFromUnixTimestampFloat(candles[x].Time)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		ret.Candles = append(ret.Candles, kline.Candle{
+			Time:   timeValue,
+			Open:   candles[x].Open,
+			High:   candles[x].Close,
+			Low:    candles[x].Low,
+			Close:  candles[x].Close,
+			Volume: candles[x].Volume,
+		})
+	}
+	return ret, nil
 }

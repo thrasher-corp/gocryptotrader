@@ -6,12 +6,15 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -103,7 +106,8 @@ func TestGetTickers(t *testing.T) {
 // TestGetOHLC API endpoint test
 func TestGetOHLC(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetOHLC("BCHEUR")
+	k.Verbose = true
+	_, err := k.GetOHLC("BCHEUR", "10080")
 	if err != nil {
 		t.Error("GetOHLC() error", err)
 	}
@@ -1353,5 +1357,19 @@ func TestWsCancelOrderJSON(t *testing.T) {
 	err := k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	k.Verbose = true
+	currencyPair := currency.NewPairFromString("BCHEUR")
+	_, err := k.GetHistoricCandles(currencyPair, asset.Spot, time.Now(), time.Now(), kline.Fifteenday)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = k.GetHistoricCandles(currencyPair, asset.Spot, time.Now(), time.Now(), kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
 	}
 }

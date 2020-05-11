@@ -2,6 +2,7 @@ package kline
 
 import (
 	"math/rand"
+	"strings"
 	"testing"
 	"time"
 
@@ -111,5 +112,112 @@ func TestCreateKline(t *testing.T) {
 
 	if len(c.Candles) == 0 {
 		t.Fatal("no data returned, expecting a lot.")
+	}
+}
+
+func TestKlineWord(t *testing.T) {
+	if OneDay.Word() != "oneday" {
+		t.Fatalf("unexpected result: %v", OneDay.Word())
+	}
+}
+
+func TestKlineDuration(t *testing.T) {
+	if OneDay.Duration() != time.Hour*24 {
+		t.Fatalf("unexpected result: %v", OneDay.Duration())
+	}
+}
+
+func TestKlineShort(t *testing.T) {
+	if OneDay.Short() != "24h" {
+		t.Fatalf("unexpected result: %v", OneDay.Short())
+	}
+}
+
+func TestDurationToWord(t *testing.T) {
+	testCases := []struct {
+		name     string
+		interval Interval
+	}{
+		{
+			"OneMin",
+			OneMin,
+		},
+		{
+			"ThreeMin",
+			ThreeMin,
+		},
+		{
+			"FiveMin",
+			FiveMin,
+		},
+		{
+			"TenMin",
+			TenMin,
+		},
+		{
+			"FifteenMin",
+			FifteenMin,
+		},
+		{
+			"ThirtyMin",
+			ThirtyMin,
+		},
+		{
+			"OneHour",
+			OneHour,
+		},
+		{
+			"TwoHour",
+			TwoHour,
+		},
+		{
+			"FourHour",
+			FourHour,
+		},
+		{
+			"SixHour",
+			SixHour,
+		},
+		{
+			"EightHour",
+			OneHour * 8,
+		},
+		{
+			"TwelveHour",
+			TwelveHour,
+		},
+		{
+			"OneDay",
+			OneDay,
+		},
+		{
+			"ThreeDay",
+			ThreeDay,
+		},
+		{
+			"FifteenDay",
+			Fifteenday,
+		},
+		{
+			"OneWeek",
+			OneWeek,
+		},
+		{
+			"TwoWeek",
+			TwoWeek,
+		},
+		{
+			"notfound",
+			Interval(time.Hour * 1337),
+		},
+	}
+	for x := range testCases {
+		test := testCases[x]
+		t.Run(test.name, func(t *testing.T) {
+			v := DurationToWord(test.interval)
+			if !strings.EqualFold(v, test.name) {
+				t.Fatalf("%v: received %v expected %v", test.name, v, test.name)
+			}
+		})
 	}
 }

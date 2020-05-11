@@ -201,9 +201,10 @@ func (k *Kraken) GetTickers(pairList string) (map[string]Ticker, error) {
 }
 
 // GetOHLC returns an array of open high low close values of a currency pair
-func (k *Kraken) GetOHLC(symbol string) ([]OpenHighLowClose, error) {
+func (k *Kraken) GetOHLC(symbol, interval string) ([]OpenHighLowClose, error) {
 	values := url.Values{}
 	values.Set("pair", symbol)
+	values.Set("interval", interval)
 
 	type Response struct {
 		Error []interface{}          `json:"error"`

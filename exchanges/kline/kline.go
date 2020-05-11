@@ -182,17 +182,21 @@ func DurationToWord(in Interval) string {
 		return "fourhour"
 	case SixHour:
 		return "sixhour"
+	case EightHour:
+		return "eighthour"
 	case TwelveHour:
 		return "twelvehour"
 	case OneDay:
 		return "oneday"
 	case ThreeDay:
 		return "threeday"
+	case Fifteenday:
+		return "fifteenday"
 	case OneWeek:
 		return "oneweek"
 	case TwoWeek:
 		return "twoweek"
 	default:
-		return ""
+		return "notfound"
 	}
 }

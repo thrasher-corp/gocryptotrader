@@ -79,10 +79,17 @@ func TestGetChartCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	pair := currency.NewPairFromString("BTCUSD")
-	_, err := h.GetHistoricCandles(pair, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneMin)
+	currencyPair := currency.NewPairFromString("BTCUSD")
+	startTime := time.Now().Add(-time.Hour * 24)
+	end := time.Now()
+	_, err := h.GetHistoricCandles(currencyPair, asset.Spot, startTime, end, kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	_, err = h.GetHistoricCandles(currencyPair, asset.Spot, startTime, end, kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
 	}
 }
 

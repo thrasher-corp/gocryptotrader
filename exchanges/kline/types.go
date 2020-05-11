@@ -20,11 +20,13 @@ const (
 	TwoHour        = 2 * OneHour
 	FourHour       = 4 * OneHour
 	SixHour        = 6 * OneHour
+	EightHour      = 8 * OneHour
 	TwelveHour     = 12 * OneHour
 	TwentyFourHour = 24 * OneHour
 	OneDay         = TwentyFourHour
 	ThreeDay       = 3 * OneDay
 	SevenDay       = 7 * OneDay
+	Fifteenday     = 15 * OneDay
 	OneWeek        = 7 * OneDay
 	TwoWeek        = 2 * OneWeek
 )
