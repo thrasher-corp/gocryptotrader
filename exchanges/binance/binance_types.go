@@ -281,8 +281,10 @@ type NewOrderRequest struct {
 	// TimeInForce specifies how long the order remains in effect.
 	// Examples are (Good Till Cancel (GTC), Immediate or Cancel (IOC) and Fill Or Kill (FOK))
 	TimeInForce RequestParamsTimeForceType
-	// Quantity
-	Quantity         float64
+	// Quantity is the total base qty spent or received in an order.
+	Quantity float64
+	// QuoteOrderQty is the total quote qty spent or received in a MARKET order.
+	QuoteOrderQty    float64
 	Price            float64
 	NewClientOrderID string
 	StopPrice        float64 // Used with STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, and TAKE_PROFIT_LIMIT orders.
@@ -301,11 +303,13 @@ type NewOrderResponse struct {
 	Price           float64 `json:"price,string"`
 	OrigQty         float64 `json:"origQty,string"`
 	ExecutedQty     float64 `json:"executedQty,string"`
-	Status          string  `json:"status"`
-	TimeInForce     string  `json:"timeInForce"`
-	Type            string  `json:"type"`
-	Side            string  `json:"side"`
-	Fills           []struct {
+	// The cumulative amount of the quote that has been spent (with a BUY order) or received (with a SELL order).
+	CumulativeQuoteQty float64 `json:"cummulativeQuoteQty,string"`
+	Status             string  `json:"status"`
+	TimeInForce        string  `json:"timeInForce"`
+	Type               string  `json:"type"`
+	Side               string  `json:"side"`
+	Fills              []struct {
 		Price           float64 `json:"price,string"`
 		Qty             float64 `json:"qty,string"`
 		Commission      float64 `json:"commission,string"`
