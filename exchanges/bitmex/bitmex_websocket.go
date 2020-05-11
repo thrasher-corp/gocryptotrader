@@ -118,19 +118,13 @@ func (b *Bitmex) WsConnect() error {
 // wsReadData receives and passes on websocket messages for processing
 func (b *Bitmex) wsReadData() {
 	b.Websocket.Wg.Add(1)
-
-	defer func() {
-		b.Websocket.Wg.Done()
-	}()
+	defer b.Websocket.Wg.Done()
 
 	for {
 		resp, err := b.Websocket.Conn.ReadMessage()
 		if err != nil {
-			fmt.Println("MOOO")
-			b.Websocket.DataHandler <- err
 			return
 		}
-		fmt.Println(string(resp.Raw))
 		err = b.wsHandleData(resp.Raw)
 		if err != nil {
 			b.Websocket.DataHandler <- err
@@ -219,10 +213,6 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			err = json.Unmarshal(respRaw, &trades)
 			if err != nil {
 				return err
-			}
-
-			if trades.Action == bitmexActionInitialData {
-				return nil
 			}
 
 			for i := range trades.Data {
@@ -630,35 +620,26 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscript
 
 // Subscribe subscribes to a websocket channel
 func (b *Bitmex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	fmt.Println("SUBS:", channelsToSubscribe)
+	var subscriber WebsocketRequest
+	subscriber.Command = "subscribe"
+
 	for i := range channelsToSubscribe {
-		var subscriber WebsocketRequest
-		subscriber.Command = "subscribe"
-		subscriber.Arguments = append(subscriber.Arguments, channelsToSubscribe[i].Channel)
-		err := b.Websocket.Conn.SendJSONMessage(subscriber)
-		if err != nil {
-			return err
-		}
+		subscriber.Arguments = append(subscriber.Arguments,
+			channelsToSubscribe[i].Channel)
 	}
-	return nil
+	return b.Websocket.Conn.SendJSONMessage(subscriber)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (b *Bitmex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	fmt.Println("UNSUBS:", channelsToUnsubscribe)
+	var unsubscriber WebsocketRequest
+	unsubscriber.Command = "unsubscribe"
+
 	for i := range channelsToUnsubscribe {
-		var subscriber WebsocketRequest
-		subscriber.Command = "unsubscribe"
-		subscriber.Arguments = append(subscriber.Arguments,
-			channelsToUnsubscribe[i].Params["args"],
-			channelsToUnsubscribe[i].Channel+
-				":"+channelsToUnsubscribe[i].Currency.String())
-		err := b.Websocket.Conn.SendJSONMessage(subscriber)
-		if err != nil {
-			return err
-		}
+		unsubscriber.Arguments = append(unsubscriber.Arguments,
+			channelsToUnsubscribe[i].Channel)
 	}
-	return nil
+	return b.Websocket.Conn.SendJSONMessage(unsubscriber)
 }
 
 // WebsocketSendAuth sends an authenticated subscription

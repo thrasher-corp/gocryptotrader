@@ -170,7 +170,11 @@ func (b *Bitmex) Start(wg *sync.WaitGroup) {
 // Run implements the Bitmex wrapper
 func (b *Bitmex) Run() {
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", b.Name, common.IsEnabled(b.Websocket.IsEnabled()), b.API.Endpoints.WebsocketURL)
+		log.Debugf(log.ExchangeSys,
+			"%s Websocket: %s. (url: %s).\n",
+			b.Name,
+			common.IsEnabled(b.Websocket.IsEnabled()),
+			b.API.Endpoints.WebsocketURL)
 		b.PrintEnabledPairs()
 	}
 
