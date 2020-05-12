@@ -196,6 +196,10 @@ func DurationToWord(in Interval) string {
 		return "oneweek"
 	case TwoWeek:
 		return "twoweek"
+	case OneMonth:
+		return "onemonth"
+	case OneYear:
+		return "oneyear"
 	default:
 		return "notfound"
 	}

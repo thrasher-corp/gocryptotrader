@@ -624,9 +624,9 @@ func (c *Coinbene) GetKlines(pair currency.Pair, start, end time.Time, period kl
 	}
 
 	var candle struct {
-		Code    int64           `json:"code"`
-		Message string          `json:"message"`
-		Data    [][]interface{} `json:"data"`
+		Code    int64            `json:"code"`
+		Message string           `json:"message"`
+		Data    [][6]interface{} `json:"data"`
 	}
 
 	v := url.Values{}
@@ -663,25 +663,48 @@ func (c *Coinbene) GetKlines(pair currency.Pair, start, end time.Time, period kl
 			continue
 		}
 		tempCandle.Time = timestamp
-		tempCandle.Open, err = strconv.ParseFloat(candle.Data[x][1].(string), 64)
-		if err != nil {
-			continue
+		open, ok := candle.Data[x][1].(string)
+		if !ok {
+			return kline.Item{}, errors.New("open conversion failed")
 		}
-		tempCandle.High, err = strconv.ParseFloat(candle.Data[x][2].(string), 64)
+		tempCandle.Open, err = strconv.ParseFloat(open, 64)
 		if err != nil {
-			continue
+			return kline.Item{}, err
 		}
-		tempCandle.Low, err = strconv.ParseFloat(candle.Data[x][3].(string), 64)
-		if err != nil {
-			continue
+		high, ok := candle.Data[x][2].(string)
+		if !ok {
+			return kline.Item{}, errors.New("high conversion failed")
 		}
-		tempCandle.Close, err = strconv.ParseFloat(candle.Data[x][4].(string), 64)
+		tempCandle.High, err = strconv.ParseFloat(high, 64)
 		if err != nil {
-			continue
+			return kline.Item{}, err
 		}
-		tempCandle.Volume, err = strconv.ParseFloat(candle.Data[x][5].(string), 64)
+
+		low, ok := candle.Data[x][3].(string)
+		if !ok {
+			return kline.Item{}, errors.New("low conversion failed")
+		}
+		tempCandle.Low, err = strconv.ParseFloat(low, 64)
 		if err != nil {
-			continue
+			return kline.Item{}, err
+		}
+
+		closeTemp, ok := candle.Data[x][4].(string)
+		if !ok {
+			return kline.Item{}, errors.New("close conversion failed")
+		}
+		tempCandle.Close, err = strconv.ParseFloat(closeTemp, 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		vol, ok := candle.Data[x][5].(string)
+		if !ok {
+			return kline.Item{}, errors.New("vol conversion failed")
+		}
+		tempCandle.Volume, err = strconv.ParseFloat(vol, 64)
+		if err != nil {
+			return kline.Item{}, err
 		}
 
 		ret.Candles = append(ret.Candles, tempCandle)

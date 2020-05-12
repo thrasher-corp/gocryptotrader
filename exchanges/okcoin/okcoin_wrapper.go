@@ -2,7 +2,6 @@ package okcoin
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -285,11 +284,6 @@ func (o *OKCoin) FetchTicker(p currency.Pair, assetType asset.Item) (tickerData 
 		return o.UpdateTicker(p, assetType)
 	}
 	return
-}
-
-// FormatExchangeKlineInterval returns Interval to exchange formatted string
-func (o *OKCoin) FormatExchangeKlineInterval(in kline.Interval) string {
-	return fmt.Sprintf("%v", in.Duration().Seconds())
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval

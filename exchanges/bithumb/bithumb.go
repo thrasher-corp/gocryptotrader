@@ -646,23 +646,47 @@ func (b *Bithumb) GetCandleStick(pair currency.Pair, start, end time.Time, inter
 			break
 		}
 		tempCandle.Time = timestamp
-		tempCandle.Open, err = strconv.ParseFloat(candle.Data[x][1].(string), 64)
+
+		open, ok := candle.Data[x][1].(string)
+		if !ok {
+			return kline.Item{}, errors.New("open conversion failed")
+		}
+		tempCandle.Open, err = strconv.ParseFloat(open, 64)
 		if err != nil {
 			return kline.Item{}, err
 		}
-		tempCandle.High, err = strconv.ParseFloat(candle.Data[x][2].(string), 64)
+		high, ok := candle.Data[x][2].(string)
+		if !ok {
+			return kline.Item{}, errors.New("high conversion failed")
+		}
+		tempCandle.High, err = strconv.ParseFloat(high, 64)
 		if err != nil {
 			return kline.Item{}, err
 		}
-		tempCandle.Low, err = strconv.ParseFloat(candle.Data[x][3].(string), 64)
+
+		low, ok := candle.Data[x][3].(string)
+		if !ok {
+			return kline.Item{}, errors.New("low conversion failed")
+		}
+		tempCandle.Low, err = strconv.ParseFloat(low, 64)
 		if err != nil {
 			return kline.Item{}, err
 		}
-		tempCandle.Close, err = strconv.ParseFloat(candle.Data[x][4].(string), 64)
+
+		closeTemp, ok := candle.Data[x][4].(string)
+		if !ok {
+			return kline.Item{}, errors.New("close conversion failed")
+		}
+		tempCandle.Close, err = strconv.ParseFloat(closeTemp, 64)
 		if err != nil {
 			return kline.Item{}, err
 		}
-		tempCandle.Volume, err = strconv.ParseFloat(candle.Data[x][5].(string), 64)
+
+		vol, ok := candle.Data[x][5].(string)
+		if !ok {
+			return kline.Item{}, errors.New("vol conversion failed")
+		}
+		tempCandle.Volume, err = strconv.ParseFloat(vol, 64)
 		if err != nil {
 			return kline.Item{}, err
 		}

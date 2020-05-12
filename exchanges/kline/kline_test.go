@@ -221,3 +221,17 @@ func TestDurationToWord(t *testing.T) {
 		})
 	}
 }
+
+func TestKlineErrors(t *testing.T) {
+	v := ErrorKline{
+		Interval: OneYear,
+	}
+
+	if v.Error() != "oneyear interval unsupported by exchange" {
+		t.Fatal("unexpected error returned")
+	}
+
+	if v.Unwrap().Error() != "8760h0m0s interval unsupported by exchange" {
+		t.Fatal("unexpected error returned")
+	}
+}

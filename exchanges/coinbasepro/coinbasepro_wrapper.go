@@ -721,55 +721,17 @@ func (c *CoinbasePro) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
 }
 
-// checkInterval checks allowable interval
-func checkInterval(i time.Duration) (int64, error) {
-	switch i.Seconds() {
-	case 60:
-		return 60, nil
-	case 300:
-		return 300, nil
-	case 900:
-		return 900, nil
-	case 3600:
-		return 3600, nil
-	case 21600:
-		return 21600, nil
-	case 86400:
-		return 86400, nil
+func calcTotalCandles(start, end time.Time, interval kline.Interval) (out int64) {
+	switch interval {
+	case kline.OneMin:
+		out = int64(end.Sub(start).Minutes())
+	case kline.OneHour:
+		out = int64(end.Sub(start).Hours())
+	case kline.OneDay:
+		out = int64(end.Sub(start).Hours() / 24)
 	}
-	return 0, fmt.Errorf("interval not allowed %v", i.Seconds())
+	return
 }
-
-// this is broken please fix :D
-// type candleDates struct {
-// 	// start time.Time
-// 	// end   time.Time
-// }
-//
-// func calcDateIntervals(start, end time.Time, interval kline.Interval) (out []candleDates) {
-// 	var addVal time.Duration
-// 	switch interval {
-// 	case kline.OneMin:
-// 		addVal = time.Minute
-// 	case kline.OneDay:
-// 		addVal = time.Hour * 24
-// 	}
-// 	for d := start; d.After(end) == false; d = d.Add(addVal) {
-// 		fmt.Println(d.Format("2006-01-02"))
-// 	}
-//
-// 	return
-// }
-//
-// func calcTotalCandles(start, end time.Time, interval kline.Interval) (out int64) {
-// 	switch interval {
-// 	case kline.OneMin:
-// 		out = int64(end.Sub(start).Minutes())
-// 	case kline.OneDay:
-// 		out = int64(end.Sub(start).Hours() / 24)
-// 	}
-// 	return
-// }
 
 // GetHistoricCandles returns a set of candle between two time periods for a
 // designated time period

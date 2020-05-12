@@ -686,11 +686,6 @@ func (p *Poloniex) ValidateCredentials() error {
 	return p.CheckTransientError(err)
 }
 
-// FormatExchangeKlineInterval returns Interval to exchange formatted string
-func (p *Poloniex) FormatExchangeKlineInterval(in kline.Interval) string {
-	return strconv.FormatFloat(in.Duration().Seconds(), 'f', 0, 64)
-}
-
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (p *Poloniex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if !p.KlineIntervalEnabled(interval) {

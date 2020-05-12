@@ -6,10 +6,10 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -810,5 +810,5 @@ func (e *Base) KlineIntervalEnabled(in kline.Interval) bool {
 // FormatExchangeKlineInterval returns Interval to string
 // Exchanges can override this if they require custom formatting
 func (e *Base) FormatExchangeKlineInterval(in kline.Interval) string {
-	return common.ErrNotYetImplemented.Error()
+	return strconv.FormatFloat(in.Duration().Seconds(), 'f', 0, 64)
 }

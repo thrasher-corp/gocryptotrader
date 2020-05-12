@@ -441,11 +441,6 @@ func (o *OKEX) FetchTicker(p currency.Pair, assetType asset.Item) (tickerData *t
 	return
 }
 
-// FormatExchangeKlineInterval returns Interval to exchange formatted string
-func (o *OKEX) FormatExchangeKlineInterval(in kline.Interval) string {
-	return fmt.Sprintf("%v", in.Duration().Seconds())
-}
-
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (o *OKEX) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if !o.KlineIntervalEnabled(interval) {

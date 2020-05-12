@@ -124,7 +124,10 @@ func (h *HUOBI) SetDefaults() {
 					kline.FourHour.Word():   true,
 					kline.OneDay.Word():     true,
 					kline.OneWeek.Word():    true,
+					kline.OneMonth.Word():   true,
+					kline.OneYear.Word():    true,
 				},
+				Limit: 2000,
 			},
 		},
 	}
@@ -944,6 +947,12 @@ func (h *HUOBI) FormatExchangeKlineInterval(in kline.Interval) string {
 	switch in {
 	case kline.OneMin, kline.FiveMin, kline.FifteenMin, kline.ThirtyMin:
 		return in.Short() + "in"
+	case kline.OneMonth:
+		return "1mon"
+	case kline.OneWeek:
+		return "1week"
+	case kline.OneYear:
+		return "1year"
 	}
 	return in.Short()
 }

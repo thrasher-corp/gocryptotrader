@@ -925,3 +925,17 @@ func TestStatusToStandardStatus(t *testing.T) {
 		}
 	}
 }
+
+func TestCalcTotalCandles(t *testing.T) {
+	start := time.Unix(1577836800, 0)
+	end := time.Unix(1577923200, 0)
+
+	ret := calcTotalCandles(start, end, kline.OneHour)
+	t.Log(ret)
+
+	startJan := time.Unix(1546300800, 0)
+	endDec := time.Unix(1577836799, 0)
+
+	ret = calcTotalCandles(startJan, endDec, kline.OneHour)
+	t.Log(ret)
+}

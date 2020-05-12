@@ -29,6 +29,8 @@ type RateLimit struct {
 // Limit limits the outbound requests
 func (r *RateLimit) Limit(f request.EndpointLimit) error {
 	switch f {
+	case request.Auth:
+		time.Sleep(r.Auth.Reserve().Delay())
 	case klineFunc:
 		time.Sleep(r.KlineData.Reserve().Delay())
 	default:

@@ -29,6 +29,8 @@ const (
 	Fifteenday     = 15 * OneDay
 	OneWeek        = 7 * OneDay
 	TwoWeek        = 2 * OneWeek
+	OneMonth       = 31 * OneDay
+	OneYear        = 365 * OneDay
 )
 
 // ErrUnsupportedInterval loacle for an unsupported interval
@@ -71,7 +73,7 @@ type ErrorKline struct {
 
 // Error returns short interval unsupported message
 func (k ErrorKline) Error() string {
-	return fmt.Sprintf(ErrUnsupportedInterval, k.Interval.Short())
+	return fmt.Sprintf(ErrUnsupportedInterval, k.Interval.Word())
 }
 
 // Unwrap returns interval unsupported message
