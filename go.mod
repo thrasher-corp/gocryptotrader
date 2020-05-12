@@ -28,7 +28,7 @@ require (
 	golang.org/x/net v0.0.0-20191002035440-2ec189313ef0
 	golang.org/x/sys v0.0.0-20191003212358-c178f38b412c // indirect
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
-	google.golang.org/genproto v0.0.0-20191002211648-c459b9ce5143
+	google.golang.org/genproto v0.0.0-20191108220845-16a3f7862a1a
 	google.golang.org/grpc v1.29.1
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v2 v2.2.7 // indirect
