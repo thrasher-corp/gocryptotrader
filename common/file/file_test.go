@@ -155,7 +155,7 @@ func TestWriteAsCSV(t *testing.T) {
 
 	testFile, err := ioutil.TempFile(os.TempDir(), "gct-csv-test.*.csv")
 	if err != nil {
-		t.Fatalf("failed to create testFile: %v", err)
+		t.Fatal(err)
 	}
 	testFile.Close()
 	defer os.Remove(testFile.Name())

@@ -115,6 +115,12 @@ func TestCommonWriteToCSV(t *testing.T) {
 	t.Parallel()
 
 	OutputDir = filepath.Join(os.TempDir(), "script-temp")
+	defer func() {
+		err := os.RemoveAll(OutputDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	_, err := WriteAsCSV()
 	if err == nil {
@@ -163,11 +169,6 @@ func TestCommonWriteToCSV(t *testing.T) {
 
 	_, err = WriteAsCSV(&objects.String{Value: "test.gct-script-temp2"},
 		atrPayload)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = os.RemoveAll(OutputDir)
 	if err != nil {
 		t.Fatal(err)
 	}

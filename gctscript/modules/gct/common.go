@@ -77,9 +77,9 @@ func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
 			// a client defined filename and append a date, forces the use of
 			// .csv file extension
 			switch {
-			case !strings.HasSuffix(target, ".csv") && strings.Contains(target, ".gct"):
+			case filepath.Ext(target) != ".csv" && strings.Contains(target, ".gct"):
 				target += ".csv"
-			case strings.HasSuffix(target, ".csv"):
+			case filepath.Ext(target) == ".csv":
 				s := strings.Split(target, ".")
 				if len(s) == 2 {
 					target = s[0] + "-" + strconv.FormatInt(time.Now().UnixNano(), 10) + ".csv"
