@@ -12,7 +12,7 @@ const (
 	zbAuthLimit    = 60
 	zbUnauthLimit  = 60
 
-	zbKlineDataInterval = time.Second*2
+	zbKlineDataInterval = time.Second * 2
 	zbKlineDataLimit    = 1
 
 	// Used to match endpints to rate limits
