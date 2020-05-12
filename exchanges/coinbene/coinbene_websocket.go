@@ -27,8 +27,6 @@ const (
 	topic         = "topic"
 )
 
-var comms = make(chan stream.Response)
-
 // WsConnect connects to websocket
 func (c *Coinbene) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
@@ -455,32 +453,22 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (c *Coinbene) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	var sub WsSub
+	sub.Operation = "subscribe"
 	for i := range channelsToSubscribe {
-		var sub WsSub
-		sub.Operation = "subscribe"
-		sub.Arguments = []string{channelsToSubscribe[i].Channel}
-		fmt.Println("SUB:", sub)
-		err := c.Websocket.Conn.SendJSONMessage(sub)
-		if err != nil {
-			return err
-		}
+		sub.Arguments = append(sub.Arguments, channelsToSubscribe[i].Channel)
 	}
-	return nil
+	return c.Websocket.Conn.SendJSONMessage(sub)
 }
 
 // Unsubscribe sends a websocket message to receive data from the channel
 func (c *Coinbene) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription) error {
+	var unsub WsSub
+	unsub.Operation = "unsubscribe"
 	for i := range channelToUnsubscribe {
-		var sub WsSub
-		sub.Operation = "unsubscribe"
-		sub.Arguments = []string{channelToUnsubscribe[i].Channel}
-		fmt.Println("UNSUB:", sub)
-		err := c.Websocket.Conn.SendJSONMessage(sub)
-		if err != nil {
-			return err
-		}
+		unsub.Arguments = append(unsub.Arguments, channelToUnsubscribe[i].Channel)
 	}
-	return nil
+	return c.Websocket.Conn.SendJSONMessage(unsub)
 }
 
 // Login logs in
