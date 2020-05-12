@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -254,13 +255,46 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 					Err:      err,
 				}
 			}
-			f.Websocket.DataHandler <- wshandler.TradeData{CurrencyPair: pair,
-				AssetType: assetType,
-				Exchange:  f.Name,
-				Price:     resultData.OrderData.Price,
-				Amount:    resultData.OrderData.Size,
-				Side:      oSide,
+			var resp order.Detail
+			resp.Side = oSide
+			resp.Amount = resultData.OrderData.Size
+			resp.AssetType = assetType
+			resp.ClientOrderID = resultData.OrderData.ClientID
+			resp.Exchange = f.Name
+			resp.ExecutedAmount = resultData.OrderData.FilledSize
+			resp.ID = strconv.FormatInt(resultData.OrderData.ID, 10)
+			resp.Pair = pair
+			resp.RemainingAmount = resultData.OrderData.Size - resultData.OrderData.FilledSize
+			switch resultData.OrderData.Status {
+			case strings.ToLower(order.New.String()):
+				resp.Status = order.New
+			case strings.ToLower(order.Open.String()):
+				resp.Status = order.Open
+			case closedStatus:
+				if resultData.OrderData.FilledSize != 0 && resultData.OrderData.FilledSize != resultData.OrderData.Size {
+					resp.Status = order.PartiallyCancelled
+				}
+				if resultData.OrderData.FilledSize == 0 {
+					resp.Status = order.Cancelled
+				}
+				if resultData.OrderData.FilledSize == resultData.OrderData.Size {
+					resp.Status = order.Filled
+				}
 			}
+			var feeBuilder exchange.FeeBuilder
+			feeBuilder.PurchasePrice = resultData.OrderData.AvgFillPrice
+			feeBuilder.Amount = resultData.OrderData.Size
+			resp.Type = order.Market
+			if resultData.OrderData.OrderType == strings.ToLower(order.Limit.String()) {
+				resp.Type = order.Limit
+				feeBuilder.IsMaker = true
+			}
+			fee, err := f.GetFee(&feeBuilder)
+			if err != nil {
+				return err
+			}
+			resp.Fee = fee
+			f.Websocket.DataHandler <- resp
 		case "fills":
 			var resultData WsFillsDataStore
 			err = json.Unmarshal(respRaw, &resultData)

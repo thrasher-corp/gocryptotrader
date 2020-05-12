@@ -440,10 +440,10 @@ func TestHTMLScrapeLocalBitcoins(t *testing.T) {
 }
 
 func TestHTMLScrapeFTX(t *testing.T) {
-	data := HTMLScrapingData{RegExp: `<a href="#overview"([\s\S]*?)orders&#39;}</code>.</p>`,
-		Path: "https://docs.ftx.com/#overview"}
+	data := HTMLScrapingData{RegExp: `#rest-api([\s\S]*?)#fix-api`,
+		Path: "https://github.com/ftexchange/ftx"}
 	a, err := htmlScrapeFTX(&data)
-	fmt.Println("d")
+	fmt.Println("c")
 	t.Log(a)
 	if err != nil {
 		t.Error(err)

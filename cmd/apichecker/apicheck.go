@@ -668,15 +668,16 @@ func htmlScrapeFTX(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	r, err := regexp.Compile(htmlData.RegExp)
-	if err != nil {
-		return nil, err
-	}
-	str := r.FindString(string(a))
-	sha := crypto.GetSHA256([]byte(str))
-	var resp []string
-	resp = append(resp, crypto.HexEncodeToString(sha))
-	return resp, nil
+	fmt.Println(string(a))
+	// r, err := regexp.Compile(htmlData.RegExp)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// str := r.FindString(string(a))
+	// sha := crypto.GetSHA256([]byte(str))
+	// var resp []string
+	// resp = append(resp, crypto.HexEncodeToString(sha))
+	return nil, nil
 }
 
 // htmlScrapeBTSE gets the check string for BTSE exchange

@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -830,5 +831,16 @@ func TestGetFundingHistory(t *testing.T) {
 	_, err := f.GetFundingHistory()
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	t.Parallel()
+	currencyPair := currency.NewPairFromString(spotPair)
+	start := time.Date(2019, 11, 12, 0, 0, 0, 0, time.UTC)
+	end := start.AddDate(0, 0, 5)
+	_, err := f.GetHistoricCandles(currencyPair, asset.Spot, start, end, kline.OneDay)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

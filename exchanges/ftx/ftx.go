@@ -2,6 +2,7 @@ package ftx
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -197,7 +199,7 @@ func (f *FTX) GetFundingRates() (FundingRates, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (f *FTX) SendHTTPRequest(path string, result interface{}) error {
-	return f.SendPayload(&request.Item{
+	return f.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,
@@ -705,7 +707,7 @@ func (f *FTX) SendAuthHTTPRequest(method, path string, data, result interface{})
 	headers["FTX-SIGN"] = crypto.HexEncodeToString(hmac)
 	headers["FTX-TS"] = ts
 	headers["Content-Type"] = "application/json"
-	return f.SendPayload(&request.Item{
+	return f.SendPayload(context.Background(), &request.Item{
 		Method:        method,
 		Path:          ftxAPIURL + path,
 		Headers:       headers,
@@ -748,4 +750,25 @@ func getOfflineTradeFee(feeBuilder *exchange.FeeBuilder) float64 {
 		return 0.0002 * feeBuilder.PurchasePrice * feeBuilder.Amount
 	}
 	return 0.0007 * feeBuilder.PurchasePrice * feeBuilder.Amount
+}
+
+func parseInterval(in time.Duration) (TimeInterval, error) {
+	switch in {
+	case kline.FifteenSecond:
+		return TimeIntervalFifteenSeconds, nil
+	case kline.OneMin:
+		return TimeIntervalMinute, nil
+	case kline.FiveMin:
+		return TimeIntervalFiveMinutes, nil
+	case kline.FifteenMin:
+		return TimeIntervalFifteenMinutes, nil
+	case kline.OneHour:
+		return TimeIntervalHour, nil
+	case kline.FourHour:
+		return TimeIntervalFourHours, nil
+	case kline.OneDay:
+		return TimeIntervalDay, nil
+	default:
+		return TimeIntervalMinute, errInvalidInterval
+	}
 }

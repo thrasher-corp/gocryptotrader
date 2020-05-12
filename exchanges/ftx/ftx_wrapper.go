@@ -119,8 +119,8 @@ func (f *FTX) SetDefaults() {
 	}
 
 	f.Requester = request.New(f.Name,
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		nil)
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+
 	f.API.Endpoints.URLDefault = ftxAPIURL
 	f.API.Endpoints.URL = f.API.Endpoints.URLDefault
 	f.Websocket = wshandler.New()
@@ -819,11 +819,8 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			var feeBuilder exchange.FeeBuilder
 			feeBuilder.PurchasePrice = triggerOrderData.Result[z].AvgFillPrice
 			feeBuilder.Amount = triggerOrderData.Result[z].Size
-			switch triggerOrderData.Result[z].OrderType {
-			case strings.ToLower(order.Market.String()):
-				tempResp.Type = order.Market
-				feeBuilder.IsMaker = false
-			case strings.ToLower(order.Limit.String()):
+			tempResp.Type = order.Market
+			if triggerOrderData.Result[z].OrderType == strings.ToLower(order.Limit.String()) {
 				tempResp.Type = order.Limit
 				feeBuilder.IsMaker = true
 			}
@@ -876,5 +873,25 @@ func (f *FTX) ValidateCredentials() error {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (f *FTX) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+	intervalToString, err := parseInterval(interval)
+	if err != nil {
+		return kline.Item{}, err
+	}
+	ohlcData, err := f.GetHistoricalData(f.FormatExchangeCurrency(pair, a).String(),
+		string(intervalToString), "", start, end)
+	var resp kline.Item
+	resp.Exchange = f.Name
+	resp.Asset = a
+	resp.Pair = pair
+	for x := range ohlcData.Result {
+		var tempData kline.Candle
+		tempData.Open = ohlcData.Result[x].Open
+		tempData.High = ohlcData.Result[x].High
+		tempData.Low = ohlcData.Result[x].Low
+		tempData.Close = ohlcData.Result[x].Close
+		tempData.Volume = ohlcData.Result[x].Volume
+		tempData.Time = ohlcData.Result[x].StartTime
+		resp.Candles = append(resp.Candles, tempData)
+	}
+	return resp, nil
 }

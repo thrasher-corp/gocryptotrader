@@ -24,12 +24,8 @@ require (
 	github.com/urfave/cli v1.22.4
 	github.com/volatiletech/null v8.0.0+incompatible
 	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
-<<<<<<< HEAD
-	golang.org/x/net v0.0.0-20200226121028-0de0cce0169b
-=======
 	golang.org/x/net v0.0.0-20191002035440-2ec189313ef0
 	golang.org/x/sys v0.0.0-20191003212358-c178f38b412c // indirect
->>>>>>> master
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	google.golang.org/genproto v0.0.0-20191002211648-c459b9ce5143
 	google.golang.org/grpc v1.29.1

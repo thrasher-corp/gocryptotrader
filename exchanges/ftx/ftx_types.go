@@ -1,6 +1,9 @@
 package ftx
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // MarketData stores market data
 type MarketData struct {
@@ -862,3 +865,19 @@ type WsFillsDataStore struct {
 	MessageType string  `json:"type"`
 	FillsData   WsFills `json:"fills"`
 }
+
+// TimeInterval represents interval enum.
+type TimeInterval string
+
+// Vars related to time intervals
+var (
+	TimeIntervalFifteenSeconds = TimeInterval("15")
+	TimeIntervalMinute         = TimeInterval("60")
+	TimeIntervalFiveMinutes    = TimeInterval("300")
+	TimeIntervalFifteenMinutes = TimeInterval("900")
+	TimeIntervalHour           = TimeInterval("3600")
+	TimeIntervalFourHours      = TimeInterval("14400")
+	TimeIntervalDay            = TimeInterval("86400")
+)
+
+var errInvalidInterval = errors.New("invalid interval")
