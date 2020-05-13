@@ -1063,6 +1063,8 @@ func (w *WebsocketConnection) parseBinaryResponse(resp []byte) ([]byte, error) {
 // GenerateMessageID Creates a messageID to checkout
 func (w *WebsocketConnection) GenerateMessageID(useNano bool) int64 {
 	if useNano {
+		// force clock shift
+		time.Sleep(time.Nanosecond)
 		return time.Now().UnixNano()
 	}
 	return time.Now().Unix()

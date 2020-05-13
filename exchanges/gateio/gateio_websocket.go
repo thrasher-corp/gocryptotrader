@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -93,10 +94,7 @@ func (g *Gateio) wsServerSignIn() (*WebsocketAuthenticationResponse, error) {
 // wsReadData receives and passes on websocket messages for processing
 func (g *Gateio) wsReadData() {
 	g.Websocket.Wg.Add(1)
-
-	defer func() {
-		g.Websocket.Wg.Done()
-	}()
+	defer g.Websocket.Wg.Done()
 
 	for {
 		resp, err := g.Websocket.Conn.ReadMessage()
@@ -129,8 +127,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			return fmt.Errorf("%v - authentication failed: %v", g.Name, err)
 		}
-		return fmt.Errorf("%v error %s",
-			g.Name, result.Error.Message)
+		return fmt.Errorf("%v error %s", g.Name, result.Error.Message)
 	}
 
 	switch {
@@ -485,9 +482,16 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			} else if strings.EqualFold(channels[i], "kline.subscribe") {
 				params["interval"] = 1800
 			}
+
+			fpair, err := g.FormatExchangeCurrency(enabledCurrencies[j],
+				asset.Spot)
+			if err != nil {
+				return nil, err
+			}
+
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channels[i],
-				Currency: enabledCurrencies[j],
+				Currency: fpair.Upper(),
 				Params:   params,
 			})
 		}
@@ -497,25 +501,52 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 
 // Subscribe sends a websocket message to receive data from the channel
 func (g *Gateio) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	var payloads []WebsocketRequest
+channels:
 	for i := range channelsToSubscribe {
-		fpair, err := g.FormatExchangeCurrency(channelsToSubscribe[i].Currency, asset.Spot)
-		if err != nil {
-			return err
+		// Ensures params are in order
+		params := []interface{}{channelsToSubscribe[i].Currency}
+		if strings.EqualFold(channelsToSubscribe[i].Channel, "depth.subscribe") {
+			params = append(params, channelsToSubscribe[i].Params["limit"])
+			params = append(params, channelsToSubscribe[i].Params["interval"])
+		} else if strings.EqualFold(channelsToSubscribe[i].Channel, "kline.subscribe") {
+			params = append(params, channelsToSubscribe[i].Params["interval"])
 		}
 
-		params := []interface{}{fpair.Upper()}
-
-		for j := range channelsToSubscribe[i].Params {
-			params = append(params, channelsToSubscribe[i].Params[j])
+		for j := range payloads {
+			if payloads[j].Method == channelsToSubscribe[i].Channel {
+				if strings.EqualFold(channelsToSubscribe[i].Channel, "depth.subscribe") {
+					if len(payloads[j].Params) == 3 {
+						// If more than one currency pair we need to send as
+						// matrix
+						_, ok := payloads[j].Params[0].(currency.Pair)
+						if ok {
+							var bucket []interface{}
+							payloads[j].Params = append(bucket, payloads[j].Params)
+						}
+					}
+					payloads[j].Params = append(payloads[j].Params, params)
+				} else if strings.EqualFold(channelsToSubscribe[i].Channel, "kline.subscribe") {
+					// Can only subscribe one market at the same time, market
+					// list is not supported currently. For multiple
+					// subscriptions, only the last one takes effect.
+					continue channels
+				} else {
+					payloads[j].Params = append(payloads[j].Params, params...)
+				}
+				continue channels
+			}
 		}
 
-		subscribe := WebsocketRequest{
+		payloads = append(payloads, WebsocketRequest{
 			ID:     g.Websocket.Conn.GenerateMessageID(true),
 			Method: channelsToSubscribe[i].Channel,
 			Params: params,
-		}
+		})
+	}
 
-		resp, err := g.Websocket.Conn.SendMessageReturnResponse(subscribe.ID, subscribe)
+	for k := range payloads {
+		resp, err := g.Websocket.Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
 		if err != nil {
 			return err
 		}
@@ -527,32 +558,42 @@ func (g *Gateio) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 		if response.Result.Status != "success" {
 			return fmt.Errorf("%v could not subscribe to %v",
 				g.Name,
-				channelsToSubscribe[i].Channel)
+				payloads[k].Method)
 		}
 	}
+
 	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (g *Gateio) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	// NOTE: This function does not take in paramaters, it cannot unsubscribe a
+	// single item but a full channel. i.e. if you subscribe to ticker BTC_USDT
+	// & LTC_USDT this function will unsubscribe both. This function will be
+	// kept unlinked to the websocket subsystem and a full connection flush will
+	// occur when currency items are disabled.
+	var channelsThusFar []string
 	for i := range channelsToUnsubscribe {
-		unsbuscribeText := strings.Replace(channelsToUnsubscribe[i].Channel,
+		if common.StringDataCompare(channelsThusFar,
+			channelsToUnsubscribe[i].Channel) {
+			continue
+		}
+
+		channelsThusFar = append(channelsThusFar,
+			channelsToUnsubscribe[i].Channel)
+
+		unsubscribeText := strings.Replace(channelsToUnsubscribe[i].Channel,
 			"subscribe",
 			"unsubscribe",
 			1)
-		fpair, err := g.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency,
-			asset.Spot)
-		if err != nil {
-			return err
+
+		unsubscribe := WebsocketRequest{
+			ID:     g.Websocket.Conn.GenerateMessageID(true),
+			Method: unsubscribeText,
 		}
 
-		subscribe := WebsocketRequest{
-			ID:     g.Websocket.Conn.GenerateMessageID(true),
-			Method: unsbuscribeText,
-			Params: []interface{}{fpair.Upper(), 1800},
-		}
-		resp, err := g.Websocket.Conn.SendMessageReturnResponse(subscribe.ID,
-			subscribe)
+		resp, err := g.Websocket.Conn.SendMessageReturnResponse(unsubscribe.ID,
+			unsubscribe)
 		if err != nil {
 			return err
 		}
