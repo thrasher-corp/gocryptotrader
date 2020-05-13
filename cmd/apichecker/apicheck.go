@@ -33,7 +33,7 @@ const (
 	htmlScrape           = "HTML String Check"
 	pathOkCoin           = "https://www.okcoin.com/docs/en/#change-change"
 	pathOkex             = "https://www.okex.com/docs/en/#change-change"
-	pathFTX              = "https://docs.ftx.com/#overview"
+	pathFTX              = "https://github.com/ftexchange/ftx"
 	pathBTSE             = "https://www.btse.com/apiexplorer/spot/#btse-spot-api"
 	pathBitfinex         = "https://docs.bitfinex.com/docs/changelog"
 	pathBitmex           = "https://www.bitmex.com/static/md/en-US/apiChangelog"
@@ -657,29 +657,6 @@ loop:
 	return resp, nil
 }
 
-// htmlScrapeFTX gets the check string for FTX exchange
-func htmlScrapeFTX(htmlData *HTMLScrapingData) ([]string, error) {
-	temp, err := http.Get(htmlData.Path)
-	if err != nil {
-		return nil, err
-	}
-	defer temp.Body.Close()
-	a, err := ioutil.ReadAll(temp.Body)
-	if err != nil {
-		return nil, err
-	}
-	fmt.Println(string(a))
-	// r, err := regexp.Compile(htmlData.RegExp)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// str := r.FindString(string(a))
-	// sha := crypto.GetSHA256([]byte(str))
-	// var resp []string
-	// resp = append(resp, crypto.HexEncodeToString(sha))
-	return nil, nil
-}
-
 // htmlScrapeBTSE gets the check string for BTSE exchange
 func htmlScrapeBTSE(htmlData *HTMLScrapingData) ([]string, error) {
 	var resp []string
@@ -836,59 +813,6 @@ func htmlScrapeBTCMarkets(htmlData *HTMLScrapingData) ([]string, error) {
 	}
 	result := r.FindString(string(tempData))
 	resp = append(resp, result)
-	return resp, nil
-}
-
-// htmlScrapeBitflyer gets the check string for BTCMarkets exchange
-func htmlScrapeBitflyer(htmlData *HTMLScrapingData) ([]string, error) {
-	var resp []string
-	var tempArray []string
-	temp, err := http.Get(htmlData.Path)
-	if err != nil {
-		return resp, err
-	}
-	defer temp.Body.Close()
-	tokenizer := html.NewTokenizer(temp.Body)
-loop:
-	for {
-		next := tokenizer.Next()
-		switch next {
-		case html.ErrorToken:
-			break loop
-		case html.StartTagToken:
-			token := tokenizer.Token()
-			if token.Data == htmlData.TokenData {
-				for {
-					nextToken := tokenizer.Next()
-					switch nextToken {
-					case html.EndTagToken:
-						t := tokenizer.Token()
-						if t.Data == htmlData.TokenDataEnd {
-							break loop
-						}
-					case html.StartTagToken:
-						t := tokenizer.Token()
-						if t.Data == htmlData.TextTokenData {
-							inner := tokenizer.Next()
-							if inner == html.TextToken {
-								tempStr := string(tokenizer.Text())
-								r, err := regexp.Compile(htmlData.RegExp)
-								if err != nil {
-									return resp, err
-								}
-								result := r.MatchString(tempStr)
-								if result {
-									appendStr := r.FindString(tempStr)
-									tempArray = append(tempArray, appendStr)
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	resp = append(resp, tempArray[1])
 	return resp, nil
 }
 
@@ -1134,62 +1058,6 @@ func htmlScrapeBitstamp(htmlData *HTMLScrapingData) ([]string, error) {
 		return nil, err
 	}
 	resp := r.FindAllString(aBody, -1)
-	return resp, nil
-}
-
-// htmlScrapeKraken gets the check string for Kraken Exchange
-func htmlScrapeKraken(htmlData *HTMLScrapingData) ([]string, error) {
-	var resp []string
-	temp, err := http.Get(htmlData.Path)
-	if err != nil {
-		return resp, err
-	}
-	defer temp.Body.Close()
-	tokenizer := html.NewTokenizer(temp.Body)
-loop:
-	for {
-		next := tokenizer.Next()
-		switch next {
-		case html.ErrorToken:
-			break loop
-		case html.StartTagToken:
-			token := tokenizer.Token()
-			if token.Data == htmlData.TokenData {
-				inner := tokenizer.Next()
-				if inner == html.TextToken {
-					if string(tokenizer.Text()) == "Get account balance" {
-					loop2:
-						for {
-							next := tokenizer.Next()
-							switch next {
-							case html.EndTagToken:
-								t := tokenizer.Token()
-								if t.Data == htmlData.TokenDataEnd {
-									break loop2
-								}
-							case html.StartTagToken:
-								t := tokenizer.Token()
-								if t.Data == htmlData.TextTokenData {
-									inside := tokenizer.Next()
-									if inside == html.TextToken {
-										tempStr := string(tokenizer.Text())
-										r, err := regexp.Compile(htmlData.RegExp)
-										if err != nil {
-											return resp, err
-										}
-										result := r.MatchString(tempStr)
-										if result {
-											resp = append(resp, tempStr)
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
 	return resp, nil
 }
 
@@ -1635,4 +1503,170 @@ func trelloCreateNewChecklist() error {
 		return nil
 	}
 	return errors.New("checklist id and name not found, checklist creation failed")
+}
+
+// htmlScrapeKraken gets the check string for Kraken Exchange
+func htmlScrapeKraken(htmlData *HTMLScrapingData) ([]string, error) {
+	var resp []string
+	temp, err := http.Get(htmlData.Path)
+	if err != nil {
+		return resp, err
+	}
+	defer temp.Body.Close()
+	tokenizer := html.NewTokenizer(temp.Body)
+loop:
+	for {
+		next := tokenizer.Next()
+		switch next {
+		case html.ErrorToken:
+			break loop
+		case html.StartTagToken:
+			token := tokenizer.Token()
+			if token.Data == htmlData.TokenData {
+				inner := tokenizer.Next()
+				if inner == html.TextToken {
+					if string(tokenizer.Text()) == "Get account balance" {
+					loop2:
+						for {
+							next := tokenizer.Next()
+							switch next {
+							case html.EndTagToken:
+								t := tokenizer.Token()
+								if t.Data == htmlData.TokenDataEnd {
+									break loop2
+								}
+							case html.StartTagToken:
+								t := tokenizer.Token()
+								if t.Data == htmlData.TextTokenData {
+									inside := tokenizer.Next()
+									if inside == html.TextToken {
+										tempStr := string(tokenizer.Text())
+										r, err := regexp.Compile(htmlData.RegExp)
+										if err != nil {
+											return resp, err
+										}
+										result := r.MatchString(tempStr)
+										if result {
+											resp = append(resp, tempStr)
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return resp, nil
+}
+
+// htmlScrapeBitflyer gets the check string for BTCMarkets exchange
+func htmlScrapeBitflyer(htmlData *HTMLScrapingData) ([]string, error) {
+	var resp []string
+	var tempArray []string
+	temp, err := http.Get(htmlData.Path)
+	if err != nil {
+		return resp, err
+	}
+	defer temp.Body.Close()
+	tokenizer := html.NewTokenizer(temp.Body)
+loop:
+	for {
+		next := tokenizer.Next()
+		switch next {
+		case html.ErrorToken:
+			break loop
+		case html.StartTagToken:
+			token := tokenizer.Token()
+			if token.Data == htmlData.TokenData {
+				for {
+					nextToken := tokenizer.Next()
+					switch nextToken {
+					case html.EndTagToken:
+						t := tokenizer.Token()
+						if t.Data == htmlData.TokenDataEnd {
+							break loop
+						}
+					case html.StartTagToken:
+						t := tokenizer.Token()
+						if t.Data == htmlData.TextTokenData {
+							inner := tokenizer.Next()
+							if inner == html.TextToken {
+								tempStr := string(tokenizer.Text())
+								r, err := regexp.Compile(htmlData.RegExp)
+								if err != nil {
+									return resp, err
+								}
+								result := r.MatchString(tempStr)
+								if result {
+									appendStr := r.FindString(tempStr)
+									tempArray = append(tempArray, appendStr)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	resp = append(resp, tempArray[1])
+	return resp, nil
+}
+
+// htmlScrapeFTX gets the check string for FTX exchange
+func htmlScrapeFTX(htmlData *HTMLScrapingData) ([]string, error) {
+	temp, err := http.Get(htmlData.Path)
+	if err != nil {
+		return nil, err
+	}
+	defer temp.Body.Close()
+	tokenizer := html.NewTokenizer(temp.Body)
+	var data []string
+loop:
+	for {
+		next := tokenizer.Next()
+		switch next {
+		case html.ErrorToken:
+			break loop
+		case html.StartTagToken:
+			token := tokenizer.Token()
+			if token.Data == "span" {
+				for _, a := range token.Attr {
+					if a.Key == htmlData.Key && a.Val == htmlData.Val {
+					loop2:
+						for {
+							nextToken := tokenizer.Next()
+							switch nextToken {
+							case html.StartTagToken:
+								f := tokenizer.Token()
+								if f.Data == "a" {
+									for _, b := range f.Attr {
+										data = append(data, b.Val)
+									}
+								}
+							case html.EndTagToken:
+								tk := tokenizer.Token()
+								if tk.Data == htmlData.TokenDataEnd {
+									break loop2
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	var respString string
+	for c := range data {
+		if data[c] == "websocket" {
+			respString += data[c+1]
+		}
+		if data[c] == "rest" {
+			respString += data[c+1]
+		}
+	}
+	var resp []string
+	resp = append(resp, respString)
+	return resp, nil
 }

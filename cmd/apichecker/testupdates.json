@@ -431,8 +431,11 @@
    "CheckType": "HTML String Check",
    "Data": {
     "HTMLData": {
-     "CheckString": "713d959203c4d69ea50d3f543c4216fa3b9a68b3097a1a6304110383ab725bd4",
-     "Path": "https://docs.ftx.com/#overview"
+     "Key": "class",
+     "Val": "css-truncate css-truncate-target",
+     "TokenDataEnd": "td",
+     "CheckString": "65e8800b5c6800aad896f888b2a62afc-d29c4f140f6ca068db9970054076ba63e51a9e96bf56d570e62cdb573c86b18526296117-1c388b9ec24e52ca4537240db3f48025ec9fca7a",
+     "Path": "https://github.com/ftexchange/ftx"
     }
    },
    "Disabled": false

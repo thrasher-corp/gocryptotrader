@@ -30,6 +30,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | BTSE | Yes | Yes | NA |
 | COINUT | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
+| FTX | Yes | Yes | No |
 | CoinbasePro | Yes | Yes | No|
 | Coinbene | Yes | No | No |
 | GateIO | Yes | Yes | NA |
@@ -138,17 +139,18 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 637 |
-| [shazbert](https://github.com/shazbert) | 188 |
-| [gloriousCode](https://github.com/gloriousCode) | 167 |
-| [xtda](https://github.com/xtda) | 42 |
-| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 24 |
+| [thrasher-](https://github.com/thrasher-) | 638 |
+| [shazbert](https://github.com/shazbert) | 190 |
+| [gloriousCode](https://github.com/gloriousCode) | 169 |
+| [xtda](https://github.com/xtda) | 43 |
+| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 40 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
+| [MadCozBadd](https://github.com/MadCozBadd) | 8 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
-| [MadCozBadd](https://github.com/MadCozBadd) | 7 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
+| [dackroyd](https://github.com/dackroyd) | 3 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
 | [vazha](https://github.com/vazha) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
@@ -167,12 +169,8 @@ Binaries will be published once the codebase reaches a stable condition.
 | [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |
 | [Daanikus](https://github.com/Daanikus) | 1 |
 | [daniel-cohen](https://github.com/daniel-cohen) | 1 |
-| [merkeld](https://github.com/merkeld) | 1 |
-<<<<<<< HEAD
-=======
 | [DirectX](https://github.com/DirectX) | 1 |
 | [frankzougc](https://github.com/frankzougc) | 1 |
->>>>>>> master
 | [idoall](https://github.com/idoall) | 1 |
 | [mattkanwisher](https://github.com/mattkanwisher) | 1 |
 | [mKurrels](https://github.com/mKurrels) | 1 |

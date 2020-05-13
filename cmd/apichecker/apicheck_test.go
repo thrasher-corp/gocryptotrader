@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -147,27 +146,16 @@ func TestCheckChangeLog(t *testing.T) {
 	}
 }
 
-// func TestAdd(t *testing.T) {
-// 	t.Parallel()
-// 	data2 := HTMLScrapingData{TokenData: "a",
-// 		Key:          "href",
-// 		Val:          "./#change-change",
-// 		TokenDataEnd: "./#change-",
-// 		RegExp:       `./#change-\d{8}`,
-// 		Path:         "wrongpath"}
-// 	err := addExch("WrongExch", htmlScrape, data2, false)
-// 	if err == nil {
-// 		t.Log("expected an error due to invalid path being parsed in")
-// 	}
-// }
-
 func TestAdd(t *testing.T) {
 	t.Parallel()
-	data2 := HTMLScrapingData{
-		Path: "https://docs.ftx.com/#overview",
-	}
-	err := addExch("FTX", htmlScrape, data2, false)
-	if err != nil {
+	data2 := HTMLScrapingData{TokenData: "a",
+		Key:          "href",
+		Val:          "./#change-change",
+		TokenDataEnd: "./#change-",
+		RegExp:       `./#change-\d{8}`,
+		Path:         "wrongpath"}
+	err := addExch("WrongExch", htmlScrape, data2, false)
+	if err == nil {
 		t.Log("expected an error due to invalid path being parsed in")
 	}
 }
@@ -432,19 +420,7 @@ func TestHTMLScrapeLocalBitcoins(t *testing.T) {
 	data := HTMLScrapingData{TokenData: "div",
 		RegExp: `col-md-12([\s\S]*?)clearfix`,
 		Path:   "https://localbitcoins.com/api-docs/"}
-	a, err := htmlScrapeLocalBitcoins(&data)
-	t.Log(a)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestHTMLScrapeFTX(t *testing.T) {
-	data := HTMLScrapingData{RegExp: `#rest-api([\s\S]*?)#fix-api`,
-		Path: "https://github.com/ftexchange/ftx"}
-	a, err := htmlScrapeFTX(&data)
-	fmt.Println("c")
-	t.Log(a)
+	_, err := htmlScrapeLocalBitcoins(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -719,6 +695,18 @@ func TestTrelloDeleteCheckItems(t *testing.T) {
 		t.Skip()
 	}
 	err := trelloDeleteCheckItem("")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestHTMLScrapeFTX(t *testing.T) {
+	data := HTMLScrapingData{
+		Key:          "class",
+		Val:          "css-truncate css-truncate-target",
+		TokenDataEnd: "td",
+		Path:         "https://github.com/ftexchange/ftx"}
+	_, err := htmlScrapeFTX(&data)
 	if err != nil {
 		t.Error(err)
 	}

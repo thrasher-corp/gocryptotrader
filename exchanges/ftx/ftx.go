@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -771,4 +772,44 @@ func parseInterval(in time.Duration) (TimeInterval, error) {
 	default:
 		return TimeIntervalMinute, errInvalidInterval
 	}
+}
+
+func (f *FTX) compatibleOrderVars(orderSide, orderStatus, orderType string, amount, filledAmount, avgFillPrice float64) (OrderVars, error) {
+	var resp OrderVars
+	switch orderSide {
+	case order.Buy.Lower():
+		resp.Side = order.Buy
+	case order.Sell.Lower():
+		resp.Side = order.Sell
+	}
+	switch orderStatus {
+	case strings.ToLower(order.New.String()):
+		resp.Status = order.New
+	case strings.ToLower(order.Open.String()):
+		resp.Status = order.Open
+	case closedStatus:
+		if filledAmount != 0 && filledAmount != amount {
+			resp.Status = order.PartiallyCancelled
+		}
+		if filledAmount == 0 {
+			resp.Status = order.Cancelled
+		}
+		if filledAmount == amount {
+			resp.Status = order.Filled
+		}
+	}
+	var feeBuilder exchange.FeeBuilder
+	feeBuilder.PurchasePrice = avgFillPrice
+	feeBuilder.Amount = amount
+	resp.OrderType = order.Market
+	if orderType == strings.ToLower(order.Limit.String()) {
+		resp.OrderType = order.Limit
+		feeBuilder.IsMaker = true
+	}
+	fee, err := f.GetFee(&feeBuilder)
+	if err != nil {
+		return resp, err
+	}
+	resp.Fee = fee
+	return resp, nil
 }

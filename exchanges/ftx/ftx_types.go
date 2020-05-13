@@ -3,6 +3,8 @@ package ftx
 import (
 	"errors"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // MarketData stores market data
@@ -881,3 +883,11 @@ var (
 )
 
 var errInvalidInterval = errors.New("invalid interval")
+
+// OrderVars stores side, status and type for any order/trade
+type OrderVars struct {
+	Side      order.Side
+	Status    order.Status
+	OrderType order.Type
+	Fee       float64
+}

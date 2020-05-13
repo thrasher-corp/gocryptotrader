@@ -3,7 +3,6 @@ package ftx
 import (
 	"fmt"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -509,44 +508,19 @@ func (f *FTX) GetOrderInfo(orderID string) (order.Detail, error) {
 	resp.Pair = currency.NewPairFromString(orderData.Result.Market)
 	resp.Price = orderData.Result.Price
 	resp.RemainingAmount = orderData.Result.RemainingSize
-	switch orderData.Result.Side {
-	case order.Buy.Lower():
-		resp.Side = order.Buy
-	case order.Sell.Lower():
-		resp.Side = order.Sell
-	}
-	switch orderData.Result.Status {
-	case strings.ToLower(order.New.String()):
-		resp.Status = order.New
-	case strings.ToLower(order.Open.String()):
-		resp.Status = order.Open
-	case closedStatus:
-		if orderData.Result.FilledSize != 0 && orderData.Result.FilledSize != orderData.Result.Size {
-			resp.Status = order.PartiallyCancelled
-		}
-		if orderData.Result.FilledSize == 0 {
-			resp.Status = order.Cancelled
-		}
-		if orderData.Result.FilledSize == orderData.Result.Size {
-			resp.Status = order.Filled
-		}
-	}
-	var feeBuilder exchange.FeeBuilder
-	feeBuilder.PurchasePrice = orderData.Result.Price
-	feeBuilder.Amount = orderData.Result.Size
-	switch orderData.Result.OrderType {
-	case strings.ToLower(order.Market.String()):
-		resp.Type = order.Market
-		feeBuilder.IsMaker = false
-	case strings.ToLower(order.Limit.String()):
-		resp.Type = order.Limit
-		feeBuilder.IsMaker = true
-	}
-	fee, err := f.GetFee(&feeBuilder)
+	orderVars, err := f.compatibleOrderVars(orderData.Result.Side,
+		orderData.Result.Status,
+		orderData.Result.OrderType,
+		orderData.Result.FilledSize,
+		orderData.Result.Size,
+		orderData.Result.AvgFillPrice)
 	if err != nil {
 		return resp, err
 	}
-	resp.Fee = fee
+	resp.Status = orderVars.Status
+	resp.Side = orderVars.Side
+	resp.Type = orderVars.OrderType
+	resp.Fee = orderVars.Fee
 	return resp, nil
 }
 
@@ -615,45 +589,19 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Pair = currency.NewPairFromString(orderData.Result[y].Market)
 			tempResp.Price = orderData.Result[y].Price
 			tempResp.RemainingAmount = orderData.Result[y].RemainingSize
-			switch orderData.Result[y].Side {
-			case order.Buy.Lower():
-				tempResp.Side = order.Buy
-			case order.Sell.Lower():
-				tempResp.Side = order.Sell
-			}
-			switch orderData.Result[y].Status {
-			case strings.ToLower(order.New.String()):
-				tempResp.Status = order.New
-			case strings.ToLower(order.Open.String()):
-				tempResp.Status = order.Open
-			case closedStatus:
-				if orderData.Result[y].FilledSize != 0 && orderData.Result[y].FilledSize != orderData.Result[y].Size {
-					tempResp.Status = order.PartiallyCancelled
-				}
-				if orderData.Result[y].FilledSize == 0 {
-					tempResp.Status = order.Cancelled
-				}
-				if orderData.Result[y].FilledSize == orderData.Result[y].Size {
-					tempResp.Status = order.Filled
-				}
-			}
-			var feeBuilder exchange.FeeBuilder
-			feeBuilder.PurchasePrice = orderData.Result[y].Price
-			feeBuilder.Amount = orderData.Result[y].Size
-			switch orderData.Result[y].OrderType {
-			case strings.ToLower(order.Market.String()):
-				tempResp.Type = order.Market
-				feeBuilder.IsMaker = false
-			case strings.ToLower(order.Limit.String()):
-				tempResp.Type = order.Limit
-				feeBuilder.IsMaker = true
-			}
-			var fee float64
-			fee, err = f.GetFee(&feeBuilder)
+			orderVars, err := f.compatibleOrderVars(orderData.Result[y].Side,
+				orderData.Result[y].Status,
+				orderData.Result[y].OrderType,
+				orderData.Result[y].FilledSize,
+				orderData.Result[y].Size,
+				orderData.Result[y].AvgFillPrice)
 			if err != nil {
 				return resp, err
 			}
-			tempResp.Fee = fee
+			tempResp.Status = orderVars.Status
+			tempResp.Side = orderVars.Side
+			tempResp.Type = orderVars.OrderType
+			tempResp.Fee = orderVars.Fee
 			resp = append(resp, tempResp)
 		}
 		triggerOrderData, err := f.GetOpenTriggerOrders(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], asset.Spot).String(), getOrdersRequest.Type.String())
@@ -671,44 +619,19 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Price = triggerOrderData.Result[z].AvgFillPrice
 			tempResp.RemainingAmount = triggerOrderData.Result[z].Size - triggerOrderData.Result[z].FilledSize
 			tempResp.TriggerPrice = triggerOrderData.Result[z].TriggerPrice
-			switch triggerOrderData.Result[z].Side {
-			case order.Buy.Lower():
-				tempResp.Side = order.Buy
-			case order.Sell.Lower():
-				tempResp.Side = order.Sell
-			}
-			switch orderData.Result[z].Status {
-			case strings.ToLower(order.New.String()):
-				tempResp.Status = order.New
-			case strings.ToLower(order.Open.String()):
-				tempResp.Status = order.Open
-			case closedStatus:
-				if triggerOrderData.Result[z].FilledSize != 0 && triggerOrderData.Result[z].FilledSize != triggerOrderData.Result[z].Size {
-					tempResp.Status = order.PartiallyCancelled
-				}
-				if triggerOrderData.Result[z].FilledSize == 0 {
-					tempResp.Status = order.Cancelled
-				}
-				if triggerOrderData.Result[z].FilledSize == triggerOrderData.Result[z].Size {
-					tempResp.Status = order.Filled
-				}
-			}
-			var feeBuilder exchange.FeeBuilder
-			feeBuilder.PurchasePrice = triggerOrderData.Result[z].AvgFillPrice
-			feeBuilder.Amount = triggerOrderData.Result[z].Size
-			switch triggerOrderData.Result[z].OrderType {
-			case strings.ToLower(order.Market.String()):
-				tempResp.Type = order.Market
-				feeBuilder.IsMaker = false
-			case strings.ToLower(order.Limit.String()):
-				tempResp.Type = order.Limit
-				feeBuilder.IsMaker = true
-			}
-			fee, err := f.GetFee(&feeBuilder)
+			orderVars, err := f.compatibleOrderVars(triggerOrderData.Result[z].Side,
+				triggerOrderData.Result[z].Status,
+				triggerOrderData.Result[z].OrderType,
+				triggerOrderData.Result[z].FilledSize,
+				triggerOrderData.Result[z].Size,
+				triggerOrderData.Result[z].AvgFillPrice)
 			if err != nil {
 				return resp, err
 			}
-			tempResp.Fee = fee
+			tempResp.Status = orderVars.Status
+			tempResp.Side = orderVars.Side
+			tempResp.Type = orderVars.OrderType
+			tempResp.Fee = orderVars.Fee
 			resp = append(resp, tempResp)
 		}
 	}
@@ -737,45 +660,19 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Pair = currency.NewPairFromString(orderData.Result[y].Market)
 			tempResp.Price = orderData.Result[y].Price
 			tempResp.RemainingAmount = orderData.Result[y].RemainingSize
-			switch orderData.Result[y].Side {
-			case order.Buy.Lower():
-				tempResp.Side = order.Buy
-			case order.Sell.Lower():
-				tempResp.Side = order.Sell
-			}
-			switch orderData.Result[y].Status {
-			case strings.ToLower(order.New.String()):
-				tempResp.Status = order.New
-			case strings.ToLower(order.Open.String()):
-				tempResp.Status = order.Open
-			case closedStatus:
-				if orderData.Result[y].FilledSize != 0 && orderData.Result[y].FilledSize != orderData.Result[y].Size {
-					tempResp.Status = order.PartiallyCancelled
-				}
-				if orderData.Result[y].FilledSize == 0 {
-					tempResp.Status = order.Cancelled
-				}
-				if orderData.Result[y].FilledSize == orderData.Result[y].Size {
-					tempResp.Status = order.Filled
-				}
-			}
-			var feeBuilder exchange.FeeBuilder
-			feeBuilder.PurchasePrice = orderData.Result[y].Price
-			feeBuilder.Amount = orderData.Result[y].Size
-			switch orderData.Result[y].OrderType {
-			case strings.ToLower(order.Market.String()):
-				tempResp.Type = order.Market
-				feeBuilder.IsMaker = false
-			case strings.ToLower(order.Limit.String()):
-				tempResp.Type = order.Limit
-				feeBuilder.IsMaker = true
-			}
-			var fee float64
-			fee, err = f.GetFee(&feeBuilder)
+			orderVars, err := f.compatibleOrderVars(orderData.Result[y].Side,
+				orderData.Result[y].Status,
+				orderData.Result[y].OrderType,
+				orderData.Result[y].FilledSize,
+				orderData.Result[y].Size,
+				orderData.Result[y].AvgFillPrice)
 			if err != nil {
 				return resp, err
 			}
-			tempResp.Fee = fee
+			tempResp.Status = orderVars.Status
+			tempResp.Side = orderVars.Side
+			tempResp.Type = orderVars.OrderType
+			tempResp.Fee = orderVars.Fee
 			resp = append(resp, tempResp)
 		}
 		triggerOrderData, err := f.GetTriggerOrderHistory(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], asset.Spot).String(),
@@ -794,41 +691,19 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Price = triggerOrderData.Result[z].AvgFillPrice
 			tempResp.RemainingAmount = triggerOrderData.Result[z].Size - triggerOrderData.Result[z].FilledSize
 			tempResp.TriggerPrice = triggerOrderData.Result[z].TriggerPrice
-			switch triggerOrderData.Result[z].Side {
-			case order.Buy.Lower():
-				tempResp.Side = order.Buy
-			case order.Sell.Lower():
-				tempResp.Side = order.Sell
-			}
-			switch orderData.Result[z].Status {
-			case strings.ToLower(order.New.String()):
-				tempResp.Status = order.New
-			case strings.ToLower(order.Open.String()):
-				tempResp.Status = order.Open
-			case closedStatus:
-				if triggerOrderData.Result[z].FilledSize != 0 && triggerOrderData.Result[z].FilledSize != triggerOrderData.Result[z].Size {
-					tempResp.Status = order.PartiallyCancelled
-				}
-				if triggerOrderData.Result[z].FilledSize == 0 {
-					tempResp.Status = order.Cancelled
-				}
-				if triggerOrderData.Result[z].FilledSize == triggerOrderData.Result[z].Size {
-					tempResp.Status = order.Filled
-				}
-			}
-			var feeBuilder exchange.FeeBuilder
-			feeBuilder.PurchasePrice = triggerOrderData.Result[z].AvgFillPrice
-			feeBuilder.Amount = triggerOrderData.Result[z].Size
-			tempResp.Type = order.Market
-			if triggerOrderData.Result[z].OrderType == strings.ToLower(order.Limit.String()) {
-				tempResp.Type = order.Limit
-				feeBuilder.IsMaker = true
-			}
-			fee, err := f.GetFee(&feeBuilder)
+			orderVars, err := f.compatibleOrderVars(triggerOrderData.Result[z].Side,
+				triggerOrderData.Result[z].Status,
+				triggerOrderData.Result[z].OrderType,
+				triggerOrderData.Result[z].FilledSize,
+				triggerOrderData.Result[z].Size,
+				triggerOrderData.Result[z].AvgFillPrice)
 			if err != nil {
 				return resp, err
 			}
-			tempResp.Fee = fee
+			tempResp.Status = orderVars.Status
+			tempResp.Side = orderVars.Side
+			tempResp.Type = orderVars.OrderType
+			tempResp.Fee = orderVars.Fee
 			resp = append(resp, tempResp)
 		}
 	}
