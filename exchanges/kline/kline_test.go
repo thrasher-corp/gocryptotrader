@@ -1,6 +1,7 @@
 package kline
 
 import (
+	"fmt"
 	"math/rand"
 	"strings"
 	"testing"
@@ -233,5 +234,28 @@ func TestKlineErrors(t *testing.T) {
 
 	if v.Unwrap().Error() != "8760h0m0s interval unsupported by exchange" {
 		t.Fatal("unexpected error returned")
+	}
+}
+
+func TestTotalCandlesPerInterval(t *testing.T) {
+	end := time.Now()
+	start := end.AddDate(-1,0,0)
+
+	v := TotalCandlesPerInterval(start, end , OneYear)
+	t.Log(v)
+
+	v = TotalCandlesPerInterval(end.Add(-1 * time.Hour), end, Fifteenday)
+	t.Log(v)
+}
+
+func TestCalcDateRanges(t *testing.T) {
+	end := time.Now()
+	start := end.AddDate(-1,0,0)
+
+	v := CalcDateRanges(start, end, OneDay, 300)
+	for x := range v {
+		for y := range v[x] {
+			fmt.Println(v[x][y].start, v[x][y].end)
+		}
 	}
 }

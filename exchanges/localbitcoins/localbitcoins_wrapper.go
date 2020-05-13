@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -289,29 +288,7 @@ func (l *LocalBitcoins) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (l *LocalBitcoins) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
-	v := url.Values{}
-	if req.TradeID != "" {
-		v.Set("since", req.TradeID)
-	}
-
-	fPair := l.FormatExchangeCurrency(req.Pair, req.Asset)
-	t, err := l.GetTrades(fPair.String(), v)
-	if err != nil {
-		return nil, err
-	}
-
-	var resp []trade.History
-	for i := range t {
-		resp = append(resp, trade.History{
-			Timestamp: time.Unix(t[i].Date, 0),
-			TID:       strconv.FormatInt(t[i].TID, 10),
-			Price:     t[i].Price,
-			Amount:    t[i].Amount,
-			Exchange:  l.GetName(),
-			Type:      "Trading Type - Not Specified",
-		})
-	}
-	return resp, nil
+	return nil, nil
 }
 
 // SubmitOrder submits a new order
@@ -624,5 +601,15 @@ func (l *LocalBitcoins) ValidateCredentials() error {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (l *LocalBitcoins) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	return kline.Item{}, common.ErrFunctionNotSupported
+}
+
+// GetHistoricCandlesEx returns candles between a time period for a set time interval
+func (l *LocalBitcoins) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !l.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
 	return kline.Item{}, common.ErrFunctionNotSupported
 }

@@ -396,3 +396,8 @@ func (b *Bitflyer) ValidateCredentials() error {
 func (b *Bitflyer) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrFunctionNotSupported
 }
+
+// GetHistoricCandlesEx returns candles between a time period for a set time interval
+func (b *Bitflyer) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	return kline.Item{}, common.ErrFunctionNotSupported
+}

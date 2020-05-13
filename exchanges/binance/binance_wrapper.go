@@ -2,6 +2,7 @@ package binance
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -134,7 +135,9 @@ func (b *Binance) SetDefaults() {
 					kline.OneDay.Word():     true,
 					kline.ThreeDay.Word():   true,
 					kline.OneWeek.Word():    true,
+					kline.OneMonth.Word():   true,
 				},
+				Limit: 1000,
 			},
 		},
 	}
@@ -444,8 +447,7 @@ func (b *Binance) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History
 	formattedPair := b.FormatExchangeCurrency(req.Pair, req.Asset)
 	// Aggregated trades has compression when trades are executed at the same
 	// time thus reducing request data.
-	trades, err := b.GetAggregatedTrades(formattedPair.String(),
-		1000,
+	trades, err := b.getAggregatedTradesEx(formattedPair.String(),
 		req.TimestampStart,
 		timestampEnd)
 	if err != nil {
@@ -731,6 +733,9 @@ func (b *Binance) FormatExchangeKlineInterval(in kline.Interval) string {
 	if in == kline.OneDay {
 		return "1d"
 	}
+	if in == kline.OneMonth {
+		return "1M"
+	}
 	return in.Short()
 }
 
@@ -742,16 +747,12 @@ func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 		}
 	}
 
-	klineParams := KlinesRequestParams{
+	req := KlinesRequestParams{
 		Interval:  b.FormatExchangeKlineInterval(interval),
 		Symbol:    b.FormatExchangeCurrency(pair, a).String(),
 		StartTime: start.Unix() * 1000,
 		EndTime:   end.Unix() * 1000,
-	}
-
-	candles, err := b.GetSpotKline(klineParams)
-	if err != nil {
-		return kline.Item{}, err
+		Limit:     1000,
 	}
 
 	ret := kline.Item{
@@ -759,6 +760,11 @@ func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 		Pair:     pair,
 		Asset:    a,
 		Interval: interval,
+	}
+
+	candles, err := b.GetSpotKline(req)
+	if err != nil {
+		return kline.Item{}, err
 	}
 
 	for x := range candles {
@@ -771,5 +777,58 @@ func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 			Volume: candles[x].Volume,
 		})
 	}
+
+	return ret, nil
+}
+
+// GetHistoricCandlesEx returns candles between a time period for a set time interval
+func (b *Binance) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !b.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	//var totalKlineRequests []KlinesRequestParams
+	totalCandles := kline.TotalCandlesPerInterval(start, end, interval) / b.Features.Enabled.KlineCapabilities.Limit
+
+	for x := 0; x < int(totalCandles); x++ {
+		nextStart := kline.CalcDateRanges(start, end, interval)
+
+		fmt.Println(nextStart)
+		// totalKlineRequests = append(totalKlineRequests, KlinesRequestParams{
+		// 	Interval:  b.FormatExchangeKlineInterval(interval),
+		// 	Symbol:    b.FormatExchangeCurrency(pair, a).String(),
+		// 	StartTime: nextStart.Unix() * 1000//start.Unix() * 1000,
+		// 	EndTime:   nextEnd.Unix() * 1000//end.Unix() * 1000,
+		// 	Limit:     1000,
+		// })
+
+		fmt.Println(x)
+	}
+	ret := kline.Item{
+		Exchange: b.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+	//
+	// for x := range totalKlineRequests {
+	// 	candles, err := b.GetSpotKline(totalKlineRequests[x])
+	// 	if err != nil {
+	// 		return kline.Item{}, err
+	// 	}
+	//
+	// 	for x := range candles {
+	// 		ret.Candles = append(ret.Candles, kline.Candle{
+	// 			Time:   candles[x].OpenTime,
+	// 			Open:   candles[x].Open,
+	// 			High:   candles[x].Close,
+	// 			Low:    candles[x].Low,
+	// 			Close:  candles[x].Close,
+	// 			Volume: candles[x].Volume,
+	// 		})
+	// 	}
+	// }
 	return ret, nil
 }

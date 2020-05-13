@@ -782,3 +782,13 @@ func (l *Lbank) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end 
 
 	return ret, nil
 }
+
+// GetHistoricCandlesEx returns candles between a time period for a set time interval
+func (l *Lbank) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !l.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+	return kline.Item{}, common.ErrNotYetImplemented
+}

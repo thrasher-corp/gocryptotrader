@@ -116,6 +116,7 @@ func (c *CoinbasePro) SetDefaults() {
 			KlineCapabilities: kline.ExchangeCapabilities{
 				SupportsDateRange: true,
 				SupportsIntervals: true,
+				Limit:             300,
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -769,6 +770,16 @@ func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, e
 	}
 
 	return candles, nil
+}
+
+// GetHistoricCandlesEx returns candles between a time period for a set time interval
+func (c *CoinbasePro) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !c.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+	return kline.Item{}, common.ErrNotYetImplemented
 }
 
 // ValidateCredentials validates current credentials used for wrapper

@@ -449,34 +449,7 @@ func (b *Bitfinex) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (b *Bitfinex) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
-	var resp []trade.History
-	// needs to be reworked
-	// if req.TimestampStart.Unix() == 0 {
-	// 	req.TimestampStart = time.Now().AddDate(0, -3, 0)
-	// }
-	// timeStampEnd := req.TimestampStart.Add(1 * time.Hour)
-	//
-	// trades, err := b.GetTrades("t"+b.FormatExchangeCurrency(req.Pair, req.Asset).String(),
-	// 	5000,
-	// 	convert.UnixMillis(req.TimestampStart),
-	// 	convert.UnixMillis(timeStampEnd),
-	// 	false)
-	// if err != nil {
-	// 	return resp, err
-	// }
-	//
-	// for i := range trades {
-	// 	resp = append(resp, trade.History{
-	// 		Timestamp: time.Unix(0, convert.UnixMillisToNano(trades[i].Timestamp)),
-	// 		TID:       strconv.FormatInt(trades[i].TID, 10),
-	// 		Price:     trades[i].Price,
-	// 		Amount:    trades[i].Amount,
-	// 		Exchange:  b.Name,
-	// 		Side:      trades[i].Side,
-	// 		Asset:     req.Asset,
-	// 	})
-	// }
-	return resp, nil
+	return nil, nil
 }
 
 // SubmitOrder submits a new order
@@ -875,4 +848,14 @@ func fixCasing(in currency.Pair) string {
 		runes[0] = unicode.ToLower(runes[0])
 	}
 	return string(runes)
+}
+
+// GetHistoricCandlesEx returns candles between a time period for a set time interval
+func (b *Bitfinex) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !b.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+	return kline.Item{}, common.ErrNotYetImplemented
 }

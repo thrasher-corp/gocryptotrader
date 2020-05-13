@@ -338,25 +338,7 @@ func (l *LakeBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (l *LakeBTC) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
-	var resp []trade.History
-	fPair := l.FormatExchangeCurrency(req.Pair, req.Asset)
-	t, err := l.GetTradeHistory(fPair.String(), req.TimestampStart.Unix())
-	if err != nil {
-		return resp, err
-	}
-
-	for i := range t {
-		orderID := strconv.FormatInt(t[i].TID, 10)
-		resp = append(resp, trade.History{
-			Timestamp: time.Unix(t[i].Date, 0),
-			TID:       orderID,
-			Price:     t[i].Price,
-			Amount:    t[i].Amount,
-			Exchange:  l.Name,
-		})
-	}
-
-	return resp, nil
+	return nil, nil
 }
 
 // SubmitOrder submits a new order
@@ -580,5 +562,15 @@ func (l *LakeBTC) ValidateCredentials() error {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (l *LakeBTC) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	return kline.Item{}, common.ErrNotYetImplemented
+}
+
+// GetHistoricCandlesEx returns candles between a time period for a set time interval
+func (l *LakeBTC) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !l.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
 	return kline.Item{}, common.ErrNotYetImplemented
 }

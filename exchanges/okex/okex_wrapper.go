@@ -506,3 +506,13 @@ func (o *OKEX) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end t
 	}
 	return ret, nil
 }
+
+// GetHistoricCandlesEx returns candles between a time period for a set time interval
+func (o *OKEX) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !o.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+	return kline.Item{}, common.ErrNotYetImplemented
+}

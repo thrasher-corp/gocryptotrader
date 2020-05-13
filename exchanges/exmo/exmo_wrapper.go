@@ -336,33 +336,7 @@ func (e *EXMO) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (e *EXMO) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
-	var resp []trade.History
-	tradesMap, err := e.GetTrades(e.FormatExchangeCurrency(req.Pair, req.Asset).String())
-	if err != nil {
-		return resp, err
-	}
-
-	t, ok := tradesMap[req.Pair.String()]
-	if !ok {
-		return resp, errors.New("could not find data in tradesMap")
-	}
-
-	for i := range t {
-		side := order.Sell
-		if t[i].Type != "sell" {
-			side = order.Buy
-		}
-
-		resp = append(resp, trade.History{
-			Timestamp: time.Unix(t[i].Date, 0),
-			TID:       strconv.FormatInt(t[i].TradeID, 10),
-			Price:     t[i].Price,
-			Amount:    t[i].Quantity,
-			Exchange:  e.GetName(),
-			Side:      side,
-		})
-	}
-	return resp, nil
+	return nil, nil
 }
 
 // SubmitOrder submits a new order
@@ -597,5 +571,15 @@ func (e *EXMO) ValidateCredentials() error {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (e *EXMO) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+	return kline.Item{}, common.ErrFunctionNotSupported
+}
+
+// GetHistoricCandlesEx returns candles between a time period for a set time interval
+func (e *EXMO) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !e.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+	return kline.Item{}, common.ErrFunctionNotSupported
 }

@@ -3,7 +3,6 @@ package btcmarkets
 import (
 	"errors"
 	"fmt"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -385,36 +384,7 @@ func (b *BTCMarkets) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (b *BTCMarkets) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
-	var resp []trade.History
-	v := url.Values{}
-	if req.TradeID != "" {
-		v.Set("since", req.TradeID)
-	}
-
-	t, err := b.GetTrades(req.Pair.String(), 0, req.TimestampStart.Unix(), 5000)
-	if err != nil {
-		return resp, err
-	}
-
-	if len(t) == 0 {
-		return resp, errors.New("no history returned")
-	}
-
-	for i := range t {
-		side := order.Buy
-		if t[i].Side == "Ask" {
-			side = order.Sell
-		}
-		resp = append(resp, trade.History{
-			Amount:    t[i].Amount,
-			Exchange:  b.Name,
-			Price:     t[i].Price,
-			TID:       t[i].TradeID,
-			Timestamp: t[i].Timestamp,
-			Side:      side,
-		})
-	}
-	return resp, nil
+	return nil, nil
 }
 
 // SubmitOrder submits a new order
@@ -789,4 +759,14 @@ func (b *BTCMarkets) ValidateCredentials() error {
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *BTCMarkets) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return b.GetMarketCandles(pair.String(), interval, start, end, -1, -1, 0)
+}
+
+// GetHistoricCandlesEx returns candles between a time period for a set time interval
+func (b *BTCMarkets) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !b.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+	return kline.Item{}, common.ErrNotYetImplemented
 }

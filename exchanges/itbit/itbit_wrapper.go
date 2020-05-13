@@ -307,31 +307,7 @@ func (i *ItBit) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (i *ItBit) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
-	var resp []trade.History
-
-	trades, err := i.GetTradeHistory(i.FormatExchangeCurrency(req.Pair, req.Asset).String(),
-		req.TradeID)
-	if err != nil {
-		return resp, err
-	}
-
-	for x := range trades.RecentTrades {
-		t, err := time.Parse(time.RFC3339, trades.RecentTrades[x].Timestamp)
-		if err != nil {
-			return resp, err
-		}
-
-		resp = append(resp, trade.History{
-			Timestamp: t,
-			TID:       trades.RecentTrades[x].MatchNumber,
-			Price:     trades.RecentTrades[x].Price,
-			Amount:    trades.RecentTrades[x].Amount,
-			Exchange:  i.Name,
-			Asset:     req.Asset,
-		})
-	}
-
-	return resp, nil
+	return nil, nil
 }
 
 // SubmitOrder submits a new order
@@ -597,5 +573,15 @@ func (i *ItBit) ValidateCredentials() error {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (i *ItBit) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+	return kline.Item{}, common.ErrFunctionNotSupported
+}
+
+// GetHistoricCandlesEx returns candles between a time period for a set time interval
+func (i *ItBit) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !i.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+	return kline.Item{}, common.ErrFunctionNotSupported
 }

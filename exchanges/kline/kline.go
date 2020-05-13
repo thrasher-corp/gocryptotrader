@@ -204,3 +204,77 @@ func DurationToWord(in Interval) string {
 		return "notfound"
 	}
 }
+
+func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out uint32) {
+	switch interval {
+	case OneMin:
+		out = uint32(end.Sub(start).Minutes())
+	case ThreeMin:
+		out = uint32(end.Sub(start).Minutes() / 3)
+	case FiveMin:
+		out = uint32(end.Sub(start).Minutes() / 5)
+	case TenMin:
+		out = uint32(end.Sub(start).Minutes() / 10)
+	case FifteenMin:
+		out = uint32(end.Sub(start).Minutes() / 15)
+	case ThirtyMin:
+		out = uint32(end.Sub(start).Minutes() / 30)
+	case OneHour:
+		out = uint32(end.Sub(start).Hours())
+	case TwoHour:
+		out = uint32(end.Sub(start).Hours() / 2)
+	case FourHour:
+		out = uint32(end.Sub(start).Hours() / 4)
+	case SixHour:
+		out = uint32(end.Sub(start).Hours() / 6)
+	case EightHour:
+		out = uint32(end.Sub(start).Hours() / 8)
+	case TwelveHour:
+		out = uint32(end.Sub(start).Hours()  / 12)
+	case OneDay:
+		out = uint32(end.Sub(start).Hours() / 24)
+	case ThreeDay:
+		out = uint32(end.Sub(start).Hours() / 72)
+	case Fifteenday:
+		out = uint32(end.Sub(start).Hours() / (24*15))
+	case OneWeek:
+		out = uint32(end.Sub(start).Hours()) / (24*7)
+	case TwoWeek:
+		out = uint32(end.Sub(start).Hours() / (24*14))
+	case OneMonth:
+		// out = uint32(end.Sub(start).Minutes() / (24*))
+	case OneYear:
+		out = uint32(end.Sub(start).Hours() / 8760)
+	}
+	return
+}
+
+type DateRange struct {
+	start time.Time
+	end   time.Time
+}
+
+/*
+	var stringSlice []string
+	sliceSlice := make([][]string, 0, len(in)/int(limit)+1)
+	for len(in) >= int(limit) {
+		stringSlice, in = in[:limit], in[limit:]
+		sliceSlice = append(sliceSlice, stringSlice)
+	}
+	if len(in) > 0 {
+		sliceSlice = append(sliceSlice, in)
+	}
+	return sliceSlice
+ */
+
+func CalcDateRanges(start, end time.Time, interval Interval, limit uint32) (out [][]DateRange) {
+	total := TotalCandlesPerInterval(start, end, interval)
+	for d := start; d.After(end) == false; d = d.Add(interval.Duration()) {
+		for x := 0 ; x < int(total); x++ {
+			fmt.Println(x)
+		}
+		fmt.Println(d.Format(time.RFC3339))
+	}
+
+	return out
+}
