@@ -184,7 +184,9 @@ func (w *Websocket) Connect() error {
 
 	go w.dataMonitor()
 
-	if w.features.Subscribe || w.features.Unsubscribe {
+	if w.features.Subscribe ||
+		w.features.Unsubscribe ||
+		w.features.FullPayloadSubscribe {
 		w.Wg.Add(1)
 		go w.manageSubscriptions()
 	}
@@ -419,6 +421,16 @@ func (w *Websocket) RefreshConnection() error {
 			}
 			return nil
 		}
+	} else if w.features.FullPayloadSubscribe {
+		newsubs, err := w.channelGeneratesubs()
+		if err != nil {
+			return err
+		}
+
+		if len(newsubs) != 0 {
+			w.SubscribeToChannels(newsubs)
+		}
+		return nil
 	}
 
 	fmt.Println("feature subscribe and unsubscribe not enabled for exchange closing connection")

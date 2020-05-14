@@ -64,7 +64,8 @@ func (g *Gateio) WsConnect() error {
 
 func (g *Gateio) wsServerSignIn() (*WebsocketAuthenticationResponse, error) {
 	if !g.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		return nil, fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", g.Name)
+		return nil,
+			fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", g.Name)
 	}
 	nonce := int(time.Now().Unix() * 1000)
 	sigTemp := g.GenerateSignature(strconv.Itoa(nonce))
@@ -74,7 +75,8 @@ func (g *Gateio) wsServerSignIn() (*WebsocketAuthenticationResponse, error) {
 		Method: "server.sign",
 		Params: []interface{}{g.API.Credentials.Key, signature, nonce},
 	}
-	resp, err := g.Websocket.Conn.SendMessageReturnResponse(signinWsRequest.ID, signinWsRequest)
+	resp, err := g.Websocket.Conn.SendMessageReturnResponse(signinWsRequest.ID,
+		signinWsRequest)
 	if err != nil {
 		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return nil, err
@@ -434,13 +436,15 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			Volume:     volume,
 		}
 	default:
-		g.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: g.Name + stream.UnhandledMessage + string(respRaw)}
+		g.Websocket.DataHandler <- stream.UnhandledMessageWarning{
+			Message: g.Name + stream.UnhandledMessage + string(respRaw),
+		}
 		return nil
 	}
 	return nil
 }
 
-// GenerateAuthenticatedSubscriptions Adds authenticated subscriptions to websocket to be handled by ManageSubscriptions()
+// GenerateAuthenticatedSubscriptions returns authenticated subscriptions
 func (g *Gateio) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscription, error) {
 	if !g.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, nil
@@ -462,7 +466,7 @@ func (g *Gateio) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscript
 	return subscriptions, nil
 }
 
-// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+// GenerateDefaultSubscriptions returns default subscriptions
 func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var channels = []string{"ticker.subscribe",
 		"trades.subscribe",
