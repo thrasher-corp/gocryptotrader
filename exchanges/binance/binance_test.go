@@ -812,7 +812,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	startTime := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 	b.Verbose = true
-	_, err := b.GetHistoricCandles(currencyPair, asset.Spot, startTime, end, kline.OneMin)
+	_, err := b.GetHistoricCandles(currencyPair, asset.Spot, startTime, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}

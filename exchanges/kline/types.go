@@ -36,6 +36,8 @@ const (
 // ErrUnsupportedInterval loacle for an unsupported interval
 const ErrUnsupportedInterval = "%s interval unsupported by exchange"
 
+const ErrRequestExceedsExchangeLimits = "requested data would exceed exchange limits please lower range or use GetHistoricCandlesEx"
+
 // Item holds all the relevant information for internal kline elements
 type Item struct {
 	Exchange string

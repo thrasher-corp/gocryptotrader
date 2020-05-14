@@ -239,23 +239,21 @@ func TestKlineErrors(t *testing.T) {
 
 func TestTotalCandlesPerInterval(t *testing.T) {
 	end := time.Now()
-	start := end.AddDate(-1,0,0)
+	start := end.AddDate(-1, 0, 0)
 
-	v := TotalCandlesPerInterval(start, end , OneYear)
+	v := TotalCandlesPerInterval(start, end, OneYear)
 	t.Log(v)
 
-	v = TotalCandlesPerInterval(end.Add(-1 * time.Hour), end, Fifteenday)
+	v = TotalCandlesPerInterval(end.Add(-1*time.Hour), end, Fifteenday)
 	t.Log(v)
 }
 
 func TestCalcDateRanges(t *testing.T) {
-	end := time.Now()
-	start := end.AddDate(-1,0,0)
+	start := time.Unix(1546300800, 0)
+	end := time.Unix(1577836799, 0)
 
-	v := CalcDateRanges(start, end, OneDay, 300)
+	v := CalcDateRanges(start, end, OneMin, 300)
 	for x := range v {
-		for y := range v[x] {
-			fmt.Println(v[x][y].start, v[x][y].end)
-		}
+		fmt.Println(v[x].Start, " | ", v[x].End)
 	}
 }

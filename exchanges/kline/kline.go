@@ -230,51 +230,68 @@ func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out uint3
 	case EightHour:
 		out = uint32(end.Sub(start).Hours() / 8)
 	case TwelveHour:
-		out = uint32(end.Sub(start).Hours()  / 12)
+		out = uint32(end.Sub(start).Hours() / 12)
 	case OneDay:
 		out = uint32(end.Sub(start).Hours() / 24)
 	case ThreeDay:
 		out = uint32(end.Sub(start).Hours() / 72)
 	case Fifteenday:
-		out = uint32(end.Sub(start).Hours() / (24*15))
+		out = uint32(end.Sub(start).Hours() / (24 * 15))
 	case OneWeek:
-		out = uint32(end.Sub(start).Hours()) / (24*7)
+		out = uint32(end.Sub(start).Hours()) / (24 * 7)
 	case TwoWeek:
-		out = uint32(end.Sub(start).Hours() / (24*14))
+		out = uint32(end.Sub(start).Hours() / (24 * 14))
 	case OneMonth:
-		// out = uint32(end.Sub(start).Minutes() / (24*))
+		// out = uint32(end.Sub(start).Minutes / (24*))
 	case OneYear:
 		out = uint32(end.Sub(start).Hours() / 8760)
 	}
-	return
+	return out
 }
 
 type DateRange struct {
-	start time.Time
-	end   time.Time
+	Start time.Time
+	End   time.Time
 }
 
-/*
-	var stringSlice []string
-	sliceSlice := make([][]string, 0, len(in)/int(limit)+1)
-	for len(in) >= int(limit) {
-		stringSlice, in = in[:limit], in[limit:]
-		sliceSlice = append(sliceSlice, stringSlice)
-	}
-	if len(in) > 0 {
-		sliceSlice = append(sliceSlice, in)
-	}
-	return sliceSlice
- */
-
-func CalcDateRanges(start, end time.Time, interval Interval, limit uint32) (out [][]DateRange) {
+func CalcDateRanges(start, end time.Time, interval Interval, limit uint32) (out []DateRange) {
 	total := TotalCandlesPerInterval(start, end, interval)
-	for d := start; d.After(end) == false; d = d.Add(interval.Duration()) {
-		for x := 0 ; x < int(total); x++ {
-			fmt.Println(x)
+	if total < limit {
+		return []DateRange{{
+			Start: start,
+			End:   end,
+		},
 		}
-		fmt.Println(d.Format(time.RFC3339))
 	}
-
+	var allDateIntervals []time.Time
+	var y uint32
+	var lastNum int
+	for d := start; !d.After(end); d = d.Add(interval.Duration()) {
+		allDateIntervals = append(allDateIntervals, d)
+	}
+	for x := range allDateIntervals {
+		if y == limit {
+			out = append(out, DateRange{
+				allDateIntervals[x-int(limit)],
+				allDateIntervals[x],
+			})
+			y = 0
+			lastNum = x
+		}
+		y++
+	}
+	if allDateIntervals != nil {
+		out = append(out, DateRange{
+			Start: allDateIntervals[lastNum+1],
+			End:   allDateIntervals[len(allDateIntervals)-1],
+		})
+	}
 	return out
+}
+
+func SortCandlesByTimestamp(in *Item) *Item {
+	sort.Slice(in.Candles, func(i, j int) bool {
+		return in.Candles[i].Time.Before(in.Candles[j].Time)
+	})
+	return in
 }

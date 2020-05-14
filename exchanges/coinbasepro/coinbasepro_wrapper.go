@@ -130,6 +130,7 @@ func (c *CoinbasePro) SetDefaults() {
 					kline.SixHour.Word():    true,
 					kline.OneDay.Word():     true,
 				},
+				Limit: 300,
 			},
 		},
 	}
@@ -743,6 +744,10 @@ func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, e
 		}
 	}
 
+	if kline.TotalCandlesPerInterval(start, end, interval) > c.Features.Enabled.KlineCapabilities.Limit {
+		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
+	}
+
 	candles := kline.Item{
 		Exchange: c.Name,
 		Pair:     p,
@@ -773,13 +778,43 @@ func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, e
 }
 
 // GetHistoricCandlesEx returns candles between a time period for a set time interval
-func (c *CoinbasePro) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (c *CoinbasePro) GetHistoricCandlesEx(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if !c.KlineIntervalEnabled(interval) {
 		return kline.Item{}, kline.ErrorKline{
 			Interval: interval,
 		}
 	}
-	return kline.Item{}, common.ErrNotYetImplemented
+
+	ret := kline.Item{
+		Exchange: c.Name,
+		Pair:     p,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	dates := kline.CalcDateRanges(start, end, interval, c.Features.Enabled.KlineCapabilities.Limit)
+	for x := range dates {
+		history, err := c.GetHistoricRates(c.FormatExchangeCurrency(p, a).String(),
+			dates[x].Start.Format(time.RFC3339),
+			dates[x].End.Format(time.RFC3339),
+			int64(interval.Duration().Seconds()))
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		for x := range history {
+			ret.Candles = append(ret.Candles, kline.Candle{
+				Time:   time.Unix(history[x].Time, 0),
+				Low:    history[x].Low,
+				High:   history[x].High,
+				Open:   history[x].Open,
+				Close:  history[x].Close,
+				Volume: history[x].Volume,
+			})
+		}
+	}
+	ret = *kline.SortCandlesByTimestamp(&ret)
+	return ret, nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper

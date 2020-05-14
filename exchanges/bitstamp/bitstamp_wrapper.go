@@ -391,7 +391,7 @@ func (b *Bitstamp) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.Histor
 			Price:     trans[i].Price,
 			Amount:    trans[i].Amount,
 			Exchange:  b.Name,
-			Side:      order.StringToOrderSide(trans[i].Type),
+			Side:      side,
 		})
 	}
 	return resp, nil

@@ -2,7 +2,6 @@ package binance
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -789,46 +788,40 @@ func (b *Binance) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, 
 		}
 	}
 
-	//var totalKlineRequests []KlinesRequestParams
-	totalCandles := kline.TotalCandlesPerInterval(start, end, interval) / b.Features.Enabled.KlineCapabilities.Limit
-
-	for x := 0; x < int(totalCandles); x++ {
-		nextStart := kline.CalcDateRanges(start, end, interval)
-
-		fmt.Println(nextStart)
-		// totalKlineRequests = append(totalKlineRequests, KlinesRequestParams{
-		// 	Interval:  b.FormatExchangeKlineInterval(interval),
-		// 	Symbol:    b.FormatExchangeCurrency(pair, a).String(),
-		// 	StartTime: nextStart.Unix() * 1000//start.Unix() * 1000,
-		// 	EndTime:   nextEnd.Unix() * 1000//end.Unix() * 1000,
-		// 	Limit:     1000,
-		// })
-
-		fmt.Println(x)
-	}
 	ret := kline.Item{
 		Exchange: b.Name,
 		Pair:     pair,
 		Asset:    a,
 		Interval: interval,
 	}
-	//
-	// for x := range totalKlineRequests {
-	// 	candles, err := b.GetSpotKline(totalKlineRequests[x])
-	// 	if err != nil {
-	// 		return kline.Item{}, err
-	// 	}
-	//
-	// 	for x := range candles {
-	// 		ret.Candles = append(ret.Candles, kline.Candle{
-	// 			Time:   candles[x].OpenTime,
-	// 			Open:   candles[x].Open,
-	// 			High:   candles[x].Close,
-	// 			Low:    candles[x].Low,
-	// 			Close:  candles[x].Close,
-	// 			Volume: candles[x].Volume,
-	// 		})
-	// 	}
-	// }
+
+	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.KlineCapabilities.Limit)
+	for x := range dates {
+		req := KlinesRequestParams{
+			Interval:  b.FormatExchangeKlineInterval(interval),
+			Symbol:    b.FormatExchangeCurrency(pair, a).String(),
+			StartTime: dates[x].Start.UTC().Unix() * 1000,
+			EndTime:   dates[x].End.UTC().Unix() * 1000,
+			Limit:     1000,
+		}
+
+		candles, err := b.GetSpotKline(req)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		for x := range candles {
+			ret.Candles = append(ret.Candles, kline.Candle{
+				Time:   candles[x].OpenTime,
+				Open:   candles[x].Open,
+				High:   candles[x].Close,
+				Low:    candles[x].Low,
+				Close:  candles[x].Close,
+				Volume: candles[x].Volume,
+			})
+		}
+	}
+
+	ret = *kline.SortCandlesByTimestamp(&ret)
 	return ret, nil
 }

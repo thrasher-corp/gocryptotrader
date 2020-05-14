@@ -606,6 +606,7 @@ message GetHistoricCandlesRequest {
     int64 start = 4;
     int64 end = 5;
     int64 time_interval = 6;
+    bool ex_request = 7;
 }
 
 message GetHistoricCandlesResponse {

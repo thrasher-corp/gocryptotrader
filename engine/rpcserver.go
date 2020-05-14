@@ -1527,22 +1527,34 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHisto
 		return nil, errors.New("Exchange " + req.Exchange + " not found")
 	}
 
-	if !exchange.GetBase().Features.Supports.RESTCapabilities.KlineFetching ||
-		!exchange.GetBase().Features.Supports.WebsocketCapabilities.KlineFetching {
-		return nil, errors.New("retrieving historic candles is not supported by " + req.Exchange)
-	}
-
-	candles, err := exchange.GetHistoricCandles(currency.Pair{
-		Delimiter: req.Pair.Delimiter,
-		Base:      currency.NewCode(req.Pair.Base),
-		Quote:     currency.NewCode(req.Pair.Quote),
-	},
-		asset.Item(req.AssetType),
-		time.Unix(req.Start, 0),
-		time.Unix(req.End, 0),
-		kline.Interval(req.TimeInterval))
-	if err != nil {
-		return nil, err
+	var candles kline.Item
+	var err error
+	if req.ExRequest {
+		candles, err = exchange.GetHistoricCandlesEx(currency.Pair{
+			Delimiter: req.Pair.Delimiter,
+			Base:      currency.NewCode(req.Pair.Base),
+			Quote:     currency.NewCode(req.Pair.Quote),
+		},
+			asset.Item(req.AssetType),
+			time.Unix(req.Start, 0),
+			time.Unix(req.End, 0),
+			kline.Interval(req.TimeInterval))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		candles, err = exchange.GetHistoricCandles(currency.Pair{
+			Delimiter: req.Pair.Delimiter,
+			Base:      currency.NewCode(req.Pair.Base),
+			Quote:     currency.NewCode(req.Pair.Quote),
+		},
+			asset.Item(req.AssetType),
+			time.Unix(req.Start, 0),
+			time.Unix(req.End, 0),
+			kline.Interval(req.TimeInterval))
+		if err != nil {
+			return nil, err
+		}
 	}
 	resp := gctrpc.GetHistoricCandlesResponse{}
 	for i := range candles.Candles {

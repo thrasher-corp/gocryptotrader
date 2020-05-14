@@ -80,9 +80,21 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetHistoricRatesGranularityCheck(t *testing.T) {
 	end := time.Now()
-	start := end.Add(-time.Hour * 24)
+	start := end.Add(-time.Hour * 2)
 	p := currency.NewPair(currency.BTC, currency.USD)
 	_, err := c.GetHistoricCandles(p, asset.Spot, start, end, kline.OneHour)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCoinbasePro_GetHistoricCandlesEx(t *testing.T) {
+	start := time.Unix(1546300800, 0)
+	end := time.Unix(1577836799, 0)
+
+	c.Verbose = true
+	p := currency.NewPair(currency.BTC, currency.USD)
+	_, err := c.GetHistoricCandlesEx(p, asset.Spot, start, end, kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -924,18 +936,4 @@ func TestStatusToStandardStatus(t *testing.T) {
 			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
 		}
 	}
-}
-
-func TestCalcTotalCandles(t *testing.T) {
-	start := time.Unix(1577836800, 0)
-	end := time.Unix(1577923200, 0)
-
-	ret := calcTotalCandles(start, end, kline.OneHour)
-	t.Log(ret)
-
-	startJan := time.Unix(1546300800, 0)
-	endDec := time.Unix(1577836799, 0)
-
-	ret = calcTotalCandles(startJan, endDec, kline.OneHour)
-	t.Log(ret)
 }
