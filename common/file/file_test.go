@@ -125,3 +125,63 @@ func TestExists(t *testing.T) {
 		t.Errorf("unable to remove %s, manual deletion is required", tmpFile)
 	}
 }
+
+func TestWriteAsCSV(t *testing.T) {
+	tester := func(in string, data [][]string) error {
+		err := WriteAsCSV(in, data)
+		if err != nil {
+			return err
+		}
+		return os.Remove(in)
+	}
+
+	type testTable struct {
+		InFile      string
+		Payload     [][]string
+		ErrExpected bool
+	}
+
+	records := [][]string{
+		{"title", "first_name", "last_name"},
+		{"King", "Robert", "Baratheon"},
+		{"Lord Regent of the Seven Kingdoms", "Eddard", "Stark"},
+		{"Lord of Baelish Castle", "Petyr", "Baelish"},
+	}
+
+	missAligned := [][]string{
+		{"first_name", "last_name", "username"},
+		{"Sup", "bra"},
+	}
+
+	testFile, err := ioutil.TempFile(os.TempDir(), "gct-csv-test.*.csv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	testFile.Close()
+	defer os.Remove(testFile.Name())
+
+	tests := []testTable{
+		{InFile: testFile.Name(), Payload: nil, ErrExpected: true},
+		{InFile: testFile.Name(), Payload: records, ErrExpected: false},
+		{InFile: testFile.Name(), Payload: missAligned, ErrExpected: true},
+	}
+	switch runtime.GOOS {
+	case "windows":
+		tests = append(tests,
+			testTable{InFile: "*", Payload: [][]string{}, ErrExpected: true},
+			testTable{InFile: "*", Payload: nil, ErrExpected: true},
+		)
+	default:
+		tests = append(tests,
+			testTable{InFile: "", Payload: [][]string{}, ErrExpected: true},
+			testTable{InFile: "", Payload: nil, ErrExpected: true},
+		)
+	}
+
+	for x := range tests {
+		err := tester(tests[x].InFile, tests[x].Payload)
+		if err != nil && !tests[x].ErrExpected {
+			t.Errorf("Test %d failed, unexpected err %s\n", x, err)
+		}
+	}
+}

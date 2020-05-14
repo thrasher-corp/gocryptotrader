@@ -17,14 +17,30 @@ var BBandsModule = map[string]objects.Object{
 	"calculate": &objects.UserFunction{Name: "calculate", Value: bbands},
 }
 
+// BollingerBands is the string constant
+const BollingerBands = "Bollinger Bands"
+
+// BBands defines a custom Bollinger Bands indicator tengo object
+type BBands struct {
+	objects.Array
+	Period               int
+	STDDevUp, STDDevDown float64
+	MAType               indicators.MaType
+}
+
+// TypeName returns the name of the custom type.
+func (o *BBands) TypeName() string {
+	return BollingerBands
+}
+
 func bbands(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 6 {
 		return nil, objects.ErrWrongNumArguments
 	}
 
-	var ret objects.Array
+	r := new(BBands)
 	if validator.IsTestExecution.Load() == true {
-		return &ret, nil
+		return r, nil
 	}
 
 	ohlcIndicatorType, ok := objects.ToString(args[0])
@@ -101,6 +117,11 @@ func bbands(args ...objects.Object) (objects.Object, error) {
 		return nil, err
 	}
 
+	r.Period = inTimePeriod
+	r.STDDevDown = inNbDevDn
+	r.STDDevUp = inNbDevUp
+	r.MAType = MAType
+
 	retUpper, retMiddle, retLower := indicators.BBANDS(ohlcvData[selector], inTimePeriod, inNbDevDn, inNbDevDn, MAType)
 	for x := range retMiddle {
 		temp := &objects.Array{}
@@ -111,8 +132,8 @@ func bbands(args ...objects.Object) (objects.Object, error) {
 		if retLower != nil {
 			temp.Value = append(temp.Value, &objects.Float{Value: math.Round(retLower[x]*100) / 100})
 		}
-		ret.Value = append(ret.Value, temp)
+		r.Value = append(r.Value, temp)
 	}
 
-	return &ret, nil
+	return r, nil
 }

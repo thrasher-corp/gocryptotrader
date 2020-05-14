@@ -3,7 +3,7 @@ exch := import("exchange")
 
 load := func() {
     info := exch.pairs("BTC Markets", false, "SPOT")
-    fmt.print(info)
+    fmt.println(info)
 }
 
 load()
