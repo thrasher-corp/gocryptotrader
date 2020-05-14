@@ -109,13 +109,13 @@ type WebsocketConnection struct {
 	ProxyURL        string
 	Wg              sync.WaitGroup
 	Connection      *websocket.Conn
-	shutdown        chan struct{}
+	ShutdownC       chan struct{}
 	// These are the request IDs and the corresponding response JSON
 	IDResponses          map[int64][]byte
 	ResponseCheckTimeout time.Duration
 	ResponseMaxLimit     time.Duration
 	TrafficTimeout       time.Duration
-	traffic              chan struct{}
+	Traffic              chan struct{}
 	readMessageErrors    chan error
 }
 

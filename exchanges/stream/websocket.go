@@ -52,18 +52,23 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 	if w == nil {
 		return errors.New("websocket is nil")
 	}
-	w.verbose = setupData.Verbose
 
-	if setupData.Subscriber == nil {
-		return errors.New("channel subscriber is not set")
+	w.verbose = setupData.Verbose
+	w.features = setupData.Features
+
+	if w.features.Subscribe && setupData.Subscriber == nil {
+		return errors.New("features have been set yet channel subscriber is not set")
 	}
 	w.channelSubscriber = setupData.Subscriber
 
+	if w.features.Unsubscribe && setupData.UnSubscriber == nil {
+		return errors.New("features have been set yet channel unsubscriber is not set")
+	}
 	w.channelUnsubscriber = setupData.UnSubscriber
 
-	if setupData.GenerateSubscriptions == nil {
-		return errors.New("channel GenerateSubscriptions is not set")
-	}
+	// if setupData.GenerateSubscriptions == nil {
+	// 	return errors.New("channel GenerateSubscriptions is not set")
+	// }
 	w.channelGeneratesubs = setupData.GenerateSubscriptions
 
 	w.enabled = setupData.Enabled
@@ -80,7 +85,6 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 	if setupData.Features == nil {
 		return errors.New("feature set is nil")
 	}
-	w.features = setupData.Features
 
 	w.SetWebsocketURL(setupData.RunningURL)
 	w.SetCanUseAuthenticatedEndpoints(setupData.AuthenticatedWebsocketAPISupport)
@@ -132,9 +136,9 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup, auth bool) error {
 		Verbose:              w.verbose,
 		ResponseCheckTimeout: c.ResponseCheckTimeout,
 		ResponseMaxLimit:     c.ResponseMaxLimit,
-		traffic:              w.TrafficAlert,
+		Traffic:              w.TrafficAlert,
 		readMessageErrors:    w.readMessageErrors,
-		shutdown:             make(chan struct{}),
+		ShutdownC:            make(chan struct{}),
 	}
 
 	if auth {
@@ -187,6 +191,7 @@ func (w *Websocket) Connect() error {
 	if w.features.Subscribe ||
 		w.features.Unsubscribe ||
 		w.features.FullPayloadSubscribe {
+		fmt.Println("MANAGE SUBS!")
 		w.Wg.Add(1)
 		go w.manageSubscriptions()
 	}
@@ -223,6 +228,7 @@ func (w *Websocket) dataMonitor() {
 			select {
 			case <-w.DataHandler:
 			default:
+				fmt.Println("DATA MONITOR DONE")
 				w.Wg.Done()
 				return
 			}
@@ -375,8 +381,11 @@ func (w *Websocket) Shutdown() error {
 			return err
 		}
 	}
-
+	fmt.Println("SHUTTING DOWNNNNN")
 	close(w.ShutdownC)
+	fmt.Println("SHUTTING DOWNNNNN: WAITING")
+	time.Sleep(time.Second)
+	fmt.Println(&w.Wg)
 	w.Wg.Wait()
 	fmt.Println("shutdown called")
 	w.setConnectedStatus(false)
@@ -457,6 +466,7 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 			}
 		}
 		w.setTrafficMonitorRunning(false)
+		fmt.Println("traffic monitor done!")
 		w.Wg.Done()
 	}()
 	if w.IsTrafficMonitorRunning() {
@@ -649,7 +659,10 @@ func (w *Websocket) GetName() string {
 
 // ManageSubscriptions ensures the subscriptions specified continue to be subscribed to
 func (w *Websocket) manageSubscriptions() {
-	defer w.Wg.Done()
+	defer func() {
+		fmt.Println("Managed subscriptions done")
+		w.Wg.Done()
+	}()
 
 	for {
 		select {
@@ -835,7 +848,7 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 			w.ExchangeName,
 			w.URL)
 	}
-	w.traffic <- struct{}{}
+	w.Traffic <- struct{}{}
 	w.setConnectedStatus(true)
 	return nil
 }
@@ -902,7 +915,7 @@ func (w *WebsocketConnection) SetupPingHandler(handler PingHandler) {
 		ticker := time.NewTicker(handler.Delay)
 		for {
 			select {
-			case <-w.shutdown:
+			case <-w.ShutdownC:
 				ticker.Stop()
 				return
 			case <-ticker.C:
@@ -1015,7 +1028,7 @@ func (w *WebsocketConnection) ReadMessage() (Response, error) {
 	}
 
 	select {
-	case w.traffic <- struct{}{}:
+	case w.Traffic <- struct{}{}:
 	default: // causes contention, just bypass if there is no receiver.
 	}
 
@@ -1084,11 +1097,14 @@ func (w *WebsocketConnection) GenerateMessageID(useNano bool) int64 {
 
 // GetShutdownChannel returns the underlying shutdown mechanism
 func (w *WebsocketConnection) GetShutdownChannel() chan struct{} {
-	return w.shutdown
+	return w.ShutdownC
 }
 
 // Shutdown shuts down and closes specific connection
 func (w *WebsocketConnection) Shutdown() error {
+	if w == nil || w.Connection == nil {
+		return nil
+	}
 	w.Wg.Wait()
 	return w.Connection.UnderlyingConn().Close()
 }

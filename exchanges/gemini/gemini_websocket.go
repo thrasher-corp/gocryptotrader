@@ -68,6 +68,9 @@ func (g *Gemini) WsSubscribe(dialer *websocket.Dialer) error {
 	for i := range enabledCurrencies {
 		val := url.Values{}
 		val.Set("heartbeat", "true")
+		val.Set("bids", "true")
+		val.Set("offers", "true")
+		val.Set("trades", "true")
 		endpoint := fmt.Sprintf("%s%s/%s?%s",
 			g.API.Endpoints.WebsocketURL,
 			geminiWsMarketData,
@@ -79,16 +82,15 @@ func (g *Gemini) WsSubscribe(dialer *websocket.Dialer) error {
 			Verbose:              g.Verbose,
 			ResponseCheckTimeout: responseCheckTimeout,
 			ResponseMaxLimit:     responseMaxLimit,
+			Traffic:              g.Websocket.TrafficAlert,
 		}
 		err := connection.Dial(dialer, http.Header{})
 		if err != nil {
 			return fmt.Errorf("%v Websocket connection %v error. Error %v",
 				g.Name, endpoint, err)
 		}
+		g.connections = append(g.connections, connection)
 		go g.wsFunnelConnectionData(connection, enabledCurrencies[i])
-		if len(enabledCurrencies)-1 == i {
-			return nil
-		}
 	}
 	return nil
 }
@@ -140,7 +142,6 @@ func (g *Gemini) wsFunnelConnectionData(ws stream.Connection, c currency.Pair) {
 	for {
 		resp, err := ws.ReadMessage()
 		if err != nil {
-			g.Websocket.DataHandler <- err
 			return
 		}
 		comms <- ReadData{Raw: resp.Raw, Currency: c}
@@ -154,6 +155,14 @@ func (g *Gemini) wsReadData() {
 	for {
 		select {
 		case <-g.Websocket.ShutdownC:
+			for i := range g.connections {
+				err := g.connections[i].Shutdown()
+				if err != nil {
+					log.Errorln(log.ExchangeSys, err)
+				}
+				g.connections[i] = nil
+			}
+			g.connections = nil
 			return
 		case resp := <-comms:
 			// Gemini likes to send empty arrays
@@ -266,12 +275,8 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 			}
 			g.Websocket.DataHandler <- result
 		case "heartbeat":
-			var result WsHeartbeatResponse
-			err := json.Unmarshal(respRaw, &result)
-			if err != nil {
-				return err
-			}
-			g.Websocket.DataHandler <- result
+			// Heartbeat does not need to be handled by the data handler
+			return nil
 		case "update":
 			if curr.IsEmpty() {
 				return fmt.Errorf("%v - `update` response error. Currency is empty %s",
@@ -355,7 +360,8 @@ func stringToOrderType(oType string) (order.Type, error) {
 	case "exchange limit", "auction-only limit", "indication-of-interest limit":
 		return order.Limit, nil
 	case "market buy", "market sell", "block_trade":
-		// block trades are conducted off order-book, so their type is market, but would be considered a hidden trade
+		// block trades are conducted off order-book, so their type is market,
+		// but would be considered a hidden trade
 		return order.Market, nil
 	default:
 		return order.UnknownType, errors.New(oType + " not recognised as order type")
@@ -407,7 +413,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 					}
 				}
 				g.Websocket.DataHandler <- stream.TradeData{
-					Timestamp:    time.Unix(0, result.Timestamp),
+					Timestamp:    time.Unix(0, result.TimestampMS*int64(time.Millisecond)),
 					CurrencyPair: pair,
 					AssetType:    asset.Spot,
 					Exchange:     g.Name,
@@ -436,7 +442,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 			Asks:       asks,
 			Bids:       bids,
 			Pair:       pair,
-			UpdateTime: time.Unix(0, result.TimestampMS),
+			UpdateTime: time.Unix(0, result.TimestampMS*int64(time.Millisecond)),
 			Asset:      asset.Spot,
 		})
 		if err != nil {

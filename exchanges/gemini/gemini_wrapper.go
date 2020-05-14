@@ -86,8 +86,6 @@ func (g *Gemini) SetDefaults() {
 				TradeFetching:          true,
 				AuthenticatedEndpoints: true,
 				MessageSequenceNumbers: true,
-				Subscribe:              true,
-				Unsubscribe:            true,
 				KlineFetching:          true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
@@ -125,7 +123,7 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 		g.API.Endpoints.URL = geminiSandboxAPIURL
 	}
 
-	err := g.Websocket.Setup(&stream.WebsocketSetup{
+	return g.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -139,14 +137,6 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 		BufferEnabled:                    true,
 		SortBuffer:                       true,
 	})
-	if err != nil {
-		return err
-	}
-
-	return g.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	}, false)
 }
 
 // Start starts the Gemini go routine
