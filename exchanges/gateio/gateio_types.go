@@ -437,6 +437,7 @@ type WebsocketBalanceCurrency struct {
 
 // WebSocketOrderQueryResult data returned from a websocket ordre query holds slice of WebSocketOrderQueryRecords
 type WebSocketOrderQueryResult struct {
+	Error                      WebsocketError               `json:"error"`
 	Limit                      int                          `json:"limit"`
 	Offset                     int                          `json:"offset"`
 	Total                      int                          `json:"total"`
@@ -478,7 +479,7 @@ type wsGetBalanceRequest struct {
 
 // WsGetBalanceResponse stores WS GetBalance response
 type WsGetBalanceResponse struct {
-	Error  interface{}                         `json:"error"`
+	Error  WebsocketError                      `json:"error"`
 	Result map[string]WsGetBalanceResponseData `json:"result"`
 	ID     int64                               `json:"id"`
 }

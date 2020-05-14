@@ -47,12 +47,13 @@ func (g *Gateio) WsConnect() error {
 			g.Name,
 			err)
 		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	} else {
+		authsubs, err := g.GenerateAuthenticatedSubscriptions()
+		if err != nil {
+			return err
+		}
+		g.Websocket.SubscribeToChannels(authsubs)
 	}
-	authsubs, err := g.GenerateAuthenticatedSubscriptions()
-	if err != nil {
-		return err
-	}
-	g.Websocket.SubscribeToChannels(authsubs)
 
 	subs, err := g.GenerateDefaultSubscriptions()
 	if err != nil {
@@ -634,6 +635,12 @@ func (g *Gateio) wsGetBalance(currencies []string) (*WsGetBalanceResponse, error
 		return &balance, err
 	}
 
+	if balance.Error.Message != "" {
+		return nil, fmt.Errorf("%s websocket error: %s",
+			g.Name,
+			balance.Error.Message)
+	}
+
 	return &balance, nil
 }
 
@@ -650,14 +657,23 @@ func (g *Gateio) wsGetOrderInfo(market string, offset, limit int) (*WebSocketOrd
 			limit,
 		},
 	}
+
 	resp, err := g.Websocket.Conn.SendMessageReturnResponse(ord.ID, ord)
 	if err != nil {
 		return nil, err
 	}
+
 	var orderQuery WebSocketOrderQueryResult
 	err = json.Unmarshal(resp, &orderQuery)
 	if err != nil {
 		return &orderQuery, err
 	}
+
+	if orderQuery.Error.Message != "" {
+		return nil, fmt.Errorf("%s websocket error: %s",
+			g.Name,
+			orderQuery.Error.Message)
+	}
+
 	return &orderQuery, nil
 }
