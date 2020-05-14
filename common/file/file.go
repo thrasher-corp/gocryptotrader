@@ -1,6 +1,9 @@
 package file
 
 import (
+	"bytes"
+	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -57,4 +60,34 @@ func Move(sourcePath, destPath string) error {
 func Exists(name string) bool {
 	_, err := os.Stat(name)
 	return !os.IsNotExist(err)
+}
+
+// WriteAsCSV takes a table of records and writes it as CSV
+func WriteAsCSV(filename string, records [][]string) error {
+	if len(records) == 0 {
+		return errors.New("no records in matrix")
+	}
+
+	buf := bytes.Buffer{}
+	w := csv.NewWriter(&buf)
+
+	alignment := len(records[0])
+	for i := range records {
+		if len(records[i]) != alignment {
+			return errors.New("incorrect alignment")
+		}
+
+		err := w.Write(records[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	w.Flush()
+
+	err := w.Error()
+	if err != nil {
+		return err
+	}
+	return Write(filename, buf.Bytes())
 }
