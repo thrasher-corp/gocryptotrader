@@ -82,3 +82,9 @@ func (k ErrorKline) Error() string {
 func (k *ErrorKline) Unwrap() error {
 	return fmt.Errorf(ErrUnsupportedInterval, k.Interval)
 }
+
+// DateRange holds a start and end date for kline usage
+type DateRange struct {
+	Start time.Time
+	End   time.Time
+}

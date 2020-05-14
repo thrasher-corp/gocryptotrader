@@ -115,13 +115,13 @@ func (b *BTCMarkets) SetDefaults() {
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
-
 			KlineCapabilities: kline.ExchangeCapabilities{
 				Intervals: map[string]bool{
 					kline.OneMin.Word():  true,
 					kline.OneHour.Word(): true,
 					kline.OneDay.Word():  true,
 				},
+				Limit: 1000,
 			},
 		},
 	}
@@ -762,11 +762,27 @@ func (b *BTCMarkets) GetHistoricCandles(pair currency.Pair, a asset.Item, start,
 }
 
 // GetHistoricCandlesEx returns candles between a time period for a set time interval
-func (b *BTCMarkets) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+func (b *BTCMarkets) GetHistoricCandlesEx(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if !b.KlineIntervalEnabled(interval) {
 		return kline.Item{}, kline.ErrorKline{
 			Interval: interval,
 		}
 	}
-	return kline.Item{}, common.ErrNotYetImplemented
+
+	ret := kline.Item{
+		Exchange: b.Name,
+		Pair:     p,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.KlineCapabilities.Limit)
+	for x := range dates {
+		tempData, err := b.GetMarketCandles(p.String(), interval, dates[x].Start, dates[x].End, -1, -1, 0)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		ret.Candles = append(ret.Candles, tempData.Candles...)
+	}
+	return ret, nil
 }

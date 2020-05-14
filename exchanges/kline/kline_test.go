@@ -215,7 +215,7 @@ func TestDurationToWord(t *testing.T) {
 	for x := range testCases {
 		test := testCases[x]
 		t.Run(test.name, func(t *testing.T) {
-			v := DurationToWord(test.interval)
+			v := durationToWord(test.interval)
 			if !strings.EqualFold(v, test.name) {
 				t.Fatalf("%v: received %v expected %v", test.name, v, test.name)
 			}

@@ -813,7 +813,8 @@ func (c *CoinbasePro) GetHistoricCandlesEx(p currency.Pair, a asset.Item, start,
 			})
 		}
 	}
-	ret = *kline.SortCandlesByTimestamp(&ret)
+
+	ret.SortCandlesByTimestamp()
 	return ret, nil
 }
 

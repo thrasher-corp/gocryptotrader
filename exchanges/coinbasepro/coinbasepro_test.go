@@ -94,10 +94,11 @@ func TestCoinbasePro_GetHistoricCandlesEx(t *testing.T) {
 
 	c.Verbose = true
 	p := currency.NewPair(currency.BTC, currency.USD)
-	_, err := c.GetHistoricCandlesEx(p, asset.Spot, start, end, kline.OneHour)
+	v, err := c.GetHistoricCandlesEx(p, asset.Spot, start, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Log(v)
 }
 
 func TestGetStats(t *testing.T) {

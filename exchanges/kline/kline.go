@@ -133,23 +133,23 @@ func validateData(trades []order.TradeHistory) error {
 }
 
 // String returns numeric string
-func (k Interval) String() string {
-	return k.Duration().String()
+func (i Interval) String() string {
+	return i.Duration().String()
 }
 
 // Word returns text version of Interval
-func (k Interval) Word() string {
-	return DurationToWord(k)
+func (i Interval) Word() string {
+	return durationToWord(i)
 }
 
 // Duration returns interval casted as time.Duration for compatibility
-func (k Interval) Duration() time.Duration {
-	return time.Duration(k)
+func (i Interval) Duration() time.Duration {
+	return time.Duration(i)
 }
 
 // Short returns short string version of interval
-func (k Interval) Short() string {
-	s := k.String()
+func (i Interval) Short() string {
+	s := i.String()
 	if strings.HasSuffix(s, "m0s") {
 		s = s[:len(s)-2]
 	}
@@ -159,8 +159,8 @@ func (k Interval) Short() string {
 	return s
 }
 
-// DurationToWord returns english version of interval
-func DurationToWord(in Interval) string {
+// durationToWord returns english version of interval
+func durationToWord(in Interval) string {
 	switch in {
 	case OneMin:
 		return "onemin"
@@ -249,11 +249,6 @@ func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out uint3
 	return out
 }
 
-type DateRange struct {
-	Start time.Time
-	End   time.Time
-}
-
 func CalcDateRanges(start, end time.Time, interval Interval, limit uint32) (out []DateRange) {
 	total := TotalCandlesPerInterval(start, end, interval)
 	if total < limit {
@@ -289,9 +284,8 @@ func CalcDateRanges(start, end time.Time, interval Interval, limit uint32) (out 
 	return out
 }
 
-func SortCandlesByTimestamp(in *Item) *Item {
-	sort.Slice(in.Candles, func(i, j int) bool {
-		return in.Candles[i].Time.Before(in.Candles[j].Time)
+func (k *Item) SortCandlesByTimestamp() {
+	sort.Slice(k.Candles, func(i, j int) bool {
+		return k.Candles[i].Time.Before(k.Candles[j].Time)
 	})
-	return in
 }

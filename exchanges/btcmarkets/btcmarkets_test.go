@@ -733,3 +733,15 @@ func TestBTCMarkets_GetHistoricCandles(t *testing.T) {
 		}
 	}
 }
+
+func TestBTCMarkets_GetHistoricCandlesEx(t *testing.T) {
+	b.Verbose = true
+	start := time.Now().AddDate(0, 0, -1001)
+	end := time.Now()
+	p := currency.NewPairFromString(BTCAUD)
+	v, err := b.GetHistoricCandlesEx(p, asset.Spot, start, end, kline.OneDay)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(v)
+}

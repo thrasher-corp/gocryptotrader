@@ -840,7 +840,7 @@ func TestWsCreateSubUserResponse(t *testing.T) {
 	}
 }
 
-func TestGetHistoricCandles(t *testing.T) {
+func c(t *testing.T) {
 	z.Verbose = true
 	currencyPair := currency.NewPairFromString("btc_usdt")
 	startTime := time.Now().Add(-time.Hour * 1)
@@ -852,5 +852,16 @@ func TestGetHistoricCandles(t *testing.T) {
 	_, err = z.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.Interval(time.Hour*7))
 	if err == nil {
 		t.Fatal("unexpected result")
+	}
+}
+
+func TestGetHistoricCandlesEx(t *testing.T) {
+	z.Verbose = true
+	currencyPair := currency.NewPairFromString("btc_usdt")
+	start := time.Now().AddDate(0, -2, 0)
+	end := time.Now()
+	_, err := z.GetHistoricCandlesEx(currencyPair, asset.Spot, start, end, kline.OneHour)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
