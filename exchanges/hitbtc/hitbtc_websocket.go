@@ -387,7 +387,9 @@ func (h *HitBTC) wsHandleOrderData(o *wsOrderData) error {
 // WsProcessOrderbookUpdate updates a local cache
 func (h *HitBTC) WsProcessOrderbookUpdate(update WsOrderbook) error {
 	if len(update.Params.Bid) == 0 && len(update.Params.Ask) == 0 {
-		return errors.New("hitbtc_websocket.go error - no data")
+		// Periodically HitBTC sends empty updates which includes a sequence
+		// can return this as nil.
+		return nil
 	}
 
 	var bids, asks []orderbook.Item
