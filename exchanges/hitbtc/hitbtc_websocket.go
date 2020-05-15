@@ -59,10 +59,7 @@ func (h *HitBTC) WsConnect() error {
 // wsReadData receives and passes on websocket messages for processing
 func (h *HitBTC) wsReadData() {
 	h.Websocket.Wg.Add(1)
-
-	defer func() {
-		h.Websocket.Wg.Done()
-	}()
+	defer h.Websocket.Wg.Done()
 
 	for {
 		resp, err := h.Websocket.Conn.ReadMessage()
@@ -436,7 +433,11 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update WsOrderbook) error {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (h *HitBTC) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{"subscribeTicker", "subscribeOrderbook", "subscribeTrades", "subscribeCandles"}
+	var channels = []string{"subscribeTicker",
+		"subscribeOrderbook",
+		"subscribeTrades",
+		"subscribeCandles"}
+
 	var subscriptions []stream.ChannelSubscription
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
 		subscriptions = append(subscriptions, stream.ChannelSubscription{
@@ -449,10 +450,15 @@ func (h *HitBTC) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 	}
 	for i := range channels {
 		for j := range enabledCurrencies {
+			fpair, err := h.FormatExchangeCurrency(enabledCurrencies[j], asset.Spot)
+			if err != nil {
+				return nil, err
+			}
+
 			enabledCurrencies[j].Delimiter = ""
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channels[i],
-				Currency: enabledCurrencies[j],
+				Currency: fpair,
 			})
 		}
 	}
@@ -462,33 +468,22 @@ func (h *HitBTC) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 // Subscribe sends a websocket message to receive data from the channel
 func (h *HitBTC) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 	for i := range channelsToSubscribe {
-		subscribe := WsNotification{
+		subscribe := WsRequest{
 			Method: channelsToSubscribe[i].Channel,
-		}
-		fpair, err := h.FormatExchangeCurrency(channelsToSubscribe[i].Currency, asset.Spot)
-		if err != nil {
-			return err
+			ID:     h.Websocket.Conn.GenerateMessageID(true),
 		}
 
 		if channelsToSubscribe[i].Currency.String() != "" {
-			subscribe.Params = params{
-				Symbol: fpair.String(),
-			}
+			subscribe.Params.Symbol = channelsToSubscribe[i].Currency.String()
 		}
 		if strings.EqualFold(channelsToSubscribe[i].Channel, "subscribeTrades") {
-			subscribe.Params = params{
-				Symbol: fpair.String(),
-				Limit:  100,
-			}
+			subscribe.Params.Limit = 100
 		} else if strings.EqualFold(channelsToSubscribe[i].Channel, "subscribeCandles") {
-			subscribe.Params = params{
-				Symbol: fpair.String(),
-				Period: "M30",
-				Limit:  100,
-			}
+			subscribe.Params.Period = "M30"
+			subscribe.Params.Limit = 100
 		}
 
-		err = h.Websocket.Conn.SendJSONMessage(subscribe)
+		err := h.Websocket.Conn.SendJSONMessage(subscribe)
 		if err != nil {
 			return err
 		}
@@ -504,33 +499,20 @@ func (h *HitBTC) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 			"unsubscribe",
 			1)
 
-		fpair, err := h.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency,
-			asset.Spot)
-		if err != nil {
-			return err
-		}
-
-		subscribe := WsNotification{
+		unsubscribe := WsNotification{
 			JSONRPCVersion: rpcVersion,
 			Method:         unsubscribeChannel,
-			Params: params{
-				Symbol: fpair.String(),
-			},
-		}
-		if strings.EqualFold(unsubscribeChannel, "unsubscribeTrades") {
-			subscribe.Params = params{
-				Symbol: fpair.String(),
-				Limit:  100,
-			}
-		} else if strings.EqualFold(unsubscribeChannel, "unsubscribeCandles") {
-			subscribe.Params = params{
-				Symbol: fpair.String(),
-				Period: "M30",
-				Limit:  100,
-			}
 		}
 
-		err = h.Websocket.Conn.SendJSONMessage(subscribe)
+		unsubscribe.Params.Symbol = channelsToUnsubscribe[i].Currency.String()
+		if strings.EqualFold(unsubscribeChannel, "unsubscribeTrades") {
+			unsubscribe.Params.Limit = 100
+		} else if strings.EqualFold(unsubscribeChannel, "unsubscribeCandles") {
+			unsubscribe.Params.Period = "M30"
+			unsubscribe.Params.Limit = 100
+		}
+
+		err := h.Websocket.Conn.SendJSONMessage(unsubscribe)
 		if err != nil {
 			return err
 		}
@@ -554,6 +536,7 @@ func (h *HitBTC) wsLogin() error {
 			Nonce:     n,
 			Signature: crypto.HexEncodeToString(hmac),
 		},
+		ID: h.Websocket.Conn.GenerateMessageID(true),
 	}
 
 	err := h.Websocket.Conn.SendJSONMessage(request)
@@ -561,6 +544,7 @@ func (h *HitBTC) wsLogin() error {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
 	}
+
 	return nil
 }
 
