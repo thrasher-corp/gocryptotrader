@@ -3,9 +3,12 @@ package ftx
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"hash/crc32"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -30,6 +33,8 @@ const (
 	wsFills           = "fills"
 	wsOrders          = "orders"
 )
+
+var obMutex sync.Mutex
 
 // WsConnect connects to a websocket feed
 func (f *FTX) WsConnect() error {
@@ -182,33 +187,15 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			var newOB orderbook.Base
-			for x := range resultData.OBData.Asks {
-				newOB.Asks = append(newOB.Asks, orderbook.Item{Price: resultData.OBData.Asks[x][0],
-					Amount: resultData.OBData.Asks[x][1],
-				})
+			obMutex.Lock()
+			defer obMutex.Unlock()
+			if len(resultData.OBData.Asks) == 0 && len(resultData.OBData.Bids) == 0 {
+				return nil
 			}
-			for y := range resultData.OBData.Bids {
-				newOB.Bids = append(newOB.Bids, orderbook.Item{Price: resultData.OBData.Bids[y][0],
-					Amount: resultData.OBData.Bids[y][1],
-				})
-			}
-			newOB.Pair = p
-			newOB.AssetType = a
-			newOB.ExchangeName = f.Name
-			err = f.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
-				Asset: newOB.AssetType,
-				Bids:  newOB.Bids,
-				Asks:  newOB.Asks,
-				Pair:  p,
-			})
+			err := f.WsProcessUpdateOB(&resultData.OBData, p, a)
 			if err != nil {
+				f.wsResubToOB(p)
 				return err
-			}
-			f.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-				Pair:     p,
-				Asset:    a,
-				Exchange: f.Name,
 			}
 		case "trades":
 			var resultData WsTradeDataStore
@@ -306,6 +293,29 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			f.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: f.Name + wshandler.UnhandledMessage + string(respRaw)}
 			return nil
 		}
+	case "partial":
+		var p currency.Pair
+		var a asset.Item
+		_, ok := result["market"]
+		if ok {
+			p = currency.NewPairFromString(result["market"].(string))
+			a, err = f.GetPairAssetType(p)
+			if err != nil {
+				return err
+			}
+		}
+		var resultData WsOrderbookDataStore
+		err = json.Unmarshal(respRaw, &resultData)
+		if err != nil {
+			return err
+		}
+		obMutex.Lock()
+		obMutex.Unlock()
+		f.WsProcessPartialOB(&resultData.OBData, p, a)
+		if err != nil {
+			f.wsResubToOB(p)
+			return err
+		}
 	case "error":
 		f.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: f.Name + wshandler.UnhandledMessage + string(respRaw)}
 	}
@@ -315,7 +325,153 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (f *FTX) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	var unSub WsSub
+	a, err := f.GetPairAssetType(channelToSubscribe.Currency)
+	if err != nil {
+		return err
+	}
 	unSub.Operation = "unsubscribe"
 	unSub.Channel = channelToSubscribe.Channel
+	unSub.Market = f.FormatExchangeCurrency(channelToSubscribe.Currency, a).String()
 	return f.WebsocketConn.SendJSONMessage(unSub)
+}
+
+// CalcOBChecksum calculates checksum of our stored orderbook
+func (f *FTX) CalcOBChecksum(orderbookData *orderbook.Base) int64 {
+	var checksum strings.Builder
+	for i := 0; i < 100; i++ {
+		if i < len(orderbookData.Bids)-1 {
+			price := strconv.FormatFloat(orderbookData.Bids[i].Price, 'f', -1, 64)
+			amount := strconv.FormatFloat(orderbookData.Bids[i].Amount, 'f', -1, 64)
+			checksum.WriteString(price + ":" + amount + ":")
+		}
+		if i < len(orderbookData.Asks)-1 {
+			price := strconv.FormatFloat(orderbookData.Asks[i].Price, 'f', -1, 64)
+			amount := strconv.FormatFloat(orderbookData.Asks[i].Amount, 'f', -1, 64)
+			checksum.WriteString(price + ":" + amount + ":")
+		}
+	}
+	checksumStr := strings.TrimSuffix(checksum.String(), ":")
+	return int64(crc32.ChecksumIEEE([]byte(checksumStr)))
+}
+
+// AppendWsOrderbookItems adds websocket orderbook data bid/asks into an orderbook item array
+func (f *FTX) AppendWsOrderbookItems(entries [][2]float64) ([]orderbook.Item, error) {
+	var items []orderbook.Item
+	for x := range entries {
+		items = append(items, orderbook.Item{Amount: entries[x][1], Price: entries[x][0]})
+	}
+	return items, nil
+}
+
+// WsProcessUpdateOB processes an update on the orderbook
+func (f *FTX) WsProcessUpdateOB(data *WsOrderbookData, p currency.Pair, a asset.Item) error {
+	updateOB := wsorderbook.WebsocketOrderbookUpdate{
+		Asset:      a,
+		Pair:       p,
+		UpdateTime: timestampFromFloat64(data.Time),
+	}
+	var err error
+	updateOB.Asks, err = f.AppendWsOrderbookItems(data.Asks)
+	if err != nil {
+		return err
+	}
+	updateOB.Bids, err = f.AppendWsOrderbookItems(data.Bids)
+	if err != nil {
+		return err
+	}
+	err = f.Websocket.Orderbook.Update(&updateOB)
+	if err != nil {
+		return err
+	}
+	updatedOB := f.Websocket.Orderbook.GetOrderbook(p, a)
+	checksum := f.CalcOBChecksum(updatedOB)
+	if checksum != data.Checksum {
+		log.Warnf(log.ExchangeSys, "%s checksum failure for item %s",
+			f.Name,
+			p.String())
+		return errors.New("checksum failed")
+	}
+	f.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+		Exchange: f.Name,
+		Asset:    a,
+		Pair:     p,
+	}
+	return nil
+}
+
+func (f *FTX) wsResubToOB(p currency.Pair) {
+	channelToResubscribe := wshandler.WebsocketChannelSubscription{
+		Channel:  wsOrderbook,
+		Currency: p,
+	}
+	f.Websocket.ResubscribeToChannel(channelToResubscribe)
+}
+
+// WsProcessPartialOB creates an OB from websocket data
+func (f *FTX) WsProcessPartialOB(data *WsOrderbookData, p currency.Pair, a asset.Item) error {
+	fmt.Printf("HELOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n\n\n\n\n\n\n")
+	signedChecksum := f.CalcPartialOBChecksum(data)
+	if signedChecksum != data.Checksum {
+		return fmt.Errorf("%s channel: %s. Orderbook partial for %v checksum invalid",
+			f.Name,
+			a,
+			p)
+	}
+	if f.Verbose {
+		log.Debugf(log.ExchangeSys,
+			"%s passed checksum for market %s",
+			f.Name,
+			p)
+	}
+
+	asks, err := f.AppendWsOrderbookItems(data.Asks)
+	if err != nil {
+		return err
+	}
+
+	bids, err := f.AppendWsOrderbookItems(data.Bids)
+	if err != nil {
+		return err
+	}
+
+	newOrderBook := orderbook.Base{
+		Asks:         asks,
+		Bids:         bids,
+		AssetType:    a,
+		LastUpdated:  timestampFromFloat64(data.Time),
+		Pair:         p,
+		ExchangeName: f.Name,
+	}
+
+	err = f.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+	if err != nil {
+		return err
+	}
+
+	f.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
+		Exchange: f.Name,
+		Asset:    a,
+		Pair:     p,
+	}
+	return nil
+}
+
+// CalcPartialOBChecksum calculates checksum of partial OB data received from WS
+func (f *FTX) CalcPartialOBChecksum(data *WsOrderbookData) int64 {
+	var checksum strings.Builder
+	var price, amount string
+	for i := 0; i < 100; i++ {
+		if i < len(data.Bids)-1 {
+			price = strconv.FormatFloat(data.Bids[i][0], 'f', -1, 64)
+			amount = strconv.FormatFloat(data.Bids[i][1], 'f', -1, 64)
+			checksum.WriteString(price + ":" + amount + ":")
+		}
+		if i < len(data.Asks)-1 {
+			price = strconv.FormatFloat(data.Asks[i][0], 'f', -1, 64)
+			amount = strconv.FormatFloat(data.Asks[i][1], 'f', -1, 64)
+			checksum.WriteString(price + ":" + amount + ":")
+		}
+	}
+	checksumStr := strings.TrimSuffix(checksum.String(), ":")
+	return int64(crc32.ChecksumIEEE([]byte(checksumStr)))
 }

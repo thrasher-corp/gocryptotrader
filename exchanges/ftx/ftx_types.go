@@ -783,9 +783,11 @@ type WsTradeData struct {
 
 // WsOrderbookData stores ws orderbook data
 type WsOrderbookData struct {
-	Action string       `json:"action"`
-	Bids   [][2]float64 `json:"bids"`
-	Asks   [][2]float64 `json:"asks"`
+	Action   string       `json:"action"`
+	Bids     [][2]float64 `json:"bids"`
+	Asks     [][2]float64 `json:"asks"`
+	Time     float64      `json:"time"`
+	Checksum int64        `json:"checksum"`
 }
 
 // WsOrders stores ws orders' data

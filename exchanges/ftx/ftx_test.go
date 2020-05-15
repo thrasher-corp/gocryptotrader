@@ -844,3 +844,106 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestParsingWSFillData(t *testing.T) {
+	t.Parallel()
+	f.Verbose = true
+	data := []byte(`{
+		  "channel": "fills",
+		  "data": {
+			"fee": 78.05799225,
+			"feeRate": 0.0014,
+			"future": "BTC-PERP",
+			"id": 7828307,
+			"liquidity": "taker",
+			"market": "BTC-PERP",
+			"orderId": 38065410,
+			"tradeId": 19129310,
+			"price": 3723.75,
+			"side": "buy",
+			"size": 14.973,
+			"time": "2019-05-07T16:40:58.358438+00:00",
+			"type": "order"
+		  },
+		  "type": "update"
+		}`)
+	err := f.wsHandleData(data)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestParsingWSTradesData(t *testing.T) {
+	t.Parallel()
+	data := []byte(`{
+		"channel": "trades",
+		"market": "BTC-PERP",
+		"type": "update",
+		"data": [
+			{
+				"id": 44200173,
+				"price": 9761.0,
+				"size": 0.0008,
+				"side": "buy",
+				"liquidation": false,
+				"time": "2020-05-15T01:10:04.369194+00:00"
+			}
+		]
+	}`)
+	err := f.wsHandleData(data)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestParsingWSTickerData(t *testing.T) {
+	t.Parallel()
+	data := []byte(`{
+		"channel": "ticker", 
+		"market": "BTC-PERP", 
+		"type": "update", 
+		"data": {
+			"bid": 9760.5, 
+			"ask": 9761.0, 
+			"bidSize": 3.36, 
+			"askSize": 71.8484, 
+			"last": 9761.0, 
+			"time": 1589505004.4237103
+		}
+	}`)
+	err := f.wsHandleData(data)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestParsingWSOrdersData(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
+	data := []byte(`{
+		"channel": "orders",
+		"data": {
+		  "id": 24852229,
+		  "clientId": null,
+		  "market": "BTC-PERP",
+		  "type": "limit",
+		  "side": "buy",
+		  "size": 42353.0,
+		  "price": 0.2977,
+		  "reduceOnly": false,
+		  "ioc": false,
+		  "postOnly": false,
+		  "status": "closed",
+		  "filledSize": 0.0,
+		  "remainingSize": 0.0,
+		  "avgFillPrice": 0.2978
+		},
+		"type": "update"
+	  }`)
+	err := f.wsHandleData(data)
+	if err != nil {
+		t.Error(err)
+	}
+}

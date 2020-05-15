@@ -12,11 +12,13 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.14.5
 	github.com/kat-co/vala v0.0.0-20170210184112-42e1d8b61f12
+	github.com/levenlabs/golib v0.0.0-20180911183212-0f8974794783
 	github.com/lib/pq v1.5.2
 	github.com/mattn/go-sqlite3 v1.13.0
 	github.com/pkg/errors v0.9.1
 	github.com/pquerna/otp v1.2.0
-	github.com/spf13/viper v1.6.3
+	github.com/spf13/viper v1.7.0
+	github.com/stretchr/testify v1.5.1 // indirect
 	github.com/thrasher-corp/gct-ta v0.0.0-20200423101437-dc6b098dc762
 	github.com/thrasher-corp/goose v2.7.0-rc4.0.20191002032028-0f2c2a27abdb+incompatible
 	github.com/thrasher-corp/sqlboiler v1.0.1-0.20191001234224-71e17f37a85e
@@ -27,8 +29,9 @@ require (
 	golang.org/x/net v0.0.0-20191002035440-2ec189313ef0
 	golang.org/x/sys v0.0.0-20191003212358-c178f38b412c // indirect
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
-	google.golang.org/genproto v0.0.0-20191002211648-c459b9ce5143
+	google.golang.org/genproto v0.0.0-20191108220845-16a3f7862a1a
 	google.golang.org/grpc v1.29.1
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
+	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
 	gopkg.in/yaml.v2 v2.2.7 // indirect
 )
