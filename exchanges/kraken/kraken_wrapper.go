@@ -817,5 +817,35 @@ func (k *Kraken) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, e
 			Interval: interval,
 		}
 	}
-	return kline.Item{}, common.ErrNotYetImplemented
+
+	ret := kline.Item{
+		Exchange: k.GetName(),
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	candles, err := k.GetOHLC(k.FormatExchangeCurrency(pair, a).String(), k.FormatExchangeKlineInterval(interval))
+	if err != nil {
+		return kline.Item{}, err
+	}
+	for y := range candles {
+		timeValue, err := convert.TimeFromUnixTimestampFloat(candles[y].Time)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		if timeValue.Before(start) || timeValue.After(end) {
+			continue
+		}
+		ret.Candles = append(ret.Candles, kline.Candle{
+			Time:   timeValue,
+			Open:   candles[y].Open,
+			High:   candles[y].Close,
+			Low:    candles[y].Low,
+			Close:  candles[y].Close,
+			Volume: candles[y].Volume,
+		})
+	}
+
+	return ret, nil
 }

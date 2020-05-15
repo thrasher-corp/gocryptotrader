@@ -611,12 +611,6 @@ func (b *Bithumb) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetCandleStick returns candle stick data for requested pair
 func (b *Bithumb) GetCandleStick(pair currency.Pair, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !b.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
-	}
-
 	var candle struct {
 		Status string          `json:"status"`
 		Data   [][]interface{} `json:"data"`

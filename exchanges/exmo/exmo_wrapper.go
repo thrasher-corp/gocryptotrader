@@ -576,10 +576,5 @@ func (e *EXMO) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end t
 
 // GetHistoricCandlesEx returns candles between a time period for a set time interval
 func (e *EXMO) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !e.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
-	}
 	return kline.Item{}, common.ErrFunctionNotSupported
 }

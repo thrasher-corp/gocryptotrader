@@ -640,6 +640,12 @@ func (b *Bithumb) ValidateCredentials() error {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *Bithumb) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !b.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
 	return b.GetCandleStick(pair, start, end, interval)
 }
 
@@ -650,5 +656,5 @@ func (b *Bithumb) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, 
 			Interval: interval,
 		}
 	}
-	return kline.Item{}, common.ErrNotYetImplemented
+	return b.GetCandleStick(pair, start, end, interval)
 }

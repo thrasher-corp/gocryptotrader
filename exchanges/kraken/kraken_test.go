@@ -1373,3 +1373,17 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal("unexpected result")
 	}
 }
+
+func TestGetHistoricCandlesEx(t *testing.T) {
+	k.Verbose = true
+	currencyPair := currency.NewPairFromString("BCHEUR")
+	_, err := k.GetHistoricCandlesEx(currencyPair, asset.Spot, time.Now(), time.Now(), kline.Fifteenday)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = k.GetHistoricCandlesEx(currencyPair, asset.Spot, time.Now(), time.Now(), kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
+	}
+}

@@ -109,6 +109,7 @@ func (l *Lbank) SetDefaults() {
 					kline.OneDay.Word():     true,
 					kline.OneWeek.Word():    true,
 				},
+				Limit: 2880,
 			},
 		},
 	}
@@ -790,5 +791,35 @@ func (l *Lbank) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, en
 			Interval: interval,
 		}
 	}
-	return kline.Item{}, common.ErrNotYetImplemented
+	ret := kline.Item{
+		Exchange: l.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	dates := kline.CalcDateRanges(start, end, interval, l.Features.Enabled.KlineCapabilities.Limit)
+	for x := range dates {
+		data, err := l.GetKlines(l.FormatExchangeCurrency(pair, a).String(),
+			"2880", l.FormatExchangeKlineInterval(interval),
+			strconv.FormatInt(dates[x].Start.Unix(), 10))
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		for y := range data {
+			if time.Unix(data[x].TimeStamp, 0).Before(dates[x].Start) || time.Unix(data[x].TimeStamp, 0).After(dates[x].End) {
+				continue
+			}
+			ret.Candles = append(ret.Candles, kline.Candle{
+				Time:   time.Unix(data[y].TimeStamp, 0),
+				Open:   data[y].OpenPrice,
+				High:   data[y].HigestPrice,
+				Low:    data[y].LowestPrice,
+				Close:  data[y].ClosePrice,
+				Volume: data[y].TradingVolume,
+			})
+		}
+	}
+	return ret, nil
 }

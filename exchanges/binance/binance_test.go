@@ -811,7 +811,6 @@ func TestGetHistoricCandles(t *testing.T) {
 	currencyPair := currency.NewPairFromString("BTCUSDT")
 	startTime := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
-	b.Verbose = true
 	_, err := b.GetHistoricCandles(currencyPair, asset.Spot, startTime, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
@@ -827,13 +826,10 @@ func TestGetHistoricCandlesEx(t *testing.T) {
 	currencyPair := currency.NewPairFromString("BTCUSDT")
 	startTime := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
-	b.Verbose = true
-	v, err := b.GetHistoricCandlesEx(currencyPair, asset.Spot, startTime, end, kline.OneMin)
+	_, err := b.GetHistoricCandlesEx(currencyPair, asset.Spot, startTime, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	t.Log(v)
 	_, err = b.GetHistoricCandlesEx(currencyPair, asset.Spot, startTime, end, kline.Interval(time.Hour*7))
 	if err == nil {
 		t.Fatal("unexpected result")

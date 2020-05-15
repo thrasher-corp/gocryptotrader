@@ -144,6 +144,7 @@ func (b *Bitfinex) SetDefaults() {
 					kline.OneWeek.Word():    true,
 					kline.TwoWeek.Word():    true,
 				},
+				Limit: 10000,
 			},
 		},
 	}
@@ -823,7 +824,7 @@ func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		return kline.Item{}, err
 	}
 	ret := kline.Item{
-		Exchange: b.GetName(),
+		Exchange: b.Name,
 		Pair:     pair,
 		Asset:    a,
 		Interval: interval,
@@ -857,5 +858,32 @@ func (b *Bitfinex) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start,
 			Interval: interval,
 		}
 	}
-	return kline.Item{}, common.ErrNotYetImplemented
+
+	ret := kline.Item{
+		Exchange: b.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.KlineCapabilities.Limit)
+	for x := range dates {
+		candles, err := b.GetCandles(fixCasing(pair), b.FormatExchangeKlineInterval(interval),
+			dates[x].Start.Unix()*1000, dates[x].End.Unix()*1000, 0, true, false)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		for x := range candles {
+			ret.Candles = append(ret.Candles, kline.Candle{
+				Time:   candles[x].Timestamp,
+				Open:   candles[x].Open,
+				High:   candles[x].Close,
+				Low:    candles[x].Low,
+				Close:  candles[x].Close,
+				Volume: candles[x].Volume,
+			})
+		}
+	}
+	return ret, nil
 }

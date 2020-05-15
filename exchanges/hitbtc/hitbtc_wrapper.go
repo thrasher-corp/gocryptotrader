@@ -128,6 +128,7 @@ func (h *HitBTC) SetDefaults() {
 					kline.OneDay.Word():    true,
 					kline.SevenDay.Word():  true,
 				},
+				Limit: 1000,
 			},
 		},
 	}
@@ -699,5 +700,33 @@ func (h *HitBTC) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, e
 			Interval: interval,
 		}
 	}
-	return kline.Item{}, common.ErrNotYetImplemented
+
+	ret := kline.Item{
+		Exchange: h.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	dates := kline.CalcDateRanges(start, end, interval, h.Features.Enabled.KlineCapabilities.Limit)
+	for y := range dates {
+		data, err := h.GetCandles(h.FormatExchangeCurrency(pair, a).String(), "1000",
+			h.FormatExchangeKlineInterval(interval),
+			dates[y].Start.Format(time.RFC3339), dates[y].End.Format(time.RFC3339))
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		for x := range data {
+			ret.Candles = append(ret.Candles, kline.Candle{
+				Time:   data[x].Timestamp,
+				Open:   data[x].Open,
+				High:   data[x].Max,
+				Low:    data[x].Min,
+				Close:  data[x].Close,
+				Volume: data[x].Volume,
+			})
+		}
+	}
+	return ret, nil
 }

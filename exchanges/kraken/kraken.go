@@ -205,7 +205,6 @@ func (k *Kraken) GetOHLC(symbol, interval string) ([]OpenHighLowClose, error) {
 	values := url.Values{}
 	values.Set("pair", symbol)
 	values.Set("interval", interval)
-
 	type Response struct {
 		Error []interface{}          `json:"error"`
 		Data  map[string]interface{} `json:"result"`

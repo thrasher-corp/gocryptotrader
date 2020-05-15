@@ -1226,6 +1226,20 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 }
 
+func TestGetHistoricCandlesEx(t *testing.T) {
+	currencyPair := currency.NewPairFromString("tBTCUSD")
+	startTime := time.Now().Add(-time.Hour * 24)
+	_, err := b.GetHistoricCandlesEx(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandlesEx(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin*1337)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
 func TestFixCasing(t *testing.T) {
 	ret := fixCasing(currency.NewPairFromString("TBTCUSD"))
 	if ret != "tBTCUSD" {

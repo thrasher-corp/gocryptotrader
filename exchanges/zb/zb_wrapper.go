@@ -778,49 +778,5 @@ func (z *ZB) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end tim
 
 // GetHistoricCandlesEx returns candles between a time period for a set time interval
 func (z *ZB) GetHistoricCandlesEx(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !z.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
-	}
-
-	ret := kline.Item{
-		Exchange: z.Name,
-		Pair:     p,
-		Asset:    a,
-		Interval: interval,
-	}
-
-	dates := kline.CalcDateRanges(start, end, interval, z.Features.Enabled.KlineCapabilities.Limit)
-
-	for x := range dates {
-		klineParams := KlinesRequestParams{
-			Type:   z.FormatExchangeKlineInterval(interval),
-			Since:  dates[x].Start.UTC().Unix() * 1000,
-			Symbol: z.FormatExchangeCurrency(p, a).String(),
-		}
-
-		fmt.Println(klineParams)
-
-		candles, err := z.GetSpotKline(klineParams)
-		if err != nil {
-			return kline.Item{}, err
-		}
-
-		for y := range candles.Data {
-			if candles.Data[y].KlineTime.Before(dates[x].Start) || candles.Data[x].KlineTime.After(dates[x].End) {
-				continue
-			}
-
-			ret.Candles = append(ret.Candles, kline.Candle{
-				Time:   candles.Data[y].KlineTime,
-				Open:   candles.Data[y].Open,
-				High:   candles.Data[y].Close,
-				Low:    candles.Data[y].Low,
-				Close:  candles.Data[y].Close,
-				Volume: candles.Data[y].Volume,
-			})
-		}
-	}
-	return ret, nil
+	return z.GetHistoricCandles(p, a, start, end, interval)
 }

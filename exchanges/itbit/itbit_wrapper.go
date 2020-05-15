@@ -578,10 +578,5 @@ func (i *ItBit) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end 
 
 // GetHistoricCandlesEx returns candles between a time period for a set time interval
 func (i *ItBit) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !i.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
-	}
 	return kline.Item{}, common.ErrFunctionNotSupported
 }
