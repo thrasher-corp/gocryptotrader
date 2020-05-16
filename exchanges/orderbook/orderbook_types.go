@@ -62,6 +62,7 @@ type Base struct {
 	Bids         []Item        `json:"bids"`
 	Asks         []Item        `json:"asks"`
 	LastUpdated  time.Time     `json:"lastUpdated"`
+	LastUpdateID int64         `json:"lastUpdateId"`
 	AssetType    asset.Item    `json:"assetType"`
 	ExchangeName string        `json:"exchangeName"`
 }
