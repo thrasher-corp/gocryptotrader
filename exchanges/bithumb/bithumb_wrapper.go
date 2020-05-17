@@ -651,5 +651,5 @@ func (b *Bithumb) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 
 // GetHistoricCandlesEx returns candles between a time period for a set time interval
 func (b *Bithumb) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return b.GetHistoricCandles(pair, a, start, end,interval)
+	return b.GetHistoricCandles(pair, a, start, end, interval)
 }
