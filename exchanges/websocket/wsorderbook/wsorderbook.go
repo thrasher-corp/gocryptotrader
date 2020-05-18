@@ -94,6 +94,8 @@ func (w *WebsocketOrderbookLocal) processBufferUpdate(o *orderbook.Base, u *Webs
 }
 
 func (w *WebsocketOrderbookLocal) processObUpdate(o *orderbook.Base, u *WebsocketOrderbookUpdate) {
+	o.LastUpdateID = u.UpdateID
+
 	if w.updateEntriesByID {
 		w.updateByIDAndAction(o, u)
 	} else {
