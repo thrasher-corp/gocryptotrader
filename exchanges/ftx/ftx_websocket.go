@@ -354,9 +354,8 @@ func (f *FTX) CalcOBChecksum(orderbookData *orderbook.Base) int64 {
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), ":")
 	fmt.Println(checksumStr)
-	retVal := int64(crc32.ChecksumIEEE([]byte(checksumStr)))
-	fmt.Println(retVal)
-	return retVal
+	fmt.Println(int64(crc32.ChecksumIEEE([]byte(checksumStr))))
+	return int64(crc32.ChecksumIEEE([]byte(checksumStr)))
 }
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an orderbook item array
@@ -481,7 +480,6 @@ func (f *FTX) CalcPartialOBChecksum(data *WsOrderbookData) int64 {
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), ":")
 	fmt.Println(checksumStr)
-	retVal := int64(crc32.ChecksumIEEE([]byte(checksumStr)))
-	fmt.Println(retVal)
-	return retVal
+	fmt.Println(int64(crc32.ChecksumIEEE([]byte(checksumStr))))
+	return int64(crc32.ChecksumIEEE([]byte(checksumStr)))
 }
