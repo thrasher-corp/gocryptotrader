@@ -353,6 +353,47 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 }
 
+func TestNewOrderTest(t *testing.T) {
+	t.Parallel()
+
+	req := &NewOrderRequest{
+		Symbol:      "LTCBTC",
+		Side:        order.Buy.String(),
+		TradeType:   BinanceRequestParamsOrderLimit,
+		Price:       0.0025,
+		Quantity:    100000,
+		TimeInForce: BinanceRequestParamsTimeGTC,
+	}
+
+	err := b.NewOrderTest(req)
+	switch {
+	case areTestAPIKeysSet() && err != nil:
+		t.Error("NewOrderTest() error", err)
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
+		t.Error("NewOrderTest() expecting an error when no keys are set")
+	case mockTests && err != nil:
+		t.Error("Mock NewOrderTest() error", err)
+	}
+
+	req = &NewOrderRequest{
+		Symbol:        "LTCBTC",
+		Side:          order.Sell.String(),
+		TradeType:     BinanceRequestParamsOrderMarket,
+		Price:         0.0045,
+		QuoteOrderQty: 10,
+	}
+
+	err = b.NewOrderTest(req)
+	switch {
+	case areTestAPIKeysSet() && err != nil:
+		t.Error("NewOrderTest() error", err)
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
+		t.Error("NewOrderTest() expecting an error when no keys are set")
+	case mockTests && err != nil:
+		t.Error("Mock NewOrderTest() error", err)
+	}
+}
+
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // -----------------------------------------------------------------------------------------------------------------------------
 
