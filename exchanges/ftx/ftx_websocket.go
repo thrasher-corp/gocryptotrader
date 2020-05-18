@@ -311,7 +311,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 		}
 		obMutex.Lock()
 		obMutex.Unlock()
-		f.WsProcessPartialOB(&resultData.OBData, p, a)
+		err = f.WsProcessPartialOB(&resultData.OBData, p, a)
 		if err != nil {
 			f.wsResubToOB(p)
 			return err
@@ -338,20 +338,25 @@ func (f *FTX) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscript
 // CalcOBChecksum calculates checksum of our stored orderbook
 func (f *FTX) CalcOBChecksum(orderbookData *orderbook.Base) int64 {
 	var checksum strings.Builder
-	for i := 0; i < 100; i++ {
-		if i < len(orderbookData.Bids)-1 {
+	for i := 0; i < 100; {
+		if len(orderbookData.Bids)-1 >= i {
 			price := strconv.FormatFloat(orderbookData.Bids[i].Price, 'f', -1, 64)
 			amount := strconv.FormatFloat(orderbookData.Bids[i].Amount, 'f', -1, 64)
 			checksum.WriteString(price + ":" + amount + ":")
+			i++
 		}
-		if i < len(orderbookData.Asks)-1 {
+		if len(orderbookData.Asks)-1 >= i {
 			price := strconv.FormatFloat(orderbookData.Asks[i].Price, 'f', -1, 64)
 			amount := strconv.FormatFloat(orderbookData.Asks[i].Amount, 'f', -1, 64)
 			checksum.WriteString(price + ":" + amount + ":")
+			i++
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), ":")
-	return int64(crc32.ChecksumIEEE([]byte(checksumStr)))
+	fmt.Println(checksumStr)
+	retVal := int64(crc32.ChecksumIEEE([]byte(checksumStr)))
+	fmt.Println(retVal)
+	return retVal
 }
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an orderbook item array
@@ -460,18 +465,23 @@ func (f *FTX) WsProcessPartialOB(data *WsOrderbookData, p currency.Pair, a asset
 func (f *FTX) CalcPartialOBChecksum(data *WsOrderbookData) int64 {
 	var checksum strings.Builder
 	var price, amount string
-	for i := 0; i < 100; i++ {
-		if i < len(data.Bids)-1 {
+	for i := 0; i < 100; {
+		if len(data.Bids)-1 >= i {
 			price = strconv.FormatFloat(data.Bids[i][0], 'f', -1, 64)
 			amount = strconv.FormatFloat(data.Bids[i][1], 'f', -1, 64)
 			checksum.WriteString(price + ":" + amount + ":")
+			i++
 		}
-		if i < len(data.Asks)-1 {
+		if len(data.Asks)-1 >= i {
 			price = strconv.FormatFloat(data.Asks[i][0], 'f', -1, 64)
 			amount = strconv.FormatFloat(data.Asks[i][1], 'f', -1, 64)
 			checksum.WriteString(price + ":" + amount + ":")
+			i++
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), ":")
-	return int64(crc32.ChecksumIEEE([]byte(checksumStr)))
+	fmt.Println(checksumStr)
+	retVal := int64(crc32.ChecksumIEEE([]byte(checksumStr)))
+	fmt.Println(retVal)
+	return retVal
 }

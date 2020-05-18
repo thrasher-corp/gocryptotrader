@@ -1,12 +1,15 @@
 package ftx
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -946,4 +949,27 @@ func TestParsingWSOrdersData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestCalcPartialOBChecksum(t *testing.T) {
+	var ob WsOrderbookData
+	b := [][2]float64{[2]float64{5000.5, 10}, [2]float64{4995.0, 5}}
+	a := [][2]float64{[2]float64{5001.0, 6}}
+	ob.Asks = a
+	ob.Bids = b
+	fmt.Println(ob.Asks)
+	fmt.Println(ob.Bids)
+	output := f.CalcPartialOBChecksum(&ob)
+	fmt.Println(output)
+}
+
+func TestCalcOBChecksum(t *testing.T) {
+	var ob orderbook.Base
+	a := []orderbook.Item{orderbook.Item{Price: 5001.0, Amount: 6}}
+	b := []orderbook.Item{orderbook.Item{Price: 5000.5, Amount: 10},
+		orderbook.Item{Price: 4995.0, Amount: 5}}
+	ob.Asks = a
+	ob.Bids = b
+	retVal := f.CalcOBChecksum(&ob)
+	fmt.Println(retVal)
 }
