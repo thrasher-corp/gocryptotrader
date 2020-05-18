@@ -111,8 +111,8 @@ type withdrawalFiatL struct{}
 
 var (
 	withdrawalFiatAllColumns            = []string{"id", "withdrawal_fiat_id", "bank_name", "bank_address", "bank_account_name", "bank_account_number", "bsb", "swift_code", "iban", "bank_code"}
-	withdrawalFiatColumnsWithoutDefault = []string{"withdrawal_fiat_id", "bank_name", "bank_address", "bank_account_name", "bank_account_number", "bsb", "swift_code", "iban", "bank_code"}
-	withdrawalFiatColumnsWithDefault    = []string{"id"}
+	withdrawalFiatColumnsWithoutDefault = []string{"withdrawal_fiat_id", "bank_name", "bank_address", "bank_account_name", "bank_account_number", "bank_code"}
+	withdrawalFiatColumnsWithDefault    = []string{"id", "bsb", "swift_code", "iban"}
 	withdrawalFiatPrimaryKeyColumns     = []string{"id"}
 )
 

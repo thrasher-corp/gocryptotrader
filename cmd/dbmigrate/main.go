@@ -14,6 +14,7 @@ import (
 	dbPSQL "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
+	exchange "github.com/thrasher-corp/gocryptotrader/database/seed"
 	"github.com/thrasher-corp/goose"
 )
 
@@ -86,6 +87,15 @@ func main() {
 		_ = goose.Run("status", dbConn.SQL, drv, migrationDir, "")
 		fmt.Println()
 		flag.Usage()
+		return
+	}
+
+	if command == "seed" {
+		err := exchange.Seed()
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Println("Exchange seed successful")
 		return
 	}
 
