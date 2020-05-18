@@ -446,7 +446,8 @@ func (b *Binance) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History
 	formattedPair := b.FormatExchangeCurrency(req.Pair, req.Asset)
 	// Aggregated trades has compression when trades are executed at the same
 	// time thus reducing request data.
-	trades, err := b.getAggregatedTradesEx(formattedPair.String(),
+	trades, err := b.GetAggregatedTrades(formattedPair.String(),
+		"1000",
 		req.TimestampStart,
 		timestampEnd)
 	if err != nil {

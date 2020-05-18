@@ -163,10 +163,6 @@ func (b *Binance) GetHistoricalTrades(symbol string, limit int, fromID int64) ([
 	return nil, common.ErrFunctionNotSupported
 }
 
-func (b *Binance) getAggregatedTradesEx(symbol string, start, end time.Time) ([]AggregatedTrade, error) {
-	return nil, nil
-}
-
 // GetAggregatedTrades returns aggregated trade activity
 //
 // symbol: string of currency pair

@@ -382,13 +382,13 @@ type WebsocketBook struct {
 	Amount float64
 }
 
-// WebsocketTrade holds tradeRateLimit information
+// WebsocketTrade holds trade information
 type WebsocketTrade struct {
 	ID        int64
 	Timestamp int64
 	Price     float64
 	Amount    float64
-	// Funding rate of the tradeRateLimit
+	// Funding rate of the trade
 	Rate float64
 	// Funding offer period in days
 	Period int64
@@ -469,7 +469,7 @@ type WebsocketOrder struct {
 	Notify     int
 }
 
-// WebsocketTradeExecuted holds executed tradeRateLimit data
+// WebsocketTradeExecuted holds executed trade data
 type WebsocketTradeExecuted struct {
 	TradeID        int64
 	Pair           string
@@ -479,7 +479,7 @@ type WebsocketTradeExecuted struct {
 	PriceExecuted  float64
 }
 
-// WebsocketTradeData holds executed tradeRateLimit data
+// WebsocketTradeData holds executed trade data
 type WebsocketTradeData struct {
 	TradeID        int64
 	Pair           string
