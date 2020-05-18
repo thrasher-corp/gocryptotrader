@@ -324,14 +324,35 @@ func (b *Binance) GetBestPrice(symbol string) (BestPrice, error) {
 // NewOrder sends a new order to Binance
 func (b *Binance) NewOrder(o *NewOrderRequest) (NewOrderResponse, error) {
 	var resp NewOrderResponse
+	if err := b.newOrder(newOrder, o, &resp); err != nil {
+		return resp, err
+	}
 
-	path := b.API.Endpoints.URL + newOrder
+	if resp.Code != 0 {
+		return resp, errors.New(resp.Msg)
+	}
+
+	return resp, nil
+}
+
+// NewOrderTest sends a new test order to Binance
+func (b *Binance) NewOrderTest(o *NewOrderRequest) error {
+	var resp NewOrderResponse
+	return b.newOrder(newOrderTest, o, &resp)
+}
+
+func (b *Binance) newOrder(api string, o *NewOrderRequest, resp *NewOrderResponse) error {
+	path := b.API.Endpoints.URL + api
 
 	params := url.Values{}
 	params.Set("symbol", o.Symbol)
 	params.Set("side", o.Side)
 	params.Set("type", string(o.TradeType))
-	params.Set("quantity", strconv.FormatFloat(o.Quantity, 'f', -1, 64))
+	if o.QuoteOrderQty > 0 {
+		params.Set("quoteOrderQty", strconv.FormatFloat(o.QuoteOrderQty, 'f', -1, 64))
+	} else {
+		params.Set("quantity", strconv.FormatFloat(o.Quantity, 'f', -1, 64))
+	}
 	if o.TradeType == BinanceRequestParamsOrderLimit {
 		params.Set("price", strconv.FormatFloat(o.Price, 'f', -1, 64))
 	}
@@ -355,14 +376,7 @@ func (b *Binance) NewOrder(o *NewOrderRequest) (NewOrderResponse, error) {
 		params.Set("newOrderRespType", o.NewOrderRespType)
 	}
 
-	if err := b.SendAuthHTTPRequest(http.MethodPost, path, params, limitOrder, &resp); err != nil {
-		return resp, err
-	}
-
-	if resp.Code != 0 {
-		return resp, errors.New(resp.Msg)
-	}
-	return resp, nil
+	return b.SendAuthHTTPRequest(http.MethodPost, path, params, limitOrder, resp)
 }
 
 // CancelExistingOrder sends a cancel order to Binance
