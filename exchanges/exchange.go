@@ -804,7 +804,7 @@ func (e *Base) EnableRateLimiter() error {
 
 // KlineIntervalEnabled returns if requested interval is enabled on exchange
 func (e *Base) KlineIntervalEnabled(in kline.Interval) bool {
-	return e.Features.Enabled.KlineCapabilities.Intervals[in.Word()]
+	return e.Features.Enabled.Kline.Intervals[in.Word()]
 }
 
 // FormatExchangeKlineInterval returns Interval to string

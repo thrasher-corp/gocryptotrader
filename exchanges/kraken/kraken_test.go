@@ -106,7 +106,6 @@ func TestGetTickers(t *testing.T) {
 // TestGetOHLC API endpoint test
 func TestGetOHLC(t *testing.T) {
 	t.Parallel()
-	k.Verbose = true
 	_, err := k.GetOHLC("BCHEUR", "10080")
 	if err != nil {
 		t.Error("GetOHLC() error", err)
@@ -1361,7 +1360,6 @@ func TestWsCancelOrderJSON(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	k.Verbose = true
 	currencyPair := currency.NewPairFromString("BCHEUR")
 	_, err := k.GetHistoricCandles(currencyPair, asset.Spot, time.Now(), time.Now(), kline.Fifteenday)
 	if err != nil {
@@ -1375,7 +1373,6 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesEx(t *testing.T) {
-	k.Verbose = true
 	currencyPair := currency.NewPairFromString("BCHEUR")
 	_, err := k.GetHistoricCandlesEx(currencyPair, asset.Spot, time.Now(), time.Now(), kline.Fifteenday)
 	if err != nil {

@@ -147,8 +147,8 @@ type Features struct {
 
 // FeaturesEnabled stores the exchange enabled features
 type FeaturesEnabled struct {
-	AutoPairUpdates   bool
-	KlineCapabilities kline.ExchangeCapabilities
+	AutoPairUpdates bool
+	Kline           kline.ExchangeCapabilitiesEnabled
 }
 
 // FeaturesSupported stores the exchanges supported features
@@ -158,7 +158,7 @@ type FeaturesSupported struct {
 	Websocket             bool
 	WebsocketCapabilities protocol.Features
 	WithdrawPermissions   uint32
-	KlineCapabilities     kline.ExchangeCapabilities
+	KlineCapabilities     kline.ExchangeCapabilitiesSupported
 }
 
 // API stores the exchange API settings

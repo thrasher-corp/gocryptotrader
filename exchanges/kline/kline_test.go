@@ -237,15 +237,25 @@ func TestKlineErrors(t *testing.T) {
 	}
 }
 
+func ExampleTotalCandlesPerInterval() {
+	end := time.Now()
+	start := end.AddDate(-1, 0, 0)
+	fmt.Println(TotalCandlesPerInterval(start, end, Fifteenday))
+	// Output: 24
+}
+
 func TestTotalCandlesPerInterval(t *testing.T) {
 	end := time.Now()
 	start := end.AddDate(-1, 0, 0)
 
 	v := TotalCandlesPerInterval(start, end, OneYear)
-	t.Log(v)
-
-	v = TotalCandlesPerInterval(end.Add(-1*time.Hour), end, Fifteenday)
-	t.Log(v)
+	if v != 1 {
+		t.Fatalf("unexpected result expected 1 received %v", v)
+	}
+	v = TotalCandlesPerInterval(start, end, Fifteenday)
+	if v != 24 {
+		t.Fatalf("unexpected result expected 24 received %v", v)
+	}
 }
 
 func TestCalcDateRanges(t *testing.T) {
@@ -253,7 +263,45 @@ func TestCalcDateRanges(t *testing.T) {
 	end := time.Unix(1577836799, 0)
 
 	v := CalcDateRanges(start, end, OneMin, 300)
-	for x := range v {
-		fmt.Println(v[x].Start, " | ", v[x].End)
+
+	if v[0].Start.Unix() != time.Unix(1546300800, 0).Unix() {
+		t.Fatalf("unexpected result received %v", v[0].Start.Unix())
+	}
+
+	v = CalcDateRanges(time.Now(), time.Now().AddDate(0, 0, 1), OneDay, 100)
+	if len(v) != 1 {
+		t.Fatal("expected CalcDateRanges() with a Candle count lower than limit to return 1 result")
+	}
+}
+
+func TestItem_SortCandlesByTimestamp(t *testing.T) {
+	var tempKline = Item{
+		Exchange: "testExchange",
+		Pair:     currency.NewPair(currency.BTC, currency.USDT),
+		Asset:    asset.Spot,
+		Interval: OneDay,
+	}
+
+	for x := 0; x < 100; x++ {
+		y := rand.Float64()
+		tempKline.Candles = append(tempKline.Candles,
+			Candle{
+				Time:   time.Now().AddDate(0, 0, -x),
+				Open:   y,
+				High:   y + float64(x),
+				Low:    y - float64(x),
+				Close:  y,
+				Volume: y,
+			})
+	}
+
+	tempKline.SortCandlesByTimestamp(false)
+	if tempKline.Candles[0].Time.After(tempKline.Candles[1].Time) {
+		t.Fatal("expected kline.Candles to be in descending order")
+	}
+
+	tempKline.SortCandlesByTimestamp(true)
+	if tempKline.Candles[0].Time.Before(tempKline.Candles[1].Time) {
+		t.Fatal("expected kline.Candles to be in ascending order")
 	}
 }

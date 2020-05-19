@@ -121,14 +121,14 @@ func (b *Bitfinex) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.AutoWithdrawFiatWithAPIPermission,
-			KlineCapabilities: kline.ExchangeCapabilities{
-				SupportsDateRange: true,
-				SupportsIntervals: true,
+			KlineCapabilities: kline.ExchangeCapabilitiesSupported{
+				DateRanges: true,
+				Intervals:  true,
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
-			KlineCapabilities: kline.ExchangeCapabilities{
+			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: map[string]bool{
 					kline.OneMin.Word():     true,
 					kline.ThreeMin.Word():   true,
@@ -144,7 +144,7 @@ func (b *Bitfinex) SetDefaults() {
 					kline.OneWeek.Word():    true,
 					kline.TwoWeek.Word():    true,
 				},
-				Limit: 10000,
+				ResultLimit: 10000,
 			},
 		},
 	}
@@ -866,7 +866,7 @@ func (b *Bitfinex) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start,
 		Interval: interval,
 	}
 
-	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.KlineCapabilities.Limit)
+	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
 	for x := range dates {
 		candles, err := b.GetCandles(fixCasing(pair), b.FormatExchangeKlineInterval(interval),
 			dates[x].Start.Unix()*1000, dates[x].End.Unix()*1000, 0, true, false)

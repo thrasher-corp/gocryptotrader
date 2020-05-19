@@ -1098,11 +1098,29 @@ func TestGetOrderbook(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	o.Verbose = true
 	currencyPair := currency.NewPairFromString("BTCUSDT")
 	startTime := time.Unix(1588636800, 0)
 	_, err := o.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	_, err = o.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
+	}
+}
+
+func TestGetHistoricCandlesEx(t *testing.T) {
+	currencyPair := currency.NewPairFromString("BTCUSDT")
+	startTime := time.Unix(1588636800, 0)
+	_, err := o.GetHistoricCandlesEx(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = o.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
 	}
 }

@@ -112,14 +112,14 @@ func (b *Binance) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
-			KlineCapabilities: kline.ExchangeCapabilities{
-				SupportsDateRange: true,
-				SupportsIntervals: true,
+			KlineCapabilities: kline.ExchangeCapabilitiesSupported{
+				DateRanges: true,
+				Intervals:  true,
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
-			KlineCapabilities: kline.ExchangeCapabilities{
+			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: map[string]bool{
 					kline.OneMin.Word():     true,
 					kline.ThreeMin.Word():   true,
@@ -136,7 +136,7 @@ func (b *Binance) SetDefaults() {
 					kline.OneWeek.Word():    true,
 					kline.OneMonth.Word():   true,
 				},
-				Limit: 1000,
+				ResultLimit: 1000,
 			},
 		},
 	}
@@ -446,8 +446,7 @@ func (b *Binance) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History
 	formattedPair := b.FormatExchangeCurrency(req.Pair, req.Asset)
 	// Aggregated trades has compression when trades are executed at the same
 	// time thus reducing request data.
-	trades, err := b.GetAggregatedTrades(formattedPair.String(),
-		"1000",
+	trades, err := b.GetAggregatedTrades(formattedPair.String(), 1000,
 		req.TimestampStart,
 		timestampEnd)
 	if err != nil {
@@ -796,7 +795,7 @@ func (b *Binance) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, 
 		Interval: interval,
 	}
 
-	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.KlineCapabilities.Limit)
+	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
 	for x := range dates {
 		req := KlinesRequestParams{
 			Interval:  b.FormatExchangeKlineInterval(interval),
@@ -823,6 +822,6 @@ func (b *Binance) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, 
 		}
 	}
 
-	ret.SortCandlesByTimestamp()
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

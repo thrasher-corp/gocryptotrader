@@ -108,20 +108,20 @@ func (b *BTCMarkets) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
-			KlineCapabilities: kline.ExchangeCapabilities{
-				SupportsDateRange: true,
-				SupportsIntervals: true,
+			KlineCapabilities: kline.ExchangeCapabilitiesSupported{
+				DateRanges: true,
+				Intervals:  true,
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
-			KlineCapabilities: kline.ExchangeCapabilities{
+			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: map[string]bool{
 					kline.OneMin.Word():  true,
 					kline.OneHour.Word(): true,
 					kline.OneDay.Word():  true,
 				},
-				Limit: 1000,
+				ResultLimit: 1000,
 			},
 		},
 	}
@@ -776,7 +776,7 @@ func (b *BTCMarkets) GetHistoricCandlesEx(p currency.Pair, a asset.Item, start, 
 		Interval: interval,
 	}
 
-	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.KlineCapabilities.Limit)
+	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
 	for x := range dates {
 		tempData, err := b.GetMarketCandles(p.String(), interval, dates[x].Start, dates[x].End, -1, -1, 0)
 		if err != nil {

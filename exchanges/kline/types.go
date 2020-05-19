@@ -16,7 +16,7 @@ const (
 	TenMin         = 10 * OneMin
 	FifteenMin     = 15 * OneMin
 	ThirtyMin      = 30 * OneMin
-	OneHour        = Interval(1 * time.Hour)
+	OneHour        = Interval(time.Hour)
 	TwoHour        = 2 * OneHour
 	FourHour       = 4 * OneHour
 	SixHour        = 6 * OneHour
@@ -33,7 +33,7 @@ const (
 	OneYear        = 365 * OneDay
 )
 
-// ErrUnsupportedInterval loacle for an unsupported interval
+// ErrUnsupportedInterval locale for an unsupported interval
 const ErrUnsupportedInterval = "%s interval unsupported by exchange"
 
 const ErrRequestExceedsExchangeLimits = "requested data would exceed exchange limits please lower range or use GetHistoricCandlesEx"
@@ -57,12 +57,15 @@ type Candle struct {
 	Volume float64
 }
 
-// ExchangeCapabilities all kline related exchange supported options
-type ExchangeCapabilities struct {
-	SupportsIntervals bool
-	Intervals         map[string]bool `json:"intervals,omitempty"`
-	SupportsDateRange bool
-	Limit             uint32
+// ExchangeCapabilitiesSupported all kline related exchange supported options
+type ExchangeCapabilitiesSupported struct {
+	Intervals  bool
+	DateRanges bool
+}
+
+type ExchangeCapabilitiesEnabled struct {
+	Intervals   map[string]bool `json:"intervals,omitempty"`
+	ResultLimit uint32
 }
 
 // Interval type for kline Interval usage

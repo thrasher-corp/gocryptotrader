@@ -107,13 +107,13 @@ func (z *ZB) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
-			KlineCapabilities: kline.ExchangeCapabilities{
-				SupportsIntervals: true,
+			KlineCapabilities: kline.ExchangeCapabilitiesSupported{
+				Intervals: true,
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
-			KlineCapabilities: kline.ExchangeCapabilities{
+			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: map[string]bool{
 					kline.OneMin.Word():     true,
 					kline.ThreeMin.Word():   true,
@@ -129,7 +129,7 @@ func (z *ZB) SetDefaults() {
 					kline.ThreeDay.Word():   true,
 					kline.OneWeek.Word():    true,
 				},
-				Limit: 1000,
+				ResultLimit: 1000,
 			},
 		},
 	}
