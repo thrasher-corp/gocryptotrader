@@ -167,7 +167,6 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	}
 
-	// NOTE: PLEASE ENSURE YOU SET THE ORDERBOOK BUFFER SETTINGS CORRECTLY
 	f.Websocket.Orderbook.Setup(
 		exch.WebsocketOrderbookBufferLimit,
 		false,

@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -30,11 +29,12 @@ const (
 	wsTicker          = "ticker"
 	wsTrades          = "trades"
 	wsOrderbook       = "orderbook"
+	wsMarkets         = "markets"
 	wsFills           = "fills"
 	wsOrders          = "orders"
+	wsUpdate          = "update"
+	wsPartial         = "partial"
 )
-
-var obMutex sync.Mutex
 
 // WsConnect connects to a websocket feed
 func (f *FTX) WsConnect() error {
@@ -88,6 +88,10 @@ func (f *FTX) WsAuth() error {
 // Subscribe sends a websocket message to receive data from the channel
 func (f *FTX) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	var sub WsSub
+	a, err := f.GetPairAssetType(channelToSubscribe.Currency)
+	if err != nil {
+		return err
+	}
 	switch channelToSubscribe.Channel {
 	case wsFills, wsOrders:
 		sub.Operation = "subscribe"
@@ -95,22 +99,24 @@ func (f *FTX) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscriptio
 	default:
 		sub.Operation = "subscribe"
 		sub.Channel = channelToSubscribe.Channel
-		sub.Market = f.FormatExchangeCurrency(channelToSubscribe.Currency, asset.Futures).String()
+		sub.Market = f.FormatExchangeCurrency(channelToSubscribe.Currency, a).String()
 	}
 	return f.WebsocketConn.SendJSONMessage(sub)
 }
 
 // GenerateDefaultSubscriptions generates default subscription
 func (f *FTX) GenerateDefaultSubscriptions() {
-	var channels = []string{wsTicker, wsTrades, wsOrderbook, wsFills, wsOrders}
-	pairs := f.GetEnabledPairs(asset.Futures)
-	newPair := currency.NewPairWithDelimiter(pairs[0].Base.String(), pairs[0].Quote.String(), "-")
+	var channels = []string{wsTicker, wsTrades, wsOrderbook, wsMarkets, wsFills, wsOrders}
 	var subscriptions []wshandler.WebsocketChannelSubscription
-	for x := range channels {
-		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
-			Channel:  channels[x],
-			Currency: newPair,
-		})
+	for a := range f.CurrencyPairs.AssetTypes {
+		pairs := f.GetEnabledPairs(f.CurrencyPairs.AssetTypes[a])
+		newPair := currency.NewPairWithDelimiter(pairs[0].Base.String(), pairs[0].Quote.String(), "-")
+		for x := range channels {
+			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+				Channel:  channels[x],
+				Currency: newPair,
+			})
+		}
 	}
 	f.Websocket.SubscribeToChannels(subscriptions)
 }
@@ -154,7 +160,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 		return err
 	}
 	switch result["type"] {
-	case "update":
+	case wsUpdate:
 		var p currency.Pair
 		var a asset.Item
 		_, ok := result["market"]
@@ -166,7 +172,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			}
 		}
 		switch result["channel"] {
-		case "ticker":
+		case wsTicker:
 			var resultData WsTickerDataStore
 			err = json.Unmarshal(respRaw, &resultData)
 			if err != nil {
@@ -181,14 +187,12 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 				Pair:         p,
 				AssetType:    a,
 			}
-		case "orderbook":
+		case wsOrderbook:
 			var resultData WsOrderbookDataStore
 			err = json.Unmarshal(respRaw, &resultData)
 			if err != nil {
 				return err
 			}
-			obMutex.Lock()
-			defer obMutex.Unlock()
 			if len(resultData.OBData.Asks) == 0 && len(resultData.OBData.Bids) == 0 {
 				return nil
 			}
@@ -197,7 +201,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 				f.wsResubToOB(p)
 				return err
 			}
-		case "trades":
+		case wsTrades:
 			var resultData WsTradeDataStore
 			err = json.Unmarshal(respRaw, &resultData)
 			if err != nil {
@@ -222,7 +226,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 					Side:         oSide,
 				}
 			}
-		case "orders":
+		case wsOrders:
 			var resultData WsOrderDataStore
 			err = json.Unmarshal(respRaw, &resultData)
 			if err != nil {
@@ -282,7 +286,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			}
 			resp.Fee = fee
 			f.Websocket.DataHandler <- resp
-		case "fills":
+		case wsFills:
 			var resultData WsFillsDataStore
 			err = json.Unmarshal(respRaw, &resultData)
 			if err != nil {
@@ -293,28 +297,36 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			f.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: f.Name + wshandler.UnhandledMessage + string(respRaw)}
 			return nil
 		}
-	case "partial":
-		var p currency.Pair
-		var a asset.Item
-		_, ok := result["market"]
-		if ok {
-			p = currency.NewPairFromString(result["market"].(string))
-			a, err = f.GetPairAssetType(p)
+	case wsPartial:
+		switch result["channel"] {
+		case "orderbook":
+			var p currency.Pair
+			var a asset.Item
+			_, ok := result["market"]
+			if ok {
+				p = currency.NewPairFromString(result["market"].(string))
+				a, err = f.GetPairAssetType(p)
+				if err != nil {
+					return err
+				}
+			}
+			var resultData WsOrderbookDataStore
+			err = json.Unmarshal(respRaw, &resultData)
 			if err != nil {
 				return err
 			}
-		}
-		var resultData WsOrderbookDataStore
-		err = json.Unmarshal(respRaw, &resultData)
-		if err != nil {
-			return err
-		}
-		obMutex.Lock()
-		obMutex.Unlock()
-		err = f.WsProcessPartialOB(&resultData.OBData, p, a)
-		if err != nil {
-			f.wsResubToOB(p)
-			return err
+			err = f.WsProcessPartialOB(&resultData.OBData, p, a)
+			if err != nil {
+				f.wsResubToOB(p)
+				return err
+			}
+		case wsMarkets:
+			var resultData WSMarkets
+			err = json.Unmarshal(respRaw, &resultData)
+			if err != nil {
+				return err
+			}
+			f.Websocket.DataHandler <- resultData.Data
 		}
 	case "error":
 		f.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: f.Name + wshandler.UnhandledMessage + string(respRaw)}
@@ -335,64 +347,40 @@ func (f *FTX) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscript
 	return f.WebsocketConn.SendJSONMessage(unSub)
 }
 
-// CalcOBChecksum calculates checksum of our stored orderbook
-func (f *FTX) CalcOBChecksum(orderbookData *orderbook.Base) int64 {
-	var checksum strings.Builder
-	for i := 0; i < 100; {
-		if len(orderbookData.Bids)-1 >= i {
-			price := strconv.FormatFloat(orderbookData.Bids[i].Price, 'f', -1, 64)
-			amount := strconv.FormatFloat(orderbookData.Bids[i].Amount, 'f', -1, 64)
-			checksum.WriteString(price + ":" + amount + ":")
-			i++
-		}
-		if len(orderbookData.Asks)-1 >= i {
-			price := strconv.FormatFloat(orderbookData.Asks[i].Price, 'f', -1, 64)
-			amount := strconv.FormatFloat(orderbookData.Asks[i].Amount, 'f', -1, 64)
-			checksum.WriteString(price + ":" + amount + ":")
-			i++
-		}
-	}
-	checksumStr := strings.TrimSuffix(checksum.String(), ":")
-	fmt.Println(checksumStr)
-	fmt.Println(int64(crc32.ChecksumIEEE([]byte(checksumStr))))
-	return int64(crc32.ChecksumIEEE([]byte(checksumStr)))
-}
-
-// AppendWsOrderbookItems adds websocket orderbook data bid/asks into an orderbook item array
-func (f *FTX) AppendWsOrderbookItems(entries [][2]float64) ([]orderbook.Item, error) {
-	var items []orderbook.Item
-	for x := range entries {
-		items = append(items, orderbook.Item{Amount: entries[x][1], Price: entries[x][0]})
-	}
-	return items, nil
-}
-
 // WsProcessUpdateOB processes an update on the orderbook
 func (f *FTX) WsProcessUpdateOB(data *WsOrderbookData, p currency.Pair, a asset.Item) error {
-	updateOB := wsorderbook.WebsocketOrderbookUpdate{
+	update := wsorderbook.WebsocketOrderbookUpdate{
 		Asset:      a,
 		Pair:       p,
 		UpdateTime: timestampFromFloat64(data.Time),
 	}
+
 	var err error
-	updateOB.Asks, err = f.AppendWsOrderbookItems(data.Asks)
+	for x := range data.Bids {
+		update.Bids = append(update.Bids, orderbook.Item{
+			Price:  data.Bids[x][0],
+			Amount: data.Bids[x][1],
+		})
+	}
+	for x := range data.Asks {
+		update.Asks = append(update.Asks, orderbook.Item{
+			Price:  data.Asks[x][0],
+			Amount: data.Asks[x][1],
+		})
+	}
+
+	err = f.Websocket.Orderbook.Update(&update)
 	if err != nil {
 		return err
 	}
-	updateOB.Bids, err = f.AppendWsOrderbookItems(data.Bids)
-	if err != nil {
-		return err
-	}
-	err = f.Websocket.Orderbook.Update(&updateOB)
-	if err != nil {
-		return err
-	}
-	updatedOB := f.Websocket.Orderbook.GetOrderbook(p, a)
-	checksum := f.CalcOBChecksum(updatedOB)
+
+	updatedOb := f.Websocket.Orderbook.GetOrderbook(p, a)
+	checksum := f.CalcUpdateOBChecksum(updatedOb)
+
 	if checksum != data.Checksum {
 		log.Warnf(log.ExchangeSys, "%s checksum failure for item %s",
 			f.Name,
-			p.String())
+			p)
 		return errors.New("checksum failed")
 	}
 	f.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
@@ -400,6 +388,7 @@ func (f *FTX) WsProcessUpdateOB(data *WsOrderbookData, p currency.Pair, a asset.
 		Asset:    a,
 		Pair:     p,
 	}
+
 	return nil
 }
 
@@ -413,7 +402,6 @@ func (f *FTX) wsResubToOB(p currency.Pair) {
 
 // WsProcessPartialOB creates an OB from websocket data
 func (f *FTX) WsProcessPartialOB(data *WsOrderbookData, p currency.Pair, a asset.Item) error {
-	fmt.Printf("HELOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n\n\n\n\n\n\n")
 	signedChecksum := f.CalcPartialOBChecksum(data)
 	if signedChecksum != data.Checksum {
 		return fmt.Errorf("%s channel: %s. Orderbook partial for %v checksum invalid",
@@ -421,21 +409,18 @@ func (f *FTX) WsProcessPartialOB(data *WsOrderbookData, p currency.Pair, a asset
 			a,
 			p)
 	}
-	if f.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s passed checksum for market %s",
-			f.Name,
-			p)
+	var bids, asks []orderbook.Item
+	for x := range data.Bids {
+		bids = append(bids, orderbook.Item{
+			Price:  data.Bids[x][0],
+			Amount: data.Bids[x][1],
+		})
 	}
-
-	asks, err := f.AppendWsOrderbookItems(data.Asks)
-	if err != nil {
-		return err
-	}
-
-	bids, err := f.AppendWsOrderbookItems(data.Bids)
-	if err != nil {
-		return err
+	for x := range data.Asks {
+		asks = append(asks, orderbook.Item{
+			Price:  data.Asks[x][0],
+			Amount: data.Asks[x][1],
+		})
 	}
 
 	newOrderBook := orderbook.Base{
@@ -447,8 +432,7 @@ func (f *FTX) WsProcessPartialOB(data *WsOrderbookData, p currency.Pair, a asset
 		ExchangeName: f.Name,
 	}
 
-	err = f.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
-	if err != nil {
+	if err := f.Websocket.Orderbook.LoadSnapshot(&newOrderBook); err != nil {
 		return err
 	}
 
@@ -461,25 +445,53 @@ func (f *FTX) WsProcessPartialOB(data *WsOrderbookData, p currency.Pair, a asset
 }
 
 // CalcPartialOBChecksum calculates checksum of partial OB data received from WS
-func (f *FTX) CalcPartialOBChecksum(data *WsOrderbookData) int64 {
+func (f *FTX) CalcPartialOBChecksum(data *WsOrderbookData) int {
 	var checksum strings.Builder
 	var price, amount string
-	for i := 0; i < 100; {
+	for i := 0; i < 100; i++ {
 		if len(data.Bids)-1 >= i {
-			price = strconv.FormatFloat(data.Bids[i][0], 'f', -1, 64)
+			price = fmt.Sprintf("%.1f", data.Bids[i][0])
 			amount = strconv.FormatFloat(data.Bids[i][1], 'f', -1, 64)
+			if strings.IndexByte(amount, '.') == -1 {
+				amount = amount + ".0"
+			}
 			checksum.WriteString(price + ":" + amount + ":")
-			i++
 		}
 		if len(data.Asks)-1 >= i {
-			price = strconv.FormatFloat(data.Asks[i][0], 'f', -1, 64)
+			price = fmt.Sprintf("%.1f", data.Asks[i][0])
 			amount = strconv.FormatFloat(data.Asks[i][1], 'f', -1, 64)
+			if strings.IndexByte(amount, '.') == -1 {
+				amount = amount + ".0"
+			}
 			checksum.WriteString(price + ":" + amount + ":")
-			i++
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), ":")
-	fmt.Println(checksumStr)
-	fmt.Println(int64(crc32.ChecksumIEEE([]byte(checksumStr))))
-	return int64(crc32.ChecksumIEEE([]byte(checksumStr)))
+	return int(crc32.ChecksumIEEE([]byte(checksumStr)))
+}
+
+// CalcUpdateOBChecksum calculates checksum of update OB data received from WS
+func (f *FTX) CalcUpdateOBChecksum(data *orderbook.Base) int {
+	var checksum strings.Builder
+	var price, amount string
+	for i := 0; i < 100; i++ {
+		if len(data.Bids)-1 >= i {
+			price = fmt.Sprintf("%.1f", data.Bids[i].Price)
+			amount = strconv.FormatFloat(data.Bids[i].Amount, 'f', -1, 64)
+			if strings.IndexByte(amount, '.') == -1 {
+				amount = amount + ".0"
+			}
+			checksum.WriteString(price + ":" + amount + ":")
+		}
+		if len(data.Asks)-1 >= i {
+			price = fmt.Sprintf("%.1f", data.Asks[i].Price)
+			amount = strconv.FormatFloat(data.Asks[i].Amount, 'f', -1, 64)
+			if strings.IndexByte(amount, '.') == -1 {
+				amount = amount + ".0"
+			}
+			checksum.WriteString(price + ":" + amount + ":")
+		}
+	}
+	checksumStr := strings.TrimSuffix(checksum.String(), ":")
+	return int(crc32.ChecksumIEEE([]byte(checksumStr)))
 }

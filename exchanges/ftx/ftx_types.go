@@ -787,7 +787,7 @@ type WsOrderbookData struct {
 	Bids     [][2]float64 `json:"bids"`
 	Asks     [][2]float64 `json:"asks"`
 	Time     float64      `json:"time"`
-	Checksum int64        `json:"checksum"`
+	Checksum int          `json:"checksum"`
 }
 
 // WsOrders stores ws orders' data
@@ -892,4 +892,50 @@ type OrderVars struct {
 	Status    order.Status
 	OrderType order.Type
 	Fee       float64
+}
+
+// WsMarketsData stores websocket markets data
+type WsMarketsData struct {
+	Data map[string]WsMarketsDataStorage `json:"data"`
+}
+
+// WsMarketsDataStorage stores websocket markets data
+type WsMarketsDataStorage struct {
+	Name           string              `json:"name,omitempty"`
+	Enabled        bool                `json:"enabled,omitempty"`
+	PriceIncrement float64             `json:"priceIncrement,omitempty"`
+	SizeIncrement  float64             `json:"sizeIncrement,omitempty"`
+	MarketType     string              `json:"marketType,omitempty"`
+	BaseCurrency   string              `json:"baseCurrency,omitempty"`
+	QuoteCurrency  string              `json:"quoteCurrency,omitempty"`
+	Underlying     string              `json:"underlying,omitempty"`
+	Restricted     bool                `json:"restricted,omitempty"`
+	Future         WsMarketsFutureData `json:"future,omitempty"`
+}
+
+// WsMarketsFutureData stores websocket markets' future data
+type WsMarketsFutureData struct {
+	Name                  string    `json:"name,omitempty"`
+	Underlying            string    `json:"underlying,omitempty"`
+	Description           string    `json:"description,omitempty"`
+	MarketType            string    `json:"type,omitempty"`
+	Expiry                time.Time `json:"expiry,omitempty"`
+	Perpetual             bool      `json:"perpetual,omitempty"`
+	Expired               bool      `json:"expired,omitempty"`
+	Enabled               bool      `json:"enabled,omitempty"`
+	PostOnly              bool      `json:"postOnly,omitempty"`
+	IMFFactor             float64   `json:"imfFactor,omitempty"`
+	UnderlyingDescription string    `json:"underlyingDescription,omitempty"`
+	ExpiryDescription     string    `json:"expiryDescription,omitempty"`
+	MoveStart             string    `json:"moveStart,omitempty"`
+	PositionLimitWeight   float64   `json:"positionLimitWeight,omitempty"`
+	Group                 string    `json:"group,omitempty"`
+}
+
+// WSMarkets stores websocket markets data
+type WSMarkets struct {
+	Channel     string        `json:"channel"`
+	MessageType string        `json:"type"`
+	Data        WsMarketsData `json:"data"`
+	Action      string        `json:"action"`
 }
