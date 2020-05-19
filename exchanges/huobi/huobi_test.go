@@ -609,12 +609,9 @@ func TestQueryWithdrawQuota(t *testing.T) {
 // TestWsGetAccountsList connects to WS, logs in, gets account list
 func TestWsGetAccountsList(t *testing.T) {
 	setupWsTests(t)
-	resp, err := h.wsGetAccountsList()
+	_, err := h.wsGetAccountsList()
 	if err != nil {
 		t.Fatal(err)
-	}
-	if resp.ErrorCode > 0 {
-		t.Error(resp.ErrorMessage)
 	}
 }
 
@@ -625,12 +622,9 @@ func TestWsGetOrderList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp, err := h.wsGetOrdersList(1, p)
+	_, err = h.wsGetOrdersList(1, p)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if resp.ErrorCode > 0 {
-		t.Error(resp.ErrorMessage)
 	}
 }
 
@@ -638,12 +632,9 @@ func TestWsGetOrderList(t *testing.T) {
 func TestWsGetOrderDetails(t *testing.T) {
 	setupWsTests(t)
 	orderID := "123"
-	resp, err := h.wsGetOrderDetails(orderID)
+	_, err := h.wsGetOrderDetails(orderID)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if resp.ErrorCode > 0 && resp.ErrorCode != 10022 {
-		t.Error(resp.ErrorMessage)
 	}
 }
 
