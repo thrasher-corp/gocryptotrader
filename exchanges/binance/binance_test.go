@@ -99,7 +99,7 @@ func TestExchangeHistory(t *testing.T) {
 		TimestampStart: time.Now(),
 	}
 	_, err := b.GetExchangeHistory(req)
-	if err != nil {
+	if err != common.ErrNotYetImplemented {
 		t.Fatal(err)
 	}
 }
