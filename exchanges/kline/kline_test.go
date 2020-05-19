@@ -208,6 +208,10 @@ func TestDurationToWord(t *testing.T) {
 			TwoWeek,
 		},
 		{
+			"OneMonth",
+			OneMonth,
+		},
+		{
 			"notfound",
 			Interval(time.Hour * 1337),
 		},
