@@ -819,6 +819,10 @@ func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		}
 	}
 
+	if kline.TotalCandlesPerInterval(start, end, interval) > b.Features.Enabled.Kline.ResultLimit {
+		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
+	}
+
 	candles, err := b.GetCandles(fixCasing(pair), b.FormatExchangeKlineInterval(interval), start.Unix()*1000, end.Unix()*1000, 0, true, false)
 	if err != nil {
 		return kline.Item{}, err

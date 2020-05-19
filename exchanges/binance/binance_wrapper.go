@@ -746,6 +746,10 @@ func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 		}
 	}
 
+	if kline.TotalCandlesPerInterval(start, end, interval) > b.Features.Enabled.Kline.ResultLimit {
+		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
+	}
+
 	req := KlinesRequestParams{
 		Interval:  b.FormatExchangeKlineInterval(interval),
 		Symbol:    b.FormatExchangeCurrency(pair, a).String(),

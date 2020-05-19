@@ -173,12 +173,6 @@ func (b *BTCMarkets) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetMarketCandles gets candles for specified currency pair
 func (b *BTCMarkets) GetMarketCandles(marketID string, timeWindow kline.Interval, from, to time.Time, before, after, limit int64) (kline.Item, error) {
-	if !b.KlineIntervalEnabled(timeWindow) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: timeWindow,
-		}
-	}
-
 	if (before > 0) && (after >= 0) {
 		return kline.Item{}, errors.New("BTCMarkets only supports either before or after, not both")
 	}
