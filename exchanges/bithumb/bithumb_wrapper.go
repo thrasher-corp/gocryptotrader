@@ -331,33 +331,7 @@ func (b *Bithumb) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (b *Bithumb) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
-	t, err := b.GetTransactionHistory(req.Pair.Base.String())
-	if err != nil {
-		return nil, err
-	}
-
-	var resp []trade.History
-	for i := range t.Data {
-		tVal, err2 := time.Parse(time.RFC3339, t.Data[i].TransactionDate)
-		if err2 != nil {
-			return nil, err2
-		}
-
-		side := order.Sell
-		if t.Data[i].Type == "bid" {
-			side = order.Buy
-		}
-
-		resp = append(resp, trade.History{
-			Timestamp: tVal,
-			TID:       strconv.FormatInt(t.Data[i].ContNumber, 10),
-			Price:     t.Data[i].Price,
-			Amount:    t.Data[i].UnitsTraded,
-			Exchange:  b.Name,
-			Side:      side,
-		})
-	}
-	return resp, nil
+	return nil, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
