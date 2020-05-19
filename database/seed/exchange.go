@@ -1,8 +1,8 @@
-package exchange
+package seed
 
 import "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 
-func Seed() error {
+func Exchange() error {
 	allExchanges := []exchange.Details{
 		{
 			Name:      "Alphapoint",

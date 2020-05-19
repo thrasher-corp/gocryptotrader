@@ -568,7 +568,7 @@ func testCurrenciesSelect(t *testing.T) {
 }
 
 var (
-	currencyDBTypes = map[string]string{`ID`: `bigint`, `Name`: `character varying`, `ShortName`: `character varying`}
+	currencyDBTypes = map[string]string{`ID`: `bigint`, `Name`: `character varying`, `ShortName`: `character varying`, `Fiat`: `boolean`, `Crypto`: `boolean`}
 	_               = bytes.MinRead
 )
 

@@ -26,6 +26,8 @@ type Currency struct {
 	ID        int64  `boil:"id" json:"id" toml:"id" yaml:"id"`
 	Name      string `boil:"name" json:"name" toml:"name" yaml:"name"`
 	ShortName string `boil:"short_name" json:"short_name" toml:"short_name" yaml:"short_name"`
+	Fiat      bool   `boil:"fiat" json:"fiat" toml:"fiat" yaml:"fiat"`
+	Crypto    bool   `boil:"crypto" json:"crypto" toml:"crypto" yaml:"crypto"`
 
 	R *currencyR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L currencyL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -35,22 +37,39 @@ var CurrencyColumns = struct {
 	ID        string
 	Name      string
 	ShortName string
+	Fiat      string
+	Crypto    string
 }{
 	ID:        "id",
 	Name:      "name",
 	ShortName: "short_name",
+	Fiat:      "fiat",
+	Crypto:    "crypto",
 }
 
 // Generated where
+
+type whereHelperbool struct{ field string }
+
+func (w whereHelperbool) EQ(x bool) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.EQ, x) }
+func (w whereHelperbool) NEQ(x bool) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.NEQ, x) }
+func (w whereHelperbool) LT(x bool) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.LT, x) }
+func (w whereHelperbool) LTE(x bool) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.LTE, x) }
+func (w whereHelperbool) GT(x bool) qm.QueryMod  { return qmhelper.Where(w.field, qmhelper.GT, x) }
+func (w whereHelperbool) GTE(x bool) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GTE, x) }
 
 var CurrencyWhere = struct {
 	ID        whereHelperint64
 	Name      whereHelperstring
 	ShortName whereHelperstring
+	Fiat      whereHelperbool
+	Crypto    whereHelperbool
 }{
 	ID:        whereHelperint64{field: "\"currency\".\"id\""},
 	Name:      whereHelperstring{field: "\"currency\".\"name\""},
 	ShortName: whereHelperstring{field: "\"currency\".\"short_name\""},
+	Fiat:      whereHelperbool{field: "\"currency\".\"fiat\""},
+	Crypto:    whereHelperbool{field: "\"currency\".\"crypto\""},
 }
 
 // CurrencyRels is where relationship names are stored.
@@ -70,8 +89,8 @@ func (*currencyR) NewStruct() *currencyR {
 type currencyL struct{}
 
 var (
-	currencyAllColumns            = []string{"id", "name", "short_name"}
-	currencyColumnsWithoutDefault = []string{"name", "short_name"}
+	currencyAllColumns            = []string{"id", "name", "short_name", "fiat", "crypto"}
+	currencyColumnsWithoutDefault = []string{"name", "short_name", "fiat", "crypto"}
 	currencyColumnsWithDefault    = []string{"id"}
 	currencyPrimaryKeyColumns     = []string{"id"}
 )
