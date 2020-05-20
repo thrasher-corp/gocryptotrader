@@ -1,7 +1,6 @@
 package bitfinex
 
 import (
-	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -19,8 +18,6 @@ var AcceptedWalletNames = []string{"trading", "exchange", "deposit", "margin",
 
 // AcceptableMethods defines a map of currency codes to methods
 var AcceptableMethods = make(map[string]string)
-
-var errInvalidInterval = errors.New("invalid interval")
 
 // Ticker holds ticker information
 type Ticker struct {

@@ -79,6 +79,7 @@ func TestGetAssets(t *testing.T) {
 // TestGetAssetPairs API endpoint test
 func TestGetAssetPairs(t *testing.T) {
 	t.Parallel()
+	k.Verbose = true
 	_, err := k.GetAssetPairs()
 	if err != nil {
 		t.Error("GetAssetPairs() error", err)
@@ -106,7 +107,8 @@ func TestGetTickers(t *testing.T) {
 // TestGetOHLC API endpoint test
 func TestGetOHLC(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetOHLC("BCHEUR", "10080")
+	k.Verbose = true
+	_, err := k.GetOHLC("XXBTZUSD", "1440")
 	if err != nil {
 		t.Error("GetOHLC() error", err)
 	}
@@ -1360,8 +1362,8 @@ func TestWsCancelOrderJSON(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair := currency.NewPairFromString("BCHEUR")
-	_, err := k.GetHistoricCandles(currencyPair, asset.Spot, time.Now(), time.Now(), kline.Fifteenday)
+	currencyPair := currency.NewPairFromString("XBTUSD")
+	_, err := k.GetHistoricCandles(currencyPair, asset.Spot, time.Now().AddDate(0, 0, -1), time.Now(), kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1374,7 +1376,7 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesEx(t *testing.T) {
 	currencyPair := currency.NewPairFromString("BCHEUR")
-	_, err := k.GetHistoricCandlesEx(currencyPair, asset.Spot, time.Now(), time.Now(), kline.Fifteenday)
+	_, err := k.GetHistoricCandlesEx(currencyPair, asset.Spot, time.Now(), time.Now(), kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
