@@ -228,8 +228,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 	}
 
 	if init.ClientID > 0 {
-		if h.Websocket.Conn.IsIDWaitingForResponse(init.ClientID) {
-			h.Websocket.Conn.SetResponseIDAndData(init.ClientID, respRaw)
+		if h.Websocket.Conn.MatchRequestResponse(init.ClientID, respRaw) {
 			return nil
 		}
 	}

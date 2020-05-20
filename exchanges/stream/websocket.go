@@ -139,6 +139,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup, auth bool) error {
 		Traffic:              w.TrafficAlert,
 		readMessageErrors:    w.readMessageErrors,
 		ShutdownC:            make(chan struct{}),
+		idResponses:          make(map[int64]chan []byte),
 	}
 
 	if auth {
@@ -809,14 +810,54 @@ func (w *Websocket) CanUseAuthenticatedEndpoints() bool {
 	return w.canUseAuthenticatedEndpoints
 }
 
-// SetResponseIDAndData adds data to IDResponses with locks and a nil check
-func (w *WebsocketConnection) SetResponseIDAndData(id int64, data []byte) {
+// MatchRequestResponse checks if a match is intended for the returned payload
+// and returns true if match is possible, false if match cannot occur.
+func (w *WebsocketConnection) MatchRequestResponse(id int64, data []byte) bool {
 	w.Lock()
 	defer w.Unlock()
-	if w.IDResponses == nil {
-		w.IDResponses = make(map[int64][]byte)
+	ch, ok := w.idResponses[id]
+	if ok {
+		select {
+		case ch <- data:
+		default:
+			// this shouldn't occur but if it does continue to process as normal
+			return false
+		}
+		return true
 	}
-	w.IDResponses[id] = data
+	return false
+}
+
+// SendMessageReturnResponse will send a WS message to the connection and wait
+// for response
+func (w *WebsocketConnection) SendMessageReturnResponse(id int64, request interface{}) ([]byte, error) {
+	ch := make(chan []byte, 1)
+
+	w.Lock()
+	w.idResponses[id] = ch
+	w.Unlock()
+
+	defer func() {
+		w.Lock()
+		close(ch)
+		delete(w.idResponses, id)
+		w.Unlock()
+	}()
+
+	err := w.SendJSONMessage(request)
+	if err != nil {
+		return nil, err
+	}
+
+	timer := time.NewTimer(w.ResponseMaxLimit)
+
+	select {
+	case payload := <-ch:
+		return payload, nil
+	case <-timer.C:
+		timer.Stop()
+		return nil, fmt.Errorf("timeout waiting for response with ID %v", id)
+	}
 }
 
 // Dial sets proxy urls and then connects to the websocket
@@ -930,73 +971,6 @@ func (w *WebsocketConnection) SetupPingHandler(handler PingHandler) {
 			}
 		}
 	}()
-}
-
-// SendMessageReturnResponse will send a WS message to the connection
-// It will then run a goroutine to await a JSON response
-// If there is no response it will return an error
-func (w *WebsocketConnection) SendMessageReturnResponse(id int64, request interface{}) ([]byte, error) {
-	err := w.SendJSONMessage(request)
-	if err != nil {
-		return nil, err
-	}
-	w.SetResponseIDAndData(id, nil)
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go w.WaitForResult(id, &wg)
-	defer func() {
-		delete(w.IDResponses, id)
-	}()
-	wg.Wait()
-
-	ID, ok := w.IDResponses[id]
-	if !ok {
-		return nil, fmt.Errorf("timeout waiting for response with ID %v", id)
-	}
-	return ID, nil
-}
-
-// IsIDWaitingForResponse will verify whether the websocket is awaiting
-// a response with a correlating ID. If true, the datahandler won't process
-// the data, and instead will be processed by the wrapper function
-func (w *WebsocketConnection) IsIDWaitingForResponse(id int64) bool {
-	w.Lock()
-	defer w.Unlock()
-	for k := range w.IDResponses {
-		if k == id && w.IDResponses[k] == nil {
-			return true
-		}
-	}
-	return false
-}
-
-// WaitForResult will keep checking w.IDResponses for a response ID
-// If the timer expires, it will return without
-func (w *WebsocketConnection) WaitForResult(id int64, wg *sync.WaitGroup) {
-	defer wg.Done()
-	timer := time.NewTimer(w.ResponseMaxLimit)
-	for {
-		select {
-		case <-timer.C:
-			return
-		default:
-			w.Lock()
-			for k := range w.IDResponses {
-				if k == id && w.IDResponses[k] != nil {
-					w.Unlock()
-					if !timer.Stop() {
-						select {
-						case <-timer.C:
-						default:
-						}
-					}
-					return
-				}
-			}
-			w.Unlock()
-			time.Sleep(w.ResponseCheckTimeout)
-		}
-	}
 }
 
 func (w *WebsocketConnection) setConnectedStatus(b bool) {

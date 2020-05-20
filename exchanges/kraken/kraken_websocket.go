@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -83,21 +84,23 @@ func (k *Kraken) WsConnect() error {
 				"%v - authentication failed: %v\n",
 				k.Name,
 				err)
+		} else {
+			err = k.Websocket.AuthConn.Dial(&dialer, http.Header{})
+			if err != nil {
+				k.Websocket.SetCanUseAuthenticatedEndpoints(false)
+				log.Errorf(log.ExchangeSys,
+					"%v - failed to connect to authenticated endpoint: %v\n",
+					k.Name,
+					err)
+			} else {
+				go k.wsFunnelConnectionData(k.Websocket.AuthConn)
+				authsubs, err := k.GenerateAuthenticatedSubscriptions()
+				if err != nil {
+					return err
+				}
+				k.Websocket.SubscribeToChannels(authsubs)
+			}
 		}
-		err = k.Websocket.AuthConn.Dial(&dialer, http.Header{})
-		if err != nil {
-			k.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			log.Errorf(log.ExchangeSys,
-				"%v - failed to connect to authenticated endpoint: %v\n",
-				k.Name,
-				err)
-		}
-		go k.wsFunnelConnectionData(k.Websocket.AuthConn)
-		authsubs, err := k.GenerateAuthenticatedSubscriptions()
-		if err != nil {
-			return err
-		}
-		k.Websocket.SubscribeToChannels(authsubs)
 	}
 
 	go k.wsFunnelConnectionData(k.Websocket.Conn)
@@ -244,9 +247,14 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 				}
 				k.addNewSubscriptionChannelData(&sub)
 				if sub.RequestID > 0 {
-					if k.Websocket.Conn.IsIDWaitingForResponse(sub.RequestID) {
-						k.Websocket.Conn.SetResponseIDAndData(sub.RequestID, respRaw)
-						return nil
+					if common.StringDataContains(authenticatedChannels, sub.ChannelName) {
+						if k.Websocket.AuthConn.MatchRequestResponse(sub.RequestID, respRaw) {
+							return nil
+						}
+					} else {
+						if k.Websocket.Conn.MatchRequestResponse(sub.RequestID, respRaw) {
+							return nil
+						}
 					}
 				}
 			default:
@@ -592,6 +600,12 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 		if trade[3].(string) == "s" {
 			tSide = order.Sell
 		}
+
+		var tType = order.Market
+		if trade[4].(string) == "l" {
+			tType = order.Limit
+		}
+
 		k.Websocket.DataHandler <- stream.TradeData{
 			AssetType:    asset.Spot,
 			CurrencyPair: channelData.Pair,
@@ -600,6 +614,7 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 			Amount:       amount,
 			Timestamp:    timeUnix,
 			Side:         tSide,
+			EventType:    tType,
 		}
 	}
 }
@@ -856,31 +871,60 @@ func (k *Kraken) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscript
 			Params:  params,
 		})
 	}
+	fmt.Println("AUTHSUBS:", subscriptions)
 	return subscriptions, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
 func (k *Kraken) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	for i := range channelsToSubscribe {
+	var subs []WebsocketSubscriptionEventRequest
+channels:
+	for x := range channelsToSubscribe {
+		for y := range subs {
+			if subs[y].Subscription.Name == channelsToSubscribe[x].Channel {
+				subs[y].Pairs = append(subs[y].Pairs,
+					channelsToSubscribe[x].Currency.String())
+				continue channels
+			}
+		}
+
+		var id int64
+		if common.StringDataContains(authenticatedChannels, channelsToSubscribe[x].Channel) {
+			id = k.Websocket.AuthConn.GenerateMessageID(false)
+		} else {
+			id = k.Websocket.Conn.GenerateMessageID(false)
+		}
+
 		resp := WebsocketSubscriptionEventRequest{
 			Event: krakenWsSubscribe,
 			Subscription: WebsocketSubscriptionData{
-				Name: channelsToSubscribe[i].Channel,
+				Name: channelsToSubscribe[x].Channel,
 			},
-			RequestID: k.Websocket.Conn.GenerateMessageID(false),
+			RequestID: id,
 		}
-		if channelsToSubscribe[i].Channel == "book" {
+		if channelsToSubscribe[x].Channel == "book" {
 			// TODO: Add ability to make depth customisable
 			resp.Subscription.Depth = 1000
 		}
-		if !channelsToSubscribe[i].Currency.IsEmpty() {
-			resp.Pairs = []string{channelsToSubscribe[i].Currency.String()}
+		if !channelsToSubscribe[x].Currency.IsEmpty() {
+			resp.Pairs = []string{channelsToSubscribe[x].Currency.String()}
 		}
-		if channelsToSubscribe[i].Params != nil {
+		if channelsToSubscribe[x].Params != nil {
 			resp.Subscription.Token = authToken
 		}
+		subs = append(subs, resp)
+	}
 
-		_, err := k.Websocket.Conn.SendMessageReturnResponse(resp.RequestID, resp)
+	for i := range subs {
+		if common.StringDataContains(authenticatedChannels, subs[i].Subscription.Name) {
+			_, err := k.Websocket.AuthConn.SendMessageReturnResponse(subs[i].RequestID, subs[i])
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		_, err := k.Websocket.Conn.SendMessageReturnResponse(subs[i].RequestID, subs[i])
 		if err != nil {
 			return err
 		}
@@ -890,23 +934,51 @@ func (k *Kraken) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (k *Kraken) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	for i := range channelsToUnsubscribe {
+	var unsubs []WebsocketSubscriptionEventRequest
+channels:
+	for x := range channelsToUnsubscribe {
+		for y := range unsubs {
+			if unsubs[y].Subscription.Name == channelsToUnsubscribe[x].Channel {
+				unsubs[y].Pairs = append(unsubs[y].Pairs,
+					channelsToUnsubscribe[x].Currency.String())
+				continue channels
+			}
+		}
 		var depth int64
-		if channelsToUnsubscribe[i].Channel == "book" {
+		if channelsToUnsubscribe[x].Channel == "book" {
 			// TODO: Add ability to make depth customisable
 			depth = 1000
 		}
-		resp := WebsocketSubscriptionEventRequest{
-			Event: krakenWsUnsubscribe,
-			Pairs: []string{channelsToUnsubscribe[i].Currency.String()},
-			Subscription: WebsocketSubscriptionData{
-				Name:  channelsToUnsubscribe[i].Channel,
-				Depth: depth,
-			},
-			RequestID: k.Websocket.Conn.GenerateMessageID(false),
+
+		var id int64
+		if common.StringDataContains(authenticatedChannels, channelsToUnsubscribe[x].Channel) {
+			id = k.Websocket.AuthConn.GenerateMessageID(false)
+		} else {
+			id = k.Websocket.Conn.GenerateMessageID(false)
 		}
 
-		_, err := k.Websocket.Conn.SendMessageReturnResponse(resp.RequestID, resp)
+		unsub := WebsocketSubscriptionEventRequest{
+			Event: krakenWsUnsubscribe,
+			Pairs: []string{channelsToUnsubscribe[x].Currency.String()},
+			Subscription: WebsocketSubscriptionData{
+				Name:  channelsToUnsubscribe[x].Channel,
+				Depth: depth,
+			},
+			RequestID: id,
+		}
+		unsubs = append(unsubs, unsub)
+	}
+
+	for i := range unsubs {
+		if common.StringDataContains(authenticatedChannels, unsubs[i].Subscription.Name) {
+			_, err := k.Websocket.AuthConn.SendMessageReturnResponse(unsubs[i].RequestID, unsubs[i])
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		_, err := k.Websocket.Conn.SendMessageReturnResponse(unsubs[i].RequestID, unsubs[i])
 		if err != nil {
 			return err
 		}

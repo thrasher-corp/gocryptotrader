@@ -76,8 +76,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 		return err
 	}
 	if result.No > 0 {
-		if z.Websocket.Conn.IsIDWaitingForResponse(result.No) {
-			z.Websocket.Conn.SetResponseIDAndData(result.No, fixedJSON)
+		if z.Websocket.Conn.MatchRequestResponse(result.No, fixedJSON) {
 			return nil
 		}
 	}

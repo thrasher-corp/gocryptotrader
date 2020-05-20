@@ -391,8 +391,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 						strings.Contains(channelName, wsFundingOrderCancelRequest):
 						if data[0] != nil && data[0].(float64) > 0 {
 							id := int64(data[0].(float64))
-							if b.Websocket.Conn.IsIDWaitingForResponse(id) {
-								b.Websocket.AuthConn.SetResponseIDAndData(id, respRaw)
+							if b.Websocket.AuthConn.MatchRequestResponse(id, respRaw) {
 								return nil
 							}
 							b.wsHandleFundingOffer(data)
@@ -402,8 +401,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 						strings.Contains(channelName, wsOrderCancelRequest):
 						if data[2] != nil && data[2].(float64) > 0 {
 							id := int64(data[2].(float64))
-							if b.Websocket.Conn.IsIDWaitingForResponse(id) {
-								b.Websocket.AuthConn.SetResponseIDAndData(id, respRaw)
+							if b.Websocket.AuthConn.MatchRequestResponse(id, respRaw) {
 								return nil
 							}
 							b.wsHandleOrder(data)

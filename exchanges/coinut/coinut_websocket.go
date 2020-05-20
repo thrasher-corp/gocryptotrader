@@ -92,8 +92,7 @@ func (c *COINUT) wsReadData() {
 			}
 			for i := range incoming {
 				if incoming[i].Nonce > 0 {
-					if c.Websocket.Conn.IsIDWaitingForResponse(incoming[i].Nonce) {
-						c.Websocket.Conn.SetResponseIDAndData(incoming[i].Nonce, resp.Raw)
+					if c.Websocket.Conn.MatchRequestResponse(incoming[i].Nonce, resp.Raw) {
 						break
 					}
 				}
@@ -146,8 +145,7 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		return err
 	}
 	if strings.Contains(string(respRaw), "client_ord_id") {
-		if c.Websocket.Conn.IsIDWaitingForResponse(incoming.Nonce) {
-			c.Websocket.Conn.SetResponseIDAndData(incoming.Nonce, respRaw)
+		if c.Websocket.Conn.MatchRequestResponse(incoming.Nonce, respRaw) {
 			return nil
 		}
 	}
@@ -172,8 +170,7 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 			endpointFailure = []byte("failed to authenticate")
 		}
 
-		if c.Websocket.Conn.IsIDWaitingForResponse(login.Nonce) {
-			c.Websocket.Conn.SetResponseIDAndData(login.Nonce, endpointFailure)
+		if c.Websocket.Conn.MatchRequestResponse(login.Nonce, endpointFailure) {
 			return nil
 		}
 

@@ -111,7 +111,7 @@ type WebsocketConnection struct {
 	Connection      *websocket.Conn
 	ShutdownC       chan struct{}
 	// These are the request IDs and the corresponding response JSON
-	IDResponses          map[int64][]byte
+	idResponses          map[int64]chan []byte
 	ResponseCheckTimeout time.Duration
 	ResponseMaxLimit     time.Duration
 	TrafficTimeout       time.Duration
