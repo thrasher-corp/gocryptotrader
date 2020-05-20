@@ -74,6 +74,11 @@ func GetRippleBalance(address string) (float64, error) {
 	if err != nil {
 		return 0, err
 	}
+
+	if (result == XRPScanAccount{}) {
+		return 0, errors.New("no balance info returned")
+	}
+
 	return result.XRPBalance, nil
 }
 
