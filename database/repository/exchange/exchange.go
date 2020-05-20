@@ -13,7 +13,6 @@ import (
 
 type Details struct {
 	Name string
-	ShortName string
 }
 
 func Find() error{
@@ -105,7 +104,6 @@ func insertPostgresql(ctx context.Context, tx *sql.Tx, in []Details) (err error)
 	for x := range in {
 		var tempInsert = modelPSQL.Exchange{
 			Name: in[x].Name,
-			ShortName: in[x].ShortName,
 		}
 
 		err = tempInsert.Upsert(ctx, tx, true, []string{"name"}, boil.Infer(), boil.Infer())

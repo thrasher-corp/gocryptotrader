@@ -21,24 +21,24 @@ var (
 	_ = queries.Equal
 )
 
-func testAssets(t *testing.T) {
+func testCandles(t *testing.T) {
 	t.Parallel()
 
-	query := Assets()
+	query := Candles()
 
 	if query.Query == nil {
 		t.Error("expected a query, got nothing")
 	}
 }
 
-func testAssetsDelete(t *testing.T) {
+func testCandlesDelete(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Asset{}
-	if err = randomize.Struct(seed, o, assetDBTypes, true, assetColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	o := &Candle{}
+	if err = randomize.Struct(seed, o, candleDBTypes, true, candleColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -54,7 +54,7 @@ func testAssetsDelete(t *testing.T) {
 		t.Error("should only have deleted one row, but affected:", rowsAff)
 	}
 
-	count, err := Assets().Count(ctx, tx)
+	count, err := Candles().Count(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -64,14 +64,14 @@ func testAssetsDelete(t *testing.T) {
 	}
 }
 
-func testAssetsQueryDeleteAll(t *testing.T) {
+func testCandlesQueryDeleteAll(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Asset{}
-	if err = randomize.Struct(seed, o, assetDBTypes, true, assetColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	o := &Candle{}
+	if err = randomize.Struct(seed, o, candleDBTypes, true, candleColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -81,13 +81,13 @@ func testAssetsQueryDeleteAll(t *testing.T) {
 		t.Error(err)
 	}
 
-	if rowsAff, err := Assets().DeleteAll(ctx, tx); err != nil {
+	if rowsAff, err := Candles().DeleteAll(ctx, tx); err != nil {
 		t.Error(err)
 	} else if rowsAff != 1 {
 		t.Error("should only have deleted one row, but affected:", rowsAff)
 	}
 
-	count, err := Assets().Count(ctx, tx)
+	count, err := Candles().Count(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -97,14 +97,14 @@ func testAssetsQueryDeleteAll(t *testing.T) {
 	}
 }
 
-func testAssetsSliceDeleteAll(t *testing.T) {
+func testCandlesSliceDeleteAll(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Asset{}
-	if err = randomize.Struct(seed, o, assetDBTypes, true, assetColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	o := &Candle{}
+	if err = randomize.Struct(seed, o, candleDBTypes, true, candleColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -114,7 +114,7 @@ func testAssetsSliceDeleteAll(t *testing.T) {
 		t.Error(err)
 	}
 
-	slice := AssetSlice{o}
+	slice := CandleSlice{o}
 
 	if rowsAff, err := slice.DeleteAll(ctx, tx); err != nil {
 		t.Error(err)
@@ -122,7 +122,7 @@ func testAssetsSliceDeleteAll(t *testing.T) {
 		t.Error("should only have deleted one row, but affected:", rowsAff)
 	}
 
-	count, err := Assets().Count(ctx, tx)
+	count, err := Candles().Count(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -132,14 +132,14 @@ func testAssetsSliceDeleteAll(t *testing.T) {
 	}
 }
 
-func testAssetsExists(t *testing.T) {
+func testCandlesExists(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Asset{}
-	if err = randomize.Struct(seed, o, assetDBTypes, true, assetColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	o := &Candle{}
+	if err = randomize.Struct(seed, o, candleDBTypes, true, candleColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -149,23 +149,23 @@ func testAssetsExists(t *testing.T) {
 		t.Error(err)
 	}
 
-	e, err := AssetExists(ctx, tx, o.ID)
+	e, err := CandleExists(ctx, tx, o.ID)
 	if err != nil {
-		t.Errorf("Unable to check if Asset exists: %s", err)
+		t.Errorf("Unable to check if Candle exists: %s", err)
 	}
 	if !e {
-		t.Errorf("Expected AssetExists to return true, but got false.")
+		t.Errorf("Expected CandleExists to return true, but got false.")
 	}
 }
 
-func testAssetsFind(t *testing.T) {
+func testCandlesFind(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Asset{}
-	if err = randomize.Struct(seed, o, assetDBTypes, true, assetColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	o := &Candle{}
+	if err = randomize.Struct(seed, o, candleDBTypes, true, candleColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -175,24 +175,24 @@ func testAssetsFind(t *testing.T) {
 		t.Error(err)
 	}
 
-	assetFound, err := FindAsset(ctx, tx, o.ID)
+	candleFound, err := FindCandle(ctx, tx, o.ID)
 	if err != nil {
 		t.Error(err)
 	}
 
-	if assetFound == nil {
+	if candleFound == nil {
 		t.Error("want a record, got nil")
 	}
 }
 
-func testAssetsBind(t *testing.T) {
+func testCandlesBind(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Asset{}
-	if err = randomize.Struct(seed, o, assetDBTypes, true, assetColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	o := &Candle{}
+	if err = randomize.Struct(seed, o, candleDBTypes, true, candleColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -202,19 +202,19 @@ func testAssetsBind(t *testing.T) {
 		t.Error(err)
 	}
 
-	if err = Assets().Bind(ctx, tx, o); err != nil {
+	if err = Candles().Bind(ctx, tx, o); err != nil {
 		t.Error(err)
 	}
 }
 
-func testAssetsOne(t *testing.T) {
+func testCandlesOne(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Asset{}
-	if err = randomize.Struct(seed, o, assetDBTypes, true, assetColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	o := &Candle{}
+	if err = randomize.Struct(seed, o, candleDBTypes, true, candleColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -224,38 +224,38 @@ func testAssetsOne(t *testing.T) {
 		t.Error(err)
 	}
 
-	if x, err := Assets().One(ctx, tx); err != nil {
+	if x, err := Candles().One(ctx, tx); err != nil {
 		t.Error(err)
 	} else if x == nil {
 		t.Error("expected to get a non nil record")
 	}
 }
 
-func testAssetsAll(t *testing.T) {
+func testCandlesAll(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	assetOne := &Asset{}
-	assetTwo := &Asset{}
-	if err = randomize.Struct(seed, assetOne, assetDBTypes, false, assetColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	candleOne := &Candle{}
+	candleTwo := &Candle{}
+	if err = randomize.Struct(seed, candleOne, candleDBTypes, false, candleColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
-	if err = randomize.Struct(seed, assetTwo, assetDBTypes, false, assetColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	if err = randomize.Struct(seed, candleTwo, candleDBTypes, false, candleColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
 
 	ctx := context.Background()
 	tx := MustTx(boil.BeginTx(ctx, nil))
 	defer func() { _ = tx.Rollback() }()
-	if err = assetOne.Insert(ctx, tx, boil.Infer()); err != nil {
+	if err = candleOne.Insert(ctx, tx, boil.Infer()); err != nil {
 		t.Error(err)
 	}
-	if err = assetTwo.Insert(ctx, tx, boil.Infer()); err != nil {
+	if err = candleTwo.Insert(ctx, tx, boil.Infer()); err != nil {
 		t.Error(err)
 	}
 
-	slice, err := Assets().All(ctx, tx)
+	slice, err := Candles().All(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -265,31 +265,31 @@ func testAssetsAll(t *testing.T) {
 	}
 }
 
-func testAssetsCount(t *testing.T) {
+func testCandlesCount(t *testing.T) {
 	t.Parallel()
 
 	var err error
 	seed := randomize.NewSeed()
-	assetOne := &Asset{}
-	assetTwo := &Asset{}
-	if err = randomize.Struct(seed, assetOne, assetDBTypes, false, assetColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	candleOne := &Candle{}
+	candleTwo := &Candle{}
+	if err = randomize.Struct(seed, candleOne, candleDBTypes, false, candleColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
-	if err = randomize.Struct(seed, assetTwo, assetDBTypes, false, assetColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	if err = randomize.Struct(seed, candleTwo, candleDBTypes, false, candleColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
 
 	ctx := context.Background()
 	tx := MustTx(boil.BeginTx(ctx, nil))
 	defer func() { _ = tx.Rollback() }()
-	if err = assetOne.Insert(ctx, tx, boil.Infer()); err != nil {
+	if err = candleOne.Insert(ctx, tx, boil.Infer()); err != nil {
 		t.Error(err)
 	}
-	if err = assetTwo.Insert(ctx, tx, boil.Infer()); err != nil {
+	if err = candleTwo.Insert(ctx, tx, boil.Infer()); err != nil {
 		t.Error(err)
 	}
 
-	count, err := Assets().Count(ctx, tx)
+	count, err := Candles().Count(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -299,155 +299,155 @@ func testAssetsCount(t *testing.T) {
 	}
 }
 
-func assetBeforeInsertHook(ctx context.Context, e boil.ContextExecutor, o *Asset) error {
-	*o = Asset{}
+func candleBeforeInsertHook(ctx context.Context, e boil.ContextExecutor, o *Candle) error {
+	*o = Candle{}
 	return nil
 }
 
-func assetAfterInsertHook(ctx context.Context, e boil.ContextExecutor, o *Asset) error {
-	*o = Asset{}
+func candleAfterInsertHook(ctx context.Context, e boil.ContextExecutor, o *Candle) error {
+	*o = Candle{}
 	return nil
 }
 
-func assetAfterSelectHook(ctx context.Context, e boil.ContextExecutor, o *Asset) error {
-	*o = Asset{}
+func candleAfterSelectHook(ctx context.Context, e boil.ContextExecutor, o *Candle) error {
+	*o = Candle{}
 	return nil
 }
 
-func assetBeforeUpdateHook(ctx context.Context, e boil.ContextExecutor, o *Asset) error {
-	*o = Asset{}
+func candleBeforeUpdateHook(ctx context.Context, e boil.ContextExecutor, o *Candle) error {
+	*o = Candle{}
 	return nil
 }
 
-func assetAfterUpdateHook(ctx context.Context, e boil.ContextExecutor, o *Asset) error {
-	*o = Asset{}
+func candleAfterUpdateHook(ctx context.Context, e boil.ContextExecutor, o *Candle) error {
+	*o = Candle{}
 	return nil
 }
 
-func assetBeforeDeleteHook(ctx context.Context, e boil.ContextExecutor, o *Asset) error {
-	*o = Asset{}
+func candleBeforeDeleteHook(ctx context.Context, e boil.ContextExecutor, o *Candle) error {
+	*o = Candle{}
 	return nil
 }
 
-func assetAfterDeleteHook(ctx context.Context, e boil.ContextExecutor, o *Asset) error {
-	*o = Asset{}
+func candleAfterDeleteHook(ctx context.Context, e boil.ContextExecutor, o *Candle) error {
+	*o = Candle{}
 	return nil
 }
 
-func assetBeforeUpsertHook(ctx context.Context, e boil.ContextExecutor, o *Asset) error {
-	*o = Asset{}
+func candleBeforeUpsertHook(ctx context.Context, e boil.ContextExecutor, o *Candle) error {
+	*o = Candle{}
 	return nil
 }
 
-func assetAfterUpsertHook(ctx context.Context, e boil.ContextExecutor, o *Asset) error {
-	*o = Asset{}
+func candleAfterUpsertHook(ctx context.Context, e boil.ContextExecutor, o *Candle) error {
+	*o = Candle{}
 	return nil
 }
 
-func testAssetsHooks(t *testing.T) {
+func testCandlesHooks(t *testing.T) {
 	t.Parallel()
 
 	var err error
 
 	ctx := context.Background()
-	empty := &Asset{}
-	o := &Asset{}
+	empty := &Candle{}
+	o := &Candle{}
 
 	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, o, assetDBTypes, false); err != nil {
-		t.Errorf("Unable to randomize Asset object: %s", err)
+	if err = randomize.Struct(seed, o, candleDBTypes, false); err != nil {
+		t.Errorf("Unable to randomize Candle object: %s", err)
 	}
 
-	AddAssetHook(boil.BeforeInsertHook, assetBeforeInsertHook)
+	AddCandleHook(boil.BeforeInsertHook, candleBeforeInsertHook)
 	if err = o.doBeforeInsertHooks(ctx, nil); err != nil {
 		t.Errorf("Unable to execute doBeforeInsertHooks: %s", err)
 	}
 	if !reflect.DeepEqual(o, empty) {
 		t.Errorf("Expected BeforeInsertHook function to empty object, but got: %#v", o)
 	}
-	assetBeforeInsertHooks = []AssetHook{}
+	candleBeforeInsertHooks = []CandleHook{}
 
-	AddAssetHook(boil.AfterInsertHook, assetAfterInsertHook)
+	AddCandleHook(boil.AfterInsertHook, candleAfterInsertHook)
 	if err = o.doAfterInsertHooks(ctx, nil); err != nil {
 		t.Errorf("Unable to execute doAfterInsertHooks: %s", err)
 	}
 	if !reflect.DeepEqual(o, empty) {
 		t.Errorf("Expected AfterInsertHook function to empty object, but got: %#v", o)
 	}
-	assetAfterInsertHooks = []AssetHook{}
+	candleAfterInsertHooks = []CandleHook{}
 
-	AddAssetHook(boil.AfterSelectHook, assetAfterSelectHook)
+	AddCandleHook(boil.AfterSelectHook, candleAfterSelectHook)
 	if err = o.doAfterSelectHooks(ctx, nil); err != nil {
 		t.Errorf("Unable to execute doAfterSelectHooks: %s", err)
 	}
 	if !reflect.DeepEqual(o, empty) {
 		t.Errorf("Expected AfterSelectHook function to empty object, but got: %#v", o)
 	}
-	assetAfterSelectHooks = []AssetHook{}
+	candleAfterSelectHooks = []CandleHook{}
 
-	AddAssetHook(boil.BeforeUpdateHook, assetBeforeUpdateHook)
+	AddCandleHook(boil.BeforeUpdateHook, candleBeforeUpdateHook)
 	if err = o.doBeforeUpdateHooks(ctx, nil); err != nil {
 		t.Errorf("Unable to execute doBeforeUpdateHooks: %s", err)
 	}
 	if !reflect.DeepEqual(o, empty) {
 		t.Errorf("Expected BeforeUpdateHook function to empty object, but got: %#v", o)
 	}
-	assetBeforeUpdateHooks = []AssetHook{}
+	candleBeforeUpdateHooks = []CandleHook{}
 
-	AddAssetHook(boil.AfterUpdateHook, assetAfterUpdateHook)
+	AddCandleHook(boil.AfterUpdateHook, candleAfterUpdateHook)
 	if err = o.doAfterUpdateHooks(ctx, nil); err != nil {
 		t.Errorf("Unable to execute doAfterUpdateHooks: %s", err)
 	}
 	if !reflect.DeepEqual(o, empty) {
 		t.Errorf("Expected AfterUpdateHook function to empty object, but got: %#v", o)
 	}
-	assetAfterUpdateHooks = []AssetHook{}
+	candleAfterUpdateHooks = []CandleHook{}
 
-	AddAssetHook(boil.BeforeDeleteHook, assetBeforeDeleteHook)
+	AddCandleHook(boil.BeforeDeleteHook, candleBeforeDeleteHook)
 	if err = o.doBeforeDeleteHooks(ctx, nil); err != nil {
 		t.Errorf("Unable to execute doBeforeDeleteHooks: %s", err)
 	}
 	if !reflect.DeepEqual(o, empty) {
 		t.Errorf("Expected BeforeDeleteHook function to empty object, but got: %#v", o)
 	}
-	assetBeforeDeleteHooks = []AssetHook{}
+	candleBeforeDeleteHooks = []CandleHook{}
 
-	AddAssetHook(boil.AfterDeleteHook, assetAfterDeleteHook)
+	AddCandleHook(boil.AfterDeleteHook, candleAfterDeleteHook)
 	if err = o.doAfterDeleteHooks(ctx, nil); err != nil {
 		t.Errorf("Unable to execute doAfterDeleteHooks: %s", err)
 	}
 	if !reflect.DeepEqual(o, empty) {
 		t.Errorf("Expected AfterDeleteHook function to empty object, but got: %#v", o)
 	}
-	assetAfterDeleteHooks = []AssetHook{}
+	candleAfterDeleteHooks = []CandleHook{}
 
-	AddAssetHook(boil.BeforeUpsertHook, assetBeforeUpsertHook)
+	AddCandleHook(boil.BeforeUpsertHook, candleBeforeUpsertHook)
 	if err = o.doBeforeUpsertHooks(ctx, nil); err != nil {
 		t.Errorf("Unable to execute doBeforeUpsertHooks: %s", err)
 	}
 	if !reflect.DeepEqual(o, empty) {
 		t.Errorf("Expected BeforeUpsertHook function to empty object, but got: %#v", o)
 	}
-	assetBeforeUpsertHooks = []AssetHook{}
+	candleBeforeUpsertHooks = []CandleHook{}
 
-	AddAssetHook(boil.AfterUpsertHook, assetAfterUpsertHook)
+	AddCandleHook(boil.AfterUpsertHook, candleAfterUpsertHook)
 	if err = o.doAfterUpsertHooks(ctx, nil); err != nil {
 		t.Errorf("Unable to execute doAfterUpsertHooks: %s", err)
 	}
 	if !reflect.DeepEqual(o, empty) {
 		t.Errorf("Expected AfterUpsertHook function to empty object, but got: %#v", o)
 	}
-	assetAfterUpsertHooks = []AssetHook{}
+	candleAfterUpsertHooks = []CandleHook{}
 }
 
-func testAssetsInsert(t *testing.T) {
+func testCandlesInsert(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Asset{}
-	if err = randomize.Struct(seed, o, assetDBTypes, true, assetColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	o := &Candle{}
+	if err = randomize.Struct(seed, o, candleDBTypes, true, candleColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -457,7 +457,7 @@ func testAssetsInsert(t *testing.T) {
 		t.Error(err)
 	}
 
-	count, err := Assets().Count(ctx, tx)
+	count, err := Candles().Count(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -467,24 +467,24 @@ func testAssetsInsert(t *testing.T) {
 	}
 }
 
-func testAssetsInsertWhitelist(t *testing.T) {
+func testCandlesInsertWhitelist(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Asset{}
-	if err = randomize.Struct(seed, o, assetDBTypes, true); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	o := &Candle{}
+	if err = randomize.Struct(seed, o, candleDBTypes, true); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
 
 	ctx := context.Background()
 	tx := MustTx(boil.BeginTx(ctx, nil))
 	defer func() { _ = tx.Rollback() }()
-	if err = o.Insert(ctx, tx, boil.Whitelist(assetColumnsWithoutDefault...)); err != nil {
+	if err = o.Insert(ctx, tx, boil.Whitelist(candleColumnsWithoutDefault...)); err != nil {
 		t.Error(err)
 	}
 
-	count, err := Assets().Count(ctx, tx)
+	count, err := Candles().Count(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -494,17 +494,17 @@ func testAssetsInsertWhitelist(t *testing.T) {
 	}
 }
 
-func testAssetToOneExchangeUsingExchange(t *testing.T) {
+func testCandleToOneExchangeUsingExchange(t *testing.T) {
 	ctx := context.Background()
 	tx := MustTx(boil.BeginTx(ctx, nil))
 	defer func() { _ = tx.Rollback() }()
 
-	var local Asset
+	var local Candle
 	var foreign Exchange
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, assetDBTypes, true, assetColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	if err := randomize.Struct(seed, &local, candleDBTypes, true, candleColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
 	if err := randomize.Struct(seed, &foreign, exchangeDBTypes, false, exchangeColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize Exchange struct: %s", err)
@@ -514,7 +514,7 @@ func testAssetToOneExchangeUsingExchange(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	queries.Assign(&local.ExchangeID, foreign.ID)
+	queries.Assign(&local.Exchange, foreign.ID)
 	if err := local.Insert(ctx, tx, boil.Infer()); err != nil {
 		t.Fatal(err)
 	}
@@ -528,8 +528,8 @@ func testAssetToOneExchangeUsingExchange(t *testing.T) {
 		t.Errorf("want: %v, got %v", foreign.ID, check.ID)
 	}
 
-	slice := AssetSlice{&local}
-	if err = local.L.LoadExchange(ctx, tx, false, (*[]*Asset)(&slice), nil); err != nil {
+	slice := CandleSlice{&local}
+	if err = local.L.LoadExchange(ctx, tx, false, (*[]*Candle)(&slice), nil); err != nil {
 		t.Fatal(err)
 	}
 	if local.R.Exchange == nil {
@@ -545,18 +545,18 @@ func testAssetToOneExchangeUsingExchange(t *testing.T) {
 	}
 }
 
-func testAssetToOneSetOpExchangeUsingExchange(t *testing.T) {
+func testCandleToOneSetOpExchangeUsingExchange(t *testing.T) {
 	var err error
 
 	ctx := context.Background()
 	tx := MustTx(boil.BeginTx(ctx, nil))
 	defer func() { _ = tx.Rollback() }()
 
-	var a Asset
+	var a Candle
 	var b, c Exchange
 
 	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, assetDBTypes, false, strmangle.SetComplement(assetPrimaryKeyColumns, assetColumnsWithoutDefault)...); err != nil {
+	if err = randomize.Struct(seed, &a, candleDBTypes, false, strmangle.SetComplement(candlePrimaryKeyColumns, candleColumnsWithoutDefault)...); err != nil {
 		t.Fatal(err)
 	}
 	if err = randomize.Struct(seed, &b, exchangeDBTypes, false, strmangle.SetComplement(exchangePrimaryKeyColumns, exchangeColumnsWithoutDefault)...); err != nil {
@@ -583,38 +583,38 @@ func testAssetToOneSetOpExchangeUsingExchange(t *testing.T) {
 			t.Error("relationship struct not set to correct value")
 		}
 
-		if x.R.Assets[0] != &a {
+		if x.R.Candles[0] != &a {
 			t.Error("failed to append to foreign relationship struct")
 		}
-		if !queries.Equal(a.ExchangeID, x.ID) {
-			t.Error("foreign key was wrong value", a.ExchangeID)
+		if !queries.Equal(a.Exchange, x.ID) {
+			t.Error("foreign key was wrong value", a.Exchange)
 		}
 
-		zero := reflect.Zero(reflect.TypeOf(a.ExchangeID))
-		reflect.Indirect(reflect.ValueOf(&a.ExchangeID)).Set(zero)
+		zero := reflect.Zero(reflect.TypeOf(a.Exchange))
+		reflect.Indirect(reflect.ValueOf(&a.Exchange)).Set(zero)
 
 		if err = a.Reload(ctx, tx); err != nil {
 			t.Fatal("failed to reload", err)
 		}
 
-		if !queries.Equal(a.ExchangeID, x.ID) {
-			t.Error("foreign key was wrong value", a.ExchangeID, x.ID)
+		if !queries.Equal(a.Exchange, x.ID) {
+			t.Error("foreign key was wrong value", a.Exchange, x.ID)
 		}
 	}
 }
 
-func testAssetToOneRemoveOpExchangeUsingExchange(t *testing.T) {
+func testCandleToOneRemoveOpExchangeUsingExchange(t *testing.T) {
 	var err error
 
 	ctx := context.Background()
 	tx := MustTx(boil.BeginTx(ctx, nil))
 	defer func() { _ = tx.Rollback() }()
 
-	var a Asset
+	var a Candle
 	var b Exchange
 
 	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, assetDBTypes, false, strmangle.SetComplement(assetPrimaryKeyColumns, assetColumnsWithoutDefault)...); err != nil {
+	if err = randomize.Struct(seed, &a, candleDBTypes, false, strmangle.SetComplement(candlePrimaryKeyColumns, candleColumnsWithoutDefault)...); err != nil {
 		t.Fatal(err)
 	}
 	if err = randomize.Struct(seed, &b, exchangeDBTypes, false, strmangle.SetComplement(exchangePrimaryKeyColumns, exchangeColumnsWithoutDefault)...); err != nil {
@@ -645,23 +645,23 @@ func testAssetToOneRemoveOpExchangeUsingExchange(t *testing.T) {
 		t.Error("R struct entry should be nil")
 	}
 
-	if !queries.IsValuerNil(a.ExchangeID) {
+	if !queries.IsValuerNil(a.Exchange) {
 		t.Error("foreign key value should be nil")
 	}
 
-	if len(b.R.Assets) != 0 {
+	if len(b.R.Candles) != 0 {
 		t.Error("failed to remove a from b's relationships")
 	}
 }
 
-func testAssetsReload(t *testing.T) {
+func testCandlesReload(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Asset{}
-	if err = randomize.Struct(seed, o, assetDBTypes, true, assetColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	o := &Candle{}
+	if err = randomize.Struct(seed, o, candleDBTypes, true, candleColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -676,14 +676,14 @@ func testAssetsReload(t *testing.T) {
 	}
 }
 
-func testAssetsReloadAll(t *testing.T) {
+func testCandlesReloadAll(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Asset{}
-	if err = randomize.Struct(seed, o, assetDBTypes, true, assetColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	o := &Candle{}
+	if err = randomize.Struct(seed, o, candleDBTypes, true, candleColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -693,21 +693,21 @@ func testAssetsReloadAll(t *testing.T) {
 		t.Error(err)
 	}
 
-	slice := AssetSlice{o}
+	slice := CandleSlice{o}
 
 	if err = slice.ReloadAll(ctx, tx); err != nil {
 		t.Error(err)
 	}
 }
 
-func testAssetsSelect(t *testing.T) {
+func testCandlesSelect(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Asset{}
-	if err = randomize.Struct(seed, o, assetDBTypes, true, assetColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	o := &Candle{}
+	if err = randomize.Struct(seed, o, candleDBTypes, true, candleColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -717,7 +717,7 @@ func testAssetsSelect(t *testing.T) {
 		t.Error(err)
 	}
 
-	slice, err := Assets().All(ctx, tx)
+	slice, err := Candles().All(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -728,25 +728,25 @@ func testAssetsSelect(t *testing.T) {
 }
 
 var (
-	assetDBTypes = map[string]string{`ID`: `bigint`, `Name`: `character varying`, `ShortName`: `character varying`, `ExchangeID`: `uuid`, `Delimiter`: `character varying`}
-	_            = bytes.MinRead
+	candleDBTypes = map[string]string{`ID`: `uuid`, `Exchange`: `uuid`, `Base`: `character varying`, `Quote`: `character varying`, `Interval`: `character varying`, `Date`: `timestamp with time zone`, `Open`: `numeric`, `High`: `numeric`, `Low`: `numeric`, `Close`: `numeric`, `Volume`: `numeric`}
+	_             = bytes.MinRead
 )
 
-func testAssetsUpdate(t *testing.T) {
+func testCandlesUpdate(t *testing.T) {
 	t.Parallel()
 
-	if 0 == len(assetPrimaryKeyColumns) {
+	if 0 == len(candlePrimaryKeyColumns) {
 		t.Skip("Skipping table with no primary key columns")
 	}
-	if len(assetAllColumns) == len(assetPrimaryKeyColumns) {
+	if len(candleAllColumns) == len(candlePrimaryKeyColumns) {
 		t.Skip("Skipping table with only primary key columns")
 	}
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Asset{}
-	if err = randomize.Struct(seed, o, assetDBTypes, true, assetColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	o := &Candle{}
+	if err = randomize.Struct(seed, o, candleDBTypes, true, candleColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -756,7 +756,7 @@ func testAssetsUpdate(t *testing.T) {
 		t.Error(err)
 	}
 
-	count, err := Assets().Count(ctx, tx)
+	count, err := Candles().Count(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -765,8 +765,8 @@ func testAssetsUpdate(t *testing.T) {
 		t.Error("want one record, got:", count)
 	}
 
-	if err = randomize.Struct(seed, o, assetDBTypes, true, assetPrimaryKeyColumns...); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	if err = randomize.Struct(seed, o, candleDBTypes, true, candlePrimaryKeyColumns...); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
 
 	if rowsAff, err := o.Update(ctx, tx, boil.Infer()); err != nil {
@@ -776,18 +776,18 @@ func testAssetsUpdate(t *testing.T) {
 	}
 }
 
-func testAssetsSliceUpdateAll(t *testing.T) {
+func testCandlesSliceUpdateAll(t *testing.T) {
 	t.Parallel()
 
-	if len(assetAllColumns) == len(assetPrimaryKeyColumns) {
+	if len(candleAllColumns) == len(candlePrimaryKeyColumns) {
 		t.Skip("Skipping table with only primary key columns")
 	}
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Asset{}
-	if err = randomize.Struct(seed, o, assetDBTypes, true, assetColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	o := &Candle{}
+	if err = randomize.Struct(seed, o, candleDBTypes, true, candleColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -797,7 +797,7 @@ func testAssetsSliceUpdateAll(t *testing.T) {
 		t.Error(err)
 	}
 
-	count, err := Assets().Count(ctx, tx)
+	count, err := Candles().Count(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -806,18 +806,18 @@ func testAssetsSliceUpdateAll(t *testing.T) {
 		t.Error("want one record, got:", count)
 	}
 
-	if err = randomize.Struct(seed, o, assetDBTypes, true, assetPrimaryKeyColumns...); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	if err = randomize.Struct(seed, o, candleDBTypes, true, candlePrimaryKeyColumns...); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
 
 	// Remove Primary keys and unique columns from what we plan to update
 	var fields []string
-	if strmangle.StringSliceMatch(assetAllColumns, assetPrimaryKeyColumns) {
-		fields = assetAllColumns
+	if strmangle.StringSliceMatch(candleAllColumns, candlePrimaryKeyColumns) {
+		fields = candleAllColumns
 	} else {
 		fields = strmangle.SetComplement(
-			assetAllColumns,
-			assetPrimaryKeyColumns,
+			candleAllColumns,
+			candlePrimaryKeyColumns,
 		)
 	}
 
@@ -835,7 +835,7 @@ func testAssetsSliceUpdateAll(t *testing.T) {
 		}
 	}
 
-	slice := AssetSlice{o}
+	slice := CandleSlice{o}
 	if rowsAff, err := slice.UpdateAll(ctx, tx, updateMap); err != nil {
 		t.Error(err)
 	} else if rowsAff != 1 {
@@ -843,29 +843,29 @@ func testAssetsSliceUpdateAll(t *testing.T) {
 	}
 }
 
-func testAssetsUpsert(t *testing.T) {
+func testCandlesUpsert(t *testing.T) {
 	t.Parallel()
 
-	if len(assetAllColumns) == len(assetPrimaryKeyColumns) {
+	if len(candleAllColumns) == len(candlePrimaryKeyColumns) {
 		t.Skip("Skipping table with only primary key columns")
 	}
 
 	seed := randomize.NewSeed()
 	var err error
 	// Attempt the INSERT side of an UPSERT
-	o := Asset{}
-	if err = randomize.Struct(seed, &o, assetDBTypes, true); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	o := Candle{}
+	if err = randomize.Struct(seed, &o, candleDBTypes, true); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
 
 	ctx := context.Background()
 	tx := MustTx(boil.BeginTx(ctx, nil))
 	defer func() { _ = tx.Rollback() }()
 	if err = o.Upsert(ctx, tx, false, nil, boil.Infer(), boil.Infer()); err != nil {
-		t.Errorf("Unable to upsert Asset: %s", err)
+		t.Errorf("Unable to upsert Candle: %s", err)
 	}
 
-	count, err := Assets().Count(ctx, tx)
+	count, err := Candles().Count(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -874,15 +874,15 @@ func testAssetsUpsert(t *testing.T) {
 	}
 
 	// Attempt the UPDATE side of an UPSERT
-	if err = randomize.Struct(seed, &o, assetDBTypes, false, assetPrimaryKeyColumns...); err != nil {
-		t.Errorf("Unable to randomize Asset struct: %s", err)
+	if err = randomize.Struct(seed, &o, candleDBTypes, false, candlePrimaryKeyColumns...); err != nil {
+		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
 
 	if err = o.Upsert(ctx, tx, true, nil, boil.Infer(), boil.Infer()); err != nil {
-		t.Errorf("Unable to upsert Asset: %s", err)
+		t.Errorf("Unable to upsert Candle: %s", err)
 	}
 
-	count, err = Assets().Count(ctx, tx)
+	count, err = Candles().Count(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}

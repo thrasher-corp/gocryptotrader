@@ -1,6 +1,8 @@
 package seed
 
-import "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
+import (
+	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
+)
 
 func Exchange() error {
 	allExchanges := []exchange.Details{

@@ -6,11 +6,9 @@ package postgres
 import "testing"
 
 func TestUpsert(t *testing.T) {
-	t.Run("Assets", testAssetsUpsert)
-
 	t.Run("AuditEvents", testAuditEventsUpsert)
 
-	t.Run("Currencies", testCurrenciesUpsert)
+	t.Run("Candles", testCandlesUpsert)
 
 	t.Run("Exchanges", testExchangesUpsert)
 

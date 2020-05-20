@@ -23,46 +23,41 @@ import (
 
 // Exchange is an object representing the database table.
 type Exchange struct {
-	ID        string `boil:"id" json:"id" toml:"id" yaml:"id"`
-	Name      string `boil:"name" json:"name" toml:"name" yaml:"name"`
-	ShortName string `boil:"short_name" json:"short_name" toml:"short_name" yaml:"short_name"`
+	ID   string `boil:"id" json:"id" toml:"id" yaml:"id"`
+	Name string `boil:"name" json:"name" toml:"name" yaml:"name"`
 
 	R *exchangeR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L exchangeL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var ExchangeColumns = struct {
-	ID        string
-	Name      string
-	ShortName string
+	ID   string
+	Name string
 }{
-	ID:        "id",
-	Name:      "name",
-	ShortName: "short_name",
+	ID:   "id",
+	Name: "name",
 }
 
 // Generated where
 
 var ExchangeWhere = struct {
-	ID        whereHelperstring
-	Name      whereHelperstring
-	ShortName whereHelperstring
+	ID   whereHelperstring
+	Name whereHelperstring
 }{
-	ID:        whereHelperstring{field: "\"exchange\".\"id\""},
-	Name:      whereHelperstring{field: "\"exchange\".\"name\""},
-	ShortName: whereHelperstring{field: "\"exchange\".\"short_name\""},
+	ID:   whereHelperstring{field: "\"exchange\".\"id\""},
+	Name: whereHelperstring{field: "\"exchange\".\"name\""},
 }
 
 // ExchangeRels is where relationship names are stored.
 var ExchangeRels = struct {
-	Assets string
+	Candles string
 }{
-	Assets: "Assets",
+	Candles: "Candles",
 }
 
 // exchangeR is where relationships are stored.
 type exchangeR struct {
-	Assets AssetSlice
+	Candles CandleSlice
 }
 
 // NewStruct creates a new relationship struct
@@ -74,8 +69,8 @@ func (*exchangeR) NewStruct() *exchangeR {
 type exchangeL struct{}
 
 var (
-	exchangeAllColumns            = []string{"id", "name", "short_name"}
-	exchangeColumnsWithoutDefault = []string{"name", "short_name"}
+	exchangeAllColumns            = []string{"id", "name"}
+	exchangeColumnsWithoutDefault = []string{"name"}
 	exchangeColumnsWithDefault    = []string{"id"}
 	exchangePrimaryKeyColumns     = []string{"id"}
 )
@@ -355,30 +350,30 @@ func (q exchangeQuery) Exists(ctx context.Context, exec boil.ContextExecutor) (b
 	return count > 0, nil
 }
 
-// Assets retrieves all the asset's Assets with an executor.
-func (o *Exchange) Assets(mods ...qm.QueryMod) assetQuery {
+// Candles retrieves all the candle's Candles with an executor.
+func (o *Exchange) Candles(mods ...qm.QueryMod) candleQuery {
 	var queryMods []qm.QueryMod
 	if len(mods) != 0 {
 		queryMods = append(queryMods, mods...)
 	}
 
 	queryMods = append(queryMods,
-		qm.Where("\"asset\".\"exchange_id\"=?", o.ID),
+		qm.Where("\"candle\".\"exchange\"=?", o.ID),
 	)
 
-	query := Assets(queryMods...)
-	queries.SetFrom(query.Query, "\"asset\"")
+	query := Candles(queryMods...)
+	queries.SetFrom(query.Query, "\"candle\"")
 
 	if len(queries.GetSelect(query.Query)) == 0 {
-		queries.SetSelect(query.Query, []string{"\"asset\".*"})
+		queries.SetSelect(query.Query, []string{"\"candle\".*"})
 	}
 
 	return query
 }
 
-// LoadAssets allows an eager lookup of values, cached into the
+// LoadCandles allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for a 1-M or N-M relationship.
-func (exchangeL) LoadAssets(ctx context.Context, e boil.ContextExecutor, singular bool, maybeExchange interface{}, mods queries.Applicator) error {
+func (exchangeL) LoadCandles(ctx context.Context, e boil.ContextExecutor, singular bool, maybeExchange interface{}, mods queries.Applicator) error {
 	var slice []*Exchange
 	var object *Exchange
 
@@ -415,29 +410,29 @@ func (exchangeL) LoadAssets(ctx context.Context, e boil.ContextExecutor, singula
 		return nil
 	}
 
-	query := NewQuery(qm.From(`asset`), qm.WhereIn(`asset.exchange_id in ?`, args...))
+	query := NewQuery(qm.From(`candle`), qm.WhereIn(`candle.exchange in ?`, args...))
 	if mods != nil {
 		mods.Apply(query)
 	}
 
 	results, err := query.QueryContext(ctx, e)
 	if err != nil {
-		return errors.Wrap(err, "failed to eager load asset")
+		return errors.Wrap(err, "failed to eager load candle")
 	}
 
-	var resultSlice []*Asset
+	var resultSlice []*Candle
 	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice asset")
+		return errors.Wrap(err, "failed to bind eager loaded slice candle")
 	}
 
 	if err = results.Close(); err != nil {
-		return errors.Wrap(err, "failed to close results in eager load on asset")
+		return errors.Wrap(err, "failed to close results in eager load on candle")
 	}
 	if err = results.Err(); err != nil {
-		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for asset")
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for candle")
 	}
 
-	if len(assetAfterSelectHooks) != 0 {
+	if len(candleAfterSelectHooks) != 0 {
 		for _, obj := range resultSlice {
 			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
 				return err
@@ -445,10 +440,10 @@ func (exchangeL) LoadAssets(ctx context.Context, e boil.ContextExecutor, singula
 		}
 	}
 	if singular {
-		object.R.Assets = resultSlice
+		object.R.Candles = resultSlice
 		for _, foreign := range resultSlice {
 			if foreign.R == nil {
-				foreign.R = &assetR{}
+				foreign.R = &candleR{}
 			}
 			foreign.R.Exchange = object
 		}
@@ -457,10 +452,10 @@ func (exchangeL) LoadAssets(ctx context.Context, e boil.ContextExecutor, singula
 
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
-			if queries.Equal(local.ID, foreign.ExchangeID) {
-				local.R.Assets = append(local.R.Assets, foreign)
+			if queries.Equal(local.ID, foreign.Exchange) {
+				local.R.Candles = append(local.R.Candles, foreign)
 				if foreign.R == nil {
-					foreign.R = &assetR{}
+					foreign.R = &candleR{}
 				}
 				foreign.R.Exchange = local
 				break
@@ -471,23 +466,23 @@ func (exchangeL) LoadAssets(ctx context.Context, e boil.ContextExecutor, singula
 	return nil
 }
 
-// AddAssets adds the given related objects to the existing relationships
+// AddCandles adds the given related objects to the existing relationships
 // of the exchange, optionally inserting them as new records.
-// Appends related to o.R.Assets.
+// Appends related to o.R.Candles.
 // Sets related.R.Exchange appropriately.
-func (o *Exchange) AddAssets(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Asset) error {
+func (o *Exchange) AddCandles(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Candle) error {
 	var err error
 	for _, rel := range related {
 		if insert {
-			queries.Assign(&rel.ExchangeID, o.ID)
+			queries.Assign(&rel.Exchange, o.ID)
 			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
 				return errors.Wrap(err, "failed to insert into foreign table")
 			}
 		} else {
 			updateQuery := fmt.Sprintf(
-				"UPDATE \"asset\" SET %s WHERE %s",
-				strmangle.SetParamNames("\"", "\"", 1, []string{"exchange_id"}),
-				strmangle.WhereClause("\"", "\"", 2, assetPrimaryKeyColumns),
+				"UPDATE \"candle\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"exchange"}),
+				strmangle.WhereClause("\"", "\"", 2, candlePrimaryKeyColumns),
 			)
 			values := []interface{}{o.ID, rel.ID}
 
@@ -500,21 +495,21 @@ func (o *Exchange) AddAssets(ctx context.Context, exec boil.ContextExecutor, ins
 				return errors.Wrap(err, "failed to update foreign table")
 			}
 
-			queries.Assign(&rel.ExchangeID, o.ID)
+			queries.Assign(&rel.Exchange, o.ID)
 		}
 	}
 
 	if o.R == nil {
 		o.R = &exchangeR{
-			Assets: related,
+			Candles: related,
 		}
 	} else {
-		o.R.Assets = append(o.R.Assets, related...)
+		o.R.Candles = append(o.R.Candles, related...)
 	}
 
 	for _, rel := range related {
 		if rel.R == nil {
-			rel.R = &assetR{
+			rel.R = &candleR{
 				Exchange: o,
 			}
 		} else {
@@ -524,14 +519,14 @@ func (o *Exchange) AddAssets(ctx context.Context, exec boil.ContextExecutor, ins
 	return nil
 }
 
-// SetAssets removes all previously related items of the
+// SetCandles removes all previously related items of the
 // exchange replacing them completely with the passed
 // in related items, optionally inserting them as new records.
-// Sets o.R.Exchange's Assets accordingly.
-// Replaces o.R.Assets with related.
-// Sets related.R.Exchange's Assets accordingly.
-func (o *Exchange) SetAssets(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Asset) error {
-	query := "update \"asset\" set \"exchange_id\" = null where \"exchange_id\" = $1"
+// Sets o.R.Exchange's Candles accordingly.
+// Replaces o.R.Candles with related.
+// Sets related.R.Exchange's Candles accordingly.
+func (o *Exchange) SetCandles(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Candle) error {
+	query := "update \"candle\" set \"exchange\" = null where \"exchange\" = $1"
 	values := []interface{}{o.ID}
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, query)
@@ -544,8 +539,8 @@ func (o *Exchange) SetAssets(ctx context.Context, exec boil.ContextExecutor, ins
 	}
 
 	if o.R != nil {
-		for _, rel := range o.R.Assets {
-			queries.SetScanner(&rel.ExchangeID, nil)
+		for _, rel := range o.R.Candles {
+			queries.SetScanner(&rel.Exchange, nil)
 			if rel.R == nil {
 				continue
 			}
@@ -553,22 +548,22 @@ func (o *Exchange) SetAssets(ctx context.Context, exec boil.ContextExecutor, ins
 			rel.R.Exchange = nil
 		}
 
-		o.R.Assets = nil
+		o.R.Candles = nil
 	}
-	return o.AddAssets(ctx, exec, insert, related...)
+	return o.AddCandles(ctx, exec, insert, related...)
 }
 
-// RemoveAssets relationships from objects passed in.
-// Removes related items from R.Assets (uses pointer comparison, removal does not keep order)
+// RemoveCandles relationships from objects passed in.
+// Removes related items from R.Candles (uses pointer comparison, removal does not keep order)
 // Sets related.R.Exchange.
-func (o *Exchange) RemoveAssets(ctx context.Context, exec boil.ContextExecutor, related ...*Asset) error {
+func (o *Exchange) RemoveCandles(ctx context.Context, exec boil.ContextExecutor, related ...*Candle) error {
 	var err error
 	for _, rel := range related {
-		queries.SetScanner(&rel.ExchangeID, nil)
+		queries.SetScanner(&rel.Exchange, nil)
 		if rel.R != nil {
 			rel.R.Exchange = nil
 		}
-		if _, err = rel.Update(ctx, exec, boil.Whitelist("exchange_id")); err != nil {
+		if _, err = rel.Update(ctx, exec, boil.Whitelist("exchange")); err != nil {
 			return err
 		}
 	}
@@ -577,16 +572,16 @@ func (o *Exchange) RemoveAssets(ctx context.Context, exec boil.ContextExecutor, 
 	}
 
 	for _, rel := range related {
-		for i, ri := range o.R.Assets {
+		for i, ri := range o.R.Candles {
 			if rel != ri {
 				continue
 			}
 
-			ln := len(o.R.Assets)
+			ln := len(o.R.Candles)
 			if ln > 1 && i < ln-1 {
-				o.R.Assets[i] = o.R.Assets[ln-1]
+				o.R.Candles[i] = o.R.Candles[ln-1]
 			}
-			o.R.Assets = o.R.Assets[:ln-1]
+			o.R.Candles = o.R.Candles[:ln-1]
 			break
 		}
 	}

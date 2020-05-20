@@ -12,9 +12,8 @@ import "testing"
 // It does NOT run each operation group in parallel.
 // Separating the tests thusly grants avoidance of Postgres deadlocks.
 func TestParent(t *testing.T) {
-	t.Run("Assets", testAssets)
 	t.Run("AuditEvents", testAuditEvents)
-	t.Run("Currencies", testCurrencies)
+	t.Run("Candles", testCandles)
 	t.Run("Exchanges", testExchanges)
 	t.Run("Scripts", testScripts)
 	t.Run("ScriptExecutions", testScriptExecutions)
@@ -24,9 +23,8 @@ func TestParent(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	t.Run("Assets", testAssetsDelete)
 	t.Run("AuditEvents", testAuditEventsDelete)
-	t.Run("Currencies", testCurrenciesDelete)
+	t.Run("Candles", testCandlesDelete)
 	t.Run("Exchanges", testExchangesDelete)
 	t.Run("Scripts", testScriptsDelete)
 	t.Run("ScriptExecutions", testScriptExecutionsDelete)
@@ -36,9 +34,8 @@ func TestDelete(t *testing.T) {
 }
 
 func TestQueryDeleteAll(t *testing.T) {
-	t.Run("Assets", testAssetsQueryDeleteAll)
 	t.Run("AuditEvents", testAuditEventsQueryDeleteAll)
-	t.Run("Currencies", testCurrenciesQueryDeleteAll)
+	t.Run("Candles", testCandlesQueryDeleteAll)
 	t.Run("Exchanges", testExchangesQueryDeleteAll)
 	t.Run("Scripts", testScriptsQueryDeleteAll)
 	t.Run("ScriptExecutions", testScriptExecutionsQueryDeleteAll)
@@ -48,9 +45,8 @@ func TestQueryDeleteAll(t *testing.T) {
 }
 
 func TestSliceDeleteAll(t *testing.T) {
-	t.Run("Assets", testAssetsSliceDeleteAll)
 	t.Run("AuditEvents", testAuditEventsSliceDeleteAll)
-	t.Run("Currencies", testCurrenciesSliceDeleteAll)
+	t.Run("Candles", testCandlesSliceDeleteAll)
 	t.Run("Exchanges", testExchangesSliceDeleteAll)
 	t.Run("Scripts", testScriptsSliceDeleteAll)
 	t.Run("ScriptExecutions", testScriptExecutionsSliceDeleteAll)
@@ -60,9 +56,8 @@ func TestSliceDeleteAll(t *testing.T) {
 }
 
 func TestExists(t *testing.T) {
-	t.Run("Assets", testAssetsExists)
 	t.Run("AuditEvents", testAuditEventsExists)
-	t.Run("Currencies", testCurrenciesExists)
+	t.Run("Candles", testCandlesExists)
 	t.Run("Exchanges", testExchangesExists)
 	t.Run("Scripts", testScriptsExists)
 	t.Run("ScriptExecutions", testScriptExecutionsExists)
@@ -72,9 +67,8 @@ func TestExists(t *testing.T) {
 }
 
 func TestFind(t *testing.T) {
-	t.Run("Assets", testAssetsFind)
 	t.Run("AuditEvents", testAuditEventsFind)
-	t.Run("Currencies", testCurrenciesFind)
+	t.Run("Candles", testCandlesFind)
 	t.Run("Exchanges", testExchangesFind)
 	t.Run("Scripts", testScriptsFind)
 	t.Run("ScriptExecutions", testScriptExecutionsFind)
@@ -84,9 +78,8 @@ func TestFind(t *testing.T) {
 }
 
 func TestBind(t *testing.T) {
-	t.Run("Assets", testAssetsBind)
 	t.Run("AuditEvents", testAuditEventsBind)
-	t.Run("Currencies", testCurrenciesBind)
+	t.Run("Candles", testCandlesBind)
 	t.Run("Exchanges", testExchangesBind)
 	t.Run("Scripts", testScriptsBind)
 	t.Run("ScriptExecutions", testScriptExecutionsBind)
@@ -96,9 +89,8 @@ func TestBind(t *testing.T) {
 }
 
 func TestOne(t *testing.T) {
-	t.Run("Assets", testAssetsOne)
 	t.Run("AuditEvents", testAuditEventsOne)
-	t.Run("Currencies", testCurrenciesOne)
+	t.Run("Candles", testCandlesOne)
 	t.Run("Exchanges", testExchangesOne)
 	t.Run("Scripts", testScriptsOne)
 	t.Run("ScriptExecutions", testScriptExecutionsOne)
@@ -108,9 +100,8 @@ func TestOne(t *testing.T) {
 }
 
 func TestAll(t *testing.T) {
-	t.Run("Assets", testAssetsAll)
 	t.Run("AuditEvents", testAuditEventsAll)
-	t.Run("Currencies", testCurrenciesAll)
+	t.Run("Candles", testCandlesAll)
 	t.Run("Exchanges", testExchangesAll)
 	t.Run("Scripts", testScriptsAll)
 	t.Run("ScriptExecutions", testScriptExecutionsAll)
@@ -120,9 +111,8 @@ func TestAll(t *testing.T) {
 }
 
 func TestCount(t *testing.T) {
-	t.Run("Assets", testAssetsCount)
 	t.Run("AuditEvents", testAuditEventsCount)
-	t.Run("Currencies", testCurrenciesCount)
+	t.Run("Candles", testCandlesCount)
 	t.Run("Exchanges", testExchangesCount)
 	t.Run("Scripts", testScriptsCount)
 	t.Run("ScriptExecutions", testScriptExecutionsCount)
@@ -132,9 +122,8 @@ func TestCount(t *testing.T) {
 }
 
 func TestHooks(t *testing.T) {
-	t.Run("Assets", testAssetsHooks)
 	t.Run("AuditEvents", testAuditEventsHooks)
-	t.Run("Currencies", testCurrenciesHooks)
+	t.Run("Candles", testCandlesHooks)
 	t.Run("Exchanges", testExchangesHooks)
 	t.Run("Scripts", testScriptsHooks)
 	t.Run("ScriptExecutions", testScriptExecutionsHooks)
@@ -144,12 +133,10 @@ func TestHooks(t *testing.T) {
 }
 
 func TestInsert(t *testing.T) {
-	t.Run("Assets", testAssetsInsert)
-	t.Run("Assets", testAssetsInsertWhitelist)
 	t.Run("AuditEvents", testAuditEventsInsert)
 	t.Run("AuditEvents", testAuditEventsInsertWhitelist)
-	t.Run("Currencies", testCurrenciesInsert)
-	t.Run("Currencies", testCurrenciesInsertWhitelist)
+	t.Run("Candles", testCandlesInsert)
+	t.Run("Candles", testCandlesInsertWhitelist)
 	t.Run("Exchanges", testExchangesInsert)
 	t.Run("Exchanges", testExchangesInsertWhitelist)
 	t.Run("Scripts", testScriptsInsert)
@@ -167,7 +154,7 @@ func TestInsert(t *testing.T) {
 // TestToOne tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToOne(t *testing.T) {
-	t.Run("AssetToExchangeUsingExchange", testAssetToOneExchangeUsingExchange)
+	t.Run("CandleToExchangeUsingExchange", testCandleToOneExchangeUsingExchange)
 	t.Run("ScriptExecutionToScriptUsingScript", testScriptExecutionToOneScriptUsingScript)
 	t.Run("WithdrawalCryptoToWithdrawalHistoryUsingWithdrawalCrypto", testWithdrawalCryptoToOneWithdrawalHistoryUsingWithdrawalCrypto)
 	t.Run("WithdrawalFiatToWithdrawalHistoryUsingWithdrawalFiat", testWithdrawalFiatToOneWithdrawalHistoryUsingWithdrawalFiat)
@@ -180,7 +167,7 @@ func TestOneToOne(t *testing.T) {}
 // TestToMany tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToMany(t *testing.T) {
-	t.Run("ExchangeToAssets", testExchangeToManyAssets)
+	t.Run("ExchangeToCandles", testExchangeToManyCandles)
 	t.Run("ScriptToScriptExecutions", testScriptToManyScriptExecutions)
 	t.Run("WithdrawalHistoryToWithdrawalCryptoWithdrawalCryptos", testWithdrawalHistoryToManyWithdrawalCryptoWithdrawalCryptos)
 	t.Run("WithdrawalHistoryToWithdrawalFiatWithdrawalFiats", testWithdrawalHistoryToManyWithdrawalFiatWithdrawalFiats)
@@ -189,7 +176,7 @@ func TestToMany(t *testing.T) {
 // TestToOneSet tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToOneSet(t *testing.T) {
-	t.Run("AssetToExchangeUsingAssets", testAssetToOneSetOpExchangeUsingExchange)
+	t.Run("CandleToExchangeUsingCandles", testCandleToOneSetOpExchangeUsingExchange)
 	t.Run("ScriptExecutionToScriptUsingScriptExecutions", testScriptExecutionToOneSetOpScriptUsingScript)
 	t.Run("WithdrawalCryptoToWithdrawalHistoryUsingWithdrawalCryptoWithdrawalCryptos", testWithdrawalCryptoToOneSetOpWithdrawalHistoryUsingWithdrawalCrypto)
 	t.Run("WithdrawalFiatToWithdrawalHistoryUsingWithdrawalFiatWithdrawalFiats", testWithdrawalFiatToOneSetOpWithdrawalHistoryUsingWithdrawalFiat)
@@ -198,7 +185,7 @@ func TestToOneSet(t *testing.T) {
 // TestToOneRemove tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToOneRemove(t *testing.T) {
-	t.Run("AssetToExchangeUsingAssets", testAssetToOneRemoveOpExchangeUsingExchange)
+	t.Run("CandleToExchangeUsingCandles", testCandleToOneRemoveOpExchangeUsingExchange)
 	t.Run("ScriptExecutionToScriptUsingScriptExecutions", testScriptExecutionToOneRemoveOpScriptUsingScript)
 	t.Run("WithdrawalCryptoToWithdrawalHistoryUsingWithdrawalCryptoWithdrawalCryptos", testWithdrawalCryptoToOneRemoveOpWithdrawalHistoryUsingWithdrawalCrypto)
 	t.Run("WithdrawalFiatToWithdrawalHistoryUsingWithdrawalFiatWithdrawalFiats", testWithdrawalFiatToOneRemoveOpWithdrawalHistoryUsingWithdrawalFiat)
@@ -215,7 +202,7 @@ func TestOneToOneRemove(t *testing.T) {}
 // TestToManyAdd tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToManyAdd(t *testing.T) {
-	t.Run("ExchangeToAssets", testExchangeToManyAddOpAssets)
+	t.Run("ExchangeToCandles", testExchangeToManyAddOpCandles)
 	t.Run("ScriptToScriptExecutions", testScriptToManyAddOpScriptExecutions)
 	t.Run("WithdrawalHistoryToWithdrawalCryptoWithdrawalCryptos", testWithdrawalHistoryToManyAddOpWithdrawalCryptoWithdrawalCryptos)
 	t.Run("WithdrawalHistoryToWithdrawalFiatWithdrawalFiats", testWithdrawalHistoryToManyAddOpWithdrawalFiatWithdrawalFiats)
@@ -224,7 +211,7 @@ func TestToManyAdd(t *testing.T) {
 // TestToManySet tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToManySet(t *testing.T) {
-	t.Run("ExchangeToAssets", testExchangeToManySetOpAssets)
+	t.Run("ExchangeToCandles", testExchangeToManySetOpCandles)
 	t.Run("ScriptToScriptExecutions", testScriptToManySetOpScriptExecutions)
 	t.Run("WithdrawalHistoryToWithdrawalCryptoWithdrawalCryptos", testWithdrawalHistoryToManySetOpWithdrawalCryptoWithdrawalCryptos)
 	t.Run("WithdrawalHistoryToWithdrawalFiatWithdrawalFiats", testWithdrawalHistoryToManySetOpWithdrawalFiatWithdrawalFiats)
@@ -233,16 +220,15 @@ func TestToManySet(t *testing.T) {
 // TestToManyRemove tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToManyRemove(t *testing.T) {
-	t.Run("ExchangeToAssets", testExchangeToManyRemoveOpAssets)
+	t.Run("ExchangeToCandles", testExchangeToManyRemoveOpCandles)
 	t.Run("ScriptToScriptExecutions", testScriptToManyRemoveOpScriptExecutions)
 	t.Run("WithdrawalHistoryToWithdrawalCryptoWithdrawalCryptos", testWithdrawalHistoryToManyRemoveOpWithdrawalCryptoWithdrawalCryptos)
 	t.Run("WithdrawalHistoryToWithdrawalFiatWithdrawalFiats", testWithdrawalHistoryToManyRemoveOpWithdrawalFiatWithdrawalFiats)
 }
 
 func TestReload(t *testing.T) {
-	t.Run("Assets", testAssetsReload)
 	t.Run("AuditEvents", testAuditEventsReload)
-	t.Run("Currencies", testCurrenciesReload)
+	t.Run("Candles", testCandlesReload)
 	t.Run("Exchanges", testExchangesReload)
 	t.Run("Scripts", testScriptsReload)
 	t.Run("ScriptExecutions", testScriptExecutionsReload)
@@ -252,9 +238,8 @@ func TestReload(t *testing.T) {
 }
 
 func TestReloadAll(t *testing.T) {
-	t.Run("Assets", testAssetsReloadAll)
 	t.Run("AuditEvents", testAuditEventsReloadAll)
-	t.Run("Currencies", testCurrenciesReloadAll)
+	t.Run("Candles", testCandlesReloadAll)
 	t.Run("Exchanges", testExchangesReloadAll)
 	t.Run("Scripts", testScriptsReloadAll)
 	t.Run("ScriptExecutions", testScriptExecutionsReloadAll)
@@ -264,9 +249,8 @@ func TestReloadAll(t *testing.T) {
 }
 
 func TestSelect(t *testing.T) {
-	t.Run("Assets", testAssetsSelect)
 	t.Run("AuditEvents", testAuditEventsSelect)
-	t.Run("Currencies", testCurrenciesSelect)
+	t.Run("Candles", testCandlesSelect)
 	t.Run("Exchanges", testExchangesSelect)
 	t.Run("Scripts", testScriptsSelect)
 	t.Run("ScriptExecutions", testScriptExecutionsSelect)
@@ -276,9 +260,8 @@ func TestSelect(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	t.Run("Assets", testAssetsUpdate)
 	t.Run("AuditEvents", testAuditEventsUpdate)
-	t.Run("Currencies", testCurrenciesUpdate)
+	t.Run("Candles", testCandlesUpdate)
 	t.Run("Exchanges", testExchangesUpdate)
 	t.Run("Scripts", testScriptsUpdate)
 	t.Run("ScriptExecutions", testScriptExecutionsUpdate)
@@ -288,9 +271,8 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestSliceUpdateAll(t *testing.T) {
-	t.Run("Assets", testAssetsSliceUpdateAll)
 	t.Run("AuditEvents", testAuditEventsSliceUpdateAll)
-	t.Run("Currencies", testCurrenciesSliceUpdateAll)
+	t.Run("Candles", testCandlesSliceUpdateAll)
 	t.Run("Exchanges", testExchangesSliceUpdateAll)
 	t.Run("Scripts", testScriptsSliceUpdateAll)
 	t.Run("ScriptExecutions", testScriptExecutionsSliceUpdateAll)

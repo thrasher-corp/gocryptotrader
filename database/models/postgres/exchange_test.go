@@ -494,14 +494,14 @@ func testExchangesInsertWhitelist(t *testing.T) {
 	}
 }
 
-func testExchangeToManyAssets(t *testing.T) {
+func testExchangeToManyCandles(t *testing.T) {
 	var err error
 	ctx := context.Background()
 	tx := MustTx(boil.BeginTx(ctx, nil))
 	defer func() { _ = tx.Rollback() }()
 
 	var a Exchange
-	var b, c Asset
+	var b, c Candle
 
 	seed := randomize.NewSeed()
 	if err = randomize.Struct(seed, &a, exchangeDBTypes, true, exchangeColumnsWithDefault...); err != nil {
@@ -512,15 +512,15 @@ func testExchangeToManyAssets(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err = randomize.Struct(seed, &b, assetDBTypes, false, assetColumnsWithDefault...); err != nil {
+	if err = randomize.Struct(seed, &b, candleDBTypes, false, candleColumnsWithDefault...); err != nil {
 		t.Fatal(err)
 	}
-	if err = randomize.Struct(seed, &c, assetDBTypes, false, assetColumnsWithDefault...); err != nil {
+	if err = randomize.Struct(seed, &c, candleDBTypes, false, candleColumnsWithDefault...); err != nil {
 		t.Fatal(err)
 	}
 
-	queries.Assign(&b.ExchangeID, a.ID)
-	queries.Assign(&c.ExchangeID, a.ID)
+	queries.Assign(&b.Exchange, a.ID)
+	queries.Assign(&c.Exchange, a.ID)
 	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
 		t.Fatal(err)
 	}
@@ -528,17 +528,17 @@ func testExchangeToManyAssets(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	check, err := a.Assets().All(ctx, tx)
+	check, err := a.Candles().All(ctx, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	bFound, cFound := false, false
 	for _, v := range check {
-		if queries.Equal(v.ExchangeID, b.ExchangeID) {
+		if queries.Equal(v.Exchange, b.Exchange) {
 			bFound = true
 		}
-		if queries.Equal(v.ExchangeID, c.ExchangeID) {
+		if queries.Equal(v.Exchange, c.Exchange) {
 			cFound = true
 		}
 	}
@@ -551,18 +551,18 @@ func testExchangeToManyAssets(t *testing.T) {
 	}
 
 	slice := ExchangeSlice{&a}
-	if err = a.L.LoadAssets(ctx, tx, false, (*[]*Exchange)(&slice), nil); err != nil {
+	if err = a.L.LoadCandles(ctx, tx, false, (*[]*Exchange)(&slice), nil); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(a.R.Assets); got != 2 {
+	if got := len(a.R.Candles); got != 2 {
 		t.Error("number of eager loaded records wrong, got:", got)
 	}
 
-	a.R.Assets = nil
-	if err = a.L.LoadAssets(ctx, tx, true, &a, nil); err != nil {
+	a.R.Candles = nil
+	if err = a.L.LoadCandles(ctx, tx, true, &a, nil); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(a.R.Assets); got != 2 {
+	if got := len(a.R.Candles); got != 2 {
 		t.Error("number of eager loaded records wrong, got:", got)
 	}
 
@@ -571,7 +571,7 @@ func testExchangeToManyAssets(t *testing.T) {
 	}
 }
 
-func testExchangeToManyAddOpAssets(t *testing.T) {
+func testExchangeToManyAddOpCandles(t *testing.T) {
 	var err error
 
 	ctx := context.Background()
@@ -579,15 +579,15 @@ func testExchangeToManyAddOpAssets(t *testing.T) {
 	defer func() { _ = tx.Rollback() }()
 
 	var a Exchange
-	var b, c, d, e Asset
+	var b, c, d, e Candle
 
 	seed := randomize.NewSeed()
 	if err = randomize.Struct(seed, &a, exchangeDBTypes, false, strmangle.SetComplement(exchangePrimaryKeyColumns, exchangeColumnsWithoutDefault)...); err != nil {
 		t.Fatal(err)
 	}
-	foreigners := []*Asset{&b, &c, &d, &e}
+	foreigners := []*Candle{&b, &c, &d, &e}
 	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, assetDBTypes, false, strmangle.SetComplement(assetPrimaryKeyColumns, assetColumnsWithoutDefault)...); err != nil {
+		if err = randomize.Struct(seed, x, candleDBTypes, false, strmangle.SetComplement(candlePrimaryKeyColumns, candleColumnsWithoutDefault)...); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -602,13 +602,13 @@ func testExchangeToManyAddOpAssets(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	foreignersSplitByInsertion := [][]*Asset{
+	foreignersSplitByInsertion := [][]*Candle{
 		{&b, &c},
 		{&d, &e},
 	}
 
 	for i, x := range foreignersSplitByInsertion {
-		err = a.AddAssets(ctx, tx, i != 0, x...)
+		err = a.AddCandles(ctx, tx, i != 0, x...)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -616,11 +616,11 @@ func testExchangeToManyAddOpAssets(t *testing.T) {
 		first := x[0]
 		second := x[1]
 
-		if !queries.Equal(a.ID, first.ExchangeID) {
-			t.Error("foreign key was wrong value", a.ID, first.ExchangeID)
+		if !queries.Equal(a.ID, first.Exchange) {
+			t.Error("foreign key was wrong value", a.ID, first.Exchange)
 		}
-		if !queries.Equal(a.ID, second.ExchangeID) {
-			t.Error("foreign key was wrong value", a.ID, second.ExchangeID)
+		if !queries.Equal(a.ID, second.Exchange) {
+			t.Error("foreign key was wrong value", a.ID, second.Exchange)
 		}
 
 		if first.R.Exchange != &a {
@@ -630,14 +630,14 @@ func testExchangeToManyAddOpAssets(t *testing.T) {
 			t.Error("relationship was not added properly to the foreign slice")
 		}
 
-		if a.R.Assets[i*2] != first {
+		if a.R.Candles[i*2] != first {
 			t.Error("relationship struct slice not set to correct value")
 		}
-		if a.R.Assets[i*2+1] != second {
+		if a.R.Candles[i*2+1] != second {
 			t.Error("relationship struct slice not set to correct value")
 		}
 
-		count, err := a.Assets().Count(ctx, tx)
+		count, err := a.Candles().Count(ctx, tx)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -647,7 +647,7 @@ func testExchangeToManyAddOpAssets(t *testing.T) {
 	}
 }
 
-func testExchangeToManySetOpAssets(t *testing.T) {
+func testExchangeToManySetOpCandles(t *testing.T) {
 	var err error
 
 	ctx := context.Background()
@@ -655,15 +655,15 @@ func testExchangeToManySetOpAssets(t *testing.T) {
 	defer func() { _ = tx.Rollback() }()
 
 	var a Exchange
-	var b, c, d, e Asset
+	var b, c, d, e Candle
 
 	seed := randomize.NewSeed()
 	if err = randomize.Struct(seed, &a, exchangeDBTypes, false, strmangle.SetComplement(exchangePrimaryKeyColumns, exchangeColumnsWithoutDefault)...); err != nil {
 		t.Fatal(err)
 	}
-	foreigners := []*Asset{&b, &c, &d, &e}
+	foreigners := []*Candle{&b, &c, &d, &e}
 	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, assetDBTypes, false, strmangle.SetComplement(assetPrimaryKeyColumns, assetColumnsWithoutDefault)...); err != nil {
+		if err = randomize.Struct(seed, x, candleDBTypes, false, strmangle.SetComplement(candlePrimaryKeyColumns, candleColumnsWithoutDefault)...); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -678,25 +678,12 @@ func testExchangeToManySetOpAssets(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = a.SetAssets(ctx, tx, false, &b, &c)
+	err = a.SetCandles(ctx, tx, false, &b, &c)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	count, err := a.Assets().Count(ctx, tx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if count != 2 {
-		t.Error("count was wrong:", count)
-	}
-
-	err = a.SetAssets(ctx, tx, true, &d, &e)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	count, err = a.Assets().Count(ctx, tx)
+	count, err := a.Candles().Count(ctx, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -704,17 +691,30 @@ func testExchangeToManySetOpAssets(t *testing.T) {
 		t.Error("count was wrong:", count)
 	}
 
-	if !queries.IsValuerNil(b.ExchangeID) {
+	err = a.SetCandles(ctx, tx, true, &d, &e)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err = a.Candles().Count(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	if !queries.IsValuerNil(b.Exchange) {
 		t.Error("want b's foreign key value to be nil")
 	}
-	if !queries.IsValuerNil(c.ExchangeID) {
+	if !queries.IsValuerNil(c.Exchange) {
 		t.Error("want c's foreign key value to be nil")
 	}
-	if !queries.Equal(a.ID, d.ExchangeID) {
-		t.Error("foreign key was wrong value", a.ID, d.ExchangeID)
+	if !queries.Equal(a.ID, d.Exchange) {
+		t.Error("foreign key was wrong value", a.ID, d.Exchange)
 	}
-	if !queries.Equal(a.ID, e.ExchangeID) {
-		t.Error("foreign key was wrong value", a.ID, e.ExchangeID)
+	if !queries.Equal(a.ID, e.Exchange) {
+		t.Error("foreign key was wrong value", a.ID, e.Exchange)
 	}
 
 	if b.R.Exchange != nil {
@@ -730,15 +730,15 @@ func testExchangeToManySetOpAssets(t *testing.T) {
 		t.Error("relationship was not added properly to the foreign struct")
 	}
 
-	if a.R.Assets[0] != &d {
+	if a.R.Candles[0] != &d {
 		t.Error("relationship struct slice not set to correct value")
 	}
-	if a.R.Assets[1] != &e {
+	if a.R.Candles[1] != &e {
 		t.Error("relationship struct slice not set to correct value")
 	}
 }
 
-func testExchangeToManyRemoveOpAssets(t *testing.T) {
+func testExchangeToManyRemoveOpCandles(t *testing.T) {
 	var err error
 
 	ctx := context.Background()
@@ -746,15 +746,15 @@ func testExchangeToManyRemoveOpAssets(t *testing.T) {
 	defer func() { _ = tx.Rollback() }()
 
 	var a Exchange
-	var b, c, d, e Asset
+	var b, c, d, e Candle
 
 	seed := randomize.NewSeed()
 	if err = randomize.Struct(seed, &a, exchangeDBTypes, false, strmangle.SetComplement(exchangePrimaryKeyColumns, exchangeColumnsWithoutDefault)...); err != nil {
 		t.Fatal(err)
 	}
-	foreigners := []*Asset{&b, &c, &d, &e}
+	foreigners := []*Candle{&b, &c, &d, &e}
 	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, assetDBTypes, false, strmangle.SetComplement(assetPrimaryKeyColumns, assetColumnsWithoutDefault)...); err != nil {
+		if err = randomize.Struct(seed, x, candleDBTypes, false, strmangle.SetComplement(candlePrimaryKeyColumns, candleColumnsWithoutDefault)...); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -763,12 +763,12 @@ func testExchangeToManyRemoveOpAssets(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = a.AddAssets(ctx, tx, true, foreigners...)
+	err = a.AddCandles(ctx, tx, true, foreigners...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	count, err := a.Assets().Count(ctx, tx)
+	count, err := a.Candles().Count(ctx, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -776,12 +776,12 @@ func testExchangeToManyRemoveOpAssets(t *testing.T) {
 		t.Error("count was wrong:", count)
 	}
 
-	err = a.RemoveAssets(ctx, tx, foreigners[:2]...)
+	err = a.RemoveCandles(ctx, tx, foreigners[:2]...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	count, err = a.Assets().Count(ctx, tx)
+	count, err = a.Candles().Count(ctx, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -789,10 +789,10 @@ func testExchangeToManyRemoveOpAssets(t *testing.T) {
 		t.Error("count was wrong:", count)
 	}
 
-	if !queries.IsValuerNil(b.ExchangeID) {
+	if !queries.IsValuerNil(b.Exchange) {
 		t.Error("want b's foreign key value to be nil")
 	}
-	if !queries.IsValuerNil(c.ExchangeID) {
+	if !queries.IsValuerNil(c.Exchange) {
 		t.Error("want c's foreign key value to be nil")
 	}
 
@@ -809,15 +809,15 @@ func testExchangeToManyRemoveOpAssets(t *testing.T) {
 		t.Error("relationship to a should have been preserved")
 	}
 
-	if len(a.R.Assets) != 2 {
+	if len(a.R.Candles) != 2 {
 		t.Error("should have preserved two relationships")
 	}
 
 	// Removal doesn't do a stable deletion for performance so we have to flip the order
-	if a.R.Assets[1] != &d {
+	if a.R.Candles[1] != &d {
 		t.Error("relationship to d should have been preserved")
 	}
-	if a.R.Assets[0] != &e {
+	if a.R.Candles[0] != &e {
 		t.Error("relationship to e should have been preserved")
 	}
 }
@@ -896,7 +896,7 @@ func testExchangesSelect(t *testing.T) {
 }
 
 var (
-	exchangeDBTypes = map[string]string{`ID`: `uuid`, `Name`: `character varying`, `ShortName`: `character varying`}
+	exchangeDBTypes = map[string]string{`ID`: `uuid`, `Name`: `character varying`}
 	_               = bytes.MinRead
 )
 

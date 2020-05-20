@@ -5,9 +5,5 @@ func Run() error {
 	if err != nil {
 		return err
 	}
-	err = Currency()
-	if err != nil {
-		return err
-	}
 	return nil
 }
