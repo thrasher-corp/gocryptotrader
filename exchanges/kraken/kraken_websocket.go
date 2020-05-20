@@ -842,7 +842,6 @@ func (k *Kraken) wsProcessCandles(channelData *WebsocketChannelData, data []inte
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (k *Kraken) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	fmt.Println("GEN DEFAULT")
 	enabledCurrencies, err := k.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
@@ -862,7 +861,6 @@ func (k *Kraken) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 
 // GenerateAuthenticatedSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (k *Kraken) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscription, error) {
-	fmt.Println("GEN AUTH DEFAULT")
 	var subscriptions []stream.ChannelSubscription
 	for i := range authenticatedChannels {
 		params := make(map[string]interface{})
@@ -871,7 +869,6 @@ func (k *Kraken) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscript
 			Params:  params,
 		})
 	}
-	fmt.Println("AUTHSUBS:", subscriptions)
 	return subscriptions, nil
 }
 
