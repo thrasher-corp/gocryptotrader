@@ -108,20 +108,20 @@ func (b *BTCMarkets) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
-			KlineCapabilities: kline.ExchangeCapabilities{
-				SupportsDateRange: true,
-				SupportsIntervals: true,
+			KlineCapabilities: kline.ExchangeCapabilitiesSupported{
+				DateRanges: true,
+				Intervals:  true,
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
-			KlineCapabilities: kline.ExchangeCapabilities{
+			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: map[string]bool{
 					kline.OneMin.Word():  true,
 					kline.OneHour.Word(): true,
 					kline.OneDay.Word():  true,
 				},
-				Limit: 1000,
+				ResultLimit: 1000,
 			},
 		},
 	}
@@ -384,7 +384,7 @@ func (b *BTCMarkets) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (b *BTCMarkets) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
-	return nil, nil
+	return nil, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
@@ -758,6 +758,16 @@ func (b *BTCMarkets) ValidateCredentials() error {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *BTCMarkets) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !b.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	if kline.TotalCandlesPerInterval(start, end, interval) > b.Features.Enabled.Kline.ResultLimit {
+		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
+	}
+
 	return b.GetMarketCandles(pair.String(), interval, start, end, -1, -1, 0)
 }
 
@@ -776,7 +786,7 @@ func (b *BTCMarkets) GetHistoricCandlesEx(p currency.Pair, a asset.Item, start, 
 		Interval: interval,
 	}
 
-	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.KlineCapabilities.Limit)
+	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
 	for x := range dates {
 		tempData, err := b.GetMarketCandles(p.String(), interval, dates[x].Start, dates[x].End, -1, -1, 0)
 		if err != nil {

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -112,14 +111,14 @@ func (b *Binance) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
-			KlineCapabilities: kline.ExchangeCapabilities{
-				SupportsDateRange: true,
-				SupportsIntervals: true,
+			KlineCapabilities: kline.ExchangeCapabilitiesSupported{
+				DateRanges: true,
+				Intervals:  true,
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
-			KlineCapabilities: kline.ExchangeCapabilities{
+			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: map[string]bool{
 					kline.OneMin.Word():     true,
 					kline.ThreeMin.Word():   true,
@@ -136,7 +135,7 @@ func (b *Binance) SetDefaults() {
 					kline.OneWeek.Word():    true,
 					kline.OneMonth.Word():   true,
 				},
-				Limit: 1000,
+				ResultLimit: 1000,
 			},
 		},
 	}
@@ -436,37 +435,7 @@ func (b *Binance) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (b *Binance) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
-	var resp []trade.History
-
-	// If no timestamp, this will default to 3 months prior.
-	if req.TimestampStart.Unix() == 0 {
-		req.TimestampStart = time.Now().AddDate(0, -3, 0)
-	}
-	timestampEnd := req.TimestampStart.Add(1 * time.Hour / 2)
-	formattedPair := b.FormatExchangeCurrency(req.Pair, req.Asset)
-	// Aggregated trades has compression when trades are executed at the same
-	// time thus reducing request data.
-	trades, err := b.getAggregatedTradesEx(formattedPair.String(),
-		req.TimestampStart,
-		timestampEnd)
-	if err != nil {
-		return resp, err
-	}
-
-	for i := range trades {
-		resp = append(resp, trade.History{
-			Timestamp:    time.Unix(0, convert.UnixMillisToNano(trades[i].TimeStamp)),
-			TID:          strconv.FormatInt(trades[i].ATradeID, 10),
-			FirstTradeID: strconv.FormatInt(trades[i].FirstTradeID, 10),
-			LastTradeID:  strconv.FormatInt(trades[i].LastTradeID, 10),
-			Price:        trades[i].Price,
-			Amount:       trades[i].Quantity,
-			Maker:        trades[i].Maker,
-			Exchange:     b.Name,
-			Asset:        req.Asset,
-		})
-	}
-	return resp, nil
+	return nil, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
@@ -746,6 +715,10 @@ func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 		}
 	}
 
+	if kline.TotalCandlesPerInterval(start, end, interval) > b.Features.Enabled.Kline.ResultLimit {
+		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
+	}
+
 	req := KlinesRequestParams{
 		Interval:  b.FormatExchangeKlineInterval(interval),
 		Symbol:    b.FormatExchangeCurrency(pair, a).String(),
@@ -795,7 +768,7 @@ func (b *Binance) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, 
 		Interval: interval,
 	}
 
-	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.KlineCapabilities.Limit)
+	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
 	for x := range dates {
 		req := KlinesRequestParams{
 			Interval:  b.FormatExchangeKlineInterval(interval),
@@ -822,6 +795,6 @@ func (b *Binance) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, 
 		}
 	}
 
-	ret.SortCandlesByTimestamp()
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

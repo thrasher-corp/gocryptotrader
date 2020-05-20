@@ -121,14 +121,14 @@ func (b *Bitfinex) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.AutoWithdrawFiatWithAPIPermission,
-			KlineCapabilities: kline.ExchangeCapabilities{
-				SupportsDateRange: true,
-				SupportsIntervals: true,
+			KlineCapabilities: kline.ExchangeCapabilitiesSupported{
+				DateRanges: true,
+				Intervals:  true,
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
-			KlineCapabilities: kline.ExchangeCapabilities{
+			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: map[string]bool{
 					kline.OneMin.Word():     true,
 					kline.ThreeMin.Word():   true,
@@ -144,7 +144,7 @@ func (b *Bitfinex) SetDefaults() {
 					kline.OneWeek.Word():    true,
 					kline.TwoWeek.Word():    true,
 				},
-				Limit: 10000,
+				ResultLimit: 10000,
 			},
 		},
 	}
@@ -450,7 +450,7 @@ func (b *Bitfinex) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (b *Bitfinex) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
-	return nil, nil
+	return nil, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
@@ -819,6 +819,10 @@ func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		}
 	}
 
+	if kline.TotalCandlesPerInterval(start, end, interval) > b.Features.Enabled.Kline.ResultLimit {
+		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
+	}
+
 	candles, err := b.GetCandles(fixCasing(pair), b.FormatExchangeKlineInterval(interval), start.Unix()*1000, end.Unix()*1000, 0, true, false)
 	if err != nil {
 		return kline.Item{}, err
@@ -866,7 +870,7 @@ func (b *Bitfinex) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start,
 		Interval: interval,
 	}
 
-	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.KlineCapabilities.Limit)
+	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
 	for x := range dates {
 		candles, err := b.GetCandles(fixCasing(pair), b.FormatExchangeKlineInterval(interval),
 			dates[x].Start.Unix()*1000, dates[x].End.Unix()*1000, 0, true, false)

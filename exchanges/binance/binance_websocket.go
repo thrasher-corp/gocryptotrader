@@ -71,14 +71,6 @@ func (b *Binance) WsConnect() error {
 			listenKey
 	}
 
-	enabledPairs := b.GetEnabledPairs(asset.Spot)
-	for i := range enabledPairs {
-		err = b.SeedLocalCache(enabledPairs[i])
-		if err != nil {
-			return err
-		}
-	}
-
 	b.WebsocketConn.URL = wsurl
 	b.WebsocketConn.Verbose = b.Verbose
 
@@ -93,6 +85,15 @@ func (b *Binance) WsConnect() error {
 		MessageType:       websocket.PongMessage,
 		Delay:             pingDelay,
 	})
+
+	enabledPairs := b.GetEnabledPairs(asset.Spot)
+	for i := range enabledPairs {
+		err = b.SeedLocalCache(enabledPairs[i])
+		if err != nil {
+			return err
+		}
+	}
+
 	go b.wsReadData()
 	go b.KeepAuthKeyAlive()
 	return nil
@@ -402,8 +403,7 @@ func stringToOrderStatus(status string) (order.Status, error) {
 
 // SeedLocalCache seeds depth data
 func (b *Binance) SeedLocalCache(p currency.Pair) error {
-	var newOrderBook orderbook.Base
-	orderbookNew, err := b.GetOrderBook(
+	ob, err := b.GetOrderBook(
 		OrderBookDataRequestParams{
 			Symbol: b.FormatExchangeCurrency(p, asset.Spot).String(),
 			Limit:  1000,
@@ -412,6 +412,11 @@ func (b *Binance) SeedLocalCache(p currency.Pair) error {
 		return err
 	}
 
+	return b.SeedLocalCacheWithBook(p, &ob)
+}
+
+func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook) error {
+	var newOrderBook orderbook.Base
 	for i := range orderbookNew.Bids {
 		newOrderBook.Bids = append(newOrderBook.Bids, orderbook.Item{
 			Amount: orderbookNew.Bids[i].Quantity,
@@ -428,12 +433,24 @@ func (b *Binance) SeedLocalCache(p currency.Pair) error {
 	newOrderBook.Pair = p
 	newOrderBook.AssetType = asset.Spot
 	newOrderBook.ExchangeName = b.Name
+	newOrderBook.LastUpdateID = orderbookNew.LastUpdateID
 
 	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 
 // UpdateLocalCache updates and returns the most recent iteration of the orderbook
 func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
+	currencyPair := currency.NewPairFromFormattedPairs(wsdp.Pair, b.GetEnabledPairs(asset.Spot),
+		b.GetPairFormat(asset.Spot, true))
+	currentBook := b.Websocket.Orderbook.GetOrderbook(currencyPair, asset.Spot)
+
+	// Drop any event where u is <= lastUpdateId in the snapshot.
+	// The first processed event should have U <= lastUpdateId+1 AND u >= lastUpdateId+1.
+	// While listening to the stream, each new event's U should be equal to the previous event's u+1.
+	if wsdp.LastUpdateID <= currentBook.LastUpdateID {
+		return nil
+	}
+
 	var updateBid, updateAsk []orderbook.Item
 	for i := range wsdp.UpdateBids {
 		p, err := strconv.ParseFloat(wsdp.UpdateBids[i][0].(string), 64)
@@ -460,8 +477,7 @@ func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
 
 		updateAsk = append(updateAsk, orderbook.Item{Price: p, Amount: a})
 	}
-	currencyPair := currency.NewPairFromFormattedPairs(wsdp.Pair, b.GetEnabledPairs(asset.Spot),
-		b.GetPairFormat(asset.Spot, true))
+
 	return b.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
 		Bids:     updateBid,
 		Asks:     updateAsk,

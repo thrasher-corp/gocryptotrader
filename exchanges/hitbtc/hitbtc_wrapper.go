@@ -110,14 +110,14 @@ func (h *HitBTC) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
-			KlineCapabilities: kline.ExchangeCapabilities{
-				SupportsIntervals: true,
-				SupportsDateRange: true,
+			KlineCapabilities: kline.ExchangeCapabilitiesSupported{
+				Intervals:  true,
+				DateRanges: true,
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
-			KlineCapabilities: kline.ExchangeCapabilities{
+			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: map[string]bool{
 					kline.OneMin.Word():    true,
 					kline.ThreeMin.Word():  true,
@@ -128,7 +128,7 @@ func (h *HitBTC) SetDefaults() {
 					kline.OneDay.Word():    true,
 					kline.SevenDay.Word():  true,
 				},
-				Limit: 1000,
+				ResultLimit: 1000,
 			},
 		},
 	}
@@ -406,7 +406,7 @@ func (h *HitBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (h *HitBTC) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
-	return nil, nil
+	return nil, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
@@ -708,7 +708,7 @@ func (h *HitBTC) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, e
 		Interval: interval,
 	}
 
-	dates := kline.CalcDateRanges(start, end, interval, h.Features.Enabled.KlineCapabilities.Limit)
+	dates := kline.CalcDateRanges(start, end, interval, h.Features.Enabled.Kline.ResultLimit)
 	for y := range dates {
 		data, err := h.GetCandles(h.FormatExchangeCurrency(pair, a).String(), "1000",
 			h.FormatExchangeKlineInterval(interval),

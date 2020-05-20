@@ -205,6 +205,7 @@ func durationToWord(in Interval) string {
 	}
 }
 
+// TotalCandlesPerInterval turns total candles per period for interval
 func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out uint32) {
 	switch interval {
 	case OneMin:
@@ -249,6 +250,7 @@ func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out uint3
 	return out
 }
 
+// CalcDateRanges returns slice of start/end times based on start & end date
 func CalcDateRanges(start, end time.Time, interval Interval, limit uint32) (out []DateRange) {
 	total := TotalCandlesPerInterval(start, end, interval)
 	if total < limit {
@@ -284,8 +286,12 @@ func CalcDateRanges(start, end time.Time, interval Interval, limit uint32) (out 
 	return out
 }
 
-func (k *Item) SortCandlesByTimestamp() {
+// SortCandlesByTimestamp sorts candles by timestamp
+func (k *Item) SortCandlesByTimestamp(asc bool) {
 	sort.Slice(k.Candles, func(i, j int) bool {
+		if asc {
+			return k.Candles[i].Time.After(k.Candles[j].Time)
+		}
 		return k.Candles[i].Time.Before(k.Candles[j].Time)
 	})
 }

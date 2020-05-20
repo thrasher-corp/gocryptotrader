@@ -147,14 +147,14 @@ func (o *OKEX) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
-			KlineCapabilities: kline.ExchangeCapabilities{
-				SupportsDateRange: true,
-				SupportsIntervals: true,
+			KlineCapabilities: kline.ExchangeCapabilitiesSupported{
+				DateRanges: true,
+				Intervals:  true,
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
-			KlineCapabilities: kline.ExchangeCapabilities{
+			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: map[string]bool{
 					kline.OneMin.Word():     true,
 					kline.ThreeMin.Word():   true,
@@ -170,6 +170,7 @@ func (o *OKEX) SetDefaults() {
 					kline.ThreeDay.Word():   true,
 					kline.OneWeek.Word():    true,
 				},
+				ResultLimit: 1440,
 			},
 		},
 	}
@@ -514,5 +515,64 @@ func (o *OKEX) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end
 			Interval: interval,
 		}
 	}
-	return kline.Item{}, common.ErrNotYetImplemented
+
+	ret := kline.Item{
+		Exchange: o.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	dates := kline.CalcDateRanges(start, end, interval, o.Features.Enabled.Kline.ResultLimit)
+	for x := range dates {
+		req := okgroup.GetSpotMarketDataRequest{
+			Start:        dates[x].Start.UTC().Format(time.RFC3339),
+			End:          dates[x].End.UTC().Format(time.RFC3339),
+			Granularity:  o.FormatExchangeKlineInterval(interval),
+			InstrumentID: o.FormatExchangeCurrency(pair, a).String(),
+		}
+
+		candles, err := o.GetSpotMarketData(req)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		for x := range candles {
+			t := candles[x].([]interface{})
+			tempCandle := kline.Candle{}
+			v, ok := t[0].(string)
+			if !ok {
+				return kline.Item{}, errors.New("unexpected value received")
+			}
+			tempCandle.Time, err = time.Parse(time.RFC3339, v)
+			if err != nil {
+				return kline.Item{}, err
+			}
+			tempCandle.Open, err = convert.FloatFromString(t[1])
+			if err != nil {
+				return kline.Item{}, err
+			}
+			tempCandle.High, err = convert.FloatFromString(t[2])
+			if err != nil {
+				return kline.Item{}, err
+			}
+
+			tempCandle.Low, err = convert.FloatFromString(t[3])
+			if err != nil {
+				return kline.Item{}, err
+			}
+
+			tempCandle.Close, err = convert.FloatFromString(t[4])
+			if err != nil {
+				return kline.Item{}, err
+			}
+
+			tempCandle.Volume, err = convert.FloatFromString(t[5])
+			if err != nil {
+				return kline.Item{}, err
+			}
+			ret.Candles = append(ret.Candles, tempCandle)
+		}
+	}
+	return ret, nil
 }

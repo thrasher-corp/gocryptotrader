@@ -113,15 +113,14 @@ func (c *CoinbasePro) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.AutoWithdrawFiatWithAPIPermission,
-			KlineCapabilities: kline.ExchangeCapabilities{
-				SupportsDateRange: true,
-				SupportsIntervals: true,
-				Limit:             300,
+			KlineCapabilities: kline.ExchangeCapabilitiesSupported{
+				DateRanges: true,
+				Intervals:  true,
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
-			KlineCapabilities: kline.ExchangeCapabilities{
+			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: map[string]bool{
 					kline.OneMin.Word():     true,
 					kline.FiveMin.Word():    true,
@@ -130,7 +129,7 @@ func (c *CoinbasePro) SetDefaults() {
 					kline.SixHour.Word():    true,
 					kline.OneDay.Word():     true,
 				},
-				Limit: 300,
+				ResultLimit: 300,
 			},
 		},
 	}
@@ -744,7 +743,7 @@ func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, e
 		}
 	}
 
-	if kline.TotalCandlesPerInterval(start, end, interval) > c.Features.Enabled.KlineCapabilities.Limit {
+	if kline.TotalCandlesPerInterval(start, end, interval) > c.Features.Enabled.Kline.ResultLimit {
 		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
 
@@ -792,7 +791,7 @@ func (c *CoinbasePro) GetHistoricCandlesEx(p currency.Pair, a asset.Item, start,
 		Interval: interval,
 	}
 
-	dates := kline.CalcDateRanges(start, end, interval, c.Features.Enabled.KlineCapabilities.Limit)
+	dates := kline.CalcDateRanges(start, end, interval, c.Features.Enabled.Kline.ResultLimit)
 	for x := range dates {
 		history, err := c.GetHistoricRates(c.FormatExchangeCurrency(p, a).String(),
 			dates[x].Start.Format(time.RFC3339),
@@ -814,7 +813,7 @@ func (c *CoinbasePro) GetHistoricCandlesEx(p currency.Pair, a asset.Item, start,
 		}
 	}
 
-	ret.SortCandlesByTimestamp()
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
 

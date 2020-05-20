@@ -108,13 +108,13 @@ func (h *HUOBI) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
 				exchange.NoFiatWithdrawals,
-			KlineCapabilities: kline.ExchangeCapabilities{
-				SupportsIntervals: true,
+			KlineCapabilities: kline.ExchangeCapabilitiesSupported{
+				Intervals: true,
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
-			KlineCapabilities: kline.ExchangeCapabilities{
+			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: map[string]bool{
 					kline.OneMin.Word():     true,
 					kline.FiveMin.Word():    true,
@@ -127,7 +127,7 @@ func (h *HUOBI) SetDefaults() {
 					kline.OneMonth.Word():   true,
 					kline.OneYear.Word():    true,
 				},
-				Limit: 2000,
+				ResultLimit: 2000,
 			},
 		},
 	}
