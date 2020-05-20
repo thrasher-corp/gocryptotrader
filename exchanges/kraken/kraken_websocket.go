@@ -51,7 +51,8 @@ const (
 	krakenWsPingDelay          = time.Second * 27
 )
 
-// orderbookMutex Ensures if two entries arrive at once, only one can be processed at a time
+// orderbookMutex Ensures if two entries arrive at once, only one can be
+// processed at a time
 var subscriptionChannelPair []WebsocketChannelData
 var comms = make(chan stream.Response)
 var authToken string
@@ -137,15 +138,11 @@ func (k *Kraken) wsFunnelConnectionData(ws stream.Connection) {
 // wsReadData receives and passes on websocket messages for processing
 func (k *Kraken) wsReadData() {
 	k.Websocket.Wg.Add(1)
-	defer func() {
-		k.Websocket.Wg.Done()
-	}()
-
-	shutdown := k.Websocket.Conn.GetShutdownChannel()
+	defer k.Websocket.Wg.Done()
 
 	for {
 		select {
-		case <-shutdown:
+		case <-k.Websocket.ShutdownC:
 			return
 		case resp := <-comms:
 			err := k.wsHandleData(resp.Raw)

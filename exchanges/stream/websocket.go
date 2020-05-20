@@ -1069,11 +1069,6 @@ func (w *WebsocketConnection) GenerateMessageID(useNano bool) int64 {
 	return time.Now().Unix()
 }
 
-// GetShutdownChannel returns the underlying shutdown mechanism
-func (w *WebsocketConnection) GetShutdownChannel() chan struct{} {
-	return w.ShutdownC
-}
-
 // Shutdown shuts down and closes specific connection
 func (w *WebsocketConnection) Shutdown() error {
 	if w == nil || w.Connection == nil {
