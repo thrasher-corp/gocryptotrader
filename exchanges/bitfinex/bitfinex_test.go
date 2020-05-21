@@ -1241,17 +1241,17 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 }
 
 func TestFixCasing(t *testing.T) {
-	ret := fixCasing(currency.NewPairFromString("TBTCUSD"))
+	ret := fixCasing(currency.NewPairFromString("TBTCUSD"), asset.Spot)
 	if ret != "tBTCUSD" {
 		t.Fatalf("unexpected result: %v", ret)
 	}
 
-	ret = fixCasing(currency.NewPairFromString("fBTCUSD"))
+	ret = fixCasing(currency.NewPairFromString("fBTCUSD"), asset.Margin)
 	if ret != "fBTCUSD" {
 		t.Fatalf("unexpected result: %v", ret)
 	}
 
-	ret = fixCasing(currency.NewPairFromString("BTCUSD"))
+	ret = fixCasing(currency.NewPairFromString("BTCUSD"), asset.Spot)
 	if ret != "BTCUSD" {
 		t.Fatalf("unexpected result: %v", ret)
 	}
