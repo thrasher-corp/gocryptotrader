@@ -47,11 +47,16 @@
   },
   {
    "Name": "Binance",
-   "CheckType": "GitHub Sha Check",
+   "CheckType": "HTML String Check",
    "Data": {
-    "GitHubData": {
-     "Repo": "binance-exchange/binance-official-api-docs",
-     "Sha": "4878d48adc0075669ba85033b0e2d40c2876cf56"
+    "HTMLData": {
+     "TokenData": "h1",
+     "Key": "id",
+     "Val": "change-log",
+     "TokenDataEnd": "p",
+     "TextTokenData": "strong",
+     "CheckString": "2020-05-06",
+     "Path": "https://binance-docs.github.io/apidocs/spot/en/#change-log"
     }
    },
    "Disabled": false

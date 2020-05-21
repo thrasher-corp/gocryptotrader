@@ -31,6 +31,7 @@ const (
 	backupFile           = "backup.json"
 	github               = "GitHub Sha Check"
 	htmlScrape           = "HTML String Check"
+	pathBinance          = "https://binance-docs.github.io/apidocs/spot/en/#change-log"
 	pathOkCoin           = "https://www.okcoin.com/docs/en/#change-change"
 	pathOkex             = "https://www.okex.com/docs/en/#change-change"
 	pathFTX              = "https://github.com/ftexchange/ftx"
@@ -449,6 +450,8 @@ func checkChangeLog(htmlData *HTMLScrapingData) (string, error) {
 	var dataStrings []string
 	var err error
 	switch htmlData.Path {
+	case pathBinance:
+		dataStrings, err = htmlScrapeBinance(htmlData)
 	case pathBTSE:
 		dataStrings, err = htmlScrapeBTSE(htmlData)
 	case pathFTX:
@@ -640,8 +643,7 @@ loop:
 										if err != nil {
 											return resp, err
 										}
-										result := r.MatchString(tempStr)
-										if result {
+										if r.MatchString(tempStr) {
 											appendStr := r.FindString(tempStr)
 											resp = append(resp, appendStr)
 										}
@@ -684,39 +686,6 @@ loop:
 					}
 				}
 			}
-		}
-	}
-	return resp, nil
-}
-
-// htmlScrapeBitfinex gets the check string for Bitfinex exchange
-func htmlScrapeBitfinex(htmlData *HTMLScrapingData) ([]string, error) {
-	temp, err := http.Get(htmlData.Path)
-	if err != nil {
-		return nil, err
-	}
-	defer temp.Body.Close()
-	a, err := ioutil.ReadAll(temp.Body)
-	if err != nil {
-		return nil, err
-	}
-	r, err := regexp.Compile(htmlData.RegExp)
-	if err != nil {
-		return nil, err
-	}
-	str := r.FindAllString(string(a), -1)
-	var resp []string
-	for x := range str {
-		tempStr := strings.Replace(str[x], "section-v-", "", 1)
-		var repeat bool
-		for y := range resp {
-			if tempStr == resp[y] {
-				repeat = true
-				break
-			}
-		}
-		if !repeat {
-			resp = append(resp, tempStr)
 		}
 	}
 	return resp, nil
@@ -1650,6 +1619,7 @@ loop:
 								if tk.Data == htmlData.TokenDataEnd {
 									break loop2
 								}
+
 							}
 						}
 					}
@@ -1668,5 +1638,92 @@ loop:
 	}
 	var resp []string
 	resp = append(resp, respString)
+	return resp, nil
+}
+
+// htmlScrapeBitfinex gets the check string for Bitfinex exchange
+func htmlScrapeBitfinex(htmlData *HTMLScrapingData) ([]string, error) {
+	temp, err := http.Get(htmlData.Path)
+	if err != nil {
+		return nil, err
+	}
+	defer temp.Body.Close()
+	a, err := ioutil.ReadAll(temp.Body)
+	if err != nil {
+		return nil, err
+	}
+	r, err := regexp.Compile(htmlData.RegExp)
+	if err != nil {
+		return nil, err
+	}
+	str := r.FindAllString(string(a), -1)
+	var resp []string
+	for x := range str {
+		tempStr := strings.Replace(str[x], "section-v-", "", 1)
+		var repeat bool
+		for y := range resp {
+			if tempStr == resp[y] {
+				repeat = true
+				break
+			}
+		}
+		if !repeat {
+			resp = append(resp, tempStr)
+		}
+	}
+	return resp, nil
+}
+
+//  htmlScrapeBinance gets checkstring for binance exchange
+func htmlScrapeBinance(htmlData *HTMLScrapingData) ([]string, error) {
+	temp, err := http.Get(htmlData.Path)
+	if err != nil {
+		return nil, err
+	}
+	defer temp.Body.Close()
+	tokenizer := html.NewTokenizer(temp.Body)
+	var resp []string
+loop:
+	for {
+		next := tokenizer.Next()
+		switch next {
+		case html.ErrorToken:
+			break loop
+		case html.StartTagToken:
+			token := tokenizer.Token()
+			if token.Data == htmlData.TokenData {
+				for _, a := range token.Attr {
+					if a.Key == htmlData.Key && a.Val == htmlData.Val {
+					loop2:
+						for {
+							nextToken := tokenizer.Next()
+							switch nextToken {
+							case html.EndTagToken:
+								nt := tokenizer.Token()
+								if nt.Data == htmlData.TokenDataEnd {
+									break loop2
+								}
+							case html.StartTagToken:
+								tk := tokenizer.Token()
+								if tk.Data == htmlData.TextTokenData {
+									inner := tokenizer.Next()
+									if inner == html.TextToken {
+										tempStr := string(tokenizer.Text())
+										r, err := regexp.Compile(htmlData.RegExp)
+										if err != nil {
+											return resp, err
+										}
+										if r.MatchString(tempStr) {
+											resp = append(resp, tempStr)
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 	return resp, nil
 }

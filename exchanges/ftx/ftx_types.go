@@ -939,3 +939,40 @@ type WSMarkets struct {
 	Data        WsMarketsData `json:"data"`
 	Action      string        `json:"action"`
 }
+
+// RequestQuoteData stores data on the requested quote
+type RequestQuoteData struct {
+	QuoteID int64 `json:"quoteId"`
+}
+
+// RequestQuote stores data on the requested quote
+type RequestQuote struct {
+	Success bool             `json:"success"`
+	Result  RequestQuoteData `json:"result"`
+}
+
+// QuoteStatusData stores data of quotes' status
+type QuoteStatusData struct {
+	BaseCoin  string  `json:"baseCoin"`
+	Cost      float64 `json:"cost"`
+	Expired   bool    `json:"expired"`
+	Filled    bool    `json:"filled"`
+	FromCoin  string  `json:"fromCoin"`
+	ID        int64   `json:"id"`
+	Price     float64 `json:"price"`
+	Proceeds  float64 `json:"proceeds"`
+	QuoteCoin string  `json:"quoteCoin"`
+	Side      string  `json:"side"`
+	ToCoin    string  `json:"toCoin"`
+}
+
+// QuoteStatus stores data of quotes' status
+type QuoteStatus struct {
+	Success bool              `json:"success"`
+	Result  []QuoteStatusData `json:"result"`
+}
+
+// AcceptQuote stores data of accepted quote
+type AcceptQuote struct {
+	Success bool `json:"success"`
+}

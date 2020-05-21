@@ -89,8 +89,9 @@ const (
 	getOptionsPositions      = "/options/positions"
 	getPublicOptionsTrades   = "/options/trades"
 	getOptionsFills          = "/options/fills"
-	ftxRateInterval          = time.Minute
-	ftxRequestRate           = 180
+	requestOTCQuote          = "/otc/quotes"
+	getOTCQuoteStatus        = "/otc/quotes/"
+	acceptOTCQuote           = "/otc/quotes/%s/accept"
 
 	// Other Consts
 	trailingStopOrderType = "trailingStop"
@@ -812,4 +813,28 @@ func (f *FTX) compatibleOrderVars(orderSide, orderStatus, orderType string, amou
 	}
 	resp.Fee = fee
 	return resp, nil
+}
+
+// RequestForQuotes requests for otc quotes
+func (f *FTX) RequestForQuotes(base, quote string, amount float64) (RequestQuote, error) {
+	var resp RequestQuote
+	req := make(map[string]interface{})
+	req["fromCoin"] = base
+	req["toCoin"] = quote
+	req["size"] = amount
+	return resp, f.SendAuthHTTPRequest(http.MethodPost, requestOTCQuote, req, &resp)
+}
+
+// GetOTCQuoteStatus gets quote status of a quote
+func (f *FTX) GetOTCQuoteStatus(marketName, quoteID string) (QuoteStatus, error) {
+	var resp QuoteStatus
+	params := url.Values{}
+	params.Set("market", marketName)
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, getOTCQuoteStatus+quoteID, params, &resp)
+}
+
+// AcceptOTCQuote requests for otc quotes
+func (f *FTX) AcceptOTCQuote(quoteID string) (AcceptQuote, error) {
+	var resp AcceptQuote
+	return resp, f.SendAuthHTTPRequest(http.MethodPost, fmt.Sprintf(acceptQuote, quoteID), nil, &resp)
 }

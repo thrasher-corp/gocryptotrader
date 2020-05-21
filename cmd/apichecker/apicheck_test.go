@@ -148,14 +148,16 @@ func TestCheckChangeLog(t *testing.T) {
 
 func TestAdd(t *testing.T) {
 	t.Parallel()
-	data2 := HTMLScrapingData{TokenData: "a",
-		Key:          "href",
-		Val:          "./#change-change",
-		TokenDataEnd: "./#change-",
-		RegExp:       `./#change-\d{8}`,
-		Path:         "wrongpath"}
-	err := addExch("WrongExch", htmlScrape, data2, false)
-	if err == nil {
+	data2 := HTMLScrapingData{
+		TokenData:     "h1",
+		Key:           "id",
+		Val:           "change-log",
+		TextTokenData: "strong",
+		TokenDataEnd:  "p",
+		Path:          "https://binance-docs.github.io/apidocs/spot/en/#change-log",
+	}
+	err := addExch("Binance", htmlScrape, data2, false)
+	if err != nil {
 		t.Log("expected an error due to invalid path being parsed in")
 	}
 }
@@ -171,7 +173,8 @@ func TestHTMLScrapeGemini(t *testing.T) {
 		RegExp:        "^20(\\d){2}/(\\d){2}/(\\d){2}$",
 		CheckString:   "2019/11/15",
 		Path:          "https://docs.gemini.com/rest-api/#revision-history"}
-	_, err := htmlScrapeDefault(&data)
+	a, err := htmlScrapeDefault(&data)
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -259,7 +262,8 @@ func TestHTMLScrapeDefault(t *testing.T) {
 		RegExp:        "(2\\d{3}-\\d{1,2}-\\d{1,2})",
 		CheckString:   "2019-04-28",
 		Path:          "https://www.okcoin.com/docs/en/#change-change"}
-	_, err := htmlScrapeDefault(&data)
+	a, err := htmlScrapeDefault(&data)
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -434,7 +438,8 @@ func TestHTMLScrapeOk(t *testing.T) {
 		TokenDataEnd: "./#change-",
 		RegExp:       `./#change-\d{8}`,
 		Path:         "https://www.okex.com/docs/en/"}
-	_, err := htmlScrapeOk(&data)
+	a, err := htmlScrapeOk(&data)
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -707,6 +712,21 @@ func TestHTMLScrapeFTX(t *testing.T) {
 		TokenDataEnd: "td",
 		Path:         "https://github.com/ftexchange/ftx"}
 	_, err := htmlScrapeFTX(&data)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestHTMLScrapeBinance(t *testing.T) {
+	data := HTMLScrapingData{
+		TokenData:     "h1",
+		Key:           "id",
+		Val:           "change-log",
+		TextTokenData: "strong",
+		TokenDataEnd:  "p",
+		Path:          "https://binance-docs.github.io/apidocs/spot/en/#change-log",
+	}
+	_, err := htmlScrapeBinance(&data)
 	if err != nil {
 		t.Error(err)
 	}

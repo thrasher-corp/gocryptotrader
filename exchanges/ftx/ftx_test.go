@@ -25,6 +25,7 @@ const (
 	spotPair                = "FTT/BTC"
 	futuresPair             = "LEO-0327"
 	testToken               = "ADAMOON"
+	btcusd                  = "BTC/USD"
 )
 
 var f FTX
@@ -778,6 +779,10 @@ func TestGetOfflineTradingFee(t *testing.T) {
 }
 
 func TestGetOrderStatus(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
 	_, err := f.GetOrderStatus("testID")
 	if err != nil {
 		t.Error(err)
@@ -785,6 +790,10 @@ func TestGetOrderStatus(t *testing.T) {
 }
 
 func TestGetOrderStatusByClientID(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
 	_, err := f.GetOrderStatusByClientID("testID")
 	if err != nil {
 		t.Error(err)
@@ -792,6 +801,10 @@ func TestGetOrderStatusByClientID(t *testing.T) {
 }
 
 func TestRequestLTRedemption(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
 	_, err := f.RequestLTRedemption("ADA-PERP", 5)
 	if err != nil {
 		t.Error(err)
@@ -828,6 +841,10 @@ func TestGetDepositAddress(t *testing.T) {
 }
 
 func TestGetFundingHistory(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
 	_, err := f.GetFundingHistory()
 	if err != nil {
 		t.Error(err)
@@ -959,4 +976,39 @@ func TestParsingWSOBData(t *testing.T) {
 	// if err != nil {
 	// 	t.Error(err)
 	// }
+}
+
+func TestGetOTCQuoteStatus(t *testing.T) {
+	f.Verbose = true
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
+	a, err := f.GetOTCQuoteStatus(btcusd, "1")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestRequestForQuotes(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
+	_, err := f.RequestForQuotes("BTC", "USD", 0.5)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestAcceptOTCQuote(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
+	_, err := f.AcceptOTCQuote("testid123")
+	if err != nil {
+		t.Error(err)
+	}
 }

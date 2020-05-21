@@ -451,6 +451,9 @@ func (f *FTX) ModifyOrder(action *order.Modify) (string, error) {
 			action.TriggerPrice,
 			action.Price,
 			0)
+		if err != nil {
+			return "", err
+		}
 		return strconv.FormatInt(a.Result.ID, 10), err
 	}
 	var o ModifyOrder
@@ -458,8 +461,14 @@ func (f *FTX) ModifyOrder(action *order.Modify) (string, error) {
 	switch action.ID {
 	case "":
 		o, err = f.ModifyOrderByClientID(action.ClientOrderID, action.ClientOrderID, action.Price, action.Amount)
+		if err != nil {
+			return "", err
+		}
 	default:
 		o, err = f.ModifyPlacedOrder(action.ID, action.ClientOrderID, action.Price, action.Amount)
+		if err != nil {
+			return "", err
+		}
 	}
 	return strconv.FormatInt(o.Result.ID, 10), err
 }
@@ -547,7 +556,7 @@ func (f *FTX) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*w
 	}
 	resp.ID = strconv.FormatInt(a.Result.ID, 10)
 	resp.Status = a.Result.Status
-	return resp, common.ErrNotYetImplemented
+	return resp, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
@@ -751,9 +760,12 @@ func (f *FTX) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end ti
 	if err != nil {
 		return kline.Item{}, err
 	}
+	var resp kline.Item
 	ohlcData, err := f.GetHistoricalData(f.FormatExchangeCurrency(pair, a).String(),
 		string(intervalToString), "", start, end)
-	var resp kline.Item
+	if err != nil {
+		return resp, err
+	}
 	resp.Exchange = f.Name
 	resp.Asset = a
 	resp.Pair = pair
