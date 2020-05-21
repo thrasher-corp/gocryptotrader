@@ -125,8 +125,8 @@ type WebsocketConn struct {
 
 // WsOrderbookUpdate contains orderbook data from websocket
 type WsOrderbookUpdate struct {
-	Asks [][]string `json:"asks"`
-	Bids [][]string `json:"bids"`
+	Asks [][2]string `json:"asks"`
+	Bids [][2]string `json:"bids"`
 }
 
 // WsTrades contains trade data from websocket
@@ -140,4 +140,13 @@ type WsTrade struct {
 	Date   int64   `json:"date"`
 	Price  float64 `json:"price,string"`
 	Amount float64 `json:"amount,string"`
+}
+
+type wsTicker struct {
+	Low    float64 `json:"low,string"`
+	High   float64 `json:"high,string"`
+	Last   float64 `json:"last,string"`
+	Volume float64 `json:"volume,string"`
+	Sell   float64 `json:"sell,string"`
+	Buy    float64 `json:"buy,string"`
 }

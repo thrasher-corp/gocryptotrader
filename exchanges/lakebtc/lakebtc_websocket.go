@@ -96,7 +96,6 @@ func (l *LakeBTC) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 			Currency: enabledCurrencies[j],
 		})
 	}
-
 	return subscriptions, nil
 }
 
@@ -104,6 +103,17 @@ func (l *LakeBTC) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 func (l *LakeBTC) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 	for i := range channelsToSubscribe {
 		err := l.WebsocketConn.Client.Subscribe(channelsToSubscribe[i].Channel)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Unsubscribe sends a websocket message to unsubscribe from the channel
+func (l *LakeBTC) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	for i := range channelsToUnsubscribe {
+		err := l.WebsocketConn.Client.Unsubscribe(channelsToUnsubscribe[i].Channel)
 		if err != nil {
 			return err
 		}
@@ -128,7 +138,6 @@ func (l *LakeBTC) wsHandleIncomingData() {
 			err := l.processTicker(data.Data)
 			if err != nil {
 				l.Websocket.DataHandler <- err
-				return
 			}
 		case data := <-l.WebsocketConn.Trade:
 			if l.Verbose {
@@ -138,7 +147,6 @@ func (l *LakeBTC) wsHandleIncomingData() {
 			err := l.processTrades(data.Data, data.Channel)
 			if err != nil {
 				l.Websocket.DataHandler <- err
-				return
 			}
 		case data := <-l.WebsocketConn.Orderbook:
 			if l.Verbose {
@@ -148,7 +156,6 @@ func (l *LakeBTC) wsHandleIncomingData() {
 			err := l.processOrderbook(data.Data, data.Channel)
 			if err != nil {
 				l.Websocket.DataHandler <- err
-				return
 			}
 		}
 		select {
@@ -251,9 +258,9 @@ func (l *LakeBTC) getCurrencyFromChannel(channel string) (currency.Pair, error) 
 	return currency.NewPairFromString(curr)
 }
 
-func (l *LakeBTC) processTicker(wsTicker string) error {
-	var tUpdate map[string]interface{}
-	err := json.Unmarshal([]byte(wsTicker), &tUpdate)
+func (l *LakeBTC) processTicker(data string) error {
+	var tUpdate map[string]wsTicker
+	err := json.Unmarshal([]byte(data), &tUpdate)
 	if err != nil {
 		l.Websocket.DataHandler <- err
 		return err
@@ -274,32 +281,14 @@ func (l *LakeBTC) processTicker(wsTicker string) error {
 			continue
 		}
 
-		tickerData := v.(map[string]interface{})
-		processTickerItem := func(tick map[string]interface{}, item string) float64 {
-			if tick[item] == nil {
-				return 0
-			}
-
-			p, err := strconv.ParseFloat(tick[item].(string), 64)
-			if err != nil {
-				l.Websocket.DataHandler <- fmt.Errorf("%s error parsing ticker data '%s' %v",
-					l.Name,
-					item,
-					tickerData)
-				return 0
-			}
-
-			return p
-		}
-
 		l.Websocket.DataHandler <- &ticker.Price{
 			ExchangeName: l.Name,
-			Bid:          processTickerItem(tickerData, order.Buy.Lower()),
-			High:         processTickerItem(tickerData, tickerHighString),
-			Last:         processTickerItem(tickerData, tickerLastString),
-			Low:          processTickerItem(tickerData, tickerLowString),
-			Ask:          processTickerItem(tickerData, order.Sell.Lower()),
-			Volume:       processTickerItem(tickerData, tickerVolumeString),
+			Bid:          v.Buy,
+			High:         v.High,
+			Last:         v.Last,
+			Low:          v.Low,
+			Ask:          v.Sell,
+			Volume:       v.Volume,
 			AssetType:    asset.Spot,
 			Pair:         returnCurrency,
 		}

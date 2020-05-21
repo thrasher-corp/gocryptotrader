@@ -85,6 +85,7 @@ func (l *LakeBTC) SetDefaults() {
 				TradeFetching:     true,
 				OrderbookFetching: true,
 				Subscribe:         true,
+				Unsubscribe:       true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.WithdrawFiatViaWebsiteOnly,
@@ -126,6 +127,7 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) error {
 		RunningURL:                       exch.API.Endpoints.WebsocketURL,
 		Connector:                        l.WsConnect,
 		Subscriber:                       l.Subscribe,
+		UnSubscriber:                     l.Unsubscribe,
 		GenerateSubscriptions:            l.GenerateDefaultSubscriptions,
 		Features:                         &l.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
