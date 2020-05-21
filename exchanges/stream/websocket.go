@@ -953,13 +953,16 @@ func (w *WebsocketConnection) SetupPingHandler(handler PingHandler) {
 	w.Wg.Add(1)
 	defer w.Wg.Done()
 	go func() {
+		fmt.Println("PING HANDLER SETUP")
 		ticker := time.NewTicker(handler.Delay)
 		for {
 			select {
 			case <-w.ShutdownC:
+				fmt.Println("PING HANDLER STOP")
 				ticker.Stop()
 				return
 			case <-ticker.C:
+				fmt.Println("PING HANDLER EXECUTING")
 				err := w.SendRawMessage(handler.MessageType, handler.Message)
 				if err != nil {
 					log.Errorf(log.WebsocketMgr,

@@ -920,16 +920,19 @@ func (c *Config) CheckExchangeConfigValues() error {
 				var failed bool
 				if c.Exchanges[i].API.CredentialsValidator.RequiresKey &&
 					(c.Exchanges[i].API.Credentials.Key == "" || c.Exchanges[i].API.Credentials.Key == DefaultAPIKey) {
+					fmt.Println("MEOW")
 					failed = true
 				}
 
 				if c.Exchanges[i].API.CredentialsValidator.RequiresSecret &&
 					(c.Exchanges[i].API.Credentials.Secret == "" || c.Exchanges[i].API.Credentials.Secret == DefaultAPISecret) {
+					fmt.Println("Woof")
 					failed = true
 				}
 
 				if c.Exchanges[i].API.CredentialsValidator.RequiresClientID &&
 					(c.Exchanges[i].API.Credentials.ClientID == DefaultAPIClientID || c.Exchanges[i].API.Credentials.ClientID == "") {
+					fmt.Println("PFFT")
 					failed = true
 				}
 

@@ -153,6 +153,8 @@ const (
 // processed at a time
 var orderbookMutex sync.Mutex
 
+// var defaultSpotSubscribedChannels = []string{okGroupWsSpotTrade}
+
 var defaultSpotSubscribedChannels = []string{okGroupWsSpotDepth,
 	okGroupWsSpotCandle300s,
 	okGroupWsSpotTicker,
@@ -187,9 +189,17 @@ func (o *OKGroup) WsConnect() error {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			o.Websocket.GetWebsocketURL())
 	}
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go o.WsReadData(&wg)
+	// wg := sync.WaitGroup{}
+	// wg.Add(1)
+	go o.WsReadData()
+
+	// o.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	// 	Websocket:   true,
+	// 	MessageType: websocket.TextMessage,
+	// 	Message:     []byte("ping"),
+	// 	Delay:       time.Second * 25,
+	// })
+
 	if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = o.WsLogin()
 		if err != nil {
@@ -206,8 +216,8 @@ func (o *OKGroup) WsConnect() error {
 	}
 	o.Websocket.SubscribeToChannels(subs)
 
-	// Ensures that we start the routines and we dont race when shutdown occurs
-	wg.Wait()
+	// // Ensures that we start the routines and we dont race when shutdown occurs
+	// wg.Wait()
 	return nil
 }
 
@@ -239,12 +249,9 @@ func (o *OKGroup) WsLogin() error {
 }
 
 // WsReadData receives and passes on websocket messages for processing
-func (o *OKGroup) WsReadData(wg *sync.WaitGroup) {
+func (o *OKGroup) WsReadData() {
 	o.Websocket.Wg.Add(1)
-	defer func() {
-		o.Websocket.Wg.Done()
-	}()
-	wg.Done()
+	defer o.Websocket.Wg.Done()
 
 	for {
 		resp, err := o.Websocket.Conn.ReadMessage()
@@ -260,6 +267,7 @@ func (o *OKGroup) WsReadData(wg *sync.WaitGroup) {
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
 func (o *OKGroup) WsHandleData(respRaw []byte) error {
+	fmt.Println("DATUM:", string(respRaw))
 	var dataResponse WebsocketDataResponse
 	err := json.Unmarshal(respRaw, &dataResponse)
 	if err != nil {
@@ -281,7 +289,9 @@ func (o *OKGroup) WsHandleData(respRaw []byte) error {
 		case okGroupWsOrder:
 			return o.wsProcessOrder(respRaw)
 		}
-		o.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: o.Name + stream.UnhandledMessage + string(respRaw)}
+		o.Websocket.DataHandler <- stream.UnhandledMessageWarning{
+			Message: o.Name + stream.UnhandledMessage + string(respRaw),
+		}
 		return nil
 	}
 
@@ -476,8 +486,9 @@ func (o *OKGroup) wsProcessCandles(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
+
+	a := o.GetAssetTypeFromTableName(response.Table)
 	for i := range response.Data {
-		a := o.GetAssetTypeFromTableName(response.Table)
 		var c currency.Pair
 		switch a {
 		case asset.Futures, asset.PerpetualSwap:
@@ -530,7 +541,6 @@ func (o *OKGroup) wsProcessCandles(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-
 		o.Websocket.DataHandler <- klineData
 	}
 	return nil
@@ -545,15 +555,17 @@ func (o *OKGroup) WsProcessOrderBook(respRaw []byte) error {
 	}
 	orderbookMutex.Lock()
 	defer orderbookMutex.Unlock()
+	a := o.GetAssetTypeFromTableName(response.Table)
 	for i := range response.Data {
-		a := o.GetAssetTypeFromTableName(response.Table)
+		f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
+
 		var c currency.Pair
 		switch a {
 		case asset.Futures, asset.PerpetualSwap:
-			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
-			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1], f[2], delimiterUnderscore)
+			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1],
+				f[2],
+				delimiterUnderscore)
 		default:
-			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
 			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
 		}
 
@@ -578,15 +590,15 @@ func (o *OKGroup) WsProcessOrderBook(respRaw []byte) error {
 }
 
 func (o *OKGroup) wsResubscribeToOrderbook(response *WebsocketOrderBooksData) {
+	a := o.GetAssetTypeFromTableName(response.Table)
 	for i := range response.Data {
-		a := o.GetAssetTypeFromTableName(response.Table)
+		f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
+
 		var c currency.Pair
 		switch a {
 		case asset.Futures, asset.PerpetualSwap:
-			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
 			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1], f[2], delimiterDash)
 		default:
-			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
 			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
 		}
 
@@ -598,7 +610,8 @@ func (o *OKGroup) wsResubscribeToOrderbook(response *WebsocketOrderBooksData) {
 	}
 }
 
-// AppendWsOrderbookItems adds websocket orderbook data bid/asks into an orderbook item array
+// AppendWsOrderbookItems adds websocket orderbook data bid/asks into an
+// orderbook item array
 func (o *OKGroup) AppendWsOrderbookItems(entries [][]interface{}) ([]orderbook.Item, error) {
 	var items []orderbook.Item
 	for j := range entries {
@@ -615,8 +628,8 @@ func (o *OKGroup) AppendWsOrderbookItems(entries [][]interface{}) ([]orderbook.I
 	return items, nil
 }
 
-// WsProcessPartialOrderBook takes websocket orderbook data and creates an orderbook
-// Calculates checksum to ensure it is valid
+// WsProcessPartialOrderBook takes websocket orderbook data and creates an
+// orderbook Calculates checksum to ensure it is valid
 func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketOrderBook, instrument currency.Pair, a asset.Item) error {
 	signedChecksum := o.CalculatePartialOrderbookChecksum(wsEventData)
 	if signedChecksum != wsEventData.Checksum {
@@ -650,12 +663,12 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketOrderBook, ins
 		Pair:         instrument,
 		ExchangeName: o.Name,
 	}
-
 	return o.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 
 // WsProcessUpdateOrderbook updates an existing orderbook using websocket data
-// After merging WS data, it will sort, validate and finally update the existing orderbook
+// After merging WS data, it will sort, validate and finally update the existing
+// orderbook
 func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketOrderBook, instrument currency.Pair, a asset.Item) error {
 	update := cache.Update{
 		Asset:      a,
@@ -862,38 +875,48 @@ func (o *OKGroup) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 
 // Subscribe sends a websocket message to receive data from the channel
 func (o *OKGroup) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	for i := range channelsToSubscribe {
-		c := channelsToSubscribe[i].Currency.String()
-		request := WebsocketEventRequest{
-			Operation: "subscribe",
-			Arguments: []string{channelsToSubscribe[i].Channel + delimiterColon + c},
-		}
-		if strings.EqualFold(channelsToSubscribe[i].Channel, okGroupWsSpotAccount) {
-			request.Arguments = []string{channelsToSubscribe[i].Channel +
-				delimiterColon +
-				channelsToSubscribe[i].Currency.Base.String()}
-		}
-		err := o.Websocket.Conn.SendJSONMessage(request)
-		if err != nil {
-			return err
-		}
+	request := WebsocketEventRequest{
+		Operation: "subscribe",
 	}
+
+	for i := range channelsToSubscribe {
+		arg := channelsToSubscribe[i].Channel + delimiterColon
+		if strings.EqualFold(channelsToSubscribe[i].Channel, okGroupWsSpotAccount) {
+			arg += channelsToSubscribe[i].Currency.Base.String()
+		} else {
+			arg += channelsToSubscribe[i].Currency.String()
+		}
+		request.Arguments = append(request.Arguments, arg)
+	}
+
+	wow, _ := json.Marshal(request)
+	fmt.Println("SUBS:", string(wow))
+	err := o.Websocket.Conn.SendJSONMessage(request)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (o *OKGroup) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	request := WebsocketEventRequest{
+		Operation: "unsubscribe",
+	}
+
 	for i := range channelsToUnsubscribe {
-		request := WebsocketEventRequest{
-			Operation: "unsubscribe",
-			Arguments: []string{channelsToUnsubscribe[i].Channel +
-				delimiterColon +
-				channelsToUnsubscribe[i].Currency.String()},
-		}
-		err := o.Websocket.Conn.SendJSONMessage(request)
-		if err != nil {
-			return err
-		}
+		request.Arguments = append(request.Arguments,
+			channelsToUnsubscribe[i].Channel+
+				delimiterColon+
+				channelsToUnsubscribe[i].Currency.String())
+	}
+
+	wow, _ := json.Marshal(request)
+	fmt.Println("UNSUBS:", string(wow))
+	err := o.Websocket.Conn.SendJSONMessage(request)
+	if err != nil {
+		return err
 	}
 	return nil
 }
