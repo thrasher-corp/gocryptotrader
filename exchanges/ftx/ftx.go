@@ -836,5 +836,5 @@ func (f *FTX) GetOTCQuoteStatus(marketName, quoteID string) (QuoteStatus, error)
 // AcceptOTCQuote requests for otc quotes
 func (f *FTX) AcceptOTCQuote(quoteID string) (AcceptQuote, error) {
 	var resp AcceptQuote
-	return resp, f.SendAuthHTTPRequest(http.MethodPost, fmt.Sprintf(acceptQuote, quoteID), nil, &resp)
+	return resp, f.SendAuthHTTPRequest(http.MethodPost, fmt.Sprintf(acceptOTCQuote, quoteID), nil, &resp)
 }
