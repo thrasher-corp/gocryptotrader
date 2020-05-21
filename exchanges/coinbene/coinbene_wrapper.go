@@ -754,7 +754,7 @@ func (c *Coinbene) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 	return c.GetKlines(pair, start, end, interval)
 }
 
-// GetHistoricCandlesEx returns candles between a time period for a set time interval
-func (c *Coinbene) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (c *Coinbene) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return c.GetHistoricCandles(pair, a, start, end, interval)
 }

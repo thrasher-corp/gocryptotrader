@@ -397,12 +397,13 @@ func  ({{.Variable}} *{{.CapitalName}}) AuthenticateWebsocket() error {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func ({{.Variable}} *{{.CapitalName}}) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-    if !({{.Variable}}.KlineIntervalEnabled(interval) {
-        return kline.Item{}, kline.ErrorKline{
-            Interval: interval,
-        }
-    }
 	return nil, common.ErrNotYetImplemented
 }
+
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func ({{.Variable}} *{{.CapitalName}}) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 
 {{end}}

@@ -417,13 +417,13 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 }
 
-func TestGetHistoricCandlesEx(t *testing.T) {
+func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 
 	startTime := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 	pair := currency.NewPairFromString(testCurrencyPair)
-	_, err := l.GetHistoricCandlesEx(pair, asset.Spot, startTime, end, kline.OneMin)
+	_, err := l.GetHistoricCandlesExtended(pair, asset.Spot, startTime, end, kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
 	}

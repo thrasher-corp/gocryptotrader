@@ -26,7 +26,7 @@ const (
 	OneDay         = TwentyFourHour
 	ThreeDay       = 3 * OneDay
 	SevenDay       = 7 * OneDay
-	Fifteenday     = 15 * OneDay
+	FifteenDay     = 15 * OneDay
 	OneWeek        = 7 * OneDay
 	TwoWeek        = 2 * OneWeek
 	OneMonth       = 31 * OneDay

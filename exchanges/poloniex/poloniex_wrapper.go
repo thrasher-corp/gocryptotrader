@@ -686,7 +686,7 @@ func (p *Poloniex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 	return ret, nil
 }
 
-// GetHistoricCandlesEx returns candles between a time period for a set time interval
-func (p *Poloniex) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (p *Poloniex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return p.GetHistoricCandles(pair, a, start, end, interval)
 }

@@ -4085,11 +4085,11 @@ func getHistoricCandles(c *cli.Context) error {
 	return nil
 }
 
-var getHistoricCandlesCommandEx = cli.Command{
-	Name:      "gethistoriccandlesex",
-	Usage:     "gets historical candles for the specified granularity up to range size time from now.",
+var getHistoricCandlesExtendedCommand = cli.Command{
+	Name:      "gethistoriccandlesextended",
+	Usage:     "gets historical candles extended for the specified granularity up to range size time from now.",
 	ArgsUsage: "<exchange> <pair> <asset> <rangesize> <granularity>",
-	Action:    getHistoricCandlesEx,
+	Action:    getHistoricCandlesExtended,
 	Flags: []cli.Flag{
 		cli.StringFlag{
 			Name:  "exchange, e",
@@ -4118,9 +4118,9 @@ var getHistoricCandlesCommandEx = cli.Command{
 	},
 }
 
-func getHistoricCandlesEx(c *cli.Context) error {
+func getHistoricCandlesExtended(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "gethistoriccandlesex")
+		cli.ShowCommandHelp(c, "gethistoriccandleextended")
 		return nil
 	}
 

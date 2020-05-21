@@ -88,12 +88,12 @@ func TestGetHistoricRatesGranularityCheck(t *testing.T) {
 	}
 }
 
-func TestCoinbasePro_GetHistoricCandlesEx(t *testing.T) {
+func TestCoinbasePro_GetHistoricCandlesExtended(t *testing.T) {
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 
 	p := currency.NewPair(currency.BTC, currency.USD)
-	_, err := c.GetHistoricCandlesEx(p, asset.Spot, start, end, kline.OneDay)
+	_, err := c.GetHistoricCandlesExtended(p, asset.Spot, start, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}

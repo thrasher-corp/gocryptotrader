@@ -1530,7 +1530,7 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHisto
 	var candles kline.Item
 	var err error
 	if req.ExRequest {
-		candles, err = exchange.GetHistoricCandlesEx(currency.Pair{
+		candles, err = exchange.GetHistoricCandlesExtended(currency.Pair{
 			Delimiter: req.Pair.Delimiter,
 			Base:      currency.NewCode(req.Pair.Base),
 			Quote:     currency.NewCode(req.Pair.Quote),

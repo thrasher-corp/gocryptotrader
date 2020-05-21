@@ -727,18 +727,17 @@ func TestBTCMarkets_GetHistoricCandles(t *testing.T) {
 	}
 	_, err = b.GetHistoricCandles(p, asset.Spot, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC(), kline.FifteenMin)
 	if err != nil {
-		t.Log(err)
 		if !errors.As(err, &kline.ErrorKline{}) {
 			t.Fatal(err)
 		}
 	}
 }
 
-func TestBTCMarkets_GetHistoricCandlesEx(t *testing.T) {
+func TestBTCMarkets_GetHistoricCandlesExtended(t *testing.T) {
 	start := time.Now().AddDate(0, 0, -1001)
 	end := time.Now()
 	p := currency.NewPairFromString(BTCAUD)
-	_, err := b.GetHistoricCandlesEx(p, asset.Spot, start, end, kline.OneDay)
+	_, err := b.GetHistoricCandlesExtended(p, asset.Spot, start, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}

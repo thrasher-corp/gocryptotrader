@@ -854,11 +854,11 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 }
 
-func TestGetHistoricCandlesEx(t *testing.T) {
+func TestGetHistoricCandlesExtended(t *testing.T) {
 	currencyPair := currency.NewPairFromString("btc_usdt")
 	start := time.Now().AddDate(0, -2, 0)
 	end := time.Now()
-	_, err := z.GetHistoricCandlesEx(currencyPair, asset.Spot, start, end, kline.OneHour)
+	_, err := z.GetHistoricCandlesExtended(currencyPair, asset.Spot, start, end, kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}

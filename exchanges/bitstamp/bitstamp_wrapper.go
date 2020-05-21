@@ -711,12 +711,7 @@ func (b *Bitstamp) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 	return kline.Item{}, common.ErrNotYetImplemented
 }
 
-// GetHistoricCandlesEx returns candles between a time period for a set time interval
-func (b *Bitstamp) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !b.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
-	}
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (b *Bitstamp) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrNotYetImplemented
 }

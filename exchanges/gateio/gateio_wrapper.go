@@ -764,7 +764,7 @@ func (g *Gateio) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 	return klineData, nil
 }
 
-// GetHistoricCandlesEx returns candles between a time period for a set time interval
-func (g *Gateio) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (g *Gateio) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return g.GetHistoricCandles(pair, a, start, end, interval)
 }

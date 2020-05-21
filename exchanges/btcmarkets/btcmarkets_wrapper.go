@@ -771,8 +771,8 @@ func (b *BTCMarkets) GetHistoricCandles(pair currency.Pair, a asset.Item, start,
 	return b.GetMarketCandles(pair.String(), interval, start, end, -1, -1, 0)
 }
 
-// GetHistoricCandlesEx returns candles between a time period for a set time interval
-func (b *BTCMarkets) GetHistoricCandlesEx(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (b *BTCMarkets) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if !b.KlineIntervalEnabled(interval) {
 		return kline.Item{}, kline.ErrorKline{
 			Interval: interval,

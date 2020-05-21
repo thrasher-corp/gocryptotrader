@@ -995,7 +995,7 @@ func (h *HUOBI) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end 
 	return ret, nil
 }
 
-// GetHistoricCandlesEx returns candles between a time period for a set time interval
-func (h *HUOBI) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (h *HUOBI) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return h.GetHistoricCandles(pair, a, start, end, interval)
 }

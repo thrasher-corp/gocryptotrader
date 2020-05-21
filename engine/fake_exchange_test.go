@@ -181,7 +181,7 @@ func (h *FakePassingExchange) SupportsAsset(_ asset.Item) bool                  
 func (h *FakePassingExchange) GetHistoricCandles(_ currency.Pair, _ asset.Item, _, _ time.Time, _ kline.Interval) (kline.Item, error) {
 	return kline.Item{}, nil
 }
-func (h *FakePassingExchange) GetHistoricCandlesEx(_ currency.Pair, _ asset.Item, _, _ time.Time, _ kline.Interval) (kline.Item, error) {
+func (h *FakePassingExchange) GetHistoricCandlesExtended(_ currency.Pair, _ asset.Item, _, _ time.Time, _ kline.Interval) (kline.Item, error) {
 	return kline.Item{}, nil
 }
 func (h *FakePassingExchange) DisableRateLimiter() error { return nil }

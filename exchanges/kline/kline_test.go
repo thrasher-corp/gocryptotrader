@@ -197,7 +197,7 @@ func TestDurationToWord(t *testing.T) {
 		},
 		{
 			"FifteenDay",
-			Fifteenday,
+			FifteenDay,
 		},
 		{
 			"OneWeek",
@@ -244,7 +244,7 @@ func TestKlineErrors(t *testing.T) {
 func ExampleTotalCandlesPerInterval() {
 	end := time.Now()
 	start := end.AddDate(-1, 0, 0)
-	fmt.Println(TotalCandlesPerInterval(start, end, Fifteenday))
+	fmt.Println(TotalCandlesPerInterval(start, end, FifteenDay))
 	// Output: 24
 }
 
@@ -256,7 +256,7 @@ func TestTotalCandlesPerInterval(t *testing.T) {
 	if v != 1 {
 		t.Fatalf("unexpected result expected 1 received %v", v)
 	}
-	v = TotalCandlesPerInterval(start, end, Fifteenday)
+	v = TotalCandlesPerInterval(start, end, FifteenDay)
 	if v != 24 {
 		t.Fatalf("unexpected result expected 24 received %v", v)
 	}

@@ -742,13 +742,13 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		var r25 kline.Item
-		r25, err = e.GetHistoricCandlesEx(p, assetTypes[i], time.Now().AddDate(0, -1, 0), time.Now(), kline.OneDay)
+		r25, err = e.GetHistoricCandlesExtended(p, assetTypes[i], time.Now().AddDate(0, -1, 0), time.Now(), kline.OneDay)
 		if err != nil {
 			msg = err.Error()
 			responseContainer.ErrorCount++
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function:   "GetHistoricCandles",
+			Function:   "GetHistoricCandlesExtended",
 			Error:      msg,
 			Response:   r25,
 			SentParams: nil,
