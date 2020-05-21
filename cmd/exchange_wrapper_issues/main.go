@@ -730,6 +730,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 
 		var r24 kline.Item
 		r24, err = e.GetHistoricCandles(p, assetTypes[i], time.Now().AddDate(0, -1, 0), time.Now(), kline.OneDay)
+		msg = ""
 		if err != nil {
 			msg = err.Error()
 			responseContainer.ErrorCount++
@@ -743,6 +744,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 
 		var r25 kline.Item
 		r25, err = e.GetHistoricCandlesExtended(p, assetTypes[i], time.Now().AddDate(0, -1, 0), time.Now(), kline.OneDay)
+		msg = ""
 		if err != nil {
 			msg = err.Error()
 			responseContainer.ErrorCount++

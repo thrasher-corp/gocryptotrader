@@ -749,8 +749,19 @@ func (c *Coinbene) ValidateCredentials() error {
 	return c.CheckTransientError(err)
 }
 
+// FormatExchangeKlineInterval returns Interval to string
+func (c *Coinbene) FormatExchangeKlineInterval(in kline.Interval) string {
+	return in.Short()[:len(in.Short())-1]
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (c *Coinbene) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !c.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
 	return c.GetKlines(pair, start, end, interval)
 }
 

@@ -1256,3 +1256,44 @@ func TestFixCasing(t *testing.T) {
 		t.Fatalf("unexpected result: %v", ret)
 	}
 }
+
+func Test_FormatExchangeKlineInterval(t *testing.T) {
+	testCases := []struct {
+		name     string
+		interval kline.Interval
+		output   string
+	}{
+		{
+			"OneMin",
+			kline.OneMin,
+			"1m",
+		},
+		{
+			"OneDay",
+			kline.OneDay,
+			"1D",
+		},
+		{
+			"OneWeek",
+			kline.OneWeek,
+			"7D",
+		},
+		{
+			"TwoWeeks",
+			kline.OneWeek * 2,
+			"14D",
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+
+		t.Run(test.name, func(t *testing.T) {
+			ret := b.FormatExchangeKlineInterval(test.interval)
+
+			if ret != test.output {
+				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
+			}
+		})
+	}
+}

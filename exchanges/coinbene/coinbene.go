@@ -617,12 +617,6 @@ func (c *Coinbene) GetSwapOrderbook(symbol string, size int64) (Orderbook, error
 
 // GetKlines data returns the kline data for a specific symbol
 func (c *Coinbene) GetKlines(pair currency.Pair, start, end time.Time, period kline.Interval) (kline.Item, error) {
-	if !c.KlineIntervalEnabled(period) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: period,
-		}
-	}
-
 	var candle struct {
 		Code    int64            `json:"code"`
 		Message string           `json:"message"`
@@ -637,7 +631,7 @@ func (c *Coinbene) GetKlines(pair currency.Pair, start, end time.Time, period kl
 	if !end.IsZero() {
 		v.Add("end", strconv.FormatInt(end.Unix(), 10))
 	}
-	v.Add("period", period.Short()[:len(period.Short())-1])
+	v.Add("period", c.FormatExchangeKlineInterval(period))
 
 	path := common.EncodeURLValues(coinbeneAPIURL+coinbeneAPIVersion+coinbeneSpotKlines, v)
 	if err := c.SendHTTPRequest(path, contractKline, &candle); err != nil {

@@ -79,6 +79,7 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetHistoricRatesGranularityCheck(t *testing.T) {
+	c.Verbose = true
 	end := time.Now()
 	start := end.Add(-time.Hour * 2)
 	p := currency.NewPair(currency.BTC, currency.USD)

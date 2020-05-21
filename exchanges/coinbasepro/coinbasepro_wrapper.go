@@ -3,6 +3,7 @@ package coinbasepro
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -722,18 +723,6 @@ func (c *CoinbasePro) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
 }
 
-func calcTotalCandles(start, end time.Time, interval kline.Interval) (out int64) {
-	switch interval {
-	case kline.OneMin:
-		out = int64(end.Sub(start).Minutes())
-	case kline.OneHour:
-		out = int64(end.Sub(start).Hours())
-	case kline.OneDay:
-		out = int64(end.Sub(start).Hours() / 24)
-	}
-	return
-}
-
 // GetHistoricCandles returns a set of candle between two time periods for a
 // designated time period
 func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
@@ -754,10 +743,11 @@ func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, e
 		Interval: interval,
 	}
 
+	gran, _ := strconv.Atoi(c.FormatExchangeKlineInterval(interval))
 	history, err := c.GetHistoricRates(c.FormatExchangeCurrency(p, a).String(),
 		start.Format(time.RFC3339),
 		end.Format(time.RFC3339),
-		int64(interval.Duration().Seconds()))
+		int64(gran))
 	if err != nil {
 		return kline.Item{}, err
 	}
