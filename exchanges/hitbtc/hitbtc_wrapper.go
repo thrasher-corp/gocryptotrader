@@ -657,7 +657,7 @@ func (h *HitBTC) FormatExchangeKlineInterval(in kline.Interval) string {
 	case kline.SevenDay:
 		return "D7"
 	}
-	return in.Short()
+	return ""
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval

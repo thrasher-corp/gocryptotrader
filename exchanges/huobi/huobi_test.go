@@ -115,7 +115,26 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	_, err = h.GetHistoricCandles(currencyPair, asset.Spot, startTime.AddDate(0,0,-7), time.Now(), kline.OneDay)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	_, err = h.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	currencyPair := currency.NewPairFromString("BTCUSDT")
+	startTime := time.Now().Add(-time.Hour * 1)
+	_, err := h.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = h.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.Interval(time.Hour*7))
 	if err == nil {
 		t.Fatal("unexpected result")
 	}
@@ -1047,5 +1066,61 @@ func TestStringToOrderType(t *testing.T) {
 		if result != testCases[i].Result {
 			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
 		}
+	}
+}
+
+func Test_FormatExchangeKlineInterval(t *testing.T) {
+	testCases := []struct {
+		name     string
+		interval kline.Interval
+		output   string
+	}{
+		{
+			"OneMin",
+			kline.OneMin,
+			"1min",
+		},
+		{
+			"FourHour",
+			kline.FourHour,
+			"4hour",
+		},
+		{
+			"OneDay",
+			kline.OneDay,
+			"1day",
+		},
+		{
+			"OneWeek",
+			kline.OneWeek,
+			"1week",
+		},
+		{
+			"OneMonth",
+			kline.OneMonth,
+			"1mon",
+		},
+		{
+			"OneYear",
+			kline.OneYear,
+			"1year",
+		},
+		{
+			"AllOthers",
+			kline.TwoWeek,
+			"",
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+
+		t.Run(test.name, func(t *testing.T) {
+			ret := h.FormatExchangeKlineInterval(test.interval)
+
+			if ret != test.output {
+				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
+			}
+		})
 	}
 }

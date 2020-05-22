@@ -949,3 +949,44 @@ func TestWsTrades(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func Test_FormatExchangeKlineInterval(t *testing.T) {
+	testCases := []struct {
+		name     string
+		interval kline.Interval
+		output   string
+	}{
+		{
+			"OneMin",
+			kline.OneMin,
+			"M1",
+		},
+		{
+			"OneDay",
+			kline.OneDay,
+			"D1",
+		},
+		{
+			"SevenDay",
+			kline.SevenDay,
+			"D7",
+		},
+		{
+			"AllOther",
+			kline.OneMonth,
+			"",
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+
+		t.Run(test.name, func(t *testing.T) {
+			ret := h.FormatExchangeKlineInterval(test.interval)
+
+			if ret != test.output {
+				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
+			}
+		})
+	}
+}
