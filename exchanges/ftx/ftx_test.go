@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -52,7 +53,8 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	f.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	f.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -969,6 +971,11 @@ func TestParsingWSOBData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	// data = []byte(`{"channel": "orderbook", "market": "BTC-PERP", "type": "update", "data": {"time": 1589855831.5128105, "checksum": 365946911, "bids": [[9596.0, 4.2656], [9512.0, 32.7912]], "asks": [[9613.5, 4.012], [9702.0, 0.021]], "action": "update"}}`)
+	// err = f.wsHandleData([]byte(data))
+	// if err != nil {
+	// 	t.Error(err)
+	// }
 }
 
 func TestGetOTCQuoteStatus(t *testing.T) {
