@@ -154,10 +154,10 @@ func TestAdd(t *testing.T) {
 		Val:           "change-log",
 		TextTokenData: "strong",
 		TokenDataEnd:  "p",
-		Path:          "https://binance-docs.github.io/apidocs/spot/en/#change-log",
+		Path:          "incorrectpath",
 	}
-	err := addExch("Binance", htmlScrape, data2, false)
-	if err != nil {
+	err := addExch("FalseName", htmlScrape, data2, false)
+	if err == nil {
 		t.Log("expected an error due to invalid path being parsed in")
 	}
 }
@@ -173,8 +173,7 @@ func TestHTMLScrapeGemini(t *testing.T) {
 		RegExp:        "^20(\\d){2}/(\\d){2}/(\\d){2}$",
 		CheckString:   "2019/11/15",
 		Path:          "https://docs.gemini.com/rest-api/#revision-history"}
-	a, err := htmlScrapeDefault(&data)
-	t.Log(a)
+	_, err := htmlScrapeDefault(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -262,8 +261,7 @@ func TestHTMLScrapeDefault(t *testing.T) {
 		RegExp:        "(2\\d{3}-\\d{1,2}-\\d{1,2})",
 		CheckString:   "2019-04-28",
 		Path:          "https://www.okcoin.com/docs/en/#change-change"}
-	a, err := htmlScrapeDefault(&data)
-	t.Log(a)
+	_, err := htmlScrapeDefault(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -438,8 +436,7 @@ func TestHTMLScrapeOk(t *testing.T) {
 		TokenDataEnd: "./#change-",
 		RegExp:       `./#change-\d{8}`,
 		Path:         "https://www.okex.com/docs/en/"}
-	a, err := htmlScrapeOk(&data)
-	t.Log(a)
+	_, err := htmlScrapeOk(&data)
 	if err != nil {
 		t.Error(err)
 	}
