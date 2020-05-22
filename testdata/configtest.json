@@ -21,9 +21,11 @@
   "output": "console",
   "fileSettings": {
    "filename": "log.txt",
-   "rotate": false
+   "rotate": false,
+   "maxsize": 100
   },
   "advancedSettings": {
+   "showLogSystemName": false,
    "spacer": " | ",
    "timeStampFormat": " 02/01/2006 15:04:05 ",
    "headers": {
@@ -60,6 +62,14 @@
   ],
   "allowedDifference": 50000000,
   "allowedNegativeDifference": 50000000
+ },
+ "gctscript": {
+  "enabled": false,
+  "timeout": 30000000000,
+  "max_virtual_machines": 10,
+  "allow_imports": false,
+  "auto_load": null,
+  "verbose": false
  },
  "currencyConfig": {
   "forexProviders": [
@@ -193,25 +203,37 @@
     "Address": "1JCe8z4jJVNXSjohjM4i9Hh813dLCNx2Sy",
     "CoinType": "BTC",
     "Balance": 53000.01741264,
-    "Description": ""
+    "Description": "",
+    "WhiteListed": false,
+    "ColdStorage": false,
+    "SupportedExchanges": ""
    },
    {
     "Address": "3Nxwenay9Z8Lc9JBiywExpnEFiLp6Afp8v",
     "CoinType": "BTC",
     "Balance": 107848.28963408,
-    "Description": ""
+    "Description": "",
+    "WhiteListed": false,
+    "ColdStorage": false,
+    "SupportedExchanges": ""
    },
    {
     "Address": "LgY8ahfHRhvjVQC1zJnBhFMG5pCTMuKRqh",
     "CoinType": "LTC",
     "Balance": 0.03665026,
-    "Description": ""
+    "Description": "",
+    "WhiteListed": false,
+    "ColdStorage": false,
+    "SupportedExchanges": ""
    },
    {
     "Address": "0xb794f5ea0ba39494ce839613fffba74279579268",
     "CoinType": "ETH",
     "Balance": 0.25555604051326,
-    "Description": ""
+    "Description": "",
+    "WhiteListed": false,
+    "ColdStorage": false,
+    "SupportedExchanges": ""
    }
   ]
  },

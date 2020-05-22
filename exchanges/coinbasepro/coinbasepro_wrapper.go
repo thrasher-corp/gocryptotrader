@@ -311,7 +311,7 @@ func (c *CoinbasePro) UpdateTicker(p currency.Pair, assetType asset.Item) (*tick
 	}
 
 	tickerPrice := &ticker.Price{
-		Last:        tick.Size,
+		Last:        stats.Last,
 		High:        stats.High,
 		Low:         stats.Low,
 		Bid:         tick.Bid,

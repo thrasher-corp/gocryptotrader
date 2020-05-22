@@ -49,10 +49,12 @@ type History struct {
 
 // Stats holds last 24 hr data for coinbasepro
 type Stats struct {
-	Open   float64 `json:"open,string"`
-	High   float64 `json:"high,string"`
-	Low    float64 `json:"low,string"`
-	Volume float64 `json:"volume,string"`
+	Open        float64 `json:"open,string"`
+	High        float64 `json:"high,string"`
+	Low         float64 `json:"low,string"`
+	Volume      float64 `json:"volume,string"`
+	Last        float64 `json:"last,string"`
+	Volume30Day float64 `json:"volume_30day,string"`
 }
 
 // Currency holds singular currency product information
