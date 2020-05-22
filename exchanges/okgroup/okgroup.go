@@ -28,9 +28,11 @@ const (
 	// OKGroupAPIPath const to help with api url formatting
 	OKGroupAPIPath = "api/"
 	// API subsections
-	okGroupAccountSubsection       = "account"
-	okGroupTokenSubsection         = "spot"
-	okGroupMarginTradingSubsection = "margin"
+	okGroupAccountSubsection        = "account"
+	okGroupTokenSubsection          = "spot"
+	okGroupMarginTradingSubsection  = "margin"
+	okGroupFuturesTradingSubSection = "futures"
+	oKGroupSwapTradingSubSection    = "swap"
 	// OKGroupAccounts common api endpoint
 	OKGroupAccounts = "accounts"
 	// OKGroupLedger common api endpoint
@@ -366,9 +368,21 @@ func (o *OKGroup) GetSpotFilledOrdersInformation(request GetSpotFilledOrdersInfo
 }
 
 // GetSpotMarketData Get the charts of the trading pairs. Charts are returned in grouped buckets based on requested granularity.
-func (o *OKGroup) GetSpotMarketData(request GetSpotMarketDataRequest) (resp GetSpotMarketDataResponse, _ error) {
+func (o *OKGroup) GetSpotMarketData(request *GetSpotMarketDataRequest) (resp GetSpotMarketDataResponse, err error) {
+	if request.Asset == asset.Margin {
+		return nil, errors.New("margin data not supported")
+	}
 	requestURL := fmt.Sprintf("%v/%v/%v%v", OKGroupInstruments, request.InstrumentID, OKGroupGetSpotMarketData, FormatParameters(request))
-	return resp, o.SendHTTPRequest(http.MethodGet, okGroupTokenSubsection, requestURL, nil, &resp, false)
+	var requestType string
+	switch request.Asset {
+	case asset.Spot:
+		requestType = okGroupTokenSubsection
+	case asset.Futures:
+		requestType = okGroupFuturesTradingSubSection
+	case asset.PerpetualSwap:
+		requestType = oKGroupSwapTradingSubSection
+	}
+	return resp, o.SendHTTPRequest(http.MethodGet, requestType, requestURL, nil, &resp, false)
 }
 
 // GetMarginTradingAccounts List all assets under token margin trading account, including information such as balance, amount on hold and more.

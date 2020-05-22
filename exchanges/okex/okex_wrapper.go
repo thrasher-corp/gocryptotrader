@@ -450,7 +450,8 @@ func (o *OKEX) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end t
 		}
 	}
 
-	req := okgroup.GetSpotMarketDataRequest{
+	req := &okgroup.GetSpotMarketDataRequest{
+		Asset:        a,
 		Start:        start.UTC().Format(time.RFC3339),
 		End:          end.UTC().Format(time.RFC3339),
 		Granularity:  o.FormatExchangeKlineInterval(interval),
@@ -525,7 +526,8 @@ func (o *OKEX) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, star
 
 	dates := kline.CalcDateRanges(start, end, interval, o.Features.Enabled.Kline.ResultLimit)
 	for x := range dates {
-		req := okgroup.GetSpotMarketDataRequest{
+		req := &okgroup.GetSpotMarketDataRequest{
+			Asset:        a,
 			Start:        dates[x].Start.UTC().Format(time.RFC3339),
 			End:          dates[x].End.UTC().Format(time.RFC3339),
 			Granularity:  o.FormatExchangeKlineInterval(interval),

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // Order types
@@ -331,6 +332,7 @@ type GetSpotFilledOrdersInformationResponse struct {
 
 // GetSpotMarketDataRequest request data for GetSpotMarketData
 type GetSpotMarketDataRequest struct {
+	Asset        asset.Item
 	Start        string `url:"start,omitempty"` // [optional] start time in ISO 8601
 	End          string `url:"end,omitempty"`   // [optional] end time in ISO 8601
 	Granularity  string `url:"granularity"`     // The granularity field must be one of the following values: {60, 180, 300, 900, 1800, 3600, 7200, 14400, 43200, 86400, 604800}.

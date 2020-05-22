@@ -484,7 +484,7 @@ func TestGetSpotFilledOrdersInformation(t *testing.T) {
 
 // TestGetSpotMarketData API endpoint test
 func TestGetSpotMarketData(t *testing.T) {
-	request := okgroup.GetSpotMarketDataRequest{
+	request := &okgroup.GetSpotMarketDataRequest{
 		InstrumentID: spotCurrency,
 		Granularity:  "604800",
 	}
