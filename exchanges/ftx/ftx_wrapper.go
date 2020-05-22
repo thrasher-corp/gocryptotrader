@@ -597,7 +597,8 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Pair = currency.NewPairFromString(orderData.Result[y].Market)
 			tempResp.Price = orderData.Result[y].Price
 			tempResp.RemainingAmount = orderData.Result[y].RemainingSize
-			orderVars, err := f.compatibleOrderVars(orderData.Result[y].Side,
+			var orderVars OrderVars
+			orderVars, err = f.compatibleOrderVars(orderData.Result[y].Side,
 				orderData.Result[y].Status,
 				orderData.Result[y].OrderType,
 				orderData.Result[y].FilledSize,
@@ -668,7 +669,8 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Pair = currency.NewPairFromString(orderData.Result[y].Market)
 			tempResp.Price = orderData.Result[y].Price
 			tempResp.RemainingAmount = orderData.Result[y].RemainingSize
-			orderVars, err := f.compatibleOrderVars(orderData.Result[y].Side,
+			var orderVars OrderVars
+			orderVars, err = f.compatibleOrderVars(orderData.Result[y].Side,
 				orderData.Result[y].Status,
 				orderData.Result[y].OrderType,
 				orderData.Result[y].FilledSize,

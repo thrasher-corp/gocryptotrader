@@ -1619,7 +1619,6 @@ loop:
 								if tk.Data == htmlData.TokenDataEnd {
 									break loop2
 								}
-
 							}
 						}
 					}

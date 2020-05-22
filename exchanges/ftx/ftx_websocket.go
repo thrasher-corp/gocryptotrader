@@ -196,7 +196,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			if len(resultData.OBData.Asks) == 0 && len(resultData.OBData.Bids) == 0 {
 				return nil
 			}
-			err := f.WsProcessUpdateOB(&resultData.OBData, p, a)
+			err = f.WsProcessUpdateOB(&resultData.OBData, p, a)
 			if err != nil {
 				f.wsResubToOB(p)
 				return err
@@ -256,35 +256,20 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			resp.ID = strconv.FormatInt(resultData.OrderData.ID, 10)
 			resp.Pair = pair
 			resp.RemainingAmount = resultData.OrderData.Size - resultData.OrderData.FilledSize
-			switch resultData.OrderData.Status {
-			case strings.ToLower(order.New.String()):
-				resp.Status = order.New
-			case strings.ToLower(order.Open.String()):
-				resp.Status = order.Open
-			case closedStatus:
-				if resultData.OrderData.FilledSize != 0 && resultData.OrderData.FilledSize != resultData.OrderData.Size {
-					resp.Status = order.PartiallyCancelled
-				}
-				if resultData.OrderData.FilledSize == 0 {
-					resp.Status = order.Cancelled
-				}
-				if resultData.OrderData.FilledSize == resultData.OrderData.Size {
-					resp.Status = order.Filled
-				}
-			}
-			var feeBuilder exchange.FeeBuilder
-			feeBuilder.PurchasePrice = resultData.OrderData.AvgFillPrice
-			feeBuilder.Amount = resultData.OrderData.Size
-			resp.Type = order.Market
-			if resultData.OrderData.OrderType == strings.ToLower(order.Limit.String()) {
-				resp.Type = order.Limit
-				feeBuilder.IsMaker = true
-			}
-			fee, err := f.GetFee(&feeBuilder)
+			var orderVars OrderVars
+			orderVars, err = f.compatibleOrderVars(resultData.OrderData.Side,
+				resultData.OrderData.Status,
+				resultData.OrderData.OrderType,
+				resultData.OrderData.FilledSize,
+				resultData.OrderData.Size,
+				resultData.OrderData.AvgFillPrice)
 			if err != nil {
 				return err
 			}
-			resp.Fee = fee
+			resp.Status = orderVars.Status
+			resp.Side = orderVars.Side
+			resp.Type = orderVars.OrderType
+			resp.Fee = orderVars.Fee
 			f.Websocket.DataHandler <- resp
 		case wsFills:
 			var resultData WsFillsDataStore
@@ -453,7 +438,7 @@ func (f *FTX) CalcPartialOBChecksum(data *WsOrderbookData) int {
 			price = fmt.Sprintf("%.1f", data.Bids[i][0])
 			amount = strconv.FormatFloat(data.Bids[i][1], 'f', -1, 64)
 			if strings.IndexByte(amount, '.') == -1 {
-				amount = amount + ".0"
+				amount += ".0"
 			}
 			checksum.WriteString(price + ":" + amount + ":")
 		}
@@ -461,7 +446,7 @@ func (f *FTX) CalcPartialOBChecksum(data *WsOrderbookData) int {
 			price = fmt.Sprintf("%.1f", data.Asks[i][0])
 			amount = strconv.FormatFloat(data.Asks[i][1], 'f', -1, 64)
 			if strings.IndexByte(amount, '.') == -1 {
-				amount = amount + ".0"
+				amount += ".0"
 			}
 			checksum.WriteString(price + ":" + amount + ":")
 		}
@@ -479,7 +464,7 @@ func (f *FTX) CalcUpdateOBChecksum(data *orderbook.Base) int {
 			price = fmt.Sprintf("%.1f", data.Bids[i].Price)
 			amount = strconv.FormatFloat(data.Bids[i].Amount, 'f', -1, 64)
 			if strings.IndexByte(amount, '.') == -1 {
-				amount = amount + ".0"
+				amount += ".0"
 			}
 			checksum.WriteString(price + ":" + amount + ":")
 		}
@@ -487,7 +472,7 @@ func (f *FTX) CalcUpdateOBChecksum(data *orderbook.Base) int {
 			price = fmt.Sprintf("%.1f", data.Asks[i].Price)
 			amount = strconv.FormatFloat(data.Asks[i].Amount, 'f', -1, 64)
 			if strings.IndexByte(amount, '.') == -1 {
-				amount = amount + ".0"
+				amount += ".0"
 			}
 			checksum.WriteString(price + ":" + amount + ":")
 		}

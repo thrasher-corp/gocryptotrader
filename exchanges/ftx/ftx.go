@@ -803,7 +803,7 @@ func (f *FTX) compatibleOrderVars(orderSide, orderStatus, orderType string, amou
 	feeBuilder.PurchasePrice = avgFillPrice
 	feeBuilder.Amount = amount
 	resp.OrderType = order.Market
-	if orderType == strings.ToLower(order.Limit.String()) {
+	if strings.EqualFold(orderType, order.Limit.String()) {
 		resp.OrderType = order.Limit
 		feeBuilder.IsMaker = true
 	}
