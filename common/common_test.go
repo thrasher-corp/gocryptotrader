@@ -314,23 +314,6 @@ func TestExtractPort(t *testing.T) {
 	}
 }
 
-func TestOutputCSV(t *testing.T) {
-	path := "../testdata/dump"
-	var data [][]string
-	rowOne := []string{"Appended", "to", "two", "dimensional", "array"}
-	rowTwo := []string{"Appended", "to", "two", "dimensional", "array", "two"}
-	data = append(data, rowOne, rowTwo)
-
-	err := OutputCSV(path, data)
-	if err != nil {
-		t.Errorf("common OutputCSV error: %s", err)
-	}
-	err = OutputCSV("/:::notapath:::", data)
-	if err == nil {
-		t.Error("common OutputCSV, tried writing to invalid path")
-	}
-}
-
 func TestGetURIPath(t *testing.T) {
 	t.Parallel()
 	// mapping of input vs expected result

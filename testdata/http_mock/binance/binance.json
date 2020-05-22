@@ -49951,6 +49951,30 @@
     }
    ]
   },
+  "/api/v3/order/test": {
+   "POST": [
+    {
+     "data": null,
+     "queryString": "price=0.0025\u0026quantity=100000\u0026recvWindow=5000\u0026side=BUY\u0026signature=1ddcd1b138325e4b72f045d56e719dc83963648001be999ca23ec88b94b1d900\u0026symbol=LTCBTC\u0026timeInForce=GTC\u0026timestamp=1589766515000\u0026type=LIMIT",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    },
+    {
+     "data": null,
+     "queryString": "quoteOrderQty=10\u0026recvWindow=5000\u0026side=SELL\u0026signature=f7d34dc6a9d6181adc3cd90f269a78d978610818b4d0b454ec95777194212aae\u0026symbol=LTCBTC\u0026timestamp=1589766516000\u0026type=MARKET",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
   "/api/v3/ticker/24hr": {
    "GET": [
     {

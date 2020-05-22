@@ -7,7 +7,7 @@ load := func() {
    // retrieve account information from exchange and store in info variable
    info := exch.accountinfo("BTC Markets")
    // print out info
-   fmt.print(info)
+   fmt.println(info)
 }
 
 load()

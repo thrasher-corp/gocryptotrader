@@ -1,7 +1,6 @@
 package common
 
 import (
-	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -260,23 +259,6 @@ func ExtractPort(host string) int {
 	portStr := strings.Split(host, ":")[1]
 	port, _ := strconv.Atoi(portStr)
 	return port
-}
-
-// OutputCSV dumps data into a file as comma-separated values
-func OutputCSV(filePath string, data [][]string) error {
-	file, err := os.Create(filePath)
-	if err != nil {
-		return err
-	}
-
-	writer := csv.NewWriter(file)
-	if err = writer.WriteAll(data); err != nil {
-		file.Close()
-		return err
-	}
-
-	file.Close()
-	return nil
 }
 
 // GetURIPath returns the path of a URL given a URI

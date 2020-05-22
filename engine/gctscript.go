@@ -64,6 +64,7 @@ func (g *gctScriptManager) run() {
 	log.Debugln(log.Global, gctscriptManagerName, MsgSubSystemStarted)
 
 	Bot.ServicesWG.Add(1)
+	vm.SetDefaultScriptOutput()
 	g.autoLoad()
 	defer func() {
 		atomic.CompareAndSwapInt32(&g.stopped, 1, 0)

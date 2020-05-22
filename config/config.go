@@ -1212,6 +1212,12 @@ func (c *Config) checkGCTScriptConfig() error {
 		return err
 	}
 
+	outputPath := filepath.Join(scriptPath, "output")
+	err = common.CreateDir(outputPath)
+	if err != nil {
+		return err
+	}
+
 	gctscript.ScriptPath = scriptPath
 	gctscript.GCTScriptConfig = &c.GCTScript
 

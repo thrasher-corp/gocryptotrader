@@ -18,7 +18,7 @@ load := func() {
 
    info := exch.withdrawcrypto("BTC Markets","BTC", "1234562362", "1231", 1.0, 0.0, "","" )
    // print out info
-   fmt.print(info)
+   fmt.println(info)
 }
 
 load()

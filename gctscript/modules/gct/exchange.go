@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/ta/indicators"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/wrappers"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -498,6 +499,16 @@ func ExchangeWithdrawFiat(args ...objects.Object) (objects.Object, error) {
 	return &objects.String{Value: rtn}, nil
 }
 
+// OHLCV defines a custom Open High Low Close Volume tengo object
+type OHLCV struct {
+	objects.Map
+}
+
+// TypeName returns the name of the custom type.
+func (o *OHLCV) TypeName() string {
+	return indicators.OHLCV
+}
+
 func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 7 {
 		return nil, objects.ErrWrongNumArguments
@@ -567,9 +578,9 @@ func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 	retValue["intervals"] = &objects.String{Value: ret.Interval.String()}
 	retValue["candles"] = &candles
 
-	return &objects.Map{
-		Value: retValue,
-	}, nil
+	c := new(OHLCV)
+	c.Value = retValue
+	return c, nil
 }
 
 // parseInterval will parse the interval param of indictors that have them and convert to time.Duration

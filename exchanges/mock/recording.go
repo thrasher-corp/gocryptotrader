@@ -148,9 +148,6 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 			case http.MethodPost:
 				for i := range mockResponses {
 					cType, ok := mockResponses[i].Headers[contentType]
-					if !ok {
-						return errors.New("cannot find content type within mock responses")
-					}
 
 					jCType := strings.Join(cType, "")
 					var found bool
@@ -190,7 +187,24 @@ func HTTPRecord(res *http.Response, service string, respContents []byte) error {
 							mockResponses = append(mockResponses[:i], mockResponses[i+1:]...)
 							found = true
 						}
+					case "":
+						if !ok {
+							// Assume query params are used
+							mockQuery, urlErr := url.ParseQuery(mockResponses[i].QueryString)
+							if urlErr != nil {
+								return urlErr
+							}
 
+							if MatchURLVals(mockQuery, res.Request.URL.Query()) {
+								// if found will delete instance and overwrite with new data
+								mockResponses = append(mockResponses[:i], mockResponses[i+1:]...)
+								found = true
+							}
+
+							break
+						}
+
+						fallthrough
 					default:
 						return fmt.Errorf("unhandled content type %s", jCType)
 					}

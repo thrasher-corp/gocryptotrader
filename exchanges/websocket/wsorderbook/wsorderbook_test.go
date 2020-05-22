@@ -486,6 +486,35 @@ func TestOutOfOrderIDs(t *testing.T) {
 	}
 }
 
+func TestOrderbookLastUpdateID(t *testing.T) {
+	obl, _, _, err := createSnapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exp := float64(1000); itemArray[0][0].Price != exp {
+		t.Errorf("expected sorted price to be %f, received: %v",
+			exp, itemArray[1][0].Price)
+	}
+
+	for i := range itemArray {
+		asks := itemArray[i]
+		err = obl.Update(&WebsocketOrderbookUpdate{
+			Asks:     asks,
+			Pair:     cp,
+			UpdateID: int64(i) + 1,
+			Asset:    asset.Spot,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	ob := obl.GetOrderbook(cp, asset.Spot)
+	if exp := len(itemArray); ob.LastUpdateID != int64(exp) {
+		t.Errorf("expected last update id to be %d, received: %v", exp, ob.LastUpdateID)
+	}
+}
+
 // TestRunUpdateWithoutSnapshot logic test
 func TestRunUpdateWithoutSnapshot(t *testing.T) {
 	var obl WebsocketOrderbookLocal
