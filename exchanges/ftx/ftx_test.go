@@ -436,7 +436,6 @@ func TestListLeveragedTokens(t *testing.T) {
 }
 
 func TestGetTokenInfo(t *testing.T) {
-	f.Verbose = true
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
@@ -864,7 +863,6 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestParsingWSFillData(t *testing.T) {
 	t.Parallel()
-	f.Verbose = true
 	data := []byte(`{
 		  "channel": "fills",
 		  "data": {
@@ -974,13 +972,11 @@ func TestParsingWSOBData(t *testing.T) {
 }
 
 func TestGetOTCQuoteStatus(t *testing.T) {
-	f.Verbose = true
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	a, err := f.GetOTCQuoteStatus(btcusd, "1")
-	t.Log(a)
+	_, err := f.GetOTCQuoteStatus(btcusd, "1")
 	if err != nil {
 		t.Error(err)
 	}
