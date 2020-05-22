@@ -139,7 +139,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup, auth bool) error {
 		Traffic:              w.TrafficAlert,
 		readMessageErrors:    w.readMessageErrors,
 		ShutdownC:            make(chan struct{}),
-		idResponses:          make(map[int64]chan []byte),
+		responses:            make(map[interface{}]chan []byte),
 	}
 
 	if auth {
@@ -812,10 +812,10 @@ func (w *Websocket) CanUseAuthenticatedEndpoints() bool {
 
 // MatchRequestResponse checks if a match is intended for the returned payload
 // and returns true if match is possible, false if match cannot occur.
-func (w *WebsocketConnection) MatchRequestResponse(id int64, data []byte) bool {
+func (w *WebsocketConnection) MatchRequestResponse(signature interface{}, data []byte) bool {
 	w.Lock()
 	defer w.Unlock()
-	ch, ok := w.idResponses[id]
+	ch, ok := w.responses[signature]
 	if ok {
 		select {
 		case ch <- data:
@@ -830,17 +830,19 @@ func (w *WebsocketConnection) MatchRequestResponse(id int64, data []byte) bool {
 
 // SendMessageReturnResponse will send a WS message to the connection and wait
 // for response
-func (w *WebsocketConnection) SendMessageReturnResponse(id int64, request interface{}) ([]byte, error) {
+func (w *WebsocketConnection) SendMessageReturnResponse(signature, request interface{}) ([]byte, error) {
+	// This is buffered so we don't need to wait for receiver on the websocket
+	// exchange data processing side.
 	ch := make(chan []byte, 1)
 
 	w.Lock()
-	w.idResponses[id] = ch
+	w.responses[signature] = ch
 	w.Unlock()
 
 	defer func() {
 		w.Lock()
 		close(ch)
-		delete(w.idResponses, id)
+		delete(w.responses, signature)
 		w.Unlock()
 	}()
 
@@ -856,7 +858,7 @@ func (w *WebsocketConnection) SendMessageReturnResponse(id int64, request interf
 		return payload, nil
 	case <-timer.C:
 		timer.Stop()
-		return nil, fmt.Errorf("timeout waiting for response with ID %v", id)
+		return nil, fmt.Errorf("timeout waiting for response with signature: %v", signature)
 	}
 }
 

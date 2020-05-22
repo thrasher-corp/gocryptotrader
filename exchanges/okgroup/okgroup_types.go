@@ -1315,19 +1315,22 @@ type WebsocketDataResponse struct {
 type WebsocketTickerData struct {
 	Table string `json:"table"`
 	Data  []struct {
-		BaseVolume24h  float64   `json:"base_volume_24h,string"`
-		BestAsk        float64   `json:"best_ask,string"`
-		BestAskSize    float64   `json:"best_ask_size,string"`
-		BestBid        float64   `json:"best_bid,string"`
-		BestBidSize    float64   `json:"best_bid_size,string"`
-		High24h        float64   `json:"high_24h,string"`
-		InstrumentID   string    `json:"instrument_id"`
-		Last           float64   `json:"last,string"`
-		LastQty        float64   `json:"last_qty,string"`
-		Low24h         float64   `json:"low_24h,string"`
-		Open24h        float64   `json:"open_24h,string"`
-		QuoteVolume24h float64   `json:"quote_volume_24h,string"`
-		Timestamp      time.Time `json:"timestamp"`
+		BaseVolume24h     float64   `json:"base_volume_24h,string"`
+		BestAsk           float64   `json:"best_ask,string"`
+		BestAskSize       float64   `json:"best_ask_size,string"`
+		BestBid           float64   `json:"best_bid,string"`
+		BestBidSize       float64   `json:"best_bid_size,string"`
+		High24h           float64   `json:"high_24h,string"`
+		InstrumentID      string    `json:"instrument_id"`
+		Last              float64   `json:"last,string"`
+		LastQty           float64   `json:"last_qty,string"`
+		Low24h            float64   `json:"low_24h,string"`
+		Open24h           float64   `json:"open_24h,string"`
+		QuoteVolume24h    float64   `json:"quote_volume_24h,string"`
+		Timestamp         time.Time `json:"timestamp"`
+		ContractVolume24h float64   `json:"volume_24h,string"`
+		TokenVolume24h    float64   `json:"volume_token_24h,string"`
+		OpenInterest      float64   `json:"open_interest,string"`
 	} `json:"data"`
 }
 
@@ -1341,6 +1344,8 @@ type WebsocketTradeResponse struct {
 		Side         string    `json:"side"`
 		Timestamp    time.Time `json:"timestamp"`
 		TradeID      string    `json:"trade_id"`
+		// Quantity - Futures amount is sent as a seperate json field
+		Quantity float64 `json:"qty,string"`
 	} `json:"data"`
 }
 

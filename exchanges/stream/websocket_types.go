@@ -110,8 +110,10 @@ type WebsocketConnection struct {
 	Wg              sync.WaitGroup
 	Connection      *websocket.Conn
 	ShutdownC       chan struct{}
-	// These are the request IDs and the corresponding response JSON
-	idResponses          map[int64]chan []byte
+
+	// These is the response signature matching map which includes a designation
+	// to a buffered channel. Can pass in nil as a confirmation switch.
+	responses            map[interface{}]chan []byte
 	ResponseCheckTimeout time.Duration
 	ResponseMaxLimit     time.Duration
 	TrafficTimeout       time.Duration

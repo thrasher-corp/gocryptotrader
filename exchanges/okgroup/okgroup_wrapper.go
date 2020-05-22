@@ -29,8 +29,6 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	fmt.Println("SETUP BRO!")
-
 	o.SetupDefaults(exch)
 
 	err := o.Websocket.Setup(&stream.WebsocketSetup{
@@ -550,8 +548,6 @@ func (o *OKGroup) AuthenticateWebsocket() error {
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
 func (o *OKGroup) ValidateCredentials() error {
-	fmt.Println("Y U NO WORK!")
-	fmt.Println("CREDENTIALS:", o.API.Credentials)
 	_, err := o.UpdateAccountInfo()
 	return o.CheckTransientError(err)
 }

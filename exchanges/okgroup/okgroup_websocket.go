@@ -153,8 +153,6 @@ const (
 // processed at a time
 var orderbookMutex sync.Mutex
 
-// var defaultSpotSubscribedChannels = []string{okGroupWsSpotTrade}
-
 var defaultSpotSubscribedChannels = []string{okGroupWsSpotDepth,
 	okGroupWsSpotCandle300s,
 	okGroupWsSpotTicker,
@@ -189,17 +187,8 @@ func (o *OKGroup) WsConnect() error {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			o.Websocket.GetWebsocketURL())
 	}
-	// wg := sync.WaitGroup{}
-	// wg.Add(1)
+
 	go o.WsReadData()
-
-	// o.Websocket.Conn.SetupPingHandler(stream.PingHandler{
-	// 	Websocket:   true,
-	// 	MessageType: websocket.TextMessage,
-	// 	Message:     []byte("ping"),
-	// 	Delay:       time.Second * 25,
-	// })
-
 	if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = o.WsLogin()
 		if err != nil {
@@ -215,9 +204,6 @@ func (o *OKGroup) WsConnect() error {
 		return err
 	}
 	o.Websocket.SubscribeToChannels(subs)
-
-	// // Ensures that we start the routines and we dont race when shutdown occurs
-	// wg.Wait()
 	return nil
 }
 
@@ -240,7 +226,7 @@ func (o *OKGroup) WsLogin() error {
 			base64,
 		},
 	}
-	err := o.Websocket.Conn.SendJSONMessage(request)
+	_, err := o.Websocket.Conn.SendMessageReturnResponse("login", request)
 	if err != nil {
 		o.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -267,7 +253,6 @@ func (o *OKGroup) WsReadData() {
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
 func (o *OKGroup) WsHandleData(respRaw []byte) error {
-	fmt.Println("DATUM:", string(respRaw))
 	var dataResponse WebsocketDataResponse
 	err := json.Unmarshal(respRaw, &dataResponse)
 	if err != nil {
@@ -307,7 +292,9 @@ func (o *OKGroup) WsHandleData(respRaw []byte) error {
 	err = json.Unmarshal(respRaw, &eventResponse)
 	if err == nil && eventResponse.Event != "" {
 		if eventResponse.Event == "login" {
-			o.Websocket.SetCanUseAuthenticatedEndpoints(eventResponse.Success)
+			if o.Websocket.Conn.MatchRequestResponse("login", nil) {
+				o.Websocket.SetCanUseAuthenticatedEndpoints(eventResponse.Success)
+			}
 		}
 		if o.Verbose {
 			log.Debug(log.ExchangeSys,
@@ -411,23 +398,36 @@ func (o *OKGroup) wsProcessTickers(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
+	a := o.GetAssetTypeFromTableName(response.Table)
 	for i := range response.Data {
-		a := o.GetAssetTypeFromTableName(response.Table)
+		f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
+
 		var c currency.Pair
 		switch a {
 		case asset.Futures, asset.PerpetualSwap:
-			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
-			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1], f[2], delimiterUnderscore)
+			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1],
+				f[2],
+				delimiterUnderscore)
 		default:
-			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
 			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
 		}
+
+		baseVolume := response.Data[i].BaseVolume24h
+		if response.Data[i].ContractVolume24h != 0 {
+			baseVolume = response.Data[i].ContractVolume24h
+		}
+
+		quoteVolume := response.Data[i].QuoteVolume24h
+		if response.Data[i].TokenVolume24h != 0 {
+			quoteVolume = response.Data[i].TokenVolume24h
+		}
+
 		o.Websocket.DataHandler <- &ticker.Price{
 			ExchangeName: o.Name,
 			Open:         response.Data[i].Open24h,
 			Close:        response.Data[i].Last,
-			Volume:       response.Data[i].BaseVolume24h,
-			QuoteVolume:  response.Data[i].QuoteVolume24h,
+			Volume:       baseVolume,
+			QuoteVolume:  quoteVolume,
 			High:         response.Data[i].High24h,
 			Low:          response.Data[i].Low24h,
 			Bid:          response.Data[i].BestBid,
@@ -448,17 +448,21 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
+
+	a := o.GetAssetTypeFromTableName(response.Table)
 	for i := range response.Data {
-		a := o.GetAssetTypeFromTableName(response.Table)
+		f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
+
 		var c currency.Pair
 		switch a {
 		case asset.Futures, asset.PerpetualSwap:
-			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
-			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1], f[2], delimiterUnderscore)
+			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1],
+				f[2],
+				delimiterUnderscore)
 		default:
-			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
 			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
 		}
+
 		tSide, err := order.StringToOrderSide(response.Data[i].Side)
 		if err != nil {
 			o.Websocket.DataHandler <- order.ClassificationError{
@@ -466,8 +470,14 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 				Err:      err,
 			}
 		}
+
+		amount := response.Data[i].Size
+		if response.Data[i].Quantity != 0 {
+			amount = response.Data[i].Quantity
+		}
+
 		o.Websocket.DataHandler <- stream.TradeData{
-			Amount:       response.Data[i].Size,
+			Amount:       amount,
 			AssetType:    o.GetAssetTypeFromTableName(response.Table),
 			CurrencyPair: c,
 			Exchange:     o.Name,
@@ -489,13 +499,15 @@ func (o *OKGroup) wsProcessCandles(respRaw []byte) error {
 
 	a := o.GetAssetTypeFromTableName(response.Table)
 	for i := range response.Data {
+		f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
+
 		var c currency.Pair
 		switch a {
 		case asset.Futures, asset.PerpetualSwap:
-			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
-			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1], f[2], delimiterUnderscore)
+			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1],
+				f[2],
+				delimiterUnderscore)
 		default:
-			f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
 			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
 		}
 
@@ -508,11 +520,7 @@ func (o *OKGroup) wsProcessCandles(respRaw []byte) error {
 		}
 
 		candleIndex := strings.LastIndex(response.Table, okGroupWsCandle)
-		secondIndex := strings.LastIndex(response.Table, "0s")
-		candleInterval := ""
-		if candleIndex > 0 || secondIndex > 0 {
-			candleInterval = response.Table[candleIndex+len(okGroupWsCandle) : secondIndex]
-		}
+		candleInterval := response.Table[candleIndex+len(okGroupWsCandle):]
 
 		klineData := stream.KlineData{
 			AssetType: o.GetAssetTypeFromTableName(response.Table),
@@ -758,103 +766,79 @@ func (o *OKGroup) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 	var subscriptions []stream.ChannelSubscription
 	assets := o.GetAssetTypes()
 	for x := range assets {
-		enabledCurrencies, err := o.GetEnabledPairs(assets[x])
+		pairs, err := o.GetEnabledPairs(assets[x])
 		if err != nil {
 			return nil, err
-		}
-		if len(enabledCurrencies) == 0 {
-			continue
 		}
 
 		switch assets[x] {
 		case asset.Spot:
-			for i := range enabledCurrencies {
-				fpair, err := o.FormatExchangeCurrency(enabledCurrencies[i],
-					asset.Spot)
+			channels := defaultSpotSubscribedChannels
+			if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+				channels = append(channels,
+					okGroupWsSpotMarginAccount,
+					okGroupWsSpotAccount,
+					okGroupWsSpotOrder)
+			}
+
+			for i := range pairs {
+				p, err := o.FormatExchangeCurrency(pairs[i], asset.Spot)
 				if err != nil {
 					return nil, err
 				}
-				for y := range defaultSpotSubscribedChannels {
+				for y := range channels {
 					subscriptions = append(subscriptions,
 						stream.ChannelSubscription{
-							Channel:  defaultSpotSubscribedChannels[y],
-							Currency: fpair,
+							Channel:  channels[y],
+							Currency: p,
 						})
 				}
-			}
-
-			if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-				subscriptions = append(subscriptions,
-					stream.ChannelSubscription{
-						Channel: okGroupWsSpotMarginAccount,
-					},
-					stream.ChannelSubscription{
-						Channel: okGroupWsSpotAccount,
-					},
-					stream.ChannelSubscription{
-						Channel: okGroupWsSpotOrder,
-					})
 			}
 		case asset.Futures:
-			for i := range enabledCurrencies {
-				fpair, err := o.FormatExchangeCurrency(enabledCurrencies[i],
-					asset.Futures)
+			channels := defaultFuturesSubscribedChannels
+			if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+				channels = append(channels,
+					okGroupWsFuturesAccount,
+					okGroupWsFuturesPosition,
+					okGroupWsFuturesOrder)
+			}
+			for i := range pairs {
+				p, err := o.FormatExchangeCurrency(pairs[i], asset.Futures)
 				if err != nil {
 					return nil, err
 				}
-				for y := range defaultFuturesSubscribedChannels {
+				for y := range channels {
 					subscriptions = append(subscriptions,
 						stream.ChannelSubscription{
-							Channel:  defaultFuturesSubscribedChannels[y],
-							Currency: fpair,
+							Channel:  channels[y],
+							Currency: p,
 						})
 				}
-			}
-
-			if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-				subscriptions = append(subscriptions,
-					stream.ChannelSubscription{
-						Channel: okGroupWsFuturesAccount,
-					},
-					stream.ChannelSubscription{
-						Channel: okGroupWsFuturesPosition,
-					},
-					stream.ChannelSubscription{
-						Channel: okGroupWsFuturesOrder,
-					})
 			}
 		case asset.PerpetualSwap:
-			for i := range enabledCurrencies {
-				fpair, err := o.FormatExchangeCurrency(enabledCurrencies[i],
-					asset.PerpetualSwap)
+			channels := defaultSwapSubscribedChannels
+			if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+				channels = append(channels,
+					okGroupWsSwapAccount,
+					okGroupWsSwapPosition,
+					okGroupWsSwapOrder)
+			}
+			for i := range pairs {
+				p, err := o.FormatExchangeCurrency(pairs[i], asset.PerpetualSwap)
 				if err != nil {
 					return nil, err
 				}
-				for y := range defaultSwapSubscribedChannels {
+				for y := range channels {
 					subscriptions = append(subscriptions,
 						stream.ChannelSubscription{
-							Channel:  defaultSwapSubscribedChannels[y],
-							Currency: fpair,
+							Channel:  channels[y],
+							Currency: p,
 						})
 				}
 			}
-
-			if o.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-				subscriptions = append(subscriptions,
-					stream.ChannelSubscription{
-						Channel: okGroupWsSwapAccount,
-					},
-					stream.ChannelSubscription{
-						Channel: okGroupWsSwapPosition,
-					},
-					stream.ChannelSubscription{
-						Channel: okGroupWsSwapOrder,
-					})
-			}
 		case asset.Index:
-			for i := range enabledCurrencies {
-				fpair, err := o.FormatExchangeCurrency(enabledCurrencies[i],
-					asset.Index)
+			for i := range pairs {
+				p, err := o.FormatExchangeCurrency(pairs[i], asset.Index)
 				if err != nil {
 					return nil, err
 				}
@@ -862,7 +846,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 					subscriptions = append(subscriptions,
 						stream.ChannelSubscription{
 							Channel:  defaultIndexSubscribedChannels[y],
-							Currency: fpair,
+							Currency: p,
 						})
 				}
 			}
@@ -888,15 +872,7 @@ func (o *OKGroup) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 		}
 		request.Arguments = append(request.Arguments, arg)
 	}
-
-	wow, _ := json.Marshal(request)
-	fmt.Println("SUBS:", string(wow))
-	err := o.Websocket.Conn.SendJSONMessage(request)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return o.Websocket.Conn.SendJSONMessage(request)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -911,14 +887,7 @@ func (o *OKGroup) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription
 				delimiterColon+
 				channelsToUnsubscribe[i].Currency.String())
 	}
-
-	wow, _ := json.Marshal(request)
-	fmt.Println("UNSUBS:", string(wow))
-	err := o.Websocket.Conn.SendJSONMessage(request)
-	if err != nil {
-		return err
-	}
-	return nil
+	return o.Websocket.Conn.SendJSONMessage(request)
 }
 
 // GetWsChannelWithoutOrderType takes WebsocketDataResponse.Table and returns
