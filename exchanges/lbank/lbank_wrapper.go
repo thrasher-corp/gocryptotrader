@@ -740,12 +740,15 @@ func (l *Lbank) FormatExchangeKlineInterval(in kline.Interval) string {
 	case kline.OneMin, kline.ThreeMin,
 		kline.FiveMin, kline.FifteenMin, kline.ThirtyMin:
 		return "minute" + in.Short()[:len(in.Short())-1]
+	case kline.OneHour, kline.FourHour,
+		kline.EightHour, kline.TwelveHour:
+		return "hour" + in.Short()[:len(in.Short())-1]
 	case kline.OneDay:
 		return "day1"
 	case kline.OneWeek:
 		return "week1"
 	}
-	return in.Short()
+	return ""
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval

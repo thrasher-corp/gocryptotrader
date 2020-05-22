@@ -863,3 +863,54 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func Test_FormatExchangeKlineInterval(t *testing.T) {
+	testCases := []struct {
+		name     string
+		interval kline.Interval
+		output   string
+	}{
+		{
+			"OneMin",
+			kline.OneMin,
+			"1min",
+		},
+		{
+			"OneHour",
+			kline.OneHour,
+			"1hour",
+		},
+		{
+			"OneDay",
+			kline.OneDay,
+			"1day",
+		},
+		{
+			"ThreeDay",
+			kline.ThreeDay,
+			"3day",
+		},
+		{
+			"OneWeek",
+			kline.OneWeek,
+			"1week",
+		},
+		{
+			"AllOther",
+			kline.FifteenDay,
+			"",
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+
+		t.Run(test.name, func(t *testing.T) {
+			ret := z.FormatExchangeKlineInterval(test.interval)
+
+			if ret != test.output {
+				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
+			}
+		})
+	}
+}

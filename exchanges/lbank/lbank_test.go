@@ -410,8 +410,14 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
+	l.Verbose = true
 	pair := currency.NewPairFromString(testCurrencyPair)
 	_, err := l.GetHistoricCandles(pair, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = l.GetHistoricCandles(pair, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -428,4 +434,50 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log(v)
+}
+
+func Test_FormatExchangeKlineInterval(t *testing.T) {
+	testCases := []struct {
+		name     string
+		interval kline.Interval
+		output   string
+	}{
+		{
+			"OneMin",
+			kline.OneMin,
+			"minute1",
+		},
+		{
+			"OneHour",
+			kline.OneHour,
+			"hour1",
+		},
+		{
+			"OneDay",
+			kline.OneDay,
+			"day1",
+		},
+		{
+			"OneWeek",
+			kline.OneWeek,
+			"week1",
+		},
+		{
+			"AllOther",
+			kline.FifteenDay,
+			"",
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+
+		t.Run(test.name, func(t *testing.T) {
+			ret := l.FormatExchangeKlineInterval(test.interval)
+
+			if ret != test.output {
+				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
+			}
+		})
+	}
 }

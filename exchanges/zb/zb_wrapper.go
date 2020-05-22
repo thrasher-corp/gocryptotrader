@@ -733,9 +733,9 @@ func (z *ZB) FormatExchangeKlineInterval(in kline.Interval) string {
 	case kline.ThreeDay:
 		return "3day"
 	case kline.OneWeek:
-		return in.Short()[:len(in.Short())-1] + "week"
+		return "1week"
 	}
-	return in.Short()
+	return ""
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
