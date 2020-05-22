@@ -369,13 +369,10 @@ func (o *OKGroup) GetSpotFilledOrdersInformation(request GetSpotFilledOrdersInfo
 
 // GetSpotMarketData Get the charts of the trading pairs. Charts are returned in grouped buckets based on requested granularity.
 func (o *OKGroup) GetSpotMarketData(request *GetSpotMarketDataRequest) (resp GetSpotMarketDataResponse, err error) {
-	if request.Asset == asset.Margin {
-		return nil, errors.New("margin data not supported")
-	}
 	requestURL := fmt.Sprintf("%v/%v/%v%v", OKGroupInstruments, request.InstrumentID, OKGroupGetSpotMarketData, FormatParameters(request))
 	var requestType string
 	switch request.Asset {
-	case asset.Spot:
+	case asset.Spot, asset.Margin:
 		requestType = okGroupTokenSubsection
 	case asset.Futures:
 		requestType = okGroupFuturesTradingSubSection
