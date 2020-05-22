@@ -15,14 +15,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = false
+	canManipulateRealOrders = true
 	spotPair                = "FTT/BTC"
 	futuresPair             = "LEO-0327"
 	testToken               = "ADAMOON"
@@ -308,7 +307,7 @@ func TestGetTriggerOrderTriggers(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetTriggerOrderTriggers("alkdjfkajdsf")
+	_, err := f.GetTriggerOrderTriggers("1031")
 	if err != nil {
 		t.Error(err)
 	}
@@ -360,7 +359,7 @@ func TestDeleteOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := f.DeleteOrder("testing123")
+	_, err := f.DeleteOrder("1031")
 	if err != nil {
 		t.Error(err)
 	}
@@ -382,7 +381,7 @@ func TestDeleteTriggerOrder(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := f.DeleteTriggerOrder("triggerOrder123")
+	_, err := f.DeleteTriggerOrder("1031")
 	if err != nil {
 		t.Error(err)
 	}
@@ -412,11 +411,7 @@ func TestGetFundingPayments(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetFundingPayments(time.Time{}, time.Time{}, "")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = f.GetFundingPayments(time.Unix(1559881511, 0), time.Unix(1559901511, 0), "")
+	_, err := f.GetFundingPayments(time.Unix(1559881511, 0), time.Unix(1559901511, 0), "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -530,7 +525,7 @@ func TestDeleteQuote(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.DeleteQuote("testing123")
+	_, err := f.DeleteQuote("1031")
 	if err != nil {
 		t.Error(err)
 	}
@@ -541,7 +536,7 @@ func TestGetQuotesForYourQuote(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.GetQuotesForYourQuote("testing123")
+	_, err := f.GetQuotesForYourQuote("1031")
 	if err != nil {
 		t.Error(err)
 	}
@@ -552,7 +547,7 @@ func TestMakeQuote(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.MakeQuote("testing123", "5")
+	_, err := f.MakeQuote("1031", "5")
 	if err != nil {
 		t.Error(err)
 	}
@@ -574,7 +569,7 @@ func TestDeleteMyQuote(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.DeleteMyQuote("testing123")
+	_, err := f.DeleteMyQuote("1031")
 	if err != nil {
 		t.Error(err)
 	}
@@ -585,7 +580,7 @@ func TestAcceptQuote(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.AcceptQuote("testing123")
+	_, err := f.AcceptQuote("1031")
 	if err != nil {
 		t.Error(err)
 	}
@@ -784,7 +779,7 @@ func TestGetOrderStatus(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := f.GetOrderStatus("testID")
+	_, err := f.GetOrderStatus("1031")
 	if err != nil {
 		t.Error(err)
 	}
@@ -812,23 +807,23 @@ func TestRequestLTRedemption(t *testing.T) {
 	}
 }
 
-func TestWithdrawCryptocurrencyFunds(t *testing.T) {
-	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
-	}
-	var request withdraw.Request
-	request.Amount = 5
-	request.Currency = currency.NewCode("FTT")
-	request.Crypto.Address = "testaddress123"
-	request.Crypto.AddressTag = "testtag123"
-	request.OneTimePassword = 123456
-	request.TradePassword = "incorrectTradePassword"
-	_, err := f.WithdrawCryptocurrencyFunds(&request)
-	if err != nil {
-		t.Error(err)
-	}
-}
+// func TestWithdrawCryptocurrencyFunds(t *testing.T) {
+// 	t.Parallel()
+// 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+// 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+// 	}
+// 	var request withdraw.Request
+// 	request.Amount = 5
+// 	request.Currency = currency.NewCode("FTT")
+// 	request.Crypto.Address = "testaddress123"
+// 	request.Crypto.AddressTag = "testtag123"
+// 	request.OneTimePassword = 123456
+// 	request.TradePassword = "incorrectTradePassword"
+// 	_, err := f.WithdrawCryptocurrencyFunds(&request)
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// }
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
@@ -971,6 +966,11 @@ func TestParsingWSOBData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	// data = []byte(`{"channel": "orderbook", "market": "BTC-PERP", "type": "update", "data": {"time": 1589855831.5128105, "checksum": 365946911, "bids": [[9596.0, 4.2656], [9512.0, 32.7912]], "asks": [[9613.5, 4.012], [9702.0, 0.021]], "action": "update"}}`)
+	// err = f.wsHandleData([]byte(data))
+	// if err != nil {
+	// 	t.Error(err)
+	// }
 }
 
 func TestGetOTCQuoteStatus(t *testing.T) {

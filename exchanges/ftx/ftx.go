@@ -68,7 +68,7 @@ const (
 	deleteOrderByClientID    = "/orders/by_client_id/"
 	cancelTriggerOrder       = "/conditional_orders/"
 	getFills                 = "/fills?"
-	getFundingPayments       = "/funding_payments"
+	getFundingPayments       = "/funding_payments?"
 	getLeveragedTokens       = "/lt/tokens"
 	getTokenInfo             = "/lt/"
 	getLTBalances            = "/lt/balances"
@@ -481,7 +481,7 @@ func (f *FTX) DeleteOrderByClientID(clientID string) (CancelOrderResponse, error
 // DeleteTriggerOrder deletes an order
 func (f *FTX) DeleteTriggerOrder(orderID string) (CancelOrderResponse, error) {
 	var resp CancelOrderResponse
-	return resp, f.SendAuthHTTPRequest(http.MethodGet, cancelTriggerOrder+orderID, nil, &resp)
+	return resp, f.SendAuthHTTPRequest(http.MethodDelete, cancelTriggerOrder+orderID, nil, &resp)
 }
 
 // GetFills gets fills' data
@@ -619,7 +619,7 @@ func (f *FTX) MakeQuote(requestID, price string) (QuoteForQuoteResponse, error) 
 	params := url.Values{}
 	params.Set("price", price)
 	var resp QuoteForQuoteResponse
-	return resp, f.SendAuthHTTPRequest(http.MethodGet, fmt.Sprintf(createQuote, requestID), nil, &resp)
+	return resp, f.SendAuthHTTPRequest(http.MethodPost, fmt.Sprintf(createQuote, requestID), nil, &resp)
 }
 
 // MyQuotes gets a list of my quotes for quotes
