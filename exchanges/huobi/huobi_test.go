@@ -115,7 +115,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = h.GetHistoricCandles(currencyPair, asset.Spot, startTime.AddDate(0,0,-7), time.Now(), kline.OneDay)
+	_, err = h.GetHistoricCandles(currencyPair, asset.Spot, startTime.AddDate(0, 0, -7), time.Now(), kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
