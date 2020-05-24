@@ -543,6 +543,23 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err == nil {
 		t.Fatal("unexpected result")
 	}
+
+	_, err = o.GetHistoricCandles(currencyPair, asset.Margin, startTime, time.Now(), kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
+	}
+
+	swapPair := currency.NewPairFromString("BTC-USD_SWAP")
+	_, err = o.GetHistoricCandles(swapPair, asset.PerpetualSwap, startTime, time.Now(), kline.OneDay)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	futuresPair := currency.NewPairFromString("LTC-USD_200529")
+	_, err = o.GetHistoricCandles(futuresPair, asset.Futures, startTime, time.Now(), kline.OneDay)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {

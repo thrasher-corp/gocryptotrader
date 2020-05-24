@@ -475,7 +475,7 @@ func (o *OKEX) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end t
 		tempCandle := kline.Candle{}
 		v, ok := t[0].(string)
 		if !ok {
-			return kline.Item{}, errors.New("unexpected value receved")
+			return kline.Item{}, errors.New("unexpected value received")
 		}
 		tempCandle.Time, err = time.Parse(time.RFC3339, v)
 		if err != nil {
