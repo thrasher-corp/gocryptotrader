@@ -485,6 +485,7 @@ func TestGetSpotFilledOrdersInformation(t *testing.T) {
 // TestGetSpotMarketData API endpoint test
 func TestGetSpotMarketData(t *testing.T) {
 	request := &okgroup.GetSpotMarketDataRequest{
+		Asset: asset.Spot,
 		InstrumentID: spotCurrency,
 		Granularity:  "604800",
 	}
@@ -1103,11 +1104,6 @@ func TestGetHistoricCandles(t *testing.T) {
 	_, err := o.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	_, err = o.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.Interval(time.Hour*7))
-	if err == nil {
-		t.Fatal("unexpected result")
 	}
 }
 
