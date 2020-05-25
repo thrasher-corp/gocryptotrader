@@ -46,9 +46,9 @@ func (p *Poloniex) WsConnect() error {
 		return err
 	}
 
-	err2 := p.getCurrencyIDMap()
-	if err2 != nil {
-		return err2
+	err = p.getCurrencyIDMap()
+	if err != nil {
+		return err
 	}
 
 	go p.wsReadData()
@@ -58,7 +58,6 @@ func (p *Poloniex) WsConnect() error {
 	}
 
 	p.Websocket.SubscribeToChannels(subs)
-
 	return nil
 }
 
@@ -90,10 +89,7 @@ func checkSubscriptionSuccess(data []interface{}) bool {
 // wsReadData handles data from the websocket connection
 func (p *Poloniex) wsReadData() {
 	p.Websocket.Wg.Add(1)
-
-	defer func() {
-		p.Websocket.Wg.Done()
-	}()
+	defer p.Websocket.Wg.Done()
 
 	for {
 		resp, err := p.Websocket.Conn.ReadMessage()
@@ -554,6 +550,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 
 // Subscribe sends a websocket message to receive data from the channel
 func (p *Poloniex) Subscribe(sub []stream.ChannelSubscription) error {
+channels:
 	for i := range sub {
 		subscriptionRequest := WsCommand{
 			Command: "subscribe",
@@ -565,12 +562,14 @@ func (p *Poloniex) Subscribe(sub []stream.ChannelSubscription) error {
 			if err != nil {
 				return err
 			}
+			continue channels
 		case strings.EqualFold(strconv.FormatInt(wsTickerDataID, 10),
 			sub[i].Channel):
 			subscriptionRequest.Channel = wsTickerDataID
 		default:
 			subscriptionRequest.Channel = sub[i].Currency.String()
 		}
+
 		err := p.Websocket.Conn.SendJSONMessage(subscriptionRequest)
 		if err != nil {
 			return err
@@ -581,6 +580,7 @@ func (p *Poloniex) Subscribe(sub []stream.ChannelSubscription) error {
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (p *Poloniex) Unsubscribe(unsub []stream.ChannelSubscription) error {
+channels:
 	for i := range unsub {
 		unsubscriptionRequest := WsCommand{
 			Command: "unsubscribe",
@@ -588,14 +588,21 @@ func (p *Poloniex) Unsubscribe(unsub []stream.ChannelSubscription) error {
 		switch {
 		case strings.EqualFold(strconv.FormatInt(wsAccountNotificationID, 10),
 			unsub[i].Channel):
-			return p.wsSendAuthorisedCommand("unsubscribe")
+			err := p.wsSendAuthorisedCommand("unsubscribe")
+			if err != nil {
+				return err
+			}
+			continue channels
 		case strings.EqualFold(strconv.FormatInt(wsTickerDataID, 10),
 			unsub[i].Channel):
 			unsubscriptionRequest.Channel = wsTickerDataID
 		default:
 			unsubscriptionRequest.Channel = unsub[i].Currency.String()
 		}
-		return p.Websocket.Conn.SendJSONMessage(unsubscriptionRequest)
+		err := p.Websocket.Conn.SendJSONMessage(unsubscriptionRequest)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
