@@ -66,9 +66,6 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 	}
 	w.channelUnsubscriber = setupData.UnSubscriber
 
-	// if setupData.GenerateSubscriptions == nil {
-	// 	return errors.New("channel GenerateSubscriptions is not set")
-	// }
 	w.channelGeneratesubs = setupData.GenerateSubscriptions
 
 	w.enabled = setupData.Enabled
@@ -192,7 +189,6 @@ func (w *Websocket) Connect() error {
 	if w.features.Subscribe ||
 		w.features.Unsubscribe ||
 		w.features.FullPayloadSubscribe {
-		fmt.Println("MANAGE SUBS!")
 		w.Wg.Add(1)
 		go w.manageSubscriptions()
 	}
@@ -229,7 +225,6 @@ func (w *Websocket) dataMonitor() {
 			select {
 			case <-w.DataHandler:
 			default:
-				fmt.Println("DATA MONITOR DONE")
 				w.Wg.Done()
 				return
 			}
@@ -260,7 +255,6 @@ func (w *Websocket) dataMonitor() {
 
 // connectionMonitor ensures that the WS keeps connecting
 func (w *Websocket) connectionMonitor() {
-	fmt.Println("connection monitor started")
 	if w.IsConnectionMonitorRunning() {
 		return
 	}
@@ -283,11 +277,11 @@ func (w *Websocket) connectionMonitor() {
 	}()
 
 	for {
-		// if w.verbose {
-		log.Debugf(log.WebsocketMgr,
-			"%v running connection monitor cycle",
-			w.exchangeName)
-		// }
+		if w.verbose {
+			log.Debugf(log.WebsocketMgr,
+				"%v running connection monitor cycle",
+				w.exchangeName)
+		}
 		if !w.IsEnabled() {
 			if w.verbose {
 				log.Debugf(log.WebsocketMgr,
@@ -315,11 +309,11 @@ func (w *Websocket) connectionMonitor() {
 				w.setConnectedStatus(false)
 				w.setConnectingStatus(false)
 				w.setInit(false)
-				// if w.verbose {
-				log.Debugf(log.WebsocketMgr,
-					"%v websocket has been disconnected. Reason: %v",
-					w.exchangeName, err)
-				// }
+				if w.verbose {
+					log.Debugf(log.WebsocketMgr,
+						"%v websocket has been disconnected. Reason: %v",
+						w.exchangeName, err)
+				}
 				err = w.Connect()
 				if err != nil {
 					log.Error(log.WebsocketMgr, err)
@@ -382,13 +376,8 @@ func (w *Websocket) Shutdown() error {
 			return err
 		}
 	}
-	fmt.Println("SHUTTING DOWNNNNN")
 	close(w.ShutdownC)
-	fmt.Println("SHUTTING DOWNNNNN: WAITING")
-	time.Sleep(time.Second)
-	fmt.Println(&w.Wg)
 	w.Wg.Wait()
-	fmt.Println("shutdown called")
 	w.setConnectedStatus(false)
 	w.setConnectingStatus(false)
 	if w.verbose {
@@ -401,7 +390,6 @@ func (w *Websocket) Shutdown() error {
 
 // RefreshConnection disconnects and reconnects websocket
 func (w *Websocket) RefreshConnection() error {
-	fmt.Println("refresh connection called")
 	if w.features.Subscribe {
 		fmt.Println("features subscribe enabled")
 		newsubs, err := w.channelGeneratesubs()
@@ -443,8 +431,6 @@ func (w *Websocket) RefreshConnection() error {
 		return nil
 	}
 
-	fmt.Println("feature subscribe and unsubscribe not enabled for exchange closing connection")
-
 	err := w.Shutdown()
 	if err != nil {
 		return err
@@ -478,11 +464,11 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-w.ShutdownC:
-			// if w.verbose {
-			log.Debugf(log.WebsocketMgr,
-				"%v trafficMonitor shutdown message received",
-				w.exchangeName)
-			// }
+			if w.verbose {
+				log.Debugf(log.WebsocketMgr,
+					"%v trafficMonitor shutdown message received",
+					w.exchangeName)
+			}
 			return
 		case <-w.TrafficAlert:
 			if !trafficTimer.Stop() {
@@ -494,12 +480,12 @@ func (w *Websocket) trafficMonitor(wg *sync.WaitGroup) {
 			w.setConnectedStatus(true)
 			trafficTimer.Reset(w.trafficTimeout)
 		case <-trafficTimer.C: // Falls through when timer runs out
-			// if w.verbose {
-			log.Warnf(log.WebsocketMgr,
-				"%v has not received a traffic alert in %v. Reconnecting",
-				w.exchangeName,
-				w.trafficTimeout)
-			// }
+			if w.verbose {
+				log.Warnf(log.WebsocketMgr,
+					"%v has not received a traffic alert in %v. Reconnecting",
+					w.exchangeName,
+					w.trafficTimeout)
+			}
 			go w.Shutdown()
 		}
 	}
@@ -875,7 +861,6 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 	var conStatus *http.Response
 	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)
 	if err != nil {
-		fmt.Println("NOT CONNECTED")
 		if conStatus != nil {
 			return fmt.Errorf("%v %v %v Error: %v",
 				w.URL,
@@ -955,16 +940,13 @@ func (w *WebsocketConnection) SetupPingHandler(handler PingHandler) {
 	w.Wg.Add(1)
 	defer w.Wg.Done()
 	go func() {
-		fmt.Println("PING HANDLER SETUP")
 		ticker := time.NewTicker(handler.Delay)
 		for {
 			select {
 			case <-w.ShutdownC:
-				fmt.Println("PING HANDLER STOP")
 				ticker.Stop()
 				return
 			case <-ticker.C:
-				fmt.Println("PING HANDLER EXECUTING")
 				err := w.SendRawMessage(handler.MessageType, handler.Message)
 				if err != nil {
 					log.Errorf(log.WebsocketMgr,
@@ -979,9 +961,6 @@ func (w *WebsocketConnection) SetupPingHandler(handler PingHandler) {
 }
 
 func (w *WebsocketConnection) setConnectedStatus(b bool) {
-	if !b {
-		fmt.Println("WOWOWOWOWOWOWOWO")
-	}
 	w.connectionMutex.Lock()
 	w.connected = b
 	w.connectionMutex.Unlock()
@@ -999,7 +978,6 @@ func (w *WebsocketConnection) ReadMessage() (Response, error) {
 	mType, resp, err := w.Connection.ReadMessage()
 	if err != nil {
 		if isDisconnectionError(err) {
-			fmt.Println("connection false")
 			w.setConnectedStatus(false)
 			w.readMessageErrors <- err
 		}
