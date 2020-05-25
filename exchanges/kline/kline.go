@@ -242,8 +242,6 @@ func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out uint3
 		out = uint32(end.Sub(start).Hours()) / (24 * 7)
 	case TwoWeek:
 		out = uint32(end.Sub(start).Hours() / (24 * 14))
-	case OneMonth:
-		// out = uint32(end.Sub(start).Minutes / (24*))
 	case OneYear:
 		out = uint32(end.Sub(start).Hours() / 8760)
 	}

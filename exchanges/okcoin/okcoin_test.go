@@ -1108,7 +1108,6 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	o.Verbose = true
 	currencyPair := currency.NewPairFromString("BTCUSDT")
 	startTime := time.Unix(1588636800, 0)
 	_, err := o.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
