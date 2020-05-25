@@ -21,24 +21,24 @@ var (
 	_ = queries.Equal
 )
 
-func testExchanges(t *testing.T) {
+func testGCTTests(t *testing.T) {
 	t.Parallel()
 
-	query := Exchanges()
+	query := GCTTests()
 
 	if query.Query == nil {
 		t.Error("expected a query, got nothing")
 	}
 }
 
-func testExchangesDelete(t *testing.T) {
+func testGCTTestsDelete(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Exchange{}
-	if err = randomize.Struct(seed, o, exchangeDBTypes, true, exchangeColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	o := &GCTTest{}
+	if err = randomize.Struct(seed, o, gctTestDBTypes, true, gctTestColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize GCTTest struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -54,7 +54,7 @@ func testExchangesDelete(t *testing.T) {
 		t.Error("should only have deleted one row, but affected:", rowsAff)
 	}
 
-	count, err := Exchanges().Count(ctx, tx)
+	count, err := GCTTests().Count(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -64,14 +64,14 @@ func testExchangesDelete(t *testing.T) {
 	}
 }
 
-func testExchangesQueryDeleteAll(t *testing.T) {
+func testGCTTestsQueryDeleteAll(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Exchange{}
-	if err = randomize.Struct(seed, o, exchangeDBTypes, true, exchangeColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	o := &GCTTest{}
+	if err = randomize.Struct(seed, o, gctTestDBTypes, true, gctTestColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize GCTTest struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -81,13 +81,13 @@ func testExchangesQueryDeleteAll(t *testing.T) {
 		t.Error(err)
 	}
 
-	if rowsAff, err := Exchanges().DeleteAll(ctx, tx); err != nil {
+	if rowsAff, err := GCTTests().DeleteAll(ctx, tx); err != nil {
 		t.Error(err)
 	} else if rowsAff != 1 {
 		t.Error("should only have deleted one row, but affected:", rowsAff)
 	}
 
-	count, err := Exchanges().Count(ctx, tx)
+	count, err := GCTTests().Count(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -97,14 +97,14 @@ func testExchangesQueryDeleteAll(t *testing.T) {
 	}
 }
 
-func testExchangesSliceDeleteAll(t *testing.T) {
+func testGCTTestsSliceDeleteAll(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Exchange{}
-	if err = randomize.Struct(seed, o, exchangeDBTypes, true, exchangeColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	o := &GCTTest{}
+	if err = randomize.Struct(seed, o, gctTestDBTypes, true, gctTestColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize GCTTest struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -114,7 +114,7 @@ func testExchangesSliceDeleteAll(t *testing.T) {
 		t.Error(err)
 	}
 
-	slice := ExchangeSlice{o}
+	slice := GCTTestSlice{o}
 
 	if rowsAff, err := slice.DeleteAll(ctx, tx); err != nil {
 		t.Error(err)
@@ -122,7 +122,7 @@ func testExchangesSliceDeleteAll(t *testing.T) {
 		t.Error("should only have deleted one row, but affected:", rowsAff)
 	}
 
-	count, err := Exchanges().Count(ctx, tx)
+	count, err := GCTTests().Count(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -132,14 +132,14 @@ func testExchangesSliceDeleteAll(t *testing.T) {
 	}
 }
 
-func testExchangesExists(t *testing.T) {
+func testGCTTestsExists(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Exchange{}
-	if err = randomize.Struct(seed, o, exchangeDBTypes, true, exchangeColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	o := &GCTTest{}
+	if err = randomize.Struct(seed, o, gctTestDBTypes, true, gctTestColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize GCTTest struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -149,23 +149,23 @@ func testExchangesExists(t *testing.T) {
 		t.Error(err)
 	}
 
-	e, err := ExchangeExists(ctx, tx, o.ID)
+	e, err := GCTTestExists(ctx, tx, o.ID)
 	if err != nil {
-		t.Errorf("Unable to check if Exchange exists: %s", err)
+		t.Errorf("Unable to check if GCTTest exists: %s", err)
 	}
 	if !e {
-		t.Errorf("Expected ExchangeExists to return true, but got false.")
+		t.Errorf("Expected GCTTestExists to return true, but got false.")
 	}
 }
 
-func testExchangesFind(t *testing.T) {
+func testGCTTestsFind(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Exchange{}
-	if err = randomize.Struct(seed, o, exchangeDBTypes, true, exchangeColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	o := &GCTTest{}
+	if err = randomize.Struct(seed, o, gctTestDBTypes, true, gctTestColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize GCTTest struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -175,24 +175,24 @@ func testExchangesFind(t *testing.T) {
 		t.Error(err)
 	}
 
-	exchangeFound, err := FindExchange(ctx, tx, o.ID)
+	gctTestFound, err := FindGCTTest(ctx, tx, o.ID)
 	if err != nil {
 		t.Error(err)
 	}
 
-	if exchangeFound == nil {
+	if gctTestFound == nil {
 		t.Error("want a record, got nil")
 	}
 }
 
-func testExchangesBind(t *testing.T) {
+func testGCTTestsBind(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Exchange{}
-	if err = randomize.Struct(seed, o, exchangeDBTypes, true, exchangeColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	o := &GCTTest{}
+	if err = randomize.Struct(seed, o, gctTestDBTypes, true, gctTestColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize GCTTest struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -202,19 +202,19 @@ func testExchangesBind(t *testing.T) {
 		t.Error(err)
 	}
 
-	if err = Exchanges().Bind(ctx, tx, o); err != nil {
+	if err = GCTTests().Bind(ctx, tx, o); err != nil {
 		t.Error(err)
 	}
 }
 
-func testExchangesOne(t *testing.T) {
+func testGCTTestsOne(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Exchange{}
-	if err = randomize.Struct(seed, o, exchangeDBTypes, true, exchangeColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	o := &GCTTest{}
+	if err = randomize.Struct(seed, o, gctTestDBTypes, true, gctTestColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize GCTTest struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -224,38 +224,38 @@ func testExchangesOne(t *testing.T) {
 		t.Error(err)
 	}
 
-	if x, err := Exchanges().One(ctx, tx); err != nil {
+	if x, err := GCTTests().One(ctx, tx); err != nil {
 		t.Error(err)
 	} else if x == nil {
 		t.Error("expected to get a non nil record")
 	}
 }
 
-func testExchangesAll(t *testing.T) {
+func testGCTTestsAll(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	exchangeOne := &Exchange{}
-	exchangeTwo := &Exchange{}
-	if err = randomize.Struct(seed, exchangeOne, exchangeDBTypes, false, exchangeColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	gctTestOne := &GCTTest{}
+	gctTestTwo := &GCTTest{}
+	if err = randomize.Struct(seed, gctTestOne, gctTestDBTypes, false, gctTestColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize GCTTest struct: %s", err)
 	}
-	if err = randomize.Struct(seed, exchangeTwo, exchangeDBTypes, false, exchangeColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	if err = randomize.Struct(seed, gctTestTwo, gctTestDBTypes, false, gctTestColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize GCTTest struct: %s", err)
 	}
 
 	ctx := context.Background()
 	tx := MustTx(boil.BeginTx(ctx, nil))
 	defer func() { _ = tx.Rollback() }()
-	if err = exchangeOne.Insert(ctx, tx, boil.Infer()); err != nil {
+	if err = gctTestOne.Insert(ctx, tx, boil.Infer()); err != nil {
 		t.Error(err)
 	}
-	if err = exchangeTwo.Insert(ctx, tx, boil.Infer()); err != nil {
+	if err = gctTestTwo.Insert(ctx, tx, boil.Infer()); err != nil {
 		t.Error(err)
 	}
 
-	slice, err := Exchanges().All(ctx, tx)
+	slice, err := GCTTests().All(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -265,31 +265,31 @@ func testExchangesAll(t *testing.T) {
 	}
 }
 
-func testExchangesCount(t *testing.T) {
+func testGCTTestsCount(t *testing.T) {
 	t.Parallel()
 
 	var err error
 	seed := randomize.NewSeed()
-	exchangeOne := &Exchange{}
-	exchangeTwo := &Exchange{}
-	if err = randomize.Struct(seed, exchangeOne, exchangeDBTypes, false, exchangeColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	gctTestOne := &GCTTest{}
+	gctTestTwo := &GCTTest{}
+	if err = randomize.Struct(seed, gctTestOne, gctTestDBTypes, false, gctTestColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize GCTTest struct: %s", err)
 	}
-	if err = randomize.Struct(seed, exchangeTwo, exchangeDBTypes, false, exchangeColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	if err = randomize.Struct(seed, gctTestTwo, gctTestDBTypes, false, gctTestColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize GCTTest struct: %s", err)
 	}
 
 	ctx := context.Background()
 	tx := MustTx(boil.BeginTx(ctx, nil))
 	defer func() { _ = tx.Rollback() }()
-	if err = exchangeOne.Insert(ctx, tx, boil.Infer()); err != nil {
+	if err = gctTestOne.Insert(ctx, tx, boil.Infer()); err != nil {
 		t.Error(err)
 	}
-	if err = exchangeTwo.Insert(ctx, tx, boil.Infer()); err != nil {
+	if err = gctTestTwo.Insert(ctx, tx, boil.Infer()); err != nil {
 		t.Error(err)
 	}
 
-	count, err := Exchanges().Count(ctx, tx)
+	count, err := GCTTests().Count(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -299,155 +299,155 @@ func testExchangesCount(t *testing.T) {
 	}
 }
 
-func exchangeBeforeInsertHook(ctx context.Context, e boil.ContextExecutor, o *Exchange) error {
-	*o = Exchange{}
+func gctTestBeforeInsertHook(ctx context.Context, e boil.ContextExecutor, o *GCTTest) error {
+	*o = GCTTest{}
 	return nil
 }
 
-func exchangeAfterInsertHook(ctx context.Context, e boil.ContextExecutor, o *Exchange) error {
-	*o = Exchange{}
+func gctTestAfterInsertHook(ctx context.Context, e boil.ContextExecutor, o *GCTTest) error {
+	*o = GCTTest{}
 	return nil
 }
 
-func exchangeAfterSelectHook(ctx context.Context, e boil.ContextExecutor, o *Exchange) error {
-	*o = Exchange{}
+func gctTestAfterSelectHook(ctx context.Context, e boil.ContextExecutor, o *GCTTest) error {
+	*o = GCTTest{}
 	return nil
 }
 
-func exchangeBeforeUpdateHook(ctx context.Context, e boil.ContextExecutor, o *Exchange) error {
-	*o = Exchange{}
+func gctTestBeforeUpdateHook(ctx context.Context, e boil.ContextExecutor, o *GCTTest) error {
+	*o = GCTTest{}
 	return nil
 }
 
-func exchangeAfterUpdateHook(ctx context.Context, e boil.ContextExecutor, o *Exchange) error {
-	*o = Exchange{}
+func gctTestAfterUpdateHook(ctx context.Context, e boil.ContextExecutor, o *GCTTest) error {
+	*o = GCTTest{}
 	return nil
 }
 
-func exchangeBeforeDeleteHook(ctx context.Context, e boil.ContextExecutor, o *Exchange) error {
-	*o = Exchange{}
+func gctTestBeforeDeleteHook(ctx context.Context, e boil.ContextExecutor, o *GCTTest) error {
+	*o = GCTTest{}
 	return nil
 }
 
-func exchangeAfterDeleteHook(ctx context.Context, e boil.ContextExecutor, o *Exchange) error {
-	*o = Exchange{}
+func gctTestAfterDeleteHook(ctx context.Context, e boil.ContextExecutor, o *GCTTest) error {
+	*o = GCTTest{}
 	return nil
 }
 
-func exchangeBeforeUpsertHook(ctx context.Context, e boil.ContextExecutor, o *Exchange) error {
-	*o = Exchange{}
+func gctTestBeforeUpsertHook(ctx context.Context, e boil.ContextExecutor, o *GCTTest) error {
+	*o = GCTTest{}
 	return nil
 }
 
-func exchangeAfterUpsertHook(ctx context.Context, e boil.ContextExecutor, o *Exchange) error {
-	*o = Exchange{}
+func gctTestAfterUpsertHook(ctx context.Context, e boil.ContextExecutor, o *GCTTest) error {
+	*o = GCTTest{}
 	return nil
 }
 
-func testExchangesHooks(t *testing.T) {
+func testGCTTestsHooks(t *testing.T) {
 	t.Parallel()
 
 	var err error
 
 	ctx := context.Background()
-	empty := &Exchange{}
-	o := &Exchange{}
+	empty := &GCTTest{}
+	o := &GCTTest{}
 
 	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, o, exchangeDBTypes, false); err != nil {
-		t.Errorf("Unable to randomize Exchange object: %s", err)
+	if err = randomize.Struct(seed, o, gctTestDBTypes, false); err != nil {
+		t.Errorf("Unable to randomize GCTTest object: %s", err)
 	}
 
-	AddExchangeHook(boil.BeforeInsertHook, exchangeBeforeInsertHook)
+	AddGCTTestHook(boil.BeforeInsertHook, gctTestBeforeInsertHook)
 	if err = o.doBeforeInsertHooks(ctx, nil); err != nil {
 		t.Errorf("Unable to execute doBeforeInsertHooks: %s", err)
 	}
 	if !reflect.DeepEqual(o, empty) {
 		t.Errorf("Expected BeforeInsertHook function to empty object, but got: %#v", o)
 	}
-	exchangeBeforeInsertHooks = []ExchangeHook{}
+	gctTestBeforeInsertHooks = []GCTTestHook{}
 
-	AddExchangeHook(boil.AfterInsertHook, exchangeAfterInsertHook)
+	AddGCTTestHook(boil.AfterInsertHook, gctTestAfterInsertHook)
 	if err = o.doAfterInsertHooks(ctx, nil); err != nil {
 		t.Errorf("Unable to execute doAfterInsertHooks: %s", err)
 	}
 	if !reflect.DeepEqual(o, empty) {
 		t.Errorf("Expected AfterInsertHook function to empty object, but got: %#v", o)
 	}
-	exchangeAfterInsertHooks = []ExchangeHook{}
+	gctTestAfterInsertHooks = []GCTTestHook{}
 
-	AddExchangeHook(boil.AfterSelectHook, exchangeAfterSelectHook)
+	AddGCTTestHook(boil.AfterSelectHook, gctTestAfterSelectHook)
 	if err = o.doAfterSelectHooks(ctx, nil); err != nil {
 		t.Errorf("Unable to execute doAfterSelectHooks: %s", err)
 	}
 	if !reflect.DeepEqual(o, empty) {
 		t.Errorf("Expected AfterSelectHook function to empty object, but got: %#v", o)
 	}
-	exchangeAfterSelectHooks = []ExchangeHook{}
+	gctTestAfterSelectHooks = []GCTTestHook{}
 
-	AddExchangeHook(boil.BeforeUpdateHook, exchangeBeforeUpdateHook)
+	AddGCTTestHook(boil.BeforeUpdateHook, gctTestBeforeUpdateHook)
 	if err = o.doBeforeUpdateHooks(ctx, nil); err != nil {
 		t.Errorf("Unable to execute doBeforeUpdateHooks: %s", err)
 	}
 	if !reflect.DeepEqual(o, empty) {
 		t.Errorf("Expected BeforeUpdateHook function to empty object, but got: %#v", o)
 	}
-	exchangeBeforeUpdateHooks = []ExchangeHook{}
+	gctTestBeforeUpdateHooks = []GCTTestHook{}
 
-	AddExchangeHook(boil.AfterUpdateHook, exchangeAfterUpdateHook)
+	AddGCTTestHook(boil.AfterUpdateHook, gctTestAfterUpdateHook)
 	if err = o.doAfterUpdateHooks(ctx, nil); err != nil {
 		t.Errorf("Unable to execute doAfterUpdateHooks: %s", err)
 	}
 	if !reflect.DeepEqual(o, empty) {
 		t.Errorf("Expected AfterUpdateHook function to empty object, but got: %#v", o)
 	}
-	exchangeAfterUpdateHooks = []ExchangeHook{}
+	gctTestAfterUpdateHooks = []GCTTestHook{}
 
-	AddExchangeHook(boil.BeforeDeleteHook, exchangeBeforeDeleteHook)
+	AddGCTTestHook(boil.BeforeDeleteHook, gctTestBeforeDeleteHook)
 	if err = o.doBeforeDeleteHooks(ctx, nil); err != nil {
 		t.Errorf("Unable to execute doBeforeDeleteHooks: %s", err)
 	}
 	if !reflect.DeepEqual(o, empty) {
 		t.Errorf("Expected BeforeDeleteHook function to empty object, but got: %#v", o)
 	}
-	exchangeBeforeDeleteHooks = []ExchangeHook{}
+	gctTestBeforeDeleteHooks = []GCTTestHook{}
 
-	AddExchangeHook(boil.AfterDeleteHook, exchangeAfterDeleteHook)
+	AddGCTTestHook(boil.AfterDeleteHook, gctTestAfterDeleteHook)
 	if err = o.doAfterDeleteHooks(ctx, nil); err != nil {
 		t.Errorf("Unable to execute doAfterDeleteHooks: %s", err)
 	}
 	if !reflect.DeepEqual(o, empty) {
 		t.Errorf("Expected AfterDeleteHook function to empty object, but got: %#v", o)
 	}
-	exchangeAfterDeleteHooks = []ExchangeHook{}
+	gctTestAfterDeleteHooks = []GCTTestHook{}
 
-	AddExchangeHook(boil.BeforeUpsertHook, exchangeBeforeUpsertHook)
+	AddGCTTestHook(boil.BeforeUpsertHook, gctTestBeforeUpsertHook)
 	if err = o.doBeforeUpsertHooks(ctx, nil); err != nil {
 		t.Errorf("Unable to execute doBeforeUpsertHooks: %s", err)
 	}
 	if !reflect.DeepEqual(o, empty) {
 		t.Errorf("Expected BeforeUpsertHook function to empty object, but got: %#v", o)
 	}
-	exchangeBeforeUpsertHooks = []ExchangeHook{}
+	gctTestBeforeUpsertHooks = []GCTTestHook{}
 
-	AddExchangeHook(boil.AfterUpsertHook, exchangeAfterUpsertHook)
+	AddGCTTestHook(boil.AfterUpsertHook, gctTestAfterUpsertHook)
 	if err = o.doAfterUpsertHooks(ctx, nil); err != nil {
 		t.Errorf("Unable to execute doAfterUpsertHooks: %s", err)
 	}
 	if !reflect.DeepEqual(o, empty) {
 		t.Errorf("Expected AfterUpsertHook function to empty object, but got: %#v", o)
 	}
-	exchangeAfterUpsertHooks = []ExchangeHook{}
+	gctTestAfterUpsertHooks = []GCTTestHook{}
 }
 
-func testExchangesInsert(t *testing.T) {
+func testGCTTestsInsert(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Exchange{}
-	if err = randomize.Struct(seed, o, exchangeDBTypes, true, exchangeColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	o := &GCTTest{}
+	if err = randomize.Struct(seed, o, gctTestDBTypes, true, gctTestColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize GCTTest struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -457,7 +457,7 @@ func testExchangesInsert(t *testing.T) {
 		t.Error(err)
 	}
 
-	count, err := Exchanges().Count(ctx, tx)
+	count, err := GCTTests().Count(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -467,24 +467,24 @@ func testExchangesInsert(t *testing.T) {
 	}
 }
 
-func testExchangesInsertWhitelist(t *testing.T) {
+func testGCTTestsInsertWhitelist(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Exchange{}
-	if err = randomize.Struct(seed, o, exchangeDBTypes, true); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	o := &GCTTest{}
+	if err = randomize.Struct(seed, o, gctTestDBTypes, true); err != nil {
+		t.Errorf("Unable to randomize GCTTest struct: %s", err)
 	}
 
 	ctx := context.Background()
 	tx := MustTx(boil.BeginTx(ctx, nil))
 	defer func() { _ = tx.Rollback() }()
-	if err = o.Insert(ctx, tx, boil.Whitelist(exchangeColumnsWithoutDefault...)); err != nil {
+	if err = o.Insert(ctx, tx, boil.Whitelist(gctTestColumnsWithoutDefault...)); err != nil {
 		t.Error(err)
 	}
 
-	count, err := Exchanges().Count(ctx, tx)
+	count, err := GCTTests().Count(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -494,14 +494,14 @@ func testExchangesInsertWhitelist(t *testing.T) {
 	}
 }
 
-func testExchangesReload(t *testing.T) {
+func testGCTTestsReload(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Exchange{}
-	if err = randomize.Struct(seed, o, exchangeDBTypes, true, exchangeColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	o := &GCTTest{}
+	if err = randomize.Struct(seed, o, gctTestDBTypes, true, gctTestColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize GCTTest struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -516,14 +516,14 @@ func testExchangesReload(t *testing.T) {
 	}
 }
 
-func testExchangesReloadAll(t *testing.T) {
+func testGCTTestsReloadAll(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Exchange{}
-	if err = randomize.Struct(seed, o, exchangeDBTypes, true, exchangeColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	o := &GCTTest{}
+	if err = randomize.Struct(seed, o, gctTestDBTypes, true, gctTestColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize GCTTest struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -533,21 +533,21 @@ func testExchangesReloadAll(t *testing.T) {
 		t.Error(err)
 	}
 
-	slice := ExchangeSlice{o}
+	slice := GCTTestSlice{o}
 
 	if err = slice.ReloadAll(ctx, tx); err != nil {
 		t.Error(err)
 	}
 }
 
-func testExchangesSelect(t *testing.T) {
+func testGCTTestsSelect(t *testing.T) {
 	t.Parallel()
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Exchange{}
-	if err = randomize.Struct(seed, o, exchangeDBTypes, true, exchangeColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	o := &GCTTest{}
+	if err = randomize.Struct(seed, o, gctTestDBTypes, true, gctTestColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize GCTTest struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -557,7 +557,7 @@ func testExchangesSelect(t *testing.T) {
 		t.Error(err)
 	}
 
-	slice, err := Exchanges().All(ctx, tx)
+	slice, err := GCTTests().All(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -568,25 +568,25 @@ func testExchangesSelect(t *testing.T) {
 }
 
 var (
-	exchangeDBTypes = map[string]string{`ID`: `uuid`, `Name`: `character varying`}
-	_               = bytes.MinRead
+	gctTestDBTypes = map[string]string{`ID`: `integer`}
+	_              = bytes.MinRead
 )
 
-func testExchangesUpdate(t *testing.T) {
+func testGCTTestsUpdate(t *testing.T) {
 	t.Parallel()
 
-	if 0 == len(exchangePrimaryKeyColumns) {
+	if 0 == len(gctTestPrimaryKeyColumns) {
 		t.Skip("Skipping table with no primary key columns")
 	}
-	if len(exchangeAllColumns) == len(exchangePrimaryKeyColumns) {
+	if len(gctTestAllColumns) == len(gctTestPrimaryKeyColumns) {
 		t.Skip("Skipping table with only primary key columns")
 	}
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Exchange{}
-	if err = randomize.Struct(seed, o, exchangeDBTypes, true, exchangeColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	o := &GCTTest{}
+	if err = randomize.Struct(seed, o, gctTestDBTypes, true, gctTestColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize GCTTest struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -596,7 +596,7 @@ func testExchangesUpdate(t *testing.T) {
 		t.Error(err)
 	}
 
-	count, err := Exchanges().Count(ctx, tx)
+	count, err := GCTTests().Count(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -605,8 +605,8 @@ func testExchangesUpdate(t *testing.T) {
 		t.Error("want one record, got:", count)
 	}
 
-	if err = randomize.Struct(seed, o, exchangeDBTypes, true, exchangePrimaryKeyColumns...); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	if err = randomize.Struct(seed, o, gctTestDBTypes, true, gctTestPrimaryKeyColumns...); err != nil {
+		t.Errorf("Unable to randomize GCTTest struct: %s", err)
 	}
 
 	if rowsAff, err := o.Update(ctx, tx, boil.Infer()); err != nil {
@@ -616,18 +616,18 @@ func testExchangesUpdate(t *testing.T) {
 	}
 }
 
-func testExchangesSliceUpdateAll(t *testing.T) {
+func testGCTTestsSliceUpdateAll(t *testing.T) {
 	t.Parallel()
 
-	if len(exchangeAllColumns) == len(exchangePrimaryKeyColumns) {
+	if len(gctTestAllColumns) == len(gctTestPrimaryKeyColumns) {
 		t.Skip("Skipping table with only primary key columns")
 	}
 
 	seed := randomize.NewSeed()
 	var err error
-	o := &Exchange{}
-	if err = randomize.Struct(seed, o, exchangeDBTypes, true, exchangeColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	o := &GCTTest{}
+	if err = randomize.Struct(seed, o, gctTestDBTypes, true, gctTestColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize GCTTest struct: %s", err)
 	}
 
 	ctx := context.Background()
@@ -637,7 +637,7 @@ func testExchangesSliceUpdateAll(t *testing.T) {
 		t.Error(err)
 	}
 
-	count, err := Exchanges().Count(ctx, tx)
+	count, err := GCTTests().Count(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -646,18 +646,18 @@ func testExchangesSliceUpdateAll(t *testing.T) {
 		t.Error("want one record, got:", count)
 	}
 
-	if err = randomize.Struct(seed, o, exchangeDBTypes, true, exchangePrimaryKeyColumns...); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	if err = randomize.Struct(seed, o, gctTestDBTypes, true, gctTestPrimaryKeyColumns...); err != nil {
+		t.Errorf("Unable to randomize GCTTest struct: %s", err)
 	}
 
 	// Remove Primary keys and unique columns from what we plan to update
 	var fields []string
-	if strmangle.StringSliceMatch(exchangeAllColumns, exchangePrimaryKeyColumns) {
-		fields = exchangeAllColumns
+	if strmangle.StringSliceMatch(gctTestAllColumns, gctTestPrimaryKeyColumns) {
+		fields = gctTestAllColumns
 	} else {
 		fields = strmangle.SetComplement(
-			exchangeAllColumns,
-			exchangePrimaryKeyColumns,
+			gctTestAllColumns,
+			gctTestPrimaryKeyColumns,
 		)
 	}
 
@@ -675,7 +675,7 @@ func testExchangesSliceUpdateAll(t *testing.T) {
 		}
 	}
 
-	slice := ExchangeSlice{o}
+	slice := GCTTestSlice{o}
 	if rowsAff, err := slice.UpdateAll(ctx, tx, updateMap); err != nil {
 		t.Error(err)
 	} else if rowsAff != 1 {
@@ -683,29 +683,29 @@ func testExchangesSliceUpdateAll(t *testing.T) {
 	}
 }
 
-func testExchangesUpsert(t *testing.T) {
+func testGCTTestsUpsert(t *testing.T) {
 	t.Parallel()
 
-	if len(exchangeAllColumns) == len(exchangePrimaryKeyColumns) {
+	if len(gctTestAllColumns) == len(gctTestPrimaryKeyColumns) {
 		t.Skip("Skipping table with only primary key columns")
 	}
 
 	seed := randomize.NewSeed()
 	var err error
 	// Attempt the INSERT side of an UPSERT
-	o := Exchange{}
-	if err = randomize.Struct(seed, &o, exchangeDBTypes, true); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	o := GCTTest{}
+	if err = randomize.Struct(seed, &o, gctTestDBTypes, true); err != nil {
+		t.Errorf("Unable to randomize GCTTest struct: %s", err)
 	}
 
 	ctx := context.Background()
 	tx := MustTx(boil.BeginTx(ctx, nil))
 	defer func() { _ = tx.Rollback() }()
 	if err = o.Upsert(ctx, tx, false, nil, boil.Infer(), boil.Infer()); err != nil {
-		t.Errorf("Unable to upsert Exchange: %s", err)
+		t.Errorf("Unable to upsert GCTTest: %s", err)
 	}
 
-	count, err := Exchanges().Count(ctx, tx)
+	count, err := GCTTests().Count(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -714,15 +714,15 @@ func testExchangesUpsert(t *testing.T) {
 	}
 
 	// Attempt the UPDATE side of an UPSERT
-	if err = randomize.Struct(seed, &o, exchangeDBTypes, false, exchangePrimaryKeyColumns...); err != nil {
-		t.Errorf("Unable to randomize Exchange struct: %s", err)
+	if err = randomize.Struct(seed, &o, gctTestDBTypes, false, gctTestPrimaryKeyColumns...); err != nil {
+		t.Errorf("Unable to randomize GCTTest struct: %s", err)
 	}
 
 	if err = o.Upsert(ctx, tx, true, nil, boil.Infer(), boil.Infer()); err != nil {
-		t.Errorf("Unable to upsert Exchange: %s", err)
+		t.Errorf("Unable to upsert GCTTest: %s", err)
 	}
 
-	count, err = Exchanges().Count(ctx, tx)
+	count, err = GCTTests().Count(ctx, tx)
 	if err != nil {
 		t.Error(err)
 	}

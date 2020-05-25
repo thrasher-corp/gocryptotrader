@@ -5,8 +5,8 @@ package postgres
 
 var TableNames = struct {
 	AuditEvent        string
-	Candle            string
 	Exchange          string
+	GCTTest           string
 	Script            string
 	ScriptExecution   string
 	WithdrawalCrypto  string
@@ -14,8 +14,8 @@ var TableNames = struct {
 	WithdrawalHistory string
 }{
 	AuditEvent:        "audit_event",
-	Candle:            "candle",
 	Exchange:          "exchange",
+	GCTTest:           "gct_test",
 	Script:            "script",
 	ScriptExecution:   "script_execution",
 	WithdrawalCrypto:  "withdrawal_crypto",

@@ -8,9 +8,9 @@ import "testing"
 func TestUpsert(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsUpsert)
 
-	t.Run("Candles", testCandlesUpsert)
-
 	t.Run("Exchanges", testExchangesUpsert)
+
+	t.Run("GCTTests", testGCTTestsUpsert)
 
 	t.Run("Scripts", testScriptsUpsert)
 
