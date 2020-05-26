@@ -1227,7 +1227,6 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	b.Verbose = true
 	currencyPair := currency.NewPairFromString("tTRXETH")
 	startTime := time.Now().Add(-time.Hour * 24)
 	_, err := b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)

@@ -79,7 +79,6 @@ func TestGetAssets(t *testing.T) {
 // TestGetAssetPairs API endpoint test
 func TestGetAssetPairs(t *testing.T) {
 	t.Parallel()
-	k.Verbose = true
 	_, err := k.GetAssetPairs()
 	if err != nil {
 		t.Error("GetAssetPairs() error", err)
