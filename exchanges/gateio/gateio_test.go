@@ -746,7 +746,6 @@ func TestWsBalanceUpdate(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	g.Verbose = true
 	currencyPair := currency.NewPairFromString("BTC_USDT")
 	startTime := time.Now().Add(-time.Hour * 6)
 	_, err := g.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
