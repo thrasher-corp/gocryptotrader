@@ -112,12 +112,14 @@ func (f *FTX) GenerateDefaultSubscriptions() {
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	for a := range f.CurrencyPairs.AssetTypes {
 		pairs := f.GetEnabledPairs(f.CurrencyPairs.AssetTypes[a])
-		newPair := currency.NewPairWithDelimiter(pairs[0].Base.String(), pairs[0].Quote.String(), "-")
-		for x := range channels {
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
-				Channel:  channels[x],
-				Currency: newPair,
-			})
+		for z := range pairs {
+			newPair := currency.NewPairWithDelimiter(pairs[z].Base.String(), pairs[z].Quote.String(), "-")
+			for x := range channels {
+				subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+					Channel:  channels[x],
+					Currency: newPair,
+				})
+			}
 		}
 	}
 	f.Websocket.SubscribeToChannels(subscriptions)

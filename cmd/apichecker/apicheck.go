@@ -1635,9 +1635,7 @@ loop:
 			respString += data[c+1]
 		}
 	}
-	var resp []string
-	resp = append(resp, respString)
-	return resp, nil
+	return []string{respString}, nil
 }
 
 // htmlScrapeBitfinex gets the check string for Bitfinex exchange

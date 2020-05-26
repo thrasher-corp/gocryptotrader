@@ -472,11 +472,28 @@ func (f *FTX) GetTriggerOrderHistory(marketName string, startTime, endTime time.
 	params := url.Values{}
 	if marketName != "" {
 		params.Set("market", marketName)
+	}// GenerateDefaultSubscriptions generates default subscription
+func (f *FTX) GenerateDefaultSubscriptions() {
+	var channels = []string{wsTicker, wsTrades, wsOrderbook, wsMarkets, wsFills, wsOrders}
+	var subscriptions []wshandler.WebsocketChannelSubscription
+	for a := range f.CurrencyPairs.AssetTypes {
+		pairs := f.GetEnabledPairs(f.CurrencyPairs.AssetTypes[a])
+		for z := range pairs {
+			newPair := currency.NewPairWithDelimiter(pairs[z].Base.String(), pairs[z].Quote.String(), "-")
+			for x := range channels {
+				subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+					Channel:  channels[x],
+					Currency: newPair,
+				})
+			}
+		}
 	}
+	f.Websocket.SubscribeToChannels(subscriptions)
+}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
-		if !startTime.Before(endTime) {
+		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be bigger than endTime")
 		}
 	}
@@ -696,16 +713,18 @@ func (f *FTX) WsAuth() error {
 ```go
 // GenerateDefaultSubscriptions generates default subscription
 func (f *FTX) GenerateDefaultSubscriptions() {
-	var channels = []string{wsTicker, wsTrades, wsOrderbook, wsMarkets, wsFills, wsOrders} // All the channels that can be subscribed to
+	var channels = []string{wsTicker, wsTrades, wsOrderbook, wsMarkets, wsFills, wsOrders}
 	var subscriptions []wshandler.WebsocketChannelSubscription
 	for a := range f.CurrencyPairs.AssetTypes {
 		pairs := f.GetEnabledPairs(f.CurrencyPairs.AssetTypes[a])
-		newPair := currency.NewPairWithDelimiter(pairs[0].Base.String(), pairs[0].Quote.String(), "-")
-		for x := range channels {
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
-				Channel:  channels[x],
-				Currency: newPair,
-			})
+		for z := range pairs {
+			newPair := currency.NewPairWithDelimiter(pairs[z].Base.String(), pairs[z].Quote.String(), "-")
+			for x := range channels {
+				subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+					Channel:  channels[x],
+					Currency: newPair,
+				})
+			}
 		}
 	}
 	f.Websocket.SubscribeToChannels(subscriptions)
