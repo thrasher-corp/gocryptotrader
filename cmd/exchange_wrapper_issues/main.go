@@ -729,7 +729,9 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		var r24 kline.Item
-		r24, err = e.GetHistoricCandles(p, assetTypes[i], time.Now().AddDate(0, -1, 0), time.Now(), kline.OneDay)
+		startTime, _ := time.Now().AddDate(0, -1, 0), time.Now()
+		endTime := time.Now()
+		r24, err = e.GetHistoricCandles(p, assetTypes[i], startTime, endTime, kline.OneDay)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -739,11 +741,11 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Function:   "GetHistoricCandles",
 			Error:      msg,
 			Response:   r24,
-			SentParams: nil,
+			SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], startTime, endTime, kline.OneDay}),
 		})
 
 		var r25 kline.Item
-		r25, err = e.GetHistoricCandlesExtended(p, assetTypes[i], time.Now().AddDate(0, -1, 0), time.Now(), kline.OneDay)
+		r25, err = e.GetHistoricCandlesExtended(p, assetTypes[i], startTime, endTime, kline.OneDay)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -753,7 +755,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Function:   "GetHistoricCandlesExtended",
 			Error:      msg,
 			Response:   r25,
-			SentParams: nil,
+			SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], startTime, endTime, kline.OneDay}),
 		})
 		response = append(response, responseContainer)
 	}

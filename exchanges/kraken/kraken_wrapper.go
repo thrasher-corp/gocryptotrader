@@ -783,7 +783,7 @@ func (k *Kraken) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 	}
 
 	ret := kline.Item{
-		Exchange: k.GetName(),
+		Exchange: k.Name,
 		Pair:     pair,
 		Asset:    a,
 		Interval: interval,
@@ -819,7 +819,7 @@ func (k *Kraken) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 	}
 
 	ret := kline.Item{
-		Exchange: k.GetName(),
+		Exchange: k.Name,
 		Pair:     pair,
 		Asset:    a,
 		Interval: interval,

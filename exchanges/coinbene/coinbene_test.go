@@ -297,10 +297,13 @@ func TestGetKlines(t *testing.T) {
 
 func TestGetSwapKlines(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetSwapKlines(swapTestPair,
-		"1573184608",
-		"1573184808",
-		"1")
+	currencypair := currency.NewPairFromString(swapTestPair)
+	startTime := time.Now().Add(-time.Hour * 1)
+
+	_, err := c.GetSwapKlines(currencypair,
+		startTime,
+		time.Now(),
+		kline.OneMin)
 	if err != nil {
 		t.Error(err)
 	}
@@ -694,9 +697,25 @@ func TestWsUserOrder(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
+	c.Verbose = true
 	currencyPair := currency.NewPairFromString(spotTestPair)
 	startTime := time.Now().Add(-time.Hour * 24)
 	_, err := c.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	currencyPairSwap := currency.NewPairFromString(swapTestPair)
+	_, err = c.GetHistoricCandles(currencyPairSwap, asset.PerpetualSwap, startTime, time.Now(), kline.OneHour)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	currencyPair := currency.NewPairFromString(spotTestPair)
+	startTime := time.Now().Add(-time.Hour * 24)
+	_, err := c.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -714,9 +733,29 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 			"1",
 		},
 		{
+			"OneHour",
+			kline.OneHour,
+			"60",
+		},
+		{
 			"OneDay",
 			kline.OneDay,
-			"24",
+			"D",
+		},
+		{
+			"OneWeek",
+			kline.OneWeek,
+			"W",
+		},
+		{
+			"OneMonth",
+			kline.OneMonth,
+			"M",
+		},
+		{
+			"AllOther",
+			kline.TwoWeek,
+			"",
 		},
 	}
 

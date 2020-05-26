@@ -746,9 +746,19 @@ func TestWsBalanceUpdate(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
+	g.Verbose = true
 	currencyPair := currency.NewPairFromString("BTC_USDT")
 	startTime := time.Now().Add(-time.Hour * 6)
 	_, err := g.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	currencyPair := currency.NewPairFromString("BTC_USDT")
+	startTime := time.Now().Add(-time.Hour * 6)
+	_, err := g.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -763,12 +773,12 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 		{
 			"OneMin",
 			kline.OneMin,
-			"1",
+			"60",
 		},
 		{
 			"OneDay",
 			kline.OneDay,
-			"24",
+			"86400",
 		},
 	}
 

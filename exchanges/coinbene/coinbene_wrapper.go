@@ -2,6 +2,7 @@ package coinbene
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -751,7 +752,18 @@ func (c *Coinbene) ValidateCredentials() error {
 
 // FormatExchangeKlineInterval returns Interval to string
 func (c *Coinbene) FormatExchangeKlineInterval(in kline.Interval) string {
-	return in.Short()[:len(in.Short())-1]
+	switch in {
+	case kline.OneMin, kline.ThreeMin, kline.FiveMin, kline.FifteenMin,
+		kline.ThirtyMin, kline.OneHour, kline.TwoHour, kline.FourHour, kline.SixHour, kline.TwelveHour:
+		return strconv.FormatFloat(in.Duration().Minutes(), 'f', 0, 64)
+	case kline.OneDay:
+		return "D"
+	case kline.OneWeek:
+		return "W"
+	case kline.OneMonth:
+		return "M"
+	}
+	return ""
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
@@ -761,7 +773,9 @@ func (c *Coinbene) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 			Interval: interval,
 		}
 	}
-
+	if a == asset.PerpetualSwap {
+		return c.GetSwapKlines(pair, start, end, interval)
+	}
 	return c.GetKlines(pair, start, end, interval)
 }
 

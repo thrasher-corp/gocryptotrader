@@ -735,7 +735,7 @@ func (g *Gateio) ValidateCredentials() error {
 
 // FormatExchangeKlineInterval returns Interval to exchange formatted string
 func (g *Gateio) FormatExchangeKlineInterval(in kline.Interval) string {
-	return in.Short()[:len(in.Short())-1]
+	return strconv.FormatFloat(in.Duration().Seconds(), 'f', 0, 64)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval

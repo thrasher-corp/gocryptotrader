@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -624,7 +625,7 @@ func (c *Coinbene) GetKlines(pair currency.Pair, start, end time.Time, period kl
 	}
 
 	v := url.Values{}
-	v.Add("symbol", pair.String())
+	v.Add("symbol", c.FormatExchangeCurrency(pair, asset.Spot).String())
 	if !start.IsZero() {
 		v.Add("start", strconv.FormatInt(start.Unix(), 10))
 	}
@@ -643,7 +644,7 @@ func (c *Coinbene) GetKlines(pair currency.Pair, start, end time.Time, period kl
 	}
 
 	ret := kline.Item{
-		Exchange: c.GetName(),
+		Exchange: c.Name,
 		Pair:     pair,
 		Interval: period,
 	}
@@ -707,13 +708,16 @@ func (c *Coinbene) GetKlines(pair currency.Pair, start, end time.Time, period kl
 }
 
 // GetSwapKlines data returns the kline data for a specific symbol
-func (c *Coinbene) GetSwapKlines(symbol, startTime, endTime, resolution string) (SwapKlines, error) {
-	var s SwapKlines
+func (c *Coinbene) GetSwapKlines(symbol currency.Pair, start, end time.Time, resolution kline.Interval) (kline.Item, error) {
 	v := url.Values{}
-	v.Set("symbol", symbol)
-	v.Set("startTime", startTime)
-	v.Set("endTime", endTime)
-	v.Set("resolution", resolution)
+	v.Set("symbol", c.FormatExchangeCurrency(symbol, asset.PerpetualSwap).String())
+	if !start.IsZero() {
+		v.Add("startTime", strconv.FormatInt(start.Unix(), 10))
+	}
+	if !end.IsZero() {
+		v.Add("endTime", strconv.FormatInt(end.Unix(), 10))
+	}
+	v.Set("resolution", c.FormatExchangeKlineInterval(resolution))
 
 	type resp struct {
 		Data [][]string `json:"data"`
@@ -721,59 +725,47 @@ func (c *Coinbene) GetSwapKlines(symbol, startTime, endTime, resolution string) 
 	var r resp
 	path := common.EncodeURLValues(coinbeneSwapAPIURL+coinbeneAPIVersion+coinbeneGetKlines, v)
 	if err := c.SendHTTPRequest(path, contractKline, &r); err != nil {
-		return nil, err
+		return kline.Item{}, err
+	}
+
+	ret := kline.Item{
+		Exchange: c.Name,
+		Pair:     symbol,
+		Interval: resolution,
 	}
 
 	for x := range r.Data {
-		buyTurnover, err := strconv.ParseFloat(r.Data[x][8], 64)
+		var tempCandle kline.Candle
+
+		tempTime := r.Data[x][0]
+		timestamp, err := time.Parse(time.RFC3339, tempTime)
 		if err != nil {
-			return nil, err
+			continue
 		}
-		tm, err := strconv.ParseInt(r.Data[x][0], 10, 64)
+		tempCandle.Time = timestamp
+		tempCandle.Open, err = strconv.ParseFloat(r.Data[x][1], 64)
 		if err != nil {
-			return nil, err
+			return kline.Item{}, err
 		}
-		open, err := strconv.ParseFloat(r.Data[x][1], 64)
+		tempCandle.High, err = strconv.ParseFloat(r.Data[x][3], 64)
 		if err != nil {
-			return nil, err
+			return kline.Item{}, err
 		}
-		closePrice, err := strconv.ParseFloat(r.Data[x][2], 64)
+		tempCandle.Low, err = strconv.ParseFloat(r.Data[x][4], 64)
 		if err != nil {
-			return nil, err
+			return kline.Item{}, err
 		}
-		high, err := strconv.ParseFloat(r.Data[x][3], 64)
+		tempCandle.Close, err = strconv.ParseFloat(r.Data[x][2], 64)
 		if err != nil {
-			return nil, err
+			return kline.Item{}, err
 		}
-		low, err := strconv.ParseFloat(r.Data[x][4], 64)
+		tempCandle.Volume, err = strconv.ParseFloat(r.Data[x][5], 64)
 		if err != nil {
-			return nil, err
+			return kline.Item{}, err
 		}
-		volume, err := strconv.ParseFloat(r.Data[x][5], 64)
-		if err != nil {
-			return nil, err
-		}
-		turnover, err := strconv.ParseFloat(r.Data[x][6], 64)
-		if err != nil {
-			return nil, err
-		}
-		buyVolume, err := strconv.ParseFloat(r.Data[x][7], 64)
-		if err != nil {
-			return nil, err
-		}
-		s = append(s, SwapKlineItem{
-			Time:        time.Unix(tm, 0),
-			Open:        open,
-			Close:       closePrice,
-			High:        high,
-			Low:         low,
-			Volume:      volume,
-			Turnover:    turnover,
-			BuyVolume:   buyVolume,
-			BuyTurnover: buyTurnover,
-		})
+		ret.Candles = append(ret.Candles, tempCandle)
 	}
-	return s, nil
+	return ret, nil
 }
 
 // GetSwapTrades returns a list of trades for a swap symbol
