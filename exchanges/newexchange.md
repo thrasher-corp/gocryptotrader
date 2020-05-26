@@ -48,7 +48,9 @@ go build
 go run exchange_template.go -name Bitmex -ws -rest
 ```
 
-+ 2) add exchange struct to config_example.json, configtest.json (in testdata) & to the main config
++ 2) add exchange struct to config_example.json, configtest.json (in testdata) & to the main config:
+
+Find out which asset types are supported by the exchange and add them to the pairs struct (spot is enabled by default)
 
 ###### If main config path is unknown the following function can be used:
 ```go
@@ -163,7 +165,7 @@ config.GetDefaultFilePath()
 
 ###### Futures currency support:
 
-Spot pairs' support is inbuilt, for other asset types, struct needs to be manually created
+Similar to the configs, spot support is inbuilt but other asset types will need to be manually supported
 
 ```go
 	spot := currency.PairStore{
@@ -762,5 +764,230 @@ func (f *FTX) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscript
 	unSub.Channel = channelToSubscribe.Channel
 	unSub.Market = f.FormatExchangeCurrency(channelToSubscribe.Currency, a).String()
 	return f.WebsocketConn.SendJSONMessage(unSub)
+}
+```
+
+###### Complete WsConnect function:
+
+```go
+// WsConnect connects to a websocket feed
+func (f *FTX) WsConnect() error {
+	if !f.Websocket.IsEnabled() || !f.IsEnabled() {
+		return errors.New(wshandler.WebsocketNotEnabled)
+	}
+	var dialer websocket.Dialer
+	err := f.WebsocketConn.Dial(&dialer, http.Header{})
+	if err != nil {
+		return err
+	}
+	f.WebsocketConn.SetupPingHandler(wshandler.WebsocketPingHandler{
+		MessageType: websocket.PingMessage,
+		Delay:       ftxWebsocketTimer,
+	})
+	if f.Verbose {
+		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", f.Name)
+	}
+	go f.wsReadData()
+	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		err := f.WsAuth()
+		if err != nil {
+			f.Websocket.DataHandler <- err
+			f.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		}
+	}
+	f.GenerateDefaultSubscriptions()
+	return nil
+}
+```
+
+###### Complete websocket setup in wrapper:
+
+```go
+	err = f.Websocket.Setup(
+		&wshandler.WebsocketSetup{
+			Enabled:                          exch.Features.Enabled.Websocket,
+			Verbose:                          exch.Verbose,
+			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+			DefaultURL:                       ftxWSURL,
+			ExchangeName:                     exch.Name,
+			RunningURL:                       exch.API.Endpoints.WebsocketURL,
+			Connector:                        f.WsConnect,
+			Subscriber:                       f.Subscribe,
+			UnSubscriber:                     f.Unsubscribe,
+			Features:                         &f.Features.Supports.WebsocketCapabilities,
+		})
+	if err != nil {
+		return err
+  }
+  ```
+
+###### Link websocket to wrapper functions:
+
+Initally the functions return nil or common.ErrNotYetImplemented
+
+```go
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (f *FTX) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+	f.Websocket.SubscribeToChannels(channels)
+	return nil
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (f *FTX) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+	f.Websocket.RemoveSubscribedChannels(channels)
+	return nil
+}
+
+// GetSubscriptions returns a copied list of subscriptions
+func (f *FTX) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
+	return f.Websocket.GetSubscriptions(), nil
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (f *FTX) AuthenticateWebsocket() error {
+	return f.WsAuth()
+}
+```
+
+###### Handle websocket data:
+
+Function to read data received from websocket:
+
+```go
+// wsReadData gets and passes on websocket messages for processing
+func (f *FTX) wsReadData() {
+	f.Websocket.Wg.Add(1)
+
+	defer f.Websocket.Wg.Done()
+
+	for {
+		select {
+		case <-f.Websocket.ShutdownC:
+			return
+
+		default:
+			resp, err := f.WebsocketConn.ReadMessage()
+			if err != nil {
+				f.Websocket.ReadMessageErrors <- err
+				return
+			}
+			f.Websocket.TrafficAlert <- struct{}{}
+			err = f.wsHandleData(resp.Raw)
+			if err != nil {
+				f.Websocket.DataHandler <- err
+			}
+		}
+	}
+}
+```
+
+Simple Examples of data handling:
+
+Create the main struct used for unmarshalling data
+
+Unmarshall the data into the overarching result type
+
+```go
+// WsResponseData stores basic ws response data on being subscribed to a channel successfully
+type WsResponseData struct {
+	ResponseType string      `json:"type"`
+	Channel      string      `json:"channel"`
+	Market       string      `json:"market"`
+	Data         interface{} `json:"data"`
+}
+```
+
+Unmarshall the raw data into the main type:
+
+```go
+	var result map[string]interface{}
+	err := json.Unmarshal(respRaw, &result)
+	if err != nil {
+		return err
+  }
+```
+
+Using switch cases and types created earlier, unmarshall the data into the more specific structs
+There are some built in structs in wshandler which are used to store the websocket data such as wshandler.TradeData or wshandler.KlineData
+If a suitable struct does not exist in wshandler, wrapper types are the next preferrence to store the data such as in the market channel example given below
+
+```go
+	switch result["type"] {
+	case wsUpdate:
+		var p currency.Pair
+		var a asset.Item
+		_, ok := result["market"]
+		if ok {
+			p = currency.NewPairFromString(result["market"].(string))
+			a, err = f.GetPairAssetType(p)
+			if err != nil {
+				return err
+			}
+    }
+		switch result["channel"] {
+		case wsTicker:
+			var resultData WsTickerDataStore
+			err = json.Unmarshal(respRaw, &resultData)
+			if err != nil {
+				return err
+			}
+			f.Websocket.DataHandler <- &ticker.Price{
+				ExchangeName: f.Name,
+				Bid:          resultData.Ticker.Bid,
+				Ask:          resultData.Ticker.Ask,
+				Last:         resultData.Ticker.Last,
+				LastUpdated:  timestampFromFloat64(resultData.Ticker.Time),
+				Pair:         p,
+				AssetType:    a,
+      }
+```
+
+If neither of those provide a suitable struct to store the data in, the data can just be passed onto wshandler without any further changes
+
+```go
+		case wsFills:
+			var resultData WsFillsDataStore
+			err = json.Unmarshal(respRaw, &resultData)
+			if err != nil {
+				return err
+			}
+      f.Websocket.DataHandler <- resultData.FillsData
+```
+
+Data Handling can be tested offline similar to the following example:
+
+```go
+func TestParsingWSOrdersData(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("API keys required but not set, skipping test")
+	}
+	data := []byte(`{
+		"channel": "orders",
+		"data": {
+		  "id": 24852229,
+		  "clientId": null,
+		  "market": "BTC-PERP",
+		  "type": "limit",
+		  "side": "buy",
+		  "size": 42353.0,
+		  "price": 0.2977,
+		  "reduceOnly": false,
+		  "ioc": false,
+		  "postOnly": false,
+		  "status": "closed",
+		  "filledSize": 0.0,
+		  "remainingSize": 0.0,
+		  "avgFillPrice": 0.2978
+		},
+		"type": "update"
+	  }`)
+	err := f.wsHandleData(data)
+	if err != nil {
+		t.Error(err)
+	}
 }
 ```

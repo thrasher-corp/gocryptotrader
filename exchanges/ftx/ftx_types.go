@@ -475,8 +475,8 @@ type LeveragedTokens struct {
 
 // TokenInfo stores token's info
 type TokenInfo struct {
-	Success bool                `json:"success"`
-	Result  LeveragedTokensData `json:"result"`
+	Success bool                  `json:"success"`
+	Result  []LeveragedTokensData `json:"result"`
 }
 
 // LTBalanceData stores balances of leveraged tokens

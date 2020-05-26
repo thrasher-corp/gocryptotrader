@@ -149,7 +149,7 @@ func (f *FTX) GetTrades(marketName string, startTime, endTime time.Time, limit i
 	if !startTime.IsZero() && !endTime.IsZero() {
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
-		if !startTime.Before(endTime) {
+		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be bigger than endTime")
 		}
 	}
@@ -168,7 +168,7 @@ func (f *FTX) GetHistoricalData(marketName, timeInterval, limit string, startTim
 	if !startTime.IsZero() && !endTime.IsZero() {
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
-		if !startTime.Before(endTime) {
+		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be bigger than endTime")
 		}
 	}
@@ -305,7 +305,7 @@ func (f *FTX) FetchOrderHistory(marketName string, startTime, endTime time.Time,
 	if !startTime.IsZero() && !endTime.IsZero() {
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
-		if !startTime.Before(endTime) {
+		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be bigger than endTime")
 		}
 	}
@@ -344,7 +344,7 @@ func (f *FTX) GetTriggerOrderHistory(marketName string, startTime, endTime time.
 	if !startTime.IsZero() && !endTime.IsZero() {
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
-		if !startTime.Before(endTime) {
+		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be bigger than endTime")
 		}
 	}
@@ -439,6 +439,7 @@ func (f *FTX) ModifyOrderByClientID(clientOrderID, clientID string, price, size 
 // ModifyTriggerOrder modifies an existing trigger order
 func (f *FTX) ModifyTriggerOrder(orderID, orderType string, size, triggerPrice, orderPrice, trailValue float64) (ModifyTriggerOrder, error) {
 	req := make(map[string]interface{})
+	req["size"] = size
 	if orderType == order.Stop.Lower() || orderType == "" {
 		req["triggerPrice"] = triggerPrice
 		req["orderPrice"] = orderPrice
@@ -497,7 +498,7 @@ func (f *FTX) GetFills(market, limit string, startTime, endTime time.Time) (Fill
 	if !startTime.IsZero() && !endTime.IsZero() {
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
-		if !startTime.Before(endTime) {
+		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be bigger than endTime")
 		}
 	}
@@ -511,7 +512,7 @@ func (f *FTX) GetFundingPayments(startTime, endTime time.Time, future string) (F
 	if !startTime.IsZero() && !endTime.IsZero() {
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
-		if !startTime.Before(endTime) {
+		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be bigger than endTime")
 		}
 	}
@@ -659,7 +660,7 @@ func (f *FTX) GetPublicOptionsTrades(startTime, endTime time.Time, limit string)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		req["start_time"] = strconv.FormatInt(startTime.Unix(), 10)
 		req["end_time"] = strconv.FormatInt(endTime.Unix(), 10)
-		if !startTime.Before(endTime) {
+		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be bigger than endTime")
 		}
 	}
@@ -676,7 +677,7 @@ func (f *FTX) GetOptionsFills(startTime, endTime time.Time, limit string) (Optio
 	if !startTime.IsZero() && !endTime.IsZero() {
 		req["start_time"] = strconv.FormatInt(startTime.Unix(), 10)
 		req["end_time"] = strconv.FormatInt(endTime.Unix(), 10)
-		if !startTime.Before(endTime) {
+		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be bigger than endTime")
 		}
 	}

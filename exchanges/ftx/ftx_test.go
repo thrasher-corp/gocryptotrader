@@ -15,13 +15,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 	spotPair                = "FTT/BTC"
 	futuresPair             = "LEO-0327"
 	testToken               = "ADAMOON"
@@ -807,23 +808,25 @@ func TestRequestLTRedemption(t *testing.T) {
 	}
 }
 
-// func TestWithdrawCryptocurrencyFunds(t *testing.T) {
-// 	t.Parallel()
-// 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-// 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
-// 	}
-// 	var request withdraw.Request
-// 	request.Amount = 5
-// 	request.Currency = currency.NewCode("FTT")
-// 	request.Crypto.Address = "testaddress123"
-// 	request.Crypto.AddressTag = "testtag123"
-// 	request.OneTimePassword = 123456
-// 	request.TradePassword = "incorrectTradePassword"
-// 	_, err := f.WithdrawCryptocurrencyFunds(&request)
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// }
+func TestWithdrawCryptocurrencyFunds(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
+	}
+	var request = new(withdraw.Request)
+	request.Amount = 5
+	request.Currency = currency.NewCode("FTT")
+	var cryptoData withdraw.CryptoRequest
+	cryptoData.Address = "testaddress123"
+	cryptoData.AddressTag = "testtag123"
+	request.Crypto = &cryptoData
+	request.OneTimePassword = 123456
+	request.TradePassword = "incorrectTradePassword"
+	_, err := f.WithdrawCryptocurrencyFunds(request)
+	if err != nil {
+		t.Error(err)
+	}
+}
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()

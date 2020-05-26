@@ -34,6 +34,8 @@ const (
 	wsOrders          = "orders"
 	wsUpdate          = "update"
 	wsPartial         = "partial"
+	subscribe         = "subscribe"
+	unsubscribe       = "unsubscribe"
 )
 
 // WsConnect connects to a websocket feed
@@ -94,10 +96,10 @@ func (f *FTX) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscriptio
 	}
 	switch channelToSubscribe.Channel {
 	case wsFills, wsOrders:
-		sub.Operation = "subscribe"
+		sub.Operation = subscribe
 		sub.Channel = channelToSubscribe.Channel
 	default:
-		sub.Operation = "subscribe"
+		sub.Operation = subscribe
 		sub.Channel = channelToSubscribe.Channel
 		sub.Market = f.FormatExchangeCurrency(channelToSubscribe.Currency, a).String()
 	}
@@ -326,7 +328,7 @@ func (f *FTX) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscript
 	if err != nil {
 		return err
 	}
-	unSub.Operation = "unsubscribe"
+	unSub.Operation = unsubscribe
 	unSub.Channel = channelToSubscribe.Channel
 	unSub.Market = f.FormatExchangeCurrency(channelToSubscribe.Currency, a).String()
 	return f.WebsocketConn.SendJSONMessage(unSub)
