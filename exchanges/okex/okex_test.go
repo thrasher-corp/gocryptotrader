@@ -520,12 +520,12 @@ func TestGetSpotFilledOrdersInformation(t *testing.T) {
 // TestGetSpotMarketData API endpoint test
 func TestGetSpotMarketData(t *testing.T) {
 	t.Parallel()
-	request := &okgroup.GetSpotMarketDataRequest{
+	request := &okgroup.GetMarketDataRequest{
 		Asset:        asset.Spot,
 		InstrumentID: spotCurrency,
 		Granularity:  "604800",
 	}
-	_, err := o.GetSpotMarketData(request)
+	_, err := o.GetMarketData(request)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1282,19 +1282,6 @@ func TestGetSwapFilledOrdersData(t *testing.T) {
 		InstrumentID: fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD),
 		Limit:        100,
 	})
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-// TestGetSwapMarketData API endpoint test
-func TestGetSwapMarketData(t *testing.T) {
-	t.Parallel()
-	request := okgroup.GetSwapMarketDataRequest{
-		InstrumentID: fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD),
-		Granularity:  604800,
-	}
-	_, err := o.GetSwapMarketData(request)
 	if err != nil {
 		t.Error(err)
 	}

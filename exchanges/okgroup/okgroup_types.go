@@ -330,8 +330,8 @@ type GetSpotFilledOrdersInformationResponse struct {
 	TradeID   string    `json:"trade_id"`
 }
 
-// GetSpotMarketDataRequest request data for GetSpotMarketData
-type GetSpotMarketDataRequest struct {
+// GetMarketDataRequest request data for GetMarketData
+type GetMarketDataRequest struct {
 	Asset        asset.Item
 	Start        string `url:"start,omitempty"` // [optional] start time in ISO 8601
 	End          string `url:"end,omitempty"`   // [optional] end time in ISO 8601
@@ -339,7 +339,7 @@ type GetSpotMarketDataRequest struct {
 	InstrumentID string `url:"-"`               // [required] trading pairs
 }
 
-// GetSpotMarketDataResponse response data for GetSpotMarketData
+// GetMarketDataResponse response data for GetMarketData
 // Return Parameters
 // time 	string 	Start time
 // open 	string 	Open price
@@ -347,7 +347,7 @@ type GetSpotMarketDataRequest struct {
 // low 	string 	Lowest price
 // close 	string 	Close price
 // volume 	string 	Trading volume
-type GetSpotMarketDataResponse []interface{}
+type GetMarketDataResponse []interface{}
 
 // GetMarginAccountsResponse response data for GetMarginAccounts
 type GetMarginAccountsResponse struct {
@@ -733,7 +733,7 @@ type GetFuturesMarketDateRequest struct {
 	InstrumentID string `url:"-"`                     // [required] trading pairs
 }
 
-// GetFuturesMarketDataResponse contains candle data from a GetSpotMarketDataRequest
+// GetFuturesMarketDataResponse contains candle data from a GetMarketDataRequest
 // Return Parameters
 // time 			string 	Start time
 // open 			string 	Open price

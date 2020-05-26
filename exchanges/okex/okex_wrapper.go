@@ -450,7 +450,7 @@ func (o *OKEX) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end t
 		}
 	}
 
-	req := &okgroup.GetSpotMarketDataRequest{
+	req := &okgroup.GetMarketDataRequest{
 		Asset:        a,
 		Start:        start.UTC().Format(time.RFC3339),
 		End:          end.UTC().Format(time.RFC3339),
@@ -458,7 +458,7 @@ func (o *OKEX) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end t
 		InstrumentID: o.FormatExchangeCurrency(pair, a).String(),
 	}
 
-	candles, err := o.GetSpotMarketData(req)
+	candles, err := o.GetMarketData(req)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -526,7 +526,7 @@ func (o *OKEX) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, star
 
 	dates := kline.CalcDateRanges(start, end, interval, o.Features.Enabled.Kline.ResultLimit)
 	for x := range dates {
-		req := &okgroup.GetSpotMarketDataRequest{
+		req := &okgroup.GetMarketDataRequest{
 			Asset:        a,
 			Start:        dates[x].Start.UTC().Format(time.RFC3339),
 			End:          dates[x].End.UTC().Format(time.RFC3339),
@@ -534,7 +534,7 @@ func (o *OKEX) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, star
 			InstrumentID: o.FormatExchangeCurrency(pair, a).String(),
 		}
 
-		candles, err := o.GetSpotMarketData(req)
+		candles, err := o.GetMarketData(req)
 		if err != nil {
 			return kline.Item{}, err
 		}

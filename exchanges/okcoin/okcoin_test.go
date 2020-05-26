@@ -484,12 +484,12 @@ func TestGetSpotFilledOrdersInformation(t *testing.T) {
 
 // TestGetSpotMarketData API endpoint test
 func TestGetSpotMarketData(t *testing.T) {
-	request := &okgroup.GetSpotMarketDataRequest{
+	request := &okgroup.GetMarketDataRequest{
 		Asset:        asset.Spot,
 		InstrumentID: spotCurrency,
 		Granularity:  "604800",
 	}
-	_, err := o.GetSpotMarketData(request)
+	_, err := o.GetMarketData(request)
 	if err != nil {
 		t.Error(err)
 	}

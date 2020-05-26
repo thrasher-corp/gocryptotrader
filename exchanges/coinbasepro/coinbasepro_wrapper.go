@@ -743,11 +743,11 @@ func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, e
 		Interval: interval,
 	}
 
-	gran, _ := strconv.Atoi(c.FormatExchangeKlineInterval(interval))
+	gran, _ := strconv.ParseInt(c.FormatExchangeKlineInterval(interval), 10, 64)
 	history, err := c.GetHistoricRates(c.FormatExchangeCurrency(p, a).String(),
 		start.Format(time.RFC3339),
 		end.Format(time.RFC3339),
-		int64(gran))
+		gran)
 	if err != nil {
 		return kline.Item{}, err
 	}

@@ -201,7 +201,7 @@ func (g *Gateio) GetSpotKline(arg KlinesRequestParams) (kline.Item, error) {
 	}
 
 	result := kline.Item{
-		Exchange: g.GetName(),
+		Exchange: g.Name,
 	}
 
 	if rawKlines == nil || rawKlines["data"] == nil {

@@ -231,8 +231,6 @@ func (k *Kraken) GetOHLC(symbol, interval string) ([]OpenHighLowClose, error) {
 		return nil, errors.New("invalid data returned")
 	}
 
-	fmt.Println(result)
-
 	for _, y := range result.Data[symbol].([]interface{}) {
 		o := OpenHighLowClose{}
 		for i, x := range y.([]interface{}) {
@@ -269,7 +267,6 @@ func (k *Kraken) GetDepth(symbol string) (Orderbook, error) {
 	var orderBook Orderbook
 
 	path := fmt.Sprintf("%s/%s/public/%s?%s", k.API.Endpoints.URL, krakenAPIVersion, krakenDepth, values.Encode())
-
 	err := k.SendHTTPRequest(path, &result)
 	if err != nil {
 		return orderBook, err
@@ -1064,11 +1061,13 @@ func (k *Kraken) GetWebsocketToken() (string, error) {
 	return response.Result.Token, nil
 }
 
+// FormatExchangeCurrency is a method that formats and returns a currency pair
+// based on the user currency display preferences
 func (k *Kraken) FormatExchangeCurrency(p currency.Pair, assetType asset.Item) currency.Pair {
-	var currencyOverides = [...]currency.Code{currency.BTC, currency.LTC, currency.XRP, currency.XLM, currency.XBT}
+	var currencyOverrides = [...]currency.Code{currency.BTC, currency.LTC, currency.XRP, currency.XLM, currency.XBT}
 	pairFmt := k.GetPairFormat(assetType, true)
 	if p.Quote == currency.USD {
-		f, _ := common.InArray(p.Base, currencyOverides)
+		f, _ := common.InArray(p.Base, currencyOverrides)
 		if f {
 			if p.Base == currency.USDT {
 				p.Base = currency.NewCode(p.Base.String() + "Z")
