@@ -8,7 +8,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -1438,11 +1437,7 @@ func TestSendWsMessages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go o.WsReadData(&wg)
-	wg.Wait()
-
+	go o.WsReadData()
 	subscriptions := []stream.ChannelSubscription{
 		{
 			Channel: "badChannel",

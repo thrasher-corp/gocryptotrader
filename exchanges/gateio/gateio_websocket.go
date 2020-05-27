@@ -119,7 +119,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 	}
 
 	if result.ID > 0 {
-		if g.Websocket.Conn.MatchRequestResponse(result.ID, respRaw) {
+		if g.Websocket.Match.IncomingWithData(result.ID, respRaw) {
 			return nil
 		}
 	}

@@ -17,7 +17,6 @@ type Connection interface {
 	SendJSONMessage(interface{}) error
 	SetupPingHandler(PingHandler)
 	GenerateMessageID(useNano bool) int64
-	MatchRequestResponse(signature interface{}, data []byte) bool
 	SendMessageReturnResponse(signature interface{}, request interface{}) ([]byte, error)
 	SendRawMessage(messageType int, message []byte) error
 	SetURL(string)

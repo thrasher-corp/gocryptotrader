@@ -244,14 +244,8 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 				}
 				k.addNewSubscriptionChannelData(&sub)
 				if sub.RequestID > 0 {
-					if common.StringDataContains(authenticatedChannels, sub.ChannelName) {
-						if k.Websocket.AuthConn.MatchRequestResponse(sub.RequestID, respRaw) {
-							return nil
-						}
-					} else {
-						if k.Websocket.Conn.MatchRequestResponse(sub.RequestID, respRaw) {
-							return nil
-						}
+					if k.Websocket.Match.IncomingWithData(sub.RequestID, respRaw) {
+						return nil
 					}
 				}
 			default:

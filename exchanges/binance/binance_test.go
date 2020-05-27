@@ -204,7 +204,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 
 	var feeBuilder = setFeeBuilder()
 	b.GetFeeByType(feeBuilder)
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || mockTests {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
 		}

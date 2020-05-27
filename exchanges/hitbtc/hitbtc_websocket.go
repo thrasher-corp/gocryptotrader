@@ -84,7 +84,7 @@ func (h *HitBTC) wsGetTableName(respRaw []byte) (string, error) {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	if init.ID > 0 {
-		if h.Websocket.Conn.MatchRequestResponse(init.ID, respRaw) {
+		if h.Websocket.Match.IncomingWithData(init.ID, respRaw) {
 			return "", nil
 		}
 	}

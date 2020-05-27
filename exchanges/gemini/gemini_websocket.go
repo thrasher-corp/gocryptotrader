@@ -77,12 +77,12 @@ func (g *Gemini) WsSubscribe(dialer *websocket.Dialer) error {
 			enabledCurrencies[i].String(),
 			val.Encode())
 		connection := &stream.WebsocketConnection{
-			ExchangeName:         g.Name,
-			URL:                  endpoint,
-			Verbose:              g.Verbose,
-			ResponseCheckTimeout: responseCheckTimeout,
-			ResponseMaxLimit:     responseMaxLimit,
-			Traffic:              g.Websocket.TrafficAlert,
+			ExchangeName:     g.Name,
+			URL:              endpoint,
+			Verbose:          g.Verbose,
+			ResponseMaxLimit: responseMaxLimit,
+			Traffic:          g.Websocket.TrafficAlert,
+			Match:            g.Websocket.Match,
 		}
 		err := connection.Dial(dialer, http.Header{})
 		if err != nil {
@@ -121,11 +121,11 @@ func (g *Gemini) WsSecureSubscribe(dialer *websocket.Dialer, url string) error {
 	headers.Add("Cache-Control", "no-cache")
 
 	g.Websocket.AuthConn = &stream.WebsocketConnection{
-		ExchangeName:         g.Name,
-		URL:                  endpoint,
-		Verbose:              g.Verbose,
-		ResponseCheckTimeout: responseCheckTimeout,
-		ResponseMaxLimit:     responseMaxLimit,
+		ExchangeName:     g.Name,
+		URL:              endpoint,
+		Verbose:          g.Verbose,
+		ResponseMaxLimit: responseMaxLimit,
+		Match:            g.Websocket.Match,
 	}
 	err = g.Websocket.AuthConn.Dial(dialer, headers)
 	if err != nil {

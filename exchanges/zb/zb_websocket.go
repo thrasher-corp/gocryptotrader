@@ -74,7 +74,7 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 		return err
 	}
 	if result.No > 0 {
-		if z.Websocket.Conn.MatchRequestResponse(result.No, fixedJSON) {
+		if z.Websocket.Match.IncomingWithData(result.No, fixedJSON) {
 			return nil
 		}
 	}

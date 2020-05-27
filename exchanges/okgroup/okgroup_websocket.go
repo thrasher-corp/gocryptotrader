@@ -292,7 +292,7 @@ func (o *OKGroup) WsHandleData(respRaw []byte) error {
 	err = json.Unmarshal(respRaw, &eventResponse)
 	if err == nil && eventResponse.Event != "" {
 		if eventResponse.Event == "login" {
-			if o.Websocket.Conn.MatchRequestResponse("login", nil) {
+			if o.Websocket.Match.Incoming("login") {
 				o.Websocket.SetCanUseAuthenticatedEndpoints(eventResponse.Success)
 			}
 		}

@@ -4,7 +4,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 )
@@ -54,6 +53,8 @@ type Websocket struct {
 	DataHandler chan interface{}
 	ToRoutine   chan interface{}
 
+	Match *Match
+
 	// shutdown synchronises shutdown event across routines
 	ShutdownC chan struct{}
 	Wg        sync.WaitGroup
@@ -94,31 +95,6 @@ type WebsocketSetup struct {
 	SortBuffer            bool
 	SortBufferByUpdateIDs bool
 	UpdateEntriesByID     bool
-}
-
-// WebsocketConnection contains all the data needed to send a message to a WS
-// connection
-type WebsocketConnection struct {
-	sync.Mutex
-	Verbose         bool
-	connected       bool
-	connectionMutex sync.RWMutex
-	RateLimit       float64
-	ExchangeName    string
-	URL             string
-	ProxyURL        string
-	Wg              sync.WaitGroup
-	Connection      *websocket.Conn
-	ShutdownC       chan struct{}
-
-	// These is the response signature matching map which includes a designation
-	// to a buffered channel. Can pass in nil as a confirmation switch.
-	responses            map[interface{}]chan []byte
-	ResponseCheckTimeout time.Duration
-	ResponseMaxLimit     time.Duration
-	TrafficTimeout       time.Duration
-	Traffic              chan struct{}
-	readMessageErrors    chan error
 }
 
 // UnhandledMessageWarning defines a container for unhandled message warnings

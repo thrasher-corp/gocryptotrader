@@ -113,9 +113,8 @@ func (b *Binance) KeepAuthKeyAlive() {
 // wsReadData receives and passes on websocket messages for processing
 func (b *Binance) wsReadData() {
 	b.Websocket.Wg.Add(1)
-	defer func() {
-		b.Websocket.Wg.Done()
-	}()
+	defer b.Websocket.Wg.Done()
+
 	for {
 		resp, err := b.Websocket.Conn.ReadMessage()
 		if err != nil {
