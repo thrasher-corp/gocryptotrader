@@ -1226,33 +1226,79 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 }
 
-func TestGetHistoricCandlesEx(t *testing.T) {
-	currencyPair := currency.NewPairFromString("tBTCUSD")
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	currencyPair := currency.NewPairFromString("tTRXETH")
 	startTime := time.Now().Add(-time.Hour * 24)
-	_, err := b.GetHistoricCandlesEx(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	_, err := b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandlesEx(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin*1337)
+	_, err = b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin*1337)
 	if err == nil {
 		t.Fatal(err)
 	}
 }
 
 func TestFixCasing(t *testing.T) {
-	ret := fixCasing(currency.NewPairFromString("TBTCUSD"))
+	ret := fixCasing(currency.NewPairFromString("TBTCUSD"), asset.Spot)
 	if ret != "tBTCUSD" {
 		t.Fatalf("unexpected result: %v", ret)
 	}
 
-	ret = fixCasing(currency.NewPairFromString("fBTCUSD"))
+	ret = fixCasing(currency.NewPairFromString("fBTCUSD"), asset.Margin)
 	if ret != "fBTCUSD" {
 		t.Fatalf("unexpected result: %v", ret)
 	}
 
-	ret = fixCasing(currency.NewPairFromString("BTCUSD"))
-	if ret != "BTCUSD" {
+	ret = fixCasing(currency.NewPairFromString("BTCUSD"), asset.Spot)
+	if ret != "tBTCUSD" {
 		t.Fatalf("unexpected result: %v", ret)
+	}
+
+	ret = fixCasing(currency.NewPairFromString("FUNETH"), asset.Spot)
+	if ret != "tFUNETH" {
+		t.Fatalf("unexpected result: %v", ret)
+	}
+}
+
+func Test_FormatExchangeKlineInterval(t *testing.T) {
+	testCases := []struct {
+		name     string
+		interval kline.Interval
+		output   string
+	}{
+		{
+			"OneMin",
+			kline.OneMin,
+			"1m",
+		},
+		{
+			"OneDay",
+			kline.OneDay,
+			"1D",
+		},
+		{
+			"OneWeek",
+			kline.OneWeek,
+			"7D",
+		},
+		{
+			"TwoWeeks",
+			kline.OneWeek * 2,
+			"14D",
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+
+		t.Run(test.name, func(t *testing.T) {
+			ret := b.FormatExchangeKlineInterval(test.interval)
+
+			if ret != test.output {
+				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
+			}
+		})
 	}
 }

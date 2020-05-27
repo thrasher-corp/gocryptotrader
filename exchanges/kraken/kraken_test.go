@@ -106,7 +106,7 @@ func TestGetTickers(t *testing.T) {
 // TestGetOHLC API endpoint test
 func TestGetOHLC(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetOHLC("BCHEUR", "10080")
+	_, err := k.GetOHLC("XXBTZUSD", "1440")
 	if err != nil {
 		t.Error("GetOHLC() error", err)
 	}
@@ -1360,8 +1360,8 @@ func TestWsCancelOrderJSON(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair := currency.NewPairFromString("BCHEUR")
-	_, err := k.GetHistoricCandles(currencyPair, asset.Spot, time.Now(), time.Now(), kline.Fifteenday)
+	currencyPair := currency.NewPairFromString("XBTUSD")
+	_, err := k.GetHistoricCandles(currencyPair, asset.Spot, time.Now().AddDate(0, 0, -1), time.Now(), kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1372,15 +1372,46 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 }
 
-func TestGetHistoricCandlesEx(t *testing.T) {
+func TestGetHistoricCandlesExtended(t *testing.T) {
 	currencyPair := currency.NewPairFromString("BCHEUR")
-	_, err := k.GetHistoricCandlesEx(currencyPair, asset.Spot, time.Now(), time.Now(), kline.Fifteenday)
+	_, err := k.GetHistoricCandlesExtended(currencyPair, asset.Spot, time.Now(), time.Now(), kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = k.GetHistoricCandlesEx(currencyPair, asset.Spot, time.Now(), time.Now(), kline.Interval(time.Hour*7))
+	_, err = k.GetHistoricCandlesExtended(currencyPair, asset.Spot, time.Now(), time.Now(), kline.Interval(time.Hour*7))
 	if err == nil {
 		t.Fatal("unexpected result")
+	}
+}
+
+func Test_FormatExchangeKlineInterval(t *testing.T) {
+	testCases := []struct {
+		name     string
+		interval kline.Interval
+		output   string
+	}{
+		{
+			"OneMin",
+			kline.OneMin,
+			"1",
+		},
+		{
+			"OneDay",
+			kline.OneDay,
+			"1440",
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+
+		t.Run(test.name, func(t *testing.T) {
+			ret := k.FormatExchangeKlineInterval(test.interval)
+
+			if ret != test.output {
+				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
+			}
+		})
 	}
 }

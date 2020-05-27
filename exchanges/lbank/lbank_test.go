@@ -415,15 +415,67 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-}
 
-func TestGetHistoricCandlesEx(t *testing.T) {
-	t.Parallel()
-	startTime := time.Unix(1546300800, 0)
-	end := time.Unix(1577836799, 0)
-	pair := currency.NewPairFromString(testCurrencyPair)
-	_, err := l.GetHistoricCandlesEx(pair, asset.Spot, startTime, end, kline.OneMin)
+	_, err = l.GetHistoricCandles(pair, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
+
+	startTime := time.Now().Add(-time.Hour)
+	end := time.Now()
+	pair := currency.NewPairFromString(testCurrencyPair)
+	_, err := l.GetHistoricCandlesExtended(pair, asset.Spot, startTime, end, kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func Test_FormatExchangeKlineInterval(t *testing.T) {
+	testCases := []struct {
+		name     string
+		interval kline.Interval
+		output   string
+	}{
+		{
+			"OneMin",
+			kline.OneMin,
+			"minute1",
+		},
+		{
+			"OneHour",
+			kline.OneHour,
+			"hour1",
+		},
+		{
+			"OneDay",
+			kline.OneDay,
+			"day1",
+		},
+		{
+			"OneWeek",
+			kline.OneWeek,
+			"week1",
+		},
+		{
+			"AllOther",
+			kline.FifteenDay,
+			"",
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+
+		t.Run(test.name, func(t *testing.T) {
+			ret := l.FormatExchangeKlineInterval(test.interval)
+
+			if ret != test.output {
+				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
+			}
+		})
 	}
 }

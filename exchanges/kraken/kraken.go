@@ -11,9 +11,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -224,6 +226,11 @@ func (k *Kraken) GetOHLC(symbol, interval string) ([]OpenHighLowClose, error) {
 		return OHLC, fmt.Errorf("getOHLC error: %s", result.Error)
 	}
 
+	_, ok := result.Data[symbol].([]interface{})
+	if !ok {
+		return nil, errors.New("invalid data returned")
+	}
+
 	for _, y := range result.Data[symbol].([]interface{}) {
 		o := OpenHighLowClose{}
 		for i, x := range y.([]interface{}) {
@@ -260,7 +267,6 @@ func (k *Kraken) GetDepth(symbol string) (Orderbook, error) {
 	var orderBook Orderbook
 
 	path := fmt.Sprintf("%s/%s/public/%s?%s", k.API.Endpoints.URL, krakenAPIVersion, krakenDepth, values.Encode())
-
 	err := k.SendHTTPRequest(path, &result)
 	if err != nil {
 		return orderBook, err
@@ -1053,4 +1059,22 @@ func (k *Kraken) GetWebsocketToken() (string, error) {
 		return "", fmt.Errorf("%s - %v", k.Name, response.Error)
 	}
 	return response.Result.Token, nil
+}
+
+// FormatExchangeCurrency is a method that formats and returns a currency pair
+// based on the user currency display preferences
+func (k *Kraken) FormatExchangeCurrency(p currency.Pair, assetType asset.Item) currency.Pair {
+	var currencyOverrides = [...]currency.Code{currency.BTC, currency.LTC, currency.XRP, currency.XLM, currency.XBT}
+	pairFmt := k.GetPairFormat(assetType, true)
+	if p.Quote == currency.USD {
+		f, _ := common.InArray(p.Base, currencyOverrides)
+		if f {
+			if p.Base == currency.USDT {
+				p.Base = currency.NewCode(p.Base.String() + "Z")
+			} else {
+				p.Base = currency.NewCode("X" + p.Base.String() + "Z")
+			}
+		}
+	}
+	return p.Format(pairFmt.Delimiter, pairFmt.Uppercase)
 }

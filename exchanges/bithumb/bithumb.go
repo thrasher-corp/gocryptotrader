@@ -623,7 +623,7 @@ func (b *Bithumb) GetCandleStick(pair currency.Pair, start, end time.Time, inter
 	}
 
 	ret := kline.Item{
-		Exchange: b.GetName(),
+		Exchange: b.Name,
 		Pair:     pair,
 		Interval: interval,
 	}

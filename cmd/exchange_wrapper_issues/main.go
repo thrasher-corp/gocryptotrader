@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"text/template"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -20,6 +21,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -724,6 +726,36 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Function:   "WithdrawFiatFundsToInternationalBank",
 			Error:      msg,
 			Response:   r23,
+		})
+
+		var r24 kline.Item
+		startTime, _ := time.Now().AddDate(0, -1, 0), time.Now()
+		endTime := time.Now()
+		r24, err = e.GetHistoricCandles(p, assetTypes[i], startTime, endTime, kline.OneDay)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			Function:   "GetHistoricCandles",
+			Error:      msg,
+			Response:   r24,
+			SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], startTime, endTime, kline.OneDay}),
+		})
+
+		var r25 kline.Item
+		r25, err = e.GetHistoricCandlesExtended(p, assetTypes[i], startTime, endTime, kline.OneDay)
+		msg = ""
+		if err != nil {
+			msg = err.Error()
+			responseContainer.ErrorCount++
+		}
+		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+			Function:   "GetHistoricCandlesExtended",
+			Error:      msg,
+			Response:   r25,
+			SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], startTime, endTime, kline.OneDay}),
 		})
 		response = append(response, responseContainer)
 	}

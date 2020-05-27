@@ -2,7 +2,6 @@ package bitstamp
 
 import (
 	"errors"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -366,35 +365,7 @@ func (b *Bitstamp) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetExchangeHistory returns historic trade data since exchange opening.
 func (b *Bitstamp) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
-	var resp []trade.History
-	values := url.Values{}
-	values.Set("time", "minute")
-
-	trans, err := b.GetTransactions(b.FormatExchangeCurrency(req.Pair, req.Asset).String(),
-		values)
-	if err != nil {
-		return resp, err
-	}
-
-	for i := range trans {
-		orderID := strconv.FormatInt(trans[i].TradeID, 10)
-		var side order.Side
-		if trans[i].Type == 0 {
-			side = order.Buy
-		} else {
-			side = order.Sell
-		}
-
-		resp = append(resp, trade.History{
-			Timestamp: time.Unix(trans[i].Date, 0),
-			TID:       orderID,
-			Price:     trans[i].Price,
-			Amount:    trans[i].Amount,
-			Exchange:  b.Name,
-			Side:      side,
-		})
-	}
-	return resp, nil
+	return nil, common.ErrNotYetImplemented
 }
 
 // SubmitOrder submits a new order
@@ -711,12 +682,7 @@ func (b *Bitstamp) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 	return kline.Item{}, common.ErrNotYetImplemented
 }
 
-// GetHistoricCandlesEx returns candles between a time period for a set time interval
-func (b *Bitstamp) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !b.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
-	}
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (b *Bitstamp) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrNotYetImplemented
 }

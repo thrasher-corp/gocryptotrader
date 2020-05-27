@@ -947,6 +947,10 @@ func (h *HUOBI) FormatExchangeKlineInterval(in kline.Interval) string {
 	switch in {
 	case kline.OneMin, kline.FiveMin, kline.FifteenMin, kline.ThirtyMin:
 		return in.Short() + "in"
+	case kline.FourHour:
+		return "4hour"
+	case kline.OneDay:
+		return "1day"
 	case kline.OneMonth:
 		return "1mon"
 	case kline.OneWeek:
@@ -954,7 +958,7 @@ func (h *HUOBI) FormatExchangeKlineInterval(in kline.Interval) string {
 	case kline.OneYear:
 		return "1year"
 	}
-	return in.Short()
+	return ""
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
@@ -995,7 +999,7 @@ func (h *HUOBI) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end 
 	return ret, nil
 }
 
-// GetHistoricCandlesEx returns candles between a time period for a set time interval
-func (h *HUOBI) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (h *HUOBI) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return h.GetHistoricCandles(pair, a, start, end, interval)
 }

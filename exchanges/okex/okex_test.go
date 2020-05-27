@@ -520,11 +520,12 @@ func TestGetSpotFilledOrdersInformation(t *testing.T) {
 // TestGetSpotMarketData API endpoint test
 func TestGetSpotMarketData(t *testing.T) {
 	t.Parallel()
-	request := okgroup.GetSpotMarketDataRequest{
+	request := &okgroup.GetMarketDataRequest{
+		Asset:        asset.Spot,
 		InstrumentID: spotCurrency,
 		Granularity:  "604800",
 	}
-	_, err := o.GetSpotMarketData(request)
+	_, err := o.GetMarketData(request)
 	if err != nil {
 		t.Error(err)
 	}
@@ -542,12 +543,29 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err == nil {
 		t.Fatal("unexpected result")
 	}
+
+	_, err = o.GetHistoricCandles(currencyPair, asset.Margin, startTime, time.Now(), kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
+	}
+
+	swapPair := currency.NewPairFromString("BTC-USD_SWAP")
+	_, err = o.GetHistoricCandles(swapPair, asset.PerpetualSwap, startTime, time.Now(), kline.OneDay)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	futuresPair := currency.NewPairFromString("LTC-USD_200529")
+	_, err = o.GetHistoricCandles(futuresPair, asset.Futures, startTime, time.Now(), kline.OneDay)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
-func TestGetHistoricCandlesEx(t *testing.T) {
+func TestGetHistoricCandlesExtended(t *testing.T) {
 	currencyPair := currency.NewPairFromString("BTCUSDT")
 	startTime := time.Unix(1588636800, 0)
-	_, err := o.GetHistoricCandlesEx(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	_, err := o.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1264,19 +1282,6 @@ func TestGetSwapFilledOrdersData(t *testing.T) {
 		InstrumentID: fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD),
 		Limit:        100,
 	})
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-// TestGetSwapMarketData API endpoint test
-func TestGetSwapMarketData(t *testing.T) {
-	t.Parallel()
-	request := okgroup.GetSwapMarketDataRequest{
-		InstrumentID: fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD),
-		Granularity:  604800,
-	}
-	_, err := o.GetSwapMarketData(request)
 	if err != nil {
 		t.Error(err)
 	}

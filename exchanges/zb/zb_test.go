@@ -841,6 +841,7 @@ func TestWsCreateSubUserResponse(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
+	z.Verbose = true
 	currencyPair := currency.NewPairFromString("btc_usdt")
 	startTime := time.Now().Add(-time.Hour * 1)
 	_, err := z.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
@@ -854,12 +855,63 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 }
 
-func TestGetHistoricCandlesEx(t *testing.T) {
+func TestGetHistoricCandlesExtended(t *testing.T) {
 	currencyPair := currency.NewPairFromString("btc_usdt")
 	start := time.Now().AddDate(0, -2, 0)
 	end := time.Now()
-	_, err := z.GetHistoricCandlesEx(currencyPair, asset.Spot, start, end, kline.OneHour)
+	_, err := z.GetHistoricCandlesExtended(currencyPair, asset.Spot, start, end, kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func Test_FormatExchangeKlineInterval(t *testing.T) {
+	testCases := []struct {
+		name     string
+		interval kline.Interval
+		output   string
+	}{
+		{
+			"OneMin",
+			kline.OneMin,
+			"1min",
+		},
+		{
+			"OneHour",
+			kline.OneHour,
+			"1hour",
+		},
+		{
+			"OneDay",
+			kline.OneDay,
+			"1day",
+		},
+		{
+			"ThreeDay",
+			kline.ThreeDay,
+			"3day",
+		},
+		{
+			"OneWeek",
+			kline.OneWeek,
+			"1week",
+		},
+		{
+			"AllOther",
+			kline.FifteenDay,
+			"",
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+
+		t.Run(test.name, func(t *testing.T) {
+			ret := z.FormatExchangeKlineInterval(test.interval)
+
+			if ret != test.output {
+				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
+			}
+		})
 	}
 }

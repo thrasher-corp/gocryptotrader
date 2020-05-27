@@ -190,7 +190,7 @@ func durationToWord(in Interval) string {
 		return "oneday"
 	case ThreeDay:
 		return "threeday"
-	case Fifteenday:
+	case FifteenDay:
 		return "fifteenday"
 	case OneWeek:
 		return "oneweek"
@@ -236,14 +236,12 @@ func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out uint3
 		out = uint32(end.Sub(start).Hours() / 24)
 	case ThreeDay:
 		out = uint32(end.Sub(start).Hours() / 72)
-	case Fifteenday:
+	case FifteenDay:
 		out = uint32(end.Sub(start).Hours() / (24 * 15))
 	case OneWeek:
 		out = uint32(end.Sub(start).Hours()) / (24 * 7)
 	case TwoWeek:
 		out = uint32(end.Sub(start).Hours() / (24 * 14))
-	case OneMonth:
-		// out = uint32(end.Sub(start).Minutes / (24*))
 	case OneYear:
 		out = uint32(end.Sub(start).Hours() / 8760)
 	}

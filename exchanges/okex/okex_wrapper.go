@@ -450,14 +450,15 @@ func (o *OKEX) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end t
 		}
 	}
 
-	req := okgroup.GetSpotMarketDataRequest{
+	req := &okgroup.GetMarketDataRequest{
+		Asset:        a,
 		Start:        start.UTC().Format(time.RFC3339),
 		End:          end.UTC().Format(time.RFC3339),
 		Granularity:  o.FormatExchangeKlineInterval(interval),
 		InstrumentID: o.FormatExchangeCurrency(pair, a).String(),
 	}
 
-	candles, err := o.GetSpotMarketData(req)
+	candles, err := o.GetMarketData(req)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -474,7 +475,7 @@ func (o *OKEX) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end t
 		tempCandle := kline.Candle{}
 		v, ok := t[0].(string)
 		if !ok {
-			return kline.Item{}, errors.New("unexpected value receved")
+			return kline.Item{}, errors.New("unexpected value received")
 		}
 		tempCandle.Time, err = time.Parse(time.RFC3339, v)
 		if err != nil {
@@ -508,8 +509,8 @@ func (o *OKEX) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end t
 	return ret, nil
 }
 
-// GetHistoricCandlesEx returns candles between a time period for a set time interval
-func (o *OKEX) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (o *OKEX) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if !o.KlineIntervalEnabled(interval) {
 		return kline.Item{}, kline.ErrorKline{
 			Interval: interval,
@@ -525,14 +526,15 @@ func (o *OKEX) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end
 
 	dates := kline.CalcDateRanges(start, end, interval, o.Features.Enabled.Kline.ResultLimit)
 	for x := range dates {
-		req := okgroup.GetSpotMarketDataRequest{
+		req := &okgroup.GetMarketDataRequest{
+			Asset:        a,
 			Start:        dates[x].Start.UTC().Format(time.RFC3339),
 			End:          dates[x].End.UTC().Format(time.RFC3339),
 			Granularity:  o.FormatExchangeKlineInterval(interval),
 			InstrumentID: o.FormatExchangeCurrency(pair, a).String(),
 		}
 
-		candles, err := o.GetSpotMarketData(req)
+		candles, err := o.GetMarketData(req)
 		if err != nil {
 			return kline.Item{}, err
 		}

@@ -823,7 +823,7 @@ func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
 
-	candles, err := b.GetCandles(fixCasing(pair), b.FormatExchangeKlineInterval(interval), start.Unix()*1000, end.Unix()*1000, 0, true, false)
+	candles, err := b.GetCandles(fixCasing(pair, a), b.FormatExchangeKlineInterval(interval), start.Unix()*1000, end.Unix()*1000, 0, true, false)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -847,16 +847,8 @@ func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 	return ret, nil
 }
 
-func fixCasing(in currency.Pair) string {
-	runes := []rune(in.Upper().String())
-	if in.Upper().String()[0] == 'T' || in.Upper().String()[0] == 'F' {
-		runes[0] = unicode.ToLower(runes[0])
-	}
-	return string(runes)
-}
-
-// GetHistoricCandlesEx returns candles between a time period for a set time interval
-func (b *Bitfinex) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if !b.KlineIntervalEnabled(interval) {
 		return kline.Item{}, kline.ErrorKline{
 			Interval: interval,
@@ -872,7 +864,7 @@ func (b *Bitfinex) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start,
 
 	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
 	for x := range dates {
-		candles, err := b.GetCandles(fixCasing(pair), b.FormatExchangeKlineInterval(interval),
+		candles, err := b.GetCandles(fixCasing(pair, a), b.FormatExchangeKlineInterval(interval),
 			dates[x].Start.Unix()*1000, dates[x].End.Unix()*1000, 0, true, false)
 		if err != nil {
 			return kline.Item{}, err
@@ -890,4 +882,24 @@ func (b *Bitfinex) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start,
 		}
 	}
 	return ret, nil
+}
+
+func fixCasing(in currency.Pair, a asset.Item) string {
+	var checkString [2]string
+	if a == asset.Spot {
+		checkString[0] = "t"
+		checkString[1] = "T"
+	} else if a == asset.Margin {
+		checkString[0] = "f"
+		checkString[1] = "F"
+	}
+
+	if in.Upper().String()[0] != checkString[0][0] && in.Upper().String()[0] != checkString[1][0] ||
+		in.Upper().String()[0] == checkString[1][0] && in.Upper().String()[1] == checkString[1][0] {
+		return checkString[0] + in.Upper().String()
+	}
+
+	runes := []rune(in.Upper().String())
+	runes[0] = unicode.ToLower(runes[0])
+	return string(runes)
 }

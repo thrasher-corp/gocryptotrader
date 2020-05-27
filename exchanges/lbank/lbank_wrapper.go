@@ -104,7 +104,7 @@ func (l *Lbank) SetDefaults() {
 					kline.ThirtyMin.Word():  true,
 					kline.OneHour.Word():    true,
 					kline.FourHour.Word():   true,
-					"eighthour":             true,
+					kline.EightHour.Word():  true,
 					kline.TwelveHour.Word(): true,
 					kline.OneDay.Word():     true,
 					kline.OneWeek.Word():    true,
@@ -740,12 +740,15 @@ func (l *Lbank) FormatExchangeKlineInterval(in kline.Interval) string {
 	case kline.OneMin, kline.ThreeMin,
 		kline.FiveMin, kline.FifteenMin, kline.ThirtyMin:
 		return "minute" + in.Short()[:len(in.Short())-1]
+	case kline.OneHour, kline.FourHour,
+		kline.EightHour, kline.TwelveHour:
+		return "hour" + in.Short()[:len(in.Short())-1]
 	case kline.OneDay:
 		return "day1"
 	case kline.OneWeek:
 		return "week1"
 	}
-	return in.Short()
+	return ""
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
@@ -784,8 +787,8 @@ func (l *Lbank) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end 
 	return ret, nil
 }
 
-// GetHistoricCandlesEx returns candles between a time period for a set time interval
-func (l *Lbank) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (l *Lbank) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if !l.KlineIntervalEnabled(interval) {
 		return kline.Item{}, kline.ErrorKline{
 			Interval: interval,
@@ -802,17 +805,16 @@ func (l *Lbank) GetHistoricCandlesEx(pair currency.Pair, a asset.Item, start, en
 	for x := range dates {
 		data, err := l.GetKlines(l.FormatExchangeCurrency(pair, a).String(),
 			"2880", l.FormatExchangeKlineInterval(interval),
-			strconv.FormatInt(dates[x].Start.Unix(), 10))
+			strconv.FormatInt(dates[x].Start.UTC().Unix(), 10))
 		if err != nil {
 			return kline.Item{}, err
 		}
-
 		for y := range data {
-			if time.Unix(data[x].TimeStamp, 0).Before(dates[x].Start) || time.Unix(data[x].TimeStamp, 0).After(dates[x].End) {
+			if time.Unix(data[y].TimeStamp, 0).UTC().Before(dates[x].Start.UTC()) || time.Unix(data[y].TimeStamp, 0).UTC().After(dates[x].End.UTC()) {
 				continue
 			}
 			ret.Candles = append(ret.Candles, kline.Candle{
-				Time:   time.Unix(data[y].TimeStamp, 0),
+				Time:   time.Unix(data[y].TimeStamp, 0).UTC(),
 				Open:   data[y].OpenPrice,
 				High:   data[y].HigestPrice,
 				Low:    data[y].LowestPrice,

@@ -165,7 +165,7 @@ func (b *BTCMarkets) GetOrderbook(marketID string, level int64) (Orderbook, erro
 
 // FormatExchangeKlineInterval returns Interval to exchange formatted string
 func (b *BTCMarkets) FormatExchangeKlineInterval(in kline.Interval) string {
-	if in == kline.OneDay || in == kline.TwentyFourHour {
+	if in == kline.OneDay {
 		return "1d"
 	}
 	return in.Short()

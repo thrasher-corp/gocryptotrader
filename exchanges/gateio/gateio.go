@@ -201,7 +201,7 @@ func (g *Gateio) GetSpotKline(arg KlinesRequestParams) (kline.Item, error) {
 	}
 
 	result := kline.Item{
-		Exchange: g.GetName(),
+		Exchange: g.Name,
 	}
 
 	if rawKlines == nil || rawKlines["data"] == nil {
@@ -215,7 +215,10 @@ func (g *Gateio) GetSpotKline(arg KlinesRequestParams) (kline.Item, error) {
 	}
 
 	for _, k := range rawKlineDatas {
-		otString, _ := strconv.ParseFloat(k[0].(string), 64)
+		otString, err := strconv.ParseFloat(k[0].(string), 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
 		ot, err := convert.TimeFromUnixTimestampFloat(otString)
 		if err != nil {
 			return kline.Item{}, fmt.Errorf("cannot parse Kline.OpenTime. Err: %s", err)
