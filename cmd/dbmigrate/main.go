@@ -91,7 +91,7 @@ func main() {
 	}
 
 	if command == "seed" {
-		err := seed.Run()
+		err = seed.Run()
 		if err != nil {
 			fmt.Println(err)
 		}
