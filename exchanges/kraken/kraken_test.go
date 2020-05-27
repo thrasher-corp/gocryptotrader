@@ -50,6 +50,10 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Kraken setup error", err)
 	}
+	err = k.SeedAssets()
+	if err != nil {
+		log.Fatal(err)
+	}
 	k.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	k.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
@@ -70,6 +74,44 @@ func TestGetAssets(t *testing.T) {
 	_, err := k.GetAssets()
 	if err != nil {
 		t.Error("GetAssets() error", err)
+	}
+}
+
+func TestSeedAssetTranslator(t *testing.T) {
+	t.Parallel()
+	if err := k.SeedAssets(); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSeedAssets(t *testing.T) {
+	t.Parallel()
+	var a assetTranslatorStore
+	if r := a.LookupAltname("ZUSD"); r != "" {
+		t.Error("unexpected result")
+	}
+	a.Seed("ZUSD", "USD")
+	if r := a.LookupAltname("ZUSD"); r != "USD" {
+		t.Error("unexpected result")
+	}
+	a.Seed("ZUSD", "BLA")
+	if r := a.LookupAltname("ZUSD"); r != "USD" {
+		t.Error("unexpected result")
+	}
+}
+
+func TestLookupCurrency(t *testing.T) {
+	t.Parallel()
+	var a assetTranslatorStore
+	if r := a.LookupCurrency("USD"); r != "" {
+		t.Error("unexpected result")
+	}
+	a.Seed("ZUSD", "USD")
+	if r := a.LookupCurrency("USD"); r != "ZUSD" {
+		t.Error("unexpected result")
+	}
+	if r := a.LookupCurrency("EUR"); r != "" {
+		t.Error("unexpected result")
 	}
 }
 

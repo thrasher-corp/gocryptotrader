@@ -229,45 +229,60 @@ func (e *EXMO) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
-	pairsCollated, err := e.FormatExchangeCurrencies(e.GetEnabledPairs(assetType),
-		assetType)
+	enabledPairs := e.GetEnabledPairs(assetType)
+	pairsCollated, err := e.FormatExchangeCurrencies(enabledPairs, assetType)
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
 
 	result, err := e.GetOrderbook(pairsCollated)
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
-	enabledPairs := e.GetEnabledPairs(assetType)
+
 	for i := range enabledPairs {
-		curr := e.FormatExchangeCurrency(enabledPairs[i], assetType)
-		data, ok := result[curr.String()]
+		data, ok := result[e.FormatExchangeCurrency(enabledPairs[i], assetType).String()]
 		if !ok {
 			continue
 		}
 
-		var obItems []orderbook.Item
+		orderBook := new(orderbook.Base)
 		for y := range data.Ask {
-			z := data.Ask[y]
-			price, _ := strconv.ParseFloat(z[0], 64)
-			amount, _ := strconv.ParseFloat(z[1], 64)
-			obItems = append(obItems,
-				orderbook.Item{Price: price, Amount: amount})
+			var price, amount float64
+			price, err = strconv.ParseFloat(data.Ask[y][0], 64)
+			if err != nil {
+				return orderBook, err
+			}
+
+			amount, err = strconv.ParseFloat(data.Ask[y][1], 64)
+			if err != nil {
+				return orderBook, err
+			}
+
+			orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+				Price:  price,
+				Amount: amount,
+			})
 		}
 
-		orderBook.Asks = obItems
-		obItems = []orderbook.Item{}
 		for y := range data.Bid {
-			z := data.Bid[y]
-			price, _ := strconv.ParseFloat(z[0], 64)
-			amount, _ := strconv.ParseFloat(z[1], 64)
-			obItems = append(obItems,
-				orderbook.Item{Price: price, Amount: amount})
+			var price, amount float64
+			price, err = strconv.ParseFloat(data.Bid[y][0], 64)
+			if err != nil {
+				return orderBook, err
+			}
+
+			amount, err = strconv.ParseFloat(data.Bid[y][1], 64)
+			if err != nil {
+				return orderBook, err
+			}
+
+			orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+				Price:  price,
+				Amount: amount,
+			})
 		}
 
-		orderBook.Bids = obItems
 		orderBook.Pair = enabledPairs[i]
 		orderBook.ExchangeName = e.Name
 		orderBook.AssetType = assetType

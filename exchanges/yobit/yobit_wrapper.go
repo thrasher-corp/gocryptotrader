@@ -179,18 +179,17 @@ func (y *Yobit) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (y *Yobit) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
-	pairsCollated, err := y.FormatExchangeCurrencies(y.GetEnabledPairs(assetType), assetType)
+	enabledPairs := y.GetEnabledPairs(assetType)
+	pairsCollated, err := y.FormatExchangeCurrencies(enabledPairs, assetType)
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
 	result, err := y.GetTicker(pairsCollated)
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
-	enabledPairs := y.GetEnabledPairs(assetType)
 	for i := range enabledPairs {
 		curr := y.FormatExchangeCurrency(enabledPairs[i], assetType).Lower().String()
 		if _, ok := result[curr]; !ok {

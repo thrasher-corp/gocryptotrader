@@ -216,7 +216,8 @@ func (k *Kraken) Run() {
 	forceUpdate := false
 	delim := k.GetPairFormat(asset.Spot, false).Delimiter
 	if !common.StringDataContains(k.GetEnabledPairs(asset.Spot).Strings(), delim) ||
-		!common.StringDataContains(k.GetAvailablePairs(asset.Spot).Strings(), delim) {
+		!common.StringDataContains(k.GetAvailablePairs(asset.Spot).Strings(), delim) ||
+		common.StringDataContains(k.GetAvailablePairs(asset.Spot).Strings(), "ZUSD") {
 		enabledPairs := currency.NewPairsFromStrings(
 			[]string{currency.XBT.String() + delim + currency.USD.String()},
 		)
@@ -247,6 +248,10 @@ func (k *Kraken) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (k *Kraken) FetchTradablePairs(asset asset.Item) ([]string, error) {
+	if err := k.SeedAssets(); err != nil {
+		return nil, err
+	}
+
 	pairs, err := k.GetAssetPairs()
 	if err != nil {
 		return nil, err
@@ -258,14 +263,8 @@ func (k *Kraken) FetchTradablePairs(asset asset.Item) ([]string, error) {
 		if strings.Contains(v.Altname, ".d") {
 			continue
 		}
-		if v.Base[0] == 'X' {
-			if len(v.Base) > 3 {
-				v.Base = v.Base[1:]
-			}
-		}
-		if v.Quote[0] == 'Z' || v.Quote[0] == 'X' {
-			v.Quote = v.Quote[1:]
-		}
+		v.Base = assetTranslator.LookupAltname(v.Base)
+		v.Quote = assetTranslator.LookupAltname(v.Quote)
 		products = append(products, v.Base+
 			k.GetPairFormat(asset, false).Delimiter+
 			v.Quote)
@@ -301,8 +300,8 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 		for c, t := range tickers {
 			pairFmt := k.FormatExchangeCurrency(pairs[i], assetType).String()
 			if !strings.EqualFold(pairFmt, c) {
-				altCurrency, ok := assetPairMap[c]
-				if !ok {
+				altCurrency := assetTranslator.LookupAltname(c)
+				if altCurrency == "" {
 					continue
 				}
 				if !strings.EqualFold(pairFmt, altCurrency) {

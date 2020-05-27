@@ -57,7 +57,9 @@ const (
 	krakenRequestRate  = 1
 )
 
-var assetPairMap map[string]string
+var (
+	assetTranslator assetTranslatorStore
+)
 
 // Kraken is the overarching type across the alphapoint package
 type Kraken struct {
@@ -83,6 +85,25 @@ func (k *Kraken) GetServerTime() (TimeResponse, error) {
 	return response.Result, GetError(response.Error)
 }
 
+func (k *Kraken) SeedAssets() error {
+	assets, err := k.GetAssets()
+	if err != nil {
+		return err
+	}
+	for k, v := range assets {
+		assetTranslator.Seed(k, v.Altname)
+	}
+
+	assetPairs, err := k.GetAssetPairs()
+	if err != nil {
+		return err
+	}
+	for k, v := range assetPairs {
+		assetTranslator.Seed(k, v.Altname)
+	}
+	return nil
+}
+
 // GetAssets returns a full asset list
 func (k *Kraken) GetAssets() (map[string]Asset, error) {
 	path := fmt.Sprintf("%s/%s/public/%s", k.API.Endpoints.URL, krakenAPIVersion, krakenAssets)
@@ -95,7 +116,6 @@ func (k *Kraken) GetAssets() (map[string]Asset, error) {
 	if err := k.SendHTTPRequest(path, &response); err != nil {
 		return response.Result, err
 	}
-
 	return response.Result, GetError(response.Error)
 }
 
@@ -111,13 +131,6 @@ func (k *Kraken) GetAssetPairs() (map[string]AssetPairs, error) {
 	if err := k.SendHTTPRequest(path, &response); err != nil {
 		return response.Result, err
 	}
-	for i := range response.Result {
-		if assetPairMap == nil {
-			assetPairMap = make(map[string]string)
-		}
-		assetPairMap[i] = response.Result[i].Altname
-	}
-
 	return response.Result, GetError(response.Error)
 }
 
@@ -1053,4 +1066,56 @@ func (k *Kraken) GetWebsocketToken() (string, error) {
 		return "", fmt.Errorf("%s - %v", k.Name, response.Error)
 	}
 	return response.Result.Token, nil
+}
+
+func (a *assetTranslatorStore) LookupAltname(target string) string {
+	if !a.Seeded() {
+		return ""
+	}
+
+	a.l.Lock()
+	defer a.l.Unlock()
+	alt, ok := a.Assets[target]
+	if !ok {
+		return ""
+	}
+	return alt
+}
+
+func (a *assetTranslatorStore) LookupCurrency(target string) string {
+	if !a.Seeded() {
+		return ""
+	}
+
+	a.l.Lock()
+	defer a.l.Unlock()
+	for k, v := range a.Assets {
+		if v == target {
+			return k
+		}
+	}
+	return ""
+}
+
+func (a *assetTranslatorStore) Seed(orig, alt string) {
+	a.l.Lock()
+	defer a.l.Unlock()
+
+	if a.Assets == nil {
+		a.Assets = make(map[string]string)
+	}
+
+	_, ok := a.Assets[orig]
+	if ok {
+		return
+	}
+
+	a.Assets[orig] = alt
+}
+
+func (a *assetTranslatorStore) Seeded() bool {
+	a.l.Lock()
+	isSeeded := len(a.Assets) > 0
+	a.l.Unlock()
+	return isSeeded
 }

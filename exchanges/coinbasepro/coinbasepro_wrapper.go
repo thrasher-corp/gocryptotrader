@@ -498,12 +498,8 @@ func (c *CoinbasePro) GetOrderInfo(orderID string) (order.Detail, error) {
 		if errTSi != nil {
 			return response, fmt.Errorf("error parsing order Side: %s", errTSi)
 		}
-		td, errTd := time.Parse(time.RFC3339, fillResponse[i].CreatedAt)
-		if errTd != nil {
-			return response, fmt.Errorf("error parsing trade created time: %s", errTd)
-		}
 		response.Trades = append(response.Trades, order.TradeHistory{
-			Timestamp: td,
+			Timestamp: fillResponse[i].CreatedAt,
 			TID:       string(fillResponse[i].TradeID),
 			Price:     fillResponse[i].Price,
 			Amount:    fillResponse[i].Size,
@@ -607,22 +603,12 @@ func (c *CoinbasePro) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Deta
 			c.GetPairFormat(asset.Spot, false).Delimiter)
 		orderSide := order.Side(strings.ToUpper(respOrders[i].Side))
 		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
-		orderDate, err := time.Parse(time.RFC3339, respOrders[i].CreatedAt)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				c.Name,
-				"GetActiveOrders",
-				respOrders[i].ID,
-				respOrders[i].CreatedAt)
-		}
-
 		orders = append(orders, order.Detail{
 			ID:             respOrders[i].ID,
 			Amount:         respOrders[i].Size,
 			ExecutedAmount: respOrders[i].FilledSize,
 			Type:           orderType,
-			Date:           orderDate,
+			Date:           respOrders[i].CreatedAt,
 			Side:           orderSide,
 			Pair:           curr,
 			Exchange:       c.Name,
@@ -654,22 +640,12 @@ func (c *CoinbasePro) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Deta
 			c.GetPairFormat(asset.Spot, false).Delimiter)
 		orderSide := order.Side(strings.ToUpper(respOrders[i].Side))
 		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
-		orderDate, err := time.Parse(time.RFC3339, respOrders[i].CreatedAt)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
-				c.Name,
-				"GetActiveOrders",
-				respOrders[i].ID,
-				respOrders[i].CreatedAt)
-		}
-
 		orders = append(orders, order.Detail{
 			ID:             respOrders[i].ID,
 			Amount:         respOrders[i].Size,
 			ExecutedAmount: respOrders[i].FilledSize,
 			Type:           orderType,
-			Date:           orderDate,
+			Date:           respOrders[i].CreatedAt,
 			Side:           orderSide,
 			Pair:           curr,
 			Exchange:       c.Name,

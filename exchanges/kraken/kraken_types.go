@@ -1,10 +1,16 @@
 package kraken
 
 import (
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
+
+type assetTranslatorStore struct {
+	l      sync.Mutex
+	Assets map[string]string
+}
 
 // TimeResponse type
 type TimeResponse struct {

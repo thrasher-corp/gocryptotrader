@@ -30,11 +30,11 @@ type Ticker struct {
 
 // Trade holds executed trade information
 type Trade struct {
-	TradeID int64   `json:"trade_id"`
-	Price   float64 `json:"price,string"`
-	Size    float64 `json:"size,string"`
-	Time    string  `json:"time"`
-	Side    string  `json:"side"`
+	TradeID int64     `json:"trade_id"`
+	Price   float64   `json:"price,string"`
+	Size    float64   `json:"size,string"`
+	Time    time.Time `json:"time"`
+	Side    string    `json:"side"`
 }
 
 // History holds historic rate information
@@ -66,8 +66,8 @@ type Currency struct {
 
 // ServerTime holds current requested server time information
 type ServerTime struct {
-	ISO   string  `json:"iso"`
-	Epoch float64 `json:"epoch"`
+	ISO   time.Time `json:"iso"`
+	Epoch float64   `json:"epoch"`
 }
 
 // AccountResponse holds the details for the trading accounts
@@ -86,7 +86,7 @@ type AccountResponse struct {
 // AccountLedgerResponse holds account history information
 type AccountLedgerResponse struct {
 	ID        string      `json:"id"`
-	CreatedAt string      `json:"created_at"`
+	CreatedAt time.Time   `json:"created_at"`
 	Amount    float64     `json:"amount,string"`
 	Balance   float64     `json:"balance,string"`
 	Type      string      `json:"type"`
@@ -95,68 +95,68 @@ type AccountLedgerResponse struct {
 
 // AccountHolds contains the hold information about an account
 type AccountHolds struct {
-	ID        string  `json:"id"`
-	AccountID string  `json:"account_id"`
-	CreatedAt string  `json:"created_at"`
-	UpdatedAt string  `json:"updated_at"`
-	Amount    float64 `json:"amount,string"`
-	Type      string  `json:"type"`
-	Reference string  `json:"ref"`
+	ID        string    `json:"id"`
+	AccountID string    `json:"account_id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt string    `json:"updated_at"`
+	Amount    float64   `json:"amount,string"`
+	Type      string    `json:"type"`
+	Reference string    `json:"ref"`
 }
 
 // GeneralizedOrderResponse is the generalized return type across order
 // placement and information collation
 type GeneralizedOrderResponse struct {
-	ID             string  `json:"id"`
-	Price          float64 `json:"price,string"`
-	Size           float64 `json:"size,string"`
-	ProductID      string  `json:"product_id"`
-	Side           string  `json:"side"`
-	Stp            string  `json:"stp"`
-	Type           string  `json:"type"`
-	TimeInForce    string  `json:"time_in_force"`
-	PostOnly       bool    `json:"post_only"`
-	CreatedAt      string  `json:"created_at"`
-	FillFees       float64 `json:"fill_fees,string"`
-	FilledSize     float64 `json:"filled_size,string"`
-	ExecutedValue  float64 `json:"executed_value,string"`
-	Status         string  `json:"status"`
-	Settled        bool    `json:"settled"`
-	Funds          float64 `json:"funds,string"`
-	SpecifiedFunds float64 `json:"specified_funds,string"`
-	DoneReason     string  `json:"done_reason"`
-	DoneAt         string  `json:"done_at"`
+	ID             string    `json:"id"`
+	Price          float64   `json:"price,string"`
+	Size           float64   `json:"size,string"`
+	ProductID      string    `json:"product_id"`
+	Side           string    `json:"side"`
+	Stp            string    `json:"stp"`
+	Type           string    `json:"type"`
+	TimeInForce    string    `json:"time_in_force"`
+	PostOnly       bool      `json:"post_only"`
+	CreatedAt      time.Time `json:"created_at"`
+	FillFees       float64   `json:"fill_fees,string"`
+	FilledSize     float64   `json:"filled_size,string"`
+	ExecutedValue  float64   `json:"executed_value,string"`
+	Status         string    `json:"status"`
+	Settled        bool      `json:"settled"`
+	Funds          float64   `json:"funds,string"`
+	SpecifiedFunds float64   `json:"specified_funds,string"`
+	DoneReason     string    `json:"done_reason"`
+	DoneAt         string    `json:"done_at"`
 }
 
 // Funding holds funding data
 type Funding struct {
-	ID            string  `json:"id"`
-	OrderID       string  `json:"order_id"`
-	ProfileID     string  `json:"profile_id"`
-	Amount        float64 `json:"amount,string"`
-	Status        string  `json:"status"`
-	CreatedAt     string  `json:"created_at"`
-	Currency      string  `json:"currency"`
-	RepaidAmount  float64 `json:"repaid_amount"`
-	DefaultAmount float64 `json:"default_amount,string"`
-	RepaidDefault bool    `json:"repaid_default"`
+	ID            string    `json:"id"`
+	OrderID       string    `json:"order_id"`
+	ProfileID     string    `json:"profile_id"`
+	Amount        float64   `json:"amount,string"`
+	Status        string    `json:"status"`
+	CreatedAt     time.Time `json:"created_at"`
+	Currency      string    `json:"currency"`
+	RepaidAmount  float64   `json:"repaid_amount"`
+	DefaultAmount float64   `json:"default_amount,string"`
+	RepaidDefault bool      `json:"repaid_default"`
 }
 
 // MarginTransfer holds margin transfer details
 type MarginTransfer struct {
-	CreatedAt       string  `json:"created_at"`
-	ID              string  `json:"id"`
-	UserID          string  `json:"user_id"`
-	ProfileID       string  `json:"profile_id"`
-	MarginProfileID string  `json:"margin_profile_id"`
-	Type            string  `json:"type"`
-	Amount          float64 `json:"amount,string"`
-	Currency        string  `json:"currency"`
-	AccountID       string  `json:"account_id"`
-	MarginAccountID string  `json:"margin_account_id"`
-	MarginProductID string  `json:"margin_product_id"`
-	Status          string  `json:"status"`
-	Nonce           int     `json:"nonce"`
+	CreatedAt       time.Time `json:"created_at"`
+	ID              string    `json:"id"`
+	UserID          string    `json:"user_id"`
+	ProfileID       string    `json:"profile_id"`
+	MarginProfileID string    `json:"margin_profile_id"`
+	Type            string    `json:"type"`
+	Amount          float64   `json:"amount,string"`
+	Currency        string    `json:"currency"`
+	AccountID       string    `json:"account_id"`
+	MarginAccountID string    `json:"margin_account_id"`
+	MarginProductID string    `json:"margin_product_id"`
+	Status          string    `json:"status"`
+	Nonce           int       `json:"nonce"`
 }
 
 // AccountOverview holds account information returned from position
@@ -166,12 +166,12 @@ type AccountOverview struct {
 		MaxFundingValue   float64 `json:"max_funding_value,string"`
 		FundingValue      float64 `json:"funding_value,string"`
 		OldestOutstanding struct {
-			ID        string  `json:"id"`
-			OrderID   string  `json:"order_id"`
-			CreatedAt string  `json:"created_at"`
-			Currency  string  `json:"currency"`
-			AccountID string  `json:"account_id"`
-			Amount    float64 `json:"amount,string"`
+			ID        string    `json:"id"`
+			OrderID   string    `json:"order_id"`
+			CreatedAt time.Time `json:"created_at"`
+			Currency  string    `json:"currency"`
+			AccountID string    `json:"account_id"`
+			Amount    float64   `json:"amount,string"`
 		} `json:"oldest_outstanding"`
 	} `json:"funding"`
 	Accounts struct {
@@ -238,10 +238,10 @@ type LimitInfo struct {
 
 // DepositWithdrawalInfo holds returned deposit information
 type DepositWithdrawalInfo struct {
-	ID       string  `json:"id"`
-	Amount   float64 `json:"amount,string"`
-	Currency string  `json:"currency"`
-	PayoutAt string  `json:"payout_at"`
+	ID       string    `json:"id"`
+	Amount   float64   `json:"amount,string"`
+	Currency string    `json:"currency"`
+	PayoutAt time.Time `json:"payout_at"`
 }
 
 // CoinbaseAccounts holds coinbase account information
@@ -280,16 +280,16 @@ type CoinbaseAccounts struct {
 
 // Report holds historical information
 type Report struct {
-	ID          string `json:"id"`
-	Type        string `json:"type"`
-	Status      string `json:"status"`
-	CreatedAt   string `json:"created_at"`
-	CompletedAt string `json:"completed_at"`
-	ExpiresAt   string `json:"expires_at"`
-	FileURL     string `json:"file_url"`
+	ID          string    `json:"id"`
+	Type        string    `json:"type"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"created_at"`
+	CompletedAt time.Time `json:"completed_at"`
+	ExpiresAt   time.Time `json:"expires_at"`
+	FileURL     string    `json:"file_url"`
 	Params      struct {
-		StartDate string `json:"start_date"`
-		EndDate   string `json:"end_date"`
+		StartDate time.Time `json:"start_date"`
+		EndDate   time.Time `json:"end_date"`
 	} `json:"params"`
 }
 
@@ -338,16 +338,16 @@ type OrderbookResponse struct {
 
 // FillResponse contains fill information from the exchange
 type FillResponse struct {
-	TradeID   int     `json:"trade_id"`
-	ProductID string  `json:"product_id"`
-	Price     float64 `json:"price,string"`
-	Size      float64 `json:"size,string"`
-	OrderID   string  `json:"order_id"`
-	CreatedAt string  `json:"created_at"`
-	Liquidity string  `json:"liquidity"`
-	Fee       float64 `json:"fee,string"`
-	Settled   bool    `json:"settled"`
-	Side      string  `json:"side"`
+	TradeID   int       `json:"trade_id"`
+	ProductID string    `json:"product_id"`
+	Price     float64   `json:"price,string"`
+	Size      float64   `json:"size,string"`
+	OrderID   string    `json:"order_id"`
+	CreatedAt time.Time `json:"created_at"`
+	Liquidity string    `json:"liquidity"`
+	Fee       float64   `json:"fee,string"`
+	Settled   bool      `json:"settled"`
+	Side      string    `json:"side"`
 }
 
 // WebsocketSubscribe takes in subscription information
