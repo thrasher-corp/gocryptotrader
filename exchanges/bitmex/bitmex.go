@@ -2,6 +2,7 @@ package bitmex
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -767,7 +768,7 @@ func (b *Bitmex) SendHTTPRequest(path string, params Parameter, result interface
 			if err != nil {
 				return err
 			}
-			err = b.SendPayload(&request.Item{
+			err = b.SendPayload(context.Background(), &request.Item{
 				Method:        http.MethodGet,
 				Path:          encodedPath,
 				Result:        &respCheck,
@@ -781,7 +782,7 @@ func (b *Bitmex) SendHTTPRequest(path string, params Parameter, result interface
 			return b.CaptureError(respCheck, result)
 		}
 	}
-	err := b.SendPayload(&request.Item{
+	err := b.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        &respCheck,
@@ -802,7 +803,8 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(verb, path string, params Paramete
 			b.Name)
 	}
 
-	timestamp := time.Now().Add(time.Second * 10).UnixNano()
+	expires := time.Now().Add(time.Second * 10)
+	timestamp := expires.UnixNano()
 	timestampStr := strconv.FormatInt(timestamp, 10)
 	timestampNew := timestampStr[:13]
 
@@ -832,7 +834,9 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(verb, path string, params Paramete
 
 	var respCheck interface{}
 
-	err := b.SendPayload(&request.Item{
+	ctx, cancel := context.WithDeadline(context.Background(), expires)
+	defer cancel()
+	err := b.SendPayload(ctx, &request.Item{
 		Method:        verb,
 		Path:          b.API.Endpoints.URL + path,
 		Headers:       headers,

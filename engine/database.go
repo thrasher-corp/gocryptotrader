@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	dbConn *database.Db
+	dbConn *database.Instance
 )
 
 type databaseManager struct {

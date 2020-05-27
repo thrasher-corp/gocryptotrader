@@ -2,12 +2,14 @@ package binance
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -351,6 +353,47 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 }
 
+func TestNewOrderTest(t *testing.T) {
+	t.Parallel()
+
+	req := &NewOrderRequest{
+		Symbol:      "LTCBTC",
+		Side:        order.Buy.String(),
+		TradeType:   BinanceRequestParamsOrderLimit,
+		Price:       0.0025,
+		Quantity:    100000,
+		TimeInForce: BinanceRequestParamsTimeGTC,
+	}
+
+	err := b.NewOrderTest(req)
+	switch {
+	case areTestAPIKeysSet() && err != nil:
+		t.Error("NewOrderTest() error", err)
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
+		t.Error("NewOrderTest() expecting an error when no keys are set")
+	case mockTests && err != nil:
+		t.Error("Mock NewOrderTest() error", err)
+	}
+
+	req = &NewOrderRequest{
+		Symbol:        "LTCBTC",
+		Side:          order.Sell.String(),
+		TradeType:     BinanceRequestParamsOrderMarket,
+		Price:         0.0045,
+		QuoteOrderQty: 10,
+	}
+
+	err = b.NewOrderTest(req)
+	switch {
+	case areTestAPIKeysSet() && err != nil:
+		t.Error("NewOrderTest() error", err)
+	case !areTestAPIKeysSet() && err == nil && !mockTests:
+		t.Error("NewOrderTest() expecting an error when no keys are set")
+	case mockTests && err != nil:
+		t.Error("Mock NewOrderTest() error", err)
+	}
+}
+
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
 // -----------------------------------------------------------------------------------------------------------------------------
 
@@ -671,30 +714,100 @@ func TestWsTradeUpdate(t *testing.T) {
 }
 
 func TestWsDepthUpdate(t *testing.T) {
-	t.Parallel()
-	pressXToJSON := []byte(`{"stream":"btcusdt@depth","data":{
+	seedLastUpdateID := int64(161)
+	book := OrderBook{
+		Asks: []OrderbookItem{
+			{Price: 6621.80000000, Quantity: 0.00198100},
+			{Price: 6622.14000000, Quantity: 4.00000000},
+			{Price: 6622.46000000, Quantity: 2.30000000},
+			{Price: 6622.47000000, Quantity: 1.18633300},
+			{Price: 6622.64000000, Quantity: 4.00000000},
+			{Price: 6622.73000000, Quantity: 0.02900000},
+			{Price: 6622.76000000, Quantity: 0.12557700},
+			{Price: 6622.81000000, Quantity: 2.08994200},
+			{Price: 6622.82000000, Quantity: 0.01500000},
+			{Price: 6623.17000000, Quantity: 0.16831300},
+		},
+		Bids: []OrderbookItem{
+			{Price: 6621.55000000, Quantity: 0.16356700},
+			{Price: 6621.45000000, Quantity: 0.16352600},
+			{Price: 6621.41000000, Quantity: 0.86091200},
+			{Price: 6621.25000000, Quantity: 0.16914100},
+			{Price: 6621.23000000, Quantity: 0.09193600},
+			{Price: 6621.22000000, Quantity: 0.00755100},
+			{Price: 6621.13000000, Quantity: 0.08432000},
+			{Price: 6621.03000000, Quantity: 0.00172000},
+			{Price: 6620.94000000, Quantity: 0.30506700},
+			{Price: 6620.93000000, Quantity: 0.00200000},
+		},
+		LastUpdateID: seedLastUpdateID,
+	}
+
+	update1 := []byte(`{"stream":"btcusdt@depth","data":{
 	  "e": "depthUpdate", 
-	  "E": 123456789,     
+	  "E": 123456788,     
 	  "s": "BTCUSDT",      
 	  "U": 157,           
 	  "u": 160,           
 	  "b": [              
-		[
-		  "0.0024",       
-		  "10"            
-		]
+		["6621.45", "0.3"]
 	  ],
 	  "a": [              
-		[
-		  "0.0026",       
-		  "100"           
-		]
+		["6622.46", "1.5"]
 	  ]
 	}}`)
 
-	err := b.wsHandleData(pressXToJSON)
-	if err.Error() != "Binance - UpdateLocalCache error: ob.Base could not be found for Exchange Binance CurrencyPair: BTC-USDT AssetType: spot" {
+	p := currency.NewPairWithDelimiter("BTC", "USDT", "-")
+	if err := b.SeedLocalCacheWithBook(p, &book); err != nil {
 		t.Error(err)
+	}
+
+	if err := b.wsHandleData(update1); err != nil {
+		t.Error(err)
+	}
+
+	ob := b.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
+	if exp, got := seedLastUpdateID, ob.LastUpdateID; got != exp {
+		t.Fatalf("Unexpected Last update id of orderbook for old update. Exp: %d, got: %d", exp, got)
+	}
+	if exp, got := 2.3, ob.Asks[2].Amount; got != exp {
+		t.Fatalf("Ask altered by outdated update. Exp: %f, got %f", exp, got)
+	}
+	if exp, got := 0.163526, ob.Bids[1].Amount; got != exp {
+		t.Fatalf("Bid altered by outdated update. Exp: %f, got %f", exp, got)
+	}
+
+	update2 := []byte(`{"stream":"btcusdt@depth","data":{
+	  "e": "depthUpdate", 
+	  "E": 123456789,     
+	  "s": "BTCUSDT",      
+	  "U": 161,           
+	  "u": 165,           
+	  "b": [           
+		["6621.45", "0.163526"]
+	  ],
+	  "a": [             
+		["6622.46", "2.3"], 
+		["6622.47", "1.9"]
+	  ]
+	}}`)
+
+	if err := b.wsHandleData(update2); err != nil {
+		t.Error(err)
+	}
+
+	ob = b.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
+	if exp, got := int64(165), ob.LastUpdateID; got != exp {
+		t.Fatalf("Unexpected Last update id of orderbook for new update. Exp: %d, got: %d", exp, got)
+	}
+	if exp, got := 2.3, ob.Asks[2].Amount; got != exp {
+		t.Fatalf("Unexpected Ask amount. Exp: %f, got %f", exp, got)
+	}
+	if exp, got := 1.9, ob.Asks[3].Amount; got != exp {
+		t.Fatalf("Unexpected Ask amount. Exp: %f, got %f", exp, got)
+	}
+	if exp, got := 0.163526, ob.Bids[1].Amount; got != exp {
+		t.Fatalf("Unexpected Bid amount. Exp: %f, got %f", exp, got)
 	}
 }
 
@@ -789,5 +902,138 @@ func TestExecutionTypeToOrderStatus(t *testing.T) {
 		if result != testCases[i].Result {
 			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
 		}
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	if mockTests {
+		t.Skip("skipping test under mock as its covered by GetSpotKlines()")
+	}
+	currencyPair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := time.Date(2017, 8, 18, 0, 0, 0, 0, time.UTC)
+	end := start.AddDate(0, 6, 0)
+
+	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, start, end, kline.OneDay)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestParseInterval(t *testing.T) {
+	testCases := []struct {
+		name     string
+		interval time.Duration
+		expected TimeInterval
+		err      error
+	}{
+		{
+			"OneMin",
+			kline.OneMin,
+			TimeIntervalMinute,
+			nil,
+		},
+		{
+			"ThreeMin",
+			kline.ThreeMin,
+			TimeIntervalThreeMinutes,
+			nil,
+		},
+		{
+			"FiveMin",
+			kline.FiveMin,
+			TimeIntervalFiveMinutes,
+			nil,
+		},
+		{
+			"FifteenMin",
+			kline.FifteenMin,
+			TimeIntervalFifteenMinutes,
+			nil,
+		},
+		{
+			"ThirtyMin",
+			kline.ThirtyMin,
+			TimeIntervalThirtyMinutes,
+			nil,
+		},
+		{
+			"OneHour",
+			kline.OneHour,
+			TimeIntervalHour,
+			nil,
+		},
+		{
+			"TwoHour",
+			kline.TwoHour,
+			TimeIntervalTwoHours,
+			nil,
+		},
+		{
+			"FourHour",
+			kline.FourHour,
+			TimeIntervalFourHours,
+			nil,
+		},
+		{
+			"SixHour",
+			kline.SixHour,
+			TimeIntervalSixHours,
+			nil,
+		},
+		{
+			"EightHour",
+			kline.OneHour * 8,
+			TimeIntervalEightHours,
+			nil,
+		},
+		{
+			"TwelveHour",
+			kline.TwelveHour,
+			TimeIntervalTwelveHours,
+			nil,
+		},
+		{
+			"OneDay",
+			kline.OneDay,
+			TimeIntervalDay,
+			nil,
+		},
+		{
+			"ThreeDay",
+			kline.ThreeDay,
+			TimeIntervalThreeDays,
+			nil,
+		},
+		{
+			"OneWeek",
+			kline.OneWeek,
+			TimeIntervalWeek,
+			nil,
+		},
+		{
+			"default",
+			time.Hour * 1337,
+			TimeIntervalHour,
+			errInvalidInterval,
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+		t.Run(test.name, func(t *testing.T) {
+			v, err := parseInterval(test.interval)
+			if err != nil {
+				if err != test.err {
+					t.Fatal(err)
+				}
+			} else {
+				if v != test.expected {
+					t.Fatalf("%v: received %v expected %v", test.name, v, test.expected)
+				}
+			}
+		})
 	}
 }

@@ -1,6 +1,7 @@
 package exchangerates
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -22,7 +23,7 @@ func (e *ExchangeRates) Setup(config base.Settings) error {
 	e.PrimaryProvider = config.PrimaryProvider
 	e.Requester = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut),
-		request.NewBasicRateLimit(rateLimitInterval, requestRate))
+		request.WithLimiter(request.NewBasicRateLimit(rateLimitInterval, requestRate)))
 	return nil
 }
 
@@ -151,7 +152,7 @@ func (e *ExchangeRates) GetSupportedCurrencies() ([]string, error) {
 // SendHTTPRequest sends a HTTPS request to the desired endpoint and returns the result
 func (e *ExchangeRates) SendHTTPRequest(endPoint string, values url.Values, result interface{}) error {
 	path := common.EncodeURLValues(exchangeRatesAPI+"/"+endPoint, values)
-	err := e.Requester.SendPayload(&request.Item{
+	err := e.Requester.SendPayload(context.Background(), &request.Item{
 		Method:  http.MethodGet,
 		Path:    path,
 		Result:  &result,

@@ -3,7 +3,7 @@ exch := import("exchange")
 
 load := func() {
    info := exch.orderquery("BTC Markets", "4491600698")
-   fmt.print(info)
+   fmt.println(info)
 }
 
 load()

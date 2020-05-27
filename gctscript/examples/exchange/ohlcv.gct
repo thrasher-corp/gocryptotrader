@@ -1,0 +1,11 @@
+fmt := import("fmt")
+exch := import("exchange")
+t := import("times")
+
+load := func() {
+   start := t.add(t.now(), -t.hour*24)
+   ohlcvData := exch.ohlcv("coinbasepro", "BTC-USD", "-", "SPOT", start, t.now(), "1h")
+   fmt.println(ohlcvData)
+}
+
+load()

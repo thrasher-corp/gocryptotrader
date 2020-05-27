@@ -1,6 +1,7 @@
 package yobit
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -257,7 +258,7 @@ func (y *Yobit) RedeemCoupon(coupon string) (RedeemCoupon, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (y *Yobit) SendHTTPRequest(path string, result interface{}) error {
-	return y.SendPayload(&request.Item{
+	return y.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,
@@ -297,7 +298,7 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(path string, params url.Values, res
 	headers["Sign"] = crypto.HexEncodeToString(hmac)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	return y.SendPayload(&request.Item{
+	return y.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodPost,
 		Path:          apiPrivateURL,
 		Headers:       headers,

@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	dbConn         *database.Db
+	dbConn         *database.Instance
 	configFile     string
 	defaultDataDir string
 	migrationDir   string
@@ -26,7 +26,7 @@ var (
 	args           string
 )
 
-func openDbConnection(driver string) (err error) {
+func openDBConnection(driver string) (err error) {
 	if driver == database.DBPostgreSQL {
 		dbConn, err = dbPSQL.Connect()
 		if err != nil {
@@ -68,7 +68,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = openDbConnection(conf.Database.Driver)
+	err = openDBConnection(conf.Database.Driver)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

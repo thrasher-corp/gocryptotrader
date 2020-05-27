@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -747,7 +748,7 @@ func (p *Poloniex) ToggleAutoRenew(orderNumber int64) (bool, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (p *Poloniex) SendHTTPRequest(path string, result interface{}) error {
-	return p.SendPayload(&request.Item{
+	return p.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,
@@ -778,7 +779,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(method, endpoint string, values 
 
 	path := fmt.Sprintf("%s/%s", p.API.Endpoints.URL, poloniexAPITradingEndpoint)
 
-	return p.SendPayload(&request.Item{
+	return p.SendPayload(context.Background(), &request.Item{
 		Method:        method,
 		Path:          path,
 		Headers:       headers,

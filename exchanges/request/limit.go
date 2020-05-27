@@ -64,8 +64,8 @@ func (r *Requester) InitiateRateLimit(e EndpointLimit) error {
 		return nil
 	}
 
-	if r.Limiter != nil {
-		return r.Limiter.Limit(e)
+	if r.limiter != nil {
+		return r.limiter.Limit(e)
 	}
 
 	return nil

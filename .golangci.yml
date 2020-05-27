@@ -23,7 +23,7 @@ linters:
 #   - varcheck
 
 # disabled by default linters
-#   - bodyclose
+    - bodyclose
     - depguard
     - dogsled
 #   - dupl
@@ -38,6 +38,8 @@ linters:
     - gofmt
     - goimports
     - golint
+#   - gomnd
+    - goprintffuncname
     - gosec
 #   - interfacer
 #   - lll
@@ -45,6 +47,7 @@ linters:
     - misspell
     - nakedret
 #   - prealloc
+    - rowserrcheck
     - scopelint
     - stylecheck
     - unconvert
@@ -80,5 +83,8 @@ issues:
 
   exclude-rules:
     - text: "weak cryptographic primitive"
+      linters:
+        - gosec
+    - text: "Expect WriteFile permissions to be 0600 or less"
       linters:
         - gosec

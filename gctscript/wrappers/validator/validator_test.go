@@ -2,9 +2,11 @@ package validator
 
 import (
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -202,5 +204,17 @@ func TestWrapper_WithdrawalFiatFunds(t *testing.T) {
 	_, err = testWrapper.WithdrawalFiatFunds(exchName, "", nil)
 	if err != nil {
 		t.Fatal("expected WithdrawalCryptoFunds to return error with invalid name")
+	}
+}
+
+func TestWrapper_OHLCV(t *testing.T) {
+	c := currency.NewPairDelimiter(pairs, delimiter)
+	_, err := testWrapper.OHLCV("test", c, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneDay)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = testWrapper.OHLCV(exchError.String(), c, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneDay)
+	if err == nil {
+		t.Fatal("expected OHLCV to return error with invalid name")
 	}
 }

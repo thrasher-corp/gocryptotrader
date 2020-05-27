@@ -104,7 +104,7 @@ func (b *BTCMarkets) SetDefaults() {
 
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		SetRateLimit())
+		request.WithLimiter(SetRateLimit()))
 
 	b.API.Endpoints.WebsocketURL = btcMarketsWSURL
 	b.Websocket = stream.New()

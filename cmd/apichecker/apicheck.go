@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -313,16 +314,11 @@ func checkMissingExchanges() []string {
 // readFileData reads the file data from the given json file
 func readFileData(fileName string) (Config, error) {
 	var c Config
-	file, err := os.Open(fileName)
+	data, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		return c, err
 	}
-	defer file.Close()
-	byteValue, err := ioutil.ReadAll(file)
-	if err != nil {
-		return c, err
-	}
-	err = json.Unmarshal(byteValue, &c)
+	err = json.Unmarshal(data, &c)
 	if err != nil {
 		return c, err
 	}
@@ -609,6 +605,7 @@ func htmlScrapeDefault(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
+	defer temp.Body.Close()
 	tokenizer := html.NewTokenizer(temp.Body)
 loop:
 	for {
@@ -664,6 +661,7 @@ func htmlScrapeBTSE(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
+	defer temp.Body.Close()
 	tokenizer := html.NewTokenizer(temp.Body)
 loop:
 	for {
@@ -694,6 +692,7 @@ func htmlScrapeBitfinex(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer temp.Body.Close()
 	a, err := ioutil.ReadAll(temp.Body)
 	if err != nil {
 		return nil, err
@@ -727,6 +726,7 @@ func htmlScrapeBitmex(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
+	defer temp.Body.Close()
 	tokenizer := html.NewTokenizer(temp.Body)
 loop:
 	for {
@@ -764,6 +764,7 @@ func htmlScrapeHitBTC(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer temp.Body.Close()
 	a, err := ioutil.ReadAll(temp.Body)
 	if err != nil {
 		return nil, err
@@ -798,6 +799,7 @@ func htmlScrapeBTCMarkets(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
+	defer temp.Body.Close()
 	tempData, err := ioutil.ReadAll(temp.Body)
 	if err != nil {
 		return resp, err
@@ -819,6 +821,7 @@ func htmlScrapeBitflyer(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
+	defer temp.Body.Close()
 	tokenizer := html.NewTokenizer(temp.Body)
 loop:
 	for {
@@ -870,6 +873,7 @@ func htmlScrapeOk(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
+	defer temp.Body.Close()
 	tokenizer := html.NewTokenizer(temp.Body)
 loop:
 	for {
@@ -923,6 +927,7 @@ func htmlScrapeANX(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer temp.Body.Close()
 	a, err := ioutil.ReadAll(temp.Body)
 	if err != nil {
 		return nil, err
@@ -962,6 +967,7 @@ func htmlScrapeExmo(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer httpResp.Body.Close()
 	a, err := ioutil.ReadAll(httpResp.Body)
 	if err != nil {
 		return nil, err
@@ -982,6 +988,7 @@ func htmlScrapePoloniex(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
+	defer temp.Body.Close()
 	tokenizer := html.NewTokenizer(temp.Body)
 loop:
 	for {
@@ -1034,6 +1041,7 @@ func htmlScrapeItBit(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
+	defer temp.Body.Close()
 	tokenizer := html.NewTokenizer(temp.Body)
 loop:
 	for {
@@ -1067,6 +1075,7 @@ func htmlScrapeLakeBTC(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer temp.Body.Close()
 	a, err := ioutil.ReadAll(temp.Body)
 	if err != nil {
 		return nil, err
@@ -1088,6 +1097,7 @@ func htmlScrapeBitstamp(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer temp.Body.Close()
 	a, err := ioutil.ReadAll(temp.Body)
 	if err != nil {
 		return nil, err
@@ -1108,6 +1118,7 @@ func htmlScrapeKraken(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
+	defer temp.Body.Close()
 	tokenizer := html.NewTokenizer(temp.Body)
 loop:
 	for {
@@ -1163,6 +1174,7 @@ func htmlScrapeAlphaPoint(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
+	defer temp.Body.Close()
 	tokenizer := html.NewTokenizer(temp.Body)
 loop:
 	for {
@@ -1217,6 +1229,7 @@ func htmlScrapeYobit(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return resp, err
 	}
+	defer temp.Body.Close()
 	tokenizer := html.NewTokenizer(temp.Body)
 	var case1, case2, case3 bool
 loop:
@@ -1274,6 +1287,7 @@ func htmlScrapeLocalBitcoins(htmlData *HTMLScrapingData) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer temp.Body.Close()
 	a, err := ioutil.ReadAll(temp.Body)
 	if err != nil {
 		return nil, err
@@ -1419,13 +1433,13 @@ func sendGetReq(path string, result interface{}) error {
 	if strings.Contains(path, "github") {
 		requester = request.New("Apichecker",
 			common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-			request.NewBasicRateLimit(time.Hour, 60))
+			request.WithLimiter(request.NewBasicRateLimit(time.Hour, 60)))
 	} else {
 		requester = request.New("Apichecker",
 			common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-			request.NewBasicRateLimit(time.Second, 100))
+			request.WithLimiter(request.NewBasicRateLimit(time.Second, 100)))
 	}
-	return requester.SendPayload(&request.Item{
+	return requester.SendPayload(context.Background(), &request.Item{
 		Method:  http.MethodGet,
 		Path:    path,
 		Result:  result,
@@ -1436,8 +1450,8 @@ func sendGetReq(path string, result interface{}) error {
 func sendAuthReq(method, path string, result interface{}) error {
 	requester := request.New("Apichecker",
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.NewBasicRateLimit(time.Second*10, 100))
-	return requester.SendPayload(&request.Item{
+		request.WithLimiter(request.NewBasicRateLimit(time.Second*10, 100)))
+	return requester.SendPayload(context.Background(), &request.Item{
 		Method:  method,
 		Path:    path,
 		Result:  result,

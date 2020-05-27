@@ -194,10 +194,12 @@ func (s *Slack) WebsocketConnect() error {
 		websocketURL = s.ReconnectURL
 	}
 
-	s.WebsocketConn, _, err = dialer.Dial(websocketURL, http.Header{})
+	var resp *http.Response
+	s.WebsocketConn, resp, err = dialer.Dial(websocketURL, http.Header{})
 	if err != nil {
 		return err
 	}
+	resp.Body.Close()
 
 	go s.WebsocketReader()
 	return nil

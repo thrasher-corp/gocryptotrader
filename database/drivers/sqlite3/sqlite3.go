@@ -10,7 +10,7 @@ import (
 )
 
 // Connect opens a connection to sqlite database and returns a pointer to database.DB
-func Connect() (*database.Db, error) {
+func Connect() (*database.Instance, error) {
 	if database.DB.Config.Database == "" {
 		return nil, database.ErrNoDatabaseProvided
 	}

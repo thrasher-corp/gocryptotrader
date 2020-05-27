@@ -1,6 +1,7 @@
 package exmo
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -300,7 +301,7 @@ func (e *EXMO) GetWalletHistory(date int64) (WalletHistory, error) {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (e *EXMO) SendHTTPRequest(path string, result interface{}) error {
-	return e.SendPayload(&request.Item{
+	return e.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,
@@ -339,7 +340,7 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(method, endpoint string, vals url.Va
 
 	path := fmt.Sprintf("%s/v%s/%s", e.API.Endpoints.URL, exmoAPIVersion, endpoint)
 
-	return e.SendPayload(&request.Item{
+	return e.SendPayload(context.Background(), &request.Item{
 		Method:        method,
 		Path:          path,
 		Headers:       headers,

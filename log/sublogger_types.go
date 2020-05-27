@@ -1,6 +1,6 @@
 package log
 
-//nolint
+// Global vars related to the logger package
 var (
 	subLoggers = map[string]*subLogger{}
 

@@ -9,6 +9,7 @@
 package fixer
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
@@ -37,8 +38,7 @@ func (f *Fixer) Setup(config base.Settings) error {
 	f.Verbose = config.Verbose
 	f.PrimaryProvider = config.PrimaryProvider
 	f.Requester = request.New(f.Name,
-		common.NewHTTPClientWithTimeout(base.DefaultTimeOut),
-		nil)
+		common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
 	return nil
 }
 
@@ -231,7 +231,7 @@ func (f *Fixer) SendOpenHTTPRequest(endpoint string, v url.Values, result interf
 		auth = true
 	}
 
-	return f.Requester.SendPayload(&request.Item{
+	return f.Requester.SendPayload(context.Background(), &request.Item{
 		Method:      http.MethodGet,
 		Path:        path,
 		Result:      &result,

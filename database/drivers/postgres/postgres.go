@@ -11,7 +11,7 @@ import (
 )
 
 // Connect opens a connection to Postgres database and returns a pointer to database.DB
-func Connect() (*database.Db, error) {
+func Connect() (*database.Instance, error) {
 	if database.DB.Config.SSLMode == "" {
 		database.DB.Config.SSLMode = "disable"
 	}

@@ -2,6 +2,7 @@ package lbank
 
 import (
 	"bytes"
+	"context"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -494,7 +495,7 @@ func ErrorCapture(code int64) error {
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (l *Lbank) SendHTTPRequest(path string, result interface{}) error {
-	return l.SendPayload(&request.Item{
+	return l.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,
@@ -564,7 +565,7 @@ func (l *Lbank) SendAuthHTTPRequest(method, endpoint string, vals url.Values, re
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 
-	return l.SendPayload(&request.Item{
+	return l.SendPayload(context.Background(), &request.Item{
 		Method:        method,
 		Path:          endpoint,
 		Headers:       headers,

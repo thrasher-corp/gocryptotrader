@@ -24,8 +24,9 @@ var (
 // should not be exported as it can have large impact if used improperly
 func (o *orderStore) get() map[string][]*order.Detail {
 	o.m.RLock()
-	defer o.m.RUnlock()
-	return o.Orders
+	orders := o.Orders
+	o.m.RUnlock()
+	return orders
 }
 
 // GetByExchangeAndID returns a specific order by exchange and id

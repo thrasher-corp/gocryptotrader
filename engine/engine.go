@@ -206,20 +206,20 @@ func ValidateSettings(b *Engine, s *Settings) {
 		request.MaxRequestJobs = int32(b.Settings.MaxHTTPRequestJobsLimit)
 	}
 
-	b.Settings.RequestTimeoutRetryAttempts = s.RequestTimeoutRetryAttempts
-	if b.Settings.RequestTimeoutRetryAttempts != request.DefaultTimeoutRetryAttempts && s.RequestTimeoutRetryAttempts > 0 {
-		request.TimeoutRetryAttempts = b.Settings.RequestTimeoutRetryAttempts
+	b.Settings.RequestMaxRetryAttempts = s.RequestMaxRetryAttempts
+	if b.Settings.RequestMaxRetryAttempts != request.DefaultMaxRetryAttempts && s.RequestMaxRetryAttempts > 0 {
+		request.MaxRetryAttempts = b.Settings.RequestMaxRetryAttempts
 	}
 
-	b.Settings.ExchangeHTTPTimeout = s.ExchangeHTTPTimeout
-	if s.ExchangeHTTPTimeout != time.Duration(0) && s.ExchangeHTTPTimeout > 0 {
-		b.Settings.ExchangeHTTPTimeout = s.ExchangeHTTPTimeout
+	b.Settings.HTTPTimeout = s.HTTPTimeout
+	if s.HTTPTimeout != time.Duration(0) && s.HTTPTimeout > 0 {
+		b.Settings.HTTPTimeout = s.HTTPTimeout
 	} else {
-		b.Settings.ExchangeHTTPTimeout = b.Config.GlobalHTTPTimeout
+		b.Settings.HTTPTimeout = b.Config.GlobalHTTPTimeout
 	}
 
-	b.Settings.ExchangeHTTPUserAgent = s.ExchangeHTTPUserAgent
-	b.Settings.ExchangeHTTPProxy = s.ExchangeHTTPProxy
+	b.Settings.HTTPUserAgent = s.HTTPUserAgent
+	b.Settings.HTTPProxy = s.HTTPProxy
 
 	if s.GlobalHTTPTimeout != time.Duration(0) && s.GlobalHTTPTimeout > 0 {
 		b.Settings.GlobalHTTPTimeout = s.GlobalHTTPTimeout
@@ -285,11 +285,10 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "\t Enable exchange verbose mode: %v", s.EnableExchangeVerbose)
 	gctlog.Debugf(gctlog.Global, "\t Enable exchange HTTP rate limiter: %v", s.EnableExchangeHTTPRateLimiter)
 	gctlog.Debugf(gctlog.Global, "\t Enable exchange HTTP debugging: %v", s.EnableExchangeHTTPDebugging)
-	gctlog.Debugf(gctlog.Global, "\t Exchange max HTTP request jobs: %v", s.MaxHTTPRequestJobsLimit)
-	gctlog.Debugf(gctlog.Global, "\t Exchange HTTP request timeout retry amount: %v", s.RequestTimeoutRetryAttempts)
-	gctlog.Debugf(gctlog.Global, "\t Exchange HTTP timeout: %v", s.ExchangeHTTPTimeout)
-	gctlog.Debugf(gctlog.Global, "\t Exchange HTTP user agent: %v", s.ExchangeHTTPUserAgent)
-	gctlog.Debugf(gctlog.Global, "\t Exchange HTTP proxy: %v\n", s.ExchangeHTTPProxy)
+	gctlog.Debugf(gctlog.Global, "\t Max HTTP request jobs: %v", s.MaxHTTPRequestJobsLimit)
+	gctlog.Debugf(gctlog.Global, "\t HTTP request max retry attempts: %v", s.RequestMaxRetryAttempts)
+	gctlog.Debugf(gctlog.Global, "\t HTTP timeout: %v", s.HTTPTimeout)
+	gctlog.Debugf(gctlog.Global, "\t HTTP user agent: %v", s.HTTPUserAgent)
 	gctlog.Debugf(gctlog.Global, "- GCTSCRIPT SETTINGS: ")
 	gctlog.Debugf(gctlog.Global, "\t Enable GCTScript manager: %v", s.EnableGCTScriptManager)
 	gctlog.Debugf(gctlog.Global, "\t GCTScript max virtual machines: %v", s.MaxVirtualMachines)
@@ -298,7 +297,7 @@ func PrintSettings(s *Settings) {
 	gctlog.Debugf(gctlog.Global, "- COMMON SETTINGS:")
 	gctlog.Debugf(gctlog.Global, "\t Global HTTP timeout: %v", s.GlobalHTTPTimeout)
 	gctlog.Debugf(gctlog.Global, "\t Global HTTP user agent: %v", s.GlobalHTTPUserAgent)
-	gctlog.Debugf(gctlog.Global, "\t Global HTTP proxy: %v", s.ExchangeHTTPProxy)
+	gctlog.Debugf(gctlog.Global, "\t Global HTTP proxy: %v", s.GlobalHTTPProxy)
 
 	gctlog.Debugln(gctlog.Global)
 }

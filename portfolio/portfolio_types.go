@@ -1,6 +1,10 @@
 package portfolio
 
-import "github.com/thrasher-corp/gocryptotrader/currency"
+import (
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+)
 
 // Base holds the portfolio base addresses
 type Base struct {
@@ -62,10 +66,10 @@ type EthplorerResponse struct {
 		Image          string `json:"image"`
 		Description    string `json:"description"`
 		Price          struct {
-			Rate     int    `json:"rate"`
-			Diff     int    `json:"diff"`
-			Ts       int    `json:"ts"`
-			Currency string `json:"currency"`
+			Rate      int    `json:"rate"`
+			Diff      int    `json:"diff"`
+			Timestamp int64  `json:"ts"`
+			Currency  string `json:"currency"`
 		} `json:"price"`
 	} `json:"tokenInfo"`
 	Error struct {
@@ -119,4 +123,37 @@ type Summary struct {
 	OfflineSummary map[currency.Code][]OfflineCoinSummary         `json:"offline_summary"`
 	Online         []Coin                                         `json:"coins_online"`
 	OnlineSummary  map[string]map[currency.Code]OnlineCoinSummary `json:"online_summary"`
+}
+
+// XRPScanAccount defines the return type for account data
+type XRPScanAccount struct {
+	Sequence                                  int     `json:"sequence"`
+	XRPBalance                                float64 `json:"xrpBalance,string"`
+	OwnerCount                                int     `json:"ownerCount"`
+	PreviousAffectingTransactionID            string  `json:"previousAffectingTransactionID"`
+	PreviousAffectingTransactionLedgerVersion int     `json:"previousAffectingTransactionLedgerVersion"`
+	Settings                                  struct {
+		RequireDestinationTag bool   `json:"requireDestinationTag"`
+		EmailHash             string `json:"emailHash"`
+		Domain                string `json:"domain"`
+	} `json:"settings"`
+	Account        string      `json:"account"`
+	Parent         string      `json:"parent"`
+	InitialBalance float64     `json:"initial_balance"`
+	Inception      time.Time   `json:"inception"`
+	LedgerIndex    int         `json:"ledger_index"`
+	TxHash         string      `json:"tx_hash"`
+	AccountName    AccountInfo `json:"accountName"`
+	ParentName     AccountInfo `json:"parentName"`
+	Advisory       interface{} `json:"advisory"`
+}
+
+// AccountInfo is a XRPScan subtype for account associations
+type AccountInfo struct {
+	Name        string `json:"name"`
+	Description string `json:"desc"`
+	Account     string `json:"account"`
+	Domain      string `json:"domain"`
+	Twitter     string `json:"twitter"`
+	Verified    bool   `json:"verified"`
 }

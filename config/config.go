@@ -172,8 +172,9 @@ func (c *Config) PurgeExchangeAPICredentials() {
 // GetCommunicationsConfig returns the communications configuration
 func (c *Config) GetCommunicationsConfig() CommunicationsConfig {
 	m.Lock()
-	defer m.Unlock()
-	return c.Communications
+	comms := c.Communications
+	m.Unlock()
+	return comms
 }
 
 // UpdateCommunicationsConfig sets a new updated version of a Communications
@@ -187,8 +188,9 @@ func (c *Config) UpdateCommunicationsConfig(config *CommunicationsConfig) {
 // GetCryptocurrencyProviderConfig returns the communications configuration
 func (c *Config) GetCryptocurrencyProviderConfig() CryptocurrencyProvider {
 	m.Lock()
-	defer m.Unlock()
-	return c.Currency.CryptocurrencyProvider
+	provider := c.Currency.CryptocurrencyProvider
+	m.Unlock()
+	return provider
 }
 
 // UpdateCryptocurrencyProviderConfig returns the communications configuration
@@ -686,8 +688,9 @@ func (c *Config) GetCurrencyPairDisplayConfig() *CurrencyPairFormatConfig {
 // GetAllExchangeConfigs returns all exchange configurations
 func (c *Config) GetAllExchangeConfigs() []ExchangeConfig {
 	m.Lock()
-	defer m.Unlock()
-	return c.Exchanges
+	configs := c.Exchanges
+	m.Unlock()
+	return configs
 }
 
 // GetExchangeConfig returns exchange configurations by its indivdual name
@@ -717,8 +720,9 @@ func (c *Config) GetForexProvider(name string) (currency.FXSettings, error) {
 // GetForexProviders returns a list of available forex providers
 func (c *Config) GetForexProviders() []currency.FXSettings {
 	m.Lock()
-	defer m.Unlock()
-	return c.Currency.ForexProviders
+	fxProviders := c.Currency.ForexProviders
+	m.Unlock()
+	return fxProviders
 }
 
 // GetPrimaryForexProvider returns the primary forex provider
@@ -1267,6 +1271,12 @@ func (c *Config) checkGCTScriptConfig() error {
 
 	scriptPath := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "scripts")
 	err := common.CreateDir(scriptPath)
+	if err != nil {
+		return err
+	}
+
+	outputPath := filepath.Join(scriptPath, "output")
+	err = common.CreateDir(outputPath)
 	if err != nil {
 		return err
 	}

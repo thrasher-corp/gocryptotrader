@@ -2,6 +2,7 @@ package btse
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,9 +24,8 @@ type BTSE struct {
 }
 
 const (
-	btseAPIURL         = "https://api.btse.com"
-	btseSPOTAPIPath    = "/spot/v2/"
-	btseFuturesAPIPath = "/futures/api/v2/"
+	btseAPIURL  = "https://api.btse.com"
+	btseAPIPath = "/spot/v2/"
 
 	// Public endpoints
 	btseMarketOverview = "market_summary"
@@ -48,40 +48,40 @@ const (
 // GetMarketsSummary stores market summary data
 func (b *BTSE) GetMarketsSummary() (*HighLevelMarketData, error) {
 	var m HighLevelMarketData
-	return &m, b.SendHTTPRequest(http.MethodGet, btseMarketOverview, &m, true)
+	return &m, b.SendHTTPRequest(http.MethodGet, btseMarketOverview, &m)
 }
 
 // GetSpotMarkets returns a list of spot markets available on BTSE
 func (b *BTSE) GetSpotMarkets() ([]SpotMarket, error) {
 	var m []SpotMarket
-	return m, b.SendHTTPRequest(http.MethodGet, btseMarkets, &m, true)
+	return m, b.SendHTTPRequest(http.MethodGet, btseMarkets, &m)
 }
 
 // GetFuturesMarkets returns a list of futures markets available on BTSE
 func (b *BTSE) GetFuturesMarkets() ([]FuturesMarket, error) {
 	var m []FuturesMarket
-	return m, b.SendHTTPRequest(http.MethodGet, btseMarketOverview, &m, false)
+	return m, b.SendHTTPRequest(http.MethodGet, btseMarketOverview, &m)
 }
 
 // FetchOrderBook gets orderbook data for a given pair
 func (b *BTSE) FetchOrderBook(symbol string) (*Orderbook, error) {
 	var o Orderbook
 	endpoint := fmt.Sprintf("%s/%s", btseOrderbook, symbol)
-	return &o, b.SendHTTPRequest(http.MethodGet, endpoint, &o, true)
+	return &o, b.SendHTTPRequest(http.MethodGet, endpoint, &o)
 }
 
 // GetTrades returns a list of trades for the specified symbol
 func (b *BTSE) GetTrades(symbol string) ([]Trade, error) {
 	var t []Trade
 	endpoint := fmt.Sprintf("%s/%s", btseTrades, symbol)
-	return t, b.SendHTTPRequest(http.MethodGet, endpoint, &t, true)
+	return t, b.SendHTTPRequest(http.MethodGet, endpoint, &t)
 }
 
 // GetTicker returns the ticker for a specified symbol
 func (b *BTSE) GetTicker(symbol string) (*Ticker, error) {
 	var t Ticker
 	endpoint := fmt.Sprintf("%s/%s", btseTicker, symbol)
-	err := b.SendHTTPRequest(http.MethodGet, endpoint, &t, true)
+	err := b.SendHTTPRequest(http.MethodGet, endpoint, &t)
 	if err != nil {
 		return nil, err
 	}
@@ -92,19 +92,19 @@ func (b *BTSE) GetTicker(symbol string) (*Ticker, error) {
 func (b *BTSE) GetMarketStatistics(symbol string) (*MarketStatistics, error) {
 	var m MarketStatistics
 	endpoint := fmt.Sprintf("%s/%s", btseStats, symbol)
-	return &m, b.SendHTTPRequest(http.MethodGet, endpoint, &m, true)
+	return &m, b.SendHTTPRequest(http.MethodGet, endpoint, &m)
 }
 
 // GetServerTime returns the exchanges server time
 func (b *BTSE) GetServerTime() (*ServerTime, error) {
 	var s ServerTime
-	return &s, b.SendHTTPRequest(http.MethodGet, btseTime, &s, true)
+	return &s, b.SendHTTPRequest(http.MethodGet, btseTime, &s)
 }
 
 // GetAccountBalance returns the users account balance
 func (b *BTSE) GetAccountBalance() ([]CurrencyBalance, error) {
 	var a []CurrencyBalance
-	return a, b.SendAuthenticatedHTTPRequest(http.MethodGet, btseAccount, nil, &a, true)
+	return a, b.SendAuthenticatedHTTPRequest(http.MethodGet, btseAccount, nil, &a)
 }
 
 // CreateOrder creates an order
@@ -133,7 +133,7 @@ func (b *BTSE) CreateOrder(amount, price float64, side, orderType, symbol, timeI
 	}
 
 	var r orderResp
-	return &r.ID, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseOrder, req, &r, true)
+	return &r.ID, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseOrder, req, &r)
 }
 
 // GetOrders returns all pending orders
@@ -143,7 +143,7 @@ func (b *BTSE) GetOrders(symbol string) ([]OpenOrder, error) {
 		req["symbol"] = symbol
 	}
 	var o []OpenOrder
-	return o, b.SendAuthenticatedHTTPRequest(http.MethodGet, btsePendingOrders, req, &o, true)
+	return o, b.SendAuthenticatedHTTPRequest(http.MethodGet, btsePendingOrders, req, &o)
 }
 
 // CancelExistingOrder cancels an order
@@ -152,7 +152,7 @@ func (b *BTSE) CancelExistingOrder(orderID, symbol string) (*CancelOrder, error)
 	req := make(map[string]interface{})
 	req["order_id"] = orderID
 	req["symbol"] = symbol
-	return &c, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseDeleteOrder, req, &c, true)
+	return &c, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseDeleteOrder, req, &c)
 }
 
 // GetFills gets all filled orders
@@ -188,19 +188,14 @@ func (b *BTSE) GetFills(orderID, symbol, before, after, limit, username string) 
 	}
 
 	var o []FilledOrder
-	return o, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseFills, req, &o, true)
+	return o, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseFills, req, &o)
 }
 
 // SendHTTPRequest sends an HTTP request to the desired endpoint
-func (b *BTSE) SendHTTPRequest(method, endpoint string, result interface{}, spot bool) error {
-	p := btseSPOTAPIPath
-	if !spot {
-		p = btseFuturesAPIPath
-	}
-
-	return b.SendPayload(&request.Item{
+func (b *BTSE) SendHTTPRequest(method, endpoint string, result interface{}) error {
+	return b.SendPayload(context.Background(), &request.Item{
 		Method:        method,
-		Path:          b.API.Endpoints.URL + p + endpoint,
+		Path:          b.API.Endpoints.URL + btseAPIPath + endpoint,
 		Result:        result,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
@@ -209,18 +204,12 @@ func (b *BTSE) SendHTTPRequest(method, endpoint string, result interface{}, spot
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the desired endpoint
-func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[string]interface{}, result interface{}, spot bool) error {
+func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[string]interface{}, result interface{}) error {
 	if !b.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			b.Name)
 	}
-
-	p := btseSPOTAPIPath
-	if !spot {
-		p = btseFuturesAPIPath
-	}
-
-	path := p + endpoint
+	path := btseAPIPath + endpoint
 	headers := make(map[string]string)
 	headers["btse-api"] = b.API.Credentials.Key
 	nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
@@ -254,13 +243,14 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[str
 			b.Name, method, path, string(payload))
 	}
 
-	return b.SendPayload(&request.Item{
+	return b.SendPayload(context.Background(), &request.Item{
 		Method:        method,
 		Path:          b.API.Endpoints.URL + path,
 		Headers:       headers,
 		Body:          body,
 		Result:        result,
 		AuthRequest:   true,
+		NonceEnabled:  true,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,

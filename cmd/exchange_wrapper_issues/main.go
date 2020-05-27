@@ -741,12 +741,7 @@ func jsonifyInterface(params []interface{}) json.RawMessage {
 
 func loadConfig() (Config, error) {
 	var config Config
-	file, err := os.OpenFile("wrapperconfig.json", os.O_RDONLY, os.ModePerm)
-	if err != nil {
-		return config, err
-	}
-	defer file.Close()
-	keys, err := ioutil.ReadAll(file)
+	keys, err := ioutil.ReadFile("wrapperconfig.json")
 	if err != nil {
 		return config, err
 	}
@@ -818,12 +813,11 @@ func outputToHTML(exchangeResponses []ExchangeResponses) {
 		return
 	}
 
-	defer file.Close()
 	err = tmpl.Execute(file, exchangeResponses)
 	if err != nil {
 		log.Print(err)
-		return
 	}
+	file.Close()
 }
 
 func outputToConsole(exchangeResponses []ExchangeResponses) {

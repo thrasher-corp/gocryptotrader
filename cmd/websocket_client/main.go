@@ -88,11 +88,13 @@ func main() {
 	log.Printf("Connecting to websocket host: %s", wsHost)
 
 	var dialer websocket.Dialer
-	WSConn, _, err = dialer.Dial(wsHost, http.Header{})
+	var resp *http.Response
+	WSConn, resp, err = dialer.Dial(wsHost, http.Header{})
 	if err != nil {
 		log.Println("Unable to connect to websocket server")
 		return
 	}
+	resp.Body.Close()
 	log.Println("Connected to websocket!")
 
 	log.Println("Authenticating..")

@@ -181,6 +181,7 @@ func (c *Checker) CheckHost(host string) error {
 // IsConnected returns if there is internet connectivity
 func (c *Checker) IsConnected() bool {
 	c.Lock()
-	defer c.Unlock()
-	return c.connected
+	isConnected := c.connected
+	c.Unlock()
+	return isConnected
 }

@@ -19,7 +19,7 @@ load := func() {
    // submit request to withdraw funds
    info := exch.withdrawfiat("BTC Markets", "AUD", "hello", 1, "-")
    // print out info
-   fmt.print(info)
+   fmt.println(info)
 }
 
 load()

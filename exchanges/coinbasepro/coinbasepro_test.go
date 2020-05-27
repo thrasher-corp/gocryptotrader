@@ -78,10 +78,10 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetHistoricRatesGranularityCheck(t *testing.T) {
 	end := time.Now().UTC()
-	start := end.Add(-time.Second * 300)
+	start := end.Add(-time.Hour * 24)
 	p := currency.NewPair(currency.BTC, currency.USD)
 
-	_, err := c.GetHistoricCandles(p, asset.Spot, start, end, time.Minute)
+	_, err := c.GetHistoricCandles(p, asset.Spot, start, end, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}

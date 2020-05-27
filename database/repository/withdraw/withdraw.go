@@ -20,6 +20,7 @@ import (
 )
 
 var (
+	// ErrNoResults is the error returned if no results are found
 	ErrNoResults = errors.New("no results found")
 )
 

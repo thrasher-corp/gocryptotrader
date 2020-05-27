@@ -17,7 +17,8 @@ const (
 	ErrBSBRequiredforAUD = "BSB must be set for AUD values"
 	// ErrIBANSwiftNotSet message to return when no iban or swift value set
 	ErrIBANSwiftNotSet = "IBAN/SWIFT values not set"
-	// ErrCurrencyNotSupportedByAccount
+	// ErrCurrencyNotSupportedByAccount message to return when the requested
+	// currency is not supported by the bank account
 	ErrCurrencyNotSupportedByAccount = "requested currency is not supported by account"
 )
 

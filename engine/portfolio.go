@@ -60,11 +60,11 @@ func (p *portfolioManager) run() {
 		log.Debugf(log.PortfolioMgr, "Portfolio manager shutdown.")
 	}()
 
+	p.processPortfolio()
 	for {
 		select {
 		case <-p.shutdown:
 			return
-
 		case <-tick.C:
 			p.processPortfolio()
 		}
