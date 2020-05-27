@@ -23,7 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/file/archive"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/models/postgres"
+	// "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	"github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -1476,7 +1476,7 @@ func (s *RPCServer) GetAuditEvent(ctx context.Context, r *gctrpc.GetAuditEventRe
 		return nil, err
 	}
 
-	loc := time.FixedZone("", int(r.Offset))
+	// loc := time.FixedZone("", int(r.Offset))
 
 	events, err := audit.GetEvent(UTCStartTime, UTCSEndTime, r.OrderBy, int(r.Limit))
 	if err != nil {
@@ -1486,17 +1486,17 @@ func (s *RPCServer) GetAuditEvent(ctx context.Context, r *gctrpc.GetAuditEventRe
 	resp := gctrpc.GetAuditEventResponse{}
 
 	switch v := events.(type) {
-	case postgres.AuditEventSlice:
-		for x := range v {
-			tempEvent := &gctrpc.AuditEvent{
-				Type:       v[x].Type,
-				Identifier: v[x].Identifier,
-				Message:    v[x].Message,
-				Timestamp:  v[x].CreatedAt.In(loc).Format(common.SimpleTimeFormat),
-			}
-
-			resp.Events = append(resp.Events, tempEvent)
-		}
+	// case postgres.AuditEventSlice:
+	// 	for x := range v {
+	// 		tempEvent := &gctrpc.AuditEvent{
+	// 			Type:       v[x].Type,
+	// 			Identifier: v[x].Identifier,
+	// 			Message:    v[x].Message,
+	// 			Timestamp:  v[x].CreatedAt.In(loc).Format(common.SimpleTimeFormat),
+	// 		}
+	//
+	// 		resp.Events = append(resp.Events, tempEvent)
+	// 	}
 	case sqlite3.AuditEventSlice:
 		for x := range v {
 			tempEvent := &gctrpc.AuditEvent{

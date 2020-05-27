@@ -2,11 +2,9 @@ package engine
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
-	withdrawDataStore "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -75,7 +73,7 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 				resp.Exchange.ID = ret.ID
 			}
 		}
-		withdrawDataStore.Event(resp)
+		// withdrawDataStore.Event(resp)
 	}
 	if err == nil {
 		withdraw.Cache.Add(resp.ID, resp)
@@ -85,32 +83,36 @@ func SubmitWithdrawal(exchName string, req *withdraw.Request) (*withdraw.Respons
 
 // WithdrawalEventByID returns a withdrawal request by ID
 func WithdrawalEventByID(id string) (*withdraw.Response, error) {
-	v := withdraw.Cache.Get(id)
-	if v != nil {
-		return v.(*withdraw.Response), nil
-	}
-
-	l, err := withdrawDataStore.GetEventByUUID(id)
-	if err != nil {
-		return nil, fmt.Errorf(ErrWithdrawRequestNotFound, id)
-	}
-	withdraw.Cache.Add(id, l)
-	return l, nil
+	// v := withdraw.Cache.Get(id)
+	// if v != nil {
+	// 	return v.(*withdraw.Response), nil
+	// }
+	//
+	// l, err := withdrawDataStore.GetEventByUUID(id)
+	// if err != nil {
+	// 	return nil, fmt.Errorf(ErrWithdrawRequestNotFound, id)
+	// }
+	// withdraw.Cache.Add(id, l)
+	// return l, nil
+	return nil, nil
 }
 
 // WithdrawalEventByExchange returns a withdrawal request by ID
 func WithdrawalEventByExchange(exchange string, limit int) ([]*withdraw.Response, error) {
-	return withdrawDataStore.GetEventsByExchange(exchange, limit)
+	return nil, nil
+	//return withdrawDataStore.GetEventsByExchange(exchange, limit)
 }
 
 // WithdrawEventByDate returns a withdrawal request by ID
 func WithdrawEventByDate(exchange string, start, end time.Time, limit int) ([]*withdraw.Response, error) {
-	return withdrawDataStore.GetEventsByDate(exchange, start, end, limit)
+	return nil, nil
+	// return withdrawDataStore.GetEventsByDate(exchange, start, end, limit)
 }
 
 // WithdrawalEventByExchangeID returns a withdrawal request by Exchange ID
 func WithdrawalEventByExchangeID(exchange, id string) (*withdraw.Response, error) {
-	return withdrawDataStore.GetEventByExchangeID(exchange, id)
+	return nil, nil
+	// return withdrawDataStore.GetEventByExchangeID(exchange, id)
 }
 
 func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExchangeResponse {
