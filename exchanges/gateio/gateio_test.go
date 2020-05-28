@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -741,5 +742,23 @@ func TestWsBalanceUpdate(t *testing.T) {
 	err := g.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestParseTime(t *testing.T) {
+	// Test REST example
+	r := convert.TimeFromUnixTimestampDecimal(1574846296.995313)
+	if r.Year() != 2019 ||
+		r.Month().String() != "November" ||
+		r.Day() != 27 {
+		t.Error("unexpected result")
+	}
+
+	// Test websocket example
+	r = convert.TimeFromUnixTimestampDecimal(1523887354.256974)
+	if r.Year() != 2018 ||
+		r.Month().String() != "April" ||
+		r.Day() != 17 {
+		t.Error("unexpected result")
 	}
 }

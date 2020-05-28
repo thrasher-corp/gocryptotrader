@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -1408,18 +1409,19 @@ func TestWsCancelOrderJSON(t *testing.T) {
 }
 
 func TestParseTime(t *testing.T) {
-	r := parseTime(1590633982.5714)
-	if r.Year() != 2020 ||
-		r.Month().String() != "May" ||
-		r.Day() != 28 {
+	// Test REST example
+	r := convert.TimeFromUnixTimestampDecimal(1373750306.9819)
+	if r.Year() != 2013 ||
+		r.Month().String() != "July" ||
+		r.Day() != 14 {
 		t.Error("unexpected result")
 	}
 
-	// Test websocket time example
-	r = parseTime(1560516023.070651)
-	if r.Year() != 2019 ||
-		r.Month().String() != "June" ||
-		r.Day() != 14 {
+	// Test Websocket time example
+	r = convert.TimeFromUnixTimestampDecimal(1534614098.345543)
+	if r.Year() != 2018 ||
+		r.Month().String() != "August" ||
+		r.Day() != 19 {
 		t.Error("unexpected result")
 	}
 }

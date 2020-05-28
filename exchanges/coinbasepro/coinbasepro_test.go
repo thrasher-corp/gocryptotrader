@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -923,5 +924,19 @@ func TestStatusToStandardStatus(t *testing.T) {
 		if result != testCases[i].Result {
 			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
 		}
+	}
+}
+
+func TestParseTime(t *testing.T) {
+	// Rest examples use 2014-11-07T22:19:28.578544Z" and can be safely
+	// unmarhsalled into time.Time
+
+	// All events except for activate use the above, in the below test
+	// we'll use their API docs example
+	r := convert.TimeFromUnixTimestampDecimal(1483736448.299000)
+	if r.Year() != 2017 ||
+		r.Month().String() != "January" ||
+		r.Day() != 7 {
+		t.Error("unexpected result")
 	}
 }

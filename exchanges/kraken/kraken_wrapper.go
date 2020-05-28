@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -562,7 +563,7 @@ func (k *Kraken) GetOrderInfo(orderID string) (order.Detail, error) {
 				k.GetAvailablePairs(asset.Spot), k.GetPairFormat(asset.Spot, true)),
 			Side:            side,
 			Type:            oType,
-			Date:            parseTime(orderInfo.OpenTime),
+			Date:            convert.TimeFromUnixTimestampDecimal(orderInfo.OpenTime),
 			Status:          status,
 			Price:           orderInfo.Price,
 			Amount:          orderInfo.Volume,
@@ -664,7 +665,7 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 			RemainingAmount: (resp.Open[i].Volume - resp.Open[i].VolumeExecuted),
 			ExecutedAmount:  resp.Open[i].VolumeExecuted,
 			Exchange:        k.Name,
-			Date:            parseTime(resp.Open[i].OpenTime),
+			Date:            convert.TimeFromUnixTimestampDecimal(resp.Open[i].OpenTime),
 			Price:           resp.Open[i].Description.Price,
 			Side:            side,
 			Type:            orderType,
@@ -705,8 +706,8 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 			RemainingAmount: (resp.Closed[i].Volume - resp.Closed[i].VolumeExecuted),
 			ExecutedAmount:  resp.Closed[i].VolumeExecuted,
 			Exchange:        k.Name,
-			Date:            parseTime(resp.Closed[i].OpenTime),
-			CloseTime:       parseTime(resp.Closed[i].CloseTime),
+			Date:            convert.TimeFromUnixTimestampDecimal(resp.Closed[i].OpenTime),
+			CloseTime:       convert.TimeFromUnixTimestampDecimal(resp.Closed[i].CloseTime),
 			Price:           resp.Closed[i].Description.Price,
 			Side:            side,
 			Type:            orderType,

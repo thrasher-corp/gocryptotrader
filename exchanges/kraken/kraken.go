@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -91,16 +90,16 @@ func (k *Kraken) SeedAssets() error {
 	if err != nil {
 		return err
 	}
-	for k, v := range assets {
-		assetTranslator.Seed(k, v.Altname)
+	for k := range assets {
+		assetTranslator.Seed(k, assets[k].Altname)
 	}
 
 	assetPairs, err := k.GetAssetPairs()
 	if err != nil {
 		return err
 	}
-	for k, v := range assetPairs {
-		assetTranslator.Seed(k, v.Altname)
+	for k := range assetPairs {
+		assetTranslator.Seed(k, assetPairs[k].Altname)
 	}
 	return nil
 }
@@ -1119,9 +1118,4 @@ func (a *assetTranslatorStore) Seeded() bool {
 	isSeeded := len(a.Assets) > 0
 	a.l.Unlock()
 	return isSeeded
-}
-
-func parseTime(tm float64) time.Time {
-	seconds, decimal := math.Modf(tm)
-	return time.Unix(int64(seconds), int64(decimal*(1e9)))
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -309,7 +310,7 @@ func (k *Kraken) wsProcessOwnTrades(ownOrders interface{}) error {
 					TID:       key,
 					Type:      oType,
 					Side:      oSide,
-					Timestamp: parseTime(val.Time),
+					Timestamp: convert.TimeFromUnixTimestampDecimal(val.Time),
 				}
 				k.Websocket.DataHandler <- &order.Modify{
 					Exchange: k.Name,
@@ -385,7 +386,7 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 						Side:            oSide,
 						Status:          oStatus,
 						AssetType:       a,
-						Date:            parseTime(val.OpenTime),
+						Date:            convert.TimeFromUnixTimestampDecimal(val.OpenTime),
 						Pair:            p,
 					}
 				} else {
@@ -493,7 +494,7 @@ func (k *Kraken) wsProcessSpread(channelData *WebsocketChannelData, data []inter
 			channelData.Pair,
 			bestBid,
 			bestAsk,
-			parseTime(timeData),
+			convert.TimeFromUnixTimestampDecimal(timeData),
 			bidVolume,
 			askVolume)
 	}
@@ -530,7 +531,7 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 			Exchange:     k.Name,
 			Price:        price,
 			Amount:       amount,
-			Timestamp:    parseTime(timeData),
+			Timestamp:    convert.TimeFromUnixTimestampDecimal(timeData),
 			Side:         tSide,
 		}
 	}
@@ -593,7 +594,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 		if err != nil {
 			return err
 		}
-		askUpdatedTime := parseTime(timeData)
+		askUpdatedTime := convert.TimeFromUnixTimestampDecimal(timeData)
 		if highestLastUpdate.Before(askUpdatedTime) {
 			highestLastUpdate = askUpdatedTime
 		}
@@ -617,7 +618,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 		if err != nil {
 			return err
 		}
-		bidUpdateTime := parseTime(timeData)
+		bidUpdateTime := convert.TimeFromUnixTimestampDecimal(timeData)
 		if highestLastUpdate.Before(bidUpdateTime) {
 			highestLastUpdate = bidUpdateTime
 		}
@@ -666,7 +667,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 			return err
 		}
 
-		askUpdatedTime := parseTime(timeData)
+		askUpdatedTime := convert.TimeFromUnixTimestampDecimal(timeData)
 		if highestLastUpdate.Before(askUpdatedTime) {
 			highestLastUpdate = askUpdatedTime
 		}
@@ -694,7 +695,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 			return err
 		}
 
-		bidUpdatedTime := parseTime(timeData)
+		bidUpdatedTime := convert.TimeFromUnixTimestampDecimal(timeData)
 		if highestLastUpdate.Before(bidUpdatedTime) {
 			highestLastUpdate = bidUpdatedTime
 		}
@@ -755,8 +756,8 @@ func (k *Kraken) wsProcessCandles(channelData *WebsocketChannelData, data []inte
 		Pair:      channelData.Pair,
 		Timestamp: time.Now(),
 		Exchange:  k.Name,
-		StartTime: parseTime(startTime),
-		CloseTime: parseTime(endTime),
+		StartTime: convert.TimeFromUnixTimestampDecimal(startTime),
+		CloseTime: convert.TimeFromUnixTimestampDecimal(endTime),
 		// Candles are sent every 60 seconds
 		Interval:   "60",
 		HighPrice:  highPrice,
