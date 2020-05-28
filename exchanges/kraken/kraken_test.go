@@ -1374,11 +1374,12 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	currencyPair := currency.NewPairFromString("BCHEUR")
-	_, err := k.GetHistoricCandlesExtended(currencyPair, asset.Spot, time.Now(), time.Now(), kline.OneDay)
+	v, err := k.GetHistoricCandlesExtended(currencyPair, asset.Spot, time.Now(), time.Now(), kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	t.Log(v)
 	_, err = k.GetHistoricCandlesExtended(currencyPair, asset.Spot, time.Now(), time.Now(), kline.Interval(time.Hour*7))
 	if err == nil {
 		t.Fatal("unexpected result")
