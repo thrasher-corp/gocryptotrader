@@ -275,14 +275,8 @@ type TransactionData struct {
 	TxID          string    `json:"txid"`
 }
 
-// DepositHistory stores deposit history data
-type DepositHistory struct {
-	Success bool              `json:"success"`
-	Result  []TransactionData `json:"result"`
-}
-
-// WithdrawalHistory stores withdrawal data
-type WithdrawalHistory struct {
+// TransactionHistory stores transaction history data
+type TransactionHistory struct {
 	Success bool              `json:"success"`
 	Result  []TransactionData `json:"result"`
 }
@@ -319,8 +313,8 @@ type OpenOrders struct {
 	Result  []OrderData `json:"result"`
 }
 
-// OrderHistory stores order history data
-type OrderHistory struct {
+// OrdersData stores order history data
+type OrdersData struct {
 	Success bool        `json:"success"`
 	Result  []OrderData `json:"result"`
 }

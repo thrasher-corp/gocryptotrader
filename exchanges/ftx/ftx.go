@@ -97,7 +97,6 @@ const (
 	trailingStopOrderType = "trailingStop"
 	takeProfitOrderType   = "takeProfit"
 	closedStatus          = "closed"
-	defaultTime           = "0001-01-01 00:00:00 +0000 UTC"
 	spotString            = "spot"
 	futuresString         = "future"
 )
@@ -255,14 +254,14 @@ func (f *FTX) FetchDepositAddress(coin string) (DepositAddress, error) {
 }
 
 // FetchDepositHistory gets deposit history
-func (f *FTX) FetchDepositHistory() (DepositHistory, error) {
-	var resp DepositHistory
+func (f *FTX) FetchDepositHistory() (TransactionHistory, error) {
+	var resp TransactionHistory
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, getDepositHistory, nil, &resp)
 }
 
 // FetchWithdrawalHistory gets withdrawal history
-func (f *FTX) FetchWithdrawalHistory() (WithdrawalHistory, error) {
-	var resp WithdrawalHistory
+func (f *FTX) FetchWithdrawalHistory() (TransactionHistory, error) {
+	var resp TransactionHistory
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, getWithdrawalHistory, nil, &resp)
 }
 
@@ -296,8 +295,8 @@ func (f *FTX) GetOpenOrders(marketName string) (OpenOrders, error) {
 }
 
 // FetchOrderHistory gets order history
-func (f *FTX) FetchOrderHistory(marketName string, startTime, endTime time.Time, limit string) (OrderHistory, error) {
-	var resp OrderHistory
+func (f *FTX) FetchOrderHistory(marketName string, startTime, endTime time.Time, limit string) (OrdersData, error) {
+	var resp OrdersData
 	params := url.Values{}
 	if marketName != "" {
 		params.Set("market", marketName)

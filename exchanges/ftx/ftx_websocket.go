@@ -284,7 +284,6 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			f.Websocket.DataHandler <- resultData.FillsData
 		default:
 			f.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: f.Name + wshandler.UnhandledMessage + string(respRaw)}
-			return nil
 		}
 	case wsPartial:
 		switch result["channel"] {

@@ -400,7 +400,7 @@ type MarketData struct {
 }
 ```
 
-Create a new variable, they are created at the top of ftx.go file:
+Create new consts to define endpoint strings, they are created at the top of ftx.go file:
 ```go
 const (
 	ftxAPIURL = "https://ftx.com/api"
@@ -415,7 +415,7 @@ const (
 	getFuture            = "/futures/"
 	getFutureStats       = "/futures/%s/stats"
 	getFundingRates      = "/funding_rates"
-  getAllWalletBalances = "/wallet/all_balances"
+  	getAllWallegetAllWalletBalances = "/wallet/all_balances"
   ```
 
 Create a get function in ftx.go file and unmarshall the data in the created type
@@ -494,7 +494,7 @@ func (f *FTX) GenerateDefaultSubscriptions() {
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 		if startTime.After(endTime) {
-			return resp, errors.New("startTime cannot be bigger than endTime")
+			return resp, errors.New("startTime cannot be after than endTime")
 		}
 	}
 	if side != "" {
@@ -510,7 +510,7 @@ func (f *FTX) GenerateDefaultSubscriptions() {
 }
 ```
 
-For post or delete requests params are sent through map[string]interface{}:
+For post or delete requests, params are sent through a map[string]interface{}:
 
 https://docs.ftx.com/#place-order
 
@@ -571,7 +571,7 @@ func (f *FTX) Order(marketName, side, orderType, reduceOnly, ioc, postOnly, clie
 
 + 6) Implementing wrapper functions:
 
-Wrapper functions are the interface through which GCT bot communicates with exchange for gathering and sending data
+Wrapper functions are the interface through which GCT bot communicates with an exchange for gathering and sending data
 The exchanges may not support all the functionality in the wrapper, so fill out the ones that are supported as shown in the examples below
 
 ```go
@@ -610,7 +610,7 @@ Alot of useful helper methods can be found in exchange.go, some examples are giv
 ```go
 f.FormatExchangeCurrency(p, a) // Formats the currency pair to the style accepted by the exchange. p is the currency pair & a is the asset type
 
-f.SupportsAsset(a) // Checks is asset type is supported by the bot
+f.SupportsAsset(a) // Checks if an asset type is supported by the bot
 
 f.GetPairAssetType(p) // Returns the asset type of currency pair p
 ```
@@ -633,13 +633,11 @@ type FTX struct {
 
 - Set the websocket url in ftx_websocket.go that is provided in the documentation:
 
-	ftxWSURL          = "wss://ftx.com/ws/"
-
 ```go
 	ftxWSURL          = "wss://ftx.com/ws/"
 ```
 
-- Set channel names as variables for ease of use:
+- Set channel names as consts for ease of use:
 
 ```go
 	wsTicker          = "ticker"
@@ -840,6 +838,44 @@ func (f *FTX) WsConnect() error {
 		return err
   }
   ```
+
+  ```go
+  f.Features = exchange.Features{
+		Supports: exchange.FeaturesSupported{
+			REST:      true,
+			Websocket: true,
+			RESTCapabilities: protocol.Features{
+				TickerFetching:      true,
+				KlineFetching:       true,
+				TradeFetching:       true,
+				OrderbookFetching:   true,
+				AutoPairUpdates:     true,
+				AccountInfo:         true,
+				GetOrder:            true,
+				GetOrders:           true,
+				CancelOrders:        true,
+				CancelOrder:         true,
+				SubmitOrder:         true,
+				TradeFee:            true,
+				FiatDepositFee:      true,
+				FiatWithdrawalFee:   true,
+				CryptoWithdrawalFee: true,
+			},
+			WebsocketCapabilities: protocol.Features{
+				OrderbookFetching: true,
+				TradeFetching:     true,
+				Subscribe:         true,
+				Unsubscribe:       true,
+				GetOrders:         true,
+				GetOrder:          true,
+			},
+			WithdrawPermissions: exchange.NoAPIWithdrawalMethods,
+		},
+		Enabled: exchange.FeaturesEnabled{
+			AutoPairUpdates: true,
+		},
+	}
+	```
 
 ###### Link websocket to wrapper functions:
 

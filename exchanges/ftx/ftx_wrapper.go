@@ -80,7 +80,6 @@ func (f *FTX) SetDefaults() {
 	}
 	f.CurrencyPairs.Store(asset.Spot, spot)
 	f.CurrencyPairs.Store(asset.Futures, futures)
-	// Fill out the capabilities/features that the exchange supports
 	f.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
@@ -336,10 +335,10 @@ func (f *FTX) UpdateAccountInfo() (account.Holdings, error) {
 		return resp, err
 	}
 	var acc account.SubAccount
-	for key := range data.Result {
-		c := currency.NewCode(data.Result[key].Coin)
-		hold := data.Result[key].Total - data.Result[key].Free
-		total := data.Result[key].Total
+	for i := range data.Result {
+		c := currency.NewCode(data.Result[i].Coin)
+		hold := data.Result[i].Total - data.Result[i].Free
+		total := data.Result[i].Total
 		acc.Currencies = append(acc.Currencies,
 			account.Balance{CurrencyName: c,
 				TotalValue: total,
@@ -568,7 +567,7 @@ func (f *FTX) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*w
 // submitted
 func (f *FTX) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	var resp *withdraw.ExchangeResponse
-	return resp, common.ErrNotYetImplemented
+	return resp, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
