@@ -933,10 +933,10 @@ func TestParseTime(t *testing.T) {
 
 	// All events except for activate use the above, in the below test
 	// we'll use their API docs example
-	r := convert.TimeFromUnixTimestampDecimal(1483736448.299000)
+	r := convert.TimeFromUnixTimestampDecimal(1483736448.299000).UTC()
 	if r.Year() != 2017 ||
 		r.Month().String() != "January" ||
-		r.Day() != 7 {
+		r.Day() != 6 {
 		t.Error("unexpected result")
 	}
 }

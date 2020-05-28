@@ -1410,18 +1410,18 @@ func TestWsCancelOrderJSON(t *testing.T) {
 
 func TestParseTime(t *testing.T) {
 	// Test REST example
-	r := convert.TimeFromUnixTimestampDecimal(1373750306.9819)
+	r := convert.TimeFromUnixTimestampDecimal(1373750306.9819).UTC()
 	if r.Year() != 2013 ||
 		r.Month().String() != "July" ||
-		r.Day() != 14 {
+		r.Day() != 13 {
 		t.Error("unexpected result")
 	}
 
 	// Test Websocket time example
-	r = convert.TimeFromUnixTimestampDecimal(1534614098.345543)
+	r = convert.TimeFromUnixTimestampDecimal(1534614098.345543).UTC()
 	if r.Year() != 2018 ||
 		r.Month().String() != "August" ||
-		r.Day() != 19 {
+		r.Day() != 18 {
 		t.Error("unexpected result")
 	}
 }

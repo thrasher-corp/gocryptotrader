@@ -747,7 +747,7 @@ func TestWsBalanceUpdate(t *testing.T) {
 
 func TestParseTime(t *testing.T) {
 	// Test REST example
-	r := convert.TimeFromUnixTimestampDecimal(1574846296.995313)
+	r := convert.TimeFromUnixTimestampDecimal(1574846296.995313).UTC()
 	if r.Year() != 2019 ||
 		r.Month().String() != "November" ||
 		r.Day() != 27 {
@@ -755,10 +755,10 @@ func TestParseTime(t *testing.T) {
 	}
 
 	// Test websocket example
-	r = convert.TimeFromUnixTimestampDecimal(1523887354.256974)
+	r = convert.TimeFromUnixTimestampDecimal(1523887354.256974).UTC()
 	if r.Year() != 2018 ||
 		r.Month().String() != "April" ||
-		r.Day() != 17 {
+		r.Day() != 16 {
 		t.Error("unexpected result")
 	}
 }
