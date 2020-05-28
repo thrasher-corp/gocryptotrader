@@ -4,107 +4,127 @@ import (
 	"bytes"
 	"compress/flate"
 	"compress/gzip"
+	"errors"
+	"net"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 )
 
-// func TestTrafficMonitorTimeout(t *testing.T) {
-// 	ws := New()
-// 	err := ws.Setup(&WebsocketSetup{
-// 		Enabled:                          true,
-// 		AuthenticatedWebsocketAPISupport: true,
-// 		WebsocketTimeout:                 10000,
-// 		DefaultURL:                       "testDefaultURL",
-// 		ExchangeName:                     "exchangeName",
-// 		RunningURL:                       "testRunningURL",
-// 		Connector:                        func() error { return nil },
-// 		Subscriber:                       func(_ []ChannelSubscription) error { return nil },
-// 		UnSubscriber:                     func(_ []ChannelSubscription) error { return nil },
-// 	})
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// 	ws.setConnectedStatus(true)
-// 	ws.TrafficAlert = make(chan struct{}, 2)
-// 	ws.ShutdownC = make(chan struct{})
-// 	var anotherWG sync.WaitGroup
-// 	anotherWG.Add(1)
-// 	go ws.trafficMonitor(&anotherWG)
-// 	anotherWG.Wait()
-// 	ws.TrafficAlert <- struct{}{}
-// 	trafficTimer := time.NewTimer(5 * time.Second)
-// 	select {
-// 	case <-trafficTimer.C:
-// 		t.Error("should be exiting")
-// 	default:
-// 		ws.Wg.Wait()
-// 	}
-// }
+var defaultSetup = &WebsocketSetup{
+	Enabled:                          true,
+	AuthenticatedWebsocketAPISupport: true,
+	WebsocketTimeout:                 time.Second,
+	DefaultURL:                       "testDefaultURL",
+	ExchangeName:                     "exchangeName",
+	RunningURL:                       "testRunningURL",
+	Connector:                        func() error { return nil },
+	Subscriber:                       func(_ []ChannelSubscription) error { return nil },
+	UnSubscriber:                     func(_ []ChannelSubscription) error { return nil },
+	Features:                         &protocol.Features{Subscribe: true, Unsubscribe: true},
+}
 
-// func TestIsDisconnectionError(t *testing.T) {
-// 	isADisconnectionError := isDisconnectionError(errors.New("errorText"))
-// 	if isADisconnectionError {
-// 		t.Error("Its not")
-// 	}
-// 	isADisconnectionError = isDisconnectionError(&websocket.CloseError{
-// 		Code: 1006,
-// 		Text: "errorText",
-// 	})
-// 	if !isADisconnectionError {
-// 		t.Error("It is")
-// 	}
+func TestTrafficMonitorTimeout(t *testing.T) {
+	ws := New()
+	err := ws.Setup(defaultSetup)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// 	isADisconnectionError = isDisconnectionError(&net.OpError{
-// 		Op:     "",
-// 		Net:    "",
-// 		Source: nil,
-// 		Addr:   nil,
-// 		Err:    errors.New("errorText"),
-// 	})
-// 	if !isADisconnectionError {
-// 		t.Error("It is")
-// 	}
-// }
+	ws.ShutdownC = make(chan struct{})
+	err = ws.trafficMonitor()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// func TestConnectionMessageErrors(t *testing.T) {
-// 	ws := New()
-// 	ws.connected = true
-// 	ws.enabled = true
-// 	ws.readMessageErrors = make(chan error)
-// 	ws.DataHandler = make(chan interface{})
-// 	ws.ShutdownC = make(chan struct{})
-// 	ws.connector = func() error { return nil }
-// 	ws.features = &protocol.Features{}
-// 	go ws.connectionMonitor()
-// 	timer := time.NewTimer(900 * time.Millisecond)
-// 	ws.readMessageErrors <- errors.New("errorText")
-// 	select {
-// 	case err := <-ws.DataHandler:
-// 		if err.(error).Error() != "errorText" {
-// 			t.Errorf("Expected 'errorText', received %v", err)
-// 		}
-// 	case <-timer.C:
-// 		t.Error("Timeout waiting for datahandler to receive error")
-// 	}
-// 	timer = time.NewTimer(900 * time.Millisecond)
-// 	ws.readMessageErrors <- &websocket.CloseError{
-// 		Code: 1006,
-// 		Text: "errorText",
-// 	}
-// outer:
-// 	for {
-// 		select {
-// 		case <-ws.DataHandler:
-// 			t.Fatal("Error is a disconnection error")
-// 		case <-timer.C:
-// 			break outer
-// 		}
-// 	}
-// }
+	// Check if traffic monitor has started
+	err = ws.trafficMonitor()
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	// Deploy traffic alert
+	ws.TrafficAlert <- struct{}{}
+	<-ws.ShutdownC
+	ws.Wg.Wait()
+
+	// Start new instance then simulate shutdown
+	ws.setConnectedStatus(true)
+	ws.ShutdownC = make(chan struct{})
+	err = ws.trafficMonitor()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = ws.Shutdown()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestIsDisconnectionError(t *testing.T) {
+	isADisconnectionError := isDisconnectionError(errors.New("errorText"))
+	if isADisconnectionError {
+		t.Error("Its not")
+	}
+	isADisconnectionError = isDisconnectionError(&websocket.CloseError{
+		Code: 1006,
+		Text: "errorText",
+	})
+	if !isADisconnectionError {
+		t.Error("It is")
+	}
+
+	isADisconnectionError = isDisconnectionError(&net.OpError{
+		Op:     "",
+		Net:    "",
+		Source: nil,
+		Addr:   nil,
+		Err:    errors.New("errorText"),
+	})
+	if !isADisconnectionError {
+		t.Error("It is")
+	}
+}
+
+func TestConnectionMessageErrors(t *testing.T) {
+	ws := New()
+	ws.connected = true
+	ws.enabled = true
+	ws.readMessageErrors = make(chan error)
+	ws.DataHandler = make(chan interface{})
+	ws.ShutdownC = make(chan struct{})
+	ws.connector = func() error { return nil }
+	ws.features = &protocol.Features{}
+	go ws.connectionMonitor()
+	timer := time.NewTimer(900 * time.Millisecond)
+	ws.readMessageErrors <- errors.New("errorText")
+	select {
+	case err := <-ws.DataHandler:
+		if err.(error).Error() != "errorText" {
+			t.Errorf("Expected 'errorText', received %v", err)
+		}
+	case <-timer.C:
+		t.Error("Timeout waiting for datahandler to receive error")
+	}
+	timer = time.NewTimer(900 * time.Millisecond)
+	ws.readMessageErrors <- &websocket.CloseError{
+		Code: 1006,
+		Text: "errorText",
+	}
+outer:
+	for {
+		select {
+		case <-ws.DataHandler:
+			t.Fatal("Error is a disconnection error")
+		case <-timer.C:
+			break outer
+		}
+	}
+}
 
 // func TestWebsocket(t *testing.T) {
 // 	ws := Websocket{}
@@ -308,17 +328,17 @@ func placeholderSubscriber(_ []ChannelSubscription) error {
 // 	}
 // }
 
-// TestManageSubscriptionsStartStop logic test
-func TestManageSubscriptionsStartStop(t *testing.T) {
-	w := Websocket{
-		ShutdownC: make(chan struct{}),
-		features:  &protocol.Features{Subscribe: true, Unsubscribe: true},
-	}
-	w.Wg.Add(1)
-	go w.manageSubscriptions()
-	close(w.ShutdownC)
-	w.Wg.Wait()
-}
+// // TestManageSubscriptionsStartStop logic test
+// func TestManageSubscriptionsStartStop(t *testing.T) {
+// 	w := Websocket{
+// 		ShutdownC: make(chan struct{}),
+// 		features:  &protocol.Features{Subscribe: true, Unsubscribe: true},
+// 	}
+// 	w.Wg.Add(1)
+// 	go w.manageSubscriptions()
+// 	close(w.ShutdownC)
+// 	w.Wg.Wait()
+// }
 
 // // TestManageSubscriptions logic test
 // func TestManageSubscriptions(t *testing.T) {
@@ -454,19 +474,19 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 // 	}
 // }
 
-// TestSetCanUseAuthenticatedEndpoints logic test
-func TestSetCanUseAuthenticatedEndpoints(t *testing.T) {
-	ws := New()
-	result := ws.CanUseAuthenticatedEndpoints()
-	if result {
-		t.Error("expected `canUseAuthenticatedEndpoints` to be false")
-	}
-	ws.SetCanUseAuthenticatedEndpoints(true)
-	result = ws.CanUseAuthenticatedEndpoints()
-	if !result {
-		t.Error("expected `canUseAuthenticatedEndpoints` to be true")
-	}
-}
+// // TestSetCanUseAuthenticatedEndpoints logic test
+// func TestSetCanUseAuthenticatedEndpoints(t *testing.T) {
+// 	ws := New()
+// 	result := ws.CanUseAuthenticatedEndpoints()
+// 	if result {
+// 		t.Error("expected `canUseAuthenticatedEndpoints` to be false")
+// 	}
+// 	ws.SetCanUseAuthenticatedEndpoints(true)
+// 	result = ws.CanUseAuthenticatedEndpoints()
+// 	if !result {
+// 		t.Error("expected `canUseAuthenticatedEndpoints` to be true")
+// 	}
+// }
 
 // func TestRemoveSubscribedChannels(t *testing.T) {
 // 	w := Websocket{
@@ -743,21 +763,21 @@ func TestParseBinaryResponse(t *testing.T) {
 // 	}
 // }
 
-// TestCanUseAuthenticatedWebsocketForWrapper logic test
-func TestCanUseAuthenticatedWebsocketForWrapper(t *testing.T) {
-	ws := &Websocket{}
-	resp := ws.CanUseAuthenticatedWebsocketForWrapper()
-	if resp {
-		t.Error("Expected false, `connected` is false")
-	}
-	ws.setConnectedStatus(true)
-	resp = ws.CanUseAuthenticatedWebsocketForWrapper()
-	if resp {
-		t.Error("Expected false, `connected` is true and `CanUseAuthenticatedEndpoints` is false")
-	}
-	ws.canUseAuthenticatedEndpoints = true
-	resp = ws.CanUseAuthenticatedWebsocketForWrapper()
-	if !resp {
-		t.Error("Expected true, `connected` and `CanUseAuthenticatedEndpoints` is true")
-	}
-}
+// // TestCanUseAuthenticatedWebsocketForWrapper logic test
+// func TestCanUseAuthenticatedWebsocketForWrapper(t *testing.T) {
+// 	ws := &Websocket{}
+// 	resp := ws.CanUseAuthenticatedWebsocketForWrapper()
+// 	if resp {
+// 		t.Error("Expected false, `connected` is false")
+// 	}
+// 	ws.setConnectedStatus(true)
+// 	resp = ws.CanUseAuthenticatedWebsocketForWrapper()
+// 	if resp {
+// 		t.Error("Expected false, `connected` is true and `CanUseAuthenticatedEndpoints` is false")
+// 	}
+// 	ws.canUseAuthenticatedEndpoints = true
+// 	resp = ws.CanUseAuthenticatedWebsocketForWrapper()
+// 	if !resp {
+// 		t.Error("Expected true, `connected` and `CanUseAuthenticatedEndpoints` is true")
+// 	}
+// }

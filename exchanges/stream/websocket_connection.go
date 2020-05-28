@@ -31,7 +31,7 @@ type WebsocketConnection struct {
 	ExchangeName string
 	URL          string
 	ProxyURL     string
-	Wg           sync.WaitGroup
+	Wg           *sync.WaitGroup
 	Connection   *websocket.Conn
 	ShutdownC    chan struct{}
 
@@ -289,7 +289,6 @@ func (w *WebsocketConnection) Shutdown() error {
 	if w == nil || w.Connection == nil {
 		return nil
 	}
-	w.Wg.Wait()
 	return w.Connection.UnderlyingConn().Close()
 }
 

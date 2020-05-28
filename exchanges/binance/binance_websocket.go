@@ -414,6 +414,7 @@ func (b *Binance) SeedLocalCache(p currency.Pair) error {
 	return b.SeedLocalCacheWithBook(p, &ob)
 }
 
+// SeedLocalCacheWithBook seeds local cache with new book
 func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook) error {
 	var newOrderBook orderbook.Base
 	for i := range orderbookNew.Bids {
