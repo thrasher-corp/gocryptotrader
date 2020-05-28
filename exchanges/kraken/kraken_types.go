@@ -139,6 +139,7 @@ type OrderInfo struct {
 	UserRef     int32   `json:"userref"`
 	Status      string  `json:"status"`
 	OpenTime    float64 `json:"opentm"`
+	CloseTime   float64 `json:"closetm"`
 	StartTime   float64 `json:"starttm"`
 	ExpireTime  float64 `json:"expiretm"`
 	Description struct {

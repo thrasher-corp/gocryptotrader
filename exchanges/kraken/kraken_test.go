@@ -25,7 +25,6 @@ var wsSetupRan bool
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	clientID                = ""
 	canManipulateRealOrders = false
 )
 
@@ -35,20 +34,19 @@ func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		log.Fatal("Kraken load config error", err)
+		log.Fatal(err)
 	}
 	krakenConfig, err := cfg.GetExchangeConfig("Kraken")
 	if err != nil {
-		log.Fatal("kraken Setup() init error", err)
+		log.Fatal(err)
 	}
 	krakenConfig.API.AuthenticatedSupport = true
 	krakenConfig.API.Credentials.Key = apiKey
 	krakenConfig.API.Credentials.Secret = apiSecret
-	krakenConfig.API.Credentials.ClientID = clientID
 	krakenConfig.API.Endpoints.WebsocketURL = k.API.Endpoints.WebsocketURL
 	err = k.Setup(krakenConfig)
 	if err != nil {
-		log.Fatal("Kraken setup error", err)
+		log.Fatal(err)
 	}
 	err = k.SeedAssets()
 	if err != nil {
@@ -79,8 +77,28 @@ func TestGetAssets(t *testing.T) {
 
 func TestSeedAssetTranslator(t *testing.T) {
 	t.Parallel()
-	if err := k.SeedAssets(); err != nil {
-		t.Error(err)
+	// Test currency pair
+	if r := assetTranslator.LookupAltname("XXBTZUSD"); r != "XBTUSD" {
+		t.Error("unexpected result")
+	}
+	if r := assetTranslator.LookupCurrency("XBTUSD"); r != "XXBTZUSD" {
+		t.Error("unexpected result")
+	}
+
+	// Test fiat currency
+	if r := assetTranslator.LookupAltname("ZUSD"); r != "USD" {
+		t.Error("unexpected result")
+	}
+	if r := assetTranslator.LookupCurrency("USD"); r != "ZUSD" {
+		t.Error("unexpected result")
+	}
+
+	// Test cryptocurrency
+	if r := assetTranslator.LookupAltname("XXBT"); r != "XBT" {
+		t.Error("unexpected result")
+	}
+	if r := assetTranslator.LookupCurrency("XBT"); r != "XXBT" {
+		t.Error("unexpected result")
 	}
 }
 
@@ -455,12 +473,16 @@ func TestGetOrderInfo(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	_, err := k.GetOrderInfo("ImACoolOrderID")
+	_, err := k.GetOrderInfo("OZPTPJ-HVYHF-EDIGXS")
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting error")
 	}
-	if areTestAPIKeysSet() && !strings.Contains(err.Error(), "- Order ID not found:") {
-		t.Error("Expected Order ID not found error")
+	if areTestAPIKeysSet() && err != nil {
+		if !strings.Contains(err.Error(), "- Order ID not found:") {
+			t.Error("Expected Order ID not found error")
+		} else {
+			t.Error(err)
+		}
 	}
 }
 
@@ -501,12 +523,8 @@ func TestCancelExchangeOrder(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	var orderCancellation = &order.Cancel{
-		ID:            "1",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		Pair:          currencyPair,
+		ID: "OGEX6P-B5Q74-IGZ72R",
 	}
 
 	err := k.CancelOrder(orderCancellation)
@@ -524,16 +542,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-	var orderCancellation = &order.Cancel{
-		ID:            "1",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		Pair:          currencyPair,
-	}
-
-	resp, err := k.CancelAllOrders(orderCancellation)
-
+	resp, err := k.CancelAllOrders(&order.Cancel{})
 	if !areTestAPIKeysSet() && err == nil {
 		t.Error("Expecting an error when no keys are set")
 	}
@@ -548,7 +557,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 // TestGetAccountInfo wrapper test
 func TestGetAccountInfo(t *testing.T) {
-	if areTestAPIKeysSet() || clientID != "" {
+	if areTestAPIKeysSet() {
 		_, err := k.UpdateAccountInfo()
 		if err != nil {
 			t.Error("GetAccountInfo() error", err)
@@ -1395,5 +1404,22 @@ func TestWsCancelOrderJSON(t *testing.T) {
 	err := k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestParseTime(t *testing.T) {
+	r := parseTime(1590633982.5714)
+	if r.Year() != 2020 ||
+		r.Month().String() != "May" ||
+		r.Day() != 28 {
+		t.Error("unexpected result")
+	}
+
+	// Test websocket time example
+	r = parseTime(1560516023.070651)
+	if r.Year() != 2019 ||
+		r.Month().String() != "June" ||
+		r.Day() != 14 {
+		t.Error("unexpected result")
 	}
 }

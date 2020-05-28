@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -1118,4 +1119,9 @@ func (a *assetTranslatorStore) Seeded() bool {
 	isSeeded := len(a.Assets) > 0
 	a.l.Unlock()
 	return isSeeded
+}
+
+func parseTime(tm float64) time.Time {
+	seconds, decimal := math.Modf(tm)
+	return time.Unix(int64(seconds), int64(decimal*(1e9)))
 }
