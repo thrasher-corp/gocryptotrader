@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-	// Ensures that this exchange package is compatible with IBotExchange
+// Ensures that this exchange package is compatible with IBotExchange
 func TestInterface(t *testing.T) {
 	var e exchange.IBotExchange
 	if e = new({{.CapitalName}}); e == nil {

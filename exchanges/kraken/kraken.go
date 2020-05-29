@@ -90,27 +90,27 @@ func (k *Kraken) SeedAssets() error {
 	if err != nil {
 		return err
 	}
-	for k := range assets {
-		assetTranslator.Seed(k, assets[k].Altname)
+	for k, v := range assets {
+		assetTranslator.Seed(k, v.Altname)
 	}
 
 	assetPairs, err := k.GetAssetPairs()
 	if err != nil {
 		return err
 	}
-	for k := range assetPairs {
-		assetTranslator.Seed(k, assetPairs[k].Altname)
+	for k, v := range assetPairs {
+		assetTranslator.Seed(k, v.Altname)
 	}
 	return nil
 }
 
 // GetAssets returns a full asset list
-func (k *Kraken) GetAssets() (map[string]Asset, error) {
+func (k *Kraken) GetAssets() (map[string]*Asset, error) {
 	path := fmt.Sprintf("%s/%s/public/%s", k.API.Endpoints.URL, krakenAPIVersion, krakenAssets)
 
 	var response struct {
-		Error  []string         `json:"error"`
-		Result map[string]Asset `json:"result"`
+		Error  []string          `json:"error"`
+		Result map[string]*Asset `json:"result"`
 	}
 
 	if err := k.SendHTTPRequest(path, &response); err != nil {
@@ -120,12 +120,12 @@ func (k *Kraken) GetAssets() (map[string]Asset, error) {
 }
 
 // GetAssetPairs returns a full asset pair list
-func (k *Kraken) GetAssetPairs() (map[string]AssetPairs, error) {
+func (k *Kraken) GetAssetPairs() (map[string]*AssetPairs, error) {
 	path := fmt.Sprintf("%s/%s/public/%s", k.API.Endpoints.URL, krakenAPIVersion, krakenAssetPairs)
 
 	var response struct {
-		Error  []string              `json:"error"`
-		Result map[string]AssetPairs `json:"result"`
+		Error  []string               `json:"error"`
+		Result map[string]*AssetPairs `json:"result"`
 	}
 
 	if err := k.SendHTTPRequest(path, &response); err != nil {
