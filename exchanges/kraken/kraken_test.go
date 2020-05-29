@@ -106,6 +106,7 @@ func TestGetTickers(t *testing.T) {
 // TestGetOHLC API endpoint test
 func TestGetOHLC(t *testing.T) {
 	t.Parallel()
+	k.Verbose = true
 	_, err := k.GetOHLC("XXBTZUSD", "1440")
 	if err != nil {
 		t.Error("GetOHLC() error", err)
@@ -1373,13 +1374,13 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
+	k.Verbose = true
 	currencyPair := currency.NewPairFromString("BCHEUR")
-	v, err := k.GetHistoricCandlesExtended(currencyPair, asset.Spot, time.Now(), time.Now(), kline.OneDay)
+	_, err := k.GetHistoricCandlesExtended(currencyPair, asset.Spot, time.Now().AddDate(0, -6, 0), time.Now(), kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t.Log(v)
 	_, err = k.GetHistoricCandlesExtended(currencyPair, asset.Spot, time.Now(), time.Now(), kline.Interval(time.Hour*7))
 	if err == nil {
 		t.Fatal("unexpected result")

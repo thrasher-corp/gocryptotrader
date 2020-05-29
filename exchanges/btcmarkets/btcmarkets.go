@@ -163,14 +163,6 @@ func (b *BTCMarkets) GetOrderbook(marketID string, level int64) (Orderbook, erro
 	return orderbook, nil
 }
 
-// FormatExchangeKlineInterval returns Interval to exchange formatted string
-func (b *BTCMarkets) FormatExchangeKlineInterval(in kline.Interval) string {
-	if in == kline.OneDay {
-		return "1d"
-	}
-	return in.Short()
-}
-
 // GetMarketCandles gets candles for specified currency pair
 func (b *BTCMarkets) GetMarketCandles(marketID string, timeWindow kline.Interval, from, to time.Time, before, after, limit int64) (kline.Item, error) {
 	if (before > 0) && (after >= 0) {

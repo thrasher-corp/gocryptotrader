@@ -756,6 +756,14 @@ func (b *BTCMarkets) ValidateCredentials() error {
 	return nil
 }
 
+// FormatExchangeKlineInterval returns Interval to exchange formatted string
+func (b *BTCMarkets) FormatExchangeKlineInterval(in kline.Interval) string {
+	if in == kline.OneDay {
+		return "1d"
+	}
+	return in.Short()
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *BTCMarkets) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if !b.KlineIntervalEnabled(interval) {
