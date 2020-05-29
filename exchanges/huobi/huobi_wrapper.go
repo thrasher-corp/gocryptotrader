@@ -108,7 +108,7 @@ func (h *HUOBI) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
 				exchange.NoFiatWithdrawals,
-			KlineCapabilities: kline.ExchangeCapabilitiesSupported{
+			Kline: kline.ExchangeCapabilitiesSupported{
 				Intervals: true,
 			},
 		},

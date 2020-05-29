@@ -287,9 +287,9 @@ func TestGetSwapOrderbook(t *testing.T) {
 }
 
 func TestGetKlines(t *testing.T) {
-	currencypair := currency.NewPairFromString(spotTestPair)
+	currencypair := currency.NewPairFromString(spotTestPair).String()
 	startTime := time.Now().Add(-time.Hour * 1)
-	_, err := c.GetKlines(currencypair, startTime, time.Now(), kline.OneMin)
+	_, err := c.GetKlines(currencypair, startTime, time.Now(), "1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -297,13 +297,13 @@ func TestGetKlines(t *testing.T) {
 
 func TestGetSwapKlines(t *testing.T) {
 	t.Parallel()
-	currencypair := currency.NewPairFromString(swapTestPair)
+	currencypair := currency.NewPairFromString(swapTestPair).String()
 	startTime := time.Now().Add(-time.Hour * 1)
 
 	_, err := c.GetSwapKlines(currencypair,
 		startTime,
 		time.Now(),
-		kline.OneMin)
+		"1")
 	if err != nil {
 		t.Error(err)
 	}
@@ -697,7 +697,6 @@ func TestWsUserOrder(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	c.Verbose = true
 	currencyPair := currency.NewPairFromString(spotTestPair)
 	startTime := time.Now().Add(-time.Hour * 24)
 	_, err := c.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)

@@ -111,7 +111,7 @@ func (b *Binance) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
-			KlineCapabilities: kline.ExchangeCapabilitiesSupported{
+			Kline: kline.ExchangeCapabilitiesSupported{
 				DateRanges: true,
 				Intervals:  true,
 			},

@@ -15,10 +15,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -617,155 +614,47 @@ func (c *Coinbene) GetSwapOrderbook(symbol string, size int64) (Orderbook, error
 }
 
 // GetKlines data returns the kline data for a specific symbol
-func (c *Coinbene) GetKlines(pair currency.Pair, start, end time.Time, period kline.Interval) (kline.Item, error) {
-	var candle struct {
-		Code    int64            `json:"code"`
-		Message string           `json:"message"`
-		Data    [][6]interface{} `json:"data"`
-	}
-
+func (c *Coinbene) GetKlines(pair string, start, end time.Time, period string) (resp CandleResponse, err error) {
 	v := url.Values{}
-	v.Add("symbol", c.FormatExchangeCurrency(pair, asset.Spot).String())
+	v.Add("symbol", pair)
 	if !start.IsZero() {
 		v.Add("start", strconv.FormatInt(start.Unix(), 10))
 	}
 	if !end.IsZero() {
 		v.Add("end", strconv.FormatInt(end.Unix(), 10))
 	}
-	v.Add("period", c.FormatExchangeKlineInterval(period))
+	v.Add("period", period)
 
 	path := common.EncodeURLValues(coinbeneAPIURL+coinbeneAPIVersion+coinbeneSpotKlines, v)
-	if err := c.SendHTTPRequest(path, contractKline, &candle); err != nil {
-		return kline.Item{}, err
+	if err = c.SendHTTPRequest(path, contractKline, &resp); err != nil {
+		return
 	}
 
-	if candle.Code != 200 {
-		return kline.Item{}, errors.New(candle.Message)
+	if resp.Code != 200 {
+		return resp, errors.New(resp.Message)
 	}
 
-	ret := kline.Item{
-		Exchange: c.Name,
-		Pair:     pair,
-		Interval: period,
-	}
-
-	for x := range candle.Data {
-		var tempCandle kline.Candle
-
-		tempTime := candle.Data[x][0].(string)
-		timestamp, err := time.Parse(time.RFC3339, tempTime)
-		if err != nil {
-			continue
-		}
-		tempCandle.Time = timestamp
-		open, ok := candle.Data[x][1].(string)
-		if !ok {
-			return kline.Item{}, errors.New("open conversion failed")
-		}
-		tempCandle.Open, err = strconv.ParseFloat(open, 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		high, ok := candle.Data[x][2].(string)
-		if !ok {
-			return kline.Item{}, errors.New("high conversion failed")
-		}
-		tempCandle.High, err = strconv.ParseFloat(high, 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-
-		low, ok := candle.Data[x][3].(string)
-		if !ok {
-			return kline.Item{}, errors.New("low conversion failed")
-		}
-		tempCandle.Low, err = strconv.ParseFloat(low, 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-
-		closeTemp, ok := candle.Data[x][4].(string)
-		if !ok {
-			return kline.Item{}, errors.New("close conversion failed")
-		}
-		tempCandle.Close, err = strconv.ParseFloat(closeTemp, 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-
-		vol, ok := candle.Data[x][5].(string)
-		if !ok {
-			return kline.Item{}, errors.New("vol conversion failed")
-		}
-		tempCandle.Volume, err = strconv.ParseFloat(vol, 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-
-		ret.Candles = append(ret.Candles, tempCandle)
-	}
-	return ret, nil
+	return
 }
 
 // GetSwapKlines data returns the kline data for a specific symbol
-func (c *Coinbene) GetSwapKlines(symbol currency.Pair, start, end time.Time, resolution kline.Interval) (kline.Item, error) {
+func (c *Coinbene) GetSwapKlines(symbol string, start, end time.Time, resolution string) (resp CandleResponse, err error) {
 	v := url.Values{}
-	v.Set("symbol", c.FormatExchangeCurrency(symbol, asset.PerpetualSwap).String())
+	v.Set("symbol", symbol)
 	if !start.IsZero() {
 		v.Add("startTime", strconv.FormatInt(start.Unix(), 10))
 	}
 	if !end.IsZero() {
 		v.Add("endTime", strconv.FormatInt(end.Unix(), 10))
 	}
-	v.Set("resolution", c.FormatExchangeKlineInterval(resolution))
+	v.Set("resolution", resolution)
 
-	type resp struct {
-		Data [][]string `json:"data"`
-	}
-	var r resp
 	path := common.EncodeURLValues(coinbeneSwapAPIURL+coinbeneAPIVersion+coinbeneGetKlines, v)
-	if err := c.SendHTTPRequest(path, contractKline, &r); err != nil {
-		return kline.Item{}, err
+	if err = c.SendHTTPRequest(path, contractKline, &resp); err != nil {
+		return
 	}
 
-	ret := kline.Item{
-		Exchange: c.Name,
-		Pair:     symbol,
-		Interval: resolution,
-	}
-
-	for x := range r.Data {
-		var tempCandle kline.Candle
-
-		tempTime := r.Data[x][0]
-		timestamp, err := time.Parse(time.RFC3339, tempTime)
-		if err != nil {
-			continue
-		}
-		tempCandle.Time = timestamp
-		tempCandle.Open, err = strconv.ParseFloat(r.Data[x][1], 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		tempCandle.High, err = strconv.ParseFloat(r.Data[x][3], 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		tempCandle.Low, err = strconv.ParseFloat(r.Data[x][4], 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		tempCandle.Close, err = strconv.ParseFloat(r.Data[x][2], 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		tempCandle.Volume, err = strconv.ParseFloat(r.Data[x][5], 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		ret.Candles = append(ret.Candles, tempCandle)
-	}
-	return ret, nil
+	return
 }
 
 // GetSwapTrades returns a list of trades for a swap symbol

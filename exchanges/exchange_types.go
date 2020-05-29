@@ -158,7 +158,7 @@ type FeaturesSupported struct {
 	Websocket             bool
 	WebsocketCapabilities protocol.Features
 	WithdrawPermissions   uint32
-	KlineCapabilities     kline.ExchangeCapabilitiesSupported
+	Kline                 kline.ExchangeCapabilitiesSupported
 }
 
 // API stores the exchange API settings

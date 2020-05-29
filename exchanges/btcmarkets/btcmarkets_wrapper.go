@@ -108,7 +108,7 @@ func (b *BTCMarkets) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
-			KlineCapabilities: kline.ExchangeCapabilitiesSupported{
+			Kline: kline.ExchangeCapabilitiesSupported{
 				DateRanges: true,
 				Intervals:  true,
 			},

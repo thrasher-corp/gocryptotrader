@@ -219,3 +219,17 @@ type websocketOrderBook struct {
 	Timestamp      int64      `json:"timestamp,string"`
 	Microtimestamp string     `json:"microtimestamp"`
 }
+
+type OHLCResponse struct {
+	Data struct {
+		Pair  string `json:"pair"`
+		OHLCV []struct {
+			Timestamp int64  `json:"timestamp,string"`
+			Open      string `json:"open"`
+			High      string `json:"high"`
+			Low       string `json:"low"`
+			Close     string `json:"close"`
+			Volume    string `json:"volume"`
+		} `json:"ohlc"`
+	} `json:"data"`
+}
