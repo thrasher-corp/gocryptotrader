@@ -13,6 +13,6 @@ VOLUME /root/.gocryptotrader
 RUN apk update && apk add --no-cache ca-certificates bash
 COPY --from=build /go/bin/gocryptotrader /app/
 COPY --from=build /go/bin/gctcli /app/
-COPY --from=build /go/src/github.com/thrasher-corp/gocryptotrader/config.json /root/.gocryptotrader
+COPY --from=build /go/src/github.com/thrasher-corp/gocryptotrader/config.json /root/.gocryptotrader/
 EXPOSE 9050-9053
 ENTRYPOINT [ "/app/gocryptotrader" ]
