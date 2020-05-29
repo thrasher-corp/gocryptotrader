@@ -1,7 +1,6 @@
 package ftx
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -93,14 +92,11 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	f.Verbose = true
-	timez := time.Date(2019, time.July, 25, 17, 15, 0, 0, time.UTC)
-	_, err := f.GetTrades("BTC/USD", timez, time.Now(), 200)
-	fmt.Println(timez, timez.AddDate(0, 0, 5))
+	_, err := f.GetTrades(spotPair, time.Time{}, time.Time{}, 200)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetTrades(spotPair, timez, time.Time{}, 5)
+	_, err = f.GetTrades(spotPair, time.Time{}, time.Time{}, 5)
 	if err != nil {
 		t.Error(err)
 	}
