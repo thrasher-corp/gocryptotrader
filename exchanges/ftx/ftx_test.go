@@ -1014,14 +1014,3 @@ func TestAcceptOTCQuote(t *testing.T) {
 		t.Error(err)
 	}
 }
-
-func TestRateLimit(t *testing.T) {
-	t.Parallel()
-	for x := 0; x < 35; x++ {
-		fmt.Println(x)
-		_, err := f.GetAccountInfo()
-		if err != nil {
-			t.Error(err)
-		}
-	}
-}
