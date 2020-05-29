@@ -574,6 +574,19 @@ func (f *FTX) Order(marketName, side, orderType, reduceOnly, ioc, postOnly, clie
 Wrapper functions are the interface through which GCT bot communicates with an exchange for gathering and sending data
 The exchanges may not support all the functionality in the wrapper, so fill out the ones that are supported as shown in the examples below
 
+Unsupported Example:
+
+```go
+// WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
+// submitted
+func (f *FTX) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	var resp *withdraw.ExchangeResponse
+	return resp, common.ErrFunctionNotSupported
+}
+```
+
+Supported Examples:
+
 ```go
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (f *FTX) FetchTradablePairs(a asset.Item) ([]string, error) {

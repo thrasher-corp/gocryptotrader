@@ -3,6 +3,7 @@ package ftx
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -117,7 +118,8 @@ func (f *FTX) SetDefaults() {
 	}
 
 	f.Requester = request.New(f.Name,
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
+		request.WithLimiter(request.NewBasicRateLimit(ratePeriod, rateLimit)))
 
 	f.API.Endpoints.URLDefault = ftxAPIURL
 	f.API.Endpoints.URL = f.API.Endpoints.URLDefault
@@ -498,6 +500,47 @@ func (f *FTX) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllR
 	return resp, nil
 }
 
+// GetCompatible gets compatible variables for order vars
+func (s *OrderStatus) GetCompatible(f *FTX) (OrderVars, error) {
+	var resp OrderVars
+	switch s.Result.Side {
+	case order.Buy.Lower():
+		resp.Side = order.Buy
+	case order.Sell.Lower():
+		resp.Side = order.Sell
+	}
+	switch s.Result.Status {
+	case strings.ToLower(order.New.String()):
+		resp.Status = order.New
+	case strings.ToLower(order.Open.String()):
+		resp.Status = order.Open
+	case closedStatus:
+		if s.Result.FilledSize != 0 && s.Result.FilledSize != s.Result.Size {
+			resp.Status = order.PartiallyCancelled
+		}
+		if s.Result.FilledSize == 0 {
+			resp.Status = order.Cancelled
+		}
+		if s.Result.FilledSize == s.Result.Size {
+			resp.Status = order.Filled
+		}
+	}
+	var feeBuilder exchange.FeeBuilder
+	feeBuilder.PurchasePrice = s.Result.AvgFillPrice
+	feeBuilder.Amount = s.Result.Size
+	resp.OrderType = order.Market
+	if strings.EqualFold(s.Result.OrderType, order.Limit.String()) {
+		resp.OrderType = order.Limit
+		feeBuilder.IsMaker = true
+	}
+	fee, err := f.GetFee(&feeBuilder)
+	if err != nil {
+		return resp, err
+	}
+	resp.Fee = fee
+	return resp, nil
+}
+
 // GetOrderInfo returns information on a current open order
 func (f *FTX) GetOrderInfo(orderID string) (order.Detail, error) {
 	var resp order.Detail
@@ -515,12 +558,7 @@ func (f *FTX) GetOrderInfo(orderID string) (order.Detail, error) {
 	resp.Pair = currency.NewPairFromString(orderData.Result.Market)
 	resp.Price = orderData.Result.Price
 	resp.RemainingAmount = orderData.Result.RemainingSize
-	orderVars, err := f.compatibleOrderVars(orderData.Result.Side,
-		orderData.Result.Status,
-		orderData.Result.OrderType,
-		orderData.Result.FilledSize,
-		orderData.Result.Size,
-		orderData.Result.AvgFillPrice)
+	orderVars, err := orderData.GetCompatible(f)
 	if err != nil {
 		return resp, err
 	}

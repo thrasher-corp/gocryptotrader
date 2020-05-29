@@ -167,9 +167,9 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 	case wsUpdate:
 		var p currency.Pair
 		var a asset.Item
-		_, ok := result["market"]
+		market, ok := result["market"]
 		if ok {
-			p = currency.NewPairFromString(result["market"].(string))
+			p = currency.NewPairFromString(market.(string))
 			a, err = f.GetPairAssetType(p)
 			if err != nil {
 				return err
@@ -290,9 +290,9 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 		case "orderbook":
 			var p currency.Pair
 			var a asset.Item
-			_, ok := result["market"]
+			market, ok := result["market"]
 			if ok {
-				p = currency.NewPairFromString(result["market"].(string))
+				p = currency.NewPairFromString(market.(string))
 				a, err = f.GetPairAssetType(p)
 				if err != nil {
 					return err

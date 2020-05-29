@@ -1,6 +1,7 @@
 package ftx
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -92,11 +93,14 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetTrades(spotPair, time.Time{}, time.Time{}, 5)
+	f.Verbose = true
+	timez := time.Date(2019, time.July, 25, 17, 15, 0, 0, time.UTC)
+	_, err := f.GetTrades("BTC/USD", timez, time.Now(), 200)
+	fmt.Println(timez, timez.AddDate(0, 0, 5))
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = f.GetTrades(spotPair, time.Unix(1559881511, 0), time.Unix(1559901511, 0), 5)
+	_, err = f.GetTrades(spotPair, timez, time.Time{}, 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -484,7 +488,7 @@ func TestListLTRedemptions(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.ListLTRedemptions(testToken, 5)
+	_, err := f.ListLTRedemptions()
 	if err != nil {
 		t.Error(err)
 	}
@@ -971,11 +975,11 @@ func TestParsingWSOBData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	// data = []byte(`{"channel": "orderbook", "market": "BTC-PERP", "type": "update", "data": {"time": 1589855831.5128105, "checksum": 365946911, "bids": [[9596.0, 4.2656], [9512.0, 32.7912]], "asks": [[9613.5, 4.012], [9702.0, 0.021]], "action": "update"}}`)
-	// err = f.wsHandleData([]byte(data))
-	// if err != nil {
-	// 	t.Error(err)
-	// }
+	data = []byte(`{"channel": "orderbook", "market": "BTC-PERP", "type": "update", "data": {"time": 1589855831.5128105, "checksum": 365946911, "bids": [[9596.0, 4.2656], [9512.0, 32.7912]], "asks": [[9613.5, 4.012], [9702.0, 0.021]], "action": "update"}}`)
+	err = f.wsHandleData([]byte(data))
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestGetOTCQuoteStatus(t *testing.T) {
@@ -1008,5 +1012,16 @@ func TestAcceptOTCQuote(t *testing.T) {
 	_, err := f.AcceptOTCQuote("1031")
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestRateLimit(t *testing.T) {
+	t.Parallel()
+	for x := 0; x < 35; x++ {
+		fmt.Println(x)
+		_, err := f.GetAccountInfo()
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }

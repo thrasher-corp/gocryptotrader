@@ -99,6 +99,9 @@ const (
 	closedStatus          = "closed"
 	spotString            = "spot"
 	futuresString         = "future"
+
+	ratePeriod = time.Second
+	rateLimit  = 30
 )
 
 // Start implementing public and private exchange API funcs below
@@ -554,7 +557,7 @@ func (f *FTX) RequestLTCreation(tokenName string, size float64) (RequestTokenCre
 }
 
 // ListLTRedemptions lists the leveraged tokens' redemption requests
-func (f *FTX) ListLTRedemptions(tokenName string, size float64) (LTRedemptionList, error) {
+func (f *FTX) ListLTRedemptions() (LTRedemptionList, error) {
 	var resp LTRedemptionList
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, getLTRedemptions, nil, &resp)
 }
