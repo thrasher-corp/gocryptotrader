@@ -106,9 +106,7 @@ func TestExchangeHistory(t *testing.T) {
 
 func TestGetAggregatedTrades(t *testing.T) {
 	t.Parallel()
-	startTime := time.Unix(1588636800, 0)
-	endTime := time.Unix(1588640400, 0)
-	_, err := b.GetAggregatedTrades("BTCUSDT", 5, startTime, endTime)
+	_, err := b.GetAggregatedTrades("BTCUSDT", 5)
 	if err != nil {
 		t.Error("Binance GetAggregatedTrades() error", err)
 	}

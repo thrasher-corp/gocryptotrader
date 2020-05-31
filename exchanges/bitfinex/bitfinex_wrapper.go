@@ -121,7 +121,7 @@ func (b *Bitfinex) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.AutoWithdrawFiatWithAPIPermission,
-			KlineCapabilities: kline.ExchangeCapabilitiesSupported{
+			Kline: kline.ExchangeCapabilitiesSupported{
 				DateRanges: true,
 				Intervals:  true,
 			},

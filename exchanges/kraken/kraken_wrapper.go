@@ -121,7 +121,7 @@ func (k *Kraken) SetDefaults() {
 				exchange.WithdrawCryptoWith2FA |
 				exchange.AutoWithdrawFiatWithSetup |
 				exchange.WithdrawFiatWith2FA,
-			KlineCapabilities: kline.ExchangeCapabilitiesSupported{
+			Kline: kline.ExchangeCapabilitiesSupported{
 				DateRanges: true,
 				Intervals:  true,
 			},
@@ -794,7 +794,7 @@ func (k *Kraken) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 		return kline.Item{}, err
 	}
 	for x := range candles {
-		timeValue, err := convert.TimeFromUnixTimestampFloat(candles[x].Time)
+		timeValue, err := convert.TimeFromUnixTimestampFloat(candles[x].Time * 1000)
 		if err != nil {
 			return kline.Item{}, err
 		}
@@ -830,7 +830,7 @@ func (k *Kraken) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 		return kline.Item{}, err
 	}
 	for y := range candles {
-		timeValue, err := convert.TimeFromUnixTimestampFloat(candles[y].Time)
+		timeValue, err := convert.TimeFromUnixTimestampFloat(candles[y].Time * 1000)
 		if err != nil {
 			return kline.Item{}, err
 		}

@@ -104,9 +104,30 @@ func (b *Bitstamp) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
+			Kline: kline.ExchangeCapabilitiesSupported{
+				Intervals:  true,
+				DateRanges: true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: map[string]bool{
+					kline.OneMin.Word():     true,
+					kline.ThreeMin.Word():   true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.ThirtyMin.Word():  true,
+					kline.OneHour.Word():    true,
+					kline.TwoHour.Word():    true,
+					kline.FourHour.Word():   true,
+					kline.SixHour.Word():    true,
+					kline.TwelveHour.Word(): true,
+					kline.OneDay.Word():     true,
+					kline.ThreeDay.Word():   true,
+				},
+				ResultLimit: 1000,
+			},
 		},
 	}
 
@@ -679,10 +700,123 @@ func (b *Bitstamp) ValidateCredentials() error {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *Bitstamp) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+	if !b.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	ret := kline.Item{
+		Exchange: b.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	candles, err := b.OHLC(
+		b.FormatExchangeCurrency(pair, a).Lower().String(),
+		start,
+		end,
+		b.FormatExchangeKlineInterval(interval),
+		"1000",
+	)
+
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	for x := range candles.Data.OHLCV {
+		var tempCandle kline.Candle
+
+		tempCandle.Time = time.Unix(candles.Data.OHLCV[x].Timestamp, 0)
+
+		tempCandle.Open, err = strconv.ParseFloat(candles.Data.OHLCV[x].Open, 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		tempCandle.High, err = strconv.ParseFloat(candles.Data.OHLCV[x].High, 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		tempCandle.Low, err = strconv.ParseFloat(candles.Data.OHLCV[x].Low, 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		tempCandle.Close, err = strconv.ParseFloat(candles.Data.OHLCV[x].Close, 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		tempCandle.Volume, err = strconv.ParseFloat(candles.Data.OHLCV[x].Volume, 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		ret.Candles = append(ret.Candles, tempCandle)
+	}
+
+	return ret, nil
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *Bitstamp) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+	if !b.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	ret := kline.Item{
+		Exchange: b.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	for y := range dates {
+		candles, err := b.OHLC(
+			b.FormatExchangeCurrency(pair, a).Lower().String(),
+			dates[y].Start,
+			dates[y].End,
+			b.FormatExchangeKlineInterval(interval),
+			"1000",
+		)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		for x := range candles.Data.OHLCV {
+			var tempCandle kline.Candle
+
+			tempCandle.Time = time.Unix(candles.Data.OHLCV[x].Timestamp, 0)
+			tempCandle.Open, err = strconv.ParseFloat(candles.Data.OHLCV[x].Open, 64)
+			if err != nil {
+				return kline.Item{}, err
+			}
+
+			tempCandle.High, err = strconv.ParseFloat(candles.Data.OHLCV[x].High, 64)
+			if err != nil {
+				return kline.Item{}, err
+			}
+
+			tempCandle.Low, err = strconv.ParseFloat(candles.Data.OHLCV[x].Low, 64)
+			if err != nil {
+				return kline.Item{}, err
+			}
+			tempCandle.Close, err = strconv.ParseFloat(candles.Data.OHLCV[x].Close, 64)
+			if err != nil {
+				return kline.Item{}, err
+			}
+			tempCandle.Volume, err = strconv.ParseFloat(candles.Data.OHLCV[x].Volume, 64)
+			if err != nil {
+				return kline.Item{}, err
+			}
+
+			ret.Candles = append(ret.Candles, tempCandle)
+		}
+	}
+
+	return ret, nil
 }

@@ -101,7 +101,7 @@ func (b *Bithumb) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
-			KlineCapabilities: kline.ExchangeCapabilitiesSupported{
+			Kline: kline.ExchangeCapabilitiesSupported{
 				Intervals: true,
 			},
 		},
@@ -612,6 +612,11 @@ func (b *Bithumb) ValidateCredentials() error {
 	return b.CheckTransientError(err)
 }
 
+// FormatExchangeKlineInterval returns Interval to exchange formatted string
+func (b *Bithumb) FormatExchangeKlineInterval(in kline.Interval) string {
+	return in.Short()
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *Bithumb) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	if !b.KlineIntervalEnabled(interval) {
@@ -620,7 +625,77 @@ func (b *Bithumb) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 		}
 	}
 
-	return b.GetCandleStick(pair, start, end, interval)
+	candle, err := b.GetCandleStick(b.FormatExchangeCurrency(pair, a).String(), b.FormatExchangeKlineInterval(interval))
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	ret := kline.Item{
+		Exchange: b.Name,
+		Pair:     pair,
+		Interval: interval,
+	}
+
+	for x := range candle.Data {
+		var tempCandle kline.Candle
+
+		tempTime := candle.Data[x][0].(float64)
+		timestamp := time.Unix(0, int64(tempTime)*int64(time.Millisecond))
+		if timestamp.Before(start) {
+			continue
+		}
+		if timestamp.After(end) {
+			break
+		}
+		tempCandle.Time = timestamp
+
+		open, ok := candle.Data[x][1].(string)
+		if !ok {
+			return kline.Item{}, errors.New("open conversion failed")
+		}
+		tempCandle.Open, err = strconv.ParseFloat(open, 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		high, ok := candle.Data[x][2].(string)
+		if !ok {
+			return kline.Item{}, errors.New("high conversion failed")
+		}
+		tempCandle.High, err = strconv.ParseFloat(high, 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		low, ok := candle.Data[x][3].(string)
+		if !ok {
+			return kline.Item{}, errors.New("low conversion failed")
+		}
+		tempCandle.Low, err = strconv.ParseFloat(low, 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		closeTemp, ok := candle.Data[x][4].(string)
+		if !ok {
+			return kline.Item{}, errors.New("close conversion failed")
+		}
+		tempCandle.Close, err = strconv.ParseFloat(closeTemp, 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		vol, ok := candle.Data[x][5].(string)
+		if !ok {
+			return kline.Item{}, errors.New("vol conversion failed")
+		}
+		tempCandle.Volume, err = strconv.ParseFloat(vol, 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		ret.Candles = append(ret.Candles, tempCandle)
+	}
+
+	return ret, nil
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval

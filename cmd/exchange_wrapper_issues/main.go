@@ -728,35 +728,37 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   r23,
 		})
 
-		var r24 kline.Item
-		startTime, _ := time.Now().AddDate(0, -1, 0), time.Now()
-		endTime := time.Now()
-		r24, err = e.GetHistoricCandles(p, assetTypes[i], startTime, endTime, kline.OneDay)
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
-		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function:   "GetHistoricCandles",
-			Error:      msg,
-			Response:   r24,
-			SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], startTime, endTime, kline.OneDay}),
-		})
+		if !authenticatedOnly {
+			var r24 kline.Item
+			startTime, _ := time.Now().AddDate(0, -1, 0), time.Now()
+			endTime := time.Now()
+			r24, err = e.GetHistoricCandles(p, assetTypes[i], startTime, endTime, kline.OneDay)
+			msg = ""
+			if err != nil {
+				msg = err.Error()
+				responseContainer.ErrorCount++
+			}
+			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+				Function:   "GetHistoricCandles",
+				Error:      msg,
+				Response:   r24,
+				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], startTime, endTime, kline.OneDay}),
+			})
 
-		var r25 kline.Item
-		r25, err = e.GetHistoricCandlesExtended(p, assetTypes[i], startTime, endTime, kline.OneDay)
-		msg = ""
-		if err != nil {
-			msg = err.Error()
-			responseContainer.ErrorCount++
+			var r25 kline.Item
+			r25, err = e.GetHistoricCandlesExtended(p, assetTypes[i], startTime, endTime, kline.OneDay)
+			msg = ""
+			if err != nil {
+				msg = err.Error()
+				responseContainer.ErrorCount++
+			}
+			responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
+				Function:   "GetHistoricCandlesExtended",
+				Error:      msg,
+				Response:   r25,
+				SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], startTime, endTime, kline.OneDay}),
+			})
 		}
-		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function:   "GetHistoricCandlesExtended",
-			Error:      msg,
-			Response:   r25,
-			SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], startTime, endTime, kline.OneDay}),
-		})
 		response = append(response, responseContainer)
 	}
 	return response

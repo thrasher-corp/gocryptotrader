@@ -528,9 +528,7 @@ func TestGetDepositAddress(t *testing.T) {
 }
 
 func TestGetCandleStick(t *testing.T) {
-	currencyPair := currency.NewPairFromString("BTC_KRW")
-	startTime := time.Now().Add(-time.Hour * 24)
-	_, err := b.GetCandleStick(currencyPair, startTime, time.Now(), kline.OneHour)
+	_, err := b.GetCandleStick("BTC_KRW", "1m")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -540,6 +538,15 @@ func TestGetHistoricCandles(t *testing.T) {
 	currencyPair := currency.NewPairFromString("BTC_KRW")
 	startTime := time.Now().Add(-time.Hour * 24)
 	_, err := b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneDay)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	currencyPair := currency.NewPairFromString("BTC_KRW")
+	startTime := time.Now().Add(-time.Hour * 24)
+	_, err := b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -11,13 +11,10 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -604,87 +601,12 @@ var errCode = map[string]string{
 	"5900": "Unknown Error",
 }
 
-// FormatExchangeKlineInterval returns Interval to exchange formatted string
-func (b *Bithumb) FormatExchangeKlineInterval(in kline.Interval) string {
-	return in.Short()
-}
-
 // GetCandleStick returns candle stick data for requested pair
-func (b *Bithumb) GetCandleStick(pair currency.Pair, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	var candle struct {
-		Status string          `json:"status"`
-		Data   [][]interface{} `json:"data"`
-	}
-
-	path := b.API.Endpoints.URL + publicCandleStick + b.FormatExchangeCurrency(pair, asset.Spot).String() + "/" + b.FormatExchangeKlineInterval(interval)
-	err := b.SendHTTPRequest(path, &candle)
+func (b *Bithumb) GetCandleStick(symbol, interval string) (resp OHLCVResponse, err error) {
+	path := b.API.Endpoints.URL + publicCandleStick + symbol + "/" + interval
+	err = b.SendHTTPRequest(path, &resp)
 	if err != nil {
-		return kline.Item{}, err
+		return
 	}
-
-	ret := kline.Item{
-		Exchange: b.Name,
-		Pair:     pair,
-		Interval: interval,
-	}
-
-	for x := range candle.Data {
-		var tempCandle kline.Candle
-
-		tempTime := candle.Data[x][0].(float64)
-		timestamp := time.Unix(0, int64(tempTime)*int64(time.Millisecond))
-		if timestamp.Before(start) {
-			continue
-		}
-		if timestamp.After(end) {
-			break
-		}
-		tempCandle.Time = timestamp
-
-		open, ok := candle.Data[x][1].(string)
-		if !ok {
-			return kline.Item{}, errors.New("open conversion failed")
-		}
-		tempCandle.Open, err = strconv.ParseFloat(open, 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		high, ok := candle.Data[x][2].(string)
-		if !ok {
-			return kline.Item{}, errors.New("high conversion failed")
-		}
-		tempCandle.High, err = strconv.ParseFloat(high, 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-
-		low, ok := candle.Data[x][3].(string)
-		if !ok {
-			return kline.Item{}, errors.New("low conversion failed")
-		}
-		tempCandle.Low, err = strconv.ParseFloat(low, 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-
-		closeTemp, ok := candle.Data[x][4].(string)
-		if !ok {
-			return kline.Item{}, errors.New("close conversion failed")
-		}
-		tempCandle.Close, err = strconv.ParseFloat(closeTemp, 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-
-		vol, ok := candle.Data[x][5].(string)
-		if !ok {
-			return kline.Item{}, errors.New("vol conversion failed")
-		}
-		tempCandle.Volume, err = strconv.ParseFloat(vol, 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		ret.Candles = append(ret.Candles, tempCandle)
-	}
-	return ret, nil
+	return
 }

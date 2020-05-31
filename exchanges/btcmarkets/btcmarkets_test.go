@@ -100,7 +100,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetMarketCandles(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetMarketCandles(BTCAUD, kline.OneHour, time.Now().UTC().Add(-time.Hour*24), time.Now().UTC(), -1, -1, -1)
+	_, err := b.GetMarketCandles(BTCAUD, "1h", time.Now().UTC().Add(-time.Hour*24), time.Now().UTC(), -1, -1, -1)
 	if err != nil {
 		t.Error(err)
 	}
