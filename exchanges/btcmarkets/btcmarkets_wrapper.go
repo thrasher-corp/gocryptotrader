@@ -846,37 +846,38 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, s
 
 	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
 	for x := range dates {
-		candels, err := b.GetMarketCandles(p.String(),
+		candles, err := b.GetMarketCandles(p.String(),
 			b.FormatExchangeKlineInterval(interval),
 			dates[x].Start, dates[x].End, -1, -1, -1)
 		if err != nil {
 			return kline.Item{}, err
 		}
-		for x := range candels {
+
+		for x := range candles {
 			var tempTime time.Time
 			var tempData kline.Candle
-			tempTime, err = time.Parse(time.RFC3339, candels[x][0])
+			tempTime, err = time.Parse(time.RFC3339, candles[x][0])
 			if err != nil {
 				return kline.Item{}, err
 			}
 			tempData.Time = tempTime
-			tempData.Open, err = strconv.ParseFloat(candels[x][1], 64)
+			tempData.Open, err = strconv.ParseFloat(candles[x][1], 64)
 			if err != nil {
 				return kline.Item{}, err
 			}
-			tempData.High, err = strconv.ParseFloat(candels[x][2], 64)
+			tempData.High, err = strconv.ParseFloat(candles[x][2], 64)
 			if err != nil {
 				return kline.Item{}, err
 			}
-			tempData.Low, err = strconv.ParseFloat(candels[x][3], 64)
+			tempData.Low, err = strconv.ParseFloat(candles[x][3], 64)
 			if err != nil {
 				return kline.Item{}, err
 			}
-			tempData.Close, err = strconv.ParseFloat(candels[x][4], 64)
+			tempData.Close, err = strconv.ParseFloat(candles[x][4], 64)
 			if err != nil {
 				return kline.Item{}, err
 			}
-			tempData.Volume, err = strconv.ParseFloat(candels[x][5], 64)
+			tempData.Volume, err = strconv.ParseFloat(candles[x][5], 64)
 			if err != nil {
 				return kline.Item{}, err
 			}
