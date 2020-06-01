@@ -20,7 +20,34 @@ func Series() error {
 	return nil
 }
 
-func Insert() error {
+func Insert(in modelPSQL.Candle) error {
+	if database.DB.SQL == nil {
+		return database.ErrDatabaseSupportDisabled
+	}
+
+	ctx := boil.SkipTimestamps(context.Background())
+	tx, err := database.DB.SQL.BeginTx(ctx, nil)
+	if err != nil {
+		log.Errorf(log.DatabaseMgr, "Insert transaction being failed: %v", err)
+		return err
+	}
+
+	if repository.GetSQLDialect() == database.DBSQLite3 {
+		err = insertSQLite(ctx, tx, []modelPSQL.Candle{in})
+	} else {
+		err = insertPostgresSQL(ctx, tx, []modelPSQL.Candle{in})
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		log.Errorf(log.DatabaseMgr, "Insert Transaction commit failed: %v", err)
+		err = tx.Rollback()
+		if err != nil {
+			log.Errorf(log.DatabaseMgr, "Insert Transaction rollback failed: %v", err)
+		}
+		return err
+	}
+
 	return nil
 }
 

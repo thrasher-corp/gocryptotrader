@@ -554,12 +554,6 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	futuresPair := currency.NewPairFromString("LTC-USD_200529")
-	_, err = o.GetHistoricCandles(futuresPair, asset.Futures, startTime, time.Now(), kline.OneDay)
-	if err != nil {
-		t.Fatal(err)
-	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
