@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common/cache"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	dbpsql "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
@@ -135,4 +137,15 @@ func (a *databaseManager) checkConnection() {
 		log.Info(log.DatabaseMgr, "Database connection reestablished")
 		dbConn.Connected = true
 	}
+}
+
+var exchangeCache = cache.New(10)
+
+func ExchangeUUIDByName(in string) (uuid.UUID, error) {
+	v := exchangeCache.Get(in)
+
+	if v != nil {
+		return v.(uuid.UUID), nil
+	}
+	return uuid.UUID{}, nil
 }

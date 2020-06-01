@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
@@ -13,6 +14,19 @@ import (
 
 type Details struct {
 	Name string
+}
+
+func One() error {
+	return nil
+}
+
+func OneByUUID(in uuid.UUID) (*modelPSQL.Exchange, error) {
+	if database.DB.SQL == nil {
+		return nil, database.ErrDatabaseSupportDisabled
+	}
+
+	return modelPSQL.FindExchange(context.Background(), database.DB.SQL,
+		in.String())
 }
 
 func Find() error {

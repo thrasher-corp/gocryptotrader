@@ -19,23 +19,22 @@ import (
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
 	"github.com/thrasher-corp/sqlboiler/queries/qmhelper"
 	"github.com/thrasher-corp/sqlboiler/strmangle"
-	"github.com/thrasher-corp/sqlboiler/types"
 	"github.com/volatiletech/null"
 )
 
 // Candle is an object representing the database table.
 type Candle struct {
-	ID         string            `boil:"id" json:"id" toml:"id" yaml:"id"`
-	ExchangeID null.String       `boil:"exchange_id" json:"exchange_id,omitempty" toml:"exchange_id" yaml:"exchange_id,omitempty"`
-	Base       string            `boil:"base" json:"base" toml:"base" yaml:"base"`
-	Quote      string            `boil:"quote" json:"quote" toml:"quote" yaml:"quote"`
-	Interval   string            `boil:"interval" json:"interval" toml:"interval" yaml:"interval"`
-	Date       null.Time         `boil:"date" json:"date,omitempty" toml:"date" yaml:"date,omitempty"`
-	Open       types.NullDecimal `boil:"open" json:"open,omitempty" toml:"open" yaml:"open,omitempty"`
-	High       types.NullDecimal `boil:"high" json:"high,omitempty" toml:"high" yaml:"high,omitempty"`
-	Low        types.NullDecimal `boil:"low" json:"low,omitempty" toml:"low" yaml:"low,omitempty"`
-	Close      types.NullDecimal `boil:"close" json:"close,omitempty" toml:"close" yaml:"close,omitempty"`
-	Volume     types.NullDecimal `boil:"volume" json:"volume,omitempty" toml:"volume" yaml:"volume,omitempty"`
+	ID         string      `boil:"id" json:"id" toml:"id" yaml:"id"`
+	ExchangeID null.String `boil:"exchange_id" json:"exchange_id,omitempty" toml:"exchange_id" yaml:"exchange_id,omitempty"`
+	Base       string      `boil:"base" json:"base" toml:"base" yaml:"base"`
+	Quote      string      `boil:"quote" json:"quote" toml:"quote" yaml:"quote"`
+	Interval   string      `boil:"interval" json:"interval" toml:"interval" yaml:"interval"`
+	Date       time.Time   `boil:"date" json:"date" toml:"date" yaml:"date"`
+	Open       float64     `boil:"open" json:"open" toml:"open" yaml:"open"`
+	High       float64     `boil:"high" json:"high" toml:"high" yaml:"high"`
+	Low        float64     `boil:"low" json:"low" toml:"low" yaml:"low"`
+	Close      float64     `boil:"close" json:"close" toml:"close" yaml:"close"`
+	Volume     float64     `boil:"volume" json:"volume" toml:"volume" yaml:"volume"`
 
 	R *candleR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L candleL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -92,51 +91,18 @@ func (w whereHelpernull_String) GTE(x null.String) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.GTE, x)
 }
 
-type whereHelpernull_Time struct{ field string }
+type whereHelperfloat64 struct{ field string }
 
-func (w whereHelpernull_Time) EQ(x null.Time) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, false, x)
+func (w whereHelperfloat64) EQ(x float64) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.EQ, x) }
+func (w whereHelperfloat64) NEQ(x float64) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.NEQ, x)
 }
-func (w whereHelpernull_Time) NEQ(x null.Time) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, true, x)
-}
-func (w whereHelpernull_Time) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
-func (w whereHelpernull_Time) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
-func (w whereHelpernull_Time) LT(x null.Time) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LT, x)
-}
-func (w whereHelpernull_Time) LTE(x null.Time) qm.QueryMod {
+func (w whereHelperfloat64) LT(x float64) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.LT, x) }
+func (w whereHelperfloat64) LTE(x float64) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.LTE, x)
 }
-func (w whereHelpernull_Time) GT(x null.Time) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GT, x)
-}
-func (w whereHelpernull_Time) GTE(x null.Time) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GTE, x)
-}
-
-type whereHelpertypes_NullDecimal struct{ field string }
-
-func (w whereHelpertypes_NullDecimal) EQ(x types.NullDecimal) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, false, x)
-}
-func (w whereHelpertypes_NullDecimal) NEQ(x types.NullDecimal) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, true, x)
-}
-func (w whereHelpertypes_NullDecimal) IsNull() qm.QueryMod { return qmhelper.WhereIsNull(w.field) }
-func (w whereHelpertypes_NullDecimal) IsNotNull() qm.QueryMod {
-	return qmhelper.WhereIsNotNull(w.field)
-}
-func (w whereHelpertypes_NullDecimal) LT(x types.NullDecimal) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LT, x)
-}
-func (w whereHelpertypes_NullDecimal) LTE(x types.NullDecimal) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LTE, x)
-}
-func (w whereHelpertypes_NullDecimal) GT(x types.NullDecimal) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GT, x)
-}
-func (w whereHelpertypes_NullDecimal) GTE(x types.NullDecimal) qm.QueryMod {
+func (w whereHelperfloat64) GT(x float64) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GT, x) }
+func (w whereHelperfloat64) GTE(x float64) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.GTE, x)
 }
 
@@ -146,24 +112,24 @@ var CandleWhere = struct {
 	Base       whereHelperstring
 	Quote      whereHelperstring
 	Interval   whereHelperstring
-	Date       whereHelpernull_Time
-	Open       whereHelpertypes_NullDecimal
-	High       whereHelpertypes_NullDecimal
-	Low        whereHelpertypes_NullDecimal
-	Close      whereHelpertypes_NullDecimal
-	Volume     whereHelpertypes_NullDecimal
+	Date       whereHelpertime_Time
+	Open       whereHelperfloat64
+	High       whereHelperfloat64
+	Low        whereHelperfloat64
+	Close      whereHelperfloat64
+	Volume     whereHelperfloat64
 }{
 	ID:         whereHelperstring{field: "\"candle\".\"id\""},
 	ExchangeID: whereHelpernull_String{field: "\"candle\".\"exchange_id\""},
 	Base:       whereHelperstring{field: "\"candle\".\"base\""},
 	Quote:      whereHelperstring{field: "\"candle\".\"quote\""},
 	Interval:   whereHelperstring{field: "\"candle\".\"interval\""},
-	Date:       whereHelpernull_Time{field: "\"candle\".\"date\""},
-	Open:       whereHelpertypes_NullDecimal{field: "\"candle\".\"open\""},
-	High:       whereHelpertypes_NullDecimal{field: "\"candle\".\"high\""},
-	Low:        whereHelpertypes_NullDecimal{field: "\"candle\".\"low\""},
-	Close:      whereHelpertypes_NullDecimal{field: "\"candle\".\"close\""},
-	Volume:     whereHelpertypes_NullDecimal{field: "\"candle\".\"volume\""},
+	Date:       whereHelpertime_Time{field: "\"candle\".\"date\""},
+	Open:       whereHelperfloat64{field: "\"candle\".\"open\""},
+	High:       whereHelperfloat64{field: "\"candle\".\"high\""},
+	Low:        whereHelperfloat64{field: "\"candle\".\"low\""},
+	Close:      whereHelperfloat64{field: "\"candle\".\"close\""},
+	Volume:     whereHelperfloat64{field: "\"candle\".\"volume\""},
 }
 
 // CandleRels is where relationship names are stored.

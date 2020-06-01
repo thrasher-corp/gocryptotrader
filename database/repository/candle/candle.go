@@ -38,6 +38,10 @@ func Insert(in modelPSQL.Candle) error {
 		err = insertPostgresSQL(ctx, tx, []modelPSQL.Candle{in})
 	}
 
+	if err != nil {
+		return err
+	}
+
 	err = tx.Commit()
 	if err != nil {
 		log.Errorf(log.DatabaseMgr, "Insert Transaction commit failed: %v", err)
@@ -68,6 +72,9 @@ func InsertMany(in []modelPSQL.Candle) error {
 	} else {
 		err = insertPostgresSQL(ctx, tx, in)
 	}
+	if err != nil {
+		return err
+	}
 
 	err = tx.Commit()
 	if err != nil {
@@ -87,10 +94,10 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in []modelPSQL.Candle) (err e
 }
 
 func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in []modelPSQL.Candle) error {
-	for  x := range in {
-		var  tempCandle = in[x]
+	for x := range in {
+		var tempCandle = in[x]
 
-		err := tempCandle.Upsert(ctx, tx, true, []string{"exchange"}, boil.Infer(), boil.Infer())
+		err := tempCandle.Upsert(ctx, tx, true, []string{"date"}, boil.Infer(), boil.Infer())
 		if err != nil {
 			log.Errorf(log.DatabaseMgr, "Candle Insert failed: %v", err)
 			errRB := tx.Rollback()

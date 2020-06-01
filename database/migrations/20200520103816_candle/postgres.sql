@@ -7,13 +7,13 @@ CREATE TABLE IF NOT EXISTS candle
     base varchar(30) NOT NULL,
     quote varchar(30) NOT NULL,
     interval varchar(30) NOT NULL,
-    date timestamp with time zone,
-    open numeric,
-    high numeric,
-    low numeric,
-    close numeric,
-    volume numeric,
-    unique(exchange_id, date, base, quote)
+    date timestamp with time zone NOT NULL,
+    open DOUBLE PRECISION NOT NULL,
+    high DOUBLE PRECISION NOT NULL,
+    low DOUBLE PRECISION NOT NULL,
+    close DOUBLE PRECISION NOT NULL,
+    volume DOUBLE PRECISION NOT NULL,
+    unique(date             )
 );
 
 -- +goose Down

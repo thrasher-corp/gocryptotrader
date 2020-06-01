@@ -4104,16 +4104,22 @@ var getHistoricCandlesExtendedCommand = cli.Command{
 			Usage: "the asset type of the currency pair",
 		},
 		cli.Int64Flag{
-			Name:        "rangesize, r",
-			Usage:       "the amount of time to go back from now to fetch candles in the given granularity",
-			Value:       10,
-			Destination: &candleRangeSize,
-		},
-		cli.Int64Flag{
 			Name:        "granularity, g",
 			Usage:       "example values are in seconds and can be one of the following {60 (1 Minute), 300 (5 Minute), 900 (15 Minute), 3600 (1 Hour), 21600 (6 Hour), 86400 (1 Day)}",
 			Value:       86400,
 			Destination: &candleGranularity,
+		},
+		cli.StringFlag{
+			Name:        "start",
+			Usage:       "<start>",
+			Value:       time.Now().AddDate(0, -1, 0).Format(common.SimpleTimeFormat),
+			Destination: &startTime,
+		},
+		cli.StringFlag{
+			Name:        "end",
+			Usage:       "<end>",
+			Value:       time.Now().Format(common.SimpleTimeFormat),
+			Destination: &endTime,
 		},
 	},
 }
@@ -4156,23 +4162,25 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
-	if c.IsSet("rangesize") {
-		candleRangeSize = c.Int64("rangesize")
+	if c.IsSet("granularity") {
+		candleGranularity = c.Int64("granularity")
 	} else if c.Args().Get(3) != "" {
 		var err error
-		candleRangeSize, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
+		candleGranularity, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
 		if err != nil {
 			return err
 		}
 	}
 
-	if c.IsSet("granularity") {
-		candleGranularity = c.Int64("granularity")
-	} else if c.Args().Get(4) != "" {
-		var err error
-		candleGranularity, err = strconv.ParseInt(c.Args().Get(4), 10, 64)
-		if err != nil {
-			return err
+	if !c.IsSet("start") {
+		if c.Args().Get(4) != "" {
+			startTime = c.Args().Get(4)
+		}
+	}
+
+	if !c.IsSet("end") {
+		if c.Args().Get(5) != "" {
+			endTime = c.Args().Get(5)
 		}
 	}
 
@@ -4184,8 +4192,19 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 
 	candleInterval := time.Duration(candleGranularity) * time.Second
 
-	end := time.Now().UTC().Truncate(candleInterval)
-	start := end.Add(-candleInterval * time.Duration(candleRangeSize))
+	s, err := time.Parse(common.SimpleTimeFormat, startTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for start: %v", err)
+	}
+
+	e, err := time.Parse(common.SimpleTimeFormat, endTime)
+	if err != nil {
+		return fmt.Errorf("invalid time format for end: %v", err)
+	}
+
+	if e.Before(s) {
+		return errors.New("start cannot be after before")
+	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetHistoricCandles(context.Background(),
@@ -4197,8 +4216,8 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 				Quote:     p.Quote.String(),
 			},
 			AssetType:    assetType,
-			Start:        start.Unix(),
-			End:          end.Unix(),
+			Start:        s.Unix(),
+			End:          e.Unix(),
 			TimeInterval: int64(candleInterval),
 			ExRequest:    true,
 		})

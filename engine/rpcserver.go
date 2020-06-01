@@ -1567,6 +1567,12 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHisto
 			Volume: candles.Candles[i].Volume,
 		})
 	}
+
+	err = kline.DatabaseStore(candles)
+	if err != nil {
+		return nil, err
+	}
+
 	return &resp, nil
 }
 
