@@ -2091,3 +2091,17 @@ func (s *RPCServer) GetExchangeAssets(_ context.Context, r *gctrpc.GetExchangeAs
 		Assets: exch.GetAssetTypes().JoinToString(","),
 	}, nil
 }
+
+
+// GetExchangeAssets returns the supported asset types
+func (s *RPCServer) WebsocketGetInfo(_ context.Context, r *gctrpc.WebsocketGetInfoRequest) (*gctrpc.WebsocketGetInfoResponse, error) {
+	var report new(gctrpc.WebsocketGetInfoResponse)
+	exchs := GetExchanges()
+	for i := range exchs {
+		report.
+	}
+
+	return &gctrpc.GetExchangeAssetsResponse{
+		Assets: exch.GetAssetTypes().JoinToString(","),
+	}, nil
+}

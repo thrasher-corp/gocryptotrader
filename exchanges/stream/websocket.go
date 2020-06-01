@@ -15,7 +15,7 @@ import (
 const (
 	defaultJobBuffer = 1000
 	// defaultTrafficPeriod defines a period of pause for the traffic monitor,
-	// as there a periods with large incoming traffic alerts which requires a
+	// as there are periods with large incoming traffic alerts which requires a
 	// timer reset, this limits work on this routine to a more effective rate
 	// of check.
 	defaultTrafficPeriod = time.Second
@@ -90,7 +90,11 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 		return errors.New("feature set is nil")
 	}
 
+	if setupData.RunningURL == "" {
+		return errors.New("running URL cannot be nil")
+	}
 	w.SetWebsocketURL(setupData.RunningURL)
+
 	w.SetCanUseAuthenticatedEndpoints(setupData.AuthenticatedWebsocketAPISupport)
 	err := w.Initialise()
 	if err != nil {
@@ -145,8 +149,6 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup, auth bool) error {
 		Wg:                &w.Wg,
 		Match:             w.Match,
 	}
-
-	w.Wg.Add(1)
 
 	if auth {
 		w.AuthConn = newConn
@@ -315,27 +317,7 @@ func (w *Websocket) connectionMonitor() {
 						"%v websocket has been disconnected. Reason: %v",
 						w.exchangeName, err)
 				}
-
-				fmt.Println("shutting down connections")
-				err = w.Shutdown()
-				if err != nil {
-					log.Error(log.WebsocketMgr, err)
-				}
-
-				fmt.Println("shutdown occured")
-
-				err = w.Connect()
-				if err != nil {
-					log.Error(log.WebsocketMgr, err)
-				}
-				fmt.Println("connection occured")
-				if !timer.Stop() {
-					select {
-					case <-timer.C:
-					default:
-					}
-				}
-				timer.Reset(connectionMonitorDelay)
+				w.setConnectedStatus(false)
 			} else {
 				// pass off non disconnect errors to datahandler to manage
 				w.DataHandler <- err
@@ -464,7 +446,7 @@ func (w *Websocket) trafficMonitor() error {
 	}
 
 	if w.IsTrafficMonitorRunning() {
-		return errors.New("traffic monitor instance already running")
+		return nil
 	}
 
 	w.Wg.Add(1)
@@ -472,9 +454,9 @@ func (w *Websocket) trafficMonitor() error {
 
 	go func(w *Websocket) {
 		// Initialise timer first without it firing for edge case if
-		// w.trafficTimeout is set at a short time frame and this routine returns
-		// before an initial traffic alert comes through resulting in an indefinate
-		// blocking issue in websocketconnection.Dial()
+		// w.trafficTimeout is set at a short time frame and this routine
+		// returns before an initial traffic alert comes through resulting in an
+		// indefinate blocking issue in websocketconnection.Dial()
 		var trafficTimer = time.NewTimer(w.trafficTimeout)
 		trafficTimer.Stop()
 
@@ -692,10 +674,7 @@ func (w *Websocket) GetName() string {
 
 // ManageSubscriptions ensures the subscriptions specified continue to be subscribed to
 func (w *Websocket) manageSubscriptions() {
-	defer func() {
-		fmt.Println("Managed subscriptions done")
-		w.Wg.Done()
-	}()
+	defer w.Wg.Done()
 
 	for {
 		select {
@@ -711,12 +690,9 @@ func (w *Websocket) manageSubscriptions() {
 			return
 		case sub := <-w.subscribe:
 			if !w.IsConnected() {
-				fmt.Println("not connected gee")
-				fmt.Println("LOCK")
 				w.subscriptionMutex.Lock()
 				w.subscriptions = nil
 				w.subscriptionMutex.Unlock()
-				fmt.Println("UNLOCK")
 				continue
 			}
 			if w.verbose {
@@ -795,14 +771,12 @@ next:
 // removes it from subscribedChannels to trigger a subscribe event
 func (w *Websocket) ResubscribeToChannel(subscribedChannel *ChannelSubscription) error {
 	w.subscriptionMutex.Lock()
+	defer w.subscriptionMutex.Unlock()
 	err := w.RemoveSubscribedChannels([]ChannelSubscription{*subscribedChannel})
 	if err != nil {
-		w.subscriptionMutex.Unlock()
 		return err
 	}
-
 	w.SubscribeToChannels([]ChannelSubscription{*subscribedChannel})
-	w.subscriptionMutex.Unlock()
 	return nil
 }
 

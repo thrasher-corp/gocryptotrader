@@ -707,6 +707,36 @@ message GetExchangeAssetsResponse {
     string assets = 1;
 }
 
+message WebsocketGetInfoRequest {}
+
+message WebsocketGetInfoResponse {
+    string exchange = 1;
+    bool supported = 2;
+    bool enabled = 3; 
+    bool authenticated_supported = 4;
+    bool authenticated = 5;
+    string running_url = 6;
+    string proxy_address = 7;
+}
+
+message WebsocketSetEnabledRequest {
+    bool enable = 1;
+}
+
+message WebsocketGetSubscriptionsRequest {
+    string exchange = 1;
+}
+
+message WebsocketSetProxyRequest {
+    string exchange = 1;
+    string proxy = 2;
+}
+
+message WebsocketSetURLRequest {
+    string exchange = 1;
+    string url = 2;
+}
+
 service GoCryptoTrader {
     rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {
         option (google.api.http) = {
@@ -1134,6 +1164,36 @@ service GoCryptoTrader {
     rpc GetExchangeAssets(GetExchangeAssetsRequest) returns (GetExchangeAssetsResponse) {
         option (google.api.http) = {
             get: "/v1/getexchangeassets"
+        };
+    }
+
+    rpc WebsocketGetInfo(WebsocketGetInfoRequest) returns (WebsocketGetInfoResponse) {
+        option (google.api.http) = {
+            get: "/v1/websocketgetinfo"
+        };
+    }
+
+    rpc WebsocketSetEnabled(WebsocketSetEnabledRequest) returns (GCTScriptGenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/websocketsetenabled"
+        };
+    }
+
+    rpc WebsocketGetSubscriptions(WebsocketGetSubscriptionsRequest) returns (GCTScriptGenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/websocketgetsubscriptions"
+        };
+    }
+
+    rpc WebsocketSetProxy(WebsocketSetProxyRequest) returns (GCTScriptGenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/websocketsetproxy"
+        };
+    }
+
+    rpc WebsocketSetURL(WebsocketSetURLRequest) returns (GCTScriptGenericResponse) {
+        option (google.api.http) = {
+            get: "/v1/websocketseturl"
         };
     }
 }
