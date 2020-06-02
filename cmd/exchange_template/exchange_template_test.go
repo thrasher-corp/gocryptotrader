@@ -8,18 +8,35 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
-func TestFixName(t *testing.T) {
-	if err := checkExchangeName("test exch"); err == nil {
-		t.Error("invalid exchange name should of errored")
+func TestCheckExchangeName(t *testing.T) {
+	tester := []struct {
+		Name        string
+		ErrExpected error
+	}{
+		{
+			Name:        "test exch",
+			ErrExpected: errInvalidExchangeName,
+		},
+		{
+			ErrExpected: errInvalidExchangeName,
+		},
+		{
+			Name:        " ",
+			ErrExpected: errInvalidExchangeName,
+		},
+		{
+			Name:        "mu",
+			ErrExpected: errInvalidExchangeName,
+		},
+		{
+			Name: "testexch",
+		},
 	}
-	if err := checkExchangeName(""); err == nil {
-		t.Error("invalid exchange name should of errored")
-	}
-	if err := checkExchangeName(" "); err == nil {
-		t.Error("invalid exchange name should of errored")
-	}
-	if err := checkExchangeName("testexch"); err != nil {
-		t.Error("valid exchange shouldn't of errored")
+
+	for x := range tester {
+		if r := checkExchangeName(tester[x].Name); r != tester[x].ErrExpected {
+			t.Errorf("test: %d unexpected result", x)
+		}
 	}
 }
 

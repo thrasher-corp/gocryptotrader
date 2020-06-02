@@ -101,7 +101,8 @@ func main() {
 func checkExchangeName(exchName string) error {
 	if exchName == "" ||
 		exchName == " " ||
-		strings.Contains(exchName, " ") {
+		strings.Contains(exchName, " ") ||
+		len(exchName) == 2 {
 		return errInvalidExchangeName
 	}
 	return nil
@@ -133,7 +134,7 @@ func makeExchange(exch *exchange) error {
 	fmt.Printf("Output directory: %s\n", exchangeDirectory)
 
 	exch.CapitalName = strings.Title(exch.Name)
-	exch.Variable = string(exch.Name[0])
+	exch.Variable = exch.Name[0:2]
 	newExchConfig := config.ExchangeConfig{}
 	newExchConfig.Name = exch.CapitalName
 	newExchConfig.Enabled = true
