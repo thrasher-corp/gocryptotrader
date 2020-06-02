@@ -25,6 +25,10 @@ func TestCheckExchangeName(t *testing.T) {
 			ErrExpected: errInvalidExchangeName,
 		},
 		{
+			Name:        "m",
+			ErrExpected: errInvalidExchangeName,
+		},
+		{
 			Name:        "mu",
 			ErrExpected: errInvalidExchangeName,
 		},

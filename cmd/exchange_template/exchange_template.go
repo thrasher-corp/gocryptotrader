@@ -40,10 +40,10 @@ func main() {
 	var newExchangeName string
 	var websocketSupport, restSupport, fixSupport bool
 
-	flag.StringVar(&newExchangeName, "name", "", "-name [string] adds a new exchange")
-	flag.BoolVar(&websocketSupport, "ws", false, "-websocket adds websocket support")
-	flag.BoolVar(&restSupport, "rest", false, "-rest adds REST support")
-	flag.BoolVar(&fixSupport, "fix", false, "-fix adds FIX support?")
+	flag.StringVar(&newExchangeName, "name", "", "the exchange name")
+	flag.BoolVar(&websocketSupport, "ws", false, "whether the exchange supports websocket")
+	flag.BoolVar(&restSupport, "rest", false, "whether the exchange supports REST")
+	flag.BoolVar(&fixSupport, "fix", false, "whether the exchange supports FIX")
 
 	flag.Parse()
 
@@ -51,13 +51,21 @@ func main() {
 	fmt.Println(core.Copyright)
 	fmt.Println()
 
+	if len(os.Args) == 1 {
+		log.Println("Invalid arguments supplied, please see application usage below:")
+		flag.Usage()
+		return
+	}
+
 	if err := checkExchangeName(newExchangeName); err != nil {
 		log.Fatal(err)
 	}
 	newExchangeName = strings.ToLower(newExchangeName)
 
 	if !websocketSupport && !restSupport && !fixSupport {
-		log.Fatal(`GoCryptoTrader: Exchange templating tool support not set e.g. "exchange_template -name [newExchangeNameString] [-fix -ws -rest]"`)
+		log.Println("At least one protocol must be specified (rest/ws or fix)")
+		flag.Usage()
+		return
 	}
 
 	fmt.Println("Exchange Name: ", newExchangeName)
@@ -102,7 +110,7 @@ func checkExchangeName(exchName string) error {
 	if exchName == "" ||
 		exchName == " " ||
 		strings.Contains(exchName, " ") ||
-		len(exchName) == 2 {
+		len(exchName) <= 2 {
 		return errInvalidExchangeName
 	}
 	return nil
