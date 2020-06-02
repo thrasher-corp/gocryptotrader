@@ -8,6 +8,21 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
+func TestFixName(t *testing.T) {
+	if err := checkExchangeName("test exch"); err == nil {
+		t.Error("invalid exchange name should of errored")
+	}
+	if err := checkExchangeName(""); err == nil {
+		t.Error("invalid exchange name should of errored")
+	}
+	if err := checkExchangeName(" "); err == nil {
+		t.Error("invalid exchange name should of errored")
+	}
+	if err := checkExchangeName("testexch"); err != nil {
+		t.Error("valid exchange shouldn't of errored")
+	}
+}
+
 func TestNewExchange(t *testing.T) {
 	testExchangeName := "testexch"
 	testExchangeDir := filepath.Join(targetPath, testExchangeName)

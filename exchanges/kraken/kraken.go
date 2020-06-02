@@ -1069,53 +1069,47 @@ func (k *Kraken) GetWebsocketToken() (string, error) {
 }
 
 func (a *assetTranslatorStore) LookupAltname(target string) string {
-	if !a.Seeded() {
-		return ""
-	}
-
-	a.l.Lock()
-	defer a.l.Unlock()
+	a.l.RLock()
 	alt, ok := a.Assets[target]
 	if !ok {
+		a.l.RUnlock()
 		return ""
 	}
+	a.l.RUnlock()
 	return alt
 }
 
 func (a *assetTranslatorStore) LookupCurrency(target string) string {
-	if !a.Seeded() {
-		return ""
-	}
-
-	a.l.Lock()
-	defer a.l.Unlock()
+	a.l.RLock()
 	for k, v := range a.Assets {
 		if v == target {
+			a.l.RUnlock()
 			return k
 		}
 	}
+	a.l.RUnlock()
 	return ""
 }
 
 func (a *assetTranslatorStore) Seed(orig, alt string) {
 	a.l.Lock()
-	defer a.l.Unlock()
-
 	if a.Assets == nil {
 		a.Assets = make(map[string]string)
 	}
 
 	_, ok := a.Assets[orig]
 	if ok {
+		a.l.Unlock()
 		return
 	}
 
 	a.Assets[orig] = alt
+	a.l.Unlock()
 }
 
 func (a *assetTranslatorStore) Seeded() bool {
-	a.l.Lock()
+	a.l.RLock()
 	isSeeded := len(a.Assets) > 0
-	a.l.Unlock()
+	a.l.RUnlock()
 	return isSeeded
 }

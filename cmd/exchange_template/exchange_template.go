@@ -32,6 +32,10 @@ type exchange struct {
 	FIX         bool
 }
 
+var (
+	errInvalidExchangeName = errors.New("invalid exchange name")
+)
+
 func main() {
 	var newExchangeName string
 	var websocketSupport, restSupport, fixSupport bool
@@ -47,8 +51,8 @@ func main() {
 	fmt.Println(core.Copyright)
 	fmt.Println()
 
-	if newExchangeName == "" || newExchangeName == " " {
-		log.Fatal(`GoCryptoTrader: Exchange templating tool exchange name not set e.g. "exchange_template -name [newExchangeNameString]"`)
+	if err := checkExchangeName(newExchangeName); err != nil {
+		log.Fatal(err)
 	}
 
 	if !websocketSupport && !restSupport && !fixSupport {
@@ -91,6 +95,15 @@ func main() {
 	fmt.Println("Ensure go test ./... -race passes")
 	fmt.Println("Open a pull request")
 	fmt.Println("If help is needed, please post a message in Slack.")
+}
+
+func checkExchangeName(exchName string) error {
+	if exchName == "" ||
+		exchName == " " ||
+		strings.Contains(exchName, " ") {
+		return errInvalidExchangeName
+	}
+	return nil
 }
 
 func makeExchange(exch *exchange) error {
@@ -181,11 +194,6 @@ func makeExchange(exch *exchange) error {
 		if outputFiles[x].FilePostfix != "" {
 			filename = exch.Name + outputFiles[x].FilePostfix
 		}
-
-		fmt.Printf("Output template name: %s template file: %s filename: %s",
-			outputFiles[x].Name,
-			outputFiles[x].TemplateFile,
-			filename)
 
 		outputFile := filepath.Join(exchangeDirectory, filename)
 		newFile(outputFile)

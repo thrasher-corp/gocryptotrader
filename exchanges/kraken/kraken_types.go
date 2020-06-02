@@ -8,7 +8,7 @@ import (
 )
 
 type assetTranslatorStore struct {
-	l      sync.Mutex
+	l      sync.RWMutex
 	Assets map[string]string
 }
 

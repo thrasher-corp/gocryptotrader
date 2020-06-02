@@ -1007,7 +1007,7 @@
       "baseCurrencies": "USD,SGD",
       "assetTypes": "SPOT",
       "supportsAutoPairUpdates": false,
-      "pairsLastUpdated": 1566798411,
+      "pairsLastUpdated": 1591062026,
       "configCurrencyPairFormat": {
        "uppercase": true
       },
