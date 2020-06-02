@@ -108,7 +108,6 @@ func main() {
 
 func checkExchangeName(exchName string) error {
 	if exchName == "" ||
-		exchName == " " ||
 		strings.Contains(exchName, " ") ||
 		len(exchName) <= 2 {
 		return errInvalidExchangeName

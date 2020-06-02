@@ -85,6 +85,8 @@ func (k *Kraken) GetServerTime() (TimeResponse, error) {
 	return response.Result, GetError(response.Error)
 }
 
+// SeedAssets seeds Kraken's asset list and stores it in the
+// asset translator
 func (k *Kraken) SeedAssets() error {
 	assets, err := k.GetAssets()
 	if err != nil {
@@ -1068,6 +1070,7 @@ func (k *Kraken) GetWebsocketToken() (string, error) {
 	return response.Result.Token, nil
 }
 
+// LookupAltname converts a currency into its altname (ZUSD -> USD)
 func (a *assetTranslatorStore) LookupAltname(target string) string {
 	a.l.RLock()
 	alt, ok := a.Assets[target]
@@ -1079,6 +1082,7 @@ func (a *assetTranslatorStore) LookupAltname(target string) string {
 	return alt
 }
 
+// LookupAltname converts an altname to its original type (USD -> ZUSD)
 func (a *assetTranslatorStore) LookupCurrency(target string) string {
 	a.l.RLock()
 	for k, v := range a.Assets {
@@ -1091,6 +1095,7 @@ func (a *assetTranslatorStore) LookupCurrency(target string) string {
 	return ""
 }
 
+// Seed seeds a currency translation pair
 func (a *assetTranslatorStore) Seed(orig, alt string) {
 	a.l.Lock()
 	if a.Assets == nil {
@@ -1107,6 +1112,7 @@ func (a *assetTranslatorStore) Seed(orig, alt string) {
 	a.l.Unlock()
 }
 
+// Seeded returns whether or not the asset translator has been seeded
 func (a *assetTranslatorStore) Seeded() bool {
 	a.l.RLock()
 	isSeeded := len(a.Assets) > 0
