@@ -13,9 +13,10 @@ CREATE TABLE IF NOT EXISTS candle
     low DOUBLE PRECISION NOT NULL,
     close DOUBLE PRECISION NOT NULL,
     volume DOUBLE PRECISION NOT NULL,
-    unique(date             )
+    unique(date, exchange_id, base, quote, interval)
 );
 
 -- +goose Down
 -- SQL in this section is executed when the migration is rolled back.
 DROP TABLE candle;
+

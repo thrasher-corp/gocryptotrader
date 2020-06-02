@@ -8,11 +8,8 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
-	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/volatiletech/null"
 )
 
 // CreateKline creates candles out of trade history data for a set time interval
@@ -295,29 +292,4 @@ func (k *Item) SortCandlesByTimestamp(asc bool) {
 		}
 		return k.Candles[i].Time.Before(k.Candles[j].Time)
 	})
-}
-
-func DatabaseStore(in Item) error {
-	if in.Exchange == "" {
-		return errors.New("name cannot be blank")
-	}
-
-	binance := null.NewString("93e2331b-6f8a-4582-8dfb-405ad8c5c917", true)
-
-	var databaseCandles []modelPSQL.Candle
-	for x := range in.Candles {
-		databaseCandles = append(databaseCandles, modelPSQL.Candle{
-			ExchangeID: binance,
-			Base:       in.Pair.Base.Upper().String(),
-			Quote:      in.Pair.Quote.Upper().String(),
-			Date:       in.Candles[x].Time,
-			Open:       in.Candles[x].Open,
-			High:       in.Candles[x].High,
-			Low:        in.Candles[x].Low,
-			Close:      in.Candles[x].Close,
-			Volume:     in.Candles[x].Volume,
-			Interval:   in.Interval.Short(),
-		})
-	}
-	return candle.InsertMany(databaseCandles)
 }

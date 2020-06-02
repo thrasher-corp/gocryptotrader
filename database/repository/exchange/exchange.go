@@ -10,14 +10,19 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/sqlboiler/boil"
+	"github.com/thrasher-corp/sqlboiler/queries/qm"
 )
 
 type Details struct {
 	Name string
 }
 
-func One() error {
-	return nil
+func One(in string) (*modelPSQL.Exchange,error) {
+	if database.DB.SQL == nil {
+		return nil, database.ErrDatabaseSupportDisabled
+	}
+
+	return modelPSQL.Exchanges(qm.Where("name = ?", in)).One(context.Background(), database.DB.SQL)
 }
 
 func OneByUUID(in uuid.UUID) (*modelPSQL.Exchange, error) {
@@ -29,11 +34,7 @@ func OneByUUID(in uuid.UUID) (*modelPSQL.Exchange, error) {
 		in.String())
 }
 
-func Find() error {
-	return nil
-}
-
-func InsertOne(in Details) {
+func Insert(in Details) {
 	if database.DB.SQL == nil {
 		return
 	}

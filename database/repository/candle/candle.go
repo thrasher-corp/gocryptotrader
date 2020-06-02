@@ -13,14 +13,14 @@ import (
 )
 
 func One() error {
+	if database.DB.SQL == nil {
+		return database.ErrDatabaseSupportDisabled
+	}
+
 	return nil
 }
 
-func Series() error {
-	return nil
-}
-
-func Insert(in modelPSQL.Candle) error {
+func Insert(in *modelPSQL.Candle) error {
 	if database.DB.SQL == nil {
 		return database.ErrDatabaseSupportDisabled
 	}
@@ -33,11 +33,10 @@ func Insert(in modelPSQL.Candle) error {
 	}
 
 	if repository.GetSQLDialect() == database.DBSQLite3 {
-		err = insertSQLite(ctx, tx, []modelPSQL.Candle{in})
+		err = insertSQLite(ctx, tx, []modelPSQL.Candle{*in})
 	} else {
-		err = insertPostgresSQL(ctx, tx, []modelPSQL.Candle{in})
+		err = insertPostgresSQL(ctx, tx, []modelPSQL.Candle{*in})
 	}
-
 	if err != nil {
 		return err
 	}
@@ -55,7 +54,7 @@ func Insert(in modelPSQL.Candle) error {
 	return nil
 }
 
-func InsertMany(in []modelPSQL.Candle) error {
+func InsertMany(in *[]modelPSQL.Candle) error {
 	if database.DB.SQL == nil {
 		return database.ErrDatabaseSupportDisabled
 	}
@@ -68,9 +67,9 @@ func InsertMany(in []modelPSQL.Candle) error {
 	}
 
 	if repository.GetSQLDialect() == database.DBSQLite3 {
-		err = insertSQLite(ctx, tx, in)
+		err = insertSQLite(ctx, tx, *in)
 	} else {
-		err = insertPostgresSQL(ctx, tx, in)
+		err = insertPostgresSQL(ctx, tx, *in)
 	}
 	if err != nil {
 		return err
@@ -93,11 +92,18 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in []modelPSQL.Candle) (err e
 	return common.ErrNotYetImplemented
 }
 
+func ManyInsert(ctx context.Context, tx *sql.Tx, in []modelPSQL.Candle) (err error) {
+	for x := range in {
+
+	}
+	return nil
+}
+
 func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in []modelPSQL.Candle) error {
 	for x := range in {
 		var tempCandle = in[x]
 
-		err := tempCandle.Upsert(ctx, tx, true, []string{"date"}, boil.Infer(), boil.Infer())
+		err := tempCandle.Upsert(ctx, tx, true, []string{"date","exchange_id", "base", "quote", "interval"}, boil.Infer(), boil.Infer())
 		if err != nil {
 			log.Errorf(log.DatabaseMgr, "Candle Insert failed: %v", err)
 			errRB := tx.Rollback()

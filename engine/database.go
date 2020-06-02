@@ -11,12 +11,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	dbpsql "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
+	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/sqlboiler/boil"
 )
 
 var (
 	dbConn *database.Instance
+ 	exchangeCache = cache.New(10)
 )
 
 type databaseManager struct {
@@ -139,13 +142,23 @@ func (a *databaseManager) checkConnection() {
 	}
 }
 
-var exchangeCache = cache.New(10)
 
 func ExchangeUUIDByName(in string) (uuid.UUID, error) {
 	v := exchangeCache.Get(in)
-
 	if v != nil {
 		return v.(uuid.UUID), nil
 	}
-	return uuid.UUID{}, nil
+
+	v, err := exchange.One(in)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+
+	ret, err := uuid.FromString(v.(*modelPSQL.Exchange).ID)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+
+	exchangeCache.Add(in, ret)
+	return ret, nil
 }
