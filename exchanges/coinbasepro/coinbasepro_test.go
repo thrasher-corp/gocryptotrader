@@ -166,10 +166,6 @@ func TestAuthRequests(t *testing.T) {
 	if err == nil {
 		t.Error("Expecting error")
 	}
-	_, err = c.GetFundingRecords("rejected")
-	if err == nil {
-		t.Error("Expecting error")
-	}
 	marginTransferResponse, err := c.MarginTransfer(1, "withdraw", "13371337-1337-1337-1337-133713371337", "BTC")
 	if marginTransferResponse.ID != "" {
 		t.Error("Expecting no data returned")
