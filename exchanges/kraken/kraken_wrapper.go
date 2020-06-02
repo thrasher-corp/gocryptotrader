@@ -150,6 +150,11 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	err = k.SeedAssets()
+	if err != nil {
+		return err
+	}
+
 	err = k.Websocket.Setup(
 		&wshandler.WebsocketSetup{
 			Enabled:                          exch.Features.Enabled.Websocket,
@@ -248,8 +253,10 @@ func (k *Kraken) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (k *Kraken) FetchTradablePairs(asset asset.Item) ([]string, error) {
-	if err := k.SeedAssets(); err != nil {
-		return nil, err
+	if !assetTranslator.Seeded() {
+		if err := k.SeedAssets(); err != nil {
+			return nil, err
+		}
 	}
 
 	pairs, err := k.GetAssetPairs()
@@ -402,8 +409,15 @@ func (k *Kraken) UpdateAccountInfo() (account.Holdings, error) {
 
 	var balances []account.Balance
 	for key := range bal {
+		translatedCurrency := assetTranslator.LookupAltname(key)
+		if translatedCurrency == "" {
+			log.Warnf(log.ExchangeSys, "%s unable to translate currency: %s\n",
+				k.Name,
+				key)
+			continue
+		}
 		balances = append(balances, account.Balance{
-			CurrencyName: currency.NewCode(key),
+			CurrencyName: currency.NewCode(translatedCurrency),
 			TotalValue:   bal[key],
 		})
 	}

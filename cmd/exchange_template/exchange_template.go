@@ -54,6 +54,7 @@ func main() {
 	if err := checkExchangeName(newExchangeName); err != nil {
 		log.Fatal(err)
 	}
+	newExchangeName = strings.ToLower(newExchangeName)
 
 	if !websocketSupport && !restSupport && !fixSupport {
 		log.Fatal(`GoCryptoTrader: Exchange templating tool support not set e.g. "exchange_template -name [newExchangeNameString] [-fix -ws -rest]"`)
@@ -119,6 +120,18 @@ func makeExchange(exch *exchange) error {
 		return errors.New("exchange already exists")
 	}
 
+	exchangeDirectory := filepath.Join(targetPath, exch.Name)
+	_, err = os.Stat(exchangeDirectory)
+	if !os.IsNotExist(err) {
+		return errors.New("directory already exists")
+	}
+	err = os.MkdirAll(exchangeDirectory, 0770)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Output directory: %s\n", exchangeDirectory)
+
 	exch.CapitalName = strings.Title(exch.Name)
 	exch.Variable = string(exch.Name[0])
 	newExchConfig := config.ExchangeConfig{}
@@ -176,13 +189,6 @@ func makeExchange(exch *exchange) error {
 		},
 	}
 
-	exchangeDirectory := filepath.Join(targetPath, exch.Name)
-	err = os.MkdirAll(exchangeDirectory, 0770)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("Output directory: %s\n", exchangeDirectory)
 	for x := range outputFiles {
 		var tmpl *template.Template
 		tmpl, err = template.New(outputFiles[x].Name).ParseFiles(outputFiles[x].TemplateFile)
