@@ -14,12 +14,17 @@ type MarketData struct {
 	QuoteCurrency  string  `json:"quoteCurrency"`
 	MarketType     string  `json:"type"`
 	Underlying     string  `json:"underlying"`
+	Change1h       float64 `json:"change1h"`
+	Change24h      float64 `json:"change24h"`
+	ChangeBod      float64 `json:"changeBod"`
+	QuoteVolume24h float64 `json:"quoteVolume24h"`
 	Enabled        bool    `json:"enabled"`
 	Ask            float64 `json:"ask"`
 	Bid            float64 `json:"bid"`
 	Last           float64 `json:"last"`
 	PriceIncrement float64 `json:"priceIncrement"`
 	SizeIncrement  float64 `json:"sizeIncrement"`
+	Restricted     bool    `json:"restricted"`
 }
 
 // Markets stores all markets data
@@ -82,6 +87,7 @@ type OHLCVData struct {
 	Low       float64   `json:"low"`
 	Open      float64   `json:"open"`
 	StartTime time.Time `json:"startTime"`
+	Time      float64   `json:"time"`
 	Volume    float64   `json:"volume"`
 }
 
@@ -93,29 +99,35 @@ type HistoricalData struct {
 
 // FuturesData stores data for futures
 type FuturesData struct {
-	Ask            float64 `json:"ask"`
-	Bid            float64 `json:"bid"`
-	Change1h       float64 `json:"change1h"`
-	Change24h      float64 `json:"change24h"`
-	ChangeBod      float64 `json:"changeBod"`
-	VolumeUSD24h   float64 `json:"volumeUsd24h"`
-	Volume         float64 `json:"volume"`
-	Description    string  `json:"description"`
-	Enabled        bool    `json:"enabled"`
-	Expired        bool    `json:"expired"`
-	Expiry         string  `json:"expiry"`
-	Index          float64 `json:"index"`
-	Last           float64 `json:"last"`
-	LowerBound     float64 `json:"lowerBound"`
-	Mark           float64 `json:"mark"`
-	Name           string  `json:"name"`
-	Perpetual      bool    `json:"perpetual"`
-	PostOnly       bool    `json:"postOnly"`
-	PriceIncrement float64 `json:"priceIncrement"`
-	SizeIncrement  float64 `json:"sizeIncrement"`
-	Underlying     string  `json:"underlying"`
-	UpperBound     float64 `json:"upperBound"`
-	FutureType     string  `json:"type"`
+	Ask                 float64     `json:"ask"`
+	Bid                 float64     `json:"bid"`
+	Change1h            float64     `json:"change1h"`
+	Change24h           float64     `json:"change24h"`
+	ChangeBod           float64     `json:"changeBod"`
+	VolumeUSD24h        float64     `json:"volumeUsd24h"`
+	Volume              float64     `json:"volume"`
+	Description         string      `json:"description"`
+	Enabled             bool        `json:"enabled"`
+	Expired             bool        `json:"expired"`
+	Expiry              string      `json:"expiry"`
+	ExpiryDescription   string      `json:"expiryDescription"`
+	Group               string      `json:"group"`
+	Index               float64     `json:"index"`
+	IMFFactor           float64     `json:"imfFactor"`
+	Last                float64     `json:"last"`
+	LowerBound          float64     `json:"lowerBound"`
+	MarginPrice         float64     `json:"marginPrice"`
+	Mark                float64     `json:"mark"`
+	MoveStart           interface{} `json:"moveStart"`
+	Name                string      `json:"name"`
+	Perpetual           bool        `json:"perpetual"`
+	PositionLimitWeight float64     `json:"positionLimitWeight"`
+	PostOnly            bool        `json:"postOnly"`
+	PriceIncrement      float64     `json:"priceIncrement"`
+	SizeIncrement       float64     `json:"sizeIncrement"`
+	Underlying          string      `json:"underlying"`
+	UpperBound          float64     `json:"upperBound"`
+	FutureType          string      `json:"type"`
 }
 
 // Futures stores futures data
@@ -160,11 +172,16 @@ type FundingRates struct {
 	Result  []FundingRatesData `json:"result"`
 }
 
+// IndexWeights stores index weights' data
+type IndexWeights struct {
+	Success bool               `json:"success"`
+	Result  map[string]float64 `json:"result"`
+}
+
 // PositionData stores data of an open position
 type PositionData struct {
 	Cost                         float64 `json:"cost"`
 	EntryPrice                   float64 `json:"entryPrice"`
-	EstimatedLiquidationPrice    float64 `json:"estimatedLiquidationPrice"`
 	Future                       string  `json:"future"`
 	InitialMarginRequirement     float64 `json:"initialMarginRequirement"`
 	LongOrderSize                float64 `json:"longOrderSize"`
@@ -181,6 +198,7 @@ type PositionData struct {
 // AccountInfoData stores account data
 type AccountInfoData struct {
 	BackstopProvider             bool           `json:"backstopProvider"`
+	ChargeInterestOnNegativeUSD  bool           `json:"chargeInterestOnNegativeUsd"`
 	Collateral                   float64        `json:"collateral"`
 	FreeCollateral               float64        `json:"freeCollateral"`
 	InitialMarginRequirement     float64        `json:"initialMarginRequirement"`
@@ -190,9 +208,14 @@ type AccountInfoData struct {
 	MakerFee                     float64        `json:"makerFee"`
 	MarginFraction               float64        `json:"marginFraction"`
 	OpenMarginFraction           float64        `json:"openMarginFraction"`
+	PositionLimit                float64        `json:"positionLimit"`
+	PositionLimitUsed            float64        `json:"positionLimitUsed"`
+	SpotLendingEnabled           bool           `json:"spotLendingEnabled"`
+	SpotMarginEnabled            bool           `json:"spotMarginEnabled"`
 	TakerFee                     float64        `json:"takerFee"`
 	TotalAccountValue            float64        `json:"totalAccountValue"`
 	TotalPositionSize            float64        `json:"totalPositionSize"`
+	UseFTTCollateral             bool           `json:"useFttCollateral"`
 	Username                     string         `json:"username"`
 	Positions                    []PositionData `json:"positions"`
 }
@@ -211,11 +234,22 @@ type Positions struct {
 
 // WalletCoinsData stores data about wallet coins
 type WalletCoinsData struct {
-	CanDeposit  bool   `json:"canDeposit"`
-	CanWithdraw bool   `json:"canWithdraw"`
-	HasTag      bool   `json:"hasTag"`
-	ID          string `json:"id"`
-	Name        string `json:"name"`
+	Bep2Asset        interface{} `json:"bep2Asset"`
+	CanConvert       bool        `json:"canConvert"`
+	CanDeposit       bool        `json:"canDeposit"`
+	CanWithdraw      bool        `json:"canWithdraw"`
+	Collateral       bool        `json:"collateral"`
+	CollateralWeight float64     `json:"collateralWeight"`
+	CreditTo         interface{} `json:"creditTo"`
+	ERC20Contract    interface{} `json:"erc20Contract"`
+	Fiat             bool        `json:"fiat"`
+	HasTag           bool        `json:"hasTag"`
+	Hidden           bool        `json:"hidden"`
+	IsETF            bool        `json:"isEtf"`
+	IsToken          bool        `json:"isToken"`
+	Methods          []interface{}
+	ID               string `json:"id"`
+	Name             string `json:"name"`
 }
 
 // WalletCoins stores data about wallet coins
@@ -448,17 +482,24 @@ type FundingPayments struct {
 
 // LeveragedTokensData stores data of leveraged tokens
 type LeveragedTokensData struct {
-	Name             string  `json:"name"`
-	Description      string  `json:"description"`
-	Underlying       string  `json:"underlying"`
-	Leverage         float64 `json:"leverage"`
-	Outstanding      float64 `json:"outstanding"`
-	PricePerShare    float64 `json:"pricePerShare"`
-	PositionPerShare float64 `json:"positionPerShare"`
-	UnderlyingMark   float64 `json:"underlyingMark"`
-	ContactAddress   string  `json:"contactAddress"`
-	Change1h         float64 `json:"change1h"`
-	Change24h        float64 `json:"change24h"`
+	Basket            map[string]interface{} `json:"basket"`
+	Bep2AssetName     string                 `json:"bep2AssetName"`
+	Name              string                 `json:"name"`
+	Description       string                 `json:"description"`
+	Underlying        string                 `json:"underlying"`
+	Leverage          float64                `json:"leverage"`
+	Outstanding       float64                `json:"outstanding"`
+	PricePerShare     float64                `json:"pricePerShare"`
+	PositionPerShare  float64                `json:"positionPerShare"`
+	PositionsPerShare interface{}            `json:"positionsPerShare"`
+	TargetComponents  []string               `json:"targetComponents"`
+	TotalCollateral   float64                `json:"totalCollateral"`
+	TotalNav          float64                `json:"totalNav"`
+	UnderlyingMark    float64                `json:"underlyingMark"`
+	ContactAddress    string                 `json:"contactAddress"`
+	Change1h          float64                `json:"change1h"`
+	Change24h         float64                `json:"change24h"`
+	ChangeBod         float64                `json:"changeBod"`
 }
 
 // LeveragedTokens stores data of leveraged tokens

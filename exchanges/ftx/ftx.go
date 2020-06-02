@@ -40,6 +40,7 @@ const (
 	getFuture            = "/futures/"
 	getFutureStats       = "/futures/%s/stats"
 	getFundingRates      = "/funding_rates"
+	getIndexWeights      = "/indexes/%s/weights"
 	getAllWalletBalances = "/wallet/all_balances"
 
 	// Authenticated endpoints
@@ -103,8 +104,6 @@ const (
 	ratePeriod = time.Second
 	rateLimit  = 30
 )
-
-// Start implementing public and private exchange API funcs below
 
 // GetMarkets gets market data
 func (f *FTX) GetMarkets() (Markets, error) {
@@ -199,6 +198,12 @@ func (f *FTX) GetFutureStats(futureName string) (FutureStats, error) {
 func (f *FTX) GetFundingRates() (FundingRates, error) {
 	var resp FundingRates
 	return resp, f.SendHTTPRequest(ftxAPIURL+getFundingRates, &resp)
+}
+
+// GetIndexWeights gets index weights
+func (f *FTX) GetIndexWeights(index string) (IndexWeights, error) {
+	var resp IndexWeights
+	return resp, f.SendHTTPRequest(fmt.Sprintf(getIndexWeights, index), &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
