@@ -1427,6 +1427,7 @@ func TestParseTime(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
+	k.Verbose = true
 	currencyPair := currency.NewPairFromString("XBTUSD")
 	_, err := k.GetHistoricCandles(currencyPair, asset.Spot, time.Now().AddDate(0, 0, -1), time.Now(), kline.OneMin)
 	if err != nil {
@@ -1441,7 +1442,7 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	k.Verbose = true
-	currencyPair := currency.NewPairFromString("BCHEUR")
+	currencyPair := currency.NewPairFromString("XBTUSD")
 	_, err := k.GetHistoricCandlesExtended(currencyPair, asset.Spot, time.Now().AddDate(0, -6, 0), time.Now(), kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
