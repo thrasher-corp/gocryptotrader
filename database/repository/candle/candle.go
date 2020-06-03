@@ -12,14 +12,15 @@ import (
 	"github.com/thrasher-corp/sqlboiler/boil"
 )
 
+// One returns a single candle
 func One() error {
 	if database.DB.SQL == nil {
 		return database.ErrDatabaseSupportDisabled
 	}
-
 	return nil
 }
 
+// Insert a single candle
 func Insert(in *modelPSQL.Candle) error {
 	if database.DB.SQL == nil {
 		return database.ErrDatabaseSupportDisabled
@@ -54,6 +55,7 @@ func Insert(in *modelPSQL.Candle) error {
 	return nil
 }
 
+// Insert series of candles
 func InsertMany(in *[]modelPSQL.Candle) error {
 	if database.DB.SQL == nil {
 		return database.ErrDatabaseSupportDisabled
@@ -92,18 +94,11 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in []modelPSQL.Candle) (err e
 	return common.ErrNotYetImplemented
 }
 
-func ManyInsert(ctx context.Context, tx *sql.Tx, in []modelPSQL.Candle) (err error) {
-	for x := range in {
-
-	}
-	return nil
-}
-
 func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in []modelPSQL.Candle) error {
 	for x := range in {
 		var tempCandle = in[x]
 
-		err := tempCandle.Upsert(ctx, tx, true, []string{"date","exchange_id", "base", "quote", "interval"}, boil.Infer(), boil.Infer())
+		err := tempCandle.Upsert(ctx, tx, true, []string{"timestamp", "exchange_id", "base", "quote", "interval"}, boil.Infer(), boil.Infer())
 		if err != nil {
 			log.Errorf(log.DatabaseMgr, "Candle Insert failed: %v", err)
 			errRB := tx.Rollback()

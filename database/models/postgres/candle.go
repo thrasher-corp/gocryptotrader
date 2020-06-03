@@ -29,7 +29,7 @@ type Candle struct {
 	Base       string      `boil:"base" json:"base" toml:"base" yaml:"base"`
 	Quote      string      `boil:"quote" json:"quote" toml:"quote" yaml:"quote"`
 	Interval   string      `boil:"interval" json:"interval" toml:"interval" yaml:"interval"`
-	Date       time.Time   `boil:"date" json:"date" toml:"date" yaml:"date"`
+	Timestamp  time.Time   `boil:"timestamp" json:"timestamp" toml:"timestamp" yaml:"timestamp"`
 	Open       float64     `boil:"open" json:"open" toml:"open" yaml:"open"`
 	High       float64     `boil:"high" json:"high" toml:"high" yaml:"high"`
 	Low        float64     `boil:"low" json:"low" toml:"low" yaml:"low"`
@@ -46,7 +46,7 @@ var CandleColumns = struct {
 	Base       string
 	Quote      string
 	Interval   string
-	Date       string
+	Timestamp  string
 	Open       string
 	High       string
 	Low        string
@@ -58,7 +58,7 @@ var CandleColumns = struct {
 	Base:       "base",
 	Quote:      "quote",
 	Interval:   "interval",
-	Date:       "date",
+	Timestamp:  "timestamp",
 	Open:       "open",
 	High:       "high",
 	Low:        "low",
@@ -112,7 +112,7 @@ var CandleWhere = struct {
 	Base       whereHelperstring
 	Quote      whereHelperstring
 	Interval   whereHelperstring
-	Date       whereHelpertime_Time
+	Timestamp  whereHelpertime_Time
 	Open       whereHelperfloat64
 	High       whereHelperfloat64
 	Low        whereHelperfloat64
@@ -124,7 +124,7 @@ var CandleWhere = struct {
 	Base:       whereHelperstring{field: "\"candle\".\"base\""},
 	Quote:      whereHelperstring{field: "\"candle\".\"quote\""},
 	Interval:   whereHelperstring{field: "\"candle\".\"interval\""},
-	Date:       whereHelpertime_Time{field: "\"candle\".\"date\""},
+	Timestamp:  whereHelpertime_Time{field: "\"candle\".\"timestamp\""},
 	Open:       whereHelperfloat64{field: "\"candle\".\"open\""},
 	High:       whereHelperfloat64{field: "\"candle\".\"high\""},
 	Low:        whereHelperfloat64{field: "\"candle\".\"low\""},
@@ -153,8 +153,8 @@ func (*candleR) NewStruct() *candleR {
 type candleL struct{}
 
 var (
-	candleAllColumns            = []string{"id", "exchange_id", "base", "quote", "interval", "date", "open", "high", "low", "close", "volume"}
-	candleColumnsWithoutDefault = []string{"exchange_id", "base", "quote", "interval", "date", "open", "high", "low", "close", "volume"}
+	candleAllColumns            = []string{"id", "exchange_id", "base", "quote", "interval", "timestamp", "open", "high", "low", "close", "volume"}
+	candleColumnsWithoutDefault = []string{"exchange_id", "base", "quote", "interval", "timestamp", "open", "high", "low", "close", "volume"}
 	candleColumnsWithDefault    = []string{"id"}
 	candlePrimaryKeyColumns     = []string{"id"}
 )

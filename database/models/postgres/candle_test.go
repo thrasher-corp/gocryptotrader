@@ -728,7 +728,7 @@ func testCandlesSelect(t *testing.T) {
 }
 
 var (
-	candleDBTypes = map[string]string{`ID`: `uuid`, `ExchangeID`: `uuid`, `Base`: `character varying`, `Quote`: `character varying`, `Interval`: `character varying`, `Date`: `timestamp with time zone`, `Open`: `double precision`, `High`: `double precision`, `Low`: `double precision`, `Close`: `double precision`, `Volume`: `double precision`}
+	candleDBTypes = map[string]string{`ID`: `uuid`, `ExchangeID`: `uuid`, `Base`: `character varying`, `Quote`: `character varying`, `Interval`: `character varying`, `Timestamp`: `timestamp with time zone`, `Open`: `double precision`, `High`: `double precision`, `Low`: `double precision`, `Close`: `double precision`, `Volume`: `double precision`}
 	_             = bytes.MinRead
 )
 

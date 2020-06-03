@@ -2,18 +2,18 @@
 -- SQL in this section is executed when the migration is applied.
 CREATE TABLE IF NOT EXISTS candle
 (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    ID uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     exchange_id uuid REFERENCES exchange(id),
-    base varchar(30) NOT NULL,
-    quote varchar(30) NOT NULL,
-    interval varchar(30) NOT NULL,
-    date timestamp with time zone NOT NULL,
-    open DOUBLE PRECISION NOT NULL,
-    high DOUBLE PRECISION NOT NULL,
-    low DOUBLE PRECISION NOT NULL,
-    close DOUBLE PRECISION NOT NULL,
-    volume DOUBLE PRECISION NOT NULL,
-    unique(date, exchange_id, base, quote, interval)
+    Base varchar(30) NOT NULL,
+    Quote varchar(30) NOT NULL,
+    Interval varchar(30) NOT NULL,
+    Timestamp TIMESTAMPTZ NOT NULL,
+    Open DOUBLE PRECISION NOT NULL,
+    High DOUBLE PRECISION NOT NULL,
+    Low DOUBLE PRECISION NOT NULL,
+    Close DOUBLE PRECISION NOT NULL,
+    Volume DOUBLE PRECISION NOT NULL,
+    unique(Timestamp, exchange_id, Base, Quote, Interval)
 );
 
 -- +goose Down
