@@ -406,6 +406,7 @@ func ({{.Variable}} *{{.CapitalName}}) AuthenticateWebsocket() error {
 func ({{.Variable}} *{{.CapitalName}}) ValidateCredentials() error {
 // functionality
 	_, err := {{.Variable}}.UpdateAccountInfo()
+	return {{.Variable}}.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
