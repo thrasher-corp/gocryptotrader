@@ -1426,7 +1426,7 @@ func TestParseTime(t *testing.T) {
 	}
 }
 
-func TestGetHistoricCandleΩs(t *testing.T) {
+func TestGetHistoricCandles(t *testing.T) {
 	currencyPair := currency.NewPairFromString("XBTUSD")
 	_, err := k.GetHistoricCandles(currencyPair, asset.Spot, time.Now().AddDate(0, 0, -1), time.Now(), kline.OneMin)
 	if err != nil {
