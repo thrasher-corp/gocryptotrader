@@ -402,7 +402,6 @@ func ({{.Variable}} *{{.CapitalName}}) AuthenticateWebsocket() error {
 	return common.ErrNotYetImplemented
 }
 
-	return {{.Variable}}.CheckTransientError(err)
 // ValidateCredentials validates current credentials used for wrapper
 func ({{.Variable}} *{{.CapitalName}}) ValidateCredentials() error {
 // functionality
@@ -412,12 +411,12 @@ func ({{.Variable}} *{{.CapitalName}}) ValidateCredentials() error {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func ({{.Variable}} *{{.CapitalName}}) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return nil, common.ErrNotYetImplemented
+	return kline.Item{}, common.ErrNotYetImplemented
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func ({{.Variable}} *{{.CapitalName}}) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return nil, common.ErrNotYetImplemented
+	return kline.Item{}, common.ErrNotYetImplemented
 }
 
 {{end}}
