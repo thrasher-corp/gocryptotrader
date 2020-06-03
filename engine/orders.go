@@ -389,30 +389,34 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 func (o *orderManager) processOrders() {
 	authExchanges := GetAuthAPISupportedExchanges()
 	for x := range authExchanges {
-		log.Debugf(log.OrderMgr, "Order manager: Procesing orders for exchange %v.", authExchanges[x])
+		log.Debugf(log.OrderMgr, "Order manager: Processing orders for exchange %v.", authExchanges[x])
 		exch := GetExchangeByName(authExchanges[x])
-		req := order.GetOrdersRequest{
-			Side: order.AnySide,
-			Type: order.AnyType,
-		}
-		result, err := exch.GetActiveOrders(&req)
-		if err != nil {
-			log.Warnf(log.OrderMgr, "Order manager: Unable to get active orders: %s", err)
-			continue
-		}
-
-		for x := range result {
-			ord := &result[x]
-			result := o.orderStore.Add(ord)
-			if result != ErrOrdersAlreadyExists {
-				msg := fmt.Sprintf("Order manager: Exchange %s added order ID=%v pair=%v price=%v amount=%v side=%v type=%v.",
-					ord.Exchange, ord.ID, ord.Pair, ord.Price, ord.Amount, ord.Side, ord.Type)
-				log.Debugf(log.OrderMgr, "%v", msg)
-				Bot.CommsManager.PushEvent(base.Event{
-					Type:    "order",
-					Message: msg,
-				})
+		supportedAssets := exch.GetAssetTypes()
+		for y := range supportedAssets {
+			req := order.GetOrdersRequest{
+				Side:  order.AnySide,
+				Type:  order.AnyType,
+				Pairs: exch.GetEnabledPairs(supportedAssets[y]),
+			}
+			result, err := exch.GetActiveOrders(&req)
+			if err != nil {
+				log.Warnf(log.OrderMgr, "Order manager: Unable to get active orders: %s", err)
 				continue
+			}
+
+			for z := range result {
+				ord := &result[z]
+				result := o.orderStore.Add(ord)
+				if result != ErrOrdersAlreadyExists {
+					msg := fmt.Sprintf("Order manager: Exchange %s added order ID=%v pair=%v price=%v amount=%v side=%v type=%v.",
+						ord.Exchange, ord.ID, ord.Pair, ord.Price, ord.Amount, ord.Side, ord.Type)
+					log.Debugf(log.OrderMgr, "%v", msg)
+					Bot.CommsManager.PushEvent(base.Event{
+						Type:    "order",
+						Message: msg,
+					})
+					continue
+				}
 			}
 		}
 	}

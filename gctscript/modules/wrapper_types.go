@@ -15,7 +15,8 @@ import (
 
 const (
 	// ErrParameterConvertFailed error to return when type conversion fails
-	ErrParameterConvertFailed             = "%v failed conversion"
+	ErrParameterConvertFailed = "%v failed conversion"
+	// ErrParameterWithPositionConvertFailed error to return when a positional conversion fails
 	ErrParameterWithPositionConvertFailed = "%v at position %v failed conversion"
 )
 
