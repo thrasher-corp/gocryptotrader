@@ -389,7 +389,7 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 func (o *orderManager) processOrders() {
 	authExchanges := GetAuthAPISupportedExchanges()
 	for x := range authExchanges {
-		log.Debugf(log.OrderMgr, "Order manager: Procesing orders for exchange %v.", authExchanges[x])
+		log.Debugf(log.OrderMgr, "Order manager: Processing orders for exchange %v.", authExchanges[x])
 		exch := GetExchangeByName(authExchanges[x])
 		supportedAssets := exch.GetAssetTypes()
 		for y := range supportedAssets {
@@ -404,8 +404,8 @@ func (o *orderManager) processOrders() {
 				continue
 			}
 
-			for x := range result {
-				ord := &result[x]
+			for z := range result {
+				ord := &result[z]
 				result := o.orderStore.Add(ord)
 				if result != ErrOrdersAlreadyExists {
 					msg := fmt.Sprintf("Order manager: Exchange %s added order ID=%v pair=%v price=%v amount=%v side=%v type=%v.",
