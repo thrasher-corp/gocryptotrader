@@ -1,7 +1,6 @@
 package convert
 
 import (
-	"math"
 	"testing"
 	"time"
 )
@@ -96,6 +95,22 @@ func TestTimeFromUnixTimestampFloat(t *testing.T) {
 	}
 }
 
+func TestTimeFromUnixTimestampDecimal(t *testing.T) {
+	r := TimeFromUnixTimestampDecimal(1590633982.5714)
+	if r.Year() != 2020 ||
+		r.Month().String() != "May" ||
+		r.Day() != 28 {
+		t.Error("unexpected result")
+	}
+
+	r = TimeFromUnixTimestampDecimal(1560516023.070651)
+	if r.Year() != 2019 ||
+		r.Month().String() != "June" ||
+		r.Day() != 14 {
+		t.Error("unexpected result")
+	}
+}
+
 func TestUnixTimestampToTime(t *testing.T) {
 	t.Parallel()
 	testTime := int64(1489439831)
@@ -151,61 +166,6 @@ func TestRecvWindow(t *testing.T) {
 	}
 }
 
-// TestSplitFloatDecimals ensures SplitFloatDecimals
-// accurately splits decimals into integers
-func TestSplitFloatDecimals(t *testing.T) {
-	x, y, err := SplitFloatDecimals(1.2)
-	if err != nil {
-		t.Error(err)
-	}
-	if x != 1 && y != 2 {
-		t.Error("Conversion error")
-	}
-	x, y, err = SplitFloatDecimals(123456.654321)
-	if err != nil {
-		t.Error(err)
-	}
-	if x != 123456 && y != 654321 {
-		t.Error("Conversion error")
-	}
-	x, y, err = SplitFloatDecimals(123.111000)
-	if err != nil {
-		t.Error(err)
-	}
-	if x != 123 && y != 111 {
-		t.Error("Conversion error")
-	}
-	x, y, err = SplitFloatDecimals(0123.111001)
-	if err != nil {
-		t.Error(err)
-	}
-	if x != 123 && y != 111001 {
-		t.Error("Conversion error")
-	}
-	x, y, err = SplitFloatDecimals(1)
-	if err != nil {
-		t.Error(err)
-	}
-	if x != 1 && y != 0 {
-		t.Error("Conversion error")
-	}
-	_, _, err = SplitFloatDecimals(float64(math.MaxInt64) + 1)
-	if err == nil {
-		t.Error("Expected conversion error")
-	}
-	_, _, err = SplitFloatDecimals(1797693134862315700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111)
-	if err == nil {
-		t.Error("Expected conversion error")
-	}
-	x, y, err = SplitFloatDecimals(-1.2)
-	if err != nil {
-		t.Error(err)
-	}
-	if x != -1 && y != -2 {
-		t.Error("Conversion error")
-	}
-}
-
 func TestBoolPtr(t *testing.T) {
 	y := BoolPtr(true)
 	if !*y {
@@ -221,12 +181,5 @@ func TestUnixMillisToNano(t *testing.T) {
 	v := UnixMillisToNano(1588653603424)
 	if v != 1588653603424000000 {
 		t.Fatalf("unexpected result received %v", v)
-	}
-}
-
-func TestTimeStringToRFC3339(t *testing.T) {
-	_, err := TimeStringToRFC3339("2020-05-05T14:42:45")
-	if err != nil {
-		t.Fatal(err)
 	}
 }

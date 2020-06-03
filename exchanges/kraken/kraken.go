@@ -11,11 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -59,7 +57,9 @@ const (
 	krakenRequestRate  = 1
 )
 
-var assetPairMap map[string]string
+var (
+	assetTranslator assetTranslatorStore
+)
 
 // Kraken is the overarching type across the alphapoint package
 type Kraken struct {
@@ -85,41 +85,54 @@ func (k *Kraken) GetServerTime() (TimeResponse, error) {
 	return response.Result, GetError(response.Error)
 }
 
+// SeedAssets seeds Kraken's asset list and stores it in the
+// asset translator
+func (k *Kraken) SeedAssets() error {
+	assets, err := k.GetAssets()
+	if err != nil {
+		return err
+	}
+	for k, v := range assets {
+		assetTranslator.Seed(k, v.Altname)
+	}
+
+	assetPairs, err := k.GetAssetPairs()
+	if err != nil {
+		return err
+	}
+	for k, v := range assetPairs {
+		assetTranslator.Seed(k, v.Altname)
+	}
+	return nil
+}
+
 // GetAssets returns a full asset list
-func (k *Kraken) GetAssets() (map[string]Asset, error) {
+func (k *Kraken) GetAssets() (map[string]*Asset, error) {
 	path := fmt.Sprintf("%s/%s/public/%s", k.API.Endpoints.URL, krakenAPIVersion, krakenAssets)
 
 	var response struct {
-		Error  []string         `json:"error"`
-		Result map[string]Asset `json:"result"`
+		Error  []string          `json:"error"`
+		Result map[string]*Asset `json:"result"`
 	}
 
 	if err := k.SendHTTPRequest(path, &response); err != nil {
 		return response.Result, err
 	}
-
 	return response.Result, GetError(response.Error)
 }
 
 // GetAssetPairs returns a full asset pair list
-func (k *Kraken) GetAssetPairs() (map[string]AssetPairs, error) {
+func (k *Kraken) GetAssetPairs() (map[string]*AssetPairs, error) {
 	path := fmt.Sprintf("%s/%s/public/%s", k.API.Endpoints.URL, krakenAPIVersion, krakenAssetPairs)
 
 	var response struct {
-		Error  []string              `json:"error"`
-		Result map[string]AssetPairs `json:"result"`
+		Error  []string               `json:"error"`
+		Result map[string]*AssetPairs `json:"result"`
 	}
 
 	if err := k.SendHTTPRequest(path, &response); err != nil {
 		return response.Result, err
 	}
-	for i := range response.Result {
-		if assetPairMap == nil {
-			assetPairMap = make(map[string]string)
-		}
-		assetPairMap[i] = response.Result[i].Altname
-	}
-
 	return response.Result, GetError(response.Error)
 }
 
@@ -1061,20 +1074,52 @@ func (k *Kraken) GetWebsocketToken() (string, error) {
 	return response.Result.Token, nil
 }
 
-// FormatExchangeCurrency is a method that formats and returns a currency pair
-// based on the user currency display preferences
-func (k *Kraken) FormatExchangeCurrency(p currency.Pair, assetType asset.Item) currency.Pair {
-	var currencyOverrides = [...]currency.Code{currency.BTC, currency.LTC, currency.XRP, currency.XLM, currency.XBT}
-	pairFmt := k.GetPairFormat(assetType, true)
-	if p.Quote == currency.USD {
-		f, _ := common.InArray(p.Base, currencyOverrides)
-		if f {
-			if p.Base == currency.USDT {
-				p.Base = currency.NewCode(p.Base.String() + "Z")
-			} else {
-				p.Base = currency.NewCode("X" + p.Base.String() + "Z")
-			}
+// LookupAltname converts a currency into its altname (ZUSD -> USD)
+func (a *assetTranslatorStore) LookupAltname(target string) string {
+	a.l.RLock()
+	alt, ok := a.Assets[target]
+	if !ok {
+		a.l.RUnlock()
+		return ""
+	}
+	a.l.RUnlock()
+	return alt
+}
+
+// LookupAltname converts an altname to its original type (USD -> ZUSD)
+func (a *assetTranslatorStore) LookupCurrency(target string) string {
+	a.l.RLock()
+	for k, v := range a.Assets {
+		if v == target {
+			a.l.RUnlock()
+			return k
 		}
 	}
-	return p.Format(pairFmt.Delimiter, pairFmt.Uppercase)
+	a.l.RUnlock()
+	return ""
+}
+
+// Seed seeds a currency translation pair
+func (a *assetTranslatorStore) Seed(orig, alt string) {
+	a.l.Lock()
+	if a.Assets == nil {
+		a.Assets = make(map[string]string)
+	}
+
+	_, ok := a.Assets[orig]
+	if ok {
+		a.l.Unlock()
+		return
+	}
+
+	a.Assets[orig] = alt
+	a.l.Unlock()
+}
+
+// Seeded returns whether or not the asset translator has been seeded
+func (a *assetTranslatorStore) Seeded() bool {
+	a.l.RLock()
+	isSeeded := len(a.Assets) > 0
+	a.l.RUnlock()
+	return isSeeded
 }

@@ -610,11 +610,6 @@ func (g *Gateio) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 				if resp.WebSocketOrderQueryRecords[j].OrderType == 1 {
 					orderType = order.Limit
 				}
-				firstNum, decNum, err := convert.SplitFloatDecimals(resp.WebSocketOrderQueryRecords[j].Ctime)
-				if err != nil {
-					return orders, err
-				}
-				orderDate := time.Unix(firstNum, decNum)
 				orders = append(orders, order.Detail{
 					Exchange:        g.Name,
 					AccountID:       strconv.FormatInt(resp.WebSocketOrderQueryRecords[j].User, 10),
@@ -622,7 +617,7 @@ func (g *Gateio) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 					Pair:            currency.NewPairFromString(resp.WebSocketOrderQueryRecords[j].Market),
 					Side:            orderSide,
 					Type:            orderType,
-					Date:            orderDate,
+					Date:            convert.TimeFromUnixTimestampDecimal(resp.WebSocketOrderQueryRecords[j].Ctime),
 					Price:           resp.WebSocketOrderQueryRecords[j].Price,
 					Amount:          resp.WebSocketOrderQueryRecords[j].Amount,
 					ExecutedAmount:  resp.WebSocketOrderQueryRecords[j].FilledAmount,

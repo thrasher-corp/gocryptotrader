@@ -47,9 +47,10 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Yobit | Yes | NA | NA |
 | ZB.COM | Yes | Yes | NA |
 
-We are aiming to support the top 20 highest volume exchanges based off the [CoinMarketCap exchange data](https://coinmarketcap.com/exchanges/volume/24-hour/).
+We are aiming to support the top 30 exchanges sorted by average liquidity as [ranked by CoinMarketCap](https://coinmarketcap.com/rankings/exchanges/). 
+However, we welcome pull requests for any exchange which does not match this criterion. If you need help with this, please join us on [Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk).
 
-** NA means not applicable as the Exchange does not support the feature.
+** NA means not applicable as the exchange does not support the feature.
 
 ## Current Features
 
@@ -139,16 +140,17 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 637 |
-| [shazbert](https://github.com/shazbert) | 188 |
-| [gloriousCode](https://github.com/gloriousCode) | 167 |
-| [xtda](https://github.com/xtda) | 42 |
-| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 23 |
+| [thrasher-](https://github.com/thrasher-) | 639 |
+| [shazbert](https://github.com/shazbert) | 191 |
+| [gloriousCode](https://github.com/gloriousCode) | 169 |
+| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 46 |
+| [xtda](https://github.com/xtda) | 43 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
+| [MadCozBadd](https://github.com/MadCozBadd) | 8 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
-| [MadCozBadd](https://github.com/MadCozBadd) | 7 |
+| [dackroyd](https://github.com/dackroyd) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
 | [vazha](https://github.com/vazha) | 3 |
@@ -168,7 +170,6 @@ Binaries will be published once the codebase reaches a stable condition.
 | [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |
 | [Daanikus](https://github.com/Daanikus) | 1 |
 | [daniel-cohen](https://github.com/daniel-cohen) | 1 |
-| [merkeld](https://github.com/merkeld) | 1 |
 | [DirectX](https://github.com/DirectX) | 1 |
 | [frankzougc](https://github.com/frankzougc) | 1 |
 | [idoall](https://github.com/idoall) | 1 |
@@ -180,3 +181,4 @@ Binaries will be published once the codebase reaches a stable condition.
 | [starit](https://github.com/starit) | 1 |
 | [Jimexist](https://github.com/Jimexist) | 1 |
 | [lookfirst](https://github.com/lookfirst) | 1 |
+| [merkeld](https://github.com/merkeld) | 1 |
