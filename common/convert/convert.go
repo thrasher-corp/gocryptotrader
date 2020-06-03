@@ -1,11 +1,9 @@
 package convert
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -57,6 +55,13 @@ func TimeFromUnixTimestampFloat(raw interface{}) (time.Time, error) {
 	return time.Unix(0, int64(ts)*int64(time.Millisecond)), nil
 }
 
+// TimeFromUnixTimestampDecimal converts a unix timestamp in decimal form to
+// a time.Time
+func TimeFromUnixTimestampDecimal(input float64) time.Time {
+	i, f := math.Modf(input)
+	return time.Unix(int64(i), int64(f*(1e9)))
+}
+
 // UnixTimestampToTime returns time.time
 func UnixTimestampToTime(timeint64 int64) time.Time {
 	return time.Unix(timeint64, 0)
@@ -81,33 +86,6 @@ func RecvWindow(d time.Duration) int64 {
 	return int64(d) / int64(time.Millisecond)
 }
 
-// SplitFloatDecimals takes in a float64 and splits
-// the decimals into their own integers
-// Warning. Passing in numbers with many decimals
-// can lead to a loss of accuracy
-func SplitFloatDecimals(input float64) (baseNum, decimalNum int64, err error) {
-	if input > float64(math.MaxInt64) {
-		return 0, 0, errors.New("number too large to split into integers")
-	}
-	if input == float64(int64(input)) {
-		return int64(input), 0, nil
-	}
-	decStr := strconv.FormatFloat(input, 'f', -1, 64)
-	splitNum := strings.Split(decStr, ".")
-	baseNum, err = strconv.ParseInt(splitNum[0], 10, 64)
-	if err != nil {
-		return 0, 0, err
-	}
-	decimalNum, err = strconv.ParseInt(splitNum[1], 10, 64)
-	if err != nil {
-		return 0, 0, err
-	}
-	if baseNum < 0 {
-		decimalNum *= -1
-	}
-	return baseNum, decimalNum, nil
-}
-
 // BoolPtr takes in boolen condition and returns pointer version of it
 func BoolPtr(condition bool) *bool {
 	b := condition
@@ -117,11 +95,4 @@ func BoolPtr(condition bool) *bool {
 // UnixMillisToNano converts Unix milli time to UnixNano
 func UnixMillisToNano(milli int64) int64 {
 	return milli * int64(time.Millisecond)
-}
-
-// TimeStringToRFC3339 returns string to RFC3399 formatted time.Time
-func TimeStringToRFC3339(timestamp string) (time.Time, error) {
-	split := strings.Split(timestamp, " ")
-	join := strings.Join(split, "T")
-	return time.Parse(time.RFC3339, join+"Z")
 }
