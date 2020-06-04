@@ -266,17 +266,18 @@ func (f *FTX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price
 	}
 	for a := range allPairs {
 		for x := range markets.Result {
-			if markets.Result[x].Name == f.FormatExchangeCurrency(allPairs[a], assetType).String() {
-				var resp ticker.Price
-				resp.Pair = currency.NewPairFromString(markets.Result[x].Name)
-				resp.Last = markets.Result[x].Last
-				resp.Bid = markets.Result[x].Bid
-				resp.Ask = markets.Result[x].Ask
-				resp.LastUpdated = time.Now()
-				err = ticker.ProcessTicker(f.Name, &resp, assetType)
-				if err != nil {
-					return nil, err
-				}
+			if markets.Result[x].Name != f.FormatExchangeCurrency(allPairs[a], assetType).String() {
+				continue
+			}
+			var resp ticker.Price
+			resp.Pair = currency.NewPairFromString(markets.Result[x].Name)
+			resp.Last = markets.Result[x].Last
+			resp.Bid = markets.Result[x].Bid
+			resp.Ask = markets.Result[x].Ask
+			resp.LastUpdated = time.Now()
+			err = ticker.ProcessTicker(f.Name, &resp, assetType)
+			if err != nil {
+				return nil, err
 			}
 		}
 	}
