@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -102,6 +103,23 @@ func CreateKline(trades []order.TradeHistory, interval Interval, p currency.Pair
 		candles.Candles = append(candles.Candles, newCandle)
 	}
 	return candles, nil
+}
+
+func SeedFromDatabase(exchange string, pair currency.Pair, interval Interval, start, end time.Time) (Item, error) {
+	retCandle, err := candle.Series(exchange,
+		pair.Base.String(), pair.Quote.String(),
+		interval.Short(), start, end)
+	if err != nil {
+		return Item{}, err
+	}
+
+	ret := Item{
+		Exchange: exchange,
+	}
+	for x := range retCandle {
+		fmt.Println(retCandle[x])
+	}
+	return ret, nil
 }
 
 // validatData checks for zero values on data and sorts before turning

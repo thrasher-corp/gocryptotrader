@@ -3,14 +3,19 @@ package kline
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/database/drivers"
+	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/sqlboiler/boil"
 )
 
 func TestValidateData(t *testing.T) {
@@ -308,4 +313,36 @@ func TestItem_SortCandlesByTimestamp(t *testing.T) {
 	if tempKline.Candles[0].Time.Before(tempKline.Candles[1].Time) {
 		t.Fatal("expected kline.Candles to be in ascending order")
 	}
+}
+
+var (
+	dbcfg = &database.Config{
+		Enabled: true,
+		Driver:  "postgres",
+		Verbose: true,
+		ConnectionDetails: drivers.ConnectionDetails{
+			Host:     "localhost",
+			Port:     5432,
+			Username: "",
+			Password: "",
+			Database: "gct_dev",
+			SSLMode:  "disable",
+		},
+	}
+)
+
+func TestSeedFromDatabase(t *testing.T) {
+	_, err := testhelpers.ConnectToDatabase(dbcfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	boil.DebugMode = true
+	boil.DebugWriter = os.Stdout
+
+	ret, err := SeedFromDatabase("Binance", currency.NewPairFromString("BTCUSDT"), OneDay, time.Now(), time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(ret)
 }

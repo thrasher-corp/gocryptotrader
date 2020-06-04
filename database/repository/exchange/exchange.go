@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common/cache"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
@@ -13,11 +14,16 @@ import (
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
 )
 
+var (
+	exchangeCache = cache.New(10)
+)
+
 type Details struct {
 	Name string
 }
 
-func One(in string) (*modelPSQL.Exchange,error) {
+// One returns one exchange by Name
+func One(in string) (*modelPSQL.Exchange, error) {
 	if database.DB.SQL == nil {
 		return nil, database.ErrDatabaseSupportDisabled
 	}
@@ -25,6 +31,7 @@ func One(in string) (*modelPSQL.Exchange,error) {
 	return modelPSQL.Exchanges(qm.Where("name = ?", in)).One(context.Background(), database.DB.SQL)
 }
 
+// OneByUUID returns one exchange by UUID
 func OneByUUID(in uuid.UUID) (*modelPSQL.Exchange, error) {
 	if database.DB.SQL == nil {
 		return nil, database.ErrDatabaseSupportDisabled
@@ -34,6 +41,7 @@ func OneByUUID(in uuid.UUID) (*modelPSQL.Exchange, error) {
 		in.String())
 }
 
+// Insert writes a single entry into database
 func Insert(in Details) {
 	if database.DB.SQL == nil {
 		return
@@ -72,6 +80,7 @@ func Insert(in Details) {
 	}
 }
 
+// InsertMany writes multiple entries into databass
 func InsertMany(in []Details) error {
 	if database.DB.SQL == nil {
 		return database.ErrDatabaseSupportDisabled
@@ -132,4 +141,25 @@ func insertPostgresql(ctx context.Context, tx *sql.Tx, in []Details) (err error)
 		}
 	}
 	return nil
+}
+
+// UUIDByName returns UUID of exchange
+func UUIDByName(in string) (uuid.UUID, error) {
+	v := exchangeCache.Get(in)
+	if v != nil {
+		return v.(uuid.UUID), nil
+	}
+
+	v, err := One(in)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+
+	ret, err := uuid.FromString(v.(*modelPSQL.Exchange).ID)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+
+	exchangeCache.Add(in, ret)
+	return ret, nil
 }

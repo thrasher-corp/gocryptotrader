@@ -3,7 +3,6 @@ package engine
 import (
 	"errors"
 
-	"github.com/gofrs/uuid"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
@@ -17,7 +16,7 @@ func OHLCVDatabaseStore(in *kline.Item) error {
 		return errors.New("name cannot be blank")
 	}
 
-	exchangeUUID, err := exchangeUUIDByName(in.Exchange)
+	exchangeUUID, err := exchange.UUIDByName(in.Exchange)
 	if err != nil {
 		return err
 	}
@@ -38,24 +37,4 @@ func OHLCVDatabaseStore(in *kline.Item) error {
 		})
 	}
 	return candle.InsertMany(&databaseCandles)
-}
-
-func exchangeUUIDByName(in string) (uuid.UUID, error) {
-	v := exchangeCache.Get(in)
-	if v != nil {
-		return v.(uuid.UUID), nil
-	}
-
-	v, err := exchange.One(in)
-	if err != nil {
-		return uuid.UUID{}, err
-	}
-
-	ret, err := uuid.FromString(v.(*modelPSQL.Exchange).ID)
-	if err != nil {
-		return uuid.UUID{}, err
-	}
-
-	exchangeCache.Add(in, ret)
-	return ret, nil
 }

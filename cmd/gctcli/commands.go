@@ -4122,7 +4122,7 @@ var getHistoricCandlesExtendedCommand = cli.Command{
 			Destination: &endTime,
 		},
 		cli.BoolFlag{
-			Name: "sync",
+			Name:  "sync",
 			Usage: "<true/false>",
 		},
 	},
@@ -4229,7 +4229,7 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 			End:          e.Unix(),
 			TimeInterval: int64(candleInterval),
 			ExRequest:    true,
-			Sync:		  sync,
+			Sync:         sync,
 		})
 	if err != nil {
 		return err

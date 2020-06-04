@@ -6,7 +6,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common/cache"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	dbpsql "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
@@ -15,8 +14,7 @@ import (
 )
 
 var (
-	dbConn        *database.Instance
-	exchangeCache = cache.New(10)
+	dbConn *database.Instance
 )
 
 type databaseManager struct {

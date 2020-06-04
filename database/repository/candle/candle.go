@@ -3,13 +3,17 @@ package candle
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/sqlboiler/boil"
+	"github.com/thrasher-corp/sqlboiler/queries/qm"
 )
 
 // One returns a single candle
@@ -18,6 +22,24 @@ func One() error {
 		return database.ErrDatabaseSupportDisabled
 	}
 	return nil
+}
+
+// Series returns timeseries of candle data
+func Series(exchangeName, base, quote, interval string, start, end time.Time) (modelPSQL.CandleSlice, error) {
+	if exchangeName == "" || base == "" || quote == "" || interval == "" {
+		return nil, errors.New("")
+	}
+
+	exchangeUUID, err := exchange.UUIDByName(exchangeName)
+	if err != nil {
+		return nil, err
+	}
+
+	uuidQM := qm.Where("exchange_id = ?", exchangeUUID.String())
+	baseQM := qm.Where("base = ?", base)
+	quoteQM := qm.Where("quote = ?", quote)
+	intervalQM := qm.Where("interval = ?", interval)
+	return modelPSQL.Candles(uuidQM, baseQM, quoteQM, intervalQM).All(context.Background(), database.DB.SQL)
 }
 
 // Insert a single candle
