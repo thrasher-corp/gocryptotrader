@@ -256,6 +256,7 @@ func (f *FTX) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (f *FTX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	f.Verbose = true
 	var marketNames []string
 	allPairs := f.GetEnabledPairs(assetType)
 	for a := range allPairs {
@@ -268,8 +269,11 @@ func (f *FTX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price
 	for x := range markets.Result {
 		marketName := currency.NewPairFromString(markets.Result[x].Name)
 		if common.StringDataCompareInsensitive(marketNames, marketName.String()) {
+
 			continue
 		}
+		// fmt.Println("WOW:", marketName)
+		// fmt.Println("ASSET:", assetType)
 		var resp ticker.Price
 		resp.Pair = marketName
 		resp.Last = markets.Result[x].Last
@@ -286,8 +290,10 @@ func (f *FTX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price
 
 // FetchTicker returns the ticker for a currency pair
 func (f *FTX) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	fmt.Println("BRO")
 	tickerNew, err := ticker.GetTicker(f.Name, p, assetType)
 	if err != nil {
+		fmt.Print("fetch ticker failed for:", p, assetType, err)
 		return f.UpdateTicker(p, assetType)
 	}
 	return tickerNew, nil

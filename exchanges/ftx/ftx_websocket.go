@@ -438,7 +438,10 @@ func (f *FTX) CalcPartialOBChecksum(data *WsOrderbookData) int {
 	var price, amount string
 	for i := 0; i < 100; i++ {
 		if len(data.Bids)-1 >= i {
-			price = fmt.Sprintf("%.1f", data.Bids[i][0])
+			price = strconv.FormatFloat(data.Bids[i][0], 'f', -1, 64)
+			if strings.IndexByte(price, '.') == -1 {
+				price += ".0"
+			}
 			amount = strconv.FormatFloat(data.Bids[i][1], 'f', -1, 64)
 			if strings.IndexByte(amount, '.') == -1 {
 				amount += ".0"
@@ -446,7 +449,10 @@ func (f *FTX) CalcPartialOBChecksum(data *WsOrderbookData) int {
 			checksum.WriteString(price + ":" + amount + ":")
 		}
 		if len(data.Asks)-1 >= i {
-			price = fmt.Sprintf("%.1f", data.Asks[i][0])
+			price = strconv.FormatFloat(data.Asks[i][0], 'f', -1, 64)
+			if strings.IndexByte(price, '.') == -1 {
+				price += ".0"
+			}
 			amount = strconv.FormatFloat(data.Asks[i][1], 'f', -1, 64)
 			if strings.IndexByte(amount, '.') == -1 {
 				amount += ".0"
@@ -464,7 +470,10 @@ func (f *FTX) CalcUpdateOBChecksum(data *orderbook.Base) int {
 	var price, amount string
 	for i := 0; i < 100; i++ {
 		if len(data.Bids)-1 >= i {
-			price = fmt.Sprintf("%.1f", data.Bids[i].Price)
+			price = strconv.FormatFloat(data.Bids[i].Price, 'f', -1, 64)
+			if strings.IndexByte(price, '.') == -1 {
+				price += ".0"
+			}
 			amount = strconv.FormatFloat(data.Bids[i].Amount, 'f', -1, 64)
 			if strings.IndexByte(amount, '.') == -1 {
 				amount += ".0"
@@ -472,7 +481,10 @@ func (f *FTX) CalcUpdateOBChecksum(data *orderbook.Base) int {
 			checksum.WriteString(price + ":" + amount + ":")
 		}
 		if len(data.Asks)-1 >= i {
-			price = fmt.Sprintf("%.1f", data.Asks[i].Price)
+			price = strconv.FormatFloat(data.Asks[i].Price, 'f', -1, 64)
+			if strings.IndexByte(price, '.') == -1 {
+				price += ".0"
+			}
 			amount = strconv.FormatFloat(data.Asks[i].Amount, 'f', -1, 64)
 			if strings.IndexByte(amount, '.') == -1 {
 				amount += ".0"

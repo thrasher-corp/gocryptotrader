@@ -67,6 +67,7 @@ func areTestAPIKeysSet() bool {
 // Implement tests for API endpoints below
 
 func TestGetMarkets(t *testing.T) {
+	f.Verbose = true
 	t.Parallel()
 	_, err := f.GetMarkets()
 	if err != nil {
@@ -77,7 +78,7 @@ func TestGetMarkets(t *testing.T) {
 func TestGetMarket(t *testing.T) {
 	f.Verbose = true
 	t.Parallel()
-	a, err := f.GetMarket(spotPair)
+	a, err := f.GetMarket("ADAHEDGE")
 	t.Log(a)
 	if err != nil {
 		t.Error(err)
