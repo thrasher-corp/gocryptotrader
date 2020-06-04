@@ -55,6 +55,7 @@ func (f *FTX) WsConnect() error {
 	if f.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", f.Name)
 	}
+	f.GenerateDefaultSubscriptions()
 	go f.wsReadData()
 	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err := f.WsAuth()
@@ -62,8 +63,8 @@ func (f *FTX) WsConnect() error {
 			f.Websocket.DataHandler <- err
 			f.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
+		f.GenerateAuthSubscriptions()
 	}
-	f.GenerateDefaultSubscriptions()
 	return nil
 }
 
@@ -90,15 +91,15 @@ func (f *FTX) WsAuth() error {
 // Subscribe sends a websocket message to receive data from the channel
 func (f *FTX) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
 	var sub WsSub
-	a, err := f.GetPairAssetType(channelToSubscribe.Currency)
-	if err != nil {
-		return err
-	}
 	switch channelToSubscribe.Channel {
-	case wsFills, wsOrders:
+	case wsFills, wsOrders, wsMarkets:
 		sub.Operation = subscribe
 		sub.Channel = channelToSubscribe.Channel
 	default:
+		a, err := f.GetPairAssetType(channelToSubscribe.Currency)
+		if err != nil {
+			return err
+		}
 		sub.Operation = subscribe
 		sub.Channel = channelToSubscribe.Channel
 		sub.Market = f.FormatExchangeCurrency(channelToSubscribe.Currency, a).String()
@@ -108,8 +109,11 @@ func (f *FTX) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscriptio
 
 // GenerateDefaultSubscriptions generates default subscription
 func (f *FTX) GenerateDefaultSubscriptions() {
-	var channels = []string{wsTicker, wsTrades, wsOrderbook, wsMarkets, wsFills, wsOrders}
 	var subscriptions []wshandler.WebsocketChannelSubscription
+	subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+		Channel: wsMarkets,
+	})
+	var channels = []string{wsTicker, wsTrades, wsOrderbook}
 	for a := range f.CurrencyPairs.AssetTypes {
 		pairs := f.GetEnabledPairs(f.CurrencyPairs.AssetTypes[a])
 		for z := range pairs {
@@ -121,6 +125,18 @@ func (f *FTX) GenerateDefaultSubscriptions() {
 				})
 			}
 		}
+	}
+	f.Websocket.SubscribeToChannels(subscriptions)
+}
+
+// GenerateAuthSubscriptions generates default subscription
+func (f *FTX) GenerateAuthSubscriptions() {
+	var subscriptions []wshandler.WebsocketChannelSubscription
+	var channels = []string{wsOrders, wsFills}
+	for x := range channels {
+		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			Channel: channels[x],
+		})
 	}
 	f.Websocket.SubscribeToChannels(subscriptions)
 }
