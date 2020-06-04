@@ -76,7 +76,7 @@ func TestGetMarkets(t *testing.T) {
 
 func TestGetMarket(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetMarket("ADAHEDGE")
+	_, err := f.GetMarket(spotPair)
 	if err != nil {
 		t.Error(err)
 	}
