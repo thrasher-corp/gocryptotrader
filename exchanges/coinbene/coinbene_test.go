@@ -287,9 +287,8 @@ func TestGetSwapOrderbook(t *testing.T) {
 }
 
 func TestGetKlines(t *testing.T) {
-	currencypair := currency.NewPairFromString(spotTestPair).String()
-	startTime := time.Now().Add(-time.Hour * 1)
-	_, err := c.GetKlines(currencypair, startTime, time.Now(), "1")
+	_, err := c.GetKlines(currency.NewPairFromString(spotTestPair).String(),
+		time.Now().Add(-time.Hour*1), time.Now(), "1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -297,13 +296,9 @@ func TestGetKlines(t *testing.T) {
 
 func TestGetSwapKlines(t *testing.T) {
 	t.Parallel()
-	currencypair := currency.NewPairFromString(swapTestPair).String()
-	startTime := time.Now().Add(-time.Hour * 1)
 
-	_, err := c.GetSwapKlines(currencypair,
-		startTime,
-		time.Now(),
-		"1")
+	_, err := c.GetSwapKlines(currency.NewPairFromString(swapTestPair).String(),
+		time.Now().Add(-time.Hour*1), time.Now(), "1")
 	if err != nil {
 		t.Error(err)
 	}

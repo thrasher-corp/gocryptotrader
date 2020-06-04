@@ -404,7 +404,6 @@ func ({{.Variable}} *{{.CapitalName}}) AuthenticateWebsocket() error {
 
 // ValidateCredentials validates current credentials used for wrapper
 func ({{.Variable}} *{{.CapitalName}}) ValidateCredentials() error {
-// functionality
 	_, err := {{.Variable}}.UpdateAccountInfo()
 	return {{.Variable}}.CheckTransientError(err)
 }

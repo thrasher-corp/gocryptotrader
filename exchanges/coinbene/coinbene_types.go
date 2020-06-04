@@ -355,7 +355,7 @@ type SwapFundingRate struct {
 	Leverage      int64   `json:"leverage"`
 }
 
-// CandleResponse
+// CandleResponse stores returned kline data
 type CandleResponse struct {
 	Code    int64            `json:"code"`
 	Message string           `json:"message"`

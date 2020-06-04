@@ -729,29 +729,11 @@ func (b *Bitstamp) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		var tempCandle kline.Candle
 
 		tempCandle.Time = time.Unix(candles.Data.OHLCV[x].Timestamp, 0)
-
-		tempCandle.Open, err = strconv.ParseFloat(candles.Data.OHLCV[x].Open, 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-
-		tempCandle.High, err = strconv.ParseFloat(candles.Data.OHLCV[x].High, 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-
-		tempCandle.Low, err = strconv.ParseFloat(candles.Data.OHLCV[x].Low, 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		tempCandle.Close, err = strconv.ParseFloat(candles.Data.OHLCV[x].Close, 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		tempCandle.Volume, err = strconv.ParseFloat(candles.Data.OHLCV[x].Volume, 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
+		tempCandle.Open = candles.Data.OHLCV[x].Open
+		tempCandle.High = candles.Data.OHLCV[x].High
+		tempCandle.Low = candles.Data.OHLCV[x].Low
+		tempCandle.Close = candles.Data.OHLCV[x].Close
+		tempCandle.Volume = candles.Data.OHLCV[x].Volume
 
 		ret.Candles = append(ret.Candles, tempCandle)
 	}
@@ -791,28 +773,11 @@ func (b *Bitstamp) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 			var tempCandle kline.Candle
 
 			tempCandle.Time = time.Unix(candles.Data.OHLCV[x].Timestamp, 0)
-			tempCandle.Open, err = strconv.ParseFloat(candles.Data.OHLCV[x].Open, 64)
-			if err != nil {
-				return kline.Item{}, err
-			}
-
-			tempCandle.High, err = strconv.ParseFloat(candles.Data.OHLCV[x].High, 64)
-			if err != nil {
-				return kline.Item{}, err
-			}
-
-			tempCandle.Low, err = strconv.ParseFloat(candles.Data.OHLCV[x].Low, 64)
-			if err != nil {
-				return kline.Item{}, err
-			}
-			tempCandle.Close, err = strconv.ParseFloat(candles.Data.OHLCV[x].Close, 64)
-			if err != nil {
-				return kline.Item{}, err
-			}
-			tempCandle.Volume, err = strconv.ParseFloat(candles.Data.OHLCV[x].Volume, 64)
-			if err != nil {
-				return kline.Item{}, err
-			}
+			tempCandle.Open = candles.Data.OHLCV[x].Open
+			tempCandle.High = candles.Data.OHLCV[x].High
+			tempCandle.Low = candles.Data.OHLCV[x].Low
+			tempCandle.Close = candles.Data.OHLCV[x].Close
+			tempCandle.Volume = candles.Data.OHLCV[x].Volume
 
 			ret.Candles = append(ret.Candles, tempCandle)
 		}
