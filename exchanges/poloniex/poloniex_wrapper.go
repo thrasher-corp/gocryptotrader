@@ -286,10 +286,9 @@ func (p *Poloniex) FetchOrderbook(currencyPair currency.Pair, assetType asset.It
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (p *Poloniex) UpdateOrderbook(currencyPair currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
-	orderbookNew, err := p.GetOrderbook("", 1000)
+	orderbookNew, err := p.GetOrderbook("", poloniexMaxOrderbookDepth)
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
 
 	enabledPairs := p.GetEnabledPairs(assetType)
@@ -299,19 +298,20 @@ func (p *Poloniex) UpdateOrderbook(currencyPair currency.Pair, assetType asset.I
 			continue
 		}
 
-		var obItems []orderbook.Item
+		orderBook := new(orderbook.Base)
 		for y := range data.Bids {
-			obItems = append(obItems, orderbook.Item{
-				Amount: data.Bids[y].Amount, Price: data.Bids[y].Price})
+			orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+				Amount: data.Bids[y].Amount,
+				Price:  data.Bids[y].Price,
+			})
 		}
-		orderBook.Bids = obItems
 
-		obItems = []orderbook.Item{}
 		for y := range data.Asks {
-			obItems = append(obItems, orderbook.Item{
-				Amount: data.Asks[y].Amount, Price: data.Asks[y].Price})
+			orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+				Amount: data.Asks[y].Amount,
+				Price:  data.Asks[y].Price,
+			})
 		}
-		orderBook.Asks = obItems
 		orderBook.Pair = enabledPairs[i]
 		orderBook.ExchangeName = p.Name
 		orderBook.AssetType = assetType
