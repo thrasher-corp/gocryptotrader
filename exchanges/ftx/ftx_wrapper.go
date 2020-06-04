@@ -256,30 +256,28 @@ func (f *FTX) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (f *FTX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	f.Verbose = true
-	var marketNames []string
 	allPairs := f.GetEnabledPairs(assetType)
-	for a := range allPairs {
-		marketNames = append(marketNames, f.FormatExchangeCurrency(allPairs[a], assetType).String())
+	if !allPairs.Contains(p, true) {
+		allPairs = append(allPairs, p)
 	}
 	markets, err := f.GetMarkets()
 	if err != nil {
 		return nil, err
 	}
-	for x := range markets.Result {
-		marketName := currency.NewPairFromString(markets.Result[x].Name)
-		if !common.StringDataCompareInsensitive(marketNames, marketName.String()) {
-			continue
-		}
-		var resp ticker.Price
-		resp.Pair = marketName
-		resp.Last = markets.Result[x].Last
-		resp.Bid = markets.Result[x].Bid
-		resp.Ask = markets.Result[x].Ask
-		resp.LastUpdated = time.Now()
-		err = ticker.ProcessTicker(f.Name, &resp, assetType)
-		if err != nil {
-			return nil, err
+	for a := range allPairs {
+		for x := range markets.Result {
+			if markets.Result[x].Name == f.FormatExchangeCurrency(allPairs[a], assetType).String() {
+				var resp ticker.Price
+				resp.Pair = currency.NewPairFromString(markets.Result[x].Name)
+				resp.Last = markets.Result[x].Last
+				resp.Bid = markets.Result[x].Bid
+				resp.Ask = markets.Result[x].Ask
+				resp.LastUpdated = time.Now()
+				err = ticker.ProcessTicker(f.Name, &resp, assetType)
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
 	}
 	return ticker.GetTicker(f.Name, p, assetType)
