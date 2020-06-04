@@ -67,7 +67,6 @@ func areTestAPIKeysSet() bool {
 // Implement tests for API endpoints below
 
 func TestGetMarkets(t *testing.T) {
-	f.Verbose = true
 	t.Parallel()
 	_, err := f.GetMarkets()
 	if err != nil {
@@ -76,10 +75,8 @@ func TestGetMarkets(t *testing.T) {
 }
 
 func TestGetMarket(t *testing.T) {
-	f.Verbose = true
 	t.Parallel()
-	a, err := f.GetMarket("ADAHEDGE")
-	t.Log(a)
+	_, err := f.GetMarket("ADAHEDGE")
 	if err != nil {
 		t.Error(err)
 	}
@@ -95,7 +92,6 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	f.Verbose = true
 	_, err := f.GetTrades(spotPair, time.Time{}, time.Time{}, 200)
 	if err != nil {
 		t.Error(err)
@@ -112,7 +108,6 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetHistoricalData(t *testing.T) {
 	t.Parallel()
-	f.Verbose = true
 	_, err := f.GetHistoricalData(spotPair, "86400", "5", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -129,7 +124,6 @@ func TestGetHistoricalData(t *testing.T) {
 
 func TestGetFutures(t *testing.T) {
 	t.Parallel()
-	f.Verbose = true
 	_, err := f.GetFutures()
 	if err != nil {
 		t.Error(err)
@@ -137,7 +131,6 @@ func TestGetFutures(t *testing.T) {
 }
 
 func TestGetFuture(t *testing.T) {
-	f.Verbose = true
 	t.Parallel()
 	_, err := f.GetFuture(futuresPair)
 	if err != nil {
@@ -146,7 +139,6 @@ func TestGetFuture(t *testing.T) {
 }
 
 func TestGetFutureStats(t *testing.T) {
-	f.Verbose = true
 	t.Parallel()
 	_, err := f.GetFutureStats("BTC-PERP")
 	if err != nil {
@@ -156,7 +148,6 @@ func TestGetFutureStats(t *testing.T) {
 
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
-	f.Verbose = true
 	_, err := f.GetFundingRates()
 	if err != nil {
 		t.Error(err)
@@ -168,9 +159,7 @@ func TestGetAccountInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	f.Verbose = true
-	a, err := f.GetAccountInfo()
-	t.Log(a)
+	_, err := f.GetAccountInfo()
 	if err != nil {
 		t.Error(err)
 	}
@@ -200,7 +189,6 @@ func TestChangeAccountLeverage(t *testing.T) {
 
 func TestGetCoins(t *testing.T) {
 	t.Parallel()
-	f.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
@@ -212,7 +200,6 @@ func TestGetCoins(t *testing.T) {
 
 func TestGetBalances(t *testing.T) {
 	t.Parallel()
-	f.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
@@ -246,7 +233,6 @@ func TestFetchDepositAddress(t *testing.T) {
 
 func TestFetchDepositHistory(t *testing.T) {
 	t.Parallel()
-	f.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
@@ -261,7 +247,6 @@ func TestFetchWithdrawalHistory(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	f.Verbose = true
 	_, err := f.FetchWithdrawalHistory()
 	if err != nil {
 		t.Error(err)
@@ -407,7 +392,6 @@ func TestDeleteTriggerOrder(t *testing.T) {
 
 func TestGetFills(t *testing.T) {
 	t.Parallel()
-	f.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
@@ -427,7 +411,6 @@ func TestGetFills(t *testing.T) {
 
 func TestGetFundingPayments(t *testing.T) {
 	t.Parallel()
-	f.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
@@ -443,7 +426,6 @@ func TestGetFundingPayments(t *testing.T) {
 
 func TestListLeveragedTokens(t *testing.T) {
 	t.Parallel()
-	f.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
@@ -454,7 +436,6 @@ func TestListLeveragedTokens(t *testing.T) {
 }
 
 func TestGetTokenInfo(t *testing.T) {
-	f.Verbose = true
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
@@ -510,7 +491,6 @@ func TestListLTRedemptions(t *testing.T) {
 }
 
 func TestGetQuoteRequests(t *testing.T) {
-	f.Verbose = true
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
@@ -610,7 +590,6 @@ func TestAcceptQuote(t *testing.T) {
 }
 
 func TestGetAccountOptionsInfo(t *testing.T) {
-	f.Verbose = true
 	t.Parallel()
 	if !areTestAPIKeysSet() {
 		t.Skip()
@@ -822,7 +801,6 @@ func TestGetOrderStatusByClientID(t *testing.T) {
 
 func TestRequestLTRedemption(t *testing.T) {
 	t.Parallel()
-	f.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
@@ -854,7 +832,6 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
-	f.Verbose = true
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
