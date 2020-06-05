@@ -384,8 +384,8 @@ func (o *OKCoin) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 			return kline.Item{}, err
 		}
 
-		for x := range candles {
-			t := candles[x].([]interface{})
+		for i := range candles {
+			t := candles[i].([]interface{})
 			tempCandle := kline.Candle{}
 			v, ok := t[0].(string)
 			if !ok {

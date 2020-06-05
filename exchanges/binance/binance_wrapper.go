@@ -783,14 +783,14 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 			return kline.Item{}, err
 		}
 
-		for x := range candles {
+		for i := range candles {
 			ret.Candles = append(ret.Candles, kline.Candle{
-				Time:   candles[x].OpenTime,
-				Open:   candles[x].Open,
-				High:   candles[x].Close,
-				Low:    candles[x].Low,
-				Close:  candles[x].Close,
-				Volume: candles[x].Volume,
+				Time:   candles[i].OpenTime,
+				Open:   candles[i].Open,
+				High:   candles[i].Close,
+				Low:    candles[i].Low,
+				Close:  candles[i].Close,
+				Volume: candles[i].Volume,
 			})
 		}
 	}

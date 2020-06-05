@@ -809,17 +809,17 @@ func (l *Lbank) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, sta
 		if err != nil {
 			return kline.Item{}, err
 		}
-		for y := range data {
-			if time.Unix(data[y].TimeStamp, 0).UTC().Before(dates[x].Start.UTC()) || time.Unix(data[y].TimeStamp, 0).UTC().After(dates[x].End.UTC()) {
+		for i := range data {
+			if time.Unix(data[i].TimeStamp, 0).UTC().Before(dates[x].Start.UTC()) || time.Unix(data[i].TimeStamp, 0).UTC().After(dates[x].End.UTC()) {
 				continue
 			}
 			ret.Candles = append(ret.Candles, kline.Candle{
-				Time:   time.Unix(data[y].TimeStamp, 0).UTC(),
-				Open:   data[y].OpenPrice,
-				High:   data[y].HigestPrice,
-				Low:    data[y].LowestPrice,
-				Close:  data[y].ClosePrice,
-				Volume: data[y].TradingVolume,
+				Time:   time.Unix(data[i].TimeStamp, 0).UTC(),
+				Open:   data[i].OpenPrice,
+				High:   data[i].HigestPrice,
+				Low:    data[i].LowestPrice,
+				Close:  data[i].ClosePrice,
+				Volume: data[i].TradingVolume,
 			})
 		}
 	}

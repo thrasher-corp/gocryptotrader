@@ -870,14 +870,14 @@ func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 			return kline.Item{}, err
 		}
 
-		for x := range candles {
+		for i := range candles {
 			ret.Candles = append(ret.Candles, kline.Candle{
-				Time:   candles[x].Timestamp,
-				Open:   candles[x].Open,
-				High:   candles[x].Close,
-				Low:    candles[x].Low,
-				Close:  candles[x].Close,
-				Volume: candles[x].Volume,
+				Time:   candles[i].Timestamp,
+				Open:   candles[i].Open,
+				High:   candles[i].Close,
+				Low:    candles[i].Low,
+				Close:  candles[i].Close,
+				Volume: candles[i].Volume,
 			})
 		}
 	}

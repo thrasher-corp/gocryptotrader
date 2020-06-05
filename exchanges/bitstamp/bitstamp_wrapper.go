@@ -757,11 +757,11 @@ func (b *Bitstamp) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 	}
 
 	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
-	for y := range dates {
+	for x := range dates {
 		candles, err := b.OHLC(
 			b.FormatExchangeCurrency(pair, a).Lower().String(),
-			dates[y].Start,
-			dates[y].End,
+			dates[x].Start,
+			dates[x].End,
 			b.FormatExchangeKlineInterval(interval),
 			"1000",
 		)
@@ -769,15 +769,15 @@ func (b *Bitstamp) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 			return kline.Item{}, err
 		}
 
-		for x := range candles.Data.OHLCV {
+		for i := range candles.Data.OHLCV {
 			var tempCandle kline.Candle
 
-			tempCandle.Time = time.Unix(candles.Data.OHLCV[x].Timestamp, 0)
-			tempCandle.Open = candles.Data.OHLCV[x].Open
-			tempCandle.High = candles.Data.OHLCV[x].High
-			tempCandle.Low = candles.Data.OHLCV[x].Low
-			tempCandle.Close = candles.Data.OHLCV[x].Close
-			tempCandle.Volume = candles.Data.OHLCV[x].Volume
+			tempCandle.Time = time.Unix(candles.Data.OHLCV[i].Timestamp, 0)
+			tempCandle.Open = candles.Data.OHLCV[i].Open
+			tempCandle.High = candles.Data.OHLCV[i].High
+			tempCandle.Low = candles.Data.OHLCV[i].Low
+			tempCandle.Close = candles.Data.OHLCV[i].Close
+			tempCandle.Volume = candles.Data.OHLCV[i].Volume
 
 			ret.Candles = append(ret.Candles, tempCandle)
 		}

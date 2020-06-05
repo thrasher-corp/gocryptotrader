@@ -767,14 +767,14 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, 
 			return kline.Item{}, err
 		}
 
-		for x := range history {
+		for i := range history {
 			ret.Candles = append(ret.Candles, kline.Candle{
-				Time:   time.Unix(history[x].Time, 0),
-				Low:    history[x].Low,
-				High:   history[x].High,
-				Open:   history[x].Open,
-				Close:  history[x].Close,
-				Volume: history[x].Volume,
+				Time:   time.Unix(history[i].Time, 0),
+				Low:    history[i].Low,
+				High:   history[i].High,
+				Open:   history[i].Open,
+				Close:  history[i].Close,
+				Volume: history[i].Volume,
 			})
 		}
 	}
