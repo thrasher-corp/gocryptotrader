@@ -11,15 +11,7 @@ import (
 func NewPairDelimiter(currencyPair, delimiter string) Pair {
 	result := strings.Split(currencyPair, delimiter)
 	if len(result) > 2 {
-		var collapse string
-		for i := 0; i < len(result); i++ {
-			if i == 0 {
-				continue
-			}
-			collapse += result[i] + delimiter
-		}
-		collapse = collapse[:len(collapse)-1]
-		result[1] = collapse
+		result[1] = strings.Join(result[1:], delimiter)
 	}
 	return Pair{
 		Delimiter: delimiter,

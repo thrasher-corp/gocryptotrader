@@ -407,7 +407,7 @@ func (f *FTX) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (f *FTX) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+func (f *FTX) GetExchangeHistory(_ currency.Pair, _ asset.Item) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -548,14 +548,19 @@ func (f *FTX) GetOrderInfo(orderID string) (order.Detail, error) {
 	if err != nil {
 		return resp, err
 	}
+	p := currency.NewPairFromString(orderData.Result.Market)
+	assetType, err := f.GetPairAssetType(p)
+	if err != nil {
+		return resp, err
+	}
 	resp.ID = strconv.FormatInt(orderData.Result.ID, 10)
 	resp.Amount = orderData.Result.Size
-	resp.AssetType = asset.Spot
 	resp.ClientOrderID = orderData.Result.ClientID
 	resp.Date = orderData.Result.CreatedAt
 	resp.Exchange = f.Name
 	resp.ExecutedAmount = orderData.Result.Size - orderData.Result.RemainingSize
-	resp.Pair = currency.NewPairFromString(orderData.Result.Market)
+	resp.Pair = p
+	resp.AssetType = assetType
 	resp.Price = orderData.Result.Price
 	resp.RemainingAmount = orderData.Result.RemainingSize
 	orderVars, err := orderData.GetCompatible(f)
@@ -570,7 +575,7 @@ func (f *FTX) GetOrderInfo(orderID string) (order.Detail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (f *FTX) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
+func (f *FTX) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, error) {
 	a, err := f.FetchDepositAddress(cryptocurrency.String())
 	if err != nil {
 		return "", err
@@ -603,14 +608,14 @@ func (f *FTX) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*w
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (f *FTX) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (f *FTX) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	var resp *withdraw.ExchangeResponse
 	return resp, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (f *FTX) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (f *FTX) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -623,15 +628,19 @@ func (f *FTX) GetWebsocket() (*wshandler.Websocket, error) {
 func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	var resp []order.Detail
 	for x := range getOrdersRequest.Pairs {
+		assetType, err := f.GetPairAssetType(getOrdersRequest.Pairs[x])
+		if err != nil {
+			return resp, err
+		}
 		var tempResp order.Detail
-		orderData, err := f.GetOpenOrders(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], asset.Spot).String())
+		orderData, err := f.GetOpenOrders(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], assetType).String())
 		if err != nil {
 			return resp, err
 		}
 		for y := range orderData.Result {
 			tempResp.ID = strconv.FormatInt(orderData.Result[y].ID, 10)
 			tempResp.Amount = orderData.Result[y].Size
-			tempResp.AssetType = asset.Spot
+			tempResp.AssetType = assetType
 			tempResp.ClientOrderID = orderData.Result[y].ClientID
 			tempResp.Date = orderData.Result[y].CreatedAt
 			tempResp.Exchange = f.Name
@@ -655,14 +664,14 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Fee = orderVars.Fee
 			resp = append(resp, tempResp)
 		}
-		triggerOrderData, err := f.GetOpenTriggerOrders(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], asset.Spot).String(), getOrdersRequest.Type.String())
+		triggerOrderData, err := f.GetOpenTriggerOrders(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], assetType).String(), getOrdersRequest.Type.String())
 		if err != nil {
 			return resp, err
 		}
 		for z := range triggerOrderData.Result {
 			tempResp.ID = strconv.FormatInt(triggerOrderData.Result[z].ID, 10)
 			tempResp.Amount = triggerOrderData.Result[z].Size
-			tempResp.AssetType = asset.Spot
+			tempResp.AssetType = assetType
 			tempResp.Date = triggerOrderData.Result[z].CreatedAt
 			tempResp.Exchange = f.Name
 			tempResp.ExecutedAmount = triggerOrderData.Result[z].FilledSize
@@ -695,7 +704,11 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 	var resp []order.Detail
 	for x := range getOrdersRequest.Pairs {
 		var tempResp order.Detail
-		orderData, err := f.FetchOrderHistory(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], asset.Spot).String(),
+		assetType, err := f.GetPairAssetType(getOrdersRequest.Pairs[x])
+		if err != nil {
+			return resp, err
+		}
+		orderData, err := f.FetchOrderHistory(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], assetType).String(),
 			getOrdersRequest.StartTicks, getOrdersRequest.EndTicks, "")
 		if err != nil {
 			return resp, err
@@ -703,7 +716,7 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 		for y := range orderData.Result {
 			tempResp.ID = strconv.FormatInt(orderData.Result[y].ID, 10)
 			tempResp.Amount = orderData.Result[y].Size
-			tempResp.AssetType = asset.Spot
+			tempResp.AssetType = assetType
 			tempResp.ClientOrderID = orderData.Result[y].ClientID
 			tempResp.Date = orderData.Result[y].CreatedAt
 			tempResp.Exchange = f.Name
@@ -727,15 +740,15 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Fee = orderVars.Fee
 			resp = append(resp, tempResp)
 		}
-		triggerOrderData, err := f.GetTriggerOrderHistory(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], asset.Spot).String(),
-			getOrdersRequest.StartTicks, getOrdersRequest.EndTicks, getOrdersRequest.Side.String(), getOrdersRequest.Type.String(), "")
+		triggerOrderData, err := f.GetTriggerOrderHistory(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], assetType).String(),
+			getOrdersRequest.StartTicks, getOrdersRequest.EndTicks, strings.ToLower(getOrdersRequest.Side.String()), strings.ToLower(getOrdersRequest.Type.String()), "")
 		if err != nil {
 			return resp, err
 		}
 		for z := range triggerOrderData.Result {
 			tempResp.ID = strconv.FormatInt(triggerOrderData.Result[z].ID, 10)
 			tempResp.Amount = triggerOrderData.Result[z].Size
-			tempResp.AssetType = asset.Spot
+			tempResp.AssetType = assetType
 			tempResp.Date = triggerOrderData.Result[z].CreatedAt
 			tempResp.Exchange = f.Name
 			tempResp.ExecutedAmount = triggerOrderData.Result[z].FilledSize

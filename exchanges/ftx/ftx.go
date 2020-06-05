@@ -82,7 +82,7 @@ const (
 	createQuoteRequest       = "/options/requests"
 	deleteQuote              = "/options/requests/"
 	getQuotesForQuote        = "/options/requests/%s/quotes"
-	createQuote              = "/options/requests/%s/quotes?"
+	createQuote              = "/options/requests/%s/quotes"
 	getMyQuotes              = "/options/my_quotes"
 	deleteMyQuote            = "/options/quotes/"
 	acceptQuote              = "/options/quotes/%s/accept"
@@ -588,7 +588,7 @@ func (f *FTX) GetYourQuoteRequests() (PersonalQuotes, error) {
 }
 
 // CreateQuoteRequest sends a request to create a quote
-func (f *FTX) CreateQuoteRequest(underlying, optionType, side, expiry, requestExpiry string, strike, size, limitPrice, counterParyID float64, hideLimitPrice bool) (CreateQuote, error) {
+func (f *FTX) CreateQuoteRequest(underlying, optionType, side string, expiry int64, requestExpiry string, strike, size, limitPrice, counterParyID float64, hideLimitPrice bool) (CreateQuote, error) {
 	req := make(map[string]interface{})
 	req["underlying"] = underlying
 	req["type"] = optionType

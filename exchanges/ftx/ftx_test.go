@@ -3,7 +3,6 @@ package ftx
 import (
 	"log"
 	"os"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -517,7 +516,7 @@ func TestCreateQuoteRequest(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip()
 	}
-	_, err := f.CreateQuoteRequest(strings.ToUpper(currency.BTC.String()), "call", order.Buy.Lower(), strconv.FormatInt(time.Now().AddDate(0, 0, 3).UnixNano()/1000000, 10), "", 0.1, 10, 5, 0, false)
+	_, err := f.CreateQuoteRequest(strings.ToUpper(currency.BTC.String()), "call", order.Buy.Lower(), 1593140400, "", 10, 10, 5, 0, false)
 	if err != nil {
 		t.Error(err)
 	}

@@ -38,6 +38,8 @@ const (
 	unsubscribe       = "unsubscribe"
 )
 
+var obSuccess = make(map[currency.Pair]bool)
+
 // WsConnect connects to a websocket feed
 func (f *FTX) WsConnect() error {
 	if !f.Websocket.IsEnabled() || !f.IsEnabled() {
@@ -324,6 +326,8 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 				f.wsResubToOB(p)
 				return err
 			}
+			// reset obchecksum failure blockage for pair
+			delete(obSuccess, p)
 		case wsMarkets:
 			var resultData WSMarkets
 			err = json.Unmarshal(respRaw, &resultData)
@@ -397,6 +401,12 @@ func (f *FTX) WsProcessUpdateOB(data *WsOrderbookData, p currency.Pair, a asset.
 }
 
 func (f *FTX) wsResubToOB(p currency.Pair) {
+	if ok := obSuccess[p]; ok {
+		return
+	}
+
+	obSuccess[p] = true
+
 	channelToResubscribe := wshandler.WebsocketChannelSubscription{
 		Channel:  wsOrderbook,
 		Currency: p,
@@ -413,6 +423,7 @@ func (f *FTX) WsProcessPartialOB(data *WsOrderbookData, p currency.Pair, a asset
 			a,
 			p)
 	}
+	// obSuccess[p] = false
 	var bids, asks []orderbook.Item
 	for x := range data.Bids {
 		bids = append(bids, orderbook.Item{
