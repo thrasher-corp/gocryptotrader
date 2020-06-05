@@ -41,8 +41,6 @@ const (
 	coinbaseproReports                 = "reports"
 	coinbaseproTime                    = "time"
 	coinbaseproMarginTransfer          = "profiles/margin-transfer"
-	coinbaseproFunding                 = "funding"
-	coinbaseproFundingRepay            = "funding/repay"
 	coinbaseproPosition                = "position"
 	coinbaseproPositionClose           = "position/close"
 	coinbaseproPaymentMethod           = "payment-methods"
@@ -487,37 +485,6 @@ func (c *CoinbasePro) GetFills(orderID, currencyPair string) ([]FillResponse, er
 	return resp,
 		c.SendAuthenticatedHTTPRequest(http.MethodGet, uri[1:], nil, &resp)
 }
-
-// GetFundingRecords every order placed with a margin profile that draws funding
-// will create a funding record.
-//
-// status - "outstanding", "settled", or "rejected"
-func (c *CoinbasePro) GetFundingRecords(status string) ([]Funding, error) {
-	var resp []Funding
-	params := url.Values{}
-	params.Set("status", status)
-
-	path := common.EncodeURLValues(c.API.Endpoints.URL+coinbaseproFunding, params)
-	uri := common.GetURIPath(path)
-
-	return resp,
-		c.SendAuthenticatedHTTPRequest(http.MethodGet, uri[1:], nil, &resp)
-}
-
-// //////////////////////// Not receiving reply from server /////////////////
-// RepayFunding repays the older funding records first
-//
-// amount - amount of currency to repay
-// currency - currency, example USD
-// func (c *CoinbasePro) RepayFunding(amount, currency string) (Funding, error) {
-// 	resp := Funding{}
-// 	params := make(map[string]interface{})
-// 	params["amount"] = amount
-// 	params["currency"] = currency
-//
-// 	return resp,
-// 		c.SendAuthenticatedHTTPRequest(http.MethodPost, coinbaseproFundingRepay, params, &resp)
-// }
 
 // MarginTransfer sends funds between a standard/default profile and a margin
 // profile.

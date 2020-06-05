@@ -47,6 +47,7 @@ const (
 	poloniexActiveLoans          = "returnActiveLoans"
 	poloniexLendingHistory       = "returnLendingHistory"
 	poloniexAutoRenew            = "toggleAutoRenew"
+	poloniexMaxOrderbookDepth    = 100
 )
 
 // Poloniex is the overarching type across the poloniex package
@@ -94,27 +95,29 @@ func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (OrderbookAll, e
 		if resp.Error != "" {
 			return oba, fmt.Errorf("%s GetOrderbook() error: %s", p.Name, resp.Error)
 		}
-		ob := Orderbook{}
+		var ob Orderbook
 		for x := range resp.Asks {
-			data := resp.Asks[x]
-			price, err := strconv.ParseFloat(data[0].(string), 64)
+			price, err := strconv.ParseFloat(resp.Asks[x][0].(string), 64)
 			if err != nil {
 				return oba, err
 			}
-			amount := data[1].(float64)
-			ob.Asks = append(ob.Asks, OrderbookItem{Price: price, Amount: amount})
+			ob.Asks = append(ob.Asks, OrderbookItem{
+				Price:  price,
+				Amount: resp.Asks[x][1].(float64),
+			})
 		}
 
 		for x := range resp.Bids {
-			data := resp.Bids[x]
-			price, err := strconv.ParseFloat(data[0].(string), 64)
+			price, err := strconv.ParseFloat(resp.Bids[x][0].(string), 64)
 			if err != nil {
 				return oba, err
 			}
-			amount := data[1].(float64)
-			ob.Bids = append(ob.Bids, OrderbookItem{Price: price, Amount: amount})
+			ob.Bids = append(ob.Bids, OrderbookItem{
+				Price:  price,
+				Amount: resp.Bids[x][1].(float64),
+			})
 		}
-		oba.Data[currencyPair] = Orderbook{Bids: ob.Bids, Asks: ob.Asks}
+		oba.Data[currencyPair] = ob
 	} else {
 		vals.Set("currencyPair", "all")
 		resp := OrderbookResponseAll{}
@@ -141,12 +144,12 @@ func (p *Poloniex) GetOrderbook(currencyPair string, depth int) (OrderbookAll, e
 				if err != nil {
 					return oba, err
 				}
-				ob.Asks = append(ob.Asks, OrderbookItem{
+				ob.Bids = append(ob.Bids, OrderbookItem{
 					Price:  price,
 					Amount: orderbook.Bids[x][1].(float64),
 				})
 			}
-			oba.Data[currency] = Orderbook{Bids: ob.Bids, Asks: ob.Asks}
+			oba.Data[currency] = ob
 		}
 	}
 	return oba, nil

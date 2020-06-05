@@ -238,16 +238,7 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 		case 2:
 			oSide = order.Buy
 		}
-		var cTime, cTimeDec, mTime, mTimeDec int64
 		var price, amount, filledTotal, left, fee float64
-		cTime, cTimeDec, err = convert.SplitFloatDecimals(invalidJSON["ctime"].(float64))
-		if err != nil {
-			return err
-		}
-		mTime, mTimeDec, err = convert.SplitFloatDecimals(invalidJSON["mtime"].(float64))
-		if err != nil {
-			return err
-		}
 		price, err = strconv.ParseFloat(invalidJSON["price"].(string), 64)
 		if err != nil {
 			return err
@@ -292,8 +283,8 @@ func (g *Gateio) wsHandleData(respRaw []byte) error {
 			Side:            oSide,
 			Status:          oStatus,
 			AssetType:       a,
-			Date:            time.Unix(cTime, cTimeDec),
-			LastUpdated:     time.Unix(mTime, mTimeDec),
+			Date:            convert.TimeFromUnixTimestampDecimal(invalidJSON["ctime"].(float64)),
+			LastUpdated:     convert.TimeFromUnixTimestampDecimal(invalidJSON["mtime"].(float64)),
 			Pair:            p,
 		}
 	case strings.Contains(result.Method, "depth"):

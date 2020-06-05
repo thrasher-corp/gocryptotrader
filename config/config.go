@@ -1762,3 +1762,16 @@ func (c *Config) UpdateConfig(configPath string, newCfg *Config, dryrun bool) er
 func GetConfig() *Config {
 	return &Cfg
 }
+
+// RemoveExchange removes an exchange config
+func (c *Config) RemoveExchange(exchName string) bool {
+	m.Lock()
+	defer m.Unlock()
+	for x := range c.Exchanges {
+		if strings.EqualFold(c.Exchanges[x].Name, exchName) {
+			c.Exchanges = append(c.Exchanges[:x], c.Exchanges[x+1:]...)
+			return true
+		}
+	}
+	return false
+}

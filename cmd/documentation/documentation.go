@@ -226,6 +226,11 @@ func main() {
 				URL:           "https://github.com/lookfirst",
 				Contributions: 1,
 			},
+			{
+				Login:         "merkeld",
+				URL:           "https://github.com/merkeld",
+				Contributions: 1,
+			},
 		}...)
 
 		if verbose {

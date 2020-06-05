@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -342,10 +341,6 @@ func (k *Kraken) wsProcessOwnTrades(ownOrders interface{}) error {
 						Err:      err,
 					}
 				}
-				txTime, txTimeNano, err := convert.SplitFloatDecimals(val.Time)
-				if err != nil {
-					return err
-				}
 				trade := order.TradeHistory{
 					Price:     val.Price,
 					Amount:    val.Vol,
@@ -354,7 +349,7 @@ func (k *Kraken) wsProcessOwnTrades(ownOrders interface{}) error {
 					TID:       key,
 					Type:      oType,
 					Side:      oSide,
-					Timestamp: time.Unix(txTime, txTimeNano),
+					Timestamp: convert.TimeFromUnixTimestampDecimal(val.Time),
 				}
 				k.Websocket.DataHandler <- &order.Modify{
 					Exchange: k.Name,
@@ -391,10 +386,6 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 					}
 				}
 				if val.Description.Price > 0 {
-					startTime, startTimeNano, err := convert.SplitFloatDecimals(val.StartTime)
-					if err != nil {
-						return err
-					}
 					oSide, err := order.StringToOrderSide(val.Description.Type)
 					if err != nil {
 						k.Websocket.DataHandler <- order.ClassificationError{
@@ -443,7 +434,7 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 						Side:            oSide,
 						Status:          oStatus,
 						AssetType:       a,
-						Date:            time.Unix(startTime, startTimeNano),
+						Date:            convert.TimeFromUnixTimestampDecimal(val.OpenTime),
 						Pair:            p,
 					}
 				} else {
@@ -549,8 +540,6 @@ func (k *Kraken) wsProcessSpread(channelData *WebsocketChannelData, data []inter
 
 	bidVolume := data[3].(string)
 	askVolume := data[4].(string)
-	sec, dec := math.Modf(timeData)
-	spreadTimestamp := time.Unix(int64(sec), int64(dec*(1e9)))
 	if k.Verbose {
 		log.Debugf(log.ExchangeSys,
 			"%v Spread data for '%v' received. Best bid: '%v' Best ask: '%v' Time: '%v', Bid volume '%v', Ask volume '%v'",
@@ -558,7 +547,7 @@ func (k *Kraken) wsProcessSpread(channelData *WebsocketChannelData, data []inter
 			channelData.Pair,
 			bestBid,
 			bestAsk,
-			spreadTimestamp,
+			convert.TimeFromUnixTimestampDecimal(timeData),
 			bidVolume,
 			askVolume)
 	}
@@ -573,8 +562,6 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 			k.Websocket.DataHandler <- err
 			return
 		}
-		sec, dec := math.Modf(timeData)
-		timeUnix := time.Unix(int64(sec), int64(dec*(1e9)))
 
 		price, err := strconv.ParseFloat(trade[0].(string), 64)
 		if err != nil {
@@ -603,7 +590,7 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 			Exchange:     k.Name,
 			Price:        price,
 			Amount:       amount,
-			Timestamp:    timeUnix,
+			Timestamp:    convert.TimeFromUnixTimestampDecimal(timeData),
 			Side:         tSide,
 			EventType:    tType,
 		}
@@ -667,8 +654,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 		if err != nil {
 			return err
 		}
-		sec, dec := math.Modf(timeData)
-		askUpdatedTime := time.Unix(int64(sec), int64(dec*(1e9)))
+		askUpdatedTime := convert.TimeFromUnixTimestampDecimal(timeData)
 		if highestLastUpdate.Before(askUpdatedTime) {
 			highestLastUpdate = askUpdatedTime
 		}
@@ -692,8 +678,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 		if err != nil {
 			return err
 		}
-		sec, dec := math.Modf(timeData)
-		bidUpdateTime := time.Unix(int64(sec), int64(dec*(1e9)))
+		bidUpdateTime := convert.TimeFromUnixTimestampDecimal(timeData)
 		if highestLastUpdate.Before(bidUpdateTime) {
 			highestLastUpdate = bidUpdateTime
 		}
@@ -733,8 +718,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 			return err
 		}
 
-		sec, dec := math.Modf(timeData)
-		askUpdatedTime := time.Unix(int64(sec), int64(dec*(1e9)))
+		askUpdatedTime := convert.TimeFromUnixTimestampDecimal(timeData)
 		if highestLastUpdate.Before(askUpdatedTime) {
 			highestLastUpdate = askUpdatedTime
 		}
@@ -762,8 +746,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 			return err
 		}
 
-		sec, dec := math.Modf(timeData)
-		bidUpdatedTime := time.Unix(int64(sec), int64(dec*(1e9)))
+		bidUpdatedTime := convert.TimeFromUnixTimestampDecimal(timeData)
 		if highestLastUpdate.Before(bidUpdatedTime) {
 			highestLastUpdate = bidUpdatedTime
 		}
@@ -778,15 +761,11 @@ func (k *Kraken) wsProcessCandles(channelData *WebsocketChannelData, data []inte
 	if err != nil {
 		return err
 	}
-	sec, dec := math.Modf(startTime)
-	startTimeUnix := time.Unix(int64(sec), int64(dec*(1e9)))
 
 	endTime, err := strconv.ParseFloat(data[1].(string), 64)
 	if err != nil {
 		return err
 	}
-	sec, dec = math.Modf(endTime)
-	endTimeUnix := time.Unix(int64(sec), int64(dec*(1e9)))
 
 	openPrice, err := strconv.ParseFloat(data[2].(string), 64)
 	if err != nil {
@@ -818,8 +797,8 @@ func (k *Kraken) wsProcessCandles(channelData *WebsocketChannelData, data []inte
 		Pair:      channelData.Pair,
 		Timestamp: time.Now(),
 		Exchange:  k.Name,
-		StartTime: startTimeUnix,
-		CloseTime: endTimeUnix,
+		StartTime: convert.TimeFromUnixTimestampDecimal(startTime),
+		CloseTime: convert.TimeFromUnixTimestampDecimal(endTime),
 		// Candles are sent every 60 seconds
 		Interval:   "60",
 		HighPrice:  highPrice,

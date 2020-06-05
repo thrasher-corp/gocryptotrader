@@ -174,12 +174,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 		}
 		ts := wsOrder.Time
 		if wsOrder.Type == "activate" {
-			var one, two int64
-			one, two, err = convert.SplitFloatDecimals(wsOrder.Timestamp)
-			if err != nil {
-				return err
-			}
-			ts = time.Unix(one, two)
+			ts = convert.TimeFromUnixTimestampDecimal(wsOrder.Timestamp)
 		}
 
 		var p currency.Pair

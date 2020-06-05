@@ -232,8 +232,6 @@ func (e *EXMO) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
-
 	enabledPairs, err := e.GetEnabledPairs(assetType)
 	if err != nil {
 		return nil, err
@@ -241,12 +239,12 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 
 	pairsCollated, err := e.FormatExchangeCurrencies(enabledPairs, assetType)
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
 
 	result, err := e.GetOrderbook(pairsCollated)
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
 
 	for i := range enabledPairs {
@@ -260,40 +258,43 @@ func (e *EXMO) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 			continue
 		}
 
-		var obItems []orderbook.Item
+		orderBook := new(orderbook.Base)
 		for y := range data.Ask {
-			var price float64
+			var price, amount float64
 			price, err = strconv.ParseFloat(data.Ask[y][0], 64)
 			if err != nil {
-				return nil, err
+				return orderBook, err
 			}
-			var amount float64
+
 			amount, err = strconv.ParseFloat(data.Ask[y][1], 64)
 			if err != nil {
-				return nil, err
+				return orderBook, err
 			}
-			obItems = append(obItems,
-				orderbook.Item{Price: price, Amount: amount})
+
+			orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+				Price:  price,
+				Amount: amount,
+			})
 		}
 
-		orderBook.Asks = obItems
-		obItems = []orderbook.Item{}
 		for y := range data.Bid {
-			var price float64
+			var price, amount float64
 			price, err = strconv.ParseFloat(data.Bid[y][0], 64)
 			if err != nil {
-				return nil, err
+				return orderBook, err
 			}
-			var amount float64
+
 			amount, err = strconv.ParseFloat(data.Bid[y][1], 64)
 			if err != nil {
-				return nil, err
+				return orderBook, err
 			}
-			obItems = append(obItems,
-				orderbook.Item{Price: price, Amount: amount})
+
+			orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+				Price:  price,
+				Amount: amount,
+			})
 		}
 
-		orderBook.Bids = obItems
 		orderBook.Pair = enabledPairs[i]
 		orderBook.ExchangeName = e.Name
 		orderBook.AssetType = assetType

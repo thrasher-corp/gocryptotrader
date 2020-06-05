@@ -9,15 +9,17 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -109,9 +111,10 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 			AutoPairUpdates: true,
 		},
 	}
+	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
 	{{.Variable}}.Requester = request.New({{.Variable}}.Name,
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(request.NewRateLimit(time.Second, 0)))
+		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
+
 	{{.Variable}}.API.Endpoints.URLDefault = {{.Name}}APIURL
 	{{.Variable}}.API.Endpoints.URL = {{.Variable}}.API.Endpoints.URLDefault
 	{{.Variable}}.Websocket = stream.New()
@@ -305,10 +308,14 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(p currency.Pair, assetTyp
 	return orderbook.Get({{.Variable}}.Name, p, assetType)
 }
 
-// GetAccountInfo retrieves balances for all enabled currencies for the
-// {{.CapitalName}} exchange
-func ({{.Variable}} *{{.CapitalName}}) GetAccountInfo() (exchange.AccountInfo, error) {
-	return exchange.AccountInfo{}, common.ErrNotYetImplemented
+// UpdateAccountInfo retrieves balances for all enabled currencies
+func ({{.Variable}} *{{.CapitalName}}) UpdateAccountInfo() (account.Holdings, error) {
+	return account.Holdings{}, common.ErrNotYetImplemented
+}
+
+// FetchAccountInfo retrieves balances for all enabled currencies
+func ({{.Variable}} *{{.CapitalName}}) FetchAccountInfo() (account.Holdings, error) {
+	return account.Holdings{}, common.ErrNotYetImplemented
 }
 
 // GetFundingHistory returns funding history, deposits and
@@ -360,19 +367,19 @@ func ({{.Variable}} *{{.CapitalName}}) GetDepositAddress(cryptocurrency currency
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func ({{.Variable}} *{{.CapitalName}}) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	return "", common.ErrNotYetImplemented
+	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	return "", common.ErrNotYetImplemented
+	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
-	return "", common.ErrNotYetImplemented
+func ({{.Variable}} *{{.CapitalName}}) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
@@ -411,13 +418,25 @@ func ({{.Variable}} *{{.CapitalName}}) UnsubscribeToWebsocketChannels(channels [
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func  ({{.Variable}} *{{.CapitalName}}) GetSubscriptions() ([]stream.ChannelSubscription, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func  ({{.Variable}} *{{.CapitalName}}) AuthenticateWebsocket() error {
+func ({{.Variable}} *{{.CapitalName}}) AuthenticateWebsocket() error {
 	return common.ErrNotYetImplemented
+}
+
+// ValidateCredentials validates current credentials used for wrapper
+// functionality
+func ({{.Variable}} *{{.CapitalName}}) ValidateCredentials() error {
+	_, err := {{.Variable}}.UpdateAccountInfo()
+	return {{.Variable}}.CheckTransientError(err)
+}
+
+// GetHistoricCandles returns candles between a time period for a set time interval
+func ({{.Variable}} *{{.CapitalName}}) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
+	return kline.Item{}, common.ErrNotYetImplemented
 }
 
 {{end}}

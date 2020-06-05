@@ -535,11 +535,16 @@ func (h *HUOBI) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
+	p, err := h.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	var formattedType SpotNewOrderRequestParamsType
 	var params = SpotNewOrderRequestParams{
 		Amount:    s.Amount,
 		Source:    "api",
-		Symbol:    s.Pair.Lower().String(),
+		Symbol:    p.String(),
 		AccountID: int(accountID),
 	}
 
@@ -823,29 +828,34 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 		}
 	} else {
 		for i := range req.Pairs {
+			p, err := h.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
+			if err != nil {
+				return nil, err
+			}
+
 			resp, err := h.GetOpenOrders(h.API.Credentials.ClientID,
-				req.Pairs[i].Lower().String(),
+				p.String(),
 				side,
 				500)
 			if err != nil {
 				return nil, err
 			}
 
-			for i := range resp {
+			for x := range resp {
 				orderDetail := order.Detail{
-					ID:             strconv.FormatInt(resp[i].ID, 10),
-					Price:          resp[i].Price,
-					Amount:         resp[i].Amount,
+					ID:             strconv.FormatInt(resp[x].ID, 10),
+					Price:          resp[x].Price,
+					Amount:         resp[x].Amount,
 					Pair:           req.Pairs[i],
 					Exchange:       h.Name,
-					ExecutedAmount: resp[i].FilledAmount,
-					Date:           time.Unix(0, resp[i].CreatedAt*int64(time.Millisecond)),
-					Status:         order.Status(resp[i].State),
-					AccountID:      strconv.FormatInt(resp[i].AccountID, 10),
-					Fee:            resp[i].FilledFees,
+					ExecutedAmount: resp[x].FilledAmount,
+					Date:           time.Unix(0, resp[x].CreatedAt*int64(time.Millisecond)),
+					Status:         order.Status(resp[x].State),
+					AccountID:      strconv.FormatInt(resp[x].AccountID, 10),
+					Fee:            resp[x].FilledFees,
 				}
 
-				setOrderSideAndType(resp[i].Type, &orderDetail)
+				setOrderSideAndType(resp[x].Type, &orderDetail)
 
 				orders = append(orders, orderDetail)
 			}
@@ -866,7 +876,13 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 	states := "partial-canceled,filled,canceled"
 	var orders []order.Detail
 	for i := range req.Pairs {
-		resp, err := h.GetOrders(req.Pairs[i].Lower().String(),
+		p, err := h.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+
+		resp, err := h.GetOrders(
+			p.String(),
 			"",
 			"",
 			"",
@@ -878,21 +894,21 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 			return nil, err
 		}
 
-		for i := range resp {
+		for x := range resp {
 			orderDetail := order.Detail{
-				ID:             strconv.FormatInt(resp[i].ID, 10),
-				Price:          resp[i].Price,
-				Amount:         resp[i].Amount,
+				ID:             strconv.FormatInt(resp[x].ID, 10),
+				Price:          resp[x].Price,
+				Amount:         resp[x].Amount,
 				Pair:           req.Pairs[i],
 				Exchange:       h.Name,
-				ExecutedAmount: resp[i].FilledAmount,
-				Date:           time.Unix(0, resp[i].CreatedAt*int64(time.Millisecond)),
-				Status:         order.Status(resp[i].State),
-				AccountID:      strconv.FormatInt(resp[i].AccountID, 10),
-				Fee:            resp[i].FilledFees,
+				ExecutedAmount: resp[x].FilledAmount,
+				Date:           time.Unix(0, resp[x].CreatedAt*int64(time.Millisecond)),
+				Status:         order.Status(resp[x].State),
+				AccountID:      strconv.FormatInt(resp[x].AccountID, 10),
+				Fee:            resp[x].FilledFees,
 			}
 
-			setOrderSideAndType(resp[i].Type, &orderDetail)
+			setOrderSideAndType(resp[x].Type, &orderDetail)
 
 			orders = append(orders, orderDetail)
 		}

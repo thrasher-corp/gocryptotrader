@@ -1781,3 +1781,26 @@ func TestPreengineConfigUpgrade(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestRemoveExchange(t *testing.T) {
+	t.Parallel()
+	var c Config
+	const testExchangeName = "0xBAAAAAAD"
+	c.Exchanges = append(c.Exchanges, ExchangeConfig{
+		Name: testExchangeName,
+	})
+	_, err := c.GetExchangeConfig(testExchangeName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if success := c.RemoveExchange(testExchangeName); !success {
+		t.Fatal("exchange should of been removed")
+	}
+	_, err = c.GetExchangeConfig(testExchangeName)
+	if err == nil {
+		t.Fatal("non-existent exchange should throw an error")
+	}
+	if success := c.RemoveExchange("1D10TH0RS3"); success {
+		t.Fatal("exchange shouldn't exist")
+	}
+}

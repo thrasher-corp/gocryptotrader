@@ -141,7 +141,12 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 
 	k.SetupDefaults(exch)
 
-	err := k.Websocket.Setup(&stream.WebsocketSetup{
+	err := k.SeedAssets()
+	if err != nil {
+		return err
+	}
+
+	err = k.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -222,7 +227,8 @@ func (k *Kraken) Run() {
 	}
 
 	if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-		!common.StringDataContains(avail.Strings(), format.Delimiter) {
+		!common.StringDataContains(avail.Strings(), format.Delimiter) ||
+		common.StringDataContains(avail.Strings(), "ZUSD") {
 		var p currency.Pairs
 		p, err = currency.NewPairsFromStrings([]string{currency.XBT.String() +
 			format.Delimiter +
@@ -261,6 +267,12 @@ func (k *Kraken) Run() {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (k *Kraken) FetchTradablePairs(asset asset.Item) ([]string, error) {
+	if !assetTranslator.Seeded() {
+		if err := k.SeedAssets(); err != nil {
+			return nil, err
+		}
+	}
+
 	pairs, err := k.GetAssetPairs()
 	if err != nil {
 		return nil, err
@@ -273,21 +285,28 @@ func (k *Kraken) FetchTradablePairs(asset asset.Item) ([]string, error) {
 
 	var products []string
 	for i := range pairs {
-		v := pairs[i]
-		if strings.Contains(v.Altname, ".d") {
+		if strings.Contains(pairs[i].Altname, ".d") {
 			continue
 		}
-		if v.Base[0] == 'X' {
-			if len(v.Base) > 3 {
-				v.Base = v.Base[1:]
-			}
+
+		base := assetTranslator.LookupAltname(pairs[i].Base)
+		if base == "" {
+			log.Warnf(log.ExchangeSys,
+				"%s unable to lookup altname for base currency %s",
+				k.Name,
+				pairs[i].Base)
+			continue
 		}
-		if v.Quote[0] == 'Z' || v.Quote[0] == 'X' {
-			v.Quote = v.Quote[1:]
+
+		quote := assetTranslator.LookupAltname(pairs[i].Quote)
+		if quote == "" {
+			log.Warnf(log.ExchangeSys,
+				"%s unable to lookup altname for quote currency %s",
+				k.Name,
+				pairs[i].Quote)
+			continue
 		}
-		products = append(products, v.Base+
-			format.Delimiter+
-			v.Quote)
+		products = append(products, base+format.Delimiter+quote)
 	}
 	return products, nil
 }
@@ -329,8 +348,8 @@ func (k *Kraken) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 				return nil, err
 			}
 			if !strings.EqualFold(pairFmt.String(), c) {
-				altCurrency, ok := assetPairMap[c]
-				if !ok {
+				altCurrency := assetTranslator.LookupAltname(c)
+				if altCurrency == "" {
 					continue
 				}
 				if !strings.EqualFold(pairFmt.String(), altCurrency) {
@@ -427,8 +446,15 @@ func (k *Kraken) UpdateAccountInfo() (account.Holdings, error) {
 
 	var balances []account.Balance
 	for key := range bal {
+		translatedCurrency := assetTranslator.LookupAltname(key)
+		if translatedCurrency == "" {
+			log.Warnf(log.ExchangeSys, "%s unable to translate currency: %s\n",
+				k.Name,
+				key)
+			continue
+		}
 		balances = append(balances, account.Balance{
-			CurrencyName: currency.NewCode(key),
+			CurrencyName: currency.NewCode(translatedCurrency),
 			TotalValue:   bal[key],
 		})
 	}
@@ -562,15 +588,21 @@ func (k *Kraken) GetOrderInfo(orderID string) (order.Detail, error) {
 		return orderDetail, err
 	}
 	if orderInfo, ok := openOrders.Open[orderID]; ok {
+		avail, err := k.GetAvailablePairs(asset.Spot)
+		if err != nil {
+			return orderDetail, err
+		}
+
+		fmt, err := k.GetPairFormat(asset.Spot, false)
+		if err != nil {
+			return orderDetail, err
+		}
+
 		var trades []order.TradeHistory
 		for i := range orderInfo.Trades {
 			trades = append(trades, order.TradeHistory{
 				TID: orderInfo.Trades[i],
 			})
-		}
-		firstNum, decNum, err := convert.SplitFloatDecimals(orderInfo.StartTime)
-		if err != nil {
-			return orderDetail, err
 		}
 		side, err := order.StringToOrderSide(orderInfo.Description.Type)
 		if err != nil {
@@ -585,7 +617,9 @@ func (k *Kraken) GetOrderInfo(orderID string) (order.Detail, error) {
 			return orderDetail, err
 		}
 
-		p, err := currency.NewPairFromString(orderInfo.Description.Pair)
+		p, err := currency.NewPairFromFormattedPairs(orderInfo.Description.Pair,
+			avail,
+			fmt)
 		if err != nil {
 			return orderDetail, err
 		}
@@ -595,7 +629,7 @@ func (k *Kraken) GetOrderInfo(orderID string) (order.Detail, error) {
 			Pair:            p,
 			Side:            side,
 			Type:            oType,
-			Date:            time.Unix(firstNum, decNum),
+			Date:            convert.TimeFromUnixTimestampDecimal(orderInfo.OpenTime),
 			Status:          status,
 			Price:           orderInfo.Price,
 			Amount:          orderInfo.Volume,
@@ -687,28 +721,38 @@ func (k *Kraken) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 		return nil, err
 	}
 
+	avail, err := k.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt, err := k.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return nil, err
+	}
+
 	var orders []order.Detail
 	for i := range resp.Open {
-		symbol, err := currency.NewPairFromString(resp.Open[i].Description.Pair)
+		p, err := currency.NewPairFromFormattedPairs(resp.Open[i].Description.Pair,
+			avail,
+			fmt)
 		if err != nil {
 			return nil, err
 		}
 
-		orderDate := time.Unix(int64(resp.Open[i].StartTime), 0)
 		side := order.Side(strings.ToUpper(resp.Open[i].Description.Type))
 		orderType := order.Type(strings.ToUpper(resp.Open[i].Description.OrderType))
-
 		orders = append(orders, order.Detail{
 			ID:              i,
 			Amount:          resp.Open[i].Volume,
 			RemainingAmount: (resp.Open[i].Volume - resp.Open[i].VolumeExecuted),
 			ExecutedAmount:  resp.Open[i].VolumeExecuted,
 			Exchange:        k.Name,
-			Date:            orderDate,
+			Date:            convert.TimeFromUnixTimestampDecimal(resp.Open[i].OpenTime),
 			Price:           resp.Open[i].Description.Price,
 			Side:            side,
 			Type:            orderType,
-			Pair:            symbol,
+			Pair:            p,
 		})
 	}
 
@@ -729,6 +773,16 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 		req.End = strconv.FormatInt(getOrdersRequest.EndTicks.Unix(), 10)
 	}
 
+	avail, err := k.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt, err := k.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return nil, err
+	}
+
 	resp, err := k.GetClosedOrders(req)
 	if err != nil {
 		return nil, err
@@ -736,26 +790,27 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 
 	var orders []order.Detail
 	for i := range resp.Closed {
-		symbol, err := currency.NewPairFromString(resp.Closed[i].Description.Pair)
+		p, err := currency.NewPairFromFormattedPairs(resp.Closed[i].Description.Pair,
+			avail,
+			fmt)
 		if err != nil {
 			return nil, err
 		}
 
-		orderDate := time.Unix(int64(resp.Closed[i].StartTime), 0)
 		side := order.Side(strings.ToUpper(resp.Closed[i].Description.Type))
 		orderType := order.Type(strings.ToUpper(resp.Closed[i].Description.OrderType))
-
 		orders = append(orders, order.Detail{
 			ID:              i,
 			Amount:          resp.Closed[i].Volume,
 			RemainingAmount: (resp.Closed[i].Volume - resp.Closed[i].VolumeExecuted),
 			ExecutedAmount:  resp.Closed[i].VolumeExecuted,
 			Exchange:        k.Name,
-			Date:            orderDate,
+			Date:            convert.TimeFromUnixTimestampDecimal(resp.Closed[i].OpenTime),
+			CloseTime:       convert.TimeFromUnixTimestampDecimal(resp.Closed[i].CloseTime),
 			Price:           resp.Closed[i].Description.Price,
 			Side:            side,
 			Type:            orderType,
-			Pair:            symbol,
+			Pair:            p,
 		})
 	}
 
