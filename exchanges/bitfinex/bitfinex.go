@@ -451,12 +451,8 @@ func (b *Bitfinex) GetCandles(symbol, timeFrame string, start, end, limit int64,
 
 		var c []Candle
 		for i := range response {
-			tempTime := response[i][0].(float64)
-			sec, dec := math.Modf(tempTime)
-			timestamp := time.Unix(int64(sec), int64(dec*(1e9)))
-
 			c = append(c, Candle{
-				Timestamp: timestamp,
+				Timestamp: time.Unix(int64(response[i][0].(float64)/1000), 0),
 				Open:      response[i][1].(float64),
 				Close:     response[i][2].(float64),
 				High:      response[i][3].(float64),

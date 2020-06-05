@@ -894,8 +894,9 @@ func fixCasing(in currency.Pair, a asset.Item) string {
 		checkString[1] = "F"
 	}
 
-	if in.Upper().String()[0] != checkString[0][0] && in.Upper().String()[0] != checkString[1][0] ||
-		in.Upper().String()[0] == checkString[1][0] && in.Upper().String()[1] == checkString[1][0] {
+	v := in.Upper().String()
+	if v[0] != checkString[0][0] && v[0] != checkString[1][0] ||
+		v[0] == checkString[1][0] && v[1] == checkString[1][0] {
 		return checkString[0] + in.Upper().String()
 	}
 
