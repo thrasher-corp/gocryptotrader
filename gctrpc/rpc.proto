@@ -730,6 +730,18 @@ message WebsocketGetSubscriptionsRequest {
     string exchange = 1;
 }
 
+message WebsocketSubscription {
+    string channel = 1;
+    string currency = 2;
+    string asset = 3;
+    string params = 4;
+}
+
+message WebsocketGetSubscriptionsResponse {
+    string exchange = 1;
+    repeated WebsocketSubscription subscriptions = 2;
+}
+
 message WebsocketSetProxyRequest {
     string exchange = 1;
     string proxy = 2;
@@ -1182,7 +1194,7 @@ service GoCryptoTrader {
         };
     }
 
-    rpc WebsocketGetSubscriptions(WebsocketGetSubscriptionsRequest) returns (GCTScriptGenericResponse) {
+    rpc WebsocketGetSubscriptions(WebsocketGetSubscriptionsRequest) returns (WebsocketGetSubscriptionsResponse) {
         option (google.api.http) = {
             get: "/v1/websocketgetsubscriptions"
         };

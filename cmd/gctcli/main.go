@@ -135,6 +135,7 @@ func main() {
 		getAuditEventCommand,
 		getHistoricCandlesCommand,
 		gctScriptCommand,
+		websocketManagerCommand,
 	}
 
 	err := app.Run(os.Args)

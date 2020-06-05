@@ -2133,17 +2133,17 @@ func (s *RPCServer) WebsocketSetEnabled(_ context.Context, r *gctrpc.WebsocketSe
 		if w.IsEnabled() {
 			return nil, fmt.Errorf("websocket is already enabled for exchange %s", r.Exchange)
 		}
-		return new(gctrpc.GCTScriptGenericResponse), w.Shutdown()
+		return new(gctrpc.GCTScriptGenericResponse), w.Connect()
 	}
 
 	if !w.IsEnabled() {
 		return nil, fmt.Errorf("websocket is already disabled for exchange %s", r.Exchange)
 	}
-	return new(gctrpc.GCTScriptGenericResponse), w.Connect()
+	return new(gctrpc.GCTScriptGenericResponse), w.Shutdown()
 }
 
 // WebsocketGetSubscriptions returns websocket subscription analysis
-func (s *RPCServer) WebsocketGetSubscriptions(_ context.Context, r *gctrpc.WebsocketGetSubscriptionsRequest) (*gctrpc.GCTScriptGenericResponse, error) {
+func (s *RPCServer) WebsocketGetSubscriptions(_ context.Context, r *gctrpc.WebsocketGetSubscriptionsRequest) (*gctrpc.WebsocketGetSubscriptionsResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errors.New("exchange is not loaded/doesn't exist")
@@ -2154,12 +2154,21 @@ func (s *RPCServer) WebsocketGetSubscriptions(_ context.Context, r *gctrpc.Webso
 		return nil, fmt.Errorf("websocket not supported for exchange %s", r.Exchange)
 	}
 
-	payload := new(gctrpc.GCTScriptGenericResponse)
-	data, err := json.Marshal(w.GetSubscriptions())
-	if err != nil {
-		return nil, err
+	payload := new(gctrpc.WebsocketGetSubscriptionsResponse)
+	payload.Exchange = exch.GetName()
+	for i := range w.GetSubscriptions() {
+		params, err := json.Marshal(w.GetSubscriptions()[i].Params)
+		if err != nil {
+			return nil, err
+		}
+		payload.Subscriptions = append(payload.Subscriptions,
+			&gctrpc.WebsocketSubscription{
+				Channel:  w.GetSubscriptions()[i].Channel,
+				Currency: w.GetSubscriptions()[i].Currency.String(),
+				Asset:    w.GetSubscriptions()[i].Asset.String(),
+				Params:   string(params),
+			})
 	}
-	payload.Data = string(data)
 	return payload, nil
 }
 

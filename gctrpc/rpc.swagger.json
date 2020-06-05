@@ -1945,7 +1945,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptGenericResponse"
+              "$ref": "#/definitions/gctrpcWebsocketGetSubscriptionsResponse"
             }
           },
           "default": {
@@ -3644,6 +3644,37 @@
           "type": "string"
         },
         "proxy_address": {
+          "type": "string"
+        }
+      }
+    },
+    "gctrpcWebsocketGetSubscriptionsResponse": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "subscriptions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gctrpcWebsocketSubscription"
+          }
+        }
+      }
+    },
+    "gctrpcWebsocketSubscription": {
+      "type": "object",
+      "properties": {
+        "channel": {
+          "type": "string"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "params": {
           "type": "string"
         }
       }
