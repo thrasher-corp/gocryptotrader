@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -2092,16 +2093,108 @@ func (s *RPCServer) GetExchangeAssets(_ context.Context, r *gctrpc.GetExchangeAs
 	}, nil
 }
 
-
-// GetExchangeAssets returns the supported asset types
+// WebsocketGetInfo returns websocket connection information
 func (s *RPCServer) WebsocketGetInfo(_ context.Context, r *gctrpc.WebsocketGetInfoRequest) (*gctrpc.WebsocketGetInfoResponse, error) {
-	var report new(gctrpc.WebsocketGetInfoResponse)
-	exchs := GetExchanges()
-	for i := range exchs {
-		report.
+	exch := GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errors.New("exchange is not loaded/doesn't exist")
 	}
 
-	return &gctrpc.GetExchangeAssetsResponse{
-		Assets: exch.GetAssetTypes().JoinToString(","),
-	}, nil
+	payload := new(gctrpc.WebsocketGetInfoResponse)
+	payload.Exchange = exch.GetName()
+
+	w, err := exch.GetWebsocket()
+	if err != nil {
+		return payload, nil
+	}
+
+	payload.Supported = exch.SupportsWebsocket()
+	payload.Enabled = exch.IsWebsocketEnabled()
+	payload.Authenticated = w.CanUseAuthenticatedEndpoints()
+	payload.RunningUrl = w.GetWebsocketURL()
+	payload.ProxyAddress = w.GetProxyAddress()
+
+	return payload, nil
+}
+
+// WebsocketSetEnabled enables or disables the websocket client
+func (s *RPCServer) WebsocketSetEnabled(_ context.Context, r *gctrpc.WebsocketSetEnabledRequest) (*gctrpc.GCTScriptGenericResponse, error) {
+	exch := GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errors.New("exchange is not loaded/doesn't exist")
+	}
+
+	w, err := exch.GetWebsocket()
+	if err != nil {
+		return nil, fmt.Errorf("websocket not supported for exchange %s", r.Exchange)
+	}
+
+	if r.Enable {
+		if w.IsEnabled() {
+			return nil, fmt.Errorf("websocket is already enabled for exchange %s", r.Exchange)
+		}
+		return new(gctrpc.GCTScriptGenericResponse), w.Shutdown()
+	}
+
+	if !w.IsEnabled() {
+		return nil, fmt.Errorf("websocket is already disabled for exchange %s", r.Exchange)
+	}
+	return new(gctrpc.GCTScriptGenericResponse), w.Connect()
+}
+
+// WebsocketGetSubscriptions returns websocket subscription analysis
+func (s *RPCServer) WebsocketGetSubscriptions(_ context.Context, r *gctrpc.WebsocketGetSubscriptionsRequest) (*gctrpc.GCTScriptGenericResponse, error) {
+	exch := GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errors.New("exchange is not loaded/doesn't exist")
+	}
+
+	w, err := exch.GetWebsocket()
+	if err != nil {
+		return nil, fmt.Errorf("websocket not supported for exchange %s", r.Exchange)
+	}
+
+	payload := new(gctrpc.GCTScriptGenericResponse)
+	data, err := json.Marshal(w.GetSubscriptions())
+	if err != nil {
+		return nil, err
+	}
+	payload.Data = string(data)
+	return payload, nil
+}
+
+// WebsocketSetProxy sets client websocket connection proxy
+func (s *RPCServer) WebsocketSetProxy(_ context.Context, r *gctrpc.WebsocketSetProxyRequest) (*gctrpc.GCTScriptGenericResponse, error) {
+	exch := GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errors.New("exchange is not loaded/doesn't exist")
+	}
+
+	w, err := exch.GetWebsocket()
+	if err != nil {
+		return nil, fmt.Errorf("websocket not supported for exchange %s", r.Exchange)
+	}
+
+	err = w.SetProxyAddress(r.Proxy)
+	if err != nil {
+		return nil, err
+	}
+
+	return new(gctrpc.GCTScriptGenericResponse), nil
+}
+
+// WebsocketSetURL sets exchange websocket client connection URL
+func (s *RPCServer) WebsocketSetURL(_ context.Context, r *gctrpc.WebsocketSetURLRequest) (*gctrpc.GCTScriptGenericResponse, error) {
+	exch := GetExchangeByName(r.Exchange)
+	if exch == nil {
+		return nil, errors.New("exchange is not loaded/doesn't exist")
+	}
+
+	w, err := exch.GetWebsocket()
+	if err != nil {
+		return nil, fmt.Errorf("websocket not supported for exchange %s", r.Exchange)
+	}
+
+	w.SetWebsocketURL(r.Url)
+	return new(gctrpc.GCTScriptGenericResponse), nil
 }

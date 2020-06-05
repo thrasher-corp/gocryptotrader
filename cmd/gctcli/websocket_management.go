@@ -13,8 +13,14 @@ var websocketManagerCommand = cli.Command{
 	ArgsUsage: "<command> <args>",
 	Subcommands: []cli.Command{
 		{
-			Name:   "info",
-			Usage:  "returns all exchange websocket information",
+			Name:  "info",
+			Usage: "returns all exchange websocket information",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "exchange",
+					Usage: "the exchange to act on",
+				},
+			},
 			Action: getwebsocketInfo,
 		},
 		{
@@ -26,7 +32,7 @@ var websocketManagerCommand = cli.Command{
 					Usage: "the exchange to act on",
 				},
 			},
-			// Action: disableWebsocket,
+			Action: enableDisableWebsocket,
 		},
 		{
 			Name:  "enable",
@@ -37,7 +43,7 @@ var websocketManagerCommand = cli.Command{
 					Usage: "the exchange to act on",
 				},
 			},
-			// Action: enableWebsocket,
+			Action: enableDisableWebsocket,
 		},
 		{
 			Name:  "getSubs",
@@ -48,7 +54,7 @@ var websocketManagerCommand = cli.Command{
 					Usage: "the exchange to act on",
 				},
 			},
-			// Action: getSubscriptions,
+			Action: getSubscriptions,
 		},
 		{
 			Name:  "setproxy",
@@ -63,7 +69,7 @@ var websocketManagerCommand = cli.Command{
 					Usage: "proxy address to change to",
 				},
 			},
-			// Action: setProxy,
+			Action: setProxy,
 		},
 		{
 			Name:  "seturl",
@@ -78,7 +84,7 @@ var websocketManagerCommand = cli.Command{
 					Usage: "url string to change to",
 				},
 			},
-			// Action: setURL,
+			Action: setURL,
 		},
 	},
 }
@@ -95,12 +101,97 @@ func getwebsocketInfo(c *cli.Context) error {
 	defer conn.Close()
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.GetExchangePairs(context.Background(),
-		&gctrpc.GetExchangePairsRequest{
-			Exchange: exchange,
-			Asset:    asset,
-		},
-	)
+	result, err := client.WebsocketGetInfo(context.Background(),
+		&gctrpc.WebsocketGetInfoRequest{})
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}
+
+func enableDisableWebsocket(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowSubcommandHelp(c)
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.WebsocketSetEnabled(context.Background(),
+		&gctrpc.WebsocketSetEnabledRequest{
+			Enable: true,
+		})
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}
+
+func getSubscriptions(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowSubcommandHelp(c)
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.WebsocketGetSubscriptions(context.Background(),
+		&gctrpc.WebsocketGetSubscriptionsRequest{})
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}
+
+func setProxy(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowSubcommandHelp(c)
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.WebsocketSetProxy(context.Background(),
+		&gctrpc.WebsocketSetProxyRequest{
+			Exchange: "",
+			Proxy:    "",
+		})
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}
+
+func setURL(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowSubcommandHelp(c)
+	}
+
+	conn, err := setupClient()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := gctrpc.NewGoCryptoTraderClient(conn)
+	result, err := client.WebsocketSetURL(context.Background(),
+		&gctrpc.WebsocketSetURLRequest{Exchange: "", Url: ""})
 	if err != nil {
 		return err
 	}

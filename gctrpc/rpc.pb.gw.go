@@ -2006,9 +2006,20 @@ func local_request_GoCryptoTrader_GetExchangeAssets_0(ctx context.Context, marsh
 
 }
 
+var (
+	filter_GoCryptoTrader_WebsocketGetInfo_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+)
+
 func request_GoCryptoTrader_WebsocketGetInfo_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq WebsocketGetInfoRequest
 	var metadata runtime.ServerMetadata
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTrader_WebsocketGetInfo_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
 
 	msg, err := client.WebsocketGetInfo(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
@@ -2018,6 +2029,10 @@ func request_GoCryptoTrader_WebsocketGetInfo_0(ctx context.Context, marshaler ru
 func local_request_GoCryptoTrader_WebsocketGetInfo_0(ctx context.Context, marshaler runtime.Marshaler, server GoCryptoTraderServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq WebsocketGetInfoRequest
 	var metadata runtime.ServerMetadata
+
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_GoCryptoTrader_WebsocketGetInfo_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
 
 	msg, err := server.WebsocketGetInfo(ctx, &protoReq)
 	return msg, metadata, err

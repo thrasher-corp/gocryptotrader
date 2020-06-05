@@ -707,7 +707,9 @@ message GetExchangeAssetsResponse {
     string assets = 1;
 }
 
-message WebsocketGetInfoRequest {}
+message WebsocketGetInfoRequest {
+    string exchange = 1;
+}
 
 message WebsocketGetInfoResponse {
     string exchange = 1;
@@ -720,7 +722,8 @@ message WebsocketGetInfoResponse {
 }
 
 message WebsocketSetEnabledRequest {
-    bool enable = 1;
+    string exchange = 1;
+    bool enable = 2;
 }
 
 message WebsocketGetSubscriptionsRequest {

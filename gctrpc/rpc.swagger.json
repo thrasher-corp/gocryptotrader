@@ -1925,6 +1925,14 @@
             }
           }
         },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
         "tags": [
           "GoCryptoTrader"
         ]
@@ -1978,6 +1986,12 @@
           }
         },
         "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
           {
             "name": "enable",
             "in": "query",
