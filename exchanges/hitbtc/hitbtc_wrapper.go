@@ -717,14 +717,14 @@ func (h *HitBTC) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 			return kline.Item{}, err
 		}
 
-		for x := range data {
+		for i := range data {
 			ret.Candles = append(ret.Candles, kline.Candle{
-				Time:   data[x].Timestamp,
-				Open:   data[x].Open,
-				High:   data[x].Max,
-				Low:    data[x].Min,
-				Close:  data[x].Close,
-				Volume: data[x].Volume,
+				Time:   data[i].Timestamp,
+				Open:   data[i].Open,
+				High:   data[i].Max,
+				Low:    data[i].Min,
+				Close:  data[i].Close,
+				Volume: data[i].Volume,
 			})
 		}
 	}

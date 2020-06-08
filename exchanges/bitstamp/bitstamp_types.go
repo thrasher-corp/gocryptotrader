@@ -220,16 +220,17 @@ type websocketOrderBook struct {
 	Microtimestamp string     `json:"microtimestamp"`
 }
 
+// OHLCResponse holds returned candle data
 type OHLCResponse struct {
 	Data struct {
 		Pair  string `json:"pair"`
 		OHLCV []struct {
-			Timestamp int64  `json:"timestamp,string"`
-			Open      string `json:"open"`
-			High      string `json:"high"`
-			Low       string `json:"low"`
-			Close     string `json:"close"`
-			Volume    string `json:"volume"`
+			Timestamp int64   `json:"timestamp,string"`
+			Open      float64 `json:"open,string"`
+			High      float64 `json:"high,string"`
+			Low       float64 `json:"low,string"`
+			Close     float64 `json:"close,string"`
+			Volume    float64 `json:"volume,string"`
 		} `json:"ohlc"`
 	} `json:"data"`
 }

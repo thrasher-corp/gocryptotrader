@@ -77,7 +77,7 @@ func Insert(in *modelPSQL.Candle) error {
 	return nil
 }
 
-// Insert series of candles
+// InsertMany series of candles
 func InsertMany(in *[]modelPSQL.Candle) error {
 	if database.DB.SQL == nil {
 		return database.ErrDatabaseSupportDisabled

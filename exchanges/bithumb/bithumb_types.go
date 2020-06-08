@@ -285,7 +285,7 @@ type FullBalance struct {
 	Available map[string]float64
 }
 
-// OHLCVResponse
+// OHLCVResponse holds returned kline data
 type OHLCVResponse struct {
 	Status string           `json:"status"`
 	Data   [][6]interface{} `json:"data"`

@@ -605,8 +605,5 @@ var errCode = map[string]string{
 func (b *Bithumb) GetCandleStick(symbol, interval string) (resp OHLCVResponse, err error) {
 	path := b.API.Endpoints.URL + publicCandleStick + symbol + "/" + interval
 	err = b.SendHTTPRequest(path, &resp)
-	if err != nil {
-		return
-	}
 	return
 }

@@ -870,14 +870,14 @@ func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 			return kline.Item{}, err
 		}
 
-		for x := range candles {
+		for i := range candles {
 			ret.Candles = append(ret.Candles, kline.Candle{
-				Time:   candles[x].Timestamp,
-				Open:   candles[x].Open,
-				High:   candles[x].Close,
-				Low:    candles[x].Low,
-				Close:  candles[x].Close,
-				Volume: candles[x].Volume,
+				Time:   candles[i].Timestamp,
+				Open:   candles[i].Open,
+				High:   candles[i].Close,
+				Low:    candles[i].Low,
+				Close:  candles[i].Close,
+				Volume: candles[i].Volume,
 			})
 		}
 	}
@@ -894,8 +894,9 @@ func fixCasing(in currency.Pair, a asset.Item) string {
 		checkString[1] = "F"
 	}
 
-	if in.Upper().String()[0] != checkString[0][0] && in.Upper().String()[0] != checkString[1][0] ||
-		in.Upper().String()[0] == checkString[1][0] && in.Upper().String()[1] == checkString[1][0] {
+	v := in.Upper().String()
+	if v[0] != checkString[0][0] && v[0] != checkString[1][0] ||
+		v[0] == checkString[1][0] && v[1] == checkString[1][0] {
 		return checkString[0] + in.Upper().String()
 	}
 
