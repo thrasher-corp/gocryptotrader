@@ -407,8 +407,39 @@ func (f *FTX) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (f *FTX) GetExchangeHistory(_ currency.Pair, _ asset.Item) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
+func (f *FTX) GetExchangeHistory(p currency.Pair, a asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
+	marketName := f.FormatExchangeCurrency(p, a).String()
+	var resp []exchange.TradeHistory
+	trades, err := f.GetTrades(marketName, time.Unix(timestampStart.Unix(), 0), time.Unix(timestampEnd.Unix(), 0), 100)
+	if err != nil {
+		return nil, err
+	}
+	for {
+		var tempResp exchange.TradeHistory
+		if len(trades.Result) > 0 {
+			tempResp.Amount = trades.Result[0].Size
+			tempResp.Price = trades.Result[0].Price
+			tempResp.Exchange = f.Name
+			tempResp.Timestamp = trades.Result[0].Time
+			tempResp.TID = strconv.FormatInt(trades.Result[0].ID, 10)
+			tempResp.Side = trades.Result[0].Side
+			resp = append(resp, tempResp)
+		}
+		for y := 1; y < len(trades.Result); y++ {
+			tempResp.Amount = trades.Result[y].Size
+			tempResp.Price = trades.Result[y].Price
+			tempResp.Exchange = f.Name
+			tempResp.Timestamp = trades.Result[y].Time
+			tempResp.TID = strconv.FormatInt(trades.Result[y].ID, 10)
+			tempResp.Side = trades.Result[y].Side
+			resp = append(resp, tempResp)
+		}
+		if len(trades.Result) != 100 {
+			break
+		}
+		trades, err = f.GetTrades(marketName, time.Unix(timestampStart.Unix(), 0), time.Unix(trades.Result[0].Time.Unix(), 0), 100)
+	}
+	return resp, nil
 }
 
 // SubmitOrder submits a new order

@@ -1009,3 +1009,15 @@ func TestAcceptOTCQuote(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetExchangeHistory(t *testing.T) {
+	p := currency.NewPairFromString(spotPair)
+	a, err := f.GetPairAssetType(p)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = f.GetExchangeHistory(p, a, time.Unix(1571961600, 0), time.Unix(1572134400, 0))
+	if err != nil {
+		t.Error(err)
+	}
+}
