@@ -22,6 +22,8 @@ type MarketData struct {
 	Ask            float64 `json:"ask"`
 	Bid            float64 `json:"bid"`
 	Last           float64 `json:"last"`
+	USDVolume24h   float64 `json:"volumeUSD24h"`
+	MinProvideSize float64 `json:"minProvideSize"`
 	PriceIncrement float64 `json:"priceIncrement"`
 	SizeIncrement  float64 `json:"sizeIncrement"`
 	Restricted     bool    `json:"restricted"`
