@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
@@ -112,8 +112,25 @@ func InsertMany(in *[]modelPSQL.Candle) error {
 	return nil
 }
 
-func insertSQLite(ctx context.Context, tx *sql.Tx, in []modelPSQL.Candle) (err error) {
-	return common.ErrNotYetImplemented
+func insertSQLite(ctx context.Context, tx *sql.Tx, in []modelPSQL.Candle) error {
+	for x := range in {
+		var tempCandle = in[x]
+		tempUUID, err := uuid.NewV4()
+		if err != nil {
+			return err
+		}
+		tempCandle.ID = tempUUID.String()
+		err = tempCandle.Insert(ctx, tx, boil.Infer())
+		if err != nil {
+			log.Errorf(log.DatabaseMgr, "Candle Insert failed: %v", err)
+			errRB := tx.Rollback()
+			if errRB != nil {
+				log.Errorf(log.DatabaseMgr, "Rollback failed: %v", errRB)
+			}
+			return err
+		}
+	}
+	return nil
 }
 
 func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in []modelPSQL.Candle) error {

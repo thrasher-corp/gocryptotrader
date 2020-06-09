@@ -5,6 +5,8 @@ package sqlite3
 
 var TableNames = struct {
 	AuditEvent        string
+	Candle            string
+	Exchange          string
 	Script            string
 	ScriptExecution   string
 	WithdrawalCrypto  string
@@ -12,6 +14,8 @@ var TableNames = struct {
 	WithdrawalHistory string
 }{
 	AuditEvent:        "audit_event",
+	Candle:            "candle",
+	Exchange:          "exchange",
 	Script:            "script",
 	ScriptExecution:   "script_execution",
 	WithdrawalCrypto:  "withdrawal_crypto",

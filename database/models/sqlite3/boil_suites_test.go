@@ -13,6 +13,8 @@ import "testing"
 // Separating the tests thusly grants avoidance of Postgres deadlocks.
 func TestParent(t *testing.T) {
 	t.Run("AuditEvents", testAuditEvents)
+	t.Run("Candles", testCandles)
+	t.Run("Exchanges", testExchanges)
 	t.Run("Scripts", testScripts)
 	t.Run("ScriptExecutions", testScriptExecutions)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptos)
@@ -22,6 +24,8 @@ func TestParent(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsDelete)
+	t.Run("Candles", testCandlesDelete)
+	t.Run("Exchanges", testExchangesDelete)
 	t.Run("Scripts", testScriptsDelete)
 	t.Run("ScriptExecutions", testScriptExecutionsDelete)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosDelete)
@@ -31,6 +35,8 @@ func TestDelete(t *testing.T) {
 
 func TestQueryDeleteAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsQueryDeleteAll)
+	t.Run("Candles", testCandlesQueryDeleteAll)
+	t.Run("Exchanges", testExchangesQueryDeleteAll)
 	t.Run("Scripts", testScriptsQueryDeleteAll)
 	t.Run("ScriptExecutions", testScriptExecutionsQueryDeleteAll)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosQueryDeleteAll)
@@ -40,6 +46,8 @@ func TestQueryDeleteAll(t *testing.T) {
 
 func TestSliceDeleteAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSliceDeleteAll)
+	t.Run("Candles", testCandlesSliceDeleteAll)
+	t.Run("Exchanges", testExchangesSliceDeleteAll)
 	t.Run("Scripts", testScriptsSliceDeleteAll)
 	t.Run("ScriptExecutions", testScriptExecutionsSliceDeleteAll)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosSliceDeleteAll)
@@ -49,6 +57,8 @@ func TestSliceDeleteAll(t *testing.T) {
 
 func TestExists(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsExists)
+	t.Run("Candles", testCandlesExists)
+	t.Run("Exchanges", testExchangesExists)
 	t.Run("Scripts", testScriptsExists)
 	t.Run("ScriptExecutions", testScriptExecutionsExists)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosExists)
@@ -58,6 +68,8 @@ func TestExists(t *testing.T) {
 
 func TestFind(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsFind)
+	t.Run("Candles", testCandlesFind)
+	t.Run("Exchanges", testExchangesFind)
 	t.Run("Scripts", testScriptsFind)
 	t.Run("ScriptExecutions", testScriptExecutionsFind)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosFind)
@@ -67,6 +79,8 @@ func TestFind(t *testing.T) {
 
 func TestBind(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsBind)
+	t.Run("Candles", testCandlesBind)
+	t.Run("Exchanges", testExchangesBind)
 	t.Run("Scripts", testScriptsBind)
 	t.Run("ScriptExecutions", testScriptExecutionsBind)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosBind)
@@ -76,6 +90,8 @@ func TestBind(t *testing.T) {
 
 func TestOne(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsOne)
+	t.Run("Candles", testCandlesOne)
+	t.Run("Exchanges", testExchangesOne)
 	t.Run("Scripts", testScriptsOne)
 	t.Run("ScriptExecutions", testScriptExecutionsOne)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosOne)
@@ -85,6 +101,8 @@ func TestOne(t *testing.T) {
 
 func TestAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsAll)
+	t.Run("Candles", testCandlesAll)
+	t.Run("Exchanges", testExchangesAll)
 	t.Run("Scripts", testScriptsAll)
 	t.Run("ScriptExecutions", testScriptExecutionsAll)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosAll)
@@ -94,6 +112,8 @@ func TestAll(t *testing.T) {
 
 func TestCount(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsCount)
+	t.Run("Candles", testCandlesCount)
+	t.Run("Exchanges", testExchangesCount)
 	t.Run("Scripts", testScriptsCount)
 	t.Run("ScriptExecutions", testScriptExecutionsCount)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosCount)
@@ -103,6 +123,8 @@ func TestCount(t *testing.T) {
 
 func TestHooks(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsHooks)
+	t.Run("Candles", testCandlesHooks)
+	t.Run("Exchanges", testExchangesHooks)
 	t.Run("Scripts", testScriptsHooks)
 	t.Run("ScriptExecutions", testScriptExecutionsHooks)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosHooks)
@@ -113,6 +135,10 @@ func TestHooks(t *testing.T) {
 func TestInsert(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsInsert)
 	t.Run("AuditEvents", testAuditEventsInsertWhitelist)
+	t.Run("Candles", testCandlesInsert)
+	t.Run("Candles", testCandlesInsertWhitelist)
+	t.Run("Exchanges", testExchangesInsert)
+	t.Run("Exchanges", testExchangesInsertWhitelist)
 	t.Run("Scripts", testScriptsInsert)
 	t.Run("Scripts", testScriptsInsertWhitelist)
 	t.Run("ScriptExecutions", testScriptExecutionsInsert)
@@ -128,6 +154,7 @@ func TestInsert(t *testing.T) {
 // TestToOne tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToOne(t *testing.T) {
+	t.Run("CandleToExchangeUsingExchange", testCandleToOneExchangeUsingExchange)
 	t.Run("ScriptExecutionToScriptUsingScript", testScriptExecutionToOneScriptUsingScript)
 	t.Run("WithdrawalCryptoToWithdrawalHistoryUsingWithdrawalHistory", testWithdrawalCryptoToOneWithdrawalHistoryUsingWithdrawalHistory)
 	t.Run("WithdrawalFiatToWithdrawalHistoryUsingWithdrawalHistory", testWithdrawalFiatToOneWithdrawalHistoryUsingWithdrawalHistory)
@@ -135,7 +162,9 @@ func TestToOne(t *testing.T) {
 
 // TestOneToOne tests cannot be run in parallel
 // or deadlocks can occur.
-func TestOneToOne(t *testing.T) {}
+func TestOneToOne(t *testing.T) {
+	t.Run("ExchangeToCandleUsingCandle", testExchangeOneToOneCandleUsingCandle)
+}
 
 // TestToMany tests cannot be run in parallel
 // or deadlocks can occur.
@@ -148,6 +177,7 @@ func TestToMany(t *testing.T) {
 // TestToOneSet tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToOneSet(t *testing.T) {
+	t.Run("CandleToExchangeUsingCandle", testCandleToOneSetOpExchangeUsingExchange)
 	t.Run("ScriptExecutionToScriptUsingScriptExecutions", testScriptExecutionToOneSetOpScriptUsingScript)
 	t.Run("WithdrawalCryptoToWithdrawalHistoryUsingWithdrawalCryptos", testWithdrawalCryptoToOneSetOpWithdrawalHistoryUsingWithdrawalHistory)
 	t.Run("WithdrawalFiatToWithdrawalHistoryUsingWithdrawalFiats", testWithdrawalFiatToOneSetOpWithdrawalHistoryUsingWithdrawalHistory)
@@ -155,15 +185,21 @@ func TestToOneSet(t *testing.T) {
 
 // TestToOneRemove tests cannot be run in parallel
 // or deadlocks can occur.
-func TestToOneRemove(t *testing.T) {}
+func TestToOneRemove(t *testing.T) {
+	t.Run("CandleToExchangeUsingCandle", testCandleToOneRemoveOpExchangeUsingExchange)
+}
 
 // TestOneToOneSet tests cannot be run in parallel
 // or deadlocks can occur.
-func TestOneToOneSet(t *testing.T) {}
+func TestOneToOneSet(t *testing.T) {
+	t.Run("ExchangeToCandleUsingCandle", testExchangeOneToOneSetOpCandleUsingCandle)
+}
 
 // TestOneToOneRemove tests cannot be run in parallel
 // or deadlocks can occur.
-func TestOneToOneRemove(t *testing.T) {}
+func TestOneToOneRemove(t *testing.T) {
+	t.Run("ExchangeToCandleUsingCandle", testExchangeOneToOneRemoveOpCandleUsingCandle)
+}
 
 // TestToManyAdd tests cannot be run in parallel
 // or deadlocks can occur.
@@ -183,6 +219,8 @@ func TestToManyRemove(t *testing.T) {}
 
 func TestReload(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsReload)
+	t.Run("Candles", testCandlesReload)
+	t.Run("Exchanges", testExchangesReload)
 	t.Run("Scripts", testScriptsReload)
 	t.Run("ScriptExecutions", testScriptExecutionsReload)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosReload)
@@ -192,6 +230,8 @@ func TestReload(t *testing.T) {
 
 func TestReloadAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsReloadAll)
+	t.Run("Candles", testCandlesReloadAll)
+	t.Run("Exchanges", testExchangesReloadAll)
 	t.Run("Scripts", testScriptsReloadAll)
 	t.Run("ScriptExecutions", testScriptExecutionsReloadAll)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosReloadAll)
@@ -201,6 +241,8 @@ func TestReloadAll(t *testing.T) {
 
 func TestSelect(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSelect)
+	t.Run("Candles", testCandlesSelect)
+	t.Run("Exchanges", testExchangesSelect)
 	t.Run("Scripts", testScriptsSelect)
 	t.Run("ScriptExecutions", testScriptExecutionsSelect)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosSelect)
@@ -210,6 +252,8 @@ func TestSelect(t *testing.T) {
 
 func TestUpdate(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsUpdate)
+	t.Run("Candles", testCandlesUpdate)
+	t.Run("Exchanges", testExchangesUpdate)
 	t.Run("Scripts", testScriptsUpdate)
 	t.Run("ScriptExecutions", testScriptExecutionsUpdate)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosUpdate)
@@ -219,6 +263,8 @@ func TestUpdate(t *testing.T) {
 
 func TestSliceUpdateAll(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsSliceUpdateAll)
+	t.Run("Candles", testCandlesSliceUpdateAll)
+	t.Run("Exchanges", testExchangesSliceUpdateAll)
 	t.Run("Scripts", testScriptsSliceUpdateAll)
 	t.Run("ScriptExecutions", testScriptExecutionsSliceUpdateAll)
 	t.Run("WithdrawalCryptos", testWithdrawalCryptosSliceUpdateAll)

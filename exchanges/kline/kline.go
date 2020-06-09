@@ -105,6 +105,7 @@ func CreateKline(trades []order.TradeHistory, interval Interval, p currency.Pair
 	return candles, nil
 }
 
+// SeedFromDatabase returns Item from database seeded data
 func SeedFromDatabase(exchange string, pair currency.Pair, interval Interval, start, end time.Time) (Item, error) {
 	retCandle, err := candle.Series(exchange,
 		pair.Base.String(), pair.Quote.String(),
@@ -115,9 +116,19 @@ func SeedFromDatabase(exchange string, pair currency.Pair, interval Interval, st
 
 	ret := Item{
 		Exchange: exchange,
+		Pair: pair,
+		Interval: interval,
 	}
+
 	for x := range retCandle {
-		fmt.Println(retCandle[x])
+		ret.Candles = append(ret.Candles, Candle{
+			Time: retCandle[x].Timestamp,
+			Open: retCandle[x].Open,
+			High: retCandle[x].High,
+			Low: retCandle[x].Low,
+			Close: retCandle[x].Close,
+			Volume: retCandle[x].Volume,
+		})
 	}
 	return ret, nil
 }
