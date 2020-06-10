@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -476,12 +475,8 @@ func (b *Bitfinex) GetCandles(symbol, timeFrame string, start, end, limit int64,
 		return nil, errors.New("no data returned")
 	}
 
-	tempTime := response[0].(float64)
-	sec, dec := math.Modf(tempTime)
-	timestamp := time.Unix(int64(sec), int64(dec*(1e9)))
-
 	return []Candle{{
-		Timestamp: timestamp,
+		Timestamp: time.Unix(int64(response[0].(float64))/1000, 0),
 		Open:      response[1].(float64),
 		Close:     response[2].(float64),
 		High:      response[3].(float64),
