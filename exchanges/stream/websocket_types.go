@@ -29,9 +29,10 @@ type Websocket struct {
 	init                         bool
 	connected                    bool
 	connecting                   bool
-	trafficMonitorRunning        bool
 	verbose                      bool
 	connectionMonitorRunning     bool
+	trafficMonitorRunning        bool
+	dataMonitorRunning           bool
 	trafficTimeout               time.Duration
 	proxyAddr                    string
 	defaultURL                   string

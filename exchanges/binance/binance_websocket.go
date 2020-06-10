@@ -51,7 +51,6 @@ func (b *Binance) WsConnect() error {
 			if err != nil {
 				return err
 			}
-			go b.KeepAuthKeyAlive()
 		}
 	}
 
@@ -61,6 +60,11 @@ func (b *Binance) WsConnect() error {
 			b.Name,
 			err)
 	}
+
+	if b.Websocket.CanUseAuthenticatedEndpoints() {
+		go b.KeepAuthKeyAlive()
+	}
+
 	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.PongMessage,
@@ -93,9 +97,7 @@ func (b *Binance) WsConnect() error {
 // keep the WS auth key active
 func (b *Binance) KeepAuthKeyAlive() {
 	b.Websocket.Wg.Add(1)
-	defer func() {
-		b.Websocket.Wg.Done()
-	}()
+	defer b.Websocket.Wg.Done()
 	ticks := time.NewTicker(time.Hour)
 	for {
 		select {

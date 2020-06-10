@@ -73,10 +73,6 @@ var websocketManagerCommand = cli.Command{
 					Name:  "proxy",
 					Usage: "proxy address to change to",
 				},
-				cli.BoolFlag{
-					Name:  "default",
-					Usage: "reverts proxy address to default",
-				},
 			},
 			Action: setProxy,
 		},
@@ -90,11 +86,7 @@ var websocketManagerCommand = cli.Command{
 				},
 				cli.StringFlag{
 					Name:  "url",
-					Usage: "url string to change to",
-				},
-				cli.BoolFlag{
-					Name:  "default",
-					Usage: "reverts url address to default",
+					Usage: "url string to change to, an empty string will set it back to default",
 				},
 			},
 			Action: setURL,
@@ -208,7 +200,6 @@ func setProxy(c *cli.Context) error {
 	if c.IsSet("exchange") {
 		exchange = c.String("exchange")
 	} else {
-		fmt.Println("meow")
 		exchange = c.Args().First()
 	}
 
@@ -220,11 +211,8 @@ func setProxy(c *cli.Context) error {
 	if c.IsSet("proxy") {
 		proxy = c.String("proxy")
 	} else {
-		fmt.Println(c.Args().Tail())
 		proxy = c.Args().Get(1)
 	}
-
-	fmt.Println("WOW", proxy)
 
 	conn, err := setupClient()
 	if err != nil {

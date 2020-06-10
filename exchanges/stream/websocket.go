@@ -193,7 +193,10 @@ func (w *Websocket) Connect() error {
 			w.exchangeName)
 	}
 	w.setConnectingStatus(true)
-	w.ShutdownC = make(chan struct{})
+
+	if w.ShutdownC == nil {
+		w.ShutdownC = make(chan struct{})
+	}
 
 	go w.dataMonitor()
 
@@ -251,6 +254,10 @@ func (w *Websocket) Enable() error {
 
 // dataMonitor monitors job throughput and logs if there is a back log of data
 func (w *Websocket) dataMonitor() {
+	if w.IsDataMonitorRunning() {
+		return
+	}
+	w.setDataMonitorRunning(true)
 	w.Wg.Add(1)
 	defer func() {
 		for {
@@ -258,6 +265,7 @@ func (w *Websocket) dataMonitor() {
 			select {
 			case <-w.DataHandler:
 			default:
+				w.setDataMonitorRunning(false)
 				w.Wg.Done()
 				return
 			}
@@ -394,6 +402,7 @@ func (w *Websocket) Shutdown() error {
 
 	close(w.ShutdownC)
 	w.Wg.Wait()
+	w.ShutdownC = nil
 	w.setConnectedStatus(false)
 	w.setConnectingStatus(false)
 	if w.verbose {
@@ -614,6 +623,19 @@ func (w *Websocket) IsConnectionMonitorRunning() bool {
 	return w.connectionMonitorRunning
 }
 
+func (w *Websocket) setDataMonitorRunning(b bool) {
+	w.connectionMutex.Lock()
+	w.dataMonitorRunning = b
+	w.connectionMutex.Unlock()
+}
+
+// IsDataMonitorRunning returns status of data monitor
+func (w *Websocket) IsDataMonitorRunning() bool {
+	w.connectionMutex.RLock()
+	defer w.connectionMutex.RUnlock()
+	return w.dataMonitorRunning
+}
+
 // CanUseAuthenticatedWebsocketForWrapper Handles a common check to
 // verify whether a wrapper can use an authenticated websocket endpoint
 func (w *Websocket) CanUseAuthenticatedWebsocketForWrapper() bool {
@@ -740,7 +762,6 @@ func (w *Websocket) manageSubscriptions() {
 			if err != nil {
 				w.DataHandler <- err
 			}
-
 		case unsub := <-w.unsubscribe:
 			if !w.IsConnected() {
 				w.subscriptionMutex.Lock()
