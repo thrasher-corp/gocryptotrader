@@ -9,41 +9,100 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
+	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/sqlboiler/boil"
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
+	"github.com/volatiletech/null"
 )
 
-// One returns a single candle
-func One() error {
-	if database.DB.SQL == nil {
-		return database.ErrDatabaseSupportDisabled
-	}
-	return nil
+// Candle generic candle holder for modelPSQL & modelSQLite
+type Candle struct {
+	ID         string
+	ExchangeID string
+	Base       string
+	Quote      string
+	Interval   string
+	Tick       []Tick
 }
 
-// Series returns timeseries of candle data
-func Series(exchangeName, base, quote, interval string, start, end time.Time) (modelPSQL.CandleSlice, error) {
+// Tick holds each interval
+type Tick struct {
+	Timestamp time.Time
+	Open      float64
+	High      float64
+	Low       float64
+	Close     float64
+	Volume    float64
+}
+
+// Series returns candle data
+func Series(exchangeName, base, quote, interval string, start, end time.Time) (out Candle, err error) {
 	if exchangeName == "" || base == "" || quote == "" || interval == "" {
-		return nil, errors.New("")
+		err = errors.New("exchange, base , quote, interval, start & end cannot be empty")
+		return
 	}
 
 	exchangeUUID, err := exchange.UUIDByName(exchangeName)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	uuidQM := qm.Where("exchange_id = ?", exchangeUUID.String())
 	baseQM := qm.Where("base = ?", base)
 	quoteQM := qm.Where("quote = ?", quote)
 	intervalQM := qm.Where("interval = ?", interval)
-	return modelPSQL.Candles(uuidQM, baseQM, quoteQM, intervalQM).All(context.Background(), database.DB.SQL)
+	dateQM := qm.Where("timestamp between ? and ?", start, end)
+
+	if repository.GetSQLDialect() == database.DBSQLite3 {
+		retCandle, errC := modelSQLite.Candles(uuidQM, baseQM, quoteQM, intervalQM, dateQM).All(context.Background(), database.DB.SQL)
+		if errC != nil {
+			return out, errC
+		}
+		for x := range retCandle {
+			t, errT := time.Parse(time.RFC3339, retCandle[x].Timestamp)
+			if errT != nil {
+				return out, errT
+			}
+			out.Tick = append(out.Tick, Tick{
+				Timestamp: t,
+				Open:      retCandle[x].Open,
+				High:      retCandle[x].High,
+				Low:       retCandle[x].Low,
+				Close:     retCandle[x].Close,
+				Volume:    retCandle[x].Volume,
+			})
+		}
+	} else {
+		retCandle, errC := modelPSQL.Candles(uuidQM, baseQM, quoteQM, intervalQM, dateQM).All(context.Background(), database.DB.SQL)
+		if errC != nil {
+			return out, errC
+		}
+
+		for x := range retCandle {
+			out.Tick = append(out.Tick, Tick{
+				Timestamp: retCandle[x].Timestamp,
+				Open:      retCandle[x].Open,
+				High:      retCandle[x].High,
+				Low:       retCandle[x].Low,
+				Close:     retCandle[x].Close,
+				Volume:    retCandle[x].Volume,
+			})
+		}
+	}
+
+	out.ExchangeID = exchangeName
+	out.Interval = interval
+	out.Base = base
+	out.Quote = quote
+
+	return out, err
 }
 
-// Insert a single candle
-func Insert(in *modelPSQL.Candle) error {
+// Insert series of candles
+func Insert(in *Candle) error {
 	if database.DB.SQL == nil {
 		return database.ErrDatabaseSupportDisabled
 	}
@@ -56,9 +115,9 @@ func Insert(in *modelPSQL.Candle) error {
 	}
 
 	if repository.GetSQLDialect() == database.DBSQLite3 {
-		err = insertSQLite(ctx, tx, []modelPSQL.Candle{*in})
+		err = insertSQLite(ctx, tx, in)
 	} else {
-		err = insertPostgresSQL(ctx, tx, []modelPSQL.Candle{*in})
+		err = insertPostgresSQL(ctx, tx, in)
 	}
 	if err != nil {
 		return err
@@ -77,44 +136,20 @@ func Insert(in *modelPSQL.Candle) error {
 	return nil
 }
 
-// InsertMany series of candles
-func InsertMany(in *[]modelPSQL.Candle) error {
-	if database.DB.SQL == nil {
-		return database.ErrDatabaseSupportDisabled
-	}
-
-	ctx := boil.SkipTimestamps(context.Background())
-	tx, err := database.DB.SQL.BeginTx(ctx, nil)
-	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Insert transaction being failed: %v", err)
-		return err
-	}
-
-	if repository.GetSQLDialect() == database.DBSQLite3 {
-		err = insertSQLite(ctx, tx, *in)
-	} else {
-		err = insertPostgresSQL(ctx, tx, *in)
-	}
-	if err != nil {
-		return err
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Insert Transaction commit failed: %v", err)
-		err = tx.Rollback()
-		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Insert Transaction rollback failed: %v", err)
+func insertSQLite(ctx context.Context, tx *sql.Tx, in *Candle) error {
+	for x := range in.Tick {
+		var tempCandle = modelSQLite.Candle{
+			ExchangeID: null.NewString(in.ExchangeID, true),
+			Base:       in.Base,
+			Quote:      in.Quote,
+			Interval:   in.Interval,
+			Timestamp:  in.Tick[x].Timestamp.String(),
+			Open:       in.Tick[x].Open,
+			High:       in.Tick[x].High,
+			Low:        in.Tick[x].Low,
+			Close:      in.Tick[x].Close,
+			Volume:     in.Tick[x].Volume,
 		}
-		return err
-	}
-
-	return nil
-}
-
-func insertSQLite(ctx context.Context, tx *sql.Tx, in []modelPSQL.Candle) error {
-	for x := range in {
-		var tempCandle = in[x]
 		tempUUID, err := uuid.NewV4()
 		if err != nil {
 			return err
@@ -133,10 +168,20 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in []modelPSQL.Candle) error 
 	return nil
 }
 
-func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in []modelPSQL.Candle) error {
-	for x := range in {
-		var tempCandle = in[x]
-
+func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Candle) error {
+	for x := range in.Tick {
+		var tempCandle = modelPSQL.Candle{
+			ExchangeID: null.NewString(in.ExchangeID, true),
+			Base:       in.Base,
+			Quote:      in.Quote,
+			Interval:   in.Interval,
+			Timestamp:  in.Tick[x].Timestamp,
+			Open:       in.Tick[x].Open,
+			High:       in.Tick[x].High,
+			Low:        in.Tick[x].Low,
+			Close:      in.Tick[x].Close,
+			Volume:     in.Tick[x].Volume,
+		}
 		err := tempCandle.Upsert(ctx, tx, true, []string{"timestamp", "exchange_id", "base", "quote", "interval"}, boil.Infer(), boil.Infer())
 		if err != nil {
 			log.Errorf(log.DatabaseMgr, "Candle Insert failed: %v", err)

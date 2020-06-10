@@ -3,7 +3,6 @@ package exchange
 import (
 	"context"
 	"database/sql"
-	"os"
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common/cache"
@@ -26,7 +25,7 @@ type Details struct {
 }
 
 // One returns one exchange by Name
-func One(in string) (out *Details,err error) {
+func One(in string) (out *Details, err error) {
 	if database.DB.SQL == nil {
 		return nil, database.ErrDatabaseSupportDisabled
 	}
@@ -39,14 +38,17 @@ func One(in string) (out *Details,err error) {
 			return nil, err
 		}
 		out.Name = ret.Name
-		out.UUID,_ = uuid.FromString(ret.ID)
+		out.UUID, err = uuid.FromString(ret.ID)
+		if err != nil {
+			return out, err
+		}
 	} else {
 		ret, err := modelPSQL.Exchanges(whereQM).One(context.Background(), database.DB.SQL)
 		if err != nil {
 			return nil, err
 		}
 		out.Name = ret.Name
-		out.UUID,_ = uuid.FromString(ret.ID)
+		out.UUID, _ = uuid.FromString(ret.ID)
 	}
 
 	return
@@ -142,8 +144,6 @@ func InsertMany(in []Details) error {
 }
 
 func insertSQLite(ctx context.Context, tx *sql.Tx, in []Details) (err error) {
-	boil.DebugMode = true
-	boil.DebugWriter = os.Stdout
 	for x := range in {
 		tempUUID, errUUID := uuid.NewV4()
 		if errUUID != nil {
@@ -151,7 +151,7 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in []Details) (err error) {
 		}
 		var tempInsert = modelSQLite.Exchange{
 			Name: in[x].Name,
-			ID: tempUUID.String(),
+			ID:   tempUUID.String(),
 		}
 
 		err = tempInsert.Insert(ctx, tx, boil.Infer())

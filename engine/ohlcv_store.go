@@ -3,11 +3,9 @@ package engine
 import (
 	"errors"
 
-	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/volatiletech/null"
 )
 
 // OHLCVDatabaseStore stores kline candles
@@ -21,20 +19,22 @@ func OHLCVDatabaseStore(in *kline.Item) error {
 		return err
 	}
 
-	var databaseCandles []modelPSQL.Candle
+	databaseCandles := candle.Candle{
+		ExchangeID: exchangeUUID.String(),
+		Base:       in.Pair.Base.Upper().String(),
+		Quote:      in.Pair.Quote.Upper().String(),
+		Interval:   in.Interval.Short(),
+	}
+
 	for x := range in.Candles {
-		databaseCandles = append(databaseCandles, modelPSQL.Candle{
-			ExchangeID: null.NewString(exchangeUUID.String(), true),
-			Base:       in.Pair.Base.Upper().String(),
-			Quote:      in.Pair.Quote.Upper().String(),
-			Timestamp:  in.Candles[x].Time,
-			Open:       in.Candles[x].Open,
-			High:       in.Candles[x].High,
-			Low:        in.Candles[x].Low,
-			Close:      in.Candles[x].Close,
-			Volume:     in.Candles[x].Volume,
-			Interval:   in.Interval.Short(),
+		databaseCandles.Tick = append(databaseCandles.Tick, candle.Tick{
+			Timestamp: in.Candles[x].Time,
+			Open:      in.Candles[x].Open,
+			High:      in.Candles[x].High,
+			Low:       in.Candles[x].Low,
+			Close:     in.Candles[x].Close,
+			Volume:    in.Candles[x].Volume,
 		})
 	}
-	return candle.InsertMany(&databaseCandles)
+	return candle.Insert(&databaseCandles)
 }

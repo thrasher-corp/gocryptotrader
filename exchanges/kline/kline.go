@@ -116,18 +116,18 @@ func SeedFromDatabase(exchange string, pair currency.Pair, interval Interval, st
 
 	ret := Item{
 		Exchange: exchange,
-		Pair: pair,
+		Pair:     pair,
 		Interval: interval,
 	}
 
-	for x := range retCandle {
+	for x := range retCandle.Tick {
 		ret.Candles = append(ret.Candles, Candle{
-			Time: retCandle[x].Timestamp,
-			Open: retCandle[x].Open,
-			High: retCandle[x].High,
-			Low: retCandle[x].Low,
-			Close: retCandle[x].Close,
-			Volume: retCandle[x].Volume,
+			Time:   retCandle.Tick[x].Timestamp,
+			Open:   retCandle.Tick[x].Open,
+			High:   retCandle.Tick[x].High,
+			Low:    retCandle.Tick[x].Low,
+			Close:  retCandle.Tick[x].Close,
+			Volume: retCandle.Tick[x].Volume,
 		})
 	}
 	return ret, nil
