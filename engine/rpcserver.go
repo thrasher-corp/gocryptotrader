@@ -2130,16 +2130,18 @@ func (s *RPCServer) WebsocketSetEnabled(_ context.Context, r *gctrpc.WebsocketSe
 	}
 
 	if r.Enable {
-		if w.IsEnabled() {
-			return nil, fmt.Errorf("websocket is already enabled for exchange %s", r.Exchange)
+		err = w.Enable()
+		if err != nil {
+			return nil, err
 		}
-		return new(gctrpc.GCTScriptGenericResponse), w.Connect()
+		return new(gctrpc.GCTScriptGenericResponse), nil
 	}
 
-	if !w.IsEnabled() {
-		return nil, fmt.Errorf("websocket is already disabled for exchange %s", r.Exchange)
+	err = w.Disable()
+	if err != nil {
+		return nil, err
 	}
-	return new(gctrpc.GCTScriptGenericResponse), w.Shutdown()
+	return new(gctrpc.GCTScriptGenericResponse), nil
 }
 
 // WebsocketGetSubscriptions returns websocket subscription analysis
@@ -2204,6 +2206,9 @@ func (s *RPCServer) WebsocketSetURL(_ context.Context, r *gctrpc.WebsocketSetURL
 		return nil, fmt.Errorf("websocket not supported for exchange %s", r.Exchange)
 	}
 
-	w.SetWebsocketURL(r.Url)
+	err = w.SetWebsocketURL(r.Url, true)
+	if err != nil {
+		return nil, err
+	}
 	return new(gctrpc.GCTScriptGenericResponse), nil
 }

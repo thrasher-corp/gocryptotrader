@@ -44,12 +44,15 @@ func (b *Binance) WsConnect() error {
 				b.Name,
 				err)
 		} else {
-			b.Websocket.SetWebsocketURL(binanceDefaultWebsocketURL+"?streams="+listenKey,
-				b.Websocket.Conn)
+			// cleans on failed connection
+			clean := strings.Split(b.Websocket.GetWebsocketURL(), "?streams=")
+			authPayload := clean[0] + "?streams=" + listenKey
+			err = b.Websocket.SetWebsocketURL(authPayload, false)
+			if err != nil {
+				return err
+			}
 			go b.KeepAuthKeyAlive()
 		}
-	} else {
-		b.Websocket.SetWebsocketURL(binanceDefaultWebsocketURL, b.Websocket.Conn)
 	}
 
 	err = b.Websocket.Conn.Dial(&dialer, http.Header{})

@@ -93,7 +93,7 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 	if setupData.RunningURL == "" {
 		return errors.New("running URL cannot be nil")
 	}
-	w.SetWebsocketURL(setupData.RunningURL)
+	w.SetWebsocketURL(setupData.RunningURL, false)
 
 	w.SetCanUseAuthenticatedEndpoints(setupData.AuthenticatedWebsocketAPISupport)
 	err := w.Initialise()
@@ -225,6 +225,28 @@ func (w *Websocket) Connect() error {
 	}
 
 	return nil
+}
+
+// Disable disables the exchange websocket protocol
+func (w *Websocket) Disable() error {
+	if !w.IsConnected() {
+		return fmt.Errorf("websocket is already disabled for exchange %s",
+			w.exchangeName)
+	}
+
+	w.setEnabled(false)
+	return nil
+}
+
+// Enable enables the exchange websocket protocol
+func (w *Websocket) Enable() error {
+	if w.IsConnected() {
+		return fmt.Errorf("websocket is already enabled for exchange %s",
+			w.exchangeName)
+	}
+
+	w.setEnabled(true)
+	return w.Connect()
 }
 
 // dataMonitor monitors job throughput and logs if there is a back log of data
@@ -359,23 +381,18 @@ func (w *Websocket) Shutdown() error {
 	}
 
 	if w.Conn != nil {
-		fmt.Println("shutting down conn")
 		if err := w.Conn.Shutdown(); err != nil {
-			fmt.Println("errr", err)
 			return err
 		}
-		fmt.Println("shut down conn")
 	}
 
 	if w.AuthConn != nil {
-		fmt.Println("shutting down authconn")
 		if err := w.AuthConn.Shutdown(); err != nil {
 			return err
 		}
 	}
+
 	close(w.ShutdownC)
-	time.Sleep(time.Second)
-	fmt.Println(&w.Wg)
 	w.Wg.Wait()
 	w.setConnectedStatus(false)
 	w.setConnectingStatus(false)
@@ -610,18 +627,28 @@ func (w *Websocket) CanUseAuthenticatedWebsocketForWrapper() bool {
 	return false
 }
 
-// SetWebsocketURL sets websocket URL and updates the underlying stream
-// connection details
-func (w *Websocket) SetWebsocketURL(websocketURL string, c ...Connection) {
+// SetWebsocketURL sets websocket URL and can refresh underlying connections
+func (w *Websocket) SetWebsocketURL(websocketURL string, reconnect bool) error {
 	if websocketURL == "" || websocketURL == config.WebsocketURLNonDefaultMessage {
 		w.runningURL = w.defaultURL
-		return
+	} else {
+		w.runningURL = websocketURL
 	}
-	w.runningURL = websocketURL
 
-	for i := range c {
-		c[i].SetURL(websocketURL)
+	log.Debugf(log.ExchangeSys, "Setting websocket URL: %s\n", websocketURL)
+	if w.Conn != nil {
+		w.Conn.SetURL(w.runningURL)
 	}
+	if w.AuthConn != nil {
+		w.AuthConn.SetURL(w.runningURL)
+	}
+	if w.IsConnected() && reconnect {
+		log.Debugf(log.ExchangeSys,
+			"Flushing websocket connection to %s\n",
+			websocketURL)
+		return w.Shutdown()
+	}
+	return nil
 }
 
 // GetWebsocketURL returns the running websocket URL
@@ -649,8 +676,16 @@ func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 			w.proxyAddr)
 	}
 
+	log.Debugf(log.ExchangeSys, "Setting websocket proxy: %s\n", proxyAddr)
+	if w.Conn != nil {
+		w.Conn.SetProxy(proxyAddr)
+	}
+	if w.AuthConn != nil {
+		w.AuthConn.SetProxy(proxyAddr)
+	}
+
 	w.proxyAddr = proxyAddr
-	if !w.IsInit() && w.IsEnabled() {
+	if w.IsInit() && w.IsEnabled() {
 		if w.IsConnected() {
 			err := w.Shutdown()
 			if err != nil {
