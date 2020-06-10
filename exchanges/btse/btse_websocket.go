@@ -123,7 +123,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			return nil
 		} else if strings.Contains(string(respRaw), "AUTHENTICATE ERROR") {
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			return errors.New("Authentication failure")
+			return errors.New("authentication failure")
 		}
 		return err
 	}

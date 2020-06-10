@@ -231,7 +231,7 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 		Asks:         asks,
 		Pair:         p,
 		LastUpdated:  time.Unix(update.Timestamp, 0),
-		AssetType:    asset.Spot,
+		AssetType:    assetType,
 		ExchangeName: b.Name,
 	})
 }

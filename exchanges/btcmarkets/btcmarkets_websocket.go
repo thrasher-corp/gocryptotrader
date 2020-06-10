@@ -334,18 +334,19 @@ func (b *BTCMarkets) Subscribe(channelsToSubscribe []stream.ChannelSubscription)
 	}
 
 	for i := range authChannels {
-		if common.StringDataCompare(payload.Channels, authChannels[i]) {
-			signTime := strconv.FormatInt(time.Now().UTC().UnixNano()/1000000, 10)
-			strToSign := "/users/self/subscribe" + "\n" + signTime
-			tempSign := crypto.GetHMAC(crypto.HashSHA512,
-				[]byte(strToSign),
-				[]byte(b.API.Credentials.Secret))
-			sign := crypto.Base64Encode(tempSign)
-			payload.Key = b.API.Credentials.Key
-			payload.Signature = sign
-			payload.Timestamp = signTime
-			break
+		if !common.StringDataCompare(payload.Channels, authChannels[i]) {
+			continue
 		}
+		signTime := strconv.FormatInt(time.Now().UTC().UnixNano()/1000000, 10)
+		strToSign := "/users/self/subscribe" + "\n" + signTime
+		tempSign := crypto.GetHMAC(crypto.HashSHA512,
+			[]byte(strToSign),
+			[]byte(b.API.Credentials.Secret))
+		sign := crypto.Base64Encode(tempSign)
+		payload.Key = b.API.Credentials.Key
+		payload.Signature = sign
+		payload.Timestamp = signTime
+		break
 	}
 	return b.Websocket.Conn.SendJSONMessage(payload)
 }

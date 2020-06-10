@@ -152,7 +152,8 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 		var chanAsset = asset.Spot
 		var pair currency.Pair
 		splitsVille := strings.Split(chanInfo.Pair, ":")
-		if len(splitsVille) >= 3 {
+		switch {
+		case len(splitsVille) >= 3:
 			newPair := splitsVille[2]
 			if newPair[0] == 'f' {
 				chanAsset = asset.MarginFunding
@@ -162,7 +163,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-		} else if len(splitsVille) == 1 {
+		case len(splitsVille) == 1:
 			newPair := splitsVille[0]
 			if newPair[0] == 'f' {
 				chanAsset = asset.MarginFunding
@@ -176,7 +177,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-		} else if chanInfo.Pair != "" {
+		case chanInfo.Pair != "":
 			if strings.Contains(chanInfo.Pair, ":") {
 				chanAsset = asset.Margin
 			}

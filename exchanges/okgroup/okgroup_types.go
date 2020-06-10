@@ -1344,7 +1344,7 @@ type WebsocketTradeResponse struct {
 		Side         string    `json:"side"`
 		Timestamp    time.Time `json:"timestamp"`
 		TradeID      string    `json:"trade_id"`
-		// Quantity - Futures amount is sent as a seperate json field
+		// Quantity - Futures amount is sent as a separate json field
 		Quantity float64 `json:"qty,string"`
 	} `json:"data"`
 }

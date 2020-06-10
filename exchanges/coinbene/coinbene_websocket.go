@@ -125,7 +125,8 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 	if ok && strings.Contains(result[event].(string), "login") {
 		if result["success"].(bool) {
 			c.Websocket.SetCanUseAuthenticatedEndpoints(true)
-			authsubs, err := c.GenerateAuthSubs()
+			var authsubs []stream.ChannelSubscription
+			authsubs, err = c.GenerateAuthSubs()
 			if err != nil {
 				return err
 			}

@@ -1238,7 +1238,7 @@ func (e Errors) Error() string {
 	for i := range e {
 		r += e[i].Error() + ", "
 	}
-	return string(r[:len(r)-2])
+	return r[:len(r)-2]
 }
 
 // EnableExchangePair enables the specified pair on an exchange
@@ -2020,7 +2020,8 @@ func (s *RPCServer) EnableDisableAllExchangePairs(_ context.Context, r *gctrpc.E
 
 	if r.Enable {
 		for i := range assets {
-			pairs, err := base.CurrencyPairs.GetPairs(assets[i], false)
+			var pairs currency.Pairs
+			pairs, err = base.CurrencyPairs.GetPairs(assets[i], false)
 			if err != nil {
 				return nil, err
 			}

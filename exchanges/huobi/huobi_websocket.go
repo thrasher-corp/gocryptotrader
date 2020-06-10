@@ -219,11 +219,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 				" - invalid credentials. Authenticated requests disabled")
 		}
 
-		var codes string
-		switch c := init.ErrorCode.(type) {
-		case string:
-			codes = c
-		}
+		codes, _ := init.ErrorCode.(string)
 		return errors.New(h.Name + " Code:" + codes + " Message:" + init.ErrorMessage)
 	}
 
@@ -680,7 +676,6 @@ func (h *HUOBI) wsGetOrdersList(accountID int64, pair currency.Pair) (*WsAuthent
 		return nil, errors.New(response.ErrorMessage)
 	}
 	return &response, nil
-
 }
 
 func (h *HUOBI) wsGetOrderDetails(orderID string) (*WsAuthenticatedOrderDetailResponse, error) {

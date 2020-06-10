@@ -533,24 +533,24 @@ func (b *Binance) GenerateSubscriptions() ([]stream.ChannelSubscription, error) 
 }
 
 // Subscribe subscribes to a set of channels
-func (b *Binance) Subscribe(ChannelsToSubscribe []stream.ChannelSubscription) error {
+func (b *Binance) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 	payload := WsPayload{
 		Method: "SUBSCRIBE",
 	}
 
-	for i := range ChannelsToSubscribe {
-		payload.Params = append(payload.Params, ChannelsToSubscribe[i].Channel)
+	for i := range channelsToSubscribe {
+		payload.Params = append(payload.Params, channelsToSubscribe[i].Channel)
 	}
 	return b.Websocket.Conn.SendJSONMessage(payload)
 }
 
 // Unsubscribe unsubscribes from a set of channels
-func (b *Binance) Unsubscribe(ChannelsToUnsubscribe []stream.ChannelSubscription) error {
+func (b *Binance) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
 	payload := WsPayload{
 		Method: "UNSUBSCRIBE",
 	}
-	for i := range ChannelsToUnsubscribe {
-		payload.Params = append(payload.Params, ChannelsToUnsubscribe[i].Channel)
+	for i := range channelsToUnsubscribe {
+		payload.Params = append(payload.Params, channelsToUnsubscribe[i].Channel)
 	}
 	return b.Websocket.Conn.SendJSONMessage(payload)
 }

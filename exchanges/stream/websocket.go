@@ -482,7 +482,7 @@ func (w *Websocket) trafficMonitor() error {
 		// Initialise timer first without it firing for edge case if
 		// w.trafficTimeout is set at a short time frame and this routine
 		// returns before an initial traffic alert comes through resulting in an
-		// indefinate blocking issue in websocketconnection.Dial()
+		// indefinite blocking issue in websocketconnection.Dial()
 		var trafficTimer = time.NewTimer(w.trafficTimeout)
 		trafficTimer.Stop()
 
@@ -780,7 +780,7 @@ func (w *Websocket) manageSubscriptions() {
 
 // GetChannelDifference finds the difference between the subscribed channels
 // and the new subscription list when pairs are disabled or enabled.
-func (w *Websocket) GetChannelDifference(genSubs []ChannelSubscription) (sub []ChannelSubscription, unsub []ChannelSubscription) {
+func (w *Websocket) GetChannelDifference(genSubs []ChannelSubscription) (sub, unsub []ChannelSubscription) {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
 

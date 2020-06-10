@@ -48,7 +48,8 @@ func (g *Gateio) WsConnect() error {
 			err)
 		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	} else {
-		authsubs, err := g.GenerateAuthenticatedSubscriptions()
+		var authsubs []stream.ChannelSubscription
+		authsubs, err = g.GenerateAuthenticatedSubscriptions()
 		if err != nil {
 			return err
 		}
@@ -502,15 +503,17 @@ channels:
 		// Ensures params are in order
 		params := []interface{}{channelsToSubscribe[i].Currency}
 		if strings.EqualFold(channelsToSubscribe[i].Channel, "depth.subscribe") {
-			params = append(params, channelsToSubscribe[i].Params["limit"])
-			params = append(params, channelsToSubscribe[i].Params["interval"])
+			params = append(params,
+				channelsToSubscribe[i].Params["limit"],
+				channelsToSubscribe[i].Params["interval"])
 		} else if strings.EqualFold(channelsToSubscribe[i].Channel, "kline.subscribe") {
 			params = append(params, channelsToSubscribe[i].Params["interval"])
 		}
 
 		for j := range payloads {
 			if payloads[j].Method == channelsToSubscribe[i].Channel {
-				if strings.EqualFold(channelsToSubscribe[i].Channel, "depth.subscribe") {
+				switch {
+				case strings.EqualFold(channelsToSubscribe[i].Channel, "depth.subscribe"):
 					if len(payloads[j].Params) == 3 {
 						// If more than one currency pair we need to send as
 						// matrix
@@ -521,15 +524,15 @@ channels:
 						}
 					}
 					payloads[j].Params = append(payloads[j].Params, params)
-				} else if strings.EqualFold(channelsToSubscribe[i].Channel, "kline.subscribe") {
+				case strings.EqualFold(channelsToSubscribe[i].Channel, "kline.subscribe"):
 					// Can only subscribe one market at the same time, market
 					// list is not supported currently. For multiple
 					// subscriptions, only the last one takes effect.
 					continue channels
-				} else {
+				default:
 					payloads[j].Params = append(payloads[j].Params, params...)
+					continue channels
 				}
-				continue channels
 			}
 		}
 
@@ -556,13 +559,12 @@ channels:
 				payloads[k].Method)
 		}
 	}
-
 	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (g *Gateio) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	// NOTE: This function does not take in paramaters, it cannot unsubscribe a
+	// NOTE: This function does not take in parameters, it cannot unsubscribe a
 	// single item but a full channel. i.e. if you subscribe to ticker BTC_USDT
 	// & LTC_USDT this function will unsubscribe both. This function will be
 	// kept unlinked to the websocket subsystem and a full connection flush will

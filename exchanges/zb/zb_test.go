@@ -65,7 +65,6 @@ func setupWsAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// z.Websocket.DataHandler = make(chan interface{}, 11)
 	go z.wsReadData()
 	wsSetupRan = true
 }

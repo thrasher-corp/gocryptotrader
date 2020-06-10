@@ -80,6 +80,7 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 	var conStatus *http.Response
 
 	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)
+	defer conStatus.Body.Close()
 	if err != nil {
 		if conStatus != nil {
 			return fmt.Errorf("%v %v %v Error: %v",
@@ -296,11 +297,9 @@ func (w *WebsocketConnection) Shutdown() error {
 // SetURL sets connection URL
 func (w *WebsocketConnection) SetURL(url string) {
 	w.URL = url
-	return
 }
 
 // SetProxy sets connection proxy
 func (w *WebsocketConnection) SetProxy(proxy string) {
 	w.ProxyURL = proxy
-	return
 }
