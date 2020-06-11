@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"text/template"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -415,14 +416,14 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		var r8 []exchange.TradeHistory
-		r8, err = e.GetExchangeHistory(p, assetTypes[i])
+		r8, err = e.GetExchangeHistory(p, assetTypes[i], time.Time{}, time.Time{})
 		msg = ""
 		if err != nil {
 			msg = err.Error()
 			responseContainer.ErrorCount++
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			SentParams: jsonifyInterface([]interface{}{p, assetTypes[i]}),
+			SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], time.Time{}, time.Time{}}),
 			Function:   "GetExchangeHistory",
 			Error:      msg,
 			Response:   jsonifyInterface([]interface{}{r8}),
