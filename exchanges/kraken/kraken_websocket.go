@@ -95,7 +95,7 @@ func (k *Kraken) WsConnect() error {
 			} else {
 				go k.wsFunnelConnectionData(k.Websocket.AuthConn)
 				var authsubs []stream.ChannelSubscription
-				authsubs, err := k.GenerateAuthenticatedSubscriptions()
+				authsubs, err = k.GenerateAuthenticatedSubscriptions()
 				if err != nil {
 					return err
 				}
