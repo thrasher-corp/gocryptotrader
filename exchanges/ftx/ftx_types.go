@@ -193,7 +193,7 @@ type PositionData struct {
 	RealisedPnL                  float64 `json:"realisedPnL"`
 	ShortOrderSide               float64 `json:"shortOrderSide"`
 	Side                         string  `json:"side"`
-	Size                         string  `json:"size"`
+	Size                         float64 `json:"size"`
 	UnrealisedPnL                float64 `json:"unrealisedPnL"`
 }
 
@@ -279,7 +279,7 @@ type AllWalletAccountData struct {
 	BattleRoyale []BalancesData `json:"Battle Royale"`
 }
 
-// AllWalletBalances stores data about all account balances including sub acconuts
+// AllWalletBalances stores data about all account balances including sub accounts
 type AllWalletBalances struct {
 	Success bool                 `json:"success"`
 	Result  AllWalletAccountData `json:"result"`
@@ -456,7 +456,7 @@ type FillsData struct {
 	TradeID       string    `json:"tradeID"`
 	Price         float64   `json:"price"`
 	Side          string    `json:"side"`
-	Size          string    `json:"size"`
+	Size          float64   `json:"size"`
 	Time          time.Time `json:"time"`
 	OrderType     string    `json:"type"`
 }
@@ -530,16 +530,16 @@ type LTBalances struct {
 
 // LTCreationData stores token creation requests' data
 type LTCreationData struct {
-	ID            string  `json:"id"`
-	Token         string  `json:"token"`
-	RequestedSize float64 `json:"requestedSize"`
-	Pending       bool    `json:"pending"`
-	CreatedSize   float64 `json:"createdize"`
-	Price         float64 `json:"price"`
-	Cost          float64 `json:"cost"`
-	Fee           float64 `json:"fee"`
-	RequestedAt   string  `json:"requestedAt"`
-	FulfilledAt   string  `json:"fulfilledAt"`
+	ID            string    `json:"id"`
+	Token         string    `json:"token"`
+	RequestedSize float64   `json:"requestedSize"`
+	Pending       bool      `json:"pending"`
+	CreatedSize   float64   `json:"createdize"`
+	Price         float64   `json:"price"`
+	Cost          float64   `json:"cost"`
+	Fee           float64   `json:"fee"`
+	RequestedAt   time.Time `json:"requestedAt"`
+	FulfilledAt   time.Time `json:"fulfilledAt"`
 }
 
 // LTCreationList stores token creations requests' data
@@ -550,12 +550,12 @@ type LTCreationList struct {
 
 // RequestTokenCreationData stores data of the token creation requested
 type RequestTokenCreationData struct {
-	ID            string  `json:"id"`
-	Token         string  `json:"token"`
-	RequestedSize float64 `json:"requestedSize"`
-	Cost          float64 `json:"cost"`
-	Pending       bool    `json:"pending"`
-	RequestedAt   string  `json:"requestedAt"`
+	ID            string    `json:"id"`
+	Token         string    `json:"token"`
+	RequestedSize float64   `json:"requestedSize"`
+	Cost          float64   `json:"cost"`
+	Pending       bool      `json:"pending"`
+	RequestedAt   time.Time `json:"requestedAt"`
 }
 
 // RequestTokenCreation stores data of the token creation requested
@@ -566,15 +566,15 @@ type RequestTokenCreation struct {
 
 // LTRedemptionData stores data of the token redemption request
 type LTRedemptionData struct {
-	ID          int64   `json:"id"`
-	Token       string  `json:"token"`
-	Size        float64 `json:"size"`
-	Pending     bool    `json:"pending"`
-	Price       float64 `json:"price"`
-	Proceeds    float64 `json:"proceeds"`
-	Fee         float64 `json:"fee"`
-	RequestedAt string  `json:"requestedAt"`
-	FulfilledAt string  `json:"fulfilledAt"`
+	ID          int64     `json:"id"`
+	Token       string    `json:"token"`
+	Size        float64   `json:"size"`
+	Pending     bool      `json:"pending"`
+	Price       float64   `json:"price"`
+	Proceeds    float64   `json:"proceeds"`
+	Fee         float64   `json:"fee"`
+	RequestedAt time.Time `json:"requestedAt"`
+	FulfilledAt time.Time `json:"fulfilledAt"`
 }
 
 // LTRedemptionList stores data of token redemption list
@@ -585,12 +585,12 @@ type LTRedemptionList struct {
 
 // LTRedemptionRequestData stores redemption request data for a leveraged token
 type LTRedemptionRequestData struct {
-	ID                string  `json:"id"`
-	Token             string  `json:"token"`
-	Size              float64 `json:"size"`
-	ProjectedProceeds float64 `json:"projectedProceeds"`
-	Pending           bool    `json:"pending"`
-	RequestedAt       string  `json:"requestedAt"`
+	ID                string    `json:"id"`
+	Token             string    `json:"token"`
+	Size              float64   `json:"size"`
+	ProjectedProceeds float64   `json:"projectedProceeds"`
+	Pending           bool      `json:"pending"`
+	RequestedAt       time.Time `json:"requestedAt"`
 }
 
 // LTRedemptionRequest stores redemption request data of a leveraged token

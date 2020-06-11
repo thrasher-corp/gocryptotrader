@@ -148,11 +148,11 @@ func (f *FTX) GetTrades(marketName string, startTime, endTime time.Time, limit i
 	params.Set("limit", strLimit)
 	var resp Trades
 	if !startTime.IsZero() && !endTime.IsZero() {
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	return resp, f.SendHTTPRequest(fmt.Sprintf(ftxAPIURL+getTrades, marketName)+params.Encode(),
 		&resp)
@@ -167,11 +167,11 @@ func (f *FTX) GetHistoricalData(marketName, timeInterval, limit string, startTim
 		params.Set("limit", limit)
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	return resp, f.SendHTTPRequest(fmt.Sprintf(ftxAPIURL+getHistoricalData, marketName)+params.Encode(), &resp)
 }
@@ -310,11 +310,11 @@ func (f *FTX) FetchOrderHistory(marketName string, startTime, endTime time.Time,
 		params.Set("market", marketName)
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	if limit != "" {
 		params.Set("limit", limit)
@@ -349,11 +349,11 @@ func (f *FTX) GetTriggerOrderHistory(marketName string, startTime, endTime time.
 		params.Set("market", marketName)
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	if side != "" {
 		params.Set("side", side)
@@ -503,11 +503,11 @@ func (f *FTX) GetFills(market, limit string, startTime, endTime time.Time) (Fill
 		params.Set("limit", limit)
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	return resp, f.SendAuthHTTPRequest(http.MethodGet, getFills+params.Encode(), nil, &resp)
 }
@@ -517,11 +517,11 @@ func (f *FTX) GetFundingPayments(startTime, endTime time.Time, future string) (F
 	var resp FundingPayments
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
-		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 		if startTime.After(endTime) {
 			return resp, errors.New("startTime cannot be after endTime")
 		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	if future != "" {
 		params.Set("future", future)

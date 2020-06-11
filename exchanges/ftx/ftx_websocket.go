@@ -423,7 +423,6 @@ func (f *FTX) WsProcessPartialOB(data *WsOrderbookData, p currency.Pair, a asset
 			a,
 			p)
 	}
-	// obSuccess[p] = false
 	var bids, asks []orderbook.Item
 	for x := range data.Bids {
 		bids = append(bids, orderbook.Item{
