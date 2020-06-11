@@ -196,7 +196,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				return errors.New("orderbook interface cast failed")
 			}
 
-			switch obSnapBundle[0].(type) {
+			switch id := obSnapBundle[0].(type) {
 			case []interface{}:
 				for i := range obSnapBundle {
 					data := obSnapBundle[i].([]interface{})
@@ -221,13 +221,13 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			case float64:
 				if len(obSnapBundle) == 4 {
 					newOrderbook = append(newOrderbook, WebsocketBook{
-						ID:     int64(obSnapBundle[0].(float64)),
+						ID:     int64(id),
 						Period: int64(obSnapBundle[1].(float64)),
 						Rate:   obSnapBundle[2].(float64),
 						Amount: obSnapBundle[3].(float64)})
 				} else {
 					newOrderbook = append(newOrderbook, WebsocketBook{
-						ID:     int64(obSnapBundle[0].(float64)),
+						ID:     int64(id),
 						Price:  obSnapBundle[1].(float64),
 						Amount: obSnapBundle[2].(float64)})
 				}
