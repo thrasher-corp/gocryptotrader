@@ -823,7 +823,7 @@ func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
 
-	candles, err := b.GetCandles(fixCasing(pair, a), b.FormatExchangeKlineInterval(interval),
+	candles, err := b.GetCandles(b.fixCasing(pair, a), b.FormatExchangeKlineInterval(interval),
 		start.Unix()*1000, end.Unix()*1000,
 		b.Features.Enabled.Kline.ResultLimit, true, false)
 	if err != nil {
@@ -868,7 +868,7 @@ func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 
 	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
 	for x := range dates {
-		candles, err := b.GetCandles(fixCasing(pair, a), b.FormatExchangeKlineInterval(interval),
+		candles, err := b.GetCandles(b.fixCasing(pair, a), b.FormatExchangeKlineInterval(interval),
 			dates[x].Start.Unix()*1000, dates[x].End.Unix()*1000,
 			b.Features.Enabled.Kline.ResultLimit, true, false)
 		if err != nil {
@@ -891,7 +891,7 @@ func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 	return ret, nil
 }
 
-func fixCasing(in currency.Pair, a asset.Item) string {
+func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) string {
 	var checkString [2]string
 	if a == asset.Spot {
 		checkString[0] = "t"
@@ -901,9 +901,10 @@ func fixCasing(in currency.Pair, a asset.Item) string {
 		checkString[1] = "F"
 	}
 
-	v := in.Upper().String()
-	if v[0] != checkString[0][0] && v[0] != checkString[1][0] ||
-		v[0] == checkString[1][0] && v[1] == checkString[1][0] {
+	v := b.FormatExchangeCurrency(in, a).Upper().String()
+	if (v[0] != checkString[0][0] && v[0] != checkString[1][0]) ||
+		(v[0] == checkString[1][0] && v[1] == checkString[1][0]) ||
+		(v[0] == checkString[0][0] && v[1] != checkString[0][0] || v[1] != checkString[1][0]) {
 		return checkString[0] + v
 	}
 
