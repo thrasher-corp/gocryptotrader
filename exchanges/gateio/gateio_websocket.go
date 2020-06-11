@@ -519,20 +519,21 @@ channels:
 						// matrix
 						_, ok := payloads[j].Params[0].(currency.Pair)
 						if ok {
-							var bucket []interface{}
-							payloads[j].Params = append(bucket, payloads[j].Params)
+							var bucket = payloads[j].Params
+							payloads[j].Params = nil
+							payloads[j].Params = append(payloads[j].Params, bucket)
 						}
 					}
+
 					payloads[j].Params = append(payloads[j].Params, params)
 				case strings.EqualFold(channelsToSubscribe[i].Channel, "kline.subscribe"):
 					// Can only subscribe one market at the same time, market
 					// list is not supported currently. For multiple
 					// subscriptions, only the last one takes effect.
-					continue channels
 				default:
 					payloads[j].Params = append(payloads[j].Params, params...)
-					continue channels
 				}
+				continue channels
 			}
 		}
 
