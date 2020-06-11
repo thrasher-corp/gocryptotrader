@@ -395,7 +395,10 @@ func TestLoadConfigPairs(t *testing.T) {
 	}
 
 	// Test a nil PairsManager
-	b.SetConfigPairs()
+	err := b.SetConfigPairs()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Now setup a proper PairsManager
 	b.Config.CurrencyPairs = &currency.PairsManager{
@@ -410,17 +413,19 @@ func TestLoadConfigPairs(t *testing.T) {
 		},
 		Pairs: map[asset.Item]*currency.PairStore{
 			asset.Spot: {
-				Enabled:       pairs,
-				Available:     pairs,
-				RequestFormat: &currency.PairFormat{},
-				ConfigFormat:  &currency.PairFormat{},
+				AssetEnabled: func() *bool { b := true; return &b }(),
+				Enabled:      pairs,
+				Available:    pairs,
 			},
 		},
 	}
 
 	// Test UseGlobalFormat setting of pairs
 	b.SetCurrencyPairFormat()
-	b.SetConfigPairs()
+	err = b.SetConfigPairs()
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Test four things:
 	// 1) Config pairs are set
 	// 2) pair format is set for RequestFormat
@@ -880,6 +885,13 @@ func TestSupportsPair(t *testing.T) {
 
 	b := Base{
 		Name: "TESTNAME",
+		CurrencyPairs: currency.PairsManager{
+			Pairs: map[asset.Item]*currency.PairStore{
+				asset.Spot: {
+					AssetEnabled: func() *bool { b := true; return &b }(),
+				},
+			},
+		},
 	}
 
 	pairs, err := currency.NewPairsFromStrings([]string{defaultTestCurrencyPair,
@@ -1095,9 +1107,22 @@ func TestSetupDefaults(t *testing.T) {
 	b.Websocket = stream.New()
 	b.Features.Supports.Websocket = true
 	b.SetupDefaults(&cfg)
-	b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled: true,
+	err = b.Websocket.Setup(&stream.WebsocketSetup{
+		Enabled:          true,
+		WebsocketTimeout: time.Second * 30,
+		Features:         &protocol.Features{},
+		DefaultURL:       "ws://something.com",
+		RunningURL:       "ws://something.com",
+		ExchangeName:     "test",
+		Connector:        func() error { return nil },
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.Websocket.Enable()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !b.IsWebsocketEnabled() {
 		t.Error("websocket should be enabled")
 	}
@@ -1218,7 +1243,11 @@ func TestSetPairs(t *testing.T) {
 				ConfigFormat: &currency.PairFormat{
 					Uppercase: true,
 				},
-				Pairs: map[asset.Item]*currency.PairStore{},
+				Pairs: map[asset.Item]*currency.PairStore{
+					asset.Spot: {
+						AssetEnabled: func() *bool { b := true; return &b }(),
+					},
+				},
 			},
 		},
 	}
@@ -1238,6 +1267,11 @@ func TestSetPairs(t *testing.T) {
 	err = b.SetPairs(pairs, asset.Spot, false)
 	if err != nil {
 		t.Error(err)
+	}
+
+	err = b.SetConfigPairs()
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	p, err := b.GetEnabledPairs(asset.Spot)
@@ -1262,7 +1296,16 @@ func TestUpdatePairs(t *testing.T) {
 		t.Fatal("TestUpdatePairs failed to load config")
 	}
 
-	UAC := Base{Name: defaultTestExchange}
+	UAC := Base{
+		Name: defaultTestExchange,
+		CurrencyPairs: currency.PairsManager{
+			Pairs: map[asset.Item]*currency.PairStore{
+				asset.Spot: {
+					AssetEnabled: func() *bool { b := true; return &b }(),
+				},
+			},
+		},
+	}
 	UAC.Config = exchCfg
 	exchangeProducts, err := currency.NewPairsFromStrings([]string{"ltcusd",
 		"btcusd",
@@ -1475,7 +1518,15 @@ func TestIsWebsocketEnabled(t *testing.T) {
 	}
 
 	b.Websocket = stream.New()
-	err := b.Websocket.Setup(&stream.WebsocketSetup{Enabled: true})
+	err := b.Websocket.Setup(&stream.WebsocketSetup{
+		Enabled:          true,
+		WebsocketTimeout: time.Second * 30,
+		Features:         &protocol.Features{},
+		DefaultURL:       "ws://something.com",
+		RunningURL:       "ws://something.com",
+		ExchangeName:     "test",
+		Connector:        func() error { return nil },
+	})
 	if err != nil {
 		t.Error(err)
 	}
@@ -1604,6 +1655,7 @@ func TestGetAssetType(t *testing.T) {
 	}
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: func() *bool { b := true; return &b }(),
 		Enabled: currency.Pairs{
 			currency.NewPair(currency.BTC, currency.USD),
 		},
@@ -1638,7 +1690,11 @@ func TestGetFormattedPairAndAssetType(t *testing.T) {
 	b.CurrencyPairs.ConfigFormat = pFmt
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled: func() *bool { b := true; return &b }(),
 		Enabled: currency.Pairs{
+			currency.NewPair(currency.BTC, currency.USD),
+		},
+		Available: currency.Pairs{
 			currency.NewPair(currency.BTC, currency.USD),
 		},
 	}

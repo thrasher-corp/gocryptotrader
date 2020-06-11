@@ -178,6 +178,9 @@ func (w *Websocket) SetupNewCustomConnection(c Connection, auth bool) error {
 // Connect initiates a websocket connection by using a package defined connection
 // function
 func (w *Websocket) Connect() error {
+	if w.connector == nil {
+		return errors.New("websocket connect function not set, cannot continue")
+	}
 	w.m.Lock()
 	defer w.m.Unlock()
 
