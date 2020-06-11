@@ -438,6 +438,9 @@ func (f *FTX) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestam
 			break
 		}
 		trades, err = f.GetTrades(marketName, time.Unix(timestampStart.Unix(), 0), time.Unix(trades.Result[0].Time.Unix(), 0), 100)
+		if err != nil {
+			return resp, err
+		}
 	}
 	return resp, nil
 }
