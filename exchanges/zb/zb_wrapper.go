@@ -773,6 +773,8 @@ func (z *ZB) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end tim
 			Volume: candles.Data[x].Volume,
 		})
 	}
+
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
 

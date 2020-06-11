@@ -750,6 +750,7 @@ func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 		})
 	}
 
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
 

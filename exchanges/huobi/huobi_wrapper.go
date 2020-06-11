@@ -997,6 +997,8 @@ func (h *HUOBI) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end 
 			Volume: candles[x].Volume,
 		})
 	}
+
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
 

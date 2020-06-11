@@ -823,7 +823,9 @@ func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
 
-	candles, err := b.GetCandles(fixCasing(pair, a), b.FormatExchangeKlineInterval(interval), start.Unix()*1000, end.Unix()*1000, 0, true, false)
+	candles, err := b.GetCandles(fixCasing(pair, a), b.FormatExchangeKlineInterval(interval),
+		start.Unix()*1000, end.Unix()*1000,
+		b.Features.Enabled.Kline.ResultLimit, true, false)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -844,6 +846,8 @@ func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 			Volume: candles[x].Volume,
 		})
 	}
+
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
 
@@ -865,7 +869,8 @@ func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
 	for x := range dates {
 		candles, err := b.GetCandles(fixCasing(pair, a), b.FormatExchangeKlineInterval(interval),
-			dates[x].Start.Unix()*1000, dates[x].End.Unix()*1000, 0, true, false)
+			dates[x].Start.Unix()*1000, dates[x].End.Unix()*1000,
+			b.Features.Enabled.Kline.ResultLimit, true, false)
 		if err != nil {
 			return kline.Item{}, err
 		}
@@ -881,6 +886,8 @@ func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 			})
 		}
 	}
+
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
 

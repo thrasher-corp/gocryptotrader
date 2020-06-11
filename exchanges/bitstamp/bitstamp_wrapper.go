@@ -738,6 +738,7 @@ func (b *Bitstamp) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		ret.Candles = append(ret.Candles, tempCandle)
 	}
 
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
 
@@ -783,5 +784,6 @@ func (b *Bitstamp) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 		}
 	}
 
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

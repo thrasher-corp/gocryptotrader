@@ -690,6 +690,8 @@ func (h *HitBTC) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 			Volume: data[x].Volume,
 		})
 	}
+
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
 
@@ -728,5 +730,7 @@ func (h *HitBTC) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 			})
 		}
 	}
+
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

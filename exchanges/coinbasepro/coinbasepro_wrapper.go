@@ -739,6 +739,7 @@ func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, e
 		})
 	}
 
+	candles.SortCandlesByTimestamp(false)
 	return candles, nil
 }
 

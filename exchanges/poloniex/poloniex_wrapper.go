@@ -683,6 +683,8 @@ func (p *Poloniex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 			Volume: candles[x].Volume,
 		})
 	}
+
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
 

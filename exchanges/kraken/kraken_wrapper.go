@@ -826,6 +826,8 @@ func (k *Kraken) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 			Volume: candles[x].Volume,
 		})
 	}
+
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
 
@@ -866,5 +868,6 @@ func (k *Kraken) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 		})
 	}
 
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

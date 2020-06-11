@@ -695,6 +695,7 @@ func (b *Bithumb) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 		ret.Candles = append(ret.Candles, tempCandle)
 	}
 
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
 

@@ -351,6 +351,7 @@ func (o *OKCoin) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 		}
 		ret.Candles = append(ret.Candles, tempCandle)
 	}
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
 
@@ -421,5 +422,7 @@ func (o *OKCoin) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 			ret.Candles = append(ret.Candles, tempCandle)
 		}
 	}
+
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

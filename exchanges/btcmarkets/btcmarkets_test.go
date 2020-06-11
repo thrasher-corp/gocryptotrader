@@ -734,6 +734,7 @@ func TestBTCMarkets_GetHistoricCandles(t *testing.T) {
 }
 
 func TestBTCMarkets_GetHistoricCandlesExtended(t *testing.T) {
+	b.Verbose = true
 	start := time.Now().AddDate(0, 0, -1001)
 	end := time.Now()
 	p := currency.NewPairFromString(BTCAUD)

@@ -1227,9 +1227,9 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair := currency.NewPairFromString("tTRXETH")
+	currencyPair := currency.NewPairFromString("TBTCUSD")
 	startTime := time.Now().Add(-time.Hour * 24)
-	_, err := b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	_, err := b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}

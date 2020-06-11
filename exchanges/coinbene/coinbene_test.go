@@ -296,7 +296,6 @@ func TestGetKlines(t *testing.T) {
 
 func TestGetSwapKlines(t *testing.T) {
 	t.Parallel()
-
 	_, err := c.GetSwapKlines(currency.NewPairFromString(swapTestPair).String(),
 		time.Now().Add(-time.Hour*1), time.Now(), "1")
 	if err != nil {
