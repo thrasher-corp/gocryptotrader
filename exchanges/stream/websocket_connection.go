@@ -80,7 +80,6 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 	var conStatus *http.Response
 
 	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)
-	defer conStatus.Body.Close()
 	if err != nil {
 		if conStatus != nil {
 			return fmt.Errorf("%v %v %v Error: %v",
@@ -91,6 +90,8 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 		}
 		return fmt.Errorf("%v Error: %v", w.URL, err)
 	}
+	defer conStatus.Body.Close()
+
 	if w.Verbose {
 		log.Infof(log.WebsocketMgr,
 			"%v Websocket connected to %s",

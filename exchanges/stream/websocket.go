@@ -55,6 +55,11 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 		return errors.New("websocket is nil")
 	}
 
+	if !w.init {
+		return fmt.Errorf("%s Websocket already initialised",
+			setupData.ExchangeName)
+	}
+
 	w.verbose = setupData.Verbose
 
 	if setupData.Features == nil {
