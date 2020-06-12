@@ -773,19 +773,20 @@ func TestSubmitOrder(t *testing.T) {
 	var orderSubmission = &order.Submit{
 		Pair: currency.Pair{
 			Delimiter: "_",
-			Base:      currency.BTC,
+			Base:      currency.XRP,
 			Quote:     currency.USD,
 		},
-		Side:     order.Buy,
-		Type:     order.Limit,
-		Price:    1,
-		Amount:   1,
-		ClientID: "meowOrder",
+		AssetType: asset.Spot,
+		Side:      order.Sell,
+		Type:      order.Limit,
+		Price:     1000,
+		Amount:    20,
+		ClientID:  "meowOrder",
 	}
 	response, err := b.SubmitOrder(orderSubmission)
 
 	if areTestAPIKeysSet() && err != nil {
-		t.Errorf("Could not cancel orders: %v", err)
+		t.Errorf("Could not place order: %v", err)
 	}
 	if areTestAPIKeysSet() && !response.IsOrderPlaced {
 		t.Error("Order not placed")
@@ -1188,6 +1189,7 @@ func TestWsCandleResponse(t *testing.T) {
 }
 
 func TestWsOrderSnapshot(t *testing.T) {
+	b.WsAddSubscriptionChannel(0, "account", "N/A")
 	pressXToJSON := `[0,"os",[[34930659963,null,1574955083558,"tETHUSD",1574955083558,1574955083573,0.201104,0.201104,"EXCHANGE LIMIT",null,null,null,0,"ACTIVE",null,null,120,0,0,0,null,null,null,0,0,null,null,null,"BFX",null,null,null]]]`
 	err := b.wsHandleData([]byte(pressXToJSON))
 	if err != nil {

@@ -582,22 +582,35 @@ func StringToOrderSide(side string) (Side, error) {
 // and returning a real Type
 func StringToOrderType(oType string) (Type, error) {
 	switch {
-	case strings.EqualFold(oType, Limit.String()):
+	case strings.EqualFold(oType, Limit.String()),
+		strings.EqualFold(oType, "EXCHANGE LIMIT"):
 		return Limit, nil
-	case strings.EqualFold(oType, Market.String()):
+	case strings.EqualFold(oType, Market.String()),
+		strings.EqualFold(oType, "EXCHANGE MARKET"):
 		return Market, nil
 	case strings.EqualFold(oType, ImmediateOrCancel.String()),
-		strings.EqualFold(oType, "immediate or cancel"):
+		strings.EqualFold(oType, "immediate or cancel"),
+		strings.EqualFold(oType, "IOC"),
+		strings.EqualFold(oType, "EXCHANGE IOC"):
 		return ImmediateOrCancel, nil
 	case strings.EqualFold(oType, Stop.String()),
 		strings.EqualFold(oType, "stop loss"),
-		strings.EqualFold(oType, "stop_loss"):
+		strings.EqualFold(oType, "stop_loss"),
+		strings.EqualFold(oType, "EXCHANGE STOP"):
 		return Stop, nil
+	case strings.EqualFold(oType, StopLimit.String()),
+		strings.EqualFold(oType, "EXCHANGE STOP LIMIT"):
+		return StopLimit, nil
 	case strings.EqualFold(oType, TrailingStop.String()),
-		strings.EqualFold(oType, "trailing stop"):
+		strings.EqualFold(oType, "trailing stop"),
+		strings.EqualFold(oType, "EXCHANGE TRAILING STOP"):
 		return TrailingStop, nil
+	case strings.EqualFold(oType, FillOrKill.String()),
+		strings.EqualFold(oType, "EXCHANGE FOK"):
+		return FillOrKill, nil
 	case strings.EqualFold(oType, AnyType.String()):
 		return AnyType, nil
+
 	default:
 		return UnknownType, errors.New(oType + " not recognised as order type")
 	}

@@ -775,7 +775,7 @@ func (b *Bitfinex) WithdrawFIAT(withdrawalType, walletType string, withdrawReque
 // Major Upgrade needed on this function to include all query params
 func (b *Bitfinex) NewOrder(currencyPair, orderType string, amount, price float64, buy, hidden bool) (Order, error) {
 	if !common.StringDataCompare(AcceptedOrderType, orderType) {
-		return Order{}, errors.New("order type not accepted")
+		return Order{}, fmt.Errorf("order type %s not accepted", orderType)
 	}
 
 	response := Order{}

@@ -142,6 +142,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				return nil
 			}
 		}
+
 		chanID := int(d[0].(float64))
 		chanInfo, ok := b.WebsocketSubdChannels[chanID]
 		if !ok && chanID != 0 {

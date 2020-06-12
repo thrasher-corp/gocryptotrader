@@ -451,7 +451,7 @@ func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
-	fpair, err := b.FormatExchangeCurrency(o.Pair, asset.Spot)
+	fpair, err := b.FormatExchangeCurrency(o.Pair, o.AssetType)
 	if err != nil {
 		return submitOrderResponse, err
 	}
@@ -470,9 +470,13 @@ func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 	} else {
 		var response Order
 		isBuying := o.Side == order.Buy
-		b.appendOptionalDelimiter(&o.Pair)
-		response, err = b.NewOrder(o.Pair.String(),
-			o.Type.String(),
+		b.appendOptionalDelimiter(&fpair)
+		orderType := o.Type.Lower()
+		if o.AssetType == asset.Spot {
+			orderType = "exchange " + orderType
+		}
+		response, err = b.NewOrder(fpair.String(),
+			orderType,
 			o.Amount,
 			o.Price,
 			false,
@@ -480,8 +484,8 @@ func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 		if err != nil {
 			return submitOrderResponse, err
 		}
-		if response.OrderID > 0 {
-			submitOrderResponse.OrderID = strconv.FormatInt(response.OrderID, 10)
+		if response.ID > 0 {
+			submitOrderResponse.OrderID = strconv.FormatInt(response.ID, 10)
 		}
 		if response.RemainingAmount == 0 {
 			submitOrderResponse.FullyMatched = true
@@ -636,13 +640,12 @@ func (b *Bitfinex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 
 	for i := range resp {
 		orderSide := order.Side(strings.ToUpper(resp[i].Side))
-		timestamp, err := strconv.ParseInt(resp[i].Timestamp, 10, 64)
+		timestamp, err := strconv.ParseFloat(resp[i].Timestamp, 64)
 		if err != nil {
 			log.Warnf(log.ExchangeSys,
 				"Unable to convert timestamp '%s', leaving blank",
 				resp[i].Timestamp)
 		}
-		orderDate := time.Unix(timestamp, 0)
 
 		pair, err := currency.NewPairFromString(resp[i].Symbol)
 		if err != nil {
@@ -651,9 +654,9 @@ func (b *Bitfinex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 
 		orderDetail := order.Detail{
 			Amount:          resp[i].OriginalAmount,
-			Date:            orderDate,
+			Date:            time.Unix(int64(timestamp), 0),
 			Exchange:        b.Name,
-			ID:              strconv.FormatInt(resp[i].OrderID, 10),
+			ID:              strconv.FormatInt(resp[i].ID, 10),
 			Side:            orderSide,
 			Price:           resp[i].Price,
 			RemainingAmount: resp[i].RemainingAmount,
@@ -717,7 +720,7 @@ func (b *Bitfinex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 			Amount:          resp[i].OriginalAmount,
 			Date:            orderDate,
 			Exchange:        b.Name,
-			ID:              strconv.FormatInt(resp[i].OrderID, 10),
+			ID:              strconv.FormatInt(resp[i].ID, 10),
 			Side:            orderSide,
 			Price:           resp[i].Price,
 			RemainingAmount: resp[i].RemainingAmount,

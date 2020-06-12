@@ -220,7 +220,9 @@ const (
 	Market            Type = "MARKET"
 	ImmediateOrCancel Type = "IMMEDIATE_OR_CANCEL"
 	Stop              Type = "STOP"
+	StopLimit         Type = "STOP LIMIT"
 	TrailingStop      Type = "TRAILING_STOP"
+	FillOrKill        Type = "FOK"
 	UnknownType       Type = "UNKNOWN"
 )
 
