@@ -463,7 +463,10 @@ type WebSocketOrderQueryRecords struct {
 
 // WebsocketAuthenticationResponse contains the result of a login request
 type WebsocketAuthenticationResponse struct {
-	Error  string `json:"error,omitempty"`
+	Error struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	} `json:"error"`
 	Result struct {
 		Status string `json:"status"`
 	} `json:"result"`

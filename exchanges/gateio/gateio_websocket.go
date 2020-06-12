@@ -588,6 +588,7 @@ func (g *Gateio) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 		unsubscribe := WebsocketRequest{
 			ID:     g.Websocket.Conn.GenerateMessageID(true),
 			Method: unsubscribeText,
+			Params: []interface{}{channelsToUnsubscribe[i].Currency.String()},
 		}
 
 		resp, err := g.Websocket.Conn.SendMessageReturnResponse(unsubscribe.ID,

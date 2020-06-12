@@ -538,29 +538,12 @@ func setupWSTestAuth(t *testing.T) {
 	if !g.Websocket.IsEnabled() && !g.API.AuthenticatedWebsocketSupport {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
-	var dialer websocket.Dialer
-	err := g.Websocket.Conn.Dial(&dialer, http.Header{})
-
+	err := g.Websocket.Connect()
 	if err != nil {
 		t.Fatal(err)
 	}
 	go g.wsReadData()
 	wsSetupRan = true
-}
-
-// TestWsUnsubscribe dials websocket, sends an unsubscribe request.
-func TestWsUnsubscribe(t *testing.T) {
-	setupWSTestAuth(t)
-	g.Verbose = true
-	err := g.Unsubscribe([]stream.ChannelSubscription{
-		{
-			Channel:  "ticker.subscribe",
-			Currency: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_"),
-		},
-	})
-	if err != nil {
-		t.Error(err)
-	}
 }
 
 // TestWsSubscribe dials websocket, sends a subscribe request.
@@ -575,16 +558,26 @@ func TestWsSubscribe(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	err = g.Unsubscribe([]stream.ChannelSubscription{
+		{
+			Channel:  "ticker.subscribe",
+			Currency: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USDT.String(), "_"),
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestWsTicker(t *testing.T) {
 	pressXToJSON := []byte(`{
-    "method": "ticker.update", 
-    "params": 
+    "method": "ticker.update",
+    "params":
         [
-            "BTC_USDT", 
+            "BTC_USDT",
                 {
-                    "period": 86400, 
+                    "period": 86400,
                     "open": "0",
                     "close": "0",
                     "high": "0",
@@ -606,9 +599,9 @@ func TestWsTicker(t *testing.T) {
 func TestWsTrade(t *testing.T) {
 	pressXToJSON := []byte(`{
     "method": "trades.update",
-    "params": 
+    "params":
         [
-             "BTC_USDT", 
+             "BTC_USDT",
              [
                  {
                  "id": 7172173,
@@ -630,23 +623,23 @@ func TestWsTrade(t *testing.T) {
 
 func TestWsDepth(t *testing.T) {
 	pressXToJSON := []byte(`{
-    "method": "depth.update", 
+    "method": "depth.update",
     "params": [
-        true, 
+        true,
         {
             "asks": [
-                [                    
+                [
                     "8000.00",
                     "9.6250"
                 ]
             ],
-            "bids": [                
-                [                    
+            "bids": [
+                [
                     "8000.00",
                     "9.6250"
-                ]                
+                ]
             ]
-         }, 
+         },
          "BTC_USDT"
     ],
     "id": null
@@ -712,7 +705,7 @@ func TestWsOrderUpdate(t *testing.T) {
 
 func TestWsBalanceUpdate(t *testing.T) {
 	pressXToJSON := []byte(`{
-    "method": "balance.update", 
+    "method": "balance.update",
     "params": [{"EOS": {"available": "96.765323611874", "freeze": "11"}}],
     "id": 1234
 }`)
