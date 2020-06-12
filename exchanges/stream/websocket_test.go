@@ -43,8 +43,8 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 
 	// Check if traffic monitor has started
 	err = ws.trafficMonitor()
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	// Deploy traffic alert
