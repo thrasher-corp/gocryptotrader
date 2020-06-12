@@ -542,7 +542,6 @@ func setupWSTestAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	go g.wsReadData()
 	wsSetupRan = true
 }
 
