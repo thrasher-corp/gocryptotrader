@@ -317,11 +317,11 @@ func (w *Websocket) connectionMonitor() {
 	}()
 
 	for {
-		// if w.verbose {
-		log.Debugf(log.WebsocketMgr,
-			"%v running connection monitor cycle",
-			w.exchangeName)
-		// }
+		if w.verbose {
+			log.Debugf(log.WebsocketMgr,
+				"%v running connection monitor cycle",
+				w.exchangeName)
+		}
 		if !w.IsEnabled() {
 			if w.verbose {
 				log.Debugf(log.WebsocketMgr,

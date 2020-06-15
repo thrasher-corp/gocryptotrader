@@ -69,7 +69,7 @@ func printTickerSummary(result *ticker.Price, protocol string, err error) {
 		result.Pair.Quote != Bot.Config.Currency.FiatDisplayCurrency {
 		origCurrency := result.Pair.Quote.Upper()
 		log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
-			result.ExchangeName,
+			strings.Title(result.ExchangeName),
 			protocol,
 			FormatCurrency(result.Pair),
 			strings.ToUpper(result.AssetType.String()),
@@ -83,7 +83,7 @@ func printTickerSummary(result *ticker.Price, protocol string, err error) {
 		if result.Pair.Quote.IsFiatCurrency() &&
 			result.Pair.Quote == Bot.Config.Currency.FiatDisplayCurrency {
 			log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f\n",
-				result.ExchangeName,
+				strings.Title(result.ExchangeName),
 				protocol,
 				FormatCurrency(result.Pair),
 				strings.ToUpper(result.AssetType.String()),
@@ -95,7 +95,7 @@ func printTickerSummary(result *ticker.Price, protocol string, err error) {
 				result.Volume)
 		} else {
 			log.Infof(log.Ticker, "%s %s %s %s: TICKER: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f\n",
-				result.ExchangeName,
+				strings.Title(result.ExchangeName),
 				protocol,
 				FormatCurrency(result.Pair),
 				strings.ToUpper(result.AssetType.String()),
@@ -124,7 +124,7 @@ func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 		result.Pair.Quote != Bot.Config.Currency.FiatDisplayCurrency {
 		origCurrency := result.Pair.Quote.Upper()
 		log.Infof(log.OrderBook, "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s\n",
-			result.ExchangeName,
+			strings.Title(result.ExchangeName),
 			protocol,
 			FormatCurrency(result.Pair),
 			strings.ToUpper(result.AssetType.String()),
@@ -141,7 +141,7 @@ func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 		if result.Pair.Quote.IsFiatCurrency() &&
 			result.Pair.Quote == Bot.Config.Currency.FiatDisplayCurrency {
 			log.Infof(log.OrderBook, "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s\n",
-				result.ExchangeName,
+				strings.Title(result.ExchangeName),
 				protocol,
 				FormatCurrency(result.Pair),
 				strings.ToUpper(result.AssetType.String()),
@@ -156,7 +156,7 @@ func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 			)
 		} else {
 			log.Infof(log.OrderBook, "%s %s %s %s: ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %f Asks len: %d Amount: %f %s. Total value: %f\n",
-				result.ExchangeName,
+				strings.Title(result.ExchangeName),
 				protocol,
 				FormatCurrency(result.Pair),
 				strings.ToUpper(result.AssetType.String()),
@@ -271,27 +271,30 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		return fmt.Errorf("routines.go - exchange %s nil data sent to websocket",
 			exchName)
 	}
+
+	exchName = strings.Title(exchName)
+
 	switch d := data.(type) {
 	case string:
 		log.Info(log.WebsocketMgr, d)
 	case error:
 		return fmt.Errorf("routines.go exchange %s websocket error - %s", exchName, data)
 	case stream.TradeData:
-		// if Bot.Settings.Verbose {
-		log.Infof(log.WebsocketMgr, "%s websocket %s %s trade updated %+v",
-			exchName,
-			FormatCurrency(d.CurrencyPair),
-			d.AssetType,
-			d)
-		// }
+		if Bot.Settings.Verbose {
+			log.Infof(log.WebsocketMgr, "%s websocket %s %s trade updated %+v",
+				exchName,
+				FormatCurrency(d.CurrencyPair),
+				d.AssetType,
+				d)
+		}
 	case stream.FundingData:
-		// if Bot.Settings.Verbose {
-		log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",
-			exchName,
-			FormatCurrency(d.CurrencyPair),
-			d.AssetType,
-			d)
-		// }
+		if Bot.Settings.Verbose {
+			log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",
+				exchName,
+				FormatCurrency(d.CurrencyPair),
+				d.AssetType,
+				d)
+		}
 	case *ticker.Price:
 		if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
 			Bot.ExchangeCurrencyPairManager.update(exchName,
@@ -303,13 +306,13 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		err := ticker.ProcessTicker(d)
 		printTickerSummary(d, "websocket", err)
 	case stream.KlineData:
-		// if Bot.Settings.Verbose {
-		log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
-			exchName,
-			FormatCurrency(d.Pair),
-			d.AssetType,
-			d)
-		// }
+		if Bot.Settings.Verbose {
+			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
+				exchName,
+				FormatCurrency(d.Pair),
+				d.AssetType,
+				d)
+		}
 	case *orderbook.Base:
 		if Bot.Settings.EnableExchangeSyncManager && Bot.ExchangeCurrencyPairManager != nil {
 			Bot.ExchangeCurrencyPairManager.update(exchName,
@@ -353,12 +356,12 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 	case stream.UnhandledMessageWarning:
 		log.Warn(log.WebsocketMgr, d.Message)
 	default:
-		// if Bot.Settings.Verbose {
-		log.Warnf(log.WebsocketMgr,
-			"%s websocket Unknown type: %+v",
-			exchName,
-			d)
-		// }
+		if Bot.Settings.Verbose {
+			log.Warnf(log.WebsocketMgr,
+				"%s websocket Unknown type: %+v",
+				exchName,
+				d)
+		}
 	}
 	return nil
 }
