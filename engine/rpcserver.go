@@ -2159,16 +2159,17 @@ func (s *RPCServer) WebsocketGetSubscriptions(_ context.Context, r *gctrpc.Webso
 
 	payload := new(gctrpc.WebsocketGetSubscriptionsResponse)
 	payload.Exchange = exch.GetName()
-	for i := range w.GetSubscriptions() {
-		params, err := json.Marshal(w.GetSubscriptions()[i].Params)
+	subs := w.GetSubscriptions()
+	for i := range subs {
+		params, err := json.Marshal(subs[i].Params)
 		if err != nil {
 			return nil, err
 		}
 		payload.Subscriptions = append(payload.Subscriptions,
 			&gctrpc.WebsocketSubscription{
-				Channel:  w.GetSubscriptions()[i].Channel,
-				Currency: w.GetSubscriptions()[i].Currency.String(),
-				Asset:    w.GetSubscriptions()[i].Asset.String(),
+				Channel:  subs[i].Channel,
+				Currency: subs[i].Currency.String(),
+				Asset:    subs[i].Asset.String(),
 				Params:   string(params),
 			})
 	}
