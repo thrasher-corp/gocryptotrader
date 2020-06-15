@@ -33,10 +33,7 @@ Using Go Modules you now clone this repository **outside** your GOPATH
 
 ```bash
 git clone https://github.com/thrasher-corp/gocryptotrader.git
-cd cmd
-cd exchange_template
-go build
-go run exchange_template.go -name Bitmex -ws -rest
+go run cmd/exchange_template/exchange_template.go -name newexchange -ws -rest
 ```
 
 ###### Windows
@@ -69,14 +66,6 @@ config.GetDefaultFilePath()
    "websocketOrderbookBufferLimit": 5,
    "baseCurrencies": "USD",
    "currencyPairs": {
-    "requestFormat": {
-     "uppercase": false,
-     "delimiter": "_"
-    },
-    "configFormat": {
-     "uppercase": true,
-     "delimiter": "_"
-    },
     "useGlobalFormat": true,
     "assetTypes": [
       "spot",
@@ -261,6 +250,18 @@ var Exchanges = []string{
 ```
 
 ###### exchanges\exchange_test.go:
+```go
+func TestExchange_Exchanges(t *testing.T) {
+	t.Parallel()
+	x := exchangeTest.Exchanges(false)
+	y := len(x)
+	if y != 28 { // add 1 here (before FTX was added it was 27, so 28 now)
+		t.Fatalf("expected 28 received %v", y) // add 1 here
+	}
+}
+```
+
+###### gctscript\wrappers\gct\exchange\exchange_test.go:
 ```go
 func TestExchange_Exchanges(t *testing.T) {
 	t.Parallel()

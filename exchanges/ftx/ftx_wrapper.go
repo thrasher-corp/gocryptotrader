@@ -643,8 +643,7 @@ func (f *FTX) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*w
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (f *FTX) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	var resp *withdraw.ExchangeResponse
-	return resp, common.ErrFunctionNotSupported
+	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a

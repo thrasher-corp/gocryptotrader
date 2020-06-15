@@ -1293,15 +1293,7 @@
    "websocketOrderbookBufferLimit": 5,
    "baseCurrencies": "USD",
    "currencyPairs": {
-    "requestFormat": {
-     "uppercase": false,
-     "delimiter": "_"
-    },
-    "configFormat": {
-     "uppercase": true,
-     "delimiter": "_"
-    },
-    "useGlobalFormat": true,
+    "useGlobalFormat": false,
     "assetTypes": [
       "spot",
       "futures"

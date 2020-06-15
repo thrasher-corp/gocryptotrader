@@ -81,8 +81,7 @@ const (
 	getMyQuotesRequests      = "/options/my_requests"
 	createQuoteRequest       = "/options/requests"
 	deleteQuote              = "/options/requests/"
-	getQuotesForQuote        = "/options/requests/%s/quotes"
-	createQuote              = "/options/requests/%s/quotes"
+	endpointQuote            = "/options/requests/%s/quotes"
 	getMyQuotes              = "/options/my_quotes"
 	deleteMyQuote            = "/options/quotes/"
 	acceptQuote              = "/options/quotes/%s/accept"
@@ -619,7 +618,7 @@ func (f *FTX) DeleteQuote(requestID string) (CancelQuote, error) {
 // GetQuotesForYourQuote gets a list of quotes for your quote
 func (f *FTX) GetQuotesForYourQuote(requestID string) (QuoteForQuoteData, error) {
 	var resp QuoteForQuoteData
-	return resp, f.SendAuthHTTPRequest(http.MethodGet, fmt.Sprintf(getQuotesForQuote, requestID), nil, &resp)
+	return resp, f.SendAuthHTTPRequest(http.MethodGet, fmt.Sprintf(endpointQuote, requestID), nil, &resp)
 }
 
 // MakeQuote makes a quote for a quote
@@ -627,7 +626,7 @@ func (f *FTX) MakeQuote(requestID, price string) (QuoteForQuoteResponse, error) 
 	params := url.Values{}
 	params.Set("price", price)
 	var resp QuoteForQuoteResponse
-	return resp, f.SendAuthHTTPRequest(http.MethodPost, fmt.Sprintf(createQuote, requestID), nil, &resp)
+	return resp, f.SendAuthHTTPRequest(http.MethodPost, fmt.Sprintf(endpointQuote, requestID), nil, &resp)
 }
 
 // MyQuotes gets a list of my quotes for quotes

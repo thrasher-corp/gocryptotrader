@@ -2442,13 +2442,7 @@
    "websocketOrderbookBufferLimit": 0,
    "baseCurrencies": "",
    "currencyPairs": {
-    "requestFormat": {
-     "uppercase": true
-    },
-    "configFormat": {
-     "uppercase": true
-    },
-    "useGlobalFormat": true,
+    "useGlobalFormat": false,
     "assetTypes": [
      "spot",
      "futures"

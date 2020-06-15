@@ -111,7 +111,7 @@ type FuturesData struct {
 	Description         string      `json:"description"`
 	Enabled             bool        `json:"enabled"`
 	Expired             bool        `json:"expired"`
-	Expiry              string      `json:"expiry"`
+	Expiry              time.Time   `json:"expiry"`
 	ExpiryDescription   string      `json:"expiryDescription"`
 	Group               string      `json:"group"`
 	Index               float64     `json:"index"`
@@ -601,10 +601,10 @@ type LTRedemptionRequest struct {
 
 // OptionData stores options' data
 type OptionData struct {
-	Underlying string  `json:"underlying"`
-	OptionType string  `json:"type"`
-	Strike     float64 `json:"strike"`
-	Expiry     string  `json:"expiry"`
+	Underlying string    `json:"underlying"`
+	OptionType string    `json:"type"`
+	Strike     float64   `json:"strike"`
+	Expiry     time.Time `json:"expiry"`
 }
 
 // QuoteRequestData stores option's quote request data
@@ -657,7 +657,7 @@ type PersonalQuotes struct {
 // CreateQuoteRequestData stores quote data of the request sent
 type CreateQuoteRequestData struct {
 	ID            int64     `json:"id"`
-	Expiry        string    `json:"expiry"`
+	Expiry        time.Time `json:"expiry"`
 	Strike        float64   `json:"strike"`
 	OptionType    string    `json:"type"`
 	Underlying    string    `json:"underlying"`

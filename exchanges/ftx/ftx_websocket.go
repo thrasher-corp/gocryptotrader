@@ -292,7 +292,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			resp.Side = orderVars.Side
 			resp.Type = orderVars.OrderType
 			resp.Fee = orderVars.Fee
-			f.Websocket.DataHandler <- resp
+			f.Websocket.DataHandler <- &resp
 		case wsFills:
 			var resultData WsFillsDataStore
 			err = json.Unmarshal(respRaw, &resultData)

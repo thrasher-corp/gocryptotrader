@@ -423,7 +423,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			responseContainer.ErrorCount++
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], time.Time{}, time.Time{}}),
+			SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], time.Now().Add(-time.Minute), time.Now()}),
 			Function:   "GetExchangeHistory",
 			Error:      msg,
 			Response:   jsonifyInterface([]interface{}{r8}),
@@ -507,9 +507,10 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 		// r13
 		cancelRequest := order.Cancel{
-			Side: testOrderSide,
-			Pair: p,
-			ID:   config.OrderSubmission.OrderID,
+			Side:      testOrderSide,
+			Pair:      p,
+			ID:        config.OrderSubmission.OrderID,
+			AssetType: assetTypes[i],
 		}
 		err = e.CancelOrder(&cancelRequest)
 		msg = ""
