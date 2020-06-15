@@ -669,13 +669,17 @@ func (w *Websocket) SetWebsocketURL(websocketURL string, reconnect bool) error {
 		w.runningURL = websocketURL
 	}
 
-	log.Debugf(log.ExchangeSys, "Setting websocket URL: %s\n", websocketURL)
+	if w.verbose {
+		log.Debugf(log.ExchangeSys, "Setting websocket URL: %s\n", websocketURL)
+	}
+
 	if w.Conn != nil {
 		w.Conn.SetURL(w.runningURL)
 	}
 	if w.AuthConn != nil {
 		w.AuthConn.SetURL(w.runningURL)
 	}
+
 	if w.IsConnected() && reconnect {
 		log.Debugf(log.ExchangeSys,
 			"Flushing websocket connection to %s\n",
