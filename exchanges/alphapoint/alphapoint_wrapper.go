@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -310,11 +309,6 @@ func (a *Alphapoint) WithdrawFiatFundsToInternationalBank(withdrawRequest *withd
 	return "", common.ErrNotYetImplemented
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (a *Alphapoint) GetWebsocket() (*stream.Websocket, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (a *Alphapoint) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return 0, common.ErrFunctionNotSupported
@@ -401,28 +395,6 @@ func (a *Alphapoint) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	return orders, nil
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (a *Alphapoint) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (a *Alphapoint) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (a *Alphapoint) GetSubscriptions() ([]stream.ChannelSubscription, error) {
-	return nil, common.ErrFunctionNotSupported
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (a *Alphapoint) AuthenticateWebsocket() error {
-	return common.ErrFunctionNotSupported
 }
 
 // ValidateCredentials validates current credentials used for wrapper

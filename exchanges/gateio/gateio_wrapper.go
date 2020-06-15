@@ -550,11 +550,6 @@ func (g *Gateio) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (g *Gateio) GetWebsocket() (*stream.Websocket, error) {
-	return g.Websocket, nil
-}
-
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (g *Gateio) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if !g.AllowAuthenticatedRequest() && // Todo check connection status
@@ -684,25 +679,6 @@ func (g *Gateio) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (g *Gateio) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	g.Websocket.SubscribeToChannels(channels)
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (g *Gateio) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	g.Websocket.RemoveSubscribedChannels(channels)
-	return nil
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (g *Gateio) GetSubscriptions() ([]stream.ChannelSubscription, error) {
-	return g.Websocket.GetSubscriptions(), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

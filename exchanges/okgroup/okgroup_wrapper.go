@@ -502,11 +502,6 @@ func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Det
 	return
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (o *OKGroup) GetWebsocket() (*stream.Websocket, error) {
-	return o.Websocket, nil
-}
-
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (o *OKGroup) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if !o.AllowAuthenticatedRequest() && // Todo check connection status
@@ -519,25 +514,6 @@ func (o *OKGroup) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (o *OKGroup) GetWithdrawCapabilities() uint32 {
 	return o.GetWithdrawPermissions()
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (o *OKGroup) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	o.Websocket.SubscribeToChannels(channels)
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (o *OKGroup) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	o.Websocket.RemoveSubscribedChannels(channels)
-	return nil
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (o *OKGroup) GetSubscriptions() ([]stream.ChannelSubscription, error) {
-	return o.Websocket.GetSubscriptions(), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

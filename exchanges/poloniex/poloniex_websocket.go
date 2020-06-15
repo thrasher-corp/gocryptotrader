@@ -57,8 +57,7 @@ func (p *Poloniex) WsConnect() error {
 		return err
 	}
 
-	p.Websocket.SubscribeToChannels(subs)
-	return nil
+	return p.Websocket.SubscribeToChannels(subs)
 }
 
 func (p *Poloniex) getCurrencyIDMap() error {

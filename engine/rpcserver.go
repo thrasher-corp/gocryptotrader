@@ -1294,7 +1294,7 @@ func (s *RPCServer) EnableExchangePair(_ context.Context, r *gctrpc.ExchangePair
 		}
 	}
 
-	err = exch.ResetWebsocketConnection()
+	err = exch.FlushWebsocketChannels()
 	if err != nil {
 		newErrors = append(newErrors, err)
 	}
@@ -1358,7 +1358,7 @@ func (s *RPCServer) DisableExchangePair(_ context.Context, r *gctrpc.ExchangePai
 		}
 	}
 
-	err = exch.ResetWebsocketConnection()
+	err = exch.FlushWebsocketChannels()
 	if err != nil {
 		newErrors = append(newErrors, err)
 	}
@@ -2029,7 +2029,7 @@ func (s *RPCServer) EnableDisableAllExchangePairs(_ context.Context, r *gctrpc.E
 			base.CurrencyPairs.StorePairs(assets[i], pairs, true)
 		}
 
-		err = exch.ResetWebsocketConnection()
+		err = exch.FlushWebsocketChannels()
 		if err != nil {
 			return nil, err
 		}
@@ -2042,7 +2042,7 @@ func (s *RPCServer) EnableDisableAllExchangePairs(_ context.Context, r *gctrpc.E
 		base.CurrencyPairs.StorePairs(assets[i], nil, true)
 	}
 
-	err = exch.ResetWebsocketConnection()
+	err = exch.FlushWebsocketChannels()
 	if err != nil {
 		return nil, err
 	}
@@ -2074,7 +2074,7 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(_ context.Context, r *gctrpc.Up
 		return nil, err
 	}
 
-	err = exch.ResetWebsocketConnection()
+	err = exch.FlushWebsocketChannels()
 	if err != nil {
 		return nil, err
 	}

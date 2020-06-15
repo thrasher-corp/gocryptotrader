@@ -440,11 +440,6 @@ func (l *LakeBTC) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (l *LakeBTC) GetWebsocket() (*stream.Websocket, error) {
-	return l.Websocket, nil
-}
-
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (l *LakeBTC) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if !l.AllowAuthenticatedRequest() && // Todo check connection status
@@ -530,28 +525,6 @@ func (l *LakeBTC) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 
 	return orders, nil
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (l *LakeBTC) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (l *LakeBTC) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (l *LakeBTC) GetSubscriptions() ([]stream.ChannelSubscription, error) {
-	return nil, common.ErrFunctionNotSupported
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (l *LakeBTC) AuthenticateWebsocket() error {
-	return common.ErrFunctionNotSupported
 }
 
 // ValidateCredentials validates current credentials used for wrapper

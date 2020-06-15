@@ -102,3 +102,8 @@ type WebsocketPositionUpdated struct {
 	AssetType asset.Item
 	Exchange  string
 }
+
+// UnhandledMessageWarning defines a container for unhandled message warnings
+type UnhandledMessageWarning struct {
+	Message string
+}

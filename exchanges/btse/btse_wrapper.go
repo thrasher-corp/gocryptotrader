@@ -582,11 +582,6 @@ func (b *BTSE) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Re
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (b *BTSE) GetWebsocket() (*stream.Websocket, error) {
-	return b.Websocket, nil
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := b.GetOrders("")
@@ -676,30 +671,6 @@ func (b *BTSE) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
 	return b.GetFee(feeBuilder)
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (b *BTSE) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	b.Websocket.SubscribeToChannels(channels)
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (b *BTSE) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	b.Websocket.RemoveSubscribedChannels(channels)
-	return nil
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (b *BTSE) GetSubscriptions() ([]stream.ChannelSubscription, error) {
-	return b.Websocket.GetSubscriptions(), nil
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (b *BTSE) AuthenticateWebsocket() error {
-	return common.ErrFunctionNotSupported
 }
 
 // ValidateCredentials validates current credentials used for wrapper

@@ -63,7 +63,11 @@ func (c *COINUT) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	c.Websocket.SubscribeToChannels(subs)
+
+	err = c.Websocket.SubscribeToChannels(subs)
+	if err != nil {
+		return err
+	}
 
 	// define bi-directional communication
 	channels = make(map[string]chan []byte)

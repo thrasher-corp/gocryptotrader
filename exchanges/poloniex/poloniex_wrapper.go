@@ -1,7 +1,6 @@
 package poloniex
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -523,14 +522,6 @@ func (p *Poloniex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdra
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetWebsocket returns a pointer to the exchange streaming service
-func (p *Poloniex) GetWebsocket() (*stream.Websocket, error) {
-	if p.Websocket == nil {
-		return nil, errors.New("no streaming service found")
-	}
-	return p.Websocket, nil
-}
-
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (p *Poloniex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if (!p.AllowAuthenticatedRequest() || p.SkipAuthCheck) && // Todo check connection status
@@ -637,30 +628,6 @@ func (p *Poloniex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 	order.FilterOrdersBySide(&orders, req.Side)
 
 	return orders, nil
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (p *Poloniex) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	p.Websocket.SubscribeToChannels(channels)
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (p *Poloniex) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	p.Websocket.RemoveSubscribedChannels(channels)
-	return nil
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (p *Poloniex) GetSubscriptions() ([]stream.ChannelSubscription, error) {
-	return p.Websocket.GetSubscriptions(), nil
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (p *Poloniex) AuthenticateWebsocket() error {
-	return common.ErrFunctionNotSupported
 }
 
 // ValidateCredentials validates current credentials used for wrapper

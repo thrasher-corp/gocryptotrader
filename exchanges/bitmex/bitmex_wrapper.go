@@ -543,11 +543,6 @@ func (b *Bitmex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (b *Bitmex) GetWebsocket() (*stream.Websocket, error) {
-	return b.Websocket, nil
-}
-
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (b *Bitmex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if !b.AllowAuthenticatedRequest() && // Todo check connection status
@@ -648,25 +643,6 @@ func (b *Bitmex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (b *Bitmex) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	b.Websocket.SubscribeToChannels(channels)
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Bitmex) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	b.Websocket.RemoveSubscribedChannels(channels)
-	return nil
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (b *Bitmex) GetSubscriptions() ([]stream.ChannelSubscription, error) {
-	return b.Websocket.GetSubscriptions(), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

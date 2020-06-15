@@ -47,9 +47,15 @@ type Websocket struct {
 	subscribe         chan []ChannelSubscription
 	unsubscribe       chan []ChannelSubscription
 
-	channelSubscriber   func([]ChannelSubscription) error
-	channelUnsubscriber func([]ChannelSubscription) error
-	channelGeneratesubs func() ([]ChannelSubscription, error)
+	// Subscriber function for package defined websocket subscriber
+	// functionality
+	Subscriber func([]ChannelSubscription) error
+	// Unsubscriber function for packaged defined websocket unsubscriber
+	// functionality
+	Unsubscriber func([]ChannelSubscription) error
+	// GenerateSubs function for package defined websocket generate
+	// subscriptions functionality
+	GenerateSubs func() ([]ChannelSubscription, error)
 
 	DataHandler chan interface{}
 	ToRoutine   chan interface{}
@@ -96,9 +102,4 @@ type WebsocketSetup struct {
 	SortBuffer            bool
 	SortBufferByUpdateIDs bool
 	UpdateEntriesByID     bool
-}
-
-// UnhandledMessageWarning defines a container for unhandled message warnings
-type UnhandledMessageWarning struct {
-	Message string
 }

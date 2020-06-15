@@ -616,11 +616,6 @@ func (b *Bitfinex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdra
 	}, nil
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (b *Bitfinex) GetWebsocket() (*stream.Websocket, error) {
-	return b.Websocket, nil
-}
-
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (b *Bitfinex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if !b.AllowAuthenticatedRequest() && // Todo check connection status
@@ -759,31 +754,6 @@ func (b *Bitfinex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 	}
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (b *Bitfinex) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	for i := range channels {
-		b.appendOptionalDelimiter(&channels[i].Currency)
-	}
-	b.Websocket.SubscribeToChannels(channels)
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Bitfinex) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	for i := range channels {
-		b.appendOptionalDelimiter(&channels[i].Currency)
-	}
-	b.Websocket.RemoveSubscribedChannels(channels)
-	return nil
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (b *Bitfinex) GetSubscriptions() ([]stream.ChannelSubscription, error) {
-	return b.Websocket.GetSubscriptions(), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

@@ -50,8 +50,7 @@ func (c *Coinbene) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	c.Websocket.SubscribeToChannels(subs)
-	return nil
+	return c.Websocket.SubscribeToChannels(subs)
 }
 
 // GenerateDefaultSubscriptions generates stuff
@@ -130,8 +129,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			c.Websocket.SubscribeToChannels(authsubs)
-			return nil
+			return c.Websocket.SubscribeToChannels(authsubs)
 		}
 		c.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return fmt.Errorf("message: %s. code: %v", result["message"], result["code"])

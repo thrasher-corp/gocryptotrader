@@ -9,12 +9,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
@@ -779,35 +781,10 @@ func (e *Base) GetAPIURLSecondaryDefault() string {
 	return e.API.Endpoints.URLSecondaryDefault
 }
 
-// SupportsWebsocket returns whether or not the exchange supports
-// websocket
-func (e *Base) SupportsWebsocket() bool {
-	return e.Features.Supports.Websocket
-}
-
 // SupportsREST returns whether or not the exchange supports
 // REST
 func (e *Base) SupportsREST() bool {
 	return e.Features.Supports.REST
-}
-
-// IsWebsocketEnabled returns whether or not the exchange has its
-// websocket client enabled
-func (e *Base) IsWebsocketEnabled() bool {
-	if e.Websocket != nil {
-		return e.Websocket.IsEnabled()
-	}
-	return false
-}
-
-// ResetWebsocketConnection refreshes websocket connection
-func (e *Base) ResetWebsocketConnection() error {
-	if e.Websocket != nil {
-		if e.Websocket.IsEnabled() {
-			return e.Websocket.RefreshConnection()
-		}
-	}
-	return nil
 }
 
 // GetWithdrawPermissions passes through the exchange's withdraw permissions
@@ -983,4 +960,67 @@ func (e *Base) SetGlobalPairsManager(request, config *currency.PairFormat, asset
 	}
 
 	return nil
+}
+
+// GetWebsocket returns a pointer to the exchange websocket
+func (e *Base) GetWebsocket() (*stream.Websocket, error) {
+	if e.Websocket == nil {
+		return nil, common.ErrFunctionNotSupported
+	}
+	return e.Websocket, nil
+}
+
+// SupportsWebsocket returns whether or not the exchange supports
+// websocket
+func (e *Base) SupportsWebsocket() bool {
+	return e.Features.Supports.Websocket
+}
+
+// IsWebsocketEnabled returns whether or not the exchange has its
+// websocket client enabled
+func (e *Base) IsWebsocketEnabled() bool {
+	if e.Websocket != nil {
+		return e.Websocket.IsEnabled()
+	}
+	return false
+}
+
+// FlushWebsocketChannels refreshes websocket channel subscriptions based on
+// websocket features. Used in the event of a pair/asset or subscription change.
+func (e *Base) FlushWebsocketChannels() error {
+	if e.Websocket != nil {
+		return e.Websocket.FlushChannels()
+	}
+	return nil
+}
+
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (e *Base) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
+	if e.Websocket == nil {
+		return common.ErrFunctionNotSupported
+	}
+	return e.Websocket.SubscribeToChannels(channels)
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (e *Base) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
+	if e.Websocket == nil {
+		return common.ErrFunctionNotSupported
+	}
+	return e.Websocket.UnsubscribeChannels(channels)
+}
+
+// GetSubscriptions returns a copied list of subscriptions
+func (e *Base) GetSubscriptions() ([]stream.ChannelSubscription, error) {
+	if e.Websocket == nil {
+		return nil, common.ErrFunctionNotSupported
+	}
+	return e.Websocket.GetSubscriptions(), nil
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (e *Base) AuthenticateWebsocket() error {
+	return common.ErrFunctionNotSupported
 }

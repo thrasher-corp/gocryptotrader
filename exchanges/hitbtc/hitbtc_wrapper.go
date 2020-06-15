@@ -549,11 +549,6 @@ func (h *HitBTC) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (h *HitBTC) GetWebsocket() (*stream.Websocket, error) {
-	return h.Websocket, nil
-}
-
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (h *HitBTC) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if !h.AllowAuthenticatedRequest() && // Todo check connection status
@@ -644,25 +639,6 @@ func (h *HitBTC) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (h *HitBTC) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	h.Websocket.SubscribeToChannels(channels)
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (h *HitBTC) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	h.Websocket.RemoveSubscribedChannels(channels)
-	return nil
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (h *HitBTC) GetSubscriptions() ([]stream.ChannelSubscription, error) {
-	return h.Websocket.GetSubscriptions(), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

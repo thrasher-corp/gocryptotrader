@@ -600,11 +600,6 @@ func (b *Binance) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (b *Binance) GetWebsocket() (*stream.Websocket, error) {
-	return b.Websocket, nil
-}
-
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (b *Binance) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if (!b.AllowAuthenticatedRequest() || b.SkipAuthCheck) && // Todo check connection status
@@ -715,28 +710,6 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	return orders, nil
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (b *Binance) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Binance) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (b *Binance) GetSubscriptions() ([]stream.ChannelSubscription, error) {
-	return b.Websocket.GetSubscriptions(), nil
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (b *Binance) AuthenticateWebsocket() error {
-	return common.ErrFunctionNotSupported
 }
 
 // ValidateCredentials validates current credentials used for wrapper

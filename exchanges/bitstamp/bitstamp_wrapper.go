@@ -514,11 +514,6 @@ func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdra
 	}, nil
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (b *Bitstamp) GetWebsocket() (*stream.Websocket, error) {
-	return b.Websocket, nil
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Bitstamp) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var currPair string
@@ -641,30 +636,6 @@ func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (b *Bitstamp) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	b.Websocket.SubscribeToChannels(channels)
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Bitstamp) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	b.Websocket.RemoveSubscribedChannels(channels)
-	return nil
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (b *Bitstamp) GetSubscriptions() ([]stream.ChannelSubscription, error) {
-	return b.Websocket.GetSubscriptions(), nil
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (b *Bitstamp) AuthenticateWebsocket() error {
-	return common.ErrFunctionNotSupported
 }
 
 // ValidateCredentials validates current credentials used for wrapper

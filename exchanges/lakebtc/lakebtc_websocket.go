@@ -56,8 +56,7 @@ func (l *LakeBTC) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	l.Websocket.SubscribeToChannels(subs)
-	return nil
+	return l.Websocket.SubscribeToChannels(subs)
 }
 
 func (l *LakeBTC) listenToEndpoints() error {

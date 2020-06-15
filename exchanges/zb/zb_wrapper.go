@@ -548,11 +548,6 @@ func (z *ZB) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Requ
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (z *ZB) GetWebsocket() (*stream.Websocket, error) {
-	return z.Websocket, nil
-}
-
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (z *ZB) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if !z.AllowAuthenticatedRequest() && // Todo check connection status
@@ -691,29 +686,6 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	return orders, nil
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (z *ZB) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	z.Websocket.SubscribeToChannels(channels)
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (z *ZB) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (z *ZB) GetSubscriptions() ([]stream.ChannelSubscription, error) {
-	return z.Websocket.GetSubscriptions(), nil
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (z *ZB) AuthenticateWebsocket() error {
-	return common.ErrFunctionNotSupported
 }
 
 // ValidateCredentials validates current credentials used for wrapper

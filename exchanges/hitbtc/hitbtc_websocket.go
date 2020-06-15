@@ -52,8 +52,7 @@ func (h *HitBTC) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	h.Websocket.SubscribeToChannels(subs)
-	return nil
+	return h.Websocket.SubscribeToChannels(subs)
 }
 
 // wsReadData receives and passes on websocket messages for processing

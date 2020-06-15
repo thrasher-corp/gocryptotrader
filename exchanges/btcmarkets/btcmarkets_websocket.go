@@ -43,8 +43,7 @@ func (b *BTCMarkets) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	b.Websocket.SubscribeToChannels(subs)
-	return nil
+	return b.Websocket.SubscribeToChannels(subs)
 }
 
 // wsReadData receives and passes on websocket messages for processing

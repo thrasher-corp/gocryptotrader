@@ -746,11 +746,6 @@ func (h *HUOBI) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.R
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (h *HUOBI) GetWebsocket() (*stream.Websocket, error) {
-	return h.Websocket, nil
-}
-
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (h *HUOBI) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if !h.AllowAuthenticatedRequest() && // Todo check connection status
@@ -933,25 +928,6 @@ func setOrderSideAndType(requestType string, orderDetail *order.Detail) {
 		orderDetail.Side = order.Sell
 		orderDetail.Type = order.Limit
 	}
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (h *HUOBI) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	h.Websocket.SubscribeToChannels(channels)
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (h *HUOBI) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	h.Websocket.RemoveSubscribedChannels(channels)
-	return nil
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (h *HUOBI) GetSubscriptions() ([]stream.ChannelSubscription, error) {
-	return h.Websocket.GetSubscriptions(), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

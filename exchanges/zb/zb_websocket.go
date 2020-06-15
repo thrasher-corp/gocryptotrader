@@ -44,8 +44,7 @@ func (z *ZB) WsConnect() error {
 		return err
 	}
 	go z.wsReadData()
-	z.Websocket.SubscribeToChannels(subs)
-	return nil
+	return z.Websocket.SubscribeToChannels(subs)
 }
 
 // wsReadData handles all the websocket data coming from the websocket

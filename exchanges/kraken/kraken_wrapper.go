@@ -700,11 +700,6 @@ func (k *Kraken) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.
 	}, nil
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (k *Kraken) GetWebsocket() (*stream.Websocket, error) {
-	return k.Websocket, nil
-}
-
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (k *Kraken) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if !k.AllowAuthenticatedRequest() && // Todo check connection status
@@ -817,25 +812,6 @@ func (k *Kraken) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]or
 	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
 	order.FilterOrdersByCurrencies(&orders, getOrdersRequest.Pairs)
 	return orders, nil
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (k *Kraken) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	k.Websocket.SubscribeToChannels(channels)
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (k *Kraken) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	k.Websocket.RemoveSubscribedChannels(channels)
-	return nil
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (k *Kraken) GetSubscriptions() ([]stream.ChannelSubscription, error) {
-	return k.Websocket.GetSubscriptions(), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

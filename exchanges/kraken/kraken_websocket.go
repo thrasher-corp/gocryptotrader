@@ -99,7 +99,10 @@ func (k *Kraken) WsConnect() error {
 				if err != nil {
 					return err
 				}
-				k.Websocket.SubscribeToChannels(authsubs)
+				err = k.Websocket.SubscribeToChannels(authsubs)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -117,8 +120,7 @@ func (k *Kraken) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	k.Websocket.SubscribeToChannels(gensubs)
-	return nil
+	return k.Websocket.SubscribeToChannels(gensubs)
 }
 
 // wsFunnelConnectionData funnels both auth and public ws data into one manageable place

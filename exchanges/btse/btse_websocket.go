@@ -52,8 +52,7 @@ func (b *BTSE) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	b.Websocket.SubscribeToChannels(subs)
-	return nil
+	return b.Websocket.SubscribeToChannels(subs)
 }
 
 // WsAuthenticate Send an authentication message to receive auth data

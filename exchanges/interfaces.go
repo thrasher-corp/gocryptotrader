@@ -62,19 +62,24 @@ type IBotExchange interface {
 	SetHTTPClientUserAgent(ua string)
 	GetHTTPClientUserAgent() string
 	SetClientProxyAddress(addr string) error
-	SupportsWebsocket() bool
 	SupportsREST() bool
-	IsWebsocketEnabled() bool
-	GetWebsocket() (*stream.Websocket, error)
-	SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
-	UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
-	AuthenticateWebsocket() error
 	GetSubscriptions() ([]stream.ChannelSubscription, error)
-	ResetWebsocketConnection() error
 	GetDefaultConfig() (*config.ExchangeConfig, error)
 	GetBase() *Base
 	SupportsAsset(assetType asset.Item) bool
 	GetHistoricCandles(p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval time.Duration) (kline.Item, error)
 	DisableRateLimiter() error
 	EnableRateLimiter() error
+
+	// Websocket specific wrapper functionality
+	// GetWebsocket returns a pointer to the websocket
+	GetWebsocket() (*stream.Websocket, error)
+	IsWebsocketEnabled() bool
+	SupportsWebsocket() bool
+	SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
+	UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
+	// FlushWebsocketChannels checks and flushes subscriptions if there is a
+	// pair,asset, url/proxy or subscription change
+	FlushWebsocketChannels() error
+	AuthenticateWebsocket() error
 }

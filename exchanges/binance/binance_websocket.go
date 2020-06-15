@@ -89,8 +89,7 @@ func (b *Binance) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	b.Websocket.SubscribeToChannels(subs)
-	return nil
+	return b.Websocket.SubscribeToChannels(subs)
 }
 
 // KeepAuthKeyAlive will continuously send messages to
@@ -463,6 +462,14 @@ func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
 	}
 
 	currentBook := b.Websocket.Orderbook.GetOrderbook(currencyPair, asset.Spot)
+	if currentBook == nil {
+		// Used when a pair/s is enabled while connected
+		err = b.SeedLocalCache(currencyPair)
+		if err != nil {
+			return err
+		}
+		currentBook = b.Websocket.Orderbook.GetOrderbook(currencyPair, asset.Spot)
+	}
 
 	// Drop any event where u is <= lastUpdateId in the snapshot.
 	// The first processed event should have U <= lastUpdateId+1 AND u >= lastUpdateId+1.

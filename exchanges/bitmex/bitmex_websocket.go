@@ -98,7 +98,12 @@ func (b *Bitmex) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	b.Websocket.SubscribeToChannels(subs)
+
+	err = b.Websocket.SubscribeToChannels(subs)
+	if err != nil {
+		return err
+	}
+
 	err = b.websocketSendAuth()
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
@@ -110,7 +115,7 @@ func (b *Bitmex) WsConnect() error {
 		if err != nil {
 			return err
 		}
-		b.Websocket.SubscribeToChannels(authsubs)
+		return b.Websocket.SubscribeToChannels(authsubs)
 	}
 	return nil
 }

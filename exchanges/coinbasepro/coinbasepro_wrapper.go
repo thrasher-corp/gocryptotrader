@@ -604,11 +604,6 @@ func (c *CoinbasePro) WithdrawFiatFundsToInternationalBank(withdrawRequest *with
 	}, nil
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (c *CoinbasePro) GetWebsocket() (*stream.Websocket, error) {
-	return c.Websocket, nil
-}
-
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (c *CoinbasePro) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if !c.AllowAuthenticatedRequest() && // Todo check connection status
@@ -708,30 +703,6 @@ func (c *CoinbasePro) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Deta
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (c *CoinbasePro) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	c.Websocket.SubscribeToChannels(channels)
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (c *CoinbasePro) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	c.Websocket.RemoveSubscribedChannels(channels)
-	return nil
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (c *CoinbasePro) GetSubscriptions() ([]stream.ChannelSubscription, error) {
-	return c.Websocket.GetSubscriptions(), nil
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (c *CoinbasePro) AuthenticateWebsocket() error {
-	return common.ErrFunctionNotSupported
 }
 
 // checkInterval checks allowable interval

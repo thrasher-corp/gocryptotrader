@@ -85,8 +85,7 @@ func (h *HUOBI) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	h.Websocket.SubscribeToChannels(subs)
-	return nil
+	return h.Websocket.SubscribeToChannels(subs)
 }
 
 func (h *HUOBI) wsDial(dialer *websocket.Dialer) error {
