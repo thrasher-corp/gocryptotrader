@@ -237,7 +237,6 @@ func (b *Binance) Run() {
 	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
 		return
 	}
-
 	err = b.UpdateTradablePairs(forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
@@ -279,8 +278,9 @@ func (b *Binance) FetchTradablePairs(a asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (b *Binance) UpdateTradablePairs(forceUpdate bool) error {
-	for i := range b.GetAssetTypes() {
-		p, err := b.FetchTradablePairs(b.GetAssetTypes()[i])
+	assetTypes := b.GetAssetTypes()
+	for i := range assetTypes {
+		p, err := b.FetchTradablePairs(assetTypes[i])
 		if err != nil {
 			return err
 		}
@@ -290,7 +290,7 @@ func (b *Binance) UpdateTradablePairs(forceUpdate bool) error {
 			return err
 		}
 
-		err = b.UpdatePairs(pairs, b.GetAssetTypes()[i], false, false)
+		err = b.UpdatePairs(pairs, assetTypes[i], false, forceUpdate)
 		if err != nil {
 			return err
 		}
