@@ -22,6 +22,9 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 + This package is used to connect and query data from supported exchanges.
 
++ A guide on implementing API for a new exchange can be found [here.]
+(https://github.com/thrasher-corp/gocryptotrader/blob//docs/ADD_NEW_EXCHANGE.md)
+
 + Please checkout individual exchange README for more information on
 implementation
 
