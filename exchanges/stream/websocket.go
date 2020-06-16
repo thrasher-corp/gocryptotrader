@@ -472,9 +472,9 @@ func (w *Websocket) FlushChannels() error {
 	return w.Connect()
 }
 
-// trafficMonitor uses a timer of WebsocketTrafficLimitTime and once it expires
-// Will reconnect if the TrafficAlert channel has not received any data
-// The trafficTimer will reset on each traffic alert
+// trafficMonitor uses a timer of WebsocketTrafficLimitTime and once it expires,
+// it will reconnect if the TrafficAlert channel has not received any data. The
+// trafficTimer will reset on each traffic alert
 func (w *Websocket) trafficMonitor() error {
 	if w.trafficTimeout < time.Second {
 		return fmt.Errorf("traffic timeout cannot be less than %s", time.Second)
@@ -487,7 +487,7 @@ func (w *Websocket) trafficMonitor() error {
 	w.Wg.Add(1)
 	w.setTrafficMonitorRunning(true)
 
-	go func(w *Websocket) {
+	go func() {
 		var trafficTimer = time.NewTimer(w.trafficTimeout)
 		pause := make(chan struct{})
 		for {
@@ -544,7 +544,7 @@ func (w *Websocket) trafficMonitor() error {
 			case <-pause:
 			}
 		}
-	}(w)
+	}()
 	return nil
 }
 

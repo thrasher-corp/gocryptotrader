@@ -21,7 +21,7 @@ import (
 var defaultSetup = &WebsocketSetup{
 	Enabled:                          true,
 	AuthenticatedWebsocketAPISupport: true,
-	WebsocketTimeout:                 time.Second,
+	WebsocketTimeout:                 time.Second * 5,
 	DefaultURL:                       "testDefaultURL",
 	ExchangeName:                     "exchangeName",
 	RunningURL:                       "testRunningURL",
@@ -183,7 +183,7 @@ func TestWebsocket(t *testing.T) {
 		t.Error("WebsocketSetup")
 	}
 
-	if ws.trafficTimeout != time.Second {
+	if ws.trafficTimeout != time.Second*5 {
 		t.Error("WebsocketSetup")
 	}
 	// -- Not connected shutdown
@@ -520,7 +520,6 @@ func TestSetupPingHandler(t *testing.T) {
 	wc := &WebsocketConnection{
 		URL:              "wss://echo.websocket.org",
 		ResponseMaxLimit: time.Second * 5,
-		Traffic:          make(chan struct{}, 2),
 		Match:            NewMatch(),
 		Wg:               &sync.WaitGroup{},
 	}
@@ -564,7 +563,6 @@ func TestParseBinaryResponse(t *testing.T) {
 	wc := &WebsocketConnection{
 		URL:              "wss://echo.websocket.org",
 		ResponseMaxLimit: time.Second * 5,
-		Traffic:          make(chan struct{}, 1),
 		Match:            NewMatch(),
 	}
 

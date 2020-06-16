@@ -529,7 +529,7 @@ func setupWSTestAuth(t *testing.T) {
 	if wsSetupRan {
 		return
 	}
-	if !g.Websocket.IsEnabled() && !g.API.AuthenticatedWebsocketSupport {
+	if !g.Websocket.IsEnabled() && !g.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
 	err := g.Websocket.Connect()
