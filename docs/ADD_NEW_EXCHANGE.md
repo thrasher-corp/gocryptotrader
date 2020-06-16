@@ -23,33 +23,33 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + Please checkout individual exchange README for more information on
 implementation
 
-#### How to add a new exchange
+## How to add a new exchange
 
-+ 1) run exchange_template.go which automatically creates files & inbuilt functions
+### run exchange_template.go which automatically creates files & inbuilt functions
 
-###### Linux/OSX
+#### Linux/OSX
 GoCryptoTrader is built using [Go Modules](https://github.com/golang/go/wiki/Modules) and requires Go 1.11 or above
 Using Go Modules you now clone this repository **outside** your GOPATH
 
 ```bash
 git clone https://github.com/thrasher-corp/gocryptotrader.git
-go run cmd/exchange_template/exchange_template.go -name newexchange -ws -rest
+cd exchange_template
+go run exchange_template.go -name Bitmex -ws -rest
 ```
 
-###### Windows
+#### Windows
 
 ```bash
 git clone https://github.com/thrasher-corp/gocryptotrader.git
 cd gocryptotrader\cmd\exchange_template
-go build
 go run exchange_template.go -name Bitmex -ws -rest
 ```
 
-+ 2) add exchange struct to config_example.json, configtest.json (in testdata) & to the main config:
+### add exchange struct to config_example.json, configtest.json (in testdata) & to the main config:
 
 Find out which asset types are supported by the exchange and add them to the pairs struct (spot is enabled by default)
 
-###### If main config path is unknown the following function can be used:
+#### If main config path is unknown the following function can be used:
 ```go
 config.GetDefaultFilePath()
 ```
@@ -148,11 +148,11 @@ config.GetDefaultFilePath()
   },
 ```
 
-###### Available pairs will be automatically filled in the configs when wrapper functions are filled out and gocryptotrader is run with the new exchange enabled
+#### Available pairs will be automatically filled in the configs when wrapper functions are filled out and gocryptotrader is run with the new exchange enabled
 
-+ 3) Add the currency structs in ftx_wrapper.go:
+### Add the currency structs in ftx_wrapper.go:
 
-###### Futures currency support:
+#### Futures currency support:
 
 Similar to the configs, spot support is inbuilt but other asset types will need to be manually supported
 
@@ -179,9 +179,9 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 	}
 ```
 
-+ 4) Document the addition of the new exchange (FTX exchange is used as an example below):
+### Document the addition of the new exchange (FTX exchange is used as an example below):
 
-###### root Readme.md:
+#### root Readme.md:
 ```go
 | Exchange | REST API | Streaming API | FIX API |
 |----------|------|-----------|-----|
@@ -216,7 +216,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 | ZB.COM | Yes | Yes | NA |
 ```
 
-###### exchanges\support.go:
+#### exchanges\support.go:
 ```go
 var Exchanges = []string{
 	"binance",
@@ -249,7 +249,7 @@ var Exchanges = []string{
     "zb",
 ```
 
-###### exchanges\exchange_test.go:
+#### exchanges\exchange_test.go:
 ```go
 func TestExchange_Exchanges(t *testing.T) {
 	t.Parallel()
@@ -261,7 +261,7 @@ func TestExchange_Exchanges(t *testing.T) {
 }
 ```
 
-###### gctscript\wrappers\gct\exchange\exchange_test.go:
+#### gctscript\wrappers\gct\exchange\exchange_test.go:
 ```go
 func TestExchange_Exchanges(t *testing.T) {
 	t.Parallel()
@@ -273,7 +273,7 @@ func TestExchange_Exchanges(t *testing.T) {
 }
 ```
 
-###### cmd\documentation\exchange_templates:
+#### cmd\documentation\exchange_templates:
 
 - Create a new file named <exchangename>.tmpl
 - Copy contents of template from another exchange example here being Exmo
@@ -284,7 +284,7 @@ func TestExchange_Exchanges(t *testing.T) {
 {{template "header" .}}
 ## Exmo Exchange
 
-### Current Features
+#### Current Features
 
 + REST Support // if websocket or fix are supported, add that in too
 ```
@@ -323,9 +323,9 @@ go run documentation.exe
 
 This will generate a readme file for the exchange which can be found in the new exchange's folder
 
-+ 5) Create functions supported by the exchange:
+### Create functions supported by the exchange:
 
-###### Requester functions:
+#### Requester functions:
 
 ```go
 // SendHTTPRequest sends an unauthenticated HTTP request
@@ -378,7 +378,7 @@ func (f *FTX) SendAuthHTTPRequest(method, path string, data, result interface{})
 }
 ```
 
-###### Unauthenticated Functions:
+#### Unauthenticated Functions:
 
 https://docs.ftx.com/#get-markets
 
@@ -447,7 +447,7 @@ _, err := f.GetMarket(spotPair)
 
 Create the rest of the unauthenticated functions and their tests similarly
 
-###### Authenticated functions:
+#### Authenticated functions:
 
 For authenticated functions to work, authenticated request function should be configured correctly
 Create authenticated functions and test along the way similar to the functions above:
@@ -570,7 +570,7 @@ func (f *FTX) Order(marketName, side, orderType, reduceOnly, ioc, postOnly, clie
 }
 ```
 
-+ 6) Implementing wrapper functions:
+### Implementing wrapper functions:
 
 Wrapper functions are the interface through which GCT bot communicates with an exchange for gathering and sending data
 The exchanges may not support all the functionality in the wrapper, so fill out the ones that are supported as shown in the examples below
@@ -631,9 +631,9 @@ f.GetPairAssetType(p) // Returns the asset type of currency pair p
 
 Currency package also has alot of helpful methods
 
-+ 6) Websocket addition if exchange supports it:
+### Websocket addition if exchange supports it:
 
-###### Add websocket to exchange struct in ftx.go
+#### Add websocket to exchange struct in ftx.go
 
 ```go
 // FTX is the overarching type across this package
@@ -643,7 +643,7 @@ type FTX struct {
 }
 ```
 
-###### Create functions as explained in the documentation:
+#### Create functions as explained in the documentation:
 
 - Set the websocket url in ftx_websocket.go that is provided in the documentation:
 
@@ -798,7 +798,7 @@ func (f *FTX) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscript
 }
 ```
 
-###### Complete WsConnect function:
+#### Complete WsConnect function:
 
 ```go
 // WsConnect connects to a websocket feed
@@ -831,7 +831,7 @@ func (f *FTX) WsConnect() error {
 }
 ```
 
-###### Complete websocket setup in wrapper:
+#### Complete websocket setup in wrapper:
 
 ```go
 	err = f.Websocket.Setup(
@@ -891,7 +891,7 @@ func (f *FTX) WsConnect() error {
 	}
 	```
 
-###### Link websocket to wrapper functions:
+#### Link websocket to wrapper functions:
 
 Initally the functions return nil or common.ErrNotYetImplemented
 
@@ -921,7 +921,7 @@ func (f *FTX) AuthenticateWebsocket() error {
 }
 ```
 
-###### Handle websocket data:
+#### Handle websocket data:
 
 Function to read data received from websocket:
 
