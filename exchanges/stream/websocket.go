@@ -100,6 +100,8 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 	}
 	w.SetWebsocketURL(setupData.RunningURL, false)
 
+	w.ShutdownC = make(chan struct{})
+
 	w.SetCanUseAuthenticatedEndpoints(setupData.AuthenticatedWebsocketAPISupport)
 	err := w.Initialise()
 	if err != nil {
@@ -201,10 +203,6 @@ func (w *Websocket) Connect() error {
 			w.exchangeName)
 	}
 	w.setConnectingStatus(true)
-
-	if w.ShutdownC == nil {
-		w.ShutdownC = make(chan struct{})
-	}
 
 	go w.dataMonitor()
 
@@ -378,19 +376,25 @@ func (w *Websocket) connectionMonitor() {
 // by using a package defined shutdown function
 func (w *Websocket) Shutdown() error {
 	w.m.Lock()
-	defer func() {
-		w.Orderbook.FlushCache()
-		w.m.Unlock()
-	}()
+	defer w.m.Unlock()
+
 	if !w.IsConnected() {
 		return fmt.Errorf("%v cannot shutdown a disconnected websocket",
 			w.exchangeName)
 	}
+
+	if w.IsConnecting() {
+		return fmt.Errorf("%v cannot shutdown, in the process of reconnection",
+			w.exchangeName)
+	}
+
 	if w.verbose {
 		log.Debugf(log.WebsocketMgr,
 			"%v shutting down websocket channels",
 			w.exchangeName)
 	}
+
+	defer w.Orderbook.FlushCache()
 
 	if w.Conn != nil {
 		if err := w.Conn.Shutdown(); err != nil {
@@ -406,7 +410,7 @@ func (w *Websocket) Shutdown() error {
 
 	close(w.ShutdownC)
 	w.Wg.Wait()
-	w.ShutdownC = nil
+	w.ShutdownC = make(chan struct{})
 	w.setConnectedStatus(false)
 	w.setConnectingStatus(false)
 	if w.verbose {

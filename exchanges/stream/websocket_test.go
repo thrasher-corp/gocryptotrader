@@ -45,7 +45,6 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ws.verbose = true
 	ws.ShutdownC = make(chan struct{})
 	err = ws.trafficMonitor()
 	if err != nil {
@@ -63,16 +62,12 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 	ws.Wg.Wait()
 
 	// Start new instance then simulate shutdown
-	ws.setConnectedStatus(true)
-	ws.ShutdownC = make(chan struct{})
 	err = ws.trafficMonitor()
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = ws.Shutdown()
-	if err != nil {
-		t.Fatal(err)
-	}
+
+	ws.Wg.Wait()
 }
 
 func TestIsDisconnectionError(t *testing.T) {
@@ -151,12 +146,10 @@ func TestWebsocket(t *testing.T) {
 	if err != nil {
 		t.Error("SetProxyAddress", err)
 	}
-
 	err = ws.Setup(defaultSetup)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	if ws.GetName() != "exchangeName" {
 		t.Error("WebsocketSetup")
 	}
@@ -169,7 +162,6 @@ func TestWebsocket(t *testing.T) {
 	if ws.IsEnabled() {
 		t.Error("WebsocketSetup")
 	}
-
 	ws.setEnabled(true)
 	if !ws.IsEnabled() {
 		t.Error("WebsocketSetup")
@@ -182,7 +174,6 @@ func TestWebsocket(t *testing.T) {
 	if ws.GetWebsocketURL() != "testRunningURL" {
 		t.Error("WebsocketSetup")
 	}
-
 	if ws.trafficTimeout != time.Second*5 {
 		t.Error("WebsocketSetup")
 	}
