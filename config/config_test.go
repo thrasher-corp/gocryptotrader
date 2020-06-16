@@ -403,7 +403,7 @@ func TestGetExchangeAssetTypes(t *testing.T) {
 		t.Error(err)
 	}
 
-	if assets.JoinToString(",") != "spot,futures" {
+	if !assets.Contains(asset.Spot) || !assets.Contains(asset.Futures) {
 		t.Error("unexpected results")
 	}
 
