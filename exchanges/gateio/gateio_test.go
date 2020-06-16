@@ -72,14 +72,14 @@ func TestGetMarketInfo(t *testing.T) {
 func TestSpotNewOrder(t *testing.T) {
 	t.Parallel()
 
-	if !areTestAPIKeysSet() && !canManipulateRealOrders {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip()
 	}
 
 	_, err := g.SpotNewOrder(SpotNewOrderRequestParams{
 		Symbol: "btc_usdt",
-		Amount: 1.1,
-		Price:  10.1,
+		Amount: -1,
+		Price:  100000,
 		Type:   order.Sell.Lower(),
 	})
 	if err != nil {
@@ -90,7 +90,7 @@ func TestSpotNewOrder(t *testing.T) {
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 
-	if !areTestAPIKeysSet() && !canManipulateRealOrders {
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip()
 	}
 
@@ -490,12 +490,9 @@ func TestWsGetBalance(t *testing.T) {
 		t.Fatal(err)
 	}
 	go g.wsReadData()
-	resp, err := g.wsServerSignIn()
+	err = g.wsServerSignIn()
 	if err != nil {
 		t.Fatal(err)
-	}
-	if resp.Result.Status != "success" {
-		t.Fatal("Unsuccessful login")
 	}
 	_, err = g.wsGetBalance([]string{"EOS", "BTC"})
 	if err != nil {
@@ -518,14 +515,11 @@ func TestWsGetOrderInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	go g.wsReadData()
-	resp, err := g.wsServerSignIn()
+	err = g.wsServerSignIn()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resp.Result.Status != "success" {
-		t.Fatal("Unsuccessful login")
-	}
-	_, err = g.wsGetOrderInfo("EOS_USDT", 0, 1000)
+	_, err = g.wsGetOrderInfo("EOS_USDT", 0, 100)
 	if err != nil {
 		t.Error(err)
 	}

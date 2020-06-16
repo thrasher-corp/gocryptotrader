@@ -469,8 +469,8 @@ func TestWsUnsubscribe(t *testing.T) {
 func TestWsLogin(t *testing.T) {
 	pressXToJSON := []byte(`{"event":"login","success":true}`)
 	err := c.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
+	if err == nil {
+		t.Error("error cannot be nil as this will initiate an auth subscription")
 	}
 
 	pressXToJSON = []byte(`{"event":"login","success":false}`)

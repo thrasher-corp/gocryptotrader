@@ -21,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -40,14 +39,12 @@ func (g *Gateio) WsConnect() error {
 		return err
 	}
 	go g.wsReadData()
-	_, err = g.wsServerSignIn()
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%v - authentication failed: %v\n",
-			g.Name,
-			err)
-		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	} else {
+
+	if g.Websocket.CanUseAuthenticatedEndpoints() {
+		err = g.wsServerSignIn()
+		if err != nil {
+			return err
+		}
 		var authsubs []stream.ChannelSubscription
 		authsubs, err = g.GenerateAuthenticatedSubscriptions()
 		if err != nil {
@@ -66,10 +63,10 @@ func (g *Gateio) WsConnect() error {
 	return g.Websocket.SubscribeToChannels(subs)
 }
 
-func (g *Gateio) wsServerSignIn() (*WebsocketAuthenticationResponse, error) {
+func (g *Gateio) wsServerSignIn() error {
 	if !g.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		return nil,
-			fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", g.Name)
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled",
+			g.Name)
 	}
 	nonce := int(time.Now().Unix() * 1000)
 	sigTemp := g.GenerateSignature(strconv.Itoa(nonce))
@@ -83,18 +80,22 @@ func (g *Gateio) wsServerSignIn() (*WebsocketAuthenticationResponse, error) {
 		signinWsRequest)
 	if err != nil {
 		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		return nil, err
+		return err
 	}
 	var response WebsocketAuthenticationResponse
 	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		g.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		return nil, err
+		return err
 	}
 	if response.Result.Status == "success" {
 		g.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		return nil
 	}
-	return &response, nil
+
+	return fmt.Errorf("%s cannot authenticate websocket connection: %s",
+		g.Name,
+		response.Result.Status)
 }
 
 // wsReadData receives and passes on websocket messages for processing

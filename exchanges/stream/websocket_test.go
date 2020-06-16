@@ -364,7 +364,6 @@ func TestDial(t *testing.T) {
 				URL:              websocketTestURL,
 				RateLimit:        10,
 				ResponseMaxLimit: 7000000000,
-				Traffic:          make(chan struct{}, 1),
 			},
 		},
 		{Error: errors.New(" Error: malformed ws or wss URL"),
@@ -373,7 +372,6 @@ func TestDial(t *testing.T) {
 				Verbose:          true,
 				URL:              "",
 				ResponseMaxLimit: 7000000000,
-				Traffic:          make(chan struct{}, 1),
 			},
 		},
 		{Error: nil,
@@ -383,7 +381,6 @@ func TestDial(t *testing.T) {
 				URL:              websocketTestURL,
 				ProxyURL:         proxyURL,
 				ResponseMaxLimit: 7000000000,
-				Traffic:          make(chan struct{}, 1),
 			},
 		},
 	}
@@ -413,7 +410,6 @@ func TestSendMessage(t *testing.T) {
 			URL:              websocketTestURL,
 			RateLimit:        10,
 			ResponseMaxLimit: 7000000000,
-			Traffic:          make(chan struct{}, 1),
 		},
 		},
 		{Error: errors.New(" Error: malformed ws or wss URL"),
@@ -422,7 +418,6 @@ func TestSendMessage(t *testing.T) {
 				Verbose:          true,
 				URL:              "",
 				ResponseMaxLimit: 7000000000,
-				Traffic:          make(chan struct{}, 1),
 			},
 		},
 		{Error: nil,
@@ -432,7 +427,6 @@ func TestSendMessage(t *testing.T) {
 				URL:              websocketTestURL,
 				ProxyURL:         proxyURL,
 				ResponseMaxLimit: 7000000000,
-				Traffic:          make(chan struct{}, 1),
 			},
 		},
 	}
@@ -466,7 +460,6 @@ func TestSendMessageWithResponse(t *testing.T) {
 	wc := &WebsocketConnection{
 		URL:              "wss://echo.websocket.org",
 		ResponseMaxLimit: time.Second * 5,
-		Traffic:          make(chan struct{}, 1),
 		Match:            NewMatch(),
 	}
 	if wc.ProxyURL != "" && !useProxyTests {

@@ -428,7 +428,6 @@ func (w *Websocket) FlushChannels() error {
 	}
 
 	if w.features.Subscribe {
-		fmt.Println("features subscribe enabled")
 		newsubs, err := w.GenerateSubs()
 		if err != nil {
 			return err
@@ -436,7 +435,6 @@ func (w *Websocket) FlushChannels() error {
 
 		subs, unsubs := w.GetChannelDifference(newsubs)
 		if w.features.Unsubscribe {
-			fmt.Println("features unsubscribe enabled")
 			if len(unsubs) != 0 {
 				err := w.UnsubscribeChannels(unsubs)
 				if err != nil {
@@ -445,14 +443,13 @@ func (w *Websocket) FlushChannels() error {
 			}
 
 			if len(subs) != 0 {
-				w.SubscribeToChannels(subs)
+				return w.SubscribeToChannels(subs)
 			}
 
 			return nil
 		} else if len(unsubs) == 0 {
-			fmt.Println("features unsubscribe not enabled")
 			if len(subs) != 0 {
-				w.SubscribeToChannels(subs)
+				return w.SubscribeToChannels(subs)
 			}
 			return nil
 		}
@@ -463,7 +460,7 @@ func (w *Websocket) FlushChannels() error {
 		}
 
 		if len(newsubs) != 0 {
-			w.SubscribeToChannels(newsubs)
+			return w.SubscribeToChannels(newsubs)
 		}
 		return nil
 	}
@@ -491,13 +488,7 @@ func (w *Websocket) trafficMonitor() error {
 	w.setTrafficMonitorRunning(true)
 
 	go func(w *Websocket) {
-		// Initialise timer first without it firing for edge case if
-		// w.trafficTimeout is set at a short time frame and this routine
-		// returns before an initial traffic alert comes through resulting in an
-		// indefinite blocking issue in websocketconnection.Dial()
 		var trafficTimer = time.NewTimer(w.trafficTimeout)
-		trafficTimer.Stop()
-
 		pause := make(chan struct{})
 		for {
 			select {

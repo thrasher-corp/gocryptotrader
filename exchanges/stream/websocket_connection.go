@@ -98,7 +98,10 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 			w.ExchangeName,
 			w.URL)
 	}
-	w.Traffic <- struct{}{}
+	select {
+	case w.Traffic <- struct{}{}:
+	default:
+	}
 	w.setConnectedStatus(true)
 	return nil
 }
