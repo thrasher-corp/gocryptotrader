@@ -13,7 +13,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.14.6
 	github.com/kat-co/vala v0.0.0-20170210184112-42e1d8b61f12
 	github.com/lib/pq v1.7.0
-	github.com/mattn/go-sqlite3 v1.13.0
+	github.com/mattn/go-sqlite3 v1.14.0
 	github.com/pkg/errors v0.9.1
 	github.com/pquerna/otp v1.2.0
 	github.com/spf13/viper v1.7.0
@@ -25,8 +25,7 @@ require (
 	github.com/urfave/cli v1.22.4
 	github.com/volatiletech/null v8.0.0+incompatible
 	golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4
-	golang.org/x/net v0.0.0-20200114155413-6afb5195e5aa
-	golang.org/x/sys v0.0.0-20191003212358-c178f38b412c // indirect
+	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	google.golang.org/genproto v0.0.0-20200513103714-09dca8ec2884
 	google.golang.org/grpc v1.29.1
