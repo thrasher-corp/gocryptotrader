@@ -18,7 +18,7 @@ require (
 	github.com/pquerna/otp v1.2.0
 	github.com/spf13/viper v1.7.0
 	github.com/stretchr/testify v1.5.1 // indirect
-	github.com/thrasher-corp/gct-ta v0.0.0-20200423101437-dc6b098dc762
+	github.com/thrasher-corp/gct-ta v0.0.0-20200619001830-32d860cf7e81
 	github.com/thrasher-corp/goose v2.7.0-rc4.0.20191002032028-0f2c2a27abdb+incompatible
 	github.com/thrasher-corp/sqlboiler v1.0.1-0.20191001234224-71e17f37a85e
 	github.com/toorop/go-pusher v0.0.0-20180521062818-4521e2eb39fb

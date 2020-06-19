@@ -12,16 +12,17 @@ import (
 )
 
 var (
-	atrPayload    = &indicators.ATR{Array: oneElement}
-	bbandsPayload = &indicators.BBands{Array: threeElement}
-	emaPayload    = &indicators.EMA{Array: oneElement}
-	macdPayload   = &indicators.MACD{Array: threeElement}
-	mfiPayload    = &indicators.MFI{Array: oneElement}
-	obvPayload    = &indicators.OBV{Array: oneElement}
-	rsiPayload    = &indicators.RSI{Array: oneElement}
-	smaPayload    = &indicators.SMA{Array: oneElement}
-	ohlcPayload   = &OHLCV{Map: ohlcdata}
-	unhandled     = &objects.Array{}
+	atrPayload         = &indicators.ATR{Array: oneElement}
+	bbandsPayload      = &indicators.BBands{Array: threeElement}
+	emaPayload         = &indicators.EMA{Array: oneElement}
+	macdPayload        = &indicators.MACD{Array: threeElement}
+	mfiPayload         = &indicators.MFI{Array: oneElement}
+	obvPayload         = &indicators.OBV{Array: oneElement}
+	rsiPayload         = &indicators.RSI{Array: oneElement}
+	smaPayload         = &indicators.SMA{Array: oneElement}
+	correlationPayload = &indicators.Correlation{Array: oneElement}
+	ohlcPayload        = &OHLCV{Map: ohlcdata}
+	unhandled          = &objects.Array{}
 
 	oneElement = objects.Array{
 		Value: []objects.Object{
@@ -157,6 +158,7 @@ func TestCommonWriteToCSV(t *testing.T) {
 		obvPayload,
 		rsiPayload,
 		smaPayload,
+		correlationPayload,
 		ohlcPayload)
 	if err != nil {
 		t.Fatal(err)
