@@ -8,9 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/core"
-
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -1095,8 +1094,8 @@ func TestGetExchangeHistory(t *testing.T) {
 
 func TestTimestampFromFloat64(t *testing.T) {
 	t.Parallel()
-	constTime := 1592661600.0
-	checkTime := time.Date(2020, time.June, 21, 0, 0, 0, 0, time.Local)
+	constTime := 1592697600.0
+	checkTime := time.Date(2020, time.June, 21, 0, 0, 0, 0, time.UTC)
 	timeConst := timestampFromFloat64(constTime)
 	if timeConst != checkTime {
 		t.Error("invalid time conversion")

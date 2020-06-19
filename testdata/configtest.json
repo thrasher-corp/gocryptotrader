@@ -2442,7 +2442,6 @@
    "websocketOrderbookBufferLimit": 0,
    "baseCurrencies": "",
    "currencyPairs": {
-    "useGlobalFormat": false,
     "assetTypes": [
      "spot",
      "futures"

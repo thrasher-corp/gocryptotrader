@@ -172,7 +172,7 @@ func (f *FTX) wsReadData() {
 func timestampFromFloat64(ts float64) time.Time {
 	secs := int64(ts)
 	nsecs := int64((ts - float64(secs)) * 1e9)
-	return time.Unix(secs, nsecs)
+	return time.Unix(secs, nsecs).UTC()
 }
 
 func (f *FTX) wsHandleData(respRaw []byte) error {

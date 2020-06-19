@@ -222,15 +222,15 @@ func (f *FTX) FetchTradablePairs(a asset.Item) ([]string, error) {
 	var pairs []string
 	switch a {
 	case asset.Spot:
-		for x := range markets.Result {
-			if markets.Result[x].MarketType == spotString {
-				pairs = append(pairs, markets.Result[x].Name)
+		for x := range markets {
+			if markets[x].MarketType == spotString {
+				pairs = append(pairs, markets[x].Name)
 			}
 		}
 	case asset.Futures:
-		for x := range markets.Result {
-			if markets.Result[x].MarketType == futuresString {
-				pairs = append(pairs, markets.Result[x].Name)
+		for x := range markets {
+			if markets[x].MarketType == futuresString {
+				pairs = append(pairs, markets[x].Name)
 			}
 		}
 	}
@@ -265,15 +265,15 @@ func (f *FTX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price
 		return nil, err
 	}
 	for a := range allPairs {
-		for x := range markets.Result {
-			if markets.Result[x].Name != f.FormatExchangeCurrency(allPairs[a], assetType).String() {
+		for x := range markets {
+			if markets[x].Name != f.FormatExchangeCurrency(allPairs[a], assetType).String() {
 				continue
 			}
 			var resp ticker.Price
-			resp.Pair = currency.NewPairFromString(markets.Result[x].Name)
-			resp.Last = markets.Result[x].Last
-			resp.Bid = markets.Result[x].Bid
-			resp.Ask = markets.Result[x].Ask
+			resp.Pair = currency.NewPairFromString(markets[x].Name)
+			resp.Last = markets[x].Last
+			resp.Bid = markets[x].Bid
+			resp.Ask = markets[x].Ask
 			resp.LastUpdated = time.Now()
 			err = ticker.ProcessTicker(f.Name, &resp, assetType)
 			if err != nil {

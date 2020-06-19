@@ -105,9 +105,11 @@ const (
 )
 
 // GetMarkets gets market data
-func (f *FTX) GetMarkets() (Markets, error) {
-	var resp Markets
-	return resp, f.SendHTTPRequest(ftxAPIURL+getMarkets, &resp)
+func (f *FTX) GetMarkets() ([]MarketData, error) {
+	resp := struct {
+		Data []MarketData `json:"result"`
+	}{}
+	return resp.Data, f.SendHTTPRequest(ftxAPIURL+getMarkets, &resp)
 }
 
 // GetMarket gets market data for a provided asset type

@@ -25,7 +25,9 @@ implementation
 
 ## How to add a new exchange
 
-### run exchange_template.go which automatically creates files & inbuilt functions
+This document is from a perspective of adding a new exchange called FTX to the codebase:
+
+### Run exchange_template.go which automatically creates files & inbuilt functions
 
 #### Linux/OSX
 GoCryptoTrader is built using [Go Modules](https://github.com/golang/go/wiki/Modules) and requires Go 1.11 or above
@@ -34,7 +36,7 @@ Using Go Modules you now clone this repository **outside** your GOPATH
 ```bash
 git clone https://github.com/thrasher-corp/gocryptotrader.git
 cd exchange_template
-go run exchange_template.go -name Bitmex -ws -rest
+go run exchange_template.go -name FTX -ws -rest
 ```
 
 #### Windows
@@ -42,10 +44,10 @@ go run exchange_template.go -name Bitmex -ws -rest
 ```bash
 git clone https://github.com/thrasher-corp/gocryptotrader.git
 cd gocryptotrader\cmd\exchange_template
-go run exchange_template.go -name Bitmex -ws -rest
+go run exchange_template.go -name FTX -ws -rest
 ```
 
-### add exchange struct to config_example.json, configtest.json (in testdata) & to the main config:
+### Add exchange struct to config_example.json, configtest.json (in testdata) & to the main config:
 
 Find out which asset types are supported by the exchange and add them to the pairs struct (spot is enabled by default)
 
@@ -56,7 +58,7 @@ config.GetDefaultFilePath()
 
 ```go
   {
-   "name": "FTX",
+   "name": "ExampleExchangeName",
    "enabled": true,
    "verbose": false,
    "httpTimeout": 15000000000,
@@ -66,7 +68,6 @@ config.GetDefaultFilePath()
    "websocketOrderbookBufferLimit": 5,
    "baseCurrencies": "USD",
    "currencyPairs": {
-    "useGlobalFormat": true,
     "assetTypes": [
       "spot",
       "futures"
@@ -197,7 +198,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 | BTSE | Yes | Yes | NA |
 | COINUT | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
-| FTX | Yes | Yes | No |
+| NewExampleName | Yes | Yes | No | // <-------- 
 | CoinbasePro | Yes | Yes | No|
 | Coinbene | Yes | No | No |
 | GateIO | Yes | Yes | NA |
@@ -232,7 +233,7 @@ var Exchanges = []string{
 	"coinbene",
 	"coinut",
 	"exmo",
-	"ftx",
+	"brandnewexamplename", // <--------
 	"gateio",
 	"gemini",
 	"hitbtc",
@@ -255,8 +256,9 @@ func TestExchange_Exchanges(t *testing.T) {
 	t.Parallel()
 	x := exchangeTest.Exchanges(false)
 	y := len(x)
-	if y != 28 { // add 1 here (before FTX was added it was 27, so 28 now)
-		t.Fatalf("expected 28 received %v", y) // add 1 here
+	expected := 28 // modify this value to match the total count of exchanges
+	if y != expected {
+     t.Fatalf("expected %v received %v", expected , y)
 	}
 }
 ```
@@ -267,8 +269,9 @@ func TestExchange_Exchanges(t *testing.T) {
 	t.Parallel()
 	x := exchangeTest.Exchanges(false)
 	y := len(x)
-	if y != 28 { // add 1 here (before FTX was added it was 27, so 28 now)
-		t.Fatalf("expected 28 received %v", y) // add 1 here
+	expected := 28 // modify this value to match the total count of exchanges
+	if y != expected {
+    	t.Fatalf("expected %v received %v", expected , y)
 	}
 }
 ```
@@ -291,7 +294,7 @@ func TestExchange_Exchanges(t *testing.T) {
 
 ```go
 main.go
-var e exchange.IBotExchange // e -> f
+var e exchange.IBotExchange // We name the exchange.IBotExchange variable after the first character of the exchange, eg f for FTX. e -> f
 
 for i := range bot.Exchanges {
   if bot.Exchanges[i].GetName() == "Exmo" { // Exmo -> FTX
@@ -334,43 +337,6 @@ func (f *FTX) SendHTTPRequest(path string, result interface{}) error {
 		Method:        http.MethodGet,
 		Path:          path,
 		Result:        result,
-		Verbose:       f.Verbose,
-		HTTPDebugging: f.HTTPDebugging,
-		HTTPRecording: f.HTTPRecording,
-	})
-}
-
-Authenticated request function is created based on the way the exchange documentation specifies: https://docs.ftx.com/#authentication
-// SendAuthHTTPRequest sends an authenticated request
-func (f *FTX) SendAuthHTTPRequest(method, path string, data, result interface{}) error {
-	ts := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
-	var body io.Reader
-	var hmac, payload []byte
-	var err error
-	if data != nil {
-		payload, err = json.Marshal(data)
-		if err != nil {
-			return err
-		}
-		body = bytes.NewBuffer(payload)
-		sigPayload := ts + method + "/api" + path + string(payload)
-		hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
-	} else {
-		sigPayload := ts + method + "/api" + path
-		hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
-	}
-	headers := make(map[string]string)
-	headers["FTX-KEY"] = f.API.Credentials.Key
-	headers["FTX-SIGN"] = crypto.HexEncodeToString(hmac)
-	headers["FTX-TS"] = ts
-	headers["Content-Type"] = "application/json"
-	return f.SendPayload(context.Background(), &request.Item{
-		Method:        method,
-		Path:          ftxAPIURL + path,
-		Headers:       headers,
-		Body:          body,
-		Result:        result,
-		AuthRequest:   true,
 		Verbose:       f.Verbose,
 		HTTPDebugging: f.HTTPDebugging,
 		HTTPRecording: f.HTTPRecording,
@@ -430,10 +396,15 @@ func (f *FTX) GetMarkets() (Markets, error) {
 
 Create a test function in ftx_test.go to see if the data is received and unmarshalled correctly
 ```go
+const(
+	spotPair = "FTT/BTC"
+)
+
 func TestGetMarket(t *testing.T) {
-  t.Parallel() // Tests have a 30s timeout set in GCT so please add t.Parallel() so when the test package is run, testing is done much faster
-	a, err := f.GetMarket(spotPair) // spotPair is just a const set for ease of use
-  t.Log(a)
+	t.Parallel() // Adding t.Parralel() is preferred as it allows tests to run simultaneously, speeding up package test time
+	f.Verbose = true // used for more detailed output
+	a, err := f.GetMarket(spotPair) // spotPair is just a const so it can be reused in other tests too
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -445,11 +416,53 @@ Once testing is done remove verbose, variable a and t.Log(a) since they produce 
 _, err := f.GetMarket(spotPair)
 ```
 
-Create the rest of the unauthenticated functions and their tests similarly
+Ensure each endpoint is implemented and has an associated test to improve test coverage and increase confidence
 
 #### Authenticated functions:
 
-For authenticated functions to work, authenticated request function should be configured correctly
+Authenticated request function is created based on the way the exchange documentation specifies: https://docs.ftx.com/#authentication
+```go
+// SendAuthHTTPRequest sends an authenticated request
+func (f *FTX) SendAuthHTTPRequest(method, path string, data, result interface{}) error {
+	ts := strconv.FormatInt(time.Now().UnixNano()/1000000, 10)
+	var body io.Reader
+	var hmac, payload []byte
+	var err error
+	if data != nil {
+		payload, err = json.Marshal(data)
+		if err != nil {
+			return err
+		}
+		body = bytes.NewBuffer(payload)
+		sigPayload := ts + method + "/api" + path + string(payload)
+		hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
+	} else {
+		sigPayload := ts + method + "/api" + path
+		hmac = crypto.GetHMAC(crypto.HashSHA256, []byte(sigPayload), []byte(f.API.Credentials.Secret))
+	}
+	headers := make(map[string]string)
+	headers["FTX-KEY"] = f.API.Credentials.Key
+	headers["FTX-SIGN"] = crypto.HexEncodeToString(hmac)
+	headers["FTX-TS"] = ts
+	headers["Content-Type"] = "application/json"
+	return f.SendPayload(context.Background(), &request.Item{
+		Method:        method,
+		Path:          ftxAPIURL + path,
+		Headers:       headers,
+		Body:          body,
+		Result:        result,
+		AuthRequest:   true,
+		Verbose:       f.Verbose,
+		HTTPDebugging: f.HTTPDebugging,
+		HTTPRecording: f.HTTPRecording,
+	})
+}
+```
+
+To test authenticated functions, you must have an account with API keys and SendAuthHTTPRequest must be implemented
+
+HTTP Mocking framework can also be added for the exchange. For referrence check ./testdata/http_mock/
+
 Create authenticated functions and test along the way similar to the functions above:
 
 https://docs.ftx.com/#get-account-information:
@@ -473,29 +486,12 @@ func (f *FTX) GetTriggerOrderHistory(marketName string, startTime, endTime time.
 	params := url.Values{}
 	if marketName != "" {
 		params.Set("market", marketName)
-	}// GenerateDefaultSubscriptions generates default subscription
-func (f *FTX) GenerateDefaultSubscriptions() {
-	var channels = []string{wsTicker, wsTrades, wsOrderbook, wsMarkets, wsFills, wsOrders}
-	var subscriptions []wshandler.WebsocketChannelSubscription
-	for a := range f.CurrencyPairs.AssetTypes {
-		pairs := f.GetEnabledPairs(f.CurrencyPairs.AssetTypes[a])
-		for z := range pairs {
-			newPair := currency.NewPairWithDelimiter(pairs[z].Base.String(), pairs[z].Quote.String(), "-")
-			for x := range channels {
-				subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
-					Channel:  channels[x],
-					Currency: newPair,
-				})
-			}
-		}
 	}
-	f.Websocket.SubscribeToChannels(subscriptions)
-}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
 		if startTime.After(endTime) {
-			return resp, errors.New("startTime cannot be after than endTime")
+			return resp, errors.New("startTime cannot be after endTime")
 		}
 	}
 	if side != "" {
@@ -511,12 +507,13 @@ func (f *FTX) GenerateDefaultSubscriptions() {
 }
 ```
 
-For post or delete requests, params are sent through a map[string]interface{}:
-
 https://docs.ftx.com/#place-order
 
 
 Structs for unmarshalling the data are made exactly the same way as the previous functions
+
+For efficiency a json - go converter can be used: https://mholt.github.io/json-to-go/
+
 ```go
 type OrderData struct {
 	CreatedAt     time.Time `json:"createdAt"`
@@ -543,6 +540,8 @@ type PlaceOrder struct {
 	Result  OrderData `json:"result"`
 }
 ```
+
+For post or delete requests, params are sent through a map[string]interface{}:
 
 ```go
 // Order places an order
@@ -572,7 +571,7 @@ func (f *FTX) Order(marketName, side, orderType, reduceOnly, ioc, postOnly, clie
 
 ### Implementing wrapper functions:
 
-Wrapper functions are the interface through which GCT bot communicates with an exchange for gathering and sending data
+Wrapper functions are the interface through which GCT bot communicates with an exchange for gathering and sending data in a consistent format
 The exchanges may not support all the functionality in the wrapper, so fill out the ones that are supported as shown in the examples below
 
 Unsupported Example:
@@ -619,7 +618,7 @@ func (f *FTX) FetchTradablePairs(a asset.Item) ([]string, error) {
 
 Wrapper functions on most exchanges are written in similar ways so other exchanges can be used as a referrence
 
-Alot of useful helper methods can be found in exchange.go, some examples are given below:
+Many helper functions defined in exchange.go can be useful when implementing wrapper functions. See examples below:
 
 ```go
 f.FormatExchangeCurrency(p, a) // Formats the currency pair to the style accepted by the exchange. p is the currency pair & a is the asset type
@@ -629,7 +628,7 @@ f.SupportsAsset(a) // Checks if an asset type is supported by the bot
 f.GetPairAssetType(p) // Returns the asset type of currency pair p
 ```
 
-Currency package also has alot of helpful methods
+The currency package located under ./currency/ contains many helper functions to format and process currency pairs. See readme
 
 ### Websocket addition if exchange supports it:
 
@@ -643,7 +642,7 @@ type FTX struct {
 }
 ```
 
-#### Create functions as explained in the documentation:
+#### Websocket Setup:
 
 - Set the websocket url in ftx_websocket.go that is provided in the documentation:
 
@@ -893,7 +892,7 @@ func (f *FTX) WsConnect() error {
 
 #### Link websocket to wrapper functions:
 
-Initally the functions return nil or common.ErrNotYetImplemented
+Initially the functions return nil or common.ErrNotYetImplemented
 
 ```go
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
@@ -929,14 +928,12 @@ Function to read data received from websocket:
 // wsReadData gets and passes on websocket messages for processing
 func (f *FTX) wsReadData() {
 	f.Websocket.Wg.Add(1)
-
 	defer f.Websocket.Wg.Done()
 
 	for {
 		select {
 		case <-f.Websocket.ShutdownC:
 			return
-
 		default:
 			resp, err := f.WebsocketConn.ReadMessage()
 			if err != nil {
@@ -984,34 +981,22 @@ There are some built in structs in wshandler which are used to store the websock
 If a suitable struct does not exist in wshandler, wrapper types are the next preferrence to store the data such as in the market channel example given below
 
 ```go
-	switch result["type"] {
-	case wsUpdate:
-		var p currency.Pair
-		var a asset.Item
-		_, ok := result["market"]
-		if ok {
-			p = currency.NewPairFromString(result["market"].(string))
-			a, err = f.GetPairAssetType(p)
-			if err != nil {
-				return err
-			}
-    }
-		switch result["channel"] {
-		case wsTicker:
-			var resultData WsTickerDataStore
-			err = json.Unmarshal(respRaw, &resultData)
-			if err != nil {
-				return err
-			}
-			f.Websocket.DataHandler <- &ticker.Price{
-				ExchangeName: f.Name,
-				Bid:          resultData.Ticker.Bid,
-				Ask:          resultData.Ticker.Ask,
-				Last:         resultData.Ticker.Last,
-				LastUpdated:  timestampFromFloat64(resultData.Ticker.Time),
-				Pair:         p,
-				AssetType:    a,
-      }
+	switch result["channel"] {
+	case wsTicker:
+		var resultData WsTickerDataStore
+		err = json.Unmarshal(respRaw, &resultData)
+		if err != nil {
+			return err
+		}
+		f.Websocket.DataHandler <- &ticker.Price{
+			ExchangeName: f.Name,
+			Bid:          resultData.Ticker.Bid,
+			Ask:          resultData.Ticker.Ask,
+			Last:         resultData.Ticker.Last,
+			LastUpdated:  timestampFromFloat64(resultData.Ticker.Time),
+			Pair:         p,
+			AssetType:    a,
+	  }
 ```
 
 If neither of those provide a suitable struct to store the data in, the data can just be passed onto wshandler without any further changes
