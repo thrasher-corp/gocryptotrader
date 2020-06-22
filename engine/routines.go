@@ -324,19 +324,11 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		printOrderbookSummary(d, "websocket", nil)
 	case *order.Detail:
 		if !Bot.OrderManager.orderStore.exists(d) {
-			fmt.Printf("Adding order for %s with ID %s for pair %s\n",
-				d.Exchange,
-				d.ID,
-				d.Pair)
 			err := Bot.OrderManager.orderStore.Add(d)
 			if err != nil {
 				return err
 			}
 		} else {
-			fmt.Printf("Updating order for %s with ID %s for pair %s\n",
-				d.Exchange,
-				d.ID,
-				d.Pair)
 			od, err := Bot.OrderManager.orderStore.GetByExchangeAndID(d.Exchange, d.ID)
 			if err != nil {
 				return err
