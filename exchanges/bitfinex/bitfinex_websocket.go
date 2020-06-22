@@ -112,10 +112,13 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					symbol,
 				)
 			} else if key, ok := d["key"].(string); ok {
-				stuff := strings.Split(d["key"].(string), ":")
-				if len(stuff) > 3 {
-					if stuff[2][0] == 't' {
-						key = stuff[2] + ":" + stuff[3]
+				// Capture trading subscriptions
+				contents := strings.Split(d["key"].(string), ":")
+				if len(contents) > 3 {
+					// Edge case to parse margin strings.
+					// map[chanId:139136 channel:candles event:subscribed key:trade:1m:tXAUTF0:USTF0]
+					if contents[2][0] == 't' {
+						key = contents[2] + ":" + contents[3]
 					}
 				}
 				b.WsAddSubscriptionChannel(int(d["chanId"].(float64)),
