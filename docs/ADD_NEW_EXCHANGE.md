@@ -650,72 +650,36 @@ type FTX struct {
 	ftxWSURL          = "wss://ftx.com/ws/"
 ```
 
-- Set channel names as consts for ease of use:
+#### Complete WsConnect function:
 
 ```go
-	wsTicker          = "ticker"
-	wsTrades          = "trades"
-	wsOrderbook       = "orderbook"
-	wsMarkets         = "markets"
-	wsFills           = "fills"
-	wsOrders          = "orders"
-	wsUpdate          = "update"
-	wsPartial         = "partial"
-```
-
-- Create types given in the documentation to unmarshall the streamed data:
-
-https://docs.ftx.com/#fills-2
-
-```go
-// WsFills stores websocket fills' data
-type WsFills struct {
-	Fee       float64   `json:"fee"`
-	FeeRate   float64   `json:"feeRate"`
-	Future    string    `json:"future"`
-	ID        int64     `json:"id"`
-	Liquidity string    `json:"liquidity"`
-	Market    string    `json:"market"`
-	OrderID   int64     `json:"int64"`
-	TradeID   int64     `json:"tradeID"`
-	Price     float64   `json:"price"`
-	Side      string    `json:"side"`
-	Size      float64   `json:"size"`
-	Time      time.Time `json:"time"`
-	OrderType string    `json:"orderType"`
-}
-
-// WsFillsDataStore stores ws fills' data
-type WsFillsDataStore struct {
-	Channel     string  `json:"channel"`
-	MessageType string  `json:"type"`
-	FillsData   WsFills `json:"fills"`
-}
-```
-
-- Create the authentication function based on specifications provided in the documentation:
-
-https://docs.ftx.com/#private-channels
-
-```go
-// WsAuth sends an authentication message to receive auth data
-func (f *FTX) WsAuth() error {
-	intNonce := time.Now().UnixNano() / 1000000
-	strNonce := strconv.FormatInt(intNonce, 10)
-	hmac := crypto.GetHMAC(
-		crypto.HashSHA256,
-		[]byte(strNonce+"websocket_login"),
-		[]byte(f.API.Credentials.Secret),
-	)
-	sign := crypto.HexEncodeToString(hmac)
-	req := Authenticate{Operation: "login",
-		Args: AuthenticationData{
-			Key:  f.API.Credentials.Key,
-			Sign: sign,
-			Time: intNonce,
-		},
+// WsConnect connects to a websocket feed
+func (f *FTX) WsConnect() error {
+	if !f.Websocket.IsEnabled() || !f.IsEnabled() {
+		return errors.New(wshandler.WebsocketNotEnabled)
 	}
-	return f.WebsocketConn.SendJSONMessage(req)
+	var dialer websocket.Dialer
+	err := f.WebsocketConn.Dial(&dialer, http.Header{})
+	if err != nil {
+		return err
+	}
+	f.WebsocketConn.SetupPingHandler(wshandler.WebsocketPingHandler{
+		MessageType: websocket.PingMessage,
+		Delay:       ftxWebsocketTimer,
+	})
+	if f.Verbose {
+		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", f.Name)
+	}
+	go f.wsReadData()
+	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		err := f.WsAuth()
+		if err != nil {
+			f.Websocket.DataHandler <- err
+			f.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		}
+	}
+	f.GenerateDefaultSubscriptions()
+	return nil
 }
 ```
 
@@ -740,6 +704,21 @@ func (f *FTX) GenerateDefaultSubscriptions() {
 	}
 	f.Websocket.SubscribeToChannels(subscriptions)
 }
+```
+
+- To receive data from websocket, a subscription needs to be made with one or more of the available channels:
+
+- Set channel names as consts for ease of use:
+
+```go
+	wsTicker          = "ticker"
+	wsTrades          = "trades"
+	wsOrderbook       = "orderbook"
+	wsMarkets         = "markets"
+	wsFills           = "fills"
+	wsOrders          = "orders"
+	wsUpdate          = "update"
+	wsPartial         = "partial"
 ```
 
 - Create subscribe function with the data provided by the exchange documentation:
@@ -780,144 +759,17 @@ func (f *FTX) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscriptio
 }
 ```
 
-- Create an unsubscribe function if the exchange has the functionality:
+Test subscriptions and check to see if data is received from websocket:
+
+Run gocryptotrader with the following settings enabled in config
 
 ```go
-// Unsubscribe sends a websocket message to stop receiving data from the channel
-func (f *FTX) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
-	var unSub WsSub
-	a, err := f.GetPairAssetType(channelToSubscribe.Currency)
-	if err != nil {
-		return err
-	}
-	unSub.Operation = "unsubscribe"
-	unSub.Channel = channelToSubscribe.Channel
-	unSub.Market = f.FormatExchangeCurrency(channelToSubscribe.Currency, a).String()
-	return f.WebsocketConn.SendJSONMessage(unSub)
-}
-```
-
-#### Complete WsConnect function:
-
-```go
-// WsConnect connects to a websocket feed
-func (f *FTX) WsConnect() error {
-	if !f.Websocket.IsEnabled() || !f.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
-	}
-	var dialer websocket.Dialer
-	err := f.WebsocketConn.Dial(&dialer, http.Header{})
-	if err != nil {
-		return err
-	}
-	f.WebsocketConn.SetupPingHandler(wshandler.WebsocketPingHandler{
-		MessageType: websocket.PingMessage,
-		Delay:       ftxWebsocketTimer,
-	})
-	if f.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", f.Name)
-	}
-	go f.wsReadData()
-	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		err := f.WsAuth()
-		if err != nil {
-			f.Websocket.DataHandler <- err
-			f.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
-	}
-	f.GenerateDefaultSubscriptions()
-	return nil
-}
-```
-
-#### Complete websocket setup in wrapper:
-
-```go
-	err = f.Websocket.Setup(
-		&wshandler.WebsocketSetup{
-			Enabled:                          exch.Features.Enabled.Websocket,
-			Verbose:                          exch.Verbose,
-			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-			DefaultURL:                       ftxWSURL,
-			ExchangeName:                     exch.Name,
-			RunningURL:                       exch.API.Endpoints.WebsocketURL,
-			Connector:                        f.WsConnect,
-			Subscriber:                       f.Subscribe,
-			UnSubscriber:                     f.Unsubscribe,
-			Features:                         &f.Features.Supports.WebsocketCapabilities,
-		})
-	if err != nil {
-		return err
-  }
-  ```
-
-  ```go
-  f.Features = exchange.Features{
-		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: true,
-			RESTCapabilities: protocol.Features{
-				TickerFetching:      true,
-				KlineFetching:       true,
-				TradeFetching:       true,
-				OrderbookFetching:   true,
-				AutoPairUpdates:     true,
-				AccountInfo:         true,
-				GetOrder:            true,
-				GetOrders:           true,
-				CancelOrders:        true,
-				CancelOrder:         true,
-				SubmitOrder:         true,
-				TradeFee:            true,
-				FiatDepositFee:      true,
-				FiatWithdrawalFee:   true,
-				CryptoWithdrawalFee: true,
-			},
-			WebsocketCapabilities: protocol.Features{
-				OrderbookFetching: true,
-				TradeFetching:     true,
-				Subscribe:         true,
-				Unsubscribe:       true,
-				GetOrders:         true,
-				GetOrder:          true,
-			},
-			WithdrawPermissions: exchange.NoAPIWithdrawalMethods,
-		},
-		Enabled: exchange.FeaturesEnabled{
-			AutoPairUpdates: true,
-		},
-	}
-	```
-
-#### Link websocket to wrapper functions:
-
-Initially the functions return nil or common.ErrNotYetImplemented
-
-```go
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (f *FTX) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	f.Websocket.SubscribeToChannels(channels)
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (f *FTX) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	f.Websocket.RemoveSubscribedChannels(channels)
-	return nil
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (f *FTX) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
-	return f.Websocket.GetSubscriptions(), nil
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (f *FTX) AuthenticateWebsocket() error {
-	return f.WsAuth()
-}
+     "websocketAPI": true,
+     "websocketCapabilities": {}
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+	 "websocketAPI": true
 ```
 
 #### Handle websocket data:
@@ -1043,5 +895,168 @@ func TestParsingWSOrdersData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+```
+
+- Create types given in the documentation to unmarshall the streamed data:
+
+https://docs.ftx.com/#fills-2
+
+```go
+// WsFills stores websocket fills' data
+type WsFills struct {
+	Fee       float64   `json:"fee"`
+	FeeRate   float64   `json:"feeRate"`
+	Future    string    `json:"future"`
+	ID        int64     `json:"id"`
+	Liquidity string    `json:"liquidity"`
+	Market    string    `json:"market"`
+	OrderID   int64     `json:"int64"`
+	TradeID   int64     `json:"tradeID"`
+	Price     float64   `json:"price"`
+	Side      string    `json:"side"`
+	Size      float64   `json:"size"`
+	Time      time.Time `json:"time"`
+	OrderType string    `json:"orderType"`
+}
+
+// WsFillsDataStore stores ws fills' data
+type WsFillsDataStore struct {
+	Channel     string  `json:"channel"`
+	MessageType string  `json:"type"`
+	FillsData   WsFills `json:"fills"`
+}
+```
+
+- Create the authentication function based on specifications provided in the documentation:
+
+https://docs.ftx.com/#private-channels
+
+```go
+// WsAuth sends an authentication message to receive auth data
+func (f *FTX) WsAuth() error {
+	intNonce := time.Now().UnixNano() / 1000000
+	strNonce := strconv.FormatInt(intNonce, 10)
+	hmac := crypto.GetHMAC(
+		crypto.HashSHA256,
+		[]byte(strNonce+"websocket_login"),
+		[]byte(f.API.Credentials.Secret),
+	)
+	sign := crypto.HexEncodeToString(hmac)
+	req := Authenticate{Operation: "login",
+		Args: AuthenticationData{
+			Key:  f.API.Credentials.Key,
+			Sign: sign,
+			Time: intNonce,
+		},
+	}
+	return f.WebsocketConn.SendJSONMessage(req)
+}
+```
+
+- Create an unsubscribe function if the exchange has the functionality:
+
+```go
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (f *FTX) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+	var unSub WsSub
+	a, err := f.GetPairAssetType(channelToSubscribe.Currency)
+	if err != nil {
+		return err
+	}
+	unSub.Operation = "unsubscribe"
+	unSub.Channel = channelToSubscribe.Channel
+	unSub.Market = f.FormatExchangeCurrency(channelToSubscribe.Currency, a).String()
+	return f.WebsocketConn.SendJSONMessage(unSub)
+}
+```
+
+#### Complete websocket setup in wrapper:
+
+```go
+	err = f.Websocket.Setup(
+		&wshandler.WebsocketSetup{
+			Enabled:                          exch.Features.Enabled.Websocket,
+			Verbose:                          exch.Verbose,
+			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+			DefaultURL:                       ftxWSURL,
+			ExchangeName:                     exch.Name,
+			RunningURL:                       exch.API.Endpoints.WebsocketURL,
+			Connector:                        f.WsConnect,
+			Subscriber:                       f.Subscribe,
+			UnSubscriber:                     f.Unsubscribe,
+			Features:                         &f.Features.Supports.WebsocketCapabilities,
+		})
+	if err != nil {
+		return err
+  }
+  ```
+
+  ```go
+  f.Features = exchange.Features{
+		Supports: exchange.FeaturesSupported{
+			REST:      true,
+			Websocket: true,
+			RESTCapabilities: protocol.Features{
+				TickerFetching:      true,
+				KlineFetching:       true,
+				TradeFetching:       true,
+				OrderbookFetching:   true,
+				AutoPairUpdates:     true,
+				AccountInfo:         true,
+				GetOrder:            true,
+				GetOrders:           true,
+				CancelOrders:        true,
+				CancelOrder:         true,
+				SubmitOrder:         true,
+				TradeFee:            true,
+				FiatDepositFee:      true,
+				FiatWithdrawalFee:   true,
+				CryptoWithdrawalFee: true,
+			},
+			WebsocketCapabilities: protocol.Features{
+				OrderbookFetching: true,
+				TradeFetching:     true,
+				Subscribe:         true,
+				Unsubscribe:       true,
+				GetOrders:         true,
+				GetOrder:          true,
+			},
+			WithdrawPermissions: exchange.NoAPIWithdrawalMethods,
+		},
+		Enabled: exchange.FeaturesEnabled{
+			AutoPairUpdates: true,
+		},
+	}
+	```
+
+#### Link websocket to wrapper functions:
+
+Initially the functions return nil or common.ErrNotYetImplemented
+
+```go
+// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle subscribing
+func (f *FTX) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+	f.Websocket.SubscribeToChannels(channels)
+	return nil
+}
+
+// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
+// which lets websocket.manageSubscriptions handle unsubscribing
+func (f *FTX) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
+	f.Websocket.RemoveSubscribedChannels(channels)
+	return nil
+}
+
+// GetSubscriptions returns a copied list of subscriptions
+func (f *FTX) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
+	return f.Websocket.GetSubscriptions(), nil
+}
+
+// AuthenticateWebsocket sends an authentication message to the websocket
+func (f *FTX) AuthenticateWebsocket() error {
+	return f.WsAuth()
 }
 ```
