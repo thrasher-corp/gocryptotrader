@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -201,6 +202,20 @@ func TestMarketSellOrder(t *testing.T) {
 	_, err := b.MarketSellOrder(testCurrency, 0)
 	if err == nil {
 		t.Error("Bithumb MarketSellOrder() Expected error")
+	}
+}
+
+func TestUpdateTicker(t *testing.T) {
+	cp := currency.NewPair(currency.QTUM, currency.KRW)
+	_, err := b.UpdateTicker(cp, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cp = currency.NewPair(currency.DASH, currency.KRW)
+	_, err = b.UpdateTicker(cp, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
