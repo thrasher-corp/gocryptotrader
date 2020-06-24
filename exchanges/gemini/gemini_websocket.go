@@ -19,7 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -275,7 +275,6 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 			}
 			g.Websocket.DataHandler <- result
 		case "heartbeat":
-			// Heartbeat does not need to be handled by the data handler
 			return nil
 		case "update":
 			if curr.IsEmpty() {
@@ -438,7 +437,7 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 		if len(asks) == 0 && len(bids) == 0 {
 			return
 		}
-		err := g.Websocket.Orderbook.Update(&cache.Update{
+		err := g.Websocket.Orderbook.Update(&buffer.Update{
 			Asks:       asks,
 			Bids:       bids,
 			Pair:       pair,

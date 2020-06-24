@@ -197,10 +197,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 	}
 
 	if init.Op == "ping" {
-		authPing := struct {
-			OP string `json:"op"`
-			TS int64  `json:"ts"`
-		}{
+		authPing := authenticationPing{
 			OP: "pong",
 			TS: init.TS,
 		}

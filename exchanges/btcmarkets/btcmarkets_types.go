@@ -336,7 +336,7 @@ type TradingFeeResponse struct {
 	FeeByMarkets  []TradingFeeData `json:"FeeByMarkets"`
 }
 
-// WsSubscribe message sent via login to subscribe
+// WsSubscribe defines a subscription message used in the Subscribe function
 type WsSubscribe struct {
 	MarketIDs   []string `json:"marketIds,omitempty"`
 	Channels    []string `json:"channels,omitempty"`

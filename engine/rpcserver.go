@@ -1226,21 +1226,6 @@ func (s *RPCServer) GetExchangePairs(_ context.Context, r *gctrpc.GetExchangePai
 	return &resp, nil
 }
 
-// Errors defines multiple errors
-type Errors []error
-
-// Error implements error interface
-func (e Errors) Error() string {
-	if len(e) == 0 {
-		return ""
-	}
-	var r string
-	for i := range e {
-		r += e[i].Error() + ", "
-	}
-	return r[:len(r)-2]
-}
-
 // EnableExchangePair enables the specified pair on an exchange
 func (s *RPCServer) EnableExchangePair(_ context.Context, r *gctrpc.ExchangePairRequest) (*gctrpc.GenericExchangeNameResponse, error) {
 	exchCfg, err := Bot.Config.GetExchangeConfig(r.Exchange)
@@ -1248,16 +1233,15 @@ func (s *RPCServer) EnableExchangePair(_ context.Context, r *gctrpc.ExchangePair
 		return nil, err
 	}
 
-	if r.AssetType != "" &&
-		!exchCfg.CurrencyPairs.GetAssetTypes().Contains(asset.Item(r.AssetType)) {
+	if r.AssetType == "" {
+		return nil, errors.New("asset type must be specified")
+	}
+
+	if !exchCfg.CurrencyPairs.GetAssetTypes().Contains(asset.Item(r.AssetType)) {
 		return nil, errors.New("specified asset type does not exist")
 	}
 
-	// Default to spot asset type unless set
-	a := asset.Spot
-	if r.AssetType != "" {
-		a = asset.Item(r.AssetType)
-	}
+	a := asset.Item(r.AssetType)
 
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
@@ -1265,7 +1249,7 @@ func (s *RPCServer) EnableExchangePair(_ context.Context, r *gctrpc.ExchangePair
 	}
 
 	base := exch.GetBase()
-	if exch == nil {
+	if base == nil {
 		return nil, errors.New("cannot get exchange base")
 	}
 
@@ -1274,7 +1258,7 @@ func (s *RPCServer) EnableExchangePair(_ context.Context, r *gctrpc.ExchangePair
 		return nil, err
 	}
 
-	var newErrors Errors
+	var newErrors common.Errors
 	for i := range r.Pairs {
 		var p currency.Pair
 		p, err = currency.NewPairFromStrings(r.Pairs[i].Base, r.Pairs[i].Quote)
@@ -1313,16 +1297,15 @@ func (s *RPCServer) DisableExchangePair(_ context.Context, r *gctrpc.ExchangePai
 		return nil, err
 	}
 
-	if r.AssetType != "" &&
-		!exchCfg.CurrencyPairs.GetAssetTypes().Contains(asset.Item(r.AssetType)) {
+	if r.AssetType == "" {
+		return nil, errors.New("asset type must be specified")
+	}
+
+	if !exchCfg.CurrencyPairs.GetAssetTypes().Contains(asset.Item(r.AssetType)) {
 		return nil, errors.New("specified asset type does not exist")
 	}
 
-	// Default to spot asset type unless set
-	a := asset.Spot
-	if r.AssetType != "" {
-		a = asset.Item(r.AssetType)
-	}
+	a := asset.Item(r.AssetType)
 
 	pairFmt, err := Bot.Config.GetPairFormat(r.Exchange, a)
 	if err != nil {
@@ -1339,7 +1322,7 @@ func (s *RPCServer) DisableExchangePair(_ context.Context, r *gctrpc.ExchangePai
 		return nil, errors.New("cannot get exchange base")
 	}
 
-	var newErrors Errors
+	var newErrors common.Errors
 	for i := range r.Pairs {
 		var p currency.Pair
 		p, err = currency.NewPairFromStrings(r.Pairs[i].Base, r.Pairs[i].Quote)
@@ -1967,14 +1950,15 @@ func (s *RPCServer) EnableDisableExchangeAsset(_ context.Context, r *gctrpc.Exch
 	}
 
 	base := exch.GetBase()
-	if exch == nil {
+	if base == nil {
 		return nil, errors.New("cannot get exchange base")
 	}
 
-	a := asset.Spot
-	if r.Asset != "" {
-		a = asset.Item(r.Asset)
+	if r.Asset == "" {
+		return nil, errors.New("asset type must be specified")
 	}
+
+	a := asset.Item(r.Asset)
 
 	if r.Enable {
 		err = base.CurrencyPairs.EnableAsset(a)
@@ -2012,7 +1996,7 @@ func (s *RPCServer) EnableDisableAllExchangePairs(_ context.Context, r *gctrpc.E
 	}
 
 	base := exch.GetBase()
-	if exch == nil {
+	if base == nil {
 		return nil, errors.New("cannot get exchange base")
 	}
 
@@ -2060,7 +2044,7 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(_ context.Context, r *gctrpc.Up
 	}
 
 	base := exch.GetBase()
-	if exch == nil {
+	if base == nil {
 		return nil, errors.New("cannot get exchange base")
 	}
 

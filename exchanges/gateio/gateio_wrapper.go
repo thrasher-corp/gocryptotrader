@@ -34,10 +34,13 @@ func (g *Gateio) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = g.BaseCurrencies
 
-	g.SetupDefaults(exchCfg)
+	err := g.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
 
 	if g.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := g.UpdateTradablePairs(true)
+		err = g.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -124,9 +127,12 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	g.SetupDefaults(exch)
+	err := g.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
 
-	err := g.Websocket.Setup(&stream.WebsocketSetup{
+	err = g.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -149,7 +155,7 @@ func (g *Gateio) Setup(exch *config.ExchangeConfig) error {
 		RateLimit:            gateioWebsocketRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	}, false)
+	})
 }
 
 // Start starts the GateIO go routine

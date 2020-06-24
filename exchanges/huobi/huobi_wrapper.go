@@ -33,10 +33,13 @@ func (h *HUOBI) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = h.BaseCurrencies
 
-	h.SetupDefaults(exchCfg)
+	err := h.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
 
 	if h.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := h.UpdateTradablePairs(true)
+		err = h.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -122,9 +125,12 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	h.SetupDefaults(exch)
+	err := h.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
 
-	err := h.Websocket.Setup(&stream.WebsocketSetup{
+	err = h.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -147,7 +153,7 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		RateLimit:            rateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	}, false)
+	})
 	if err != nil {
 		return err
 	}
@@ -157,7 +163,8 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  wsAccountsOrdersURL,
-	}, true)
+		Authenticated:        true,
+	})
 }
 
 // Start starts the HUOBI go routine

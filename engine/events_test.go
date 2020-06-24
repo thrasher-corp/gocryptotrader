@@ -139,7 +139,6 @@ func TestProcessTicker(t *testing.T) {
 	// now populate it with a 0 entry
 	tick := ticker.Price{
 		Pair:         currency.NewPair(currency.BTC, currency.USD),
-		Last:         0,
 		ExchangeName: e.Exchange,
 		AssetType:    e.Asset,
 	}

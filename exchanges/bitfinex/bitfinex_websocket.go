@@ -17,7 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -153,10 +153,10 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 
 		var chanAsset = asset.Spot
 		var pair currency.Pair
-		splitsVille := strings.Split(chanInfo.Pair, ":")
+		pairInfo := strings.Split(chanInfo.Pair, ":")
 		switch {
-		case len(splitsVille) >= 3:
-			newPair := splitsVille[2]
+		case len(pairInfo) >= 3:
+			newPair := pairInfo[2]
 			if newPair[0] == 'f' {
 				chanAsset = asset.MarginFunding
 			}
@@ -165,8 +165,8 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-		case len(splitsVille) == 1:
-			newPair := splitsVille[0]
+		case len(pairInfo) == 1:
+			newPair := pairInfo[0]
 			if newPair[0] == 'f' {
 				chanAsset = asset.MarginFunding
 			}
@@ -871,7 +871,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 // WsUpdateOrderbook updates the orderbook list, removing and adding to the
 // orderbook sides
 func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book []WebsocketBook) error {
-	orderbookUpdate := cache.Update{
+	orderbookUpdate := buffer.Update{
 		Asset: assetType,
 		Pair:  p,
 	}

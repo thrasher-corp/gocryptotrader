@@ -324,7 +324,6 @@ func TestTransferMargin(t *testing.T) {
 }
 
 func TestGetQuotesByBuckets(t *testing.T) {
-	b.Verbose = true
 	_, err := b.GetQuotesByBuckets(&QuoteGetBucketedParams{})
 	if err == nil {
 		t.Error("GetQuotesByBuckets() Expected error")

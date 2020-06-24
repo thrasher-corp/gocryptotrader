@@ -33,10 +33,13 @@ func (b *BTSE) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
 
-	b.SetupDefaults(exchCfg)
+	err := b.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := b.UpdateTradablePairs(true)
+		err = b.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -135,9 +138,12 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	b.SetupDefaults(exch)
+	err := b.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
 
-	err := b.Websocket.Setup(&stream.WebsocketSetup{
+	err = b.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -159,7 +165,7 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	}, false)
+	})
 }
 
 // Start starts the BTSE go routine

@@ -28,10 +28,13 @@ func (o *OKEX) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = o.BaseCurrencies
 
-	o.SetupDefaults(exchCfg)
+	err := o.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
 
 	if o.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := o.UpdateTradablePairs(true)
+		err = o.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}

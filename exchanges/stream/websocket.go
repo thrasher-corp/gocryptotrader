@@ -90,6 +90,11 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 		return errors.New("exchange name unset")
 	}
 	w.exchangeName = setupData.ExchangeName
+
+	if setupData.WebsocketTimeout < time.Second {
+		return fmt.Errorf("traffic timeout cannot be less than %s", time.Second)
+	}
+
 	w.trafficTimeout = setupData.WebsocketTimeout
 	if setupData.Features == nil {
 		return errors.New("feature set is nil")
@@ -119,7 +124,7 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 }
 
 // SetupNewConnection sets up an auth or unauth streaming connection
-func (w *Websocket) SetupNewConnection(c ConnectionSetup, auth bool) error {
+func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 	if w == nil {
 		return errors.New("setting up new connection error: websocket is nil")
 	}
@@ -157,7 +162,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup, auth bool) error {
 		Match:             w.Match,
 	}
 
-	if auth {
+	if c.Authenticated {
 		w.AuthConn = newConn
 	} else {
 		w.Conn = newConn
@@ -394,7 +399,7 @@ func (w *Websocket) Shutdown() error {
 			w.exchangeName)
 	}
 
-	defer w.Orderbook.FlushCache()
+	defer w.Orderbook.FlushBuffer()
 
 	if w.Conn != nil {
 		if err := w.Conn.Shutdown(); err != nil {
@@ -452,10 +457,10 @@ func (w *Websocket) FlushChannels() error {
 
 			return nil
 		} else if len(unsubs) == 0 {
-			if len(subs) != 0 {
-				return w.SubscribeToChannels(subs)
+			if len(subs) == 0 {
+				return nil
 			}
-			return nil
+			return w.SubscribeToChannels(subs)
 		}
 	} else if w.features.FullPayloadSubscribe {
 		newsubs, err := w.GenerateSubs()
@@ -480,10 +485,6 @@ func (w *Websocket) FlushChannels() error {
 // it will reconnect if the TrafficAlert channel has not received any data. The
 // trafficTimer will reset on each traffic alert
 func (w *Websocket) trafficMonitor() error {
-	if w.trafficTimeout < time.Second {
-		return fmt.Errorf("traffic timeout cannot be less than %s", time.Second)
-	}
-
 	if w.IsTrafficMonitorRunning() {
 		return nil
 	}

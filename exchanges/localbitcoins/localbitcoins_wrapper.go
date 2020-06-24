@@ -34,10 +34,13 @@ func (l *LocalBitcoins) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = l.BaseCurrencies
 
-	l.SetupDefaults(exchCfg)
+	err := l.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
 
 	if l.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := l.UpdateTradablePairs(true)
+		err = l.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -100,8 +103,7 @@ func (l *LocalBitcoins) Setup(exch *config.ExchangeConfig) error {
 		l.SetEnabled(false)
 		return nil
 	}
-	l.SetupDefaults(exch)
-	return nil
+	return l.SetupDefaults(exch)
 }
 
 // Start starts the LocalBitcoins go routine

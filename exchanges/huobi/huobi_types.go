@@ -608,3 +608,8 @@ type wsKlineResponse struct {
 	Rep    string `json:"rep"`
 	Status string `json:"status"`
 }
+
+type authenticationPing struct {
+	OP string `json:"op"`
+	TS int64  `json:"ts"`
+}

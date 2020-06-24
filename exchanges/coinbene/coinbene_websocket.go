@@ -17,7 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
@@ -306,7 +306,7 @@ func (c *Coinbene) wsHandleData(respRaw []byte) error {
 				return err
 			}
 		} else if orderBook.Action == "update" {
-			newOB := cache.Update{
+			newOB := buffer.Update{
 				Asks:       asks,
 				Bids:       bids,
 				Asset:      asset.PerpetualSwap,

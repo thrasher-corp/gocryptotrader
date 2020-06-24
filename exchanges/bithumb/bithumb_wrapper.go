@@ -33,10 +33,13 @@ func (b *Bithumb) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
 
-	b.SetupDefaults(exchCfg)
+	err := b.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := b.UpdateTradablePairs(true)
+		err = b.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -107,8 +110,7 @@ func (b *Bithumb) Setup(exch *config.ExchangeConfig) error {
 		b.SetEnabled(false)
 		return nil
 	}
-	b.SetupDefaults(exch)
-	return nil
+	return b.SetupDefaults(exch)
 }
 
 // Start starts the Bithumb go routine

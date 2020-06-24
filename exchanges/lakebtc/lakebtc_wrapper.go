@@ -33,10 +33,13 @@ func (l *LakeBTC) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = l.BaseCurrencies
 
-	l.SetupDefaults(exchCfg)
+	err := l.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
 
 	if l.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := l.UpdateTradablePairs(true)
+		err = l.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -114,7 +117,10 @@ func (l *LakeBTC) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	l.SetupDefaults(exch)
+	err := l.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
 
 	return l.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,

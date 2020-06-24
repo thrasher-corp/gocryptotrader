@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -68,8 +69,9 @@ func (p *PairsManager) GetPairs(a asset.Item, enabled bool) (Pairs, error) {
 		for i := range c.Enabled {
 			if !c.Available.Contains(c.Enabled[i], true) {
 				return c.Enabled,
-					fmt.Errorf("enabled pair %s not contained in available list",
-						c.Enabled[i])
+					fmt.Errorf("enabled pair %s of asset type %s not contained in available list",
+						c.Enabled[i],
+						a)
 			}
 		}
 		return c.Enabled, nil
@@ -265,7 +267,7 @@ func (p *PairsManager) SetAssetEnabled(a asset.Item, enabled bool) error {
 	}
 
 	if c.AssetEnabled == nil {
-		c.AssetEnabled = func() *bool { return &enabled }()
+		c.AssetEnabled = convert.BoolPtr(enabled)
 		return nil
 	}
 

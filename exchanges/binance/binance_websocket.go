@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -366,7 +366,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 							err)
 					}
 
-					err = b.UpdateLocalCache(&depth)
+					err = b.UpdateLocalBuffer(&depth)
 					if err != nil {
 						return fmt.Errorf("%v - UpdateLocalCache error: %s",
 							b.Name,
@@ -442,8 +442,8 @@ func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBoo
 	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 
-// UpdateLocalCache updates and returns the most recent iteration of the orderbook
-func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
+// UpdateLocalBuffer updates and returns the most recent iteration of the orderbook
+func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) error {
 	enabledPairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return err
@@ -505,7 +505,7 @@ func (b *Binance) UpdateLocalCache(wsdp *WebsocketDepthStream) error {
 		updateAsk = append(updateAsk, orderbook.Item{Price: p, Amount: a})
 	}
 
-	return b.Websocket.Orderbook.Update(&cache.Update{
+	return b.Websocket.Orderbook.Update(&buffer.Update{
 		Bids:     updateBid,
 		Asks:     updateAsk,
 		Pair:     currencyPair,

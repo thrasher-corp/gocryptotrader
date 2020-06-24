@@ -33,10 +33,13 @@ func (y *Yobit) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = y.BaseCurrencies
 
-	y.SetupDefaults(exchCfg)
+	err := y.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
 
 	if y.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := y.UpdateTradablePairs(true)
+		err = y.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -107,10 +110,7 @@ func (y *Yobit) Setup(exch *config.ExchangeConfig) error {
 		y.SetEnabled(false)
 		return nil
 	}
-
-	y.SetupDefaults(exch)
-
-	return nil
+	return y.SetupDefaults(exch)
 }
 
 // Start starts the WEX go routine

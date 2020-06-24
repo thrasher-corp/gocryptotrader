@@ -1,4 +1,4 @@
-package cache
+package buffer
 
 import (
 	"errors"
@@ -21,7 +21,7 @@ func (w *Orderbook) Setup(obBufferLimit int, bufferEnabled, sortBuffer, sortBuff
 	w.dataHandler = dataHandler
 }
 
-// Update updates a local cache using bid targets and ask targets then updates
+// Update updates a local buffer using bid targets and ask targets then updates
 // main orderbook
 // Volume == 0; deletion at price target
 // Price target not found; append of price target
@@ -277,9 +277,9 @@ func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) *orderbook.Base 
 	return ob
 }
 
-// FlushCache flushes w.ob data to be garbage collected and refreshed when a
+// FlushBuffer flushes w.ob data to be garbage collected and refreshed when a
 // connection is lost and reconnected
-func (w *Orderbook) FlushCache() {
+func (w *Orderbook) FlushBuffer() {
 	w.m.Lock()
 	w.ob = nil
 	w.buffer = nil

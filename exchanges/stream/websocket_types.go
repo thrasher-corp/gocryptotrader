@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 )
 
 // Websocket functionality list and state consts
@@ -66,8 +66,8 @@ type Websocket struct {
 	ShutdownC chan struct{}
 	Wg        sync.WaitGroup
 
-	// Orderbook is a local cache of orderbooks
-	Orderbook cache.Orderbook
+	// Orderbook is a local buffer of orderbooks
+	Orderbook buffer.Orderbook
 
 	// trafficAlert monitors if there is a halt in traffic throughput
 	TrafficAlert chan struct{}

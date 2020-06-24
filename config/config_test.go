@@ -672,8 +672,8 @@ func TestCheckPairConsistency(t *testing.T) {
 	}
 
 	// Test for nil avail pairs
-	if err := c.CheckPairConsistency(testFakeExchangeName); err == nil {
-		t.Error("BTC_USD should error as its not contained in available list")
+	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
+		t.Error(err)
 	}
 
 	// Test that enabled pair is not found in the available pairs
@@ -682,9 +682,15 @@ func TestCheckPairConsistency(t *testing.T) {
 	}
 
 	// LTC_USD is only found in the available pairs list and should therefor
-	// error
-	if err := c.CheckPairConsistency(testFakeExchangeName); err == nil {
-		t.Fatal("unexpected result")
+	// be added to the enabled pairs list due to the atLestOneEnabled code
+	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, item := range c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled {
+		if !item.Equal(currency.NewPairDelimiter("LTC_USD", "_")) {
+			t.Fatal("LTC_USD should be contained in the enabled pairs list")
+		}
 	}
 
 	// Add the BTC_USD pair and see result
@@ -733,17 +739,15 @@ func TestSupportsPair(t *testing.T) {
 	}
 
 	assetType := asset.Spot
-	err = cfg.SupportsPair("asdf",
-		currency.NewPair(currency.BTC, currency.USD), assetType)
-	if err == nil {
+	if cfg.SupportsPair("asdf",
+		currency.NewPair(currency.BTC, currency.USD), assetType) {
 		t.Error(
 			"TestSupportsPair. Expected error from Non-existent exchange",
 		)
 	}
 
-	err = cfg.SupportsPair("Bitfinex",
-		currency.NewPair(currency.BTC, currency.USD), assetType)
-	if err != nil {
+	if !cfg.SupportsPair("Bitfinex",
+		currency.NewPair(currency.BTC, currency.USD), assetType) {
 		t.Errorf(
 			"TestSupportsPair. Incorrect values. Err: %s", err,
 		)
@@ -1373,6 +1377,10 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		!cfg.Exchanges[0].API.AuthenticatedWebsocketSupport {
 		t.Error("Expected AuthenticatedAPISupport and AuthenticatedWebsocketAPISupport to be false from invalid API keys")
 	}
+
+	// Make a sneaky copy for bank account testing
+	cpy := append(cfg.Exchanges[:0:0], cfg.Exchanges...)
+
 	// Test empty exchange name for an enabled exchange
 	cfg.Exchanges[0].Enabled = true
 	cfg.Exchanges[0].Name = ""
@@ -1389,6 +1397,66 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	err = cfg.CheckExchangeConfigValues()
 	if err == nil {
 		t.Error("Expected error from no enabled exchanges")
+	}
+
+	cfg.Exchanges = cpy
+	// Check bank account validation for exchange
+	cfg.Exchanges[0].BankAccounts = []banking.Account{
+		{
+			Enabled: true,
+		},
+	}
+
+	err = cfg.CheckExchangeConfigValues()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if cfg.Exchanges[0].BankAccounts[0].Enabled {
+		t.Fatal("bank aaccount details not provided this should disable")
+	}
+
+	// Test international bank
+	cfg.Exchanges[0].BankAccounts[0].Enabled = true
+	cfg.Exchanges[0].BankAccounts[0].BankName = "test"
+	cfg.Exchanges[0].BankAccounts[0].BankAddress = "test"
+	cfg.Exchanges[0].BankAccounts[0].BankPostalCode = "test"
+	cfg.Exchanges[0].BankAccounts[0].BankPostalCity = "test"
+	cfg.Exchanges[0].BankAccounts[0].BankCountry = "test"
+	cfg.Exchanges[0].BankAccounts[0].AccountName = "test"
+	cfg.Exchanges[0].BankAccounts[0].SupportedCurrencies = "monopoly moneys"
+	cfg.Exchanges[0].BankAccounts[0].IBAN = "some iban"
+	cfg.Exchanges[0].BankAccounts[0].SWIFTCode = "some swifty"
+
+	err = cfg.CheckExchangeConfigValues()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !cfg.Exchanges[0].BankAccounts[0].Enabled {
+		t.Fatal("bank aaccount details provided this should not disable")
+	}
+
+	// Test aussie bank
+	cfg.Exchanges[0].BankAccounts[0].Enabled = true
+	cfg.Exchanges[0].BankAccounts[0].BankName = "test"
+	cfg.Exchanges[0].BankAccounts[0].BankAddress = "test"
+	cfg.Exchanges[0].BankAccounts[0].BankPostalCode = "test"
+	cfg.Exchanges[0].BankAccounts[0].BankPostalCity = "test"
+	cfg.Exchanges[0].BankAccounts[0].BankCountry = "test"
+	cfg.Exchanges[0].BankAccounts[0].AccountName = "test"
+	cfg.Exchanges[0].BankAccounts[0].SupportedCurrencies = "AUD"
+	cfg.Exchanges[0].BankAccounts[0].BSBNumber = "some BSB nonsense"
+	cfg.Exchanges[0].BankAccounts[0].IBAN = ""
+	cfg.Exchanges[0].BankAccounts[0].SWIFTCode = ""
+
+	err = cfg.CheckExchangeConfigValues()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !cfg.Exchanges[0].BankAccounts[0].Enabled {
+		t.Fatal("bank aaccount details provided this should not disable")
 	}
 }
 

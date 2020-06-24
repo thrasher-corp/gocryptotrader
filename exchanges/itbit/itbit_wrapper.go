@@ -33,10 +33,13 @@ func (i *ItBit) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = i.BaseCurrencies
 
-	i.SetupDefaults(exchCfg)
+	err := i.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
 
 	if i.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := i.UpdateTradablePairs(true)
+		err = i.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -101,8 +104,7 @@ func (i *ItBit) Setup(exch *config.ExchangeConfig) error {
 		i.SetEnabled(false)
 		return nil
 	}
-	i.SetupDefaults(exch)
-	return nil
+	return i.SetupDefaults(exch)
 }
 
 // Start starts the ItBit go routine

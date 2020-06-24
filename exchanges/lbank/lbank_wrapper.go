@@ -32,10 +32,13 @@ func (l *Lbank) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = l.BaseCurrencies
 
-	l.SetupDefaults(exchCfg)
+	err := l.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
 
 	if l.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := l.UpdateTradablePairs(true)
+		err = l.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -102,10 +105,13 @@ func (l *Lbank) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	l.SetupDefaults(exch)
+	err := l.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
 
 	if l.API.AuthenticatedSupport {
-		err := l.loadPrivKey()
+		err = l.loadPrivKey()
 		if err != nil {
 			l.API.AuthenticatedSupport = false
 			log.Errorf(log.ExchangeSys, "%s couldn't load private key, setting authenticated support to false", l.Name)

@@ -1,4 +1,4 @@
-package cache
+package buffer
 
 import (
 	"fmt"
@@ -612,8 +612,8 @@ func TestLoadSnapshot(t *testing.T) {
 	}
 }
 
-// TestFlushCache logic test
-func TestFlushCache(t *testing.T) {
+// TestFlushbuffer logic test
+func TestFlushbuffer(t *testing.T) {
 	obl, _, _, err := createSnapshot()
 	if err != nil {
 		t.Fatal(err)
@@ -621,7 +621,7 @@ func TestFlushCache(t *testing.T) {
 	if obl.ob[cp][asset.Spot] == nil {
 		t.Error("expected ob to have ask entries")
 	}
-	obl.FlushCache()
+	obl.FlushBuffer()
 	if obl.ob[cp][asset.Spot] != nil {
 		t.Error("expected ob be flushed")
 	}

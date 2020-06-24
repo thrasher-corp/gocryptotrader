@@ -33,10 +33,13 @@ func (e *EXMO) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = e.BaseCurrencies
 
-	e.SetupDefaults(exchCfg)
+	err := e.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
 
 	if e.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := e.UpdateTradablePairs(true)
+		err = e.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -115,8 +118,7 @@ func (e *EXMO) Setup(exch *config.ExchangeConfig) error {
 		e.SetEnabled(false)
 		return nil
 	}
-	e.SetupDefaults(exch)
-	return nil
+	return e.SetupDefaults(exch)
 }
 
 // Start starts the EXMO go routine

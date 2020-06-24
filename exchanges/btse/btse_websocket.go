@@ -21,7 +21,7 @@ import (
 
 const (
 	btseWebsocket      = "wss://ws.btse.com/spotWS"
-	btseWebsocketTimer = time.Minute
+	btseWebsocketTimer = time.Second * 57
 )
 
 // WsConnect connects the websocket client

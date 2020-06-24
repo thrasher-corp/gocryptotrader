@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -413,7 +414,7 @@ func TestLoadConfigPairs(t *testing.T) {
 		},
 		Pairs: map[asset.Item]*currency.PairStore{
 			asset.Spot: {
-				AssetEnabled: func() *bool { b := true; return &b }(),
+				AssetEnabled: convert.BoolPtr(true),
 				Enabled:      pairs,
 				Available:    pairs,
 			},
@@ -888,7 +889,7 @@ func TestSupportsPair(t *testing.T) {
 		CurrencyPairs: currency.PairsManager{
 			Pairs: map[asset.Item]*currency.PairStore{
 				asset.Spot: {
-					AssetEnabled: func() *bool { b := true; return &b }(),
+					AssetEnabled: convert.BoolPtr(true),
 				},
 			},
 		},
@@ -1245,7 +1246,7 @@ func TestSetPairs(t *testing.T) {
 				},
 				Pairs: map[asset.Item]*currency.PairStore{
 					asset.Spot: {
-						AssetEnabled: func() *bool { b := true; return &b }(),
+						AssetEnabled: convert.BoolPtr(true),
 					},
 				},
 			},
@@ -1301,7 +1302,7 @@ func TestUpdatePairs(t *testing.T) {
 		CurrencyPairs: currency.PairsManager{
 			Pairs: map[asset.Item]*currency.PairStore{
 				asset.Spot: {
-					AssetEnabled: func() *bool { b := true; return &b }(),
+					AssetEnabled: convert.BoolPtr(true),
 				},
 			},
 		},
@@ -1655,7 +1656,7 @@ func TestGetAssetType(t *testing.T) {
 	}
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		AssetEnabled: func() *bool { b := true; return &b }(),
+		AssetEnabled: convert.BoolPtr(true),
 		Enabled: currency.Pairs{
 			currency.NewPair(currency.BTC, currency.USD),
 		},
@@ -1690,7 +1691,7 @@ func TestGetFormattedPairAndAssetType(t *testing.T) {
 	b.CurrencyPairs.ConfigFormat = pFmt
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		AssetEnabled: func() *bool { b := true; return &b }(),
+		AssetEnabled: convert.BoolPtr(true),
 		Enabled: currency.Pairs{
 			currency.NewPair(currency.BTC, currency.USD),
 		},

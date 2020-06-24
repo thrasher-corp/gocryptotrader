@@ -33,10 +33,13 @@ func (h *HitBTC) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = h.BaseCurrencies
 
-	h.SetupDefaults(exchCfg)
+	err := h.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
 
 	if h.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := h.UpdateTradablePairs(true)
+		err = h.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -125,9 +128,12 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	h.SetupDefaults(exch)
+	err := h.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
 
-	err := h.Websocket.Setup(&stream.WebsocketSetup{
+	err = h.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -153,7 +159,7 @@ func (h *HitBTC) Setup(exch *config.ExchangeConfig) error {
 		RateLimit:            rateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	}, false)
+	})
 }
 
 // Start starts the HitBTC go routine

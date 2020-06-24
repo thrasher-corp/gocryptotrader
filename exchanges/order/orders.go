@@ -610,7 +610,6 @@ func StringToOrderType(oType string) (Type, error) {
 		return FillOrKill, nil
 	case strings.EqualFold(oType, AnyType.String()):
 		return AnyType, nil
-
 	default:
 		return UnknownType, errors.New(oType + " not recognised as order type")
 	}

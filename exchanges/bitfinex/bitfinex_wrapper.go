@@ -32,10 +32,13 @@ func (b *Bitfinex) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = b.BaseCurrencies
 
-	b.SetupDefaults(exchCfg)
+	err := b.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := b.UpdateTradablePairs(true)
+		err = b.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -152,9 +155,12 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	b.SetupDefaults(exch)
+	err := b.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
 
-	err := b.Websocket.Setup(
+	err = b.Websocket.Setup(
 		&stream.WebsocketSetup{
 			Enabled:                          exch.Features.Enabled.Websocket,
 			Verbose:                          exch.Verbose,
@@ -178,7 +184,7 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 	err = b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	}, false)
+	})
 	if err != nil {
 		return err
 	}
@@ -187,7 +193,8 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  authenticatedBitfinexWebsocketEndpoint,
-	}, true)
+		Authenticated:        true,
+	})
 }
 
 // Start starts the Bitfinex go routine
@@ -479,8 +486,8 @@ func (b *Bitfinex) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			orderType,
 			o.Amount,
 			o.Price,
-			false,
-			isBuying)
+			isBuying,
+			false)
 		if err != nil {
 			return submitOrderResponse, err
 		}

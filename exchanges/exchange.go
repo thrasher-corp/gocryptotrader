@@ -517,7 +517,7 @@ func (e *Base) SetAPIKeys(apiKey, apiSecret, clientID string) {
 }
 
 // SetupDefaults sets the exchange settings based on the supplied config
-func (e *Base) SetupDefaults(exch *config.ExchangeConfig) {
+func (e *Base) SetupDefaults(exch *config.ExchangeConfig) error {
 	e.Enabled = true
 	e.LoadedByConfig = true
 	e.Config = exch
@@ -544,12 +544,26 @@ func (e *Base) SetupDefaults(exch *config.ExchangeConfig) {
 	e.HTTPDebugging = exch.HTTPDebugging
 	e.SetHTTPClientUserAgent(exch.HTTPUserAgent)
 	e.SetCurrencyPairFormat()
-	e.SetConfigPairs()
+
+	err := e.SetConfigPairs()
+	if err != nil {
+		return err
+	}
+
 	e.SetFeatureDefaults()
-	e.SetAPIURL()
+	err = e.SetAPIURL()
+	if err != nil {
+		return err
+	}
+
 	e.SetAPICredentialDefaults()
-	e.SetClientProxyAddress(exch.ProxyAddress)
+
+	err = e.SetClientProxyAddress(exch.ProxyAddress)
+	if err != nil {
+		return err
+	}
 	e.BaseCurrencies = exch.BaseCurrencies
+	return nil
 }
 
 // AllowAuthenticatedRequest checks to see if the required fields have been set
@@ -979,19 +993,19 @@ func (e *Base) SupportsWebsocket() bool {
 // IsWebsocketEnabled returns whether or not the exchange has its
 // websocket client enabled
 func (e *Base) IsWebsocketEnabled() bool {
-	if e.Websocket != nil {
-		return e.Websocket.IsEnabled()
+	if e.Websocket == nil {
+		return false
 	}
-	return false
+	return e.Websocket.IsEnabled()
 }
 
 // FlushWebsocketChannels refreshes websocket channel subscriptions based on
 // websocket features. Used in the event of a pair/asset or subscription change.
 func (e *Base) FlushWebsocketChannels() error {
-	if e.Websocket != nil {
-		return e.Websocket.FlushChannels()
+	if e.Websocket == nil {
+		return nil
 	}
-	return nil
+	return e.Websocket.FlushChannels()
 }
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe

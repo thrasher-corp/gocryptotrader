@@ -482,17 +482,18 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 	var atLeastOneEnabled bool
 	for x := range assetTypes {
 		enabledPairs, err := c.GetEnabledPairs(exchName, assetTypes[x])
-		if err != nil {
-			return err
+		if err == nil {
+			if len(enabledPairs) != 0 {
+				atLeastOneEnabled = true
+			}
+			continue
 		}
 
+		// On error an enabled pair is not found in the available pairs list
+		// so remove and report
 		availPairs, err := c.GetAvailablePairs(exchName, assetTypes[x])
 		if err != nil {
 			return err
-		}
-
-		if len(availPairs) == 0 {
-			continue
 		}
 
 		var pairs, pairsRemoved currency.Pairs
@@ -504,27 +505,23 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 			pairs = append(pairs, enabledPairs[x])
 		}
 
-		if len(pairs) == 0 {
-			log.Warnf(log.ExchangeSys,
-				"Exchange %s: [%v] No enabled pairs, synchronisation service will be impeded.\n",
-				exchName,
-				assetTypes[x])
-			continue
-		} else {
-			atLeastOneEnabled = true
-			err := c.SetPairs(exchName, assetTypes[x], true, pairs)
-			if err != nil {
-				return err
-			}
+		// Flush corrupted/misspelled enabled pairs in config
+		err = c.SetPairs(exchName, assetTypes[x], true, pairs)
+		if err != nil {
+			return err
 		}
-		if len(pairsRemoved) != 0 {
-			log.Warnf(log.ExchangeSys,
-				"Exchange %s: [%v] Removing enabled pair(s) %v from enabled pairs as it isn't an available pair.\n",
-				exchName,
-				assetTypes[x],
-				pairsRemoved.Strings())
+
+		log.Warnf(log.ConfigMgr,
+			"Exchange %s: [%v] Removing enabled pair(s) %v from enabled pairs list, as it isn't located in the available pairs list.\n",
+			exchName,
+			assetTypes[x],
+			pairsRemoved.Strings())
+
+		if len(pairs) != 0 {
+			atLeastOneEnabled = true
 		}
 	}
+
 	// If no pair is enabled across the entire range of assets, then atleast
 	// enable one and turn on the asset type
 	if !atLeastOneEnabled {
@@ -533,28 +530,28 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 			return err
 		}
 
-		err = c.SetPairs(exchName,
-			assetTypes[0],
-			true,
-			currency.Pairs{avail.GetRandomPair()})
+		newPair := avail.GetRandomPair()
+		err = c.SetPairs(exchName, assetTypes[0], true, currency.Pairs{newPair})
 		if err != nil {
 			return err
 		}
+		log.Warnf(log.ConfigMgr,
+			"Exchange %s: [%v] No enabled pairs found in available pairs list, randomly added %v pair.\n",
+			exchName,
+			assetTypes[0],
+			newPair)
 	}
 	return nil
 }
 
 // SupportsPair returns true or not whether the exchange supports the supplied
 // pair
-func (c *Config) SupportsPair(exchName string, p currency.Pair, assetType asset.Item) error {
+func (c *Config) SupportsPair(exchName string, p currency.Pair, assetType asset.Item) bool {
 	pairs, err := c.GetAvailablePairs(exchName, assetType)
 	if err != nil {
-		return err
+		return false
 	}
-	if pairs.Contains(p, false) {
-		return nil
-	}
-	return errors.New("not supported")
+	return pairs.Contains(p, false)
 }
 
 // GetPairFormat returns the exchanges pair config storage format
@@ -864,7 +861,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].CurrencyPairs.UseGlobalFormat = true
 			c.Exchanges[i].CurrencyPairs.Store(asset.Spot,
 				currency.PairStore{
-					AssetEnabled: func() *bool { b := true; return &b }(),
+					AssetEnabled: convert.BoolPtr(true),
 					Available:    availPairs,
 					Enabled:      enabledPairs,
 				},
@@ -879,33 +876,39 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].EnabledPairs = nil
 		} else {
 			assets := c.Exchanges[i].CurrencyPairs.GetAssetTypes()
-			var atleastOne bool
+			var atLeastOne bool
 			for index := range assets {
 				err := c.Exchanges[i].CurrencyPairs.IsAssetEnabled(assets[index])
 				if err != nil {
+					// Checks if we have an old config without the ability to
+					// enable disable the entire asset
 					if err.Error() == "cannot ascertain if asset is enabled, variable is nil" {
+						log.Warnf(log.ConfigMgr,
+							"Exchange %s: upgrading config for asset type %s and setting enabled.\n",
+							c.Exchanges[i].Name,
+							assets[index])
 						err = c.Exchanges[i].CurrencyPairs.SetAssetEnabled(assets[index], true)
 						if err != nil {
 							return err
 						}
-						atleastOne = true
+						atLeastOne = true
 					}
 					continue
 				}
-				atleastOne = true
+				atLeastOne = true
 			}
 
-			if !atleastOne {
+			if !atLeastOne {
 				if len(assets) == 0 {
 					c.Exchanges[i].Enabled = false
-					log.Warnf(log.ExchangeSys,
+					log.Warnf(log.ConfigMgr,
 						"%s no assets found, disabling...",
 						c.Exchanges[i].Name)
 					continue
 				}
 
-				// randomly turn on an asset if all disabled
-				log.Warnf(log.ExchangeSys,
+				// turn on an asset if all disabled
+				log.Warnf(log.ConfigMgr,
 					"%s assets disabled, turning on asset %s",
 					c.Exchanges[i].Name,
 					assets[0])
@@ -944,7 +947,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 				if failed {
 					c.Exchanges[i].API.AuthenticatedSupport = false
 					c.Exchanges[i].API.AuthenticatedWebsocketSupport = false
-					log.Warnf(log.ExchangeSys, WarningExchangeAuthAPIDefaultOrEmptyValues, c.Exchanges[i].Name)
+					log.Warnf(log.ConfigMgr, WarningExchangeAuthAPIDefaultOrEmptyValues, c.Exchanges[i].Name)
 				}
 			}
 			if !c.Exchanges[i].Features.Supports.RESTCapabilities.AutoPairUpdates &&
@@ -952,14 +955,14 @@ func (c *Config) CheckExchangeConfigValues() error {
 				lastUpdated := convert.UnixTimestampToTime(c.Exchanges[i].CurrencyPairs.LastUpdated)
 				lastUpdated = lastUpdated.AddDate(0, 0, pairsLastUpdatedWarningThreshold)
 				if lastUpdated.Unix() <= time.Now().Unix() {
-					log.Warnf(log.ExchangeSys,
+					log.Warnf(log.ConfigMgr,
 						WarningPairsLastUpdatedThresholdExceeded,
 						c.Exchanges[i].Name,
 						pairsLastUpdatedWarningThreshold)
 				}
 			}
 			if c.Exchanges[i].HTTPTimeout <= 0 {
-				log.Warnf(log.ExchangeSys,
+				log.Warnf(log.ConfigMgr,
 					"Exchange %s HTTP Timeout value not set, defaulting to %v.\n",
 					c.Exchanges[i].Name,
 					defaultHTTPTimeout)
@@ -967,7 +970,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 			}
 
 			if c.Exchanges[i].WebsocketResponseCheckTimeout <= 0 {
-				log.Warnf(log.ExchangeSys,
+				log.Warnf(log.ConfigMgr,
 					"Exchange %s Websocket response check timeout value not set, defaulting to %v.",
 					c.Exchanges[i].Name,
 					defaultWebsocketResponseCheckTimeout)
@@ -975,21 +978,21 @@ func (c *Config) CheckExchangeConfigValues() error {
 			}
 
 			if c.Exchanges[i].WebsocketResponseMaxLimit <= 0 {
-				log.Warnf(log.ExchangeSys,
+				log.Warnf(log.ConfigMgr,
 					"Exchange %s Websocket response max limit value not set, defaulting to %v.",
 					c.Exchanges[i].Name,
 					defaultWebsocketResponseMaxLimit)
 				c.Exchanges[i].WebsocketResponseMaxLimit = defaultWebsocketResponseMaxLimit
 			}
 			if c.Exchanges[i].WebsocketTrafficTimeout <= 0 {
-				log.Warnf(log.ExchangeSys,
+				log.Warnf(log.ConfigMgr,
 					"Exchange %s Websocket response traffic timeout value not set, defaulting to %v.",
 					c.Exchanges[i].Name,
 					defaultWebsocketTrafficTimeout)
 				c.Exchanges[i].WebsocketTrafficTimeout = defaultWebsocketTrafficTimeout
 			}
 			if c.Exchanges[i].WebsocketOrderbookBufferLimit <= 0 {
-				log.Warnf(log.ExchangeSys,
+				log.Warnf(log.ConfigMgr,
 					"Exchange %s Websocket orderbook buffer limit value not set, defaulting to %v.",
 					c.Exchanges[i].Name,
 					defaultWebsocketOrderbookBufferLimit)
@@ -997,7 +1000,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 			}
 			err := c.CheckPairConsistency(c.Exchanges[i].Name)
 			if err != nil {
-				log.Errorf(log.ExchangeSys,
+				log.Errorf(log.ConfigMgr,
 					"Exchange %s: CheckPairConsistency error: %s\n",
 					c.Exchanges[i].Name,
 					err)
@@ -1011,7 +1014,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 				err := c.Exchanges[i].BankAccounts[x].Validate()
 				if err != nil {
 					c.Exchanges[i].BankAccounts[x].Enabled = false
-					log.Warn(log.ConfigMgr, err.Error())
+					log.Warnln(log.ConfigMgr, err.Error())
 				}
 			}
 			exchanges++

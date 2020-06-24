@@ -341,7 +341,7 @@ func TestNewOrder(t *testing.T) {
 
 	_, err := b.NewOrder("BTCUSD",
 		order.Limit.Lower(),
-		1,
+		-1,
 		2,
 		false,
 		true)

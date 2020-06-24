@@ -32,10 +32,13 @@ func (p *Poloniex) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = p.BaseCurrencies
 
-	p.SetupDefaults(exchCfg)
+	err := p.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
 
 	if p.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := p.UpdateTradablePairs(true)
+		err = p.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -130,9 +133,12 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	p.SetupDefaults(exch)
+	err := p.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
 
-	err := p.Websocket.Setup(&stream.WebsocketSetup{
+	err = p.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -156,7 +162,7 @@ func (p *Poloniex) Setup(exch *config.ExchangeConfig) error {
 	return p.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	}, false)
+	})
 }
 
 // Start starts the Poloniex go routine

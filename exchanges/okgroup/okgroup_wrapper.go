@@ -29,9 +29,12 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	o.SetupDefaults(exch)
+	err := o.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
 
-	err := o.Websocket.Setup(&stream.WebsocketSetup{
+	err = o.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -54,7 +57,7 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		RateLimit:            okGroupWsRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	}, false)
+	})
 }
 
 // FetchOrderbook returns orderbook base on the currency pair

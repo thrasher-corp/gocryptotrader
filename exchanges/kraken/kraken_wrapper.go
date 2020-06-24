@@ -33,10 +33,13 @@ func (k *Kraken) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = k.BaseCurrencies
 
-	k.SetupDefaults(exchCfg)
+	err := k.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
 
 	if k.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := k.UpdateTradablePairs(true)
+		err = k.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -139,9 +142,12 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	k.SetupDefaults(exch)
+	err := k.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
 
-	err := k.SeedAssets()
+	err = k.SeedAssets()
 	if err != nil {
 		return err
 	}
@@ -171,7 +177,7 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		RateLimit:            krakenWsRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	}, false)
+	})
 	if err != nil {
 		return err
 	}
@@ -181,7 +187,8 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  krakenAuthWSURL,
-	}, true)
+		Authenticated:        true,
+	})
 }
 
 // Start starts the Kraken go routine

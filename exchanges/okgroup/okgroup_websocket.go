@@ -19,7 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/cache"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -677,7 +677,7 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketOrderBook, ins
 // After merging WS data, it will sort, validate and finally update the existing
 // orderbook
 func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketOrderBook, instrument currency.Pair, a asset.Item) error {
-	update := cache.Update{
+	update := buffer.Update{
 		Asset:      a,
 		Pair:       instrument,
 		UpdateTime: wsEventData.Timestamp,

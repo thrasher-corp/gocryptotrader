@@ -44,6 +44,7 @@ type ConnectionSetup struct {
 	ResponseMaxLimit     time.Duration
 	RateLimit            int
 	URL                  string
+	Authenticated        bool
 }
 
 // PingHandler container for ping handler settings

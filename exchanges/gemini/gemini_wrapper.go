@@ -33,7 +33,10 @@ func (g *Gemini) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = g.BaseCurrencies
 
-	g.SetupDefaults(exchCfg)
+	err := g.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
 
 	if g.Features.Supports.RESTCapabilities.AutoPairUpdates {
 		err := g.UpdateTradablePairs(true)
@@ -117,7 +120,10 @@ func (g *Gemini) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	g.SetupDefaults(exch)
+	err := g.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
 
 	if exch.UseSandbox {
 		g.API.Endpoints.URL = geminiSandboxAPIURL

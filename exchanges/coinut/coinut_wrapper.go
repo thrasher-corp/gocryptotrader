@@ -34,10 +34,13 @@ func (c *COINUT) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = c.BaseCurrencies
 
-	c.SetupDefaults(exchCfg)
+	err := c.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
 
 	if c.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := c.UpdateTradablePairs(true)
+		err = c.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -126,9 +129,12 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	c.SetupDefaults(exch)
+	err := c.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
 
-	err := c.Websocket.Setup(&stream.WebsocketSetup{
+	err = c.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -153,7 +159,7 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 	return c.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	}, false)
+	})
 }
 
 // Start starts the COINUT go routine

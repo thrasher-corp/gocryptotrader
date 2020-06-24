@@ -33,10 +33,13 @@ func (z *ZB) GetDefaultConfig() (*config.ExchangeConfig, error) {
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = z.BaseCurrencies
 
-	z.SetupDefaults(exchCfg)
+	err := z.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
 
 	if z.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := z.UpdateTradablePairs(true)
+		err = z.UpdateTradablePairs(true)
 		if err != nil {
 			return nil, err
 		}
@@ -123,9 +126,12 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	z.SetupDefaults(exch)
+	err := z.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
 
-	err := z.Websocket.Setup(&stream.WebsocketSetup{
+	err = z.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -148,7 +154,7 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		RateLimit:            zbWebsocketRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	}, false)
+	})
 }
 
 // Start starts the OKEX go routine
