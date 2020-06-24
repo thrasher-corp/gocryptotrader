@@ -55,7 +55,7 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 
 	// Request format denotes what the pair as a string will be, when you send
 	// a request to an exchange.
-	requestFmt := &currency.PairFormat{/*Set pair request formatting details here*/}
+	requestFmt := &currency.PairFormat{/*Set pair request formatting details here for e.g.*/ Uppercase: true, Delimiter: ":"}
 	// Config format denotes what the pair as a string will be, when saved to 
 	// the config.json file.
 	configFmt := &currency.PairFormat{/*Set pair request formatting details here*/}
