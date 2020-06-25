@@ -273,35 +273,36 @@ func (b *Bittrex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 		return nil, err
 	}
 
-	for i := range pairs {
-		for j := range ticks.Result {
-			if !strings.EqualFold(ticks.Result[j].MarketName, pairs[i].String()) {
-				continue
-			}
-			tickerTime, err := parseTime(ticks.Result[j].TimeStamp)
-			if err != nil {
-				return nil, err
-			}
+	for j := range ticks.Result {
+		cp, err := currency.NewPairFromString(ticks.Result[j].MarketName)
+		if err != nil {
+			return nil, err
+		}
+		if !pairs.Contains(cp, true) {
+			continue
+		}
+		tickerTime, err := parseTime(ticks.Result[j].TimeStamp)
+		if err != nil {
+			return nil, err
+		}
 
-			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         ticks.Result[j].Last,
-				High:         ticks.Result[j].High,
-				Low:          ticks.Result[j].Low,
-				Bid:          ticks.Result[j].Bid,
-				Ask:          ticks.Result[j].Ask,
-				Volume:       ticks.Result[j].BaseVolume,
-				QuoteVolume:  ticks.Result[j].Volume,
-				Close:        ticks.Result[j].PrevDay,
-				Pair:         pairs[i],
-				LastUpdated:  tickerTime,
-				ExchangeName: b.Name,
-				AssetType:    assetType})
-			if err != nil {
-				return nil, err
-			}
+		err = ticker.ProcessTicker(&ticker.Price{
+			Last:         ticks.Result[j].Last,
+			High:         ticks.Result[j].High,
+			Low:          ticks.Result[j].Low,
+			Bid:          ticks.Result[j].Bid,
+			Ask:          ticks.Result[j].Ask,
+			Volume:       ticks.Result[j].BaseVolume,
+			QuoteVolume:  ticks.Result[j].Volume,
+			Close:        ticks.Result[j].PrevDay,
+			Pair:         cp,
+			LastUpdated:  tickerTime,
+			ExchangeName: b.Name,
+			AssetType:    assetType})
+		if err != nil {
+			return nil, err
 		}
 	}
-
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 

@@ -395,7 +395,7 @@ func (b *BTSE) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return resp, err
 	}
 
-	fpair, err := b.FormatExchangeCurrency(s.Pair, asset.Spot)
+	fpair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
 		return resp, err
 	}
@@ -430,7 +430,7 @@ func (b *BTSE) ModifyOrder(action *order.Modify) (string, error) {
 // CancelOrder cancels an order by its corresponding ID number
 func (b *BTSE) CancelOrder(order *order.Cancel) error {
 	fpair, err := b.FormatExchangeCurrency(order.Pair,
-		asset.Spot)
+		order.AssetType)
 	if err != nil {
 		return err
 	}
@@ -460,7 +460,7 @@ func (b *BTSE) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAll
 		return resp, err
 	}
 
-	format, err := b.GetPairFormat(asset.Spot, false)
+	format, err := b.GetPairFormat(orderCancellation.AssetType, false)
 	if err != nil {
 		return resp, err
 	}

@@ -218,11 +218,13 @@ const (
 	AnyType           Type = "ANY"
 	Limit             Type = "LIMIT"
 	Market            Type = "MARKET"
+	PostOnly          Type = "POST_ONLY"
 	ImmediateOrCancel Type = "IMMEDIATE_OR_CANCEL"
 	Stop              Type = "STOP"
 	StopLimit         Type = "STOP LIMIT"
 	TrailingStop      Type = "TRAILING_STOP"
 	FillOrKill        Type = "FOK"
+	IOS               Type = "IOS"
 	UnknownType       Type = "UNKNOWN"
 )
 

@@ -307,7 +307,7 @@ func (b *Bitfinex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 			return nil, err
 		}
 
-		if !enabledPairs.Contains(p, true) {
+		if !enabledPairs.Contains(pair, true) {
 			continue
 		}
 

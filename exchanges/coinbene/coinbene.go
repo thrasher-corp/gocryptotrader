@@ -64,12 +64,15 @@ const (
 	coinbeneListSwapPositions  = "/position/list"
 	coinbenePositionFeeRate    = "/position/feeRate"
 
-	limitOrder    = "1"
-	marketOrder   = "2"
-	buyDirection  = "1"
-	openLong      = "openLong"
-	openShort     = "openShort"
-	sellDirection = "2"
+	limitOrder      = "1"
+	marketOrder     = "2"
+	postOnlyOrder   = "8"
+	fillOrKillOrder = "9"
+	iosOrder        = "10"
+	buyDirection    = "1"
+	openLong        = "openLong"
+	openShort       = "openShort"
+	sellDirection   = "2"
 )
 
 // GetAllPairs gets all pairs on the exchange
@@ -265,9 +268,15 @@ func (c *Coinbene) PlaceSpotOrder(price, quantity float64, symbol, direction,
 		params.Set("orderType", limitOrder)
 	case order.Market.Lower():
 		params.Set("orderType", marketOrder)
+	case order.PostOnly.Lower():
+		params.Set("orderType", postOnlyOrder)
+	case order.FillOrKill.Lower():
+		params.Set("orderType", fillOrKillOrder)
+	case order.IOS.Lower():
+		params.Set("orderType", iosOrder)
 	default:
 		return resp,
-			errors.New("invalid order type, must be either 'limit' or 'market'")
+			errors.New("invalid order type, must be either 'limit', 'market', 'postOnly', 'fillOrKill', 'ios'")
 	}
 
 	params.Set("symbol", symbol)

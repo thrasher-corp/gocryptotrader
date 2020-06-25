@@ -44,6 +44,7 @@ type FuturesMarket struct {
 	OpenInterest        float64  `json:"openInterest"`
 	OpenInterestUSD     float64  `json:"openInterestUSD"`
 	PercentageChange    float64  `json:"percentageChange"`
+	Volume              float64  `json:"volume"`
 	High24Hr            float64  `json:"high24Hr"`
 	Low24Hr             float64  `json:"low24Hr"`
 	Base                string   `json:"base"`

@@ -184,8 +184,7 @@ func (b *Bitflyer) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitflyer) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	p = b.CheckFXString(p)
-	tickerNew, err := b.GetTicker(p.String())
+	tickerNew, err := b.GetTicker(b.CheckFXString(p).String())
 	if err != nil {
 		return nil, err
 	}
@@ -236,9 +235,7 @@ func (b *Bitflyer) FetchOrderbook(p currency.Pair, assetType asset.Item) (*order
 func (b *Bitflyer) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 
-	p = b.CheckFXString(p)
-
-	orderbookNew, err := b.GetOrderBook(p.String())
+	orderbookNew, err := b.GetOrderBook(b.CheckFXString(p).String())
 	if err != nil {
 		return orderBook, err
 	}

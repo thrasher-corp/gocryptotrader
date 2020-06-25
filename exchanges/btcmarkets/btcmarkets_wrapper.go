@@ -275,6 +275,11 @@ func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticke
 	if err != nil {
 		return nil, err
 	}
+
+	if len(allPairs) != len(tickers) {
+		return nil, errors.New("enabled pairs differ from returned tickers")
+	}
+
 	for x := range tickers {
 		var newP currency.Pair
 		newP, err = currency.NewPairFromString(tickers[x].MarketID)

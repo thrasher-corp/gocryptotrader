@@ -242,13 +242,13 @@ func (b *Bitmex) UpdateTradablePairs(forceUpdate bool) error {
 		assetPairs[asset.Futures] = append(assetPairs[asset.Futures], pairs[x])
 	}
 
-	for asset, values := range assetPairs {
+	for a, values := range assetPairs {
 		p, err := currency.NewPairsFromStrings(values)
 		if err != nil {
 			return err
 		}
 
-		err = b.UpdatePairs(p, asset, false, false)
+		err = b.UpdatePairs(p, a, false, false)
 		if err != nil {
 			log.Warnf(log.ExchangeSys,
 				"%s failed to update available pairs. Err: %v",
@@ -272,27 +272,25 @@ func (b *Bitmex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pr
 		return nil, err
 	}
 
-	for i := range pairs {
-		for j := range tick {
-			if !pairs[i].Equal(tick[j].Symbol) {
-				continue
-			}
+	for j := range tick {
+		if !pairs.Contains(tick[j].Symbol, true) {
+			continue
+		}
 
-			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         tick[j].LastPrice,
-				High:         tick[j].HighPrice,
-				Low:          tick[j].LowPrice,
-				Bid:          tick[j].BidPrice,
-				Ask:          tick[j].AskPrice,
-				Volume:       tick[j].Volume24h,
-				Close:        tick[j].PrevClosePrice,
-				Pair:         tick[j].Symbol,
-				LastUpdated:  tick[j].Timestamp,
-				ExchangeName: b.Name,
-				AssetType:    assetType})
-			if err != nil {
-				return nil, err
-			}
+		err = ticker.ProcessTicker(&ticker.Price{
+			Last:         tick[j].LastPrice,
+			High:         tick[j].HighPrice,
+			Low:          tick[j].LowPrice,
+			Bid:          tick[j].BidPrice,
+			Ask:          tick[j].AskPrice,
+			Volume:       tick[j].Volume24h,
+			Close:        tick[j].PrevClosePrice,
+			Pair:         tick[j].Symbol,
+			LastUpdated:  tick[j].Timestamp,
+			ExchangeName: b.Name,
+			AssetType:    assetType})
+		if err != nil {
+			return nil, err
 		}
 	}
 	return ticker.GetTicker(b.Name, p, assetType)

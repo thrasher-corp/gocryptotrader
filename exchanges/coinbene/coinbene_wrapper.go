@@ -318,8 +318,7 @@ func (c *Coinbene) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.
 		}
 
 		for x := range allPairs {
-			fpair, err := c.FormatExchangeCurrency(allPairs[x],
-				assetType)
+			fpair, err := c.FormatExchangeCurrency(allPairs[x], assetType)
 			if err != nil {
 				return nil, err
 			}
@@ -500,9 +499,6 @@ func (c *Coinbene) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			fmt.Errorf("%s orderside is not supported by this exchange",
 				s.Side)
 	}
-	if s.Type != order.Limit {
-		return resp, fmt.Errorf("only limit order is supported by this exchange")
-	}
 
 	fpair, err := c.FormatExchangeCurrency(s.Pair, asset.Spot)
 	if err != nil {
@@ -540,7 +536,7 @@ func (c *Coinbene) CancelOrder(order *order.Cancel) error {
 func (c *Coinbene) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
 	fpair, err := c.FormatExchangeCurrency(orderCancellation.Pair,
-		asset.Spot)
+		orderCancellation.AssetType)
 	if err != nil {
 		return resp, err
 	}
