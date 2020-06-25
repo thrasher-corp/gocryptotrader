@@ -265,27 +265,27 @@ func (s *Storage) ForeignExchangeUpdater() {
 
 // SeedCurrencyAnalysisData sets a new instance of a coinmarketcap data.
 func (s *Storage) SeedCurrencyAnalysisData() error {
-	if s.loadedJSON == nil {
-		s.loadedJSON = new(File)
+	var firstRun bool
+	if s.currencyCodes.LastMainUpdate.IsZero() {
+		firstRun = true
 		b, err := ioutil.ReadFile(s.path)
 		if err != nil {
 			return s.FetchCurrencyAnalysisData()
 		}
-
-		err = json.Unmarshal(b, s.loadedJSON)
+		var file *File
+		err = json.Unmarshal(b, &file)
 		if err != nil {
 			return err
 		}
-
-		err = s.LoadFileCurrencyData()
+		err = s.LoadFileCurrencyData(file)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Based on update delay update the file
-	if s.loadedJSON.LastMainUpdate.After(s.loadedJSON.LastMainUpdate.Add(s.currencyFileUpdateDelay)) ||
-		s.loadedJSON.LastMainUpdate.IsZero() {
+	if time.Now().After(s.currencyCodes.LastMainUpdate.Add(s.currencyFileUpdateDelay)) ||
+		firstRun {
 		err := s.FetchCurrencyAnalysisData()
 		if err != nil {
 			return err
@@ -330,9 +330,9 @@ func (s *Storage) WriteCurrencyDataToFile(path string, mainUpdate bool) error {
 }
 
 // LoadFileCurrencyData loads currencies into the currency codes
-func (s *Storage) LoadFileCurrencyData() error {
-	for i := range s.loadedJSON.Contracts {
-		contract := s.loadedJSON.Contracts[i]
+func (s *Storage) LoadFileCurrencyData(f *File) error {
+	for i := range f.Contracts {
+		contract := f.Contracts[i]
 		contract.Role = Contract
 		err := s.currencyCodes.LoadItem(&contract)
 		if err != nil {
@@ -340,8 +340,8 @@ func (s *Storage) LoadFileCurrencyData() error {
 		}
 	}
 
-	for i := range s.loadedJSON.Cryptocurrency {
-		crypto := s.loadedJSON.Cryptocurrency[i]
+	for i := range f.Cryptocurrency {
+		crypto := f.Cryptocurrency[i]
 		crypto.Role = Cryptocurrency
 		err := s.currencyCodes.LoadItem(&crypto)
 		if err != nil {
@@ -349,8 +349,8 @@ func (s *Storage) LoadFileCurrencyData() error {
 		}
 	}
 
-	for i := range s.loadedJSON.Token {
-		token := s.loadedJSON.Token[i]
+	for i := range f.Token {
+		token := f.Token[i]
 		token.Role = Token
 		err := s.currencyCodes.LoadItem(&token)
 		if err != nil {
@@ -358,8 +358,8 @@ func (s *Storage) LoadFileCurrencyData() error {
 		}
 	}
 
-	for i := range s.loadedJSON.FiatCurrency {
-		fiat := s.loadedJSON.FiatCurrency[i]
+	for i := range f.FiatCurrency {
+		fiat := f.FiatCurrency[i]
 		fiat.Role = Fiat
 		err := s.currencyCodes.LoadItem(&fiat)
 		if err != nil {
@@ -367,8 +367,8 @@ func (s *Storage) LoadFileCurrencyData() error {
 		}
 	}
 
-	for i := range s.loadedJSON.UnsetCurrency {
-		unset := s.loadedJSON.UnsetCurrency[i]
+	for i := range f.UnsetCurrency {
+		unset := f.UnsetCurrency[i]
 		unset.Role = Unset
 		err := s.currencyCodes.LoadItem(&unset)
 		if err != nil {
@@ -376,7 +376,7 @@ func (s *Storage) LoadFileCurrencyData() error {
 		}
 	}
 
-	s.currencyCodes.LastMainUpdate = s.loadedJSON.LastMainUpdate
+	s.currencyCodes.LastMainUpdate = f.LastMainUpdate
 	return nil
 }
 
@@ -727,6 +727,5 @@ func (s *Storage) IsVerbose() bool {
 func (s *Storage) Shutdown() error {
 	close(s.shutdown)
 	s.wg.Wait()
-	s.loadedJSON = nil
 	return s.WriteCurrencyDataToFile(s.path, true)
 }

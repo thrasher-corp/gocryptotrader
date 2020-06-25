@@ -59,6 +59,4 @@ type Storage struct {
 	shutdown                   chan struct{}
 	updaterRunning             bool
 	Verbose                    bool
-	// Initial loaded file
-	loadedJSON *File
 }
