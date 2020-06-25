@@ -36,6 +36,7 @@ const (
 	wsPartial         = "partial"
 	subscribe         = "subscribe"
 	unsubscribe       = "unsubscribe"
+	blockPair         = "DOGE-PERP"
 )
 
 var obSuccess = make(map[currency.Pair]bool)
@@ -92,6 +93,10 @@ func (f *FTX) WsAuth() error {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (f *FTX) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
+	if channelToSubscribe.Currency.Equal(currency.NewPairFromString(blockPair)) {
+		log.Warnf(log.Global, "subscription not allowed for %v due to invalid checksum provided by the exchange", channelToSubscribe.Currency)
+		return nil
+	}
 	var sub WsSub
 	switch channelToSubscribe.Channel {
 	case wsFills, wsOrders, wsMarkets:
@@ -487,7 +492,6 @@ func (f *FTX) CalcPartialOBChecksum(data *WsOrderbookData) int {
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), ":")
-	fmt.Println(int(crc32.ChecksumIEEE([]byte(checksumStr))))
 	return int(crc32.ChecksumIEEE([]byte(checksumStr)))
 }
 
@@ -520,6 +524,5 @@ func (f *FTX) CalcUpdateOBChecksum(data *orderbook.Base) int {
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), ":")
-	fmt.Println(int(crc32.ChecksumIEEE([]byte(checksumStr))))
 	return int(crc32.ChecksumIEEE([]byte(checksumStr)))
 }

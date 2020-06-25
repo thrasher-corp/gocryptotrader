@@ -1074,7 +1074,7 @@ func TestAcceptOTCQuote(t *testing.T) {
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
-	_, err := f.AcceptOTCQuote("1031")
+	err := f.AcceptOTCQuote("1031")
 	if err != nil {
 		t.Error(err)
 	}

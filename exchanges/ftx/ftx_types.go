@@ -29,16 +29,6 @@ type MarketData struct {
 	Restricted     bool    `json:"restricted"`
 }
 
-// Markets stores all markets data
-type Markets struct {
-	Result []MarketData `json:"result"`
-}
-
-// Market stores data for a given market
-type Market struct {
-	Result MarketData `json:"result"`
-}
-
 // OData stores orderdata in orderbook
 type OData struct {
 	Price float64
@@ -50,11 +40,6 @@ type OrderbookData struct {
 	MarketName string
 	Asks       []OData
 	Bids       []OData
-}
-
-// TempOrderbook stores order book
-type TempOrderbook struct {
-	Result TempOBData `json:"result"`
 }
 
 // TempOBData stores orderbook data temporarily
@@ -73,11 +58,6 @@ type TradeData struct {
 	Time        time.Time `json:"time"`
 }
 
-// Trades stores data for multiple trades
-type Trades struct {
-	Result []TradeData `json:"result"`
-}
-
 // OHLCVData stores historical OHLCV data
 type OHLCVData struct {
 	Close     float64   `json:"close"`
@@ -87,11 +67,6 @@ type OHLCVData struct {
 	StartTime time.Time `json:"startTime"`
 	Time      float64   `json:"time"`
 	Volume    float64   `json:"volume"`
-}
-
-// HistoricalData stores historical OHLCVData
-type HistoricalData struct {
-	Result []OHLCVData `json:"result"`
 }
 
 // FuturesData stores data for futures
@@ -127,16 +102,6 @@ type FuturesData struct {
 	FutureType          string      `json:"type"`
 }
 
-// Futures stores futures data
-type Futures struct {
-	Result []FuturesData `json:"result"`
-}
-
-// Future stores data for a singular future
-type Future struct {
-	Result FuturesData `json:"result"`
-}
-
 // FutureStatsData stores data on futures stats
 type FutureStatsData struct {
 	Volume                   float64   `json:"volume"`
@@ -148,21 +113,11 @@ type FutureStatsData struct {
 	StrikePrice              float64   `json:"strikePrice"`
 }
 
-// FutureStats stores future stats
-type FutureStats struct {
-	Result FutureStatsData `json:"result"`
-}
-
 // FundingRatesData stores data on funding rates
 type FundingRatesData struct {
 	Future string    `json:"future"`
 	Rate   float64   `json:"rate"`
 	Time   time.Time `json:"time"`
-}
-
-// FundingRates stores data on funding rates
-type FundingRates struct {
-	Result []FundingRatesData `json:"result"`
 }
 
 // IndexWeights stores index weights' data
@@ -212,16 +167,6 @@ type AccountInfoData struct {
 	Positions                    []PositionData `json:"positions"`
 }
 
-// AccountData stores account data
-type AccountData struct {
-	Result AccountInfoData `json:"result"`
-}
-
-// Positions stores data about positions
-type Positions struct {
-	Result []PositionData `json:"result"`
-}
-
 // WalletCoinsData stores data about wallet coins
 type WalletCoinsData struct {
 	Bep2Asset        interface{} `json:"bep2Asset"`
@@ -242,21 +187,11 @@ type WalletCoinsData struct {
 	Name             string `json:"name"`
 }
 
-// WalletCoins stores data about wallet coins
-type WalletCoins struct {
-	Result []WalletCoinsData `json:"result"`
-}
-
 // BalancesData stores balances data
 type BalancesData struct {
 	Coin  string  `json:"coin"`
 	Free  float64 `json:"free"`
 	Total float64 `json:"total"`
-}
-
-// WalletBalances stores data about wallet's balances
-type WalletBalances struct {
-	Result []BalancesData `json:"result"`
 }
 
 // AllWalletAccountData stores account data on all WalletCoins
@@ -265,20 +200,10 @@ type AllWalletAccountData struct {
 	BattleRoyale []BalancesData `json:"Battle Royale"`
 }
 
-// AllWalletBalances stores data about all account balances including sub accounts
-type AllWalletBalances struct {
-	Result AllWalletAccountData `json:"result"`
-}
-
 // DepositData stores deposit address data
 type DepositData struct {
 	Address string `json:"address"`
 	Tag     string `json:"tag"`
-}
-
-// DepositAddress stores deposit address data of a given coin
-type DepositAddress struct {
-	Result DepositData `json:"result"`
 }
 
 // TransactionData stores data about deposit history
@@ -293,16 +218,6 @@ type TransactionData struct {
 	Status        string    `json:"status"`
 	Time          time.Time `json:"time"`
 	TxID          string    `json:"txid"`
-}
-
-// TransactionHistory stores transaction history data
-type TransactionHistory struct {
-	Result []TransactionData `json:"result"`
-}
-
-// WithdrawData stores withdraw request data
-type WithdrawData struct {
-	Result TransactionData `json:"result"`
 }
 
 // OrderData stores open order data
@@ -323,16 +238,6 @@ type OrderData struct {
 	IOC           bool      `json:"ioc"`
 	PostOnly      bool      `json:"postOnly"`
 	ClientID      string    `json:"clientId"`
-}
-
-// OpenOrders stores data of open orders
-type OpenOrders struct {
-	Result []OrderData `json:"result"`
-}
-
-// OrdersData stores order history data
-type OrdersData struct {
-	Result []OrderData `json:"result"`
 }
 
 // TriggerOrderData stores trigger order data
@@ -359,11 +264,6 @@ type TriggerOrderData struct {
 	RetryUntilFilled bool      `json:"retryUntilFilled"`
 }
 
-// OpenTriggerOrders stores trigger orders' data that are open
-type OpenTriggerOrders struct {
-	Result []TriggerOrderData `json:"result"`
-}
-
 // TriggerData stores trigger orders' trigger data
 type TriggerData struct {
 	Error      string    `json:"error"`
@@ -371,46 +271,6 @@ type TriggerData struct {
 	OrderSize  float64   `json:"orderSize"`
 	OrderID    int64     `json:"orderId"`
 	Time       time.Time `json:"time"`
-}
-
-// Triggers stores trigger orders' data
-type Triggers struct {
-	Result []TriggerData `json:"result"`
-}
-
-// TriggerOrderHistory stores trigger orders from past
-type TriggerOrderHistory struct {
-	Result []TriggerOrderData `json:"result"`
-}
-
-// PlaceOrder stores data of placed orders
-type PlaceOrder struct {
-	Result OrderData `json:"result"`
-}
-
-// PlaceTriggerOrder stores data of a placed trigger order
-type PlaceTriggerOrder struct {
-	Result TriggerOrderData `json:"result"`
-}
-
-// ModifyOrder stores modified order data
-type ModifyOrder struct {
-	Result OrderData `json:"result"`
-}
-
-// ModifyTriggerOrder stores modified trigger order data
-type ModifyTriggerOrder struct {
-	Result TriggerOrderData `json:"result"`
-}
-
-// OrderStatus stores order status data
-type OrderStatus struct {
-	Result OrderData `json:"result"`
-}
-
-// CancelOrderResponse stores cancel order response
-type CancelOrderResponse struct {
-	Result string `json:"result"`
 }
 
 // FillsData stores fills' data
@@ -432,11 +292,6 @@ type FillsData struct {
 	OrderType     string    `json:"type"`
 }
 
-// Fills stores fills' data
-type Fills struct {
-	Result []FillsData `json:"result"`
-}
-
 // FundingPaymentsData stores funding payments' data
 type FundingPaymentsData struct {
 	Future  string    `json:"future"`
@@ -444,11 +299,6 @@ type FundingPaymentsData struct {
 	Payment float64   `json:"payment"`
 	Time    time.Time `json:"time"`
 	Rate    float64   `json:"rate"`
-}
-
-// FundingPayments stores funding payments data
-type FundingPayments struct {
-	Result []FundingPaymentsData `json:"result"`
 }
 
 // LeveragedTokensData stores data of leveraged tokens
@@ -473,25 +323,10 @@ type LeveragedTokensData struct {
 	ChangeBod         float64                `json:"changeBod"`
 }
 
-// LeveragedTokens stores data of leveraged tokens
-type LeveragedTokens struct {
-	Result []LeveragedTokensData `json:"result"`
-}
-
-// TokenInfo stores token's info
-type TokenInfo struct {
-	Result []LeveragedTokensData `json:"result"`
-}
-
 // LTBalanceData stores balances of leveraged tokens
 type LTBalanceData struct {
 	Token   string  `json:"token"`
 	Balance float64 `json:"balance"`
-}
-
-// LTBalances stores balances of leveraged tokens
-type LTBalances struct {
-	Result []LTBalanceData `json:"result"`
 }
 
 // LTCreationData stores token creation requests' data
@@ -508,11 +343,6 @@ type LTCreationData struct {
 	FulfilledAt   time.Time `json:"fulfilledAt"`
 }
 
-// LTCreationList stores token creations requests' data
-type LTCreationList struct {
-	Result []LTCreationData `json:"result"`
-}
-
 // RequestTokenCreationData stores data of the token creation requested
 type RequestTokenCreationData struct {
 	ID            string    `json:"id"`
@@ -521,11 +351,6 @@ type RequestTokenCreationData struct {
 	Cost          float64   `json:"cost"`
 	Pending       bool      `json:"pending"`
 	RequestedAt   time.Time `json:"requestedAt"`
-}
-
-// RequestTokenCreation stores data of the token creation requested
-type RequestTokenCreation struct {
-	Result RequestTokenCreationData `json:"result"`
 }
 
 // LTRedemptionData stores data of the token redemption request
@@ -541,11 +366,6 @@ type LTRedemptionData struct {
 	FulfilledAt time.Time `json:"fulfilledAt"`
 }
 
-// LTRedemptionList stores data of token redemption list
-type LTRedemptionList struct {
-	Result []LTRedemptionData `json:"result"`
-}
-
 // LTRedemptionRequestData stores redemption request data for a leveraged token
 type LTRedemptionRequestData struct {
 	ID                string    `json:"id"`
@@ -554,11 +374,6 @@ type LTRedemptionRequestData struct {
 	ProjectedProceeds float64   `json:"projectedProceeds"`
 	Pending           bool      `json:"pending"`
 	RequestedAt       time.Time `json:"requestedAt"`
-}
-
-// LTRedemptionRequest stores redemption request data of a leveraged token
-type LTRedemptionRequest struct {
-	Result LTRedemptionRequestData `json:"result"`
 }
 
 // OptionData stores options' data
@@ -578,11 +393,6 @@ type QuoteRequestData struct {
 	Time          time.Time  `json:"time"`
 	RequestExpiry string     `json:"requestExpiry"`
 	Status        string     `json:"status"`
-}
-
-// QuoteRequests stores data of quote requests
-type QuoteRequests struct {
-	Result []QuoteRequestData `json:"result"`
 }
 
 // QuoteData stores quote's data
@@ -609,11 +419,6 @@ type PersonalQuotesData struct {
 	Quotes         []QuoteData `json:"quotes"`
 }
 
-// PersonalQuotes stores quote data of your quotes
-type PersonalQuotes struct {
-	Result []PersonalQuotesData `json:"result"`
-}
-
 // CreateQuoteRequestData stores quote data of the request sent
 type CreateQuoteRequestData struct {
 	ID            int64     `json:"id"`
@@ -628,11 +433,6 @@ type CreateQuoteRequestData struct {
 	Time          time.Time `json:"time"`
 }
 
-// CreateQuote stores create quote request data
-type CreateQuote struct {
-	Result CreateQuoteRequestData `json:"result"`
-}
-
 // CancelQuoteRequestData stores cancel quote request data
 type CancelQuoteRequestData struct {
 	ID            int64      `json:"id"`
@@ -642,11 +442,6 @@ type CancelQuoteRequestData struct {
 	Size          float64    `json:"size"`
 	Status        string     `json:"status"`
 	Time          time.Time  `json:"time"`
-}
-
-// CancelQuote stores cancel quote request data
-type CancelQuote struct {
-	Result CancelQuoteRequestData `json:"result"`
 }
 
 // QuoteForQuoteData gets quote data for your quote
@@ -664,21 +459,11 @@ type QuoteForQuoteData struct {
 	Time        time.Time  `json:"time"`
 }
 
-// QuoteForQuoteResponse stores quote data for another quote
-type QuoteForQuoteResponse struct {
-	Result []QuoteForQuoteData `json:"result"`
-}
-
 // AccountOptionsInfoData stores account's options' info data
 type AccountOptionsInfoData struct {
 	USDBalance       float64 `json:"usdBalance"`
 	LiquidationPrice float64 `json:"liquidationPrice"`
 	Liquidating      bool    `json:"liquidating"`
-}
-
-// AccountOptionsInfo stores account's options' info data
-type AccountOptionsInfo struct {
-	Result AccountOptionsInfoData `json:"result"`
 }
 
 // OptionsPositionsData stores options positions' data
@@ -690,11 +475,6 @@ type OptionsPositionsData struct {
 	Size                  float64    `json:"size"`
 	PessimisticValuation  float64    `json:"pessimisticValuation,omitempty"`
 	PessimisticIndexPrice float64    `json:"pessimisticIndexPrice,omitempty"`
-}
-
-// OptionsPositions stores account's options' info data
-type OptionsPositions struct {
-	Result []OptionsPositionsData `json:"result"`
 }
 
 // OptionsTradesData stores options' trades' data
@@ -718,16 +498,6 @@ type OptionFillsData struct {
 	Side      string     `json:"side"`
 	Size      float64    `json:"size"`
 	Time      string     `json:"time"`
-}
-
-// OptionsFills gets options' fills data
-type OptionsFills struct {
-	Result []OptionFillsData `json:"result"`
-}
-
-// PublicOptionsTrades stores options' trades from public
-type PublicOptionsTrades struct {
-	Result []OptionsTradesData `json:"result"`
 }
 
 // AuthenticationData stores authentication variables required
@@ -935,11 +705,6 @@ type RequestQuoteData struct {
 	QuoteID int64 `json:"quoteId"`
 }
 
-// RequestQuote stores data on the requested quote
-type RequestQuote struct {
-	Result RequestQuoteData `json:"result"`
-}
-
 // QuoteStatusData stores data of quotes' status
 type QuoteStatusData struct {
 	BaseCoin  string  `json:"baseCoin"`
@@ -953,11 +718,6 @@ type QuoteStatusData struct {
 	QuoteCoin string  `json:"quoteCoin"`
 	Side      string  `json:"side"`
 	ToCoin    string  `json:"toCoin"`
-}
-
-// QuoteStatus stores data of quotes' status
-type QuoteStatus struct {
-	Result []QuoteStatusData `json:"result"`
 }
 
 // AcceptQuote stores data of accepted quote

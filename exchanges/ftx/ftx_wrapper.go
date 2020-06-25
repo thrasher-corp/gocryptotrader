@@ -337,10 +337,10 @@ func (f *FTX) UpdateAccountInfo() (account.Holdings, error) {
 		return resp, err
 	}
 	var acc account.SubAccount
-	for i := range data.Result {
-		c := currency.NewCode(data.Result[i].Coin)
-		hold := data.Result[i].Total - data.Result[i].Free
-		total := data.Result[i].Total
+	for i := range data {
+		c := currency.NewCode(data[i].Coin)
+		hold := data[i].Total - data[i].Free
+		total := data[i].Total
 		acc.Currencies = append(acc.Currencies,
 			account.Balance{CurrencyName: c,
 				TotalValue: total,
@@ -375,32 +375,32 @@ func (f *FTX) GetFundingHistory() ([]exchange.FundHistory, error) {
 	if err != nil {
 		return resp, err
 	}
-	for x := range depositData.Result {
+	for x := range depositData {
 		var tempData exchange.FundHistory
-		tempData.Fee = depositData.Result[x].Fee
-		tempData.Timestamp = depositData.Result[x].Time
+		tempData.Fee = depositData[x].Fee
+		tempData.Timestamp = depositData[x].Time
 		tempData.ExchangeName = f.Name
-		tempData.CryptoTxID = depositData.Result[x].TxID
-		tempData.Status = depositData.Result[x].Status
-		tempData.Amount = depositData.Result[x].Size
-		tempData.Currency = depositData.Result[x].Coin
-		tempData.TransferID = strconv.FormatInt(depositData.Result[x].ID, 10)
+		tempData.CryptoTxID = depositData[x].TxID
+		tempData.Status = depositData[x].Status
+		tempData.Amount = depositData[x].Size
+		tempData.Currency = depositData[x].Coin
+		tempData.TransferID = strconv.FormatInt(depositData[x].ID, 10)
 		resp = append(resp, tempData)
 	}
 	withdrawalData, err := f.FetchWithdrawalHistory()
 	if err != nil {
 		return resp, err
 	}
-	for y := range withdrawalData.Result {
+	for y := range withdrawalData {
 		var tempData exchange.FundHistory
-		tempData.Fee = depositData.Result[y].Fee
-		tempData.Timestamp = depositData.Result[y].Time
+		tempData.Fee = depositData[y].Fee
+		tempData.Timestamp = depositData[y].Time
 		tempData.ExchangeName = f.Name
-		tempData.CryptoTxID = depositData.Result[y].TxID
-		tempData.Status = depositData.Result[y].Status
-		tempData.Amount = depositData.Result[y].Size
-		tempData.Currency = depositData.Result[y].Coin
-		tempData.TransferID = strconv.FormatInt(depositData.Result[y].ID, 10)
+		tempData.CryptoTxID = depositData[y].TxID
+		tempData.Status = depositData[y].Status
+		tempData.Amount = depositData[y].Size
+		tempData.Currency = depositData[y].Coin
+		tempData.TransferID = strconv.FormatInt(depositData[y].ID, 10)
 		resp = append(resp, tempData)
 	}
 	return resp, nil
@@ -416,28 +416,28 @@ func (f *FTX) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestam
 	}
 	for {
 		var tempResp exchange.TradeHistory
-		if len(trades.Result) > 0 {
-			tempResp.Amount = trades.Result[0].Size
-			tempResp.Price = trades.Result[0].Price
+		if len(trades) > 0 {
+			tempResp.Amount = trades[0].Size
+			tempResp.Price = trades[0].Price
 			tempResp.Exchange = f.Name
-			tempResp.Timestamp = trades.Result[0].Time
-			tempResp.TID = strconv.FormatInt(trades.Result[0].ID, 10)
-			tempResp.Side = trades.Result[0].Side
+			tempResp.Timestamp = trades[0].Time
+			tempResp.TID = strconv.FormatInt(trades[0].ID, 10)
+			tempResp.Side = trades[0].Side
 			resp = append(resp, tempResp)
 		}
-		for y := 1; y < len(trades.Result); y++ {
-			tempResp.Amount = trades.Result[y].Size
-			tempResp.Price = trades.Result[y].Price
+		for y := 1; y < len(trades); y++ {
+			tempResp.Amount = trades[y].Size
+			tempResp.Price = trades[y].Price
 			tempResp.Exchange = f.Name
-			tempResp.Timestamp = trades.Result[y].Time
-			tempResp.TID = strconv.FormatInt(trades.Result[y].ID, 10)
-			tempResp.Side = trades.Result[y].Side
+			tempResp.Timestamp = trades[y].Time
+			tempResp.TID = strconv.FormatInt(trades[y].ID, 10)
+			tempResp.Side = trades[y].Side
 			resp = append(resp, tempResp)
 		}
-		if len(trades.Result) != 100 {
+		if len(trades) != 100 {
 			break
 		}
-		trades, err = f.GetTrades(marketName, time.Unix(timestampStart.Unix(), 0), time.Unix(trades.Result[0].Time.Unix(), 0), 100)
+		trades, err = f.GetTrades(marketName, time.Unix(timestampStart.Unix(), 0), time.Unix(trades[0].Time.Unix(), 0), 100)
 		if err != nil {
 			return resp, err
 		}
@@ -472,7 +472,7 @@ func (f *FTX) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return resp, err
 	}
 	resp.IsOrderPlaced = true
-	resp.OrderID = strconv.FormatInt(tempResp.Result.ID, 10)
+	resp.OrderID = strconv.FormatInt(tempResp.ID, 10)
 	return resp, nil
 }
 
@@ -489,9 +489,9 @@ func (f *FTX) ModifyOrder(action *order.Modify) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		return strconv.FormatInt(a.Result.ID, 10), err
+		return strconv.FormatInt(a.ID, 10), err
 	}
-	var o ModifyOrder
+	var o OrderData
 	var err error
 	switch action.ID {
 	case "":
@@ -505,7 +505,7 @@ func (f *FTX) ModifyOrder(action *order.Modify) (string, error) {
 			return "", err
 		}
 	}
-	return strconv.FormatInt(o.Result.ID, 10), err
+	return strconv.FormatInt(o.ID, 10), err
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -522,48 +522,48 @@ func (f *FTX) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllR
 	if err != nil {
 		return resp, err
 	}
-	for x := range orders.Result {
-		_, err := f.DeleteOrder(strconv.FormatInt(orders.Result[x].ID, 10))
+	for x := range orders {
+		_, err := f.DeleteOrder(strconv.FormatInt(orders[x].ID, 10))
 		if err != nil {
-			tempMap[strconv.FormatInt(orders.Result[x].ID, 10)] = "Cancellation Failed"
+			tempMap[strconv.FormatInt(orders[x].ID, 10)] = "Cancellation Failed"
 			continue
 		}
-		tempMap[strconv.FormatInt(orders.Result[x].ID, 10)] = "Success"
+		tempMap[strconv.FormatInt(orders[x].ID, 10)] = "Success"
 	}
 	resp.Status = tempMap
 	return resp, nil
 }
 
 // GetCompatible gets compatible variables for order vars
-func (s *OrderStatus) GetCompatible(f *FTX) (OrderVars, error) {
+func (s *OrderData) GetCompatible(f *FTX) (OrderVars, error) {
 	var resp OrderVars
-	switch s.Result.Side {
+	switch s.Side {
 	case order.Buy.Lower():
 		resp.Side = order.Buy
 	case order.Sell.Lower():
 		resp.Side = order.Sell
 	}
-	switch s.Result.Status {
+	switch s.Status {
 	case strings.ToLower(order.New.String()):
 		resp.Status = order.New
 	case strings.ToLower(order.Open.String()):
 		resp.Status = order.Open
 	case closedStatus:
-		if s.Result.FilledSize != 0 && s.Result.FilledSize != s.Result.Size {
+		if s.FilledSize != 0 && s.FilledSize != s.Size {
 			resp.Status = order.PartiallyCancelled
 		}
-		if s.Result.FilledSize == 0 {
+		if s.FilledSize == 0 {
 			resp.Status = order.Cancelled
 		}
-		if s.Result.FilledSize == s.Result.Size {
+		if s.FilledSize == s.Size {
 			resp.Status = order.Filled
 		}
 	}
 	var feeBuilder exchange.FeeBuilder
-	feeBuilder.PurchasePrice = s.Result.AvgFillPrice
-	feeBuilder.Amount = s.Result.Size
+	feeBuilder.PurchasePrice = s.AvgFillPrice
+	feeBuilder.Amount = s.Size
 	resp.OrderType = order.Market
-	if strings.EqualFold(s.Result.OrderType, order.Limit.String()) {
+	if strings.EqualFold(s.OrderType, order.Limit.String()) {
 		resp.OrderType = order.Limit
 		feeBuilder.IsMaker = true
 	}
@@ -582,21 +582,21 @@ func (f *FTX) GetOrderInfo(orderID string) (order.Detail, error) {
 	if err != nil {
 		return resp, err
 	}
-	p := currency.NewPairFromString(orderData.Result.Market)
+	p := currency.NewPairFromString(orderData.Market)
 	assetType, err := f.GetPairAssetType(p)
 	if err != nil {
 		return resp, err
 	}
-	resp.ID = strconv.FormatInt(orderData.Result.ID, 10)
-	resp.Amount = orderData.Result.Size
-	resp.ClientOrderID = orderData.Result.ClientID
-	resp.Date = orderData.Result.CreatedAt
+	resp.ID = strconv.FormatInt(orderData.ID, 10)
+	resp.Amount = orderData.Size
+	resp.ClientOrderID = orderData.ClientID
+	resp.Date = orderData.CreatedAt
 	resp.Exchange = f.Name
-	resp.ExecutedAmount = orderData.Result.Size - orderData.Result.RemainingSize
+	resp.ExecutedAmount = orderData.Size - orderData.RemainingSize
 	resp.Pair = p
 	resp.AssetType = assetType
-	resp.Price = orderData.Result.Price
-	resp.RemainingAmount = orderData.Result.RemainingSize
+	resp.Price = orderData.Price
+	resp.RemainingAmount = orderData.RemainingSize
 	orderVars, err := orderData.GetCompatible(f)
 	if err != nil {
 		return resp, err
@@ -614,7 +614,7 @@ func (f *FTX) GetDepositAddress(cryptocurrency currency.Code, _ string) (string,
 	if err != nil {
 		return "", err
 	}
-	return a.Result.Address, nil
+	return a.Address, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -635,8 +635,8 @@ func (f *FTX) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*w
 	if err != nil {
 		return &resp, err
 	}
-	resp.ID = strconv.FormatInt(a.Result.ID, 10)
-	resp.Status = a.Result.Status
+	resp.ID = strconv.FormatInt(a.ID, 10)
+	resp.Status = a.Status
 	return &resp, nil
 }
 
@@ -670,24 +670,24 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 		if err != nil {
 			return resp, err
 		}
-		for y := range orderData.Result {
-			tempResp.ID = strconv.FormatInt(orderData.Result[y].ID, 10)
-			tempResp.Amount = orderData.Result[y].Size
+		for y := range orderData {
+			tempResp.ID = strconv.FormatInt(orderData[y].ID, 10)
+			tempResp.Amount = orderData[y].Size
 			tempResp.AssetType = assetType
-			tempResp.ClientOrderID = orderData.Result[y].ClientID
-			tempResp.Date = orderData.Result[y].CreatedAt
+			tempResp.ClientOrderID = orderData[y].ClientID
+			tempResp.Date = orderData[y].CreatedAt
 			tempResp.Exchange = f.Name
-			tempResp.ExecutedAmount = orderData.Result[y].Size - orderData.Result[y].RemainingSize
-			tempResp.Pair = currency.NewPairFromString(orderData.Result[y].Market)
-			tempResp.Price = orderData.Result[y].Price
-			tempResp.RemainingAmount = orderData.Result[y].RemainingSize
+			tempResp.ExecutedAmount = orderData[y].Size - orderData[y].RemainingSize
+			tempResp.Pair = currency.NewPairFromString(orderData[y].Market)
+			tempResp.Price = orderData[y].Price
+			tempResp.RemainingAmount = orderData[y].RemainingSize
 			var orderVars OrderVars
-			orderVars, err = f.compatibleOrderVars(orderData.Result[y].Side,
-				orderData.Result[y].Status,
-				orderData.Result[y].OrderType,
-				orderData.Result[y].FilledSize,
-				orderData.Result[y].Size,
-				orderData.Result[y].AvgFillPrice)
+			orderVars, err = f.compatibleOrderVars(orderData[y].Side,
+				orderData[y].Status,
+				orderData[y].OrderType,
+				orderData[y].FilledSize,
+				orderData[y].Size,
+				orderData[y].AvgFillPrice)
 			if err != nil {
 				return resp, err
 			}
@@ -701,23 +701,23 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 		if err != nil {
 			return resp, err
 		}
-		for z := range triggerOrderData.Result {
-			tempResp.ID = strconv.FormatInt(triggerOrderData.Result[z].ID, 10)
-			tempResp.Amount = triggerOrderData.Result[z].Size
+		for z := range triggerOrderData {
+			tempResp.ID = strconv.FormatInt(triggerOrderData[z].ID, 10)
+			tempResp.Amount = triggerOrderData[z].Size
 			tempResp.AssetType = assetType
-			tempResp.Date = triggerOrderData.Result[z].CreatedAt
+			tempResp.Date = triggerOrderData[z].CreatedAt
 			tempResp.Exchange = f.Name
-			tempResp.ExecutedAmount = triggerOrderData.Result[z].FilledSize
-			tempResp.Pair = currency.NewPairFromString(triggerOrderData.Result[z].Market)
-			tempResp.Price = triggerOrderData.Result[z].AvgFillPrice
-			tempResp.RemainingAmount = triggerOrderData.Result[z].Size - triggerOrderData.Result[z].FilledSize
-			tempResp.TriggerPrice = triggerOrderData.Result[z].TriggerPrice
-			orderVars, err := f.compatibleOrderVars(triggerOrderData.Result[z].Side,
-				triggerOrderData.Result[z].Status,
-				triggerOrderData.Result[z].OrderType,
-				triggerOrderData.Result[z].FilledSize,
-				triggerOrderData.Result[z].Size,
-				triggerOrderData.Result[z].AvgFillPrice)
+			tempResp.ExecutedAmount = triggerOrderData[z].FilledSize
+			tempResp.Pair = currency.NewPairFromString(triggerOrderData[z].Market)
+			tempResp.Price = triggerOrderData[z].AvgFillPrice
+			tempResp.RemainingAmount = triggerOrderData[z].Size - triggerOrderData[z].FilledSize
+			tempResp.TriggerPrice = triggerOrderData[z].TriggerPrice
+			orderVars, err := f.compatibleOrderVars(triggerOrderData[z].Side,
+				triggerOrderData[z].Status,
+				triggerOrderData[z].OrderType,
+				triggerOrderData[z].FilledSize,
+				triggerOrderData[z].Size,
+				triggerOrderData[z].AvgFillPrice)
 			if err != nil {
 				return resp, err
 			}
@@ -746,24 +746,24 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 		if err != nil {
 			return resp, err
 		}
-		for y := range orderData.Result {
-			tempResp.ID = strconv.FormatInt(orderData.Result[y].ID, 10)
-			tempResp.Amount = orderData.Result[y].Size
+		for y := range orderData {
+			tempResp.ID = strconv.FormatInt(orderData[y].ID, 10)
+			tempResp.Amount = orderData[y].Size
 			tempResp.AssetType = assetType
-			tempResp.ClientOrderID = orderData.Result[y].ClientID
-			tempResp.Date = orderData.Result[y].CreatedAt
+			tempResp.ClientOrderID = orderData[y].ClientID
+			tempResp.Date = orderData[y].CreatedAt
 			tempResp.Exchange = f.Name
-			tempResp.ExecutedAmount = orderData.Result[y].Size - orderData.Result[y].RemainingSize
-			tempResp.Pair = currency.NewPairFromString(orderData.Result[y].Market)
-			tempResp.Price = orderData.Result[y].Price
-			tempResp.RemainingAmount = orderData.Result[y].RemainingSize
+			tempResp.ExecutedAmount = orderData[y].Size - orderData[y].RemainingSize
+			tempResp.Pair = currency.NewPairFromString(orderData[y].Market)
+			tempResp.Price = orderData[y].Price
+			tempResp.RemainingAmount = orderData[y].RemainingSize
 			var orderVars OrderVars
-			orderVars, err = f.compatibleOrderVars(orderData.Result[y].Side,
-				orderData.Result[y].Status,
-				orderData.Result[y].OrderType,
-				orderData.Result[y].FilledSize,
-				orderData.Result[y].Size,
-				orderData.Result[y].AvgFillPrice)
+			orderVars, err = f.compatibleOrderVars(orderData[y].Side,
+				orderData[y].Status,
+				orderData[y].OrderType,
+				orderData[y].FilledSize,
+				orderData[y].Size,
+				orderData[y].AvgFillPrice)
 			if err != nil {
 				return resp, err
 			}
@@ -778,23 +778,23 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 		if err != nil {
 			return resp, err
 		}
-		for z := range triggerOrderData.Result {
-			tempResp.ID = strconv.FormatInt(triggerOrderData.Result[z].ID, 10)
-			tempResp.Amount = triggerOrderData.Result[z].Size
+		for z := range triggerOrderData {
+			tempResp.ID = strconv.FormatInt(triggerOrderData[z].ID, 10)
+			tempResp.Amount = triggerOrderData[z].Size
 			tempResp.AssetType = assetType
-			tempResp.Date = triggerOrderData.Result[z].CreatedAt
+			tempResp.Date = triggerOrderData[z].CreatedAt
 			tempResp.Exchange = f.Name
-			tempResp.ExecutedAmount = triggerOrderData.Result[z].FilledSize
-			tempResp.Pair = currency.NewPairFromString(triggerOrderData.Result[z].Market)
-			tempResp.Price = triggerOrderData.Result[z].AvgFillPrice
-			tempResp.RemainingAmount = triggerOrderData.Result[z].Size - triggerOrderData.Result[z].FilledSize
-			tempResp.TriggerPrice = triggerOrderData.Result[z].TriggerPrice
-			orderVars, err := f.compatibleOrderVars(triggerOrderData.Result[z].Side,
-				triggerOrderData.Result[z].Status,
-				triggerOrderData.Result[z].OrderType,
-				triggerOrderData.Result[z].FilledSize,
-				triggerOrderData.Result[z].Size,
-				triggerOrderData.Result[z].AvgFillPrice)
+			tempResp.ExecutedAmount = triggerOrderData[z].FilledSize
+			tempResp.Pair = currency.NewPairFromString(triggerOrderData[z].Market)
+			tempResp.Price = triggerOrderData[z].AvgFillPrice
+			tempResp.RemainingAmount = triggerOrderData[z].Size - triggerOrderData[z].FilledSize
+			tempResp.TriggerPrice = triggerOrderData[z].TriggerPrice
+			orderVars, err := f.compatibleOrderVars(triggerOrderData[z].Side,
+				triggerOrderData[z].Status,
+				triggerOrderData[z].OrderType,
+				triggerOrderData[z].FilledSize,
+				triggerOrderData[z].Size,
+				triggerOrderData[z].AvgFillPrice)
 			if err != nil {
 				return resp, err
 			}
@@ -859,14 +859,14 @@ func (f *FTX) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end ti
 	resp.Exchange = f.Name
 	resp.Asset = a
 	resp.Pair = pair
-	for x := range ohlcData.Result {
+	for x := range ohlcData {
 		var tempData kline.Candle
-		tempData.Open = ohlcData.Result[x].Open
-		tempData.High = ohlcData.Result[x].High
-		tempData.Low = ohlcData.Result[x].Low
-		tempData.Close = ohlcData.Result[x].Close
-		tempData.Volume = ohlcData.Result[x].Volume
-		tempData.Time = ohlcData.Result[x].StartTime
+		tempData.Open = ohlcData[x].Open
+		tempData.High = ohlcData[x].High
+		tempData.Low = ohlcData[x].Low
+		tempData.Close = ohlcData[x].Close
+		tempData.Volume = ohlcData[x].Volume
+		tempData.Time = ohlcData[x].StartTime
 		resp.Candles = append(resp.Candles, tempData)
 	}
 	return resp, nil

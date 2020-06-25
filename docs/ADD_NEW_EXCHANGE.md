@@ -1,4 +1,4 @@
-# GoCryptoTrader package Exchanges
+# GoCryptoTrader ADD NEW EXCHANGE
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
 
