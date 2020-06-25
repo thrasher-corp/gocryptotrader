@@ -2440,7 +2440,7 @@
    "websocketResponseMaxLimit": 0,
    "websocketTrafficTimeout": 0,
    "websocketOrderbookBufferLimit": 0,
-   "baseCurrencies": "",
+   "baseCurrencies": "USD",
    "currencyPairs": {
     "assetTypes": [
      "spot",

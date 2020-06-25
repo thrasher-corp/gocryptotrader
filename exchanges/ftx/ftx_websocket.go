@@ -487,6 +487,7 @@ func (f *FTX) CalcPartialOBChecksum(data *WsOrderbookData) int {
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), ":")
+	fmt.Println(int(crc32.ChecksumIEEE([]byte(checksumStr))))
 	return int(crc32.ChecksumIEEE([]byte(checksumStr)))
 }
 
@@ -519,5 +520,6 @@ func (f *FTX) CalcUpdateOBChecksum(data *orderbook.Base) int {
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), ":")
+	fmt.Println(int(crc32.ChecksumIEEE([]byte(checksumStr))))
 	return int(crc32.ChecksumIEEE([]byte(checksumStr)))
 }
