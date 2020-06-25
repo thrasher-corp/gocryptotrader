@@ -1172,6 +1172,24 @@ func TestWsTickerResponse(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	b.WebsocketSubdChannels[123412] = WebsocketChanInfo{Pair: "XAUTF0:USTF0", Channel: wsTicker}
+	pressXToJSON = `[123412,[61.304,2228.36155358,61.305,1323.2442970500003,0.395,0.0065,61.371,50973.3020771,62.5,57.421]]`
+	err = b.wsHandleData([]byte(pressXToJSON))
+	if err != nil {
+		t.Error(err)
+	}
+	b.WebsocketSubdChannels[123413] = WebsocketChanInfo{Pair: "trade:1m:tXRPUSD", Channel: wsTicker}
+	pressXToJSON = `[123413,[61.304,2228.36155358,61.305,1323.2442970500003,0.395,0.0065,61.371,50973.3020771,62.5,57.421]]`
+	err = b.wsHandleData([]byte(pressXToJSON))
+	if err != nil {
+		t.Error(err)
+	}
+	b.WebsocketSubdChannels[123414] = WebsocketChanInfo{Pair: "trade:1m:fZRX:p30", Channel: wsTicker}
+	pressXToJSON = `[123414,[61.304,2228.36155358,61.305,1323.2442970500003,0.395,0.0065,61.371,50973.3020771,62.5,57.421]]`
+	err = b.wsHandleData([]byte(pressXToJSON))
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestWsCandleResponse(t *testing.T) {

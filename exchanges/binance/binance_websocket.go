@@ -97,7 +97,7 @@ func (b *Binance) WsConnect() error {
 func (b *Binance) KeepAuthKeyAlive() {
 	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
-	ticks := time.NewTicker(time.Hour)
+	ticks := time.NewTicker(time.Minute * 30)
 	for {
 		select {
 		case <-b.Websocket.ShutdownC:

@@ -171,10 +171,6 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				chanAsset = asset.MarginFunding
 			}
 
-			if strings.Contains(newPair, ":") {
-				chanAsset = asset.Margin
-			}
-
 			pair, err = currency.NewPairFromString(newPair[1:])
 			if err != nil {
 				return err
