@@ -131,9 +131,8 @@ func (k *Kraken) wsFunnelConnectionData(ws stream.Connection, comms chan stream.
 	k.Websocket.Wg.Add(1)
 	defer k.Websocket.Wg.Done()
 	for {
-		resp, err := ws.ReadMessage()
-		if err != nil {
-			k.Websocket.DataHandler <- err
+		resp := ws.ReadMessage()
+		if resp.Raw == nil {
 			return
 		}
 		comms <- resp

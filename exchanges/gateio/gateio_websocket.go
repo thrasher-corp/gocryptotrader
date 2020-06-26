@@ -104,11 +104,11 @@ func (g *Gateio) wsReadData() {
 	defer g.Websocket.Wg.Done()
 
 	for {
-		resp, err := g.Websocket.Conn.ReadMessage()
-		if err != nil {
+		resp := g.Websocket.Conn.ReadMessage()
+		if resp.Raw == nil {
 			return
 		}
-		err = g.wsHandleData(resp.Raw)
+		err := g.wsHandleData(resp.Raw)
 		if err != nil {
 			g.Websocket.DataHandler <- err
 		}

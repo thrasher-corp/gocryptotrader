@@ -140,8 +140,8 @@ func (g *Gemini) wsFunnelConnectionData(ws stream.Connection, c currency.Pair) {
 	g.Websocket.Wg.Add(1)
 	defer g.Websocket.Wg.Done()
 	for {
-		resp, err := ws.ReadMessage()
-		if err != nil {
+		resp := ws.ReadMessage()
+		if resp.Raw == nil {
 			return
 		}
 		comms <- ReadData{Raw: resp.Raw, Currency: c}

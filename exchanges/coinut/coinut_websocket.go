@@ -82,14 +82,14 @@ func (c *COINUT) wsReadData() {
 	defer c.Websocket.Wg.Done()
 
 	for {
-		resp, err := c.Websocket.Conn.ReadMessage()
-		if err != nil {
+		resp := c.Websocket.Conn.ReadMessage()
+		if resp.Raw == nil {
 			return
 		}
 
 		if strings.HasPrefix(string(resp.Raw), "[") {
 			var incoming []wsResponse
-			err = json.Unmarshal(resp.Raw, &incoming)
+			err := json.Unmarshal(resp.Raw, &incoming)
 			if err != nil {
 				c.Websocket.DataHandler <- err
 				continue
@@ -113,7 +113,7 @@ func (c *COINUT) wsReadData() {
 			}
 		} else {
 			var incoming wsResponse
-			err = json.Unmarshal(resp.Raw, &incoming)
+			err := json.Unmarshal(resp.Raw, &incoming)
 			if err != nil {
 				c.Websocket.DataHandler <- err
 				continue

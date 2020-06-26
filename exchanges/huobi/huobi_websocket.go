@@ -116,9 +116,8 @@ func (h *HUOBI) wsFunnelConnectionData(ws stream.Connection, url string) {
 	h.Websocket.Wg.Add(1)
 	defer h.Websocket.Wg.Done()
 	for {
-		resp, err := ws.ReadMessage()
-		if err != nil {
-			h.Websocket.DataHandler <- err
+		resp := ws.ReadMessage()
+		if resp.Raw == nil {
 			return
 		}
 		comms <- WsMessage{Raw: resp.Raw, URL: url}

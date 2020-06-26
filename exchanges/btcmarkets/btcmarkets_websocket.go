@@ -49,16 +49,14 @@ func (b *BTCMarkets) WsConnect() error {
 // wsReadData receives and passes on websocket messages for processing
 func (b *BTCMarkets) wsReadData() {
 	b.Websocket.Wg.Add(1)
-	defer func() {
-		b.Websocket.Wg.Done()
-	}()
+	defer b.Websocket.Wg.Done()
 
 	for {
-		resp, err := b.Websocket.Conn.ReadMessage()
-		if err != nil {
+		resp := b.Websocket.Conn.ReadMessage()
+		if resp.Raw == nil {
 			return
 		}
-		err = b.wsHandleData(resp.Raw)
+		err := b.wsHandleData(resp.Raw)
 		if err != nil {
 			b.Websocket.DataHandler <- err
 		}

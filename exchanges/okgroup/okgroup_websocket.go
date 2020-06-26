@@ -239,11 +239,11 @@ func (o *OKGroup) WsReadData() {
 	defer o.Websocket.Wg.Done()
 
 	for {
-		resp, err := o.Websocket.Conn.ReadMessage()
-		if err != nil {
+		resp := o.Websocket.Conn.ReadMessage()
+		if resp.Raw == nil {
 			return
 		}
-		err = o.WsHandleData(resp.Raw)
+		err := o.WsHandleData(resp.Raw)
 		if err != nil {
 			o.Websocket.DataHandler <- err
 		}

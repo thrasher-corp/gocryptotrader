@@ -91,11 +91,11 @@ func (p *Poloniex) wsReadData() {
 	defer p.Websocket.Wg.Done()
 
 	for {
-		resp, err := p.Websocket.Conn.ReadMessage()
-		if err != nil {
+		resp := p.Websocket.Conn.ReadMessage()
+		if resp.Raw == nil {
 			return
 		}
-		err = p.wsHandleData(resp.Raw)
+		err := p.wsHandleData(resp.Raw)
 		if err != nil {
 			p.Websocket.DataHandler <- err
 		}

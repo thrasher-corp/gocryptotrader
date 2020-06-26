@@ -54,11 +54,11 @@ func (z *ZB) wsReadData() {
 	defer z.Websocket.Wg.Done()
 
 	for {
-		resp, err := z.Websocket.Conn.ReadMessage()
-		if err != nil {
+		resp := z.Websocket.Conn.ReadMessage()
+		if resp.Raw == nil {
 			return
 		}
-		err = z.wsHandleData(resp.Raw)
+		err := z.wsHandleData(resp.Raw)
 		if err != nil {
 			z.Websocket.DataHandler <- err
 		}

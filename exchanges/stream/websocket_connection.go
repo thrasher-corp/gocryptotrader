@@ -217,14 +217,14 @@ func (w *WebsocketConnection) IsConnected() bool {
 }
 
 // ReadMessage reads messages, can handle text, gzip and binary
-func (w *WebsocketConnection) ReadMessage() (Response, error) {
+func (w *WebsocketConnection) ReadMessage() Response {
 	mType, resp, err := w.Connection.ReadMessage()
 	if err != nil {
 		if isDisconnectionError(err) {
 			w.setConnectedStatus(false)
 			w.readMessageErrors <- err
 		}
-		return Response{}, err
+		return Response{}
 	}
 
 	select {
@@ -239,7 +239,11 @@ func (w *WebsocketConnection) ReadMessage() (Response, error) {
 	case websocket.BinaryMessage:
 		standardMessage, err = w.parseBinaryResponse(resp)
 		if err != nil {
-			return Response{}, err
+			log.Errorf(log.WebsocketMgr,
+				"%v Websocket parseBinaryResponse error: %v",
+				w.ExchangeName,
+				err)
+			return Response{}
 		}
 	}
 	if w.Verbose {
@@ -248,7 +252,7 @@ func (w *WebsocketConnection) ReadMessage() (Response, error) {
 			w.ExchangeName,
 			string(standardMessage))
 	}
-	return Response{Raw: standardMessage, Type: mType}, nil
+	return Response{Raw: standardMessage, Type: mType}
 }
 
 // parseBinaryResponse parses a websocket binary response into a usable byte array

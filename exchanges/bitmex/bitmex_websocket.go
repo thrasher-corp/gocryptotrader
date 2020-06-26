@@ -75,12 +75,12 @@ func (b *Bitmex) WsConnect() error {
 		return err
 	}
 
-	p, err := b.Websocket.Conn.ReadMessage()
-	if err != nil {
-		return err
+	resp := b.Websocket.Conn.ReadMessage()
+	if resp.Raw == nil {
+		return errors.New("connection closed")
 	}
 	var welcomeResp WebsocketWelcome
-	err = json.Unmarshal(p.Raw, &welcomeResp)
+	err = json.Unmarshal(resp.Raw, &welcomeResp)
 	if err != nil {
 		return err
 	}
@@ -126,11 +126,11 @@ func (b *Bitmex) wsReadData() {
 	defer b.Websocket.Wg.Done()
 
 	for {
-		resp, err := b.Websocket.Conn.ReadMessage()
-		if err != nil {
+		resp := b.Websocket.Conn.ReadMessage()
+		if resp.Raw == nil {
 			return
 		}
-		err = b.wsHandleData(resp.Raw)
+		err := b.wsHandleData(resp.Raw)
 		if err != nil {
 			b.Websocket.DataHandler <- err
 		}

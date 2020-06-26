@@ -13,7 +13,7 @@ import (
 // Connection defines a streaming services connection
 type Connection interface {
 	Dial(*websocket.Dialer, http.Header) error
-	ReadMessage() (Response, error)
+	ReadMessage() Response
 	SendJSONMessage(interface{}) error
 	SetupPingHandler(PingHandler)
 	GenerateMessageID(highPrecision bool) int64

@@ -90,11 +90,11 @@ func (c *Coinbene) wsReadData() {
 	c.Websocket.Wg.Add(1)
 	defer c.Websocket.Wg.Done()
 	for {
-		resp, err := c.Websocket.Conn.ReadMessage()
-		if err != nil {
+		resp := c.Websocket.Conn.ReadMessage()
+		if resp.Raw == nil {
 			return
 		}
-		err = c.wsHandleData(resp.Raw)
+		err := c.wsHandleData(resp.Raw)
 		if err != nil {
 			c.Websocket.DataHandler <- err
 		}

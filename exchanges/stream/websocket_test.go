@@ -6,7 +6,6 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -488,13 +487,13 @@ func readMessages(wc *WebsocketConnection, t *testing.T) {
 		case <-timer.C:
 			return
 		default:
-			resp, err := wc.ReadMessage()
-			if err != nil {
-				t.Error(err)
+			resp := wc.ReadMessage()
+			if resp.Raw != nil {
+				t.Fatal("connection has closed")
 				return
 			}
 			var incoming testResponse
-			err = json.Unmarshal(resp.Raw, &incoming)
+			err := json.Unmarshal(resp.Raw, &incoming)
 			if err != nil {
 				t.Error(err)
 				return
@@ -623,7 +622,6 @@ func TestGenerateMessageID(t *testing.T) {
 	var id int64
 	for i := 0; i < 10; i++ {
 		newID := wc.GenerateMessageID(true)
-		fmt.Println(newID)
 		if id == newID {
 			t.Fatal("ID generation is not unique")
 		}

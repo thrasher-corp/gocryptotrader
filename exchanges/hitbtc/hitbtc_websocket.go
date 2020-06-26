@@ -61,12 +61,12 @@ func (h *HitBTC) wsReadData() {
 	defer h.Websocket.Wg.Done()
 
 	for {
-		resp, err := h.Websocket.Conn.ReadMessage()
-		if err != nil {
+		resp := h.Websocket.Conn.ReadMessage()
+		if resp.Raw == nil {
 			return
 		}
 
-		err = h.wsHandleData(resp.Raw)
+		err := h.wsHandleData(resp.Raw)
 		if err != nil {
 			h.Websocket.DataHandler <- err
 		}

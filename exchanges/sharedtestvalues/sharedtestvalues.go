@@ -1,6 +1,8 @@
 package sharedtestvalues
 
-import "time"
+import (
+	"time"
+)
 
 // This package is only to be referenced in test files
 const (
@@ -29,3 +31,17 @@ func GetWebsocketInterfaceChannelOverride() chan interface{} {
 func GetWebsocketStructChannelOverride() chan struct{} {
 	return make(chan struct{}, WebsocketChannelOverrideCapacity)
 }
+
+// // NewTestWebsocket returns a test websocket object
+// func NewTestWebsocket() *stream.Websocket {
+// 	return &stream.Websocket{
+// 		init:              true,
+// 		DataHandler:       make(chan interface{}, 75),
+// 		ToRoutine:         make(chan interface{}, 1000),
+// 		TrafficAlert:      make(chan struct{}),
+// 		readMessageErrors: make(chan error),
+// 		subscribe:         make(chan []stream.ChannelSubscription, 10),
+// 		unsubscribe:       make(chan []stream.ChannelSubscription, 10),
+// 		Match:             stream.NewMatch(),
+// 	}
+// }

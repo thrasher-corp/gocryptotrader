@@ -120,11 +120,11 @@ func (b *Binance) wsReadData() {
 	defer b.Websocket.Wg.Done()
 
 	for {
-		resp, err := b.Websocket.Conn.ReadMessage()
-		if err != nil {
+		resp := b.Websocket.Conn.ReadMessage()
+		if resp.Raw == nil {
 			return
 		}
-		err = b.wsHandleData(resp.Raw)
+		err := b.wsHandleData(resp.Raw)
 		if err != nil {
 			b.Websocket.DataHandler <- err
 		}

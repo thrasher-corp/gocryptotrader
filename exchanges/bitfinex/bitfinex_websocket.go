@@ -72,8 +72,8 @@ func (b *Bitfinex) wsReadData(ws stream.Connection) {
 	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 	for {
-		resp, err := ws.ReadMessage()
-		if err != nil {
+		resp := ws.ReadMessage()
+		if resp.Raw == nil {
 			return
 		}
 		comms <- resp
