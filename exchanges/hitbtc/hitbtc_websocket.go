@@ -470,7 +470,7 @@ func (h *HitBTC) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 	for i := range channelsToSubscribe {
 		subscribe := WsRequest{
 			Method: channelsToSubscribe[i].Channel,
-			ID:     h.Websocket.Conn.GenerateMessageID(true),
+			ID:     h.Websocket.Conn.GenerateMessageID(false),
 		}
 
 		if channelsToSubscribe[i].Currency.String() != "" {
@@ -536,7 +536,7 @@ func (h *HitBTC) wsLogin() error {
 			Nonce:     n,
 			Signature: crypto.HexEncodeToString(hmac),
 		},
-		ID: h.Websocket.Conn.GenerateMessageID(true),
+		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
 
 	err := h.Websocket.Conn.SendJSONMessage(request)
@@ -646,7 +646,7 @@ func (h *HitBTC) wsReplaceOrder(clientOrderID string, quantity, price float64) (
 // wsGetActiveOrders sends a websocket message to get all active orders
 func (h *HitBTC) wsGetActiveOrders() (*wsActiveOrdersResponse, error) {
 	if !h.Websocket.CanUseAuthenticatedEndpoints() {
-		return nil, fmt.Errorf("%v not authenticated, cannot place order", h.Name)
+		return nil, fmt.Errorf("%v not authenticated, cannot get active orders", h.Name)
 	}
 	request := WsReplaceOrderRequest{
 		Method: "getOrders",

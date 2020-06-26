@@ -646,7 +646,7 @@ func (g *Gateio) wsGetOrderInfo(market string, offset, limit int) (*WebSocketOrd
 		return nil, fmt.Errorf("%v not authorised to get order info", g.Name)
 	}
 	ord := WebsocketRequest{
-		ID:     g.Websocket.Conn.GenerateMessageID(true),
+		ID:     g.Websocket.Conn.GenerateMessageID(false),
 		Method: "order.query",
 		Params: []interface{}{
 			market,

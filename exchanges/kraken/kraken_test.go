@@ -709,10 +709,10 @@ func setupWsTests(t *testing.T) {
 		t.Error(err)
 	}
 	authToken = token
-
-	go k.wsFunnelConnectionData(k.Websocket.Conn)
-	go k.wsFunnelConnectionData(k.Websocket.AuthConn)
-	go k.wsReadData()
+	comms := make(chan stream.Response)
+	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
+	go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
+	go k.wsReadData(comms)
 	go k.wsPingHandler()
 	wsSetupRan = true
 }

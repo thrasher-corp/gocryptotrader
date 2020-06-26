@@ -53,7 +53,6 @@ const (
 // orderbookMutex Ensures if two entries arrive at once, only one can be
 // processed at a time
 var subscriptionChannelPair []WebsocketChannelData
-var comms = make(chan stream.Response)
 var authToken string
 var pingRequest = WebsocketBaseEventRequest{Event: stream.Ping}
 
@@ -71,11 +70,17 @@ func (k *Kraken) WsConnect() error {
 	if !k.Websocket.IsEnabled() || !k.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
+
 	var dialer websocket.Dialer
 	err := k.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
+
+	comms := make(chan stream.Response)
+	go k.wsReadData(comms)
+	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
+
 	if k.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		authToken, err = k.GetWebsocketToken()
 		if err != nil {
@@ -93,7 +98,7 @@ func (k *Kraken) WsConnect() error {
 					k.Name,
 					err)
 			} else {
-				go k.wsFunnelConnectionData(k.Websocket.AuthConn)
+				go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
 				var authsubs []stream.ChannelSubscription
 				authsubs, err = k.GenerateAuthenticatedSubscriptions()
 				if err != nil {
@@ -107,8 +112,6 @@ func (k *Kraken) WsConnect() error {
 		}
 	}
 
-	go k.wsFunnelConnectionData(k.Websocket.Conn)
-	go k.wsReadData()
 	err = k.wsPingHandler()
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
@@ -124,7 +127,7 @@ func (k *Kraken) WsConnect() error {
 }
 
 // wsFunnelConnectionData funnels both auth and public ws data into one manageable place
-func (k *Kraken) wsFunnelConnectionData(ws stream.Connection) {
+func (k *Kraken) wsFunnelConnectionData(ws stream.Connection, comms chan stream.Response) {
 	k.Websocket.Wg.Add(1)
 	defer k.Websocket.Wg.Done()
 	for {
@@ -138,7 +141,7 @@ func (k *Kraken) wsFunnelConnectionData(ws stream.Connection) {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (k *Kraken) wsReadData() {
+func (k *Kraken) wsReadData(comms chan stream.Response) {
 	k.Websocket.Wg.Add(1)
 	defer k.Websocket.Wg.Done()
 
