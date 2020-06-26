@@ -21,6 +21,7 @@ const (
 	defaultEnabledExchanges = 27
 	testFakeExchangeName    = "Stampbit"
 	testPair                = "BTC-USD"
+	testString              = "test"
 )
 
 func TestGetCurrencyConfig(t *testing.T) {
@@ -84,7 +85,7 @@ func TestUpdateClientBankAccounts(t *testing.T) {
 	if err != nil {
 		t.Error("UpdateClientBankAccounts LoadConfig error", err)
 	}
-	b := banking.Account{Enabled: false, BankName: "test", AccountNumber: "0234"}
+	b := banking.Account{Enabled: false, BankName: testString, AccountNumber: "0234"}
 	err = cfg.UpdateClientBankAccounts(&b)
 	if err != nil {
 		t.Error("UpdateClientBankAccounts error", err)
@@ -185,7 +186,7 @@ func TestPurgeExchangeCredentials(t *testing.T) {
 	var c Config
 	c.Exchanges = []ExchangeConfig{
 		{
-			Name: "test",
+			Name: testString,
 			API: APIConfig{
 				AuthenticatedSupport:          true,
 				AuthenticatedWebsocketSupport: true,
@@ -219,7 +220,7 @@ func TestPurgeExchangeCredentials(t *testing.T) {
 
 	c.PurgeExchangeAPICredentials()
 
-	exchCfg, err := c.GetExchangeConfig("test")
+	exchCfg, err := c.GetExchangeConfig(testString)
 	if err != nil {
 		t.Error(err)
 	}
@@ -257,8 +258,8 @@ func TestUpdateCommunicationsConfig(t *testing.T) {
 	if err != nil {
 		t.Error("UpdateCommunicationsConfig LoadConfig error", err)
 	}
-	cfg.UpdateCommunicationsConfig(&CommunicationsConfig{SlackConfig: SlackConfig{Name: "TEST"}})
-	if cfg.Communications.SlackConfig.Name != "TEST" {
+	cfg.UpdateCommunicationsConfig(&CommunicationsConfig{SlackConfig: SlackConfig{Name: testString}})
+	if cfg.Communications.SlackConfig.Name != testString {
 		t.Error("UpdateCommunicationsConfig LoadConfig error")
 	}
 }
@@ -308,7 +309,7 @@ func TestCheckCommunicationsConfig(t *testing.T) {
 	cfg.SMS = &SMSGlobalConfig{}
 	cfg.Communications.SMSGlobalConfig.Name = ""
 	cfg.CheckCommunicationsConfig()
-	if cfg.Communications.SMSGlobalConfig.Password != "test" {
+	if cfg.Communications.SMSGlobalConfig.Password != testString {
 		t.Error("CheckCommunicationsConfig error:", err)
 	}
 
@@ -1418,12 +1419,12 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 
 	// Test international bank
 	cfg.Exchanges[0].BankAccounts[0].Enabled = true
-	cfg.Exchanges[0].BankAccounts[0].BankName = "test"
-	cfg.Exchanges[0].BankAccounts[0].BankAddress = "test"
-	cfg.Exchanges[0].BankAccounts[0].BankPostalCode = "test"
-	cfg.Exchanges[0].BankAccounts[0].BankPostalCity = "test"
-	cfg.Exchanges[0].BankAccounts[0].BankCountry = "test"
-	cfg.Exchanges[0].BankAccounts[0].AccountName = "test"
+	cfg.Exchanges[0].BankAccounts[0].BankName = testString
+	cfg.Exchanges[0].BankAccounts[0].BankAddress = testString
+	cfg.Exchanges[0].BankAccounts[0].BankPostalCode = testString
+	cfg.Exchanges[0].BankAccounts[0].BankPostalCity = testString
+	cfg.Exchanges[0].BankAccounts[0].BankCountry = testString
+	cfg.Exchanges[0].BankAccounts[0].AccountName = testString
 	cfg.Exchanges[0].BankAccounts[0].SupportedCurrencies = "monopoly moneys"
 	cfg.Exchanges[0].BankAccounts[0].IBAN = "some iban"
 	cfg.Exchanges[0].BankAccounts[0].SWIFTCode = "some swifty"
@@ -1439,12 +1440,12 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 
 	// Test aussie bank
 	cfg.Exchanges[0].BankAccounts[0].Enabled = true
-	cfg.Exchanges[0].BankAccounts[0].BankName = "test"
-	cfg.Exchanges[0].BankAccounts[0].BankAddress = "test"
-	cfg.Exchanges[0].BankAccounts[0].BankPostalCode = "test"
-	cfg.Exchanges[0].BankAccounts[0].BankPostalCity = "test"
-	cfg.Exchanges[0].BankAccounts[0].BankCountry = "test"
-	cfg.Exchanges[0].BankAccounts[0].AccountName = "test"
+	cfg.Exchanges[0].BankAccounts[0].BankName = testString
+	cfg.Exchanges[0].BankAccounts[0].BankAddress = testString
+	cfg.Exchanges[0].BankAccounts[0].BankPostalCode = testString
+	cfg.Exchanges[0].BankAccounts[0].BankPostalCity = testString
+	cfg.Exchanges[0].BankAccounts[0].BankCountry = testString
+	cfg.Exchanges[0].BankAccounts[0].AccountName = testString
 	cfg.Exchanges[0].BankAccounts[0].SupportedCurrencies = "AUD"
 	cfg.Exchanges[0].BankAccounts[0].BSBNumber = "some BSB nonsense"
 	cfg.Exchanges[0].BankAccounts[0].IBAN = ""

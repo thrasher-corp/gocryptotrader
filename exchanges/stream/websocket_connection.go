@@ -29,9 +29,6 @@ type WebsocketConnection struct {
 	// writes methods
 	writeControl sync.Mutex
 
-	// id generator gate to limit calls
-	gate sync.Mutex
-
 	RateLimit    float64
 	ExchangeName string
 	URL          string
@@ -297,7 +294,7 @@ func (w *WebsocketConnection) GenerateMessageID(highPrec bool) int64 {
 		max = 2e12
 		min = 1e12
 	}
-	// utlization of hard coded postive numbers and default crypto/rand
+	// utlization of hard coded positive numbers and default crypto/rand
 	// io.reader will panic on error instead of returning
 	randomNumber, err := rand.Int(rand.Reader, big.NewInt(max-min+1))
 	if err != nil {

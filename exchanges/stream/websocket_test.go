@@ -489,7 +489,7 @@ func readMessages(wc *WebsocketConnection, t *testing.T) {
 		default:
 			resp := wc.ReadMessage()
 			if resp.Raw != nil {
-				t.Fatal("connection has closed")
+				t.Error("connection has closed")
 				return
 			}
 			var incoming testResponse
