@@ -243,8 +243,6 @@ func makeExchange(exch *exchange) error {
 		return fmt.Errorf("unable to go test. output: %s err: %s", out, err)
 	}
 
-	cmd = exec.Command("go", "run", "./...")
-	cmd.Dir = "../documention"
 	return nil
 }
 
