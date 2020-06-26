@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -470,7 +471,7 @@ func TestSendMessageWithResponse(t *testing.T) {
 		Subscription: testRequestData{
 			Name: "ticker",
 		},
-		RequestID: wc.GenerateMessageID(false),
+		RequestID: wc.GenerateMessageID(true),
 	}
 
 	_, err = wc.SendMessageReturnResponse(request.RequestID, request)
@@ -614,5 +615,34 @@ func TestCanUseAuthenticatedWebsocketForWrapper(t *testing.T) {
 	resp = ws.CanUseAuthenticatedWebsocketForWrapper()
 	if !resp {
 		t.Error("Expected true, `connected` and `CanUseAuthenticatedEndpoints` is true")
+	}
+}
+
+func TestGenerateMessageID(t *testing.T) {
+	wc := WebsocketConnection{}
+	var id int64
+	for i := 0; i < 10; i++ {
+		newID := wc.GenerateMessageID(true)
+		fmt.Println(newID)
+		if id == newID {
+			t.Fatal("ID generation is not unique")
+		}
+		id = newID
+	}
+}
+
+// BenchmarkGenerateMessageID-8   	 2850018	       408 ns/op	      56 B/op	       4 allocs/op
+func BenchmarkGenerateMessageID_High(b *testing.B) {
+	wc := WebsocketConnection{}
+	for i := 0; i < b.N; i++ {
+		_ = wc.GenerateMessageID(true)
+	}
+}
+
+// BenchmarkGenerateMessageID_Low-8   	 2591596	       447 ns/op	      56 B/op	       4 allocs/op
+func BenchmarkGenerateMessageID_Low(b *testing.B) {
+	wc := WebsocketConnection{}
+	for i := 0; i < b.N; i++ {
+		_ = wc.GenerateMessageID(false)
 	}
 }

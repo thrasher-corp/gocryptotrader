@@ -717,17 +717,18 @@ func (e *Base) UpdatePairs(exchangeProducts currency.Pairs, assetType asset.Item
 					removedPairs)
 			}
 		}
+
 		e.Config.CurrencyPairs.StorePairs(assetType, products, enabled)
 		e.CurrencyPairs.StorePairs(assetType, products, enabled)
 
 		if !enabled {
 			// If available pairs are changed we will remove currency pair items
 			// that are still included in the enabled pairs list.
-			enabledPairs, _ := e.CurrencyPairs.GetPairs(assetType, true)
-			availablePairs, _ := e.CurrencyPairs.GetPairs(assetType, false)
-
-			_, remove := enabledPairs.FindDifferences(availablePairs)
-
+			enabledPairs, err := e.CurrencyPairs.GetPairs(assetType, true)
+			if err == nil {
+				return nil
+			}
+			_, remove := enabledPairs.FindDifferences(products)
 			for i := range remove {
 				enabledPairs = enabledPairs.Remove(remove[i])
 			}

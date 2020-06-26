@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"compress/flate"
 	"compress/gzip"
+	"crypto/rand"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"net"
 	"net/http"
 	"net/url"
@@ -26,6 +28,9 @@ type WebsocketConnection struct {
 	// Gorilla websocket does not allow more than one goroutine to utilise
 	// writes methods
 	writeControl sync.Mutex
+
+	// id generator gate to limit calls
+	gate sync.Mutex
 
 	RateLimit    float64
 	ExchangeName string
@@ -281,13 +286,20 @@ func (w *WebsocketConnection) parseBinaryResponse(resp []byte) ([]byte, error) {
 }
 
 // GenerateMessageID Creates a messageID to checkout
-func (w *WebsocketConnection) GenerateMessageID(useNano bool) int64 {
-	if useNano {
-		// force clock shift
-		time.Sleep(time.Nanosecond)
-		return time.Now().UnixNano()
+func (w *WebsocketConnection) GenerateMessageID(highPrec bool) int64 {
+	var min int64 = 1e8
+	var max int64 = 2e8
+	if highPrec {
+		max = 2e12
+		min = 1e12
 	}
-	return time.Now().Unix()
+	// utlization of hard coded postive numbers and default crypto/rand
+	// io.reader will panic on error instead of returning
+	randomNumber, err := rand.Int(rand.Reader, big.NewInt(max-min+1))
+	if err != nil {
+		panic(err)
+	}
+	return randomNumber.Int64() + min
 }
 
 // Shutdown shuts down and closes specific connection

@@ -72,7 +72,7 @@ func (g *Gateio) wsServerSignIn() error {
 	sigTemp := g.GenerateSignature(strconv.Itoa(nonce))
 	signature := crypto.Base64Encode(sigTemp)
 	signinWsRequest := WebsocketRequest{
-		ID:     g.Websocket.Conn.GenerateMessageID(true),
+		ID:     g.Websocket.Conn.GenerateMessageID(false),
 		Method: "server.sign",
 		Params: []interface{}{g.API.Credentials.Key, signature, nonce},
 	}
@@ -541,7 +541,7 @@ channels:
 		}
 
 		payloads = append(payloads, WebsocketRequest{
-			ID:     g.Websocket.Conn.GenerateMessageID(true),
+			ID:     g.Websocket.Conn.GenerateMessageID(false),
 			Method: channelsToSubscribe[i].Channel,
 			Params: params,
 		})
@@ -589,7 +589,7 @@ func (g *Gateio) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 			1)
 
 		unsubscribe := WebsocketRequest{
-			ID:     g.Websocket.Conn.GenerateMessageID(true),
+			ID:     g.Websocket.Conn.GenerateMessageID(false),
 			Method: unsubscribeText,
 			Params: []interface{}{channelsToUnsubscribe[i].Currency.String()},
 		}

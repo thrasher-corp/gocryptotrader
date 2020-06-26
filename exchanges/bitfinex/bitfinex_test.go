@@ -1004,12 +1004,13 @@ func TestWsPlaceOrder(t *testing.T) {
 	if !wsAuthExecuted {
 		runAuth(t)
 	}
+
 	_, err := b.WsNewOrder(&WsNewOrderRequest{
-		CustomID: 1337,
-		Type:     order.Buy.String(),
-		Symbol:   "tBTCUSD",
-		Amount:   10,
-		Price:    -10,
+		GroupID: 1,
+		Type:    "EXCHANGE LIMIT",
+		Symbol:  "tXRPUSD",
+		Amount:  -20,
+		Price:   1000,
 	})
 	if err != nil {
 		t.Error(err)
