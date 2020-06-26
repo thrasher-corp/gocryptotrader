@@ -228,24 +228,14 @@ func enableDisableExchangePair(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 
-	var result *gctrpc.GenericExchangeNameResponse
-	if enable {
-		result, err = client.EnableExchangePair(context.Background(),
-			&gctrpc.ExchangePairRequest{
-				Exchange:  exchange,
-				Pairs:     validPairs,
-				AssetType: asset,
-			},
-		)
-	} else {
-		result, err = client.DisableExchangePair(context.Background(),
-			&gctrpc.ExchangePairRequest{
-				Exchange:  exchange,
-				Pairs:     validPairs,
-				AssetType: asset,
-			},
-		)
-	}
+	result, err := client.SetExchangePair(context.Background(),
+		&gctrpc.SetExchangePairRequest{
+			Exchange:  exchange,
+			Pairs:     validPairs,
+			AssetType: asset,
+			Enable:    enable,
+		},
+	)
 	if err != nil {
 		return err
 	}
@@ -343,8 +333,8 @@ func enableDisableExchangeAsset(c *cli.Context) error {
 	defer conn.Close()
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.EnableDisableExchangeAsset(context.Background(),
-		&gctrpc.ExchangeDisableEnableAssetRequest{
+	result, err := client.SetExchangeAsset(context.Background(),
+		&gctrpc.SetExchangeAssetRequest{
 			Exchange: exchange,
 			Asset:    asset,
 			Enable:   enable,
@@ -384,8 +374,8 @@ func enableDisableAllExchangePairs(c *cli.Context) error {
 	defer conn.Close()
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
-	result, err := client.EnableDisableAllExchangePairs(context.Background(),
-		&gctrpc.ExchangeDisableEnableAllPairsRequest{
+	result, err := client.SetAllExchangePairs(context.Background(),
+		&gctrpc.SetExchangeAllPairsRequest{
 			Exchange: exchange,
 			Enable:   enable,
 		},

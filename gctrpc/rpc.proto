@@ -561,10 +561,11 @@ message GetExchangePairsResponse {
     map<string, PairsSupported> supported_assets = 1;
 }
 
-message ExchangePairRequest {
+message SetExchangePairRequest {
     string exchange = 1;
     string asset_type = 2;
     repeated CurrencyPair pairs = 3;
+    bool enable = 4;
 }
 
 message GetOrderbookStreamRequest {
@@ -684,13 +685,13 @@ message GCTScriptGenericResponse {
     string data = 2;
 }
 
-message ExchangeDisableEnableAssetRequest {
+message SetExchangeAssetRequest {
     string exchange = 1;
     string asset = 2;
     bool enable = 3;
 }
 
-message ExchangeDisableEnableAllPairsRequest {
+message SetExchangeAllPairsRequest {
     string exchange = 1;
     bool enable = 2;
 }
@@ -1049,16 +1050,9 @@ service GoCryptoTrader {
         };
     }
 
-    rpc EnableExchangePair(ExchangePairRequest) returns (GenericExchangeNameResponse) {
+    rpc SetExchangePair(SetExchangePairRequest) returns (GenericExchangeNameResponse) {
         option (google.api.http) = {
-            post: "/v1/enableexchangepair",
-            body: "*"
-        };
-    }
-
-    rpc DisableExchangePair(ExchangePairRequest) returns (GenericExchangeNameResponse) {
-        option (google.api.http) = {
-            post: "/v1/disableexchangepair",
+            post: "/v1/setexchangepair",
             body: "*"
         };
     }
@@ -1158,15 +1152,15 @@ service GoCryptoTrader {
         };
     }
 
-    rpc EnableDisableExchangeAsset(ExchangeDisableEnableAssetRequest) returns (GenericSubsystemResponse) {
+    rpc SetExchangeAsset(SetExchangeAssetRequest) returns (GenericSubsystemResponse) {
         option (google.api.http) = {
-            get: "/v1/enabledisableexchangeasset"
+            get: "/v1/setexchangeasset"
         };
     }
 
-    rpc EnableDisableAllExchangePairs(ExchangeDisableEnableAllPairsRequest) returns (GenericSubsystemResponse) {
+    rpc SetAllExchangePairs(SetExchangeAllPairsRequest) returns (GenericSubsystemResponse) {
         option (google.api.http) = {
-            get: "/v1/enabledisableallexchangepairs"
+            get: "/v1/setallexchangepairs"
         };
     }
 
