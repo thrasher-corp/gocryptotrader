@@ -184,8 +184,8 @@ func (b *Bithumb) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 		t, ok := tickers[curr]
 		if !ok {
 			return nil,
-				fmt.Errorf("enabled pair %s not found in returned ticker map",
-					curr)
+				fmt.Errorf("enabled pair %s [%s] not found in returned ticker map %v",
+					pairs[i], pairs, tickers)
 		}
 
 		err = ticker.ProcessTicker(&ticker.Price{
