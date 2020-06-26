@@ -372,6 +372,7 @@ type WsTrade struct {
 	TradeID     int64     `json:"tradeId"`
 	Price       float64   `json:"price,string"`
 	Volume      float64   `json:"volume,string"`
+	Side        string    `json:"side"`
 	MessageType string    `json:"messageType"`
 }
 

@@ -470,7 +470,7 @@ func TestSendMessageWithResponse(t *testing.T) {
 		Subscription: testRequestData{
 			Name: "ticker",
 		},
-		RequestID: wc.GenerateMessageID(true),
+		RequestID: wc.GenerateMessageID(false),
 	}
 
 	_, err = wc.SendMessageReturnResponse(request.RequestID, request)

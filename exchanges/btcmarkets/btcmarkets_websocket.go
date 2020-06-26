@@ -153,6 +153,11 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
+		side := order.Buy
+		if trade.Side == "Ask" {
+			side = order.Sell
+		}
+
 		b.Websocket.DataHandler <- stream.TradeData{
 			Timestamp:    trade.Timestamp,
 			CurrencyPair: p,
@@ -160,7 +165,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			Exchange:     b.Name,
 			Price:        trade.Price,
 			Amount:       trade.Volume,
-			Side:         order.UnknownSide,
+			Side:         side,
 			EventType:    order.UnknownType,
 		}
 	case tick:
