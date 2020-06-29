@@ -988,6 +988,10 @@ func (h *HUOBI) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end 
 	}
 
 	for x := range candles {
+		if time.Unix(candles[x].ID, 0).Before(start) ||
+			time.Unix(candles[x].ID, 0).After(end) {
+			continue
+		}
 		ret.Candles = append(ret.Candles, kline.Candle{
 			Time:   time.Unix(candles[x].ID, 0),
 			Open:   candles[x].Open,

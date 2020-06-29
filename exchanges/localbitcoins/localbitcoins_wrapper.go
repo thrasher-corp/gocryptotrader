@@ -287,7 +287,7 @@ func (l *LocalBitcoins) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (l *LocalBitcoins) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
+func (l *LocalBitcoins) GetExchangeHistory(*trade.HistoryRequest) ([]trade.History, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

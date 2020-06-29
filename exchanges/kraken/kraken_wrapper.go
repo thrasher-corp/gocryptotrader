@@ -817,6 +817,9 @@ func (k *Kraken) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 		if err != nil {
 			return kline.Item{}, err
 		}
+		if timeValue.Before(start) || timeValue.After(end) {
+			continue
+		}
 		ret.Candles = append(ret.Candles, kline.Candle{
 			Time:   timeValue,
 			Open:   candles[x].Open,

@@ -337,7 +337,7 @@ func (l *LakeBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (l *LakeBTC) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
+func (l *LakeBTC) GetExchangeHistory(*trade.HistoryRequest) ([]trade.History, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

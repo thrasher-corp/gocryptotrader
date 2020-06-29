@@ -384,7 +384,7 @@ func (b *BTCMarkets) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *BTCMarkets) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
+func (b *BTCMarkets) GetExchangeHistory(*trade.HistoryRequest) ([]trade.History, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

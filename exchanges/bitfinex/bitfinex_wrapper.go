@@ -449,7 +449,7 @@ func (b *Bitfinex) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bitfinex) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
+func (b *Bitfinex) GetExchangeHistory(*trade.HistoryRequest) ([]trade.History, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

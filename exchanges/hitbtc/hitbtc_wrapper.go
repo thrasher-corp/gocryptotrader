@@ -405,7 +405,7 @@ func (h *HitBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (h *HitBTC) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
+func (h *HitBTC) GetExchangeHistory(*trade.HistoryRequest) ([]trade.History, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -667,7 +667,8 @@ func (h *HitBTC) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 			Interval: interval,
 		}
 	}
-	data, err := h.GetCandles(h.FormatExchangeCurrency(pair, a).String(), "1000",
+	data, err := h.GetCandles(h.FormatExchangeCurrency(pair, a).String(),
+		strconv.FormatInt(int64(h.Features.Enabled.Kline.ResultLimit), 10),
 		h.FormatExchangeKlineInterval(interval),
 		start.Format(time.RFC3339), end.Format(time.RFC3339))
 	if err != nil {

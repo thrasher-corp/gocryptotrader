@@ -385,7 +385,7 @@ func (p *Poloniex) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (p *Poloniex) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
+func (p *Poloniex) GetExchangeHistory(*trade.HistoryRequest) ([]trade.History, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

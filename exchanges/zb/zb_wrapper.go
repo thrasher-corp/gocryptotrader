@@ -764,6 +764,9 @@ func (z *ZB) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end tim
 	}
 
 	for x := range candles.Data {
+		if candles.Data[x].KlineTime.Before(start) || candles.Data[x].KlineTime.After(end) {
+			continue
+		}
 		ret.Candles = append(ret.Candles, kline.Candle{
 			Time:   candles.Data[x].KlineTime,
 			Open:   candles.Data[x].Open,

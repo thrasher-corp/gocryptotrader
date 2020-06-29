@@ -434,7 +434,7 @@ func (b *Binance) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Binance) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
+func (b *Binance) GetExchangeHistory(*trade.HistoryRequest) ([]trade.History, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

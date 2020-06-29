@@ -350,7 +350,7 @@ func (e *EXMO) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (e *EXMO) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
+func (e *EXMO) GetExchangeHistory(*trade.HistoryRequest) ([]trade.History, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
