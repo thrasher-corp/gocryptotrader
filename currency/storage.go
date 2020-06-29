@@ -272,12 +272,12 @@ func (s *Storage) SeedCurrencyAnalysisData() error {
 		if err != nil {
 			return s.FetchCurrencyAnalysisData()
 		}
-		var file *File
-		err = json.Unmarshal(b, &file)
+		var f *File
+		err = json.Unmarshal(b, &f)
 		if err != nil {
 			return err
 		}
-		err = s.LoadFileCurrencyData(file)
+		err = s.LoadFileCurrencyData(f)
 		if err != nil {
 			return err
 		}

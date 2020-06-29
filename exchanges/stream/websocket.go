@@ -103,12 +103,15 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 	if setupData.RunningURL == "" {
 		return errors.New("running URL cannot be nil")
 	}
-	w.SetWebsocketURL(setupData.RunningURL, false)
+	err := w.SetWebsocketURL(setupData.RunningURL, false)
+	if err != nil {
+		return err
+	}
 
 	w.ShutdownC = make(chan struct{})
 
 	w.SetCanUseAuthenticatedEndpoints(setupData.AuthenticatedWebsocketAPISupport)
-	err := w.Initialise()
+	err = w.Initialise()
 	if err != nil {
 		return err
 	}

@@ -608,6 +608,10 @@ func StringToOrderType(oType string) (Type, error) {
 	case strings.EqualFold(oType, FillOrKill.String()),
 		strings.EqualFold(oType, "EXCHANGE FOK"):
 		return FillOrKill, nil
+	case strings.EqualFold(oType, IOS.String()):
+		return IOS, nil
+	case strings.EqualFold(oType, PostOnly.String()):
+		return PostOnly, nil
 	case strings.EqualFold(oType, AnyType.String()):
 		return AnyType, nil
 	default:
