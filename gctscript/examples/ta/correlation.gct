@@ -1,0 +1,15 @@
+fmt := import("fmt")
+exch := import("exchange")
+t := import("times")
+cc := import("indicator/correlationcoefficient")
+
+load := func() {
+    start := t.date(2017, 8 , 17 , 0 , 0 , 0, 0)
+    end := t.add_date(start, 0, 6 , 0)
+    ohlcvDataBTC := exch.ohlcv("binance", "BTC-USDT", "-", "SPOT", start, end, "1d")
+    ohlcvDataETH := exch.ohlcv("binance", "ETH-USDT", "-", "SPOT", start, end, "1d")
+    ret := cc.calculate(ohlcvDataBTC.candles, ohlcvDataETH.candles, 20)
+    fmt.println(ret)
+}
+
+load()
