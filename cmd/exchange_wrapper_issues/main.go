@@ -416,7 +416,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 
 		var r8 []exchange.TradeHistory
-		r8, err = e.GetExchangeHistory(p, assetTypes[i], time.Time{}, time.Time{})
+		r8, err = e.GetExchangeHistory(p, assetTypes[i], time.Now().Add(-time.Minute), time.Now())
 		msg = ""
 		if err != nil {
 			msg = err.Error()

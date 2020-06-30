@@ -1590,8 +1590,9 @@ func htmlScrapeFTX(htmlData *HTMLScrapingData) ([]string, error) {
 		return nil, err
 	}
 	defer temp.Body.Close()
-	tokenizer := html.NewTokenizer(temp.Body)
-	var data []string
+	a := temp.Body
+	tokenizer := html.NewTokenizer(a)
+	var respStr string
 loop:
 	for {
 		next := tokenizer.Next()
@@ -1600,25 +1601,67 @@ loop:
 			break loop
 		case html.StartTagToken:
 			token := tokenizer.Token()
-			if token.Data == "span" {
+			if token.Data == htmlData.TokenData {
 				for _, a := range token.Attr {
 					if a.Key == htmlData.Key && a.Val == htmlData.Val {
 					loop2:
 						for {
-							nextToken := tokenizer.Next()
-							switch nextToken {
+							anotherToken := tokenizer.Next()
+							switch anotherToken {
 							case html.StartTagToken:
-								f := tokenizer.Token()
-								if f.Data == "a" {
-									for _, b := range f.Attr {
-										data = append(data, b.Val)
+								z := tokenizer.Token()
+								if z.Data == "a" {
+									for _, m := range z.Attr {
+										if m.Key == "title" {
+											switch m.Val {
+											case "rest":
+											loop3:
+												for {
+													nextToken := tokenizer.Next()
+													switch nextToken {
+													case html.StartTagToken:
+														f := tokenizer.Token()
+														if f.Data == "time-ago" {
+															for _, b := range f.Attr {
+																if b.Key == "datetime" {
+																	respStr += b.Val
+																}
+															}
+														}
+													case html.EndTagToken:
+														tk := tokenizer.Token()
+														if tk.Data == htmlData.TokenDataEnd {
+															break loop3
+														}
+													}
+												}
+											case "websocket":
+											loop4:
+												for {
+													nextToken := tokenizer.Next()
+													switch nextToken {
+													case html.StartTagToken:
+														f := tokenizer.Token()
+														if f.Data == "time-ago" {
+															for _, b := range f.Attr {
+																if b.Key == "datetime" {
+																	respStr += b.Val
+																}
+															}
+														}
+													case html.EndTagToken:
+														tk := tokenizer.Token()
+														if tk.Data == htmlData.TokenDataEnd {
+															break loop4
+														}
+													}
+												}
+											}
+										}
 									}
 								}
-							case html.EndTagToken:
-								tk := tokenizer.Token()
-								if tk.Data == htmlData.TokenDataEnd {
-									break loop2
-								}
+							case html.ErrorToken:
+								break loop2
 							}
 						}
 					}
@@ -1626,16 +1669,7 @@ loop:
 			}
 		}
 	}
-	var respString string
-	for c := range data {
-		if data[c] == "websocket" {
-			respString += data[c+1]
-		}
-		if data[c] == "rest" {
-			respString += data[c+1]
-		}
-	}
-	return []string{respString}, nil
+	return []string{respStr}, nil
 }
 
 // htmlScrapeBitfinex gets the check string for Bitfinex exchange

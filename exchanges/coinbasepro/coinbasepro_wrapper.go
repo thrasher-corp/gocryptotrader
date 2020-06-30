@@ -385,7 +385,7 @@ func (c *CoinbasePro) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
+// GetExchangeHistory returns historic trade data within the timeframe provided.
 func (c *CoinbasePro) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }

@@ -421,7 +421,7 @@ func (b *Bitmex) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
+// GetExchangeHistory returns historic trade data within the timeframe provided.
 func (b *Bitmex) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }

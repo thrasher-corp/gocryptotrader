@@ -498,7 +498,7 @@ func (h *HUOBI) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
+// GetExchangeHistory returns historic trade data within the timeframe provided.
 func (h *HUOBI) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }

@@ -406,7 +406,7 @@ func (f *FTX) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return resp, nil
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
+// GetExchangeHistory returns historic trade data within the timeframe provided.
 func (f *FTX) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
 	marketName := f.FormatExchangeCurrency(p, assetType).String()
 	var resp []exchange.TradeHistory

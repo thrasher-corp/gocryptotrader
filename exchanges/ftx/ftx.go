@@ -220,7 +220,7 @@ func (f *FTX) GetFundingRates() ([]FundingRatesData, error) {
 // GetIndexWeights gets index weights
 func (f *FTX) GetIndexWeights(index string) (IndexWeights, error) {
 	var resp IndexWeights
-	return resp, f.SendHTTPRequest(fmt.Sprintf(getIndexWeights, index), &resp)
+	return resp, f.SendHTTPRequest(ftxAPIURL+fmt.Sprintf(getIndexWeights, index), &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
@@ -497,6 +497,7 @@ func (f *FTX) ModifyOrderByClientID(clientOrderID, clientID string, price, size 
 }
 
 // ModifyTriggerOrder modifies an existing trigger order
+// Choices for ordertype include stop, trailingStop, takeProfit
 func (f *FTX) ModifyTriggerOrder(orderID, orderType string, size, triggerPrice, orderPrice, trailValue float64) (TriggerOrderData, error) {
 	req := make(map[string]interface{})
 	req["size"] = size

@@ -93,10 +93,6 @@ func (f *FTX) WsAuth() error {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (f *FTX) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
-	if channelToSubscribe.Currency.Equal(currency.NewPairFromString(blockPair)) {
-		log.Warnf(log.Global, "subscription not allowed for %v due to invalid checksum provided by the exchange", channelToSubscribe.Currency)
-		return nil
-	}
 	var sub WsSub
 	switch channelToSubscribe.Channel {
 	case wsFills, wsOrders, wsMarkets:
@@ -326,7 +322,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			err = f.WsProcessPartialOB(&resultData.OBData, p, a)
+			err = f.WsProcessPartialOB(resultData.OBData, p, a)
 			if err != nil {
 				f.wsResubToOB(p)
 				return err
@@ -420,7 +416,7 @@ func (f *FTX) wsResubToOB(p currency.Pair) {
 }
 
 // WsProcessPartialOB creates an OB from websocket data
-func (f *FTX) WsProcessPartialOB(data *WsOrderbookData, p currency.Pair, a asset.Item) error {
+func (f *FTX) WsProcessPartialOB(data WsOrderbookData, p currency.Pair, a asset.Item) error {
 	signedChecksum := f.CalcPartialOBChecksum(data)
 	if signedChecksum != data.Checksum {
 		return fmt.Errorf("%s channel: %s. Orderbook partial for %v checksum invalid",
@@ -464,30 +460,18 @@ func (f *FTX) WsProcessPartialOB(data *WsOrderbookData, p currency.Pair, a asset
 }
 
 // CalcPartialOBChecksum calculates checksum of partial OB data received from WS
-func (f *FTX) CalcPartialOBChecksum(data *WsOrderbookData) int {
+func (f *FTX) CalcPartialOBChecksum(data WsOrderbookData) int {
 	var checksum strings.Builder
 	var price, amount string
 	for i := 0; i < 100; i++ {
 		if len(data.Bids)-1 >= i {
-			price = strconv.FormatFloat(data.Bids[i][0], 'f', -1, 64)
-			if strings.IndexByte(price, '.') == -1 {
-				price += ".0"
-			}
-			amount = strconv.FormatFloat(data.Bids[i][1], 'f', -1, 64)
-			if strings.IndexByte(amount, '.') == -1 {
-				amount += ".0"
-			}
+			price = checksumParseNumber(data.Bids[i][0])
+			amount = checksumParseNumber(data.Bids[i][1])
 			checksum.WriteString(price + ":" + amount + ":")
 		}
 		if len(data.Asks)-1 >= i {
-			price = strconv.FormatFloat(data.Asks[i][0], 'f', -1, 64)
-			if strings.IndexByte(price, '.') == -1 {
-				price += ".0"
-			}
-			amount = strconv.FormatFloat(data.Asks[i][1], 'f', -1, 64)
-			if strings.IndexByte(amount, '.') == -1 {
-				amount += ".0"
-			}
+			price = checksumParseNumber(data.Asks[i][0])
+			amount = checksumParseNumber(data.Asks[i][1])
 			checksum.WriteString(price + ":" + amount + ":")
 		}
 	}
@@ -501,28 +485,28 @@ func (f *FTX) CalcUpdateOBChecksum(data *orderbook.Base) int {
 	var price, amount string
 	for i := 0; i < 100; i++ {
 		if len(data.Bids)-1 >= i {
-			price = strconv.FormatFloat(data.Bids[i].Price, 'f', -1, 64)
-			if strings.IndexByte(price, '.') == -1 {
-				price += ".0"
-			}
-			amount = strconv.FormatFloat(data.Bids[i].Amount, 'f', -1, 64)
-			if strings.IndexByte(amount, '.') == -1 {
-				amount += ".0"
-			}
+			price = checksumParseNumber(data.Bids[i].Price)
+			amount = checksumParseNumber(data.Bids[i].Amount)
 			checksum.WriteString(price + ":" + amount + ":")
 		}
 		if len(data.Asks)-1 >= i {
-			price = strconv.FormatFloat(data.Asks[i].Price, 'f', -1, 64)
-			if strings.IndexByte(price, '.') == -1 {
-				price += ".0"
-			}
-			amount = strconv.FormatFloat(data.Asks[i].Amount, 'f', -1, 64)
-			if strings.IndexByte(amount, '.') == -1 {
-				amount += ".0"
-			}
+			price = checksumParseNumber(data.Asks[i].Price)
+			amount = checksumParseNumber(data.Asks[i].Amount)
 			checksum.WriteString(price + ":" + amount + ":")
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), ":")
 	return int(crc32.ChecksumIEEE([]byte(checksumStr)))
+}
+
+func checksumParseNumber(num float64) string {
+	modifier := byte('f')
+	if num < 0.0001 {
+		modifier = 'e'
+	}
+	r := strconv.FormatFloat(num, modifier, -1, 64)
+	if strings.IndexByte(r, '.') == -1 && modifier != 'e' {
+		r += ".0"
+	}
+	return r
 }

@@ -704,12 +704,13 @@ func TestTrelloDeleteCheckItems(t *testing.T) {
 
 func TestHTMLScrapeFTX(t *testing.T) {
 	data := HTMLScrapingData{
+		TokenData:    "span",
 		Key:          "class",
-		Val:          "css-truncate css-truncate-target",
-		TokenDataEnd: "td",
+		Val:          "css-truncate css-truncate-target d-block width-fit",
+		TokenDataEnd: "svg",
 		Path:         "https://github.com/ftexchange/ftx"}
-	_, err := htmlScrapeFTX(&data)
-	if err != nil {
+	a, err := htmlScrapeFTX(&data)
+	if err != nil || len(a) != 1 {
 		t.Error(err)
 	}
 }
