@@ -408,7 +408,7 @@ func (b *Bitfinex) GetLends(symbol string, values url.Values) ([]Lends, error) {
 // timeFrame values: '1m', '5m', '15m', '30m', '1h', '3h', '6h', '12h', '1D',
 // '7D', '14D', '1M'
 // section values: last or hist
-func (b *Bitfinex) GetCandles(symbol, timeFrame string, start, end int64, limit uint32, historic, ascending bool) ([]Candle, error) {
+func (b *Bitfinex) GetCandles(symbol, timeFrame string, start, end int64, limit uint32, historic bool) ([]Candle, error) {
 	var fundingPeriod string
 	if symbol[0] == 'f' {
 		fundingPeriod = ":p30"

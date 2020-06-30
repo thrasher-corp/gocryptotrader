@@ -718,7 +718,7 @@ func (b *Bitstamp) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		start,
 		end,
 		b.FormatExchangeKlineInterval(interval),
-		"1000",
+		strconv.FormatInt(int64(b.Features.Enabled.Kline.ResultLimit), 10),
 	)
 
 	if err != nil {
@@ -766,15 +766,15 @@ func (b *Bitstamp) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 			dates[x].Start,
 			dates[x].End,
 			b.FormatExchangeKlineInterval(interval),
-			"1000",
+			strconv.FormatInt(int64(b.Features.Enabled.Kline.ResultLimit), 10),
 		)
 		if err != nil {
 			return kline.Item{}, err
 		}
 
 		for i := range candles.Data.OHLCV {
-			if time.Unix(candles.Data.OHLCV[x].Timestamp, 0).Before(start) ||
-				time.Unix(candles.Data.OHLCV[x].Timestamp, 0).After(end) {
+			if time.Unix(candles.Data.OHLCV[i].Timestamp, 0).Before(start) ||
+				time.Unix(candles.Data.OHLCV[i].Timestamp, 0).After(end) {
 				continue
 			}
 			ret.Candles = append(ret.Candles, kline.Candle{

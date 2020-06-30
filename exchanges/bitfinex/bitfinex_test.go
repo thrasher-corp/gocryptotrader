@@ -154,7 +154,7 @@ func TestGetLends(t *testing.T) {
 
 func TestGetCandles(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetCandles("fUSD", "1m", 0, 0, 10, true, false)
+	_, err := b.GetCandles("fUSD", "1m", 0, 0, 10, true)
 	if err != nil {
 		t.Fatal(err)
 	}

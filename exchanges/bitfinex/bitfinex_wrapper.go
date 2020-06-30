@@ -825,7 +825,7 @@ func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 
 	candles, err := b.GetCandles(b.fixCasing(pair, a), b.FormatExchangeKlineInterval(interval),
 		start.Unix()*1000, end.Unix()*1000,
-		b.Features.Enabled.Kline.ResultLimit, true, false)
+		b.Features.Enabled.Kline.ResultLimit, true)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -870,7 +870,7 @@ func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 	for x := range dates {
 		candles, err := b.GetCandles(b.fixCasing(pair, a), b.FormatExchangeKlineInterval(interval),
 			dates[x].Start.Unix()*1000, dates[x].End.Unix()*1000,
-			b.Features.Enabled.Kline.ResultLimit, true, false)
+			b.Features.Enabled.Kline.ResultLimit, true)
 		if err != nil {
 			return kline.Item{}, err
 		}
