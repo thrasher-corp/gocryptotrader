@@ -47,7 +47,7 @@ cd gocryptotrader\cmd\exchange_template
 go run exchange_template.go -name FTX -ws -rest
 ```
 
-### Add exchange struct to (config_example.json)[../config_example.json], (configtest.json)[../testdata/configtest.json]:
+### Add exchange struct to [config_example.json](../config_example.json), [configtest.json](../testdata/configtest.json):
 
 Find out which asset types are supported by the exchange and add them to the pairs struct (spot is enabled by default)
 
@@ -149,7 +149,13 @@ config.GetDefaultFilePath()
   },
 ```
 
-#### Available pairs will be automatically filled in the configs when wrapper functions are filled out and gocryptotrader is run with the new exchange enabled
+#### Configs can be updated automatically by running the following command:
+
+Check to make sure that the command does not override ntp client and encrypt config default settings:
+
+```bash
+go build && gocryptotrader.exe --config=config_example.json
+```
 
 ### Add the currency structs in ftx_wrapper.go:
 
@@ -184,7 +190,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 
 Yes means supported, No means not yet implemented and NA means protocol unsupported
 
-#### root Readme.md:
+#### root [Readme.md](../):
 ```go
 | Exchange | REST API | Streaming API | FIX API |
 |----------|------|-----------|-----|
@@ -219,7 +225,7 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | ZB.COM | Yes | Yes | NA |
 ```
 
-#### (support.go)[../exchanges/support.go]:
+#### [support.go](../exchanges/support.go):
 ```go
 var Exchanges = []string{
 	"binance",
@@ -252,7 +258,7 @@ var Exchanges = []string{
     "zb",
 ```
 
-#### exchanges\exchange_test.go:
+#### [exchanges\exchange_test.go](../exchanges/exchange_test.go):
 ```go
 func TestExchange_Exchanges(t *testing.T) {
 	t.Parallel()
@@ -265,7 +271,7 @@ func TestExchange_Exchanges(t *testing.T) {
 }
 ```
 
-#### gctscript\wrappers\gct\exchange\exchange_test.go:
+#### [gctscript\wrappers\gct\exchange\exchange_test.go](../gctscript\wrappers\gct\exchange\exchange_test.go):
 ```go
 func TestExchange_Exchanges(t *testing.T) {
 	t.Parallel()
@@ -278,7 +284,7 @@ func TestExchange_Exchanges(t *testing.T) {
 }
 ```
 
-#### cmd\documentation\exchange_templates:
+#### [cmd\documentation\exchange_templates](../cmd\documentation\exchange_templates):
 
 - Create a new file named <exchangename>.tmpl
 - Copy contents of template from another exchange example here being Exmo
@@ -630,7 +636,7 @@ f.SupportsAsset(a) // Checks if an asset type is supported by the bot
 f.GetPairAssetType(p) // Returns the asset type of currency pair p
 ```
 
-The currency package located under ./currency/ contains many helper functions to format and process currency pairs. See readme
+The currency package located under ./currency/ contains many helper functions to format and process currency pairs. See [readme](../currency/README.md)
 
 ### Websocket addition if exchange supports it:
 
@@ -804,7 +810,7 @@ func (f *FTX) wsReadData() {
 }
 ```
 
-Simple Examples of data handling:
+- Simple Examples of data handling:
 
 Create the main struct used for unmarshalling data
 
@@ -820,7 +826,7 @@ type WsResponseData struct {
 }
 ```
 
-Unmarshall the raw data into the main type:
+- Unmarshall the raw data into the main type:
 
 ```go
 	var result map[string]interface{}
@@ -865,7 +871,7 @@ If neither of those provide a suitable struct to store the data in, the data can
       f.Websocket.DataHandler <- resultData.FillsData
 ```
 
-Data Handling can be tested offline similar to the following example:
+- Data Handling can be tested offline similar to the following example:
 
 ```go
 func TestParsingWSOrdersData(t *testing.T) {
@@ -973,7 +979,9 @@ func (f *FTX) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscript
 }
 ```
 
-#### Complete websocket setup in wrapper:
+- Complete websocket setup in wrapper:
+
+Add websocket functionality if supported to Setup:
 
 ```go
 	err = f.Websocket.Setup(
@@ -994,6 +1002,8 @@ func (f *FTX) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscript
 		return err
   }
   ```
+
+Below are the features supported by FTX API protocol:
 
   ```go
   f.Features = exchange.Features{
@@ -1031,9 +1041,9 @@ func (f *FTX) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscript
 			AutoPairUpdates: true,
 		},
 	}
-	```
+```
 
-#### Link websocket to wrapper functions:
+- Link websocket to wrapper functions:
 
 Initially the functions return nil or common.ErrNotYetImplemented
 
