@@ -733,7 +733,7 @@ func (f *FTX) GenerateDefaultSubscriptions() {
 
 https://docs.ftx.com/#request-process
 
-Create a struct required to subscribe to channels:
+- Create a struct required to subscribe to channels:
 
 ```go
 // WsSub has the data used to subscribe to a channel
@@ -744,7 +744,7 @@ type WsSub struct {
 }
 ```
 
-Create the subscription function:
+- Create the subscription function:
 
 ```go
 // Subscribe sends a websocket message to receive data from the channel
@@ -767,7 +767,7 @@ func (f *FTX) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscriptio
 }
 ```
 
-Test subscriptions and check to see if data is received from websocket:
+- Test subscriptions and check to see if data is received from websocket:
 
 Run gocryptotrader with the following settings enabled in config
 
@@ -782,7 +782,7 @@ Run gocryptotrader with the following settings enabled in config
 
 #### Handle websocket data:
 
-Function to read data received from websocket:
+- Function to read data received from websocket:
 
 ```go
 // wsReadData gets and passes on websocket messages for processing
