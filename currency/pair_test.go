@@ -347,6 +347,16 @@ func TestNewPairDelimiter(t *testing.T) {
 			actual, expected,
 		)
 	}
+
+	pair = NewPairDelimiter("fBTC-USDT", "-")
+	actual = pair.String()
+	expected = "fBTC-USDT"
+	if actual != expected {
+		t.Errorf(
+			"Pair(): %s was not equal to expected value: %s",
+			actual, expected,
+		)
+	}
 }
 
 // TestNewPairFromIndex returns a CurrencyPair via a currency string and

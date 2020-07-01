@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 )
@@ -268,7 +269,16 @@ func (b *BaseCodes) UpdateContract(fullName, symbol, assocExchange string) error
 
 // Register registers a currency from a string and returns a currency code
 func (b *BaseCodes) Register(c string) Code {
-	NewUpperCode := strings.ToUpper(c)
+	NewUpperCode := c
+	lower := true
+	for _, r := range c {
+		if !unicode.IsLower(r) {
+			lower = false
+		}
+	}
+	if lower {
+		NewUpperCode = strings.ToUpper(c)
+	}
 	format := strings.Contains(c, NewUpperCode)
 
 	b.mtx.Lock()
