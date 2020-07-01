@@ -183,7 +183,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 
 Yes means supported, No means not yet implemented and NA means protocol unsupported
 
-#### root [Readme.md](../README.md):
+#### Add exchange to the root [readme](../README.md) file:
 ```go
 | Exchange | REST API | Streaming API | FIX API |
 |----------|------|-----------|-----|
@@ -277,7 +277,7 @@ func TestExchange_Exchanges(t *testing.T) {
 }
 ```
 
-#### Setup and run the [documentation tool](../cmd/documentation/exchanges_templates/ftx.tmpl):
+#### Setup and run the [documentation tool](../cmd/documentation):
 
 - Create a new file named *exchangename*.tmpl
 - Copy contents of template from another exchange example here being Exmo
@@ -683,7 +683,7 @@ func (f *FTX) WsConnect() error {
 }
 ```
 
-- Create function to generate default subscriptions
+- Create function to generate default subscriptions:
 
 ```go
 // GenerateDefaultSubscriptions generates default subscription
