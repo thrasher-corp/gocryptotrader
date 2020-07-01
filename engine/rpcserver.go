@@ -1292,9 +1292,11 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 		}
 	}
 
-	err = exch.FlushWebsocketChannels()
-	if err != nil {
-		newErrors = append(newErrors, err)
+	if exch.IsWebsocketEnabled() {
+		err = exch.FlushWebsocketChannels()
+		if err != nil {
+			newErrors = append(newErrors, err)
+		}
 	}
 
 	if newErrors != nil {
@@ -1963,23 +1965,18 @@ func (s *RPCServer) SetAllExchangePairs(_ context.Context, r *gctrpc.SetExchange
 			exchCfg.CurrencyPairs.StorePairs(assets[i], pairs, true)
 			base.CurrencyPairs.StorePairs(assets[i], pairs, true)
 		}
+	} else {
+		for i := range assets {
+			exchCfg.CurrencyPairs.StorePairs(assets[i], nil, true)
+			base.CurrencyPairs.StorePairs(assets[i], nil, true)
+		}
+	}
 
+	if exch.IsWebsocketEnabled() {
 		err = exch.FlushWebsocketChannels()
 		if err != nil {
 			return nil, err
 		}
-
-		return &gctrpc.GenericSubsystemResponse{}, nil
-	}
-
-	for i := range assets {
-		exchCfg.CurrencyPairs.StorePairs(assets[i], nil, true)
-		base.CurrencyPairs.StorePairs(assets[i], nil, true)
-	}
-
-	err = exch.FlushWebsocketChannels()
-	if err != nil {
-		return nil, err
 	}
 
 	return &gctrpc.GenericSubsystemResponse{}, nil
@@ -2009,11 +2006,12 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(_ context.Context, r *gctrpc.Up
 		return nil, err
 	}
 
-	err = exch.FlushWebsocketChannels()
-	if err != nil {
-		return nil, err
+	if exch.IsWebsocketEnabled() {
+		err = exch.FlushWebsocketChannels()
+		if err != nil {
+			return nil, err
+		}
 	}
-
 	return &gctrpc.GenericSubsystemResponse{}, nil
 }
 
