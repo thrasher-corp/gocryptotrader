@@ -830,7 +830,7 @@ type WsResponseData struct {
 
 Using switch cases and types created earlier, unmarshall the data into the more specific structs.
 There are some built in structs in wshandler which are used to store the websocket data such as wshandler.TradeData or wshandler.KlineData.
-If a suitable struct does not exist in wshandler, wrapper types are the next preference to store the data such as in the market channel example given below
+If a suitable struct does not exist in wshandler, wrapper types are the next preference to store the data such as in the market channel example given below:
 
 ```go
 	switch result["channel"] {
