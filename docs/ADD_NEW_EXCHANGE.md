@@ -525,7 +525,7 @@ func (f *FTX) GetTriggerOrderHistory(marketName string, startTime, endTime time.
 https://docs.ftx.com/#place-order
 
 
-Structs for unmarshalling the data are made exactly the same way as the previous functions
+Structs for unmarshalling the data are made exactly the same way as the previous functions.
 
 ```go
 type OrderData struct {

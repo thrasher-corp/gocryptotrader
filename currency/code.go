@@ -274,6 +274,7 @@ func (b *BaseCodes) Register(c string) Code {
 	for _, r := range c {
 		if !unicode.IsLower(r) {
 			lower = false
+			break
 		}
 	}
 	if lower {
