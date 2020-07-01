@@ -1082,14 +1082,12 @@ func TestAcceptOTCQuote(t *testing.T) {
 
 func TestGetExchangeHistory(t *testing.T) {
 	t.Parallel()
-	f.Verbose = true
 	p := currency.NewPairFromString("ADA-PERP")
 	a, err := f.GetPairAssetType(p)
 	if err != nil {
 		t.Error(err)
 	}
-	b, err := f.GetExchangeHistory(p, a, time.Now().Add(-time.Minute*500), time.Now())
-	t.Log(b)
+	_, err = f.GetExchangeHistory(p, a, time.Now().Add(-time.Minute*500), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
