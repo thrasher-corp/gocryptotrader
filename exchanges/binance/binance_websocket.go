@@ -27,7 +27,7 @@ const (
 
 var listenKey string
 
-// WsConnect intiates a websocket connection
+// WsConnect initiates a websocket connection
 func (b *Binance) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
