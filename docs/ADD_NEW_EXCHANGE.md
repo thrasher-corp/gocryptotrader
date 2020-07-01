@@ -264,7 +264,7 @@ func TestExchange_Exchanges(t *testing.T) {
 }
 ```
 
-#### Increment the number of supported exchanges in [the gctscript exchange test wrapper file](../gctscript/wrappers/gct/exchange/exchange_test.go):
+#### Increment the number of supported exchanges in [the gctscript exchange wrapper test file](../gctscript/wrappers/gct/exchange/exchange_test.go):
 ```go
 func TestExchange_Exchanges(t *testing.T) {
 	t.Parallel()
