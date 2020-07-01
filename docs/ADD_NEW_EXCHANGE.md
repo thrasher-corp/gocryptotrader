@@ -16,13 +16,6 @@ You can track ideas, planned features and what's in progress on this Trello boar
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Current Features for exchanges
-
-+ This package is used to connect and query data from supported exchanges.
-
-+ Please checkout individual exchange README for more information on
-implementation
-
 ## How to add a new exchange
 
 This document is from a perspective of adding a new exchange called FTX to the codebase:
@@ -190,7 +183,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 
 Yes means supported, No means not yet implemented and NA means protocol unsupported
 
-#### root [Readme.md](../):
+#### root [Readme.md](../README.md):
 ```go
 | Exchange | REST API | Streaming API | FIX API |
 |----------|------|-----------|-----|
