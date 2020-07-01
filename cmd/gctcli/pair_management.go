@@ -181,7 +181,7 @@ func enableDisableExchangePair(c *cli.Context) error {
 		return errInvalidExchange
 	}
 
-	if c.IsSet("pair") {
+	if c.IsSet("pairs") {
 		pairs = c.String("pairs")
 	} else {
 		pairs = c.Args().Get(1)

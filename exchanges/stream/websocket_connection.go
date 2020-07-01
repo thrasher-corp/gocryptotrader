@@ -64,7 +64,9 @@ func (w *WebsocketConnection) SendMessageReturnResponse(signature, request inter
 		return payload, nil
 	case <-timer.C:
 		timer.Stop()
-		return nil, fmt.Errorf("timeout waiting for response with signature: %v", signature)
+		return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with signature: %v",
+			w.ExchangeName,
+			signature)
 	}
 }
 
@@ -84,19 +86,23 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)
 	if err != nil {
 		if conStatus != nil {
-			return fmt.Errorf("%v %v %v Error: %v",
+			return fmt.Errorf("%s websocket connection: %v %v %v Error: %v",
+				w.ExchangeName,
 				w.URL,
 				conStatus,
 				conStatus.StatusCode,
 				err)
 		}
-		return fmt.Errorf("%v Error: %v", w.URL, err)
+		return fmt.Errorf("%s websocket connection: %v Error: %v",
+			w.ExchangeName,
+			w.URL,
+			err)
 	}
 	defer conStatus.Body.Close()
 
 	if w.Verbose {
 		log.Infof(log.WebsocketMgr,
-			"%v Websocket connected to %s",
+			"%v Websocket connected to %s\n",
 			w.ExchangeName,
 			w.URL)
 	}
@@ -111,7 +117,7 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 // SendJSONMessage sends a JSON encoded message over the connection
 func (w *WebsocketConnection) SendJSONMessage(data interface{}) error {
 	if !w.IsConnected() {
-		return fmt.Errorf("%v cannot send message to a disconnected websocket",
+		return fmt.Errorf("%s websocket connection: cannot send message to a disconnected websocket",
 			w.ExchangeName)
 	}
 
@@ -120,13 +126,15 @@ func (w *WebsocketConnection) SendJSONMessage(data interface{}) error {
 
 	if w.Verbose {
 		log.Debugf(log.WebsocketMgr,
-			"%v sending message to websocket %+v", w.ExchangeName, data)
+			"%s websocket connection: sending message to websocket %+v\n",
+			w.ExchangeName,
+			data)
 	}
 
 	if w.RateLimit > 0 {
 		time.Sleep(time.Duration(w.RateLimit) * time.Millisecond)
 		if !w.IsConnected() {
-			return fmt.Errorf("%v cannot send message to a disconnected websocket",
+			return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket",
 				w.ExchangeName)
 		}
 	}
@@ -136,7 +144,7 @@ func (w *WebsocketConnection) SendJSONMessage(data interface{}) error {
 // SendRawMessage sends a message over the connection without JSON encoding it
 func (w *WebsocketConnection) SendRawMessage(messageType int, message []byte) error {
 	if !w.IsConnected() {
-		return fmt.Errorf("%v cannot send message to a disconnected websocket",
+		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket",
 			w.ExchangeName)
 	}
 
@@ -145,14 +153,14 @@ func (w *WebsocketConnection) SendRawMessage(messageType int, message []byte) er
 
 	if w.Verbose {
 		log.Debugf(log.WebsocketMgr,
-			"%v sending message to websocket %s",
+			"%v websocket connection: sending message [%s]\n",
 			w.ExchangeName,
 			message)
 	}
 	if w.RateLimit > 0 {
 		time.Sleep(time.Duration(w.RateLimit) * time.Millisecond)
 		if !w.IsConnected() {
-			return fmt.Errorf("%v cannot send message to a disconnected websocket",
+			return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket",
 				w.ExchangeName)
 		}
 	}
@@ -190,7 +198,7 @@ func (w *WebsocketConnection) SetupPingHandler(handler PingHandler) {
 				err := w.SendRawMessage(handler.MessageType, handler.Message)
 				if err != nil {
 					log.Errorf(log.WebsocketMgr,
-						"%v failed to send message to websocket %s",
+						"%v websocket connection: failed to send message [%s]",
 						w.ExchangeName,
 						handler.Message)
 					return
@@ -237,7 +245,7 @@ func (w *WebsocketConnection) ReadMessage() Response {
 		standardMessage, err = w.parseBinaryResponse(resp)
 		if err != nil {
 			log.Errorf(log.WebsocketMgr,
-				"%v Websocket parseBinaryResponse error: %v",
+				"%v websocket connection: parseBinaryResponse error: %v",
 				w.ExchangeName,
 				err)
 			return Response{}
@@ -245,7 +253,7 @@ func (w *WebsocketConnection) ReadMessage() Response {
 	}
 	if w.Verbose {
 		log.Debugf(log.WebsocketMgr,
-			"%v Websocket message received: %v",
+			"%v websocket connection: message received: %v",
 			w.ExchangeName,
 			string(standardMessage))
 	}

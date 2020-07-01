@@ -15,7 +15,7 @@ const (
 	manageSubscriptionsDelay = 5 * time.Second
 	// connection monitor time delays and limits
 	connectionMonitorDelay             = 2 * time.Second
-	WebsocketNotAuthenticatedUsingRest = "%v - Websocket not authenticated, using REST"
+	WebsocketNotAuthenticatedUsingRest = "%v - Websocket not authenticated, using REST\n"
 	Ping                               = "ping"
 	Pong                               = "pong"
 	UnhandledMessage                   = " - Unhandled websocket message: "
