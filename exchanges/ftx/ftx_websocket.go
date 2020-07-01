@@ -417,7 +417,7 @@ func (f *FTX) wsResubToOB(p currency.Pair) {
 
 // WsProcessPartialOB creates an OB from websocket data
 func (f *FTX) WsProcessPartialOB(data WsOrderbookData, p currency.Pair, a asset.Item) error {
-	signedChecksum := f.CalcPartialOBChecksum(data)
+	signedChecksum := f.CalcPartialOBChecksum(&data)
 	if signedChecksum != data.Checksum {
 		return fmt.Errorf("%s channel: %s. Orderbook partial for %v checksum invalid",
 			f.Name,
@@ -460,7 +460,7 @@ func (f *FTX) WsProcessPartialOB(data WsOrderbookData, p currency.Pair, a asset.
 }
 
 // CalcPartialOBChecksum calculates checksum of partial OB data received from WS
-func (f *FTX) CalcPartialOBChecksum(data WsOrderbookData) int64 {
+func (f *FTX) CalcPartialOBChecksum(data *WsOrderbookData) int64 {
 	var checksum strings.Builder
 	var price, amount string
 	for i := 0; i < 100; i++ {
