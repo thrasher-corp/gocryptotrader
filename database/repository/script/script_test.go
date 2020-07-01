@@ -4,16 +4,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
-	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
-	"github.com/thrasher-corp/goose"
 	"github.com/volatiletech/null"
 )
 
@@ -73,12 +70,6 @@ func TestScript(t *testing.T) {
 			dbConn, err := testhelpers.ConnectToDatabase(test.config)
 			if err != nil {
 				t.Fatal(err)
-			}
-
-			path := filepath.Join("..", "..", "migrations")
-			err = goose.Run("up", dbConn.SQL, repository.GetSQLDialect(), path, "")
-			if err != nil {
-				t.Fatalf("failed to run migrations %v", err)
 			}
 
 			if test.runner != nil {

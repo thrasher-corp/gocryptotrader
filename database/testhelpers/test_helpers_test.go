@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -19,6 +20,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
+	MigrationDir = filepath.Join("..","migrations")
 	t := m.Run()
 
 	err = os.RemoveAll(TempDir)

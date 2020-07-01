@@ -1,13 +1,18 @@
 package testhelpers
 
 import (
+	"database/sql"
 	"os"
+	"path/filepath"
 	"reflect"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	psqlConn "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	sqliteConn "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
+	"github.com/thrasher-corp/gocryptotrader/database/repository"
+	"github.com/thrasher-corp/gocryptotrader/database/seed"
+	"github.com/thrasher-corp/goose"
 )
 
 var (
@@ -15,6 +20,8 @@ var (
 	TempDir string
 	// PostgresTestDatabase postgresql database config details
 	PostgresTestDatabase *database.Config
+
+	MigrationDir = filepath.Join("..", "..", "migrations")
 )
 
 // GetConnectionDetails returns connection details for CI or test db instances
@@ -82,7 +89,12 @@ func ConnectToDatabase(conn *database.Config) (dbConn *database.Instance, err er
 			return nil, err
 		}
 	}
-	database.DB.Connected = true
+
+	err = migrateDB(database.DB.SQL)
+	if err != nil {
+		return nil, err
+	}
+
 	return
 }
 
@@ -97,4 +109,18 @@ func CloseDatabase(conn *database.Instance) (err error) {
 // CheckValidConfig checks if database connection details are empty
 func CheckValidConfig(config *drivers.ConnectionDetails) bool {
 	return !reflect.DeepEqual(drivers.ConnectionDetails{}, *config)
+}
+
+func migrateDB(db *sql.DB) error {
+	err := goose.Run("reset", db, repository.GetSQLDialect(), MigrationDir, "")
+	if err != nil {
+		return err
+	}
+
+	err = goose.Run("up", db, repository.GetSQLDialect(), MigrationDir, "")
+	if err != nil {
+		return err
+	}
+
+	return seed.Run()
 }

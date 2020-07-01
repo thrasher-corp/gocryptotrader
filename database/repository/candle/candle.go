@@ -143,7 +143,7 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in *Candle) error {
 			Base:       in.Base,
 			Quote:      in.Quote,
 			Interval:   in.Interval,
-			Timestamp:  in.Tick[x].Timestamp.String(),
+			Timestamp:  in.Tick[x].Timestamp.Format(time.RFC3339),
 			Open:       in.Tick[x].Open,
 			High:       in.Tick[x].High,
 			Low:        in.Tick[x].Low,
