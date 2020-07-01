@@ -460,7 +460,7 @@ func (f *FTX) WsProcessPartialOB(data WsOrderbookData, p currency.Pair, a asset.
 }
 
 // CalcPartialOBChecksum calculates checksum of partial OB data received from WS
-func (f *FTX) CalcPartialOBChecksum(data WsOrderbookData) int {
+func (f *FTX) CalcPartialOBChecksum(data WsOrderbookData) int64 {
 	var checksum strings.Builder
 	var price, amount string
 	for i := 0; i < 100; i++ {
@@ -476,11 +476,11 @@ func (f *FTX) CalcPartialOBChecksum(data WsOrderbookData) int {
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), ":")
-	return int(crc32.ChecksumIEEE([]byte(checksumStr)))
+	return int64(crc32.ChecksumIEEE([]byte(checksumStr)))
 }
 
 // CalcUpdateOBChecksum calculates checksum of update OB data received from WS
-func (f *FTX) CalcUpdateOBChecksum(data *orderbook.Base) int {
+func (f *FTX) CalcUpdateOBChecksum(data *orderbook.Base) int64 {
 	var checksum strings.Builder
 	var price, amount string
 	for i := 0; i < 100; i++ {
@@ -496,7 +496,7 @@ func (f *FTX) CalcUpdateOBChecksum(data *orderbook.Base) int {
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), ":")
-	return int(crc32.ChecksumIEEE([]byte(checksumStr)))
+	return int64(crc32.ChecksumIEEE([]byte(checksumStr)))
 }
 
 func checksumParseNumber(num float64) string {

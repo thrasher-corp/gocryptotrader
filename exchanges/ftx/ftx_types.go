@@ -547,7 +547,7 @@ type WsOrderbookData struct {
 	Bids     [][2]float64 `json:"bids"`
 	Asks     [][2]float64 `json:"asks"`
 	Time     float64      `json:"time"`
-	Checksum int          `json:"checksum"`
+	Checksum int64        `json:"checksum"`
 }
 
 // WsOrders stores ws orders' data
