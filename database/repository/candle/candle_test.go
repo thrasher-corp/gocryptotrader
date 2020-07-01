@@ -1,13 +1,14 @@
 package candle
 
 import (
+	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	"github.com/thrasher-corp/gocryptotrader/database/seed"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
@@ -15,38 +16,18 @@ import (
 	"github.com/thrasher-corp/sqlboiler/boil"
 )
 
+var (
+	dbConn *database.Instance
+	dbIsSeeded bool
+)
+
 func TestMain(m *testing.M) {
 	var err error
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
 	testhelpers.TempDir, err = ioutil.TempDir("", "gct-temp")
 	if err != nil {
-		fmt.Printf("failed to create temp file: %v", err)
+		fmt.Printf("failed tand o create temp file: %v", err)
 		os.Exit(1)
-	}
-
-	dbConn, err := testhelpers.ConnectToDatabase(testhelpers.PostgresTestDatabase)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(2)
-	}
-
-	path := filepath.Join("..", "..", "migrations")
-	err = goose.Run("reset", dbConn.SQL, repository.GetSQLDialect(), path, "")
-	if err != nil {
-		fmt.Printf("failed to reset database %v", err)
-		os.Exit(2)
-	}
-
-	err = goose.Run("up", dbConn.SQL, repository.GetSQLDialect(), path, "")
-	if err != nil {
-		fmt.Printf("failed to run migrations %v", err)
-		os.Exit(2)
-	}
-
-	err = seed.Run()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(2)
 	}
 
 	t := m.Run()
@@ -75,4 +56,19 @@ func TestSeries(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log(ret)
+}
+
+func seedDB(db *sql.DB, migrationDir string) error {
+	// path := filepath.Join("..", "..", "migrations")
+	err := goose.Run("reset", db, repository.GetSQLDialect(), migrationDir, "")
+	if err != nil {
+		return err
+	}
+
+	err = goose.Run("up", db, repository.GetSQLDialect(), migrationDir, "")
+	if err != nil {
+		return err
+	}
+
+	return seed.Run()
 }
