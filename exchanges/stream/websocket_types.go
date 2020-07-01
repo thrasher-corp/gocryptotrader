@@ -36,7 +36,9 @@ type Websocket struct {
 	trafficTimeout               time.Duration
 	proxyAddr                    string
 	defaultURL                   string
+	defaultURLAuth               string
 	runningURL                   string
+	runningURLAuth               string
 	exchangeName                 string
 	m                            sync.Mutex
 	connectionMutex              sync.RWMutex
@@ -64,7 +66,7 @@ type Websocket struct {
 
 	// shutdown synchronises shutdown event across routines
 	ShutdownC chan struct{}
-	Wg        sync.WaitGroup
+	Wg        *sync.WaitGroup
 
 	// Orderbook is a local buffer of orderbooks
 	Orderbook buffer.Orderbook
@@ -91,6 +93,7 @@ type WebsocketSetup struct {
 	DefaultURL                       string
 	ExchangeName                     string
 	RunningURL                       string
+	RunningURLAuth                   string
 	Connector                        func() error
 	Subscriber                       func([]ChannelSubscription) error
 	UnSubscriber                     func([]ChannelSubscription) error

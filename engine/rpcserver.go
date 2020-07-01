@@ -2141,7 +2141,7 @@ func (s *RPCServer) WebsocketSetURL(_ context.Context, r *gctrpc.WebsocketSetURL
 		return nil, fmt.Errorf("websocket not supported for exchange %s", r.Exchange)
 	}
 
-	err = w.SetWebsocketURL(r.Url, true)
+	err = w.SetWebsocketURL(r.Url, false, true)
 	if err != nil {
 		return nil, err
 	}

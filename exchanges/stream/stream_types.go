@@ -21,6 +21,7 @@ type Connection interface {
 	SendRawMessage(messageType int, message []byte) error
 	SetURL(string)
 	SetProxy(string)
+	GetURL() string
 	Shutdown() error
 }
 

@@ -328,3 +328,8 @@ func (w *WebsocketConnection) SetURL(url string) {
 func (w *WebsocketConnection) SetProxy(proxy string) {
 	w.ProxyURL = proxy
 }
+
+// GetURL returns the connection URL
+func (w *WebsocketConnection) GetURL() string {
+	return w.URL
+}

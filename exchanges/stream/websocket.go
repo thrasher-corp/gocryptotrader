@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -103,12 +104,20 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 	if setupData.RunningURL == "" {
 		return errors.New("running URL cannot be nil")
 	}
-	err := w.SetWebsocketURL(setupData.RunningURL, false)
+	err := w.SetWebsocketURL(setupData.RunningURL, false, false)
 	if err != nil {
 		return err
 	}
 
+	if setupData.RunningURLAuth != "" {
+		err := w.SetWebsocketURL(setupData.RunningURLAuth, true, false)
+		if err != nil {
+			return err
+		}
+	}
+
 	w.ShutdownC = make(chan struct{})
+	w.Wg = new(sync.WaitGroup)
 
 	w.SetCanUseAuthenticatedEndpoints(setupData.AuthenticatedWebsocketAPISupport)
 	err = w.Initialise()
@@ -160,8 +169,8 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 		ResponseMaxLimit:  c.ResponseMaxLimit,
 		Traffic:           w.TrafficAlert,
 		readMessageErrors: w.readMessageErrors,
-		ShutdownC:         make(chan struct{}),
-		Wg:                &w.Wg,
+		ShutdownC:         w.ShutdownC,
+		Wg:                w.Wg,
 		Match:             w.Match,
 	}
 
@@ -653,32 +662,47 @@ func (w *Websocket) CanUseAuthenticatedWebsocketForWrapper() bool {
 }
 
 // SetWebsocketURL sets websocket URL and can refresh underlying connections
-func (w *Websocket) SetWebsocketURL(websocketURL string, reconnect bool) error {
-	if websocketURL == "" || websocketURL == config.WebsocketURLNonDefaultMessage {
-		w.runningURL = w.defaultURL
+func (w *Websocket) SetWebsocketURL(url string, auth, reconnect bool) error {
+	defaultVals := url == "" || url == config.WebsocketURLNonDefaultMessage
+	if auth {
+		if defaultVals {
+			url = w.defaultURLAuth
+		}
+		w.runningURLAuth = url
+
+		if w.verbose {
+			log.Debugf(log.WebsocketMgr,
+				"%s websocket: setting authenticated websocket URL: %s\n",
+				w.exchangeName,
+				url)
+		}
+
+		if w.AuthConn != nil {
+			w.AuthConn.SetURL(url)
+		}
 	} else {
-		w.runningURL = websocketURL
-	}
+		if defaultVals {
+			url = w.defaultURL
+		}
+		w.runningURLAuth = url
 
-	if w.verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s websocket: setting websocket URL: %s\n",
-			w.exchangeName,
-			websocketURL)
-	}
+		if w.verbose {
+			log.Debugf(log.WebsocketMgr,
+				"%s websocket: setting unauthenticated websocket URL: %s\n",
+				w.exchangeName,
+				url)
+		}
 
-	if w.Conn != nil {
-		w.Conn.SetURL(w.runningURL)
-	}
-	if w.AuthConn != nil {
-		w.AuthConn.SetURL(w.runningURL)
+		if w.Conn != nil {
+			w.Conn.SetURL(url)
+		}
 	}
 
 	if w.IsConnected() && reconnect {
-		log.Debugf(log.ExchangeSys,
+		log.Debugf(log.WebsocketMgr,
 			"%s websocket: flushing websocket connection to %s\n",
 			w.exchangeName,
-			websocketURL)
+			url)
 		return w.Shutdown()
 	}
 	return nil

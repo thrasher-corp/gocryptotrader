@@ -177,6 +177,7 @@ func (k *Kraken) Setup(exch *config.ExchangeConfig) error {
 		RateLimit:            krakenWsRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL:                  krakenWSURL,
 	})
 	if err != nil {
 		return err

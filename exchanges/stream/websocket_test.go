@@ -188,7 +188,7 @@ func TestWebsocket(t *testing.T) {
 	if err != nil {
 		t.Fatal("WebsocketSetup", err)
 	}
-	err = ws.SetWebsocketURL("ws://demos.kaazing.com/echo", false)
+	err = ws.SetWebsocketURL("ws://demos.kaazing.com/echo", false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
