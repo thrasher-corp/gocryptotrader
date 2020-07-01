@@ -385,7 +385,7 @@ func (b *Bitstamp) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bitstamp) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
+func (b *Bitstamp) GetExchangeHistory(*trade.HistoryRequest) ([]trade.History, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -718,7 +718,7 @@ func (b *Bitstamp) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		start,
 		end,
 		b.FormatExchangeKlineInterval(interval),
-		"1000",
+		strconv.FormatInt(int64(b.Features.Enabled.Kline.ResultLimit), 10),
 	)
 
 	if err != nil {
@@ -726,18 +726,21 @@ func (b *Bitstamp) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 	}
 
 	for x := range candles.Data.OHLCV {
-		var tempCandle kline.Candle
-
-		tempCandle.Time = time.Unix(candles.Data.OHLCV[x].Timestamp, 0)
-		tempCandle.Open = candles.Data.OHLCV[x].Open
-		tempCandle.High = candles.Data.OHLCV[x].High
-		tempCandle.Low = candles.Data.OHLCV[x].Low
-		tempCandle.Close = candles.Data.OHLCV[x].Close
-		tempCandle.Volume = candles.Data.OHLCV[x].Volume
-
-		ret.Candles = append(ret.Candles, tempCandle)
+		if time.Unix(candles.Data.OHLCV[x].Timestamp, 0).Before(start) ||
+			time.Unix(candles.Data.OHLCV[x].Timestamp, 0).After(end) {
+			continue
+		}
+		ret.Candles = append(ret.Candles, kline.Candle{
+			Time:   time.Unix(candles.Data.OHLCV[x].Timestamp, 0),
+			Open:   candles.Data.OHLCV[x].Open,
+			High:   candles.Data.OHLCV[x].High,
+			Low:    candles.Data.OHLCV[x].Low,
+			Close:  candles.Data.OHLCV[x].Close,
+			Volume: candles.Data.OHLCV[x].Volume,
+		})
 	}
 
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
 
@@ -763,25 +766,28 @@ func (b *Bitstamp) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 			dates[x].Start,
 			dates[x].End,
 			b.FormatExchangeKlineInterval(interval),
-			"1000",
+			strconv.FormatInt(int64(b.Features.Enabled.Kline.ResultLimit), 10),
 		)
 		if err != nil {
 			return kline.Item{}, err
 		}
 
 		for i := range candles.Data.OHLCV {
-			var tempCandle kline.Candle
-
-			tempCandle.Time = time.Unix(candles.Data.OHLCV[i].Timestamp, 0)
-			tempCandle.Open = candles.Data.OHLCV[i].Open
-			tempCandle.High = candles.Data.OHLCV[i].High
-			tempCandle.Low = candles.Data.OHLCV[i].Low
-			tempCandle.Close = candles.Data.OHLCV[i].Close
-			tempCandle.Volume = candles.Data.OHLCV[i].Volume
-
-			ret.Candles = append(ret.Candles, tempCandle)
+			if time.Unix(candles.Data.OHLCV[i].Timestamp, 0).Before(start) ||
+				time.Unix(candles.Data.OHLCV[i].Timestamp, 0).After(end) {
+				continue
+			}
+			ret.Candles = append(ret.Candles, kline.Candle{
+				Time:   time.Unix(candles.Data.OHLCV[i].Timestamp, 0),
+				Open:   candles.Data.OHLCV[i].Open,
+				High:   candles.Data.OHLCV[i].High,
+				Low:    candles.Data.OHLCV[i].Low,
+				Close:  candles.Data.OHLCV[i].Close,
+				Volume: candles.Data.OHLCV[i].Volume,
+			})
 		}
 	}
 
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

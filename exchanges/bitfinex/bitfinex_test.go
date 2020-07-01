@@ -154,7 +154,7 @@ func TestGetLends(t *testing.T) {
 
 func TestGetCandles(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetCandles("fUSD", "1m", 0, 0, 10, true, false)
+	_, err := b.GetCandles("fUSD", "1m", 0, 0, 10, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1227,9 +1227,9 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair := currency.NewPairFromString("tTRXETH")
+	currencyPair := currency.NewPairFromString("TBTCUSD")
 	startTime := time.Now().Add(-time.Hour * 24)
-	_, err := b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	_, err := b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1241,24 +1241,29 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 }
 
 func TestFixCasing(t *testing.T) {
-	ret := fixCasing(currency.NewPairFromString("TBTCUSD"), asset.Spot)
+	ret := b.fixCasing(currency.NewPairFromString("BTCUSD"), asset.Spot)
 	if ret != "tBTCUSD" {
-		t.Fatalf("unexpected result: %v", ret)
+		t.Errorf("unexpected result: %v", ret)
 	}
 
-	ret = fixCasing(currency.NewPairFromString("fBTCUSD"), asset.Margin)
+	ret = b.fixCasing(currency.NewPairFromString("BTCUSD"), asset.Margin)
 	if ret != "fBTCUSD" {
-		t.Fatalf("unexpected result: %v", ret)
+		t.Errorf("unexpected result: %v", ret)
 	}
 
-	ret = fixCasing(currency.NewPairFromString("BTCUSD"), asset.Spot)
+	ret = b.fixCasing(currency.NewPairFromString("BTCUSD"), asset.Spot)
 	if ret != "tBTCUSD" {
-		t.Fatalf("unexpected result: %v", ret)
+		t.Errorf("unexpected result: %v", ret)
 	}
 
-	ret = fixCasing(currency.NewPairFromString("FUNETH"), asset.Spot)
+	ret = b.fixCasing(currency.NewPairFromString("FUNETH"), asset.Spot)
 	if ret != "tFUNETH" {
-		t.Fatalf("unexpected result: %v", ret)
+		t.Errorf("unexpected result: %v", ret)
+	}
+
+	ret = b.fixCasing(currency.NewPairFromString("TNBUSD"), asset.Spot)
+	if ret != "tTNBUSD" {
+		t.Errorf("unexpected result: %v", ret)
 	}
 }
 

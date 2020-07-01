@@ -108,7 +108,7 @@ func (h *FakePassingExchange) SetPairs(_ currency.Pairs, _ asset.Item, _ bool) e
 	return nil
 }
 func (h *FakePassingExchange) GetAssetTypes() asset.Items { return asset.Items{asset.Spot} }
-func (h *FakePassingExchange) GetExchangeHistory(_ *trade.HistoryRequest) ([]trade.History, error) {
+func (h *FakePassingExchange) GetExchangeHistory(*trade.HistoryRequest) ([]trade.History, error) {
 	return nil, nil
 }
 func (h *FakePassingExchange) SupportsAutoPairUpdates() bool        { return true }

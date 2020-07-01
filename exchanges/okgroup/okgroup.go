@@ -378,7 +378,7 @@ func (o *OKGroup) GetMarketData(request *GetMarketDataRequest) (resp GetMarketDa
 		requestType = okGroupFuturesTradingSubSection
 	case asset.PerpetualSwap:
 		requestType = oKGroupSwapTradingSubSection
-	case asset.Index:
+	default:
 		return nil, errors.New("asset not supported")
 	}
 	return resp, o.SendHTTPRequest(http.MethodGet, requestType, requestURL, nil, &resp, false)

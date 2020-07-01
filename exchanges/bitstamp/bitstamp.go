@@ -586,7 +586,7 @@ func (b *Bitstamp) OHLC(currency string, start, end time.Time, step, limit strin
 	v.Add("limit", limit)
 	v.Add("step", step)
 
-	if start.After(end) {
+	if start.After(end) && !end.IsZero() {
 		return resp, errors.New("start time cannot be after end time")
 	}
 	if !start.IsZero() {

@@ -506,6 +506,8 @@ func (o *OKEX) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end t
 		}
 		ret.Candles = append(ret.Candles, tempCandle)
 	}
+
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
 
@@ -576,5 +578,7 @@ func (o *OKEX) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, star
 			ret.Candles = append(ret.Candles, tempCandle)
 		}
 	}
+
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

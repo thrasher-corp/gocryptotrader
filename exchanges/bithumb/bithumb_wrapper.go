@@ -330,7 +330,7 @@ func (b *Bithumb) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Bithumb) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
+func (b *Bithumb) GetExchangeHistory(*trade.HistoryRequest) ([]trade.History, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -695,6 +695,7 @@ func (b *Bithumb) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 		ret.Candles = append(ret.Candles, tempCandle)
 	}
 
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
 

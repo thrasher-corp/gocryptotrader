@@ -784,6 +784,7 @@ func (l *Lbank) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end 
 		})
 	}
 
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
 
@@ -823,5 +824,7 @@ func (l *Lbank) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, sta
 			})
 		}
 	}
+
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

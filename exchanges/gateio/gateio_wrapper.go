@@ -756,6 +756,7 @@ func (g *Gateio) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 	klineData.Pair = pair
 	klineData.Asset = a
 
+	klineData.SortCandlesByTimestamp(false)
 	return klineData, nil
 }
 

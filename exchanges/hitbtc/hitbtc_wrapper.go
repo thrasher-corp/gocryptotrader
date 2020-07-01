@@ -405,7 +405,7 @@ func (h *HitBTC) GetFundingHistory() ([]exchange.FundHistory, error) {
 }
 
 // GetExchangeHistory returns historic trade data since exchange opening.
-func (h *HitBTC) GetExchangeHistory(req *trade.HistoryRequest) ([]trade.History, error) {
+func (h *HitBTC) GetExchangeHistory(*trade.HistoryRequest) ([]trade.History, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -667,9 +667,10 @@ func (h *HitBTC) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 			Interval: interval,
 		}
 	}
-	data, err := h.GetCandles(h.FormatExchangeCurrency(pair, a).String(), "1000",
+	data, err := h.GetCandles(h.FormatExchangeCurrency(pair, a).String(),
+		strconv.FormatInt(int64(h.Features.Enabled.Kline.ResultLimit), 10),
 		h.FormatExchangeKlineInterval(interval),
-		start.Format(time.RFC3339), end.Format(time.RFC3339))
+		start, end)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -690,6 +691,8 @@ func (h *HitBTC) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 			Volume: data[x].Volume,
 		})
 	}
+
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }
 
@@ -712,7 +715,7 @@ func (h *HitBTC) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 	for y := range dates {
 		data, err := h.GetCandles(h.FormatExchangeCurrency(pair, a).String(), "1000",
 			h.FormatExchangeKlineInterval(interval),
-			dates[y].Start.Format(time.RFC3339), dates[y].End.Format(time.RFC3339))
+			dates[y].Start, dates[y].End)
 		if err != nil {
 			return kline.Item{}, err
 		}
@@ -728,5 +731,7 @@ func (h *HitBTC) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 			})
 		}
 	}
+
+	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

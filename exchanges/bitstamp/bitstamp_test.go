@@ -682,7 +682,7 @@ func TestBitstamp_GetHistoricCandles(t *testing.T) {
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 
-	_, err := b.GetHistoricCandles(currencyPair, asset.Spot, start, end, kline.OneMin)
+	_, err := b.GetHistoricCandles(currencyPair, asset.Spot, start, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}

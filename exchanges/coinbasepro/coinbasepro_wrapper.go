@@ -719,7 +719,10 @@ func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, e
 		Interval: interval,
 	}
 
-	gran, _ := strconv.ParseInt(c.FormatExchangeKlineInterval(interval), 10, 64)
+	gran, err := strconv.ParseInt(c.FormatExchangeKlineInterval(interval), 10, 64)
+	if err != nil {
+		return kline.Item{}, err
+	}
 	history, err := c.GetHistoricRates(c.FormatExchangeCurrency(p, a).String(),
 		start.Format(time.RFC3339),
 		end.Format(time.RFC3339),
@@ -739,6 +742,7 @@ func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, e
 		})
 	}
 
+	candles.SortCandlesByTimestamp(false)
 	return candles, nil
 }
 
@@ -757,12 +761,16 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, 
 		Interval: interval,
 	}
 
+	gran, err := strconv.ParseInt(c.FormatExchangeKlineInterval(interval), 10, 64)
+	if err != nil {
+		return kline.Item{}, err
+	}
 	dates := kline.CalcDateRanges(start, end, interval, c.Features.Enabled.Kline.ResultLimit)
 	for x := range dates {
 		history, err := c.GetHistoricRates(c.FormatExchangeCurrency(p, a).String(),
 			dates[x].Start.Format(time.RFC3339),
 			dates[x].End.Format(time.RFC3339),
-			int64(interval.Duration().Seconds()))
+			gran)
 		if err != nil {
 			return kline.Item{}, err
 		}

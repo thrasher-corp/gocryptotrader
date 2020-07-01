@@ -168,6 +168,10 @@ func (b *BTCMarkets) GetMarketCandles(marketID, timeWindow string, from, to time
 	}
 	params := url.Values{}
 	params.Set("timeWindow", timeWindow)
+
+	if from.After(to) && !to.IsZero() {
+		return out, errors.New("start time cannot be after end time")
+	}
 	if !from.IsZero() {
 		params.Set("from", from.UTC().Format(time.RFC3339))
 	}
