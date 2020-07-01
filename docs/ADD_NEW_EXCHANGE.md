@@ -251,15 +251,28 @@ var Exchanges = []string{
     "zb",
 ```
 
-#### Increment the number of supported exchanges in the [exchanges test file](../exchanges/exchange_test.go):
+#### Increment the default number of supported exchanges in [config/config_test.go](../config/config_test.go):
 ```go
-func TestExchange_Exchanges(t *testing.T) {
-	t.Parallel()
-	x := exchangeTest.Exchanges(false)
-	y := len(x)
-	expected := 28 // modify this value to match the total count of exchanges
-	if y != expected {
-     t.Fatalf("expected %v received %v", expected , y)
+func TestGetEnabledExchanges(t *testing.T) {
+	cfg := GetConfig()
+	err := cfg.LoadConfig(TestFile, true)
+	if err != nil {
+		t.Errorf(
+			"TestGetEnabledExchanges. LoadConfig Error: %s", err.Error(),
+		)
+	}
+
+	exchanges := cfg.GetEnabledExchanges()
+	if len(exchanges) != defaultEnabledExchanges { // modify the value of defaultEnabledExchanges at the top of the config_test.go file to match the total count of exchanges
+		t.Error(
+			"TestGetEnabledExchanges. Enabled exchanges value mismatch",
+		)
+	}
+
+	if !common.StringDataCompare(exchanges, "Bitfinex") {
+		t.Error(
+			"TestGetEnabledExchanges. Expected exchange Bitfinex not found",
+		)
 	}
 }
 ```
