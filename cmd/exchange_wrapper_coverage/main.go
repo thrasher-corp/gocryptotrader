@@ -12,7 +12,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -118,8 +117,7 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "GetAccountInfo")
 	}
 
-	th := &trade.HistoryRequest{}
-	_, err = e.GetExchangeHistory(th)
+	_, err = e.GetExchangeHistory(p, assetType, time.Time{}, time.Time{})
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "GetExchangeHistory")
 	}

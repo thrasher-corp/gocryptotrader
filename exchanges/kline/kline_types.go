@@ -10,32 +10,35 @@ import (
 
 // Consts here define basic time intervals
 const (
-	OneMin     = Interval(time.Minute)
-	ThreeMin   = 3 * OneMin
-	FiveMin    = 5 * OneMin
-	TenMin     = 10 * OneMin
-	FifteenMin = 15 * OneMin
-	ThirtyMin  = 30 * OneMin
-	OneHour    = Interval(time.Hour)
-	TwoHour    = 2 * OneHour
-	FourHour   = 4 * OneHour
-	SixHour    = 6 * OneHour
-	EightHour  = 8 * OneHour
-	TwelveHour = 12 * OneHour
-	OneDay     = 24 * OneHour
-	ThreeDay   = 3 * OneDay
-	SevenDay   = 7 * OneDay
-	FifteenDay = 15 * OneDay
-	OneWeek    = 7 * OneDay
-	TwoWeek    = 2 * OneWeek
-	OneMonth   = 31 * OneDay
-	OneYear    = 365 * OneDay
+	FifteenSecond = Interval(15 * time.Second)
+	OneMin        = Interval(time.Minute)
+	ThreeMin      = 3 * OneMin
+	FiveMin       = 5 * OneMin
+	TenMin        = 10 * OneMin
+	FifteenMin    = 15 * OneMin
+	ThirtyMin     = 30 * OneMin
+	OneHour       = Interval(time.Hour)
+	TwoHour       = 2 * OneHour
+	FourHour      = 4 * OneHour
+	SixHour       = 6 * OneHour
+	EightHour     = 8 * OneHour
+	TwelveHour    = 12 * OneHour
+	OneDay        = 24 * OneHour
+	ThreeDay      = 3 * OneDay
+	SevenDay      = 7 * OneDay
+	FifteenDay    = 15 * OneDay
+	OneWeek       = 7 * OneDay
+	TwoWeek       = 2 * OneWeek
+	OneMonth      = 31 * OneDay
+	OneYear       = 365 * OneDay
 )
 
-// ErrUnsupportedInterval locale for an unsupported interval
-const ErrUnsupportedInterval = "%s interval unsupported by exchange"
-
-const ErrRequestExceedsExchangeLimits = "requested data would exceed exchange limits please lower range or use GetHistoricCandlesEx"
+const (
+	// ErrUnsupportedInterval locale for an unsupported interval
+	ErrUnsupportedInterval = "%s interval unsupported by exchange"
+	// ErrRequestExceedsExchangeLimits locale for exceeding rate limits message
+	ErrRequestExceedsExchangeLimits = "requested data would exceed exchange limits please lower range or use GetHistoricCandlesEx"
+)
 
 // Item holds all the relevant information for internal kline elements
 type Item struct {
@@ -62,6 +65,7 @@ type ExchangeCapabilitiesSupported struct {
 	DateRanges bool
 }
 
+// ExchangeCapabilitiesEnabled all kline related exchange enabled options
 type ExchangeCapabilitiesEnabled struct {
 	Intervals   map[string]bool `json:"intervals,omitempty"`
 	ResultLimit uint32

@@ -3996,8 +3996,7 @@ var getHistoricCandlesCommand = cli.Command{
 
 func getHistoricCandles(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "gethistoriccandles")
-		return nil
+		return cli.ShowCommandHelp(c, "gethistoriccandles")
 	}
 
 	var exchangeName string
@@ -4130,8 +4129,7 @@ var getHistoricCandlesExtendedCommand = cli.Command{
 
 func getHistoricCandlesExtended(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
-		cli.ShowCommandHelp(c, "gethistoriccandleextended")
-		return nil
+		return cli.ShowCommandHelp(c, "gethistoriccandlesextended")
 	}
 
 	var exchangeName string

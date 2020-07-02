@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -433,8 +432,8 @@ func (b *Binance) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (b *Binance) GetExchangeHistory(*trade.HistoryRequest) ([]trade.History, error) {
+// GetExchangeHistory returns historic trade data within the timeframe provided.
+func (b *Binance) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -724,7 +723,7 @@ func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 		Symbol:    b.FormatExchangeCurrency(pair, a).String(),
 		StartTime: start.Unix() * 1000,
 		EndTime:   end.Unix() * 1000,
-		Limit:     1000,
+		Limit:     int(b.Features.Enabled.Kline.ResultLimit),
 	}
 
 	ret := kline.Item{
@@ -776,7 +775,7 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 			Symbol:    b.FormatExchangeCurrency(pair, a).String(),
 			StartTime: dates[x].Start.UTC().Unix() * 1000,
 			EndTime:   dates[x].End.UTC().Unix() * 1000,
-			Limit:     1000,
+			Limit:     int(b.Features.Enabled.Kline.ResultLimit),
 		}
 
 		candles, err := b.GetSpotKline(req)

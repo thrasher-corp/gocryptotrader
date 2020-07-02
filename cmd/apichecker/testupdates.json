@@ -47,11 +47,16 @@
   },
   {
    "Name": "Binance",
-   "CheckType": "GitHub Sha Check",
+   "CheckType": "HTML String Check",
    "Data": {
-    "GitHubData": {
-     "Repo": "binance-exchange/binance-official-api-docs",
-     "Sha": "4878d48adc0075669ba85033b0e2d40c2876cf56"
+    "HTMLData": {
+     "TokenData": "h1",
+     "Key": "id",
+     "Val": "change-log",
+     "TokenDataEnd": "p",
+     "TextTokenData": "strong",
+     "CheckString": "2020-05-06",
+     "Path": "https://binance-docs.github.io/apidocs/spot/en/#change-log"
     }
    },
    "Disabled": false
@@ -422,6 +427,20 @@
      "RegExp": "^20(\\d){2}/(\\d){2}/(\\d){2}$",
      "CheckString": "2020/03/05",
      "Path": "https://docs.gemini.com/rest-api/#revision-history"
+    }
+   },
+   "Disabled": false
+  },
+  {
+   "Name": "FTX",
+   "CheckType": "HTML String Check",
+   "Data": {
+    "HTMLData": {
+     "Key": "class",
+     "Val": "css-truncate css-truncate-target",
+     "TokenDataEnd": "td",
+     "CheckString": "65e8800b5c6800aad896f888b2a62afc-d29c4f140f6ca068db9970054076ba63e51a9e96bf56d570e62cdb573c86b18526296117-1c388b9ec24e52ca4537240db3f48025ec9fca7a",
+     "Path": "https://github.com/ftexchange/ftx"
     }
    },
    "Disabled": false

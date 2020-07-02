@@ -1213,7 +1213,7 @@ func TestWsNotifications(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair := currency.NewPairFromString("tBTCUSD")
+	currencyPair := currency.NewPairFromString("BTCUSD")
 	startTime := time.Now().Add(-time.Hour * 24)
 	_, err := b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
 	if err != nil {

@@ -11,7 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -89,18 +88,6 @@ func TestGetHistoricalTrades(t *testing.T) {
 	}
 	if mockTests && err == nil {
 		t.Error("Binance GetHistoricalTrades() error", err)
-	}
-}
-
-func TestExchangeHistory(t *testing.T) {
-	t.Parallel()
-	req := &trade.HistoryRequest{
-		Pair:           currency.NewPairFromString("BTCUSDT"),
-		TimestampStart: time.Now(),
-	}
-	_, err := b.GetExchangeHistory(req)
-	if err != common.ErrNotYetImplemented {
-		t.Fatal(err)
 	}
 }
 
