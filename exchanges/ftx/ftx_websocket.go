@@ -36,7 +36,6 @@ const (
 	wsPartial         = "partial"
 	subscribe         = "subscribe"
 	unsubscribe       = "unsubscribe"
-	blockPair         = "DOGE-PERP"
 )
 
 var obSuccess = make(map[currency.Pair]bool)
