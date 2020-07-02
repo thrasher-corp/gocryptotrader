@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -24,7 +25,7 @@ var defaultSetup = &WebsocketSetup{
 	WebsocketTimeout:                 time.Second * 5,
 	DefaultURL:                       "testDefaultURL",
 	ExchangeName:                     "exchangeName",
-	RunningURL:                       "testRunningURL",
+	RunningURL:                       "wss://testRunningURL",
 	Connector:                        func() error { return nil },
 	Subscriber:                       func(_ []ChannelSubscription) error { return nil },
 	UnSubscriber:                     func(_ []ChannelSubscription) error { return nil },
@@ -102,6 +103,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	ws.readMessageErrors = make(chan error)
 	ws.DataHandler = make(chan interface{})
 	ws.ShutdownC = make(chan struct{})
+	ws.Wg = new(sync.WaitGroup)
 	ws.connector = func() error { return nil }
 	ws.features = &protocol.Features{}
 	go ws.connectionMonitor()
@@ -171,7 +173,7 @@ func TestWebsocket(t *testing.T) {
 		t.Error("WebsocketSetup")
 	}
 
-	if ws.GetWebsocketURL() != "testRunningURL" {
+	if ws.GetWebsocketURL() != "wss://testRunningURL" {
 		t.Error("WebsocketSetup")
 	}
 	if ws.trafficTimeout != time.Second*5 {
@@ -383,7 +385,7 @@ func TestDial(t *testing.T) {
 			}
 			err := testData.WC.Dial(&dialer, http.Header{})
 			if err != nil {
-				if testData.Error != nil && err.Error() == testData.Error.Error() {
+				if testData.Error != nil && strings.Contains(err.Error(), testData.Error.Error()) {
 					return
 				}
 				t.Fatal(err)
@@ -429,7 +431,7 @@ func TestSendMessage(t *testing.T) {
 			}
 			err := testData.WC.Dial(&dialer, http.Header{})
 			if err != nil {
-				if testData.Error != nil && err.Error() == testData.Error.Error() {
+				if testData.Error != nil && strings.Contains(err.Error(), testData.Error.Error()) {
 					return
 				}
 				t.Fatal(err)
@@ -449,6 +451,7 @@ func TestSendMessage(t *testing.T) {
 // TestSendMessageWithResponse logic test
 func TestSendMessageWithResponse(t *testing.T) {
 	wc := &WebsocketConnection{
+		Verbose:          true,
 		URL:              "wss://echo.websocket.org",
 		ResponseMaxLimit: time.Second * 5,
 		Match:            NewMatch(),
@@ -488,7 +491,7 @@ func readMessages(wc *WebsocketConnection, t *testing.T) {
 			return
 		default:
 			resp := wc.ReadMessage()
-			if resp.Raw != nil {
+			if resp.Raw == nil {
 				t.Error("connection has closed")
 				return
 			}
@@ -675,4 +678,185 @@ func TestCheckWebsocketURL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestGetChannelDifference(t *testing.T) {
+	web := Websocket{}
+
+	newChans := []ChannelSubscription{
+		{
+			Channel: "Test1",
+		},
+		{
+			Channel: "Test2",
+		},
+		{
+			Channel: "Test3",
+		},
+	}
+	subs, unsubs := web.GetChannelDifference(newChans)
+	if len(subs) != 3 {
+		t.Fatal("error mismatch")
+	}
+
+	if len(unsubs) != 0 {
+		t.Fatal("error mismatch")
+	}
+
+	web.subscriptions = subs
+
+	flushedSubs := []ChannelSubscription{
+		{
+			Channel: "Test2",
+		},
+	}
+
+	subs, unsubs = web.GetChannelDifference(flushedSubs)
+	if len(subs) != 0 {
+		t.Fatal("error mismatch")
+	}
+	if len(unsubs) != 2 {
+		t.Fatal("error mismatch")
+	}
+
+	flushedSubs = []ChannelSubscription{
+		{
+			Channel: "Test2",
+		},
+		{
+			Channel: "Test4",
+		},
+	}
+
+	subs, unsubs = web.GetChannelDifference(flushedSubs)
+	if len(subs) != 1 {
+		t.Fatal("error mismatch")
+	}
+	if len(unsubs) != 2 {
+		t.Fatal("error mismatch")
+	}
+}
+
+// GenSubs defines a theoretical exchange with pair management
+type GenSubs struct {
+	EnabledPairs currency.Pairs
+	subscribos   []ChannelSubscription
+	unsubscribos []ChannelSubscription
+}
+
+// generateSubs default subs created from the enabled pairs list
+func (g *GenSubs) generateSubs() ([]ChannelSubscription, error) {
+	var superduperchannelsubs []ChannelSubscription
+	for i := range g.EnabledPairs {
+		superduperchannelsubs = append(superduperchannelsubs, ChannelSubscription{
+			Channel:  "TEST:" + strconv.FormatInt(int64(i), 10),
+			Currency: g.EnabledPairs[i],
+		})
+	}
+	return superduperchannelsubs, nil
+}
+
+func (g *GenSubs) SUBME(subs []ChannelSubscription) error {
+	if len(subs) == 0 {
+		return errors.New("WOW")
+	}
+	g.subscribos = subs
+	return nil
+}
+
+func (g *GenSubs) UNSUBME(unsubs []ChannelSubscription) error {
+	if len(unsubs) == 0 {
+		return errors.New("WOW")
+	}
+	g.unsubscribos = unsubs
+	return nil
+}
+
+// sneaky connect func
+func connect() error { return nil }
+
+func TestFlushChannels(t *testing.T) {
+	// Enabled pairs/setup system
+	newgen := GenSubs{EnabledPairs: []currency.Pair{
+		currency.NewPair(currency.BTC, currency.AUD),
+		currency.NewPair(currency.BTC, currency.USDT),
+	}}
+	web := Websocket{enabled: true,
+		connected:    true,
+		connector:    connect,
+		ShutdownC:    make(chan struct{}),
+		Subscriber:   newgen.SUBME,
+		Unsubscriber: newgen.UNSUBME,
+		Wg:           new(sync.WaitGroup),
+		features:     &protocol.Features{
+			// No features
+		}}
+	web.GenerateSubs = newgen.generateSubs
+	subs, err := web.GenerateSubs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	web.subscriptions = subs
+	// Disable pair and flush system
+	newgen.EnabledPairs = []currency.Pair{
+		currency.NewPair(currency.BTC, currency.AUD)}
+	err = web.FlushChannels()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	web.features.FullPayloadSubscribe = true
+	err = web.FlushChannels()
+	if err != nil {
+		t.Fatal(err)
+	}
+	web.features.FullPayloadSubscribe = false
+	web.features.Subscribe = true
+	err = web.FlushChannels()
+	if err != nil {
+		t.Fatal(err)
+	}
+	web.features.Unsubscribe = true
+	err = web.FlushChannels()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDisable(t *testing.T) {
+	web := Websocket{
+		enabled:   true,
+		connected: true,
+	}
+	err := web.Disable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = web.Disable()
+	if err == nil {
+		t.Fatal("should already be disabled")
+	}
+}
+
+func TestEnable(t *testing.T) {
+	web := Websocket{
+		connector: connect,
+		Wg:        new(sync.WaitGroup),
+	}
+	err := web.Enable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = web.Enable()
+	if err == nil {
+		t.Fatal("should already be enabled")
+	}
+}
+
+func TestSetupNewCustomConnection(t *testing.T) {
+
+}
+
+func TestSetupNewConnection(t *testing.T) {
+
 }

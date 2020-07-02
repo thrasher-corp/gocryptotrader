@@ -104,12 +104,14 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 	if setupData.RunningURL == "" {
 		return errors.New("running URL cannot be nil")
 	}
+	w.runningURL = setupData.RunningURL
 	err := w.SetWebsocketURL(setupData.RunningURL, false, false)
 	if err != nil {
 		return err
 	}
 
 	if setupData.RunningURLAuth != "" {
+		w.runningURLAuth = setupData.RunningURLAuth
 		err := w.SetWebsocketURL(setupData.RunningURLAuth, true, false)
 		if err != nil {
 			return err
@@ -251,7 +253,7 @@ func (w *Websocket) Connect() error {
 
 // Disable disables the exchange websocket protocol
 func (w *Websocket) Disable() error {
-	if !w.IsConnected() {
+	if !w.IsConnected() || !w.IsEnabled() {
 		return fmt.Errorf("websocket is already disabled for exchange %s",
 			w.exchangeName)
 	}
@@ -262,7 +264,7 @@ func (w *Websocket) Disable() error {
 
 // Enable enables the exchange websocket protocol
 func (w *Websocket) Enable() error {
-	if w.IsConnected() {
+	if w.IsConnected() || w.IsEnabled() {
 		return fmt.Errorf("websocket is already enabled for exchange %s",
 			w.exchangeName)
 	}
@@ -466,6 +468,11 @@ func (w *Websocket) FlushChannels() error {
 			}
 			return w.SubscribeToChannels(subs)
 		}
+		// FullPayloadSubscribe means that the endpoint requires all
+		// subscriptions to be sent via the websocket connection e.g. if you are
+		// subscribed to ticker and orderbook but require trades as well, you
+		// would need to send ticker, orderbook and trades channel subscription
+		// messages.
 	} else if w.features.FullPayloadSubscribe {
 		newsubs, err := w.GenerateSubs()
 		if err != nil {
