@@ -723,7 +723,7 @@ func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 		Symbol:    b.FormatExchangeCurrency(pair, a).String(),
 		StartTime: start.Unix() * 1000,
 		EndTime:   end.Unix() * 1000,
-		Limit:     1000,
+		Limit:     int(b.Features.Enabled.Kline.ResultLimit),
 	}
 
 	ret := kline.Item{
@@ -775,7 +775,7 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 			Symbol:    b.FormatExchangeCurrency(pair, a).String(),
 			StartTime: dates[x].Start.UTC().Unix() * 1000,
 			EndTime:   dates[x].End.UTC().Unix() * 1000,
-			Limit:     1000,
+			Limit:     int(b.Features.Enabled.Kline.ResultLimit),
 		}
 
 		candles, err := b.GetSpotKline(req)

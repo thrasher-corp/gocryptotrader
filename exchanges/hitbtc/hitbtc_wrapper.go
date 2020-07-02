@@ -712,7 +712,8 @@ func (h *HitBTC) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 
 	dates := kline.CalcDateRanges(start, end, interval, h.Features.Enabled.Kline.ResultLimit)
 	for y := range dates {
-		data, err := h.GetCandles(h.FormatExchangeCurrency(pair, a).String(), "1000",
+		data, err := h.GetCandles(h.FormatExchangeCurrency(pair, a).String(),
+			strconv.FormatInt(int64(h.Features.Enabled.Kline.ResultLimit), 10),
 			h.FormatExchangeKlineInterval(interval),
 			dates[y].Start, dates[y].End)
 		if err != nil {

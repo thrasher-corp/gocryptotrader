@@ -759,7 +759,8 @@ func (l *Lbank) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end 
 	}
 
 	data, err := l.GetKlines(l.FormatExchangeCurrency(pair, a).String(),
-		"2880", l.FormatExchangeKlineInterval(interval),
+		strconv.FormatInt(int64(l.Features.Enabled.Kline.ResultLimit), 10),
+		l.FormatExchangeKlineInterval(interval),
 		strconv.FormatInt(start.Unix(), 10))
 	if err != nil {
 		return kline.Item{}, err
@@ -804,7 +805,8 @@ func (l *Lbank) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, sta
 	dates := kline.CalcDateRanges(start, end, interval, l.Features.Enabled.Kline.ResultLimit)
 	for x := range dates {
 		data, err := l.GetKlines(l.FormatExchangeCurrency(pair, a).String(),
-			"2880", l.FormatExchangeKlineInterval(interval),
+			strconv.FormatInt(int64(l.Features.Enabled.Kline.ResultLimit), 10),
+			l.FormatExchangeKlineInterval(interval),
 			strconv.FormatInt(dates[x].Start.UTC().Unix(), 10))
 		if err != nil {
 			return kline.Item{}, err
