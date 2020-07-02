@@ -148,13 +148,15 @@ func TestCheckChangeLog(t *testing.T) {
 
 func TestAdd(t *testing.T) {
 	t.Parallel()
-	data2 := HTMLScrapingData{TokenData: "a",
-		Key:          "href",
-		Val:          "./#change-change",
-		TokenDataEnd: "./#change-",
-		RegExp:       `./#change-\d{8}`,
-		Path:         "wrongpath"}
-	err := addExch("WrongExch", htmlScrape, data2, false)
+	data2 := HTMLScrapingData{
+		TokenData:     "h1",
+		Key:           "id",
+		Val:           "change-log",
+		TextTokenData: "strong",
+		TokenDataEnd:  "p",
+		Path:          "incorrectpath",
+	}
+	err := addExch("FalseName", htmlScrape, data2, false)
 	if err == nil {
 		t.Log("expected an error due to invalid path being parsed in")
 	}
@@ -418,8 +420,6 @@ func TestHTMLYobit(t *testing.T) {
 func TestHTMLScrapeLocalBitcoins(t *testing.T) {
 	t.Parallel()
 	data := HTMLScrapingData{TokenData: "div",
-		Key:    "class",
-		Val:    "col-md-12",
 		RegExp: `col-md-12([\s\S]*?)clearfix`,
 		Path:   "https://localbitcoins.com/api-docs/"}
 	_, err := htmlScrapeLocalBitcoins(&data)
@@ -697,6 +697,34 @@ func TestTrelloDeleteCheckItems(t *testing.T) {
 		t.Skip()
 	}
 	err := trelloDeleteCheckItem("")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestHTMLScrapeFTX(t *testing.T) {
+	data := HTMLScrapingData{
+		TokenData:    "span",
+		Key:          "class",
+		Val:          "css-truncate css-truncate-target d-block width-fit",
+		TokenDataEnd: "svg",
+		Path:         "https://github.com/ftexchange/ftx"}
+	a, err := htmlScrapeFTX(&data)
+	if err != nil || len(a) != 1 {
+		t.Error(err)
+	}
+}
+
+func TestHTMLScrapeBinance(t *testing.T) {
+	data := HTMLScrapingData{
+		TokenData:     "h1",
+		Key:           "id",
+		Val:           "change-log",
+		TextTokenData: "strong",
+		TokenDataEnd:  "p",
+		Path:          "https://binance-docs.github.io/apidocs/spot/en/#change-log",
+	}
+	_, err := htmlScrapeBinance(&data)
 	if err != nil {
 		t.Error(err)
 	}

@@ -117,7 +117,7 @@ func testWrappers(e exchange.IBotExchange) []string {
 		funcs = append(funcs, "GetAccountInfo")
 	}
 
-	_, err = e.GetExchangeHistory(p, assetType)
+	_, err = e.GetExchangeHistory(p, assetType, time.Time{}, time.Time{})
 	if err == common.ErrNotYetImplemented {
 		funcs = append(funcs, "GetExchangeHistory")
 	}
