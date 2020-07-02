@@ -1246,6 +1246,16 @@ func TestFixCasing(t *testing.T) {
 		t.Errorf("unexpected result: %v", ret)
 	}
 
+	ret = b.fixCasing(currency.NewPairFromString("TBTCUSD"), asset.Spot)
+	if ret != "tBTCUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+
+	ret = b.fixCasing(currency.NewPairFromString("tBTCUSD"), asset.Spot)
+	if ret != "tBTCUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+
 	ret = b.fixCasing(currency.NewPairFromString("BTCUSD"), asset.Margin)
 	if ret != "fBTCUSD" {
 		t.Errorf("unexpected result: %v", ret)

@@ -1535,7 +1535,7 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHisto
 			Base:      currency.NewCode(req.Pair.Base),
 			Quote:     currency.NewCode(req.Pair.Quote),
 		},
-			asset.Item(req.AssetType),
+			asset.Item(strings.ToLower(req.AssetType)),
 			time.Unix(req.Start, 0),
 			time.Unix(req.End, 0),
 			kline.Interval(req.TimeInterval))
@@ -1548,7 +1548,7 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHisto
 			Base:      currency.NewCode(req.Pair.Base),
 			Quote:     currency.NewCode(req.Pair.Quote),
 		},
-			asset.Item(req.AssetType),
+			asset.Item(strings.ToLower(req.AssetType)),
 			time.Unix(req.Start, 0),
 			time.Unix(req.End, 0),
 			kline.Interval(req.TimeInterval))
