@@ -101,7 +101,7 @@ func (b *BaseCodes) GetCurrencies() Currencies {
 }
 
 // UpdateCurrency updates or registers a currency/contract
-func (b *BaseCodes) UpdateCurrency(fullName, symbol, blockchain string, id int, r Role) error {
+func (b *BaseCodes) UpdateCurrency(fullName, symbol, blockchain string, id int, r Role) {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 	var appendNewRole bool
@@ -115,7 +115,7 @@ func (b *BaseCodes) UpdateCurrency(fullName, symbol, blockchain string, id int, 
 			b.Items[i].Role = r
 			b.Items[i].AssocChain = blockchain
 			b.Items[i].ID = id
-			return nil
+			return
 		}
 
 		if b.Items[i].Role != r {
@@ -127,7 +127,7 @@ func (b *BaseCodes) UpdateCurrency(fullName, symbol, blockchain string, id int, 
 		b.Items[i].FullName = fullName
 		b.Items[i].AssocChain = blockchain
 		b.Items[i].ID = id
-		return nil
+		return
 	}
 
 	if appendNewRole {
@@ -138,7 +138,7 @@ func (b *BaseCodes) UpdateCurrency(fullName, symbol, blockchain string, id int, 
 			AssocChain: blockchain,
 			ID:         id,
 		})
-		return nil
+		return
 	}
 
 	b.Items = append(b.Items, &Item{
@@ -148,8 +148,6 @@ func (b *BaseCodes) UpdateCurrency(fullName, symbol, blockchain string, id int, 
 		AssocChain: blockchain,
 		ID:         id,
 	})
-
-	return nil
 }
 
 // Register registers a currency from a string and returns a currency code

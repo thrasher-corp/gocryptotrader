@@ -177,10 +177,7 @@ func (s *Storage) SetupConversionRates() {
 // to the running list
 func (s *Storage) SetDefaultFiatCurrencies(c ...Code) {
 	for i := range c {
-		err := s.currencyCodes.UpdateCurrency("", c[i].String(), "", 0, Fiat)
-		if err != nil {
-			log.Errorln(log.Global, err)
-		}
+		s.currencyCodes.UpdateCurrency("", c[i].String(), "", 0, Fiat)
 	}
 	s.defaultFiatCurrencies = append(s.defaultFiatCurrencies, c...)
 	s.fiatCurrencies = append(s.fiatCurrencies, c...)
@@ -190,14 +187,11 @@ func (s *Storage) SetDefaultFiatCurrencies(c ...Code) {
 // it to the running list
 func (s *Storage) SetDefaultCryptocurrencies(c ...Code) {
 	for i := range c {
-		err := s.currencyCodes.UpdateCurrency("",
+		s.currencyCodes.UpdateCurrency("",
 			c[i].String(),
 			"",
 			0,
 			Cryptocurrency)
-		if err != nil {
-			log.Errorln(log.Global, err)
-		}
 	}
 	s.defaultCryptoCurrencies = append(s.defaultCryptoCurrencies, c...)
 	s.cryptocurrencies = append(s.cryptocurrencies, c...)
@@ -393,25 +387,19 @@ func (s *Storage) UpdateCurrencies() error {
 		}
 
 		if m[x].Platform.Symbol != "" {
-			err := s.currencyCodes.UpdateCurrency(m[x].Name,
+			s.currencyCodes.UpdateCurrency(m[x].Name,
 				m[x].Symbol,
 				m[x].Platform.Symbol,
 				m[x].ID,
 				Token)
-			if err != nil {
-				return err
-			}
 			continue
 		}
 
-		err := s.currencyCodes.UpdateCurrency(m[x].Name,
+		s.currencyCodes.UpdateCurrency(m[x].Name,
 			m[x].Symbol,
 			"",
 			m[x].ID,
 			Cryptocurrency)
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }
