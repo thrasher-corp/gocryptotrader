@@ -505,6 +505,11 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 			pairs = append(pairs, enabledPairs[x])
 		}
 
+		if len(pairsRemoved) == 0 {
+			return fmt.Errorf("check pair consistency fault for asset %s, conflict found but no pairs removed",
+				assetTypes[x])
+		}
+
 		// Flush corrupted/misspelled enabled pairs in config
 		err = c.SetPairs(exchName, assetTypes[x], true, pairs)
 		if err != nil {
