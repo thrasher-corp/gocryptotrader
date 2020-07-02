@@ -33,10 +33,12 @@ const (
 	OneYear       = 365 * OneDay
 )
 
-// ErrUnsupportedInterval locale for an unsupported interval
-const ErrUnsupportedInterval = "%s interval unsupported by exchange"
-
-const ErrRequestExceedsExchangeLimits = "requested data would exceed exchange limits please lower range or use GetHistoricCandlesEx"
+const (
+	// ErrUnsupportedInterval locale for an unsupported interval
+	ErrUnsupportedInterval = "%s interval unsupported by exchange"
+	// ErrRequestExceedsExchangeLimits locale for exceeding rate limits message
+	ErrRequestExceedsExchangeLimits = "requested data would exceed exchange limits please lower range or use GetHistoricCandlesEx"
+)
 
 // Item holds all the relevant information for internal kline elements
 type Item struct {
