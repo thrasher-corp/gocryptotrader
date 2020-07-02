@@ -668,6 +668,11 @@ func (w *Websocket) SetWebsocketURL(url string, auth, reconnect bool) error {
 		if defaultVals {
 			url = w.defaultURLAuth
 		}
+
+		err := checkWebsocketURL(url)
+		if err != nil {
+			return err
+		}
 		w.runningURLAuth = url
 
 		if w.verbose {
@@ -683,6 +688,10 @@ func (w *Websocket) SetWebsocketURL(url string, auth, reconnect bool) error {
 	} else {
 		if defaultVals {
 			url = w.defaultURL
+		}
+		err := checkWebsocketURL(url)
+		if err != nil {
+			return err
 		}
 		w.runningURLAuth = url
 
@@ -913,4 +922,13 @@ func isDisconnectionError(err error) bool {
 		return true
 	}
 	return false
+}
+
+// checkWebsocketURL checks for a valid websocket url
+func checkWebsocketURL(s string) error {
+	split := strings.Split(s, "://")
+	if len(split) < 1 || split[0] != "wss" && split[0] != "ws" {
+		return fmt.Errorf("cannot set invalid websocket URL %s", s)
+	}
+	return nil
 }

@@ -644,3 +644,35 @@ func BenchmarkGenerateMessageID_Low(b *testing.B) {
 		_ = wc.GenerateMessageID(false)
 	}
 }
+
+func TestCheckWebsocketURL(t *testing.T) {
+	err := checkWebsocketURL("")
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	err = checkWebsocketURL("wowowow:wowowowo")
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	err = checkWebsocketURL("://")
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	err = checkWebsocketURL("http://www.google.com")
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	err = checkWebsocketURL("wss://websocketconnection.place")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = checkWebsocketURL("ws://websocketconnection.place")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
