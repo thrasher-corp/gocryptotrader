@@ -116,6 +116,7 @@ type TradeHistory struct {
 	Amount      float64
 	Exchange    string
 	Type        string
+	Side        string
 	Fee         float64
 	Description string
 }

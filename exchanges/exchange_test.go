@@ -1429,7 +1429,7 @@ func TestGetAssetType(t *testing.T) {
 	b.CurrencyPairs.AssetTypes = asset.Items{asset.Spot}
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		Enabled: currency.Pairs{
+		Available: currency.Pairs{
 			currency.NewPair(currency.BTC, currency.USD),
 		},
 		ConfigFormat: &currency.PairFormat{Delimiter: "-"},

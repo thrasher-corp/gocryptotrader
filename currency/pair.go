@@ -10,6 +10,9 @@ import (
 // a Pair struct
 func NewPairDelimiter(currencyPair, delimiter string) Pair {
 	result := strings.Split(currencyPair, delimiter)
+	if len(result) > 2 {
+		result[1] = strings.Join(result[1:], delimiter)
+	}
 	return Pair{
 		Delimiter: delimiter,
 		Base:      NewCode(result[0]),

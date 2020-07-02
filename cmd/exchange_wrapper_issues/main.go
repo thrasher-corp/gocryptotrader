@@ -25,7 +25,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -417,16 +416,15 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response: jsonifyInterface([]interface{}{r7}),
 		})
 
-		r8r := &trade.HistoryRequest{}
-		var r8 []trade.History
-		r8, err = e.GetExchangeHistory(r8r)
+		var r8 []exchange.TradeHistory
+		r8, err = e.GetExchangeHistory(p, assetTypes[i], time.Now().Add(-time.Minute), time.Now())
 		msg = ""
 		if err != nil {
 			msg = err.Error()
 			responseContainer.ErrorCount++
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			SentParams: jsonifyInterface([]interface{}{p, assetTypes[i]}),
+			SentParams: jsonifyInterface([]interface{}{p, assetTypes[i], time.Now().Add(-time.Minute), time.Now()}),
 			Function:   "GetExchangeHistory",
 			Error:      msg,
 			Response:   jsonifyInterface([]interface{}{r8}),
@@ -510,9 +508,10 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		})
 		// r13
 		cancelRequest := order.Cancel{
-			Side: testOrderSide,
-			Pair: p,
-			ID:   config.OrderSubmission.OrderID,
+			Side:      testOrderSide,
+			Pair:      p,
+			ID:        config.OrderSubmission.OrderID,
+			AssetType: assetTypes[i],
 		}
 		err = e.CancelOrder(&cancelRequest)
 		msg = ""

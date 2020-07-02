@@ -30,6 +30,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | BTSE | Yes | Yes | NA |
 | COINUT | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
+| FTX | Yes | Yes | No |
 | CoinbasePro | Yes | Yes | No|
 | Coinbene | Yes | No | No |
 | GateIO | Yes | Yes | NA |
@@ -140,10 +141,10 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 639 |
+| [thrasher-](https://github.com/thrasher-) | 640 |
 | [shazbert](https://github.com/shazbert) | 191 |
 | [gloriousCode](https://github.com/gloriousCode) | 169 |
-| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 46 |
+| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 48 |
 | [xtda](https://github.com/xtda) | 43 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
