@@ -128,7 +128,7 @@ func (f *FTX) SetDefaults() {
 					kline.FourHour.Word():      true,
 					kline.OneDay.Word():        true,
 				},
-				ResultLimit: 1000,
+				ResultLimit: 5000,
 			},
 		},
 	}
