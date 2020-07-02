@@ -84,12 +84,14 @@ func TestSeries(t *testing.T) {
 			}
 
 			start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
-			end := time.Date(2019, 12, 31, 23, 59, 59, 59, time.UTC)
+			end := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 			ret, err := Series("Binance", "BTC", "USDT", "24h", start, end)
 			if err != nil {
 				t.Fatal(err)
 			}
-			t.Log(ret)
+			if len(ret.Tick) != 365 {
+				t.Fatalf("unexpected number of results received:  %v", len(ret.Tick))
+			}
 
 			err = testhelpers.CloseDatabase(dbConn)
 			if err != nil {
