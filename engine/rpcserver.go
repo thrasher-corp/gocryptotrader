@@ -1257,7 +1257,7 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 	if err != nil {
 		return nil, err
 	}
-
+	var pass bool
 	var newErrors common.Errors
 	for i := range r.Pairs {
 		var p currency.Pair
@@ -1276,7 +1276,9 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 			err = base.CurrencyPairs.EnablePair(asset.Item(r.AssetType), p)
 			if err != nil {
 				newErrors = append(newErrors, err)
+				continue
 			}
+			pass = true
 			continue
 		}
 
@@ -1289,10 +1291,12 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 		err = base.CurrencyPairs.DisablePair(asset.Item(r.AssetType), p)
 		if err != nil {
 			newErrors = append(newErrors, err)
+			continue
 		}
+		pass = true
 	}
 
-	if exch.IsWebsocketEnabled() {
+	if exch.IsWebsocketEnabled() && pass {
 		err = exch.FlushWebsocketChannels()
 		if err != nil {
 			newErrors = append(newErrors, err)

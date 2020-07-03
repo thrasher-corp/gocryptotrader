@@ -57,10 +57,6 @@ func (f *FTX) WsConnect() error {
 	if f.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", f.Name)
 	}
-	subs, err := f.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
 
 	go f.wsReadData()
 	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
@@ -69,7 +65,11 @@ func (f *FTX) WsConnect() error {
 			f.Websocket.DataHandler <- err
 			f.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
-		subs = append(subs, f.GenerateAuthSubscriptions()...)
+	}
+
+	subs, err := f.GenerateDefaultSubscriptions()
+	if err != nil {
+		return err
 	}
 	return f.Websocket.SubscribeToChannels(subs)
 }
@@ -126,21 +126,24 @@ func (f *FTX) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (f *FTX) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
 	for i := range channelsToUnsubscribe {
-		a, err := f.GetPairAssetType(channelsToUnsubscribe[i].Currency)
-		if err != nil {
-			return err
-		}
-
-		fmtP, err := f.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, a)
-		if err != nil {
-			return err
-		}
-
 		var unSub WsSub
 		unSub.Operation = unsubscribe
 		unSub.Channel = channelsToUnsubscribe[i].Channel
-		unSub.Market = fmtP.String()
-		err = f.Websocket.Conn.SendJSONMessage(unSub)
+		switch channelsToUnsubscribe[i].Channel {
+		case wsFills, wsOrders, wsMarkets:
+		default:
+			a, err := f.GetPairAssetType(channelsToUnsubscribe[i].Currency)
+			if err != nil {
+				return err
+			}
+
+			fmtP, err := f.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, a)
+			if err != nil {
+				return err
+			}
+			unSub.Market = fmtP.String()
+		}
+		err := f.Websocket.Conn.SendJSONMessage(unSub)
 		if err != nil {
 			return err
 		}
@@ -174,19 +177,15 @@ func (f *FTX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, erro
 			}
 		}
 	}
-	return subscriptions, nil
-}
-
-// GenerateAuthSubscriptions generates default subscription
-func (f *FTX) GenerateAuthSubscriptions() []stream.ChannelSubscription {
-	var subscriptions []stream.ChannelSubscription
-	var channels = []string{wsOrders, wsFills}
-	for x := range channels {
-		subscriptions = append(subscriptions, stream.ChannelSubscription{
-			Channel: channels[x],
-		})
+	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		var authchan = []string{wsOrders, wsFills}
+		for x := range authchan {
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
+				Channel: authchan[x],
+			})
+		}
 	}
-	return subscriptions
+	return subscriptions, nil
 }
 
 // wsReadData gets and passes on websocket messages for processing
