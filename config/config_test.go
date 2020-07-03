@@ -685,7 +685,8 @@ func TestCheckPairConsistency(t *testing.T) {
 	}
 
 	// Test for nil avail pairs
-	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
+	err = c.CheckPairConsistency(testFakeExchangeName)
+	if err != nil {
 		t.Error(err)
 	}
 
@@ -701,7 +702,8 @@ func TestCheckPairConsistency(t *testing.T) {
 
 	// LTC_USD is only found in the available pairs list and should therefor
 	// be added to the enabled pairs list due to the atLestOneEnabled code
-	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
+	err = c.CheckPairConsistency(testFakeExchangeName)
+	if err != nil {
 		t.Fatal(err)
 	}
 

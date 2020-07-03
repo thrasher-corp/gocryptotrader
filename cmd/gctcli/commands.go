@@ -3818,7 +3818,6 @@ func getHistoricCandles(c *cli.Context) error {
 	if c.IsSet("rangesize") {
 		candleRangeSize = c.Int64("rangesize")
 	} else if c.Args().Get(3) != "" {
-		var err error
 		candleRangeSize, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
 		if err != nil {
 			return err
@@ -3828,7 +3827,6 @@ func getHistoricCandles(c *cli.Context) error {
 	if c.IsSet("granularity") {
 		candleGranularity = c.Int64("granularity")
 	} else if c.Args().Get(4) != "" {
-		var err error
 		candleGranularity, err = strconv.ParseInt(c.Args().Get(4), 10, 64)
 		if err != nil {
 			return err

@@ -94,7 +94,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	}
 
 	if s.RunningURLAuth != "" {
-		err := w.SetWebsocketURL(s.RunningURLAuth, true, false)
+		err = w.SetWebsocketURL(s.RunningURLAuth, true, false)
 		if err != nil {
 			return err
 		}

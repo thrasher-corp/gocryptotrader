@@ -60,7 +60,7 @@ func (f *FTX) WsConnect() error {
 
 	go f.wsReadData()
 	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		err := f.WsAuth()
+		err = f.WsAuth()
 		if err != nil {
 			f.Websocket.DataHandler <- err
 			f.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -299,7 +299,8 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			pair, err := currency.NewPairFromString(resultData.OrderData.Market)
+			var pair currency.Pair
+			pair, err = currency.NewPairFromString(resultData.OrderData.Market)
 			if err != nil {
 				return err
 			}
