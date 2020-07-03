@@ -379,7 +379,10 @@ func TestNewPairDelimiter(t *testing.T) {
 		)
 	}
 
-	pair = NewPairDelimiter("BTC-MOVE-0626", "-")
+	pair, err = NewPairDelimiter("BTC-MOVE-0626", "-")
+	if err != nil {
+		t.Fatal(err)
+	}
 	actual = pair.String()
 	expected = "BTC-MOVE-0626"
 	if actual != expected {
@@ -389,7 +392,10 @@ func TestNewPairDelimiter(t *testing.T) {
 		)
 	}
 
-	pair = NewPairDelimiter("fBTC-USDT", "-")
+	pair, err = NewPairDelimiter("fBTC-USDT", "-")
+	if err != nil {
+		t.Fatal(err)
+	}
 	actual = pair.String()
 	expected = "fBTC-USDT"
 	if actual != expected {
