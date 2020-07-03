@@ -2,7 +2,6 @@ package bitfinex
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -892,39 +891,21 @@ func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 }
 
 func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) string {
-	var checkString [2]string
+	var checkString [2]byte
 	if a == asset.Spot {
-		checkString[0] = "t"
-		checkString[1] = "T"
+		checkString[0] = 't'
+		checkString[1] = 'T'
 	} else if a == asset.Margin {
-		checkString[0] = "f"
-		checkString[1] = "F"
+		checkString[0] = 'f'
+		checkString[1] = 'F'
 	}
 
-	y := b.FormatExchangeCurrency(in, a).String()
-	switch y[0] {
-	case checkString[0][0]:
-		if y[1] != checkString[0][0] && y[1] != checkString[1][0] {
-			return y
-		}
-	case checkString[1][0]:
-		fmt.Println("case 1 hit " + y)
-		if y[1] != checkString[0][0] && y[1] != checkString[1][0] {
-			runes := []rune(y)
-			runes[0] = unicode.ToLower(runes[0])
-			return string(runes)
-	}
-	default:
-		return checkString[0] + y
+	y := in.Base.String()
+	if (y[0] != checkString[0] && y[0] != checkString[1]) ||
+		(y[0] == checkString[1] && y[1] == checkString[1]) || in.Base == currency.TNB {
+		return string(checkString[0]) + b.FormatExchangeCurrency(in, a).Upper().String()
 	}
 
-	// v := b.FormatExchangeCurrency(in, a).Upper().String()
-	// if (v[0] != checkString[0][0] && v[0] != checkString[1][0]) ||
-	// 	(v[0] == checkString[1][0] && v[1] == checkString[1][0]) ||
-	// 	(v[0] == checkString[0][0] && v[1] != checkString[0][0] || v[1] != checkString[1][0]) {
-	// 	return checkString[0] + v
-	// }
-	//
 	runes := []rune(b.FormatExchangeCurrency(in, a).Upper().String())
 	runes[0] = unicode.ToLower(runes[0])
 	return string(runes)

@@ -1275,6 +1275,11 @@ func TestFixCasing(t *testing.T) {
 	if ret != "tTNBUSD" {
 		t.Errorf("unexpected result: %v", ret)
 	}
+
+	ret = b.fixCasing(currency.NewPairFromString("tTNBUSD"), asset.Spot)
+	if ret != "tTNBUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
 }
 
 func Test_FormatExchangeKlineInterval(t *testing.T) {
@@ -1307,10 +1312,8 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 
 	for x := range testCases {
 		test := testCases[x]
-
 		t.Run(test.name, func(t *testing.T) {
 			ret := b.FormatExchangeKlineInterval(test.interval)
-
 			if ret != test.output {
 				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
 			}
