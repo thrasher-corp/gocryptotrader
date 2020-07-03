@@ -5,7 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
@@ -97,7 +99,9 @@ func TestHandleData(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = WebsocketDataHandler(exchName, stream.UnhandledMessageWarning{Message: "there's an issue here's a tissue"})
+	err = WebsocketDataHandler(exchName, stream.UnhandledMessageWarning{
+		Message: "there's an issue here's a tissue"},
+	)
 	if err != nil {
 		t.Error(err)
 	}
@@ -113,5 +117,17 @@ func TestHandleData(t *testing.T) {
 	}
 	if err.Error() != classificationError.Error() {
 		t.Errorf("Problem formatting error. Expected %v Received %v", classificationError.Error(), err.Error())
+	}
+
+	err = WebsocketDataHandler(exchName, &orderbook.Base{
+		ExchangeName: fakePassExchange,
+		Pair:         currency.NewPair(currency.BTC, currency.USD),
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	err = WebsocketDataHandler(exchName, "this is a test string")
+	if err != nil {
+		t.Error(err)
 	}
 }

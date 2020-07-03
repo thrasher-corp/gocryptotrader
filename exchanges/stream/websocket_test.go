@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"strconv"
@@ -191,6 +192,10 @@ func TestWebsocket(t *testing.T) {
 		t.Fatal("WebsocketSetup", err)
 	}
 	err = ws.SetWebsocketURL("ws://demos.kaazing.com/echo", false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = ws.SetWebsocketURL("ws://demos.kaazing.com/echo", true, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -827,6 +832,7 @@ func TestDisable(t *testing.T) {
 	web := Websocket{
 		enabled:   true,
 		connected: true,
+		ShutdownC: make(chan struct{}),
 	}
 	err := web.Disable()
 	if err != nil {
@@ -842,21 +848,70 @@ func TestEnable(t *testing.T) {
 	web := Websocket{
 		connector: connect,
 		Wg:        new(sync.WaitGroup),
+		ShutdownC: make(chan struct{}),
 	}
 	err := web.Enable()
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	err = web.Enable()
 	if err == nil {
 		t.Fatal("should already be enabled")
 	}
+
+	fmt.Print()
 }
 
 func TestSetupNewCustomConnection(t *testing.T) {
-
+	web := Websocket{
+		connector: connect,
+		Wg:        new(sync.WaitGroup),
+		ShutdownC: make(chan struct{}),
+	}
+	err := web.SetupNewCustomConnection(&WebsocketConnection{}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = web.SetupNewCustomConnection(&WebsocketConnection{}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = web.SetupNewCustomConnection(nil, true)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+	err = web.SetupNewCustomConnection(nil, false)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
 }
 
 func TestSetupNewConnection(t *testing.T) {
+	web := Websocket{
+		connector:         connect,
+		Wg:                new(sync.WaitGroup),
+		ShutdownC:         make(chan struct{}),
+		init:              true,
+		TrafficAlert:      make(chan struct{}),
+		readMessageErrors: make(chan error),
+	}
 
+	err := web.Setup(defaultSetup)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = web.SetupNewConnection(ConnectionSetup{})
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+	err = web.SetupNewConnection(ConnectionSetup{URL: "urlstring"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = web.SetupNewConnection(ConnectionSetup{URL: "urlstring",
+		Authenticated: true})
+	if err != nil {
+		t.Fatal(err)
+	}
 }
