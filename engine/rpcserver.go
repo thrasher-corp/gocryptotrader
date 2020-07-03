@@ -2067,11 +2067,18 @@ func (s *RPCServer) WebsocketSetEnabled(_ context.Context, r *gctrpc.WebsocketSe
 		return nil, fmt.Errorf("websocket not supported for exchange %s", r.Exchange)
 	}
 
+	exchCfg, err := Bot.Config.GetExchangeConfig(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+
 	if r.Enable {
 		err = w.Enable()
 		if err != nil {
 			return nil, err
 		}
+
+		exchCfg.Features.Enabled.Websocket = true
 		return new(gctrpc.GCTScriptGenericResponse), nil
 	}
 
@@ -2079,6 +2086,7 @@ func (s *RPCServer) WebsocketSetEnabled(_ context.Context, r *gctrpc.WebsocketSe
 	if err != nil {
 		return nil, err
 	}
+	exchCfg.Features.Enabled.Websocket = false
 	return new(gctrpc.GCTScriptGenericResponse), nil
 }
 
@@ -2129,7 +2137,6 @@ func (s *RPCServer) WebsocketSetProxy(_ context.Context, r *gctrpc.WebsocketSetP
 	if err != nil {
 		return nil, err
 	}
-
 	return new(gctrpc.GCTScriptGenericResponse), nil
 }
 

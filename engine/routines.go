@@ -205,28 +205,27 @@ func WebsocketRoutine() {
 					)
 				}
 
-				// TO-DO: expose IsConnected() and IsConnecting so this can be simplified
-				if exchanges[i].IsWebsocketEnabled() {
-					ws, err := exchanges[i].GetWebsocket()
-					if err != nil {
-						log.Errorf(
-							log.WebsocketMgr,
-							"Exchange %s GetWebsocket error: %s\n",
-							exchanges[i].GetName(),
-							err,
-						)
-						return
-					}
+				ws, err := exchanges[i].GetWebsocket()
+				if err != nil {
+					log.Errorf(
+						log.WebsocketMgr,
+						"Exchange %s GetWebsocket error: %s\n",
+						exchanges[i].GetName(),
+						err,
+					)
+					return
+				}
 
-					// Exchange sync manager might have already started ws
-					// service or is in the process of connecting, so check
-					if ws.IsConnected() || ws.IsConnecting() {
-						return
-					}
+				// Exchange sync manager might have already started ws
+				// service or is in the process of connecting, so check
+				if ws.IsConnected() || ws.IsConnecting() {
+					return
+				}
 
-					// Data handler routine
-					go WebsocketDataReceiver(ws)
+				// Data handler routine
+				go WebsocketDataReceiver(ws)
 
+				if ws.IsEnabled() {
 					err = ws.Connect()
 					if err != nil {
 						log.Errorf(log.WebsocketMgr, "%v\n", err)
