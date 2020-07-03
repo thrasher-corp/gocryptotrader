@@ -48,7 +48,10 @@ func TestUpper(t *testing.T) {
 
 func TestPairUnmarshalJSON(t *testing.T) {
 	var unmarshalHere Pair
-	configPair := NewPairDelimiter("btc_usd", "_")
+	configPair, err := NewPairDelimiter("btc_usd", "_")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	encoded, err := json.Marshal(configPair)
 	if err != nil {
@@ -172,7 +175,14 @@ func TestPair(t *testing.T) {
 
 func TestDisplay(t *testing.T) {
 	t.Parallel()
-	pair := NewPairDelimiter(defaultPairWDelimiter, "-")
+	_, err := NewPairDelimiter(defaultPairWDelimiter, "wow")
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+	pair, err := NewPairDelimiter(defaultPairWDelimiter, "-")
+	if err != nil {
+		t.Fatal(err)
+	}
 	actual := pair.String()
 	expected := defaultPairWDelimiter
 	if actual != expected {
@@ -333,7 +343,24 @@ func TestNewPairWithDelimiter(t *testing.T) {
 
 func TestNewPairDelimiter(t *testing.T) {
 	t.Parallel()
-	pair := NewPairDelimiter(defaultPairWDelimiter, "-")
+	_, err := NewPairDelimiter("", "")
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+	_, err = NewPairDelimiter("BTC_USD", "wow")
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	_, err = NewPairDelimiter("BTC_USD", " ")
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	pair, err := NewPairDelimiter(defaultPairWDelimiter, "-")
+	if err != nil {
+		t.Fatal(err)
+	}
 	actual := pair.String()
 	expected := defaultPairWDelimiter
 	if actual != expected {
@@ -428,9 +455,17 @@ func TestNewPairFromString(t *testing.T) {
 
 func TestNewPairFromFormattedPairs(t *testing.T) {
 	t.Parallel()
+	p1, err := NewPairDelimiter("BTC-USDT", "-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p2, err := NewPairDelimiter("LTC-USD", "-")
+	if err != nil {
+		t.Fatal(err)
+	}
 	pairs := Pairs{
-		NewPairDelimiter("BTC-USDT", "-"),
-		NewPairDelimiter("LTC-USD", "-"),
+		p1,
+		p2,
 	}
 
 	p, err := NewPairFromFormattedPairs("BTCUSDT", pairs, PairFormat{

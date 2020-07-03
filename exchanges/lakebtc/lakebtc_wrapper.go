@@ -469,8 +469,12 @@ func (l *LakeBTC) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 
 	var orders []order.Detail
 	for i := range resp {
-		symbol := currency.NewPairDelimiter(resp[i].Symbol,
+		var symbol currency.Pair
+		symbol, err = currency.NewPairDelimiter(resp[i].Symbol,
 			format.Delimiter)
+		if err != nil {
+			return nil, err
+		}
 		orderDate := time.Unix(resp[i].At, 0)
 		side := order.Side(strings.ToUpper(resp[i].Type))
 
@@ -510,8 +514,11 @@ func (l *LakeBTC) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 		if resp[i].State == "active" {
 			continue
 		}
-
-		symbol := currency.NewPairDelimiter(resp[i].Symbol, format.Delimiter)
+		var symbol currency.Pair
+		symbol, err = currency.NewPairDelimiter(resp[i].Symbol, format.Delimiter)
+		if err != nil {
+			return nil, err
+		}
 		orderDate := time.Unix(resp[i].At, 0)
 		side := order.Side(strings.ToUpper(resp[i].Type))
 

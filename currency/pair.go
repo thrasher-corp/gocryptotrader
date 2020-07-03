@@ -7,13 +7,23 @@ import (
 
 // NewPairDelimiter splits the desired currency string at delimeter, the returns
 // a Pair struct
-func NewPairDelimiter(currencyPair, delimiter string) Pair {
+func NewPairDelimiter(currencyPair, delimiter string) (Pair, error) {
+	if !strings.Contains(currencyPair, delimiter) {
+		return Pair{},
+			fmt.Errorf("delimiter: [%s] not found in currencypair string", delimiter)
+	}
 	result := strings.Split(currencyPair, delimiter)
+	if len(result) < 2 {
+		return Pair{},
+			fmt.Errorf("supplied pair: [%s] cannot be split with %s",
+				currencyPair,
+				delimiter)
+	}
 	return Pair{
 		Delimiter: delimiter,
 		Base:      NewCode(result[0]),
 		Quote:     NewCode(result[1]),
-	}
+	}, nil
 }
 
 // NewPairFromStrings returns a CurrencyPair without a delimiter
@@ -70,7 +80,7 @@ func NewPairFromIndex(currencyPair, index string) (Pair, error) {
 func NewPairFromString(currencyPair string) (Pair, error) {
 	for x := range delimiters {
 		if strings.Contains(currencyPair, delimiters[x]) {
-			return NewPairDelimiter(currencyPair, delimiters[x]), nil
+			return NewPairDelimiter(currencyPair, delimiters[x])
 		}
 	}
 	if len(currencyPair) < 3 {

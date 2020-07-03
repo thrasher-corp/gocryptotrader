@@ -257,7 +257,10 @@ func TestIsRelatablePairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	usdtae := currency.NewPairDelimiter("USDT-AE", "-")
+	usdtae, err := currency.NewPairDelimiter("USDT-AE", "-")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Test relational pairs with different ordering, a delimiter and with
 	// Tether support enabled

@@ -105,10 +105,13 @@ func FormatPairs(pairs []string, delimiter, index string) (Pairs, error) {
 			continue
 		}
 		var p Pair
+		var err error
 		if delimiter != "" {
-			p = NewPairDelimiter(pairs[x], delimiter)
+			p, err = NewPairDelimiter(pairs[x], delimiter)
+			if err != nil {
+				return nil, err
+			}
 		} else {
-			var err error
 			if index != "" {
 				p, err = NewPairFromIndex(pairs[x], index)
 				if err != nil {

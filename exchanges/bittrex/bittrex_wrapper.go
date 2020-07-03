@@ -530,8 +530,16 @@ func (b *Bittrex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 				resp.Result[i].Opened)
 		}
 
-		pair := currency.NewPairDelimiter(resp.Result[i].Exchange,
+		pair, err := currency.NewPairDelimiter(resp.Result[i].Exchange,
 			format.Delimiter)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"Exchange %v Func %v Order %v Could not parse currency pair %v",
+				b.Name,
+				"GetActiveOrders",
+				resp.Result[i].OrderUUID,
+				err)
+		}
 		orderType := order.Type(strings.ToUpper(resp.Result[i].Type))
 
 		orders = append(orders, order.Detail{
@@ -577,13 +585,21 @@ func (b *Bittrex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 			log.Errorf(log.ExchangeSys,
 				"Exchange %v Func %v Order %v Could not parse date to unix with value of %v",
 				b.Name,
-				"GetActiveOrders",
+				"GetOrderHistory",
 				resp.Result[i].OrderUUID,
 				resp.Result[i].Opened)
 		}
 
-		pair := currency.NewPairDelimiter(resp.Result[i].Exchange,
+		pair, err := currency.NewPairDelimiter(resp.Result[i].Exchange,
 			format.Delimiter)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"Exchange %v Func %v Order %v Could not parse currency pair %v",
+				b.Name,
+				"GetOrderHistory",
+				resp.Result[i].OrderUUID,
+				err)
+		}
 		orderType := order.Type(strings.ToUpper(resp.Result[i].Type))
 
 		orders = append(orders, order.Detail{

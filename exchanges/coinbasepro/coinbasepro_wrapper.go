@@ -514,10 +514,15 @@ func (c *CoinbasePro) GetOrderInfo(orderID string) (order.Detail, error) {
 	if errOss != nil {
 		return order.Detail{}, fmt.Errorf("error parsing order side: %s", errOss)
 	}
+	p, errP := currency.NewPairDelimiter(genOrderDetail.ProductID, "-")
+	if errP != nil {
+		return order.Detail{}, fmt.Errorf("error parsing order side: %s", errP)
+	}
+
 	response := order.Detail{
 		Exchange:        c.GetName(),
 		ID:              genOrderDetail.ID,
-		Pair:            currency.NewPairDelimiter(genOrderDetail.ProductID, "-"),
+		Pair:            p,
 		Side:            ss,
 		Type:            tt,
 		Date:            od,
@@ -643,8 +648,12 @@ func (c *CoinbasePro) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Deta
 
 	var orders []order.Detail
 	for i := range respOrders {
-		curr := currency.NewPairDelimiter(respOrders[i].ProductID,
+		var curr currency.Pair
+		curr, err = currency.NewPairDelimiter(respOrders[i].ProductID,
 			format.Delimiter)
+		if err != nil {
+			return nil, err
+		}
 		orderSide := order.Side(strings.ToUpper(respOrders[i].Side))
 		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
 		orders = append(orders, order.Detail{
@@ -689,8 +698,12 @@ func (c *CoinbasePro) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Deta
 
 	var orders []order.Detail
 	for i := range respOrders {
-		curr := currency.NewPairDelimiter(respOrders[i].ProductID,
+		var curr currency.Pair
+		curr, err = currency.NewPairDelimiter(respOrders[i].ProductID,
 			format.Delimiter)
+		if err != nil {
+			return nil, err
+		}
 		orderSide := order.Side(strings.ToUpper(respOrders[i].Side))
 		orderType := order.Type(strings.ToUpper(respOrders[i].Type))
 		orders = append(orders, order.Detail{

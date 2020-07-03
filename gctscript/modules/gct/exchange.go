@@ -53,10 +53,13 @@ func ExchangeOrderbook(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeParam)
 	}
 
-	pairs := currency.NewPairDelimiter(currencyPair, delimiter)
+	pair, err := currency.NewPairDelimiter(currencyPair, delimiter)
+	if err != nil {
+		return nil, err
+	}
 	assetType := asset.Item(assetTypeParam)
 
-	ob, err := wrappers.GetWrapper().Orderbook(exchangeName, pairs, assetType)
+	ob, err := wrappers.GetWrapper().Orderbook(exchangeName, pair, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -112,10 +115,14 @@ func ExchangeTicker(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeParam)
 	}
 
-	pairs := currency.NewPairDelimiter(currencyPair, delimiter)
+	pair, err := currency.NewPairDelimiter(currencyPair, delimiter)
+	if err != nil {
+		return nil, err
+	}
+
 	assetType := asset.Item(assetTypeParam)
 
-	tx, err := wrappers.GetWrapper().Ticker(exchangeName, pairs, assetType)
+	tx, err := wrappers.GetWrapper().Ticker(exchangeName, pair, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -346,7 +353,10 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, orderClientID)
 	}
-	pair := currency.NewPairDelimiter(currencyPair, delimiter)
+	pair, err := currency.NewPairDelimiter(currencyPair, delimiter)
+	if err != nil {
+		return nil, err
+	}
 
 	tempSubmit := &order.Submit{
 		Pair:     pair,
@@ -357,7 +367,7 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 		ClientID: orderClientID,
 	}
 
-	err := tempSubmit.Validate()
+	err = tempSubmit.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -550,10 +560,13 @@ func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 	if err != nil {
 		return nil, err
 	}
-	pairs := currency.NewPairDelimiter(currencyPair, delimiter)
+	pair, err := currency.NewPairDelimiter(currencyPair, delimiter)
+	if err != nil {
+		return nil, err
+	}
 	assetType := asset.Item(assetTypeParam)
 
-	ret, err := wrappers.GetWrapper().OHLCV(exchangeName, pairs, assetType, startTime, endTime, interval)
+	ret, err := wrappers.GetWrapper().OHLCV(exchangeName, pair, assetType, startTime, endTime, interval)
 	if err != nil {
 		return nil, err
 	}

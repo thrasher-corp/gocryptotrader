@@ -523,8 +523,14 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 			side = order.Sell
 		}
 
-		od.Pair = currency.NewPairDelimiter(o[i].Symbol,
+		od.Pair, err = currency.NewPairDelimiter(o[i].Symbol,
 			format.Delimiter)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s GetOrderInfo unable to parse currency pair: %s\n",
+				b.Name,
+				err)
+		}
 		od.Exchange = b.Name
 		od.Amount = o[i].Amount
 		od.ID = o[i].ID
@@ -615,9 +621,17 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 				err)
 		}
 
+		p, err := currency.NewPairDelimiter(resp[i].Symbol,
+			format.Delimiter)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s GetActiveOrders unable to parse currency pair: %s\n",
+				b.Name,
+				err)
+		}
+
 		openOrder := order.Detail{
-			Pair: currency.NewPairDelimiter(resp[i].Symbol,
-				format.Delimiter),
+			Pair:     p,
 			Exchange: b.Name,
 			Amount:   resp[i].Amount,
 			ID:       resp[i].ID,

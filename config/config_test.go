@@ -585,7 +585,14 @@ func TestCheckPairConfigFormats(t *testing.T) {
 	if err := c.CheckPairConfigFormats(testFakeExchangeName); err != nil {
 		t.Error("nil pairs should be okay to continue")
 	}
-
+	avail, err := currency.NewPairDelimiter(testPair, "-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	enabled, err := currency.NewPairDelimiter("BTC~USD", "~")
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Test having a pair index and delimiter set at the same time throws an error
 	c.Exchanges[0].CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{
 		asset.Spot: {
@@ -599,10 +606,10 @@ func TestCheckPairConfigFormats(t *testing.T) {
 				Index:     "USD",
 			},
 			Available: currency.Pairs{
-				currency.NewPairDelimiter(testPair, "-"),
+				avail,
 			},
 			Enabled: currency.Pairs{
-				currency.NewPairDelimiter("BTC~USD", "~"),
+				enabled,
 			},
 		},
 	}
@@ -654,6 +661,11 @@ func TestCheckPairConsistency(t *testing.T) {
 		t.Error("nil pair store should return an error")
 	}
 
+	enabled, err := currency.NewPairDelimiter("BTC_USD", "_")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	c.Exchanges[0].CurrencyPairs = &currency.PairsManager{
 		Pairs: map[asset.Item]*currency.PairStore{
 			asset.Spot: {
@@ -666,7 +678,7 @@ func TestCheckPairConsistency(t *testing.T) {
 					Delimiter: "_",
 				},
 				Enabled: currency.Pairs{
-					currency.NewPairDelimiter("BTC_USD", "_"),
+					enabled,
 				},
 			},
 		},
@@ -677,9 +689,14 @@ func TestCheckPairConsistency(t *testing.T) {
 		t.Error(err)
 	}
 
+	p1, err := currency.NewPairDelimiter("LTC_USD", "_")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Test that enabled pair is not found in the available pairs
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Available = currency.Pairs{
-		currency.NewPairDelimiter("LTC_USD", "_"),
+		p1,
 	}
 
 	// LTC_USD is only found in the available pairs list and should therefor
@@ -689,15 +706,20 @@ func TestCheckPairConsistency(t *testing.T) {
 	}
 
 	for _, item := range c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled {
-		if !item.Equal(currency.NewPairDelimiter("LTC_USD", "_")) {
+		if !item.Equal(p1) {
 			t.Fatal("LTC_USD should be contained in the enabled pairs list")
 		}
 	}
 
+	p2, err := currency.NewPairDelimiter("BTC_USD", "_")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Add the BTC_USD pair and see result
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Available = currency.Pairs{
-		currency.NewPairDelimiter("LTC_USD", "_"),
-		currency.NewPairDelimiter("BTC_USD", "_"),
+		p1,
+		p2,
 	}
 
 	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
@@ -716,8 +738,8 @@ func TestCheckPairConsistency(t *testing.T) {
 
 	// Test that an invalid enabled pair is removed from the list
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{
-		currency.NewPairDelimiter("LTC_USD", "_"),
-		currency.NewPairDelimiter("BTC_USD", "_"),
+		p1,
+		p2,
 	}
 	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
 		t.Error("unexpected result")
@@ -1218,11 +1240,16 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		t.Error("unexpected values")
 	}
 
+	p1, err := currency.NewPairDelimiter(testPair, "-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Test currency pair migration
 	setupPairs := func(emptyAssets bool) {
 		cfg.Exchanges[0].CurrencyPairs = nil
 		p := currency.Pairs{
-			currency.NewPairDelimiter(testPair, "-"),
+			p1,
 		}
 		cfg.Exchanges[0].PairsLastUpdated = int64ptr(1234567)
 

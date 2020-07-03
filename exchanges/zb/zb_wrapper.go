@@ -600,8 +600,12 @@ func (z *ZB) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error
 
 	var orders []order.Detail
 	for i := range allOrders {
-		symbol := currency.NewPairDelimiter(allOrders[i].Currency,
+		var symbol currency.Pair
+		symbol, err = currency.NewPairDelimiter(allOrders[i].Currency,
 			format.Delimiter)
+		if err != nil {
+			return nil, err
+		}
 		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
 		orderSide := orderSideMap[allOrders[i].Type]
 		orders = append(orders, order.Detail{
@@ -675,8 +679,12 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 	}
 
 	for i := range allOrders {
-		symbol := currency.NewPairDelimiter(allOrders[i].Currency,
+		var symbol currency.Pair
+		symbol, err = currency.NewPairDelimiter(allOrders[i].Currency,
 			format.Delimiter)
+		if err != nil {
+			return nil, err
+		}
 		orderDate := time.Unix(int64(allOrders[i].TradeDate), 0)
 		orderSide := orderSideMap[allOrders[i].Type]
 		orders = append(orders, order.Detail{

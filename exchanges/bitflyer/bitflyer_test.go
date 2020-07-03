@@ -133,7 +133,10 @@ func TestGetExchangeStatus(t *testing.T) {
 
 func TestCheckFXString(t *testing.T) {
 	t.Parallel()
-	p := currency.NewPairDelimiter("FXBTC_JPY", "_")
+	p, err := currency.NewPairDelimiter("FXBTC_JPY", "_")
+	if err != nil {
+		t.Fatal(err)
+	}
 	p = b.CheckFXString(p)
 	if p.Base.String() != "FX_BTC" {
 		t.Error("Bitflyer - CheckFXString() error")

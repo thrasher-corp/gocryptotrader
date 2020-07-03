@@ -465,8 +465,12 @@ func (i *ItBit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 
 	var orders []order.Detail
 	for j := range allOrders {
-		symbol := currency.NewPairDelimiter(allOrders[j].Instrument,
+		var symbol currency.Pair
+		symbol, err := currency.NewPairDelimiter(allOrders[j].Instrument,
 			format.Delimiter)
+		if err != nil {
+			return nil, err
+		}
 		side := order.Side(strings.ToUpper(allOrders[j].Side))
 		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {
@@ -524,9 +528,13 @@ func (i *ItBit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 		if allOrders[j].Type == "open" {
 			continue
 		}
-
-		symbol := currency.NewPairDelimiter(allOrders[j].Instrument,
+		var symbol currency.Pair
+		symbol, err = currency.NewPairDelimiter(allOrders[j].Instrument,
 			format.Delimiter)
+		if err != nil {
+			return nil, err
+		}
+
 		side := order.Side(strings.ToUpper(allOrders[j].Side))
 		orderDate, err := time.Parse(time.RFC3339, allOrders[j].CreatedTime)
 		if err != nil {

@@ -512,8 +512,11 @@ func (g *Gateio) GetOrderInfo(orderID string) (order.Detail, error) {
 		orderDetail.Date = time.Unix(orders.Orders[x].Timestamp, 0)
 		orderDetail.Status = order.Status(orders.Orders[x].Status)
 		orderDetail.Price = orders.Orders[x].Rate
-		orderDetail.Pair = currency.NewPairDelimiter(orders.Orders[x].CurrencyPair,
+		orderDetail.Pair, err = currency.NewPairDelimiter(orders.Orders[x].CurrencyPair,
 			format.Delimiter)
+		if err != nil {
+			return orderDetail, err
+		}
 		if strings.EqualFold(orders.Orders[x].Type, order.Ask.String()) {
 			orderDetail.Side = order.Ask
 		} else if strings.EqualFold(orders.Orders[x].Type, order.Bid.String()) {
@@ -626,9 +629,12 @@ func (g *Gateio) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 			if resp.Orders[i].Status != "open" {
 				continue
 			}
-
-			symbol := currency.NewPairDelimiter(resp.Orders[i].CurrencyPair,
+			var symbol currency.Pair
+			symbol, err = currency.NewPairDelimiter(resp.Orders[i].CurrencyPair,
 				format.Delimiter)
+			if err != nil {
+				return nil, err
+			}
 			side := order.Side(strings.ToUpper(resp.Orders[i].Type))
 			orderDate := time.Unix(resp.Orders[i].Timestamp, 0)
 			orders = append(orders, order.Detail{
@@ -668,7 +674,11 @@ func (g *Gateio) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 
 	var orders []order.Detail
 	for i := range trades {
-		symbol := currency.NewPairDelimiter(trades[i].Pair, format.Delimiter)
+		var symbol currency.Pair
+		symbol, err = currency.NewPairDelimiter(trades[i].Pair, format.Delimiter)
+		if err != nil {
+			return nil, err
+		}
 		side := order.Side(strings.ToUpper(trades[i].Type))
 		orderDate := time.Unix(trades[i].TimeUnix, 0)
 		orders = append(orders, order.Detail{

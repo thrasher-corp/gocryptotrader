@@ -364,7 +364,11 @@ func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
 
 			var futurePairs currency.Pairs
 			for i := range futuresContracts {
-				c := currency.NewPairDelimiter(futuresContracts[i], currency.Underscore)
+				var c currency.Pair
+				c, err = currency.NewPairDelimiter(futuresContracts[i], currency.Underscore)
+				if err != nil {
+					return err
+				}
 				futurePairs = append(futurePairs, c)
 			}
 

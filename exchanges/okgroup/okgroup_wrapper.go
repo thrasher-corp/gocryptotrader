@@ -380,9 +380,14 @@ func (o *OKGroup) GetOrderInfo(orderID string) (resp order.Detail, err error) {
 		return resp, err
 	}
 
+	p, err := currency.NewPairDelimiter(mOrder.InstrumentID, format.Delimiter)
+	if err != nil {
+		return resp, err
+	}
+
 	resp = order.Detail{
 		Amount:         mOrder.Size,
-		Pair:           currency.NewPairDelimiter(mOrder.InstrumentID, format.Delimiter),
+		Pair:           p,
 		Exchange:       o.Name,
 		Date:           mOrder.Timestamp,
 		ExecutedAmount: mOrder.FilledSize,

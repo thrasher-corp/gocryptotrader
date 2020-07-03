@@ -452,7 +452,11 @@ func (g *Gemini) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 
 	var orders []order.Detail
 	for i := range resp {
-		symbol := currency.NewPairDelimiter(resp[i].Symbol, format.Delimiter)
+		var symbol currency.Pair
+		symbol, err = currency.NewPairDelimiter(resp[i].Symbol, format.Delimiter)
+		if err != nil {
+			return nil, err
+		}
 		var orderType order.Type
 		if resp[i].Type == "exchange limit" {
 			orderType = order.Limit

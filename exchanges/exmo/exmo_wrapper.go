@@ -510,7 +510,11 @@ func (e *EXMO) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 
 	var orders []order.Detail
 	for i := range resp {
-		symbol := currency.NewPairDelimiter(resp[i].Pair, "_")
+		var symbol currency.Pair
+		symbol, err = currency.NewPairDelimiter(resp[i].Pair, "_")
+		if err != nil {
+			return nil, err
+		}
 		orderDate := time.Unix(resp[i].Created, 0)
 		orderSide := order.Side(strings.ToUpper(resp[i].Type))
 		orders = append(orders, order.Detail{
@@ -554,7 +558,10 @@ func (e *EXMO) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, err
 
 	var orders []order.Detail
 	for i := range allTrades {
-		symbol := currency.NewPairDelimiter(allTrades[i].Pair, "_")
+		symbol, err := currency.NewPairDelimiter(allTrades[i].Pair, "_")
+		if err != nil {
+			return nil, err
+		}
 		orderDate := time.Unix(allTrades[i].Date, 0)
 		orderSide := order.Side(strings.ToUpper(allTrades[i].Type))
 		orders = append(orders, order.Detail{

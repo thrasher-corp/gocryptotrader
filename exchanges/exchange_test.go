@@ -957,10 +957,17 @@ func TestFormatExchangeCurrencies(t *testing.T) {
 			},
 		},
 	}
-
+	p1, err := currency.NewPairDelimiter("BTC_USD", "_")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p2, err := currency.NewPairDelimiter("LTC_BTC", "_")
+	if err != nil {
+		t.Fatal(err)
+	}
 	var pairs = []currency.Pair{
-		currency.NewPairDelimiter("BTC_USD", "_"),
-		currency.NewPairDelimiter("LTC_BTC", "_"),
+		p1,
+		p2,
 	}
 
 	actual, err := e.FormatExchangeCurrencies(pairs, asset.Spot)
@@ -1087,7 +1094,10 @@ func TestSetupDefaults(t *testing.T) {
 	}
 
 	// Test asset types
-	p := currency.NewPairDelimiter(defaultTestCurrencyPair, "-")
+	p, err := currency.NewPairDelimiter(defaultTestCurrencyPair, "-")
+	if err != nil {
+		t.Fatal(err)
+	}
 	b.CurrencyPairs.Store(asset.Spot,
 		currency.PairStore{
 			Enabled: currency.Pairs{
@@ -1383,7 +1393,10 @@ func TestUpdatePairs(t *testing.T) {
 	}
 
 	// Test empty pair
-	p := currency.NewPairDelimiter(defaultTestCurrencyPair, "-")
+	p, err := currency.NewPairDelimiter(defaultTestCurrencyPair, "-")
+	if err != nil {
+		t.Fatal(err)
+	}
 	pairs := currency.Pairs{
 		currency.Pair{},
 		p,

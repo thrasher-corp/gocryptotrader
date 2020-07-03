@@ -564,7 +564,11 @@ func getTicker(c *cli.Context) error {
 	}
 	defer conn.Close()
 
-	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetTicker(context.Background(),
 		&gctrpc.GetTickerRequest{
@@ -677,7 +681,11 @@ func getOrderbook(c *cli.Context) error {
 	}
 	defer conn.Close()
 
-	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetOrderbook(context.Background(),
 		&gctrpc.GetOrderbookRequest{
@@ -1197,7 +1205,11 @@ func getOrders(c *cli.Context) error {
 	}
 	defer conn.Close()
 
-	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetOrders(context.Background(), &gctrpc.GetOrdersRequest{
 		Exchange:  exchangeName,
@@ -1405,7 +1417,11 @@ func submitOrder(c *cli.Context) error {
 	}
 	defer conn.Close()
 
-	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.SubmitOrder(context.Background(), &gctrpc.SubmitOrderRequest{
 		Exchange: exchangeName,
@@ -1514,7 +1530,11 @@ func simulateOrder(c *cli.Context) error {
 	}
 	defer conn.Close()
 
-	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.SimulateOrder(context.Background(), &gctrpc.SimulateOrderRequest{
 		Exchange: exchangeName,
@@ -1616,7 +1636,11 @@ func whaleBomb(c *cli.Context) error {
 	}
 	defer conn.Close()
 
-	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.WhaleBomb(context.Background(), &gctrpc.WhaleBombRequest{
 		Exchange: exchangeName,
@@ -1748,7 +1772,11 @@ func cancelOrder(c *cli.Context) error {
 		if !validPair(currencyPair) {
 			return errInvalidPair
 		}
-		p = currency.NewPairDelimiter(currencyPair, pairDelimiter)
+		var err error
+		p, err = currency.NewPairDelimiter(currencyPair, pairDelimiter)
+		if err != nil {
+			return err
+		}
 	}
 
 	conn, err := setupClient()
@@ -1983,7 +2011,11 @@ func addEvent(c *cli.Context) error {
 	}
 	defer conn.Close()
 
-	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.AddEvent(context.Background(), &gctrpc.AddEventRequest{
 		Exchange: exchangeName,
@@ -2843,7 +2875,10 @@ func getOrderbookStream(c *cli.Context) error {
 	}
 	defer conn.Close()
 
-	p := currency.NewPairDelimiter(pair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(pair, pairDelimiter)
+	if err != nil {
+		return err
+	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetOrderbookStream(context.Background(),
@@ -3051,7 +3086,10 @@ func getTickerStream(c *cli.Context) error {
 	}
 	defer conn.Close()
 
-	p := currency.NewPairDelimiter(pair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(pair, pairDelimiter)
+	if err != nil {
+		return err
+	}
 
 	client := gctrpc.NewGoCryptoTraderClient(conn)
 	result, err := client.GetTickerStream(context.Background(),
@@ -3761,7 +3799,10 @@ func getHistoricCandles(c *cli.Context) error {
 	if !validPair(currencyPair) {
 		return errInvalidPair
 	}
-	p := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
+	if err != nil {
+		return err
+	}
 
 	var assetType string
 	if c.IsSet("asset") {

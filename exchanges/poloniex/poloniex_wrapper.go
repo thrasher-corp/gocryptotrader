@@ -551,7 +551,11 @@ func (p *Poloniex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 
 	var orders []order.Detail
 	for key := range resp.Data {
-		symbol := currency.NewPairDelimiter(key, format.Delimiter)
+		var symbol currency.Pair
+		symbol, err = currency.NewPairDelimiter(key, format.Delimiter)
+		if err != nil {
+			return nil, err
+		}
 		for i := range resp.Data[key] {
 			orderSide := order.Side(strings.ToUpper(resp.Data[key][i].Type))
 			orderDate, err := time.Parse(common.SimpleTimeFormat, resp.Data[key][i].Date)
@@ -600,7 +604,8 @@ func (p *Poloniex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 
 	var orders []order.Detail
 	for key := range resp.Data {
-		symbol := currency.NewPairDelimiter(key, format.Delimiter)
+		var symbol currency.Pair
+		symbol, err = currency.NewPairDelimiter(key, format.Delimiter)
 		if err != nil {
 			return nil, err
 		}
