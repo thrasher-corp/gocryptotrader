@@ -174,7 +174,6 @@ func (f *FTX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, erro
 			}
 		}
 	}
-	// f.Websocket.SubscribeToChannels(subscriptions)
 	return subscriptions, nil
 }
 
@@ -187,7 +186,6 @@ func (f *FTX) GenerateAuthSubscriptions() []stream.ChannelSubscription {
 			Channel: channels[x],
 		})
 	}
-	// f.Websocket.SubscribeToChannels(subscriptions)
 	return subscriptions
 }
 
