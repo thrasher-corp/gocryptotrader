@@ -9,19 +9,20 @@ import (
 
 // Consts here define basic time intervals
 const (
-	OneMin     = time.Minute
-	ThreeMin   = 3 * time.Minute
-	FiveMin    = 5 * time.Minute
-	FifteenMin = 15 * time.Minute
-	ThirtyMin  = 30 * time.Minute
-	OneHour    = 1 * time.Hour
-	TwoHour    = 2 * time.Hour
-	FourHour   = 4 * time.Hour
-	SixHour    = 6 * time.Hour
-	TwelveHour = 12 * time.Hour
-	OneDay     = 24 * time.Hour
-	ThreeDay   = 72 * time.Hour
-	OneWeek    = 168 * time.Hour
+	FifteenSecond = 15 * time.Second
+	OneMin        = time.Minute
+	ThreeMin      = 3 * time.Minute
+	FiveMin       = 5 * time.Minute
+	FifteenMin    = 15 * time.Minute
+	ThirtyMin     = 30 * time.Minute
+	OneHour       = 1 * time.Hour
+	TwoHour       = 2 * time.Hour
+	FourHour      = 4 * time.Hour
+	SixHour       = 6 * time.Hour
+	TwelveHour    = 12 * time.Hour
+	OneDay        = 24 * time.Hour
+	ThreeDay      = 72 * time.Hour
+	OneWeek       = 168 * time.Hour
 )
 
 // Item holds all the relevant information for internal kline elements

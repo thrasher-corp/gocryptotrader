@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode"
 )
 
 func (r Role) String() string {
@@ -152,7 +153,17 @@ func (b *BaseCodes) UpdateCurrency(fullName, symbol, blockchain string, id int, 
 
 // Register registers a currency from a string and returns a currency code
 func (b *BaseCodes) Register(c string) Code {
-	NewUpperCode := strings.ToUpper(c)
+	NewUpperCode := c
+	lower := true
+	for _, r := range c {
+		if !unicode.IsLower(r) {
+			lower = false
+			break
+		}
+	}
+	if lower {
+		NewUpperCode = strings.ToUpper(c)
+	}
 	format := strings.Contains(c, NewUpperCode)
 
 	b.mtx.Lock()

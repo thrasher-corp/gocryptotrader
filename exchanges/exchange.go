@@ -203,15 +203,13 @@ func (e *Base) GetAssetTypes() asset.Items {
 }
 
 // GetPairAssetType returns the associated asset type for the currency pair
+// This method is only useful for exchanges that have pair names with multiple delimiters (BTC-USD-0626)
+// Helpful if the exchange has only a single asset type but in that case the asset type can be hard coded
 func (e *Base) GetPairAssetType(c currency.Pair) (asset.Item, error) {
-	assets := e.GetAssetTypes()
-	for i := range assets {
-		pairs, err := e.GetEnabledPairs(assets[i])
-		if err != nil {
-			return "", err
-		}
-		if pairs.Contains(c, true) {
-			return assets[i], nil
+	assetTypes := e.GetAssetTypes()
+	for i := range assetTypes {
+		if e.GetAvailablePairs(assetTypes[i]).Contains(c, true) {
+			return assetTypes[i], nil
 		}
 	}
 	return "", errors.New("asset type not associated with currency pair")

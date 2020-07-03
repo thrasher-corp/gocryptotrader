@@ -53,6 +53,8 @@ func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
 			temp, err = convertRSI(args[i])
 		case indicators.SimpleMovingAverage:
 			temp, err = convertSMA(args[i])
+		case indicators.CorrelationCoefficient:
+			temp, err = convertCorrelationCoefficient(args[i])
 		case indicators.OHLCV:
 			temp, err = convertOHLCV(args[i])
 			front = true
@@ -370,6 +372,32 @@ func convertSMA(a objects.Object) ([][]string, error) {
 	var bucket = [][]string{
 		{
 			indicators.SimpleMovingAverage,
+		},
+		{
+			fmt.Sprintf("Period:%d", obj.Period),
+		},
+	}
+
+	var val string
+	for i := range obj.Value {
+		val, ok = objects.ToString(obj.Value[i])
+		if !ok {
+			return nil, errors.New("cannot convert object to string")
+		}
+		bucket = append(bucket, []string{val})
+	}
+	return bucket, nil
+}
+
+func convertCorrelationCoefficient(a objects.Object) ([][]string, error) {
+	obj, ok := objects.ToInterface(a).(*indicators.Correlation)
+	if !ok {
+		return nil, errors.New("casting failure")
+	}
+
+	var bucket = [][]string{
+		{
+			indicators.CorrelationCoefficient,
 		},
 		{
 			fmt.Sprintf("Period:%d", obj.Period),

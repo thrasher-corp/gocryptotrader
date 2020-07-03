@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -255,8 +256,8 @@ func (o *OKGroup) GetFundingHistory() (resp []exchange.FundHistory, err error) {
 	return resp, err
 }
 
-// GetExchangeHistory returns historic trade data since exchange opening.
-func (o *OKGroup) GetExchangeHistory(p currency.Pair, assetType asset.Item) ([]exchange.TradeHistory, error) {
+// GetExchangeHistory returns historic trade data within the timeframe provided.
+func (o *OKGroup) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

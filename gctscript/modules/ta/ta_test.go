@@ -11,7 +11,7 @@ func TestGetModuleMap(t *testing.T) {
 	if xType != reflect.Slice {
 		t.Fatalf("AllModuleNames() should return slice instead received: %v", x)
 	}
-	if len(x) != 8 {
-		t.Fatalf("unexpected results received expected 7 received: %v", len(x))
+	if len(x) != 9 {
+		t.Fatalf("unexpected results received expected 9 received: %v", len(x))
 	}
 }
