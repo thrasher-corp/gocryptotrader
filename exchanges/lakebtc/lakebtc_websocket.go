@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	lakeBTCWSURL         = "ws.lakebtc.com:8085"
+	lakeBTCWSURL         = "wss://ws.lakebtc.com:8085"
 	marketGlobalEndpoint = "market-global"
 	marketSubstring      = "market-"
 	globalSubstring      = "-global"
@@ -35,9 +35,11 @@ func (l *LakeBTC) WsConnect() error {
 	if !l.Websocket.IsEnabled() || !l.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
+
+	url := strings.Split(lakeBTCWSURL, "://")
 	var err error
 	l.WebsocketConn.Client, err = pusher.NewCustomClient(strings.ToLower(l.Name),
-		lakeBTCWSURL,
+		url[1],
 		wssSchem)
 	if err != nil {
 		return err

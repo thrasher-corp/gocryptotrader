@@ -1119,7 +1119,7 @@ func TestSetupDefaults(t *testing.T) {
 	b.Features.Supports.Websocket = true
 	b.SetupDefaults(&cfg)
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		Enabled:          true,
+		Enabled:          false,
 		WebsocketTimeout: time.Second * 30,
 		Features:         &protocol.Features{},
 		DefaultURL:       "ws://something.com",

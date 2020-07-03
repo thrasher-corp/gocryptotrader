@@ -34,7 +34,7 @@ func TestMain(m *testing.M) {
 	}
 	lakebtcConfig, err := cfg.GetExchangeConfig("LakeBTC")
 	if err != nil {
-		log.Fatal("LakeBTC Setup() init error")
+		log.Fatal("LakeBTC Setup() init error", err)
 	}
 	lakebtcConfig.API.AuthenticatedSupport = true
 	lakebtcConfig.API.Credentials.Key = apiKey
@@ -45,8 +45,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("LakeBTC setup error", err)
 	}
-	l.API.Endpoints.WebsocketURL = lakeBTCWSURL
-
 	os.Exit(m.Run())
 }
 
