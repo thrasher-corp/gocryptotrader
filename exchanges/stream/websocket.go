@@ -51,87 +51,84 @@ func NewTestWebsocket() *Websocket {
 }
 
 // Setup sets main variables for websocket connection
-func (w *Websocket) Setup(setupData *WebsocketSetup) error {
+func (w *Websocket) Setup(s *WebsocketSetup) error {
 	if w == nil {
 		return errors.New("websocket is nil")
 	}
 
 	if !w.init {
 		return fmt.Errorf("%s Websocket already initialised",
-			setupData.ExchangeName)
+			s.ExchangeName)
 	}
 
-	w.verbose = setupData.Verbose
-
-	if setupData.Features == nil {
+	w.verbose = s.Verbose
+	if s.Features == nil {
 		return errors.New("websocket features is unset")
 	}
 
-	w.features = setupData.Features
+	w.features = s.Features
 
-	if w.features.Subscribe && setupData.Subscriber == nil {
+	if w.features.Subscribe && s.Subscriber == nil {
 		return errors.New("features have been set yet channel subscriber is not set")
 	}
-	w.Subscriber = setupData.Subscriber
+	w.Subscriber = s.Subscriber
 
-	if w.features.Unsubscribe && setupData.UnSubscriber == nil {
+	if w.features.Unsubscribe && s.UnSubscriber == nil {
 		return errors.New("features have been set yet channel unsubscriber is not set")
 	}
-	w.Unsubscriber = setupData.UnSubscriber
+	w.Unsubscriber = s.UnSubscriber
 
-	w.GenerateSubs = setupData.GenerateSubscriptions
+	w.GenerateSubs = s.GenerateSubscriptions
 
-	w.enabled = setupData.Enabled
-	if setupData.DefaultURL == "" {
+	w.enabled = s.Enabled
+	if s.DefaultURL == "" {
 		return errors.New("default url is empty")
 	}
-	w.defaultURL = setupData.DefaultURL
-	w.connector = setupData.Connector
-	if setupData.ExchangeName == "" {
-		return errors.New("exchange name unset")
-	}
-	w.exchangeName = setupData.ExchangeName
-
-	if setupData.WebsocketTimeout < time.Second {
-		return fmt.Errorf("traffic timeout cannot be less than %s", time.Second)
-	}
-
-	w.trafficTimeout = setupData.WebsocketTimeout
-	if setupData.Features == nil {
-		return errors.New("feature set is nil")
-	}
-
-	if setupData.RunningURL == "" {
+	w.defaultURL = s.DefaultURL
+	if s.RunningURL == "" {
 		return errors.New("running URL cannot be nil")
 	}
-	w.runningURL = setupData.RunningURL
-	err := w.SetWebsocketURL(setupData.RunningURL, false, false)
+	err := w.SetWebsocketURL(s.RunningURL, false, false)
 	if err != nil {
 		return err
 	}
 
-	if setupData.RunningURLAuth != "" {
-		w.runningURLAuth = setupData.RunningURLAuth
-		err := w.SetWebsocketURL(setupData.RunningURLAuth, true, false)
+	if s.RunningURLAuth != "" {
+		err := w.SetWebsocketURL(s.RunningURLAuth, true, false)
 		if err != nil {
 			return err
 		}
 	}
 
+	w.connector = s.Connector
+	if s.ExchangeName == "" {
+		return errors.New("exchange name unset")
+	}
+	w.exchangeName = s.ExchangeName
+
+	if s.WebsocketTimeout < time.Second {
+		return fmt.Errorf("traffic timeout cannot be less than %s", time.Second)
+	}
+
+	w.trafficTimeout = s.WebsocketTimeout
+	if s.Features == nil {
+		return errors.New("feature set is nil")
+	}
+
 	w.ShutdownC = make(chan struct{})
 	w.Wg = new(sync.WaitGroup)
 
-	w.SetCanUseAuthenticatedEndpoints(setupData.AuthenticatedWebsocketAPISupport)
+	w.SetCanUseAuthenticatedEndpoints(s.AuthenticatedWebsocketAPISupport)
 	err = w.Initialise()
 	if err != nil {
 		return err
 	}
 
-	w.Orderbook.Setup(setupData.OrderbookBufferLimit,
-		setupData.BufferEnabled,
-		setupData.SortBuffer,
-		setupData.SortBufferByUpdateIDs,
-		setupData.UpdateEntriesByID,
+	w.Orderbook.Setup(s.OrderbookBufferLimit,
+		s.BufferEnabled,
+		s.SortBuffer,
+		s.SortBufferByUpdateIDs,
+		s.UpdateEntriesByID,
 		w.exchangeName,
 		w.DataHandler)
 	return nil
@@ -700,7 +697,7 @@ func (w *Websocket) SetWebsocketURL(url string, auth, reconnect bool) error {
 		if err != nil {
 			return err
 		}
-		w.runningURLAuth = url
+		w.runningURL = url
 
 		if w.verbose {
 			log.Debugf(log.WebsocketMgr,

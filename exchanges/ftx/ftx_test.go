@@ -855,10 +855,13 @@ func TestGetFundingHistory(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	currencyPair := currency.NewPairFromString(spotPair)
+	currencyPair, err := currency.NewPairFromString(spotPair)
+	if err != nil {
+		t.Fatal(err)
+	}
 	start := time.Date(2019, 11, 12, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 0, 5)
-	_, err := f.GetHistoricCandles(currencyPair, asset.Spot, start, end, kline.OneDay)
+	_, err = f.GetHistoricCandles(currencyPair, asset.Spot, start, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1082,7 +1085,10 @@ func TestAcceptOTCQuote(t *testing.T) {
 
 func TestGetExchangeHistory(t *testing.T) {
 	t.Parallel()
-	p := currency.NewPairFromString("ADA-PERP")
+	p, err := currency.NewPairFromString("ADA-PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
 	a, err := f.GetPairAssetType(p)
 	if err != nil {
 		t.Error(err)

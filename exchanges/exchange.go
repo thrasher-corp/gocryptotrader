@@ -208,7 +208,11 @@ func (e *Base) GetAssetTypes() asset.Items {
 func (e *Base) GetPairAssetType(c currency.Pair) (asset.Item, error) {
 	assetTypes := e.GetAssetTypes()
 	for i := range assetTypes {
-		if e.GetAvailablePairs(assetTypes[i]).Contains(c, true) {
+		avail, err := e.GetAvailablePairs(assetTypes[i])
+		if err != nil {
+			return "", err
+		}
+		if avail.Contains(c, true) {
 			return assetTypes[i], nil
 		}
 	}

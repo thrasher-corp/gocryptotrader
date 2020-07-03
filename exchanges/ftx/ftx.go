@@ -18,13 +18,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 // FTX is the overarching type across this package
 type FTX struct {
 	exchange.Base
-	WebsocketConn *wshandler.WebsocketConnection
 }
 
 const (
