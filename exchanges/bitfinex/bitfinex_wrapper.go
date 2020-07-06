@@ -891,23 +891,22 @@ func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 }
 
 func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) string {
-	var checkString [2]string
+	var checkString [2]byte
 	if a == asset.Spot {
-		checkString[0] = "t"
-		checkString[1] = "T"
+		checkString[0] = 't'
+		checkString[1] = 'T'
 	} else if a == asset.Margin {
-		checkString[0] = "f"
-		checkString[1] = "F"
+		checkString[0] = 'f'
+		checkString[1] = 'F'
 	}
 
-	v := b.FormatExchangeCurrency(in, a).Upper().String()
-	if (v[0] != checkString[0][0] && v[0] != checkString[1][0]) ||
-		(v[0] == checkString[1][0] && v[1] == checkString[1][0]) ||
-		(v[0] == checkString[0][0] && v[1] != checkString[0][0] || v[1] != checkString[1][0]) {
-		return checkString[0] + v
+	y := in.Base.String()
+	if (y[0] != checkString[0] && y[0] != checkString[1]) ||
+		(y[0] == checkString[1] && y[1] == checkString[1]) || in.Base == currency.TNB {
+		return string(checkString[0]) + b.FormatExchangeCurrency(in, a).Upper().String()
 	}
 
-	runes := []rune(v)
+	runes := []rune(b.FormatExchangeCurrency(in, a).Upper().String())
 	runes[0] = unicode.ToLower(runes[0])
 	return string(runes)
 }

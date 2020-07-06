@@ -4086,7 +4086,7 @@ func getHistoricCandles(c *cli.Context) error {
 
 var getHistoricCandlesExtendedCommand = cli.Command{
 	Name:      "gethistoriccandlesextended",
-	Usage:     "gets historical candles extended for the specified granularity up to range size time from now.",
+	Usage:     "gets historical candles extended for the specified granularity up to range size time from now",
 	ArgsUsage: "<exchange> <pair> <asset> <rangesize> <granularity>",
 	Action:    getHistoricCandlesExtended,
 	Flags: []cli.Flag{
