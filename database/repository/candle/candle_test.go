@@ -15,11 +15,6 @@ import (
 	"github.com/thrasher-corp/sqlboiler/boil"
 )
 
-var (
-	dbConn     *database.Instance
-	dbIsSeeded bool
-)
-
 func TestMain(m *testing.M) {
 	var err error
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
