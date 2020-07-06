@@ -16,8 +16,50 @@ You can track ideas, planned features and what's in progress on this Trello boar
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Exchange support status
-|  Exchange      |  Supported  | 
+## Wrapper Methods
+
+Candle retrieval is handled by two methods 
+
+
+GetHistoricCandles which makes a single request to the exchange and follows all exchange limitations
+```go
+func (b *base) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	return kline.Item{}, common.ErrFunctionNotSupported
+}
+```
+
+GetHistoricCandlesExtended that will make multiple requests to an exchange if the requested periods are outside exchange limits
+```go
+func (b *base) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	return kline.Item{}, common.ErrFunctionNotSupported
+}
+```
+
+both methods return kline.Item{} 
+
+```go
+// Item holds all the relevant information for internal kline elements
+type Item struct {
+	Exchange string
+	Pair     currency.Pair
+	Asset    asset.Item
+	Interval Interval
+	Candles  []Candle
+}
+
+// Candle holds historic rate information.
+type Candle struct {
+	Time   time.Time
+	Open   float64
+	High   float64
+	Low    float64
+	Close  float64
+	Volume float64
+}
+```
+
+## Exchange status
+| Exchange       | Supported   | 
 |----------------|-------------|
 | Binance        | Y           | 
 | Bitfinex       | Y           | 
