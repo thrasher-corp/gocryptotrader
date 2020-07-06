@@ -87,5 +87,5 @@ type Candle struct {
 | Okcoin         | Y           |           
 | Okex           | Y           |    
 | Poloniex       | Y           |          
-| Yobit          | Y           |    
+| Yobit          |            |    
 | ZB             | Y           |          
