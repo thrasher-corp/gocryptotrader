@@ -42,6 +42,7 @@ func main() {
 	engine.Bot.Settings = engine.Settings{
 		DisableExchangeAutoPairUpdates: true,
 		Verbose:                        verboseOverride,
+		EnableExchangeHTTPRateLimiter:  true,
 	}
 
 	log.Println("Loading config...")
