@@ -742,7 +742,7 @@ func (g *Gateio) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 
 	hours := end.Sub(start).Hours()
 	params := KlinesRequestParams{
-		Symbol:   pair.String(),
+		Symbol:   g.FormatExchangeCurrency(pair, a).String(),
 		GroupSec: g.FormatExchangeKlineInterval(interval),
 		HourSize: int(hours),
 	}

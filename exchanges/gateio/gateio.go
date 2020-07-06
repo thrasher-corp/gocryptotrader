@@ -205,7 +205,7 @@ func (g *Gateio) GetSpotKline(arg KlinesRequestParams) (kline.Item, error) {
 	}
 
 	if rawKlines == nil || rawKlines["data"] == nil {
-		return kline.Item{}, fmt.Errorf("rawKlines is nil. Err: %s", err)
+		return kline.Item{}, errors.New("rawKlines is nil")
 	}
 
 	rawKlineDatasString, _ := json.Marshal(rawKlines["data"].([]interface{}))
