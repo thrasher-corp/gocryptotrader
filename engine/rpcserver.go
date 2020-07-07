@@ -2043,21 +2043,19 @@ func (s *RPCServer) WebsocketGetInfo(_ context.Context, r *gctrpc.WebsocketGetIn
 		return nil, errExchangeNotLoaded
 	}
 
-	payload := new(gctrpc.WebsocketGetInfoResponse)
-	payload.Exchange = exch.GetName()
-
 	w, err := exch.GetWebsocket()
 	if err != nil {
-		return payload, nil
+		return nil, err
 	}
 
-	payload.Supported = exch.SupportsWebsocket()
-	payload.Enabled = exch.IsWebsocketEnabled()
-	payload.Authenticated = w.CanUseAuthenticatedEndpoints()
-	payload.RunningUrl = w.GetWebsocketURL()
-	payload.ProxyAddress = w.GetProxyAddress()
-
-	return payload, nil
+	return &gctrpc.WebsocketGetInfoResponse{
+		Exchange:      exch.GetName(),
+		Supported:     exch.SupportsWebsocket(),
+		Enabled:       exch.IsWebsocketEnabled(),
+		Authenticated: w.CanUseAuthenticatedEndpoints(),
+		RunningUrl:    w.GetWebsocketURL(),
+		ProxyAddress:  w.GetProxyAddress(),
+	}, nil
 }
 
 // WebsocketSetEnabled enables or disables the websocket client
