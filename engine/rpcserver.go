@@ -46,11 +46,12 @@ import (
 )
 
 const (
-	errExchangeNameUnset = "exchange name unset"
-	errCurrencyPairUnset = "currency pair unset"
-	errAssetTypeUnset    = "asset type unset"
-	errDispatchSystem    = "dispatch system offline"
-	errExchangeNotLoaded = errors.New("exchange is not loaded/doesn't exist")
+	errExchangeNameUnset    = "exchange name unset"
+	errCurrencyPairUnset    = "currency pair unset"
+	errAssetTypeUnset       = "asset type unset"
+	errDispatchSystem       = "dispatch system offline"
+	errExchangeNotLoaded    = errors.New("exchange is not loaded/doesn't exist")
+	errExchangeBaseNotFound = errors.New("cannot get exchange base")
 )
 
 // RPCServer struct
@@ -1033,10 +1034,13 @@ func (s *RPCServer) WithdrawFiatFunds(_ context.Context, r *gctrpc.WithdrawFiatR
 	}
 
 	var bankAccount *banking.Account
-
 	bankAccount, err := banking.GetBankAccountByID(r.BankAccountId)
 	if err != nil {
-		bankAccount, err = exch.GetBase().GetExchangeBankAccounts(r.BankAccountId, r.Currency)
+		base := exch.GetBase()
+		if base == nil {
+			return nil, errExchangeBaseNotFound
+		}
+		bankAccount, err = base.GetExchangeBankAccounts(r.BankAccountId, r.Currency)
 		if err != nil {
 			return nil, err
 		}
@@ -1246,12 +1250,12 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return nil, errors.New("cannot get exchange by name")
+		return nil, errExchangeNotLoaded
 	}
 
 	base := exch.GetBase()
 	if base == nil {
-		return nil, errors.New("cannot get exchange base")
+		return nil, errExchangeBaseNotFound
 	}
 
 	pairFmt, err := Bot.Config.GetPairFormat(r.Exchange, a)
@@ -1909,7 +1913,7 @@ func (s *RPCServer) SetExchangeAsset(_ context.Context, r *gctrpc.SetExchangeAss
 
 	base := exch.GetBase()
 	if base == nil {
-		return nil, errors.New("cannot get exchange base")
+		return nil, errExchangeBaseNotFound
 	}
 
 	if r.Asset == "" {
@@ -1955,7 +1959,7 @@ func (s *RPCServer) SetAllExchangePairs(_ context.Context, r *gctrpc.SetExchange
 
 	base := exch.GetBase()
 	if base == nil {
-		return nil, errors.New("cannot get exchange base")
+		return nil, errExchangeBaseNotFound
 	}
 
 	assets := base.CurrencyPairs.GetAssetTypes()
@@ -1998,7 +2002,7 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(_ context.Context, r *gctrpc.Up
 
 	base := exch.GetBase()
 	if base == nil {
-		return nil, errors.New("cannot get exchange base")
+		return nil, errExchangeBaseNotFound
 	}
 
 	if !base.GetEnabledFeatures().AutoPairUpdates {
