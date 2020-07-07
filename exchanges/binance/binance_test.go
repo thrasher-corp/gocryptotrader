@@ -1,6 +1,7 @@
 package binance
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
@@ -33,6 +34,17 @@ func setFeeBuilder() *exchange.FeeBuilder {
 		FeeType:       exchange.CryptocurrencyTradeFee,
 		Pair:          currency.NewPair(currency.BTC, currency.LTC),
 		PurchasePrice: 1,
+	}
+}
+
+func TestGetFundingRates(t *testing.T) {
+	b.HTTPClient = http.DefaultClient
+	b.API.Endpoints.URL = "https://fapi.binance.com"
+	b.Verbose = true
+	a, err := b.GetFundingRates("BTCUSDT", "1", time.Time{}, time.Time{})
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
 	}
 }
 

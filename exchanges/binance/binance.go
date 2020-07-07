@@ -40,6 +40,7 @@ const (
 	bestPrice         = "/api/v3/ticker/bookTicker"
 	accountInfo       = "/api/v3/account"
 	userAccountStream = "/api/v3/userDataStream"
+	fundingRate       = "/fapi/v1/fundingRate?"
 
 	// Authenticated endpoints
 	newOrderTest = "/api/v3/order/test"
@@ -60,6 +61,24 @@ const (
 	tradeFee          = "/wapi/v3/tradeFee.html"
 	assetDetail       = "/wapi/v3/assetDetail.html"
 )
+
+// GetFundingRates gets funding rate history for perpetual contracts
+func (b *Binance) GetFundingRates(symbol, limit string, startTime, endTime time.Time) ([]FundingRateData, error) {
+	var resp []FundingRateData
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if limit != "" {
+		params.Set("limit", limit)
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixNano(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixNano(), 10))
+	}
+	path := b.API.Endpoints.URL + fundingRate + params.Encode()
+	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
+}
 
 // Binance is the overarching type across the Bithumb package
 type Binance struct {

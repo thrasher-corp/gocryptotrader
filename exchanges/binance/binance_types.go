@@ -15,6 +15,13 @@ type Response struct {
 	Msg  string `json:"msg"`
 }
 
+// FundingRateData stores funding rates data
+type FundingRateData struct {
+	Symbol      string  `json:"symbol"`
+	FundingRate float64 `json:"fundingRate,string"`
+	FundingTime int64   `json:"fundingTime"`
+}
+
 // ExchangeInfo holds the full exchange information type
 type ExchangeInfo struct {
 	Code       int    `json:"code"`
