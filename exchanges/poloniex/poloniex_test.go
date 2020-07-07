@@ -534,7 +534,6 @@ func TestWsHandleAccountData(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	p.HTTPRecording = true
 	currencyPair := currency.NewPairFromString("BTCLTC")
 	_, err := p.GetHistoricCandles(currencyPair, asset.Spot, time.Unix(1588741402, 0), time.Unix(1588745003, 0), kline.FiveMin)
 	if err != nil {
