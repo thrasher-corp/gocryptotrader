@@ -50,6 +50,7 @@ const (
 	errCurrencyPairUnset = "currency pair unset"
 	errAssetTypeUnset    = "asset type unset"
 	errDispatchSystem    = "dispatch system offline"
+	errExchangeNotLoaded = errors.New("exchange is not loaded/doesn't exist")
 )
 
 // RPCServer struct
@@ -454,7 +455,7 @@ func (s *RPCServer) GetOrderbooks(_ context.Context, r *gctrpc.GetOrderbooksRequ
 func (s *RPCServer) GetAccountInfo(_ context.Context, r *gctrpc.GetAccountInfoRequest) (*gctrpc.GetAccountInfoResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return nil, errors.New("exchange is not loaded/doesn't exist")
+		return nil, errExchangeNotLoaded
 	}
 
 	resp, err := exch.FetchAccountInfo()
@@ -487,7 +488,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return errors.New("exchange is not loaded/doesn't exist")
+		return errExchangeNotLoaded
 	}
 
 	initAcc, err := exch.FetchAccountInfo()
@@ -718,7 +719,7 @@ func (s *RPCServer) GetForexRates(_ context.Context, r *gctrpc.GetForexRatesRequ
 func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*gctrpc.GetOrdersResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return nil, errors.New("exchange is not loaded/doesn't exist")
+		return nil, errExchangeNotLoaded
 	}
 
 	resp, err := exch.GetActiveOrders(&order.GetOrdersRequest{
@@ -755,7 +756,7 @@ func (s *RPCServer) GetOrders(_ context.Context, r *gctrpc.GetOrdersRequest) (*g
 func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gctrpc.OrderDetails, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return nil, errors.New("exchange is not loaded/doesn't exist")
+		return nil, errExchangeNotLoaded
 	}
 	result, err := exch.GetOrderInfo(r.OrderId)
 	if err != nil {
@@ -797,7 +798,7 @@ func (s *RPCServer) GetOrder(_ context.Context, r *gctrpc.GetOrderRequest) (*gct
 func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest) (*gctrpc.SubmitOrderResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return nil, errors.New("exchange is not loaded/doesn't exist")
+		return nil, errExchangeNotLoaded
 	}
 
 	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
@@ -831,7 +832,7 @@ func (s *RPCServer) SubmitOrder(_ context.Context, r *gctrpc.SubmitOrderRequest)
 func (s *RPCServer) SimulateOrder(_ context.Context, r *gctrpc.SimulateOrderRequest) (*gctrpc.SimulateOrderResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return nil, errors.New("exchange is not loaded/doesn't exist")
+		return nil, errExchangeNotLoaded
 	}
 
 	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
@@ -872,7 +873,7 @@ func (s *RPCServer) SimulateOrder(_ context.Context, r *gctrpc.SimulateOrderRequ
 func (s *RPCServer) WhaleBomb(_ context.Context, r *gctrpc.WhaleBombRequest) (*gctrpc.SimulateOrderResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return nil, errors.New("exchange is not loaded/doesn't exist")
+		return nil, errExchangeNotLoaded
 	}
 
 	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
@@ -913,7 +914,7 @@ func (s *RPCServer) WhaleBomb(_ context.Context, r *gctrpc.WhaleBombRequest) (*g
 func (s *RPCServer) CancelOrder(_ context.Context, r *gctrpc.CancelOrderRequest) (*gctrpc.CancelOrderResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return nil, errors.New("exchange is not loaded/doesn't exist")
+		return nil, errExchangeNotLoaded
 	}
 
 	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
@@ -974,7 +975,7 @@ func (s *RPCServer) RemoveEvent(_ context.Context, r *gctrpc.RemoveEventRequest)
 func (s *RPCServer) GetCryptocurrencyDepositAddresses(_ context.Context, r *gctrpc.GetCryptocurrencyDepositAddressesRequest) (*gctrpc.GetCryptocurrencyDepositAddressesResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return nil, errors.New("exchange is not loaded/doesn't exist")
+		return nil, errExchangeNotLoaded
 	}
 
 	result, err := GetCryptocurrencyDepositAddressesByExchange(r.Exchange)
@@ -986,7 +987,7 @@ func (s *RPCServer) GetCryptocurrencyDepositAddresses(_ context.Context, r *gctr
 func (s *RPCServer) GetCryptocurrencyDepositAddress(_ context.Context, r *gctrpc.GetCryptocurrencyDepositAddressRequest) (*gctrpc.GetCryptocurrencyDepositAddressResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return nil, errors.New("exchange is not loaded/doesn't exist")
+		return nil, errExchangeNotLoaded
 	}
 
 	addr, err := GetExchangeCryptocurrencyDepositAddress(r.Exchange, "", currency.NewCode(r.Cryptocurrency))
@@ -998,7 +999,7 @@ func (s *RPCServer) GetCryptocurrencyDepositAddress(_ context.Context, r *gctrpc
 func (s *RPCServer) WithdrawCryptocurrencyFunds(_ context.Context, r *gctrpc.WithdrawCryptoRequest) (*gctrpc.WithdrawResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return nil, errors.New("exchange is not loaded/doesn't exist")
+		return nil, errExchangeNotLoaded
 	}
 
 	request := &withdraw.Request{
@@ -1028,7 +1029,7 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(_ context.Context, r *gctrpc.Wit
 func (s *RPCServer) WithdrawFiatFunds(_ context.Context, r *gctrpc.WithdrawFiatRequest) (*gctrpc.WithdrawResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return nil, errors.New("exchange is not loaded/doesn't exist")
+		return nil, errExchangeNotLoaded
 	}
 
 	var bankAccount *banking.Account
@@ -1898,7 +1899,7 @@ func (s *RPCServer) GCTScriptAutoLoadToggle(_ context.Context, r *gctrpc.GCTScri
 func (s *RPCServer) SetExchangeAsset(_ context.Context, r *gctrpc.SetExchangeAssetRequest) (*gctrpc.GenericSubsystemResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return nil, errors.New("exchange is not loaded/doesn't exist")
+		return nil, errExchangeNotLoaded
 	}
 
 	exchCfg, err := Bot.Config.GetExchangeConfig(r.Exchange)
@@ -1944,7 +1945,7 @@ func (s *RPCServer) SetExchangeAsset(_ context.Context, r *gctrpc.SetExchangeAss
 func (s *RPCServer) SetAllExchangePairs(_ context.Context, r *gctrpc.SetExchangeAllPairsRequest) (*gctrpc.GenericSubsystemResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return nil, errors.New("exchange is not loaded/doesn't exist")
+		return nil, errExchangeNotLoaded
 	}
 
 	exchCfg, err := Bot.Config.GetExchangeConfig(r.Exchange)
@@ -1992,7 +1993,7 @@ func (s *RPCServer) SetAllExchangePairs(_ context.Context, r *gctrpc.SetExchange
 func (s *RPCServer) UpdateExchangeSupportedPairs(_ context.Context, r *gctrpc.UpdateExchangeSupportedPairsRequest) (*gctrpc.GenericSubsystemResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return nil, errors.New("exchange is not loaded/doesn't exist")
+		return nil, errExchangeNotLoaded
 	}
 
 	base := exch.GetBase()
@@ -2023,7 +2024,7 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(_ context.Context, r *gctrpc.Up
 func (s *RPCServer) GetExchangeAssets(_ context.Context, r *gctrpc.GetExchangeAssetsRequest) (*gctrpc.GetExchangeAssetsResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return nil, errors.New("exchange is not loaded/doesn't exist")
+		return nil, errExchangeNotLoaded
 	}
 
 	return &gctrpc.GetExchangeAssetsResponse{
@@ -2035,7 +2036,7 @@ func (s *RPCServer) GetExchangeAssets(_ context.Context, r *gctrpc.GetExchangeAs
 func (s *RPCServer) WebsocketGetInfo(_ context.Context, r *gctrpc.WebsocketGetInfoRequest) (*gctrpc.WebsocketGetInfoResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return nil, errors.New("exchange is not loaded/doesn't exist")
+		return nil, errExchangeNotLoaded
 	}
 
 	payload := new(gctrpc.WebsocketGetInfoResponse)
@@ -2059,7 +2060,7 @@ func (s *RPCServer) WebsocketGetInfo(_ context.Context, r *gctrpc.WebsocketGetIn
 func (s *RPCServer) WebsocketSetEnabled(_ context.Context, r *gctrpc.WebsocketSetEnabledRequest) (*gctrpc.GCTScriptGenericResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return nil, errors.New("exchange is not loaded/doesn't exist")
+		return nil, errExchangeNotLoaded
 	}
 
 	w, err := exch.GetWebsocket()
@@ -2094,7 +2095,7 @@ func (s *RPCServer) WebsocketSetEnabled(_ context.Context, r *gctrpc.WebsocketSe
 func (s *RPCServer) WebsocketGetSubscriptions(_ context.Context, r *gctrpc.WebsocketGetSubscriptionsRequest) (*gctrpc.WebsocketGetSubscriptionsResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return nil, errors.New("exchange is not loaded/doesn't exist")
+		return nil, errExchangeNotLoaded
 	}
 
 	w, err := exch.GetWebsocket()
@@ -2125,7 +2126,7 @@ func (s *RPCServer) WebsocketGetSubscriptions(_ context.Context, r *gctrpc.Webso
 func (s *RPCServer) WebsocketSetProxy(_ context.Context, r *gctrpc.WebsocketSetProxyRequest) (*gctrpc.GCTScriptGenericResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return nil, errors.New("exchange is not loaded/doesn't exist")
+		return nil, errExchangeNotLoaded
 	}
 
 	w, err := exch.GetWebsocket()
@@ -2144,7 +2145,7 @@ func (s *RPCServer) WebsocketSetProxy(_ context.Context, r *gctrpc.WebsocketSetP
 func (s *RPCServer) WebsocketSetURL(_ context.Context, r *gctrpc.WebsocketSetURLRequest) (*gctrpc.GCTScriptGenericResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
-		return nil, errors.New("exchange is not loaded/doesn't exist")
+		return nil, errExchangeNotLoaded
 	}
 
 	w, err := exch.GetWebsocket()
