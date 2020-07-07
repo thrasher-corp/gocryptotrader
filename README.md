@@ -74,7 +74,7 @@ However, we welcome pull requests for any exchange which does not match this cri
 + Packages for handling currency pairs, tickers and orderbooks.
 + Portfolio management tool; fetches balances from supported exchanges and allows for custom address tracking.
 + Basic event trigger system.
-+ OHLCV/Candle retrieval support 
++ OHLCV/Candle retrieval support. See [OHLCV](/docs/OHLCV.md).
 + Scripting support. See [gctscript](/gctscript/README.md).
 + WebGUI (discontinued).
 
