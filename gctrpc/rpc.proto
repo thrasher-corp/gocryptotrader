@@ -610,7 +610,12 @@ message GetHistoricCandlesRequest {
 }
 
 message GetHistoricCandlesResponse {
-    repeated Candle candle =1;
+    string exchange = 1;
+    CurrencyPair pair = 2;
+    int64 start = 3;
+    int64 end = 4;
+    string interval = 6;
+    repeated Candle candle = 5;
 }
 
 message Candle {

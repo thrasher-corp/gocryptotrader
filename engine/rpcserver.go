@@ -1556,7 +1556,13 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHisto
 			return nil, err
 		}
 	}
-	resp := gctrpc.GetHistoricCandlesResponse{}
+	resp := gctrpc.GetHistoricCandlesResponse{
+		Exchange: exchange.GetName(),
+		Interval: kline.Interval(req.TimeInterval).Short(),
+		Start:    req.Start,
+		End:      req.End,
+	}
+
 	for i := range candles.Candles {
 		resp.Candle = append(resp.Candle, &gctrpc.Candle{
 			Time:   candles.Candles[i].Time.Unix(),
