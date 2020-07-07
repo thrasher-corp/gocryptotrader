@@ -534,6 +534,7 @@ func TestWsHandleAccountData(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
+	p.HTTPRecording = true
 	currencyPair := currency.NewPairFromString("BTCLTC")
 	_, err := p.GetHistoricCandles(currencyPair, asset.Spot, time.Unix(1588741402, 0), time.Unix(1588745003, 0), kline.FiveMin)
 	if err != nil {
@@ -546,6 +547,24 @@ func TestGetHistoricCandles(t *testing.T) {
 
 	currencyPair.Quote = currency.NewCode("LTCC")
 	_, err = p.GetHistoricCandles(currencyPair, asset.Spot, time.Unix(1588741402, 0), time.Unix(1588745003, 0), kline.FiveMin)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	currencyPair := currency.NewPairFromString("BTCLTC")
+	_, err := p.GetHistoricCandlesExtended(currencyPair, asset.Spot, time.Unix(1588741402, 0), time.Unix(1588745003, 0), kline.FiveMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.GetHistoricCandlesExtended(currencyPair, asset.Spot, time.Unix(1588741402, 0), time.Unix(1588745003, 0), kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
+	}
+
+	currencyPair.Quote = currency.NewCode("LTCC")
+	_, err = p.GetHistoricCandlesExtended(currencyPair, asset.Spot, time.Unix(1588741402, 0), time.Unix(1588745003, 0), kline.FiveMin)
 	if err == nil {
 		t.Fatal(err)
 	}
