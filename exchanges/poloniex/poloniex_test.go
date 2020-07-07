@@ -543,4 +543,10 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err == nil {
 		t.Fatal("unexpected result")
 	}
+
+	currencyPair.Quote = currency.NewCode("LTCC")
+	_, err = p.GetHistoricCandles(currencyPair, asset.Spot, time.Unix(1588741402, 0), time.Unix(1588745003, 0), kline.FiveMin)
+	if err == nil {
+		t.Fatal(err)
+	}
 }

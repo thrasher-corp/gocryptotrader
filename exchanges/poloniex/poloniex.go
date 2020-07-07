@@ -193,11 +193,26 @@ func (p *Poloniex) GetChartData(currencyPair string, start, end time.Time, perio
 		vals.Set("period", period)
 	}
 
+	var temp json.RawMessage
 	var resp []ChartData
 	path := p.API.Endpoints.URL + "/public?command=returnChartData&" + vals.Encode()
-	err := p.SendHTTPRequest(path, &resp)
+	err := p.SendHTTPRequest(path, &temp)
 	if err != nil {
 		return nil, err
+	}
+
+	tempUnmarshal := json.Unmarshal(temp, &resp)
+	if tempUnmarshal != nil {
+		var errResp struct {
+			Error string `json:"error"`
+		}
+		errRet := json.Unmarshal(temp, &errResp)
+		if errRet != nil {
+			return nil, err
+		}
+		if errResp.Error != "" {
+			return nil, errors.New(errResp.Error)
+		}
 	}
 
 	return resp, nil
