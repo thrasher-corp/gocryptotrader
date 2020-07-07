@@ -20,7 +20,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	MigrationDir = filepath.Join("..","migrations")
+	MigrationDir = filepath.Join("..", "migrations")
 	t := m.Run()
 
 	err = os.RemoveAll(TempDir)
