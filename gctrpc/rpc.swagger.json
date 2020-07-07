@@ -2667,6 +2667,23 @@
     "gctrpcGetHistoricCandlesResponse": {
       "type": "object",
       "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "start": {
+          "type": "string",
+          "format": "int64"
+        },
+        "end": {
+          "type": "string",
+          "format": "int64"
+        },
+        "interval": {
+          "type": "string"
+        },
         "candle": {
           "type": "array",
           "items": {
