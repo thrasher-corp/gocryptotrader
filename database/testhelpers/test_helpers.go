@@ -11,7 +11,6 @@ import (
 	psqlConn "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	sqliteConn "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
-	"github.com/thrasher-corp/gocryptotrader/database/seed"
 	"github.com/thrasher-corp/goose"
 )
 
@@ -73,9 +72,8 @@ func GetConnectionDetails() *database.Config {
 }
 
 // ConnectToDatabase opens connection to database and returns pointer to instance of database.DB
-func ConnectToDatabase(conn *database.Config) (dbConn *database.Instance, err error) {
+func ConnectToDatabase(conn *database.Config, runMigration bool) (dbConn *database.Instance, err error) {
 	database.DB.Config = conn
-
 	if conn.Driver == database.DBPostgreSQL {
 		dbConn, err = psqlConn.Connect()
 		if err != nil {
@@ -84,15 +82,16 @@ func ConnectToDatabase(conn *database.Config) (dbConn *database.Instance, err er
 	} else if conn.Driver == database.DBSQLite3 || conn.Driver == database.DBSQLite {
 		database.DB.DataPath = TempDir
 		dbConn, err = sqliteConn.Connect()
-
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	err = migrateDB(database.DB.SQL)
-	if err != nil {
-		return nil, err
+	if runMigration {
+		err = migrateDB(database.DB.SQL)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return
@@ -112,15 +111,18 @@ func CheckValidConfig(config *drivers.ConnectionDetails) bool {
 }
 
 func migrateDB(db *sql.DB) error {
-	err := goose.Run("reset", db, repository.GetSQLDialect(), MigrationDir, "")
+	err := ResetDB(db)
 	if err != nil {
 		return err
 	}
 
-	err = goose.Run("up", db, repository.GetSQLDialect(), MigrationDir, "")
-	if err != nil {
-		return err
-	}
+	return MigrateDB(db)
+}
 
-	return seed.Run()
+func ResetDB(db *sql.DB) error {
+	return goose.Run("reset", db, repository.GetSQLDialect(), MigrationDir, "")
+}
+
+func MigrateDB(db *sql.DB) error {
+	return goose.Run("up", db, repository.GetSQLDialect(), MigrationDir, "")
 }

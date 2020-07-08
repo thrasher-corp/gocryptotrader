@@ -1,9 +1,7 @@
 package seed
 
+import "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
+
 func Run() error {
-	err := Exchange()
-	if err != nil {
-		return err
-	}
-	return nil
+	return exchange.Seed()
 }

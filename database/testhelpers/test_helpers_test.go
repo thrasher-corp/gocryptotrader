@@ -72,7 +72,7 @@ func TestDatabaseConnect(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := ConnectToDatabase(test.config)
+			dbConn, err := ConnectToDatabase(test.config, false)
 			if err != nil {
 				switch v := test.output.(type) {
 				case error:

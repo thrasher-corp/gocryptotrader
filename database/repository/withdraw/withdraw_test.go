@@ -71,7 +71,7 @@ func TestWithdraw(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := testhelpers.ConnectToDatabase(test.config)
+			dbConn, err := testhelpers.ConnectToDatabase(test.config, true)
 			if err != nil {
 				t.Fatal(err)
 			}

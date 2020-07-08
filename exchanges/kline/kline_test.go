@@ -3,6 +3,7 @@ package kline
 import (
 	"math/rand"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -324,7 +325,8 @@ var (
 )
 
 func TestSeedFromDatabase(t *testing.T) {
-	_, err := testhelpers.ConnectToDatabase(dbcfg)
+	testhelpers.MigrationDir = filepath.Join("..", "..", "database", "migrations")
+	_, err := testhelpers.ConnectToDatabase(dbcfg, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -336,5 +338,7 @@ func TestSeedFromDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(ret)
+	if ret.Exchange != "Binance" {
+		t.Fatalf("uncorrect data returned: %v", ret.Exchange)
+	}
 }

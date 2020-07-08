@@ -1,10 +1,7 @@
-package seed
+package exchange
 
-import (
-	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
-)
 var (
-	allExchanges = []exchange.Details{
+	allExchanges = []Details{
 		{
 			Name: "Alphapoint",
 		},
@@ -95,6 +92,6 @@ var (
 	}
 )
 
-func Exchange() error {
-	return exchange.InsertMany(allExchanges)
+func Seed() error {
+	return InsertMany(allExchanges)
 }

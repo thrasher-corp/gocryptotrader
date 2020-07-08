@@ -10,7 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
-	"github.com/thrasher-corp/gocryptotrader/database/seed"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
 	"github.com/thrasher-corp/sqlboiler/boil"
 )
@@ -68,7 +67,7 @@ func TestSeries(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := testhelpers.ConnectToDatabase(test.config)
+			dbConn, err := testhelpers.ConnectToDatabase(test.config, true)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -97,7 +96,7 @@ func TestSeries(t *testing.T) {
 }
 
 func seedDB() error {
-	err := seed.Exchange()
+	err := exchange.Seed()
 	if err != nil {
 		return err
 	}
