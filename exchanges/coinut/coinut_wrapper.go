@@ -159,6 +159,7 @@ func (c *COINUT) Setup(exch *config.ExchangeConfig) error {
 	return c.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		RateLimit:            wsRateLimitInMilliseconds,
 	})
 }
 

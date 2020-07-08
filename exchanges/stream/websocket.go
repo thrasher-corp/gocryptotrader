@@ -171,6 +171,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 		ShutdownC:         w.ShutdownC,
 		Wg:                w.Wg,
 		Match:             w.Match,
+		RateLimit:         c.RateLimit,
 	}
 
 	if c.Authenticated {
@@ -352,11 +353,9 @@ func (w *Websocket) connectionMonitor() {
 			// check if this error is a disconnection error
 			if isDisconnectionError(err) {
 				w.setInit(false)
-				if w.verbose {
-					log.Debugf(log.WebsocketMgr,
-						"%v websocket has been disconnected. Reason: %v",
-						w.exchangeName, err)
-				}
+				log.Warnf(log.WebsocketMgr,
+					"%v websocket has been disconnected. Reason: %v",
+					w.exchangeName, err)
 				w.setConnectedStatus(false)
 			} else {
 				// pass off non disconnect errors to datahandler to manage
@@ -496,9 +495,8 @@ func (w *Websocket) trafficMonitor() error {
 	if w.IsTrafficMonitorRunning() {
 		return nil
 	}
-
-	w.Wg.Add(1)
 	w.setTrafficMonitorRunning(true)
+	w.Wg.Add(1)
 
 	go func() {
 		var trafficTimer = time.NewTimer(w.trafficTimeout)

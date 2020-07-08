@@ -41,6 +41,8 @@ const (
 
 	coinutStatusOK = "OK"
 	coinutMaxNonce = 16777215 // See https://github.com/coinut/api/wiki/Websocket-API#nonce
+
+	wsRateLimitInMilliseconds = 33
 )
 
 var (

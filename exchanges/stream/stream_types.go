@@ -43,7 +43,7 @@ type ChannelSubscription struct {
 type ConnectionSetup struct {
 	ResponseCheckTimeout time.Duration
 	ResponseMaxLimit     time.Duration
-	RateLimit            int
+	RateLimit            int64
 	URL                  string
 	Authenticated        bool
 }

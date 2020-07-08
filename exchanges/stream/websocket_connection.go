@@ -29,7 +29,7 @@ type WebsocketConnection struct {
 	// writes methods
 	writeControl sync.Mutex
 
-	RateLimit    float64
+	RateLimit    int64
 	ExchangeName string
 	URL          string
 	ProxyURL     string
@@ -164,6 +164,10 @@ func (w *WebsocketConnection) SendRawMessage(messageType int, message []byte) er
 				w.ExchangeName)
 		}
 	}
+	if !w.IsConnected() {
+		return fmt.Errorf("%v websocket connection: cannot send message to a disconnected websocket",
+			w.ExchangeName)
+	}
 	return w.Connection.WriteMessage(messageType, message)
 }
 
@@ -198,7 +202,7 @@ func (w *WebsocketConnection) SetupPingHandler(handler PingHandler) {
 				err := w.SendRawMessage(handler.MessageType, handler.Message)
 				if err != nil {
 					log.Errorf(log.WebsocketMgr,
-						"%v websocket connection: failed to send message [%s]",
+						"%v websocket connection: ping handler failed to send message [%s]",
 						w.ExchangeName,
 						handler.Message)
 					return
