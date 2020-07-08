@@ -178,32 +178,50 @@ func TestBaseCode(t *testing.T) {
 
 	main.Register("XBTUSD")
 
-	main.UpdateCurrency("Bitcoin Perpetual",
+	err := main.UpdateCurrency("Bitcoin Perpetual",
 		"XBTUSD",
 		"",
 		0,
 		Contract)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	main.Register("BTC")
-	main.UpdateCurrency("Bitcoin", "BTC", "", 1337, Cryptocurrency)
+	err = main.UpdateCurrency("Bitcoin", "BTC", "", 1337, Cryptocurrency)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	main.Register("AUD")
-	main.UpdateCurrency("Unreal Dollar", "AUD", "", 1111, Fiat)
+	err = main.UpdateCurrency("Unreal Dollar", "AUD", "", 1111, Fiat)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if main.Items[5].FullName != "Unreal Dollar" {
 		t.Error("Expected fullname to update for AUD")
 	}
 
-	main.UpdateCurrency("Australian Dollar", "AUD", "", 1336, Fiat)
+	err = main.UpdateCurrency("Australian Dollar", "AUD", "", 1336, Fiat)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	main.Items[5].Role = Unset
-	main.UpdateCurrency("Australian Dollar", "AUD", "", 1336, Fiat)
+	err = main.UpdateCurrency("Australian Dollar", "AUD", "", 1336, Fiat)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if main.Items[5].Role != Fiat {
 		t.Error("Expected role to change to Fiat")
 	}
 
 	main.Register("PPT")
-	main.UpdateCurrency("Populous", "PPT", "ETH", 1335, Token)
+	err = main.UpdateCurrency("Populous", "PPT", "ETH", 1335, Token)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	contract := main.Register("XBTUSD")
 
@@ -284,24 +302,32 @@ func TestBaseCode(t *testing.T) {
 	}
 
 	main.Items[0].FullName = "Hello"
-	main.UpdateCurrency("MEWOW", "CATS", "", 1338, Unset)
-
+	err = main.UpdateCurrency("MEWOW", "CATS", "", 1338, Cryptocurrency)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if main.Items[0].FullName != "MEWOW" {
 		t.Error("Fullname not updated")
 	}
-	main.UpdateCurrency("MEWOW", "CATS", "", 1338, Unset)
-
+	err = main.UpdateCurrency("MEWOW", "CATS", "", 1338, Cryptocurrency)
+	if err != nil {
+		t.Fatal(err)
+	}
 	main.Items[0].Role = Cryptocurrency
-	main.UpdateCurrency("MEWOW", "CATS", "", 3, Unset)
-
+	err = main.UpdateCurrency("MEWOW", "CATS", "", 3, Token)
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Creates a new item under a different currency role
 	if main.Items[8].ID != 3 {
 		t.Error("ID not updated")
 	}
 
 	main.Items[0].Role = Unset
-	main.UpdateCurrency("MEWOW", "CATS", "", 1338, Unset)
-
+	err = main.UpdateCurrency("MEWOW", "CATS", "", 1338, Cryptocurrency)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if main.Items[0].ID != 1338 {
 		t.Error("ID not updated")
 	}

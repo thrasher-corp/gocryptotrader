@@ -102,10 +102,12 @@ func (b *BaseCodes) GetCurrencies() Currencies {
 }
 
 // UpdateCurrency updates or registers a currency/contract
-func (b *BaseCodes) UpdateCurrency(fullName, symbol, blockchain string, id int, r Role) {
+func (b *BaseCodes) UpdateCurrency(fullName, symbol, blockchain string, id int, r Role) error {
+	if r == Unset {
+		return fmt.Errorf("role cannot be unset in update currency for %s", symbol)
+	}
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
-	var appendNewRole bool
 	for i := range b.Items {
 		if b.Items[i].Symbol != symbol {
 			continue
@@ -116,30 +118,18 @@ func (b *BaseCodes) UpdateCurrency(fullName, symbol, blockchain string, id int, 
 			b.Items[i].Role = r
 			b.Items[i].AssocChain = blockchain
 			b.Items[i].ID = id
-			return
+			return nil
 		}
 
 		if b.Items[i].Role != r {
 			// Captures same name currencies and duplicates to different roles
-			appendNewRole = true
-			continue
+			break
 		}
 
 		b.Items[i].FullName = fullName
 		b.Items[i].AssocChain = blockchain
 		b.Items[i].ID = id
-		return
-	}
-
-	if appendNewRole {
-		b.Items = append(b.Items, &Item{
-			Symbol:     symbol,
-			FullName:   fullName,
-			Role:       r,
-			AssocChain: blockchain,
-			ID:         id,
-		})
-		return
+		return nil
 	}
 
 	b.Items = append(b.Items, &Item{
@@ -149,6 +139,7 @@ func (b *BaseCodes) UpdateCurrency(fullName, symbol, blockchain string, id int, 
 		AssocChain: blockchain,
 		ID:         id,
 	})
+	return nil
 }
 
 // Register registers a currency from a string and returns a currency code
