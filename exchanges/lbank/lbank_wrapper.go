@@ -55,8 +55,8 @@ func (l *Lbank) SetDefaults() {
 	l.API.CredentialsValidator.RequiresKey = true
 	l.API.CredentialsValidator.RequiresSecret = true
 
-	requestFmt := &currency.PairFormat{Delimiter: currency.Underscore}
-	configFmt := &currency.PairFormat{Delimiter: currency.Underscore}
+	requestFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter}
+	configFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter}
 	err := l.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)

@@ -59,7 +59,7 @@ func (b *Binance) SetDefaults() {
 	fmt1 := currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat: &currency.PairFormat{
-			Delimiter: currency.Dash,
+			Delimiter: currency.DashDelimiter,
 			Uppercase: true,
 		},
 	}

@@ -56,8 +56,8 @@ func (y *Yobit) SetDefaults() {
 	y.API.CredentialsValidator.RequiresKey = true
 	y.API.CredentialsValidator.RequiresSecret = true
 
-	requestFmt := &currency.PairFormat{Delimiter: currency.Underscore, Separator: currency.Dash}
-	configFmt := &currency.PairFormat{Delimiter: currency.Underscore, Uppercase: true}
+	requestFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter, Separator: currency.DashDelimiter}
+	configFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter, Uppercase: true}
 	err := y.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)

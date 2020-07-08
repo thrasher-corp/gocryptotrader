@@ -54,11 +54,11 @@ func (b *Bitflyer) SetDefaults() {
 	b.API.CredentialsValidator.RequiresSecret = true
 
 	requestFmt := &currency.PairFormat{
-		Delimiter: currency.Underscore,
+		Delimiter: currency.UnderscoreDelimiter,
 		Uppercase: true,
 	}
 	configFmt := &currency.PairFormat{
-		Delimiter: currency.Underscore,
+		Delimiter: currency.UnderscoreDelimiter,
 		Uppercase: true,
 	}
 	err := b.SetGlobalPairsManager(requestFmt,

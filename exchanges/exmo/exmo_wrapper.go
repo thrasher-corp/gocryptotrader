@@ -57,12 +57,12 @@ func (e *EXMO) SetDefaults() {
 	e.API.CredentialsValidator.RequiresSecret = true
 
 	requestFmt := &currency.PairFormat{
-		Delimiter: currency.Underscore,
+		Delimiter: currency.UnderscoreDelimiter,
 		Uppercase: true,
 		Separator: ",",
 	}
 	configFmt := &currency.PairFormat{
-		Delimiter: currency.Underscore,
+		Delimiter: currency.UnderscoreDelimiter,
 		Uppercase: true,
 	}
 	err := e.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)

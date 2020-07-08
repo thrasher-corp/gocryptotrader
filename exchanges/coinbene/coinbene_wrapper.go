@@ -57,11 +57,11 @@ func (c *Coinbene) SetDefaults() {
 	err := c.StoreAssetPairFormat(asset.Spot, currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: currency.ForwardSlash,
+			Delimiter: currency.ForwardSlashDelimiter,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: currency.ForwardSlash,
+			Delimiter: currency.ForwardSlashDelimiter,
 		},
 	})
 	if err != nil {
@@ -74,7 +74,7 @@ func (c *Coinbene) SetDefaults() {
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: currency.ForwardSlash,
+			Delimiter: currency.ForwardSlashDelimiter,
 		},
 	})
 	if err != nil {

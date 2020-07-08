@@ -57,8 +57,8 @@ func (g *Gateio) SetDefaults() {
 	g.API.CredentialsValidator.RequiresKey = true
 	g.API.CredentialsValidator.RequiresSecret = true
 
-	requestFmt := &currency.PairFormat{Delimiter: currency.Underscore}
-	configFmt := &currency.PairFormat{Delimiter: currency.Underscore, Uppercase: true}
+	requestFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter}
+	configFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter, Uppercase: true}
 	err := g.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)

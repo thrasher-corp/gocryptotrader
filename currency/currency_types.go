@@ -63,11 +63,14 @@ type File struct {
 
 // Const here are packaged defined delimiters
 const (
-	Underscore   = "_"
-	Dash         = "-"
-	ForwardSlash = "/"
-	Colon        = ":"
+	UnderscoreDelimiter   = "_"
+	DashDelimiter         = "-"
+	ForwardSlashDelimiter = "/"
+	ColonDelimiter        = ":"
 )
 
 // delimiters is a delimiter list
-var delimiters = []string{Underscore, Dash, ForwardSlash, Colon}
+var delimiters = []string{UnderscoreDelimiter,
+	DashDelimiter,
+	ForwardSlashDelimiter,
+	ColonDelimiter}

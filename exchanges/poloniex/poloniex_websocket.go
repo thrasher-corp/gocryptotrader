@@ -360,7 +360,7 @@ func (p *Poloniex) wsHandleTickerData(data []interface{}) error {
 	tickerData := data[2].([]interface{})
 	var t WsTicker
 	currencyPair, err := currency.NewPairDelimiter(currencyIDMap[tickerData[0].(float64)],
-		currency.Underscore)
+		currency.UnderscoreDelimiter)
 	if err != nil {
 		return err
 	}
@@ -541,7 +541,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 		return nil, err
 	}
 	for j := range enabledCurrencies {
-		enabledCurrencies[j].Delimiter = currency.Underscore
+		enabledCurrencies[j].Delimiter = currency.UnderscoreDelimiter
 		subscriptions = append(subscriptions, stream.ChannelSubscription{
 			Channel:  "orderbook",
 			Currency: enabledCurrencies[j],

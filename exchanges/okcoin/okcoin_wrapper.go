@@ -52,8 +52,8 @@ func (o *OKCoin) SetDefaults() {
 	o.API.CredentialsValidator.RequiresSecret = true
 	o.API.CredentialsValidator.RequiresClientID = true
 
-	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.Dash}
-	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.Dash}
+	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
+	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	o.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Margin)
 
 	o.Features = exchange.Features{

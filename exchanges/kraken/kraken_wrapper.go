@@ -63,7 +63,7 @@ func (k *Kraken) SetDefaults() {
 	}
 	configFmt := &currency.PairFormat{
 		Uppercase: true,
-		Delimiter: currency.Dash,
+		Delimiter: currency.DashDelimiter,
 		Separator: ",",
 	}
 	err := k.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)

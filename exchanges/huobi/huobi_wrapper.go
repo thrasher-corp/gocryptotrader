@@ -57,7 +57,7 @@ func (h *HUOBI) SetDefaults() {
 	h.API.CredentialsValidator.RequiresSecret = true
 
 	requestFmt := &currency.PairFormat{}
-	configFmt := &currency.PairFormat{Delimiter: currency.Dash, Uppercase: true}
+	configFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
 	err := h.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)

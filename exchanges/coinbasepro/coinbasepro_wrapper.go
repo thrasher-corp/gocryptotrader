@@ -57,8 +57,8 @@ func (c *CoinbasePro) SetDefaults() {
 	c.API.CredentialsValidator.RequiresClientID = true
 	c.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 
-	requestFmt := &currency.PairFormat{Delimiter: currency.Dash, Uppercase: true}
-	configFmt := &currency.PairFormat{Delimiter: currency.Dash, Uppercase: true}
+	requestFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
+	configFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
 	err := c.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)

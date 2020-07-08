@@ -56,12 +56,12 @@ func (p *Poloniex) SetDefaults() {
 	p.API.CredentialsValidator.RequiresSecret = true
 
 	requestFmt := &currency.PairFormat{
-		Delimiter: currency.Underscore,
+		Delimiter: currency.UnderscoreDelimiter,
 		Uppercase: true,
 	}
 
 	configFmt := &currency.PairFormat{
-		Delimiter: currency.Underscore,
+		Delimiter: currency.UnderscoreDelimiter,
 		Uppercase: true,
 	}
 

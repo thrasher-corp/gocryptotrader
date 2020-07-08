@@ -58,7 +58,7 @@ func (c *COINUT) SetDefaults() {
 	c.API.CredentialsValidator.RequiresClientID = true
 
 	requestFmt := &currency.PairFormat{Uppercase: true}
-	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.Dash}
+	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	err := c.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
