@@ -3,9 +3,8 @@ package seed
 import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 )
-
-func Exchange() error {
-	allExchanges := []exchange.Details{
+var (
+	allExchanges = []exchange.Details{
 		{
 			Name: "Alphapoint",
 		},
@@ -94,5 +93,8 @@ func Exchange() error {
 			Name: "ZB",
 		},
 	}
+)
+
+func Exchange() error {
 	return exchange.InsertMany(allExchanges)
 }
