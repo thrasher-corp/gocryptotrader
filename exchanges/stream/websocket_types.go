@@ -11,8 +11,7 @@ import (
 // Websocket functionality list and state consts
 const (
 	// WebsocketNotEnabled alerts of a disabled websocket
-	WebsocketNotEnabled      = "exchange_websocket_not_enabled"
-	manageSubscriptionsDelay = 5 * time.Second
+	WebsocketNotEnabled = "exchange_websocket_not_enabled"
 	// connection monitor time delays and limits
 	connectionMonitorDelay             = 2 * time.Second
 	WebsocketNotAuthenticatedUsingRest = "%v - Websocket not authenticated, using REST\n"
