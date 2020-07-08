@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -44,7 +45,7 @@ func TestMain(m *testing.M) {
 	hitbtcConfig.API.AuthenticatedWebsocketSupport = true
 	hitbtcConfig.API.Credentials.Key = apiKey
 	hitbtcConfig.API.Credentials.Secret = apiSecret
-	h.Websocket = stream.NewTestWebsocket()
+	h.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = h.Setup(hitbtcConfig)
 	if err != nil {
 		log.Fatal("HitBTC setup error", err)

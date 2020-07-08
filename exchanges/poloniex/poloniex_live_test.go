@@ -11,7 +11,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 var mockTests = false
@@ -30,7 +29,7 @@ func TestMain(m *testing.M) {
 	poloniexConfig.API.Credentials.Key = apiKey
 	poloniexConfig.API.Credentials.Secret = apiSecret
 	p.SetDefaults()
-	p.Websocket = stream.NewTestWebsocket()
+	p.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = p.Setup(poloniexConfig)
 	if err != nil {
 		log.Fatal("Poloniex setup error", err)

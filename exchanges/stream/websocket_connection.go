@@ -11,37 +11,12 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
-
-// WebsocketConnection contains all the data needed to send a message to a WS
-// connection
-type WebsocketConnection struct {
-	Verbose   bool
-	connected int32
-
-	// Gorilla websocket does not allow more than one goroutine to utilise
-	// writes methods
-	writeControl sync.Mutex
-
-	RateLimit    int64
-	ExchangeName string
-	URL          string
-	ProxyURL     string
-	Wg           *sync.WaitGroup
-	Connection   *websocket.Conn
-	ShutdownC    chan struct{}
-
-	Match             *Match
-	ResponseMaxLimit  time.Duration
-	Traffic           chan struct{}
-	readMessageErrors chan error
-}
 
 // SendMessageReturnResponse will send a WS message to the connection and wait
 // for response

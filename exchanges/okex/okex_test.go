@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -67,7 +68,7 @@ func TestMain(m *testing.M) {
 	okexConfig.API.Credentials.Secret = apiSecret
 	okexConfig.API.Credentials.ClientID = passphrase
 	okexConfig.API.Endpoints.WebsocketURL = o.API.Endpoints.WebsocketURL
-	o.Websocket = stream.NewTestWebsocket()
+	o.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = o.Setup(okexConfig)
 	if err != nil {
 		log.Fatal("Okex setup error", err)

@@ -101,7 +101,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	ws := *New()
 	ws.connected = true
 	ws.enabled = true
-	ws.readMessageErrors = make(chan error)
+	ws.ReadMessageErrors = make(chan error)
 	ws.DataHandler = make(chan interface{})
 	ws.ShutdownC = make(chan struct{})
 	ws.Wg = new(sync.WaitGroup)
@@ -109,7 +109,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	ws.features = &protocol.Features{}
 	go ws.connectionMonitor()
 	timer := time.NewTimer(900 * time.Millisecond)
-	ws.readMessageErrors <- errors.New("errorText")
+	ws.ReadMessageErrors <- errors.New("errorText")
 	select {
 	case err := <-ws.DataHandler:
 		if err.(error).Error() != "errorText" {
@@ -119,7 +119,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 		t.Error("Timeout waiting for datahandler to receive error")
 	}
 	timer = time.NewTimer(900 * time.Millisecond)
-	ws.readMessageErrors <- &websocket.CloseError{
+	ws.ReadMessageErrors <- &websocket.CloseError{
 		Code: 1006,
 		Text: "errorText",
 	}
@@ -892,9 +892,9 @@ func TestSetupNewConnection(t *testing.T) {
 		connector:         connect,
 		Wg:                new(sync.WaitGroup),
 		ShutdownC:         make(chan struct{}),
-		init:              true,
+		Init:              true,
 		TrafficAlert:      make(chan struct{}),
-		readMessageErrors: make(chan error),
+		ReadMessageErrors: make(chan error),
 	}
 
 	err := web.Setup(defaultSetup)

@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -44,7 +45,7 @@ func TestMain(m *testing.M) {
 	krakenConfig.API.Credentials.Key = apiKey
 	krakenConfig.API.Credentials.Secret = apiSecret
 	krakenConfig.API.Endpoints.WebsocketURL = k.API.Endpoints.WebsocketURL
-	k.Websocket = stream.NewTestWebsocket()
+	k.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = k.Setup(krakenConfig)
 	if err != nil {
 		log.Fatal(err)

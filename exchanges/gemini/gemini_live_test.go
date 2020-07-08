@@ -11,7 +11,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 var mockTests = false
@@ -30,7 +29,7 @@ func TestMain(m *testing.M) {
 	geminiConfig.API.Credentials.Key = apiKey
 	geminiConfig.API.Credentials.Secret = apiSecret
 	g.SetDefaults()
-	g.Websocket = stream.NewTestWebsocket()
+	g.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = g.Setup(geminiConfig)
 	if err != nil {
 		log.Fatal("Gemini setup error", err)

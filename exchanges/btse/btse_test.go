@@ -11,7 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 // Please supply your own keys here to do better tests
@@ -39,7 +39,7 @@ func TestMain(m *testing.M) {
 	btseConfig.API.AuthenticatedSupport = true
 	btseConfig.API.Credentials.Key = apiKey
 	btseConfig.API.Credentials.Secret = apiSecret
-	b.Websocket = stream.NewTestWebsocket()
+	b.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = b.Setup(btseConfig)
 	if err != nil {
 		log.Fatal(err)

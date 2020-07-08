@@ -8,12 +8,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
 func TestWebsocketDataHandlerProcess(t *testing.T) {
-	ws := stream.NewTestWebsocket()
+	ws := sharedtestvalues.NewTestWebsocket()
 	go WebsocketDataReceiver(ws)
 	ws.DataHandler <- "string"
 	time.Sleep(time.Second)

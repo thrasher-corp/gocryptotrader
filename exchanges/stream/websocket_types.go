@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 )
@@ -25,7 +26,7 @@ const (
 type Websocket struct {
 	canUseAuthenticatedEndpoints bool
 	enabled                      bool
-	init                         bool
+	Init                         bool
 	connected                    bool
 	connecting                   bool
 	verbose                      bool
@@ -45,8 +46,8 @@ type Websocket struct {
 
 	subscriptionMutex sync.Mutex
 	subscriptions     []ChannelSubscription
-	subscribe         chan []ChannelSubscription
-	unsubscribe       chan []ChannelSubscription
+	Subscribe         chan []ChannelSubscription
+	Unsubscribe       chan []ChannelSubscription
 
 	// Subscriber function for package defined websocket subscriber
 	// functionality
@@ -74,7 +75,7 @@ type Websocket struct {
 	TrafficAlert chan struct{}
 	// ReadMessageErrors will received all errors from ws.ReadMessage() and
 	// verify if its a disconnection
-	readMessageErrors chan error
+	ReadMessageErrors chan error
 	features          *protocol.Features
 
 	// Standard stream connection
@@ -104,4 +105,28 @@ type WebsocketSetup struct {
 	SortBuffer            bool
 	SortBufferByUpdateIDs bool
 	UpdateEntriesByID     bool
+}
+
+// WebsocketConnection contains all the data needed to send a message to a WS
+// connection
+type WebsocketConnection struct {
+	Verbose   bool
+	connected int32
+
+	// Gorilla websocket does not allow more than one goroutine to utilise
+	// writes methods
+	writeControl sync.Mutex
+
+	RateLimit    int64
+	ExchangeName string
+	URL          string
+	ProxyURL     string
+	Wg           *sync.WaitGroup
+	Connection   *websocket.Conn
+	ShutdownC    chan struct{}
+
+	Match             *Match
+	ResponseMaxLimit  time.Duration
+	Traffic           chan struct{}
+	readMessageErrors chan error
 }

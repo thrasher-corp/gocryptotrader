@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 var b BTCMarkets
@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 	bConfig.API.Credentials.Key = apiKey
 	bConfig.API.Credentials.Secret = apiSecret
 	bConfig.API.AuthenticatedSupport = true
-	b.Websocket = stream.NewTestWebsocket()
+	b.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = b.Setup(bConfig)
 	if err != nil {
 		log.Fatal(err)

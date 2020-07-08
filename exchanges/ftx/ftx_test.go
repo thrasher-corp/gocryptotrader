@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -50,7 +49,7 @@ func TestMain(m *testing.M) {
 	exchCfg.API.AuthenticatedWebsocketSupport = true
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
-	f.Websocket = stream.NewTestWebsocket()
+	f.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = f.Setup(exchCfg)
 	if err != nil {
 		log.Fatal(err)

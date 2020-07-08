@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -45,7 +46,7 @@ func TestMain(m *testing.M) {
 	zbConfig.API.AuthenticatedWebsocketSupport = true
 	zbConfig.API.Credentials.Key = apiKey
 	zbConfig.API.Credentials.Secret = apiSecret
-	z.Websocket = stream.NewTestWebsocket()
+	z.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = z.Setup(zbConfig)
 	if err != nil {
 		log.Fatal("ZB setup error", err)

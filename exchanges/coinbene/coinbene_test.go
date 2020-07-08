@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -38,7 +38,7 @@ func TestMain(m *testing.M) {
 	coinbeneConfig.API.AuthenticatedSupport = true
 	coinbeneConfig.API.Credentials.Secret = testAPISecret
 	coinbeneConfig.API.Credentials.Key = testAPIKey
-	c.Websocket = stream.NewTestWebsocket()
+	c.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = c.Setup(coinbeneConfig)
 	if err != nil {
 		log.Fatal(err)

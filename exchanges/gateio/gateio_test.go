@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -44,7 +45,7 @@ func TestMain(m *testing.M) {
 	gConf.API.AuthenticatedWebsocketSupport = true
 	gConf.API.Credentials.Key = apiKey
 	gConf.API.Credentials.Secret = apiSecret
-	g.Websocket = stream.NewTestWebsocket()
+	g.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = g.Setup(gConf)
 	if err != nil {
 		log.Fatal("GateIO setup error", err)

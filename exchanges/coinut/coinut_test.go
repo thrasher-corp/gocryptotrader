@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -42,7 +43,7 @@ func TestMain(m *testing.M) {
 	coinutCfg.API.AuthenticatedWebsocketSupport = true
 	coinutCfg.API.Credentials.Key = apiKey
 	coinutCfg.API.Credentials.ClientID = clientID
-	c.Websocket = stream.NewTestWebsocket()
+	c.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = c.Setup(coinutCfg)
 	if err != nil {
 		log.Fatal("Coinut setup error", err)

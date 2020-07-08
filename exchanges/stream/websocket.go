@@ -25,27 +25,13 @@ const (
 // New initialises the websocket struct
 func New() *Websocket {
 	return &Websocket{
-		init:              true,
+		Init:              true,
 		DataHandler:       make(chan interface{}),
 		ToRoutine:         make(chan interface{}, defaultJobBuffer),
 		TrafficAlert:      make(chan struct{}),
-		readMessageErrors: make(chan error),
-		subscribe:         make(chan []ChannelSubscription),
-		unsubscribe:       make(chan []ChannelSubscription),
-		Match:             NewMatch(),
-	}
-}
-
-// NewTestWebsocket returns a test websocket object
-func NewTestWebsocket() *Websocket {
-	return &Websocket{
-		init:              true,
-		DataHandler:       make(chan interface{}, 75),
-		ToRoutine:         make(chan interface{}, defaultJobBuffer),
-		TrafficAlert:      make(chan struct{}),
-		readMessageErrors: make(chan error),
-		subscribe:         make(chan []ChannelSubscription, 10),
-		unsubscribe:       make(chan []ChannelSubscription, 10),
+		ReadMessageErrors: make(chan error),
+		Subscribe:         make(chan []ChannelSubscription),
+		Unsubscribe:       make(chan []ChannelSubscription),
 		Match:             NewMatch(),
 	}
 }
@@ -56,7 +42,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 		return errors.New("websocket is nil")
 	}
 
-	if !w.init {
+	if !w.Init {
 		return fmt.Errorf("%s Websocket already initialised",
 			s.ExchangeName)
 	}
@@ -151,7 +137,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 		return errors.New("setting up new connection error: traffic alert is nil, please call setup first")
 	}
 
-	if w.readMessageErrors == nil {
+	if w.ReadMessageErrors == nil {
 		return errors.New("setting up new connection error: read message errors is nil, please call setup first")
 	}
 
@@ -167,7 +153,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 		Verbose:           w.verbose,
 		ResponseMaxLimit:  c.ResponseMaxLimit,
 		Traffic:           w.TrafficAlert,
-		readMessageErrors: w.readMessageErrors,
+		readMessageErrors: w.ReadMessageErrors,
 		ShutdownC:         w.ShutdownC,
 		Wg:                w.Wg,
 		Match:             w.Match,
@@ -349,7 +335,7 @@ func (w *Websocket) connectionMonitor() {
 			return
 		}
 		select {
-		case err := <-w.readMessageErrors:
+		case err := <-w.ReadMessageErrors:
 			// check if this error is a disconnection error
 			if isDisconnectionError(err) {
 				w.setInit(false)
@@ -600,7 +586,7 @@ func (w *Websocket) IsEnabled() bool {
 
 func (w *Websocket) setInit(b bool) {
 	w.connectionMutex.Lock()
-	w.init = b
+	w.Init = b
 	w.connectionMutex.Unlock()
 }
 
@@ -608,7 +594,7 @@ func (w *Websocket) setInit(b bool) {
 func (w *Websocket) IsInit() bool {
 	w.connectionMutex.RLock()
 	defer w.connectionMutex.RUnlock()
-	return w.init
+	return w.Init
 }
 
 func (w *Websocket) setTrafficMonitorRunning(b bool) {

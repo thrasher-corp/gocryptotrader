@@ -48,7 +48,7 @@ func TestMain(m *testing.M) {
 	gdxConfig.API.Credentials.ClientID = clientID
 	gdxConfig.API.AuthenticatedSupport = true
 	gdxConfig.API.AuthenticatedWebsocketSupport = true
-	c.Websocket = stream.NewTestWebsocket()
+	c.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = c.Setup(gdxConfig)
 	if err != nil {
 		log.Fatal("CoinbasePro setup error", err)

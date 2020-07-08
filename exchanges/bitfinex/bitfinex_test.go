@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -41,7 +40,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Bitfinex Setup() init error")
 	}
-	b.Websocket = stream.NewTestWebsocket()
+	b.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = b.Setup(bfxConfig)
 	if err != nil {
 		log.Fatal("Bitfinex setup error", err)
