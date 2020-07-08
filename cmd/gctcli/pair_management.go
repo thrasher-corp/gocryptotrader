@@ -206,13 +206,7 @@ func enableDisableExchangePair(c *cli.Context) error {
 			return errInvalidPair
 		}
 
-		var p currency.Pair
-		var err error
-		if strings.EqualFold(exchange, "okex") && strings.Contains(pairList[i], "SWAP") {
-			p, err = currency.NewPairDelimiter(pairList[i], "_")
-		} else {
-			p, err = currency.NewPairDelimiter(pairList[i], pairDelimiter)
-		}
+		p, err := currency.NewPairFromString(pairList[i])
 		if err != nil {
 			return err
 		}
