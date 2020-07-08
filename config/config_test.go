@@ -1486,7 +1486,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	}
 
 	if !cfg.Exchanges[0].BankAccounts[0].Enabled {
-		t.Fatal("bank aaccount details provided this should not disable")
+		t.Fatal("bank account details provided this should not disable")
 	}
 }
 
