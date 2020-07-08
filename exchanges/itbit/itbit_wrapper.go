@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -427,11 +426,6 @@ func (i *ItBit) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.R
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (i *ItBit) GetWebsocket() (*stream.Websocket, error) {
-	return nil, common.ErrFunctionNotSupported
-}
-
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (i *ItBit) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if !i.AllowAuthenticatedRequest() && // Todo check connection status
@@ -562,28 +556,6 @@ func (i *ItBit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (i *ItBit) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (i *ItBit) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (i *ItBit) GetSubscriptions() ([]stream.ChannelSubscription, error) {
-	return nil, common.ErrFunctionNotSupported
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (i *ItBit) AuthenticateWebsocket() error {
-	return common.ErrFunctionNotSupported
 }
 
 // ValidateCredentials validates current credentials used for wrapper

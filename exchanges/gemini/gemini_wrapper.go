@@ -424,11 +424,6 @@ func (g *Gemini) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (g *Gemini) GetWebsocket() (*stream.Websocket, error) {
-	return g.Websocket, nil
-}
-
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (g *Gemini) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if (!g.AllowAuthenticatedRequest() || g.SkipAuthCheck) && // Todo check connection status
@@ -541,28 +536,6 @@ func (g *Gemini) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (g *Gemini) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (g *Gemini) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (g *Gemini) GetSubscriptions() ([]stream.ChannelSubscription, error) {
-	return nil, common.ErrFunctionNotSupported
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (g *Gemini) AuthenticateWebsocket() error {
-	return common.ErrFunctionNotSupported
 }
 
 // ValidateCredentials validates current credentials used for wrapper

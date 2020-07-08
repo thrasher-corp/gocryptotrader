@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -339,11 +338,6 @@ func (b *Bitflyer) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdra
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (b *Bitflyer) GetWebsocket() (*stream.Websocket, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Bitflyer) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	return nil, common.ErrNotYetImplemented
@@ -362,28 +356,6 @@ func (b *Bitflyer) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
 	return b.GetFee(feeBuilder)
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (b *Bitflyer) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Bitflyer) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (b *Bitflyer) GetSubscriptions() ([]stream.ChannelSubscription, error) {
-	return nil, common.ErrFunctionNotSupported
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (b *Bitflyer) AuthenticateWebsocket() error {
-	return common.ErrFunctionNotSupported
 }
 
 // ValidateCredentials validates current credentials used for wrapper

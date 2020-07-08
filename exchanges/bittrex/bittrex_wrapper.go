@@ -17,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -485,11 +484,6 @@ func (b *Bittrex) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdra
 // withdrawal is submitted
 func (b *Bittrex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
-}
-
-// GetWebsocket returns a pointer to the exchange websocket
-func (b *Bittrex) GetWebsocket() (*stream.Websocket, error) {
-	return nil, common.ErrNotYetImplemented
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction

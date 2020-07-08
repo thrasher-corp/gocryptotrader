@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -529,11 +528,6 @@ func (l *Lbank) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.R
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (l *Lbank) GetWebsocket() (*stream.Websocket, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (l *Lbank) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	var finalResp []order.Detail
@@ -750,28 +744,6 @@ func (l *Lbank) getAllOpenOrderID() (map[string][]string, error) {
 		}
 	}
 	return resp, nil
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (l *Lbank) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	return common.ErrNotYetImplemented
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (l *Lbank) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
-	return common.ErrNotYetImplemented
-}
-
-// AuthenticateWebsocket authenticates it
-func (l *Lbank) AuthenticateWebsocket() error {
-	return common.ErrNotYetImplemented
-}
-
-// GetSubscriptions gets subscriptions
-func (l *Lbank) GetSubscriptions() ([]stream.ChannelSubscription, error) {
-	return nil, common.ErrNotYetImplemented
 }
 
 // ValidateCredentials validates current credentials used for wrapper
