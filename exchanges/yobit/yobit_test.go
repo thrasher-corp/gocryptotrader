@@ -82,7 +82,7 @@ func TestGetDepth(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := y.GetTrades("btc_usd")
+	_, err := y.GetTrades("btc_usd", 0, false)
 	if err != nil {
 		t.Error("GetTrades() error", err)
 	}

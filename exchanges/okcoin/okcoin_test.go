@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -480,11 +481,12 @@ func TestGetSpotFilledOrdersInformation(t *testing.T) {
 
 // TestGetSpotMarketData API endpoint test
 func TestGetSpotMarketData(t *testing.T) {
-	request := okgroup.GetSpotMarketDataRequest{
+	request := &okgroup.GetMarketDataRequest{
+		Asset:        asset.Spot,
 		InstrumentID: spotCurrency,
-		Granularity:  604800,
+		Granularity:  "604800",
 	}
-	_, err := o.GetSpotMarketData(request)
+	_, err := o.GetMarketData(request)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1084,5 +1086,34 @@ func TestGetOrderbook(t *testing.T) {
 		asset.PerpetualSwap)
 	if err == nil {
 		t.Error("error cannot be nil")
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	startTime := time.Unix(1588636800, 0)
+	_, err = o.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	startTime := time.Unix(1588636800, 0)
+	_, err = o.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = o.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
 	}
 }

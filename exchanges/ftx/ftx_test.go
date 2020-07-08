@@ -867,6 +867,20 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 }
 
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString(spotPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := time.Date(2019, 11, 12, 0, 0, 0, 0, time.UTC)
+	end := start.AddDate(0, 0, 5)
+	_, err = f.GetHistoricCandlesExtended(currencyPair, asset.Spot, start, end, kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestParsingWSFillData(t *testing.T) {
 	t.Parallel()
 	data := []byte(`{

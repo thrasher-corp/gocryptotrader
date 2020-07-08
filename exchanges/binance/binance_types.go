@@ -1,13 +1,10 @@
 package binance
 
 import (
-	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
-
-var errInvalidInterval = errors.New("invalid interval")
 
 // Response holds basic binance api response data
 type Response struct {
@@ -411,34 +408,12 @@ var (
 
 // KlinesRequestParams represents Klines request data.
 type KlinesRequestParams struct {
-	Symbol    string       // Required field; example LTCBTC, BTCUSDT
-	Interval  TimeInterval // Time interval period
-	Limit     int          // Default 500; max 500.
+	Symbol    string // Required field; example LTCBTC, BTCUSDT
+	Interval  string // Time interval period
+	Limit     int    // Default 500; max 500.
 	StartTime int64
 	EndTime   int64
 }
-
-// TimeInterval represents interval enum.
-type TimeInterval string
-
-// Vars related to time intervals
-var (
-	TimeIntervalMinute         = TimeInterval("1m")
-	TimeIntervalThreeMinutes   = TimeInterval("3m")
-	TimeIntervalFiveMinutes    = TimeInterval("5m")
-	TimeIntervalFifteenMinutes = TimeInterval("15m")
-	TimeIntervalThirtyMinutes  = TimeInterval("30m")
-	TimeIntervalHour           = TimeInterval("1h")
-	TimeIntervalTwoHours       = TimeInterval("2h")
-	TimeIntervalFourHours      = TimeInterval("4h")
-	TimeIntervalSixHours       = TimeInterval("6h")
-	TimeIntervalEightHours     = TimeInterval("8h")
-	TimeIntervalTwelveHours    = TimeInterval("12h")
-	TimeIntervalDay            = TimeInterval("1d")
-	TimeIntervalThreeDays      = TimeInterval("3d")
-	TimeIntervalWeek           = TimeInterval("1w")
-	TimeIntervalMonth          = TimeInterval("1M")
-)
 
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change

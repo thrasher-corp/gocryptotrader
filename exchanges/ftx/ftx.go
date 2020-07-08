@@ -15,7 +15,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -866,27 +865,6 @@ func getOfflineTradeFee(feeBuilder *exchange.FeeBuilder) float64 {
 		return 0.0002 * feeBuilder.PurchasePrice * feeBuilder.Amount
 	}
 	return 0.0007 * feeBuilder.PurchasePrice * feeBuilder.Amount
-}
-
-func parseInterval(in time.Duration) (TimeInterval, error) {
-	switch in {
-	case kline.FifteenSecond:
-		return TimeIntervalFifteenSeconds, nil
-	case kline.OneMin:
-		return TimeIntervalMinute, nil
-	case kline.FiveMin:
-		return TimeIntervalFiveMinutes, nil
-	case kline.FifteenMin:
-		return TimeIntervalFifteenMinutes, nil
-	case kline.OneHour:
-		return TimeIntervalHour, nil
-	case kline.FourHour:
-		return TimeIntervalFourHours, nil
-	case kline.OneDay:
-		return TimeIntervalDay, nil
-	default:
-		return TimeIntervalMinute, errInvalidInterval
-	}
 }
 
 func (f *FTX) compatibleOrderVars(orderSide, orderStatus, orderType string, amount, filledAmount, avgFillPrice float64) (OrderVars, error) {

@@ -17,7 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -64,8 +64,7 @@ type Binance struct {
 	exchange.Base
 
 	// Valid string list that is required by the exchange
-	validLimits    []int
-	validIntervals []TimeInterval
+	validLimits []int
 }
 
 // GetExchangeInfo returns exchange information. Check binance_types for more
@@ -175,10 +174,11 @@ func (b *Binance) GetAggregatedTrades(symbol string, limit int) ([]AggregatedTra
 
 	params := url.Values{}
 	params.Set("symbol", strings.ToUpper(symbol))
-	params.Set("limit", strconv.Itoa(limit))
+	if limit > 0 {
+		params.Set("limit", strconv.Itoa(limit))
+	}
 
-	path := fmt.Sprintf("%s%s?%s", b.API.Endpoints.URL, aggregatedTrades, params.Encode())
-
+	path := b.API.Endpoints.URL + aggregatedTrades + "?" + params.Encode()
 	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
 }
 
@@ -196,7 +196,7 @@ func (b *Binance) GetSpotKline(arg KlinesRequestParams) ([]CandleStick, error) {
 
 	params := url.Values{}
 	params.Set("symbol", arg.Symbol)
-	params.Set("interval", string(arg.Interval))
+	params.Set("interval", arg.Interval)
 	if arg.Limit != 0 {
 		params.Set("limit", strconv.Itoa(arg.Limit))
 	}
@@ -567,36 +567,25 @@ func (b *Binance) CheckLimit(limit int) error {
 	return errors.New("incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
 }
 
-// CheckIntervals checks value against a variable list
-func (b *Binance) CheckIntervals(interval string) error {
-	for x := range b.validIntervals {
-		if TimeInterval(interval) == b.validIntervals[x] {
+// CheckSymbol checks value against a variable list
+func (b *Binance) CheckSymbol(symbol string, assetType asset.Item) error {
+	enPairs, err := b.GetAvailablePairs(assetType)
+	if err != nil {
+		return err
+	}
+	for x := range enPairs {
+		var fmtP currency.Pair
+		fmtP, err = b.FormatExchangeCurrency(enPairs[x], assetType)
+		if fmtP.String() == symbol {
 			return nil
 		}
 	}
-	return errors.New(`incorrect interval values - valid values are "1m","3m","5m","15m","30m","1h","2h","4h","6h","8h","12h","1d","3d","1w","1M"`)
+	return errors.New("incorrect symbol values - please check available pairs in configuration")
 }
 
 // SetValues sets the default valid values
 func (b *Binance) SetValues() {
 	b.validLimits = []int{5, 10, 20, 50, 100, 500, 1000, 5000}
-	b.validIntervals = []TimeInterval{
-		TimeIntervalMinute,
-		TimeIntervalThreeMinutes,
-		TimeIntervalFiveMinutes,
-		TimeIntervalFifteenMinutes,
-		TimeIntervalThirtyMinutes,
-		TimeIntervalHour,
-		TimeIntervalTwoHours,
-		TimeIntervalFourHours,
-		TimeIntervalSixHours,
-		TimeIntervalEightHours,
-		TimeIntervalTwelveHours,
-		TimeIntervalDay,
-		TimeIntervalThreeDays,
-		TimeIntervalWeek,
-		TimeIntervalMonth,
-	}
 }
 
 // GetFee returns an estimate of fee based on type of transaction
@@ -742,39 +731,4 @@ func (b *Binance) MaintainWsAuthStreamKey() error {
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
 	})
-}
-
-func parseInterval(in time.Duration) (TimeInterval, error) {
-	switch in {
-	case kline.OneMin:
-		return TimeIntervalMinute, nil
-	case kline.ThreeMin:
-		return TimeIntervalThreeMinutes, nil
-	case kline.FiveMin:
-		return TimeIntervalFiveMinutes, nil
-	case kline.FifteenMin:
-		return TimeIntervalFifteenMinutes, nil
-	case kline.ThirtyMin:
-		return TimeIntervalThirtyMinutes, nil
-	case kline.OneHour:
-		return TimeIntervalHour, nil
-	case kline.TwoHour:
-		return TimeIntervalTwoHours, nil
-	case kline.FourHour:
-		return TimeIntervalFourHours, nil
-	case kline.SixHour:
-		return TimeIntervalSixHours, nil
-	case kline.OneHour * 8:
-		return TimeIntervalEightHours, nil
-	case kline.TwelveHour:
-		return TimeIntervalTwelveHours, nil
-	case kline.OneDay:
-		return TimeIntervalDay, nil
-	case kline.ThreeDay:
-		return TimeIntervalThreeDays, nil
-	case kline.OneWeek:
-		return TimeIntervalWeek, nil
-	default:
-		return TimeIntervalMinute, errInvalidInterval
-	}
 }

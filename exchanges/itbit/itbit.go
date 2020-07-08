@@ -61,9 +61,9 @@ func (i *ItBit) GetOrderbook(currencyPair string) (OrderbookResponse, error) {
 //
 // currencyPair - example "XBTUSD" "XBTSGD" "XBTEUR"
 // timestamp - matchNumber, only executions after this will be returned
-func (i *ItBit) GetTradeHistory(currencyPair, timestamp string) (Trades, error) {
+func (i *ItBit) GetTradeHistory(currencyPair, tradeID string) (Trades, error) {
 	response := Trades{}
-	req := "trades?since=" + timestamp
+	req := "trades?since=" + tradeID
 	path := fmt.Sprintf("%s/%s/%s/%s", i.API.Endpoints.URL, itbitMarkets, currencyPair, req)
 
 	return response, i.SendHTTPRequest(path, &response)

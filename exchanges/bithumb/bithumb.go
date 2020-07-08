@@ -26,6 +26,7 @@ const (
 	publicTicker             = "/public/ticker/"
 	publicOrderBook          = "/public/orderbook/"
 	publicTransactionHistory = "/public/transaction_history/"
+	publicCandleStick        = "/public/candlestick/"
 
 	privateAccInfo     = "/info/account"
 	privateAccBalance  = "/info/balance"
@@ -598,4 +599,11 @@ var errCode = map[string]string{
 	"5500": "Invalid Parameter",
 	"5600": "CUSTOM NOTICE (상황별 에러 메시지 출력) usually means transaction not allowed",
 	"5900": "Unknown Error",
+}
+
+// GetCandleStick returns candle stick data for requested pair
+func (b *Bithumb) GetCandleStick(symbol, interval string) (resp OHLCVResponse, err error) {
+	path := b.API.Endpoints.URL + publicCandleStick + symbol + "/" + interval
+	err = b.SendHTTPRequest(path, &resp)
+	return
 }

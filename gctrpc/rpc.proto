@@ -607,10 +607,16 @@ message GetHistoricCandlesRequest {
     int64 start = 4;
     int64 end = 5;
     int64 time_interval = 6;
+    bool ex_request = 7;
 }
 
 message GetHistoricCandlesResponse {
-    repeated Candle candle =1;
+    string exchange = 1;
+    CurrencyPair pair = 2;
+    int64 start = 3;
+    int64 end = 4;
+    string interval = 6;
+    repeated Candle candle = 5;
 }
 
 message Candle {

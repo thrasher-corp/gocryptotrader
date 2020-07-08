@@ -91,3 +91,8 @@ func BoolPtr(condition bool) *bool {
 	b := condition
 	return &b
 }
+
+// UnixMillisToNano converts Unix milli time to UnixNano
+func UnixMillisToNano(milli int64) int64 {
+	return milli * int64(time.Millisecond)
+}

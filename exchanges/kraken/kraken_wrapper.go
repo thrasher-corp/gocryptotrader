@@ -116,9 +116,27 @@ func (k *Kraken) SetDefaults() {
 				exchange.WithdrawCryptoWith2FA |
 				exchange.AutoWithdrawFiatWithSetup |
 				exchange.WithdrawFiatWith2FA,
+			Kline: kline.ExchangeCapabilitiesSupported{
+				DateRanges: true,
+				Intervals:  true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: map[string]bool{
+					kline.OneMin.Word():     true,
+					kline.ThreeMin.Word():   true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.ThirtyMin.Word():  true,
+					kline.OneHour.Word():    true,
+					kline.FourHour.Word():   true,
+					kline.OneDay.Word():     true,
+					kline.FifteenDay.Word(): true,
+					kline.OneWeek.Word():    true,
+				},
+			},
 		},
 	}
 
@@ -838,7 +856,99 @@ func (k *Kraken) ValidateCredentials() error {
 	return k.CheckTransientError(err)
 }
 
+// FormatExchangeKlineInterval returns Interval to exchange formatted string
+func (k *Kraken) FormatExchangeKlineInterval(in kline.Interval) string {
+	return strconv.FormatFloat(in.Duration().Minutes(), 'f', -1, 64)
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (k *Kraken) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+func (k *Kraken) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !k.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	ret := kline.Item{
+		Exchange: k.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	fmtP, err := k.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	candles, err := k.GetOHLC(assetTranslator.LookupCurrency(fmtP.Upper().String()), k.FormatExchangeKlineInterval(interval))
+	if err != nil {
+		return kline.Item{}, err
+	}
+	for x := range candles {
+		timeValue, err := convert.TimeFromUnixTimestampFloat(candles[x].Time * 1000)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		if timeValue.Before(start) || timeValue.After(end) {
+			continue
+		}
+		ret.Candles = append(ret.Candles, kline.Candle{
+			Time:   timeValue,
+			Open:   candles[x].Open,
+			High:   candles[x].Close,
+			Low:    candles[x].Low,
+			Close:  candles[x].Close,
+			Volume: candles[x].Volume,
+		})
+	}
+
+	ret.SortCandlesByTimestamp(false)
+	return ret, nil
+}
+
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (k *Kraken) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !k.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	ret := kline.Item{
+		Exchange: k.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	fmtP, err := k.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	candles, err := k.GetOHLC(assetTranslator.LookupCurrency(fmtP.Upper().String()), k.FormatExchangeKlineInterval(interval))
+	if err != nil {
+		return kline.Item{}, err
+	}
+	for i := range candles {
+		timeValue, err := convert.TimeFromUnixTimestampFloat(candles[i].Time * 1000)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		if timeValue.Before(start) || timeValue.After(end) {
+			continue
+		}
+		ret.Candles = append(ret.Candles, kline.Candle{
+			Time:   timeValue,
+			Open:   candles[i].Open,
+			High:   candles[i].Close,
+			Low:    candles[i].Low,
+			Close:  candles[i].Close,
+			Volume: candles[i].Volume,
+		})
+	}
+
+	ret.SortCandlesByTimestamp(false)
+	return ret, nil
 }

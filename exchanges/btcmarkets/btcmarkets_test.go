@@ -96,7 +96,7 @@ func TestGetOrderbook(t *testing.T) {
 
 func TestGetMarketCandles(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetMarketCandles(BTCAUD, kline.OneHour, time.Now().UTC().Add(-time.Hour*24), time.Now().UTC(), -1, -1, -1)
+	_, err := b.GetMarketCandles(BTCAUD, "1h", time.Now().UTC().Add(-time.Hour*24), time.Now().UTC(), -1, -1, -1)
 	if err != nil {
 		t.Error(err)
 	}
@@ -729,8 +729,52 @@ func TestBTCMarkets_GetHistoricCandles(t *testing.T) {
 	}
 	_, err = b.GetHistoricCandles(p, asset.Spot, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC(), kline.FifteenMin)
 	if err != nil {
-		if !errors.Is(err, errInvalidTimeInterval) {
+		if !errors.As(err, &kline.ErrorKline{}) {
 			t.Fatal(err)
 		}
+	}
+}
+
+func TestBTCMarkets_GetHistoricCandlesExtended(t *testing.T) {
+	start := time.Now().AddDate(0, 0, -1001)
+	end := time.Now()
+	p, err := currency.NewPairFromString(BTCAUD)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetHistoricCandlesExtended(p, asset.Spot, start, end, kline.OneDay)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func Test_FormatExchangeKlineInterval(t *testing.T) {
+	testCases := []struct {
+		name     string
+		interval kline.Interval
+		output   string
+	}{
+		{
+			"OneMin",
+			kline.OneMin,
+			"1m",
+		},
+		{
+			"OneDay",
+			kline.OneDay,
+			"1d",
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+
+		t.Run(test.name, func(t *testing.T) {
+			ret := b.FormatExchangeKlineInterval(test.interval)
+
+			if ret != test.output {
+				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
+			}
+		})
 	}
 }

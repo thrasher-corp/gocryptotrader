@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -182,8 +183,8 @@ func (g *Gateio) GetOrderbook(symbol string) (Orderbook, error) {
 }
 
 // GetSpotKline returns kline data for the most recent time period
-func (g *Gateio) GetSpotKline(arg KlinesRequestParams) ([]*KLineResponse, error) {
-	urlPath := fmt.Sprintf("%s/%s/%s/%s?group_sec=%d&range_hour=%d",
+func (g *Gateio) GetSpotKline(arg KlinesRequestParams) (kline.Item, error) {
+	urlPath := fmt.Sprintf("%s/%s/%s/%s?group_sec=%s&range_hour=%d",
 		g.API.Endpoints.URLSecondary,
 		gateioAPIVersion,
 		gateioKline,
@@ -194,58 +195,59 @@ func (g *Gateio) GetSpotKline(arg KlinesRequestParams) ([]*KLineResponse, error)
 	var rawKlines map[string]interface{}
 	err := g.SendHTTPRequest(urlPath, &rawKlines)
 	if err != nil {
-		return nil, err
+		return kline.Item{}, err
 	}
 
-	var result []*KLineResponse
+	result := kline.Item{
+		Exchange: g.Name,
+	}
+
 	if rawKlines == nil || rawKlines["data"] == nil {
-		return nil, fmt.Errorf("rawKlines is nil. Err: %s", err)
+		return kline.Item{}, errors.New("rawKlines is nil")
 	}
 
 	rawKlineDatasString, _ := json.Marshal(rawKlines["data"].([]interface{}))
 	var rawKlineDatas [][]interface{}
 	if err := json.Unmarshal(rawKlineDatasString, &rawKlineDatas); err != nil {
-		return nil, fmt.Errorf("rawKlines unmarshal failed. Err: %s", err)
+		return kline.Item{}, fmt.Errorf("rawKlines unmarshal failed. Err: %s", err)
 	}
 
 	for _, k := range rawKlineDatas {
-		otString, _ := strconv.ParseFloat(k[0].(string), 64)
+		otString, err := strconv.ParseFloat(k[0].(string), 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
 		ot, err := convert.TimeFromUnixTimestampFloat(otString)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse Kline.OpenTime. Err: %s", err)
+			return kline.Item{}, fmt.Errorf("cannot parse Kline.OpenTime. Err: %s", err)
 		}
 		_vol, err := convert.FloatFromString(k[1])
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse Kline.Volume. Err: %s", err)
-		}
-		_id, err := convert.FloatFromString(k[0])
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse Kline.Id. Err: %s", err)
+			return kline.Item{}, fmt.Errorf("cannot parse Kline.Volume. Err: %s", err)
 		}
 		_close, err := convert.FloatFromString(k[2])
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse Kline.Close. Err: %s", err)
+			return kline.Item{}, fmt.Errorf("cannot parse Kline.Close. Err: %s", err)
 		}
 		_high, err := convert.FloatFromString(k[3])
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse Kline.High. Err: %s", err)
+			return kline.Item{}, fmt.Errorf("cannot parse Kline.High. Err: %s", err)
 		}
 		_low, err := convert.FloatFromString(k[4])
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse Kline.Low. Err: %s", err)
+			return kline.Item{}, fmt.Errorf("cannot parse Kline.Low. Err: %s", err)
 		}
 		_open, err := convert.FloatFromString(k[5])
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse Kline.Open. Err: %s", err)
+			return kline.Item{}, fmt.Errorf("cannot parse Kline.Open. Err: %s", err)
 		}
-		result = append(result, &KLineResponse{
-			ID:        _id,
-			KlineTime: ot,
-			Volume:    _vol,
-			Close:     _close,
-			High:      _high,
-			Low:       _low,
-			Open:      _open,
+		result.Candles = append(result.Candles, kline.Candle{
+			Time:   ot,
+			Volume: _vol,
+			Close:  _close,
+			High:   _high,
+			Low:    _low,
+			Open:   _open,
 		})
 	}
 	return result, nil

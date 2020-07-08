@@ -52,7 +52,7 @@ type BalancesResponse struct {
 type KlinesRequestParams struct {
 	Symbol   string // Required field; example LTCBTC,BTCUSDT
 	HourSize int    // How many hours of data
-	GroupSec TimeInterval
+	GroupSec string
 }
 
 // KLineResponse holds the kline response data

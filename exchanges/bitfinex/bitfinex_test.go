@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
@@ -174,7 +175,7 @@ func TestGetLends(t *testing.T) {
 
 func TestGetCandles(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetCandles("fUSD", "1m", 0, 0, 10, true, false)
+	_, err := b.GetCandles("fUSD", "1m", 0, 0, 10, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1231,5 +1232,173 @@ func TestWsNotifications(t *testing.T) {
 	err = b.wsHandleData([]byte(pressXToJSON))
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	startTime := time.Now().Add(-time.Hour * 24)
+	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin*1337)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	currencyPair, err := currency.NewPairFromString("TBTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	startTime := time.Now().Add(-time.Hour * 24)
+	_, err = b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin*1337)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
+func TestFixCasing(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ret, err := b.fixCasing(pair, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ret != "tBTCUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+	pair, err = currency.NewPairFromString("TBTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ret, err = b.fixCasing(pair, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ret != "tBTCUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+	pair, err = currency.NewPairFromString("tBTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ret, err = b.fixCasing(pair, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ret != "tBTCUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+	pair, err = currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ret, err = b.fixCasing(pair, asset.Margin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ret != "fBTCUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+	pair, err = currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ret, err = b.fixCasing(pair, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ret != "tBTCUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+	pair, err = currency.NewPairFromString("FUNETH")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ret, err = b.fixCasing(pair, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ret != "tFUNETH" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+	pair, err = currency.NewPairFromString("TNBUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ret, err = b.fixCasing(pair, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ret != "tTNBUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+
+	pair, err = currency.NewPairFromString("tTNBUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ret, err = b.fixCasing(pair, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ret != "tTNBUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+}
+
+func Test_FormatExchangeKlineInterval(t *testing.T) {
+	testCases := []struct {
+		name     string
+		interval kline.Interval
+		output   string
+	}{
+		{
+			"OneMin",
+			kline.OneMin,
+			"1m",
+		},
+		{
+			"OneDay",
+			kline.OneDay,
+			"1D",
+		},
+		{
+			"OneWeek",
+			kline.OneWeek,
+			"7D",
+		},
+		{
+			"TwoWeeks",
+			kline.OneWeek * 2,
+			"14D",
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+		t.Run(test.name, func(t *testing.T) {
+			ret := b.FormatExchangeKlineInterval(test.interval)
+			if ret != test.output {
+				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
+			}
+		})
 	}
 }

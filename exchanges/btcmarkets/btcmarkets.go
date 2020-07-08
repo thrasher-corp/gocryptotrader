@@ -17,8 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -67,13 +65,13 @@ const (
 	stop       = "Stop"
 	takeProfit = "Take Profit"
 
-	subscribe   = "subscribe"
-	fundChange  = "fundChange"
-	orderChange = "orderChange"
-	heartbeat   = "heartbeat"
-	tick        = "tick"
-	wsOB        = "orderbookUpdate"
-	trade       = "trade"
+	subscribe     = "subscribe"
+	fundChange    = "fundChange"
+	orderChange   = "orderChange"
+	heartbeat     = "heartbeat"
+	tick          = "tick"
+	wsOB          = "orderbookUpdate"
+	tradeEndPoint = "tradeEndPoint"
 )
 
 // BTCMarkets is the overarching type across the BTCMarkets package
@@ -162,27 +160,15 @@ func (b *BTCMarkets) GetOrderbook(marketID string, level int64) (Orderbook, erro
 }
 
 // GetMarketCandles gets candles for specified currency pair
-func (b *BTCMarkets) GetMarketCandles(marketID string, timeWindow time.Duration, from, to time.Time, before, after, limit int64) (kline.Item, error) {
+func (b *BTCMarkets) GetMarketCandles(marketID, timeWindow string, from, to time.Time, before, after, limit int64) (out CandleResponse, err error) {
 	if (before > 0) && (after >= 0) {
-		return kline.Item{}, errors.New("BTCMarkets only supports either before or after, not both")
+		return out, errors.New("BTCMarkets only supports either before or after, not both")
 	}
-	var temp [][]string
 	params := url.Values{}
+	params.Set("timeWindow", timeWindow)
 
-	var intervalStr string
-	switch timeWindow {
-	case kline.OneMin:
-		intervalStr = "1m"
-	case kline.OneHour:
-		intervalStr = "1h"
-	case kline.OneDay:
-		intervalStr = "1d"
-	default:
-		return kline.Item{}, errInvalidTimeInterval
-	}
-
-	if timeWindow != 0 {
-		params.Set("timeWindow", intervalStr)
+	if from.After(to) && !to.IsZero() {
+		return out, errors.New("start time cannot be after end time")
 	}
 	if !from.IsZero() {
 		params.Set("from", from.UTC().Format(time.RFC3339))
@@ -199,55 +185,7 @@ func (b *BTCMarkets) GetMarketCandles(marketID string, timeWindow time.Duration,
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	err := b.SendHTTPRequest(btcMarketsUnauthPath+marketID+btcMarketsCandles+params.Encode(),
-		&temp)
-	if err != nil {
-		return kline.Item{}, err
-	}
-
-	p, err := currency.NewPairFromString(marketID)
-	if err != nil {
-		return kline.Item{}, err
-	}
-
-	ret := kline.Item{
-		Exchange: b.Name,
-		Pair:     p,
-		Asset:    asset.Spot,
-		Interval: timeWindow,
-	}
-
-	var tempData kline.Candle
-	var tempTime time.Time
-	for x := range temp {
-		tempTime, err = time.Parse(time.RFC3339, temp[x][0])
-		if err != nil {
-			return kline.Item{}, err
-		}
-		tempData.Time = tempTime
-		tempData.Open, err = strconv.ParseFloat(temp[x][1], 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		tempData.High, err = strconv.ParseFloat(temp[x][2], 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		tempData.Low, err = strconv.ParseFloat(temp[x][3], 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		tempData.Close, err = strconv.ParseFloat(temp[x][4], 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		tempData.Volume, err = strconv.ParseFloat(temp[x][5], 64)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		ret.Candles = append(ret.Candles, tempData)
-	}
-	return ret, nil
+	return out, b.SendHTTPRequest(btcMarketsUnauthPath+marketID+btcMarketsCandles+params.Encode(), &out)
 }
 
 // GetTickers gets multiple tickers

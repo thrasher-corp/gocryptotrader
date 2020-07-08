@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -78,11 +79,21 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetHistoricRatesGranularityCheck(t *testing.T) {
-	end := time.Now().UTC()
-	start := end.Add(-time.Hour * 24)
+	end := time.Now()
+	start := end.Add(-time.Hour * 2)
 	p := currency.NewPair(currency.BTC, currency.USD)
+	_, err := c.GetHistoricCandles(p, asset.Spot, start, end, kline.OneHour)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
-	_, err := c.GetHistoricCandles(p, asset.Spot, start, end, time.Hour)
+func TestCoinbasePro_GetHistoricCandlesExtended(t *testing.T) {
+	start := time.Unix(1546300800, 0)
+	end := time.Unix(1577836799, 0)
+
+	p := currency.NewPair(currency.BTC, currency.USD)
+	_, err := c.GetHistoricCandlesExtended(p, asset.Spot, start, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}

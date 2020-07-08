@@ -69,7 +69,7 @@ type HUOBI struct {
 func (h *HUOBI) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
 	vals := url.Values{}
 	vals.Set("symbol", arg.Symbol)
-	vals.Set("period", string(arg.Period))
+	vals.Set("period", arg.Period)
 
 	if arg.Size != 0 {
 		vals.Set("size", strconv.Itoa(arg.Size))

@@ -97,9 +97,30 @@ func (b *Bitstamp) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
+			Kline: kline.ExchangeCapabilitiesSupported{
+				Intervals:  true,
+				DateRanges: true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: map[string]bool{
+					kline.OneMin.Word():     true,
+					kline.ThreeMin.Word():   true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.ThirtyMin.Word():  true,
+					kline.OneHour.Word():    true,
+					kline.TwoHour.Word():    true,
+					kline.FourHour.Word():   true,
+					kline.SixHour.Word():    true,
+					kline.TwelveHour.Word(): true,
+					kline.OneDay.Word():     true,
+					kline.ThreeDay.Word():   true,
+				},
+				ResultLimit: 1000,
+			},
 		},
 	}
 
@@ -652,6 +673,105 @@ func (b *Bitstamp) ValidateCredentials() error {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (b *Bitstamp) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+func (b *Bitstamp) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !b.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	ret := kline.Item{
+		Exchange: b.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	fmtP, err := b.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	candles, err := b.OHLC(
+		fmtP.Lower().String(),
+		start,
+		end,
+		b.FormatExchangeKlineInterval(interval),
+		strconv.FormatInt(int64(b.Features.Enabled.Kline.ResultLimit), 10),
+	)
+
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	for x := range candles.Data.OHLCV {
+		if time.Unix(candles.Data.OHLCV[x].Timestamp, 0).Before(start) ||
+			time.Unix(candles.Data.OHLCV[x].Timestamp, 0).After(end) {
+			continue
+		}
+		ret.Candles = append(ret.Candles, kline.Candle{
+			Time:   time.Unix(candles.Data.OHLCV[x].Timestamp, 0),
+			Open:   candles.Data.OHLCV[x].Open,
+			High:   candles.Data.OHLCV[x].High,
+			Low:    candles.Data.OHLCV[x].Low,
+			Close:  candles.Data.OHLCV[x].Close,
+			Volume: candles.Data.OHLCV[x].Volume,
+		})
+	}
+
+	ret.SortCandlesByTimestamp(false)
+	return ret, nil
+}
+
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (b *Bitstamp) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !b.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	ret := kline.Item{
+		Exchange: b.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	fmtP, err := b.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	for x := range dates {
+		candles, err := b.OHLC(
+			fmtP.Lower().String(),
+			dates[x].Start,
+			dates[x].End,
+			b.FormatExchangeKlineInterval(interval),
+			strconv.FormatInt(int64(b.Features.Enabled.Kline.ResultLimit), 10),
+		)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		for i := range candles.Data.OHLCV {
+			if time.Unix(candles.Data.OHLCV[i].Timestamp, 0).Before(start) ||
+				time.Unix(candles.Data.OHLCV[i].Timestamp, 0).After(end) {
+				continue
+			}
+			ret.Candles = append(ret.Candles, kline.Candle{
+				Time:   time.Unix(candles.Data.OHLCV[i].Timestamp, 0),
+				Open:   candles.Data.OHLCV[i].Open,
+				High:   candles.Data.OHLCV[i].High,
+				Low:    candles.Data.OHLCV[i].Low,
+				Close:  candles.Data.OHLCV[i].Close,
+				Volume: candles.Data.OHLCV[i].Volume,
+			})
+		}
+	}
+
+	ret.SortCandlesByTimestamp(false)
+	return ret, nil
 }

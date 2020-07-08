@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -129,9 +130,31 @@ func (b *Bitfinex) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.AutoWithdrawFiatWithAPIPermission,
+			Kline: kline.ExchangeCapabilitiesSupported{
+				DateRanges: true,
+				Intervals:  true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: map[string]bool{
+					kline.OneMin.Word():     true,
+					kline.ThreeMin.Word():   true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.ThirtyMin.Word():  true,
+					kline.OneHour.Word():    true,
+					kline.TwoHour.Word():    true,
+					kline.FourHour.Word():   true,
+					kline.SixHour.Word():    true,
+					kline.TwelveHour.Word(): true,
+					kline.OneDay.Word():     true,
+					kline.OneWeek.Word():    true,
+					kline.TwoWeek.Word():    true,
+				},
+				ResultLimit: 10000,
+			},
 		},
 	}
 
@@ -783,7 +806,132 @@ func (b *Bitfinex) ValidateCredentials() error {
 	return b.CheckTransientError(err)
 }
 
+// FormatExchangeKlineInterval returns Interval to exchange formatted string
+func (b *Bitfinex) FormatExchangeKlineInterval(in kline.Interval) string {
+	switch in {
+	case kline.OneDay:
+		return "1D"
+	case kline.OneWeek:
+		return "7D"
+	case kline.OneWeek * 2:
+		return "14D"
+	default:
+		return in.Short()
+	}
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+func (b *Bitfinex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !b.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	if kline.TotalCandlesPerInterval(start, end, interval) > b.Features.Enabled.Kline.ResultLimit {
+		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
+	}
+
+	cf, err := b.fixCasing(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	candles, err := b.GetCandles(cf, b.FormatExchangeKlineInterval(interval),
+		start.Unix()*1000, end.Unix()*1000,
+		b.Features.Enabled.Kline.ResultLimit, true)
+	if err != nil {
+		return kline.Item{}, err
+	}
+	ret := kline.Item{
+		Exchange: b.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	for x := range candles {
+		ret.Candles = append(ret.Candles, kline.Candle{
+			Time:   candles[x].Timestamp,
+			Open:   candles[x].Open,
+			High:   candles[x].Close,
+			Low:    candles[x].Low,
+			Close:  candles[x].Close,
+			Volume: candles[x].Volume,
+		})
+	}
+
+	ret.SortCandlesByTimestamp(false)
+	return ret, nil
+}
+
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (b *Bitfinex) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !b.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	ret := kline.Item{
+		Exchange: b.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	cf, err := b.fixCasing(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	for x := range dates {
+		candles, err := b.GetCandles(cf, b.FormatExchangeKlineInterval(interval),
+			dates[x].Start.Unix()*1000, dates[x].End.Unix()*1000,
+			b.Features.Enabled.Kline.ResultLimit, true)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		for i := range candles {
+			ret.Candles = append(ret.Candles, kline.Candle{
+				Time:   candles[i].Timestamp,
+				Open:   candles[i].Open,
+				High:   candles[i].Close,
+				Low:    candles[i].Low,
+				Close:  candles[i].Close,
+				Volume: candles[i].Volume,
+			})
+		}
+	}
+
+	ret.SortCandlesByTimestamp(false)
+	return ret, nil
+}
+
+func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) (string, error) {
+	var checkString [2]byte
+	if a == asset.Spot {
+		checkString[0] = 't'
+		checkString[1] = 'T'
+	} else if a == asset.Margin {
+		checkString[0] = 'f'
+		checkString[1] = 'F'
+	}
+
+	fmt, err := b.FormatExchangeCurrency(in, a)
+	if err != nil {
+		return "", err
+	}
+
+	y := in.Base.String()
+	if (y[0] != checkString[0] && y[0] != checkString[1]) ||
+		(y[0] == checkString[1] && y[1] == checkString[1]) || in.Base == currency.TNB {
+		return string(checkString[0]) + fmt.Upper().String(), nil
+	}
+
+	runes := []rune(fmt.Upper().String())
+	runes[0] = unicode.ToLower(runes[0])
+	return string(runes), nil
 }

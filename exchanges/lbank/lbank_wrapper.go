@@ -88,6 +88,21 @@ func (l *Lbank) SetDefaults() {
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: map[string]bool{
+					kline.OneMin.Word():     true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.ThirtyMin.Word():  true,
+					kline.OneHour.Word():    true,
+					kline.FourHour.Word():   true,
+					kline.EightHour.Word():  true,
+					kline.TwelveHour.Word(): true,
+					kline.OneDay.Word():     true,
+					kline.OneWeek.Word():    true,
+				},
+				ResultLimit: 2880,
+			},
 		},
 	}
 
@@ -766,7 +781,109 @@ func (l *Lbank) ValidateCredentials() error {
 	return l.CheckTransientError(err)
 }
 
+// FormatExchangeKlineInterval returns Interval to exchange formatted string
+func (l *Lbank) FormatExchangeKlineInterval(in kline.Interval) string {
+	switch in {
+	case kline.OneMin, kline.ThreeMin,
+		kline.FiveMin, kline.FifteenMin, kline.ThirtyMin:
+		return "minute" + in.Short()[:len(in.Short())-1]
+	case kline.OneHour, kline.FourHour,
+		kline.EightHour, kline.TwelveHour:
+		return "hour" + in.Short()[:len(in.Short())-1]
+	case kline.OneDay:
+		return "day1"
+	case kline.OneWeek:
+		return "week1"
+	}
+	return ""
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (l *Lbank) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
-	return kline.Item{}, common.ErrFunctionNotSupported
+func (l *Lbank) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !l.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	fmtP, err := l.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	data, err := l.GetKlines(fmtP.String(),
+		strconv.FormatInt(int64(l.Features.Enabled.Kline.ResultLimit), 10),
+		l.FormatExchangeKlineInterval(interval),
+		strconv.FormatInt(start.Unix(), 10))
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	ret := kline.Item{
+		Exchange: l.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	for x := range data {
+		ret.Candles = append(ret.Candles, kline.Candle{
+			Time:   time.Unix(data[x].TimeStamp, 0),
+			Open:   data[x].OpenPrice,
+			High:   data[x].HigestPrice,
+			Low:    data[x].LowestPrice,
+			Close:  data[x].ClosePrice,
+			Volume: data[x].TradingVolume,
+		})
+	}
+
+	ret.SortCandlesByTimestamp(false)
+	return ret, nil
+}
+
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (l *Lbank) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !l.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+	ret := kline.Item{
+		Exchange: l.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	dates := kline.CalcDateRanges(start, end, interval, l.Features.Enabled.Kline.ResultLimit)
+	fmtP, err := l.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	for x := range dates {
+		data, err := l.GetKlines(fmtP.String(),
+			strconv.FormatInt(int64(l.Features.Enabled.Kline.ResultLimit), 10),
+			l.FormatExchangeKlineInterval(interval),
+			strconv.FormatInt(dates[x].Start.UTC().Unix(), 10))
+		if err != nil {
+			return kline.Item{}, err
+		}
+		for i := range data {
+			if time.Unix(data[i].TimeStamp, 0).UTC().Before(dates[x].Start.UTC()) || time.Unix(data[i].TimeStamp, 0).UTC().After(dates[x].End.UTC()) {
+				continue
+			}
+			ret.Candles = append(ret.Candles, kline.Candle{
+				Time:   time.Unix(data[i].TimeStamp, 0).UTC(),
+				Open:   data[i].OpenPrice,
+				High:   data[i].HigestPrice,
+				Low:    data[i].LowestPrice,
+				Close:  data[i].ClosePrice,
+				Volume: data[i].TradingVolume,
+			})
+		}
+	}
+
+	ret.SortCandlesByTimestamp(false)
+	return ret, nil
 }

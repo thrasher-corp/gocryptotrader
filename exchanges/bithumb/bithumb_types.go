@@ -284,3 +284,9 @@ type FullBalance struct {
 	Xcoin     map[string]float64
 	Available map[string]float64
 }
+
+// OHLCVResponse holds returned kline data
+type OHLCVResponse struct {
+	Status string           `json:"status"`
+	Data   [][6]interface{} `json:"data"`
+}

@@ -398,14 +398,18 @@ func ({{.Variable}} *{{.CapitalName}}) GetFeeByType(feeBuilder *exchange.FeeBuil
 }
 
 // ValidateCredentials validates current credentials used for wrapper
-// functionality
 func ({{.Variable}} *{{.CapitalName}}) ValidateCredentials() error {
 	_, err := {{.Variable}}.UpdateAccountInfo()
 	return {{.Variable}}.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func ({{.Variable}} *{{.CapitalName}}) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
+func ({{.Variable}} *{{.CapitalName}}) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	return kline.Item{}, common.ErrNotYetImplemented
+}
+
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func ({{.Variable}} *{{.CapitalName}}) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrNotYetImplemented
 }
 

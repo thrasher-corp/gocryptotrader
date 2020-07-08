@@ -99,9 +99,27 @@ func (h *HUOBI) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
 				exchange.NoFiatWithdrawals,
+			Kline: kline.ExchangeCapabilitiesSupported{
+				Intervals: true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: map[string]bool{
+					kline.OneMin.Word():     true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.ThirtyMin.Word():  true,
+					kline.OneHour.Word():    true,
+					kline.FourHour.Word():   true,
+					kline.OneDay.Word():     true,
+					kline.OneWeek.Word():    true,
+					kline.OneMonth.Word():   true,
+					kline.OneYear.Word():    true,
+				},
+				ResultLimit: 2000,
+			},
 		},
 	}
 
@@ -949,7 +967,75 @@ func (h *HUOBI) ValidateCredentials() error {
 	return h.CheckTransientError(err)
 }
 
+// FormatExchangeKlineInterval returns Interval to exchange formatted string
+func (h *HUOBI) FormatExchangeKlineInterval(in kline.Interval) string {
+	switch in {
+	case kline.OneMin, kline.FiveMin, kline.FifteenMin, kline.ThirtyMin:
+		return in.Short() + "in"
+	case kline.FourHour:
+		return "4hour"
+	case kline.OneDay:
+		return "1day"
+	case kline.OneMonth:
+		return "1mon"
+	case kline.OneWeek:
+		return "1week"
+	case kline.OneYear:
+		return "1year"
+	}
+	return ""
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (h *HUOBI) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+func (h *HUOBI) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !h.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	fmtP, err := h.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	klineParams := KlinesRequestParams{
+		Period: h.FormatExchangeKlineInterval(interval),
+		Symbol: fmtP.String(),
+	}
+
+	candles, err := h.GetSpotKline(klineParams)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	ret := kline.Item{
+		Exchange: h.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	for x := range candles {
+		if time.Unix(candles[x].ID, 0).Before(start) ||
+			time.Unix(candles[x].ID, 0).After(end) {
+			continue
+		}
+		ret.Candles = append(ret.Candles, kline.Candle{
+			Time:   time.Unix(candles[x].ID, 0),
+			Open:   candles[x].Open,
+			High:   candles[x].Close,
+			Low:    candles[x].Low,
+			Close:  candles[x].Close,
+			Volume: candles[x].Volume,
+		})
+	}
+
+	ret.SortCandlesByTimestamp(false)
+	return ret, nil
+}
+
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (h *HUOBI) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	return h.GetHistoricCandles(pair, a, start, end, interval)
 }

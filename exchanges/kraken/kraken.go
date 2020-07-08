@@ -213,10 +213,10 @@ func (k *Kraken) GetTickers(pairList string) (map[string]Ticker, error) {
 }
 
 // GetOHLC returns an array of open high low close values of a currency pair
-func (k *Kraken) GetOHLC(symbol string) ([]OpenHighLowClose, error) {
+func (k *Kraken) GetOHLC(symbol, interval string) ([]OpenHighLowClose, error) {
 	values := url.Values{}
 	values.Set("pair", symbol)
-
+	values.Set("interval", interval)
 	type Response struct {
 		Error []interface{}          `json:"error"`
 		Data  map[string]interface{} `json:"result"`
@@ -234,6 +234,11 @@ func (k *Kraken) GetOHLC(symbol string) ([]OpenHighLowClose, error) {
 
 	if len(result.Error) != 0 {
 		return OHLC, fmt.Errorf("getOHLC error: %s", result.Error)
+	}
+
+	_, ok := result.Data[symbol].([]interface{})
+	if !ok {
+		return nil, errors.New("invalid data returned")
 	}
 
 	for _, y := range result.Data[symbol].([]interface{}) {
@@ -272,7 +277,6 @@ func (k *Kraken) GetDepth(symbol string) (Orderbook, error) {
 	var orderBook Orderbook
 
 	path := fmt.Sprintf("%s/%s/public/%s?%s", k.API.Endpoints.URL, krakenAPIVersion, krakenDepth, values.Encode())
-
 	err := k.SendHTTPRequest(path, &result)
 	if err != nil {
 		return orderBook, err

@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -75,7 +76,7 @@ func TestGetOrderBook(t *testing.T) {
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := l.GetTradeHistory("BTCUSD")
+	_, err := l.GetTradeHistory("BTCUSD", time.Now().Unix())
 	if err != nil {
 		t.Error("GetTradeHistory() error", err)
 	}

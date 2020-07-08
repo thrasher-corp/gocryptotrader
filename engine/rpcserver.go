@@ -29,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -1583,19 +1584,42 @@ func (s *RPCServer) GetHistoricCandles(_ context.Context, req *gctrpc.GetHistori
 		return nil, errors.New("Exchange " + req.Exchange + " not found")
 	}
 
-	candles, err := exchange.GetHistoricCandles(currency.Pair{
-		Delimiter: req.Pair.Delimiter,
-		Base:      currency.NewCode(req.Pair.Base),
-		Quote:     currency.NewCode(req.Pair.Quote),
-	},
-		asset.Item(req.AssetType),
-		time.Unix(req.Start, 0),
-		time.Unix(req.End, 0),
-		time.Duration(req.TimeInterval))
-	if err != nil {
-		return nil, err
+	var candles kline.Item
+	var err error
+	if req.ExRequest {
+		candles, err = exchange.GetHistoricCandlesExtended(currency.Pair{
+			Delimiter: req.Pair.Delimiter,
+			Base:      currency.NewCode(req.Pair.Base),
+			Quote:     currency.NewCode(req.Pair.Quote),
+		},
+			asset.Item(strings.ToLower(req.AssetType)),
+			time.Unix(req.Start, 0),
+			time.Unix(req.End, 0),
+			kline.Interval(req.TimeInterval))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		candles, err = exchange.GetHistoricCandles(currency.Pair{
+			Delimiter: req.Pair.Delimiter,
+			Base:      currency.NewCode(req.Pair.Base),
+			Quote:     currency.NewCode(req.Pair.Quote),
+		},
+			asset.Item(strings.ToLower(req.AssetType)),
+			time.Unix(req.Start, 0),
+			time.Unix(req.End, 0),
+			kline.Interval(req.TimeInterval))
+		if err != nil {
+			return nil, err
+		}
 	}
-	resp := gctrpc.GetHistoricCandlesResponse{}
+	resp := gctrpc.GetHistoricCandlesResponse{
+		Exchange: exchange.GetName(),
+		Interval: kline.Interval(req.TimeInterval).Short(),
+		Start:    req.Start,
+		End:      req.End,
+	}
+
 	for i := range candles.Candles {
 		resp.Candle = append(resp.Candle, &gctrpc.Candle{
 			Time:   candles.Candles[i].Time.Unix(),

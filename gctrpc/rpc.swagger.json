@@ -1129,6 +1129,13 @@
             "required": false,
             "type": "string",
             "format": "int64"
+          },
+          {
+            "name": "ex_request",
+            "in": "query",
+            "required": false,
+            "type": "boolean",
+            "format": "boolean"
           }
         ],
         "tags": [
@@ -2924,6 +2931,23 @@
     "gctrpcGetHistoricCandlesResponse": {
       "type": "object",
       "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "start": {
+          "type": "string",
+          "format": "int64"
+        },
+        "end": {
+          "type": "string",
+          "format": "int64"
+        },
+        "interval": {
+          "type": "string"
+        },
         "candle": {
           "type": "array",
           "items": {
