@@ -915,3 +915,28 @@ func TestSetupNewConnection(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestWebsocketConnectionShutdown(t *testing.T) {
+	wc := WebsocketConnection{}
+	err := wc.Shutdown()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = wc.Dial(&websocket.Dialer{}, nil)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+
+	wc.URL = "wss://echo.websocket.org"
+
+	err = wc.Dial(&websocket.Dialer{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = wc.Shutdown()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
