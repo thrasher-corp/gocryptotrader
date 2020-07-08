@@ -399,7 +399,9 @@ func (o *orderManager) processOrders() {
 			pairs, err := exch.GetEnabledPairs(supportedAssets[y])
 			if err != nil {
 				log.Errorf(log.OrderMgr,
-					"Order manager: Unable to get active orders: %s",
+					"Order manager: Unable to get enabled pairs for %s and asset type %s: %s",
+					authExchanges[x],
+					supportedAssets[y],
 					err)
 				continue
 			}
@@ -407,7 +409,8 @@ func (o *orderManager) processOrders() {
 			if len(pairs) == 0 {
 				if Bot.Settings.Verbose {
 					log.Debugf(log.OrderMgr,
-						"Order manager: No pairs enabled for asset %s skipping...",
+						"Order manager: No pairs enabled for %s and asset type %s skipping...",
+						authExchanges[x],
 						supportedAssets[y])
 				}
 				continue
@@ -421,7 +424,9 @@ func (o *orderManager) processOrders() {
 			result, err := exch.GetActiveOrders(&req)
 			if err != nil {
 				log.Warnf(log.OrderMgr,
-					"Order manager: Unable to get active orders: %s",
+					"Order manager: Unable to get active orders for %s and asset type %s: %s",
+					authExchanges[x],
+					supportedAssets[y],
 					err)
 				continue
 			}
