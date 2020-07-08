@@ -270,7 +270,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptGenericResponse"
+              "$ref": "#/definitions/gctrpcGenericResponse"
             }
           },
           "default": {
@@ -302,7 +302,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptGenericResponse"
+              "$ref": "#/definitions/gctrpcGenericResponse"
             }
           },
           "default": {
@@ -484,7 +484,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptGenericResponse"
+              "$ref": "#/definitions/gctrpcGenericResponse"
             }
           },
           "default": {
@@ -1943,7 +1943,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptGenericResponse"
+              "$ref": "#/definitions/gctrpcGenericResponse"
             }
           },
           "default": {
@@ -1980,7 +1980,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptGenericResponse"
+              "$ref": "#/definitions/gctrpcGenericResponse"
             }
           },
           "default": {
@@ -2016,7 +2016,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGCTScriptGenericResponse"
+              "$ref": "#/definitions/gctrpcGenericResponse"
             }
           },
           "default": {
@@ -2591,17 +2591,6 @@
         }
       }
     },
-    "gctrpcGCTScriptGenericResponse": {
-      "type": "object",
-      "properties": {
-        "status": {
-          "type": "string"
-        },
-        "data": {
-          "type": "string"
-        }
-      }
-    },
     "gctrpcGCTScriptListAllRequest": {
       "type": "object"
     },
@@ -2685,6 +2674,17 @@
     },
     "gctrpcGenericExchangeNameResponse": {
       "type": "object"
+    },
+    "gctrpcGenericResponse": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "data": {
+          "type": "string"
+        }
+      }
     },
     "gctrpcGenericSubsystemResponse": {
       "type": "object"

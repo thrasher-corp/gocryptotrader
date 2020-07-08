@@ -680,7 +680,7 @@ message GCTScriptQueryResponse{
     string data = 3;
 }
 
-message GCTScriptGenericResponse {
+message GenericResponse {
     string status = 1;
     string data = 2;
 }
@@ -1087,13 +1087,13 @@ service GoCryptoTrader {
         };
     }
 
-    rpc GCTScriptExecute(GCTScriptExecuteRequest) returns (GCTScriptGenericResponse) {
+    rpc GCTScriptExecute(GCTScriptExecuteRequest) returns (GenericResponse) {
         option (google.api.http) = {
             get: "/v1/gctscript/execute",
         };
     }
 
-    rpc GCTScriptUpload(GCTScriptUploadRequest) returns (GCTScriptGenericResponse) {
+    rpc GCTScriptUpload(GCTScriptUploadRequest) returns (GenericResponse) {
         option (google.api.http) = {
             post: "/v1/gctscript/upload",
             body: "*"
@@ -1119,14 +1119,14 @@ service GoCryptoTrader {
         };
     }
 
-    rpc GCTScriptStop(GCTScriptStopRequest) returns (GCTScriptGenericResponse) {
+    rpc GCTScriptStop(GCTScriptStopRequest) returns (GenericResponse) {
         option (google.api.http) = {
             post: "/v1/gctscript/stop",
             body: "*"
         };
     }
 
-    rpc GCTScriptStopAll(GCTScriptStopAllRequest) returns (GCTScriptGenericResponse) {
+    rpc GCTScriptStopAll(GCTScriptStopAllRequest) returns (GenericResponse) {
         option (google.api.http) = {
             post: "/v1/gctscript/stop",
             body: "*"
@@ -1139,7 +1139,7 @@ service GoCryptoTrader {
             body: "*"
         };
     }
-    rpc GCTScriptAutoLoadToggle(GCTScriptAutoLoadRequest) returns (GCTScriptGenericResponse) {
+    rpc GCTScriptAutoLoadToggle(GCTScriptAutoLoadRequest) returns (GenericResponse) {
         option (google.api.http) = {
             post: "/v1/gctscript/autoload",
             body: "*"
@@ -1182,7 +1182,7 @@ service GoCryptoTrader {
         };
     }
 
-    rpc WebsocketSetEnabled(WebsocketSetEnabledRequest) returns (GCTScriptGenericResponse) {
+    rpc WebsocketSetEnabled(WebsocketSetEnabledRequest) returns (GenericResponse) {
         option (google.api.http) = {
             get: "/v1/websocketsetenabled"
         };
@@ -1194,13 +1194,13 @@ service GoCryptoTrader {
         };
     }
 
-    rpc WebsocketSetProxy(WebsocketSetProxyRequest) returns (GCTScriptGenericResponse) {
+    rpc WebsocketSetProxy(WebsocketSetProxyRequest) returns (GenericResponse) {
         option (google.api.http) = {
             get: "/v1/websocketsetproxy"
         };
     }
 
-    rpc WebsocketSetURL(WebsocketSetURLRequest) returns (GCTScriptGenericResponse) {
+    rpc WebsocketSetURL(WebsocketSetURLRequest) returns (GenericResponse) {
         option (google.api.http) = {
             get: "/v1/websocketseturl"
         };

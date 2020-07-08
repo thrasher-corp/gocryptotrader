@@ -46,10 +46,13 @@ import (
 )
 
 const (
-	errExchangeNameUnset    = "exchange name unset"
-	errCurrencyPairUnset    = "currency pair unset"
-	errAssetTypeUnset       = "asset type unset"
-	errDispatchSystem       = "dispatch system offline"
+	errExchangeNameUnset = "exchange name unset"
+	errCurrencyPairUnset = "currency pair unset"
+	errAssetTypeUnset    = "asset type unset"
+	errDispatchSystem    = "dispatch system offline"
+)
+
+var (
 	errExchangeNotLoaded    = errors.New("exchange is not loaded/doesn't exist")
 	errExchangeBaseNotFound = errors.New("cannot get exchange base")
 )
@@ -1666,9 +1669,9 @@ func (s *RPCServer) GCTScriptQuery(_ context.Context, r *gctrpc.GCTScriptQueryRe
 }
 
 // GCTScriptExecute execute a script
-func (s *RPCServer) GCTScriptExecute(_ context.Context, r *gctrpc.GCTScriptExecuteRequest) (*gctrpc.GCTScriptGenericResponse, error) {
+func (s *RPCServer) GCTScriptExecute(_ context.Context, r *gctrpc.GCTScriptExecuteRequest) (*gctrpc.GenericResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
-		return &gctrpc.GCTScriptGenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
+		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
 	if r.Script.Path == "" {
@@ -1677,13 +1680,13 @@ func (s *RPCServer) GCTScriptExecute(_ context.Context, r *gctrpc.GCTScriptExecu
 
 	gctVM := gctscript.New()
 	if gctVM == nil {
-		return &gctrpc.GCTScriptGenericResponse{Status: MsgStatusError, Data: "unable to create VM instance"}, nil
+		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: "unable to create VM instance"}, nil
 	}
 
 	script := filepath.Join(r.Script.Path, r.Script.Name)
 	err := gctVM.Load(script)
 	if err != nil {
-		return &gctrpc.GCTScriptGenericResponse{
+		return &gctrpc.GenericResponse{
 			Status: MsgStatusError,
 			Data:   err.Error(),
 		}, nil
@@ -1691,21 +1694,21 @@ func (s *RPCServer) GCTScriptExecute(_ context.Context, r *gctrpc.GCTScriptExecu
 
 	go gctVM.CompileAndRun()
 
-	return &gctrpc.GCTScriptGenericResponse{
+	return &gctrpc.GenericResponse{
 		Status: MsgStatusOK,
 		Data:   gctVM.ShortName() + " (" + gctVM.ID.String() + ") executed",
 	}, nil
 }
 
 // GCTScriptStop terminate a running script
-func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequest) (*gctrpc.GCTScriptGenericResponse, error) {
+func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequest) (*gctrpc.GenericResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
-		return &gctrpc.GCTScriptGenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
+		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
 	UUID, err := uuid.FromString(r.Script.UUID)
 	if err != nil {
-		return &gctrpc.GCTScriptGenericResponse{Status: MsgStatusError, Data: err.Error()}, nil
+		return &gctrpc.GenericResponse{Status: MsgStatusError, Data: err.Error()}, nil
 	}
 
 	if v, f := gctscript.AllVMSync.Load(UUID); f {
@@ -1714,15 +1717,15 @@ func (s *RPCServer) GCTScriptStop(_ context.Context, r *gctrpc.GCTScriptStopRequ
 		if err != nil {
 			status = " " + err.Error()
 		}
-		return &gctrpc.GCTScriptGenericResponse{Status: MsgStatusOK, Data: v.(*gctscript.VM).ID.String() + status}, nil
+		return &gctrpc.GenericResponse{Status: MsgStatusOK, Data: v.(*gctscript.VM).ID.String() + status}, nil
 	}
-	return &gctrpc.GCTScriptGenericResponse{Status: MsgStatusError, Data: "no running script found"}, nil
+	return &gctrpc.GenericResponse{Status: MsgStatusError, Data: "no running script found"}, nil
 }
 
 // GCTScriptUpload upload a new script to ScriptPath
-func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUploadRequest) (*gctrpc.GCTScriptGenericResponse, error) {
+func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUploadRequest) (*gctrpc.GenericResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
-		return &gctrpc.GCTScriptGenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
+		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
 	fPath := filepath.Join(gctscript.ScriptPath, r.ScriptName)
@@ -1773,7 +1776,7 @@ func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUpload
 		files, errExtract := archive.UnZip(fPath, filepath.Join(gctscript.ScriptPath, r.ScriptName[:len(r.ScriptName)-4]))
 		if errExtract != nil {
 			log.Errorf(log.Global, "Failed to archive zip file %v", errExtract)
-			return &gctrpc.GCTScriptGenericResponse{Status: MsgStatusError, Data: errExtract.Error()}, nil
+			return &gctrpc.GenericResponse{Status: MsgStatusError, Data: errExtract.Error()}, nil
 		}
 		var failedFiles []string
 		for x := range files {
@@ -1791,7 +1794,7 @@ func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUpload
 			if err != nil {
 				log.Errorf(log.GCTScriptMgr, "Failed to remove file %v (%v), manual deletion required", filepath.Base(fPath), err)
 			}
-			return &gctrpc.GCTScriptGenericResponse{Status: ErrScriptFailedValidation, Data: strings.Join(failedFiles, ", ")}, nil
+			return &gctrpc.GenericResponse{Status: ErrScriptFailedValidation, Data: strings.Join(failedFiles, ", ")}, nil
 		}
 	} else {
 		err = gctscript.Validate(fPath)
@@ -1800,11 +1803,11 @@ func (s *RPCServer) GCTScriptUpload(_ context.Context, r *gctrpc.GCTScriptUpload
 			if errRemove != nil {
 				log.Errorf(log.GCTScriptMgr, "Failed to remove file %v, manual deletion required: %v", filepath.Base(fPath), errRemove)
 			}
-			return &gctrpc.GCTScriptGenericResponse{Status: ErrScriptFailedValidation, Data: err.Error()}, nil
+			return &gctrpc.GenericResponse{Status: ErrScriptFailedValidation, Data: err.Error()}, nil
 		}
 	}
 
-	return &gctrpc.GCTScriptGenericResponse{
+	return &gctrpc.GenericResponse{
 		Status: MsgStatusOK,
 		Data:   fmt.Sprintf("script %s written", newFile.Name()),
 	}, nil
@@ -1862,41 +1865,41 @@ func (s *RPCServer) GCTScriptListAll(context.Context, *gctrpc.GCTScriptListAllRe
 }
 
 // GCTScriptStopAll stops all running scripts
-func (s *RPCServer) GCTScriptStopAll(context.Context, *gctrpc.GCTScriptStopAllRequest) (*gctrpc.GCTScriptGenericResponse, error) {
+func (s *RPCServer) GCTScriptStopAll(context.Context, *gctrpc.GCTScriptStopAllRequest) (*gctrpc.GenericResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
-		return &gctrpc.GCTScriptGenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
+		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
 	err := gctscript.ShutdownAll()
 	if err != nil {
-		return &gctrpc.GCTScriptGenericResponse{Status: "error", Data: err.Error()}, nil
+		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil
 	}
 
-	return &gctrpc.GCTScriptGenericResponse{
+	return &gctrpc.GenericResponse{
 		Status: MsgStatusOK,
 		Data:   "all running scripts have been stopped",
 	}, nil
 }
 
 // GCTScriptAutoLoadToggle adds or removes an entry to the autoload list
-func (s *RPCServer) GCTScriptAutoLoadToggle(_ context.Context, r *gctrpc.GCTScriptAutoLoadRequest) (*gctrpc.GCTScriptGenericResponse, error) {
+func (s *RPCServer) GCTScriptAutoLoadToggle(_ context.Context, r *gctrpc.GCTScriptAutoLoadRequest) (*gctrpc.GenericResponse, error) {
 	if !gctscript.GCTScriptConfig.Enabled {
-		return &gctrpc.GCTScriptGenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
+		return &gctrpc.GenericResponse{Status: gctscript.ErrScriptingDisabled.Error()}, nil
 	}
 
 	if r.Status {
 		err := gctscript.Autoload(r.Script, true)
 		if err != nil {
-			return &gctrpc.GCTScriptGenericResponse{Status: "error", Data: err.Error()}, nil
+			return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil
 		}
-		return &gctrpc.GCTScriptGenericResponse{Status: "success", Data: "script " + r.Script + " removed from autoload list"}, nil
+		return &gctrpc.GenericResponse{Status: "success", Data: "script " + r.Script + " removed from autoload list"}, nil
 	}
 
 	err := gctscript.Autoload(r.Script, false)
 	if err != nil {
-		return &gctrpc.GCTScriptGenericResponse{Status: "error", Data: err.Error()}, nil
+		return &gctrpc.GenericResponse{Status: "error", Data: err.Error()}, nil
 	}
-	return &gctrpc.GCTScriptGenericResponse{Status: "success", Data: "script " + r.Script + " added to autoload list"}, nil
+	return &gctrpc.GenericResponse{Status: "success", Data: "script " + r.Script + " added to autoload list"}, nil
 }
 
 // SetExchangeAsset enables or disables an exchanges asset type
@@ -2059,7 +2062,7 @@ func (s *RPCServer) WebsocketGetInfo(_ context.Context, r *gctrpc.WebsocketGetIn
 }
 
 // WebsocketSetEnabled enables or disables the websocket client
-func (s *RPCServer) WebsocketSetEnabled(_ context.Context, r *gctrpc.WebsocketSetEnabledRequest) (*gctrpc.GCTScriptGenericResponse, error) {
+func (s *RPCServer) WebsocketSetEnabled(_ context.Context, r *gctrpc.WebsocketSetEnabledRequest) (*gctrpc.GenericResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errExchangeNotLoaded
@@ -2082,7 +2085,7 @@ func (s *RPCServer) WebsocketSetEnabled(_ context.Context, r *gctrpc.WebsocketSe
 		}
 
 		exchCfg.Features.Enabled.Websocket = true
-		return new(gctrpc.GCTScriptGenericResponse), nil
+		return new(gctrpc.GenericResponse), nil
 	}
 
 	err = w.Disable()
@@ -2090,7 +2093,7 @@ func (s *RPCServer) WebsocketSetEnabled(_ context.Context, r *gctrpc.WebsocketSe
 		return nil, err
 	}
 	exchCfg.Features.Enabled.Websocket = false
-	return new(gctrpc.GCTScriptGenericResponse), nil
+	return new(gctrpc.GenericResponse), nil
 }
 
 // WebsocketGetSubscriptions returns websocket subscription analysis
@@ -2125,7 +2128,7 @@ func (s *RPCServer) WebsocketGetSubscriptions(_ context.Context, r *gctrpc.Webso
 }
 
 // WebsocketSetProxy sets client websocket connection proxy
-func (s *RPCServer) WebsocketSetProxy(_ context.Context, r *gctrpc.WebsocketSetProxyRequest) (*gctrpc.GCTScriptGenericResponse, error) {
+func (s *RPCServer) WebsocketSetProxy(_ context.Context, r *gctrpc.WebsocketSetProxyRequest) (*gctrpc.GenericResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errExchangeNotLoaded
@@ -2140,11 +2143,11 @@ func (s *RPCServer) WebsocketSetProxy(_ context.Context, r *gctrpc.WebsocketSetP
 	if err != nil {
 		return nil, err
 	}
-	return new(gctrpc.GCTScriptGenericResponse), nil
+	return new(gctrpc.GenericResponse), nil
 }
 
 // WebsocketSetURL sets exchange websocket client connection URL
-func (s *RPCServer) WebsocketSetURL(_ context.Context, r *gctrpc.WebsocketSetURLRequest) (*gctrpc.GCTScriptGenericResponse, error) {
+func (s *RPCServer) WebsocketSetURL(_ context.Context, r *gctrpc.WebsocketSetURLRequest) (*gctrpc.GenericResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errExchangeNotLoaded
@@ -2159,5 +2162,5 @@ func (s *RPCServer) WebsocketSetURL(_ context.Context, r *gctrpc.WebsocketSetURL
 	if err != nil {
 		return nil, err
 	}
-	return new(gctrpc.GCTScriptGenericResponse), nil
+	return new(gctrpc.GenericResponse), nil
 }
