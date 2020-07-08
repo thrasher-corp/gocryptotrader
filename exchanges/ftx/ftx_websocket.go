@@ -43,7 +43,7 @@ var obSuccess = make(map[currency.Pair]bool)
 // WsConnect connects to a websocket feed
 func (f *FTX) WsConnect() error {
 	if !f.Websocket.IsEnabled() || !f.IsEnabled() {
-		return errors.New("stream.WebsocketNotEnabled")
+		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := f.Websocket.Conn.Dial(&dialer, http.Header{})
