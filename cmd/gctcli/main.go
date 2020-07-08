@@ -136,6 +136,7 @@ func main() {
 		getExchangeTickerStreamCommand,
 		getAuditEventCommand,
 		getHistoricCandlesCommand,
+		getHistoricCandlesExtendedCommand,
 		gctScriptCommand,
 	}
 

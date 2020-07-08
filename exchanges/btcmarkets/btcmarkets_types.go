@@ -37,6 +37,7 @@ type Trade struct {
 	Amount    float64   `json:"amount,string"`
 	Price     float64   `json:"price,string"`
 	Timestamp time.Time `json:"timestamp"`
+	Side      string    `json:"side"`
 }
 
 // tempOrderbook stores orderbook data
@@ -433,3 +434,6 @@ type WsError struct {
 	Code        int64  `json:"code"`
 	Message     string `json:"message"`
 }
+
+// CandleResponse holds OHLCV data for exchange
+type CandleResponse [][6]string

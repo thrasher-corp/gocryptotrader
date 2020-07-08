@@ -3,6 +3,7 @@ package coinbasepro
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -112,9 +113,24 @@ func (c *CoinbasePro) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.AutoWithdrawFiatWithAPIPermission,
+			Kline: kline.ExchangeCapabilitiesSupported{
+				DateRanges: true,
+				Intervals:  true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: map[string]bool{
+					kline.OneMin.Word():     true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.OneHour.Word():    true,
+					kline.SixHour.Word():    true,
+					kline.OneDay.Word():     true,
+				},
+				ResultLimit: 300,
+			},
 		},
 	}
 
@@ -682,46 +698,37 @@ func (c *CoinbasePro) AuthenticateWebsocket() error {
 	return common.ErrFunctionNotSupported
 }
 
-// checkInterval checks allowable interval
-func checkInterval(i time.Duration) (int64, error) {
-	switch i.Seconds() {
-	case 60:
-		return 60, nil
-	case 300:
-		return 300, nil
-	case 900:
-		return 900, nil
-	case 3600:
-		return 3600, nil
-	case 21600:
-		return 21600, nil
-	case 86400:
-		return 86400, nil
-	}
-	return 0, fmt.Errorf("interval not allowed %v", i.Seconds())
-}
-
 // GetHistoricCandles returns a set of candle between two time periods for a
 // designated time period
-func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
-	i, err := checkInterval(interval)
+func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !c.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	if kline.TotalCandlesPerInterval(start, end, interval) > c.Features.Enabled.Kline.ResultLimit {
+		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
+	}
+
+	candles := kline.Item{
+		Exchange: c.Name,
+		Pair:     p,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	gran, err := strconv.ParseInt(c.FormatExchangeKlineInterval(interval), 10, 64)
 	if err != nil {
 		return kline.Item{}, err
 	}
-
 	history, err := c.GetHistoricRates(c.FormatExchangeCurrency(p, a).String(),
 		start.Format(time.RFC3339),
 		end.Format(time.RFC3339),
-		i)
+		gran)
 	if err != nil {
 		return kline.Item{}, err
 	}
-
-	var candles kline.Item
-	candles.Asset = a
-	candles.Exchange = c.Name
-	candles.Interval = interval
-	candles.Pair = p
 
 	for x := range history {
 		candles.Candles = append(candles.Candles, kline.Candle{
@@ -733,7 +740,54 @@ func (c *CoinbasePro) GetHistoricCandles(p currency.Pair, a asset.Item, start, e
 			Volume: history[x].Volume,
 		})
 	}
+
+	candles.SortCandlesByTimestamp(false)
 	return candles, nil
+}
+
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (c *CoinbasePro) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !c.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	ret := kline.Item{
+		Exchange: c.Name,
+		Pair:     p,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	gran, err := strconv.ParseInt(c.FormatExchangeKlineInterval(interval), 10, 64)
+	if err != nil {
+		return kline.Item{}, err
+	}
+	dates := kline.CalcDateRanges(start, end, interval, c.Features.Enabled.Kline.ResultLimit)
+	for x := range dates {
+		history, err := c.GetHistoricRates(c.FormatExchangeCurrency(p, a).String(),
+			dates[x].Start.Format(time.RFC3339),
+			dates[x].End.Format(time.RFC3339),
+			gran)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		for i := range history {
+			ret.Candles = append(ret.Candles, kline.Candle{
+				Time:   time.Unix(history[i].Time, 0),
+				Low:    history[i].Low,
+				High:   history[i].High,
+				Open:   history[i].Open,
+				Close:  history[i].Close,
+				Volume: history[i].Volume,
+			})
+		}
+	}
+
+	ret.SortCandlesByTimestamp(false)
+	return ret, nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper

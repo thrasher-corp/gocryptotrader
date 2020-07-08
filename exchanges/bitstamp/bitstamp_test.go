@@ -3,10 +3,13 @@ package bitstamp
 import (
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -662,5 +665,35 @@ func TestWsRequestReconnect(t *testing.T) {
 	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestBitstamp_OHLC(t *testing.T) {
+	start := time.Unix(1546300800, 0)
+	end := time.Unix(1577836799, 0)
+	_, err := b.OHLC("btcusd", start, end, "60", "10")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBitstamp_GetHistoricCandles(t *testing.T) {
+	currencyPair := currency.NewPairFromString("btcusd")
+	start := time.Unix(1546300800, 0)
+	end := time.Unix(1577836799, 0)
+
+	_, err := b.GetHistoricCandles(currencyPair, asset.Spot, start, end, kline.OneDay)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBitstamp_GetHistoricCandlesExtended(t *testing.T) {
+	currencyPair := currency.NewPairFromString("btcusd")
+	start := time.Unix(1546300800, 0)
+	end := time.Unix(1577836799, 0)
+	_, err := b.GetHistoricCandlesExtended(currencyPair, asset.Spot, start, end, kline.OneDay)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

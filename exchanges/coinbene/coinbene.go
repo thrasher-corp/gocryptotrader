@@ -613,74 +613,48 @@ func (c *Coinbene) GetSwapOrderbook(symbol string, size int64) (Orderbook, error
 	return s, nil
 }
 
+// GetKlines data returns the kline data for a specific symbol
+func (c *Coinbene) GetKlines(pair string, start, end time.Time, period string) (resp CandleResponse, err error) {
+	v := url.Values{}
+	v.Add("symbol", pair)
+	if !start.IsZero() {
+		v.Add("start", strconv.FormatInt(start.Unix(), 10))
+	}
+	if !end.IsZero() {
+		v.Add("end", strconv.FormatInt(end.Unix(), 10))
+	}
+	v.Add("period", period)
+
+	path := common.EncodeURLValues(coinbeneAPIURL+coinbeneAPIVersion+coinbeneSpotKlines, v)
+	if err = c.SendHTTPRequest(path, contractKline, &resp); err != nil {
+		return
+	}
+
+	if resp.Code != 200 {
+		return resp, errors.New(resp.Message)
+	}
+
+	return
+}
+
 // GetSwapKlines data returns the kline data for a specific symbol
-func (c *Coinbene) GetSwapKlines(symbol, startTime, endTime, resolution string) (SwapKlines, error) {
-	var s SwapKlines
+func (c *Coinbene) GetSwapKlines(symbol string, start, end time.Time, resolution string) (resp CandleResponse, err error) {
 	v := url.Values{}
 	v.Set("symbol", symbol)
-	v.Set("startTime", startTime)
-	v.Set("endTime", endTime)
+	if !start.IsZero() {
+		v.Add("startTime", strconv.FormatInt(start.Unix(), 10))
+	}
+	if !end.IsZero() {
+		v.Add("endTime", strconv.FormatInt(end.Unix(), 10))
+	}
 	v.Set("resolution", resolution)
 
-	type resp struct {
-		Data [][]string `json:"data"`
-	}
-	var r resp
 	path := common.EncodeURLValues(coinbeneSwapAPIURL+coinbeneAPIVersion+coinbeneGetKlines, v)
-	if err := c.SendHTTPRequest(path, contractKline, &r); err != nil {
-		return nil, err
+	if err = c.SendHTTPRequest(path, contractKline, &resp); err != nil {
+		return
 	}
 
-	for x := range r.Data {
-		buyTurnover, err := strconv.ParseFloat(r.Data[x][8], 64)
-		if err != nil {
-			return nil, err
-		}
-		tm, err := strconv.ParseInt(r.Data[x][0], 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		open, err := strconv.ParseFloat(r.Data[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		closePrice, err := strconv.ParseFloat(r.Data[x][2], 64)
-		if err != nil {
-			return nil, err
-		}
-		high, err := strconv.ParseFloat(r.Data[x][3], 64)
-		if err != nil {
-			return nil, err
-		}
-		low, err := strconv.ParseFloat(r.Data[x][4], 64)
-		if err != nil {
-			return nil, err
-		}
-		volume, err := strconv.ParseFloat(r.Data[x][5], 64)
-		if err != nil {
-			return nil, err
-		}
-		turnover, err := strconv.ParseFloat(r.Data[x][6], 64)
-		if err != nil {
-			return nil, err
-		}
-		buyVolume, err := strconv.ParseFloat(r.Data[x][7], 64)
-		if err != nil {
-			return nil, err
-		}
-		s = append(s, SwapKlineItem{
-			Time:        time.Unix(tm, 0),
-			Open:        open,
-			Close:       closePrice,
-			High:        high,
-			Low:         low,
-			Volume:      volume,
-			Turnover:    turnover,
-			BuyVolume:   buyVolume,
-			BuyTurnover: buyTurnover,
-		})
-	}
-	return s, nil
+	return
 }
 
 // GetSwapTrades returns a list of trades for a swap symbol

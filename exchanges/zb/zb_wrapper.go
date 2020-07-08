@@ -106,16 +106,36 @@ func (z *ZB) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
+			Kline: kline.ExchangeCapabilitiesSupported{
+				Intervals: true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: map[string]bool{
+					kline.OneMin.Word():     true,
+					kline.ThreeMin.Word():   true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.ThirtyMin.Word():  true,
+					kline.OneHour.Word():    true,
+					kline.TwoHour.Word():    true,
+					kline.FourHour.Word():   true,
+					kline.SixHour.Word():    true,
+					kline.TwelveHour.Word(): true,
+					kline.OneDay.Word():     true,
+					kline.ThreeDay.Word():   true,
+					kline.OneWeek.Word():    true,
+				},
+				ResultLimit: 1000,
+			},
 		},
 	}
 
 	z.Requester = request.New(z.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		// TODO: Implement full rate limit for endpoints
-		request.WithLimiter(request.NewBasicRateLimit(zbRateInterval, zbReqRate)))
+		request.WithLimiter(SetRateLimit()))
 
 	z.API.Endpoints.URLDefault = zbTradeURL
 	z.API.Endpoints.URL = z.API.Endpoints.URLDefault
@@ -699,7 +719,68 @@ func (z *ZB) ValidateCredentials() error {
 	return z.CheckTransientError(err)
 }
 
+// FormatExchangeKlineInterval returns Interval to exchange formatted string
+func (z *ZB) FormatExchangeKlineInterval(in kline.Interval) string {
+	switch in {
+	case kline.OneMin, kline.ThreeMin,
+		kline.FiveMin, kline.FifteenMin, kline.ThirtyMin:
+		return in.Short() + "in"
+	case kline.OneHour, kline.TwoHour, kline.FourHour, kline.SixHour, kline.TwelveHour:
+		return in.Short()[:len(in.Short())-1] + "hour"
+	case kline.OneDay:
+		return "1day"
+	case kline.ThreeDay:
+		return "3day"
+	case kline.OneWeek:
+		return "1week"
+	}
+	return ""
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (z *ZB) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+func (z *ZB) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !z.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	klineParams := KlinesRequestParams{
+		Type:   z.FormatExchangeKlineInterval(interval),
+		Symbol: z.FormatExchangeCurrency(pair, a).String(),
+	}
+
+	candles, err := z.GetSpotKline(klineParams)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	ret := kline.Item{
+		Exchange: z.Name,
+		Pair:     pair,
+		Asset:    a,
+		Interval: interval,
+	}
+
+	for x := range candles.Data {
+		if candles.Data[x].KlineTime.Before(start) || candles.Data[x].KlineTime.After(end) {
+			continue
+		}
+		ret.Candles = append(ret.Candles, kline.Candle{
+			Time:   candles.Data[x].KlineTime,
+			Open:   candles.Data[x].Open,
+			High:   candles.Data[x].Close,
+			Low:    candles.Data[x].Low,
+			Close:  candles.Data[x].Close,
+			Volume: candles.Data[x].Volume,
+		})
+	}
+
+	ret.SortCandlesByTimestamp(false)
+	return ret, nil
+}
+
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (z *ZB) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	return z.GetHistoricCandles(p, a, start, end, interval)
 }

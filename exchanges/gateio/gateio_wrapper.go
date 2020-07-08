@@ -108,12 +108,29 @@ func (g *Gateio) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
+			Kline: kline.ExchangeCapabilitiesSupported{
+				Intervals: true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: map[string]bool{
+					kline.OneMin.Word():     true,
+					kline.ThreeMin.Word():   true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.ThirtyMin.Word():  true,
+					kline.OneHour.Word():    true,
+					kline.TwoHour.Word():    true,
+					kline.FourHour.Word():   true,
+					kline.SixHour.Word():    true,
+					kline.TwelveHour.Word(): true,
+					kline.OneDay.Word():     true,
+				},
+			},
 		},
 	}
-
 	g.Requester = request.New(g.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 
@@ -710,7 +727,39 @@ func (g *Gateio) ValidateCredentials() error {
 	return g.CheckTransientError(err)
 }
 
+// FormatExchangeKlineInterval returns Interval to exchange formatted string
+func (g *Gateio) FormatExchangeKlineInterval(in kline.Interval) string {
+	return strconv.FormatFloat(in.Duration().Seconds(), 'f', 0, 64)
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (g *Gateio) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
-	return kline.Item{}, common.ErrNotYetImplemented
+func (g *Gateio) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !g.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	hours := end.Sub(start).Hours()
+	params := KlinesRequestParams{
+		Symbol:   g.FormatExchangeCurrency(pair, a).String(),
+		GroupSec: g.FormatExchangeKlineInterval(interval),
+		HourSize: int(hours),
+	}
+
+	klineData, err := g.GetSpotKline(params)
+	if err != nil {
+		return kline.Item{}, err
+	}
+	klineData.Interval = interval
+	klineData.Pair = pair
+	klineData.Asset = a
+
+	klineData.SortCandlesByTimestamp(false)
+	return klineData, nil
+}
+
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (g *Gateio) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	return g.GetHistoricCandles(pair, a, start, end, interval)
 }

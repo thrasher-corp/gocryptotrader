@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -71,9 +72,39 @@ func TestGetTrades(t *testing.T) {
 }
 
 func TestGetChartCandles(t *testing.T) {
-	_, err := h.GetCandles("BTCUSD", "", "")
+	_, err := h.GetCandles("BTCUSD", "", "D1", time.Now().Add(-24*time.Hour), time.Now())
 	if err != nil {
 		t.Error("Test faild - HitBTC GetChartData() error", err)
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	currencyPair := currency.NewPairFromString("BTCUSD")
+	startTime := time.Now().Add(-time.Hour * 24)
+	end := time.Now()
+	_, err := h.GetHistoricCandles(currencyPair, asset.Spot, startTime, end, kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = h.GetHistoricCandles(currencyPair, asset.Spot, startTime, end, kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	currencyPair := currency.NewPairFromString("BTCUSD")
+	startTime := time.Unix(1546300800, 0)
+	end := time.Unix(1577836799, 0)
+	_, err := h.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, end, kline.OneHour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = h.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, end, kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
 	}
 }
 
@@ -916,5 +947,46 @@ func TestWsTrades(t *testing.T) {
 	err = h.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func Test_FormatExchangeKlineInterval(t *testing.T) {
+	testCases := []struct {
+		name     string
+		interval kline.Interval
+		output   string
+	}{
+		{
+			"OneMin",
+			kline.OneMin,
+			"M1",
+		},
+		{
+			"OneDay",
+			kline.OneDay,
+			"D1",
+		},
+		{
+			"SevenDay",
+			kline.SevenDay,
+			"D7",
+		},
+		{
+			"AllOther",
+			kline.OneMonth,
+			"",
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+
+		t.Run(test.name, func(t *testing.T) {
+			ret := h.FormatExchangeKlineInterval(test.interval)
+
+			if ret != test.output {
+				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
+			}
+		})
 	}
 }

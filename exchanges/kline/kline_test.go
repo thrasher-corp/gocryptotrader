@@ -2,6 +2,7 @@ package kline
 
 import (
 	"math/rand"
+	"strings"
 	"testing"
 	"time"
 
@@ -71,7 +72,7 @@ func TestValidateData(t *testing.T) {
 
 func TestCreateKline(t *testing.T) {
 	c, err := CreateKline(nil,
-		time.Minute,
+		OneMin,
 		currency.NewPair(currency.BTC, currency.USD),
 		asset.Spot,
 		"Binance")
@@ -111,5 +112,192 @@ func TestCreateKline(t *testing.T) {
 
 	if len(c.Candles) == 0 {
 		t.Fatal("no data returned, expecting a lot.")
+	}
+}
+
+func TestKlineWord(t *testing.T) {
+	if OneDay.Word() != "oneday" {
+		t.Fatalf("unexpected result: %v", OneDay.Word())
+	}
+}
+
+func TestKlineDuration(t *testing.T) {
+	if OneDay.Duration() != time.Hour*24 {
+		t.Fatalf("unexpected result: %v", OneDay.Duration())
+	}
+}
+
+func TestKlineShort(t *testing.T) {
+	if OneDay.Short() != "24h" {
+		t.Fatalf("unexpected result: %v", OneDay.Short())
+	}
+}
+
+func TestDurationToWord(t *testing.T) {
+	testCases := []struct {
+		name     string
+		interval Interval
+	}{
+		{
+			"OneMin",
+			OneMin,
+		},
+		{
+			"ThreeMin",
+			ThreeMin,
+		},
+		{
+			"FiveMin",
+			FiveMin,
+		},
+		{
+			"TenMin",
+			TenMin,
+		},
+		{
+			"FifteenMin",
+			FifteenMin,
+		},
+		{
+			"ThirtyMin",
+			ThirtyMin,
+		},
+		{
+			"OneHour",
+			OneHour,
+		},
+		{
+			"TwoHour",
+			TwoHour,
+		},
+		{
+			"FourHour",
+			FourHour,
+		},
+		{
+			"SixHour",
+			SixHour,
+		},
+		{
+			"EightHour",
+			OneHour * 8,
+		},
+		{
+			"TwelveHour",
+			TwelveHour,
+		},
+		{
+			"OneDay",
+			OneDay,
+		},
+		{
+			"ThreeDay",
+			ThreeDay,
+		},
+		{
+			"FifteenDay",
+			FifteenDay,
+		},
+		{
+			"OneWeek",
+			OneWeek,
+		},
+		{
+			"TwoWeek",
+			TwoWeek,
+		},
+		{
+			"OneMonth",
+			OneMonth,
+		},
+		{
+			"notfound",
+			Interval(time.Hour * 1337),
+		},
+	}
+	for x := range testCases {
+		test := testCases[x]
+		t.Run(test.name, func(t *testing.T) {
+			v := durationToWord(test.interval)
+			if !strings.EqualFold(v, test.name) {
+				t.Fatalf("%v: received %v expected %v", test.name, v, test.name)
+			}
+		})
+	}
+}
+
+func TestKlineErrors(t *testing.T) {
+	v := ErrorKline{
+		Interval: OneYear,
+	}
+
+	if v.Error() != "oneyear interval unsupported by exchange" {
+		t.Fatal("unexpected error returned")
+	}
+
+	if v.Unwrap().Error() != "8760h0m0s interval unsupported by exchange" {
+		t.Fatal("unexpected error returned")
+	}
+}
+
+func TestTotalCandlesPerInterval(t *testing.T) {
+	end := time.Now()
+	start := end.AddDate(-1, 0, 0)
+
+	v := TotalCandlesPerInterval(start, end, OneYear)
+	if v != 1 {
+		t.Fatalf("unexpected result expected 1 received %v", v)
+	}
+	v = TotalCandlesPerInterval(start, end, FifteenDay)
+	if v != 24 {
+		t.Fatalf("unexpected result expected 24 received %v", v)
+	}
+}
+
+func TestCalcDateRanges(t *testing.T) {
+	start := time.Unix(1546300800, 0)
+	end := time.Unix(1577836799, 0)
+
+	v := CalcDateRanges(start, end, OneMin, 300)
+
+	if v[0].Start.Unix() != time.Unix(1546300800, 0).Unix() {
+		t.Fatalf("unexpected result received %v", v[0].Start.Unix())
+	}
+
+	v = CalcDateRanges(time.Now(), time.Now().AddDate(0, 0, 1), OneDay, 100)
+	if len(v) != 1 {
+		t.Fatal("expected CalcDateRanges() with a Candle count lower than limit to return 1 result")
+	}
+}
+
+func TestItem_SortCandlesByTimestamp(t *testing.T) {
+	var tempKline = Item{
+		Exchange: "testExchange",
+		Pair:     currency.NewPair(currency.BTC, currency.USDT),
+		Asset:    asset.Spot,
+		Interval: OneDay,
+	}
+
+	for x := 0; x < 100; x++ {
+		y := rand.Float64()
+		tempKline.Candles = append(tempKline.Candles,
+			Candle{
+				Time:   time.Now().AddDate(0, 0, -x),
+				Open:   y,
+				High:   y + float64(x),
+				Low:    y - float64(x),
+				Close:  y,
+				Volume: y,
+			})
+	}
+
+	tempKline.SortCandlesByTimestamp(false)
+	if tempKline.Candles[0].Time.After(tempKline.Candles[1].Time) {
+		t.Fatal("expected kline.Candles to be in descending order")
+	}
+
+	tempKline.SortCandlesByTimestamp(true)
+	if tempKline.Candles[0].Time.Before(tempKline.Candles[1].Time) {
+		t.Fatal("expected kline.Candles to be in ascending order")
 	}
 }

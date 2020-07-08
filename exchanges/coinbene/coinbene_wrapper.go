@@ -1,7 +1,9 @@
 package coinbene
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -114,9 +116,30 @@ func (c *Coinbene) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.NoFiatWithdrawals |
 				exchange.WithdrawCryptoViaWebsiteOnly,
+			Kline: kline.ExchangeCapabilitiesSupported{
+				DateRanges: true,
+				Intervals:  true,
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: map[string]bool{
+					kline.OneMin.Word():     true,
+					kline.ThreeMin.Word():   true,
+					kline.FiveMin.Word():    true,
+					kline.FifteenMin.Word(): true,
+					kline.ThirtyMin.Word():  true,
+					kline.OneHour.Word():    true,
+					kline.TwoHour.Word():    true,
+					kline.FourHour.Word():   true,
+					kline.SixHour.Word():    true,
+					kline.TwelveHour.Word(): true,
+					kline.OneDay.Word():     true,
+					kline.ThreeDay.Word():   true,
+					kline.OneWeek.Word():    true,
+				},
+			},
 		},
 	}
 	c.Requester = request.New(c.Name,
@@ -727,7 +750,111 @@ func (c *Coinbene) ValidateCredentials() error {
 	return c.CheckTransientError(err)
 }
 
+// FormatExchangeKlineInterval returns Interval to string
+func (c *Coinbene) FormatExchangeKlineInterval(in kline.Interval) string {
+	switch in {
+	case kline.OneMin, kline.ThreeMin, kline.FiveMin, kline.FifteenMin,
+		kline.ThirtyMin, kline.OneHour, kline.TwoHour, kline.FourHour, kline.SixHour, kline.TwelveHour:
+		return strconv.FormatFloat(in.Duration().Minutes(), 'f', 0, 64)
+	case kline.OneDay:
+		return "D"
+	case kline.OneWeek:
+		return "W"
+	case kline.OneMonth:
+		return "M"
+	}
+	return ""
+}
+
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (c *Coinbene) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
-	return kline.Item{}, common.ErrFunctionNotSupported
+func (c *Coinbene) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if !c.KlineIntervalEnabled(interval) {
+		return kline.Item{}, kline.ErrorKline{
+			Interval: interval,
+		}
+	}
+
+	var candles CandleResponse
+	var err error
+	if a == asset.PerpetualSwap {
+		candles, err = c.GetSwapKlines(c.FormatExchangeCurrency(pair, asset.PerpetualSwap).String(),
+			start, end,
+			c.FormatExchangeKlineInterval(interval))
+	} else {
+		candles, err = c.GetKlines(c.FormatExchangeCurrency(pair, asset.Spot).String(),
+			start, end,
+			c.FormatExchangeKlineInterval(interval))
+	}
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	ret := kline.Item{
+		Exchange: c.Name,
+		Pair:     pair,
+		Interval: interval,
+	}
+
+	for x := range candles.Data {
+		var tempCandle kline.Candle
+		tempTime := candles.Data[x][0].(string)
+		timestamp, err := time.Parse(time.RFC3339, tempTime)
+		if err != nil {
+			continue
+		}
+		tempCandle.Time = timestamp
+		open, ok := candles.Data[x][1].(string)
+		if !ok {
+			return kline.Item{}, errors.New("open conversion failed")
+		}
+		tempCandle.Open, err = strconv.ParseFloat(open, 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+		high, ok := candles.Data[x][2].(string)
+		if !ok {
+			return kline.Item{}, errors.New("high conversion failed")
+		}
+		tempCandle.High, err = strconv.ParseFloat(high, 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		low, ok := candles.Data[x][3].(string)
+		if !ok {
+			return kline.Item{}, errors.New("low conversion failed")
+		}
+		tempCandle.Low, err = strconv.ParseFloat(low, 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		closeTemp, ok := candles.Data[x][4].(string)
+		if !ok {
+			return kline.Item{}, errors.New("close conversion failed")
+		}
+		tempCandle.Close, err = strconv.ParseFloat(closeTemp, 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		vol, ok := candles.Data[x][5].(string)
+		if !ok {
+			return kline.Item{}, errors.New("vol conversion failed")
+		}
+		tempCandle.Volume, err = strconv.ParseFloat(vol, 64)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		ret.Candles = append(ret.Candles, tempCandle)
+	}
+
+	ret.SortCandlesByTimestamp(false)
+	return ret, nil
+}
+
+// GetHistoricCandlesExtended returns candles between a time period for a set time interval
+func (c *Coinbene) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	return c.GetHistoricCandles(pair, a, start, end, interval)
 }

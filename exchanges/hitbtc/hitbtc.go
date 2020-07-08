@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -201,17 +202,28 @@ func (h *HitBTC) GetOrderbook(currencyPair string, limit int) (Orderbook, error)
 
 // GetCandles returns candles which is used for OHLC a specific currency.
 // Note: Result contain candles only with non zero volume.
-func (h *HitBTC) GetCandles(currencyPair, limit, period string) ([]ChartData, error) {
+func (h *HitBTC) GetCandles(currencyPair, limit, period string, start, end time.Time) ([]ChartData, error) {
 	// limit   Limit of candles, default 100.
 	// period  One of: M1 (one minute), M3, M5, M15, M30, H1, H4, D1, D7, 1M (one month). Default is M30 (30 minutes).
 	vals := url.Values{}
-
 	if limit != "" {
 		vals.Set("limit", limit)
 	}
 
 	if period != "" {
 		vals.Set("period", period)
+	}
+
+	if !end.IsZero() && start.After(end) {
+		return nil, errors.New("start time cannot be after end time")
+	}
+
+	if !start.IsZero() {
+		vals.Set("from", start.Format(time.RFC3339))
+	}
+
+	if !end.IsZero() {
+		vals.Set("till", end.Format(time.RFC3339))
 	}
 
 	var resp []ChartData

@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -519,13 +520,53 @@ func TestGetSpotFilledOrdersInformation(t *testing.T) {
 // TestGetSpotMarketData API endpoint test
 func TestGetSpotMarketData(t *testing.T) {
 	t.Parallel()
-	request := okgroup.GetSpotMarketDataRequest{
+	request := &okgroup.GetMarketDataRequest{
+		Asset:        asset.Spot,
 		InstrumentID: spotCurrency,
-		Granularity:  604800,
+		Granularity:  "604800",
 	}
-	_, err := o.GetSpotMarketData(request)
+	_, err := o.GetMarketData(request)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	currencyPair := currency.NewPairFromString("BTCUSDT")
+	startTime := time.Unix(1588636800, 0)
+	_, err := o.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = o.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
+	}
+
+	_, err = o.GetHistoricCandles(currencyPair, asset.Margin, startTime, time.Now(), kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
+	}
+
+	swapPair := currency.NewPairFromString("BTC-USD_SWAP")
+	_, err = o.GetHistoricCandles(swapPair, asset.PerpetualSwap, startTime, time.Now(), kline.OneDay)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	currencyPair := currency.NewPairFromString("BTCUSDT")
+	startTime := time.Unix(1588636800, 0)
+	_, err := o.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = o.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
 	}
 }
 
@@ -1235,19 +1276,6 @@ func TestGetSwapFilledOrdersData(t *testing.T) {
 		InstrumentID: fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD),
 		Limit:        100,
 	})
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-// TestGetSwapMarketData API endpoint test
-func TestGetSwapMarketData(t *testing.T) {
-	t.Parallel()
-	request := okgroup.GetSwapMarketDataRequest{
-		InstrumentID: fmt.Sprintf("%v-%v-SWAP", currency.BTC, currency.USD),
-		Granularity:  604800,
-	}
-	_, err := o.GetSwapMarketData(request)
 	if err != nil {
 		t.Error(err)
 	}

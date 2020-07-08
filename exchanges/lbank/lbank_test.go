@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -404,5 +405,77 @@ func TestGetOrderHistory(t *testing.T) {
 	_, err := l.GetOrderHistory(&input)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	t.Parallel()
+	pair := currency.NewPairFromString(testCurrencyPair)
+	_, err := l.GetHistoricCandles(pair, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = l.GetHistoricCandles(pair, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneHour)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	t.Parallel()
+
+	startTime := time.Now().Add(-time.Hour)
+	end := time.Now()
+	pair := currency.NewPairFromString(testCurrencyPair)
+	_, err := l.GetHistoricCandlesExtended(pair, asset.Spot, startTime, end, kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func Test_FormatExchangeKlineInterval(t *testing.T) {
+	testCases := []struct {
+		name     string
+		interval kline.Interval
+		output   string
+	}{
+		{
+			"OneMin",
+			kline.OneMin,
+			"minute1",
+		},
+		{
+			"OneHour",
+			kline.OneHour,
+			"hour1",
+		},
+		{
+			"OneDay",
+			kline.OneDay,
+			"day1",
+		},
+		{
+			"OneWeek",
+			kline.OneWeek,
+			"week1",
+		},
+		{
+			"AllOther",
+			kline.FifteenDay,
+			"",
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+
+		t.Run(test.name, func(t *testing.T) {
+			ret := l.FormatExchangeKlineInterval(test.interval)
+
+			if ret != test.output {
+				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
+			}
+		})
 	}
 }

@@ -93,7 +93,6 @@ func TestGetHistoricalTrades(t *testing.T) {
 
 func TestGetAggregatedTrades(t *testing.T) {
 	t.Parallel()
-
 	_, err := b.GetAggregatedTrades("BTCUSDT", 5)
 	if err != nil {
 		t.Error("Binance GetAggregatedTrades() error", err)
@@ -102,11 +101,12 @@ func TestGetAggregatedTrades(t *testing.T) {
 
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
-
 	_, err := b.GetSpotKline(KlinesRequestParams{
-		Symbol:   "BTCUSDT",
-		Interval: TimeIntervalFiveMinutes,
-		Limit:    24,
+		Symbol:    "BTCUSDT",
+		Interval:  kline.FiveMin.Short(),
+		Limit:     24,
+		StartTime: time.Unix(1577836800, 0).Unix() * 1000,
+		EndTime:   time.Unix(1580515200, 0).Unix() * 1000,
 	})
 	if err != nil {
 		t.Error("Binance GetSpotKline() error", err)
@@ -501,7 +501,6 @@ func TestModifyOrder(t *testing.T) {
 
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
-
 	if areTestAPIKeysSet() && !canManipulateRealOrders && !mockTests {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -905,130 +904,65 @@ func TestExecutionTypeToOrderStatus(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	if mockTests {
-		t.Skip("skipping test under mock as its covered by GetSpotKlines()")
-	}
 	currencyPair := currency.NewPairFromString("BTCUSDT")
-	start := time.Date(2017, 8, 18, 0, 0, 0, 0, time.UTC)
-	end := start.AddDate(0, 6, 0)
-
-	_, err := b.GetHistoricCandles(currencyPair, asset.Spot, start, end, kline.OneDay)
+	startTime := time.Unix(1546300800, 0)
+	end := time.Unix(1577836799, 0)
+	_, err := b.GetHistoricCandles(currencyPair, asset.Spot, startTime, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, startTime, end, kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
+	}
 }
 
-func TestParseInterval(t *testing.T) {
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	currencyPair := currency.NewPairFromString("BTCUSDT")
+	startTime := time.Unix(1546300800, 0)
+	end := time.Unix(1577836799, 0)
+	_, err := b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, end, kline.OneDay)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, end, kline.Interval(time.Hour*7))
+	if err == nil {
+		t.Fatal("unexpected result")
+	}
+}
+
+func TestBinance_FormatExchangeKlineInterval(t *testing.T) {
 	testCases := []struct {
 		name     string
-		interval time.Duration
-		expected TimeInterval
-		err      error
+		interval kline.Interval
+		output   string
 	}{
 		{
 			"OneMin",
 			kline.OneMin,
-			TimeIntervalMinute,
-			nil,
-		},
-		{
-			"ThreeMin",
-			kline.ThreeMin,
-			TimeIntervalThreeMinutes,
-			nil,
-		},
-		{
-			"FiveMin",
-			kline.FiveMin,
-			TimeIntervalFiveMinutes,
-			nil,
-		},
-		{
-			"FifteenMin",
-			kline.FifteenMin,
-			TimeIntervalFifteenMinutes,
-			nil,
-		},
-		{
-			"ThirtyMin",
-			kline.ThirtyMin,
-			TimeIntervalThirtyMinutes,
-			nil,
-		},
-		{
-			"OneHour",
-			kline.OneHour,
-			TimeIntervalHour,
-			nil,
-		},
-		{
-			"TwoHour",
-			kline.TwoHour,
-			TimeIntervalTwoHours,
-			nil,
-		},
-		{
-			"FourHour",
-			kline.FourHour,
-			TimeIntervalFourHours,
-			nil,
-		},
-		{
-			"SixHour",
-			kline.SixHour,
-			TimeIntervalSixHours,
-			nil,
-		},
-		{
-			"EightHour",
-			kline.OneHour * 8,
-			TimeIntervalEightHours,
-			nil,
-		},
-		{
-			"TwelveHour",
-			kline.TwelveHour,
-			TimeIntervalTwelveHours,
-			nil,
+			"1m",
 		},
 		{
 			"OneDay",
 			kline.OneDay,
-			TimeIntervalDay,
-			nil,
+			"1d",
 		},
 		{
-			"ThreeDay",
-			kline.ThreeDay,
-			TimeIntervalThreeDays,
-			nil,
-		},
-		{
-			"OneWeek",
-			kline.OneWeek,
-			TimeIntervalWeek,
-			nil,
-		},
-		{
-			"default",
-			time.Hour * 1337,
-			TimeIntervalHour,
-			errInvalidInterval,
+			"OneMonth",
+			kline.OneMonth,
+			"1M",
 		},
 	}
 
 	for x := range testCases {
 		test := testCases[x]
+
 		t.Run(test.name, func(t *testing.T) {
-			v, err := parseInterval(test.interval)
-			if err != nil {
-				if err != test.err {
-					t.Fatal(err)
-				}
-			} else {
-				if v != test.expected {
-					t.Fatalf("%v: received %v expected %v", test.name, v, test.expected)
-				}
+			ret := b.FormatExchangeKlineInterval(test.interval)
+
+			if ret != test.output {
+				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
 			}
 		})
 	}

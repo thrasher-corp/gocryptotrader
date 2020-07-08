@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -800,4 +802,15 @@ func (e *Base) DisableRateLimiter() error {
 // EnableRateLimiter enables the rate limiting system for the exchange
 func (e *Base) EnableRateLimiter() error {
 	return e.Requester.EnableRateLimiter()
+}
+
+// KlineIntervalEnabled returns if requested interval is enabled on exchange
+func (e *Base) KlineIntervalEnabled(in kline.Interval) bool {
+	return e.Features.Enabled.Kline.Intervals[in.Word()]
+}
+
+// FormatExchangeKlineInterval returns Interval to string
+// Exchanges can override this if they require custom formatting
+func (e *Base) FormatExchangeKlineInterval(in kline.Interval) string {
+	return strconv.FormatFloat(in.Duration().Seconds(), 'f', 0, 64)
 }

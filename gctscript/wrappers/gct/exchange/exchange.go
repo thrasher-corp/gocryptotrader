@@ -212,7 +212,7 @@ func (e Exchange) WithdrawalCryptoFunds(exch string, request *withdraw.Request) 
 }
 
 // OHLCV returns open high low close volume candles for requested exchange/pair/asset/start & end time
-func (e Exchange) OHLCV(exch string, pair currency.Pair, item asset.Item, start, end time.Time, interval time.Duration) (kline.Item, error) {
+func (e Exchange) OHLCV(exch string, pair currency.Pair, item asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return kline.Item{}, err

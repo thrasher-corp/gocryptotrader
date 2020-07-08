@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
@@ -153,7 +154,7 @@ func TestGetLends(t *testing.T) {
 
 func TestGetCandles(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetCandles("fUSD", "1m", 0, 0, 10, true, false)
+	_, err := b.GetCandles("fUSD", "1m", 0, 0, 10, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1208,5 +1209,114 @@ func TestWsNotifications(t *testing.T) {
 	err = b.wsHandleData([]byte(pressXToJSON))
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	currencyPair := currency.NewPairFromString("BTCUSD")
+	startTime := time.Now().Add(-time.Hour * 24)
+	_, err := b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin*1337)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	currencyPair := currency.NewPairFromString("TBTCUSD")
+	startTime := time.Now().Add(-time.Hour * 24)
+	_, err := b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin*1337)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
+func TestFixCasing(t *testing.T) {
+	ret := b.fixCasing(currency.NewPairFromString("BTCUSD"), asset.Spot)
+	if ret != "tBTCUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+
+	ret = b.fixCasing(currency.NewPairFromString("TBTCUSD"), asset.Spot)
+	if ret != "tBTCUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+
+	ret = b.fixCasing(currency.NewPairFromString("tBTCUSD"), asset.Spot)
+	if ret != "tBTCUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+
+	ret = b.fixCasing(currency.NewPairFromString("BTCUSD"), asset.Margin)
+	if ret != "fBTCUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+
+	ret = b.fixCasing(currency.NewPairFromString("BTCUSD"), asset.Spot)
+	if ret != "tBTCUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+
+	ret = b.fixCasing(currency.NewPairFromString("FUNETH"), asset.Spot)
+	if ret != "tFUNETH" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+
+	ret = b.fixCasing(currency.NewPairFromString("TNBUSD"), asset.Spot)
+	if ret != "tTNBUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+
+	ret = b.fixCasing(currency.NewPairFromString("tTNBUSD"), asset.Spot)
+	if ret != "tTNBUSD" {
+		t.Errorf("unexpected result: %v", ret)
+	}
+}
+
+func Test_FormatExchangeKlineInterval(t *testing.T) {
+	testCases := []struct {
+		name     string
+		interval kline.Interval
+		output   string
+	}{
+		{
+			"OneMin",
+			kline.OneMin,
+			"1m",
+		},
+		{
+			"OneDay",
+			kline.OneDay,
+			"1D",
+		},
+		{
+			"OneWeek",
+			kline.OneWeek,
+			"7D",
+		},
+		{
+			"TwoWeeks",
+			kline.OneWeek * 2,
+			"14D",
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+		t.Run(test.name, func(t *testing.T) {
+			ret := b.FormatExchangeKlineInterval(test.interval)
+			if ret != test.output {
+				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
+			}
+		})
 	}
 }

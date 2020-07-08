@@ -240,7 +240,7 @@ func (b *Bitfinex) GetTrades(currencyPair string, limit, timestampStart, timesta
 		v.Encode()
 
 	var resp [][]interface{}
-	err := b.SendHTTPRequest(path, &resp, trade)
+	err := b.SendHTTPRequest(path, &resp, tradeRateLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -408,7 +408,7 @@ func (b *Bitfinex) GetLends(symbol string, values url.Values) ([]Lends, error) {
 // timeFrame values: '1m', '5m', '15m', '30m', '1h', '3h', '6h', '12h', '1D',
 // '7D', '14D', '1M'
 // section values: last or hist
-func (b *Bitfinex) GetCandles(symbol, timeFrame string, start, end, limit int64, historic, ascending bool) ([]Candle, error) {
+func (b *Bitfinex) GetCandles(symbol, timeFrame string, start, end int64, limit uint32, historic bool) ([]Candle, error) {
 	var fundingPeriod string
 	if symbol[0] == 'f' {
 		fundingPeriod = ":p30"
@@ -434,7 +434,7 @@ func (b *Bitfinex) GetCandles(symbol, timeFrame string, start, end, limit int64,
 		}
 
 		if limit > 0 {
-			v.Set("limit", strconv.FormatInt(limit, 10))
+			v.Set("limit", strconv.FormatInt(int64(limit), 10))
 		}
 
 		path += "/hist"
@@ -451,7 +451,7 @@ func (b *Bitfinex) GetCandles(symbol, timeFrame string, start, end, limit int64,
 		var c []Candle
 		for i := range response {
 			c = append(c, Candle{
-				Timestamp: int64(response[i][0].(float64)),
+				Timestamp: time.Unix(int64(response[i][0].(float64)/1000), 0),
 				Open:      response[i][1].(float64),
 				Close:     response[i][2].(float64),
 				High:      response[i][3].(float64),
@@ -476,7 +476,7 @@ func (b *Bitfinex) GetCandles(symbol, timeFrame string, start, end, limit int64,
 	}
 
 	return []Candle{{
-		Timestamp: int64(response[0].(float64)),
+		Timestamp: time.Unix(int64(response[0].(float64))/1000, 0),
 		Open:      response[1].(float64),
 		Close:     response[2].(float64),
 		High:      response[3].(float64),

@@ -224,7 +224,7 @@ func (w Wrapper) WithdrawalFiatFunds(exch, _ string, _ *withdraw.Request) (out s
 }
 
 // OHLCV returns open high low close volume candles for requested exchange/pair/asset/start & end time
-func (w Wrapper) OHLCV(exch string, p currency.Pair, a asset.Item, start, end time.Time, i time.Duration) (kline.Item, error) {
+func (w Wrapper) OHLCV(exch string, p currency.Pair, a asset.Item, start, end time.Time, i kline.Interval) (kline.Item, error) {
 	if exch == exchError.String() {
 		return kline.Item{}, errTestFailed
 	}
@@ -242,7 +242,7 @@ func (w Wrapper) OHLCV(exch string, p currency.Pair, a asset.Item, start, end ti
 	for x := 1; x < 200; x++ {
 		r := validatorLow + rand.Float64()*(validatorHigh-validatorLow)
 		candle := kline.Candle{
-			Time:   candles[x-1].Time.Add(-i),
+			Time:   candles[x-1].Time.Add(-i.Duration()),
 			Open:   r,
 			High:   r,
 			Low:    r,

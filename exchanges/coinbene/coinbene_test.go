@@ -4,10 +4,12 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
@@ -284,12 +286,19 @@ func TestGetSwapOrderbook(t *testing.T) {
 	}
 }
 
+func TestGetKlines(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetKlines(currency.NewPairFromString(spotTestPair).String(),
+		time.Now().Add(-time.Hour*1), time.Now(), "1")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestGetSwapKlines(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetSwapKlines(swapTestPair,
-		"1573184608",
-		"1573184808",
-		"1")
+	_, err := c.GetSwapKlines(currency.NewPairFromString(swapTestPair).String(),
+		time.Now().Add(-time.Hour*1), time.Now(), "1")
 	if err != nil {
 		t.Error(err)
 	}
@@ -679,5 +688,80 @@ func TestWsUserOrder(t *testing.T) {
 	err := c.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetHistoricCandles(t *testing.T) {
+	currencyPair := currency.NewPairFromString(spotTestPair)
+	startTime := time.Now().Add(-time.Hour * 24)
+	_, err := c.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	currencyPairSwap := currency.NewPairFromString(swapTestPair)
+	_, err = c.GetHistoricCandles(currencyPairSwap, asset.PerpetualSwap, startTime, time.Now(), kline.OneHour)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetHistoricCandlesExtended(t *testing.T) {
+	currencyPair := currency.NewPairFromString(spotTestPair)
+	startTime := time.Now().Add(-time.Hour * 24)
+	_, err := c.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func Test_FormatExchangeKlineInterval(t *testing.T) {
+	testCases := []struct {
+		name     string
+		interval kline.Interval
+		output   string
+	}{
+		{
+			"OneMin",
+			kline.OneMin,
+			"1",
+		},
+		{
+			"OneHour",
+			kline.OneHour,
+			"60",
+		},
+		{
+			"OneDay",
+			kline.OneDay,
+			"D",
+		},
+		{
+			"OneWeek",
+			kline.OneWeek,
+			"W",
+		},
+		{
+			"OneMonth",
+			kline.OneMonth,
+			"M",
+		},
+		{
+			"AllOther",
+			kline.TwoWeek,
+			"",
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+
+		t.Run(test.name, func(t *testing.T) {
+			ret := c.FormatExchangeKlineInterval(test.interval)
+
+			if ret != test.output {
+				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
+			}
+		})
 	}
 }
