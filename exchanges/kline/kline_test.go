@@ -250,7 +250,7 @@ func TestKlineErrors(t *testing.T) {
 
 func TestTotalCandlesPerInterval(t *testing.T) {
 	start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
-	end := time.Date(2019, 12, 31, 23, 59, 59, 59, time.UTC)
+	end := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	testCases := []struct {
 		name     string
@@ -260,72 +260,72 @@ func TestTotalCandlesPerInterval(t *testing.T) {
 		{
 			"FifteenSecond",
 			FifteenSecond,
-			2102399,
+			2102400,
 		},
 		{
 			"OneMin",
 			OneMin,
-			525599,
+			525600,
 		},
 		{
 			"ThreeMin",
 			ThreeMin,
-			175199,
+			175200,
 		},
 		{
 			"FiveMin",
 			FiveMin,
-			105119,
+			105120,
 		},
 		{
 			"TenMin",
 			TenMin,
-			52559,
+			52560,
 		},
 		{
 			"FifteenMin",
 			FifteenMin,
-			35039,
+			35040,
 		},
 		{
 			"ThirtyMin",
 			ThirtyMin,
-			17519,
+			17520,
 		},
 		{
 			"OneHour",
 			OneHour,
-			8759,
+			8760,
 		},
 		{
 			"TwoHour",
 			TwoHour,
-			4379,
+			4380,
 		},
 		{
 			"FourHour",
 			FourHour,
-			2189,
+			2190,
 		},
 		{
 			"SixHour",
 			SixHour,
-			1459,
+			1460,
 		},
 		{
 			"EightHour",
 			OneHour * 8,
-			1094,
+			1095,
 		},
 		{
 			"TwelveHour",
 			TwelveHour,
-			729,
+			730,
 		},
 		{
 			"OneDay",
 			OneDay,
-			364,
+			365,
 		},
 		{
 			"ThreeDay",
@@ -355,7 +355,7 @@ func TestTotalCandlesPerInterval(t *testing.T) {
 		{
 			"OneYear",
 			OneYear,
-			0,
+			1,
 		},
 	}
 	for x := range testCases {
