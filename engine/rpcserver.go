@@ -1924,25 +1924,13 @@ func (s *RPCServer) SetExchangeAsset(_ context.Context, r *gctrpc.SetExchangeAss
 	}
 
 	a := asset.Item(r.Asset)
-
-	if r.Enable {
-		err = base.CurrencyPairs.EnableAsset(a)
-		if err != nil {
-			return nil, err
-		}
-		err = exchCfg.CurrencyPairs.EnableAsset(a)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		err = base.CurrencyPairs.DisableAsset(a)
-		if err != nil {
-			return nil, err
-		}
-		err = exchCfg.CurrencyPairs.DisableAsset(a)
-		if err != nil {
-			return nil, err
-		}
+	err = base.CurrencyPairs.SetAssetEnabled(a, r.Enable)
+	if err != nil {
+		return nil, err
+	}
+	err = exchCfg.CurrencyPairs.SetAssetEnabled(a, r.Enable)
+	if err != nil {
+		return nil, err
 	}
 
 	return &gctrpc.GenericSubsystemResponse{}, nil
