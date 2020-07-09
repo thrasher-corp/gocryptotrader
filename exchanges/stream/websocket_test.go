@@ -99,26 +99,30 @@ func TestIsDisconnectionError(t *testing.T) {
 
 func TestConnectionMessageErrors(t *testing.T) {
 	ws := *New()
-	ws.connected = true
-	ws.enabled = true
-	ws.ReadMessageErrors = make(chan error)
-	ws.DataHandler = make(chan interface{})
-	ws.ShutdownC = make(chan struct{})
-	ws.Wg = new(sync.WaitGroup)
+	err := ws.Setup(defaultSetup)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ws.trafficTimeout = time.Minute
 	ws.connector = func() error { return nil }
-	ws.features = &protocol.Features{}
-	go ws.connectionMonitor()
+
+	err = ws.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ws.TrafficAlert <- struct{}{}
+
 	timer := time.NewTimer(900 * time.Millisecond)
 	ws.ReadMessageErrors <- errors.New("errorText")
 	select {
-	case err := <-ws.DataHandler:
+	case err := <-ws.ToRoutine:
 		if err.(error).Error() != "errorText" {
 			t.Errorf("Expected 'errorText', received %v", err)
 		}
 	case <-timer.C:
 		t.Error("Timeout waiting for datahandler to receive error")
 	}
-	timer = time.NewTimer(900 * time.Millisecond)
 	ws.ReadMessageErrors <- &websocket.CloseError{
 		Code: 1006,
 		Text: "errorText",
@@ -126,7 +130,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 outer:
 	for {
 		select {
-		case <-ws.DataHandler:
+		case <-ws.ToRoutine:
 			t.Fatal("Error is a disconnection error")
 		case <-timer.C:
 			break outer
@@ -220,6 +224,17 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	fnSub := func(subs []ChannelSubscription) error {
+		ws.AddSuccessfulSubscriptions(subs...)
+		return nil
+	}
+	fnUnsub := func(unsubs []ChannelSubscription) error {
+		ws.RemoveSuccessfulUnsubscriptions(unsubs...)
+		return nil
+	}
+	ws.Subscriber = fnSub
+	ws.Unsubscriber = fnUnsub
+
 	err = ws.UnsubscribeChannels(nil)
 	if err == nil {
 		t.Fatal("error cannot be nil")
@@ -260,6 +275,17 @@ func TestResubscribe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	fnSub := func(subs []ChannelSubscription) error {
+		ws.AddSuccessfulSubscriptions(subs...)
+		return nil
+	}
+	fnUnsub := func(unsubs []ChannelSubscription) error {
+		ws.RemoveSuccessfulUnsubscriptions(unsubs...)
+		return nil
+	}
+	ws.Subscriber = fnSub
+	ws.Unsubscriber = fnUnsub
 
 	channel := []ChannelSubscription{{Channel: "resubTest"}}
 	err = ws.ResubscribeToChannel(&channel[0])
