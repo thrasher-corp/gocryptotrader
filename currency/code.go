@@ -207,18 +207,17 @@ func (b *BaseCodes) LoadItem(item *Item) error {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 	for i := range b.Items {
-		if b.Items[i].Symbol == item.Symbol {
-			if b.Items[i].Role != Unset &&
+		if b.Items[i].Symbol != item.Symbol ||
+			(b.Items[i].Role != Unset &&
 				item.Role != Unset &&
-				b.Items[i].Role != item.Role {
-				continue
-			}
-			b.Items[i].AssocChain = item.AssocChain
-			b.Items[i].ID = item.ID
-			b.Items[i].Role = item.Role
-			b.Items[i].FullName = item.FullName
-			return nil
+				b.Items[i].Role != item.Role) {
+			continue
 		}
+		b.Items[i].AssocChain = item.AssocChain
+		b.Items[i].ID = item.ID
+		b.Items[i].Role = item.Role
+		b.Items[i].FullName = item.FullName
+		return nil
 	}
 	b.Items = append(b.Items, item)
 	return nil
