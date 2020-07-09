@@ -39,7 +39,7 @@ const (
 	getFutures           = "/futures"
 	getFuture            = "/futures/"
 	getFutureStats       = "/futures/%s/stats"
-	getFundingRates      = "/funding_rates"
+	getFundingRates      = "/funding_rates?"
 	getIndexWeights      = "/indexes/%s/weights"
 	getAllWalletBalances = "/wallet/all_balances"
 
@@ -210,11 +210,23 @@ func (f *FTX) GetFutureStats(futureName string) (FutureStatsData, error) {
 }
 
 // GetFundingRates gets data on funding rates
-func (f *FTX) GetFundingRates() ([]FundingRatesData, error) {
+func (f *FTX) GetFundingRates(startTime, endTime time.Time, future string) ([]FundingRatesData, error) {
 	resp := struct {
 		Data []FundingRatesData `json:"result"`
 	}{}
-	return resp.Data, f.SendHTTPRequest(ftxAPIURL+getFundingRates, &resp)
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp.Data, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("start_time", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("end_time", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	if future != "" {
+		params.Set("future", future)
+	}
+	fmt.Println(ftxAPIURL + getFundingRates + params.Encode())
+	return resp.Data, f.SendHTTPRequest(ftxAPIURL+getFundingRates+params.Encode(), &resp)
 }
 
 // GetIndexWeights gets index weights

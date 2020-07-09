@@ -14,6 +14,30 @@ const (
 	ImmediateOrCancelOrder
 )
 
+// TickerData stores ticker data
+type TickerData struct {
+	InstrumentID string  `json:"instrument_id"`
+	BestAsk      float64 `json:"best_ask,string"`
+	BestBid      float64 `json:"best_bid,string"`
+	Last         float64 `json:"last,string"`
+	High24H      float64 `json:"high_24h,string"`
+	Low24H       float64 `json:"low_24h,string"`
+	Volume24H    float64 `json:"volume_24h,string"`
+	Timestamp    string  `json:"timestamp"`
+	LastQty      float64 `json:"last_qty,string"`
+	BestAskSize  float64 `json:"best_ask_size,string"`
+	BestBidSize  float64 `json:"best_bid_size,string"`
+}
+
+// PerpSwapFundingRates stores funding rates data
+type PerpSwapFundingRates struct {
+	InstrumentID string  `json:"instrument_id"`
+	FundingRate  float64 `json:"funding_rate,string"`
+	RealizedRate float64 `json:"realized_rate,string"`
+	InterestRate float64 `json:"interest_rate,string"`
+	FundingTime  string  `json:"funding_time"`
+}
+
 // GetAccountCurrenciesResponse response data for GetAccountCurrencies
 type GetAccountCurrenciesResponse struct {
 	Name          string  `json:"name"`

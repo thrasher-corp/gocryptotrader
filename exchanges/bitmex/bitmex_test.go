@@ -61,6 +61,15 @@ func TestStart(t *testing.T) {
 	testWg.Wait()
 }
 
+func TestGetFullFundingHistory(t *testing.T) {
+	b.Verbose = true
+	a, err := b.GetFullFundingHistory("XBTUSD", "1", "", "", "", true, time.Time{}, time.Time{})
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetUrgentAnnouncement(t *testing.T) {
 	_, err := b.GetUrgentAnnouncement()
 	if err == nil {
@@ -141,7 +150,9 @@ func TestGetAccountExecutionTradeHistory(t *testing.T) {
 }
 
 func TestGetFundingHistory(t *testing.T) {
-	_, err := b.GetFundingHistory()
+	b.Verbose = true
+	a, err := b.GetFundingHistory()
+	t.Log(a)
 	if err == nil {
 		t.Error("GetFundingHistory() Expected error")
 	}

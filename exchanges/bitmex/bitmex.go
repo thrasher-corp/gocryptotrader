@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -35,7 +37,7 @@ const (
 	bitmexEndpointTrollbox                  = "/chat"
 	bitmexEndpointTrollboxChannels          = "/chat/channels"
 	bitmexEndpointTrollboxConnected         = "/chat/connected"
-	bitmexEndpointFundingHistory            = "/funding"
+	bitmexEndpointFundingHistory            = "/funding?"
 	bitmexEndpointInstruments               = "/instrument"
 	bitmexEndpointActiveInstruments         = "/instrument/active"
 	bitmexEndpointActiveAndIndexInstruments = "/instrument/activeAndIndices"
@@ -220,10 +222,26 @@ func (b *Bitmex) GetAccountExecutionTradeHistory(params *GenericRequestParams) (
 }
 
 // GetFullFundingHistory returns funding history
-func (b *Bitmex) GetFullFundingHistory() ([]Funding, error) {
+func (b *Bitmex) GetFullFundingHistory(symbol, count, filter, columns, start string, reverse bool, startTime, endTime time.Time) ([]Funding, error) {
 	var fundingHistory []Funding
-
-	return fundingHistory, b.SendHTTPRequest(bitmexEndpointFundingHistory,
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("count", count)
+	params.Set("filter", filter)
+	params.Set("columns", columns)
+	params.Set("start", start)
+	params.Set("reverse", "true")
+	if !reverse {
+		params.Set("reverse", "false")
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return nil, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	return fundingHistory, b.SendHTTPRequest(bitmexEndpointFundingHistory+params.Encode(),
 		nil,
 		&fundingHistory)
 }

@@ -1,7 +1,6 @@
 package binance
 
 import (
-	"net/http"
 	"testing"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -38,10 +38,23 @@ func setFeeBuilder() *exchange.FeeBuilder {
 }
 
 func TestGetFundingRates(t *testing.T) {
-	b.HTTPClient = http.DefaultClient
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
 	b.Verbose = true
-	a, err := b.GetFundingRates("BTCUSDT", "1", time.Time{}, time.Time{})
+	a, err := b.GetFundingRates("BTCUSDT", "", time.Time{}, time.Time{})
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPerpsExchangeInfo(t *testing.T) {
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://fapi.binance.com"
+	b.Verbose = true
+	a, err := b.GetPerpMarkets()
 	t.Log(a)
 	if err != nil {
 		t.Error(err)

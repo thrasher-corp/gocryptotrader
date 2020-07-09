@@ -3,6 +3,7 @@ package okex
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -37,13 +38,31 @@ const (
 	okGroupFundingTime           = "funding_time"
 	okGroupHistoricalFundingRate = "historical_funding_rate"
 	// ETT endpoints
-	okGroupConstituents = "constituents"
-	okGroupDefinePrice  = "define-price"
+	okGroupConstituents  = "constituents"
+	okGroupDefinePrice   = "define-price"
+	okGroupPerpSwapRates = "/api/swap/v3/instruments/%s/historical_funding_rate?"
+	okGroupPerpTickers   = "/api/swap/v3/instruments/ticker"
 )
 
 // OKEX bases all account, spot and margin methods off okgroup implementation
 type OKEX struct {
 	okgroup.OKGroup
+}
+
+// GetFundingRate gets funding rate of a given currency
+func (o *OKEX) GetFundingRate(marketName, limit string) ([]okgroup.PerpSwapFundingRates, error) {
+	params := url.Values{}
+	params.Set("limit", limit)
+	var resp []okgroup.PerpSwapFundingRates
+	fmt.Println("https://www.okex.com" + fmt.Sprintf(okGroupPerpSwapRates, marketName) + params.Encode())
+	return resp, common.SendHTTPGetRequest("https://www.okex.com"+fmt.Sprintf(okGroupPerpSwapRates, marketName)+params.Encode(), true, false, &resp)
+}
+
+// GetPerpSwapMarkets gets perpetual swap markets' data
+func (o *OKEX) GetPerpSwapMarkets() ([]okgroup.TickerData, error) {
+	var resp []okgroup.TickerData
+	return resp, common.SendHTTPGetRequest("https://www.okex.com"+okGroupPerpTickers, true, false, &resp)
+
 }
 
 // GetFuturesPostions Get the information of all holding positions in futures trading.

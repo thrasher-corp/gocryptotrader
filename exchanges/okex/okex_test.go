@@ -83,6 +83,24 @@ func areTestAPIKeysSet() bool {
 	return o.ValidateAPICredentials()
 }
 
+func TestGetFundingRate(t *testing.T) {
+	o.Verbose = true
+	a, err := o.GetFundingRate("BTC-USD-SWAP", "1")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPerpSwapMarkets(t *testing.T) {
+	o.Verbose = true
+	a, err := o.GetPerpSwapMarkets()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func testStandardErrorHandling(t *testing.T, err error) {
 	if !areTestAPIKeysSet() && err == nil {
 		t.Errorf("Expecting an error when no keys are set")

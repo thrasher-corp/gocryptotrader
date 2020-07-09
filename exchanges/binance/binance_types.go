@@ -22,6 +22,16 @@ type FundingRateData struct {
 	FundingTime int64   `json:"fundingTime"`
 }
 
+// SymbolsData stores perp futures' symbols
+type SymbolsData struct {
+	Symbol string `json:"symbol"`
+}
+
+// PerpsExchangeInfo stores data for perps
+type PerpsExchangeInfo struct {
+	Symbols []SymbolsData `json:"symbols"`
+}
+
 // ExchangeInfo holds the full exchange information type
 type ExchangeInfo struct {
 	Code       int    `json:"code"`

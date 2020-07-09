@@ -67,7 +67,8 @@ func areTestAPIKeysSet() bool {
 
 func TestGetMarkets(t *testing.T) {
 	t.Parallel()
-	_, err := f.GetMarkets()
+	a, err := f.GetMarkets()
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
@@ -146,8 +147,10 @@ func TestGetFutureStats(t *testing.T) {
 }
 
 func TestGetFundingRates(t *testing.T) {
+	f.Verbose = true
 	t.Parallel()
-	_, err := f.GetFundingRates()
+	a, err := f.GetFundingRates(time.Now().Add(-time.Hour), time.Now(), "BTC-PERP")
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}

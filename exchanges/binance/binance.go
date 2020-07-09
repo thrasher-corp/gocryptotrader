@@ -41,6 +41,7 @@ const (
 	accountInfo       = "/api/v3/account"
 	userAccountStream = "/api/v3/userDataStream"
 	fundingRate       = "/fapi/v1/fundingRate?"
+	perpExchangeInfo  = "/fapi/v1/exchangeInfo"
 
 	// Authenticated endpoints
 	newOrderTest = "/api/v3/order/test"
@@ -62,6 +63,15 @@ const (
 	assetDetail       = "/wapi/v3/assetDetail.html"
 )
 
+// GetPerpMarkets returns exchange information. Check binance_types for more
+// information
+func (b *Binance) GetPerpMarkets() (PerpsExchangeInfo, error) {
+	var resp PerpsExchangeInfo
+	path := "https://fapi.binance.com" + perpExchangeInfo
+
+	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
+}
+
 // GetFundingRates gets funding rate history for perpetual contracts
 func (b *Binance) GetFundingRates(symbol, limit string, startTime, endTime time.Time) ([]FundingRateData, error) {
 	var resp []FundingRateData
@@ -76,7 +86,8 @@ func (b *Binance) GetFundingRates(symbol, limit string, startTime, endTime time.
 	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixNano(), 10))
 	}
-	path := b.API.Endpoints.URL + fundingRate + params.Encode()
+	path := "https://fapi.binance.com" + fundingRate + params.Encode()
+	fmt.Println(path)
 	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
 }
 
