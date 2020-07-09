@@ -313,13 +313,13 @@ func TestBaseCode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	main.Items[0].Role = Cryptocurrency
-	err = main.UpdateCurrency("MEWOW", "CATS", "", 3, Token)
+	err = main.UpdateCurrency("WOWCATS", "CATS", "", 3, Token)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	// Creates a new item under a different currency role
-	if main.Items[8].ID != 3 {
+	if main.Items[9].ID != 3 {
 		t.Error("ID not updated")
 	}
 
