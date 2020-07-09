@@ -576,6 +576,9 @@ func (b *Binance) CheckSymbol(symbol string, assetType asset.Item) error {
 	for x := range enPairs {
 		var fmtP currency.Pair
 		fmtP, err = b.FormatExchangeCurrency(enPairs[x], assetType)
+		if err != nil {
+			return err
+		}
 		if fmtP.String() == symbol {
 			return nil
 		}
