@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -573,10 +574,12 @@ func (c *COINUT) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 
 // Subscribe sends a websocket message to receive data from the channel
 func (c *COINUT) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	var errs common.Errors
 	for i := range channelsToSubscribe {
 		fpair, err := c.FormatExchangeCurrency(channelsToSubscribe[i].Currency, asset.Spot)
 		if err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
 
 		subscribe := wsRequest{
@@ -587,18 +590,25 @@ func (c *COINUT) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 		}
 		err = c.Websocket.Conn.SendJSONMessage(subscribe)
 		if err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
+		c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+	}
+	if errs != nil {
+		return errs
 	}
 	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (c *COINUT) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription) error {
+	var errs common.Errors
 	for i := range channelToUnsubscribe {
 		fpair, err := c.FormatExchangeCurrency(channelToUnsubscribe[i].Currency, asset.Spot)
 		if err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
 
 		subscribe := wsRequest{
@@ -610,18 +620,25 @@ func (c *COINUT) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription) 
 		resp, err := c.Websocket.Conn.SendMessageReturnResponse(subscribe.Nonce,
 			subscribe)
 		if err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
 		var response map[string]interface{}
 		err = json.Unmarshal(resp, &response)
 		if err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
 		if response["status"].([]interface{})[0] != "OK" {
-			return fmt.Errorf("%v unsubscribe failed for channel %v",
+			errs = append(errs, fmt.Errorf("%v unsubscribe failed for channel %v",
 				c.Name,
-				channelToUnsubscribe[i].Channel)
+				channelToUnsubscribe[i].Channel))
+			continue
 		}
+		c.Websocket.RemoveSuccessfulUnsubscriptions(channelToUnsubscribe[i])
+	}
+	if errs != nil {
+		return errs
 	}
 	return nil
 }

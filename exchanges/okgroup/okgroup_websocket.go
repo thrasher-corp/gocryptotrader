@@ -871,7 +871,12 @@ func (o *OKGroup) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 		}
 		request.Arguments = append(request.Arguments, arg)
 	}
-	return o.Websocket.Conn.SendJSONMessage(request)
+	err := o.Websocket.Conn.SendJSONMessage(request)
+	if err != nil {
+		return err
+	}
+	o.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -886,7 +891,12 @@ func (o *OKGroup) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription
 				delimiterColon+
 				channelsToUnsubscribe[i].Currency.String())
 	}
-	return o.Websocket.Conn.SendJSONMessage(request)
+	err := o.Websocket.Conn.SendJSONMessage(request)
+	if err != nil {
+		return err
+	}
+	o.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	return nil
 }
 
 // GetWsChannelWithoutOrderType takes WebsocketDataResponse.Table and returns

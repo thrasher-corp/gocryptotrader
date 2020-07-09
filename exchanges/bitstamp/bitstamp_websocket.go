@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -160,6 +161,7 @@ func (b *Bitstamp) generateDefaultSubscriptions() ([]stream.ChannelSubscription,
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *Bitstamp) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	var errs common.Errors
 	for i := range channelsToSubscribe {
 		req := websocketEventRequest{
 			Event: "bts:subscribe",
@@ -169,14 +171,20 @@ func (b *Bitstamp) Subscribe(channelsToSubscribe []stream.ChannelSubscription) e
 		}
 		err := b.Websocket.Conn.SendJSONMessage(req)
 		if err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
+		b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+	}
+	if errs != nil {
+		return errs
 	}
 	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (b *Bitstamp) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	var errs common.Errors
 	for i := range channelsToUnsubscribe {
 		req := websocketEventRequest{
 			Event: "bts:unsubscribe",
@@ -186,8 +194,13 @@ func (b *Bitstamp) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscriptio
 		}
 		err := b.Websocket.Conn.SendJSONMessage(req)
 		if err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
+		b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+	}
+	if errs != nil {
+		return errs
 	}
 	return nil
 }

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -102,22 +103,34 @@ func (l *LakeBTC) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 
 // Subscribe sends a websocket message to receive data from the channel
 func (l *LakeBTC) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	var errs common.Errors
 	for i := range channelsToSubscribe {
 		err := l.WebsocketConn.Client.Subscribe(channelsToSubscribe[i].Channel)
 		if err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
+		l.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+	}
+	if errs != nil {
+		return errs
 	}
 	return nil
 }
 
 // Unsubscribe sends a websocket message to unsubscribe from the channel
 func (l *LakeBTC) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	var errs common.Errors
 	for i := range channelsToUnsubscribe {
 		err := l.WebsocketConn.Client.Unsubscribe(channelsToUnsubscribe[i].Channel)
 		if err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
+		l.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+	}
+	if errs != nil {
+		return errs
 	}
 	return nil
 }

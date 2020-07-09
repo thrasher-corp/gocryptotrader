@@ -457,7 +457,12 @@ func (c *Coinbene) Subscribe(channelsToSubscribe []stream.ChannelSubscription) e
 	for i := range channelsToSubscribe {
 		sub.Arguments = append(sub.Arguments, channelsToSubscribe[i].Channel)
 	}
-	return c.Websocket.Conn.SendJSONMessage(sub)
+	err := c.Websocket.Conn.SendJSONMessage(sub)
+	if err != nil {
+		return err
+	}
+	c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+	return nil
 }
 
 // Unsubscribe sends a websocket message to receive data from the channel
@@ -467,7 +472,12 @@ func (c *Coinbene) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription
 	for i := range channelToUnsubscribe {
 		unsub.Arguments = append(unsub.Arguments, channelToUnsubscribe[i].Channel)
 	}
-	return c.Websocket.Conn.SendJSONMessage(unsub)
+	err := c.Websocket.Conn.SendJSONMessage(unsub)
+	if err != nil {
+		return err
+	}
+	c.Websocket.RemoveSuccessfulUnsubscriptions(channelToUnsubscribe...)
+	return nil
 }
 
 // Login logs in

@@ -403,7 +403,12 @@ subscriptions:
 			subscribe.Timestamp = n
 		}
 	}
-	return c.Websocket.Conn.SendJSONMessage(subscribe)
+	err := c.Websocket.Conn.SendJSONMessage(subscribe)
+	if err != nil {
+		return err
+	}
+	c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -429,5 +434,10 @@ unsubscriptions:
 			Name: channelsToUnsubscribe[i].Channel,
 		})
 	}
-	return c.Websocket.Conn.SendJSONMessage(unsubscribe)
+	err := c.Websocket.Conn.SendJSONMessage(unsubscribe)
+	if err != nil {
+		return err
+	}
+	c.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	return nil
 }

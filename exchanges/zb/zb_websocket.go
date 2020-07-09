@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -280,6 +281,7 @@ func (z *ZB) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error
 
 // Subscribe sends a websocket message to receive data from the channel
 func (z *ZB) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	var errs common.Errors
 	for i := range channelsToSubscribe {
 		subscriptionRequest := Subscription{
 			Event:   zWebsocketAddChannel,
@@ -287,8 +289,13 @@ func (z *ZB) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 		}
 		err := z.Websocket.Conn.SendJSONMessage(subscriptionRequest)
 		if err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
+		z.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+	}
+	if errs != nil {
+		return errs
 	}
 	return nil
 }

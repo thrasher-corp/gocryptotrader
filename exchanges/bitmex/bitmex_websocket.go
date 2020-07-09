@@ -630,7 +630,12 @@ func (b *Bitmex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 		subscriber.Arguments = append(subscriber.Arguments,
 			channelsToSubscribe[i].Channel)
 	}
-	return b.Websocket.Conn.SendJSONMessage(subscriber)
+	err := b.Websocket.Conn.SendJSONMessage(subscriber)
+	if err != nil {
+		return err
+	}
+	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -642,7 +647,12 @@ func (b *Bitmex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 		unsubscriber.Arguments = append(unsubscriber.Arguments,
 			channelsToUnsubscribe[i].Channel)
 	}
-	return b.Websocket.Conn.SendJSONMessage(unsubscriber)
+	err := b.Websocket.Conn.SendJSONMessage(unsubscriber)
+	if err != nil {
+		return err
+	}
+	b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	return nil
 }
 
 // WebsocketSendAuth sends an authenticated subscription

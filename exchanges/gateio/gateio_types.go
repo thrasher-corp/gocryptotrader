@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 // TimeInterval Interval represents interval enum.
@@ -379,9 +380,10 @@ var WithdrawalFees = map[currency.Code]float64{
 
 // WebsocketRequest defines the initial request in JSON
 type WebsocketRequest struct {
-	ID     int64         `json:"id"`
-	Method string        `json:"method"`
-	Params []interface{} `json:"params"`
+	ID       int64                        `json:"id"`
+	Method   string                       `json:"method"`
+	Params   []interface{}                `json:"params"`
+	channels []stream.ChannelSubscription `json:"-"` // used for tracking associated channel subs on batched requests
 }
 
 // WebsocketResponse defines a websocket response from gateio

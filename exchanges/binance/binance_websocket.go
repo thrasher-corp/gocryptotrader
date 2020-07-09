@@ -548,7 +548,12 @@ func (b *Binance) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 	for i := range channelsToSubscribe {
 		payload.Params = append(payload.Params, channelsToSubscribe[i].Channel)
 	}
-	return b.Websocket.Conn.SendJSONMessage(payload)
+	err := b.Websocket.Conn.SendJSONMessage(payload)
+	if err != nil {
+		return err
+	}
+	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+	return nil
 }
 
 // Unsubscribe unsubscribes from a set of channels
@@ -559,5 +564,10 @@ func (b *Binance) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription
 	for i := range channelsToUnsubscribe {
 		payload.Params = append(payload.Params, channelsToUnsubscribe[i].Channel)
 	}
-	return b.Websocket.Conn.SendJSONMessage(payload)
+	err := b.Websocket.Conn.SendJSONMessage(payload)
+	if err != nil {
+		return err
+	}
+	b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	return nil
 }

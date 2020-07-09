@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -96,6 +97,8 @@ func (f *FTX) WsAuth() error {
 
 // Subscribe sends a websocket message to receive data from the channel
 func (f *FTX) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	var errs common.Errors
+channels:
 	for i := range channelsToSubscribe {
 		var sub WsSub
 		sub.Channel = channelsToSubscribe[i].Channel
@@ -106,25 +109,34 @@ func (f *FTX) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error 
 		default:
 			a, err := f.GetPairAssetType(channelsToSubscribe[i].Currency)
 			if err != nil {
-				return err
+				errs = append(errs, err)
+				continue channels
 			}
 
 			fmtP, err := f.FormatExchangeCurrency(channelsToSubscribe[i].Currency, a)
 			if err != nil {
-				return err
+				errs = append(errs, err)
+				continue channels
 			}
 			sub.Market = fmtP.String()
 		}
 		err := f.Websocket.Conn.SendJSONMessage(sub)
 		if err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
+		f.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+	}
+	if errs != nil {
+		return errs
 	}
 	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (f *FTX) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	var errs common.Errors
+channels:
 	for i := range channelsToUnsubscribe {
 		var unSub WsSub
 		unSub.Operation = unsubscribe
@@ -134,19 +146,26 @@ func (f *FTX) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) er
 		default:
 			a, err := f.GetPairAssetType(channelsToUnsubscribe[i].Currency)
 			if err != nil {
-				return err
+				errs = append(errs, err)
+				continue channels
 			}
 
 			fmtP, err := f.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, a)
 			if err != nil {
-				return err
+				errs = append(errs, err)
+				continue channels
 			}
 			unSub.Market = fmtP.String()
 		}
 		err := f.Websocket.Conn.SendJSONMessage(unSub)
 		if err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
+		f.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+	}
+	if errs != nil {
+		return errs
 	}
 	return nil
 }

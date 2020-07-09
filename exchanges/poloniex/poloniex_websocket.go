@@ -552,6 +552,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 
 // Subscribe sends a websocket message to receive data from the channel
 func (p *Poloniex) Subscribe(sub []stream.ChannelSubscription) error {
+	var errs common.Errors
 channels:
 	for i := range sub {
 		subscriptionRequest := WsCommand{
@@ -562,8 +563,10 @@ channels:
 			sub[i].Channel):
 			err := p.wsSendAuthorisedCommand("subscribe")
 			if err != nil {
-				return err
+				errs = append(errs, err)
+				continue channels
 			}
+			p.Websocket.AddSuccessfulSubscriptions(sub[i])
 			continue channels
 		case strings.EqualFold(strconv.FormatInt(wsTickerDataID, 10),
 			sub[i].Channel):
@@ -574,14 +577,21 @@ channels:
 
 		err := p.Websocket.Conn.SendJSONMessage(subscriptionRequest)
 		if err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
+
+		p.Websocket.AddSuccessfulSubscriptions(sub[i])
+	}
+	if errs != nil {
+		return errs
 	}
 	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (p *Poloniex) Unsubscribe(unsub []stream.ChannelSubscription) error {
+	var errs common.Errors
 channels:
 	for i := range unsub {
 		unsubscriptionRequest := WsCommand{
@@ -592,8 +602,10 @@ channels:
 			unsub[i].Channel):
 			err := p.wsSendAuthorisedCommand("unsubscribe")
 			if err != nil {
-				return err
+				errs = append(errs, err)
+				continue channels
 			}
+			p.Websocket.RemoveSuccessfulUnsubscriptions(unsub[i])
 			continue channels
 		case strings.EqualFold(strconv.FormatInt(wsTickerDataID, 10),
 			unsub[i].Channel):
@@ -603,8 +615,13 @@ channels:
 		}
 		err := p.Websocket.Conn.SendJSONMessage(unsubscriptionRequest)
 		if err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
+		p.Websocket.RemoveSuccessfulUnsubscriptions(unsub[i])
+	}
+	if errs != nil {
+		return errs
 	}
 	return nil
 }

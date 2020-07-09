@@ -536,32 +536,42 @@ channels:
 				default:
 					payloads[j].Params = append(payloads[j].Params, params...)
 				}
+				payloads[j].channels = append(payloads[j].channels, channelsToSubscribe[i])
 				continue channels
 			}
 		}
 
 		payloads = append(payloads, WebsocketRequest{
-			ID:     g.Websocket.Conn.GenerateMessageID(false),
-			Method: channelsToSubscribe[i].Channel,
-			Params: params,
+			ID:       g.Websocket.Conn.GenerateMessageID(false),
+			Method:   channelsToSubscribe[i].Channel,
+			Params:   params,
+			channels: []stream.ChannelSubscription{channelsToSubscribe[i]},
 		})
 	}
 
+	var errs common.Errors
 	for k := range payloads {
 		resp, err := g.Websocket.Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
 		if err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
 		var response WebsocketAuthenticationResponse
 		err = json.Unmarshal(resp, &response)
 		if err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
 		if response.Result.Status != "success" {
-			return fmt.Errorf("%v could not subscribe to %v",
+			errs = append(errs, fmt.Errorf("%v could not subscribe to %v",
 				g.Name,
-				payloads[k].Method)
+				payloads[k].Method))
+			continue
 		}
+		g.Websocket.AddSuccessfulSubscriptions(payloads[k].channels...)
+	}
+	if errs != nil {
+		return errs
 	}
 	return nil
 }

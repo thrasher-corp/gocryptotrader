@@ -813,23 +813,7 @@ channels:
 			w.exchangeName,
 			channels[x])
 	}
-
-	err := w.Unsubscriber(channels)
-	if err != nil {
-		return err
-	}
-
-	for x := range channels {
-		for y := range w.subscriptions {
-			if channels[x].Equal(&w.subscriptions[y]) {
-				w.subscriptions[y] = w.subscriptions[len(w.subscriptions)-1]
-				w.subscriptions[len(w.subscriptions)-1] = ChannelSubscription{}
-				w.subscriptions = w.subscriptions[:len(w.subscriptions)-1]
-				break
-			}
-		}
-	}
-	return nil
+	return w.Unsubscriber(channels)
 }
 
 // ResubscribeToChannel resubscribes to channel
@@ -858,13 +842,28 @@ func (w *Websocket) SubscribeToChannels(channels []ChannelSubscription) error {
 			}
 		}
 	}
+	return w.Subscriber(channels)
+}
 
-	err := w.Subscriber(channels)
-	if err != nil {
-		return err
-	}
+// AddSuccessfulSubscriptions adds subscriptions to the subscription lists that
+// has been succesfully subscribed
+func (w *Websocket) AddSuccessfulSubscriptions(channels ...ChannelSubscription) {
 	w.subscriptions = append(w.subscriptions, channels...)
-	return nil
+}
+
+// RemoveSuccessfulUnsubscriptions removes subscriptions from the subscription
+// list that has been successfulling unsubscribed
+func (w *Websocket) RemoveSuccessfulUnsubscriptions(channels ...ChannelSubscription) {
+	for x := range channels {
+		for y := range w.subscriptions {
+			if channels[x].Equal(&w.subscriptions[y]) {
+				w.subscriptions[y] = w.subscriptions[len(w.subscriptions)-1]
+				w.subscriptions[len(w.subscriptions)-1] = ChannelSubscription{}
+				w.subscriptions = w.subscriptions[:len(w.subscriptions)-1]
+				break
+			}
+		}
+	}
 }
 
 // Equal two WebsocketChannelSubscription to determine equality

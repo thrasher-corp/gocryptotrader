@@ -350,5 +350,11 @@ func (b *BTCMarkets) Subscribe(channelsToSubscribe []stream.ChannelSubscription)
 		payload.Timestamp = signTime
 		break
 	}
-	return b.Websocket.Conn.SendJSONMessage(payload)
+
+	err := b.Websocket.Conn.SendJSONMessage(payload)
+	if err != nil {
+		return err
+	}
+	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+	return nil
 }
