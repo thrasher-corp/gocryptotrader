@@ -856,7 +856,7 @@ channels:
 			if subs[y].Subscription.Name == channelsToSubscribe[x].Channel {
 				subs[y].Pairs = append(subs[y].Pairs,
 					channelsToSubscribe[x].Currency.String())
-				subs[y].channels = append(subs[y].channels, channelsToSubscribe[x])
+				subs[y].Channels = append(subs[y].Channels, channelsToSubscribe[x])
 				continue channels
 			}
 		}
@@ -886,7 +886,7 @@ channels:
 			resp.Subscription.Token = authToken
 		}
 
-		resp.channels = append(resp.channels, channelsToSubscribe[x])
+		resp.Channels = append(resp.Channels, channelsToSubscribe[x])
 		subs = append(subs, resp)
 	}
 
@@ -898,7 +898,7 @@ channels:
 				errs = append(errs, err)
 				continue
 			}
-			k.Websocket.AddSuccessfulSubscriptions(subs[i].channels...)
+			k.Websocket.AddSuccessfulSubscriptions(subs[i].Channels...)
 			continue
 		}
 
@@ -907,7 +907,7 @@ channels:
 			errs = append(errs, err)
 			continue
 		}
-		k.Websocket.AddSuccessfulSubscriptions(subs[i].channels...)
+		k.Websocket.AddSuccessfulSubscriptions(subs[i].Channels...)
 	}
 	if errs != nil {
 		return errs
@@ -924,7 +924,7 @@ channels:
 			if unsubs[y].Subscription.Name == channelsToUnsubscribe[x].Channel {
 				unsubs[y].Pairs = append(unsubs[y].Pairs,
 					channelsToUnsubscribe[x].Currency.String())
-				unsubs[y].channels = append(unsubs[y].channels,
+				unsubs[y].Channels = append(unsubs[y].Channels,
 					channelsToUnsubscribe[x])
 				continue channels
 			}
@@ -951,7 +951,7 @@ channels:
 			},
 			RequestID: id,
 		}
-		unsub.channels = append(unsub.channels, channelsToUnsubscribe[x])
+		unsub.Channels = append(unsub.Channels, channelsToUnsubscribe[x])
 		unsubs = append(unsubs, unsub)
 	}
 
@@ -963,7 +963,7 @@ channels:
 				errs = append(errs, err)
 				continue
 			}
-			k.Websocket.RemoveSuccessfulUnsubscriptions(unsubs[i].channels...)
+			k.Websocket.RemoveSuccessfulUnsubscriptions(unsubs[i].Channels...)
 			continue
 		}
 
@@ -972,7 +972,7 @@ channels:
 			errs = append(errs, err)
 			continue
 		}
-		k.Websocket.RemoveSuccessfulUnsubscriptions(unsubs[i].channels...)
+		k.Websocket.RemoveSuccessfulUnsubscriptions(unsubs[i].Channels...)
 	}
 	if errs != nil {
 		return errs

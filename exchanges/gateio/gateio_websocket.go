@@ -536,7 +536,7 @@ channels:
 				default:
 					payloads[j].Params = append(payloads[j].Params, params...)
 				}
-				payloads[j].channels = append(payloads[j].channels, channelsToSubscribe[i])
+				payloads[j].Channels = append(payloads[j].Channels, channelsToSubscribe[i])
 				continue channels
 			}
 		}
@@ -545,7 +545,7 @@ channels:
 			ID:       g.Websocket.Conn.GenerateMessageID(false),
 			Method:   channelsToSubscribe[i].Channel,
 			Params:   params,
-			channels: []stream.ChannelSubscription{channelsToSubscribe[i]},
+			Channels: []stream.ChannelSubscription{channelsToSubscribe[i]},
 		})
 	}
 
@@ -568,7 +568,7 @@ channels:
 				payloads[k].Method))
 			continue
 		}
-		g.Websocket.AddSuccessfulSubscriptions(payloads[k].channels...)
+		g.Websocket.AddSuccessfulSubscriptions(payloads[k].Channels...)
 	}
 	if errs != nil {
 		return errs

@@ -846,7 +846,7 @@ func (w *Websocket) SubscribeToChannels(channels []ChannelSubscription) error {
 }
 
 // AddSuccessfulSubscriptions adds subscriptions to the subscription lists that
-// has been succesfully subscribed
+// has been successfully subscribed
 func (w *Websocket) AddSuccessfulSubscriptions(channels ...ChannelSubscription) {
 	w.subscriptions = append(w.subscriptions, channels...)
 }

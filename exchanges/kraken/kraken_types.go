@@ -405,7 +405,7 @@ type WebsocketSubscriptionEventRequest struct {
 	RequestID    int64                        `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
 	Pairs        []string                     `json:"pair,omitempty"`  // Array of currency pairs (pair1,pair2,pair3).
 	Subscription WebsocketSubscriptionData    `json:"subscription,omitempty"`
-	channels     []stream.ChannelSubscription `json:"-"` // Keeps track of associated subscriptions in batched outgoings
+	Channels     []stream.ChannelSubscription `json:"-"` // Keeps track of associated subscriptions in batched outgoings
 }
 
 // WebsocketBaseEventRequest Just has an "event" property
