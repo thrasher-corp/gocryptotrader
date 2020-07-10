@@ -162,6 +162,8 @@ func (i Interval) Short() string {
 // durationToWord returns english version of interval
 func durationToWord(in Interval) string {
 	switch in {
+	case FifteenSecond:
+		return "fifteensecond"
 	case OneMin:
 		return "onemin"
 	case ThreeMin:
@@ -208,6 +210,8 @@ func durationToWord(in Interval) string {
 // TotalCandlesPerInterval turns total candles per period for interval
 func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out uint32) {
 	switch interval {
+	case FifteenSecond:
+		out = uint32(end.Sub(start).Seconds() / 15)
 	case OneMin:
 		out = uint32(end.Sub(start).Minutes())
 	case ThreeMin:
@@ -242,6 +246,8 @@ func TotalCandlesPerInterval(start, end time.Time, interval Interval) (out uint3
 		out = uint32(end.Sub(start).Hours()) / (24 * 7)
 	case TwoWeek:
 		out = uint32(end.Sub(start).Hours() / (24 * 14))
+	case OneMonth:
+		out = uint32(end.Sub(start).Hours() / (24 * 30))
 	case OneYear:
 		out = uint32(end.Sub(start).Hours() / 8760)
 	}
