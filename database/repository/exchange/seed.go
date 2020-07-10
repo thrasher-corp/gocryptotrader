@@ -72,9 +72,6 @@ var (
 			Name: "Local Bitcoins",
 		},
 		{
-			Name: "alphapoint",
-		},
-		{
 			Name: "OKCoin",
 		},
 		{

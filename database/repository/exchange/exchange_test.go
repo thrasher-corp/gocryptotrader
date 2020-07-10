@@ -9,19 +9,23 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
-	"github.com/thrasher-corp/sqlboiler/boil"
+)
+
+var (
+	verbose = true
 )
 
 func TestMain(m *testing.M) {
-	boil.DebugMode = true
-	boil.DebugWriter = os.Stdout
-
 	var err error
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
 	testhelpers.TempDir, err = ioutil.TempDir("", "gct-temp")
 	if err != nil {
 		fmt.Printf("failed to create temp file: %v", err)
 		os.Exit(1)
+	}
+
+	if verbose {
+		testhelpers.EnableVerboseTestOutput()
 	}
 
 	t := m.Run()
@@ -64,6 +68,9 @@ func TestInsert(t *testing.T) {
 			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
 				t.Skip("database not configured skipping test")
 			}
+
+
+			test.config.Verbose = true
 
 			dbConn, err := testhelpers.ConnectToDatabase(test.config, true)
 			if err != nil {

@@ -11,7 +11,9 @@ import (
 	psqlConn "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	sqliteConn "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/goose"
+	"github.com/thrasher-corp/sqlboiler/boil"
 )
 
 var (
@@ -19,7 +21,7 @@ var (
 	TempDir string
 	// PostgresTestDatabase postgresql database config details
 	PostgresTestDatabase *database.Config
-
+	// MigrationDir default folder for migration's
 	MigrationDir = filepath.Join("..", "..", "migrations")
 )
 
@@ -115,7 +117,6 @@ func migrateDB(db *sql.DB) error {
 	if err != nil {
 		return err
 	}
-
 	return MigrateDB(db)
 }
 
@@ -125,4 +126,14 @@ func ResetDB(db *sql.DB) error {
 
 func MigrateDB(db *sql.DB) error {
 	return goose.Run("up", db, repository.GetSQLDialect(), MigrationDir, "")
+}
+
+func EnableVerboseTestOutput() {
+	c := log.GenDefaultSettings()
+	log.GlobalLogConfig = &c
+	log.SetupGlobalLogger()
+
+	DBLogger := database.Logger{}
+	boil.DebugMode = true
+	boil.DebugWriter = DBLogger
 }

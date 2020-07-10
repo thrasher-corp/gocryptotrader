@@ -18,6 +18,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+var (
+	verbose = false
+)
 func TestMain(m *testing.M) {
 	var err error
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
@@ -25,6 +28,10 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		fmt.Printf("failed to create temp file: %v", err)
 		os.Exit(1)
+	}
+
+	if verbose {
+		testhelpers.EnableVerboseTestOutput()
 	}
 
 	t := m.Run()
