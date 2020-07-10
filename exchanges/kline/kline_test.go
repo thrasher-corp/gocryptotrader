@@ -145,6 +145,10 @@ func TestDurationToWord(t *testing.T) {
 		interval Interval
 	}{
 		{
+			"FifteenSecond",
+			FifteenSecond,
+		},
+		{
 			"OneMin",
 			OneMin,
 		},
@@ -217,6 +221,10 @@ func TestDurationToWord(t *testing.T) {
 			OneMonth,
 		},
 		{
+			"OneYear",
+			OneYear,
+		},
+		{
 			"notfound",
 			Interval(time.Hour * 1337),
 		},
@@ -247,16 +255,123 @@ func TestKlineErrors(t *testing.T) {
 }
 
 func TestTotalCandlesPerInterval(t *testing.T) {
-	end := time.Now()
-	start := end.AddDate(-1, 0, 0)
+	start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	v := TotalCandlesPerInterval(start, end, OneYear)
-	if v != 1 {
-		t.Fatalf("unexpected result expected 1 received %v", v)
+	testCases := []struct {
+		name     string
+		interval Interval
+		expected uint32
+	}{
+		{
+			"FifteenSecond",
+			FifteenSecond,
+			2102400,
+		},
+		{
+			"OneMin",
+			OneMin,
+			525600,
+		},
+		{
+			"ThreeMin",
+			ThreeMin,
+			175200,
+		},
+		{
+			"FiveMin",
+			FiveMin,
+			105120,
+		},
+		{
+			"TenMin",
+			TenMin,
+			52560,
+		},
+		{
+			"FifteenMin",
+			FifteenMin,
+			35040,
+		},
+		{
+			"ThirtyMin",
+			ThirtyMin,
+			17520,
+		},
+		{
+			"OneHour",
+			OneHour,
+			8760,
+		},
+		{
+			"TwoHour",
+			TwoHour,
+			4380,
+		},
+		{
+			"FourHour",
+			FourHour,
+			2190,
+		},
+		{
+			"SixHour",
+			SixHour,
+			1460,
+		},
+		{
+			"EightHour",
+			OneHour * 8,
+			1095,
+		},
+		{
+			"TwelveHour",
+			TwelveHour,
+			730,
+		},
+		{
+			"OneDay",
+			OneDay,
+			365,
+		},
+		{
+			"ThreeDay",
+			ThreeDay,
+			121,
+		},
+		{
+			"FifteenDay",
+			FifteenDay,
+			24,
+		},
+		{
+			"OneWeek",
+			OneWeek,
+			52,
+		},
+		{
+			"TwoWeek",
+			TwoWeek,
+			26,
+		},
+		{
+			"OneMonth",
+			OneMonth,
+			12,
+		},
+		{
+			"OneYear",
+			OneYear,
+			1,
+		},
 	}
-	v = TotalCandlesPerInterval(start, end, FifteenDay)
-	if v != 24 {
-		t.Fatalf("unexpected result expected 24 received %v", v)
+	for x := range testCases {
+		test := testCases[x]
+		t.Run(test.name, func(t *testing.T) {
+			v := TotalCandlesPerInterval(start, end, test.interval)
+			if v != test.expected {
+				t.Fatalf("%v: received %v expected %v", test.name, v, test.expected)
+			}
+		})
 	}
 }
 
