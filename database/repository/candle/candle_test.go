@@ -11,11 +11,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
-	"github.com/thrasher-corp/sqlboiler/boil"
 )
 
 var (
-	verbose = false
+	verbose = true
 )
 
 func TestMain(m *testing.M) {
@@ -42,9 +41,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestSeries(t *testing.T) {
-	boil.DebugMode = true
-	boil.DebugWriter = os.Stdout
-
 	testCases := []struct {
 		name   string
 		config *database.Config
