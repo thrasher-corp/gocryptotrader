@@ -69,7 +69,6 @@ func TestInsert(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-
 			test.config.Verbose = true
 
 			dbConn, err := testhelpers.ConnectToDatabase(test.config, true)

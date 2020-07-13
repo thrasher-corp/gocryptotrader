@@ -120,10 +120,12 @@ func migrateDB(db *sql.DB) error {
 	return MigrateDB(db)
 }
 
+// ResetDB resets database to earliest version
 func ResetDB(db *sql.DB) error {
 	return goose.Run("reset", db, repository.GetSQLDialect(), MigrationDir, "")
 }
 
+// MigrateDB migrates database to latest version
 func MigrateDB(db *sql.DB) error {
 	return goose.Run("up", db, repository.GetSQLDialect(), MigrationDir, "")
 }
