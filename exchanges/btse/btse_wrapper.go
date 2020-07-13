@@ -251,6 +251,12 @@ func (b *BTSE) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	if assetType == asset.Futures {
+		// Futures REST implementation needs to be done before this can be
+		// removed
+		return nil, common.ErrNotYetImplemented
+	}
+
 	fpair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
@@ -303,6 +309,12 @@ func (b *BTSE) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	if assetType == asset.Futures {
+		// Futures REST implementation needs to be done before this can be
+		// removed
+		return nil, common.ErrNotYetImplemented
+	}
+
 	fpair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
