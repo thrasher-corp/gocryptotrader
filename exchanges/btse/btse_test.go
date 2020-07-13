@@ -417,3 +417,16 @@ func TestStatusToStandardStatus(t *testing.T) {
 		}
 	}
 }
+
+func TestFetchTradablePairs(t *testing.T) {
+	assets := b.GetAssetTypes()
+	for i := range assets {
+		data, err := b.FetchTradablePairs(assets[i])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(data) == 0 {
+			t.Fatal("data cannot be zero")
+		}
+	}
+}
