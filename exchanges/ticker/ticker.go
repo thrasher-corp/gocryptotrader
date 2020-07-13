@@ -33,7 +33,6 @@ func SubscribeTicker(exchange string, p currency.Pair, a asset.Item) (dispatch.P
 			p,
 			a)
 	}
-
 	return service.mux.Subscribe(tick.Main)
 }
 
@@ -85,8 +84,6 @@ func ProcessTicker(tickerNew *Price) error {
 		return fmt.Errorf(errExchangeNameUnset)
 	}
 
-	tickerNew.ExchangeName = strings.ToLower(tickerNew.ExchangeName)
-
 	if tickerNew.Pair.IsEmpty() {
 		return fmt.Errorf("%s %s", tickerNew.ExchangeName, errPairNotSet)
 	}
@@ -107,46 +104,11 @@ func ProcessTicker(tickerNew *Price) error {
 
 // Update updates ticker price
 func (s *Service) Update(p *Price) error {
-	var ids []uuid.UUID
-
+	name := strings.ToLower(p.ExchangeName)
 	s.Lock()
-	switch {
-	case s.Tickers[p.ExchangeName] == nil:
-		s.Tickers[p.ExchangeName] = make(map[*currency.Item]map[*currency.Item]map[asset.Item]*Ticker)
-		s.Tickers[p.ExchangeName][p.Pair.Base.Item] = make(map[*currency.Item]map[asset.Item]*Ticker)
-		s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item] = make(map[asset.Item]*Ticker)
-		err := s.SetItemID(p)
-		if err != nil {
-			s.Unlock()
-			return err
-		}
 
-	case s.Tickers[p.ExchangeName][p.Pair.Base.Item] == nil:
-		s.Tickers[p.ExchangeName][p.Pair.Base.Item] = make(map[*currency.Item]map[asset.Item]*Ticker)
-		s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item] = make(map[asset.Item]*Ticker)
-		err := s.SetItemID(p)
-		if err != nil {
-			s.Unlock()
-			return err
-		}
-
-	case s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item] == nil:
-		s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item] = make(map[asset.Item]*Ticker)
-		err := s.SetItemID(p)
-		if err != nil {
-			s.Unlock()
-			return err
-		}
-
-	case s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item][p.AssetType] == nil:
-		err := s.SetItemID(p)
-		if err != nil {
-			s.Unlock()
-			return err
-		}
-
-	default:
-		ticker := s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item][p.AssetType]
+	ticker, ok := s.Tickers[name][p.Pair.Base.Item][p.Pair.Quote.Item][p.AssetType]
+	if ok {
 		ticker.Last = p.Last
 		ticker.High = p.High
 		ticker.Low = p.Low
@@ -158,20 +120,39 @@ func (s *Service) Update(p *Price) error {
 		ticker.Open = p.Open
 		ticker.Close = p.Close
 		ticker.LastUpdated = p.LastUpdated
-		ids = ticker.Assoc
-		ids = append(ids, ticker.Main)
+		ids := append(ticker.Assoc, ticker.Main)
+		s.Unlock()
+		return s.mux.Publish(ids, p)
 	}
+
+	switch {
+	case s.Tickers[name] == nil:
+		s.Tickers[name] = make(map[*currency.Item]map[*currency.Item]map[asset.Item]*Ticker)
+		fallthrough
+	case s.Tickers[name][p.Pair.Base.Item] == nil:
+		s.Tickers[name][p.Pair.Base.Item] = make(map[*currency.Item]map[asset.Item]*Ticker)
+		fallthrough
+	case s.Tickers[name][p.Pair.Base.Item][p.Pair.Quote.Item] == nil:
+		s.Tickers[name][p.Pair.Base.Item][p.Pair.Quote.Item] = make(map[asset.Item]*Ticker)
+	}
+
+	err := s.SetItemID(p, name)
+	if err != nil {
+		s.Unlock()
+		return err
+	}
+
 	s.Unlock()
-	return s.mux.Publish(ids, p)
+	return nil
 }
 
 // SetItemID retrieves and sets dispatch mux publish IDs
-func (s *Service) SetItemID(p *Price) error {
+func (s *Service) SetItemID(p *Price, fmtName string) error {
 	if p == nil {
 		return errors.New(errTickerPriceIsNil)
 	}
 
-	ids, err := s.GetAssociations(p)
+	ids, err := s.GetAssociations(p, fmtName)
 	if err != nil {
 		return err
 	}
@@ -180,26 +161,26 @@ func (s *Service) SetItemID(p *Price) error {
 		return err
 	}
 
-	s.Tickers[p.ExchangeName][p.Pair.Base.Item][p.Pair.Quote.Item][p.AssetType] = &Ticker{Price: *p,
+	s.Tickers[fmtName][p.Pair.Base.Item][p.Pair.Quote.Item][p.AssetType] = &Ticker{Price: *p,
 		Main:  singleID,
 		Assoc: ids}
 	return nil
 }
 
 // GetAssociations links a singular book with it's dispatch associations
-func (s *Service) GetAssociations(p *Price) ([]uuid.UUID, error) {
+func (s *Service) GetAssociations(p *Price, fmtName string) ([]uuid.UUID, error) {
 	if p == nil || *p == (Price{}) {
 		return nil, errors.New(errTickerPriceIsNil)
 	}
 	var ids []uuid.UUID
-	exchangeID, ok := s.Exchange[p.ExchangeName]
+	exchangeID, ok := s.Exchange[fmtName]
 	if !ok {
 		var err error
 		exchangeID, err = s.mux.GetID()
 		if err != nil {
 			return nil, err
 		}
-		s.Exchange[p.ExchangeName] = exchangeID
+		s.Exchange[fmtName] = exchangeID
 	}
 
 	ids = append(ids, exchangeID)

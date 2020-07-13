@@ -125,7 +125,7 @@ func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 
 	err = b.Process()
 	if err != nil {
-		t.Error("", err)
+		t.Error(err)
 	}
 
 	_, err = SubscribeToExchangeOrderbooks("SubscribeToExchangeOrderbooks")
@@ -518,14 +518,14 @@ func TestProcessOrderbook(t *testing.T) {
 }
 
 func TestSetNewData(t *testing.T) {
-	err := service.SetNewData(nil)
+	err := service.SetNewData(nil, "")
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
 }
 
 func TestGetAssociations(t *testing.T) {
-	_, err := service.GetAssociations(nil)
+	_, err := service.GetAssociations(nil, "")
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
