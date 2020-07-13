@@ -2,6 +2,7 @@ package order
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -662,4 +663,16 @@ func StringToOrderStatus(status string) (Status, error) {
 	default:
 		return UnknownStatus, errors.New(status + " not recognised as order status")
 	}
+}
+
+func (o *ClassificationError) Error() string {
+	if o.OrderID != "" {
+		return fmt.Sprintf("%s - OrderID: %s classification error: %v",
+			o.Exchange,
+			o.OrderID,
+			o.Err)
+	}
+	return fmt.Sprintf("%s - classification error: %v",
+		o.Exchange,
+		o.Err)
 }

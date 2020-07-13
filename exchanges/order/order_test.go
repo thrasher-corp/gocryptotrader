@@ -12,72 +12,67 @@ import (
 func TestValidate(t *testing.T) {
 	testPair := currency.NewPair(currency.BTC, currency.LTC)
 	tester := []struct {
-		Pair currency.Pair
-		Side
-		Type
-		Amount      float64
-		Price       float64
 		ExpectedErr error
+		Submit      *Submit
 	}{
 		{
+			ExpectedErr: ErrSubmissionIsNil,
+			Submit:      nil,
+		}, // nil struct
+		{
 			ExpectedErr: ErrPairIsEmpty,
+			Submit:      &Submit{},
 		}, // empty pair
 		{
-			Pair:        testPair,
+
 			ExpectedErr: ErrSideIsInvalid,
+			Submit:      &Submit{Pair: testPair},
 		}, // valid pair but invalid order side
 		{
-			Pair:        testPair,
-			Side:        Buy,
 			ExpectedErr: ErrTypeIsInvalid,
+			Submit: &Submit{Pair: testPair,
+				Side: Buy},
 		}, // valid pair and order side but invalid order type
 		{
-			Pair:        testPair,
-			Side:        Sell,
 			ExpectedErr: ErrTypeIsInvalid,
+			Submit: &Submit{Pair: testPair,
+				Side: Sell},
 		}, // valid pair and order side but invalid order type
 		{
-			Pair:        testPair,
-			Side:        Bid,
 			ExpectedErr: ErrTypeIsInvalid,
+			Submit: &Submit{Pair: testPair,
+				Side: Bid},
 		}, // valid pair and order side but invalid order type
 		{
-			Pair:        testPair,
-			Side:        Ask,
 			ExpectedErr: ErrTypeIsInvalid,
+			Submit: &Submit{Pair: testPair,
+				Side: Ask},
 		}, // valid pair and order side but invalid order type
 		{
-			Pair:        testPair,
-			Side:        Ask,
-			Type:        Market,
 			ExpectedErr: ErrAmountIsInvalid,
+			Submit: &Submit{Pair: testPair,
+				Side: Ask,
+				Type: Market},
 		}, // valid pair, order side, type but invalid amount
 		{
-			Pair:        testPair,
-			Side:        Ask,
-			Type:        Limit,
-			Amount:      1,
 			ExpectedErr: ErrPriceMustBeSetIfLimitOrder,
+			Submit: &Submit{Pair: testPair,
+				Side:   Ask,
+				Type:   Limit,
+				Amount: 1},
 		}, // valid pair, order side, type, amount but invalid price
 		{
-			Pair:        testPair,
-			Side:        Ask,
-			Type:        Limit,
-			Amount:      1,
-			Price:       1000,
 			ExpectedErr: nil,
+			Submit: &Submit{Pair: testPair,
+				Side:   Ask,
+				Type:   Limit,
+				Amount: 1,
+				Price:  1000},
 		}, // valid order!
 	}
 
 	for x := range tester {
-		s := Submit{
-			Pair:   tester[x].Pair,
-			Side:   tester[x].Side,
-			Type:   tester[x].Type,
-			Amount: tester[x].Amount,
-			Price:  tester[x].Price,
-		}
-		if err := s.Validate(); err != tester[x].ExpectedErr {
+		if err := tester[x].Submit.Validate(); err != tester[x].ExpectedErr {
 			t.Errorf("Unexpected result. Got: %s, want: %s", err, tester[x].ExpectedErr)
 		}
 	}
@@ -465,10 +460,16 @@ var stringsToOrderType = []struct {
 	{"stop", Stop, nil},
 	{"STOP", Stop, nil},
 	{"sToP", Stop, nil},
+	{"sToP LiMit", StopLimit, nil},
+	{"ExchangE sToP Limit", StopLimit, nil},
 	{"trailing_stop", TrailingStop, nil},
 	{"TRAILING_STOP", TrailingStop, nil},
 	{"tRaIlInG_sToP", TrailingStop, nil},
 	{"tRaIlInG sToP", TrailingStop, nil},
+	{"fOk", FillOrKill, nil},
+	{"exchange fOk", FillOrKill, nil},
+	{"ios", IOS, nil},
+	{"post_ONly", PostOnly, nil},
 	{"any", AnyType, nil},
 	{"ANY", AnyType, nil},
 	{"aNy", AnyType, nil},
@@ -532,6 +533,9 @@ var stringsToOrderStatus = []struct {
 	{"insufficient_balance", InsufficientBalance, nil},
 	{"INSUFFICIENT_BALANCE", InsufficientBalance, nil},
 	{"iNsUfFiCiEnT_bAlAnCe", InsufficientBalance, nil},
+	{"PARTIALLY_CANCELLEd", PartiallyCancelled, nil},
+	{"partially canceLLed", PartiallyCancelled, nil},
+	{"opeN", Open, nil},
 	{"woahMan", UnknownStatus, errors.New("woahMan not recognised as order status")},
 }
 
@@ -932,5 +936,16 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	}
 	if od.Trades[0].Amount != 1337 {
 		t.Error("Failed to update trades")
+	}
+}
+
+func TestClassificationError_Error(t *testing.T) {
+	class := ClassificationError{OrderID: "1337", Exchange: "test", Err: errors.New("test error")}
+	if class.Error() != "test - OrderID: 1337 classification error: test error" {
+		t.Fatal("unexpected output")
+	}
+	class.OrderID = ""
+	if class.Error() != "test - classification error: test error" {
+		t.Fatal("unexpected output")
 	}
 }

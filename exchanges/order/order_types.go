@@ -2,7 +2,6 @@ package order
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -266,16 +265,4 @@ type ClassificationError struct {
 	Exchange string
 	OrderID  string
 	Err      error
-}
-
-func (o *ClassificationError) Error() string {
-	if o.OrderID != "" {
-		return fmt.Sprintf("%s - OrderID: %s classification error: %v",
-			o.Exchange,
-			o.OrderID,
-			o.Err)
-	}
-	return fmt.Sprintf("%s - classification error: %v",
-		o.Exchange,
-		o.Err)
 }
