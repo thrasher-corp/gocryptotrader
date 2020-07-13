@@ -1,6 +1,7 @@
 package bitmex
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -62,9 +63,9 @@ func TestStart(t *testing.T) {
 }
 
 func TestGetFullFundingHistory(t *testing.T) {
-	b.Verbose = true
-	a, err := b.GetFullFundingHistory("XBTUSD", "1", "", "", "", true, time.Time{}, time.Time{})
+	a, err := b.GetFullFundingHistory("", "", "", "", "", true, time.Time{}, time.Time{})
 	t.Log(a)
+
 	if err != nil {
 		t.Error(err)
 	}
@@ -159,7 +160,10 @@ func TestGetFundingHistory(t *testing.T) {
 }
 
 func TestGetInstruments(t *testing.T) {
-	_, err := b.GetInstruments(&GenericRequestParams{})
+	a, err := b.GetInstruments(&GenericRequestParams{})
+	for x := range a {
+		fmt.Println(a[x].Symbol, a[x].Typ)
+	}
 	if err != nil {
 		t.Error("GetInstruments() error", err)
 	}
@@ -173,6 +177,7 @@ func TestGetActiveInstruments(t *testing.T) {
 }
 
 func TestGetActiveAndIndexInstruments(t *testing.T) {
+	b.Verbose = true
 	_, err := b.GetActiveAndIndexInstruments()
 	if err != nil {
 		t.Error("GetActiveAndIndexInstruments() error", err)

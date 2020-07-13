@@ -92,6 +92,26 @@ func setupWsTests(t *testing.T) {
 	wsSetupRan = true
 }
 
+func TestGetSwapFundingRates(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.GetSwapFundingRates("BTC-USD")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapMarkets(t *testing.T) {
+	h.Verbose = true
+	t.Parallel()
+	a, err := h.GetSwapMarkets("")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
 	_, err := h.GetSpotKline(KlinesRequestParams{

@@ -24,6 +24,8 @@ const (
 	huobiAPIVersion  = "1"
 	huobiAPIVersion2 = "2"
 
+	huobiSwapMarkets           = "/swap-api/v1/swap_contract_info"
+	huobiSwapFunding           = "swap-api/v1/swap_funding_rate"
 	huobiMarketHistoryKline    = "market/history/kline"
 	huobiMarketDetail          = "market/detail"
 	huobiMarketDetailMerged    = "market/detail/merged"
@@ -65,6 +67,38 @@ type HUOBI struct {
 	AccountID                  string
 	WebsocketConn              *wshandler.WebsocketConnection
 	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
+}
+
+// GetSwapFundingRates gets funding rates data
+func (h *HUOBI) GetSwapFundingRates(contract string) (FundingRatesData, error) {
+	vals := url.Values{}
+	vals.Set("contract_code", contract)
+	type response struct {
+		Response
+		Data FundingRatesData `json:"data"`
+	}
+	var result response
+	err := h.SendHTTPRequest(common.EncodeURLValues("https://api.hbdm.com/"+huobiSwapFunding, vals), &result)
+	if result.ErrorMessage != "" {
+		return FundingRatesData{}, errors.New(result.ErrorMessage)
+	}
+	return result.Data, err
+}
+
+// GetSwapMarkets gets data of swap markets
+func (h *HUOBI) GetSwapMarkets(contract string) ([]SwapMarketsData, error) {
+	vals := url.Values{}
+	vals.Set("contract_code", contract)
+	type response struct {
+		Response
+		Data []SwapMarketsData `json:"data"`
+	}
+	var result response
+	err := h.SendHTTPRequest(common.EncodeURLValues("https://api.hbdm.com/"+huobiSwapMarkets, vals), &result)
+	if result.ErrorMessage != "" {
+		return nil, errors.New(result.ErrorMessage)
+	}
+	return result.Data, err
 }
 
 // GetSpotKline returns kline data

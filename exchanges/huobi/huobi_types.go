@@ -15,6 +15,28 @@ type ResponseV2 struct {
 	Message string `json:"message"`
 }
 
+// SwapMarketsData stores market data for swaps
+type SwapMarketsData struct {
+	Symbol         string  `json:"symbol"`
+	ContractCode   string  `json:"contract_code"`
+	ContractSize   float64 `json:"contract_size"`
+	PriceTick      float64 `json:"price_tick"`
+	SettlementDate string  `json:"settlement_date"`
+	CreateDate     string  `json:"create_date"`
+	ContractStatus int64   `json:"contract_status"`
+}
+
+// FundingRatesData stores funding rates data
+type FundingRatesData struct {
+	EstimatedRate   float64 `json:"estimated_rate,string"`
+	FundingRate     float64 `json:"funding_rate,string"`
+	ContractCode    string  `json:"contractCode"`
+	Symbol          string  `json:"symbol"`
+	FeeAsset        string  `json:"fee_asset"`
+	FundingTime     string  `json:"fundingTime"`
+	NextFundingTime string  `json:"next_funding_time"`
+}
+
 // KlineItem stores a kline item
 type KlineItem struct {
 	ID     int64   `json:"id"`
