@@ -23,8 +23,14 @@ func init() {
 func (s *Storage) SetDefaults() {
 	s.defaultBaseCurrency = USD
 	s.baseCurrency = s.defaultBaseCurrency
-	s.SetDefaultFiatCurrencies(USD, AUD, EUR, CNY)
-	s.SetDefaultCryptocurrencies(BTC, LTC, ETH, DOGE, DASH, XRP, XMR)
+	err := s.SetDefaultFiatCurrencies(USD, AUD, EUR, CNY)
+	if err != nil {
+		log.Errorf(log.Global, "Currency Storage: Setting default fiat currencies error: %s", err)
+	}
+	err = s.SetDefaultCryptocurrencies(BTC, LTC, ETH, DOGE, DASH, XRP, XMR)
+	if err != nil {
+		log.Errorf(log.Global, "Currency Storage: Setting default cryptocurrencies error: %s", err)
+	}
 	s.SetupConversionRates()
 	s.fiatExchangeMarkets = forexprovider.NewDefaultFXProvider()
 }
