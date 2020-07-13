@@ -944,3 +944,64 @@ func TestParseTime(t *testing.T) {
 		t.Error("unexpected result")
 	}
 }
+
+func TestCheckInterval(t *testing.T) {
+	interval := time.Minute
+	i, err := checkInterval(interval)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if i != 60 {
+		t.Fatal("incorrect return")
+	}
+	interval = time.Minute * 5
+	i, err = checkInterval(interval)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if i != 300 {
+		t.Fatal("incorrect return")
+	}
+
+	interval = time.Minute * 15
+	i, err = checkInterval(interval)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if i != 900 {
+		t.Fatal("incorrect return")
+	}
+
+	interval = time.Hour
+	i, err = checkInterval(interval)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if i != 3600 {
+		t.Fatal("incorrect return")
+	}
+
+	interval = time.Hour * 6
+	i, err = checkInterval(interval)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if i != 21600 {
+		t.Fatal("incorrect return")
+	}
+
+	interval = time.Hour * 24
+	i, err = checkInterval(interval)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if i != 86400 {
+		t.Fatal("incorrect return")
+	}
+
+	interval = time.Hour * 1337
+	_, err = checkInterval(interval)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
+}
