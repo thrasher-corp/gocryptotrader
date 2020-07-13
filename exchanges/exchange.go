@@ -271,7 +271,15 @@ func (e *Base) SetCurrencyPairFormat() {
 // SetConfigPairs sets the exchanges currency pairs to the pairs set in the config
 func (e *Base) SetConfigPairs() error {
 	assetTypes := e.Config.CurrencyPairs.GetAssetTypes()
+	exchageAssets := e.CurrencyPairs.GetAssetTypes()
 	for x := range assetTypes {
+		if !exchageAssets.Contains(assetTypes[x]) {
+			log.Warnf(log.ExchangeSys,
+				"%s exchange asset type %s unsupported, please manually remove from configuration or add it to the exchange pairs management systen in %s_wrapper.go",
+				e.Name,
+				assetTypes[x],
+				strings.ToLower(e.Name))
+		}
 		cfgPS, err := e.Config.CurrencyPairs.Get(assetTypes[x])
 		if err != nil {
 			return err

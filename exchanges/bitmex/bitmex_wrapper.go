@@ -220,11 +220,9 @@ func (b *Bitmex) UpdateTradablePairs(forceUpdate bool) error {
 	// Zerovalue current list which will remove old asset pairs when contract
 	// types expire or become obsolete
 	var assetPairs = map[asset.Item][]string{
-		asset.Index:                  {},
-		asset.PerpetualContract:      {},
-		asset.UpsideProfitContract:   {},
-		asset.DownsideProfitContract: {},
-		asset.Futures:                {},
+		asset.Index:             {},
+		asset.PerpetualContract: {},
+		asset.Futures:           {},
 	}
 
 	for x := range pairs {
