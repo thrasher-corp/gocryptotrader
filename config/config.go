@@ -485,7 +485,31 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 		if err == nil {
 			if len(enabledPairs) != 0 {
 				atLeastOneEnabled = true
+				continue
 			}
+
+			enabled, err := c.AssetTypeEnabled(assetTypes[x], exchName)
+			if err != nil {
+				return err
+			}
+
+			if !enabled {
+				continue
+			}
+
+			availPairs, err := c.GetAvailablePairs(exchName, assetTypes[x])
+			if err != nil {
+				return err
+			}
+
+			err = c.SetPairs(exchName,
+				assetTypes[x],
+				true,
+				currency.Pairs{availPairs.GetRandomPair()})
+			if err != nil {
+				return err
+			}
+			atLeastOneEnabled = true
 			continue
 		}
 
@@ -524,7 +548,26 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 
 		if len(pairs) != 0 {
 			atLeastOneEnabled = true
+			continue
 		}
+
+		enabled, err := c.AssetTypeEnabled(assetTypes[x], exchName)
+		if err != nil {
+			return err
+		}
+
+		if !enabled {
+			continue
+		}
+
+		err = c.SetPairs(exchName,
+			assetTypes[x],
+			true,
+			currency.Pairs{availPairs.GetRandomPair()})
+		if err != nil {
+			return err
+		}
+		atLeastOneEnabled = true
 	}
 
 	// If no pair is enabled across the entire range of assets, then atleast
@@ -1786,4 +1829,18 @@ func (c *Config) RemoveExchange(exchName string) bool {
 		}
 	}
 	return false
+}
+
+// AssetTypeEnabled checks to see if the asset type is enabled in configuration
+func (c *Config) AssetTypeEnabled(a asset.Item, exch string) (bool, error) {
+	cfg, err := c.GetExchangeConfig(exch)
+	if err != nil {
+		return false, err
+	}
+
+	err = cfg.CurrencyPairs.IsAssetEnabled(a)
+	if err != nil {
+		return false, nil
+	}
+	return true, nil
 }
