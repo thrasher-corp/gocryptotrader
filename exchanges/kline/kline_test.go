@@ -2,7 +2,6 @@ package kline
 
 import (
 	"math/rand"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -15,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/sqlboiler/boil"
 )
 
 func TestValidateData(t *testing.T) {
@@ -445,9 +443,6 @@ func TestSeedFromDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	boil.DebugMode = true
-	boil.DebugWriter = os.Stdout
 
 	ret, err := SeedFromDatabase("Binance", currency.NewPairFromString("BTCUSDT"), OneDay, time.Now(), time.Now())
 	if err != nil {
