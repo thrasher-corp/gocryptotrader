@@ -783,3 +783,26 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 		})
 	}
 }
+
+func TestSubscribe(t *testing.T) {
+	err := g.CurrencyPairs.EnablePair(asset.Spot, currency.NewPair(
+		currency.LTC,
+		currency.USDT,
+	))
+	if err != nil {
+		t.Fatal(err)
+	}
+	subs, err := g.GenerateDefaultSubscriptions()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	payload, err := g.generatePayload(subs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(payload) != 4 {
+		t.Fatal("unexpected payload length")
+	}
+}

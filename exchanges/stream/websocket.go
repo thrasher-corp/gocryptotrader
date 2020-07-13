@@ -169,22 +169,6 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 	return nil
 }
 
-// SetupNewCustomConnection sets up an auth or unauth custom streaming
-// connection
-func (w *Websocket) SetupNewCustomConnection(c Connection, auth bool) error {
-	if c == nil {
-		return errors.New("connection is nil")
-	}
-
-	if auth {
-		w.AuthConn = c
-	} else {
-		w.Conn = c
-	}
-
-	return nil
-}
-
 // Connect initiates a websocket connection by using a package defined connection
 // function
 func (w *Websocket) Connect() error {

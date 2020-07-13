@@ -889,30 +889,6 @@ func TestEnable(t *testing.T) {
 	fmt.Print()
 }
 
-func TestSetupNewCustomConnection(t *testing.T) {
-	web := Websocket{
-		connector: connect,
-		Wg:        new(sync.WaitGroup),
-		ShutdownC: make(chan struct{}),
-	}
-	err := web.SetupNewCustomConnection(&WebsocketConnection{}, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = web.SetupNewCustomConnection(&WebsocketConnection{}, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = web.SetupNewCustomConnection(nil, true)
-	if err == nil {
-		t.Fatal("error cannot be nil")
-	}
-	err = web.SetupNewCustomConnection(nil, false)
-	if err == nil {
-		t.Fatal("error cannot be nil")
-	}
-}
-
 func TestSetupNewConnection(t *testing.T) {
 	web := Websocket{
 		connector:         connect,

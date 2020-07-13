@@ -40,19 +40,21 @@ func (g *Gateio) WsConnect() error {
 	}
 	go g.wsReadData()
 
-	if g.Websocket.CanUseAuthenticatedEndpoints() {
+	if g.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
 		err = g.wsServerSignIn()
 		if err != nil {
-			return err
-		}
-		var authsubs []stream.ChannelSubscription
-		authsubs, err = g.GenerateAuthenticatedSubscriptions()
-		if err != nil {
-			return err
-		}
-		err = g.Websocket.SubscribeToChannels(authsubs)
-		if err != nil {
-			return err
+			g.Websocket.DataHandler <- err
+			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		} else {
+			var authsubs []stream.ChannelSubscription
+			authsubs, err = g.GenerateAuthenticatedSubscriptions()
+			if err != nil {
+				return err
+			}
+			err = g.Websocket.SubscribeToChannels(authsubs)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -64,10 +66,6 @@ func (g *Gateio) WsConnect() error {
 }
 
 func (g *Gateio) wsServerSignIn() error {
-	if !g.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled",
-			g.Name)
-	}
 	nonce := int(time.Now().Unix() * 1000)
 	sigTemp := g.GenerateSignature(strconv.Itoa(nonce))
 	signature := crypto.Base64Encode(sigTemp)
@@ -500,6 +498,43 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 
 // Subscribe sends a websocket message to receive data from the channel
 func (g *Gateio) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	payloads, err := g.generatePayload(channelsToSubscribe)
+	if err != nil {
+		return err
+	}
+
+	var errs common.Errors
+	for k := range payloads {
+		resp, err := g.Websocket.Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		var response WebsocketAuthenticationResponse
+		err = json.Unmarshal(resp, &response)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		if response.Result.Status != "success" {
+			errs = append(errs, fmt.Errorf("%v could not subscribe to %v",
+				g.Name,
+				payloads[k].Method))
+			continue
+		}
+		g.Websocket.AddSuccessfulSubscriptions(payloads[k].Channels...)
+	}
+	if errs != nil {
+		return errs
+	}
+	return nil
+}
+
+func (g *Gateio) generatePayload(channelsToSubscribe []stream.ChannelSubscription) ([]WebsocketRequest, error) {
+	if len(channelsToSubscribe) == 0 {
+		return nil, errors.New("cannot generate payload, no channels supplied")
+	}
+
 	var payloads []WebsocketRequest
 channels:
 	for i := range channelsToSubscribe {
@@ -548,32 +583,7 @@ channels:
 			Channels: []stream.ChannelSubscription{channelsToSubscribe[i]},
 		})
 	}
-
-	var errs common.Errors
-	for k := range payloads {
-		resp, err := g.Websocket.Conn.SendMessageReturnResponse(payloads[k].ID, payloads[k])
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		var response WebsocketAuthenticationResponse
-		err = json.Unmarshal(resp, &response)
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		if response.Result.Status != "success" {
-			errs = append(errs, fmt.Errorf("%v could not subscribe to %v",
-				g.Name,
-				payloads[k].Method))
-			continue
-		}
-		g.Websocket.AddSuccessfulSubscriptions(payloads[k].Channels...)
-	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return payloads, nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
