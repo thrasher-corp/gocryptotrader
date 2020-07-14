@@ -33,6 +33,21 @@ type Ticker struct {
 	FFRAmountAvailable float64
 }
 
+// DerivativeDataResponse stores data for queried derivative
+type DerivativeDataResponse struct {
+	Key                  string
+	MTS                  float64
+	DerivPrice           float64
+	SpotPrice            float64
+	MarkPrice            float64
+	InsuranceFundBalance float64
+	NextFundingEventTS   float64
+	NextFundingAccured   float64
+	NextFundingStep      float64
+	CurrentFunding       float64
+	OpenInterest         float64
+}
+
 // Stat holds individual statistics from exchange
 type Stat struct {
 	Period int64   `json:"period"`

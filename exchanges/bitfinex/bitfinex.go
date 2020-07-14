@@ -62,6 +62,7 @@ const (
 
 	// Version 2 API endpoints
 	bitfinexAPIVersion2    = "/v2/"
+	bitfinexDerivativeData = "status/deriv?"
 	bitfinexPlatformStatus = "platform/status"
 	bitfinexTickerBatch    = "tickers"
 	bitfinexTicker         = "ticker/"
@@ -108,6 +109,53 @@ func (b *Bitfinex) GetPlatformStatus() (int, error) {
 	}
 
 	return -1, fmt.Errorf("unexpected platform status value %d", response[0])
+}
+
+// GetDerivativeData gets data for the queried derivative
+func (b *Bitfinex) GetDerivativeData(keys, startTime, endTime string, sort, limit int64) (DerivativeDataResponse, error) {
+	var result [][]interface{}
+	var response DerivativeDataResponse
+
+	params := url.Values{}
+	params.Set("keys", keys)
+	if startTime != "" {
+		params.Set("start", startTime)
+
+	}
+	if endTime != "" {
+		params.Set("start", endTime)
+
+	}
+	if sort != 0 {
+		params.Set("sort", strconv.FormatInt(sort, 10))
+	}
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	path := "https://api-pub.bitfinex.com" +
+		bitfinexAPIVersion2 +
+		bitfinexDerivativeData +
+		params.Encode()
+	fmt.Println(path)
+	err := b.SendHTTPRequest(path, &result, status)
+	if err != nil {
+		return response, err
+	}
+	if len(result) != 1 {
+		return response, fmt.Errorf("invalid response")
+	}
+	response.Key = result[0][0].(string)
+	response.MTS = result[0][1].(float64)
+	response.DerivPrice = result[0][3].(float64)
+	response.SpotPrice = result[0][4].(float64)
+	response.InsuranceFundBalance = result[0][6].(float64)
+	response.NextFundingEventTS = result[0][8].(float64)
+	response.NextFundingAccured = result[0][9].(float64)
+	response.NextFundingStep = result[0][10].(float64)
+	response.CurrentFunding = result[0][12].(float64)
+	response.MarkPrice = result[0][15].(float64)
+	response.OpenInterest = result[0][18].(float64)
+	return response, nil
 }
 
 // GetTickerBatch returns all supported ticker information

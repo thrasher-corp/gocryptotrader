@@ -62,6 +62,16 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func TestGetDerivativeData(t *testing.T) {
+	b.Verbose = true
+	t.Parallel()
+	a, err := b.GetDerivativeData("tBTCF0:USTF0", "", "", 0, 0)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetPlatformStatus(t *testing.T) {
 	t.Parallel()
 	result, err := b.GetPlatformStatus()
@@ -76,7 +86,8 @@ func TestGetPlatformStatus(t *testing.T) {
 
 func TestGetTickerBatch(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTickerBatch()
+	a, err := b.GetTickerBatch()
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}
