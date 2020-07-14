@@ -128,8 +128,8 @@ func TestAdd(t *testing.T) {
 	}
 
 	err = Add("", p, "", 0, 0)
-	if err != nil {
-		t.Fatal(err)
+	if err == nil {
+		t.Fatal("error cannot be nil")
 	}
 
 	if len(Items) != 1 {

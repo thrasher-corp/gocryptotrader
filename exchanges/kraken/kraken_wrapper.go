@@ -876,12 +876,12 @@ func (k *Kraken) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 		Interval: interval,
 	}
 
-	fmtP, err := k.FormatExchangeCurrency(pair, a)
+	formattedPair, err := k.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
 
-	candles, err := k.GetOHLC(assetTranslator.LookupCurrency(fmtP.Upper().String()), k.FormatExchangeKlineInterval(interval))
+	candles, err := k.GetOHLC(assetTranslator.LookupCurrency(formattedPair.Upper().String()), k.FormatExchangeKlineInterval(interval))
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -922,12 +922,12 @@ func (k *Kraken) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 		Interval: interval,
 	}
 
-	fmtP, err := k.FormatExchangeCurrency(pair, a)
+	formattedPair, err := k.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
 
-	candles, err := k.GetOHLC(assetTranslator.LookupCurrency(fmtP.Upper().String()), k.FormatExchangeKlineInterval(interval))
+	candles, err := k.GetOHLC(assetTranslator.LookupCurrency(formattedPair.Upper().String()), k.FormatExchangeKlineInterval(interval))
 	if err != nil {
 		return kline.Item{}, err
 	}

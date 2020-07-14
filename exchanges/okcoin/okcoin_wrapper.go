@@ -322,7 +322,7 @@ func (o *OKCoin) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 		}
 	}
 
-	fmtP, err := o.FormatExchangeCurrency(pair, a)
+	formattedPair, err := o.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -332,7 +332,7 @@ func (o *OKCoin) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end
 		Start:        start.UTC().Format(time.RFC3339),
 		End:          end.UTC().Format(time.RFC3339),
 		Granularity:  o.FormatExchangeKlineInterval(interval),
-		InstrumentID: fmtP.String(),
+		InstrumentID: formattedPair.String(),
 	}
 
 	candles, err := o.GetMarketData(req)
@@ -403,7 +403,7 @@ func (o *OKCoin) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 	}
 
 	dates := kline.CalcDateRanges(start, end, interval, o.Features.Enabled.Kline.ResultLimit)
-	fmtP, err := o.FormatExchangeCurrency(pair, a)
+	formattedPair, err := o.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -414,7 +414,7 @@ func (o *OKCoin) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, st
 			Start:        dates[x].Start.UTC().Format(time.RFC3339),
 			End:          dates[x].End.UTC().Format(time.RFC3339),
 			Granularity:  o.FormatExchangeKlineInterval(interval),
-			InstrumentID: fmtP.String(),
+			InstrumentID: formattedPair.String(),
 		}
 
 		candles, err := o.GetMarketData(req)

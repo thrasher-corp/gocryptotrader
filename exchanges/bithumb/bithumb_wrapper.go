@@ -612,12 +612,12 @@ func (b *Bithumb) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 		}
 	}
 
-	fmtP, err := b.FormatExchangeCurrency(pair, a)
+	formattedPair, err := b.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
 
-	candle, err := b.GetCandleStick(fmtP.String(),
+	candle, err := b.GetCandleStick(formattedPair.String(),
 		b.FormatExchangeKlineInterval(interval))
 	if err != nil {
 		return kline.Item{}, err

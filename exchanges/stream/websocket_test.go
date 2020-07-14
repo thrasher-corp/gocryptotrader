@@ -20,6 +20,37 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 )
 
+const (
+	websocketTestURL = "wss://www.bitmex.com/realtime"
+	useProxyTests    = false                     // Disabled by default. Freely available proxy servers that work all the time are difficult to find
+	proxyURL         = "http://212.186.171.4:80" // Replace with a usable proxy server
+)
+
+var dialer websocket.Dialer
+
+type testStruct struct {
+	Error error
+	WC    WebsocketConnection
+}
+
+type testRequest struct {
+	Event        string          `json:"event"`
+	RequestID    int64           `json:"reqid,omitempty"`
+	Pairs        []string        `json:"pair"`
+	Subscription testRequestData `json:"subscription,omitempty"`
+}
+
+// testRequestData contains details on WS channel
+type testRequestData struct {
+	Name     string `json:"name,omitempty"`
+	Interval int64  `json:"interval,omitempty"`
+	Depth    int64  `json:"depth,omitempty"`
+}
+
+type testResponse struct {
+	RequestID int64 `json:"reqid,omitempty"`
+}
+
 var defaultSetup = &WebsocketSetup{
 	Enabled:                          true,
 	AuthenticatedWebsocketAPISupport: true,
@@ -344,38 +375,6 @@ func TestSetCanUseAuthenticatedEndpoints(t *testing.T) {
 	if !result {
 		t.Error("expected `canUseAuthenticatedEndpoints` to be true")
 	}
-}
-
-const (
-	websocketTestURL  = "wss://www.bitmex.com/realtime"
-	returnResponseURL = "wss://ws.kraken.com"
-	useProxyTests     = false                     // Disabled by default. Freely available proxy servers that work all the time are difficult to find
-	proxyURL          = "http://212.186.171.4:80" // Replace with a usable proxy server
-)
-
-var dialer websocket.Dialer
-
-type testStruct struct {
-	Error error
-	WC    WebsocketConnection
-}
-
-type testRequest struct {
-	Event        string          `json:"event"`
-	RequestID    int64           `json:"reqid,omitempty"`
-	Pairs        []string        `json:"pair"`
-	Subscription testRequestData `json:"subscription,omitempty"`
-}
-
-// testRequestData contains details on WS channel
-type testRequestData struct {
-	Name     string `json:"name,omitempty"`
-	Interval int64  `json:"interval,omitempty"`
-	Depth    int64  `json:"depth,omitempty"`
-}
-
-type testResponse struct {
-	RequestID int64 `json:"reqid,omitempty"`
 }
 
 // TestDial logic test

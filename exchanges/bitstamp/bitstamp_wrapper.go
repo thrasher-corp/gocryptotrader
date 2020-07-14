@@ -687,13 +687,13 @@ func (b *Bitstamp) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		Interval: interval,
 	}
 
-	fmtP, err := b.FormatExchangeCurrency(pair, a)
+	formattedPair, err := b.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
 
 	candles, err := b.OHLC(
-		fmtP.Lower().String(),
+		formattedPair.Lower().String(),
 		start,
 		end,
 		b.FormatExchangeKlineInterval(interval),
@@ -739,14 +739,14 @@ func (b *Bitstamp) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 	}
 
 	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
-	fmtP, err := b.FormatExchangeCurrency(pair, a)
+	formattedPair, err := b.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
 
 	for x := range dates {
 		candles, err := b.OHLC(
-			fmtP.Lower().String(),
+			formattedPair.Lower().String(),
 			dates[x].Start,
 			dates[x].End,
 			b.FormatExchangeKlineInterval(interval),

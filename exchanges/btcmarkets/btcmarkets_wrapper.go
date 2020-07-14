@@ -810,12 +810,12 @@ func (b *BTCMarkets) GetHistoricCandles(pair currency.Pair, a asset.Item, start,
 		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
 
-	fmtP, err := b.FormatExchangeCurrency(pair, a)
+	formattedPair, err := b.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
 
-	candles, err := b.GetMarketCandles(fmtP.String(),
+	candles, err := b.GetMarketCandles(formattedPair.String(),
 		b.FormatExchangeKlineInterval(interval),
 		start,
 		end,
@@ -828,7 +828,7 @@ func (b *BTCMarkets) GetHistoricCandles(pair currency.Pair, a asset.Item, start,
 	}
 	ret := kline.Item{
 		Exchange: b.Name,
-		Pair:     fmtP,
+		Pair:     formattedPair,
 		Asset:    asset.Spot,
 		Interval: interval,
 	}

@@ -833,13 +833,13 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, 
 	}
 	dates := kline.CalcDateRanges(start, end, interval, c.Features.Enabled.Kline.ResultLimit)
 
-	fmtP, err := c.FormatExchangeCurrency(p, a)
+	formattedPair, err := c.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
 
 	for x := range dates {
-		history, err := c.GetHistoricRates(fmtP.String(),
+		history, err := c.GetHistoricRates(formattedPair.String(),
 			dates[x].Start.Format(time.RFC3339),
 			dates[x].End.Format(time.RFC3339),
 			gran)

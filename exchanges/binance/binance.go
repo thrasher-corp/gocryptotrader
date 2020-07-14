@@ -574,12 +574,12 @@ func (b *Binance) CheckSymbol(symbol string, assetType asset.Item) error {
 		return err
 	}
 	for x := range enPairs {
-		var fmtP currency.Pair
-		fmtP, err = b.FormatExchangeCurrency(enPairs[x], assetType)
+		var formattedPair currency.Pair
+		formattedPair, err = b.FormatExchangeCurrency(enPairs[x], assetType)
 		if err != nil {
 			return err
 		}
-		if fmtP.String() == symbol {
+		if formattedPair.String() == symbol {
 			return nil
 		}
 	}

@@ -70,7 +70,6 @@ func (s *Service) Update(b *Base) error {
 	switch {
 	case s.Books[name] == nil:
 		s.Books[name] = make(map[*currency.Item]map[*currency.Item]map[asset.Item]*Book)
-		s.Books[name][b.Pair.Base.Item] = make(map[*currency.Item]map[asset.Item]*Book)
 		fallthrough
 	case s.Books[name][b.Pair.Base.Item] == nil:
 		s.Books[name][b.Pair.Base.Item] = make(map[*currency.Item]map[asset.Item]*Book)

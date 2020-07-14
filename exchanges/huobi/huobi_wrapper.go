@@ -994,14 +994,14 @@ func (h *HUOBI) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end 
 		}
 	}
 
-	fmtP, err := h.FormatExchangeCurrency(pair, a)
+	formattedPair, err := h.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
 
 	klineParams := KlinesRequestParams{
 		Period: h.FormatExchangeKlineInterval(interval),
-		Symbol: fmtP.String(),
+		Symbol: formattedPair.String(),
 	}
 
 	candles, err := h.GetSpotKline(klineParams)

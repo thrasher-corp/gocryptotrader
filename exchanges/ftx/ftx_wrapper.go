@@ -281,13 +281,13 @@ func (f *FTX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price
 		return nil, err
 	}
 	for a := range allPairs {
-		fmtP, err := f.FormatExchangeCurrency(allPairs[a], assetType)
+		formattedPair, err := f.FormatExchangeCurrency(allPairs[a], assetType)
 		if err != nil {
 			return nil, err
 		}
 
 		for x := range markets {
-			if markets[x].Name != fmtP.String() {
+			if markets[x].Name != formattedPair.String() {
 				continue
 			}
 			var resp ticker.Price
@@ -331,11 +331,11 @@ func (f *FTX) FetchOrderbook(currency currency.Pair, assetType asset.Item) (*ord
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (f *FTX) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
-	fmtP, err := f.FormatExchangeCurrency(p, assetType)
+	formattedPair, err := f.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
-	tempResp, err := f.GetOrderbook(fmtP.String(), 0)
+	tempResp, err := f.GetOrderbook(formattedPair.String(), 0)
 	if err != nil {
 		return orderBook, err
 	}
@@ -498,12 +498,12 @@ func (f *FTX) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		s.Side = order.Bid
 	}
 
-	fmtP, err := f.FormatExchangeCurrency(s.Pair, s.AssetType)
+	formattedPair, err := f.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
 		return resp, err
 	}
 
-	tempResp, err := f.Order(fmtP.String(),
+	tempResp, err := f.Order(formattedPair.String(),
 		s.Side.String(),
 		s.Type.String(),
 		"",
@@ -561,11 +561,11 @@ func (f *FTX) CancelOrder(order *order.Cancel) error {
 // CancelAllOrders cancels all orders associated with a currency pair
 func (f *FTX) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
-	fmtP, err := f.FormatExchangeCurrency(orderCancellation.Pair, orderCancellation.AssetType)
+	formattedPair, err := f.FormatExchangeCurrency(orderCancellation.Pair, orderCancellation.AssetType)
 	if err != nil {
 		return resp, err
 	}
-	orders, err := f.GetOpenOrders(fmtP.String())
+	orders, err := f.GetOpenOrders(formattedPair.String())
 	if err != nil {
 		return resp, err
 	}
@@ -718,13 +718,13 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 			return resp, err
 		}
 
-		fmtP, err := f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], assetType)
+		formattedPair, err := f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], assetType)
 		if err != nil {
 			return nil, err
 		}
 
 		var tempResp order.Detail
-		orderData, err := f.GetOpenOrders(fmtP.String())
+		orderData, err := f.GetOpenOrders(formattedPair.String())
 		if err != nil {
 			return resp, err
 		}
@@ -762,7 +762,7 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 			resp = append(resp, tempResp)
 		}
 
-		triggerOrderData, err := f.GetOpenTriggerOrders(fmtP.String(),
+		triggerOrderData, err := f.GetOpenTriggerOrders(formattedPair.String(),
 			getOrdersRequest.Type.String())
 		if err != nil {
 			return resp, err
@@ -813,13 +813,13 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			return resp, err
 		}
 
-		fmtP, err := f.FormatExchangeCurrency(getOrdersRequest.Pairs[x],
+		formattedPair, err := f.FormatExchangeCurrency(getOrdersRequest.Pairs[x],
 			assetType)
 		if err != nil {
 			return nil, err
 		}
 
-		orderData, err := f.FetchOrderHistory(fmtP.String(),
+		orderData, err := f.FetchOrderHistory(formattedPair.String(),
 			getOrdersRequest.StartTicks, getOrdersRequest.EndTicks, "")
 		if err != nil {
 			return resp, err
@@ -856,7 +856,7 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Fee = orderVars.Fee
 			resp = append(resp, tempResp)
 		}
-		triggerOrderData, err := f.GetTriggerOrderHistory(fmtP.String(),
+		triggerOrderData, err := f.GetTriggerOrderHistory(formattedPair.String(),
 			getOrdersRequest.StartTicks,
 			getOrdersRequest.EndTicks,
 			strings.ToLower(getOrdersRequest.Side.String()),
@@ -937,12 +937,12 @@ func (f *FTX) GetHistoricCandles(p currency.Pair, a asset.Item, start, end time.
 		}
 	}
 
-	fmtP, err := f.FormatExchangeCurrency(p, a)
+	formattedPair, err := f.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
 
-	ohlcData, err := f.GetHistoricalData(fmtP.String(),
+	ohlcData, err := f.GetHistoricalData(formattedPair.String(),
 		f.FormatExchangeKlineInterval(interval),
 		strconv.FormatInt(int64(f.Features.Enabled.Kline.ResultLimit), 10),
 		start, end)
@@ -987,13 +987,13 @@ func (f *FTX) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, e
 
 	dates := kline.CalcDateRanges(start, end, interval, f.Features.Enabled.Kline.ResultLimit)
 
-	fmtP, err := f.FormatExchangeCurrency(p, a)
+	formattedPair, err := f.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
 
 	for x := range dates {
-		ohlcData, err := f.GetHistoricalData(fmtP.String(),
+		ohlcData, err := f.GetHistoricalData(formattedPair.String(),
 			f.FormatExchangeKlineInterval(interval),
 			strconv.FormatInt(int64(f.Features.Enabled.Kline.ResultLimit), 10),
 			dates[x].Start, dates[x].End)

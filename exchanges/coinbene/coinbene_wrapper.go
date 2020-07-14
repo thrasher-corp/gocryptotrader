@@ -782,18 +782,18 @@ func (c *Coinbene) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		}
 	}
 
-	fmtP, err := c.FormatExchangeCurrency(pair, asset.PerpetualSwap)
+	formattedPair, err := c.FormatExchangeCurrency(pair, asset.PerpetualSwap)
 	if err != nil {
 		return kline.Item{}, err
 	}
 
 	var candles CandleResponse
 	if a == asset.PerpetualSwap {
-		candles, err = c.GetSwapKlines(fmtP.String(),
+		candles, err = c.GetSwapKlines(formattedPair.String(),
 			start, end,
 			c.FormatExchangeKlineInterval(interval))
 	} else {
-		candles, err = c.GetKlines(fmtP.String(),
+		candles, err = c.GetKlines(formattedPair.String(),
 			start, end,
 			c.FormatExchangeKlineInterval(interval))
 	}

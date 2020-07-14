@@ -825,7 +825,7 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 		Interval: interval,
 	}
 
-	fmtP, err := b.FormatExchangeCurrency(pair, a)
+	formattedPair, err := b.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
@@ -834,7 +834,7 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 	for x := range dates {
 		req := KlinesRequestParams{
 			Interval:  b.FormatExchangeKlineInterval(interval),
-			Symbol:    fmtP.String(),
+			Symbol:    formattedPair.String(),
 			StartTime: dates[x].Start.UTC().Unix() * 1000,
 			EndTime:   dates[x].End.UTC().Unix() * 1000,
 			Limit:     int(b.Features.Enabled.Kline.ResultLimit),

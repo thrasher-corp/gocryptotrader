@@ -669,12 +669,12 @@ func (p *Poloniex) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		}
 	}
 
-	fmtP, err := p.FormatExchangeCurrency(pair, a)
+	formattedPair, err := p.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
 
-	candles, err := p.GetChartData(fmtP.String(),
+	candles, err := p.GetChartData(formattedPair.String(),
 		start, end,
 		p.FormatExchangeKlineInterval(interval))
 	if err != nil {

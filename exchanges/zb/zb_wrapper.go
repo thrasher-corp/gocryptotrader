@@ -755,14 +755,14 @@ func (z *ZB) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end tim
 		}
 	}
 
-	fmtP, err := z.FormatExchangeCurrency(pair, a)
+	formattedPair, err := z.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
 
 	klineParams := KlinesRequestParams{
 		Type:   z.FormatExchangeKlineInterval(interval),
-		Symbol: fmtP.String(),
+		Symbol: formattedPair.String(),
 	}
 
 	candles, err := z.GetSpotKline(klineParams)

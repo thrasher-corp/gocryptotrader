@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"errors"
 	"sort"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -57,7 +58,7 @@ func Add(exchange string, p currency.Pair, a asset.Item, price, volume float64) 
 		volume == 0 ||
 		p.Base.IsEmpty() ||
 		p.Quote.IsEmpty() {
-		return nil
+		return errors.New("cannot add or update, invalid params")
 	}
 
 	if p.Base == currency.XBT {

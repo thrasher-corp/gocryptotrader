@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -897,8 +898,11 @@ func isDisconnectionError(err error) bool {
 
 // checkWebsocketURL checks for a valid websocket url
 func checkWebsocketURL(s string) error {
-	split := strings.Split(s, "://")
-	if len(split) < 1 || split[0] != "wss" && split[0] != "ws" {
+	u, err := url.Parse(s)
+	if err != nil {
+		return err
+	}
+	if u.Scheme != "ws" && u.Scheme != "wss" {
 		return fmt.Errorf("cannot set invalid websocket URL %s", s)
 	}
 	return nil

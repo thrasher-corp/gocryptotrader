@@ -113,12 +113,12 @@ channels:
 				continue channels
 			}
 
-			fmtP, err := f.FormatExchangeCurrency(channelsToSubscribe[i].Currency, a)
+			formattedPair, err := f.FormatExchangeCurrency(channelsToSubscribe[i].Currency, a)
 			if err != nil {
 				errs = append(errs, err)
 				continue channels
 			}
-			sub.Market = fmtP.String()
+			sub.Market = formattedPair.String()
 		}
 		err := f.Websocket.Conn.SendJSONMessage(sub)
 		if err != nil {
@@ -150,12 +150,12 @@ channels:
 				continue channels
 			}
 
-			fmtP, err := f.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, a)
+			formattedPair, err := f.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, a)
 			if err != nil {
 				errs = append(errs, err)
 				continue channels
 			}
-			unSub.Market = fmtP.String()
+			unSub.Market = formattedPair.String()
 		}
 		err := f.Websocket.Conn.SendJSONMessage(unSub)
 		if err != nil {
