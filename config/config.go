@@ -487,8 +487,8 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 				atLeastOneEnabled = true
 				continue
 			}
-
-			enabled, err := c.AssetTypeEnabled(assetTypes[x], exchName)
+			var enabled bool
+			enabled, err = c.AssetTypeEnabled(assetTypes[x], exchName)
 			if err != nil {
 				return err
 			}
@@ -497,7 +497,8 @@ func (c *Config) CheckPairConsistency(exchName string) error {
 				continue
 			}
 
-			availPairs, err := c.GetAvailablePairs(exchName, assetTypes[x])
+			var availPairs currency.Pairs
+			availPairs, err = c.GetAvailablePairs(exchName, assetTypes[x])
 			if err != nil {
 				return err
 			}
