@@ -3740,6 +3740,10 @@ func gctScriptUpload(c *cli.Context) error {
 	return nil
 }
 
+const klineMessage = "%v in seconds supported values are: 15, 60(1min), 180(3min), 300(5min), 600(10min), 900(15min), " +
+	"1800(30min), 3600(1h), 7200(2h), 14400(4h), 21600(6h), 28800(8h), 43200(12h), 86400(1d), 259200(3d) " +
+	"60480(1w), 1209600(2w), 1296000(15d), 2592000(1M), 31536000(1Y)"
+
 var candleRangeSize, candleGranularity int64
 var getHistoricCandlesCommand = cli.Command{
 	Name:      "gethistoriccandles",
@@ -3767,7 +3771,7 @@ var getHistoricCandlesCommand = cli.Command{
 		},
 		cli.Int64Flag{
 			Name:        "granularity, g",
-			Usage:       "example values are in seconds and can be one of the following {60 (1 Minute), 300 (5 Minute), 900 (15 Minute), 3600 (1 Hour), 21600 (6 Hour), 86400 (1 Day)}",
+			Usage:       fmt.Sprintf(klineMessage, "granularity"),
 			Value:       86400,
 			Destination: &candleGranularity,
 		},
@@ -3867,8 +3871,8 @@ func getHistoricCandles(c *cli.Context) error {
 
 var getHistoricCandlesExtendedCommand = cli.Command{
 	Name:      "gethistoriccandlesextended",
-	Usage:     "gets historical candles extended for the specified granularity up to range size time from now",
-	ArgsUsage: "<exchange> <pair> <asset> <rangesize> <granularity>",
+	Usage:     "gets historical candles for the specified pair, asset, interval & date range",
+	ArgsUsage: "<exchange> <pair> <asset> <interval> <start> <end>",
 	Action:    getHistoricCandlesExtended,
 	Flags: []cli.Flag{
 		cli.StringFlag{
@@ -3884,8 +3888,8 @@ var getHistoricCandlesExtendedCommand = cli.Command{
 			Usage: "the asset type of the currency pair",
 		},
 		cli.Int64Flag{
-			Name:        "granularity, g",
-			Usage:       "example values are in seconds and can be one of the following {60 (1 Minute), 300 (5 Minute), 900 (15 Minute), 3600 (1 Hour), 21600 (6 Hour), 86400 (1 Day)}",
+			Name:        "interval, i",
+			Usage:       fmt.Sprintf(klineMessage, "interval"),
 			Value:       86400,
 			Destination: &candleGranularity,
 		},
@@ -3945,8 +3949,8 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
-	if c.IsSet("granularity") {
-		candleGranularity = c.Int64("granularity")
+	if c.IsSet("interval") {
+		candleGranularity = c.Int64("interval")
 	} else if c.Args().Get(3) != "" {
 		candleGranularity, err = strconv.ParseInt(c.Args().Get(3), 10, 64)
 		if err != nil {
