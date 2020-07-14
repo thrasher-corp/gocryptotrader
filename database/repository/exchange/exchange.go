@@ -25,33 +25,32 @@ type Details struct {
 }
 
 // One returns one exchange by Name
-func One(in string) (out *Details, err error) {
+func One(in string) (out Details, err error) {
 	if database.DB.SQL == nil {
-		return nil, database.ErrDatabaseSupportDisabled
+		return out, database.ErrDatabaseSupportDisabled
 	}
 
-	out = new(Details)
 	whereQM := qm.Where("name = ?", in)
 	if repository.GetSQLDialect() == database.DBSQLite3 {
-		ret, err := modelSQLite.Exchanges(whereQM).One(context.Background(), database.DB.SQL)
-		if err != nil {
-			return nil, err
+		ret, errS := modelSQLite.Exchanges(whereQM).One(context.Background(), database.DB.SQL)
+		if errS != nil {
+			return out, errS
 		}
 		out.Name = ret.Name
-		out.UUID, err = uuid.FromString(ret.ID)
-		if err != nil {
-			return out, err
+		out.UUID, errS = uuid.FromString(ret.ID)
+		if errS != nil {
+			return out, errS
 		}
 	} else {
-		ret, err := modelPSQL.Exchanges(whereQM).One(context.Background(), database.DB.SQL)
-		if err != nil {
-			return nil, err
+		ret, errS := modelPSQL.Exchanges(whereQM).One(context.Background(), database.DB.SQL)
+		if errS != nil {
+			return out, errS
 		}
 		out.Name = ret.Name
 		out.UUID, _ = uuid.FromString(ret.ID)
 	}
 
-	return
+	return out, err
 }
 
 // OneByUUID returns one exchange by UUID
@@ -73,7 +72,7 @@ func Insert(in Details) {
 	ctx := boil.SkipTimestamps(context.Background())
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Insert transaction being failed: %v", err)
+		log.Errorf(log.DatabaseMgr, "Insert transaction failed: %v", err)
 		return
 	}
 
@@ -103,7 +102,7 @@ func Insert(in Details) {
 	}
 }
 
-// InsertMany writes multiple entries into databass
+// InsertMany writes multiple entries into database
 func InsertMany(in []Details) error {
 	if database.DB.SQL == nil {
 		return database.ErrDatabaseSupportDisabled

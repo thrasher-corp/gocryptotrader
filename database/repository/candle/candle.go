@@ -110,7 +110,7 @@ func Insert(in *Candle) error {
 	ctx := boil.SkipTimestamps(context.Background())
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Insert transaction being failed: %v", err)
+		log.Errorf(log.DatabaseMgr, "Insert transaction failed: %v", err)
 		return err
 	}
 

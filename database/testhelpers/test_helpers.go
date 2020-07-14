@@ -130,6 +130,7 @@ func MigrateDB(db *sql.DB) error {
 	return goose.Run("up", db, repository.GetSQLDialect(), MigrationDir, "")
 }
 
+// EnableVerboseTestOutput
 func EnableVerboseTestOutput() {
 	c := log.GenDefaultSettings()
 	log.GlobalLogConfig = &c

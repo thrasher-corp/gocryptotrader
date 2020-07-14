@@ -1,7 +1,10 @@
 package kline
 
 import (
+	"fmt"
+	"io/ioutil"
 	"math/rand"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -11,6 +14,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -422,33 +427,126 @@ func TestItem_SortCandlesByTimestamp(t *testing.T) {
 }
 
 var (
-	dbcfg = &database.Config{
-		Enabled: true,
-		Driver:  "postgres",
-		Verbose: true,
-		ConnectionDetails: drivers.ConnectionDetails{
-			Host:     "localhost",
-			Port:     5432,
-			Username: "",
-			Password: "",
-			Database: "gct_dev",
-			SSLMode:  "disable",
-		},
-	}
+	verbose = true
 )
 
-func TestSeedFromDatabase(t *testing.T) {
+func setupTest(t *testing.T) {
+	var err error
 	testhelpers.MigrationDir = filepath.Join("..", "..", "database", "migrations")
-	_, err := testhelpers.ConnectToDatabase(dbcfg, true)
+	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
+	testhelpers.TempDir, err = ioutil.TempDir("", "gct-temp")
 	if err != nil {
-		t.Fatal(err)
+		fmt.Printf("failed to create temp file: %v", err)
+		os.Exit(1)
 	}
 
-	ret, err := SeedFromDatabase("Binance", currency.NewPairFromString("BTCUSDT"), OneDay, time.Now(), time.Now())
+	if verbose {
+		testhelpers.EnableVerboseTestOutput()
+	}
+
+	t.Cleanup(func() {
+		err = os.RemoveAll(testhelpers.TempDir)
+		if err != nil {
+			t.Fatalf("Failed to remove temp db file: %v", err)
+		}
+	})
+}
+
+func TestSeedFromDatabase(t *testing.T) {
+	setupTest(t)
+
+	testCases := []struct {
+		name   string
+		config *database.Config
+		seedDB func() error
+		runner func(t *testing.T)
+		closer func(dbConn *database.Instance) error
+	}{
+		{
+			name:   "postgresql",
+			config: testhelpers.PostgresTestDatabase,
+			seedDB: seedDB,
+		},
+		{
+			name: "SQLite",
+			config: &database.Config{
+				Driver:            database.DBSQLite3,
+				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
+			},
+			seedDB: seedDB,
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+
+		t.Run(test.name, func(t *testing.T) {
+			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
+				t.Skip("database not configured skipping test")
+			}
+
+			dbConn, err := testhelpers.ConnectToDatabase(test.config, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if test.seedDB != nil {
+				err = test.seedDB()
+				if err != nil {
+					t.Error(err)
+				}
+			}
+
+			ret, err := SeedFromDatabase("Binance", currency.NewPairFromString("BTCUSDT"), OneDay, time.Now(), time.Now())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if ret.Exchange != "Binance" {
+				t.Fatalf("uncorrect data returned: %v", ret.Exchange)
+			}
+
+			err = testhelpers.CloseDatabase(dbConn)
+			if err != nil {
+				t.Error(err)
+			}
+		})
+	}
+}
+
+// TODO: find a better way to handle this to remove duplication between candle test
+func seedDB() error {
+	err := exchange.Seed()
 	if err != nil {
-		t.Fatal(err)
+		return err
 	}
-	if ret.Exchange != "Binance" {
-		t.Fatalf("uncorrect data returned: %v", ret.Exchange)
+
+	return genOHCLVData()
+}
+
+func genOHCLVData() error {
+	exchangeUUID, err := exchange.UUIDByName("Binance")
+	if err != nil {
+		return err
 	}
+
+	tempCandles := &candle.Candle{
+		ExchangeID: exchangeUUID.String(),
+		Base:       "BTC",
+		Quote:      "USDT",
+		Interval:   "24h",
+	}
+
+	start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
+	for x := 0; x < 365; x++ {
+		tempCandles.Tick = append(tempCandles.Tick, candle.Tick{
+			Timestamp: start.Add(time.Hour * 24 * time.Duration(x)),
+			Open:      1000,
+			High:      1000,
+			Low:       1000,
+			Close:     1000,
+			Volume:    1000,
+		})
+	}
+
+	return candle.Insert(tempCandles)
 }
