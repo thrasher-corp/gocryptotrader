@@ -121,7 +121,6 @@ func (b *Bitfinex) SetDefaults() {
 				OrderbookFetching:      true,
 				AccountInfo:            true,
 				Subscribe:              true,
-				Unsubscribe:            true,
 				AuthenticatedEndpoints: true,
 				MessageCorrelation:     true,
 				DeadMansSwitch:         true,
@@ -183,23 +182,22 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = b.Websocket.Setup(
-		&stream.WebsocketSetup{
-			Enabled:                          exch.Features.Enabled.Websocket,
-			Verbose:                          exch.Verbose,
-			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-			DefaultURL:                       publicBitfinexWebsocketEndpoint,
-			ExchangeName:                     exch.Name,
-			RunningURL:                       exch.API.Endpoints.WebsocketURL,
-			Connector:                        b.WsConnect,
-			Subscriber:                       b.Subscribe,
-			UnSubscriber:                     b.Unsubscribe,
-			GenerateSubscriptions:            b.GenerateDefaultSubscriptions,
-			Features:                         &b.Features.Supports.WebsocketCapabilities,
-			OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-			UpdateEntriesByID:                true,
-		})
+	err = b.Websocket.Setup(&stream.WebsocketSetup{
+		Enabled:                          exch.Features.Enabled.Websocket,
+		Verbose:                          exch.Verbose,
+		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		DefaultURL:                       publicBitfinexWebsocketEndpoint,
+		ExchangeName:                     exch.Name,
+		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		Connector:                        b.WsConnect,
+		Subscriber:                       b.Subscribe,
+		UnSubscriber:                     b.Unsubscribe,
+		GenerateSubscriptions:            b.GenerateDefaultSubscriptions,
+		Features:                         &b.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+		UpdateEntriesByID:                true,
+	})
 	if err != nil {
 		return err
 	}
@@ -207,6 +205,7 @@ func (b *Bitfinex) Setup(exch *config.ExchangeConfig) error {
 	err = b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL:                  publicBitfinexWebsocketEndpoint,
 	})
 	if err != nil {
 		return err

@@ -86,12 +86,16 @@ func (b *Bitfinex) WsDataHandler() {
 	b.Websocket.Wg.Add(1)
 	defer b.Websocket.Wg.Done()
 	for {
-		resp := <-comms
-		if resp.Type == websocket.TextMessage {
-			err := b.wsHandleData(resp.Raw)
-			if err != nil {
-				b.Websocket.DataHandler <- err
+		select {
+		case resp := <-comms:
+			if resp.Type == websocket.TextMessage {
+				err := b.wsHandleData(resp.Raw)
+				if err != nil {
+					b.Websocket.DataHandler <- err
+				}
 			}
+		case <-b.Websocket.ShutdownC:
+			return
 		}
 	}
 }

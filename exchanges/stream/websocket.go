@@ -271,7 +271,7 @@ func (w *Websocket) dataMonitor() {
 			case <-w.ShutdownC:
 				return
 			default:
-				log.Errorf(log.WebsocketMgr,
+				log.Warnf(log.WebsocketMgr,
 					"%s exchange backlog in websocket processing detected",
 					w.exchangeName)
 				select {
@@ -385,6 +385,9 @@ func (w *Websocket) Shutdown() error {
 			return err
 		}
 	}
+
+	// flush any subscriptions from last connection if needed
+	w.subscriptions = nil
 
 	close(w.ShutdownC)
 	w.Wg.Wait()

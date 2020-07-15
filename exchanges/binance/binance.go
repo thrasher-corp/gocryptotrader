@@ -17,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -565,25 +564,6 @@ func (b *Binance) CheckLimit(limit int) error {
 		}
 	}
 	return errors.New("incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
-}
-
-// CheckSymbol checks value against a variable list
-func (b *Binance) CheckSymbol(symbol string, assetType asset.Item) error {
-	enPairs, err := b.GetAvailablePairs(assetType)
-	if err != nil {
-		return err
-	}
-	for x := range enPairs {
-		var formattedPair currency.Pair
-		formattedPair, err = b.FormatExchangeCurrency(enPairs[x], assetType)
-		if err != nil {
-			return err
-		}
-		if formattedPair.String() == symbol {
-			return nil
-		}
-	}
-	return errors.New("incorrect symbol values - please check available pairs in configuration")
 }
 
 // SetValues sets the default valid values

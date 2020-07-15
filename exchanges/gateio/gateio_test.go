@@ -784,7 +784,7 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 	}
 }
 
-func TestSubscribe(t *testing.T) {
+func TestGenerateDefaultSubscriptions(t *testing.T) {
 	err := g.CurrencyPairs.EnablePair(asset.Spot, currency.NewPair(
 		currency.LTC,
 		currency.USDT,
