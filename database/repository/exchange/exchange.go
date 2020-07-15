@@ -3,9 +3,9 @@ package exchange
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/gofrs/uuid"
-	"github.com/thrasher-corp/gocryptotrader/common/cache"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
@@ -14,15 +14,6 @@ import (
 	"github.com/thrasher-corp/sqlboiler/boil"
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
 )
-
-var (
-	exchangeCache = cache.New(10)
-)
-
-type Details struct {
-	UUID uuid.UUID
-	Name string
-}
 
 // One returns one exchange by Name
 func One(in string) (out Details, err error) {
@@ -188,6 +179,10 @@ func insertPostgresql(ctx context.Context, tx *sql.Tx, in []Details) (err error)
 
 // UUIDByName returns UUID of exchange
 func UUIDByName(in string) (uuid.UUID, error) {
+	fmt.Println("UUIDByName() Entered")
+	defer func() {
+		fmt.Println("UUIDByName() Exit")
+	}()
 	v := exchangeCache.Get(in)
 	if v != nil {
 		return v.(uuid.UUID), nil

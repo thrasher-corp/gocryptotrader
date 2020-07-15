@@ -452,7 +452,7 @@ func setupTest(t *testing.T) {
 	})
 }
 
-func TestSeedFromDatabase(t *testing.T) {
+func TestLoadFromDatabaseFromDatabase(t *testing.T) {
 	setupTest(t)
 
 	testCases := []struct {
@@ -497,7 +497,7 @@ func TestSeedFromDatabase(t *testing.T) {
 				}
 			}
 
-			ret, err := SeedFromDatabase("Binance", currency.NewPairFromString("BTCUSDT"), OneDay, time.Now(), time.Now())
+			ret, err := LoadFromDatabase("Binance", currency.NewPairFromString("BTCUSDT"), OneDay, time.Now(), time.Now())
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -1,7 +1,10 @@
 package seed
 
-import "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
+func setupEngine() {
+
+}
 
 func Run() error {
-	return exchange.Seed()
+	//	return exchange.Seed()
+	return nil
 }

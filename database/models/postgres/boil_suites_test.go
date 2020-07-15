@@ -158,6 +158,7 @@ func TestToOne(t *testing.T) {
 	t.Run("ScriptExecutionToScriptUsingScript", testScriptExecutionToOneScriptUsingScript)
 	t.Run("WithdrawalCryptoToWithdrawalHistoryUsingWithdrawalCrypto", testWithdrawalCryptoToOneWithdrawalHistoryUsingWithdrawalCrypto)
 	t.Run("WithdrawalFiatToWithdrawalHistoryUsingWithdrawalFiat", testWithdrawalFiatToOneWithdrawalHistoryUsingWithdrawalFiat)
+	t.Run("WithdrawalHistoryToExchangeUsingExchangeName", testWithdrawalHistoryToOneExchangeUsingExchangeName)
 }
 
 // TestOneToOne tests cannot be run in parallel
@@ -168,6 +169,7 @@ func TestOneToOne(t *testing.T) {}
 // or deadlocks can occur.
 func TestToMany(t *testing.T) {
 	t.Run("ExchangeToCandles", testExchangeToManyCandles)
+	t.Run("ExchangeToExchangeNameWithdrawalHistories", testExchangeToManyExchangeNameWithdrawalHistories)
 	t.Run("ScriptToScriptExecutions", testScriptToManyScriptExecutions)
 	t.Run("WithdrawalHistoryToWithdrawalCryptoWithdrawalCryptos", testWithdrawalHistoryToManyWithdrawalCryptoWithdrawalCryptos)
 	t.Run("WithdrawalHistoryToWithdrawalFiatWithdrawalFiats", testWithdrawalHistoryToManyWithdrawalFiatWithdrawalFiats)
@@ -180,12 +182,12 @@ func TestToOneSet(t *testing.T) {
 	t.Run("ScriptExecutionToScriptUsingScriptExecutions", testScriptExecutionToOneSetOpScriptUsingScript)
 	t.Run("WithdrawalCryptoToWithdrawalHistoryUsingWithdrawalCryptoWithdrawalCryptos", testWithdrawalCryptoToOneSetOpWithdrawalHistoryUsingWithdrawalCrypto)
 	t.Run("WithdrawalFiatToWithdrawalHistoryUsingWithdrawalFiatWithdrawalFiats", testWithdrawalFiatToOneSetOpWithdrawalHistoryUsingWithdrawalFiat)
+	t.Run("WithdrawalHistoryToExchangeUsingExchangeNameWithdrawalHistories", testWithdrawalHistoryToOneSetOpExchangeUsingExchangeName)
 }
 
 // TestToOneRemove tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToOneRemove(t *testing.T) {
-	t.Run("CandleToExchangeUsingCandles", testCandleToOneRemoveOpExchangeUsingExchange)
 	t.Run("ScriptExecutionToScriptUsingScriptExecutions", testScriptExecutionToOneRemoveOpScriptUsingScript)
 	t.Run("WithdrawalCryptoToWithdrawalHistoryUsingWithdrawalCryptoWithdrawalCryptos", testWithdrawalCryptoToOneRemoveOpWithdrawalHistoryUsingWithdrawalCrypto)
 	t.Run("WithdrawalFiatToWithdrawalHistoryUsingWithdrawalFiatWithdrawalFiats", testWithdrawalFiatToOneRemoveOpWithdrawalHistoryUsingWithdrawalFiat)
@@ -203,6 +205,7 @@ func TestOneToOneRemove(t *testing.T) {}
 // or deadlocks can occur.
 func TestToManyAdd(t *testing.T) {
 	t.Run("ExchangeToCandles", testExchangeToManyAddOpCandles)
+	t.Run("ExchangeToExchangeNameWithdrawalHistories", testExchangeToManyAddOpExchangeNameWithdrawalHistories)
 	t.Run("ScriptToScriptExecutions", testScriptToManyAddOpScriptExecutions)
 	t.Run("WithdrawalHistoryToWithdrawalCryptoWithdrawalCryptos", testWithdrawalHistoryToManyAddOpWithdrawalCryptoWithdrawalCryptos)
 	t.Run("WithdrawalHistoryToWithdrawalFiatWithdrawalFiats", testWithdrawalHistoryToManyAddOpWithdrawalFiatWithdrawalFiats)
@@ -211,7 +214,6 @@ func TestToManyAdd(t *testing.T) {
 // TestToManySet tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToManySet(t *testing.T) {
-	t.Run("ExchangeToCandles", testExchangeToManySetOpCandles)
 	t.Run("ScriptToScriptExecutions", testScriptToManySetOpScriptExecutions)
 	t.Run("WithdrawalHistoryToWithdrawalCryptoWithdrawalCryptos", testWithdrawalHistoryToManySetOpWithdrawalCryptoWithdrawalCryptos)
 	t.Run("WithdrawalHistoryToWithdrawalFiatWithdrawalFiats", testWithdrawalHistoryToManySetOpWithdrawalFiatWithdrawalFiats)
@@ -220,7 +222,6 @@ func TestToManySet(t *testing.T) {
 // TestToManyRemove tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToManyRemove(t *testing.T) {
-	t.Run("ExchangeToCandles", testExchangeToManyRemoveOpCandles)
 	t.Run("ScriptToScriptExecutions", testScriptToManyRemoveOpScriptExecutions)
 	t.Run("WithdrawalHistoryToWithdrawalCryptoWithdrawalCryptos", testWithdrawalHistoryToManyRemoveOpWithdrawalCryptoWithdrawalCryptos)
 	t.Run("WithdrawalHistoryToWithdrawalFiatWithdrawalFiats", testWithdrawalHistoryToManyRemoveOpWithdrawalFiatWithdrawalFiats)

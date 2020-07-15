@@ -113,10 +113,10 @@ func CheckValidConfig(config *drivers.ConnectionDetails) bool {
 }
 
 func migrateDB(db *sql.DB) error {
-	err := ResetDB(db)
-	if err != nil {
-		return err
-	}
+	// err := ResetDB(db)
+	// if err != nil {
+	// 	return err
+	// }
 	return MigrateDB(db)
 }
 

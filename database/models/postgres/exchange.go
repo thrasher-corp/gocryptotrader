@@ -50,14 +50,17 @@ var ExchangeWhere = struct {
 
 // ExchangeRels is where relationship names are stored.
 var ExchangeRels = struct {
-	Candles string
+	Candles                         string
+	ExchangeNameWithdrawalHistories string
 }{
-	Candles: "Candles",
+	Candles:                         "Candles",
+	ExchangeNameWithdrawalHistories: "ExchangeNameWithdrawalHistories",
 }
 
 // exchangeR is where relationships are stored.
 type exchangeR struct {
-	Candles CandleSlice
+	Candles                         CandleSlice
+	ExchangeNameWithdrawalHistories WithdrawalHistorySlice
 }
 
 // NewStruct creates a new relationship struct
@@ -371,6 +374,27 @@ func (o *Exchange) Candles(mods ...qm.QueryMod) candleQuery {
 	return query
 }
 
+// ExchangeNameWithdrawalHistories retrieves all the withdrawal_history's WithdrawalHistories with an executor via exchange_name_id column.
+func (o *Exchange) ExchangeNameWithdrawalHistories(mods ...qm.QueryMod) withdrawalHistoryQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"withdrawal_history\".\"exchange_name_id\"=?", o.ID),
+	)
+
+	query := WithdrawalHistories(queryMods...)
+	queries.SetFrom(query.Query, "\"withdrawal_history\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"withdrawal_history\".*"})
+	}
+
+	return query
+}
+
 // LoadCandles allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for a 1-M or N-M relationship.
 func (exchangeL) LoadCandles(ctx context.Context, e boil.ContextExecutor, singular bool, maybeExchange interface{}, mods queries.Applicator) error {
@@ -397,7 +421,7 @@ func (exchangeL) LoadCandles(ctx context.Context, e boil.ContextExecutor, singul
 			}
 
 			for _, a := range args {
-				if queries.Equal(a, obj.ID) {
+				if a == obj.ID {
 					continue Outer
 				}
 			}
@@ -452,12 +476,107 @@ func (exchangeL) LoadCandles(ctx context.Context, e boil.ContextExecutor, singul
 
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
-			if queries.Equal(local.ID, foreign.ExchangeID) {
+			if local.ID == foreign.ExchangeID {
 				local.R.Candles = append(local.R.Candles, foreign)
 				if foreign.R == nil {
 					foreign.R = &candleR{}
 				}
 				foreign.R.Exchange = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadExchangeNameWithdrawalHistories allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (exchangeL) LoadExchangeNameWithdrawalHistories(ctx context.Context, e boil.ContextExecutor, singular bool, maybeExchange interface{}, mods queries.Applicator) error {
+	var slice []*Exchange
+	var object *Exchange
+
+	if singular {
+		object = maybeExchange.(*Exchange)
+	} else {
+		slice = *maybeExchange.(*[]*Exchange)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &exchangeR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &exchangeR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(qm.From(`withdrawal_history`), qm.WhereIn(`withdrawal_history.exchange_name_id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load withdrawal_history")
+	}
+
+	var resultSlice []*WithdrawalHistory
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice withdrawal_history")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on withdrawal_history")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for withdrawal_history")
+	}
+
+	if len(withdrawalHistoryAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.ExchangeNameWithdrawalHistories = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &withdrawalHistoryR{}
+			}
+			foreign.R.ExchangeName = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.ExchangeNameID {
+				local.R.ExchangeNameWithdrawalHistories = append(local.R.ExchangeNameWithdrawalHistories, foreign)
+				if foreign.R == nil {
+					foreign.R = &withdrawalHistoryR{}
+				}
+				foreign.R.ExchangeName = local
 				break
 			}
 		}
@@ -474,7 +593,7 @@ func (o *Exchange) AddCandles(ctx context.Context, exec boil.ContextExecutor, in
 	var err error
 	for _, rel := range related {
 		if insert {
-			queries.Assign(&rel.ExchangeID, o.ID)
+			rel.ExchangeID = o.ID
 			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
 				return errors.Wrap(err, "failed to insert into foreign table")
 			}
@@ -495,7 +614,7 @@ func (o *Exchange) AddCandles(ctx context.Context, exec boil.ContextExecutor, in
 				return errors.Wrap(err, "failed to update foreign table")
 			}
 
-			queries.Assign(&rel.ExchangeID, o.ID)
+			rel.ExchangeID = o.ID
 		}
 	}
 
@@ -519,73 +638,56 @@ func (o *Exchange) AddCandles(ctx context.Context, exec boil.ContextExecutor, in
 	return nil
 }
 
-// SetCandles removes all previously related items of the
-// exchange replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.Exchange's Candles accordingly.
-// Replaces o.R.Candles with related.
-// Sets related.R.Exchange's Candles accordingly.
-func (o *Exchange) SetCandles(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Candle) error {
-	query := "update \"candle\" set \"exchange_id\" = null where \"exchange_id\" = $1"
-	values := []interface{}{o.ID}
-	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, query)
-		fmt.Fprintln(boil.DebugWriter, values)
-	}
-
-	_, err := exec.ExecContext(ctx, query, values...)
-	if err != nil {
-		return errors.Wrap(err, "failed to remove relationships before set")
-	}
-
-	if o.R != nil {
-		for _, rel := range o.R.Candles {
-			queries.SetScanner(&rel.ExchangeID, nil)
-			if rel.R == nil {
-				continue
-			}
-
-			rel.R.Exchange = nil
-		}
-
-		o.R.Candles = nil
-	}
-	return o.AddCandles(ctx, exec, insert, related...)
-}
-
-// RemoveCandles relationships from objects passed in.
-// Removes related items from R.Candles (uses pointer comparison, removal does not keep order)
-// Sets related.R.Exchange.
-func (o *Exchange) RemoveCandles(ctx context.Context, exec boil.ContextExecutor, related ...*Candle) error {
+// AddExchangeNameWithdrawalHistories adds the given related objects to the existing relationships
+// of the exchange, optionally inserting them as new records.
+// Appends related to o.R.ExchangeNameWithdrawalHistories.
+// Sets related.R.ExchangeName appropriately.
+func (o *Exchange) AddExchangeNameWithdrawalHistories(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*WithdrawalHistory) error {
 	var err error
 	for _, rel := range related {
-		queries.SetScanner(&rel.ExchangeID, nil)
-		if rel.R != nil {
-			rel.R.Exchange = nil
-		}
-		if _, err = rel.Update(ctx, exec, boil.Whitelist("exchange_id")); err != nil {
-			return err
+		if insert {
+			rel.ExchangeNameID = o.ID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"withdrawal_history\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"exchange_name_id"}),
+				strmangle.WhereClause("\"", "\"", 2, withdrawalHistoryPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.ExchangeNameID = o.ID
 		}
 	}
+
 	if o.R == nil {
-		return nil
+		o.R = &exchangeR{
+			ExchangeNameWithdrawalHistories: related,
+		}
+	} else {
+		o.R.ExchangeNameWithdrawalHistories = append(o.R.ExchangeNameWithdrawalHistories, related...)
 	}
 
 	for _, rel := range related {
-		for i, ri := range o.R.Candles {
-			if rel != ri {
-				continue
+		if rel.R == nil {
+			rel.R = &withdrawalHistoryR{
+				ExchangeName: o,
 			}
-
-			ln := len(o.R.Candles)
-			if ln > 1 && i < ln-1 {
-				o.R.Candles[i] = o.R.Candles[ln-1]
-			}
-			o.R.Candles = o.R.Candles[:ln-1]
-			break
+		} else {
+			rel.R.ExchangeName = o
 		}
 	}
-
 	return nil
 }
 

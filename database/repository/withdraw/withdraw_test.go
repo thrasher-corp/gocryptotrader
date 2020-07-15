@@ -12,10 +12,11 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/drivers"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/sqlboiler/boil"
 )
 
 var (
@@ -46,6 +47,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestWithdraw(t *testing.T) {
+	boil.DebugMode = true
 	testCases := []struct {
 		name   string
 		config *database.Config
@@ -53,16 +55,16 @@ func TestWithdraw(t *testing.T) {
 		closer func(dbConn *database.Instance) error
 		output interface{}
 	}{
-		{
-			"SQLite-Write",
-			&database.Config{
-				Driver:            database.DBSQLite3,
-				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
-			},
-			withdrawHelper,
-			testhelpers.CloseDatabase,
-			nil,
-		},
+		// {
+		// 	"SQLite-Write",
+		// 	&database.Config{
+		// 		Driver:            database.DBSQLite3,
+		// 		ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
+		// 	},
+		// 	withdrawHelper,
+		// 	testhelpers.CloseDatabase,
+		// 	nil,
+		// },
 		{
 			"Postgres-Write",
 			testhelpers.PostgresTestDatabase,
@@ -80,6 +82,11 @@ func TestWithdraw(t *testing.T) {
 			}
 
 			dbConn, err := testhelpers.ConnectToDatabase(test.config, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = exchange.Seed()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -108,7 +115,7 @@ func withdrawHelper(t *testing.T) {
 			test := fmt.Sprintf("test-%v", x)
 			resp := &withdraw.Response{
 				Exchange: &withdraw.ExchangeResponse{
-					Name:   test,
+					Name:   "Binance",
 					ID:     test,
 					Status: test,
 				},

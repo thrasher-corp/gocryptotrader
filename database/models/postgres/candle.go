@@ -25,7 +25,7 @@ import (
 // Candle is an object representing the database table.
 type Candle struct {
 	ID         string      `boil:"id" json:"id" toml:"id" yaml:"id"`
-	ExchangeID null.String `boil:"exchange_id" json:"exchange_id,omitempty" toml:"exchange_id" yaml:"exchange_id,omitempty"`
+	ExchangeID string      `boil:"exchange_id" json:"exchange_id" toml:"exchange_id" yaml:"exchange_id"`
 	Base       string      `boil:"base" json:"base" toml:"base" yaml:"base"`
 	Quote      string      `boil:"quote" json:"quote" toml:"quote" yaml:"quote"`
 	Interval   string      `boil:"interval" json:"interval" toml:"interval" yaml:"interval"`
@@ -35,6 +35,7 @@ type Candle struct {
 	Low        float64     `boil:"low" json:"low" toml:"low" yaml:"low"`
 	Close      float64     `boil:"close" json:"close" toml:"close" yaml:"close"`
 	Volume     float64     `boil:"volume" json:"volume" toml:"volume" yaml:"volume"`
+	Asset      null.String `boil:"asset" json:"asset,omitempty" toml:"asset" yaml:"asset,omitempty"`
 
 	R *candleR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L candleL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -52,6 +53,7 @@ var CandleColumns = struct {
 	Low        string
 	Close      string
 	Volume     string
+	Asset      string
 }{
 	ID:         "id",
 	ExchangeID: "exchange_id",
@@ -64,9 +66,25 @@ var CandleColumns = struct {
 	Low:        "low",
 	Close:      "close",
 	Volume:     "volume",
+	Asset:      "asset",
 }
 
 // Generated where
+
+type whereHelperfloat64 struct{ field string }
+
+func (w whereHelperfloat64) EQ(x float64) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.EQ, x) }
+func (w whereHelperfloat64) NEQ(x float64) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.NEQ, x)
+}
+func (w whereHelperfloat64) LT(x float64) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.LT, x) }
+func (w whereHelperfloat64) LTE(x float64) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.LTE, x)
+}
+func (w whereHelperfloat64) GT(x float64) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GT, x) }
+func (w whereHelperfloat64) GTE(x float64) qm.QueryMod {
+	return qmhelper.Where(w.field, qmhelper.GTE, x)
+}
 
 type whereHelpernull_String struct{ field string }
 
@@ -91,24 +109,9 @@ func (w whereHelpernull_String) GTE(x null.String) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.GTE, x)
 }
 
-type whereHelperfloat64 struct{ field string }
-
-func (w whereHelperfloat64) EQ(x float64) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.EQ, x) }
-func (w whereHelperfloat64) NEQ(x float64) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.NEQ, x)
-}
-func (w whereHelperfloat64) LT(x float64) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.LT, x) }
-func (w whereHelperfloat64) LTE(x float64) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LTE, x)
-}
-func (w whereHelperfloat64) GT(x float64) qm.QueryMod { return qmhelper.Where(w.field, qmhelper.GT, x) }
-func (w whereHelperfloat64) GTE(x float64) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GTE, x)
-}
-
 var CandleWhere = struct {
 	ID         whereHelperstring
-	ExchangeID whereHelpernull_String
+	ExchangeID whereHelperstring
 	Base       whereHelperstring
 	Quote      whereHelperstring
 	Interval   whereHelperstring
@@ -118,9 +121,10 @@ var CandleWhere = struct {
 	Low        whereHelperfloat64
 	Close      whereHelperfloat64
 	Volume     whereHelperfloat64
+	Asset      whereHelpernull_String
 }{
 	ID:         whereHelperstring{field: "\"candle\".\"id\""},
-	ExchangeID: whereHelpernull_String{field: "\"candle\".\"exchange_id\""},
+	ExchangeID: whereHelperstring{field: "\"candle\".\"exchange_id\""},
 	Base:       whereHelperstring{field: "\"candle\".\"base\""},
 	Quote:      whereHelperstring{field: "\"candle\".\"quote\""},
 	Interval:   whereHelperstring{field: "\"candle\".\"interval\""},
@@ -130,6 +134,7 @@ var CandleWhere = struct {
 	Low:        whereHelperfloat64{field: "\"candle\".\"low\""},
 	Close:      whereHelperfloat64{field: "\"candle\".\"close\""},
 	Volume:     whereHelperfloat64{field: "\"candle\".\"volume\""},
+	Asset:      whereHelpernull_String{field: "\"candle\".\"asset\""},
 }
 
 // CandleRels is where relationship names are stored.
@@ -153,8 +158,8 @@ func (*candleR) NewStruct() *candleR {
 type candleL struct{}
 
 var (
-	candleAllColumns            = []string{"id", "exchange_id", "base", "quote", "interval", "timestamp", "open", "high", "low", "close", "volume"}
-	candleColumnsWithoutDefault = []string{"exchange_id", "base", "quote", "interval", "timestamp", "open", "high", "low", "close", "volume"}
+	candleAllColumns            = []string{"id", "exchange_id", "base", "quote", "interval", "timestamp", "open", "high", "low", "close", "volume", "asset"}
+	candleColumnsWithoutDefault = []string{"exchange_id", "base", "quote", "interval", "timestamp", "open", "high", "low", "close", "volume", "asset"}
 	candleColumnsWithDefault    = []string{"id"}
 	candlePrimaryKeyColumns     = []string{"id"}
 )
@@ -465,9 +470,7 @@ func (candleL) LoadExchange(ctx context.Context, e boil.ContextExecutor, singula
 		if object.R == nil {
 			object.R = &candleR{}
 		}
-		if !queries.IsNil(object.ExchangeID) {
-			args = append(args, object.ExchangeID)
-		}
+		args = append(args, object.ExchangeID)
 
 	} else {
 	Outer:
@@ -477,14 +480,12 @@ func (candleL) LoadExchange(ctx context.Context, e boil.ContextExecutor, singula
 			}
 
 			for _, a := range args {
-				if queries.Equal(a, obj.ExchangeID) {
+				if a == obj.ExchangeID {
 					continue Outer
 				}
 			}
 
-			if !queries.IsNil(obj.ExchangeID) {
-				args = append(args, obj.ExchangeID)
-			}
+			args = append(args, obj.ExchangeID)
 
 		}
 	}
@@ -539,7 +540,7 @@ func (candleL) LoadExchange(ctx context.Context, e boil.ContextExecutor, singula
 
 	for _, local := range slice {
 		for _, foreign := range resultSlice {
-			if queries.Equal(local.ExchangeID, foreign.ID) {
+			if local.ExchangeID == foreign.ID {
 				local.R.Exchange = foreign
 				if foreign.R == nil {
 					foreign.R = &exchangeR{}
@@ -580,7 +581,7 @@ func (o *Candle) SetExchange(ctx context.Context, exec boil.ContextExecutor, ins
 		return errors.Wrap(err, "failed to update local table")
 	}
 
-	queries.Assign(&o.ExchangeID, related.ID)
+	o.ExchangeID = related.ID
 	if o.R == nil {
 		o.R = &candleR{
 			Exchange: related,
@@ -597,37 +598,6 @@ func (o *Candle) SetExchange(ctx context.Context, exec boil.ContextExecutor, ins
 		related.R.Candles = append(related.R.Candles, o)
 	}
 
-	return nil
-}
-
-// RemoveExchange relationship.
-// Sets o.R.Exchange to nil.
-// Removes o from all passed in related items' relationships struct (Optional).
-func (o *Candle) RemoveExchange(ctx context.Context, exec boil.ContextExecutor, related *Exchange) error {
-	var err error
-
-	queries.SetScanner(&o.ExchangeID, nil)
-	if _, err = o.Update(ctx, exec, boil.Whitelist("exchange_id")); err != nil {
-		return errors.Wrap(err, "failed to update local table")
-	}
-
-	o.R.Exchange = nil
-	if related == nil || related.R == nil {
-		return nil
-	}
-
-	for i, ri := range related.R.Candles {
-		if queries.Equal(o.ExchangeID, ri.ExchangeID) {
-			continue
-		}
-
-		ln := len(related.R.Candles)
-		if ln > 1 && i < ln-1 {
-			related.R.Candles[i] = related.R.Candles[ln-1]
-		}
-		related.R.Candles = related.R.Candles[:ln-1]
-		break
-	}
 	return nil
 }
 

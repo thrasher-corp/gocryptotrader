@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -12,6 +13,7 @@ import (
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -39,6 +41,17 @@ func Event(res *withdraw.Response) {
 		return
 	}
 
+	exchangeUUID, err := exchange.UUIDByName(res.Exchange.Name)
+	if err != nil {
+		log.Error(log.DatabaseMgr, err)
+		err = tx.Rollback()
+		if err != nil {
+			log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
+		}
+		return
+	}
+
+	res.Exchange.Name = exchangeUUID.String()
 	if repository.GetSQLDialect() == database.DBSQLite3 {
 		err = addSQLiteEvent(ctx, tx, res)
 	} else {
@@ -66,12 +79,12 @@ func Event(res *withdraw.Response) {
 
 func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err error) {
 	var tempEvent = modelPSQL.WithdrawalHistory{
-		Exchange:     res.Exchange.Name,
-		ExchangeID:   res.Exchange.ID,
-		Status:       res.Exchange.Status,
-		Currency:     res.RequestDetails.Currency.String(),
-		Amount:       res.RequestDetails.Amount,
-		WithdrawType: int(res.RequestDetails.Type),
+		ExchangeNameID: res.Exchange.Name,
+		ExchangeID:     res.Exchange.ID,
+		Status:         res.Exchange.Status,
+		Currency:       res.RequestDetails.Currency.String(),
+		Amount:         res.RequestDetails.Amount,
+		WithdrawType:   int(res.RequestDetails.Type),
 	}
 
 	if res.RequestDetails.Description != "" {
@@ -335,8 +348,10 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			resp = append(resp, tempResp)
 		}
 	} else {
-		v, err := modelPSQL.WithdrawalHistories(q...).All(ctx, database.DB.SQL)
+		v, err := modelPSQL.WithdrawalHistories().All(ctx, database.DB.SQL)
+		//v, err := modelPSQL.WithdrawalHistories(q...).All(ctx, database.DB.SQL)
 		if err != nil {
+			fmt.Println("D:")
 			return nil, err
 		}
 
@@ -346,7 +361,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			tempResp.ID = newUUID
 			tempResp.Exchange = new(withdraw.ExchangeResponse)
 			tempResp.Exchange.ID = v[x].ExchangeID
-			tempResp.Exchange.Name = v[x].Exchange
+			tempResp.Exchange.Name = v[x].ExchangeNameID
 			tempResp.Exchange.Status = v[x].Status
 			tempResp.RequestDetails = new(withdraw.Request)
 			tempResp.RequestDetails = &withdraw.Request{

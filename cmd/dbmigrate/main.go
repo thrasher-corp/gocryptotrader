@@ -49,7 +49,7 @@ func main() {
 	fmt.Println(core.Copyright)
 	fmt.Println()
 
-	flag.StringVar(&command, "command", "", "command to run status|up|up-by-one|up-to|down|create")
+	flag.StringVar(&command, "command", "", "command to run seed|status|up|up-by-one|up-to|down|create")
 	flag.StringVar(&args, "args", "", "arguments to pass to goose")
 	flag.StringVar(&configFile, "config", config.DefaultFilePath(), "config file to load")
 	flag.StringVar(&defaultDataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")

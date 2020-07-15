@@ -3,7 +3,7 @@
 CREATE TABLE IF NOT EXISTS candle
 (
     ID uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    exchange_id uuid REFERENCES exchange(id),
+    exchange_id uuid REFERENCES exchange(id) NOT NULL,
     Base varchar(30) NOT NULL,
     Quote varchar(30) NOT NULL,
     Interval varchar(30) NOT NULL,

@@ -503,7 +503,7 @@ func testCandleToOneExchangeUsingExchange(t *testing.T) {
 	var foreign Exchange
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, candleDBTypes, true, candleColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &local, candleDBTypes, false, candleColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize Candle struct: %s", err)
 	}
 	if err := randomize.Struct(seed, &foreign, exchangeDBTypes, false, exchangeColumnsWithDefault...); err != nil {
@@ -514,7 +514,7 @@ func testCandleToOneExchangeUsingExchange(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	queries.Assign(&local.ExchangeID, foreign.ID)
+	local.ExchangeID = foreign.ID
 	if err := local.Insert(ctx, tx, boil.Infer()); err != nil {
 		t.Fatal(err)
 	}
@@ -524,7 +524,7 @@ func testCandleToOneExchangeUsingExchange(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !queries.Equal(check.ID, foreign.ID) {
+	if check.ID != foreign.ID {
 		t.Errorf("want: %v, got %v", foreign.ID, check.ID)
 	}
 
@@ -586,7 +586,7 @@ func testCandleToOneSetOpExchangeUsingExchange(t *testing.T) {
 		if x.R.Candles[0] != &a {
 			t.Error("failed to append to foreign relationship struct")
 		}
-		if !queries.Equal(a.ExchangeID, x.ID) {
+		if a.ExchangeID != x.ID {
 			t.Error("foreign key was wrong value", a.ExchangeID)
 		}
 
@@ -597,60 +597,9 @@ func testCandleToOneSetOpExchangeUsingExchange(t *testing.T) {
 			t.Fatal("failed to reload", err)
 		}
 
-		if !queries.Equal(a.ExchangeID, x.ID) {
+		if a.ExchangeID != x.ID {
 			t.Error("foreign key was wrong value", a.ExchangeID, x.ID)
 		}
-	}
-}
-
-func testCandleToOneRemoveOpExchangeUsingExchange(t *testing.T) {
-	var err error
-
-	ctx := context.Background()
-	tx := MustTx(boil.BeginTx(ctx, nil))
-	defer func() { _ = tx.Rollback() }()
-
-	var a Candle
-	var b Exchange
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, candleDBTypes, false, strmangle.SetComplement(candlePrimaryKeyColumns, candleColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	if err = randomize.Struct(seed, &b, exchangeDBTypes, false, strmangle.SetComplement(exchangePrimaryKeyColumns, exchangeColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-
-	if err = a.Insert(ctx, tx, boil.Infer()); err != nil {
-		t.Fatal(err)
-	}
-
-	if err = a.SetExchange(ctx, tx, true, &b); err != nil {
-		t.Fatal(err)
-	}
-
-	if err = a.RemoveExchange(ctx, tx, &b); err != nil {
-		t.Error("failed to remove relationship")
-	}
-
-	count, err := a.Exchange().Count(ctx, tx)
-	if err != nil {
-		t.Error(err)
-	}
-	if count != 0 {
-		t.Error("want no relationships remaining")
-	}
-
-	if a.R.Exchange != nil {
-		t.Error("R struct entry should be nil")
-	}
-
-	if !queries.IsValuerNil(a.ExchangeID) {
-		t.Error("foreign key value should be nil")
-	}
-
-	if len(b.R.Candles) != 0 {
-		t.Error("failed to remove a from b's relationships")
 	}
 }
 
@@ -728,7 +677,7 @@ func testCandlesSelect(t *testing.T) {
 }
 
 var (
-	candleDBTypes = map[string]string{`ID`: `uuid`, `ExchangeID`: `uuid`, `Base`: `character varying`, `Quote`: `character varying`, `Interval`: `character varying`, `Timestamp`: `timestamp with time zone`, `Open`: `double precision`, `High`: `double precision`, `Low`: `double precision`, `Close`: `double precision`, `Volume`: `double precision`}
+	candleDBTypes = map[string]string{`ID`: `uuid`, `ExchangeID`: `uuid`, `Base`: `character varying`, `Quote`: `character varying`, `Interval`: `character varying`, `Timestamp`: `timestamp with time zone`, `Open`: `double precision`, `High`: `double precision`, `Low`: `double precision`, `Close`: `double precision`, `Volume`: `double precision`, `Asset`: `character varying`}
 	_             = bytes.MinRead
 )
 

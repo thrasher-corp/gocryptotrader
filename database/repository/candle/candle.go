@@ -171,7 +171,7 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in *Candle) error {
 func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Candle) error {
 	for x := range in.Tick {
 		var tempCandle = modelPSQL.Candle{
-			ExchangeID: null.NewString(in.ExchangeID, true),
+			ExchangeID: in.ExchangeID,
 			Base:       in.Base,
 			Quote:      in.Quote,
 			Interval:   in.Interval,
