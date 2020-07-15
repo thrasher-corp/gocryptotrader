@@ -61,9 +61,26 @@ func TestGetPerpsExchangeInfo(t *testing.T) {
 	}
 }
 
+func TestGetMarginExchangeInfo(t *testing.T) {
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://sapi.binance.com"
+	b.Verbose = true
+	a, err := b.GetMarginMarkets()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetExchangeInfo(t *testing.T) {
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://api.binance.com"
+	b.Verbose = true
 	t.Parallel()
-	_, err := b.GetExchangeInfo()
+	a, err := b.GetExchangeInfo()
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}

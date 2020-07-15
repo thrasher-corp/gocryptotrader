@@ -61,6 +61,14 @@ func (o *OKEX) GetFundingRate(marketName, limit string) ([]okgroup.PerpSwapFundi
 // GetPerpSwapMarkets gets perpetual swap markets' data
 func (o *OKEX) GetPerpSwapMarkets() ([]okgroup.TickerData, error) {
 	var resp []okgroup.TickerData
+	fmt.Println("https://www.okex.com" + okGroupPerpTickers)
+	return resp, common.SendHTTPGetRequest("https://www.okex.com"+okGroupPerpTickers, true, false, &resp)
+
+}
+
+// GetMarginMarkets gets perpetual swap markets' data
+func (o *OKEX) GetMarginMarkets() ([]okgroup.TickerData, error) {
+	var resp []okgroup.TickerData
 	return resp, common.SendHTTPGetRequest("https://www.okex.com"+okGroupPerpTickers, true, false, &resp)
 
 }

@@ -42,6 +42,7 @@ const (
 	userAccountStream = "/api/v3/userDataStream"
 	fundingRate       = "/fapi/v1/fundingRate?"
 	perpExchangeInfo  = "/fapi/v1/exchangeInfo"
+	marginGet
 
 	// Authenticated endpoints
 	newOrderTest = "/api/v3/order/test"
@@ -68,6 +69,15 @@ const (
 func (b *Binance) GetPerpMarkets() (PerpsExchangeInfo, error) {
 	var resp PerpsExchangeInfo
 	path := "https://fapi.binance.com" + perpExchangeInfo
+
+	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
+}
+
+// GetMarginMarkets returns exchange information. Check binance_types for more
+// information
+func (b *Binance) GetMarginMarkets() (PerpsExchangeInfo, error) {
+	var resp PerpsExchangeInfo
+	path := "https://sapi.binance.com" + perpExchangeInfo
 
 	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
 }
@@ -105,7 +115,7 @@ type Binance struct {
 // information
 func (b *Binance) GetExchangeInfo() (ExchangeInfo, error) {
 	var resp ExchangeInfo
-	path := b.API.Endpoints.URL + exchangeInfo
+	path := "https://api.binance.com" + exchangeInfo
 
 	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
 }
