@@ -72,6 +72,14 @@ func TestGetDerivativeData(t *testing.T) {
 	}
 }
 
+func TestGetMarginPairs(t *testing.T) {
+	a, err := b.GetMarginPairs()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetPlatformStatus(t *testing.T) {
 	t.Parallel()
 	result, err := b.GetPlatformStatus()

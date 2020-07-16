@@ -42,15 +42,15 @@ const (
 	userAccountStream = "/api/v3/userDataStream"
 	fundingRate       = "/fapi/v1/fundingRate?"
 	perpExchangeInfo  = "/fapi/v1/exchangeInfo"
-	marginGet
 
 	// Authenticated endpoints
-	newOrderTest = "/api/v3/order/test"
-	newOrder     = "/api/v3/order"
-	cancelOrder  = "/api/v3/order"
-	queryOrder   = "/api/v3/order"
-	openOrders   = "/api/v3/openOrders"
-	allOrders    = "/api/v3/allOrders"
+	newOrderTest       = "/api/v3/order/test"
+	newOrder           = "/api/v3/order"
+	cancelOrder        = "/api/v3/order"
+	queryOrder         = "/api/v3/order"
+	openOrders         = "/api/v3/openOrders"
+	allOrders          = "/api/v3/allOrders"
+	getInterestHistory = "/sapi/v1/margin/interestHistory"
 
 	// Withdraw API endpoints
 	withdrawEndpoint  = "/wapi/v3/withdraw.html"
@@ -62,7 +62,28 @@ const (
 	dustLog           = "/wapi/v3/userAssetDribbletLog.html"
 	tradeFee          = "/wapi/v3/tradeFee.html"
 	assetDetail       = "/wapi/v3/assetDetail.html"
+	interestHistory   = "/sapi/v1/lending/union/interesthistory"
 )
+
+// GetInterestHistory gets interest history for currency/currencies provided
+func (b *Binance) GetInterestHistory(symbol, lendingType string) ([]InterestHistoryData, error) {
+	var resp []InterestHistoryData
+
+	path := "https://sapi.binance.com" + interestHistory
+
+	params := url.Values{}
+
+	params.Set("lendingType", lendingType)
+
+	if symbol != "" {
+		params.Set("symbol", strings.ToUpper(symbol))
+	}
+
+	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, openOrdersLimit(symbol), &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
 
 // GetPerpMarkets returns exchange information. Check binance_types for more
 // information

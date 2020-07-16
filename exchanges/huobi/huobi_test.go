@@ -170,15 +170,18 @@ func TestGetTradeHistory(t *testing.T) {
 
 func TestGetMarketDetail(t *testing.T) {
 	t.Parallel()
-	_, err := h.GetMarketDetail(testSymbol)
+	a, err := h.GetMarketDetail(testSymbol)
+	t.Log(a)
 	if err != nil {
 		t.Errorf("Huobi TestGetTradeHistory: %s", err)
 	}
 }
 
 func TestGetSymbols(t *testing.T) {
+	h.Verbose = true
 	t.Parallel()
-	_, err := h.GetSymbols()
+	a, err := h.GetSymbols()
+	t.Log(a)
 	if err != nil {
 		t.Errorf("Huobi TestGetSymbols: %s", err)
 	}
@@ -186,14 +189,16 @@ func TestGetSymbols(t *testing.T) {
 
 func TestGetCurrencies(t *testing.T) {
 	t.Parallel()
-	_, err := h.GetCurrencies()
+	a, err := h.GetCurrencies()
+	t.Log(a)
 	if err != nil {
 		t.Errorf("Huobi TestGetCurrencies: %s", err)
 	}
 }
 
 func TestGetTicker(t *testing.T) {
-	_, err := h.GetTickers()
+	a, err := h.GetTickers()
+	t.Log(a)
 	if err != nil {
 		t.Error(err)
 	}

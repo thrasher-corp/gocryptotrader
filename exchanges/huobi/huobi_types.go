@@ -155,6 +155,7 @@ type Symbol struct {
 	MinimumOrderAmount float64 `json:"min-order-amt"`
 	MaximumOrderAmount float64 `json:"max-order-amt"`
 	MinimumOrderValue  float64 `json:"min-order-value"`
+	LeverageRatio      float64 `json:"leverage-ratio"`
 }
 
 // Account stores the account data

@@ -53,6 +53,15 @@ func areTestAPIKeysSet() bool {
 	return b.ValidateAPICredentials()
 }
 
+func TestFetchFundingHistory(t *testing.T) {
+	b.Verbose = true
+	a, err := b.FetchFundingHistory("")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetMarketsSummary(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetMarketsSummary()

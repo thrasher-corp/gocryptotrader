@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -26,8 +28,9 @@ type BTSE struct {
 }
 
 const (
-	btseAPIURL  = "https://api.btse.com"
-	btseAPIPath = "/spot/v2/"
+	btseAPIURL        = "https://api.btse.com"
+	btseAPIPath       = "/spot/v2/"
+	btseFuturesAPIURL = "https://api.btse.com/futures"
 
 	// Public endpoints
 	btseMarketOverview = "market_summary"
@@ -37,6 +40,7 @@ const (
 	btseTicker         = "ticker"
 	btseStats          = "stats"
 	btseTime           = "time"
+	btseFuturesFunding = "/api/v2.1/funding_history"
 
 	// Authenticated endpoints
 	btseAccount       = "account"
@@ -46,6 +50,20 @@ const (
 	btseFills         = "fills"
 	btseTimeLayout    = "2006-01-02 15:04:04"
 )
+
+// FetchFundingHistory gets funding history
+func (b *BTSE) FetchFundingHistory(symbol string) (map[string][]FundingHistoryData, error) {
+	var resp map[string][]FundingHistoryData
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	fmt.Println(btseFuturesAPIURL + btseFuturesFunding + params.Encode())
+	return resp, common.SendHTTPGetRequest(btseFuturesAPIURL+btseFuturesFunding+params.Encode(),
+		true,
+		true,
+		&resp)
+}
 
 // GetMarketsSummary stores market summary data
 func (b *BTSE) GetMarketsSummary() (*HighLevelMarketData, error) {

@@ -18,6 +18,48 @@ type TimeResponse struct {
 	Rfc1123  string `json:"rfc1123"`
 }
 
+// FuturesInstrumentData stores info for futures market
+type FuturesInstrumentData struct {
+	Instruments []struct {
+		Symbol          string  `json:"symbol"`
+		FutureType      string  `json:"type"`
+		Underlying      string  `json:"underlying"`
+		LastTradingTime string  `json:"lastTradingTime"`
+		TickSize        float64 `json:"tickSize"`
+		ContractSize    float64 `json:"contractSize"`
+		Tradable        bool    `json:"tradable"`
+		MarginLevels    []struct {
+			Contracts         float64 `json:"contracts"`
+			InitialMargin     float64 `json:"initialMargin"`
+			MaintenanceMargin float64 `json:"maintenanceMargin"`
+		} `json:"marginLevels"`
+	} `json:"instruments"`
+}
+
+// FuturesTickerData stores info for futures ticker
+type FuturesTickerData struct {
+	Tickers []struct {
+		Tag                   string  `json:"tag,omitempty"`
+		Pair                  string  `json:"pair,omitempty"`
+		Symbol                string  `json:"symbol,omitempty"`
+		MarkPrice             float64 `json:"markPrice,omitempty"`
+		Bid                   float64 `json:"bid,omitempty"`
+		BidSize               float64 `json:"bidSize,omitempty"`
+		Ask                   float64 `json:"ask,omitempty"`
+		AskSize               float64 `json:"askSize,omitempty"`
+		Vol24h                float64 `json:"vol24h,omitempty"`
+		OpenInterest          float64 `json:"openInterest,omitempty"`
+		Open24H               float64 `json:"open24h,omitempty"`
+		Last                  float64 `json:"last,omitempty"`
+		LastTime              string  `json:"lastTime,omitempty"`
+		LastSize              float64 `json:"lastSize,omitempty"`
+		Suspended             bool    `json:"suspended,omitempty"`
+		FundingRate           float64 `json:"fundingRate,omitempty"`
+		FundingRatePrediction float64 `json:"fundingRatePrediction,omitempty"`
+	} `json:"tickers"`
+	ServerTime string `json:"serverTime"`
+}
+
 // Asset holds asset information
 type Asset struct {
 	Altname         string `json:"altname"`

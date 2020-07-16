@@ -15,6 +15,15 @@ type Response struct {
 	Msg  string `json:"msg"`
 }
 
+// InterestHistoryData gets interest history data
+type InterestHistoryData struct {
+	Asset       string  `json:"asset"`
+	Interest    float64 `json:"interest"`
+	LendingType string  `json:"lendingType"`
+	ProductName string  `json:"productName"`
+	Time        string  `json:"time"`
+}
+
 // FundingRateData stores funding rates data
 type FundingRateData struct {
 	Symbol      string  `json:"symbol"`

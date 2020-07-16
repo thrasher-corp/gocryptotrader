@@ -7,6 +7,13 @@ const (
 	goodTillCancel = "gtc"
 )
 
+// FundingHistoryData stores funding history data
+type FundingHistoryData struct {
+	Time   int     `json:"time"`
+	Rate   float64 `json:"rate"`
+	Symbol string  `json:"symbol"`
+}
+
 // OverviewData stores market overview data
 type OverviewData struct {
 	High24Hr         float64 `json:"high24hr,string"`

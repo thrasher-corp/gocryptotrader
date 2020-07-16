@@ -63,6 +63,26 @@ func TestGetServerTime(t *testing.T) {
 	}
 }
 
+func TestGetFuturesMarkets(t *testing.T) {
+	t.Parallel()
+	k.Verbose = true
+	a, err := k.GetFuturesMarkets()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFuturesTickers(t *testing.T) {
+	t.Parallel()
+	k.Verbose = true
+	a, err := k.GetFuturesTickers()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // TestGetAssets API endpoint test
 func TestGetAssets(t *testing.T) {
 	t.Parallel()

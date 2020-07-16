@@ -38,10 +38,11 @@ const (
 	okGroupFundingTime           = "funding_time"
 	okGroupHistoricalFundingRate = "historical_funding_rate"
 	// ETT endpoints
-	okGroupConstituents  = "constituents"
-	okGroupDefinePrice   = "define-price"
-	okGroupPerpSwapRates = "/api/swap/v3/instruments/%s/historical_funding_rate?"
-	okGroupPerpTickers   = "/api/swap/v3/instruments/ticker"
+	okGroupConstituents    = "constituents"
+	okGroupDefinePrice     = "define-price"
+	okGroupPerpSwapRates   = "/api/swap/v3/instruments/%s/historical_funding_rate?"
+	okGroupPerpTickers     = "/api/swap/v3/instruments/ticker"
+	okGroupMarginMarkPrice = "/api/margin/v3/instruments/%s/mark_price"
 )
 
 // OKEX bases all account, spot and margin methods off okgroup implementation
@@ -63,14 +64,13 @@ func (o *OKEX) GetPerpSwapMarkets() ([]okgroup.TickerData, error) {
 	var resp []okgroup.TickerData
 	fmt.Println("https://www.okex.com" + okGroupPerpTickers)
 	return resp, common.SendHTTPGetRequest("https://www.okex.com"+okGroupPerpTickers, true, false, &resp)
-
 }
 
-// GetMarginMarkets gets perpetual swap markets' data
-func (o *OKEX) GetMarginMarkets() ([]okgroup.TickerData, error) {
-	var resp []okgroup.TickerData
-	return resp, common.SendHTTPGetRequest("https://www.okex.com"+okGroupPerpTickers, true, false, &resp)
-
+// MarginPairMarkPrice gets mark price for margin pair
+func (o *OKEX) MarginPairMarkPrice(pair string) (okgroup.MarginMarkPrice, error) {
+	var resp okgroup.MarginMarkPrice
+	fmt.Println("https://www.okex.com" + fmt.Sprintf(okGroupMarginMarkPrice, pair))
+	return resp, common.SendHTTPGetRequest("https://www.okex.com"+fmt.Sprintf(okGroupMarginMarkPrice, pair), true, false, &resp)
 }
 
 // GetFuturesPostions Get the information of all holding positions in futures trading.

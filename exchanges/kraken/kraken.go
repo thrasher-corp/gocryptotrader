@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -21,36 +22,39 @@ import (
 )
 
 const (
-	krakenAPIURL           = "https://api.kraken.com"
-	krakenAPIVersion       = "0"
-	krakenServerTime       = "Time"
-	krakenAssets           = "Assets"
-	krakenAssetPairs       = "AssetPairs"
-	krakenTicker           = "Ticker"
-	krakenOHLC             = "OHLC"
-	krakenDepth            = "Depth"
-	krakenTrades           = "Trades"
-	krakenSpread           = "Spread"
-	krakenBalance          = "Balance"
-	krakenTradeBalance     = "TradeBalance"
-	krakenOpenOrders       = "OpenOrders"
-	krakenClosedOrders     = "ClosedOrders"
-	krakenQueryOrders      = "QueryOrders"
-	krakenTradeHistory     = "TradesHistory"
-	krakenQueryTrades      = "QueryTrades"
-	krakenOpenPositions    = "OpenPositions"
-	krakenLedgers          = "Ledgers"
-	krakenQueryLedgers     = "QueryLedgers"
-	krakenTradeVolume      = "TradeVolume"
-	krakenOrderCancel      = "CancelOrder"
-	krakenOrderPlace       = "AddOrder"
-	krakenWithdrawInfo     = "WithdrawInfo"
-	krakenWithdraw         = "Withdraw"
-	krakenDepositMethods   = "DepositMethods"
-	krakenDepositAddresses = "DepositAddresses"
-	krakenWithdrawStatus   = "WithdrawStatus"
-	krakenWithdrawCancel   = "WithdrawCancel"
-	krakenWebsocketToken   = "GetWebSocketsToken"
+	krakenAPIURL             = "https://api.kraken.com"
+	krakenFuturesURL         = "https://futures.kraken.com"
+	krakenAPIVersion         = "0"
+	krakenServerTime         = "Time"
+	krakenAssets             = "Assets"
+	krakenAssetPairs         = "AssetPairs"
+	krakenTicker             = "Ticker"
+	krakenOHLC               = "OHLC"
+	krakenDepth              = "Depth"
+	krakenTrades             = "Trades"
+	krakenSpread             = "Spread"
+	krakenBalance            = "Balance"
+	krakenTradeBalance       = "TradeBalance"
+	krakenOpenOrders         = "OpenOrders"
+	krakenClosedOrders       = "ClosedOrders"
+	krakenQueryOrders        = "QueryOrders"
+	krakenTradeHistory       = "TradesHistory"
+	krakenQueryTrades        = "QueryTrades"
+	krakenOpenPositions      = "OpenPositions"
+	krakenLedgers            = "Ledgers"
+	krakenQueryLedgers       = "QueryLedgers"
+	krakenTradeVolume        = "TradeVolume"
+	krakenOrderCancel        = "CancelOrder"
+	krakenOrderPlace         = "AddOrder"
+	krakenWithdrawInfo       = "WithdrawInfo"
+	krakenWithdraw           = "Withdraw"
+	krakenDepositMethods     = "DepositMethods"
+	krakenDepositAddresses   = "DepositAddresses"
+	krakenWithdrawStatus     = "WithdrawStatus"
+	krakenWithdrawCancel     = "WithdrawCancel"
+	krakenWebsocketToken     = "GetWebSocketsToken"
+	krakenFuturesInstruments = "/derivatives/api/v3/instruments"
+	krakenFuturesTickers     = "/derivatives/api/v3/tickers"
 
 	// Rate limit consts
 	krakenRateInterval = time.Second
@@ -104,6 +108,18 @@ func (k *Kraken) SeedAssets() error {
 		assetTranslator.Seed(k, v.Altname)
 	}
 	return nil
+}
+
+// GetFuturesMarkets gets a list of futures markets and their data
+func (k *Kraken) GetFuturesMarkets() (FuturesInstrumentData, error) {
+	var resp FuturesInstrumentData
+	return resp, common.SendHTTPGetRequest(krakenFuturesURL+krakenFuturesInstruments, true, true, &resp)
+}
+
+// GetFuturesTickers gets a list of futures tickers and their data
+func (k *Kraken) GetFuturesTickers() (FuturesTickerData, error) {
+	var resp FuturesTickerData
+	return resp, common.SendHTTPGetRequest(krakenFuturesURL+krakenFuturesTickers, true, true, &resp)
 }
 
 // GetAssets returns a full asset list

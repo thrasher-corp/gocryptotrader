@@ -73,6 +73,7 @@ const (
 	bitfinexKeyPermissions = "key_info"
 	bitfinexMarginInfo     = "margin_infos"
 	bitfinexDepositMethod  = "conf/pub:map:currency:label"
+	bitfinexMarginPairs    = "conf/pub:list:pair:margin"
 
 	// Bitfinex platform status values
 	// When the platform is marked in maintenance mode bots should stop trading
@@ -109,6 +110,16 @@ func (b *Bitfinex) GetPlatformStatus() (int, error) {
 	}
 
 	return -1, fmt.Errorf("unexpected platform status value %d", response[0])
+}
+
+// GetMarginPairs gets pairs that allow margin trading
+func (b *Bitfinex) GetMarginPairs() ([][]string, error) {
+	var resp [][]string
+	path := "https://api-pub.bitfinex.com" +
+		bitfinexAPIVersion2 +
+		bitfinexMarginPairs
+	fmt.Println(path)
+	return resp, b.SendHTTPRequest(path, &resp, status)
 }
 
 // GetDerivativeData gets data for the queried derivative

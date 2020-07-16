@@ -37,6 +37,18 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	}
 }
 
+func TestGetInterestHistory(t *testing.T) {
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://sapi.binance.com"
+	b.Verbose = true
+	a, err := b.GetInterestHistory("", "DAILY")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetFundingRates(t *testing.T) {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))

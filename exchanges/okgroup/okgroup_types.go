@@ -14,6 +14,13 @@ const (
 	ImmediateOrCancelOrder
 )
 
+// MarginMarkPrice stores data of the currencies available for margin trading
+type MarginMarkPrice struct {
+InstrumentID string `json:"instrument_id"`
+MarkPrice float64 `json:"mark_price,string"`
+Timestamp string `json:"timestamp"`
+}
+
 // TickerData stores ticker data
 type TickerData struct {
 	InstrumentID string  `json:"instrument_id"`
