@@ -107,6 +107,8 @@ func TestWithdraw(t *testing.T) {
 
 func withdrawHelper(t *testing.T) {
 	t.Helper()
+
+	const binance = "Binance"
 	var wg sync.WaitGroup
 	for x := 0; x < 20; x++ {
 		wg.Add(1)
@@ -115,7 +117,7 @@ func withdrawHelper(t *testing.T) {
 			test := fmt.Sprintf("test-%v", x)
 			resp := &withdraw.Response{
 				Exchange: &withdraw.ExchangeResponse{
-					Name:   "Binance",
+					Name:   binance,
 					ID:     test,
 					Status: test,
 				},
@@ -151,12 +153,12 @@ func withdrawHelper(t *testing.T) {
 		}
 	}
 
-	v, err := GetEventsByExchange("test-1", 10)
+	v, err := GetEventsByExchange(binance, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = GetEventByExchangeID("test-1", "test-1")
+	_, err = GetEventByExchangeID(binance, "test-1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +172,7 @@ func withdrawHelper(t *testing.T) {
 		}
 	}
 
-	_, err = GetEventsByDate("test-1", time.Now().UTC().Add(-time.Minute), time.Now().UTC(), 5)
+	_, err = GetEventsByDate(binance, time.Now().UTC().Add(-time.Minute), time.Now().UTC(), 5)
 	if err != nil {
 		t.Fatal(err)
 	}

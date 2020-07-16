@@ -14,6 +14,10 @@ import (
 	"github.com/volatiletech/null"
 )
 
+var (
+	verbose = false
+)
+
 func TestMain(m *testing.M) {
 	var err error
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
@@ -21,6 +25,10 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		fmt.Printf("failed to create temp file: %v", err)
 		os.Exit(1)
+	}
+
+	if verbose {
+		testhelpers.EnableVerboseTestOutput()
 	}
 
 	t := m.Run()
@@ -60,8 +68,8 @@ func TestScript(t *testing.T) {
 		},
 	}
 
-	for _, tests := range testCases {
-		test := tests
+	for x := range testCases {
+		test := testCases[x]
 		t.Run(test.name, func(t *testing.T) {
 			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
 				t.Skip("database not configured skipping test")

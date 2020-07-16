@@ -3,7 +3,6 @@ package exchange
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -16,12 +15,22 @@ import (
 )
 
 // One returns one exchange by Name
-func One(in string) (out Details, err error) {
+func One(in string) (Details, error) {
+	return one(in, "name")
+}
+
+// OneByUUID returns one exchange by UUID
+func OneByUUID(in uuid.UUID) (Details, error) {
+	return one(in.String(), "id")
+}
+
+// one returns one exchange by clause
+func one(in, clause string) (out Details, err error) {
 	if database.DB.SQL == nil {
 		return out, database.ErrDatabaseSupportDisabled
 	}
 
-	whereQM := qm.Where("name = ?", in)
+	whereQM := qm.Where(clause+"= ?", in)
 	if repository.GetSQLDialect() == database.DBSQLite3 {
 		ret, errS := modelSQLite.Exchanges(whereQM).One(context.Background(), database.DB.SQL)
 		if errS != nil {
@@ -42,16 +51,6 @@ func One(in string) (out Details, err error) {
 	}
 
 	return out, err
-}
-
-// OneByUUID returns one exchange by UUID
-func OneByUUID(in uuid.UUID) (*modelPSQL.Exchange, error) {
-	if database.DB.SQL == nil {
-		return nil, database.ErrDatabaseSupportDisabled
-	}
-
-	return modelPSQL.FindExchange(context.Background(), database.DB.SQL,
-		in.String())
 }
 
 // Insert writes a single entry into database
@@ -179,15 +178,10 @@ func insertPostgresql(ctx context.Context, tx *sql.Tx, in []Details) (err error)
 
 // UUIDByName returns UUID of exchange
 func UUIDByName(in string) (uuid.UUID, error) {
-	fmt.Println("UUIDByName() Entered")
-	defer func() {
-		fmt.Println("UUIDByName() Exit")
-	}()
 	v := exchangeCache.Get(in)
 	if v != nil {
 		return v.(uuid.UUID), nil
 	}
-
 	ret, err := One(in)
 	if err != nil {
 		return uuid.UUID{}, err

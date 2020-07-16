@@ -6,5 +6,5 @@ ALTER TABLE withdrawal_history ADD CONSTRAINT fk_exchange_id_withdrawal_history 
 -- +goose Down
 -- SQL in this section is executed when the migration is rolled back.
 ALTER TABLE withdrawal_history DROP CONSTRAINT fk_exchange_id_withdrawal_history;
-ALTER TABLE withdrawal_history ALTER COLUMN exchange SET DATA TYPE TEXT;
 ALTER TABLE withdrawal_history RENAME COLUMN exchange_name_id TO exchange;
+ALTER TABLE withdrawal_history ALTER COLUMN exchange SET DATA TYPE TEXT;

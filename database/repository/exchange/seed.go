@@ -89,6 +89,7 @@ var (
 	}
 )
 
+// Seed will import seeded data to the database
 func Seed() error {
 	return InsertMany(allExchanges)
 }

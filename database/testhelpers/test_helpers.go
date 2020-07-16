@@ -113,10 +113,10 @@ func CheckValidConfig(config *drivers.ConnectionDetails) bool {
 }
 
 func migrateDB(db *sql.DB) error {
-	// err := ResetDB(db)
-	// if err != nil {
-	// 	return err
-	// }
+	err := ResetDB(db)
+	if err != nil {
+		return err
+	}
 	return MigrateDB(db)
 }
 
@@ -130,7 +130,7 @@ func MigrateDB(db *sql.DB) error {
 	return goose.Run("up", db, repository.GetSQLDialect(), MigrationDir, "")
 }
 
-// EnableVerboseTestOutput
+// EnableVerboseTestOutput enables debug output for SQL queries
 func EnableVerboseTestOutput() {
 	c := log.GenDefaultSettings()
 	log.GlobalLogConfig = &c

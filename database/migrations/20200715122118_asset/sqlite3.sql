@@ -1,8 +1,6 @@
 -- +goose Up
--- +goose StatementBegin
-SELECT 'up SQL query';
--- +goose StatementEnd
+-- SQL in this section is executed when the migration is applied.
+ALTER TABLE candle ADD COLUMN asset text;
 -- +goose Down
--- +goose StatementBegin
-SELECT 'down SQL query';
--- +goose StatementEnd
+-- SQL in this section is executed when the migration is rolled back.
+ALTER TABLE candle DROP COLUMN asset;

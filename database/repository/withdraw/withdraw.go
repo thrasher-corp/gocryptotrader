@@ -35,23 +35,19 @@ func Event(res *withdraw.Response) {
 	ctx := context.Background()
 	ctx = boil.SkipTimestamps(ctx)
 
+	exchangeUUID, err := exchange.UUIDByName(res.Exchange.Name)
+	if err != nil {
+		log.Error(log.DatabaseMgr, err)
+		return
+	}
+
+	res.Exchange.Name = exchangeUUID.String()
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
 		log.Errorf(log.DatabaseMgr, "Event transaction being failed: %v", err)
 		return
 	}
 
-	exchangeUUID, err := exchange.UUIDByName(res.Exchange.Name)
-	if err != nil {
-		log.Error(log.DatabaseMgr, err)
-		err = tx.Rollback()
-		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
-		}
-		return
-	}
-
-	res.Exchange.Name = exchangeUUID.String()
 	if repository.GetSQLDialect() == database.DBSQLite3 {
 		err = addSQLiteEvent(ctx, tx, res)
 	} else {
@@ -239,13 +235,23 @@ func GetEventByUUID(id string) (*withdraw.Response, error) {
 }
 
 // GetEventsByExchange returns all withdrawal requests by exchange
-func GetEventsByExchange(exchange string, limit int) ([]*withdraw.Response, error) {
-	return getByColumns(generateWhereQuery([]string{"exchange"}, []string{exchange}, limit))
+func GetEventsByExchange(in string, limit int) ([]*withdraw.Response, error) {
+	exch, err := exchange.UUIDByName(in)
+	if err != nil {
+		log.Error(log.DatabaseMgr, err)
+		return nil, err
+	}
+	return getByColumns(generateWhereQuery([]string{"exchange_name_id"}, []string{exch.String()}, limit))
 }
 
 // GetEventByExchangeID return requested withdraw information by Exchange ID
-func GetEventByExchangeID(exchange, id string) (*withdraw.Response, error) {
-	resp, err := getByColumns(generateWhereQuery([]string{"exchange", "exchange_id"}, []string{exchange, id}, 1))
+func GetEventByExchangeID(in, id string) (*withdraw.Response, error) {
+	exch, err := exchange.UUIDByName(in)
+	if err != nil {
+		log.Error(log.DatabaseMgr, err)
+		return nil, err
+	}
+	resp, err := getByColumns(generateWhereQuery([]string{"exchange_name_id", "exchange_id"}, []string{exch.String(), id}, 1))
 	if err != nil {
 		return nil, err
 	}
@@ -253,12 +259,17 @@ func GetEventByExchangeID(exchange, id string) (*withdraw.Response, error) {
 }
 
 // GetEventsByDate returns requested withdraw information by date range
-func GetEventsByDate(exchange string, start, end time.Time, limit int) ([]*withdraw.Response, error) {
+func GetEventsByDate(in string, start, end time.Time, limit int) ([]*withdraw.Response, error) {
 	betweenQuery := generateWhereBetweenQuery("created_at", start, end, limit)
-	if exchange == "" {
+	if in == "" {
 		return getByColumns(betweenQuery)
 	}
-	return getByColumns(append(generateWhereQuery([]string{"exchange"}, []string{exchange}, 0), betweenQuery...))
+	exch, err := exchange.UUIDByName(in)
+	if err != nil {
+		log.Error(log.DatabaseMgr, err)
+		return nil, err
+	}
+	return getByColumns(append(generateWhereQuery([]string{"exchange_name_id"}, []string{exch.String()}, 0), betweenQuery...))
 }
 
 func generateWhereQuery(columns, id []string, limit int) []qm.QueryMod {
@@ -348,8 +359,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			resp = append(resp, tempResp)
 		}
 	} else {
-		v, err := modelPSQL.WithdrawalHistories().All(ctx, database.DB.SQL)
-		//v, err := modelPSQL.WithdrawalHistories(q...).All(ctx, database.DB.SQL)
+		v, err := modelPSQL.WithdrawalHistories(q...).All(ctx, database.DB.SQL)
 		if err != nil {
 			fmt.Println("D:")
 			return nil, err
