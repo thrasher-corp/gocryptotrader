@@ -34,6 +34,7 @@ type Candle struct {
 	Low        float64     `boil:"Low" json:"Low" toml:"Low" yaml:"Low"`
 	Close      float64     `boil:"Close" json:"Close" toml:"Close" yaml:"Close"`
 	Volume     float64     `boil:"Volume" json:"Volume" toml:"Volume" yaml:"Volume"`
+	Asset      null.String `boil:"asset" json:"asset,omitempty" toml:"asset" yaml:"asset,omitempty"`
 
 	R *candleR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L candleL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -51,6 +52,7 @@ var CandleColumns = struct {
 	Low        string
 	Close      string
 	Volume     string
+	Asset      string
 }{
 	ID:         "id",
 	ExchangeID: "exchange_id",
@@ -63,6 +65,7 @@ var CandleColumns = struct {
 	Low:        "Low",
 	Close:      "Close",
 	Volume:     "Volume",
+	Asset:      "asset",
 }
 
 // Generated where
@@ -117,6 +120,7 @@ var CandleWhere = struct {
 	Low        whereHelperfloat64
 	Close      whereHelperfloat64
 	Volume     whereHelperfloat64
+	Asset      whereHelpernull_String
 }{
 	ID:         whereHelperstring{field: "\"candle\".\"id\""},
 	ExchangeID: whereHelpernull_String{field: "\"candle\".\"exchange_id\""},
@@ -129,6 +133,7 @@ var CandleWhere = struct {
 	Low:        whereHelperfloat64{field: "\"candle\".\"Low\""},
 	Close:      whereHelperfloat64{field: "\"candle\".\"Close\""},
 	Volume:     whereHelperfloat64{field: "\"candle\".\"Volume\""},
+	Asset:      whereHelpernull_String{field: "\"candle\".\"asset\""},
 }
 
 // CandleRels is where relationship names are stored.
@@ -152,8 +157,8 @@ func (*candleR) NewStruct() *candleR {
 type candleL struct{}
 
 var (
-	candleAllColumns            = []string{"id", "exchange_id", "Base", "Quote", "Interval", "Timestamp", "Open", "High", "Low", "Close", "Volume"}
-	candleColumnsWithoutDefault = []string{"id", "exchange_id", "Base", "Quote", "Interval", "Timestamp", "Open", "High", "Low", "Close", "Volume"}
+	candleAllColumns            = []string{"id", "exchange_id", "Base", "Quote", "Interval", "Timestamp", "Open", "High", "Low", "Close", "Volume", "asset"}
+	candleColumnsWithoutDefault = []string{"id", "exchange_id", "Base", "Quote", "Interval", "Timestamp", "Open", "High", "Low", "Close", "Volume", "asset"}
 	candleColumnsWithDefault    = []string{}
 	candlePrimaryKeyColumns     = []string{"id"}
 )
