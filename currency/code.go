@@ -83,7 +83,7 @@ func (b *BaseCodes) GetFullCurrencyData() (File, error) {
 		}
 	}
 
-	file.LastMainUpdate = b.LastMainUpdate
+	file.LastMainUpdate = b.LastMainUpdate.Unix()
 	return file, nil
 }
 

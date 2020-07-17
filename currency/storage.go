@@ -273,9 +273,7 @@ func (s *Storage) ForeignExchangeUpdater() {
 
 // SeedCurrencyAnalysisData sets a new instance of a coinmarketcap data.
 func (s *Storage) SeedCurrencyAnalysisData() error {
-	var firstRun bool
 	if s.currencyCodes.LastMainUpdate.IsZero() {
-		firstRun = true
 		b, err := ioutil.ReadFile(s.path)
 		if err != nil {
 			return s.FetchCurrencyAnalysisData()
@@ -293,7 +291,7 @@ func (s *Storage) SeedCurrencyAnalysisData() error {
 
 	// Based on update delay update the file
 	if time.Now().After(s.currencyCodes.LastMainUpdate.Add(s.currencyFileUpdateDelay)) ||
-		firstRun {
+		s.currencyCodes.LastMainUpdate.IsZero() {
 		err := s.FetchCurrencyAnalysisData()
 		if err != nil {
 			return err
@@ -324,7 +322,7 @@ func (s *Storage) WriteCurrencyDataToFile(path string, mainUpdate bool) error {
 
 	if mainUpdate {
 		t := time.Now()
-		data.LastMainUpdate = t
+		data.LastMainUpdate = t.Unix()
 		s.currencyCodes.LastMainUpdate = t
 	}
 
@@ -384,7 +382,19 @@ func (s *Storage) LoadFileCurrencyData(f *File) error {
 		}
 	}
 
-	s.currencyCodes.LastMainUpdate = f.LastMainUpdate
+	switch t := f.LastMainUpdate.(type) {
+	case string:
+		parseT, err := time.Parse(time.RFC3339Nano, t)
+		if err != nil {
+			return err
+		}
+		s.currencyCodes.LastMainUpdate = parseT
+	case float64:
+		s.currencyCodes.LastMainUpdate = time.Unix(int64(t), 0)
+	default:
+		return errors.New("unhandled type conversion for LastMainUpdate time")
+	}
+
 	return nil
 }
 

@@ -282,8 +282,8 @@ func TestBaseCode(t *testing.T) {
 			len(full.UnsetCurrency))
 	}
 
-	if !full.LastMainUpdate.IsZero() {
-		t.Errorf("BaseCode GetFullCurrencyData() error expected 0 but received %s",
+	if full.LastMainUpdate != -62135596800 {
+		t.Errorf("BaseCode GetFullCurrencyData() error expected -62135596800 but received %d",
 			full.LastMainUpdate)
 	}
 
