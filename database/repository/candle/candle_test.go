@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
@@ -15,6 +16,15 @@ import (
 
 var (
 	verbose = true
+
+	testExchanges = []exchange.Details{
+		{
+			Name: "one",
+		},
+		{
+			Name: "two",
+		},
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -40,11 +50,11 @@ func TestMain(m *testing.M) {
 	os.Exit(t)
 }
 
-func TestSeries(t *testing.T) {
+func TestInsert(t *testing.T) {
 	testCases := []struct {
 		name   string
 		config *database.Config
-		seedDB func() error
+		seedDB func(includeOHLCVData bool) error
 		runner func(t *testing.T)
 		closer func(dbConn *database.Instance) error
 	}{
@@ -76,54 +86,126 @@ func TestSeries(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			err = test.seedDB()
-			if err != nil {
-				t.Error(err)
+			t.Cleanup(func() {
+				err = testhelpers.CloseDatabase(dbConn)
+				if err != nil {
+					t.Error(err)
+				}
+			})
+
+			if test.seedDB != nil {
+				err = test.seedDB(false)
+				if err != nil {
+					t.Fatal(err)
+				}
 			}
 
-			start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
-			end := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-			ret, err := Series("Binance", "BTC", "USDT", "24h", start, end)
+			data, err := genOHCLVData()
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(ret.Tick) != 365 {
-				t.Fatalf("unexpected number of results received:  %v", len(ret.Tick))
-			}
 
-			err = testhelpers.CloseDatabase(dbConn)
+			err = Insert(&data)
 			if err != nil {
-				t.Error(err)
+				t.Fatal(err)
 			}
 		})
 	}
 }
 
-func seedDB() error {
-	err := exchange.Seed()
-	if err != nil {
-		return err
+func TestSeries(t *testing.T) {
+	testCases := []struct {
+		name   string
+		config *database.Config
+		seedDB func(includeOHLCVData bool) error
+		runner func(t *testing.T)
+		closer func(dbConn *database.Instance) error
+	}{
+		{
+			name:   "postgresql",
+			config: testhelpers.PostgresTestDatabase,
+			seedDB: seedDB,
+		},
+		{
+			name: "SQLite",
+			config: &database.Config{
+				Driver:            database.DBSQLite3,
+				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
+			},
+			seedDB: seedDB,
+		},
 	}
 
-	return genOHCLVData()
+	for x := range testCases {
+		test := testCases[x]
+
+		t.Run(test.name, func(t *testing.T) {
+			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
+				t.Skip("database not configured skipping test")
+			}
+
+			dbConn, err := testhelpers.ConnectToDatabase(test.config, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			t.Cleanup(func() {
+				err = testhelpers.CloseDatabase(dbConn)
+				if err != nil {
+					t.Error(err)
+				}
+			})
+
+			if test.seedDB != nil {
+				err = test.seedDB(true)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
+			end := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+			ret, err := Series(testExchanges[0].Name, "BTC", "USDT", "24h", start, end)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(ret.Tick) != 365 {
+				t.Errorf("unexpected number of results received:  %v", len(ret.Tick))
+			}
+		})
+	}
 }
 
-func genOHCLVData() error {
-	exchangeUUID, err := exchange.UUIDByName("Binance")
+func seedDB(includeOHLCVData bool) error {
+	err := exchange.Seed(testExchanges)
 	if err != nil {
 		return err
 	}
 
-	tempCandles := &Candle{
-		ExchangeID: exchangeUUID.String(),
-		Base:       "BTC",
-		Quote:      "USDT",
-		Interval:   "24h",
+	if includeOHLCVData {
+		exchange.ResetExchangeCache()
+		data, err := genOHCLVData()
+		if err != nil {
+			return err
+		}
+		return Insert(&data)
 	}
+	return nil
+}
+
+func genOHCLVData() (out Candle, err error) {
+	exchangeUUID, err := exchange.UUIDByName(testExchanges[0].Name)
+	if err != nil {
+		return
+	}
+	out.ExchangeID = exchangeUUID.String()
+	out.Base = currency.BTC.String()
+	out.Quote = currency.USDT.String()
+	out.Interval = "24h"
 
 	start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 	for x := 0; x < 365; x++ {
-		tempCandles.Tick = append(tempCandles.Tick, Tick{
+		out.Tick = append(out.Tick, Tick{
 			Timestamp: start.Add(time.Hour * 24 * time.Duration(x)),
 			Open:      1000,
 			High:      1000,
@@ -133,5 +215,5 @@ func genOHCLVData() error {
 		})
 	}
 
-	return Insert(tempCandles)
+	return out, nil
 }

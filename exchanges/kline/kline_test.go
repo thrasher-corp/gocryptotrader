@@ -21,6 +21,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+var (
+	verbose       = false
+	testExchanges = []exchange.Details{
+		{
+			Name: "one",
+		},
+	}
+)
+
 func TestValidateData(t *testing.T) {
 	err := validateData(nil)
 	if err == nil {
@@ -426,10 +435,6 @@ func TestItem_SortCandlesByTimestamp(t *testing.T) {
 	}
 }
 
-var (
-	verbose = true
-)
-
 func setupTest(t *testing.T) {
 	var err error
 	testhelpers.MigrationDir = filepath.Join("..", "..", "database", "migrations")
@@ -458,7 +463,7 @@ func TestLoadFromDatabaseFromDatabase(t *testing.T) {
 	testCases := []struct {
 		name   string
 		config *database.Config
-		seedDB func() error
+		seedDB func(bool) error
 		runner func(t *testing.T)
 		closer func(dbConn *database.Instance) error
 	}{
@@ -491,17 +496,17 @@ func TestLoadFromDatabaseFromDatabase(t *testing.T) {
 			}
 
 			if test.seedDB != nil {
-				err = test.seedDB()
+				err = test.seedDB(true)
 				if err != nil {
 					t.Error(err)
 				}
 			}
 
-			ret, err := LoadFromDatabase("Binance", currency.NewPairFromString("BTCUSDT"), OneDay, time.Now(), time.Now())
+			ret, err := LoadFromDatabase(testExchanges[0].Name, currency.NewPairFromString("BTCUSDT"), OneDay, time.Now(), time.Now())
 			if err != nil {
 				t.Fatal(err)
 			}
-			if ret.Exchange != "Binance" {
+			if ret.Exchange != testExchanges[0].Name {
 				t.Fatalf("uncorrect data returned: %v", ret.Exchange)
 			}
 
@@ -514,31 +519,36 @@ func TestLoadFromDatabaseFromDatabase(t *testing.T) {
 }
 
 // TODO: find a better way to handle this to remove duplication between candle test
-func seedDB() error {
-	err := exchange.Seed()
+func seedDB(includeOHLCVData bool) error {
+	err := exchange.Seed(testExchanges)
 	if err != nil {
 		return err
 	}
 
-	return genOHCLVData()
+	if includeOHLCVData {
+		data, err := genOHCLVData()
+		if err != nil {
+			return err
+		}
+		return candle.Insert(&data)
+	}
+	return nil
 }
 
-func genOHCLVData() error {
-	exchangeUUID, err := exchange.UUIDByName("Binance")
+func genOHCLVData() (out candle.Candle, err error) {
+	exchangeUUID, err := exchange.UUIDByName(testExchanges[0].Name)
 	if err != nil {
-		return err
+		return
 	}
 
-	tempCandles := &candle.Candle{
-		ExchangeID: exchangeUUID.String(),
-		Base:       "BTC",
-		Quote:      "USDT",
-		Interval:   "24h",
-	}
+	out.ExchangeID = exchangeUUID.String()
+	out.Base = currency.BTC.String()
+	out.Quote = currency.USDT.String()
+	out.Interval = "24h"
 
 	start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 	for x := 0; x < 365; x++ {
-		tempCandles.Tick = append(tempCandles.Tick, candle.Tick{
+		out.Tick = append(out.Tick, candle.Tick{
 			Timestamp: start.Add(time.Hour * 24 * time.Duration(x)),
 			Open:      1000,
 			High:      1000,
@@ -548,5 +558,5 @@ func genOHCLVData() error {
 		})
 	}
 
-	return candle.Insert(tempCandles)
+	return out, nil
 }

@@ -21,6 +21,12 @@ import (
 
 var (
 	verbose = false
+
+	testExchanges = []exchange.Details{
+		{
+			Name: "one",
+		},
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -86,7 +92,7 @@ func TestWithdraw(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			err = exchange.Seed()
+			err = exchange.Seed(testExchanges)
 			if err != nil {
 				t.Fatal(err)
 			}

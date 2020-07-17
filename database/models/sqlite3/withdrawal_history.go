@@ -23,82 +23,85 @@ import (
 
 // WithdrawalHistory is an object representing the database table.
 type WithdrawalHistory struct {
-	ID           string      `boil:"id" json:"id" toml:"id" yaml:"id"`
-	Exchange     string      `boil:"exchange" json:"exchange" toml:"exchange" yaml:"exchange"`
-	ExchangeID   string      `boil:"exchange_id" json:"exchange_id" toml:"exchange_id" yaml:"exchange_id"`
-	Status       string      `boil:"status" json:"status" toml:"status" yaml:"status"`
-	Currency     string      `boil:"currency" json:"currency" toml:"currency" yaml:"currency"`
-	Amount       float64     `boil:"amount" json:"amount" toml:"amount" yaml:"amount"`
-	Description  null.String `boil:"description" json:"description,omitempty" toml:"description" yaml:"description,omitempty"`
-	WithdrawType int64       `boil:"withdraw_type" json:"withdraw_type" toml:"withdraw_type" yaml:"withdraw_type"`
-	CreatedAt    string      `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt    string      `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	ID             string      `boil:"id" json:"id" toml:"id" yaml:"id"`
+	ExchangeNameID string      `boil:"exchange_name_id" json:"exchange_name_id" toml:"exchange_name_id" yaml:"exchange_name_id"`
+	ExchangeID     string      `boil:"exchange_id" json:"exchange_id" toml:"exchange_id" yaml:"exchange_id"`
+	Status         string      `boil:"status" json:"status" toml:"status" yaml:"status"`
+	Currency       string      `boil:"currency" json:"currency" toml:"currency" yaml:"currency"`
+	Amount         float64     `boil:"amount" json:"amount" toml:"amount" yaml:"amount"`
+	Description    null.String `boil:"description" json:"description,omitempty" toml:"description" yaml:"description,omitempty"`
+	WithdrawType   int64       `boil:"withdraw_type" json:"withdraw_type" toml:"withdraw_type" yaml:"withdraw_type"`
+	CreatedAt      string      `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt      string      `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
 
 	R *withdrawalHistoryR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L withdrawalHistoryL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var WithdrawalHistoryColumns = struct {
-	ID           string
-	Exchange     string
-	ExchangeID   string
-	Status       string
-	Currency     string
-	Amount       string
-	Description  string
-	WithdrawType string
-	CreatedAt    string
-	UpdatedAt    string
+	ID             string
+	ExchangeNameID string
+	ExchangeID     string
+	Status         string
+	Currency       string
+	Amount         string
+	Description    string
+	WithdrawType   string
+	CreatedAt      string
+	UpdatedAt      string
 }{
-	ID:           "id",
-	Exchange:     "exchange",
-	ExchangeID:   "exchange_id",
-	Status:       "status",
-	Currency:     "currency",
-	Amount:       "amount",
-	Description:  "description",
-	WithdrawType: "withdraw_type",
-	CreatedAt:    "created_at",
-	UpdatedAt:    "updated_at",
+	ID:             "id",
+	ExchangeNameID: "exchange_name_id",
+	ExchangeID:     "exchange_id",
+	Status:         "status",
+	Currency:       "currency",
+	Amount:         "amount",
+	Description:    "description",
+	WithdrawType:   "withdraw_type",
+	CreatedAt:      "created_at",
+	UpdatedAt:      "updated_at",
 }
 
 // Generated where
 
 var WithdrawalHistoryWhere = struct {
-	ID           whereHelperstring
-	Exchange     whereHelperstring
-	ExchangeID   whereHelperstring
-	Status       whereHelperstring
-	Currency     whereHelperstring
-	Amount       whereHelperfloat64
-	Description  whereHelpernull_String
-	WithdrawType whereHelperint64
-	CreatedAt    whereHelperstring
-	UpdatedAt    whereHelperstring
+	ID             whereHelperstring
+	ExchangeNameID whereHelperstring
+	ExchangeID     whereHelperstring
+	Status         whereHelperstring
+	Currency       whereHelperstring
+	Amount         whereHelperfloat64
+	Description    whereHelpernull_String
+	WithdrawType   whereHelperint64
+	CreatedAt      whereHelperstring
+	UpdatedAt      whereHelperstring
 }{
-	ID:           whereHelperstring{field: "\"withdrawal_history\".\"id\""},
-	Exchange:     whereHelperstring{field: "\"withdrawal_history\".\"exchange\""},
-	ExchangeID:   whereHelperstring{field: "\"withdrawal_history\".\"exchange_id\""},
-	Status:       whereHelperstring{field: "\"withdrawal_history\".\"status\""},
-	Currency:     whereHelperstring{field: "\"withdrawal_history\".\"currency\""},
-	Amount:       whereHelperfloat64{field: "\"withdrawal_history\".\"amount\""},
-	Description:  whereHelpernull_String{field: "\"withdrawal_history\".\"description\""},
-	WithdrawType: whereHelperint64{field: "\"withdrawal_history\".\"withdraw_type\""},
-	CreatedAt:    whereHelperstring{field: "\"withdrawal_history\".\"created_at\""},
-	UpdatedAt:    whereHelperstring{field: "\"withdrawal_history\".\"updated_at\""},
+	ID:             whereHelperstring{field: "\"withdrawal_history\".\"id\""},
+	ExchangeNameID: whereHelperstring{field: "\"withdrawal_history\".\"exchange_name_id\""},
+	ExchangeID:     whereHelperstring{field: "\"withdrawal_history\".\"exchange_id\""},
+	Status:         whereHelperstring{field: "\"withdrawal_history\".\"status\""},
+	Currency:       whereHelperstring{field: "\"withdrawal_history\".\"currency\""},
+	Amount:         whereHelperfloat64{field: "\"withdrawal_history\".\"amount\""},
+	Description:    whereHelpernull_String{field: "\"withdrawal_history\".\"description\""},
+	WithdrawType:   whereHelperint64{field: "\"withdrawal_history\".\"withdraw_type\""},
+	CreatedAt:      whereHelperstring{field: "\"withdrawal_history\".\"created_at\""},
+	UpdatedAt:      whereHelperstring{field: "\"withdrawal_history\".\"updated_at\""},
 }
 
 // WithdrawalHistoryRels is where relationship names are stored.
 var WithdrawalHistoryRels = struct {
+	ExchangeName      string
 	WithdrawalCryptos string
 	WithdrawalFiats   string
 }{
+	ExchangeName:      "ExchangeName",
 	WithdrawalCryptos: "WithdrawalCryptos",
 	WithdrawalFiats:   "WithdrawalFiats",
 }
 
 // withdrawalHistoryR is where relationships are stored.
 type withdrawalHistoryR struct {
+	ExchangeName      *Exchange
 	WithdrawalCryptos WithdrawalCryptoSlice
 	WithdrawalFiats   WithdrawalFiatSlice
 }
@@ -112,8 +115,8 @@ func (*withdrawalHistoryR) NewStruct() *withdrawalHistoryR {
 type withdrawalHistoryL struct{}
 
 var (
-	withdrawalHistoryAllColumns            = []string{"id", "exchange", "exchange_id", "status", "currency", "amount", "description", "withdraw_type", "created_at", "updated_at"}
-	withdrawalHistoryColumnsWithoutDefault = []string{"id", "exchange", "exchange_id", "status", "currency", "amount", "description", "withdraw_type"}
+	withdrawalHistoryAllColumns            = []string{"id", "exchange_name_id", "exchange_id", "status", "currency", "amount", "description", "withdraw_type", "created_at", "updated_at"}
+	withdrawalHistoryColumnsWithoutDefault = []string{"id", "exchange_name_id", "exchange_id", "status", "currency", "amount", "description", "withdraw_type"}
 	withdrawalHistoryColumnsWithDefault    = []string{"created_at", "updated_at"}
 	withdrawalHistoryPrimaryKeyColumns     = []string{"id"}
 )
@@ -393,6 +396,20 @@ func (q withdrawalHistoryQuery) Exists(ctx context.Context, exec boil.ContextExe
 	return count > 0, nil
 }
 
+// ExchangeName pointed to by the foreign key.
+func (o *WithdrawalHistory) ExchangeName(mods ...qm.QueryMod) exchangeQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("\"id\" = ?", o.ExchangeNameID),
+	}
+
+	queryMods = append(queryMods, mods...)
+
+	query := Exchanges(queryMods...)
+	queries.SetFrom(query.Query, "\"exchange\"")
+
+	return query
+}
+
 // WithdrawalCryptos retrieves all the withdrawal_crypto's WithdrawalCryptos with an executor.
 func (o *WithdrawalHistory) WithdrawalCryptos(mods ...qm.QueryMod) withdrawalCryptoQuery {
 	var queryMods []qm.QueryMod
@@ -433,6 +450,107 @@ func (o *WithdrawalHistory) WithdrawalFiats(mods ...qm.QueryMod) withdrawalFiatQ
 	}
 
 	return query
+}
+
+// LoadExchangeName allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for an N-1 relationship.
+func (withdrawalHistoryL) LoadExchangeName(ctx context.Context, e boil.ContextExecutor, singular bool, maybeWithdrawalHistory interface{}, mods queries.Applicator) error {
+	var slice []*WithdrawalHistory
+	var object *WithdrawalHistory
+
+	if singular {
+		object = maybeWithdrawalHistory.(*WithdrawalHistory)
+	} else {
+		slice = *maybeWithdrawalHistory.(*[]*WithdrawalHistory)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &withdrawalHistoryR{}
+		}
+		args = append(args, object.ExchangeNameID)
+
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &withdrawalHistoryR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ExchangeNameID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ExchangeNameID)
+
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(qm.From(`exchange`), qm.WhereIn(`exchange.id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load Exchange")
+	}
+
+	var resultSlice []*Exchange
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice Exchange")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results of eager load for exchange")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for exchange")
+	}
+
+	if len(withdrawalHistoryAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(resultSlice) == 0 {
+		return nil
+	}
+
+	if singular {
+		foreign := resultSlice[0]
+		object.R.ExchangeName = foreign
+		if foreign.R == nil {
+			foreign.R = &exchangeR{}
+		}
+		foreign.R.ExchangeNameWithdrawalHistories = append(foreign.R.ExchangeNameWithdrawalHistories, object)
+		return nil
+	}
+
+	for _, local := range slice {
+		for _, foreign := range resultSlice {
+			if local.ExchangeNameID == foreign.ID {
+				local.R.ExchangeName = foreign
+				if foreign.R == nil {
+					foreign.R = &exchangeR{}
+				}
+				foreign.R.ExchangeNameWithdrawalHistories = append(foreign.R.ExchangeNameWithdrawalHistories, local)
+				break
+			}
+		}
+	}
+
+	return nil
 }
 
 // LoadWithdrawalCryptos allows an eager lookup of values, cached into the
@@ -620,6 +738,53 @@ func (withdrawalHistoryL) LoadWithdrawalFiats(ctx context.Context, e boil.Contex
 				break
 			}
 		}
+	}
+
+	return nil
+}
+
+// SetExchangeName of the withdrawalHistory to the related item.
+// Sets o.R.ExchangeName to related.
+// Adds o to related.R.ExchangeNameWithdrawalHistories.
+func (o *WithdrawalHistory) SetExchangeName(ctx context.Context, exec boil.ContextExecutor, insert bool, related *Exchange) error {
+	var err error
+	if insert {
+		if err = related.Insert(ctx, exec, boil.Infer()); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE \"withdrawal_history\" SET %s WHERE %s",
+		strmangle.SetParamNames("\"", "\"", 0, []string{"exchange_name_id"}),
+		strmangle.WhereClause("\"", "\"", 0, withdrawalHistoryPrimaryKeyColumns),
+	)
+	values := []interface{}{related.ID, o.ID}
+
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, updateQuery)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	o.ExchangeNameID = related.ID
+	if o.R == nil {
+		o.R = &withdrawalHistoryR{
+			ExchangeName: related,
+		}
+	} else {
+		o.R.ExchangeName = related
+	}
+
+	if related.R == nil {
+		related.R = &exchangeR{
+			ExchangeNameWithdrawalHistories: WithdrawalHistorySlice{o},
+		}
+	} else {
+		related.R.ExchangeNameWithdrawalHistories = append(related.R.ExchangeNameWithdrawalHistories, o)
 	}
 
 	return nil

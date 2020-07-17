@@ -49,14 +49,17 @@ var ExchangeWhere = struct {
 
 // ExchangeRels is where relationship names are stored.
 var ExchangeRels = struct {
-	Candle string
+	Candle                          string
+	ExchangeNameWithdrawalHistories string
 }{
-	Candle: "Candle",
+	Candle:                          "Candle",
+	ExchangeNameWithdrawalHistories: "ExchangeNameWithdrawalHistories",
 }
 
 // exchangeR is where relationships are stored.
 type exchangeR struct {
-	Candle *Candle
+	Candle                          *Candle
+	ExchangeNameWithdrawalHistories WithdrawalHistorySlice
 }
 
 // NewStruct creates a new relationship struct
@@ -363,6 +366,27 @@ func (o *Exchange) Candle(mods ...qm.QueryMod) candleQuery {
 	return query
 }
 
+// ExchangeNameWithdrawalHistories retrieves all the withdrawal_history's WithdrawalHistories with an executor via exchange_name_id column.
+func (o *Exchange) ExchangeNameWithdrawalHistories(mods ...qm.QueryMod) withdrawalHistoryQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"withdrawal_history\".\"exchange_name_id\"=?", o.ID),
+	)
+
+	query := WithdrawalHistories(queryMods...)
+	queries.SetFrom(query.Query, "\"withdrawal_history\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"withdrawal_history\".*"})
+	}
+
+	return query
+}
+
 // LoadCandle allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for a 1-1 relationship.
 func (exchangeL) LoadCandle(ctx context.Context, e boil.ContextExecutor, singular bool, maybeExchange interface{}, mods queries.Applicator) error {
@@ -461,6 +485,101 @@ func (exchangeL) LoadCandle(ctx context.Context, e boil.ContextExecutor, singula
 	return nil
 }
 
+// LoadExchangeNameWithdrawalHistories allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (exchangeL) LoadExchangeNameWithdrawalHistories(ctx context.Context, e boil.ContextExecutor, singular bool, maybeExchange interface{}, mods queries.Applicator) error {
+	var slice []*Exchange
+	var object *Exchange
+
+	if singular {
+		object = maybeExchange.(*Exchange)
+	} else {
+		slice = *maybeExchange.(*[]*Exchange)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &exchangeR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &exchangeR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(qm.From(`withdrawal_history`), qm.WhereIn(`withdrawal_history.exchange_name_id in ?`, args...))
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load withdrawal_history")
+	}
+
+	var resultSlice []*WithdrawalHistory
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice withdrawal_history")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on withdrawal_history")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for withdrawal_history")
+	}
+
+	if len(withdrawalHistoryAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.ExchangeNameWithdrawalHistories = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &withdrawalHistoryR{}
+			}
+			foreign.R.ExchangeName = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.ExchangeNameID {
+				local.R.ExchangeNameWithdrawalHistories = append(local.R.ExchangeNameWithdrawalHistories, foreign)
+				if foreign.R == nil {
+					foreign.R = &withdrawalHistoryR{}
+				}
+				foreign.R.ExchangeName = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // SetCandle of the exchange to the related item.
 // Sets o.R.Candle to related.
 // Adds o to related.R.Exchange.
@@ -528,6 +647,59 @@ func (o *Exchange) RemoveCandle(ctx context.Context, exec boil.ContextExecutor, 
 	}
 
 	related.R.Exchange = nil
+	return nil
+}
+
+// AddExchangeNameWithdrawalHistories adds the given related objects to the existing relationships
+// of the exchange, optionally inserting them as new records.
+// Appends related to o.R.ExchangeNameWithdrawalHistories.
+// Sets related.R.ExchangeName appropriately.
+func (o *Exchange) AddExchangeNameWithdrawalHistories(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*WithdrawalHistory) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.ExchangeNameID = o.ID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"withdrawal_history\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 0, []string{"exchange_name_id"}),
+				strmangle.WhereClause("\"", "\"", 0, withdrawalHistoryPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.ExchangeNameID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &exchangeR{
+			ExchangeNameWithdrawalHistories: related,
+		}
+	} else {
+		o.R.ExchangeNameWithdrawalHistories = append(o.R.ExchangeNameWithdrawalHistories, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &withdrawalHistoryR{
+				ExchangeName: o,
+			}
+		} else {
+			rel.R.ExchangeName = o
+		}
+	}
 	return nil
 }
 

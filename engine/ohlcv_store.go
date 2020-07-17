@@ -24,6 +24,7 @@ func OHLCVDatabaseStore(in *kline.Item) error {
 		Base:       in.Pair.Base.Upper().String(),
 		Quote:      in.Pair.Quote.Upper().String(),
 		Interval:   in.Interval.Short(),
+		Asset:      in.Asset.String(),
 	}
 
 	for x := range in.Candles {

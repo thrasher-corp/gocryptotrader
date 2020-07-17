@@ -18,26 +18,6 @@ import (
 	"github.com/volatiletech/null"
 )
 
-// Candle generic candle holder for modelPSQL & modelSQLite
-type Candle struct {
-	ID         string
-	ExchangeID string
-	Base       string
-	Quote      string
-	Interval   string
-	Tick       []Tick
-}
-
-// Tick holds each interval
-type Tick struct {
-	Timestamp time.Time
-	Open      float64
-	High      float64
-	Low       float64
-	Close     float64
-	Volume    float64
-}
-
 // Series returns candle data
 func Series(exchangeName, base, quote, interval string, start, end time.Time) (out Candle, err error) {
 	if exchangeName == "" || base == "" || quote == "" || interval == "" {
@@ -107,7 +87,7 @@ func Insert(in *Candle) error {
 		return database.ErrDatabaseSupportDisabled
 	}
 
-	ctx := boil.SkipTimestamps(context.Background())
+	ctx := context.Background()
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
 		log.Errorf(log.DatabaseMgr, "Insert transaction failed: %v", err)
@@ -175,6 +155,7 @@ func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Candle) error {
 			Base:       in.Base,
 			Quote:      in.Quote,
 			Interval:   in.Interval,
+			Asset:      in.Asset,
 			Timestamp:  in.Tick[x].Timestamp,
 			Open:       in.Tick[x].Open,
 			High:       in.Tick[x].High,

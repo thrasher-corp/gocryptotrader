@@ -106,6 +106,9 @@ dbmigrate -command "up"
 
 dbmigrate provides a -migrationdir flag override to tell it what path to look in for migrations
 
+###### Note: its highly recommended to backup any data before running migrations against a production database especially if you are running SQLite due to alter table limitations
+
+
 ##### Adding a new model
 Model's are generated using [SQLBoiler](https://github.com/thrasher-corp/sqlboiler) 
 A helper tool has been made located in gen_sqlboiler_config that will parse your GoCryptoTrader config and output a SQLBoiler config

@@ -158,6 +158,7 @@ func TestToOne(t *testing.T) {
 	t.Run("ScriptExecutionToScriptUsingScript", testScriptExecutionToOneScriptUsingScript)
 	t.Run("WithdrawalCryptoToWithdrawalHistoryUsingWithdrawalHistory", testWithdrawalCryptoToOneWithdrawalHistoryUsingWithdrawalHistory)
 	t.Run("WithdrawalFiatToWithdrawalHistoryUsingWithdrawalHistory", testWithdrawalFiatToOneWithdrawalHistoryUsingWithdrawalHistory)
+	t.Run("WithdrawalHistoryToExchangeUsingExchangeName", testWithdrawalHistoryToOneExchangeUsingExchangeName)
 }
 
 // TestOneToOne tests cannot be run in parallel
@@ -169,6 +170,7 @@ func TestOneToOne(t *testing.T) {
 // TestToMany tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToMany(t *testing.T) {
+	t.Run("ExchangeToExchangeNameWithdrawalHistories", testExchangeToManyExchangeNameWithdrawalHistories)
 	t.Run("ScriptToScriptExecutions", testScriptToManyScriptExecutions)
 	t.Run("WithdrawalHistoryToWithdrawalCryptos", testWithdrawalHistoryToManyWithdrawalCryptos)
 	t.Run("WithdrawalHistoryToWithdrawalFiats", testWithdrawalHistoryToManyWithdrawalFiats)
@@ -181,6 +183,7 @@ func TestToOneSet(t *testing.T) {
 	t.Run("ScriptExecutionToScriptUsingScriptExecutions", testScriptExecutionToOneSetOpScriptUsingScript)
 	t.Run("WithdrawalCryptoToWithdrawalHistoryUsingWithdrawalCryptos", testWithdrawalCryptoToOneSetOpWithdrawalHistoryUsingWithdrawalHistory)
 	t.Run("WithdrawalFiatToWithdrawalHistoryUsingWithdrawalFiats", testWithdrawalFiatToOneSetOpWithdrawalHistoryUsingWithdrawalHistory)
+	t.Run("WithdrawalHistoryToExchangeUsingExchangeNameWithdrawalHistories", testWithdrawalHistoryToOneSetOpExchangeUsingExchangeName)
 }
 
 // TestToOneRemove tests cannot be run in parallel
@@ -204,6 +207,7 @@ func TestOneToOneRemove(t *testing.T) {
 // TestToManyAdd tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToManyAdd(t *testing.T) {
+	t.Run("ExchangeToExchangeNameWithdrawalHistories", testExchangeToManyAddOpExchangeNameWithdrawalHistories)
 	t.Run("ScriptToScriptExecutions", testScriptToManyAddOpScriptExecutions)
 	t.Run("WithdrawalHistoryToWithdrawalCryptos", testWithdrawalHistoryToManyAddOpWithdrawalCryptos)
 	t.Run("WithdrawalHistoryToWithdrawalFiats", testWithdrawalHistoryToManyAddOpWithdrawalFiats)

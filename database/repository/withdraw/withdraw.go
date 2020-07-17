@@ -155,13 +155,13 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 	}
 
 	var tempEvent = modelSQLite.WithdrawalHistory{
-		ID:           newUUID.String(),
-		Exchange:     res.Exchange.Name,
-		ExchangeID:   res.Exchange.ID,
-		Status:       res.Exchange.Status,
-		Currency:     res.RequestDetails.Currency.String(),
-		Amount:       res.RequestDetails.Amount,
-		WithdrawType: int64(res.RequestDetails.Type),
+		ID:             newUUID.String(),
+		ExchangeNameID: res.Exchange.Name,
+		ExchangeID:     res.Exchange.ID,
+		Status:         res.Exchange.Status,
+		Currency:       res.RequestDetails.Currency.String(),
+		Amount:         res.RequestDetails.Amount,
+		WithdrawType:   int64(res.RequestDetails.Type),
 	}
 
 	if res.RequestDetails.Description != "" {
@@ -308,7 +308,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			tempResp.ID = newUUID
 			tempResp.Exchange = new(withdraw.ExchangeResponse)
 			tempResp.Exchange.ID = v[x].ExchangeID
-			tempResp.Exchange.Name = v[x].Exchange
+			tempResp.Exchange.Name = v[x].ExchangeNameID
 			tempResp.Exchange.Status = v[x].Status
 			tempResp.RequestDetails = new(withdraw.Request)
 			tempResp.RequestDetails = &withdraw.Request{

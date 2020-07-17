@@ -3,4 +3,4 @@
 ALTER TABLE candle ADD COLUMN asset text;
 -- +goose Down
 -- SQL in this section is executed when the migration is rolled back.
-ALTER TABLE candle DROP COLUMN asset;
+-- SQLite does not support dropping columns

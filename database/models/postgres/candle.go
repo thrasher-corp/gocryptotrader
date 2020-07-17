@@ -19,23 +19,22 @@ import (
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
 	"github.com/thrasher-corp/sqlboiler/queries/qmhelper"
 	"github.com/thrasher-corp/sqlboiler/strmangle"
-	"github.com/volatiletech/null"
 )
 
 // Candle is an object representing the database table.
 type Candle struct {
-	ID         string      `boil:"id" json:"id" toml:"id" yaml:"id"`
-	ExchangeID string      `boil:"exchange_id" json:"exchange_id" toml:"exchange_id" yaml:"exchange_id"`
-	Base       string      `boil:"base" json:"base" toml:"base" yaml:"base"`
-	Quote      string      `boil:"quote" json:"quote" toml:"quote" yaml:"quote"`
-	Interval   string      `boil:"interval" json:"interval" toml:"interval" yaml:"interval"`
-	Timestamp  time.Time   `boil:"timestamp" json:"timestamp" toml:"timestamp" yaml:"timestamp"`
-	Open       float64     `boil:"open" json:"open" toml:"open" yaml:"open"`
-	High       float64     `boil:"high" json:"high" toml:"high" yaml:"high"`
-	Low        float64     `boil:"low" json:"low" toml:"low" yaml:"low"`
-	Close      float64     `boil:"close" json:"close" toml:"close" yaml:"close"`
-	Volume     float64     `boil:"volume" json:"volume" toml:"volume" yaml:"volume"`
-	Asset      null.String `boil:"asset" json:"asset,omitempty" toml:"asset" yaml:"asset,omitempty"`
+	ID         string    `boil:"id" json:"id" toml:"id" yaml:"id"`
+	ExchangeID string    `boil:"exchange_id" json:"exchange_id" toml:"exchange_id" yaml:"exchange_id"`
+	Base       string    `boil:"base" json:"base" toml:"base" yaml:"base"`
+	Quote      string    `boil:"quote" json:"quote" toml:"quote" yaml:"quote"`
+	Interval   string    `boil:"interval" json:"interval" toml:"interval" yaml:"interval"`
+	Timestamp  time.Time `boil:"timestamp" json:"timestamp" toml:"timestamp" yaml:"timestamp"`
+	Open       float64   `boil:"open" json:"open" toml:"open" yaml:"open"`
+	High       float64   `boil:"high" json:"high" toml:"high" yaml:"high"`
+	Low        float64   `boil:"low" json:"low" toml:"low" yaml:"low"`
+	Close      float64   `boil:"close" json:"close" toml:"close" yaml:"close"`
+	Volume     float64   `boil:"volume" json:"volume" toml:"volume" yaml:"volume"`
+	Asset      string    `boil:"asset" json:"asset" toml:"asset" yaml:"asset"`
 
 	R *candleR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L candleL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -86,29 +85,6 @@ func (w whereHelperfloat64) GTE(x float64) qm.QueryMod {
 	return qmhelper.Where(w.field, qmhelper.GTE, x)
 }
 
-type whereHelpernull_String struct{ field string }
-
-func (w whereHelpernull_String) EQ(x null.String) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, false, x)
-}
-func (w whereHelpernull_String) NEQ(x null.String) qm.QueryMod {
-	return qmhelper.WhereNullEQ(w.field, true, x)
-}
-func (w whereHelpernull_String) IsNull() qm.QueryMod    { return qmhelper.WhereIsNull(w.field) }
-func (w whereHelpernull_String) IsNotNull() qm.QueryMod { return qmhelper.WhereIsNotNull(w.field) }
-func (w whereHelpernull_String) LT(x null.String) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LT, x)
-}
-func (w whereHelpernull_String) LTE(x null.String) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.LTE, x)
-}
-func (w whereHelpernull_String) GT(x null.String) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GT, x)
-}
-func (w whereHelpernull_String) GTE(x null.String) qm.QueryMod {
-	return qmhelper.Where(w.field, qmhelper.GTE, x)
-}
-
 var CandleWhere = struct {
 	ID         whereHelperstring
 	ExchangeID whereHelperstring
@@ -121,7 +97,7 @@ var CandleWhere = struct {
 	Low        whereHelperfloat64
 	Close      whereHelperfloat64
 	Volume     whereHelperfloat64
-	Asset      whereHelpernull_String
+	Asset      whereHelperstring
 }{
 	ID:         whereHelperstring{field: "\"candle\".\"id\""},
 	ExchangeID: whereHelperstring{field: "\"candle\".\"exchange_id\""},
@@ -134,7 +110,7 @@ var CandleWhere = struct {
 	Low:        whereHelperfloat64{field: "\"candle\".\"low\""},
 	Close:      whereHelperfloat64{field: "\"candle\".\"close\""},
 	Volume:     whereHelperfloat64{field: "\"candle\".\"volume\""},
-	Asset:      whereHelpernull_String{field: "\"candle\".\"asset\""},
+	Asset:      whereHelperstring{field: "\"candle\".\"asset\""},
 }
 
 // CandleRels is where relationship names are stored.

@@ -13,6 +13,18 @@ import (
 
 var (
 	verbose = false
+
+	testExchanges = []Details{
+		{
+			Name: "one",
+		},
+		{
+			Name: "two",
+		},
+		{
+			Name: "three",
+		},
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -38,7 +50,7 @@ func TestMain(m *testing.M) {
 	os.Exit(t)
 }
 
-func TestInsert(t *testing.T) {
+func TestInsertMany(t *testing.T) {
 	testCases := []struct {
 		name   string
 		config *database.Config
@@ -49,7 +61,7 @@ func TestInsert(t *testing.T) {
 		{
 			name:   "postgresql",
 			config: testhelpers.PostgresTestDatabase,
-			seedDB: nil,
+			seedDB: seed,
 		},
 		{
 			name: "SQLite",
@@ -57,7 +69,7 @@ func TestInsert(t *testing.T) {
 				Driver:            database.DBSQLite3,
 				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
 			},
-			seedDB: nil,
+			seedDB: seed,
 		},
 	}
 
@@ -81,7 +93,7 @@ func TestInsert(t *testing.T) {
 				}
 			}
 
-			err = InsertMany(allExchanges)
+			err = InsertMany(testExchanges)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -105,7 +117,7 @@ func TestOneAndOneByUUID(t *testing.T) {
 		{
 			name:   "postgresql",
 			config: testhelpers.PostgresTestDatabase,
-			seedDB: Seed,
+			seedDB: seed,
 		},
 		{
 			name: "SQLite",
@@ -113,7 +125,7 @@ func TestOneAndOneByUUID(t *testing.T) {
 				Driver:            database.DBSQLite3,
 				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
 			},
-			seedDB: Seed,
+			seedDB: seed,
 		},
 	}
 
@@ -137,7 +149,7 @@ func TestOneAndOneByUUID(t *testing.T) {
 				}
 			}
 
-			ret, err := One("Binance")
+			ret, err := One("one")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -156,4 +168,8 @@ func TestOneAndOneByUUID(t *testing.T) {
 			}
 		})
 	}
+}
+
+func seed() error {
+	return Seed(testExchanges)
 }

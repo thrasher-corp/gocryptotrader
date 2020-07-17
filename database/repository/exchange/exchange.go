@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common/cache"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
@@ -189,4 +190,8 @@ func UUIDByName(in string) (uuid.UUID, error) {
 
 	exchangeCache.Add(in, ret.UUID)
 	return ret.UUID, nil
+}
+
+func ResetExchangeCache() {
+	exchangeCache = cache.New(5)
 }
