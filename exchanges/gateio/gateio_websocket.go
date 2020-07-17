@@ -49,11 +49,14 @@ func (g *Gateio) WsConnect() error {
 			var authsubs []stream.ChannelSubscription
 			authsubs, err = g.GenerateAuthenticatedSubscriptions()
 			if err != nil {
-				return err
-			}
-			err = g.Websocket.SubscribeToChannels(authsubs)
-			if err != nil {
-				return err
+				g.Websocket.DataHandler <- err
+				g.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			} else {
+				err = g.Websocket.SubscribeToChannels(authsubs)
+				if err != nil {
+					g.Websocket.DataHandler <- err
+					g.Websocket.SetCanUseAuthenticatedEndpoints(false)
+				}
 			}
 		}
 	}
