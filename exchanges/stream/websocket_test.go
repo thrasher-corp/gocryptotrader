@@ -220,7 +220,6 @@ func TestWebsocket(t *testing.T) {
 	if err == nil {
 		t.Fatal("should not be connected to able to shut down")
 	}
-	ws.Wg.Wait()
 	// -- Normal connect
 	err = ws.Connect()
 	if err != nil {

@@ -200,7 +200,9 @@ func (w *Websocket) Connect() error {
 	}
 
 	// flush any subscriptions from last connection if needed
+	w.subscriptionMutex.Lock()
 	w.subscriptions = nil
+	w.subscriptionMutex.Unlock()
 
 	err = w.connector()
 	if err != nil {
@@ -387,7 +389,9 @@ func (w *Websocket) Shutdown() error {
 	}
 
 	// flush any subscriptions from last connection if needed
+	w.subscriptionMutex.Lock()
 	w.subscriptions = nil
+	w.subscriptionMutex.Unlock()
 
 	close(w.ShutdownC)
 	w.Wg.Wait()
@@ -863,6 +867,8 @@ func (w *ChannelSubscription) Equal(s *ChannelSubscription) bool {
 // GetSubscriptions returns a copied list of subscriptions
 // subscriptions is a private member and cannot be manipulated
 func (w *Websocket) GetSubscriptions() []ChannelSubscription {
+	w.subscriptionMutex.Lock()
+	defer w.subscriptionMutex.Unlock()
 	return append(w.subscriptions[:0:0], w.subscriptions...)
 }
 
