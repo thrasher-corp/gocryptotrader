@@ -282,7 +282,7 @@ func TestBaseCode(t *testing.T) {
 			len(full.UnsetCurrency))
 	}
 
-	if full.LastMainUpdate.(float64) != -62135596800 {
+	if full.LastMainUpdate.(int64) != -62135596800 {
 		t.Errorf("BaseCode GetFullCurrencyData() error expected -62135596800 but received %d",
 			full.LastMainUpdate)
 	}
