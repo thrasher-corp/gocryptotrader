@@ -3310,7 +3310,7 @@ func getAuditEvent(c *cli.Context) error {
 var uuid, filename, path string
 var gctScriptCommand = cli.Command{
 	Name:      "script",
-	Usage:     "execute virtual machine scripting management command",
+	Usage:     "execute scripting management command",
 	ArgsUsage: "<command> <args>",
 	Subcommands: []cli.Command{
 		{
