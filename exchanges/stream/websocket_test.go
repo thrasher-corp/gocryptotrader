@@ -180,9 +180,28 @@ func TestWebsocket(t *testing.T) {
 	}
 
 	ws = *New()
-	err = ws.SetProxyAddress("testProxy")
+	err = ws.SetProxyAddress("garbagio")
+	if err == nil {
+		t.Error("error cannot be nil")
+	}
+	err = ws.SetProxyAddress("https://192.168.0.1:1337")
 	if err != nil {
 		t.Error("SetProxyAddress", err)
+	}
+	// removing proxy
+	err = ws.SetProxyAddress("")
+	if err != nil {
+		t.Error(err)
+	}
+	// reinstate proxy
+	err = ws.SetProxyAddress("http://localhost:1337")
+	if err != nil {
+		t.Error(err)
+	}
+	// conflict proxy
+	err = ws.SetProxyAddress("http://localhost:1337")
+	if err == nil {
+		t.Error("error cannot be nil")
 	}
 	err = ws.Setup(defaultSetup)
 	if err != nil {
@@ -205,7 +224,7 @@ func TestWebsocket(t *testing.T) {
 		t.Error("WebsocketSetup")
 	}
 
-	if ws.GetProxyAddress() != "testProxy" {
+	if ws.GetProxyAddress() != "http://localhost:1337" {
 		t.Error("WebsocketSetup")
 	}
 

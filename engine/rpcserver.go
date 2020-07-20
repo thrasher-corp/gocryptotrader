@@ -1305,7 +1305,7 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 		pass = true
 	}
 
-	if exch.IsWebsocketEnabled() && pass {
+	if exch.IsWebsocketEnabled() && pass && base.Websocket.IsConnected() {
 		err = exch.FlushWebsocketChannels()
 		if err != nil {
 			newErrors = append(newErrors, err)
@@ -1996,7 +1996,7 @@ func (s *RPCServer) SetAllExchangePairs(_ context.Context, r *gctrpc.SetExchange
 		}
 	}
 
-	if exch.IsWebsocketEnabled() {
+	if exch.IsWebsocketEnabled() && base.Websocket.IsConnected() {
 		err = exch.FlushWebsocketChannels()
 		if err != nil {
 			return nil, err

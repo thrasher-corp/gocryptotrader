@@ -716,16 +716,29 @@ func (w *Websocket) Initialise() error {
 
 // SetProxyAddress sets websocket proxy address
 func (w *Websocket) SetProxyAddress(proxyAddr string) error {
-	if w.proxyAddr == proxyAddr {
-		return fmt.Errorf("%v websocket: cannot set proxy address to the same address '%v'",
-			w.exchangeName,
-			w.proxyAddr)
-	}
+	if proxyAddr != "" {
+		_, err := url.ParseRequestURI(proxyAddr)
+		if err != nil {
+			return fmt.Errorf("%v websocket: cannot set proxy address error '%v'",
+				w.exchangeName,
+				err)
+		}
 
-	log.Debugf(log.ExchangeSys,
-		"%s websocket: setting websocket proxy: %s\n",
-		w.exchangeName,
-		proxyAddr)
+		if w.proxyAddr == proxyAddr {
+			return fmt.Errorf("%v websocket: cannot set proxy address to the same address '%v'",
+				w.exchangeName,
+				w.proxyAddr)
+		}
+
+		log.Debugf(log.ExchangeSys,
+			"%s websocket: setting websocket proxy: %s\n",
+			w.exchangeName,
+			proxyAddr)
+	} else {
+		log.Debugf(log.ExchangeSys,
+			"%s websocket: removing websocket proxy\n",
+			w.exchangeName)
+	}
 
 	if w.Conn != nil {
 		w.Conn.SetProxy(proxyAddr)
