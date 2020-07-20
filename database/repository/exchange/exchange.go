@@ -48,23 +48,25 @@ func one(in, clause string) (out Details, err error) {
 			return out, errS
 		}
 		out.Name = ret.Name
-		out.UUID, _ = uuid.FromString(ret.ID)
+		out.UUID, errS = uuid.FromString(ret.ID)
+		if errS != nil {
+			return out, errS
+		}
 	}
 
 	return out, err
 }
 
 // Insert writes a single entry into database
-func Insert(in Details) {
+func Insert(in Details) error {
 	if database.DB.SQL == nil {
-		return
+		return database.ErrDatabaseSupportDisabled
 	}
 
-	ctx := boil.SkipTimestamps(context.Background())
+	ctx := context.Background()
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Insert transaction failed: %v", err)
-		return
+		return err
 	}
 
 	if repository.GetSQLDialect() == database.DBSQLite3 {
@@ -74,23 +76,23 @@ func Insert(in Details) {
 	}
 
 	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Insert failed: %v", err)
-		err = tx.Rollback()
-		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Insert Transaction rollback failed: %v", err)
+		errRB := tx.Rollback()
+		if errRB != nil {
+			return errRB
 		}
-		return
+		return err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Insert Transaction commit failed: %v", err)
-		err = tx.Rollback()
-		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Insert Transaction rollback failed: %v", err)
+		errRB := tx.Rollback()
+		if errRB != nil {
+			log.Errorln(log.DatabaseMgr, errRB)
 		}
-		return
+		return err
 	}
+
+	return nil
 }
 
 // InsertMany writes multiple entries into database
@@ -99,10 +101,9 @@ func InsertMany(in []Details) error {
 		return database.ErrDatabaseSupportDisabled
 	}
 
-	ctx := boil.SkipTimestamps(context.Background())
+	ctx := context.Background()
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Insert transaction being failed: %v", err)
 		return err
 	}
 
@@ -113,20 +114,18 @@ func InsertMany(in []Details) error {
 	}
 
 	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Insert failed: %v", err)
-		err = tx.Rollback()
-		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Insert Transaction rollback failed: %v", err)
+		errRB := tx.Rollback()
+		if errRB != nil {
+			return errRB
 		}
 		return err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Insert Transaction commit failed: %v", err)
-		err = tx.Rollback()
-		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Insert Transaction rollback failed: %v", err)
+		errRB := tx.Rollback()
+		if errRB != nil {
+			log.Errorln(log.DatabaseMgr, errRB)
 		}
 		return err
 	}
@@ -146,12 +145,11 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in []Details) (err error) {
 
 		err = tempInsert.Insert(ctx, tx, boil.Infer())
 		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Exchange Insert failed: %v", err)
 			errRB := tx.Rollback()
 			if errRB != nil {
-				log.Errorf(log.DatabaseMgr, "Rollback failed: %v", errRB)
+				return errRB
 			}
-			return
+			return err
 		}
 	}
 
@@ -166,10 +164,9 @@ func insertPostgresql(ctx context.Context, tx *sql.Tx, in []Details) (err error)
 
 		err = tempInsert.Upsert(ctx, tx, true, []string{"name"}, boil.Infer(), boil.Infer())
 		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Exchange Insert failed: %v", err)
 			errRB := tx.Rollback()
 			if errRB != nil {
-				log.Errorf(log.DatabaseMgr, "Rollback failed: %v", errRB)
+				return errRB
 			}
 			return
 		}
@@ -192,6 +189,7 @@ func UUIDByName(in string) (uuid.UUID, error) {
 	return ret.UUID, nil
 }
 
+// ResetExchangeCache
 func ResetExchangeCache() {
 	exchangeCache = cache.New(5)
 }

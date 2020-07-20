@@ -1575,7 +1575,7 @@ func (s *RPCServer) GetHistoricCandles(ctx context.Context, req *gctrpc.GetHisto
 	}
 
 	if req.Sync {
-		err = OHLCVDatabaseStore(&candles)
+		err = kline.StoreInDatabase(&candles)
 		if err != nil {
 			return nil, err
 		}

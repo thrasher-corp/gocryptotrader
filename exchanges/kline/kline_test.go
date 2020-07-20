@@ -560,3 +560,11 @@ func genOHCLVData() (out candle.Candle, err error) {
 
 	return out, nil
 }
+
+func TestLoadCSV(t *testing.T) {
+	v, err := LoadFromGCTScriptCSV(filepath.Join("..", "..", "testdata", "binance_BTCUSDT_24h_2019_01_01_2020_01_01.csv"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(v)
+}

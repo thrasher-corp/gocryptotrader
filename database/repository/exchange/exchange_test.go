@@ -28,16 +28,16 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	if verbose {
+		testhelpers.EnableVerboseTestOutput()
+	}
+
 	var err error
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
 	testhelpers.TempDir, err = ioutil.TempDir("", "gct-temp")
 	if err != nil {
 		fmt.Printf("failed to create temp file: %v", err)
 		os.Exit(1)
-	}
-
-	if verbose {
-		testhelpers.EnableVerboseTestOutput()
 	}
 
 	t := m.Run()

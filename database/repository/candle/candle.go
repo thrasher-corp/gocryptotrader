@@ -12,7 +12,6 @@ import (
 	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
-	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/sqlboiler/boil"
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
 	"github.com/volatiletech/null"
@@ -90,7 +89,6 @@ func Insert(in *Candle) error {
 	ctx := context.Background()
 	tx, err := database.DB.SQL.BeginTx(ctx, nil)
 	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Insert transaction failed: %v", err)
 		return err
 	}
 
@@ -105,14 +103,12 @@ func Insert(in *Candle) error {
 
 	err = tx.Commit()
 	if err != nil {
-		log.Errorf(log.DatabaseMgr, "Insert Transaction commit failed: %v", err)
-		err = tx.Rollback()
-		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Insert Transaction rollback failed: %v", err)
+		errRB := tx.Rollback()
+		if errRB != nil {
+			return errRB
 		}
 		return err
 	}
-
 	return nil
 }
 
@@ -137,10 +133,9 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in *Candle) error {
 		tempCandle.ID = tempUUID.String()
 		err = tempCandle.Insert(ctx, tx, boil.Infer())
 		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Candle Insert failed: %v", err)
 			errRB := tx.Rollback()
 			if errRB != nil {
-				log.Errorf(log.DatabaseMgr, "Rollback failed: %v", errRB)
+				return errRB
 			}
 			return err
 		}
@@ -165,10 +160,9 @@ func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Candle) error {
 		}
 		err := tempCandle.Upsert(ctx, tx, true, []string{"timestamp", "exchange_id", "base", "quote", "interval"}, boil.Infer(), boil.Infer())
 		if err != nil {
-			log.Errorf(log.DatabaseMgr, "Candle Insert failed: %v", err)
 			errRB := tx.Rollback()
 			if errRB != nil {
-				log.Errorf(log.DatabaseMgr, "Rollback failed: %v", errRB)
+				return errRB
 			}
 			return err
 		}

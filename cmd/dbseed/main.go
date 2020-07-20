@@ -14,8 +14,6 @@ import (
 	dbPSQL "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
-	"github.com/thrasher-corp/gocryptotrader/database/seed"
-	"github.com/thrasher-corp/goose"
 )
 
 var (
@@ -45,7 +43,7 @@ func openDBConnection(driver string) (err error) {
 }
 
 func main() {
-	fmt.Println("GoCryptoTrader database migration tool")
+	fmt.Println("GoCryptoTrader database seeding tool")
 	fmt.Println(core.Copyright)
 	fmt.Println()
 
@@ -83,23 +81,8 @@ func main() {
 		fmt.Printf("Connected to: %s\n", conf.Database.Host)
 	}
 
-	if command == "" {
-		_ = goose.Run("status", dbConn.SQL, drv, migrationDir, "")
-		fmt.Println()
-		flag.Usage()
-		return
-	}
-
-	if command == "seed" {
-		err = seed.Run(false, false)
-		if err != nil {
-			fmt.Println(err)
-		}
-		fmt.Println("Exchange seed successful")
-		return
-	}
-
-	if err = goose.Run(command, dbConn.SQL, drv, migrationDir, args); err != nil {
+	err = dbConn.SQL.Close()
+	if err != nil {
 		fmt.Println(err)
 	}
 }

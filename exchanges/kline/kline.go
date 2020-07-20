@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -105,35 +104,7 @@ func CreateKline(trades []order.TradeHistory, interval Interval, p currency.Pair
 	return candles, nil
 }
 
-// LoadFromDatabase returns Item from database seeded data
-func LoadFromDatabase(exchange string, pair currency.Pair, interval Interval, start, end time.Time) (Item, error) {
-	retCandle, err := candle.Series(exchange,
-		pair.Base.String(), pair.Quote.String(),
-		interval.Short(), start, end)
-	if err != nil {
-		return Item{}, err
-	}
-
-	ret := Item{
-		Exchange: exchange,
-		Pair:     pair,
-		Interval: interval,
-	}
-
-	for x := range retCandle.Tick {
-		ret.Candles = append(ret.Candles, Candle{
-			Time:   retCandle.Tick[x].Timestamp,
-			Open:   retCandle.Tick[x].Open,
-			High:   retCandle.Tick[x].High,
-			Low:    retCandle.Tick[x].Low,
-			Close:  retCandle.Tick[x].Close,
-			Volume: retCandle.Tick[x].Volume,
-		})
-	}
-	return ret, nil
-}
-
-// validatData checks for zero values on data and sorts before turning
+// validateData checks for zero values on data and sorts before turning
 // converting into OHLC
 func validateData(trades []order.TradeHistory) error {
 	if len(trades) < 2 {
@@ -327,4 +298,10 @@ func (k *Item) SortCandlesByTimestamp(asc bool) {
 		}
 		return k.Candles[i].Time.Before(k.Candles[j].Time)
 	})
+}
+
+func (k *Item) FormatDates() {
+	for x := range k.Candles {
+		k.Candles[x].Time = k.Candles[x].Time.UTC()
+	}
 }
