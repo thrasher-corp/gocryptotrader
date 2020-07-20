@@ -16,9 +16,27 @@ const (
 
 // MarginMarkPrice stores data of the currencies available for margin trading
 type MarginMarkPrice struct {
-InstrumentID string `json:"instrument_id"`
-MarkPrice float64 `json:"mark_price,string"`
-Timestamp string `json:"timestamp"`
+	InstrumentID string  `json:"instrument_id"`
+	MarkPrice    float64 `json:"mark_price,string"`
+	Timestamp    string  `json:"timestamp"`
+}
+
+// MarginCurrencyData stores currency data for margin trading
+type MarginCurrencyData []struct {
+	Base struct {
+		Available     float64 `json:"available,string"`
+		Leverage      float64 `json:"leverage,string"`
+		LeverageRatio float64 `json:"leverage_ratio,string"`
+		Rate          float64 `json:"rate,string"`
+	} `json:"currency:BTC"`
+	Quote struct {
+		Available     float64 `json:"available,string"`
+		Leverage      float64 `json:"leverage,string"`
+		LeverageRatio float64 `json:"leverage_ratio,string"`
+		Rate          float64 `json:"rate,string"`
+	} `json:"currency:USDT"`
+	InstrumentID string `json:"instrument_id"`
+	ProductID    string `json:"product_id"`
 }
 
 // TickerData stores ticker data

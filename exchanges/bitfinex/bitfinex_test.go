@@ -62,6 +62,16 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func TestGetMarginRates(t *testing.T) {
+	b.Verbose = true
+	a, err := b.GetMarginRates("fUSD")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+
 func TestGetDerivativeData(t *testing.T) {
 	b.Verbose = true
 	t.Parallel()

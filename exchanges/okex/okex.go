@@ -23,6 +23,7 @@ const (
 	okGroupFuturesSubsection = "futures"
 	okGroupSwapSubsection    = "swap"
 	okGroupETTSubsection     = "ett"
+	okGroupMarginSubsection  = "margin"
 	// Futures based endpoints
 	okGroupFuturePosition = "position"
 	okGroupFutureLeverage = "leverage"
@@ -43,11 +44,25 @@ const (
 	okGroupPerpSwapRates   = "/api/swap/v3/instruments/%s/historical_funding_rate?"
 	okGroupPerpTickers     = "/api/swap/v3/instruments/ticker"
 	okGroupMarginMarkPrice = "/api/margin/v3/instruments/%s/mark_price"
+	okGroupMarginPairData  = "accounts/BTC-USDT/availability?"
 )
 
 // OKEX bases all account, spot and margin methods off okgroup implementation
 type OKEX struct {
 	okgroup.OKGroup
+}
+
+// GetMarginRates gets interest rates for margin currencies
+func (o *OKEX) GetMarginRates(instrumentID string) (okgroup.MarginCurrencyData, error) {
+	var resp okgroup.MarginCurrencyData
+	params := url.Values{}
+	params.Set("instrument_id", instrumentID)
+	return resp, o.SendHTTPRequest(http.MethodGet,
+		okGroupMarginSubsection,
+		okGroupMarginPairData+params.Encode(),
+		nil,
+		&resp,
+		true)
 }
 
 // GetFundingRate gets funding rate of a given currency

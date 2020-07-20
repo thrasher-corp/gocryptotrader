@@ -9,6 +9,21 @@ type Response struct {
 	ErrorMessage string `json:"err-msg"`
 }
 
+// MarginRatesData stores margin rates data
+type MarginRatesData struct {
+	Data []struct {
+		Symbol     string `json:"symbol"`
+		Currencies []struct {
+			Currency       string  `json:"currency"`
+			InterestRate   float64 `json:"interestRate,string"`
+			MinLoanAmount  float64 `json:"min-loan-amt,string"`
+			MaxLoanAmount  float64 `json:"max-loan-amt,string"`
+			LoanableAmount float64 `json:"loanable-amt,string"`
+			ActualRate     float64 `json:"actual-rate,string"`
+		} `json:"currencies"`
+	} `json:"data"`
+}
+
 // ResponseV2 stores the Huobi generic response info
 type ResponseV2 struct {
 	Code    int32  `json:"code"`
@@ -144,18 +159,25 @@ type Detail struct {
 
 // Symbol stores the symbol data
 type Symbol struct {
-	BaseCurrency       string  `json:"base-currency"`
-	QuoteCurrency      string  `json:"quote-currency"`
-	PricePrecision     int     `json:"price-precision"`
-	AmountPrecision    int     `json:"amount-precision"`
-	SymbolPartition    string  `json:"symbol-partition"`
-	Innovation         string  `json:"innovation"`
-	State              string  `json:"state"`
-	ValuePrecision     int     `json:"value-precision"`
-	MinimumOrderAmount float64 `json:"min-order-amt"`
-	MaximumOrderAmount float64 `json:"max-order-amt"`
-	MinimumOrderValue  float64 `json:"min-order-value"`
-	LeverageRatio      float64 `json:"leverage-ratio"`
+	BaseCurrency             string  `json:"base-currency"`
+	QuoteCurrency            string  `json:"quote-currency"`
+	PricePrecision           float64 `json:"price-precision"`
+	AmountPrecision          float64 `json:"amount-precision"`
+	SymbolPartition          string  `json:"symbol-partition"`
+	Symbol                   string  `json:"symbol"`
+	State                    string  `json:"state"`
+	ValuePrecision           float64 `json:"value-precision"`
+	MinOrderAmt              float64 `json:"min-order-amt"`
+	MaxOrderAmt              float64 `json:"max-order-amt"`
+	MinOrderValue            float64 `json:"min-order-value"`
+	LimitOrderMinOrderAmt    float64 `json:"limit-order-min-order-amt"`
+	LimitOrderMaxOrderAmt    float64 `json:"limit-order-max-order-amt"`
+	SellMarketMinOrderAmt    float64 `json:"sell-market-min-order-amt"`
+	SellMarketMaxOrderAmt    float64 `json:"sell-market-max-order-amt"`
+	BuyMarketMaxOrderAmt     float64 `json:"buy-market-max-order-amt"`
+	LeverageRatio            float64 `json:"leverage-ratio"`
+	SuperMarginLeverageRatio float64 `json:"super-margin-leverage-ratio"`
+	FundingLeverageRatio     float64 `json:"funding-leverage-ratio"`
 }
 
 // Account stores the account data

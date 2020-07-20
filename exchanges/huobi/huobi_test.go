@@ -92,6 +92,15 @@ func setupWsTests(t *testing.T) {
 	wsSetupRan = true
 }
 
+func TestGetMarginRates(t *testing.T) {
+	h.Verbose = true
+	a, err := h.GetMarginRates("BTC/USDT")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetSwapFundingRates(t *testing.T) {
 	h.Verbose = true
 	t.Parallel()

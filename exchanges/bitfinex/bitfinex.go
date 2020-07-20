@@ -62,6 +62,7 @@ const (
 
 	// Version 2 API endpoints
 	bitfinexAPIVersion2    = "/v2/"
+	bitfinexFundingOffers  = "auth/w/funding/offers/%s"
 	bitfinexDerivativeData = "status/deriv?"
 	bitfinexPlatformStatus = "platform/status"
 	bitfinexTickerBatch    = "tickers"
@@ -110,6 +111,16 @@ func (b *Bitfinex) GetPlatformStatus() (int, error) {
 	}
 
 	return -1, fmt.Errorf("unexpected platform status value %d", response[0])
+}
+
+// GetMarginRates gets borrowing rates for margin trading
+func (b *Bitfinex) GetMarginRates(symbol string) (interface{}, error) {
+	var resp interface{}
+	return resp, b.SendAuthenticatedHTTPRequest(http.MethodPost,
+		fmt.Sprintf(bitfinexFundingOffers, symbol),
+		nil,
+		&resp,
+		getAccountFees)
 }
 
 // GetMarginPairs gets pairs that allow margin trading

@@ -59,6 +59,7 @@ const (
 	huobiWithdrawCreate        = "dw/withdraw/api/create"
 	huobiWithdrawCancel        = "dw/withdraw-virtual/%s/cancel"
 	huobiStatusError           = "error"
+	huobiMarginRates           = "margin/loan-info"
 )
 
 // HUOBI is the overarching type across this package
@@ -67,6 +68,17 @@ type HUOBI struct {
 	AccountID                  string
 	WebsocketConn              *wshandler.WebsocketConnection
 	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
+}
+
+// GetMarginRates gets margin rates
+func (h *HUOBI) GetMarginRates(symbol string) (MarginRatesData, error) {
+	vals := url.Values{}
+	if symbol != "" {
+		vals.Set("symbols", symbol)
+	}
+	var resp MarginRatesData
+	return resp, h.SendAuthenticatedHTTPRequest(http.MethodGet, huobiMarginRates, vals, nil, &resp, false)
+
 }
 
 // GetSwapFundingRates gets funding rates data

@@ -32,7 +32,7 @@ const (
 	apiSecret               = ""
 	passphrase              = ""
 	OKGroupExchange         = "OKEX"
-	canManipulateRealOrders = false
+	canManipulateRealOrders = true
 )
 
 var o OKEX
@@ -81,6 +81,15 @@ func TestMain(m *testing.M) {
 
 func areTestAPIKeysSet() bool {
 	return o.ValidateAPICredentials()
+}
+
+func TestGetMarginRates(t *testing.T) {
+	o.Verbose = true
+	a, err := o.GetMarginRates("XRP-USDT")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestGetFundingRate(t *testing.T) {
