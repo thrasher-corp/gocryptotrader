@@ -14,6 +14,16 @@ const (
 	ImmediateOrCancelOrder
 )
 
+// TradingPairData stores data about a trading pair
+type TradingPairData struct {
+	BaseCurrency  string  `json:"base_currency"`
+	InstrumentID  string  `json:"instrument_id"`
+	MinSize       float64 `json:"min_size,string"`
+	QuoteCurrency string  `json:"quote_currency"`
+	SizeIncrement string  `json:"size_increment"`
+	TickSize      float64 `json:"tick_size,string"`
+}
+
 // MarginMarkPrice stores data of the currencies available for margin trading
 type MarginMarkPrice struct {
 	InstrumentID string  `json:"instrument_id"`

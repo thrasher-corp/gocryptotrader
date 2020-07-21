@@ -21,8 +21,8 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey                  = "ZOVPD09dBqRivwKPbVYGOpw4mMlN7dDAxFmAyH9e"
+	apiSecret               = "kIMIHzwDQhkj2t07doZvHWAX9HESLeauYKCZUmc8"
 	canManipulateRealOrders = false
 	spotPair                = "FTT/BTC"
 	futuresPair             = "LEO-0327"

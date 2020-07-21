@@ -92,6 +92,15 @@ func TestGetMarginRates(t *testing.T) {
 	}
 }
 
+func TestGetSpotMarkets(t *testing.T) {
+	o.Verbose = true
+	a, err := o.GetSpotMarkets()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetFundingRate(t *testing.T) {
 	o.Verbose = true
 	a, err := o.GetFundingRate("BTC-USD-SWAP", "1")
@@ -103,7 +112,7 @@ func TestGetFundingRate(t *testing.T) {
 
 func TestMarginPairMarkPrice(t *testing.T) {
 	o.Verbose = true
-	a, err := o.MarginPairMarkPrice("BTC-USDT")
+	a, err := o.MarginPairMarkPrice("BTC-USD")
 	t.Log(a)
 	if err != nil {
 		t.Error(err)

@@ -15,6 +15,13 @@ var AcceptedWalletNames = []string{"trading", "exchange", "deposit", "margin",
 // AcceptableMethods defines a map of currency codes to methods
 var AcceptableMethods = make(map[string]string)
 
+// MarginV2FundingData stores margin funding data
+type MarginV2FundingData struct {
+	Symbol    string
+	RateAvg   float64
+	AmountAvg float64
+}
+
 // MarginFundingData stores data for margin funding
 type MarginFundingData struct {
 	ID          int64

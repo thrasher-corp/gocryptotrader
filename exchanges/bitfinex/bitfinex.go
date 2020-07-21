@@ -1,10 +1,12 @@
 package bitfinex
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -61,20 +63,24 @@ const (
 	bitfinexLeaderboard        = "rankings"
 
 	// Version 2 API endpoints
-	bitfinexAPIVersion2    = "/v2/"
-	bitfinexFundingOffers  = "auth/w/funding/offers/%s"
-	bitfinexDerivativeData = "status/deriv?"
-	bitfinexPlatformStatus = "platform/status"
-	bitfinexTickerBatch    = "tickers"
-	bitfinexTicker         = "ticker/"
-	bitfinexTrades         = "trades/"
-	bitfinexOrderbook      = "book/"
-	bitfinexStatistics     = "stats1/"
-	bitfinexCandles        = "candles/trade"
-	bitfinexKeyPermissions = "key_info"
-	bitfinexMarginInfo     = "margin_infos"
-	bitfinexDepositMethod  = "conf/pub:map:currency:label"
-	bitfinexMarginPairs    = "conf/pub:list:pair:margin"
+	bitfinexAPIVersion2     = "/v2/"
+	bitfinexV2MarginFunding = "calc/trade/avg?"
+	bitfinexV2Balances      = "auth/r/wallets"
+	bitfinexV2AccountInfo   = "auth/r/info/user"
+	bitfinexFundingOffers   = "auth/r/funding/offers"
+	bitfinexV2FundingInfo   = "auth/r/info/funding/%s"
+	bitfinexDerivativeData  = "status/deriv?"
+	bitfinexPlatformStatus  = "platform/status"
+	bitfinexTickerBatch     = "tickers"
+	bitfinexTicker          = "ticker/"
+	bitfinexTrades          = "trades/"
+	bitfinexOrderbook       = "book/"
+	bitfinexStatistics      = "stats1/"
+	bitfinexCandles         = "candles/trade"
+	bitfinexKeyPermissions  = "key_info"
+	bitfinexMarginInfo      = "margin_infos"
+	bitfinexDepositMethod   = "conf/pub:map:currency:label"
+	bitfinexMarginPairs     = "conf/pub:list:pair:margin"
 
 	// Bitfinex platform status values
 	// When the platform is marked in maintenance mode bots should stop trading
@@ -113,11 +119,76 @@ func (b *Bitfinex) GetPlatformStatus() (int, error) {
 	return -1, fmt.Errorf("unexpected platform status value %d", response[0])
 }
 
+// GetV2MarginFunding gets borrowing rates for margin trading
+func (b *Bitfinex) GetV2MarginFunding(symbol, amount string, period int32) (MarginV2FundingData, error) {
+	var resp []interface{}
+	var response MarginV2FundingData
+	params := make(map[string]interface{})
+	params["symbol"] = symbol
+	params["period"] = period
+	params["amount"] = amount
+	err := b.SendAuthenticatedHTTPRequest2(http.MethodPost,
+		bitfinexV2MarginFunding,
+		params,
+		&resp,
+		getAccountFees)
+	if err != nil {
+		return response, err
+	}
+	if len(resp) != 2 {
+		return response, fmt.Errorf("invalid data received")
+	}
+	response.Symbol = symbol
+	response.RateAvg = resp[0].(float64)
+	response.AmountAvg = resp[1].(float64)
+	return response, nil
+}
+
+// GetV2FundingInfo gets borrowing rates for margin trading
+func (b *Bitfinex) GetV2FundingInfo(key string) (MarginV2FundingData, error) {
+	var resp []interface{}
+	var response MarginV2FundingData
+	err := b.SendAuthenticatedHTTPRequest2(http.MethodPost,
+		fmt.Sprintf(bitfinexV2FundingInfo, key),
+		nil,
+		&resp,
+		getAccountFees)
+	if err != nil {
+		return response, err
+	}
+	if len(resp) != 2 {
+		return response, fmt.Errorf("invalid data received")
+	}
+	response.RateAvg = resp[0].(float64)
+	response.AmountAvg = resp[1].(float64)
+	return response, nil
+}
+
+// GetAccountInfoV2 gets borrowing rates for margin trading
+func (b *Bitfinex) GetAccountInfoV2() (interface{}, error) {
+	var resp interface{}
+	return resp, b.SendAuthenticatedHTTPRequest2(http.MethodPost,
+		bitfinexV2AccountInfo,
+		nil,
+		&resp,
+		getAccountFees)
+}
+
+// GetV2Balances gets borrowing rates for margin trading
+func (b *Bitfinex) GetV2Balances() (interface{}, error) {
+	var resp interface{}
+	return resp, b.SendAuthenticatedHTTPRequest2(http.MethodPost,
+		bitfinexV2Balances,
+		nil,
+		&resp,
+		getAccountFees)
+}
+
 // GetMarginRates gets borrowing rates for margin trading
 func (b *Bitfinex) GetMarginRates(symbol string) (interface{}, error) {
 	var resp interface{}
-	return resp, b.SendAuthenticatedHTTPRequest(http.MethodPost,
-		fmt.Sprintf(bitfinexFundingOffers, symbol),
+	return resp, b.SendAuthenticatedHTTPRequest2(http.MethodPost,
+		bitfinexFundingOffers,
 		nil,
 		&resp,
 		getAccountFees)
@@ -1253,6 +1324,56 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(method, path string, params map[
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
 		Endpoint:      endpoint})
+}
+
+// SendAuthenticatedHTTPRequest2 sends an autheticated http request and json
+// unmarshals result to a supplied variable
+func (b *Bitfinex) SendAuthenticatedHTTPRequest2(method, path string, params map[string]interface{}, result interface{}, endpoint request.EndpointLimit) error {
+	if !b.AllowAuthenticatedRequest() {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
+			b.Name)
+	}
+	var body io.Reader
+	var payload []byte
+	var err error
+	if len(params) != 0 {
+		payload, err = json.Marshal(params)
+		if err != nil {
+			return err
+		}
+		body = bytes.NewBuffer(payload)
+	}
+
+	// This is done in a weird way because bitfinex doesn't accept unixnano
+	n := strconv.FormatInt(int64(b.Requester.GetNonce(false))*1e9, 10)
+	fmt.Println(len(n))
+	headers := make(map[string]string)
+	headers["Content-Type"] = "application/json"
+	headers["Accept"] = "application/json"
+	headers["bfx-apikey"] = "U4UcLJEpdcepygBUwwvza6qzUvhzwMXcU5HIGqSlmbG"
+	headers["bfx-nonce"] = n
+	strPath := "/api" + bitfinexAPIVersion2 + path + string(payload)
+	signStr := strPath + n
+	hmac := crypto.GetHMAC(
+		crypto.HashSHA512_384,
+		[]byte(signStr),
+		[]byte(b.API.Credentials.Secret),
+	)
+	headers["bfx-signature"] = crypto.HexEncodeToString(hmac)
+
+	return b.SendPayload(context.Background(), &request.Item{
+		Method:        method,
+		Path:          "https://api.bitfinex.com" + bitfinexAPIVersion2 + path,
+		Headers:       headers,
+		Body:          body,
+		Result:        result,
+		AuthRequest:   true,
+		NonceEnabled:  true,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording,
+		Endpoint:      endpoint,
+	})
 }
 
 // GetFee returns an estimate of fee based on type of transaction

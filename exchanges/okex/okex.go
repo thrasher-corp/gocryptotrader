@@ -45,6 +45,7 @@ const (
 	okGroupPerpTickers     = "/api/swap/v3/instruments/ticker"
 	okGroupMarginMarkPrice = "/api/margin/v3/instruments/%s/mark_price"
 	okGroupMarginPairData  = "accounts/BTC-USDT/availability?"
+	okGroupSpotPairs       = "/api/spot/v3/instruments"
 )
 
 // OKEX bases all account, spot and margin methods off okgroup implementation
@@ -63,6 +64,13 @@ func (o *OKEX) GetMarginRates(instrumentID string) (okgroup.MarginCurrencyData, 
 		nil,
 		&resp,
 		true)
+}
+
+// GetSpotMarkets gets perpetual swap markets' data
+func (o *OKEX) GetSpotMarkets() ([]okgroup.TradingPairData, error) {
+	var resp []okgroup.TradingPairData
+	fmt.Println("https://www.okex.com" + okGroupPerpTickers)
+	return resp, common.SendHTTPGetRequest("https://www.okex.com"+okGroupSpotPairs, true, true, &resp)
 }
 
 // GetFundingRate gets funding rate of a given currency

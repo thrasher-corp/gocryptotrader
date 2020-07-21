@@ -1,6 +1,7 @@
 package bitfinex
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -24,7 +25,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = false
+	canManipulateRealOrders = true
 )
 
 var b Bitfinex
@@ -62,8 +63,19 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func TestGetV2MarginFunding(t *testing.T) {
+	b.Verbose = true
+	fmt.Printf("meow")
+	a, err := b.GetV2MarginFunding("fXAUT", "1000", 2)
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetMarginRates(t *testing.T) {
 	b.Verbose = true
+	fmt.Printf("meow")
 	a, err := b.GetMarginRates("fUSD")
 	t.Log(a)
 	if err != nil {
@@ -71,6 +83,35 @@ func TestGetMarginRates(t *testing.T) {
 	}
 }
 
+func TestGetAccountInfoV2(t *testing.T) {
+	b.Verbose = true
+	fmt.Printf("HELLOOOO")
+	a, err := b.GetAccountInfoV2()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetV2FundingInfo(t *testing.T) {
+	b.Verbose = true
+	fmt.Printf("HELLOOO")
+	a, err := b.GetV2FundingInfo("fUSD")
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetV2Balances(t *testing.T) {
+	b.Verbose = true
+	fmt.Printf("HELLOOOO")
+	a, err := b.GetV2Balances()
+	t.Log(a)
+	if err != nil {
+		t.Error(err)
+	}
+}
 
 func TestGetDerivativeData(t *testing.T) {
 	b.Verbose = true
@@ -504,8 +545,9 @@ func TestGetBalanceHistory(t *testing.T) {
 		t.SkipNow()
 	}
 	t.Parallel()
-
-	_, err := b.GetBalanceHistory("USD", time.Time{}, time.Time{}, 1, "deposit")
+	b.Verbose = true
+	a, err := b.GetBalanceHistory("USD", time.Time{}, time.Time{}, 1, "deposit")
+	t.Log(a)
 	if err == nil {
 		t.Error("GetBalanceHistory() Expected error")
 	}
@@ -528,8 +570,9 @@ func TestGetTradeHistory(t *testing.T) {
 		t.SkipNow()
 	}
 	t.Parallel()
-
-	_, err := b.GetTradeHistory("BTCUSD", time.Time{}, time.Time{}, 1, 0)
+	b.Verbose = true
+	a, err := b.GetTradeHistory("BTCUSD", time.Time{}, time.Time{}, 1, 0)
+	t.Log(a)
 	if err == nil {
 		t.Error("GetTradeHistory() Expected error")
 	}
