@@ -3,6 +3,10 @@ package exchange
 import (
 	"context"
 	"database/sql"
+	"encoding/csv"
+	"io"
+	"os"
+	"strings"
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common/cache"
@@ -192,4 +196,34 @@ func UUIDByName(in string) (uuid.UUID, error) {
 // ResetExchangeCache
 func ResetExchangeCache() {
 	exchangeCache = cache.New(5)
+}
+
+// LoadCSV loads & parses a CSV list of exchanges
+func LoadCSV(file string) (out []Details, err error) {
+	csvFile, err := os.Open(file)
+	if err != nil {
+		return out, err
+	}
+
+	defer func() {
+		err = csvFile.Close()
+		if err != nil {
+			log.Errorln(log.Global, err)
+		}
+	}()
+
+	csvData := csv.NewReader(csvFile)
+	for {
+		row, errCSV := csvData.Read()
+		if errCSV != nil {
+			if errCSV == io.EOF {
+				return out, err
+			}
+			return out, errCSV
+		}
+
+		out = append(out, Details{
+			Name: strings.Title(row[0]),
+		})
+	}
 }

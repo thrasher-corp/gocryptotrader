@@ -14,7 +14,6 @@ import (
 	dbPSQL "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
-	"github.com/thrasher-corp/gocryptotrader/database/seed"
 	"github.com/thrasher-corp/goose"
 )
 
@@ -49,7 +48,7 @@ func main() {
 	fmt.Println(core.Copyright)
 	fmt.Println()
 
-	flag.StringVar(&command, "command", "", "command to run seed|status|up|up-by-one|up-to|down|create")
+	flag.StringVar(&command, "command", "", "command to run status|up|up-by-one|up-to|down|create")
 	flag.StringVar(&args, "args", "", "arguments to pass to goose")
 	flag.StringVar(&configFile, "config", config.DefaultFilePath(), "config file to load")
 	flag.StringVar(&defaultDataDir, "datadir", common.GetDefaultDataDir(runtime.GOOS), "default data directory for GoCryptoTrader files")
@@ -87,15 +86,6 @@ func main() {
 		_ = goose.Run("status", dbConn.SQL, drv, migrationDir, "")
 		fmt.Println()
 		flag.Usage()
-		return
-	}
-
-	if command == "seed" {
-		err = seed.Run(false, false)
-		if err != nil {
-			fmt.Println(err)
-		}
-		fmt.Println("Exchange seed successful")
 		return
 	}
 

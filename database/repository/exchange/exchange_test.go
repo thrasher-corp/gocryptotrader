@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -172,4 +173,12 @@ func TestOneAndOneByUUID(t *testing.T) {
 
 func seed() error {
 	return Seed(testExchanges)
+}
+
+func TestLoadCSV(t *testing.T) {
+	testData := filepath.Join("..", "..", "..", "testdata", "exchangelist.csv")
+	_, err := LoadCSV(testData)
+	if err != nil {
+		t.Fatal(err)
+	}
 }

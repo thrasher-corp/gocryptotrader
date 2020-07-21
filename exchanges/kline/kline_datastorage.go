@@ -3,6 +3,7 @@ package kline
 import (
 	"encoding/csv"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"strconv"
@@ -75,7 +76,6 @@ func StoreInDatabase(in *Item) error {
 }
 
 // LoadFromGCTScriptCSV loads kline data from a CSV file
-
 func LoadFromGCTScriptCSV(file string) (out []Candle, errRet error) {
 	csvFile, err := os.Open(file)
 	if err != nil {
@@ -101,12 +101,15 @@ func LoadFromGCTScriptCSV(file string) (out []Candle, errRet error) {
 		}
 
 		tempCandle := Candle{}
-
 		v, errParse := strconv.ParseInt(row[0], 10, 32)
 		if errParse != nil {
 			return out, errParse
 		}
 		tempCandle.Time = time.Unix(v, 0).UTC()
+		if tempCandle.Time.IsZero() {
+			err = fmt.Errorf("invalid timestamp received on row %v", row)
+			break
+		}
 
 		tempCandle.Volume, err = strconv.ParseFloat(row[1], 64)
 		if err != nil {

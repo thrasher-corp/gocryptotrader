@@ -436,6 +436,10 @@ func TestItem_SortCandlesByTimestamp(t *testing.T) {
 }
 
 func setupTest(t *testing.T) {
+	if verbose {
+		testhelpers.EnableVerboseTestOutput()
+	}
+
 	var err error
 	testhelpers.MigrationDir = filepath.Join("..", "..", "database", "migrations")
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
@@ -443,10 +447,6 @@ func setupTest(t *testing.T) {
 	if err != nil {
 		fmt.Printf("failed to create temp file: %v", err)
 		os.Exit(1)
-	}
-
-	if verbose {
-		testhelpers.EnableVerboseTestOutput()
 	}
 
 	t.Cleanup(func() {
@@ -566,5 +566,16 @@ func TestLoadCSV(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(v)
+
+	if v[0].Time.UTC() != time.Unix(1546300800, 0).UTC() {
+		t.Fatalf("unexpected value received: %v", v[0].Time)
+	}
+
+	if v[269].Close != 8177.91 {
+		t.Fatalf("unexpected value received: %v", v[269].Close)
+	}
+
+	if v[364].Open != 7246 {
+		t.Fatalf("unexpected value received: %v", v[364].Open)
+	}
 }
