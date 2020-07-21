@@ -516,7 +516,7 @@ func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) error {
 
 // GenerateSubscriptions generates the default subscription set
 func (b *Binance) GenerateSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{"@ticker", "@trade", "@kline_1m", "@depth"}
+	var channels = []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
 	var subscriptions []stream.ChannelSubscription
 	assets := b.GetAssetTypes()
 	for x := range assets {
