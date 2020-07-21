@@ -7639,7 +7639,6 @@ type GoCryptoTraderClient interface {
 	GetRPCEndpoints(ctx context.Context, in *GetRPCEndpointsRequest, opts ...grpc.CallOption) (*GetRPCEndpointsResponse, error)
 	GetCommunicationRelayers(ctx context.Context, in *GetCommunicationRelayersRequest, opts ...grpc.CallOption) (*GetCommunicationRelayersResponse, error)
 	GetExchanges(ctx context.Context, in *GetExchangesRequest, opts ...grpc.CallOption) (*GetExchangesResponse, error)
-	// WHAT
 	DisableExchange(ctx context.Context, in *GenericExchangeNameRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	GetExchangeInfo(ctx context.Context, in *GenericExchangeNameRequest, opts ...grpc.CallOption) (*GetExchangeInfoResponse, error)
 	GetExchangeOTPCode(ctx context.Context, in *GenericExchangeNameRequest, opts ...grpc.CallOption) (*GetExchangeOTPReponse, error)
@@ -8467,7 +8466,6 @@ type GoCryptoTraderServer interface {
 	GetRPCEndpoints(context.Context, *GetRPCEndpointsRequest) (*GetRPCEndpointsResponse, error)
 	GetCommunicationRelayers(context.Context, *GetCommunicationRelayersRequest) (*GetCommunicationRelayersResponse, error)
 	GetExchanges(context.Context, *GetExchangesRequest) (*GetExchangesResponse, error)
-	// WHAT
 	DisableExchange(context.Context, *GenericExchangeNameRequest) (*GenericResponse, error)
 	GetExchangeInfo(context.Context, *GenericExchangeNameRequest) (*GetExchangeInfoResponse, error)
 	GetExchangeOTPCode(context.Context, *GenericExchangeNameRequest) (*GetExchangeOTPReponse, error)

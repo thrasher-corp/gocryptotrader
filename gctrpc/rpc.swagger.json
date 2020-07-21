@@ -141,7 +141,6 @@
     },
     "/v1/disableexchange": {
       "post": {
-        "summary": "WHAT",
         "operationId": "DisableExchange",
         "responses": {
           "200": {

@@ -245,19 +245,11 @@ message AddPortfolioAddressRequest {
     bool cold_storage = 6;
 }
 
-// message AddPortfolioAddressResponse {
-//     bool success = 1;
-// }
-
 message RemovePortfolioAddressRequest {
     string address = 1;
     string coin_type = 2;
     string description = 3;
 }
-
-// message RemovePortfolioAddressResponse {
-//     bool success = 1;
-// }
 
 message GetForexProvidersRequest {}
 
@@ -379,10 +371,6 @@ message CancelOrderRequest {
     string side = 7;
 }
 
-// message CancelOrderResponse {
-//     bool success = 1;
-// }
-
 message CancelAllOrdersRequest {
     string exchange = 1;
 }
@@ -432,8 +420,6 @@ message AddEventResponse {
 message RemoveEventRequest {
     int64 id = 1;
 }
-
-// message RemoveEventResponse {}
 
 message GetCryptocurrencyDepositAddressesRequest {
     string exchange = 1;
@@ -803,7 +789,7 @@ service GoCryptoTrader {
             get: "/v1/getexchanges"
         };
     }
-    // WHAT
+
     rpc DisableExchange (GenericExchangeNameRequest) returns (GenericResponse) {
         option (google.api.http) = {
             post: "/v1/disableexchange"
