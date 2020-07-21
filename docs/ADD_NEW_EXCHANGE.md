@@ -49,10 +49,10 @@ Find out which asset types are supported by the exchange and add them to the pai
 config.GetDefaultFilePath()
 ```
 
-```go
+```js
   {
    "name": "FTX",
-   "enabled": true,
+   "enabled": false,
    "verbose": false,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
@@ -61,37 +61,36 @@ config.GetDefaultFilePath()
    "websocketOrderbookBufferLimit": 5,
    "baseCurrencies": "USD",
    "currencyPairs": {
-    "assetTypes": [
-      "spot",
-      "futures"
-     ],
-     "pairs": {
-      "futures": {
-       "enabled": "BTC-PERP",
-       "available": "BTC-PERP",
-       "requestFormat": {
-        "uppercase": true,
-        "delimiter": "-"
-       },
-       "configFormat": {
-        "uppercase": true,
-        "delimiter": "-"
-       }
+    "lastUpdated": 0,
+    "pairs": {
+     "futures": {
+      "assetEnabled": true,
+      "enabled": "SHIT-PERP",
+      "available": "SHIT-PERP",
+      "requestFormat": {
+       "uppercase": true,
+       "delimiter": "-"
       },
-      "spot": {
-       "enabled": "BTC/USD",
-       "available": "BTC/USD",
-       "requestFormat": {
-        "uppercase": true,
-        "delimiter": "/"
-       },
-       "configFormat": {
-        "uppercase": true,
-        "delimiter": "/"
-       }
+      "configFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      }
+     },
+     "spot": {
+      "assetEnabled": true,
+      "enabled": "BULLSHIT/USD",
+      "available": "BULLSHIT/USD",
+      "requestFormat": {
+       "uppercase": true,
+       "delimiter": "/"
+      },
+      "configFormat": {
+       "uppercase": true,
+       "delimiter": "/"
       }
      }
-    },
+    }
+   },
    "api": {
     "authenticatedSupport": false,
     "authenticatedWebsocketApiSupport": false,
@@ -176,6 +175,16 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 			Uppercase: true,
 			Delimiter: "-",
 		},
+	}
+
+	err := f.StoreAssetPairFormat(asset.Spot, spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = f.StoreAssetPairFormat(asset.Futures, futures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
 ```
 
@@ -645,16 +654,6 @@ The currency package contains many helper functions to format and process curren
 
 ### Websocket addition if exchange supports it:
 
-#### Add websocket to exchange struct in ftx.go
-
-```go
-// FTX is the overarching type across this package
-type FTX struct {
-	exchange.Base
-	WebsocketConn *wshandler.WebsocketConnection // Add this line
-}
-```
-
 #### Websocket Setup:
 
 - Set the websocket url in ftx_websocket.go that is provided in the documentation:
@@ -672,27 +671,35 @@ func (f *FTX) WsConnect() error {
 		return errors.New(wshandler.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := f.WebsocketConn.Dial(&dialer, http.Header{})
+	err := f.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	f.WebsocketConn.SetupPingHandler(wshandler.WebsocketPingHandler{
+	// Can set up custom ping handler per websocket connection.
+	f.Websocket.Conn.SetupPingHandler(wshandler.WebsocketPingHandler{
 		MessageType: websocket.PingMessage,
 		Delay:       ftxWebsocketTimer,
 	})
 	if f.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", f.Name)
 	}
+	// This reader routine is called prior to initiating a subscription for
+	// efficient processing.
 	go f.wsReadData()
 	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		err := f.WsAuth()
+		err = f.WsAuth()
 		if err != nil {
 			f.Websocket.DataHandler <- err
 			f.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	f.GenerateDefaultSubscriptions()
-	return nil
+	// Generates the default subscription set, based off enabled pairs.
+	subs, err := f.GenerateDefaultSubscriptions()
+	if err != nil {
+		return err
+	}
+	// Finally subscribes to each individual channel.
+	return f.Websocket.SubscribeToChannels(subs)
 }
 ```
 
@@ -700,22 +707,44 @@ func (f *FTX) WsConnect() error {
 
 ```go
 // GenerateDefaultSubscriptions generates default subscription
-func (f *FTX) GenerateDefaultSubscriptions() {
-	var channels = []string{wsTicker, wsTrades, wsOrderbook, wsMarkets, wsFills, wsOrders}
-	var subscriptions []wshandler.WebsocketChannelSubscription
-	for a := range f.CurrencyPairs.AssetTypes {
-		pairs := f.GetEnabledPairs(f.CurrencyPairs.AssetTypes[a])
+func (f *FTX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+	var subscriptions []stream.ChannelSubscription
+	subscriptions = append(subscriptions, stream.ChannelSubscription{
+		Channel: wsMarkets,
+	})
+	// Ranges over available channels, pairs and asset types to produce a full
+	// subscription list.
+	var channels = []string{wsTicker, wsTrades, wsOrderbook}
+	assets := f.GetAssetTypes()
+	for a := range assets {
+		pairs, err := f.GetEnabledPairs(assets[a])
+		if err != nil {
+			return nil, err
+		}
 		for z := range pairs {
-			newPair := currency.NewPairWithDelimiter(pairs[z].Base.String(), pairs[z].Quote.String(), "-")
+			newPair := currency.NewPairWithDelimiter(pairs[z].Base.String(),
+				pairs[z].Quote.String(),
+				"-")
 			for x := range channels {
-				subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
-					Channel:  channels[x],
-					Currency: newPair,
-				})
+				subscriptions = append(subscriptions,
+					stream.ChannelSubscription{
+						Channel:  channels[x],
+						Currency: newPair,
+						Asset:    assets[a],
+					})
 			}
 		}
 	}
-	f.Websocket.SubscribeToChannels(subscriptions)
+	// Appends authenticated channels to the subscription list
+	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		var authchan = []string{wsOrders, wsFills}
+		for x := range authchan {
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
+				Channel: authchan[x],
+			})
+		}
+	}
+	return subscriptions, nil
 }
 ```
 
@@ -753,22 +782,47 @@ type WsSub struct {
 
 ```go
 // Subscribe sends a websocket message to receive data from the channel
-func (f *FTX) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
-	var sub WsSub
-	a, err := f.GetPairAssetType(channelToSubscribe.Currency)
-	if err != nil {
-		return err
+func (f *FTX) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	// For subscriptions we try to batch as much as possible to limit the amount
+	// of connection usage but sometimes this is not supported on the exchange 
+	// API.
+	var errs common.Errors // This is an array of errors useful in the event that one channel subscription errors but we can subscribe to the next iteration.
+channels:
+	for i := range channelsToSubscribe {
+		// Type we declared above to send via our websocket connection.
+		var sub WsSub
+		sub.Channel = channelsToSubscribe[i].Channel
+		sub.Operation = subscribe
+
+		switch channelsToSubscribe[i].Channel {
+		case wsFills, wsOrders, wsMarkets:
+		// Authenticated or general 
+		default:
+			a, err := f.GetPairAssetType(channelsToSubscribe[i].Currency)
+			if err != nil {
+				errs = append(errs, err)
+				continue channels
+			}
+			// Ensures our outbound currency pair is formatted correctly, sometimes our configuration format is different that what our request format needs to be.
+			formattedPair, err := f.FormatExchangeCurrency(channelsToSubscribe[i].Currency, a)
+			if err != nil {
+				errs = append(errs, err)
+				continue channels
+			}
+			sub.Market = formattedPair.String()
+		}
+		err := f.Websocket.Conn.SendJSONMessage(sub)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		// When we have a successful subscription, we can alert our internal management system of the success.
+		f.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
-	switch channelToSubscribe.Channel {
-	case wsFills, wsOrders:
-		sub.Operation = "subscribe"
-		sub.Channel = channelToSubscribe.Channel
-	default:
-		sub.Operation = "subscribe"
-		sub.Channel = channelToSubscribe.Channel
-		sub.Market = f.FormatExchangeCurrency(channelToSubscribe.Currency, a).String()
+	if errs != nil {
+		return errs
 	}
-	return f.WebsocketConn.SendJSONMessage(sub)
+	return nil
 }
 ```
 
@@ -782,7 +836,7 @@ Run gocryptotrader with the following settings enabled in config
     },
     "enabled": {
      "autoPairUpdates": true,
-	 "websocketAPI": true
+	 "websocketAPI": true // <- Change this to true if it is false
 ```
 
 #### Handle websocket data:
@@ -800,13 +854,12 @@ func (f *FTX) wsReadData() {
 		case <-f.Websocket.ShutdownC:
 			return
 		default:
-			resp, err := f.WebsocketConn.ReadMessage()
-			if err != nil {
-				f.Websocket.ReadMessageErrors <- err
+			resp := f.Websocket.Conn.ReadMessage()
+			if resp.Raw == nil {
 				return
 			}
-			f.Websocket.TrafficAlert <- struct{}{}
-			err = f.wsHandleData(resp.Raw)
+
+			err := f.wsHandleData(resp.Raw)
 			if err != nil {
 				f.Websocket.DataHandler <- err
 			}
@@ -963,24 +1016,50 @@ func (f *FTX) WsAuth() error {
 			Time: intNonce,
 		},
 	}
-	return f.WebsocketConn.SendJSONMessage(req)
+	return f.Websocket.Conn.SendJSONMessage(req)
 }
 ```
 
 - Create an unsubscribe function if the exchange has the functionality:
 
 ```go
-// Unsubscribe sends a websocket message to stop receiving data from the channel
-func (f *FTX) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
-	var unSub WsSub
-	a, err := f.GetPairAssetType(channelToSubscribe.Currency)
-	if err != nil {
-		return err
+// GenerateDefaultSubscriptions generates default subscription
+func (f *FTX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+	// As with subscribing we want to batch as much as possible, but sometimes this cannot be achieved due to API shortfalls. 
+	var subscriptions []stream.ChannelSubscription
+	subscriptions = append(subscriptions, stream.ChannelSubscription{
+		Channel: wsMarkets,
+	})
+	var channels = []string{wsTicker, wsTrades, wsOrderbook}
+	assets := f.GetAssetTypes()
+	for a := range assets {
+		pairs, err := f.GetEnabledPairs(assets[a])
+		if err != nil {
+			return nil, err
+		}
+		for z := range pairs {
+			newPair := currency.NewPairWithDelimiter(pairs[z].Base.String(),
+				pairs[z].Quote.String(),
+				"-")
+			for x := range channels {
+				subscriptions = append(subscriptions,
+					stream.ChannelSubscription{
+						Channel:  channels[x],
+						Currency: newPair,
+						Asset:    assets[a],
+					})
+			}
+		}
 	}
-	unSub.Operation = "unsubscribe"
-	unSub.Channel = channelToSubscribe.Channel
-	unSub.Market = f.FormatExchangeCurrency(channelToSubscribe.Currency, a).String()
-	return f.WebsocketConn.SendJSONMessage(unSub)
+	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		var authchan = []string{wsOrders, wsFills}
+		for x := range authchan {
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
+				Channel: authchan[x],
+			})
+		}
+	}
+	return subscriptions, nil
 }
 ```
 
@@ -989,24 +1068,53 @@ func (f *FTX) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscript
 Add websocket functionality if supported to Setup:
 
 ```go
-	err = f.Websocket.Setup(
-		&wshandler.WebsocketSetup{
-			Enabled:                          exch.Features.Enabled.Websocket,
-			Verbose:                          exch.Verbose,
-			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-			DefaultURL:                       ftxWSURL,
-			ExchangeName:                     exch.Name,
-			RunningURL:                       exch.API.Endpoints.WebsocketURL,
-			Connector:                        f.WsConnect,
-			Subscriber:                       f.Subscribe,
-			UnSubscriber:                     f.Unsubscribe,
-			Features:                         &f.Features.Supports.WebsocketCapabilities,
-		})
+// Setup takes in the supplied exchange configuration details and sets params
+func (f *FTX) Setup(exch *config.ExchangeConfig) error {
+	if !exch.Enabled {
+		f.SetEnabled(false)
+		return nil
+	}
+
+	err := f.SetupDefaults(exch)
 	if err != nil {
 		return err
-  }
-  ```
+	}
+
+	// Websocket details setup below
+	err = f.Websocket.Setup(&stream.WebsocketSetup{
+		Enabled:                          exch.Features.Enabled.Websocket,
+		Verbose:                          exch.Verbose,
+		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		DefaultURL:                       ftxWSURL, // Default ws endpoint so we can roll back via CLI if needed.
+		ExchangeName:                     exch.Name, // Sets websocket name to the exchange name.
+		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		Connector:                        f.WsConnect, // Connector function outlined above.
+		Subscriber:                       f.Subscribe, // Subscriber function outlined above.
+		UnSubscriber:                     f.Unsubscribe, // Unsubscriber function outlined above.
+		GenerateSubscriptions:            f.GenerateDefaultSubscriptions, // Unsubscriber function outlined above.
+		Features:                         &f.Features.Supports.WebsocketCapabilities, // Defines the capabilities of the websocket outlined in supported features struct. This allows the websocket connection to be flushed appropriately if we have a pair/asset enable/disable change. This is outlined below.
+
+		// Orderbook buffer specific variables for processing orderbook updates via websocket feed 
+		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+		// Other orderbook buffer vars:
+		// BufferEnabled         bool 
+		// SortBuffer            bool 
+		// SortBufferByUpdateIDs bool 
+		// UpdateEntriesByID     bool 
+	})
+	if err != nil {
+		return err
+	}
+	// Sets up a new connection for the websocket, there are two separate connections denoted by the ConnectionSetup struct auth bool
+	return f.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		// RateLimit            int64  rudimentary rate limit that sleeps connection in milliseconds before sending designated payload
+		// Authenticated        bool  sets if the connection is dedicated for an authenticated websocket stream
+	})
+}
+```
 
 Below are the features supported by FTX API protocol:
 
@@ -1053,32 +1161,39 @@ Below are the features supported by FTX API protocol:
 Initially the functions return nil or common.ErrNotYetImplemented
 
 ```go
-// GetWebsocket returns a pointer to the exchange websocket
-func (f *FTX) GetWebsocket() (*wshandler.Websocket, error) {
-	return f.Websocket, nil
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (f *FTX) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	f.Websocket.SubscribeToChannels(channels)
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (f *FTX) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	f.Websocket.RemoveSubscribedChannels(channels)
-	return nil
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (f *FTX) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
-	return f.Websocket.GetSubscriptions(), nil
-}
-
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (f *FTX) AuthenticateWebsocket() error {
 	return f.WsAuth()
 }
 ```
+
+
+## Last but not least - Live testing
+
+### Live testing websocket via [gctcli](../cmd/gctcli/main.go)
+
+- Run all websocket command below while a gocryptotrader instance is running and the exchange websocket is enabled; ensure fetching of information is possible, disable/enable websocket disconnects and reconnects connection, ensure subscriptions are valid, ensure proxy can be set and reset and ensure URL can be set in the event that there might be an api endpoint change while a persistant instance is up and running.  
+```
+   getinfo   returns all exchange websocket information
+   disable   disables websocket connection for an exchange
+   enable    enables websocket connection for an exchange
+   getsubs   returns current subscriptions for an exchange
+   setproxy  sets exchange websocket proxy, flushes and reroutes connection
+   seturl    sets exchange websocket connection, flushes and reconnects
+```
+
+- Run pair commands to disable and enable different assets types to witness subscription and unsubscription
+
+```
+   get           returns all enabled and available pairs by asset type
+   disableasset  disables asset type
+   enableasset   enables asset type
+   disable       disable pairs by asset type
+   enable        enable pairs by asset type
+   enableall     enable all pairs
+   disableall    dissable all pairs
+```
+
+## Open a PR
+
+Submitting a PR is easy and all are welcome additions to the public repository. Submit via github.com/thrasher-corp/gocryptotrader or contact our team via slack for more information. 
