@@ -71,7 +71,7 @@ var websocketManagerCommand = cli.Command{
 				},
 				cli.StringFlag{
 					Name:  "proxy",
-					Usage: "proxy address to change to",
+					Usage: "proxy address to change to, if proxy string is not set, this will stop the utilization of the prior set proxy.",
 				},
 			},
 			Action: setProxy,
@@ -86,7 +86,7 @@ var websocketManagerCommand = cli.Command{
 				},
 				cli.StringFlag{
 					Name:  "url",
-					Usage: "url string to change to, an empty string will set it back to default",
+					Usage: "url string to change to, an empty string will set it back to the packaged defined default",
 				},
 			},
 			Action: setURL,
