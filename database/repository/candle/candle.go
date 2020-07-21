@@ -3,7 +3,12 @@ package candle
 import (
 	"context"
 	"database/sql"
+	"encoding/csv"
 	"errors"
+	"fmt"
+	"io"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -12,6 +17,7 @@ import (
 	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/sqlboiler/boil"
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
 	"github.com/volatiletech/null"
@@ -168,4 +174,86 @@ func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Candle) error {
 		}
 	}
 	return nil
+}
+
+func InsertFromCSV(exchangeName, base, quote, interval, asset, file string) (int, error) {
+	boil.DebugMode = true
+	boil.DebugWriter = os.Stdout
+
+	csvFile, err := os.Open(file)
+	if err != nil {
+		return 0, err
+	}
+
+	defer func() {
+		err = csvFile.Close()
+		if err != nil {
+			log.Errorln(log.Global, err)
+		}
+	}()
+
+	csvData := csv.NewReader(csvFile)
+
+	exchangeUUID, err := exchange.UUIDByName(exchangeName)
+	if err != nil {
+		return 0, err
+	}
+
+	tempCandle := &Candle{
+		ExchangeID: exchangeUUID.String(),
+		Base:       base,
+		Quote:      quote,
+		Interval:   interval,
+		Asset:      asset,
+	}
+
+	for {
+		row, errCSV := csvData.Read()
+		if errCSV != nil {
+			if errCSV == io.EOF {
+				err = nil
+				break
+			}
+			return 0, errCSV
+		}
+
+		tempTick := Tick{}
+		v, errParse := strconv.ParseInt(row[0], 10, 32)
+		if errParse != nil {
+			return 0, errParse
+		}
+		tempTick.Timestamp = time.Unix(v, 0).UTC()
+		if tempTick.Timestamp.IsZero() {
+			err = fmt.Errorf("invalid timestamp received on row %v", row)
+			break
+		}
+
+		tempTick.Volume, err = strconv.ParseFloat(row[1], 64)
+		if err != nil {
+			break
+		}
+
+		tempTick.Open, err = strconv.ParseFloat(row[2], 64)
+		if err != nil {
+			break
+		}
+
+		tempTick.High, err = strconv.ParseFloat(row[3], 64)
+		if err != nil {
+			break
+		}
+
+		tempTick.Low, err = strconv.ParseFloat(row[4], 64)
+		if err != nil {
+			break
+		}
+
+		tempTick.Close, err = strconv.ParseFloat(row[5], 64)
+		if err != nil {
+			break
+		}
+		tempCandle.Tick = append(tempCandle.Tick, tempTick)
+	}
+
+	return len(tempCandle.Tick), Insert(tempCandle)
 }

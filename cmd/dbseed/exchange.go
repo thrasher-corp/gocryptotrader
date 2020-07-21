@@ -52,10 +52,6 @@ func ExchangesFromDefaultList() error {
 	return exchangeDB.InsertMany(allExchanges)
 }
 
-func Exchanges(in []exchangeDB.Details) error {
-	return exchangeDB.InsertMany(in)
-}
-
 func seedExchangeFromFile(c *cli.Context) error {
 	var fileName string
 	if c.IsSet("name") {
@@ -69,7 +65,7 @@ func seedExchangeFromFile(c *cli.Context) error {
 		return err
 	}
 
-	err = Load(c.String("config"))
+	err = Load(c)
 	if err != nil {
 		return err
 	}
@@ -97,7 +93,7 @@ func addSingleExchange(c *cli.Context) error {
 		exchangeName = c.Args().Get(0)
 	}
 
-	err := Load(c.String("config"))
+	err := Load(c)
 	if err != nil {
 		return err
 	}

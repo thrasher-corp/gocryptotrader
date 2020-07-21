@@ -95,7 +95,8 @@ func LoadFromGCTScriptCSV(file string) (out []Candle, errRet error) {
 		row, errCSV := csvData.Read()
 		if errCSV != nil {
 			if errCSV == io.EOF {
-				errCSV = nil
+				err = nil
+				break
 			}
 			return out, errCSV
 		}

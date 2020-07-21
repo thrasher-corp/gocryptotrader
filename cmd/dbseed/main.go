@@ -13,6 +13,7 @@ import (
 var (
 	configFile string
 	dataDir    string
+	verbose    bool
 )
 
 func main() {
@@ -31,9 +32,15 @@ func main() {
 				Usage:       "config file to load",
 				Destination: &configFile,
 			},
+			&cli.BoolFlag{
+				Name:        "verbose",
+				Usage:       "toggle verbose output",
+				Destination: &verbose,
+			},
 		},
 		Commands: []*cli.Command{
 			seedExchangeCommand,
+			seedCandleCommand,
 		},
 	}
 

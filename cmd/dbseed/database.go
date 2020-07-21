@@ -9,15 +9,16 @@ import (
 	dbPSQL "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
+	"github.com/urfave/cli/v2"
 )
 
 var (
 	dbConn *database.Instance
 )
 
-func Load(configFile string) error {
+func Load(c *cli.Context) error {
 	var conf config.Config
-	err := conf.LoadConfig(configFile, true)
+	err := conf.LoadConfig(c.String("config"), true)
 	if err != nil {
 		return err
 	}
