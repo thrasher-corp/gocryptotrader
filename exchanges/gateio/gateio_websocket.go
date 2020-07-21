@@ -456,6 +456,7 @@ func (g *Gateio) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscript
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
+				Asset:    asset.Spot,
 			})
 		}
 	}
@@ -493,6 +494,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 				Channel:  channels[i],
 				Currency: fpair.Upper(),
 				Params:   params,
+				Asset:    asset.Spot,
 			})
 		}
 	}

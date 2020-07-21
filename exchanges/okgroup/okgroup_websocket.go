@@ -579,7 +579,10 @@ func (o *OKGroup) WsProcessOrderBook(respRaw []byte) error {
 		if response.Action == okGroupWsOrderbookPartial {
 			err := o.WsProcessPartialOrderBook(&response.Data[i], c, a)
 			if err != nil {
-				o.wsResubscribeToOrderbook(&response)
+				err2 := o.wsResubscribeToOrderbook(&response)
+				if err2 != nil {
+					o.Websocket.DataHandler <- err2
+				}
 				return err
 			}
 		} else if response.Action == okGroupWsOrderbookUpdate {
@@ -588,7 +591,10 @@ func (o *OKGroup) WsProcessOrderBook(respRaw []byte) error {
 			}
 			err := o.WsProcessUpdateOrderbook(&response.Data[i], c, a)
 			if err != nil {
-				o.wsResubscribeToOrderbook(&response)
+				err2 := o.wsResubscribeToOrderbook(&response)
+				if err2 != nil {
+					o.Websocket.DataHandler <- err2
+				}
 				return err
 			}
 		}
@@ -596,7 +602,7 @@ func (o *OKGroup) WsProcessOrderBook(respRaw []byte) error {
 	return nil
 }
 
-func (o *OKGroup) wsResubscribeToOrderbook(response *WebsocketOrderBooksData) {
+func (o *OKGroup) wsResubscribeToOrderbook(response *WebsocketOrderBooksData) error {
 	a := o.GetAssetTypeFromTableName(response.Table)
 	for i := range response.Data {
 		f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
@@ -612,9 +618,14 @@ func (o *OKGroup) wsResubscribeToOrderbook(response *WebsocketOrderBooksData) {
 		channelToResubscribe := &stream.ChannelSubscription{
 			Channel:  response.Table,
 			Currency: c,
+			Asset:    a,
 		}
-		o.Websocket.ResubscribeToChannel(channelToResubscribe)
+		err := o.Websocket.ResubscribeToChannel(channelToResubscribe)
+		if err != nil {
+			return fmt.Errorf("%s resubscribe to orderbook error %s", o.Name, err)
+		}
 	}
+	return nil
 }
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an
@@ -790,6 +801,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 						stream.ChannelSubscription{
 							Channel:  channels[y],
 							Currency: p,
+							Asset:    asset.Spot,
 						})
 				}
 			}
@@ -811,6 +823,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 						stream.ChannelSubscription{
 							Channel:  channels[y],
 							Currency: p,
+							Asset:    asset.Futures,
 						})
 				}
 			}
@@ -832,6 +845,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 						stream.ChannelSubscription{
 							Channel:  channels[y],
 							Currency: p,
+							Asset:    asset.PerpetualSwap,
 						})
 				}
 			}
@@ -846,6 +860,7 @@ func (o *OKGroup) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 						stream.ChannelSubscription{
 							Channel:  defaultIndexSubscribedChannels[y],
 							Currency: p,
+							Asset:    asset.Index,
 						})
 				}
 			}

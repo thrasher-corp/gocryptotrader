@@ -566,6 +566,7 @@ func (c *COINUT) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
+				Asset:    asset.Spot,
 			})
 		}
 	}

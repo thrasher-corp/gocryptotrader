@@ -460,6 +460,7 @@ func (h *HitBTC) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channels[i],
 				Currency: fpair,
+				Asset:    asset.Spot,
 			})
 		}
 	}

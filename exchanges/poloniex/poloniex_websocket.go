@@ -545,6 +545,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 		subscriptions = append(subscriptions, stream.ChannelSubscription{
 			Channel:  "orderbook",
 			Currency: enabledCurrencies[j],
+			Asset:    asset.Spot,
 		})
 	}
 	return subscriptions, nil

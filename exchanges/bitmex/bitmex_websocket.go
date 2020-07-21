@@ -549,7 +549,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 func (b *Bitmex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	assets := b.GetAssetTypes()
 	var allPairs currency.Pairs
-
+	var associatedAssets []asset.Item
 	for x := range assets {
 		contracts, err := b.GetEnabledPairs(assets[x])
 		if err != nil {
@@ -557,7 +557,12 @@ func (b *Bitmex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 		}
 		for y := range contracts {
 			allPairs = allPairs.Add(contracts[y])
+			associatedAssets = append(associatedAssets, assets[x])
 		}
+	}
+
+	if len(allPairs) != len(associatedAssets) {
+		return nil, fmt.Errorf("%s generate default subscriptions: pair and asset type len mismatch", b.Name)
 	}
 
 	channels := []string{bitmexWSOrderbookL2, bitmexWSTrade}
@@ -572,6 +577,7 @@ func (b *Bitmex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channels[i] + ":" + allPairs[j].String(),
 				Currency: allPairs[j],
+				Asset:    associatedAssets[j],
 			})
 		}
 	}
@@ -615,6 +621,7 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscript
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channels[i] + ":" + contracts[j].String(),
 				Currency: contracts[j],
+				Asset:    asset.PerpetualContract,
 			})
 		}
 	}

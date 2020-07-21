@@ -532,6 +532,7 @@ func (b *Binance) GenerateSubscriptions() ([]stream.ChannelSubscription, error) 
 				subscriptions = append(subscriptions, stream.ChannelSubscription{
 					Channel:  lp.String() + channels[z],
 					Currency: pairs[y],
+					Asset:    assets[x],
 				})
 			}
 		}

@@ -67,6 +67,7 @@ func (c *Coinbene) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  fmt.Sprintf(channels[x], pairs[y]),
 				Currency: pairs[y],
+				Asset:    asset.PerpetualSwap,
 			})
 		}
 	}

@@ -96,6 +96,7 @@ func (l *LakeBTC) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 		subscriptions = append(subscriptions, stream.ChannelSubscription{
 			Channel:  channel,
 			Currency: enabledCurrencies[j],
+			Asset:    asset.Spot,
 		})
 	}
 	return subscriptions, nil

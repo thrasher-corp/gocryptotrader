@@ -300,6 +300,7 @@ func (b *BTCMarkets) generateDefaultSubscriptions() ([]stream.ChannelSubscriptio
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
+				Asset:    asset.Spot,
 			})
 		}
 	}

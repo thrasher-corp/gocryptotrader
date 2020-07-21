@@ -273,6 +273,7 @@ func (z *ZB) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  fmt.Sprintf(channels[i], enabledCurrencies[j].Lower().String()),
 				Currency: enabledCurrencies[j].Lower(),
+				Asset:    asset.Spot,
 			})
 		}
 	}

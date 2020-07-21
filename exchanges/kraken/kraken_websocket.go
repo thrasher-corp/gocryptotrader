@@ -622,6 +622,7 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[
 				subscriptionToRemove := &stream.ChannelSubscription{
 					Channel:  krakenWsOrderbook,
 					Currency: channelData.Pair,
+					Asset:    asset.Spot,
 				}
 				k.Websocket.ResubscribeToChannel(subscriptionToRemove)
 				return err
@@ -828,6 +829,7 @@ func (k *Kraken) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  defaultSubscribedChannels[i],
 				Currency: enabledCurrencies[j],
+				Asset:    asset.Spot,
 			})
 		}
 	}

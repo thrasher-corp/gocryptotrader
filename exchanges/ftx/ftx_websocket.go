@@ -192,6 +192,7 @@ func (f *FTX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, erro
 					stream.ChannelSubscription{
 						Channel:  channels[x],
 						Currency: newPair,
+						Asset:    assets[a],
 					})
 			}
 		}
@@ -284,7 +285,10 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			}
 			err = f.WsProcessUpdateOB(&resultData.OBData, p, a)
 			if err != nil {
-				f.wsResubToOB(p)
+				err2 := f.wsResubToOB(p)
+				if err2 != nil {
+					f.Websocket.DataHandler <- err2
+				}
 				return err
 			}
 		case wsTrades:
@@ -394,7 +398,10 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			}
 			err = f.WsProcessPartialOB(&resultData.OBData, p, a)
 			if err != nil {
-				f.wsResubToOB(p)
+				err2 := f.wsResubToOB(p)
+				if err2 != nil {
+					f.Websocket.DataHandler <- err2
+				}
 				return err
 			}
 			// reset obchecksum failure blockage for pair
@@ -454,9 +461,9 @@ func (f *FTX) WsProcessUpdateOB(data *WsOrderbookData, p currency.Pair, a asset.
 	return nil
 }
 
-func (f *FTX) wsResubToOB(p currency.Pair) {
+func (f *FTX) wsResubToOB(p currency.Pair) error {
 	if ok := obSuccess[p]; ok {
-		return
+		return nil
 	}
 
 	obSuccess[p] = true
@@ -465,7 +472,11 @@ func (f *FTX) wsResubToOB(p currency.Pair) {
 		Channel:  wsOrderbook,
 		Currency: p,
 	}
-	f.Websocket.ResubscribeToChannel(channelToResubscribe)
+	err := f.Websocket.ResubscribeToChannel(channelToResubscribe)
+	if err != nil {
+		return fmt.Errorf("%s resubscribe to orderbook failure %s", f.Name, err)
+	}
+	return nil
 }
 
 // WsProcessPartialOB creates an OB from websocket data

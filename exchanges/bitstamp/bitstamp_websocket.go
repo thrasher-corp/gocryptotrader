@@ -153,6 +153,7 @@ func (b *Bitstamp) generateDefaultSubscriptions() ([]stream.ChannelSubscription,
 		for j := range enabledCurrencies {
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel: channels[i] + enabledCurrencies[j].Lower().String(),
+				Asset:   asset.Spot,
 			})
 		}
 	}

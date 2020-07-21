@@ -362,6 +362,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscripti
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channels[i],
 				Currency: fpair,
+				Asset:    asset.Spot,
 			})
 		}
 	}
