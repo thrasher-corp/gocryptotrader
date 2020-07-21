@@ -275,10 +275,9 @@ func (e *Base) SetConfigPairs() error {
 	for x := range assetTypes {
 		if !exchageAssets.Contains(assetTypes[x]) {
 			log.Warnf(log.ExchangeSys,
-				"%s exchange asset type %s unsupported, please manually remove from configuration or add it to the exchange pairs management systen in %s_wrapper.go",
+				"%s exchange asset type %s unsupported, please manually remove from configuration",
 				e.Name,
-				assetTypes[x],
-				strings.ToLower(e.Name))
+				assetTypes[x])
 		}
 		cfgPS, err := e.Config.CurrencyPairs.Get(assetTypes[x])
 		if err != nil {

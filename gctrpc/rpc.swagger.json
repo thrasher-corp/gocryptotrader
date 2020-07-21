@@ -50,7 +50,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcAddPortfolioAddressResponse"
+              "$ref": "#/definitions/gctrpcGenericResponse"
             }
           },
           "default": {
@@ -114,7 +114,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcCancelOrderResponse"
+              "$ref": "#/definitions/gctrpcGenericResponse"
             }
           },
           "default": {
@@ -141,12 +141,13 @@
     },
     "/v1/disableexchange": {
       "post": {
+        "summary": "WHAT",
         "operationId": "DisableExchange",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGenericExchangeNameResponse"
+              "$ref": "#/definitions/gctrpcGenericResponse"
             }
           },
           "default": {
@@ -178,7 +179,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGenericSubsystemResponse"
+              "$ref": "#/definitions/gctrpcGenericResponse"
             }
           },
           "default": {
@@ -208,7 +209,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGenericExchangeNameResponse"
+              "$ref": "#/definitions/gctrpcGenericResponse"
             }
           },
           "default": {
@@ -240,7 +241,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGenericSubsystemResponse"
+              "$ref": "#/definitions/gctrpcGenericResponse"
             }
           },
           "default": {
@@ -1588,7 +1589,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcRemoveEventResponse"
+              "$ref": "#/definitions/gctrpcGenericResponse"
             }
           },
           "default": {
@@ -1620,7 +1621,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcRemovePortfolioAddressResponse"
+              "$ref": "#/definitions/gctrpcGenericResponse"
             }
           },
           "default": {
@@ -1652,7 +1653,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGenericSubsystemResponse"
+              "$ref": "#/definitions/gctrpcGenericResponse"
             }
           },
           "default": {
@@ -1689,7 +1690,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGenericSubsystemResponse"
+              "$ref": "#/definitions/gctrpcGenericResponse"
             }
           },
           "default": {
@@ -1732,7 +1733,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGenericExchangeNameResponse"
+              "$ref": "#/definitions/gctrpcGenericResponse"
             }
           },
           "default": {
@@ -1860,7 +1861,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGenericSubsystemResponse"
+              "$ref": "#/definitions/gctrpcGenericResponse"
             }
           },
           "default": {
@@ -2315,9 +2316,6 @@
         }
       }
     },
-    "gctrpcAddPortfolioAddressResponse": {
-      "type": "object"
-    },
     "gctrpcAuditEvent": {
       "type": "object",
       "properties": {
@@ -2379,9 +2377,6 @@
           "type": "string"
         }
       }
-    },
-    "gctrpcCancelOrderResponse": {
-      "type": "object"
     },
     "gctrpcCandle": {
       "type": "object",
@@ -2679,9 +2674,6 @@
         }
       }
     },
-    "gctrpcGenericExchangeNameResponse": {
-      "type": "object"
-    },
     "gctrpcGenericResponse": {
       "type": "object",
       "properties": {
@@ -2692,9 +2684,6 @@
           "type": "string"
         }
       }
-    },
-    "gctrpcGenericSubsystemResponse": {
-      "type": "object"
     },
     "gctrpcGetAccountInfoResponse": {
       "type": "object",
@@ -3384,9 +3373,6 @@
         }
       }
     },
-    "gctrpcRemoveEventResponse": {
-      "type": "object"
-    },
     "gctrpcRemovePortfolioAddressRequest": {
       "type": "object",
       "properties": {
@@ -3400,9 +3386,6 @@
           "type": "string"
         }
       }
-    },
-    "gctrpcRemovePortfolioAddressResponse": {
-      "type": "object"
     },
     "gctrpcSetExchangePairRequest": {
       "type": "object",

@@ -198,15 +198,23 @@ func (s *RPCServer) GetSubsystems(_ context.Context, r *gctrpc.GetSubsystemsRequ
 }
 
 // EnableSubsystem enables a engine subsytem
-func (s *RPCServer) EnableSubsystem(_ context.Context, r *gctrpc.GenericSubsystemRequest) (*gctrpc.GenericSubsystemResponse, error) {
+func (s *RPCServer) EnableSubsystem(_ context.Context, r *gctrpc.GenericSubsystemRequest) (*gctrpc.GenericResponse, error) {
 	err := SetSubsystem(r.Subsystem, true)
-	return &gctrpc.GenericSubsystemResponse{}, err
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess,
+		Data: fmt.Sprintf("subsystem %s enabled", r.Subsystem)}, nil
 }
 
 // DisableSubsystem disables a engine subsytem
-func (s *RPCServer) DisableSubsystem(_ context.Context, r *gctrpc.GenericSubsystemRequest) (*gctrpc.GenericSubsystemResponse, error) {
+func (s *RPCServer) DisableSubsystem(_ context.Context, r *gctrpc.GenericSubsystemRequest) (*gctrpc.GenericResponse, error) {
 	err := SetSubsystem(r.Subsystem, false)
-	return &gctrpc.GenericSubsystemResponse{}, err
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess,
+		Data: fmt.Sprintf("subsystem %s disabled", r.Subsystem)}, nil
 }
 
 // GetRPCEndpoints returns a list of API endpoints
@@ -249,15 +257,21 @@ func (s *RPCServer) GetExchanges(_ context.Context, r *gctrpc.GetExchangesReques
 }
 
 // DisableExchange disables an exchange
-func (s *RPCServer) DisableExchange(_ context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GenericExchangeNameResponse, error) {
+func (s *RPCServer) DisableExchange(_ context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GenericResponse, error) {
 	err := UnloadExchange(r.Exchange)
-	return &gctrpc.GenericExchangeNameResponse{}, err
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
 }
 
 // EnableExchange enables an exchange
-func (s *RPCServer) EnableExchange(_ context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GenericExchangeNameResponse, error) {
+func (s *RPCServer) EnableExchange(_ context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GenericResponse, error) {
 	err := LoadExchange(r.Exchange, false, nil)
-	return &gctrpc.GenericExchangeNameResponse{}, err
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
 }
 
 // GetExchangeOTPCode retrieves an exchanges OTP code
@@ -649,18 +663,26 @@ func (s *RPCServer) GetPortfolioSummary(_ context.Context, r *gctrpc.GetPortfoli
 }
 
 // AddPortfolioAddress adds an address to the portfolio manager
-func (s *RPCServer) AddPortfolioAddress(_ context.Context, r *gctrpc.AddPortfolioAddressRequest) (*gctrpc.AddPortfolioAddressResponse, error) {
-	err := Bot.Portfolio.AddAddress(r.Address, r.Description, currency.NewCode(r.CoinType), r.Balance)
+func (s *RPCServer) AddPortfolioAddress(_ context.Context, r *gctrpc.AddPortfolioAddressRequest) (*gctrpc.GenericResponse, error) {
+	err := Bot.Portfolio.AddAddress(r.Address,
+		r.Description,
+		currency.NewCode(r.CoinType),
+		r.Balance)
 	if err != nil {
 		return nil, err
 	}
-	return &gctrpc.AddPortfolioAddressResponse{}, err
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
 }
 
 // RemovePortfolioAddress removes an address from the portfolio manager
-func (s *RPCServer) RemovePortfolioAddress(_ context.Context, r *gctrpc.RemovePortfolioAddressRequest) (*gctrpc.RemovePortfolioAddressResponse, error) {
-	err := Bot.Portfolio.RemoveAddress(r.Address, r.Description, currency.NewCode(r.CoinType))
-	return &gctrpc.RemovePortfolioAddressResponse{}, err
+func (s *RPCServer) RemovePortfolioAddress(_ context.Context, r *gctrpc.RemovePortfolioAddressRequest) (*gctrpc.GenericResponse, error) {
+	err := Bot.Portfolio.RemoveAddress(r.Address,
+		r.Description,
+		currency.NewCode(r.CoinType))
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
 }
 
 // GetForexProviders returns a list of available forex providers
@@ -916,7 +938,7 @@ func (s *RPCServer) WhaleBomb(_ context.Context, r *gctrpc.WhaleBombRequest) (*g
 
 // CancelOrder cancels an order specified by exchange, currency pair and asset
 // type
-func (s *RPCServer) CancelOrder(_ context.Context, r *gctrpc.CancelOrderRequest) (*gctrpc.CancelOrderResponse, error) {
+func (s *RPCServer) CancelOrder(_ context.Context, r *gctrpc.CancelOrderRequest) (*gctrpc.GenericResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errExchangeNotLoaded
@@ -934,8 +956,11 @@ func (s *RPCServer) CancelOrder(_ context.Context, r *gctrpc.CancelOrderRequest)
 		WalletAddress: r.WalletAddress,
 		Pair:          p,
 	})
-
-	return &gctrpc.CancelOrderResponse{}, err
+	if err != nil {
+		return nil, err
+	}
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess,
+		Data: fmt.Sprintf("order %s cancelled", r.OrderId)}, nil
 }
 
 // CancelAllOrders cancels all orders, filterable by exchange
@@ -970,9 +995,12 @@ func (s *RPCServer) AddEvent(_ context.Context, r *gctrpc.AddEventRequest) (*gct
 }
 
 // RemoveEvent removes an event, specified by an event ID
-func (s *RPCServer) RemoveEvent(_ context.Context, r *gctrpc.RemoveEventRequest) (*gctrpc.RemoveEventResponse, error) {
-	Remove(r.Id)
-	return &gctrpc.RemoveEventResponse{}, nil
+func (s *RPCServer) RemoveEvent(_ context.Context, r *gctrpc.RemoveEventRequest) (*gctrpc.GenericResponse, error) {
+	if !Remove(r.Id) {
+		return nil, fmt.Errorf("event %d not removed", r.Id)
+	}
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess,
+		Data: fmt.Sprintf("event %d removed", r.Id)}, nil
 }
 
 // GetCryptocurrencyDepositAddresses returns a list of cryptocurrency deposit
@@ -1236,7 +1264,7 @@ func (s *RPCServer) GetExchangePairs(_ context.Context, r *gctrpc.GetExchangePai
 }
 
 // SetExchangePair enables/disabled the specified pair(s) on an exchange
-func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePairRequest) (*gctrpc.GenericExchangeNameResponse, error) {
+func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePairRequest) (*gctrpc.GenericResponse, error) {
 	exchCfg, err := Bot.Config.GetExchangeConfig(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -1316,7 +1344,7 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 		return nil, newErrors
 	}
 
-	return &gctrpc.GenericExchangeNameResponse{}, nil
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
 }
 
 // GetOrderbookStream streams the requested updated orderbook
@@ -1927,7 +1955,7 @@ func (s *RPCServer) GCTScriptAutoLoadToggle(_ context.Context, r *gctrpc.GCTScri
 }
 
 // SetExchangeAsset enables or disables an exchanges asset type
-func (s *RPCServer) SetExchangeAsset(_ context.Context, r *gctrpc.SetExchangeAssetRequest) (*gctrpc.GenericSubsystemResponse, error) {
+func (s *RPCServer) SetExchangeAsset(_ context.Context, r *gctrpc.SetExchangeAssetRequest) (*gctrpc.GenericResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errExchangeNotLoaded
@@ -1957,11 +1985,11 @@ func (s *RPCServer) SetExchangeAsset(_ context.Context, r *gctrpc.SetExchangeAss
 		return nil, err
 	}
 
-	return &gctrpc.GenericSubsystemResponse{}, nil
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
 }
 
 // SetAllExchangePairs enables or disables an exchanges pairs
-func (s *RPCServer) SetAllExchangePairs(_ context.Context, r *gctrpc.SetExchangeAllPairsRequest) (*gctrpc.GenericSubsystemResponse, error) {
+func (s *RPCServer) SetAllExchangePairs(_ context.Context, r *gctrpc.SetExchangeAllPairsRequest) (*gctrpc.GenericResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errExchangeNotLoaded
@@ -2003,13 +2031,13 @@ func (s *RPCServer) SetAllExchangePairs(_ context.Context, r *gctrpc.SetExchange
 		}
 	}
 
-	return &gctrpc.GenericSubsystemResponse{}, nil
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
 }
 
 // UpdateExchangeSupportedPairs forces an update of the supported pairs which
 // will update the available pairs list and remove any assets that are disabled
 // by the exchange
-func (s *RPCServer) UpdateExchangeSupportedPairs(_ context.Context, r *gctrpc.UpdateExchangeSupportedPairsRequest) (*gctrpc.GenericSubsystemResponse, error) {
+func (s *RPCServer) UpdateExchangeSupportedPairs(_ context.Context, r *gctrpc.UpdateExchangeSupportedPairsRequest) (*gctrpc.GenericResponse, error) {
 	exch := GetExchangeByName(r.Exchange)
 	if exch == nil {
 		return nil, errExchangeNotLoaded
@@ -2036,7 +2064,7 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(_ context.Context, r *gctrpc.Up
 			return nil, err
 		}
 	}
-	return &gctrpc.GenericSubsystemResponse{}, nil
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess}, nil
 }
 
 // GetExchangeAssets returns the supported asset types
@@ -2097,7 +2125,7 @@ func (s *RPCServer) WebsocketSetEnabled(_ context.Context, r *gctrpc.WebsocketSe
 		}
 
 		exchCfg.Features.Enabled.Websocket = true
-		return new(gctrpc.GenericResponse), nil
+		return &gctrpc.GenericResponse{Status: MsgStatusSuccess, Data: "websocket enabled"}, nil
 	}
 
 	err = w.Disable()
@@ -2105,7 +2133,7 @@ func (s *RPCServer) WebsocketSetEnabled(_ context.Context, r *gctrpc.WebsocketSe
 		return nil, err
 	}
 	exchCfg.Features.Enabled.Websocket = false
-	return new(gctrpc.GenericResponse), nil
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess, Data: "websocket disabled"}, nil
 }
 
 // WebsocketGetSubscriptions returns websocket subscription analysis
@@ -2155,7 +2183,10 @@ func (s *RPCServer) WebsocketSetProxy(_ context.Context, r *gctrpc.WebsocketSetP
 	if err != nil {
 		return nil, err
 	}
-	return new(gctrpc.GenericResponse), nil
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess,
+		Data: fmt.Sprintf("new proxy has been set [%s] for %s websocket connection",
+			r.Exchange,
+			r.Proxy)}, nil
 }
 
 // WebsocketSetURL sets exchange websocket client connection URL
@@ -2174,5 +2205,8 @@ func (s *RPCServer) WebsocketSetURL(_ context.Context, r *gctrpc.WebsocketSetURL
 	if err != nil {
 		return nil, err
 	}
-	return new(gctrpc.GenericResponse), nil
+	return &gctrpc.GenericResponse{Status: MsgStatusSuccess,
+		Data: fmt.Sprintf("new URL has been set [%s] for %s websocket connection",
+			r.Exchange,
+			r.Url)}, nil
 }
