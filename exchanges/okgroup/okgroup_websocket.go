@@ -147,6 +147,8 @@ const (
 	delimiterColon      = ":"
 	delimiterDash       = "-"
 	delimiterUnderscore = "_"
+
+	maxConnByteLen = 4096
 )
 
 // orderbookMutex Ensures if two entries arrive at once, only one can be
@@ -179,6 +181,8 @@ func (o *OKGroup) WsConnect() error {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
+	dialer.ReadBufferSize = 8192
+	dialer.WriteBufferSize = 8192
 	err := o.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
@@ -877,20 +881,53 @@ func (o *OKGroup) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 		Operation: "subscribe",
 	}
 
+	var channelsThatWillBeSubbed []stream.ChannelSubscription
 	for i := range channelsToSubscribe {
+		// Temp type to evaluate max byte len after a marshal on batched subs
+		temp := WebsocketEventRequest{
+			Operation: "subscribe",
+		}
+		temp.Arguments = make([]string, len(request.Arguments))
+		copy(temp.Arguments, request.Arguments)
+
 		arg := channelsToSubscribe[i].Channel + delimiterColon
 		if strings.EqualFold(channelsToSubscribe[i].Channel, okGroupWsSpotAccount) {
 			arg += channelsToSubscribe[i].Currency.Base.String()
 		} else {
 			arg += channelsToSubscribe[i].Currency.String()
 		}
-		request.Arguments = append(request.Arguments, arg)
+
+		temp.Arguments = append(temp.Arguments, arg)
+		chunk, err := json.Marshal(request)
+		if err != nil {
+			return err
+		}
+
+		if len(chunk) > maxConnByteLen {
+			// If temp chunk exceeds max byte length determined by the exchange,
+			// commit last payload.
+			i-- // reverse position in range to reuse channel subscription on
+			// next iteration
+			err := o.Websocket.Conn.SendJSONMessage(request)
+			if err != nil {
+				return err
+			}
+			o.Websocket.AddSuccessfulSubscriptions(channelsThatWillBeSubbed...)
+			// Drop prior subs and chunked payload args on succesful subscription
+			channelsThatWillBeSubbed = nil
+			request.Arguments = nil
+			continue
+		}
+		// Add pending chained items
+		channelsThatWillBeSubbed = append(channelsThatWillBeSubbed, channelsToSubscribe[i])
+		request.Arguments = temp.Arguments
 	}
+	// Commit left overs to payload
 	err := o.Websocket.Conn.SendJSONMessage(request)
 	if err != nil {
 		return err
 	}
-	o.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+	o.Websocket.AddSuccessfulSubscriptions(channelsThatWillBeSubbed...)
 	return nil
 }
 
@@ -900,17 +937,53 @@ func (o *OKGroup) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription
 		Operation: "unsubscribe",
 	}
 
+	var channelsThatWillBeUnsubbed []stream.ChannelSubscription
 	for i := range channelsToUnsubscribe {
-		request.Arguments = append(request.Arguments,
-			channelsToUnsubscribe[i].Channel+
-				delimiterColon+
-				channelsToUnsubscribe[i].Currency.String())
+		// Temp type to evaluate max byte len after a marshal on batched unsubs
+		temp := WebsocketEventRequest{
+			Operation: "unsubscribe",
+		}
+		temp.Arguments = make([]string, len(request.Arguments))
+		copy(temp.Arguments, request.Arguments)
+
+		arg := channelsToUnsubscribe[i].Channel + delimiterColon
+		if strings.EqualFold(channelsToUnsubscribe[i].Channel, okGroupWsSpotAccount) {
+			arg += channelsToUnsubscribe[i].Currency.Base.String()
+		} else {
+			arg += channelsToUnsubscribe[i].Currency.String()
+		}
+
+		temp.Arguments = append(temp.Arguments, arg)
+		chunk, err := json.Marshal(request)
+		if err != nil {
+			return err
+		}
+
+		if len(chunk) > maxConnByteLen {
+			// If temp chunk exceeds max byte length determined by the exchange,
+			// commit last payload.
+			i-- // reverse position in range to reuse channel unsubscription on
+			// next iteration
+			err := o.Websocket.Conn.SendJSONMessage(request)
+			if err != nil {
+				return err
+			}
+			o.Websocket.AddSuccessfulSubscriptions(channelsThatWillBeUnsubbed...)
+			// Drop prior unsubs and chunked payload args on succesful unsubscription
+			channelsThatWillBeUnsubbed = nil
+			request.Arguments = nil
+			continue
+		}
+		// Add pending chained items
+		channelsThatWillBeUnsubbed = append(channelsThatWillBeUnsubbed, channelsToUnsubscribe[i])
+		request.Arguments = temp.Arguments
 	}
+	// Commit left overs to payload
 	err := o.Websocket.Conn.SendJSONMessage(request)
 	if err != nil {
 		return err
 	}
-	o.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	o.Websocket.AddSuccessfulSubscriptions(channelsThatWillBeUnsubbed...)
 	return nil
 }
 
