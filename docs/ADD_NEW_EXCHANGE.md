@@ -796,7 +796,7 @@ channels:
 
 		switch channelsToSubscribe[i].Channel {
 		case wsFills, wsOrders, wsMarkets:
-		// Authenticated wsFills && wsOrders or wsMarkets which is a channel subscription for all market tickers do not need a currency pair association. 
+		// Authenticated wsFills && wsOrders or wsMarkets which is a channel subscription for the full set of tradable markets do not need a currency pair association. 
 		default:
 			a, err := f.GetPairAssetType(channelsToSubscribe[i].Currency)
 			if err != nil {
