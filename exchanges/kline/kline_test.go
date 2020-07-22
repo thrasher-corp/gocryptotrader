@@ -448,7 +448,74 @@ func setupTest(t *testing.T) {
 	}
 }
 
-func TestLoadFromDatabaseFromDatabase(t *testing.T) {
+func TestStoreInDatabase(t *testing.T) {
+	setupTest(t)
+
+	testCases := []struct {
+		name   string
+		config *database.Config
+		seedDB func(bool) error
+		runner func(t *testing.T)
+		closer func(dbConn *database.Instance) error
+	}{
+		{
+			name:   "postgresql",
+			config: testhelpers.PostgresTestDatabase,
+			seedDB: seedDB,
+		},
+		{
+			name: "SQLite",
+			config: &database.Config{
+				Driver:            database.DBSQLite3,
+				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
+			},
+			seedDB: seedDB,
+		},
+	}
+
+	for x := range testCases {
+		test := testCases[x]
+
+		t.Run(test.name, func(t *testing.T) {
+			if !testhelpers.CheckValidConfig(&test.config.ConnectionDetails) {
+				t.Skip("database not configured skipping test")
+			}
+
+			dbConn, err := testhelpers.ConnectToDatabase(test.config, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if test.seedDB != nil {
+				err = test.seedDB(false)
+				if err != nil {
+					t.Error(err)
+				}
+			}
+
+			_, ohlcvData, err := genOHCLVData()
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = StoreInDatabase(&ohlcvData)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = testhelpers.CloseDatabase(dbConn)
+			if err != nil {
+				t.Error(err)
+			}
+		})
+	}
+
+	err := os.RemoveAll(testhelpers.TempDir)
+	if err != nil {
+		t.Fatalf("Failed to remove temp db file: %v", err)
+	}
+}
+
+func TestLoadFromDatabase(t *testing.T) {
 	setupTest(t)
 
 	testCases := []struct {
@@ -522,7 +589,7 @@ func seedDB(includeOHLCVData bool) error {
 	}
 
 	if includeOHLCVData {
-		data, err := genOHCLVData()
+		data, _, err := genOHCLVData()
 		if err != nil {
 			return err
 		}
@@ -531,7 +598,7 @@ func seedDB(includeOHLCVData bool) error {
 	return nil
 }
 
-func genOHCLVData() (out candle.Item, err error) {
+func genOHCLVData() (out candle.Item, outItem Item, err error) {
 	exchangeUUID, err := exchange.UUIDByName(testExchanges[0].Name)
 	if err != nil {
 		return
@@ -554,7 +621,23 @@ func genOHCLVData() (out candle.Item, err error) {
 		})
 	}
 
-	return out, nil
+	outItem.Interval = OneDay
+	outItem.Asset = asset.Spot
+	outItem.Pair = currency.NewPair(currency.BTC, currency.USDT)
+	outItem.Exchange = testExchanges[0].Name
+
+	for x := 0; x < 365; x++ {
+		outItem.Candles = append(outItem.Candles, Candle{
+			Time:   start.Add(time.Hour * 24 * time.Duration(x)),
+			Open:   1000,
+			High:   1000,
+			Low:    1000,
+			Close:  1000,
+			Volume: 1000,
+		})
+	}
+
+	return out, outItem, nil
 }
 
 func TestLoadCSV(t *testing.T) {
