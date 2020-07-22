@@ -52,7 +52,7 @@ config.GetDefaultFilePath()
 ```js
   {
    "name": "FTX",
-   "enabled": false,
+   "enabled": true,
    "verbose": false,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
@@ -65,8 +65,8 @@ config.GetDefaultFilePath()
     "pairs": {
      "futures": {
       "assetEnabled": true,
-      "enabled": "SHIT-PERP",
-      "available": "SHIT-PERP",
+      "enabled": "BTC-PERP",
+      "available": "BTC-PERP",
       "requestFormat": {
        "uppercase": true,
        "delimiter": "-"
@@ -78,8 +78,8 @@ config.GetDefaultFilePath()
      },
      "spot": {
       "assetEnabled": true,
-      "enabled": "BULLSHIT/USD",
-      "available": "BULLSHIT/USD",
+      "enabled": "BTC/USD",
+      "available": "BTC/USD",
       "requestFormat": {
        "uppercase": true,
        "delimiter": "/"
@@ -796,14 +796,14 @@ channels:
 
 		switch channelsToSubscribe[i].Channel {
 		case wsFills, wsOrders, wsMarkets:
-		// Authenticated or general 
+		// Authenticated wsFills && wsOrders or wsMarkets which is a channel subscription for all market tickers do not need a currency pair association. 
 		default:
 			a, err := f.GetPairAssetType(channelsToSubscribe[i].Currency)
 			if err != nil {
 				errs = append(errs, err)
 				continue channels
 			}
-			// Ensures our outbound currency pair is formatted correctly, sometimes our configuration format is different that what our request format needs to be.
+			// Ensures our outbound currency pair is formatted correctly, sometimes our configuration format is different from what our request format needs to be.
 			formattedPair, err := f.FormatExchangeCurrency(channelsToSubscribe[i].Currency, a)
 			if err != nil {
 				errs = append(errs, err)
@@ -1023,43 +1023,43 @@ func (f *FTX) WsAuth() error {
 - Create an unsubscribe function if the exchange has the functionality:
 
 ```go
-// GenerateDefaultSubscriptions generates default subscription
-func (f *FTX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (f *FTX) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
 	// As with subscribing we want to batch as much as possible, but sometimes this cannot be achieved due to API shortfalls. 
-	var subscriptions []stream.ChannelSubscription
-	subscriptions = append(subscriptions, stream.ChannelSubscription{
-		Channel: wsMarkets,
-	})
-	var channels = []string{wsTicker, wsTrades, wsOrderbook}
-	assets := f.GetAssetTypes()
-	for a := range assets {
-		pairs, err := f.GetEnabledPairs(assets[a])
-		if err != nil {
-			return nil, err
-		}
-		for z := range pairs {
-			newPair := currency.NewPairWithDelimiter(pairs[z].Base.String(),
-				pairs[z].Quote.String(),
-				"-")
-			for x := range channels {
-				subscriptions = append(subscriptions,
-					stream.ChannelSubscription{
-						Channel:  channels[x],
-						Currency: newPair,
-						Asset:    assets[a],
-					})
+	var errs common.Errors
+channels:
+	for i := range channelsToUnsubscribe {
+		var unSub WsSub
+		unSub.Operation = unsubscribe
+		unSub.Channel = channelsToUnsubscribe[i].Channel
+		switch channelsToUnsubscribe[i].Channel {
+		case wsFills, wsOrders, wsMarkets:
+		default:
+			a, err := f.GetPairAssetType(channelsToUnsubscribe[i].Currency)
+			if err != nil {
+				errs = append(errs, err)
+				continue channels
 			}
+
+			formattedPair, err := f.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, a)
+			if err != nil {
+				errs = append(errs, err)
+				continue channels
+			}
+			unSub.Market = formattedPair.String()
 		}
-	}
-	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		var authchan = []string{wsOrders, wsFills}
-		for x := range authchan {
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel: authchan[x],
-			})
+		err := f.Websocket.Conn.SendJSONMessage(unSub)
+		if err != nil {
+			errs = append(errs, err)
+			continue
 		}
+		// When we have a successful unsubscription, we can alert our internal management system of the success.
+		f.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
 	}
-	return subscriptions, nil
+	if errs != nil {
+		return errs
+	}
+	return nil
 }
 ```
 
@@ -1092,10 +1092,10 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 		Connector:                        f.WsConnect, // Connector function outlined above.
 		Subscriber:                       f.Subscribe, // Subscriber function outlined above.
 		UnSubscriber:                     f.Unsubscribe, // Unsubscriber function outlined above.
-		GenerateSubscriptions:            f.GenerateDefaultSubscriptions, // Unsubscriber function outlined above.
+		GenerateSubscriptions:            f.GenerateDefaultSubscriptions, // GenerateDefaultSubscriptions function outlined above.
 		Features:                         &f.Features.Supports.WebsocketCapabilities, // Defines the capabilities of the websocket outlined in supported features struct. This allows the websocket connection to be flushed appropriately if we have a pair/asset enable/disable change. This is outlined below.
 
-		// Orderbook buffer specific variables for processing orderbook updates via websocket feed 
+		// Orderbook buffer specific variables for processing orderbook updates via websocket feed. 
 		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 		// Other orderbook buffer vars:
 		// BufferEnabled         bool 
@@ -1106,12 +1106,12 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 	if err != nil {
 		return err
 	}
-	// Sets up a new connection for the websocket, there are two separate connections denoted by the ConnectionSetup struct auth bool
+	// Sets up a new connection for the websocket, there are two separate connections denoted by the ConnectionSetup struct auth bool.
 	return f.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		// RateLimit            int64  rudimentary rate limit that sleeps connection in milliseconds before sending designated payload
-		// Authenticated        bool  sets if the connection is dedicated for an authenticated websocket stream
+		// Authenticated        bool  sets if the connection is dedicated for an authenticated websocket stream which can be accessed from the Websocket field variable AuthConn e.g. f.Websocket.AuthConn
 	})
 }
 ```

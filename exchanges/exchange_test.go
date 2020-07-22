@@ -118,18 +118,18 @@ func TestSetClientProxyAddress(t *testing.T) {
 		t.Error("SetClientProxyAddress error", err)
 	}
 
-	err = newBase.SetClientProxyAddress("www.valid.com")
+	err = newBase.SetClientProxyAddress("http://www.valid.com")
 	if err != nil {
 		t.Error("SetClientProxyAddress error", err)
 	}
 
 	// calling this again will cause the ws check to fail
-	err = newBase.SetClientProxyAddress("www.valid.com")
+	err = newBase.SetClientProxyAddress("http://www.valid.com")
 	if err == nil {
 		t.Error("trying to set the same proxy addr should thrown an err for ws")
 	}
 
-	if newBase.Websocket.GetProxyAddress() != "www.valid.com" {
+	if newBase.Websocket.GetProxyAddress() != "http://www.valid.com" {
 		t.Error("SetClientProxyAddress error", err)
 	}
 }
