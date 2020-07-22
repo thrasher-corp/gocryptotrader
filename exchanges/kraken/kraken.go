@@ -27,7 +27,7 @@ const (
 	krakenAPIVersion         = "0"
 	krakenServerTime         = "Time"
 	krakenAssets             = "Assets"
-	krakenAssetPairs         = "AssetPairs"
+	krakenAssetPairs         = "AssetPairs?"
 	krakenTicker             = "Ticker"
 	krakenOHLC               = "OHLC"
 	krakenDepth              = "Depth"
@@ -100,7 +100,7 @@ func (k *Kraken) SeedAssets() error {
 		assetTranslator.Seed(k, v.Altname)
 	}
 
-	assetPairs, err := k.GetAssetPairs()
+	assetPairs, err := k.GetAssetPairs([]string{}, false, false, false)
 	if err != nil {
 		return err
 	}
@@ -138,15 +138,33 @@ func (k *Kraken) GetAssets() (map[string]*Asset, error) {
 }
 
 // GetAssetPairs returns a full asset pair list
-func (k *Kraken) GetAssetPairs() (map[string]*AssetPairs, error) {
+func (k *Kraken) GetAssetPairs(assetPairs []string, leverage, fees, margin bool) (map[string]*AssetPairs, error) {
 	path := fmt.Sprintf("%s/%s/public/%s", k.API.Endpoints.URL, krakenAPIVersion, krakenAssetPairs)
-
+	params := url.Values{}
+	var assets, info string
+	var infoData []string
+	if len(assetPairs) != 0 {
+		assets = strings.Join(assetPairs, ",")
+		params.Set("pair", assets)
+	}
 	var response struct {
 		Error  []string               `json:"error"`
 		Result map[string]*AssetPairs `json:"result"`
 	}
-
-	if err := k.SendHTTPRequest(path, &response); err != nil {
+	if leverage {
+		infoData = append(infoData, "leverage")
+	}
+	if fees {
+		infoData = append(infoData, "fees")
+	}
+	if margin {
+		infoData = append(infoData, "margin")
+	}
+	if len(infoData) != 0 {
+		info = strings.Join(infoData, ",")
+		params.Set("info", info)
+	}
+	if err := k.SendHTTPRequest(path+params.Encode(), &response); err != nil {
 		return response.Result, err
 	}
 	return response.Result, GetError(response.Error)

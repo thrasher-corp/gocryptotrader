@@ -85,7 +85,7 @@ type AssetPairs struct {
 	FeesMaker         [][]float64 `json:"fees_maker"`
 	FeeVolumeCurrency string      `json:"fee_volume_currency"`
 	MarginCall        int         `json:"margin_call"`
-	MarginStop        int         `json:"margin_stop"`
+	MarginLevel       int         `json:"margin_level,"`
 }
 
 // Ticker is a standard ticker type

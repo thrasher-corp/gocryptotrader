@@ -60,6 +60,7 @@ var (
 	EOS        = NewCode("EOS")
 	XLM        = NewCode("XLM")
 	USDT       = NewCode("USDT")
+	USDC       = NewCode("USDC")
 	ADA        = NewCode("ADA")
 	XMR        = NewCode("XMR")
 	TRX        = NewCode("TRX")
