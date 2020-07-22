@@ -87,13 +87,6 @@ func TestInsert(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			t.Cleanup(func() {
-				err = testhelpers.CloseDatabase(dbConn)
-				if err != nil {
-					t.Error(err)
-				}
-			})
-
 			if test.seedDB != nil {
 				err = test.seedDB(false)
 				if err != nil {
@@ -109,6 +102,11 @@ func TestInsert(t *testing.T) {
 			err = Insert(&data)
 			if err != nil {
 				t.Fatal(err)
+			}
+
+			err = testhelpers.CloseDatabase(dbConn)
+			if err != nil {
+				t.Error(err)
 			}
 		})
 	}
@@ -150,13 +148,6 @@ func TestInsertFromCSV(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			t.Cleanup(func() {
-				err = testhelpers.CloseDatabase(dbConn)
-				if err != nil {
-					t.Error(err)
-				}
-			})
-
 			if test.seedDB != nil {
 				err = test.seedDB(false)
 				if err != nil {
@@ -172,6 +163,11 @@ func TestInsertFromCSV(t *testing.T) {
 			}
 			if count != 365 {
 				t.Fatalf("expected 365 results to be inserted received: %v", count)
+			}
+
+			err = testhelpers.CloseDatabase(dbConn)
+			if err != nil {
+				t.Error(err)
 			}
 		})
 	}
@@ -213,13 +209,6 @@ func TestSeries(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			t.Cleanup(func() {
-				err = testhelpers.CloseDatabase(dbConn)
-				if err != nil {
-					t.Error(err)
-				}
-			})
-
 			if test.seedDB != nil {
 				err = test.seedDB(true)
 				if err != nil {
@@ -242,6 +231,11 @@ func TestSeries(t *testing.T) {
 				if !errors.Is(err, errInvalidInput) {
 					t.Fatal(err)
 				}
+			}
+
+			err = testhelpers.CloseDatabase(dbConn)
+			if err != nil {
+				t.Error(err)
 			}
 		})
 	}

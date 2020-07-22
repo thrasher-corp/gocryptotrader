@@ -1,7 +1,6 @@
 package kline
 
 import (
-	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -445,16 +444,8 @@ func setupTest(t *testing.T) {
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
 	testhelpers.TempDir, err = ioutil.TempDir("", "gct-temp")
 	if err != nil {
-		fmt.Printf("failed to create temp file: %v", err)
-		os.Exit(1)
+		t.Fatalf("failed to create temp file: %v", err)
 	}
-
-	t.Cleanup(func() {
-		err = os.RemoveAll(testhelpers.TempDir)
-		if err != nil {
-			t.Fatalf("Failed to remove temp db file: %v", err)
-		}
-	})
 }
 
 func TestLoadFromDatabaseFromDatabase(t *testing.T) {
@@ -515,6 +506,11 @@ func TestLoadFromDatabaseFromDatabase(t *testing.T) {
 				t.Error(err)
 			}
 		})
+	}
+
+	err := os.RemoveAll(testhelpers.TempDir)
+	if err != nil {
+		t.Fatalf("Failed to remove temp db file: %v", err)
 	}
 }
 
