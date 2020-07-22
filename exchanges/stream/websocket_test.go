@@ -92,15 +92,11 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ws.Wg.Wait()
-
 	// Start new instance then simulate shutdown
 	err = ws.trafficMonitor()
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	ws.Wg.Wait()
 }
 
 func TestIsDisconnectionError(t *testing.T) {
@@ -262,7 +258,6 @@ func TestWebsocket(t *testing.T) {
 	if err != nil {
 		t.Fatal("WebsocketSetup", err)
 	}
-	ws.Wg.Wait()
 }
 
 // TestSubscribe logic test
@@ -597,7 +592,6 @@ func TestSetupPingHandler(t *testing.T) {
 	})
 	time.Sleep(time.Millisecond * 500)
 	close(wc.ShutdownC)
-	wc.Wg.Wait()
 }
 
 // TestParseBinaryResponse logic test
