@@ -49,7 +49,12 @@ func TestCurrenciesMarshalJSON(t *testing.T) {
 }
 
 func TestMatch(t *testing.T) {
-	c := NewCurrenciesFromStringArray([]string{"btc", "usd", "ltc", "bro", "things"})
+	matchString := []string{"btc", "usd", "ltc", "bro", "things"}
+	c := NewCurrenciesFromStringArray(matchString)
+
+	if !c.Match(NewCurrenciesFromStringArray(matchString)) {
+		t.Fatal("should match")
+	}
 	if c.Match(NewCurrenciesFromStringArray([]string{"btc", "usd", "ltc", "bro"})) {
 		t.Fatal("should not match")
 	}
