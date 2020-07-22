@@ -193,9 +193,9 @@ func UUIDByName(in string) (uuid.UUID, error) {
 	return ret.UUID, nil
 }
 
-// ResetExchangeCache
+// ResetExchangeCache reinitialise cache to blank state used to clear cache for testing
 func ResetExchangeCache() {
-	exchangeCache = cache.New(5)
+	exchangeCache = cache.New(10)
 }
 
 // LoadCSV loads & parses a CSV list of exchanges
