@@ -409,7 +409,7 @@ func (o *orderManager) processOrders() {
 			if len(pairs) == 0 {
 				if Bot.Settings.Verbose {
 					log.Debugf(log.OrderMgr,
-						"Order manager: No pairs enabled for %s and asset type %s skipping...",
+						"Order manager: No pairs enabled for %s and asset type %s, skipping...",
 						authExchanges[x],
 						supportedAssets[y])
 				}

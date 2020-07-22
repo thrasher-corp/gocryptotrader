@@ -61,7 +61,6 @@ config.GetDefaultFilePath()
    "websocketOrderbookBufferLimit": 5,
    "baseCurrencies": "USD",
    "currencyPairs": {
-    "lastUpdated": 0,
     "pairs": {
      "futures": {
       "assetEnabled": true,
@@ -1172,27 +1171,23 @@ func (f *FTX) AuthenticateWebsocket() error {
 
 ### Live testing websocket via [gctcli](../cmd/gctcli/main.go)
 
-- Run all websocket command below while a gocryptotrader instance is running and the exchange websocket is enabled; ensure fetching of information is possible, disable/enable websocket disconnects and reconnects connection, ensure subscriptions are valid, ensure proxy can be set and reset and ensure URL can be set in the event that there might be an api endpoint change while a persistant instance is up and running.  
-```
-   getinfo   returns all exchange websocket information
-   disable   disables websocket connection for an exchange
-   enable    enables websocket connection for an exchange
-   getsubs   returns current subscriptions for an exchange
-   setproxy  sets exchange websocket proxy, flushes and reroutes connection
-   seturl    sets exchange websocket connection, flushes and reconnects
-```
+Please test all `websocket` commands below whilst a GoCryptoTrader instance is running and with the exchange websocket setting enabled:
 
-- Run pair commands to disable and enable different assets types to witness subscription and unsubscription
+- `getinfo` to ensure fetching websocket information is possible (that the websocket connection is enabled, connected and is running).
+- `disable/enable` to ensure disabling/enabling a websocket connection disconnects/connects accordingly.
+- `getsubs` to ensure the subscriptions are in sync with the exchange's config settings or by manual subscriptions added/removed via `gctcli`.
+- `setproxy` to ensure that a proxy can be set and resets the websocket connection accordingly.
+- `seturl` to ensure that a new websocket URL can be set in the event of an API endpoint change whilst an instance of GoCryptoTrader is already running.   
 
-```
-   get           returns all enabled and available pairs by asset type
-   disableasset  disables asset type
-   enableasset   enables asset type
-   disable       disable pairs by asset type
-   enable        enable pairs by asset type
-   enableall     enable all pairs
-   disableall    dissable all pairs
-```
+Please test all `pair` commands to disable and enable different assets types to witness subscriptions and unsubscriptions:
+
+- `get` to ensure correct enabled and disabled pairs for a supported asset type.
+- `disableasset` to ensure disabling of entire asset class and associated unsubscriptions.
+- `enableasset` to ensure correct enabling of entire asset class and associated subscriptions.
+- `disable` to ensure correct disabling of pair(s) and and associated unsubscriptions.
+- `enable` to ensure correct enabling of pair(s) and associated subscriptions.
+- `enableall` to ensure correct enabling of all pairs for an asset type and associated subscriptions.
+- `disableall` to ensure correct disabling of all pairs for an asset type and associated unsubscriptions.
 
 ## Open a PR
 

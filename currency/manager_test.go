@@ -154,6 +154,15 @@ func TestGetPairs(t *testing.T) {
 	if pairs != nil {
 		t.Fatal("pairs shouldn't be populated")
 	}
+
+	superfluous := NewPair(DASH, USDT)
+	newPairs := p.Pairs[asset.Spot].Enabled.Add(superfluous)
+	p.Pairs[asset.Spot].Enabled = newPairs
+
+	_, err = p.GetPairs(asset.Spot, true)
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
 }
 
 func TestStorePairs(t *testing.T) {
@@ -283,6 +292,54 @@ func TestEnablePair(t *testing.T) {
 
 	// Test enabling a valid pair
 	if err := p.EnablePair(asset.Spot, NewPair(LTC, USD)); err != nil {
+		t.Error("unexpected result")
+	}
+}
+
+func TestIsAssetEnabled_SetAssetEnabled(t *testing.T) {
+	p.Pairs = nil
+	// Test enabling a pair when the pair manager is not initialised
+	if err := p.IsAssetEnabled(asset.Spot); err == nil {
+		t.Error("unexpected result")
+	}
+
+	err := p.SetAssetEnabled(asset.Spot, true)
+	if err == nil {
+		t.Fatal("unexpected result")
+	}
+
+	// Test asset type which doesn't exist
+	initTest(t)
+
+	if err := p.IsAssetEnabled(asset.Spot); err == nil {
+		t.Error("unexpected result")
+	}
+
+	err = p.SetAssetEnabled(asset.Spot, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = p.SetAssetEnabled(asset.Spot, false)
+	if err == nil {
+		t.Fatal("unexpected result")
+	}
+
+	if err := p.IsAssetEnabled(asset.Spot); err == nil {
+		t.Error("unexpected result")
+	}
+
+	err = p.SetAssetEnabled(asset.Spot, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = p.SetAssetEnabled(asset.Spot, true)
+	if err == nil {
+		t.Fatal("unexpected result")
+	}
+
+	if err := p.IsAssetEnabled(asset.Spot); err != nil {
 		t.Error("unexpected result")
 	}
 }

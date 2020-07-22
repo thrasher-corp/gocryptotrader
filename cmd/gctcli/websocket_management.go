@@ -78,7 +78,7 @@ var websocketManagerCommand = cli.Command{
 		},
 		{
 			Name:  "seturl",
-			Usage: "sets exchange websocket connection, flushes and reconnects",
+			Usage: "sets exchange websocket endpoint URL and resets the websocket connection",
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "exchange",
