@@ -11,17 +11,7 @@ import (
 )
 
 var (
-	configFile string
-	dataDir    string
-	verbose    bool
-)
-
-func main() {
-	fmt.Println("GoCryptoTrader database seeding tool")
-	fmt.Println(core.Copyright)
-	fmt.Println()
-
-	app := &cli.App{
+	app = &cli.App{
 		Name:                 "dbseed",
 		Version:              core.Version(false),
 		EnableBashCompletion: true,
@@ -43,16 +33,26 @@ func main() {
 			seedCandleCommand,
 		},
 	}
+	configFile string
+	verbose    bool
+)
+
+func main() {
+	fmt.Println("GoCryptoTrader database seeding tool")
+	fmt.Println(core.Copyright)
+	fmt.Println()
 
 	err := app.Run(os.Args)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if dbConn.SQL != nil {
-		err = dbConn.SQL.Close()
-		if err != nil {
-			log.Println(err)
+	if dbConn != nil {
+		if dbConn.SQL != nil {
+			err = dbConn.SQL.Close()
+			if err != nil {
+				log.Println(err)
+			}
 		}
 	}
 }

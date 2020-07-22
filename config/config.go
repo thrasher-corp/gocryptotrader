@@ -1365,7 +1365,7 @@ func GetFilePath(configfile string) (string, error) {
 		return configfile, nil
 	}
 
-	if flag.Lookup("test.v") != nil && !testBypass {
+	if flag.Lookup("test.v") != nil && !TestBypass {
 		return TestFile, nil
 	}
 

@@ -2,7 +2,7 @@
 -- SQL in this section is executed when the migration is applied.
 CREATE TABLE IF NOT EXISTS withdrawal_history_new
 (
-    id text PRIMARY KEY NOT NULL,
+    id text                  PRIMARY KEY NOT NULL,
     exchange_name_id         text NOT NULL,
     exchange_id              text NOT NULL,
     status                   text  NOT NULL,
@@ -23,7 +23,7 @@ ALTER TABLE withdrawal_history_new RENAME TO withdrawal_history;
 -- SQL in this section is executed when the migration is rolled back.
 CREATE TABLE IF NOT EXISTS "withdrawal_history_new"
 (
-    id text PRIMARY KEY NOT NULL,
+    id text          PRIMARY KEY NOT NULL,
     exchange         text NOT NULL,
     exchange_id      text NOT NULL,
     status           text  NOT NULL,

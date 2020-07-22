@@ -30,14 +30,14 @@ func LoadFromDatabase(exchange string, pair currency.Pair, interval Interval, st
 		Interval: interval,
 	}
 
-	for x := range retCandle.Tick {
+	for x := range retCandle.Candles {
 		ret.Candles = append(ret.Candles, Candle{
-			Time:   retCandle.Tick[x].Timestamp,
-			Open:   retCandle.Tick[x].Open,
-			High:   retCandle.Tick[x].High,
-			Low:    retCandle.Tick[x].Low,
-			Close:  retCandle.Tick[x].Close,
-			Volume: retCandle.Tick[x].Volume,
+			Time:   retCandle.Candles[x].Timestamp,
+			Open:   retCandle.Candles[x].Open,
+			High:   retCandle.Candles[x].High,
+			Low:    retCandle.Candles[x].Low,
+			Close:  retCandle.Candles[x].Close,
+			Volume: retCandle.Candles[x].Volume,
 		})
 	}
 	return ret, nil
@@ -54,7 +54,7 @@ func StoreInDatabase(in *Item) error {
 		return err
 	}
 
-	databaseCandles := candle.Candle{
+	databaseCandles := candle.Item{
 		ExchangeID: exchangeUUID.String(),
 		Base:       in.Pair.Base.Upper().String(),
 		Quote:      in.Pair.Quote.Upper().String(),
@@ -63,7 +63,7 @@ func StoreInDatabase(in *Item) error {
 	}
 
 	for x := range in.Candles {
-		databaseCandles.Tick = append(databaseCandles.Tick, candle.Tick{
+		databaseCandles.Candles = append(databaseCandles.Candles, candle.Candle{
 			Timestamp: in.Candles[x].Time,
 			Open:      in.Candles[x].Open,
 			High:      in.Candles[x].High,

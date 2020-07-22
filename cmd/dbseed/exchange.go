@@ -39,10 +39,19 @@ var seedExchangeCommand = &cli.Command{
 			},
 			Action: addSingleExchange,
 		},
+		{
+			Name:   "default",
+			Usage:  "seed exchange from default list",
+			Action: seedExchangeFromDefaultList,
+		},
 	},
 }
 
-func ExchangesFromDefaultList() error {
+func seedExchangeFromDefaultList(c *cli.Context) error {
+	err := Load(c)
+	if err != nil {
+		return err
+	}
 	var allExchanges []exchangeDB.Details
 	for x := range exchange.Exchanges {
 		allExchanges = append(allExchanges, exchangeDB.Details{

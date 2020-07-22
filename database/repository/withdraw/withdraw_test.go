@@ -12,16 +12,15 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
-	"github.com/thrasher-corp/sqlboiler/boil"
 )
 
 var (
-	verbose = false
-
+	verbose       = false
 	testExchanges = []exchange.Details{
 		{
 			Name: "one",
@@ -30,16 +29,16 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	if verbose {
+		testhelpers.EnableVerboseTestOutput()
+	}
+
 	var err error
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
 	testhelpers.TempDir, err = ioutil.TempDir("", "gct-temp")
 	if err != nil {
 		fmt.Printf("failed to create temp file: %v", err)
 		os.Exit(1)
-	}
-
-	if verbose {
-		testhelpers.EnableVerboseTestOutput()
 	}
 
 	t := m.Run()
@@ -53,7 +52,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestWithdraw(t *testing.T) {
-	boil.DebugMode = true
 	testCases := []struct {
 		name   string
 		config *database.Config
@@ -61,16 +59,16 @@ func TestWithdraw(t *testing.T) {
 		closer func(dbConn *database.Instance) error
 		output interface{}
 	}{
-		// {
-		// 	"SQLite-Write",
-		// 	&database.Config{
-		// 		Driver:            database.DBSQLite3,
-		// 		ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
-		// 	},
-		// 	withdrawHelper,
-		// 	testhelpers.CloseDatabase,
-		// 	nil,
-		// },
+		{
+			"SQLite-Write",
+			&database.Config{
+				Driver:            database.DBSQLite3,
+				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
+			},
+			withdrawHelper,
+			testhelpers.CloseDatabase,
+			nil,
+		},
 		{
 			"Postgres-Write",
 			testhelpers.PostgresTestDatabase,
@@ -112,9 +110,6 @@ func TestWithdraw(t *testing.T) {
 }
 
 func withdrawHelper(t *testing.T) {
-	t.Helper()
-
-	const binance = "Binance"
 	var wg sync.WaitGroup
 	for x := 0; x < 20; x++ {
 		wg.Add(1)
@@ -123,12 +118,12 @@ func withdrawHelper(t *testing.T) {
 			test := fmt.Sprintf("test-%v", x)
 			resp := &withdraw.Response{
 				Exchange: &withdraw.ExchangeResponse{
-					Name:   binance,
+					Name:   testExchanges[0].Name,
 					ID:     test,
 					Status: test,
 				},
 				RequestDetails: &withdraw.Request{
-					Exchange:    test,
+					Exchange:    testExchanges[0].Name,
 					Description: test,
 					Amount:      1.0,
 				},
@@ -147,6 +142,7 @@ func withdrawHelper(t *testing.T) {
 				resp.RequestDetails.Crypto.FeeAmount = 0
 				resp.RequestDetails.Crypto.AddressTag = test
 			}
+			exchange.ResetExchangeCache()
 			Event(resp)
 		}(x)
 	}
@@ -159,27 +155,27 @@ func withdrawHelper(t *testing.T) {
 		}
 	}
 
-	v, err := GetEventsByExchange(binance, 10)
+	v, err := GetEventsByExchange(testExchanges[0].Name, 10)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 
-	_, err = GetEventByExchangeID(binance, "test-1")
+	_, err = GetEventByExchangeID(testExchanges[0].Name, "test-1")
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 
 	if len(v) > 0 {
 		_, err = GetEventByUUID(v[0].ID.String())
 		if err != nil {
 			if !errors.Is(err, ErrNoResults) {
-				t.Fatal(err)
+				t.Error(err)
 			}
 		}
 	}
 
-	_, err = GetEventsByDate(binance, time.Now().UTC().Add(-time.Minute), time.Now().UTC(), 5)
+	_, err = GetEventsByDate(testExchanges[0].Name, time.Now().UTC().Add(-time.Minute), time.Now().UTC(), 5)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 }

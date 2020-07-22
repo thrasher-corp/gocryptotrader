@@ -9,6 +9,7 @@ import (
 	dbPSQL "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
 	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
+	"github.com/thrasher-corp/sqlboiler/boil"
 	"github.com/urfave/cli/v2"
 )
 
@@ -24,17 +25,15 @@ func Load(c *cli.Context) error {
 	}
 
 	if !conf.Database.Enabled {
-		fmt.Println("Database support is disabled")
-		return err
+		return database.ErrDatabaseSupportDisabled
 	}
 
-	err = openDBConnection(conf.Database.Driver)
+	err = openDBConnection(c, conf.Database.Driver)
 	if err != nil {
 		return err
 	}
 
 	drv := repository.GetSQLDialect()
-
 	if drv == database.DBSQLite || drv == database.DBSQLite3 {
 		fmt.Printf("Database file: %s\n", conf.Database.Database)
 	} else {
@@ -44,7 +43,10 @@ func Load(c *cli.Context) error {
 	return nil
 }
 
-func openDBConnection(driver string) (err error) {
+func openDBConnection(c *cli.Context, driver string) (err error) {
+	if c.IsSet("verbose") {
+		boil.DebugMode = true
+	}
 	if driver == database.DBPostgreSQL {
 		dbConn, err = dbPSQL.Connect()
 		if err != nil {

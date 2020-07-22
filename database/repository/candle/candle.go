@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/csv"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -24,10 +23,9 @@ import (
 )
 
 // Series returns candle data
-func Series(exchangeName, base, quote, interval string, start, end time.Time) (out Candle, err error) {
+func Series(exchangeName, base, quote, interval string, start, end time.Time) (out Item, err error) {
 	if exchangeName == "" || base == "" || quote == "" || interval == "" {
-		err = errors.New("exchange, base , quote, interval, start & end cannot be empty")
-		return
+		return out, errInvalidInput
 	}
 
 	exchangeUUID, err := exchange.UUIDByName(exchangeName)
@@ -51,7 +49,7 @@ func Series(exchangeName, base, quote, interval string, start, end time.Time) (o
 			if errT != nil {
 				return out, errT
 			}
-			out.Tick = append(out.Tick, Tick{
+			out.Candles = append(out.Candles, Candle{
 				Timestamp: t,
 				Open:      retCandle[x].Open,
 				High:      retCandle[x].High,
@@ -67,7 +65,7 @@ func Series(exchangeName, base, quote, interval string, start, end time.Time) (o
 		}
 
 		for x := range retCandle {
-			out.Tick = append(out.Tick, Tick{
+			out.Candles = append(out.Candles, Candle{
 				Timestamp: retCandle[x].Timestamp,
 				Open:      retCandle[x].Open,
 				High:      retCandle[x].High,
@@ -87,7 +85,7 @@ func Series(exchangeName, base, quote, interval string, start, end time.Time) (o
 }
 
 // Insert series of candles
-func Insert(in *Candle) error {
+func Insert(in *Item) error {
 	if database.DB.SQL == nil {
 		return database.ErrDatabaseSupportDisabled
 	}
@@ -118,19 +116,19 @@ func Insert(in *Candle) error {
 	return nil
 }
 
-func insertSQLite(ctx context.Context, tx *sql.Tx, in *Candle) error {
-	for x := range in.Tick {
+func insertSQLite(ctx context.Context, tx *sql.Tx, in *Item) error {
+	for x := range in.Candles {
 		var tempCandle = modelSQLite.Candle{
 			ExchangeID: null.NewString(in.ExchangeID, true),
 			Base:       in.Base,
 			Quote:      in.Quote,
 			Interval:   in.Interval,
-			Timestamp:  in.Tick[x].Timestamp.Format(time.RFC3339),
-			Open:       in.Tick[x].Open,
-			High:       in.Tick[x].High,
-			Low:        in.Tick[x].Low,
-			Close:      in.Tick[x].Close,
-			Volume:     in.Tick[x].Volume,
+			Timestamp:  in.Candles[x].Timestamp.Format(time.RFC3339),
+			Open:       in.Candles[x].Open,
+			High:       in.Candles[x].High,
+			Low:        in.Candles[x].Low,
+			Close:      in.Candles[x].Close,
+			Volume:     in.Candles[x].Volume,
 		}
 		tempUUID, err := uuid.NewV4()
 		if err != nil {
@@ -149,20 +147,20 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in *Candle) error {
 	return nil
 }
 
-func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Candle) error {
-	for x := range in.Tick {
+func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Item) error {
+	for x := range in.Candles {
 		var tempCandle = modelPSQL.Candle{
 			ExchangeID: in.ExchangeID,
 			Base:       in.Base,
 			Quote:      in.Quote,
 			Interval:   in.Interval,
 			Asset:      in.Asset,
-			Timestamp:  in.Tick[x].Timestamp,
-			Open:       in.Tick[x].Open,
-			High:       in.Tick[x].High,
-			Low:        in.Tick[x].Low,
-			Close:      in.Tick[x].Close,
-			Volume:     in.Tick[x].Volume,
+			Timestamp:  in.Candles[x].Timestamp,
+			Open:       in.Candles[x].Open,
+			High:       in.Candles[x].High,
+			Low:        in.Candles[x].Low,
+			Close:      in.Candles[x].Close,
+			Volume:     in.Candles[x].Volume,
 		}
 		err := tempCandle.Upsert(ctx, tx, true, []string{"timestamp", "exchange_id", "base", "quote", "interval"}, boil.Infer(), boil.Infer())
 		if err != nil {
@@ -177,9 +175,6 @@ func insertPostgresSQL(ctx context.Context, tx *sql.Tx, in *Candle) error {
 }
 
 func InsertFromCSV(exchangeName, base, quote, interval, asset, file string) (int, error) {
-	boil.DebugMode = true
-	boil.DebugWriter = os.Stdout
-
 	csvFile, err := os.Open(file)
 	if err != nil {
 		return 0, err
@@ -199,7 +194,7 @@ func InsertFromCSV(exchangeName, base, quote, interval, asset, file string) (int
 		return 0, err
 	}
 
-	tempCandle := &Candle{
+	tempCandle := &Item{
 		ExchangeID: exchangeUUID.String(),
 		Base:       base,
 		Quote:      quote,
@@ -217,7 +212,7 @@ func InsertFromCSV(exchangeName, base, quote, interval, asset, file string) (int
 			return 0, errCSV
 		}
 
-		tempTick := Tick{}
+		tempTick := Candle{}
 		v, errParse := strconv.ParseInt(row[0], 10, 32)
 		if errParse != nil {
 			return 0, errParse
@@ -252,8 +247,8 @@ func InsertFromCSV(exchangeName, base, quote, interval, asset, file string) (int
 		if err != nil {
 			break
 		}
-		tempCandle.Tick = append(tempCandle.Tick, tempTick)
+		tempCandle.Candles = append(tempCandle.Candles, tempTick)
 	}
 
-	return len(tempCandle.Tick), Insert(tempCandle)
+	return len(tempCandle.Candles), Insert(tempCandle)
 }

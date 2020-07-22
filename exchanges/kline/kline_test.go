@@ -399,7 +399,7 @@ func TestCalcDateRanges(t *testing.T) {
 
 	v = CalcDateRanges(time.Now(), time.Now().AddDate(0, 0, 1), OneDay, 100)
 	if len(v) != 1 {
-		t.Fatal("expected CalcDateRanges() with a Candle count lower than limit to return 1 result")
+		t.Fatal("expected CalcDateRanges() with a Item count lower than limit to return 1 result")
 	}
 }
 
@@ -535,7 +535,7 @@ func seedDB(includeOHLCVData bool) error {
 	return nil
 }
 
-func genOHCLVData() (out candle.Candle, err error) {
+func genOHCLVData() (out candle.Item, err error) {
 	exchangeUUID, err := exchange.UUIDByName(testExchanges[0].Name)
 	if err != nil {
 		return
@@ -548,7 +548,7 @@ func genOHCLVData() (out candle.Candle, err error) {
 
 	start := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 	for x := 0; x < 365; x++ {
-		out.Tick = append(out.Tick, candle.Tick{
+		out.Candles = append(out.Candles, candle.Candle{
 			Timestamp: start.Add(time.Hour * 24 * time.Duration(x)),
 			Open:      1000,
 			High:      1000,

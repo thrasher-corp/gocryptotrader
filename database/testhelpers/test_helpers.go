@@ -113,20 +113,6 @@ func CheckValidConfig(config *drivers.ConnectionDetails) bool {
 }
 
 func migrateDB(db *sql.DB) error {
-	err := reset(db)
-	if err != nil {
-		return err
-	}
-	return migrate(db)
-}
-
-// reset resets database to earliest version
-func reset(db *sql.DB) error {
-	return goose.Run("reset", db, repository.GetSQLDialect(), MigrationDir, "")
-}
-
-// migrate migrates database to latest version
-func migrate(db *sql.DB) error {
 	return goose.Run("up", db, repository.GetSQLDialect(), MigrationDir, "")
 }
 

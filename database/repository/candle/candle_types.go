@@ -1,20 +1,27 @@
 package candle
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
-// Candle generic candle holder for modelPSQL & modelSQLite
-type Candle struct {
+var (
+	errInvalidInput = errors.New("exchange, base , quote, interval, start & end cannot be empty")
+)
+
+// Item generic candle holder for modelPSQL & modelSQLite
+type Item struct {
 	ID         string
 	ExchangeID string
 	Base       string
 	Quote      string
 	Interval   string
 	Asset      string
-	Tick       []Tick
+	Candles    []Candle
 }
 
-// Tick holds each interval
-type Tick struct {
+// Candle holds each interval
+type Candle struct {
 	Timestamp time.Time
 	Open      float64
 	High      float64
