@@ -882,7 +882,7 @@ func (o *OKGroup) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 	}
 
 	var channelsThatWillBeSubbed []stream.ChannelSubscription
-	for i := range channelsToSubscribe {
+	for i := 0; i < len(channelsToSubscribe); i++ {
 		// Temp type to evaluate max byte len after a marshal on batched subs
 		temp := WebsocketEventRequest{
 			Operation: "subscribe",
@@ -908,12 +908,12 @@ func (o *OKGroup) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 			// commit last payload.
 			i-- // reverse position in range to reuse channel subscription on
 			// next iteration
-			err := o.Websocket.Conn.SendJSONMessage(request)
+			err = o.Websocket.Conn.SendJSONMessage(request)
 			if err != nil {
 				return err
 			}
 			o.Websocket.AddSuccessfulSubscriptions(channelsThatWillBeSubbed...)
-			// Drop prior subs and chunked payload args on succesful subscription
+			// Drop prior subs and chunked payload args on successful subscription
 			channelsThatWillBeSubbed = nil
 			request.Arguments = nil
 			continue
@@ -938,7 +938,7 @@ func (o *OKGroup) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription
 	}
 
 	var channelsThatWillBeUnsubbed []stream.ChannelSubscription
-	for i := range channelsToUnsubscribe {
+	for i := 0; i < len(channelsToUnsubscribe); i++ {
 		// Temp type to evaluate max byte len after a marshal on batched unsubs
 		temp := WebsocketEventRequest{
 			Operation: "unsubscribe",
@@ -964,12 +964,12 @@ func (o *OKGroup) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription
 			// commit last payload.
 			i-- // reverse position in range to reuse channel unsubscription on
 			// next iteration
-			err := o.Websocket.Conn.SendJSONMessage(request)
+			err = o.Websocket.Conn.SendJSONMessage(request)
 			if err != nil {
 				return err
 			}
 			o.Websocket.AddSuccessfulSubscriptions(channelsThatWillBeUnsubbed...)
-			// Drop prior unsubs and chunked payload args on succesful unsubscription
+			// Drop prior unsubs and chunked payload args on successful unsubscription
 			channelsThatWillBeUnsubbed = nil
 			request.Arguments = nil
 			continue

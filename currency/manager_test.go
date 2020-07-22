@@ -299,11 +299,12 @@ func TestEnablePair(t *testing.T) {
 func TestIsAssetEnabled_SetAssetEnabled(t *testing.T) {
 	p.Pairs = nil
 	// Test enabling a pair when the pair manager is not initialised
-	if err := p.IsAssetEnabled(asset.Spot); err == nil {
+	err := p.IsAssetEnabled(asset.Spot)
+	if err == nil {
 		t.Error("unexpected result")
 	}
 
-	err := p.SetAssetEnabled(asset.Spot, true)
+	err = p.SetAssetEnabled(asset.Spot, true)
 	if err == nil {
 		t.Fatal("unexpected result")
 	}
@@ -311,7 +312,8 @@ func TestIsAssetEnabled_SetAssetEnabled(t *testing.T) {
 	// Test asset type which doesn't exist
 	initTest(t)
 
-	if err := p.IsAssetEnabled(asset.Spot); err == nil {
+	err = p.IsAssetEnabled(asset.Spot)
+	if err == nil {
 		t.Error("unexpected result")
 	}
 
@@ -325,7 +327,8 @@ func TestIsAssetEnabled_SetAssetEnabled(t *testing.T) {
 		t.Fatal("unexpected result")
 	}
 
-	if err := p.IsAssetEnabled(asset.Spot); err == nil {
+	err = p.IsAssetEnabled(asset.Spot)
+	if err == nil {
 		t.Error("unexpected result")
 	}
 
@@ -339,7 +342,8 @@ func TestIsAssetEnabled_SetAssetEnabled(t *testing.T) {
 		t.Fatal("unexpected result")
 	}
 
-	if err := p.IsAssetEnabled(asset.Spot); err != nil {
+	err = p.IsAssetEnabled(asset.Spot)
+	if err != nil {
 		t.Error("unexpected result")
 	}
 }
