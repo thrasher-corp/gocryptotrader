@@ -859,7 +859,7 @@ func TestFlushChannels(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	web.connected = true
+	web.setConnectedStatus(true)
 	web.features.Unsubscribe = true
 	err = web.FlushChannels()
 	if err != nil {

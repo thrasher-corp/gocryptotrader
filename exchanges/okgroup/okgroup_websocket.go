@@ -827,7 +827,8 @@ func (o *OKGroup) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 				}
 				for y := range channels {
 					if channels[y] == okGroupWsFuturesAccount {
-						currencyString := strings.Split(pairs[i].String(), "_")[0]
+						currencyString := strings.Split(pairs[i].String(),
+							currency.UnderscoreDelimiter)[0]
 						newP, err := currency.NewPairFromString(currencyString)
 						if err != nil {
 							return nil, err
