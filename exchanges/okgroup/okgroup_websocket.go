@@ -817,12 +817,50 @@ func (o *OKGroup) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 					okGroupWsFuturesPosition,
 					okGroupWsFuturesOrder)
 			}
+			var futuresAccountPairs currency.Pairs
+			var futuresAccountCodes currency.Currencies
+
 			for i := range pairs {
 				p, err := o.FormatExchangeCurrency(pairs[i], asset.Futures)
 				if err != nil {
 					return nil, err
 				}
 				for y := range channels {
+					if channels[y] == okGroupWsFuturesAccount {
+						currencyString := strings.Split(pairs[i].String(), "_")[0]
+						newP, err := currency.NewPairFromString(currencyString)
+						if err != nil {
+							return nil, err
+						}
+
+						if !futuresAccountCodes.Contains(newP.Base) {
+							// subscribe to coin-margin futures trading mode
+							subscriptions = append(subscriptions,
+								stream.ChannelSubscription{
+									Channel:  channels[y],
+									Currency: currency.NewPair(newP.Base, currency.Code{}),
+									Asset:    asset.Futures,
+								})
+							futuresAccountCodes = append(futuresAccountCodes, newP.Base)
+						}
+
+						if newP.Quote != currency.USDT {
+							// Only allows subscription to USDT margined pair
+							continue
+						}
+
+						if !futuresAccountPairs.Contains(newP, true) {
+							subscriptions = append(subscriptions,
+								stream.ChannelSubscription{
+									Channel:  channels[y],
+									Currency: newP,
+									Asset:    asset.Futures,
+								})
+							futuresAccountPairs = futuresAccountPairs.Add(newP)
+						}
+
+						continue
+					}
 					subscriptions = append(subscriptions,
 						stream.ChannelSubscription{
 							Channel:  channels[y],
