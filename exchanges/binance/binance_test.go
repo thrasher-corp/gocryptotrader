@@ -19,7 +19,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = false
+	canManipulateRealOrders = true
 )
 
 var b Binance
@@ -40,9 +40,9 @@ func setFeeBuilder() *exchange.FeeBuilder {
 func TestGetInterestHistory(t *testing.T) {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
-	b.API.Endpoints.URL = "https://sapi.binance.com"
+	b.API.Endpoints.URL = "https://api.binance.com"
 	b.Verbose = true
-	a, err := b.GetInterestHistory("", "DAILY")
+	a, err := b.GetInterestHistory()
 	t.Log(a)
 	if err != nil {
 		t.Error(err)
@@ -531,9 +531,15 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
+	b.Verbose = true
 	t.Parallel()
-
-	_, err := b.UpdateAccountInfo()
+	b.Requester = request.New(b.Name,
+		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
+	b.API.Endpoints.URL = "https://sapi.binance.com"
+	b.API.Credentials.Key = "of5JSoc2DboJWIhv78yE29tYB47MS09HHz9Sk3EwgpWdZG6Dn7AmWvyprnvFkpbg "
+	b.API.Credentials.Secret = "8XNj8IrD0kijDaz0LXpuTvGiT3XUHOgDo70kG2ota2LvIZZJ9ObEelKjttHSe1tH"
+	a, err := b.UpdateAccountInfo()
+	t.Log(a)
 	switch {
 	case areTestAPIKeysSet() && err != nil:
 		t.Error("GetAccountInfo() error", err)

@@ -93,29 +93,23 @@ func setupWsTests(t *testing.T) {
 }
 
 func TestGetMarginRates(t *testing.T) {
-	h.Verbose = true
-	a, err := h.GetMarginRates("BTC/USDT")
-	t.Log(a)
+	_, err := h.GetMarginRates("BTC/USDT")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetSwapFundingRates(t *testing.T) {
-	h.Verbose = true
 	t.Parallel()
-	a, err := h.GetSwapFundingRates("BTC-USD")
-	t.Log(a)
+	_, err := h.GetSwapFundingRates("BTC-USD")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetSwapMarkets(t *testing.T) {
-	h.Verbose = true
 	t.Parallel()
-	a, err := h.GetSwapMarkets("")
-	t.Log(a)
+	_, err := h.GetSwapMarkets("")
 	if err != nil {
 		t.Error(err)
 	}
@@ -179,18 +173,15 @@ func TestGetTradeHistory(t *testing.T) {
 
 func TestGetMarketDetail(t *testing.T) {
 	t.Parallel()
-	a, err := h.GetMarketDetail(testSymbol)
-	t.Log(a)
+	_, err := h.GetMarketDetail(testSymbol)
 	if err != nil {
 		t.Errorf("Huobi TestGetTradeHistory: %s", err)
 	}
 }
 
 func TestGetSymbols(t *testing.T) {
-	h.Verbose = true
 	t.Parallel()
-	a, err := h.GetSymbols()
-	t.Log(a)
+	_, err := h.GetSymbols()
 	if err != nil {
 		t.Errorf("Huobi TestGetSymbols: %s", err)
 	}
@@ -198,16 +189,14 @@ func TestGetSymbols(t *testing.T) {
 
 func TestGetCurrencies(t *testing.T) {
 	t.Parallel()
-	a, err := h.GetCurrencies()
-	t.Log(a)
+	_, err := h.GetCurrencies()
 	if err != nil {
 		t.Errorf("Huobi TestGetCurrencies: %s", err)
 	}
 }
 
 func TestGetTicker(t *testing.T) {
-	a, err := h.GetTickers()
-	t.Log(a)
+	_, err := h.GetTickers()
 	if err != nil {
 		t.Error(err)
 	}

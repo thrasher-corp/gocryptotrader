@@ -20,6 +20,7 @@ const (
 	// OkExWebsocketURL WebsocketURL
 	OkExWebsocketURL = "wss://real.okex.com:8443/ws/v3"
 	// API subsections
+	okGroupSpotSubsection    = "spot"
 	okGroupFuturesSubsection = "futures"
 	okGroupSwapSubsection    = "swap"
 	okGroupETTSubsection     = "ett"
@@ -45,7 +46,7 @@ const (
 	okGroupPerpTickers     = "/api/swap/v3/instruments/ticker"
 	okGroupMarginMarkPrice = "/api/margin/v3/instruments/%s/mark_price"
 	okGroupMarginPairData  = "accounts/BTC-USDT/availability?"
-	okGroupSpotPairs       = "/api/spot/v3/instruments"
+	okGroupSpotPairs       = "instruments"
 )
 
 // OKEX bases all account, spot and margin methods off okgroup implementation
@@ -69,8 +70,7 @@ func (o *OKEX) GetMarginRates(instrumentID string) (okgroup.MarginCurrencyData, 
 // GetSpotMarkets gets perpetual swap markets' data
 func (o *OKEX) GetSpotMarkets() ([]okgroup.TradingPairData, error) {
 	var resp []okgroup.TradingPairData
-	fmt.Println("https://www.okex.com" + okGroupPerpTickers)
-	return resp, common.SendHTTPGetRequest("https://www.okex.com"+okGroupSpotPairs, true, true, &resp)
+	return resp, o.SendHTTPRequest(http.MethodGet, okGroupSpotSubsection, okGroupSpotPairs, nil, &resp, false)
 }
 
 // GetFundingRate gets funding rate of a given currency
@@ -87,13 +87,6 @@ func (o *OKEX) GetPerpSwapMarkets() ([]okgroup.TickerData, error) {
 	var resp []okgroup.TickerData
 	fmt.Println("https://www.okex.com" + okGroupPerpTickers)
 	return resp, common.SendHTTPGetRequest("https://www.okex.com"+okGroupPerpTickers, true, false, &resp)
-}
-
-// MarginPairMarkPrice gets mark price for margin pair
-func (o *OKEX) MarginPairMarkPrice(pair string) (okgroup.MarginMarkPrice, error) {
-	var resp okgroup.MarginMarkPrice
-	fmt.Println("https://www.okex.com" + fmt.Sprintf(okGroupMarginMarkPrice, pair))
-	return resp, common.SendHTTPGetRequest("https://www.okex.com"+fmt.Sprintf(okGroupMarginMarkPrice, pair), true, false, &resp)
 }
 
 // GetFuturesPostions Get the information of all holding positions in futures trading.

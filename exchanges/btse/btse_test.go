@@ -54,9 +54,7 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestFetchFundingHistory(t *testing.T) {
-	b.Verbose = true
-	a, err := b.FetchFundingHistory("")
-	t.Log(a)
+	_, err := b.FetchFundingHistory("")
 	if err != nil {
 		t.Error(err)
 	}

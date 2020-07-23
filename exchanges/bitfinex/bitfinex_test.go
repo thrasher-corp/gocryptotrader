@@ -64,68 +64,52 @@ func TestMain(m *testing.M) {
 }
 
 func TestGetV2MarginFunding(t *testing.T) {
-	b.Verbose = true
 	fmt.Printf("meow")
-	a, err := b.GetV2MarginFunding("fXAUT", "1000", 2)
-	t.Log(a)
+	_, err := b.GetV2MarginFunding("fUSD", "2", 2)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetMarginRates(t *testing.T) {
-	b.Verbose = true
-	fmt.Printf("meow")
-	a, err := b.GetMarginRates("fUSD")
-	t.Log(a)
+	_, err := b.GetMarginRates("fUSD")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetAccountInfoV2(t *testing.T) {
-	b.Verbose = true
-	fmt.Printf("HELLOOOO")
-	a, err := b.GetAccountInfoV2()
-	t.Log(a)
+	_, err := b.GetAccountInfoV2()
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetV2FundingInfo(t *testing.T) {
-	b.Verbose = true
 	fmt.Printf("HELLOOO")
-	a, err := b.GetV2FundingInfo("fUSD")
-	t.Log(a)
+	_, err := b.GetV2FundingInfo("fUSD")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetV2Balances(t *testing.T) {
-	b.Verbose = true
-	fmt.Printf("HELLOOOO")
-	a, err := b.GetV2Balances()
-	t.Log(a)
+	_, err := b.GetV2Balances()
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetDerivativeData(t *testing.T) {
-	b.Verbose = true
 	t.Parallel()
-	a, err := b.GetDerivativeData("tBTCF0:USTF0", "", "", 0, 0)
-	t.Log(a)
+	_, err := b.GetDerivativeData("tBTCF0:USTF0", "", "", 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetMarginPairs(t *testing.T) {
-	a, err := b.GetMarginPairs()
-	t.Log(a)
+	_, err := b.GetMarginPairs()
 	if err != nil {
 		t.Error(err)
 	}
@@ -145,8 +129,7 @@ func TestGetPlatformStatus(t *testing.T) {
 
 func TestGetTickerBatch(t *testing.T) {
 	t.Parallel()
-	a, err := b.GetTickerBatch()
-	t.Log(a)
+	_, err := b.GetTickerBatch()
 	if err != nil {
 		t.Error(err)
 	}
@@ -545,9 +528,7 @@ func TestGetBalanceHistory(t *testing.T) {
 		t.SkipNow()
 	}
 	t.Parallel()
-	b.Verbose = true
-	a, err := b.GetBalanceHistory("USD", time.Time{}, time.Time{}, 1, "deposit")
-	t.Log(a)
+	_, err := b.GetBalanceHistory("USD", time.Time{}, time.Time{}, 1, "deposit")
 	if err == nil {
 		t.Error("GetBalanceHistory() Expected error")
 	}
@@ -570,9 +551,7 @@ func TestGetTradeHistory(t *testing.T) {
 		t.SkipNow()
 	}
 	t.Parallel()
-	b.Verbose = true
-	a, err := b.GetTradeHistory("BTCUSD", time.Time{}, time.Time{}, 1, 0)
-	t.Log(a)
+	_, err := b.GetTradeHistory("BTCUSD", time.Time{}, time.Time{}, 1, 0)
 	if err == nil {
 		t.Error("GetTradeHistory() Expected error")
 	}

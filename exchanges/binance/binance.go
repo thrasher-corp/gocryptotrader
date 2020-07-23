@@ -62,24 +62,18 @@ const (
 	dustLog           = "/wapi/v3/userAssetDribbletLog.html"
 	tradeFee          = "/wapi/v3/tradeFee.html"
 	assetDetail       = "/wapi/v3/assetDetail.html"
-	interestHistory   = "/sapi/v1/lending/union/interesthistory"
+	interestHistory   = "/sapi/v1/margin/interestHistory"
 )
 
 // GetInterestHistory gets interest history for currency/currencies provided
-func (b *Binance) GetInterestHistory(symbol, lendingType string) ([]InterestHistoryData, error) {
+func (b *Binance) GetInterestHistory() ([]InterestHistoryData, error) {
 	var resp []InterestHistoryData
 
-	path := "https://sapi.binance.com" + interestHistory
+	path := "https://api.binance.com" + "/sapi/v1/margin/interestHistory"
 
 	params := url.Values{}
 
-	params.Set("lendingType", lendingType)
-
-	if symbol != "" {
-		params.Set("symbol", strings.ToUpper(symbol))
-	}
-
-	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, openOrdersLimit(symbol), &resp); err != nil {
+	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, limitDefault, &resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
@@ -89,7 +83,7 @@ func (b *Binance) GetInterestHistory(symbol, lendingType string) ([]InterestHist
 // information
 func (b *Binance) GetPerpMarkets() (PerpsExchangeInfo, error) {
 	var resp PerpsExchangeInfo
-	path := "https://fapi.binance.com" + perpExchangeInfo
+	path := "https://sapi.binance.com" + perpExchangeInfo
 
 	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
 }
@@ -587,7 +581,7 @@ func (b *Binance) SendAuthHTTPRequest(method, path string, params url.Values, f 
 
 	path = common.EncodeURLValues(path, params)
 	path += "&signature=" + hmacSignedStr
-
+	fmt.Println(hmacSignedStr)
 	interim := json.RawMessage{}
 
 	errCap := struct {

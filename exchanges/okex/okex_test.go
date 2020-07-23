@@ -84,45 +84,28 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestGetMarginRates(t *testing.T) {
-	o.Verbose = true
-	a, err := o.GetMarginRates("XRP-USDT")
-	t.Log(a)
+	_, err := o.GetMarginRates("XRP-USDT")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetSpotMarkets(t *testing.T) {
-	o.Verbose = true
-	a, err := o.GetSpotMarkets()
-	t.Log(a)
+	_, err := o.GetSpotMarkets()
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetFundingRate(t *testing.T) {
-	o.Verbose = true
-	a, err := o.GetFundingRate("BTC-USD-SWAP", "1")
-	t.Log(a)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestMarginPairMarkPrice(t *testing.T) {
-	o.Verbose = true
-	a, err := o.MarginPairMarkPrice("BTC-USD")
-	t.Log(a)
+	_, err := o.GetFundingRate("BTC-USD-SWAP", "1")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetPerpSwapMarkets(t *testing.T) {
-	o.Verbose = true
-	a, err := o.GetPerpSwapMarkets()
-	t.Log(a)
+	_, err := o.GetPerpSwapMarkets()
 	if err != nil {
 		t.Error(err)
 	}

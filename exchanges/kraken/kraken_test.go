@@ -65,9 +65,7 @@ func TestGetServerTime(t *testing.T) {
 
 func TestGetFuturesMarkets(t *testing.T) {
 	t.Parallel()
-	k.Verbose = true
-	a, err := k.GetFuturesMarkets()
-	t.Log(a)
+	_, err := k.GetFuturesMarkets()
 	if err != nil {
 		t.Error(err)
 	}
@@ -75,9 +73,7 @@ func TestGetFuturesMarkets(t *testing.T) {
 
 func TestGetFuturesTickers(t *testing.T) {
 	t.Parallel()
-	k.Verbose = true
-	a, err := k.GetFuturesTickers()
-	t.Log(a)
+	_, err := k.GetFuturesTickers()
 	if err != nil {
 		t.Error(err)
 	}
@@ -153,7 +149,6 @@ func TestLookupCurrency(t *testing.T) {
 // TestGetAssetPairs API endpoint test
 func TestGetAssetPairs(t *testing.T) {
 	t.Parallel()
-	k.Verbose = true
 	_, err := k.GetAssetPairs([]string{}, false, false, false)
 	if err != nil {
 		t.Error("GetAssetPairs() error", err)
