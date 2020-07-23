@@ -78,24 +78,23 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	ws.trafficTimeout = time.Second
 	ws.ShutdownC = make(chan struct{})
 	err = ws.trafficMonitor()
 	if err != nil {
 		t.Fatal(err)
 	}
+	// try to add another traffic monitor
+	err = ws.trafficMonitor()
+	if err == nil {
+		t.Fatal("expected not allowed")
+	}
 	// Deploy traffic alert
 	ws.TrafficAlert <- struct{}{}
-
-	// Check if traffic monitor has started
-	err = ws.trafficMonitor()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Start new instance then simulate shutdown
-	err = ws.trafficMonitor()
-	if err != nil {
-		t.Fatal(err)
+	time.Sleep(time.Second * 2)
+	ws.Wg.Wait()
+	if ws.IsTrafficMonitorRunning() {
+		t.Error("should be ded")
 	}
 }
 
@@ -258,6 +257,7 @@ func TestWebsocket(t *testing.T) {
 	if err != nil {
 		t.Fatal("WebsocketSetup", err)
 	}
+	ws.Wg.Wait()
 }
 
 // TestSubscribe logic test
@@ -592,6 +592,7 @@ func TestSetupPingHandler(t *testing.T) {
 	})
 	time.Sleep(time.Millisecond * 500)
 	close(wc.ShutdownC)
+	wc.Wg.Wait()
 }
 
 // TestParseBinaryResponse logic test

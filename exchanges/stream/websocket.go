@@ -192,7 +192,7 @@ func (w *Websocket) Connect() error {
 	}
 	w.setConnectingStatus(true)
 
-	go w.dataMonitor()
+	w.dataMonitor()
 
 	err := w.trafficMonitor()
 	if err != nil {
@@ -251,39 +251,43 @@ func (w *Websocket) dataMonitor() {
 	}
 	w.setDataMonitorRunning(true)
 	w.Wg.Add(1)
-	defer func() {
-		for {
-			// Bleeds data from the websocket connection if needed
-			select {
-			case <-w.DataHandler:
-			default:
-				w.setDataMonitorRunning(false)
-				w.Wg.Done()
-				return
+
+	go func() {
+		defer func() {
+			for {
+				// Bleeds data from the websocket connection if needed
+				select {
+				case <-w.DataHandler:
+				default:
+					w.setDataMonitorRunning(false)
+					w.Wg.Done()
+					return
+				}
 			}
-		}
-	}()
-	for {
-		select {
-		case <-w.ShutdownC:
-			return
-		case d := <-w.DataHandler:
+		}()
+
+		for {
 			select {
-			case w.ToRoutine <- d:
 			case <-w.ShutdownC:
 				return
-			default:
-				log.Warnf(log.WebsocketMgr,
-					"%s exchange backlog in websocket processing detected",
-					w.exchangeName)
+			case d := <-w.DataHandler:
 				select {
 				case w.ToRoutine <- d:
 				case <-w.ShutdownC:
 					return
+				default:
+					log.Warnf(log.WebsocketMgr,
+						"%s exchange backlog in websocket processing detected",
+						w.exchangeName)
+					select {
+					case w.ToRoutine <- d:
+					case <-w.ShutdownC:
+						return
+					}
 				}
 			}
 		}
-	}
+	}()
 }
 
 // connectionMonitor ensures that the WS keeps connecting
@@ -471,7 +475,7 @@ func (w *Websocket) FlushChannels() error {
 // trafficTimer will reset on each traffic alert
 func (w *Websocket) trafficMonitor() error {
 	if w.IsTrafficMonitorRunning() {
-		return nil
+		return errors.New("traffic monitor already running")
 	}
 	w.setTrafficMonitorRunning(true)
 	w.Wg.Add(1)
