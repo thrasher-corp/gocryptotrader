@@ -82,7 +82,7 @@ func Insert(in Details) error {
 	if err != nil {
 		errRB := tx.Rollback()
 		if errRB != nil {
-			return errRB
+			log.Errorln(log.DatabaseMgr, errRB)
 		}
 		return err
 	}
@@ -120,7 +120,7 @@ func InsertMany(in []Details) error {
 	if err != nil {
 		errRB := tx.Rollback()
 		if errRB != nil {
-			return errRB
+			log.Errorln(log.DatabaseMgr, errRB)
 		}
 		return err
 	}
@@ -151,7 +151,7 @@ func insertSQLite(ctx context.Context, tx *sql.Tx, in []Details) (err error) {
 		if err != nil {
 			errRB := tx.Rollback()
 			if errRB != nil {
-				return errRB
+				log.Errorln(log.DatabaseMgr, errRB)
 			}
 			return err
 		}
@@ -170,7 +170,7 @@ func insertPostgresql(ctx context.Context, tx *sql.Tx, in []Details) (err error)
 		if err != nil {
 			errRB := tx.Rollback()
 			if errRB != nil {
-				return errRB
+				log.Errorln(log.DatabaseMgr, errRB)
 			}
 			return
 		}

@@ -206,7 +206,7 @@ func InsertFromCSV(exchangeName, base, quote, interval, asset, file string) (int
 		row, errCSV := csvData.Read()
 		if errCSV != nil {
 			if errCSV == io.EOF {
-				err = nil
+				// err = nil
 				break
 			}
 			return 0, errCSV
@@ -249,6 +249,8 @@ func InsertFromCSV(exchangeName, base, quote, interval, asset, file string) (int
 		}
 		tempCandle.Candles = append(tempCandle.Candles, tempTick)
 	}
-
+	if err != nil {
+		return 0, err
+	}
 	return len(tempCandle.Candles), Insert(tempCandle)
 }

@@ -48,9 +48,13 @@ var seedCandleCommand = &cli.Command{
 }
 
 func seedCandleFromFile(c *cli.Context) error {
+	if c.NumFlags() == 0 && c.NArg() == 0 {
+		return cli.ShowSubcommandHelp(c)
+	}
+
 	var exchangeName string
-	if c.IsSet("name") {
-		exchangeName = c.String("name")
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
 	} else if c.Args().Get(0) != "" {
 		exchangeName = c.Args().Get(0)
 	}
@@ -78,14 +82,14 @@ func seedCandleFromFile(c *cli.Context) error {
 
 	var asset string
 	if c.IsSet("asset") {
-		asset = c.String("name")
+		asset = c.String("asset")
 	} else if c.Args().Get(4) != "" {
 		asset = c.Args().Get(4)
 	}
 
 	var fileName string
-	if c.IsSet("name") {
-		fileName = c.String("name")
+	if c.IsSet("filename") {
+		fileName = c.String("filename")
 	} else if c.Args().Get(5) != "" {
 		fileName = c.Args().Get(5)
 	}

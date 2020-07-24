@@ -62,6 +62,10 @@ func seedExchangeFromDefaultList(c *cli.Context) error {
 }
 
 func seedExchangeFromFile(c *cli.Context) error {
+	if c.NumFlags() == 0 && c.NArg() == 0 {
+		return cli.ShowSubcommandHelp(c)
+	}
+
 	var fileName string
 	if c.IsSet("name") {
 		fileName = c.String("name")
@@ -95,6 +99,10 @@ func seedExchangeFromFile(c *cli.Context) error {
 }
 
 func addSingleExchange(c *cli.Context) error {
+	if c.NumFlags() == 0 && c.NArg() == 0 {
+		return cli.ShowSubcommandHelp(c)
+	}
+
 	var exchangeName string
 	if c.IsSet("name") {
 		exchangeName = c.String("name")
