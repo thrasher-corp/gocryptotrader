@@ -18,8 +18,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -55,40 +55,16 @@ func (b *Bitmex) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
-	b.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.PerpetualContract,
-			asset.Futures,
-			asset.DownsideProfitContract,
-			asset.UpsideProfitContract,
-		},
+	requestFmt := &currency.PairFormat{Uppercase: true}
+	configFmt := &currency.PairFormat{Uppercase: true}
+	err := b.SetGlobalPairsManager(requestFmt,
+		configFmt,
+		asset.PerpetualContract,
+		asset.Futures,
+		asset.Index)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
-
-	// Same format used for perpetual contracts and futures
-	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-	}
-	b.CurrencyPairs.Store(asset.PerpetualContract, fmt1)
-	b.CurrencyPairs.Store(asset.Futures, fmt1)
-
-	// Upside and Downside profit contracts use the same format
-	fmt2 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Delimiter: "_",
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: "_",
-			Uppercase: true,
-		},
-	}
-	b.CurrencyPairs.Store(asset.DownsideProfitContract, fmt2)
-	b.CurrencyPairs.Store(asset.UpsideProfitContract, fmt2)
 
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
@@ -144,7 +120,7 @@ func (b *Bitmex) SetDefaults() {
 	b.API.Endpoints.URLDefault = bitmexAPIURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
 	b.API.Endpoints.WebsocketURL = bitmexWSURL
-	b.Websocket = wshandler.New()
+	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -162,41 +138,30 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = b.Websocket.Setup(
-		&wshandler.WebsocketSetup{
-			Enabled:                          exch.Features.Enabled.Websocket,
-			Verbose:                          exch.Verbose,
-			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-			DefaultURL:                       bitmexWSURL,
-			ExchangeName:                     exch.Name,
-			RunningURL:                       exch.API.Endpoints.WebsocketURL,
-			Connector:                        b.WsConnect,
-			Subscriber:                       b.Subscribe,
-			UnSubscriber:                     b.Unsubscribe,
-			Features:                         &b.Features.Supports.WebsocketCapabilities,
-		})
+	err = b.Websocket.Setup(&stream.WebsocketSetup{
+		Enabled:                          exch.Features.Enabled.Websocket,
+		Verbose:                          exch.Verbose,
+		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		DefaultURL:                       bitmexWSURL,
+		ExchangeName:                     exch.Name,
+		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		Connector:                        b.WsConnect,
+		Subscriber:                       b.Subscribe,
+		UnSubscriber:                     b.Unsubscribe,
+		GenerateSubscriptions:            b.GenerateDefaultSubscriptions,
+		Features:                         &b.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+		UpdateEntriesByID:                true,
+	})
 	if err != nil {
 		return err
 	}
 
-	b.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         b.Name,
-		URL:                  b.Websocket.GetWebsocketURL(),
-		ProxyURL:             b.Websocket.GetProxyAddress(),
-		Verbose:              b.Verbose,
+	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	}
-
-	b.Websocket.Orderbook.Setup(
-		exch.WebsocketOrderbookBufferLimit,
-		false,
-		false,
-		false,
-		true,
-		exch.Name)
-	return nil
+	})
 }
 
 // Start starts the Bitmex go routine
@@ -211,7 +176,11 @@ func (b *Bitmex) Start(wg *sync.WaitGroup) {
 // Run implements the Bitmex wrapper
 func (b *Bitmex) Run() {
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", b.Name, common.IsEnabled(b.Websocket.IsEnabled()), b.API.Endpoints.WebsocketURL)
+		log.Debugf(log.ExchangeSys,
+			"%s Websocket: %s. (url: %s).\n",
+			b.Name,
+			common.IsEnabled(b.Websocket.IsEnabled()),
+			b.API.Endpoints.WebsocketURL)
 		b.PrintEnabledPairs()
 	}
 
@@ -226,8 +195,8 @@ func (b *Bitmex) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Bitmex) FetchTradablePairs(_ asset.Item) ([]string, error) {
-	marketInfo, err := b.GetActiveInstruments(&GenericRequestParams{})
+func (b *Bitmex) FetchTradablePairs(asset asset.Item) ([]string, error) {
+	marketInfo, err := b.GetActiveAndIndexInstruments()
 	if err != nil {
 		return nil, err
 	}
@@ -248,72 +217,78 @@ func (b *Bitmex) UpdateTradablePairs(forceUpdate bool) error {
 		return err
 	}
 
-	var assetPairs []string
-	for x := range b.CurrencyPairs.AssetTypes {
-		switch b.CurrencyPairs.AssetTypes[x] {
-		case asset.PerpetualContract:
-			for y := range pairs {
-				if strings.Contains(pairs[y], "USD") {
-					assetPairs = append(assetPairs, pairs[y])
-				}
-			}
-		case asset.Futures:
-			for y := range pairs {
-				if strings.Contains(pairs[y], "20") {
-					assetPairs = append(assetPairs, pairs[y])
-				}
-			}
-		case asset.DownsideProfitContract:
-			for y := range pairs {
-				if strings.Contains(pairs[y], "_D") {
-					assetPairs = append(assetPairs, pairs[y])
-				}
-			}
-		case asset.UpsideProfitContract:
-			for y := range pairs {
-				if strings.Contains(pairs[y], "_U") {
-					assetPairs = append(assetPairs, pairs[y])
-				}
-			}
+	// Zerovalue current list which will remove old asset pairs when contract
+	// types expire or become obsolete
+	var assetPairs = map[asset.Item][]string{
+		asset.Index:             {},
+		asset.PerpetualContract: {},
+		asset.Futures:           {},
+	}
+
+	for x := range pairs {
+		if strings.Contains(pairs[x], ".") {
+			assetPairs[asset.Index] = append(assetPairs[asset.Index], pairs[x])
+			continue
 		}
 
-		err = b.UpdatePairs(currency.NewPairsFromStrings(assetPairs), b.CurrencyPairs.AssetTypes[x], false, false)
-		if err != nil {
-			log.Warnf(log.ExchangeSys, "%s failed to update available pairs. Err: %v", b.Name, err)
+		if strings.Contains(pairs[x], "USD") {
+			assetPairs[asset.PerpetualContract] = append(assetPairs[asset.PerpetualContract],
+				pairs[x])
+			continue
 		}
-		assetPairs = nil
+
+		assetPairs[asset.Futures] = append(assetPairs[asset.Futures], pairs[x])
 	}
+
+	for a, values := range assetPairs {
+		p, err := currency.NewPairsFromStrings(values)
+		if err != nil {
+			return err
+		}
+
+		err = b.UpdatePairs(p, a, false, false)
+		if err != nil {
+			log.Warnf(log.ExchangeSys,
+				"%s failed to update available pairs. Err: %v",
+				b.Name,
+				err)
+		}
+	}
+
 	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitmex) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
-	tick, err := b.GetActiveInstruments(&GenericRequestParams{})
+	tick, err := b.GetActiveAndIndexInstruments()
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
-	pairs := b.GetEnabledPairs(assetType)
-	for i := range pairs {
-		for j := range tick {
-			if !pairs[i].Equal(tick[j].Symbol) {
-				continue
-			}
-			tickerPrice = &ticker.Price{
-				Last:        tick[j].LastPrice,
-				High:        tick[j].HighPrice,
-				Low:         tick[j].LowPrice,
-				Bid:         tick[j].BidPrice,
-				Ask:         tick[j].AskPrice,
-				Volume:      tick[j].Volume24h,
-				Close:       tick[j].PrevClosePrice,
-				Pair:        tick[j].Symbol,
-				LastUpdated: tick[j].Timestamp,
-			}
-			err = ticker.ProcessTicker(b.Name, tickerPrice, assetType)
-			if err != nil {
-				log.Error(log.Ticker, err)
-			}
+
+	pairs, err := b.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	for j := range tick {
+		if !pairs.Contains(tick[j].Symbol, true) {
+			continue
+		}
+
+		err = ticker.ProcessTicker(&ticker.Price{
+			Last:         tick[j].LastPrice,
+			High:         tick[j].HighPrice,
+			Low:          tick[j].LowPrice,
+			Bid:          tick[j].BidPrice,
+			Ask:          tick[j].AskPrice,
+			Volume:       tick[j].Volume24h,
+			Close:        tick[j].PrevClosePrice,
+			Pair:         tick[j].Symbol,
+			LastUpdated:  tick[j].Timestamp,
+			ExchangeName: b.Name,
+			AssetType:    assetType})
+		if err != nil {
+			return nil, err
 		}
 	}
 	return ticker.GetTicker(b.Name, p, assetType)
@@ -339,25 +314,34 @@ func (b *Bitmex) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
-
-	orderbookNew, err := b.GetOrderbook(OrderBookGetL2Params{
-		Symbol: b.FormatExchangeCurrency(p, assetType).String(),
-		Depth:  500})
-	if err != nil {
-		return orderBook, err
+	if assetType == asset.Index {
+		return nil, common.ErrFunctionNotSupported
 	}
 
-	for _, ob := range orderbookNew {
-		if strings.EqualFold(ob.Side, order.Sell.String()) {
-			orderBook.Asks = append(orderBook.Asks,
-				orderbook.Item{Amount: float64(ob.Size), Price: ob.Price})
+	fpair, err := b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	orderbookNew, err := b.GetOrderbook(OrderBookGetL2Params{
+		Symbol: fpair.String(),
+		Depth:  500})
+	if err != nil {
+		return nil, err
+	}
+
+	orderBook := new(orderbook.Base)
+	for i := range orderbookNew {
+		if strings.EqualFold(orderbookNew[i].Side, order.Sell.String()) {
+			orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+				Amount: float64(orderbookNew[i].Size),
+				Price:  orderbookNew[i].Price})
 			continue
 		}
-		if strings.EqualFold(ob.Side, order.Buy.String()) {
-			orderBook.Bids = append(orderBook.Bids,
-				orderbook.Item{Amount: float64(ob.Size), Price: ob.Price})
-			continue
+		if strings.EqualFold(orderbookNew[i].Side, order.Buy.String()) {
+			orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+				Amount: float64(orderbookNew[i].Size),
+				Price:  orderbookNew[i].Price})
 		}
 	}
 
@@ -561,11 +545,6 @@ func (b *Bitmex) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (b *Bitmex) GetWebsocket() (*wshandler.Websocket, error) {
-	return b.Websocket, nil
-}
-
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (b *Bitmex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if !b.AllowAuthenticatedRequest() && // Todo check connection status
@@ -587,6 +566,11 @@ func (b *Bitmex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 		return nil, err
 	}
 
+	format, err := b.GetPairFormat(asset.PerpetualContract, false)
+	if err != nil {
+		return nil, err
+	}
+
 	for i := range resp {
 		orderSide := orderSideMap[resp[i].Side]
 		orderType := orderTypeMap[resp[i].OrdType]
@@ -604,7 +588,7 @@ func (b *Bitmex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 			Status:   order.Status(resp[i].OrdStatus),
 			Pair: currency.NewPairWithDelimiter(resp[i].Symbol,
 				resp[i].SettlCurrency,
-				b.GetPairFormat(asset.PerpetualContract, false).Delimiter),
+				format.Delimiter),
 		}
 
 		orders = append(orders, orderDetail)
@@ -628,6 +612,11 @@ func (b *Bitmex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 		return nil, err
 	}
 
+	format, err := b.GetPairFormat(asset.PerpetualContract, false)
+	if err != nil {
+		return nil, err
+	}
+
 	for i := range resp {
 		orderSide := orderSideMap[resp[i].Side]
 		orderType := orderTypeMap[resp[i].OrdType]
@@ -645,7 +634,7 @@ func (b *Bitmex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 			Status:   order.Status(resp[i].OrdStatus),
 			Pair: currency.NewPairWithDelimiter(resp[i].Symbol,
 				resp[i].SettlCurrency,
-				b.GetPairFormat(asset.PerpetualContract, false).Delimiter),
+				format.Delimiter),
 		}
 
 		orders = append(orders, orderDetail)
@@ -656,25 +645,6 @@ func (b *Bitmex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (b *Bitmex) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	b.Websocket.SubscribeToChannels(channels)
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Bitmex) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	b.Websocket.RemoveSubscribedChannels(channels)
-	return nil
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (b *Bitmex) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
-	return b.Websocket.GetSubscriptions(), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

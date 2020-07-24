@@ -127,9 +127,7 @@ func main() {
 		withdrawalRequestCommand,
 		getLoggerDetailsCommand,
 		setLoggerDetailsCommand,
-		getExchangePairsCommand,
-		enableExchangePairCommand,
-		disableExchangePairCommand,
+		exchangePairManagerCommand,
 		getOrderbookStreamCommand,
 		getExchangeOrderbookStreamCommand,
 		getTickerStreamCommand,
@@ -138,6 +136,7 @@ func main() {
 		getHistoricCandlesCommand,
 		getHistoricCandlesExtendedCommand,
 		gctScriptCommand,
+		websocketManagerCommand,
 	}
 
 	err := app.Run(os.Args)

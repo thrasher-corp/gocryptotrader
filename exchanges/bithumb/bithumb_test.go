@@ -207,6 +207,20 @@ func TestMarketSellOrder(t *testing.T) {
 	}
 }
 
+func TestUpdateTicker(t *testing.T) {
+	cp := currency.NewPair(currency.QTUM, currency.KRW)
+	_, err := b.UpdateTicker(cp, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cp = currency.NewPair(currency.DASH, currency.KRW)
+	_, err = b.UpdateTicker(cp, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func setFeeBuilder() *exchange.FeeBuilder {
 	return &exchange.FeeBuilder{
 		Amount:        1,
@@ -436,8 +450,11 @@ func TestGetAccountInfo(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
-	curr := currency.NewPairFromString("BTCUSD")
-	_, err := b.ModifyOrder(&order.Modify{
+	curr, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.ModifyOrder(&order.Modify{
 		ID:     "1337",
 		Price:  100,
 		Amount: 1000,
@@ -535,18 +552,24 @@ func TestGetCandleStick(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair := currency.NewPairFromString("BTC_KRW")
+	currencyPair, err := currency.NewPairFromString("BTC_KRW")
+	if err != nil {
+		t.Fatal(err)
+	}
 	startTime := time.Now().Add(-time.Hour * 24)
-	_, err := b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneDay)
+	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair := currency.NewPairFromString("BTC_KRW")
+	currencyPair, err := currency.NewPairFromString("BTC_KRW")
+	if err != nil {
+		t.Fatal(err)
+	}
 	startTime := time.Now().Add(-time.Hour * 24)
-	_, err := b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneDay)
+	_, err = b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}

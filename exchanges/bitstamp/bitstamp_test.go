@@ -678,21 +678,27 @@ func TestBitstamp_OHLC(t *testing.T) {
 }
 
 func TestBitstamp_GetHistoricCandles(t *testing.T) {
-	currencyPair := currency.NewPairFromString("btcusd")
+	currencyPair, err := currency.NewPairFromString("btcusd")
+	if err != nil {
+		t.Fatal(err)
+	}
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 
-	_, err := b.GetHistoricCandles(currencyPair, asset.Spot, start, end, kline.OneDay)
+	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, start, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestBitstamp_GetHistoricCandlesExtended(t *testing.T) {
-	currencyPair := currency.NewPairFromString("btcusd")
+	currencyPair, err := currency.NewPairFromString("btcusd")
+	if err != nil {
+		t.Fatal(err)
+	}
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
-	_, err := b.GetHistoricCandlesExtended(currencyPair, asset.Spot, start, end, kline.OneDay)
+	_, err = b.GetHistoricCandlesExtended(currencyPair, asset.Spot, start, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}

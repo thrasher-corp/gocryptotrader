@@ -18,13 +18,11 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 // Coinbene is the overarching type across this package
 type Coinbene struct {
 	exchange.Base
-	WebsocketConn *wshandler.WebsocketConnection
 }
 
 const (
@@ -35,10 +33,11 @@ const (
 	coinbeneAPIVersion   = "v2"
 
 	// Public endpoints
-	coinbeneGetTicker    = "/market/ticker/one"
-	coinbeneGetTickers   = "/market/tickers"
-	coinbeneGetOrderBook = "/market/orderBook"
-	coinbeneGetKlines    = "/market/klines"
+	coinbeneGetTicker      = "/market/ticker/one"
+	coinbeneGetTickersSpot = "/market/ticker/list"
+	coinbeneGetTickers     = "/market/tickers"
+	coinbeneGetOrderBook   = "/market/orderBook"
+	coinbeneGetKlines      = "/market/klines"
 	// TODO: Implement function ---
 	coinbeneSpotKlines       = "/market/instruments/candles"
 	coinbeneSpotExchangeRate = "/market/rate/list"
@@ -65,12 +64,15 @@ const (
 	coinbeneListSwapPositions  = "/position/list"
 	coinbenePositionFeeRate    = "/position/feeRate"
 
-	limitOrder    = "1"
-	marketOrder   = "2"
-	buyDirection  = "1"
-	openLong      = "openLong"
-	openShort     = "openShort"
-	sellDirection = "2"
+	limitOrder      = "1"
+	marketOrder     = "2"
+	postOnlyOrder   = "8"
+	fillOrKillOrder = "9"
+	iosOrder        = "10"
+	buyDirection    = "1"
+	openLong        = "openLong"
+	openShort       = "openShort"
+	sellDirection   = "2"
 )
 
 // GetAllPairs gets all pairs on the exchange
@@ -162,7 +164,7 @@ func (c *Coinbene) GetTickers() ([]TickerData, error) {
 		TickerData []TickerData `json:"data"`
 	}{}
 
-	path := c.API.Endpoints.URL + coinbeneAPIVersion + coinbeneGetTicker
+	path := c.API.Endpoints.URL + coinbeneAPIVersion + coinbeneGetTickersSpot
 	return resp.TickerData, c.SendHTTPRequest(path, spotTickerList, &resp)
 }
 
@@ -266,9 +268,15 @@ func (c *Coinbene) PlaceSpotOrder(price, quantity float64, symbol, direction,
 		params.Set("orderType", limitOrder)
 	case order.Market.Lower():
 		params.Set("orderType", marketOrder)
+	case order.PostOnly.Lower():
+		params.Set("orderType", postOnlyOrder)
+	case order.FillOrKill.Lower():
+		params.Set("orderType", fillOrKillOrder)
+	case order.IOS.Lower():
+		params.Set("orderType", iosOrder)
 	default:
 		return resp,
-			errors.New("invalid order type, must be either 'limit' or 'market'")
+			errors.New("invalid order type, must be either 'limit', 'market', 'postOnly', 'fillOrKill', 'ios'")
 	}
 
 	params.Set("symbol", symbol)

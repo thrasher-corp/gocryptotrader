@@ -133,7 +133,10 @@ func TestGetExchangeStatus(t *testing.T) {
 
 func TestCheckFXString(t *testing.T) {
 	t.Parallel()
-	p := currency.NewPairDelimiter("FXBTC_JPY", "_")
+	p, err := currency.NewPairDelimiter("FXBTC_JPY", "_")
+	if err != nil {
+		t.Fatal(err)
+	}
 	p = b.CheckFXString(p)
 	if p.Base.String() != "FX_BTC" {
 		t.Error("Bitflyer - CheckFXString() error")
@@ -144,15 +147,19 @@ func TestFetchTicker(t *testing.T) {
 	t.Parallel()
 	var p currency.Pair
 
-	currencies := b.GetAvailablePairs(asset.Spot)
-	for _, pair := range currencies {
-		if pair.String() == "FXBTC_JPY" {
-			p = pair
+	currencies, err := b.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i := range currencies {
+		if currencies[i].String() == "FXBTC_JPY" {
+			p = currencies[i]
 			break
 		}
 	}
 
-	_, err := b.FetchTicker(p, asset.Spot)
+	_, err = b.FetchTicker(p, asset.Spot)
 	if err != nil {
 		t.Error("Bitflyer - FetchTicker() error", err)
 	}

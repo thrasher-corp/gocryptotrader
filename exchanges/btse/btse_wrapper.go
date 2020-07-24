@@ -19,8 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -56,11 +56,7 @@ func (b *BTSE) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
-	b.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
-		UseGlobalFormat: true,
+	fmt1 := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 			Delimiter: "-",
@@ -69,6 +65,23 @@ func (b *BTSE) SetDefaults() {
 			Uppercase: true,
 			Delimiter: "-",
 		},
+	}
+	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	fmt2 := currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+		},
+	}
+	err = b.StoreAssetPairFormat(asset.Futures, fmt2)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
 
 	b.Features = exchange.Features{
@@ -112,7 +125,7 @@ func (b *BTSE) SetDefaults() {
 
 	b.API.Endpoints.URLDefault = btseAPIURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
-	b.Websocket = wshandler.New()
+	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -130,41 +143,29 @@ func (b *BTSE) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = b.Websocket.Setup(
-		&wshandler.WebsocketSetup{
-			Enabled:                          exch.Features.Enabled.Websocket,
-			Verbose:                          exch.Verbose,
-			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-			DefaultURL:                       btseWebsocket,
-			ExchangeName:                     exch.Name,
-			RunningURL:                       exch.API.Endpoints.WebsocketURL,
-			Connector:                        b.WsConnect,
-			Subscriber:                       b.Subscribe,
-			UnSubscriber:                     b.Unsubscribe,
-			Features:                         &b.Features.Supports.WebsocketCapabilities,
-		})
+	err = b.Websocket.Setup(&stream.WebsocketSetup{
+		Enabled:                          exch.Features.Enabled.Websocket,
+		Verbose:                          exch.Verbose,
+		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		DefaultURL:                       btseWebsocket,
+		ExchangeName:                     exch.Name,
+		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		Connector:                        b.WsConnect,
+		Subscriber:                       b.Subscribe,
+		UnSubscriber:                     b.Unsubscribe,
+		GenerateSubscriptions:            b.GenerateDefaultSubscriptions,
+		Features:                         &b.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+	})
 	if err != nil {
 		return err
 	}
 
-	b.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         b.Name,
-		URL:                  b.Websocket.GetWebsocketURL(),
-		ProxyURL:             b.Websocket.GetProxyAddress(),
-		Verbose:              b.Verbose,
+	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	}
-
-	b.Websocket.Orderbook.Setup(
-		exch.WebsocketOrderbookBufferLimit,
-		false,
-		false,
-		false,
-		false,
-		exch.Name)
-	return nil
+	})
 }
 
 // Start starts the BTSE go routine
@@ -194,61 +195,96 @@ func (b *BTSE) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *BTSE) FetchTradablePairs(asset asset.Item) ([]string, error) {
-	m, err := b.GetMarkets()
-	if err != nil {
-		return nil, err
+func (b *BTSE) FetchTradablePairs(a asset.Item) ([]string, error) {
+	var currencies []string
+	if a == asset.Spot {
+		m, err := b.GetSpotMarkets()
+		if err != nil {
+			return nil, err
+		}
+
+		for x := range m {
+			if m[x].Status != "active" {
+				continue
+			}
+			currencies = append(currencies, m[x].Symbol)
+		}
+	} else if a == asset.Futures {
+		m, err := b.GetFuturesMarkets()
+		if err != nil {
+			return nil, err
+		}
+
+		for x := range m {
+			if !m[x].Active {
+				continue
+			}
+			currencies = append(currencies, m[x].Symbol)
+		}
 	}
 
-	var currencies []string
-	for x := range m {
-		if m[x].Status != "active" {
-			continue
-		}
-		currencies = append(currencies, m[x].Symbol)
-	}
 	return currencies, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (b *BTSE) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := b.FetchTradablePairs(asset.Spot)
-	if err != nil {
-		return err
-	}
+	a := b.GetAssetTypes()
+	for i := range a {
+		pairs, err := b.FetchTradablePairs(a[i])
+		if err != nil {
+			return err
+		}
 
-	return b.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
+		p, err := currency.NewPairsFromStrings(pairs)
+		if err != nil {
+			return err
+		}
+
+		err = b.UpdatePairs(p, a[i], false, forceUpdate)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *BTSE) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
-
-	t, err := b.GetTicker(b.FormatExchangeCurrency(p,
-		assetType).String())
-	if err != nil {
-		return tickerPrice, err
+	if assetType == asset.Futures {
+		// Futures REST implementation needs to be done before this can be
+		// removed
+		return nil, common.ErrNotYetImplemented
 	}
 
-	s, err := b.GetMarketStatistics(b.FormatExchangeCurrency(p,
-		assetType).String())
+	fpair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
-	tickerPrice.Pair = p
-	tickerPrice.Ask = t.Ask
-	tickerPrice.Bid = t.Bid
-	tickerPrice.Low = s.Low
-	tickerPrice.Last = t.Price
-	tickerPrice.Volume = s.Volume
-	tickerPrice.High = s.High
-	tickerPrice.LastUpdated = s.Time
-
-	err = ticker.ProcessTicker(b.Name, tickerPrice, assetType)
+	t, err := b.GetTicker(fpair.String())
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
+	}
+
+	s, err := b.GetMarketStatistics(fpair.String())
+	if err != nil {
+		return nil, err
+	}
+
+	err = ticker.ProcessTicker(&ticker.Price{
+		Pair:         p,
+		Ask:          t.Ask,
+		Bid:          t.Bid,
+		Low:          s.Low,
+		Last:         t.Price,
+		Volume:       s.Volume,
+		High:         s.High,
+		LastUpdated:  s.Time,
+		ExchangeName: b.Name,
+		AssetType:    assetType})
+	if err != nil {
+		return nil, err
 	}
 	return ticker.GetTicker(b.Name, p, assetType)
 }
@@ -273,11 +309,22 @@ func (b *BTSE) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTSE) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
-	a, err := b.FetchOrderBook(b.FormatExchangeCurrency(p, assetType).String())
-	if err != nil {
-		return orderBook, err
+	if assetType == asset.Futures {
+		// Futures REST implementation needs to be done before this can be
+		// removed
+		return nil, common.ErrNotYetImplemented
 	}
+
+	fpair, err := b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	a, err := b.FetchOrderBook(fpair.String())
+	if err != nil {
+		return nil, err
+	}
+
+	orderBook := new(orderbook.Base)
 	for x := range a.BuyQuote {
 		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
 			Price:  a.BuyQuote[x].Price,
@@ -360,11 +407,16 @@ func (b *BTSE) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return resp, err
 	}
 
+	fpair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return resp, err
+	}
+
 	r, err := b.CreateOrder(s.Amount,
 		s.Price,
 		s.Side.String(),
 		s.Type.String(),
-		b.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
+		fpair.String(),
 		goodTillCancel,
 		s.ClientID)
 	if err != nil {
@@ -389,9 +441,13 @@ func (b *BTSE) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (b *BTSE) CancelOrder(order *order.Cancel) error {
-	r, err := b.CancelExistingOrder(order.ID,
-		b.FormatExchangeCurrency(order.Pair,
-			asset.Spot).String())
+	fpair, err := b.FormatExchangeCurrency(order.Pair,
+		order.AssetType)
+	if err != nil {
+		return err
+	}
+
+	r, err := b.CancelExistingOrder(order.ID, fpair.String())
 	if err != nil {
 		return err
 	}
@@ -411,19 +467,28 @@ func (b *BTSE) CancelOrder(order *order.Cancel) error {
 // If not specified, all orders of all markets will be cancelled
 func (b *BTSE) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
-	markets, err := b.GetMarkets()
+	markets, err := b.GetSpotMarkets()
+	if err != nil {
+		return resp, err
+	}
+
+	format, err := b.GetPairFormat(orderCancellation.AssetType, false)
 	if err != nil {
 		return resp, err
 	}
 
 	resp.Status = make(map[string]string)
 	for x := range markets {
-		strPair := b.FormatExchangeCurrency(orderCancellation.Pair,
-			orderCancellation.AssetType).String()
+		fair, err := b.FormatExchangeCurrency(orderCancellation.Pair,
+			orderCancellation.AssetType)
+		if err != nil {
+			return resp, err
+		}
+
 		checkPair := currency.NewPairWithDelimiter(markets[x].BaseCurrency,
 			markets[x].QuoteCurrency,
-			b.GetPairFormat(asset.Spot, false).Delimiter).String()
-		if strPair != "" && strPair != checkPair {
+			format.Delimiter).String()
+		if fair.String() != checkPair {
 			continue
 		} else {
 			orders, err := b.GetOrders(checkPair)
@@ -455,6 +520,11 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 		return od, errors.New("no orders found")
 	}
 
+	format, err := b.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return order.Detail{}, err
+	}
+
 	for i := range o {
 		if o[i].ID != orderID {
 			continue
@@ -465,8 +535,14 @@ func (b *BTSE) GetOrderInfo(orderID string) (order.Detail, error) {
 			side = order.Sell
 		}
 
-		od.Pair = currency.NewPairDelimiter(o[i].Symbol,
-			b.GetPairFormat(asset.Spot, false).Delimiter)
+		od.Pair, err = currency.NewPairDelimiter(o[i].Symbol,
+			format.Delimiter)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s GetOrderInfo unable to parse currency pair: %s\n",
+				b.Name,
+				err)
+		}
 		od.Exchange = b.Name
 		od.Amount = o[i].Amount
 		od.ID = o[i].ID
@@ -530,14 +606,14 @@ func (b *BTSE) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Re
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (b *BTSE) GetWebsocket() (*wshandler.Websocket, error) {
-	return b.Websocket, nil
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	resp, err := b.GetOrders("")
+	if err != nil {
+		return nil, err
+	}
+
+	format, err := b.GetPairFormat(asset.Spot, false)
 	if err != nil {
 		return nil, err
 	}
@@ -557,9 +633,17 @@ func (b *BTSE) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, err
 				err)
 		}
 
+		p, err := currency.NewPairDelimiter(resp[i].Symbol,
+			format.Delimiter)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s GetActiveOrders unable to parse currency pair: %s\n",
+				b.Name,
+				err)
+		}
+
 		openOrder := order.Detail{
-			Pair: currency.NewPairDelimiter(resp[i].Symbol,
-				b.GetPairFormat(asset.Spot, false).Delimiter),
+			Pair:     p,
 			Exchange: b.Name,
 			Amount:   resp[i].Amount,
 			ID:       resp[i].ID,
@@ -619,30 +703,6 @@ func (b *BTSE) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
 	return b.GetFee(feeBuilder)
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (b *BTSE) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	b.Websocket.SubscribeToChannels(channels)
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (b *BTSE) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	b.Websocket.RemoveSubscribedChannels(channels)
-	return nil
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (b *BTSE) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
-	return b.Websocket.GetSubscriptions(), nil
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (b *BTSE) AuthenticateWebsocket() error {
-	return common.ErrFunctionNotSupported
 }
 
 // ValidateCredentials validates current credentials used for wrapper

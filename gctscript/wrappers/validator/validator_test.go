@@ -27,8 +27,8 @@ const (
 )
 
 var (
-	currencyPair = currency.NewPairFromString("BTCAUD")
-	testWrapper  = Wrapper{}
+	currencyPair, _ = currency.NewPairFromString("BTCAUD")
+	testWrapper     = Wrapper{}
 )
 
 func TestWrapper_Exchanges(t *testing.T) {
@@ -101,8 +101,11 @@ func TestWrapper_DepositAddress(t *testing.T) {
 
 func TestWrapper_Orderbook(t *testing.T) {
 	t.Parallel()
-	c := currency.NewPairDelimiter(pairs, delimiter)
-	_, err := testWrapper.Orderbook(exchName, c, assetType)
+	c, err := currency.NewPairDelimiter(pairs, delimiter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = testWrapper.Orderbook(exchName, c, assetType)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,9 +149,12 @@ func TestWrapper_QueryOrder(t *testing.T) {
 
 func TestWrapper_SubmitOrder(t *testing.T) {
 	t.Parallel()
-
+	c, err := currency.NewPairDelimiter(pairs, delimiter)
+	if err != nil {
+		t.Fatal(err)
+	}
 	tempOrder := &order.Submit{
-		Pair:         currency.NewPairDelimiter(pairs, delimiter),
+		Pair:         c,
 		Type:         orderType,
 		Side:         orderSide,
 		TriggerPrice: 0,
@@ -158,7 +164,7 @@ func TestWrapper_SubmitOrder(t *testing.T) {
 		ClientID:     orderClientID,
 		Exchange:     "true",
 	}
-	_, err := testWrapper.SubmitOrder(tempOrder)
+	_, err = testWrapper.SubmitOrder(tempOrder)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,8 +177,11 @@ func TestWrapper_SubmitOrder(t *testing.T) {
 
 func TestWrapper_Ticker(t *testing.T) {
 	t.Parallel()
-	c := currency.NewPairDelimiter(pairs, delimiter)
-	_, err := testWrapper.Ticker(exchName, c, assetType)
+	c, err := currency.NewPairDelimiter(pairs, delimiter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = testWrapper.Ticker(exchName, c, assetType)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,8 +217,11 @@ func TestWrapper_WithdrawalFiatFunds(t *testing.T) {
 }
 
 func TestWrapper_OHLCV(t *testing.T) {
-	c := currency.NewPairDelimiter(pairs, delimiter)
-	_, err := testWrapper.OHLCV("test", c, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneDay)
+	c, err := currency.NewPairDelimiter(pairs, delimiter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = testWrapper.OHLCV("test", c, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}

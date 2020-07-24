@@ -410,8 +410,11 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	pair := currency.NewPairFromString(testCurrencyPair)
-	_, err := l.GetHistoricCandles(pair, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneMin)
+	pair, err := currency.NewPairFromString(testCurrencyPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = l.GetHistoricCandles(pair, asset.Spot, time.Now().Add(-24*time.Hour), time.Now(), kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -427,8 +430,11 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 
 	startTime := time.Now().Add(-time.Hour)
 	end := time.Now()
-	pair := currency.NewPairFromString(testCurrencyPair)
-	_, err := l.GetHistoricCandlesExtended(pair, asset.Spot, startTime, end, kline.OneMin)
+	pair, err := currency.NewPairFromString(testCurrencyPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = l.GetHistoricCandlesExtended(pair, asset.Spot, startTime, end, kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
 	}

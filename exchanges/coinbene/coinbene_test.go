@@ -40,13 +40,11 @@ func TestMain(m *testing.M) {
 	coinbeneConfig.API.AuthenticatedSupport = true
 	coinbeneConfig.API.Credentials.Secret = testAPISecret
 	coinbeneConfig.API.Credentials.Key = testAPIKey
-
+	c.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = c.Setup(coinbeneConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
-	c.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	c.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -288,7 +286,11 @@ func TestGetSwapOrderbook(t *testing.T) {
 
 func TestGetKlines(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetKlines(currency.NewPairFromString(spotTestPair).String(),
+	p, err := currency.NewPairFromString(spotTestPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.GetKlines(p.String(),
 		time.Now().Add(-time.Hour*1), time.Now(), "1")
 	if err != nil {
 		t.Fatal(err)
@@ -297,7 +299,11 @@ func TestGetKlines(t *testing.T) {
 
 func TestGetSwapKlines(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetSwapKlines(currency.NewPairFromString(swapTestPair).String(),
+	p, err := currency.NewPairFromString(swapTestPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.GetSwapKlines(p.String(),
 		time.Now().Add(-time.Hour*1), time.Now(), "1")
 	if err != nil {
 		t.Error(err)
@@ -480,8 +486,8 @@ func TestWsUnsubscribe(t *testing.T) {
 func TestWsLogin(t *testing.T) {
 	pressXToJSON := []byte(`{"event":"login","success":true}`)
 	err := c.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
+	if err == nil {
+		t.Error("error cannot be nil as this will initiate an auth subscription")
 	}
 
 	pressXToJSON = []byte(`{"event":"login","success":false}`)
@@ -692,14 +698,20 @@ func TestWsUserOrder(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair := currency.NewPairFromString(spotTestPair)
+	currencyPair, err := currency.NewPairFromString(spotTestPair)
+	if err != nil {
+		t.Fatal(err)
+	}
 	startTime := time.Now().Add(-time.Hour * 24)
-	_, err := c.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
+	_, err = c.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	currencyPairSwap := currency.NewPairFromString(swapTestPair)
+	currencyPairSwap, err := currency.NewPairFromString(swapTestPair)
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = c.GetHistoricCandles(currencyPairSwap, asset.PerpetualSwap, startTime, time.Now(), kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
@@ -707,9 +719,12 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair := currency.NewPairFromString(spotTestPair)
+	currencyPair, err := currency.NewPairFromString(spotTestPair)
+	if err != nil {
+		t.Fatal(err)
+	}
 	startTime := time.Now().Add(-time.Hour * 24)
-	_, err := c.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
+	_, err = c.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}

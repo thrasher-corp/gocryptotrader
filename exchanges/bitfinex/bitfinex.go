@@ -17,7 +17,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -83,9 +82,7 @@ const (
 // Bitfinex is the overarching type across the bitfinex package
 type Bitfinex struct {
 	exchange.Base
-	WebsocketConn              *wshandler.WebsocketConnection
-	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
-	WebsocketSubdChannels      map[int]WebsocketChanInfo
+	WebsocketSubdChannels map[int]WebsocketChanInfo
 }
 
 // GetPlatformStatus returns the Bifinex platform status
@@ -778,7 +775,7 @@ func (b *Bitfinex) WithdrawFIAT(withdrawalType, walletType string, withdrawReque
 // Major Upgrade needed on this function to include all query params
 func (b *Bitfinex) NewOrder(currencyPair, orderType string, amount, price float64, buy, hidden bool) (Order, error) {
 	if !common.StringDataCompare(AcceptedOrderType, orderType) {
-		return Order{}, errors.New("order type not accepted")
+		return Order{}, fmt.Errorf("order type %s not accepted", orderType)
 	}
 
 	response := Order{}

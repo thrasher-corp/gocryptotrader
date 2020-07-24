@@ -20,7 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -49,12 +49,11 @@ func TestMain(m *testing.M) {
 	zbConfig.API.AuthenticatedWebsocketSupport = true
 	zbConfig.API.Credentials.Key = apiKey
 	zbConfig.API.Credentials.Secret = apiSecret
+	z.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = z.Setup(zbConfig)
 	if err != nil {
 		log.Fatal("ZB setup error", err)
 	}
-	z.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	z.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -63,22 +62,13 @@ func setupWsAuth(t *testing.T) {
 		return
 	}
 	if !z.Websocket.IsEnabled() && !z.API.AuthenticatedWebsocketSupport || !z.ValidateAPICredentials() || !canManipulateRealOrders {
-		t.Skip(wshandler.WebsocketNotEnabled)
-	}
-	z.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         z.Name,
-		URL:                  zbWebsocketAPI,
-		Verbose:              z.Verbose,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
+		t.Skip(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := z.WebsocketConn.Dial(&dialer, http.Header{})
+	err := z.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	z.Websocket.DataHandler = make(chan interface{}, 11)
-	z.Websocket.TrafficAlert = make(chan struct{}, 11)
 	go z.wsReadData()
 	wsSetupRan = true
 }
@@ -841,9 +831,12 @@ func TestWsCreateSubUserResponse(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair := currency.NewPairFromString("btc_usdt")
+	currencyPair, err := currency.NewPairFromString("btc_usdt")
+	if err != nil {
+		t.Fatal(err)
+	}
 	startTime := time.Now().Add(-time.Hour * 1)
-	_, err := z.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
+	_, err = z.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -855,10 +848,13 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair := currency.NewPairFromString("btc_usdt")
+	currencyPair, err := currency.NewPairFromString("btc_usdt")
+	if err != nil {
+		t.Fatal(err)
+	}
 	start := time.Now().AddDate(0, -2, 0)
 	end := time.Now()
-	_, err := z.GetHistoricCandlesExtended(currencyPair, asset.Spot, start, end, kline.OneHour)
+	_, err = z.GetHistoricCandlesExtended(currencyPair, asset.Spot, start, end, kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}

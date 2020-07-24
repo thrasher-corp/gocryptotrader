@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -35,7 +35,7 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = o.Websocket.Setup(&wshandler.WebsocketSetup{
+	err = o.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
 		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
@@ -46,30 +46,19 @@ func (o *OKGroup) Setup(exch *config.ExchangeConfig) error {
 		Connector:                        o.WsConnect,
 		Subscriber:                       o.Subscribe,
 		UnSubscriber:                     o.Unsubscribe,
+		GenerateSubscriptions:            o.GenerateDefaultSubscriptions,
 		Features:                         &o.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
 	})
 	if err != nil {
 		return err
 	}
 
-	o.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         o.Name,
-		URL:                  o.Websocket.GetWebsocketURL(),
-		ProxyURL:             o.Websocket.GetProxyAddress(),
-		Verbose:              o.Verbose,
+	return o.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		RateLimit:            okGroupWsRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	}
-
-	o.Websocket.Orderbook.Setup(
-		exch.WebsocketOrderbookBufferLimit,
-		false,
-		false,
-		false,
-		false,
-		exch.Name)
-	return nil
+	})
 }
 
 // FetchOrderbook returns orderbook base on the currency pair
@@ -88,8 +77,13 @@ func (o *OKGroup) UpdateOrderbook(p currency.Pair, a asset.Item) (*orderbook.Bas
 		return orderBook, errors.New("no orderbooks for index")
 	}
 
+	fpair, err := o.FormatExchangeCurrency(p, a)
+	if err != nil {
+		return nil, err
+	}
+
 	orderbookNew, err := o.GetOrderBook(GetOrderBookRequest{
-		InstrumentID: o.FormatExchangeCurrency(p, a).String(),
+		InstrumentID: fpair.String(),
 	}, a)
 	if err != nil {
 		return orderBook, err
@@ -268,15 +262,20 @@ func (o *OKGroup) GetExchangeHistory(p currency.Pair, assetType asset.Item, time
 }
 
 // SubmitOrder submits a new order
-func (o *OKGroup) SubmitOrder(s *order.Submit) (resp order.SubmitResponse, err error) {
-	err = s.Validate()
+func (o *OKGroup) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
+	err := s.Validate()
 	if err != nil {
-		return resp, err
+		return order.SubmitResponse{}, err
+	}
+
+	fpair, err := o.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return order.SubmitResponse{}, err
 	}
 
 	request := PlaceOrderRequest{
 		ClientOID:    s.ClientID,
-		InstrumentID: o.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
+		InstrumentID: fpair.String(),
 		Side:         s.Side.Lower(),
 		Type:         s.Type.Lower(),
 		Size:         strconv.FormatFloat(s.Amount, 'f', -1, 64),
@@ -287,15 +286,17 @@ func (o *OKGroup) SubmitOrder(s *order.Submit) (resp order.SubmitResponse, err e
 
 	orderResponse, err := o.PlaceSpotOrder(&request)
 	if err != nil {
-		return
+		return order.SubmitResponse{}, err
 	}
 
+	var resp order.SubmitResponse
 	resp.IsOrderPlaced = orderResponse.Result
 	resp.OrderID = orderResponse.OrderID
 	if s.Type == order.Market {
 		resp.FullyMatched = true
 	}
-	return
+
+	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -310,11 +311,18 @@ func (o *OKGroup) CancelOrder(orderCancellation *order.Cancel) (err error) {
 	if err != nil {
 		return
 	}
+
+	fpair, err := o.FormatExchangeCurrency(orderCancellation.Pair,
+		orderCancellation.AssetType)
+	if err != nil {
+		return
+	}
+
 	orderCancellationResponse, err := o.CancelSpotOrder(CancelSpotOrderRequest{
-		InstrumentID: o.FormatExchangeCurrency(orderCancellation.Pair,
-			asset.Spot).String(),
-		OrderID: orderID,
+		InstrumentID: fpair.String(),
+		OrderID:      orderID,
 	})
+
 	if !orderCancellationResponse.Result {
 		err = fmt.Errorf("order %d failed to be cancelled",
 			orderCancellationResponse.OrderID)
@@ -324,26 +332,32 @@ func (o *OKGroup) CancelOrder(orderCancellation *order.Cancel) (err error) {
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (resp order.CancelAllResponse, err error) {
+func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	orderIDs := strings.Split(orderCancellation.ID, ",")
+	resp := order.CancelAllResponse{}
 	resp.Status = make(map[string]string)
 	var orderIDNumbers []int64
 	for i := range orderIDs {
-		orderIDNumber, strConvErr := strconv.ParseInt(orderIDs[i], 10, 64)
-		if strConvErr != nil {
-			resp.Status[orderIDs[i]] = strConvErr.Error()
+		orderIDNumber, err := strconv.ParseInt(orderIDs[i], 10, 64)
+		if err != nil {
+			resp.Status[orderIDs[i]] = err.Error()
 			continue
 		}
 		orderIDNumbers = append(orderIDNumbers, orderIDNumber)
 	}
 
+	fpair, err := o.FormatExchangeCurrency(orderCancellation.Pair,
+		orderCancellation.AssetType)
+	if err != nil {
+		return resp, err
+	}
+
 	cancelOrdersResponse, err := o.CancelMultipleSpotOrders(CancelMultipleSpotOrdersRequest{
-		InstrumentID: o.FormatExchangeCurrency(orderCancellation.Pair,
-			asset.Spot).String(),
-		OrderIDs: orderIDNumbers,
+		InstrumentID: fpair.String(),
+		OrderIDs:     orderIDNumbers,
 	})
 	if err != nil {
-		return
+		return resp, err
 	}
 
 	for x := range cancelOrdersResponse {
@@ -352,7 +366,7 @@ func (o *OKGroup) CancelAllOrders(orderCancellation *order.Cancel) (resp order.C
 		}
 	}
 
-	return
+	return resp, err
 }
 
 // GetOrderInfo returns information on a current open order
@@ -361,10 +375,20 @@ func (o *OKGroup) GetOrderInfo(orderID string) (resp order.Detail, err error) {
 	if err != nil {
 		return
 	}
+
+	format, err := o.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return resp, err
+	}
+
+	p, err := currency.NewPairDelimiter(mOrder.InstrumentID, format.Delimiter)
+	if err != nil {
+		return resp, err
+	}
+
 	resp = order.Detail{
-		Amount: mOrder.Size,
-		Pair: currency.NewPairDelimiter(mOrder.InstrumentID,
-			o.GetPairFormat(asset.Spot, false).Delimiter),
+		Amount:         mOrder.Size,
+		Pair:           p,
 		Exchange:       o.Name,
 		Date:           mOrder.Timestamp,
 		ExecutedAmount: mOrder.FilledSize,
@@ -424,9 +448,12 @@ func (o *OKGroup) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw
 // GetActiveOrders retrieves any orders that are active/open
 func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Detail, err error) {
 	for x := range req.Pairs {
+		fpair, err := o.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
 		spotOpenOrders, err := o.GetSpotOpenOrders(GetSpotOpenOrdersRequest{
-			InstrumentID: o.FormatExchangeCurrency(req.Pairs[x],
-				asset.Spot).String(),
+			InstrumentID: fpair.String(),
 		})
 		if err != nil {
 			return resp, err
@@ -454,10 +481,13 @@ func (o *OKGroup) GetActiveOrders(req *order.GetOrdersRequest) (resp []order.Det
 // Can Limit response to specific order status
 func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Detail, err error) {
 	for x := range req.Pairs {
+		fpair, err := o.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
 		spotOpenOrders, err := o.GetSpotOrders(GetSpotOrdersRequest{
-			Status: strings.Join([]string{"filled", "cancelled", "failure"}, "|"),
-			InstrumentID: o.FormatExchangeCurrency(req.Pairs[x],
-				asset.Spot).String(),
+			Status:       strings.Join([]string{"filled", "cancelled", "failure"}, "|"),
+			InstrumentID: fpair.String(),
 		})
 		if err != nil {
 			return resp, err
@@ -481,11 +511,6 @@ func (o *OKGroup) GetOrderHistory(req *order.GetOrdersRequest) (resp []order.Det
 	return
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (o *OKGroup) GetWebsocket() (*wshandler.Websocket, error) {
-	return o.Websocket, nil
-}
-
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (o *OKGroup) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if !o.AllowAuthenticatedRequest() && // Todo check connection status
@@ -498,25 +523,6 @@ func (o *OKGroup) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error)
 // GetWithdrawCapabilities returns the types of withdrawal methods permitted by the exchange
 func (o *OKGroup) GetWithdrawCapabilities() uint32 {
 	return o.GetWithdrawPermissions()
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (o *OKGroup) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	o.Websocket.SubscribeToChannels(channels)
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (o *OKGroup) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	o.Websocket.RemoveSubscribedChannels(channels)
-	return nil
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (o *OKGroup) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
-	return o.Websocket.GetSubscriptions(), nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

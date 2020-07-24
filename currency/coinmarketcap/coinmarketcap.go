@@ -8,7 +8,6 @@ package coinmarketcap
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -17,6 +16,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // SetDefaults sets default values for the exchange
@@ -62,8 +62,8 @@ func (c *Coinmarketcap) GetCryptocurrencyInfo(currencyID ...int64) (CryptoCurren
 	}
 
 	var currStr []string
-	for _, d := range currencyID {
-		currStr = append(currStr, strconv.FormatInt(d, 10))
+	for i := range currencyID {
+		currStr = append(currStr, strconv.FormatInt(currencyID[i], 10))
 	}
 
 	val := url.Values{}
@@ -667,7 +667,6 @@ func (c *Coinmarketcap) GetPriceConversion(amount float64, currencyID int64, atH
 func (c *Coinmarketcap) SendHTTPRequest(method, endpoint string, v url.Values, result interface{}) error {
 	headers := make(map[string]string)
 	headers["Accept"] = "application/json"
-	headers["Accept-Encoding"] = "deflate, gzip"
 	headers["X-CMC_PRO_API_KEY"] = c.APIkey
 
 	path := c.APIUrl + c.APIVersion + endpoint
@@ -710,7 +709,8 @@ func (c *Coinmarketcap) SetAccountPlan(s string) error {
 	case "enterprise":
 		c.Plan = Enterprise
 	default:
-		return fmt.Errorf("account plan %s not found", s)
+		log.Warnf(log.Global, "account plan %s not found, defaulting to basic", s)
+		c.Plan = Basic
 	}
 	return nil
 }

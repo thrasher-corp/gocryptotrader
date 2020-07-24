@@ -69,10 +69,10 @@
             {{ if eq $length 1 }}
             {{ else }}
             <div class="col-11 container-fluid">
-                <h4> {{ $assetPairResponses.AssetType }} {{ $assetPairResponses.CurrencyPair }} Results </h4>
+                <h4> {{ $assetPairResponses.AssetType }} {{ $assetPairResponses.Pair}} Results </h4>
                 <div class="alert col-6 container-fluid {{ if $assetPairResponses.ErrorCount }} alert-danger {{ else }} alert-success {{ end }}"
                     role="alert">
-                    {{ $assetPairResponses.AssetType }} {{ $assetPairResponses.CurrencyPair }} Total Errors:
+                    {{ $assetPairResponses.AssetType }} {{ $assetPairResponses.Pair}} Total Errors:
                     {{ $assetPairResponses.ErrorCount }}
                 </div>
             </div>
@@ -108,18 +108,18 @@
                             {{ $assetPairResponses.AssetType }}
                         </td>
                         <td>
-                            {{ $assetPairResponses.CurrencyPair }}
+                            {{ $assetPairResponses.Pair}}
                         </td>
                         <td>
                             {{ $endpointResponse.Function }}
                         </td>
                         <td>
                             <button class="btn btn-info" type="button" data-toggle="collapse"
-                                data-target="#{{ $assetPairResponses.AssetType }}{{ $assetPairResponses.CurrencyPair }}{{ $endpointResponse.Function }}sent"
+                                data-target="#{{ $assetPairResponses.AssetType }}{{ $assetPairResponses.Pair}}{{ $endpointResponse.Function }}sent"
                                 aria-expanded="false" aria-controls="collapseExample">
                                 Wrapper Params
                             </button>
-                            <div id="{{ $assetPairResponses.AssetType }}{{ $assetPairResponses.CurrencyPair }}{{ $endpointResponse.Function }}sent"
+                            <div id="{{ $assetPairResponses.AssetType }}{{ $assetPairResponses.Pair}}{{ $endpointResponse.Function }}sent"
                                 class="collapse">
                                 <div class="card card-body" style="word-wrap:anywhere">
                                     {{ $endpointResponse.SentParams  | printf "%s" }}
@@ -131,11 +131,11 @@
                         </td>
                         <td>
                             <button class="btn btn-info" type="button" data-toggle="collapse"
-                                data-target="#{{ $assetPairResponses.AssetType }}{{ $assetPairResponses.CurrencyPair }}{{ $endpointResponse.Function }}"
+                                data-target="#{{ $assetPairResponses.AssetType }}{{ $assetPairResponses.Pair}}{{ $endpointResponse.Function }}"
                                 aria-expanded="false" aria-controls="collapseExample">
                                 Wrapper Response
                             </button>
-                            <div id="{{ $assetPairResponses.AssetType }}{{ $assetPairResponses.CurrencyPair }}{{ $endpointResponse.Function }}"
+                            <div id="{{ $assetPairResponses.AssetType }}{{ $assetPairResponses.Pair}}{{ $endpointResponse.Function }}"
                                 class="collapse">
                                 <div class="card card-body" style="word-wrap:anywhere">
                                     {{ $endpointResponse.Response  | printf "%s" }}

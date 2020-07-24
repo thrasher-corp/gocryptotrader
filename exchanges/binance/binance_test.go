@@ -206,7 +206,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 
 	var feeBuilder = setFeeBuilder()
 	b.GetFeeByType(feeBuilder)
-	if !areTestAPIKeysSet() {
+	if !areTestAPIKeysSet() || mockTests {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
 		}
@@ -439,6 +439,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currency.NewPair(currency.LTC, currency.BTC),
+		AssetType:     asset.Spot,
 	}
 
 	err := b.CancelOrder(orderCancellation)
@@ -904,10 +905,13 @@ func TestExecutionTypeToOrderStatus(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair := currency.NewPairFromString("BTCUSDT")
+	currencyPair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
 	startTime := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
-	_, err := b.GetHistoricCandles(currencyPair, asset.Spot, startTime, end, kline.OneDay)
+	_, err = b.GetHistoricCandles(currencyPair, asset.Spot, startTime, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -919,10 +923,13 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair := currency.NewPairFromString("BTCUSDT")
+	currencyPair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
 	startTime := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
-	_, err := b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, end, kline.OneDay)
+	_, err = b.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}

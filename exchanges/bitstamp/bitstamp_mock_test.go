@@ -34,6 +34,7 @@ func TestMain(m *testing.M) {
 	bitstampConfig.API.Credentials.Secret = apiSecret
 	bitstampConfig.API.Credentials.ClientID = customerID
 	b.SetDefaults()
+	b.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = b.Setup(bitstampConfig)
 	if err != nil {
 		log.Fatal("Bitstamp setup error", err)
@@ -46,8 +47,6 @@ func TestMain(m *testing.M) {
 
 	b.HTTPClient = newClient
 	b.API.Endpoints.URL = serverDetails + "/api"
-	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	log.Printf(sharedtestvalues.MockTesting, b.Name, b.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

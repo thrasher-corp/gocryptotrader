@@ -39,13 +39,11 @@ func TestMain(m *testing.M) {
 	btseConfig.API.AuthenticatedSupport = true
 	btseConfig.API.Credentials.Key = apiKey
 	btseConfig.API.Credentials.Secret = apiSecret
-
+	b.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = b.Setup(btseConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
-	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -61,9 +59,17 @@ func TestGetMarketsSummary(t *testing.T) {
 	}
 }
 
-func TestGetMarkets(t *testing.T) {
+func TestGetSpotMarkets(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetMarkets()
+	_, err := b.GetSpotMarkets()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFuturesMarkets(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetFuturesMarkets()
 	if err != nil {
 		t.Error(err)
 	}
@@ -408,6 +414,19 @@ func TestStatusToStandardStatus(t *testing.T) {
 		result, _ := stringToOrderStatus(testCases[i].Case)
 		if result != testCases[i].Result {
 			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
+		}
+	}
+}
+
+func TestFetchTradablePairs(t *testing.T) {
+	assets := b.GetAssetTypes()
+	for i := range assets {
+		data, err := b.FetchTradablePairs(assets[i])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(data) == 0 {
+			t.Fatal("data cannot be zero")
 		}
 	}
 }

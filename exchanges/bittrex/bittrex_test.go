@@ -343,14 +343,19 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
+	p, err := currency.NewPairFromString(currPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type:  order.AnyType,
-		Pairs: []currency.Pair{currency.NewPairFromString(currPair)},
+		Pairs: []currency.Pair{p},
 	}
 
 	getOrdersRequest.Pairs[0].Delimiter = "-"
 
-	_, err := b.GetActiveOrders(&getOrdersRequest)
+	_, err = b.GetActiveOrders(&getOrdersRequest)
 	if areTestAPIKeysSet() && err != nil {
 		t.Errorf("Could not get open orders: %s", err)
 	} else if !areTestAPIKeysSet() && err == nil {
