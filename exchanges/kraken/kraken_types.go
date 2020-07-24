@@ -71,6 +71,7 @@ type Asset struct {
 // AssetPairs holds asset pair information
 type AssetPairs struct {
 	Altname           string      `json:"altname"`
+	Wsname            string      `json:"wsname"`
 	AclassBase        string      `json:"aclass_base"`
 	Base              string      `json:"base"`
 	AclassQuote       string      `json:"aclass_quote"`
@@ -85,7 +86,8 @@ type AssetPairs struct {
 	FeesMaker         [][]float64 `json:"fees_maker"`
 	FeeVolumeCurrency string      `json:"fee_volume_currency"`
 	MarginCall        int         `json:"margin_call"`
-	MarginLevel       int         `json:"margin_level,"`
+	MarginStop        int         `json:"margin_stop"`
+	Ordermin          string      `json:"ordermin"`
 }
 
 // Ticker is a standard ticker type

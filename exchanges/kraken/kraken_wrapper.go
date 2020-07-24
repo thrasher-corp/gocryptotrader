@@ -259,7 +259,7 @@ func (k *Kraken) FetchTradablePairs(asset asset.Item) ([]string, error) {
 		}
 	}
 
-	pairs, err := k.GetAssetPairs([]string{}, false, false, false)
+	pairs, err := k.GetAssetPairs([]string{}, "")
 	if err != nil {
 		return nil, err
 	}

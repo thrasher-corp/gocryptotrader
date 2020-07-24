@@ -25,7 +25,9 @@ import (
 )
 
 const (
-	apiURL = "https://api.binance.com"
+	apiURL        = "https://api.binance.com"
+	spotAPIURL    = "https://sapi.binance.com"
+	futuresAPIURL = "https://fapi.binance.com"
 
 	// Public endpoints
 	exchangeInfo      = "/api/v3/exchangeInfo"
@@ -53,27 +55,23 @@ const (
 	getInterestHistory = "/sapi/v1/margin/interestHistory"
 
 	// Withdraw API endpoints
-	withdrawEndpoint  = "/wapi/v3/withdraw.html"
-	depositHistory    = "/wapi/v3/depositHistory.html"
-	withdrawalHistory = "/wapi/v3/withdrawHistory.html"
-	depositAddress    = "/wapi/v3/depositAddress.html"
-	accountStatus     = "/wapi/v3/accountStatus.html"
-	systemStatus      = "/wapi/v3/systemStatus.html"
-	dustLog           = "/wapi/v3/userAssetDribbletLog.html"
-	tradeFee          = "/wapi/v3/tradeFee.html"
-	assetDetail       = "/wapi/v3/assetDetail.html"
-	interestHistory   = "/sapi/v1/margin/interestHistory"
+	withdrawEndpoint            = "/wapi/v3/withdraw.html"
+	depositHistory              = "/wapi/v3/depositHistory.html"
+	withdrawalHistory           = "/wapi/v3/withdrawHistory.html"
+	depositAddress              = "/wapi/v3/depositAddress.html"
+	accountStatus               = "/wapi/v3/accountStatus.html"
+	systemStatus                = "/wapi/v3/systemStatus.html"
+	dustLog                     = "/wapi/v3/userAssetDribbletLog.html"
+	tradeFee                    = "/wapi/v3/tradeFee.html"
+	assetDetail                 = "/wapi/v3/assetDetail.html"
+	interestHistory             = "/sapi/v1/margin/interestHistory"
+	undocumentedInterestHistory = "https://www.binance.com/gateway-api/v1/public/isolated-margin/pair/vip-level"
 )
 
 // GetInterestHistory gets interest history for currency/currencies provided
-func (b *Binance) GetInterestHistory() ([]InterestHistoryData, error) {
-	var resp []InterestHistoryData
-
-	path := "https://api.binance.com" + "/sapi/v1/margin/interestHistory"
-
-	params := url.Values{}
-
-	if err := b.SendAuthHTTPRequest(http.MethodGet, path, params, limitDefault, &resp); err != nil {
+func (b *Binance) GetInterestHistory() (MarginInfoData, error) {
+	var resp MarginInfoData
+	if err := b.SendHTTPRequest(undocumentedInterestHistory, limitDefault, &resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
@@ -83,7 +81,7 @@ func (b *Binance) GetInterestHistory() ([]InterestHistoryData, error) {
 // information
 func (b *Binance) GetPerpMarkets() (PerpsExchangeInfo, error) {
 	var resp PerpsExchangeInfo
-	path := "https://sapi.binance.com" + perpExchangeInfo
+	path := spotAPIURL + perpExchangeInfo
 
 	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
 }
@@ -92,7 +90,7 @@ func (b *Binance) GetPerpMarkets() (PerpsExchangeInfo, error) {
 // information
 func (b *Binance) GetMarginMarkets() (PerpsExchangeInfo, error) {
 	var resp PerpsExchangeInfo
-	path := "https://sapi.binance.com" + perpExchangeInfo
+	path := spotAPIURL + perpExchangeInfo
 
 	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
 }
@@ -111,7 +109,7 @@ func (b *Binance) GetFundingRates(symbol, limit string, startTime, endTime time.
 	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixNano(), 10))
 	}
-	path := "https://fapi.binance.com" + fundingRate + params.Encode()
+	path := futuresAPIURL + fundingRate + params.Encode()
 	fmt.Println(path)
 	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
 }
@@ -130,7 +128,7 @@ type Binance struct {
 // information
 func (b *Binance) GetExchangeInfo() (ExchangeInfo, error) {
 	var resp ExchangeInfo
-	path := "https://api.binance.com" + exchangeInfo
+	path := apiURL + exchangeInfo
 
 	return resp, b.SendHTTPRequest(path, limitDefault, &resp)
 }

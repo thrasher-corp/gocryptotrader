@@ -15,6 +15,29 @@ type Response struct {
 	Msg  string `json:"msg"`
 }
 
+// MarginInfoData stores margin info data
+type MarginInfoData struct {
+	Data []struct {
+		MarginRatio string `json:"marginRatio"`
+		Base        struct {
+			AssetName    string `json:"assetName"`
+			LevelDetails []struct {
+				Level         string  `json:"level"`
+				MaxBorrowable float64 `json:"maxBorrowable,string"`
+				InterestRate  float64 `json:"interestRate,string"`
+			} `json:"levelDetails"`
+		} `json:"base"`
+		Quote struct {
+			AssetName    string `json:"assetName"`
+			LevelDetails []struct {
+				Level         string  `json:"level"`
+				MaxBorrowable float64 `json:"maxBorrowable,string"`
+				InterestRate  float64 `json:"interestRate,string"`
+			} `json:"levelDetails"`
+		} `json:"quote"`
+	} `json:"data"`
+}
+
 // InterestHistoryData gets interest history data
 type InterestHistoryData struct {
 	Asset       string  `json:"asset"`

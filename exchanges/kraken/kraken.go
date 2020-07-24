@@ -100,7 +100,7 @@ func (k *Kraken) SeedAssets() error {
 		assetTranslator.Seed(k, v.Altname)
 	}
 
-	assetPairs, err := k.GetAssetPairs([]string{}, false, false, false)
+	assetPairs, err := k.GetAssetPairs([]string{}, "")
 	if err != nil {
 		return err
 	}
@@ -138,30 +138,23 @@ func (k *Kraken) GetAssets() (map[string]*Asset, error) {
 }
 
 // GetAssetPairs returns a full asset pair list
-func (k *Kraken) GetAssetPairs(assetPairs []string, leverage, fees, margin bool) (map[string]*AssetPairs, error) {
+// Parameter 'info' only supports 3 strings: "fees", "leverage", "margin"
+func (k *Kraken) GetAssetPairs(assetPairs []string, info string) (map[string]AssetPairs, error) {
 	path := fmt.Sprintf("%s/%s/public/%s", k.API.Endpoints.URL, krakenAPIVersion, krakenAssetPairs)
 	params := url.Values{}
-	var assets, info string
-	var infoData []string
+	var assets string
 	if len(assetPairs) != 0 {
 		assets = strings.Join(assetPairs, ",")
 		params.Set("pair", assets)
 	}
 	var response struct {
-		Error  []string               `json:"error"`
-		Result map[string]*AssetPairs `json:"result"`
+		Error  []string              `json:"error"`
+		Result map[string]AssetPairs `json:"result"`
 	}
-	if leverage {
-		infoData = append(infoData, "leverage")
-	}
-	if fees {
-		infoData = append(infoData, "fees")
-	}
-	if margin {
-		infoData = append(infoData, "margin")
-	}
-	if len(infoData) != 0 {
-		info = strings.Join(infoData, ",")
+	if info != "" {
+		if (info != "margin") && (info != "leverage") && (info != "fees") {
+			return response.Result, fmt.Errorf("parameter info can only be 'asset', 'margin' or 'fees'")
+		}
 		params.Set("info", info)
 	}
 	if err := k.SendHTTPRequest(path+params.Encode(), &response); err != nil {

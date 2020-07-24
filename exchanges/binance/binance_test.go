@@ -17,7 +17,7 @@ import (
 
 // Please supply your own keys here for due diligence testing
 const (
-	apiKey                  = ""
+	apiKey                  = " "
 	apiSecret               = ""
 	canManipulateRealOrders = true
 )
@@ -41,9 +41,7 @@ func TestGetInterestHistory(t *testing.T) {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://api.binance.com"
-	b.Verbose = true
-	a, err := b.GetInterestHistory()
-	t.Log(a)
+	_, err := b.GetInterestHistory()
 	if err != nil {
 		t.Error(err)
 	}
@@ -53,9 +51,7 @@ func TestGetFundingRates(t *testing.T) {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
-	b.Verbose = true
-	a, err := b.GetFundingRates("BTCUSDT", "", time.Time{}, time.Time{})
-	t.Log(a)
+	_, err := b.GetFundingRates("BTCUSDT", "", time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -65,9 +61,7 @@ func TestGetPerpsExchangeInfo(t *testing.T) {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://fapi.binance.com"
-	b.Verbose = true
-	a, err := b.GetPerpMarkets()
-	t.Log(a)
+	_, err := b.GetPerpMarkets()
 	if err != nil {
 		t.Error(err)
 	}
@@ -77,9 +71,7 @@ func TestGetMarginExchangeInfo(t *testing.T) {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://sapi.binance.com"
-	b.Verbose = true
-	a, err := b.GetMarginMarkets()
-	t.Log(a)
+	_, err := b.GetMarginMarkets()
 	if err != nil {
 		t.Error(err)
 	}
@@ -89,10 +81,8 @@ func TestGetExchangeInfo(t *testing.T) {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://api.binance.com"
-	b.Verbose = true
 	t.Parallel()
-	a, err := b.GetExchangeInfo()
-	t.Log(a)
+	_, err := b.GetExchangeInfo()
 	if err != nil {
 		t.Error(err)
 	}
@@ -531,15 +521,11 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
-	b.Verbose = true
 	t.Parallel()
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(b.Base.HTTPTimeout))
 	b.API.Endpoints.URL = "https://sapi.binance.com"
-	b.API.Credentials.Key = "of5JSoc2DboJWIhv78yE29tYB47MS09HHz9Sk3EwgpWdZG6Dn7AmWvyprnvFkpbg "
-	b.API.Credentials.Secret = "8XNj8IrD0kijDaz0LXpuTvGiT3XUHOgDo70kG2ota2LvIZZJ9ObEelKjttHSe1tH"
-	a, err := b.UpdateAccountInfo()
-	t.Log(a)
+	_, err := b.UpdateAccountInfo()
 	switch {
 	case areTestAPIKeysSet() && err != nil:
 		t.Error("GetAccountInfo() error", err)
