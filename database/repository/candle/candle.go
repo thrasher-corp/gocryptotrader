@@ -206,7 +206,6 @@ func InsertFromCSV(exchangeName, base, quote, interval, asset, file string) (int
 		row, errCSV := csvData.Read()
 		if errCSV != nil {
 			if errCSV == io.EOF {
-				// err = nil
 				break
 			}
 			return 0, errCSV

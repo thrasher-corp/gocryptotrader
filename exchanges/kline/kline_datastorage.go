@@ -111,7 +111,6 @@ func LoadFromGCTScriptCSV(file string) (out []Candle, errRet error) {
 		row, errCSV := csvData.Read()
 		if errCSV != nil {
 			if errCSV == io.EOF {
-				err = nil
 				break
 			}
 			return out, errCSV
@@ -120,7 +119,8 @@ func LoadFromGCTScriptCSV(file string) (out []Candle, errRet error) {
 		tempCandle := Candle{}
 		v, errParse := strconv.ParseInt(row[0], 10, 32)
 		if errParse != nil {
-			return out, errParse
+			err = errParse
+			break
 		}
 		tempCandle.Time = time.Unix(v, 0).UTC()
 		if tempCandle.Time.IsZero() {
