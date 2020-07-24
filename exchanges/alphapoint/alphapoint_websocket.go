@@ -40,7 +40,6 @@ func (a *Alphapoint) WebsocketClient() {
 		for a.Enabled {
 			msgType, resp, err := a.WebsocketConn.ReadMessage()
 			if err != nil {
-				a.Websocket.ReadMessageErrors <- err
 				log.Error(log.ExchangeSys, err)
 				break
 			}

@@ -10,15 +10,16 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -39,10 +40,10 @@ var (
 // WsConnect intiates a websocket connection
 func (c *COINUT) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := c.WebsocketConn.Dial(&dialer, http.Header{})
+	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -59,7 +60,15 @@ func (c *COINUT) WsConnect() error {
 		c.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		log.Error(log.WebsocketMgr, err)
 	}
-	c.GenerateDefaultSubscriptions()
+	subs, err := c.GenerateDefaultSubscriptions()
+	if err != nil {
+		return err
+	}
+
+	err = c.Websocket.SubscribeToChannels(subs)
+	if err != nil {
+		return err
+	}
 
 	// define bi-directional communication
 	channels = make(map[string]chan []byte)
@@ -71,60 +80,48 @@ func (c *COINUT) WsConnect() error {
 // wsReadData receives and passes on websocket messages for processing
 func (c *COINUT) wsReadData() {
 	c.Websocket.Wg.Add(1)
-
-	defer func() {
-		c.Websocket.Wg.Done()
-	}()
+	defer c.Websocket.Wg.Done()
 
 	for {
-		select {
-		case <-c.Websocket.ShutdownC:
+		resp := c.Websocket.Conn.ReadMessage()
+		if resp.Raw == nil {
 			return
+		}
 
-		default:
-			resp, err := c.WebsocketConn.ReadMessage()
+		if strings.HasPrefix(string(resp.Raw), "[") {
+			var incoming []wsResponse
+			err := json.Unmarshal(resp.Raw, &incoming)
 			if err != nil {
-				c.Websocket.ReadMessageErrors <- err
-				return
+				c.Websocket.DataHandler <- err
+				continue
 			}
-			c.Websocket.TrafficAlert <- struct{}{}
-
-			if strings.HasPrefix(string(resp.Raw), "[") {
-				var incoming []wsResponse
-				err = json.Unmarshal(resp.Raw, &incoming)
+			for i := range incoming {
+				if incoming[i].Nonce > 0 {
+					if c.Websocket.Match.IncomingWithData(incoming[i].Nonce, resp.Raw) {
+						break
+					}
+				}
+				var individualJSON []byte
+				individualJSON, err = json.Marshal(incoming[i])
 				if err != nil {
 					c.Websocket.DataHandler <- err
 					continue
 				}
-				for i := range incoming {
-					if incoming[i].Nonce > 0 {
-						if c.WebsocketConn.IsIDWaitingForResponse(incoming[i].Nonce) {
-							c.WebsocketConn.SetResponseIDAndData(incoming[i].Nonce, resp.Raw)
-							break
-						}
-					}
-					var individualJSON []byte
-					individualJSON, err = json.Marshal(incoming[i])
-					if err != nil {
-						c.Websocket.DataHandler <- err
-						continue
-					}
-					err = c.wsHandleData(individualJSON)
-					if err != nil {
-						c.Websocket.DataHandler <- err
-					}
-				}
-			} else {
-				var incoming wsResponse
-				err = json.Unmarshal(resp.Raw, &incoming)
-				if err != nil {
-					c.Websocket.DataHandler <- err
-					continue
-				}
-				err = c.wsHandleData(resp.Raw)
+				err = c.wsHandleData(individualJSON)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 				}
+			}
+		} else {
+			var incoming wsResponse
+			err := json.Unmarshal(resp.Raw, &incoming)
+			if err != nil {
+				c.Websocket.DataHandler <- err
+				continue
+			}
+			err = c.wsHandleData(resp.Raw)
+			if err != nil {
+				c.Websocket.DataHandler <- err
 			}
 		}
 	}
@@ -153,11 +150,16 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		return err
 	}
 	if strings.Contains(string(respRaw), "client_ord_id") {
-		if c.WebsocketConn.IsIDWaitingForResponse(incoming.Nonce) {
-			c.WebsocketConn.SetResponseIDAndData(incoming.Nonce, respRaw)
+		if c.Websocket.Match.IncomingWithData(incoming.Nonce, respRaw) {
 			return nil
 		}
 	}
+
+	format, err := c.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return err
+	}
+
 	switch incoming.Reply {
 	case "hb":
 		channels["hb"] <- respRaw
@@ -167,9 +169,16 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+
+		var endpointFailure []byte
 		if login.APIKey != c.API.Credentials.Key {
-			c.API.AuthenticatedWebsocketSupport = false
+			endpointFailure = []byte("failed to authenticate")
 		}
+
+		if c.Websocket.Match.IncomingWithData(login.Nonce, endpointFailure) {
+			return nil
+		}
+
 	case "user_balance":
 		var userBalance WsUserBalanceResponse
 		err := json.Unmarshal(respRaw, &userBalance)
@@ -231,7 +240,18 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+		pairs, err := c.GetEnabledPairs(asset.Spot)
+		if err != nil {
+			return err
+		}
 		currencyPair := c.instrumentMap.LookupInstrument(wsTicker.InstID)
+		p, err := currency.NewPairFromFormattedPairs(currencyPair,
+			pairs,
+			format)
+		if err != nil {
+			return err
+		}
+
 		c.Websocket.DataHandler <- &ticker.Price{
 			ExchangeName: c.Name,
 			Volume:       wsTicker.Volume24,
@@ -243,9 +263,7 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 			Last:         wsTicker.Last,
 			LastUpdated:  time.Unix(0, wsTicker.Timestamp),
 			AssetType:    asset.Spot,
-			Pair: currency.NewPairFromFormattedPairs(currencyPair,
-				c.GetEnabledPairs(asset.Spot),
-				c.GetPairFormat(asset.Spot, true)),
+			Pair:         p,
 		}
 	case "inst_order_book":
 		var orderbookSnapshot WsOrderbookSnapshot
@@ -257,14 +275,6 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		currencyPair := c.instrumentMap.LookupInstrument(orderbookSnapshot.InstID)
-		c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Exchange: c.Name,
-			Asset:    asset.Spot,
-			Pair: currency.NewPairFromFormattedPairs(currencyPair,
-				c.GetEnabledPairs(asset.Spot),
-				c.GetPairFormat(asset.Spot, true)),
-		}
 	case "inst_order_book_update":
 		var orderbookUpdate WsOrderbookUpdate
 		err := json.Unmarshal(respRaw, &orderbookUpdate)
@@ -274,14 +284,6 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		err = c.WsProcessOrderbookUpdate(&orderbookUpdate)
 		if err != nil {
 			return err
-		}
-		currencyPair := c.instrumentMap.LookupInstrument(orderbookUpdate.InstID)
-		c.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-			Exchange: c.Name,
-			Asset:    asset.Spot,
-			Pair: currency.NewPairFromFormattedPairs(currencyPair,
-				c.GetEnabledPairs(asset.Spot),
-				c.GetPairFormat(asset.Spot, true)),
 		}
 	case "inst_trade":
 		var tradeSnap WsTradeSnapshot
@@ -296,7 +298,19 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+
+		pairs, err := c.GetEnabledPairs(asset.Spot)
+		if err != nil {
+			return err
+		}
 		currencyPair := c.instrumentMap.LookupInstrument(tradeUpdate.InstID)
+		p, err := currency.NewPairFromFormattedPairs(currencyPair,
+			pairs,
+			format)
+		if err != nil {
+			return err
+		}
+
 		tSide, err := order.StringToOrderSide(tradeUpdate.Side)
 		if err != nil {
 			c.Websocket.DataHandler <- order.ClassificationError{
@@ -304,15 +318,14 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 				Err:      err,
 			}
 		}
-		c.Websocket.DataHandler <- wshandler.TradeData{
-			Timestamp: time.Unix(tradeUpdate.Timestamp, 0),
-			CurrencyPair: currency.NewPairFromFormattedPairs(currencyPair,
-				c.GetEnabledPairs(asset.Spot),
-				c.GetPairFormat(asset.Spot, true)),
-			AssetType: asset.Spot,
-			Exchange:  c.Name,
-			Price:     tradeUpdate.Price,
-			Side:      tSide,
+
+		c.Websocket.DataHandler <- stream.TradeData{
+			Timestamp:    time.Unix(tradeUpdate.Timestamp, 0),
+			CurrencyPair: p,
+			AssetType:    asset.Spot,
+			Exchange:     c.Name,
+			Price:        tradeUpdate.Price,
+			Side:         tSide,
 		}
 	case "order_filled", "order_rejected", "order_accepted":
 		var orderContainer wsOrderContainer
@@ -326,7 +339,7 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 		}
 		c.Websocket.DataHandler <- o
 	default:
-		c.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: c.Name + wshandler.UnhandledMessage + string(respRaw)}
+		c.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: c.Name + stream.UnhandledMessage + string(respRaw)}
 		return nil
 	}
 	return nil
@@ -444,7 +457,7 @@ func (c *COINUT) WsGetInstruments() (Instruments, error) {
 		SecurityType: strings.ToUpper(asset.Spot.String()),
 		Nonce:        getNonce(),
 	}
-	resp, err := c.WebsocketConn.SendMessageReturnResponse(request.Nonce, request)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(request.Nonce, request)
 	if err != nil {
 		return list, err
 	}
@@ -482,11 +495,25 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 	var newOrderBook orderbook.Base
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
-	newOrderBook.Pair = currency.NewPairFromFormattedPairs(
+
+	pairs, err := c.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+
+	format, err := c.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return err
+	}
+
+	newOrderBook.Pair, err = currency.NewPairFromFormattedPairs(
 		c.instrumentMap.LookupInstrument(ob.InstID),
-		c.GetEnabledPairs(asset.Spot),
-		c.GetPairFormat(asset.Spot, true),
-	)
+		pairs,
+		format)
+	if err != nil {
+		return err
+	}
+
 	newOrderBook.AssetType = asset.Spot
 	newOrderBook.ExchangeName = c.Name
 
@@ -495,12 +522,25 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 
 // WsProcessOrderbookUpdate process an orderbook update
 func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
-	p := currency.NewPairFromFormattedPairs(
+	pairs, err := c.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+
+	format, err := c.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return err
+	}
+
+	p, err := currency.NewPairFromFormattedPairs(
 		c.instrumentMap.LookupInstrument(update.InstID),
-		c.GetEnabledPairs(asset.Spot),
-		c.GetPairFormat(asset.Spot, true),
-	)
-	bufferUpdate := &wsorderbook.WebsocketOrderbookUpdate{
+		pairs,
+		format)
+	if err != nil {
+		return err
+	}
+
+	bufferUpdate := &buffer.Update{
 		Pair:     p,
 		UpdateID: update.TransID,
 		Asset:    asset.Spot,
@@ -514,67 +554,109 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (c *COINUT) GenerateDefaultSubscriptions() {
+func (c *COINUT) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var channels = []string{"inst_tick", "inst_order_book"}
-	var subscriptions []wshandler.WebsocketChannelSubscription
-	enabledCurrencies := c.GetEnabledPairs(asset.Spot)
+	var subscriptions []stream.ChannelSubscription
+	enabledCurrencies, err := c.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
 	for i := range channels {
 		for j := range enabledCurrencies {
-			subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
+				Asset:    asset.Spot,
 			})
 		}
 	}
-	c.Websocket.SubscribeToChannels(subscriptions)
+	return subscriptions, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *COINUT) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
-	subscribe := wsRequest{
-		Request: channelToSubscribe.Channel,
-		InstrumentID: c.instrumentMap.LookupID(c.FormatExchangeCurrency(channelToSubscribe.Currency,
-			asset.Spot).String()),
-		Subscribe: true,
-		Nonce:     getNonce(),
+func (c *COINUT) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	var errs common.Errors
+	for i := range channelsToSubscribe {
+		fpair, err := c.FormatExchangeCurrency(channelsToSubscribe[i].Currency, asset.Spot)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		subscribe := wsRequest{
+			Request:      channelsToSubscribe[i].Channel,
+			InstrumentID: c.instrumentMap.LookupID(fpair.String()),
+			Subscribe:    true,
+			Nonce:        getNonce(),
+		}
+		err = c.Websocket.Conn.SendJSONMessage(subscribe)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
-	return c.WebsocketConn.SendJSONMessage(subscribe)
+	if errs != nil {
+		return errs
+	}
+	return nil
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *COINUT) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
-	subscribe := wsRequest{
-		Request: channelToSubscribe.Channel,
-		InstrumentID: c.instrumentMap.LookupID(c.FormatExchangeCurrency(channelToSubscribe.Currency,
-			asset.Spot).String()),
-		Subscribe: false,
-		Nonce:     getNonce(),
+func (c *COINUT) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription) error {
+	var errs common.Errors
+	for i := range channelToUnsubscribe {
+		fpair, err := c.FormatExchangeCurrency(channelToUnsubscribe[i].Currency, asset.Spot)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		subscribe := wsRequest{
+			Request:      channelToUnsubscribe[i].Channel,
+			InstrumentID: c.instrumentMap.LookupID(fpair.String()),
+			Subscribe:    false,
+			Nonce:        getNonce(),
+		}
+		resp, err := c.Websocket.Conn.SendMessageReturnResponse(subscribe.Nonce,
+			subscribe)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		var response map[string]interface{}
+		err = json.Unmarshal(resp, &response)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		if response["status"].([]interface{})[0] != "OK" {
+			errs = append(errs, fmt.Errorf("%v unsubscribe failed for channel %v",
+				c.Name,
+				channelToUnsubscribe[i].Channel))
+			continue
+		}
+		c.Websocket.RemoveSuccessfulUnsubscriptions(channelToUnsubscribe[i])
 	}
-	resp, err := c.WebsocketConn.SendMessageReturnResponse(subscribe.Nonce, subscribe)
-	if err != nil {
-		return err
-	}
-	var response map[string]interface{}
-	err = json.Unmarshal(resp, &response)
-	if err != nil {
-		return err
-	}
-	if response["status"].([]interface{})[0] != "OK" {
-		return fmt.Errorf("%v unsubscribe failed for channel %v", c.Name, channelToSubscribe.Channel)
+	if errs != nil {
+		return errs
 	}
 	return nil
 }
 
 func (c *COINUT) wsAuthenticate() error {
 	if !c.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", c.Name)
+		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled",
+			c.Name)
 	}
 	timestamp := time.Now().Unix()
 	nonce := getNonce()
 	payload := c.API.Credentials.ClientID + "|" +
 		strconv.FormatInt(timestamp, 10) + "|" +
 		strconv.FormatInt(nonce, 10)
-	hmac := crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(c.API.Credentials.Key))
+	hmac := crypto.GetHMAC(crypto.HashSHA256,
+		[]byte(payload),
+		[]byte(c.API.Credentials.Key))
 	loginRequest := struct {
 		Request   string `json:"request"`
 		Username  string `json:"username"`
@@ -589,18 +671,14 @@ func (c *COINUT) wsAuthenticate() error {
 		Timestamp: timestamp,
 	}
 
-	resp, err := c.WebsocketConn.SendMessageReturnResponse(loginRequest.Nonce, loginRequest)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(loginRequest.Nonce,
+		loginRequest)
 	if err != nil {
 		return err
 	}
-	var response map[string]interface{}
-	err = json.Unmarshal(resp, &response)
-	if err != nil {
-		return err
-	}
-	if response["status"].([]interface{})[0] != "OK" {
+	if resp != nil {
 		c.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		return fmt.Errorf("%v failed to authenticate", c.Name)
+		return fmt.Errorf("%v %s", c.Name, resp)
 	}
 	c.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	return nil
@@ -614,7 +692,8 @@ func (c *COINUT) wsGetAccountBalance() (*UserBalance, error) {
 		Request: "user_balance",
 		Nonce:   getNonce(),
 	}
-	resp, err := c.WebsocketConn.SendMessageReturnResponse(accBalance.Nonce, accBalance)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(accBalance.Nonce,
+		accBalance)
 	if err != nil {
 		return nil, err
 	}
@@ -633,11 +712,16 @@ func (c *COINUT) wsSubmitOrder(o *WsSubmitOrderParameters) (*order.Detail, error
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, fmt.Errorf("%v not authorised to submit order", c.Name)
 	}
-	curr := c.FormatExchangeCurrency(o.Currency, asset.Spot).String()
+
+	curr, err := c.FormatExchangeCurrency(o.Currency, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+
 	var orderSubmissionRequest WsSubmitOrderRequest
 	orderSubmissionRequest.Request = "new_order"
 	orderSubmissionRequest.Nonce = getNonce()
-	orderSubmissionRequest.InstrumentID = c.instrumentMap.LookupID(curr)
+	orderSubmissionRequest.InstrumentID = c.instrumentMap.LookupID(curr.String())
 	orderSubmissionRequest.Quantity = o.Amount
 	orderSubmissionRequest.Price = o.Price
 	orderSubmissionRequest.Side = string(o.Side)
@@ -645,7 +729,8 @@ func (c *COINUT) wsSubmitOrder(o *WsSubmitOrderParameters) (*order.Detail, error
 	if o.OrderID > 0 {
 		orderSubmissionRequest.OrderID = o.OrderID
 	}
-	resp, err := c.WebsocketConn.SendMessageReturnResponse(orderSubmissionRequest.Nonce, orderSubmissionRequest)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(orderSubmissionRequest.Nonce,
+		orderSubmissionRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -666,25 +751,31 @@ func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]order.Detai
 	var errs []error
 	var ordersResponse []order.Detail
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
-		errs = append(errs, fmt.Errorf("%v not authorised to submit orders", c.Name))
+		errs = append(errs, fmt.Errorf("%v not authorised to submit orders",
+			c.Name))
 		return nil, errs
 	}
 	orderRequest := WsSubmitOrdersRequest{}
 	for i := range orders {
-		curr := c.FormatExchangeCurrency(orders[i].Currency, asset.Spot).String()
+		curr, err := c.FormatExchangeCurrency(orders[i].Currency, asset.Spot)
+		if err != nil {
+			return nil, []error{err}
+		}
+
 		orderRequest.Orders = append(orderRequest.Orders,
 			WsSubmitOrdersRequestData{
 				Quantity:      orders[i].Amount,
 				Price:         orders[i].Price,
 				Side:          string(orders[i].Side),
-				InstrumentID:  c.instrumentMap.LookupID(curr),
+				InstrumentID:  c.instrumentMap.LookupID(curr.String()),
 				ClientOrderID: i + 1,
 			})
 	}
 
 	orderRequest.Nonce = getNonce()
 	orderRequest.Request = "new_orders"
-	resp, err := c.WebsocketConn.SendMessageReturnResponse(orderRequest.Nonce, orderRequest)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(orderRequest.Nonce,
+		orderRequest)
 	if err != nil {
 		errs = append(errs, err)
 		return nil, errs
@@ -710,14 +801,16 @@ func (c *COINUT) wsSubmitOrders(orders []WsSubmitOrderParameters) ([]order.Detai
 func (c *COINUT) wsGetOpenOrders(curr string) (*WsUserOpenOrdersResponse, error) {
 	var response *WsUserOpenOrdersResponse
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
-		return response, fmt.Errorf("%v not authorised to get open orders", c.Name)
+		return response, fmt.Errorf("%v not authorised to get open orders",
+			c.Name)
 	}
 	var openOrdersRequest WsGetOpenOrdersRequest
 	openOrdersRequest.Request = "user_open_orders"
 	openOrdersRequest.Nonce = getNonce()
 	openOrdersRequest.InstrumentID = c.instrumentMap.LookupID(curr)
 
-	resp, err := c.WebsocketConn.SendMessageReturnResponse(openOrdersRequest.Nonce, openOrdersRequest)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(openOrdersRequest.Nonce,
+		openOrdersRequest)
 	if err != nil {
 		return response, err
 	}
@@ -738,14 +831,20 @@ func (c *COINUT) wsCancelOrder(cancellation *WsCancelOrderParameters) (*CancelOr
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
 		return response, fmt.Errorf("%v not authorised to cancel order", c.Name)
 	}
-	curr := c.FormatExchangeCurrency(cancellation.Currency, asset.Spot).String()
+
+	curr, err := c.FormatExchangeCurrency(cancellation.Currency, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+
 	var cancellationRequest WsCancelOrderRequest
 	cancellationRequest.Request = "cancel_order"
-	cancellationRequest.InstrumentID = c.instrumentMap.LookupID(curr)
+	cancellationRequest.InstrumentID = c.instrumentMap.LookupID(curr.String())
 	cancellationRequest.OrderID = cancellation.OrderID
 	cancellationRequest.Nonce = getNonce()
 
-	resp, err := c.WebsocketConn.SendMessageReturnResponse(cancellationRequest.Nonce, cancellationRequest)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(cancellationRequest.Nonce,
+		cancellationRequest)
 	if err != nil {
 		return response, err
 	}
@@ -771,16 +870,23 @@ func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) (*Cance
 	}
 	var cancelOrderRequest WsCancelOrdersRequest
 	for i := range cancellations {
-		curr := c.FormatExchangeCurrency(cancellations[i].Currency, asset.Spot).String()
-		cancelOrderRequest.Entries = append(cancelOrderRequest.Entries, WsCancelOrdersRequestEntry{
-			InstID:  c.instrumentMap.LookupID(curr),
-			OrderID: cancellations[i].OrderID,
-		})
+		var curr currency.Pair
+		curr, err = c.FormatExchangeCurrency(cancellations[i].Currency,
+			asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		cancelOrderRequest.Entries = append(cancelOrderRequest.Entries,
+			WsCancelOrdersRequestEntry{
+				InstID:  c.instrumentMap.LookupID(curr.String()),
+				OrderID: cancellations[i].OrderID,
+			})
 	}
 
 	cancelOrderRequest.Request = "cancel_orders"
 	cancelOrderRequest.Nonce = getNonce()
-	resp, err := c.WebsocketConn.SendMessageReturnResponse(cancelOrderRequest.Nonce, cancelOrderRequest)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(cancelOrderRequest.Nonce,
+		cancelOrderRequest)
 	if err != nil {
 		return response, err
 	}
@@ -794,17 +900,24 @@ func (c *COINUT) wsCancelOrders(cancellations []WsCancelOrderParameters) (*Cance
 func (c *COINUT) wsGetTradeHistory(p currency.Pair, start, limit int64) (*WsTradeHistoryResponse, error) {
 	var response *WsTradeHistoryResponse
 	if !c.Websocket.CanUseAuthenticatedEndpoints() {
-		return response, fmt.Errorf("%v not authorised to get trade history", c.Name)
+		return response, fmt.Errorf("%v not authorised to get trade history",
+			c.Name)
 	}
-	curr := c.FormatExchangeCurrency(p, asset.Spot).String()
+
+	curr, err := c.FormatExchangeCurrency(p, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+
 	var request WsTradeHistoryRequest
 	request.Request = "trade_history"
-	request.InstID = c.instrumentMap.LookupID(curr)
+	request.InstID = c.instrumentMap.LookupID(curr.String())
 	request.Nonce = getNonce()
 	request.Start = start
 	request.Limit = limit
 
-	resp, err := c.WebsocketConn.SendMessageReturnResponse(request.Nonce, request)
+	resp, err := c.Websocket.Conn.SendMessageReturnResponse(request.Nonce,
+		request)
 	if err != nil {
 		return response, err
 	}

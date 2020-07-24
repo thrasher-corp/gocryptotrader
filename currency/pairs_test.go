@@ -6,7 +6,10 @@ import (
 )
 
 func TestPairsUpper(t *testing.T) {
-	pairs := NewPairsFromStrings([]string{"btc_usd", "btc_aud", "btc_ltc"})
+	pairs, err := NewPairsFromStrings([]string{"btc_usd", "btc_aud", "btc_ltc"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	expected := "BTC_USD,BTC_AUD,BTC_LTC"
 
 	if pairs.Upper().Join() != expected {
@@ -16,7 +19,10 @@ func TestPairsUpper(t *testing.T) {
 }
 
 func TestPairsString(t *testing.T) {
-	pairs := NewPairsFromStrings([]string{"btc_usd", "btc_aud", "btc_ltc"})
+	pairs, err := NewPairsFromStrings([]string{"btc_usd", "btc_aud", "btc_ltc"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	expected := []string{"btc_usd", "btc_aud", "btc_ltc"}
 
 	for i, p := range pairs {
@@ -28,7 +34,10 @@ func TestPairsString(t *testing.T) {
 }
 
 func TestPairsJoin(t *testing.T) {
-	pairs := NewPairsFromStrings([]string{"btc_usd", "btc_aud", "btc_ltc"})
+	pairs, err := NewPairsFromStrings([]string{"btc_usd", "btc_aud", "btc_ltc"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	expected := "btc_usd,btc_aud,btc_ltc"
 
 	if pairs.Join() != expected {
@@ -38,7 +47,10 @@ func TestPairsJoin(t *testing.T) {
 }
 
 func TestPairsFormat(t *testing.T) {
-	pairs := NewPairsFromStrings([]string{"btc_usd", "btc_aud", "btc_ltc"})
+	pairs, err := NewPairsFromStrings([]string{"btc_usd", "btc_aud", "btc_ltc"})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	expected := "BTC-USD,BTC-AUD,BTC-LTC"
 	if pairs.Format("-", "", true).Join() != expected {
@@ -57,7 +69,10 @@ func TestPairsFormat(t *testing.T) {
 			expected, pairs.Format(":", "KRW", true).Join())
 	}
 
-	pairs = NewPairsFromStrings([]string{"DASHKRW", "BTCKRW"})
+	pairs, err = NewPairsFromStrings([]string{"DASHKRW", "BTCKRW"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	expected = "dash-krw,btc-krw"
 	if pairs.Format("-", "KRW", false).Join() != expected {
 		t.Errorf("Pairs Join() error expected %s but received %s",
@@ -106,10 +121,15 @@ func TestPairsUnmarshalJSON(t *testing.T) {
 }
 
 func TestPairsMarshalJSON(t *testing.T) {
+	pairs, err := NewPairsFromStrings([]string{"btc_usd", "btc_aud", "btc_ltc"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	quickstruct := struct {
 		Pairs Pairs `json:"soManyPairs"`
 	}{
-		Pairs: NewPairsFromStrings([]string{"btc_usd", "btc_aud", "btc_ltc"}),
+		Pairs: pairs,
 	}
 
 	encoded, err := json.Marshal(quickstruct)
@@ -176,9 +196,18 @@ func TestContains(t *testing.T) {
 	var pairs = Pairs{
 		NewPair(BTC, USD),
 		NewPair(LTC, USD),
+		NewPair(USD, ZRX),
 	}
 
 	if !pairs.Contains(NewPair(BTC, USD), true) {
+		t.Errorf("TestContains: Expected pair was not found")
+	}
+
+	if pairs.Contains(NewPair(USD, BTC), true) {
+		t.Errorf("TestContains: Unexpected pair was found")
+	}
+
+	if !pairs.Contains(NewPair(USD, BTC), false) {
 		t.Errorf("TestContains: Expected pair was not found")
 	}
 

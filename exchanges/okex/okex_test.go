@@ -8,7 +8,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -23,7 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -70,13 +69,11 @@ func TestMain(m *testing.M) {
 	okexConfig.API.Credentials.Secret = apiSecret
 	okexConfig.API.Credentials.ClientID = passphrase
 	okexConfig.API.Endpoints.WebsocketURL = o.API.Endpoints.WebsocketURL
+	o.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = o.Setup(okexConfig)
 	if err != nil {
 		log.Fatal("Okex setup error", err)
 	}
-	o.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	o.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-
 	os.Exit(m.Run())
 }
 
@@ -532,9 +529,12 @@ func TestGetSpotMarketData(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair := currency.NewPairFromString("BTCUSDT")
+	currencyPair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
 	startTime := time.Unix(1588636800, 0)
-	_, err := o.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	_, err = o.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -549,7 +549,10 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal("unexpected result")
 	}
 
-	swapPair := currency.NewPairFromString("BTC-USD_SWAP")
+	swapPair, err := currency.NewPairFromString("BTC-USD_SWAP")
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = o.GetHistoricCandles(swapPair, asset.PerpetualSwap, startTime, time.Now(), kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
@@ -557,9 +560,12 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair := currency.NewPairFromString("BTCUSDT")
+	currencyPair, err := currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		t.Fatal(err)
+	}
 	startTime := time.Unix(1588636800, 0)
-	_, err := o.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	_, err = o.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1461,33 +1467,27 @@ func TestGetETTSettlementPriceHistory(t *testing.T) {
 // Will log in if credentials are present
 func TestSendWsMessages(t *testing.T) {
 	if !o.Websocket.IsEnabled() && !o.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
-		t.Skip(wshandler.WebsocketNotEnabled)
+		t.Skip(stream.WebsocketNotEnabled)
 	}
 	var ok bool
-	o.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         o.Name,
-		URL:                  o.Websocket.GetWebsocketURL(),
-		Verbose:              o.Verbose,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
-	}
 	var dialer websocket.Dialer
-	err := o.WebsocketConn.Dial(&dialer, http.Header{})
+	err := o.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go o.WsReadData(&wg)
-	wg.Wait()
-
-	subscription := wshandler.WebsocketChannelSubscription{
-		Channel: "badChannel",
+	go o.WsReadData()
+	subscriptions := []stream.ChannelSubscription{
+		{
+			Channel: "badChannel",
+		},
 	}
-	o.Subscribe(subscription)
+	err = o.Subscribe(subscriptions)
+	if err != nil {
+		t.Fatal(err)
+	}
 	response := <-o.Websocket.DataHandler
 	if err, ok = response.(error); ok && err != nil {
-		if !strings.Contains(response.(error).Error(), subscription.Channel) {
+		if !strings.Contains(response.(error).Error(), subscriptions[0].Channel) {
 			t.Error("Expecting OKEX error - 30040 message: Channel badChannel doesn't exist")
 		}
 	}
@@ -1818,6 +1818,13 @@ func TestGetOrderbook(t *testing.T) {
 		asset.PerpetualSwap)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	err := o.UpdateTradablePairs(true)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

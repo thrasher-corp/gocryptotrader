@@ -72,7 +72,7 @@ var Events []*Event
 
 // Add adds an event to the Events chain and returns an index/eventID
 // and an error
-func Add(exchange, item string, condition EventConditionParams, currencyPair currency.Pair, asset asset.Item, action string) (int64, error) {
+func Add(exchange, item string, condition EventConditionParams, p currency.Pair, a asset.Item, action string) (int64, error) {
 	err := IsValidEvent(exchange, item, condition, action)
 	if err != nil {
 		return 0, err
@@ -89,8 +89,8 @@ func Add(exchange, item string, condition EventConditionParams, currencyPair cur
 	evt.Exchange = exchange
 	evt.Item = item
 	evt.Condition = condition
-	evt.Pair = currencyPair
-	evt.Asset = asset
+	evt.Pair = p
+	evt.Asset = a
 	evt.Action = action
 	evt.Executed = false
 	Events = append(Events, evt)
@@ -99,8 +99,8 @@ func Add(exchange, item string, condition EventConditionParams, currencyPair cur
 
 // Remove deletes and event by its ID
 func Remove(eventID int64) bool {
-	for i, x := range Events {
-		if x.ID == eventID {
+	for i := range Events {
+		if Events[i].ID == eventID {
 			Events = append(Events[:i], Events[i+1:]...)
 			return true
 		}
@@ -112,9 +112,8 @@ func Remove(eventID int64) bool {
 // events that have been executed.
 func GetEventCounter() (total, executed int) {
 	total = len(Events)
-
-	for _, x := range Events {
-		if x.Executed {
+	for i := range Events {
+		if Events[i].Executed {
 			executed++
 		}
 	}
@@ -126,11 +125,10 @@ func (e *Event) ExecuteAction() bool {
 	if strings.Contains(e.Action, ",") {
 		action := strings.Split(e.Action, ",")
 		if action[0] == ActionSMSNotify {
-			message := fmt.Sprintf("Event triggered: %s\n", e.String())
 			if action[1] == "ALL" {
 				Bot.CommsManager.PushEvent(base.Event{
 					Type:    "event",
-					Message: message,
+					Message: "Event triggered: " + e.String(),
 				})
 			}
 		}

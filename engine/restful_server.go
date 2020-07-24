@@ -66,7 +66,14 @@ func GetAllActiveOrderbooks() []EnabledExchangeOrderbooks {
 		exchangeOB.ExchangeName = exchName
 
 		for y := range assets {
-			currencies := exchanges[x].GetEnabledPairs(assets[y])
+			currencies, err := exchanges[x].GetEnabledPairs(assets[y])
+			if err != nil {
+				log.Errorf(log.RESTSys,
+					"Exchange %s could not retrieve enabled currencies. Err: %s\n",
+					exchName,
+					err)
+				continue
+			}
 			for z := range currencies {
 				ob, err := exchanges[x].FetchOrderbook(currencies[z], assets[y])
 				if err != nil {

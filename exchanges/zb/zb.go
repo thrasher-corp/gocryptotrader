@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 const (
@@ -42,7 +41,6 @@ const (
 // 47.91.169.147 api.zb.com
 // 47.52.55.212 trade.zb.com
 type ZB struct {
-	WebsocketConn *wshandler.WebsocketConnection
 	exchange.Base
 }
 

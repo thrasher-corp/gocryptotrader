@@ -33,6 +33,7 @@ func TestMain(m *testing.M) {
 	geminiConfig.API.Credentials.Key = apiKey
 	geminiConfig.API.Credentials.Secret = apiSecret
 	g.SetDefaults()
+	g.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = g.Setup(geminiConfig)
 	if err != nil {
 		log.Fatal("Gemini setup error", err)
@@ -45,8 +46,6 @@ func TestMain(m *testing.M) {
 
 	g.HTTPClient = newClient
 	g.API.Endpoints.URL = serverDetails
-	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	log.Printf(sharedtestvalues.MockTesting, g.Name, g.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

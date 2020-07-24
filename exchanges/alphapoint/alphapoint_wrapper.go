@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -34,10 +33,6 @@ func (a *Alphapoint) SetDefaults() {
 	a.API.Endpoints.WebsocketURL = alphapointDefaultWebsocketURL
 	a.API.CredentialsValidator.RequiresKey = true
 	a.API.CredentialsValidator.RequiresSecret = true
-
-	a.CurrencyPairs.AssetTypes = asset.Items{
-		asset.Spot,
-	}
 
 	a.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
@@ -129,23 +124,24 @@ func (a *Alphapoint) FetchAccountInfo() (account.Holdings, error) {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (a *Alphapoint) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
 	tick, err := a.GetTicker(p.String())
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
-	tickerPrice.Pair = p
-	tickerPrice.Ask = tick.Ask
-	tickerPrice.Bid = tick.Bid
-	tickerPrice.Low = tick.Low
-	tickerPrice.High = tick.High
-	tickerPrice.Volume = tick.Volume
-	tickerPrice.Last = tick.Last
-
-	err = ticker.ProcessTicker(a.Name, tickerPrice, assetType)
+	err = ticker.ProcessTicker(&ticker.Price{
+		Pair:         p,
+		Ask:          tick.Ask,
+		Bid:          tick.Bid,
+		Low:          tick.Low,
+		High:         tick.High,
+		Volume:       tick.Volume,
+		Last:         tick.Last,
+		ExchangeName: a.Name,
+		AssetType:    assetType,
+	})
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
 	return ticker.GetTicker(a.Name, p, assetType)
@@ -313,11 +309,6 @@ func (a *Alphapoint) WithdrawFiatFundsToInternationalBank(withdrawRequest *withd
 	return "", common.ErrNotYetImplemented
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (a *Alphapoint) GetWebsocket() (*wshandler.Websocket, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (a *Alphapoint) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	return 0, common.ErrFunctionNotSupported
@@ -404,28 +395,6 @@ func (a *Alphapoint) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	return orders, nil
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (a *Alphapoint) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (a *Alphapoint) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (a *Alphapoint) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
-	return nil, common.ErrFunctionNotSupported
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (a *Alphapoint) AuthenticateWebsocket() error {
-	return common.ErrFunctionNotSupported
 }
 
 // ValidateCredentials validates current credentials used for wrapper

@@ -1,7 +1,6 @@
 package config
 
 import (
-	"io/ioutil"
 	"testing"
 )
 
@@ -81,19 +80,6 @@ func TestDecryptConfigFile(t *testing.T) {
 	_, err = DecryptConfigFile(result, []byte("key"))
 	if err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestConfirmConfigJSON(t *testing.T) {
-	var result interface{}
-	testConfirmJSON, err := ioutil.ReadFile(TestFile)
-	if err != nil {
-		t.Errorf("testConfirmJSON: %s", err)
-	}
-
-	err = ConfirmConfigJSON(testConfirmJSON, &result)
-	if err != nil || result == nil {
-		t.Errorf("testConfirmJSON: %s", err)
 	}
 }
 

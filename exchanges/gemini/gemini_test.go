@@ -12,7 +12,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -550,7 +550,7 @@ func TestWsAuth(t *testing.T) {
 	if !g.Websocket.IsEnabled() &&
 		!g.API.AuthenticatedWebsocketSupport ||
 		!areTestAPIKeysSet() {
-		t.Skip(wshandler.WebsocketNotEnabled)
+		t.Skip(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	go g.wsReadData()
@@ -571,18 +571,27 @@ func TestWsAuth(t *testing.T) {
 }
 
 func TestWsMissingRole(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	pressXToJSON := []byte(`{
 		"result":"error",
 		"reason":"MissingRole",
 		"message":"To access this endpoint, you need to log in to the website and go to the settings page to assign one of these roles [FundManager] to API key wujB3szN54gtJ4QDhqRJ which currently has roles [Trader]"
 	}`)
-	err := g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	err = g.wsHandleData(pressXToJSON, pair)
 	if err == nil {
 		t.Error("Expected error")
 	}
 }
 
 func TestWsOrderEventSubscriptionResponse(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	pressXToJSON := []byte(`[ {
   "type" : "accepted",
   "order_id" : "372456298",
@@ -601,7 +610,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
   "original_amount" : "14.0296",
   "price" : "1059.54"
 } ]`)
-	err := g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	err = g.wsHandleData(pressXToJSON, pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -623,7 +632,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
     "price": "3592.00",
     "socket_sequence": 13
 }]`)
-	err = g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	err = g.wsHandleData(pressXToJSON, pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -644,7 +653,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
     "total_spend": "200.00",
     "socket_sequence": 29
 }]`)
-	err = g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	err = g.wsHandleData(pressXToJSON, pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -665,7 +674,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
     "original_amount": "25",
     "socket_sequence": 26
 }]`)
-	err = g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	err = g.wsHandleData(pressXToJSON, pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -687,13 +696,17 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
   "original_amount" : "500",
   "socket_sequence" : 32307
 } ]`)
-	err = g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	err = g.wsHandleData(pressXToJSON, pair)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsSubAck(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	pressXToJSON := []byte(`{
   "type": "subscription_ack",
   "accountId": 5365,
@@ -709,13 +722,17 @@ func TestWsSubAck(t *testing.T) {
     "closed"
   ]
 }`)
-	err := g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	err = g.wsHandleData(pressXToJSON, pair)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsHeartbeat(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	pressXToJSON := []byte(`{
   "type": "heartbeat",
   "timestampms": 1547742998508,
@@ -723,13 +740,17 @@ func TestWsHeartbeat(t *testing.T) {
   "trace_id": "b8biknoqppr32kc7gfgg",
   "socket_sequence": 37
 }`)
-	err := g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	err = g.wsHandleData(pressXToJSON, pair)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsUnsubscribe(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	pressXToJSON := []byte(`{
     "type": "unsubscribe",
     "subscriptions": [{
@@ -745,13 +766,17 @@ func TestWsUnsubscribe(t *testing.T) {
         ]}
     ]
 }`)
-	err := g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	err = g.wsHandleData(pressXToJSON, pair)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsTradeData(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	pressXToJSON := []byte(`{
   "type": "update",
   "eventId": 5375547515,
@@ -768,13 +793,17 @@ func TestWsTradeData(t *testing.T) {
     }
   ]
 }`)
-	err := g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	err = g.wsHandleData(pressXToJSON, pair)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsAuctionData(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	pressXToJSON := []byte(`{
     "eventId": 371469414,
     "socket_sequence":4009, 
@@ -801,13 +830,17 @@ func TestWsAuctionData(t *testing.T) {
     ],
     "type": "update"
 }`)
-	err := g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	err = g.wsHandleData(pressXToJSON, pair)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsBlockTrade(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	pressXToJSON := []byte(`{
    "type":"update",
    "eventId":1111597035,
@@ -823,13 +856,17 @@ func TestWsBlockTrade(t *testing.T) {
       }
    ]
 }`)
-	err := g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	err = g.wsHandleData(pressXToJSON, pair)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsCandles(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	pressXToJSON := []byte(`{
   "type": "candles_15m_updates",
   "symbol": "BTCUSD",
@@ -852,13 +889,17 @@ func TestWsCandles(t *testing.T) {
     ]
   ]
 }`)
-	err := g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	err = g.wsHandleData(pressXToJSON, pair)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsAuctions(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	pressXToJSON := []byte(`{
     "eventId": 372481811,
     "socket_sequence":23,
@@ -875,7 +916,7 @@ func TestWsAuctions(t *testing.T) {
     ],
     "type": "update"
 }`)
-	err := g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	err = g.wsHandleData(pressXToJSON, pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -900,7 +941,7 @@ func TestWsAuctions(t *testing.T) {
         }
     ]
 }`)
-	err = g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	err = g.wsHandleData(pressXToJSON, pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -932,13 +973,17 @@ func TestWsAuctions(t *testing.T) {
         }
     ]
 }`)
-	err = g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	err = g.wsHandleData(pressXToJSON, pair)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsMarketData(t *testing.T) {
+	pair, err := currency.NewPairFromString("BTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	pressXToJSON := []byte(`{
   "type": "update",
   "eventId": 5375461993,
@@ -962,7 +1007,7 @@ func TestWsMarketData(t *testing.T) {
     }
   ]
 }    `)
-	err := g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	err = g.wsHandleData(pressXToJSON, pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -990,7 +1035,7 @@ func TestWsMarketData(t *testing.T) {
     }
   ]
 }    `)
-	err = g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	err = g.wsHandleData(pressXToJSON, pair)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1012,7 +1057,7 @@ func TestWsMarketData(t *testing.T) {
     }
   ]
 }  `)
-	err = g.wsHandleData(pressXToJSON, currency.NewPairFromString("BTCUSD"))
+	err = g.wsHandleData(pressXToJSON, pair)
 	if err != nil {
 		t.Error(err)
 	}

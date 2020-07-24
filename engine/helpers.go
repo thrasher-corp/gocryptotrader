@@ -292,8 +292,7 @@ func MapCurrenciesByExchange(p currency.Pairs, enabledExchangesOnly bool, assetT
 				continue
 			}
 			exchName := Bot.Config.Exchanges[y].Name
-			success, err := Bot.Config.SupportsPair(exchName, p[x], assetType)
-			if err != nil || !success {
+			if !Bot.Config.SupportsPair(exchName, p[x], assetType) {
 				continue
 			}
 
@@ -324,14 +323,10 @@ func GetExchangeNamesByCurrency(p currency.Pair, enabled bool, assetType asset.I
 		}
 
 		exchName := Bot.Config.Exchanges[x].Name
-		success, err := Bot.Config.SupportsPair(exchName, p, assetType)
-		if err != nil {
+		if !Bot.Config.SupportsPair(exchName, p, assetType) {
 			continue
 		}
-
-		if success {
-			exchanges = append(exchanges, exchName)
-		}
+		exchanges = append(exchanges, exchName)
 	}
 	return exchanges
 }
@@ -404,19 +399,18 @@ func GetRelatableCurrencies(p currency.Pair, incOrig, incUSDT bool) currency.Pai
 			addPair(p)
 		}
 
-		first, ok := currency.GetTranslation(p.Base)
-		if ok {
+		first := currency.GetTranslation(p.Base)
+		if first != p.Base {
 			addPair(currency.NewPair(first, p.Quote))
 
-			var second currency.Code
-			second, ok = currency.GetTranslation(p.Quote)
-			if ok {
+			second := currency.GetTranslation(p.Quote)
+			if second != p.Quote {
 				addPair(currency.NewPair(first, second))
 			}
 		}
 
-		second, ok := currency.GetTranslation(p.Quote)
-		if ok {
+		second := currency.GetTranslation(p.Quote)
+		if second != p.Quote {
 			addPair(currency.NewPair(p.Base, second))
 		}
 	}
@@ -483,8 +477,8 @@ func GetCollatedExchangeAccountInfoByCoin(accounts []account.Holdings) map[curre
 
 // GetExchangeHighestPriceByCurrencyPair returns the exchange with the highest
 // price for a given currency pair and asset type
-func GetExchangeHighestPriceByCurrencyPair(p currency.Pair, assetType asset.Item) (string, error) {
-	result := stats.SortExchangesByPrice(p, assetType, true)
+func GetExchangeHighestPriceByCurrencyPair(p currency.Pair, a asset.Item) (string, error) {
+	result := stats.SortExchangesByPrice(p, a, true)
 	if len(result) == 0 {
 		return "", fmt.Errorf("no stats for supplied currency pair and asset type")
 	}
@@ -717,7 +711,14 @@ func GetAllActiveTickers() []EnabledExchangeCurrencies {
 		exchangeTicker.ExchangeName = exchName
 
 		for y := range assets {
-			currencies := exchanges[x].GetEnabledPairs(assets[y])
+			currencies, err := exchanges[x].GetEnabledPairs(assets[y])
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"Exchange %s could not retrieve enabled currencies. Err: %s\n",
+					exchName,
+					err)
+				continue
+			}
 			for z := range currencies {
 				tp, err := exchanges[x].FetchTicker(currencies[z], assets[y])
 				if err != nil {
@@ -739,19 +740,25 @@ func GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts {
 	var response AllEnabledExchangeAccounts
 	exchanges := GetExchanges()
 	for x := range exchanges {
-		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
-			if Bot.Settings.Verbose {
-				log.Debugf(log.ExchangeSys, "GetAllEnabledExchangeAccountInfo: Skippping %s due to disabled authenticated API support.\n", exchanges[x].GetName())
+		if exchanges[x] != nil && exchanges[x].IsEnabled() {
+			if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
+				if Bot.Settings.Verbose {
+					log.Debugf(log.ExchangeSys,
+						"GetAllEnabledExchangeAccountInfo: Skippping %s due to disabled authenticated API support.\n",
+						exchanges[x].GetName())
+				}
+				continue
 			}
-			continue
+			accountInfo, err := exchanges[x].FetchAccountInfo()
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"Error encountered retrieving exchange account info for %s. Error %s\n",
+					exchanges[x].GetName(),
+					err)
+				continue
+			}
+			response.Data = append(response.Data, accountInfo)
 		}
-		accountInfo, err := exchanges[x].FetchAccountInfo()
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "Error encountered retrieving exchange account info for %s. Error %s\n",
-				exchanges[x].GetName(), err)
-			continue
-		}
-		response.Data = append(response.Data, accountInfo)
 	}
 	return response
 }

@@ -96,7 +96,12 @@ func (w Wrapper) Pairs(exch string, _ bool, _ asset.Item) (*currency.Pairs, erro
 		return nil, errTestFailed
 	}
 
-	pairs := currency.NewPairsFromStrings([]string{"btc_usd", "btc_aud", "btc_ltc"})
+	pairs, err := currency.NewPairsFromStrings([]string{"btc_usd",
+		"btc_aud",
+		"btc_ltc"})
+	if err != nil {
+		return nil, err
+	}
 	return &pairs, nil
 }
 
@@ -105,11 +110,17 @@ func (w Wrapper) QueryOrder(exch, _ string) (*order.Detail, error) {
 	if exch == exchError.String() {
 		return nil, errTestFailed
 	}
+
+	pair, err := currency.NewPairFromString("BTCAUD")
+	if err != nil {
+		return nil, err
+	}
+
 	return &order.Detail{
 		Exchange:        exch,
 		AccountID:       "hello",
 		ID:              "1",
-		Pair:            currency.NewPairFromString("BTCAUD"),
+		Pair:            pair,
 		Side:            "ask",
 		Type:            "limit",
 		Date:            time.Now(),
@@ -121,7 +132,6 @@ func (w Wrapper) QueryOrder(exch, _ string) (*order.Detail, error) {
 		Fee:             0,
 		Trades: []order.TradeHistory{
 			{
-				Timestamp:   time.Now(),
 				TID:         "",
 				Price:       1,
 				Amount:      2,
@@ -179,12 +189,11 @@ func (w Wrapper) AccountInformation(exch string) (account.Holdings, error) {
 					{
 						CurrencyName: currency.Code{
 							Item: &currency.Item{
-								ID:            0,
-								FullName:      "Bitcoin",
-								Symbol:        "BTC",
-								Role:          1,
-								AssocChain:    "",
-								AssocExchange: nil,
+								ID:         0,
+								FullName:   "Bitcoin",
+								Symbol:     "BTC",
+								Role:       1,
+								AssocChain: "",
 							},
 						},
 						TotalValue: 100,

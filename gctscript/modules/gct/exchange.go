@@ -54,10 +54,13 @@ func ExchangeOrderbook(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeParam)
 	}
 
-	pairs := currency.NewPairDelimiter(currencyPair, delimiter)
+	pair, err := currency.NewPairDelimiter(currencyPair, delimiter)
+	if err != nil {
+		return nil, err
+	}
 	assetType := asset.Item(assetTypeParam)
 
-	ob, err := wrappers.GetWrapper().Orderbook(exchangeName, pairs, assetType)
+	ob, err := wrappers.GetWrapper().Orderbook(exchangeName, pair, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -113,10 +116,14 @@ func ExchangeTicker(args ...objects.Object) (objects.Object, error) {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, assetTypeParam)
 	}
 
-	pairs := currency.NewPairDelimiter(currencyPair, delimiter)
+	pair, err := currency.NewPairDelimiter(currencyPair, delimiter)
+	if err != nil {
+		return nil, err
+	}
+
 	assetType := asset.Item(assetTypeParam)
 
-	tx, err := wrappers.GetWrapper().Ticker(exchangeName, pairs, assetType)
+	tx, err := wrappers.GetWrapper().Ticker(exchangeName, pair, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -188,8 +195,9 @@ func ExchangePairs(args ...objects.Object) (objects.Object, error) {
 	}
 
 	r := objects.Array{}
-	for x := range rtnValue.Slice() {
-		r.Value = append(r.Value, &objects.String{Value: rtnValue.Slice()[x].String()})
+	pairs := *(*[]currency.Pair)(rtnValue)
+	for x := range pairs {
+		r.Value = append(r.Value, &objects.String{Value: pairs[x].String()})
 	}
 	return &r, nil
 }
@@ -346,7 +354,10 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 	if !ok {
 		return nil, fmt.Errorf(ErrParameterConvertFailed, orderClientID)
 	}
-	pair := currency.NewPairDelimiter(currencyPair, delimiter)
+	pair, err := currency.NewPairDelimiter(currencyPair, delimiter)
+	if err != nil {
+		return nil, err
+	}
 
 	tempSubmit := &order.Submit{
 		Pair:     pair,
@@ -357,7 +368,7 @@ func ExchangeOrderSubmit(args ...objects.Object) (objects.Object, error) {
 		ClientID: orderClientID,
 	}
 
-	err := tempSubmit.Validate()
+	err = tempSubmit.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -550,10 +561,13 @@ func exchangeOHLCV(args ...objects.Object) (objects.Object, error) {
 	if err != nil {
 		return nil, err
 	}
-	pairs := currency.NewPairDelimiter(currencyPair, delimiter)
+	pair, err := currency.NewPairDelimiter(currencyPair, delimiter)
+	if err != nil {
+		return nil, err
+	}
 	assetType := asset.Item(assetTypeParam)
 
-	ret, err := wrappers.GetWrapper().OHLCV(exchangeName, pairs, assetType, startTime, endTime, kline.Interval(interval))
+	ret, err := wrappers.GetWrapper().OHLCV(exchangeName, pair, assetType, startTime, endTime, kline.Interval(interval))
 	if err != nil {
 		return nil, err
 	}

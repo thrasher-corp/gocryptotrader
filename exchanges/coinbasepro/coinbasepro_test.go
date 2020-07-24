@@ -17,7 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -49,12 +49,11 @@ func TestMain(m *testing.M) {
 	gdxConfig.API.Credentials.ClientID = clientID
 	gdxConfig.API.AuthenticatedSupport = true
 	gdxConfig.API.AuthenticatedWebsocketSupport = true
+	c.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = c.Setup(gdxConfig)
 	if err != nil {
 		log.Fatal("CoinbasePro setup error", err)
 	}
-	c.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	c.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
 }
 
@@ -593,26 +592,24 @@ func TestGetDepositAddress(t *testing.T) {
 // TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
 	if !c.Websocket.IsEnabled() && !c.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
-		t.Skip(wshandler.WebsocketNotEnabled)
-	}
-	c.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         c.Name,
-		URL:                  c.Websocket.GetWebsocketURL(),
-		Verbose:              c.Verbose,
-		ResponseMaxLimit:     exchange.DefaultWebsocketResponseMaxLimit,
-		ResponseCheckTimeout: exchange.DefaultWebsocketResponseCheckTimeout,
+		t.Skip(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := c.WebsocketConn.Dial(&dialer, http.Header{})
+	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	c.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	go c.wsReadData()
-	err = c.Subscribe(wshandler.WebsocketChannelSubscription{
-		Channel:  "user",
-		Currency: currency.NewPairFromString(testPair),
+
+	p, err := currency.NewPairFromString(testPair)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = c.Subscribe([]stream.ChannelSubscription{
+		{
+			Channel:  "user",
+			Currency: p,
+		},
 	})
 	if err != nil {
 		t.Error(err)
@@ -945,5 +942,66 @@ func TestParseTime(t *testing.T) {
 		r.Month().String() != "January" ||
 		r.Day() != 6 {
 		t.Error("unexpected result")
+	}
+}
+
+func TestCheckInterval(t *testing.T) {
+	interval := time.Minute
+	i, err := checkInterval(interval)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if i != 60 {
+		t.Fatal("incorrect return")
+	}
+	interval = time.Minute * 5
+	i, err = checkInterval(interval)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if i != 300 {
+		t.Fatal("incorrect return")
+	}
+
+	interval = time.Minute * 15
+	i, err = checkInterval(interval)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if i != 900 {
+		t.Fatal("incorrect return")
+	}
+
+	interval = time.Hour
+	i, err = checkInterval(interval)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if i != 3600 {
+		t.Fatal("incorrect return")
+	}
+
+	interval = time.Hour * 6
+	i, err = checkInterval(interval)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if i != 21600 {
+		t.Fatal("incorrect return")
+	}
+
+	interval = time.Hour * 24
+	i, err = checkInterval(interval)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if i != 86400 {
+		t.Fatal("incorrect return")
+	}
+
+	interval = time.Hour * 1337
+	_, err = checkInterval(interval)
+	if err == nil {
+		t.Fatal("error cannot be nil")
 	}
 }

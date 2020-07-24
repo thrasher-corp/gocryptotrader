@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/connchecker"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -21,6 +22,7 @@ const (
 	defaultEnabledExchanges = 28
 	testFakeExchangeName    = "Stampbit"
 	testPair                = "BTC-USD"
+	testString              = "test"
 )
 
 func TestGetCurrencyConfig(t *testing.T) {
@@ -30,6 +32,22 @@ func TestGetCurrencyConfig(t *testing.T) {
 		t.Error("GetCurrencyConfig LoadConfig error", err)
 	}
 	_ = cfg.GetCurrencyConfig()
+}
+
+func TestGetClientBankAccounts(t *testing.T) {
+	cfg := GetConfig()
+	err := cfg.LoadConfig(TestFile, true)
+	if err != nil {
+		t.Fatal("GetExchangeBankAccounts LoadConfig error", err)
+	}
+	_, err = cfg.GetClientBankAccounts("Kraken", "USD")
+	if err != nil {
+		t.Error("GetExchangeBankAccounts error", err)
+	}
+	_, err = cfg.GetClientBankAccounts("noob exchange", "USD")
+	if err == nil {
+		t.Fatal("error cannot be nil")
+	}
 }
 
 func TestGetExchangeBankAccounts(t *testing.T) {
@@ -46,6 +64,17 @@ func TestGetExchangeBankAccounts(t *testing.T) {
 	if err == nil {
 		t.Error("GetExchangeBankAccounts, no error returned for invalid exchange")
 	}
+}
+
+func TestCheckBankAccountConfig(t *testing.T) {
+	cfg := GetConfig()
+	err := cfg.LoadConfig(TestFile, true)
+	if err != nil {
+		t.Error("GetExchangeBankAccounts LoadConfig error", err)
+	}
+
+	cfg.BankAccounts[0].Enabled = true
+	cfg.CheckBankAccountConfig()
 }
 
 func TestUpdateExchangeBankAccounts(t *testing.T) {
@@ -84,7 +113,7 @@ func TestUpdateClientBankAccounts(t *testing.T) {
 	if err != nil {
 		t.Error("UpdateClientBankAccounts LoadConfig error", err)
 	}
-	b := banking.Account{Enabled: false, BankName: "test", AccountNumber: "0234"}
+	b := banking.Account{Enabled: false, BankName: testString, AccountNumber: "0234"}
 	err = cfg.UpdateClientBankAccounts(&b)
 	if err != nil {
 		t.Error("UpdateClientBankAccounts error", err)
@@ -185,7 +214,7 @@ func TestPurgeExchangeCredentials(t *testing.T) {
 	var c Config
 	c.Exchanges = []ExchangeConfig{
 		{
-			Name: "test",
+			Name: testString,
 			API: APIConfig{
 				AuthenticatedSupport:          true,
 				AuthenticatedWebsocketSupport: true,
@@ -219,7 +248,7 @@ func TestPurgeExchangeCredentials(t *testing.T) {
 
 	c.PurgeExchangeAPICredentials()
 
-	exchCfg, err := c.GetExchangeConfig("test")
+	exchCfg, err := c.GetExchangeConfig(testString)
 	if err != nil {
 		t.Error(err)
 	}
@@ -257,8 +286,8 @@ func TestUpdateCommunicationsConfig(t *testing.T) {
 	if err != nil {
 		t.Error("UpdateCommunicationsConfig LoadConfig error", err)
 	}
-	cfg.UpdateCommunicationsConfig(&CommunicationsConfig{SlackConfig: SlackConfig{Name: "TEST"}})
-	if cfg.Communications.SlackConfig.Name != "TEST" {
+	cfg.UpdateCommunicationsConfig(&CommunicationsConfig{SlackConfig: SlackConfig{Name: testString}})
+	if cfg.Communications.SlackConfig.Name != testString {
 		t.Error("UpdateCommunicationsConfig LoadConfig error")
 	}
 }
@@ -308,7 +337,7 @@ func TestCheckCommunicationsConfig(t *testing.T) {
 	cfg.SMS = &SMSGlobalConfig{}
 	cfg.Communications.SMSGlobalConfig.Name = ""
 	cfg.CheckCommunicationsConfig()
-	if cfg.Communications.SMSGlobalConfig.Password != "test" {
+	if cfg.Communications.SMSGlobalConfig.Password != testString {
 		t.Error("CheckCommunicationsConfig error:", err)
 	}
 
@@ -389,9 +418,9 @@ func TestGetExchangeAssetTypes(t *testing.T) {
 		ExchangeConfig{
 			Name: testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{
-				AssetTypes: asset.Items{
-					asset.Spot,
-					asset.Futures,
+				Pairs: map[asset.Item]*currency.PairStore{
+					asset.Spot:    new(currency.PairStore),
+					asset.Futures: new(currency.PairStore),
 				},
 			},
 		},
@@ -403,7 +432,7 @@ func TestGetExchangeAssetTypes(t *testing.T) {
 		t.Error(err)
 	}
 
-	if assets.JoinToString(",") != "spot,futures" {
+	if !assets.Contains(asset.Spot) || !assets.Contains(asset.Futures) {
 		t.Error("unexpected results")
 	}
 
@@ -417,7 +446,7 @@ func TestGetExchangeAssetTypes(t *testing.T) {
 func TestSupportsExchangeAssetType(t *testing.T) {
 	t.Parallel()
 	var c Config
-	_, err := c.SupportsExchangeAssetType("void", asset.Spot)
+	err := c.SupportsExchangeAssetType("void", asset.Spot)
 	if err == nil {
 		t.Error("Expected error for non-existent exchange")
 	}
@@ -426,70 +455,27 @@ func TestSupportsExchangeAssetType(t *testing.T) {
 		ExchangeConfig{
 			Name: testFakeExchangeName,
 			CurrencyPairs: &currency.PairsManager{
-				AssetTypes: asset.Items{
-					asset.Spot,
-					asset.Futures,
+				Pairs: map[asset.Item]*currency.PairStore{
+					asset.Spot: new(currency.PairStore),
 				},
 			},
 		},
 	)
 
-	supports, err := c.SupportsExchangeAssetType(testFakeExchangeName, asset.Spot)
+	err = c.SupportsExchangeAssetType(testFakeExchangeName, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
 
-	if !supports {
-		t.Error("exchange should support spot asset item")
-	}
-
-	_, err = c.SupportsExchangeAssetType(testFakeExchangeName, "asdf")
+	err = c.SupportsExchangeAssetType(testFakeExchangeName, "asdf")
 	if err == nil {
 		t.Error("Expected error from invalid asset item")
 	}
 
 	c.Exchanges[0].CurrencyPairs = nil
-	_, err = c.SupportsExchangeAssetType(testFakeExchangeName, asset.Spot)
+	err = c.SupportsExchangeAssetType(testFakeExchangeName, asset.Spot)
 	if err == nil {
 		t.Error("Expected error from nil pair manager")
-	}
-}
-
-func TestCheckExchangeAssetsConsistency(t *testing.T) {
-	t.Parallel()
-	var c Config
-	// Test for non-existent exchange
-	c.CheckExchangeAssetsConsistency("void")
-
-	c.Exchanges = append(c.Exchanges,
-		ExchangeConfig{
-			Name: testFakeExchangeName,
-		},
-	)
-
-	// Tests for nil currency pairs store but valid exchange name
-	c.CheckExchangeAssetsConsistency(testFakeExchangeName)
-
-	// Simulate testing a diff between stored asset types (config loading)
-	// and pair store
-	c.Exchanges[0].CurrencyPairs = &currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-			asset.Futures,
-			asset.Index,
-		},
-	}
-	c.Exchanges[0].CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.PerpetualContract] = &currency.PairStore{}
-	c.CheckExchangeAssetsConsistency(testFakeExchangeName)
-
-	supports, err := c.SupportsExchangeAssetType(testFakeExchangeName, asset.PerpetualContract)
-	if err != nil {
-		t.Error(err)
-	}
-
-	if supports {
-		t.Error("perpetual contract should have been removed from the pair manager")
 	}
 }
 
@@ -524,9 +510,8 @@ func TestSetPairs(t *testing.T) {
 	}
 
 	c.Exchanges[0].CurrencyPairs = &currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-			asset.Futures,
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
 		},
 	}
 
@@ -562,10 +547,6 @@ func TestGetCurrencyPairConfig(t *testing.T) {
 	}
 
 	pm := &currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-			asset.Futures,
-		},
 		Pairs: map[asset.Item]*currency.PairStore{
 			asset.Spot: {
 				RequestFormat: &currency.PairFormat{
@@ -610,11 +591,6 @@ func TestCheckPairConfigFormats(t *testing.T) {
 	c.Exchanges = append(c.Exchanges,
 		ExchangeConfig{
 			Name: testFakeExchangeName,
-			CurrencyPairs: &currency.PairsManager{
-				AssetTypes: asset.Items{
-					asset.Item("wrong"),
-				},
-			},
 		},
 	)
 
@@ -622,23 +598,40 @@ func TestCheckPairConfigFormats(t *testing.T) {
 		t.Error("nil pair store should return an error")
 	}
 
-	c.Exchanges[0].CurrencyPairs.AssetTypes = asset.Items{asset.Spot}
-	c.Exchanges[0].CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{
-		asset.Spot: {
-			RequestFormat: &currency.PairFormat{},
-			ConfigFormat:  &currency.PairFormat{},
+	c.Exchanges[0].CurrencyPairs = &currency.PairsManager{
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot:    {},
+			asset.Futures: {},
 		},
-		asset.Futures: {
-			RequestFormat: &currency.PairFormat{},
-			ConfigFormat:  &currency.PairFormat{},
+	}
+	if err := c.CheckPairConfigFormats(testFakeExchangeName); err == nil {
+		t.Error("error cannot be nil")
+	}
+
+	c.Exchanges[0].CurrencyPairs = &currency.PairsManager{
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: {
+				RequestFormat: &currency.PairFormat{},
+				ConfigFormat:  &currency.PairFormat{},
+			},
+			asset.Futures: {
+				RequestFormat: &currency.PairFormat{},
+				ConfigFormat:  &currency.PairFormat{},
+			},
 		},
 	}
 	if err := c.CheckPairConfigFormats(testFakeExchangeName); err != nil {
 		t.Error("nil pairs should be okay to continue")
 	}
-
+	avail, err := currency.NewPairDelimiter(testPair, "-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	enabled, err := currency.NewPairDelimiter("BTC~USD", "~")
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Test having a pair index and delimiter set at the same time throws an error
-	c.Exchanges[0].CurrencyPairs.AssetTypes = asset.Items{asset.Spot}
 	c.Exchanges[0].CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{
 		asset.Spot: {
 			RequestFormat: &currency.PairFormat{
@@ -651,10 +644,10 @@ func TestCheckPairConfigFormats(t *testing.T) {
 				Index:     "USD",
 			},
 			Available: currency.Pairs{
-				currency.NewPairDelimiter(testPair, "-"),
+				avail,
 			},
 			Enabled: currency.Pairs{
-				currency.NewPairDelimiter("BTC~USD", "~"),
+				enabled,
 			},
 		},
 	}
@@ -698,11 +691,6 @@ func TestCheckPairConsistency(t *testing.T) {
 	c.Exchanges = append(c.Exchanges,
 		ExchangeConfig{
 			Name: testFakeExchangeName,
-			CurrencyPairs: &currency.PairsManager{
-				AssetTypes: asset.Items{
-					asset.Spot,
-				},
-			},
 		},
 	)
 
@@ -711,33 +699,71 @@ func TestCheckPairConsistency(t *testing.T) {
 		t.Error("nil pair store should return an error")
 	}
 
-	c.Exchanges[0].CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{
-		asset.Spot: {
-			RequestFormat: &currency.PairFormat{
-				Uppercase: false,
-				Delimiter: "_",
-			},
-			ConfigFormat: &currency.PairFormat{
-				Uppercase: true,
-				Delimiter: "_",
-			},
-			Enabled: currency.Pairs{
-				currency.NewPairDelimiter("BTC_USD", "_"),
+	enabled, err := currency.NewPairDelimiter("BTC_USD", "_")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c.Exchanges[0].CurrencyPairs = &currency.PairsManager{
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: {
+				RequestFormat: &currency.PairFormat{
+					Uppercase: false,
+					Delimiter: "_",
+				},
+				ConfigFormat: &currency.PairFormat{
+					Uppercase: true,
+					Delimiter: "_",
+				},
+				Enabled: currency.Pairs{
+					enabled,
+				},
 			},
 		},
 	}
 
 	// Test for nil avail pairs
-	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Error("nil available pairs should continue")
+	err = c.CheckPairConsistency(testFakeExchangeName)
+	if err != nil {
+		t.Error(err)
+	}
+
+	p1, err := currency.NewPairDelimiter("LTC_USD", "_")
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	// Test that enabled pair is not found in the available pairs
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Available = currency.Pairs{
-		currency.NewPairDelimiter("LTC_USD", "_"),
+		p1,
 	}
+
+	// LTC_USD is only found in the available pairs list and should therefor
+	// be added to the enabled pairs list due to the atLestOneEnabled code
+	err = c.CheckPairConsistency(testFakeExchangeName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, item := range c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled {
+		if !item.Equal(p1) {
+			t.Fatal("LTC_USD should be contained in the enabled pairs list")
+		}
+	}
+
+	p2, err := currency.NewPairDelimiter("BTC_USD", "_")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Add the BTC_USD pair and see result
+	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Available = currency.Pairs{
+		p1,
+		p2,
+	}
+
 	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Error("unexpected result")
+		t.Fatal(err)
 	}
 
 	// Test that an empty enabled pair is populated with an available pair
@@ -746,10 +772,14 @@ func TestCheckPairConsistency(t *testing.T) {
 		t.Error("unexpected result")
 	}
 
+	if len(c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled) != 1 {
+		t.Fatal("should be populated with atleast one currency pair")
+	}
+
 	// Test that an invalid enabled pair is removed from the list
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{
-		currency.NewPairDelimiter("LTC_USD", "_"),
-		currency.NewPairDelimiter("BTC_USD", "_"),
+		p1,
+		p2,
 	}
 	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
 		t.Error("unexpected result")
@@ -757,6 +787,48 @@ func TestCheckPairConsistency(t *testing.T) {
 
 	// Test when no update is required as the available pairs and enabled pairs
 	// are consistent
+	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
+		t.Error("unexpected result")
+	}
+
+	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(true)
+	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{}
+
+	// Test no conflict and atleast one on enabled asset type
+	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
+		t.Error("unexpected result")
+	}
+
+	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(true)
+	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{currency.NewPair(currency.DASH, currency.USD)}
+
+	// Test with conflict and atleast one on enabled asset type
+	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
+		t.Error("unexpected result")
+	}
+
+	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(false)
+	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{}
+
+	// Test no conflict and atleast one on disabled asset type
+	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
+		t.Error("unexpected result")
+	}
+
+	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{
+		currency.NewPair(currency.DASH, currency.USD),
+		p1,
+		p2,
+	}
+
+	// Test with conflict and atleast one on disabled asset type
+	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
+		t.Error("unexpected result")
+	}
+
+	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = nil
+
+	// assetType enabled failure check
 	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
 		t.Error("unexpected result")
 	}
@@ -772,17 +844,15 @@ func TestSupportsPair(t *testing.T) {
 	}
 
 	assetType := asset.Spot
-	_, err = cfg.SupportsPair("asdf",
-		currency.NewPair(currency.BTC, currency.USD), assetType)
-	if err == nil {
+	if cfg.SupportsPair("asdf",
+		currency.NewPair(currency.BTC, currency.USD), assetType) {
 		t.Error(
 			"TestSupportsPair. Expected error from Non-existent exchange",
 		)
 	}
 
-	_, err = cfg.SupportsPair("Bitfinex",
-		currency.NewPair(currency.BTC, currency.USD), assetType)
-	if err != nil {
+	if !cfg.SupportsPair("Bitfinex",
+		currency.NewPair(currency.BTC, currency.USD), assetType) {
 		t.Errorf(
 			"TestSupportsPair. Incorrect values. Err: %s", err,
 		)
@@ -809,7 +879,26 @@ func TestGetPairFormat(t *testing.T) {
 	}
 
 	c.Exchanges[0].CurrencyPairs = &currency.PairsManager{
-		AssetTypes:      asset.Items{asset.Spot},
+		UseGlobalFormat: false,
+		RequestFormat: &currency.PairFormat{
+			Uppercase: false,
+			Delimiter: "_",
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: "_",
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: nil,
+		},
+	}
+
+	_, err = c.GetPairFormat(testFakeExchangeName, asset.Spot)
+	if err == nil {
+		t.Error("Expected error from nil pair manager")
+	}
+
+	c.Exchanges[0].CurrencyPairs = &currency.PairsManager{
 		UseGlobalFormat: true,
 		RequestFormat: &currency.PairFormat{
 			Uppercase: false,
@@ -818,6 +907,9 @@ func TestGetPairFormat(t *testing.T) {
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
 			Delimiter: "_",
+		},
+		Pairs: map[asset.Item]*currency.PairStore{
+			asset.Spot: new(currency.PairStore),
 		},
 	}
 	_, err = c.GetPairFormat(testFakeExchangeName, asset.Item("invalid"))
@@ -876,12 +968,8 @@ func TestGetAvailablePairs(t *testing.T) {
 
 	c.Exchanges = append(c.Exchanges,
 		ExchangeConfig{
-			Name: testFakeExchangeName,
-			CurrencyPairs: &currency.PairsManager{
-				AssetTypes: asset.Items{
-					asset.Spot,
-				},
-			},
+			Name:          testFakeExchangeName,
+			CurrencyPairs: &currency.PairsManager{},
 		},
 	)
 
@@ -923,12 +1011,8 @@ func TestGetEnabledPairs(t *testing.T) {
 
 	c.Exchanges = append(c.Exchanges,
 		ExchangeConfig{
-			Name: testFakeExchangeName,
-			CurrencyPairs: &currency.PairsManager{
-				AssetTypes: asset.Items{
-					asset.Spot,
-				},
-			},
+			Name:          testFakeExchangeName,
+			CurrencyPairs: &currency.PairsManager{},
 		},
 	)
 
@@ -953,6 +1037,11 @@ func TestGetEnabledPairs(t *testing.T) {
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{
 		currency.NewPair(currency.BTC, currency.USD),
 	}
+
+	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Available = currency.Pairs{
+		currency.NewPair(currency.BTC, currency.USD),
+	}
+
 	_, err = c.GetEnabledPairs(testFakeExchangeName, asset.Spot)
 	if err != nil {
 		t.Error(err)
@@ -1183,16 +1272,15 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 
 	// Test API settings migration
 	sptr := func(s string) *string { return &s }
-	bptr := func(b bool) *bool { return &b }
 	int64ptr := func(i int64) *int64 { return &i }
 
 	cfg.Exchanges[0].APIKey = sptr("awesomeKey")
 	cfg.Exchanges[0].APISecret = sptr("meowSecret")
 	cfg.Exchanges[0].ClientID = sptr("clientIDerino")
 	cfg.Exchanges[0].APIAuthPEMKey = sptr("-----BEGIN EC PRIVATE KEY-----\nASDF\n-----END EC PRIVATE KEY-----\n")
-	cfg.Exchanges[0].APIAuthPEMKeySupport = bptr(true)
-	cfg.Exchanges[0].AuthenticatedAPISupport = bptr(true)
-	cfg.Exchanges[0].AuthenticatedWebsocketAPISupport = bptr(true)
+	cfg.Exchanges[0].APIAuthPEMKeySupport = convert.BoolPtr(true)
+	cfg.Exchanges[0].AuthenticatedAPISupport = convert.BoolPtr(true)
+	cfg.Exchanges[0].AuthenticatedWebsocketAPISupport = convert.BoolPtr(true)
 	cfg.Exchanges[0].WebsocketURL = sptr("wss://1337")
 	cfg.Exchanges[0].APIURL = sptr(APIURLNonDefaultMessage)
 	cfg.Exchanges[0].APIURLSecondary = sptr(APIURLNonDefaultMessage)
@@ -1230,8 +1318,8 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 
 	// Test feature and endpoint migrations migrations
 	cfg.Exchanges[0].Features = nil
-	cfg.Exchanges[0].SupportsAutoPairUpdates = bptr(true)
-	cfg.Exchanges[0].Websocket = bptr(true)
+	cfg.Exchanges[0].SupportsAutoPairUpdates = convert.BoolPtr(true)
+	cfg.Exchanges[0].Websocket = convert.BoolPtr(true)
 	cfg.Exchanges[0].API.Endpoints.URL = ""
 	cfg.Exchanges[0].API.Endpoints.URLSecondary = ""
 	cfg.Exchanges[0].API.Endpoints.WebsocketURL = ""
@@ -1253,11 +1341,16 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		t.Error("unexpected values")
 	}
 
+	p1, err := currency.NewPairDelimiter(testPair, "-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Test currency pair migration
 	setupPairs := func(emptyAssets bool) {
 		cfg.Exchanges[0].CurrencyPairs = nil
 		p := currency.Pairs{
-			currency.NewPairDelimiter(testPair, "-"),
+			p1,
 		}
 		cfg.Exchanges[0].PairsLastUpdated = int64ptr(1234567)
 
@@ -1305,17 +1398,25 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		t.Error("unexpected request format values")
 	}
 
-	if cfg.Exchanges[0].CurrencyPairs.AssetTypes.JoinToString(",") != "spot" ||
+	if !cfg.Exchanges[0].CurrencyPairs.GetAssetTypes().Contains(asset.Spot) ||
 		!cfg.Exchanges[0].CurrencyPairs.UseGlobalFormat {
 		t.Error("unexpected results")
 	}
 
-	pairs := cfg.Exchanges[0].CurrencyPairs.GetPairs(asset.Spot, true)
+	pairs, err := cfg.Exchanges[0].CurrencyPairs.GetPairs(asset.Spot, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if len(pairs) == 0 || pairs.Join() != testPair {
 		t.Error("pairs not set properly")
 	}
 
-	pairs = cfg.Exchanges[0].CurrencyPairs.GetPairs(asset.Spot, false)
+	pairs, err = cfg.Exchanges[0].CurrencyPairs.GetPairs(asset.Spot, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if len(pairs) == 0 || pairs.Join() != testPair {
 		t.Error("pairs not set properly")
 	}
@@ -1334,24 +1435,10 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	cfg.Exchanges[0].Features.Supports.RESTCapabilities.AutoPairUpdates = false
 	cfg.Exchanges[0].Features.Supports.WebsocketCapabilities.AutoPairUpdates = false
 	cfg.Exchanges[0].CurrencyPairs.LastUpdated = 0
-	cfg.CheckExchangeConfigValues()
-
-	// Test exchange pair consistency error
-	cfg.Exchanges[0].CurrencyPairs.UseGlobalFormat = false
-	backup := cfg.Exchanges[0].CurrencyPairs.Pairs[asset.Spot]
-	cfg.Exchanges[0].CurrencyPairs.Pairs[asset.Spot] = nil
 	err = cfg.CheckExchangeConfigValues()
 	if err != nil {
 		t.Error(err)
 	}
-	if cfg.Exchanges[0].Enabled {
-		t.Error("exchange should have been disabled")
-	}
-
-	// Restore to previous state
-	cfg.Exchanges[0].Enabled = true
-	cfg.Exchanges[0].CurrencyPairs.UseGlobalFormat = true
-	cfg.Exchanges[0].CurrencyPairs.Pairs[asset.Spot] = backup
 
 	// Test websocket and HTTP timeout values
 	cfg.Exchanges[0].WebsocketResponseMaxLimit = 0
@@ -1419,6 +1506,10 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 		!cfg.Exchanges[0].API.AuthenticatedWebsocketSupport {
 		t.Error("Expected AuthenticatedAPISupport and AuthenticatedWebsocketAPISupport to be false from invalid API keys")
 	}
+
+	// Make a sneaky copy for bank account testing
+	cpy := append(cfg.Exchanges[:0:0], cfg.Exchanges...)
+
 	// Test empty exchange name for an enabled exchange
 	cfg.Exchanges[0].Enabled = true
 	cfg.Exchanges[0].Name = ""
@@ -1435,6 +1526,82 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	err = cfg.CheckExchangeConfigValues()
 	if err == nil {
 		t.Error("Expected error from no enabled exchanges")
+	}
+
+	cfg.Exchanges = cpy
+	// Check bank account validation for exchange
+	cfg.Exchanges[0].BankAccounts = []banking.Account{
+		{
+			Enabled: true,
+		},
+	}
+
+	err = cfg.CheckExchangeConfigValues()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if cfg.Exchanges[0].BankAccounts[0].Enabled {
+		t.Fatal("bank aaccount details not provided this should disable")
+	}
+
+	// Test international bank
+	cfg.Exchanges[0].BankAccounts[0].Enabled = true
+	cfg.Exchanges[0].BankAccounts[0].BankName = testString
+	cfg.Exchanges[0].BankAccounts[0].BankAddress = testString
+	cfg.Exchanges[0].BankAccounts[0].BankPostalCode = testString
+	cfg.Exchanges[0].BankAccounts[0].BankPostalCity = testString
+	cfg.Exchanges[0].BankAccounts[0].BankCountry = testString
+	cfg.Exchanges[0].BankAccounts[0].AccountName = testString
+	cfg.Exchanges[0].BankAccounts[0].SupportedCurrencies = "monopoly moneys"
+	cfg.Exchanges[0].BankAccounts[0].IBAN = "some iban"
+	cfg.Exchanges[0].BankAccounts[0].SWIFTCode = "some swifty"
+
+	err = cfg.CheckExchangeConfigValues()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !cfg.Exchanges[0].BankAccounts[0].Enabled {
+		t.Fatal("bank aaccount details provided this should not disable")
+	}
+
+	// Test aussie bank
+	cfg.Exchanges[0].BankAccounts[0].Enabled = true
+	cfg.Exchanges[0].BankAccounts[0].BankName = testString
+	cfg.Exchanges[0].BankAccounts[0].BankAddress = testString
+	cfg.Exchanges[0].BankAccounts[0].BankPostalCode = testString
+	cfg.Exchanges[0].BankAccounts[0].BankPostalCity = testString
+	cfg.Exchanges[0].BankAccounts[0].BankCountry = testString
+	cfg.Exchanges[0].BankAccounts[0].AccountName = testString
+	cfg.Exchanges[0].BankAccounts[0].SupportedCurrencies = "AUD"
+	cfg.Exchanges[0].BankAccounts[0].BSBNumber = "some BSB nonsense"
+	cfg.Exchanges[0].BankAccounts[0].IBAN = ""
+	cfg.Exchanges[0].BankAccounts[0].SWIFTCode = ""
+
+	err = cfg.CheckExchangeConfigValues()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !cfg.Exchanges[0].BankAccounts[0].Enabled {
+		t.Fatal("bank account details provided this should not disable")
+	}
+
+	cfg.Exchanges = nil
+	cfg.Exchanges = append(cfg.Exchanges, cpy[0])
+
+	cfg.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = nil
+	cfg.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(false)
+	err = cfg.CheckExchangeConfigValues()
+	if err != nil {
+		t.Error(err)
+	}
+
+	cfg.Exchanges[0].CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	err = cfg.CheckExchangeConfigValues()
+	if err == nil {
+		t.Error("err cannot be nil")
 	}
 }
 

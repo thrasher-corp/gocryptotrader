@@ -71,9 +71,14 @@ func GetTotalMarketCryptocurrencies() ([]Code, error) {
 	return storage.GetTotalMarketCryptocurrencies()
 }
 
-// RunStorageUpdater  runs a new foreign exchange updater instance
-func RunStorageUpdater(o BotOverrides, m *MainConfiguration, filepath string, v bool) error {
-	return storage.RunUpdater(o, m, filepath, v)
+// RunStorageUpdater runs a new foreign exchange updater instance
+func RunStorageUpdater(o BotOverrides, m *MainConfiguration, filepath string) error {
+	return storage.RunUpdater(o, m, filepath)
+}
+
+// ShutdownStorageUpdater cleanly shuts down and saves to currency.json
+func ShutdownStorageUpdater() error {
+	return storage.Shutdown()
 }
 
 // CopyPairFormat copies the pair format from a list of pairs once matched
@@ -100,17 +105,23 @@ func FormatPairs(pairs []string, delimiter, index string) (Pairs, error) {
 			continue
 		}
 		var p Pair
+		var err error
 		if delimiter != "" {
-			p = NewPairDelimiter(pairs[x], delimiter)
+			p, err = NewPairDelimiter(pairs[x], delimiter)
+			if err != nil {
+				return nil, err
+			}
 		} else {
 			if index != "" {
-				var err error
 				p, err = NewPairFromIndex(pairs[x], index)
 				if err != nil {
 					return Pairs{}, err
 				}
 			} else {
-				p = NewPairFromStrings(pairs[x][0:3], pairs[x][3:])
+				p, err = NewPairFromStrings(pairs[x][0:3], pairs[x][3:])
+				if err != nil {
+					return Pairs{}, err
+				}
 			}
 		}
 		result = append(result, p)

@@ -315,18 +315,19 @@ type WsRequest struct {
 // WsResponse defines a response from the websocket connection when there
 // is an error
 type WsResponse struct {
-	Op           string `json:"op"`
-	TS           int64  `json:"ts"`
-	Status       string `json:"status"`
-	ErrorCode    int64  `json:"err-code"`
-	ErrorMessage string `json:"err-msg"`
-	Ping         int64  `json:"ping"`
-	Channel      string `json:"ch"`
-	Rep          string `json:"rep"`
-	Topic        string `json:"topic"`
-	Subscribed   string `json:"subbed"`
-	UnSubscribed string `json:"unsubbed"`
-	ClientID     int64  `json:"cid,string"`
+	Op     string `json:"op"`
+	TS     int64  `json:"ts"`
+	Status string `json:"status"`
+	// ErrorCode returns either an integer or a string
+	ErrorCode    interface{} `json:"err-code"`
+	ErrorMessage string      `json:"err-msg"`
+	Ping         int64       `json:"ping"`
+	Channel      string      `json:"ch"`
+	Rep          string      `json:"rep"`
+	Topic        string      `json:"topic"`
+	Subscribed   string      `json:"subbed"`
+	UnSubscribed string      `json:"unsubbed"`
+	ClientID     int64       `json:"cid,string"`
 }
 
 // WsHeartBeat defines a heartbeat request
@@ -359,7 +360,7 @@ type WsKline struct {
 		Amount float64 `json:"amount"`
 		Volume float64 `json:"vol"`
 		Count  int64   `json:"count"`
-	}
+	} `json:"tick"`
 }
 
 // WsTick stores websocket ticker data
@@ -577,7 +578,7 @@ type WsPong struct {
 	Pong int64 `json:"pong"`
 }
 
-type wsKLineResponseThing struct {
+type wsKlineResponse struct {
 	Data []struct {
 		Amount float64 `json:"amount"`
 		Close  float64 `json:"close"`
@@ -590,4 +591,9 @@ type wsKLineResponseThing struct {
 	} `json:"data"`
 	Rep    string `json:"rep"`
 	Status string `json:"status"`
+}
+
+type authenticationPing struct {
+	OP string `json:"op"`
+	TS int64  `json:"ts"`
 }

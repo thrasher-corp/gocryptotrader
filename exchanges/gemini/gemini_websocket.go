@@ -18,8 +18,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -39,7 +39,7 @@ var responseCheckTimeout time.Duration
 // WsConnect initiates a websocket connection
 func (g *Gemini) WsConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(stream.WebsocketNotEnabled)
 	}
 
 	var dialer websocket.Dialer
@@ -61,31 +61,36 @@ func (g *Gemini) WsConnect() error {
 
 // WsSubscribe subscribes to the full websocket suite on gemini exchange
 func (g *Gemini) WsSubscribe(dialer *websocket.Dialer) error {
-	enabledCurrencies := g.GetEnabledPairs(asset.Spot)
+	enabledCurrencies, err := g.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	}
 	for i := range enabledCurrencies {
 		val := url.Values{}
 		val.Set("heartbeat", "true")
+		val.Set("bids", "true")
+		val.Set("offers", "true")
+		val.Set("trades", "true")
 		endpoint := fmt.Sprintf("%s%s/%s?%s",
 			g.API.Endpoints.WebsocketURL,
 			geminiWsMarketData,
 			enabledCurrencies[i].String(),
 			val.Encode())
-		connection := &wshandler.WebsocketConnection{
-			ExchangeName:         g.Name,
-			URL:                  endpoint,
-			Verbose:              g.Verbose,
-			ResponseCheckTimeout: responseCheckTimeout,
-			ResponseMaxLimit:     responseMaxLimit,
+		connection := &stream.WebsocketConnection{
+			ExchangeName:     g.Name,
+			URL:              endpoint,
+			Verbose:          g.Verbose,
+			ResponseMaxLimit: responseMaxLimit,
+			Traffic:          g.Websocket.TrafficAlert,
+			Match:            g.Websocket.Match,
 		}
 		err := connection.Dial(dialer, http.Header{})
 		if err != nil {
 			return fmt.Errorf("%v Websocket connection %v error. Error %v",
 				g.Name, endpoint, err)
 		}
+		g.connections = append(g.connections, connection)
 		go g.wsFunnelConnectionData(connection, enabledCurrencies[i])
-		if len(enabledCurrencies)-1 == i {
-			return nil
-		}
 	}
 	return nil
 }
@@ -115,38 +120,31 @@ func (g *Gemini) WsSecureSubscribe(dialer *websocket.Dialer, url string) error {
 	headers.Add("X-GEMINI-SIGNATURE", crypto.HexEncodeToString(hmac))
 	headers.Add("Cache-Control", "no-cache")
 
-	g.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         g.Name,
-		URL:                  endpoint,
-		Verbose:              g.Verbose,
-		ResponseCheckTimeout: responseCheckTimeout,
-		ResponseMaxLimit:     responseMaxLimit,
+	g.Websocket.AuthConn = &stream.WebsocketConnection{
+		ExchangeName:     g.Name,
+		URL:              endpoint,
+		Verbose:          g.Verbose,
+		ResponseMaxLimit: responseMaxLimit,
+		Match:            g.Websocket.Match,
 	}
-	err = g.AuthenticatedWebsocketConn.Dial(dialer, headers)
+	err = g.Websocket.AuthConn.Dial(dialer, headers)
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", g.Name, endpoint, err)
 	}
-	go g.wsFunnelConnectionData(g.AuthenticatedWebsocketConn, currency.Pair{})
+	go g.wsFunnelConnectionData(g.Websocket.AuthConn, currency.Pair{})
 	return nil
 }
 
 // wsFunnelConnectionData receives data from multiple connections and passes it to wsReadData
-func (g *Gemini) wsFunnelConnectionData(ws *wshandler.WebsocketConnection, c currency.Pair) {
+func (g *Gemini) wsFunnelConnectionData(ws stream.Connection, c currency.Pair) {
 	g.Websocket.Wg.Add(1)
 	defer g.Websocket.Wg.Done()
 	for {
-		select {
-		case <-g.Websocket.ShutdownC:
+		resp := ws.ReadMessage()
+		if resp.Raw == nil {
 			return
-		default:
-			resp, err := ws.ReadMessage()
-			if err != nil {
-				g.Websocket.DataHandler <- err
-				return
-			}
-			g.Websocket.TrafficAlert <- struct{}{}
-			comms <- ReadData{Raw: resp.Raw, Currency: c}
 		}
+		comms <- ReadData{Raw: resp.Raw, Currency: c}
 	}
 }
 
@@ -157,6 +155,14 @@ func (g *Gemini) wsReadData() {
 	for {
 		select {
 		case <-g.Websocket.ShutdownC:
+			for i := range g.connections {
+				err := g.connections[i].Shutdown()
+				if err != nil {
+					log.Errorln(log.ExchangeSys, err)
+				}
+				g.connections[i] = nil
+			}
+			g.connections = nil
 			return
 		case resp := <-comms:
 			// Gemini likes to send empty arrays
@@ -207,7 +213,16 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 					Err:      err,
 				}
 			}
-			p := currency.NewPairFromString(result[i].Symbol)
+
+			p, err := currency.NewPairFromString(result[i].Symbol)
+			if err != nil {
+				g.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: g.Name,
+					OrderID:  result[i].OrderID,
+					Err:      err,
+				}
+			}
+
 			var a asset.Item
 			a, err = g.GetPairAssetType(p)
 			if err != nil {
@@ -260,12 +275,7 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 			}
 			g.Websocket.DataHandler <- result
 		case "heartbeat":
-			var result WsHeartbeatResponse
-			err := json.Unmarshal(respRaw, &result)
-			if err != nil {
-				return err
-			}
-			g.Websocket.DataHandler <- result
+			return nil
 		case "update":
 			if curr.IsEmpty() {
 				return fmt.Errorf("%v - `update` response error. Currency is empty %s",
@@ -290,7 +300,7 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 				return err
 			}
 			for i := range candle.Changes {
-				g.Websocket.DataHandler <- wshandler.KlineData{
+				g.Websocket.DataHandler <- stream.KlineData{
 					Timestamp:  time.Unix(int64(candle.Changes[i][0])*1000, 0),
 					Pair:       curr,
 					AssetType:  asset.Spot,
@@ -305,7 +315,7 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 			}
 
 		default:
-			g.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: g.Name + wshandler.UnhandledMessage + string(respRaw)}
+			g.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: g.Name + stream.UnhandledMessage + string(respRaw)}
 			return nil
 		}
 	} else if _, ok := result["result"]; ok {
@@ -318,7 +328,7 @@ func (g *Gemini) wsHandleData(respRaw []byte, curr currency.Pair) error {
 			}
 			return fmt.Errorf("%v Unhandled websocket error %s", g.Name, respRaw)
 		default:
-			g.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: g.Name + wshandler.UnhandledMessage + string(respRaw)}
+			g.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: g.Name + stream.UnhandledMessage + string(respRaw)}
 			return nil
 		}
 	}
@@ -349,7 +359,8 @@ func stringToOrderType(oType string) (order.Type, error) {
 	case "exchange limit", "auction-only limit", "indication-of-interest limit":
 		return order.Limit, nil
 	case "market buy", "market sell", "block_trade":
-		// block trades are conducted off order-book, so their type is market, but would be considered a hidden trade
+		// block trades are conducted off order-book, so their type is market,
+		// but would be considered a hidden trade
 		return order.Market, nil
 	default:
 		return order.UnknownType, errors.New(oType + " not recognised as order type")
@@ -388,9 +399,6 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 			g.Websocket.DataHandler <- err
 			return
 		}
-		g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: pair,
-			Asset:    asset.Spot,
-			Exchange: g.Name}
 	} else {
 		var asks, bids []orderbook.Item
 		for i := range result.Events {
@@ -403,8 +411,8 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 						Err:      err,
 					}
 				}
-				g.Websocket.DataHandler <- wshandler.TradeData{
-					Timestamp:    time.Unix(0, result.Timestamp),
+				g.Websocket.DataHandler <- stream.TradeData{
+					Timestamp:    time.Unix(0, result.TimestampMS*int64(time.Millisecond)),
 					CurrencyPair: pair,
 					AssetType:    asset.Spot,
 					Exchange:     g.Name,
@@ -429,18 +437,15 @@ func (g *Gemini) wsProcessUpdate(result WsMarketUpdateResponse, pair currency.Pa
 		if len(asks) == 0 && len(bids) == 0 {
 			return
 		}
-		err := g.Websocket.Orderbook.Update(&wsorderbook.WebsocketOrderbookUpdate{
+		err := g.Websocket.Orderbook.Update(&buffer.Update{
 			Asks:       asks,
 			Bids:       bids,
 			Pair:       pair,
-			UpdateTime: time.Unix(0, result.TimestampMS),
+			UpdateTime: time.Unix(0, result.TimestampMS*int64(time.Millisecond)),
 			Asset:      asset.Spot,
 		})
 		if err != nil {
 			g.Websocket.DataHandler <- fmt.Errorf("%v %v", g.Name, err)
 		}
-		g.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{Pair: pair,
-			Asset:    asset.Spot,
-			Exchange: g.Name}
 	}
 }

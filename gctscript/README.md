@@ -78,8 +78,8 @@ With an example configuration being:
   ```
   - Start/Execute:
   ```shell script
-    gctcli gctscript execute <scriptname> <pathoverride>
-    gctcli gctscript execute "timer.gct" "~/gctscript"
+    gctcli script execute <scriptname> <pathoverride>
+    gctcli script execute "timer.gct" "~/gctscript"
   
     {
       "status": "ok",
@@ -88,8 +88,8 @@ With an example configuration being:
   ```
   - Stop:
   ```shell script
-    gctcli gctscript stop <uuid>
-    gctcli gctscript stop 821bd73e-02b1-4974-9463-874cb49f130d
+    gctcli script stop <uuid>
+    gctcli script stop 821bd73e-02b1-4974-9463-874cb49f130d
   
     {
       "status": "ok",
@@ -98,7 +98,7 @@ With an example configuration being:
   ```
   - Status:
   ```shell script
-    gctcli gctscript status 
+    gctcli script status 
   
     {
       "status": "ok",
@@ -113,8 +113,8 @@ With an example configuration being:
   ```
   - Read file:
   ```shell script
-    gctcli gctscript read <filename>
-    gctcli gctscript read "timer.gct"
+    gctcli script read <filename>
+    gctcli script read "timer.gct"
   
     {
       "status": "ok",
@@ -127,8 +127,8 @@ With an example configuration being:
    ```
     - Query running script:
     ```shell script
-      gctcli gctscript query <uuid>
-      gctcli gctscript query 821bd73e-02b1-4974-9463-874cb49f130d
+      gctcli script query <uuid>
+      gctcli script query 821bd73e-02b1-4974-9463-874cb49f130d
       {
         "status": "ok",
         "script": {
@@ -143,7 +143,7 @@ With an example configuration being:
      ```
      - Add script to autoload:
     ```shell script
-    gctcli gctscript autoload add timer
+    gctcli script autoload add timer
     {
       "status": "success",
       "data": "script timer added to autoload list"
@@ -151,7 +151,7 @@ With an example configuration being:
     ```
     - Remove script from autoload:
     ```shell script
-      gctcli gctscript autoload remove timer
+      gctcli script autoload remove timer
       {
         "status": "success",
         "data": "script timer removed from autoload list"

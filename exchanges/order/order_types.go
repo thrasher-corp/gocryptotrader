@@ -2,7 +2,6 @@ package order
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -222,9 +221,13 @@ const (
 	AnyType           Type = "ANY"
 	Limit             Type = "LIMIT"
 	Market            Type = "MARKET"
+	PostOnly          Type = "POST_ONLY"
 	ImmediateOrCancel Type = "IMMEDIATE_OR_CANCEL"
 	Stop              Type = "STOP"
+	StopLimit         Type = "STOP LIMIT"
 	TrailingStop      Type = "TRAILING_STOP"
+	FillOrKill        Type = "FOK"
+	IOS               Type = "IOS"
 	UnknownType       Type = "UNKNOWN"
 )
 
@@ -262,16 +265,4 @@ type ClassificationError struct {
 	Exchange string
 	OrderID  string
 	Err      error
-}
-
-func (o *ClassificationError) Error() string {
-	if o.OrderID != "" {
-		return fmt.Sprintf("%s - OrderID: %s classification error: %v",
-			o.Exchange,
-			o.OrderID,
-			o.Err)
-	}
-	return fmt.Sprintf("%s - classification error: %v",
-		o.Exchange,
-		o.Err)
 }

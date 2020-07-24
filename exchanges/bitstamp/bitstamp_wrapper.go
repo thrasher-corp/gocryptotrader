@@ -18,8 +18,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -56,17 +56,11 @@ func (b *Bitstamp) SetDefaults() {
 	b.API.CredentialsValidator.RequiresSecret = true
 	b.API.CredentialsValidator.RequiresClientID = true
 
-	b.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
+	requestFmt := &currency.PairFormat{Uppercase: true}
+	configFmt := &currency.PairFormat{Uppercase: true}
+	err := b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
 
 	b.Features = exchange.Features{
@@ -137,7 +131,7 @@ func (b *Bitstamp) SetDefaults() {
 	b.API.Endpoints.URLDefault = bitstampAPIURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
 	b.API.Endpoints.WebsocketURL = bitstampWSURL
-	b.Websocket = wshandler.New()
+	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -155,34 +149,30 @@ func (b *Bitstamp) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = b.Websocket.Setup(
-		&wshandler.WebsocketSetup{
-			Enabled:                          exch.Features.Enabled.Websocket,
-			Verbose:                          exch.Verbose,
-			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-			DefaultURL:                       bitstampWSURL,
-			ExchangeName:                     exch.Name,
-			RunningURL:                       exch.API.Endpoints.WebsocketURL,
-			Connector:                        b.WsConnect,
-			Subscriber:                       b.Subscribe,
-			UnSubscriber:                     b.Unsubscribe,
-			Features:                         &b.Features.Supports.WebsocketCapabilities,
-		})
+	err = b.Websocket.Setup(&stream.WebsocketSetup{
+		Enabled:                          exch.Features.Enabled.Websocket,
+		Verbose:                          exch.Verbose,
+		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		DefaultURL:                       bitstampWSURL,
+		ExchangeName:                     exch.Name,
+		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		Connector:                        b.WsConnect,
+		Subscriber:                       b.Subscribe,
+		UnSubscriber:                     b.Unsubscribe,
+		GenerateSubscriptions:            b.generateDefaultSubscriptions,
+		Features:                         &b.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+	})
 	if err != nil {
 		return err
 	}
 
-	b.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         b.Name,
+	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		URL:                  b.Websocket.GetWebsocketURL(),
-		ProxyURL:             b.Websocket.GetProxyAddress(),
-		Verbose:              b.Verbose,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	}
-
-	return nil
+	})
 }
 
 // Start starts the Bitstamp go routine
@@ -245,32 +235,35 @@ func (b *Bitstamp) UpdateTradablePairs(forceUpdate bool) error {
 		return err
 	}
 
-	return b.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
+	p, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
+
+	return b.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitstamp) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
 	tick, err := b.GetTicker(p.String(), false)
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
-	tickerPrice = &ticker.Price{
-		Last:        tick.Last,
-		High:        tick.High,
-		Low:         tick.Low,
-		Bid:         tick.Bid,
-		Ask:         tick.Ask,
-		Volume:      tick.Volume,
-		Open:        tick.Open,
-		Pair:        p,
-		LastUpdated: time.Unix(tick.Timestamp, 0),
-	}
-
-	err = ticker.ProcessTicker(b.Name, tickerPrice, assetType)
+	err = ticker.ProcessTicker(&ticker.Price{
+		Last:         tick.Last,
+		High:         tick.High,
+		Low:          tick.Low,
+		Bid:          tick.Bid,
+		Ask:          tick.Ask,
+		Volume:       tick.Volume,
+		Open:         tick.Open,
+		Pair:         p,
+		LastUpdated:  time.Unix(tick.Timestamp, 0),
+		ExchangeName: b.Name,
+		AssetType:    assetType})
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
 	return ticker.GetTicker(b.Name, p, assetType)
@@ -548,11 +541,6 @@ func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdra
 	}, nil
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (b *Bitstamp) GetWebsocket() (*wshandler.Websocket, error) {
-	return b.Websocket, nil
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Bitstamp) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var currPair string
@@ -580,6 +568,11 @@ func (b *Bitstamp) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 				"%s GetActiveOrders unable to parse time: %s\n", b.Name, err)
 		}
 
+		pair, err := currency.NewPairFromString(resp[i].Currency)
+		if err != nil {
+			return nil, err
+		}
+
 		orders = append(orders, order.Detail{
 			Amount:   resp[i].Amount,
 			ID:       strconv.FormatInt(resp[i].ID, 10),
@@ -587,7 +580,7 @@ func (b *Bitstamp) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail,
 			Type:     order.Limit,
 			Side:     orderSide,
 			Date:     tm,
-			Pair:     currency.NewPairFromString(resp[i].Currency),
+			Pair:     pair,
 			Exchange: b.Name,
 		})
 	}
@@ -604,6 +597,12 @@ func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 	if len(req.Pairs) == 1 {
 		currPair = req.Pairs[0].String()
 	}
+
+	format, err := b.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		return nil, err
+	}
+
 	resp, err := b.GetUserTransactions(currPair)
 	if err != nil {
 		return nil, err
@@ -644,7 +643,7 @@ func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 		if quoteCurrency.String() != "" && baseCurrency.String() != "" {
 			currPair = currency.NewPairWithDelimiter(baseCurrency.String(),
 				quoteCurrency.String(),
-				b.GetPairFormat(asset.Spot, false).Delimiter)
+				format.Delimiter)
 		}
 
 		tm, err := parseTime(resp[i].Date)
@@ -664,30 +663,6 @@ func (b *Bitstamp) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail,
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (b *Bitstamp) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	b.Websocket.SubscribeToChannels(channels)
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Bitstamp) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	b.Websocket.RemoveSubscribedChannels(channels)
-	return nil
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (b *Bitstamp) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
-	return b.Websocket.GetSubscriptions(), nil
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (b *Bitstamp) AuthenticateWebsocket() error {
-	return common.ErrFunctionNotSupported
 }
 
 // ValidateCredentials validates current credentials used for wrapper
@@ -712,8 +687,13 @@ func (b *Bitstamp) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		Interval: interval,
 	}
 
+	formattedPair, err := b.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
 	candles, err := b.OHLC(
-		b.FormatExchangeCurrency(pair, a).Lower().String(),
+		formattedPair.Lower().String(),
 		start,
 		end,
 		b.FormatExchangeKlineInterval(interval),
@@ -759,9 +739,14 @@ func (b *Bitstamp) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, 
 	}
 
 	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	formattedPair, err := b.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
 	for x := range dates {
 		candles, err := b.OHLC(
-			b.FormatExchangeCurrency(pair, a).Lower().String(),
+			formattedPair.Lower().String(),
 			dates[x].Start,
 			dates[x].End,
 			b.FormatExchangeKlineInterval(interval),

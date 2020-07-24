@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"errors"
 	"sort"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -50,40 +51,48 @@ func (b ByVolume) Swap(i, j int) {
 }
 
 // Add adds or updates the item stats
-func Add(exchange string, p currency.Pair, assetType asset.Item, price, volume float64) {
+func Add(exchange string, p currency.Pair, a asset.Item, price, volume float64) error {
 	if exchange == "" ||
-		assetType == "" ||
+		a == "" ||
 		price == 0 ||
 		volume == 0 ||
 		p.Base.IsEmpty() ||
 		p.Quote.IsEmpty() {
-		return
+		return errors.New("cannot add or update, invalid params")
 	}
 
 	if p.Base == currency.XBT {
-		newPair := currency.NewPairFromStrings(currency.BTC.String(), p.Quote.String())
-		Append(exchange, newPair, assetType, price, volume)
+		newPair, err := currency.NewPairFromStrings(currency.BTC.String(),
+			p.Quote.String())
+		if err != nil {
+			return err
+		}
+		Append(exchange, newPair, a, price, volume)
 	}
 
 	if p.Quote == currency.USDT {
-		newPair := currency.NewPairFromStrings(p.Base.String(), currency.USD.String())
-		Append(exchange, newPair, assetType, price, volume)
+		newPair, err := currency.NewPairFromStrings(p.Base.String(), currency.USD.String())
+		if err != nil {
+			return err
+		}
+		Append(exchange, newPair, a, price, volume)
 	}
 
-	Append(exchange, p, assetType, price, volume)
+	Append(exchange, p, a, price, volume)
+	return nil
 }
 
 // Append adds or updates the item stats for a specific
 // currency pair and asset type
-func Append(exchange string, p currency.Pair, assetType asset.Item, price, volume float64) {
-	if AlreadyExists(exchange, p, assetType, price, volume) {
+func Append(exchange string, p currency.Pair, a asset.Item, price, volume float64) {
+	if AlreadyExists(exchange, p, a, price, volume) {
 		return
 	}
 
 	i := Item{
 		Exchange:  exchange,
 		Pair:      p,
-		AssetType: assetType,
+		AssetType: a,
 		Price:     price,
 		Volume:    volume,
 	}

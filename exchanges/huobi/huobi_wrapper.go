@@ -19,8 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -56,19 +56,11 @@ func (h *HUOBI) SetDefaults() {
 	h.API.CredentialsValidator.RequiresKey = true
 	h.API.CredentialsValidator.RequiresSecret = true
 
-	h.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
-
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Uppercase: false,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: "-",
-			Uppercase: true,
-		},
+	requestFmt := &currency.PairFormat{}
+	configFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
+	err := h.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
 
 	h.Features = exchange.Features{
@@ -138,7 +130,7 @@ func (h *HUOBI) SetDefaults() {
 	h.API.Endpoints.URLDefault = huobiAPIURL
 	h.API.Endpoints.URL = h.API.Endpoints.URLDefault
 	h.API.Endpoints.WebsocketURL = wsMarketURL
-	h.Websocket = wshandler.New()
+	h.Websocket = stream.New()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -156,51 +148,41 @@ func (h *HUOBI) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = h.Websocket.Setup(
-		&wshandler.WebsocketSetup{
-			Enabled:                          exch.Features.Enabled.Websocket,
-			Verbose:                          exch.Verbose,
-			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-			DefaultURL:                       wsMarketURL,
-			ExchangeName:                     exch.Name,
-			RunningURL:                       exch.API.Endpoints.WebsocketURL,
-			Connector:                        h.WsConnect,
-			Subscriber:                       h.Subscribe,
-			UnSubscriber:                     h.Unsubscribe,
-			Features:                         &h.Features.Supports.WebsocketCapabilities,
-		})
+	err = h.Websocket.Setup(&stream.WebsocketSetup{
+		Enabled:                          exch.Features.Enabled.Websocket,
+		Verbose:                          exch.Verbose,
+		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		DefaultURL:                       wsMarketURL,
+		ExchangeName:                     exch.Name,
+		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		Connector:                        h.WsConnect,
+		Subscriber:                       h.Subscribe,
+		UnSubscriber:                     h.Unsubscribe,
+		GenerateSubscriptions:            h.GenerateDefaultSubscriptions,
+		Features:                         &h.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+	})
 	if err != nil {
 		return err
 	}
 
-	h.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         h.Name,
-		URL:                  wsMarketURL,
-		ProxyURL:             h.Websocket.GetProxyAddress(),
-		Verbose:              h.Verbose,
+	err = h.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		RateLimit:            rateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	}
-	h.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         h.Name,
-		URL:                  wsAccountsOrdersURL,
-		ProxyURL:             h.Websocket.GetProxyAddress(),
-		Verbose:              h.Verbose,
-		RateLimit:            rateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	})
+	if err != nil {
+		return err
 	}
 
-	h.Websocket.Orderbook.Setup(
-		exch.WebsocketOrderbookBufferLimit,
-		false,
-		false,
-		false,
-		false,
-		exch.Name)
-	return nil
+	return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		RateLimit:            rateLimit,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL:                  wsAccountsOrdersURL,
+		Authenticated:        true,
+	})
 }
 
 // Start starts the HUOBI go routine
@@ -224,14 +206,31 @@ func (h *HUOBI) Run() {
 	}
 
 	var forceUpdate bool
-	if common.StringDataContains(h.GetEnabledPairs(asset.Spot).Strings(), currency.CNY.String()) ||
-		common.StringDataContains(h.GetAvailablePairs(asset.Spot).Strings(), currency.CNY.String()) {
+	enabled, err := h.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s Failed to update enabled currencies. Err:%s\n",
+			h.Name,
+			err)
+	}
+
+	avail, err := h.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s Failed to update enabled currencies. Err:%s\n",
+			h.Name,
+			err)
+	}
+
+	if common.StringDataContains(enabled.Strings(), currency.CNY.String()) ||
+		common.StringDataContains(avail.Strings(), currency.CNY.String()) {
 		forceUpdate = true
 	}
 
 	if common.StringDataContains(h.BaseCurrencies.Strings(), currency.CNY.String()) {
 		cfg := config.GetConfig()
-		exchCfg, err := cfg.GetExchangeConfig(h.Name)
+		var exchCfg *config.ExchangeConfig
+		exchCfg, err = cfg.GetExchangeConfig(h.Name)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%s failed to get exchange config. %s\n",
@@ -244,20 +243,31 @@ func (h *HUOBI) Run() {
 	}
 
 	if forceUpdate {
-		enabledPairs := currency.Pairs{currency.Pair{
-			Base:      currency.BTC.Lower(),
-			Quote:     currency.USDT.Lower(),
-			Delimiter: h.GetPairFormat(asset.Spot, false).Delimiter,
-		},
+		var format currency.PairFormat
+		format, err = h.GetPairFormat(asset.Spot, false)
+		if err != nil {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to get exchange config. %s\n",
+				h.Name,
+				err)
+			return
+		}
+		enabledPairs := currency.Pairs{
+			currency.Pair{
+				Base:      currency.BTC.Lower(),
+				Quote:     currency.USDT.Lower(),
+				Delimiter: format.Delimiter,
+			},
 		}
 		log.Warn(log.ExchangeSys,
 			"Available and enabled pairs for Huobi reset due to config upgrade, please enable the ones you would like again")
 
-		err := h.UpdatePairs(enabledPairs, asset.Spot, true, true)
+		err = h.UpdatePairs(enabledPairs, asset.Spot, true, true)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
-				"%s Failed to update enabled currencies.\n",
-				h.Name)
+				"%s Failed to update enabled currencies. Err:%s\n",
+				h.Name,
+				err)
 		}
 	}
 
@@ -265,7 +275,7 @@ func (h *HUOBI) Run() {
 		return
 	}
 
-	err := h.UpdateTradablePairs(forceUpdate)
+	err = h.UpdateTradablePairs(forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -281,13 +291,18 @@ func (h *HUOBI) FetchTradablePairs(asset asset.Item) ([]string, error) {
 		return nil, err
 	}
 
+	format, err := h.GetPairFormat(asset, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var pairs []string
 	for x := range symbols {
 		if symbols[x].State != "online" {
 			continue
 		}
 		pairs = append(pairs, symbols[x].BaseCurrency+
-			h.GetPairFormat(asset, false).Delimiter+
+			format.Delimiter+
 			symbols[x].QuoteCurrency)
 	}
 
@@ -302,37 +317,45 @@ func (h *HUOBI) UpdateTradablePairs(forceUpdate bool) error {
 		return err
 	}
 
-	return h.UpdatePairs(currency.NewPairsFromStrings(pairs),
-		asset.Spot,
-		false,
-		forceUpdate)
+	p, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
+	return h.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (h *HUOBI) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
 	tickers, err := h.GetTickers()
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
-	pairs := h.GetEnabledPairs(assetType)
+	pairs, err := h.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
 	for i := range pairs {
 		for j := range tickers.Data {
-			pairFmt := h.FormatExchangeCurrency(pairs[i], assetType).String()
-			if pairFmt != tickers.Data[j].Symbol {
+			pairFmt, err := h.FormatExchangeCurrency(pairs[i], assetType)
+			if err != nil {
+				return nil, err
+			}
+
+			if pairFmt.String() != tickers.Data[j].Symbol {
 				continue
 			}
-			tickerPrice := &ticker.Price{
-				High:   tickers.Data[j].High,
-				Low:    tickers.Data[j].Low,
-				Volume: tickers.Data[j].Volume,
-				Open:   tickers.Data[j].Open,
-				Close:  tickers.Data[j].Close,
-				Pair:   pairs[i],
-			}
-			err = ticker.ProcessTicker(h.Name, tickerPrice, assetType)
+
+			err = ticker.ProcessTicker(&ticker.Price{
+				High:         tickers.Data[j].High,
+				Low:          tickers.Data[j].Low,
+				Volume:       tickers.Data[j].Volume,
+				Open:         tickers.Data[j].Open,
+				Close:        tickers.Data[j].Close,
+				Pair:         pairs[i],
+				ExchangeName: h.Name,
+				AssetType:    assetType})
 			if err != nil {
-				log.Error(log.Ticker, err)
+				return nil, err
 			}
 		}
 	}
@@ -360,15 +383,19 @@ func (h *HUOBI) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (h *HUOBI) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
+	fpair, err := h.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
 	orderbookNew, err := h.GetDepth(OrderBookDataRequestParams{
-		Symbol: h.FormatExchangeCurrency(p, assetType).String(),
+		Symbol: fpair.String(),
 		Type:   OrderBookDataRequestParamsTypeStep0,
 	})
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
 
+	orderBook := new(orderbook.Base)
 	for x := range orderbookNew.Bids {
 		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
 			Amount: orderbookNew.Bids[x][1],
@@ -533,11 +560,16 @@ func (h *HUOBI) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
+	p, err := h.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	var formattedType SpotNewOrderRequestParamsType
 	var params = SpotNewOrderRequestParams{
 		Amount:    s.Amount,
 		Source:    "api",
-		Symbol:    h.FormatExchangeCurrency(s.Pair, s.AssetType).String(),
+		Symbol:    p.String(),
 		AccountID: int(accountID),
 	}
 
@@ -590,10 +622,18 @@ func (h *HUOBI) CancelOrder(order *order.Cancel) error {
 // CancelAllOrders cancels all orders associated with a currency pair
 func (h *HUOBI) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	var cancelAllOrdersResponse order.CancelAllResponse
-	enabledPairs := h.GetEnabledPairs(asset.Spot)
+	enabledPairs, err := h.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return cancelAllOrdersResponse, err
+	}
 	for i := range enabledPairs {
+		fpair, err := h.FormatExchangeCurrency(enabledPairs[i], asset.Spot)
+		if err != nil {
+			return cancelAllOrdersResponse, err
+		}
+
 		resp, err := h.CancelOpenOrdersBatch(orderCancellation.AccountID,
-			h.FormatExchangeCurrency(enabledPairs[i], asset.Spot).String())
+			fpair.String())
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
@@ -683,7 +723,6 @@ func (h *HUOBI) GetOrderInfo(orderID string) (order.Detail, error) {
 	if err != nil {
 		return orderDetail, err
 	}
-
 	orderDetail = order.Detail{
 		Exchange:       h.Name,
 		ID:             orderID,
@@ -730,11 +769,6 @@ func (h *HUOBI) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.
 // withdrawal is submitted
 func (h *HUOBI) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
-}
-
-// GetWebsocket returns a pointer to the exchange websocket
-func (h *HUOBI) GetWebsocket() (*wshandler.Websocket, error) {
-	return h.Websocket, nil
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
@@ -814,8 +848,13 @@ func (h *HUOBI) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 		}
 	} else {
 		for i := range req.Pairs {
+			p, err := h.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
+			if err != nil {
+				return nil, err
+			}
+
 			resp, err := h.GetOpenOrders(h.API.Credentials.ClientID,
-				h.FormatExchangeCurrency(req.Pairs[i], asset.Spot).String(),
+				p.String(),
 				side,
 				500)
 			if err != nil {
@@ -857,8 +896,13 @@ func (h *HUOBI) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 	states := "partial-canceled,filled,canceled"
 	var orders []order.Detail
 	for i := range req.Pairs {
+		p, err := h.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+
 		resp, err := h.GetOrders(
-			h.FormatExchangeCurrency(req.Pairs[i], asset.Spot).String(),
+			p.String(),
 			"",
 			"",
 			"",
@@ -911,25 +955,6 @@ func setOrderSideAndType(requestType string, orderDetail *order.Detail) {
 	}
 }
 
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (h *HUOBI) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	h.Websocket.SubscribeToChannels(channels)
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (h *HUOBI) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	h.Websocket.RemoveSubscribedChannels(channels)
-	return nil
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (h *HUOBI) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
-	return h.Websocket.GetSubscriptions(), nil
-}
-
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (h *HUOBI) AuthenticateWebsocket() error {
 	return h.wsLogin()
@@ -969,9 +994,14 @@ func (h *HUOBI) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end 
 		}
 	}
 
+	formattedPair, err := h.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
 	klineParams := KlinesRequestParams{
 		Period: h.FormatExchangeKlineInterval(interval),
-		Symbol: h.FormatExchangeCurrency(pair, a).String(),
+		Symbol: formattedPair.String(),
 	}
 
 	candles, err := h.GetSpotKline(klineParams)

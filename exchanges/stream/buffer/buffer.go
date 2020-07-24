@@ -1,4 +1,4 @@
-package wsorderbook
+package buffer
 
 import (
 	"errors"
@@ -11,21 +11,22 @@ import (
 )
 
 // Setup sets private variables
-func (w *WebsocketOrderbookLocal) Setup(obBufferLimit int, bufferEnabled, sortBuffer, sortBufferByUpdateIDs, updateEntriesByID bool, exchangeName string) {
+func (w *Orderbook) Setup(obBufferLimit int, bufferEnabled, sortBuffer, sortBufferByUpdateIDs, updateEntriesByID bool, exchangeName string, dataHandler chan interface{}) {
 	w.obBufferLimit = obBufferLimit
 	w.bufferEnabled = bufferEnabled
 	w.sortBuffer = sortBuffer
 	w.sortBufferByUpdateIDs = sortBufferByUpdateIDs
 	w.updateEntriesByID = updateEntriesByID
 	w.exchangeName = exchangeName
+	w.dataHandler = dataHandler
 }
 
-// Update updates a local cache using bid targets and ask targets then updates
+// Update updates a local buffer using bid targets and ask targets then updates
 // main orderbook
 // Volume == 0; deletion at price target
 // Price target not found; append of price target
 // Price target found; amend volume of price target
-func (w *WebsocketOrderbookLocal) Update(u *WebsocketOrderbookUpdate) error {
+func (w *Orderbook) Update(u *Update) error {
 	if (u.Bids == nil && u.Asks == nil) || (len(u.Bids) == 0 && len(u.Asks) == 0) {
 		return fmt.Errorf("%v cannot have bids and ask targets both nil",
 			w.exchangeName)
@@ -52,19 +53,23 @@ func (w *WebsocketOrderbookLocal) Update(u *WebsocketOrderbookUpdate) error {
 	if err != nil {
 		return err
 	}
+
 	if w.bufferEnabled {
 		// Reset the buffer
 		w.buffer[u.Pair][u.Asset] = nil
 	}
+
+	// Process in data handler
+	w.dataHandler <- obLookup
 	return nil
 }
 
-func (w *WebsocketOrderbookLocal) processBufferUpdate(o *orderbook.Base, u *WebsocketOrderbookUpdate) bool {
+func (w *Orderbook) processBufferUpdate(o *orderbook.Base, u *Update) bool {
 	if w.buffer == nil {
-		w.buffer = make(map[currency.Pair]map[asset.Item][]*WebsocketOrderbookUpdate)
+		w.buffer = make(map[currency.Pair]map[asset.Item][]*Update)
 	}
 	if w.buffer[u.Pair] == nil {
-		w.buffer[u.Pair] = make(map[asset.Item][]*WebsocketOrderbookUpdate)
+		w.buffer[u.Pair] = make(map[asset.Item][]*Update)
 	}
 	bufferLookup := w.buffer[u.Pair][u.Asset]
 	if len(bufferLookup) <= w.obBufferLimit {
@@ -93,7 +98,7 @@ func (w *WebsocketOrderbookLocal) processBufferUpdate(o *orderbook.Base, u *Webs
 	return true
 }
 
-func (w *WebsocketOrderbookLocal) processObUpdate(o *orderbook.Base, u *WebsocketOrderbookUpdate) {
+func (w *Orderbook) processObUpdate(o *orderbook.Base, u *Update) {
 	o.LastUpdateID = u.UpdateID
 
 	if w.updateEntriesByID {
@@ -104,7 +109,7 @@ func (w *WebsocketOrderbookLocal) processObUpdate(o *orderbook.Base, u *Websocke
 	}
 }
 
-func (w *WebsocketOrderbookLocal) updateAsksByPrice(o *orderbook.Base, u *WebsocketOrderbookUpdate) {
+func (w *Orderbook) updateAsksByPrice(o *orderbook.Base, u *Update) {
 updates:
 	for j := range u.Asks {
 		for k := range o.Asks {
@@ -127,7 +132,7 @@ updates:
 	})
 }
 
-func (w *WebsocketOrderbookLocal) updateBidsByPrice(o *orderbook.Base, u *WebsocketOrderbookUpdate) {
+func (w *Orderbook) updateBidsByPrice(o *orderbook.Base, u *Update) {
 updates:
 	for j := range u.Bids {
 		for k := range o.Bids {
@@ -152,7 +157,7 @@ updates:
 
 // updateByIDAndAction will receive an action to execute against the orderbook
 // it will then match by IDs instead of price to perform the action
-func (w *WebsocketOrderbookLocal) updateByIDAndAction(o *orderbook.Base, u *WebsocketOrderbookUpdate) {
+func (w *Orderbook) updateByIDAndAction(o *orderbook.Base, u *Update) {
 	switch u.Action {
 	case "update":
 		for x := range u.Bids {
@@ -227,7 +232,7 @@ func (w *WebsocketOrderbookLocal) updateByIDAndAction(o *orderbook.Base, u *Webs
 // LoadSnapshot loads initial snapshot of ob data, overwrite allows full
 // ob to be completely rewritten because the exchange is a doing a full
 // update not an incremental one
-func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base) error {
+func (w *Orderbook) LoadSnapshot(newOrderbook *orderbook.Base) error {
 	if len(newOrderbook.Asks) == 0 || len(newOrderbook.Bids) == 0 {
 		return fmt.Errorf("%v snapshot ask and bids are nil", w.exchangeName)
 	}
@@ -254,21 +259,27 @@ func (w *WebsocketOrderbookLocal) LoadSnapshot(newOrderbook *orderbook.Base) err
 	}
 
 	w.ob[newOrderbook.Pair][newOrderbook.AssetType] = newOrderbook
-	return newOrderbook.Process()
+	err := newOrderbook.Process()
+	if err != nil {
+		return err
+	}
+
+	w.dataHandler <- newOrderbook
+	return nil
 }
 
 // GetOrderbook use sparingly. Modifying anything here will ruin hash
 // calculation and cause problems
-func (w *WebsocketOrderbookLocal) GetOrderbook(p currency.Pair, a asset.Item) *orderbook.Base {
+func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) *orderbook.Base {
 	w.m.Lock()
 	ob := w.ob[p][a]
 	w.m.Unlock()
 	return ob
 }
 
-// FlushCache flushes w.ob data to be garbage collected and refreshed when a
+// FlushBuffer flushes w.ob data to be garbage collected and refreshed when a
 // connection is lost and reconnected
-func (w *WebsocketOrderbookLocal) FlushCache() {
+func (w *Orderbook) FlushBuffer() {
 	w.m.Lock()
 	w.ob = nil
 	w.buffer = nil
