@@ -560,7 +560,11 @@ func TestLoadFromDatabase(t *testing.T) {
 				}
 			}
 
-			ret, err := LoadFromDatabase(testExchanges[0].Name, currency.NewPairFromString("BTCUSDT"), OneDay, time.Now(), time.Now())
+			p, err := currency.NewPairFromString("BTCUSDT")
+			if err != nil {
+				t.Fatal(err)
+			}
+			ret, err := LoadFromDatabase(testExchanges[0].Name, p, OneDay, time.Now(), time.Now())
 			if err != nil {
 				t.Fatal(err)
 			}

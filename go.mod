@@ -30,8 +30,8 @@ require (
 	github.com/thrasher-corp/sqlboiler v1.0.1-0.20191001234224-71e17f37a85e
 	github.com/toorop/go-pusher v0.0.0-20180521062818-4521e2eb39fb
 	github.com/urfave/cli v1.22.4
-	github.com/volatiletech/inflect v0.0.1 // indirect
 	github.com/urfave/cli/v2 v2.2.0
+	github.com/volatiletech/inflect v0.0.1 // indirect
 	github.com/volatiletech/null v8.0.0+incompatible
 	github.com/volatiletech/sqlboiler v3.7.1+incompatible // indirect
 	golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4
@@ -41,7 +41,7 @@ require (
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
 	google.golang.org/grpc v1.30.0
-	google.golang.org/protobuf v1.25.0 // indirect
+	google.golang.org/protobuf v1.25.0
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/ini.v1 v1.57.0 // indirect
 )
