@@ -70,10 +70,15 @@ func (e Exchange) Pairs(exch string, enabledOnly bool, item asset.Item) (*curren
 		return nil, err
 	}
 
-	if enabledOnly {
-		return &x.CurrencyPairs.Get(item).Enabled, nil
+	ps, err := x.CurrencyPairs.Get(item)
+	if err != nil {
+		return nil, err
 	}
-	return &x.CurrencyPairs.Get(item).Available, nil
+
+	if enabledOnly {
+		return &ps.Enabled, nil
+	}
+	return &ps.Available, nil
 }
 
 // QueryOrder returns details of a valid exchange order

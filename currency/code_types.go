@@ -41,12 +41,11 @@ type Code struct {
 // Item defines a sub type containing the main attributes of a designated
 // currency code pointer
 type Item struct {
-	ID            int      `json:"id"`
-	FullName      string   `json:"fullName"`
-	Symbol        string   `json:"symbol"`
-	Role          Role     `json:"role"`
-	AssocChain    string   `json:"associatedBlockchain"`
-	AssocExchange []string `json:"associatedExchanges"`
+	ID         int    `json:"id,omitempty"`
+	FullName   string `json:"fullName,omitempty"`
+	Symbol     string `json:"symbol"`
+	Role       Role   `json:"-"`
+	AssocChain string `json:"associatedBlockchain,omitempty"`
 }
 
 // Const declarations for individual currencies/tokens/fiat

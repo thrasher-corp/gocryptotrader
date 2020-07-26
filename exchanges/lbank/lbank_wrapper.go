@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -55,18 +54,11 @@ func (l *Lbank) SetDefaults() {
 	l.API.CredentialsValidator.RequiresKey = true
 	l.API.CredentialsValidator.RequiresSecret = true
 
-	l.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
-
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Delimiter: "_",
-		},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: "_",
-		},
+	requestFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter}
+	configFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter}
+	err := l.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
 
 	l.Features = exchange.Features{
@@ -184,33 +176,40 @@ func (l *Lbank) UpdateTradablePairs(forceUpdate bool) error {
 		return err
 	}
 
-	return l.UpdatePairs(currency.NewPairsFromStrings(pairs), asset.Spot, false, forceUpdate)
+	p, err := currency.NewPairsFromStrings(pairs)
+	if err != nil {
+		return err
+	}
+	return l.UpdatePairs(p, asset.Spot, false, forceUpdate)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (l *Lbank) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
 	tickerInfo, err := l.GetTickers()
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
-	pairs := l.GetEnabledPairs(assetType)
+	pairs, err := l.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
 	for i := range pairs {
 		for j := range tickerInfo {
 			if !pairs[i].Equal(tickerInfo[j].Symbol) {
 				continue
 			}
-			tickerPrice = &ticker.Price{
-				Last:        tickerInfo[j].Ticker.Latest,
-				High:        tickerInfo[j].Ticker.High,
-				Low:         tickerInfo[j].Ticker.Low,
-				Volume:      tickerInfo[j].Ticker.Volume,
-				Pair:        tickerInfo[j].Symbol,
-				LastUpdated: time.Unix(0, tickerInfo[j].Timestamp),
-			}
-			err = ticker.ProcessTicker(l.Name, tickerPrice, assetType)
+
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         tickerInfo[j].Ticker.Latest,
+				High:         tickerInfo[j].Ticker.High,
+				Low:          tickerInfo[j].Ticker.Low,
+				Volume:       tickerInfo[j].Ticker.Volume,
+				Pair:         tickerInfo[j].Symbol,
+				LastUpdated:  time.Unix(0, tickerInfo[j].Timestamp),
+				ExchangeName: l.Name,
+				AssetType:    assetType})
 			if err != nil {
-				log.Error(log.Ticker, err)
+				return nil, err
 			}
 		}
 	}
@@ -219,8 +218,12 @@ func (l *Lbank) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Pri
 
 // FetchTicker returns the ticker for a currency pair
 func (l *Lbank) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(l.Name,
-		l.FormatExchangeCurrency(p, assetType), assetType)
+	fpair, err := l.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	tickerNew, err := ticker.GetTicker(l.Name, fpair, assetType)
 	if err != nil {
 		return l.UpdateTicker(p, assetType)
 	}
@@ -239,7 +242,11 @@ func (l *Lbank) FetchOrderbook(currency currency.Pair, assetType asset.Item) (*o
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (l *Lbank) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
-	a, err := l.GetMarketDepths(l.FormatExchangeCurrency(p, assetType).String(), "60", "1")
+	fpair, err := l.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	a, err := l.GetMarketDepths(fpair.String(), "60", "1")
 	if err != nil {
 		return orderBook, err
 	}
@@ -336,8 +343,14 @@ func (l *Lbank) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 			fmt.Errorf("%s order side is not supported by the exchange",
 				s.Side)
 	}
+
+	fpair, err := l.FormatExchangeCurrency(s.Pair, asset.Spot)
+	if err != nil {
+		return resp, err
+	}
+
 	tempResp, err := l.CreateOrder(
-		l.FormatExchangeCurrency(s.Pair, asset.Spot).String(),
+		fpair.String(),
 		s.Side.String(),
 		s.Amount,
 		s.Price)
@@ -360,8 +373,11 @@ func (l *Lbank) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (l *Lbank) CancelOrder(order *order.Cancel) error {
-	_, err := l.RemoveOrder(l.FormatExchangeCurrency(order.Pair,
-		order.AssetType).String(), order.ID)
+	fpair, err := l.FormatExchangeCurrency(order.Pair, order.AssetType)
+	if err != nil {
+		return err
+	}
+	_, err = l.RemoveOrder(fpair.String(), order.ID)
 	return err
 }
 
@@ -440,7 +456,11 @@ func (l *Lbank) GetOrderInfo(orderID string) (order.Detail, error) {
 				return resp, err
 			}
 			resp.Exchange = l.Name
-			resp.Pair = currency.NewPairFromString(key)
+			resp.Pair, err = currency.NewPairFromString(key)
+			if err != nil {
+				return order.Detail{}, err
+			}
+
 			if strings.EqualFold(tempResp.Orders[0].Type, order.Buy.String()) {
 				resp.Side = order.Buy
 			} else {
@@ -508,11 +528,6 @@ func (l *Lbank) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.R
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (l *Lbank) GetWebsocket() (*wshandler.Websocket, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (l *Lbank) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	var finalResp []order.Detail
@@ -529,7 +544,11 @@ func (l *Lbank) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]ord
 				return finalResp, err
 			}
 			resp.Exchange = l.Name
-			resp.Pair = currency.NewPairFromString(key)
+			resp.Pair, err = currency.NewPairFromString(key)
+			if err != nil {
+				return nil, err
+			}
+
 			if strings.EqualFold(tempResp.Orders[0].Type, order.Buy.String()) {
 				resp.Side = order.Buy
 			} else {
@@ -587,25 +606,37 @@ func (l *Lbank) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]ord
 	var resp order.Detail
 	var tempCurr currency.Pairs
 	if len(getOrdersRequest.Pairs) == 0 {
-		tempCurr = l.GetEnabledPairs(asset.Spot)
+		var err error
+		tempCurr, err = l.GetEnabledPairs(asset.Spot)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		tempCurr = getOrdersRequest.Pairs
 	}
 	for a := range tempCurr {
-		p := l.FormatExchangeCurrency(tempCurr[a], asset.Spot).String()
+		fpair, err := l.FormatExchangeCurrency(tempCurr[a], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+
 		b := int64(1)
-		tempResp, err := l.QueryOrderHistory(p, strconv.FormatInt(b, 10), "200")
+		tempResp, err := l.QueryOrderHistory(fpair.String(), strconv.FormatInt(b, 10), "200")
 		if err != nil {
 			return finalResp, err
 		}
 		for len(tempResp.Orders) != 0 {
-			tempResp, err = l.QueryOrderHistory(p, strconv.FormatInt(b, 10), "200")
+			tempResp, err = l.QueryOrderHistory(fpair.String(), strconv.FormatInt(b, 10), "200")
 			if err != nil {
 				return finalResp, err
 			}
 			for x := 0; x < len(tempResp.Orders); x++ {
 				resp.Exchange = l.Name
-				resp.Pair = currency.NewPairFromString(tempResp.Orders[x].Symbol)
+				resp.Pair, err = currency.NewPairFromString(tempResp.Orders[x].Symbol)
+				if err != nil {
+					return nil, err
+				}
+
 				if strings.EqualFold(tempResp.Orders[x].Type, order.Buy.String()) {
 					resp.Side = order.Buy
 				} else {
@@ -674,18 +705,28 @@ func (l *Lbank) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 
 // GetAllOpenOrderID returns all open orders by currency pairs
 func (l *Lbank) getAllOpenOrderID() (map[string][]string, error) {
-	allPairs := l.GetEnabledPairs(asset.Spot)
+	allPairs, err := l.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
 	resp := make(map[string][]string)
 	for a := range allPairs {
-		p := l.FormatExchangeCurrency(allPairs[a], asset.Spot).String()
+		fpair, err := l.FormatExchangeCurrency(allPairs[a], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
 		b := int64(1)
-		tempResp, err := l.GetOpenOrders(p, strconv.FormatInt(b, 10), "200")
+		tempResp, err := l.GetOpenOrders(fpair.String(),
+			strconv.FormatInt(b, 10),
+			"200")
 		if err != nil {
 			return resp, err
 		}
 		tempData := len(tempResp.Orders)
 		for tempData != 0 {
-			tempResp, err = l.GetOpenOrders(p, strconv.FormatInt(b, 10), "200")
+			tempResp, err = l.GetOpenOrders(fpair.String(),
+				strconv.FormatInt(b, 10),
+				"200")
 			if err != nil {
 				return resp, err
 			}
@@ -695,35 +736,14 @@ func (l *Lbank) getAllOpenOrderID() (map[string][]string, error) {
 			}
 
 			for c := 0; c < tempData; c++ {
-				resp[p] = append(resp[p], tempResp.Orders[c].OrderID)
+				resp[fpair.String()] = append(resp[fpair.String()],
+					tempResp.Orders[c].OrderID)
 			}
 			tempData = len(tempResp.Orders)
 			b++
 		}
 	}
 	return resp, nil
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (l *Lbank) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	return common.ErrNotYetImplemented
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (l *Lbank) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	return common.ErrNotYetImplemented
-}
-
-// AuthenticateWebsocket authenticates it
-func (l *Lbank) AuthenticateWebsocket() error {
-	return common.ErrNotYetImplemented
-}
-
-// GetSubscriptions gets subscriptions
-func (l *Lbank) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
-	return nil, common.ErrNotYetImplemented
 }
 
 // ValidateCredentials validates current credentials used for wrapper
@@ -758,7 +778,12 @@ func (l *Lbank) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end 
 		}
 	}
 
-	data, err := l.GetKlines(l.FormatExchangeCurrency(pair, a).String(),
+	formattedPair, err := l.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	data, err := l.GetKlines(formattedPair.String(),
 		strconv.FormatInt(int64(l.Features.Enabled.Kline.ResultLimit), 10),
 		l.FormatExchangeKlineInterval(interval),
 		strconv.FormatInt(start.Unix(), 10))
@@ -803,8 +828,13 @@ func (l *Lbank) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, sta
 	}
 
 	dates := kline.CalcDateRanges(start, end, interval, l.Features.Enabled.Kline.ResultLimit)
+	formattedPair, err := l.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
 	for x := range dates {
-		data, err := l.GetKlines(l.FormatExchangeCurrency(pair, a).String(),
+		data, err := l.GetKlines(formattedPair.String(),
 			strconv.FormatInt(int64(l.Features.Enabled.Kline.ResultLimit), 10),
 			l.FormatExchangeKlineInterval(interval),
 			strconv.FormatInt(dates[x].Start.UTC().Unix(), 10))

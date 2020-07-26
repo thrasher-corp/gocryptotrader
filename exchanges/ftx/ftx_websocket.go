@@ -11,15 +11,16 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -43,31 +44,35 @@ var obSuccess = make(map[currency.Pair]bool)
 // WsConnect connects to a websocket feed
 func (f *FTX) WsConnect() error {
 	if !f.Websocket.IsEnabled() || !f.IsEnabled() {
-		return errors.New(wshandler.WebsocketNotEnabled)
+		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
-	err := f.WebsocketConn.Dial(&dialer, http.Header{})
+	err := f.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
-	f.WebsocketConn.SetupPingHandler(wshandler.WebsocketPingHandler{
+	f.Websocket.Conn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.PingMessage,
 		Delay:       ftxWebsocketTimer,
 	})
 	if f.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", f.Name)
 	}
-	f.GenerateDefaultSubscriptions()
+
 	go f.wsReadData()
 	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		err := f.WsAuth()
+		err = f.WsAuth()
 		if err != nil {
 			f.Websocket.DataHandler <- err
 			f.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
-		f.GenerateAuthSubscriptions()
 	}
-	return nil
+
+	subs, err := f.GenerateDefaultSubscriptions()
+	if err != nil {
+		return err
+	}
+	return f.Websocket.SubscribeToChannels(subs)
 }
 
 // WsAuth sends an authentication message to receive auth data
@@ -87,81 +92,138 @@ func (f *FTX) WsAuth() error {
 			Time: intNonce,
 		},
 	}
-	return f.WebsocketConn.SendJSONMessage(req)
+	return f.Websocket.Conn.SendJSONMessage(req)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (f *FTX) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
-	var sub WsSub
-	switch channelToSubscribe.Channel {
-	case wsFills, wsOrders, wsMarkets:
+func (f *FTX) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+	var errs common.Errors
+channels:
+	for i := range channelsToSubscribe {
+		var sub WsSub
+		sub.Channel = channelsToSubscribe[i].Channel
 		sub.Operation = subscribe
-		sub.Channel = channelToSubscribe.Channel
-	default:
-		a, err := f.GetPairAssetType(channelToSubscribe.Currency)
-		if err != nil {
-			return err
+
+		switch channelsToSubscribe[i].Channel {
+		case wsFills, wsOrders, wsMarkets:
+		default:
+			a, err := f.GetPairAssetType(channelsToSubscribe[i].Currency)
+			if err != nil {
+				errs = append(errs, err)
+				continue channels
+			}
+
+			formattedPair, err := f.FormatExchangeCurrency(channelsToSubscribe[i].Currency, a)
+			if err != nil {
+				errs = append(errs, err)
+				continue channels
+			}
+			sub.Market = formattedPair.String()
 		}
-		sub.Operation = subscribe
-		sub.Channel = channelToSubscribe.Channel
-		sub.Market = f.FormatExchangeCurrency(channelToSubscribe.Currency, a).String()
+		err := f.Websocket.Conn.SendJSONMessage(sub)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		f.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
-	return f.WebsocketConn.SendJSONMessage(sub)
+	if errs != nil {
+		return errs
+	}
+	return nil
+}
+
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (f *FTX) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+	var errs common.Errors
+channels:
+	for i := range channelsToUnsubscribe {
+		var unSub WsSub
+		unSub.Operation = unsubscribe
+		unSub.Channel = channelsToUnsubscribe[i].Channel
+		switch channelsToUnsubscribe[i].Channel {
+		case wsFills, wsOrders, wsMarkets:
+		default:
+			a, err := f.GetPairAssetType(channelsToUnsubscribe[i].Currency)
+			if err != nil {
+				errs = append(errs, err)
+				continue channels
+			}
+
+			formattedPair, err := f.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, a)
+			if err != nil {
+				errs = append(errs, err)
+				continue channels
+			}
+			unSub.Market = formattedPair.String()
+		}
+		err := f.Websocket.Conn.SendJSONMessage(unSub)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		f.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+	}
+	if errs != nil {
+		return errs
+	}
+	return nil
 }
 
 // GenerateDefaultSubscriptions generates default subscription
-func (f *FTX) GenerateDefaultSubscriptions() {
-	var subscriptions []wshandler.WebsocketChannelSubscription
-	subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
+func (f *FTX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+	var subscriptions []stream.ChannelSubscription
+	subscriptions = append(subscriptions, stream.ChannelSubscription{
 		Channel: wsMarkets,
 	})
 	var channels = []string{wsTicker, wsTrades, wsOrderbook}
-	for a := range f.CurrencyPairs.AssetTypes {
-		pairs := f.GetEnabledPairs(f.CurrencyPairs.AssetTypes[a])
+	assets := f.GetAssetTypes()
+	for a := range assets {
+		pairs, err := f.GetEnabledPairs(assets[a])
+		if err != nil {
+			return nil, err
+		}
 		for z := range pairs {
-			newPair := currency.NewPairWithDelimiter(pairs[z].Base.String(), pairs[z].Quote.String(), "-")
+			newPair := currency.NewPairWithDelimiter(pairs[z].Base.String(),
+				pairs[z].Quote.String(),
+				"-")
 			for x := range channels {
-				subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
-					Channel:  channels[x],
-					Currency: newPair,
-				})
+				subscriptions = append(subscriptions,
+					stream.ChannelSubscription{
+						Channel:  channels[x],
+						Currency: newPair,
+						Asset:    assets[a],
+					})
 			}
 		}
 	}
-	f.Websocket.SubscribeToChannels(subscriptions)
-}
-
-// GenerateAuthSubscriptions generates default subscription
-func (f *FTX) GenerateAuthSubscriptions() {
-	var subscriptions []wshandler.WebsocketChannelSubscription
-	var channels = []string{wsOrders, wsFills}
-	for x := range channels {
-		subscriptions = append(subscriptions, wshandler.WebsocketChannelSubscription{
-			Channel: channels[x],
-		})
+	if f.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
+		var authchan = []string{wsOrders, wsFills}
+		for x := range authchan {
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
+				Channel: authchan[x],
+			})
+		}
 	}
-	f.Websocket.SubscribeToChannels(subscriptions)
+	return subscriptions, nil
 }
 
 // wsReadData gets and passes on websocket messages for processing
 func (f *FTX) wsReadData() {
 	f.Websocket.Wg.Add(1)
-
 	defer f.Websocket.Wg.Done()
 
 	for {
 		select {
 		case <-f.Websocket.ShutdownC:
 			return
-
 		default:
-			resp, err := f.WebsocketConn.ReadMessage()
-			if err != nil {
-				f.Websocket.ReadMessageErrors <- err
+			resp := f.Websocket.Conn.ReadMessage()
+			if resp.Raw == nil {
 				return
 			}
-			f.Websocket.TrafficAlert <- struct{}{}
-			err = f.wsHandleData(resp.Raw)
+
+			err := f.wsHandleData(resp.Raw)
 			if err != nil {
 				f.Websocket.DataHandler <- err
 			}
@@ -187,7 +249,10 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 		var a asset.Item
 		market, ok := result["market"]
 		if ok {
-			p = currency.NewPairFromString(market.(string))
+			p, err = currency.NewPairFromString(market.(string))
+			if err != nil {
+				return err
+			}
 			a, err = f.GetPairAssetType(p)
 			if err != nil {
 				return err
@@ -220,7 +285,10 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			}
 			err = f.WsProcessUpdateOB(&resultData.OBData, p, a)
 			if err != nil {
-				f.wsResubToOB(p)
+				err2 := f.wsResubToOB(p)
+				if err2 != nil {
+					f.Websocket.DataHandler <- err2
+				}
 				return err
 			}
 		case wsTrades:
@@ -238,7 +306,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 						Err:      err,
 					}
 				}
-				f.Websocket.DataHandler <- wshandler.TradeData{
+				f.Websocket.DataHandler <- stream.TradeData{
 					Timestamp:    resultData.TradeData[z].Time,
 					CurrencyPair: p,
 					AssetType:    a,
@@ -254,7 +322,11 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			pair := currency.NewPairFromString(resultData.OrderData.Market)
+			var pair currency.Pair
+			pair, err = currency.NewPairFromString(resultData.OrderData.Market)
+			if err != nil {
+				return err
+			}
 			var assetType asset.Item
 			assetType, err = f.GetPairAssetType(pair)
 			if err != nil {
@@ -301,7 +373,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			}
 			f.Websocket.DataHandler <- resultData.FillsData
 		default:
-			f.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: f.Name + wshandler.UnhandledMessage + string(respRaw)}
+			f.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: f.Name + stream.UnhandledMessage + string(respRaw)}
 		}
 	case wsPartial:
 		switch result["channel"] {
@@ -310,7 +382,10 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			var a asset.Item
 			market, ok := result["market"]
 			if ok {
-				p = currency.NewPairFromString(market.(string))
+				p, err = currency.NewPairFromString(market.(string))
+				if err != nil {
+					return err
+				}
 				a, err = f.GetPairAssetType(p)
 				if err != nil {
 					return err
@@ -323,7 +398,10 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			}
 			err = f.WsProcessPartialOB(&resultData.OBData, p, a)
 			if err != nil {
-				f.wsResubToOB(p)
+				err2 := f.wsResubToOB(p)
+				if err2 != nil {
+					f.Websocket.DataHandler <- err2
+				}
 				return err
 			}
 			// reset obchecksum failure blockage for pair
@@ -337,27 +415,16 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			f.Websocket.DataHandler <- resultData.Data
 		}
 	case "error":
-		f.Websocket.DataHandler <- wshandler.UnhandledMessageWarning{Message: f.Name + wshandler.UnhandledMessage + string(respRaw)}
+		f.Websocket.DataHandler <- stream.UnhandledMessageWarning{
+			Message: f.Name + stream.UnhandledMessage + string(respRaw),
+		}
 	}
 	return nil
 }
 
-// Unsubscribe sends a websocket message to stop receiving data from the channel
-func (f *FTX) Unsubscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
-	var unSub WsSub
-	a, err := f.GetPairAssetType(channelToSubscribe.Currency)
-	if err != nil {
-		return err
-	}
-	unSub.Operation = unsubscribe
-	unSub.Channel = channelToSubscribe.Channel
-	unSub.Market = f.FormatExchangeCurrency(channelToSubscribe.Currency, a).String()
-	return f.WebsocketConn.SendJSONMessage(unSub)
-}
-
 // WsProcessUpdateOB processes an update on the orderbook
 func (f *FTX) WsProcessUpdateOB(data *WsOrderbookData, p currency.Pair, a asset.Item) error {
-	update := wsorderbook.WebsocketOrderbookUpdate{
+	update := buffer.Update{
 		Asset:      a,
 		Pair:       p,
 		UpdateTime: timestampFromFloat64(data.Time),
@@ -391,27 +458,25 @@ func (f *FTX) WsProcessUpdateOB(data *WsOrderbookData, p currency.Pair, a asset.
 			p)
 		return errors.New("checksum failed")
 	}
-	f.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Exchange: f.Name,
-		Asset:    a,
-		Pair:     p,
-	}
-
 	return nil
 }
 
-func (f *FTX) wsResubToOB(p currency.Pair) {
+func (f *FTX) wsResubToOB(p currency.Pair) error {
 	if ok := obSuccess[p]; ok {
-		return
+		return nil
 	}
 
 	obSuccess[p] = true
 
-	channelToResubscribe := wshandler.WebsocketChannelSubscription{
+	channelToResubscribe := &stream.ChannelSubscription{
 		Channel:  wsOrderbook,
 		Currency: p,
 	}
-	f.Websocket.ResubscribeToChannel(channelToResubscribe)
+	err := f.Websocket.ResubscribeToChannel(channelToResubscribe)
+	if err != nil {
+		return fmt.Errorf("%s resubscribe to orderbook failure %s", f.Name, err)
+	}
+	return nil
 }
 
 // WsProcessPartialOB creates an OB from websocket data
@@ -445,17 +510,7 @@ func (f *FTX) WsProcessPartialOB(data *WsOrderbookData, p currency.Pair, a asset
 		Pair:         p,
 		ExchangeName: f.Name,
 	}
-
-	if err := f.Websocket.Orderbook.LoadSnapshot(&newOrderBook); err != nil {
-		return err
-	}
-
-	f.Websocket.DataHandler <- wshandler.WebsocketOrderbookUpdate{
-		Exchange: f.Name,
-		Asset:    a,
-		Pair:     p,
-	}
-	return nil
+	return f.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 
 // CalcPartialOBChecksum calculates checksum of partial OB data received from WS

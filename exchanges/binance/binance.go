@@ -17,9 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -63,7 +61,6 @@ const (
 // Binance is the overarching type across the Bithumb package
 type Binance struct {
 	exchange.Base
-	WebsocketConn *wshandler.WebsocketConnection
 
 	// Valid string list that is required by the exchange
 	validLimits []int
@@ -567,17 +564,6 @@ func (b *Binance) CheckLimit(limit int) error {
 		}
 	}
 	return errors.New("incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000")
-}
-
-// CheckSymbol checks value against a variable list
-func (b *Binance) CheckSymbol(symbol string, assetType asset.Item) error {
-	enPairs := b.GetAvailablePairs(assetType)
-	for x := range enPairs {
-		if b.FormatExchangeCurrency(enPairs[x], assetType).String() == symbol {
-			return nil
-		}
-	}
-	return errors.New("incorrect symbol values - please check available pairs in configuration")
 }
 
 // SetValues sets the default valid values

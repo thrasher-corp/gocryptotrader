@@ -125,7 +125,7 @@ func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 
 	err = b.Process()
 	if err != nil {
-		t.Error("", err)
+		t.Error(err)
 	}
 
 	_, err = SubscribeToExchangeOrderbooks("SubscribeToExchangeOrderbooks")
@@ -158,7 +158,10 @@ func TestVerify(t *testing.T) {
 
 func TestCalculateTotalBids(t *testing.T) {
 	t.Parallel()
-	curr := currency.NewPairFromStrings("BTC", "USD")
+	curr, err := currency.NewPairFromStrings("BTC", "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	base := Base{
 		Pair:        curr,
 		Bids:        []Item{{Price: 100, Amount: 10}},
@@ -173,7 +176,10 @@ func TestCalculateTotalBids(t *testing.T) {
 
 func TestCalculateTotaAsks(t *testing.T) {
 	t.Parallel()
-	curr := currency.NewPairFromStrings("BTC", "USD")
+	curr, err := currency.NewPairFromStrings("BTC", "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	base := Base{
 		Pair: curr,
 		Asks: []Item{{Price: 100, Amount: 10}},
@@ -187,7 +193,10 @@ func TestCalculateTotaAsks(t *testing.T) {
 
 func TestUpdate(t *testing.T) {
 	t.Parallel()
-	curr := currency.NewPairFromStrings("BTC", "USD")
+	curr, err := currency.NewPairFromStrings("BTC", "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	timeNow := time.Now()
 	base := Base{
 		Pair:        curr,
@@ -217,7 +226,10 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestGetOrderbook(t *testing.T) {
-	c := currency.NewPairFromStrings("BTC", "USD")
+	c, err := currency.NewPairFromStrings("BTC", "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	base := &Base{
 		Pair:         c,
 		Asks:         []Item{{Price: 100, Amount: 10}},
@@ -226,7 +238,7 @@ func TestGetOrderbook(t *testing.T) {
 		AssetType:    asset.Spot,
 	}
 
-	err := base.Process()
+	err = base.Process()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,7 +263,10 @@ func TestGetOrderbook(t *testing.T) {
 		t.Fatal("TestGetOrderbook retrieved non-existent orderbook using invalid first currency")
 	}
 
-	newCurrency := currency.NewPairFromStrings("BTC", "AUD")
+	newCurrency, err := currency.NewPairFromStrings("BTC", "AUD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = Get("Exchange", newCurrency, asset.Spot)
 	if err == nil {
 		t.Fatal("TestGetOrderbook retrieved non-existent orderbook using invalid second currency")
@@ -270,7 +285,10 @@ func TestGetOrderbook(t *testing.T) {
 }
 
 func TestCreateNewOrderbook(t *testing.T) {
-	c := currency.NewPairFromStrings("BTC", "USD")
+	c, err := currency.NewPairFromStrings("BTC", "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	base := &Base{
 		Pair:         c,
 		Asks:         []Item{{Price: 100, Amount: 10}},
@@ -279,7 +297,7 @@ func TestCreateNewOrderbook(t *testing.T) {
 		AssetType:    asset.Spot,
 	}
 
-	err := base.Process()
+	err = base.Process()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -305,7 +323,10 @@ func TestCreateNewOrderbook(t *testing.T) {
 }
 
 func TestProcessOrderbook(t *testing.T) {
-	c := currency.NewPairFromStrings("BTC", "USD")
+	c, err := currency.NewPairFromStrings("BTC", "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
 	base := Base{
 		Asks:         []Item{{Price: 100, Amount: 10}},
 		Bids:         []Item{{Price: 200, Amount: 10}},
@@ -314,7 +335,7 @@ func TestProcessOrderbook(t *testing.T) {
 
 	// test for empty pair
 	base.Pair = currency.Pair{}
-	err := base.Process()
+	err = base.Process()
 	if err == nil {
 		t.Error("empty pair should throw an err")
 	}
@@ -341,7 +362,10 @@ func TestProcessOrderbook(t *testing.T) {
 	}
 
 	// now test for processing a pair with a different quote currency
-	c = currency.NewPairFromStrings("BTC", "GBP")
+	c, err = currency.NewPairFromStrings("BTC", "GBP")
+	if err != nil {
+		t.Fatal(err)
+	}
 	base.Pair = c
 	err = base.Process()
 	if err != nil {
@@ -356,7 +380,10 @@ func TestProcessOrderbook(t *testing.T) {
 	}
 
 	// now test for processing a pair which has a different base currency
-	c = currency.NewPairFromStrings("LTC", "GBP")
+	c, err = currency.NewPairFromStrings("LTC", "GBP")
+	if err != nil {
+		t.Fatal(err)
+	}
 	base.Pair = c
 	err = base.Process()
 	if err != nil {
@@ -491,14 +518,14 @@ func TestProcessOrderbook(t *testing.T) {
 }
 
 func TestSetNewData(t *testing.T) {
-	err := service.SetNewData(nil)
+	err := service.SetNewData(nil, "")
 	if err == nil {
 		t.Error("error cannot be nil")
 	}
 }
 
 func TestGetAssociations(t *testing.T) {
-	_, err := service.GetAssociations(nil)
+	_, err := service.GetAssociations(nil, "")
 	if err == nil {
 		t.Error("error cannot be nil")
 	}

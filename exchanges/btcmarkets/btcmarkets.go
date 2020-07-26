@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 const (
@@ -72,13 +71,12 @@ const (
 	heartbeat     = "heartbeat"
 	tick          = "tick"
 	wsOB          = "orderbookUpdate"
-	tradeEndPoint = "tradeEndPoint"
+	tradeEndPoint = "trade"
 )
 
 // BTCMarkets is the overarching type across the BTCMarkets package
 type BTCMarkets struct {
 	exchange.Base
-	WebsocketConn *wshandler.WebsocketConnection
 }
 
 // GetMarkets returns the BTCMarkets instruments
@@ -191,7 +189,7 @@ func (b *BTCMarkets) GetMarketCandles(marketID, timeWindow string, from, to time
 }
 
 // GetTickers gets multiple tickers
-func (b *BTCMarkets) GetTickers(marketIDs []currency.Pair) ([]Ticker, error) {
+func (b *BTCMarkets) GetTickers(marketIDs currency.Pairs) ([]Ticker, error) {
 	var tickers []Ticker
 	params := url.Values{}
 	for x := range marketIDs {
@@ -761,7 +759,11 @@ func (b *BTCMarkets) GetFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 			return fee, err
 		}
 		for x := range temp.FeeByMarkets {
-			if currency.NewPairFromString(temp.FeeByMarkets[x].MarketID) == feeBuilder.Pair {
+			p, err := currency.NewPairFromString(temp.FeeByMarkets[x].MarketID)
+			if err != nil {
+				return 0, err
+			}
+			if p == feeBuilder.Pair {
 				fee = temp.FeeByMarkets[x].MakerFeeRate
 				if !feeBuilder.IsMaker {
 					fee = temp.FeeByMarkets[x].TakerFeeRate

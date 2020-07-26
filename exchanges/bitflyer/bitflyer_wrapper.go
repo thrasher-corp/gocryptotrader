@@ -17,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -53,20 +52,20 @@ func (b *Bitflyer) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
-	b.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-			asset.Futures,
-		},
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Delimiter: "_",
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: "_",
-			Uppercase: true,
-		},
+	requestFmt := &currency.PairFormat{
+		Delimiter: currency.UnderscoreDelimiter,
+		Uppercase: true,
+	}
+	configFmt := &currency.PairFormat{
+		Delimiter: currency.UnderscoreDelimiter,
+		Uppercase: true,
+	}
+	err := b.SetGlobalPairsManager(requestFmt,
+		configFmt,
+		asset.Spot,
+		asset.Futures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
 
 	b.Features = exchange.Features{
@@ -105,7 +104,6 @@ func (b *Bitflyer) Setup(exch *config.ExchangeConfig) error {
 		b.SetEnabled(false)
 		return nil
 	}
-
 	return b.SetupDefaults(exch)
 }
 
@@ -141,6 +139,11 @@ func (b *Bitflyer) FetchTradablePairs(assetType asset.Item) ([]string, error) {
 		return nil, err
 	}
 
+	format, err := b.GetPairFormat(assetType, false)
+	if err != nil {
+		return nil, err
+	}
+
 	var products []string
 	for i := range pairs {
 		if pairs[i].Alias != "" && assetType == asset.Futures {
@@ -148,7 +151,7 @@ func (b *Bitflyer) FetchTradablePairs(assetType asset.Item) ([]string, error) {
 		} else if pairs[i].Alias == "" &&
 			assetType == asset.Spot &&
 			strings.Contains(pairs[i].ProductCode,
-				b.GetPairFormat(assetType, false).Delimiter) {
+				format.Delimiter) {
 			products = append(products, pairs[i].ProductCode)
 		}
 	}
@@ -158,17 +161,19 @@ func (b *Bitflyer) FetchTradablePairs(assetType asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (b *Bitflyer) UpdateTradablePairs(forceUpdate bool) error {
-	for x := range b.CurrencyPairs.AssetTypes {
-		a := b.CurrencyPairs.AssetTypes[x]
-		pairs, err := b.FetchTradablePairs(a)
+	assets := b.CurrencyPairs.GetAssetTypes()
+	for x := range assets {
+		pairs, err := b.FetchTradablePairs(assets[x])
 		if err != nil {
 			return err
 		}
 
-		err = b.UpdatePairs(currency.NewPairsFromStrings(pairs),
-			a,
-			false,
-			forceUpdate)
+		p, err := currency.NewPairsFromStrings(pairs)
+		if err != nil {
+			return err
+		}
+
+		err = b.UpdatePairs(p, assets[x], false, forceUpdate)
 		if err != nil {
 			return err
 		}
@@ -178,23 +183,21 @@ func (b *Bitflyer) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitflyer) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerPrice := new(ticker.Price)
-
-	p = b.CheckFXString(p)
-
-	tickerNew, err := b.GetTicker(p.String())
+	tickerNew, err := b.GetTicker(b.CheckFXString(p).String())
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
-	tickerPrice.Pair = p
-	tickerPrice.Ask = tickerNew.BestAsk
-	tickerPrice.Bid = tickerNew.BestBid
-	tickerPrice.Last = tickerNew.Last
-	tickerPrice.Volume = tickerNew.Volume
-	err = ticker.ProcessTicker(b.Name, tickerPrice, assetType)
+	err = ticker.ProcessTicker(&ticker.Price{
+		Pair:         p,
+		Ask:          tickerNew.BestAsk,
+		Bid:          tickerNew.BestBid,
+		Last:         tickerNew.Last,
+		Volume:       tickerNew.Volume,
+		ExchangeName: b.Name,
+		AssetType:    assetType})
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
 
 	return ticker.GetTicker(b.Name, p, assetType)
@@ -231,9 +234,7 @@ func (b *Bitflyer) FetchOrderbook(p currency.Pair, assetType asset.Item) (*order
 func (b *Bitflyer) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
 
-	p = b.CheckFXString(p)
-
-	orderbookNew, err := b.GetOrderBook(p.String())
+	orderbookNew, err := b.GetOrderBook(b.CheckFXString(p).String())
 	if err != nil {
 		return orderBook, err
 	}
@@ -337,11 +338,6 @@ func (b *Bitflyer) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdra
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (b *Bitflyer) GetWebsocket() (*wshandler.Websocket, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
 // GetActiveOrders retrieves any orders that are active/open
 func (b *Bitflyer) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
 	return nil, common.ErrNotYetImplemented
@@ -360,28 +356,6 @@ func (b *Bitflyer) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
 	return b.GetFee(feeBuilder)
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (b *Bitflyer) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Bitflyer) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (b *Bitflyer) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
-	return nil, common.ErrFunctionNotSupported
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (b *Bitflyer) AuthenticateWebsocket() error {
-	return common.ErrFunctionNotSupported
 }
 
 // ValidateCredentials validates current credentials used for wrapper

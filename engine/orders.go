@@ -389,18 +389,45 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 func (o *orderManager) processOrders() {
 	authExchanges := GetAuthAPISupportedExchanges()
 	for x := range authExchanges {
-		log.Debugf(log.OrderMgr, "Order manager: Processing orders for exchange %v.", authExchanges[x])
+		log.Debugf(log.OrderMgr,
+			"Order manager: Processing orders for exchange %v.",
+			authExchanges[x])
+
 		exch := GetExchangeByName(authExchanges[x])
 		supportedAssets := exch.GetAssetTypes()
 		for y := range supportedAssets {
+			pairs, err := exch.GetEnabledPairs(supportedAssets[y])
+			if err != nil {
+				log.Errorf(log.OrderMgr,
+					"Order manager: Unable to get enabled pairs for %s and asset type %s: %s",
+					authExchanges[x],
+					supportedAssets[y],
+					err)
+				continue
+			}
+
+			if len(pairs) == 0 {
+				if Bot.Settings.Verbose {
+					log.Debugf(log.OrderMgr,
+						"Order manager: No pairs enabled for %s and asset type %s, skipping...",
+						authExchanges[x],
+						supportedAssets[y])
+				}
+				continue
+			}
+
 			req := order.GetOrdersRequest{
 				Side:  order.AnySide,
 				Type:  order.AnyType,
-				Pairs: exch.GetEnabledPairs(supportedAssets[y]),
+				Pairs: pairs,
 			}
 			result, err := exch.GetActiveOrders(&req)
 			if err != nil {
-				log.Warnf(log.OrderMgr, "Order manager: Unable to get active orders: %s", err)
+				log.Warnf(log.OrderMgr,
+					"Order manager: Unable to get active orders for %s and asset type %s: %s",
+					authExchanges[x],
+					supportedAssets[y],
+					err)
 				continue
 			}
 

@@ -18,8 +18,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -56,19 +56,21 @@ func (b *Binance) SetDefaults() {
 	b.API.CredentialsValidator.RequiresSecret = true
 	b.SetValues()
 
-	b.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-		},
-
-		UseGlobalFormat: true,
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
+	fmt1 := currency.PairStore{
+		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat: &currency.PairFormat{
-			Delimiter: "-",
+			Delimiter: currency.DashDelimiter,
 			Uppercase: true,
 		},
+	}
+
+	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = b.StoreAssetPairFormat(asset.Margin, fmt1)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
 	}
 
 	b.Features = exchange.Features{
@@ -145,7 +147,7 @@ func (b *Binance) SetDefaults() {
 
 	b.API.Endpoints.URLDefault = apiURL
 	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
-	b.Websocket = wshandler.New()
+	b.Websocket = stream.New()
 	b.API.Endpoints.WebsocketURL = binanceDefaultWebsocketURL
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -164,40 +166,31 @@ func (b *Binance) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = b.Websocket.Setup(
-		&wshandler.WebsocketSetup{
-			Enabled:                          exch.Features.Enabled.Websocket,
-			Verbose:                          exch.Verbose,
-			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-			DefaultURL:                       binanceDefaultWebsocketURL,
-			ExchangeName:                     exch.Name,
-			RunningURL:                       exch.API.Endpoints.WebsocketURL,
-			Connector:                        b.WsConnect,
-			Features:                         &b.Features.Supports.WebsocketCapabilities,
-		})
-
+	err = b.Websocket.Setup(&stream.WebsocketSetup{
+		Enabled:                          exch.Features.Enabled.Websocket,
+		Verbose:                          exch.Verbose,
+		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		DefaultURL:                       binanceDefaultWebsocketURL,
+		ExchangeName:                     exch.Name,
+		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		Connector:                        b.WsConnect,
+		Subscriber:                       b.Subscribe,
+		UnSubscriber:                     b.Unsubscribe,
+		GenerateSubscriptions:            b.GenerateSubscriptions,
+		Features:                         &b.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+		SortBuffer:                       true,
+		SortBufferByUpdateIDs:            true,
+	})
 	if err != nil {
 		return err
 	}
 
-	b.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         b.Name,
-		URL:                  b.Websocket.GetWebsocketURL(),
-		ProxyURL:             b.Websocket.GetProxyAddress(),
-		Verbose:              b.Verbose,
+	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	}
-
-	b.Websocket.Orderbook.Setup(
-		exch.WebsocketOrderbookBufferLimit,
-		false,
-		true,
-		true,
-		false,
-		exch.Name)
-	return nil
+	})
 }
 
 // Start starts the Binance go routine
@@ -221,30 +214,59 @@ func (b *Binance) Run() {
 	}
 
 	forceUpdate := false
-	delim := b.GetPairFormat(asset.Spot, false).Delimiter
-	if !common.StringDataContains(b.GetEnabledPairs(asset.Spot).Strings(), delim) ||
-		!common.StringDataContains(b.GetAvailablePairs(asset.Spot).Strings(), delim) {
-		enabledPairs := currency.NewPairsFromStrings(
-			[]string{currency.BTC.String() + delim + currency.USDT.String()},
-		)
-		log.Warn(log.ExchangeSys,
-			"Available pairs for Binance reset due to config upgrade, please enable the ones you would like to use again")
-		forceUpdate = true
+	format, err := b.GetPairFormat(asset.Spot, false)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
+			b.Name,
+			err)
+		return
+	}
+	pairs, err := b.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
+			b.Name,
+			err)
+		return
+	}
 
-		err := b.UpdatePairs(enabledPairs, asset.Spot, true, true)
+	avail, err := b.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s failed to get available currencies. Err %s\n",
+			b.Name,
+			err)
+		return
+	}
+
+	if !common.StringDataContains(pairs.Strings(), format.Delimiter) ||
+		!common.StringDataContains(avail.Strings(), format.Delimiter) {
+		var enabledPairs currency.Pairs
+		enabledPairs, err = currency.NewPairsFromStrings([]string{
+			currency.BTC.String() +
+				format.Delimiter +
+				currency.USDT.String()})
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update currencies. Err: %s\n",
+			log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err %s\n",
 				b.Name,
 				err)
+		} else {
+			log.Warn(log.ExchangeSys,
+				"Available pairs for Binance reset due to config upgrade, please enable the ones you would like to use again")
+			forceUpdate = true
+
+			err = b.UpdatePairs(enabledPairs, asset.Spot, true, true)
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"%s failed to update currencies. Err: %s\n",
+					b.Name,
+					err)
+			}
 		}
 	}
 
 	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
 		return
 	}
-
-	err := b.UpdateTradablePairs(forceUpdate)
+	err = b.UpdateTradablePairs(forceUpdate)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -254,36 +276,55 @@ func (b *Binance) Run() {
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (b *Binance) FetchTradablePairs(asset asset.Item) ([]string, error) {
-	var validCurrencyPairs []string
-
+func (b *Binance) FetchTradablePairs(a asset.Item) ([]string, error) {
 	info, err := b.GetExchangeInfo()
 	if err != nil {
 		return nil, err
 	}
 
+	format, err := b.GetPairFormat(a, false)
+	if err != nil {
+		return nil, err
+	}
+
+	var pairs []string
 	for x := range info.Symbols {
 		if info.Symbols[x].Status == "TRADING" {
-			validCurrencyPairs = append(validCurrencyPairs, info.Symbols[x].BaseAsset+
-				b.GetPairFormat(asset, false).Delimiter+
-				info.Symbols[x].QuoteAsset)
+			pair := info.Symbols[x].BaseAsset +
+				format.Delimiter +
+				info.Symbols[x].QuoteAsset
+			if a == asset.Spot && info.Symbols[x].IsSpotTradingAllowed {
+				pairs = append(pairs, pair)
+			}
+			if a == asset.Margin && info.Symbols[x].IsMarginTradingAllowed {
+				pairs = append(pairs, pair)
+			}
 		}
 	}
-	return validCurrencyPairs, nil
+	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (b *Binance) UpdateTradablePairs(forceUpdate bool) error {
-	pairs, err := b.FetchTradablePairs(asset.Spot)
-	if err != nil {
-		return err
-	}
+	assetTypes := b.GetAssetTypes()
+	for i := range assetTypes {
+		p, err := b.FetchTradablePairs(assetTypes[i])
+		if err != nil {
+			return err
+		}
 
-	return b.UpdatePairs(currency.NewPairsFromStrings(pairs),
-		asset.Spot,
-		false,
-		forceUpdate)
+		pairs, err := currency.NewPairsFromStrings(p)
+		if err != nil {
+			return err
+		}
+
+		err = b.UpdatePairs(pairs, assetTypes[i], false, forceUpdate)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -292,28 +333,39 @@ func (b *Binance) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.P
 	if err != nil {
 		return nil, err
 	}
-	pairs := b.GetEnabledPairs(assetType)
+
+	pairs, err := b.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
+
 	for i := range pairs {
 		for y := range tick {
-			pairFmt := b.FormatExchangeCurrency(pairs[i], assetType).String()
-			if tick[y].Symbol != pairFmt {
+			pairFmt, err := b.FormatExchangeCurrency(pairs[i], assetType)
+			if err != nil {
+				return nil, err
+			}
+
+			if tick[y].Symbol != pairFmt.String() {
 				continue
 			}
-			tickerPrice := &ticker.Price{
-				Last:        tick[y].LastPrice,
-				High:        tick[y].HighPrice,
-				Low:         tick[y].LowPrice,
-				Bid:         tick[y].BidPrice,
-				Ask:         tick[y].AskPrice,
-				Volume:      tick[y].Volume,
-				QuoteVolume: tick[y].QuoteVolume,
-				Open:        tick[y].OpenPrice,
-				Close:       tick[y].PrevClosePrice,
-				Pair:        pairs[i],
-			}
-			err = ticker.ProcessTicker(b.Name, tickerPrice, assetType)
+
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         tick[y].LastPrice,
+				High:         tick[y].HighPrice,
+				Low:          tick[y].LowPrice,
+				Bid:          tick[y].BidPrice,
+				Ask:          tick[y].AskPrice,
+				Volume:       tick[y].Volume,
+				QuoteVolume:  tick[y].QuoteVolume,
+				Open:         tick[y].OpenPrice,
+				Close:        tick[y].PrevClosePrice,
+				Pair:         pairs[i],
+				ExchangeName: b.Name,
+				AssetType:    assetType,
+			})
 			if err != nil {
-				log.Error(log.Ticker, err)
+				return nil, err
 			}
 		}
 	}
@@ -340,13 +392,19 @@ func (b *Binance) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderb
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Binance) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
-	orderbookNew, err := b.GetOrderBook(OrderBookDataRequestParams{Symbol: b.FormatExchangeCurrency(p,
-		assetType).String(), Limit: 1000})
+	fpair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return orderBook, err
+		return nil, err
 	}
 
+	orderbookNew, err := b.GetOrderBook(OrderBookDataRequestParams{
+		Symbol: fpair.String(),
+		Limit:  1000})
+	if err != nil {
+		return nil, err
+	}
+
+	orderBook := new(orderbook.Base)
 	for x := range orderbookNew.Bids {
 		orderBook.Bids = append(orderBook.Bids,
 			orderbook.Item{
@@ -499,8 +557,12 @@ func (b *Binance) CancelOrder(order *order.Cancel) error {
 		return err
 	}
 
-	_, err = b.CancelExistingOrder(b.FormatExchangeCurrency(order.Pair,
-		order.AssetType).String(),
+	fpair, err := b.FormatExchangeCurrency(order.Pair, order.AssetType)
+	if err != nil {
+		return err
+	}
+
+	_, err = b.CancelExistingOrder(fpair.String(),
 		orderIDInt,
 		order.AccountID)
 	return err
@@ -567,11 +629,6 @@ func (b *Binance) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetWebsocket returns a pointer to the exchange websocket
-func (b *Binance) GetWebsocket() (*wshandler.Websocket, error) {
-	return b.Websocket, nil
-}
-
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (b *Binance) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 	if (!b.AllowAuthenticatedRequest() || b.SkipAuthCheck) && // Todo check connection status
@@ -589,8 +646,13 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 
 	var orders []order.Detail
 	for x := range req.Pairs {
-		resp, err := b.OpenOrders(b.FormatExchangeCurrency(req.Pairs[x],
-			asset.Spot).String())
+		fpair, err := b.FormatExchangeCurrency(req.Pairs[x],
+			asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+
+		resp, err := b.OpenOrders(fpair.String())
 		if err != nil {
 			return nil, err
 		}
@@ -599,6 +661,11 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 			orderSide := order.Side(strings.ToUpper(resp[i].Side))
 			orderType := order.Type(strings.ToUpper(resp[i].Type))
 			orderDate := time.Unix(0, int64(resp[i].Time)*int64(time.Millisecond))
+
+			pair, err := currency.NewPairFromString(resp[i].Symbol)
+			if err != nil {
+				return nil, err
+			}
 
 			orders = append(orders, order.Detail{
 				Amount:   resp[i].OrigQty,
@@ -609,7 +676,7 @@ func (b *Binance) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, 
 				Type:     orderType,
 				Price:    resp[i].Price,
 				Status:   order.Status(resp[i].Status),
-				Pair:     currency.NewPairFromString(resp[i].Symbol),
+				Pair:     pair,
 			})
 		}
 	}
@@ -629,8 +696,11 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 
 	var orders []order.Detail
 	for x := range req.Pairs {
-		resp, err := b.AllOrders(b.FormatExchangeCurrency(req.Pairs[x],
-			asset.Spot).String(),
+		fpair, err := b.FormatExchangeCurrency(req.Pairs[x], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := b.AllOrders(fpair.String(),
 			"",
 			"1000")
 		if err != nil {
@@ -646,6 +716,11 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 				continue
 			}
 
+			pair, err := currency.NewPairFromString(resp[i].Symbol)
+			if err != nil {
+				return nil, err
+			}
+
 			orders = append(orders, order.Detail{
 				Amount:   resp[i].OrigQty,
 				Date:     orderDate,
@@ -654,7 +729,7 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 				Side:     orderSide,
 				Type:     orderType,
 				Price:    resp[i].Price,
-				Pair:     currency.NewPairFromString(resp[i].Symbol),
+				Pair:     pair,
 				Status:   order.Status(resp[i].Status),
 			})
 		}
@@ -664,28 +739,6 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	return orders, nil
-}
-
-// SubscribeToWebsocketChannels appends to ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle subscribing
-func (b *Binance) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
-// which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Binance) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	return common.ErrFunctionNotSupported
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (b *Binance) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
-	return b.Websocket.GetSubscriptions(), nil
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (b *Binance) AuthenticateWebsocket() error {
-	return common.ErrFunctionNotSupported
 }
 
 // ValidateCredentials validates current credentials used for wrapper
@@ -718,9 +771,13 @@ func (b *Binance) GetHistoricCandles(pair currency.Pair, a asset.Item, start, en
 		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
 
+	fpair, err := b.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
 	req := KlinesRequestParams{
 		Interval:  b.FormatExchangeKlineInterval(interval),
-		Symbol:    b.FormatExchangeCurrency(pair, a).String(),
+		Symbol:    fpair.String(),
 		StartTime: start.Unix() * 1000,
 		EndTime:   end.Unix() * 1000,
 		Limit:     int(b.Features.Enabled.Kline.ResultLimit),
@@ -768,11 +825,16 @@ func (b *Binance) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, s
 		Interval: interval,
 	}
 
+	formattedPair, err := b.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
 	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
 	for x := range dates {
 		req := KlinesRequestParams{
 			Interval:  b.FormatExchangeKlineInterval(interval),
-			Symbol:    b.FormatExchangeCurrency(pair, a).String(),
+			Symbol:    formattedPair.String(),
 			StartTime: dates[x].Start.UTC().Unix() * 1000,
 			EndTime:   dates[x].End.UTC().Unix() * 1000,
 			Limit:     int(b.Features.Enabled.Kline.ResultLimit),

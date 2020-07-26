@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"io/ioutil"
 	"log"
@@ -49,9 +50,9 @@ func main() {
 
 	if !config.ConfirmECS(fileData) && !encrypt {
 		var result interface{}
-		errf := config.ConfirmConfigJSON(fileData, result)
+		errf := json.Unmarshal(fileData, &result)
 		if errf != nil {
-			log.Fatal("File isn't in JSON format")
+			log.Fatal(errf)
 		}
 		log.Println("File is already decrypted. Encrypting..")
 		encrypt = true

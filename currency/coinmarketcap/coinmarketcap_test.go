@@ -44,11 +44,6 @@ func TestSetup(t *testing.T) {
 	if err := c.Setup(cfg); err != nil {
 		t.Error(err)
 	}
-
-	cfg.AccountPlan = "meow"
-	if err := c.Setup(cfg); err == nil {
-		t.Error("expected err when invalid account plan is specified")
-	}
 }
 
 func TestCheckAccountPlan(t *testing.T) {
@@ -404,9 +399,5 @@ func TestSetAccountPlan(t *testing.T) {
 				t.Error("SetAccountPlan() error enterprise plan not set correctly")
 			}
 		}
-	}
-
-	if err := c.SetAccountPlan("bra"); err == nil {
-		t.Error("SetAccountPlan() error cannot be nil")
 	}
 }

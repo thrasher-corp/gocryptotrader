@@ -18,8 +18,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -53,12 +53,7 @@ func (f *FTX) SetDefaults() {
 	f.Verbose = true
 	f.API.CredentialsValidator.RequiresKey = true
 	f.API.CredentialsValidator.RequiresSecret = true
-	f.CurrencyPairs = currency.PairsManager{
-		AssetTypes: asset.Items{
-			asset.Spot,
-			asset.Futures,
-		},
-	}
+
 	spot := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
@@ -79,8 +74,17 @@ func (f *FTX) SetDefaults() {
 			Delimiter: "-",
 		},
 	}
-	f.CurrencyPairs.Store(asset.Spot, spot)
-	f.CurrencyPairs.Store(asset.Futures, futures)
+
+	err := f.StoreAssetPairFormat(asset.Spot, spot)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = f.StoreAssetPairFormat(asset.Futures, futures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
 	f.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
@@ -139,7 +143,7 @@ func (f *FTX) SetDefaults() {
 
 	f.API.Endpoints.URLDefault = ftxAPIURL
 	f.API.Endpoints.URL = f.API.Endpoints.URLDefault
-	f.Websocket = wshandler.New()
+	f.Websocket = stream.New()
 	f.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	f.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	f.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -157,41 +161,28 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
-	err = f.Websocket.Setup(
-		&wshandler.WebsocketSetup{
-			Enabled:                          exch.Features.Enabled.Websocket,
-			Verbose:                          exch.Verbose,
-			AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-			WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-			DefaultURL:                       ftxWSURL,
-			ExchangeName:                     exch.Name,
-			RunningURL:                       exch.API.Endpoints.WebsocketURL,
-			Connector:                        f.WsConnect,
-			Subscriber:                       f.Subscribe,
-			UnSubscriber:                     f.Unsubscribe,
-			Features:                         &f.Features.Supports.WebsocketCapabilities,
-		})
+	err = f.Websocket.Setup(&stream.WebsocketSetup{
+		Enabled:                          exch.Features.Enabled.Websocket,
+		Verbose:                          exch.Verbose,
+		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		DefaultURL:                       ftxWSURL,
+		ExchangeName:                     exch.Name,
+		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		Connector:                        f.WsConnect,
+		Subscriber:                       f.Subscribe,
+		UnSubscriber:                     f.Unsubscribe,
+		GenerateSubscriptions:            f.GenerateDefaultSubscriptions,
+		Features:                         &f.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+	})
 	if err != nil {
 		return err
 	}
-
-	f.WebsocketConn = &wshandler.WebsocketConnection{
-		ExchangeName:         f.Name,
-		URL:                  f.Websocket.GetWebsocketURL(),
-		ProxyURL:             f.Websocket.GetProxyAddress(),
-		Verbose:              f.Verbose,
+	return f.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	}
-
-	f.Websocket.Orderbook.Setup(
-		exch.WebsocketOrderbookBufferLimit,
-		false,
-		false,
-		false,
-		false,
-		exch.Name)
-	return nil
+	})
 }
 
 // Start starts the FTX go routine
@@ -256,13 +247,17 @@ func (f *FTX) FetchTradablePairs(a asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (f *FTX) UpdateTradablePairs(forceUpdate bool) error {
-	for x := range f.CurrencyPairs.AssetTypes {
-		pairs, err := f.FetchTradablePairs(f.CurrencyPairs.AssetTypes[x])
+	assets := f.GetAssetTypes()
+	for x := range assets {
+		pairs, err := f.FetchTradablePairs(assets[x])
 		if err != nil {
 			return err
 		}
-		err = f.UpdatePairs(currency.NewPairsFromStrings(pairs),
-			f.CurrencyPairs.AssetTypes[x], false, forceUpdate)
+		p, err := currency.NewPairsFromStrings(pairs)
+		if err != nil {
+			return err
+		}
+		err = f.UpdatePairs(p, assets[x], false, forceUpdate)
 		if err != nil {
 			return err
 		}
@@ -272,26 +267,41 @@ func (f *FTX) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (f *FTX) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	allPairs := f.GetEnabledPairs(assetType)
+	allPairs, err := f.GetEnabledPairs(assetType)
+	if err != nil {
+		return nil, err
+	}
+
 	if !allPairs.Contains(p, true) {
 		allPairs = append(allPairs, p)
 	}
+
 	markets, err := f.GetMarkets()
 	if err != nil {
 		return nil, err
 	}
 	for a := range allPairs {
+		formattedPair, err := f.FormatExchangeCurrency(allPairs[a], assetType)
+		if err != nil {
+			return nil, err
+		}
+
 		for x := range markets {
-			if markets[x].Name != f.FormatExchangeCurrency(allPairs[a], assetType).String() {
+			if markets[x].Name != formattedPair.String() {
 				continue
 			}
 			var resp ticker.Price
-			resp.Pair = currency.NewPairFromString(markets[x].Name)
+			resp.Pair, err = currency.NewPairFromString(markets[x].Name)
+			if err != nil {
+				return nil, err
+			}
 			resp.Last = markets[x].Last
 			resp.Bid = markets[x].Bid
 			resp.Ask = markets[x].Ask
 			resp.LastUpdated = time.Now()
-			err = ticker.ProcessTicker(f.Name, &resp, assetType)
+			resp.AssetType = assetType
+			resp.ExchangeName = f.Name
+			err = ticker.ProcessTicker(&resp)
 			if err != nil {
 				return nil, err
 			}
@@ -321,7 +331,11 @@ func (f *FTX) FetchOrderbook(currency currency.Pair, assetType asset.Item) (*ord
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (f *FTX) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	orderBook := new(orderbook.Base)
-	tempResp, err := f.GetOrderbook(f.FormatExchangeCurrency(p, assetType).String(), 0)
+	formattedPair, err := f.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	tempResp, err := f.GetOrderbook(formattedPair.String(), 0)
 	if err != nil {
 		return orderBook, err
 	}
@@ -424,9 +438,15 @@ func (f *FTX) GetFundingHistory() ([]exchange.FundHistory, error) {
 
 // GetExchangeHistory returns historic trade data within the timeframe provided.
 func (f *FTX) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
-	marketName := f.FormatExchangeCurrency(p, assetType).String()
+	marketName, err := f.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
 	var resp []exchange.TradeHistory
-	trades, err := f.GetTrades(marketName, time.Unix(timestampStart.Unix(), 0), time.Unix(timestampEnd.Unix(), 0), 100)
+	trades, err := f.GetTrades(marketName.String(),
+		time.Unix(timestampStart.Unix(), 0),
+		time.Unix(timestampEnd.Unix(), 0),
+		100)
 	if err != nil {
 		return nil, err
 	}
@@ -453,7 +473,10 @@ func (f *FTX) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestam
 		if len(trades) != 100 {
 			break
 		}
-		trades, err = f.GetTrades(marketName, time.Unix(timestampStart.Unix(), 0), time.Unix(trades[len(trades)-1].Time.Unix(), 0), 100)
+		trades, err = f.GetTrades(marketName.String(),
+			time.Unix(timestampStart.Unix(), 0),
+			time.Unix(trades[len(trades)-1].Time.Unix(), 0),
+			100)
 		if err != nil {
 			return resp, err
 		}
@@ -475,7 +498,12 @@ func (f *FTX) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		s.Side = order.Bid
 	}
 
-	tempResp, err := f.Order(f.FormatExchangeCurrency(s.Pair, s.AssetType).String(),
+	formattedPair, err := f.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return resp, err
+	}
+
+	tempResp, err := f.Order(formattedPair.String(),
 		s.Side.String(),
 		s.Type.String(),
 		"",
@@ -533,11 +561,16 @@ func (f *FTX) CancelOrder(order *order.Cancel) error {
 // CancelAllOrders cancels all orders associated with a currency pair
 func (f *FTX) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
-	tempMap := make(map[string]string)
-	orders, err := f.GetOpenOrders(f.FormatExchangeCurrency(orderCancellation.Pair, orderCancellation.AssetType).String())
+	formattedPair, err := f.FormatExchangeCurrency(orderCancellation.Pair, orderCancellation.AssetType)
 	if err != nil {
 		return resp, err
 	}
+	orders, err := f.GetOpenOrders(formattedPair.String())
+	if err != nil {
+		return resp, err
+	}
+
+	tempMap := make(map[string]string)
 	for x := range orders {
 		_, err := f.DeleteOrder(strconv.FormatInt(orders[x].ID, 10))
 		if err != nil {
@@ -598,7 +631,10 @@ func (f *FTX) GetOrderInfo(orderID string) (order.Detail, error) {
 	if err != nil {
 		return resp, err
 	}
-	p := currency.NewPairFromString(orderData.Market)
+	p, err := currency.NewPairFromString(orderData.Market)
+	if err != nil {
+		return resp, err
+	}
 	assetType, err := f.GetPairAssetType(p)
 	if err != nil {
 		return resp, err
@@ -669,7 +705,7 @@ func (f *FTX) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdr
 }
 
 // GetWebsocket returns a pointer to the exchange websocket
-func (f *FTX) GetWebsocket() (*wshandler.Websocket, error) {
+func (f *FTX) GetWebsocket() (*stream.Websocket, error) {
 	return f.Websocket, nil
 }
 
@@ -681,12 +717,24 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 		if err != nil {
 			return resp, err
 		}
+
+		formattedPair, err := f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], assetType)
+		if err != nil {
+			return nil, err
+		}
+
 		var tempResp order.Detail
-		orderData, err := f.GetOpenOrders(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], assetType).String())
+		orderData, err := f.GetOpenOrders(formattedPair.String())
 		if err != nil {
 			return resp, err
 		}
 		for y := range orderData {
+			var p currency.Pair
+			p, err = currency.NewPairFromString(orderData[y].Market)
+			if err != nil {
+				return nil, err
+			}
+
 			tempResp.ID = strconv.FormatInt(orderData[y].ID, 10)
 			tempResp.Amount = orderData[y].Size
 			tempResp.AssetType = assetType
@@ -694,7 +742,7 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Date = orderData[y].CreatedAt
 			tempResp.Exchange = f.Name
 			tempResp.ExecutedAmount = orderData[y].Size - orderData[y].RemainingSize
-			tempResp.Pair = currency.NewPairFromString(orderData[y].Market)
+			tempResp.Pair = p
 			tempResp.Price = orderData[y].Price
 			tempResp.RemainingAmount = orderData[y].RemainingSize
 			var orderVars OrderVars
@@ -713,18 +761,25 @@ func (f *FTX) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Fee = orderVars.Fee
 			resp = append(resp, tempResp)
 		}
-		triggerOrderData, err := f.GetOpenTriggerOrders(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], assetType).String(), getOrdersRequest.Type.String())
+
+		triggerOrderData, err := f.GetOpenTriggerOrders(formattedPair.String(),
+			getOrdersRequest.Type.String())
 		if err != nil {
 			return resp, err
 		}
 		for z := range triggerOrderData {
+			var p currency.Pair
+			p, err = currency.NewPairFromString(triggerOrderData[z].Market)
+			if err != nil {
+				return nil, err
+			}
 			tempResp.ID = strconv.FormatInt(triggerOrderData[z].ID, 10)
 			tempResp.Amount = triggerOrderData[z].Size
 			tempResp.AssetType = assetType
 			tempResp.Date = triggerOrderData[z].CreatedAt
 			tempResp.Exchange = f.Name
 			tempResp.ExecutedAmount = triggerOrderData[z].FilledSize
-			tempResp.Pair = currency.NewPairFromString(triggerOrderData[z].Market)
+			tempResp.Pair = p
 			tempResp.Price = triggerOrderData[z].AvgFillPrice
 			tempResp.RemainingAmount = triggerOrderData[z].Size - triggerOrderData[z].FilledSize
 			tempResp.TriggerPrice = triggerOrderData[z].TriggerPrice
@@ -757,12 +812,24 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 		if err != nil {
 			return resp, err
 		}
-		orderData, err := f.FetchOrderHistory(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], assetType).String(),
+
+		formattedPair, err := f.FormatExchangeCurrency(getOrdersRequest.Pairs[x],
+			assetType)
+		if err != nil {
+			return nil, err
+		}
+
+		orderData, err := f.FetchOrderHistory(formattedPair.String(),
 			getOrdersRequest.StartTicks, getOrdersRequest.EndTicks, "")
 		if err != nil {
 			return resp, err
 		}
 		for y := range orderData {
+			var p currency.Pair
+			p, err = currency.NewPairFromString(orderData[y].Market)
+			if err != nil {
+				return nil, err
+			}
 			tempResp.ID = strconv.FormatInt(orderData[y].ID, 10)
 			tempResp.Amount = orderData[y].Size
 			tempResp.AssetType = assetType
@@ -770,7 +837,7 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Date = orderData[y].CreatedAt
 			tempResp.Exchange = f.Name
 			tempResp.ExecutedAmount = orderData[y].Size - orderData[y].RemainingSize
-			tempResp.Pair = currency.NewPairFromString(orderData[y].Market)
+			tempResp.Pair = p
 			tempResp.Price = orderData[y].Price
 			tempResp.RemainingAmount = orderData[y].RemainingSize
 			var orderVars OrderVars
@@ -789,19 +856,28 @@ func (f *FTX) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order
 			tempResp.Fee = orderVars.Fee
 			resp = append(resp, tempResp)
 		}
-		triggerOrderData, err := f.GetTriggerOrderHistory(f.FormatExchangeCurrency(getOrdersRequest.Pairs[x], assetType).String(),
-			getOrdersRequest.StartTicks, getOrdersRequest.EndTicks, strings.ToLower(getOrdersRequest.Side.String()), strings.ToLower(getOrdersRequest.Type.String()), "")
+		triggerOrderData, err := f.GetTriggerOrderHistory(formattedPair.String(),
+			getOrdersRequest.StartTicks,
+			getOrdersRequest.EndTicks,
+			strings.ToLower(getOrdersRequest.Side.String()),
+			strings.ToLower(getOrdersRequest.Type.String()),
+			"")
 		if err != nil {
 			return resp, err
 		}
 		for z := range triggerOrderData {
+			var p currency.Pair
+			p, err = currency.NewPairFromString(triggerOrderData[z].Market)
+			if err != nil {
+				return nil, err
+			}
 			tempResp.ID = strconv.FormatInt(triggerOrderData[z].ID, 10)
 			tempResp.Amount = triggerOrderData[z].Size
 			tempResp.AssetType = assetType
 			tempResp.Date = triggerOrderData[z].CreatedAt
 			tempResp.Exchange = f.Name
 			tempResp.ExecutedAmount = triggerOrderData[z].FilledSize
-			tempResp.Pair = currency.NewPairFromString(triggerOrderData[z].Market)
+			tempResp.Pair = p
 			tempResp.Price = triggerOrderData[z].AvgFillPrice
 			tempResp.RemainingAmount = triggerOrderData[z].Size - triggerOrderData[z].FilledSize
 			tempResp.TriggerPrice = triggerOrderData[z].TriggerPrice
@@ -831,21 +907,14 @@ func (f *FTX) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (f *FTX) SubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	f.Websocket.SubscribeToChannels(channels)
-	return nil
+func (f *FTX) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
+	return f.Websocket.SubscribeToChannels(channels)
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (f *FTX) UnsubscribeToWebsocketChannels(channels []wshandler.WebsocketChannelSubscription) error {
-	f.Websocket.RemoveSubscribedChannels(channels)
-	return nil
-}
-
-// GetSubscriptions returns a copied list of subscriptions
-func (f *FTX) GetSubscriptions() ([]wshandler.WebsocketChannelSubscription, error) {
-	return f.Websocket.GetSubscriptions(), nil
+func (f *FTX) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
+	return f.Websocket.UnsubscribeChannels(channels)
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
@@ -868,7 +937,12 @@ func (f *FTX) GetHistoricCandles(p currency.Pair, a asset.Item, start, end time.
 		}
 	}
 
-	ohlcData, err := f.GetHistoricalData(f.FormatExchangeCurrency(p, a).String(),
+	formattedPair, err := f.FormatExchangeCurrency(p, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	ohlcData, err := f.GetHistoricalData(formattedPair.String(),
 		f.FormatExchangeKlineInterval(interval),
 		strconv.FormatInt(int64(f.Features.Enabled.Kline.ResultLimit), 10),
 		start, end)
@@ -912,8 +986,14 @@ func (f *FTX) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, e
 	}
 
 	dates := kline.CalcDateRanges(start, end, interval, f.Features.Enabled.Kline.ResultLimit)
+
+	formattedPair, err := f.FormatExchangeCurrency(p, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
 	for x := range dates {
-		ohlcData, err := f.GetHistoricalData(f.FormatExchangeCurrency(p, a).String(),
+		ohlcData, err := f.GetHistoricalData(formattedPair.String(),
 			f.FormatExchangeKlineInterval(interval),
 			strconv.FormatInt(int64(f.Features.Enabled.Kline.ResultLimit), 10),
 			dates[x].Start, dates[x].End)

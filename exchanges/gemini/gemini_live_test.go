@@ -29,13 +29,12 @@ func TestMain(m *testing.M) {
 	geminiConfig.API.Credentials.Key = apiKey
 	geminiConfig.API.Credentials.Secret = apiSecret
 	g.SetDefaults()
+	g.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = g.Setup(geminiConfig)
 	if err != nil {
 		log.Fatal("Gemini setup error", err)
 	}
 	g.API.Endpoints.URL = geminiSandboxAPIURL
-	g.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	g.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	log.Printf(sharedtestvalues.LiveTesting, g.Name, g.API.Endpoints.URL)
 	os.Exit(m.Run())
 }

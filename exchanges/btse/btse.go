@@ -15,19 +15,18 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // BTSE is the overarching type across this package
 type BTSE struct {
 	exchange.Base
-	WebsocketConn *wshandler.WebsocketConnection
 }
 
 const (
-	btseAPIURL  = "https://api.btse.com"
-	btseAPIPath = "/spot/v2/"
+	btseAPIURL         = "https://api.btse.com"
+	btseSPOTAPIPath    = "/spot/v2/"
+	btseFuturesAPIPath = "/futures/api/v2.1/"
 
 	// Public endpoints
 	btseMarketOverview = "market_summary"
@@ -50,34 +49,40 @@ const (
 // GetMarketsSummary stores market summary data
 func (b *BTSE) GetMarketsSummary() (*HighLevelMarketData, error) {
 	var m HighLevelMarketData
-	return &m, b.SendHTTPRequest(http.MethodGet, btseMarketOverview, &m)
+	return &m, b.SendHTTPRequest(http.MethodGet, btseMarketOverview, &m, true)
 }
 
-// GetMarkets returns a list of markets available on BTSE
-func (b *BTSE) GetMarkets() ([]Market, error) {
-	var m []Market
-	return m, b.SendHTTPRequest(http.MethodGet, btseMarkets, &m)
+// GetSpotMarkets returns a list of spot markets available on BTSE
+func (b *BTSE) GetSpotMarkets() ([]SpotMarket, error) {
+	var m []SpotMarket
+	return m, b.SendHTTPRequest(http.MethodGet, btseMarkets, &m, true)
+}
+
+// GetFuturesMarkets returns a list of futures markets available on BTSE
+func (b *BTSE) GetFuturesMarkets() ([]FuturesMarket, error) {
+	var m []FuturesMarket
+	return m, b.SendHTTPRequest(http.MethodGet, btseMarketOverview, &m, false)
 }
 
 // FetchOrderBook gets orderbook data for a given pair
 func (b *BTSE) FetchOrderBook(symbol string) (*Orderbook, error) {
 	var o Orderbook
 	endpoint := fmt.Sprintf("%s/%s", btseOrderbook, symbol)
-	return &o, b.SendHTTPRequest(http.MethodGet, endpoint, &o)
+	return &o, b.SendHTTPRequest(http.MethodGet, endpoint, &o, true)
 }
 
 // GetTrades returns a list of trades for the specified symbol
 func (b *BTSE) GetTrades(symbol string) ([]Trade, error) {
 	var t []Trade
 	endpoint := fmt.Sprintf("%s/%s", btseTrades, symbol)
-	return t, b.SendHTTPRequest(http.MethodGet, endpoint, &t)
+	return t, b.SendHTTPRequest(http.MethodGet, endpoint, &t, true)
 }
 
 // GetTicker returns the ticker for a specified symbol
 func (b *BTSE) GetTicker(symbol string) (*Ticker, error) {
 	var t Ticker
 	endpoint := fmt.Sprintf("%s/%s", btseTicker, symbol)
-	err := b.SendHTTPRequest(http.MethodGet, endpoint, &t)
+	err := b.SendHTTPRequest(http.MethodGet, endpoint, &t, true)
 	if err != nil {
 		return nil, err
 	}
@@ -88,19 +93,19 @@ func (b *BTSE) GetTicker(symbol string) (*Ticker, error) {
 func (b *BTSE) GetMarketStatistics(symbol string) (*MarketStatistics, error) {
 	var m MarketStatistics
 	endpoint := fmt.Sprintf("%s/%s", btseStats, symbol)
-	return &m, b.SendHTTPRequest(http.MethodGet, endpoint, &m)
+	return &m, b.SendHTTPRequest(http.MethodGet, endpoint, &m, true)
 }
 
 // GetServerTime returns the exchanges server time
 func (b *BTSE) GetServerTime() (*ServerTime, error) {
 	var s ServerTime
-	return &s, b.SendHTTPRequest(http.MethodGet, btseTime, &s)
+	return &s, b.SendHTTPRequest(http.MethodGet, btseTime, &s, true)
 }
 
 // GetAccountBalance returns the users account balance
 func (b *BTSE) GetAccountBalance() ([]CurrencyBalance, error) {
 	var a []CurrencyBalance
-	return a, b.SendAuthenticatedHTTPRequest(http.MethodGet, btseAccount, nil, &a)
+	return a, b.SendAuthenticatedHTTPRequest(http.MethodGet, btseAccount, nil, &a, true)
 }
 
 // CreateOrder creates an order
@@ -129,7 +134,7 @@ func (b *BTSE) CreateOrder(amount, price float64, side, orderType, symbol, timeI
 	}
 
 	var r orderResp
-	return &r.ID, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseOrder, req, &r)
+	return &r.ID, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseOrder, req, &r, true)
 }
 
 // GetOrders returns all pending orders
@@ -139,7 +144,7 @@ func (b *BTSE) GetOrders(symbol string) ([]OpenOrder, error) {
 		req["symbol"] = symbol
 	}
 	var o []OpenOrder
-	return o, b.SendAuthenticatedHTTPRequest(http.MethodGet, btsePendingOrders, req, &o)
+	return o, b.SendAuthenticatedHTTPRequest(http.MethodGet, btsePendingOrders, req, &o, true)
 }
 
 // CancelExistingOrder cancels an order
@@ -148,7 +153,7 @@ func (b *BTSE) CancelExistingOrder(orderID, symbol string) (*CancelOrder, error)
 	req := make(map[string]interface{})
 	req["order_id"] = orderID
 	req["symbol"] = symbol
-	return &c, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseDeleteOrder, req, &c)
+	return &c, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseDeleteOrder, req, &c, true)
 }
 
 // GetFills gets all filled orders
@@ -184,14 +189,18 @@ func (b *BTSE) GetFills(orderID, symbol, before, after, limit, username string) 
 	}
 
 	var o []FilledOrder
-	return o, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseFills, req, &o)
+	return o, b.SendAuthenticatedHTTPRequest(http.MethodPost, btseFills, req, &o, true)
 }
 
 // SendHTTPRequest sends an HTTP request to the desired endpoint
-func (b *BTSE) SendHTTPRequest(method, endpoint string, result interface{}) error {
+func (b *BTSE) SendHTTPRequest(method, endpoint string, result interface{}, spotEndpoint bool) error {
+	p := btseSPOTAPIPath
+	if !spotEndpoint {
+		p = btseFuturesAPIPath
+	}
 	return b.SendPayload(context.Background(), &request.Item{
 		Method:        method,
-		Path:          b.API.Endpoints.URL + btseAPIPath + endpoint,
+		Path:          b.API.Endpoints.URL + p + endpoint,
 		Result:        result,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
@@ -200,12 +209,18 @@ func (b *BTSE) SendHTTPRequest(method, endpoint string, result interface{}) erro
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the desired endpoint
-func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[string]interface{}, result interface{}) error {
+func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[string]interface{}, result interface{}, spotEndpoint bool) error {
 	if !b.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			b.Name)
 	}
-	path := btseAPIPath + endpoint
+
+	p := btseSPOTAPIPath
+	if !spotEndpoint {
+		p = btseFuturesAPIPath
+	}
+
+	path := p + endpoint
 	headers := make(map[string]string)
 	headers["btse-api"] = b.API.Credentials.Key
 	nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)

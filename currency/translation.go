@@ -2,12 +2,12 @@ package currency
 
 // GetTranslation returns similar strings for a particular currency if not found
 // returns the code back
-func GetTranslation(currency Code) (Code, bool) {
+func GetTranslation(currency Code) Code {
 	val, ok := translations[currency]
 	if !ok {
-		return currency, ok
+		return currency
 	}
-	return val, ok
+	return val
 }
 
 var translations = map[Code]Code{

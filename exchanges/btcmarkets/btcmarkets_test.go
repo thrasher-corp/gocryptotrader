@@ -44,21 +44,17 @@ func TestMain(m *testing.M) {
 	bConfig.API.Credentials.Key = apiKey
 	bConfig.API.Credentials.Secret = apiSecret
 	bConfig.API.AuthenticatedSupport = true
-
+	b.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = b.Setup(bConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
-	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	b.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-
 	err = b.ValidateCredentials()
 	if err != nil {
 		fmt.Println("API credentials are invalid:", err)
 		b.API.AuthenticatedSupport = false
 		b.API.AuthenticatedWebsocketSupport = false
 	}
-
 	os.Exit(m.Run())
 }
 
@@ -108,8 +104,11 @@ func TestGetMarketCandles(t *testing.T) {
 
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
-	temp := currency.NewPairsFromStrings([]string{LTCAUD, BTCAUD})
-	_, err := b.GetTickers(temp)
+	temp, err := currency.NewPairsFromStrings([]string{LTCAUD, BTCAUD})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetTickers(temp)
 	if err != nil {
 		t.Error(err)
 	}
@@ -720,8 +719,11 @@ func TestWsOrders(t *testing.T) {
 }
 
 func TestBTCMarkets_GetHistoricCandles(t *testing.T) {
-	p := currency.NewPairFromString(BTCAUD)
-	_, err := b.GetHistoricCandles(p, asset.Spot, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC(), kline.OneHour)
+	p, err := currency.NewPairFromString(BTCAUD)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetHistoricCandles(p, asset.Spot, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC(), kline.OneHour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -736,8 +738,11 @@ func TestBTCMarkets_GetHistoricCandles(t *testing.T) {
 func TestBTCMarkets_GetHistoricCandlesExtended(t *testing.T) {
 	start := time.Now().AddDate(0, 0, -1001)
 	end := time.Now()
-	p := currency.NewPairFromString(BTCAUD)
-	_, err := b.GetHistoricCandlesExtended(p, asset.Spot, start, end, kline.OneDay)
+	p, err := currency.NewPairFromString(BTCAUD)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetHistoricCandlesExtended(p, asset.Spot, start, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
 	}

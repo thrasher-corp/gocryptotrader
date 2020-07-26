@@ -5,19 +5,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 func TestWebsocketDataHandlerProcess(t *testing.T) {
-	ws := wshandler.New()
-	err := ws.Setup(&wshandler.WebsocketSetup{Enabled: true})
-	if err != nil {
-		t.Error(err)
-	}
-	ws.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	ws := sharedtestvalues.NewTestWebsocket()
 	go WebsocketDataReceiver(ws)
 	ws.DataHandler <- "string"
 	time.Sleep(time.Second)
@@ -36,11 +33,11 @@ func TestHandleData(t *testing.T) {
 	if err == nil {
 		t.Error("Expected nil data error")
 	}
-	err = WebsocketDataHandler(exchName, wshandler.TradeData{})
+	err = WebsocketDataHandler(exchName, stream.TradeData{})
 	if err != nil {
 		t.Error(err)
 	}
-	err = WebsocketDataHandler(exchName, wshandler.FundingData{})
+	err = WebsocketDataHandler(exchName, stream.FundingData{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -48,11 +45,7 @@ func TestHandleData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = WebsocketDataHandler(exchName, wshandler.KlineData{})
-	if err != nil {
-		t.Error(err)
-	}
-	err = WebsocketDataHandler(exchName, wshandler.WebsocketOrderbookUpdate{})
+	err = WebsocketDataHandler(exchName, stream.KlineData{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -107,7 +100,9 @@ func TestHandleData(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = WebsocketDataHandler(exchName, wshandler.UnhandledMessageWarning{Message: "there's an issue here's a tissue"})
+	err = WebsocketDataHandler(exchName, stream.UnhandledMessageWarning{
+		Message: "there's an issue here's a tissue"},
+	)
 	if err != nil {
 		t.Error(err)
 	}
@@ -123,5 +118,17 @@ func TestHandleData(t *testing.T) {
 	}
 	if err.Error() != classificationError.Error() {
 		t.Errorf("Problem formatting error. Expected %v Received %v", classificationError.Error(), err.Error())
+	}
+
+	err = WebsocketDataHandler(exchName, &orderbook.Base{
+		ExchangeName: fakePassExchange,
+		Pair:         currency.NewPair(currency.BTC, currency.USD),
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	err = WebsocketDataHandler(exchName, "this is a test string")
+	if err != nil {
+		t.Error(err)
 	}
 }

@@ -23,8 +23,8 @@ type Currencies []Code
 // Strings returns an array of currency strings
 func (c Currencies) Strings() []string {
 	var list []string
-	for _, d := range c {
-		list = append(list, d.String())
+	for i := range c {
+		list = append(list, c[i].String())
 	}
 	return list
 }
@@ -53,8 +53,9 @@ func (c *Currencies) UnmarshalJSON(d []byte) error {
 	}
 
 	var allTheCurrencies Currencies
-	for _, data := range strings.Split(configCurrencies, ",") {
-		allTheCurrencies = append(allTheCurrencies, NewCode(data))
+	curr := strings.Split(configCurrencies, ",")
+	for i := range curr {
+		allTheCurrencies = append(allTheCurrencies, NewCode(curr[i]))
 	}
 
 	*c = allTheCurrencies
@@ -72,17 +73,14 @@ func (c Currencies) Match(other Currencies) bool {
 		return false
 	}
 
-	for _, d := range c {
-		var found bool
-		for i := range other {
-			if d == other[i] {
-				found = true
-				break
+match:
+	for x := range c {
+		for y := range other {
+			if c[x] == other[y] {
+				continue match
 			}
 		}
-		if !found {
-			return false
-		}
+		return false
 	}
 	return true
 }

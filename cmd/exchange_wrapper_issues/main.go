@@ -296,10 +296,16 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 
 		switch {
 		case currencyPairOverride != "":
-			p = currency.NewPairFromString(currencyPairOverride)
+			var err error
+			p, err = currency.NewPairFromString(currencyPairOverride)
+			if err != nil {
+				log.Printf("%v Encountered error: '%v'", base.GetName(), err)
+				continue
+			}
 		case len(base.Config.CurrencyPairs.Pairs[assetTypes[i]].Enabled) == 0:
 			if len(base.Config.CurrencyPairs.Pairs[assetTypes[i]].Available) == 0 {
-				log.Printf("%v has no enabled or available currencies. Skipping", base.GetName())
+				log.Printf("%v has no enabled or available currencies. Skipping",
+					base.GetName())
 				continue
 			}
 			p = base.Config.CurrencyPairs.Pairs[assetTypes[i]].Available.GetRandomPair()
@@ -308,8 +314,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		}
 
 		responseContainer := ExchangeAssetPairResponses{
-			AssetType:    assetTypes[i],
-			CurrencyPair: p,
+			AssetType: assetTypes[i],
+			Pair:      p,
 		}
 
 		log.Printf("Setup config for %v %v %v", base.GetName(), assetTypes[i], p)
@@ -858,7 +864,7 @@ func outputToConsole(exchangeResponses []ExchangeResponses) {
 				log.Printf("%v Result: %v", exchangeResponses[i].ExchangeName, k)
 				log.Printf("Function:\t%v", exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].Function)
 				log.Printf("AssetType:\t%v", exchangeResponses[i].AssetPairResponses[j].AssetType)
-				log.Printf("Currency:\t%v\n", exchangeResponses[i].AssetPairResponses[j].CurrencyPair)
+				log.Printf("Currency:\t%v\n", exchangeResponses[i].AssetPairResponses[j].Pair)
 				log.Printf("Wrapper Params:\t%s\n", exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].SentParams)
 				if exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].Error != "" {
 					totalErrors++
