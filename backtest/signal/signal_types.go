@@ -1,14 +1,8 @@
 package signal
 
-type Direction uint8
+import "github.com/thrasher-corp/gocryptotrader/backtest/event"
 
-const (
-	BUY Direction = iota
-	SELL
-	HOLD
-	EXIT
-)
-
-type Signal struct {
-
+type Handler interface {
+	event.Handler
+	event.Direction
 }

@@ -5,12 +5,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
-type Handler interface {}
-
+type Handler interface{}
 
 type Exchange struct {
 	Pair currency.Pair
 
 	Fee fee.Handler
 }
-

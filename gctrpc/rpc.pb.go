@@ -4041,8 +4041,10 @@ type GetCryptocurrencyDepositAddressesResponse struct {
 func (m *GetCryptocurrencyDepositAddressesResponse) Reset() {
 	*m = GetCryptocurrencyDepositAddressesResponse{}
 }
-func (m *GetCryptocurrencyDepositAddressesResponse) String() string { return proto.CompactTextString(m) }
-func (*GetCryptocurrencyDepositAddressesResponse) ProtoMessage()    {}
+func (m *GetCryptocurrencyDepositAddressesResponse) String() string {
+	return proto.CompactTextString(m)
+}
+func (*GetCryptocurrencyDepositAddressesResponse) ProtoMessage() {}
 func (*GetCryptocurrencyDepositAddressesResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_77a6da22d6a3feb1, []int{76}
 }

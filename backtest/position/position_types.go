@@ -21,9 +21,9 @@ type Position struct {
 
 	ExchangeFee float64
 
-	RealisedPNL float64
+	RealisedPNL   float64
 	UnrealisedPNL float64
-	TotalPNL float64
+	TotalPNL      float64
 }
 
 func (p *Position) update() {
