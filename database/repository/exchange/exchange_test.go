@@ -172,7 +172,7 @@ func TestOneAndOneByUUID(t *testing.T) {
 }
 
 func seed() error {
-	return Seed(testExchanges)
+	return InsertMany(testExchanges)
 }
 
 func TestLoadCSV(t *testing.T) {

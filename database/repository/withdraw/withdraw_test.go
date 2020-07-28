@@ -89,7 +89,7 @@ func TestWithdraw(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			err = exchange.Seed(testExchanges)
+			err = exchange.InsertMany(testExchanges)
 			if err != nil {
 				t.Fatal(err)
 			}

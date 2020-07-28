@@ -242,7 +242,7 @@ func TestSeries(t *testing.T) {
 }
 
 func seedDB(includeOHLCVData bool) error {
-	err := exchange.Seed(testExchanges)
+	err := exchange.InsertMany(testExchanges)
 	if err != nil {
 		return err
 	}

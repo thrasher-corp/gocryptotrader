@@ -19,27 +19,29 @@ var seedCandleCommand = &cli.Command{
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:  "exchange",
-					Usage: "<exchange>",
+					Usage: "Exchange name of supplied candle data",
 				},
 				&cli.StringFlag{
 					Name:  "base",
-					Usage: "<base>",
+					Usage: "Base currency of supplied candle data",
 				},
 				&cli.StringFlag{
 					Name:  "quote",
-					Usage: "<quote>",
+					Usage: "Quote currency of supplied candle data",
 				},
 				&cli.StringFlag{
 					Name:  "interval",
-					Usage: "<interval>",
+					Usage: "Interval of supplied candle data",
 				},
 				&cli.StringFlag{
 					Name:  "asset",
-					Usage: "<asset>",
+					Usage: "Asset type of supplied data (spot/margin/futures for example)",
 				},
 				&cli.StringFlag{
-					Name:  "filename",
-					Usage: "<filename>",
+					Name:      "filename",
+					Usage:     "CSV file to load candle data from",
+					TakesFile: true,
+					FilePath:  workingDir,
 				},
 			},
 			Action: seedCandleFromFile,

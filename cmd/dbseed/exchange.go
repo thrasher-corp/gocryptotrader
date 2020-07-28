@@ -21,8 +21,10 @@ var seedExchangeCommand = &cli.Command{
 			ArgsUsage: "<flags>",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  "filename",
-					Usage: "<filename>",
+					Name:      "filename",
+					Usage:     "CSV file to load exchanges from",
+					TakesFile: true,
+					FilePath:  workingDir,
 				},
 			},
 			Action: seedExchangeFromFile,

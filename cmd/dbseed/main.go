@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
@@ -33,16 +34,24 @@ var (
 			seedCandleCommand,
 		},
 	}
+	workingDir string
 	configFile string
 	verbose    bool
 )
 
 func main() {
+	var err error
+	workingDir, err = os.Getwd()
+	if err != nil {
+		log.Println("error getting current working path")
+		workingDir = filepath.Join(".")
+	}
+
 	fmt.Println("GoCryptoTrader database seeding tool")
 	fmt.Println(core.Copyright)
 	fmt.Println()
 
-	err := app.Run(os.Args)
+	err = app.Run(os.Args)
 	if err != nil {
 		log.Fatal(err)
 	}

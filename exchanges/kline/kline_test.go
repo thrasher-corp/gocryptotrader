@@ -587,7 +587,7 @@ func TestLoadFromDatabase(t *testing.T) {
 
 // TODO: find a better way to handle this to remove duplication between candle test
 func seedDB(includeOHLCVData bool) error {
-	err := exchange.Seed(testExchanges)
+	err := exchange.InsertMany(testExchanges)
 	if err != nil {
 		return err
 	}

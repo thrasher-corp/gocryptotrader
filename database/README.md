@@ -126,7 +126,6 @@ along with the location of the sqlboiler generated config
 -outdir "~/.gocryptotrader/"
 ```
 
-
 Generate a new model that gets placed in ./database/models/<databasetype> folder
 
 Linux:
