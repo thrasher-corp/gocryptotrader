@@ -29,7 +29,7 @@ type Data struct {
 
 type Event struct {
 	event.Handler
-	price float64
+	Price float64
 }
 
 type Tick struct {

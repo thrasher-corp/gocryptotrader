@@ -6,10 +6,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
-type direction uint8
+type Directions uint8
 
 const (
-	BUY direction = iota
+	BUY Directions = iota
 	SELL
 	HOLD
 	EXIT
@@ -34,6 +34,6 @@ type Event struct {
 }
 
 type Direction interface {
-	Direction() direction
-	SetDirection(direction)
+	Direction() Directions
+	SetDirection(Directions)
 }

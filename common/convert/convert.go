@@ -88,8 +88,7 @@ func RecvWindow(d time.Duration) int64 {
 
 // BoolPtr takes in boolen condition and returns pointer version of it
 func BoolPtr(condition bool) *bool {
-	b := condition
-	return &b
+	return &condition
 }
 
 // UnixMillisToNano converts Unix milli time to UnixNano

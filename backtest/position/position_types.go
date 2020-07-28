@@ -26,6 +26,3 @@ type Position struct {
 	TotalPNL      float64
 }
 
-func (p *Position) update() {
-
-}
