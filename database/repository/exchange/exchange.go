@@ -179,17 +179,17 @@ func insertPostgresql(ctx context.Context, tx *sql.Tx, in []Details) (err error)
 }
 
 // UUIDByName returns UUID of exchange
-func UUIDByName(in string) (uuid.UUID, error) {
-	v := exchangeCache.Get(in)
+func UUIDByName(exchange string) (uuid.UUID, error) {
+	v := exchangeCache.Get(exchange)
 	if v != nil {
 		return v.(uuid.UUID), nil
 	}
-	ret, err := One(in)
+	ret, err := One(exchange)
 	if err != nil {
 		return uuid.UUID{}, err
 	}
 
-	exchangeCache.Add(in, ret.UUID)
+	exchangeCache.Add(exchange, ret.UUID)
 	return ret.UUID, nil
 }
 

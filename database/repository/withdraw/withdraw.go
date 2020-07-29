@@ -411,3 +411,49 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 	}
 	return resp, nil
 }
+
+func MigrateData() (successful, failed []string, err error) {
+	ctx := context.Background()
+	if repository.GetSQLDialect() == database.DBSQLite3 {
+		v, errS := modelSQLite.WithdrawalHistories().All(ctx, database.DB.SQL)
+		if errS != nil {
+			err = errS
+			return
+		}
+		for x := range v {
+			exchangeUUID, err := exchangeDB.UUIDByName(v[x].Exchange.String)
+			if err != nil {
+				failed = append(failed, v[x].ID)
+				continue
+			}
+			v[x].ExchangeNameID = exchangeUUID.String()
+			_, err = v[x].Update(ctx, database.DB.SQL, boil.Infer())
+			if err != nil {
+				log.Errorln(log.DatabaseMgr, err)
+				continue
+			}
+			successful = append(successful, v[x].ID)
+		}
+	} else {
+		v, errS := modelPSQL.WithdrawalHistories().All(ctx, database.DB.SQL)
+		if errS != nil {
+			err = errS
+			return
+		}
+		for x := range v {
+			exchangeUUID, err := exchangeDB.UUIDByName(v[x].Exchange.String)
+			if err != nil {
+				failed = append(failed, v[x].ID)
+				continue
+			}
+			v[x].ExchangeNameID = exchangeUUID.String()
+			_, err = v[x].Update(ctx, database.DB.SQL, boil.Infer())
+			if err != nil {
+				log.Errorln(log.DatabaseMgr, err)
+				continue
+			}
+			successful = append(successful, v[x].ID)
+		}
+	}
+	return successful, failed, err
+}

@@ -3,6 +3,7 @@
 CREATE TABLE IF NOT EXISTS withdrawal_history_new
 (
     id text                  PRIMARY KEY NOT NULL,
+exchange                 text,
     exchange_name_id         text NOT NULL,
     exchange_id              text NOT NULL,
     status                   text  NOT NULL,
@@ -15,7 +16,9 @@ CREATE TABLE IF NOT EXISTS withdrawal_history_new
     FOREIGN KEY(exchange_name_id) REFERENCES exchange(id) ON DELETE RESTRICT
 );
 
-INSERT INTO withdrawal_history_new SELECT * FROM withdrawal_history;
+INSERT INTO withdrawal_history_new (id, exchange, exchange_id, status, currency, amount, description, withdraw_type, created_at, updated_at)
+SELECT * FROM withdrawal_history;
+
 DROP TABLE withdrawal_history;
 ALTER TABLE withdrawal_history_new RENAME TO withdrawal_history;
 

@@ -24,6 +24,7 @@ import (
 // WithdrawalHistory is an object representing the database table.
 type WithdrawalHistory struct {
 	ID             string      `boil:"id" json:"id" toml:"id" yaml:"id"`
+	Exchange       null.String `boil:"exchange" json:"exchange,omitempty" toml:"exchange" yaml:"exchange,omitempty"`
 	ExchangeNameID string      `boil:"exchange_name_id" json:"exchange_name_id" toml:"exchange_name_id" yaml:"exchange_name_id"`
 	ExchangeID     string      `boil:"exchange_id" json:"exchange_id" toml:"exchange_id" yaml:"exchange_id"`
 	Status         string      `boil:"status" json:"status" toml:"status" yaml:"status"`
@@ -40,6 +41,7 @@ type WithdrawalHistory struct {
 
 var WithdrawalHistoryColumns = struct {
 	ID             string
+	Exchange       string
 	ExchangeNameID string
 	ExchangeID     string
 	Status         string
@@ -51,6 +53,7 @@ var WithdrawalHistoryColumns = struct {
 	UpdatedAt      string
 }{
 	ID:             "id",
+	Exchange:       "exchange",
 	ExchangeNameID: "exchange_name_id",
 	ExchangeID:     "exchange_id",
 	Status:         "status",
@@ -66,6 +69,7 @@ var WithdrawalHistoryColumns = struct {
 
 var WithdrawalHistoryWhere = struct {
 	ID             whereHelperstring
+	Exchange       whereHelpernull_String
 	ExchangeNameID whereHelperstring
 	ExchangeID     whereHelperstring
 	Status         whereHelperstring
@@ -77,6 +81,7 @@ var WithdrawalHistoryWhere = struct {
 	UpdatedAt      whereHelperstring
 }{
 	ID:             whereHelperstring{field: "\"withdrawal_history\".\"id\""},
+	Exchange:       whereHelpernull_String{field: "\"withdrawal_history\".\"exchange\""},
 	ExchangeNameID: whereHelperstring{field: "\"withdrawal_history\".\"exchange_name_id\""},
 	ExchangeID:     whereHelperstring{field: "\"withdrawal_history\".\"exchange_id\""},
 	Status:         whereHelperstring{field: "\"withdrawal_history\".\"status\""},
@@ -115,8 +120,8 @@ func (*withdrawalHistoryR) NewStruct() *withdrawalHistoryR {
 type withdrawalHistoryL struct{}
 
 var (
-	withdrawalHistoryAllColumns            = []string{"id", "exchange_name_id", "exchange_id", "status", "currency", "amount", "description", "withdraw_type", "created_at", "updated_at"}
-	withdrawalHistoryColumnsWithoutDefault = []string{"id", "exchange_name_id", "exchange_id", "status", "currency", "amount", "description", "withdraw_type"}
+	withdrawalHistoryAllColumns            = []string{"id", "exchange", "exchange_name_id", "exchange_id", "status", "currency", "amount", "description", "withdraw_type", "created_at", "updated_at"}
+	withdrawalHistoryColumnsWithoutDefault = []string{"id", "exchange", "exchange_name_id", "exchange_id", "status", "currency", "amount", "description", "withdraw_type"}
 	withdrawalHistoryColumnsWithDefault    = []string{"created_at", "updated_at"}
 	withdrawalHistoryPrimaryKeyColumns     = []string{"id"}
 )

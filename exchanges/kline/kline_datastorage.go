@@ -66,7 +66,11 @@ func StoreInDatabase(in *Item) error {
 		Asset:      in.Asset.String(),
 	}
 
-	for x := range in.Candles[:len(in.Candles)-1] {
+	for x := range in.Candles {
+		if x > 1 && in.Candles[x].Time.Sub(in.Candles[x-1].Time) != in.Interval.Duration() {
+			continue
+		}
+
 		databaseCandles.Candles = append(databaseCandles.Candles, candle.Candle{
 			Timestamp: in.Candles[x].Time,
 			Open:      in.Candles[x].Open,
@@ -74,18 +78,6 @@ func StoreInDatabase(in *Item) error {
 			Low:       in.Candles[x].Low,
 			Close:     in.Candles[x].Close,
 			Volume:    in.Candles[x].Volume,
-		})
-	}
-
-	lastNum := len(in.Candles) - 1
-	if in.Candles[lastNum].Time.Sub(in.Candles[len(in.Candles)-2].Time) == in.Interval.Duration() {
-		databaseCandles.Candles = append(databaseCandles.Candles, candle.Candle{
-			Timestamp: in.Candles[lastNum].Time,
-			Open:      in.Candles[lastNum].Open,
-			High:      in.Candles[lastNum].High,
-			Low:       in.Candles[lastNum].Low,
-			Close:     in.Candles[lastNum].Close,
-			Volume:    in.Candles[lastNum].Volume,
 		})
 	}
 	return candle.Insert(&databaseCandles)

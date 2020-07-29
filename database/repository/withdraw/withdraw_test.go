@@ -108,7 +108,7 @@ func TestWithdraw(t *testing.T) {
 	}
 }
 
-func withdrawHelper(t *testing.T) {
+func seedWithdrawData() {
 	for x := 0; x < 20; x++ {
 		test := fmt.Sprintf("test-%v", x)
 		resp := &withdraw.Response{
@@ -140,6 +140,9 @@ func withdrawHelper(t *testing.T) {
 		exchange.ResetExchangeCache()
 		Event(resp)
 	}
+}
+func withdrawHelper(t *testing.T) {
+	seedWithdrawData()
 
 	_, err := GetEventByUUID(withdraw.DryRunID.String())
 	if err != nil {
@@ -170,5 +173,20 @@ func withdrawHelper(t *testing.T) {
 	_, err = GetEventsByDate(testExchanges[0].Name, time.Now().UTC().Add(-time.Minute), time.Now().UTC(), 5)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestMigrateData(t *testing.T) {
+	dbConn, err := testhelpers.ConnectToDatabase(testhelpers.PostgresTestDatabase, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = MigrateData()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = dbConn.SQL.Close()
+	if err != nil {
+		t.Fatal(err)
 	}
 }

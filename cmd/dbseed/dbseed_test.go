@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	testConfig = filepath.Join("testconfig.json")
+	testConfig = filepath.Join("configtest.json")
 	testApp    = &cli.App{
 		Name:                 "dbseed",
 		Version:              core.Version(false),
@@ -31,6 +31,7 @@ var (
 		Commands: []*cli.Command{
 			seedExchangeCommand,
 			seedCandleCommand,
+			migrateCommands,
 		},
 	}
 )

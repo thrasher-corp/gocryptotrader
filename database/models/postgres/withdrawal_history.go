@@ -25,7 +25,7 @@ import (
 // WithdrawalHistory is an object representing the database table.
 type WithdrawalHistory struct {
 	ID             string      `boil:"id" json:"id" toml:"id" yaml:"id"`
-	ExchangeNameID string      `boil:"exchange_name_id" json:"exchange_name_id" toml:"exchange_name_id" yaml:"exchange_name_id"`
+	Exchange       null.String `boil:"exchange" json:"exchange,omitempty" toml:"exchange" yaml:"exchange,omitempty"`
 	ExchangeID     string      `boil:"exchange_id" json:"exchange_id" toml:"exchange_id" yaml:"exchange_id"`
 	Status         string      `boil:"status" json:"status" toml:"status" yaml:"status"`
 	Currency       string      `boil:"currency" json:"currency" toml:"currency" yaml:"currency"`
@@ -34,6 +34,7 @@ type WithdrawalHistory struct {
 	WithdrawType   int         `boil:"withdraw_type" json:"withdraw_type" toml:"withdraw_type" yaml:"withdraw_type"`
 	CreatedAt      time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
 	UpdatedAt      time.Time   `boil:"updated_at" json:"updated_at" toml:"updated_at" yaml:"updated_at"`
+	ExchangeNameID string      `boil:"exchange_name_id" json:"exchange_name_id" toml:"exchange_name_id" yaml:"exchange_name_id"`
 
 	R *withdrawalHistoryR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L withdrawalHistoryL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -41,7 +42,7 @@ type WithdrawalHistory struct {
 
 var WithdrawalHistoryColumns = struct {
 	ID             string
-	ExchangeNameID string
+	Exchange       string
 	ExchangeID     string
 	Status         string
 	Currency       string
@@ -50,9 +51,10 @@ var WithdrawalHistoryColumns = struct {
 	WithdrawType   string
 	CreatedAt      string
 	UpdatedAt      string
+	ExchangeNameID string
 }{
 	ID:             "id",
-	ExchangeNameID: "exchange_name_id",
+	Exchange:       "exchange",
 	ExchangeID:     "exchange_id",
 	Status:         "status",
 	Currency:       "currency",
@@ -61,6 +63,7 @@ var WithdrawalHistoryColumns = struct {
 	WithdrawType:   "withdraw_type",
 	CreatedAt:      "created_at",
 	UpdatedAt:      "updated_at",
+	ExchangeNameID: "exchange_name_id",
 }
 
 // Generated where
@@ -83,7 +86,7 @@ func (w whereHelperint) IN(slice []int) qm.QueryMod {
 
 var WithdrawalHistoryWhere = struct {
 	ID             whereHelperstring
-	ExchangeNameID whereHelperstring
+	Exchange       whereHelpernull_String
 	ExchangeID     whereHelperstring
 	Status         whereHelperstring
 	Currency       whereHelperstring
@@ -92,9 +95,10 @@ var WithdrawalHistoryWhere = struct {
 	WithdrawType   whereHelperint
 	CreatedAt      whereHelpertime_Time
 	UpdatedAt      whereHelpertime_Time
+	ExchangeNameID whereHelperstring
 }{
 	ID:             whereHelperstring{field: "\"withdrawal_history\".\"id\""},
-	ExchangeNameID: whereHelperstring{field: "\"withdrawal_history\".\"exchange_name_id\""},
+	Exchange:       whereHelpernull_String{field: "\"withdrawal_history\".\"exchange\""},
 	ExchangeID:     whereHelperstring{field: "\"withdrawal_history\".\"exchange_id\""},
 	Status:         whereHelperstring{field: "\"withdrawal_history\".\"status\""},
 	Currency:       whereHelperstring{field: "\"withdrawal_history\".\"currency\""},
@@ -103,6 +107,7 @@ var WithdrawalHistoryWhere = struct {
 	WithdrawType:   whereHelperint{field: "\"withdrawal_history\".\"withdraw_type\""},
 	CreatedAt:      whereHelpertime_Time{field: "\"withdrawal_history\".\"created_at\""},
 	UpdatedAt:      whereHelpertime_Time{field: "\"withdrawal_history\".\"updated_at\""},
+	ExchangeNameID: whereHelperstring{field: "\"withdrawal_history\".\"exchange_name_id\""},
 }
 
 // WithdrawalHistoryRels is where relationship names are stored.
@@ -132,8 +137,8 @@ func (*withdrawalHistoryR) NewStruct() *withdrawalHistoryR {
 type withdrawalHistoryL struct{}
 
 var (
-	withdrawalHistoryAllColumns            = []string{"id", "exchange_name_id", "exchange_id", "status", "currency", "amount", "description", "withdraw_type", "created_at", "updated_at"}
-	withdrawalHistoryColumnsWithoutDefault = []string{"exchange_name_id", "exchange_id", "status", "currency", "amount", "description", "withdraw_type"}
+	withdrawalHistoryAllColumns            = []string{"id", "exchange", "exchange_id", "status", "currency", "amount", "description", "withdraw_type", "created_at", "updated_at", "exchange_name_id"}
+	withdrawalHistoryColumnsWithoutDefault = []string{"exchange", "exchange_id", "status", "currency", "amount", "description", "withdraw_type", "exchange_name_id"}
 	withdrawalHistoryColumnsWithDefault    = []string{"id", "created_at", "updated_at"}
 	withdrawalHistoryPrimaryKeyColumns     = []string{"id"}
 )
